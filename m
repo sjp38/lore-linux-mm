@@ -1,32 +1,43 @@
-Date: Wed, 4 Sep 2002 20:25:23 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: 2.5.33-mm1
-Message-ID: <20020904202523.A15699@redhat.com>
-References: <200209032251.54795.tomlins@cam.org> <3D757F11.B72BB708@zip.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3D757F11.B72BB708@zip.com.au>; from akpm@zip.com.au on Tue, Sep 03, 2002 at 08:33:37PM -0700
+Date: Wed, 4 Sep 2002 16:42:59 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: nonblocking-vm.patch
+In-Reply-To: <3D76549B.3C53D0AC@zip.com.au>
+Message-ID: <Pine.LNX.4.44L.0209041640171.1857-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@zip.com.au>
-Cc: Ed Tomlinson <tomlins@cam.org>, William Lee Irwin III <wli@holomorphy.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, 4 Sep 2002, Andrew Morton wrote:
 
-On Tue, Sep 03, 2002 at 08:33:37PM -0700, Andrew Morton wrote:
+> We do need something in there to prevent kswapd from going berzerk.
 
-> I *really* think we need to throw away those pages instantly.
-> 
-> The only possible reason for hanging onto them is because they're
-> cache-warm.  And we need a global-scope cpu-local hot pages queue
-> anyway.
+Agreed, but it can be a lot simpler than your idea.
 
-Yep --- except for caches with constructors, for which we do save a
-bit more by hanging onto the pages for longer.
+As long as we can free up to zone->pages_high pages,
+we don't need to throttle since we're succeeding in
+keeping enough pages free to not be woken up for a
+while.
 
---Stephen
+If we don't succeed in freeing enough pages, that is
+because the pages are still under IO and haven't hit
+the disk yet.  In this case, we need to wait for the
+IO to finish, or at least for some of the pages to
+get cleaned.  We can do this by simply refusing to
+scan that zone again for a number of jiffies, say
+1/4 of a second.
+
+regards,
+
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
