@@ -1,8 +1,8 @@
-Date: Sun, 10 Oct 1999 23:53:37 +0200 (CEST)
+Date: Mon, 11 Oct 1999 01:28:36 +0200 (CEST)
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: locking question: do_mmap(), do_munmap()
-In-Reply-To: <Pine.GSO.4.10.9910101450250.16317-100000@weyl.math.psu.edu>
-Message-ID: <Pine.LNX.4.10.9910102350240.1556-100000@alpha.random>
+In-Reply-To: <Pine.GSO.4.10.9910101759340.17820-100000@weyl.math.psu.edu>
+Message-ID: <Pine.LNX.4.10.9910110120590.2621-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,17 +13,32 @@ List-ID: <linux-mm.kvack.org>
 
 On Sun, 10 Oct 1999, Alexander Viro wrote:
 
->I still think that just keeping a cyclic list of pages, grabbing from that
->list before taking mmap_sem _if_ we have a chance for blocking
->__get_free_page(), refilling if the list is empty (prior to down()) and
->returning the page into the list if we didn't use it may be the simplest
->way.
+>mm - no list modifications, no vma removal, etc. We could introduce a new
+>semaphore (spinlocks are not going to work - ->swapout gets vma as
 
-I can't understand very well your plan.
+We could add a reference count to each vma protected by a per-mm spinlock.
+Then we could drop the spinlock in swap_out_mm as soon as we incremented
+the refcount of the vma. I am talking by memory, I am not sure if it can
+be really done and if it's the right thing to do this time. (I'll check
+the code ASAP).
 
-We just have a security pool. We just block only when the pool become low.
-To refill our just existing pool we have to walk the vmas. That's the
-problem in first place.
+>argument and it can sleep. The question being: where can we trigger
+>__get_free_pages() with __GFP_WAIT if the mmap_sem is held? And another
+
+All userspace allocations do exactly that.
+
+>one - where do we modify ->mmap? If they can be easily separated -
+
+We modify mmap in the mmap.c and infact we hold the semaphore there too.
+
+The reason they are not separated is that during all the page fault path
+you can't have _your_ vmas to change under you if another thread is
+running munmap in parallel.
+
+>eat the fs on the testbox ;-), but I'ld be really grateful if some of VM
+>people would check the results.
+
+I can check them of course ;).
 
 Andrea
 
