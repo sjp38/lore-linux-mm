@@ -1,78 +1,64 @@
-From: Nikita Danilov <nikita@clusterfs.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <16813.47036.476553.612418@gargle.gargle.HOWL>
-Date: Wed, 1 Dec 2004 15:23:24 +0300
-Subject: Re: [PATCH]: 1/4 batch mark_page_accessed()
-In-Reply-To: <20041130173323.0b3ac83d.akpm@osdl.org>
-References: <16800.47044.75874.56255@gargle.gargle.HOWL>
-	<20041126185833.GA7740@logos.cnet>
-	<41A7CC3D.9030405@yahoo.com.au>
-	<20041130162956.GA3047@dmt.cyclades>
-	<20041130173323.0b3ac83d.akpm@osdl.org>
+Message-Id: <200412011828.iB1ISOr04501@mail.osdl.org>
+Subject: Re: Automated performance testing system was Re: Text form for STP tests 
+In-Reply-To: Your message of "Mon, 29 Nov 2004 22:42:12 -0200."
+             <20041130004212.GB2310@dmt.cyclades>
+Date: Wed, 01 Dec 2004 10:28:24 -0800
+From: Cliff White <cliffw@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, nickpiggin@yahoo.com.au, Linux-Kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton writes:
- > Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
- > >
- > > Because the ordering of LRU pages should be enhanced in respect to locality, 
- > >  with the mark_page_accessed batching you group together tasks accessed pages 
- > >  and move them at once to the active list. 
- > > 
- > >  You maintain better locality ordering, while decreasing the precision of aging/
- > >  temporal locality.
- > > 
- > >  Which should enhance disk writeout performance.
- > 
- > I'll buy that explanation.  Although I'm a bit sceptical that it is
- > measurable.
+> Linux-MM fellows,
+> 
+> I've been talking to Cliff about the need for a set of benchmarks,
+> covering as many different workloads as possible, for developers to have a 
+> better notion of impact on performance changes. 
+> 
+> Usually when one does a change which affects performance, he/she runs one 
+> or two benchmarks with a limited amount of hardware configurations.
+> This is a very painful, boring and time consuming process, which can 
+> result in misinterpretation and/or limited understading of the results 
+> of such changes.
+> 
+> It is important to automate such process, with a set of benchmarks 
+> covering as wide as possible range of workloads, running on common 
+> and most used hardware variations.
+> 
+> OSDL's STP provides the base framework for this.
+> 
+[ snip ]
+> bonnie++
+> reaim (default, new_fserver, shared)
+> dbench_long
+> kernbench
+> tiobench
+> 
+> Each of these running one the following combinations:
+> 
+> 1CPU, 2CPU, 4CPU, 8CPU (4 variants).
+> 
+> total memory, half memory, a quarter of total memory (3 variants).
+> 
+> Thats 12 results for each benchmark."
+> 
+The configuration files to do these tests are now written, and the humble
+robots are running this test series against linux-2.6.7 ( for history data )
+There will need to be some adjustments - some of these tests will no doubt
+fail for reasons of script error or configuration ( i see already kernbench will 
+have to be redunced for 1-cpu systems, as it runs > 13.5 hours :( )
 
-cluster-pageout.patch that was sent together with
-mark_page_accessed-batching.patch has roughly similar effect: page-out
-is done in file order, ignoring local LRU order at end of the inactive
-list. It did improve performance in page-out intensive micro-benchmark:
+And, the second part of the automation is already done, but needs input.
+I can aim this test battery at any kernel patch, where 'any kernel patch'
+is identified by a regexp. What kernels do you want this against? 
+I've heard mention of 'baseline' - we call this baseline:
 
-Averaged number of microseconds it takes to dirty 1GB of
-16-times-larger-than-RAM ext3 file mmaped in 1GB chunks:
+/^(patch|linux)-\d+\.\d+\.\d+$/
 
-without-patch:   average:    74188417.156250
-               deviation:    10538258.613280
+( starts with 'patch' or 'linux', then '-' followed by three decimals ) 
 
-   with-patch:   average:    69449001.583333
-               deviation:    12621756.615280
-
- > 
- > Was that particular workload actually performing significant amounts of
- > writeout in vmscan.c?  (We should have direct+kswapd counters for that, but
- > we don't.  /proc/vmstat:pgrotated will give us an idea).
- > 
- > 
- > >  On the other hand, without batching you mix the locality up in LRU - the LRU becomes 
- > >  more precise in terms of "LRU aging", but less ordered in terms of sequential 
- > >  access pattern.
- > > 
- > >  The disk IO intensive reaim has very significant gain from the batching, its
- > >  probably due to the enhanced LRU ordering (what Nikita says).
- > > 
- > >  The slowdown is probably due to the additional atomic_inc by page_cache_get(). 
- > > 
- > >  Is there no way to avoid such page_cache_get there (and in lru_cache_add also)?
- > 
- > Not really.  The page is only in the pagevec at that time - if someone does
- > a put_page() on it the page will be freed for real, and will then be
- > spilled onto the LRU.  Messy.
-
-I don't think that atomic_inc will be particularly
-costly. generic_file_{write,read}() call find_get_page() just before
-calling mark_page_accessed(), so cache-line with page reference counter
-is most likely still exclusive owned by this CPU.
-
-Nikita.
+cliffw
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
