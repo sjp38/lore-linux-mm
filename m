@@ -1,30 +1,78 @@
-Date: Sat, 6 Sep 2003 22:17:37 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: swap_free() inside delete_from_swap_cache
-In-Reply-To: <Pine.LNX.4.44.0309052200580.440-100000@tehran.clic.cs.columbia.edu>
-Message-ID: <Pine.LNX.4.44.0309062217090.6028-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sun, 7 Sep 2003 12:08:43 +0200
+From: Adrian Bunk <bunk@fs.tum.de>
+Subject: 2.6.0-test4-mm5 and below: Wine and XMMS problems
+Message-ID: <20030907100843.GM14436@fs.tum.de>
+References: <20030902231812.03fae13f.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030902231812.03fae13f.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Raghu R. Arur" <rra2002@cs.columbia.edu>
-Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, Con Kolivas <kernel@kolivas.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 5 Sep 2003, Raghu R. Arur wrote:
+On Tue, Sep 02, 2003 at 11:18:12PM -0700, Andrew Morton wrote:
+>...
+> . Dropped out Con's CPU scheduler work, added Nick's.  This is to help us
+>   in evaluating the stability, efficacy and relative performance of Nick's
+>   work.
+> 
+>   We're looking for feedback on the subjective behaviour and on the usual
+>   server benchmarks please.
+>...
 
->  Why is swap_free() called inside delete_from_swap_cache() in linux
-> 2.4.19? I believe delete_from_swap_cache() is called when we write a
-> page to the swap disk. swap_free() decreases the count of number of
-> references to that page.
+Short story:
 
-The swap cache itself has one of the references to the location
-on swap. 
+I'm still using 2.5.72, all of the 2.6.0-test?{,-mm?} kernels have 
+problems
+
+
+Long story:
+
+System:
+K6-2 @ 500 MHz
+128 MB RAM
+1 GB swap
+Debian unstable
+
+Workload:
+XFree86
+FVWM
+XMMS
+Wine running "Master of Orion 2" (a round based space strategy game)
+
+With 2.4 kernels and 2.5.72 everything works fine.
+
+With 2.6.0-test? and 2.6.0-test?-mm? kernels up to 2.6.0-test4-mm4 the
+XMMS sound sometimes skips or sounds slow (like when wou manually retard
+a record). That's much more awful than skips.
+
+RAM usage is low, even after a "swapoff -a" at about half of my RAM
+would be enough.
+
+The problems might be related to the fact that after I start Wine three
+wine.bin processes run and each of them tries to get as much CPU time as
+possible.
+
+It might be part of the problem that although Wine is the interactive 
+task a working XMMS is subjectively more important.
+
+With 2.6.0-test4-mm5 these problems don't occur. Instead, Wine feels 
+slow. I couldn;t test it much since after the first fast mouse movement 
+the X mouse cursor has lost the mouse cursor of the game (this might be 
+a bug in Wine, but it doesnt occur with other kernels).
+
+cu
+Adrian
 
 -- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
