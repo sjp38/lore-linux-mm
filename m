@@ -1,226 +1,80 @@
-Date: Mon, 9 Aug 2004 22:25:31 -0700
-From: Paul Jackson <pj@sgi.com>
+Date: 10 Aug 2004 12:45:47 +0200
+Date: Tue, 10 Aug 2004 12:45:47 +0200
+From: Andi Kleen <ak@muc.de>
 Subject: Re: [PATCH] get_nodes mask miscalculation
-Message-Id: <20040809222531.1d2d8d05.pj@sgi.com>
-In-Reply-To: <m31xifu5pn.fsf@averell.firstfloor.org>
-References: <2rr7U-5xT-11@gated-at.bofh.it>
-	<m31xifu5pn.fsf@averell.firstfloor.org>
+Message-ID: <20040810104547.GA59597@muc.de>
+References: <2rr7U-5xT-11@gated-at.bofh.it> <m31xifu5pn.fsf@averell.firstfloor.org> <20040809222531.1d2d8d05.pj@sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040809222531.1d2d8d05.pj@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
+To: Paul Jackson <pj@sgi.com>
 Cc: bcasavan@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi wrote:
-> The idea behind this is was to make it behave like select.
-> And select passes highest valid value + 1. In this case
-> valid value is not the highest bit number, but the length
-> of the bitmap.
+On Mon, Aug 09, 2004 at 10:25:31PM -0700, Paul Jackson wrote:
+> While I'm here, the statement that only the highest zone is policied
+> actually applies only to MPOL_BIND, right?  The comment that asserts
 
-Andi,
+That is correct. I can add a comment.
 
-I think I need to be a pain in the butt about this ... sorry.
+>  1) Change the man page wording, for each of get_mempolicy(2), mbind(2),
+>     and set_mempolicy(2), to boldly state:
+> 
+> 	Beware:
+> 		Pass in a value of maxnode that is * one more * than the
+> 		number of nodes represented in nodemask.  If for example,
+> 		nodemask represents 64 nodes, numbered 0 to 63, pass in a
+> 		value of 65 for maxnodes.
 
-I wish I had had enough numa-sense to recognize this issue when
-you proposed your patch earlier, when it would have been easier.
+Yes, I will clarify the manpages.
 
-But this off-by-one wrinkle to the numa API cost me some time as
-well, and I don't think Brent nor I are going to be the exception.
+I see no problem with hardcoding 8 bits per byte. 
 
-I'd like to request that you consider the following, admittedly
-ugly, changes.
+> 
+>  2) Review, test, fix, and apply as fixed the following patch.  For extra
+>     credit, get rid of the hard coded 8, 32 and 64 values in the compat stuff,
+>     visible in the patch below.  I compiled the patch, once, on an ia64.
+>     Otherwise totally untested.
+> 
+>     This patch:
+> 	a) Notes the situation in a prominent "==> Beware <==".
+> 	b) Consistently decrements maxnode immediately on each system call
+> 	   entry (where someone reading the code might best notice).
+> 	c) Otherwise treats maxnode consistently within the code.
+> 	d) Addresses the MPOL_BIND max policy only comment.
+> 	e) Addresses the harcoded numbers 64 and 8 in copy_nodes_to_user().
 
-First, a little more motivation ...
+Yes, the 64 should be addressed agreed. That came from a misguided
+attempt by me to not require compat_* functions (by making the 32bit
+and 64bit ABI be the same), but that didn't work out.
 
-If, say, I have 32 Nodes, numbered 0 ... 31, then it would be entirely
-unsurprising for me to consider 31 to be the highest valid value (highest
-valid node number), and hence expect to pass 32.
+> 
+>     Yes - it's ugly.  The time that will be lost by those who try to use
+>     this interface directly will be ugly too.
+> 
+>  3) Could you propose a strategy for fixing this?  It might take a couple
 
-The get_mempolicy(2) man page (numactl-0.7-pre1) states:
+The only way would be to allocate new system call slots for the 
+two calls. But I'm not convinced it is worth it.
 
-    maxnode is the maximum bit number plus one that can be stored
-    into nodemask.
+Sorry, but I don't want to break binary compatibility. 
 
-This seems to read consistently with such expectations - the max
-bit number is 31, so pass 32.  Wrong.
+If it was really that bad you should have complained earlier (the
+code was out long enough for review), now it is too late.
 
-The mbind(2) and set_mempolicy(2) state this in different words,
-but words which, to me, mean pretty much the same (wrong) thing:
+> If
+>    you have to tell me that SGI has to put in a workaround for a year, on
+>    any machine with _exactly_ 2049 nodes, such as padding the user nodemask
+>    up to 2050 nodes, I'm prepared to deal with that <grin>.
 
-    nodemask is pointer to a bit field of nodes that contains upto
-    maxnode bits.
-
-And the code is further confusing.  There are several places in
-the code that either decrement maxnode (maxnode--), or keep its
-passed in value, and work with one less (maxnode - 1).  So the
-meaning of maxnode within the code is inconsistent.
-
-Besides the man page, the other key documentation is the code.
-Brent tried reading that, and came away with the wrong answer.
-
-While I'm here, the statement that only the highest zone is policied
-actually applies only to MPOL_BIND, right?  The comment that asserts
-this should be so qualified, I suspect.
-
-And there are hardcoded numbers 64 and 8 in copy_nodes_to_user().
-Please consider replacing with appropriate macros.
-
-So ... here's what I'd suggest:
-
- 1) Change the man page wording, for each of get_mempolicy(2), mbind(2),
-    and set_mempolicy(2), to boldly state:
-
-	Beware:
-		Pass in a value of maxnode that is * one more * than the
-		number of nodes represented in nodemask.  If for example,
-		nodemask represents 64 nodes, numbered 0 to 63, pass in a
-		value of 65 for maxnodes.
-
- 2) Review, test, fix, and apply as fixed the following patch.  For extra
-    credit, get rid of the hard coded 8, 32 and 64 values in the compat stuff,
-    visible in the patch below.  I compiled the patch, once, on an ia64.
-    Otherwise totally untested.
-
-    This patch:
-	a) Notes the situation in a prominent "==> Beware <==".
-	b) Consistently decrements maxnode immediately on each system call
-	   entry (where someone reading the code might best notice).
-	c) Otherwise treats maxnode consistently within the code.
-	d) Addresses the MPOL_BIND max policy only comment.
-	e) Addresses the harcoded numbers 64 and 8 in copy_nodes_to_user().
-
-    Yes - it's ugly.  The time that will be lost by those who try to use
-    this interface directly will be ugly too.
-
- 3) Could you propose a strategy for fixing this?  It might take a couple
-    of steps, and there might be other inconsistencies in the interim, such
-    as special case handling in the kernel for maxnode values of 2049.  If
-    you have to tell me that SGI has to put in a workaround for a year, on
-    any machine with _exactly_ 2049 nodes, such as padding the user nodemask
-    up to 2050 nodes, I'm prepared to deal with that <grin>.
-
-    Sure seems like it would be worth it, in the long run.
-
-Thanks for considering this.
-
-Signed-off-by: Paul Jackson <pj@sgi.com>
-
-diff -Naurp 2.6.8-rc3-mm2.orig/mm/mempolicy.c 2.6.8-rc3-mm2/mm/mempolicy.c
---- 2.6.8-rc3-mm2.orig/mm/mempolicy.c	2004-08-09 21:35:16.000000000 -0700
-+++ 2.6.8-rc3-mm2/mm/mempolicy.c	2004-08-09 21:35:34.000000000 -0700
-@@ -7,6 +7,17 @@
-  * NUMA policy allows the user to give hints in which node(s) memory should
-  * be allocated.
-  *
-+ *
-+ * ==> Beware <==
-+ *
-+ *	Pass in a value of maxnode to the system calls mbind(2),
-+ *	get_mempolicy(2) and set_mempolicy(2) that is one larger
-+ *	than you expect.  If you have 64 nodes, represented by bits
-+ *	numbered 0..63 in your nodemask -- pass in 65 for maxnode.
-+ *	To remain compatible with existing libnuma user code, this
-+ *	cannot be changed.
-+ *	
-+ *
-  * Support four policies per VMA and per process:
-  *
-  * The VMA policy has priority over the process policy for a page fault.
-@@ -37,10 +48,10 @@
-  * is not applied, but the majority should be handled. When process policy
-  * is used it is not remembered over swap outs/swap ins.
-  *
-- * Only the highest zone in the zone hierarchy gets policied. Allocations
-- * requesting a lower zone just use default policy. This implies that
-- * on systems with highmem kernel lowmem allocation don't get policied.
-- * Same with GFP_DMA allocations.
-+ * When using MPOL_BIND, only the highest zone in the zone hierarchy gets
-+ * policied. Allocations requesting a lower zone just use default policy.
-+ * This implies that on systems with highmem kernel lowmem allocation don't
-+ * get policied by MPOL_BIND.  Same with GFP_DMA allocations.
-  *
-  * For shmfs/tmpfs/hugetlbfs shared memory the policy is shared between
-  * all users and remembered even when nobody has memory mapped.
-@@ -84,7 +95,7 @@ static kmem_cache_t *sn_cache;
- #define PDprintk(fmt...)
- 
- /* Highest zone. An specific allocation for a zone below that is not
--   policied. */
-+   policied by MPOL_BIND */
- static int policy_zone;
- 
- static struct mempolicy default_policy = {
-@@ -134,7 +145,6 @@ static int get_nodes(unsigned long *node
- 	unsigned long nlongs;
- 	unsigned long endmask;
- 
--	--maxnode;
- 	bitmap_zero(nodes, MAX_NUMNODES);
- 	if (maxnode == 0 || !nmask)
- 		return 0;
-@@ -352,6 +362,8 @@ asmlinkage long sys_mbind(unsigned long 
- 	DECLARE_BITMAP(nodes, MAX_NUMNODES);
- 	int err;
- 
-+	maxnode = maxnode - 1;			/* See ==> Beware <==, above */
-+
- 	if ((flags & ~(unsigned long)(MPOL_MF_STRICT)) || mode > MPOL_MAX)
- 		return -EINVAL;
- 	if (start & ~PAGE_MASK)
-@@ -394,6 +406,8 @@ asmlinkage long sys_set_mempolicy(int mo
- 	struct mempolicy *new;
- 	DECLARE_BITMAP(nodes, MAX_NUMNODES);
- 
-+	maxnode = maxnode - 1;			/* See ==> Beware <==, above */
-+
- 	if (mode > MPOL_MAX)
- 		return -EINVAL;
- 	err = get_nodes(nodes, nmask, maxnode, mode);
-@@ -454,8 +468,7 @@ static int lookup_node(struct mm_struct 
- static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
- 			      void *nodes, unsigned nbytes)
- {
--	unsigned long copy = ALIGN(maxnode-1, 64) / 8;
--
-+	unsigned long copy =  BITS_TO_LONGS(maxnode) * sizeof(unsigned long);
- 	if (copy > nbytes) {
- 		if (copy > PAGE_SIZE)
- 			return -EINVAL;
-@@ -477,6 +490,8 @@ asmlinkage long sys_get_mempolicy(int __
- 	struct vm_area_struct *vma = NULL;
- 	struct mempolicy *pol = current->mempolicy;
- 
-+	maxnode = maxnode - 1;			/* See ==> Beware <==, above */
-+
- 	if (flags & ~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR))
- 		return -EINVAL;
- 	if (nmask != NULL && maxnode < numnodes)
-@@ -539,10 +554,13 @@ asmlinkage long compat_get_mempolicy(int
- {
- 	long err;
- 	unsigned long __user *nm = NULL;
-+
-+	maxnode = maxnode - 1;			/* See ==> Beware <==, above */
-+
- 	if (nmask)
--		nm = compat_alloc_user_space(ALIGN(maxnode-1, 64) / 8);
-+		nm = compat_alloc_user_space(ALIGN(maxnode, 64) / 8);
- 	err = sys_get_mempolicy(policy, nm, maxnode, addr, flags);
--	if (!err && copy_in_user(nmask, nm, ALIGN(maxnode-1, 32)/8))
-+	if (!err && copy_in_user(nmask, nm, ALIGN(maxnode, 32)/8))
- 		err = -EFAULT;
- 	return err;
- }
+There are many more users of these calls than SGI. And most of them are
+using libnuma, which you are proposing to break. 
 
 
-
--- 
-                          I won't rest till it's the best ...
-                          Programmer, Linux Scalability
-                          Paul Jackson <pj@sgi.com> 1.650.933.1373
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
