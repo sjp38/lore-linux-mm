@@ -1,160 +1,112 @@
-Date: Wed, 18 Sep 2002 23:54:24 +0200
-From: Pavel Machek <pavel@suse.cz>
-Subject: Re: 2.5.35-mm1
-Message-ID: <20020918215424.GB2967@atrey.karlin.mff.cuni.cz>
-References: <3D858515.ED128C76@digeo.com> <20020917160722.G39@toy.ucw.cz> <3D88F099.81A50A89@digeo.com>
+Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
+	id 17rrSh-0006r6-00
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2002 19:54:39 -0700
+Date: Wed, 18 Sep 2002 19:54:39 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: free_more_memory() calls try_to_free_pages() with a NULL classzone
+Message-ID: <20020919025439.GI28202@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <3D88F099.81A50A89@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lse-tech@lists.sourceforge.net" <lse-tech@lists.sourceforge.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+I'm not convinced contig_page_data is supposed to even be defined.
+This needs to do something similar to
 
-> > > url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.35/2.5.35-mm1/
-> > >
-> > > Significant rework of the new sleep/wakeup code - make it look totally
-> > > different from the current APIs to avoid confusion, and to make it
-> > > simpler to use.
-> > 
-> > Did you add any hooks to allow me to free memory for swsusp?
-> 
-> I just did then.  You'll need to call
-> 
-> 	freed = shrink_all_memory(99);
+	for_each_pgdat(pgdat) {
+		zone = pgdat->node_zonelists[GFP_NOFS & GFP_ZONEMASK];
+		if (!zone || !zone->size)
+			continue;
+		try_to_free_pages(zone, GFP_NOFS, 0);
+	}
 
-Thanx a lot.
+Discovered during tiobench 16K on 32x/32G NUMA-Q.
 
-> to free up 99 pages.  It returns the number which it actually
-> freed.  If that's not 99 then it's time to give up.  There is
-> no oom-killer in this code path.
 
-So... I'll do something like shrink_all_memory(1000000) and it will
-free as much as possible, right?
+Bill
 
-> I haven't tested it yet.  And it's quite a long way back in the
-> queue I'm afraid - it has a dependency chain, and I prefer to
+Program received signal SIGSEGV, Segmentation fault.
+shrink_caches (classzone=0x0, priority=12, total_scanned=0xea86fd9c,
+    gfp_mask=208, nr_pages=32) at vmscan.c:614
+614     vmscan.c: No such file or directory.
+        in vmscan.c
+(gdb) bt
+#0  shrink_caches (classzone=0x0, priority=12, total_scanned=0xea86fd9c,
+    gfp_mask=208, nr_pages=32) at vmscan.c:614
+#1  0xc0137ea8 in try_to_free_pages (classzone=0x0, gfp_mask=208, order=0)
+    at vmscan.c:673
+#2  0xc014719f in free_more_memory () at buffer.c:476
+#3  0xc0147d68 in __getblk_slow (bdev=0xf68fada0, block=36, size=4096)
+    at buffer.c:1157                                  
+#4  0xc01480cb in __getblk (bdev=0xf68fada0, block=36, size=4096)
+    at buffer.c:1402
+#5  0xc01480f7 in __bread (bdev=0xf68fada0, block=36, size=4096)
+    at buffer.c:1412
+#6  0xc0177361 in ext2_get_inode (sb=0xf68e0e00, ino=993, p=0xea86fe6c)
+    at /mnt/b/2.5.36/linux-2.5.36/include/linux/buffer_head.h:227
+#7  0xc017767a in ext2_update_inode (inode=0xdbc510b4, do_sync=0)
+    at inode.c:1076
+#8  0xc0177998 in ext2_write_inode (inode=0xdbc510b4, wait=0) at inode.c:1164
+#9  0xc0163062 in write_inode (inode=0xdbc510b4, sync=0) at fs-writeback.c:108
+#10 0xc01630f2 in __sync_single_inode (inode=0xdbc510b4, wait=0,
+    wbc=0xea86ff98) at fs-writeback.c:152
+#11 0xc01632c0 in __writeback_single_inode (inode=0xdbc510b4, sync=0,
+    wbc=0xea86ff98) at fs-writeback.c:198
+#12 0xc0163452 in sync_sb_inodes (sb=0xf68e0e00, wbc=0xea86ff98)
+    at fs-writeback.c:276
+#13 0xc01635c1 in writeback_inodes (wbc=0xea86ff98) at fs-writeback.c:322
+#14 0xc01413df in background_writeout (_min_pages=3235) at page-writeback.c:190
+#15 0xc0140ff8 in __pdflush (my_work=0xea86ffd4) at pdflush.c:119
+#16 0xc01410e7 in pdflush (dummy=0x0) at pdflush.c:167
 
-So if I apply this to my tree it will not work (that's what
-"dependency chain means", right?). Okay, thanx anyway.
+MemTotal:     32107248 kB
+MemFree:      14422976 kB
+MemShared:           0 kB
+Buffers:          1396 kB
+Cached:       16772800 kB
+SwapCached:          0 kB
+Active:          36004 kB
+Inactive:     16982084 kB
+HighTotal:    31588352 kB
+HighFree:     14421456 kB
+LowTotal:       518896 kB
+LowFree:          1520 kB
+SwapTotal:           0 kB
+SwapFree:            0 kB
+Dirty:         2278444 kB
+Writeback:       46356 kB
+Mapped:         253176 kB
+Slab:           332592 kB
+Committed_AS: 38937664 kB
+PageTables:      78708 kB
+ReverseMaps:     94874
 
-> send stuff to Linus which has been tested for a couple of weeks, and
-> hasn't changed for one week.
-> 
-> Can you use the allocate-lots-then-free-it trick in the meanwhile?
-
-In the meanwhile, swsusp only working when there's lot of ram is
-probably okay. As IDE patch is not in, swsusp is dangerous, anyway.
-
-									Pavel 
-
-> --- 2.5.36/mm/vmscan.c~swsusp-feature	Wed Sep 18 13:55:20 2002
-> +++ 2.5.36-akpm/mm/vmscan.c	Wed Sep 18 14:29:13 2002
-> @@ -694,12 +694,19 @@ try_to_free_pages(struct zone *classzone
->  }
->  
->  /*
-> - * kswapd will work across all this node's zones until they are all at
-> - * pages_high.
-> + * For kswapd, balance_pgdat() will work across all this node's zones until
-> + * they are all at pages_high.
-> + *
-> + * If `nr_pages' is non-zero then it is the number of pages which are to be
-> + * reclaimed, regardless of the zone occupancies.  This is a software suspend
-> + * special.
-> + *
-> + * Returns the number of pages which were actually freed.
->   */
-> -static void kswapd_balance_pgdat(pg_data_t *pgdat)
-> +static int balance_pgdat(pg_data_t *pgdat, int nr_pages)
->  {
-> -	int priority = DEF_PRIORITY;
-> +	int to_free = nr_pages;
-> +	int priority;
->  	int i;
->  
->  	for (priority = DEF_PRIORITY; priority; priority--) {
-> @@ -712,13 +719,15 @@ static void kswapd_balance_pgdat(pg_data
->  			int to_reclaim;
->  
->  			to_reclaim = zone->pages_high - zone->free_pages;
-> +			if (nr_pages && to_free > 0)
-> +				to_reclaim = min(to_free, SWAP_CLUSTER_MAX*8);
->  			if (to_reclaim <= 0)
->  				continue;
->  			success = 0;
->  			max_scan = zone->nr_inactive >> priority;
->  			if (max_scan < to_reclaim * 2)
->  				max_scan = to_reclaim * 2;
-> -			shrink_zone(zone, max_scan, GFP_KSWAPD,
-> +			to_free -= shrink_zone(zone, max_scan, GFP_KSWAPD,
->  					to_reclaim, &nr_mapped);
->  			shrink_slab(max_scan + nr_mapped, GFP_KSWAPD);
->  		}
-> @@ -726,6 +735,7 @@ static void kswapd_balance_pgdat(pg_data
->  			break;	/* All zones are at pages_high */
->  		blk_congestion_wait(WRITE, HZ/4);
->  	}
-> +	return nr_pages - to_free;
->  }
->  
->  /*
-> @@ -772,10 +782,34 @@ int kswapd(void *p)
->  		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
->  		schedule();
->  		finish_wait(&pgdat->kswapd_wait, &wait);
-> -		kswapd_balance_pgdat(pgdat);
-> +		balance_pgdat(pgdat, 0);
->  		blk_run_queues();
->  	}
->  }
-> +
-> +#ifdef CONFIG_SOFTWARE_SUSPEND
-> +/*
-> + * Try to free `nr_pages' of memory, system-wide.  Returns the number of freed
-> + * pages.
-> + */
-> +int shrink_all_memory(int nr_pages)
-> +{
-> +	pg_data_t *pgdat;
-> +	int nr_to_free = nr_pages;
-> +	int ret = 0;
-> +
-> +	for_each_pgdat(pgdat) {
-> +		int freed;
-> +
-> +		freed = balance_pgdat(pgdat, nr_to_free);
-> +		ret += freed;
-> +		nr_to_free -= freed;
-> +		if (nr_to_free <= 0)
-> +			break;
-> +	}
-> +	return ret;
-> +}
-> +#endif
->  
->  static int __init kswapd_init(void)
->  {
-> --- 2.5.36/include/linux/swap.h~swsusp-feature	Wed Sep 18 14:03:01 2002
-> +++ 2.5.36-akpm/include/linux/swap.h	Wed Sep 18 14:16:29 2002
-> @@ -163,6 +163,7 @@ extern void swap_setup(void);
->  
->  /* linux/mm/vmscan.c */
->  extern int try_to_free_pages(struct zone *, unsigned int, unsigned int);
-> +int shrink_all_memory(int nr_pages);
->  
->  /* linux/mm/page_io.c */
->  int swap_readpage(struct file *file, struct page *page);
-> 
-> .
-
--- 
-Casualities in World Trade Center: ~3k dead inside the building,
-cryptography in U.S.A. and free speech in Czech Republic.
+       buffer_head:   199327KB   199327KB  100.0 
+       names_cache:    47520KB    47520KB  100.0 
+       task_struct:    24898KB    25295KB   98.42
+   radix_tree_node:    20438KB    20438KB  100.0 
+    vm_area_struct:     3363KB     3363KB  100.0 
+  ext2_inode_cache:     2197KB     2197KB  100.0 
+         size-1024:     1604KB     1604KB  100.0 
+         biovec-16:     1044KB     1293KB   80.75
+         size-2048:     1008KB     1008KB  100.0 
+         pte_chain:      754KB      819KB   92.1 
+      dentry_cache:      780KB      780KB  100.0 
+        biovec-256:      780KB      780KB  100.0 
+              filp:      697KB      701KB   99.46
+         size-4096:      608KB      608KB  100.0 
+          sigqueue:      530KB      579KB   91.59
+           size-32:      512KB      512KB  100.0 
+ skbuff_head_cache:      498KB      498KB  100.0 
+          size-512:      480KB      480KB  100.0 
+               bio:      333KB      464KB   71.77
+        biovec-128:      390KB      390KB  100.0 
+          size-256:      367KB      367KB  100.0 
+   blkdev_requests:      336KB      341KB   98.68
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
