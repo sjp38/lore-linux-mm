@@ -1,18 +1,20 @@
-Date: Mon, 18 Mar 2002 14:44:56 -0300 (BRT)
+Date: Mon, 18 Mar 2002 19:25:19 -0300 (BRT)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] oom killer fix ???
-Message-ID: <Pine.LNX.4.44L.0203181443060.2181-100000@imladris.surriel.com>
+Subject: [RFT][PATCH] oom killer fix ???
+Message-ID: <Pine.LNX.4.44L.0203181923490.2181-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: linux-mm@kvack.org, arjan@fenrus.demon.nl, dwmw2@infradead.org, William Lee Irwin III <wli@holomorphy.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-the patch below is another attempt at fixing the OOM killer,
+The -rmap VM has had some problems with the OOM killer
+triggering before the machine actually ran out of freeable
+memory. The patch below is an attempt at fixing the OOM killer,
 it works by:
 
 1) making sure userland allocations can always allocate
@@ -35,7 +37,7 @@ http://www.surriel.com/		http://distro.conectiva.com/
 
 ===== mm/vmscan.c 1.97 vs edited =====
 --- 1.97/mm/vmscan.c	Thu Feb 28 20:38:19 2002
-+++ edited/mm/vmscan.c	Mon Mar 18 14:38:06 2002
++++ edited/mm/vmscan.c	Mon Mar 18 16:57:41 2002
 @@ -605,7 +605,7 @@
  	 * Hmm.. Cache shrink failed - time to kill something?
  	 * Mhwahahhaha! This is the part I really like. Giggle.
@@ -45,7 +47,20 @@ http://www.surriel.com/		http://distro.conectiva.com/
  		out_of_memory();
 
  	return ret;
-@@ -751,23 +751,19 @@
+@@ -703,9 +703,11 @@
+ 	}
+ }
+
++static int kswapd_overloaded;
+ DECLARE_WAIT_QUEUE_HEAD(kswapd_wait);
+ DECLARE_WAIT_QUEUE_HEAD(kswapd_done);
+-#define VM_SHOULD_SLEEP (free_low(ALL_ZONES) > (freepages.min / 2))
++#define VM_SHOULD_SLEEP ((free_low(ALL_ZONES) > (freepages.min / 2)) && \
++				!kswapd_overloaded)
+
+ /**
+  * wakeup_kswapd - wake up the pageout daemon
+@@ -751,27 +753,25 @@
  {
  	DECLARE_WAITQUEUE(wait, current);
 
@@ -64,15 +79,21 @@ http://www.surriel.com/		http://distro.conectiva.com/
  		return;
  	}
  	remove_wait_queue(&kswapd_wait, &wait);
--
+
 -	/*
 -	 * kswapd is going to sleep for a long time. Wake up the waiters to
 -	 * prevent them to get stuck while waiting for us.
 -	 */
 -	wake_up(&kswapd_done);
-
+-
  	/* OK, the VM is very loaded. Sleep instead of using all CPU. */
++	kswapd_overloaded = 1;
  	set_current_state(TASK_UNINTERRUPTIBLE);
+ 	schedule_timeout(HZ / 4);
++	kswapd_overloaded = 0;
+ 	return;
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
