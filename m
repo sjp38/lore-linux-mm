@@ -1,60 +1,50 @@
-From: Miss Mary Fati <m_fati@indiatimes.com>
-Reply-To: m_fati@walla.com
-Subject: From Miss Mary Fati
-Date: Wed, 02 Feb 2005 18:51:51 +0400
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="e6e89530-4548-4218-b302-c54bb56544fa"
-Message-Id: <20050202145218Z26566-20891+1515@kvack.org>
+Date: Wed, 2 Feb 2005 13:32:56 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: A scrub daemon (prezeroing)
+Message-ID: <20050202153256.GA19615@logos.cnet>
+References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com> <1106828124.19262.45.camel@hades.cambridge.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1106828124.19262.45.camel@hades.cambridge.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format
---e6e89530-4548-4218-b302-c54bb56544fa
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: quoted-printable
+On Thu, Jan 27, 2005 at 12:15:24PM +0000, David Woodhouse wrote:
+> On Fri, 2005-01-21 at 12:29 -0800, Christoph Lameter wrote:
+> > Adds management of ZEROED and NOT_ZEROED pages and a background daemon
+> > called scrubd. scrubd is disabled by default but can be enabled
+> > by writing an order number to /proc/sys/vm/scrub_start. If a page
+> > is coalesced of that order or higher then the scrub daemon will
+> > start zeroing until all pages of order /proc/sys/vm/scrub_stop and
+> > higher are zeroed and then go back to sleep.
+> 
+> Some architectures tend to have spare DMA engines lying around. There's
+> no need to use the CPU for zeroing pages. How feasible would it be for
+> scrubd to use these?
 
-MISS MARY FATI
-EMAIL: m_fati@walla.com
-TEL:
-ACCRA-GHANA
-DATE: 02-02-05
+Hi David,
 
-REQUEST FORASSISTANCE
+I suppose you are talking about DMA engines which are not being driven 
+by any driver ?
 
-DEAR FRIEND,
+Sounds very interesting idea to me. Guess it depends on whether the cost of 
+DMA write for memory zeroing, which is memory architecture/DMA engine dependant, 
+offsets the cost of CPU zeroing.
 
-I AM MISS MARY FATI, A SUDANESE 25 YEAROLD GIRL. I AM DESPERATELY IN NEED OF =
-YOUR ASSISTANCE IN SAFEGUIDING MYLIFE AND THAT OF MY ONLY SURVIVING BROTHER =
-(DAVID).
-WE LOST OURPARENTS ALONGSIDE MY ONLY SISTER AND TWO BROTHERS IN THE EVENT OF =
-DARFUR(SUDAN) CRISES.
-MY BROTHER AND I ARE ALIVE TODAY BECAUSE WE WERE INTHE BOARDING SCHOOL WHEN =
-OUR FAMILY HOUSE WAS ATTACKED WITH ALL THEOCCUPANTS KILLED.
-WE MANAGED TO ESCAPE FROM SUDAN WITH A SAFE WE GOTFROM MY FATHER?S PRIVATE =
-ROOM, WHICH CONTAINS ALL HIS BUSINESSDOCUMENTS. AMONG OTHER DOCUMENTS WE =
-FOUND A CERTIFICATE OF DEPOSITEALONG SIDE HIS WILL.
-MY FATHER DEPOSITED A SAFE WITH A PRIVATESECURITY COMPANY IN GHANA CLAIMING =
-THE CONTENT IS VITAL DOCUMENTS WHILEIN HIS WILL HE MADE IT CLEAR THAT A FUND =
-WORTH OF US$20,500,000.00 IS INTHE DEPOSITED SAFE.
-I AM HERE IN GHANA WHILE MY BROTHER IS IN DUBAIBOTH OF US CONFUSSED ON HOW =
-BEST TO PROCEED WITH OUR LIVES.
-PLEASE WENEED YOUR ASSISTANCE IN RETRIVING THISSAFE FROM THIS SECURITY =
-COMPANY ASWELL AS SETTLING THE FUND IN ANY OF YOUR PRIVATE ACCOUNTS ANYWHERE =
-ITWILL BE SAFE.
-FROM THE AGREEMENT OF DEPOSITE, THE SECURITY COMPANY ISREADY TO DELIEVER THE =
-SAFE IN ANY OF OUR CHOOSEN DESTINATIONS WHEREGHANA IS NOT CONVINIENT FOR US.
-PLEASE CONFIRM YOUR READINESS TO HELPUS OUT AND I WILL LET YOU KNOW ALL THE =
-DETAILS AS WELL AS LINKING YOU UPTO MY BROTHER.
-REMEMBER YOUR LITTLE HELP CAN MAKE US SMILE FOREVERAND WE WILL EVER REMAIN =
-GREATFUL.
+Do you have any thoughts on that?
 
-BEST REGARDS,
+I wonder if such thing (using unrelated devices DMA engine's for zeroing) ever been
+done on other OS'es?
 
-MARY FATI  
---e6e89530-4548-4218-b302-c54bb56544fa--
+AFAIK SGI's BTE is special purpose hardware for memory zeroing.
 
+BTW, Andrew noted on lkml sometime ago that disabling caches before doing 
+zeroing could enhance overall system performance by decreasing cache thrashing.
+What are the conclusions about that?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
