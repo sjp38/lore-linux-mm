@@ -1,40 +1,45 @@
-Date: Mon, 16 Aug 1999 23:29:27 -0700
-Message-Id: <199908170629.XAA23911@pizda.davem.net>
-From: "David S. Miller" <davem@redhat.com>
-In-reply-to: <199908162328.QAA24338@google.engr.sgi.com>
-	(kanoj@google.engr.sgi.com)
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <199908170637.XAA81444@google.engr.sgi.com>
 Subject: Re: [bigmem-patch] 4GB with Linux on IA32
-References: <199908162328.QAA24338@google.engr.sgi.com>
+Date: Mon, 16 Aug 1999 23:37:20 -0700 (PDT)
+In-Reply-To: <Pine.LNX.4.10.9908170151190.14379-100000@laser.random> from "Andrea Arcangeli" at Aug 17, 99 02:10:43 am
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kanoj@google.engr.sgi.com
-Cc: andrea@suse.de, alan@lxorguk.ukuu.org.uk, torvalds@transmeta.com, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: alan@lxorguk.ukuu.org.uk, torvalds@transmeta.com, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-   For example, on a 2.2.10 kernel:
-   [kanoj@entity kern]$ gid __va | grep drivers
-   drivers/char/mem.c:124: if (copy_to_user(buf, __va(p), count))
-   drivers/char/mem.c:142: return do_write_mem(file, __va(p), p, buf, count, ppos);
+> 
+> >way it is, is so that drivers don't break. I think 2.3 is the place to 
+> >teach the kernel and drivers that all of memory is not directly mappable.
+> 
+> I tried to avoid this (and I am been successfully until I noticed raw-io
+> in 2.3.13... sigh).
+> 
+> In the meantime I'll take raw-io disabled if CONFIG_BIGMEM is set .
+>
 
-Ok, this one could be a problem.
+Andrea,
 
-   drivers/scsi/sym53c8xx.c:572:#define remap_pci_mem(base, size)  ((u_long) __va(base))
+As I pointed out before, I don't think rawio is the only case which
+breaks.
 
-Sparc specific ifdef'd code, it doesn't matter for ix86.
+I will give you one example of the type of cases that I am talking about.
+In drivers/char/bttv.c, VIDIOCSFBUF ioctl seems to be setting the "vidadr"
+to a kernel virtual address from the physical address present in the 
+user's pte. This will not work for bigmem pages.
 
-   drivers/video/creatorfb.c
- ...
-   drivers/sbus/char/zs.c
+Now, you might claim that this driver is never used on ia32, or analyze
+the way "vidadr" is used and show that the kernel never access the 
+kernel v/a stored in "vidadr". What I am pointing out is that this kind
+of analysis needs to be made for all drivers (that uses macros that are
+dependent on PAGE_OFFSET) ... unless you can claim that you have already 
+done this analysis ...
 
-More Sparc specific drivers.
-
-So in essence there are only two spots in mem.c which you might need
-to worry about on ix86.
-
-Later,
-David S. Miller
-davem@redhat.com
-
+Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
