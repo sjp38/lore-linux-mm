@@ -1,48 +1,64 @@
-Message-ID: <20001110183823.A23474@saw.sw.com.sg>
-Date: Fri, 10 Nov 2000 18:38:23 +0800
-From: Andrey Savochkin <saw@saw.sw.com.sg>
-Subject: Re: Reserve VM for root (was: Re: Looking for better VM)
-References: <Pine.LNX.4.05.10011081450320.3666-100000@humbolt.nl.linux.org> <Pine.LNX.4.21.0011091731100.1155-100000@fs129-190.f-secure.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0011091731100.1155-100000@fs129-190.f-secure.com>; from "Szabolcs Szakacsits" on Thu, Nov 09, 2000 at 06:30:32PM
+Subject: problems with sync_all_inode() in prune_icache() and kupdate()
+Message-ID: <OFF8FB6856.584FAA00-ON88256994.0064C480@LocalDomain>
+From: "Ying Chen/Almaden/IBM" <ying@almaden.ibm.com>
+Date: Sat, 11 Nov 2000 11:01:25 -0800
+MIME-Version: 1.0
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Szabolcs Szakacsits <szaka@f-secure.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Hi,
 
-On Thu, Nov 09, 2000 at 06:30:32PM +0100, Szabolcs Szakacsits wrote:
-> BTW, I wanted to take a look at the frequently mentioned beancounter patch, 
-> here is the current state,
-> 	http://www.asp-linux.com/en/products/ubpatch.shtml 
-> "Sorry, due to growing expenses for support of public version of ASPcomplete 
-> we do not provide sources till first official release."
+I'm wondering if someone can tell me why sync_all_inodes() is called in
+prune_icache().
+sync_all_inodes() can cause problems in some situations when memory is
+short and shrink_icache_memory() is called.
+For instance, when the system is really short of memory,
+do_try_to_free_pages() is invoked (either by application or kswapd) and
+shrink_icache_memory() is also invoked, but when prune_icache() is called,
+the first thing is does is to sync_all_inodes(). If the inode block is not
+in memory, it may have to bread the inode block in, so the kswapd() can
+block until the inode block is brought into memory. Not only that, since
+the system is short of memory, there may not even be memory available for
+the inode block. Even if there is, given that there is only a single kswapd
+thread who is doing sync_all_inodes(), if the dirty inode list if
+relatively long (like a tens of thousands as in something like SPEC SFS),
+it'll take practically forever for sync_all_inodes() to finish. To user,
+this looks like the system is hang (although it isn't really). It's just
+taking a looooooong time to do shrink_icache_memory!
 
-That's not a place where I keep my code (and has never been :-)
+One solution to this is not to call sync_all_inodes() at all in
+prune_icache(), since other parts of the kernel, like kupdate() will also
+try to sync_inodes periodically anyway, but I don't know if this has other
+implications or not. I don't see a problem with this myself. In fact, I
+have been using this fix in my own test9 kernel, and I get much smoother
+kernel behavior when running high load SPEC SFS than using the default
+prune_icache(). Actually if sync_all_inodes() is called, SPEC SFS sometimes
+simply fails due to the long response time on the I/O requests.
 
-ftp://ftp.sw.com.sg/pub/Linux/people/saw/kernel/user_beancounter/UserBeancounter.html
-is the right place (but it has some availability problems :-(
+The similar theory goes with kupdate() daemon. That is, since there is only
+a single thread that does the inode and buffer flushing, under high load,
+kupdate() would not get a chance to call flush_dirty_buffers() until after
+sync_inodes() is completed. But sync_inodes() can take forever since inodes
+are flushed serially to disk. Imagine how long it might take if each inode
+flushing causes one read from disk! In my experience with SPEC SFS,
+sometimes, if kupdate() is invoked during the SPEC SFS run, it simply
+cannot finish sync_inode() until the entire benchmark run is finished! So,
+all the dirty buffers that flush_dirty_buffer(1) is supposed to flush would
+never be called during the benchmark run and system is constantly running
+in the bdflush() mode, which is really supposed to be called only in a
+panic mode!
 
-As for memory management, it provides a simple variant of service level
-support for
- - in-core memory (in opposite to swap)
- - total "virtual" memory.
-The latter ends up in accounting of how much memory is consumed by each
-subject of accounting, and an OOM-killer.
-OOM-killer takes into account guarantees given to the subject and selects the
-victim.  In the patch on the ftp site the selection code is very simple and
-taken from some old OOM patches.
+Again, the solution can be simple, one can create multiple
+dirty_buffer_flushing daemon threads that calls flush_dirty_buffer()
+without sync_super or sync_inode stuff. I have done so in my own test9
+kernel, and the results with SPEC SFS is much more pleasant.
 
-BTW, I've redone memory accounting code to significantly improve it's
-performance (or, to say in other words, to reduce the performance penalty
-imposed by the accounting).  But this new code isn't integrated to the
-complete user beancounter patch.
+Ying
 
-Best regards
-		Andrey
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
