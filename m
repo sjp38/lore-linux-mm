@@ -1,53 +1,31 @@
 Subject: Re: 2.5.69-mm1
-From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <m17k949jeh.fsf@frodo.biederman.org>
+From: "David S. Miller" <davem@redhat.com>
+In-Reply-To: <20030506110907.GB9875@in.ibm.com>
 References: <20030504231650.75881288.akpm@digeo.com>
-	 <1052231590.2166.141.camel@spc9.esa.lanl.gov>
-	 <20030506083358.348edb4d.akpm@digeo.com>
-	 <m17k949jeh.fsf@frodo.biederman.org>
+	 <20030505210151.GO8978@holomorphy.com>  <20030506110907.GB9875@in.ibm.com>
 Content-Type: text/plain
-Message-Id: <1052238949.2166.145.camel@spc9.esa.lanl.gov>
-Mime-Version: 1.0
-Date: 06 May 2003 10:35:50 -0600
 Content-Transfer-Encoding: 7bit
+Message-Id: <1052222542.983.27.camel@rth.ninka.net>
+Mime-Version: 1.0
+Date: 06 May 2003 05:02:22 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: dipankar@in.ibm.com
+Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2003-05-06 at 09:36, Eric W. Biederman wrote:
-> Andrew Morton <akpm@digeo.com> writes:
-> 
-> > Steven Cole <elenstev@mesatop.com> wrote:
-> > >
-> > > I have one machine for testing which is running X, and a kexec reboot
-> > >  glitches the video system when initiated from runlevel 5.  Kexec works fine
-> > >  from runlevel 3.
-> > 
-> > Yes, there are a lot of driver issues with kexec.  Device drivers will assume
-> > that the hardware is in the state which the BIOS left behind.
-> > 
-> > In this case, the Linus device driver's shutdown functions are obviously not
-> > leaving the card in a pristine state.  A lot of drivers _do_ do this
-> > correctly.  But some don't.
-> > 
-> > It seems that kexec is really supposed to be invoked from run level 1.  ie:
-> > you run all your system's shutdown scripts before switching.  If you'd done
-> > that then you wouldn't have been running X and all would be well.
-> > 
-> > do-kexec.sh is for the very impatient ;)
-> 
-> The biggest issue with kexec when you are in X is that nothing
-> tells X to shutdown.  So you have to at least shutdown X manually.
-> 
-> Eric
+On Tue, 2003-05-06 at 04:09, Dipankar Sarma wrote:
+> That brings me to the point - with the fget-speedup patch, we should
+> probably change ->file_lock back to an rwlock again. We now take this
+> lock only when fd table is shared and under such situation the rwlock
+> should help. Andrew, it that ok ?
 
-Thanks for the answers.  Kexec is pretty cool as it stands.  I hope
-Linus merges it soon.
+rwlocks believe it or not tend not to be superior over spinlocks,
+they actually promote cache line thrashing in the case they
+are actually being effective (>1 parallel reader)
 
-Steven "very impatient" Cole
-
+-- 
+David S. Miller <davem@redhat.com>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
