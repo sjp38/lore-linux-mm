@@ -1,31 +1,31 @@
-Date: Fri, 18 Jul 2003 16:32:41 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [2.6.0-test1-mm1] Compile varnings
-Message-ID: <20030718233241.GJ1583@kroah.com>
-References: <1058387502.13489.2.camel@sm-wks1.lan.irkk.nu>
+Date: Sat, 19 Jul 2003 18:34:50 +0500
+From: "Vinay I K" <abcxyz1@lycos.com>
+Message-ID: <MEHFFGFJPAFEOBAA@mailcity.com>
 Mime-Version: 1.0
+Reply-To: abcxyz1@lycos.com
+Subject: Linux free issue
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1058387502.13489.2.camel@sm-wks1.lan.irkk.nu>
+Content-Language: en
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christian Axelsson <smiler@lanil.mine.nu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 16, 2003 at 10:31:42PM +0200, Christian Axelsson wrote:
-> Here is an i2c related warning:
-> 
-> CC      drivers/i2c/i2c-dev.o
-> drivers/i2c/i2c-dev.c: In function `show_dev':
-> drivers/i2c/i2c-dev.c:121: warning: unsigned int format, different type
-> arg (arg 3)
+Hello,
 
-I've posted a patch to fix this warning.  Look in the archives.
+Its a newbie question. I have been trying to look around and hit upon the following link.      
+http://mail.nl.linux.org/linux-mm/1998-08/msg00028.html
 
-thanks,
+I am a bit confused. When we call free in Linux, is the memory not given back to the system(just cached)? What is the state of the issue in the latest Linux Kernel?
 
-greg k-h
+Thanks,
+Vishwas
+
+
+____________________________________________________________
+Get advanced SPAM filtering on Webmail or POP Mail ... Get Lycos Mail!
+http://login.mail.lycos.com/r/referral?aid=27005
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
