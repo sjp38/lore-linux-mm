@@ -1,41 +1,39 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by postfix.conectiva.com.br (Postfix) with SMTP id AABA816EC5
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2001 14:00:07 -0300 (EST)
-Date: Thu, 22 Mar 2001 13:29:44 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <4605B269DB001E4299157DD1569079D2809930@EXCHANGE03.plaza.ds.adp.com>
-Message-ID: <Pine.LNX.4.21.0103221329000.21415-100000@imladris.rielhome.conectiva>
+Date: Thu, 22 Mar 2001 09:36:48 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: Thinko in kswapd?
+In-Reply-To: <20010322145810.A7296@redhat.com>
+Message-ID: <Pine.LNX.4.31.0103220931330.18728-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tom Kondilis <tomk@plaza.ds.adp.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, arjanv@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Mar 2001, Tom Kondilis wrote:
 
-> I had a 2.4.3pre3 do a 'Killing Init'
-> My assuption is that I had a large benchmark running, while the benchmark
-> was running,  I updated inittab to uncomment a mgetty of my serial port, and
-> followed it with a 'telinit q'.
-> When the system thought it ran out of memory with '1-order allocation
-> failures' during a fork, which I think its a defect , because I still have
-> 14GB of Swap left in the system. My system was dead.
-> A real life case of killing Init.
+On Thu, 22 Mar 2001, Stephen C. Tweedie wrote:
+>
+> There is what appears to be a simple thinko in kswapd.  We really
+> ought to keep kswapd running as long as there is either a free space
+> or an inactive page shortfall; but right now we only keep going if
+> _both_ are short.
 
-That's not the OOM killer however, but init dying because it
-couldn't get the memory it needed to satisfy a page fault or
-somesuch...
+Hmm.. The comment definitely says "or", so changing it to "and" in the
+sources makes the comment be non-sensical.
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
+I suspect that the comment and the code were true at some point. The
+behaviour of "do_try_to_free_pages()" has changed, though, and I suspect
+your suggested change makes more sense now (it certainly seems to be
+logical to have the reverse condition for sleeping and for when to call
+"do_try_to_free_pages()").
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+The only way to know is to test the behaviour. My only real worry is that
+kswapd might end up eating too much CPU time and make the system feel bad,
+but on the other hand the same can certainly be true from _not_ doing this
+change too.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
