@@ -1,41 +1,105 @@
-Message-Id: <200405222210.i4MMAdr13921@mail.osdl.org>
-Subject: [patch 36/57] vm_area_struct size comment
+Message-Id: <200405222210.i4MMApr13955@mail.osdl.org>
+Subject: [patch 37/57] rmap.c comment/style fixups
 From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:10:09 -0700
+Date: Sat, 22 May 2004 15:10:20 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
-Cc: linux-mm@kvack.org, akpm@osdl.org, hugh@veritas.com
+Cc: linux-mm@kvack.org, akpm@osdl.org, hch@lst.de
 List-ID: <linux-mm.kvack.org>
 
-From: Hugh Dickins <hugh@veritas.com>
-
-Missed comment on the size of vm_area_struct: it is no longer 64 bytes on
-ia32.
+From: Christoph Hellwig <hch@lst.de>
 
 
 ---
 
- 25-akpm/include/linux/mm.h |    7 -------
- 1 files changed, 7 deletions(-)
+ 25-akpm/mm/rmap.c |   36 +++++++++++++++---------------------
+ 1 files changed, 15 insertions(+), 21 deletions(-)
 
-diff -puN include/linux/mm.h~vm_area_struct-size-comment include/linux/mm.h
---- 25/include/linux/mm.h~vm_area_struct-size-comment	2004-05-22 14:56:27.278944496 -0700
-+++ 25-akpm/include/linux/mm.h	2004-05-22 14:59:38.317902160 -0700
-@@ -47,13 +47,6 @@ extern int page_cluster;
-  * per VM-area/task.  A VM area is any part of the process virtual memory
-  * space that has a special rule for the page-fault handlers (ie a shared
-  * library, the executable area etc).
-- *
-- * This structure is exactly 64 bytes on ia32.  Please think very, very hard
-- * before adding anything to it.
-- * [Now 4 bytes more on 32bit NUMA machines. Sorry. -AK.
-- * But if you want to recover the 4 bytes justr remove vm_next. It is redundant
-- * with vm_rb. Will be a lot of editing work though. vm_rb.color is redundant
-- * too.]
+diff -puN mm/rmap.c~rmapc-comment-style-fixups mm/rmap.c
+--- 25/mm/rmap.c~rmapc-comment-style-fixups	2004-05-22 14:56:27.402925648 -0700
++++ 25-akpm/mm/rmap.c	2004-05-22 14:59:38.322901400 -0700
+@@ -148,15 +148,11 @@ static inline void clear_page_anon(struc
+ 		free_anonmm(anonmm);
+ }
+ 
+-/**
+- ** VM stuff below this comment
+- **/
+-
+ /*
+  * At what user virtual address is pgoff expected in file-backed vma?
   */
- struct vm_area_struct {
- 	struct mm_struct * vm_mm;	/* The address space we belong to. */
+-static inline
+-unsigned long vma_address(struct vm_area_struct *vma, pgoff_t pgoff)
++static inline unsigned long
++vma_address(struct vm_area_struct *vma, pgoff_t pgoff)
+ {
+ 	unsigned long address;
+ 
+@@ -165,11 +161,10 @@ unsigned long vma_address(struct vm_area
+ 	return address;
+ }
+ 
+-/**
+- ** Subfunctions of page_referenced: page_referenced_one called
+- ** repeatedly from either page_referenced_anon or page_referenced_file.
+- **/
+-
++/*
++ * Subfunctions of page_referenced: page_referenced_one called
++ * repeatedly from either page_referenced_anon or page_referenced_file.
++ */
+ static int page_referenced_one(struct page *page,
+ 	struct mm_struct *mm, unsigned long address,
+ 	unsigned int *mapcount, int *failed)
+@@ -265,9 +260,9 @@ static inline int page_referenced_anon(s
+ 
+ 	/*
+ 	 * The warning below may appear if page_referenced catches the
+-	 * page in between page_add_rmap and its replacement demanded
+-	 * by mremap_moved_anon_page: so remove the warning once we're
+-	 * convinced that anonmm rmap really is finding its pages.
++	 * page in between page_add_{anon,file}_rmap and its replacement
++	 * demanded by mremap_moved_anon_page: so remove the warning once
++	 * we're convinced that anonmm rmap really is finding its pages.
+ 	 */
+ 	WARN_ON(!failed);
+ out:
+@@ -300,7 +295,7 @@ migrate:
+  *
+  * This function is only called from page_referenced for object-based pages.
+  *
+- * The semaphore address_space->i_mmap_lock is tried.  If it can't be gotten,
++ * The spinlock address_space->i_mmap_lock is tried.  If it can't be gotten,
+  * assume a reference count of 0, so try_to_unmap will then have a go.
+  */
+ static inline int page_referenced_file(struct page *page)
+@@ -478,11 +473,10 @@ int fastcall mremap_move_anon_rmap(struc
+ 	return move;
+ }
+ 
+-/**
+- ** Subfunctions of try_to_unmap: try_to_unmap_one called
+- ** repeatedly from either try_to_unmap_anon or try_to_unmap_file.
+- **/
+-
++/*
++ * Subfunctions of try_to_unmap: try_to_unmap_one called
++ * repeatedly from either try_to_unmap_anon or try_to_unmap_file.
++ */
+ static int try_to_unmap_one(struct page *page,
+ 	struct mm_struct *mm, unsigned long address,
+ 	unsigned int *mapcount, struct vm_area_struct *vma)
+@@ -721,7 +715,7 @@ out:
+  *
+  * This function is only called from try_to_unmap for object-based pages.
+  *
+- * The semaphore address_space->i_mmap_lock is tried.  If it can't be gotten,
++ * The spinlock address_space->i_mmap_lock is tried.  If it can't be gotten,
+  * return a temporary error.
+  */
+ static inline int try_to_unmap_file(struct page *page)
 
 _
 --
