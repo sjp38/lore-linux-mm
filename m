@@ -1,32 +1,19 @@
-Date: Wed, 15 May 2002 14:16:33 -0400 (EDT)
-From: Bill Davidsen <davidsen@tmr.com>
+Date: Wed, 15 May 2002 11:30:04 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [RFC][PATCH] iowait statistics
+Message-ID: <20020515183004.GG27957@holomorphy.com>
+References: <200205151514.g4FFEmY13920@Port.imtp.ilyichevsk.odessa.ua> <Pine.LNX.4.44L.0205151310130.9490-100000@duckman.distro.conectiva> <20020515170025.GF27957@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
 In-Reply-To: <20020515170025.GF27957@holomorphy.com>
-Message-ID: <Pine.LNX.3.96.1020515141208.5811B-100000@gatekeeper.tmr.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>, Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 May 2002, William Lee Irwin III wrote:
-
-> Boots compiles and runs on an 4-way physical HT box. I didn't wake
-> the evil twins to cut down on the number of variables so it stayed
-> 4-way despite the ability to go 8-way.
-> 
-> Sliding window of 120 seconds, sampled every 15 seconds, under a
-> repetitive kernel compile load:
-> 
-> Wed May 15 09:56:37 PDT 2002
-> cpu  60701 0 5137 203545 9327
-> cpu0 15048 0 1566 50868 2298
-> cpu1 15257 0 1176 50818 2392
-> cpu2 15248 0 1346 50802 2247
-> cpu3 15148 0 1049 51057 2390
-	[... snip ...]
+On Wed, May 15, 2002 at 10:00:25AM -0700, William Lee Irwin III wrote:
 > Wed May 15 09:58:22 PDT 2002
 > cpu  98583 0 8082 204779 9328
 > cpu0 24538 0 2254 51205 2298
@@ -34,22 +21,20 @@ On Wed, 15 May 2002, William Lee Irwin III wrote:
 > cpu2 24704 0 1978 51230 2247
 > cpu3 24820 0 1785 51164 2390
 > 
-> 
 > It looks very constant, not sure if it should be otherwise.
 
-You show-offs with your big memory and everything in it... Okay, boot that
-puppy with mem=256m and try that again, particularly with -j4 (or -j8 with
-HT on). I bet THAT will give you some IOwait!
+Not quite constant, just slowly varying:
 
-I think you do want to try HT after you find out the memory is small
-enough. Pure curiousity on my part, I assume it will work, although the
-results might not be what I expect.
+Wed May 15 11:30:47 PDT 2002
+cpu  2095183 0 158967 263950 20705
+cpu0 524201 0 40781 64795 5026
+cpu1 523034 0 39953 66328 5352
+cpu2 525737 0 37989 65826 5115
+cpu3 522211 0 40244 67001 5212
 
--- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
 
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
