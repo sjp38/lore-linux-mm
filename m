@@ -1,13 +1,13 @@
 Received: from 203-167-152-228.dialup.clear.net.nz
  (203-167-152-228.dialup.clear.net.nz [203.167.152.228])
- by smtp1.clear.net.nz (CLEAR Net Mail)
- with ESMTP id <0HBM0018U2T550@smtp1.clear.net.nz> for linux-mm@kvack.org; Wed,
- 12 Mar 2003 14:00:44 +1300 (NZDT)
-Date: Wed, 12 Mar 2003 13:50:18 +1300
+ by smtp2.clear.net.nz (CLEAR Net Mail)
+ with ESMTP id <0HBM00L8F2T9BP@smtp2.clear.net.nz> for linux-mm@kvack.org; Wed,
+ 12 Mar 2003 14:00:47 +1300 (NZDT)
+Date: Wed, 12 Mar 2003 13:50:21 +1300
 From: Nigel Cunningham <ncunningham@clear.net.nz>
 Subject: Re: Free pages leaking in 2.5.64?
 In-reply-to: <20030311162552.7f78e764.akpm@digeo.com>
-Message-id: <1047430217.2288.7.camel@laptop-linux.cunninghams>
+Message-id: <1047430217.2289.8.camel@laptop-linux.cunninghams>
 MIME-version: 1.0
 Content-type: text/plain
 Content-transfer-encoding: 7bit
