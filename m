@@ -1,24 +1,24 @@
-Message-ID: <396A6A11.1906927A@norran.net>
-Date: Tue, 11 Jul 2000 02:28:02 +0200
+Received: from norran.net (roger@t8o43p42.telia.com [194.237.168.222])
+	by d1o43.telia.com (8.8.8/8.8.8) with ESMTP id AAA14975
+	for <linux-mm@kvack.org>; Tue, 11 Jul 2000 00:22:06 +0200 (CEST)
+Message-ID: <396A4BA1.F738D3B6@norran.net>
+Date: Tue, 11 Jul 2000 00:18:09 +0200
 From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
 Subject: [PATCH] embryotic page ageing with lists
 Content-Type: multipart/mixed;
- boundary="------------A822601ED297D3C30BE1EC5B"
+ boundary="------------5C884B0A7F38D2A3C4AA5298"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------A822601ED297D3C30BE1EC5B
+--------------5C884B0A7F38D2A3C4AA5298
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 
 Hi,
-
-(Sent this to linux-mm only and waited... I have not got it back yet
- more than 2 h later - resending it to linux-kernel too)
 
 This is a embryotic, but with heart beats, patch of page ageing
 for test3-pre6.
@@ -45,7 +45,7 @@ Future work:
 --
 Home page:
   http://www.norran.net/nra02596/
---------------A822601ED297D3C30BE1EC5B
+--------------5C884B0A7F38D2A3C4AA5298
 Content-Type: text/plain; charset=us-ascii;
  name="patch-2.4.0-test3-pre6-filemap.1"
 Content-Transfer-Encoding: 7bit
@@ -192,7 +192,7 @@ Content-Disposition: inline;
  made_inode_progress:
  	page_cache_release(page);
 
---------------A822601ED297D3C30BE1EC5B--
+--------------5C884B0A7F38D2A3C4AA5298--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
