@@ -1,67 +1,36 @@
-Subject: Re: VM tuning through fault trace gathering [with actual code]
-References: <Pine.LNX.4.21.0106251456130.7419-100000@imladris.rielhome.conectiva>
-	<m28zigi7m4.fsf@boreas.yi.org.> <01062610022607.01124@spigot>
-From: John Fremlin <vii@users.sourceforge.net>
-Date: 26 Jun 2001 20:29:16 +0100
-In-Reply-To: <01062610022607.01124@spigot> (Scott F. Kaplan's message of "Tue, 26 Jun 2001 10:02:26 -0400")
-Message-ID: <m21yo7hwfn.fsf@boreas.yi.org.>
-MIME-Version: 1.0
+Date: Wed, 27 Jun 2001 11:41:55 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: patch: highmem zero-bounce
+Message-ID: <20010627114155.A31910@athlon.random>
+References: <20010626182215.C14460@suse.de>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20010626182215.C14460@suse.de>; from axboe@suse.de on Tue, Jun 26, 2001 at 06:22:15PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Scott F <Kaplan@boreas.yi.org.>
-Cc: linux-mm@kvack.org
+To: Jens Axboe <axboe@suse.de>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "ZINKEVICIUS,MATT (HP-Loveland,ex1)" <matt_zinkevicius@hp.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi people!
-
-I just sent an updated version of the patch to Scott, which faults on
-almost every mem access. Unfortunately that slows the system to a
-crawl (doh), in fact so much of a crawl that nothing much
-happens. Anybody have a turbofast P4/Athlon they want to lend or send
-me ;-)
-
-Scott F. Kaplan <sfkaplan@cs.amherst.edu> writes:
-
-[...]
-
-> Not to look a gift horse in the mouth, but the ability to trace
-> selectively either the whole system OR an individual application
-> would be useful.  Certainly whole system traces would be new, as
-> individual process traces can be gathered with other tools (although
-> I don't know of one available on Linux -- I'm stuck using ATOM under
-> Alpha/Tru64.)
-
-That looks like a very cool package (AFAICS it instruments the binary
-to call a subroutine before every memory access).
-
-The pagetrace patch has a slightly different goal however. The alpha
-people seemed to want to tune their cache behaviour whereas I want to
-tune the VM behaviour.
-
-> > In the current patch all pagefaults are recorded from all
-> > sources. I'd like to be able to catch read(2) and write(2) (buffer
-> > cache stuff) as well but I don't know how . . . .
+On Tue, Jun 26, 2001 at 06:22:15PM +0200, Jens Axboe wrote:
+> Hi,
 > 
-> Also a great idea.  Someone who works on the filesystem end of the
-> kernel should be able to add support for this kind of thing without
-> much trouble, don't you think?
+> I updated the patches to 2.4.6-pre5, and removed the zone-dma32
+> addition. This means that machines with > 4GB of RAM will need to go all
 
-I'd really like a clue or too in this direction certainly because its
-difficult to simulate the VM if you don't know how big e.g. the
-directory dcache is.
+good, we can relax the ZONE_NORMAL later, that's a separate problem with
+skipping the bounces.
 
-> > Of course! It is important not to regard each thread group as an
-> > independent entity IMHO (had a big old argument about this).
-> 
-> Yes, I was the other side of that argument! :-)  I'll still contend that, 
+I can see one mm corruption race condition in the patch, you missed
+nested irq in the for kmap_irq_bh (PIO).  You must _always_
+__cli/__save_flags before accessing the KMAP_IRQ_BH slot, in case the
+remapping is required (so _only_ when the page is in the highmem zone).
+Otherwise memory corruption will happen when the race triggers (for
+example two ide disks in PIO mode doing I/O at the same time connected
+to different irq sources).
 
-Hehe. Let's not go into that right now ;-)
-
-[...]
-
---
-	http://ape.n3.net
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
