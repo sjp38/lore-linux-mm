@@ -1,93 +1,108 @@
-Date: Mon, 20 Mar 2000 14:06:47 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [patch] first bit of vm balancing fixes for 2.3.52-1
-In-Reply-To: <Pine.LNX.4.10.10003201329470.4818-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.10.10003201350100.4934-100000@penguin.transmeta.com>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <200003202217.OAA94775@google.engr.sgi.com>
+Subject: Re: More VM balancing issues..
+Date: Mon, 20 Mar 2000 14:17:27 -0800 (PST)
+In-Reply-To: <Pine.LNX.4.10.10003201232410.4818-100000@penguin.transmeta.com> from "Linus Torvalds" at Mar 20, 2000 01:27:46 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, Christopher Zimmerman <zim@av.com>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-
-On Mon, 20 Mar 2000, Linus Torvalds wrote:
 > 
-> My code expliticly says: ok, walk the list of zones, if any of them have
-> plenty of memory free just allocate it.
+> They happen to be inclusive on x86 (ie DMA <= direct-mapped <=
+> everything), but I think it is a mistake to consider that a design. It's
+> obviously not true on NUMA if you have per-CPU classes that fall back onto
+> other CPU's zones. I would imagine, for example, that on NUMA the best
+> arrangement would be something like
+> 
+>  - when making a NODE1 allocation, the "class" list is
+> 
+> 	NODE1, NODE2, NODE3, NODE4, NULL
+> 
+>  - when making a NODE2 allocation it would be
+> 
+> 	NODE2, NODE3, NODE4, NODE1, NULL
+> 
+>  etc...
+> 
+> (So each node would preferentially always allocate from its own zone, but
+> would fall back on other nodes memory if the local zone fills up).
 
-Ugh. The "plenty" test should take "zone->low_on_memory" into account too.
+Okay, I think the crux of this discussion lies in this statement. I do
+not believe this is what the numa code will do, but note that we are
+not 100% certain at this stage. The numa code will be layered on top
+of the generic code, (the primary goal being generic code should be 
+impacted by numa minimally), so for example, the numa version of
+alloc_pages() will invoke __alloc_pages() on different nodes. The
+other thing to note is, the sequence of nodes to allocate is not
+static, but dynamic (depending on other data structures that numa
+code will track). This gives the most flexibility to numa code to
+do the best thing performance wise for a wide variety of apps
+under different situations. So apriori, you can not claim the class
+list for NODE1 allocation will be "NODE1, NODE2, NODE3, NODE4, NULL".
+I am ccing Hubertus Franke from IBM, we have been working on numa
+issues together.
 
-This should fix that, and get the PF_MEMALLOC case right too.
-
-This way we explicitly try to avoid any zones that are being balanced
-(we'll still allocate from such a zone, it's just that we'll go through
-the balancing motions first - think of it as a way of saying "we want to
-get OUT of the 'low_on_memory' state quicky, not make it worse").
-
-		Linus
-
------
---- v2.3.99-pre2/linux/mm/page_alloc.c	Sun Mar 19 18:35:31 2000
-+++ linux/mm/page_alloc.c	Mon Mar 20 14:03:34 2000
-@@ -271,6 +271,14 @@
- 	zone_t **zone = zonelist->zones;
+> 
+> With something like the above, there is no longer any true inclusion. Each
+> class covers an "equal" amount of zones, but has a different structure.
+>
  
- 	/*
-+	 * If this is a recursive call, we'd better
-+	 * do our best to just allocate things without
-+	 * further thought.
-+	 */
-+	if (current->flags & PF_MEMALLOC)
-+		goto allocate_ok;
-+
-+	/*
- 	 * (If anyone calls gfp from interrupts nonatomically then it
- 	 * will sooner or later tripped up by a schedule().)
- 	 *
-@@ -283,32 +291,22 @@
- 			break;
- 		if (!z->size)
- 			BUG();
--		/*
--		 * If this is a recursive call, we'd better
--		 * do our best to just allocate things without
--		 * further thought.
--		 */
--		if (!(current->flags & PF_MEMALLOC)) {
--			/* Are we low on memory? */
--			if (z->free_pages <= z->pages_low)
--				continue;
--		}
--		/*
--		 * This is an optimization for the 'higher order zone
--		 * is empty' case - it can happen even in well-behaved
--		 * systems, think the page-cache filling up all RAM.
--		 * We skip over empty zones. (this is not exact because
--		 * we do not take the spinlock and it's not exact for
--		 * the higher order case, but will do it for most things.)
--		 */
--		if (z->free_pages) {
-+
-+		/* Are we low on memory? Don't make it worse.. */
-+		if (!z->low_on_memory && z->free_pages > z->pages_low) {
- 			struct page *page = rmqueue(z, order);
- 			if (page)
- 				return page;
- 		}
- 	}
-+
-+	/*
-+	 * Ok, no obvious zones were available, start
-+	 * balancing things a bit..
-+	 */
- 	if (zone_balance_memory(zonelist)) {
- 		zone = zonelist->zones;
-+allocate_ok:
- 		for (;;) {
- 			zone_t *z = *(zone++);
- 			if (!z)
+The only example I can think of is a hole architecture, as I mentioned
+before, but even that can be handled with a "true inclusion" assumption.
+
+Unless you can point to a processor/architecture to the contrary, for
+the 2.4 timeframe, I would think we can assume true inclusion. (And that
+will be true even if we come up with a ZONE_PCI32 for 64bit machines).
+
+> > 2. The body of zone_balance_memory() should be replaced with the pre1
+> > code, otherwise there are too many differences/problems to enumerate. 
+> > Unless you are also proposing changes in this area.
+> 
+> The pre1 code was broken, and never checked pages_low. The changes were
+> definitely pre-meditated - trying to think of the balancing as a "list of
+> zones" issue.
+
+Agreed, I pointed out the breakage when the balancing patch was sent out. 
+I patched the pre1 code to get back to 2.3.50 behavior, and Christopher 
+Zimmerman zim@av.com tested it out.
+
+> 
+> And I think it's fine that kswapd continues to run until we reach "high".
+> Your patch makes kswapd stop when it reaches "low", but that makes kswapd
+> go into this kind of "start/stop/start/stop" behaviour at around the "low"
+> watermark.
+> 
+> Maybe you meant to clear the flags the other way around: keep kswapd
+> running until it hits high, but remove the "low_on_mem" flag when we are
+> above "low" (but we've gotten away from "min"). That might work, but I
+> think clearing both flags at "high" is actually the right thing to do,
+> because that way we will not get into a state where kswapd runs all the
+> time because somebody is still allocating pages without helping to free
+> anything up.
+> 
+
+Okay, that is a change on top of 2.3.50 behavior, this can be easily
+implemented. As I mention in Documentation/vm/balance, low_on_memory
+is a hysteric flag, zone_wake_kswapd/kswapd poking is not, we can 
+change that. Do you want me to create a new patch against 2.3.99-pre2?
+
+Kanoj
+
+> The pre-3 behaviour is: if you ever hit "min", you set a flag that means
+> "ok, kswapd can't do this on its own, and needs some help from the people
+> that allocate memory all the time". If you think of it that way, I think
+> you'll agree that it shouldn't be cleared until after kswapd says
+> everything is ok again.
+> 
+> I don't know..
+> 
+> 		Linus
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
