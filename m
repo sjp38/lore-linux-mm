@@ -1,66 +1,54 @@
-Date: Wed, 10 Jul 2002 23:41:57 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: Enhanced profiling support (was Re: vm lock contention reduction)
-Message-ID: <20020710214157.GD1342@dualathlon.random>
-References: <OFF41DACAC.FEED90BA-ON80256BF2.004DC147@portsmouth.uk.ibm.com> <3D2C9972.BB3DA772@opersys.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3D2C9972.BB3DA772@opersys.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: [PATCH][RFT](2) minimal rmap for 2.5 - akpm tested
+Date: Wed, 10 Jul 2002 23:56:48 +0200
+References: <Pine.LNX.4.44L.0207101741380.14432-100000@imladris.surriel.com>
+In-Reply-To: <Pine.LNX.4.44L.0207101741380.14432-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17SPS5-00028e-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Karim Yaghmour <karim@opersys.com>
-Cc: Richard J Moore <richardj_moore@uk.ibm.com>, John Levon <movement@marcelothewonderpenguin.com>, Andrew Morton <akpm@zip.com.au>, bob <bob@watson.ibm.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, mjbligh@linux.ibm.com, John Levon <moz@compsoc.man.ac.uk>, Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>
+To: Rik van Riel <riel@conectiva.com.br>, Sebastian Droege <sebastian.droege@gmx.de>
+Cc: linux-kernel@vger.kernel.org, akpm@zip.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 10, 2002 at 04:30:42PM -0400, Karim Yaghmour wrote:
+On Wednesday 10 July 2002 22:42, Rik van Riel wrote:
+> On Wed, 10 Jul 2002, Sebastian Droege wrote:
+> > On Sat, 6 Jul 2002 02:31:38 -0300 (BRT)
+> > Rik van Riel <riel@conectiva.com.br> wrote:
+> >
+> > > If you have some time left this weekend and feel brave,
+> > > please test the patch which can be found at:
+> > >
+> > > 	http://surriel.com/patches/2.5/2.5.25-rmap-akpmtested
 > 
-> Richard J Moore wrote:
-> > Some level of tracing (along with other complementary PD tools e.g. crash
-> > dump) needs to be readiliy available to deal with those types of problem we
-> > see with mature systems employed in the production environment. Typically
-> > such problems are not readily recreatable nor even prictable. I've often
-> > had to solve problems which impact a business environment severely, where
-> > one server out of 2000 gets hit each day, but its a different one each day.
-> > Its under those circumstances that trace along without other automated data
-> > capturing problem determination tools become invaluable. And its a fact of
-> > life that only those types of difficult problem remain once we've beaten a
-> > system to death in developments and test. Being able to use a common set of
-> > tools whatever the componets under investigation greatly eases problem
-> > determination. This is especially so where you have the ability to use
-> > dprobes with LTT to provide ad hoc tracepoints that were not originally
-> > included by the developers.
+> > after running your patch some time I have to say that the old VM
+> > implementation and the full rmap patch (by Craig Kulesa) was better. The
+> > system becomes very slow and has to swap in too much after some uptime
+> > (4 hours - 2 days) and memory intensive tasks...
+> > Maybe this happens only to me but it's fully reproducable
 > 
-> I definitely agree.
-> 
-> One case which perfectly illustrates how extreme these situations can be is
-> the Mars Pathfinder. The folks at the Jet Propulsion Lab used a tracing tool
-> very similar to LTT to locate the priority inversion problem the Pathfinder
-> had while it was on Mars.
+> It's a known problem with use-once. Users of plain 2.4.18
+> are complaining about it, too.
 
-btw, on the topic, with our semaphores there's no way to handle priority
-inversion with SCHED_RR tasks, if there's more than one task that runs
-in RT priority we may fall into starvation of RT tasks too the same way.
+Hey, thanks Rik, I know something about that :-)  And I'd be testing right
+now to see if you're right, if the DAC960 driver compiled successfully.
+But it doesn't, and since my test machine won't boot without it... given a
+choice between diving into the driver and going back to work on directory
+hashing on 2.4...
 
-No starvation can happen of course if all tasks in the systems belongs
-to the same scheduler policy (nice levels can have effects but they're
-not indefinite delays).
+The tree that builds wins this time.
 
-The fix Ingo used for SCHED_IDLE is to have a special call to the
-scheduler while returning to userspace, so in the only place where we
-know the kernel isn't holding any lock. But while it's going to only
-generate some minor unexpected cpu load with SCHED_IDLE, generalizing
-that hack to make all tasks scheduling inside the kernel running with RT
-priority isn't going to provide a nice/fair behaviour (some task infact could
-run way too much if it's very system-hungry, in particular with
--preempt, which could again generate starvation of userspace, even if
-not anymore because of kernel locks). Maybe I'm overlooking something
-simple but I guess it's not going to be easy to fix it, for the
-semaphores it isn't too bad, they could learn how to raise priority of a
-special holder when needed, but for any semaphore-by-hand (for example
-spinlock based) it would require some major auditing.
+> This is something to touch on after the rmap mechanism
+> has been merged, Linus has indicated that he wants to merge
+> the thing in small bits so that's what we'll be doing ;)
 
-Andrea
+I bet it's something a lot dumber, like a memory leak.
+
+-- 
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
