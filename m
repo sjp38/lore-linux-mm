@@ -1,48 +1,45 @@
-Date: Fri, 18 May 2001 20:19:24 +0200
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 1AA6A16B8D
+	for <linux-mm@kvack.org>; Fri, 18 May 2001 15:23:04 -0300 (EST)
+Date: Fri, 18 May 2001 15:23:03 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Linux 2.4.4-ac10
-Message-ID: <20010518201924.M754@nightmaster.csn.tu-chemnitz.de>
-References: <Pine.LNX.4.21.0105181403280.5531-100000@imladris.rielhome.conectiva> <Pine.LNX.4.33.0105181936240.583-100000@mikeg.weiden.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.33.0105181936240.583-100000@mikeg.weiden.de>; from mikeg@wen-online.de on Fri, May 18, 2001 at 07:45:15PM +0200
+In-Reply-To: <20010518201924.M754@nightmaster.csn.tu-chemnitz.de>
+Message-ID: <Pine.LNX.4.33.0105181521400.5251-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@wen-online.de>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Cc: Mike Galbraith <mikeg@wen-online.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, May 18, 2001 at 07:45:15PM +0200, Mike Galbraith wrote:
-> Yes, ~exactly!  I chose 30 tasks because they almost do (tool/userland
-> dependant.. must recalibrate often) fit.  The bitch is to get the vm
-> to automagically detect the rss/cache munch tradeoff point without all
-> the manual help.
+On Fri, 18 May 2001, Ingo Oeser wrote:
 
-What about a sysctl for that? Choose decent steps and let 0
-(which is an insane value) mean "let's kernel decide" and make
-this default.
+> Rik: Would you take patches for such a tradeoff sysctl?
 
-In the past we could do this by adjusting some watermarks in
-/proc/sys/vm but now, we can't do anything but trust the genius
-kernel developers.
+"such a tradeoff" ?
 
-I doubt that we can test all kinds of workload and even imagine
-what pervert stuff some people do with their machines.
+While this sounds reasonable, I have to point out that
+up to now nobody has described exactly WHAT tradeoff
+they'd like to make tunable and why...
 
-Tuning _is_ manual work. Always has been and always will be.
+I'm not against making things tunable, but I would like
+to at least see the proponents of tunable things explain
+WHAT they want tunable and exactly WHY.
 
-This countinously "I know it better then you" is what I hated
-about Windows and now this comes more and more into Linux :-(
+regards,
 
-Rik: Would you take patches for such a tradeoff sysctl?
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
 
-Regards
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-Ingo Oeser
--- 
-To the systems programmer,
-users and applications serve only to provide a test load.
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
