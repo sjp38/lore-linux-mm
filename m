@@ -1,35 +1,33 @@
-Date: Thu, 9 Dec 1999 21:16:03 +0100 (CET)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: Motivation for page replace alg.?
-In-Reply-To: <Pine.GSO.4.05.9912091421250.11647-100000@aa.eps.jhu.edu>
-Message-ID: <Pine.LNX.4.05.9912092053420.17600-100000@humbolt.nl.linux.org>
+Message-ID: <38501014.E5066331@mandrakesoft.com>
+Date: Thu, 09 Dec 1999 15:24:52 -0500
+From: Jeff Garzik <jgarzik@mandrakesoft.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Getting big areas of memory, in 2.3.x?
+References: <Pine.LNX.4.10.9912091319030.1223-100000@chiara.csoma.elte.hu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: afei@jhu.edu
-Cc: Chris Vaill <cvaill@cs.columbia.edu>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Dec 1999 afei@jhu.edu wrote:
+Ingo Molnar wrote:
+> hm, does anyone have any conceptual problem with a new
+> allocate_largemem(pages) interface in page_alloc.c? It's not terribly hard
+> to scan all bitmaps for available RAM and mark the large memory area
+> allocated and remove all pages from the freelists. Such areas can only be
+> freed via free_largemem(pages). Both calls will be slow, so should be only
+> used at driver initialization time and such.
 
-> Chris, we have done some analysis on this problem. Please check out the
-> online document about linux memory management at:
-> http://aa.eps.jhu.edu/~feiliu/Linux
-> 
-> sorry about the readability, it is converted from word. I will work on the
-> layout later, but the content is there.
+Would this interface swap out user pages if necessary?  That sort of
+interface would be great, and kill a number of hacks floating around out
+there.
 
-I know this is a scholl assignment, but
-would it be possible to publish the
-docs on the web, for instance at the Linux-MM
-site?
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
+-- 
+Jeff Garzik              | Just once, I wish we would encounter
+Building 1024            | an alien menace that wasn't immune to
+MandrakeSoft, Inc.       | bullets.   -- The Brigadier, "Dr. Who"
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
