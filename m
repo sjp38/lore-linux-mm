@@ -1,25 +1,40 @@
-Date: Tue, 7 Oct 2003 01:29:04 -0700
-From: "David S. Miller" <davem@redhat.com>
-Subject: Re: TLB flush optimization on s/390.
-Message-Id: <20031007012904.4fed1e45.davem@redhat.com>
-In-Reply-To: <20031006180456.GA14206@mschwid3.boeblingen.de.ibm.com>
-References: <20031006180456.GA14206@mschwid3.boeblingen.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from gazeta.pl (unknown [195.117.141.11])
+	by dgt-lab.com.pl (Postfix) with ESMTP id 22CA51B24D
+	for <linux-mm@kvack.org>; Thu,  9 Oct 2003 10:58:25 +0200 (CEST)
+Message-ID: <3F85232E.6090604@gazeta.pl>
+Date: Thu, 09 Oct 2003 10:58:22 +0200
+From: Kromer <krom@gazeta.pl>
+MIME-Version: 1.0
+Subject: framebuffer mmap
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: akpm@osdl.org, linux-arch@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 6 Oct 2003 20:04:56 +0200
-Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+hello mm-everybody	
 
-> Comments ?
+i'm just writing my own framebuffer driver for device acessed only via 
+parallel port (there is no way to direct read/write it's memory)
 
-I have no real objections once you deal with the naming
-suggestions made by Matthew.
+i just want to use memory allocated in kernel module, and acess it 
+application with mmmap (and of course flush this memory to device 
+peridicaly)
+
+q1: where is documentation of writing own mmap  functions
+q2: what fields need to be set in  mmap function implementation
+q3: what kind of memory allocation i should use inside driver
+      (kmalloc, vmalloc, with GFP_KERNEL or FGP_USER?)
+q4: how to remap (or not?) in mmap function
+
+q5: is there any simply way to build acess for non-direct memory ?
+     i mean for each byte read/write to this
+     memory need to be called my own function
+
+please answer to my priv (mailto:krom@gazeta.pl) too
+thx
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
