@@ -1,45 +1,44 @@
-Received: from alogconduit1ah.ccr.net (ccr@alogconduit1am.ccr.net [208.130.159.13])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id WAA14118
-	for <linux-mm@kvack.org>; Mon, 10 May 1999 22:42:26 -0400
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA18676
+	for <linux-mm@kvack.org>; Tue, 11 May 1999 07:29:38 -0400
+Date: Tue, 11 May 1999 13:38:48 +0200 (CEST)
+From: Andrea Arcangeli <andrea@e-mind.com>
 Subject: Re: [PATCH] dirty pages in memory & co.
-References: <m1pv4ddj3z.fsf@flinx.ccr.net> <14135.13698.659905.454361@dukat.scot.redhat.com>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 10 May 1999 19:30:00 -0500
-In-Reply-To: "Stephen C. Tweedie"'s message of "Mon, 10 May 1999 20:37:38 +0100 (BST)"
-Message-ID: <m1hfpke9dj.fsf@flinx.ccr.net>
+In-Reply-To: <m1g154e7ou.fsf@flinx.ccr.net>
+Message-ID: <Pine.LNX.4.05.9905111334580.929-100000@laser.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
+To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
+On 10 May 1999, Eric W. Biederman wrote:
 
-ST> Hi,
-ST> On 07 May 1999 09:56:00 -0500, ebiederm+eric@ccr.net (Eric W. Biederman)
-ST> said:
+>The reason I am looking at reverse page entries, is I would like to handle
+>dirty mapped pages better.  
+>My thought is basically to trap the fault that dirties the page and mark it dirty.
+>Then after it has aged long enough I unmap or at least clear the write allow bits of
+>the pte or ptes.
+>
+>This does buy an improvement, in when things get written out.  But beyond that I
+>don't know.
 
->> It looks like I need 2 variations on generic_file_write at the
->> moment. 
->> 1) for network filesystems that can get away without filling
->> the page on a partial write.
->> 2) for block based filesystems that must fill the page on a
->> partial write because they can't write arbitrary chunks of
->> data.
+Having the reverse lookup from pagemap to ptes would also make life a bit
+easier in my update_shared_mappings ;). So in general I see your point.
+Think when you'll clear the dirty bit from the pagemap, then you'll want
+to mark clean also the pte in the tasks. Right?
 
-ST> I'd be very worried by (1): sounds like a partial write followed by a
-ST> read of the full page could show up garbage in the page cache if you do
-ST> this.  If NFS skips the page clearing for partial writes, how does it
-ST> avoid returning garbage later?
+But I am worried by page faults. The page fault that allow us to know
+where there is an uptodate swap-entry on disk just hurt performances more
+than not having such information (I did benchmarks).
 
-Actually (1) is current behaviour.  I really don't like it but I can see
-how it can potentially improve performance.  Partial writes are handled
-by not setting PG_uptodate.
+>It's certainly something to think about for your other algorithms.
 
-Reads are handled by always flushing the per page dirty data before reading.
+I am not sure if it's worthwhile, but I think it worth testing ;).
 
-I don't especially like it but it's what we have now.
+Andrea Arcangeli
 
-Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
