@@ -1,40 +1,28 @@
-Date: Wed, 28 Jan 2004 13:44:25 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] mm/vmscan.c:shrink_list(): check PageSwapCache() after
- add_to_swap()
-Message-Id: <20040128134425.0c00fb2f.akpm@osdl.org>
-In-Reply-To: <16407.59031.17836.961587@laputa.namesys.com>
-References: <16407.59031.17836.961587@laputa.namesys.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <401859CB.2040200@cyberone.com.au>
+Date: Thu, 29 Jan 2004 11:54:35 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
+MIME-Version: 1.0
+Subject: Re: Memory Management in 2.6
+References: <20040127162346.37b75f6c.cliffw@osdl.org> <40185564.8020709@cyberone.com.au>
+In-Reply-To: <40185564.8020709@cyberone.com.au>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nikita Danilov <Nikita@Namesys.COM>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
+Cc: Nikita Danilov <Nikita@Namesys.COM>, Roger Luethi <rl@hellgate.ch>
 List-ID: <linux-mm.kvack.org>
 
-Nikita Danilov <Nikita@Namesys.COM> wrote:
->
-> Hello,
-> 
-> shrink_list() checks PageSwapCache() before calling add_to_swap(), this
-> means that anonymous page that is going to be added to the swap right
-> now these checks return false and:
-> 
->  (*) it will be unaccounted for in nr_mapped, and
-> 
->  (*) it won't be written to the swap if gfp_flags include __GFP_IO but
->      not __GFP_FS.
-> 
-> (Both will happen only on the next round of scanning.)
+Hi,
 
-OK.  Does it make a measurable change in any benchmarks?
+I have done a bit more benchmarking with Nikita's patch
+dont-rotate-active-list (I call it -lru, sorry), and my
+mapped pages fairness patch.
 
-> Patch below just moves may_enter_fs initialization down. I am not sure
-> about (*nr_mapped) increase though.
+Together they're nearly twice as fast as the standard VM
+under heavier make loads, which is pleasing.
 
-nr_mapped seems OK.
+http://www.kerneltrap.org/~npiggin/vm/2/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
