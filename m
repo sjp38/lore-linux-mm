@@ -1,118 +1,68 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iA50291p496964
-	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 19:02:09 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iA50251D271858
-	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 17:02:09 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iA5025QX023653
-	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 17:02:05 -0700
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.12.10/8.12.9) with ESMTP id iA50eosZ599198
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 19:40:54 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iA50eoG2288012
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 19:40:50 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iA50eoQP027700
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 19:40:50 -0500
 Subject: Re: fix iounmap and a pageattr memleak (x86 and x86-64)
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20041103030558.GK3571@dualathlon.random>
+In-Reply-To: <1099612923.1022.10.camel@localhost>
 References: <4187FA6D.3070604@us.ibm.com>
 	 <20041102220720.GV3571@dualathlon.random> <41880E0A.3000805@us.ibm.com>
 	 <4188118A.5050300@us.ibm.com> <20041103013511.GC3571@dualathlon.random>
 	 <418837D1.402@us.ibm.com> <20041103022606.GI3571@dualathlon.random>
 	 <418846E9.1060906@us.ibm.com>  <20041103030558.GK3571@dualathlon.random>
-Content-Type: multipart/mixed; boundary="=-NWaoPp/NYxxXq1H0Ku84"
-Message-Id: <1099612923.1022.10.camel@localhost>
+	 <1099612923.1022.10.camel@localhost>
+Content-Type: multipart/mixed; boundary="=-qpSuqkGakgG19YBwJKiG"
+Message-Id: <1099615248.5819.0.camel@localhost>
 Mime-Version: 1.0
-Date: Thu, 04 Nov 2004 16:02:04 -0800
+Date: Thu, 04 Nov 2004 16:40:48 -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@novell.com>
 Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
---=-NWaoPp/NYxxXq1H0Ku84
+--=-qpSuqkGakgG19YBwJKiG
 Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
 
-Hi Andrea,
+I attached the wrong patch.
 
-Are you sure that BUG_ON() should be for !page_count(kpte_page)?  I
-noticed that I was getting some BUGs when the count went back to 0, but
-the pte page was completely full with valid ptes.  I *think* it's
-correct to make it:
-
-       BUG_ON(page_count(kpte_page) < 0);
-
-Or, I guess we could keep the old BUG_ON(), and put it inside the else
-block with the __put_page().  
+Here's what I meant to send.
 
 -- Dave
 
---=-NWaoPp/NYxxXq1H0Ku84
-Content-Disposition: attachment; filename=Z3-page_debugging.patch
-Content-Type: text/x-patch; name=Z3-page_debugging.patch; charset=ANSI_X3.4-1968
+--=-qpSuqkGakgG19YBwJKiG
+Content-Disposition: attachment; filename=Z0-leaks_only_on_negative.patch
+Content-Type: text/x-patch; name=Z0-leaks_only_on_negative.patch; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 7bit
 
 
 
 ---
 
- memhotplug1-dave/arch/i386/mm/pageattr.c |    7 +++++--
- memhotplug1-dave/include/linux/mm.h      |    3 +++
- memhotplug1-dave/mm/page_alloc.c         |    5 ++++-
- 3 files changed, 12 insertions(+), 3 deletions(-)
+ memhotplug1-dave/arch/i386/mm/pageattr.c |    2 +-
+ 1 files changed, 1 insertion(+), 1 deletion(-)
 
-diff -puN include/linux/mm.h~Z3-page_debugging include/linux/mm.h
---- memhotplug1/include/linux/mm.h~Z3-page_debugging	2004-11-02 14:29:51.000000000 -0800
-+++ memhotplug1-dave/include/linux/mm.h	2004-11-02 14:37:08.000000000 -0800
-@@ -245,6 +245,9 @@ struct page {
- 	void *virtual;			/* Kernel virtual address (NULL if
- 					   not kmapped, ie. highmem) */
- #endif /* WANT_PAGE_VIRTUAL */
-+#ifdef CONFIG_DEBUG_PAGEALLOC
-+	int mapped;
-+#endif
- };
+diff -puN arch/i386/mm/pageattr.c~Z0-leaks_only_on_negative arch/i386/mm/pageattr.c
+--- memhotplug1/arch/i386/mm/pageattr.c~Z0-leaks_only_on_negative	2004-11-04 15:57:28.000000000 -0800
++++ memhotplug1-dave/arch/i386/mm/pageattr.c	2004-11-04 15:58:50.000000000 -0800
+@@ -135,7 +135,7 @@ __change_page_attr(struct page *page, pg
+ 		BUG();
  
- #ifdef CONFIG_MEMORY_HOTPLUG
-diff -puN arch/i386/mm/pageattr.c~Z3-page_debugging arch/i386/mm/pageattr.c
---- memhotplug1/arch/i386/mm/pageattr.c~Z3-page_debugging	2004-11-02 14:31:07.000000000 -0800
-+++ memhotplug1-dave/arch/i386/mm/pageattr.c	2004-11-02 14:41:00.000000000 -0800
-@@ -153,7 +153,7 @@ __change_page_attr(struct page *page, pg
- 		printk("pgprot_val(PAGE_KERNEL): %08lx\n", pgprot_val(PAGE_KERNEL));
- 		printk("(pte_val(*kpte) & _PAGE_PSE): %08lx\n", (pte_val(*kpte) & _PAGE_PSE)); 
- 		printk("path: %d\n", path);
--		BUG();
-+		WARN_ON(1);
- 	}
+ 	/* memleak and potential failed 2M page regeneration */
+-	BUG_ON(!page_count(kpte_page));
++	BUG_ON(page_count(kpte_page) < 0);
  
  	if (cpu_has_pse && (page_count(kpte_page) == 1)) {
-@@ -224,7 +224,10 @@ void kernel_map_pages(struct page *page,
- 	/* the return value is ignored - the calls cannot fail,
- 	 * large pages are disabled at boot time.
- 	 */
--	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
-+	if (enable && !page->mapped)
-+		change_page_attr(page, numpages, PAGE_KERNEL);
-+	else if (!enable && page->mapped)
-+		change_page_attr(page, numpages, __pgprot(0));
- 	/* we should perform an IPI and flush all tlbs,
- 	 * but that can deadlock->flush only current cpu.
- 	 */
-diff -puN mm/page_alloc.c~Z3-page_debugging mm/page_alloc.c
---- memhotplug1/mm/page_alloc.c~Z3-page_debugging	2004-11-02 14:37:53.000000000 -0800
-+++ memhotplug1-dave/mm/page_alloc.c	2004-11-02 14:42:56.000000000 -0800
-@@ -1840,8 +1840,11 @@ void __devinit memmap_init_zone(unsigned
- 		INIT_LIST_HEAD(&page->lru);
- #ifdef WANT_PAGE_VIRTUAL
- 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
--		if (!is_highmem_idx(zone))
-+		if (!is_highmem_idx(zone)) {
- 			set_page_address(page, __va(start_pfn << PAGE_SHIFT));
-+			page->mapped = 1;
-+		} else
-+			page->mapped = 0;
- #endif
- 		start_pfn++;
- 	}
+ 		list_add(&kpte_page->lru, &df_list);
 _
 
---=-NWaoPp/NYxxXq1H0Ku84--
+--=-qpSuqkGakgG19YBwJKiG--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
