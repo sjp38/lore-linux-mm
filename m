@@ -1,7 +1,7 @@
-Date: Thu, 25 Jul 2002 18:10:59 +0200
+Date: Thu, 25 Jul 2002 18:33:13 +0200
 From: Christoph Hellwig <hch@lst.de>
-Subject: [RFC] start_aggressive_readahead
-Message-ID: <20020725181059.A25857@lst.de>
+Subject: [PATCH] vmap_pages()
+Message-ID: <20020725183313.A26136@lst.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,90 +11,299 @@ To: torvalds@transmeta.com
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Another patch from the XFS tree, I'd be happy to get some comments on
-this one again.
+The vmap_pages() functions allows to map an array of virtually
+non-continguos pages into the kernel virtual memory.  The implementation
+is very simple and a small variation of vmalloc() - instead of
+allocating new pages in alloc_area_pte() uncondintionally a pointer to a
+page array is passed down all through vmalloc_area_pages => alloc_area_pmd
+=> alloc_area_pte and if it is non-null no pages are allocated but the
+reference count on the existing ones is incremented.
 
-This function (start_aggressive_readahead()) checks whether all zones
-of the given gfp mask have lots of free pages.  XFS needs this for it's
-own readahead code (used only deep in the directory code, normal file
-readahead is handled by the generic pagecache code).  We perform the
-readahead only is it returns 1 for enough free pages.
+The old vmalloc_area_pages is renamed to __vmap_area_pages and
+vmalloc_area_pages is a small wrapper around it, passing in an NULL page
+array.  Similarly __vmalloc is renamed to vmap_pages and a small wrapper
+is added.
 
-We could rip it out of XFS entirely without funcionality-loss, but it
-would cost directory handling performance.
+In addition I've removed th unused vmalloc_dma and cleaned up vmalloc.h
+a little - this could need more cleanup (and kdoc documentation for
+the vmalloc.c stuff), but I will do this later in an incremental patch.
 
-I'm also open for a better name (I think the current one is very bad,
-but don't have a better idea :)).  I'd also be ineterested in comments
-how to avoid the new function and use existing functionality for it,
-but I've tried to find it for a long time and didn't find something
-suiteable.
+This patch is needed by certain areas in XFS, i.e. lock recovery and
+in the directory btree code for strange mkfs flags to operate on large
+contingous buffers (>PAGE_SIZE).
 
--- 
-The US Army issues lap-top computers now to squad-leaders on up. [...]
-Believe me, there is nothing more lethal than a Power Point briefing
-given by an Army person.	-- Leon A. Goldstein
+The patch has been reviewed by akpm.
 
---- linux/include/linux/mm.h Wed, 29 May 2002 14:00:22
-+++ linux/include/linux/mm.h Mon, 22 Jul 2002 12:06:09
-@@ -460,6 +460,8 @@ extern void FASTCALL(free_pages(unsigned
- #define __free_page(page) __free_pages((page), 0)
- #define free_page(addr) free_pages((addr),0)
- 
-+extern int start_aggressive_readahead(int);
+
+--- linux-2.5/drivers/char/mem.c	Sat Jul 13 20:38:52 2002
++++ linux-2.5-xfs/drivers/char/mem.c	Thu Jul 18 23:45:36 2002
+@@ -42,6 +42,9 @@
+ #if defined(CONFIG_S390_TAPE) && defined(CONFIG_S390_TAPE_CHAR)
+ extern void tapechar_init(void);
+ #endif
 +
- extern void show_free_areas(void);
- extern void show_free_areas_node(pg_data_t *pgdat);
++extern long vwrite(char *buf, char *addr, unsigned long count);
++extern long vread(char *buf, char *addr, unsigned long count);
+      
+ static ssize_t do_write_mem(struct file * file, void *p, unsigned long realp,
+ 			    const char * buf, size_t count, loff_t *ppos)
+@@ -273,8 +276,6 @@
+  	return virtr + read;
+ }
  
---- linux/kernel/ksyms.c Wed, 17 Jul 2002 12:08:06
-+++ linux/kernel/ksyms.c Mon, 22 Jul 2002 12:06:09
-@@ -90,6 +90,7 @@ EXPORT_SYMBOL(exit_fs);
- EXPORT_SYMBOL(exit_sighand);
+-extern long vwrite(char *buf, char *addr, unsigned long count);
+-
+ /*
+  * This function writes to the *virtual* memory as seen by the kernel.
+  */
+--- linux-2.5/kernel/ksyms.c	Sat Jul 13 20:40:52 2002
++++ linux-2.5-xfs/kernel/ksyms.c	Thu Jul 18 23:15:58 2002
+@@ -112,6 +112,7 @@
+ EXPORT_SYMBOL(vmalloc);
+ EXPORT_SYMBOL(vmalloc_32);
+ EXPORT_SYMBOL(vmalloc_to_page);
++EXPORT_SYMBOL(vmap_pages);
+ EXPORT_SYMBOL(mem_map);
+ EXPORT_SYMBOL(remap_page_range);
+ EXPORT_SYMBOL(max_mapnr);
+--- linux-2.5/include/linux/vmalloc.h	Sat Jul 13 20:40:46 2002
++++ linux-2.5-xfs/include/linux/vmalloc.h	Thu Jul 18 23:13:46 2002
+@@ -1,10 +1,12 @@
+-#ifndef __LINUX_VMALLOC_H
+-#define __LINUX_VMALLOC_H
++#ifndef _LINUX_VMALLOC_H
++#define _LINUX_VMALLOC_H
  
- /* internal kernel memory management */
-+EXPORT_SYMBOL(start_aggressive_readahead);
- EXPORT_SYMBOL(_alloc_pages);
- EXPORT_SYMBOL(__alloc_pages);
- EXPORT_SYMBOL(alloc_pages_node);
---- linux/mm/page_alloc.c Tue, 25 Jun 2002 10:15:12 
-+++ linux/mm/page_alloc.c Mon, 22 Jul 2002 12:06:09
-@@ -512,6 +512,37 @@ unsigned int nr_free_highpages (void)
- #define K(x) ((x) << (PAGE_SHIFT-10))
+ #include <linux/spinlock.h>
+-
+ #include <asm/pgtable.h>
+ 
++struct page;
++
++
+ /* bits in vm_struct->flags */
+ #define VM_IOREMAP	0x00000001	/* ioremap() and friends */
+ #define VM_ALLOC	0x00000002	/* vmalloc() */
+@@ -17,28 +19,25 @@
+ 	struct vm_struct * next;
+ };
+ 
+-extern struct vm_struct * get_vm_area (unsigned long size, unsigned long flags);
+-extern void vfree(void * addr);
++
+ extern void * __vmalloc (unsigned long size, int gfp_mask, pgprot_t prot);
+-extern long vread(char *buf, char *addr, unsigned long count);
+-extern void vmfree_area_pages(unsigned long address, unsigned long size);
++extern void * vmalloc(unsigned long size);
++extern void * vmalloc_32(unsigned long size);
++extern void * vmap_pages(struct page **pages, unsigned long size,
++			 int gfp_mask, pgprot_t prot);
++extern void vfree(void * addr);
++
++extern struct vm_struct * get_vm_area (unsigned long size, unsigned long flags);
+ extern int vmalloc_area_pages(unsigned long address, unsigned long size,
+                               int gfp_mask, pgprot_t prot);
++extern void vmfree_area_pages(unsigned long address, unsigned long size);
+ extern struct vm_struct *remove_kernel_area(void *addr);
  
  /*
-+ * If it returns non zero it means there's lots of ram "free"
-+ * (note: not in cache!) so any caller will know that
-+ * he can allocate some memory to do some more aggressive
-+ * (possibly wasteful) readahead. The state of the memory
-+ * should be rechecked after every few pages allocated for
-+ * doing this aggressive readahead.
-+ *
-+ * NOTE: caller passes in gfp_mask of zones to check
-+ */
-+int start_aggressive_readahead(int gfp_mask)
+- * Various ways to allocate pages.
+- */
+-
+-extern void * vmalloc(unsigned long size);
+-extern void * vmalloc_32(unsigned long size);
+-
+-/*
+  * vmlist_lock is a read-write spinlock that protects vmlist
+  * Used in mm/vmalloc.c (get_vm_area() and vfree()) and fs/proc/kcore.c.
+  */
+ extern rwlock_t vmlist_lock;
+-
+ extern struct vm_struct * vmlist;
+-#endif
+ 
++#endif /* _LINUX_VMALLOC_H */
+--- linux-2.5/mm/vmalloc.c	Sat Jul 13 20:40:53 2002
++++ linux-2.5-xfs/mm/vmalloc.c	Thu Jul 18 23:11:36 2002
+@@ -99,8 +99,9 @@
+ 	flush_tlb_kernel_range(start, end);
+ }
+ 
+-static inline int alloc_area_pte (pte_t * pte, unsigned long address,
+-			unsigned long size, int gfp_mask, pgprot_t prot)
++static inline int alloc_area_pte(pte_t * pte, struct page ** pages,
++				 unsigned long address, unsigned long size,
++				 int gfp_mask, pgprot_t prot)
+ {
+ 	unsigned long end;
+ 
+@@ -110,9 +111,17 @@
+ 		end = PMD_SIZE;
+ 	do {
+ 		struct page * page;
+-		spin_unlock(&init_mm.page_table_lock);
+-		page = alloc_page(gfp_mask);
+-		spin_lock(&init_mm.page_table_lock);
++
++		if (pages) {
++			page = *(pages++);
++
++			/* Add a reference to the page so we can free later */
++			get_page(page);
++		} else {
++			spin_unlock(&init_mm.page_table_lock);
++			page = alloc_page(gfp_mask);
++			spin_lock(&init_mm.page_table_lock);
++		}
+ 		if (!pte_none(*pte))
+ 			printk(KERN_ERR "alloc_area_pte: page already exists\n");
+ 		if (!page)
+@@ -124,7 +133,9 @@
+ 	return 0;
+ }
+ 
+-static inline int alloc_area_pmd(pmd_t * pmd, unsigned long address, unsigned long size, int gfp_mask, pgprot_t prot)
++static inline int alloc_area_pmd(pmd_t * pmd, struct page ** pages,
++				 unsigned long address, unsigned long size,
++				 int gfp_mask, pgprot_t prot)
+ {
+ 	unsigned long end;
+ 
+@@ -136,7 +147,8 @@
+ 		pte_t * pte = pte_alloc_kernel(&init_mm, pmd, address);
+ 		if (!pte)
+ 			return -ENOMEM;
+-		if (alloc_area_pte(pte, address, end - address, gfp_mask, prot))
++		if (alloc_area_pte(pte, pages, address, end - address,
++					gfp_mask, prot))
+ 			return -ENOMEM;
+ 		address = (address + PMD_SIZE) & PMD_MASK;
+ 		pmd++;
+@@ -144,8 +156,8 @@
+ 	return 0;
+ }
+ 
+-inline int vmalloc_area_pages (unsigned long address, unsigned long size,
+-                               int gfp_mask, pgprot_t prot)
++int __vmap_area_pages(struct page ** pages, unsigned long address,
++		      unsigned long size, int gfp_mask, pgprot_t prot)
+ {
+ 	pgd_t * dir;
+ 	unsigned long end = address + size;
+@@ -162,7 +174,8 @@
+ 			break;
+ 
+ 		ret = -ENOMEM;
+-		if (alloc_area_pmd(pmd, address, end - address, gfp_mask, prot))
++		if (alloc_area_pmd(pmd, pages, address, end - address,
++					gfp_mask, prot))
+ 			break;
+ 
+ 		address = (address + PGDIR_SIZE) & PGDIR_MASK;
+@@ -175,6 +188,12 @@
+ 	return ret;
+ }
+ 
++int vmalloc_area_pages(unsigned long address, unsigned long size,
++		       int gfp_mask, pgprot_t prot)
 +{
-+	pg_data_t *pgdat = pgdat_list;
-+	zonelist_t *zonelist;
-+	zone_t **zonep, *zone;
-+	int ret = 0;
++	return __vmap_area_pages(NULL, address, size, gfp_mask, prot);
++}
 +
-+	do {
-+		zonelist = pgdat->node_zonelists + (gfp_mask & GFP_ZONEMASK);
-+		zonep = zonelist->zones;
-+
-+		for (zone = *zonep++; zone; zone = *zonep++)
-+			if (zone->free_pages > zone->pages_high * 2)
-+				ret = 1;
-+
-+		pgdat = pgdat->node_next;
-+	} while (pgdat);
-+
-+	return ret;
+ struct vm_struct * get_vm_area(unsigned long size, unsigned long flags)
+ {
+ 	unsigned long addr;
+@@ -238,41 +257,15 @@
+ 	}
+ 	tmp = remove_kernel_area(addr); 
+ 	if (tmp) { 
+-			vmfree_area_pages(VMALLOC_VMADDR(tmp->addr), tmp->size);
+-			kfree(tmp);
+-			return;
+-		}
++		vmfree_area_pages(VMALLOC_VMADDR(tmp->addr), tmp->size);
++		kfree(tmp);
++		return;
++	}
+ 	printk(KERN_ERR "Trying to vfree() nonexistent vm area (%p)\n", addr);
+ }
+ 
+-/*
+- *	Allocate any pages
+- */
+-
+-void * vmalloc (unsigned long size)
+-{
+-	return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL);
+-}
+-
+-/*
+- *	Allocate ISA addressable pages for broke crap
+- */
+-
+-void * vmalloc_dma (unsigned long size)
+-{
+-	return __vmalloc(size, GFP_KERNEL|GFP_DMA, PAGE_KERNEL);
+-}
+-
+-/*
+- *	vmalloc 32bit PA addressable pages - eg for PCI 32bit devices
+- */
+-
+-void * vmalloc_32(unsigned long size)
+-{
+-	return __vmalloc(size, GFP_KERNEL, PAGE_KERNEL);
+-}
+-
+-void * __vmalloc (unsigned long size, int gfp_mask, pgprot_t prot)
++void * vmap_pages(struct page **pages, unsigned long size,
++		 int gfp_mask, pgprot_t prot)
+ {
+ 	void * addr;
+ 	struct vm_struct *area;
+@@ -286,13 +279,37 @@
+ 	if (!area)
+ 		return NULL;
+ 	addr = area->addr;
+-	if (vmalloc_area_pages(VMALLOC_VMADDR(addr), size, gfp_mask, prot)) {
++	if (__vmap_area_pages(pages, VMALLOC_VMADDR(addr), size, gfp_mask, prot)) {
+ 		vfree(addr);
+ 		return NULL;
+ 	}
+ 	return addr;
+ }
+ 
++void * __vmalloc (unsigned long size, int gfp_mask, pgprot_t prot)
++{
++	return vmap_pages(NULL, size, gfp_mask, prot);
 +}
 +
 +/*
-  * Show free area list (used inside shift_scroll-lock stuff)
-  * We also calculate the percentage fragmentation. We do this by counting the
-  * memory on each free list with the exception of the first item on the list.
++ *	Allocate any pages
++ */
++
++void * vmalloc (unsigned long size)
++{
++	return vmap_pages(NULL, size, GFP_KERNEL|__GFP_HIGHMEM, PAGE_KERNEL);
++}
++
++/*
++ *	vmalloc 32bit PA addressable pages - eg for PCI 32bit devices
++ */
++
++void * vmalloc_32(unsigned long size)
++{
++	return vmap_pages(NULL, size, GFP_KERNEL|GFP_DMA, PAGE_KERNEL);
++}
++
++
+ long vread(char *buf, char *addr, unsigned long count)
+ {
+ 	struct vm_struct *tmp;
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
