@@ -1,25 +1,33 @@
-Date: Thu, 18 Jul 2002 17:22:31 +0200 (MEST)
-From: Szakacsits Szabolcs <szaka@sienet.hu>
 Subject: Re: [PATCH] strict VM overcommit for stock 2.4
-In-Reply-To: <1026495039.1750.379.camel@sinai>
-Message-ID: <Pine.LNX.4.30.0207181714420.30902-100000@divine.city.tvnet.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <Pine.LNX.4.30.0207181714420.30902-100000@divine.city.tvnet.hu>
+References: <Pine.LNX.4.30.0207181714420.30902-100000@divine.city.tvnet.hu>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 18 Jul 2002 09:31:05 -0700
+Message-Id: <1027009865.1555.105.camel@sinai>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robert Love <rml@tech9.net>
+To: Szakacsits Szabolcs <szaka@sienet.hu>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 12 Jul 2002, Robert Love wrote:
+On Thu, 2002-07-18 at 08:22, Szakacsits Szabolcs wrote:
 
-> I still encourage testing and comments.
+> Quickly looking through the patch I can't see what prevents total loss of
+> control at constant memory pressure. For more please see:
 
-Quickly looking through the patch I can't see what prevents total loss of
-control at constant memory pressure. For more please see:
-	http://www.uwsg.iu.edu/hypermail/linux/kernel/0108.2/0310.html
+I do not see anything in this email related to the issue at hand.
 
-    Szaka
+First, if the VM is broke that is an orthogonal issue that needs to be
+fixed separately.
+
+Specifically, what livelock situation are you insinuating?  If we only
+allow allocation that are met by the backing store, we cannot get
+anywhere near OOM.
+
+	Robert Love
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
