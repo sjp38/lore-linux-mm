@@ -1,38 +1,29 @@
-Received: from server1.fastermail.com  (mail.fastermail.com   [205.158.62.76])
-	by fep2.fastmail.com (Postfix) with ESMTP id A025C6413
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2005 23:23:36 +0400 (EDT)
-Received: from nobody by fastmail.com with local (Exim 4.17)
-	id 7C1rjW-6518oD-My
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2005 12:29:36 -0700
-Subject: Re: Account
-From: "Amanda Flynn" <AmandaehFlynneh@fastmail.com>
-Message-ID: <784541920020.7eb1e6185311@fastmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 8bit
-Date: Fri, 25 Feb 2005 13:29:36 -0600
+Message-Id: <E3A4nm6-9571Yt-00@mail.nitros2.org>
+Date: Fri, 25 Feb 2005 17:57:24 -0600
+From: "Reuben Mcbride" <wqxiv@msn.com>
+Subject: Everyone Need This Blah
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: blah@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Current Matches:
+Biggest stores of on'line pharmacies.
+Over than 150 major meds
+Highest qualities assured on our online generic meds
+at the most competitive prices.
 
-1.
-Amanda Flynn is within 22 miles from your
-location.  She is married, but her husband is away
-almost every weekend and some weeknights.
+Vi'sit us today's!
 
-2.
-Samantha Fox is within 14 miles from your
-location.  She is married but looking for another
-relationship while her husband is on the road.
-
-Email address and Pictures of your matches are available:
-http://madamcharming.com/d/6.php
+http://www.ilovemeds.com/index.php?aid=8
 
 
-Not For Me?
-http://madamcharming.com/bye/
+
+
+
+
+
+
+URhVXX7fcCqwR4XmNNIEGspEQly88hb2Ed6QqtRNyW8WuDb9v
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
