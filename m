@@ -1,39 +1,44 @@
-Date: Wed, 17 Jan 2001 18:27:10 +1100 (EST)
+Date: Wed, 17 Jan 2001 18:19:31 +1100 (EST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Aggressive swapout with 2.4.1pre4+ 
-In-Reply-To: <Pine.LNX.4.21.0101160138140.1556-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.31.0101171825340.30841-100000@localhost.localdomain>
+Subject: Re: swapout selection change in pre1
+In-Reply-To: <01011420222701.14309@oscar>
+Message-ID: <Pine.LNX.4.31.0101171817180.30841-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Jan 2001, Marcelo Tosatti wrote:
+On Sun, 14 Jan 2001, Ed Tomlinson wrote:
 
-> Currently swap_out() scans a fixed percentage of each process RSS without
-> taking into account how much memory we are out of.
+> Think its gone too far in the other direction now.  Running a
+> heavily threaded java program, 35 threads and RSS of 44M a 128M
+> KIII-400 with cpu usage of 4-10%, the rest of the system is
+> getting paged out very quickly and X feels slugish.  While we
+> may not want to treat each thread as if it was a process, I
+> think we need more than one scan per group of threads sharing
+> memory.
 >
-> The following patch changes that by making swap_out() stop when it
-> successfully moved the "needed" (calculated by refill_inactive()) amount
-> of pages to the swap cache.
->
-> This should avoid the system to swap out to aggressively.
->
-> Comments?
+> Ideas?
 
-The big problem doesn't seem to be this. The big problem
-seems to be that we don't do IO in page_launder() smooth
-enough.
+Bullshit.
 
-All the above patch does is make _allocation_ of swap and
-clearing of page table entries smoother, but those are not
-the actions that have a performance impact.
+The old MM selection code used mm->swap_cnt to give
+exactly the same result, only scanning through a larger
+list.
 
-(and yes, I tested all these things while I was sitting in
-my hotel room for 5 days without any net access)
+The change that could affect this could be the thing
+where we immediately unmap a page from a process if it
+isn't used, so refill_inactive_scan() has better chances.
+
+I have something (ugly?) for this in my patch on
+http://www.surriel.com/patches/ ... I'll clean it up and
+send it.
+
+(damn, a week without internet is horrible ... lots of
+duplicated/different/... work, some of it wasted)
 
 regards,
 
