@@ -1,7 +1,7 @@
-Message-Id: <200405222204.i4MM4Yr12483@mail.osdl.org>
-Subject: [patch 12/57] rmap 11 mremap moves
+Message-Id: <200405222204.i4MM4Nr12454@mail.osdl.org>
+Subject: [patch 11/57] rmap 10 add anonmm rmap
 From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:04:03 -0700
+Date: Sat, 22 May 2004 15:03:54 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
@@ -10,411 +10,433 @@ List-ID: <linux-mm.kvack.org>
 
 From: Hugh Dickins <hugh@veritas.com>
 
-A weakness of the anonmm scheme is its difficulty in tracking pages shared
-between two or more mms (one being an ancestor of the other), when mremap has
-been used to move a range of pages in one of those mms.  mremap move is not
-very common anyway, and it's more often used on a page range exclusive to the
-mm; but uncommon though it may be, we must not allow unlocked pages to become
-unswappable.
+Hugh's anonmm object-based reverse mapping scheme for anonymous pages.  We
+have not yet decided whether to adopt this scheme, or Andrea's more advanced
+anon_vma scheme.  anonmm is easier for me to merge quickly, to replace the
+pte_chain rmap taken out in the previous patch; a patch to install Andrea's
+anon_vma will follow in due course.
 
-This patch follows Linus' suggestion, simply to take a private copy of the
-page in such a case: early C-O-W.  My previous implementation was daft with
-respect to pages currently on swap: it insisted on swapping them in to copy
-them.  No need for that: just take the copy when a page is brought in from
-swap, and its intended address is found to clash with what rmap has already
-noted.
+Why build up and tear down chains of pte pointers for anonymous pages, when a
+page can only appear at one particular address, in a restricted group of mms
+that might share it?  (Except: see next patch on mremap.)
 
-If do_swap_page has to make this copy in the mremap moved case (simply a call
-to do_wp_page), might as well do so also in the case when it's a write access
-but the page not exclusive, it's always seemed a little odd that swapin needed
-a second fault for that.  A bug even: get_user_pages force imagines that a
-single call to handle_mm_fault must break C-O-W.  Another bugfix: swapoff's
-unuse_process didn't check is_vm_hugetlb_page.
+Introduce struct anonmm per mm to track anonymous pages, all forks from one
+exec sharing the same bundle of linked anonmms.  Anonymous pages originate in
+one mm, but may be forked into another mm of the bundle later on.  Callouts
+from fork.c to allocate, dup and exit the anonmm structure private to rmap.c.
 
-Andrea's anon_vma has no such problem with mremap moved pages, handling them
-with elegant use of vm_pgoff - though at some cost to vma merging.  How
-important is it to handle them efficiently?  For now there's a msg
-printk(KERN_WARNING "%s: mremap moved %d cows\n", current->comm, cows);
+From: Hugh Dickins <hugh@veritas.com>
+
+  Two concurrent exits (of the last two mms sharing the anonhd).  First
+  exit_rmap brings anonhd->count down to 2, gets preempted (at the
+  spin_unlock) by second, which brings anonhd->count down to 1, sees it's 1
+  and frees the anonhd (without making any change to anonhd->count itself),
+  cpu goes on to do something new which reallocates the old anonhd as a new
+  struct anonmm (probably not a head, in which case count will start at 1),
+  first resumes after the spin_unlock and sees anonhd->count 1, frees "anonhd"
+  again, it's used for something else, a later exit_rmap list_del finds list
+  corrupt.
 
 
 ---
 
- 25-akpm/include/linux/rmap.h |   46 +++++++++++++++++++++++++++++++++
- 25-akpm/mm/memory.c          |   11 +++++++-
- 25-akpm/mm/mremap.c          |   59 +++++++++++++++++++++++++++++--------------
- 25-akpm/mm/rmap.c            |   32 +++++++++++++++++++++++
- 25-akpm/mm/swapfile.c        |   42 +++++++++++++++++++++---------
- 5 files changed, 157 insertions(+), 33 deletions(-)
+ 25-akpm/include/linux/rmap.h  |   13 ++
+ 25-akpm/include/linux/sched.h |    1 
+ 25-akpm/kernel/fork.c         |   18 ++-
+ 25-akpm/mm/rmap.c             |  239 +++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 266 insertions(+), 5 deletions(-)
 
-diff -puN include/linux/rmap.h~rmap-11-mremap-moves include/linux/rmap.h
---- 25/include/linux/rmap.h~rmap-11-mremap-moves	2004-05-22 14:56:23.161570432 -0700
-+++ 25-akpm/include/linux/rmap.h	2004-05-22 14:59:42.137321520 -0700
-@@ -34,6 +34,52 @@ static inline void page_dup_rmap(struct 
- 	page_map_unlock(page);
+diff -puN include/linux/rmap.h~rmap-10-add-anonmm-rmap include/linux/rmap.h
+--- 25/include/linux/rmap.h~rmap-10-add-anonmm-rmap	2004-05-22 14:56:23.011593232 -0700
++++ 25-akpm/include/linux/rmap.h	2004-05-22 14:59:42.915203264 -0700
+@@ -35,6 +35,14 @@ static inline void page_dup_rmap(struct 
  }
  
-+int fastcall mremap_move_anon_rmap(struct page *page, unsigned long addr);
-+
-+/**
-+ * mremap_moved_anon_rmap - does new address clash with that noted?
-+ * @page:	the page just brought back in from swap
-+ * @addr:	the user virtual address at which it is mapped
-+ *
-+ * Returns boolean, true if addr clashes with address already in page.
-+ *
-+ * For do_swap_page and unuse_pte: anonmm rmap cannot find the page if
-+ * it's at different addresses in different mms, so caller must take a
-+ * copy of the page to avoid that: not very clever, but too rare a case
-+ * to merit cleverness.
-+ */
-+static inline int mremap_moved_anon_rmap(struct page *page, unsigned long addr)
-+{
-+	return page->index != (addr & PAGE_MASK);
-+}
-+
-+/**
-+ * make_page_exclusive - try to make page exclusive to one mm
-+ * @vma		the vm_area_struct covering this address
-+ * @addr	the user virtual address of the page in question
-+ *
-+ * Assumes that the page at this address is anonymous (COWable),
-+ * and that the caller holds mmap_sem for reading or for writing.
-+ *
-+ * For mremap's move_page_tables and for swapoff's unuse_process:
-+ * not a general purpose routine, and in general may not succeed.
-+ * But move_page_tables loops until it succeeds, and unuse_process
-+ * holds the original page locked, which protects against races.
-+ */
-+static inline int make_page_exclusive(struct vm_area_struct *vma,
-+					unsigned long addr)
-+{
-+	switch (handle_mm_fault(vma->vm_mm, vma, addr, 1)) {
-+	case VM_FAULT_MINOR:
-+	case VM_FAULT_MAJOR:
-+		return 0;
-+	case VM_FAULT_OOM:
-+		return -ENOMEM;
-+	default:
-+		return -EFAULT;
-+	}
-+}
-+
  /*
-  * Called from kernel/fork.c to manage anonymous memory
++ * Called from kernel/fork.c to manage anonymous memory
++ */
++void init_rmap(void);
++int exec_rmap(struct mm_struct *);
++int dup_rmap(struct mm_struct *, struct mm_struct *oldmm);
++void exit_rmap(struct mm_struct *);
++
++/*
+  * Called from mm/vmscan.c to handle paging out
   */
-diff -puN mm/memory.c~rmap-11-mremap-moves mm/memory.c
---- 25/mm/memory.c~rmap-11-mremap-moves	2004-05-22 14:56:23.162570280 -0700
-+++ 25-akpm/mm/memory.c	2004-05-22 14:59:42.754227736 -0700
-@@ -1326,14 +1326,23 @@ static int do_swap_page(struct mm_struct
+ int fastcall page_referenced(struct page *);
+@@ -42,6 +50,11 @@ int fastcall try_to_unmap(struct page *)
  
- 	mm->rss++;
- 	pte = mk_pte(page, vma->vm_page_prot);
--	if (write_access && can_share_swap_page(page))
-+	if (write_access && can_share_swap_page(page)) {
- 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-+		write_access = 0;
-+	}
- 	unlock_page(page);
+ #else	/* !CONFIG_MMU */
  
- 	flush_icache_page(vma, page);
- 	set_pte(page_table, pte);
- 	page_add_anon_rmap(page, mm, address);
++#define init_rmap()		do {} while (0)
++#define exec_rmap(mm)		(0)
++#define dup_rmap(mm, oldmm)	(0)
++#define exit_rmap(mm)		do {} while (0)
++
+ #define page_referenced(page)	TestClearPageReferenced(page)
+ #define try_to_unmap(page)	SWAP_FAIL
  
-+	if (write_access || mremap_moved_anon_rmap(page, address)) {
-+		if (do_wp_page(mm, vma, address,
-+				page_table, pmd, pte) == VM_FAULT_OOM)
-+			ret = VM_FAULT_OOM;
-+		goto out;
+diff -puN include/linux/sched.h~rmap-10-add-anonmm-rmap include/linux/sched.h
+--- 25/include/linux/sched.h~rmap-10-add-anonmm-rmap	2004-05-22 14:56:23.012593080 -0700
++++ 25-akpm/include/linux/sched.h	2004-05-22 14:59:41.378436888 -0700
+@@ -207,6 +207,7 @@ struct mm_struct {
+ 						 * together off init_mm.mmlist, and are protected
+ 						 * by mmlist_lock
+ 						 */
++	struct anonmm *anonmm;			/* For rmap to track anon mem */
+ 
+ 	unsigned long start_code, end_code, start_data, end_data;
+ 	unsigned long start_brk, brk, start_stack;
+diff -puN kernel/fork.c~rmap-10-add-anonmm-rmap kernel/fork.c
+--- 25/kernel/fork.c~rmap-10-add-anonmm-rmap	2004-05-22 14:56:23.014592776 -0700
++++ 25-akpm/kernel/fork.c	2004-05-22 14:59:42.129322736 -0700
+@@ -34,6 +34,7 @@
+ #include <linux/ptrace.h>
+ #include <linux/mount.h>
+ #include <linux/audit.h>
++#include <linux/rmap.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/pgalloc.h>
+@@ -419,9 +420,14 @@ struct mm_struct * mm_alloc(void)
+ 	mm = allocate_mm();
+ 	if (mm) {
+ 		memset(mm, 0, sizeof(*mm));
+-		return mm_init(mm);
++		mm = mm_init(mm);
++		if (mm && exec_rmap(mm)) {
++			mm_free_pgd(mm);
++			free_mm(mm);
++			mm = NULL;
++		}
+ 	}
+-	return NULL;
++	return mm;
+ }
+ 
+ /*
+@@ -448,6 +454,7 @@ void mmput(struct mm_struct *mm)
+ 		spin_unlock(&mmlist_lock);
+ 		exit_aio(mm);
+ 		exit_mmap(mm);
++		exit_rmap(mm);
+ 		mmdrop(mm);
+ 	}
+ }
+@@ -551,6 +558,12 @@ static int copy_mm(unsigned long clone_f
+ 	if (!mm_init(mm))
+ 		goto fail_nomem;
+ 
++	if (dup_rmap(mm, oldmm)) {
++		mm_free_pgd(mm);
++		free_mm(mm);
++		goto fail_nomem;
 +	}
 +
- 	/* No need to invalidate - it was non-present before */
- 	update_mmu_cache(vma, address, pte);
- 	pte_unmap(page_table);
-diff -puN mm/mremap.c~rmap-11-mremap-moves mm/mremap.c
---- 25/mm/mremap.c~rmap-11-mremap-moves	2004-05-22 14:56:23.164569976 -0700
-+++ 25-akpm/mm/mremap.c	2004-05-22 14:59:42.135321824 -0700
-@@ -79,23 +79,19 @@ static inline pte_t *alloc_one_pte_map(s
- 	return pte;
+ 	if (init_new_context(tsk,mm))
+ 		goto fail_nocontext;
+ 
+@@ -1262,4 +1275,5 @@ void __init proc_caches_init(void)
+ 	mm_cachep = kmem_cache_create("mm_struct",
+ 			sizeof(struct mm_struct), 0,
+ 			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
++	init_rmap();
  }
+diff -puN mm/rmap.c~rmap-10-add-anonmm-rmap mm/rmap.c
+--- 25/mm/rmap.c~rmap-10-add-anonmm-rmap	2004-05-22 14:56:23.016592472 -0700
++++ 25-akpm/mm/rmap.c	2004-05-22 14:59:42.920202504 -0700
+@@ -27,10 +27,125 @@
  
--static void
--copy_one_pte(struct vm_area_struct *vma, unsigned long old_addr,
--	     unsigned long new_addr, pte_t *src, pte_t *dst)
-+static inline int
-+can_move_one_pte(pte_t *src, unsigned long new_addr)
- {
--	pte_t pte = ptep_clear_flush(vma, old_addr, src);
--	set_pte(dst, pte);
--
--	if (pte_present(pte)) {
--		unsigned long pfn = pte_pfn(pte);
-+	int move = 1;
-+	if (pte_present(*src)) {
-+		unsigned long pfn = pte_pfn(*src);
- 		if (pfn_valid(pfn)) {
- 			struct page *page = pfn_to_page(pfn);
--			if (PageAnon(page)) {
--				page_remove_rmap(page);
--				page_add_anon_rmap(page, vma->vm_mm, new_addr);
--			}
-+			if (PageAnon(page))
-+				move = mremap_move_anon_rmap(page, new_addr);
- 		}
- 	}
-+	return move;
- }
+ #include <asm/tlbflush.h>
  
- static int
-@@ -126,10 +122,15 @@ move_one_page(struct vm_area_struct *vma
- 		 * page_table_lock, we should re-check the src entry...
- 		 */
- 		if (src) {
--			if (dst)
--				copy_one_pte(vma, old_addr, new_addr, src, dst);
--			else
-+			if (!dst)
- 				error = -ENOMEM;
-+			else if (!can_move_one_pte(src, new_addr))
-+				error = -EAGAIN;
-+			else {
-+				pte_t pte;
-+				pte = ptep_clear_flush(vma, old_addr, src);
-+				set_pte(dst, pte);
-+			}
- 			pte_unmap_nested(src);
- 		}
- 		if (dst)
-@@ -140,7 +141,8 @@ move_one_page(struct vm_area_struct *vma
- }
- 
- static unsigned long move_page_tables(struct vm_area_struct *vma,
--	unsigned long new_addr, unsigned long old_addr, unsigned long len)
-+		unsigned long new_addr, unsigned long old_addr,
-+		unsigned long len, int *cows)
- {
- 	unsigned long offset;
- 
-@@ -152,8 +154,23 @@ static unsigned long move_page_tables(st
- 	 * only a few pages.. This also makes error recovery easier.
- 	 */
- 	for (offset = 0; offset < len; offset += PAGE_SIZE) {
--		if (move_one_page(vma, old_addr+offset, new_addr+offset) < 0)
-+		int ret = move_one_page(vma, old_addr+offset, new_addr+offset);
-+		/*
-+		 * The anonmm objrmap can only track anon page movements
-+		 * if the page is exclusive to one mm.  In the rare case
-+		 * when mremap move is applied to a shared page, break
-+		 * COW (take a copy of the page) to make it exclusive.
-+		 * If shared while on swap, page will be copied when
-+		 * brought back in (if it's still shared by then).
-+		 */
-+		if (ret == -EAGAIN) {
-+			ret = make_page_exclusive(vma, old_addr+offset);
-+			offset -= PAGE_SIZE;
-+			(*cows)++;
-+		}
-+		if (ret)
- 			break;
-+		cond_resched();
- 	}
- 	return offset;
- }
-@@ -170,6 +187,7 @@ static unsigned long move_vma(struct vm_
- 	unsigned long moved_len;
- 	unsigned long excess = 0;
- 	int split = 0;
-+	int cows = 0;
- 
- 	/*
- 	 * We'd prefer to avoid failure later on in do_munmap:
-@@ -193,19 +211,22 @@ static unsigned long move_vma(struct vm_
- 		mapping = vma->vm_file->f_mapping;
- 		down(&mapping->i_shared_sem);
- 	}
--	moved_len = move_page_tables(vma, new_addr, old_addr, old_len);
-+	moved_len = move_page_tables(vma, new_addr, old_addr, old_len, &cows);
- 	if (moved_len < old_len) {
- 		/*
- 		 * On error, move entries back from new area to old,
- 		 * which will succeed since page tables still there,
- 		 * and then proceed to unmap new area instead of old.
- 		 */
--		move_page_tables(new_vma, old_addr, new_addr, moved_len);
-+		move_page_tables(new_vma, old_addr, new_addr, moved_len, &cows);
- 		vma = new_vma;
- 		old_len = new_len;
- 		old_addr = new_addr;
- 		new_addr = -ENOMEM;
- 	}
-+	if (cows)	/* Downgrade or remove this message later */
-+		printk(KERN_WARNING "%s: mremap moved %d cows\n",
-+							current->comm, cows);
- 	if (mapping)
- 		up(&mapping->i_shared_sem);
- 
-diff -puN mm/rmap.c~rmap-11-mremap-moves mm/rmap.c
---- 25/mm/rmap.c~rmap-11-mremap-moves	2004-05-22 14:56:23.165569824 -0700
-+++ 25-akpm/mm/rmap.c	2004-05-22 14:59:42.136321672 -0700
-@@ -263,6 +263,12 @@ static inline int page_referenced_anon(s
- 		}
- 	}
- 
++/*
++ * struct anonmm: to track a bundle of anonymous memory mappings.
++ *
++ * Could be embedded in mm_struct, but mm_struct is rather heavyweight,
++ * and we may need the anonmm to stay around long after the mm_struct
++ * and its pgd have been freed: because pages originally faulted into
++ * that mm have been duped into forked mms, and still need tracking.
++ */
++struct anonmm {
++	atomic_t	 count;	/* ref count, including 1 per page */
++	spinlock_t	 lock;	/* head's locks list; others unused */
++	struct mm_struct *mm;	/* assoc mm_struct, NULL when gone */
++	struct anonmm	 *head;	/* exec starts new chain from head */
++	struct list_head list;	/* chain of associated anonmms */
++};
++static kmem_cache_t *anonmm_cachep;
++
++/**
++ ** Functions for creating and destroying struct anonmm.
++ **/
++
++void __init init_rmap(void)
++{
++	anonmm_cachep = kmem_cache_create("anonmm",
++			sizeof(struct anonmm), 0, SLAB_PANIC, NULL, NULL);
++}
++
++int exec_rmap(struct mm_struct *mm)
++{
++	struct anonmm *anonmm;
++
++	anonmm = kmem_cache_alloc(anonmm_cachep, SLAB_KERNEL);
++	if (unlikely(!anonmm))
++		return -ENOMEM;
++
++	atomic_set(&anonmm->count, 2);		/* ref by mm and head */
++	anonmm->lock = SPIN_LOCK_UNLOCKED;	/* this lock is used */
++	anonmm->mm = mm;
++	anonmm->head = anonmm;
++	INIT_LIST_HEAD(&anonmm->list);
++	mm->anonmm = anonmm;
++	return 0;
++}
++
++int dup_rmap(struct mm_struct *mm, struct mm_struct *oldmm)
++{
++	struct anonmm *anonmm;
++	struct anonmm *anonhd = oldmm->anonmm->head;
++
++	anonmm = kmem_cache_alloc(anonmm_cachep, SLAB_KERNEL);
++	if (unlikely(!anonmm))
++		return -ENOMEM;
++
 +	/*
-+	 * The warning below may appear if page_referenced catches the
-+	 * page in between page_add_rmap and its replacement demanded
-+	 * by mremap_moved_anon_page: so remove the warning once we're
-+	 * convinced that anonmm rmap really is finding its pages.
++	 * copy_mm calls us before dup_mmap has reset the mm fields,
++	 * so reset rss ourselves before adding to anonhd's list,
++	 * to keep away from this mm until it's worth examining.
 +	 */
- 	WARN_ON(!failed);
- out:
- 	spin_unlock(&anonhd->lock);
-@@ -451,6 +457,32 @@ void fastcall page_remove_rmap(struct pa
++	mm->rss = 0;
++
++	atomic_set(&anonmm->count, 1);		/* ref by mm */
++	anonmm->lock = SPIN_LOCK_UNLOCKED;	/* this lock is not used */
++	anonmm->mm = mm;
++	anonmm->head = anonhd;
++	spin_lock(&anonhd->lock);
++	atomic_inc(&anonhd->count);		/* ref by anonmm's head */
++	list_add_tail(&anonmm->list, &anonhd->list);
++	spin_unlock(&anonhd->lock);
++	mm->anonmm = anonmm;
++	return 0;
++}
++
++void exit_rmap(struct mm_struct *mm)
++{
++	struct anonmm *anonmm = mm->anonmm;
++	struct anonmm *anonhd = anonmm->head;
++	int anonhd_count;
++
++	mm->anonmm = NULL;
++	spin_lock(&anonhd->lock);
++	anonmm->mm = NULL;
++	if (atomic_dec_and_test(&anonmm->count)) {
++		BUG_ON(anonmm == anonhd);
++		list_del(&anonmm->list);
++		kmem_cache_free(anonmm_cachep, anonmm);
++		if (atomic_dec_and_test(&anonhd->count))
++			BUG();
++	}
++	anonhd_count = atomic_read(&anonhd->count);
++	spin_unlock(&anonhd->lock);
++	if (anonhd_count == 1) {
++		BUG_ON(anonhd->mm);
++		BUG_ON(!list_empty(&anonhd->list));
++		kmem_cache_free(anonmm_cachep, anonhd);
++	}
++}
++
++static void free_anonmm(struct anonmm *anonmm)
++{
++	struct anonmm *anonhd = anonmm->head;
++
++	BUG_ON(anonmm->mm);
++	BUG_ON(anonmm == anonhd);
++	spin_lock(&anonhd->lock);
++	list_del(&anonmm->list);
++	if (atomic_dec_and_test(&anonhd->count))
++		BUG();
++	spin_unlock(&anonhd->lock);
++	kmem_cache_free(anonmm_cachep, anonmm);
++}
++
+ static inline void clear_page_anon(struct page *page)
+ {
++	struct anonmm *anonmm = (struct anonmm *) page->mapping;
++
+ 	page->mapping = NULL;
+ 	ClearPageAnon(page);
++	if (atomic_dec_and_test(&anonmm->count))
++		free_anonmm(anonmm);
  }
  
  /**
-+ * mremap_move_anon_rmap - try to note new address of anonymous page
-+ * @page:	page about to be moved
-+ * @address:	user virtual address at which it is going to be mapped
-+ *
-+ * Returns boolean, true if page is not shared, so address updated.
-+ *
-+ * For mremap's can_move_one_page: to update address when vma is moved,
-+ * provided that anon page is not shared with a parent or child mm.
-+ * If it is shared, then caller must take a copy of the page instead:
-+ * not very clever, but too rare a case to merit cleverness.
-+ */
-+int fastcall mremap_move_anon_rmap(struct page *page, unsigned long address)
-+{
-+	int move = 0;
-+	if (page->mapcount == 1) {
-+		page_map_lock(page);
-+		if (page->mapcount == 1) {
-+			page->index = address & PAGE_MASK;
-+			move = 1;
-+		}
-+		page_map_unlock(page);
-+	}
-+	return move;
-+}
+@@ -103,7 +218,69 @@ out_unlock:
+ 
+ static inline int page_referenced_anon(struct page *page)
+ {
+-	return 1;	/* until next patch */
++	unsigned int mapcount = page->mapcount;
++	struct anonmm *anonmm = (struct anonmm *) page->mapping;
++	struct anonmm *anonhd = anonmm->head;
++	struct anonmm *new_anonmm = anonmm;
++	struct list_head *seek_head;
++	int referenced = 0;
++	int failed = 0;
 +
-+/**
-  ** Subfunctions of try_to_unmap: try_to_unmap_one called
-  ** repeatedly from either try_to_unmap_anon or try_to_unmap_file.
-  **/
-diff -puN mm/swapfile.c~rmap-11-mremap-moves mm/swapfile.c
---- 25/mm/swapfile.c~rmap-11-mremap-moves	2004-05-22 14:56:23.167569520 -0700
-+++ 25-akpm/mm/swapfile.c	2004-05-22 14:59:40.056637832 -0700
-@@ -7,6 +7,7 @@
- 
- #include <linux/config.h>
- #include <linux/mm.h>
-+#include <linux/hugetlb.h>
- #include <linux/mman.h>
- #include <linux/slab.h>
- #include <linux/kernel_stat.h>
-@@ -437,7 +438,7 @@ unuse_pte(struct vm_area_struct *vma, un
- }
- 
- /* vma->vm_mm->page_table_lock is held */
--static int unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
-+static unsigned long unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
- 	unsigned long address, unsigned long size, unsigned long offset,
- 	swp_entry_t entry, struct page *page)
- {
-@@ -466,7 +467,8 @@ static int unuse_pmd(struct vm_area_stru
- 		if (unlikely(pte_same(*pte, swp_pte))) {
- 			unuse_pte(vma, offset + address, pte, entry, page);
- 			pte_unmap(pte);
--			return 1;
-+			/* add 1 since address may be 0 */
-+			return 1 + offset + address;
- 		}
- 		address += PAGE_SIZE;
- 		pte++;
-@@ -476,12 +478,13 @@ static int unuse_pmd(struct vm_area_stru
- }
- 
- /* vma->vm_mm->page_table_lock is held */
--static int unuse_pgd(struct vm_area_struct * vma, pgd_t *dir,
-+static unsigned long unuse_pgd(struct vm_area_struct * vma, pgd_t *dir,
- 	unsigned long address, unsigned long size,
- 	swp_entry_t entry, struct page *page)
- {
- 	pmd_t * pmd;
- 	unsigned long offset, end;
-+	unsigned long foundaddr;
- 
- 	if (pgd_none(*dir))
- 		return 0;
-@@ -499,9 +502,10 @@ static int unuse_pgd(struct vm_area_stru
- 	if (address >= end)
- 		BUG();
- 	do {
--		if (unuse_pmd(vma, pmd, address, end - address,
--				offset, entry, page))
--			return 1;
-+		foundaddr = unuse_pmd(vma, pmd, address, end - address,
-+						offset, entry, page);
-+		if (foundaddr)
-+			return foundaddr;
- 		address = (address + PMD_SIZE) & PMD_MASK;
- 		pmd++;
- 	} while (address && (address < end));
-@@ -509,16 +513,19 @@ static int unuse_pgd(struct vm_area_stru
- }
- 
- /* vma->vm_mm->page_table_lock is held */
--static int unuse_vma(struct vm_area_struct * vma, pgd_t *pgdir,
-+static unsigned long unuse_vma(struct vm_area_struct * vma, pgd_t *pgdir,
- 	swp_entry_t entry, struct page *page)
- {
- 	unsigned long start = vma->vm_start, end = vma->vm_end;
-+	unsigned long foundaddr;
- 
- 	if (start >= end)
- 		BUG();
- 	do {
--		if (unuse_pgd(vma, pgdir, start, end - start, entry, page))
--			return 1;
-+		foundaddr = unuse_pgd(vma, pgdir, start, end - start,
-+						entry, page);
-+		if (foundaddr)
-+			return foundaddr;
- 		start = (start + PGDIR_SIZE) & PGDIR_MASK;
- 		pgdir++;
- 	} while (start && (start < end));
-@@ -529,18 +536,27 @@ static int unuse_process(struct mm_struc
- 			swp_entry_t entry, struct page* page)
- {
- 	struct vm_area_struct* vma;
-+	unsigned long foundaddr = 0;
-+	int ret = 0;
- 
- 	/*
- 	 * Go through process' page directory.
- 	 */
-+	down_read(&mm->mmap_sem);
- 	spin_lock(&mm->page_table_lock);
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
--		pgd_t * pgd = pgd_offset(mm, vma->vm_start);
--		if (unuse_vma(vma, pgd, entry, page))
--			break;
-+		if (!is_vm_hugetlb_page(vma)) {
-+			pgd_t * pgd = pgd_offset(mm, vma->vm_start);
-+			foundaddr = unuse_vma(vma, pgd, entry, page);
-+			if (foundaddr)
-+				break;
++	spin_lock(&anonhd->lock);
++	/*
++	 * First try the indicated mm, it's the most likely.
++	 * Make a note to migrate the page if this mm is extinct.
++	 */
++	if (!anonmm->mm)
++		new_anonmm = NULL;
++	else if (anonmm->mm->rss) {
++		referenced += page_referenced_one(page,
++			anonmm->mm, page->index, &mapcount, &failed);
++		if (!mapcount)
++			goto out;
++	}
++
++	/*
++	 * Then down the rest of the list, from that as the head.  Stop
++	 * when we reach anonhd?  No: although a page cannot get dup'ed
++	 * into an older mm, once swapped, its indicated mm may not be
++	 * the oldest, just the first into which it was faulted back.
++	 * If original mm now extinct, note first to contain the page.
++	 */
++	seek_head = &anonmm->list;
++	list_for_each_entry(anonmm, seek_head, list) {
++		if (!anonmm->mm || !anonmm->mm->rss)
++			continue;
++		referenced += page_referenced_one(page,
++			anonmm->mm, page->index, &mapcount, &failed);
++		if (!new_anonmm && mapcount < page->mapcount)
++			new_anonmm = anonmm;
++		if (!mapcount) {
++			anonmm = (struct anonmm *) page->mapping;
++			if (new_anonmm == anonmm)
++				goto out;
++			goto migrate;
 +		}
++	}
++
++	WARN_ON(!failed);
++out:
++	spin_unlock(&anonhd->lock);
++	return referenced;
++
++migrate:
++	/*
++	 * Migrate pages away from an extinct mm, so that its anonmm
++	 * can be freed in due course: we could leave this to happen
++	 * through the natural attrition of try_to_unmap, but that
++	 * would miss locked pages and frequently referenced pages.
++	 */
++	spin_unlock(&anonhd->lock);
++	page->mapping = (void *) new_anonmm;
++	atomic_inc(&new_anonmm->count);
++	if (atomic_dec_and_test(&anonmm->count))
++		free_anonmm(anonmm);
++	return referenced;
+ }
+ 
+ /**
+@@ -214,6 +391,8 @@ int fastcall page_referenced(struct page
+ void fastcall page_add_anon_rmap(struct page *page,
+ 	struct mm_struct *mm, unsigned long address)
+ {
++	struct anonmm *anonmm = mm->anonmm;
++
+ 	BUG_ON(PageReserved(page));
+ 
+ 	page_map_lock(page);
+@@ -221,7 +400,8 @@ void fastcall page_add_anon_rmap(struct 
+ 		BUG_ON(page->mapping);
+ 		SetPageAnon(page);
+ 		page->index = address & PAGE_MASK;
+-		page->mapping = (void *) mm;	/* until next patch */
++		page->mapping = (void *) anonmm;
++		atomic_inc(&anonmm->count);
+ 		inc_page_state(nr_mapped);
  	}
- 	spin_unlock(&mm->page_table_lock);
--	return 0;
-+	if (foundaddr && mremap_moved_anon_rmap(page, foundaddr))
-+		ret = make_page_exclusive(vma, foundaddr);
-+	up_read(&mm->mmap_sem);
+ 	page->mapcount++;
+@@ -309,6 +489,13 @@ static int try_to_unmap_one(struct page 
+ 
+ 	(*mapcount)--;
+ 
++	if (!vma) {
++		vma = find_vma(mm, address);
++		/* unmap_vmas drops page_table_lock with vma unlinked */
++		if (!vma)
++			goto out_unmap;
++	}
++
+ 	/*
+ 	 * If the page is mlock()d, we cannot swap it out.
+ 	 * If it's recently referenced (perhaps page_referenced
+@@ -328,6 +515,18 @@ static int try_to_unmap_one(struct page 
+ 	if (pte_dirty(pteval))
+ 		set_page_dirty(page);
+ 
++	if (PageAnon(page)) {
++		swp_entry_t entry = { .val = page->private };
++		/*
++		 * Store the swap location in the pte.
++		 * See handle_pte_fault() ...
++		 */
++		BUG_ON(!PageSwapCache(page));
++		swap_duplicate(entry);
++		set_pte(pte, swp_entry_to_pte(entry));
++		BUG_ON(pte_file(*pte));
++	}
++
+ 	mm->rss--;
+ 	BUG_ON(!page->mapcount);
+ 	page->mapcount--;
+@@ -448,7 +647,41 @@ out_unlock:
+ 
+ static inline int try_to_unmap_anon(struct page *page)
+ {
+-	return SWAP_FAIL;	/* until next patch */
++	unsigned int mapcount = page->mapcount;
++	struct anonmm *anonmm = (struct anonmm *) page->mapping;
++	struct anonmm *anonhd = anonmm->head;
++	struct list_head *seek_head;
++	int ret = SWAP_AGAIN;
++
++	spin_lock(&anonhd->lock);
++	/*
++	 * First try the indicated mm, it's the most likely.
++	 */
++	if (anonmm->mm && anonmm->mm->rss) {
++		ret = try_to_unmap_one(page,
++			anonmm->mm, page->index, &mapcount, NULL);
++		if (ret == SWAP_FAIL || !mapcount)
++			goto out;
++	}
++
++	/*
++	 * Then down the rest of the list, from that as the head.  Stop
++	 * when we reach anonhd?  No: although a page cannot get dup'ed
++	 * into an older mm, once swapped, its indicated mm may not be
++	 * the oldest, just the first into which it was faulted back.
++	 */
++	seek_head = &anonmm->list;
++	list_for_each_entry(anonmm, seek_head, list) {
++		if (!anonmm->mm || !anonmm->mm->rss)
++			continue;
++		ret = try_to_unmap_one(page,
++			anonmm->mm, page->index, &mapcount, NULL);
++		if (ret == SWAP_FAIL || !mapcount)
++			goto out;
++	}
++out:
++	spin_unlock(&anonhd->lock);
 +	return ret;
  }
  
- /*
+ /**
 
 _
 --
