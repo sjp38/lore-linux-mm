@@ -1,42 +1,39 @@
-Date: Mon, 2 Oct 2000 12:49:54 -0300 (BRST)
+Date: Mon, 2 Oct 2000 12:51:42 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] fix for VM  test9-pre7
-In-Reply-To: <20001002120559.13349.qmail@theseus.mathematik.uni-ulm.de>
-Message-ID: <Pine.LNX.4.21.0010021249030.22539-100000@duckman.distro.conectiva>
+In-Reply-To: <39D87F3A.7D21E18@mountain.net>
+Message-ID: <Pine.LNX.4.21.0010021250180.22539-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <Pine.LNX.4.21.0010021250182.22539@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ehrhardt@mathematik.uni-ulm.de
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
+To: Tom Leete <tleete@mountain.net>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Oct 2000 ehrhardt@mathematik.uni-ulm.de wrote:
-> On Mon, Oct 02, 2000 at 12:42:47AM -0300, Rik van Riel wrote:
-> > --- linux-2.4.0-test9-pre7/fs/buffer.c.orig	Sat Sep 30 18:09:18 2000
-> > +++ linux-2.4.0-test9-pre7/fs/buffer.c	Mon Oct  2 00:19:41 2000
-> > @@ -706,7 +706,9 @@
-> >  static void refill_freelist(int size)
-> >  {
-> >  	if (!grow_buffers(size)) {
-> > -		try_to_free_pages(GFP_BUFFER);
-> > +		wakeup_bdflush(1);
-> > +		current->policy |= SCHED_YIELD;
-> > +		schedule();
-> >  	}
-> >  }
+On Mon, 2 Oct 2000, Tom Leete wrote:
+
+> I ran lmbench on test9-pre7 with and without the patch.
 > 
-> This part looks strange! wakeup_bdflush will sleep if the
-> parameter is not zero, i.e. we'll schedule twice. I doubt that
-> this the intended behaviour?
+> Test machine was a slow medium memory UP box:
+> Cx586@120Mhz, no optimizations, 56M
+> 
+> I still experience instability on this machine with both the
+> patched and vanilla kernel. It usually takes the form of
+> sudden total lockups, but on occasion I have seen oops +
+> panic at boot.
 
-Heh...
+If you could decode the oops or mail us the panic, we
+might find out if this is a VM related problem or not...
 
-I copied back the old code because I saw some failures in
-the try_to_free_pages() in this situation.
+> This summary doesn't show any performance advantage to the
+> patch, but the detailed plots show that memory access
+> latency degrades more gracefully wrt array size.
 
-Maybe the person who wrote this code originally can comment
-on this one ?
+That's because this benchmark has a very artificial page
+access pattern, that doesn't really benefit from any kind
+of page replacement. ;)
 
 regards,
 
