@@ -1,40 +1,51 @@
-Received: from localhost (hahn@localhost)
-	by coffee.psychology.mcmaster.ca (8.9.3/8.9.3) with ESMTP id QAA31677
-	for <linux-mm@kvack.org>; Wed, 30 May 2001 16:01:03 -0400
-Date: Wed, 30 May 2001 16:01:02 -0400 (EDT)
-From: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
-Subject: Re: Plain 2.4.5 VM
-In-Reply-To: <Pine.LNX.4.21.0105301613520.13062-100000@imladris.rielhome.conectiva>
-Message-ID: <Pine.LNX.4.10.10105301539030.31487-100000@coffee.psychology.mcmaster.ca>
+Date: Wed, 30 May 2001 16:54:12 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: http://ds9a.nl/cacheinfo project - please comment & improve
+In-Reply-To: <20010527222020.A25390@home.ds9a.nl>
+Message-ID: <Pine.LNX.4.21.0105301648290.5231-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: bert hubert <ahu@ds9a.nl>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> The "easy way out" seems to be physical -> virtual
-> page reverse mappings, these make it trivial to apply
-> balanced pressure on all pages.
 
-hmm, I've been wondering if one of our problems is that while
-the active/inactive-clean/inactive-dirty system does well
-at preserving age info, but the only place we actually
-*learn* NEW information about page use is in try_to_swap_out:
+On Sun, 27 May 2001, bert hubert wrote:
 
-	if (ptep_test_and_clear_young(pte))
-		age up;
-	else		
-		get rid of it;
+> Hello mm people!
+> 
+> I've written a module plus a tiny userspace program to query the page
+> cache. In short:
+> 
+> $ cinfo /lib/libc.so.6
+> /lib/libc.so.6: 182 of 272 (66.91%) pages in the cache, of which 0 (0.00%)
+> are dirty
+> 
+> Now, I'm a complete and utter beginner when it comes to kernelcoding. Also,
+> this is very much a 'release early, release often'-release. In other words,
+> it sucks & I know.
+> 
+> So I would like to ask you to look at it and send comments/patches to me.
+> I'm especially interested in architectural decisions - I currently export
+> data over a filesystem (cinfofs), which may or not be right.
+> 
+> The tarball (http://ds9a.nl/cacheinfo/cinfo-0.1.tar.gz) contains 2 manpages
+> which very lightly document how it works.
 
-shouldn't we try to gain more information by scanning page tables
-at a good rate?  we don't have to blindly get rid of every page
-that isn't young (referenced since last scan) - we could base that
-on age.  admittedly, more scanning would eat some additional CPU,
-but then again, we currently shuffle pages among lists based on relatively
-sparse PAGE_ACCESSED info.
+Hi Bert, 
 
-or am I missing something?  
+You're using the "address_space->dirty_pages" list to calculate the number
+of dirty pages.
+
+Its interesting to note that pages on this list may not be really dirty
+since we don't mark them clean when writting them out. (we only do that at
+fdatasync/fsync time) 
+
+So I suggest you to check for the PG_dirty (with the PageDirty macro) bit
+on pages of that list to know if they are really dirty. 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
