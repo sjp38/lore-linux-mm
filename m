@@ -1,39 +1,65 @@
-Message-ID: <20010323182105.C6487@win.tue.nl>
-Date: Fri, 23 Mar 2001 18:21:05 +0100
-From: Guest section DW <dwguest@win.tue.nl>
+Date: Fri, 23 Mar 2001 17:26:22 +0000 (GMT)
+From: "James A. Sutherland" <jas88@cam.ac.uk>
 Subject: Re: [PATCH] Prevent OOM from killing init
-References: <20010323015358Z129164-406+3041@vger.kernel.org> <Pine.LNX.4.21.0103230403370.29682-100000@imladris.rielhome.conectiva> <20010323122815.A6428@win.tue.nl> <m1hf0k1qvi.fsf@frodo.biederman.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <m1hf0k1qvi.fsf@frodo.biederman.org>; from Eric W. Biederman on Fri, Mar 23, 2001 at 07:50:25AM -0700
+In-Reply-To: <20010322124727.A5115@win.tue.nl>
+Message-ID: <Pine.LNX.4.30.0103231721480.4103-100000@dax.joh.cam.ac.uk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Michael Peddemors <michael@linuxmagic.com>, Stephen Clouse <stephenc@theiqgroup.com>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Guest section DW <dwguest@win.tue.nl>
+Cc: Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 23, 2001 at 07:50:25AM -0700, Eric W. Biederman wrote:
+On Thu, 22 Mar 2001, Guest section DW wrote:
+> On Wed, Mar 21, 2001 at 08:48:54PM -0300, Rik van Riel wrote:
+> > On Wed, 21 Mar 2001, Patrick O'Rourke wrote:
+>
+> > > Since the system will panic if the init process is chosen by
+> > > the OOM killer, the following patch prevents select_bad_process()
+> > > from picking init.
+>
+> There is a dozen other processes that must not be killed.
+> Init is just a random example.
 
-> > Mar 23 11:48:49 mette kernel: Out of Memory: Killed process 2019 (emacs).
-> > Mar 23 11:48:49 mette kernel: Out of Memory: Killed process 1407 (emacs).
-> > Mar 23 11:48:50 mette kernel: Out of Memory: Killed process 1495 (emacs).
-> > Mar 23 11:48:50 mette kernel: Out of Memory: Killed process 2800 (rpm).
-> > 
-> > [yes, that was rpm growing too large, taking a few emacs sessions]
-> > [2.4.2]
-> 
-> Let me get this straight you don't have enough swap for your workload?
-> And you don't have per process limits on root by default?
-> 
-> So you are complaining about the OOM killer?  
+That depends what you mean by "must not". If it's your missile guidance
+system, aircraft autopilot or life support system, the system must not run
+out of memory in the first place. If the system breaks down badly, killing
+init and thus panicking (hence rebooting, if the system is set up that
+way) seems the best approach.
 
-I should not react - your questions are phrased rhetorically.
+> > One question ... has the OOM killer ever selected init on
+> > anybody's system ?
+>
+> Last week I installed SuSE 7.1 somewhere.
+> During the install: "VM: killing process rpm",
+> leaving the installer rather confused.
+> (An empty machine, 256MB, 144MB swap, I think 2.2.18.)
 
-But yes, I am complaining because Linux by default is unreliable.
-I strongly prefer a system that is reliable by default,
-and I'll leave it to others to run it in an unreliable mode.
+If SuSE's install program needs more than a quarter Gb of RAM, you need a
+better distro.
 
-Andries
+> Last month I had a computer algebra process running for a week.
+> Killed. But this computation was the only task this machine had.
+> Its sole reason of existence.
+> Too bad - zero information out of a week's computation.
+
+A computation your system was incapable of performing. OK, it's a shame it
+took you a week to find this out, but the computation had to die: if the
+only process running cannot run, it has to die!
+
+> (I think 2.4.0.)
+>
+> Clearly, Linux cannot be reliable if any process can be killed
+> at any moment.
+
+What on earth did you expect to happen when the process exceeded the
+machine's capabilities? Using more than all the resources fails. There
+isn't an alternative.
+
+
+James.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
