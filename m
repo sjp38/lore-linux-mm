@@ -1,72 +1,45 @@
-Date: Sat, 18 Dec 2004 01:52:08 +0100 (CET)
-From: Roman Zippel <zippel@linux-m68k.org>
-Subject: Re: [patch] [RFC] make WANT_PAGE_VIRTUAL a config option
-In-Reply-To: <1103320106.7864.6.camel@localhost>
-Message-ID: <Pine.LNX.4.61.0412180020220.793@scrub.home>
-References: <E1Cf3bP-0002el-00@kernel.beaverton.ibm.com>
- <Pine.LNX.4.61.0412170133560.793@scrub.home>  <1103244171.13614.2525.camel@localhost>
-  <Pine.LNX.4.61.0412170150080.793@scrub.home>  <1103246050.13614.2571.camel@localhost>
-  <Pine.LNX.4.61.0412170256500.793@scrub.home>  <1103257482.13614.2817.camel@localhost>
-  <Pine.LNX.4.61.0412171132560.793@scrub.home>  <1103299179.13614.3551.camel@localhost>
-  <Pine.LNX.4.61.0412171818090.793@scrub.home> <1103320106.7864.6.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 18 Dec 2004 07:50:55 +0100
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [patch] CONFIG_ARCH_HAS_ATOMIC_UNSIGNED
+Message-ID: <20041218065055.GA5829@wotan.suse.de>
+References: <E1Cf6EG-00015y-00@kernel.beaverton.ibm.com> <20041217061150.GF12049@wotan.suse.de> <Pine.LNX.4.58.0412170827280.17806@server.graphe.net> <20041217163308.GE14229@wotan.suse.de> <Pine.LNX.4.58.0412171118430.20902@server.graphe.net> <20041217193724.GA13542@wotan.suse.de> <Pine.LNX.4.58.0412171410240.23925@server.graphe.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0412171410240.23925@server.graphe.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, geert@linux-m68k.org, ralf@linux-mips.org, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <christoph@lameter.com>
+Cc: Andi Kleen <ak@suse.de>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Fri, 17 Dec 2004, Dave Hansen wrote:
-
-> > > No.  But, I do think that most of the very basic VM structures do, as it
-> > > stands.  That's limited to struct page, zone, and pgdat as I see it
-> > > now.  
-> > 
-> > Why do you want to put these into separate headers?
+On Fri, Dec 17, 2004 at 02:11:59PM -0800, Christoph Lameter wrote:
+> On Fri, 17 Dec 2004, Andi Kleen wrote:
 > 
-> It enables you do do static inlines accessing struct page members
-> anywhere you want, such as in asm/mmzone.h, like in my example. 
-
-And by that you add more header dependencies.
-We have basically this situation:
-
-	foo.h (struct foo; inline foo();) <-> bar.h (struct bar; inline bar();)
-
-Almost every time we had such recursive dependencies, we simply rip one 
-element out and put it into a separate header:
-
-	foo.h (inline foo();)
-		-> bar.h (struct bar; inline bar();)
-			-> foo_struct.h (struct foo;)
-
-Repeat this often enough and we end up with millions of small header 
-files. Instead we can reorder everything a little and can do this:
-
-	foo.h (inline foo(); inline bar();)
-		-> foo_types.h (struct foo; struct bar;)
-
-In your case don't put the inline functions into asm/mmzone.h and we 
-should merge the various definition into fewer header files.
-
-> > > The dependencies aren't very twisted at all.  In fact, I don't think any
-> > > of those are deeper than two.  More importantly, I never have to cope
-> > > with 'struct page;' keeping me from doing arithmetic. 
-> > 
-> > You may be surprised. :)
-> > Play around with "mkdir test; echo 'obj-y = test.o' > test/Makefile; echo 
-> > '#include <linux/foo.h>' > test/test.c; make test/test.i 
-> > CFLAGS_test.o=--trace-includes".
+> > On Fri, Dec 17, 2004 at 11:26:49AM -0800, Christoph Lameter wrote:
+> > > On Fri, 17 Dec 2004, Andi Kleen wrote:
+> > >
+> > > > > Put the order of the page there for compound pages instead of having that
+> > > > > in index?
+> > > >
+> > > > That would waste memory on the 64bit architectures that cannot tolerate
+> > > > 32bit atomic flags or on true 32bit architecture.
+> > >
+> > > Would be great to have 64 bit atomic support to fill this hole then.
+> >
+> > I think you lost me.   How would that help?
 > 
-> I'm not sure what you're getting at.
-> 
-> 	make: *** No rule to make target `test/test.i'.  Stop.
+> It would fill the hole on 64 bits if atomic_t would have the native word
+> size.
 
-Sorry, I forgot to mention that you have to do this inside a kernel tree.
+The problem is that that 64bit atomic_t type would end up unaligned.
+While that would work in theory on x86-64 I suspect it would be slow even
+there. And it would probably not work anywhere else.
 
-bye, Roman
+And as Dave said they plan to use the upper 32bit of flags for 
+CONFIG_NONLINEAR anyways, so it's not even possible.
+
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
