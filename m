@@ -1,62 +1,39 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id WAA01874
-	for <linux-mm@kvack.org>; Mon, 7 Dec 1998 22:09:01 -0500
-Date: Tue, 8 Dec 1998 04:00:10 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: [PATCH] swapin readahead and fixes
-In-Reply-To: <366C9447.2B4E9693@thrillseeker.net>
-Message-ID: <Pine.LNX.3.96.981208035549.9425A-100000@mirkwood.dummy.home>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA04079
+	for <linux-mm@kvack.org>; Tue, 8 Dec 1998 07:21:26 -0500
+Date: Tue, 8 Dec 1998 12:21:04 GMT
+Message-Id: <199812081221.MAA02301@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH] swapin readahead and fixes
+In-Reply-To: <366C8214.F58091FF@thrillseeker.net>
+References: <199812041434.OAA04457@dax.scot.redhat.com>
+	<Pine.LNX.3.95.981205102900.449A-100000@localhost>
+	<199812071650.QAA05697@dax.scot.redhat.com>
+	<366C8214.F58091FF@thrillseeker.net>
 Sender: owner-linux-mm@kvack.org
 To: Billy Harvey <Billy.Harvey@thrillseeker.net>
 Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Dec 1998, Billy Harvey wrote:
-> Rik van Riel wrote:
-> > 
-> > On Mon, 7 Dec 1998, Billy Harvey wrote:
-> > 
-> > > Has anyone ever looked at the following concept?  In addition to a
-> > > swap-in read-ahead, have a swap-out write-ahead.  The idea is to use
-> > > all the avaialble swap space as a mirror of memory.
-> > 
-> > We do something a bit like this in 2.1.130+. Writing out all
-> > pages to swap will use far too much I/O bandwidth though, so
-> > we will never do that...
-> 
-> That's my point though about not taking I/O time away from other
-> tasks.  Only mirror pages to swap if there's nothing else blocked
-> for I/O - put any free time to work, and mirror pages if swap memory
-> allows in anticipation that it may be swapped out later. 
+Hi,
 
-Write-ahead only makes sense when we can cluster the extra
-I/O with the operation we were already going to do.
+On Mon, 07 Dec 1998 20:34:12 -0500, Billy Harvey
+<Billy.Harvey@thrillseeker.net> said:
 
-> I suppose a least-recently-used approach on the pages would have the
-> highest payback. 
+> Has anyone ever looked at the following concept?  In addition to a
+> swap-in read-ahead, have a swap-out write-ahead.  The idea is to use all
+> the avaialble swap space as a mirror of memory.  
 
-LRU would be a very bad strategy since it wastes too much CPU
-and it prevents us from writing the blocks to disk in such a
-way that it makes swapin readahead efficient.
+We already do that.  That's what the swap cache is.  When kswapd swaps
+stuff out, it does so asynchronously, but leaves the data in the swap
+cache where it can be picked up again if another process wants the
+swap entry back.  Most importantly, it lets us do the writing to swap
+very rapidly, as we can efficiently stream the updates to disk.
 
-Remember that disk seek time is about 10 times as expensive
-as transfer time. This means that we've got to optimize our
-I/O patterns mainly for seek time -- transferring a few
-blocks extra in one big I/O sweep isn't really costing us
-anything. And once we do that, expensive schemes like LRU
-really don't matter any more, do they?
-
-regards,
-
-Rik -- the flu hits, the flu hits, the flu hits -- MORE
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
-
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
