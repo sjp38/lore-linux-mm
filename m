@@ -1,76 +1,44 @@
-Received: from petasus.jf.intel.com (petasus.jf.intel.com [10.7.209.6])
-	by orsfmr001.jf.intel.com (8.12.9-20030918-01/8.12.9/d: major-outer.mc,v 1.15 2004/01/30 18:16:28 root Exp $) with ESMTP id i6RJW5Ge024837
-	for <linux-mm@kvack.org>; Tue, 27 Jul 2004 19:32:10 GMT
-Received: from orsmsxvs041.jf.intel.com (orsmsxvs041.jf.intel.com [192.168.65.54])
-	by petasus.jf.intel.com (8.12.9-20030918-01/8.12.9/d: major-inner.mc,v 1.10 2004/03/01 19:21:36 root Exp $) with SMTP id i6S2XEFP013811
-	for <linux-mm@kvack.org>; Wed, 28 Jul 2004 02:33:14 GMT
-Received: from orsmsx332.amr.corp.intel.com ([192.168.65.60])
- by orsmsxvs041.jf.intel.com (SAVSMTP 3.1.2.35) with SMTP id M2004072719311123243
- for <linux-mm@kvack.org>; Tue, 27 Jul 2004 19:31:11 -0700
-Content-class: urn:content-classes:message
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Subject: Protection of 'struct address_space'?
-Date: Tue, 27 Jul 2004 19:30:57 -0700
-Message-ID: <F989B1573A3A644BAB3920FBECA4D25A6EBFE6@orsmsx407>
-From: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>
+Date: Wed, 28 Jul 2004 00:03:40 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] Move cache_reap out of timer context
+Message-Id: <20040728000340.7f95060f.akpm@osdl.org>
+In-Reply-To: <20040714180942.GA18425@sgi.com>
+References: <20040714180942.GA18425@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Dimitri Sivanich <sivanich@sgi.com>
+Cc: manfred@colorfullife.com, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Hi All
+Dimitri Sivanich <sivanich@sgi.com> wrote:
+>
+> I'm submitting two patches associated with moving cache_reap functionality
+>  out of timer context.  Note that these patches do not make any further
+>  optimizations to cache_reap at this time.
+> 
+>  The first patch adds a function similiar to schedule_delayed_work to
+>  allow work to be scheduled on another cpu.
+> 
+>  The second patch makes use of schedule_delayed_work_on to schedule
+>  cache_reap to run from keventd.
 
-Some days ago I came around with a question on how to get 
-a 'struct page *' backed up by a 'struct inode *' and an offset.
-Came up with:
+It goes splat in cache_reap() if slab debugging is enabled, for rather
+obvious reasons:
 
-01 int __vl_key_page_get_shared (struct page **ppage,
-02                               struct inode *inode, unsigned pgoff)
-03 {
-04         int result;
-05         struct page *page;
-06         struct address_space *mapping = inode->i_mapping;
-07 
-08 #warning: FIXME: block/lock the mapping...I am not that sure of this
-09         down (&mapping->i_shared_sem);
-10         page = read_cache_page (mapping, pgoff, 
-11                                 (filler_t *) mapping->a_ops->readpage, NULL);
-12         result = PTR_ERR (page);
-13         if (IS_ERR (page))
-14                 goto out_up;
-15         
-16         wait_on_page_locked (page);
-17         if (!PageUptodate (page)) {
-18                 page_cache_release (page);
-19                 page = ERR_PTR (-EIO);
-20         }
-21         *ppage = page;
-22         return 0;
-23 
-24 out_up:
-25         up (&mapping->i_shared_sem);
-26         return result;
-27 }
+#if DEBUG
+	BUG_ON(!in_interrupt());
+	BUG_ON(in_irq());
+#endif
 
-[this followed a put() kind of function that would release 
-the page and the i_shared_sem semaphore].
+I've so far spent nearly two days just getting all the gunk people have
+sent in the last two weeks to compile properly.  Heaven knows how long
+it'll take to test it.  So I need somebody to grump at.  So.  Grump.
 
-Now in 2.6.7, i_shared_sem is gone and replaced by a i_mmap_lock,
-what makes it impossible to use for this case as read_cache_page()
-will sleep and so might wait_on_page_locked().
-
-Then I realized I probably don't need to lock the struct 
-address_space, but it strikes me as odd--it's a shared struct.
-I need to maintain the address space in tight control while I am
-accessing it. So the question is: what is the proper way? can't 
-find any good examples in the kernel code that show it.
-
-Thanks,
-
-Inaky Perez-Gonzalez -- Not speaking for Intel -- all opinions are my own (and my fault)
+May I have the temerity to suggest that it would be more efficient if
+people were to test their own patches a bit more before sending them?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
