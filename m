@@ -1,66 +1,45 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA04883
-	for <linux-mm@kvack.org>; Thu, 3 Dec 1998 07:36:13 -0500
-Date: Thu, 3 Dec 1998 12:35:14 GMT
-Message-Id: <199812031235.MAA03337@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA05168
+	for <linux-mm@kvack.org>; Thu, 3 Dec 1998 08:31:41 -0500
+Received: from mirkwood.dummy.home (root@anx1p4.phys.uu.nl [131.211.33.93])
+	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id OAA04866
+	for <linux-mm@kvack.org>; Thu, 3 Dec 1998 14:06:38 +0100 (MET)
+Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with SMTP id MAA01530 for <linux-mm@kvack.org>; Thu, 3 Dec 1998 12:19:47 +0100
+Date: Thu, 3 Dec 1998 12:19:44 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: swapin readahead v4 -- first tests
+Message-ID: <Pine.LNX.3.96.981203121615.1008A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH] swapin readahead v4
-In-Reply-To: <Pine.LNX.3.96.981203111953.4894B-100000@mirkwood.dummy.home>
-References: <Pine.LNX.3.96.981203111953.4894B-100000@mirkwood.dummy.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: Linux MM <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-In article
-<Pine.LNX.3.96.981203111953.4894B-100000@mirkwood.dummy.home>, Rik van
-Riel <H.H.vanRiel@phys.uu.nl> writes:
+I've done some quick tests with v4 of my swapin readahead
+patch and the system seems to have stopped loosing memory.
 
-> Stephen's messages gave away the clue to something I was just
-> about to track down myself. Anyway, here is the 4th version of
-> my swapin readahead patch.
+I've been too lazy to test Zlatko's test proggie, but Gimp
+with some large images frees all memory correctly so I assume
+that things are working properly (there was quite a bit in
+swap and it was freed correctly).
 
-> @@ -329,6 +329,8 @@
- 
->  	set_bit(PG_locked, &new_page->flags);
->  	rw_swap_page(READ, entry, (char *) new_page_addr, wait);
-> +	if (!wait)
-> +		__free_page(new_page);
->  #ifdef DEBUG_SWAP
->  	printk("DebugVM: read_swap_cache_async created "
->  	       "entry %08lx at %p\n",
+I'd really like a few comments on the patch, especially from
+Stephen -- who is the expert on the swap cache code. I've
+decided to stay out of bed, despite the flu, because I will
+need to refill my energy reserves and I simply eat better when
+out of bed :)
 
-Much better to do this after calling read_swap_cache_async(): it's bad
-policy to make the reference count of the page after calling this
-function dependent on the arguments: that is a maintenance nightmare.  
+cheers,
 
-Oh, and you _still_ need to check the swap_lockmap before calling
-read_swap_cache_async(), and you still have the extra break() in the
-readahead loop...
+Rik -- the flu hits, the flu hits, the flu hits -- MORE
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
-Finally, the code before the start of the readahead loop loops really
-broken.  You do both a lookup_swap_cache AND a read_swap_cache on the
-entry, which is going to double-increment the page count: bad news.
-It's probably best to leave the original swapin code intact, and just
-add the readahead bits.  You also seem to have a construct
-
-    if (!page_map) {
-	page_map = read_swap_cache(entry);
-	do something else
-    } else {
-	page_map = read_swap_cache(entry);
-    }
-
-and I can't for the life of me work out why you are doing things this
-way!
-
---Stephen
- 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
