@@ -1,45 +1,45 @@
-Date: Mon, 2 Oct 2000 12:45:38 -0300 (BRST)
+Date: Mon, 2 Oct 2000 12:48:50 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] fix for VM  test9-pre7
-In-Reply-To: <39D844E0.A8B4203E@norran.net>
-Message-ID: <Pine.LNX.4.21.0010021244350.22539-100000@duckman.distro.conectiva>
+Subject: Re: Ignore my: Re: [PATCH] fix for VM  test9-pre7
+In-Reply-To: <39D85CBE.28783101@norran.net>
+Message-ID: <Pine.LNX.4.21.0010021245570.22539-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Roger Larsson <roger.larsson@norran.net>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 2 Oct 2000, Roger Larsson wrote:
 
-> > The attached patch seems to fix all the reported deadlock
-> > problems with the new VM. Basically they could be grouped
-> > into 2 categories:
-> > 
-> > 1) __GFP_IO related locking issues
-> > 2) something sleeps on a free/clean/inactive page goal
-> >    that isn't worked towards
+> My report was bogus - I had forgot to do a cp...
+
+*grin*
+
+> I have now retried. With good results.
+> The only thing that worries me is that dbench results
+> has declined a little from earlier test9.
 > 
-> Trying mmapp002 it gets killed due to no free
-> memory left...
+> System is responsive even during mmap002,
+> and run of mmap002 is much faster then before :-)
 
-????
+This is due partly to Ananth' bugfix (we now set the page
+age right for all pages) and partly due to the dynamic free
+target we have right now.
 
-I don't believe you. If the system runs out of memory the
-current code should loop around and hang the system in a
-nasty kind of livelock...
+The dbench thing I have to look into. I haven't figured out
+yet why dbench performs slightly worse (but maybe it's just
+because dbench uses an access pattern that benefits from
+having worse page replacement ;))
 
-What error messages did you get?
+> Summary:
+> + No lookups, kills, good performance...
+> = I like it.
 
-> This was on a 96MB RAM, 180MHz PPro, IDE disks
-> 
-> Riel, have you tested to run with little memory or
->       limit your memory size? Or rather what system do
->       you test in.
-
-I'm testing on a 64MB test machine, but haven't tested
-this one with mem=8m yet..
+It seems that performance during the misc001 patch is pretty
+bad at times, but indeed, during mmap001 and mmap002 the system
+is quite usable (in console mode).
 
 regards,
 
