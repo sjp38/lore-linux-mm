@@ -1,7 +1,7 @@
-Date: Fri, 9 May 2003 07:53:07 -0700
+Date: Fri, 9 May 2003 08:37:45 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.69-mm3
-Message-ID: <20030509145307.GA8931@holomorphy.com>
+Message-ID: <20030509153745.GW8978@holomorphy.com>
 References: <20030508013958.157b27b7.akpm@digeo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -16,26 +16,29 @@ List-ID: <linux-mm.kvack.org>
 On Thu, May 08, 2003 at 01:39:58AM -0700, Andrew Morton wrote:
 > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.69-mm3.gz
 >   Will appear sometime at
+> 
 > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm3/
 
-This comment looks stale; AIUI the behavior coded is what's desired.
-This came up in a discussion with some implementors of a language
-runtime about the cause of failures to open large files.
+I was just looking over this and noticed 2.4.x makes u64 dma_addr_t
+conditional on CONFIG_HIGHMEM64G where 2.5.x uses CONFIG_HIGHMEM. It's
+clearly not necessary on CONFIG_HIGHMEM4G, hence this obvious (but
+untested) patch:
 
 -- wli
 
-diff -prauN linux-2.5.69-1/fs/open.c open-2.5.69-1/fs/open.c
---- linux-2.5.69-1/fs/open.c	Wed Apr  9 06:42:36 2003
-+++ open-2.5.69-1/fs/open.c	Fri May  9 07:19:25 2003
-@@ -902,7 +902,7 @@
+
+diff -prauN linux-2.5.69-1/include/asm-i386/types.h types-2.5.69-1/include/asm-i386/types.h
+--- linux-2.5.69-1/include/asm-i386/types.h	Mon Dec 30 20:14:21 2002
++++ types-2.5.69-1/include/asm-i386/types.h	Fri May  9 08:29:57 2003
+@@ -51,7 +51,7 @@
  
- /*
-  * Called when an inode is about to be open.
-- * We use this to disallow opening RW large files on 32bit systems if
-+ * We use this to disallow opening large files on 32bit systems if
-  * the caller didn't specify O_LARGEFILE.  On 64bit systems we force
-  * on this flag in sys_open.
-  */
+ /* DMA addresses come in generic and 64-bit flavours.  */
+ 
+-#ifdef CONFIG_HIGHMEM
++#ifdef CONFIG_HIGHMEM64G
+ typedef u64 dma_addr_t;
+ #else
+ typedef u32 dma_addr_t;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
