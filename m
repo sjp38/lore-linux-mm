@@ -1,104 +1,72 @@
-Received: from root by ciao.gmane.org with local (Exim 4.43)
-	id 1DFUsl-0006xI-8q
-	for linux-mm@kvack.org; Sun, 27 Mar 2005 12:20:35 +0200
-Received: from 212.242.189.63 ([212.242.189.63])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2005 12:20:35 +0200
-Received: from martin by 212.242.189.63 with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Sun, 27 Mar 2005 12:20:35 +0200
-From: Martin Egholm Nielsen <martin@egholm-nielsen.dk>
-Subject: Re: Overcommit problem on embedded device with no swap
-Date: Sun, 27 Mar 2005 12:11:14 +0200
-Message-ID: <d260r3$9n2$1@sea.gmane.org>
-References: <d1eafk$fdh$1@sea.gmane.org>
+Received: by rproxy.gmail.com with SMTP id i8so1144838rne
+        for <linux-mm@kvack.org>; Sun, 27 Mar 2005 05:37:53 -0800 (PST)
+Message-ID: <ea908f9e050327053725659753@mail.gmail.com>
+Date: Sun, 27 Mar 2005 13:37:52 +0000
+From: RichardR <randjunk@gmail.com>
+Reply-To: RichardR <randjunk@gmail.com>
+Subject: memory going down, cached unflushed with a system in a 100%idle state
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <d1eafk$fdh$1@sea.gmane.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I kinda guess by now this was not the prober place for this question - 
-any idea where I could take it?
+hi all
+I have a SUN v20z running with RHEL/WS3 with kernel 2.4.21-20.ELsmp
+and I have this freaky problem about memory running out when I ran
+unix processes. I just dont know if there are related in the problem.
+our server is running in a production mode, and we have many "ssh",
+"screen" running at the same time on the same machine. we also have
+nfs access disk. what I can't understand is that the cached memory is
+still increasing when i ran under init level 3 getting rid of useless
+processes... as you can see the "ps auwwx" below, we just have 400kB
+used by the kernel and we have 4GB memory !!
 
-BR,
-  Martin Egholm
+[root@katy root]#  ps auwwx | sort -n +4 | grep -v sort | awk
+'BEGIN{a=0;b=0}{a+=$5;b+=$6}END{print "VSZ=",a,"RSS=",b}'
+VSZ= 468392 RSS= 35140
 
-> I don't know if this is the right place to go with this problem, but 
-> having searched the web, I ended up here... Sorry if this is totally OT.
-> 
-> Specs:
-> I'm having an embedded Linux system running on a PPC405EP with 64 megs 
-> of RAM, some flash, but _no_ swap space. It runs a 2.4.20 kernel patched 
-> with drivers for my device.
-> 
-> Problem:
-> I have an application that is killed by the OOM (I guess) when it tries 
-> to "use" more memory than present on the system.
-> Bolied down, memory is allocated with "sbrk" and then touch'ed.
-> 
-> With "/proc/sys/vm/overcommit_memory" set to 2, I expected that "sbrk" 
-> would return "-1" (0xFFFFFFFF), but it doesn't, hence is 
-> terminated/killed by the kernel.
-> 
-> The same happens on another embedded Linux/2.4.17/i386, also without swap.
-> 
-> However, both my desktop Linux/2.4.18/i386 and Linux/2.6.5/i386 with 
-> swap does what I hoped:
-> 
-> # ./exhaust_mem
-> ...
-> ffffffff
-> 
-> Out of memory
-> # #Yeaaaah!
-> 
-> Having searched the web, I see that this may be related with the fact 
-> that there is no swap enabled on either of my embedded devices.
-> Is this correct?
-> Can I do anything in order to get it the way I expected?
-> 
-> Best regards,
->  Martin Egholm
-> 
-> === exhaust_mem.c ===
-> 
-> #include <unistd.h>
-> #include <stdio.h>
-> #define SIZE 1000000
-> 
-> int main( int i )
-> {
->   while ( 1 ) {
->     char *v = sbrk( SIZE );
->     char *p;
-> 
->     printf( "%x\n\n", v );
-> 
->     if ((long)v < 0) {
->       fprintf(stderr, "Out of memory\n");
->       exit(1);
->     } // if
-> 
->     for (p = v; p < v + SIZE; ++p) {
->       *p = 42;
->     } // for
-> 
->   } // while
-> } // main
-> 
-> 
-> -- 
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
-> 
+[root@katy root]# free;cat /proc/meminfo
+             total       used       free     shared    buffers     cached
+Mem:       3992872    3680732     312140          0     177680    3100764
+-/+ buffers/cache:     402288    3590584
+Swap:      2096472       3860    2092612
+        total:    used:    free:  shared: buffers:  cached:
+Mem:  4088700928 3769069568 319631360        0 181944320 3178291200
+Swap: 2146787328  3952640 2142834688
+MemTotal:      3992872 kB
+MemFree:        312140 kB
+MemShared:           0 kB
+Buffers:        177680 kB
+Cached:        3100764 kB
+SwapCached:       3036 kB
+Active:        2471260 kB
+ActiveAnon:       6492 kB
+ActiveCache:   2464768 kB
+Inact_dirty:    605604 kB
+Inact_laundry:  131072 kB
+Inact_clean:     78340 kB
+Inact_target:   657252 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:      3992872 kB
+LowFree:        312140 kB
+SwapTotal:     2096472 kB
+SwapFree:      2092612 kB
+HugePages_Total:     0
+HugePages_Free:      0
+Hugepagesize:     2048 kB
 
+Thanks for your help guys.
+Cheers,
+-- 
+Richard R.
+IT Soft/System Engineer
+CNRS/IN2P3/LPNHE 
+Jussieu - Paris VI
+--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
