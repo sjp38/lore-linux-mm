@@ -1,45 +1,74 @@
-Subject: Re: [PATCH] fix spurious OOM kills
-From: Thomas Gleixner <tglx@linutronix.de>
-Reply-To: tglx@linutronix.de
-In-Reply-To: <20041215003707.GW16322@dualathlon.random>
-References: <41A08765.7030402@ribosome.natur.cuni.cz>
-	 <1101045469.23692.16.camel@thomas>
-	 <1101120922.19380.17.camel@tglx.tec.linutronix.de>
-	 <41A2E98E.7090109@ribosome.natur.cuni.cz>
-	 <1101205649.3888.6.camel@tglx.tec.linutronix.de>
-	 <41BF0F0D.4000408@ribosome.natur.cuni.cz>
-	 <20041214173858.GJ16322@dualathlon.random>
-	 <1103067018.5420.37.camel@npiggin-nld.site>
-	 <20041214235549.GT16322@dualathlon.random>
-	 <1103069783.3406.97.camel@tglx.tec.linutronix.de>
-	 <20041215003707.GW16322@dualathlon.random>
-Content-Type: text/plain
-Date: Wed, 15 Dec 2004 01:48:31 +0100
-Message-Id: <1103071711.3406.106.camel@tglx.tec.linutronix.de>
+Date: Wed, 15 Dec 2004 05:08:54 +0100
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 0/3] NUMA boot hash allocation interleaving
+Message-ID: <20041215040854.GC27225@wotan.suse.de>
+References: <Pine.SGI.4.61.0412141140030.22462@kzerza.americas.sgi.com> <9250000.1103050790@flay> <20041214191348.GA27225@wotan.suse.de> <19030000.1103054924@flay> <Pine.SGI.4.61.0412141720420.22462@kzerza.americas.sgi.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.SGI.4.61.0412141720420.22462@kzerza.americas.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Martin =?iso-8859-2?Q?MOKREJ=A9?= <mmokrejs@ribosome.natur.cuni.cz>, Andrew Morton <akpm@osdl.org>, piggin@cyberone.com.au, chris@tebibyte.org, marcelo.tosatti@cyclades.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Brent Casavant <bcasavan@sgi.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-12-15 at 01:37 +0100, Andrea Arcangeli wrote:
-> On Wed, Dec 15, 2004 at 01:16:23AM +0100, Thomas Gleixner wrote:
-> > It solves one of the problems, but your fix is really the only complete
-> > fix I have in hands since this thread(s) started. + my simple changes to
-> > the whom to kill selection :)
+On Tue, Dec 14, 2004 at 05:24:02PM -0600, Brent Casavant wrote:
+> On Tue, 14 Dec 2004, Martin J. Bligh wrote:
 > 
-> That patch prevents the machine to trigger "early" "suprious" oom kills
-> (I had reports of suprious oom kills myself, oom killer triggered
-> despite lots of swapcache was freeable), so it cannot help when a true
-> oom happens like with your workload. In your workload the oom isn't
-> a suprious error.
+> > --On Tuesday, December 14, 2004 20:13:48 +0100 Andi Kleen <ak@suse.de> wrote:
+> > 
+> > > I originally was a bit worried about the TLB usage, but it doesn't
+> > > seem to be a too big issue (hopefully the benchmarks weren't too
+> > > micro though)
+> > 
+> > Well, as long as we stripe on large page boundaries, it should be fine,
+> > I'd think. On PPC64, it'll screw the SLB, but ... tough ;-) We can either
+> > turn it off, or only do it on things larger than the segment size, and
+> > just round-robin the rest, or allocate from node with most free.
+> 
+> Is there a reasonably easy-to-use existing infrastructure to do this?
 
-I know. In meantime I understood which patch solves which problem :)
+No. It will be a lot of work actually, requiring new code for 
+each architecture and may even be impossible on some. 
+The current hugetlb code is not really suitable for this
+because it requires an preallocated pool and only works
+for user space.
 
-tglx
+I actually considered implementing it for x86-64 some time ago
+for the modules, but then I never bothered. On AMD systems
+I actually prefer to use small pages here. The reason is that
+Opteron has a separated large and small pages TLB and the small
+pages TLB is much bigger. When someone else uses huge TLB 
+pages too (user space or kernel direct mapping) then it's actually
+a good idea to use small pages.
 
+Also it may be difficult in some cases to even allocate
+such large pages even at boot and impossible to do it
+later when a module loads.
+
+Also at least on IA64 the large page size is usually 1-2GB 
+and that would seem to be a little too large to me for
+interleaving purposes. Also it may prevent the purpose 
+you implemented it - not using too much memory from a single
+node. 
+
+Using other page sizes would be probably tricky because the 
+linux VM can currently barely deal with two page sizes.
+I suspect handling more would need some VM infrastructure effort
+at least in the changed port. 
+
+> I didn't find anything in my examination of vmalloc itself, so I gave
+> up on the idea.
+> 
+> And just to clarify, are you saying you want to see this before inclusion
+> in mainline kernels, or that it would be nice to have but not necessary?
+
+I wouldn't do anything in this area unless somebody shows a benchmark /
+profiling results where TLB pressure makes a clear difference. And even
+then it may be not worth the effort.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
