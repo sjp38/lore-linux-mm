@@ -1,51 +1,38 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1PIsahS025630
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2005 13:54:36 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1PIsaW6247396
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2005 13:54:36 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1PIsaJj004913
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2005 13:54:36 -0500
-Subject: [PATCH] make highmem_start access only valid addresses (i386)
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Fri, 25 Feb 2005 10:54:34 -0800
-Message-Id: <E1D4kbj-0004UG-00@kernel.beaverton.ibm.com>
+Received: from server1.fastermail.com  (mail.fastermail.com   [205.158.62.76])
+	by fep2.fastmail.com (Postfix) with ESMTP id A025C6413
+	for <linux-mm@kvack.org>; Fri, 25 Feb 2005 23:23:36 +0400 (EDT)
+Received: from nobody by fastmail.com with local (Exim 4.17)
+	id 7C1rjW-6518oD-My
+	for <linux-mm@kvack.org>; Fri, 25 Feb 2005 12:29:36 -0700
+Subject: Re: Account
+From: "Amanda Flynn" <AmandaehFlynneh@fastmail.com>
+Message-ID: <784541920020.7eb1e6185311@fastmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 8bit
+Date: Fri, 25 Feb 2005 13:29:36 -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When CONFIG_HIGHMEM=y, but ZONE_NORMAL isn't quite full, there is, of course,
-no actual memory at *high_memory.  This isn't a problem with normal
-virt<->phys translations because it's never dereferenced, but CONFIG_NONLINEAR
-is a bit more finicky.  So, don't do __va() in non-existent addresses.
+Current Matches:
 
-BTW, this can certainly wait until the 2.6.12 series.
+1.
+Amanda Flynn is within 22 miles from your
+location.  She is married, but her husband is away
+almost every weekend and some weeknights.
 
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
+2.
+Samantha Fox is within 14 miles from your
+location.  She is married but looking for another
+relationship while her husband is on the road.
 
- sparse-dave/arch/i386/mm/init.c |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+Email address and Pictures of your matches are available:
+http://madamcharming.com/d/6.php
 
-diff -puN arch/i386/mm/init.c~A4-highmem_start-valid_addrs arch/i386/mm/init.c
---- sparse/arch/i386/mm/init.c~A4-highmem_start-valid_addrs	2005-02-24 08:56:43.000000000 -0800
-+++ sparse-dave/arch/i386/mm/init.c	2005-02-24 08:56:43.000000000 -0800
-@@ -563,9 +563,9 @@ void __init mem_init(void)
- 	set_max_mapnr_init();
- 
- #ifdef CONFIG_HIGHMEM
--	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE);
-+	high_memory = (void *) __va(highstart_pfn * PAGE_SIZE - 1) + 1;
- #else
--	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
-+	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE - 1) + 1;
- #endif
- 
- 	/* this will put all low memory onto the freelists */
-_
+
+Not For Me?
+http://madamcharming.com/bye/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
