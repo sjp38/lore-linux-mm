@@ -1,48 +1,54 @@
-Date: Thu, 1 Jan 2004 21:53:46 +0800
-From: Eugene Teo <eugene.teo@eugeneteo.net>
-Subject: Re: 2.6.0-rc1-mm1
-Message-ID: <20040101135346.GA17781@eugeneteo.net>
-Reply-To: Eugene Teo <eugene.teo@eugeneteo.net>
-References: <20031231004725.535a89e4.akpm@osdl.org>
+Date: Sat, 3 Jan 2004 22:27:06 +0000
+From: Matthew Wilcox <willy@debian.org>
+Subject: Re: [Kernel-janitors] [PATCH] Check return code in mm/vmscan.c
+Message-ID: <20040103222706.GM6982@parcelfarce.linux.theplanet.co.uk>
+References: <20040103132524.GA21909@eugeneteo.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20031231004725.535a89e4.akpm@osdl.org>
+In-Reply-To: <20040103132524.GA21909@eugeneteo.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, levon@movementarian.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eugene Teo <eugene.teo@eugeneteo.net>
+Cc: kernel-janitors@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<quote sender="Andrew Morton">
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-rc1/2.6.0-rc1-mm1/
+On Sat, Jan 03, 2004 at 09:25:24PM +0800, Eugene Teo wrote:
+> http://www.anomalistic.org/patches/vmscan-check-ret-kernel_thread-fix-2.6.1-rc1-mm1.patch
+> 
+> diff -Naur -X /home/amnesia/w/dontdiff 2.6.1-rc1-mm1/mm/vmscan.c 2.6.1-rc1-mm1-fix/mm/vmscan.c
+> --- 2.6.1-rc1-mm1/mm/vmscan.c	2004-01-03 20:33:39.000000000 +0800
+> +++ 2.6.1-rc1-mm1-fix/mm/vmscan.c	2004-01-03 21:16:30.000000000 +0800
+> @@ -1093,10 +1093,16 @@
+>  
+>  static int __init kswapd_init(void)
+>  {
+> +	int ret;
+>  	pg_data_t *pgdat;
+>  	swap_setup();
+> -	for_each_pgdat(pgdat)
+> -		kernel_thread(kswapd, pgdat, CLONE_KERNEL);
+> +	for_each_pgdat(pgdat) {
+> +		ret = kernel_thread(kswapd, pgdat, CLONE_KERNEL);
+> +		if (ret < 0) {
+> +			printk("%s: unable to start kernel thread\n", __FUNCTION__);
+> +			return ret;
+> +		}
+> +	}
+>  	total_memory = nr_free_pagecache_pages();
+>  	return 0;
+>  }
 
-[snip]
-
-> +make-for_each_cpu-iterator-more-friendly.patch
-
-Trivial patch.
-
-http://www.anomalistic.org/patches/oprofile-cpu_possible-fix-2.6.1-rc1-mm1.patch
-
-diff -Naur -X /home/amnesia/w/dontdiff 2.6.1-rc1-mm1/drivers/oprofile/oprofile_stats.c 2.6.1-rc1-mm1-fix/drivers/oprofile/oprofile_stats.c
---- 2.6.1-rc1-mm1/drivers/oprofile/oprofile_stats.c	2004-01-01 20:29:19.000000000 +0800
-+++ 2.6.1-rc1-mm1-fix/drivers/oprofile/oprofile_stats.c	2004-01-01 21:34:48.000000000 +0800
-@@ -8,7 +8,7 @@
-  */
- 
- #include <linux/oprofile.h>
--#include <linux/smp.h>
-+#include <linux/cpumask.h>
- #include <linux/threads.h>
-  
- #include "oprofile_stats.h"
+If your new code is triggered, we've just failed to set up total_memory.
+I expect the system to behave very oddly after this ;-)
 
 -- 
-Eugene TEO   <eugeneteo@eugeneteo.net>   <http://www.anomalistic.org/>
-1024D/14A0DDE5 print D851 4574 E357 469C D308  A01E 7321 A38A 14A0 DDE5
-main(i) { putchar(182623909 >> (i-1) * 5&31|!!(i<7)<<6) && main(++i); }
-
+"Next the statesmen will invent cheap lies, putting the blame upon 
+the nation that is attacked, and every man will be glad of those
+conscience-soothing falsities, and will diligently study them, and refuse
+to examine any refutations of them; and thus he will by and by convince 
+himself that the war is just, and will thank God for the better sleep 
+he enjoys after this process of grotesque self-deception." -- Mark Twain
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
