@@ -1,49 +1,29 @@
-Date: Fri, 5 Jul 2002 11:25:44 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Fri, 5 Jul 2002 16:11:13 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: vm lock contention reduction
-In-Reply-To: <3D2540CE.89A1688E@zip.com.au>
-Message-ID: <Pine.LNX.4.44L.0207051123160.8346-100000@imladris.surriel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20020705231113.GA25360@holomorphy.com>
+References: <3D24F869.2538BC08@zip.com.au> <Pine.LNX.4.44L.0207042244590.6047-100000@imladris.surriel.com> <3D2501FA.4B14EB14@zip.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3D2501FA.4B14EB14@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@zip.com.au>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Andrea Arcangeli <andrea@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Rik van Riel <riel@conectiva.com.br>, Andrea Arcangeli <andrea@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 Jul 2002, Andrew Morton wrote:
-> Linus Torvalds wrote:
+On Thu, Jul 04, 2002 at 07:18:34PM -0700, Andrew Morton wrote:
+> Of course, that change means that we wouldn't be able to throttle
+> page allocators against IO any more, and we'd have to do something
+> smarter.  What a shame ;)
 
-> > You probably want the occasional allocator able to jump the queue, but the
-> > "big spenders" to be caught eventually. "Fairness" really doesn't mean
-> > that "everybody should wait equally much", it really means "people should
-> > wait roughly relative to how much as they 'spend' memory".
->
-> Right.  And that implies heuristics to divine which tasks are
-> heavy page allocators.  uh-oh.
+This is actually necessary IMHO. Some testing I've been able to do seems
+to reveal the current throttling mechanism as inadequate.
 
-This isn't too hard. In order to achieve this you:
 
-1) wait for one kswapd loop when you get below a high water mark
-2) allocate one page when kswapd wakes everybody up again
-   (at this point we're NOT necessarily above the high water
-   mark again...)
-
-This means that once the system is under a lot of pressure
-heavy allocators will be throttled a lot more than light
-allocators and the system gets a chance to free things.
-
-Of course, kswapd does everything (except get_request)
-asynchronously so a kswapd loop should be relatively short.
-
-regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
