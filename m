@@ -1,52 +1,55 @@
-Date: Fri, 06 Sep 2002 12:54:46 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: Rough cut at shared page tables
-Message-ID: <68690000.1031334886@baldur.austin.ibm.com>
-In-Reply-To: <20020906174405.GU18800@holomorphy.com>
-References: <61920000.1031332808@baldur.austin.ibm.com>
- <20020906174405.GU18800@holomorphy.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: 2.5.33-mm4 filemap_copy_from_user: Unexpected page fault
+From: Steven Cole <elenstev@mesatop.com>
+In-Reply-To: <3D78E79B.78B202DE@zip.com.au>
+References: <3D78DD07.E36AE3A9@zip.com.au>
+	<1031331803.2799.178.camel@spc9.esa.lanl.gov>
+	<3D78E79B.78B202DE@zip.com.au>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Date: 06 Sep 2002 11:54:07 -0600
+Message-Id: <1031334847.2799.206.camel@spc9.esa.lanl.gov>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---On Friday, September 06, 2002 10:44:05 AM -0700 William Lee Irwin III
-<wli@holomorphy.com> wrote:
-
-> Hmm, do non-i386 arches need to be taught about read-only pmd's?
-
-Way back when this idea first surfaced, ISTR it was stated that most
-architectures support it in the same way as x86.
-
-> AFAICT one significant source of trouble is that pmd's, once
-> instantiated, are considered immutable until the process is torn down.
-> Numerous VM codepaths drop all locks but a readlock on the mm->mmap_sem
-> while holding a reference to a pmd and expect it to remain valid.
+On Fri, 2002-09-06 at 11:36, Andrew Morton wrote:
+> Steven Cole wrote:
+> > 
+> > ...
+> > > Does this fix?
+> > ...
+> > Unfortunately no.
 > 
-> The same issue arises during pagetable reclaim and pmd-based large page
-> manipulations.
+> Well, isn't this fun?  umm.  You're _sure_ you ran the right kernel
+> and such?
 
-Yeah, I think I've seen most of them, but I need to come up with a decent
-locking strategy for it all, and haven't yet.
- 
-> The swap strategy is interesting. I had originally imagined that a
-> reference object would be required. But I'm not sure quite how RSS
-> accounting for processes affected by a swap operation happens here.
+Oops, forgot to include linux-mm on the earlier reply.
+Yes I am sure I ran the right kernel.
 
-I think rss accounting is probably the main issue, and I have some ideas
-around that, including keeping an rss count in the struct page of the pte
-page.  It's something kicking around in my head I plan to put in code soon.
+> 
+> Could you send your /proc/mounts, and tell me which of those partitions
+> you're running the test on?
+> 
+Here that is again, for the linux-mm list:
 
-Dave
+[steven@spc5 linux-2.5.33-mm4]$ cat /proc/mounts
+rootfs / rootfs rw 0 0
+/dev/root / ext3 rw 0 0
+/proc /proc proc rw 0 0
+none /dev/pts devpts rw 0 0
+/dev/sda5 /home ext3 rw 0 0
+none /dev/shm tmpfs rw 0 0
+/dev/sdb2 /share ext2 rw 0 0
+/dev/sda3 /usr ext3 rw 0 0
 
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
+
+Test were run on /home (ext3) with single exception of one earlier test
+on /share (ext2).
+
+Steven
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
