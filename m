@@ -1,42 +1,36 @@
-Date: Mon, 2 Oct 2000 17:24:44 -0300 (BRST)
+Date: Mon, 2 Oct 2000 17:45:25 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [highmem bug report against -test5 and -test6] Re: [PATCH] Re:
  simple FS application that hangs 2.4-test5, mem mgmt problem or FS buffer
  cache mgmt problem? (fwd)
-In-Reply-To: <20001002221718.B21995@athlon.random>
-Message-ID: <Pine.LNX.4.21.0010021722440.1067-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0010022218460.11418-100000@elte.hu>
+Message-ID: <Pine.LNX.4.21.0010021744000.1067-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Oct 2000, Andrea Arcangeli wrote:
-> On Mon, Oct 02, 2000 at 04:59:57PM -0300, Rik van Riel wrote:
-> > Linus, I remember you saying some time ago that you would
-> > like to keep the buffer heads on a page around so we'd
-> > have them at the point where we need to swap out again.
+On Mon, 2 Oct 2000, Ingo Molnar wrote:
+> On Mon, 2 Oct 2000, Linus Torvalds wrote:
 > 
-> That's one of the basic differences between the 2.2.x and 2.4.x
-> page cache design. We don't reclaim the buffers at I/O completion
-> time anymore in 2.4.x but we reclaim them only later when we run
-> low on memory.
+> > I agree. Most of the time, there's absolutely no point in keeping the
+> > buffer heads around. Most pages (and _especially_ the actively mapped
+> > ones) do not need the buffer heads at all after creation - once they
+> > are uptodate they stay uptodate and we're only interested in the page,
+> > not the buffers used to create it.
 > 
-> Forbidding the bh to be reclaimed when we run low on memory is a
-> bug and I don't think Linus ever suggested that.
+> except for writes, there we cache the block # in the bh and do
+> not have to call the lowlevel FS repeatedly to calculate the FS
+> position of the page.
 
-*nod*
+Would it be "close enough" to simply clear the buffer heads of
+clean pages which make it to the front of the active list ?
 
-How about having the following code in refill_inactive_scan() ?
-
-	if (page->buffers && page->mapping)
-		try_to_free_buffers(page, 0);
-
-(this will strip the buffer heads of any clean page cache
-page ... we don't want to strip buffer head pages because
-that would mean throwing away the data from that page)
+Or is there another optimisation we could do to make the
+approximation even better ?
 
 regards,
 
