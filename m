@@ -1,69 +1,37 @@
-Date: Thu, 3 Mar 2005 11:07:34 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: no page_cache_get in do_wp_page?
-Message-ID: <Pine.LNX.4.58.0503031104500.9773@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
+Date: Mon, 14 Feb 2005 14:04:18 -0700
+Message-Id: 200410150705.i9F750Kk01345738.i93RpjTw002443@b-mail09.real-email.net>
+From: "Lynne Foreman" <mazey@yebox.com>
+Subject: 3.25% rate approval
+Mime-Version: 1.0
+Content-Type: text/plain;
+Return-Path: <mazey@yebox.com>
 To: linux-mm@kvack.org
-Cc: akpm@osdl.org
+Cc: linux-mm-archive@kvack.org, mailer-daemon@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.orgux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We do a page_cache_get in do_wp_page but we check the pte for changes later.
+Hello,
 
-So why do a page_cache_get at all? Do the copy and maybe copy garbage and
-if the pte was changed forget about it. This avoids having to keep state
-for the page copied from.
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-Nick and I discussed this a few weeks ago and there were no further comments.
-Andrew thought that this need to be discussed in more detail.
+ You have qualified for the lowest rate in years...
 
-So maybe there is a situation in which the pte
-can go away and then be restored to exactly the
-same value it had before?
+ You could get over $380,000 for as little as $500 a month!
 
-The first action that would need to happen is that the swapper(?)
-clears the pte (and puts the page on the free lists?).
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
 
-Then the same page with the same pte flags would have to be mapped to
-the same virtual address again but something significant about the page
-must have changed.
+ 
+ To get a free, no obli,gation consultation click below:
 
-mmap and related stuff is all not possible because mmap_sem semaphore
-is held but the page_table_lock is dropped for for the allocation and
-the copy.
+ http://www.fasteratez.com/x/loan.php?id=nu
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-Index: linux-2.6.11/mm/memory.c
-===================================================================
---- linux-2.6.11.orig/mm/memory.c	2005-03-03 10:20:57.000000000 -0800
-+++ linux-2.6.11/mm/memory.c	2005-03-03 10:43:11.000000000 -0800
-@@ -1318,8 +1318,6 @@ static int do_wp_page(struct mm_struct *
- 	/*
- 	 * Ok, we need to copy. Oh, well..
- 	 */
--	if (!PageReserved(old_page))
--		page_cache_get(old_page);
- 	spin_unlock(&mm->page_table_lock);
 
- 	if (unlikely(anon_vma_prepare(vma)))
-@@ -1358,12 +1356,10 @@ static int do_wp_page(struct mm_struct *
- 	}
- 	pte_unmap(page_table);
- 	page_cache_release(new_page);
--	page_cache_release(old_page);
- 	spin_unlock(&mm->page_table_lock);
- 	return VM_FAULT_MINOR;
+ Best Regards,
 
- no_new_page:
--	page_cache_release(old_page);
- 	return VM_FAULT_OOM;
- }
+ Enrique Houser
+ 
+ to be remov(ed:	http://www.fasteratez.com/x/st.html
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
