@@ -1,109 +1,117 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <200003202217.OAA94775@google.engr.sgi.com>
-Subject: Re: More VM balancing issues..
-Date: Mon, 20 Mar 2000 14:17:27 -0800 (PST)
-In-Reply-To: <Pine.LNX.4.10.10003201232410.4818-100000@penguin.transmeta.com> from "Linus Torvalds" at Mar 20, 2000 01:27:46 PM
-MIME-Version: 1.0
+Date: Tue, 21 Mar 2000 02:20:53 +0100
+From: Jamie Lokier <jamie.lokier@cern.ch>
+Subject: madvise (MADV_FREE)
+Message-ID: <20000321022053.A4271@pcep-jamie.cern.ch>
+References: <20000320135939.A3390@pcep-jamie.cern.ch> <Pine.BSO.4.10.10003201318050.23474-100000@funky.monkey.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.BSO.4.10.10003201318050.23474-100000@funky.monkey.org>; from Chuck Lever on Mon, Mar 20, 2000 at 02:09:26PM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, Christopher Zimmerman <zim@av.com>, Stephen Tweedie <sct@redhat.com>
+To: Chuck Lever <cel@monkey.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> They happen to be inclusive on x86 (ie DMA <= direct-mapped <=
-> everything), but I think it is a mistake to consider that a design. It's
-> obviously not true on NUMA if you have per-CPU classes that fall back onto
-> other CPU's zones. I would imagine, for example, that on NUMA the best
-> arrangement would be something like
-> 
->  - when making a NODE1 allocation, the "class" list is
-> 
-> 	NODE1, NODE2, NODE3, NODE4, NULL
-> 
->  - when making a NODE2 allocation it would be
-> 
-> 	NODE2, NODE3, NODE4, NODE1, NULL
-> 
->  etc...
-> 
-> (So each node would preferentially always allocate from its own zone, but
-> would fall back on other nodes memory if the local zone fills up).
+Hi Chuck
 
-Okay, I think the crux of this discussion lies in this statement. I do
-not believe this is what the numa code will do, but note that we are
-not 100% certain at this stage. The numa code will be layered on top
-of the generic code, (the primary goal being generic code should be 
-impacted by numa minimally), so for example, the numa version of
-alloc_pages() will invoke __alloc_pages() on different nodes. The
-other thing to note is, the sequence of nodes to allocate is not
-static, but dynamic (depending on other data structures that numa
-code will track). This gives the most flexibility to numa code to
-do the best thing performance wise for a wide variety of apps
-under different situations. So apriori, you can not claim the class
-list for NODE1 allocation will be "NODE1, NODE2, NODE3, NODE4, NULL".
-I am ccing Hubertus Franke from IBM, we have been working on numa
-issues together.
+About MADV_FREE
+---------------
 
+> >    The principle here is very simple: MADV_FREE marks all the pages in
+> >    the region as "discardable", and clears the accessed and dirty bits
+> >    of those pages.
+> > 
+> >    Later when the kernel needs to free some memory, it is permitted to
+> >    free "discardable" pages immediately provided they are still not
+> >    accessed or dirty.  When vmscan is clearing the accessed and dirty
+> >    bits on pages, if they were set it must clear the " discardable" bit.
+> > 
+> >    This allows malloc() and other user space allocators to free pages
+> >    back to the system.  Unlike DU's MADV_DONTNEED, or mmapping
+> >    /dev/zero, if the system does not need the page there is no
+> >    inefficient zero-copy.  If there was, malloc() would be better off
+> >    not bothering to return the pages.
 > 
-> With something like the above, there is no longer any true inclusion. Each
-> class covers an "equal" amount of zones, but has a different structure.
->
- 
-The only example I can think of is a hole architecture, as I mentioned
-before, but even that can be handled with a "true inclusion" assumption.
+> unless i've completely misunderstood what you are proposing, this is what
+> MADV_DONTNEED does today,
 
-Unless you can point to a processor/architecture to the contrary, for
-the 2.4 timeframe, I would think we can assume true inclusion. (And that
-will be true even if we come up with a ZONE_PCI32 for 64bit machines).
+No, your MADV_DONTNEED _always_ discards the data in those pages.  That
+makes it too inefficient for application memory allocators, because they
+will often want to reuse some of the pages soon after.  You don't want
+redundant page zeroing, and you don't want to give up memory which is
+still nice and warm in the CPU's cache.  Unless the kernel has a better
+use for it than you.
 
-> > 2. The body of zone_balance_memory() should be replaced with the pre1
-> > code, otherwise there are too many differences/problems to enumerate. 
-> > Unless you are also proposing changes in this area.
-> 
-> The pre1 code was broken, and never checked pages_low. The changes were
-> definitely pre-meditated - trying to think of the balancing as a "list of
-> zones" issue.
+MADV_FREE on the other hand simply permits the kernel to reclaim those
+pages, if it is under memory pressure.
 
-Agreed, I pointed out the breakage when the balancing patch was sent out. 
-I patched the pre1 code to get back to 2.3.50 behavior, and Christopher 
-Zimmerman zim@av.com tested it out.
+If there is no pressure, the pages are reused by the application
+unchanged.  In this way different subsystems competing for memory get to
+share it out -- essentially the fairness mechanisms in the kernel are
+extending to application page management.  And the application hardly
+knows a think about it.
 
-> 
-> And I think it's fine that kswapd continues to run until we reach "high".
-> Your patch makes kswapd stop when it reaches "low", but that makes kswapd
-> go into this kind of "start/stop/start/stop" behaviour at around the "low"
-> watermark.
-> 
-> Maybe you meant to clear the flags the other way around: keep kswapd
-> running until it hits high, but remove the "low_on_mem" flag when we are
-> above "low" (but we've gotten away from "min"). That might work, but I
-> think clearing both flags at "high" is actually the right thing to do,
-> because that way we will not get into a state where kswapd runs all the
-> time because somebody is still allocating pages without helping to free
-> anything up.
-> 
+Here's why MADV_FREE works, and the other things don't:
 
-Okay, that is a change on top of 2.3.50 behavior, this can be easily
-implemented. As I mention in Documentation/vm/balance, low_on_memory
-is a hysteric flag, zone_wake_kswapd/kswapd poking is not, we can 
-change that. Do you want me to create a new patch against 2.3.99-pre2?
+A typical memory allocator creates holes in its heap, which the kernel
+has to swap out if it needs memory.  I guess about 1/4 of all data in
+swap is this kind of junk (but it's just a guess).
 
-Kanoj
+But it's quite inefficient for an allocator to unconditionally give
+pages back to the kernel.  The cost-benefit is "cost of giving page to
+kernel" vs. "cost of maybe paging out".  The cost of giving up
+pages is significant: each one implies a COW fault, clear_page
+when you reuse the page, and loss of cache-warm memory.
 
-> The pre-3 behaviour is: if you ever hit "min", you set a flag that means
-> "ok, kswapd can't do this on its own, and needs some help from the people
-> that allocate memory all the time". If you think of it that way, I think
-> you'll agree that it shouldn't be cleared until after kswapd says
-> everything is ok again.
-> 
-> I don't know..
-> 
-> 		Linus
-> 
+You assume a page is not likely to swap, because there's a reasonable
+chance the application will reallocate it before that happens.  So on
+balance, giving pages unconditionally to the kernel is a loss.
 
+--> No sane free(3) would call MADV_DONTNEED or msync(MS_INVALIDATE).
+
+A better application allocator would base decisions about when to return
+pages to the kernel on the likelihood of swapping and measured cost of
+swapping vs. retaining pages.  Of course that's very difficult and
+system specific.  And really only the kernel has access to all the
+information on memory pressure.
+
+So the best arrangment is to let the kernel make page reclamation
+decisions.  And if a page is not reclaimed before it is reused, let the
+application reuse the page unchanged and cache-warm.
+
+MADV_FREE is the mechanism for doing that.  And it's a very nice, simple
+one to use.  Paging decisions stay in the kernel where they belong.
+Applications run fast if they have enough memory.  Everything is happy.
+
+> ... except it doesn't schedule the "freed" pages for
+> disposal ahead of other pages in the system.  but that should be easy
+> enough to add once the semantics are nailed down and the bugs have been
+> eliminated.
+
+It's not clear you'd want to do that.  There is a cost for every "freed"
+page disposed of, so you don't want to dispose of them ahead of other
+pages.
+
+> ok, i don't understand why you think this.  and besides, free(3) doesn't
+> shrink the heap currently, i believe.  this would work if free(3) used
+> sbrk() to shrink the heap in an intelligent fashion, freeing kernel VM
+> resources along the way.  if you want something to help free(3), i would
+> favor this design instead.
+
+free(3) already uses sbrk() to shrink the heap at the end.  It's not
+usable for the typical 1/3 of memory which becomes holes in the heap.
+
+Yes the idea is to modify free(3) to permit the kernel to reclaim memory
+that is free in the application.  However, none of sbrk() _or_
+MADV_DONTNEED _or_ MADV_ZERO _or_ mmap(/dev/zero) have the desired
+effect.
+
+It has to be a win for the application to call this function -- and it
+it's a loss to zero pages as soon as you free them.  But it's relatively
+cheap to just mark the pages as "reclaimable" without losing them.
+
+enjoy,
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
