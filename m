@@ -1,41 +1,48 @@
-Subject: Re: broken VM in 2.4.10-pre9
-References: <878A2048A35CD141AD5FC92C6B776E4907BB98@xchgind02.nsisw.com>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 17 Sep 2001 10:03:06 -0600
-In-Reply-To: <878A2048A35CD141AD5FC92C6B776E4907BB98@xchgind02.nsisw.com>
-Message-ID: <m166ahst39.fsf@frodo.biederman.org>
+Received: from ucla.edu (ts13-80.dialup.bol.ucla.edu [164.67.23.89])
+	by serval.noc.ucla.edu (8.9.1a/8.9.1) with ESMTP id NAA10878
+	for <linux-mm@kvack.org>; Mon, 17 Sep 2001 13:04:23 -0700 (PDT)
+Message-ID: <3BA65763.8090900@ucla.edu>
+Date: Mon, 17 Sep 2001 13:04:51 -0700
+From: Benjamin Redelings I <bredelin@ucla.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: try_to_swap_out: to aggressive in dropping pte's?
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rob Fuller <rfuller@nsisoftware.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Rob Fuller" <rfuller@nsisoftware.com> writes:
+Hello,
+	I was wondering if anybody could explain why we try to drop the pte on a 
+page if it is not pte_young, even if it has a high age and has the 
+referenced bit set?
 
-> One argument for reverse mappings is distributed shared memory or
-> distributed file systems and their interaction with memory mapped
-> files.  For example, a distributed file system may need to invalidate a specific
-> page of a file that may be mapped multiple times on a node.
+	Also, does anybody have any thoughts on how to decouple scanning the page 
+tables for hardward referenced bits, and doing swap-out?  On one of my 
+128mb boxes, linus's changes to only run swap_out when there is memory 
+pressure make things MUCH more interactive and decreased unnecessary 
+swapping.  However, this means that the page tables are not scanned, 
+which is not good...
 
-To reduce the time for an invalidate is indeed a good argument for
-reverse maps.  However this is generally the uncommon case, and it is
-fine to leave this kinds of things on the slow path.  From struct page 
-we currently go to struct address_space to lists of struct vm_area
-which works but is just a little slower (but generally cheaper) than
-having a reverse map.
+	On a related note, in 2.4.10-pre10, Linus makes pages get deactivated in 
+try_to_swap_out if !PageReferenced(page), thus making page->age almost 
+irrelevant.  I would like to make a quick hack hybrid approach that 
+keeps lots of the 2.4.10-pre10 vm changes still uses age information on 
+the active list.  This probably isn't adequate, but how about:
 
-Since Rik was not seeing the invalidate or the unmap case as the
-bottleneck this reverse mappings are not needed simply something
-with a similiar effect on the VM.  
+1. change "if (ptep_test_and_clear_young(page_table))" to
+"if (ptep_test_and_clear_young(page_table) ||
+	PageTestandClearReference(page))"
 
-In linux we have avoided reverse maps (unlike the BSD's) which tends
-to make the common case fast at the expense of making it more
-difficult to handle times when the VM system is under extreme load and
-we are swapping etc.
+2. revert Linus's change in pre10 to deactivate pages if age==0 instead 
+of if !PageReference.
 
-Eric
+thanks for any suggestions,
+-BenRI
+-- 
+"I will begin again" - U2, 'New Year's Day'
+Benjamin Redelings I      <><     http://www.bol.ucla.edu/~bredelin/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
