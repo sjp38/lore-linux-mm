@@ -1,37 +1,39 @@
-Date: Fri, 5 Jan 2001 22:34:59 +0100
-From: Christoph Hellwig <hch@caldera.de>
+Date: Fri, 5 Jan 2001 21:52:23 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: MM/VM todo list
-Message-ID: <20010105223459.A12653@caldera.de>
-References: <20010105222624.A11770@caldera.de> <Pine.LNX.4.21.0101051927040.1295-100000@duckman.distro.conectiva>
+Message-ID: <20010105215223.M1290@redhat.com>
+References: <Pine.LNX.4.21.0101051505430.1295-100000@duckman.distro.conectiva> <Pine.LNX.4.21.0101051454230.2859-100000@freak.distro.conectiva> <20010105221326.A10112@caldera.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0101051927040.1295-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Fri, Jan 05, 2001 at 07:27:38PM -0200
+Content-Disposition: inline
+In-Reply-To: <20010105221326.A10112@caldera.de>; from hch@caldera.de on Fri, Jan 05, 2001 at 10:13:27PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 05, 2001 at 07:27:38PM -0200, Rik van Riel wrote:
-> > No other then filesystem IO (page/buffercache) is actively tied
-> > to the VM, so there should be no problems.
+Hi,
+
+On Fri, Jan 05, 2001 at 10:13:27PM +0100, Christoph Hellwig wrote:
+> On Fri, Jan 05, 2001 at 02:56:40PM -0200, Marcelo Tosatti wrote:
+> > > * VM: experiment with different active lists / aging pages
+> > >   of different ages at different rates + other page replacement
+> > >   improvements
+> > > * VM: Quality of Service / fairness / ... improvements
+> >   * VM: Use kiobuf IO in VM instead buffer_head IO. 
 > 
-> Not right now, no. But if you know what is possible
-> (and planned) with the kiobuf layer, you should think
-> twice about this idea...
+> I'd vote for killing both bufer_head and kiobuf from VM.
+> Lokk at my pageio patch - VM doesn't know about the use of kiobufs
+> in the filesystem IO...
 
-I don't think so.  The only place were IO actively interferes with
-the VM is of the 'write this out when memory gets low' type thing,
-and you don't really want this outside filesystems/blockdevices.
+It has already been talked about, and is something I'd like for 2.5
+--- it's easy enough to push the buffer-head list into the
+per-address-space structures so that the upper VM has no knowledge of
+the IO mechanism being used underneath.
 
-There are some VM tricks that are usefull for IO (COW, map_user_kiobuf),
-but these operate always on pages (maybe containered by kiobufs, but that
-should be of minor interest for the VM).
-
-	Christoph
-
--- 
-Whip me.  Beat me.  Make me maintain AIX.
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
