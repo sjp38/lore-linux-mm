@@ -1,76 +1,17 @@
-Subject: Virus Found in message "fake"
+Date: Sat, 20 Mar 2004 12:24:55 +0000
+From: www.amercenterpub.info| <tek01@mdx.ac.uk>
+Subject: http://www.amercenterpub.info
+References: <0A8HE0EEI664G5F3@kvack.org>
+In-Reply-To: <0A8HE0EEI664G5F3@kvack.org>
+Message-ID: <55GG1430767EAGGB@mdx.ac.uk>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----_=_NextPart_001_01C40CE4.D99868DC"
-Date: Thu, 18 Mar 2004 09:30:51 -0300
-Message-ID: <4A12B821CAFE2642876524627B0D2308024716@fsdecta.decta.local>
-content-class: urn:content-classes:message
-From: "admin" <admin@decta.com.br>
+Content-Type: text/plain
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
-
-------_=_NextPart_001_01C40CE4.D99868DC
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
-
-Norton AntiVirus found a virus in an attachment you (linux-mm@kvack.org) =
-sent to decta.
-
-To ensure the recipient(s) are able to use the files you sent, perform a =
-virus scan on your computer, clean any infected files, then resend this =
-attachment.
-
-
-Attachment:  shower.txt.com
-Virus name: W32.Netsky.B@mm
-Action taken:  Clean failed : Delete succeeded :=20
-File status:  Deleted
-
-
-
-
-------_=_NextPart_001_01C40CE4.D99868DC
-Content-Type: application/ms-tnef;
-	name="winmail.dat"
-Content-Transfer-Encoding: base64
-
-eJ8+IjUMAQaQCAAEAAAAAAABAAEAAQeQBgAIAAAA5AQAAAAAAADoAAEIgAcAGAAAAElQTS5NaWNy
-b3NvZnQgTWFpbC5Ob3RlADEIAQ2ABAACAAAAAgACAAEEgAEAHgAAAFZpcnVzIEZvdW5kIGluIG1l
-c3NhZ2UgImZha2UiACwKAQWAAwAOAAAA1AcDABIACQAeADMABABOAQEggAMADgAAANQHAwASAAkA
-HgA0AAQATwEBCYABACEAAAA3MjJGQjJEOUFFQ0U0RjQ4ODE3QkI5QkE3QjM1MTA5MgBTBwEDkAYA
-vAUAACIAAAADADYAAAAAAEAAOQDcaJjZ5AzEAR4APQABAAAAAQAAAAAAAAACAUcAAQAAACwAAABj
-PXVzO2E9IDtwPURlY3RhO2w9RlNERUNUQS0wNDAzMTgxMjMwNTFaLTY1AB4AcAABAAAAHgAAAFZp
-cnVzIEZvdW5kIGluIG1lc3NhZ2UgImZha2UiAAAAAgFxAAEAAAAWAAAAAcQM5NmYPzpriklIR5SL
-hHaUqOy1DwAAHgAaDAEAAAAGAAAAYWRtaW4AAAAeAB0OAQAAAB4AAABWaXJ1cyBGb3VuZCBpbiBt
-ZXNzYWdlICJmYWtlIgAAAAIBCRABAAAA0wEAAM8BAACyAgAATFpGdX/bvlkDAAoAcmNwZzEyNeIy
-A0N0ZXgFQQEDAff/CoACpAPkBxMCgA/zAFAEVj8IVQeyESUOUQMBAgBjaOEKwHNldDIGAAbDESX2
-MwRGE7cwEiwRMwjvCfe2OxgfDjA1ESIMYGMAUPMLCQFkMzYWUAumB7AXwQcCIBDAAjBpVmlydQME
-IAIQdW5kIGEgfnYdswuAHlAe8QJAANBoEweAAjAgeQhgIChsAQuAdXgtbW1AaxJ2ANBrLgWwZykg
-txQQH8EdICAFgQGQLgqiWwqECoBUIeAJ8HMIcGXtIcBoI6AYIGMFIAiQAjC8KHMhYArAI6ABoGwj
-ofch4B3QI6RmAxAHkR/yIYKYLCBwBJACEHJtHlc/BPADkR0xH/EFwAWgbXBqdQ6wcibwYyUwHxJu
-+nke0WYiEQmAJgQm8CPB/wOgGCAhgR5AI8AEAB85IlslImRBH1c6ICFwaG/6dwSQLgzQLMAo4SJk
-HaQMbmEHgC6gVzMyLgEHwHRza3kuQkC3IKAtpSIgaR0xAZBrCfD1LqFDKZNmC3AlMB5ALqC8RGUl
-MA6wIXAa0GMJ4HcBADPCImRGJiEhcAGQdF8d0C6hNAQLMS0OfTgQAB4ANRABAAAAPQAAADw0QTEy
-QjgyMUNBRkUyNjQyODc2NTI0NjI3QjBEMjMwODAyNDcxNkBmc2RlY3RhLmRlY3RhLmxvY2FsPgAA
-AAAfAPMQAQAAAEwAAABWAGkAcgB1AHMAIABGAG8AdQBuAGQAIABpAG4AIABtAGUAcwBzAGEAZwBl
-ACAAJQAyADIAZgBhAGsAZQAlADIAMgAuAEUATQBMAAAACwD2EAAAAABAAAcwSmp52eQMxAFAAAgw
-ygAS2uQMxAEDAPE/FgQAAB4A+D8BAAAABgAAAGFkbWluAAAAAgH5PwEAAABaAAAAAAAAANynQMjA
-QhAatLkIACsv4YIBAAAAAAAAAC9PPURFQ1RBL09VPUZJUlNUIEFETUlOSVNUUkFUSVZFIEdST1VQ
-L0NOPVJFQ0lQSUVOVFMvQ049QURNSU4AAAAeAPo/AQAAABUAAABTeXN0ZW0gQWRtaW5pc3RyYXRv
-cgAAAAACAfs/AQAAAB4AAAAAAAAA3KdAyMBCEBq0uQgAKy/hggEAAAAAAAAALgAAAAMA/T/kBAAA
-AwAZQAAAAAADABpAAAAAAB4AMEABAAAABgAAAEFETUlOAAAAHgAxQAEAAAAGAAAAQURNSU4AAAAe
-ADhAAQAAAAYAAABBRE1JTgAAAB4AOUABAAAAAgAAAC4AAAALACkAAAAAAAsAIwAAAAAAAwAGEAkK
-seEDAAcQMgEAAAMAEBAAAAAAAwAREAAAAAAeAAgQAQAAAGUAAABOT1JUT05BTlRJVklSVVNGT1VO
-REFWSVJVU0lOQU5BVFRBQ0hNRU5UWU9VKExJTlVYLU1NQEtWQUNLT1JHKVNFTlRUT0RFQ1RBVE9F
-TlNVUkVUSEVSRUNJUElFTlQoUylBUkVBAAAAAAIBfwABAAAAPQAAADw0QTEyQjgyMUNBRkUyNjQy
-ODc2NTI0NjI3QjBEMjMwODAyNDcxNkBmc2RlY3RhLmRlY3RhLmxvY2FsPgAAAACEVw==
-
-------_=_NextPart_001_01C40CE4.D99868DC--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
