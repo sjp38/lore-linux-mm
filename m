@@ -1,36 +1,62 @@
-Date: Wed, 23 Mar 2005 11:47:52 -0200
-From: "Melody Palacios" <offner@doneasy.com>
-Message-Id: <CFE2.AA79.9A11-003007498B8C@mac.com>
-Subject: Lowest rates in 45 years
-Return-Path: <offner@doneasy.com>
-To: io@kvack.org
-Cc: jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.orgmo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.org
+Date: Wed, 23 Mar 2005 09:00:49 -0500
+From: Martin Hicks <mort@bork.org>
+Subject: Re: [PATCH] min_free_kbytes limit
+Message-ID: <20050323140049.GC19113@localhost>
+References: <2c1942a7050323033448e3b26f@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2c1942a7050323033448e3b26f@mail.gmail.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Levent Serinol <lserinol@gmail.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Mar 23, 2005 at 01:34:19PM +0200, Levent Serinol wrote:
+> =================================================================
+> --- linux-2.6.11.4/mm/page_alloc.c.org  2005-03-16 02:09:27.000000000 +0200
+> +++ linux-2.6.11.4/mm/page_alloc.c      2005-03-23 13:13:47.000000000 +0200
+> @@ -1946,11 +1946,16 @@ static void setup_per_zone_lowmem_reserv
+>   */
+>  static void setup_per_zone_pages_min(void)
+>  {
+> -       unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
+> +       unsigned long pages_min;
+>         unsigned long lowmem_pages = 0;
+>         struct zone *zone;
+>         unsigned long flags;
+> 
+> +       if (min_free_kbytes < 128)
+> +                min_free_kbytes = 128;
+> +        if (min_free_kbytes > 65536)
+> +                min_free_kbytes = 65536;
+> +       pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
 
-Hello,
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+Who says 65MB of free ram is enough?   Where did you get these numbers
+from?
 
- You have qualified for the lowest rate in years...
+mh
 
- You could get over $380,000 for as little as $500 a month!
+>         /* Calculate total number of !ZONE_HIGHMEM pages */
+>         for_each_zone(zone) {
+>                 if (!is_highmem(zone))
+> =================================================================
+> -- 
+> 
+> Stay out of the road, if you want to grow old. 
+> ~ Pink Floyd ~.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
 
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
-
- 
- To get a free, no obli,gation consultation click below:
-
- http://www.sarefi.net/?id=n51
-
-
-
- Best Regards,
-
- Arnulfo Coffey
- 
- to be remov(ed:	http://www.sarefi.net/byebye.php
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+-- 
+Martin Hicks || mort@bork.org || PGP/GnuPG: 0x4C7F2BEE
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
