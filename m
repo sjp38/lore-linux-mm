@@ -1,66 +1,83 @@
-Date: Mon, 15 May 2000 22:03:10 -0300 (BRST)
+Date: Mon, 15 May 2000 22:15:35 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Estrange behaviour of pre9-1
-In-Reply-To: <Pine.LNX.4.10.10005151651140.812-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0005152156250.20410-100000@duckman.distro.conectiva>
+In-Reply-To: <yttog67xqjq.fsf@vexeta.dc.fi.udc.es>
+Message-ID: <Pine.LNX.4.21.0005152208340.20410-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 May 2000, Linus Torvalds wrote:
+On 16 May 2000, Juan J. Quintela wrote:
 
-> The fact that Rik's patch performs so badly is interesting in
-> itself, and I thus removed it from my tree.
+> I think this is the reason that Rik patch worked making the priority
+> higher, he gets more passes through the data, then he spent more time
+> in shrink_mmap, more possibilities for the IO to finish.  Otherwise it
+> has no sense that augmenting the priority achieves more possibilities
+> to allocate one page.  At least make no sense to me.
 
-This may be because the different try_to_free_pages end
-up waiting for each other (to complete IO?).
+The reason that starting with a higher priority works is that
+shrink_mmap() will fail easier on the first run, causing
+swap_out() to refill the lru queue and keeping freeable pages
+around.
 
-If VM was constructed right, we would never have the
-situation where a half-dozen apps are all waiting in
-try_to_free_pages() simultaneously.
+Of course this is no more than a demonstration that:
+- we need to have some freeable pages around
+- the current fail-through behaviour is not right
 
-The bug is, IMHO, the fact that shrink_mmap() frees the
-wrong pages by skipping over buffer pages. This causes
-"innocent" apps to have pagefaults they didn't deserve
-==> slowdown.
+> I think that there is no daemon that would be able to stop a
+> memory hog like mmap002, it need to wait *itself* when it
+> allocates memory, otherwise it will empty all the memory very
+> fast.  We don't want all processes waiting for allocation, but
+> we want memory hogs to wait for memory and to be the prime
+> candidates for swapout pages.
 
-> _Most_ of the time when "try_to_free_pages()" is called, the
-> memory actually exists, and we call try_to_free_pages() mainly
-> because we want to make sure that we don't get into a bad
-> situation.
+Agreed. How could we achieve this?
 
-True.
-
-> So, how about doing something like:
+> linus> In order to truly make this behave more smoothly, we should trap the thing
+> linus> when it creates a dirty page, which is quite hard the way things are set
+> linus> up now. Certainly not 2.4.x code.
 > 
->  - if memory is low, allocate the page anyway if you can, but increment a
->    "bad user" count in current->user->mmuse;
->  - when entering __alloc_pages(), if "current->user->mmuse > 0", do a
->    "try_to_free_pages()" if there are any zones that need any help
->    (otherwise just clear this field).
+> Yes, I am thinking more in the lines of trap the allocations,
+> and if one application begins to do an insane number of
+> allocations (like mmap002), we make *that* application to wait
+> for the pages to be written to swap/disk.
+
+"some insane number" is probably not good enough (how would
+we detect this?  how do we know that it isn't a process that
+slept for the last minute and needs to be swapped in because
+the user switched desktops while running mmap002?)
+
+The problem seems to be that we leave dirty pages lying around
+instead of waiting on them. Waiting on dirty buffers has a number
+of effects:
+- try_to_free_pages() will take a bit longer, so we have to make
+  sure we don't wait too often (only once per shrink_mmap run?)
+- we'll have a better change of replacing the right page, instead
+  of a clean page from an innocent process
+- that in turn should make sure the innocent process has less
+  page faults than it has now, making it run faster and let the
+  memory hog proceed faster because of less disk seek time
+
+> linus> [ Incidentally, the thing that mmap002 tests is quite rare, so I don't
+> linus>   think we have to have perfect behaviour, we just shouldn't kill
+> linus>    processes the way we do now ]
 > 
-> Think of it as "this user can allocate a few pages, but it's on credit.
-> They have to be paid back with the appropriate 'try_to_free_pages()'".
+> Yes, I agree here, but this program is based in one application
+> that gets Ooops in pre6 and previous kernels.
 
-I don't think this will work if we keep stealing the wrong pages
-from innocent, small processes with lots of clean pages (ie. bash,
-vi, emacs, ...).
+Wasn't mmap002 based on the behaviour of a real-world program
+you were working on?
 
-> Rik? I think this would solve the fairness concerns without the
-> need to tell the rest of the world about a process trying to
-> free up memory and causing bad performance..
+Also, wouldn't video streaming and data acquisition give similar
+results in some cases?
 
-The main problem now seems to be bad page replacement and a
-practically unbounded wait time inside try_to_free_pages().
-
-If we fix those, I think it should be possible to move back
-to a slightly more conservative (and safe) model (like what
-I had in my patch ... you might argue it is too conservative,
-slow or whatever, but it should be the more robust one).
+I really think we should support this kind of workload. It is
+within our reach and some people are actually running this kind
+of application...
 
 regards,
 
