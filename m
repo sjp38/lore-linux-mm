@@ -1,62 +1,61 @@
-From: yannis@cc.gatech.edu (Yannis Smaragdakis)
-Message-Id: <200007170709.DAA27512@ocelot.cc.gatech.edu>
-Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on
-Date: Mon, 17 Jul 2000 03:09:06 -0400 (EDT)
-In-Reply-To: <Pine.LNX.4.21.0007111503520.10961-100000@duckman.distro.conectiva> from "Rik van Riel" at Jul 11, 2000 03:06:38 PM
+Message-ID: <3972B165.8114E267@norran.net>
+Date: Mon, 17 Jul 2000 09:10:29 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
+Subject: Re: [PATCH] test5-1 vm fix
+References: <Pine.LNX.4.21.0007161631230.26300-100000@duckman.distro.conectiva>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: Andrea Arcangeli <andrea@suse.de>, "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, davem@redhat.com, linux-mm@kvack.org, Yannis Smaragdakis <yannis@cc.gatech.edu>
+Cc: Mike Galbraith <mikeg@weiden.de>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Tue, 11 Jul 2000, Rik van Riel wrote:
-> And that is correct behaviour. The problem with LRU is that the
-> "eventually" is too short, but proper page aging is as close to
-> LFU (least _frequently_ used) as it is to LRU. In that case any
-> page which was used only once (or was only used a long time ago)
-> will be freed before a page which has been used more often
-> recently will be.
+Rik van Riel wrote:
+> 
+> On Sun, 16 Jul 2000, Mike Galbraith wrote:
+> > On Sun, 16 Jul 2000, Roger Larsson wrote:
+> >
+> > > Since I am responsible for messing up some aspects of vm
+> > > (when fixing others)
+> > > here is a patch that tries to solve the introduced problems.
+> 
+> > Unfortunately, this didn't improve anything here.
+> 
+> As was to be expected ...
+> 
+> Roger, I thought I explained you yesterday why stuff didn't work
+> and how it could be fixed? ;)
+> 
+> (and no, I'm not interested in trying to fix 2.4 VM right now
+> since I'll be going to OLS and last time it took only two weeks
+> for VM to be fucked up while I was away)
+> 
 
+Yes, Now I remember...
 
-I'm a Linux kernel newbie and perhaps I should keep my mouth shut, but
-I have done a bit of work in memory management and I can't resist
-putting my 2c in.
+We should alway start kswapd after when all zones are found
+to be zone_wake_kswapd... (but it will then only run once... but
+probably free more pages than we alloc)
 
+Expect a new patch soon... I will do more performance testing this
+time...
 
-Although I agree with Rik in many major points, I disagree in that I
-don't think that page aging should be frequency-based. Overall, I strongly
-believe that frequency is the wrong thing to be measuring for deciding
-which page to evict from RAM. The reason is that a page that is brought
-to memory and touched 1000 times in relatively quick succession is *not*
-more valuable than one that is brought to memory and only touched once. 
-Both will cause exactly one page fault. Also, one should be cautious of
-pages that are brought in RAM, touched many times, but then stay untouched
-for a long time. Frequency should never outweigh recency--the latter is
-a better predictor, as OS designers have found since the early 70s.
+/RogerL
 
+> cheers,
+> 
+> Rik
+> --
+> "What you're running that piece of shit Gnome?!?!"
+>        -- Miguel de Icaza, UKUUG 2000
+> 
+> http://www.conectiva.com/               http://www.surriel.com/
 
-Having said that, LRU is certainly broken, but there are other ways to
-fix it. I'll shamelessly plug a paper by myself, Scott Kaplan, and
-Paul Wilson, from SIGMETRICS 99. It is in:
-	http://www.cc.gatech.edu/~yannis/eelru.ps.gz
-(Sorry for the PS, but it compresses well and the original is >3MB.)
-
-I'll be glad to answer questions. The main idea is that we can keep
-rough page "ages" (where "age" refers to recency) not only for pages
-in RAM, but also for recently evicted pages. Then if we detect that
-our overall eviction strategy is wrong (i.e., we touch lots of the
-pages we recently evicted), we adapt it by evicting more recently 
-touched pages (sounds hacky, but it is actually very clean).
-
-The results are very good (even better than in the paper, as we have
-improved the algorithm since).
-
-
-Back to my cave...
-	Yannis.
+--
+Home page:
+  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
