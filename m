@@ -1,76 +1,49 @@
-From: Nikita Danilov <Nikita@Namesys.COM>
+Message-ID: <40111079.8030801@cyberone.com.au>
+Date: Fri, 23 Jan 2004 23:15:53 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <16400.63379.453282.283117@laputa.namesys.com>
-Date: Fri, 23 Jan 2004 13:29:39 +0300
 Subject: Re: [BENCHMARKS] Namesys VM patches improve kbuild
-In-Reply-To: <40105633.4000800@cyberone.com.au>
-References: <400F630F.80205@cyberone.com.au>
-	<20040121223608.1ea30097.akpm@osdl.org>
-	<16399.42863.159456.646624@laputa.namesys.com>
-	<40105633.4000800@cyberone.com.au>
+References: <400F630F.80205@cyberone.com.au>	<20040121223608.1ea30097.akpm@osdl.org>	<4010CA48.3000105@cyberone.com.au> <16400.60529.288718.648132@laputa.namesys.com>
+In-Reply-To: <16400.60529.288718.648132@laputa.namesys.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
+To: Nikita Danilov <Nikita@Namesys.COM>
 Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin writes:
- > 
 
-[...]
+Nikita Danilov wrote:
 
- > 
- > But those cold mapped pages are basically ignored until the
- > reclaim_mapped threshold, however they do continue to have their
- > referenced bits cleared - hence page_referenced check should
- > become a better estimation when reclaim_mapped is reached, right?
+>Nick Piggin writes:
+> > 
+> > 
+> > Andrew Morton wrote:
+> > 
+> > >
+> > >Yes, I do think that the "LRU" is a bit of a misnomer - it's very
+> > >approximate and only really suits simple workloads.  I suspect that once
+> > >things get hot and heavy the "lru" is only four-deep:
+> > >unreferenced/inactive, referenced/inactive, unreferenced/active and
+> > >referenced/active.
+> > >
+> > >Can you test the patches separately, see what bits are actually helping?
+> > >
+> > 
+> > OK, sorry for the delay.
+> > http://www.kerneltrap.org/~npiggin/vm/namesys.png
+> > 
+> > The LRU patch is the one that does it.
+> > 
+>
+>I presume (from the picture) that dont-rotate-active-list is meant, right?
+>  
+>
 
-Right.
+Thats right
 
-By the way here lies another problem: refill_inactive_zone() never
-removes referenced mapped page from the active list. Which allows for
-the simple DoS:
 
-----oomme.c-----------------------------------------------------------
-#include <stdlib.h>
-#include <unistd.h>
-
-int
-main(int argc, char **argv)
-{
-        unsigned long memuse;
-        char *base;
-        char *scan;
-        int   shift;
-        int   i;
-
-        memuse = strtoul(argv[1], NULL, 0);
-        shift = getpagesize();
-
-        base = malloc(memuse);
-        if (base == NULL) {
-                perror("malloc");
-                exit(1);
-        }
-
-        for (i = 0;; ++i) {
-                for (scan = base; scan < base + memuse; scan += shift)
-                        *scan += i;
-                printf("%i\n", i);
-        }
-}
-----oomme.c-----------------------------------------------------------
-
-This program will re-reference allocated pages much faster than VM
-scanner(s) will be able to analyze and clear their reference bits. In
-effect it mlocks memory.
-
- > 
- > 
-
-Nikita.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
