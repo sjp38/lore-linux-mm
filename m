@@ -1,30 +1,27 @@
-Subject: Re: mmap64?
-References: <B527A1E9.56B9%jason.titus@av.com>
-From: Christoph Rohland <hans-christoph.rohland@sap.com>
-Date: 23 Apr 2000 10:11:44 +0200
-In-Reply-To: Jason Titus's message of "Sat, 22 Apr 2000 18:37:29 -0700"
-Message-ID: <qwwbt312q4f.fsf@sap.com>
+Date: Sun, 23 Apr 2000 18:07:30 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
+In-Reply-To: <yttk8ho26s8.fsf@vexeta.dc.fi.udc.es>
+Message-ID: <Pine.LNX.4.21.0004231747200.231-100000@alpha.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jason Titus <jason.titus@av.com>
-Cc: riel@nl.linux.org, linux-mm@kvack.org
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: Linus Torvalds <torvalds@transmeta.com>, riel@nl.linux.org, Kanoj Sarcar <kanoj@google.engr.sgi.com>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jason Titus <jason.titus@av.com> writes:
+On 23 Apr 2000, Juan J. Quintela wrote:
 
-> Well, seems like if we are allowing processes to access 3+GB, we should be
-> able to mmap a similar range.  Also, I don't know too much about the PAE 36
-> bit PIII stuff but I had thought it might give us some additional address
-> space...
+>[..] The page is
+>never locked when we enter there. [..]
 
-No, the user space address space is not changed.
+That how it's designed to work. Please check my last email to linux-mm
+for an explanation of why it's correct behaviour.
 
-Greetings
-		Christoph
+Andrea
 
--- 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
