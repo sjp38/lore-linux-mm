@@ -1,48 +1,47 @@
-Date: Mon, 17 Sep 2001 09:12:43 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: broken VM in 2.4.10-pre9
-In-Reply-To: <m1elp6s0kp.fsf@frodo.biederman.org>
-Message-ID: <Pine.LNX.4.33L.0109170909270.2990-100000@imladris.rielhome.conectiva>
+content-class: urn:content-classes:message
+Subject: RE: broken VM in 2.4.10-pre9
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Date: Mon, 17 Sep 2001 10:40:45 -0500
+Message-ID: <878A2048A35CD141AD5FC92C6B776E4907BB98@xchgind02.nsisw.com>
+From: "Rob Fuller" <rfuller@nsisoftware.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
+To: Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 17 Sep 2001, Eric W. Biederman wrote:
+One argument for reverse mappings is distributed shared memory or
+distributed file systems and their interaction with memory mapped files.
+For example, a distributed file system may need to invalidate a specific
+page of a file that may be mapped multiple times on a node.
 
-> There is an alternative approach to have better aging information.
+This may be a naive argument given my limited knowledge of Linux memory
+management internals.  If so, I will refrain from posting this sort of
+thing in the future.  Let me know.
 
-[snip incomplete description of data structure]
+> -----Original Message-----
+> From: Rik van Riel [mailto:riel@conectiva.com.br]
+> Sent: Monday, September 17, 2001 7:13 AM
+> To: Eric W. Biederman
+> Cc: linux-kernel@vger.kernel.org; linux-mm@kvack.org
+> Subject: Re: broken VM in 2.4.10-pre9
+> 
+> 
+> On 17 Sep 2001, Eric W. Biederman wrote:
 
-What you didn't explain is how your idea is related to
-aging.
+<snip>
 
-> > For 2.5 I'm making a VM subsystem with reverse mappings, the
-> > first iterations are giving very sweet performance so I will
-> > continue with this project regardless of what other kernel
-> > hackers might say ;)
->
-> Do you have any arguments for the reverse mappings or just for some of
-> the other side effects that go along with them?
-
-Mainly for the side effects, but until somebody comes
-up with another idea to achieve all the side effects I'm
-not giving up on reverse mappings. If you can achieve
-all the good stuff in another way, show it.
-
-regards,
-
-Rik
--- 
-IA64: a worthy successor to i860.
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
-
+> > Do you have any arguments for the reverse mappings or just 
+> for some of
+> > the other side effects that go along with them?
+> 
+> Mainly for the side effects, but until somebody comes
+> up with another idea to achieve all the side effects I'm
+> not giving up on reverse mappings. If you can achieve
+> all the good stuff in another way, show it.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
