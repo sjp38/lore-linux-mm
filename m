@@ -1,41 +1,42 @@
-Date: Mon, 2 Oct 2000 07:59:22 -0500 (CDT)
-From: Jeff Garzik <jgarzik@mandrakesoft.mandrakesoft.com>
-Subject: Re: how can i add a kernel function ?
-In-Reply-To: <Pine.LNX.4.21.0010021349240.952-100000@saturn.homenet>
-Message-ID: <Pine.LNX.3.96.1001002075546.13886A-100000@mandrakesoft.mandrakesoft.com>
+Date: Mon, 2 Oct 2000 12:43:25 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: 2.4.0-test9-pre8 + Rik Riel's latest VM patch -- Athlon system
+ lockup
+In-Reply-To: <39D845E1.BFB8AC74@speakeasy.org>
+Message-ID: <Pine.LNX.4.21.0010021242210.22539-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tigran Aivazian <tigran@veritas.com>
-Cc: BenHanokh Gabriel <gabriel@SANgate.com>, linux-mm@kvack.org, linux-kbuild@torque.net
+To: Miles Lane <miles@speakeasy.org>
+Cc: MM mailing list <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Oct 2000, Tigran Aivazian wrote:
-> On Mon, 2 Oct 2000, BenHanokh Gabriel wrote:
-> 
-> > hi
-> > 
-> > i'm trying to add a function of my own to my copy of fs/buffer.c
-> > 
-> > how can i export the symbol ?
-> 
-> add an entry to kernel/ksyms.c like this:
+On Mon, 2 Oct 2000, Miles Lane wrote:
 
-Not specifically related to BenHanokh Gabriel's problem, but I wanted
-to take this opportunity to point out that we want to move away from
-putting all exported symbols in one file.  Linus prefers that the
-symbols are exported from the files in which they are declared.
+> I was stress testing this machine harder than I ever have
+> before. I saw my load average reach as high as 19.2 and the CPU
+> was pegged for about half an hour.  I was performing
+> simultaneous intensive reads and writes on the internal EIDE
+> drive and and external ORB drive accessed over a USB connection.  
+> In addition, I was running x11perf.  I had launched enough
+> programs to consume all my swap space and free physical memory
+> was pegged, too.
 
-Eventually we want to do away with the distinction of O_OBJS and
-OX_OBJS, and just treat all files as OX_OBJS.  Linus suggested I look
-into this but there were higher priority items.  Maybe some of the
-kbuild guys will tackle it...
+As was mentioned in my email, out of memory handling isn't
+in this patch yet ;)
 
-	Jeff
+If the current feature set proves stable, I'll add out of
+memory handling.
 
+regards,
 
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
 
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
