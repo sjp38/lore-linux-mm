@@ -1,36 +1,29 @@
-Message-ID: <3BCE20DF.6090103@zytor.com>
-Date: Wed, 17 Oct 2001 17:22:55 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
-Subject: Under what conditions are VMAs merged?
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Transfer-Encoding: 7bit
+Date: Wed, 17 Oct 2001 21:58:18 -0400
+From: Benjamin LaHaise <bcrl@redhat.com>
+Subject: Re: Under what conditions are VMAs merged?
+Message-ID: <20011017215818.A2804@redhat.com>
+References: <3BCE20DF.6090103@zytor.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3BCE20DF.6090103@zytor.com>; from hpa@zytor.com on Wed, Oct 17, 2001 at 05:22:55PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM mailing list <linux-mm@kvack.org>, torvalds@transmeta.com
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linux MM mailing list <linux-mm@kvack.org>, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-Okay, as part of doing this persistent memory system, I apparently need to
-know better when and if VMAs are merged.  The persistent memory obviously
-does lots of mprotect() to what is otherwise a large private mapping of a
-file (not anonymous.)
+On Wed, Oct 17, 2001 at 05:22:55PM -0700, H. Peter Anvin wrote:
+> In the checkpoint routine I thought doing an mprotect(PROT_READ) on the
+> entire region as a single system call would coalesce the VMAs, but
+> apparently that is not the case; after running my standard stress-test
+> application, /proc/pid/maps show 51635 mappings, most of them contiguous
+> and otherwise matching the surrounding mappings in every way; a dump of
 
-In the checkpoint routine I thought doing an mprotect(PROT_READ) on the
-entire region as a single system call would coalesce the VMAs, but
-apparently that is not the case; after running my standard stress-test
-application, /proc/pid/maps show 51635 mappings, most of them contiguous
-and otherwise matching the surrounding mappings in every way; a dump of
-/proc/pid/maps is at ftp://terminus.zytor.com/pub/hpa/map.gz for the
-morbidly curious.
+Only anonymous vmas are candidates for merging.  Take it up with the head 
+penguin.  No merging at all is done for shared vmas.
 
-This system is running a stock 2.4.12-ac1; the database file is 1
-GB+overhead in size (1,074,008,064 bytes to be exact), it is mapped at
-0x5f000000.
-
-Appreciative for any suggestions.
-
-	-hpa
-
+		-ben
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
