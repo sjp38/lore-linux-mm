@@ -1,32 +1,45 @@
-Date: 2 Oct 2001 10:35:25 -0000
-Message-ID: <20011002103525.12117.qmail@mailweb12.rediffmail.com>
-MIME-Version: 1.0
-From: "amey d inamdar" <iamey@rediffmail.com>
-Reply-To: "amey d inamdar" <iamey@rediffmail.com>
-Subject: How zone_balane_ratio is decided?
-Content-type: text/plain;
-	charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
+Received: from toomuch.toronto.redhat.com (IDENT:32nuJypsUrwCtgvPsDAcruCvs3jZPYgO@toomuch.toronto.redhat.com [172.16.14.22])
+	by lacrosse.corp.redhat.com (8.9.3/8.9.3) with ESMTP id SAA06384
+	for <linux-mm@kvack.org>; Tue, 2 Oct 2001 18:02:52 -0400
+Received: (from bcrl@localhost)
+	by toomuch.toronto.redhat.com (8.11.6/8.11.2) id f92M2nY31155
+	for linux-mm@kvack.org; Tue, 2 Oct 2001 18:02:49 -0400
+Date: Tue, 2 Oct 2001 18:02:49 -0400
+From: Benjamin LaHaise <bcrl@redhat.com>
+Subject: Re: [admin WARNING] ECN is being enabled on kvack.org
+Message-ID: <20011002180249.C30666@redhat.com>
+References: <20010919165147.B5356@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20010919165147.B5356@redhat.com>; from bcrl@redhat.com on Wed, Sep 19, 2001 at 04:51:47PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: iamey@rediffmail.com
 List-ID: <linux-mm.kvack.org>
 
-Hello there,
-   In a code of zone allocator free_area_init_core() minimum pages, low pages and high pages for any zone are decided using
+ECN is now being turned on.
 
-mask = realpages/zone_balance_ratio
-minpages=mask
-low pages=2*mask 
-high pages=3*mask
+		-ben
 
-how zone balance ratio is decided for each zone? What is its significance? Please tell as soon as possible. I am unable to go further reading code. 
- Thanking you in anticipation
+On Wed, Sep 19, 2001 at 04:51:47PM -0400, Benjamin LaHaise wrote:
+> Hello folks,
+> 
+> This is a heads up to people that ECN will be enabled on kvack.org at the
+> end of September.  If mail cannot be delivered to people's addresses,
+> then an automatic unsubscribe will occur.  Cheers,
+> 
+> 		-ben (owner-linux-mm)
+> -- 
+> "I can't tell you how many bridges I've jumped off of -- all I get is wet."
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/
 
-- Amey 
-
+-- 
+"I can't tell you how many bridges I've jumped off of -- all I get is wet."
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
