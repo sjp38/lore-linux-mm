@@ -1,33 +1,73 @@
-Date: Wed, 25 Aug 2004 15:45:20 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Documentation/vm/balance really outdated
-Message-ID: <20040825184520.GA23878@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Wed, 25 Aug 2004 21:37:11 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [Bug 3268] New: Lowmemory exhaustion problem with v2.6.8.1-mm4
+    16gb
+In-Reply-To: <1093460701.5677.1881.camel@knk>
+Message-ID: <Pine.LNX.4.44.0408252104540.2664-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, akpm@osdl.org
+To: keith <kmannth@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi guys,
+On Wed, 25 Aug 2004, keith wrote:
+> 
+> I turned CONFIG_DEBUG_PAGEALLOC off.
 
-The file Documentation/vm/balance was written by Kanoj in 2000, and is completly outdated 
-to what we have now.
+Good, thanks.
 
-Last paragraph:
+> I ran into problems when I tried
+> building 60 kernel trees or so.  It is using about 10gb of tmpfs space. 
+> See http://bugme.osdl.org/attachment.cgi?id=3566&action=view for more
+> info.
 
-pages_min/pages_low/pages_high/low_on_memory/zone_wake_kswapd: These are
-per-zone fields, used to determine when a zone needs to be balanced. When
-the number of pages falls below pages_min, the hysteric field low_on_memory
-gets set. This stays set till the number of free pages becomes pages_high.
-When low_on_memory is set, page allocation requests will try to free some
-pages in the zone (providing GFP_WAIT is set in the request). Orthogonal
-to this, is the decision to poke kswapd to free some zone pages. That
-decision is not hysteresis based, and is done when the number of free
-pages is below pages_low; in which case zone_wake_kswapd is also set.
+Okay, that's more to the point.
 
-Should we just remove it? 
+> It looks like there should be a maximum number of inodes for tmpfs.
+> Because I didn't know how many inodes it is using but I gave it a large
+> playground to use (mount -t tmpfs -o size=15G,nr_inodes=10000k,mode=0700
+> tmpfs /mytmpfs)
+
+Well, by default it does give you a maximum number of inodes for tmpfs:
+which at 16GB of RAM (in 4KB pages: odd that that factors in, but I've
+no great urge to depart from existing defaults except where it's buggy)
+would give you 2M inodes.  But since each might roughly be expected to
+consume 1KB (a shmem_inode, a dentry, a longer name, a radix node) of
+low memory, we'd want 2GB of lowmem to support all those: too much.
+
+So, how well does the patch below work for you, if you leave nr_inodes
+to its default?  Carry on setting size=15G, that should be okay; but
+I don't think the kernel should stop you if you insist on setting
+nr_inodes to something unfortunate like 10M.  "df -i" will show
+how many inodes it's actually giving you by default.
+
+Andrew, this paragraph is more for you...
+If you examine my 1KB calculation above, you may conclude that this
+won't be quite the final patch: so long as there's ample swap, the
+(more than 1) radix nodes shouldn't be a problem since they would
+melt away under lowmem pressure (hmm, does lowmem shortage exert
+any pressure on highmem cache these days, I wonder?); but doesn't
+link(1) imply that dentries can take up almost unlimited space?
+Looks as if tmpfs ought to be limiting links as it limits inodes.
+
+Hugh
+
+--- 2.6.8.1-mm4/mm/shmem.c	2004-08-23 12:20:31.000000000 +0100
++++ linux/mm/shmem.c	2004-08-25 20:47:27.072015312 +0100
+@@ -1818,9 +1818,10 @@
+ 
+ 	/*
+ 	 * Per default we only allow half of the physical ram per
+-	 * tmpfs instance
++	 * tmpfs instance; limiting inodes to 1 per 2 pages of lowmem.
+ 	 */
+ 	blocks = inodes = totalram_pages / 2;
++	inodes -= totalhigh_pages / 2;
+ 
+ #ifdef CONFIG_TMPFS
+ 	if (shmem_parse_options(data, &mode, &uid, &gid, &blocks, &inodes)) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
