@@ -1,8 +1,8 @@
-Date: Sun, 10 Oct 1999 12:25:33 -0400 (EDT)
+Date: Sun, 10 Oct 1999 13:25:14 -0400 (EDT)
 From: Alexander Viro <viro@math.psu.edu>
 Subject: Re: locking question: do_mmap(), do_munmap()
-In-Reply-To: <Pine.GSO.4.10.9910101202240.16317-100000@weyl.math.psu.edu>
-Message-ID: <Pine.GSO.4.10.9910101219370.16317-100000@weyl.math.psu.edu>
+In-Reply-To: <3800C2BF.716C9D65@colorfullife.com>
+Message-ID: <Pine.GSO.4.10.9910101301050.16317-100000@weyl.math.psu.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,33 +11,29 @@ To: Manfred Spraul <manfreds@colorfullife.com>
 Cc: Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+[Apologies to Andrea - idiot me looked into the wrong place ;-<]
 
-On Sun, 10 Oct 1999, Alexander Viro wrote:
+On Sun, 10 Oct 1999, Manfred Spraul wrote:
 
+> AFAIK the problem is OOM:
+> * a process accesses a not-present, ie page fault:
+> ...
+> handle_mm_fault(): this process own mm->mmap_sem.
+> ->handle_pte_fault().
+> -> (eg.) do_wp_page().
+> -> get_free_page().
+> now get_free_page() notices that there is no free memory.
+> --> wakeup kswapd.
 > 
-> [Cc'd to mingo]
-> 
-> On Sun, 10 Oct 1999, Manfred Spraul wrote:
-> 
-> > I've started adding "assert_down()" and "assert_kernellocked()" macros,
-> > and now I don't see the login prompt any more...
-> > 
-> > eg. sys_mprotect calls merge_segments without lock_kernel().
-> 
-> Manfred, Andrea - please stop it. Yes, it does and yes, it should.
-> Plonking the big lock around every access to VM is _not_ a solution. If
-> swapper doesn't use mmap_sem - _swapper_ should be fixed. How the hell
-> does lock_kernel() have smaller deadlock potential than
-> down(&mm->mmap_sem)?
+> * the swapper runs, and it tries to swap out data from that process.
+> mm->mmap_sem is already acquired --> lock-up.
 
-OK, folks. Code in swapper (unuse_process(), right?) is called only from
-sys_swapoff(). It's a syscall. Andrea, could you show a scenario for
-deadlock here? OK, some process (but not the process doing swapoff()) may
-have the map locked So?  it is not going to release the thing - we are
-seriously screwed anyway (read: we already are in deadlock). We don't hold
-the semaphore ourselves.
-
-Andrea, post a deadlock scenario, please.
+Nasty... But adding a big lock around all traversals of the mm->mmap will
+hurt like hell. Let's see... The problem is in swap_out_mm(), right? And
+it looks for the first suitable page. OK, it looks like we can get a
+deadlock only if we call try_to_free_pages() with ->mmap_sem grabbed and
+__GFP_WAIT in flags. Umhm... Called only from __get_free_pages() which
+sets PF_MEMALLOC... OK, I'll try to look at it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
