@@ -1,40 +1,45 @@
-Received: from smtp02.mail.gol.com (smtp02.mail.gol.com [203.216.5.12])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA21533
-	for <linux-mm@kvack.org>; Fri, 26 Feb 1999 21:37:58 -0500
-Message-ID: <36D75AF7.18C593E7@earthling.net>
-Date: Sat, 27 Feb 1999 11:39:51 +0900
+Received: from smtp01.mail.gol.com (smtp01.mail.gol.com [203.216.5.11])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA27658
+	for <linux-mm@kvack.org>; Tue, 2 Mar 1999 08:09:43 -0500
+Received: from earthling.net (tc-1-130.ariake.gol.ne.jp [203.216.42.130])
+	by smtp01.mail.gol.com (8.9.3/8.9.3/893-SMTP-P) with ESMTP id WAA14313
+	for <linux-mm@kvack.org>; Tue, 2 Mar 1999 22:09:22 +0900 (JST)
+Message-ID: <36DBE391.EF9C1C06@earthling.net>
+Date: Tue, 02 Mar 1999 22:11:45 +0900
 From: Neil Booth <NeilB@earthling.net>
 MIME-Version: 1.0
-Subject: Re: PATCH - bug in vfree
-References: <36CEA095.D5EA37B5@earthling.net> <36CEA72C.7B86B221@earthling.net>
+Subject: A couple of questions
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, Andrea Arcangeli <andrea@e-mind.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
+I have a couple of questions about do_wp_page; I hope they're welcome
+here.
 
-> Hmm, when I checked it one year ago I didn't seen a way the bug could
-> corrupt memory.
+1) do_wp_page has most execution paths doing an unlock_kernel() but
+there are a couple that don't. Why isn't this inconsistent? e.g. any of
+the branches that call end_wp_page do not unlock the kernel. What am I
+missing? Is it that these branches only happen if we slept while getting
+the free page, and sleeping always unlocks the kernel?
 
-Yes, you missed my retraction of that bit below.
+2) The last 2 of the 3 branches to end_wp_page seem to me to be
+impossible code paths.
+
+	if (!pte_present(pte))
+		goto end_wp_page;
+	if (pte_write(pte))
+		goto end_wp_page;
+
+At entry, pte (= *page_table) is present and not writable as this is the
+only way do_wp_page gets called from handle_pte_fault (and we hold the
+kernel lock so nothing else can change *page_table). Being a local
+variable, it contents cannot change, so why these 2 tests?
+
+Cheers,
 
 Neil.
-
-Neil Booth wrote:
-> 
-> Neil Booth wrote:
-> 
-> > More deeply:- Close inspection of get_vm_area reveals that
-> > (intentionally?) it does NOT insist there be a cushion page behind a VMA
-> > that is placed in front of a previously-allocated VMA, it ONLY
-> > guarantees that a cushion page lies in front of newly-allocated VMAs.
-> 
-> Sorry, this is not correct (mistook < for <=). The bug report is
-> correct, though.
-> 
-> Neil.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
