@@ -1,33 +1,32 @@
-Date: Tue, 7 May 2002 12:47:50 -0700
+Date: Tue, 7 May 2002 12:50:07 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: Why *not* rmap, anyway?
-Message-ID: <20020507194750.GV15756@holomorphy.com>
-References: <Pine.LNX.4.33.0205071625570.1579-100000@erol> <E175Ame-0000Tb-00@starship>
+Message-ID: <20020507195007.GW15756@holomorphy.com>
+References: <Pine.LNX.4.33.0205071625570.1579-100000@erol> <Pine.LNX.4.44L.0205071620270.7447-100000@duckman.distro.conectiva> <20020507192547.GU15756@holomorphy.com> <E175Avp-0000Tm-00@starship>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <E175Ame-0000Tb-00@starship>
+In-Reply-To: <E175Avp-0000Tm-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Christian Smith <csmith@micromuse.com>, Rik van Riel <riel@conectiva.com.br>, Joseph A Knapka <jknapka@earthlink.net>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-mm@kvack.org
+Cc: Rik van Riel <riel@conectiva.com.br>, Christian Smith <csmith@micromuse.com>, Joseph A Knapka <jknapka@earthlink.net>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 07 May 2002 20:37, Christian Smith wrote:
->> - do_page_fault() is definately in the wrong place, or at least, the work 
->>   it does (it finds the generic vma of the fault. This should be generic 
->>   code.)
+On Tuesday 07 May 2002 21:25, William Lee Irwin III wrote:
+>> Procedural interfaces to pagetable manipulations are largely what
+>> the BSD pmap and SVR4 HAT layers consisted of, no?
 
-On Tue, May 07, 2002 at 09:37:57PM +0200, Daniel Phillips wrote:
-> It's per-arch because different architectures have very different sets of
-> conditions that have to be handled.  If you like, you can try to break out
-> some cross-arch factors and make them into inlines or something.  That's
-> cleanup work that's hard and mostly thankless.  We need more gluttons for
-> punishment^W^W^W volunteers to tackle this kind of thing.
+On Tue, May 07, 2002 at 09:47:28PM +0200, Daniel Phillips wrote:
+> They factor the interface the wrong way for Linux.  You don't want
+> to have to search for each (pte *) starting from the top of the
+> structure.  We need to be able to do bulk processing.  The BSD
+> interface just doesn't accomodate this.
 
-I believe I'm already signed up for this, or at least I'm putting down
-code on this front.
+Generally the way to achieve this is by anticipating those bulk
+operations and providing standardized methods for them. copy_page_range()
+and zap_page_range() are already examples of this. For other cases,
+it's perhaps a useful layer inversion.
 
 
 Cheers,
