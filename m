@@ -1,59 +1,42 @@
-Content-Type: text/plain; charset=US-ASCII
-From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: broken VM in 2.4.10-pre9
-Date: Sat, 22 Sep 2001 09:09:10 +0200
-References: <Pine.LNX.4.33L.0109200903100.19147-100000@imladris.rielhome.conectiva> <20010921080549Z16344-2758+350@humbolt.nl.linux.org> <20010921112722.A3646@cs.cmu.edu>
-In-Reply-To: <20010921112722.A3646@cs.cmu.edu>
+Date: Sun, 23 Sep 2001 12:53:56 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH *] page aging fixed, 2.4.9-ac14
+Message-ID: <Pine.LNX.4.33L.0109231251070.19147-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7BIT
-Message-Id: <20010922070205Z16210-2757+1207@humbolt.nl.linux.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jan Harkes <jaharkes@cs.cmu.edu>
-Cc: Rik van Riel <riel@conectiva.com.br>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On September 21, 2001 05:27 pm, Jan Harkes wrote:
-> On Fri, Sep 21, 2001 at 10:13:11AM +0200, Daniel Phillips wrote:
-> >   - small inactive list really means large active list (and vice versa)
-> >   - aging increments need to depend on the size of the active list
-> >   - "exponential" aging may be completely bogus
->
-> I don't think so, whenever there is sufficient memory pressure, the scan
-> of the active list is not only done by kswapd, but also by the page
-> allocations.
->
-> This does have the nice effect that with a large active list on a system
-> that has a working set that fits in memory, pages basically always age
-> up, and we get an automatic used-once/drop-behind behaviour for
-> streaming data because the age of these pages is relatively low.
->
-> As soon as the rate of new allocations increases to the point that
-> kswapd can't keep up, which happens if the number of cached used-once
-> pages is too small, or the working set expands so that it doesn't fit in
-> memory. The memory shortage then causes all pages to agressively get
-> aged down, pushing out the less frequently used pages of the working set.
->
-> Exponential down aging simply causes us to loop fewer times in
-> do_try_to_free_pages is such situations.
+Hi Alan,
 
-In such a situation that's a horribly inefficient way to accomplish this and
-throws away a lot of valuable information.  Consider that we're doing nothing
-but looping in the vm in this situation, so nobody gets a chance to touch
-pages, so nothing gets aged up.  So we are really just deactivating all the
-pages that lie below a given theshold.
+I've made a new page aging patch, this time against 2.4.9-ac14;
+this one has two added features over the patch against 2.4.9-ac12:
 
-Say that the threshold happens to be 16.  We loop through the active list 5
-times and now we have not only deactivated the pages we needed but collapsed
-all ages between 16 and 31 to the same value, and all ages between 32 and 63
-to just two values, losing most of the relative weighting information.
+1) uses min()/max() for smaller page_age_{up,down} functions
 
-Would it not make more sense to go through the active list once, deactivate
-all pages with age less than some computed threshold, and subtract that
-threshold from the rest?
+2) if we have no free shortage, don't waste CPU time trying
+   to enforce the inactive target but rely on background
+   scanning only
 
---
-Daniel
+You can get the patch (a bit large for email) at:
+
+   http://www.surriel.com/patches/2.4/2.4.9-ac14-aging
+
+Please apply for the next 2.4.9-ac kernel, thanks.
+
+regards,
+
+
+Rik
+-- 
+IA64: a worthy successor to i860.
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
