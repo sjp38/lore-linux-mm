@@ -1,51 +1,39 @@
-Received: from 63.163.5.190 (78.ct9.dyn.connix.net [209.66.147.85])
-	by ns190.aaamove.com (8.11.4/8.11.4) with SMTP id f9NBtjw18845
-	for <linux-mm@kvack.org>; Tue, 23 Oct 2001 07:55:46 -0400
-Received: from tommy4565@dontmiss-out.net >>increasebusines222 by tommy4565@dontmiss-out.net (8.8.5/8.6.5) with SMTP id GAA00887 for <linux-mm@kvack.org>; Sun, 21 Oct 2001 11:12:40 -0600 (EST)
-Date: Sun, 21 Oct 01 11:12:40 EST
-From: FreeEmailSoftware@yahoo.com
-Subject: ***ADVERTISE TO 11,295,000 PEOPLE FREE!
-Message-ID: <3791856948.991306994491@m0.net>
-Reply-To: DoNotReplyByEmail@yahoo.com
+Received: from localhost ([64.228.87.86]) by tomts7-srv.bellnexxia.net
+          (InterMail vM.4.01.03.16 201-229-121-116-20010115) with ESMTP
+          id <20011022071147.OTEL2701.tomts7-srv.bellnexxia.net@localhost>
+          for <linux-mm@kvack.org>; Mon, 22 Oct 2001 03:11:47 -0400
+From: Rich <ochalskird@yahoo.ca>
+Date: Mon, 22 Oct 2001 03:01:18 -0700
+Subject: This Was Seen On 20/20
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 7bit
+Message-Id: <20011022071147.OTEL2701.tomts7-srv.bellnexxia.net@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dear linux-mm@kvack.org,
+Hi There!
 
+Several months ago, I made a conscious decision not to delete what I 
+figured was just another 'junk' e-mail.
+That decision has changed my life! Here you have the very same 
+opportunity in front of you. If you take just five minutes to read through the 
+following program you won't regret it. See for yourself ...
+ALL INVOLVED WILL PROFIT!! That is a promise.
 
-Would you like to send an Email Message or Advertisement to
-11,295,000 PEOPLE DAILY for FREE?
+Please go to: http://www.secretwebbargains.com
 
-HURRY......ONLY ONE DAY LEFT!
-=======================================================
-1) Let's say you... Sell a $24.95 PRODUCT or SERVICE.
-2) Let's say you... Broadcast Email to only 500,000 PEOPLE.
-3) Let's say you... Receive JUST 1 ORDER for EVERY 2,500 EMAILS.
+I promise you, that there is no pop-up screens are anything like that, in fact there 
+is no pictures just text and I strongly recommend that you at least read the information.
+ 
+Whatever you decide,
 
-CALCULATION OF YOUR EARNINGS BASED ON THE ABOVE STATISTICS:
+GOOD LUCK.
 
-[Day 1]: $4,990  [Week 1]: $34,930  [Month 1]: $139,720
+Rich
 
-NOTE: (If you do not already have a product or service to sell, we can 
-supply you with one).
-=========================================================
-To find out more information, Do not respond by email or you will be 
-permanantly removed from any future emails from us.
-Instead, please visit our web site at:
-http://www.bigcashtoday.com/package1.htm
-
-
-
-List Removal Instructions:
-We hope you enjoyed receiving this message. However, if you'd rather 
-not receive future e-mails of this sort from Internet Specialists, send an
-email to freeemailsoftwarel@yahoo.com and type "remove" in the 
-"subject" line and you will be removed from any future mailings.
-
-We hope you have a great day!
-Internet Specialists
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
