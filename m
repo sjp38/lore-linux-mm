@@ -1,55 +1,43 @@
-content-class: urn:content-classes:message
+Date: Wed, 14 May 2003 10:02:10 -0500
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: Re: Race between vmtruncate and mapped areas?
+Message-ID: <18240000.1052924530@baldur.austin.ibm.com>
+In-Reply-To: <20030513181018.4cbff906.akpm@digeo.com>
+References: <154080000.1052858685@baldur.austin.ibm.com>
+ <3EC15C6D.1040403@kolumbus.fi><199610000.1052864784@baldur.austin.ibm.com>
+ <20030513181018.4cbff906.akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 8BIT
-Subject: RE: 2.5.69-mm5
-Date: Wed, 14 May 2003 10:33:43 -0400
-Message-ID: <CDD2FA891602624BB024E1662BC678ED843F91@mbi-00.mbi.ufl.edu>
-From: "Jon K. Akers" <jka@mbi.ufl.edu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: mika.penttila@kolumbus.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I like to at least build the new stuff that comes out with Andrew's
-patches, and building the new gadget code that came out in -mm4 I got
-this when building as a module:
+--On Tuesday, May 13, 2003 18:10:18 -0700 Andrew Morton <akpm@digeo.com>
+wrote:
 
-make -f scripts/Makefile.build obj=drivers/serial
-make -f scripts/Makefile.build obj=drivers/usb/gadget
-  gcc -Wp,-MD,drivers/usb/gadget/.net2280.o.d -D__KERNEL__ -Iinclude
--Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing
--fno-common -pipe -mpreferred-stack-boundary=2 -march=i686
--Iinclude/asm-i386/mach-default -fomit-frame-pointer -nostdinc
--iwithprefix include -DMODULE   -DKBUILD_BASENAME=net2280
--DKBUILD_MODNAME=net2280 -c -o drivers/usb/gadget/net2280.o
-drivers/usb/gadget/net2280.c
-drivers/usb/gadget/net2280.c:2623: pci_ids causes a section type
-conflict
-make[2]: *** [drivers/usb/gadget/net2280.o] Error 1
-make[1]: *** [drivers/usb/gadget] Error 2
-make: *** [drivers] Error 2
+> That's the one.  Process is sleeping on I/O in filemap_nopage(), wakes up
+> after the truncate has done its thing and the page gets instantiated in
+> pagetables.
+> 
+> But it's an anon page now.  So the application (which was racy anyway)
+> gets itself an anonymous page.
 
-I was not able to test this particular part of the code with -mm4, as I
-use a single processor system and could not get to the module building
-process then.
+Which the application thinks is still part of the file, and will expect its
+changes to be written back.  Granted, if the page fault occurred just after
+the truncate it'd get SIGBUS, so it's clearly not a robust assumption, but
+it will result in unexpected behavior.  Note that if the application later
+extends the file to include this page it could result in a corrupted file,
+since all the pages around it will be written properly.
 
-I have also tested this by compiling it into the kernel, with the same
-results:
+Dave
 
-  gcc -Wp,-MD,drivers/usb/gadget/.net2280.o.d -D__KERNEL__ -Iinclude
--Wall -Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing
--fno-common -pipe -mpreferred-stack-boundary=2 -march=i686
--Iinclude/asm-i386/mach-default -fomit-frame-pointer -nostdinc
--iwithprefix include    -DKBUILD_BASENAME=net2280
--DKBUILD_MODNAME=net2280 -c -o drivers/usb/gadget/net2280.o
-drivers/usb/gadget/net2280.c
-drivers/usb/gadget/net2280.c:2623: pci_ids causes a section type
-conflict
-make[2]: *** [drivers/usb/gadget/net2280.o] Error 1
-make[1]: *** [drivers/usb/gadget] Error 2
-make: *** [drivers] Error 2
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmccr@us.ibm.com                                        T/L   678-3059
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
