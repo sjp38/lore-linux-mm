@@ -1,52 +1,28 @@
-Date: Tue, 15 Aug 2000 19:21:53 -0300 (BRST)
+Date: Tue, 15 Aug 2000 19:25:16 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Syncing the page cache, take 2
-In-Reply-To: <3999C0C9.301BB475@innominate.de>
-Message-ID: <Pine.LNX.4.21.0008151916160.2466-100000@duckman.distro.conectiva>
+Subject: [PATCH*] new VM patch for 2.4.0-test7-pre4
+Message-ID: <Pine.LNX.4.21.0008151922360.2466-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <daniel.phillips@innominate.de>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Aug 2000, Daniel Phillips wrote:
-> Rik van Riel wrote:
-> > On Tue, 15 Aug 2000, Stephen C. Tweedie wrote:
-> > 
-> > > Correct.  We have plans to change this in 2.5, basically by
-> > > removing the VM's privileged knowledge about the buffer cache
-> > > and making the buffer operations (write-back, unmap etc.) into
-> > > special cases of generic address-space operations.  For 2.4,
-> > > it's really to late to do anything about this.
-> > 
-> > please take a look at my VM patch at http://www.surriel.com/patches/
-> > (either the -test4 or the -test7-pre4 one).
-> > 
-> > If you look closely at mm/vmscan.c::page_launder(), you'll see
-> > that we should be able to add the flush callback with only about
-> > 5 to 10 lines of changed code ...
-> > 
-> > (and even more ... we just about *need* the flush callback when
-> > we're running in a multi-queue VM)
-> 
-> OK, but what about the case where the filesystem knows it wants
-> the page cache to flush *right now*?  For example, when a
-> filesystem wants to be sure the page cache is synced through to
-> buffers just before marking a consistent state in the journal,
-> say.  How does it make that happen?
+Hi,
 
-There are some ugly tricks, like pinning the buffer so that
-the buffer flushing code can't flush it out. Most of these
-have the potential for messing up VM and making the box run
-out of memory or even making the box hang...
+I spent some time today porting the new VM patch to
+2.4.0-test7-pre4, *and* tuning the new VM patch for
+performance (yesterday's one wasn't tuned yet).
 
-If the new VM makes it into 2.4, however, it should be
-relatively easy to add the flush callback as a function
-in page_launder(). Otherwise we could add yet another
-thing to shrink_mmap() ... we could do it, but I guess
-at the cost of some code readability  *grin*
+The new patch should be fine for general use and is
+available at http://www.surriel.com/patches/2.4.0-t7p4-vmpatch2
+
+The only thing "unstable" with this patch is that it
+seems to catch an SMP race in filemap.c, simply because
+this patch has debugging code that isn't in the stock
+kernel (and the stock kernel would corrupt the lru list).
 
 regards,
 
