@@ -1,33 +1,52 @@
-Subject: Re: Atomic operation for physically moving a page (for memory
-	defragmentation)
+Subject: Re: [Lhns-devel] Merging Nonlinear and Numa style memory hotplug
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20040623.205906.71913783.taka@valinux.co.jp>
-References: <20040619031536.61508.qmail@web10902.mail.yahoo.com>
-	 <1087619137.4921.93.camel@nighthawk>
-	 <20040623.205906.71913783.taka@valinux.co.jp>
+In-Reply-To: <20040622114733.30A6.YGOTO@us.fujitsu.com>
+References: <20040622114733.30A6.YGOTO@us.fujitsu.com>
 Content-Type: text/plain
-Message-Id: <1088024190.28102.24.camel@nighthawk>
+Message-Id: <1088029973.28102.269.camel@nighthawk>
 Mime-Version: 1.0
-Date: Wed, 23 Jun 2004 13:56:30 -0700
+Date: Wed, 23 Jun 2004 15:32:53 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: ashwin_s_rao@yahoo.com, Valdis.Kletnieks@vt.edu, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Yasunori Goto <ygoto@us.fujitsu.com>
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, Linux-Node-Hotplug <lhns-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, "BRADLEY CHRISTIANSEN [imap]" <bradc1@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-06-23 at 04:59, Hirokazu Takahashi wrote:
-> We should know that many part of kernel code will access the page
-> without holding a lock_page(). The lock_page() can't block them.
+First of all, thank you for merging nonlinear on top of your current
+work.  It looks very promising.  
 
-No, but it will block them from establishing a new PTE to the page.  You
-need to:
+On Tue, 2004-06-22 at 12:00, Yasunori Goto wrote:
+>   - Some of strucure's member are added to mem_section[] to 
+>     unify between nonlinear and node style hotplug.
 
-1. make sure no new PTEs can be established to the page
-2. make sure there are no valid PTEs to the page.
-3. do the move
+This quadruples the size of the mem_section[] array, and makes each
+mem_section entry take up a whole cache line.  Are you sure all of these
+structure members are needed?  Can they be allocated elsewhere, instead
+of directly inside the translation tables, or otherwise derived?  Also,
+why does the booked/free_count have to be kept here?  Can't that be
+determined by simply looping through and looking at all the pages'
+flags?
 
-My suggestion relates to 1, only.
+Also, can you provide a patch which is just your modifications to Dave's
+original nonlinear patch?
+
+Instead of remove_from_freelist(unsigned int section), I'd hope that we
+could support a much more generic interface in the page allocator:
+allocate by physical address.  remove_from_freelist() has some intimate
+knowledge of the buddy allocator that I think is a bit complex.  
+
+That also brings up a more important issue.  I see nonlinear as a
+back-end for only the page_to_pfn() and pfn_to_page(), and that's all. 
+There are no real exposures of the nonlinear section size or the
+structures to any other part of the kernel because they're all wrapped
+up in those functions.  It may be possible to keep the entire kernel
+oblivious of nonlinear, but I think it's a worthy goal.  That's why I'd
+like to see the buddy allocator modifications be limited to
+currently-existing concepts like physical addresses.
+
+Brad, do you have anything that you can post to demonstrate your
+approach for doing allocation by address?
 
 -- Dave
 
