@@ -1,57 +1,34 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id MAA00242
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2002 12:23:43 -0700 (PDT)
-Message-ID: <3DB5A5BD.D3E00B4A@digeo.com>
-Date: Tue, 22 Oct 2002 12:23:41 -0700
-From: Andrew Morton <akpm@digeo.com>
+Reply-To: Gerrit Huizenga <gh@us.ibm.com>
+From: Gerrit Huizenga <gh@us.ibm.com>
+Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch 
+In-reply-to: Your message of Tue, 22 Oct 2002 14:55:10 EDT.
+             <20021022145510.H20957@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
-References: <Pine.LNX.4.44.0210221936010.18790-100000@localhost.localdomain> <20021022184938.A2395@infradead.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <8421.1035314876.1@us.ibm.com>
+Date: Tue, 22 Oct 2002 12:27:57 -0700
+Message-Id: <E1844h3-0002Bt-00@w-gerrit2>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Benjamin LaHaise <bcrl@redhat.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Martin J. Bligh" <mbligh@aracnet.com>, Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig wrote:
+In message <20021022145510.H20957@redhat.com>, > : Benjamin LaHaise writes:
+> On Tue, Oct 22, 2002 at 11:47:37AM -0700, Gerrit Huizenga wrote:
+> > Hmm.  Isn't it great that 2.6/3.0 will be stable soon and we can
+> > start working on this for 2.7/3.1?
 > 
-> On Tue, Oct 22, 2002 at 07:57:00PM +0200, Ingo Molnar wrote:
-> > the attached patch (ontop of 2.5.44-mm2) implements generic (swappable!)
-> > nonlinear mappings and sys_remap_file_pages() support. Ie. no more
-> > MAP_LOCKED restrictions and strange pagefault semantics.
-> >
-> > to implement this i added a new pte concept: "file pte's". This means that
-> > upon swapout, shared-named mappings do not get cleared but get converted
-> > into file pte's, which can then be decoded by the pagefault path and can
-> > be looked up in the pagecache.
-> >
-> > the normal linear pagefault path from now on does not assume linearity and
-> > decodes the offset in the pte. This also tests pte encoding/decoding in
-> > the pagecache case, and the ->populate functions.
+> Sure, but we should delete the syscalls now and just use the filesystem 
+> as the intermediate API.
 > 
-> Ingo,
-> 
-> what is the reason for that interface?  It looks like a gross performance
-> hack for misdesigned applications to me, kindof windowsish..
-> 
+> 		-ben
 
-So that evicted pages in non-linear mappings can be reestablished
-at fault time by the kernel, rather than by delegation to userspace
-via SIGBUS.
+That would be fine with me - we are only planning on people using
+flags to shm*() or mmap(), not on the syscalls.  I thought Oracle
+was the one heavily dependent on the icky syscalls.
 
-
-We seem to have lost a pte_page_unlock() from fremap.c:zap_pte()?
-I fixed up the ifdef tangle in there within the shpte-ng patch
-and then put the pte_page_unlock() back.
-
-I also added a page_cache_release() to the error path in filemap_populate(),
-if install_page() failed.
-
-The 2TB file size limit for mmap on non-PAE is a little worrisome.
-I wonder if we can only instantiate the pte_file() bit if the
-mapping is using MAP_POPULATE?  Seems hard to do.
+gerrit
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
