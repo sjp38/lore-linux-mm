@@ -1,6 +1,6 @@
 Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.58.0405252031270.15534@ppc970.osdl.org>
+In-Reply-To: <1085544720.5580.9.camel@gaston>
 References: <1085369393.15315.28.camel@gaston>
 	 <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
 	 <1085371988.15281.38.camel@gaston>
@@ -26,10 +26,11 @@ References: <1085369393.15315.28.camel@gaston>
 	 <Pine.LNX.4.58.0405251749500.9951@ppc970.osdl.org>
 	 <1085541906.14969.412.camel@gaston>
 	 <Pine.LNX.4.58.0405252031270.15534@ppc970.osdl.org>
+	 <1085544720.5580.9.camel@gaston>
 Content-Type: text/plain
-Message-Id: <1085544720.5580.9.camel@gaston>
+Message-Id: <1085545114.5578.11.camel@gaston>
 Mime-Version: 1.0
-Date: Wed, 26 May 2004 14:12:02 +1000
+Date: Wed, 26 May 2004 14:18:34 +1000
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -37,61 +38,22 @@ To: Linus Torvalds <torvalds@osdl.org>
 Cc: "David S. Miller" <davem@redhat.com>, wesolows@foobazco.org, willy@debian.org, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, mingo@elte.hu, bcrl@kvack.org, linux-mm@kvack.org, Linux Arch list <linux-arch@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-05-26 at 14:08, Linus Torvalds wrote:
-
-> You're right. We do use it on the do_wp_page() path, and there we actually 
-> use a whole new page in the "break_cow()" case. That case is in fact 
-> fundamentally different from the other ones.
+On Wed, 2004-05-26 at 14:12, Benjamin Herrenschmidt wrote:
+> On Wed, 2004-05-26 at 14:08, Linus Torvalds wrote:
 > 
-> So we should probably break up the "ptep_establish()" into its two pieces,
-> since the callers don't actually want to do the same thing. One really
-> wants to do a "clear old one, set a totally new one", and the two other
-> places want to actually update just the dirty and accessed bits.
+> > You're right. We do use it on the do_wp_page() path, and there we actually 
+> > use a whole new page in the "break_cow()" case. That case is in fact 
+> > fundamentally different from the other ones.
+> > 
+> > So we should probably break up the "ptep_establish()" into its two pieces,
+> > since the callers don't actually want to do the same thing. One really
+> > wants to do a "clear old one, set a totally new one", and the two other
+> > places want to actually update just the dirty and accessed bits.
 
-The first one could still be called "pte_establish" ... I mean, it makes
-little sense to continue calling "pte_establish" something  that just
-does set one of those 2 bits... And the flush done by pte_establish in
-this case is useless on ppc... so I'd rather kill pte_establish
-completely instead and define it's arch (or generic) impl. of
-ptep_set_dirty_accessed() responsibility to do the TLB flush if
-necessary, no ? (well, a call to it on ppc isn't expensive if we didn't
-add anything to the batch anyway...)
+Hrm... Still dies, some kind of loop it seems, I'll have a look
 
-> In fact, the only non-generic user of "ptep_establish()" (s390) didn't 
-> want to use the generic version exactly because of this very conceptual 
-> bug. It uses "ptep_clear_flush()" for the replacement case, which actually 
-> makes sense.
-> 
-> So does it work if you do this appended patch first? This is a real 
-> cleanup, and I think it will allow us to get rid of the s390-specific code 
-> in ptep_establish(). Along with hopefully fixing your problem too.
-> 
-> After this, we should be able to have a BUG() in "set_pte()" if the entry 
-> wasn't clear before (assuming the arch doesn't use set_pte() for the dirty 
-> updates etc).
+Ben.
 
-Ok, I'll give it a spin.
-
-> 		Linus
-> 
-> ---
-> ===== mm/memory.c 1.177 vs edited =====
-> --- 1.177/mm/memory.c	Tue May 25 12:37:09 2004
-> +++ edited/mm/memory.c	Tue May 25 21:04:49 2004
-> @@ -1004,7 +1004,10 @@
->  	flush_cache_page(vma, address);
->  	entry = maybe_mkwrite(pte_mkdirty(mk_pte(new_page, vma->vm_page_prot)),
->  			      vma);
-> -	ptep_establish(vma, address, page_table, entry, 1);
-> +
-> +	/* Get rid of the old entry, replace with new */
-> +	ptep_clear_flush(vma, address, page_table);
-> +	set_pte(page_table, entry);
->  	update_mmu_cache(vma, address, entry);
->  }
->  
--- 
-Benjamin Herrenschmidt <benh@kernel.crashing.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
