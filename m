@@ -1,40 +1,32 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA00322
-	for <linux-mm@kvack.org>; Mon, 9 Mar 1998 16:04:44 -0500
-Date: Mon, 9 Mar 1998 20:54:56 +0100 (MET)
-From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: swapout frenzy quick-fix
-Message-ID: <Pine.LNX.3.91.980309205216.2479A-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kvack.org (8.8.7/8.8.7) with ESMTP id EAA03164
+	for <linux-mm@kvack.org>; Tue, 10 Mar 1998 04:01:57 -0500
+Received: from mirkwood.dummy.home (root@anx1p4.fys.ruu.nl [131.211.33.93])
+	by max.fys.ruu.nl (8.8.7/8.8.7/hjm) with ESMTP id KAA29730
+	for <linux-mm@kvack.org>; Tue, 10 Mar 1998 10:01:49 +0100 (MET)
+Date: Mon, 9 Mar 1998 22:27:21 -0500 (EST)
+Message-Id: <199803100327.WAA10336@saturn.cs.uml.edu>
+From: "Albert D. Cahalan" <acahalan@cs.uml.edu>
+Subject: VM info
+ReSent-To: linux-mm <linux-mm@kvack.org>
+ReSent-Message-ID: <Pine.LNX.3.91.980310094858.12682C@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
-To: jasons@usemail.com
-Cc: linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
+To: H.H.vanRiel@fys.ruu.nl
 List-ID: <linux-mm.kvack.org>
 
-Hi Jason and Linus,
 
-I made a quick-fix for the swapout frenzy occurring in
-2.1.89...
-It's far from perfect, but until the changes from Ben
-and Stephen are merged, it'll have to do :-(
 
-Rik.
-+-----------------------------+------------------------------+
-| For Linux mm-patches, go to | "I'm busy managing memory.." |
-| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
-| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
-+-----------------------------+------------------------------+
+Please forward this to the VM mailing list you have. This is a list
+of some things that /bin/ps needs to know about for proper output.
+Some of them might help you too.
 
---- linux/mm/vmscan.c.orig	Mon Mar  9 20:51:44 1998
-+++ linux/mm/vmscan.c	Mon Mar  9 20:51:44 1998
-@@ -573,6 +573,8 @@
- 
- 			if (free_memory_available())
- 				break;
-+			if (nr_free_pages + atomic_read(&nr_async_pages) > free_pages_high * 4)
-+				break;
- 			gfp_mask = __GFP_IO;
- 			try_to_free_page(gfp_mask);
- 			/*
+Digital Unix formats:
+JOBC    Current count of processes qualifying PGID for job control
+CP      Short-term CPU utilization factor (used in scheduling)
+SL      Sleep time                                     
+
+FreeBSD formats:
+JOBC    job control count
+CPU     short-term cpu usage factor (for scheduling)
+SL      sleep time (in seconds; 127 = infinity)
+RE      core residency time (in seconds; 127 = infinity)
