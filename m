@@ -1,30 +1,28 @@
-Message-ID: <4020C356.6070404@cyberone.com.au>
-Date: Wed, 04 Feb 2004 21:03:02 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH 5/5] mm improvements
-References: <4020BDCB.8030707@cyberone.com.au> <4020BE94.1040001@cyberone.com.au>
-In-Reply-To: <4020BE94.1040001@cyberone.com.au>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Date: Wed, 4 Feb 2004 02:10:35 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 2/5] mm improvements
+Message-Id: <20040204021035.2a6ca8a2.akpm@osdl.org>
+In-Reply-To: <4020BE25.9050908@cyberone.com.au>
+References: <4020BDCB.8030707@cyberone.com.au>
+	<4020BE25.9050908@cyberone.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: Nick Piggin <piggin@cyberone.com.au>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-Nick Piggin wrote:
-
-> Nick Piggin wrote:
+Nick Piggin <piggin@cyberone.com.au> wrote:
 >
->> 5/5: vm-tune-throttle.patch
->>     Try to allocate a bit harder before giving up / throttling on
->>     writeout.
->>
->
+>  > 2/5: vm-dont-rotate-active-list.patch
+>  >     Nikita's patch to keep more page ordering info in the active list.
+>  >     Also should improve system time due to less useless scanning
+>  >     Helps swapping loads significantly.
 
-That would be "try to free a bit harder"
+It bugs me that this improvement is also applicable to 2.4.  if it makes
+the same improvement there, we're still behind.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
