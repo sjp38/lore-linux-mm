@@ -1,43 +1,46 @@
 Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA31312
-	for <linux-mm@kvack.org>; Mon, 27 Jul 1998 15:48:47 -0400
-Date: Mon, 27 Jul 1998 11:54:14 +0100
-Message-Id: <199807271054.LAA00705@dax.dcs.ed.ac.uk>
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA31317
+	for <linux-mm@kvack.org>; Mon, 27 Jul 1998 15:48:51 -0400
+Date: Mon, 27 Jul 1998 12:02:02 +0100
+Message-Id: <199807271102.MAA00713@dax.dcs.ed.ac.uk>
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Subject: Re: More info: 2.1.108 page cache performance on low memory
-In-Reply-To: <Pine.LNX.3.96.980724234821.31219A-100000@mirkwood.dummy.home>
-References: <87ww93dvyt.fsf@atlas.CARNet.hr>
-	<Pine.LNX.3.96.980724234821.31219A-100000@mirkwood.dummy.home>
+In-Reply-To: <Pine.LNX.4.02.9807260941230.276-100000@iddi.npwt.net>
+References: <87iukovq42.fsf@atlas.CARNet.hr>
+	<Pine.LNX.4.02.9807260941230.276-100000@iddi.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@npwt.net>, Linux MM <linux-mm@kvack.org>
+To: ebiederm+eric@npwt.net
+Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Fri, 24 Jul 1998 23:55:10 +0200 (CEST), Rik van Riel
-<H.H.vanRiel@phys.uu.nl> said:
+On Sun, 26 Jul 1998 09:49:02 -0500 (CDT), Eric W Biederman
+<eric@flinx.npwt.net> said:
 
-> I admit your patch (multiple aging) should work even better,
-> but in order to do that, we probably want to make it auto-tuning
-> on the borrow percentage:
+> From where I sit it looks completly possible to give the buffer cache a
+> fake inode, and have it use the same mechanisms that I have developed for
+> handling other dirty data in the page cache.  It should also be possible
+> in this effort to simplify the buffer_head structure as well.
 
-> - if page_cache_size > borrow + 5%     --> add aging loop
-<Bzzt> wrong answer...
+> As time permits I'll move in that direction.
 
-> - if loads_of_disk_io and almost thrashing [*] --> remove aging loop
-Yep, much better.
+You'd still have to persuade people that it's a good idea.  I'm not
+convinced.
 
-> [*] this thrashing can be measured by testing the cache hit/mis
-> rate; if it falls below (say) 50% we could consider thrashing.
+The reason for having things in the page cache is for fast lookup.
+For this to make sense for the buffer cache, you'd have to align the
+buffer cache on page boundaries, but buffers on disk are not naturally
+aligned this way.  You'd end up wasting a lot of space as perhaps only
+a few of the buffers in any page were useful, and you'd also have to
+keep track of which buffers within the page were valid/dirty.
 
-Doing even more rules based on the actual cache size is a bad thing
-since it is enforcing an arbitrary limit which does not depend on what
-the system load is right now.  Making it adapt to the current load is
-ALWAYS going to be a better way of doing things.
+We *need* a mechanism which is block-aligned, not page-aligned.  The
+buffer cache is a good way of doing it.  Forcing block device caching
+into a page-aligned cache is not necessarily going to simplify things.
 
 --Stephen
 --
