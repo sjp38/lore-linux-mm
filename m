@@ -1,39 +1,38 @@
-Date: Wed, 7 May 2003 18:38:54 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Thu, 8 May 2003 08:54:40 +0200
 Subject: Re: 2.5.69-mm2 Kernel panic, possibly network related
-Message-ID: <20030508013854.GW8931@holomorphy.com>
-References: <3EB8E4CC.8010409@aitel.hist.no> <20030507.025626.10317747.davem@redhat.com> <20030507144100.GD8978@holomorphy.com> <20030507.064010.42794250.davem@redhat.com> <20030507215430.GA1109@hh.idb.hist.no>
+Message-ID: <20030508065440.GA1890@hh.idb.hist.no>
+References: <3EB8E4CC.8010409@aitel.hist.no> <20030507.025626.10317747.davem@redhat.com> <20030507144100.GD8978@holomorphy.com> <20030507.064010.42794250.davem@redhat.com> <20030507215430.GA1109@hh.idb.hist.no> <20030508013854.GW8931@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030507215430.GA1109@hh.idb.hist.no>
+In-Reply-To: <20030508013854.GW8931@holomorphy.com>
+From: Helge Hafting <helgehaf@aitel.hist.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Helge Hafting <helgehaf@aitel.hist.no>
-Cc: "David S. Miller" <davem@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@digeo.com
+To: William Lee Irwin III <wli@holomorphy.com>, Helge Hafting <helgehaf@aitel.hist.no>, "David S. Miller" <davem@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@digeo.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 07, 2003 at 06:40:10AM -0700, David S. Miller wrote:
->> Good point, Helge what netfilter stuff do you have in use?
->> Are you doing NAT?
+On Wed, May 07, 2003 at 06:38:54PM -0700, William Lee Irwin III wrote:
+[...] 
+> Can you try one kernel with the netfilter cset backed out, and another
+> with the re-slabification patch backed out? (But not with both backed
+> out simultaneously).
 
-On Wed, May 07, 2003 at 11:54:30PM +0200, Helge Hafting wrote:
-> I have compiled in almost everything from netfilter, except
-> from "Amanda backup protocol support" and "NAT of local connections"
-> I also have ipv6 compiled, but no ipv6-netfilter.
-> I don't do any NAT.  I used to have some firewall rules, but not currently
-> as some previous dev-kernel broke on that.  So I have iptables
-> with no rules, just an ACCEPT policy for everything. I do no
-> routing either, only one network card is used.
+I'm compiling without reslabify now.
+I got 
+patching file arch/i386/mm/pageattr.c
+Hunk #1 succeeded at 67 (offset 9 lines).
+when backing it out - is this the effect of
+some other patch touching the same file or could
+my source be wrong somehow?
 
-Can you try one kernel with the netfilter cset backed out, and another
-with the re-slabification patch backed out? (But not with both backed
-out simultaneously).
+Which patch is the netfilter cset?  None of
+the patches in mm2 looked obvious to me.  Or
+is it part of the linus patch? Note that mm1
+works for me, so anything found there too
+isn't as likely to be the problem.
 
-Thanks.
-
-
--- wli
+Helge Hafting
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
