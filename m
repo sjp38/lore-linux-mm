@@ -1,84 +1,66 @@
-Message-ID: <42199EE8.9090101@sgi.com>
-Date: Mon, 21 Feb 2005 02:42:16 -0600
-From: Ray Bryant <raybry@sgi.com>
-MIME-Version: 1.0
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
- II
-References: <20050215121404.GB25815@muc.de> <421241A2.8040407@sgi.com> <20050215214831.GC7345@wotan.suse.de> <4212C1A9.1050903@sgi.com> <20050217235437.GA31591@wotan.suse.de> <4215A992.80400@sgi.com> <20050218130232.GB13953@wotan.suse.de> <42168FF0.30700@sgi.com> <20050220214922.GA14486@wotan.suse.de> <20050220143023.3d64252b.pj@sgi.com> <20050220223510.GB14486@wotan.suse.de>
-In-Reply-To: <20050220223510.GB14486@wotan.suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Mon, 21 Feb 2005 10:57:42 +0100
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview II
+Message-ID: <20050221095742.GA8788@wotan.suse.de>
+References: <20050215214831.GC7345@wotan.suse.de> <4212C1A9.1050903@sgi.com> <20050217235437.GA31591@wotan.suse.de> <4215A992.80400@sgi.com> <20050218130232.GB13953@wotan.suse.de> <42168FF0.30700@sgi.com> <20050220214922.GA14486@wotan.suse.de> <20050220143023.3d64252b.pj@sgi.com> <20050220223510.GB14486@wotan.suse.de> <42198DE5.2040703@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <42198DE5.2040703@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>
-Cc: ak@muc.de, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>
+To: Ray Bryant <raybry@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, ak@muc.de, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-All,
+On Mon, Feb 21, 2005 at 01:29:41AM -0600, Ray Bryant wrote:
+> This is different than your reply above, which seems to imply that:
+> 
+> (A)  Step 1 is to migrate mapped files using mbind().  I don't understand
+>      how to do this in general, because:
+>      (a)  I don't know how to make a non-racy list of the mapped files to
+>           migrate without assuming that the process to be migrated is 
+>           stopped
 
-Just an update on the idea of migrating a process without suspending
-it.
+That was just a stop gap way to do the migration before you have
+xattrs for shared libraries. If you have them it's not needed.
 
-The hard part of the problem here is to make sure that the page_migrate()
-system call sees all of the pages to migrate.  If the process that is
-being migrated can still allocate pages, then the page_migrate() call
-may miss some of the pages.
+> and  (b)  If the mapped file is associated with the DEFAULT memory policy,
+>           and page placement was done by first touch, then it is not clear
+>           how to use mbind() to cause the pages to be migrated, and still
+>           end up with the identical topological placement of pages after
+>           the migration.
 
-One way to solve this problem is to force the process to start allocating
-pages on the new nodes before calling page_migrate().  There are a couple
-of subcases:
+It can be done, but it's ugly. But it really was only intended for
+the shared libraries.
 
-(1)  For memory mapped files with a non-DEFAULT associated memory policy,
-      one can use mbind() to fixup the memory policy.  (This assumes the
-      Steve Longerbeam patches are applied, as I understand things).
+> (B)  Step 2 is to use page_migrate() to migrate just the anonymous pages.
+>      I don't like the restriction of this to just anonymous pages.
 
-(2)  For anonymous pages and memory mapped files with DEFAULT policy,
-      the allocation depends on which node the process is running.  So
-      after doing the above, you need to migrate the task to a cpu
-      associated with one of the nodes.
+That would be only in this scenario; I agree it doesn't make sense
+to add it as a general restriction to the syscall.
 
-The problem with (1) is that it is racy, there is no guarenteed way to get the
-list of mapped files for the process while it is still running.  A process
-can do it for itself, so one way to do this would be to write the set of
-new nodes to a /proc/pid file, then send the process a SIG_MIGRATE
-signal.  Ugly....  (For multithreaded programs, all of the threads have
-to be signalled to keep them from mmap()ing new files during the migration.)
+> 
+> Fundamentally, I don't see why (A) is much different from allowing one
+> process to manipulate the physical storage for another process.  It's
+> just stated in terms of mmap'd objects instead of pid's.  So I don't
+> see why that is fundamentally different from a page_migration() call
+> with va_start and va_end arguments.
 
-(1) could be handled as part of the page_migrate() system call --
-make one pass through the address space searching for mempolicy()
-data structures, and updating them as necessary.  Then make a second
-pass through and do the migrations.  Any new allocations will then
-be done under the new mempolicy, so they won't be missed.  But this
-still gets us into trouble if the old and new node lists are not
-disjoint.
+An mmaped object exists on its own. It's access is fully reference counted etc.
 
-This doesn't handle anonymous memory or mapped files associated with
-the DEFAULT policy.  A way around that would be to add a target cpu_id
-to the page_migrate() system call.  Then before doing the first pass
-described above, one would do the equivalenet of set_sched_affinity()
-for the target pid, moving it to the indicated cpu.  Once it is known
-the pid has moved (how to do that?), we now know anonymous memory and
-DEFAULT mempolicy mapped files will be allocated on the nodes associated
-with the new cpu.  Then we can proceed as discussed in the last paragraph.
-Also ugly, due to the extra parameter.
+> The only problem I see with that is the following:  Suppose that a user
+> wants to migrate a portion of their own address space that is composed
+> of (at last partly) anonymous pages or pages mapped to a file associated
+> with the DEFAULT memory policy, and we want the pages to be toplogically
+> allocated the same way after the migration as they were before the
+> migration?
 
-Alternatively, we can just require, for correct execution, the invoking
-code to do the set_sched_affinity() first, in those cases where
-migrating a running task is important.
+It doesn't seem very realistic to me. When a user wants to change
+its own address room then they can use mbind() from the beginning
+and they should know how their memory layout is.
 
-Anyway, how important is this, really for acceptance of a page_migrate()
-system call in the community?  (that is, how important is it to be
-able to migrate a process without suspending it?)
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
