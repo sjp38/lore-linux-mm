@@ -1,43 +1,41 @@
-Message-ID: <01BFD09A.CC430AF0@lando.optronic.se>
-From: Roger Larsson <roger.larsson@optronic.se>
-Subject: Re: reduce shrink_mmap rate of failure (initial attempt)
+Subject: Re: [PATCH] VM kswapd autotuning vs. -ac7
+References: <Pine.LNX.4.21.0006050716160.31069-100000@duckman.distro.conectiva> <qww1z29ssbb.fsf@sap.com> <20000607143242.D30951@redhat.com>
+From: Christoph Rohland <cr@sap.com>
+Date: 07 Jun 2000 16:11:20 +0200
+In-Reply-To: "Stephen C. Tweedie"'s message of "Wed, 7 Jun 2000 14:32:42 +0100"
+Message-ID: <qwwbt1dpomv.fsf@sap.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Date: Wed, 7 Jun 2000 16:04:54 +0200
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "'quintela@fi.udc.es'" <quintela@fi.udc.es>
-Cc: "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->That patch hangs my machine here when I run mmap002.  The machine is
->in shrink_mmap.  It hangs trying to get the pagmap_lru_lock.
->
->I think that the idea is good, but it doesn't work here :(.
->
->Later, Juan.
+Hi Steven,
 
+"Stephen C. Tweedie" <sct@redhat.com> writes:
+> The swap cache --- which does handle anonymous pages --- is IN the
+> page cache.  
+> 
+> The main reason SHM needs its own swap code is that normal anonymous
+> pages are referred to only from ptes --- the ptes either point to
+> the physical page containing the page, or to the swap entry.  We
+> cannot use that for SHM, because SysV SHM segments must be persistent
+> even if there are no attachers, and hence no ptes to maintain the 
+> location of the pages.  
+> 
+> If it wasn't for persistent SHM segments, it would be trivial to
+> integrate SHM into the normal swapper.
 
-Ouch...
+But for persistence we now have the shm dentries (We will have at
+least. I am planning to reuse the ramfs directory handling for shm
+fs. This locks the dentries into the cache for persistence). 
 
-The only possible explaination is that we are searching for pages on a zone.
-But no such pages are possible to free from LRU...
-And we LOOP the list, holding the lru lock...
-Note: without this patch you may end up in another bad situation where
-shrink_mmap always fails and swapping will start until it swaps out a page
-of that specific zone.
-And without the test? We would free all other LRU pages without finding one
-that we want :-(
+Couldn't we use this to get the desired behaviour? 
 
-This will be interesting to fix...
-
-May the allocation of pages play a part? Filling zone after zone will give no
-mix between the zones.
-
-/RogerL
-(from work)
-
+Just guessing
+		Christoph
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
