@@ -1,44 +1,54 @@
-Received: from root by main.gmane.org with local (Exim 3.35 #1 (Debian))
-	id 18UqsX-0003g6-00
-	for <linux-mm@kvack.org>; Sat, 04 Jan 2003 17:10:29 +0100
-From: "Steven Barnhart" <sbarn03@softhome.net>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id NAA03437
+	for <linux-mm@kvack.org>; Sat, 4 Jan 2003 13:18:58 -0800 (PST)
+Message-ID: <3E174FBB.9065575A@digeo.com>
+Date: Sat, 04 Jan 2003 13:18:51 -0800
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
 Subject: Re: 2.5.54-mm3
-Date: Sat, 04 Jan 2003 10:47:46 -0500
-Message-ID: <pan.2003.01.04.15.47.43.915841@softhome.net>
-References: <3E16A2B6.A741AE17@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+References: <3E16A2B6.A741AE17@digeo.com> <pan.2003.01.04.15.47.43.915841@softhome.net>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Steven Barnhart <sbarn03@softhome.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 04 Jan 2003 01:00:38 +0000, Andrew Morton wrote:
+Steven Barnhart wrote:
+> 
+> On Sat, 04 Jan 2003 01:00:38 +0000, Andrew Morton wrote:
+> 
+> > Filesystem mount and unmount is a problem.  Probably, this will not be
+> > addressed.  People who have specialised latency requirements should avoid
+> > using automounters and those gadgets which poll CDROMs for insertion events.
+> 
+> That stinks...it don't work in .54 and I'd likem to have my automounter
+> functioning again. Oh well it *is* 2.5.
 
-> Filesystem mount and unmount is a problem.  Probably, this will not be
-> addressed.  People who have specialised latency requirements should avoid
-> using automounters and those gadgets which poll CDROMs for insertion events.
+autofsv4 has been working fine across the 2.5 series.  You'll need to
+send a (much) better report.
 
-That stinks...it don't work in .54 and I'd likem to have my automounter
-functioning again. Oh well it *is* 2.5.
+> > This work has broken the shared pagetable patch - it touches the same code
+> > in many places.   I shall put Humpty together again, but will not be
+> > including it for some time.  This is because there may be bugs in this
+> > patch series which are accidentally fixed in the shared pagetable patch. So
+> > shared pagetables will be reintegrated when these changes have had sufficient
+> > testing.
+> 
+> Also for some reason I always have to do a "touch /fastboot" and boot in
+> rw mode to boot the kernel. The kernel fails on remouting fs in r-w mode.
 
-> This work has broken the shared pagetable patch - it touches the same code
-> in many places.   I shall put Humpty together again, but will not be 
-> including it for some time.  This is because there may be bugs in this
-> patch series which are accidentally fixed in the shared pagetable patch. So
-> shared pagetables will be reintegrated when these changes have had sufficient
-> testing.
+Many more details are needed.  Sufficient for a developer to be able to
+reproduce the problem.
 
-Also for some reason I always have to do a "touch /fastboot" and boot in
-rw mode to boot the kernel. The kernel fails on remouting fs in r-w mode.
-X also don't work saying /dev/agpgart don't exist even though it does and
-I saw it. agpgart module is loaded..maybe it would work as built into the
-kernel? .config attached.
+> X also don't work saying /dev/agpgart don't exist even though it does and
+> I saw it. agpgart module is loaded..maybe it would work as built into the
+> kernel? .config attached.
 
-Steven
-
-
+You could try statically linking it, yes.  More details are needed,
+such as a description of what hardware you have and what driver you're
+using.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
