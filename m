@@ -1,43 +1,51 @@
-Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA12225
-	for <linux-mm@kvack.org>; Fri, 27 Feb 1998 07:03:21 -0500
-Date: Fri, 27 Feb 1998 12:26:23 +0100 (MET)
-From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: Re: Fairness in love and swapping
-In-Reply-To: <199802270729.IAA00680@cave.BitWizard.nl>
-Message-ID: <Pine.LNX.3.91.980227122502.19469A-100000@mirkwood.dummy.home>
+Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA12939
+	for <linux-mm@kvack.org>; Fri, 27 Feb 1998 16:43:04 -0500
+Date: Fri, 27 Feb 1998 19:52:10 GMT
+Message-Id: <199802271952.TAA01195@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: [2x PATCH] page map aging & improved kswap logic
+In-Reply-To: <Pine.LNX.3.91.980227105614.17899A-100000@mirkwood.dummy.home>
+References: <199802270929.KAA28081@boole.fs100.suse.de>
+	<Pine.LNX.3.91.980227105614.17899A-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
-To: Rogier Wolff <R.E.Wolff@BitWizard.nl>
-Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, linux-mm <linux-mm@kvack.org>
+To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Cc: "Dr. Werner Fink" <werner@suse.de>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Feb 1998, Rogier Wolff wrote:
+Hi,
 
-> Rik van Riel wrote:
-> > fil_dsc - number of file descriptors (if it has loads of
-> >           file descriptors, it communicates a lot with the environment
-> >           and is less likely a batch process)
-> 
-> At shell they have 3D datasets. 
-> 
-> They store them in an "array of 2D files". That way you can do:
-> 
->          (echo "P5";echo 230 500;cat file24) | xv -
-> 
-> A program processing these e.g. in 2D, but then along a different axis
-> as over here, would have all 300 files open at the same time.......
+On Fri, 27 Feb 1998 10:58:34 +0100 (MET), Rik van Riel
+<H.H.vanRiel@fys.ruu.nl> said:
 
-OK, we could take the number of non-file file descriptors.
-The number of network connections (to not-self) is usually
-a good indication of program interaction. The number of
-network I/Os also is a good bonus.
+> What I wanted kswapd to do, was to select SWAP_CLUSTER_MAX pages and
+> swap them out in _one_ I/O operation. Because this should save head
+> movement, it might give us an improvement over syncing each swapped
+> page seperately.
 
-Rik.
-+-----------------------------+------------------------------+
-| For Linux mm-patches, go to | "I'm busy managing memory.." |
-| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
-| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
-+-----------------------------+------------------------------+
+I'm working towards it, and yes, this is a very important thing to have.
+It's more than just head movement --- disk requests, especially on SCSI,
+simply go much faster if you can amalgamate a number of physically
+adjacent IO requests into a single operation (scatter-gather allows you
+to do this even if the memory for the data is not physically
+contiguous).  
+
+The biggest problem is avoiding blocking while we do the work in
+try_to_swap_out().  That is a rather tricky piece of code, since it has
+to deal with the fact that the process it is swapping can actually be
+killed if we sleep for any reason, so it will not necessarily still be
+there when we wake up again.  We've really got to do the entire
+custering operation for write within try_to_swap_out() and then start up
+the IO for those pages.
+
+However, at least with the new swap cache stuff we can make things
+easier, since it is now possible to set up swap cache associations
+atomically on all the pages we want to swapout, and then take as much
+time as we want performing the actual writes.  All we need to do is make
+sure that we lock all the pages for IO without the risk of blocking.
+
+Cheers,
+ Stephen.
