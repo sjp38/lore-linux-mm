@@ -1,26 +1,27 @@
 Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id BFC3A38C3D
-	for <linux-mm@kvack.org>; Thu,  9 Aug 2001 17:58:34 -0300 (EST)
-Date: Thu, 9 Aug 2001 17:58:33 -0300 (BRST)
+	by perninha.conectiva.com.br (Postfix) with SMTP id D059538D21
+	for <linux-mm@kvack.org>; Thu,  9 Aug 2001 17:57:11 -0300 (EST)
+Date: Thu, 9 Aug 2001 17:57:10 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Swapping for diskless nodes
-In-Reply-To: <m1snf1tb1q.fsf@frodo.biederman.org>
-Message-ID: <Pine.LNX.4.33L.0108091758070.1439-100000@duckman.distro.conectiva>
+In-Reply-To: <E15UrUl-0007Rn-00@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.33L.0108091756420.1439-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Dirk W. Steinberg" <dws@dirksteinberg.de>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Bulent Abali <abali@us.ibm.com>, "Dirk W. Steinberg" <dws@dirksteinberg.de>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9 Aug 2001, Eric W. Biederman wrote:
+On Thu, 9 Aug 2001, Alan Cox wrote:
 
-> I don't know about that.  We already can swap over just about
-> everything because we can swap over the loopback device.
+> Ultimately its an insoluble problem, neither SunOS, Solaris or
+> NetBSD are infallible, they just never fail for any normal
+> situation, and thats good enough for me as a solution
 
-Last I looked the loopback device could deadlock your
-system without you needing to swap over it ;)
+Memory reservations, with reservations on a per-socket
+basis, can fix the problem.
 
 Rik
 --
