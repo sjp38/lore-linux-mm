@@ -1,39 +1,60 @@
 Subject: Re: 2.5.65-mm2
-References: <20030319012115.466970fd.akpm@digeo.com>
-From: Alexander Hoogerhuis <alexh@ihatent.com>
-Date: 19 Mar 2003 11:16:51 +0100
+From: Steven Cole <elenstev@mesatop.com>
 In-Reply-To: <20030319012115.466970fd.akpm@digeo.com>
-Message-ID: <87el53acfg.fsf@lapper.ihatent.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+References: <20030319012115.466970fd.akpm@digeo.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 19 Mar 2003 12:51:28 -0700
+Message-Id: <1048103489.1962.87.camel@spc9.esa.lanl.gov>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@digeo.com> writes:
->
-> [SNIP]
->
+On Wed, 2003-03-19 at 02:21, Andrew Morton wrote:
+> 
+> http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.65/2.5.65-mm2/
+> 
 
-Yay! Still working Radeon :)
+I am seeing a significant degradation of interactivity under load with
+recent -mm kernels.  The load is dbench on a reiserfs file system with
+increasing numbers of clients.  The test machine is single PIII, IDE,
+256MB memory, all kernels PREEMPT.
 
-And 4x AGP:
+Specifying elevator=deadline improved the response of 2.5.65-mm2
+somewhat, but it still eventually became intolerably slow with
+sufficient load.
 
-agpgart: Putting AGP V2 device at 00:00.0 into 4x mode
-agpgart: Putting AGP V2 device at 01:00.0 into 4x mode
+Interactivity tests consisted of switching between desktops with two
+instances of Mozilla 1.3 on separate desktops, and Evolution 1.2.2 on
+another desktop.  Additional tests included shaking the window and
+wiggling the scrollbar.
 
-Come to think of it, I'll give it a spin, this might be due to a
-working DSDT table that was compiled in with ACPI, whereas I had the
-1x problems before I did this.
+The third and fourth columns list the number of dbench clients at which
+interactivity becomes poor, or intolerable, defined here as getting a
+response after:
 
-mvh,
-A
--- 
-Alexander Hoogerhuis                               | alexh@ihatent.com
-CCNP - CCDP - MCNE - CCSE                          | +47 908 21 485
-"You have zero privacy anyway. Get over it."  --Scott McNealy
+good		less than 1 second
+poor		seconds
+intolerable	tens of seconds
+
+kernel			interactivity under load (dbench clients)
+			good	poor 	intolerable
+
+2.5.65-bk		 56*
+2.5.65-mm1		 <8	16	24
+2.5.65-mm2		 <8	16	24
+2.5.65-mm2 deadline	 <8	20	28
+
+*2.5.65-bk was still performing very well at dbench 56.  I'll continue
+to test up to 128 clients.
+
+2.5.65-bk was updated with a bk pull this morning.
+
+Steven
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
