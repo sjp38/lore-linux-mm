@@ -1,57 +1,34 @@
-From: lord@sgi.com
-Message-Id: <200006281554.KAA19007@jen.americas.sgi.com>
+From: David Woodhouse <dwmw2@infradead.org>
+In-Reply-To: <200006281554.KAA19007@jen.americas.sgi.com> 
+References: <200006281554.KAA19007@jen.americas.sgi.com> 
 Subject: Re: kmap_kiobuf() 
-In-reply-to: Your message of "Wed, 28 Jun 2000 16:41:55 BST
-Date: Wed, 28 Jun 2000 10:54:40 -0500
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Date: Wed, 28 Jun 2000 17:06:30 +0100
+Message-ID: <13214.962208390@cygnus.co.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
+To: lord@sgi.com
 Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, sct@redhat.com, riel@conectiva.com.br
 List-ID: <linux-mm.kvack.org>
 
-> I think it would be useful to provide a function which can be used to 
-> obtain a virtually-contiguous VM mapping of the pages of an iobuf.
-> 
-> Currently, to access the pages of an iobuf, you have to kmap() each page
-> individually. For various purposes, it would be useful to be able to kmap the
-> whole iobuf contiguously, so that you can guarantee that:
-> 
-> 	page_address(iobuf->maplist[n]) + PAGE_SIZE 
-> 		== page_address(iobuf->maplist[n+1])
-> 
->     (for n such that n < iobuf->nr_pages, obviously. Don't be so pedantic.)
-> 
-> Rather than taking a kiobuf as an argument, the new function might as well 
-> be more generic:
-> 
-> unsigned long kremap_pages(struct page **maplist, int nr_pages);
-> void kunmap_pages(struct page **maplist, int nr_pages);
-> 
-> I had a quick look at the code for kmap() and vmalloc() and decided that 
-> even if I attempted to do it myself, I'd probably bugger it up and a MM 
-> hacker would have to fix it anyway. So I'm not going to bother.
-> 
-> T'would be useful if someone else could find the time to do so, though.
-> 
-> 
-> --
-> dwmw2
-> 
-> 
+lord@sgi.com said:
+>  I always knew it would go down like a ton of bricks, because of the
+> TLB flushing costs. As soon as you have a multi-cpu box this operation
+> gets expensive, the code could be changed to do lazy tlb flushes on
+> unmapping the pages, but you still have the cost every time you set a
+> mapping up. 
 
+Aha - is this why kmap uses a pre-allocated set of PTEs? I got about that 
+far before deciding I had no clue what was going on and giving up.
 
-The XFS port currently has exactly this beast, there is an extension
-to let us pass an existing set of pages into the vmalloc_area_pages
-function. It uses the existing pages instead of allocating new ones.
-We needed something to let us map groups of pages into a single byte array.
+MM is not exactly my field - I just know I want to be able to lock down a 
+user's buffer and treat it as if it were in kernel-space, passing its 
+address to functions which expect kernel buffers.
 
+--
+dwmw2
 
-I always knew it would go down like a ton of bricks, because of the TLB
-flushing costs. As soon as you have a multi-cpu box this operation gets
-expensive, the code could be changed to do lazy tlb flushes on unmapping
-the pages, but you still have the cost every time you set a mapping up.
-
-Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
