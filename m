@@ -1,42 +1,39 @@
-Message-ID: <403D4303.1020709@cyberone.com.au>
-Date: Thu, 26 Feb 2004 11:51:15 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
-MIME-Version: 1.0
+Date: Wed, 25 Feb 2004 17:14:45 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: More vm benchmarking
-References: <403C66D2.6010302@cyberone.com.au>	<20040225014757.4c79f2af.akpm@osdl.org>	<403C7181.6050103@cyberone.com.au>	<20040225020425.2c409844.akpm@osdl.org> <20040225035043.6c536d99.akpm@osdl.org>
-In-Reply-To: <20040225035043.6c536d99.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-Id: <20040225171445.148d99a1.akpm@osdl.org>
+In-Reply-To: <403D4303.1020709@cyberone.com.au>
+References: <403C66D2.6010302@cyberone.com.au>
+	<20040225014757.4c79f2af.akpm@osdl.org>
+	<403C7181.6050103@cyberone.com.au>
+	<20040225020425.2c409844.akpm@osdl.org>
+	<20040225035043.6c536d99.akpm@osdl.org>
+	<403D4303.1020709@cyberone.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: Nick Piggin <piggin@cyberone.com.au>
 Cc: linux-mm@kvack.org, Nikita@Namesys.COM
 List-ID: <linux-mm.kvack.org>
 
+Nick Piggin <piggin@cyberone.com.au> wrote:
+>
+> You would
+> expect ZONE_NORMAL to have more pages reclaimed from it
+> because there should be more pressure on it.
 
-Andrew Morton wrote:
+Why?
 
->Andrew Morton <akpm@osdl.org> wrote:
->
->>I'll do the pgsteal_lo splitup.
->>
->
->OK, did that.   Running `make -j4 vmlinux' on the 2-way with mem=64m:
->
->Count how many pages were reclaimed from the various zones:
->
->					DMA	NORMAL	HIGH
->up to shrink_slab-for-all-zones:	3749	192580	0	(1:51)
->up to zone-balancing-fix:		5816	144545		(1:24)
->up to zone-balancing-batching:		21446	85209		(1:4)
->
->It should be 1:3, but it's tons better than it used to be.
->
->
+The only things which should be special about ZONE_NORMAL which I can think
+of are:
 
-Yeah I'm not sure if that is entirely true though. You would
-expect ZONE_NORMAL to have more pages reclaimed from it
-because there should be more pressure on it.
+a) All the early-allocated pinned memory is sitting there and
+
+b) If you start an app which uses a lot of memory, its text pages will
+   probabyl be in ZONE_NORMAL while ZONE_DMA will contain just bss and
+   pagecache.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
