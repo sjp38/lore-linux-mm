@@ -1,148 +1,49 @@
-Date: Sat, 19 May 2001 19:13:01 +0200 (CEST)
-From: Mike Galbraith <mikeg@wen-online.de>
-Subject: [RFC][PATCH] Re: Linux 2.4.4-ac10
-In-Reply-To: <20010518235852.R8080@redhat.com>
-Message-ID: <Pine.LNX.4.33.0105191743000.393-100000@mikeg.weiden.de>
+Date: Sat, 19 May 2001 18:41:55 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
+In-Reply-To: <Pine.LNX.4.33.0105191743000.393-100000@mikeg.weiden.de>
+Message-ID: <Pine.LNX.4.21.0105191840250.5531-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sat, 19 May 2001, Mike Galbraith wrote:
+> On Fri, 18 May 2001, Stephen C. Tweedie wrote:
+> 
+> > That's the main problem with static parameters.  The problem you are
+> > trying to solve is fundamentally dynamic in most cases (which is also
+> > why magic numbers tend to suck in the VM.)
+> 
+> Magic numbers might be sucking some performance right now ;-)
 
-On Fri, 18 May 2001, Stephen C. Tweedie wrote:
+... so you replace them with some others ... ;)
 
-> That's the main problem with static parameters.  The problem you are
-> trying to solve is fundamentally dynamic in most cases (which is also
-> why magic numbers tend to suck in the VM.)
+> Three back to back make -j 30 runs for three different kernels.
+> Swap cache numbers are taken immediately after last completion.
 
-Magic numbers might be sucking some performance right now ;-)
-
-Three back to back make -j 30 runs for three different kernels.
-Swap cache numbers are taken immediately after last completion.
-
-Reference runs  (bad numbers.  cache collapse hurts.. a lot)
-real    12m8.157s  11m41.192s  11m36.069s  2.4.4.virgin
-user    7m57.710s   7m57.820s   7m57.150s
-sys     0m37.200s   0m37.070s   0m37.020s
-Swap cache: add 785029, delete 781670, find 243396/1051626
-
-                    oddball.. infrequent, but happens
-                    vvvv
-real    10m30.470s  9m36.478s   9m50.512s  2.4.5-pre3.virgin
-user    7m54.300s   7m53.430s   7m55.200s
-sys     0m36.010s   0m36.850s   0m35.230s
-Swap cache: add 1018892, delete 1007053, find 821456/1447811
-
-real    9m9.679s    9m18.291s   8m55.981s  3.4.5-pre3.tweak
-user    7m55.590s   7m57.060s   7m55.850s
-sys     0m34.890s   0m34.370s   0m34.330s
-Swap cache: add 656966, delete 646676, find 325186/865183
-
---- linux-2.4.5-pre3/mm/vmscan.c.org	Thu May 17 16:44:23 2001
-+++ linux-2.4.5-pre3/mm/vmscan.c	Sat May 19 11:52:40 2001
-@@ -824,39 +824,17 @@
- #define DEF_PRIORITY (6)
- static int refill_inactive(unsigned int gfp_mask, int user)
- {
--	int count, start_count, maxtry;
--
--	if (user) {
--		count = (1 << page_cluster);
--		maxtry = 6;
--	} else {
--		count = inactive_shortage();
--		maxtry = 1 << DEF_PRIORITY;
--	}
--
--	start_count = count;
--	do {
--		if (current->need_resched) {
--			__set_current_state(TASK_RUNNING);
--			schedule();
--			if (!inactive_shortage())
--				return 1;
--		}
--
--		count -= refill_inactive_scan(DEF_PRIORITY, count);
--		if (count <= 0)
--			goto done;
--
--		/* If refill_inactive_scan failed, try to page stuff out.. */
--		swap_out(DEF_PRIORITY, gfp_mask);
--
--		if (--maxtry <= 0)
--				return 0;
--
--	} while (inactive_shortage());
--
--done:
--	return (count < start_count);
-+	int shortage = inactive_shortage();
-+	int large = freepages.high/2;
-+	int scale;
-+
-+	scale = shortage/large;
-+	scale += free_shortage()/large;
-+	if (scale > DEF_PRIORITY-1)
-+		scale = DEF_PRIORITY-1;
-+	if (refill_inactive_scan(DEF_PRIORITY-scale, shortage) < shortage)
-+		return swap_out(DEF_PRIORITY, gfp_mask);
-+	return 1;
- }
-
- static int do_try_to_free_pages(unsigned int gfp_mask, int user)
-@@ -976,7 +954,8 @@
- 		 * We go to sleep for one second, but if it's needed
- 		 * we'll be woken up earlier...
- 		 */
--		if (!free_shortage() || !inactive_shortage()) {
-+		if (current->need_resched || !free_shortage() ||
-+				!inactive_shortage()) {
- 			interruptible_sleep_on_timeout(&kswapd_wait, HZ);
- 		/*
- 		 * If we couldn't free enough memory, we see if it was
-@@ -1054,7 +1033,7 @@
- 				if (!zone->size)
- 					continue;
-
--				while (zone->free_pages < zone->pages_low) {
-+				while (zone->free_pages < zone->inactive_clean_pages) {
- 					struct page * page;
- 					page = reclaim_page(zone);
- 					if (!page)
+The performance increase is nice, though.  Do you see similar
+changes in different kinds of workloads ?
 
 
-Now, lets go back to the patch I posted which reduced context switches
-under load by ~40% (of ~685000) for a moment.  Kswapd is asleep while
-awaiting IO completion.  The guys who are pestering the sleeping kswapd
-are going to be doing page_launder to fix the shortage they're yammering
-at kswapd about.  We're nibbling away at the free shortage..  and the
-inactive_dirty list.  So now, we have an inactive shortage as well as
-a large free shortage when we enter refill_inactive.  (shortages became
-large because kswapd is sleeping on the job)
+> (yes, the last hunk looks out of place wrt my text.
 
-6 * (1 << page_cluster) is larger than MAX_LAUNDER, but I don't see any
-reason to sneak up on the shortage instead of correcting it all at once.
-It takes too long to find out it's going to fail.  Why not just get it
-over with before every scrubber in the system is sleeping on IO.. except
-the ones doing swap pagebuffer allocations.  They can swapout, but they
-can't help push swap, so it'll all sit there until somebody wakes up no?
+It also looks kind of bogus and geared completely towards this
+particular workload ;)
 
-If I'm interpreting the results right, taking it all on at once is saving
-a lot of what looks to me to be unnecessary swap.  I can't see those
-swap numbers as being anything other than unnecessary given that I see
-no evidence of cache collapse as in 2.4.4 and earlier kernels, and the
-job is getting done faster without them.
+regards,
 
-	-Mike
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-(yes, the last hunk looks out of place wrt my text.  however, it improves
-throughput nicely, so I left it in.  swap reduction and time savings are
-present without it.. just not quite as pretty;)
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
