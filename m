@@ -1,27 +1,31 @@
-Subject: Re: TLB flush optimization on s/390.
-Message-ID: <OF6AFB1404.2D92608A-ONC1256DBB.002F0E43-C1256DBB.002F5F7D@de.ibm.com>
-From: "Martin Schwidefsky" <schwidefsky@de.ibm.com>
-Date: Fri, 10 Oct 2003 10:37:26 +0200
+Message-ID: <000057267046$0000159e$00007030@mx2.hotmail.com>
+From: "DR.  Whittenburg" <Ntsswl5ixzaucnhh@hotmail.com>
+Subject: Soma-Watson                             ...                    QRMO
+Date: Sun, 12 Oct 2003 12:28:58 -0500
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="Windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: akpm@osdl.org, linux-arch@vger.kernel.org, linux-mm@kvack.org, willy@debian.org
+To: linux-network-request@liste.linux.org.tr, linux-mm-www-request@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On at least x86 and sparc it makes it so that GCC cannot allocate
-> enough registers and it has to reload several values to the
-> stack.
+jhyl       sk
 
-And the function call overhead is smaller then the register spilling
-on the stack ?!? I'm a bit surprised by this but I take you word
-for it.
+*FDA Approved Medications o$nline,
+and MUCH MORE.
 
-blue skies,
-   Martin
+Low Price  !  Fast Delivery!  PRIVACY !
+
+Requests received by 5:00 PM EST will arrive
+the very next business day.
+
+CLICK HERE TO CONTINUE
+http://www.mlof.com@www.lunsanaweb.biz/vpr6634/
 
 
+xvsubwwesc          xhwlqnuwd
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
