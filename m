@@ -1,46 +1,54 @@
-Received: from [129.179.161.11] by ns1.cdc.com with ESMTP for linux-mm@kvack.org; Fri, 31 Aug 2001 08:48:26 -0500
-Message-Id: <3B8F94C0.9080103@syntegra.com>
-Date: Fri, 31 Aug 2001 08:44:32 -0500
-From: Andrew Kay <Andrew.J.Kay@syntegra.com>
-Subject: Re: kernel: __alloc_pages: 1-order allocation failed
-References: <Pine.LNX.4.21.0108271928250.7385-100000@freak.distro.conectiva> <20010830221315Z16034-32383+2530@humbolt.nl.linux.org> <3B8EC0B8.3000504@syntegra.com> <20010830225802Z16121-32384+1142@humbolt.nl.linux.org>
+Message-ID: <3B8FDA36.5010206@interactivesi.com>
+Date: Fri, 31 Aug 2001 13:40:54 -0500
+From: Timur Tabi <ttabi@interactivesi.com>
 MIME-Version: 1.0
+Subject: kernel hangs in 118th call to vmalloc
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Unfortunately, I don't have this compiled in the kernel.  I'm 
-recompiling now with the -ac5 patch and the debugging enabled.  I'll 
-start another test with it and hopefully have better debug info within a 
-couple hours.
+I'm writing a driver for the 2.4.2 kernel.  I need to use this kernel 
+because this driver needs to be compatible with a stock Red Hat system. 
+  Patches to the kernel are not an option.
 
-Andy
+The purpose of the driver is to locate a device that exists on a 
+specific memory chip.  To help find it, I've written this routine:
 
-Daniel Phillips wrote:
-> On August 31, 2001 12:39 am, Andrew Kay wrote:
-> 
->>I am running the stock klogd (1.4.0) from the redhat 7.1 install.  I'll 
->>give it a try with the 2.4.9-ac4 tomorrow.  The output you saw is from a 
->>  mostly static kernel (except for reiserfs).  Ps -aux shows a bit of 
->>output, but remember that it hangs after encountering the error... Mhsqd 
->>is one of our products.  I strongly suspect that the hung process is 
->>SMTPserver, which isn't shown
->>
-> 
-> OK, how about SysReq (t) for a backtrace of the stuck tasks.
-> 
-> --
-> Daniel
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/
-> 
+#define CLEAR_BLOCK_SIZE 1048576UL        // must be a multiple of 1MB
+#define CLEAR_BLOCK_COUNT ((PHYSICAL_HOP * 2) / CLEAR_BLOCK_SIZE)
 
+void clear_out_memory(void)
+{
+     void *p[CLEAR_BLOCK_COUNT];
+     unsigned i;
+     unsigned long size = 0;
+
+     for (i=0; i<CLEAR_BLOCK_COUNT; i++)
+     {
+         p[i] = vmalloc(CLEAR_BLOCK_SIZE);
+         if (!p[i])
+             break;
+         size += CLEAR_BLOCK_SIZE;
+     }
+
+     while (--i)
+         vfree(p[i]);
+
+     printk("Paged %luMB of memory\n", size / 1048576UL);
+}
+
+What this routine does is call vmalloc() repeatedly for a number of 1MB 
+chunks until it fails or until it's allocated 128MB (CLEAR_BLOCK_COUNT 
+is equal to 128 in this case).  Then, it starts freeing them.
+
+The side-effect of this routine is to page-out up to 128MB of RAM. 
+Unfortunately, on a 128MB machine, the 118th call to vmalloc() hangs the 
+system.  I was expecting it to return NULL instead.
+
+Is this a bug in vmalloc()?  If so, is there a work-around that I can use?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
