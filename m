@@ -1,30 +1,47 @@
-Date: Tue, 5 Jun 2001 15:21:16 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: Comment on patch to remove nr_async_pages limit
-In-Reply-To: <Pine.LNX.4.33.0106051140270.1227-100000@mikeg.weiden.de>
-Message-ID: <Pine.LNX.3.96.1010605151500.25725C-100000@kanga.kvack.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 5 Jun 2001 16:42:52 -0400
+From: cohutta <cohutta@MailAndNews.com>
+Subject: Re: temp. mem mappings
+Message-ID: <3B581215@MailAndNews.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@wen-online.de>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Zlatko Calusic <zlatko.calusic@iskon.hr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Jun 2001, Mike Galbraith wrote:
+> > > Allocate a virtual memory area using vmalloc and then save and
+modify the
+> > > pmd/pgd/pte to point to the physical memory you want.  To unmap,
+just undo the
+> > > previous steps.
+> >
+> > ioremap() is there for exactly that purpose.
+>
+> True, except that you can't use ioremap on normal memory, which is
+what I
+> assumed he was trying to do.
 
-> Yes.  If we start writing out sooner, we aren't stuck with pushing a
-> ton of IO all at once and can use prudent limits.  Not only because of
-> potential allocation problems, but because our situation is changing
-> rapidly so small corrections done often is more precise than whopping
-> big ones can be.
+  Normal memory is identity-mapped very early in boot anyway (except for
+  highmem on large Intel boxes, that is, and kmap() works for that.)
+---
 
-Hold on there big boy, writing out sooner is not better.  What if the
-memory shortage is because real data is being written out to disk?
-Swapping early causes many more problems than swapping late as extraneous
-seeks to the swap partiton severely degrade performance.
+I don't really want to play with the page tables if i can help it.
+I didn't use ioremap() because it's real system memory, not IO bus
+memory.
 
-		-ben
+How much normal memory is identity-mapped at boot on x86?
+Is it more than 8 MB?
+
+I'm trying to read some ACPI tables, like the FACP.
+On my system, this is at physical address 0x3fffd7d7 (e.g.).
+
+kmap() ends up calling set_pte(), which is close to what i am
+already doing.  i'm having a problem on the unmap side when i
+am done with the temporary mapping.
+
+thanks.
+/cohutta/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
