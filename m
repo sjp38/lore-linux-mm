@@ -1,46 +1,39 @@
+Date: Thu, 17 Aug 2000 12:30:42 -0700
+Message-Id: <200008171930.MAA23963@pizda.ninka.net>
+From: "David S. Miller" <davem@redhat.com>
+In-reply-to: <200008171932.MAA93790@google.engr.sgi.com> (message from Kanoj
+	Sarcar on Thu, 17 Aug 2000 12:32:35 -0700 (PDT))
 Subject: Re: pte_pagenr/MAP_NR deleted in pre6
-Date: Thu, 17 Aug 2000 20:33:33 +0100 (BST)
-In-Reply-To: <200008171920.MAA23931@pizda.ninka.net> from "David S. Miller" at Aug 17, 2000 12:20:50 PM
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E13PVPz-0003Xl-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+References: <200008171932.MAA93790@google.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, sct@redhat.com, roman@augan.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, rmk@arm.linux.org.uk, nico@cam.org, davidm@hpl.hp.com
+To: kanoj@google.engr.sgi.com
+Cc: sct@redhat.com, roman@augan.com, linux-mm@kvack.org, linux-kernel@vger.redhat.com, rmk@arm.linux.org.uk, nico@cam.org, davidm@hpl.hp.com, alan@lxorguk.ukuu.org.uk
 List-ID: <linux-mm.kvack.org>
 
-> I'll probably be adding isa_virt_to_bus, because when it is in fact
-> "ISA like" the driver already knows that it must be certain that the
+BTW, I've sed s/vger.rutgers.edu/vger.redhat.com/
 
-isa_alloc_consistent makes sense actually. Its needed for ISA bus masters
-on ancient mips and other crap
+   Wait! You are saying you have a scheme that will prevent writers 
+   from writing buggy code that happens to work only on 32Mb i386 ...
+   Go ahead, I am all ears :-)
 
-> physical address is below the 16MB mark right?  Then the cases left on
+I understand your point, but please understand mine.
 
-16Mb for ISA - except on a few late 486 era boxes with magic extensions (which
-we'd finalyl be able to use)
+One might laugh, but after I read and really considered some of the
+points made by the author of "Writing Solid Code" in that book, I
+realized that one of my jobs as someone creating an API is that I
+should be trying as hard as possible to design it such that it is next
+to impossible to misuse it.
 
-> x86 are MCA (which can use the ISA interface) and PCI drivers which
+Secondly, I learned that I shouldn't be adding API's spuriously
+because it will end up being maintained forever, re: the
+kern_addr_looks_ok sillyness :-)
 
-no MCA bus is 32bit - its closer to PCI than ISA. mca_alloc_consistent is 
-doable and if some loon ever does do old IBM power boxes it will be needed
-as they apparently arent cache coherent MCA
+So anyways, I was probably being overly anal for this particular case.
 
-> drivers.  For example, BTTV still doesn't use the PCI dma stuff simply
-> because nobody wishes to use their brains a little bit and encapsulate
-> the user DMA stuff into a common spot (it's duplicated in 4 or 5
-> drivers) which uses scatter gather lists with the DMA api.
-
-BTTV doesnt use it because the current stuff works and for post 2.4 using
-mmap_kiovec() and similar stuff probably will be a better solution - that
-will also help us to push PCI bug awareness into pci not drivers
-
-Also mmap_kiovec will let i810 and some other sound cards do scatter gather
-buffers sensibly.
-
+Later,
+David S. Miller
+davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
