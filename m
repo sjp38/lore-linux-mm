@@ -1,30 +1,39 @@
-Subject: Re: [PATCH] Prevent OOM from killing init
-Date: Fri, 23 Mar 2001 22:21:07 +0000 (GMT)
-In-Reply-To: <Pine.LNX.4.30.0103232159560.13864-100000@fs131-224.f-secure.com> from "Szabolcs Szakacsits" at Mar 23, 2001 10:09:23 PM
+Date: Fri, 23 Mar 2001 17:23:29 -0500 (EST)
+From: Alexander Viro <viro@math.psu.edu>
+Subject: Re: [PATCH] Fix races in 2.4.2-ac22 SysV shared memory
+In-Reply-To: <E14gZuj-0005YN-00@the-village.bc.nu>
+Message-ID: <Pine.GSO.4.21.0103231721120.10092-100000@weyl.math.psu.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E14gZvi-0005YW-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Szabolcs Szakacsits <szaka@f-secure.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Guest section DW <dwguest@win.tue.nl>, Stephen Clouse <stephenc@theiqgroup.com>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
 List-ID: <linux-mm.kvack.org>
 
-> > and rely on it. You might find you need a few Gbytes of swap just to
-> > boot
+
+On Fri, 23 Mar 2001, Alan Cox wrote:
+
+> > On Fri, 23 Mar 2001, Stephen C. Tweedie wrote:
+> > >
+> > > The patch below is for two races in sysV shared memory.
+> > 
+> > 	+       spin_lock (&info->lock);
+> > 	+
+> > 	+       /* The shmem_swp_entry() call may have blocked, and
+> > 	+        * shmem_writepage may have been moving a page between the page
+> > 	+        * cache and swap cache.  We need to recheck the page cache
+> > 	+        * under the protection of the info->lock spinlock. */
+> > 	+
+> > 	+       page = find_lock_page(mapping, idx);
+> > 
+> > Ehh.. Sleeping with the spin-lock held? Sounds like a truly bad idea.
 > 
-> Seems a bit exaggeration ;) Here are numbers,
+> Umm find_lock_page doesnt sleep does it ?
 
-NetBSD is if I remember rightly still using a.out library styles. 
+It certainly does. find_lock_page() -> __find_lock_page() -> lock_page() ->
+-> __lock_page() -> schedule().
 
-> 6-50% more VM and the performance hit also isn't so bad as it's thought
-> (Eduardo Horvath sent a non-overcommit patch for Linux about one year
-> ago).
-
-The Linux performance hit would be so close to zero you shouldnt be able to
-measure it - or it was in 1.2 anyway
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
