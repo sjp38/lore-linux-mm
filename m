@@ -1,47 +1,40 @@
-Received: from web3.hq.eso.org (web3.hq.eso.org [134.171.7.4])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id EAA24771
-	for <linux-mm@kvack.org>; Mon, 17 Aug 1998 04:47:00 -0400
-Received: from localhost (ndevilla@localhost) by opus3.hq.eso.org (8.8.5/eso_cl_6.0) with SMTP id KAA27333 for <linux-mm@kvack.org>; Mon, 17 Aug 1998 10:46:25 +0200 (MET DST)
-Date: Mon, 17 Aug 1998 10:46:24 +0200 (MET DST)
-From: Nicolas Devillard <ndevilla@mygale.org>
-Subject: memory overcommitment
-Message-ID: <Pine.SOL.3.96.980817103420.26929A-100000@opus3>
+Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA26562
+	for <linux-mm@kvack.org>; Mon, 17 Aug 1998 11:53:18 -0400
+Date: Mon, 17 Aug 1998 16:35:48 +0100
+Message-Id: <199808171535.QAA03051@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: More info: 2.1.108 page cache performance on low memory
+In-Reply-To: <Pine.LNX.4.02.9808020002110.424-100000@iddi.npwt.net>
+References: <199807271102.MAA00713@dax.dcs.ed.ac.uk>
+	<Pine.LNX.4.02.9808020002110.424-100000@iddi.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: ebiederm+eric@npwt.net
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dear all:
+Hi,
 
-I can allocate up to 2 gigs of memory on a Linux box with 256 megs of
-actual RAM + swap. Having browsed through pages and pages of linux-kernel
-mailing-lists archives, I found out a thread discussing that with the
-usual pros and cons, but could not find anything done about it. Ah, and I
-know the standard answer: ulimit or limit would do the job, but they do
-not apply system-wide.
+On Sun, 2 Aug 1998 00:19:52 -0500 (CDT), Eric W Biederman
+<eric@flinx.npwt.net> said:
 
-The usual story of over-commitment compares memory allocation to
-airplane companies, but in this case something goes wrong: the kernel
-actually knows that it has only 256 megs, why does it commit itself to
-promise more than 8 times this amount to any normal user requesting it??
-A company selling 100 tickets for a 12-seat plane would have serious
-problems I guess. It is Ok to overbook, but what are you doing exactly
-when all passengers show up at the counter, especially when you have
-overbooked by a factor 8 or so?
+> What I was envisioning is using a single write-out daemon 
+> instead of 2 (one for buffer cache, one for page cache).  Using the same
+> tests in shrink_mmap.  Reducing the size of a buffer_head by a lot because
+> consolidating the two would reduce the number of lists needed.  
+> To sit the buffer cache upon a single pseudo inode, and keep it's current
+> hashing scheme.
 
-In this case, I found out that once I start touching the 2 generously
-allocated gigs of memory, RAM goes away, then swap, then daemons start
-dying one by one and the machine freezes to the point of unusability. More
-than a single memory allocation problem or policy, it is a serious threat
-to security, because it allows to kill dameons for any user.
+The only reason we currently have two daemons is that we need one for
+writing dirty memory and another for reclaiming clean memory.  That way,
+even when we stall for disk writes, we are still able to reclaim free
+memory via shrink_mmap().  The kswapd daemon and the shrink_mmap() code
+already treat the page cache and buffer cache both the same.
 
-Anything done about it? Some references I may have missed about this
-point? Someone working on it? An easy quickfix maybe??
-
-Thanks for helping,
-Nicolas
-
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
