@@ -1,85 +1,51 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA18077
-	for <linux-mm@kvack.org>; Sat, 25 Jul 1998 09:06:04 -0400
+Received: from flinx.npwt.net (root@flinx.npwt.net [208.236.161.237])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA23672
+	for <linux-mm@kvack.org>; Sun, 26 Jul 1998 11:05:56 -0400
+Date: Sun, 26 Jul 1998 09:49:02 -0500 (CDT)
+From: Eric W Biederman <eric@flinx.npwt.net>
+Reply-To: ebiederm+eric@npwt.net
 Subject: Re: More info: 2.1.108 page cache performance on low memory
-References: <Pine.LNX.3.96.980724234821.31219A-100000@mirkwood.dummy.home>
-Reply-To: Zlatko.Calusic@CARNet.hr
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 25 Jul 1998 15:05:41 +0200
-In-Reply-To: Rik van Riel's message of "Fri, 24 Jul 1998 23:55:10 +0200 (CEST)"
-Message-ID: <87d8au13oa.fsf@atlas.CARNet.hr>
+In-Reply-To: <87iukovq42.fsf@atlas.CARNet.hr>
+Message-ID: <Pine.LNX.4.02.9807260941230.276-100000@iddi.npwt.net>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@npwt.net>, Linux MM <linux-mm@kvack.org>
+To: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
 
-> On 24 Jul 1998, Zlatko Calusic wrote:
+
+On 23 Jul 1998, Zlatko Calusic wrote:
+
+> "Stephen C. Tweedie" <sct@redhat.com> writes:
 > 
-> > > There's also a 'soft limit', or borrow percentage. Ultimately
-> > > the minimum and maximum percentages should be 0 and 100 %
-> > > respectively.
+> > Hi,
 > > 
-> > Could you elaborate on "borrow" percentage? I have some trouble
-> > understanding what that could be.
+> > On 20 Jul 1998 11:15:12 +0200, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+> > said:
+> > 
+> > > I don't know if its easy, but we probably should get rid of buffer
+> > > cache completely, at one point in time. It's hard to balance things
+> > > between two caches, not to mention other memory objects in kernel.
+> > 
+> > No, we need the buffer cache for all sorts of things.  You'd have to
+> > reinvent it if you got rid of it, since it is the main mechanism by
+> > which we can reliably label IO for the block device driver layer, and we
+> > also cache non-page-aligned filesystem metadata there.
 > 
-> It's an idea I stole from Digital Unix :)
-> 
-> Basically, the cache is allowed to grow boundless, but is
-> reclaimed until it reaches the borrow percentage when
-> memory is short.
+> Even I didn't investigate it that lot, I still see Erics work on
+> adding dirty page functionality as a step toward this.
 
-OK, I get it now. Looks good.
+>From where I sit it looks completly possible to give the buffer cache a
+fake inode, and have it use the same mechanisms that I have developed for
+handling other dirty data in the page cache.  It should also be possible
+in this effort to simplify the buffer_head structure as well.
 
-> 
-> The philosophy behind is that caching the disk doesn't make
-> much sense beyond a certain point.
-> 
+As time permits I'll move in that direction.
 
-I mostly agree.
+Eric
 
-> It's a primitive idea, but it seems to have saved Andrea's
-> machine quite well (with the additional patch).
-> 
-> I admit your patch (multiple aging) should work even better,
-> but in order to do that, we probably want to make it auto-tuning
-> on the borrow percentage:
-> 
-> - if page_cache_size > borrow + 5%     --> add aging loop
-> - if loads_of_disk_io and almost thrashing [*] --> remove aging loop
-
-Yes, something like this could be worthwhile. I observed some strange
-patterns of behaviour with aging loop, sometimes system is still too
-aggresive, and sometimes you can't say if it's working at all.
-
-Probably, some debbugging and profiling code should be added to see
-what's goin' on there.
-
-> 
-> [*] this thrashing can be measured by testing the cache hit/mis
-> rate; if it falls below (say) 50% we could consider thrashing.
-
-That probably wouldn't work as well as you expect. Problem is again
-with that arbitrary 50%. I had code in kernel that reported
-buffer/page cache hit ratio and was surprised that for both caches it
-was > 90%. And that was on 5MB machine. Can you imagine? :)
-
-> 
-> (50% should be a good rate for an aging cache, and the amount
-> of loops is trimmed quickly enough when we grow anyway. This
-> mechanism could make a nice somewhat adjusting trimming
-> mechanism. Expect a patch soon...)
-> 
-
-I'll be glad to test a patch, but I'm not that convinced that this is
-really a good idea. But, then again I have nothing against it.
-
-Keep up the good work!
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-	Crime doesn't pay... does that mean my job is a crime?
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
