@@ -1,7 +1,8 @@
-Date: Mon, 11 Nov 2002 15:06:58 +0530 (IST)
+Date: Mon, 11 Nov 2002 15:17:28 +0530 (IST)
 From: <deepesh@india.tejasnetworks.com>
-Subject: Cache Enabling.
-Message-ID: <Pine.LNX.4.21.0211111454430.16030-100000@deepesh.india.tejasnetworks.com>
+Subject: Re: Cache Enabling.
+In-Reply-To: <Pine.LNX.4.21.0211111454430.16030-100000@deepesh.india.tejasnetworks.com>
+Message-ID: <Pine.LNX.4.21.0211111516170.16030-100000@deepesh.india.tejasnetworks.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -10,20 +11,40 @@ To: andrea@suse.de, wje@cthulhu.engr.sgi.com, pongheng@starnet.gov.sg, sct@redha
 List-ID: <linux-mm.kvack.org>
 
 
-Dear All,
+I had enabled the Data Cache. I forgot to mention that.
 
-
-I am using Power PC. The system which I am using takes 2 minutes more than
-usual for the software in the system to come up without cache
-enabling. These 2 minutes are really crucial.
-But there are problems when I enabled cache. The devices which I am using
-are mmapped. I do not want cache to be enabled for the memory mapped
-devices. When cache is enabled, none of the mmapped devices work in the
-usual way. How do I selectively disable the cache for the mmapped devices?
-
-
-Thank you,
 Deepesh
+
+
+
+
+On Mon, 11 Nov 2002 deepesh@india.tejasnetworks.com wrote:
+
+>
+>
+> Dear All,
+>
+>
+> I am using Power PC. The system which I am using takes 2 minutes more than
+> usual for the software in the system to come up without cache
+> enabling. These 2 minutes are really crucial.
+> But there are problems when I enabled cache. The devices which I am using
+> are mmapped. I do not want cache to be enabled for the memory mapped
+> devices. When cache is enabled, none of the mmapped devices work in the
+> usual way. How do I selectively disable the cache for the mmapped devices?
+>
+>
+> Thank you,
+> Deepesh
+>
+>
+
+--
+
+D.Deepesh
+R&D Engineer,
+Tejas Networks
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
