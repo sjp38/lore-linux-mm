@@ -1,49 +1,117 @@
-Subject: Re: Re: Memory allocation problem
-From: Arjan van de Ven <arjanv@redhat.com>
-Reply-To: arjanv@redhat.com
-In-Reply-To: <20030504194037.12611.qmail@webmail26.rediffmail.com>
-References: <20030504194037.12611.qmail@webmail26.rediffmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-RPD+Sx2uaDisNSF3pv06"
-Message-Id: <1052123596.1459.2.camel@laptop.fenrus.com>
-Mime-Version: 1.0
-Date: 05 May 2003 10:33:16 +0200
+Date: Mon, 05 May 2003 11:02:20 +0200 (CEST)
+From: Listar <listar@nl.linux.org>
+Message-ID: <listar-05052003110220.25898.1@nl.linux.org>
+Subject: Listar command results: No commands found
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: anand kumar <a_santha@rediffmail.com>
-Cc: Mark_H_Johnson@Raytheon.com, kernelnewbies@nl.linux.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-RPD+Sx2uaDisNSF3pv06
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+Request received for list 'reiserfs-cvs' via request address.
 
-On Sun, 2003-05-04 at 21:40, anand kumar wrote:
-> Hi,
->=20
-> Thanks for immediate response. I used 2.4.20 kernel patched with=20
-> bigphys
-> area and got it working. I know that this patch is part of Suse
-> distribution. Is there any plans to incorporate this patch in=20
-> Red Hat?
-> Is Red Hat 9 kernel equipped with this patch?
+>> [IMG]
+Unknown command.
 
-no it's not, nor are there plans to add it. BigPhysArea is a hack, not a
-solution. The solution is to use the scatter-gather engine on the pci
-card instead of needing to chainsaw physical ram always...
+>> [IMG][1]//IOE 3/4 AeOAEO 
+Unknown command.
 
---=-RPD+Sx2uaDisNSF3pv06
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+>> --- Links ---
+Unknown command.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.1 (GNU/Linux)
+>> 1 http://www.xinaggui.com/
+Unknown command.
 
-iD8DBQA+tiHLxULwo51rQBIRAhnaAJ4sxngutUuMnF8W+8z2ANTWHjSTgACcCeCD
-5oD4Qk3gnM1Ibs138R230UI=
-=3A5v
------END PGP SIGNATURE-----
+No commands detected in message.
 
---=-RPD+Sx2uaDisNSF3pv06--
+** Listar HELP FILE **
+By Rachel Blackman, JT Traub and Ryan T. Dean
+
+TO GET A LIST OF LISTS:
+	Send a message to the listar account on the server with a subject
+	of "lists".  A list of lists hosted by the server will be returned
+	to you.
+
+TO SUBSCRIBE TO A LIST:
+
+	Send a message to the listar account on the server (you can just
+	reply to this message).  In the subject field, enter "subscribe
+	[listname]".  Or, you can send a message to "[listname]-request"
+	with a subject of "subscribe".
+
+TO UNSUBSCRIBE FROM A LIST:
+	Send a message to the listar account on the server (you can just
+	reply to this message).  Enter "unsubscribe [listname]" in the
+	subject field.  You can also send a message to 
+	"[listname]-request" with a subject of "unsubscribe".
+        While you should NOT send your unsubscribe command to the list
+        itself, Listar will attempt to trap such erroneous postings and
+        forward them to the list administrators for proper handling.
+
+TO GET A DIGEST EVERY DAY:
+	Send a message to the listar account on the server with a subject
+	of "set [listname] digest".  This will turn on digests, and you
+	will receive a digest however often the server is configured to
+	send them.
+
+TO STOP GETTING A DIGEST:
+	Send a message to the listar account on the server with a subject
+	of "unset [listname] digest".  This will turn off digest mode, and
+	instead you will receive an eMail every time something is posted
+	to the list.
+
+TO GET A DIGEST AND NORMAL POSTS:
+	Send a message to the listar account on the server with a subject
+	of "set [listname] digest2".  This will activate digest mode with
+	normal posting.  As each message is posted to the list it will be
+	sent to you, and you will receive a digest as well.  This flag
+	should be used INSTEAD of digest, NOT IN ADDITION TO.
+	To stop receiving digests in addition to normal posts, send a
+	message to the listar account with a subject of "unset [listname]
+        digest2".  You will go back to receiving normal posts.
+
+TO FIND OUT WHO IS ON A LIST:
+	Send a message to the listar account on the server with a subject
+	of "who [listname]".  You will receive a list of people subscribed
+	to the list who are not hidden.  Admins will be able to see
+	everbody, including those hidden.
+
+TO HIDE ON A LIST:
+	Send a message to the listar account on the server with a subject
+	of "set [listname] hidden".  You will no longer appear on WHO
+	queries to the listserver.  No one (except Admins) will know you
+	are subscribed to the list unless you post to it (in which case
+	those people on the list will know you posted if nothing else).
+
+TO STOP HIDING ON A LIST:
+	Send a message to the listar account on the server with a subject of
+	"unset [listname] hidden".  You will then show up on WHO queries
+	to the listserver.
+
+TO GO ON VACATION:
+	Send a message to the listar account on the server with a subject of
+	"set [listname] vacation".  You will remain subscribed to the list
+	but will not receive any eMail as long as this flag is set.  To
+	come back from vacation, eMail the listar account with a subject of
+        "unset [listname] vacation".
+
+TO CHECK ON YOUR OWN STATUS:
+	Send a message to the listar account on the server with a subject
+	of "stats [listname]".  You will get a list of all the flags
+	currently set on your account.
+
+TO GET A LIST OF FLAGS AVAILABLE:
+	Send a message to the listar account on the server with a subject
+	of "flags".  An eMail will be sent to you with the available flags
+	that you can set on your account.
+
+TO GET A LIST OF COMMANDS AVAILABLE:
+	Send a message to the listar account on the server with a subject
+	of "commands".  An eMail will be sent to you with all the commands
+	that the server and any installed modules offer.
+
+---
+Listar v1.0.0 - job execution complete.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
