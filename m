@@ -1,59 +1,32 @@
-Subject: Significant Memory Reduction Using Huge Page Patch on Database Workload
-Message-ID: <OF3B2D710E.252B485F-ON85256C5D.00500150@pok.ibm.com>
-From: "Peter Wong" <wpeter@us.ibm.com>
-Date: Fri, 25 Oct 2002 11:38:58 -0500
+Date: Fri, 25 Oct 2002 13:31:41 -0400 (EDT)
+From: Bill Davidsen <davidsen@tmr.com>
+Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
+In-Reply-To: <2832683854.1035444175@[10.10.2.3]>
+Message-ID: <Pine.LNX.3.96.1021025133002.19333A-100000@gatekeeper.tmr.com>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@zip.com.au, William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
-Cc: Bill Hartner <bhartner@us.ibm.com>, "Martin J. Bligh" <mbligh@aracnet.com>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Dave McCracken <dmccr@us.ibm.com>, Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-     (1) 2.5.43-mm2:
-         2.5.43 + Andrew Morton's mm2 patch
+On Thu, 24 Oct 2002, Martin J. Bligh wrote:
 
-     (2) 2.5.43-mm2+huge:
-         2.5.43 + Andrew Morton's mm2 patch
-                + Bill Irwin's hugetlb patch
+> > Another thought, how does this play with NUMA systems? I don't have the
+> > problem, but presumably there are implications.
+> 
+> At some point we'll probably only want one shared set per node.
+> Gets tricky when you migrate processes across nodes though - will
+> need more thought
 
-     Andrew' mm2 patch can be found at:
-http://www.zipworld.com.au/~akpm/linux/patches/2.5/2.5.43/2.5.43-mm2/.
+The whole issue of pages shared between nodes is a graduate thesis waiting
+to happen.
 
-     The objective of this comparison is to measure the impact of
-Bill's patch. We used 680 for nr_hugepages, ~2.66 GB for the runs.
-
-----------------------------------------------------------------------
-System Information:
-
-   - 8-way 700MHz Pentium III Xeon processors, 2MB L2 Cache
-   - 4GB RAM
-   - 6 SCSI controllers connected to 120 9.1 GB disks with 10K RPM
-----------------------------------------------------------------------
-
-     Based upon the performance metrics and CPU utilization, the two
-kernels achieve similar performance. However, memory consumption
-by rmap and page tables is reduced significantly by using Bill's
-patch.
-
-
-                               2.5.43-mm2         2.5.43-mm2+huge
-     ==============================================================
-     pte_chain  (max) (MB)        4.3                182.4
-
-
-     PageTables (max) (MB)        9.5                153.7
-
-
-     In total, we save ~322 MB in the low memory area.
-
-Regards,
-Partha and Peter
-
-Partha Narayanan and Peter Wai Yee Wong
-IBM LTC Performance Team
-email: wpeter@us.ibm.com
-
+-- 
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
