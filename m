@@ -1,60 +1,143 @@
-Date: Thu, 11 Nov 2004 19:21:01 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [Fwd: Page allocator doubt]
-Message-ID: <20041111212101.GA18822@logos.cnet>
-References: <41937940.9070001@tteng.com.br> <1100200247.932.1145.camel@localhost> <4193BD07.5010100@tteng.com.br> <1100201816.7883.22.camel@localhost> <4193CA1B.1090409@tteng.com.br>
+Date: Fri, 12 Nov 2004 12:13:38 +0100
+From: Andrea Arcangeli <andrea@novell.com>
+Subject: fix for mpol mm corruption on tmpfs
+Message-ID: <20041112111338.GB10142@x30.random>
+References: <20041111112922.GA15948@logos.cnet> <20041111154238.GD18365@x30.random> <20041111123850.GA16349@logos.cnet> <20041111165050.GA5822@x30.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4193CA1B.1090409@tteng.com.br>
+In-Reply-To: <20041111165050.GA5822@x30.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luciano A. Stertz" <luciano@tteng.com.br>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Marcelo Tosatti <marcelo.tosatti@cyclades.com.br>, bcasavan@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 11, 2004 at 06:22:51PM -0200, Luciano A. Stertz wrote:
-> Dave Hansen wrote:
-> >On Thu, 2004-11-11 at 11:27, Luciano A. Stertz wrote:
-> >
-> >>	But... are they allocated to me, even with page_count zeroed? Do I 
-> >>	need to do get_page on the them? Sorry if it's a too lame question, but I 
-> >>still didn't understand and found no place to read about this.
-> >
-> >
-> >Do you see anywhere in the page allocator where it does a loop like
-> >yours?
-> >
-> >        for (i = 1; i< 1<<order; i++)
-> >		get_page(page + i);
-> 	Actually this loop isn't mine. It's part of the page allocator, but 
-> it's only executed on systems without a MMU.
-> 
-> >When you do a multi-order allocation, the first page represents the
-> >whole group and they're treated as a whole.  As you've noticed, breaking
-> >them up requires a little work.
-> >
-> >Why don't you post all of the code that you're using so that we can tell
-> >what you're doing?  There might be a better way.  Drivers probably
-> >shouldn't be putting stuff in the page cache all by themselves.  
-> 	Unhappily I can't post any code yet, but I'll try to give an insight 
-> 	of what we're trying to do.
-> 	It's not a driver. We're doing an implementation to allow the kernel 
-> 	to execute compressed files, decompressing pages on demand.
-> 	These files will usually be compressed in small blocks, typically 
-> 	4kb. But if they got compressed in blocks bigger then a page (say 8kb 
-> blocks on a 4kb page system), the kernel will have more than one 
-> decompressed page each time a block have to be decompressed; and I'd like 
-> to add them both to the page cache.
-> 	So, seems I would have to break multi-order allocated pages. Is this 
-> possible / viable? If not, maybe I'll have to work only with small 
-> blocks, but I wouldn't like to...
+Hello everyone,
 
-Why do you need the pages to be physically contiguous?
+On Thu, Nov 11, 2004 at 05:50:51PM +0100, Andrea Arcangeli wrote:
+> [..] I've a bad kernel
+> crash to debug with random mem corruption [..]
 
-I dont see any reason for that requirement - you can use discontiguous physical
-pages which are virtually contiguous (so your decompression code wont need to 
-care about non adjacent pieces of memory).
+With the inline symlink shmem_inode_info structure is overwritten with
+data until vfs_inode, and that caused the ->policy to be a corrupted
+pointer during unlink.  It wasn't immediatly easy to see what was going
+on due the random mm corruption that generated a weird oops, it looked
+more like a race condition on freed memory at first.
+
+There's simply no need to set a policy for inodes, since the idx is
+always zero. All we have to do is to initialize the data structure (the
+semaphore may need to run during the page allocation for the non-inline
+symlink) but we don't need to allocate the rb nodes. This way we don't
+need to call mpol_free during the destroy_inode (not doable at all if
+the policy rbtree is corrupt by the inline symlink ;).
+
+An equivalent version of this patch based on a 2.6.5 tree with
+additional numa features on top of this (i.e. interleaved by default,
+and that's prompted me to add a comment in the LNK init path), works
+fine in a numa simulation on my laptop (untested on the bare hardware).
+
+The patch includes another unrelated bugfix I did while checking
+mempolicy.c code that would return the wrong policy in some case and
+some unrelated optimizations again in mempolicy.c (like to avoid
+rebalancing the tree while destroying it and by breaking loops early and
+not checking for invariant conditions in the replace operation). You
+want to review the rebalance optimization I did in
+shared_policy_replace, that's tricky code.
+
+Signed-off-by: Andrea Arcangeli <andrea@novell.com>
+
+Index: mm/mempolicy.c
+===================================================================
+RCS file: /home/andrea/crypto/cvs/linux-2.5/mm/mempolicy.c,v
+retrieving revision 1.19
+diff -u -p -r1.19 mempolicy.c
+--- mm/mempolicy.c	28 Oct 2004 15:16:58 -0000	1.19
++++ mm/mempolicy.c	12 Nov 2004 11:04:11 -0000
+@@ -902,7 +902,7 @@ sp_lookup(struct shared_policy *sp, unsi
+ 		struct sp_node *p = rb_entry(n, struct sp_node, nd);
+ 		if (start >= p->end) {
+ 			n = n->rb_right;
+-		} else if (end < p->start) {
++		} else if (end <= p->start) {
+ 			n = n->rb_left;
+ 		} else {
+ 			break;
+@@ -1015,12 +1015,10 @@ restart:
+ 						return -ENOMEM;
+ 					goto restart;
+ 				}
+-				n->end = end;
++				n->end = start;
+ 				sp_insert(sp, new2);
+-				new2 = NULL;
+-			}
+-			/* Old crossing beginning, but not end (easy) */
+-			if (n->start < start && n->end > start)
++				break;
++			} else
+ 				n->end = start;
+ 		}
+ 		if (!next)
+@@ -1073,11 +1071,11 @@ void mpol_free_shared_policy(struct shar
+ 	while (next) {
+ 		n = rb_entry(next, struct sp_node, nd);
+ 		next = rb_next(&n->nd);
+-		rb_erase(&n->nd, &p->root);
+ 		mpol_free(n->policy);
+ 		kmem_cache_free(sn_cache, n);
+ 	}
+ 	spin_unlock(&p->lock);
++	p->root = RB_ROOT;
+ }
+ 
+ /* assumes fs == KERNEL_DS */
+Index: mm/shmem.c
+===================================================================
+RCS file: /home/andrea/crypto/cvs/linux-2.5/mm/shmem.c,v
+retrieving revision 1.160
+diff -u -p -r1.160 shmem.c
+--- mm/shmem.c	28 Oct 2004 15:18:00 -0000	1.160
++++ mm/shmem.c	12 Nov 2004 11:01:13 -0000
+@@ -1292,7 +1292,6 @@ shmem_get_inode(struct super_block *sb, 
+ 		info = SHMEM_I(inode);
+ 		memset(info, 0, (char *)inode - (char *)info);
+ 		spin_lock_init(&info->lock);
+- 		mpol_shared_policy_init(&info->policy);
+ 		INIT_LIST_HEAD(&info->swaplist);
+ 
+ 		switch (mode & S_IFMT) {
+@@ -1303,6 +1302,7 @@ shmem_get_inode(struct super_block *sb, 
+ 		case S_IFREG:
+ 			inode->i_op = &shmem_inode_operations;
+ 			inode->i_fop = &shmem_file_operations;
++			mpol_shared_policy_init(&info->policy);
+ 			break;
+ 		case S_IFDIR:
+ 			inode->i_nlink++;
+@@ -1312,6 +1312,11 @@ shmem_get_inode(struct super_block *sb, 
+ 			inode->i_fop = &simple_dir_operations;
+ 			break;
+ 		case S_IFLNK:
++			/*
++			 * Must not load anything in the rbtree,
++			 * mpol_free_shared_policy will not be called.
++			 */
++			mpol_shared_policy_init(&info->policy);
+ 			break;
+ 		}
+ 	}
+@@ -2024,7 +2029,9 @@ static struct inode *shmem_alloc_inode(s
+ 
+ static void shmem_destroy_inode(struct inode *inode)
+ {
+-	mpol_free_shared_policy(&SHMEM_I(inode)->policy);
++	if ((inode->i_mode & S_IFMT) == S_IFREG) {
++		/* only struct inode is valid if it's an inline symlink */
++		mpol_free_shared_policy(&SHMEM_I(inode)->policy);
+ 	kmem_cache_free(shmem_inode_cachep, SHMEM_I(inode));
+ }
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
