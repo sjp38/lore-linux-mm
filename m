@@ -1,54 +1,37 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.5.39 kmem_cache bug
-Date: Mon, 30 Sep 2002 07:18:57 -0400
-References: <20020928201308.GA59189@compsoc.man.ac.uk> <200209292020.40824.tomlins@cam.org> <3D97E737.80405@colorfullife.com>
-In-Reply-To: <3D97E737.80405@colorfullife.com>
+Message-ID: <3D9874E7.70805@colorfullife.com>
+Date: Mon, 30 Sep 2002 17:59:35 +0200
+From: Manfred Spraul <manfred@colorfullife.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200209300718.57382.tomlins@cam.org>
+Subject: Re: [PATH] slab cleanup
+References: <3D96F559.2070502@colorfullife.com> <732392454.1033343702@[10.10.2.3]>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: lse-tech@lists.sourceforge.net, akpm@digeo.com, tomlins@cam.org, "Kamble, Nitin A" <nitin.a.kamble@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On September 30, 2002 01:55 am, Manfred Spraul wrote:
-> Ed Tomlinson wrote:
-> >>The first problem is the per-cpu array draining. It's needed, too many
-> >>objects can sit in the per-cpu arrays.
-> >>< 2.5.39, the per-cpu arrays can cause more list operations than no
-> >>batching, this is something that must be avoided.
-> >>
-> >>Do you see an alternative to a timer/callback/hook? What's the simplest
-> >>approach to ensure that the callback runs on all cpus? I know Redhat has
-> >>a scalable timer patch, that one would fix the timer to the cpu that
-> >>called add_timer.
-> >
-> > Maybe.  If we treat the per cpu data as special form of cache we could
-> > use the shrinker callbacks to track how much we have to trim.  When the
-> > value exceeds a threshold (set when we setup the callback) we trim.  We
-> > could do the test in freeing path in slab.
->
-> 2 problems:
-> * What if a cache falls completely idle? If there is freeing activity on
-> the cache, then the cache is active, thus there is no need to flush
-> * I don't think it's a good idea to add logic into the path that's
-> executed for every kfree/kmem_cache_free. A timer might not be very
-> pretty, but is definitively more efficient.
-> > The patch add shrinker callbacks was posted to linux-mm Sunday and
-> > to lkml on Thursday.
->
-> I'll read them.
-> Is it guaranteed that the shrinker callbacks are called on all cpus, or
-> could some cpu binding happen?
+Martin J. Bligh wrote:
+>>Could someone test that it works on real SMP?
+> 
+> 
+> Tested on 16-way NUMA-Q (shows up races quicker than anything ;-)). 
+> Boots, compiles the kernel 5 times OK. That's good enough for me. 
+> No performance regression, in fact was marginally faster (within 
+> experimental error though).
+> 
+Thanks for the test. NUMA is on my TODO list, after figuring out 
+where/how to drain cpu caches and the free list.
 
-There is no guarantee.  The best we could use them for is to link the 'pressure'
-on the percpu stuff to vm pressure.   From the above is does look like timers
-are the way to go.
+I've found one stupid bug with debugging enabled: the new debug code 
+tries to poison NULL pointers, with limited success :-(
 
-Ed
+And one limitation might be important for arch specific code: 
+kmem_cache_create() during mem_init() is not possible anymore.
+
+--
+	Manfred
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
