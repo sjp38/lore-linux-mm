@@ -1,65 +1,70 @@
-Received: from venus.star.net (root@venus.star.net [199.232.114.5])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA15787
-	for <linux-mm@kvack.org>; Wed, 27 May 1998 11:23:46 -0400
-Message-ID: <356C30C7.8F16177F@star.net>
-Date: Wed, 27 May 1998 11:27:03 -0400
-From: Bill Hawes <whawes@star.net>
-MIME-Version: 1.0
-Subject: Re: patch for 2.1.102 swap code
-References: <356478F0.FE1C378F@star.net>
-		<199805241728.SAA02816@dax.dcs.ed.ac.uk>
-		<3569699E.6C552C74@star.net> <199805262138.WAA02811@dax.dcs.ed.ac.uk>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA15849
+	for <linux-mm@kvack.org>; Wed, 27 May 1998 11:32:02 -0400
+Subject: Re: Q: Swap Locking Reinstatement
+References: <m1somf2arx.fsf@flinx.npwt.net>
+	<199805192246.XAA03125@dax.dcs.ed.ac.uk>
+From: ebiederm+eric@npwt.net (Eric W. Biederman)
+Date: 27 May 1998 10:15:19 -0500
+In-Reply-To: "Stephen C. Tweedie"'s message of Tue, 19 May 1998 23:46:01 +0100
+Message-ID: <m13edv21a0.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
 To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: Linux Kernel List <linux-kernel@vger.rutgers.edu>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, Alan Cox <number6@the-village.bc.nu>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Stephen C. Tweedie wrote:
+>>>>> "ST" == Stephen C Tweedie <sct@dcs.ed.ac.uk> writes:
 
-> That's why read_swap_cache_async repeats the initial entry lookup after
-> calling __get_free_page().  Unfortunately, I hadn't realised that
-> swap_duplicate() had the error check against swap_map[entry]==0.  Moving
-> the swap_duplicate up to before the call to __get_free_page should avoid
-> that case.
+ST> Hi,
+ST> On 12 May 1998 20:57:05 -0500, ebiederm+eric@npwt.net (Eric
+ST> W. Biederman) said:
 
-Hi Stephen,
+>> Recently the swap lockmap has been readded.
 
-Moving the swap_duplicate() call above the get_free_page() helps, but
-does not entirely avoid the race: it's possible for lookup_swap_cache()
-to block on a locked page, and when the process wakes up the swap entry
-may have disappeared. In order for read_swap_cache to fulfill its
-contract ("this swap entry exists, go get it for me") it must increment
-the swap map count before any blocking operation. Hence I moved the
-swap_duplicate() call above the lookup.
+>> Was that just as a low cost sanity check, to use especially while
+>> there were bugs in some of the low level disk drivers?
 
-I could check for the case of finding the unlocked swap cache page, and
-only increment the map count if a wait was needed; this would avoid
-having to increment and decrement the map count if the page is found, at
-the expense of a little more complexity. I'll post a mopdified patch for
-comment ...
+>> Was there something that really needs the swap lockmap?
 
-> Excellent --- that should mean it's easy to reproduce, and I've got a
-> test box set up to do tracing on all this code.  Is there anything in
-> particular you do to trigger the situation?  I've been going over the
-> obvious places in try_to_swap_out and friends, but haven't found
-> anything yet where we might block between updating a pte and modifying
-> the corresponding pte count.
+ST> Yes, there was a bug.  The problem occurs when:
 
-I've observed the swapoff messages after running swapoff on a quiescent
-system that had been swapping heavily previously, and also when running
-swapoff with the system currently swapping. Try setting up a condition
-of heavy swapping but with adequate memory available (e.g. two kernel
-compiles in 32M), and then cycle swapoff -a and swapon -a.
+ST> 	page X is owned by process A
+ST> 	process B tries to swap out page X from A's address space
+ST> 	process A exits or execs
+ST> 	process B's swap IO completes.
 
-Running swapoff is a good test for the VM system; unfortunately the
-current kernels have an unrelated problem with kswapd trying too hard to
-keep memory blocks, so that swapoff may put the system in an
-unrecoverable kswapd loop. If you try swapoff when the system doesn't
-have enough memory, the system will lock rather than let swapoff return
-failure. But this is a problem of swap policy rather than mechanism, and
-we can try to fix it after the swap mechanics are 100% solid.
- 
-Regards,
-Bill
+ST> The IO completion is an interrupt (we perform async swaps where
+ST> possible).  Now, if we dereference the swap entry belonging to page X
+ST> at IO completion time, then the entry is protected against reuse while
+ST> the IO is in flight.  However, that requires making the entire swap map
+ST> interrupt safe.  It is much more efficient to keep the lock map separate
+ST> and to use atomic bitops on it to allow us to do the IO completion
+ST> unlock in an interrupt-safe manner.
+
+ST> A similar race occurs when
+
+ST> 	process B tries to swap out page X from A's address space
+ST> 	process A tries to swap it back in
+ST> 	process B's swap IO completes.
+
+ST> Now process A may, or may not, get the right data from disk depending on
+ST> the (undefined) ordering of the IOs submitted by A and B.
+
+Here is how I'm going to code it.
+
+I'm going to modify swap_out to never remove a page from the page
+cache until I/O is complete on it.  This should only affect
+asynchrounous pages.
+
+I'm going to modify shrink_mmap and friends so that when they remove
+a swapper page from the page cache they will decrement the swap use
+count, of the page. (Via a new generic inode function).
+
+This should both remove the need for the swap lock map, and increase
+performance on the second race condition you mentioned (because it
+doesn't have to read the page back in).
+
+Hopefully when we get reverse pte maps working we can remove the swap
+use counts as well, and only worry if a swap page is in use.
+
+Eric
