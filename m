@@ -1,48 +1,35 @@
-Date: Wed, 2 Feb 2000 14:41:02 +0100 (CET)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: 2.3.42: Strange memory corruption
-In-Reply-To: <20000202051433.A298@tony.dorf.wh.uni-dortmund.de>
-Message-ID: <Pine.LNX.4.10.10002021439170.462-100000@mirkwood.dummy.home>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14488.15900.402996.763628@dukat.scot.redhat.com>
+Date: Wed, 2 Feb 2000 14:24:28 +0000 (GMT)
+Subject: Re: [PATCH] shm fs v2 against 2.3.41
+In-Reply-To: <20000201190720E.gotom@fe.dis.titech.ac.jp>
+References: <qwwemazzj8u.fsf@sap.com>
+	<20000201190720E.gotom@fe.dis.titech.ac.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Patrick Mau <patrick@oscar.prima.de>
-Cc: Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
+To: GOTO Masanori <gotom@debian.or.jp>
+Cc: hans-christoph.rohland@sap.com, linux-kernel@vger.rutgers.edu, linux-MM@kvack.org, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2 Feb 2000, Patrick Mau wrote:
+Hi,
 
-> I have a really strange memory corruption problem with
-> 2.3.42. My system configuration is as follows:
+On Tue, 01 Feb 2000 19:07:20 +0900, GOTO Masanori <gotom@debian.or.jp>
+said:
 
-> After a few md5sums I get different checksums.
-> Now I check the file with bzip2 and get a CRC error.
-> 
-> Now I make a copy (plain 'cp') of that file.
-> 
-> Then I repeat the above with the copy and get different
-> checksums and also CRC errors from bzip2. (I expected that).
-> 
-> --> Here comes the strange part <---
-> 
-> Now I reboot into 2.3.30. Same config.
-> And BOTH files, even the 'corrupt' copy, are
-> correct.  I can run the md5sum test AND can uncompress
-> BOTH of them. I can always reproduce that.
+> I guess almost all users have no shmpath (default: /var/shm),
+> and they maybe make a dir and have to mount it.
+> IMHO, it is better to change that sysv shared memory works
+> samely, whenever shmfs is not mounted. Is it feasible, 
+> or only my mistaken ?
 
-This looks a bit like there might be a race with the
-pagetable mapping or read()ing of the file. It would
-explain the three `suspicious' segfaults I've seen in
-the last few days...
+Even tools as fundamental as "ps" don't work until /proc is mounted, so
+I don't see anything wrong with requiring shmfs to be mounted for sysV
+shared memory to work correctly.
 
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
