@@ -1,53 +1,81 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: MM patches against 2.5.31
-Date: Thu, 29 Aug 2002 00:57:06 +0200
-References: <3D644C70.6D100EA5@zip.com.au> <E17kAvf-0002tx-00@starship> <3D6D5128.9EE6DFDD@zip.com.au>
-In-Reply-To: <3D6D5128.9EE6DFDD@zip.com.au>
+Date: Thu, 29 Aug 2002 16:15:28 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: VM Regress 0.7
+Message-ID: <Pine.LNX.4.44.0208291605410.31984-100000@skynet>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E17kBkK-0002uI-00@starship>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
+Subject: VM Regress 0.7
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 29 August 2002 00:39, Andrew Morton wrote:
-> Daniel Phillips wrote:
-> > 
-> > ...
-> > So there's no question that the race is lurking in 2.4.  I noticed several
-> > more paths besides the one above that look suspicious as well.  The bottom
-> > line is, 2.4 needs a fix along the lines of my suggestion or Christian's,
-> > something that can actually be proved.
-> > 
-> > It's a wonder that this problem manifests so rarely in practice.
-> 
-> I sort-of glanced through the 2.4 paths and it appears that in all of the
-> places where it could do a page_cache_get/release, that would never happen
-> because of other parts of the page state.
-> 
-> Like: it can't be in pagecache, so we won't run writepage, and
-> it can't have buffers, so we won't run try_to_release_page().
-> 
-> Of course, I might have missed a path.  And, well, generally: ugh.
+Project page: http://www.csn.ul.ie/~mel/projects/vmregress/
+Download:     http://www.csn.ul.ie/~mel/projects/vmregress/vmregress-0.7.tar.gz
 
-I think it is happening.  I just went sifting searching through the archives
-on 'oops' and '2.4'.  The first one I found was:
+This is the fourth release of VM Regress. It is a regression, benchmarking
+and test tool for the Linux VM in it's early stages. This will be the last
+release for a while as funding in my University is a bit tight these days.
+Mine is due to run out in a few months and I have to re-prioritise
+what I'm doing unfortunately. I hope to get back working on this once I
+have secured external funding to work full time on VM management in
+general and Linux in particular.
 
-   2.4.18-xfs (xfs related?) oops report
+This release has at least one major bug fix. It would have been triggered by
+an SMP machine running an alloc or page faulting validation test. I haven't
+heard any reports and I haven't triggered it myself but I'm pretty sure it
+would deadlock. The project will now compile cleanly against late 2.5.32
+which is the first 2.5 kernel since 2.5.28 it compiled against.  I haven't
+managed to test with a 2.5.x kernel but there is no reason it shouldn't
+work. I'd be interested in hearing any success/failure stories with 2.5.x
 
-which fits the description nicely.
+Perl scripts are now provided to run each test and benchmark, produce a
+report, graph vmstat output etc so running tests is a lot easier. It will
+load/unload modules as necessary to run the test. This reduces a lot of the
+drudge work involved with setting up a test. There is also scripts
+available for replotting graphs to a given scale so comparing vm's is a
+bit easier. man pages and online help is available for each of them.
 
-The race I showed actually causes the page->count to go negative, avoiding
-a double free on a technicality.  That doesn't make me feel much better about
-it.  Have you got a BUG_ON(!page_count(page)) in put_page_testzero?  I think
-we might see some action.
+The mmap module will now run read or write benchmarks on either anonymous or
+file backed maps. It produces graphs showing age of pages, reference counts,
+page present/swapped, what pages were referenced over time, vmstat output
+and some timing information. It still doesn't do statistical analysis but
+that was in the works for 0.9 . the data files are all preserved as .data
+files so any stats tool that can import space separated files can be used.
+Links to sample test output is on the webpage.
+
+If I get back working on this, 0.8 will have the simulated webserver originally
+outlined by Rik Van Riel. Most of what is needed is already there with the
+mmap module bench_mmap.pl uses.
+
+Documentation is reasonably up to data and provided with the package. If
+people have suggestions or reports, send them on and I'll add them to the
+ToDo list. I'll continue to work on this periodically.
+
+Full changelog for 0.7
+
+Version 0.7
+-----------
+  o Updated bench_mapanon.pl to perform read/write tests
+  o Adapted mapanon.o and changed to mmap.o so it can map file descriptors
+  o Adapted bench_mapanon.pl to bench_mmap.pl to be a generate mmap benchmark
+  o Told benchmark to preserve sampling data
+  o Time.pm exports new timing functions
+  o mapanon.o changed to mmap.o, handles files or anonymous memory
+  o Added graph to show page age vs page presence
+  o Added graph to show reference pattern
+  o Added replot.pl for easy replotting of time data
+  o Fixed access permissions to alloc and fault tests
+  o Removed stupid deadlock with alloc and fault modules
+  o Various perl lib updates
+  o Will now compile against late 2.5.x kernels (untested)
+  o Automatically load and unload kernel modules
 
 -- 
-Daniel
+Mel Gorman
+MSc Student, University of Limerick
+http://www.csn.ul.ie/~mel
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
