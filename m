@@ -1,144 +1,99 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: inode/dentry pressure
-Date: Wed, 16 May 2001 23:26:49 -0400
-References: <Pine.GSO.4.21.0105161932260.26191-100000@weyl.math.psu.edu>
-In-Reply-To: <Pine.GSO.4.21.0105161932260.26191-100000@weyl.math.psu.edu>
+Received: from hpfcla.fc.hp.com (hpfcla.fc.hp.com [15.254.48.2])
+	by atlrel1.hp.com (Postfix) with ESMTP id 0056F5F0
+	for <linux-mm@kvack.org>; Thu, 17 May 2001 13:14:05 -0400 (EDT)
+Received: from gplmail.fc.hp.com (nsmail@wslmail.fc.hp.com [15.1.92.20])
+	by hpfcla.fc.hp.com (8.9.3 (PHNE_22672)/8.9.3 SMKit7.01) with ESMTP id LAA03028
+	for <linux-mm@kvack.org>; Thu, 17 May 2001 11:14:04 -0600 (MDT)
+Received: from fc.hp.com (dome.fc.hp.com [15.1.89.118])
+          by gplmail.fc.hp.com (Netscape Messaging Server 3.6)  with ESMTP
+          id AAA1CC8 for <linux-mm@kvack.org>;
+          Thu, 17 May 2001 11:14:00 -0600
+Message-ID: <3B04069C.49787EC2@fc.hp.com>
+Date: Thu, 17 May 2001 11:13:00 -0600
+From: David Pinedo <dp@fc.hp.com>
 MIME-Version: 1.0
-Message-Id: <01051623264900.02257@oscar>
-Content-Transfer-Encoding: 8bit
+Subject: Running out of vmalloc space
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexander Viro <viro@math.psu.edu>, Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 16 May 2001 19:34, Alexander Viro wrote:
-> On Wed, 16 May 2001, Rik van Riel wrote:
-> > If we cannot find an easy to implement Real Solution(tm) we
-> > should probably go for the 10% limit in 2.4 and implement the
-> > real solution in 2.5; if anybody has a 2.4-attainable idea
-> > I'd like to hear about it ;)
->
-> Rip the crap from icache hard, fast and often. _Any_ inode with
-> no dentry is fair game as soon as it's clean. Keep in mind
-> that icache is a secondary cache - we are talking about the
-> stuff dcache didn't want to keep.
-
-I have been running with this patch for the last few weeks.  It 
-adds a call to kswapd that prunes dead dentries quickly.  Think it
-qualifies as something that does "Rip the crap from icache hard, 
-fast and often". 
-
-Comments?
-
-Ed Tomlinson
-
---- 2.4.4-pre7/include/linux/dcache.h	Thu Apr 26 12:57:47 2001
-+++ linux/include/linux/dcache.h	Fri Apr 27 18:17:20 2001
-@@ -176,6 +176,7 @@
-
- /* icache memory management (defined in linux/fs/inode.c) */
- extern void shrink_icache_memory(int, int);
-+extern void shrink_unused_icache_memory(int);
- extern void prune_icache(int);
-
- /* only used at mount-time */
---- 2.4.4-pre7/mm/vmscan.c	Fri Apr 27 11:36:04 2001
-+++ linux/mm/vmscan.c	Fri Apr 27 18:33:07 2001
-@@ -953,6 +953,11 @@
- 		 */
- 		refill_inactive_scan(DEF_PRIORITY, 0);
-
-+		/*
-+		 * Free unused inodes.
-+		 */
-+		shrink_unused_icache_memory(GFP_KSWAPD);
-+
- 		/* Once a second, recalculate some VM stats. */
- 		if (time_after(jiffies, recalc + HZ)) {
- 			recalc = jiffies;
---- 2.4.4-pre7/fs/inode.c	Thu Apr 26 12:49:33 2001
-+++ linux/fs/inode.c	Fri Apr 27 18:54:25 2001
-@@ -540,16 +540,16 @@
- 	 !inode_has_buffers(inode))
- #define INODE(entry)	(list_entry(entry, struct inode, i_list))
-
--void prune_icache(int goal)
-+/*
-+ * Called with inode lock held, returns with it released.
-+ */
-+int prune_unused_icachei_unlock(int goal)
- {
- 	LIST_HEAD(list);
- 	struct list_head *entry, *freeable = &list;
--	int count = 0, synced = 0;
-+	int count = 0;
- 	struct inode * inode;
-
--	spin_lock(&inode_lock);
--
--free_unused:
- 	entry = inode_unused.prev;
- 	while (entry != &inode_unused)
- 	{
-@@ -577,19 +577,27 @@
-
- 	dispose_list(freeable);
-
-+	return count;
-+}
-+
-+/*
-+ * A goal of zero frees everything
-+ */
-+void prune_icache(int goal)
-+{
-+	spin_lock(&inode_lock);
-+	goal -= prune_unused_icachei_unlock(goal);
-+
- 	/*
- 	 * If we freed enough clean inodes, avoid writing
--	 * dirty ones. Also giveup if we already tried to
--	 * sync dirty inodes.
-+	 * dirty ones.
- 	 */
--	if (!goal || synced)
-+	if (!goal)
- 		return;
-
--	synced = 1;
--
- 	spin_lock(&inode_lock);
- 	try_to_sync_unused_inodes();
--	goto free_unused;
-+ 	prune_unused_icache_unlock(goal);
- }
-
- void shrink_icache_memory(int priority, int gfp_mask)
-@@ -611,6 +619,20 @@
-
- 	prune_icache(count);
- 	kmem_cache_shrink(inode_cachep);
-+}
-+
-+void shrink_unused_icache_memory(int gfp_mask)
-+{
-+	/*
-+	 * Nasty deadlock avoidance..
-+	 */
-+	if (!(gfp_mask & __GFP_IO))
-+		return;
-+
-+	if (spin_trylock(&inode_lock)) {
-+		prune_unused_icache_unlock(0);
-+		kmem_cache_shrink(inode_cachep);
-+	}
- }
-
- /*
-
+Hello.  My name is David Pinedo and I subscribed to this list a few days
+ago.  I work for Hewlett-Packard, and am in the process of porting the
+drivers for the FX10 graphics boards from Red Hat 6.2 to Red Hat 7.1.
+Our customers are begging us to support the FX10 on RH7.1, primarily
+because of the large memory capabilities in the 2.4.2 kernel.
+ 
+I only have minimal knowledge of the Linux kernel, enough to be able to
+create the kernel module driver for the FX10.  My apologies for jumping
+into this email list and the inevitable newbie mistakes I may make.  I
+have a strong business need to get these graphics boards working
+correctly in the 2.4.2 kernel, and I think this email list may be the
+only place I can get some help. If I should be using some other forum
+for my questions, I would appreciate if someone would point me to it.
+ 
+Porting the driver to 2.4.2 was not terribly difficult.  Most of the
+changes were in code that translates to and from physical addresses and
+virtual addresses.  There were a few changes I had to make due to
+difference in the gcc compiler on RH7.1 vs RH6.2.
+ 
+The FX10 has a very large frame buffer and control space (the control
+space is where the registers to control the device reside).  The frame
+buffer is 16Mbytes and the control space is 32Mbytes.  The address space
+for the frame buffer and control space is allocated from the kernel vm
+address space, using get_vm_area() in mm/vmalloc.c.
+ 
+On Linux, HP supports up to two FX10 boards in the system.  In order to
+use two FX10 boards, the kernel driver needs to map the frame buffer and
+control space for both of the boards.  That's a lot of address space,
+2*(16M+32M)=96M to be exact.  Using this much virtual address space on a
+stock RH7.1 smp kernel on a system with 0.5G of memory didn't seem to
+be a problem.  However, a colleague reported a problem to me on his
+system with 1.0G of memory -- the X server was exiting with an error
+message indicating that it couldn't map both devices.
+ 
+On investigating the problem, I found that a call to get_vm_area was
+failing because the kernel was running out of vmalloc space.  It seems
+that the vmalloc space is smaller when more memory was installed on the
+system:
+ 
+                        .5G RAM           1.0G RAM
+                       ----------        ---------
+        VMALLOC_END    0xfdffe000        0xfdffe000
+        VMALLOC_START  0xe0800000        0xf8800000
+                       ----------        ---------
+        space avail    0x1d7fe000(471M)  0x057FE000(87M)
+ 
+ 
+I found that if I reconfigure the kernel with Maximum Virtual Memory set
+to 2G (sets CONFIG_2GB), the vmalloc space is larger and the problem
+goes away.  I couldn't quite figure out what the implications of
+changing Maximum Virtual Memory really are.  The Help button when using
+"make xconfig" says there is no help available.  Could someone enlighten
+me?  Will this fix also work when I add more memory to the system?
+ 
+Another method of fixing this problem that seems to work is to change
+the constant VMALLOC_RESERVE in arch/i386/kernel/setup.c.  I changed the
+line that defines it from:
+ 
+   #define VMALLOC_RESERVE (unsigned long)(128 << 20)
+ 
+to:
+ 
+   #define VMALLOC_RESERVE (unsigned long)(256 << 20)
+ 
+What are the implications of making such a change?  Will it work when
+there is less or more memory in the system?  Should this be a
+configurable kernel parameter?
+ 
+Thanks for any information anyone can provide.
+ 
+David Pinedo
+Hewlett-Packard Company
+Fort Collins, Colorado
+dp@fc.hp.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
