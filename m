@@ -1,63 +1,39 @@
-Date: Mon, 22 Nov 2004 06:35:48 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] fix spurious OOM kills
-Message-ID: <20041122083548.GA26131@logos.cnet>
-References: <4194EA45.90800@tebibyte.org> <20041113233740.GA4121@x30.random> <20041114094417.GC29267@logos.cnet> <20041114170339.GB13733@dualathlon.random> <20041114202155.GB2764@logos.cnet> <419A2B3A.80702@tebibyte.org> <419B14F9.7080204@tebibyte.org> <20041117012346.5bfdf7bc.akpm@osdl.org> <41A0E60C.605@tebibyte.org> <41A1D850.6090706@tebibyte.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <41A1D850.6090706@tebibyte.org>
+Date: Mon, 22 Nov 2004 14:27:10 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH]: 2/4 mm/swap.c cleanup
+In-Reply-To: <16801.6313.996546.52706@gargle.gargle.HOWL>
+Message-ID: <Pine.LNX.4.44.0411221419100.2867-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Ross <chris@tebibyte.org>
-Cc: Andrew Morton <akpm@osdl.org>, andrea@novell.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, piggin@cyberone.com.au, riel@redhat.com, mmokrejs@ribosome.natur.cuni.cz, tglx@linutronix.de
+To: Nikita Danilov <nikita@clusterfs.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux-Kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 22, 2004 at 01:15:12PM +0100, Chris Ross wrote:
-> Hi Andrew,
+On Mon, 22 Nov 2004, Nikita Danilov wrote:
+> Andrew Morton writes:
+>  > 
+>  > Sorry, this looks more like a dirtyup to me ;)
 > 
-> Chris Ross escreveu:
-> > Andrew Morton escreveu:
-> >> Please ignore the previous patch and try the below.
-> >
-> > I still get OOM kills with this (well one, anyway). It does seem harder
-> > to trigger though.
+> Don't tell me you are not great fan on comma operator abuse. :)
 > 
-> Turns out it's not that hard. Sorry for the slight delay, I've been away 
-> a few days.
+> Anyway, idea is that by hiding complexity it loop macro, we get rid of a
+> maze of pvec-loops in swap.c all alike.
 > 
-> root@sleepy chris # grep Killed /var/log/messages
-> Nov 21 22:24:22 sleepy Out of Memory: Killed process 6800 (qmgr).
-> Nov 21 22:24:32 sleepy Out of Memory: Killed process 6799 (pickup).
-> Nov 21 22:24:57 sleepy Out of Memory: Killed process 6472 (distccd).
-> Nov 21 22:25:00 sleepy Out of Memory: Killed process 6473 (distccd).
-> Nov 21 22:25:00 sleepy Out of Memory: Killed process 6582 (distccd).
-> Nov 21 22:25:00 sleepy Out of Memory: Killed process 6686 (distccd).
-> Nov 21 22:25:00 sleepy Out of Memory: Killed process 6687 (ntpd).
-> 
-> If you want to seem the actual oom messages just ask.
-> 
-> This is with 2.6.10-rc2-mm1 + your patch whilst doing an "emerge sync" 
-> which isn't ridiculously memory hungry and shouldn't result in oom kills.
-> 
-> Informally I felt I had better results from Marcelo's patch, though I 
-> should test both under the same conditions before I say that...
+> Attached is next, more typeful variant. Compilebootentested.
 
-Chris, 
+You're scaring me, Nikita.  Those loops in mm/swap.c are easy to follow,
+whyever do you want to obfuscate them with your own macro maze?
 
-The kill-from-kswapd approach on top of recent -mm which includes 
-"ignore referenced information on zero priority" should be quite 
-reliable. Would be nice if you could try that. 
+Ingenious for_each macros make sense where it's an idiom which is going
+to be useful to many across the tree; but these are just a few instances
+in a single source file.
 
-The current scheme is broken yes, the main problem being the all_unreclaimable
-logic which conflicts with OOM detection - I (we) were hoping 
-"ignore-referenced-information-on-zero-priority" would be enough for 99% of 
-cases, but it doesnt seem so.
+Please find a better outlet for your talents!
 
-Either way killing from kswapd or from task context all_unreclaimable logic 
-is conflitant with OOM detection.
+Hugh
 
-But we are going the right way :)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
