@@ -1,56 +1,108 @@
-Date: Thu, 23 Sep 2004 11:09:58 +0200
+Date: Thu, 23 Sep 2004 11:24:16 +0200
 From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 0/2] mm: memory policy for page cache allocation
-Message-ID: <20040923090957.GB6146@wotan.suse.de>
-References: <20040923043236.2132.2385.23158@raybryhome.rayhome.net>
+Subject: Re: [PATCH 1/2] mm: page cache mempolicy for page cache allocation
+Message-ID: <20040923092416.GC6146@wotan.suse.de>
+References: <20040923043236.2132.2385.23158@raybryhome.rayhome.net> <20040923043246.2132.91877.24290@raybryhome.rayhome.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040923043236.2132.2385.23158@raybryhome.rayhome.net>
+In-Reply-To: <20040923043246.2132.91877.24290@raybryhome.rayhome.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ray Bryant <raybry@austin.rr.com>
-Cc: Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, Nick Piggin <piggin@cyberone.com.au>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>, Ray Bryant <raybry@sgi.com>, Andrew Morton <akpm@osdl.org>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>
+Cc: Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, Nick Piggin <piggin@cyberone.com.au>
 List-ID: <linux-mm.kvack.org>
 
-> (1)  We dropped the MPOL_ROUNDROBIN patch.  Instead, we
->      use MPOL_INTERLEAVE to spread pages across nodes.
->      However, rather than use the file offset etc to 
->      calculate the node to allocate the page on, I used
->      the same mechanism you used in alloc_pages_current()
->      to calculate the node number (interleave_node()).
->      That eliminates the need to generate an offset etc
->      in the routines that call page_cache_alloc() and to
->      me appears to be a simpler change that still fits
->      within your design.
+> +/* policy selection bits are passed from user shifted left by this amount */
+> +#define REQUEST_POLICY_SHIFT	16
+> +#define REQUEST_POLICY_PAGE     POLICY_PAGE << REQUEST_POLICY_SHIFT
+> +#define REQUEST_POLICY_PAGECACHE POLICY_PAGECACHE << REQUEST_POLICY_SHIFT
+> +#define REQUEST_POLICY_MASK     (0x3FFF) << REQUEST_POLICY_SHIFT
+
+Please put brackets around the macros. Putting them around numbers
+is not needed though @)
 
 
-Hmm, that may lead to uneven balancing because the counter is 
-per thread. But if it works for you it's ok I guess.
+> +#define REQUEST_POLICY_DEFAULT  (0x8000) << REQUEST_POLICY_SHIFT
+> +
+>  /* Flags for get_mem_policy */
+>  #define MPOL_F_NODE	(1<<0)	/* return next IL mode instead of node mask */
+>  #define MPOL_F_ADDR	(1<<1)	/* look up vma using address */
+> @@ -31,6 +54,8 @@
+>  #include <linux/slab.h>
+>  #include <linux/rbtree.h>
+>  #include <asm/semaphore.h>
+> +#include <linux/sched.h>
+> +#include <asm/current.h>
 
-I still think changing the callers and use the offset for
-static interleaving would be better. Maybe that could be
-done as a followon patch. 
-> 
-> (2)  I implemented the sys_set_mempolicy() changes as
->      suggested -- higher order bits in the mode (first)
->      argument specify whether or not this request is for
->      the page allocation policy (your existing policy)
->      or for the page cache allocation policy.  Similarly,
->      a bit there indicates whether or not we want to set
->      the process level policy or the system level policy.
-> 
->      These bits are to be set in the flags argument of
->      sys_mbind().
+Why is that needed? I don't see any users for this.  Please avoid this 
+if possible, we already have too much include dependency spagetti.
 
-Ok.  If that gets in I would suggest you also document it 
-in the manpages and send me a patch. 
 
-Comments to the patches in other mail.
+> --- linux-2.6.9-rc2-mm1.orig/include/linux/sched.h	2004-09-16 12:54:41.000000000 -0700
+> +++ linux-2.6.9-rc2-mm1/include/linux/sched.h	2004-09-22 08:48:45.000000000 -0700
+> @@ -31,6 +31,8 @@
+>  #include <linux/pid.h>
+>  #include <linux/percpu.h>
+>  
+> +#include <linux/mempolicy.h>
+
+I also don't see why this should be needed. Please remove.
+
+> +	for(i=0;i<NR_MEM_POLICIES;i++)
+
+There should be more spaces here (similar in other loops) 
+
+
+>  	int err, pval;
+>  	struct mm_struct *mm = current->mm;
+>  	struct vm_area_struct *vma = NULL;
+> -	struct mempolicy *pol = current->mempolicy;
+> +	struct mempolicy *pol = NULL;
+> +	int policy_type, request_policy_default;
+>  
+>  	if (flags & ~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR))
+>  		return -EINVAL;
+>  	if (nmask != NULL && maxnode < numnodes)
+>  		return -EINVAL;
+> +
+> +	policy_type = (flags & REQUEST_POLICY_MASK) > REQUEST_POLICY_SHIFT;
+> +	request_policy_default = (flags & REQUEST_POLICY_DEFAULT);
+
+Why is that not an MPOL_F_* ? 
+
+>  /* Slow path of a mempolicy copy */
+>  struct mempolicy *__mpol_copy(struct mempolicy *old)
+> @@ -1093,8 +1146,8 @@ void __init numa_policy_init(void)
+>  	/* Set interleaving policy for system init. This way not all
+>  	   the data structures allocated at system boot end up in node zero. */
+>  
+> -	if (sys_set_mempolicy(MPOL_INTERLEAVE, nodes_addr(node_online_map),
+> -							MAX_NUMNODES) < 0)
+> +	if (sys_set_mempolicy(REQUEST_POLICY_PAGE | MPOL_INTERLEAVE, 
+> +		nodes_addr(node_online_map), MAX_NUMNODES) < 0)
+
+That's definitely wrong, the boot time interleaving is not for the page
+cache but for all allocations. There are not even page cache allocations
+that early.
+
+Overall when I look at all the complications you add for the per process
+page policy which doesn't even have a demonstrated need I'm not sure
+it is really worth it.
+
+>  		printk("numa_policy_init: interleaving failed\n");
+>  }
+>  
+> @@ -1102,5 +1155,5 @@ void __init numa_policy_init(void)
+>   * Assumes fs == KERNEL_DS */
+>  void numa_default_policy(void)
+>  {
+> -	sys_set_mempolicy(MPOL_DEFAULT, NULL, 0);
+> +	sys_set_mempolicy(REQUEST_POLICY_PAGE | MPOL_DEFAULT, NULL, 0);
+
+Same.
 
 -Andi
-
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
