@@ -1,43 +1,53 @@
-Date: Wed, 04 Feb 2004 19:33:30 +0900 (JST)
-Message-Id: <20040204.193330.123965914.taka@valinux.co.jp>
-Subject: Re: Active Memory Defragmentation: Our implementation & problems
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20040204065717.EFB277049E@sv1.valinux.co.jp>
-References: <20040204050915.59866.qmail@web9704.mail.yahoo.com>
-	<1075874074.14153.159.camel@nighthawk>
-	<20040204065717.EFB277049E@sv1.valinux.co.jp>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+From: Nikita Danilov <Nikita@Namesys.COM>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <16416.62172.489558.39126@laputa.namesys.com>
+Date: Wed, 4 Feb 2004 16:25:48 +0300
+Subject: Re: [PATCH 0/5] mm improvements
+In-Reply-To: <4020BDCB.8030707@cyberone.com.au>
+References: <4020BDCB.8030707@cyberone.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: iwamoto@valinux.co.jp
-Cc: haveblue@us.ibm.com, rangdi@yahoo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@aracnet.com
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Nick Piggin writes:
+ > Patches against 2.6.2-rc3-mm1.
+ > Please test / review / comment.
 
-> > Moving file-backed pages is mostly handled already.  You can do a
-> > regular page-cache lookup with find_get_page(), make your copy,
-> > invalidate the old one, then readd the new one.  The invalidation can be
-> > done in the same style as shrink_list().
-> 
-> Actually, it is a bit more complicated.
-> I have implemented similar functionality for memory hotremoval.
-> 
-> See my post about memory hotremoval
-> http://marc.theaimsgroup.com/?l=linux-kernel&m=107354781130941&w=2
-> for details.
-> remap_onepage() and remapd() in the patch are the main functions.
+Hello, Nick,
 
-My patch may be one of the samples.
-To allocate continuous pages on demand, I used remap_onepage() to
-defragment pages.
+I composed a new patch that may be worth trying:
 
-http://www.ussg.iu.edu/hypermail/linux/kernel/0401.1/0045.html
+ftp://ftp.namesys.com/pub/misc-patches/unsupported/extra/2004.02.04/p12-dont-unmap-on-pageout.patch
 
-Thank you,
-Hirokazu Takahashi.
+It avoids (if possible) unmapping dirty page before calling
+->writepage(). Intention is to avoid minor page faults for the pages
+under write-back.
+
+To this end new function mm/rmap.c:page_is_dirty() is added that scans
+page's ptes and transfers their dirtiness to the struct page
+itself. page_is_dirty() is called by shrink_list() and page is unmapped
+only if page_is_dirty() found all ptes clean.
+
+Few points:
+
+1. I only gave it light testing (compared with other patches in the
+"extra" series).
+
+2. dont-unmap-on-pageout logically depends on check-pte-dirty, and
+textually on skip-writepage patches.
+
+3. for some unimportant reasons patches were produces with "diff -b",
+and may, hence, require "patch -l" to apply.
+
+4. I found that shmem_writepage() has BUG_ON(page_mapped(page))
+check. Its removal had no effect, and I am not sure why the check was
+there at all.
+
+Nikita.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
