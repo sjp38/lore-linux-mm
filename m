@@ -1,36 +1,61 @@
-Date: Tue, 26 Sep 2000 00:51:26 +0200
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Mon, 25 Sep 2000 19:42:09 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-Message-ID: <20000926005126.E5010@athlon.random>
-References: <20000926002812.C5010@athlon.random> <Pine.LNX.4.21.0009251923070.4997-100000@duckman.distro.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0009251923070.4997-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, Sep 25, 2000 at 07:26:56PM -0300
+In-Reply-To: <20000926004429.D5010@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009251937230.4997-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: Andrea Arcangeli <andrea@suse.de>
 Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 07:26:56PM -0300, Rik van Riel wrote:
-> IMHO this is a minor issue because:
+On Tue, 26 Sep 2000, Andrea Arcangeli wrote:
+> On Mon, Sep 25, 2000 at 08:54:57PM +0100, Stephen C. Tweedie wrote:
 
-I don't think it's a minor issue.
+> > basically the whole of memory is data cache, some of which is mapped
+> > and some of which is not?
+> 
+> As as said in the last email aging on the cache is supposed to that.
+> 
+> Wasting CPU and incrasing the complexity of the algorithm is a price
+> that I won't pay just to get the information on when it's time
+> to recall swap_out().
 
-If you don't have reschedule point in your equivalent of shrink_mmap and this
-1.5G will happen to be consecutive in the lru order (quite probably if it's
-been pagedin at fast rate) then you may even hang in interruptible mode for
-seconds as soon as somebody start reading from disk. 2.4.x have to scale for
-dozen of Giga of RAM as there are archs supporting that amount of RAM.
+You must be joking. Page replacement should be tuned to
+do good page replacement, not just to be easy on the CPU.
+(though a heavily thrashing system /is/ easy on the cpu,
+I'll have to admit that)
 
-> 2) you don't /want/ to run low on fs cache, you want
+> If the cache have no age it means I'd better throw it out instead
+> of swapping/unmapping out stuff, simple?
 
-So I can't read more than the size that the fs cache can take? I must be
-allowed to do that (they're 200 Mbyte of RAM that can be more than enough
-if the server mainly generate pollution anyway).
+Simple, yes. But completely BOGUS if you don't age the cache
+and the mapped pages at the same rate!
 
-Andrea
+If I age your pages twice as much as my pages, is it still
+only fair that your pages will be swapped out first? ;)
+
+> > anything since last time.  Anything that only ages per-pte, not
+> > per-page, is simply going to die horribly under such load, and any
+> 
+> The aging on the fs cache is done per-page.
+
+And the same should be done for other pages as well.
+If you don't do that, you'll have big problems keeping
+page replacement balanced and making the system work well
+under various loads.
+
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
