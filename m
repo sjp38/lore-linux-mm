@@ -1,59 +1,198 @@
-Date: Sat, 25 Jan 2003 13:28:32 +0100
-From: Jens Axboe <axboe@suse.de>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
 Subject: Re: 2.5.59-mm5
-Message-ID: <20030125122832.GI889@suse.de>
-References: <XFMail.20030124180942.pochini@shiny.it> <3E31765F.4010900@cyberone.com.au> <200301241934.h0OJYf0V005773@turing-police.cc.vt.edu> <20030124200434.GD889@suse.de> <200301242202.h0OM2m0V007374@turing-police.cc.vt.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200301242202.h0OM2m0V007374@turing-police.cc.vt.edu>
+Date: Sat, 25 Jan 2003 12:32:15 -0500
+References: <20030123195044.47c51d39.akpm@digeo.com> <m3lm1au51v.fsf@lexa.home.net> <20030124111249.227a40d6.akpm@digeo.com>
+In-Reply-To: <20030124111249.227a40d6.akpm@digeo.com>
+MIME-Version: 1.0
+Message-Id: <200301251232.15866.tomlins@cam.org>
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Valdis.Kletnieks@vt.edu
-Cc: Nick Piggin <piggin@cyberone.com.au>, Giuliano Pochini <pochini@shiny.it>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-kernel@alex.org.uk, Alex Tomas <bzzz@tmi.comex.ru>, Andrew Morton <akpm@digeo.com>, Oliver Xymoron <oxymoron@waste.org>
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 24 2003, Valdis.Kletnieks@vt.edu wrote:
-> On Fri, 24 Jan 2003 21:04:34 +0100, Jens Axboe said:
-> 
-> > Nicks comment refers to the block layer situation, we obviously cannot
-> > merge reads and writes there. You would basically have to rewrite the
-> > entire request submission structure and break all drivers. And for zero
-> > benefit. Face it, it would be stupid to even attempt such a manuever.
-> 
-> As I *said* - "hairy beyond benefit", not "cant".
+Hi Andrew,
 
-Hairy is ok as long as it provides substantial benefit in some way, and
-this does definitely not qualify.
+I am seeing a strange problem with mm5.  This occurs both with and without
+the anticipatory scheduler changes.  What happens is I see very high system
+times and X responds very very slowly.  I first noticed this when switching
+between folders in kmail and have seen it rebuilding db files for squidguard.
+Here is what happened during the db rebuild (no anticipatory ioscheduler):
 
-> > Since you bring it up, you must know if a device which can take a single
-> > command that says "read blocks a to b, and write blocks x to z"? Even
-> > such thing existed,
-> 
-> They do exist.
-> 
-> IBM mainframe disks (the 3330/50/80 series) are able to do much more
-> than that in one CCW chain  So it was *quite* possible to even express
-> things like "Go to this cylinder/track, search for each record that
-> has value XYZ in the 'key' field, and if found, write value ABC in the
-> data field". (In fact, the DASD I/O
-> opcodes for CCW chains are Turing-complete).
+oscar# readprofile -r; vmstat 2
+procs -----------memory---------- ---swap-- -----io---- --system-- ----cpu----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in    cs us sy id wa
+ 6  0    348  15824 115900 183148    0    0   191   134 1064   770 22  6 66  6
+ 5  4    348  15312 115936 183420    0    0     0  4392 1027   537 28 72  0  0
+ 5  0    348  14872 115936 183956    0    0     0   422 1079   553 33 68  0  0
+ 7  0    348  14552 115936 184316    0    0     0     0 1001   536 42 58  0  0
+ 6  0    348  13912 116012 184900    0    0     0   126 1019   560 32 68  0  0
+ 5  0    348  13272 116024 185468    0    0     4     0 1002   560 27 73  0  0
+ 5  4    348  12696 116060 186052    0    0     0    86 1014   519 28 73  0  0
+ 5  0    348  12368 116060 186356    0    0     0     0 1001   509 24 76  0  0
+ 5  0    348  11920 116060 186772    0    0     0    34 1003   519 27 74  0  0
+ 6  0    348  11672 116084 187044    0    0     0    88 1186  1199 29 71  0  0
+ 8  1    348   8536 116276 188148    0    0   468     0 1118   761 39 61  0  0
+ 5  5    348   5016 114468 188120    0    0   614   304 1118   811 59 41  0  0
+ 6  0    348   5144 113336 186548    0    0   648     0 1036   770 54 46  0  0
+ 7  0    348   5080 113252 185920    0    0   132     0 1013   707 42 58  0  0
+ 6  0    348   4688 113188 185528    0    0   184   262 1049   784 64 36  0  0
+ 6  0    348   6032 111292 185160    0    0   406     0 1038   725 39 62  0  0
+ 6  0    348   5200 111392 185908    0    0   216  1096 1032   733 35 65  0  0
+ 6  0    348   4312 111392 186744    0    0   166     0 1023   668 39 62  0  0
+ 6  1    348   5096 111396 187196    0    0    10     0 1002   701 25 76  0  0
+ 6  1    348   4328 111436 187692    0    0    16  3778 1207   755 24 76  0  0
+ 6  1    348   6120 110460 186728    0    0    14     0 1201   841 30 70  0  0
+ 7  2    348   5608 110548 187108    0    0     6    64 1083   753 23 77  0  0
+ 6  1    348   4960 110548 187600    0    0    14    74 1105   783 24 77  0  0
+ 6  1    348   4448 110548 187988    0    0     8     0 1122   700 25 75  0  0
+ 6  1    348   5224 109732 187940    0    0     6   142 1066   813 42 59  0  0
+ 6  1    348   4648 109740 188380    0    0    10     0 1003   682 25 76  0  0
+ 8  1    348   4264 109740 188724    0    0     8     0 1110   740 27 73  0  0
+ 6  1    348   6184 109000 187380    0    0    18   164 1026   727 23 78  0  0
+ 7  1    348   5800 109000 187684    0    0     8     0 1002   694 25 76  0  0
+ 6  1    348   5152 109056 188048    0    0    14   126 1022   743 25 75  0  0
+ 7  1    348   4768 109060 188340    0    0     6     0 1002   699 24 76  0  0
+ 6  0    348   4384 109060 188612    0    0     6     0 1002   681 26 74  0  0
+ 8  1    348   5160 109032 187768    0    0     8   118 1018   709 23 78  0  0
+ 7  1    348   4840 109032 188024    0    0    12     0 1004   655 23 78  0  0
+ 6  1    348   5800 109076 186864    0    0     2  3246 1244   808 46 54  0  0
+procs -----------memory---------- ---swap-- -----io---- --system-- ----cpu----
+r  b   swpd   free   buff  cache   si   so    bi    bo   in    cs us sy id wa
+ 7  0    348   6184 109084 185740    0    0   304     0 1027   717 32 68  0  0
+ 6  1    348   6440 109084 185988    0    0     4     0 1001   676 34 66  0  0
+ 6  1    348   6112 109168 186304    0    0    12  4414 1242   813 23 77  0  0
+ 6  1    348   5664 109172 186636    0    0     6     0 1005   727 24 76  0  0
+ 6  0    348   5224 109216 186924    0    0     6   108 1173   838 24 76  0  0
+ 6  1    348   4840 109216 187260    0    0    16     0 1099   686 25 76  0  0
+ 6  1    348   4328 109220 187644    0    0     6     0 1002   637 24 76  0  0
+ 7  1   1016   6248 108640 185376    0    0    14   108 1021   778 25 76  0  0
+ 8  1   1016   5800 108644 185748    0    0     6     0 1002   627 21 79  0  0
+ 6  1   1016   5344 108696 186012    0    0     8   158 1025   764 44 56  0  0
+ 6  1   1016   4832 108696 186460    0    0    12     0 1003   735 27 73  0  0
+ 6  1   1016   4384 108700 186888    0    0     4     0 1002   648 26 75  0  0
+ 6  0   1016   4968 108152 186612    0    0    12   254 1047   764 25 76  0  0
+ 6  1   1016   4392 108156 187116    0    0    16     0 1002   718 24 77  0  0
+ 6  0   1016   7080 108080 184172    0    0     6    92 1014   720 30 71  0  0
+ 6  1   1016   6760 108092 184584    0    0    12     0 1004   695 24 76  0  0
+ 6  1   1016   6376 108096 184876    0    0     6     0 1002   675 21 79  0  0
+ 6  1   1016   5536 108204 185256    0    0    90  4642 1250   838 26 75  0  0
+ 6  1   1016   5088 108212 185628    0    0    10    36 1006   705 24 76  0  0
+ 8  2   1016   4776 108244 185836    0    0     6  2900 1138   783 57 43  0  0
+ 6  1   1016   5544 108316 184704    0    0   228  3294 1260   874 37 62  0  1
+ 6  1   1016   5096 108316 185088    0    0     6     0 1008   658 24 76  0  0
+ 6  1   1016   4192 108448 185424    0    0    18   276 1047   694 23 77  0  0
+ 7  0   1016   6432 108080 183236    0    0    68     0 1057   742 26 74  0  0
+ 6  1   1016   5848 108220 183744    0    0   126   236 1043   732 26 75  0  0
+ 6  1   1016   5400 108220 184072    0    0     8     0 1056   698 24 76  0  0
+ 7  0   1016   4824 108220 184448    0    0    16     0 1002   662 24 76  0  0
+ 7  1   1016   4384 108280 184796    0    0    12   118 1019   721 25 76  0  0
+ 6  1   1016   5728 108272 183268    0    0     4     0 1056   662 25 75  0  0
+ 9  2   1016   4448 107924 183288    0    0   164   304 1062   796 28 72  0  0
+ 6  2   1016   7512 106888 182268    0    0     8    32 1017   866 47 54  0  0
+ 5  1   1016   5720 106892 183048    0    0    14     0 1045   700 43 57  0  0
+ 2  1   1016   5776 105212 182628    0    0    24   386 1058   741 45 56  0  0
+ 2  1   1016   5464 105216 182828    0    0    38     0 1061   753 20 80  0  0
+ 3  2   1016   6112 105276 181404    0    0   234  1848 1114   774 32 68  0  0
+procs -----------memory---------- ---swap-- -----io---- --system-- ----cpu----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in    cs us sy id wa
+ 3  1   1016   5416 105280 181852    0    0   150  3654 1292   848 24 76  0  0
+ 2  1   1016   5040 105284 182112    0    0    36     0 1090   726 23 78  0  0
+ 2  2   1016   6128 105344 180228    0    0    52  3724 1262   859 21 79  0  0
+ 2  2   1016   5360 105344 180500    0    0    40  2782 1231   758 18 82  0  0
+ 4  1   1016   4328 105424 180888    0    0    62  1018 1144   724 21 79  0  0
+ 3  0   1016   5160 105408 180100    0    0    48     0 1087   849 38 62  0  0
+ 2  1   1016   4776 105448 180388    0    0    36     0 1234   781 18 82  0  0
+ 2  1   1016   4272 105596 180676    0    0    30   122 1025   706 17 83  0  0
+ 0  2   1016   4656 105644 179832    0    0   104  1136 1077   761 24 70  0  6
+ 0  2   1016   5616 105164 174620    0    0   422  3392 1394   933 43 12  0 44
+ 0  2   1016   9200 105868 175916    0    0   532  1096 1152   852 50 26  0 23
+ 3  1   1016   5496 104644 177692    0    0  1410     2 1157   936 37 14  0 50
+ 0  3   1016   5336 103132 177448    0  334   292  3106 1244   784 74 13  0 14
+ 2  1   1020  11096 100876 168948    0    0   566  1356 1118   752 82 18  0  0
+ 1  1   1020  18088 100976 168120    0    0   616     0 1082   789 50  7  0 43
+ 0  1   1020  10856 101660 169780    0    0   562   666 1150   841 59  8  0 33
+ 0  1   1020   5040 101692 169428    0    2   568  1724 1112   727 43  6  0 50
+ 0  1   1020   6024 101080 163120    0    0   588  1368 1180   779 48  9  0 44
+ 0  1   1020   4360  97712 162408    0    0   568   472 1131   787 42  7  0 51
+ 2  0   1020   4800  91872 161560    0    0   596     8 1090   784 46  7  0 47
+ 1  0   1512   4608  87900 160428    0  246   548   686 1129   785 42  8  0 51
+ 2  1   1512   4736  83968 157512    0    0   640     0 1093   807 45  8  0 48
+ 1  1   1512   5320  76640 157896    0    0   604     0 1088   780 47  7  0 47
+ 0  1   1512   5128  71820 157204    0    0   568   444 1127   766 40  7  0 53
+ 1  1   1528   4808  65792 157160    0    8   600     8 1085   798 48  8  0 45
+ 2  0   1536   4616  63268 157108    0    4   892   464 1136   810 76  6  0 19
+ 1  0   2472   4488  62680 158428    0  452   890   744 1075   794 89  5  0  6
+ 3  0   2916   4416  61812 159912   12  222  1148   222 1056   805 81  5  0 15
+ 0  1   3048   5056  60108 159328    0   66   990   228 1122   858 46  5  0 50
+ 0  1   3328   4744  55496 159560    0  140   584   140 1095   863 39  6  0 55
+ 1  0   3704   4428  52604 158456    0  188   568   572 1126   801 36  6  0 58
+ 1  0   4800   5396  51944 154448    0  548   556   554 1088   851 43  7  0 51
+ 1  0   4948   5668  49528 151096   48   74   674    74 1091   793 45  8  0 48
+ 2  0   5896   5648  49392 146584    0  474   598   794 1132   815 38  6  0 56
+ 0  1   6748   6032  49364 142004   16  426   592   436 1085   765 47  8  0 46
+procs -----------memory---------- ---swap-- -----io---- --system-- ----cpu----
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in    cs us sy id wa
+ 2  0   7720   5376  48920 139236    0  486   554   800 1126   745 40  8  0 53
+ 2  0   7720   4928  46020 137268    0    0   596     0 1095   774 65  7  0 28
+ 0  1  12396   5440  45420 135712   16 2338   576  2628 1152   804 45 14  0 42
+ 0  1  15264   5184  45556 134552    0 1434   456  1806 1130   759 36  7  0 58
+ 1  0  17432   4864  43640 134168    0 1084   584  1084 1099   739 43  8  0 48
+ 8  0  22028   4928  42256 133512    0 2298   528  2592 1231   810 39  9  0 51
+ 0  1  24148   5940  40412 133016    0  982   524   982 1142   771 39  8  0 53
+ 0  1  25916   4936  37448 133184   16  884   594   884 1100   740 44  9  0 48
+ 1  1  28856   4892  36868 132172    0 1470   490  1766 1122   729 39  7  0 54
+ 3  1  30236   4292  33800 130832  144  690   836   690 1116   812 46  9  0 45
+ 0  0  32176   5408  33792 131384   32  970   690  1696 1180  1220 43  7 14 36
+ 0  0  32176   5408  33792 131396    0    0     2     0 1001   553  4  1 94  0
+ 0  0  32176   4896  33796 132032   16    0    46     0 1141   928 29  3 66  1
+ 1  0  32176   4864  33904 132036    0    0     6    90 1017   532  4  1 93  2
 
-Well as interesting as that is, it is still an obscurity that will not
-be generally supported. As I said, if you wanted to do such a thing you
-can do it in the driver. Complicating the block layer in this way is
-totally unacceptable, and is just bound to be an endless source of data
-corrupting driver bugs.
+ 55091 default_idle                             1377.2750
+ 62640 __copy_from_user_ll                      1204.6154
+ 33595 __copy_to_user_ll                        646.0577
+   432 system_call                                9.0000
+   100 ide_outb                                   8.3333
+   488 current_kernel_time                        8.1333
+   167 block_commit_write                         5.2188
+   119 delay_tsc                                  4.2500
+    38 syscall_call                               3.4545
+    81 get_offset_tsc                             3.3750
+   203 fget                                       3.1719
+   349 radix_tree_lookup                          2.8145
+  1549 do_anonymous_page                          2.7080
+    32 ide_inb                                    2.6667
+   548 reiserfs_copy_from_user_to_file_region     2.6346
+   156 mark_page_accessed                         2.6000
+    46 fput                                       2.3000
+   131 unlock_page                                2.1833
+   347 reiserfs_submit_file_region_for_write      2.1688
+   302 update_atime                               2.0972
+    67 init_journal_hash                          2.0938
+   422 find_lock_page                             1.9906
+   126 reiserfs_can_fit_pages                     1.7500
+    21 user_schedule                              1.7500
+   100 kmem_cache_free                            1.6667
+   193 unix_poll                                  1.5078
+    50 task_vsize                                 1.3889
+   105 handle_IRQ_event                           1.3816
+    60 reiserfs_claim_blocks_to_be_allocated      1.2500
+    91 sys_pread64                                1.1974
+   171 __block_commit_write                       1.1875
+    56 pathrelse                                  1.1667
+    90 sys_pwrite64                               1.1250
+    13 ide_outl                                   1.0833
+   101 atomic_dec_and_lock                        1.0521
+   279 SHATransform                               1.0257
 
-> > So I quite agree with the "obviously".
-> 
-> My complaint was the confusion of "obviously cant" with "we have decided we
-> don't want to".
+This is on a K6-3 400, 512m debian, kernel built with gcc 2.95-4
 
-Ok fair enough, make that a strong "obviously wont" instead then.
+Ideas?
+Ed Tomlinson
 
--- 
-Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
