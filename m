@@ -1,37 +1,33 @@
-Message-ID: <3F4CAB0B.2030705@lanil.mine.nu>
-Date: Wed, 27 Aug 2003 14:58:51 +0200
-From: Christian Axelsson <smiler@lanil.mine.nu>
-MIME-Version: 1.0
-Subject: Re: 2.6.0-test4-mm2
-References: <20030826221053.25aaa78f.akpm@osdl.org>
-In-Reply-To: <20030826221053.25aaa78f.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 27 Aug 2003 09:52:41 +0200
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: Re: Strange memory usage reporting
+Message-ID: <20030827095241.D639@nightmaster.csn.tu-chemnitz.de>
+References: <Pine.LNX.4.44.0308261550240.1958-100000@pnote.perex-int.cz> <Pine.LNX.4.44.0308261756570.1632-100000@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0308261756570.1632-100000@localhost.localdomain>; from hugh@veritas.com on Tue, Aug 26, 2003 at 06:03:14PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Jaroslav Kysela <perex@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+Hi,
 
-Is there any work beeing done on getting reiser4 into mm?
-I havent tried it myself yet but Ive heard of colliding code in scheduler.
+On Tue, Aug 26, 2003 at 06:03:14PM +0100, Hugh Dickins wrote:
+> Which is the driver involved?  Though it's not wrong to give do_no_page
+> a Reserved page, beware of the the page->count accounting: while it's
+> Reserved, get_page or page_cache_get raises the count, but put_page
+> or page_cache_release does not decrement it - very easy to end up
+> with the page never freed.
 
-- --
-Christan Axelsson
-smiler@lanil.mine.nu
+Why is this so asymetric? I would understand ignoring these pages
+in the freeing logic, but why exclude them also from refcounting?
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.3 (GNU/Linux)
-Comment: Using GnuPG with Thunderbird - http://enigmail.mozdev.org
+Regards
 
-iD8DBQE/TKpTyqbmAWw8VdkRApmoAKDtoTUkjFSFucpKbL7r6zCWOvMmUACg9sU7
-pDS6IWTaHW6wiOg+qcOsXQA=
-=jrVw
------END PGP SIGNATURE-----
-
+Ingo Oeser
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
