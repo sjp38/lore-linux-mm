@@ -1,38 +1,36 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id SAA12551
-	for <linux-mm@kvack.org>; Sat, 21 Sep 2002 18:07:03 -0700 (PDT)
-Message-ID: <3D8D17B6.D4E1ECAE@digeo.com>
-Date: Sat, 21 Sep 2002 18:07:02 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
+Date: Sat, 21 Sep 2002 18:07:26 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Reply-To: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: overcommit stuff
-References: <3D8D066F.1B45E3EA@digeo.com> <Pine.LNX.4.44.0209220129310.2339-100000@localhost.localdomain>
+Message-ID: <20335180.1032631645@[10.10.2.3]>
+In-Reply-To: <Pine.LNX.4.44.0209220151030.2448-100000@localhost.localdomain>
+References: <Pine.LNX.4.44.0209220151030.2448-100000@localhost.localdomain>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@digeo.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> 
-> ...
-> > It seems very unlikely (impossible?) that those pages will
-> > ever become unshared.
-> 
-> I expect it's very unlikely (short of application bugs) that
-> those pages would become unshared; but they have been mapped
-> in such a way that the process is entitled to unshare them,
-> therefore they have been counted.  A good example of why
-> Linux does not impose strict commit accounting, and why
-> you may choose not to use Alan's strict accounting policy.
-> 
+> It is intended that you should be able to switch commit modes while
+> running.  There is one hole there that we've not got around to
+> plugging yet, the handling of MAP_NORESERVE, but otherwise I believe
+> it makes sense: please don't take that away.
 
-OK, thanks.   Just checking.
+Not quite sure why you'd want to do that, but if you really do, 
+I guess making a config option to disable this stuff is a possibility.
 
-Is glibc mapping executables with PROT_WRITE?  If so,
-doesn't that rather devalue the whole overcommit thing?
+> I like to see those Committed_AS numbers (though I don't care for
+> the "_AS" prefix), even though I run loose.
+
+Well, there are cheaper ways of keeping it if it's just a stat for
+meminfo ;-)
+
+M.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
