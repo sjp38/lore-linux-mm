@@ -1,46 +1,42 @@
-Message-ID: <4021A7ED.7070703@cyberone.com.au>
-Date: Thu, 05 Feb 2004 13:18:21 +1100
+Message-ID: <4021A6BA.5000808@cyberone.com.au>
+Date: Thu, 05 Feb 2004 13:13:14 +1100
 From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] mm improvements
-References: <Pine.LNX.4.44.0402041026400.24515-100000@chimarrao.boston.redhat.com>
-In-Reply-To: <Pine.LNX.4.44.0402041026400.24515-100000@chimarrao.boston.redhat.com>
+Subject: Re: [PATCH 0/5] mm improvements
+References: <16416.64425.172529.550105@laputa.namesys.com>	<Pine.LNX.4.44.0402041459420.3574-100000@localhost.localdomain> <16417.3444.377405.923166@laputa.namesys.com>
+In-Reply-To: <16417.3444.377405.923166@laputa.namesys.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Nikita Danilov <Nikita@Namesys.COM>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-Rik van Riel wrote:
+Nikita Danilov wrote:
 
->On Wed, 4 Feb 2004, Andrew Morton wrote:
->  
+>Hugh Dickins writes:
+> > On Wed, 4 Feb 2004, Nikita Danilov wrote:
+> > > Hugh Dickins writes:
+> > >  > If you go the writepage-while-mapped route (more general gotchas?
+> > >  > I forget), you'll have to make an exception for shmem_writepage.
+> > > 
+> > > May be one can just call try_to_unmap() from shmem_writepage()?
+> > 
+> > That sounds much cleaner.  But I've not yet found what tree your
+> > p12-dont-unmap-on-pageout.patch applies to, so cannot judge it.
 >
->>Nick Piggin <piggin@cyberone.com.au> wrote:
->>    
->>
->>> > 2/5: vm-dont-rotate-active-list.patch
->>> >     Nikita's patch to keep more page ordering info in the active list.
->>> >     Also should improve system time due to less useless scanning
->>> >     Helps swapping loads significantly.
->>>      
->>>
->>It bugs me that this improvement is also applicable to 2.4.  if it makes
->>the same improvement there, we're still behind.
->>    
->>
+>Whole
+>ftp://ftp.namesys.com/pub/misc-patches/unsupported/extra/2004.02.04/
+>applies to the 2.6.2-rc2.
 >
->I suspect 2.4 won't see the gains from this, since active/inactive
->list location is hardly relevant for mapped pages there, due to the
->page table scanning algorithm.
+>I just updated p12-dont-unmap-on-pageout.patch in-place.
 >
 >  
 >
 
-Yeah you're right.
+Sure, I can give this a try. It makes sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
