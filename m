@@ -1,51 +1,35 @@
-Received: from atrey.karlin.mff.cuni.cz (root@atrey.karlin.mff.cuni.cz [195.113.31.123])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA19933
-	for <linux-mm@kvack.org>; Tue, 16 Dec 1997 12:08:59 -0500
-Message-ID: <19971216145643.34360@Elf.mj.gts.cz>
-Date: Tue, 16 Dec 1997 14:56:43 +0100
-From: Pavel Machek <pavel@Elf.mj.gts.cz>
-Subject: Re: Recipe for cooking 2.1.72's mm
-References: <19971216091554.50382@Elf.mj.gts.cz> <Pine.LNX.3.91.971216124819.15838B-100000@mirkwood.dummy.home>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.3.91.971216124819.15838B-100000@mirkwood.dummy.home>; from Rik van Riel on Tue, Dec 16, 1997 at 12:53:36PM +0100
+Received: from Galois.suse.de (Galois.suse.de [195.125.217.193])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA03982
+	for <linux-mm@kvack.org>; Wed, 17 Dec 1997 09:22:45 -0500
+Date: Wed, 17 Dec 1997 15:14:32 +0100
+Message-Id: <199712171414.PAA22677@boole.fs100.suse.de>
+From: "Dr. Werner Fink" <werner@suse.de>
+In-reply-to: <19971216214115.05614@Elf.mj.gts.cz> (message from Pavel Machek
+	on Tue, 16 Dec 1997 21:41:15 +0100)
+Subject: Re: Memory usage maps into /proc/memmap and /proc/mempages
 Sender: owner-linux-mm@kvack.org
-To: H.H.vanRiel@fys.ruu.nl
-Cc: linux-mm <linux-mm@kvack.org>
+To: pavel@Elf.mj.gts.cz
+Cc: linux-kernel@vger.rutgers.edu, mj@atrey.karlin.mff.cuni.cz, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
 
-> > Sorry. There is a problem. It needs to be solved, not worked
-> > around. (Notice, that same process does nothing bad to 2.0.28).
 > 
-> On my system, it just gives one or two out-of-memory kills
-> of random processes. I'd really like it if those processes
-> would be a little less random... Killing kerneld or crond
-> (or X... remember those poor stateless-vga-card users) is
-> IMHO worse than killing a program from some USER. Finding
-> the most hoggy non-root process group and killing some of
-> it's programs shouldn't be too difficult.
-
-Aha. So you were unsuccessfull while reproducing. On my system no
-process dies, but whole system is dead.
-
-> btw: I'm using 2.1.66 with my mmap-age patch...
+> Hi!
 > 
-> > And: Work around is bad. Imagine your machine with such behaviour on
-> > 100MBit ethernet. Imagine me around (ping -f)ing your machine. That
-> > can keep your pages low for as long as I want. You do not your machine
-> > to go yo-yo (up and down and up and down ...).
+> Marnix Coppens presented stand-alone module usable for listing memory
+> usage in very nice way. I think that this is really nice, that it
+> could be simply compiled into kernel, and maybe even merged into
+> official tree. What do you think? (I did not make it CONFIG_
+> option. Do you think that it should be?)
 > 
-> Ok, so we should limit the amount of memory the kernel can grab
-> for internal usage... Sysctl-wise of course, because some people
-> have special purpose routing machines.
+> 								Pavel
 
-It might be nice idea. I'm just afraid that for every limit, you find
-situation in which limit _must_ be exceeded or action is impossible.
 
-								Pavel
+These two entries a really worth to go into kernel with a (config)
+option for kernel hackers.  But one thing is still missed ... I would
+like to see the order of the pages or the page clusters.  This would
+be a glassy memory mapping :-)
 
--- 
-I'm really pavel@atrey.karlin.mff.cuni.cz. 	   Pavel
-Look at http://atrey.karlin.mff.cuni.cz/~pavel/ ;-).
+
+
+            Werner
