@@ -1,28 +1,50 @@
-Date: Sat, 9 Jun 2001 05:43:03 +0200 (CEST)
-From: Mike Galbraith <mikeg@wen-online.de>
-Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps
-In-Reply-To: <l0313032bb7471092da13@[192.168.239.105]>
-Message-ID: <Pine.LNX.4.33.0106090541370.480-100000@mikeg.weiden.de>
+Date: Sat, 9 Jun 2001 00:46:08 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: Background scanning change on 2.4.6-pre1
+In-Reply-To: <Pine.LNX.4.21.0106081743070.2699-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0106090044060.10415-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Morton <chromi@cyberspace.org>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, John Stoffel <stoffel@casc.com>, Tobias Ringstrom <tori@unhappy.mine.nu>, Shane Nay <shane@minirl.com>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, "David S. Miller" <davem@redhat.com>, Mike Galbraith <mikeg@wen-online.de>, Zlatko Calusic <zlatko.calusic@iskon.hr>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 9 Jun 2001, Jonathan Morton wrote:
+On Fri, 8 Jun 2001, Marcelo Tosatti wrote:
 
-> On the subject of Mike Galbraith's kernel compilation test, how much
-> physical RAM does he have for his machine, what type of CPU is it, and what
-> (approximate) type of device does he use for swap?  I'll see if I can
-> partially duplicate his results at this end.  So far all my tests have been
-> done with a fast CPU - perhaps I should try the P166/MMX or even try
-> loading linux-pmac onto my 8100.
+> Yes, we want fair aging. No, we dont want more pages being swapped out. 
+> 
+> Well, I'll take a look at this. 
 
-It's a PIII/500 with one ide disk.
+OK, I found a MUCH more serious issue in 2.4.6-pre1 ... this one
+makes page_launder() actively work at making it impossible for the
+system to fulfill the inactive_target and will make the system work
+in refill_inactive() basically infinitely, doing page aging just for
+the hell of it.
 
-	-Mike
+vmscan.c:
+@@ -463,6 +458,7 @@
+ 
+                /* Page is or was in use?  Move it to the active list. */
+                if (PageReferenced(page) || page->age > 0 ||
++                               page->zone->free_pages > page->zone->pages_high ||
+                                (!page->buffers && page_count(page) > 1) ||
+                                page_ramdisk(page)) {
+                        del_page_from_inactive_dirty_list(page);
+
+This thing needs to go.
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
