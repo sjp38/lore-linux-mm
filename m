@@ -1,28 +1,32 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA18368
-	for <linux-mm@kvack.org>; Wed, 13 Jan 1999 12:59:54 -0500
-Date: Wed, 13 Jan 1999 16:07:13 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <Pine.LNX.3.96.990113135623.12654A-100000@ferret.lmh.ox.ac.uk>
-Message-ID: <Pine.LNX.3.96.990113160548.340A-100000@laser.bogus>
+Received: from mb06.swip.net (mb06.swip.net [193.12.122.210])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA18479
+	for <linux-mm@kvack.org>; Wed, 13 Jan 1999 13:06:58 -0500
+Date: Wed, 13 Jan 1999 19:07:27 +0100 (CET)
+From: Kalle Andersson <kalle@sslug.dk>
+Subject: 2.2.0-pre6 ain't nice =(
+In-Reply-To: <199901131748.RAA06406@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.96.990113190341.3236A-100000@zeus.olympen.se>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Chris Evans <chris@ferret.lmh.ox.ac.uk>
-Cc: Rik van Riel <riel@humbolt.geo.uu.nl>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Linus Torvalds <torvalds@transmeta.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Jan 1999, Chris Evans wrote:
+Hello
 
-> Yes. Imagine the paging in of big binary case. The page faults will occur
-> all over the place, not in a nice sequential order. The page-in clusters
-> stuff _doubled_ performance of paging in certain big static binaries.
+I've been running 2.2.0-pre6 for about 5 days now (w/o reboot) and I'm sad
+to say that it seems to swap more and more for each day. Especially when
+something heavy I/O is running, but even when the system is not used at
+all it is much more sluggish then freshly rebooted... 
 
-I think that if it helped it means that the swap cache got shrunk too much
-early due a not good free paging algorithm.
+I hope this problem will be fixed, we certainly don't want NT emulation =)
 
-Andrea Arcangeli
+--
+Med vanlig halsning
+Kalle Andersson
+kalle@sslug.dk
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
