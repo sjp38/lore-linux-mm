@@ -1,59 +1,66 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id LAA19643
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2002 11:10:03 -0700 (PDT)
-Message-ID: <3DAC59F7.18678FA6@digeo.com>
-Date: Tue, 15 Oct 2002 11:09:59 -0700
-From: Andrew Morton <akpm@digeo.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: 2.5.x opps stopping serial
+Date: Fri, 11 Oct 2002 08:45:24 -0400
+References: <3DA683F4.944DFC11@digeo.com>
+In-Reply-To: <3DA683F4.944DFC11@digeo.com>
 MIME-Version: 1.0
-Subject: Re: [patch] mmap-speedup-2.5.42-C3
-References: <Pine.LNX.4.44.0210151438440.10496-100000@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
+Message-Id: <200210110845.24687.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Andrew Morton <akpm@zip.com.au>, Saurabh Desai <sdesai@austin.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, NPT library mailing list <phil-list@redhat.com>
+To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> 
-> ...
-> 
-> Saurabh reported a slowdown after the first couple of thousands of
-> threads, which i can reproduce as well. The reason for this slowdown is
-> the get_unmapped_area() implementation, which tries to achieve the most
-> compact virtual memory allocation, by searching for the vma at
-> TASK_UNMAPPED_BASE, and then linearly searching for a hole. With thousands
-> of linearly allocated vmas this is an increasingly painful thing to do ...
+Hi,
 
-We've had reports of problems with that linear search before - for
-a single-threaded application which was mapping a lot of little windows
-into a huge file.
- 
-> ...
-> 
-> there are various solutions to this problem, none of which solve the
-> problem in a 100% sufficient way, so i went for the simplest approach: i
-> added code to cache the 'last known hole' address in mm->free_area_cache,
-> which is used as a hint to get_unmapped_area().
+I have been seeing this during shutdown ever since I started using 2.5.  Figured
+I really should report it...   There are three serial ports.  One for a serial console,
+the second for a backUPS ups, the third for a (real) modem.  Dist is debian sid.
 
-This will have no effect on current kernel behaviour other than speeding
-it up.  Looks good.
- 
-> ...
-> The most generic and still perfectly-compact VM allocation solution would
-> be to have a vma tree for the 'inverse virtual memory space', ie. a tree
-> of free virtual memory ranges, which could be searched and iterated like
-> the space of allocated vmas. I think we could do this by extending vmas,
-> but the drawback is larger vmas. This does not save us from having to scan
-> vmas linearly still, because the size constraint is still present, but at
-> least most of the anon-mmap activities are constant sized. (both malloc()
-> and the thread-stack allocator uses mostly fixed sizes.)
+Saving state of known serial devices... Unable to handle kernel NULL pointer dereference at virtual addres
+s 00000114
+ printing eip:
+c0191f73
+*pde = 00000000
+Oops: 0000
+af_packet snd-seq-midi snd-seq-oss snd-seq-midi-event snd-seq snd-pcm-oss snd-mixer-oss snd-cs46xx snd-pcm
+ snd-timer snd-rawmidi snd-seq-device snd-ac97-codec snd soundcore gameport softdog matroxfb_base matroxfb
+_g450 matroxfb_DAC1064 g450_pll matroxfb_accel fbcon-cfb24 fbcon-cfb8 fbcon-cfb32 fbcon-cfb16 matroxfb_mis
+c mga agpgart pppoe pppox ipchains msdos fat sd_mod floppy dummy bsd_comp ppp_generic slhc parport_pc lp p
+arport ipip smbfs nls_cp850 nls_cp437 nfs lockd sunrpc binfmt_aout autofs4 cdrom via-rhine mii tulip crc32
+ usb-storage scsi_mod pl2303 usbserial hid
+CPU:    0
+EIP:    0060:[<c0191f73>]    Not tainted
+EFLAGS: 00010246
+EIP is at uart_block_til_ready+0x15b/0x1a4
+eax: 00000000   ebx: d9cd4000   ecx: dffe381c   edx: c17a5114
+esi: d9cd5e84   edi: 00000202   ebp: c17a50c0   esp: d9cd5e58
+ds: 0068   es: 0068   ss: 0068
+Process bkupsd (pid: 1096, threadinfo=d9cd4000 task=dc75a160)
+Stack: c0284800 d9b75000 c17a50c0 00000000 c0356804 dffe381c 00000000 dc75a160
+       c0110868 00000000 00000000 00000000 dc75a160 c0110868 c17a5114 c17a5114
+       c0192269 d9e64d20 c17a50c0 00000000 00000100 00000000 dec0b3b4 d9cd4000
+Call Trace:
+ [<c0110868>] default_wake_function+0x0/0x2c
+ [<c0110868>] default_wake_function+0x0/0x2c
+ [<c0192269>] uart_open+0x1d9/0x220
+ [<c0199d72>] tty_open+0x1e6/0x39c
+ [<c0199da3>] tty_open+0x217/0x39c
+ [<c0139759>] get_chrfops+0xa1/0x164
+ [<c0139a03>] chrdev_open+0x5b/0x94
+ [<c01382f9>] dentry_open+0xb9/0x16c
+ [<c0138237>] filp_open+0x43/0x4c
+ [<c01385d8>] sys_open+0x34/0x70
+ [<c0106ef7>] syscall_call+0x7/0xb
 
-Yup.  We'd need to be able to perform a search based on "size of hole"
-rather than virtual address.  That really needs a whole new data structure
-and supporting search code, I think...  It also may have side effects
-to do with fragmentation of the virtual address space.
+Code: f6 80 14 01 00 00 02 75 34 8b 44 24 44 50 e8 6a 6b 00 00 83
+ backing up serial.conf done.
+
+Ideas?
+Ed Tomlinson
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
