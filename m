@@ -1,45 +1,31 @@
-Reply-To: "Gene Addison" <RuizM@fusemail.com>
-From: "Gene Addison" <RuizM@fusemail.com>
-Subject: FREE PlayStation 2 or PlayStation Portable
-Date: Thu, 03 Mar 2005 01:34:03 -0800
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--09-69523-3457-218-0873848369"
-Message-Id: <20050303093401Z26515-23303+37@kvack.org>
+Date: Thu, 3 Mar 2005 10:59:46 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: RFC: Speed freeing memory for suspend.
+Message-ID: <20050303095946.GA1445@elf.ucw.cz>
+References: <1109812166.3733.3.camel@desktop.cunningham.myip.net.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1109812166.3733.3.camel@desktop.cunningham.myip.net.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Nigel Cunningham <ncunningham@cyclades.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-----09-69523-3457-218-0873848369
-Content-Type: text/plain;
-Content-Transfer-Encoding: 7Bit
+Hi!
 
-Get a FREE PlayStation 2 or PlayStation Portable!
+> Here's a patch I've prepared which improves the speed at which memory is
+> freed prior to suspend. It should be a big gain for swsusp. For
+> suspend2, it isn't used much, but has shown big improvements when I set
+> a very low image size limit and had memory quite full.
 
-You decide! It's your choice! Think I'm kidding? Check the link below:
+It looks good to me.
+								Pavel
 
-http://www.c-u-i.com/offer.php?45PV69
-
-
-P.S. The page might load slow at times. This is due to the huge demand created by
-our offer. Don't worry though. Your PS2 or PSP will be waiting for you!
-
-
-
-MelamieLINE  Not our activity for Him but our captivity to Him!   GerrardLINE
-MakaryLINE  To foretell the destiny of a nation, one has to open the book of her past. (Dr. Jose P. Rizal)   BasilLINE
-ShoshanaLINE "Black pepper, or white pepper?" asked the concierge. MarjyLINE
-AdriannaLINE  Challenges can be stepping stones or stumbling blocks. It's just a matter of how you view them.   NattyLINE
-
-nah no
-
-http://www.c-u-i.com/e/
-
-
-
-
-----09-69523-3457-218-0873848369--
+-- 
+People were complaining that M$ turns users into beta-testers...
+...jr ghea gurz vagb qrirybcref, naq gurl frrz gb yvxr vg gung jnl!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
