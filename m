@@ -1,61 +1,47 @@
-Subject: PATCH: Change in __alloc_pages
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-Date: 20 Jun 2000 03:43:44 +0200
-Message-ID: <yttog4xnn3j.fsf@serpe.mitica>
-MIME-Version: 1.0
+Date: Tue, 20 Jun 2000 13:20:19 +1000
+From: David Gibson <dgibson@linuxcare.com>
+Subject: Re: [PATCH] ramfs fixes
+Message-ID: <20000620132019.A28309@tweedle.linuxcare.com.au>
+References: <20000619182802.B22551@tweedle.linuxcare.com.au> <Pine.LNX.4.21.0006191059080.13200-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.21.0006191059080.13200-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, Jun 19, 2000 at 11:02:22AM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>, lkml <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: David Gibson <dgibson@linuxcare.com>, linux-fsdevel@vger.rutgers.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
-        with this change in top of my previous patch (shrink_mmap take2)
-I get the same performance on IO that the removing the page->zone test
-from shrink_mmap.  Could people seing improvements in ac21 (or later)
-test this patch.  
+On Mon, Jun 19, 2000 at 11:02:22AM -0300, Rik van Riel wrote:
+> On Mon, 19 Jun 2000, David Gibson wrote:
+> 
+> > The PG_dirty bit is cleared in add_to_swap_cache() and
+> > __add_to_page_cache() so this is kind of redundant, but the
+> > detach_page hook is good news in general.
+> 
+> Oww, good that you alert me to this bug. It makes no sense to
+> clear the bit there since we may have dirty pages in both the
+> filecache and the swapcache...
+> 
+> (well, it doesn't cause any bugs, but it could add some nasty
+> surprises later when we change the code so we can have dirty
+> pages in all the caches)
 
-Comments and positive/negative reports are welcome.
+This actually went in somewhat recently, in 2.3.99pre something (where
+something is around 4 IIRC). This fixed a bug in ramfs, since
+previously the dirty bit was never being cleared.
 
-Later, Juan.
+At the time ramfs was the *only* place using PG_dirty - it looked like
+it was just a misleading name for something analagous to BH_protected.
 
-This patch does:
-- We allocate for a zone with more than pages_high free pages if
-  possible.
-
-diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/mm/page_alloc.c working/mm/page_alloc.c
---- base/mm/page_alloc.c	Mon Jun 19 23:35:41 2000
-+++ working/mm/page_alloc.c	Tue Jun 20 03:03:51 2000
-@@ -233,6 +233,23 @@
- 	 * We are falling back to lower-level zones if allocation
- 	 * in a higher zone fails.
- 	 */
-+
-+	for (;;) {
-+		zone_t *z = *(zone++);
-+		if (!z)
-+			break;
-+		if (!z->size)
-+			BUG();
-+
-+		/* If there are zones with a lot of free memory
-allocate from them */
-+		if (z->free_pages > z->pages_high) {
-+			struct page *page = rmqueue(z, order);
-+			if (page)
-+				return page;
-+		}
-+	}
-+
-+	zone = zonelist->zones;
- 	for (;;) {
- 		zone_t *z = *(zone++);
- 		if (!z)
-
+Obviously that's not true any more. What does the PG_dirty bit mean
+these days?
 
 -- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
+David Gibson, Technical Support Engineer, Linuxcare, Inc.
++61 2 6262 8990
+dgibson@linuxcare.com, http://www.linuxcare.com/ 
+Linuxcare. Support for the revolution.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
