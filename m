@@ -1,40 +1,46 @@
-Date: Sun, 9 Jul 2000 22:53:35 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: Swap clustering with new VM 
-In-Reply-To: <Pine.LNX.4.21.0007091340520.14314-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0007092238450.586-100000@inspiron.random>
+Message-ID: <396910CE.64A79820@uow.edu.au>
+Date: Sun, 09 Jul 2000 23:54:54 +0000
+From: Andrew Morton <andrewm@uow.edu.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: sys_exit() and zap_page_range()
+References: <3965EC8E.5950B758@uow.edu.au>,
+            <3965EC8E.5950B758@uow.edu.au> <20000709103011.A3469@fruits.uzix.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>, Rik van Riel <riel@conectiva.com.br>
+To: Philipp Rumpf <prumpf@uzix.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 9 Jul 2000, Marcelo Tosatti wrote:
+Philipp Rumpf wrote:
+> 
 
->AFAIK XFS's pagebuf structure contains a list of contiguous on-disk
->buffers, so the filesystem can do IO on a pagebuf structure avoiding disk
->seek time.
->
->Do you plan to fix the swap clustering problem with a similar idea? 
+Hi, Philipp.
 
-I don't know pagebuf well enough to understand if it can helps. However
-I have a possible solution (not that it looks like to me that there are
-many other possible solutions btw ;).
+> Here's a simple way:
 
-What worries me a bit is that whatever we do to improve swapin seeks it
-can always disagree with what the lru says that have to be thrown away.
+Already done it :)  It's apparent that not _all_ callers of z_p_r need
+this treatment, so I've added an extra 'do_reschedule' flag.  I've also
+moved the TLB flushing into this function.
 
-A dumb way to provide the current swapin-contiguous behaviour is to do a
-unmap/swap-around of the pages pointed by the pagetables slots near the
-one that we found in the lru.
+It strikes me that the TLB flush race can be avoided by simply deferring
+the actual free_page until _after_ the flush.  So
+free_page_and_swap_cache simply appends them to a passed-in list rather
+than returning them to the buddy allocator.  zap_page_range can then
+free the pages after the flush.
 
-I guess we could left a sysctl so that we can select between
-swapin-optimized or lru-optimized behaviour at runtime to handy bench.
+What am I missing???
 
-Andrea
+ 
+> [PAGE_SIZE*4 is low, I suspect.]
 
+zap_page_range zaps 1000 pages per millisecond, so I'm doing 1000 at a
+time.
+
+> For a clean solution, what I would love zap_page_range to look like is:
+
+I'll look at it, but I'm not an MM guy....
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
