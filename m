@@ -1,31 +1,45 @@
-Date: Fri, 12 May 2000 00:22:29 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: mingo@elte.hu
-Subject: Re: PATCH: rewrite of invalidate_inode_pages
-In-Reply-To: <yttya5ghhtr.fsf@vexeta.dc.fi.udc.es>
-Message-ID: <Pine.LNX.4.10.10005120019030.9733-100000@elte.hu>
+Message-ID: <391B2EB3.A79DFA63@timpanogas.com>
+Date: Thu, 11 May 2000 16:05:39 -0600
+From: "Jeff V. Merkey" <jmerkey@timpanogas.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: PATCH: rewrite of invalidate_inode_pages
+References: <Pine.LNX.4.10.10005111445370.819-100000@penguin.transmeta.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On 11 May 2000, Juan J. Quintela wrote:
+It should be expanded to support 64K pages.  Check
+/usr/src/linux/include/asm-ia64/page.h.  IA64 supports page sizes up to
+64K.  
 
-> Linus, I agree with you here, but we do a get_page 5 lines before, I
-> think that if I do a get_page I should do a put_page to liberate it. 
+:-)
 
-get_page() is different - it elevates the page count of a page of
-_arbitrary order_. put_page() on the other hand does a __free_page()
-[unconditional order 0]. This is a speciality of the Buddy allocator (you
-can get a reference to a page through it's pointer without knowing the
-order of the page, but you cannot free it without knowing the order), and
-it's bad naming (i believe that particular naming is my fault).
+Jeff
 
-	Ingo
-
+Linus Torvalds wrote:
+> 
+> On 11 May 2000, Juan J. Quintela wrote:
+> > - we change one page_cache_release to put_page in truncate_inode_pages
+> >   (people find lost when they see a get_page without the correspondent
+> >   put_page, and put_page and page_cache_release are synonimops)
+> 
+> put_page() is _not_ synonymous with page_cache_release()!
+> 
+> Imagine a time in the not too distant future when the page cache
+> granularity is 8kB or 16kB due to better IO performance (possibly
+> controlled by a config option), and page_cache_release() will do an
+> "order=1" or "order=2" page free..
+> 
+>                 Linus
+> 
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.rutgers.edu
+> Please read the FAQ at http://www.tux.org/lkml/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
