@@ -1,8 +1,8 @@
-Date: Wed, 3 May 2000 21:05:48 -0700 (PDT)
+Date: Wed, 3 May 2000 21:10:05 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
-In-Reply-To: <3910E40B.25FBEED4@sgi.com>
-Message-ID: <Pine.LNX.4.10.10005032104090.765-100000@penguin.transmeta.com>
+In-Reply-To: <3910EB99.2B9E1980@sgi.com>
+Message-ID: <Pine.LNX.4.10.10005032108080.765-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,29 +14,21 @@ List-ID: <linux-mm.kvack.org>
 
 On Wed, 3 May 2000, Rajagopal Ananthanarayanan wrote:
 > 
-> One quick comment: Looking at this part of the diff to mm/vmscan.c:
-> 
-> ----------
-> @@ -138,6 +139,7 @@
->                 flush_tlb_page(vma, address);
->                 vmlist_access_unlock(vma->vm_mm);
->                 error = swapout(page, file);
-> +               UnlockPage(page);
->                 if (file) fput(file);
->                 if (!error)
->                         goto out_free_success;
-> -----------------
-> 
-> Didn't you mean the UnlockPage() to go before swapout(...)?
-> For example, one of the swapout routines, filemap_write_page()
-> expects the page to be unlocked. If called with page locked,
-> I'd expect a "double-trip" dead-lock. Right?
+> One other problem with having the page locked in
+> try_to_swapout() is in the call to 
+> prepare_highmem_swapout() when the incoming
+> page is in highmem. 
 
-Nope. I changed swap_out() so that it gets called with the page locked
-(which is much more like the other VM routines work too). Otherwise the
-first thing swap_out() would do would be to just re-lock the page,and then
-you'd have a window between the caller and the callee when neither the
-page lock nor the page table lock were held.
+Look at how I handled this in pre7-4.
+
+Just unlocking the old page and returning with the new page locked is
+quite acceptable. The "prepare_highmem_swapout()" thing breaks the
+association with the pages anyway, and as such there is no race (and this
+is allowable only exactly because of the anonymous and non-shared nature
+of a private COW-mapping - which is the only thing we accept in that
+code-path anyway).
+
+Doing it that way means that there are no special cases in vmscan.c.
 
 		Linus
 
