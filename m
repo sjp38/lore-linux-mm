@@ -1,52 +1,57 @@
-Date: Tue, 22 Oct 2002 14:21:18 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
-Message-ID: <188940000.1035314478@baldur.austin.ibm.com>
-In-Reply-To: <407130000.1035313347@flay>
-References: <Pine.LNX.3.96.1021022135649.7820C-100000@gatekeeper.tmr.com>
- <407130000.1035313347@flay>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id MAA00242
+	for <linux-mm@kvack.org>; Tue, 22 Oct 2002 12:23:43 -0700 (PDT)
+Message-ID: <3DB5A5BD.D3E00B4A@digeo.com>
+Date: Tue, 22 Oct 2002 12:23:41 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
+Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
+References: <Pine.LNX.4.44.0210221936010.18790-100000@localhost.localdomain> <20021022184938.A2395@infradead.org>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>, Bill Davidsen <davidsen@tmr.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---On Tuesday, October 22, 2002 12:02:27 -0700 "Martin J. Bligh"
-<mbligh@aracnet.com> wrote:
-
-
->> I'm just trying to decide what this might do for a news server with
->> hundreds of readers mmap()ing a GB history file. Benchmarks show the 2.5
->> has more latency the 2.4, and this is likely to make that more obvious.
+Christoph Hellwig wrote:
 > 
-> On the other hand, I don't think shared pagetables have an mmap hook,
-> though that'd be easy enough to add. And if you're not reading the whole 
-> history file, presumably the PTEs will only be sparsely instantiated
-> anyway.
+> On Tue, Oct 22, 2002 at 07:57:00PM +0200, Ingo Molnar wrote:
+> > the attached patch (ontop of 2.5.44-mm2) implements generic (swappable!)
+> > nonlinear mappings and sys_remap_file_pages() support. Ie. no more
+> > MAP_LOCKED restrictions and strange pagefault semantics.
+> >
+> > to implement this i added a new pte concept: "file pte's". This means that
+> > upon swapout, shared-named mappings do not get cleared but get converted
+> > into file pte's, which can then be decoded by the pagefault path and can
+> > be looked up in the pagecache.
+> >
+> > the normal linear pagefault path from now on does not assume linearity and
+> > decodes the offset in the pte. This also tests pte encoding/decoding in
+> > the pagecache case, and the ->populate functions.
+> 
+> Ingo,
+> 
+> what is the reason for that interface?  It looks like a gross performance
+> hack for misdesigned applications to me, kindof windowsish..
+> 
 
-Actually shared page tables work on any shared memory area, no matter how
-it was created.  When a page fault occurs and there's no pte page already
-allocated (the common case for any newly mapped region) it checks the vma
-to see if it's shared.  If it's shared, it gets the address_space for that
-vma, then walks through all the shared vmas looking for one that's mapped
-at the same address and offset and already has a pte page that can be
-shared.
+So that evicted pages in non-linear mappings can be reestablished
+at fault time by the kernel, rather than by delegation to userspace
+via SIGBUS.
 
-So if your history file is mapped at the same address for all your
-processes then it will use shared page tables.  While it might be a nice
-add-on to allow sharing if they're mapped on the same pte page boundary,
-that doesn't seem likely enough to justify the extra work.
 
-Dave McCracken
+We seem to have lost a pte_page_unlock() from fremap.c:zap_pte()?
+I fixed up the ifdef tangle in there within the shpte-ng patch
+and then put the pte_page_unlock() back.
 
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
+I also added a page_cache_release() to the error path in filemap_populate(),
+if install_page() failed.
 
+The 2TB file size limit for mmap on non-PAE is a little worrisome.
+I wonder if we can only instantiate the pte_file() bit if the
+mapping is using MAP_POPULATE?  Seems hard to do.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
