@@ -1,46 +1,38 @@
-Message-ID: <20000927182028.B14797@saw.sw.com.sg>
-Date: Wed, 27 Sep 2000 18:20:28 +0800
-From: Andrey Savochkin <saw@saw.sw.com.sg>
-Subject: Re: the new VMt
-References: <20000925192453.R2615@redhat.com> <20000925123456.A16612@hq.fsmlabs.com> <20000925202549.V2615@redhat.com> <20000925140419.A18243@hq.fsmlabs.com> <20000925171411.A2397@codepoet.org> <20000926091744.A25214@hq.fsmlabs.com> <20000926170406.C1343@redhat.com> <20000926110247.A4698@codepoet.org> <20000926180820.E1343@redhat.com> <20000926114501.B4780@codepoet.org>
+Date: Wed, 27 Sep 2000 06:11:41 -0600
+From: yodaiken@fsmlabs.com
+Subject: Re: the new VM
+Message-ID: <20000927061141.A26711@hq.fsmlabs.com>
+References: <20000926211016.A416@bug.ucw.cz> <Pine.LNX.4.21.0009270935380.993-100000@elte.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <20000926114501.B4780@codepoet.org>; from "Erik Andersen" on Tue, Sep 26, 2000 at 11:45:02AM
+In-Reply-To: <Pine.LNX.4.21.0009270935380.993-100000@elte.hu>; from Ingo Molnar on Wed, Sep 27, 2000 at 09:42:45AM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Erik Andersen <andersen@codepoet.org>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, yodaiken@fsmlabs.com, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pavel Machek <pavel@suse.cz>, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 26, 2000 at 11:45:02AM -0600, Erik Andersen wrote:
-[snip]
-> "Overcommit" to me is the same things as Mark Hemment stated earlier in this
-> thread -- the "fact that the system has over committed its memory resources.
-> ie. it has sold too many tickets for the number of seats in the plane, and all
-> the passengers have turned up."   Basically any case where too many tickets
-> have been sold (applied to the entire system, and all subsystems).
-[snip]
-> If the Beancounter patch lets the kernel count "passengers", classify them
-> (with user hinting) so the pilot and flight attendants (init, X, or whatever)
-> always stay on the plane, and has some sane predictable mechanism for booting
-> non-priveledged passengers, then I am all for it.  
+On Wed, Sep 27, 2000 at 09:42:45AM +0200, Ingo Molnar wrote:
+> 
+> On Tue, 26 Sep 2000, Pavel Machek wrote:
+> of the VM allocation issues. Returning NULL in kmalloc() is just a way to
+> say: 'oops, we screwed up somewhere'. And i'd suggest to not work around
 
-That's exactly what I'm doing.
+That is not at all how it is currently used in the kernel. 
 
-> How does one provide the kernel with hints as to which processes are sacred?
-> Where does one find this beancounter patch?   How much weight does it add to
-> the kernel? 
+> such screwups by checking for NULL and trying to handle it. I suggest to
+> rather fix those screwups.
 
-ftp://ftp.sw.com.sg/pub/Linux/people/saw/kernel/user_beancounter/UserBeancounter.html
+Kmalloc returns null when there is not enough memory to satisfy the request. What's
+wrong with that?
 
-The current version has some drawbacks, and one of them is the performance.
-Memory accounting is implemented as a kernel thread which goes through page
-tables of processes (similar to kswapd), and it appears to consume 1-5% of
-CPU (depending on number of processes).  I consider it unacceptable, and have
-started reimplementation of the process memory accounting from the beginning.
 
-Best regards
-		Andrey
+-- 
+---------------------------------------------------------
+Victor Yodaiken 
+Finite State Machine Labs: The RTLinux Company.
+ www.fsmlabs.com  www.rtlinux.com
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
