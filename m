@@ -1,95 +1,44 @@
-Date: Thu, 3 Aug 2000 15:12:50 -0700 (PDT)
+Date: Thu, 3 Aug 2000 15:19:45 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: RFC: design for new VM
-In-Reply-To: <20000803235622.D759@nightmaster.csn.tu-chemnitz.de>
-Message-ID: <Pine.LNX.4.10.10008031505170.6698-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.21.0008031850330.24022-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10008031513490.6698-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
+[ Ok, we agree on the basics ]
 
-On Thu, 3 Aug 2000, Ingo Oeser wrote:
+On Thu, 3 Aug 2000, Rik van Riel wrote:
 > 
-> I also assumed your markers are nothing but a normal element of
-> the list, that is just skipped, but don't cause a wraparound of
-> each of the scanners.
+> What I fail to see is why this would be preferable to a code
+> base where all the different pages are neatly separated and
+> we don't have N+1 functions that are all scanning the same
+> list, special-casing out each other's pages and searching 
+> the list for their own special pages...
 
-Right.
+I disagree just with the "all improved, radically new, 50% more for the
+same price" ad-campaign I've seen.
 
-Think of them as invisible.
+I don't like the fact that you said that you don't want to worry about
+2.4.x because you don't think it can be fixed it as it stands. I think
+that's a cop-out and dishonest. I think I've explained why.
 
-> What happens, if one scanner decides to remove an element and
-> insert it elsewhere (to achieve it's special ordering)?
+I could fully imagine doing even multi-lists in 2.4.x. I think performance
+bugs are secondary to stability bugs, but hey, if the patch is clean and
+straightforward and fixes a performance bug, I would not hesitate to apply
+it. It may be that going to multi-lists actually is easier just because of
+some thins being more explicit. Fine.
 
-Nothing, as far as the other scanners are aware, as they won't even look
-at that element anyway (assuming they work the same way as a multi-list
-scanner would work).
+But stop the ad-campaign. We get too many biased ads for presidents-to-be
+already, no need to take that approach to technical issues. We need to fix
+the VM balancing, we don't need to sell it to people with buzz-words.
 
-See?
-
-One list is equivalent to multiple lists, assuming the scanners honour the
-same logic as a multi-list scanner would (ie ignore entries that they
-aren't designed for).
-
-> > Think about it _another_ way instead:
-> >  - the "multiple lists" case is provably a sub-case of the "one list,
-> >    scanners only care about their type of entries".
-> 
-> Got this concept (I think).
-> 
-> >  - the "one list" _allows_ for (but does not require) "mixing metaphors",
-> >    ie a scanner _can_ see and _can_ modify an entry that wouldn't be on
-> >    "it's list".
-> 
-> That's what I would like to avoid. I don't like to idea of
-> multiple "states" per page. I would like to scan all pages, that
-> are *guaranteed* to have a special state and catch their
-> transistions. I prefer clean automata design for this.
-
-I would tend to agree with you. It's much easier to think about the
-problems when you don't start "mixing" behaviour. 
-
-And getting a more explicit state transition may well be a good thing.
-
-However, considering that right now we do not have that explicit code, I'd
-hate to add it and require it to be 100% correct for 2.4.x. See?
-
-And I dislike the mental dishonesty of claiming that multiple lists are
-somehow different.
-
-> > And that's my beef with this: I can see a direct mapping from the multiple
-> > list case to the single list case. Which means that the multiple list case
-> > simply _cannot_ do something that the single-list case couldn't do.
->  
-> Agree. There ist just a bit more atomicy between the scanners,
-> thats all I think. And of course states are exlusive instead of
-> possibly inclusive.
-
-I do like the notion of having stricter rules, and that is a huge bonus
-for multi-lists.
-
-But one downside of multi-lists is that we've had problems with them in
-the past. fs/buffer.c used to use them even more than it does now, and it
-was a breeding ground of bugs. fs/buffer.c got cleaned up, and the current
-multi-list stuff is not at all that horrible any more, so multi-lists
-aren't necessarily evil.
-
-> > Let me re-iterate: I'm not arguing against multi-lists. I'm arguing about
-> > people being apparently dishonest and saying that the multi-lists are
-> > somehow able to do things that the current VM wouldn't be able to do.
-> 
-> Got that.
-> 
-> Its the features, that multiple lists *lack* , what makes them
-> attractive to _my_ eyes.
-
-Oh, I can agree with that. Discipline can be good for you.
-
-			Linus
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
