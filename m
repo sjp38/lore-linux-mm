@@ -1,5 +1,5 @@
-Date: Mon, 16 Mar 1998 22:53:33 GMT
-Message-Id: <199803162253.WAA02970@dax.dcs.ed.ac.uk>
+Date: Mon, 16 Mar 1998 22:59:29 GMT
+Message-Id: <199803162259.WAA02995@dax.dcs.ed.ac.uk>
 From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,14 +12,18 @@ To: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Cc: sct@dcs.ed.ac.uk, torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi Ben,
 
-Thanks for the diffs, Ben.  I'll have a closer look at them tomorrow.
+A first quick comment on the new vma stuff:
 
-Unfortunately I've been a bit laid back with a persistant cold for over
-a week, but I've shaken it off now and have got the irq/smp-safe page
-cache diffs ready for testing.  Another two or three days and that
-should be usable, so we can start to think about integrating the two
-branches.
+Hmm, you've overloaded the vma/vm_offset stuff with the inode queues!
+That's OK in principle --- the swap cache stuff currently maintains both
+the per-inode page lists AND the hash lists, but only the hash lists are
+strictly necessary so I guess we can live with that.  
 
---Stephen
+There's also the guts of a page queue implementation --- have you got
+any firmer plans for that?  I'm still uncertain about the benefits of
+having these queues, except for the obvious use of the dumpable list.
+
+Cheers,
+ Stephen.
