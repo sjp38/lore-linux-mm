@@ -1,7 +1,7 @@
-Message-Id: <200405222215.i4MMF5r14708@mail.osdl.org>
-Subject: [patch 52/57] rmap 36 mprotect use vma_merge
+Message-Id: <200405222215.i4MMFWr14793@mail.osdl.org>
+Subject: [patch 53/57] rmap 37 page_add_anon_rmap vma
 From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:14:31 -0700
+Date: Sat, 22 May 2004 15:15:00 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
@@ -10,534 +10,119 @@ List-ID: <linux-mm.kvack.org>
 
 From: Hugh Dickins <hugh@veritas.com>
 
-Earlier on, in 2.6.6, we took the vma merging code out of mremap.c and let it
-rely on vma_merge instead (via copy_vma).  Now take the vma merging code out
-of mprotect.c and let it rely on vma_merge too: so vma_merge becomes the sole
-vma merging engine.  The fruit of this consolidation is that mprotect now
-merges file-backed vmas naturally.  Make this change now because anon_vma will
-complicate the vma merging rules, let's keep them all in one place.
-
-vma_merge remains where the decisions are made, whether to merge with prev
-and/or next; but now [addr,end) may be the latter part of prev, or first part
-or whole of next, whereas before it was always a new area.
-
-vma_adjust carries out vma_merge's decision, but when sliding the boundary
-between vma and next, must temporarily remove next from the prio_tree too. 
-And it turned out (by oops) to have a surer idea of whether next needs to be
-removed than vma_merge, so the fput and freeing moves into vma_adjust.
-
-Too much decipherment of what's going on at the start of vma_adjust?  Yes, and
-there's a delicate assumption that you may use vma_adjust in sliding a
-boundary, or splitting in two, or growing a vma (mremap uses it in that way),
-but not for simply shrinking a vma.  Which is so, and must be so (how could
-pages mapped in the part to go, be zapped without first splitting?), but would
-feel better with some protection.
-
-__vma_unlink can then be moved from mm.h to mmap.c, and mm.h's more misleading
-than helpful can_vma_merge is deleted.
+Silly final patch for anonmm rmap: change page_add_anon_rmap's mm arg to vma
+arg like anon_vma rmap, to smooth the transition between them.
 
 
 ---
 
- 25-akpm/include/linux/mm.h |   29 +------
- 25-akpm/mm/mmap.c          |  172 +++++++++++++++++++++++++++++++++------------
- 25-akpm/mm/mprotect.c      |  110 ++++++----------------------
- 3 files changed, 159 insertions(+), 152 deletions(-)
+ 25-akpm/fs/exec.c            |    2 +-
+ 25-akpm/include/linux/rmap.h |    5 ++++-
+ 25-akpm/mm/memory.c          |    8 ++++----
+ 25-akpm/mm/rmap.c            |    6 +++---
+ 25-akpm/mm/swapfile.c        |    2 +-
+ 5 files changed, 13 insertions(+), 10 deletions(-)
 
-diff -puN include/linux/mm.h~rmap-36-mprotect-use-vma_merge include/linux/mm.h
---- 25/include/linux/mm.h~rmap-36-mprotect-use-vma_merge	2004-05-22 14:56:29.658582736 -0700
-+++ 25-akpm/include/linux/mm.h	2004-05-22 14:59:35.605314536 -0700
-@@ -607,7 +607,12 @@ struct vm_area_struct *vma_prio_tree_nex
- 
- /* mmap.c */
- extern void vma_adjust(struct vm_area_struct *vma, unsigned long start,
--	unsigned long end, pgoff_t pgoff, struct vm_area_struct *next);
-+	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert);
-+extern struct vm_area_struct *vma_merge(struct mm_struct *,
-+	struct vm_area_struct *prev, unsigned long addr, unsigned long end,
-+	unsigned long vm_flags, struct file *, pgoff_t, struct mempolicy *);
-+extern int split_vma(struct mm_struct *,
-+	struct vm_area_struct *, unsigned long addr, int new_below);
- extern void insert_vm_struct(struct mm_struct *, struct vm_area_struct *);
- extern void __vma_link_rb(struct mm_struct *, struct vm_area_struct *,
- 	struct rb_node **, struct rb_node *);
-@@ -638,26 +643,6 @@ extern int do_munmap(struct mm_struct *,
- 
- extern unsigned long do_brk(unsigned long, unsigned long);
- 
--static inline void
--__vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
--		struct vm_area_struct *prev)
--{
--	prev->vm_next = vma->vm_next;
--	rb_erase(&vma->vm_rb, &mm->mm_rb);
--	if (mm->mmap_cache == vma)
--		mm->mmap_cache = prev;
--}
--
--static inline int
--can_vma_merge(struct vm_area_struct *vma, unsigned long vm_flags)
--{
--#ifdef CONFIG_MMU
--	if (!vma->vm_file && vma->vm_flags == vm_flags)
--		return 1;
--#endif
--	return 0;
--}
--
- /* filemap.c */
- extern unsigned long page_unuse(struct page *);
- extern void truncate_inode_pages(struct address_space *, loff_t);
-@@ -691,8 +676,6 @@ extern int expand_stack(struct vm_area_s
- extern struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr);
- extern struct vm_area_struct * find_vma_prev(struct mm_struct * mm, unsigned long addr,
- 					     struct vm_area_struct **pprev);
--extern int split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
--		     unsigned long addr, int new_below);
- 
- /* Look up the first VMA which intersects the interval start_addr..end_addr-1,
-    NULL if none.  Assume start_addr < end_addr. */
-diff -puN mm/mmap.c~rmap-36-mprotect-use-vma_merge mm/mmap.c
---- 25/mm/mmap.c~rmap-36-mprotect-use-vma_merge	2004-05-22 14:56:29.660582432 -0700
-+++ 25-akpm/mm/mmap.c	2004-05-22 14:59:35.613313320 -0700
-@@ -339,20 +339,51 @@ __insert_vm_struct(struct mm_struct * mm
- 	validate_mm(mm);
- }
- 
-+static inline void
-+__vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
-+		struct vm_area_struct *prev)
-+{
-+	prev->vm_next = vma->vm_next;
-+	rb_erase(&vma->vm_rb, &mm->mm_rb);
-+	if (mm->mmap_cache == vma)
-+		mm->mmap_cache = prev;
-+}
-+
- /*
-  * We cannot adjust vm_start, vm_end, vm_pgoff fields of a vma that
-  * is already present in an i_mmap tree without adjusting the tree.
-  * The following helper function should be used when such adjustments
-- * are necessary.  The "next" vma (if any) is to be removed or inserted
-+ * are necessary.  The "insert" vma (if any) is to be inserted
-  * before we drop the necessary locks.
-  */
- void vma_adjust(struct vm_area_struct *vma, unsigned long start,
--	unsigned long end, pgoff_t pgoff, struct vm_area_struct *next)
-+	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert)
- {
- 	struct mm_struct *mm = vma->vm_mm;
-+	struct vm_area_struct *next = vma->vm_next;
- 	struct address_space *mapping = NULL;
- 	struct prio_tree_root *root = NULL;
- 	struct file *file = vma->vm_file;
-+	long adjust_next = 0;
-+	int remove_next = 0;
-+
-+	if (next && !insert) {
-+		if (end >= next->vm_end) {
-+again:			remove_next = 1 + (end > next->vm_end);
-+			end = next->vm_end;
-+		} else if (end < vma->vm_end || end > next->vm_start) {
-+			/*
-+			 * vma shrinks, and !insert tells it's not
-+			 * split_vma inserting another: so it must
-+			 * be mprotect shifting the boundary down.
-+			 *   Or:
-+			 * vma expands, overlapping part of the next:
-+			 * must be mprotect shifting the boundary up.
-+			 */
-+			BUG_ON(vma->vm_end != next->vm_start);
-+			adjust_next = end - next->vm_start;
-+		}
-+	}
- 
- 	if (file) {
- 		mapping = file->f_mapping;
-@@ -365,38 +396,67 @@ void vma_adjust(struct vm_area_struct *v
- 	if (root) {
- 		flush_dcache_mmap_lock(mapping);
- 		vma_prio_tree_remove(vma, root);
-+		if (adjust_next)
-+			vma_prio_tree_remove(next, root);
- 	}
-+
- 	vma->vm_start = start;
- 	vma->vm_end = end;
- 	vma->vm_pgoff = pgoff;
-+	if (adjust_next) {
-+		next->vm_start += adjust_next;
-+		next->vm_pgoff += adjust_next >> PAGE_SHIFT;
-+	}
-+
- 	if (root) {
-+		if (adjust_next) {
-+			vma_prio_tree_init(next);
-+			vma_prio_tree_insert(next, root);
-+		}
- 		vma_prio_tree_init(vma);
- 		vma_prio_tree_insert(vma, root);
- 		flush_dcache_mmap_unlock(mapping);
- 	}
- 
--	if (next) {
--		if (next == vma->vm_next) {
--			/*
--			 * vma_merge has merged next into vma, and needs
--			 * us to remove next before dropping the locks.
--			 */
--			__vma_unlink(mm, next, vma);
--			if (file)
--				__remove_shared_vm_struct(next, file, mapping);
--		} else {
--			/*
--			 * split_vma has split next from vma, and needs
--			 * us to insert next before dropping the locks
--			 * (next may either follow vma or precede it).
--			 */
--			__insert_vm_struct(mm, next);
--		}
-+	if (remove_next) {
-+		/*
-+		 * vma_merge has merged next into vma, and needs
-+		 * us to remove next before dropping the locks.
-+		 */
-+		__vma_unlink(mm, next, vma);
-+		if (file)
-+			__remove_shared_vm_struct(next, file, mapping);
-+	} else if (insert) {
-+		/*
-+		 * split_vma has split insert from vma, and needs
-+		 * us to insert it before dropping the locks
-+		 * (it may either follow vma or precede it).
-+		 */
-+		__insert_vm_struct(mm, insert);
- 	}
- 
+diff -puN fs/exec.c~rmap-37-page_add_anon_rmap-vma fs/exec.c
+--- 25/fs/exec.c~rmap-37-page_add_anon_rmap-vma	2004-05-22 14:56:29.803560696 -0700
++++ 25-akpm/fs/exec.c	2004-05-22 14:59:35.604314688 -0700
+@@ -321,7 +321,7 @@ void install_arg_page(struct vm_area_str
+ 	lru_cache_add_active(page);
+ 	set_pte(pte, pte_mkdirty(pte_mkwrite(mk_pte(
+ 					page, vma->vm_page_prot))));
+-	page_add_anon_rmap(page, mm, address);
++	page_add_anon_rmap(page, vma, address);
+ 	pte_unmap(pte);
  	spin_unlock(&mm->page_table_lock);
- 	if (mapping)
- 		spin_unlock(&mapping->i_mmap_lock);
-+
-+	if (remove_next) {
-+		if (file)
-+			fput(file);
-+		mm->map_count--;
-+		mpol_free(vma_policy(next));
-+		kmem_cache_free(vm_area_cachep, next);
-+		/*
-+		 * In mprotect's case 6 (see comments on vma_merge),
-+		 * we must remove another next too. It would clutter
-+		 * up the code too much to do both in one go.
-+		 */
-+		if (remove_next == 2) {
-+			next = vma->vm_next;
-+			goto again;
-+		}
-+	}
-+
-+	validate_mm(mm);
- }
  
- /*
-@@ -460,18 +520,42 @@ can_vma_merge_after(struct vm_area_struc
- }
+diff -puN include/linux/rmap.h~rmap-37-page_add_anon_rmap-vma include/linux/rmap.h
+--- 25/include/linux/rmap.h~rmap-37-page_add_anon_rmap-vma	2004-05-22 14:56:29.804560544 -0700
++++ 25-akpm/include/linux/rmap.h	2004-05-22 14:59:35.803284440 -0700
+@@ -14,7 +14,10 @@
  
- /*
-- * Given a new mapping request (addr,end,vm_flags,file,pgoff), figure out
-- * whether that can be merged with its predecessor or its successor.  Or
-- * both (it neatly fills a hole).
-+ * Given a mapping request (addr,end,vm_flags,file,pgoff), figure out
-+ * whether that can be merged with its predecessor or its successor.
-+ * Or both (it neatly fills a hole).
-+ *
-+ * In most cases - when called for mmap, brk or mremap - [addr,end) is
-+ * certain not to be mapped by the time vma_merge is called; but when
-+ * called for mprotect, it is certain to be already mapped (either at
-+ * an offset within prev, or at the start of next), and the flags of
-+ * this area are about to be changed to vm_flags - and the no-change
-+ * case has already been eliminated.
-+ *
-+ * The following mprotect cases have to be considered, where AAAA is
-+ * the area passed down from mprotect_fixup, never extending beyond one
-+ * vma, PPPPPP is the prev vma specified, and NNNNNN the next vma after:
-+ *
-+ *     AAAA             AAAA                AAAA          AAAA
-+ *    PPPPPPNNNNNN    PPPPPPNNNNNN    PPPPPPNNNNNN    PPPPNNNNXXXX
-+ *    cannot merge    might become    might become    might become
-+ *                    PPNNNNNNNNNN    PPPPPPPPPPNN    PPPPPPPPPPPP 6 or
-+ *    mmap, brk or    case 4 below    case 5 below    PPPPPPPPXXXX 7 or
-+ *    mremap move:                                    PPPPNNNNNNNN 8
-+ *        AAAA
-+ *    PPPP    NNNN    PPPPPPPPPPPP    PPPPPPPPNNNN    PPPPNNNNNNNN
-+ *    might become    case 1 below    case 2 below    case 3 below
-+ *
-+ * Odd one out? Case 8, because it extends NNNN but needs flags of XXXX:
-+ * mprotect_fixup updates vm_flags & vm_page_prot on successful return.
+ #ifdef CONFIG_MMU
+ 
+-void page_add_anon_rmap(struct page *, struct mm_struct *, unsigned long);
++/*
++ * rmap interfaces called when adding or removing pte of page
++ */
++void page_add_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
+ void page_add_file_rmap(struct page *);
+ void page_remove_rmap(struct page *);
+ 
+diff -puN mm/memory.c~rmap-37-page_add_anon_rmap-vma mm/memory.c
+--- 25/mm/memory.c~rmap-37-page_add_anon_rmap-vma	2004-05-22 14:56:29.806560240 -0700
++++ 25-akpm/mm/memory.c	2004-05-22 14:59:35.806283984 -0700
+@@ -1088,7 +1088,7 @@ static int do_wp_page(struct mm_struct *
+ 			page_remove_rmap(old_page);
+ 		break_cow(vma, new_page, address, page_table);
+ 		lru_cache_add_active(new_page);
+-		page_add_anon_rmap(new_page, mm, address);
++		page_add_anon_rmap(new_page, vma, address);
+ 
+ 		/* Free the old page.. */
+ 		new_page = old_page;
+@@ -1366,7 +1366,7 @@ static int do_swap_page(struct mm_struct
+ 
+ 	flush_icache_page(vma, page);
+ 	set_pte(page_table, pte);
+-	page_add_anon_rmap(page, mm, address);
++	page_add_anon_rmap(page, vma, address);
+ 
+ 	if (write_access || mremap_moved_anon_rmap(page, address)) {
+ 		if (do_wp_page(mm, vma, address,
+@@ -1425,7 +1425,7 @@ do_anonymous_page(struct mm_struct *mm, 
+ 				      vma);
+ 		lru_cache_add_active(page);
+ 		mark_page_accessed(page);
+-		page_add_anon_rmap(page, mm, addr);
++		page_add_anon_rmap(page, vma, addr);
+ 	}
+ 
+ 	set_pte(page_table, entry);
+@@ -1532,7 +1532,7 @@ retry:
+ 		set_pte(page_table, entry);
+ 		if (anon) {
+ 			lru_cache_add_active(new_page);
+-			page_add_anon_rmap(new_page, mm, address);
++			page_add_anon_rmap(new_page, vma, address);
+ 		} else
+ 			page_add_file_rmap(new_page);
+ 		pte_unmap(page_table);
+diff -puN mm/rmap.c~rmap-37-page_add_anon_rmap-vma mm/rmap.c
+--- 25/mm/rmap.c~rmap-37-page_add_anon_rmap-vma	2004-05-22 14:56:29.808559936 -0700
++++ 25-akpm/mm/rmap.c	2004-05-22 14:59:35.810283376 -0700
+@@ -365,15 +365,15 @@ int page_referenced(struct page *page)
+ /**
+  * page_add_anon_rmap - add pte mapping to an anonymous page
+  * @page:	the page to add the mapping to
+- * @mm:		the mm in which the mapping is added
++ * @vma:	the vm area in which the mapping is added
+  * @address:	the user virtual address mapped
+  *
+  * The caller needs to hold the mm->page_table_lock.
   */
--static struct vm_area_struct *vma_merge(struct mm_struct *mm,
-+struct vm_area_struct *vma_merge(struct mm_struct *mm,
- 			struct vm_area_struct *prev, unsigned long addr,
- 			unsigned long end, unsigned long vm_flags,
- 		     	struct file *file, pgoff_t pgoff,
- 		        struct mempolicy *policy)
+ void page_add_anon_rmap(struct page *page,
+-	struct mm_struct *mm, unsigned long address)
++	struct vm_area_struct *vma, unsigned long address)
  {
- 	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
--	struct vm_area_struct *next;
-+	struct vm_area_struct *area, *next;
+-	struct anonmm *anonmm = mm->anonmm;
++	struct anonmm *anonmm = vma->vm_mm->anonmm;
  
- 	/*
- 	 * We later require that vma->vm_flags == vm_flags,
-@@ -480,16 +564,18 @@ static struct vm_area_struct *vma_merge(
- 	if (vm_flags & VM_SPECIAL)
- 		return NULL;
+ 	BUG_ON(PageReserved(page));
  
--	if (!prev) {
-+	if (prev)
-+		next = prev->vm_next;
-+	else
- 		next = mm->mmap;
--		goto merge_next;
--	}
--	next = prev->vm_next;
-+	area = next;
-+	if (next && next->vm_end == end)		/* cases 6, 7, 8 */
-+		next = next->vm_next;
- 
- 	/*
- 	 * Can it merge with the predecessor?
- 	 */
--	if (prev->vm_end == addr &&
-+	if (prev && prev->vm_end == addr &&
-   			mpol_equal(vma_policy(prev), policy) &&
- 			can_vma_merge_after(prev, vm_flags, file, pgoff)) {
- 		/*
-@@ -499,33 +585,29 @@ static struct vm_area_struct *vma_merge(
- 				mpol_equal(policy, vma_policy(next)) &&
- 				can_vma_merge_before(next, vm_flags, file,
- 							pgoff+pglen)) {
-+							/* cases 1, 6 */
- 			vma_adjust(prev, prev->vm_start,
--				next->vm_end, prev->vm_pgoff, next);
--			if (file)
--				fput(file);
--			mm->map_count--;
--			mpol_free(vma_policy(next));
--			kmem_cache_free(vm_area_cachep, next);
--		} else
-+				next->vm_end, prev->vm_pgoff, NULL);
-+		} else					/* cases 2, 5, 7 */
- 			vma_adjust(prev, prev->vm_start,
- 				end, prev->vm_pgoff, NULL);
- 		return prev;
- 	}
- 
--merge_next:
--
- 	/*
- 	 * Can this new request be merged in front of next?
- 	 */
--	if (next) {
--		if (end == next->vm_start &&
-- 				mpol_equal(policy, vma_policy(next)) &&
--				can_vma_merge_before(next, vm_flags, file,
-+	if (next && end == next->vm_start &&
-+ 			mpol_equal(policy, vma_policy(next)) &&
-+			can_vma_merge_before(next, vm_flags, file,
- 							pgoff+pglen)) {
--			vma_adjust(next, addr, next->vm_end,
-+		if (prev && addr < prev->vm_end)	/* case 4 */
-+			vma_adjust(prev, prev->vm_start,
-+				addr, prev->vm_pgoff, NULL);
-+		else					/* cases 3, 8 */
-+			vma_adjust(area, addr, next->vm_end,
- 				next->vm_pgoff - pglen, NULL);
--			return next;
--		}
-+		return area;
- 	}
- 
- 	return NULL;
-diff -puN mm/mprotect.c~rmap-36-mprotect-use-vma_merge mm/mprotect.c
---- 25/mm/mprotect.c~rmap-36-mprotect-use-vma_merge	2004-05-22 14:56:29.661582280 -0700
-+++ 25-akpm/mm/mprotect.c	2004-05-22 14:59:35.614313168 -0700
-@@ -107,53 +107,6 @@ change_protection(struct vm_area_struct 
- 	spin_unlock(&current->mm->page_table_lock);
- 	return;
+diff -puN mm/swapfile.c~rmap-37-page_add_anon_rmap-vma mm/swapfile.c
+--- 25/mm/swapfile.c~rmap-37-page_add_anon_rmap-vma	2004-05-22 14:56:29.809559784 -0700
++++ 25-akpm/mm/swapfile.c	2004-05-22 14:59:35.811283224 -0700
+@@ -433,7 +433,7 @@ unuse_pte(struct vm_area_struct *vma, un
+ 	vma->vm_mm->rss++;
+ 	get_page(page);
+ 	set_pte(dir, pte_mkold(mk_pte(page, vma->vm_page_prot)));
+-	page_add_anon_rmap(page, vma->vm_mm, address);
++	page_add_anon_rmap(page, vma, address);
+ 	swap_free(entry);
  }
--/*
-- * Try to merge a vma with the previous flag, return 1 if successful or 0 if it
-- * was impossible.
-- */
--static int
--mprotect_attempt_merge(struct vm_area_struct *vma, struct vm_area_struct *prev,
--		unsigned long end, int newflags)
--{
--	struct mm_struct * mm;
--
--	if (!prev || !vma)
--		return 0;
--	mm = vma->vm_mm;
--	if (prev->vm_end != vma->vm_start)
--		return 0;
--	if (!can_vma_merge(prev, newflags))
--		return 0;
--	if (vma->vm_file || (vma->vm_flags & VM_SHARED))
--		return 0;
--	if (!vma_mpol_equal(vma, prev))
--		return 0;
--
--	/*
--	 * If the whole area changes to the protection of the previous one
--	 * we can just get rid of it.
--	 */
--	if (end == vma->vm_end) {
--		spin_lock(&mm->page_table_lock);
--		prev->vm_end = end;
--		__vma_unlink(mm, vma, prev);
--		spin_unlock(&mm->page_table_lock);
--
--		mpol_free(vma_policy(vma));
--		kmem_cache_free(vm_area_cachep, vma);
--		mm->map_count--;
--		return 1;
--	} 
--
--	/*
--	 * Otherwise extend it.
--	 */
--	spin_lock(&mm->page_table_lock);
--	prev->vm_end = end;
--	vma->vm_start = end;
--	spin_unlock(&mm->page_table_lock);
--	return 1;
--}
  
- static int
- mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
-@@ -162,6 +115,7 @@ mprotect_fixup(struct vm_area_struct *vm
- 	struct mm_struct * mm = vma->vm_mm;
- 	unsigned long charged = 0;
- 	pgprot_t newprot;
-+	pgoff_t pgoff;
- 	int error;
- 
- 	if (newflags == vma->vm_flags) {
-@@ -188,15 +142,18 @@ mprotect_fixup(struct vm_area_struct *vm
- 
- 	newprot = protection_map[newflags & 0xf];
- 
--	if (start == vma->vm_start) {
--		/*
--		 * Try to merge with the previous vma.
--		 */
--		if (mprotect_attempt_merge(vma, *pprev, end, newflags)) {
--			vma = *pprev;
--			goto success;
--		}
--	} else {
-+	/*
-+	 * First try to merge with previous and/or next vma.
-+	 */
-+	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
-+	*pprev = vma_merge(mm, *pprev, start, end, newflags,
-+				vma->vm_file, pgoff, vma_policy(vma));
-+	if (*pprev) {
-+		vma = *pprev;
-+		goto success;
-+	}
-+
-+	if (start != vma->vm_start) {
- 		error = split_vma(mm, vma, start, 1);
- 		if (error)
- 			goto fail;
-@@ -213,13 +170,13 @@ mprotect_fixup(struct vm_area_struct *vm
- 			goto fail;
- 	}
- 
-+success:
- 	/*
- 	 * vm_flags and vm_page_prot are protected by the mmap_sem
- 	 * held in write mode.
- 	 */
- 	vma->vm_flags = newflags;
- 	vma->vm_page_prot = newprot;
--success:
- 	change_protection(vma, start, end, newprot);
- 	return 0;
- 
-@@ -232,7 +189,7 @@ asmlinkage long
- sys_mprotect(unsigned long start, size_t len, unsigned long prot)
- {
- 	unsigned long vm_flags, nstart, end, tmp;
--	struct vm_area_struct * vma, * next, * prev;
-+	struct vm_area_struct *vma, *prev;
- 	int error = -EINVAL;
- 	const int grows = prot & (PROT_GROWSDOWN|PROT_GROWSUP);
- 	prot &= ~(PROT_GROWSDOWN|PROT_GROWSUP);
-@@ -276,10 +233,11 @@ sys_mprotect(unsigned long start, size_t
- 				goto out;
- 		}
- 	}
-+	if (start > vma->vm_start)
-+		prev = vma;
- 
- 	for (nstart = start ; ; ) {
- 		unsigned int newflags;
--		int last = 0;
- 
- 		/* Here we know that  vma->vm_start <= nstart < vma->vm_end. */
- 
-@@ -299,41 +257,25 @@ sys_mprotect(unsigned long start, size_t
- 		if (error)
- 			goto out;
- 
--		if (vma->vm_end > end) {
--			error = mprotect_fixup(vma, &prev, nstart, end, newflags);
--			goto out;
--		}
--		if (vma->vm_end == end)
--			last = 1;
--
- 		tmp = vma->vm_end;
--		next = vma->vm_next;
-+		if (tmp > end)
-+			tmp = end;
- 		error = mprotect_fixup(vma, &prev, nstart, tmp, newflags);
- 		if (error)
- 			goto out;
--		if (last)
--			break;
- 		nstart = tmp;
--		vma = next;
-+
-+		if (nstart < prev->vm_end)
-+			nstart = prev->vm_end;
-+		if (nstart >= end)
-+			goto out;
-+
-+		vma = prev->vm_next;
- 		if (!vma || vma->vm_start != nstart) {
- 			error = -ENOMEM;
- 			goto out;
- 		}
- 	}
--
--	if (next && prev->vm_end == next->vm_start &&
--			can_vma_merge(next, prev->vm_flags) &&
--	    	vma_mpol_equal(prev, next) &&
--			!prev->vm_file && !(prev->vm_flags & VM_SHARED)) {
--		spin_lock(&prev->vm_mm->page_table_lock);
--		prev->vm_end = next->vm_end;
--		__vma_unlink(prev->vm_mm, next, prev);
--		spin_unlock(&prev->vm_mm->page_table_lock);
--
--		mpol_free(vma_policy(next));
--		kmem_cache_free(vm_area_cachep, next);
--		prev->vm_mm->map_count--;
--	}
- out:
- 	up_write(&current->mm->mmap_sem);
- 	return error;
 
 _
 --
