@@ -1,85 +1,55 @@
-Message-ID: <3D3FA434.35113F60@zip.com.au>
-Date: Thu, 25 Jul 2002 00:09:40 -0700
-From: Andrew Morton <akpm@zip.com.au>
+Date: Thu, 25 Jul 2002 05:00:15 -0700 (MST)
+From: Craig Kulesa <ckulesa@as.arizona.edu>
+Subject: Re: [PATCH 2/2] move slab pages to the lru, for 2.5.27
+In-Reply-To: <200207242012.59150.tomlins@cam.org>
+Message-ID: <Pine.LNX.4.44.0207241931060.17413-100000@loke.as.arizona.edu>
 MIME-Version: 1.0
-Subject: Re: page_add/remove_rmap costs
-References: <3D3E4A30.8A108B45@zip.com.au> <20020725045040.GD2907@holomorphy.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: Steven Cole <elenstev@mesatop.com>, William Lee Irwin III <wli@holomorphy.com>, Steven Cole <scole@lanl.gov>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-well I tried a few things.
+On Wed, 24 Jul 2002, Ed Tomlinson wrote:
 
-- Disable the pte_chain_lock stuff for uniprocessor
-  builds.
+> This patch fixes the SMP problems for Steve.  
 
-- Disable the cpu_relax()
+Good sleuthing!  Glad to hear this seems to solve the bizarre SMP
+out-of-memory problems.  However, you should know that there *might* still 
+be demons lurking about.
 
-- shuffle struct page to put ->flags and ->count next
-  to each other.
+I still have problems with 2.5.27-rmap-slablru with CONFIG_SMP booting on 
+a UP laptop, when 2.5.27-rmap (the big rmap patch) works fine in SMP mode. 
+I have spinlock debugging turned on and get oopses with modprobe trying to
+load the rtc module.  It fails this test in include/asm/spinlock.h:
 
+#ifdef CONFIG_DEBUG_SPINLOCK
+        if (lock->magic != SPINLOCK_MAGIC)
+                BUG();
 
-
-Uniprocessor:
-
-c01c9138 122      0.96649     strnlen_user            
-c0145860 162      1.28337     __d_lookup              
-c012c2c4 179      1.41805     rmqueue                 
-c010ba68 180      1.42597     timer_interrupt         
-c01120ec 190      1.50519     do_page_fault           
-c013d910 191      1.51311     link_path_walk          
-c01052c8 219      1.73493     poll_idle               
-c0132e44 227      1.7983      page_add_rmap           
-c0122e00 237      1.87753     clear_page_tables       
-c0111e40 264      2.09142     pte_alloc_one           
-c0123018 287      2.27363     copy_page_range         
-c0124324 296      2.34493     do_anonymous_page       
-c012aa70 471      3.73128     kmem_cache_alloc        
-c0123224 483      3.82635     zap_pte_range           
-c01077c4 484      3.83427     page_fault              
-c0124490 547      4.33336     do_no_page              
-c012ac5c 560      4.43635     kmem_cache_free         
-c0132f1c 940      7.44672     page_remove_rmap        
-c0123cb0 2581     20.4468     do_wp_page              
-
-So page_add_rmap went away.
-
-page_remove_rmap:
-
- c0132f8a 1        0.106383    0        0           
- c0132f8d 1        0.106383    0        0           
- c0132f93 1        0.106383    0        0           
- c0132fa4 3        0.319149    0        0           
- c0132fa7 56       5.95745     0        0           the `for' loop
- c0132fa9 2        0.212766    0        0           
- c0132fab 4        0.425532    0        0           
- c0132fb0 13       1.38298     0        0           
- c0132fb3 574      61.0638     0        0           if (pc->ptep == ptep)
- c0132fb5 1        0.106383    0        0           
- c0132fb6 13       1.38298     0        0           
- c0132fb9 2        0.212766    0        0           
- c0132fba 4        0.425532    0        0           
-
-And the page_remove_rmap cost is now in the list walk.
+Modprobe also traps itself in infinite loops trying to load unix.o for 
+net-pf-1.  Eeeks.  I'll test on other UP boxes in SMP mode and see if I 
+can trigger anything. 
 
 
-But the SMP performance is unaltered by these changes.
+For now, I've applied Ed's patch and tested that it doesn't cause any 
+problems for UP behavior, so I added it to the patch queue against 2.5.27 
+and is included in the rmap patches for 2.5.28, which you can download:
 
-c0129818 1329     2.42966     do_anonymous_page       
-c01338dc 1501     2.74411     page_cache_release      
-c0129a10 2157     3.9434      do_no_page              
-c0128128 2581     4.71855     copy_page_range         
-c0128390 2655     4.85384     zap_pte_range           
-c013a944 4356     7.96358     page_add_rmap           
-c013aaa0 8423     15.3988     page_remove_rmap        
-c0128ff8 8457     15.461      do_wp_page              
+	http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/2.5.28/
 
-For page_remove_rmap, 32% is the pte_chain_lock, 35%
-is the list walk and 12% is the pte_chain_unlock.
+The only new change for 2.5.28 is fixing software suspend to work 
+with the full rmap patch.  I tested swsusp with 2.5.28-rmap-slablru, and 
+it's very cool. :)
+
+Although I suspect SMP folks will have their hands busy with *other* 
+things in 2.5.28, (!!) more SMP feedback regarding slab-on-LRU would be 
+most helpful!
+
+Thanks,
+Craig Kulesa
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
