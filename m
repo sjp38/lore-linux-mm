@@ -1,83 +1,45 @@
-Subject: RE: Which is the proper way to bring in the backing store behind
-	an inode as an struct page?
-From: Ram Pai <linuxram@us.ibm.com>
-In-Reply-To: <F989B1573A3A644BAB3920FBECA4D25A6EBEEE@orsmsx407>
-References: <F989B1573A3A644BAB3920FBECA4D25A6EBEEE@orsmsx407>
-Content-Type: text/plain; charset=UTF-8
-Message-Id: <1088833923.727.84.camel@dyn319048bld.beaverton.ibm.com>
-Mime-Version: 1.0
-Date: 02 Jul 2004 22:52:04 -0700
-Content-Transfer-Encoding: 8bit
+Message-ID: <KZPILTUPNZXMFHDLULHQBOF@mailandfiles.com>
+From: "Fred Santana" <UORXIHJU@popmail.com>
+Reply-To: "Fred Santana" <UORXIHJU@popmail.com>
+Subject: Specialize in hard to qualify-borrowers
+Date: Sun, 04 Jul 2004 07:22:22 +0200
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--23707014131683848"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>
-Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2004-07-02 at 17:37, Perez-Gonzalez, Inaky wrote:
-> Hi Ken
-> 
-> > From: Chen, Kenneth W [mailto:kenneth.w.chen@intel.com]
-> > 
-> > Perez-Gonzalez, Inaky wrote on Thursday, July 01, 2004 11:35 PM
-> > > Dummy question that has been evading me for the last hours. Can you
-> > > help? Please bear with me here, I am a little lost in how to deal
-> > > with inodes and the cache.
-> > >
-> > > ....
-> > >
-> > > Thus, what I need is a way that given the pair (inode,pgoff)
-> > > returns to me the 'struct page *' if the thing is cached in memory or
-> > > pulls it up from swap/file into memory and gets me a 'struct page *'.
-> > >
-> > > Is there a way to do this?
-> > 
-> > find_get_page() might be the one you are looking for.
-> 
-> Something like this? [I am trying blindly]
+----23707014131683848
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-> page = find_get_page (inode->i_mapping, pgoff)
+Howdy,
 
-I would like at the logic of do_generic_mapping_read(). The code below
-is perhaps roughly what you want.
+Today is a new day for your residence. With levels 
+at their headline-making historic lows, our programs 
+are better now than ever before. Even if you've recently 
+closed on a property, now is the time to check your 
+numbers.
 
-page = find_get_page(inode->i_mapping, pgoff);
-if(unlikely(page==NULL)) {
+Our advisors are here to help you decide your options.
+In fact, did you know that a 30 year fixed program may 
+not always be the best option? 
 
-	page = page_cache_alloc_cold(mapping);
-	if (!page) {
-                /* NO LUCK SORRY :-( */
-        }
+There are other ways to do it, and we would like to tell 
+you about it.
 
-        if(add_to_page_cache_lru(page, mapping, pgoff, GFP_KERNEL)) {
-                /* NO LUCK SORRY :-( */
-        }
-}
-if (!PageUptodate(page)) { 
-     lock_page(page);
-     mapping->a_ops->readpage(filp /*i guess this can be null */,
-			 page);
-}
-	
-	
+Find out what all your neighbors are talking about:
+http://futurevalueloan.com/?partid=3Dpmm2000
+
+Have a nice day,
+Fred Santana
+Reference Options: http://futurevalueloan.com/st.html
+Box 40937 Bedford, Nova Scotia Canada, B4A 3Z2 
 
 
-	
-
-> 
-> Under which circumstances will this fail? [I am guessing the only ones
-> are if the page offset is out of the limits of the map]. What about 
-> i_mapping? When is it not defined? [ie: NULL].
-> 
-> Thanks
-> 
-> IA+-aky PA(C)rez-GonzA!lez -- Not speaking for Intel -- all opinions are my own (and my fault)
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
-> 
+----23707014131683848--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
