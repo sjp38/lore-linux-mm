@@ -1,33 +1,45 @@
-Received: from saturn.hrz.tu-chemnitz.de (saturn.hrz.tu-chemnitz.de [134.109.132.51])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA25165
-	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 18:53:01 -0500
-Date: Mon, 11 Jan 1999 00:52:18 +0100 (CET)
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Subject: Re: I/O and MM question
-In-Reply-To: <Pine.LNX.4.03.9901101752050.13236-100000@zap.zap>
-Message-ID: <Pine.LNX.4.04.9901110047460.29777-100000@nightmaster.csn.tu-chemnitz.de>
+Received: from stingray.netplus.net (root@stingray.netplus.net [206.250.192.19])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA25650
+	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 20:14:12 -0500
+Message-ID: <369943D4.6AA9AAF1@netplus.net>
+Date: Sun, 10 Jan 1999 18:20:36 -0600
+From: Steve Bergman <steve@netplus.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Results: arcavm15, et. al.
+References: <Pine.LNX.3.96.990110215759.2341A-100000@laser.bogus> <369920F3.E9940FAA@netplus.net> <36992ED2.D05EA28F@netplus.net>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Jelle Foks <jelle@flying.demon.nl>
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>, Linus Torvalds <torvalds@transmeta.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 10 Jan 1999, Jelle Foks wrote:
+Here are the results of pre-7:
 
-> (how/which function to use?). Does the mm/paging system of Linux allow me
-> this? Or does the mm/paging code already somehow eliminate the memory-copy
-> of the fread()->fwrite() combo (how?)? 
+116 Image test in 128MB:
 
-What about sendfile(2) ? It's linux-sepcific, but it does avoid
-the getuser/putuser-couple for the data to be read/written.
+pre6+zlatko's_patch             2:35
+and with requested change       3:09
+pre6                            2:27
+pre5                            1:58
+arcavm13                        9:13
+arcavm15                        1:59
+pre-7				2:41
 
-cu
-  Ingo
--- 
-Feel the power of the penguin - run linux@your.pc
-<esc>:x
 
+For the kernel compile test in 12MB:
+
+                                Elapsed Maj.    Min.    Swaps
+                                -----   ------  ------  -----
+pre6+zlatko_patch               22:14   383206  204482  57823
+and with requested change       22:23   378662  198194  51445
+pre6                            20:54   352934  191210  48678
+pre5                            19:35   334680  183732  93427
+arcavm13                        19:45   344452  180243  38977
+arcavm15                        20:07   N/A     N/A     N/A
+pre-7				21:14	356386	192835	50912
+
+
+-Steve
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
