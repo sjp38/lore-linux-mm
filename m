@@ -6,9 +6,9 @@ References: <20030318031104.13fb34cc.akpm@digeo.com>
 	<873clkw6ui.fsf@lapper.ihatent.com>
 	<20030318162601.78f11739.akpm@digeo.com>
 From: Alexander Hoogerhuis <alexh@ihatent.com>
-Date: 19 Mar 2003 09:12:48 +0100
+Date: 19 Mar 2003 09:20:11 +0100
 In-Reply-To: <20030318162601.78f11739.akpm@digeo.com>
-Message-ID: <87fzpjepvj.fsf@lapper.ihatent.com>
+Message-ID: <87fzpjpy2s.fsf@lapper.ihatent.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -31,17 +31,14 @@ Andrew Morton <akpm@digeo.com> writes:
 > But as far as I know nobody has actually got down and done the binary search
 > to find out exactly when it started happening.
 
-Just got my machine out and booted up, this time I did enable my
-chipset into 4x AGP, instead of 1x as last night:
+The best I've narrowed it down to is whatever makes 2.5.64-mm1 be
+different from plain 2.5.64 and 2.5.64-mm2. In addition, I have one
+more gripe, and this one is present in 2.4 too, but seems kernel
+related:
 
-alexh@lapper ~ $ dmesg | grep -i agp
-Linux agpgart interface v0.100 (c) Dave Jones
-agpgart: Detected Intel i845 chipset
-agpgart: Maximum main memory to use for agp memory: 690M
-agpgart: AGP aperture is 256M @ 0xa0000000
-agpgart: Putting AGP V2 device at 00:00.0 into 4x mode
-agpgart: Putting AGP V2 device at 01:00.0 into 4x mode
-alexh@lapper ~ $
+When closing Gnome (Gnome 2.x, Gentoo), after the screen has been
+"faded" by the logout applet, on the first keystroke or movement of
+the mouse the machine will instantly cold start the machine.
 
 mvh,
 A
