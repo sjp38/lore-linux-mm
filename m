@@ -1,62 +1,31 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <200003270803.AAA14950@google.engr.sgi.com>
-Subject: [RFT] balancing patch
-Date: Mon, 27 Mar 2000 00:03:43 -0800 (PST)
-MIME-Version: 1.0
+Date: Mon, 27 Mar 2000 11:46:11 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: Why ?
+Message-ID: <20000327114611.H1160@redhat.com>
+References: <CA2568AF.002D39AF.00@d73mta05.au.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CA2568AF.002D39AF.00@d73mta05.au.ibm.com>; from pnilesh@in.ibm.com on Mon, Mar 27, 2000 at 01:36:19PM +0530
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: pnilesh@in.ibm.com
+Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-People who are experiencing degraded performance in the latest 2.3
-releases due to overactive kswapd can apply the attached patch to 
-see whether it helps them. If you try the patch, and see that it
-helps, or hinders, your system performance, please let me know. 
+Hi,
 
-Thanks.
+On Mon, Mar 27, 2000 at 01:36:19PM +0530, pnilesh@in.ibm.com wrote:
+> Why the first 0x0 - 0x07ffffff   virtual addresses are not used by any
+> process ?
+> Is that used by the kernel and if yes for what ?
 
-Kanoj
+No, the entire 3GB user virtual address space is usable by user space.
+It's the compiler/linker toolset which requests that ELF binaries be
+loaded at 0x08000000.  As for a reason, the only one I'm aware of is
+that that's what the ELF standard says. :-)  It does offer a solid
+protection against dereferencing uninitialised pointers, though.
 
---- mm/page_alloc.c	Tue Mar 21 16:29:32 2000
-+++ mm/page_alloc.c	Tue Mar 21 18:24:15 2000
-@@ -235,19 +235,16 @@
- 		zone_t *z = *(zone++);
- 		if (!z)
- 			break;
--		if (z->free_pages > z->pages_low)
--			continue;
--
--		z->zone_wake_kswapd = 1;
--		wake_up_interruptible(&kswapd_wait);
- 
- 		/* Are we reaching the critical stage? */
--		if (!z->low_on_memory) {
--			/* Not yet critical, so let kswapd handle it.. */
--			if (z->free_pages > z->pages_min)
--				continue;
-+		if (z->free_pages <= z->pages_min)
- 			z->low_on_memory = 1;
-+		if (z->free_pages <= z->pages_low) {
-+			z->zone_wake_kswapd = 1;
-+			wake_up_interruptible(&kswapd_wait);
- 		}
-+		if (!z->low_on_memory)
-+			continue;
- 		/*
- 		 * In the atomic allocation case we only 'kick' the
- 		 * state machine, but do not try to free pages
-@@ -293,7 +290,7 @@
- 			BUG();
- 
- 		/* Are we supposed to free memory? Don't make it worse.. */
--		if (!z->zone_wake_kswapd && z->free_pages > z->pages_low) {
-+		if (!z->low_on_memory && z->free_pages > z->pages_min) {
- 			struct page *page = rmqueue(z, order);
- 			if (page)
- 				return page;
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
