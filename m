@@ -1,47 +1,61 @@
-Date: Tue, 15 Feb 2005 12:59:43 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
-Message-ID: <20050215185943.GA24401@lnx-holt.americas.sgi.com>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com> <1108242262.6154.39.camel@localhost> <20050214135221.GA20511@lnx-holt.americas.sgi.com> <1108407043.6154.49.camel@localhost> <20050214220148.GA11832@lnx-holt.americas.sgi.com> <20050215074906.01439d4e.pj@sgi.com> <20050215162135.GA22646@lnx-holt.americas.sgi.com> <20050215083529.2f80c294.pj@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050215083529.2f80c294.pj@sgi.com>
+Received: from smtp3.akamai.com (vwall3.sanmateo.corp.akamai.com [172.23.1.73])
+	by smtp3.akamai.com (8.12.10/8.12.10) with ESMTP id j1FJfK6O012210
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 11:41:21 -0800 (PST)
+From: pmeda@akamai.com
+Date: Tue, 15 Feb 2005 11:47:43 -0800
+Message-Id: <200502151947.LAA20729@allur.sanmateo.akamai.com>
+Subject: [PATCH] mempool: protect buffer overflow in mempool_resize
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, haveblue@us.ibm.com, raybry@sgi.com, taka@valinux.co.jp, hugh@veritas.com, akpm@osdl.org, marcello@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@osdl.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 15, 2005 at 08:35:29AM -0800, Paul Jackson wrote:
-> What about the suggestion I had that you sort of skipped over, which
-> amounted to changing the system call from a node array to just one
-> node:
-> 
->     sys_page_migrate(pid, va_start, va_end, count, old_nodes, new_nodes);
-> 
-> to:
-> 
->     sys_page_migrate(pid, va_start, va_end, old_node, new_node);
-> 
-> Doesn't that let you do all you need to?  Is it insane too?
 
-Migration could be done in most cases and would only fall apart when
-there are overlapping node lists and no nodes available as temp space
-and we are not moving large chunks of data.
+ 1. Race in mempool_resize: memcpy can copy at the end of the kmalloced elements.
+ 2. when new_min_nr is same as min_nr, instead of reallocate and copy, just return,
+    changed '<' to '<='.
+ 3. Changed while condition to the same sense of if condition from '>' to '<'; it is
+    easy to think with only one of the left and right brains at a time.
+  
+Signed-off-by: Prasanna Meda <pmeda@akamai.com>
 
-What is the fundamental concern with passing in an array of integers?
-That seems like a fairly easy to verify item with very little chance
-of breaking.  I don't feel the concern that others seem to.
 
-I do see the benefit to those arrays as being a single pass through the
-page tables, the ability to migrate without using a temporary node, and
-reducing the number of times data is copied when there are overlapping
-nodes.  To me, those seem to be very compelling reasons when compared
-to the potential for a possible problem with an array of integers.
-
-Thanks,
-Robin
+--- Linux/mm/mempool.c	Mon Feb 14 23:03:00 2005
++++ linux/mm/mempool.c	Mon Feb 14 23:03:04 2005
+@@ -114,8 +114,8 @@
+ 	BUG_ON(new_min_nr <= 0);
+ 
+ 	spin_lock_irqsave(&pool->lock, flags);
+-	if (new_min_nr < pool->min_nr) {
+-		while (pool->curr_nr > new_min_nr) {
++	if (new_min_nr <= pool->min_nr) {
++		while (new_min_nr < pool->curr_nr) {
+ 			element = remove_element(pool);
+ 			spin_unlock_irqrestore(&pool->lock, flags);
+ 			pool->free(element, pool->pool_data);
+@@ -132,6 +132,12 @@
+ 		return -ENOMEM;
+ 
+ 	spin_lock_irqsave(&pool->lock, flags);
++	if (unlikely(new_min_nr <= pool->min_nr)) {
++		/* Raced, other resize will do our work */
++		spin_unlock_irqrestore(&pool->lock, flags);
++		kfree(new_elements);
++		goto out;
++	}
+ 	memcpy(new_elements, pool->elements,
+ 			pool->curr_nr * sizeof(*new_elements));
+ 	kfree(pool->elements);
+@@ -149,7 +155,7 @@
+ 		} else {
+ 			spin_unlock_irqrestore(&pool->lock, flags);
+ 			pool->free(element, pool->pool_data);	/* Raced */
+-			spin_lock_irqsave(&pool->lock, flags);
++			goto out;
+ 		}
+ 	}
+ out_unlock:
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
