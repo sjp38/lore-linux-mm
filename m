@@ -1,73 +1,58 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA17160
-	for <linux-mm@kvack.org>; Sun, 29 Nov 1998 15:11:53 -0500
-Subject: Re: Update shared mappings
-References: <87btm3dmxy.fsf@atlas.CARNet.hr> <199811301352.NAA03313@dax.scot.redhat.com>
-Reply-To: Zlatko.Calusic@CARNet.hr
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: 8bit
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 30 Nov 1998 16:19:17 +0100
-In-Reply-To: "Stephen C. Tweedie"'s message of "Mon, 30 Nov 1998 13:52:08 GMT"
-Message-ID: <87yaotcioa.fsf@atlas.CARNet.hr>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA18402
+	for <linux-mm@kvack.org>; Sun, 29 Nov 1998 18:51:43 -0500
+Date: Mon, 30 Nov 1998 16:08:59 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: [2.1.130-3] Page cache DEFINATELY too persistant... feature?
+In-Reply-To: <199811301113.LAA02870@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.96.981130160536.21650A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Andrea Arcangeli <andrea@e-mind.com>, Linux-MM List <linux-mm@kvack.org>, Andi Kleen <andi@zero.aec.at>
+Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" <sct@redhat.com> writes:
-
-> Hi,
-> 
-> On 20 Nov 1998 05:10:01 +0100, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+On Mon, 30 Nov 1998, Stephen C. Tweedie wrote:
+> On 28 Nov 1998 01:31:00 -0600, ebiederm+eric@ccr.net (Eric W. Biederman)
 > said:
 > 
-> > Should this patch be applied to kernel? [Andrea's
-> > update_shared_mappings patch]
+> > Why does it make sense when we want memory, to write every page
+> > we can to swap before we free any memory?
 > 
-> No.
+> What makes you think we do?
 
-:)
+What makes you think think we don't? Apart from the buffer
+and cache borrow percentages kswapd doesn't have any incentive
+to switch back from swap_out() to shrink_mmap()...
 
-> The mmap_semaphore is already taken out _much_ earlier on in msync(), or
-> the vm_area_struct can be destroyed by another thread.  Is this patch
-> tested?  Won't we deadlock immediately on doing this extra down()
-> operation? 
+> 2.1.130 tries to shrink cache until a shrink_mmap() pass fails. 
+> Then it gives the swapper a chance, swapping a batch of pages and
+> unlinking them from the ptes.  The pages so release still stay in
+> the page cache at this point, btw, and will be picked up again from
+> memory if they get referenced before the page finally gets
+> discarded.  We then go back to shrink_mmap(), hopefully with a
+                 ^^^^
+The real question is _when_? Is it soon enough to keep the
+system in a sane state?
 
-You're right. And that is the exact reason why I had locks with
-StarOffice in down_sem().
+> larger population of recyclable pages as a result of the swapout,
+> and we start using that again. 
+>
+> We only run one batch of swapouts before returning to shrink_mmap.
 
-Andrea already contacted me, and I think this now concludes our
-conversation regarding that problem. :)
+It's just that this batch can grow so large that it isn't
+any fun and kills performance. We _do_ want to fix this...
 
-> 
-> The only reason that this patch works in its current state is that
-> exit_mmap() skips the down(&mm->mmap_sem).  It can safely do so only
-> because if we are exiting the mmap, we know we are the last thread and
-> so no other thread can be playing games with us.  So, exit_mmap()
-> doesn't deadlock, but a sys_msync() on the region looks as if it will.
-> 
-> Other than that, it looks fine.  One other thing occurs to me, though:
-> it would be easy enough to add a condition (atomic_read(&page->count) >
-> 2) on this to disable the update-mappings call entirely if the page is
-> only mapped by one vma (which will be a very common case).  We already
-> access the count field, so we are avoiding the cost of any extra cache
-> misses if we make this check.
-> 
-> Comments?
-> 
+cheers,
 
-You're probably right.
+Rik -- hoping that this post makes my point clear...
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
-Hopefully, Andrea will resend his patch with necessary fixes, so after
-testing it gets included in kernel.
-
-Regards,
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-	    Life would be easier if I had the source code.
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
