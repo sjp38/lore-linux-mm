@@ -1,40 +1,41 @@
-Date: Thu, 27 Mar 2003 21:08:39 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 48GB NUMA-Q boots, with major IO-APIC hassles
-Message-ID: <20030328050839.GP1350@holomorphy.com>
-References: <20030115105802.GQ940@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030115105802.GQ940@holomorphy.com>
+Date: Fri, 28 Mar 2003 11:45:10 +0100 (CET)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: Ingo Molnar <mingo@elte.hu>
+Subject: Re: 2.5.66-mm1
+In-Reply-To: <20030327205912.753c6d53.akpm@digeo.com>
+Message-ID: <Pine.LNX.4.44.0303281139500.6678-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: Ed Tomlinson <tomlins@cam.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mike Galbraith <efault@gmx.de>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 15, 2003 at 02:58:02AM -0800, William Lee Irwin III wrote:
-> Minor extrapolation: aside from potential explosions in very unusual
-> corner cases, with these hacks/workarounds 64GB NUMA-Q should boot and
-> run (slowly) with an approximate LowTotal of 173296 kB. The main obstacle
-> is our setup here would require an additional NR_CPUS > BITS_PER_LONG
-> patch, and there isn't much local interest in even seeing whether or how
-> poorly it would run without working patches (e.g. hugh's MMUPAGE_SIZE that
-> I'm fwd. porting) to do something about runaway mem_map lowmem consumption.
+On Thu, 27 Mar 2003, Andrew Morton wrote:
 
-I was only 3MB off wrt. mainline's 64GB LowTotal, not bad at all:
+> That longer Code: line is really handy.
+> 
+> You died in schedule()->deactivate_task()->dequeue_task().
+> 
+> static inline void dequeue_task(struct task_struct *p, prio_array_t *array)
+> {
+> 	array->nr_active--;
+> 
+> `array' is zero.
+> 
+> I'm going to Cc Ingo and run away.  Ed uses preempt.
 
-HighTotal:    65134592 kB
-HighFree:     65116864 kB
-LowTotal:       176076 kB
-LowFree:        144180 kB
+hm, this is an 'impossible' scenario from the scheduler code POV. Whenever
+we deactivate a task, we remove it from the runqueue and set p->array to
+NULL. Whenever we activate a task again, we set p->array to non-NULL. A
+double-deactivate is not possible. I tried to reproduce it with various
+scheduler workloads, but didnt succeed.
 
-Turns out NR_CPUS > BITS_PER_LONG was avoided. I'll dig up whatever else
-I can here. AIM7 with 10000 tasks and various other things were runnable
-on 48GB, but I still need to straighten various fragmentation things out
-before benching produces meaningful numbers instead of runs vs. doesn't.
+Mike, do you have a backtrace of the crash you saw?
 
+	Ingo
 
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
