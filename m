@@ -1,90 +1,66 @@
-From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Message-Id: <200102092111.NAA78240@google.engr.sgi.com>
-Subject: Re: IOMMU setup vs DAC (PCI)
-Date: Fri, 9 Feb 2001 13:11:49 -0800 (PST)
-In-Reply-To: <14980.20915.447995.650580@pizda.ninka.net> from "David S. Miller" at Feb 09, 2001 12:23:15 PM
+Received: from localhost (kervel@localhost)
+	by bakvis.kotnet.org (8.9.3/8.9.3) with ESMTP id XAA02257
+	for <linux-mm@kvack.org>; Sat, 10 Feb 2001 23:26:05 +0100
+Date: Sat, 10 Feb 2001 23:26:04 +0100 (CET)
+From: Frank Dekervel <kervel@bakvis.kotnet.org>
+Subject: behaviour with 2.4.1-vmpatch
+Message-ID: <Pine.LNX.4.21.0102102308170.1884-100000@bakvis.kotnet.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: Grant Grundler <grundler@cup.hp.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> 
-> Kanoj Sarcar writes:
->  > In some cases (in 2.4, prior to dma64_addr_t), if arch 
->  > code can figure out a device is A64, the driver does support
->  > A64, then it can privately decide to use A64 style mapping
->  > and pci_dma operations for that pci_dev. Is there a problem
->  > with this approach?
-> 
-> Only device code can determine if a device is A64 and will
-> actually spit out DAC addressing.
-> 
-> Let me give you one example.  On the Syskonnect Gigabit cards,
-> if any of the top 32-bits of an address are non-zero, DAC will
-> be used else a SAC cycle will be used for the address.
-> 
-> Alpha and Sparc64 PCI controllers interpret DAC and SAC addresses
-> differently.  For example, on sparc64, a DAC address to physical
-> memory should be formed by software with this equation:
-> 
-> 	DAC_ADDR = (0x03fff00000000000 + PHYS_ADDR)
-> 
-> Alpha, if I remember correctly, uses a different upper constant.
-> For these two platforms, if SAC is used by the device then
-> normal IOMMU translation occurs (unless the IOMMU is disabled
-> thus putting the PCI controller into a bypass mode).
-> 
-> So it is not just "A64 capable", it is "will spit out DAC for
-> _this_ PCI dma address" and "can arch handle DACs appropriately."
-> 
+Hi,
 
-As a counter example, see the much simpler-to-handle qlogicisp.c
-driver, which is programmed at start to use DAC or SAC (via
-config option CONFIG_QL_ISP_A64). Also, qlogicfc.c is quite
-similar (PCI64_DMA_BITS).
+since i run 2.4.1-vmpatch, my system regulary stops responding for 2
+or more seconds, and it seems to swap in/out heavily.
+This is really easy to reproduce for me, just starting a memory hog, so
+swap is touched, and i was unable to reproduce this behaviour on 2.4.0.
 
-So, if your arch can handle A64, it would build this driver in 
-CONFIG_QL_ISP_A64 mode, and the pci_dma implementations would know
-that this device/driver can do A64.
+also, i found this in my syslog:
+Feb  9 01:57:31 bakvis kernel: __alloc_pages: 3-order allocation failed.
+Feb  9 01:57:31 bakvis kernel: __alloc_pages: 2-order allocation failed.
+Feb  9 01:57:31 bakvis kernel: __alloc_pages: 3-order allocation failed.
+Feb  9 01:57:31 bakvis last message repeated 209 times
+(note 100+ such messages in the same minute)
 
-> You have to use a different type due to all of these variables.
-> So we will have dma64_addr_t and pci64_map_single et a.
-> The driver has to make a conscious decision to use 64-bit
-> DACs, and all devices I know of supporting DAC must be specifically
-> told to use DACs.  See things like SCSI_NCR_USE_64BIT_DAC in the
-> sym53c8xx driver.
-> 
 
-If the Symbios chips behave similar to Qlogic chips, then 
-SCSI_NCR_USE_64BIT_DAC should really be a config option. 
+(and much more of this). i cannot exactly remember what i was doing then,
+but i think it was stressing the system with make -j2 or memory consuming
+programs like Xfree ...)
+i couldnot reproduce it today.
 
-> The reason these interfaces don't and will not exist in 2.4.x is
-> precisely because I've had to track down and figure out all of these
-> arch and device specific details before deciding on an interface
-> that can work for everyone.  The PCI dma API in 2.4.x is frozen.
-> 
-> In short trying to get 64-bit DAC'able addresses with pci_map_single()
-> is illegal and any driver doing it is flat out non-portable.
-> 
+here some sample vmstat output:
+   procs                      memory    swap          io     system
+cpu
+  r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us
+sy  id
+ 
+ 1  1  0  68076   1864   4100  79204   2 198    10   109  522  1351   5
+6  88
+ 1  5  0  70056   1688   4128  79492  42 668   548   241  852  2432  19
+4  76
+ 3  2  0  69116   1544   3936  78848  20 266   309   102  340   754  16
+4  80
+ 0  5  0  68940   1468   3952  78932   4 1328    95   355  828   727   3
+2  9
+ 1  3  0  67196   1944   4044  77376 260  54   134    31  311   600  29
+2  69
+ 0  4  0  66724   1628   4064  78160   0 530   320   151  314   322  18
+2  80
+ 3  0  0  66360   1464   4072  77904  56 432   142   131  322   460  11
+3  85
+ 2  1  2  67632   1484   4072  79392  26 1076    74   306  636   399   1
+2  9
+ 2  2  0  68012   1464   4000  80108  86 1084   168   294  469   445   6
+2  9
 
-Yes, understood. As you point out, the Syskonnect Gigabit card is
-probably best operated in A32 mode. 
 
-All I am trying to say is that performance of certain drivers on 
-certain architectures might be improvable by certain tricks, even in
-2.4.
+greetings,
 
-Kanoj
-
-> Later,
-> David S. Miller
-> davem@redhat.com
-> 
+Frank Dekervel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
