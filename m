@@ -1,50 +1,69 @@
-Subject: bug in Documentation/vm/locking?
-From: Ed L Cashin <ecashin@uga.edu>
-Date: Tue, 19 Aug 2003 09:44:39 -0400
-Message-ID: <87wud94v94.fsf@uga.edu>
-MIME-Version: 1.0
+Date: Tue, 19 Aug 2003 16:30:51 +0200
+From: Sam Ravnborg <sam@ravnborg.org>
+Subject: Re: 2.6.0-test3-mm3
+Message-ID: <20030819143051.GA1261@mars.ravnborg.org>
+References: <20030819013834.1fa487dc.akpm@osdl.org> <1061287775.5995.7.camel@defiant.flameeyes> <20030819032350.55339908.akpm@osdl.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030819032350.55339908.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Kanoj Sarcar <kanoj@sgi.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Flameeyes <daps_mls@libero.it>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Sam Ravnborg <sam@ravnborg.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi.  There is a strange sentence in Documentation/vm/locking, a very
-helpful summary of locking in the VM subsystem.  
+On Tue, Aug 19, 2003 at 03:23:50AM -0700, Andrew Morton wrote:
+> > there's a problem with make xconfig:
+The following patch fixes it.
+I will submit to Linus in separate mail.
 
-Rule number five of the rules for using page_table_lock and mmap_sem
-says "page_table_lock or page_table_lock".  That's a funny thing to
-say, leading me to suspect that either it really should say
-"page_table_lock or mmap_sem" or just "page_table_lock" alone.
+	Sam
 
-Here is the list of five rules.  Rule number five is the one I'm
-talking about:
-
-  The rules are:
-  1. To scan the vmlist (look but don't touch) you must hold the
-     mmap_sem with read bias, i.e. down_read(&mm->mmap_sem)
-  2. To modify the vmlist you need to hold the mmap_sem with
-     read&write bias, i.e. down_write(&mm->mmap_sem)  *AND*
-     you need to take the page_table_lock.
-  3. The swapper takes _just_ the page_table_lock, this is done
-     because the mmap_sem can be an extremely long lived lock
-     and the swapper just cannot sleep on that.
-  4. The exception to this rule is expand_stack, which just
-     takes the read lock and the page_table_lock, this is ok
-     because it doesn't really modify fields anybody relies on.
-  5. You must be able to guarantee that while holding page_table_lock
-     or page_table_lock of mm A, you will not try to get either lock
-     for mm B.
-
-So what should the rule say?  If you hold A->mm->mmap_sem is it OK to
-take B->mm->mmap_sem and B->mm->mmap_sem as long as you can guarantee
-that B won't try to get either of those locks in A?
-
--- 
---Ed L Cashin            |   PGP public key:
-  ecashin@uga.edu        |   http://noserose.net/e/pgp/
-
+===== scripts/kconfig/Makefile 1.7 vs edited =====
+--- 1.7/scripts/kconfig/Makefile	Sun Aug 17 00:17:57 2003
++++ edited/scripts/kconfig/Makefile	Tue Aug 19 16:27:03 2003
+@@ -65,12 +65,20 @@
+ conf-objs	:= conf.o  libkconfig.so
+ mconf-objs	:= mconf.o libkconfig.so
+ 
+-ifeq ($(MAKECMDGOALS),$(obj)/qconf)
++ifeq ($(MAKECMDGOALS),xconfig)
++	qconf-target := 1
++endif
++ifeq ($(MAKECMDGOALS),gconfig)
++	gconf-target := 1
++endif
++
++
++ifeq ($(qconf-target),1)
+ qconf-cxxobjs	:= qconf.o
+ qconf-objs	:= kconfig_load.o
+ endif
+ 
+-ifeq ($(MAKECMDGOALS),$(obj)/gconf)
++ifeq ($(gconf-target),1)
+ gconf-objs	:= gconf.o kconfig_load.o
+ endif
+ 
+@@ -91,7 +99,7 @@
+ 
+ $(obj)/qconf.o: $(obj)/.tmp_qtcheck
+ 
+-ifeq ($(MAKECMDGOALS),$(obj)/qconf)
++ifeq ($(qconf-target),1)
+ MOC = $(QTDIR)/bin/moc
+ -include $(obj)/.tmp_qtcheck
+ 
+@@ -121,7 +129,7 @@
+ 
+ $(obj)/gconf.o: $(obj)/.tmp_gtkcheck
+ 
+-ifeq ($(MAKECMDGOALS),$(obj)/gconf)
++ifeq ($(gconf-target),1)
+ -include $(obj)/.tmp_gtkcheck
+ 
+ # GTK needs some extra effort, too...
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
