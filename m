@@ -1,56 +1,40 @@
-Date: Wed, 3 May 2000 01:31:41 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
-In-Reply-To: <Pine.LNX.4.10.10005030046480.981-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.10.10005030117500.981-100000@penguin.transmeta.com>
+Date: Wed, 3 May 2000 07:37:21 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
+Subject: Re: Oops in __free_pages_ok (pre7-1) (Long)
+In-Reply-To: <Pine.LNX.4.21.0005030228300.3498-100000@alpha.random>
+Message-ID: <Pine.LNX.4.21.0005030736590.10610-100000@duckman.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Rajagopal Ananthanarayanan <ananth@sgi.com>, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Linus Torvalds <torvalds@transmeta.com>, "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, Kanoj Sarcar <kanoj@google.engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
+On Wed, 3 May 2000, Andrea Arcangeli wrote:
 
-On Wed, 3 May 2000, Linus Torvalds wrote:
-> 
-> You may be right. The code certainly tries to be careful. However, I don't
-> trust "is_page_shared()" at all, _especially_ if there are people around
-> who play with the page state without locking the page. 
-> 
-> If "is_page_shared()" ends up ever getting the wrong value, I suspect we'd
-> be screwed. There may be other schenarios..
+> So what I propose is to set the entry bit in the swapin path only if we
+> take over the swap cache, and to clear it in do_wp_page during COW and in
+> free_page_and_swap_cache unconditionally (we know if it's set the page was
+> not shared). We should also set it while taking over the swap cache in the
+> cow after removing the page from the swap cache (in the case the page
+> isn't shared).
 
-Kanoj, why couldn't this happen:
- - CPU0 runs swapout
-	- finds page which is a swap cache entry
-	- does the swap_duplicate()
-	- does __free_page() on it without locking it (it wasn't locked
-	  before, either)
- - CPU1 runs shrink_mmap
-	- finds same page on the LRU list
-	- locks it _just_ after CPU0 tested that it was unlocked
-	- looks at the page countersand the swap cache counters to see if
-	  it was shared ("is_page_shared()").
+> Note that dirty swap cache during COW have the same problem to choose if
+> the swap entry should be inherit by the old page or by the new page (so
+> it's not going to be a solution for that). My conclusion is that dropping
+> the persistence on the swap during cow looks rasonable action.
 
- - There is _no_ synchronization between the two, as far as I can tell.
-   "swap_duplicate()" on CPU0 will get the swap device lock, and
-   "is_page_shared()" will run with the page lock held, but there is no
-   common locking between the two at all that I can see.
+Sounds like a good idea to me.
 
-So "is_page_shared()" can be entirely crap. And can tell shrink_mmap()
-that the page cache entry can be freed. Now, I have no idea what that will
-actually result in, but I bet that we can just get the usage counters off
-by one here, and then at some later date we free page that we've already
-free'd - and that page may have been re-allocated for something else and
-isin the middle of a page-in right now (which is how we end up freeing a
-page that is locked).
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-Or something. The lack of any synchronization looks fishy to me. The page
-lock would act as synchronization, but so would the swap device lock.  And
-maybe I'm still barking up the wrong tree..
-
-		Linus
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
