@@ -1,23 +1,19 @@
-Date: Tue, 16 Sep 2003 14:17:57 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Tue, 16 Sep 2003 14:34:23 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: Freeing boot memory
-Message-ID: <3540000.1063747077@flay>
-In-Reply-To: <200309161817.37802.lmb@exatas.unisinos.br>
+Message-ID: <20030916213423.GF14079@holomorphy.com>
 References: <200309161817.37802.lmb@exatas.unisinos.br>
-MIME-Version: 1.0
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <200309161817.37802.lmb@exatas.unisinos.br>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Leandro Motta Barros <lmb@exatas.unisinos.br>, linux-mm@kvack.org
-Cc: sisopiii-l@cscience.org
+To: Leandro Motta Barros <lmb@exatas.unisinos.br>
+Cc: linux-mm@kvack.org, sisopiii-l@cscience.org
 List-ID: <linux-mm.kvack.org>
 
-> I and a colleague are studying the VM subsystem (actually this is the first 
-> time we are examining the Linux source code more closely) and have a question 
-> or two.
-> 
+On Tue, Sep 16, 2003 at 06:17:37PM -0300, Leandro Motta Barros wrote:
 > Well, the questions concern the boot memory allocator. To be more precise, 
 > We're interested in the memory deallocation routines. We have seen that it is 
 > only possible to free full pages. So, theoretically, if we make several 
@@ -27,16 +23,12 @@ List-ID: <linux-mm.kvack.org>
 > allocator was not able to free small allocations? Is there any estimate (or 
 > benchmark or whatever) on the number of pages that could be freed but are 
 > not?
-> 
-> We have interest in hacking a little bit in the VM, and we thought that trying 
-> to find out ways to avoid this problem (if this is really a problem) could be 
-> nice. Do you have any thoughts about this?
 
-What would you *do* with this half a page? There's no main memory allocator
-to stick it in, as far as I can see.
+When I rewrote this, I got crapped on. I highly doubt anyone will
+listen this time, either.
 
-M.
 
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
