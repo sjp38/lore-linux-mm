@@ -1,33 +1,30 @@
+Date: Thu, 18 Jul 2002 19:50:28 +0200 (MEST)
+From: Szakacsits Szabolcs <szaka@sienet.hu>
 Subject: Re: [PATCH] strict VM overcommit for stock 2.4
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-In-Reply-To: <Pine.LNX.4.30.0207181930170.30902-100000@divine.city.tvnet.hu>
-References: <Pine.LNX.4.30.0207181930170.30902-100000@divine.city.tvnet.hu>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 18 Jul 2002 20:58:43 +0100
-Message-Id: <1027022323.8154.38.camel@irongate.swansea.linux.org.uk>
-Mime-Version: 1.0
+In-Reply-To: <1027016939.1086.127.camel@sinai>
+Message-ID: <Pine.LNX.4.30.0207181942240.30902-100000@divine.city.tvnet.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Szakacsits Szabolcs <szaka@sienet.hu>
-Cc: Robert Love <rml@tech9.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Robert Love <rml@tech9.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2002-07-18 at 18:31, Szakacsits Szabolcs wrote:
-> 
-> On Thu, 18 Jul 2002, Szakacsits Szabolcs wrote:
-> > And my point (you asked for comments) was that, this is only (the
-> > harder) part of the solution making Linux a more reliable (no OOM
-> > killing *and* root always has the control) and cost effective platform
-> > (no need for occasionally very complex and continuous resource limit
-> > setup/adjusting, especially for inexpert home/etc users).
-> 
-> Ahh, I figured out your target, embedded devices. Yes it's good for
-> that but not enough for general purpose.
+On 18 Jul 2002, Robert Love wrote:
+> An orthogonal issue is per-user resource limits and this may need to be
+> coupled with that.  It is not a problem I am trying to solve, however.
 
-Adjusting the percentages to have a root only zone is doable. It helps
-in some conceivable cases but not all. Do people think its important, if
-so I'll add it
+About 99% of the people don't know about, don't understand or don't
+care about resource limits. But they do care about cleaning up when
+mess comes. Adding reserved root memory would be a couple of lines,
+you can get ideas from the patch from here,
+	http://mlf.linux.rulez.org/mlf/ezaz/reserved_root_memory.html
+
+Surprisingly visited through google and people are asking for 2.4
+patches, hint ;)
+
+	Szaka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
