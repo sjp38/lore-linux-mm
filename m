@@ -1,7 +1,7 @@
-Date: Thu, 3 Apr 2003 12:00:39 -0800
+Date: Thu, 3 Apr 2003 12:06:11 -0800
 From: Andrew Morton <akpm@digeo.com>
 Subject: Re: [PATCH 2.5.66-mm2] Fix page_convert_anon locking issues
-Message-Id: <20030403120039.5c95813c.akpm@digeo.com>
+Message-Id: <20030403120611.6691399e.akpm@digeo.com>
 In-Reply-To: <92070000.1049381395@[10.1.1.5]>
 References: <8910000.1049303582@baldur.austin.ibm.com>
 	<20030402132939.647c74a6.akpm@digeo.com>
@@ -39,8 +39,8 @@ Dave McCracken <dmccr@us.ibm.com> wrote:
 > try_to_unmap claims it has succeeded but still has mappings.
 > 
 
-Lock the page, and page reclaim will not go near it.  It needs to be locked
-across page_convert_anon() anyway, to protect ->mapping.
+page_referenced() has the same problem, so refill_inactive_zone() will need
+to lock pages too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
