@@ -1,78 +1,39 @@
-Message-ID: <393E9C58.9FE2A0E0@reiser.to>
-Date: Wed, 07 Jun 2000 12:02:48 -0700
-From: Hans Reiser <hans@reiser.to>
-MIME-Version: 1.0
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:it'snot
- just the code)
-References: <Pine.LNX.4.21.0006071018320.14304-100000@duckman.distro.conectiva>
-Content-Type: text/plain; charset=koi8-r
-Content-Transfer-Encoding: 7bit
+Date: Wed, 7 Jun 2000 20:53:55 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: reiserfs being part of the kernel: it's not just the code
+Message-ID: <20000607205355.D30951@redhat.com>
+References: <Pine.LNX.4.10.10006060811120.15888-100000@dax.joh.cam.ac.uk> <393CA40C.648D3261@reiser.to> <20000606114851.A30672@home.ds9a.nl> <393CBBB8.554A0D2A@reiser.to> <20000606172606.I25794@redhat.com> <393D37D1.1BC61DC3@reiser.to> <20000606205447.T23701@redhat.com> <393DACC8.5DB60A81@reiser.to> <20000607120030.D29432@redhat.com> <393E8A68.8DA3F4AB@reiser.to>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <393E8A68.8DA3F4AB@reiser.to>; from hans@reiser.to on Wed, Jun 07, 2000 at 10:46:16AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Quintela Carreira Juan J." <quintela@fi.udc.es>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: Hans Reiser <hans@reiser.to>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> 
-> On Wed, 7 Jun 2000, Stephen C. Tweedie wrote:
-> > On Tue, Jun 06, 2000 at 08:45:08PM -0700, Hans Reiser wrote:
-> > > >
-> > > > This is the reason because of what I think that one operation in the
-> > > > address space makes no sense.  No sense because it can't be called
-> > > > from the page.
-> > >
-> > > What do you think of my argument that each of the subcaches should register
-> > > currently_consuming counters which are the number of pages that subcache
-> > > currently takes up in memory,
-> >
-> > There is no need for subcaches at all if all of the pages can be
-> > represented on the page cache LRU lists.  That would certainly
-> > make balancing between caches easier.
-> 
-> Wouldn't this mean we could end up with an LRU cache full of
-> unfreeable pages?
-> 
-> Then we would scan the LRU cache and apply pressure on all of
-> the filesystems, but then the filesystem could decide it wants
-> to flush *other* pages from the ones we have on the LRU queue.
+Hi,
 
-And we intend to do exactly that with allocate on flush.  Eventually we will
-even repack on flush.
+On Wed, Jun 07, 2000 at 10:46:16AM -0700, Hans Reiser wrote:
+> 
+> Have the FS stall if the limit is reached, and if the limit is reached, increase
+> memory pressure invoking the mechanism that will drive allocate on flush.
+> 
+> The FS needs a lot of code, VFS needs something around ten lines, yes?
 
-> 
-> This could get particularly nasty when we have a VM with
-> active / inactive / scavenge lists... (like what I'm working
-> on now)
-> 
-> Then again, if the filesystem knows which pages we want to
-> push, it could base the order in which it is going to flush
-> its blocks on that memory pressure. Then your scheme will
-> undoubtedly be the more robust one.
-> 
-> Question is, are the filesystems ready to play this game? 
+It's not the VFS as much as the VM which needs the work.  For example,
+currently we have no way of exerting flow control on processes generating
+dirty pages via mmap(), and fixing that requires work in the page fault
+path.
 
-Yes, we are eager to play, but you do intend that the filesystem will be
-pressured to age not flush, yes?
+> None of the ReiserFS team will be there.  I can see you at the UK thing, I know
+> you are planning on going there.
 
-That is, if aging causes something to get flushed, it gets flushed, but if not
-then not.
-The filesystems should get passed some notion of how much of their cache to age
-so that you MM guys can have fun varying this.
+OK, will you be bringing any other folks there?  
 
-You might want us to return how much got scheduled for flushing as a result of
-the aging, that way you know when to stop pressuring caches.
-
-> 
-> regards,
-> 
-> Rik
-> --
-> The Internet is not a network of computers. It is a network
-> of people. That is its real strength.
-> 
-> Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-> http://www.conectiva.com/               http://www.surriel.com/
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
