@@ -1,45 +1,50 @@
-Message-ID: <413AE5DA.9070208@yahoo.com.au>
-Date: Sun, 05 Sep 2004 20:09:30 +1000
+Message-ID: <413AE6E7.5070103@yahoo.com.au>
+Date: Sun, 05 Sep 2004 20:13:59 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 0/3] beat kswapd with the proverbial clue-bat
-References: <413AA7B2.4000907@yahoo.com.au> <20040904230939.03da8d2d.akpm@osdl.org> <20040905062743.GG7716@krispykreme>
-In-Reply-To: <20040905062743.GG7716@krispykreme>
+References: <413AA7B2.4000907@yahoo.com.au> <20040904230210.03fe3c11.davem@davemloft.net> <413AAF49.5070600@yahoo.com.au>
+In-Reply-To: <413AAF49.5070600@yahoo.com.au>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Blanchard <anton@samba.org>
-Cc: Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: "David S. Miller" <davem@davemloft.net>, akpm@osdl.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Anton Blanchard wrote:
->>There have been few reports, and I believe that networking is getting
->>changed to reduce the amount of GFP_ATOMIC higher-order allocation
->>attempts.
+Nick Piggin wrote:
+> David S. Miller wrote:
 > 
+>> On Sun, 05 Sep 2004 15:44:18 +1000
+>> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+>>
+>>
+>>> So my solution? Just teach kswapd and the watermark code about higher
+>>> order allocations in a fairly simple way. If pages_low is (say), 1024KB,
+>>> we now also require 512KB of order-1 and above pages, 256K of order-2
+>>> and up, 128K of order 3, etc. (perhaps we should stop at about order-3?)
+>>
+>>
+>>
+>> Whether to stop at order 3 is indeed an interesting question.
+>>
+>> The reality is that the high-order allocations come mostly from folks
+>> using jumbo 9K MTUs on gigabit and faster technologies.  On x86, an
+>> order 2 would cover those packet allocations, but on sparc64 for example
+>> order 1 would be enough, whereas on a 2K PAGE_SIZE system order 3 would
+>> be necessary.
+>>
 > 
-> FYI I seem to remember issues on loopback due to its large MTU. Also the
-
-Yeah I had seen a few, surprisingly few though. Sorry I'm a bit clueless
-about networking - I suppose there is a good reason for the 16K MTU? My
-first thought might be that a 4K one could be better on CPU cache as well
-as lighter on the mm. I know the networking guys know what they're doing
-though...
-
-> printk_ratelimit stuff first appeared because the e1000 was spewing so
-> many higher order page allocation failures on some boxes.
-> 
-> But yes, the e1000 guys were going to look into multiple buffer mode so
-> they dont need a high order allocation.
+> Yeah I see.
 > 
 
-Well let me be the first to say I don't want to stop that from happening.
+Hmm, and the crowning argument for not stopping at order 3 is that if we
+never use higher order allocations, nothing will care about their watermarks
+anyway. I think I had myself confused when that question in the first place.
 
-With regard to getting this patchset tested, I might see if I can hunt
-down another e1000 and give it a try at the end of the week. If anyone
-would like to beat me to it, just let me know and I'll send out a new
-set of patches with those couple of required fixes.
+So yeah, stopping at a fixed number isn't required, and as you say it keeps
+things general and special cases minimal.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
