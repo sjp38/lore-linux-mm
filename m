@@ -1,46 +1,37 @@
-Date: Fri, 12 Sep 2003 13:18:08 +0200
+Message-ID: <3F61D322.7020507@nortelnetworks.com>
+Date: Fri, 12 Sep 2003 10:07:30 -0400
+From: Chris Friesen <cfriesen@nortelnetworks.com>
+MIME-Version: 1.0
 Subject: Re: [RFC] Enabling other oom schemes
-Message-ID: <20030912111808.GA13973@hh.idb.hist.no>
-References: <200309120219.h8C2JANc004514@penguin.co.intel.com> <3F614912.3090801@genebrew.com> <3F614C1F.6010802@nortelnetworks.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3F614C1F.6010802@nortelnetworks.com>
-From: Helge Hafting <helgehaf@aitel.hist.no>
+References: <200309120219.h8C2JANc004514@penguin.co.intel.com> <3F614912.3090801@genebrew.com> <3F614C1F.6010802@nortelnetworks.com> <20030912111808.GA13973@hh.idb.hist.no>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Friesen <cfriesen@nortelnetworks.com>
+To: Helge Hafting <helgehaf@aitel.hist.no>
 Cc: Rahul Karnik <rahul@genebrew.com>, rusty@linux.co.intel.com, riel@conectiva.com.br, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 12, 2003 at 12:31:27AM -0400, Chris Friesen wrote:
-> Rahul Karnik wrote:
-> >Rusty Lynch wrote:
-> >
-> >>The patch below uses a notifier list for other components to register
-> >>to be called when an out of memory condition occurs.
-> >
-> >
-> >How does this interact with the overcommit handling? Doesn't strict 
-> >overcommit also not oom, but rather return a memory allocation error? 
-> >Could we not add another overcommit mode where oom conditions cause a 
-> >kernel panic?
-> 
-> If you have real, true strict overcommit, then it can cause you to have 
-> errors much earlier than expected.
-> 
-> Imagine a process that consumes 51% of memory.  With strict overcommit, 
-> that process cannot fork() since there is not enough memory.
+Helge Hafting wrote:
+> On Fri, Sep 12, 2003 at 12:31:27AM -0400, Chris Friesen wrote:
 
-Note that this "memory" is RAM+swap.  So you can avoid allocation
-failure by giving your strict overcommit box much more swap space.
+> Note that this "memory" is RAM+swap.  So you can avoid allocation
+> failure by giving your strict overcommit box much more swap space.
 
-The allocations will be backed by swap, this won't slow the machine
-down at all because it isn't used normally.  Or to put it another
-way - you'll use that extra swap only in those situations where
-you otherwise get allocation failure or OOM killing.
+This works great for the desktop, doesn't work so well when you don't 
+have any swap--as is the case for most embedded apps that would like 
+stricter overcommit.
 
-Helge Hafting
+Chris
+
+
+
+-- 
+Chris Friesen                    | MailStop: 043/33/F10
+Nortel Networks                  | work: (613) 765-0557
+3500 Carling Avenue              | fax:  (613) 765-2986
+Nepean, ON K2H 8E9 Canada        | email: cfriesen@nortelnetworks.com
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
