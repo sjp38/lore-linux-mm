@@ -1,51 +1,36 @@
-Message-ID: <38745507.68EE54D2@idiom.com>
-Date: Thu, 06 Jan 2000 11:40:39 +0300
-From: Hans Reiser <reiser@idiom.com>
+Date: Thu, 6 Jan 2000 17:05:41 +0100 (CET)
+From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+Subject: Re: [RFC] [RFT] [PATCH] memory zone balancing
+In-Reply-To: <200001040227.SAA98076@google.engr.sgi.com>
+Message-ID: <Pine.LNX.4.10.10001061701160.5892-100000@chiara.csoma.elte.hu>
 MIME-Version: 1.0
-Subject: Re: (reiserfs) Re: RFC: Re: journal ports for 2.3? (resending because
- my  ISP probably lost it)
-References: <Pine.SCO.3.94.1000105153604.25431A-100000@tyne.london.sco.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tigran Aivazian <tigran@sco.COM>
-Cc: "Peter J. Braam" <braam@cs.cmu.edu>, Andrea Arcangeli <andrea@suse.de>, "William J. Earl" <wje@cthulhu.engr.sgi.com>, Tan Pong Heng <pongheng@starnet.gov.sg>, "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, Chris Mason <clmsys@osfmail.isc.rit.edu>, reiserfs@devlinux.com, linux-fsdevel@vger.rutgers.edu, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, intermezzo-devel@stelias.com, simmonds@stelias.com
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, torvalds@transmeta.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Tigran Aivazian wrote:
+On Mon, 3 Jan 100, Kanoj Sarcar wrote:
 
-> On Wed, 5 Jan 2000, Peter J. Braam wrote:
-> > I think I mean joining.  What I need is:
-> >
-> >  braam starts trans
-> >    does A
-> >    calls reiser: hans starts
-> >    does B
-> >    hans commits; nothing goes to disk yet
-> >    braam does C
-> > braam commits/aborts ABC now go or don't
->
-> no, that definitely looks like nesting to me.
->
-> Tigran.
+> Okay, here is a reworked version. Note that this version does not
+> do per-zone balancing, since experiments show that we need to tune
+> per-zone watermarks properly before we can start doing that. I am 
+> working on coming up with a good estimate of per-zone watermarks.
+> Basically, I am trying to answer the question: if there are d dmapages,
+> r regular pages and h highmem pages, for a total of d+r+h pages, 
+> what should the watermarks be for each zone?
 
-It looks like joining to me.  If it was nesting, you would be able to commit A
-without comitting B.
+i think this is pretty much 'type-dependent'. In earlier versions of the
+zone allocator i added a zone->memory_balanced() function (but removed it
+later because it first needed the things your patch adds). Then every zone
+can decide for itself wether it's balanced. Eg. the DMA zone is rather
+critical and we want to keep it free aggressively (part of that is already
+achieved by placing it at the end of the zone chain), the highmem zone
+might not need any balancing at all, the normal zone wants some high/low
+watermark stuff.
 
-Of course, if there is database literature defining nesting, and there probably
-is, then I should be ignored here.
-Perhaps the literature defines nesting as equivalent to what I call joining.
-
-Hans
-
---
-Get Linux (http://www.kernel.org) plus ReiserFS
- (http://devlinux.org/namesys).  If you sell an OS or
-internet appliance, buy a port of ReiserFS!  If you
-need customizations and industrial grade support, we sell them.
-
-
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
