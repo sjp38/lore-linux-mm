@@ -1,36 +1,47 @@
-Date: Thu, 10 May 2001 09:41:45 +0100 (BST)
-From: Mark Hemment <markhe@veritas.com>
+Date: Thu, 10 May 2001 13:43:46 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
 Subject: Re: [PATCH] allocation looping + kswapd CPU cycles 
-In-Reply-To: <Pine.LNX.4.21.0105091334540.13878-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0105100935040.31900-100000@alloc>
+In-Reply-To: <Pine.LNX.4.21.0105100935040.31900-100000@alloc>
+Message-ID: <Pine.LNX.4.21.0105101341130.19732-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
+To: Mark Hemment <markhe@veritas.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 May 2001, Marcelo Tosatti wrote:
-> On Wed, 9 May 2001, Mark Hemment wrote:
-> >   Could introduce another allocation flag (__GFP_FAIL?) which is or'ed
-> > with a __GFP_WAIT to limit the looping?
+
+On Thu, 10 May 2001, Mark Hemment wrote:
+
 > 
-> __GFP_FAIL is in the -ac tree already and it is being used by the bounce
-> buffer allocation code. 
+> On Wed, 9 May 2001, Marcelo Tosatti wrote:
+> > On Wed, 9 May 2001, Mark Hemment wrote:
+> > >   Could introduce another allocation flag (__GFP_FAIL?) which is or'ed
+> > > with a __GFP_WAIT to limit the looping?
+> > 
+> > __GFP_FAIL is in the -ac tree already and it is being used by the bounce
+> > buffer allocation code. 
+> 
+> Thanks for the pointer.
+> 
+>   For non-zero order allocations, the test against __GFP_FAIL is a little
+> too soon; it would be better after we've tried to reclaim pages from the
+> inactive-clean list.  Any nasty side effects to this?
 
-Thanks for the pointer.
+No. __GFP_FAIL can to try to reclaim pages from inactive clean.
 
-  For non-zero order allocations, the test against __GFP_FAIL is a little
-too soon; it would be better after we've tried to reclaim pages from the
-inactive-clean list.  Any nasty side effects to this?
+We just want to avoid __GFP_FAIL allocations from going to
+try_to_free_pages().
 
-  Plus, the code still prevents PF_MEMALLOC processes from using the
-inactive-clean list for non-zero order allocations.  As the trend seems to
-be to make zero and non-zero allocations 'equivalent', shouldn't this
-restriction to lifted?
+>   Plus, the code still prevents PF_MEMALLOC processes from using the
+> inactive-clean list for non-zero order allocations.  As the trend seems to
+> be to make zero and non-zero allocations 'equivalent', shouldn't this
+> restriction to lifted?
 
-Mark
+I don't see any problem about making non-zero allocations be able to
+directly reclaim pages.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
