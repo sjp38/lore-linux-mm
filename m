@@ -1,26 +1,38 @@
-Date: Fri, 14 Jan 2000 14:43:42 +0100 (CET)
+Date: Fri, 14 Jan 2000 16:49:00 +0100 (CET)
 From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [RFC] 2.3.39 zone balancing
-In-Reply-To: <20000114132546.A18109@pcep-jamie.cern.ch>
-Message-ID: <Pine.LNX.4.21.0001141441490.316-100000@alpha.random>
+Subject: Re: 1+ GB support (fwd)
+In-Reply-To: <Pine.LNX.4.10.10001140256150.13454-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.4.21.0001141635030.240-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <lkd@tantalophile.demon.co.uk>
-Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Rik van Riel <riel@nl.linux.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Rik van Riel <riel@nl.linux.org>, kelly@nvidia.com
+Cc: Linux MM <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 14 Jan 2000, Jamie Lokier wrote:
+>
+>	I've read a bunch of linux news that says that the later kernels
+>such as 2.3.35 can support more than 1gb of memory.  I've put together a
+>system with 4gb of RAM (dell 6300, 2x PIII 550 xeon CPUs) and can see that
 
->It would seem logical that when a page in the DMA zone is only held for
->swap cache, it's worth copying it to the regular zone and using the copy
->when the page is needed again to free up DMA pages without hitting the
->disk.
+2.2.14aa1 supports 4g of RAM on IA32 and 2Terabyte of RAM on alpha (wihout
+per-process limit on alpha) with production quality. Apply the below patch
+against 2.2.14 if you can't run an unstable tree.
 
-That's basically what I am just doing for preserving regular pages w.r.t.
-high pages in replace_with_highmem but currently I am not graceful against
-DMA pages yet.
+	ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/kernels/v2.2/2.2.14aa1.gz
+
+>processes.  However, I've been unable to malloc and use more than 1gb per
+>process.  Is this a limitation or am I doing something wrong?  I've tried to
+
+If you use 2.2.14aa1 you can apply these two incremental patches (they
+should go on the top of 2.3.x as well) to allocate more ram per-process
+(something like 3.5G). The two incremental patches are _not_ a good idea
+if you need a large I/O cache (like for webservers). For scientific
+application that only needs lots of RAM they should be fine.
+
+	ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/patches/v2.2/2.2.14/bigmem-large-mapping-1.gz
+	ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/patches/v2.2/2.2.14/patches/v2.2/2.2.14/bigmem-large-task-1.gz
 
 Andrea
 
