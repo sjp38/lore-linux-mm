@@ -1,304 +1,56 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id BAA18805
-	for <linux-mm@kvack.org>; Wed, 27 Nov 2002 01:11:40 -0800 (PST)
-Message-ID: <3DE48C4A.98979F0C@digeo.com>
-Date: Wed, 27 Nov 2002 01:11:38 -0800
-From: Andrew Morton <akpm@digeo.com>
+Date: Wed, 27 Nov 2002 09:38:37 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: 2.5.49-mm2
+In-Reply-To: <3DE48C4A.98979F0C@digeo.com>
+Message-ID: <Pine.LNX.4.44L.0211270930510.4103-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Subject: 2.5.49-mm2
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.49/2.5.49-mm2/
+On Wed, 27 Nov 2002, Andrew Morton wrote:
 
-Lots of little things.
+> +pf_memdie.patch
+>
+>  Fix the PF_MEMDIE logic
 
-. Various micro-speedups from the AIM9 testing.
+The first part of the patch looks suspicious. If PF_MEMALLOC
+is set we shouldn't be allowed to go into try_to_free_pages()
+in the first place, should we ?
 
-. VM changes to reduce the amount of (pointless) work which is done
-  against memory-backed filesystems, leading up to the removal of
-  fail_writepage().  (Hugh, please take a look...)
+> +writeback-handle-memory-backed.patch
+>
+>  Don't try to write out memory-backed filesystems at all
 
-. Various fixes to the AIO-for-direct-IO code.
+Neat. Exactly the thing I was looking for for an O(1) VM
+optimisation, good to know it's possible in 2.5 ;)
 
-. An updated rbtree IO scheduler from Jens.
+> simplified-vm-throttling.patch
+>   Remove the final per-page throttling site in the VM
+>
+> page-reclaim-motion.patch
+>   Move reclaimable pages to the tail ofthe inactive list on IO completion
 
-. Some code from Ingo Oeser to start using the expanded and cleaned up
-  user pagetable walker code.  This affects the st and sg drivers; I'm
-  not sure of the testing status of this?
+Very nice, though if you're worried about effective reclaiming
+you might be interested in Arjan's O(1) VM code, which I'll
+probably forward-port to 2.5 once I've got it properly tuned.
 
+> activate-unreleaseable-pages.patch
+>   Move unreleasable pages onto the active list
 
-Changes since 2.5.49-mm1:
+Interesting, does this make much difference ?
 
-+linus.patch
+cheers,
 
- Latest from Linus
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
+http://www.surriel.com/		http://guru.conectiva.com/
+Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
 
-+oprofile-fix.patch
-
- oprofile compilation fix
-
--kgdb-ga.patch
--kgdb-nmi-signal.patch
--kgdb-nr-cpus.patch
--kgdb-use-stabs.patch
-
- I was getting deadlocks (of the NMI watchdog variety) on scheduler
- locks.  Go back to the old stub for now.
-
--plugbug.patch
--writeback-reduced-context-switches.patch
--scheduling-points.patch
--swap-accounting.patch
--swapoff-cleanup.patch
--page-reclaim-scheduling-points.patch
--sync_blockdev-lock-kernel.patch
--incremental-slab-shrink.patch
-
- Merged
-
-+kgdb.patch
-
- The old stub
-
-+aio-dio-really-submit.patch
-
- AIO/direct-IO fixes
-
-+ipc_barriers.patch
-
- Some IPC memory barrier fixes
-
--reiserfs-readpages-fix.patch
-
- Merged into reiserfs-readpages.patch
-
--less-requests.patch
-
- Jens made this change to the updated rbtree-iosched patch
-
-+pf_memdie.patch
-
- Fix the PF_MEMDIE logic
-
-+truncate-speedup.patch
-
- Special-case the truncation of zero-length files.  Saves some CPU.
-
-+spill-lru-lists.patch
-
- Untangle interactions between the deferred lru addition queue and the
- per-cpu page allocator queue.
-
-+readdir-speedup.patch
-
- Make readdir faster
-
--genksyms-fix.patch
-
- Dropped.  It was modules stuff,  and is probably now irrelevant.
-
-+page-walk-api-improvements.patch
-
- More get_user_pages work from Ingo (Oeser)
-
-+page-walk-scsi.patch
-
- Start to use Ingo's new APIs in the scsi code.  Basically, remove
- driver-private implementations in favour of new core APIs
-
-+bcrl-printk.patch
-
- Ben's patch to create /dev/kmsg.  You can write to it from initscripts
- to inject text into the printk buffer.
-
-+read_zero-speedup.patch
-
- Speed up read_zero() for !CONFIG_MMU
-
-+nommu-rmap-locking.patch
-
- Fix an rmap deadlock for !CONFIG_SWAP
-
-+semtimedop.patch
-
- semtimedop() implementation
-
-+writeback-handle-memory-backed.patch
-
- Don't try to write out memory-backed filesystems at all
-
-+remove-fail_writepage.patch
-
- fail_writepage() is no longer needed.
-
-+ptrace-flush.patch
-
- Fix some cache coherency things in the ptrace code (this patch
- isn't right, but I'm keeping it around so the right fix gets
- done one day)
-
-+pentium-II.patch
-
- Optimisations for Pentium-II config
-
-
-
-
-All 54 patches:
-
-linus.patch
-  cset-1.842.2.15-to-1.893.txt.gz
-
-oprofile-fix.patch
-
-epoll-bits-0.57.patch
-  epoll bits 0.57 ( on top of 2.5.49 ) ...
-
-kgdb.patch
-
-simplified-vm-throttling.patch
-  Remove the final per-page throttling site in the VM
-
-page-reclaim-motion.patch
-  Move reclaimable pages to the tail ofthe inactive list on IO completion
-
-handle-fail-writepage.patch
-  Special-case fail_writepage() in page reclaim
-
-activate-unreleaseable-pages.patch
-  Move unreleasable pages onto the active list
-
-aio-direct-io-infrastructure.patch
-  AIO support for raw/O_DIRECT
-
-deferred-bio-dirtying.patch
-  bio dirtying infrastructure
-
-aio-direct-io.patch
-  AIO support for raw/O_DIRECT
-
-aio-dio-really-submit.patch
-  Fix up aio-for-dio
-
-aio-dio-deferred-dirtying.patch
-  Use the deferred-page-dirtying code in the AIO-DIO code.
-
-aio-dio-debug.patch
-
-dio-counting.patch
-
-dio-reduce-context-switch-rate.patch
-  Reduced wakeup rate in direct-io code
-
-ipc_barriers.patch
-  memory barrier work in ipc/util.c
-
-signal-speedup.patch
-  speed up signals
-
-reiserfs-readpages.patch
-  reiserfs v3 readpages support
-
-reduce-random-context-switch-rate.patch
-  Reduce context switch rate due to the random driver
-
-pf_memdie.patch
-  Subject: Re: [patch] 2.5: kill PF_MEMDIE
-
-truncate-speedup.patch
-
-spill-lru-lists.patch
-  Fix interaction between batched lru addition and hot/cold pages
-
-readdir-speedup.patch
-  readdir speedup and fixes
-
-page-walk-api.patch
-
-page-walk-api-improvements.patch
-
-page-walk-scsi.patch
-
-poll-1-wqalloc.patch
-  poll 1/6: reduced mempory requirements
-
-poll-2-selectalloc.patch
-  poll 2/6: put small bitmaps into a local
-
-poll-3-alloc.patch
-  poll 3/6: improved pollfd memory allocation
-
-poll-4-fast-select.patch
-  poll 4/6: select() speedups
-
-poll-5-fast-poll.patch
-  poll 5/6: poll() speedup
-
-poll-6-merge.patch
-  poll6/6: merge poll() and select() common code
-
-bcrl-printk.patch
-
-read_zero-speedup.patch
-  speed up read_zero() for !CONFIG_MMU
-
-nommu-rmap-locking.patch
-  Fix rmap locking for CONFIG_SWAP=n
-
-semtimedop.patch
-  semtimedop - semop() with a timeout
-
-writeback-handle-memory-backed.patch
-  skip memory-backed filesystems in writeback
-
-remove-fail_writepage.patch
-  Remove fail_writepage()
-
-page-reservation.patch
-  Page reservation API
-
-wli-show_free_areas.patch
-  show_free_areas extensions
-
-inlines-net.patch
-
-rbtree-iosched.patch
-  rbtree-based IO scheduler
-
-ptrace-flush.patch
-  Subject: [PATCH] ptrace on 2.5.44
-
-buffer-debug.patch
-  buffer.c debugging
-
-warn-null-wakeup.patch
-
-pentium-II.patch
-  Pentium-II support bits
-
-radix-tree-overflow-fix.patch
-  handle overflows in radix_tree_gang_lookup()
-
-rcu-stats.patch
-  RCU statistics reporting
-
-auto-unplug.patch
-  self-unplugging request queues
-
-less-unplugging.patch
-  Remove most of the blk_run_queues() calls
-
-dcache_rcu-2-2.5.48.patch
-
-dcache_rcu-3-2.5.48.patch
-
-shpte-ng.patch
-  pagetable sharing for ia32
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
