@@ -1,39 +1,118 @@
-Date: Thu, 9 Sep 2004 10:23:32 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: swapping and the value of /proc/sys/vm/swappiness
-Message-ID: <20040909172332.GZ3106@holomorphy.com>
-References: <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <20040907212051.GC3492@logos.cnet> <413F1518.7050608@sgi.com> <20040908165412.GB4284@logos.cnet> <413F5EE7.6050705@sgi.com> <20040908193036.GH4284@logos.cnet> <413FC8AC.7030707@sgi.com> <20040909030916.GR3106@holomorphy.com> <414065A8.20508@sgi.com>
+Date: Sat, 11 Sep 2004 02:08:16 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Fw: [Bugme-new] [Bug 3375] New: NUMA memory allocation issue:
+ set_memorypolicy to MPOL_BIND do not work.
+Message-Id: <20040911020816.4ac226cd.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <414065A8.20508@sgi.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, piggin@cyberone.com.au
+To: linux-mm@kvack.org
+Cc: jean-marie.verdun@hp.com, Andi Kleen <ak@muc.de>
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
->> Please log periodic snapshots of /proc/vmstat during runs on kernel
->> versions before and after major behavioral shifts.
 
-On Thu, Sep 09, 2004 at 09:16:08AM -0500, Ray Bryant wrote:
-> Attached is the output you requested for two kernel versions: 2.6.8.1-mm4 
-> and 2.6.9-rc1-mm3 + the nrmap_patch (that patch didn't make much difference 
-> so this should be good enough for comparison purposes, and it was the 
-> kernel I had built.)
-> Because there are so many parameters in /proc/vmstat, I had to split the
-> output up (more or less arbitarily) into three files to get something you 
-> could actually look at with an editor.  Even then it requires 100 columns 
-> or so.
+Begin forwarded message:
 
-This will do fine. I'll examine these for anomalous maintenance of
-statistics and/or operational variables used to drive page replacement.
-
-Thanks.
+Date: Sat, 11 Sep 2004 02:01:13 -0700
+From: bugme-daemon@osdl.org
+To: bugme-new@lists.osdl.org
+Subject: [Bugme-new] [Bug 3375] New: NUMA memory allocation issue: set_memorypolicy to MPOL_BIND do not work. 
 
 
--- wli
+http://bugme.osdl.org/show_bug.cgi?id=3375
+
+           Summary: NUMA memory allocation issue: set_memorypolicy to
+                    MPOL_BIND do not work.
+    Kernel Version: 2.6.8.1
+            Status: NEW
+          Severity: high
+             Owner: mm_numa-discontigmem@kernel-bugs.osdl.org
+         Submitter: jean-marie.verdun@hp.com
+
+
+Distribution: Suse 9.1 Pro
+Hardware Environment: 4P Opteron server running at 2.0 Ghz with 32 GB of main memory
+Software Environment: glibc library 2.3.4
+Problem Description:
+
+I am trying to use the most efficient NUMA features by forcing memory allocation
+of a compute process to the current node on which it runs. I would like that the
+process die in the case the cpu runs out of memory explain why I do want to use
+explicit binding.
+
+When setting the memory allocation policy inside wrapper which execute the
+target process through an excevp system call then after, if the policy is setup
+to MPOL_BIND, the execvp fails with an out of memory messages while the binary
+used is very small and the node still have plenty of memory.
+
+Steps to reproduce:
+
+Here is the small piece of code I use
+
+#include <stdio.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <sched.h>
+#include <sys/types.h>
+#include "/root/linux-2.6.8.1/include/asm-x86_64/unistd.h"
+#include "/root/glibc-2.3.3/sysdeps/unix/sysv/linux/x86_64/sysdep.h"
+# define __set_errno(val) (errno = (val))
+#ifndef __SYSCALL
+#define __SYSCALL(a,b)
+#endif
+ 
+__SYSCALL(__NR_sched_setaffinity, sys_sched_setaffinity)
+int main(int argc, char * argv[])
+{
+        unsigned long *new_mask;
+        unsigned long cur_mask;
+        unsigned long processor;
+        unsigned long value=1;
+        int value2=1;
+        int i;
+        unsigned int len = sizeof(new_mask);
+        pid_t pid;
+        pid_t mypid;
+        processor=atol(argv[1]);
+        new_mask=(unsigned long *)malloc(sizeof(unsigned long));
+        *new_mask=1;
+        for( i=0; i < processor ; i++ )
+                *new_mask=*new_mask*2;
+        printf("procesor %d Mask %d\n",processor,*new_mask);
+        mypid=getpid();
+                mypid=getpid();
+                printf("coucou %d %d\n",mypid,getpid());
+                puts(argv[2]);
+                printf("%d\n",INLINE_SYSCALL (sched_setaffinity, 3, mypid,
+sizeof (unsigned long),new_mask));
+                printf("%d %d %d %d %d\n",errno,EFAULT,ESRCH,EPERM,EINVAL);
+                printf("%d\n",INLINE_SYSCALL (set_mempolicy, 3, value2,
+new_mask,value));
+                printf("%d %d %d %d %d\n",errno,EFAULT,ESRCH,EPERM,EINVAL);
+ 
+                printf("%d\n",execvp(argv[2],NULL));
+                printf("%d %d %d %d %d\n",errno,EFAULT,ESRCH,EPERM,EINVAL);
+                exit(0);
+ 
+ 
+}
+
+I do directly the system call wrapper inide the code as the glibc 2.3.4 provided
+by Suse contains bugs which avoid to use it for such task.
+To compile:
+cc -I/root/glibc-2.3.3/  -I . runon.c
+ 
+You need as well kernel source code into /roo/linux-2.6.8.1
+and glibc-2.3.3 into root directory
+
+To execute
+
+./a.out <processor_id> <myprogram_name>
+
+------- You are receiving this mail because: -------
+You are on the CC list for the bug, or are watching someone who is.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
