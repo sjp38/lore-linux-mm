@@ -1,49 +1,60 @@
-Date: Fri, 12 Mar 2004 19:46:01 +0000
-From: Jamie Lokier <jamie@shareable.org>
+Message-ID: <405228DC.1010107@matchmail.com>
+Date: Fri, 12 Mar 2004 13:17:16 -0800
+From: Mike Fedyk <mfedyk@matchmail.com>
+MIME-Version: 1.0
 Subject: Re: [PATCH] 2.6.4-rc2-mm1: vm-split-active-lists
-Message-ID: <20040312194601.GE18799@mail.shareable.org>
-References: <OF9DC8F5B1.0044A21E-ON86256E55.004DF368@raytheon.com> <4051C8BF.1050001@cyberone.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4051C8BF.1050001@cyberone.com.au>
+References: <OF62A00090.6117DDE8-ON86256E55.004FED23@raytheon.com> <4051D39D.80207@cyberone.com.au> <20040312193547.GD18799@mail.shareable.org>
+In-Reply-To: <20040312193547.GD18799@mail.shareable.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Mark_H_Johnson@Raytheon.com, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mfedyk@matchmail.com, m.c.p@wolk-project.de, owner-linux-mm@kvack.org, plate@gmx.tm
+To: Jamie Lokier <jamie@shareable.org>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Mark_H_Johnson@raytheon.com, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, m.c.p@wolk-project.de, owner-linux-mm@kvack.org, plate@gmx.tm
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
-> One thing you could do is re read swapped pages when you have
-> plenty of free memory and the disks are idle.
+Jamie Lokier wrote:
+> Nick Piggin wrote:
+> 
+>>In Linux, all reclaim is driven by a memory shortage. Often it
+>>is just because more memory is being requested for more file
+>>cache.
+> 
+> 
+> Is reclaim the same as swapping, though?  I'd expect pages to be
+> written to the swapfile speculatively, before they are needed for
+> reclaim.  Is that one of those behaviours which everyone agrees is
+> sensible, but it's yet to be implemented in the 2.6 VM?
+> 
 
-Better: re-read swapped pages _and_ file-backed pages that are likely
-to be used in future, when you have plenty of free memory and the
-disks are idle.
+Nobody has mentioned the swap cache yet.  If a page is in ram, and swap 
+and not dirty, it's counted in the swap cache.
 
-updatedb would push plenty of memory out overnight.  But after the
-cron jobs and before people wake up in the morning, the kernel would
-gradually re-read the pages corresponding to mapped regions in
-processes.  Possibly with emphasis on some processes more than others.
-Possibly remembering some of that likelihood information even when a
-particular executable isn't currently running.
+> 
+>>But presumably if you are running into memory pressure, you really
+>>will need to free those free list pages, requiring the page to be
+>>read from disk when it is used again.
+> 
+> 
+> The idea is that you write pages to swap _before_ the memory pressure
+> arrives, which makes those pages available immediately when memory
+> pressure does arrive, provided they are still clean.  It's speculative.
+> 
+> I thought Linux did this already, but I don't know the current VM well.
+> 
 
-During the day, after a big compile the kernel would gradually re-read
-pages for processes which are running on your desktop but which you're
-not actively using.  The editor you were using during the compile will
-still be responsive because it wasn't swapped out.  The Nautilus or
-Mozilla that you weren't using will appear responsive when you switch
-to it, because the kernel was re-reading their mapped pages after the
-compile, while you didn't notice because you were still using the
-editor.
+You're saying all anon memory should become swap_cache eventually 
+(though, it should be a background "task" so it doesn't block userspace 
+memory requests).
 
-The intention is to avoid those long stalls where you switch to a
-Mozilla window and it takes 30 seconds to page in all those libraries
-randomly.  It's not necessary to keep Mozilla in memory all the time,
-even when the memory is specifically useful for a compile, to provide
-that illusion of snappy response most of the time.
+That would have other side benefits.  If the anon page matches (I'm not 
+calling it "!dirty" since that might have other semantics in the current 
+VM) what is in swap, it can be cleaned without performing any IO.  Also, 
+  suspending will have much less IO to perform before completion.
 
--- Jamie
+Though there would have to be swap recycling algo if swap size < ram.
+
+Mike
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
