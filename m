@@ -1,41 +1,43 @@
-Subject: Re: 2.5.44-mm2 CONFIG_SHAREPTE necessary for starting KDE 3.0.3
-From: Steven Cole <scole@lanl.gov>
-In-Reply-To: <1035306108.13078.178.camel@spc9.esa.lanl.gov>
-References: <1035306108.13078.178.camel@spc9.esa.lanl.gov>
-Content-Type: text/plain
+Date: Tue, 22 Oct 2002 10:36:40 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
+Message-ID: <396790000.1035308200@flay>
+In-Reply-To: <20021022131930.A20957@redhat.com>
+References: <2629464880.1035240956@[10.10.2.3]> <Pine.LNX.4.44L.0210221405260.1648-100000@duckman.distro.conectiva> <20021022131930.A20957@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Date: 22 Oct 2002 11:20:36 -0600
-Message-Id: <1035307236.13083.183.camel@spc9.esa.lanl.gov>
-Mime-Version: 1.0
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steven Cole <elenstev@mesatop.com>
-Cc: Andrew Morton <akpm@zip.com.au>, linux-mm@kvack.org
+To: Benjamin LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2002-10-22 at 11:01, Steven Cole wrote:
-> Greetings all,
+>> > I think it will for most of the situations we run aground with now
+>> > (normally 5000 oracle tasks sharing a 2Gb shared segment, or some
+>> > such monster).
+>> 
+>> 10 GB pagetable overhead, for 2 GB of data.  No customer I
+>> know would accept that much OS overhead.
+>> 
+>> To reduce the overhead we could either reclaim the page
+>> tables and reconstruct them when needed (lots of work) or
+>> we could share the page tables (less runtime overhead).
 > 
-> My experience with 2.5.44-mm2 and KDE 3 runs counter to the experience
-> of some others.  I've booted several kernels this morning on my UP test
-> box and found that starting KDE 3.0.3 using XFree86 4.2.1 _requires_
-> that CONFIG_SHAREPTE=y for my system.  All kernels were UP and PREEMPT.
-> With CONFIG_X86_UP_IOAPIC=y and nmi_watchdog=1, the results were the
-> same.
-> 
-> If SHAREPTE is not set, then the KDE startup fails with a frozen pointer
-> after the initial dark blue screen changes to black.  This does appear
-> to be KDE-related.  When Gnome is my default desktop, that works just
-> fine with 2.5.44-mm2 and CONFIG_SHAREPTE not set.
-> 
+> Or you use 4MB pages.  That tends to work much better and has less 
+> complexity.  Shared page tables don't work well on x86 when you have 
+> a database trying to access an SGA larger than the virtual address 
+> space, as each process tends to map its own window into the buffer 
+> pool.  Highmem with 32 bit va just plain sucks.  The right answer is 
+> to change the architecture of the application to not run with 5000 
+> unique processes.
 
-After reading my own mail, I realized that I should have checked to see
-if disabling PREEMPT did any good in this case. 
+Bear in mind that large pages are neither swap backed or file backed
+(vetoed by Linus), for starters. There are other large app problem scenarios 
+apart from Oracle ;-)
 
-I just booted 2.5.44-mm2 without PREEMPT and without SHAREPTE, and KDE
-3.0.3 was able to start up OK.
-
-Steven  
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
