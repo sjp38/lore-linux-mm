@@ -1,50 +1,65 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id UAA26652
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2003 20:57:26 -0800 (PST)
-Date: Fri, 7 Mar 2003 20:57:41 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: 2.5.64-mm3
-Message-Id: <20030307205741.3eb7d5b3.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: 2.5.64-mm2
+From: Shawn <core@enodev.com>
+In-Reply-To: <1047097353.727.18.camel@phantasy.awol.org>
+References: <20030307185116.0c53e442.akpm@digeo.com>
+	 <1047095352.3483.0.camel@localhost.localdomain>
+	 <1047096331.727.14.camel@phantasy.awol.org>
+	 <1047096093.3483.4.camel@localhost.localdomain>
+	 <1047097353.727.18.camel@phantasy.awol.org>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Message-Id: <1047131942.3759.1.camel@localhost.localdomain>
+Mime-Version: 1.0
+Date: 08 Mar 2003 07:59:02 -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Robert Love <rml@tech9.net>
+Cc: Andrew Morton <akpm@digeo.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.64/2.5.64-mm3/
+Now I oops on boot justt when it trys to mount root (reiserfs),
+unfortunately, I cannot page up to see the oops text.
 
+I'll try booting with vesa fbcon to see if I can't see more.
 
-The mistaken reversion of the CPU scheduler changes made -mm2 rather
-pointless.  We want to get this tested.
-
-
-
-Since 2.5.64-mm2:
-
-
--pirq_enable_irq-warning-fix.patch
-
- Merged
-
-+scheduler-tunables-fix.patch
-
- Put the correct CPU scheduler tunables in place
-
-+show_interrupts-fixes.patch
-
- Avod oops in /proc/interrupts handler
-
-+kernel-flag-fix.patch
-
- Compilation fix
-
-+larger-proc-interrupts-buffer.patch
-
- Fix /proc/interrupts truncation on large machines
-
-
+On Fri, 2003-03-07 at 22:22, Robert Love wrote:
+> On Fri, 2003-03-07 at 23:01, Shawn wrote:
+> > Here's my .config. I am not SMP.
+> > 
+> > I suspected the distclean thing, but I made "Mr. Proper" too just in
+> > case.
+> 
+> Oh.  Its those damn modules.  The bane of my existence.
+> 
+> Problem is, ksyms.c is exporting kernel_flag under PREEMPT.  Now we just
+> need it exported under SMP.
+> 
+> Andrew, would you mind appending this to the current patch? Sorry.
+> 
+> Everyone else, you need this if you are UP+PREEMPT+MODULES.
+> 
+> 	Robert Love
+> 
+> 
+>  kernel/ksyms.c |    2 +-
+>  1 files changed, 1 insertion(+), 1 deletion(-)
+> 
+> 
+> diff -urN linux-2.5.64-mm2/kernel/ksyms.c linux/kernel/ksyms.c
+> --- linux-2.5.64-mm2/kernel/ksyms.c	2003-03-07 22:08:04.000000000 -0500
+> +++ linux/kernel/ksyms.c	2003-03-07 23:19:32.098500176 -0500
+> @@ -488,7 +488,7 @@
+>  #if CONFIG_SMP
+>  EXPORT_SYMBOL_GPL(set_cpus_allowed);
+>  #endif
+> -#if CONFIG_SMP || CONFIG_PREEMPT
+> +#if CONFIG_SMP
+>  EXPORT_SYMBOL(kernel_flag);
+>  #endif
+>  EXPORT_SYMBOL(jiffies);
+> 
+> 
+> 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
