@@ -1,120 +1,50 @@
-Received: (from arjanv@localhost)
-	by devserv.devel.redhat.com (8.11.0/8.11.0) id f7SGCt918560
-	for linux-mm@kvack.org; Tue, 28 Aug 2001 12:12:55 -0400
-Resent-Message-Id: <200108281612.f7SGCt918560@devserv.devel.redhat.com>
-Date: Tue, 28 Aug 2001 11:17:34 -0400
-From: Arjan van de Ven <arjanv@redhat.com>
-Subject: vm patch for highmem 
-Message-ID: <20010828111734.A5857@devserv.devel.redhat.com>
-Mime-Version: 1.0
+Message-ID: <3B8BBD94.B57510A2@pp.inet.fi>
+Date: Tue, 28 Aug 2001 18:49:40 +0300
+From: Jari Ruusu <jari.ruusu@pp.inet.fi>
+MIME-Version: 1.0
+Subject: Re: VM problem with 2.4.8-ac9 (fwd)
+References: <Pine.LNX.4.33L.0108241710040.31410-100000@duckman.distro.conectiva> <3B87A3BC.EB5A9989@pp.inet.fi>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Resent-To: linux-mm@kvack.org
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Rik van Riel <riel@conectiva.com.br>, Marcelo Tosatti <marcelo@conectiva.com.br>, Hugh Dickins <hugh@veritas.com>, Jeremy Linton <jlinton@interactivesi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+2.4.8-ac12
+~~~~~~~~~~
+5 hours of VM torture. 1 incident where a process died with SIGSEGV.
 
-The patch below changes the highmem bouncebuffers to increase performance.
-Initial reports are that it matters A LOT.
+Got these on serial console:
+> Unused swap offset entry in swap_dup 0007e400
+> VM: Bad swap entry 0007e400
+> Unused swap offset entry in swap_count 0007e400
+> Unused swap offset entry in swap_count 0007e400
+> Unused swap offset entry in swap_count 0007e400
+> VM: Bad swap entry 0007e400
 
-What it does: it 1) increases the emergemcy pool and 2) it tries to grab a
-page from the pool for EVERY bounce first, until the pool is half empty, and
-only THEN does it try to get a page from the VM.
-While this penalizes the low zone by making it have less pages, it also
-leaves the VM totally alone for normal loads; only under more extreme loads
-does the vm get involved.
+2.4.9-ac1
+~~~~~~~~~
+13 hours of VM torture. 2 incidents where a process died with SIGSEGV. No
+"swap offset" messages. Both SIGSEGV incidents appeared to happen
+simultaneously, suggesting that one erratic behavior caused both.
 
-Comments?
+2.4.9-ac3
+~~~~~~~~~
+Kernel compiled with -fno-strength-reduce. 3 hours of VM torture. 2
+incidents where a process died with SIGSEGV. No "swap offset" messages. Both
+SIGSEGV incidents appeared to happen simultaneously, suggesting that one
+erratic behavior caused both.
 
-Greetings,
-   Arjan van de Ven
+2.4.10-pre1
+~~~~~~~~~~~
+2 hours of VM torture. 1 incident where a process died with SIGSEGV. No
+"swap offset" messages.
 
---- linux/mm/highmem.c.org	Thu Aug 23 09:23:11 2001
-+++ linux/mm/highmem.c	Thu Aug 23 10:21:33 2001
-@@ -159,7 +159,11 @@
- 	spin_unlock(&kmap_lock);
- }
- 
--#define POOL_SIZE 32
-+#ifdef CONFIG_HIGHMEM64G
-+#define POOL_SIZE 256
-+#else
-+#define POOL_SIZE 64
-+#endif
- 
- /*
-  * This lock gets no contention at all, normally.
-@@ -306,10 +310,24 @@
- struct page *alloc_bounce_page (void)
- {
- 	struct list_head *tmp;
--	struct page *page;
-+	struct page *page = NULL;
-+	int estimated_left;
-+	int iteration=0;
- 
- repeat_alloc:
--	page = alloc_page(GFP_NOIO);
-+
-+	spin_lock_irq(&emergency_lock);
-+	estimated_left = nr_emergency_pages;
-+	spin_unlock_irq(&emergency_lock);
-+
-+	/* If there are plenty of spare pages, use some of them first. If the
-+	   pool is at least half depleted, use the VM to allocate memory.
-+	   This allows moderate loads to continue without blocking here,
-+	   while higher loads get throttled by the VM.
-+        */
-+	if ((estimated_left<=POOL_SIZE/2)&&(!iteration))
-+		page = alloc_page(GFP_NOIO);
-+	
- 	if (page)
- 		return page;
- 	/*
-@@ -338,16 +356,30 @@
- 	current->policy |= SCHED_YIELD;
- 	__set_current_state(TASK_RUNNING);
- 	schedule();
-+	iteration++;
- 	goto repeat_alloc;
- }
- 
- struct buffer_head *alloc_bounce_bh (void)
- {
- 	struct list_head *tmp;
--	struct buffer_head *bh;
-+	struct buffer_head *bh = NULL;
-+	int estimated_left;
-+	int iteration=0;
- 
- repeat_alloc:
--	bh = kmem_cache_alloc(bh_cachep, SLAB_NOIO);
-+
-+	spin_lock_irq(&emergency_lock);
-+	estimated_left = nr_emergency_bhs;
-+	spin_unlock_irq(&emergency_lock);
-+
-+	/* If there are plenty of spare bh's, use some of them first. If the
-+	   pool is at least half depleted, use the VM to allocate memory.
-+	   This allows moderate loads to continue without blocking here,
-+	   while higher loads get throttled by the VM.
-+        */
-+	if ((estimated_left<=POOL_SIZE/2)&&(!iteration))
-+		bh = kmem_cache_alloc(bh_cachep, SLAB_NOIO);
- 	if (bh)
- 		return bh;
- 	/*
-@@ -376,6 +408,7 @@
- 	current->policy |= SCHED_YIELD;
- 	__set_current_state(TASK_RUNNING);
- 	schedule();
-+	iteration++;
- 	goto repeat_alloc;
- }
- 
+Regards,
+Jari Ruusu <jari.ruusu@pp.inet.fi>
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
