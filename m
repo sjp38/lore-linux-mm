@@ -1,38 +1,39 @@
-Date: Thu, 07 Oct 2004 10:59:10 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [Lhms-devel] Re: [PATCH]  no buddy bitmap patch : intro and
- includes [0/2]
-Message-ID: <FAFA5259CC7643EB8D87AF9B@[10.1.1.4]>
-In-Reply-To: <1250100000.1097160319@[10.10.2.4]>
-References: <41653511.60905@jp.fujitsu.com>
- <1250100000.1097160319@[10.10.2.4]>
+Date: Thu, 07 Oct 2004 09:02:57 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: RE: [RFC/PATCH]  pfn_valid() more generic : arch independent part[0/2]
+Message-ID: <1260420000.1097164975@[10.10.2.4]>
+In-Reply-To: <B8E391BBE9FE384DAA4C5C003888BE6F022668D0@scsmsx401.amr.corp.intel.com>
+References: <B8E391BBE9FE384DAA4C5C003888BE6F022668D0@scsmsx401.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, "Luck, Tony" <tony.luck@intel.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
+To: "Luck, Tony" <tony.luck@intel.com>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: LinuxIA64 <linux-ia64@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---On Thursday, October 07, 2004 07:45:21 -0700 "Martin J. Bligh"
-<mbligh@aracnet.com> wrote:
+--"Luck, Tony" <tony.luck@intel.com> wrote (on Thursday, October 07, 2004 08:53:32 -0700):
 
->> Followings are patches for removing bitmaps from buddy allocator,
->> against 2.6.9-rc3. I think this version is much clearer than ones I
->> posted a month ago.
-> ...
->> If there is unclear point, please tell me.
+>> The normal way to fix the above is just to have a bitmap array 
+>> to test - in your case a 1GB granularity would be sufficicent. That 
+>> takes < 1 word to implement for the example above ;-)
 > 
-> What was the purpose behind this, again? Sorry, has been too long since
-> I last looked.
+> In the general case you need a bit for each granule (since that is the
+> unit that the kernel admits/denies the existence of memory).  But the
+> really sparse systems end up with a large bitmap.  SGI Altix uses 49
+> physical address bits, and a granule size of 16MB ... so we need 2^25
+> bits ... i.e. 4MBbytes.  While that's a drop in the ocean on a 4TB
+> machine, it still seems a pointless waste.
 
-The memory allocator bitmaps are the main remaining reason we need the
-concept of linear memory.  If we can get rid of them, it's one step closer
-to managing memory as a set of sections.
+If it's that sparse, it might be worth having another data structure,
+perhaps a tree, or some form of hierarchical bitmap. But probably the
+most important thing is to do it in one cacheline read, so personally
+I'd stick with the array. Whatever you chose, I still don't understand 
+where all that code came from ;-)
 
-Dave McCracken
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
