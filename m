@@ -1,82 +1,30 @@
-Date: Thu, 21 Aug 2003 15:36:37 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: Buddy algorithm questions
-Message-ID: <20030821223637.GU3170@holomorphy.com>
-References: <3F428E4E.4050402@movaris.com> <3F44F572.3070903@movaris.com>
+Date: Thu, 21 Aug 2003 16:11:59 -0700
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: What isthe memory management scheme of  Redhat Linux
+Message-Id: <20030821161159.06e097e8.pj@sgi.com>
+In-Reply-To: <Law15-DAV13Dw48qpKI0002cfc3@hotmail.com>
+References: <Law15-DAV13Dw48qpKI0002cfc3@hotmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3F44F572.3070903@movaris.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kirk True <ktrue@movaris.com>
-Cc: Linux Memory Manager List <linux-mm@kvack.org>
+To: Joy Ananyi <prettylorretar@hotmail.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 21, 2003 at 09:38:10AM -0700, Kirk True wrote:
-> I am using Mel's excellent primer on the VM and the O'Reilly kernel 
-> book, but I'm unable (too daft?) to find answers to the following 
-> questions on buddy pairing:
-> 1. Are "page_idx", "index", "buddy1", and "buddy2" always a multiple of
->    2^order? I don't think index needs to be, but I believe it's
->    absolutely critical that the others are. Is this correct?
+You will probably have more luck if you wander into a
+car repair shop, and ask the mechanics:
 
-page_idx and index are; buddy1 and buddy2 are the the page and its
-buddy.
+  What is the upper management scheme of General Motors?
 
+The best I can suggest - try a google search for "linux memory
+management", and be prepared to think long and hard.
 
-On Thu, Aug 21, 2003 at 09:38:10AM -0700, Kirk True wrote:
-> 2. Is the address of buddy2 always after the address of buddy1 or is the
->    address of buddy2 always before the address of buddy1? My assumption
->    is "no", because from __free_pages_ok:
->        buddy1 = base + (page_idx ^ -mask);
->        buddy2 = base + page_idx;
->    (page_idx ^ -mask) flips the 2^order bit of page_idx. So there are
->    two cases:
->        1. If the 2^order bit *was* set, "page_idx ^ -mask" *clears* the
->           bit with the result that the value is (page_idx - 2^order).
->           Thus the address of buddy1 is less than the address of buddy2.
->        2. If the 2^order bit was *not* set, "page_idx ^ -mask" *sets*
->           the bit with the result that the value is (page_idx +
->           2^order). Thus buddy1 > buddy2.
->    Is this assessment correct?
-
-That assessment is correct.
-
-
-On Thu, Aug 21, 2003 at 09:38:10AM -0700, Kirk True wrote:
-> 3. Question 2 dealt with the *addresses* of buddy1 and buddy2. What
->    about their respective *indexes* into the zone's mem_map array? That
->    is, is the index of buddy2 always after the index of buddy1 or is the
->    index of buddy2 always before the index of buddy1?
-
-No. They are buddies, so they will have opposite alignments at level
-order + 1, i.e. one will be the middle of the next higher-order page,
-and the other will be at the beginning of it.
-
-
-On Thu, Aug 21, 2003 at 09:38:10AM -0700, Kirk True wrote:
-> 4. __free_pages_ok performs a bitwise exclusive OR to find the buddy.
->    However, on the allocation side of things __alloc_pages, rmqueue, nor
->    expand have any such bitwise operations. The code in expand makes it
->    look as though buddy2's address is always buddy1's plus the
->    order-sized page block. How is it then that sometimes buddy1's
->    address is before buddy2's and sometimes it's after in
->    __free_pages_ok as mentioned in question 2 above?
-> I look forward to your answers or pointers to answers ;)
-
-expand() gets to choose whether it's dealing with an aligned or
-unaligned buddy because it's just breaking a lower-order page off of
-a higher-order page, and nothing below it cares where inside the
-higher-order page the lower-order piece comes from.
-
-rmqueue() doesn't do the accounting itself; it hands it all off to
-expand() apart from the bottom-level bit twiddle.
-
-__alloc_pages() hands off all the work to rmqueue() and expand().
-
-
--- wli
+-- 
+                          I won't rest till it's the best ...
+                          Programmer, Linux Scalability
+                          Paul Jackson <pj@sgi.com> 1.650.933.1373
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
