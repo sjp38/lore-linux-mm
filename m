@@ -1,74 +1,64 @@
-Date: Wed, 16 Jul 2003 03:44:49 -0700
-From: "Barry K. Nathan" <barryn@pobox.com>
+Date: Wed, 16 Jul 2003 03:58:48 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: 2.6.0-test1-mm1
-Message-ID: <20030716104448.GC25869@ip68-4-255-84.oc.oc.cox.net>
+Message-Id: <20030716035848.560674ac.akpm@osdl.org>
+In-Reply-To: <20030716104448.GC25869@ip68-4-255-84.oc.oc.cox.net>
 References: <20030715225608.0d3bff77.akpm@osdl.org>
+	<20030716104448.GC25869@ip68-4-255-84.oc.oc.cox.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030715225608.0d3bff77.akpm@osdl.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Barry K. Nathan" <barryn@pobox.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 15, 2003 at 10:56:08PM -0700, Andrew Morton wrote:
-> +ppc-build-fix.patch
+"Barry K. Nathan" <barryn@pobox.com> wrote:
+>
+> >  Make ppc build
 > 
->  Make ppc build
+>  Really? ;)
+> 
+>  More seriously, that patch is good and necessary, but I think something
+>  else in -mm is breaking the compile (this is gcc 2.95.3):
+> 
+>    CC      arch/ppc/kernel/irq.o
+>  In file included from include/linux/fs.h:14,
+>                   from include/linux/mm.h:14,
+>                   from include/asm/pci.h:8,
+>                   from include/linux/pci.h:672,
+>                   from arch/ppc/kernel/irq.c:41:
+>  include/linux/kdev_t.h: In function `to_kdev_t':
+>  include/linux/kdev_t.h:101: warning: right shift count >= width of type
 
-Really? ;)
+Well you would appear to be the first person who has tested a -mm kernel on
+ppc since mid-April or earlier.
 
-More seriously, that patch is good and necessary, but I think something
-else in -mm is breaking the compile (this is gcc 2.95.3):
+As soon as Viro returns, that code hits Linus's tree.  Oh well, can't say
+they weren't warned.
 
-  CC      arch/ppc/kernel/irq.o
-In file included from include/linux/fs.h:14,
-                 from include/linux/mm.h:14,
-                 from include/asm/pci.h:8,
-                 from include/linux/pci.h:672,
-                 from arch/ppc/kernel/irq.c:41:
-include/linux/kdev_t.h: In function `to_kdev_t':
-include/linux/kdev_t.h:101: warning: right shift count >= width of type
-arch/ppc/kernel/irq.c: At top level:  
-arch/ppc/kernel/irq.c:575: braced-group within expression allowed only
-inside a function
-arch/ppc/kernel/irq.c:575: initializer element is not constant
-arch/ppc/kernel/irq.c:575: (near initialization for `irq_affinity[0]')
-arch/ppc/kernel/irq.c:575: initializer element is not constant
-arch/ppc/kernel/irq.c:575: (near initialization for `irq_affinity[1]')
-arch/ppc/kernel/irq.c:575: initializer element is not constant
-arch/ppc/kernel/irq.c:575: (near initialization for `irq_affinity[2]')
-arch/ppc/kernel/irq.c:575: initializer element is not constant
-arch/ppc/kernel/irq.c:575: (near initialization for `irq_affinity[3]')
-arch/ppc/kernel/irq.c:575: initializer element is not constant
-arch/ppc/kernel/irq.c:575: (near initialization for `irq_affinity[4]')
+Try this:
 
-[sniiiiiiiiiiiip the boring, repetitive part of the longest gcc error
-output I've seen in the last few years]
+--- 25/include/asm-ppc/posix_types.h~a	2003-07-16 03:55:34.000000000 -0700
++++ 25-akpm/include/asm-ppc/posix_types.h	2003-07-16 03:55:51.000000000 -0700
+@@ -7,7 +7,7 @@
+  * assume GCC is being used.
+  */
+ 
+-typedef unsigned int	__kernel_dev_t;
++typedef unsigned long long	__kernel_dev_t;
+ typedef unsigned long	__kernel_ino_t;
+ typedef unsigned int	__kernel_mode_t;
+ typedef unsigned short	__kernel_nlink_t;
 
-arch/ppc/kernel/irq.c:575: initializer element is not constant
-arch/ppc/kernel/irq.c:575: (near initialization for `irq_affinity[254]')
-arch/ppc/kernel/irq.c:575: initializer element is not constant
-arch/ppc/kernel/irq.c:575: (near initialization for `irq_affinity[255]')
-arch/ppc/kernel/irq.c:575: parse error before `)'
-arch/ppc/kernel/irq.c: In function `prof_cpu_mask_write_proc':
-arch/ppc/kernel/irq.c:691: invalid initializer
-arch/ppc/kernel/irq.c:694: incompatible types in assignment
-arch/ppc/kernel/irq.c:695: invalid operands to binary !=
-arch/ppc/kernel/irq.c:696: incompatible types in return
-arch/ppc/kernel/irq.c:699: incompatible types in return
-arch/ppc/kernel/irq.c:700: warning: control reaches end of non-void
-function
-make[1]: *** [arch/ppc/kernel/irq.o] Error 1
-make: *** [arch/ppc/kernel] Error 2
 
-There were many other "right shift count >= width of type" warnings
-earlier in the compile, too. (I can provide more examples of these if
-you wish.)
 
--Barry K. Nathan <barryn@pobox.com>
+>  arch/ppc/kernel/irq.c: At top level:  
+>  arch/ppc/kernel/irq.c:575: braced-group within expression allowed only
+>  inside a function
+
+Bill?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
