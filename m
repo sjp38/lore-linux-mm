@@ -1,91 +1,50 @@
-Date: Mon, 17 Jan 2005 15:08:37 -0800
-From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: Re: [RFC] Avoiding fragmentation through different allocator
-In-Reply-To: <Pine.LNX.4.58.0501161613350.16492@skynet>
-References: <20050115172317.3C0F.YGOTO@us.fujitsu.com> <Pine.LNX.4.58.0501161613350.16492@skynet>
-Message-Id: <20050117114251.35B5.YGOTO@us.fujitsu.com>
+Message-ID: <41EDAA6E.5000900@mvista.com>
+Date: Tue, 18 Jan 2005 16:31:42 -0800
+From: Steve Longerbeam <stevel@mvista.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
-Content-Transfer-Encoding: 7bit
+Subject: BUG in shared_policy_replace() ?
+Content-Type: multipart/mixed;
+ boundary="------------020207020808080703030302"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: "Tolentino, Matthew E" <matthew.e.tolentino@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andi Kleen <ak@suse.de>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> > There are 2 types of memory hotplug.
-> >
-> > a)SMP machine case
-> >   A some part of memory will be added and removed.
-> >
-> > b)NUMA machine case.
-> >   Whole of a node will be able to remove and add.
-> >   However, if a block of memory like DIMM is broken and disabled,
-> >   Its close from a).
-> >
-> > How to know where is hotpluggable bank is platform/archtecture
-> > dependent issue.
-> >  ex) Asking to ACPI.
-> >      Just node0 become unremovable, and other nodes are removable.
-> >      etc...
-> >
-> 
-> Is there an architecture-independant way of finding this out?
+This is a multi-part message in MIME format.
+--------------020207020808080703030302
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-  No. At least, I have no idea. :-(
+Hi Andi,
 
+Why free the shared policy created to split up an old
+policy that spans the whole new range? Ie, see patch.
 
-> > In current your patch, first attribute of all pages are NoRclm.
-> > But if your patches has interface to decide where will be Rclm for
-> > each arch/platform, it might be good.
-> >
-> 
-> It doesn't have an API as such. In page_alloc.c, there is a function
-> get_pageblock_type() that returns what type of allocation the block of
-> memory is being used for. There is no guarentee there is only those type
-> of allocations there though.
+Steve
 
-OK. I will write a patch of function to set it for some arch/platform.
+--------------020207020808080703030302
+Content-Type: text/plain;
+ name="mempolicy.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="mempolicy.diff"
 
-> What's the current attidute for adding a new zone? I felt there would be
-> resistence as a new zone would affect a lot of code paths and be yet
-> another zone that needed balancing. For example, is there a HIGHMEM
-> version of the ZONE_REMOVABLE or could normal and highmem be in this zone?
+--- mm/mempolicy.c.orig	2005-01-18 16:13:35.573273351 -0800
++++ mm/mempolicy.c	2005-01-18 16:24:23.940608135 -0800
+@@ -1052,10 +1052,6 @@
+ 	if (new)
+ 		sp_insert(sp, new);
+ 	spin_unlock(&sp->lock);
+-	if (new2) {
+-		mpol_free(new2->policy);
+-		kmem_cache_free(sn_cache, new2);
+-	}
+ 	return 0;
+ }
+ 
 
-Yes. In my current patch of memory hotplug, Removable is like Highmem.
- ( <http://sourceforge.net/mailarchive/forum.php?forum_id=223>
-     It is group B of "Hot Add patches for NUMA" )
-
-I tried to make new removable zone which could be with normal and dma
-before it. But, it needs too much work as you said. So, I gave up it.
-I heard Matt-san has some ideas for it. So, I'm looking forward to 
-see it.
-
-> > I agree that dividing per-cpu caches is not good way.
-> > But if Kernel-nonreclaimable allocation use its UserRclm pool,
-> > its removable memory bank will be harder to remove suddenly.
-> > Is it correct? If so, it is not good for memory hotplug.
-> > Hmmmm.
-> >
-> 
-> It is correct. However, this will only happen in low-memory conditions.
-> For a kernel-nonreclaimable allocation to use the userrclm pool, three
-> conditions have to be met;
-> 
-> 1. Kernel-nonreclaimable pool has no pages
-> 2. There are no global 2^MAX_ORDER pages
-> 3. Kern-reclaimable pool has no pages
-
-I suppose if this patch have worked for one year,
-unlucky case might occur. Probably, enterprise system will not
-allow it. So, I will try disabling fallback for KernNoRclm.
-
-Thanks.
-
--- 
-Yasunori Goto <ygoto at us.fujitsu.com>
-
-
+--------------020207020808080703030302--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
