@@ -1,63 +1,59 @@
-Received: from mail.suse.de (Cantor.suse.de [194.112.123.193])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA29898
-	for <linux-mm@kvack.org>; Mon, 25 Jan 1999 08:16:12 -0500
-Message-ID: <19990125141409.A29248@boole.suse.de>
-Date: Mon, 25 Jan 1999 14:14:09 +0100
-From: "Dr. Werner Fink" <werner@suse.de>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA31069
+	for <linux-mm@kvack.org>; Mon, 25 Jan 1999 10:24:02 -0500
+Date: Mon, 25 Jan 1999 15:06:17 +0100 (CET)
+From: Rik van Riel <riel@nl.linux.org>
 Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-References: <Pine.LNX.4.03.9901131557590.295-100000@mirkwood.dummy.home> <Pine.LNX.3.96.990113190617.185C-100000@laser.bogus> <199901132214.WAA07436@dax.scot.redhat.com> <19990114155321.C573@Galois.suse.de> <m1u2xjgtke.fsf@flinx.ccr.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <m1u2xjgtke.fsf@flinx.ccr.net>; from Eric W. Biederman on Fri, Jan 22, 1999 at 10:29:05AM -0600
+In-Reply-To: <m104bU6-0007U1C@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.03.9901251502250.247-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>, "Dr. Werner Fink" <werner@suse.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@e-mind.com>, Rik van Riel <riel@humbolt.geo.uu.nl>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Linus Torvalds <torvalds@transmeta.com>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, "Dr. Werner Fink" <werner@suse.de>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, ebiederm+eric@ccr.net, saw@msu.ru, bredelin@ucsd.edu, Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 22, 1999 at 10:29:05AM -0600, Eric W. Biederman wrote:
-> 
-> WF> At this point the system performance breaks down dramatically even
-> WF> with 2.2.0pre[567] ...
-> 
-> If you could demonstrate this it would aid any plea for changing the VM system.
+On Mon, 25 Jan 1999, Alan Cox wrote:
 
-I'm using simple two loops in different kernel trees:
-
-      while true; do make clean; make MAKE='make -j10'; done
-
-which leads into load upper 30.  You can see a great performance upto
-load to 25 ... 30+ *and* a brutal break down of that performance
-at this point.  The system is a PentiumII 400MHz with 32, 64, 128MB
-(mem=xxx) and SCSI only.  In comparision to 2.0.36 the performance
-is *beside of this break down* much better ...  that means that only
-the performance break down at high load is the real problem.
-
+> > If I understand well the problem is get more than 1<<maxorder contiguos
+> > phys pages in RAM. I think it should not too difficult to do a dirty hack
 > 
-> WF> What's about a simple aging of program page cluster or better of the
-> WF> page cache? 
-> 
-> We do age pages.  The PG_referenced bit.  This scheme as far as I can
-> tell is more effective at predicting pages we are going to use next
-> than any we have used before.
+> Yep. We are talking about 2->4Mb sized chunks. We are also talking about
+> chunks that are allocated rarely 
 
-What's about a `PG_recently_swapped_in' bit for pages which arn't found
-anymore with the swap cache?  This isn't a prediction but a protection
-against throwing out the same page in the following cycle.
+> > alternate __get_big_pages that does some try to get many mem-areas of the
+> > maximal order contigous. Maybe it will not able to give you such contiguos
+> > memory (due mem fragmentation) but if it's possible it will give back it
+> > to you (_slowly_).
+> 
+> That fact we effectively "poison" the various blocks of memory
+> with locked down kernel objects is what makes this so tricky. It
+> really needs some back pressure applied so that kernel allocations
+> come from a limited number of maxorder blocks, at least except
+> under exceptional circumstances.
 
-> 
-> WF> Increasing the age could be done if and only if the pages
-> WF> or page clusters swapped in and the program wasn't able to use its
-> WF> time slice. Decreasing the age could be placed in shrink_mmap().
-> 
-> People keep playing with ignoring PG_referenced in shrink_mmap for the swap cache,
-> because it doesn't seem terribly important.  If you could demonstrate
-> this is a problem we can stop ignoring it.
-> 
-> Eric
-> 
+We need a different memory allocator for that. Maybe it's
+time to dig up my zone allocator proposal (on my home page)
+and adapt it to something working.
 
+Unfortunately I don't have the time to do that, so I'll
+leave the job to Alan or Stephen (who should have the time
+since they're with Red Hat)...
 
-            Werner
+> I think its too tricky for 2.2 even as a later retrofit
+
+Once the allocator is ready and stabilized, we might be
+able to retrofit it to 2.2. It's just a single module
+we need to touch...
+
+cheers,
+
+Rik -- If a Microsoft product fails, who do you sue?
++-------------------------------------------------------------------+
+| Linux memory management tour guide.             riel@nl.linux.org |
+| Scouting Vries cubscout leader.     http://www.nl.linux.org/~riel |
++-------------------------------------------------------------------+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
