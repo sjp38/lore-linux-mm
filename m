@@ -1,35 +1,40 @@
-Subject: Re: Which is the proper way to bring in the backing store behind
-	an inode as an struct page?
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <F989B1573A3A644BAB3920FBECA4D25A6EBED8@orsmsx407>
-References: <F989B1573A3A644BAB3920FBECA4D25A6EBED8@orsmsx407>
-Content-Type: text/plain
-Message-Id: <1088794019.28076.43.camel@nighthawk>
-Mime-Version: 1.0
-Date: Fri, 02 Jul 2004 11:46:59 -0700
-Content-Transfer-Encoding: 7bit
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: Which is the proper way to bring in the backing store behindan inode as an struct page?
+Date: Fri, 2 Jul 2004 12:42:26 -0700
+Message-ID: <F989B1573A3A644BAB3920FBECA4D25A6EBEE1@orsmsx407>
+From: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>
+To: Dave Hansen <haveblue@us.ibm.com>
 Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-07-01 at 23:34, Perez-Gonzalez, Inaky wrote:
-> Thus, what I need is a way that given the pair (inode,pgoff) 
-> returns to me the 'struct page *' if the thing is cached in memory or
-> pulls it up from swap/file into memory and gets me a 'struct page *'.
+> From: Dave Hansen [mailto:haveblue@us.ibm.com]
+> On Thu, 2004-07-01 at 23:34, Perez-Gonzalez, Inaky wrote:
+> > Thus, what I need is a way that given the pair (inode,pgoff)
+> > returns to me the 'struct page *' if the thing is cached in memory or
+> > pulls it up from swap/file into memory and gets me a 'struct page *'.
+> >
+> > Is there a way to do this?
 > 
-> Is there a way to do this?
+> Do you have the VMA?  Why not just use the user mapping, and something
+> like copy_to_user()?  It already handles all of the mess getting the
+> page into memory and pulling it out of swap if necessary.
+> 
+> If you go into the page cache yourself, you'll have to deal with all of
+> the usual !PageUptodate() and so forth.
 
-Do you have the VMA?  Why not just use the user mapping, and something
-like copy_to_user()?  It already handles all of the mess getting the
-page into memory and pulling it out of swap if necessary.  
+No, I don't have the VMA :(; I can't really do copy_to_user() as
+I just need to modify a word. I have gotten a suggestion to use
+find_get_page() -- I am exploring that right now.
 
-If you go into the page cache yourself, you'll have to deal with all of
-the usual !PageUptodate() and so forth.  
+Thanks,
 
--- Dave
-
+Inaky Perez-Gonzalez -- Not speaking for Intel -- all opinions are my own (and my fault)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
