@@ -1,49 +1,66 @@
-Message-ID: <3F4CF17B.1020300@namesys.com>
-Date: Wed, 27 Aug 2003 21:59:23 +0400
-From: Hans Reiser <reiser@namesys.com>
-MIME-Version: 1.0
+Received: from mailrelay3.lanl.gov (localhost.localdomain [127.0.0.1])
+	by mailwasher-b.lanl.gov (8.12.9/8.12.9/(ccn-5)) with ESMTP id h7RIbAKO014048
+	for <linux-mm@kvack.org>; Wed, 27 Aug 2003 12:37:10 -0600
 Subject: Re: 2.6.0-test4-mm2
-References: <20030826221053.25aaa78f.akpm@osdl.org>	<3F4CAB0B.2030705@lanil.mine.nu> <20030827102522.7d2339bc.akpm@osdl.org>
-In-Reply-To: <20030827102522.7d2339bc.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+From: Steven Cole <elenstev@mesatop.com>
+In-Reply-To: <3F4CAB0B.2030705@lanil.mine.nu>
+References: <20030826221053.25aaa78f.akpm@osdl.org>
+	 <3F4CAB0B.2030705@lanil.mine.nu>
+Content-Type: text/plain
+Message-Id: <1061999696.1670.66.camel@spc9.esa.lanl.gov>
+Mime-Version: 1.0
+Date: 27 Aug 2003 09:54:56 -0600
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Christian Axelsson <smiler@lanil.mine.nu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Reiserfs developers mail-list <Reiserfs-Dev@namesys.com>
+To: Christian Axelsson <smiler@lanil.mine.nu>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hans Reiser <reiser@namesys.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+On Wed, 2003-08-27 at 06:58, Christian Axelsson wrote:
+> -----BEGIN PGP SIGNED MESSAGE-----
+> Hash: SHA1
+> 
+> Is there any work beeing done on getting reiser4 into mm?
+> I havent tried it myself yet but Ive heard of colliding code in scheduler.
 
->Christian Axelsson <smiler@lanil.mine.nu> wrote:
->  
->
->>Is there any work beeing done on getting reiser4 into mm?
->>    
->>
->
->Nope.
->
->It would be fun to get it in there so people could play with it more
->easily, but not for a month or two (guess) and I'd need some commitment
->from the namesys guys to keep me up to date, else it'd be a waste of
->everyone's time.
->
->-
->To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->the body of a message to majordomo@vger.kernel.org
->More majordomo info at  http://vger.kernel.org/majordomo-info.html
->Please read the FAQ at  http://www.tux.org/lkml/
->
->
->  
->
-We would be happy to make that commitment, and happy to switch from 
-creating snapshots every week to pushing to you and linking to you from 
-our website.  Several people have asked for this besides Christian.
+There are some rejects when applying yesterday's reiser4 snapshot.
 
--- 
-Hans
+[steven@spc9 linux-2.6.0-test4-mm2]$ patch -p1 <../reiser4.diff
+patching file arch/i386/kernel/entry.S
+Hunk #1 FAILED at 879.
+1 out of 1 hunk FAILED -- saving rejects to file arch/i386/kernel/entry.S.rej
+patching file fs/Kconfig
+patching file fs/Makefile
+patching file fs/buffer.c
+Hunk #1 succeeded at 262 (offset 23 lines).
+patching file fs/fs-writeback.c
+patching file fs/inode.c
+patching file fs/jbd/transaction.c
+patching file fs/sysfs/inode.c
+patching file include/asm-i386/unistd.h
+Hunk #1 FAILED at 278.
+Hunk #2 succeeded at 398 (offset 2 lines).
+1 out of 2 hunks FAILED -- saving rejects to file include/asm-i386/unistd.h.rej
+patching file include/linux/fs.h
+Hunk #2 succeeded at 871 (offset 15 lines).
+Hunk #3 succeeded at 1249 (offset 21 lines).
+patching file include/linux/init_task.h
+Hunk #1 FAILED at 107.
+1 out of 1 hunk FAILED -- saving rejects to file include/linux/init_task.h.rej
+patching file include/linux/jbd.h
+patching file include/linux/mm.h
+patching file include/linux/sched.h
+Hunk #1 succeeded at 307 (offset 3 lines).
+Hunk #2 succeeded at 469 (offset 6 lines).
+patching file include/linux/writeback.h
+patching file kernel/ksyms.c
+
+The rest of the reiser4.diff applied OK from this point.
+
+Getting reiser4 into mm might be helpful.
+
+Steven
 
 
 --
