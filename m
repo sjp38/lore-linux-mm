@@ -1,38 +1,36 @@
-Date: Fri, 29 Sep 2000 11:54:12 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: 2.4.0-t9p7 and mmap002 - freeze
-In-Reply-To: <Pine.Linu.4.10.10009281625130.763-100000@mikeg.weiden.de>
-Message-ID: <Pine.LNX.4.21.0009291153250.23266-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 29 Sep 2000 16:55:11 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
+Message-ID: <20000929165511.C32079@athlon.random>
+References: <20000928165216.J17518@athlon.random> <Pine.LNX.4.21.0009291138080.23266-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0009291138080.23266-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Fri, Sep 29, 2000 at 11:39:18AM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@weiden.de>
-Cc: Roger Larsson <roger.larsson@norran.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Sep 2000, Mike Galbraith wrote:
+On Fri, Sep 29, 2000 at 11:39:18AM -0300, Rik van Riel wrote:
+> OK, good to see that we agree on the fact that we
+> should age and swapout all pages equally agressively.
 
-> Another thing I'm curious about is increasing memory pressure in
-> the event of an allocation failure (retry).  Why do we do that?
+Actually I think we should start looking at the mapped stuff _only_ when the
+I/O cache aging is relevant. If the I/O cache aging isn't relevant there's no
+point to look at the mapped stuff since there's cache pollution going on. It's
+much less costly to drop a page from the unmapped cache than to play with
+pagetables, and also having slow read() is much better than having to fault
+into the .text areas (because the process is going to be designed in a way that
+expects read to block so it may do it asynchronously or in a separate thread or
+whatever). A `cp /dev/zero .` shouldn't swapout/unmap anything.
 
-We were short on free memory, so kswapd should work /harder/
-to keep up with the current load.
+If the cache is re-used (so if it's useful) that's completly different issue and
+in that case unmapping potentially unused stuff is the right thing to do of
+course.
 
-> P.S.  in buffer.c, we do a LockPage(), but no UnlockPage() in
-> the case of no_buffer_head.. is that correct?
-
-No it isn't ;)  Thanks for pointing out this one...
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
