@@ -1,43 +1,33 @@
-Date: Wed, 12 Jan 2005 23:03:14 -0800
-From: Matt Mackall <mpm@selenic.com>
 Subject: Re: [RFC] Avoiding fragmentation through different allocator
-Message-ID: <20050113070314.GL2995@waste.org>
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+In-Reply-To: <20050113070314.GL2995@waste.org>
 References: <Pine.LNX.4.58.0501122101420.13738@skynet>
+	 <20050113070314.GL2995@waste.org>
+Content-Type: text/plain
+Date: Thu, 13 Jan 2005 02:20:01 -0500
+Message-Id: <1105600801.11555.6.camel@lade.trondhjem.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0501122101420.13738@skynet>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Matt Mackall <mpm@selenic.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 12, 2005 at 09:09:24PM +0000, Mel Gorman wrote:
-> I stress-tested this patch very heavily and it never oopsed so I am
-> confident of it's stability, so what is left is to look at the results of
-> this patch were and I think they look promising in a number of respects. I
-> have graphs that do not translate to text very well, so I'll just point you
-> to http://www.csn.ul.ie/~mel/projects/mbuddy-results-1 instead.
+on den 12.01.2005 Klokka 23:03 (-0800) skreiv Matt Mackall:
 
-This graph rather hard to comprehend.
+> You might stress higher order page allocation with a) 8k stacks turned
+> on b) UDP NFS with large read/write.
 
-> The results were not spectacular but still very interesting. Under heavy
-> stresing (updatedb + 4 simultaneous -j4 kernel compiles with avg load 15)
-> fragmentation is consistently lower than the standard allocator. It could
-> also be a lot better if there was some means of purging caches, userpages
-> and buffers but thats in the future. For the moment, the only real control
-> I had was the buffer pages.
+   b) Unless your network uses jumbo frames, UDP NFS should not be doing
+higher order page allocation.
 
-You might stress higher order page allocation with a) 8k stacks turned
-on b) UDP NFS with large read/write.
- 
-> Opinions/Feedback?
-
-Looks interesting.
+Cheers,
+  Trond
 
 -- 
-Mathematics is the supreme nostalgia of our time.
+Trond Myklebust <trond.myklebust@fys.uio.no>
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
