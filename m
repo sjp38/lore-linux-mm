@@ -1,59 +1,31 @@
-Received: from m-net.arbornet.org (m-net.arbornet.org [209.142.209.161])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id EAA18118
-	for <linux-mm@kvack.org>; Thu, 1 Apr 1999 04:38:13 -0500
-Received: from localhost (amol@localhost)
-	by m-net.arbornet.org (8.8.5/8.8.6) with SMTP id EAA29211
-	for <linux-mm@kvack.org>; Thu, 1 Apr 1999 04:16:51 -0500 (EST)
-Date: Thu, 1 Apr 1999 04:16:51 -0500 (EST)
-From: Amol Mohite <amol@m-net.arbornet.org>
-Subject: Somw questions [ MAYBE OFFTOPIC ]
-Message-ID: <Pine.BSI.3.96.990401041607.28014A-100000@m-net.arbornet.org>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA25375
+	for <linux-mm@kvack.org>; Thu, 1 Apr 1999 18:54:42 -0500
+Date: Fri, 2 Apr 1999 01:32:00 +0200 (CEST)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Subject: [patch] arca-vm-2.2.5
+Message-ID: <Pine.LNX.4.05.9904020120200.2057-100000@laser.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: Chuck Lever <cel@monkey.org>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Well in the last days I had new design ideas on the VM (I mean
+shrink_mmap() and friends). I finished implementing them and the result
+looks like impressive under heavy VM load.
 
-These might be newbie like qs., but I would really appreciate it if anyone
-could answer them.
+I would like if people that runs linux under high VM load would try it out
+my new VM code.
 
-1) How does the processor notify the OS of a pagefault ? or a null pointer
-exception ?
- Now null pointer exception I know, is done using the expand down
-attribute in descriptor. However, when the processor gp faults, how does
-it know it is a null pointer exception ?
+	ftp://e-mind.com/pub/linux/arca-tree/2.2.5_arca2.gz
 
-Where does it store the program counter ?
+If you try it out please feedback...
 
-2) How are the following exceptions handled ;
-	TLB Refill
-	TLB Invalid
-	TLB Modify ?
+Thanks!
 
-3) How does the processor differentiate between entries (PTE) in the TLB
-belonging to different processes ? Is it a bit in this ?
-
-4) Why is the vm_area_structs maintained as a circular list, AVL tree and
-as a doubly linked list ?
-	Why an AVL tree ? Any specific reason ?
-
-5) What is the difference between SIGSEGV and a SIGBUS ? 
-
-6) How does the processor signal memory access inan illegal way (i.e.
-trying write access to memory when this is not allowed )
-
-7) How does linux handle malloc function ?
-
-
-I would really appreciate it if anyone could answer these.
-
-Please cc any answers to me as I am not on this list.
-
-Thanks a lot.
-
-
+Andrea Arcangeli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
