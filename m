@@ -1,83 +1,81 @@
-Message-ID: <3F5B0AD2.3000706@cyberone.com.au>
-Date: Sun, 07 Sep 2003 20:39:14 +1000
-From: Nick Piggin <piggin@cyberone.com.au>
-MIME-Version: 1.0
-Subject: Re: 2.6.0-test4-mm5 and below: Wine and XMMS problems
-References: <20030902231812.03fae13f.akpm@osdl.org> <20030907100843.GM14436@fs.tum.de>
-In-Reply-To: <20030907100843.GM14436@fs.tum.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Mon, 8 Sep 2003 02:11:08 GMT
+From: justinmakelele@netscape.net
+Subject: For Your Perusal.
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <2KSERVERgFBPe01BF4U00018db9@2kserver.ACNL>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Adrian Bunk <bunk@fs.tum.de>
-Cc: Andrew Morton <akpm@osdl.org>, Con Kolivas <kernel@kolivas.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+STRICTLY PRIVATE & CONFIDENTIAL 
+ENGR. Justin Makelele
+South Africa. 
 
-Adrian Bunk wrote:
+Your attention, 
 
->On Tue, Sep 02, 2003 at 11:18:12PM -0700, Andrew Morton wrote:
->
->>...
->>. Dropped out Con's CPU scheduler work, added Nick's.  This is to help us
->>  in evaluating the stability, efficacy and relative performance of Nick's
->>  work.
->>
->>  We're looking for feedback on the subjective behaviour and on the usual
->>  server benchmarks please.
->>...
->>
->
->Short story:
->
->I'm still using 2.5.72, all of the 2.6.0-test?{,-mm?} kernels have 
->problems
->
->
->Long story:
->
->System:
->K6-2 @ 500 MHz
->128 MB RAM
->1 GB swap
->Debian unstable
->
->Workload:
->XFree86
->FVWM
->XMMS
->Wine running "Master of Orion 2" (a round based space strategy game)
->
->With 2.4 kernels and 2.5.72 everything works fine.
->
->With 2.6.0-test? and 2.6.0-test?-mm? kernels up to 2.6.0-test4-mm4 the
->XMMS sound sometimes skips or sounds slow (like when wou manually retard
->a record). That's much more awful than skips.
->
->RAM usage is low, even after a "swapoff -a" at about half of my RAM
->would be enough.
->
->The problems might be related to the fact that after I start Wine three
->wine.bin processes run and each of them tries to get as much CPU time as
->possible.
->
->It might be part of the problem that although Wine is the interactive 
->task a working XMMS is subjectively more important.
->
->With 2.6.0-test4-mm5 these problems don't occur. Instead, Wine feels 
->slow. I couldn;t test it much since after the first fast mouse movement 
->the X mouse cursor has lost the mouse cursor of the game (this might be 
->a bug in Wine, but it doesnt occur with other kernels).
->
->cu
->Adrian
->
+It is my great pleasure to write you this letter on behalf of my 
+colleagues. Your information were given to me by a member of the 
+South African Export Promotion Council (SAEPC) who was with the 
+Black Economic Empowerment Commission (Government) delegation on 
+a trip to the United States during a bilateral conference talk to 
+encourage foreign investors. I have decided to seek a confidential 
+co-operation with you in execution of a deal hereunder for the benefit 
+of all parties, and hope you will keep it confidential because of the nature of
+this business. 
 
-Hi Adrian,
-It would be great if you could test the latest mm kernel (mm6 as of now
-I think), which has Con's latest stuff in it. You could also test my
-newest scheduler patch. Thanks for the feedback.
+Within the Department of Mining Resources where I work as the Director 
+of Project Implementation, with co-operation of two other top officials, 
+we have in our possession, an overdue payment in US funds. 
 
+The said funds represent certain percentage of the contract value 
+executed on behalf of my Ministry by a foreign contracting firm, 
+which we the officials over-invoiced to the amount of US$26,400,000.00 
+(Twenty Six Million Four Hundred Thousand United States Dollars). 
+Though the actual contract cost has been paid to the original contractor, 
+leaving the excess balance unclaimed. 
+
+The Government of the Republic of South Africa believe that private 
+investment in general, and foreign direct investment in particular, 
+are the real engines for sustainable economic development, for which 
+reason it has continued to encouraged investment in the key growth-oriented 
+sector of Mining with sincere determination to pay foreign contractors 
+all debts owed to them, so as to continue to enjoy close relationship, 
+and mutually beneficial co-operation with foreign governments and 
+non-governmental financial agencies. As a result we included our 
+bills for approvals with the co-operation of some officials at the 
+Department of Finance and the Reserve Bank of South Africa (RBSA). 
+We are seeking your assistance to be the beneficiary of the unclaimed 
+funds, since we are not allowed to operate foreign account. The 
+changing of beneficiary's information/ details and other forms of 
+documentation upon application for claim to reflect the contract 
+money and its approvals will be secured on behalf of your company or your self. 
+
+I have the authority of my colleagues involved to propose that, 
+should you be willing to assist us in this transaction your share 
+as compensation will be 20% while my colleagues and I shall receive 
+70%, and the balance of 10% shall be used to reimburse all expenditures, 
+taxes and miscellaneous expenses so incurred. 
+
+It does not matter whether or not your company does contract projects 
+of the nature described here. The assumption is that your company 
+won the major contract and subcontracted it to other companies. 
+More often than not, big trading companies and firms of unrelated 
+fields win major contracts, and subcontract to more specialized firms for
+execution. 
+
+This business itself is 100% safe, provided you treat it with utmost 
+confidentiality. Also your specialization is not a hindrance to 
+the successful execution of this mutual beneficiary transaction. 
+I have reposed my confidence in you and hope that you will not disappoint 
+us. Kindly notify me  for further details, 
+upon your acceptance of this proposal. 
+
+Regards, 
+
+Justin Makelele
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
