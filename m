@@ -1,9 +1,9 @@
-Date: Mon, 25 Sep 2000 15:18:55 +0200 (CEST)
+Date: Mon, 25 Sep 2000 15:21:01 +0200 (CEST)
 From: Ingo Molnar <mingo@elte.hu>
 Reply-To: mingo@elte.hu
 Subject: Re: the new VM
 In-Reply-To: <20000925151935.B22882@athlon.random>
-Message-ID: <Pine.LNX.4.21.0009251517360.6224-100000@elte.hu>
+Message-ID: <Pine.LNX.4.21.0009251520070.6224-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,14 +14,11 @@ List-ID: <linux-mm.kvack.org>
 
 On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
 
-> > huh, what do you mean?
-> 
-> I mean this:
-> 
-> 		while (!( /* FIXME: now we are rather fault tolerant than nice */
+> Is it safe to sleep on the waitqueue in the kmalloc fail path in
+> raid1?
 
-this is fixed in 2.4. The 2.2 RAID code is frozen, and has known
-limitations (ie. due to the above RAID1 cannot be used as a swap-device).
+yes. every RAID1-bh has a bound lifetime. (bound by worst-case IO
+latencies)
 
 	Ingo
 
