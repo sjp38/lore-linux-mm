@@ -1,57 +1,42 @@
-From: Jesse Pollard <jesse@cats-chateau.net>
-Reply-To: jesse@cats-chateau.net
-Subject: Re: [PATCH] Prevent OOM from killing init
-Date: Sat, 24 Mar 2001 14:19:39 -0600
-Content-Type: text/plain
-References: <Pine.LNX.4.33.0103232013490.31380-100000@rossi.itg.ie>
-In-Reply-To: <Pine.LNX.4.33.0103232013490.31380-100000@rossi.itg.ie>
-MIME-Version: 1.0
-Message-Id: <01032414222102.03927@tabby>
-Content-Transfer-Encoding: 8bit
+Date: Sun, 25 Mar 2001 00:13:38 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [PATCH] Fix races in 2.4.2-ac22 SysV shared memory
+Message-ID: <20010325001338.C11686@redhat.com>
+References: <20010323011331.J7756@redhat.com> <Pine.LNX.4.31.0103231157200.766-100000@penguin.transmeta.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.31.0103231157200.766-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Fri, Mar 23, 2001 at 11:58:50AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jakma <paulj@itg.ie>, Guest section DW <dwguest@win.tue.nl>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Rik van Riel <riel@conectiva.com.br>, Michael Peddemors <michael@linuxmagic.com>, Stephen Clouse <stephenc@theiqgroup.com>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@nl.linux.org>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 Mar 2001, Paul Jakma wrote:
->On Fri, 23 Mar 2001, Guest section DW wrote:
->
->> But yes, I am complaining because Linux by default is unreliable.
->
->no, your distribution is unreliable by default.
->
->> I strongly prefer a system that is reliable by default,
->> and I'll leave it to others to run it in an unreliable mode.
->
->currently, setting sensible user limits on my machines means i never
->get a hosed machine due to OOM. These limits are easy to set via
->pam_limits. (not perfect though, i think its session specific..)
+Hi,
 
-Process specific. Each forked process gets the same limits. You get OOM
-as soon as all processes together use more than the system capacity.
+On Fri, Mar 23, 2001 at 11:58:50AM -0800, Linus Torvalds wrote:
 
->granted, if the machine hasn't been setup with user limits, then linux
->doesn't deal at all well with OOM, so this should be fixed. but it can
->easily be argued that admin error in not configuring limits is the
->main cause for OOM.
+> Ehh.. Sleeping with the spin-lock held? Sounds like a truly bad idea.
 
-Admin has no real control is the problem. Limits are only good for one
-process. As soon as that process forks one other process then the
-useage limit is twice the limit established.
+Uggh --- the shmem code already does, see:
 
->> Andries
->
->regards,
->
->--paulj
+shmem_truncate->shmem_truncate_part->shmem_free_swp->
+lookup_swap_cache->find_lock_page
 
--- 
--------------------------------------------------------------------------
-Jesse I Pollard, II
-Email: jesse@cats-chateau.net
+It looks messy: lookup_swap_cache seems to be abusing the page lock
+gratuitously, but there are probably callers of it which rely on the
+assumption that it performs an implicit wait_on_page().
 
-Any opinions expressed are solely my own.
+Rik, do you think it is really necessary to take the page lock and
+release it inside lookup_swap_cache?  I may be overlooking something,
+but I can't see the benefit of it --- we can still race against
+page_launder, so the page may still get locked behind our backs after
+we get the reference from lookup_swap_cache (page_launder explicitly
+avoids taking the pagecache hash spinlock which might avoid this
+particular race).
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
