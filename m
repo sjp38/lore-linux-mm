@@ -1,30 +1,28 @@
-Received: from pcp by pcp.eaters.net with local (Exim 3.22 #5)
-	id 14n9l9-0005Wy-00
-	for linux-mm@kvack.org; Wed, 11 Apr 2001 03:49:27 +0200
-Date: Wed, 11 Apr 2001 03:49:26 +0200
-From: pcp <da.box@home.se>
-Subject: USB Mouse problem
-Message-ID: <20010411034926.A21203@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Tue, 10 Apr 2001 19:57:44 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: USB Mouse problem
+In-Reply-To: <20010411034926.A21203@localhost>
+Message-ID: <Pine.LNX.3.96.1010410195358.22333B-100000@kanga.kvack.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: pcp <da.box@home.se>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hi! i downloaded 2.4.3-ac3 and promptly installed it. i rebooted with
-the new kernel and to my disappointment i couldn't move my mouse. if i
-did the whole system went dead, everything dead-locked. what's the deal?
--- 
-/*
- * Name:        Nikolai Weibull
- * Nicks:       pcp, pcppopper
- * System:      Midi ATX, ASUS CUV4X, Celeron 667@950, GeForce2 MX 32,
- *              256mb PC133, Fujitsu 20.49gb UDMA-66
- * E-Mail:      da.box@home.se
- * E-Location:  www.pcppopper.org
- */
+On Wed, 11 Apr 2001, pcp wrote:
+
+> hi! i downloaded 2.4.3-ac3 and promptly installed it. i rebooted with
+> the new kernel and to my disappointment i couldn't move my mouse. if i
+> did the whole system went dead, everything dead-locked. what's the deal?
+
+This is an off topic posting for linux-mm.  Please direct yourself to the
+kernel howtos (specifically the linux-kernel FAQ on bug reporting) and
+other more appropriate forums.
+
+		-ben (owner-linux-mm)
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
