@@ -1,33 +1,61 @@
-Date: Thu, 9 Dec 2004 22:02:15 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
-Message-ID: <20041210060215.GK2714@holomorphy.com>
-References: <20041106152903.GA3851@dualathlon.random> <Pine.LNX.4.44.0411061609520.3592-100000@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0411061609520.3592-100000@localhost.localdomain>
+Date: Fri, 10 Dec 2004 12:30:39 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: page fault scalability patch V12 [0/7]: Overview and performance
+    tests
+In-Reply-To: <41B931FC.8040109@yahoo.com.au>
+Message-ID: <Pine.LNX.4.44.0412101208160.20182-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrea Arcangeli <andrea@novell.com>, Nick Piggin <piggin@cyberone.com.au>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Christoph Lameter <clameter@sgi.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, Linux Kernel list <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 6 Nov 2004, Andrea Arcangeli wrote:
->> btw, PF_MEMDIE has always been racy in the way it's being set, so it can
->> corrupt the p->flags, but the race window is very small to trigger it
->> (and even if it triggers, it probably wouldn't be fatal). That's why I
->> don't use PF_MEMDIE in 2.4-aa.
+On Fri, 10 Dec 2004, Nick Piggin wrote:
+> Benjamin Herrenschmidt wrote:
+> > On Fri, 2004-12-10 at 15:54 +1100, Nick Piggin wrote:
+> >>
+> >>The page-freed-before-update_mmu_cache issue can be solved in that way,
+> >>not the set_pte and update_mmu_cache not performed under the same ptl
+> >>section issue that you raised.
+> > 
+> > What is the problem with update_mmu_cache ? It doesn't need to be done
+> > in the same lock section since it's approx. equivalent to a HW fault,
+> > which doesn't take the ptl...
+> 
+> I don't think a problem has been observed, I think Hugh was just raising
+> it as a general issue.
 
-On Sat, Nov 06, 2004 at 04:21:33PM +0000, Hugh Dickins wrote:
-> I expect so, yes, the PF_ flags don't have proper locking.  Those
-> places which set or clear PF_MEMALLOC are more likely to hit races,
-> but last time I went there I don't think there was a real serious problem.
+That's right, I know little of the arches on which update_mmu_cache does
+something, so cannot say that separation is a problem.  And I did see mail
+from Ben a month ago in which he arrived at the conclusion that it's not a
+problem - but assumed he was speaking for ppc and ppc64.  (He was also
+writing in the context of your patches rather than Christoph's.)
 
-I posted a testcase that triggers a panic with the PF_MEMALLOC race.
+Perhaps Ben has in mind a logical argument that if update_mmu_cache does
+just what its name implies, then doing it under a separate acquisition
+of page_table_lock cannot introduce incorrectness on any architecture.
+Maybe, but I'd still rather we heard that from an expert in each of the
+affected architectures.
 
+As it stands in Christoph's patches, update_mmu_cache is sometimes
+called inside page_table_lock and sometimes outside: I'd be surprised
+if that doesn't require adjustment for some architecture.
 
--- wli
+Your idea to raise do_anonymous_page's update_mmu_cache before the
+lru_cache_add_active sounds just right; perhaps it should then even be
+subsumed into the architectural ptep_cmpxchg.  But once we get this far,
+I do wonder again whether it's right to be changing the rules in
+do_anonymous_page alone (Christoph's patches) rather than all the
+other faults together (your patches).
+
+But there's no doubt that the do_anonymous_page case is easier,
+or more obviously easy, to deal with - it helps a lot to know
+that the page cannot yet be exposed to vmscan.c and rmap.c.
+
+Hugh
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
