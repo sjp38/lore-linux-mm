@@ -1,39 +1,33 @@
-Date: Wed, 7 Mar 2001 08:25:19 +0100 (CET)
-From: Mike Galbraith <mikeg@wen-online.de>
+Date: Wed, 7 Mar 2001 10:22:06 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: Linux 2.2 vs 2.4 for PostgreSQL
-In-Reply-To: <Pine.LNX.4.10.10103061626070.20708-100000@sphinx.mythic-beasts.com>
-Message-ID: <Pine.LNX.4.33.0103070722080.1086-100000@mikeg.weiden.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20010307102206.C7453@redhat.com>
+References: <Pine.LNX.4.10.10103061626070.20708-100000@sphinx.mythic-beasts.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.10.10103061626070.20708-100000@sphinx.mythic-beasts.com>; from matthew@hairy.beasts.org on Tue, Mar 06, 2001 at 07:36:23PM +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Matthew Kirkwood <matthew@hairy.beasts.org>
-Cc: linux-mm@kvack.org, Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, Mike Galbraith <mikeg@wen-online.de>, Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Mar 2001, Matthew Kirkwood wrote:
+Hi,
 
-> Draw your own, but:
->  * 2.4's IO scheduling doesn't seem as good as 2.2's yet
->  * But it's getting better
->  * Mike's patch was about 3-5% worse on this workload
->    with fsync on and 3% better with it off (except on
->    one run, which I think may be an anomaly)
+On Tue, Mar 06, 2001 at 07:36:23PM +0000, Matthew Kirkwood wrote:
+> 
+> Postgres is fairly fsync-happy.
 
-Just looking at the 2.4 numbers:  My adjustment is a rob Peter
-to pay Paul tradeoff.  I'm glad Peter didn't get seriously injured
-during the mugging ;-)  Looking at 2.4.2p2->2.4.2ac11+fix, there's
-still a gain for this load.  I see more of a net gain with my load
-though.  Flattening the ac11 peak for this load raised the valley
-for another type load such that both gained some in the end.
+Do you happen to know if it is using fsync, fdatasync or O_SYNC?  I'm
+seeing performance regressions on 2.4 fsync versus 2.2 which I'm
+chasing right now, but fdatasync doesn't seem to have that problem
+(and fdatasync is always preferable if you are updating a file in
+place and you don't care about the mtime timestamp being 100%
+uptodate).
 
-I'd really like to hear from the folks who were griping about their
-workstation performance though to see if the compromise was a good
-one for them.. or not.  So far, I've heard nothing either positive
-or negative.
-
-	-Mike
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
