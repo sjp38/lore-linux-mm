@@ -1,45 +1,30 @@
-Date: Fri, 21 Apr 2000 18:00:10 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Reply-To: riel@nl.linux.org
+Date: Sat, 22 Apr 2000 03:12:19 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
-In-Reply-To: <Pine.LNX.4.21.0004212020410.17904-100000@alpha.random>
-Message-ID: <Pine.LNX.4.21.0004211735510.11459-100000@duckman.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0004211735510.11459-100000@duckman.conectiva>
+Message-ID: <Pine.LNX.4.21.0004220306410.584-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
+To: riel@nl.linux.org
 Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Ben LaHaise <bcrl@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 21 Apr 2000, Andrea Arcangeli wrote:
+On Fri, 21 Apr 2000, Rik van Riel wrote:
 
-> The swap-entry fixes cleared by the swap locking changes are here:
-> 	
-> ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/patches/v2.3/2.3.99-pre6-pre3/swap-entry-3
+>you could use the PageClearSwapCache and related macros for
+>changing the bitflags.
 
-The patch looks "obviously correct", but it would be nice if
-you could use the PageClearSwapCache and related macros for
-changing the bitflags.
+BTW, thinking more I think the clearbit in shrink_mmap should really be
+atomic (lookup_swap_cache can run from under it and try to lock the page
+playing with the page->flags while we're clearing the swap_entry bitflag).
 
-Things like
-              new_page->flags &= ~(1UL << PG_swap_entry);
-just make the code less readable than it has to be.
+The other places doesn't need to be atomic as far I can tell so (as just
+said) I'd prefer not to add unscalable SMP locking. Suggest a name for a
+new macro that doesn't use asm and I can use it of course.
 
-(and yes, loads of people already run away screaming when
-they look at the memory management code, I really think we
-should make maintainability a higher priority target for
-the code)
-
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
