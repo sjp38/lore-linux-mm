@@ -1,6 +1,6 @@
-Date: Wed, 14 Jul 2004 23:03:51 +0900 (JST)
-Message-Id: <20040714.230351.22507490.taka@valinux.co.jp>
-Subject: [PATCH] memory hotremoval for linux-2.6.7 [5/16]
+Date: Wed, 14 Jul 2004 23:04:16 +0900 (JST)
+Message-Id: <20040714.230416.32732986.taka@valinux.co.jp>
+Subject: [PATCH] memory hotremoval for linux-2.6.7 [6/16]
 From: Hirokazu Takahashi <taka@valinux.co.jp>
 In-Reply-To: <20040714.224138.95803956.taka@valinux.co.jp>
 References: <20040714.224138.95803956.taka@valinux.co.jp>
@@ -13,265 +13,129 @@ To: linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+$Id: va-aio.patch,v 1.11 2004/06/17 08:19:45 iwamoto Exp $
 
-$Id: va-proc_memhotplug.patch,v 1.14 2004/07/06 09:05:54 taka Exp $
-
-diff -dpur linux-2.6.7/mm/page_alloc.c linux-2.6.7-mh/mm/page_alloc.c
---- linux-2.6.7/mm/page_alloc.c.orig	2004-06-17 16:28:03.000000000 +0900
-+++ linux-2.6.7-mh/mm/page_alloc.c	2004-06-17 16:28:34.000000000 +0900
-@@ -32,6 +32,7 @@
- #include <linux/topology.h>
- #include <linux/sysctl.h>
- #include <linux/cpu.h>
-+#include <linux/proc_fs.h>
- 
- #include <asm/tlbflush.h>
- 
-@@ -2120,3 +2121,244 @@ int lower_zone_protection_sysctl_handler
- 	setup_per_zone_protection();
- 	return 0;
+--- linux-2.6.7.ORG/arch/i386/kernel/sys_i386.c.orig	2004-06-17 16:20:02.000000000 +0900
++++ linux-2.6.7/arch/i386/kernel/sys_i386.c	2004-06-17 16:20:12.000000000 +0900
+@@ -70,7 +70,7 @@ asmlinkage long sys_mmap2(unsigned long 
+ 	unsigned long prot, unsigned long flags,
+ 	unsigned long fd, unsigned long pgoff)
+ {
+-	return do_mmap2(addr, len, prot, flags, fd, pgoff);
++	return do_mmap2(addr, len, prot, flags & ~MAP_IMMOVABLE, fd, pgoff);
  }
-+
+ 
+ /*
+@@ -101,7 +101,8 @@ asmlinkage int old_mmap(struct mmap_arg_
+ 	if (a.offset & ~PAGE_MASK)
+ 		goto out;
+ 
+-	err = do_mmap2(a.addr, a.len, a.prot, a.flags, a.fd, a.offset >> PAGE_SHIFT);
++	err = do_mmap2(a.addr, a.len, a.prot, a.flags & ~MAP_IMMOVABLE,
++	    a.fd, a.offset >> PAGE_SHIFT);
+ out:
+ 	return err;
+ }
+--- linux-2.6.7.ORG/fs/aio.c	2004-06-17 16:20:02.000000000 +0900
++++ linux-2.6.7/fs/aio.c	2004-06-17 16:20:12.000000000 +0900
+@@ -130,7 +130,8 @@ static int aio_setup_ring(struct kioctx 
+ 	dprintk("attempting mmap of %lu bytes\n", info->mmap_size);
+ 	down_write(&ctx->mm->mmap_sem);
+ 	info->mmap_base = do_mmap(NULL, 0, info->mmap_size, 
+-				  PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE,
++				  PROT_READ|PROT_WRITE,
++				  MAP_ANON|MAP_PRIVATE|MAP_IMMOVABLE,
+ 				  0);
+ 	if (IS_ERR((void *)info->mmap_base)) {
+ 		up_write(&ctx->mm->mmap_sem);
+--- linux-2.6.7.ORG/include/asm-i386/mman.h	2004-06-17 16:20:02.000000000 +0900
++++ linux-2.6.7/include/asm-i386/mman.h	2004-06-17 16:20:12.000000000 +0900
+@@ -22,6 +22,7 @@
+ #define MAP_NORESERVE	0x4000		/* don't check for reservations */
+ #define MAP_POPULATE	0x8000		/* populate (prefault) pagetables */
+ #define MAP_NONBLOCK	0x10000		/* do not block on IO */
++#define MAP_IMMOVABLE	0x20000
+ 
+ #define MS_ASYNC	1		/* sync memory asynchronously */
+ #define MS_INVALIDATE	2		/* invalidate the caches */
+--- linux-2.6.7.ORG/include/asm-ia64/mman.h	2004-06-17 16:20:02.000000000 +0900
++++ linux-2.6.7/include/asm-ia64/mman.h	2004-06-17 16:20:12.000000000 +0900
+@@ -30,6 +30,7 @@
+ #define MAP_NORESERVE	0x04000		/* don't check for reservations */
+ #define MAP_POPULATE	0x08000		/* populate (prefault) pagetables */
+ #define MAP_NONBLOCK	0x10000		/* do not block on IO */
++#define MAP_IMMOVABLE	0x20000
+ 
+ #define MS_ASYNC	1		/* sync memory asynchronously */
+ #define MS_INVALIDATE	2		/* invalidate the caches */
+--- linux-2.6.7.ORG/include/linux/mm.h	2004-06-17 16:20:02.000000000 +0900
++++ linux-2.6.7/include/linux/mm.h	2004-06-17 16:20:12.000000000 +0900
+@@ -134,6 +134,7 @@ struct vm_area_struct {
+ #define VM_ACCOUNT	0x00100000	/* Is a VM accounted object */
+ #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
+ #define VM_NONLINEAR	0x00800000	/* Is non-linear (remap_file_pages) */
++#define VM_IMMOVABLE	0x01000000	/* Don't place in hot removable area */
+ 
+ #ifndef VM_STACK_DEFAULT_FLAGS		/* arch can override this */
+ #define VM_STACK_DEFAULT_FLAGS VM_DATA_DEFAULT_FLAGS
+--- linux-2.6.7.ORG/include/linux/mman.h	2004-06-17 16:20:02.000000000 +0900
++++ linux-2.6.7/include/linux/mman.h	2004-06-17 16:20:12.000000000 +0900
+@@ -58,7 +58,11 @@ calc_vm_flag_bits(unsigned long flags)
+ 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
+ 	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
+ 	       _calc_vm_trans(flags, MAP_EXECUTABLE, VM_EXECUTABLE) |
+-	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
++	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    )
 +#ifdef CONFIG_MEMHOTPLUG
-+static int mhtest_read(char *page, char **start, off_t off, int count,
-+    int *eof, void *data)
-+{
-+	char *p;
-+	int i, j, len;
-+	const struct pglist_data *pgdat;
-+	const struct zone *z;
-+
-+	p = page;
-+	for(i = 0; i < numnodes; i++) {
-+		pgdat = NODE_DATA(i);
-+		if (pgdat == NULL)
-+			continue;
-+		len = sprintf(p, "Node %d %sabled %shotremovable\n", i,
-+		    pgdat->enabled ? "en" : "dis",
-+		    pgdat->removable ? "" : "non");
-+		p += len;
-+		for (j = 0; j < MAX_NR_ZONES; j++) {
-+			z = &pgdat->node_zones[j];
-+			if (! z->present_pages)
-+				/* skip empty zone */
-+				continue;
-+			len = sprintf(p,
-+			    "\t%s[%d]: free %ld, active %ld, present %ld\n",
-+			    z->name, NODEZONE(i, j),
-+			    z->free_pages, z->nr_active, z->present_pages);
-+			p += len;
-+		}
-+		*p++ = '\n';
-+	}
-+	len = p - page;
-+
-+	if (len <= off + count)
-+		*eof = 1;
-+	*start = page + off;
-+	len -= off;
-+	if (len < 0)
-+		len = 0;
-+	if (len > count)
-+		len = count;
-+
-+	return len;
-+}
-+
-+static void mhtest_enable(int);
-+static void mhtest_disable(int);
-+static void mhtest_plug(int);
-+static void mhtest_unplug(int);
-+static void mhtest_purge(int);
-+static void mhtest_remap(int);
-+static void mhtest_active(int);
-+static void mhtest_inuse(int);
-+
-+const static struct {
-+	char *cmd;
-+	void (*func)(int);
-+	char zone_check;
-+} mhtest_cmds[] = {
-+	{ "disable", mhtest_disable, 0 },
-+	{ "enable", mhtest_enable, 0 },
-+	{ "plug", mhtest_plug, 0 },
-+	{ "unplug", mhtest_unplug, 0 },
-+	{ "purge", mhtest_purge, 1 },
-+	{ "remap", mhtest_remap, 1 },
-+	{ "active", mhtest_active, 1 },
-+	{ "inuse", mhtest_inuse, 1 },
-+	{ NULL, NULL }};
-+
-+static void
-+mhtest_disable(int idx) {
-+	int i, z;
-+
-+	printk("disable %d\n", idx);
-+	/* XXX */
-+	for (z = 0; z < MAX_NR_ZONES; z++) {
-+		for (i = 0; i < NR_CPUS; i++) {
-+			struct per_cpu_pages *pcp;
-+
-+			pcp = &zone_table[NODEZONE(idx, z)]->pageset[i].pcp[0];	/* hot */
-+			pcp->low = pcp->high = 0;
-+
-+			pcp = &zone_table[NODEZONE(idx, z)]->pageset[i].pcp[1];	/* cold */
-+			pcp->low = pcp->high = 0;
-+		}
-+		zone_table[NODEZONE(idx, z)]->pages_high =
-+		    zone_table[NODEZONE(idx, z)]->present_pages;
-+	}
-+	disable_node(idx);
-+}
-+static void
-+mhtest_enable(int idx) {
-+	int i, z;
-+
-+	printk("enable %d\n", idx);
-+	for (z = 0; z < MAX_NR_ZONES; z++) {
-+		zone_table[NODEZONE(idx, z)]->pages_high = 
-+		    zone_table[NODEZONE(idx, z)]->pages_min * 3;
-+		/* XXX */
-+		for (i = 0; i < NR_CPUS; i++) {
-+			struct per_cpu_pages *pcp;
-+
-+			pcp = &zone_table[NODEZONE(idx, z)]->pageset[i].pcp[0];	/* hot */
-+			pcp->low = 2 * pcp->batch;
-+			pcp->high = 6 * pcp->batch;
-+
-+			pcp = &zone_table[NODEZONE(idx, z)]->pageset[i].pcp[1];	/* cold */
-+			pcp->high = 2 * pcp->batch;
-+		}
-+	}
-+	enable_node(idx);
-+}
-+
-+static void
-+mhtest_plug(int idx) {
-+
-+	if (NODE_DATA(idx) != NULL) {
-+		printk("Already plugged\n");
-+		return;
-+	}
-+	plug_node(idx);
-+}
-+
-+static void
-+mhtest_unplug(int idx) {
-+
-+	unplug_node(idx);
-+}
-+
-+static void
-+mhtest_purge(int idx)
-+{
-+	printk("purge %d\n", idx);
-+	wake_up_interruptible(&zone_table[idx]->zone_pgdat->kswapd_wait);
-+	/* XXX overkill, but who cares? */
-+	on_each_cpu(drain_local_pages, NULL, 1, 1);
-+}
-+
-+static void
-+mhtest_remap(int idx) {
-+
-+	on_each_cpu(drain_local_pages, NULL, 1, 1);
-+	kernel_thread(mmigrated, zone_table[idx], CLONE_KERNEL);
-+}
-+
-+static void
-+mhtest_active(int idx)
-+{
-+	struct list_head *l;
-+	int i;
-+
-+	if (zone_table[idx] == NULL)
-+		return;
-+	spin_lock_irq(&zone_table[idx]->lru_lock);
-+	i = 0;
-+	list_for_each(l, &zone_table[idx]->active_list) {
-+		printk(" %lx", (unsigned long)list_entry(l, struct page, lru));
-+		i++;
-+		if (i == 10)
-+			break;
-+	}
-+	spin_unlock_irq(&zone_table[idx]->lru_lock);
-+	printk("\n");
-+}
-+
-+static void
-+mhtest_inuse(int idx)
-+{
-+	int i;
-+
-+	if (zone_table[idx] == NULL)
-+		return;
-+	for(i = 0; i < zone_table[idx]->spanned_pages; i++)
-+		if (page_count(&zone_table[idx]->zone_mem_map[i]))
-+			printk(" %p", &zone_table[idx]->zone_mem_map[i]);
-+	printk("\n");
-+}
-+
-+static int mhtest_write(struct file *file, const char *buffer,
-+    unsigned long count, void *data)
-+{
-+	int idx;
-+	char buf[64], *p;
-+	int i;
-+
-+	if (count > sizeof(buf) - 1)
-+		count = sizeof(buf) - 1;
-+	if (copy_from_user(buf, buffer, count))
-+		return -EFAULT;
-+
-+	buf[count] = 0;
-+
-+	p = strchr(buf, ' ');
-+	if (p == NULL)
-+		goto out;
-+
-+	*p++ = '\0';
-+	idx = (int)simple_strtoul(p, NULL, 0);
-+
-+	if (idx > MAX_NR_ZONES*MAX_NUMNODES) {
-+		printk("Argument out of range\n");
-+		goto out;
-+	}
-+
-+	for(i = 0; ; i++) {
-+		if (mhtest_cmds[i].cmd == NULL)
-+			break;
-+		if (strcmp(buf, mhtest_cmds[i].cmd) == 0) {
-+			if (mhtest_cmds[i].zone_check) {
-+				if (zone_table[idx] == NULL) {
-+					printk("Zone %d not plugged\n", idx);
-+					return count;
-+				}
-+			} else if (strcmp(buf, "plug") != 0 &&
-+			    NODE_DATA(idx) == NULL) {
-+				printk("Node %d not plugged\n", idx);
-+				return count;
-+			}
-+			(mhtest_cmds[i].func)(idx);
-+			break;
-+		}
-+	}
-+out:
-+	return count;
-+}
-+
-+static int __init procmhtest_init(void)
-+{
-+	struct proc_dir_entry *entry;
-+
-+	entry = create_proc_entry("memhotplug", 0, NULL);
-+	if (entry == NULL)
-+		return -1;
-+
-+	entry->read_proc = &mhtest_read;
-+	entry->write_proc = &mhtest_write;
-+	return 0;
-+}
-+__initcall(procmhtest_init);
++	     | _calc_vm_trans(flags, MAP_IMMOVABLE,  VM_IMMOVABLE )
 +#endif
++		;
+ }
+ 
+ #endif /* _LINUX_MMAN_H */
+--- linux-2.6.7.ORG/kernel/fork.c	2004-06-17 16:20:02.000000000 +0900
++++ linux-2.6.7/kernel/fork.c	2004-06-17 16:20:12.000000000 +0900
+@@ -321,6 +321,9 @@ static inline int dup_mmap(struct mm_str
+ 			goto fail_nomem_policy;
+ 		vma_set_policy(tmp, pol);
+ 		tmp->vm_flags &= ~VM_LOCKED;
++#ifdef CONFIG_MEMHOTPLUG
++		tmp->vm_flags &= ~VM_IMMOVABLE;
++#endif
+ 		tmp->vm_mm = mm;
+ 		tmp->vm_next = NULL;
+ 		anon_vma_link(tmp);
+--- linux-2.6.7.ORG/mm/memory.c	2004-06-17 16:20:02.000000000 +0900
++++ linux-2.6.7/mm/memory.c	2004-06-17 16:20:12.000000000 +0900
+@@ -1069,7 +1069,13 @@ static int do_wp_page(struct mm_struct *
+ 
+ 	if (unlikely(anon_vma_prepare(vma)))
+ 		goto no_new_page;
+-	new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
++#ifdef CONFIG_MEMHOTPLUG
++	if (vma->vm_flags & VM_IMMOVABLE)
++		new_page = alloc_page_vma(GFP_USER | __GFP_HIGHMEM,
++		    vma, address);
++	else
++#endif
++		new_page = alloc_page_vma(GFP_HIGHUSER, vma, address);
+ 	if (!new_page)
+ 		goto no_new_page;
+ 	copy_cow_page(old_page,new_page,address);
+@@ -1412,6 +1418,12 @@ do_anonymous_page(struct mm_struct *mm, 
+ 
+ 		if (unlikely(anon_vma_prepare(vma)))
+ 			goto no_mem;
++#ifdef CONFIG_MEMHOTPLUG
++		if (vma->vm_flags & VM_IMMOVABLE)
++			page = alloc_page_vma(GFP_USER | __GFP_HIGHMEM,
++			    vma, addr);
++		else
++#endif
+ 		page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
+ 		if (!page)
+ 			goto no_mem;
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
