@@ -1,46 +1,34 @@
 Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA16071
-	for <linux-mm@kvack.org>; Wed, 26 May 1999 12:14:58 -0400
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA16274
+	for <linux-mm@kvack.org>; Wed, 26 May 1999 12:34:55 -0400
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14156.7671.583211.355576@dukat.scot.redhat.com>
-Date: Wed, 26 May 1999 17:14:47 +0100 (BST)
-Subject: Re: [VFS] move active filesystem
-In-Reply-To: <Pine.LNX.4.05.9905191820290.3829-100000@laser.random>
-References: <19990518183725.B30692@caffeine.ix.net.nz>
-	<Pine.LNX.4.05.9905191820290.3829-100000@laser.random>
+Message-ID: <14156.8862.155397.630098@dukat.scot.redhat.com>
+Date: Wed, 26 May 1999 17:34:38 +0100 (BST)
+Subject: Re: kernel_lock() profiling results
+In-Reply-To: <3748111C.3F040C1F@colorfullife.com>
+References: <3748111C.3F040C1F@colorfullife.com>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Chris Wedgwood <cw@ix.net.nz>, Gabor Lenart <lgb@oxygene.terra.vein.hu>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: masp0008@stud.uni-sb.de
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, "David S. Miller" <davem@dm.cobaltmicro.com>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Wed, 19 May 1999 18:28:04 +0200 (CEST), Andrea Arcangeli
-<andrea@suse.de> said:
+On Sun, 23 May 1999 16:30:52 +0200, Manfred Spraul
+<manfreds@colorfullife.com> said:
 
-> BTW, allowing dirty pages in the page cache may avoid I/O to disk but
-> won't avoid memcpy data to the page cache even if the page cache was just
-> uptdate. So I am convinced right now update_shared_mappings() is the right
-> thing to do and it's not an dirty hack. It's only a not very efficient
-> implementation that has to play with pgd/pmd/pte because we don't have
-> enough information (yet) from the pagemap.
+> Shouldn't we change file_read_actor() [mm/filemap.c, the function which
+> copies data from the page cache to user mode]:
+> we could release the kernel lock if we copy more than 1024 bytes.
+> (we currently do that only if the user mode memory is not paged in.)
 
-To do it correctly, you need to do much more than just play with the
-page tables in the way your current update_shared_mappings() does,
-because the page can be at different addresses in different VAs.  For
-MAP_SHARED pages we have a list of all the VAs, but for MAP_PRIVATE
-pages we do not, and mremap() can still cause a shared private page
-(eg. data pages after fork()) to appear at different locations in
-different mms. 
+	ftp://ftp.uk.linux.org/pub/linux/sct/performance
 
-Dealing with that is a little tricky, but you can do it by keeping lists
-of "related" vmas, based on overlaps between the original addresses of
-the vmas, not their current addresses.  Private page sharing can only
-occur when the original address of the vmas overlapped, and that gives
-us an invariant to check for over mremap().
+contains a patch Dave Miller and I put together to drop the kernel lock
+during a number of key user mode copies.
 
 --Stephen
 --
