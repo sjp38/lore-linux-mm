@@ -1,42 +1,55 @@
-Date: Mon, 9 Aug 2004 17:39:55 -0500
-From: Brent Casavant <bcasavan@sgi.com>
-Reply-To: Brent Casavant <bcasavan@sgi.com>
-Subject: [PATCH] get_nodes mask miscalculation
-Message-ID: <Pine.SGI.4.58.0408091731270.21911@kzerza.americas.sgi.com>
+Content-Class: urn:content-classes:message
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/mixed;
+	boundary="----_=_NextPart_001_01C47E6C.811F4276"
+Subject: RE: 2.6.8-rc3-mm2:  Debug: sleeping function called from invalid context at mm/mempool.c:197
+Date: Mon, 9 Aug 2004 16:56:36 -0700
+Message-ID: <B179AE41C1147041AA1121F44614F0B0DD03A6@AVEXCH02.qlogic.org>
+From: "Andrew Vasquez" <andrew.vasquez@qlogic.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Janet Morgan <janetmor@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-scsi@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-It appears there is a nodemask miscalculation in the get_nodes()
-function in mm/mempolicy.c.  This bug has two effects:
+This is a multi-part message in MIME format.
 
-1. It is impossible to specify a length 1 nodemask.
-2. It is impossible to specify a nodemask containing the last node.
+------_=_NextPart_001_01C47E6C.811F4276
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
 
-The following patch against 2.6.8-rc3 has been confirmed to solve
-both problems.
+On Monday, August 09, 2004 6:42 AM, linux-kernel-owner@vger.kernel.org
+wrote:=20
+> I see the msg below while running on 2.6.8-rc3-mm2, but not
+> on the plain
+> rc3 tree;
+> ditto for rc1-mm1 vs rc1, which is as far back as I've gone so far.
+>
 
-Signed-off-by: Brent Casavant <bcasavan@sgi.com>
+This allocation should be done with GFP_ATOMIC flags.  The attached=20
+patch should apply cleanly to any recent kernel.
 
---- linux-2.6.8-rc3/mm/mempolicy.c      2004-08-03 16:28:51.000000000 -0500
-+++ linux-work/mm/mempolicy.c   2004-08-09 14:56:44.000000000 -0500
-@@ -132,7 +132,6 @@
-        unsigned long nlongs;
-        unsigned long endmask;
+Regards,
+Andrew Vasquez
 
--       --maxnode;
-        bitmap_zero(nodes, MAX_NUMNODES);
-        if (maxnode == 0 || !nmask)
-                return 0;
+------_=_NextPart_001_01C47E6C.811F4276
+Content-Type: application/octet-stream;
+	name="mpool_alloc.diff"
+Content-Transfer-Encoding: base64
+Content-Description: mpool_alloc.diff
+Content-Disposition: attachment;
+	filename="mpool_alloc.diff"
 
--- 
-Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
-Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
-Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
+PT09PT0gZHJpdmVycy9zY3NpL3FsYTJ4eHgvcWxhX29zLmMgMS4zOSB2cyBlZGl0ZWQgPT09PT0K
+LS0tIDEuMzkvZHJpdmVycy9zY3NpL3FsYTJ4eHgvcWxhX29zLmMJMjAwNC0wNy0xMiAwOTo1NDo0
+OSAtMDc6MDAKKysrIGVkaXRlZC9kcml2ZXJzL3Njc2kvcWxhMnh4eC9xbGFfb3MuYwkyMDA0LTA4
+LTA5IDE2OjQ4OjI5IC0wNzowMApAQCAtMzU5MCw3ICszNTkwLDcgQEAKIHsKIAlzcmJfdCAqc3A7
+CiAKLQlzcCA9IG1lbXBvb2xfYWxsb2MoaGEtPnNyYl9tZW1wb29sLCBHRlBfS0VSTkVMKTsKKwlz
+cCA9IG1lbXBvb2xfYWxsb2MoaGEtPnNyYl9tZW1wb29sLCBHRlBfQVRPTUlDKTsKIAlpZiAoc3Ap
+CiAJCWF0b21pY19zZXQoJnNwLT5yZWZfY291bnQsIDEpOwogCXJldHVybiAoc3ApOwo=
+
+------_=_NextPart_001_01C47E6C.811F4276--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
