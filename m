@@ -1,41 +1,50 @@
-Date: Fri, 10 Dec 2004 22:03:12 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: pfault V12 : correction to tasklist rss
-Message-ID: <20041211060312.GV2714@holomorphy.com>
-References: <Pine.LNX.4.58.0412101150490.9169@schroedinger.engr.sgi.com> <Pine.LNX.4.44.0412102054190.32422-100000@localhost.localdomain> <20041210133859.2443a856.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041210133859.2443a856.akpm@osdl.org>
+Date: Sat, 11 Dec 2004 09:23:20 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: page fault scalability patch V12 [0/7]: Overview and performance
+    tests
+In-Reply-To: <20041210165745.38c1930e.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.44.0412110914280.1535-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: Hugh Dickins <hugh@veritas.com>, clameter@sgi.com, torvalds@osdl.org, benh@kernel.crashing.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: clameter@sgi.com, torvalds@osdl.org, benh@kernel.crashing.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins <hugh@veritas.com> wrote:
->>> We have no  real way of establishing the ownership of shared pages
->>> anyways. Its counted when allocated. But the page may live on afterwards
->>> in another process and then not be accounted for although its only user is
->>> the new process.
+On Fri, 10 Dec 2004, Andrew Morton wrote:
+> Hugh Dickins <hugh@veritas.com> wrote:
+> > 
+> > My inclination would be simply to remove the mark_page_accessed
+> > from do_anonymous_page; but I have no numbers to back that hunch.
+> 
+> With the current implementation of page_referenced() the
+> software-referenced bit doesn't matter anyway, as long as the pte's
+> referenced bit got set.  So as long as the thing is on the active list, we
+> can simply remove the mark_page_accessed() call.
 
-On Fri, Dec 10, 2004 at 01:38:59PM -0800, Andrew Morton wrote:
-> We did lose some accounting accuracy when the pagetable walk and the big
-> tasklist walks were removed.  Bill would probably have more details.  Given
-> that the code as it stood was a complete showstopper, the tradeoff seemed
-> reasonable.
+Yes, you're right.  So we don't need numbers, can just delete that line.
 
-There are several issues, not listed in order of importance here:
-(1) Workload monitoring with high multiprogramming levels was infeasible.
-(2) The long address space walks interfered with mmap() and page
-	faults in the monitored processes, disturbing cluster membership
-	and exceeding maximum response times in monitored workloads.
-(3) There's a general long-running ongoing effort to take on various
-	places tasklist_lock is abused one-by-one to incrementally
-	resolve or otherwise mitigate the rwlock starvation issues.
+> Except one day the VM might get smarter about pages which are both
+> software-referenced and pte-referenced.
 
+And on that day, we'd be making other changes, which might well
+involve restoring the mark_page_accessed to do_anonymous_page
+and adding it in the similar places which currently lack it.
 
--- wli
+But for now...
+
+--- 2.6.10-rc3/mm/memory.c	2004-12-05 12:56:12.000000000 +0000
++++ linux/mm/memory.c	2004-12-11 09:18:39.000000000 +0000
+@@ -1464,7 +1464,6 @@ do_anonymous_page(struct mm_struct *mm, 
+ 							 vma->vm_page_prot)),
+ 				      vma);
+ 		lru_cache_add_active(page);
+-		mark_page_accessed(page);
+ 		page_add_anon_rmap(page, vma, addr);
+ 	}
+ 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
