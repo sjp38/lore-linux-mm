@@ -1,34 +1,34 @@
-Date: Tue, 22 Apr 2003 13:34:46 -0400 (EDT)
-From: Ingo Molnar <mingo@redhat.com>
+From: John Bradford <john@grabjohn.com>
+Message-Id: <200304221745.h3MHjA8m000202@81-2-122-30.bradfords.org.uk>
 Subject: Re: objrmap and vmtruncate
-In-Reply-To: <20030422165746.GK23320@dualathlon.random>
-Message-ID: <Pine.LNX.4.44.0304221324380.24424-100000@devserv.devel.redhat.com>
+Date: Tue, 22 Apr 2003 18:45:10 +0100 (BST)
+In-Reply-To: <182180000.1051028196@[10.10.2.4]> from "Martin J. Bligh" at Apr 22, 2003 09:16:37 AM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@digeo.com>, Andrea Arcangeli <andrea@suse.de>, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Apr 2003, Andrea Arcangeli wrote:
+> > make almost zero noticeable difference on a 768 MB system - i have a 768
+> > MB system. Whether 1MB of extra RAM to a 128 MB system will make more of a
+> > difference than a predictable VM - i dont know, it probably depends on the
+> > app, but i'd go for more RAM. But it will make a _hell_ of a difference on
+> > a 1 TB RAM 64-bit system where the sharing factor explodes. And that's
+> > where Linux usage we will be by the time 2.6 based systems go production.
 
-> could we focus and solve the remap_file_pages current breakage first?
+> You obviously have a somewhat different timeline in mind for 2.6 than the
+> rest of us ;-)
 
-truncate always used to be such a PITA in the VM. And so few code depends
-on it doing the right thing to vmas. Which i claim to not be the right
-thing at all.
+It's certainly where Linux usage will be before 2.8 is ready.
 
-is anything forcing us to fixing up mappings during a truncate? What we
-need is just for the FS to recognize pages behind end-of-inode to still
-potentially exist after truncation, if those areas were mapped before the
-truncation. Apps that do not keep uptodate with truncaters can get
-out-of-date data anyway, via read()/write() anyway. Are there good
-arguments to be this strict across truncate()? We sure could make it safe
-even thought it's not safe currently.
+(and anyway, I'm sure there's a subsystem that we haven't _yet_
+re-written during the feature freeze...  :-) )
 
-	Ingo
 
+John.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
