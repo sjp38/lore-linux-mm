@@ -1,54 +1,49 @@
 From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <200004261736.KAA85620@google.engr.sgi.com>
+Message-Id: <200004261743.KAA16088@google.engr.sgi.com>
 Subject: Re: 2.3.x mem balancing
-Date: Wed, 26 Apr 2000 10:36:48 -0700 (PDT)
-In-Reply-To: <Pine.LNX.4.21.0004261823290.1687-100000@alpha.random> from "Andrea Arcangeli" at Apr 26, 2000 07:06:57 PM
+Date: Wed, 26 Apr 2000 10:43:30 -0700 (PDT)
+In-Reply-To: <852568CD.0057D4FC.00@raylex-gh01.eo.ray.com> from "Mark_H_Johnson.RTS@raytheon.com" at Apr 26, 2000 11:03:58 AM
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Mark_H_Johnson.RTS@raytheon.com, linux-mm@kvack.org, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>
+To: Mark_H_Johnson.RTS@raytheon.com
+Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, riel@nl.linux.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-> 
-> On NUMA hardware you have only one zone per node since nobody uses ISA-DMA
-> on such machines and you have PCI64 or you can use the PCI-DMA sg for
-> PCI32. So on NUMA hardware you are going to have only one zone per node
-> (at least this was the setup of the NUMA machine I was playing with). So
-> you don't mind at all about classzone/zone. Classzone and zone are the
-> same thing in such a setup, they both are the plain ZONE_DMA zone_t.
-> Finished. Said that you don't care anymore about the changes of how the
-> overlapped zones are handled since you don't have overlapped zones in
-> first place.
+> In the context of "memory balancing" - all processors and all memory is NOT
+> equal in a NUMA system. To get the best performance from the hardware, you
+> prefer to put "all" of the memory for each process into a single memory unit -
+> then run that process from a processor "near" that memory unit. This seemingly
+> simple principle has a lot of problems behind it. What about...
+>  - shared read only memory (e.g., libraries) [to clone or not?]
+>  - shared read/write memory [how to schedule work to be done when load >> "local
+> capacity"]
+>  - when memory is low, which pages should I remove?
+>  - when I start a new job, even when there is lots of free memory, where should
+> I load the job?
 
-Andrea, are you talking about the SGI Origin platform, or are you 
-using some other NUMA platform? In any case, the SGI platform in fact
-does not support ISA-DMA, but unfortunately, I don't think just because
-it has PCI mapping registers, you can assume that all memory is DMAable.
-For us to be able to consider all memory as dmaable, before each dma
-operation starts, we need to have a pci-dma type hook to program the
-mapping registers. As far as I know, such a hook is not used on all
-drivers (in 2.4 timeframe), so very unfortunately, I think we need
-to keep the option open about each node having more than just ZONE_DMA.
-Finally, I am not sure how things will work, we are still busy trying
-to get the Origin/Linux port going.
+The problem is, every app has different requirements, and performs best under
+different resource (cpu/memory) scheduling policies. IRIX provides a tool 
+called "dplace", that will allow performance experts specify which threads
+of a program should be run on cpus on which node, and how different sections
+of the address space should have their pages allocated (that is, on which 
+nodes; possible policies: firsttouch, ie, allocate the page on the node 
+which has the processor that first accesses that page, roundrobin, ie, 
+round robin the allocations across all nodes, etc etc). 
 
-FWIW, I think the IBM/Sequent NUMA machines in fact have nodes that 
-have only nondmaable memory.
+Linux is a little away from providing such flexible options, specially
+since it is not even possible to pin a process to a cpu or node yet. 
+The page allocation strategies are of course much more work to implement.
 
-> 
-> If you move the NUMA balancing and node selection into the higher layer
-> as I was proposing, instead you can do clever things.
->
+For global issues like "when memory is low, which pages should I remove"
+the problem is a little more complex. Having a kswapd per node is an option,
+although I think it is too early to decide that. I am hoping we can get
+a multinode system up soon, and investigate these issues.
 
-For an example and a (old) patch for this, look at 
+Kanoj
 
-	http://oss.sgi.com/projects/numa/download/numa.gen.42b
-	http://oss.sgi.com/projects/numa/download/numa.plat.42b
-
-Kanoj 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
