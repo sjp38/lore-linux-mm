@@ -1,47 +1,38 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id A25A938CE7
-	for <linux-mm@kvack.org>; Thu, 23 Aug 2001 16:03:54 -0300 (EST)
-Date: Thu, 23 Aug 2001 16:03:35 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH NG] alloc_pages_limit & pages_min
-In-Reply-To: <200108231856.f7NIuhv12558@mailg.telia.com>
-Message-ID: <Pine.LNX.4.33L.0108231600020.31410-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 23 Aug 2001 15:05:14 -0400
+From: Ben LaHaise <bcrl@touchme.toronto.redhat.com>
+Message-Id: <200108231905.f7NJ5E223517@touchme.toronto.redhat.com>
+Subject: [PATCH] clear_page_tables
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
+To: alan@redhat.com
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Aug 2001, Roger Larsson wrote:
-> On Thursdayen den 23 August 2001 20:44, Rik van Riel wrote:
-> > On Thu, 23 Aug 2001, Roger Larsson wrote:
-> > > f we did get one page => we are above pages_min
-> > > try to reach pages_low too.
-> >
-> > Yeah, but WHY ?
->
-> * Historic reasons - I feel good at that limit... :-)
->  MIN the limit never crossed
+Heylo,
 
-Never crossed by (free + clean) pages. I see no reason why
-we couldn't leave the free-only target at this limit...
+The patch below fixes a lack of locking in clear_page_tables which could
+result in kswapd poking at page tables that have been freed.
 
->  LOW center, our target of free pages - when all zones time to free.
+		-ben
 
-Meaning we'll usually not have any clean pages around but
-only free pages if your patch gets applied ;)
-
->  HIGH limit were to stop the freeing.
-
-Rik
---
-IA64: a worthy successor to the i860.
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
+/patches/v2.4.8-ac9-clear_page_tables-lock.diff...
+diff -ur /md0/kernels/2.4/v2.4.8-ac9/mm/memory.c vm-v2.4.8-ac9/mm/memory.c
+--- /md0/kernels/2.4/v2.4.8-ac9/mm/memory.c	Thu Aug 23 13:48:25 2001
++++ vm-v2.4.8-ac9/mm/memory.c	Thu Aug 23 14:45:46 2001
+@@ -129,11 +129,13 @@
+ {
+ 	pgd_t * page_dir = mm->pgd;
+ 
++	spin_lock(&mm->page_table_lock);
+ 	page_dir += first;
+ 	do {
+ 		free_one_pgd(page_dir);
+ 		page_dir++;
+ 	} while (--nr);
++	spin_unlock(&mm->page_table_lock);
+ 
+ 	/* keep the page table cache within bounds */
+ 	check_pgt_cache();
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
