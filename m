@@ -1,52 +1,52 @@
-Received: from today.toronto.redhat.com (today.toronto.redhat.com [172.16.14.234])
-	by lacrosse.corp.redhat.com (8.9.3/8.9.3) with ESMTP id SAA06147
-	for <linux-mm@kvack.org>; Thu, 5 Apr 2001 18:08:56 -0400
-Date: Thu, 5 Apr 2001 18:08:56 -0400 (EDT)
-From: Ben LaHaise <bcrl@redhat.com>
-Subject: [PATCH] another thinko in memory.c (fwd)
-Message-ID: <Pine.LNX.4.33.0104051808390.2151-100000@today.toronto.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 6 Apr 2001 01:40:23 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [PATCH] swap_state.c thinko
+Message-ID: <20010406014023.B1330@athlon.random>
+References: <Pine.LNX.4.21.0104051304450.27736-100000@imladris.rielhome.conectiva> <Pine.LNX.4.30.0104051310470.1767-100000@today.toronto.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.30.0104051310470.1767-100000@today.toronto.redhat.com>; from bcrl@redhat.com on Thu, Apr 05, 2001 at 01:11:30PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ben LaHaise <bcrl@redhat.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, arjanv@redhat.com, alan@redhat.com, torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ooops, forgot to cc...
+On Thu, Apr 05, 2001 at 01:11:30PM -0400, Ben LaHaise wrote:
+> diff -ur v2.4.3/mm/swap_state.c work-2.4.3/mm/swap_state.c
+> --- v2.4.3/mm/swap_state.c	Fri Dec 29 18:04:27 2000
+> +++ work-2.4.3/mm/swap_state.c	Thu Apr  5 13:10:27 2001
+> @@ -140,10 +140,9 @@
+>  	/*
+>  	 * If we are the only user, then try to free up the swap cache.
+>  	 */
+> -	if (PageSwapCache(page) && !TryLockPage(page)) {
+> -		if (!is_page_shared(page)) {
+> +	if (!TryLockPage(page)) {
+> +		if (PageSwapCache(page) && !is_page_shared(page))
+>  			delete_from_swap_cache_nolock(page);
+> -		}
+>  		UnlockPage(page);
+>  	}
+>  	page_cache_release(page);
 
----------- Forwarded message ----------
-Date: Thu, 5 Apr 2001 18:05:13 -0400 (EDT)
-From: Ben LaHaise <bcrl@redhat.com>
-To: torvalds@transmeta.com, alan@redhat.com
-Cc: arjanv@redhat.com
-Subject: [PATCH] another thinko in memory.c
+swap cache pages should not be freeable by the memory balancing code because if
+you're running at that point the reference count of the swap cache has to be > 1.
 
-Hey folks,
+swapoff will grab the pagetable spinlock before dropping the swap cache
+so it shouldn't run under such code either (and swapoff was used to
+have other window for races anyways).
 
-Ingo spotted this one, and it's the same kind of smp race.
+could you elaborate what can eat the swap cache from under you if you
+don't first lock down the page before checking the swapcache bit? I thought
+the reason for grabbing the lock there is just to do the trylock instead
+of lock_page(): we can't use the delete_from_swap_cache that could otherwise
+sleep if the page was for example locked down by the memory balancing code
+while we were running there (if we fail we simply left some more spurious swap
+cache).
 
-		-ben
-
-diff -ur v2.4.3/mm/memory.c work-2.4.3/mm/memory.c
---- v2.4.3/mm/memory.c	Thu Apr  5 11:53:46 2001
-+++ work-2.4.3/mm/memory.c	Thu Apr  5 16:27:08 2001
-@@ -859,9 +859,12 @@
- 		 * the swap cache, grab a reference and start using it.
- 		 * Can not do lock_page, holding page_table_lock.
- 		 */
--		if (!PageSwapCache(old_page) || TryLockPage(old_page))
-+		if (!PageSwapCache(old_page))
- 			break;
--		if (is_page_shared(old_page)) {
-+		if (TryLockPage(old_page))
-+			break;
-+		/* Recheck swapcachedness: this is a triggerable smp race. */
-+		if (!PageSwapCache(old_page) || is_page_shared(old_page)) {
- 			UnlockPage(old_page);
- 			break;
- 		}
-
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
