@@ -1,66 +1,41 @@
-Received: from mail.intermedia.net ([207.5.44.129])
-	by kvack.org (8.8.7/8.8.7) with SMTP id NAA17014
-	for <linux-mm@kvack.org>; Wed, 26 May 1999 13:40:55 -0400
-Received: from [134.96.127.180] by mail.colorfullife.com (NTMail 3.03.0017/1.abcr) with ESMTP id xa383731 for <linux-mm@kvack.org>; Wed, 26 May 1999 10:41:46 -0700
-Message-ID: <374C3237.2D89878@colorfullife.com>
-Date: Wed, 26 May 1999 19:41:11 +0200
-From: Manfred Spraul <manfreds@colorfullife.com>
-Reply-To: masp0008@stud.uni-sb.de
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA17072
+	for <linux-mm@kvack.org>; Wed, 26 May 1999 13:44:43 -0400
+Date: Wed, 26 May 1999 10:44:02 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [PATCH] cache large files in the page cache
+In-Reply-To: <19990526094407.J527@mff.cuni.cz>
+Message-ID: <Pine.LNX.3.95.990526104127.14018K-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Subject: Re: kernel_lock() profiling results
-References: <3748111C.3F040C1F@colorfullife.com> <14156.8862.155397.630098@dukat.scot.redhat.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, "David S. Miller" <davem@dm.cobaltmicro.com>
+To: Jakub Jelinek <jj@sunsite.ms.mff.cuni.cz>
+Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" wrote:
->         ftp://ftp.uk.linux.org/pub/linux/sct/performance
+
+On Wed, 26 May 1999, Jakub Jelinek wrote:
 > 
-> contains a patch Dave Miller and I put together to drop the kernel lock
-> during a number of key user mode copies.
+> I have minor suggestion to the patch. Instead of using vm_index <<
+> PAGE_SHIFT and page->key << PAGE_CACHE_SHIFT shifts either choose different
+> constant names for this shifting (VM_INDEX_SHIFT and PAGE_KEY_SHIFT) or hide
+> these shifts by some pretty macros (you'll need two for each for both
+> directions in that case - if you go the macro way, maybe it would be a good
+> idea to make vm_index and key type some structure with a single member like
+> mm_segment_t for more strict typechecking).
 
-1) Andrea noticed that 'unlock_kernel()' only releases the kernel lock
-if the lock was obtained once.
-He added two new functions: one stores the current lock depth,
-releases the lock and sets current->lock_depth =-1.
-The other reverses that.
+Indeed. An dI would suggest that the shift be limited to at most 9 anyway:
+right now I applied the part that disallows non-page-aligned offsets, but
+I think that we may in the future allow anonymous mappings again at finer
+granularity (somebody made a really good argument about wine for this).
 
-I think we need these functions:
-* it's save to call the functions without the kernel_lock held.
-* the unlock is effective for recursive calls.
+Thinking that the VM mapping shift has to be the same as the page shift is
+not necessarily the right thing. With just 9 bits of shift, you still get
+large files - 41 bits of files on a 32-bit architecture, and by the time
+you want more you _really_ can say that you had better upgrade your CPU. 
 
-2) Here's a excerpt from an email I wrote a few days ago:
-> I've modified uaccess.h, and I have now a list of all functions which
-> called copy_to/from_user() for more than 512 bytes (apache, make clean;
-> make fs; find /usr/bin)
-> 
-> * read_file_actor()
-> * ext2_file_write()
-> * block_read()
-> * copy_mount_options()  << really rare
-> * proc_file_read()      << rare??
-> * pipe_write()
-> * pipe_read()
-> * 2*vt_ioctl() << could be remote gdb.
-> * tcp_do_sendmsg()
-> * copy_strings()        << only during fork()?
-> 
-> Additionally, the following functions could also release the kernel
-> lock:
-> * padzero() in binfmt_elf:
->         This function clears up to 4096 bytes user memory.
->         The average should be 2048.
-> * update_vm_mapping():
->         the function can wait in wait_on_page(), we should break nothing
-> * get_free_page():
->         if GFP_WAIT, for memset(,0,PAGE_SIZE)
-I didn't use NFS, knfsd, other fs except ext2.
+		Linus
 
---
-	Manfred
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
