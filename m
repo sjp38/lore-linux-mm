@@ -1,40 +1,110 @@
-Date: Wed, 9 Jul 2003 09:08:37 +0200 (MEST)
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Subject: Re: [announce, patch] 4G/4G split on x86, 64 GB RAM (and more)
- support
-In-Reply-To: <Pine.LNX.4.44.0307082332450.17252-100000@localhost.localdomain>
-Message-ID: <Pine.GSO.4.21.0307090907140.18825-100000@vervain.sonytel.be>
+From: Thomas Schlichter <schlicht@uni-mannheim.de>
+Subject: Re: 2.5.74-mm3
+Date: Wed, 9 Jul 2003 11:05:59 +0200
+References: <20030708223548.791247f5.akpm@osdl.org>
+In-Reply-To: <20030708223548.791247f5.akpm@osdl.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Disposition: inline
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_4r9C/SkEkjvjI2z"
+Message-Id: <200307091106.00781.schlicht@uni-mannheim.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linux Kernel Development <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Jul 2003, Ingo Molnar wrote:
-> i'm pleased to announce the first public release of the "4GB/4GB VM split"
-> patch, for the 2.5.74 Linux kernel:
-> 
->    http://redhat.com/~mingo/4g-patches/4g-2.5.74-F8
-> 
-> The 4G/4G split feature is primarily intended for large-RAM x86 systems,
-> which want to (or have to) get more kernel/user VM, at the expense of
-> per-syscall TLB-flush overhead.
+--Boundary-00=_4r9C/SkEkjvjI2z
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Great! Another enterprise feature stolen from SCO? :-)
+> -cpumask_t-1.patch
+> -gcc-bug-workaround.patch
+> -sparse-apic-fix.patch
+> -nuke-cpumask_arith.patch
+> -p4-clockmod-cpumask-fix.patch
+>
+>  Folded into cpumask_t-1.patch
 
-Gr{oetje,eeting}s,
+This gives following compile error when compiling the kernel with APM support 
+for UP:
 
-						Geert
+arch/i386/kernel/apm.c: In function `apm_bios_call':
+arch/i386/kernel/apm.c:600: error: incompatible types in assignment
+arch/i386/kernel/apm.c: In function `apm_bios_call_simple':
+arch/i386/kernel/apm.c:643: error: incompatible types in assignment
 
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+The attached patch fixes this...
 
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-							    -- Linus Torvalds
+Best regards
+  Thomas Schlichter
 
+--Boundary-00=_4r9C/SkEkjvjI2z
+Content-Type: text/x-diff;
+  charset="iso-8859-1";
+  name="fix_up_apm.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline; filename="fix_up_apm.diff"
+
+--- linux-2.5.74-mm3/arch/i386/kernel/apm.c.orig	Wed Jul  9 10:25:46 2003
++++ linux-2.5.74-mm3/arch/i386/kernel/apm.c	Wed Jul  9 10:40:42 2003
+@@ -508,13 +508,12 @@
+  
+ #ifdef CONFIG_SMP
+ 
+-static cpumask_t apm_save_cpus(void)
++static inline void apm_save_cpus(cpumask_t *mask)
+ {
+-	cpumask_t x = current->cpus_allowed;
++	*mask = current->cpus_allowed;
+ 	/* Some bioses don't like being called from CPU != 0 */
+ 	set_cpus_allowed(current, cpumask_of_cpu(0));
+ 	BUG_ON(smp_processor_id() != 0);
+-	return x;
+ }
+ 
+ static inline void apm_restore_cpus(cpumask_t mask)
+@@ -528,7 +527,7 @@
+  *	No CPU lockdown needed on a uniprocessor
+  */
+  
+-#define apm_save_cpus()	0
++#define apm_save_cpus(x) 	(void)(x)
+ #define apm_restore_cpus(x)	(void)(x)
+ 
+ #endif
+@@ -597,7 +596,7 @@
+ 	int			cpu;
+ 	struct desc_struct	save_desc_40;
+ 
+-	cpus = apm_save_cpus();
++	apm_save_cpus(&cpus);
+ 	
+ 	cpu = get_cpu();
+ 	save_desc_40 = cpu_gdt_table[cpu][0x40 / 8];
+@@ -640,7 +639,7 @@
+ 	struct desc_struct	save_desc_40;
+ 
+ 
+-	cpus = apm_save_cpus();
++	apm_save_cpus(&cpus);
+ 	
+ 	cpu = get_cpu();
+ 	save_desc_40 = cpu_gdt_table[cpu][0x40 / 8];
+@@ -918,7 +917,8 @@
+ #endif
+ 	if (apm_info.realmode_power_off)
+ 	{
+-		(void)apm_save_cpus();
++		cpumask_t dummy;
++		apm_save_cpus(&dummy);
+ 		machine_real_restart(po_bios_call, sizeof(po_bios_call));
+ 	}
+ 	else
+
+--Boundary-00=_4r9C/SkEkjvjI2z--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
