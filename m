@@ -1,167 +1,183 @@
-Date: Wed, 3 Nov 2004 08:23:54 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Numa Node Swapping
-In-Reply-To: <20041103132852.GC5203@linuxtx.org>
-Message-ID: <Pine.LNX.4.58.0411030819050.17315@schroedinger.engr.sgi.com>
-References: <20041103132852.GC5203@linuxtx.org>
+Date: Wed, 3 Nov 2004 10:32:56 -0600
+From: Brent Casavant <bcasavan@sgi.com>
+Reply-To: Brent Casavant <bcasavan@sgi.com>
+Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
+In-Reply-To: <20041103090112.GJ8907@wotan.suse.de>
+Message-ID: <Pine.SGI.4.58.0411031021160.79310@kzerza.americas.sgi.com>
+References: <239530000.1099435919@flay> <Pine.LNX.4.44.0411030826310.6096-100000@localhost.localdomain>
+ <20041103090112.GJ8907@wotan.suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Justin M. Forbes" <jmforbes@linuxtx.org>
-Cc: linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: Hugh Dickins <hugh@veritas.com>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Nov 2004, Justin M. Forbes wrote:
+On Wed, 3 Nov 2004, Andi Kleen wrote:
 
-> I am interested in the numa node swapping patches you have been working
-> with, and what test code you were running.  What size was the anonymous
-> allocation you are doing in relationship to the amount of memory per node?
+> If you want to go more finegraid then you can always use numactl
+> or even libnuma in the application.  For a quick policy decision a sysctl
+> is fine imho.
 
-Here is the script that I ran:
+OK, so I'm not seeing a definitive stance by the interested parties
+either way.  So since the code's already done, I'm posting the sysctl
+method, and defaulting to on.  I assume that if we later decide that
+a mount option was correct after all, that it's no big deal to axe the
+sysctl?
 
-----------------------------------------------------------------------------------
-echo "Off Node memory allocation test"
-echo "-------------------------------"
-uname -a
-echo "Initial state:"
-echo "--------------"
-cat /sys/devices/system/node/node{2,3}/{meminfo,numastat}
-echo
-time taskset 20 dd if=/mnt/1gb of=/dev/null
-echo
-echo "State after copying 1gb file"
-echo "----------------------------"
-cat /sys/devices/system/node/node{2,3}/{meminfo,numastat}
-time taskset 20 ./fatmem
-echo "State after running 500Mb memalloc program"
-echo "------------------------------------------"
-cat /sys/devices/system/node/node{2,3}/{meminfo,numastat}
-------------------------------------------------------------------------------------
+The sysctl code in this patch is based on work originally done by
+Andi.  It has been changed a bit, mostly to make it appear only
+in CONFIG_NUMA && CONFIG_TMPFS kernels.
 
-fatmem allocates large section of memory and touches every page.
+Signed-off-by: Brent Casavant <bcasavan@sgi.com>
 
-The output of a test run with /proc/sys/vm/node_swap set to 3:
+Index: linux/mm/mempolicy.c
+===================================================================
+--- linux.orig/mm/mempolicy.c	2004-11-03 10:24:16.000000000 -0600
++++ linux/mm/mempolicy.c	2004-11-03 10:26:30.000000000 -0600
+@@ -1027,6 +1027,28 @@
+ 	return 0;
+ }
 
-Off Node memory allocation test
--------------------------------
-Linux margin 2.6.10-rc1-ptoss #3 SMP Thu Oct 28 10:18:36 PDT 2004 ia64 ia64 ia64 GNU/Linux
-Initial state:
---------------
++void mpol_shared_policy_init(struct shared_policy *info, unsigned interleave)
++{
++	info->root = RB_ROOT;
++	init_MUTEX(&info->sem);
++
++	if (unlikely(interleave)) {
++		struct mempolicy *newpol;
++
++		/* Falls back to MPOL_DEFAULT on any error */
++		newpol = mpol_new(MPOL_INTERLEAVE, nodes_addr(node_online_map));
++		if (likely(!IS_ERR(newpol))) {
++			/* Create pseudo-vma that contains just the policy */
++			struct vm_area_struct pvma;
++
++			memset(&pvma, 0, sizeof(struct vm_area_struct));
++			/* Policy covers entire file */
++			pvma.vm_end = ~0UL;
++			mpol_set_shared_policy(info, &pvma, newpol);
++		}
++	}
++}
++
+ int mpol_set_shared_policy(struct shared_policy *info,
+ 			struct vm_area_struct *vma, struct mempolicy *npol)
+ {
+Index: linux/fs/hugetlbfs/inode.c
+===================================================================
+--- linux.orig/fs/hugetlbfs/inode.c	2004-11-03 10:24:16.000000000 -0600
++++ linux/fs/hugetlbfs/inode.c	2004-11-03 10:26:30.000000000 -0600
+@@ -384,7 +384,7 @@
+ 		inode->i_mapping->backing_dev_info =&hugetlbfs_backing_dev_info;
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+ 		info = HUGETLBFS_I(inode);
+-		mpol_shared_policy_init(&info->policy);
++		mpol_shared_policy_init(&info->policy, 0);
+ 		switch (mode & S_IFMT) {
+ 		default:
+ 			init_special_inode(inode, mode, dev);
+Index: linux/include/linux/mempolicy.h
+===================================================================
+--- linux.orig/include/linux/mempolicy.h	2004-11-03 10:24:16.000000000 -0600
++++ linux/include/linux/mempolicy.h	2004-11-03 10:26:30.000000000 -0600
+@@ -137,11 +137,7 @@
+ 	struct semaphore sem;
+ };
 
-Node 2 MemTotal:       933888 kB
-Node 2 MemFree:        899840 kB
-Node 2 MemUsed:         34048 kB
-Node 2 Active:           5376 kB
-Node 2 Inactive:         3712 kB
-Node 2 HighTotal:           0 kB
-Node 2 HighFree:            0 kB
-Node 2 LowTotal:       933888 kB
-Node 2 LowFree:        899840 kB
-Node 2 HugePages_Total:     0
-Node 2 HugePages_Free:      0
-numa_hit 108398
-numa_miss 0
-numa_foreign 0
-interleave_hit 85023
-local_node 43887
-other_node 64511
+-static inline void mpol_shared_policy_init(struct shared_policy *info)
+-{
+-	info->root = RB_ROOT;
+-	init_MUTEX(&info->sem);
+-}
++void mpol_shared_policy_init(struct shared_policy *info, unsigned interleave);
 
-Node 3 MemTotal:       915696 kB
-Node 3 MemFree:        883072 kB
-Node 3 MemUsed:         32624 kB
-Node 3 Active:           5904 kB
-Node 3 Inactive:         3200 kB
-Node 3 HighTotal:           0 kB
-Node 3 HighFree:            0 kB
-Node 3 LowTotal:       915696 kB
-Node 3 LowFree:        883072 kB
-Node 3 HugePages_Total:     0
-Node 3 HugePages_Free:      0
-numa_hit 143416
-numa_miss 0
-numa_foreign 0
-interleave_hit 125500
-local_node 48305
-other_node 95111
+ int mpol_set_shared_policy(struct shared_policy *info,
+ 				struct vm_area_struct *vma,
+@@ -198,7 +194,8 @@
+ 	return -EINVAL;
+ }
 
+-static inline void mpol_shared_policy_init(struct shared_policy *info)
++static inline void mpol_shared_policy_init(struct shared_policy *info,
++					unsigned interleave)
+ {
+ }
 
-State after copying 1gb file
-----------------------------
+Index: linux/mm/shmem.c
+===================================================================
+--- linux.orig/mm/shmem.c	2004-11-03 10:24:16.000000000 -0600
++++ linux/mm/shmem.c	2004-11-03 10:26:30.000000000 -0600
+@@ -72,6 +72,12 @@
+ /* Keep swapped page count in private field of indirect struct page */
+ #define nr_swapped		private
 
-Node 2 MemTotal:       933888 kB
-Node 2 MemFree:          2816 kB
-Node 2 MemUsed:        931072 kB
-Node 2 Active:           1744 kB
-Node 2 Inactive:       903536 kB
-Node 2 HighTotal:           0 kB
-Node 2 HighFree:            0 kB
-Node 2 LowTotal:       933888 kB
-Node 2 LowFree:          2816 kB
-Node 2 HugePages_Total:     0
-Node 2 HugePages_Free:      0
-numa_hit 170992
-numa_miss 0
-numa_foreign 0
-interleave_hit 85024
-local_node 106480
-other_node 64512
++#if defined(CONFIG_NUMA) && defined(CONFIG_TMPFS)
++int sysctl_tmpfs_rr = 1;
++#else
++#define sysctl_tmpfs_rr (0)
++#endif
++
+ /* Flag allocation requirements to shmem_getpage and shmem_swp_alloc */
+ enum sgp_type {
+ 	SGP_QUICK,	/* don't try more than file page cache lookup */
+@@ -1236,7 +1242,7 @@
+ 		info = SHMEM_I(inode);
+ 		memset(info, 0, (char *)inode - (char *)info);
+ 		spin_lock_init(&info->lock);
+- 		mpol_shared_policy_init(&info->policy);
++ 		mpol_shared_policy_init(&info->policy, sbinfo ? sysctl_tmpfs_rr : 0);
+ 		INIT_LIST_HEAD(&info->swaplist);
 
-Node 3 MemTotal:       915696 kB
-Node 3 MemFree:        883072 kB
-Node 3 MemUsed:         32624 kB
-Node 3 Active:           5904 kB
-Node 3 Inactive:         3200 kB
-Node 3 HighTotal:           0 kB
-Node 3 HighFree:            0 kB
-Node 3 LowTotal:       915696 kB
-Node 3 LowFree:        883072 kB
-Node 3 HugePages_Total:     0
-Node 3 HugePages_Free:      0
-numa_hit 143434
-numa_miss 0
-numa_foreign 0
-interleave_hit 125502
-local_node 48321
-other_node 95113
-State after running 500Mb memalloc program
-------------------------------------------
+ 		switch (mode & S_IFMT) {
+Index: linux/kernel/sysctl.c
+===================================================================
+--- linux.orig/kernel/sysctl.c	2004-11-03 10:24:20.000000000 -0600
++++ linux/kernel/sysctl.c	2004-11-03 10:26:30.000000000 -0600
+@@ -74,6 +74,10 @@
+ 				  void __user *, size_t *, loff_t *);
+ #endif
 
-Node 2 MemTotal:       933888 kB
-Node 2 MemFree:        488160 kB
-Node 2 MemUsed:        445728 kB
-Node 2 Active:           1824 kB
-Node 2 Inactive:       418048 kB
-Node 2 HighTotal:           0 kB
-Node 2 HighFree:            0 kB
-Node 2 LowTotal:       933888 kB
-Node 2 LowFree:        488160 kB
-Node 2 HugePages_Total:     0
-Node 2 HugePages_Free:      0
-numa_hit 201401
-numa_miss 0
-numa_foreign 2429
-interleave_hit 85024
-local_node 136889
-other_node 64512
++#if defined(CONFIG_NUMA) && defined(CONFIG_TMPFS)
++extern int sysctl_tmpfs_rr;
++#endif
++
+ /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
+ static int maxolduid = 65535;
+ static int minolduid;
+@@ -622,6 +626,16 @@
+ 		.maxlen         = sizeof (int),
+ 		.mode           = 0644,
+ 		.proc_handler   = &proc_unknown_nmi_panic,
++	},
++#endif
++#if defined(CONFIG_NUMA) && defined(CONFIG_TMPFS)
++	{
++		.ctl_name	= KERN_NUMA_TMPFS_RR,
++		.procname	= "numa-tmpfs-rr",
++		.data		= &sysctl_tmpfs_rr,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec,
+ 	},
+ #endif
+ 	{ .ctl_name = 0 }
+Index: linux/include/linux/sysctl.h
+===================================================================
+--- linux.orig/include/linux/sysctl.h	2004-11-03 10:26:20.000000000 -0600
++++ linux/include/linux/sysctl.h	2004-11-03 10:26:41.000000000 -0600
+@@ -134,6 +134,7 @@
+ 	KERN_SPARC_SCONS_PWROFF=64, /* int: serial console power-off halt */
+ 	KERN_HZ_TIMER=65,	/* int: hz timer on or off */
+ 	KERN_UNKNOWN_NMI_PANIC=66, /* int: unknown nmi panic flag */
++	KERN_NUMA_TMPFS_RR=67,	/* int: NUMA interleave tmpfs allocations */
+ };
 
-Node 3 MemTotal:       915696 kB
-Node 3 MemFree:        883136 kB
-Node 3 MemUsed:         32560 kB
-Node 3 Active:           5872 kB
-Node 3 Inactive:         3200 kB
-Node 3 HighTotal:           0 kB
-Node 3 HighFree:            0 kB
-Node 3 LowTotal:       915696 kB
-Node 3 LowFree:        883136 kB
-Node 3 HugePages_Total:     0
-Node 3 HugePages_Free:      0
-numa_hit 143434
-numa_miss 2429
-numa_foreign 0
-interleave_hit 125502
-local_node 48321
-other_node 97542
+-- 
+Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
+Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
+Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
