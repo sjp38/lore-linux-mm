@@ -1,89 +1,141 @@
-Date: Sat, 22 May 2004 14:48:57 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: current -linus tree dies on x86_64
-Message-Id: <20040522144857.3af1fc2c.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-Id: <200405222201.i4MM1Gr11266@mail.osdl.org>
+Subject: [patch 01/57] Make swapper_space tree_lock irq-safe
+From: akpm@osdl.org
+Date: Sat, 22 May 2004 15:00:40 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: linux-mm@kvack.org
+To: torvalds@osdl.org
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-As soon as I put in enough memory pressure to start swapping it oopses in
-release_pages().  ppc64, ia64 and ia32 are working OK.  Is anyone else
-seeing this?
 
-I'd be suspecting the atomic_add_negative() and atomic_inc_and_test()
-implementations, but they look OK.
+->tree_lock is supposed to be IRQ-safe.  Hugh worked out that with his
+changes, we never actually take it from interrupt context, so spin_lock() is
+sufficient.
+
+Apart from kinda freaking me out, the analysis which led to this decision
+becomes untrue with later patches.  So make it irq-safe.
 
 
+---
 
-Unable to handle kernel paging request at 00000000063c6470 RIP: 
-<ffffffff80165c1c>{release_pages+60}PML4 17d79b067 PGD 17a498067 PMD 0 
-Oops: 0000 [1] SMP                                                     
-CPU 0              
-Modules linked in:
-Pid: 6990, comm: usemem Not tainted 2.6.6
-RIP: 0010:[<ffffffff80165c1c>] <ffffffff80165c1c>{release_pages+60}
-RSP: 0000:000001017a46f738  EFLAGS: 00010287                       
-RAX: 0000000000000000 RBX: 00000000063c6470 RCX: 0000000000000000
-RDX: 0000000000000001 RSI: 0000000000000010 RDI: 000001017a46fa90
-RBP: 0000000000000000 R08: 000001017a46fbb8 R09: 0000000000000000
-R10: 000001017a46fbb8 R11: 0000000000000180 R12: 0000000000000000
-R13: 0000000000000010 R14: 000001017a46fa90 R15: 000001017a46f748
-FS:  0000002a9588d6e0(0000) GS:ffffffff805adf00(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b                           
-CR2: 00000000063c6470 CR3: 0000000000101000 CR4: 00000000000006e0
-Process usemem (pid: 6990, threadinfo 000001017a46e000, task 000001017d58e430)
-Stack: 0000000000000001 0000000000000246 0000000100000000 0000000000000246    
-       000001017a46f7a8 0000000000000286 0000000000000010 0000000000000286 
-       0000000100000001 ffffffff804cb340                                   
-Call Trace:<ffffffff80166207>{__pagevec_release+23} <ffffffff80167146>{shrink_zone+1382} 
-       <ffffffff8016c2f3>{handle_mm_fault+435} <ffffffff8016c2f3>{handle_mm_fault+435}   
-       <ffffffff80158dde>{find_get_page+94} <ffffffff8017e50f>{__find_get_block_slow+79} 
-       <ffffffff8017f2fc>{__find_get_block+412} <ffffffff80244f3b>{rb_insert_color+107}  
-       <ffffffff80181b7f>{__getblk+31} <ffffffff80181bb6>{__bread+6}                    
-       <ffffffff801d87c2>{search_by_key+130} <ffffffff801dcd3e>{get_cnode+142} 
-       <ffffffff801def85>{journal_mark_dirty+341} <ffffffff801d8723>{pathrelse+51} 
-       <ffffffff801681c0>{try_to_free_pages+272} <ffffffff8015d351>{__alloc_pages+529} 
-       <ffffffff8016c811>{handle_mm_fault+1745} <ffffffff801223e0>{do_page_fault+0}    
-       <ffffffff8012258a>{do_page_fault+426} <ffffffff803e6835>{schedule+197}       
-       <ffffffff801102d9>{error_exit+0}                                       
-                                        
-Code: 8b 03 f6 c4 08 0f 85 7b 01 00 00 8b 43 04 ff c0 75 12 0f 0b 
-RIP <ffffffff80165c1c>{release_pages+60} RSP <000001017a46f738>   
-CR2: 00000000063c6470                                          
- <1>Unable to handle kernel paging request at 00000000063c2848 RIP: 
-<ffffffff80165c1c>{release_pages+60}PML4 17d111067 PGD 17d5cf067 PMD 0 
-Oops: 0000 [2] SMP                                                     
-CPU 1              
-Modules linked in:
-Pid: 59, comm: kswapd0 Not tainted 2.6.6
-RIP: 0010:[<ffffffff80165c1c>] <ffffffff80165c1c>{release_pages+60}
-RSP: 0018:000001007fc83868  EFLAGS: 00010287                       
-RAX: 0000000000000000 RBX: 00000000063c2848 RCX: 0000000000000000
-RDX: 0000000000000001 RSI: 0000000000000010 RDI: 000001007fc83bc0
-RBP: 0000000000000000 R08: 000001007fc83d48 R09: 0000000000000000
-R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
-R13: 0000000000000010 R14: 000001007fc83bc0 R15: 000001007fc83878
-FS:  0000000000000000(0000) GS:ffffffff805adf80(0000) knlGS:0000000000000000
-CS:  0010 DS: 0018 ES: 0018 CR0: 000000008005003b                           
-CR2: 00000000063c2848 CR3: 000000017ff9f000 CR4: 00000000000006e0
-Process kswapd0 (pid: 59, threadinfo 000001007fc82000, task 000001007fd78370)
-Stack: 0000000000000000 0000000000000000 0000000100000000 0000000000000000   
-       0000000000000000 0000000000000000 0000000000000000 0000000000000000 
-       000001007fc83d48 000001007fc83c68                                   
-Call Trace:<ffffffff80166207>{__pagevec_release+23} <ffffffff80167146>{shrink_zone+1382} 
-       <ffffffff8016849a>{balance_pgdat+442} <ffffffff80168715>{kswapd+325}              
-       <ffffffff80136080>{autoremove_wake_function+0} <ffffffff80136080>{autoremove_wake_function+0} 
-       <ffffffff8011048f>{child_rip+8} <ffffffff801685d0>{kswapd+0}                                  
-       <ffffffff80110487>{child_rip+0}                              
-                                       
-Code: 8b 03 f6 c4 08 0f 85 7b 01 00 00 8b 43 04 ff c0 75 12 0f 0b 
-RIP <ffffffff80165c1c>{release_pages+60} RSP <000001007fc83868>   
-CR2: 00000000063c2848                                          
+ 25-akpm/mm/swap_state.c |   16 ++++++++--------
+ 25-akpm/mm/swapfile.c   |   12 ++++++------
+ 2 files changed, 14 insertions(+), 14 deletions(-)
+
+diff -puN mm/swapfile.c~swapper_space-tree_lock-fix mm/swapfile.c
+--- 25/mm/swapfile.c~swapper_space-tree_lock-fix	2004-05-22 14:56:21.221865312 -0700
++++ 25-akpm/mm/swapfile.c	2004-05-22 14:59:43.296145352 -0700
+@@ -289,10 +289,10 @@ static int exclusive_swap_page(struct pa
+ 		/* Is the only swap cache user the cache itself? */
+ 		if (p->swap_map[swp_offset(entry)] == 1) {
+ 			/* Recheck the page count with the swapcache lock held.. */
+-			spin_lock(&swapper_space.tree_lock);
++			spin_lock_irq(&swapper_space.tree_lock);
+ 			if (page_count(page) == 2)
+ 				retval = 1;
+-			spin_unlock(&swapper_space.tree_lock);
++			spin_unlock_irq(&swapper_space.tree_lock);
+ 		}
+ 		swap_info_put(p);
+ 	}
+@@ -360,13 +360,13 @@ int remove_exclusive_swap_page(struct pa
+ 	retval = 0;
+ 	if (p->swap_map[swp_offset(entry)] == 1) {
+ 		/* Recheck the page count with the swapcache lock held.. */
+-		spin_lock(&swapper_space.tree_lock);
++		spin_lock_irq(&swapper_space.tree_lock);
+ 		if ((page_count(page) == 2) && !PageWriteback(page)) {
+ 			__delete_from_swap_cache(page);
+ 			SetPageDirty(page);
+ 			retval = 1;
+ 		}
+-		spin_unlock(&swapper_space.tree_lock);
++		spin_unlock_irq(&swapper_space.tree_lock);
+ 	}
+ 	swap_info_put(p);
+ 
+@@ -390,12 +390,12 @@ void free_swap_and_cache(swp_entry_t ent
+ 	p = swap_info_get(entry);
+ 	if (p) {
+ 		if (swap_entry_free(p, swp_offset(entry)) == 1) {
+-			spin_lock(&swapper_space.tree_lock);
++			spin_lock_irq(&swapper_space.tree_lock);
+ 			page = radix_tree_lookup(&swapper_space.page_tree,
+ 				entry.val);
+ 			if (page && TestSetPageLocked(page))
+ 				page = NULL;
+-			spin_unlock(&swapper_space.tree_lock);
++			spin_unlock_irq(&swapper_space.tree_lock);
+ 		}
+ 		swap_info_put(p);
+ 	}
+diff -puN mm/swap_state.c~swapper_space-tree_lock-fix mm/swap_state.c
+--- 25/mm/swap_state.c~swapper_space-tree_lock-fix	2004-05-22 14:56:21.223865008 -0700
++++ 25-akpm/mm/swap_state.c	2004-05-22 14:59:44.974890144 -0700
+@@ -69,7 +69,7 @@ static int __add_to_swap_cache(struct pa
+ 	error = radix_tree_preload(gfp_mask);
+ 	if (!error) {
+ 		page_cache_get(page);
+-		spin_lock(&swapper_space.tree_lock);
++		spin_lock_irq(&swapper_space.tree_lock);
+ 		error = radix_tree_insert(&swapper_space.page_tree,
+ 						entry.val, page);
+ 		if (!error) {
+@@ -80,7 +80,7 @@ static int __add_to_swap_cache(struct pa
+ 			pagecache_acct(1);
+ 		} else
+ 			page_cache_release(page);
+-		spin_unlock(&swapper_space.tree_lock);
++		spin_unlock_irq(&swapper_space.tree_lock);
+ 		radix_tree_preload_end();
+ 	}
+ 	return error;
+@@ -207,9 +207,9 @@ void delete_from_swap_cache(struct page 
+   
+ 	entry.val = page->private;
+ 
+-	spin_lock(&swapper_space.tree_lock);
++	spin_lock_irq(&swapper_space.tree_lock);
+ 	__delete_from_swap_cache(page);
+-	spin_unlock(&swapper_space.tree_lock);
++	spin_unlock_irq(&swapper_space.tree_lock);
+ 
+ 	swap_free(entry);
+ 	page_cache_release(page);
+@@ -308,13 +308,13 @@ struct page * lookup_swap_cache(swp_entr
+ {
+ 	struct page *page;
+ 
+-	spin_lock(&swapper_space.tree_lock);
++	spin_lock_irq(&swapper_space.tree_lock);
+ 	page = radix_tree_lookup(&swapper_space.page_tree, entry.val);
+ 	if (page) {
+ 		page_cache_get(page);
+ 		INC_CACHE_INFO(find_success);
+ 	}
+-	spin_unlock(&swapper_space.tree_lock);
++	spin_unlock_irq(&swapper_space.tree_lock);
+ 	INC_CACHE_INFO(find_total);
+ 	return page;
+ }
+@@ -336,12 +336,12 @@ struct page * read_swap_cache_async(swp_
+ 		 * called after lookup_swap_cache() failed, re-calling
+ 		 * that would confuse statistics.
+ 		 */
+-		spin_lock(&swapper_space.tree_lock);
++		spin_lock_irq(&swapper_space.tree_lock);
+ 		found_page = radix_tree_lookup(&swapper_space.page_tree,
+ 						entry.val);
+ 		if (found_page)
+ 			page_cache_get(found_page);
+-		spin_unlock(&swapper_space.tree_lock);
++		spin_unlock_irq(&swapper_space.tree_lock);
+ 		if (found_page)
+ 			break;
+ 
+
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
