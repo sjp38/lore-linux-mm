@@ -1,42 +1,37 @@
-Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id AAA07774
-	for <linux-mm@kvack.org>; Fri, 12 Jun 1998 00:50:35 -0400
-Date: Fri, 12 Jun 1998 06:36:53 +0200 (MET DST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: update re: fork() failures in 2.1.101
-In-Reply-To: <19980611173940.51846@adore.lightlink.com>
-Message-ID: <Pine.LNX.3.95.980612063348.22741A-100000@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA07906
+	for <linux-mm@kvack.org>; Fri, 12 Jun 1998 01:06:11 -0400
+Subject: Q: I can get kswapd to run but not swap anything...
+From: ebiederm+eric@npwt.net (Eric W. Biederman)
+Date: 12 Jun 1998 00:18:53 -0500
+Message-ID: <m1zpfj42pu.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: Paul Kimoto <kimoto@lightlink.com>
-Cc: Linux MM <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Paul get's "cannot fork" errors after 60 or more hours of
- uptime. This suggests fragmentation problems.]
 
-On Thu, 11 Jun 1998, Paul Kimoto wrote:
+With my shmfs code on linux-2.1.101 after untaring two kernel
+source trees, on my 32M machine, kswapd eats about 20% of the cpu time
+according to swap but nearly nothing is written out.  
 
-> > Hmm, the 'cannot fork' issue only starting after some
-> > days of uptime... This suggests fragmentation. Is your
-> > box very heavily loaded, or just lightly (VM-wise)?
-> 
-> Light, I think; I have 48MB of RAM and usually end up with 8--16MB in swap.
-> In normal operation I don't have to wait much for paging except for larger
-> programs (netscape, xemacs, or big compilations).
+Currently I use shrink_mmap to write out pages.  If a page has a use
+count of 1 and is dirty it gets written to swap and the dirty bit
+removed instead of being removed from the page cache, and shrink_mmap
+returns 1.
 
-Ahh, I think I see it now. The fragmentation on your system
-persists because of the swap cache. The swap cache 'caches'
-swap pages and kinda makes sure they are reloaded to the
-same physical address.
+With 2.0.32 using exactly the same approach everything works fine, and
+while there is a slight performance hit for lots of writes, the system
+is always quite usable.
 
-Stephen, Ben: should we disable the swap cache when 
-fragmentation is high?
+Does anyone have a clue why my machine becomes nearly unusable with 
+2.1.101 in this fashion?
 
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+I am asking this here because a) my changes are quite small and have
+worked reasonably well on other kernels, and b) something else may be
+able to trigger the same condition.
+
+If it helps at all I am pretty certain that running lots of file
+writes through my filesystem is a pretty good way of fragmenting
+memory.
+
+Eric
