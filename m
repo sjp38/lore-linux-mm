@@ -1,30 +1,27 @@
-Date: Mon, 25 Sep 2000 13:01:45 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
+Date: Mon, 25 Sep 2000 19:15:40 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: the new VMt
-In-Reply-To: <E13dbZ7-0005Hg-00@the-village.bc.nu>
-Message-ID: <Pine.GSO.4.21.0009251258160.16980-100000@weyl.math.psu.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000925191540.F27677@athlon.random>
+References: <Pine.LNX.4.21.0009251338340.14614-100000@duckman.distro.conectiva> <Pine.LNX.4.10.10009250948170.1739-100000@penguin.transmeta.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.10.10009250948170.1739-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Mon, Sep 25, 2000 at 09:49:46AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Sep 25, 2000 at 09:49:46AM -0700, Linus Torvalds wrote:
+> [..] I
+> don't think the balancing has to take the order of the allocation into
+> account [..]
 
-On Mon, 25 Sep 2000, Alan Cox wrote:
+Why do you prefer to throw away most of the cache (potentially at fork time)
+instead of freeing only the few contigous bits that we need?
 
-> > > yep, i agree. I'm not sure what the biggest allocation is, some drivers
-> > > might use megabytes or contiguous RAM?
-> > 
-> > Stupidity has no limits...
-> 
-> Unfortunately its frequently wired into the hardware to save a few cents on
-> scatter gather logic.
-
-Since when hardware folks became exempt from the rule above? 128K is
-almost tolerable, there were requests for 64 _mega_bytes...
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
