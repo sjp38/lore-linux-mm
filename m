@@ -1,37 +1,56 @@
-Date: Mon, 14 Feb 2005 06:36:10 -0700
-Message-Id: bqeyhc33juy5vubacxr8sdz18joj36.i93WayTw001361@vais.net>
-From: "Susanne Marcum" <panzella@casholasavings.com>
-Subject: High rates? Not with us! 3.25 fixed
+Date: Sat, 19 Feb 2005 18:27:03 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: [cliffw@osdl.org: Re: 2.6.10-ac12 + kernbench ==  oom-killer: (OSDL)]
+Message-ID: <20050219202703.GD4874@dmt.cnet>
 Mime-Version: 1.0
-Content-Type: text/plain;
-Return-Path: <panzella@casholasavings.com>
-To: aart@kvack.org
-Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: andrea@suse.de, akpm@osdl.org, Nick Piggin <piggin@cyberone.com.au>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+FYI 
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+----- Forwarded message from cliff white <cliffw@osdl.org> -----
 
- You have qualified for the lowest rate in years...
+From: cliff white <cliffw@osdl.org>
+Date: Thu, 17 Feb 2005 12:49:16 -0800
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-kernel@vger.kernel.org, alan@lxorguk.ukuu.org.uk
+Subject: Re: 2.6.10-ac12 + kernbench ==  oom-killer: (OSDL)
 
- You could get over $380,000 for as little as $500 a month!
+On Wed, 9 Feb 2005 10:12:06 -0200
+Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
 
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+> On Tue, Feb 08, 2005 at 02:57:07PM -0800, cliff white wrote:
+> > 
+> > Running 2.6.10-ac10 on the STP 1-CPU machines, we don't seem to be able to complete
+> > a kernbench run without hitting the OOM-killer. ( kernbench is multiple kernel compiles,
+> > of course ) Machine is 800 mhz PIII with 1GB memory. We reduce memory for some of the runs.
+> 
+> Cliff, 
+> 
+> Please try recent v2.6.11-rc3, they include a series of OOM killer fixes from Andrea et all.
+> 
 
- 
- To get a free, no obli,gation consultation click below:
+Sorry for the delay in response. Recent -bk runs still show this problem, for example:
+http://khack.osdl.org/stp/300713/logs/TestRunFailed.console.log.txt
+( patch-2.6.11-rc3-bk4 ) 
 
- http://www.sogoodrates.com/x/loan.php?id=nu
+cliffw
+
+> Thanks.
+> 
 
 
+-- 
+"Ive always gone through periods where I bolt upright at four in the morning; 
+now at least theres a reason." -Michael Feldman
 
- Best Regards,
-
- Georgia Gabriel
- 
- to be remov(ed:	http://www.sogoodrates.com/x/st.html
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
