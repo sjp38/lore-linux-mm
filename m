@@ -1,35 +1,32 @@
-Date: Fri, 6 Apr 2001 19:53:30 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Date: Fri, 6 Apr 2001 15:12:01 -0400 (EDT)
+From: Richard Jerrell <jerrell@missioncriticallinux.com>
 Subject: Re: [PATCH] swap_state.c thinko
-In-Reply-To: <20010406210908.A785@athlon.random>
-Message-ID: <Pine.LNX.4.21.0104061950390.1397-100000@localhost.localdomain>
+In-Reply-To: <Pine.LNX.4.21.0104061932300.1374-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.21.0104061503500.12558-100000@jerrell.lowell.mclinux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Apr 2001, Andrea Arcangeli wrote:
-> On Fri, Apr 06, 2001 at 07:37:55PM +0100, Hugh Dickins wrote:
-> > swapper_space.nrpages, that's neat, but I insist it's not right.
-> > You're then double counting into "free" all the swap cache pages
-> > (already included in page_cache_size) which correspond to pages
-> > of swap for running processes - erring in the opposite direction
-> > to the present code.
-> 
-> The whole point is that errirng in the opposite direction is perfectly fine,
-> that's expected.  Understimating is a bug instead. Period.
-> 
-> We always overstimate anyways, we have to because we don't have information
-> about the really freeable memory (think at the buffer cache pinned in the
-> superblock metadata of ext2, do you expect to be able to reclaim it somehow?).
+> swapper_space.nrpages, that's neat, but I insist it's not right.
+> You're then double counting into "free" all the swap cache pages
+> (already included in page_cache_size) which correspond to pages
+> of swap for running processes - erring in the opposite direction
+> to the present code.
 
-Well, that's an interesting point of view... but if it's so okay
-to overestimate, couldn't we simplify vm_enough_pages() somewhat?
+Right.  We still have the same problem.  If you count the swap cache pages
+once, you are underestimating the free memory.  If you count them twice,
+you are overcommitting memory.  What we would need is to check in
+swap_free for swap_map[i] count of 1 and a page->count of 1.  The cell
+references the page, and the page references the cell.  These pages are
+freeable _twice_ because they are sitting on twice as much memory as they
+should be.  I'd say that overestimating your memory is better than denying
+allocation when it's possible.
 
-Hugh
+Rich
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
