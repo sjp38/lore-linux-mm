@@ -1,42 +1,19 @@
-Date: Wed, 17 May 2000 22:07:58 -0300 (BRST)
+Date: Wed, 17 May 2000 23:32:24 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: PATCH: Possible solution to VM problems (take 2)
-In-Reply-To: <yttwvksvhqb.fsf@vexeta.dc.fi.udc.es>
-Message-ID: <Pine.LNX.4.21.0005172205050.3951-100000@duckman.distro.conectiva>
+Subject: [patch] pre9-2 shm balance
+Message-ID: <Pine.LNX.4.21.0005172331320.3951-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 18 May 2000, Juan J. Quintela wrote:
+Hi Linus,
 
->         after some more testing we found that:
-> 1- the patch works also with mem=32MB (i.e. it is a winner also for
->    low mem machines)
-> 2- Interactive performance looks great, I can run an mmap002 with size
->    96MB in an 32MB machine and use an ssh session in the same machine
->    to do ls/vi/... without dropouts, no way I can do that with
->    previous pre-*
-> 3- The system looks really stable now, no more processes killed for
->    OOM error, and we don't see any more fails in do_try_to_free_page.
-
-I am now testing the patch on my small test machine and must
-say that things look just *great*. I can start up a gimp while
-bonnie is running without having much impact on the speed of
-either.
-
-Interactive performance is nice and stability seems to be
-great as well.
-
-I'll test it on my 512MB test machine as well and will have
-more test results tomorrow. This patch is most likely good
-enough to include in the kernel this night ;)
-
-(and even if it isn't, it's a hell of a lot better than
-anything we had before)
+with quintela's latest patch and the small patch below, the
+system works fine again, even under heavy shm stress testing.
 
 regards,
 
@@ -47,6 +24,37 @@ of people. That is its real strength.
 
 Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
 http://www.conectiva.com/		http://www.surriel.com/
+
+
+--- ipc/shm.c.orig	Wed May 17 22:59:47 2000
++++ ipc/shm.c	Wed May 17 23:24:52 2000
+@@ -1468,7 +1468,7 @@
+ }
+ 
+ /*
+- * Goes through counter = (shm_rss >> prio) present shm pages.
++ * Goes through counter = (shm_rss / (prio + 1)) present shm pages.
+  */
+ static unsigned long swap_id; /* currently being swapped */
+ static unsigned long swap_idx; /* next to swap */
+@@ -1483,7 +1483,7 @@
+ 	struct page * page_map;
+ 
+ 	zshm_swap(prio, gfp_mask);
+-	counter = shm_rss >> prio;
++	counter = shm_rss / (prio + 1);
+ 	if (!counter)
+ 		return 0;
+ 	if (shm_swap_preop(&swap_entry))
+@@ -1809,7 +1809,7 @@
+ 	int counter;
+ 	struct page * page_map;
+ 
+-	counter = zshm_rss >> prio;
++	counter = zshm_rss / (prio + 1);
+ 	if (!counter)
+ 		return;
+ next:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
