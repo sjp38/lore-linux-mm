@@ -1,47 +1,66 @@
-Date: Fri, 20 Aug 1999 11:25:27 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [bigmem-patch] 4GB with Linux on IA32
-In-Reply-To: <37BD0559.99C5E320@mandrakesoft.com>
-Message-ID: <Pine.LNX.4.10.9908201120180.1546-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <000801beeb7e$5ed16360$0601a8c0@honey.cs.tsinghua.edu.cn>
+From: "Wang Yong" <wangyong@sun475.cs.tsinghua.edu.cn>
+Subject: =?ISO-8859-1?Q?=BB=D8=B8=B4:?= where does vmlist be initiated?
+Date: Sat, 21 Aug 1999 10:38:57 +0800
+Mime-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-2022-jp"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thierry Vignaud <tvignaud@mandrakesoft.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, x-linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Neil Booth <NeilB@earthling.net>
+Cc: linux-mm mail list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+-----Original Message-----
+.c 1/4 thEE: Neil Booth <NeilB@earthling.net>
+EO 1/4 thEE: Wang Yong <wung_y@263.net>
+3-EI: Linux-MM <
+EOAEU: 1999Ae8OA19EO 4:03
+O/Ia: Re: where does vmlist be initiated?
 
-On Fri, 20 Aug 1999, Thierry Vignaud wrote:
+
 >
-> Yes, but we do can use 24:32 referencse (as
+>Hi Wang,
+>
+>There's only 3 lines that reference it in vmalloc.c, so it
+>shouldn't be too hard to figure out, no?
+>
+>Neil.
+>
 
-Nope.
+Hi Neil,
+  yes, vmlist does only referenced three times in vmalloc.c after it's
+defined as NULL. These references are the only reference of vmlist
+throughout the whole kernel. let's check them:
 
-That's pure Intel propaganda, and has absolutely no basis in reality.
+struct vm_struct * get_vm_area(unsigned long size)
+{
+...
+ for (p = &vmlist; (tmp = *p) ; p = &tmp->next) {
+  if (size + addr < (unsigned long) tmp->addr)
+...
+ }
+}
 
-There's a 13:32 bit address space, with the 13 bits coming from the
-segment registers. True.
+void vfree(void * addr)
+{
+ for (p = &vmlist ; (tmp = *p) ; p = &tmp->next) {
+...
+ }
+}
 
-However, that does NOT give you 45 bits of addressing, however much Intel
-tried to claim that in early literature. The 13:32 address is mapped onto
-a plain linear 32-bit address space, and that's all it gives you.
+long vread(char *buf, char *addr, unsigned long count)
+{
+...
+ for (tmp = vmlist; tmp; tmp = tmp->next) {
+...
+ }
+}
 
-[ In theory, you can play games with the present bit in the segments to
-  make it appear like more, but in practice that is basically useless too,
-  don't even bother mentioning it ]
+i think these three functions will not be able to work if vmlist is null. do
+you think so?
 
-You can make the 36 physical bits available to software the same way
-people used to do expansion memory on a 286 - by having a window and
-having software change that window. Some databases would be happy with
-that. But I much prefer just letting processes have their 3GB worth of
-address space, and being able to map in the occasional big page when
-really needed. 
-
-Or, actually, I'd much prefer a sane architecture that doesn't continually
-try to reinvent the bad idea of memory windows.
-
-			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
