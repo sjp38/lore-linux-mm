@@ -1,23 +1,23 @@
-Message-ID: <19990923173012.B11766@devserv.devel.redhat.com>
-Date: Thu, 23 Sep 1999 17:30:12 -0400
-From: Matt Wilson <msw@redhat.com>
+Date: Thu, 23 Sep 1999 14:55:01 -0700 (PDT)
+From: "H. Peter Anvin" <hpa@transmeta.com>
 Subject: Re: syslinux-1.43 bug [and possible PATCH]
-References: <199909232109.OAA13866@google.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <199909232109.OAA13866@google.engr.sgi.com>; from Kanoj Sarcar on Thu, Sep 23, 1999 at 02:09:58PM -0700
+In-Reply-To: <199909232109.OAA13866@google.engr.sgi.com>
+Message-ID: <Pine.LNX.3.95.990923145424.6856A-100000@cesium.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>, syslinux@linux.kernel.org, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: syslinux@linux.kernel.org, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-This was fixed in 1.44, AFAIK.  HIGHMEM_MAX is now 38000000h.
-We're using 1.45 for our next release.
+This is an old bug; it has been fixed since 1.44 or 1.45.  The current
+version is 1.47.
 
-Matt
-msw@redhat.com
+	-hpa
 
-On Thu, Sep 23, 1999 at 02:09:58PM -0700, Kanoj Sarcar wrote:
+On Thu, 23 Sep 1999, Kanoj Sarcar wrote:
+
 > I have a possible problem to report with syslinux, and a suggested
 > fix. Please send me comments and feedback at kanoj@engr.sgi.com, 
 > since I am not subscribed to the syslinux or kernel lists.
@@ -48,10 +48,9 @@ On Thu, Sep 23, 1999 at 02:09:58PM -0700, Kanoj Sarcar wrote:
 > Kanoj
 > kanoj@engr.sgi.com
 > 
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.rutgers.edu
-> Please read the FAQ at http://www.tux.org/lkml/
+
+<hpa@transmeta.com> at work, <hpa@zytor.com> in private!
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
