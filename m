@@ -1,50 +1,67 @@
-Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA22198
-	for <linux-mm@kvack.org>; Fri, 24 Apr 1998 16:33:44 -0400
-Date: Fri, 24 Apr 1998 21:32:13 +0100
-Message-Id: <199804242032.VAA00961@dax.dcs.ed.ac.uk>
+Date: Fri, 24 Apr 1998 21:37:45 +0100
+Message-Id: <199804242037.VAA01182@dax.dcs.ed.ac.uk>
 From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Subject: Re: filemap_nopage is broken!!
-In-Reply-To: <m1wwcgm48r.fsf@flinx.npwt.net>
-References: <m1vhs1oa10.fsf@flinx.npwt.net>
-	<199804232201.XAA02883@dax.dcs.ed.ac.uk>
-	<m1wwcgm48r.fsf@flinx.npwt.net>
+Subject: Re: Fixing private mappings
+In-Reply-To: <m1g1j4nqll.fsf@flinx.npwt.net>
+References: <Pine.LNX.3.95.980423105842.15346A-100000@as200.spellcast.com>
+	<m1g1j4nqll.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
 To: "Eric W. Biederman" <ebiederm+eric@npwt.net>
-Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, linux-mm@kvack.org
+Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On 23 Apr 1998 19:51:16 -0500, ebiederm+eric@npwt.net (Eric
+On 23 Apr 1998 17:03:02 -0500, ebiederm+eric@npwt.net (Eric
 W. Biederman) said:
 
->>>>>> "ST" == Stephen C Tweedie <sct@dcs.ed.ac.uk> writes:
-ST> I don't think this is necessarily a problem.  The kernel simply does not
-ST> guarantee full correspondance semantics between filesystem updates and
-ST> the page cache for non-aligned pages, but then again, it is not required
-ST> to --- it is not even required to support such mmaps, so I can live with
-ST> an undefined behaviour in this case!
+>>> Definition of Private Mappings:
+>>> A private mapping is a copy-on-write mapping of a file.  
+>>> 
+>>> That is if the file is written to after the mapping is established,
+>>> the contents of the mapping will always remain what the contents of
+>>> the file was at the time of the private mapping.
 
-> Ah, but suppose we have a mythological a.out programmer.
-> This programmer could run a program, doesn't like the result, compiles
-> a new version which overwrites the old, and attempts to execute the
-> new program.  And executes the old!
+BL> Note: 'the initial write reference will create a private copy' -- not
+BL> the act of reading or mapping.
 
-> There may be a lock in there that I haven't spotted, and likely there
-> will be a truncation when the file is overwritten which would flush
-> the page cache but it is possible there isn't.
+> Right.  That is probably the only reasonable way to implement it.
 
-There is.  truncate_inode_pages() will invalidate all of the mappings
-when a file is either truncated or deleted.  Any overwrite of the file
-will do the right thing.
+Indeed.
 
-> I doubt it will be anything like a show stopper for 2.2 but if this
-> code get's touched it should be fixed to do something consistent.  
+> I stated it as I did so what happens if another process writes to the
+> file is clear.  Another process writing to the file will be the
+> `initial write reference'.
 
-I don't think there's any problem.
+No --- in the context of a MAP_PRIVATE mapping, only in-memory writes to
+the privately mapped virtual address space count as write references.  
+
+> So logically MAP_PRIVATE gives you a snapshot of the contents of a
+> file.   Not that it actually takes that snapshot...
+
+No, it shouldn't --- it maps the file into the process address space,
+and all updates to the file are reflected in the process's virtual
+memory copy.  Only if the process tries to write to the file is the COW
+activated.
+
+> Possibly I'm failing to see the difference in the definitions?
+
+Yep.  MAP_PRIVATE mappings preserve the correspondance over writes to
+the file by any mechanism other than modifying the mapping itself.
+
+Note that the semantics are relaxed a bit if we have non-page-aligned
+private maps, in that the correspondance between the mapped image and
+the file contents is no longer always preserved if the file is updated.
+
+> The problem is update_vm_cache only looks currently for the primary
+> inode page.  The one at (offset%PAGE_SIZE)==0.  So the other page at
+> offset%PAGE_SIZE==1k is not updated.
+
+Yep, but we are not required to support non-page-aligned maps at all, so
+hacking it for special read-only cases is no big deal.  Doing a search
+for all overlapping mapped pages would be far too slow.
 
 --Stephen
