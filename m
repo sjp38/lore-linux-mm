@@ -1,47 +1,41 @@
-From: Andreas Dilger <adilger@clusterfs.com>
-Date: Wed, 2 Oct 2002 15:56:49 -0600
-Subject: Re: [RFC][PATCH]  4KB stack + irq stack for x86
-Message-ID: <20021002215649.GY3000@clusterfs.com>
-References: <3D9B62AC.30607@us.ibm.com>
+Subject: Re: NUMA is bust with CONFIG_PREEMPT=y
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <384860000.1033595383@flay>
+References: <3D9B6939.397DB9EA@digeo.com>  <384860000.1033595383@flay>
+Content-Type: text/plain
+Message-Id: <1033596139.27343.14.camel@phantasy>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3D9B62AC.30607@us.ibm.com>
+Date: 02 Oct 2002 18:02:19 -0400
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andrew Morton <akpm@digeo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Oct 02, 2002  14:18 -0700, Dave Hansen wrote:
-> I've resynced Ben's patch against 2.5.40.  However, I'm getting some 
-> strange failures.  The patch is good enough to pass LTP, but 
-> consistently freezes when I run tcpdump on it.
-> 
-> Although I don't have CONFIG_PREEMPT on, I have the feeling that I 
-> need to disable preemption in common_interrupt() like it was before. 
->   Any insights would be appreciated.
+On Wed, 2002-10-02 at 17:49, Martin J. Bligh wrote:
 
-I'm a little bit worried about this patch.  Have you tried something
-like NFS-over-ext3-over-LVM-over-MD or so, which can have a deep stack?
+> I'd favour the latter. It doesn't seem that useful on big machines like this,
+> and adds significant complication ... anyone really want it on a NUMA box? If
+> not, I'll make a patch to disable it for NUMA machines ...
 
-We hit a bunch of deep stack problems like this (overflowing an 8kB stack)
-even without interrupts involved when developing Lustre.  Granted, we
-fixed some large stack allocations in the ext3 indexed-directory code
-and in our own code, but I'm still worried that a 4kB stack is too small.
+I am not one of the 12 people in the world with a NUMA-Q, but I would
+not like to see you disable kernel preemption.
 
-The Stanford checker folks would probably be able to run a test for
-large stack allocations in 2.5.40 if you asked them nicely, and maybe
-even do stack depths for call chains.
+I would really like to see it work on every architecture in every
+configuration.  Is it that hard to make the requisite changes to fix it
+up?
 
-Alternately, you could set up an 8kB stack + IRQ stack and "red-zone"
-the high page of the current 8kB stack and see if it is ever used.
+If nothing else, I think you guys can _infinitely_ benefit from the
+atomicity checking infrastructure that is now in place.
 
-Cheers, Andreas
---
-Andreas Dilger
-http://www-mddsp.enel.ucalgary.ca/People/adilger/
-http://sourceforge.net/projects/ext2resize/
+Besides, why screw yourself over from the day when preemption is a
+requirement? </semi-kidding> ;-)
+
+just my two bits,
+
+	Robert Love
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
