@@ -1,38 +1,62 @@
-Date: Mon, 21 Oct 2002 22:49:59 -0700
+Date: Mon, 21 Oct 2002 22:55:57 -0700
 From: "Martin J. Bligh" <mbligh@aracnet.com>
 Reply-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: ZONE_NORMAL exhaustion (dcache slab)
-Message-ID: <2629107186.1035240598@[10.10.2.3]>
-In-Reply-To: <3DB4D20A.8A579516@digeo.com>
-References: <3DB4D20A.8A579516@digeo.com>
+Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
+Message-ID: <2629464880.1035240956@[10.10.2.3]>
+In-Reply-To: <m17kgbuo0i.fsf@frodo.biederman.org>
+References: <m17kgbuo0i.fsf@frodo.biederman.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm mailing list <linux-mm@kvack.org>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> Oh it's reproduceable OK.  Just run
+>> >> In many cases, this will stop the box from falling over flat on it's 
+>> >> face due to ZONE_NORMAL exhaustion (from pte-chains), or even total
+>> >> RAM exhaustion (from PTEs). Thus the performance gain is infinite ;-)
+>> > 
+>> > So why has no one written a pte_chain reaper?  It is perfectly sane
+>> > to allocate a swap entry and move an entire pte_chain to the swap
+>> > cache.  
+>> 
+>> I think the underlying subsystem does not easily allow for dynamic regeneration,
+>> so it's non-trivial. 
 > 
-> 	make-teeny-files 7 7
+> We swap pages out all of the time in 2.4.x, and that is all I was suggesting 
+> swap out some but not all of the pages, on a very long pte_chain.  And swapping
+> out a page is not terribly complex, unless something very drastic has changed.
 
-Excellent - thanks for that ... will try it.
+Right, it's swapping out the controlling structures without swapping
+out the pages themselves that's harder.
  
-> Maybe you didn't cat /dev/sda2 for long enough?
+>> IMHO, it's better not to fill memory with crap in the first place than
+>> to invent complex methods of managing and shrinking it afterwards. You
+>> only get into pathalogical conditions under sharing situation, else 
+>> it's limited to about 1% of RAM (bad, but manageable) ... thus providing
+>> this sort of sharing nixes the worst of it. Better cache warmth on 
+>> switches (for TLB misses), faster fork+exec, etc. are nice side-effects.
+> 
+> I will agree with that if everything works so the sharing happens,
+> this is a nice feature.
 
-Well, it's a multi-gigabyte partition. IIRC, I just ran it until
-it died with "input/output error" ... which I assumed at the time
-was the end of the partition, but it should be able to find that
-without error, so maybe it just ran out of ZONE_NORMAL ;-)
+I think it will for most of the situations we run aground with now
+(normally 5000 oracle tasks sharing a 2Gb shared segment, or some
+such monster).
  
-> Perhaps we need to multiply the slab cache scanning pressure by the
-> slab occupancy.  That's simple to do.
+>> The ultimate solution is per-object reverse mappings, rather than per
+>> page, but that's a 2.7 thingy now.
+> ???
+> 
+> Last I checked we already had those in 2.4.x, and still in 2.5.x.  The
+> list of place the address space is mapped.
 
-That'd make a lot of sense (to me, at least). I presume you mean
-occupancy on a per-slab basis, not global.
+It's more complicated than that ... I'll let Rik or one of the K42
+guys who understand it better than I do explain it (yeah, I'm wimping
+out on you ;-))
 
 M.
 
