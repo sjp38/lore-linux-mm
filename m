@@ -1,49 +1,64 @@
-Received: from lappi.waldorf-gmbh.de (cacc-14.uni-koblenz.de [141.26.131.14])
-	by mailhost.uni-koblenz.de (8.9.1/8.9.1) with ESMTP id TAA27055
-	for <linux-mm@kvack.org>; Fri, 15 Oct 1999 19:14:02 +0200 (MET DST)
-Date: Fri, 15 Oct 1999 11:58:16 +0200
-From: Ralf Baechle <ralf@oss.sgi.com>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <199910151750.KAA99441@google.engr.sgi.com>
 Subject: Re: locking question: do_mmap(), do_munmap()
-Message-ID: <19991015115816.B948@uni-koblenz.de>
-References: <199910130125.SAA66579@google.engr.sgi.com> <380435A6.93B4B75A@colorfullife.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <380435A6.93B4B75A@colorfullife.com>; from Manfred Spraul on Wed, Oct 13, 1999 at 09:32:54AM +0200
+Date: Fri, 15 Oct 1999 10:50:11 -0700 (PDT)
+In-Reply-To: <19991015115816.B948@uni-koblenz.de> from "Ralf Baechle" at Oct 15, 99 11:58:16 am
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfreds@colorfullife.com>
-Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, "Stephen C. Tweedie" <sct@redhat.com>, viro@math.psu.edu, andrea@suse.de, linux-kernel@vger.rutgers.edu, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org, linux@engr.sgi.com, linux-mips@fnet.fr, linux-mips@vger.rutgers.edu
+To: Ralf Baechle <ralf@oss.sgi.com>
+Cc: manfreds@colorfullife.com, sct@redhat.com, viro@math.psu.edu, andrea@suse.de, linux-kernel@vger.rutgers.edu, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org, linux@cthulhu.engr.sgi.com, linux-mips@fnet.fr, linux-mips@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 13, 1999 at 09:32:54AM +0200, Manfred Spraul wrote:
-
-> Kanoj Sarcar wrote:
-> > Here's a primitive patch showing the direction I am thinking of. I do not
-> > have any problem with a spinning lock, but I coded this against 2.2.10,
-> > where insert_vm_struct could go to sleep, hence I had to use sleeping
-> > locks to protect the vma chain.
 > 
-> I found a few places where I don't know how to change them.
+> On Wed, Oct 13, 1999 at 09:32:54AM +0200, Manfred Spraul wrote:
 > 
-> 1) arch/mips/mm/r4xx0.c:
-> their flush_cache_range() function internally calls find_vma().
-> flush_cache_range() is called by proc/mem.c, and it seems that this
-> function cannot get the mmap semaphore.
-> Currently, every caller of flush_cache_range() either owns the kernel
-> lock or the mmap_sem.
-> OTHO, this function contains a race anyway [src_vma can go away if
-> handle_mm_fault() sleeps, src_vma is used at the end of the function.]
+> > Kanoj Sarcar wrote:
+> > > Here's a primitive patch showing the direction I am thinking of. I do not
+> > > have any problem with a spinning lock, but I coded this against 2.2.10,
+> > > where insert_vm_struct could go to sleep, hence I had to use sleeping
+> > > locks to protect the vma chain.
+> > 
+> > I found a few places where I don't know how to change them.
+> > 
+> > 1) arch/mips/mm/r4xx0.c:
+> > their flush_cache_range() function internally calls find_vma().
+> > flush_cache_range() is called by proc/mem.c, and it seems that this
+> > function cannot get the mmap semaphore.
+> > Currently, every caller of flush_cache_range() either owns the kernel
+> > lock or the mmap_sem.
+> > OTHO, this function contains a race anyway [src_vma can go away if
+> > handle_mm_fault() sleeps, src_vma is used at the end of the function.]
+> 
+> The sole reason for fiddling with the VMA is that we try to optimize
+> icache flushing for non-VM_EXEC vmas.  This optimization is broken
+> as the MIPS hardware doesn't make a difference between read and execute
+> in page permissions, so the icache might be dirty even though the vma
+> has no exec permission.  So I'll have to re-implement this whole things
+> anyway.  The other problem is an efficience problem.  A call like
+> flush_cache_range(some_mm_ptr, 0, TASK_SIZE) would take a minor eternity
+> and for MIPS64 a full eternity ...
+> 
+>   Ralf
 
-The sole reason for fiddling with the VMA is that we try to optimize
-icache flushing for non-VM_EXEC vmas.  This optimization is broken
-as the MIPS hardware doesn't make a difference between read and execute
-in page permissions, so the icache might be dirty even though the vma
-has no exec permission.  So I'll have to re-implement this whole things
-anyway.  The other problem is an efficience problem.  A call like
-flush_cache_range(some_mm_ptr, 0, TASK_SIZE) would take a minor eternity
-and for MIPS64 a full eternity ...
+Ralf,
 
-  Ralf
+Looking in 2.3.21, all the find_vma's in arch/mips/mm/r4xx0.c are used to 
+set a flag called "text" which is not used at all. Also, if the find_vma
+returns null, the code basically does nothing. So the optimized icache
+flushing is probably not implemented yet? Then, the only reason to 
+do the flush_vma currently is to check whether the lower level flush 
+routine should be called. Without holding some locks, this is always
+tricky to do on a third party mm.
+
+Btw, this probably belongs to linux-mips, but what do you mean by saying
+the icache might be dirty? Its been a while since I worked on the
+older mips chips, but as far as I remember, the icache can not hold 
+dirty lines.
+
+Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
