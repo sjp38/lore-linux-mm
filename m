@@ -1,78 +1,54 @@
-Date: Wed, 16 Aug 2000 21:18:21 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: some silly things
-In-Reply-To: <00081702242301.00670@localhost.localdomain>
-Message-ID: <Pine.LNX.4.21.0008162111130.11513-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: jordi polo <wigsm@LatinMail.com>
+Date: Wed, 16 Aug 2000 20:26:15 -0400
+Subject: some silly things
+Message-Id: <200008162026446.SM00157@latinmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: root <mumismo@wanadoo.es>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 17 Aug 2000, root wrote:
+ - it seems to me that you don't do nr_inactive_clear_pages   when you get a new inactive_clear page
+ 
+ - I don't know why you have to test if a page is dirty in reclaim_page(), there isn't the place, it is supposed that when the page is written, in other place must be allocated in inactive_dirty. Here we can expect inactive_clean pages are really inactive clean pages.
+ 
+ - what do you think of 4 lists, active_clean active_dirty inactive_clean inactive_dirty. When a write operation occurs in a page this will go to active_dirty, from active_dirty to inactive_dirty , from active_clean to inactive_clean directly without need to test if it's dirty or not.
+ In fact is the same but with 4 list you can make a state machine and you can track exactly a page trought the states, but your 3 list approach seems all right for me too.
+ 
+> - And the improvement I was trying to explain you the other day, something this way:
+> 
+> if ((PageActiveClear(page)) && (page->age < MINIM )){
+> deactivate_page(page); //this page will go to inactive_clear
+> }
+> else if ((PageActiveDirty(page)) && (!page->age )){
+> deactivate_page(page); // this will go to inactive_dirty 
+> }
+ 
+> Here MINIM will be something like 1 (or 2) (maybe need to change
+PAGE_AGE_START and PAGE_AGE_ADV), this will do that the clear pages have it
+easier to go to inactive_clear and then easier to become free pages and I think
+this is a good thing because it's harder to get a free page from inactive_dirty
+than from inactive_clear. > I know in your code first begin to free the
+inactive_clear and when you are running off it you use inactive_dirty, that's
+allright, but if you do it my way there will be more pages in inactive_clear
+that will make that you need to free less pages from inactive_dirty  
 
->  - it seems to me that you don't do nr_inactive_clear_pages++
-> when you get a new inactive_clear page
+- age_page_down() : page->age /=2;   > you make a silly improvement with  
+page->age >>=2; 
+- you can do in the zone structure a field named available_pages=
+free_pages inactive_free so you mustn't calculate it everytime.   
 
-That's because there is no global counter for the number
-of inactive_clean pages. We only count these per zone.
 
->  - I don't know why you have to test if a page is dirty in
-> reclaim_page(), there isn't the place, it is supposed that when
-> the page is written, in other place must be allocated in
-> inactive_dirty. Here we can expect inactive_clean pages are
-> really inactive clean pages.
+ Just hoping these things will be useful to you.
+ Jordi Polo (trusmis)
+ mumismo@wanadoo.es
 
-Unless somebody does something with the page _after_ it is
-added to the inactive_clean list. Granted, __find_page_nolock
-should have moved the page to the active list by then, but
-that is only valid in the _current_ VM and I would like to
-have the code resistant against some future VM modifications
-too.
 
-Defensive programming is important if you want to avoid (or
-detect) bugs. Both bugs in your own code and in other code.
 
->  - what do you think of 4 lists, active_clean active_dirty
-> inactive_clean inactive_dirty. When a write operation occurs in
-> a page this will go to active_dirty, from active_dirty to
-> inactive_dirty , from active_clean to inactive_clean directly
-> without need to test if it's dirty or not.
 
-Doesn't make any sense. Checking for dirty state will have to
-be done somewhere, so why not do it just before we actually
-plan on writing the page to disk?
 
->  In fact is the same but with 4 list you can make a state
-> machine and you can track exactly a page trought the states,
 
-Wooohoooo, fun!  ;)
-
-> > if ((PageActiveClear(page)) && (page->age < MINIM )){
-> > deactivate_page(page); //this page will go to inactive_clear
-> > }
-> > else if ((PageActiveDirty(page)) && (!page->age )){
-> > deactivate_page(page); // this will go to inactive_dirty 
-> > }
-
-NOOOOOOO!  The whole idea is to have -page aging- and
--page flushing- SEPARATE, so that we always make the
-right decision in flushing pages.
-
-Whether a page is dirty or clean should not make any
-difference in how "important" we think it is to keep
-the page in memory.
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+_________________________________________________________
+http://www.latinmail.com.  Gratuito, latino y en espanol.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
