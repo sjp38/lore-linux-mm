@@ -1,35 +1,33 @@
-Date: Sun, 6 Jul 2003 20:22:39 -0700
-From: "Randy.Dunlap" <randy.dunlap@verizon.net>
-Subject: Re: kgdb-irq=3 kgdb-io=0x038f
-Message-Id: <20030706202239.6ed7c5bb.randy.dunlap@verizon.net>
-In-Reply-To: <20030706124720.038c7b71.rddunlap@osdl.org>
-References: <20030706124720.038c7b71.rddunlap@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Mon, 7 Jul 2003 01:24:26 -0400 (EDT)
+From: Zwane Mwaikambo <zwane@arm.linux.org.uk>
+Subject: Re: 2.5.74-mm1 (p4-clockmod does not compile)
+In-Reply-To: <20030703112026.GO26348@holomorphy.com>
+Message-ID: <Pine.LNX.4.53.0307070124050.15575@montezuma.mastecende.com>
+References: <20030703023714.55d13934.akpm@osdl.org> <1057229141.1479.16.camel@LNX.iNES.RO>
+ <20030703110713.GN26348@holomorphy.com> <1057231068.1479.18.camel@LNX.iNES.RO>
+ <20030703112026.GO26348@holomorphy.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ecashin@uga.edu
-Cc: linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Dumitru Ciobarcianu <Dumitru.Ciobarcianu@iNES.RO>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-| Hi.  Has anyone ever tried making kernel boot options to set the kgdb
-| serial settings instead of setting them statically at .config
-| generation?
-| 
-| If not, would that be an easy thing to do?
+On Thu, 3 Jul 2003, William Lee Irwin III wrote:
 
-Looks doable, unless I'm missing some small quirk.
+> On Thu, Jul 03, 2003 at 02:17:48PM +0300, Dumitru Ciobarcianu wrote:
+> > I had to mannually change the file (the patch was giving rejects), but
+> > it compiles now.
+> 
+> Great! Could you send back the diff? (or alternatively, the file
+> contents if you didn't preserve the old contents) so I can send the
+> proper diff upstream?
 
-I haven't seen such a patch.  However, ISTM that most (of my)
-debugging is in an almost static environment anyway.
+Didn't -mm get something for this?
 
-If you are interested in trying to make such a patch and need some
-help, I'll work on it with you.
-
---
-~Randy
-~ http://developer.osdl.org/rddunlap/ ~ http://www.xenotime.net/linux/ ~
+-- 
+function.linuxpower.ca
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
