@@ -1,42 +1,39 @@
-Date: Mon, 25 Feb 2002 18:54:12 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] struct page shrinkage
-Message-ID: <20020226025412.GP3511@holomorphy.com>
-References: <20020225.174911.82037594.davem@redhat.com> <Pine.LNX.4.33L.0202252254380.7820-100000@imladris.surriel.com> <20020225.180122.120462472.davem@redhat.com>
+Date: Tue, 26 Feb 2002 10:21:49 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: thanks
+Message-ID: <20020226102149.D2023@redhat.com>
+References: <F193xCZPs6AvbEPDjQh0000c5bd@hotmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <20020225.180122.120462472.davem@redhat.com>
+In-Reply-To: <F193xCZPs6AvbEPDjQh0000c5bd@hotmail.com>; from shen_haiying@hotmail.com on Tue, Feb 26, 2002 at 10:18:27AM +0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: riel@conectiva.com.br, marcelo@conectiva.com.br, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Shen Haiying <shen_haiying@hotmail.com>
+Cc: linux-mm@kvack.org, raz@mailhost.directlink.net, owner-linux-mm@kvack.org, kanoj@google.engr.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 25, 2002 at 06:01:22PM -0800, David S. Miller wrote:
-> Rik, not every architecture has a "counter" member of
-> atomic_t, that is the problem.  This is a hard bug, please
-> fix it.  It is an opaque type, accessing its' implementation
-> directly is therefore illegal in the strongest way possible.
+Hi,
 
-> From: Rik van Riel <riel@conectiva.com.br>
-> This exact same code has been in -rmap for a few months
-> and went into 2.5 just over a week ago.  It doesn't seem
-> to give any problems ...
+On Tue, Feb 26, 2002 at 10:18:27AM +0800, Shen Haiying wrote:
+ 
+> I am a student of Wayne State university. I take the course of "advanced 
+> operating system" this semester. In order to finish my assignment, I need 
+> to know the source code of "shmget, shmat, shmdt, shmctl" in linux. I 
+> searched them on the internet in this whole afternoon and night, but I 
+> could not find it. Now, I am very depressed. I think this is my last hope 
+> to ask you for help. Could you please send me the Linux OS source code 
+> about the "shmget, shmat, shmdt, shmctl"? 
 
-On Mon, Feb 25, 2002 at 06:01:22PM -0800, David S. Miller wrote:
-> Because I haven't pushed my sparc64 changesets yet, I'm doing
-> that tonight.
+Visit www.kernel.org.  Search for linux-2.4.18.tar.gz.  Download it.
+Unpack it.  See "linux/ipc/shm.c".  If it takes you more than half a
+day, you probably need to find an easier course. :-)
 
-I think I'm to blame for init_page_count(). My bad.
+There is also an online Linux kernel source cross-reference available
+at http://lxr.linux.no/ to let you see individual source files without
+downloading the entire source code.
 
-A small bit of analysis seemed to reveal that atomicity wasn't needed
-in free_area_init_core(). Apparently the solution I suggested here was
-non-portable. Perhaps a better way will crop up later.
-
-Cheers,
-Bill
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
