@@ -1,76 +1,73 @@
-Received: from cs.utexas.edu (root@cs.utexas.edu [128.83.139.9])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA10133
-	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 13:43:12 -0500
-Message-Id: <199901121842.MAA28563@feta.cs.utexas.edu>
-From: "Paul R. Wilson" <wilson@cs.utexas.edu>
-Date: Tue, 12 Jan 1999 12:42:52 -0600
-Subject: Re: question about try_to_swap_out()
+Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA10185
+	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 13:45:35 -0500
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+References: <Pine.LNX.3.95.990112095401.17705A-100000@penguin.transmeta.com>
+Reply-To: Zlatko.Calusic@CARNet.hr
+MIME-Version: 1.0
+From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Date: 12 Jan 1999 19:44:45 +0100
+In-Reply-To: Linus Torvalds's message of "Tue, 12 Jan 1999 09:54:50 -0800 (PST)"
+Message-ID: <87d84kl49u.fsf@atlas.CARNet.hr>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org, wilson@cs.utexas.edu
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, Andrea Arcangeli <andrea@e-mind.com>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->From sct@redhat.com Tue Jan 12 12:15:03 1999
->Subject: Re: question about try_to_swap_out()
->
->Hi,
->
->On Tue, 12 Jan 1999 10:58:52 -0600, "Paul R. Wilson"
-><wilson@cs.utexas.edu> said:
->
->> I would think that it could be significant if you're skipping DMA
->> pages, which are valuable.  You want to get them back in a timely
->> manner, so you want to go ahead and age them normally.
->
->We don't ever do that.  We can _require_ a DMA allocation, but we never
->explicitly avoid allocating DMA pages.
+Linus Torvalds <torvalds@transmeta.com> writes:
 
-Sorry, I said it backwards.   I meant "non-DMA", not "DMA".
+> On Tue, 12 Jan 1999, Stephen C. Tweedie wrote:
+> > 
+> > On 11 Jan 1999 00:04:11 -0600, ebiederm+eric@ccr.net (Eric W. Biederman)
+> > said:
+> > 
+> > > Oh, and just as a side note we are currently unfairly penalizing
+> > > threaded programs by doing for_each_task instead of for_each_mm in the
+> > > swapout code...
+> > 
+> > I know, on my TODO list...
+> 
+> Actually, this one is _really_ easy to fix.
+> 
+> The truly trivial fix is to just move "swap_cnt" into the mm structure,
+> and you're all done. You'd still walk the list with for_each_task(), but
+> it no longer matters.
+> 
+> 		Linus
+> 
 
-What I mean is that if try_to_swap_out() is told to look for a DMA page
-(via the __GFP_DMA flag in the gfp_maks argument), it skips non-DMA
-pages in terms of re-setting their reference bits---the clock sweeps
-right by them without re-setting their reference bits.
+Not related to this, but I (hopefully correctly) observed that SHM
+swap I/O is done synchronously.
 
-It seems to me that this means that if the clock reaches a non-DMA'able
-page whose reference bit is set, that bit will stay set for at least
-another clock sweep IF try_to_swap_out() is looking for a DMA page.
+Could somebody spare a minute to explain why is that so, and what
+needs to be done to make SHM swapping asynchronous?
 
-I don't know whether it would ever occur in practice, but it seems
-that a non-DMA page could stay in memory indefinitely after the
-last touch to it, if it just happens that the clock hand keeps
-sweeping by that page at times that it's looking for DMA pages.
-The page would keep getting skipped.
 
-It seems to me that the test about DMA's ought to be broken
-out of the conditional that tests whether the page is locked
-or reserved, and moved after the testing and re-setting of
-the reference bit.  (Maybe the test for locked pages, too.  I'm
-not sure about what's going on with locking.)  This would make
-the code more comprehensible, if nothing else.
+Also, while we're at MM fixes, I'm appending below a small patch that
+will improve interactive feel.
 
----
+After number of async pages gets bigger than pager_daemon.swap_cluster
+(= SWAP_CLUSTER_MAX), swapin readahead becomes synchronous, and that
+hurts performance. It is better to skip readahead in such situations,
+and that is also more fair to swapout. Andrea came to exactly the same
+conclusion, independent of me (on the same day :)).
 
-More generally, it seems to me that the stuff about DMAable
-pages is inelegant.  Would it work to just keep sweeping the
-clock until the right kind of memory is freed, rather than
-putting weird tests inside the clock-sweeping code itself, 
-and passing weird flags down through the call chains?  
+diff -urN linux-pre-7/mm/page_alloc.c linux/mm/page_alloc.c
+--- linux-pre-7/mm/page_alloc.c	Tue Jan 11 07:28:06 1999
++++ linux/mm/page_alloc.c	Tue Jan 11 07:29:44 1999
+@@ -358,6 +358,8 @@
+ 	for (i = 1 << page_cluster; i > 0; i--) {
+ 	      if (offset >= swapdev->max)
+ 		      return;
++	      if (atomic_read(&nr_async_pages) > pager_daemon.swap_cluster)
++		      return;
+ 	      if (!swapdev->swap_map[offset] ||
+ 		  swapdev->swap_map[offset] == SWAP_MAP_BAD ||
+ 		  test_bit(offset, swapdev->swap_lockmap))
 
-(Is the time cost of freeing pages of the "wrong" type signficant?
-I wouldn't think so---amortized, it's no more expensive because
-it's work we should do anyway.  And if you're thrashing, CPU
-cost isn't the big issue.)
-
-I assume there's a reason it's done this way---e.g., that
-finding the wrong kind of free able page (and _doing_ something
-with it) temporarily uses more memory or something.  I'd
-think that could be gotten around.  It seems to me that there
-has to be a simpler way to do things, but I could be missing
-the boat.
-
-Whatever the rationale, I'd like to document it.
-
+Regards,
+-- 
+Zlatko
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
