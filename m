@@ -1,70 +1,29 @@
-Date: Mon, 17 Nov 2003 16:46:22 -0500 (EST)
-From: Zwane Mwaikambo <zwane@arm.linux.org.uk>
+Date: Mon, 17 Nov 2003 14:42:58 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [PATCH][2.6-mm] Fix 4G/4G X11/vm86 oops
-In-Reply-To: <Pine.LNX.4.53.0311151427080.30079@montezuma.fsmlabs.com>
-Message-ID: <Pine.LNX.4.53.0311171639260.30079@montezuma.fsmlabs.com>
-References: <Pine.LNX.4.44.0311141344290.5877-100000@home.osdl.org>
- <Pine.LNX.4.53.0311141954160.27998@montezuma.fsmlabs.com>
- <Pine.LNX.4.53.0311151427080.30079@montezuma.fsmlabs.com>
+In-Reply-To: <Pine.LNX.4.53.0311171639260.30079@montezuma.fsmlabs.com>
+Message-ID: <Pine.LNX.4.44.0311171441380.8840-100000@home.osdl.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
+To: Zwane Mwaikambo <zwane@arm.linux.org.uk>
+Cc: Ingo Molnar <mingo@elte.hu>, "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 15 Nov 2003, Zwane Mwaikambo wrote:
-
-> The 4G/4G page fault handling path doesn't appear to handle faults 
-> happening whilst in vm86. The regs->xcs != __USER_CS so it confused the in 
-> kernel test.
+On Mon, 17 Nov 2003, Zwane Mwaikambo wrote:
 > 
-> However i'm still debugging the X11 triple fault in test9-mm3
+> I've managed to `fix` the triple fault (see further below for the patch 
+> in all it's glory).
 
-I've managed to `fix` the triple fault (see further below for the patch 
-in all it's glory). Unfortunately i have been unable to come up with a 
-simpler workaround which is fewer instructions and easier to debug. I have 
-tried the following;
+What's the generated assembly language for this function with and without 
+the "fix"?
 
-mb()/barrier()
-flush_tlb_all()
-wbinvd()
-outb(0x80,0x00)
-local_irq_save(flags); local_irq_enable(); loop(); local_irq_restore(flags);
-long_loop()
+If adding that printk fixes a triple fault, the issue is not likely to be 
+the printk itself as much as the difference in code that the compiler 
+generates - stack frame, memory re-ordering etc...
 
-What i do know is that in the following code;
-
-	__asm__ __volatile__(
-		"xorl %%eax,%%eax; movl %%eax,%%fs; movl %%eax,%%gs\n\t"
-		"movl %0,%%esp\n\t"
-		"movl %1,%%ebp\n\t"
-		"jmp resume_userspace"
-		: /* no outputs */
-		:"r" (&info->regs), "r" (tsk->thread_info) : "ax");
-
-It does get to resume_userspace as putting a $0 into %ebp will oops in 
-__switch_to
-
-And here is the current 'workaround'. Any hints?
-
-Index: arch/i386/kernel/vm86.c
-===================================================================
-RCS file: /build/cvsroot/linux-2.6.0-test9-mm3/arch/i386/kernel/vm86.c,v
-retrieving revision 1.1.1.1
-diff -u -p -B -r1.1.1.1 vm86.c
---- arch/i386/kernel/vm86.c	13 Nov 2003 08:07:17 -0000	1.1.1.1
-+++ arch/i386/kernel/vm86.c	17 Nov 2003 21:45:13 -0000
-@@ -312,6 +311,8 @@ static void do_sys_vm86(struct kernel_vm
- 	tsk->thread.screen_bitmap = info->screen_bitmap;
- 	if (info->flags & VM86_SCREEN_BITMAP)
- 		mark_screen_rdonly(tsk);
-+
-+	printk("ooh la la\n");
- 	__asm__ __volatile__(
- 		"xorl %%eax,%%eax; movl %%eax,%%fs; movl %%eax,%%gs\n\t"
- 		"movl %0,%%esp\n\t"
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
