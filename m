@@ -1,93 +1,71 @@
-Message-ID: <41DADFB9.2090607@sgi.com>
-Date: Tue, 04 Jan 2005 12:26:01 -0600
-From: Ray Bryant <raybry@sgi.com>
-MIME-Version: 1.0
-Subject: Re: process page migration
-References: <41D99743.5000601@sgi.com>	<1104781061.25994.19.camel@localhost>	 <41D9A7DB.2020306@sgi.com> <20050104.234207.74734492.taka@valinux.co.jp>	 <41DAD2AF.80604@sgi.com> <1104860456.7581.21.camel@localhost>
-In-Reply-To: <1104860456.7581.21.camel@localhost>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Tue, 4 Jan 2005 14:11:18 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: page migration\
+Message-ID: <20050104161118.GD7399@logos.cnet>
+References: <20050103171344.GD14886@logos.cnet> <41D9AC2D.90409@sgi.com> <20050103183811.GE14886@logos.cnet> <20050105.004221.41649018.taka@valinux.co.jp> <41DAD393.1030009@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <41DAD393.1030009@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm <linux-mm@kvack.org>, Rick Lindsley <ricklind@us.ibm.com>, "Matthew C. Dobson [imap]" <colpatch@us.ibm.com>
+To: Ray Bryant <raybry@sgi.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, haveblue@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Tue, 2005-01-04 at 11:30 -0600, Ray Bryant wrote:
+On Tue, Jan 04, 2005 at 11:34:11AM -0600, Ray Bryant wrote:
+> >>>
+> >>>Absolutely.  I guess the only question is when to propose the merge with 
+> >>>-mm
+> >>>etc.  Is your defragmentation code in a good enough state to be proposed 
+> >>>as
+> >>>well, or should we wait a bit?
+> >>
+> >>No, we have to wait - its not ready yet.
+> >>
+> >>But it is really simple and small, as soon as the "asynchronous" memory 
+> >>migration is working.
+> >>
+> >>
+> >>>I think we need at least one user of the code before we can propose that 
+> >>>the
+> >>>memory migration code be merged, or do you think we the arguments are 
+> >>>strong
+> >>>enough we can proceed with users "pending"?
+> >>
+> >>IMO the arguments are strong enough that we can proceed with the current 
+> >>state.
+> >>I'm all for it.
+> >>
+> >>Andrew knows the importance and the users of the memory migration 
+> >>infrastructure.
+> >>
+> >>Dave, Hirokazu, what are your thoughts on this
+> >
+> >
+> >Andrew is interested in our approach.
+> >With Ray's help, it will proceed faster and become stable soon:)
+> >
+> >
+> >>Shall we CC Andrew?
+> >>
+> >
+> >
 > 
->
+> If it is ok with everyone, I will email Andrew and see how he'd like to 
+> proceed on this, whether he'd prefer we contribute a solid "user" of the 
+> page migration code with a merged page migration patch, or if it would be 
+> ok to
+> submit the page migration code stand alone, given that there are multiple 
+> users "pending".
 > 
-> 
-> We already have scheduler code which has some knowledge of when a
-> process is dragged from one node to another.  Combined with the per-node
-> RSS, could we make a decision about when a process needs to have
-> migration performed on its pages on a more automatic basis, without the
-> syscalls?
-> 
+> Of course, I come to this effort late in the game, and if anyone else would
+> prefer to do that instead, I will happily oblige them.
 
-The only time I am proposing to do process and memory migration is in
-response to requests issued from userspace.  This is not an automatic
-process (see below for more details.)
+Please do that publically on linux-kernel - Dave has been doing most of the hardwork 
+but I do not think he will mind if you start the discussion with Andrew.
 
-> We could have a tunable for how aggressive this mechanism is, so that
-> the process wouldn't start running again on the more strict SGI machines
-> until a very large number of the pages are pulled over.  However, on
-> machines where process latency is more of an issue, the tunable could be
-> set to a much less aggressive value.
-> 
-> This would give normal, somewhat less exotic, NUMA machines the benefits
-> of page migration without the need for the process owner to do anything
-> manually to them, while also making sure that we keep the number of
-> interfaces to the migration code to a relative minimum.  
-> 
-> -- Dave
-> 
->
-
-What I am working on is indeed manual process and page migration in a NUMA
-system.  Specifically, we are running with cpusets, and the idea is to
-support moving a job from one cpuset to another in response to batch scheduler
-related decisions.  (The basic scenario is that a bunch of jobs are running,
-each in its own cpuset, when a new high priority job arrives at the batch
-scheduler.  The batch scheduler will pick some job to suspend, and start
-the new job in that cpuset.  At some later point, one of the other jobs
-finishes, and the scheduler now decides to move the suspended job to the
-newly free cpuset.)  However, I don't want to tie the migration code I
-am working on into cpusets, since the future of that is still uncertain.
-
-Hence the migration system call I am proposing is something like:
-
-     migrate_process_pages(pid, numnodes, old_node_list, new_node_list)
-
-where the node lists are one dimensional arrays of size numnodes.
-Pages on old_node_list[i] are moved to new_node_list[i].
-
-(If cpusets exist on the underlying system, we will use the cpuset
-infrastructure to tell us which pid's need to be moved.)
-
-The only other new system call needed is something to update the memory
-policy of the process to correspond to the new set of nodes.
-
-Existing interfaces can be used to do the rest of the migration
-functionality.
-
-SGI's experience with automatically detecting when to pull pages from one
-node to another based on program usage patterns has not been good.  IRIX
-supported this kind of functionality, and all it ever seemed to do was to
-move the wrong page at the wrong time (so I am told; it was before my time
-with SGI...)
-
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+Thanks Ray!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
