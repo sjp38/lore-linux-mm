@@ -1,53 +1,56 @@
-Reply-To: <drharris0237t68@earthlink.net>
-Message-ID: <026e23a05c2a$5734e6b2$5dc02ad4@hmxftk>
-From: <drharris0237t68@earthlink.net>
-Subject: Do Cell Phones Cause Cancer?                                                           
-Date: Wed, 12 Jun 0102 04:53:00 +1000
-MiME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----=_NextPart_000_00D3_87E64C3E.C0146A66"
+Message-ID: <3D076339.1070301@shaolinmicro.com>
+Date: Wed, 12 Jun 2002 23:05:29 +0800
+From: David Chow <davidchow@shaolinmicro.com>
+MIME-Version: 1.0
+Subject: Re: slab cache
+References: <3D036BBE.4030603@shaolinmicro.com> <20020610095750.B2571@redhat.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: blah@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-------=_NextPart_000_00D3_87E64C3E.C0146A66
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: base64
+Stephen C. Tweedie wrote:
+
+>Hi,
+>
+>On Sun, Jun 09, 2002 at 10:52:46PM +0800, David Chow wrote:
+> 
+>
+>>I am trying to improve the speed of my fs code. I have a fixed sized 
+>>buffer for my fs, I currently use kmalloc for allocation of buffers 
+>>greater than 4k, use get_free_page for 4k buffers and vmalloc for large 
+>>buffers.
+>>
+>
+>Allocations larger than pagesize always put a higher stress on the VM
+>and reduce performance.  Your best bet for top performance will be
+>simply to perform no allocations larger than pagesize.  You can use a
+>slab cache for those allocations if you want, and that may have some
+>advantages depending on the locality of allocations in your code.
+>
+>Using 4k buffers does not limit your ability to use larger data
+>structures --- you can still chain 4k buffers together by creating an
+>array of struct page* pointers via which you can access the data.
+>
+>--Stephen
+>
+Yes, but for me it is very hard. When doing compression code, most of 
+the stuff is not even byte aligned, most of them might be bitwise 
+operated, it need very change to existing code. I've already use 
+get_free_page to allocate memory that is 4k to avoid some stress to the 
+vm, I have no idea about the difference of get_fee_page and the slab 
+cache. All my linear buffers stuff is already using array of page 
+pointers, if there any benefits for changing them to use slabcache? 
+Please advice, thanks.
+
+regards,
+David Chow
 
 
-ZmFpdGgNCkRvIE1vYmlsZSBQaG9uZXMgQ2F1c2UgQ2FuY2VyIQ0KDQpTdHVk
-aWVzIGhhdmUgc2hvd24gdGhhdCBlbGVjdHJvbWFnbmV0aWMgd2F2ZXMgdGhh
-dCBjb21lIGZyb20geW91ciBjZWxsIHBob25lIG1heSBiZSBjb3JyZWxhdGVk
-IHRvIEJyYWluIENhbmNlci4gIA0KDQpPbiBvdXIgd2Vic2l0ZSB3ZSBvZmZl
-ciBhIGxpbmsgdG8gTm9raWFzIGFjdHVhbCBwYXRlbnQgb24gYSBkZXZpY2Ug
-dGhhdCBzaGllbGRzIHRoZSBodW1hbiBoZWFkIGZyb20gY2VsbCBwaG9uZSBy
-YWRpYXRpb24uICBTdGlsbCBwZW9wbGUgaW5zaXN0IG9uIA0KcmVqZWN0aW5n
-IGNsYWltcyBvZiBhbnkgaGVhbHRoIGhhemFyZHMgZnJvbSB1c2luZyBtb2Jp
-bGUgcGhvbmVzLg0KDQpTY2llbnRpc3RzIGFyZSBub3cgcmVwb3J0aW5nIHRo
-YXQgY2VsbCBwaG9uZXMgbWlnaHQgZW1pdCBhIGRhbmdlcm91cyByYWRpYXRp
-b24uDQpEb24ndCBiZSB0aGUgcGhvbmUgY29tYXBueXMgZ3VuaWVhIHBpZyEg
-IFByb3RlY3QgWW91cnNlbGYgVG9kYXkhDQoNClRoZSBhcmUgcHJlc3MgcmVs
-ZWFzZXMgb24gb3VyIHNpdGUgdGhhdCB3aWxsIFNIT0NLIGV2ZXJ5IGNlbGwg
-cGhvbmUgdXNlciEhISENCg0KV2Ugc2VsbCBhIHByb2R1Y3QgdGhhdCBoZWxw
-cyByZWR1Y2UgaGFybWZ1bCBlbGVjdHJvbWFnbmV0aWMgcmFkaWF0aW9uIGZy
-b20geW91ciBoZWFkLiAgSXQgaXMgYnJhbmQgbmV3LCBwYXRlbnRlZCwgZWFz
-eSB0byBpbnN0YWxsLCBlYXN5IHRvIHVzZSxmaXRzIGV2ZXJ5IHBob25lIG1h
-ZGUsIGFuZCB2ZXJ5IGFmZm9yZGFibGUuICANCg0KVmlzaXQgdXMgb25saW5l
-IGF0DQpodHRwOnd3dy5jb21vLXZlbmRlci5jb20vc2hpZWxkcw0KDQoNCldl
-IGFyZSBjdXJyZW50bHkgaGF2aW5nIGEgU3BlY2lhbC4NCkJ1eSAzIGdldCAx
-IEZSRUUNCmh0dHA6Ly93d3cuY29tby12ZW5kZXIuY29tL3NoaWVsZHMNCg0K
-DQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoN
-Cg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0K
-DQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoNCg0KDQoN
-Cg0KDQoNCg0KDQoNCg0KDQoNCg0KDQpmYWl0aA0KVGhpcyBpcyBhIG9uZSB0
-aW1lIG1haWxpbmcuICBUbyBiZSByZW1vdmVkIGZyb20gYW55IGZ1dHVyZSBt
-YWlsaW5ncyBwbGVhc2Ugc2VuZCBhbiBlbWFpbCB3aXRoIHRoZSBzdWJqZWN0
-ICJyZW1vdmUiIHRvIHJlbW92ZTVAZXlvdS5jb20NCjgzMzdIeHNpNi03NDVh
-Y1dhMjQ5MnJCam4xLTczN0FxalQ0Nzc0bGxZdmw0MA==
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
 see: http://www.linux-mm.org/
-------=_NextPart_000_00D3_87E64C3E.C0146A66--
