@@ -1,49 +1,47 @@
-Date: Mon, 3 Jul 2000 14:59:55 +0100
+Date: Mon, 3 Jul 2000 14:56:42 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: get_page_map in 2.2 vs 2.4
-Message-ID: <20000703145955.C3284@redhat.com>
-References: <20000630175015Z131177-21002+72@kanga.kvack.org>
+Subject: Re: More 2.2.17pre9 VM issues
+Message-ID: <20000703145642.B3284@redhat.com>
+References: <20000703111813.D2699@redhat.com> <Pine.LNX.4.21.0007031314190.12740-100000@inspiron.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20000630175015Z131177-21002+72@kanga.kvack.org>; from ttabi@interactivesi.com on Fri, Jun 30, 2000 at 12:38:19PM -0500
+In-Reply-To: <Pine.LNX.4.21.0007031314190.12740-100000@inspiron.random>; from andrea@suse.de on Mon, Jul 03, 2000 at 01:28:48PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: Linux MM mailing list <linux-mm@kvack.org>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Fri, Jun 30, 2000 at 12:38:19PM -0500, Timur Tabi wrote:
-> 
-> In 2.4, it's been changed to this:
-> 
-> /* 
->  * Given a physical address, is there a useful struct page pointing to
->  * it?  This may become more complex in the future if we start dealing
->  * with IO-aperture pages in kiobufs.
->  */
-> 
-> static inline struct page * get_page_map(struct page *page)
-> {
-> 	if (page > (mem_map + max_mapnr))
-> 		return 0;
-> 	return page;
-> }
+On Mon, Jul 03, 2000 at 01:28:48PM +0200, Andrea Arcangeli wrote:
 
-Yes.  get_page_map() takes a "struct page *" which has been obtained
-through some magic pointer arithmetic; we still have to do the bounds
-checking to make sure that the resulting pointer pointed to a valid
-part of the mem_map array.  The comment about IO aperture memory still
-stands, as in the future we may want to support the creation of
-additional mem_map arrays at run time to map struct page *'s beyond
-the end of physical memory, to allow kiobuf I/O on things like
-framebuffers.
+> Stephen, are we really sure we still need kpiod?i
 
-> Am I missing something?  What was wrong with the original implementation?
+Yes.
 
-It didn't work on IA32 systems with >=1GB memory.
+> Isn't GFP_IO meant to be
+> clear if anybody is helding any filesystem lock (like superblock lock)?
+
+That has never been a requirement, and I'd think it would be
+dangerous to make such a new rule so close to 2.4.  
+
+Certainly, in 2.2 we would do all sorts of stuff while holding
+filesystem locks (in particular the inode and superblock locks).  Any
+file write, including mm page writes, would take the inode lock.  
+
+Right now, in 2.4, the mm locks less but write(2) still takes the
+inode lock.  That means that we _must_ be able to allocate with GFP_IO
+while holding the inode lock, since (a) write()s go through the page
+cache, and (b) touching the user's buffer during the write() can cause
+pages to be swapped in, invoking parts of the VM which assume they are
+able to use GFP_IO safely.
+
+Sure, you could audit every single path through every filesystem to
+make sure that there are no possible deadlocks here, but the whole
+point of kpiod is to separate out the pageout from the process doing
+the write() in such situations to make deadlock impossible.
 
 Cheers,
  Stephen
