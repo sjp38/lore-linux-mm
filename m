@@ -1,61 +1,69 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id BAA21118
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2003 01:57:39 -0800 (PST)
-Date: Fri, 14 Feb 2003 01:58:02 -0800
-From: Andrew Morton <akpm@digeo.com>
+From: Thomas Schlichter <schlicht@uni-mannheim.de>
 Subject: Re: 2.5.60-mm2
-Message-Id: <20030214015802.66800166.akpm@digeo.com>
+Date: Fri, 14 Feb 2003 11:10:41 +0100
+References: <20030214013144.2d94a9c5.akpm@digeo.com> <20030214093856.GC13845@codemonkey.org.uk>
 In-Reply-To: <20030214093856.GC13845@codemonkey.org.uk>
-References: <20030214013144.2d94a9c5.akpm@digeo.com>
-	<20030214093856.GC13845@codemonkey.org.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+MIME-Version: 1.0
+Content-Type: multipart/signed;
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1;
+  boundary="Boundary-02=_pCMT+DYGeShQy4x";
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200302141110.49348.schlicht@uni-mannheim.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Jones <davej@codemonkey.org.uk>
+To: Dave Jones <davej@codemonkey.org.uk>, Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Jones <davej@codemonkey.org.uk> wrote:
->
+--Boundary-02=_pCMT+DYGeShQy4x
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Description: signed data
+Content-Disposition: inline
+
+On Friday, 14. February 2003 10:38, Dave Jones wrote:
 > On Fri, Feb 14, 2003 at 01:31:44AM -0800, Andrew Morton wrote:
-> 
 >  > . Considerable poking at the NFS MAP_SHARED OOM lockup.  It is limping
->  >   along now, but writeout bandwidth is poor and it is still struggling. 
+>  >   along now, but writeout bandwidth is poor and it is still struggling.
 >  >   Needs work.
->  > 
->  > . There's a one-liner which removes an O(n^2) search in the NFS writeback
->  >   path.  It increases writeout bandwidth by 4x and decreases CPU load from
->  >   100% to 3%.  Needs work.
-> 
+>  >
+>  > . There's a one-liner which removes an O(n^2) search in the NFS
+>  > writeback path.  It increases writeout bandwidth by 4x and decreases C=
+PU
+>  > load from 100% to 3%.  Needs work.
+>
 > I'm puzzled that you've had NFS stable enough to test these.
-
-This was just writing out a single 400 megabyte file with `dd'.  I didn't try
-anything fancier.
-
-> How much testing has this stuff had? Here 2.5.60+bk clients fall over under
+> How much testing has this stuff had? Here 2.5.60+bk clients fall over und=
+er
 > moderate NFS load. (And go splat quickly under high load).
-> 
+>
 > Trying to run things like dbench causes lockups, fsx/fstress made it
 > reboot, plus the odd 'cheating' errors reported yesterday.
+>
+> 		Dave
 
-I have not tried pushing NFS with complex access patterns recently.
+I've got NFS problems with 2.5.5x - 60-bk3, too, but here I can workaround=
+=20
+them by simply pinging the NFS-server every second... Funny, but it works!
+Perhaps this can help finding the real bug?!
 
+  Thomas
+--Boundary-02=_pCMT+DYGeShQy4x
+Content-Type: application/pgp-signature
+Content-Description: signature
 
-BTW, there's a little patch in there from Trond which I forgot to mention: it
-implements sendfile for NFS, so loop-on-NFS works again.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.1 (GNU/Linux)
 
+iD8DBQA+TMCpYAiN+WRIZzQRAkV8AJwKY8v7t1jvBMFbyNXaFt1c5QzKbQCdFcXB
+/KQsXPQPTki+B5HzH3QsQZc=
+=PNko
+-----END PGP SIGNATURE-----
 
-But we have a refcounting bug somewhere:
-
-# mount server:/dir /mnt/point
-# losetup /dev/loop0 /mnt/point/file
-# mount /dev/loop0 /mnt/loop0
-# umount /mnt/loop0
-# losetup -d /dev/loop0 
-# umount /mnt/point
-umount: /mnt/point: device is busy
+--Boundary-02=_pCMT+DYGeShQy4x--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
