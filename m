@@ -1,44 +1,39 @@
-Date: Mon, 25 Sep 2000 18:43:38 +0100
+Date: Mon, 25 Sep 2000 18:45:34 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: the new VMt
-Message-ID: <20000925184338.L2615@redhat.com>
-References: <20000925164249.G2615@redhat.com> <E13dbTq-0005Gg-00@the-village.bc.nu>
+Subject: Re: refill_inactive()
+Message-ID: <20000925184534.M2615@redhat.com>
+References: <Pine.LNX.4.21.0009251306430.14614-100000@duckman.distro.conectiva> <Pine.LNX.4.10.10009250914100.1666-100000@penguin.transmeta.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <E13dbTq-0005Gg-00@the-village.bc.nu>; from alan@lxorguk.ukuu.org.uk on Mon, Sep 25, 2000 at 05:51:49PM +0100
+In-Reply-To: <Pine.LNX.4.10.10009250914100.1666-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Mon, Sep 25, 2000 at 09:17:54AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Ingo Molnar <mingo@elte.hu>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Mon, Sep 25, 2000 at 05:51:49PM +0100, Alan Cox wrote:
-> > > 2 active processes, no swap
-> > > 
-> > > #1					#2
-> > > kmalloc 32K				kmalloc 16K
-> > > OK					OK
-> > > kmalloc 16K				kmalloc 32K
-> > > block					block
-> > > 
-> > 
-> > ... and we get two wakeup_kswapd()s.  kswapd has PF_MEMALLOC and so is
-> > able to eat memory which processes #1 and #2 are not allowed to touch.
+On Mon, Sep 25, 2000 at 09:17:54AM -0700, Linus Torvalds wrote:
 > 
-> 'no swap'
+> On Mon, 25 Sep 2000, Rik van Riel wrote:
+> > 
+> > Hmmm, doesn't GFP_BUFFER simply imply that we cannot
+> > allocate new buffer heads to do IO with??
+> 
+> No.
+> 
+> New buffer heads would be ok - recursion is fine in theory, as long as it
+> is bounded, and we might bound it some other way (I don't think we
+> _should_ do recursion here due to the stack limit, but at least it's not
+> a fundamental problem).
 
-kswapd is perfectly capable of evicting clean pages and triggering any
-necessary writeback of dirty filesystem data at this point, even if
-there is no swap.  If there is truly nothing kswapd can do to recover
-here, then we are truly OOM.  Otherwise, kswapd should be able to free
-the required memory, providing that the PF_MEMALLOC flag allows it to
-eat into a reserved set of free pages which nobody else can allocate
-once physical free pages gets below a certain threshold.
+Right, but we still need to be careful --- we _were_ getting stack
+overflows occassionally before the GFP_BUFFER semantics were set up to
+prevent that recursion.
 
---Stephen 
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
