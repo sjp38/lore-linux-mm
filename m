@@ -1,30 +1,49 @@
-Received: from alogconduit1ah.ccr.net (ccr@alogconduit1ah.ccr.net [208.130.159.8])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA28138
-	for <linux-mm@kvack.org>; Sat, 17 Apr 1999 20:05:10 -0400
-Subject: Re: Memory management report
-References: <Pine.LNX.4.10.9904181444030.2637-100000@pahadi.cse.iitd.ernet.in>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 18 Apr 1999 13:29:11 -0500
-In-Reply-To: "N.Surender Reddy"'s message of "Sun, 18 Apr 1999 14:44:49 +0530 (IST)"
-Message-ID: <m1emlhu6iw.fsf@flinx.ccr.net>
+Received: from pneumatic-tube.sgi.com (pneumatic-tube.sgi.com [204.94.214.22])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA02566
+	for <Linux-MM@kvack.org>; Wed, 21 Apr 1999 21:20:00 -0400
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <199904220012.RAA57724@google.engr.sgi.com>
+Subject: boundary condition bug fix for vmalloc()
+Date: Wed, 21 Apr 1999 17:12:37 -0700 (PDT)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "N.Surender Reddy" <csu96170@cse.iitd.ernet.in>
-Cc: linux-mm@kvack.org
+To: Linux-MM@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
->>>>> "NR" == N Surender Reddy <csu96170@cse.iitd.ernet.in> writes:
+Hi,
 
-NR> Hi,
-NR> 	Can someone please send me some docs/reports on memory management
-NR> in linux. Please this is urgent.
+Under heavy load conditions, get_vm_area() might end up allocating an
+address range beyond VMALLOC_END. The problem is after the for loop
+in get_vm_area() terminates, no consistency check (addr > VMALLOC_END
+- size) is performed on the "addr". 
 
-There are lots of types of documentation, and lots of variations on
-memory management.
+I believe the following patch will fix the problem:
 
-Could you specify a little more clearly what you are looking for?
-If you say what you need it for that would probably help as well.
+--- vmalloc.old		Wed Apr 21 16:52:05 1999
++++ mm/vmalloc.c	Wed Apr 21 16:53:08 1999
+@@ -161,11 +161,11 @@
+        for (p = &vmlist; (tmp = *p) ; p = &tmp->next) {
+                if (size + addr < (unsigned long) tmp->addr)
+                        break;
++               addr = tmp->size + (unsigned long) tmp->addr;
+                if (addr > VMALLOC_END-size) {
+                        kfree(area);
+                        return NULL;
+                }
+-               addr = tmp->size + (unsigned long) tmp->addr;
+        }
+        area->addr = (void *)addr;
+        area->size = size + PAGE_SIZE;
+ 
+Please let me know if this patch is pulled into the source tree, 
+so I can update my tree.
 
-Eric
+Thanks.
+
+Kanoj
+kanoj@engr.sgi.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
