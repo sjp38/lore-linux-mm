@@ -1,50 +1,35 @@
-Date: Thu, 29 Jan 2004 17:20:52 +1100
-From: Nathan Scott <nathans@sgi.com>
-Subject: Re: Fix sleep_on abuse in XFS, Was: Re: 2.6.2-rc2-mm1 (Breakage?)
-Message-ID: <20040129062052.GC2474@frodo>
-References: <20040127233402.6f5d3497.akpm@osdl.org> <200401281313.03790.ender@debian.org> <200401281225.37234.s0348365@sms.ed.ac.uk> <20040128133357.A28038@infradead.org> <1075300114.1633.156.camel@hades.cambridge.redhat.com> <20040128150206.A28974@infradead.org>
-Mime-Version: 1.0
+Message-ID: <20040129143822.49204.qmail@web40702.mail.yahoo.com>
+Date: Thu, 29 Jan 2004 06:38:22 -0800 (PST)
+From: sandeep chavan <sandy_pict@yahoo.com>
+Subject: How to access remote proc file system?
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040128150206.A28974@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, David Woodhouse <dwmw2@infradead.org>, Alistair John Strachan <s0348365@sms.ed.ac.uk>, linux-kernel@vger.kernel.org, David =?iso-8859-1?Q?Mart=EDnez?= Moreno <ender@debian.org>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 28, 2004 at 03:02:06PM +0000, Christoph Hellwig wrote:
-> ...
->  	INIT_LIST_HEAD(&tmp);
->  	do {
->  		/* swsusp */
->  		if (current->flags & PF_FREEZE)
->  			refrigerator(PF_IOTHREAD);
->  
-> -		if (pbd_active == 1) {
-> -			mod_timer(&pb_daemon_timer,
-> -				  jiffies + pb_params.flush_interval.val);
-> -			interruptible_sleep_on(&pbd_waitq);
-> -		}
-> -
-> -		if (pbd_active == 0) {
-> -			del_timer_sync(&pb_daemon_timer);
-> -		}
-> +		schedule_timeout(pb_params.flush_interval.val);
+ Hi all. I am an enggineering student working on a 
+project distributed systems monitoring and management.
+ I want to ask u that how can i access /proc files
+from
+ remote machine? suppose i want to watch /proc/cpuinfo
+of machine A from macine B. Then how can i do it?
+Using this i want to monitor and manage the network
+from a central location eliminating the need for me
+(i.e.administrator) to login at each client machine to
+see it's status. Storing the result in buffer and then
+sending it is one way as i can see. but the work will
+become tedious. Another way suggested to me is to use
+SSH. Setup password-less authentication for SSH and
+then 
+acces /proc of the other machines. 
 
-After a bit more testing, looks like we'll also need a
 
-		current->state = TASK_INTERRUPTIBLE;
-
-line before the schedule_timeout call, else pagebufd eats
-a whole lot of system time on one CPU.
-
-I'll send an XFS update to Linus and Andrew tomorrow after
-some further testing.
-
-thanks.
-
--- 
-Nathan
+__________________________________
+Do you Yahoo!?
+Yahoo! SiteBuilder - Free web site building tool. Try it!
+http://webhosting.yahoo.com/ps/sb/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
