@@ -1,63 +1,54 @@
-Message-ID: <3DF8B1A8.1080303@earthlink.net>
-Date: Thu, 12 Dec 2002 08:56:24 -0700
-From: Joseph A Knapka <jknapka@earthlink.net>
+Subject: rmap15a swappy?
+From: Sean Neakums <sneakums@zork.net>
+Date: Thu, 12 Dec 2002 17:46:49 +0000
+Message-ID: <6uu1hjruye.fsf@zork.zork.net>
 MIME-Version: 1.0
-Subject: Re: Question on swapping
-References: <3DF071C3.C3E1EC39@scs.ch> <1039224592.4551.57.camel@amol.in.ishoni.com>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Amol Kumar Lad <amolk@ishoni.com>
-Cc: Martin Maletinsky <maletinsky@scs.ch>, linux-mm@kvack.org, kernelnewbies@nl.linux.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Amol Kumar Lad wrote:
->For the first time P would never be found in the swap cache, infact
-> try_to_swap_out shall do following
-> a] Page is dirty (in page table entry), so set PG_DIRTY in struct page
+I just fitted an extra 512M of RAM to my laptop, and though there is
+currently about 400M free, it is still hitting swap.  I seem to recall
+that older rmaps generally only started to page stuff out when there
+was no more memory free.  (My recollection may be faulty, though.)
 
-This appears to be the *only* place in the kernel where pte dirty
-bits are propagated into the mem_map.
+Some random info:
 
-> b] Allocate a swap entry and add this page to swap cache
-> c] release the page, and add the modify page table entry to point it to
-> swap entry
-> 
-> Now We have 
-> a] Page table entry for P contains swap info
-> b] Page P in swap cache
-> c] PG_DIRTY _is_ set (infact for a page in swap cache this is always
-> true)
-> 
-> Do remember, along with the swap cache P may be party of inactive_dirty
-> list.
-> 
-> The actual swapping to backing store is done by page scanner.
-> It shall do following. Assume it has decided to _really_ free P
-> 1] As page is dirty, call the page write back function. Thus here for
-> the first time page found its place in swap.
-> 2] send P back home, to buddy allocator
-> 
-> If process A again access the page, then page fault handler shall do
-> following
-> 1] allocate a swap cache page
-> 2] read the page from swap.
-> 3] Modify page table entry of A to point to this page 
+[revox(~)] uname -a
+Linux revox 2.4.20-rmap15a-4 #1 Mon Dec 9 12:47:13 GMT 2002 i686 unknown unknown GNU/Linux
+[revox(~)] cat /proc/meminfo 
+        total:    used:    free:  shared: buffers:  cached:
+Mem:  792940544 288563200 504377344        0  3063808 184758272
+Swap: 539852800 34787328 505065472
+MemTotal:       774356 kB
+MemFree:        492556 kB
+MemShared:           0 kB
+Buffers:          2992 kB
+Cached:         146456 kB
+SwapCached:      33972 kB
+Active:         110840 kB
+ActiveAnon:      78764 kB
+ActiveCache:     32076 kB
+Inact_dirty:         0 kB
+Inact_laundry:  139960 kB
+Inact_clean:      7644 kB
+Inact_target:    51688 kB
+HighTotal:           0 kB
+HighFree:            0 kB
+LowTotal:       774356 kB
+LowFree:        492556 kB
+SwapTotal:      527200 kB
+SwapFree:       493228 kB
+[revox(~)] uptime
+ 17:42:26 up 41 min,  6 users,  load average: 0.00, 0.02, 0.03
 
-So now the page is not marked dirty in the mem_map. What if A *now*
-writes the page and then tries to swap it out? That's Martin's question:
-in that case, we have a page that's in the swap cache; whose
-page struct is *not* marked dirty; but which *is* actually dirty.
-How do we know the page will be kept up to date on disk?
-
-I used to understand how this worked, but I've forgotten. Or
-maybe I never really understood it.
-
-Cheers,
-
--- Joe
-
+-- 
+ /                          |
+[|] Sean Neakums            |  Questions are a burden to others;
+[|] <sneakums@zork.net>     |      answers a prison for oneself.
+ \                          |
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
