@@ -1,36 +1,54 @@
-Date: Wed, 19 Mar 2003 12:10:55 -0800
-From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.65-mm2
-Message-Id: <20030319121055.685b9b8c.akpm@digeo.com>
-In-Reply-To: <1048103489.1962.87.camel@spc9.esa.lanl.gov>
+From: "Steven P. Cole" <elenstev@mesatop.com>
+Reply-To: elenstev@mesatop.com
+In-Reply-To: <20030319121055.685b9b8c.akpm@digeo.com>
 References: <20030319012115.466970fd.akpm@digeo.com>
-	<1048103489.1962.87.camel@spc9.esa.lanl.gov>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	 <1048103489.1962.87.camel@spc9.esa.lanl.gov>
+	 <20030319121055.685b9b8c.akpm@digeo.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Message-Id: <1048107434.1743.12.camel@spc1.esa.lanl.gov>
+Mime-Version: 1.0
+Date: 19 Mar 2003 13:57:14 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steven Cole <elenstev@mesatop.com>
+To: Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Steven Cole <elenstev@mesatop.com> wrote:
->
-> On Wed, 2003-03-19 at 02:21, Andrew Morton wrote:
+On Wed, 2003-03-19 at 13:10, Andrew Morton wrote:
+> Steven Cole <elenstev@mesatop.com> wrote:
+> >
+> > On Wed, 2003-03-19 at 02:21, Andrew Morton wrote:
+> > > 
+> > > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.65/2.5.65-mm2/
+> > > 
 > > 
-> > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.65/2.5.65-mm2/
-> > 
+> > I am seeing a significant degradation of interactivity under load with
+> > recent -mm kernels.  The load is dbench on a reiserfs file system with
+> > increasing numbers of clients.  The test machine is single PIII, IDE,
+> > 256MB memory, all kernels PREEMPT.
 > 
-> I am seeing a significant degradation of interactivity under load with
-> recent -mm kernels.  The load is dbench on a reiserfs file system with
-> increasing numbers of clients.  The test machine is single PIII, IDE,
-> 256MB memory, all kernels PREEMPT.
+> (This email brought to you while running dbench 128 on ext3)
+> 
+> There's a pretty big reiserfs patch in -mm.  Are you able to whip up
+> an ext2 partition and see if that displays the same problem?
+> 
 
-(This email brought to you while running dbench 128 on ext3)
+I repeated the test on an ext3 partition, and the response with 28
+dbench clients running is definitely better, although I'm starting to
+get some stalls of a couple seconds while typing this in Evolution on
+the machine under test.  Now it's becoming intolerable, so I aborted the
+dbench run so I could finish this email.
 
-There's a pretty big reiserfs patch in -mm.  Are you able to whip up
-an ext2 partition and see if that displays the same problem?
+This was with 2.5.65-mm2 and elevator=as.  I'll repeat soon with
+elevator=deadline.  I didn't try typing in Evolution with 2.5.65-bk
+under high loads, so I'll also give that a try.
 
+Summary: using ext3, the simple window shake and scrollbar wiggle tests
+were much improved, but really using Evolution left much to be desired.
+
+Steven
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
