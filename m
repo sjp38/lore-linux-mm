@@ -1,531 +1,78 @@
-Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
-	id 17voXW-0006Xn-00
-	for <linux-mm@kvack.org>; Sun, 29 Sep 2002 17:35:58 -0700
-Date: Sun, 29 Sep 2002 17:35:58 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: hugetlbfs-2.5.39-3
-Message-ID: <20020930003558.GO22942@holomorphy.com>
-Mime-Version: 1.0
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id RAA15406
+	for <linux-mm@kvack.org>; Sun, 29 Sep 2002 17:52:37 -0700 (PDT)
+Message-ID: <3D97A052.276A6D59@digeo.com>
+Date: Sun, 29 Sep 2002 17:52:34 -0700
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: Re: hugetlbfs-2.5.39-3
+References: <20020930003558.GO22942@holomorphy.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch exports functionality similar to ramfs but utiizing the
-hugetlbfs interface to mmap its files. It's a straightforward derivative
-of ramfs requiring only hugetlbpage.c to export some prefaulting logic.
+William Lee Irwin III wrote:
+> 
+>> ..
+> +int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
+> +{
+> +       struct mm_struct *mm = current->mm;
+> +       unsigned long addr;
+> +       int ret = 0;
+> +
+> +       BUG_ON(vma->vm_start & ~HPAGE_MASK);
+> +       BUG_ON(vma->vm_end & ~HPAGE_MASK);
+> +
+> +       spin_lock(&mm->page_table_lock);
+> +       for (addr = vma->vm_start; addr < vma->vm_end; addr += HPAGE_SIZE) {
+> +               unsigned long idx;
+> +               pte_t *pte = huge_pte_alloc(mm, addr);
+> +               struct page *page;
+> +
+> +               if (!pte) {
+> +                       ret = -ENOMEM;
+> +                       goto out;
+> +               }
+> +               if (!pte_none(*pte))
+> +                       continue;
+> +
+> +               idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
+> +                       + (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
+> +               page = find_get_page(mapping, idx);
+> +               if (!page) {
+> +                       page = alloc_hugetlb_page();
+> +                       if (!page) {
+> +                               ret = -ENOMEM;
+> +                               goto out;
+> +                       }
+> +                       add_to_page_cache(page, mapping, idx);
+> +               }
+> +               set_huge_pte(mm, vma, page, pte, vma->vm_flags & VM_WRITE);
+> +       }
+> +out:
+> +       spin_unlock(&mm->page_table_lock);
+> +       return ret;
+> +}
 
-Verified on a 16GB machine running 16K tasks mmapping a shared 1GB
-hugetlbfs file. Only 130MB of pagetable space was required.
+huge_pte_alloc() is a sleeping function.
 
+When you plug that one, I'd appreciate it if you could find a way
+of not taking mapping->page_lock inside mm->page_table_lock.  Those
+locks have "no relationship" at present (I think), and it'd be nice
+to keep it that way.
 
-Bill
+But putting page_lock inside page_table_lock would be the right
+ordering if it's unavoidable.  page_lock is a very inner lock,
+and shall become a very short-held one.
 
+So I suggest you do the "is it there, no, allocate it, is it there
+now, yes, oh gee we raced" thing.
 
-diff --minimal -Nru a/arch/i386/mm/hugetlbpage.c b/arch/i386/mm/hugetlbpage.c
---- a/arch/i386/mm/hugetlbpage.c	Sun Sep 29 16:22:38 2002
-+++ b/arch/i386/mm/hugetlbpage.c	Sun Sep 29 16:22:38 2002
-@@ -17,7 +17,7 @@
- #include <asm/tlb.h>
- #include <asm/tlbflush.h>
- 
--static struct vm_operations_struct hugetlb_vm_ops;
-+struct vm_operations_struct hugetlb_vm_ops;
- struct list_head htlbpage_freelist;
- spinlock_t htlbpage_lock = SPIN_LOCK_UNLOCKED;
- extern long htlbpagemem;
-@@ -44,24 +44,22 @@
- static struct page *
- alloc_hugetlb_page(void)
- {
--	struct list_head *curr, *head;
-+	int i;
- 	struct page *page;
- 
- 	spin_lock(&htlbpage_lock);
--
--	head = &htlbpage_freelist;
--	curr = head->next;
--
--	if (curr == head) {
-+	if (list_empty(&htlbpage_freelist)) {
- 		spin_unlock(&htlbpage_lock);
- 		return NULL;
- 	}
--	page = list_entry(curr, struct page, list);
--	list_del(curr);
-+
-+	page = list_entry(htlbpage_freelist.next, struct page, list);
-+	list_del(&page->list);
- 	htlbpagemem--;
- 	spin_unlock(&htlbpage_lock);
- 	set_page_count(page, 1);
--	memset(page_address(page), 0, HPAGE_SIZE);
-+	for (i = 0; i < (HPAGE_SIZE/PAGE_SIZE); ++i)
-+		clear_highpage(&page[i]);
- 	return page;
- }
- 
-@@ -459,6 +457,46 @@
- 	 return retval;
- }
- 
-+int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
-+{
-+	struct mm_struct *mm = current->mm;
-+	unsigned long addr;
-+	int ret = 0;
-+
-+	BUG_ON(vma->vm_start & ~HPAGE_MASK);
-+	BUG_ON(vma->vm_end & ~HPAGE_MASK);
-+
-+	spin_lock(&mm->page_table_lock);
-+	for (addr = vma->vm_start; addr < vma->vm_end; addr += HPAGE_SIZE) {
-+		unsigned long idx;
-+		pte_t *pte = huge_pte_alloc(mm, addr);
-+		struct page *page;
-+
-+		if (!pte) {
-+			ret = -ENOMEM;
-+			goto out;
-+		}
-+		if (!pte_none(*pte))
-+			continue;
-+
-+		idx = ((addr - vma->vm_start) >> HPAGE_SHIFT)
-+			+ (vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT));
-+		page = find_get_page(mapping, idx);
-+		if (!page) {
-+			page = alloc_hugetlb_page();
-+			if (!page) {
-+				ret = -ENOMEM;
-+				goto out;
-+			}
-+			add_to_page_cache(page, mapping, idx);
-+		}
-+		set_huge_pte(mm, vma, page, pte, vma->vm_flags & VM_WRITE);
-+	}
-+out:
-+	spin_unlock(&mm->page_table_lock);
-+	return ret;
-+}
-+
- static int
- alloc_private_hugetlb_pages(int key, unsigned long addr, unsigned long len,
- 			    int prot, int flag)
-@@ -540,6 +578,13 @@
- 	return (int) htlbzone_pages;
- }
- 
--static struct vm_operations_struct hugetlb_vm_ops = {
-+static struct page * hugetlb_nopage(struct vm_area_struct * area, unsigned long address, int unused)
-+{
-+	BUG();
-+	return NULL;
-+}
-+
-+struct vm_operations_struct hugetlb_vm_ops = {
- 	.close	= zap_hugetlb_resources,
-+	.nopage = hugetlb_nopage,
- };
-diff --minimal -Nru a/fs/Config.in b/fs/Config.in
---- a/fs/Config.in	Sun Sep 29 16:22:38 2002
-+++ b/fs/Config.in	Sun Sep 29 16:22:38 2002
-@@ -56,6 +56,11 @@
- bool 'Virtual memory file system support (former shm fs)' CONFIG_TMPFS
- define_bool CONFIG_RAMFS y
- 
-+if [ "$CONFIG_HUGETLB_PAGE" = "y" ] ; then
-+   bool 'HugeTLB file system support' CONFIG_HUGETLBFS
-+   define_bool CONFIG_HUGETLBFS y
-+fi
-+
- tristate 'ISO 9660 CDROM file system support' CONFIG_ISO9660_FS
- dep_mbool '  Microsoft Joliet CDROM extensions' CONFIG_JOLIET $CONFIG_ISO9660_FS
- dep_mbool '  Transparent decompression extension' CONFIG_ZISOFS $CONFIG_ISO9660_FS
-diff --minimal -Nru a/fs/Makefile b/fs/Makefile
---- a/fs/Makefile	Sun Sep 29 16:22:38 2002
-+++ b/fs/Makefile	Sun Sep 29 16:22:38 2002
-@@ -46,6 +46,7 @@
- obj-$(CONFIG_EXT2_FS)		+= ext2/
- obj-$(CONFIG_CRAMFS)		+= cramfs/
- obj-$(CONFIG_RAMFS)		+= ramfs/
-+obj-$(CONFIG_HUGETLBFS)		+= hugetlbfs/
- obj-$(CONFIG_CODA_FS)		+= coda/
- obj-$(CONFIG_INTERMEZZO_FS)	+= intermezzo/
- obj-$(CONFIG_MINIX_FS)		+= minix/
-diff --minimal -Nru a/fs/hugetlbfs/Makefile b/fs/hugetlbfs/Makefile
---- /dev/null	Wed Dec 31 16:00:00 1969
-+++ b/fs/hugetlbfs/Makefile	Sun Sep 29 16:22:38 2002
-@@ -0,0 +1,9 @@
-+#
-+# Makefile for the linux ramfs routines.
-+#
-+
-+obj-$(CONFIG_HUGETLBFS) += hugetlbfs.o
-+
-+hugetlbfs-objs := inode.o
-+
-+include $(TOPDIR)/Rules.make
-diff --minimal -Nru a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
---- /dev/null	Wed Dec 31 16:00:00 1969
-+++ b/fs/hugetlbfs/inode.c	Sun Sep 29 16:22:38 2002
-@@ -0,0 +1,352 @@
-+/*
-+ * Resizable simple ram filesystem for Linux.
-+ *
-+ * Copyright (C) 2000 Linus Torvalds.
-+ *               2000 Transmeta Corp.
-+ *
-+ * Usage limits added by David Gibson, Linuxcare Australia.
-+ * This file is released under the GPL.
-+ */
-+
-+/*
-+ * NOTE! This filesystem is probably most useful
-+ * not as a real filesystem, but as an example of
-+ * how virtual filesystems can be written.
-+ *
-+ * It doesn't get much simpler than this. Consider
-+ * that this file implements the full semantics of
-+ * a POSIX-compliant read-write filesystem.
-+ *
-+ * Note in particular how the filesystem does not
-+ * need to implement any data structures of its own
-+ * to keep track of the virtual data: using the VFS
-+ * caches is sufficient.
-+ */
-+
-+#include <linux/module.h>
-+#include <linux/fs.h>
-+#include <linux/pagemap.h>
-+#include <linux/highmem.h>
-+#include <linux/init.h>
-+#include <linux/string.h>
-+#include <linux/smp_lock.h>
-+#include <linux/backing-dev.h>
-+
-+#include <asm/uaccess.h>
-+
-+/* some random number */
-+#define HUGETLBFS_MAGIC	0x958458f6
-+
-+static struct super_operations hugetlbfs_ops;
-+static struct address_space_operations hugetlbfs_aops;
-+struct file_operations hugetlbfs_file_operations;
-+static struct inode_operations hugetlbfs_dir_inode_operations;
-+
-+static struct backing_dev_info hugetlbfs_backing_dev_info = {
-+	.ra_pages	= 0,	/* No readahead */
-+	.memory_backed	= 1,	/* Does not contribute to dirty memory */
-+};
-+
-+static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
-+{
-+	struct inode *inode =file->f_dentry->d_inode;
-+	struct address_space *mapping = inode->i_mapping;
-+	int ret;
-+
-+	down(&inode->i_sem);
-+
-+	UPDATE_ATIME(inode);
-+	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
-+	vma->vm_ops = &hugetlb_vm_ops;
-+	ret = hugetlb_prefault(mapping, vma);
-+
-+	up(&inode->i_sem);
-+
-+	return ret;
-+}
-+
-+/*
-+ * Read a page. Again trivial. If it didn't already exist
-+ * in the page cache, it is zero-filled.
-+ */
-+static int hugetlbfs_readpage(struct file *file, struct page * page)
-+{
-+	return -EINVAL;
-+}
-+
-+static int hugetlbfs_prepare_write(struct file *file, struct page *page, unsigned offset, unsigned to)
-+{
-+	return -EINVAL;
-+}
-+
-+static int hugetlbfs_commit_write(struct file *file, struct page *page, unsigned offset, unsigned to)
-+{
-+	return -EINVAL;
-+}
-+
-+struct inode *hugetlbfs_get_inode(struct super_block *sb, int mode, int dev)
-+{
-+	struct inode * inode = new_inode(sb);
-+
-+	if (inode) {
-+		inode->i_mode = mode;
-+		inode->i_uid = current->fsuid;
-+		inode->i_gid = current->fsgid;
-+		inode->i_blksize = PAGE_CACHE_SIZE;
-+		inode->i_blocks = 0;
-+		inode->i_rdev = NODEV;
-+		inode->i_mapping->a_ops = &hugetlbfs_aops;
-+		inode->i_mapping->backing_dev_info = &hugetlbfs_backing_dev_info;
-+		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-+		switch (mode & S_IFMT) {
-+		default:
-+			init_special_inode(inode, mode, dev);
-+			break;
-+		case S_IFREG:
-+			inode->i_fop = &hugetlbfs_file_operations;
-+			break;
-+		case S_IFDIR:
-+			inode->i_op = &hugetlbfs_dir_inode_operations;
-+			inode->i_fop = &simple_dir_operations;
-+
-+			/* directory inodes start off with i_nlink == 2 (for "." entry) */
-+			inode->i_nlink++;
-+			break;
-+		case S_IFLNK:
-+			inode->i_op = &page_symlink_inode_operations;
-+			break;
-+		}
-+	}
-+	return inode;
-+}
-+
-+/*
-+ * File creation. Allocate an inode, and we're done..
-+ */
-+/* SMP-safe */
-+static int hugetlbfs_mknod(struct inode *dir, struct dentry *dentry, int mode, int dev)
-+{
-+	struct inode * inode = hugetlbfs_get_inode(dir->i_sb, mode, dev);
-+	int error = -ENOSPC;
-+
-+	if (inode) {
-+		d_instantiate(dentry, inode);
-+		dget(dentry);		/* Extra count - pin the dentry in core */
-+		error = 0;
-+	}
-+	return error;
-+}
-+
-+static int hugetlbfs_mkdir(struct inode * dir, struct dentry * dentry, int mode)
-+{
-+	int retval = hugetlbfs_mknod(dir, dentry, mode | S_IFDIR, 0);
-+	if (!retval)
-+		dir->i_nlink++;
-+	return retval;
-+}
-+
-+static int hugetlbfs_create(struct inode *dir, struct dentry *dentry, int mode)
-+{
-+	return hugetlbfs_mknod(dir, dentry, mode | S_IFREG, 0);
-+}
-+
-+/*
-+ * Link a file..
-+ */
-+static int hugetlbfs_link(struct dentry *old_dentry, struct inode * dir, struct dentry * dentry)
-+{
-+	struct inode *inode = old_dentry->d_inode;
-+
-+	inode->i_nlink++;
-+	atomic_inc(&inode->i_count);	/* New dentry reference */
-+	dget(dentry);		/* Extra pinning count for the created dentry */
-+	d_instantiate(dentry, inode);
-+	return 0;
-+}
-+
-+static inline int hugetlbfs_positive(struct dentry *dentry)
-+{
-+	return dentry->d_inode && !d_unhashed(dentry);
-+}
-+
-+/*
-+ * Check that a directory is empty (this works
-+ * for regular files too, they'll just always be
-+ * considered empty..).
-+ *
-+ * Note that an empty directory can still have
-+ * children, they just all have to be negative..
-+ */
-+static int hugetlbfs_empty(struct dentry *dentry)
-+{
-+	struct list_head *list;
-+
-+	spin_lock(&dcache_lock);
-+	list = dentry->d_subdirs.next;
-+
-+	while (list != &dentry->d_subdirs) {
-+		struct dentry *de = list_entry(list, struct dentry, d_child);
-+
-+		if (hugetlbfs_positive(de)) {
-+			spin_unlock(&dcache_lock);
-+			return 0;
-+		}
-+		list = list->next;
-+	}
-+	spin_unlock(&dcache_lock);
-+	return 1;
-+}
-+
-+/*
-+ * Unlink a hugetlbfs entry
-+ */
-+static int hugetlbfs_unlink(struct inode * dir, struct dentry *dentry)
-+{
-+	struct inode *inode = dentry->d_inode;
-+
-+	inode->i_nlink--;
-+	dput(dentry);			/* Undo the count from "create" - this does all the work */
-+	return 0;
-+}
-+
-+static int hugetlbfs_rmdir(struct inode * dir, struct dentry *dentry)
-+{
-+	int retval = -ENOTEMPTY;
-+
-+	if (hugetlbfs_empty(dentry)) {
-+		dentry->d_inode->i_nlink--;
-+		hugetlbfs_unlink(dir, dentry);
-+		dir->i_nlink--;
-+		retval = 0;
-+	}
-+	return retval;
-+}
-+
-+/*
-+ * The VFS layer already does all the dentry stuff for rename,
-+ * we just have to decrement the usage count for the target if
-+ * it exists so that the VFS layer correctly free's it when it
-+ * gets overwritten.
-+ */
-+static int hugetlbfs_rename(struct inode * old_dir, struct dentry *old_dentry, struct inode * new_dir,struct dentry *new_dentry)
-+{
-+	int error = -ENOTEMPTY;
-+
-+	if (hugetlbfs_empty(new_dentry)) {
-+		struct inode *inode = new_dentry->d_inode;
-+		if (inode) {
-+			inode->i_nlink--;
-+			dput(new_dentry);
-+		}
-+		if (S_ISDIR(old_dentry->d_inode->i_mode)) {
-+			old_dir->i_nlink--;
-+			new_dir->i_nlink++;
-+		}
-+		error = 0;
-+	}
-+	return error;
-+}
-+
-+static int hugetlbfs_symlink(struct inode * dir, struct dentry *dentry, const char * symname)
-+{
-+	struct inode *inode;
-+	int error = -ENOSPC;
-+
-+	inode = hugetlbfs_get_inode(dir->i_sb, S_IFLNK|S_IRWXUGO, 0);
-+	if (inode) {
-+		int l = strlen(symname)+1;
-+		error = page_symlink(inode, symname, l);
-+		if (!error) {
-+			d_instantiate(dentry, inode);
-+			dget(dentry);
-+		} else
-+			iput(inode);
-+	}
-+	return error;
-+}
-+
-+static int hugetlbfs_sync_file(struct file * file, struct dentry *dentry, int datasync)
-+{
-+	return 0;
-+}
-+
-+static struct address_space_operations hugetlbfs_aops = {
-+	readpage:	hugetlbfs_readpage,
-+	writepage:	fail_writepage,
-+	prepare_write:	hugetlbfs_prepare_write,
-+	commit_write:	hugetlbfs_commit_write
-+};
-+
-+struct file_operations hugetlbfs_file_operations = {
-+	read:		generic_file_read,
-+	write:		generic_file_write,
-+	mmap:		hugetlbfs_file_mmap,
-+	fsync:		hugetlbfs_sync_file,
-+	sendfile:	generic_file_sendfile,
-+};
-+
-+static struct inode_operations hugetlbfs_dir_inode_operations = {
-+	create:		hugetlbfs_create,
-+	lookup:		simple_lookup,
-+	link:		hugetlbfs_link,
-+	unlink:		hugetlbfs_unlink,
-+	symlink:	hugetlbfs_symlink,
-+	mkdir:		hugetlbfs_mkdir,
-+	rmdir:		hugetlbfs_rmdir,
-+	mknod:		hugetlbfs_mknod,
-+	rename:		hugetlbfs_rename,
-+};
-+
-+static struct super_operations hugetlbfs_ops = {
-+	statfs:		simple_statfs,
-+	drop_inode:	generic_delete_inode,
-+};
-+
-+static int hugetlbfs_fill_super(struct super_block * sb, void * data, int silent)
-+{
-+	struct inode * inode;
-+	struct dentry * root;
-+
-+	sb->s_blocksize = PAGE_CACHE_SIZE;
-+	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
-+	sb->s_magic = HUGETLBFS_MAGIC;
-+	sb->s_op = &hugetlbfs_ops;
-+	inode = hugetlbfs_get_inode(sb, S_IFDIR | 0755, 0);
-+	if (!inode)
-+		return -ENOMEM;
-+
-+	root = d_alloc_root(inode);
-+	if (!root) {
-+		iput(inode);
-+		return -ENOMEM;
-+	}
-+	sb->s_root = root;
-+	return 0;
-+}
-+
-+static struct super_block *hugetlbfs_get_sb(struct file_system_type *fs_type,
-+	int flags, char *dev_name, void *data)
-+{
-+	return get_sb_nodev(fs_type, flags, data, hugetlbfs_fill_super);
-+}
-+
-+static struct file_system_type hugetlbfs_fs_type = {
-+	name:		"hugetlbfs",
-+	get_sb:		hugetlbfs_get_sb,
-+	kill_sb:	kill_litter_super,
-+};
-+
-+static int __init init_hugetlbfs_fs(void)
-+{
-+	return register_filesystem(&hugetlbfs_fs_type);
-+}
-+
-+static void __exit exit_hugetlbfs_fs(void)
-+{
-+	unregister_filesystem(&hugetlbfs_fs_type);
-+}
-+
-+module_init(init_hugetlbfs_fs)
-+module_exit(exit_hugetlbfs_fs)
-+
-+MODULE_LICENSE("GPL");
+Apart from that - nifty.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
