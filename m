@@ -1,35 +1,39 @@
-Received: from mail.ccr.net (ccr@alogconduit1af.ccr.net [208.130.159.6])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA10613
-	for <linux-mm@kvack.org>; Sun, 7 Feb 1999 19:43:43 -0500
-Subject: Re: swapcache bug?
-References: <36BDD9B2.8718B21@stud.uni-sb.de>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 07 Feb 1999 15:30:51 -0600
-In-Reply-To: Manfred Spraul's message of "Sun, 07 Feb 1999 19:21:38 +0100"
-Message-ID: <m1679dq4tw.fsf@flinx.ccr.net>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA15633
+	for <linux-mm@kvack.org>; Mon, 8 Feb 1999 06:22:36 -0500
+Date: Mon, 8 Feb 1999 11:22:15 GMT
+Message-Id: <199902081122.LAA02263@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: Large memory system
+In-Reply-To: <19990130083631.B9427@msc.cornell.edu>
+References: <19990130083631.B9427@msc.cornell.edu>
 Sender: owner-linux-mm@kvack.org
-To: masp0008@stud.uni-sb.de
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Daniel Blakeley <daniel@msc.cornell.edu>
+Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "MS" == Manfred Spraul <masp0008@stud.uni-sb.de> writes:
+Hi,
 
-MS> I'm currently debugging my physical memory ramdisk, and I see lots of
-MS> entries in the page cache that have 'page->offset' which aren't
-MS> multiples of 4096. (they are multiples of 256)
-MS> All of them belong to swapper_inode.
+On Sat, 30 Jan 1999 08:36:31 -0500, Daniel Blakeley
+<daniel@msc.cornell.edu> said:
 
-MS> If this is the intended behaviour, then page_hash() should be changed:
-MS> it assumes that 'page->offset' is a multiple of 4096.
+> I've jumped the gun a little bit and recommended a Professor buy 4GB
+> of RAM on a Xeon machine to run Linux on and he did.  After he got it
+> I read the large memory howto which states that the max memory size
+> for Linux 2.2.x is 2GB physical/2GB virtual.  The memory size seems to
+> limited by the 32bit nature of the x86 architecture.  The Xeon seems
+> to have a 36bit memory addressing mode.  Can Linux be easily expanded
+> to use the 36bit addressing?
 
-Yes.  Because for the swap cache we store the swap entry which is already
-has the page size shifted out of it, but it's also setup so you can store
-it directly in a pte which means some 0 bits.
+It's not exactly trivial, but it can (and will) be done.  For now, you
+can only use 4G on a 64-bit architecture (Alpha or Sparc64), but
+basically we know how to address it on Intel too, transparently to the
+user.
 
-Good spotting, but unless someone can show a significant performance impact 
-changing page_hash should wait for 2.3.
-
-Eric
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
