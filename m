@@ -1,37 +1,28 @@
-Date: Wed, 27 Sep 2000 06:11:41 -0600
-From: yodaiken@fsmlabs.com
-Subject: Re: the new VM
-Message-ID: <20000927061141.A26711@hq.fsmlabs.com>
-References: <20000926211016.A416@bug.ucw.cz> <Pine.LNX.4.21.0009270935380.993-100000@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0009270935380.993-100000@elte.hu>; from Ingo Molnar on Wed, Sep 27, 2000 at 09:42:45AM +0200
+Date: Wed, 27 Sep 2000 13:55:52 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: the new VMt
+In-Reply-To: <20000927181334.A14797@saw.sw.com.sg>
+Message-ID: <Pine.LNX.4.21.0009271338220.1006-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Pavel Machek <pavel@suse.cz>, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrey Savochkin <saw@saw.sw.com.sg>
+Cc: Mark Hemment <markhe@veritas.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 27, 2000 at 09:42:45AM +0200, Ingo Molnar wrote:
+On Wed, 27 Sep 2000, Andrey Savochkin wrote:
 > 
-> On Tue, 26 Sep 2000, Pavel Machek wrote:
-> of the VM allocation issues. Returning NULL in kmalloc() is just a way to
-> say: 'oops, we screwed up somewhere'. And i'd suggest to not work around
+> It's a waste of resources to reserve memory+swap for the case that every
+> running process decides to modify libc code (and, thus, should receive its
+> private copy of the pages).   A real waste!
 
-That is not at all how it is currently used in the kernel. 
+A real waste indeed, but a bad example: libc code is mapped read-only,
+so nobody would recommend reserving memory+swap for private mods to it.
+Of course, a process might choose to mprotect it writable at some time,
+that would be when to refuse if overcommitted.
 
-> such screwups by checking for NULL and trying to handle it. I suggest to
-> rather fix those screwups.
-
-Kmalloc returns null when there is not enough memory to satisfy the request. What's
-wrong with that?
-
-
--- 
----------------------------------------------------------
-Victor Yodaiken 
-Finite State Machine Labs: The RTLinux Company.
- www.fsmlabs.com  www.rtlinux.com
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
