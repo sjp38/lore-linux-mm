@@ -1,31 +1,31 @@
-Received: from piglet.twiddle.net (davem@piglet.twiddle.net [207.104.6.26])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA18939
-	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 18:53:45 -0400
-Date: Tue, 6 Apr 1999 15:53:32 -0700
-Message-Id: <199904062253.PAA12352@piglet.twiddle.net>
-From: David Miller <davem@twiddle.net>
-In-reply-to: <Pine.LNX.3.96.990407004419.11327A-100000@chiara.csoma.elte.hu>
-	(message from Ingo Molnar on Wed, 7 Apr 1999 00:49:18 +0200 (CEST))
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA19523
+	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 19:27:53 -0400
+Date: Wed, 7 Apr 1999 00:31:55 +0200 (CEST)
+From: Andrea Arcangeli <andrea@e-mind.com>
 Subject: Re: [patch] arca-vm-2.2.5
-References: <Pine.LNX.3.96.990407004419.11327A-100000@chiara.csoma.elte.hu>
-Reply-To: davem@redhat.com
+In-Reply-To: <14090.31508.740918.361855@dukat.scot.redhat.com>
+Message-ID: <Pine.LNX.4.05.9904070028180.1211-100000@laser.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: mingo@chiara.csoma.elte.hu
-Cc: sct@redhat.com, andrea@e-mind.com, cel@monkey.org, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Chuck Lever <cel@monkey.org>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-   It should be 'inode >> 8' (which is done by the log2
-   solution). Unless i'm misunderstanding something.
+On Tue, 6 Apr 1999, Stephen C. Tweedie wrote:
 
-Consider that:
+>> -#define i (((unsigned long) inode)/(sizeof(struct inode) & ~ (sizeof(struct inode) - 1)))
+>> +#define i (((unsigned long) inode-PAGE_OFFSET)/(sizeof(struct inode) & ~ (sizeof(struct inode) - 1)))
+>
+>This just ends up adding or subtracting a constant to the hash function,
+>so won't have any effect at all on the occupancy distribution of the
+>hash buckets.
 
-(((unsigned long) inode) >> (sizeof(struct inode) & ~ (sizeof(struct inode) - 1)))
+My point is that PAGE_HASH_BITS is < of 32/2.
 
-sort of approximates this and avoids the funny looking log2 macro. :-)
+Andrea Arcangeli
 
-Later,
-David S. Miller
-davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
