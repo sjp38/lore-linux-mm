@@ -1,62 +1,50 @@
-Date: Fri, 10 Mar 2000 16:36:12 -0500 (EST)
-From: Chuck Lever <cel@monkey.org>
+Date: Fri, 10 Mar 2000 13:46:49 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: a plea for mincore()/madvise()
-In-Reply-To: <Pine.LNX.4.10.10003101304430.2499-100000@penguin.transmeta.com>
-Message-ID: <Pine.BSO.4.10.10003101619410.26118-100000@funky.monkey.org>
+In-Reply-To: <Pine.BSO.4.10.10003101619410.26118-100000@funky.monkey.org>
+Message-ID: <Pine.LNX.4.10.10003101340130.11037-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
+To: Chuck Lever <cel@monkey.org>
 Cc: James Manning <jmm@computer.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 10 Mar 2000, Linus Torvalds wrote:
-> I don't like exporting the silly user-land "advice" into the
-> vma->vm_flags. I like "flags" as flags, and I'd be happy to have bit
-> positions saying
+
+On Fri, 10 Mar 2000, Chuck Lever wrote:
 > 
-> 	if (vma->vm_flags & VM_SEQUENTIAL) {
-> 		.. pre-fetch aggressively ..
-> 	}
+> i don't understand what you mean here.  you don't think that madvise might
+> have different behavior depending on what kind of vma is the target?
 
-i implemented the vm flags stuff a while ago, just as you asked.  i'm not
-sure my e-mail is actually getting delivered to you: i've sent the mincore
-and madvise patches several times since then.
+That's not what I meant, but no, I don't think it should have different
+behaviour depending on the vma anyway.
 
-> and then the madvise() system call would do somehting like
-> 
-> 	switch (advice) {
-> 	MADV_SEQUENTIAL:
-> 		/* This is really more of a "mprotect" thing */
-> 		mprotect(start, end, VM_SEQUENTIAL);
-> 		break;
-> 	MADV_DONTNEED:
-> 		/* While this is really a case of msync() */
-> 		msync(start, end, MSYNC_THROWAWAY);
-> 		break;
-> 	...
-> 
-> instead of just trying to force the madvise() system call into the VM
-> structure, where I don't think it makes all that much sense.
+What I meant is really that the different "advices" are totally different.
+MADV_DONTNEED is an operation that probably walks the page tables and just
+throws the pages out (or just marks them old and uniniteresting).
+Similarly MADV_WILLNEED implies more of a "start doing something now" kind
+of thing. Neither would be flags in vma->vm_flags, because neither of them
+are really all that much of a "save this state for future behaviour" kind
+of thing.
 
-i don't understand what you mean here.  you don't think that madvise might
-have different behavior depending on what kind of vma is the target?  shm
-vma's will have a different implementation than mapped file vma's.  some
-types will want to implement the functionality of each MADV_ very
-differently or not at all.
+In contrast, MADV_RANDOM is a flag that you'd set in vma->vm_flags, and
+would tell the page-in logic to not pre-fetch, because it doesn't pay off.
+And MADV_SEQUENTIAL would probably tell the page-in logic to pre-fetch
+very aggressively. 
 
-re-using the mprotect code for sequential, random, and normal behavior is
-much preferred to what the patch does today.
+> re-using the mprotect code for sequential, random, and normal behavior is
+> much preferred to what the patch does today.
 
-	- Chuck Lever
---
-corporate:	<chuckl@netscape.com>
-personal:	<chucklever@netscape.net> or <cel@monkey.org>
+The mprotect() routines that walk the page tables makes sense for
+MADV_DONTNEED and MADV_WILLNEED. It makes no sense at all for MADV_RANDOM
+and MADV_SEQUENTIAL, other than the actual vma _splitting_ part (as
+opposed to the actual page table walking part).
 
-The Linux Scalability project:
-	http://www.citi.umich.edu/projects/linux-scalability/
+See? I don't think the different advices are really comparable. It's
+different cases.
 
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
