@@ -1,68 +1,43 @@
-Message-ID: <B1DF47D78E82D511832C00B0D021B520131A3D@SAKTHI>
-From: Viju <viju@ctd.hcltech.com>
-Subject: RE: can i call copy_to_user with interrupts masked
-Date: Mon, 27 Aug 2001 20:39:18 +0530
+Received: from [129.179.161.11] by ns1.cdc.com with ESMTP for linux-mm@kvack.org; Mon, 27 Aug 2001 15:17:40 -0500
+Received: from [129.179.80.32] by cdsms.cdc.com with ESMTP for linux-mm@kvack.org; Mon, 27 Aug 2001 15:17:38 -0500
+Message-Id: <3B8AAA3E.80707@syntegra.com>
+Date: Mon, 27 Aug 2001 15:14:54 -0500
+From: Andrew Kay <Andrew.J.Kay@syntegra.com>
+Subject: kernel: __alloc_pages: 1-order allocation failed
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: PRASENJIT CHAKRABORTY <pras_chakra@yahoo.com>, linux-mm@kvack.org
-Cc: arund@bellatlantic.net
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-At a high level OS point of view that cannot be the cause
-i would say.
+I am having some rather serious problems with the memory management (i 
+think) in the 2.4.x kernels.  I am currently on the 2.4.9 and get lots 
+of these errors in /var/log/messages.
 
-When u access a page, the processor finds that the address is
-not mapped in the page tables, it suspends the execution of the current
-process and generates a page_fault. The OS is supposed to handle the
-page_fault and it finds the corresponding page in the 
-backing store and faults the page in. After a transaction entry is
-made inthe page tables for the newly faulted in page, it returns.
-The processor starts excuting the same statement at which it stopped
-and the process resumes normal execution.
+Aug 24 15:08:04 dell63 kernel: __alloc_pages: 1-order allocation failed.
+Aug 24 15:08:35 dell63 last message repeated 448 times
+Aug 24 15:09:37 dell63 last message repeated 816 times
+Aug 24 15:10:38 dell63 last message repeated 1147 times
 
-I would say find what do_page_fault is returning, it shud return an
-error if it couldnt find the page for some reason.(Like illegal access or
-couldnt swap the page in). If the page_fault is returning
-error then finding out y it is retuning that error might solve ur problem.
+I am running a Redhat 7.1 distro w/2.4.9 kernel on a Dell poweredge 6300 
+(4x500Mhz cpu, 4Gb ram).  I get this error while running the specmail 
+2001 benchmarking software against our email server, Intrastore.  The 
+system  is very idle from what I can see.  The sar output shows user cpu 
+at around 1% and everything else rather low as well.  It seems to pop up 
+randomly and requires a reboot to fix it.
 
-Thnx,
-Viju.
+Is there any workarounds or something I can do to get a more useful 
+debug message than this?  It doesn't seem to throw any other visible 
+errors.  Maybe an older more stable kernel or less memory?  I have the 
+sar output if anyone is interested.  This bug is the only current 
+roadblock for me to publish specmail 2001 results to spec.org.  It can 
+be reproduced fairly easily with a little setup time.
 
------Original Message-----
-From: PRASENJIT CHAKRABORTY [mailto:pras_chakra@yahoo.com]
-Sent: Monday, August 27, 2001 8:27 PM
-To: linux-mm@kvack.org
-Cc: arund@bellatlantic.net
-Subject: can i call copy_to_user with interrupts masked
+Thanks,
+Andy
 
-
-Hello All,
-     This is in continuation with my previous mail.
-While debugging I've noticed that __copy_to_user()
-fails when I stop the Bottom Half before the call to
-__copy_to_user(), so if the page in not currently
-mapped then it forbids do_page_fault() to get invoked
-and hence the failure.
-
-So I would like to know whether this hypothesis is
-right or not? And if not then the possible
-explanation.
-
-Thankx
-
-Prasenjit
-
-__________________________________________________
-Do You Yahoo!?
-Make international calls for as low as $.04/minute with Yahoo! Messenger
-http://phonecard.yahoo.com/
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
