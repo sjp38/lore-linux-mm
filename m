@@ -1,116 +1,77 @@
-Date: Sun, 04 May 2003 10:00:04 +0200 (CEST)
-From: Listar <listar@nl.linux.org>
-Message-ID: <listar-05042003100004.17386.1@nl.linux.org>
-Subject: Listar command results: No commands found
+Date: 4 May 2003 19:40:37 -0000
+Message-ID: <20030504194037.12611.qmail@webmail26.rediffmail.com>
+MIME-Version: 1.0
+From: "anand kumar" <a_santha@rediffmail.com>
+Reply-To: "anand kumar" <a_santha@rediffmail.com>
+Subject: Re: Re: Memory allocation problem
+Content-type: text/plain;
+	format=flowed
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Mark_H_Johnson@Raytheon.com
+Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Request received for list 'thefreeworld-www' via request address.
+Hi,
 
->> [IMG]
-Unknown command.
+Thanks for immediate response. I used 2.4.20 kernel patched with 
+bigphys
+area and got it working. I know that this patch is part of Suse
+distribution. Is there any plans to incorporate this patch in 
+Redhat?
+Is redhat 9.0 kernel equipped with this patch?
 
->> [IMG][1]//IOE 3/4 AeOAEO 
-Unknown command.
+Rgds
+Anand
 
->> --- Links ---
-Unknown command.
+On Thu, 01 May 2003 Mark_H_Johnson@Raytheon.com wrote :
+>
+> >The kernel version we are using is 2.4.18 (Redhat 8.0) and the 
+>total
+> >amount of memory available in the box is 128MB
+>
+> >Is there any other mechanism to allocate large amount of 
+>physically
+> >contiguous memory blocks during normal run time of the driver? 
+>Is this
+> >being addressed in later kernels.
+>
+>I regularly use a patch (bigphysarea) recommended by Dolphin for 
+>use with
+>their SCI cards. The copy I use is from a relatively old kernel 
+>(2.4.4)
+>which applies with a few warnings but is otherwise OK. I did a 
+>quick search
+>with Google for
+>   bigphysarea linux 2.4.18
+>and found
+>   
+>http://frmb.home.cern.ch/frmb/download/bigphysarea-2.4.18.patch
+>or a more readable page at
+>   http://frmb.home.cern.ch/frmb/linux.html
+>which appears to be a version updated for 2.4.18. I believe the 
+>original
+>patch is maintained at
+>   
+>http://www.uni-paderborn.de/fachbereich/AG/heiss/linux/bigphysarea.html
+>
+>There are apparently several drivers that already use this 
+>interface, but
+>it does require a patched kernel.
+>
+>I am not aware of any effort to merge this into the main line 
+>kernel
+>(though I would certainly appreciate that).
+>
+>--Mark H Johnson
+>   <mailto:Mark_H_Johnson@raytheon.com>
+>
+>
 
->> 1 http://www.xinaggui.com/
-Unknown command.
 
-No commands detected in message.
 
-** Listar HELP FILE **
-By Rachel Blackman, JT Traub and Ryan T. Dean
 
-TO GET A LIST OF LISTS:
-	Send a message to the listar account on the server with a subject
-	of "lists".  A list of lists hosted by the server will be returned
-	to you.
-
-TO SUBSCRIBE TO A LIST:
-
-	Send a message to the listar account on the server (you can just
-	reply to this message).  In the subject field, enter "subscribe
-	[listname]".  Or, you can send a message to "[listname]-request"
-	with a subject of "subscribe".
-
-TO UNSUBSCRIBE FROM A LIST:
-	Send a message to the listar account on the server (you can just
-	reply to this message).  Enter "unsubscribe [listname]" in the
-	subject field.  You can also send a message to 
-	"[listname]-request" with a subject of "unsubscribe".
-        While you should NOT send your unsubscribe command to the list
-        itself, Listar will attempt to trap such erroneous postings and
-        forward them to the list administrators for proper handling.
-
-TO GET A DIGEST EVERY DAY:
-	Send a message to the listar account on the server with a subject
-	of "set [listname] digest".  This will turn on digests, and you
-	will receive a digest however often the server is configured to
-	send them.
-
-TO STOP GETTING A DIGEST:
-	Send a message to the listar account on the server with a subject
-	of "unset [listname] digest".  This will turn off digest mode, and
-	instead you will receive an eMail every time something is posted
-	to the list.
-
-TO GET A DIGEST AND NORMAL POSTS:
-	Send a message to the listar account on the server with a subject
-	of "set [listname] digest2".  This will activate digest mode with
-	normal posting.  As each message is posted to the list it will be
-	sent to you, and you will receive a digest as well.  This flag
-	should be used INSTEAD of digest, NOT IN ADDITION TO.
-	To stop receiving digests in addition to normal posts, send a
-	message to the listar account with a subject of "unset [listname]
-        digest2".  You will go back to receiving normal posts.
-
-TO FIND OUT WHO IS ON A LIST:
-	Send a message to the listar account on the server with a subject
-	of "who [listname]".  You will receive a list of people subscribed
-	to the list who are not hidden.  Admins will be able to see
-	everbody, including those hidden.
-
-TO HIDE ON A LIST:
-	Send a message to the listar account on the server with a subject
-	of "set [listname] hidden".  You will no longer appear on WHO
-	queries to the listserver.  No one (except Admins) will know you
-	are subscribed to the list unless you post to it (in which case
-	those people on the list will know you posted if nothing else).
-
-TO STOP HIDING ON A LIST:
-	Send a message to the listar account on the server with a subject of
-	"unset [listname] hidden".  You will then show up on WHO queries
-	to the listserver.
-
-TO GO ON VACATION:
-	Send a message to the listar account on the server with a subject of
-	"set [listname] vacation".  You will remain subscribed to the list
-	but will not receive any eMail as long as this flag is set.  To
-	come back from vacation, eMail the listar account with a subject of
-        "unset [listname] vacation".
-
-TO CHECK ON YOUR OWN STATUS:
-	Send a message to the listar account on the server with a subject
-	of "stats [listname]".  You will get a list of all the flags
-	currently set on your account.
-
-TO GET A LIST OF FLAGS AVAILABLE:
-	Send a message to the listar account on the server with a subject
-	of "flags".  An eMail will be sent to you with the available flags
-	that you can set on your account.
-
-TO GET A LIST OF COMMANDS AVAILABLE:
-	Send a message to the listar account on the server with a subject
-	of "commands".  An eMail will be sent to you with all the commands
-	that the server and any installed modules offer.
-
----
-Listar v1.0.0 - job execution complete.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
