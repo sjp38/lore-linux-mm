@@ -1,43 +1,40 @@
-Date: Thu, 13 Jan 2005 17:02:18 +0900 (JST)
-Message-Id: <20050113.170218.77038944.taka@valinux.co.jp>
-Subject: Re: [RFC] Avoiding fragmentation through different allocator
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <Pine.LNX.4.58.0501122247390.18142@skynet>
-References: <D36CE1FCEFD3524B81CA12C6FE5BCAB008C77C45@fmsmsx406.amr.corp.intel.com>
-	<Pine.LNX.4.58.0501122247390.18142@skynet>
+Date: Thu, 13 Jan 2005 16:56:27 +0800
+From: Bernard Blackham <bernard@blackham.com.au>
+Subject: Re: Odd kswapd behaviour after suspending in 2.6.11-rc1
+Message-ID: <20050113085626.GA5374@blackham.com.au>
+References: <20050113061401.GA7404@blackham.com.au> <41E61479.5040704@yahoo.com.au>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <41E61479.5040704@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mel@csn.ul.ie
-Cc: matthew.e.tolentino@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Mel,
-
-The global list looks interesting.
-
-> > >Instead of having one global MAX_ORDER-sized array of free
-> > >lists, there are
-> > >three, one for each type of allocation. Finally, there is a
-> > >list of pages of
-> > >size 2^MAX_ORDER which is a global pool of the largest pages
-> > >the kernel deals with.
-
-> > is it so that the pages can
-> > evolve according to system demands (assuming MAX_ORDER sized
-> > chunks are eventually available again)?
-> >
+On Thu, Jan 13, 2005 at 05:26:01PM +1100, Nick Piggin wrote:
+> >I reverted the changes to mm/vmscan.c between 2.6.10 and 2.6.11-rc1
+> >with the attached patch (applies forwards over the top of
+> >2.6.11-rc1), and I no longer get any kswapd weirdness.  Is there
+> >something in here misbehaving?
 > 
-> Exactly. Once a 2^MAX_ORDER block has been merged again, it will not be
-> reserved until the next split.
+> Hmm, it is likely to be the higher order watermarks change.
+> 
+> Can you get a couple of Alt+SysRq+M traces during the time when
+> kswapd is going crazy please?
 
-FYI, MAX_ORDER is huge in some architectures.
-I guess another watermark should be introduced instead of MAX_ORDER.
+Embarrasingly, I can't reproduce it at the moment. It was previously
+occuring on every single suspend. Wondering if it's linked with swap
+usage - I'll keep watching and provide some traces when it happens
+again.
 
 Thanks,
-Hirokazu Takahashi.
+
+Bernard.
+
+-- 
+ Bernard Blackham <bernard at blackham dot com dot au>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
