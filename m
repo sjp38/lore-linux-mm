@@ -1,33 +1,29 @@
-Received: by fenrus.demon.nl
-	via sendmail from stdin
-	id <m13d8p5-000OWvC@amadeus.home.nl> (Debian Smail3.2.0.102)
-	for linux-mm@kvack.org; Sun, 24 Sep 2000 12:15:51 +0200 (CEST)
-Message-Id: <m13d8p5-000OWvC@amadeus.home.nl>
-Date: Sun, 24 Sep 2000 12:15:51 +0200 (CEST)
-From: root@fenrus.demon.nl (Arjan van de Ven)
+Date: Sun, 24 Sep 2000 12:56:24 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
 Subject: Re: refill_inactive()
-In-Reply-To: <Pine.LNX.4.21.0009241148100.2789-100000@elte.hu>
+In-Reply-To: <m13d8p5-000OWvC@amadeus.home.nl>
+Message-ID: <Pine.LNX.4.21.0009241253560.2966-100000@elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu
+To: Arjan van de Ven <root@fenrus.demon.nl>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In article <Pine.LNX.4.21.0009241148100.2789-100000@elte.hu> you wrote:
-> i'm wondering about the following piece of code in refill_inactive():
+On Sun, 24 Sep 2000, Arjan van de Ven wrote:
 
->                 if (current->need_resched && (gfp_mask & __GFP_IO)) {
->                         __set_current_state(TASK_RUNNING);
->                         schedule();
->                 }
+> > shouldnt this be __GFP_WAIT? It's true that __GFP_IO implies __GFP_WAIT
+> > (because IO cannot be done without potentially scheduling), so the code is
+> 
+> Is this also true for starting IO ?
 
-> shouldnt this be __GFP_WAIT? It's true that __GFP_IO implies __GFP_WAIT
-> (because IO cannot be done without potentially scheduling), so the code is
+yes. ll_rw_block() might block if there are no more request slots left.
+Dirty buffer balancing within buffer.c might block as well.
 
-Is this also true for starting IO ?
+	Ingo
 
-Greetings,
-   Arjan van de Ven
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
