@@ -1,32 +1,30 @@
-Subject: Re: VM tuning through fault trace gathering [with actual code]
-References: <Pine.LNX.4.21.0106261031150.850-100000@freak.distro.conectiva>
-From: John Fremlin <vii@users.sourceforge.net>
-Date: 26 Jun 2001 16:38:07 +0100
-In-Reply-To: <Pine.LNX.4.21.0106261031150.850-100000@freak.distro.conectiva> (Marcelo Tosatti's message of "Tue, 26 Jun 2001 10:52:16 -0300 (BRT)")
-Message-ID: <m2vgljb6ao.fsf@boreas.yi.org.>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 26 Jun 2001 11:16:30 -0500
+From: Timur Tabi <ttabi@interactivesi.com>
+In-Reply-To: <002001c02756$fe0b5480$671a6e0a@huawei.com.cn>
+Subject: Re: How can I support memory hole in embedded system?
+Message-ID: <XjIWBD.A.CUD.iVLO7@dinero.interactivesi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo@conectiva.com.br> writes:
+** Reply to message from "dony" <dony.he@huawei.com> on Tue, 26 Sep 2000
+09:13:33 +0800
 
-> ####################################################################
-> Event     	          Time                   PID     Length Description
-> ####################################################################
-> 
-> Trap entry              991,299,585,597,016     678     12      TRAP: page fault; EIP : 0x40067785
 
-That looks like just the generic interrupt handling. It does not do
-what I want to do, i.e. record some more info about the fault saying
-where it comes from.
+> I think we can modify the memory-mapping to support memory hole, but
+> I don't know how to do it. In mm/bootmem.c it also mentions it can support
+> memory hole with no more comments.
+>         Can you give me some information in detail about this? Thank you
+> very much.
+
+Just modify the E820 structure after setup.S calls the BIOS INT 15 routine.
+
 
 -- 
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
 
-	http://ape.n3.net
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
