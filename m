@@ -1,75 +1,43 @@
-Received: from mail.ccr.net (ccr@alogconduit1ag.ccr.net [208.130.159.7])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA22567
-	for <linux-mm@kvack.org>; Fri, 29 Jan 1999 13:43:03 -0500
-Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
-References: <Pine.LNX.3.96.990129015657.8557A-100000@laser.bogus>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 29 Jan 1999 08:13:05 -0600
-In-Reply-To: Andrea Arcangeli's message of "Fri, 29 Jan 1999 02:47:41 +0100 (CET)"
-Message-ID: <m17lu6xj4e.fsf@flinx.ccr.net>
+Received: from kanga.kvack.org (root@kanga.kvack.org [205.189.68.98])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA26327
+	for <Linux-MM@kvack.org>; Fri, 29 Jan 1999 20:53:29 -0500
+Date: Fri, 29 Jan 1999 20:52:51 -0500 (EST)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: Fwd: Inoffensive bug in mm/page_alloc.c
+In-Reply-To: <990127235552.n0002181.ph@mail.clara.net>
+Message-ID: <Pine.LNX.3.95.990129204839.24246C-100000@kanga.kvack.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: linux-mm@kvack.org
+To: Paul Hamshere <ph@clara.net>
+Cc: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "AA" == Andrea Arcangeli <andrea@e-mind.com> writes:
+Hello Paul,
 
-AA> On Thu, 28 Jan 1999, Linus Torvalds wrote:
+> Is this of any interest here?
 
->> You're missing the fact that whenever we own the mm, we know that NOBODY
+Yep!
 
-AA> I return to the kernel module stat colletctor example:
+> Paul
+> ------------------------------
+> Hi
+> I was trawling through the mm sources to try and understand how linux tracks the
+> use of pages of memory, how kmalloc and vmalloc work, and I think there is a bug
+> in the kernel (2.0) - it doesn't affect anything, only waste a tiny amount of
+> memory....does anyone else think it looks wrong?
+> The problem is in free_area_init where it allocates the bitmaps - I think they
+> are twice the size they need to be.
 
-AA> To be sure that the kernel stack of the process will not go away under me
-AA> I need to held the tasklist_lock. Ok? So i'll do:
+If you search the mailing list archives from either a year, maybe two ago,
+someone brought forth the same concern, but Linus rejected the patch on
+the basis that it wasn't trivially proven correct for *all* sizes of
+memory.  The amount of memory involved is insignificant, and I'd speculate
+that we'll see a page allocator in 2.3 at which point that loss can
+disappear.
 
-AA> 	read_lock(&tasklist_lock);
-AA> 	tsk = find_task_by_pid(pid);
-AA> 	if (tsk)
-AA> 	{
-AA> 		struct page * page = mem_map + MAP_NR(tsk);
-AA> 		atomic_inc(&page->count);
+		-ben (cleaning out the inbox)
 
-Actually in the future we should have something increment the task count or 
-similiar.  But I suppose keeping a page count should be enough.
-
-AA> 	}
-AA> 	read_unlock(&tasklist_lock);
-AA> 	mdelay(10000000000000);
-
-AA> So now I can wait all time I want and nobody can free and reuse my task
-AA> struct and replace it with garbage under my eyes. OK?
-
-AA> Now I want to play with the tsk->mm of the tsk. OK?
-
-AA> I'll do:
-
-AA> 	unlock_kernel();
-AA> 	^^
-AA> 	if (tsk->mm && tsk->mm != &init_mm)
-AA> 	{
-AA> 		mdelay(2000000000000000000);
-AA> 		mmget();
-AA> 	}
-
-This would need to say.
-	mm = tsk->mm;
-	mmget(mm);
-	if (mm != &init_mm) {
-	/* xyz */
-	}
-
-And do_exit & exec would need to say:
-     old_mm = tsk->mm;
-     tsk->mm = new_mm; /* probably init_mm */
-     mmput(old_mm);
-
-There does to be a memory barier there to sychronize reads/writes of cache
-data.  I forget off had what kind that needs to be.
-
-The fix is just to never let bad sit in the tsk struct while it is valid.
-
-Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
