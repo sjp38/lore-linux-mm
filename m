@@ -1,58 +1,68 @@
-Subject: Re: 2.5.65-mm3
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <20030320235821.1e4ff308.akpm@digeo.com>
+Date: Fri, 21 Mar 2003 12:39:19 -0800
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: [BUG] 2.5.65-mm3 kernel BUG at fs/ext3/super.c:1795!
+Message-Id: <20030321123919.0b8b1b86.akpm@digeo.com>
+In-Reply-To: <8765qchhgo.fsf@lapper.ihatent.com>
 References: <20030320235821.1e4ff308.akpm@digeo.com>
-Content-Type: text/plain
-Message-Id: <1048277871.4908.36.camel@phantasy.awol.org>
+	<8765qchhgo.fsf@lapper.ihatent.com>
 Mime-Version: 1.0
-Date: 21 Mar 2003 15:17:52 -0500
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
+To: Alexander Hoogerhuis <alexh@ihatent.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2003-03-21 at 02:58, Andrew Morton wrote:
-
-> dev_t-3-major_h-cleanup.patch
->   dev_t [3/3]: major.h cleanups
+Alexander Hoogerhuis <alexh@ihatent.com> wrote:
+>
+> Andrew Morton <akpm@digeo.com> writes:
+> >
+> > [SNIP]
+> >
 > 
-> dev_t-32-bit.patch
->   [for playing only] change type of dev_t
+> Disk I/O on my machine froze up during very light work after a few
+> hours, luckily I had a window open on another machine so I could do a
+> simple capture and save the info:
+> 
+> kernel BUG at fs/ext3/super.c:1795!
+> invalid operand: 0000 [#1]
+> CPU:    0
+> EIP:    0060:[<c018b522>]    Not tainted VLI
+> EFLAGS: 00010246
+> EIP is at ext3_write_super+0x36/0x94
+> eax: 00000000   ebx: c8834000   ecx: efb5904c   edx: efb59000
+> esi: efb59000   edi: c8834000   ebp: c8835ecc   esp: c8835ec0
+> ds: 007b   es: 007b   ss: 0068
+> Process pdflush (pid: 7853, threadinfo=c8834000 task=ed0a5880)
+> Stack: c8835ee4 00000287 efb5904c c8835ee4 c0153148 efb59000 00000077 51eb851f
+>        c8835fcc c8835fa4 c0137fd0 c03892fc 007b9f47 007b168f 00000000 00000000
+>        c8835ef4 00000000 00000001 00000000 00000001 00000000 00000053 00000000
+> Call Trace:
+>  [<c0153148>] sync_supers+0xde/0xea
+>  [<c0137fd0>] wb_kupdate+0x68/0x161
+>  [<c0118985>] schedule+0x1a4/0x3ac
+>  [<c01386e8>] __pdflush+0xdc/0x1d8
+>  [<c01387e4>] pdflush+0x0/0x15
+>  [<c01387f5>] pdflush+0x11/0x15
+>  [<c0137f68>] wb_kupdate+0x0/0x161
+>  [<c0108e69>] kernel_thread_helper+0x5/0xb
 
-Now that dev_t is an unsigned long, MKDEV() correspondingly returns an
-unsigned long.  This causes a compiler warning and potential bug on
-64-bit architectures in drivers/scsi/sg.c :: sg_device_kdev_read().
+How on earth did you do that?
 
-This patch needs to be applied on top of the dev_t patches.
+sync_supers() does lock_super, then calls ext3_write_super.
 
-	Robert Love
+ext3_write_super() does a down_trylock() on sb->s_lock and goes BUG
+if it acquired the lock.
 
+So you've effectively done this:
 
- drivers/scsi/sg.c |    6 ++++--
- 1 files changed, 4 insertions(+), 2 deletions(-)
+	down(&sem);
+	if (down_trylock(&sem))
+		BUG();
 
-
-diff -urN linux-2.5.65-mm3/drivers/scsi/sg.c linux/drivers/scsi/sg.c
---- linux-2.5.65-mm3/drivers/scsi/sg.c	2003-03-17 16:44:05.000000000 -0500
-+++ linux/drivers/scsi/sg.c	2003-03-19 11:35:50.706607408 -0500
-@@ -1331,9 +1331,11 @@
- sg_device_kdev_read(struct device *driverfs_dev, char *page)
- {
- 	Sg_device *sdp = list_entry(driverfs_dev, Sg_device, sg_driverfs_dev);
--	return sprintf(page, "%x\n", MKDEV(sdp->disk->major,
--					   sdp->disk->first_minor));
-+
-+	return sprintf(page, "%lx\n", MKDEV(sdp->disk->major,
-+					sdp->disk->first_minor));
- }
-+
- static DEVICE_ATTR(kdev,S_IRUGO,sg_device_kdev_read,NULL);
- 
- static ssize_t
-
-
+This can only be a random memory scribble, a hardware bug or a
+preempt-related bug in down_trylock().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
