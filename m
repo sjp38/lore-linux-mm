@@ -1,47 +1,43 @@
-Received: from post.mail.nl.demon.net (post-10.mail.nl.demon.net [194.159.73.20])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA05352
-	for <linux-mm@kvack.org>; Tue, 25 May 1999 16:20:04 -0400
-Date: Tue, 25 May 1999 22:16:34 +0200 (CEST)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: Q: PAGE_CACHE_SIZE?
-In-Reply-To: <E10mK50-0001eC-00@the-village.bc.nu>
-Message-ID: <Pine.LNX.4.03.9905252213400.25857-100000@mirkwood.nl.linux.org>
+Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA06174
+	for <linux-mm@kvack.org>; Tue, 25 May 1999 17:43:15 -0400
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14155.6480.319372.615650@dukat.scot.redhat.com>
+Date: Tue, 25 May 1999 22:42:40 +0100 (BST)
+Subject: Re: DANGER: DONT apply it. Re: [patch] ext2nolock-2.2.8-A0
+In-Reply-To: <Pine.LNX.3.96.990517013337.2953A-100000@devserv.devel.redhat.com>
+References: <14142.57697.49520.664805@worf.scot.redhat.com>
+	<Pine.LNX.3.96.990517013337.2953A-100000@devserv.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Andi Kleen <ak@muc.de>, ebiederm+eric@ccr.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Ingo Molnar <mingo@redhat.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm+eric@ccr.net>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 May 1999, Alan Cox wrote:
+Hi,
 
-> > > Who's idea was it start the work to make the granularity of the page
-> > > cache larger?
-> > 
-> > I guess the main motivation comes from the ARM port, where some versions
-> > have PAGE_SIZE=32k.
-> 
-> For large amounts of memory on fast boxes you want a higher page
-> size. Some vendors even pick page size based on memory size at
-> boot up.
+On Mon, 17 May 1999 01:35:49 -0400 (EDT), Ingo Molnar
+<mingo@redhat.com> said:
 
-This sounds suspiciously like the 'larger-blocks-for-larger-FSes'
-tactic other systems have been using to hide the bad scalability
-of their algorithms.
+>> > cool. i'm now working on the writepage stuff, i'll debug your patch (and
+>> > maybe extend it to SMP) if that one is stable. 
+>> 
+>> You know that Eric Beiderman posted a page write patch for recent 2.2s
+>> just recently on linux-mm?
 
-A larger page size is no compensation for the lack of a decent
-read-{ahead,back,anywhere} I/O clustering algorithm in the OS.
-I believe we should take the more appropriate path and build
-a proper 'smart' algorithm. Once we're optimizing for I/O
-minimization, CPU is relatively cheap anyway...
+> does it make ext2fs work on the page cache exclusively? Could you forward
+> that patch to me just in case you have it handy. I have my patch working
+> almost, i just have some small instabilities like kernel oopses and casual
+> filesystem corruption to sort out ;)
 
-Rik -- Open Source: you deserve to be in control of your data.
-+-------------------------------------------------------------------+
-| Le Reseau netwerksystemen BV:               http://www.reseau.nl/ |
-| Linux Memory Management site:   http://www.linux.eu.org/Linux-MM/ |
-| Nederlandse Linux documentatie:          http://www.nl.linux.org/ |
-+-------------------------------------------------------------------+
+Well, I'm just back from LE and it looks like Eric isn't hanging
+around.  Eric, thanks for liaising with Ingo on this, I know he's been
+itching to benchmark things with a decent page cache.  Do you know if
+these are likely to be accepted for 2.3 soon?
 
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
