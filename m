@@ -1,32 +1,32 @@
-Received: from elturista.com (elturista-com.mr.outblaze.com [205.158.62.181])
-	by 154.191-182-adsl-pool.axelero.hu (Postfix) with ESMTP id 5E37FEE9F0
-	for <linux-mm@kvack.org>; Mon, 03 May 2004 10:11:54 +0000
-From: "Comanche R. Latching" <burt@elturista.com>
-Subject: Allow me :) Please :)
-Date: Mon, 03 May 2004 10:11:54 +0000
-Message-ID: <111101c430f7$12cc31d6$713c0e23@elturista.com>
+Received: from news.com (c10-mail.cnet.com [216.239.112.33])
+	by ACCE859B.ipt.aol.com (Postfix) with ESMTP id C69D2DDA14
+	for <linux-mm@kvack.org>; Wed, 05 May 2004 06:51:58 -0700
+Message-ID: <6.0.0.22.1.20040505065158.d057fee7@news.com>
+Date: Wed, 05 May 2004 06:51:58 -0700
+From: "Incredulity R. Renegotiated" <cmendes@news.com>
+Subject: Good afternoon.
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello there!
-Special open vacancies: Stay-at-home manager
-Honest workers required!
-Working part-time? A lot of free time? 
-Are your studies impacting you work schedule?
-You are the luckiest person on earth!
-We are looking for honest and communicative people!! 
-This job will take only a few hours of your time.
-Australians are required for the job.
-Vacancies are ending, don't waste time and use this super offer.
-DON'T RESIST! TRY THIS SUPER JOB OPPORTUNITY!
-http://166.104.223.56:3333/
-Do you still have questions? Check out our website.
-Welcome to our site!
+You don't know me from Adam. :)
+Super open vacancies: Stay-at-home manager
+Honest-minded people wanted!
+Do you have a lot of free time? Are you a part-time worker?
+Are you a student? Does your class schedule impair working hours?
+This is your chance!
+We require honest and friendly people!
+This job is wonderful, it requires only limited amounts of your time. 
+We need people who live in Australia.
+Space is limited, so hurry and accept this great offer.
+SUPER JOB, EXCELLENT OFFER! YOU CAN'T MISS THIS!
+http://81.56.3.150:3333/
+Need more info? Check out our site!
+Check out for more info.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
