@@ -1,36 +1,29 @@
-Date: Wed, 18 Jul 2001 19:48:38 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Large PAGE_SIZE
-In-Reply-To: <Pine.LNX.4.21.0107172337340.1015-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.21.0107181940400.1080-100000@localhost.localdomain>
+Received: from vcmr-19.rcs.rpi.edu (vcmr-19.rcs.rpi.edu [128.113.113.12])
+	by mail.rpi.edu (8.11.3/8.11.3) with ESMTP id f6KISK4130412
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2001 14:28:20 -0400
+Received: from localhost (laprej@localhost)
+	by vcmr-19.rcs.rpi.edu (8.8.5/8.8.6) with SMTP id OAA16656
+	for <linux-mm@kvack.org>; Fri, 20 Jul 2001 14:27:58 -0400
+Date: Fri, 20 Jul 2001 14:27:58 -0400 (EDT)
+From: Justin Michael LaPre <laprej@rpi.edu>
+Subject: Support for Intel 4MB Pages
+Message-ID: <Pine.A41.3.96.1010720142345.25692A-100000@vcmr-19.rcs.rpi.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Jul 2001, Hugh Dickins wrote:
-> 
-> ftp://ftp.veritas.com/linux/larpage-2.4.6.patch.bz2
-> 
-> is the promised Large PAGE_SIZE patch against 2.4.6.  If you'd like
-> to try these large pages, you'll have to edit include/asm-i386/page.h
-> PAGE_MMUSHIFT from 0 to 1 or 2 or 3: no configuration yet.  There's
-> a sense in which the patch is now complete, but I'll probably be
-> ashamed of that claim tomorrow (several of the drivers haven't even
-> got compiled yet, much more remains untested).  I'll update to 2.4.7
-> once it appears, but probably have to skip the -pres.
+beneficial to use 4MB pages.  Some people on IRC suggested the community
+might appreciate such a patch.  Would this be well-accepted?  Designing it
+to be general instead of just for our purposes would be more difficult,
+but we would be willing to put in the time if people actually want it.
+	If it were to be implemented, what would be the best strategy?  A
+new memory zone?  Re-working the mm system to try and not break up chunks
+of 4MB if possible?  Any comments would be greatly appreciated.  Thanks.
 
-Sorry for the noise, but somewhere between send and receive,
-the all-important first line of yesterday's mail moved itself from
-mail body to mail header.  I guess it's a bad idea to start off with
-an ftp path (or "token:"?), so let's try it this way instead.
-
-ftp://ftp.veritas.com/linux/larpage-2.4.6.patch.bz2
-
-Hugh
+-Justin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
