@@ -1,37 +1,26 @@
-Message-ID: <378CA731.846F7580@sap-ag.de>
-Date: Wed, 14 Jul 1999 17:05:21 +0200
-From: Thomas Hiller <thomas.hiller@sap-ag.de>
+Date: Wed, 14 Jul 1999 11:12:17 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: vm_store patches
+Message-ID: <Pine.LNX.3.96.990714110014.11342A-100000@mole.spellcast.com>
 MIME-Version: 1.0
-Subject: SHM implementation in 2.2.x
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-MM@kvack.org, kanoj@google.engr.sgi.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-What are the real limits in using SHM ?
-I looked through the code and are quite lost.
-There seem to be a 24 bit limit in ID + IDX bits (shmparam.h). Is this
-due to the fact that the other 8 bits are used for SWP_TYPE ?
-What is the limit for SHMMAX and what advantage is there to leave it at
-a lower limit ?
+Hello Eric (and all),
 
-What we need are many big shared segments (say 4000 * 1 GB). Is this
-possible with the current implementation ? Or what must be changed ?
-Only SHM_ID_BITS and SHMMAX ?
+What's the state of your vm_store patches from the series you posted a
+while back?  There are a couple of things I'd like to play with along
+their lines: using vm_stores for ext2 metadata to make prefetching of
+indirect blocks 'just happen' during truncate, rather than making it
+explicite as would currently be the case.
 
-Thanks in advance.
-
-- Thomas
+		-ben
 
 --
-Thomas Hiller
-Compaq Computer EMEA BV
-SAP International Competence Center
-LinuxLab
-
-
+Hi!  I'm Signature Virus 99!  Copy me into your .signature and join the fun!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
