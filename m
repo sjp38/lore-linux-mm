@@ -1,66 +1,30 @@
-Date: Wed, 06 Aug 2003 23:31:47 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Wed, 6 Aug 2003 23:44:57 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: 2.6.0-test2-mm5
-Message-ID: <28050000.1060237907@[10.10.2.4]>
-In-Reply-To: <20030806223716.26af3255.akpm@osdl.org>
+Message-Id: <20030806234457.5ca9e5af.akpm@osdl.org>
+In-Reply-To: <20030807063311.GX32488@holomorphy.com>
 References: <20030806223716.26af3255.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	<20030807063311.GX32488@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
---Andrew Morton <akpm@osdl.org> wrote (on Wednesday, August 06, 2003 22:37:16 -0700):
-
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test2/2.6.0-test2-mm5/
+William Lee Irwin III <wli@holomorphy.com> wrote:
+>
+>  Looks like this got backed out when vmlinux.lds.S moved:
 > 
-> 
-> Lots of different things.  Mainly trying to get this tree stabilised again;
-> there has been some breakage lately.
 
-I get lots of these .... (without 4/4 turned on)
+yes it did, thanks.
 
- Badness in as_dispatch_request at drivers/block/as-iosched.c:1241
-Call Trace:
- [<c01ca8d2>] as_dispatch_request+0x216/0x264
- [<c01ca938>] as_next_request+0x18/0x2c
- [<c01c343b>] elv_next_request+0x9f/0xd4
- [<c01d4cd6>] scsi_request_fn+0x2e/0x280
- [<c01c4e2f>] blk_run_queue+0x27/0x38
- [<c01d43af>] scsi_run_queue+0xb3/0xbc
- [<c01d43ff>] scsi_next_command+0x17/0x1c
- [<c01d44bc>] scsi_end_request+0x88/0x94
- [<c01d483b>] scsi_io_completion+0x1ef/0x408
- [<c01dfa4e>] sd_rw_intr+0x1ce/0x1d8
- [<c01d120d>] scsi_finish_command+0x89/0x90
- [<c01d113d>] scsi_softirq+0xc5/0xe0
- [<c012236c>] do_softirq+0x6c/0xcc
- [<c010c1d3>] do_IRQ+0x113/0x124
- [<c023c0d8>] common_interrupt+0x18/0x20
+>  --- linux-old/arch/i386/kernel/vmlinux.lds.S	2003-08-06 23:23:53.000000000 -0700
+>  +++ linux-new/arch/i386/kernel/vmlinux.lds.S	2003-08-04 15:02:26.000000000 -0700
 
-Badness in as_completed_request at drivers/block/as-iosched.c:930
-Call Trace:
- [<c01ca29c>] as_completed_request+0xe4/0x170
- [<c01c357b>] elv_completed_request+0x13/0x18
- [<c01c575e>] __blk_put_request+0x2a/0x84
- [<c01c661d>] end_that_request_last+0xc5/0xd8
- [<c01d44a8>] scsi_end_request+0x74/0x94
- [<c01d483b>] scsi_io_completion+0x1ef/0x408
- [<c01dfa4e>] sd_rw_intr+0x1ce/0x1d8
- [<c01d120d>] scsi_finish_command+0x89/0x90
- [<c01d113d>] scsi_softirq+0xc5/0xe0
- [<c012236c>] do_softirq+0x6c/0xcc
- [<c010c1d3>] do_IRQ+0x113/0x124
- [<c023c0d8>] common_interrupt+0x18/0x20
-
-seems to work, but whines a lot ;-)
-
-M.
-
+Yes, that change is needed for building with the 4g/4g split.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
