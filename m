@@ -1,56 +1,37 @@
 Subject: Re: objrmap and nonlinear vma:s
 From: Magnus Damm <damm@opensource.se>
-In-Reply-To: <20041025161501.GW17038@holomorphy.com>
-References: <1098702692.23463.123.camel@kubu.opensource.se>
-	 <20041025161501.GW17038@holomorphy.com>
+In-Reply-To: <Pine.LNX.4.44.0410251705280.14867-100000@localhost.localdomain>
+References: <Pine.LNX.4.44.0410251705280.14867-100000@localhost.localdomain>
 Content-Type: text/plain
-Message-Id: <1098730420.23456.156.camel@kubu.opensource.se>
+Message-Id: <1098732916.23458.198.camel@kubu.opensource.se>
 Mime-Version: 1.0
-Date: Mon, 25 Oct 2004 20:53:41 +0200
+Date: Mon, 25 Oct 2004 21:35:17 +0200
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
+To: Hugh Dickins <hugh@veritas.com>
 Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2004-10-25 at 18:15, William Lee Irwin III wrote:
-> On Mon, Oct 25, 2004 at 01:11:33PM +0200, Magnus Damm wrote:
-> > I am currently investigating how to unmap a physical page belonging to a
-> > nonlinear file backed vma. 
-> > By studying the 2.6.9 source code and by reading the excellent VMM book
-> > by Mel Gorman I believe that:
-> > - physical pages belonging to linear file backed vma:s are currently
-> > reverse mapped using the prio_tree i_mmap.
-> 
-> That description is somewhat vague. The prio_tree is a 2-dimensional
-> search structure indexed by start and end of file offset range, similar
-> to the more commonly-known k-d trees and the like. One must know the
-> file offset range covered by a vma for this to work.
+On Mon, 2004-10-25 at 18:29, Hugh Dickins wrote:
+> On Mon, 25 Oct 2004, Magnus Damm wrote:
 
-Thank you for clarifying.
-
-On Mon, 2004-10-25 at 18:15, William Lee Irwin III wrote:
-> On Mon, Oct 25, 2004 at 01:11:33PM +0200, Magnus Damm wrote:
-> > - physical pages belonging to nonlinear file backed vma:s are currently
-> > reverse mapped using the linked list i_mmap_nonlinear.
-> > Please let me know if something above is incorrect.
 > > The reverse mapping code for nonlinear vma:s does not seem to scale very
 > > well today with the linked list implementation. It seems to me that the
 > > assumption is made that the number of users of nonlinear vma:s are few
 > > and that they probably not very often want do anything resulting in a
 > > reverse mapping operation.
 > 
-> This is for two obvious reasons. The first is linear search for the vma.
-> The second is that the virtual position of a physical page at a given
-> file offset within a nonlinear vma is not predictable, so there is a
-> second linear search within the vma.
+> Correct (well, the users might be many, but the kind of apps using
+> them few, and it's exceptional to want to do an rmap of them, yes).
 
-Exactly.
+So, say that I run some kind of PC emulator that nonlinearly mmap():s
+512 MiB memory on my desktop machine that has 512 MiB RAM. After a while
+the page out is needed. Would I then be better off if the emulator had
+mapped all pages in separate vma:s instead of used nonlinear vma:s?
 
-On Mon, 2004-10-25 at 18:15, William Lee Irwin III wrote:
-> On Mon, Oct 25, 2004 at 01:11:33PM +0200, Magnus Damm wrote:
 > > Some questions:
+> > 
 > > 1) Is everyone happy with the solution today? Is the linked list
 > > implementation fast enough? It seems to me that the nonlinear code in
 > > try_to_unmap_file() is good enough for swap but does not always unmap
@@ -58,57 +39,54 @@ On Mon, 2004-10-25 at 18:15, William Lee Irwin III wrote:
 > > hotswap. And a linear scan of all page tables is not very suitable for
 > > swap.
 > 
-> It's not a linear scan of all page tables. It's a rather restricted
-> subset. The linked list you're referring to is actually not the aspect
-> that makes it "slow". It's the pagetable scan beneath the nonlinear
-> vmas.
+> Correct.  And however desirable, memory hotswap is exceptional too, yes?
 
-Yes, and another for-loop is added on top of that when a range of
-physical pages are unmapped:
+Yes, I guess it is a rather uncommon operation. But OTOH might these
+machines that have hotswap memory hardware run some kind of database
+server that nonlinearly mmap():s files to improve performance...
+It is probably _very_ uncommon. But how common is page out?
 
-// slow quasi-code to unmap a physical page range
-
-for_each_page_in_physical_page_range() {
-  unmap_anonymous_and_linear_file_backed_page();
-  if (page_nonlinear_and_mapped()) {
-    for_each_nonlinear_vma() {
-      for_each_virtual_page_in_vma_range() {}
-        if (physical_address_matches()) {
-          unmap();
-        }
-      }
-    }
-  }
-}
-
-On Mon, 2004-10-25 at 18:15, William Lee Irwin III wrote:
-> On Mon, Oct 25, 2004 at 01:11:33PM +0200, Magnus Damm wrote:
-> > 2) Any particular reason why the prio_tree is avoided for nonlinear
-> > vma:s? We could modify the code to use one "union shared" together with
+> 
+> > We could modify the code to use one "union shared" together with
 > > one vm_pgoff per page in struct vm_area_struct for nonlinear vma:s. That
 > > way it would be possible to rmap nonlinear vma:s with the prio_tree. But
 > > maybe that is unholy misuse of the prio_tree data structure, who knows.
+> 
+> Sorry, I don't understand "one vm_pgoff per page in struct vm_area_struct".
+> Allocate and associate a prio_tree node with each page, perhaps.
+
+Exactly what I meant. Sorry for my vagueness.
+
+Instead of only adding linear vma:s to the prio_tree we in the nonlinear
+case add one single-page range per each page belonging to the vma range.
+And then we use the prio_tree to rmap both linear and nonlinear vma:s.
+
+But maybe that could be considered as misuse of prio_tree and of course
+we have the memory usage trade off and the added complexity which might
+slow down remap_file_pages()...
+
 > > 3) Using prio_tree to rmap nonlinear vma:s like above would of course
 > > lead to a higher memory use per page belonging to a nonlinear vma. That
 > > raises the question why nonlinear vma:s aren't implemented as several
-> > vma:s - one vma per page? I mean, if remap_file_pages() should be able
+> > vma:s - one vma per page?
+> 
+> Non-linear vmas were introduced precisely to avoid the crippling memory
+> and search overhead of having the per-page vmas some apps used to need.
+> Non-linear vmas in themselves are awkward and regrettable, but better
+> than not having that option at all.
+
+While at it, my VMM book by Mel Gorman basically says that the search
+used by get_unmapped_area() is slow for large number of mappings. Is it
+still true with 2.6?
+
+> > I mean, if remap_file_pages() should be able
 > > to change protection per page in the future - exactly what do we have
 > > then? Several vma:s?
 > 
-> Please read what I wrote above. Your "suggestion" is actually not
-> sufficiently well-described, so I'm not doing much with it. Before
-> going on with further suggestions, you may also want to notice that the
-> precise point of remap_file_pages() is to prevent kernel data structure
-> proliferation in the cases where your suggestions would create some new
-> data structure for every pte under the nonlinear vma. That space
-> overhead is prohibitive and renders workloads reliant on
-> remap_file_pages() nonfunctional.
+> There was a patch by Ingo in -mm for a while, to change protection
+> per page: the non-linear vma remained a single non-linear vma.
 
-Allright. So, remap_file_pages() should be as fast as possible and the
-linked-list implementation for nonlinear pages is suitable as long as
-reverse mapping is not that common... Point taken.
-
-Thanks!
+Ok. Thanks for your input.
 
 / magnus
 
