@@ -1,38 +1,31 @@
-Subject: 2.6.0-test1-mm1 Couldn't "lock screen" after 2 days uptime.
-From: Steven Cole <elenstev@mesatop.com>
-Content-Type: text/plain
-Message-Id: <1058562142.17692.13.camel@spc9.esa.lanl.gov>
+Date: Fri, 18 Jul 2003 16:32:41 -0700
+From: Greg KH <greg@kroah.com>
+Subject: Re: [2.6.0-test1-mm1] Compile varnings
+Message-ID: <20030718233241.GJ1583@kroah.com>
+References: <1058387502.13489.2.camel@sm-wks1.lan.irkk.nu>
 Mime-Version: 1.0
-Date: 18 Jul 2003 15:02:22 -0600
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1058387502.13489.2.camel@sm-wks1.lan.irkk.nu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: Christian Axelsson <smiler@lanil.mine.nu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here's an odd one.
+On Wed, Jul 16, 2003 at 10:31:42PM +0200, Christian Axelsson wrote:
+> Here is an i2c related warning:
+> 
+> CC      drivers/i2c/i2c-dev.o
+> drivers/i2c/i2c-dev.c: In function `show_dev':
+> drivers/i2c/i2c-dev.c:121: warning: unsigned int format, different type
+> arg (arg 3)
 
-After running 2.6.0-test1-mm1 for two days, I tried to password protect
-my KDE session with the "Lock Screen" command from the K button.  This
-is something I do every time I walk away from my desk, security and all
-that.  It always works, until now.  Selecting "Lock Screen", nothing
-happened.  With several attempts, and waiting for several minutes, still
-no locked screen.  The system was still very responsive otherwise.  
+I've posted a patch to fix this warning.  Look in the archives.
 
-I logged off, logged back in again, and now "Lock Screen" works as
-expected.  I've never seen this before.  I've run many different kernels
-on this workstation and locked and unlocked the session many times per
-day for the several months I've had Mandrake 9.1 installed here.  My
-other workstation is Red Hat 9, but it's been busy doing other things
-than testing kernels recently.
+thanks,
 
-This may of course have nothing to do with 2.6.0-test1-mm1, but I
-thought I'd mention it.  One more thing for folks to look out for.
-
-
-Steven
-
+greg k-h
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
