@@ -1,261 +1,184 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1SIsdp0018462
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 13:54:39 -0500
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1SIshdV013420
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 13:54:43 -0500
 Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1SIsdmU061016
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 13:54:39 -0500
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1SIsh9m247164
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 13:54:43 -0500
 Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1SIsdAo031602
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 13:54:39 -0500
-Subject: [PATCH 3/5] abstract discontigmem setup
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1SIsg6w031773
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 13:54:42 -0500
+Subject: [PATCH 4/5] allow SRAT to parse empty nodes
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Mon, 28 Feb 2005 10:54:37 -0800
-Message-Id: <E1D5q2Q-0007eV-00@kernel.beaverton.ibm.com>
+Date: Mon, 28 Feb 2005 10:54:40 -0800
+Message-Id: <E1D5q2T-0007if-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 Cc: akpm@osdl.org, kmannth@us.ibm.com, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, ygoto@us.fujitsu.com, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-memory_present() is how each arch/subarch will tell sparsemem
-and discontigmem where all of its memory is.  This is what
-triggers sparse to go out and create its mappings for the memory,
-as well as allocate the mem_map[].
+This patch is to allow the booting of a numa srat base i386 system
+without requiring memory to be in all of it's nodes.  It breaks the
+assumption that all nodes have memory during bootup.
 
-By: Andy Whitcroft <apw@shadowen.org>
+Signed-off-by: Keith Mannthey <kmannth@us.ibm.com>
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- sparse-dave/arch/i386/Kconfig        |   10 +++++++
- sparse-dave/arch/i386/kernel/numaq.c |    6 +++-
- sparse-dave/arch/i386/kernel/srat.c  |    9 +++++-
- sparse-dave/arch/i386/mm/discontig.c |   49 ++++++++++++++++++++++-------------
- sparse-dave/arch/ppc64/mm/numa.c     |   19 ++++++++++---
- sparse-dave/include/linux/mmzone.h   |   11 +++++++
- 6 files changed, 79 insertions(+), 25 deletions(-)
+ sparse-dave/arch/i386/kernel/numaq.c    |    4 +---
+ sparse-dave/arch/i386/kernel/srat.c     |   14 ++++++++++++--
+ sparse-dave/arch/i386/mm/discontig.c    |   32 +++++++++++++++++++-------------
+ sparse-dave/include/asm-i386/topology.h |    6 ++++++
+ sparse-dave/include/linux/topology.h    |    5 ++++-
+ 5 files changed, 42 insertions(+), 19 deletions(-)
 
-diff -puN arch/i386/kernel/numaq.c~A3.1-abstract-discontig arch/i386/kernel/numaq.c
---- sparse/arch/i386/kernel/numaq.c~A3.1-abstract-discontig	2005-02-24 08:56:39.000000000 -0800
-+++ sparse-dave/arch/i386/kernel/numaq.c	2005-02-24 08:56:39.000000000 -0800
-@@ -32,7 +32,7 @@
- #include <asm/numaq.h>
+diff -puN arch/i386/kernel/srat.c~A3.2-fix_nomem_on_node arch/i386/kernel/srat.c
+--- sparse/arch/i386/kernel/srat.c~A3.2-fix_nomem_on_node	2005-02-24 08:56:40.000000000 -0800
++++ sparse-dave/arch/i386/kernel/srat.c	2005-02-24 08:56:40.000000000 -0800
+@@ -30,6 +30,7 @@
+ #include <linux/acpi.h>
+ #include <linux/nodemask.h>
+ #include <asm/srat.h>
++#include <asm/topology.h>
  
- /* These are needed before the pgdat's are created */
--extern long node_start_pfn[], node_end_pfn[];
-+extern long node_start_pfn[], node_end_pfn[], node_remap_size[];
- 
- #define	MB_TO_PAGES(addr) ((addr) << (20 - PAGE_SHIFT))
- 
-@@ -59,6 +59,10 @@ static void __init smp_dump_qct(void)
- 				eq->hi_shrd_mem_start - eq->priv_mem_size);
- 			node_end_pfn[node] = MB_TO_PAGES(
- 				eq->hi_shrd_mem_start + eq->hi_shrd_mem_size);
-+
-+			memory_present(node,
-+				node_start_pfn[node], node_end_pfn[node]);
-+			node_remap_size[node] = node_memmap_size_bytes(node);
- 		}
- 	}
- }
-diff -puN arch/i386/kernel/srat.c~A3.1-abstract-discontig arch/i386/kernel/srat.c
---- sparse/arch/i386/kernel/srat.c~A3.1-abstract-discontig	2005-02-24 08:56:39.000000000 -0800
-+++ sparse-dave/arch/i386/kernel/srat.c	2005-02-24 08:56:39.000000000 -0800
-@@ -58,7 +58,7 @@ static int num_memory_chunks;		/* total 
+ /*
+  * proximity macros and definitions
+@@ -58,8 +59,6 @@ static int num_memory_chunks;		/* total 
  static int zholes_size_init;
  static unsigned long zholes_size[MAX_NUMNODES * MAX_NR_ZONES];
  
--extern unsigned long node_start_pfn[], node_end_pfn[];
-+extern unsigned long node_start_pfn[], node_end_pfn[], node_remap_size[];
- 
+-extern unsigned long node_start_pfn[], node_end_pfn[], node_remap_size[];
+-
  extern void * boot_ioremap(unsigned long, unsigned long);
  
-@@ -286,6 +286,13 @@ static int __init acpi20_parse_srat(stru
- 			}
- 		}
- 	}
-+	for_each_online_node(nid) {
-+		unsigned long start = node_start_pfn[nid];
-+		unsigned long end = node_end_pfn[nid];
-+
-+		memory_present(nid, start, end);
-+		node_remap_size[nid] = node_memmap_size_bytes(nid, start, end);
-+	}
- 	return 1;
- out_fail:
- 	return 0;
-diff -puN arch/i386/mm/discontig.c~A3.1-abstract-discontig arch/i386/mm/discontig.c
---- sparse/arch/i386/mm/discontig.c~A3.1-abstract-discontig	2005-02-24 08:56:39.000000000 -0800
-+++ sparse-dave/arch/i386/mm/discontig.c	2005-02-24 08:56:39.000000000 -0800
-@@ -60,6 +60,32 @@ bootmem_data_t node0_bdata;
+ /* Identify CPU proximity domains */
+@@ -273,6 +272,17 @@ static int __init acpi20_parse_srat(stru
+ 		int been_here_before = 0;
+ 
+ 		for (j = 0; j < num_memory_chunks; j++){
++			/*
++			 * Only add present memroy to node_end/start_pfn
++			 * There is no guarantee from the srat that the memory
++			 * is present at boot time.
++			 */
++			if (node_memory_chunk[j].start_pfn >= max_pfn) {
++				printk (KERN_INFO "Ignoring chunk of memory reported in the SRAT (could be hot-add zone?)\n");
++				printk (KERN_INFO "chunk is reported from pfn %04x to %04x\n",
++					node_memory_chunk[j].start_pfn, node_memory_chunk[j].end_pfn);
++				continue;
++			}
+ 			if (node_memory_chunk[j].nid == nid) {
+ 				if (been_here_before == 0) {
+ 					node_start_pfn[nid] = node_memory_chunk[j].start_pfn;
+diff -puN arch/i386/mm/discontig.c~A3.2-fix_nomem_on_node arch/i386/mm/discontig.c
+--- sparse/arch/i386/mm/discontig.c~A3.2-fix_nomem_on_node	2005-02-24 08:56:40.000000000 -0800
++++ sparse-dave/arch/i386/mm/discontig.c	2005-02-24 08:56:40.000000000 -0800
+@@ -154,7 +154,7 @@ static void __init find_max_pfn_node(int
   */
- s8 physnode_map[MAX_ELEMENTS] = { [0 ... (MAX_ELEMENTS - 1)] = -1};
- 
-+void memory_present(int nid, unsigned long start, unsigned long end)
-+{
-+	unsigned long pfn;
-+
-+	printk(KERN_INFO "Node: %d, start_pfn: %ld, end_pfn: %ld\n",
-+			nid, start, end);
-+	printk(KERN_DEBUG "  Setting physnode_map array to node %d for pfns:\n", nid);
-+	printk(KERN_DEBUG "  ");
-+	for (pfn = start; pfn < end; pfn += PAGES_PER_ELEMENT) {
-+		physnode_map[pfn / PAGES_PER_ELEMENT] = nid;
-+		printk(KERN_DEBUG "%ld ", pfn);
-+	}
-+	printk(KERN_DEBUG "\n");
-+}
-+
-+unsigned long node_memmap_size_bytes(int nid, unsigned long start_pfn,
-+					      unsigned long end_pfn)
-+{
-+	unsigned long nr_pages = end_pfn - start_pfn;
-+
-+	if (!nr_pages)
-+		return 0;
-+
-+	return (nr_pages + 1) * sizeof(struct page);
-+}
-+
- unsigned long node_start_pfn[MAX_NUMNODES];
- unsigned long node_end_pfn[MAX_NUMNODES];
- 
-@@ -162,9 +188,9 @@ static unsigned long calculate_numa_rema
+ static void __init allocate_pgdat(int nid)
+ {
+-	if (nid)
++	if (nid && node_has_online_mem(nid))
+ 		NODE_DATA(nid) = (pg_data_t *)node_remap_start_vaddr[nid];
+ 	else {
+ 		NODE_DATA(nid) = (pg_data_t *)(__va(min_low_pfn << PAGE_SHIFT));
+@@ -188,6 +188,9 @@ static unsigned long calculate_numa_rema
  	for_each_online_node(nid) {
  		if (nid == 0)
  			continue;
--		/* calculate the size of the mem_map needed in bytes */
--		size = (node_end_pfn[nid] - node_start_pfn[nid] + 1) 
--			* sizeof(struct page) + sizeof(pg_data_t);
-+		/* ensure the remap includes space for the pgdat. */
-+		size = node_remap_size[nid] + sizeof(pg_data_t);
++		if (!node_remap_size[nid])
++			continue;
 +
- 		/* convert size to large (pmd size) pages, rounding up */
- 		size = (size + LARGE_PAGE_BYTES - 1) / LARGE_PAGE_BYTES;
- 		/* now the roundup is correct, convert to PAGE_SIZE pages */
-@@ -189,7 +215,7 @@ unsigned long __init setup_memory(void)
- {
- 	int nid;
- 	unsigned long system_start_pfn, system_max_low_pfn;
--	unsigned long reserve_pages, pfn;
-+	unsigned long reserve_pages;
+ 		/* ensure the remap includes space for the pgdat. */
+ 		size = node_remap_size[nid] + sizeof(pg_data_t);
  
- 	/*
- 	 * When mapping a NUMA machine we allocate the node_mem_map arrays
-@@ -198,22 +224,9 @@ unsigned long __init setup_memory(void)
- 	 * this space and use it to adjust the boundry between ZONE_NORMAL
- 	 * and ZONE_HIGHMEM.
- 	 */
-+	find_max_pfn();
- 	get_memcfg_numa();
+@@ -299,24 +302,27 @@ void __init zone_sizes_init(void)
  
--	/* Fill in the physnode_map */
--	for_each_online_node(nid) {
--		printk("Node: %d, start_pfn: %ld, end_pfn: %ld\n",
--				nid, node_start_pfn[nid], node_end_pfn[nid]);
--		printk("  Setting physnode_map array to node %d for pfns:\n  ",
--				nid);
--		for (pfn = node_start_pfn[nid]; pfn < node_end_pfn[nid];
--	       				pfn += PAGES_PER_ELEMENT) {
--			physnode_map[pfn / PAGES_PER_ELEMENT] = nid;
--			printk("%ld ", pfn);
--		}
--		printk("\n");
--	}
--
- 	reserve_pages = calculate_numa_remap_pages();
+ 		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
  
- 	/* partially used pages are not usable - thus round upwards */
-diff -puN arch/ppc64/mm/numa.c~A3.1-abstract-discontig arch/ppc64/mm/numa.c
---- sparse/arch/ppc64/mm/numa.c~A3.1-abstract-discontig	2005-02-24 08:56:39.000000000 -0800
-+++ sparse-dave/arch/ppc64/mm/numa.c	2005-02-24 08:56:39.000000000 -0800
-@@ -58,6 +58,17 @@ EXPORT_SYMBOL(numa_memory_lookup_table);
- EXPORT_SYMBOL(numa_cpumask_lookup_table);
- EXPORT_SYMBOL(nr_cpus_in_node);
- 
-+void memory_present(int nid, unsigned long start_pfn,
-+			     unsigned long end_pfn)
-+{
-+	unsigned long i;
-+	unsigned long start_addr = start << PAGE_SHIFT;
-+	unsigned long end_addr = end << PAGE_SHIFT;
-+
-+	for (i = start ; i < end; i += MEMORY_INCREMENT)
-+		numa_memory_lookup_table[i >> MEMORY_INCREMENT_SHIFT] = nid;
-+}
-+
- static inline void map_cpu_to_node(int cpu, int node)
- {
- 	numa_cpu_lookup_table[cpu] = node;
-@@ -378,9 +389,8 @@ new_range:
- 				size / PAGE_SIZE;
+-		if (start > low) {
++		if (node_has_online_mem(nid)){
++			if (start > low) {
+ #ifdef CONFIG_HIGHMEM
+-			BUG_ON(start > high);
+-			zones_size[ZONE_HIGHMEM] = high - start;
++				BUG_ON(start > high);
++				zones_size[ZONE_HIGHMEM] = high - start;
+ #endif
+-		} else {
+-			if (low < max_dma)
+-				zones_size[ZONE_DMA] = low;
+-			else {
+-				BUG_ON(max_dma > low);
+-				BUG_ON(low > high);
+-				zones_size[ZONE_DMA] = max_dma;
+-				zones_size[ZONE_NORMAL] = low - max_dma;
++			} else {
++				if (low < max_dma)
++					zones_size[ZONE_DMA] = low;
++				else {
++					BUG_ON(max_dma > low);
++					BUG_ON(low > high);
++					zones_size[ZONE_DMA] = max_dma;
++					zones_size[ZONE_NORMAL] = low - max_dma;
+ #ifdef CONFIG_HIGHMEM
+-				zones_size[ZONE_HIGHMEM] = high - low;
++					zones_size[ZONE_HIGHMEM] = high - low;
+ #endif
++				}
+ 			}
  		}
- 
--		for (i = start ; i < (start+size); i += MEMORY_INCREMENT)
--			numa_memory_lookup_table[i >> MEMORY_INCREMENT_SHIFT] =
--				numa_domain;
-+		memory_present(numa_domain, start >> PAGE_SHIFT,
-+					       (start + size) >> PAGE_SHIFT);
- 
- 		ranges--;
- 		if (ranges)
-@@ -428,8 +438,7 @@ static void __init setup_nonnuma(void)
- 	init_node_data[0].node_start_pfn = 0;
- 	init_node_data[0].node_spanned_pages = lmb_end_of_DRAM() / PAGE_SIZE;
- 
--	for (i = 0 ; i < top_of_ram; i += MEMORY_INCREMENT)
--		numa_memory_lookup_table[i >> MEMORY_INCREMENT_SHIFT] = 0;
-+	memory_present(0, 0, init_node_data[0].node_spanned_pages);
- 
- 	node0_io_hole_size = top_of_ram - total_ram;
++
+ 		zholes_size = get_zholes_size(nid);
+ 		/*
+ 		 * We let the lmem_map for node 0 be allocated from the
+diff -puN include/asm-i386/topology.h~A3.2-fix_nomem_on_node include/asm-i386/topology.h
+--- sparse/include/asm-i386/topology.h~A3.2-fix_nomem_on_node	2005-02-24 08:56:40.000000000 -0800
++++ sparse-dave/include/asm-i386/topology.h	2005-02-24 08:56:40.000000000 -0800
+@@ -88,6 +88,12 @@ static inline cpumask_t pcibus_to_cpumas
+ 	.nr_balance_failed	= 0,			\
  }
-diff -puN include/linux/mmzone.h~A3.1-abstract-discontig include/linux/mmzone.h
---- sparse/include/linux/mmzone.h~A3.1-abstract-discontig	2005-02-24 08:56:39.000000000 -0800
-+++ sparse-dave/include/linux/mmzone.h	2005-02-24 08:56:39.000000000 -0800
-@@ -11,6 +11,7 @@
- #include <linux/cache.h>
- #include <linux/threads.h>
- #include <linux/numa.h>
-+#include <linux/init.h>
- #include <asm/atomic.h>
  
- /* Free memory management - zoned buddy allocator.  */
-@@ -278,6 +279,16 @@ void wakeup_kswapd(struct zone *zone, in
- int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
- 		int alloc_type, int can_try_harder, int gfp_high);
- 
-+#ifdef CONFIG_HAVE_MEMORY_PRESENT
-+void memory_present(int nid, unsigned long start, unsigned long end);
-+#else
-+static inline void memory_present(int nid, unsigned long start, unsigned long end) {}
-+#endif
++extern unsigned long node_start_pfn[];
++extern unsigned long node_end_pfn[];
++extern unsigned long node_remap_size[];
 +
-+#ifdef CONFIG_NEED_NODE_MEMMAP_SIZE
-+unsigned long __init node_memmap_size_bytes(int, unsigned long, unsigned long);
-+#endif
++#define node_has_online_mem(nid) (node_start_pfn[nid] != node_end_pfn[nid])
 +
+ #else /* !CONFIG_NUMA */
  /*
-  * zone_idx() returns 0 for the ZONE_DMA zone, 1 for the ZONE_NORMAL zone, etc.
-  */
-diff -puN arch/i386/Kconfig~A3.1-abstract-discontig arch/i386/Kconfig
---- sparse/arch/i386/Kconfig~A3.1-abstract-discontig	2005-02-24 08:56:39.000000000 -0800
-+++ sparse-dave/arch/i386/Kconfig	2005-02-24 08:56:39.000000000 -0800
-@@ -769,6 +769,16 @@ config HAVE_ARCH_BOOTMEM_NODE
- 	depends on NUMA
- 	default y
+  * Other i386 platforms should define their own version of the 
+diff -puN include/linux/topology.h~A3.2-fix_nomem_on_node include/linux/topology.h
+--- sparse/include/linux/topology.h~A3.2-fix_nomem_on_node	2005-02-24 08:56:40.000000000 -0800
++++ sparse-dave/include/linux/topology.h	2005-02-24 08:56:40.000000000 -0800
+@@ -31,9 +31,12 @@
+ #include <linux/bitops.h>
+ #include <linux/mmzone.h>
+ #include <linux/smp.h>
+-
+ #include <asm/topology.h>
  
-+config HAVE_MEMORY_PRESENT
-+	bool
-+	depends on DISCONTIGMEM
-+	default y
++#ifndef node_has_online_mem
++#define node_has_online_mem(nid) (1)
++#endif
 +
-+config NEED_NODE_MEMMAP_SIZE
-+	bool
-+	depends on DISCONTIGMEM
-+	default y
-+
- config HIGHPTE
- 	bool "Allocate 3rd-level pagetables from highmem"
- 	depends on HIGHMEM4G || HIGHMEM64G
+ #ifndef nr_cpus_node
+ #define nr_cpus_node(node)							\
+ 	({									\
+diff -puN arch/i386/kernel/numaq.c~A3.2-fix_nomem_on_node arch/i386/kernel/numaq.c
+--- sparse/arch/i386/kernel/numaq.c~A3.2-fix_nomem_on_node	2005-02-24 08:56:40.000000000 -0800
++++ sparse-dave/arch/i386/kernel/numaq.c	2005-02-24 08:56:40.000000000 -0800
+@@ -30,9 +30,7 @@
+ #include <linux/module.h>
+ #include <linux/nodemask.h>
+ #include <asm/numaq.h>
+-
+-/* These are needed before the pgdat's are created */
+-extern long node_start_pfn[], node_end_pfn[], node_remap_size[];
++#include <asm/topology.h>
+ 
+ #define	MB_TO_PAGES(addr) ((addr) << (20 - PAGE_SHIFT))
+ 
 _
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
