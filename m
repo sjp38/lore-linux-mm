@@ -1,28 +1,44 @@
-Date: Fri, 11 Oct 2002 07:30:14 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: Ingo Molnar <mingo@elte.hu>
-Subject: Re: 2.5.41-mm2
-In-Reply-To: <3DA65441.7020505@us.ibm.com>
-Message-ID: <Pine.LNX.4.44.0210110729510.16741-100000@localhost.localdomain>
+Message-ID: <20021011060138.77490.qmail@web40501.mail.yahoo.com>
+Date: Thu, 10 Oct 2002 23:01:38 -0700 (PDT)
+From: Sanjay Kumar <sankumar73@yahoo.com>
+Subject: Re: memory reclaiming problem in 2.4.2
+In-Reply-To: <1034267953.3629.14.camel@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Arjan van de Ven <arjanv@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 10 Oct 2002, Dave Hansen wrote:
+Hi Arjan,
 
->    I'm running the current Bitkeeper tree with your patch, with no
-> oopses in sight.  The oops happens in seconds without the patch, but I
-> haven't seen anything in an hour of running Specweb.  It looks pretty
-> good.  Please feed that patch to Linus if you haven't already.
+So if we move to linux 2.4.17, this problem will get solved?
+Please reply me as we are now planning to use 2.4.17 but still in
+dilemma becuase 2.4.2 is working fine except few memory and jffs2 related 
+problems.
 
-great. Linus has applied the patch already.
+Thanks & Regards,
+Sanjay
+--- Arjan van de Ven <arjanv@redhat.com> wrote:
+> On Thu, 2002-10-10 at 18:22, Sanjay Kumar wrote:
+> > Hi,
+> > 
+> > We are running applications on linux2.4.2 on our embedded box; Linux is being
+> 
+> 2.4.2? I think you need to go to linux-archeology mailinglist for
+> that... 2.4.2 corrupts data and has shitloads of other problems...
+> 
+> 
 
-	Ingo
+> ATTACHMENT part 2 application/pgp-signature name=signature.asc
 
+
+
+__________________________________________________
+Do you Yahoo!?
+Faith Hill - Exclusive Performances, Videos & More
+http://faith.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
