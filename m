@@ -1,16 +1,33 @@
-Date: Sat, 28 Feb 2004 07:44:33 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: [Bug 2219] New: kernel BUG at mm/rmap.c:306 
-Message-ID: <476870000.1077983073@[10.10.2.4]>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mnm (build.pdx.osdl.net [172.20.1.2])
+	by mail.osdl.org (8.11.6/8.11.6) with ESMTP id i1SAThE24478
+	for <linux-mm@kvack.org>; Sat, 28 Feb 2004 02:29:43 -0800
+Date: Sat, 28 Feb 2004 02:30:38 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Fw: [Bug 2219] New: kernel BUG at mm/rmap.c:306
+Message-Id: <20040228023038.4d6c780f.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm mailing list <linux-mm@kvack.org>
-Cc: castetm@ensisun.imag.fr
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+My todo list just wrapped around.  If anyone has the time to fix this up,
+please let me know.
+
+Thanks.
+
+
+Begin forwarded message:
+
+Date: Sat, 28 Feb 2004 02:12:20 -0800
+From: bugme-daemon@osdl.org
+To: akpm@digeo.com
+Subject: [Bug 2219] New: kernel BUG at mm/rmap.c:306
+
+
+http://bugme.osdl.org/show_bug.cgi?id=2219
 
            Summary: kernel BUG at mm/rmap.c:306
     Kernel Version: 2.6.3
@@ -70,7 +87,8 @@ Code: 0f 0b 32 01 13 c0 32 c0 e9 78 fe ff ff 8d 76 00 55 57 56 89
  <6>note: kswapd0[8] exited with preempt_count 2
 Out of Memory: Killed process 12353 (a.out).
 
-
+------- You are receiving this mail because: -------
+You are the assignee for the bug, or are watching the assignee.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
