@@ -1,40 +1,39 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA32716
-	for <linux-mm@kvack.org>; Mon, 25 Jan 1999 12:56:27 -0500
-Date: Mon, 25 Jan 1999 17:56:04 GMT
-Message-Id: <199901251756.RAA06134@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA00385
+	for <linux-mm@kvack.org>; Mon, 25 Jan 1999 13:30:23 -0500
+Date: Mon, 25 Jan 1999 10:27:30 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <19990125141409.A29248@boole.suse.de>
-References: <Pine.LNX.4.03.9901131557590.295-100000@mirkwood.dummy.home>
-	<Pine.LNX.3.96.990113190617.185C-100000@laser.bogus>
-	<199901132214.WAA07436@dax.scot.redhat.com>
-	<19990114155321.C573@Galois.suse.de>
-	<m1u2xjgtke.fsf@flinx.ccr.net>
-	<19990125141409.A29248@boole.suse.de>
+In-Reply-To: <199901251625.QAA04452@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.95.990125102428.21082D-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Dr. Werner Fink" <werner@suse.de>
-Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@e-mind.com>, Rik van Riel <riel@humbolt.geo.uu.nl>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-On Mon, 25 Jan 1999 14:14:09 +0100, "Dr. Werner Fink" <werner@suse.de>
-said:
+On Mon, 25 Jan 1999, Stephen C. Tweedie wrote:
+> 
+> Regarding the former, is there any chance you'd consider adding a kswapd
+> wakeup when low_memory gets set in get_free_pages()?  Being able to
+> respond to a burst in network traffic without locking up is not exactly
+> a minor issue.
 
-> which leads into load upper 30.  You can see a great performance upto
-> load to 25 ... 30+ *and* a brutal break down of that performance
-> at this point.  The system is a PentiumII 400MHz with 32, 64, 128MB
-> (mem=xxx) and SCSI only.  In comparision to 2.0.36 the performance
-> is *beside of this break down* much better ...  that means that only
-> the performance break down at high load is the real problem.
+I did that, only to revert it later, because I didn't think it would make
+any difference - processes that get to that point will try to free up
+memory on their own anyway. 
 
-But is the performance of 2.0.36 better or worse at high load?
+Note that it wouldn't ever trigger for GFP_ATOMIC allocations, so I
+suspect you haven't actually _tried_ it? For a machine that gets burst of
+network traffic with nothing else going on, adding it should essentially
+amount to a no-op.
 
---Stephen
+I'll look at your other patch.
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
