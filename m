@@ -1,44 +1,52 @@
-Message-ID: <419EBBE0.4010303@yahoo.com.au>
-Date: Sat, 20 Nov 2004 14:37:04 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Fri, 19 Nov 2004 19:43:49 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: page fault scalability patch V11 [0/7]: overview
-References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain> <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411181715280.834@schroedinger.engr.sgi.com> <419D581F.2080302@yahoo.com.au> <Pine.LNX.4.58.0411181835540.1421@schroedinger.engr.sgi.com> <419D5E09.20805@yahoo.com.au> <Pine.LNX.4.58.0411181921001.1674@schroedinger.engr.sgi.com> <1100848068.25520.49.camel@gaston> <Pine.LNX.4.58.0411190704330.5145@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411191155180.2222@ppc970.osdl.org> <20041120020306.GA2714@holomorphy.com>
-In-Reply-To: <20041120020306.GA2714@holomorphy.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20041120034349.GG2714@holomorphy.com>
+References: <419D5E09.20805@yahoo.com.au> <Pine.LNX.4.58.0411181921001.1674@schroedinger.engr.sgi.com> <1100848068.25520.49.camel@gaston> <Pine.LNX.4.58.0411190704330.5145@schroedinger.engr.sgi.com> <20041120020401.GC2714@holomorphy.com> <419EA96E.9030206@yahoo.com.au> <20041120023443.GD2714@holomorphy.com> <419EAEA8.2060204@yahoo.com.au> <20041120030425.GF2714@holomorphy.com> <419EB699.4050204@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <419EB699.4050204@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Linus Torvalds <torvalds@osdl.org>, Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Christoph Lameter <clameter@sgi.com>, torvalds@osdl.org, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, Robin Holt <holt@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
 William Lee Irwin III wrote:
-> On Fri, Nov 19, 2004 at 11:59:03AM -0800, Linus Torvalds wrote:
-> 
->>You could also make "rss" be a _signed_ integer per-thread.
->>When unmapping a page, you decrement one of the threads that shares the mm 
->>(doesn't matter which - which is why the per-thread rss may go negative), 
->>and when mapping a page you increment it.
->>Then, anybody who actually wants a global rss can just iterate over
->>threads and add it all up. If you do it under the mmap_sem, it's stable,
->>and if you do it outside the mmap_sem it's imprecise but stable in the
->>long term (ie errors never _accumulate_, like the non-atomic case will 
->>do).
->>Does anybody care enough? Maybe, maybe not. It certainly sounds a hell of 
->>a lot better than the periodic scan.
-> 
-> 
-> Unprivileged triggers for full-tasklist scans are NMI oops material.
-> 
+>> Irrelevant. Unshare cachelines with hot mm-global ones, and the
+>> "problem" goes away.
 
-Hang on, let's come back to this...
+On Sat, Nov 20, 2004 at 02:14:33PM +1100, Nick Piggin wrote:
+> That's the idea.
 
-We already have unprivileged do-for-each-thread triggers in the proc
-code. It's in do_task_stat, even. Rss reporting would basically just
-involve one extra addition within that loop.
 
-So... hmm, I can't see a problem with it.
+William Lee Irwin III wrote:
+>> This stuff is going on and on about some purist "no atomic operations
+>> anywhere" weirdness even though killing the last atomic operation
+>> creates problems and doesn't improve performance.
+
+On Sat, Nov 20, 2004 at 02:14:33PM +1100, Nick Piggin wrote:
+> Huh? How is not wanting to impact single threaded performance being
+> "purist weirdness"? Practical, I'd call it.
+
+Empirically demonstrate the impact on single-threaded performance.
+
+
+On Sat, Nov 20, 2004 at 01:40:40PM +1100, Nick Piggin wrote:
+>> Why the Hell would you bother giving each cpu a separate cacheline?
+>> The odds of bouncing significantly merely amongst the counters are not
+>> particularly high.
+
+On Sat, Nov 20, 2004 at 02:14:33PM +1100, Nick Piggin wrote:
+> Hmm yeah I guess wouldn't put them all on different cachelines.
+> As you can see though, Christoph ran into a wall at 8 CPUs, so
+> having them densly packed still might not be enough.
+
+Please be more specific about the result, and cite the Message-Id.
+
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
