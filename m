@@ -1,35 +1,52 @@
-Received: from mhs.atenasio.net (root@d112.dial-1.cmb.ma.ultra.net [209.6.64.112])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA01691
-	for <linux-mm@kvack.org>; Fri, 2 Apr 1999 13:56:49 -0500
-Date: Fri, 2 Apr 1999 13:56:39 -0500 (EST)
-From: Chris Atenasio <chrisa@ultranet.com>
-Subject: Re: Somw questions [ MAYBE OFFTOPIC ]
-In-Reply-To: <19990402113555.F9584@uni-koblenz.de>
-Message-ID: <Pine.LNX.4.05.9904021353340.18457-100000@chris.atenasio.net>
+Received: from funky.monkey.org (smtp@funky.monkey.org [152.160.231.196])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA24745
+	for <linux-mm@kvack.org>; Sun, 4 Apr 1999 17:07:39 -0400
+Date: Sun, 4 Apr 1999 17:07:22 -0400 (EDT)
+From: Chuck Lever <cel@monkey.org>
+Subject: Re: [patch] arca-vm-2.2.5
+In-Reply-To: <Pine.LNX.4.05.9904020120200.2057-100000@laser.random>
+Message-ID: <Pine.BSF.4.03.9904041657210.15836-100000@funky.monkey.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Amol Mohite <amol@m-net.arbornet.org>
-Cc: ralf@uni-koblenz.de, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> A NULL pointer is just yet another invalid address.  There is no special
-> test for a NULL pointer.  Most probably for example (char *)0x12345678 will
-> be invalid as a pointer as well and treated the same.  The CPU detects this
-> when the TLB doesn't have a translation valid for the access being attempted.
+On Fri, 2 Apr 1999, Andrea Arcangeli wrote:
+> Well in the last days I had new design ideas on the VM (I mean
+> shrink_mmap() and friends). I finished implementing them and the result
+> looks like impressive under heavy VM load.
+> 
+> I would like if people that runs linux under high VM load would try it out
+> my new VM code.
+> 
+> 	ftp://e-mind.com/pub/linux/arca-tree/2.2.5_arca2.gz
 
-Which is why you can do -=*fun*=- things such as:
+i noticed a couple of differences with your original modifications, right
+off the bat.
 
-fd = open("/dev/kmem", O_RDWR);
-mmap(0,64000,PROT_READ|PROT_WRITE,MAP_SHARED|MAP_FIXED,fd,0xB8000);
+first, i notice you've altered the page hash function and quadrupled the
+size of the hash table.  do you have measurements/benchmarks that show
+that the page hash was not working well?  can you say how a plain 2.2.5
+kernel compares to one that has just the page hash changes without the
+rest of your VM modifications? the reason i ask is because i've played
+with that hash table, and found most changes to it cause undesirable
+increases in system CPU utilization.  although, it *is* highly interesting
+that the buffer hash table is orders of magnitude larger, yet hashes about
+the same number of objects.  can someone provide history on the design of
+the page hash function?
 
-:)   ^                                       ^^^^^^^^^
+also, can you tell what improvement you expect from the additional logic
+in try_to_free_buffers() ?
 
-- Chris
------------------------------------------------------------------------------
-Chris Atenasio <chrisa@ultranet.com> - Friends don't let friends use Windows.
-Send mail with subject "send pgp key" or "word of the day" for auto-response.
-Today's word of the day: masculinity
+	- Chuck Lever
+--
+corporate:	<chuckl@netscape.com>
+personal:	<chucklever@netscape.net> or <cel@monkey.org>
+
+The Linux Scalability project:
+	http://www.citi.umich.edu/projects/citi-netscape/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
