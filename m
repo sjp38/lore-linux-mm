@@ -1,60 +1,147 @@
-Date: Sun, 06 Apr 2003 16:26:57 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: subobj-rmap
-Message-ID: <3370000.1049671616@[10.10.2.4]>
-In-Reply-To: <20030406230624.GB25081@mail.jlokier.co.uk>
-References: <Pine.LNX.4.44.0304061737510.2296-100000@chimarrao.boston.redhat.com> <1600000.1049666582@[10.10.2.4]> <20030406230624.GB25081@mail.jlokier.co.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: [BUG] vmalloc.c:253 with highmem, LVM, and snapshots
+From: Andrew Rechenberg <arechenberg@shermfin.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Message-Id: <1049724171.12884.88.camel@cinshrlnxws01.shermfin.com>
+Mime-Version: 1.0
+Date: 07 Apr 2003 10:02:51 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <jamie@shareable.org>
-Cc: Rik van Riel <riel@surriel.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrew Morton <akpm@digeo.com>, andrea@suse.de, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Bill Irwin <wli@holomorphy.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> 0-150 -> 150-200 -> 200-300 -> 300-400 -> 400-500 -> 500-999
->>  A          A          A          A          A          A
->>  B          B
->>             C          C          C 
->>                                   D          D          
->>                                   E          E          
->>  F          F          F          F          F          F
-> 
-> I thought of that but decided it is too simple :)
-> 
-> A downside with it is that from time to time you need to split or
-> merge subobjects, and that means splitting or merging the list nodes
-> linking "rows" in the table above - potentially quite a lot of memory
-> allocation and traversal for a single mmap().
+A thread on the LVM mailing list
+(http://marc.theaimsgroup.com/?l=linux-lvm&m=103577962720526&w=2)
+indicated that there may a problem
+with the kernel highmem support so I'm posting here to see if anyone
+can help me fix it.  I have a Dell PowerEdge 6600 with 8GB RAM and
+when trying to create a snapshot of a logical volume the lvcreate
+command fails with a segmentation fault.
 
-The amount of work to be done is still fairly small ... and we already
-do (as far as I can see) *exactly* this already for the existing
-rb tree. Yes, mmap has a little bit more overhead, but you lose all
-the per-page stuff, which seems much more efficient to me.
- 
->> We can always leave the sys_remap_file_pages stuff using pte_chains,
->> and should certainly do that at first. But doing it for normal stuff
->> should be less controversial, I think.
-> 
-> If you implement the 2d data structure that you illustrated, you have
-> a list node for each point in the table.
-> 
-> By the time your subobject regions are 1 page wide, you have a data
-> structure that is order-equivalent to pte rmap chains, although the
-> exact number of words is likely to be higher.
+The workaround I used was to limit the system memory to ~6GB (used
+mem=6000M on the kernel command line in grub.conf).  The lvcreate
+command did not fail with mem=6000M.  I would like to use the entire
+8GB (and actually more as I would like to make a 1GB ramdisk for some
+temp space).  Turning off hyperThreading and/or SMP did not prevent
+the seg fault for me when creating the snapshot
 
-Well, yes. Except I hope nobody would want to do that on a per-page
-basis. If you want that level of granularity, we should just do this 
-for linear objects, and fall back to pte_chains for nonlinear.
+Below are the specs for my machine and the output from ksymoops for
+the segmentation fault.  This machine is currently in production, but
+I have a test box with 4GB and RAM and I should be able to grab an
+additional 4GB for testing purposes.
 
-Life would be a whole lot simpler if people were willing to specify
-non-linear VMAs at create time - I don't see that as a big burden,
-personally. That'd get rid of all the conversion stuff.
+If anyone has any suggestions or possible patches to fix this issues
+please CC: me on any responses.
 
-M.
+Thanks in adavance,
+Andy.
 
+------------------------------------------
+
+Dell PowerEdge 6600
+Quad Xeon 1.4GHz with HT enabled
+8GB RAM (currently limited to 6GB with mem=6000M)
+RH 7.3
+Kernel 2.4.18-27.SHRbigmem
+  - custom RPM based on RH kernel 2.4.18-27.7.x source
+  - LVM 1.0.7 patch
+  - MegaRAID 2.00.2 patch
+  - md-seq_file patch
+52 disk software RAID10 with 4 hotspares - ~440GB
+1 440GB Volume Group on top of above SW RAID array
+360GB LV for data
+Remaining 80GB for snapshots
+
+Command used when getting segmentation fault:
+
+lvcreate -L75G -c 128 -s -nlvsnap /dev/cubsvg00/cubslv00
+
+
+Apr  6 16:05:46 cinshrcub01 kernel: kernel BUG at vmalloc.c:253!
+Apr  6 16:05:46 cinshrcub01 kernel: invalid operand: 0000
+Apr  6 16:05:46 cinshrcub01 kernel: CPU:    1
+Apr  6 16:05:46 cinshrcub01 kernel: EIP:    0010:[<c0136a67>]    Not
+tainted
+Using defaults from ksymoops -t elf32-i386 -a i386
+Apr  6 16:05:46 cinshrcub01 kernel: EFLAGS: 00010246
+Apr  6 16:05:46 cinshrcub01 kernel: eax: 00000fff   ebx: 00000000  
+ecx: 51eb851f   edx: 00000000
+Apr  6 16:05:46 cinshrcub01 kernel: esi: 00000000   edi: f5e68400  
+ebp: fffffff4   esp: c9879ce4
+Apr  6 16:05:46 cinshrcub01 kernel: ds: 0018   es: 0018   ss: 0018
+Apr  6 16:05:46 cinshrcub01 kernel: Process lvcreate (pid: 1778,
+stackpage=c9879000)
+Apr  6 16:05:46 cinshrcub01 kernel: Stack: c0303a64 00000000 c0302a24
+00000000 c0304bf0 00000000 00000500 c013bfeb
+Apr  6 16:05:46 cinshrcub01 kernel:        00000001 00000000 00000000
+f5e68400 fffffff4 f8872735 00000000 000001f2
+Apr  6 16:05:46 cinshrcub01 kernel:        00000163 00000000 f5e68400
+f5e6856c f5e68400 f88727ec f5e68400 4013f008
+Apr  6 16:05:46 cinshrcub01 kernel: Call Trace: [<c013bfeb>]
+__alloc_pages [kernel] 0x6b (0xc9879d00))
+Apr  6 16:05:46 cinshrcub01 kernel: [<f8872735>]
+lvm_snapshot_alloc_hash_table [lvm-mod] 0x45 (0xc9879d18))
+Apr  6 16:05:46 cinshrcub01 kernel: [<f88727ec>] lvm_snapshot_alloc
+[lvm-mod] 0x6c (0xc9879d38))
+Apr  6 16:05:46 cinshrcub01 kernel: [<f88701c7>] lvm_do_lv_create
+[lvm-mod] 0x507 (0xc9879d4c))
+Apr  6 16:05:46 cinshrcub01 kernel: [<f886d9d5>] lvm_chr_ioctl
+[lvm-mod] 0x6d5 (0xc9879d80))
+Apr  6 16:05:46 cinshrcub01 kernel: [<f8877220>] lv_req [lvm-mod] 0x0
+(0xc9879d88))
+Apr  6 16:05:46 cinshrcub01 kernel: [<c014124a>] page_add_rmap
+[kernel] 0x3a (0xc9879dc0))
+Apr  6 16:05:46 cinshrcub01 kernel: [<c012eb56>] do_no_page [kernel]
+0x226 (0xc9879dd0))
+Apr  6 16:05:46 cinshrcub01 kernel: [<c01537d7>] sys_ioctl [kernel]
+0x257 (0xc9879f94))
+Apr  6 16:05:46 cinshrcub01 kernel: [<c0143af7>] sys_open [kernel]
+0x57 (0xc9879fac))
+Apr  6 16:05:46 cinshrcub01 kernel: [<c0108c93>] system_call [kernel]
+0x33 (0xc9879fc0))
+Apr  6 16:05:46 cinshrcub01 kernel: Code: 0f 0b fd 00 44 e8 24 c0 31
+c0 e9 1e 02 00 00 6a 02 53 e8 e2
+
+>>EIP; c0136a67 <__vmalloc+27/260>   <=====
+Trace; c013bfeb <__alloc_pages+6b/2f0>
+Trace; f8872735 <[lvm-mod]lvm_snapshot_alloc_hash_table+45/90>
+Trace; f88727ec <[lvm-mod]lvm_snapshot_alloc+6c/e0>
+Trace; f88701c7 <[lvm-mod]lvm_do_lv_create+507/830>
+Trace; f886d9d5 <[lvm-mod]lvm_chr_ioctl+6d5/7d0>
+Trace; f8877220 <[lvm-mod]lv_req+0/a0>
+Trace; c014124a <page_add_rmap+3a/90>
+Trace; c012eb56 <do_no_page+226/260>
+Trace; c01537d7 <sys_ioctl+257/291>
+Trace; c0143af7 <sys_open+57/a0>
+Trace; c0108c93 <system_call+33/38>
+Code;  c0136a67 <__vmalloc+27/260>
+00000000 <_EIP>:
+Code;  c0136a67 <__vmalloc+27/260>   <=====
+   0:   0f 0b                     ud2a      <=====
+Code;  c0136a69 <__vmalloc+29/260>
+   2:   fd                        std
+Code;  c0136a6a <__vmalloc+2a/260>
+   3:   00 44 e8 24               add    %al,0x24(%eax,%ebp,8)
+Code;  c0136a6e <__vmalloc+2e/260>
+   7:   c0                        (bad)
+Code;  c0136a6f <__vmalloc+2f/260>
+   8:   31 c0                     xor    %eax,%eax
+Code;  c0136a71 <__vmalloc+31/260>
+   a:   e9 1e 02 00 00            jmp    22d <_EIP+0x22d> c0136c94
+<__vmalloc+254/260>
+Code;  c0136a76 <__vmalloc+36/260>
+   f:   6a 02                     push   $0x2
+Code;  c0136a78 <__vmalloc+38/260>
+  11:   53                        push   %ebx
+Code;  c0136a79 <__vmalloc+39/260>
+  12:   e8 e2 00 00 00            call   f9 <_EIP+0xf9> c0136b60
+<__vmalloc+120/260>
+
+
+
+-- 
+Andrew Rechenberg <arechenberg@shermfin.com>
+Infrastrucutre Team, Sherman Financial Group
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
