@@ -1,60 +1,34 @@
-Message-ID: <3F3A9E46.6010803@sgi.com>
-Date: Wed, 13 Aug 2003 13:23:34 -0700
-From: Jay Lan <jlan@sgi.com>
-MIME-Version: 1.0
-Subject: [patch] Add support for more than 256 zones
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 13 Aug 2003 22:18:29 +0200
+From: Sam Ravnborg <sam@ravnborg.org>
+Subject: Re: 2.6.0-test3-mm1
+Message-ID: <20030813201829.GA15012@mars.ravnborg.org>
+References: <20030809203943.3b925a0e.akpm@osdl.org> <200308101941.33530.schlicht@uni-mannheim.de> <3F37DFDC.6080308@mvista.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3F37DFDC.6080308@mvista.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: George Anzinger <george@mvista.com>
+Cc: Thomas Schlichter <schlicht@uni-mannheim.de>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch is to support more than 256 zones for large systems.
-The changes is to add #ifdef CONFIG_IA64 to mm.h to give different
-#define to ZONE_SHIFT.
+On Mon, Aug 11, 2003 at 11:26:36AM -0700, George Anzinger wrote:
+> >that patch sets DEBUG_INFO to y by default, even if whether DEBUG_KERNEL 
+> >nor KGDB is enabled. The attached patch changes this to enable DEBUG_INFO 
+> >by default only if KGDB is enabled.
+> 
+> Looks good to me, but.... just what does this turn on?  Its been a 
+> long time and me thinks a wee comment here would help me remember next 
+> time.
 
-Thanks,
-  - jay lan
+DEBUG_INFO add "-g" to CFLAGS.
+Main reason to introduce this was that many architectures always use
+"-g", so a config option seemed more appropriate.
+I do not agree that this should be dependent on KGDB.
+To my knowledge -g is useful also without using kgdb.
 
-
-diff -urN a-2.5.75/include/linux/mm.h b-2.5.75/include/linux/mm.h
---- a-2.5.75/include/linux/mm.h     Thu Jul 10 13:04:45 2003
-+++ b-2.5.75/include/linux/mm.h     Tue Aug 12 17:20:22 2003
-@@ -323,7 +323,11 @@
-   * sets it, so none of the operations on it need to be atomic.
-   */
-  #define NODE_SHIFT 4
-+#ifdef CONFIG_IA64
-+#define ZONE_SHIFT (BITS_PER_LONG - 10)
-+#else
-  #define ZONE_SHIFT (BITS_PER_LONG - 8)
-+#endif
-
-  struct zone;
-  extern struct zone *zone_table[];
-
-
-
-For patch to 2.4.21:
-
-diff -urN a-2.4.21/include/linux/mm.h b-2.4.21/include/linux/mm.h
---- a-2.4.21/include/linux/mm.h     Fri Jun 13 07:51:38 2003
-+++ b-2.4.21/include/linux/mm.h     Tue Aug 12 17:19:27 2003
-@@ -321,7 +321,11 @@
-   * sets it, so none of the operations on it need to be atomic.
-   */
-  #define NODE_SHIFT 4
-+#ifdef CONFIG_IA64
-+#define ZONE_SHIFT (BITS_PER_LONG - 10)
-+#else
-  #define ZONE_SHIFT (BITS_PER_LONG - 8)
-+#endif
-
-  struct zone_struct;
-  extern struct zone_struct *zone_table[];
-
+	Sam
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
