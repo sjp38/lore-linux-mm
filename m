@@ -1,42 +1,26 @@
-Date: Mon, 25 Sep 2000 11:37:18 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: the new VM
-In-Reply-To: <20000925150858.A22882@athlon.random>
-Message-ID: <Pine.LNX.4.21.0009251135390.14614-100000@duckman.distro.conectiva>
+Date: Mon, 25 Sep 2000 16:53:05 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2
+In-Reply-To: <20000925164635.P22882@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009251647090.9122-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: Ingo Molnar <mingo@elte.hu>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
-> On Mon, Sep 25, 2000 at 03:02:58PM +0200, Ingo Molnar wrote:
-> > On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
-> > 
-> > > Sorry I totally disagree. If GFP_KERNEL are garanteeded to succeed
-> > > that is a showstopper bug. [...]
-> > 
-> > why?
+
+> > the EXCLUSIVE thing was noticed by Dimitris i think, and it makes tons of
 > 
-> Because as you said the machine can lockup when you run out of memory.
+> Actually I'm the one who introduced the EXCLUSIVE thing there and I audited
 
-The fix for this is to kill a user process when you're OOM
-(you need to do this anyway).
+sorry - i said it was *noticed* by Dimitris. (and sent to l-k IIRC)
 
-The last few allocations of the "condemned" process can come
-frome the reserved pages and the process we killed will exit just
-fine.
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
