@@ -1,47 +1,63 @@
-Date: Fri, 14 Jan 2000 03:13:48 +0100 (CET)
-From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <200001140113.RAA62584@google.engr.sgi.com>
 Subject: Re: [RFC] 2.3.39 zone balancing
-In-Reply-To: <Pine.LNX.4.10.10001131650520.2250-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.10.10001140304570.7119-100000@chiara.csoma.elte.hu>
+Date: Thu, 13 Jan 2000 17:13:05 -0800 (PST)
+In-Reply-To: <Pine.LNX.4.21.0001140128510.3816-100000@alpha.random> from "Andrea Arcangeli" at Jan 14, 2000 01:33:54 AM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@nl.linux.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@chiara.csoma.elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@nl.linux.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Jan 2000, Linus Torvalds wrote:
-
-> HOWEVER, I don't think this is going to be a huge issue in most cases. And
-> if people don't need non-DMA memory, then the pages we "swapped" out are
-> going to stay in RAM anyway, so it's not going to hurt us.
 > 
-> Anyway, I obviously do agree that I may well be wrong, and that real life
-> is going to come back and bite us, and we'll end up having to not do it
-> this way. However, I'd prefer trying the "conceptually simple" path first,
-> and only if it turns out that yes, I was completely wrong, do we try to
-> fix it up with magic heuristics etc.
+> On Thu, 13 Jan 2000, Linus Torvalds wrote:
+> 
+> >Basically, my argument is that there is no way "swap_out()" can really
+> >target any special zone, except by avoiding to do the final stage in a
+> >long sequence of stages that it has already done. I think that's just
+> >completely wasteful - doing all the work, and then at the last minute
+> >deciding to not use the work after all. Especially as we don't really have
+> >any good reason to believe that it's the right thing in the first place.
+> 
+> The only problem in what you are suggesting is that you may end swapping
+> out also the wrong pages. Suppose you want to allocate 4k of DMA
+> memory. Why should the machine swapout lots of mbytes of data while it
+> could only swapout 4k? And after each swapout we have to restart from the
+> vma because to swapout we have to drop the pagetable lock and so the
+> mappings can be changed from under us.
 
-hm., i think we'll see this with ISA soundcards (still the majority) if
-used as modules. Right now kswapd just gives up too easy and says 'no such
-page', on a box with lots of RAM and all DMA allocated in process VM
-space.
+Yes, I am worried about this a little too. Specially, when you are
+hunting for a dma page, and the machine happens to have gigs of
+highmem and regular pages, chances are that you will end up stealing
+a lot of pages unneccesarily.
 
-Anyway, the patch and suggestion of passing in a single zone is i believe
-completely wrong, because it advances mm->swap_address, which unfairly
-selects a given range to be checked for only one zone. So i think it's
-either zone-bitmaps (or equivalent multi-zone logic) or what you
-suggested, to have no zone-awareness in swap_out() for now at all.
+But as Linus points out, recovering from that is not that costly
+(the page will be in the swapcache mostly, its just the cost of 
+the page fault).
 
-(i believe this is also going to bite us with the IA64 port - kswapd will
-have no information to free pages from the right node, we could solve this
-already with a zone bitmap, or by starting per-zone kswapds. The latter
-one looks like overkill to me, but it's conceptually cleaner than bitmaps
-and and does not have a limitation on the number of zones. Might not be a
-highprio issue though.)
+What about stealing the page only if the corresponding zone is
+also running unbalanced?
 
--- mingo
+Kanoj
+
+> 
+> >So that's why I think the page table walker should be completely
+> >zone-blind, and just not care. It's likely to be more "balanced" that way
+> >anyway.
+> 
+> The swapout will be definitely more balanced but we may end doing not
+> necesary swapouts.
+> 
+> Andrea
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.nl.linux.org/Linux-MM/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
