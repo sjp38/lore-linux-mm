@@ -1,73 +1,51 @@
-From: Thomas Schlichter <schlicht@uni-mannheim.de>
-Subject: Re: 2.5.74-mm2 + nvidia (and others)
-Date: Mon, 14 Jul 2003 18:51:54 +0200
-References: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu> <20030712012130.GB15452@holomorphy.com> <1058184576.799.341.camel@workshop.saharacpt.lan>
-In-Reply-To: <1058184576.799.341.camel@workshop.saharacpt.lan>
+Date: Tue, 15 Jul 2003 11:20:01 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: VM docs and where they are going
+Message-ID: <Pine.LNX.4.53.0307141634090.24480@skynet>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-15"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200307141851.55775.schlicht@uni-mannheim.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schlemmer <azarah@gentoo.org>, William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@osdl.org>, smiler@lanil.mine.nu, KML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Christian Zander <zander@mail.minion.de>
+To: Linux Memory Management List <linux-mm@kvack.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I made a small number of typo corrections and expanded the introduction
+chapter a small bit on the Linux VM docs on my site. The changes are small
+enough that if anyone has already printed it out, don't bother printing it
+again. They are still available from the usual places.
 
-can anyone tell me WHY the NV_PMD_OFFSET() should not work the way it is with 
-the new NVIDIA patch? For our memories here it is again:
+Main document
+PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
+HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
+Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
 
-#define NV_PMD_OFFSET(address, pgd, pmd) \
-    { \
-        pmd_t *pmd__ = pmd_offset_map(pgd, address); \
-        pmd = *pmd__; \
-        pmd_unmap(pmd__); \
-    }
+Code commentary
+PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
+HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code/
+Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
 
-1.) For a 2 level pagetable it simply results in a:
-	pmd = *((pmd_t *) pgd);
+On the where it's going front from here, I'm happy to say I've now writing
+a book which will be published under the Bruce Peren's Open Book Series
+(http://www.perens.com/Books/). Some stuff that I'm working on for it
+include;
 
-So here the correct entry from the first page directory is copied into a 
-variable on the stack. No big deal, as the location of this entry is not 
-interesting for the further tablewalk, only its contents.
+o Better integration of the code commentary so it's easier to follow
+o Much better introduction sections and updating of the software tools
+o Shiny CD that comes with softcopy versions of the docs, browsable
+  version of the tree and hopefully online call graph generation
+o Chapter on anonymous shared memory including the virtual filesystem
+o Assorted expansions and additions
+o And best of all, a fairly detailed introduction to 2.6. The 2.6 sections
+  are at the end of each chapter and give a fairly detailed account
+  (right now, it's totalling about 30 pages) of what is new in 2.6 and
+  how it is implemented
 
-2.) So let's see what happens for a 3 level pagetable.
-We get following code after expanding (most of) the macros:
+If all goes well, it'll be available before the end of this year or in
+early 2004 :-)
 
-a.) pmd_t *pmd__ = ((pmd_t *)kmap_atomic(pgd_page(*(pgd)), KM_PMD0) + 
-pmd_index(addr));
-b.) pmd = *pmd__;
-c.) kunmap_atomic(pmd__, KM_PMD0);
-
-The most interesting part is the first line of it...
-a.) Here the page number is extracted from the pgd entry and converted to a 
-pointer to a page_struct (pgd_page). Now the page is mapped (from the high 
-memory) into the lower memory (kmap_atomic). The index where the interesting 
-pmd entry is located in this page is extracted from the virtual address via 
-the pmd_index macro. With this the pointer to the pmd entry is calculated and 
-assigned to pmd__.
-
-b.) Now this entry is simply copied into a variable located at the stack. 
-(Again not an issue, as the location of the variable is not of interest for 
-the rest of the tablewalk anymore.)
-
-c.) At least the page that contains the pmd entry, too, is unmapped, but our 
-local copy on the stack stays...
-
-
-So after both pieces of code the pmd entry is stored in a variable on the 
-stack and the further processing does not need to know where it came from, it 
-just needs its contents...
-
-So please tell me where this is wrong...! I just can't see it...
-
-Thank you all for all the work!
-
-Best regards
-   Thomas Schlichter
+-- 
+Mel Gorman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
