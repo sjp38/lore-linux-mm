@@ -1,45 +1,44 @@
-Date: Mon, 24 Jun 2002 12:02:22 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 24 Jun 2002 14:34:31 -0700
+From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
 Subject: Re: [PATCH] (1/2) reverse mapping VM for 2.5.23 (rmap-13b)
-In-Reply-To: <Pine.LNX.4.44.0206192151390.20865-100000@e2>
-Message-ID: <Pine.LNX.4.44L.0206241200310.3937-100000@imladris.surriel.com>
+Message-ID: <6660000.1024954471@flay>
+In-Reply-To: <Pine.LNX.4.33.0206191322480.2638-100000@penguin.transmeta.com>
+References: <Pine.LNX.4.33.0206191322480.2638-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Dave Jones <davej@suse.de>, Daniel Phillips <phillips@bonn-fries.net>, Craig Kulesa <ckulesa@as.arizona.edu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, rwhron@earthlink.net
+To: Linus Torvalds <torvalds@transmeta.com>, Craig Kulesa <ckulesa@as.arizona.edu>
+Cc: Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>, Dave Jones <davej@suse.de>, Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rwhron@earthlink.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Jun 2002, Ingo Molnar wrote:
-> On Wed, 19 Jun 2002, Rik van Riel wrote:
->
-> > I am encouraged by Craig's test results, which show that
-> > rmap did a LOT less swapin IO and rmap with page aging even
-> > less. The fact that it did too much swapout IO means one
-> > part of the system needs tuning but doesn't say much about
-> > the thing as a whole.
->
-> btw., isnt there a fair chance that by 'fixing' the aging+rmap code to
-> swap out less, you'll ultimately swap in more? [because the extra swappout
-> likely ended up freeing up RAM as well, which in turn decreases the amount
-> of trashing.]
+>> I'll try a more varied set of tests tonight, with cpu usage tabulated.
+> 
+> Please do a few non-swap tests too. 
+> 
+> Swapping is the thing that rmap is supposed to _help_, so improvements in
+> that area are good (and had better happen!), but if you're only looking at
+> the swap performance, you're ignoring the known problems with rmap, ie the
+> cases where non-rmap kernels do really well.
+> 
+> Comparing one but not the other doesn't give a very balanced picture..
 
-Possibly, but I expect the 'extra' swapouts to be caused
-by page_launder writing out too many pages at once and not
-just the ones it wants to free.
+It would also be interesting to see memory consumption figures for a benchmark 
+with many large processes. With this type of load, memory consumption 
+through PTEs is already a problem - as far as I can see, rmap triples the 
+memory requirement of PTEs through the PTE chain's doubly linked list 
+(an additional 8 bytes per entry) ... perhaps my calculations are wrong?  
+This is particular problem for databases that tend to have thousands of
+processes attatched to a large shared memory area.
 
-Cleaning pages and freeing them are separate operations,
-what is missing is a mechanism to clean enoughh pages but
-not all inactive pages at once ;)
+A quick rough calculation indicates that the Oracle test I was helping out 
+with was consuming almost 10Gb of PTEs without rmap - 30Gb for overhead 
+doesn't sound like fun to me ;-(
 
-regards,
+M.
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
