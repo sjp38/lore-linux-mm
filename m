@@ -1,42 +1,30 @@
 Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 8A57E38D29
-	for <linux-mm@kvack.org>; Wed, 22 Aug 2001 18:11:05 -0300 (EST)
-Date: Wed, 22 Aug 2001 18:10:52 -0300 (BRST)
+	by perninha.conectiva.com.br (Postfix) with SMTP id EA1C338CE5
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2001 18:28:26 -0300 (EST)
+Date: Wed, 22 Aug 2001 18:28:15 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] __alloc_pages_limit pages_min
-In-Reply-To: <200108222103.f7ML3Lb26463@maile.telia.com>
-Message-ID: <Pine.LNX.4.33L.0108221808490.31410-100000@duckman.distro.conectiva>
+Subject: Re: VM problem with 2.4.8-ac9 (fwd)
+In-Reply-To: <E15ZfK9-0002I3-00@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.33L.0108221827330.31410-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: linux-mm@kvack.org, Marcelo Tosatti <marcelo@conectiva.com.br>, Jari Ruusu <jari.ruusu@pp.inet.fi>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 22 Aug 2001, Roger Larsson wrote:
-> On Wednesdayen den 22 August 2001 19:01, Rik van Riel wrote:
-> > On Wed, 22 Aug 2001, Roger Larsson wrote:
-> > > Note: reclaim_page will fix this situation direct it is allowed to
-> > > run since it is kicked in __alloc_pages. But since we cannot
-> > > guarantee that this will never happen...
-> >
-> > In this case kreclaimd will be woken up and the free pages
-> > will be refilled.
+On Wed, 22 Aug 2001, Alan Cox wrote:
+
+> > Suspect code would be:
+> > - tlb optimisations in recent -ac    (tasks dying with segfault)
 >
-> Yes it will be woken up - but when will it actually do something?
+> Um the tlb optimisations go back to about 2.4.1-ac 8)
+> My guess would be the vm changes you and marcelo did
 
-> And this limit at the end of alloc_pages
-> 		if (z->free_pages < z->pages_min / 4 &&
-> 				!(current->flags & PF_MEMALLOC))
-> is not enforced earlier in the same code...
-
-Please read the code.  The first loop in __alloc_pages(),
-before we even call __alloc_pages_limit() will wake up
-kreclaimd as soon as 'z->free_pages < z->pages_min'.
-
-If you have any more questions about the source code,
-don't hesitate to ask ;)
+The strange thing is that the recent vm tweaks don't
+have any influence on the code paths which could cause
+tasks segfaulting ...
 
 Rik
 --
