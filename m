@@ -1,45 +1,68 @@
-Date: Thu, 13 Apr 2000 02:35:28 +0200
-From: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Subject: Re: Stack & policy
-Message-ID: <20000413023528.D27244@pcep-jamie.cern.ch>
-References: <Pine.LNX.3.95.1000412174014.810A-100000@ppp-pat138.tee.gr> <nnaeizpdfu.fsf@code.and.org>
+Received: from f03n07e
+	by ausmtp02.au.ibm.com (IBM AP 1.0) with ESMTP id OAA219788
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2000 14:56:42 +1000
+From: pnilesh@in.ibm.com
+Received: from d73mta05.au.ibm.com (f06n05s [9.185.166.67])
+	by f03n07e (8.8.8m2/8.8.7) with SMTP id PAA42470
+	for <linux-mm@kvack.org>; Thu, 13 Apr 2000 15:01:25 +1000
+Message-ID: <CA2568C0.001B9300.00@d73mta05.au.ibm.com>
+Date: Thu, 13 Apr 2000 10:23:03 +0530
+Subject: Re: page->offset
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <nnaeizpdfu.fsf@code.and.org>; from James Antill on Wed, Apr 12, 2000 at 11:05:25AM -0400
+Content-type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: James Antill <james@and.org>
-Cc: axanth@tee.gr, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-James Antill wrote:
-> > Some time ago I posted a message about a kernel feature where the
-> > application can request the vma->vm_start of its stack virtual memory area
-> > in order to unmap part of the unused stack (esp - vma->vm_start).
-> > 
-> > Such a feature is very useful for an alternative programming technique.
-> 
->  Have you seen jamie and chuck talking about madvise() flags ?
->  Just doing madvise(cur_stack, MADV_DONTNEED, cur_stack - end_stack)[1]
-> after a function that uses alloca() or has a large auto should be
-> a pretty simple addition to gcc (although you might not want to put it
-> there).
-> 
->  Those seem like a much better idea to me, as they can also be used in
-> pthreads (much as I hate pthreads) and other bits of memory that has
-> similar usage patterns.
->  This would also be much more likely to work on other OSes.
+I think I had put up the question in a wrong way.
 
-You'd use MADV_FREE, as it allows the app to reuse stack pages
-immediately without the overhead of them being unmapped, remapped and
-rezeroed -- if it reuses them before the kernel finds another use for
-them.  The most efficiently place to put this call is probably in a
-timer signal handler.
+If I mmap a file from/at a particular offset.
+char *p;
+fd = open("anyfile");
+p = mmap (NULL,100,PROT_READ|PROT_WRITE, MAP_SHARED,fd,10);
 
-You still need to get the base of the mapped region though.  You can
-parse /proc/self/maps for this :-)
+Here the call fails .
+I tried to map at / from offset 512 that also failed.
+however with the offset of 1024 it succeded.
 
--- Jamie
+So I can not mmap anything which is not fs block size aligned .
+
+#include <unistd.h>
+#include <sys/mman.h>
+#include <fcntl.h>
+main (int argc, char **argv)
+{
+        int i = 0;
+        int fd = open("./anyfile",O_RDWR);
+        char *p = mmap (NULL,10,PROT_READ,MAP_SHARED,fd,1024);
+        char *s = mmap (NULL,10,PROT_READ,MAP_SHARED,fd,1024);
+        char *q = 0;
+
+        q = (char*)((int)p & 0xfffff000);
+        printf ("p %x masked p %x\n",p,q);
+        q = (char*)((int)s & 0xfffff000);
+        printf ("s %x masked s %x\n",s,q);
+}
+The output of this was
+p 40014000 masked p 40014000
+s 40015000 masked s 40015000
+
+Does these virtual addresses point to only one physical page ?
+This page is in the page cache if I am not wrong with page->count = 3 ?
+(2.2.x)
+
+
+If I do read () from 1024 offset the data I will get will be from the above
+
+phyiscal page or from .... ?
+
+Nilesh
+
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
