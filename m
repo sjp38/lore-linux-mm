@@ -1,70 +1,205 @@
-Received: from issun5.hti.com ([130.210.202.3]) by issun6.hti.com
-          (Netscape Messaging Server 3.6)  with ESMTP id AAA4A41
-          for <linux-mm@kvack.org>; Tue, 1 May 2001 08:06:22 -0500
-Received: from link.com ([130.210.5.51]) by issun5.hti.com
-          (Netscape Messaging Server 3.6)  with ESMTP id AAA26B2
-          for <linux-mm@kvack.org>; Tue, 1 May 2001 08:33:36 -0500
-Message-ID: <3AEEBB22.9030801@link.com>
-Date: Tue, 01 May 2001 09:33:22 -0400
-From: "Richard F Weber" <rfweber@link.com>
+From: Christoph Rohland <cr@sap.com>
+Subject: [Patch] deadlock on write in tmpfs
+Message-ID: <m3hez5ci6p.fsf@linux.local>
 MIME-Version: 1.0
-Subject: About reading /proc/*/mem
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Date: 01 May 2001 15:39:47 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>, Stephen Tweedie <sct@redhat.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Ok, so as a rehash, the ptrace & open(),lseek() on /proc/*/mem should 
-both work about the same.  After a lot of struggling, I've gotten the 
-ptrace to work right & spit out the data I want/need.  However there is 
-one small problem, SIGSTOP.
+Hi Linus and Stephen,
 
-ptrace() appears to set up the child process to do a SIGSTOP whenever 
-any interrupt is received.  Which is kind of a bad thing for what I'm 
-looking to do.  I guess I'm trying to write a non-intrusive debugger 
-that can be used to view static variables stored in the heap of an 
-application.
+tmpfs deadlocks when writing into a file from a mapping of the same
+file. 
 
-On other OS's, this can be done just by popping open /proc/*/mem, and 
-reading the data as needed, allowing the child process to continue 
-processing away as if nothing is going on.  I'm looking to do the same 
-sort of task under Linux. 
+The problem is the following:
 
-Unfortunately, ptrace() probobally isn't going to allow me to do that.  
-So my next question is does opening /proc/*/mem force the child process 
-to stop on every interrupt (just like ptrace?)
+- shmem_file_write may call shmem_no_page and calls
+  shmem_getpage_locked later,
+- shmem_no_page calls shmem_getpage_locked
+- shmem_getpage_locked may call shmem_writepage on page allocation
 
-Second, I would imagine opening /dev/mem (or /proc/kcore) would get me 
-into the physical memory of the system itself.  How would I know what 
-the starting physical memory addresses of a processes data is to start at:
+- shmem_file_write holds the inode semaphore
+- shmem_getpage_locked prevent races against shmem_writepage with the
+  shmem spinlock
+- shmem_getpage_locked needs serialization against itself and
+  shmem_truncate
 
-What I do see is under /proc/*/maps is the entries:
-08048000-08049000 r-xp 00000000 03:01 718368     /devel/mem_probe/child
-08049000-0804a000 rw-p 00000000 03:01 718368     /devel/mem_probe/child
-40000000-40015000 r-xp 00000000 03:01 310089     /lib/ld-2.2.so
-40015000-40016000 rw-p 00014000 03:01 310089     /lib/ld-2.2.so
-40016000-40017000 rwxp 00000000 00:00 0
-40017000-40018000 rw-p 00000000 00:00 0
-40027000-4013f000 r-xp 00000000 03:01 310096     /lib/libc-2.2.so
-4013f000-40144000 rw-p 00117000 03:01 310096     /lib/libc-2.2.so
-40144000-40148000 rw-p 00000000 00:00 0
-bfffe000-c0000000 rwxp fffff000 00:00 0
+The last was done with the inode semaphore, which deadlocks with
+shmem_write
 
+So I see two choices: 
 
-I would assume that this tells me that memory addresses 
-0x08049000-0x804a000 are mapped to the physical address of 0x718368.  
-However Going to this address, and then doing an lseek(SEEK_CUR)out to 
-my expected variable offset doesn't get me the result I'm expecting.  Is 
-the 0x718368 the right location to be looking at, or is there some 
-translation that needs to get done (* by page size, translate into 
-hex/from hex, etc.) I can't find any documentation indicating what each 
-column represents so it's just a stab on my part.
+1) Do not serialise the whole of shmem_getpage_locked but protect
+   critical pathes with the spinlock and do retries after sleeps
+2) Add another semaphore to serialize shmem_getpage_locked and
+   shmem_truncate
 
-Thanks for the good information so far.
+I tried some time to get 1) done but the retry logic became way too
+complicated. So the attached patch implements 2)
 
---Rich
+I still think it's ugly to add another semaphore, but it works.
+
+Greetings
+		Christoph
+
+diff -uNr 2.4.4/include/linux/shmem_fs.h c/include/linux/shmem_fs.h
+--- 2.4.4/include/linux/shmem_fs.h	Sun Apr 29 20:33:00 2001
++++ c/include/linux/shmem_fs.h	Sun Apr 29 22:43:56 2001
+@@ -19,6 +19,7 @@
+ 
+ struct shmem_inode_info {
+ 	spinlock_t	lock;
++	struct semaphore sem;
+ 	unsigned long	max_index;
+ 	swp_entry_t	i_direct[SHMEM_NR_DIRECT]; /* for the first blocks */
+ 	swp_entry_t   **i_indirect; /* doubly indirect blocks */
+diff -uNr 2.4.4/mm/shmem.c c/mm/shmem.c
+--- 2.4.4/mm/shmem.c	Mon Apr 30 09:45:39 2001
++++ c/mm/shmem.c	Tue May  1 15:15:38 2001
+@@ -161,6 +161,7 @@
+ 	swp_entry_t **base, **ptr, **last;
+ 	struct shmem_inode_info * info = &inode->u.shmem_i;
+ 
++	down(&info->sem);
+ 	inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+ 	spin_lock (&info->lock);
+ 	index = (inode->i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+@@ -197,6 +198,7 @@
+ 	info->swapped -= freed;
+ 	shmem_recalc_inode(inode);
+ 	spin_unlock (&info->lock);
++	up(&info->sem);
+ }
+ 
+ static void shmem_delete_inode(struct inode * inode)
+@@ -281,15 +283,12 @@
+  * still need to guard against racing with shm_writepage(), which might
+  * be trying to move the page to the swap cache as we run.
+  */
+-static struct page * shmem_getpage_locked(struct inode * inode, unsigned long idx)
++static struct page * shmem_getpage_locked(struct shmem_inode_info *info, struct inode * inode, unsigned long idx)
+ {
+ 	struct address_space * mapping = inode->i_mapping;
+-	struct shmem_inode_info *info;
+ 	struct page * page;
+ 	swp_entry_t *entry;
+ 
+-	info = &inode->u.shmem_i;
+-
+ repeat:
+ 	page = find_lock_page(mapping, idx);
+ 	if (page)
+@@ -393,6 +392,7 @@
+ 
+ static int shmem_getpage(struct inode * inode, unsigned long idx, struct page **ptr)
+ {
++	struct shmem_inode_info *info;
+ 	struct address_space * mapping = inode->i_mapping;
+ 	int error;
+ 
+@@ -407,27 +407,28 @@
+ 		page_cache_release(*ptr);
+ 	}
+ 
+-	down (&inode->i_sem);
+-	/* retest we may have slept */
++	info = &inode->u.shmem_i;
++	down (&info->sem);
++	/* retest we may have slept */  	
++
++	*ptr = ERR_PTR(-EFAULT);
+ 	if (inode->i_size < (loff_t) idx * PAGE_CACHE_SIZE)
+-		goto sigbus;
+-	*ptr = shmem_getpage_locked(inode, idx);
++		goto failed;
++
++	*ptr = shmem_getpage_locked(&inode->u.shmem_i, inode, idx);
+ 	if (IS_ERR (*ptr))
+ 		goto failed;
++
+ 	UnlockPage(*ptr);
+-	up (&inode->i_sem);
++	up (&info->sem);
+ 	return 0;
+ failed:
+-	up (&inode->i_sem);
++	up (&info->sem);
+ 	error = PTR_ERR(*ptr);
+-	*ptr = NOPAGE_OOM;
+-	if (error != -EFBIG)
+-		*ptr = NOPAGE_SIGBUS;
+-	return error;
+-sigbus:
+-	up (&inode->i_sem);
+ 	*ptr = NOPAGE_SIGBUS;
+-	return -EFAULT;
++	if (error == -ENOMEM)
++		*ptr = NOPAGE_OOM;
++	return error;
+ }
+ 
+ struct page * shmem_nopage(struct vm_area_struct * vma, unsigned long address, int no_share)
+@@ -500,6 +501,7 @@
+ struct inode *shmem_get_inode(struct super_block *sb, int mode, int dev)
+ {
+ 	struct inode * inode;
++	struct shmem_inode_info *info;
+ 
+ 	spin_lock (&sb->u.shmem_sb.stat_lock);
+ 	if (!sb->u.shmem_sb.free_inodes) {
+@@ -519,7 +521,9 @@
+ 		inode->i_rdev = to_kdev_t(dev);
+ 		inode->i_mapping->a_ops = &shmem_aops;
+ 		inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+-		spin_lock_init (&inode->u.shmem_i.lock);
++		info = &inode->u.shmem_i;
++		spin_lock_init (&info->lock);
++		sema_init (&info->sem, 1);
+ 		switch (mode & S_IFMT) {
+ 		default:
+ 			init_special_inode(inode, mode, dev);
+@@ -549,6 +553,7 @@
+ shmem_file_write(struct file *file,const char *buf,size_t count,loff_t *ppos)
+ {
+ 	struct inode	*inode = file->f_dentry->d_inode; 
++	struct shmem_inode_info *info;
+ 	unsigned long	limit = current->rlim[RLIMIT_FSIZE].rlim_cur;
+ 	loff_t		pos;
+ 	struct page	*page;
+@@ -624,7 +629,11 @@
+ 			__get_user(dummy, buf+bytes-1);
+ 		}
+ 
+-		page = shmem_getpage_locked(inode, index);
++		info = &inode->u.shmem_i;
++		down (&info->sem);
++		page = shmem_getpage_locked(info, inode, index);
++		up (&info->sem);
++
+ 		status = PTR_ERR(page);
+ 		if (IS_ERR(page))
+ 			break;
+@@ -635,7 +644,6 @@
+ 		}
+ 
+ 		kaddr = kmap(page);
+-// can this do a truncated write? cr
+ 		status = copy_from_user(kaddr+offset, buf, bytes);
+ 		kunmap(page);
+ 		if (status)
+@@ -932,7 +940,7 @@
+ 		
+ 	inode = dentry->d_inode;
+ 	down(&inode->i_sem);
+-	page = shmem_getpage_locked(inode, 0);
++	page = shmem_getpage_locked(&inode->u.shmem_i, inode, 0);
+ 	if (IS_ERR(page))
+ 		goto fail;
+ 	kaddr = kmap(page);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
