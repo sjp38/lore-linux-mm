@@ -1,55 +1,39 @@
-Date: Thu, 15 Feb 2001 20:07:01 +0100
-From: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Date: Thu, 15 Feb 2001 14:06:30 -0500 (EST)
+From: Ben LaHaise <bcrl@redhat.com>
 Subject: Re: x86 ptep_get_and_clear question
-Message-ID: <20010215200701.A2474@pcep-jamie.cern.ch>
-References: <200102151823.KAA00802@google.engr.sgi.com> <3A8C254F.17334682@colorfullife.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3A8C254F.17334682@colorfullife.com>; from manfred@colorfullife.com on Thu, Feb 15, 2001 at 07:51:59PM +0100
+In-Reply-To: <200102151857.KAA82397@google.engr.sgi.com>
+Message-ID: <Pine.LNX.4.30.0102151402460.15843-100000@today.toronto.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org, mingo@redhat.com, alan@redhat.com, linux-kernel@vger.kernel.org
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: Jamie Lokier <lk@tantalophile.demon.co.uk>, linux-mm@kvack.org, mingo@redhat.com, alan@redhat.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Manfred Spraul wrote:
-> Is the sequence
-> << lock;
-> read pte
-> pte |= dirty
-> write pte
-> >> end lock;
-> or
-> << lock;
-> read pte
-> if (!present(pte))
-> 	do_page_fault();
-> pte |= dirty
-> write pte.
-> >> end lock;
+On Thu, 15 Feb 2001, Kanoj Sarcar wrote:
 
-or more generally
+> No. All architectures do not have this problem. For example, if the
+> Linux "dirty" (not the pte dirty) bit is managed by software, a fault
+> will actually be taken when processor 2 tries to do the write. The fault
+> is solely to make sure that the Linux "dirty" bit can be tracked. As long
+> as the fault handler grabs the right locks before updating the Linux "dirty"
+> bit, things should be okay. This is the case with mips, for example.
+>
+> The problem with x86 is that we depend on automatic x86 dirty bit
+> update to manage the Linux "dirty" bit (they are the same!). So appropriate
+> locks are not grabbed.
 
-<< lock;
-read pte
-if (!present(pte) || !writable(pte))
-	do_page_fault();
-pte |= dirty
-write pte.
->> end lock;
+Will you please go off and prove that this "problem" exists on some x86
+processor before continuing this rant?  None of the PII, PIII, Athlon,
+K6-2 or 486s I checked exhibited the worrisome behaviour you're
+speculating about, plus it is logically consistent with the statements the
+manual does make about updating ptes; otherwise how could an smp os
+perform a reliable shootdown by doing an atomic bit clear on the present
+bit of a pte?
 
-Not to mention, does it guarantee to use the newly read physical
-address, does it check the superviser permission again, does it use the
-new PAT/CD/WT attributes?
+		-ben
 
-I can vaguely imagine some COW optimisation where the pte is updated to
-be writable with the new page's address, and there is no need to flush
-other processor TLBs because they will do so when they first write to
-the page.  (But of course you have to be careful synchronising with
-other uses of the shared page prior to the eventual TLB flush).
-
--- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
