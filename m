@@ -1,29 +1,43 @@
-Date: Wed, 7 Jun 2000 16:09:31 +0200
-From: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Subject: Re: [PATCH] VM kswapd autotuning vs. -ac7
-Message-ID: <20000607160931.C22749@pcep-jamie.cern.ch>
-References: <Pine.LNX.4.21.0006050716160.31069-100000@duckman.distro.conectiva> <qww1z29ssbb.fsf@sap.com> <20000607143242.D30951@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <20000607143242.D30951@redhat.com>; from sct@redhat.com on Wed, Jun 07, 2000 at 02:32:42PM +0100
+Message-ID: <01BFD09A.CC430AF0@lando.optronic.se>
+From: Roger Larsson <roger.larsson@optronic.se>
+Subject: Re: reduce shrink_mmap rate of failure (initial attempt)
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Date: Wed, 7 Jun 2000 16:04:54 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Christoph Rohland <cr@sap.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: "'quintela@fi.udc.es'" <quintela@fi.udc.es>
+Cc: "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Stephen C. Tweedie wrote:
-> The main reason SHM needs its own swap code is that normal anonymous
-> pages are referred to only from ptes --- the ptes either point to
-> the physical page containing the page, or to the swap entry.  We
-> cannot use that for SHM, because SysV SHM segments must be persistent
-> even if there are no attachers, and hence no ptes to maintain the 
-> location of the pages.  
+>That patch hangs my machine here when I run mmap002.  The machine is
+>in shrink_mmap.  It hangs trying to get the pagmap_lru_lock.
+>
+>I think that the idea is good, but it doesn't work here :(.
+>
+>Later, Juan.
 
-It might be possible to create MMs without tasks specifically to map the
-SHM segments.
 
--- Jamie
+Ouch...
+
+The only possible explaination is that we are searching for pages on a zone.
+But no such pages are possible to free from LRU...
+And we LOOP the list, holding the lru lock...
+Note: without this patch you may end up in another bad situation where
+shrink_mmap always fails and swapping will start until it swaps out a page
+of that specific zone.
+And without the test? We would free all other LRU pages without finding one
+that we want :-(
+
+This will be interesting to fix...
+
+May the allocation of pages play a part? Filling zone after zone will give no
+mix between the zones.
+
+/RogerL
+(from work)
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
