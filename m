@@ -1,275 +1,372 @@
-Message-ID: <41C3D48F.8080006@yahoo.com.au>
-Date: Sat, 18 Dec 2004 17:56:15 +1100
+Message-ID: <41C3D4AE.7010502@yahoo.com.au>
+Date: Sat, 18 Dec 2004 17:56:46 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: [PATCH 2/10] alternate 4-level page tables patches
-References: <41C3D453.4040208@yahoo.com.au> <41C3D479.40708@yahoo.com.au>
-In-Reply-To: <41C3D479.40708@yahoo.com.au>
+Subject: [PATCH 3/10] alternate 4-level page tables patches
+References: <41C3D453.4040208@yahoo.com.au> <41C3D479.40708@yahoo.com.au> <41C3D48F.8080006@yahoo.com.au>
+In-Reply-To: <41C3D48F.8080006@yahoo.com.au>
 Content-Type: multipart/mixed;
- boundary="------------030605090705040202050100"
+ boundary="------------050307000801090902060400"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
+To: Linux Memory Management <linux-mm@kvack.org>
+Cc: Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------030605090705040202050100
+--------------050307000801090902060400
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 
-2/10
+3/10
 
---------------030605090705040202050100
+--------------050307000801090902060400
 Content-Type: text/plain;
- name="3level-i386-cleanup.patch"
+ name="3level-split-copy_page_range.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="3level-i386-cleanup.patch"
+ filename="3level-split-copy_page_range.patch"
 
 
-Adapt the i386 architecture to use the generic 2-level folding header.
-Just to show how it is done.
+
+Split copy_page_range into the usual set of page table walking functions.
+Needed to handle the complexity when moving to 4 levels.
+
+Split out from Andi Kleen's 4level patch.
 
 Signed-off-by: Nick Piggin <nickpiggin@yahoo.com.au>
 
 
 ---
 
- linux-2.6-npiggin/include/asm-i386/mmzone.h              |    1 
- linux-2.6-npiggin/include/asm-i386/page.h                |    6 --
- linux-2.6-npiggin/include/asm-i386/pgalloc.h             |   17 +++----
- linux-2.6-npiggin/include/asm-i386/pgtable-2level-defs.h |    2 
- linux-2.6-npiggin/include/asm-i386/pgtable-2level.h      |   33 +++------------
- linux-2.6-npiggin/include/asm-i386/pgtable-3level.h      |   11 +++++
- linux-2.6-npiggin/include/asm-i386/pgtable.h             |   13 +----
- 7 files changed, 31 insertions(+), 52 deletions(-)
+ linux-2.6-npiggin/mm/memory.c |  290 ++++++++++++++++++++++--------------------
+ 1 files changed, 152 insertions(+), 138 deletions(-)
 
-diff -puN include/asm-i386/pgtable-2level.h~3level-i386-cleanup include/asm-i386/pgtable-2level.h
---- linux-2.6/include/asm-i386/pgtable-2level.h~3level-i386-cleanup	2004-12-18 16:47:57.000000000 +1100
-+++ linux-2.6-npiggin/include/asm-i386/pgtable-2level.h	2004-12-18 16:47:57.000000000 +1100
-@@ -1,44 +1,22 @@
- #ifndef _I386_PGTABLE_2LEVEL_H
- #define _I386_PGTABLE_2LEVEL_H
- 
-+#include <asm-generic/pgtable-nopmd.h>
-+
- #define pte_ERROR(e) \
- 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, (e).pte_low)
--#define pmd_ERROR(e) \
--	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
- #define pgd_ERROR(e) \
- 	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
+diff -puN mm/memory.c~3level-split-copy_page_range mm/memory.c
+--- linux-2.6/mm/memory.c~3level-split-copy_page_range	2004-12-18 16:48:55.000000000 +1100
++++ linux-2.6-npiggin/mm/memory.c	2004-12-18 17:07:49.000000000 +1100
+@@ -204,165 +204,179 @@ pte_t fastcall * pte_alloc_kernel(struct
+ out:
+ 	return pte_offset_kernel(pmd, address);
+ }
+-#define PTE_TABLE_MASK	((PTRS_PER_PTE-1) * sizeof(pte_t))
+-#define PMD_TABLE_MASK	((PTRS_PER_PMD-1) * sizeof(pmd_t))
  
  /*
-- * The "pgd_xxx()" functions here are trivial for a folded two-level
-- * setup: the pgd is never bad, and a pmd always exists (as it's folded
-- * into the pgd entry)
-- */
--static inline int pgd_none(pgd_t pgd)		{ return 0; }
--static inline int pgd_bad(pgd_t pgd)		{ return 0; }
--static inline int pgd_present(pgd_t pgd)	{ return 1; }
--#define pgd_clear(xp)				do { } while (0)
+  * copy one vm_area from one task to the other. Assumes the page tables
+  * already present in the new task to be cleared in the whole range
+  * covered by this vma.
+  *
+- * 08Jan98 Merged into one routine from several inline routines to reduce
+- *         variable count and make things faster. -jj
+- *
+  * dst->page_table_lock is held on entry and exit,
+- * but may be dropped within pmd_alloc() and pte_alloc_map().
++ * but may be dropped within p[mg]d_alloc() and pte_alloc_map().
+  */
++
++static inline void
++copy_swap_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm, pte_t pte)
++{
++	if (pte_file(pte))
++		return;
++	swap_duplicate(pte_to_swp_entry(pte));
++	if (list_empty(&dst_mm->mmlist)) {
++		spin_lock(&mmlist_lock);
++		list_add(&dst_mm->mmlist, &src_mm->mmlist);
++		spin_unlock(&mmlist_lock);
++	}
++}
++
++static inline void
++copy_one_pte(struct mm_struct *dst_mm,  struct mm_struct *src_mm,
++		pte_t *dst_pte, pte_t *src_pte, unsigned long vm_flags,
++		unsigned long addr)
++{
++	pte_t pte = *src_pte;
++	struct page *page;
++	unsigned long pfn;
++
++	/* pte contains position in swap, so copy. */
++	if (!pte_present(pte)) {
++		copy_swap_pte(dst_mm, src_mm, pte);
++		set_pte(dst_pte, pte);
++		return;
++	}
++	pfn = pte_pfn(pte);
++	/* the pte points outside of valid memory, the
++	 * mapping is assumed to be good, meaningful
++	 * and not mapped via rmap - duplicate the
++	 * mapping as is.
++	 */
++	page = NULL;
++	if (pfn_valid(pfn))
++		page = pfn_to_page(pfn);
++
++	if (!page || PageReserved(page)) {
++		set_pte(dst_pte, pte);
++		return;
++	}
++
++	/*
++	 * If it's a COW mapping, write protect it both
++	 * in the parent and the child
++	 */
++	if ((vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE) {
++		ptep_set_wrprotect(src_pte);
++		pte = *src_pte;
++	}
++
++	/*
++	 * If it's a shared mapping, mark it clean in
++	 * the child
++	 */
++	if (vm_flags & VM_SHARED)
++		pte = pte_mkclean(pte);
++	pte = pte_mkold(pte);
++	get_page(page);
++	dst_mm->rss++;
++	if (PageAnon(page))
++		dst_mm->anon_rss++;
++	set_pte(dst_pte, pte);
++	page_dup_rmap(page);
++}
++
++static int copy_pte_range(struct mm_struct *dst_mm,  struct mm_struct *src_mm,
++		pmd_t *dst_pmd, pmd_t *src_pmd, struct vm_area_struct *vma,
++		unsigned long addr, unsigned long end)
++{
++	pte_t *src_pte, *dst_pte;
++	pte_t *s, *d;
++	unsigned long vm_flags = vma->vm_flags;
++
++	d = dst_pte = pte_alloc_map(dst_mm, dst_pmd, addr);
++	if (!dst_pte)
++		return -ENOMEM;
++
++	spin_lock(&src_mm->page_table_lock);
++	s = src_pte = pte_offset_map_nested(src_pmd, addr);
++	for (; addr < end; addr += PAGE_SIZE, s++, d++) {
++		if (pte_none(*s))
++			continue;
++		copy_one_pte(dst_mm, src_mm, d, s, vm_flags, addr);
++	}
++	pte_unmap_nested(src_pte);
++	pte_unmap(dst_pte);
++	spin_unlock(&src_mm->page_table_lock);
++	cond_resched_lock(&dst_mm->page_table_lock);
++	return 0;
++}
++
++static int copy_pmd_range(struct mm_struct *dst_mm,  struct mm_struct *src_mm,
++		pgd_t *dst_pgd, pgd_t *src_pgd, struct vm_area_struct *vma,
++		unsigned long addr, unsigned long end)
++{
++	pmd_t *src_pmd, *dst_pmd;
++	int err = 0;
++	unsigned long next;
++
++	src_pmd = pmd_offset(src_pgd, addr);
++	dst_pmd = pmd_alloc(dst_mm, dst_pgd, addr);
++	if (!dst_pmd)
++		return -ENOMEM;
++
++	for (; addr < end; addr = next, src_pmd++, dst_pmd++) {
++		next = (addr + PMD_SIZE) & PMD_MASK;
++		if (next > end)
++			next = end;
++		if (pmd_none(*src_pmd))
++			continue;
++		if (pmd_bad(*src_pmd)) {
++			pmd_ERROR(*src_pmd);
++			pmd_clear(src_pmd);
++			continue;
++		}
++		err = copy_pte_range(dst_mm, src_mm, dst_pmd, src_pmd,
++							vma, addr, next);
++		if (err)
++			break;
++	}
++	return err;
++}
++
+ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+-			struct vm_area_struct *vma)
++		struct vm_area_struct *vma)
+ {
+-	pgd_t * src_pgd, * dst_pgd;
+-	unsigned long address = vma->vm_start;
+-	unsigned long end = vma->vm_end;
+-	unsigned long cow;
++	pgd_t *src_pgd, *dst_pgd;
++	unsigned long addr, start, end, next;
++	int err = 0;
+ 
+ 	if (is_vm_hugetlb_page(vma))
+ 		return copy_hugetlb_page_range(dst, src, vma);
+ 
+-	cow = (vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+-	src_pgd = pgd_offset(src, address)-1;
+-	dst_pgd = pgd_offset(dst, address)-1;
 -
--/*
-  * Certain architectures need to do special things when PTEs
-  * within a page table are directly modified.  Thus, the following
-  * hook is made available.
-  */
- #define set_pte(pteptr, pteval) (*(pteptr) = pteval)
- #define set_pte_atomic(pteptr, pteval) set_pte(pteptr,pteval)
--/*
-- * (pmds are folded into pgds so this doesn't get actually called,
-- * but the define is needed for a generic inline function.)
-- */
--#define set_pmd(pmdptr, pmdval) (*(pmdptr) = pmdval)
--#define set_pgd(pgdptr, pgdval) (*(pgdptr) = pgdval)
-+#define set_pmd(pmdptr, pmdval) (*(pmdptr) = (pmdval))
- 
--#define pgd_page(pgd) \
--((unsigned long) __va(pgd_val(pgd) & PAGE_MASK))
+-	for (;;) {
+-		pmd_t * src_pmd, * dst_pmd;
 -
--static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
--{
--	return (pmd_t *) dir;
--}
- #define ptep_get_and_clear(xp)	__pte(xchg(&(xp)->pte_low, 0))
- #define pte_same(a, b)		((a).pte_low == (b).pte_low)
- #define pte_page(x)		pfn_to_page(pte_pfn(x))
-@@ -47,6 +25,11 @@ static inline pmd_t * pmd_offset(pgd_t *
- #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
- #define pfn_pmd(pfn, prot)	__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
- 
-+#define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
+-		src_pgd++; dst_pgd++;
+-		
+-		/* copy_pmd_range */
+-		
++	start = vma->vm_start;
++	src_pgd = pgd_offset(src, start);
++	dst_pgd = pgd_offset(dst, start);
 +
-+#define pmd_page_kernel(pmd) \
-+((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
-+
- /*
-  * All present user pages are user-executable:
-  */
-diff -puN include/asm-i386/page.h~3level-i386-cleanup include/asm-i386/page.h
---- linux-2.6/include/asm-i386/page.h~3level-i386-cleanup	2004-12-18 16:47:57.000000000 +1100
-+++ linux-2.6-npiggin/include/asm-i386/page.h	2004-12-18 16:47:57.000000000 +1100
-@@ -46,11 +46,12 @@ typedef struct { unsigned long pte_low, 
- typedef struct { unsigned long long pmd; } pmd_t;
- typedef struct { unsigned long long pgd; } pgd_t;
- typedef struct { unsigned long long pgprot; } pgprot_t;
-+#define pmd_val(x)	((x).pmd)
- #define pte_val(x)	((x).pte_low | ((unsigned long long)(x).pte_high << 32))
-+#define __pmd(x) ((pmd_t) { (x) } )
- #define HPAGE_SHIFT	21
- #else
- typedef struct { unsigned long pte_low; } pte_t;
--typedef struct { unsigned long pmd; } pmd_t;
- typedef struct { unsigned long pgd; } pgd_t;
- typedef struct { unsigned long pgprot; } pgprot_t;
- #define boot_pte_t pte_t /* or would you rather have a typedef */
-@@ -66,13 +67,10 @@ typedef struct { unsigned long pgprot; }
- #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
- #endif
++	end = vma->vm_end;
++	addr = start;
++	while (addr && (addr < end-1)) {
++		next = (addr + PGDIR_SIZE) & PGDIR_MASK;
++		if (next > end || next <= addr)
++			next = end;
+ 		if (pgd_none(*src_pgd))
+-			goto skip_copy_pmd_range;
+-		if (unlikely(pgd_bad(*src_pgd))) {
++			continue;
++		if (pgd_bad(*src_pgd)) {
+ 			pgd_ERROR(*src_pgd);
+ 			pgd_clear(src_pgd);
+-skip_copy_pmd_range:	address = (address + PGDIR_SIZE) & PGDIR_MASK;
+-			if (!address || (address >= end))
+-				goto out;
+ 			continue;
+ 		}
++		err = copy_pmd_range(dst, src, dst_pgd, src_pgd,
++							vma, addr, next);
++		if (err)
++			break;
  
+-		src_pmd = pmd_offset(src_pgd, address);
+-		dst_pmd = pmd_alloc(dst, dst_pgd, address);
+-		if (!dst_pmd)
+-			goto nomem;
 -
--#define pmd_val(x)	((x).pmd)
- #define pgd_val(x)	((x).pgd)
- #define pgprot_val(x)	((x).pgprot)
- 
- #define __pte(x) ((pte_t) { (x) } )
--#define __pmd(x) ((pmd_t) { (x) } )
- #define __pgd(x) ((pgd_t) { (x) } )
- #define __pgprot(x)	((pgprot_t) { (x) } )
- 
-diff -puN include/asm-i386/pgtable-2level-defs.h~3level-i386-cleanup include/asm-i386/pgtable-2level-defs.h
---- linux-2.6/include/asm-i386/pgtable-2level-defs.h~3level-i386-cleanup	2004-12-18 16:47:57.000000000 +1100
-+++ linux-2.6-npiggin/include/asm-i386/pgtable-2level-defs.h	2004-12-18 16:47:57.000000000 +1100
-@@ -12,8 +12,6 @@
-  * the i386 is two-level, so we don't really have any
-  * PMD directory physically.
-  */
--#define PMD_SHIFT	22
--#define PTRS_PER_PMD	1
- 
- #define PTRS_PER_PTE	1024
- 
-diff -puN include/asm-i386/pgtable-3level.h~3level-i386-cleanup include/asm-i386/pgtable-3level.h
---- linux-2.6/include/asm-i386/pgtable-3level.h~3level-i386-cleanup	2004-12-18 16:47:57.000000000 +1100
-+++ linux-2.6-npiggin/include/asm-i386/pgtable-3level.h	2004-12-18 17:07:46.000000000 +1100
-@@ -70,9 +70,18 @@ static inline void set_pte(pte_t *ptep, 
-  */
- static inline void pgd_clear (pgd_t * pgd) { }
- 
-+#define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
-+
-+#define pmd_page_kernel(pmd) \
-+((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
-+
- #define pgd_page(pgd) \
-+((struct page *) __va(pgd_val(pgd) & PAGE_MASK))
-+
-+#define pgd_page_kernel(pgd) \
- ((unsigned long) __va(pgd_val(pgd) & PAGE_MASK))
- 
-+
- /* Find an entry in the second-level page table.. */
- #define pmd_offset(dir, address) ((pmd_t *) pgd_page(*(dir)) + \
- 			pmd_index(address))
-@@ -142,4 +151,6 @@ static inline pmd_t pfn_pmd(unsigned lon
- #define __pte_to_swp_entry(pte)		((swp_entry_t){ (pte).pte_high })
- #define __swp_entry_to_pte(x)		((pte_t){ 0, (x).val })
- 
-+#define __pmd_free_tlb(tlb, x)		do { } while (0)
-+
- #endif /* _I386_PGTABLE_3LEVEL_H */
-diff -puN include/asm-i386/pgalloc.h~3level-i386-cleanup include/asm-i386/pgalloc.h
---- linux-2.6/include/asm-i386/pgalloc.h~3level-i386-cleanup	2004-12-18 16:47:57.000000000 +1100
-+++ linux-2.6-npiggin/include/asm-i386/pgalloc.h	2004-12-18 17:07:46.000000000 +1100
-@@ -10,12 +10,10 @@
- #define pmd_populate_kernel(mm, pmd, pte) \
- 		set_pmd(pmd, __pmd(_PAGE_TABLE + __pa(pte)))
- 
--static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
--{
--	set_pmd(pmd, __pmd(_PAGE_TABLE +
--		((unsigned long long)page_to_pfn(pte) <<
--			(unsigned long long) PAGE_SHIFT)));
--}
-+#define pmd_populate(mm, pmd, pte) 				\
-+	set_pmd(pmd, __pmd(_PAGE_TABLE +			\
-+		((unsigned long long)page_to_pfn(pte) <<	\
-+			(unsigned long long) PAGE_SHIFT)))
- /*
-  * Allocate and free page tables.
-  */
-@@ -39,16 +37,15 @@ static inline void pte_free(struct page 
- 
- #define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
- 
-+#ifdef CONFIG_X86_PAE
- /*
-- * allocating and freeing a pmd is trivial: the 1-entry pmd is
-- * inside the pgd, so has no extra memory associated with it.
-- * (In the PAE case we free the pmds as part of the pgd.)
-+ * In the PAE case we free the pmds as part of the pgd.
-  */
+-		do {
+-			pte_t * src_pte, * dst_pte;
+-		
+-			/* copy_pte_range */
+-		
+-			if (pmd_none(*src_pmd))
+-				goto skip_copy_pte_range;
+-			if (unlikely(pmd_bad(*src_pmd))) {
+-				pmd_ERROR(*src_pmd);
+-				pmd_clear(src_pmd);
+-skip_copy_pte_range:
+-				address = (address + PMD_SIZE) & PMD_MASK;
+-				if (address >= end)
+-					goto out;
+-				goto cont_copy_pmd_range;
+-			}
 -
- #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
- #define pmd_free(x)			do { } while (0)
- #define __pmd_free_tlb(tlb,x)		do { } while (0)
- #define pgd_populate(mm, pmd, pte)	BUG()
-+#endif
- 
- #define check_pgt_cache()	do { } while (0)
- 
-diff -puN include/asm-i386/pgtable.h~3level-i386-cleanup include/asm-i386/pgtable.h
---- linux-2.6/include/asm-i386/pgtable.h~3level-i386-cleanup	2004-12-18 16:47:57.000000000 +1100
-+++ linux-2.6-npiggin/include/asm-i386/pgtable.h	2004-12-18 17:07:46.000000000 +1100
-@@ -50,12 +50,12 @@ void paging_init(void);
-  */
- #ifdef CONFIG_X86_PAE
- # include <asm/pgtable-3level-defs.h>
-+# define PMD_SIZE	(1UL << PMD_SHIFT)
-+# define PMD_MASK	(~(PMD_SIZE-1))
- #else
- # include <asm/pgtable-2level-defs.h>
- #endif
- 
--#define PMD_SIZE	(1UL << PMD_SHIFT)
--#define PMD_MASK	(~(PMD_SIZE-1))
- #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
- #define PGDIR_MASK	(~(PGDIR_SIZE-1))
- 
-@@ -293,15 +293,8 @@ static inline pte_t pte_modify(pte_t pte
- 
- #define page_pte(page) page_pte_prot(page, __pgprot(0))
- 
--#define pmd_page_kernel(pmd) \
--((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
+-			dst_pte = pte_alloc_map(dst, dst_pmd, address);
+-			if (!dst_pte)
+-				goto nomem;
+-			spin_lock(&src->page_table_lock);	
+-			src_pte = pte_offset_map_nested(src_pmd, address);
+-			do {
+-				pte_t pte = *src_pte;
+-				struct page *page;
+-				unsigned long pfn;
 -
--#ifndef CONFIG_DISCONTIGMEM
--#define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
--#endif /* !CONFIG_DISCONTIGMEM */
+-				/* copy_one_pte */
 -
- #define pmd_large(pmd) \
--	((pmd_val(pmd) & (_PAGE_PSE|_PAGE_PRESENT)) == (_PAGE_PSE|_PAGE_PRESENT))
-+((pmd_val(pmd) & (_PAGE_PSE|_PAGE_PRESENT)) == (_PAGE_PSE|_PAGE_PRESENT))
+-				if (pte_none(pte))
+-					goto cont_copy_pte_range_noset;
+-				/* pte contains position in swap, so copy. */
+-				if (!pte_present(pte)) {
+-					if (!pte_file(pte)) {
+-						swap_duplicate(pte_to_swp_entry(pte));
+-						if (list_empty(&dst->mmlist)) {
+-							spin_lock(&mmlist_lock);
+-							list_add(&dst->mmlist,
+-								 &src->mmlist);
+-							spin_unlock(&mmlist_lock);
+-						}
+-					}
+-					set_pte(dst_pte, pte);
+-					goto cont_copy_pte_range_noset;
+-				}
+-				pfn = pte_pfn(pte);
+-				/* the pte points outside of valid memory, the
+-				 * mapping is assumed to be good, meaningful
+-				 * and not mapped via rmap - duplicate the
+-				 * mapping as is.
+-				 */
+-				page = NULL;
+-				if (pfn_valid(pfn)) 
+-					page = pfn_to_page(pfn); 
+-
+-				if (!page || PageReserved(page)) {
+-					set_pte(dst_pte, pte);
+-					goto cont_copy_pte_range_noset;
+-				}
+-
+-				/*
+-				 * If it's a COW mapping, write protect it both
+-				 * in the parent and the child
+-				 */
+-				if (cow) {
+-					ptep_set_wrprotect(src_pte);
+-					pte = *src_pte;
+-				}
+-
+-				/*
+-				 * If it's a shared mapping, mark it clean in
+-				 * the child
+-				 */
+-				if (vma->vm_flags & VM_SHARED)
+-					pte = pte_mkclean(pte);
+-				pte = pte_mkold(pte);
+-				get_page(page);
+-				dst->rss++;
+-				if (PageAnon(page))
+-					dst->anon_rss++;
+-				set_pte(dst_pte, pte);
+-				page_dup_rmap(page);
+-cont_copy_pte_range_noset:
+-				address += PAGE_SIZE;
+-				if (address >= end) {
+-					pte_unmap_nested(src_pte);
+-					pte_unmap(dst_pte);
+-					goto out_unlock;
+-				}
+-				src_pte++;
+-				dst_pte++;
+-			} while ((unsigned long)src_pte & PTE_TABLE_MASK);
+-			pte_unmap_nested(src_pte-1);
+-			pte_unmap(dst_pte-1);
+-			spin_unlock(&src->page_table_lock);
+-			cond_resched_lock(&dst->page_table_lock);
+-cont_copy_pmd_range:
+-			src_pmd++;
+-			dst_pmd++;
+-		} while ((unsigned long)src_pmd & PMD_TABLE_MASK);
++		src_pgd++;
++		dst_pgd++;
++		addr = next;
+ 	}
+-out_unlock:
+-	spin_unlock(&src->page_table_lock);
+-out:
+-	return 0;
+-nomem:
+-	return -ENOMEM;
++
++	return err;
+ }
  
- /*
-  * the pgd page can be thought of an array like this: pgd_t[PTRS_PER_PGD]
-diff -puN include/asm-i386/mmzone.h~3level-i386-cleanup include/asm-i386/mmzone.h
---- linux-2.6/include/asm-i386/mmzone.h~3level-i386-cleanup	2004-12-18 16:47:57.000000000 +1100
-+++ linux-2.6-npiggin/include/asm-i386/mmzone.h	2004-12-18 16:47:57.000000000 +1100
-@@ -116,7 +116,6 @@ static inline struct pglist_data *pfn_to
- 	(unsigned long)(__page - __zone->zone_mem_map)			\
- 		+ __zone->zone_start_pfn;				\
- })
--#define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
- 
- #ifdef CONFIG_X86_NUMAQ            /* we have contiguous memory on NUMA-Q */
- #define pfn_valid(pfn)          ((pfn) < num_physpages)
+ static void zap_pte_range(struct mmu_gather *tlb,
 
 _
 
---------------030605090705040202050100--
+--------------050307000801090902060400--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
