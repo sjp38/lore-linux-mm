@@ -1,53 +1,34 @@
-Message-ID: <380EA6C1.DA32BC3A@263.net>
-Date: Thu, 21 Oct 1999 13:38:09 +0800
-From: Wang Yong <wung_y@263.net>
-Reply-To: wung_y@263.net
+Message-ID: <380ECA51.E1210AFD@mandrakesoft.com>
+Date: Thu, 21 Oct 1999 04:09:53 -0400
+From: Jeff Garzik <jgarzik@mandrakesoft.com>
 MIME-Version: 1.0
 Subject: Re: Paging out sleepy processes?
-References: <380D7C24.AA10E463@mandrakesoft.com>
+References: <380D7C24.AA10E463@mandrakesoft.com> <380EA6C1.DA32BC3A@263.net>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@mandrakesoft.com>
+To: wung_y@263.net
 Cc: mail list linux-mm mail list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-why do u want to force it out. in my opinion, mm need to swap some process
-out when the amount of physical
-memory is under some limit.
-MM will force it out if MM choose this process to swap out.if MM not choose
-it, that's to say free memory is
-enough or some other processes should be swapped out.
+Wang Yong wrote:
+> Jeff Garzik wrote:
+> > How possible/reasonable would it be to add a feature which will swap out
+> > processes that have been asleep for a long time?
 
-Jeff Garzik wrote:
+> why do u want to force it out
 
-> I have a simple app that I run locally that allocates and randomly
-> dirties a lot of memory all at once, with the intention of forcing Linux
-> to swap out processes.
->
-> How possible/reasonable would it be to add a feature which will swap out
-> processes that have been asleep for a long time?
->
-> IMHO this behavior would default to off, but can be enabled by
-> specifying the age at which the system should attempt to swap out
-> processes:
->
->         # tell kernel to swap out processes which have been asleep
->         # longer than N seconds
->         echo 7200 > /proc/sys/vm/min_sleepy_swap
->
-> Is there a way to do this already?
->
-> Regards,
->
->         Jeff
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://humbolt.geo.uu.nl/Linux-MM/
+Processes will not get swapped out until memory pressure occurs.  Thus,
+idle processes waste physical memory until this situation occurs. 
+Physical memory is always a valuable commodity, and should IMHO be
+reclaimed whenever possible.
 
+It makes even more sense to page out idle _pages_ instead of processes,
+but I don't know if it is even possible to determine how long a page has
+been idle, in terms of clock time.
 
+	Jeff
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
