@@ -1,55 +1,53 @@
-Date: Thu, 01 Jul 2004 16:16:47 +0900 (JST)
-Message-Id: <20040701.161647.119874601.taka@valinux.co.jp>
-Subject: [patch] new memory hotremoval patch for hugetlbpages
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20040630111719.EBACF70A92@sv1.valinux.co.jp>
-References: <20040630111719.EBACF70A92@sv1.valinux.co.jp>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from petasus.py.intel.com (petasus.py.intel.com [146.152.221.4])
+	by hermes.py.intel.com (8.12.9-20030918-01/8.12.9/d: large-outer.mc,v 1.9 2004/01/09 00:55:23 root Exp $) with ESMTP id i626ZKS3024133
+	for <linux-mm@kvack.org>; Fri, 2 Jul 2004 06:35:20 GMT
+Received: from orsmsxvs040.jf.intel.com (orsmsxvs040.jf.intel.com [192.168.65.206])
+	by petasus.py.intel.com (8.12.9-20030918-01/8.12.9/d: large-inner.mc,v 1.10 2004/03/01 19:22:27 root Exp $) with SMTP id i626aXwM025585
+	for <linux-mm@kvack.org>; Fri, 2 Jul 2004 06:36:33 GMT
+Received: from orsmsx332.amr.corp.intel.com ([192.168.65.60])
+ by orsmsxvs040.jf.intel.com (SAVSMTP 3.1.2.35) with SMTP id M2004070123351700866
+ for <linux-mm@kvack.org>; Thu, 01 Jul 2004 23:35:17 -0700
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: Which is the proper way to bring in the backing store behind an inode as an struct page?
+Date: Thu, 1 Jul 2004 23:34:56 -0700
+Message-ID: <F989B1573A3A644BAB3920FBECA4D25A6EBED8@orsmsx407>
+From: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
-Cc: iwamoto@valinux.co.jp
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello, 
+Hi all
 
-> this is an updated version of my memory hotremoval patch.
-> I'll only include the main patch which contains page remapping code.
-> The other two files, which haven't changed much from April, can be
-> found at http://people.valinux.co.jp/~iwamoto/mh.html .
-	(snip)
-> My patch supports remapping of normal pages, Takahashi's hugepage
-> remapping patch will be posted in a few days.
+Dummy question that has been evading me for the last hours. Can you
+help? Please bear with me here, I am a little lost in how to deal
+with inodes and the cache.
 
-I also post new hugepage remapping patches which is against linux-2.6.7.
-I have change it to use objrmap so that the code become clean.
+I have a problem where I have to modify a value in user space from 
+inside a function called from do_exit() [this is for robust mutexes].
+The reason for this is when a task exits holding a mutex, it needs to
+update the user space word that represents the mutex to indicate that
+it is dead. This is needed to allow for fast-lock operations when 
+there is no mutex contention.
 
-The patches can be downloaded from 
-   http://people.valinux.co.jp/~taka/hpageremap.html .
+I need to be able to kmap the location where the page is so I can
+modify it. The problem is that in one of the cases, when the thing 
+is in a shared mapping (linear or non-linear), I just have the inode,
+the page offset and the offset into the page.
 
-There may remain some bugs. if you find them, would you let me know.
+Thus, what I need is a way that given the pair (inode,pgoff) 
+returns to me the 'struct page *' if the thing is cached in memory or
+pulls it up from swap/file into memory and gets me a 'struct page *'.
 
-> I will be working on the following items.
-> 
->   1.  Prototype implementation of memsection support.
->       It seems some people wants to hotremove small regions of memory
->       rather than zones or nodes.  A prototype implementation will
->       show how Takahashi's hugetlb page code can be used for such a
->       purpose.
+Is there a way to do this?
 
-This is my interst and I'll work on it.
+Thanks
 
->   2.  Handling of pages with dirty buffers without writing them back.
->       This is file system specific.  I plan to do against ext2 and
->       ext3.
-
-Thank you,
-Hirokazu Takahashi.
-
-
-
+Inaky Perez-Gonzalez -- Not speaking for Intel -- all opinions are my own (and my fault)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
