@@ -1,30 +1,31 @@
-Date: Mon, 8 Nov 2004 11:35:13 -0500 (EST)
-From: Rik van Riel <riel@redhat.com>
+Date: Mon, 8 Nov 2004 16:56:49 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: removing mm->rss and mm->anon_rss from kernel?
-In-Reply-To: <226170000.1099843883@[10.10.2.4]>
-Message-ID: <Pine.LNX.4.44.0411081134310.8589-100000@chimarrao.boston.redhat.com>
+In-Reply-To: <Pine.LNX.4.58.0411080819260.8158@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.44.0411081649450.1433-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 7 Nov 2004, Martin J. Bligh wrote:
+On Mon, 8 Nov 2004, Christoph Lameter wrote:
+> 
+> Removing realtime statistics would remove lots of code from the vm.
 
-> Doing ps or top is not unusual at all, and the sysadmins should be able
-> to monitor their system in a reasonable way without crippling it, or
-> even effecting it significantly.
+Remove lots of code?  Adding lots nastier.
 
-I don't think there is a single system out there where
-people throw performance monitoring out the window, in
-the name of performance.
+> Maintaining these counters requires locking which interferes with Nick's
+> and my attempts to parallelize the vm.
 
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+Aren't you rather overestimating the importance of one single,
+ideally atomic, increment per page fault?
+
+It's great news if this is really the major scalability issue facing Linux.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
