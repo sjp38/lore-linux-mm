@@ -1,50 +1,134 @@
-Received: from frodo.biederman.org (IDENT:root@frodo [10.0.0.2])
-	by flinx.biederman.org (8.9.3/8.9.3) with ESMTP id JAA21184
-	for <linux-mm@kvack.org>; Tue, 30 Jan 2001 09:17:18 -0700
-Subject: Re: [PATCH] guard mm->rss with page_table_lock (241p11)
-References: <Pine.LNX.4.10.10101300929380.29461-100000@coffee.psychology.mcmaster.ca>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 30 Jan 2001 08:30:10 -0700
-In-Reply-To: Mark Hahn's message of "Tue, 30 Jan 2001 09:32:11 -0500 (EST)"
-Message-ID: <m1k87dcb25.fsf@frodo.biederman.org>
+Date: Tue, 30 Jan 2001 17:48:35 -0200 (BRDT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] 2.4.1 find_page_nolock fixes
+Message-ID: <Pine.LNX.4.21.0101301728520.1321-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Mark Hahn <hahn@coffee.psychology.mcmaster.ca> writes:
+Hi Linus,
 
-> > > > +	spin_lock(&mm->page_table_lock);
-> > > >  	mm->rss++;
-> > > > +	spin_unlock(&mm->page_table_lock);
-> > > >...
-> > > 
-> > > Would it not be better to use some sort of atomic add/subtract/clear
-> operation
-> 
-> > > rather than a spinlock? (Which would also give you fewer atomic memory
-> access
-> 
-> > > cycles).
-> > 
-> > This will unfortunately not do for all platforms. Please read
-> > http://marc.theaimsgroup.com/?t=97630768100003&w=2&r=1 for the
-> > last discussion of this.
-> 
-> which can be summarized as "yet another way sparc support screws Linux,
-> and DMiller didn't want to fix his mess close to 2.4.0".  it's ridiculous
-> for an inconsequential arch like sparc32 to cause fairly noticable problems
-> for all other arches.
-> 
-> if noone beats me, I'll be submitting a patch to fix this silliness in 2.5.
+the patch below contains 3 small changes to mm/filemap.c:
 
-The thing is we need a spinlock to actually change the page tables to
-change the rss.  We pretty much get the accounting of rss under the
-same spinlock for free.
+1. replace the aging in __find_page_nolock() with setting
+   PageReferenced(), otherwise a large number of small
+   reads from (or writes to) a page can drive up the page
+   age unfairly
 
-Eric
+2. remove the wakeup of kswapd from __find_page_nolock(),
+   the wakeup condition is complex and leaving out the
+   wakeup has no influence on any workload I tested in
+   the last few weeks
+
+3. add a __find_page_simple(), which is like __find_page_nolock()
+   but only needs 2 arguments and doesn't touch the page ... this
+   can be used by IO clustering and other things that really don't
+   want to influence page aging, removing the 3rd argument also
+   keeps things simple
+
+
+More trivial and tested patches will follow RSN, time to
+improve some VM stuff in 2.4.2-pre1  ;)
+
+One more complex patch for page_launder() will also follow,
+but not before I get around to testing it a bit on my boxes
+here ... that patch should result in more smooth IO behaviour
+because it corrects some of the thinkos that are currently
+in page_launder()
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
+
+
+
+--- mm/filemap.c.orig	Tue Jan 30 17:02:23 2001
++++ mm/filemap.c	Tue Jan 30 17:25:29 2001
+@@ -286,6 +286,34 @@
+ 	spin_unlock(&pagecache_lock);
+ }
+ 
++/*
++ * This function is pretty much like __find_page_nolock(), but it only
++ * requires 2 arguments and doesn't mark the page as touched, making it
++ * ideal for ->writepage() clustering and other places where you don't
++ * want to mark the page referenced.
++ *
++ * The caller needs to hold the pagecache_lock.
++ */
++struct page * __find_page_simple(struct address_space *mapping, unsigned long index)
++{
++	struct page * page = *page_hash(mapping, index);
++	goto inside;
++
++	for (;;) {
++		page = page->next_hash;
++inside:
++		if (!page)
++			goto not_found;
++		if (page->mapping != mapping)
++			continue;
++		if (page->index == index)
++			break;
++	}
++
++not_found:
++	return page;
++}
++
+ static inline struct page * __find_page_nolock(struct address_space *mapping, unsigned long offset, struct page *page)
+ {
+ 	goto inside;
+@@ -301,13 +329,14 @@
+ 			break;
+ 	}
+ 	/*
+-	 * Touching the page may move it to the active list.
+-	 * If we end up with too few inactive pages, we wake
+-	 * up kswapd.
++	 * Mark the page referenced, moving inactive pages to the
++	 * active list.
+ 	 */
+-	age_page_up(page);
+-	if (inactive_shortage() > inactive_target / 2 && free_shortage())
+-			wakeup_kswapd();
++	if (!PageActive(page))
++		activate_page(page);
++	else
++		SetPageReferenced(page);
++
+ not_found:
+ 	return page;
+ }
+@@ -735,7 +764,6 @@
+ {
+ 	struct inode *inode = file->f_dentry->d_inode;
+ 	struct address_space *mapping = inode->i_mapping;
+-	struct page **hash;
+ 	struct page *page;
+ 	unsigned long start;
+ 
+@@ -756,8 +784,7 @@
+ 	 */
+ 	spin_lock(&pagecache_lock);
+ 	while (--index >= start) {
+-		hash = page_hash(mapping, index);
+-		page = __find_page_nolock(mapping, index, *hash);
++		page = __find_page_simple(mapping, index);
+ 		if (!page)
+ 			break;
+ 		deactivate_page(page);
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
