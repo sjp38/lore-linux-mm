@@ -1,117 +1,37 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA21554
-	for <linux-mm@kvack.org>; Mon, 15 Mar 1999 21:17:39 -0500
-Date: Tue, 16 Mar 1999 03:11:25 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: A couple of questions
-In-Reply-To: <199903151858.SAA02057@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.4.05.9903160239270.360-100000@laser.random>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA26577
+	for <linux-mm@kvack.org>; Tue, 16 Mar 1999 07:29:40 -0500
+Date: Tue, 16 Mar 1999 12:22:27 GMT
+Message-Id: <199903161222.MAA01394@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: A couple of questions
+In-Reply-To: <19990316074606.A10483@tc-1-192.ariake.gol.ne.jp>
+References: <36DBE391.EF9C1C06@earthling.net>
+	<199903151858.SAA02057@dax.scot.redhat.com>
+	<19990316074606.A10483@tc-1-192.ariake.gol.ne.jp>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Neil Booth <NeilB@earthling.net>, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
+To: neil@tc-1-192.ariake.gol.ne.jp
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Mar 1999, Stephen C. Tweedie wrote:
+Hi,
 
->--- mm/memory.c~	Tue Jan 19 01:33:10 1999
->+++ mm/memory.c	Mon Mar 15 18:57:31 1999
->@@ -651,13 +651,13 @@
-> 		delete_from_swap_cache(page_map);
-> 		/* FallThrough */
-> 	case 1:
->-		/* We can release the kernel lock now.. */
->-		unlock_kernel();
->-
-> 		flush_cache_page(vma, address);
-> 		set_pte(page_table, pte_mkdirty(pte_mkwrite(pte)));
-> 		flush_tlb_page(vma, address);
-> end_wp_page:
->+		/* We can release the kernel lock now.. */
->+		unlock_kernel();
->+
-> 		if (new_page)
-> 			free_page(new_page);
-> 		return 1;
->----------------------------------------------------------------
+On Tue, 16 Mar 1999 07:46:06 +0900, neil@tc-1-192.ariake.gol.ne.jp
+said:
 
-Your sure safe patch is strictly needed according to me in order to
-release the lock_kernel in the end_wp_page path.
+> Thanks for your reply.  I think you've missed my point on this one.
+> The variable "pte" is set before calling __get_free_page(), and being
+> local cannot be modified by other processes.  
 
-The reason I think it's just safe remove the lock_kernel before updating
-the page table of the process is because the swap_out engine will do
-nothing with the page until it will be a clean page (and should be clean
-because it was read-only in first place.... am I really right here?).
-Every other part of the VM will block on the semaphore so it won't race
-anyway with the page fault handler.
+Umm, OK, you've convinced me. :) I think we have enough locks held
+throughout this to prevent the present or writable bits in *page_table
+from changing between the test in handle_pte_fault() and do_wp_page()
+itself, even on SMP.
 
-I think this patch against 2.2.3 looks needed to me (except the first
-chunk that is only removing superflous code).
-
-Seems to works fine after some minute of stress-testing.
-
-Index: mm//memory.c
-===================================================================
-RCS file: /var/cvs/linux/mm/memory.c,v
-retrieving revision 1.1.2.3
-diff -u -r1.1.2.3 memory.c
---- memory.c	1999/01/24 02:46:31	1.1.2.3
-+++ linux/mm/memory.c	1999/03/16 01:55:45
-@@ -624,10 +624,6 @@
- 	/* Did someone else copy this page for us while we slept? */
- 	if (pte_val(*page_table) != pte_val(pte))
- 		goto end_wp_page;
--	if (!pte_present(pte))
--		goto end_wp_page;
--	if (pte_write(pte))
--		goto end_wp_page;
- 	old_page = pte_page(pte);
- 	if (MAP_NR(old_page) >= max_mapnr)
- 		goto bad_wp_page;
-@@ -651,13 +647,18 @@
- 		delete_from_swap_cache(page_map);
- 		/* FallThrough */
- 	case 1:
--		/* We can release the kernel lock now.. */
-+		/*
-+		 * We can release the kernel lock now.. because the swap_out
-+		 * engine will do nothing with the page table until it
-+		 * will be a clean page (and we are sure it's clean because it
-+		 * wasn't writable yet). All other parts of the VM will
-+		 * stop on the mmap semaphore. -arca
-+		 */
- 		unlock_kernel();
- 
- 		flush_cache_page(vma, address);
- 		set_pte(page_table, pte_mkdirty(pte_mkwrite(pte)));
- 		flush_tlb_page(vma, address);
--end_wp_page:
- 		if (new_page)
- 			free_page(new_page);
- 		return 1;
-@@ -681,9 +682,15 @@
- bad_wp_page:
- 	printk("do_wp_page: bogus page at address %08lx (%08lx)\n",address,old_page);
- 	send_sig(SIGKILL, tsk, 1);
-+	unlock_kernel();
- 	if (new_page)
- 		free_page(new_page);
- 	return 0;
-+end_wp_page:
-+	unlock_kernel();
-+	if (new_page)
-+		free_page(new_page);
-+	return 1;
- }
- 
- /*
-
-
-
-Andrea Arcangeli
-
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
