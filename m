@@ -1,138 +1,164 @@
-Message-ID: <415355E0.9090202@mwwireless.net>
-Date: Thu, 23 Sep 2004 16:01:52 -0700
-From: Steve Longerbeam <stevel@mwwireless.net>
+Received: from fujitsu2.fujitsu.com (localhost [127.0.0.1])
+	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i8NN2dfM002283
+	for <linux-mm@kvack.org>; Thu, 23 Sep 2004 16:02:39 -0700 (PDT)
+Date: Thu, 23 Sep 2004 16:02:24 -0700
+From: Yasunori Goto <ygoto@us.fujitsu.com>
+Subject: [Patch/RFC]Make second level zone_table[2/3]
+In-Reply-To: <20040923135108.D8CC.YGOTO@us.fujitsu.com>
+References: <20040923135108.D8CC.YGOTO@us.fujitsu.com>
+Message-Id: <20040923160059.D8D0.YGOTO@us.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] mm: memory policy for page cache allocation
-References: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com> <20040920205509.GF4242@wotan.suse.de> <414F6C69.8060406@mwwireless.net> <4152F19C.4000804@sgi.com>
-In-Reply-To: <4152F19C.4000804@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: linux-mm <linux-mm@kvack.org>, lse-tech <lse-tech@lists.sourceforge.net>, linux-kernel <linux-kernel@vger.kernel.org>
+To: linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
+Cc: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Ray Bryant wrote:
+This patch make second level of zone_table to reduce size of
+first level zone_table like below.
 
-> Hi Steve,
->
-> Steve Longerbeam wrote:
->
->> -------- original email follows ----------
->>
->> Hi Andi,
->>
->> I'm working on adding the features to NUMA mempolicy
->> necessary to support MontaVista's MTA.
->>
->> Attached is the first of those features, support for
->> global page allocation policy for mapped files. Here's
->> what the patch is doing:
->>
->> 1. add a shared_policy tree to the address_space object in fs.h.
->> 2. modify page_cache_alloc() in pagemap.h to take an address_space
->>    object and page offset, and use those to allocate a page for the
->>    page cache using the policy in the address_space object.
->> 3. modify filemap.c to pass the additional {mapping, page offset} pair
->>    to page_cache_alloc().
->> 4. Also in filemap.c, implement generic file {set|get}_policy() 
->> methods and
->>    add those to generic_file_vm_ops.
->> 5. In filemap_nopage(), verify that any existing page located in the 
->> cache
->>    is located in a node that satisfies the file's policy. If it's not 
->> in a node that
->>    satisfies the policy, it must be because the page was allocated 
->> before the
->>    file had any policies. If it's unused, free it and goto retry_find 
->> (will allocate
->>    a new page using the file's policy). Note that a similar operation 
->> is done in
->>    exec.c:setup_arg_pages() for stack pages.
->> 6. Init the file's shared policy in alloc_inode(), and free the 
->> shared policy in
->>    destroy_inode().
->>
->> I'm working on the remaining features needed for MTA. They are:
->>
->> - support for policies contained in ELF images, for text and data 
->> regions.
->> - support for do_mmap_mempolicy() and do_brk_mempolicy(). Do_mmap()
->>   can allocate pages to the region before the function exits, such as 
->> when pages
->>   are locked for the region. So it's necessary in that case to set 
->> the VMA's policy
->>   within do_mmap() before those pages are allocated.
->> - system calls for mmap_mempolicy and brk_mempolicy.
->>
->> Let me know your thoughts on the filemap policy patch.
->>
->> Thanks,
->> Steve
->>
->>
->
-> Steve,
->
-> I guess I am a little lost on this without understanding what MTA is.
-> Is there a design/requirements document you can point me at?
+     zone_table_directory.
+     +------------+             zone_table
+     |            |------------>+-----------+
+     |------------|             |           |-> zone
+     |            |             |-----------|
+     |------------|             |           |-> zone
+     |            |             +-----------+
+     +------------+
+
+Yasunori Goto <ygoto at us.fujitsu.com>
+
+---
+
+ erase_zoneid-goto/include/linux/mm.h |   37 +++++++++++++++++++++++++++++++---
+ erase_zoneid-goto/mm/page_alloc.c    |   38 +++++++++++++++++++++++++++++------
+ 2 files changed, 66 insertions(+), 9 deletions(-)
+
+diff -puN include/linux/mm.h~double_zone_table include/linux/mm.h
+--- erase_zoneid/include/linux/mm.h~double_zone_table	Thu Sep 23 11:20:12 2004
++++ erase_zoneid-goto/include/linux/mm.h	Thu Sep 23 11:20:12 2004
+@@ -378,22 +378,53 @@ static inline void put_page(struct page 
+ #define PAGEZONE_SIZE (1 << PAGEZONE_SHIFT)
+ #define PAGEZONE_MASK (PAGEZONE_SIZE - 1)
+ 
++#define PAGEZONE_DIR_SHIFT 8          /* XXX */
++#define PAGEZONE_DIR_SIZE (1 << PAGEZONE_DIR_SHIFT)
++#define PAGEZONE_DIR_MASK (PAGEZONE_DIR_SIZE - 1)
++
++#define PZDIR_SHIFT (PAGEZONE_SHIFT + PAGEZONE_DIR_SHIFT)
++#define PZDIR_SIZE (1 << PZDIR_SHIFT)
++#define PZDIR_MASK (PZDIR_SIZE - 1)
++
+ #ifndef PAGE_INDEX_OFFSET
+ #define PAGE_INDEX_OFFSET PAGE_OFFSET
+ #endif
+ 
+ static inline unsigned long page_to_index(struct page *page)
+ {
+-	unsigned long out = (unsigned long)(page - (struct page *)PAGE_INDEX_OFFSET);
++	return (unsigned long)(page - (struct page *)PAGE_INDEX_OFFSET);
++}
++
++static inline unsigned long page_to_primary_index(struct page *page)
++{
++	return  page_to_index(page) >> PZDIR_SHIFT;
++}
++
++static inline unsigned long page_to_secondary_index(struct page *page)
++{
++	unsigned long out = page_to_index(page);
++	out &= PZDIR_MASK;
+ 	return out >> PAGEZONE_SHIFT;
+ }
+ 
+ struct zone;
+-extern struct zone *zone_table[];
++struct zone_tbl{
++	union {
++		struct zone *zone;
++		struct zone_tbl *sec_zone_table;
++	};
++};
++
++extern struct zone_tbl pri_zone_table[];
+ 
+ static inline struct zone *page_zone(struct page *page)
+ {
+-	return zone_table[ page_to_index(page)];
++	struct zone_tbl *entry;
++
++	entry = pri_zone_table + page_to_primary_index(page);
++	entry = entry->sec_zone_table;
++	entry += page_to_secondary_index(page);
++	return entry->zone;
+ }
+ 
+ static inline unsigned long page_to_nid(struct page *page)
+diff -puN mm/page_alloc.c~double_zone_table mm/page_alloc.c
+--- erase_zoneid/mm/page_alloc.c~double_zone_table	Thu Sep 23 11:20:12 2004
++++ erase_zoneid-goto/mm/page_alloc.c	Thu Sep 23 11:20:12 2004
+@@ -52,8 +52,8 @@ EXPORT_SYMBOL(nr_swap_pages);
+  * Used by page_zone() to look up the address of the struct zone whose
+  * id is encoded in the upper bits of page->flags
+  */
+-struct zone *zone_table[ (~PAGE_OFFSET + 1) >> (PAGEZONE_SHIFT + PAGE_SHIFT) ];
+-EXPORT_SYMBOL(zone_table);
++struct zone_tbl pri_zone_table[ (~PAGE_OFFSET + 1) >> (PZDIR_SHIFT + PAGE_SHIFT) ];
++EXPORT_SYMBOL(pri_zone_table);
+ 
+ static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
+ int min_free_kbytes = 1024;
+@@ -1578,15 +1578,41 @@ void zone_init_free_lists(struct pglist_
+ 
+ void set_page_zone(struct page *lmem_map, unsigned int size,  struct zone *zone)
+ {
+-	struct zone **entry;
+-	entry = &zone_table[page_to_index(lmem_map)];
++ 	struct zone_tbl *pri_entry;
++	struct page *page = lmem_map;
++
++	pri_entry = &pri_zone_table[page_to_primary_index(page)];
+ 
+ 	size = size + PAGEZONE_MASK; /* round up */
+ 	size >>= PAGEZONE_SHIFT;
+ 
+-	for ( ; size > 0; entry++, size--)
+-		*entry = zone;
++ 	for ( ; size > 0; pri_entry++){
++ 		struct zone_tbl *sec_entry, *sec_start_entry;
++ 		unsigned int sec_index, sec_count;
++
++ 		sec_start_entry = pri_entry->sec_zone_table;
++ 		if (!sec_start_entry){
++ 			unsigned int entry_size;
++ 			entry_size = sizeof(struct zone_tbl) <<	PAGEZONE_DIR_SHIFT;
++
++ 			sec_start_entry = alloc_bootmem_node(NODE_DATA(nid), entry_size);
++ 			memset(sec_start_entry, 0, entry_size);
++ 		}
++
++ 		sec_index = page_to_secondary_index(page);
++ 		sec_entry = sec_start_entry + sec_index;
++
++ 		for (sec_count = sec_index; sec_count < PAGEZONE_DIR_SIZE;
++		     sec_count++, sec_entry++){
++ 			sec_entry->zone = zone;
++ 			page += PAGEZONE_SIZE;
++ 			size--;
++ 			if (size == 0)
++ 				break;
++ 		}
+ 
++  		pri_entry->sec_zone_table = sec_start_entry;
++  	}
+ }
+ 
+ /*
+_
 
 
-Not yet, sorry. There is an internal wiki specification at MontaVista
-Software, but it's specific to the 2.4.20 design of MTA.
-
->
-> Also, can you comment on how the above is related to my page cache
-> allocation policy patch?   Does having a global page cache allocation
-> policy with a per process override satisfy your requirements at all
-> or do you specifically have per file policies you want to specify?
-
-
-MTA stands for "Memory Type-based Allocation" (the name was chosen by a
-large customer of MontaVista). The idea behind MTA is identical to NUMA
-memory policy in 2.6.8, but with extra features. MTA was developed
-before NUMA mempolicy (it was originally developed in 2.4.20).
-
-The basic idea of MTA is to allow file-mapped and anonymous VMA's
-to contain a preference list of NUMA nodes that a page should be 
-allocated from.
-So in MTA there is only one policy, which is very similar to the BIND 
-policy in
-2.6.8.
-
-MTA requires per mapped file policies. The patch I posted adds a
-shared_policy tree to the address_space object, so that every file
-can have it's own policy for page cache allocations. A mapped file
-can have a tree of policies, one for each mapped region of the file,
-for instance, text and initialized data. With the patch, file mapped
-policies would work across all filesystems, and the specific support
-in tmpfs and hugetlbfs can be removed.
-
-The goal of MTA is to direct an entire program's resident pages (text
-and data regions of the executable and all its shared libs) to a
-single node or a specific set of nodes. The primary use of MTA (by
-the customer) is to allow portions of memory to be powered off for
-low power modes, and still have critical system applications running.
-
-In MTA the executable file's policies are stored in the ELF image.
-There is a utility to add a section containing the list of prefered nodes
-for the executable's text and data regions. That section is parsed by
-load_elf_binary(). The section data is in the form of mnemonic node
-name strings, which load_elf_binary() converts to a node id list.
-
-MTA also supports policies for the slab allocator.
-
->
-> (Just trying to figure out how to work both of our requirements into
-> the kernel in as simple as possible (but no simpler!) fashion.)
-
-
-could we have both a global page cache policy as well as per file
-policies. That is, if a mapped file has a policy, it overrides the
-global policy. That would work fine for MTA.
-
-Steve
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
