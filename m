@@ -1,117 +1,75 @@
-Date: Sun, 7 Nov 2004 02:16:38 +0100
-From: Andrea Arcangeli <andrea@novell.com>
-Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
-Message-ID: <20041107011638.GJ3851@dualathlon.random>
-References: <20041105200118.GA20321@logos.cnet> <200411051532.51150.jbarnes@sgi.com> <20041106012018.GT8229@dualathlon.random> <418C2861.6030501@cyberone.com.au> <20041106015051.GU8229@dualathlon.random> <16780.46945.925271.26168@thebsh.namesys.com> <20041106153209.GC3851@dualathlon.random> <16781.436.710721.667909@gargle.gargle.HOWL> <20041106174444.GF3851@dualathlon.random> <16781.9482.821680.375843@gargle.gargle.HOWL>
+Subject: Re: manual page migration, revisited...
+From: Nigel Cunningham <ncunningham@linuxmail.org>
+Reply-To: ncunningham@linuxmail.org
+In-Reply-To: <20041106174857.GA23420@logos.cnet>
+References: <418C03CD.2080501@sgi.com>
+	 <1099695742.4507.114.camel@desktop.cunninghams>
+	 <20041106174857.GA23420@logos.cnet>
+Content-Type: text/plain
+Message-Id: <1099796318.3811.9.camel@desktop.cunninghams>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <16781.9482.821680.375843@gargle.gargle.HOWL>
+Date: Sun, 07 Nov 2004 13:58:38 +1100
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nikita Danilov <nikita@clusterfs.com>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Nov 06, 2004 at 10:24:58PM +0300, Nikita Danilov wrote:
-> This means breaking all layering and passing mempool pointer all the way
-> down to the lowest layer allocators (like bio and drivers). The only
+Hi.
 
-bio and drivers already have their own mempools.  the blkdev layer is
-guaranteed to succeed and it can only try GFP_NOIO allocations (if those
-fails it'll fallback in the reserved mempool).
-
-> practical way to do this, is to put mempool pointer into current
-> task_struct. At which point it's no different from having per-thread
-> list of pages that __alloc_pages() looks into before falling back to
-> per-cpu page-sets and buddy. _Except_ in the latter case, reservation is
-> handled transparently in __alloc_pages() and code shouldn't be adjusted
-> to check for mempool in zillion of places.
-
-that's sure reasonable to avoid changing lots of code.
-
-> I think you are confusing "file system" and "ext2". I definitely know
-> from experience that with some file system types, system can be oommed
-> without any significant user-level allocation activity. Now, one can say
-> that either such file-systems are broken, or Linux MM lacks support for
-> features (like reservation) they need.
-
-the latter is true, I agree.
-
->  > that's the PF_MEMALLOC path. A reservation already exists, or it would
->  > never work since 2.2. PF_MEMALLOC and the min/2 watermark are meant to
->  > allow writepage to allocate ram. however the amount reserved is limited,
+On Sun, 2004-11-07 at 04:48, Marcelo Tosatti wrote:
+> On Sat, Nov 06, 2004 at 10:02:22AM +1100, Nigel Cunningham wrote:
+> > On Sat, 2004-11-06 at 09:50, Ray Bryant wrote:
+> > > Marcelo and Takahashi-san (and anyone else who would like to comment),
+> > > 
+> > > This is a little off topic, but this is as good of thread as any to start this 
+> > > discussion on.  Feel free to peel this off as a separate discussion thread 
+> > > asap if you like.
+> > > 
+> > > We have a requirement (for a potential customer) to do the following kind of
+> > > thing:
+> > > 
+> > > (1)  Suspend and swap out a running process so that the node where the process
+> > >       is running can be reassigned to a higher priority job.
+> > > 
+> > > (2)  Resume and swap back in those suspended jobs, restoring the original
+> > >       memory layout on the original nodes, or
+> > > 
+> > > (3)  Resume and swap back in those suspended jobs on a new set of nodes, with
+> > >       as similar topological layout as possible.  (It's also possible we may
+> > >       want to just move the jobs directly from one set of nodes to another
+> > >       without swapping them out first.
+> > 
+> > You may not even need any kernel patches to accomplish this. Bernard
+> > Blackham wrote some code called cryopid: http://cryopid.berlios.de/. I
+> > haven't tried it myself, but it sounds like it might be at least part of
+> > what you're after.
 > 
-> low-mem watermark is mostly useless in the face of direct reclaim, when
-> unbounded number of threads enter try_to_free_pages() and call
-> ->writepage() simultaneously.
-
-agreed.
-
->  > so it's not perfect. The only way to make it perfect I believe is to
->  > reserve the stuff inside the fs with mempools as described above.
+> Hi Ray, Nigel,
 > 
-> I don't see what advantages mempools have over page reservation handled
-> directly by page allocator, like in
-> 
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.9-rc4/2.6.9-rc4-mm1/broken-out/reiser4-perthread-pages.patch
+> And the swsusp code itself, isnt it what its doing? Stopping all processes, 
+> saving their memory to disk, and resuming later on.
 
-guess what, that patch is running in my kernel right now. However I
-believe this approch is very wasteful. I agree it'll work right, but
-you're wasting loads of ram and you're as well less efficient.
+Software suspend does the whole machine; I was understanding, perhaps
+wrongly, that Ray only wants to move particular processes.
 
-The efficient fix for your problem, is to have a global pool, protected
-by a global semaphore (definitely not per-thread), so that when you hit
-oom (and when you hit true oom the last thing you can care about is
-paralleism or the scalability on such a global semaphore), the VM will
-trasparently take the semaphore and start using the pool. This will
-still require you to mark the start and end of your critical section
-like this:
+> You should just need an API to stop a specific process? 
 
-reiserf4_writepage()
-{
-	enable_reserved_pages_pool();
+(And save it's state).
 
-	find_or_create_page()
-	journal something
-	getblk
-	biowhatever
+Regards,
 
-	disable_reserved_pages_pool();
-}
+Nigel
+-- 
+Nigel Cunningham
+Pastoral Worker
+Christian Reformed Church of Tuggeranong
+PO Box 1004, Tuggeranong, ACT 2901
 
-disable_reserved_pages_pool has to check a per-thread flag that the VM
-will set if it has used the reserved pool and taken the semaphore, but
-by that time the I/O can be guaranteed to complete and the memory will
-be guaranteed to be unlocked eventually when the bio I/O completes. So
-you can freely alloc_pages to refill the pool inside
-disable_reserved_pages_pool and then drop the semaphore.
-enable_reserved_pages_pool is only needed to set a per-thread flag to
-tell the VM it's allowed to fallback in the global pool by blocking in
-the global semaphore if the box is oom (instead of returning NULL).
+You see, at just the right time, when we were still powerless, Christ
+died for the ungodly.		-- Romans 5:6
 
-in disable_reserved_pages_pool you'll also have to clear the pre-thread
-flag before calling alloc_pages again to avoid deadlock on the semaphore
-if another oom condition happens of course.
-
-then you need an create_reserved_pages_pool(nr_pages) while you mount the
-fs, and destroy_unreserve_pages_pool(nr_pages) when you unmont it. where
-many different users (i.e. different fs) will be allowed to reserve a
-different size for the global pool. They all will share the same pool,
-you've only need to track each user nr_pages to know which is the max
-reservation you need.
-
-That's still enterely transparent, it'll work in the thread context
-thanks to the global semaphore, but it'll avoid the waste of ram where
-every different task has to pin the ram into the task before starting
-the writepage I/O.
-
-I mean, I understand the only point of the perthread-pages patch is
-deadlock avoidance during OOM. So you definitely don't need a per-thread
-reservation, the global pool methods I described above should be more
-than enough and they'll save ram and make your system faster as well.
-
-I agree PF_MEMALLOC has nothing to do with this.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
