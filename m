@@ -1,69 +1,73 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@bonn-fries.net>
 Subject: Re: [RFC] Page table sharing
-Date: Tue, 19 Feb 2002 04:45:59 +0100
-References: <Pine.LNX.4.33.0202181908210.24803-100000@home.transmeta.com>
-In-Reply-To: <Pine.LNX.4.33.0202181908210.24803-100000@home.transmeta.com>
+References: <Pine.LNX.4.21.0202182358190.1021-100000@localhost.localdomain>
+	<E16cy8E-0000xp-00@starship.berlin>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 18 Feb 2002 21:27:11 -0700
+In-Reply-To: <E16cy8E-0000xp-00@starship.berlin>
+Message-ID: <m1heoe3xls.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E16d1E8-00010D-00@starship.berlin>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Hugh Dickins <hugh@veritas.com>, dmccr@us.ibm.com, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Robert Love <rml@tech9.net>, mingo@redhat.co, Andrew Morton <akpm@zip.com.au>, manfred@colorfullife.com, wli@holomorphy.com
+To: Daniel Phillips <phillips@bonn-fries.net>
+Cc: Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@transmeta.com>, dmccr@us.ibm.com, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Robert Love <rml@tech9.net>, Rik van Riel <riel@conectiva.com.br>, mingo@redhat.com, Andrew Morton <akpm@zip.com.au>, manfred@colorfullife.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On February 19, 2002 04:22 am, Linus Torvalds wrote:
-> On Mon, 18 Feb 2002, Linus Torvalds wrote:
-> >
-> > We can, of course, introduce a "pmd-rmap" thing, with a pointer to a
-> > circular list of all mm's using that pmd inside the "struct page *" of the
-> > pmd. Right now the rmap patches just make the pointer point directly to
-> > the one exclusive mm that holds the pmd, right?
-> 
-> There's another approach:
->  - get rid of "page_table_lock"
->  - replace it with a "per-pmd lock"
->  - notice that we already _have_ such a lock
-> 
-> The lock we have is the lock that we've always had in "struct page".
+Daniel Phillips <phillips@bonn-fries.net> writes:
 
-Yes, I even have an earlier version of the patch that implements a spinlock
-on that bit.  It doesn't use the normal lock_page of course.
+> On February 19, 2002 01:03 am, Hugh Dickins wrote:
+> > On Tue, 19 Feb 2002, Daniel Phillips wrote:
+> > > On February 18, 2002 08:04 pm, Hugh Dickins wrote:
+> > > > On Mon, 18 Feb 2002, Daniel Phillips wrote:
+> > > > > On February 18, 2002 09:09 am, Hugh Dickins wrote:
+> > > > > > Since copy_page_range would not copy shared page tables, I'm wrong to
+> > > > > > point there.  But __pte_alloc does copy shared page tables (to unshare
+> 
+> > > > > > them), and needs them to be stable while it does so: so locking
+> against
+> 
+> > > > > > swap_out really is required.  It also needs locking against read
+> faults,
+> 
+> > > > > > and they against each other: but there I imagine it's just a matter of
+> 
+> > > > > > dropping the write arg to __pte_alloc, going back to pte_alloc again.
+> > > 
+> > > I'm not sure what you mean here, you're not suggesting we should unshare the
+> 
+> > > page table on read fault are you?
+> > 
+> > I am.  But I can understand that you'd prefer not to do it that way.
+> > Hugh
+> 
+> No, that's not nearly studly enough ;-)
+> 
+> Since we have gone to all the trouble of sharing the page table, we should
+> swap in/out for all sharers at the same time.  That is, keep it shared, saving
+> memory and cpu.
+> 
+> Now I finally see what you were driving at: before, we could count on the
+> mm->page_table_lock for exclusion on read fault, now we can't, at least not
+> when ptb->count is great than one[1].  So let's come up with something nice as
+> a substitute, any suggestions?
+> 
+> [1] I think that's a big, broad hint.
 
-> There are some interesting advantages from this:
->  - we allow even more parallelism from threads across different CPU's.
->  - we already have the cacheline for the pmd "struct page" because we
->    needed it for the pmd count.Y
-> 
-> That still leaves the TLB invalidation issue, but we could handle that
-> with an alternate approach: use the same "free_pte_ctx" kind of gathering
-> that the zap_page_range() code uses for similar reasons (ie gather up the
-> pte entries that you're going to free first, and then do a global
-> invalidate later).
->
-> Note that this is likely to speed things up anyway (whether the pages are
-> gathered by rmap or by the current linear walk), by virtue of being able
-> to do just _one_ TLB invalidate (potentially cross-CPU) rather than having
-> to do it once for each page we free.
-> 
-> At that point you might as well make the TLB shootdown global (ie you keep
-> track of a mask of CPU's whose TLB's you want to kill, and any pmd that
-> has count > 1 just makes that mask be "all CPU's").
-> 
-> I'm a bit worried about the "lock each mm on the pmd-rmap list" approach,
-> because I think we need to lock them _all_ to be safe (as opposed to
-> locking them one at a time), which always implies all the nasty potential
-> deadlocks you get for doing multiple locking.
-> 
-> The "page-lock + potentially one global TLB flush" approach looks a lot
-> safer in this respect.
+Something like:
+struct mm_share {
+        spinlock_t page_table_lock;
+        struct list_head mm_list;
+};
 
-How do we know when to do the global tlb flush?
+struct mm {
+	struct list_head mm_list;
+        struct mm_share *mm_share;
+        .....
+};
 
--- 
-Daniel
+So we have an overarching structure for all of the shared mm's.  
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
