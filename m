@@ -1,188 +1,53 @@
-Received: from fujitsu1.fujitsu.com (localhost [127.0.0.1])
-	by fujitsu1.fujitsu.com (8.12.10/8.12.9) with ESMTP id i5OMK4d6009503
-	for <linux-mm@kvack.org>; Thu, 24 Jun 2004 15:20:04 -0700 (PDT)
-Date: Thu, 24 Jun 2004 15:19:30 -0700
-From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: Re: [Lhms-devel] Re: [Lhns-devel] Merging Nonlinear and Numa style memory hotplug
-In-Reply-To: <1088083724.3918.390.camel@nighthawk>
-References: <20040623184303.25D9.YGOTO@us.fujitsu.com> <1088083724.3918.390.camel@nighthawk>
-Message-Id: <20040624135838.F009.YGOTO@us.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: Merging Nonlinear and Numa style memory hotplug
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20040624135838.F009.YGOTO@us.fujitsu.com>
+References: <20040623184303.25D9.YGOTO@us.fujitsu.com>
+	 <1088083724.3918.390.camel@nighthawk>
+	 <20040624135838.F009.YGOTO@us.fujitsu.com>
+Content-Type: text/plain
+Message-Id: <1088116621.3918.1060.camel@nighthawk>
+Mime-Version: 1.0
+Date: Thu, 24 Jun 2004 15:37:02 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
+To: Yasunori Goto <ygoto@us.fujitsu.com>
 Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, Linux-Node-Hotplug <lhns-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, "BRADLEY CHRISTIANSEN [imap]" <bradc1@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Dave-san.
+On Thu, 2004-06-24 at 15:19, Yasunori Goto wrote:
+> BTW, I have a question about nonlinear patch.
+> It is about difference between phys_section[] and mem_section[]
+> I suppose that phys_section[] looks like no-meaning now.
+> If it isn't necessary, __va() and __pa() translation can be more simple.
+> What is the purpose of phys_section[]. Is it for ppc64?
 
-Probably, all of your advices are right.
-I was confused between my emulation environment and true NUMA machine.
-I will modify them. Thanks a lot.
+This is the fun (read: confusing) part of nonlinear.
 
-BTW, I have a question about nonlinear patch.
-It is about difference between phys_section[] and mem_section[]
-I suppose that phys_section[] looks like no-meaning now.
-If it isn't necessary, __va() and __pa() translation can be more simple.
-What is the purpose of phys_section[]. Is it for ppc64?
+The mem_section[] array is where the pointer to the mem_map for the
+section is stored, obviously.  It's indexed virtually, so that something
+at a virtual address is in section number (address >> SECTION_SHIFT). 
+So, that makes it easy to go from a virtual address to a 'struct page'
+inside of the mem_map[].
 
-Bye.
+But, given a physical address (or a pfn for that matter), you sometimes
+also need to get to a 'struct page'.  It is for that reason that we have
+the phys_section[] array.  Each entry in the phys_section[] points back
+to a mem_section[], which then contains the mem_map[].
 
-> Some more comments on the first patch:
-> 
-> +#ifdef CONFIG_HOTPLUG_MEMORY_OF_NODE
-> +               if (node_online(nid)) {
-> +                       allocate_pgdat(nid);
-> +                       printk ("node %d will remap to vaddr %08lx\n", nid,
-> +                               (ulong) node_remap_start_vaddr[nid]);
-> +               }else
-> +                       NODE_DATA(nid)=NULL;
-> +#else
->                 allocate_pgdat(nid);
->                 printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
->                         (ulong) node_remap_start_vaddr[nid],
->                         (ulong) pfn_to_kaddr(highstart_pfn
->                             - node_remap_offset[nid] + node_remap_size[nid]));
-> +#endif
-> 
-> I don't think this chunk is very necessary.  The 'NODE_DATA(nid)=NULL;'
-> is superfluous because the node_data[] is zeroed at boot:
-> 
-> NUMA:
-> #define NODE_DATA(nid) (node_data[nid])
-> non-NUMA:
-> #define NODE_DATA(nid) (&contig_page_data)
-> 
-> Why not just make it:
-> 
-> +               if (!node_online(nid))
-> +			continue;
-> 
-> That should at least get rid of the ifdef.
-> 
-> -       bootmap_size = init_bootmem_node(NODE_DATA(0), min_low_pfn, 0, system_max_low_pfn);
-> +       bootmap_size = init_bootmem_node(NODE_DATA(0), min_low_pfn, 0,
-> +           (system_max_low_pfn > node_end_pfn[0]) ?
-> +           node_end_pfn[0] : system_max_low_pfn);
-> 
-> -       register_bootmem_low_pages(system_max_low_pfn);
-> +       register_bootmem_low_pages((system_max_low_pfn > node_end_pfn[0]) ?
-> +           node_end_pfn[0] : system_max_low_pfn);
-> 
-> How about using a temp variable here instead of those nasty conditionals?
-> 
-> +
-> +#ifdef CONFIG_HOTPLUG_MEMORY_OF_NODE
-> +               if (node_online(nid)){
-> +                       if (nid)
-> +                               memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
-> +                       NODE_DATA(nid)->pgdat_next = pgdat_list;
-> +                       pgdat_list = NODE_DATA(nid);
-> +                       NODE_DATA(nid)->enabled = 1;
-> +               }
-> +#else
->                 if (nid)
->                         memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
->                 NODE_DATA(nid)->pgdat_next = pgdat_list;
->                 pgdat_list = NODE_DATA(nid);
-> +#endif
-> 
-> I'd just take the ifdef out.  Wouldn't this work instead?
-> 
-> -               if (nid)
-> -                       memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
-> -               NODE_DATA(nid)->pgdat_next = pgdat_list;
-> -               pgdat_list = NODE_DATA(nid);
-> +               if (node_online(nid)){
-> +                       if (nid)
-> +                               memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
-> +                       NODE_DATA(nid)->pgdat_next = pgdat_list;
-> +                       pgdat_list = NODE_DATA(nid);
-> +                       NODE_DATA(nid)->enabled = 1;
-> +               }
-> 
-> +void set_max_mapnr_init(void)
-> +{
-> ...
-> +       struct page *hsp=0;
-> 
-> Should just be 'struct page *hsp = NULL;'
-> 
-> +       for(i = 0; i < numnodes; i++) {
-> +               if (!NODE_DATA(i))
-> +                       continue;
-> +               pgdat = NODE_DATA(i);
-> +               size = pgdat->node_zones[ZONE_HIGHMEM].present_pages;
-> +               if (!size)
-> +                       continue;
-> +               hsp = pgdat->node_zones[ZONE_HIGHMEM].zone_mem_map;
-> +               if (hsp)
-> +                       break;
-> +       }
-> 
-> Doesn't this just find the lowest-numbered node's highmem?  Are you sure
-> that no NUMA systems have memory at lower physical addresses on
-> higher-numbered nodes?  I'm not sure that this is true.
-> 
-> +       if (hsp)
-> +               highmem_start_page = hsp;
-> +       else
-> +               highmem_start_page = (struct page *)-1;
-> 
-> By not just BUG() here?  Do you check for 'highmem_start_page == -1' somewhere?
-> 
-> @@ -478,12 +482,35 @@ void __init mem_init(void)
->         totalram_pages += __free_all_bootmem();
-> 
->         reservedpages = 0;
-> +
-> +#ifdef CONFIG_HOTPLUG_MEMORY_OF_NODE
-> +       for (nid = 0; nid < numnodes; nid++){
-> +               int start, end;
-> +
-> +               if ( !node_online(nid))
-> +                       continue;
-> +               if ( node_start_pfn[nid] >= max_low_pfn )
-> +                       break;
-> +
-> +               start = node_start_pfn[nid];
-> +               end = ( node_end_pfn[nid] < max_low_pfn) ?
-> +                       node_end_pfn[nid] : max_low_pfn;
-> +
-> +               for ( tmp = start; tmp < end; tmp++)
-> +                       /*
-> +                        * Only count reserved RAM pages
-> +                        */
-> +                       if (page_is_ram(tmp) && PageReserved(pfn_to_page(tmp)))
-> +                               reservedpages++;
-> +       }
-> +#else
-> 
-> Again, I don't see what this loop is used for.  You appear to be trying
-> to detect which nodes have lowmem.  Is there currently any x86 NUMA
-> architecture that has lowmem on any node but node 0?
-> 
-> 
-> 
-> -- Dave
-> 
-> 
-> 
-> -------------------------------------------------------
-> This SF.Net email sponsored by Black Hat Briefings & Training.
-> Attend Black Hat Briefings & Training, Las Vegas July 24-29 - 
-> digital self defense, top technical experts, no vendor pitches, 
-> unmatched networking opportunities. Visit www.blackhat.com
-> _______________________________________________
-> Lhns-devel mailing list
-> Lhns-devel@lists.sourceforge.net
-> https://lists.sourceforge.net/lists/listinfo/lhns-devel
+pfn_to_page(unsigned long pfn)
+{
+       return
+&mem_section[phys_section[pfn_to_section(pfn)]].mem_map[section_offset_pfn(pfn)];
+}
 
--- 
-Yasunori Goto <ygoto at us.fujitsu.com>
+pfn_to_section(pfn) does a (pfn >> (SECTION_SHIFT - PAGE_SHIFT)), then
+uses that section number to index into the phys_section[] array, which
+gives an index into the mem_section[] array, from which you can get the
+'struct page'.  
 
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
