@@ -1,52 +1,46 @@
-Message-ID: <19980306154019.51826@Elf.mj.gts.cz>
-Date: Fri, 6 Mar 1998 15:40:19 +0100
-From: Pavel Machek <pavel@elf.ucw.cz>
-Subject: Re: [PATCH] kswapd fix & logic improvement
-References: <19980304093300.08111@Elf.mj.gts.cz> <Pine.LNX.3.95.980306035709.11210A-100000@as200.spellcast.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.3.95.980306035709.11210A-100000@as200.spellcast.com>; from Benjamin C.R. LaHaise on Fri, Mar 06, 1998 at 04:06:22AM -0500
+Received: from kanga.kvack.org (blah@kanga.kvack.org [199.233.184.222])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA28982
+	for <linux-mm@kvack.org>; Mon, 9 Mar 1998 13:59:52 -0500
+Date: Mon, 9 Mar 1998 13:58:48 -0500 (EST)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: reverse pte mapping update
+Message-ID: <Pine.LNX.3.95.980309130055.8617C-100000@kanga.kvack.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Cc: Pavel Machek <pavel@elf.ucw.cz>, Rik van Riel <H.H.vanRiel@fys.ruu.nl>, "Michael L. Galbraith" <mikeg@weiden.de>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
+To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Hello Stephen et all,
 
-> > > Not only that, but the network activity X induces puts additional stress
-> > > on an already low-memory system by allocating lots of unswappable memory.
-> > > When might we see Pavel's patches to the networking stack meant to get
-> > > swapping over TCP working, but I think they'll really help stability on 
-> > > systems with low-memory and busy networks, get integrated?
-> > 
-> > Sorry? My patches are usable only if you are trying to swap over
-> > network. They will not help on low-memory systems, unless that systems
-> > also lack hard-drives. It is usually much better to swap onto local
-> > drive than over network.
-> 
-> If they're setup the way I think they are, you're mistaken. ;-)  I'm
-> thinking of the pathelogical case where the system is thrown into a state
-> where atomic memory consumption is occurring faster than the system can
-> free up memory.  This could occur on a system with, say 100Mbps ethernet
-> and a low-end IDE drive (~5-7MBps peak) if we're using TCP with large
-> windows and have a *large* number of sockets open and receiving data. 
-> Incoming packets could consume up to 10MB of GFP_ATOMIC memory per second
-> - ouch!  With your patch, once we hit a danger zone, the system starts
-> dropping network packets, right? 
+Just a quick update to say that I've got something that's half-working,
+and given a few days more work it'll be worth testing.  At least it boots
+and allows me to compile the next change. 
 
-No. I create new priority level ('GFP_NUCLEONIC') which is allowed to
-consume few last-resort pages. This pages will be used for networking,
-only, and they will be used only for that single socked used for swapping.
+On another note, I'm becoming concerned about the manipulations being done
+to vmas belonging to other mm's now - mostly that we'll be wanting to
+manipulate them much more frequently than at present.  Stephen, if you
+could give me a hint about what direction you're going with your page
+cache locking patch, it will help me start putting together a picture of
+we'll fit everything together.
 
->  That way there will still be enough
-> memory for allocating buffer heads and such to swap out as
-> nescessary... 
+Along the same line of thought, I'm wondering if we can dispense of
+mm->mmap_sem for most cases?  I remember hearing that glibc will soon have
+an async-io implementation, and I believe clone with shared vm is going to
+be the basis for the implementation.  This will also effect a future
+threaded version of apache, which will use mmap'd files across several
+threads being thrown at sockets to avoid the extra copies.  Eliminating
+the lock probably isn't possible, but changing it to a read-write blocking
+lock is probably the easiest.  The kernel should have such a generic
+primative anyways.
 
-I thought that current swapping is deadlock-free. Am I wrong? [I tried
-hard to make network swap deadlock-free. I trusted swap-to-disk code
-to be deadlock-free...]
+Linux-mm people: is anyone interested in putting together a test suite to
+excercise various aspects of the mm code?  Ideally I'd like to see us put
+together a large enough test suite to run a complete coverage test on the
+kernel code.  Given that this is a pretty big task, it will take a while.
+Perhaps running the kernel under an emulator (say 68k/Amiga as UAE is
+pretty complete, barring the MMU [easy]), or using the MkLinux port
+would help in creating a more useful testing environment.
 
-								Pavel
--- 
-I'm really pavel@atrey.karlin.mff.cuni.cz. 	   Pavel
-Look at http://atrey.karlin.mff.cuni.cz/~pavel/ ;-).
+		-ben
