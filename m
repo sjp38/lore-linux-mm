@@ -1,39 +1,86 @@
-Date: Fri, 3 May 2002 09:24:36 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: page-flags.h
-Message-ID: <20020503092436.A19267@infradead.org>
-References: <20020501192737.R29327@suse.de> <20020501183414.A28790@infradead.org> <20020501200452.S29327@suse.de> <3CD1FB78.B3314F4B@zip.com.au>
+Date: Fri, 3 May 2002 17:54:38 +0530
+From: Suparna Bhattacharya <suparna@in.ibm.com>
+Subject: Re: [PATCH]Fix: Init page count for all pages during higher order allocs
+Message-ID: <20020503175438.A1816@in.ibm.com>
+Reply-To: suparna@in.ibm.com
+References: <20020502142441.A1668@in.ibm.com> <Pine.LNX.4.21.0205021312370.999-100000@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3CD1FB78.B3314F4B@zip.com.au>; from akpm@zip.com.au on Thu, May 02, 2002 at 07:52:40PM -0700
+In-Reply-To: <Pine.LNX.4.21.0205021312370.999-100000@localhost.localdomain>; from hugh@veritas.com on Thu, May 02, 2002 at 02:08:50PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: Dave Jones <davej@suse.de>, kernel-janitor-discuss@lists.sourceforge.net, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@zip.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, marcelo@brutus.conectiva.com.br, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, May 02, 2002 at 07:52:40PM -0700, Andrew Morton wrote:
-> > That's a good point, and something I completley overlooked.
-> > I wonder if Andrew Morton (who I'm guessing wrote that comment
-> > in mm.h) has some ingenious plan here..
+On Thu, May 02, 2002 at 02:08:50PM +0100, Hugh Dickins wrote:
+> On Thu, 2 May 2002, Suparna Bhattacharya wrote:
+> [ discussion of PG_inuse / PG_partial / PG_large snipped ]
 > 
-> who, me?
+> Any of those can handle that job (distinguishing non0orders),
+> but I do believe you want a further PG_ flag for crash dumps.
 > 
-> I'd envisaged those 119 files doing:
-> 
-> #include <linux/mm.h>
-> #include <linux/page-flags.h>
-> 
-> so then anything which includes mm.h but doesn't do any PageFoo()
-> operations doesn't have to process those macros.
+> The pages allocated GFP_HIGHUSER are about as uninteresting
+> as the free pages: the cases where they're interesting (for
+> analyzing a kernel crash, as opposed to snooping on a crashed
+> customer's personal data!) are _very_ rare, but the waste of
+> space and time putting them in a crash dump is very often
+> abominable, and of course worse on larger machines.
 
-Okay, that makes some sense.  I still think it's preferrable to
-have <linux/page.h>  - many filesystems only need struct page, the
-flags and few supporting functions, so do drivers using kiobufs.
+Well, we are working on various options to be able to dump
+pages selectively, and PG_inuse is by no means the only check.
+For example we have an option that tries to exclude non-kernel
+pages from the dump based on a simple heuristic of checking the
+PG_lru flag (actually exclude LRU pages and unreferenced pages). 
+This works for vmalloc'ed pages too.
 
-Having these no need the rest of the MM internals is a good thing (TM).
+> 
+> As someone else noted in this thread, the kernel tries to keep
+> pages in use anyway, so omitting free pages won't buy you a great
+> deal on its own.  And I think it's to omit free pages that you want
 
+True, it is only when a system is very lightly loaded (plus not 
+running for long) and has lots of memory that we'd expect 
+many free pages. Maybe that not a very typical situation in a 
+realistic workload, but one can envision further checks that may 
+be helpful. At least in a low load situation we don't want to 
+confuse free pages with kernel pages (in the example I discussed 
+above).
+
+> to distinguish the count 0 continuations from the count 0 frees?
+> 
+> PG_highuser? PG_data?  Or inverses: PG_internal? PG_dumpable?
+> I think not PG_highuser, because it's too specific to what just
+> happens to be the best, but inadequate, test I've found so far.
+
+I wouldn't want this kind of a flag to be specific to dump, but 
+am really looking at little things that help a with generic page 
+classification scheme that also addresses the needs for dump.
+We would like dump to make its decisions based on a configured
+requirement e.g depending on the dump level, and adapt or tune
+our heuristics without changing the rest of the kernel.
+
+The flags should just indicate the nature of the page - it's up to
+dump or any other kind of analyser to decide whether to pick it 
+up or not. For different kind of situations and problems one
+might need more or less memory to be dumped, also possibly
+depending on availability of space.
+
+If ever we introduce anything specifically for dump, it could be
+a PG_dumped indicator to help avoid dumping already dumped pages
+in a multi-pass selection scheme, but that's something for later
+... 
+
+> 
+> A first guess is that pages allocated with __GFP_HIGHMEM can be
+> omitted from a dump, but that works out wrong on vmalloced space
+> and on highmem pagetables, both of which are important in a dump.
+> GFP_HIGHUSER test dumps vmalloced pages, and both Andrea's 2.4 or
+> Ingo's 2.5 highmem pagetables.  But (notably in reboot after crash:
+> dump copied from swap) memory can be full of GFP_USER blockdev pages.
+> 
+> Hugh
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
