@@ -1,101 +1,194 @@
-Message-ID: <419953C6.7000702@yahoo.com.au>
-Date: Tue, 16 Nov 2004 12:11:34 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [RFC] Possible alternate 4 level pagetables?
-References: <Pine.LNX.4.44.0411152121340.4171-100000@localhost.localdomain>
-In-Reply-To: <Pine.LNX.4.44.0411152121340.4171-100000@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Tue, 16 Nov 2004 13:07:18 +0900 (JST)
+Message-Id: <20041116.130718.34767806.taka@valinux.co.jp>
+Subject: Re: migration cache, updated
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20041105151631.GA19473@logos.cnet>
+References: <20041028160520.GB7562@logos.cnet>
+	<20041105.224958.94279091.taka@valinux.co.jp>
+	<20041105151631.GA19473@logos.cnet>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>
+To: marcelo.tosatti@cyclades.com
+Cc: linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-Hugh Dickins wrote:
-> On Sun, 14 Nov 2004, Nick Piggin wrote:
+Hi Marcelo,
+
+I've been testing the memory migration code with your patch.
+I found problems and I think the attached patch would
+fix some of them.
+
+One of the problems is a race condition between add_to_migration_cache()
+and try_to_unmap(). Some pages in the migration cache cannot
+be removed with the current implementation. Please suppose
+a process space might be removed between them. In this case
+no one can remove pages the process had from the migration cache,
+because they can be removed only when the pagetables pointed
+the pages.
+
+Therefore, I made pages removed from the migration cache
+at the end of generic_migrate_page() if they remain in the cache.
+
+The another is a fork() related problem. If fork() has occurred
+during page migration, the previous work may not go well.
+pages may not be removed from the migration cache.
+
+So I made the swapcode ignore pages in the migration cache.
+However, as you know this is just a workaround and not a correct
+way to fix it.
+
+> Hi Hirokazu!
 > 
->>Just looking at your 4 level page tables patch, I wondered why the extra
->>level isn't inserted between pgd and pmd, as that would appear to be the
->>least intrusive (conceptually, in the generic code). Also it maybe matches
->>more closely the way that the 2->3 level conversion was done.
+> The problem is that another thread can fault in the pte 
+> (removing the radix tree entry) while the current thread dropped the 
+> page_table_lock - which explains the NULL lookup_migration_cache. 
+> The swap code handles this situation, but I've completly missed it. 
 > 
+> Updated patch attached.
 > 
-> I thought the same, when I finally took a look a week or so ago.
+> Extreme thanks for your testing, its being crucial! 
 > 
-> I've scarcely looked at your patches, but notice they change i386.
+> We're getting there.
+> 
+> do_swap_page now does:
+> 
+>  again:
+> +       if (pte_is_migration(orig_pte)) {
+> +               page = lookup_migration_cache(entry.val);
+> +               if (!page) {
+> +                       spin_lock(&mm->page_table_lock);
+> +                       page_table = pte_offset_map(pmd, address);
+> +                       if (likely(pte_same(*page_table, orig_pte)))
+> +                               ret = VM_FAULT_OOM;
+> +                       else
+> +                               ret = VM_FAULT_MINOR;
+> +                       pte_unmap(page_table);
+> +                       spin_unlock(&mm->page_table_lock);
+> +                       goto out;
+> +               }
+> +       } else {
 > 
 
-Yep. The problem is that I was making an asm-generic/ header file
-to handle pmd folding before even doing anything with 4 levels. Then
-this meant that pud folding could be just done with a straight copy
-of the pgtable-nopmd.h file.
 
-Technically, I think, arch code would still run without changing a
-single line if you didn't want to include those new "folding" headers.
-(Maybe aside from a few type warnings / errors).
 
-Andi's is much the same *except* that yes, being the top level means
-names have to be changed.
+Signed-off-by: Hirokazu Takahashi <taka@valinux.co.jp>
+---
 
-> For me, the attraction of putting the new level in between pgd and pmd
-> was that it seemed that only common code and x86_64 (and whatever else
-> comes to use all four levels in future) would need changing (beyond,
-> perhaps, #including some asm-generic headers).  Some casting to combine
-> the two levels into pmd in unchanged arch code, or rename pmd to pld in
-> the changed common code.  Andi's arch patches seemed (all?) to spring
-> from replacing mm->pgd by mm->pml4.
-> 
+ linux-2.6.9-rc4-taka/mm/memory.c   |    2 +-
+ linux-2.6.9-rc4-taka/mm/mmigrate.c |   28 +++++++++++++++++++++-------
+ linux-2.6.9-rc4-taka/mm/vmscan.c   |    4 ++++
+ 3 files changed, 26 insertions, 8 deletions
 
-My first attempt was to insert a pld below pmd actually :) It is the
-most appropriately named!
-
-The problem is that some architectures are actually using this level,
-it is used in hugepages code, etc. So I decided a 'pud' was the least
-intrusive.
-
-> But I could well be mistaken, I wasn't so industrious as to actually
-> try it.
-> 
-> 
->>I've been toying with it a little bit. It is mainly just starting with
->>your code and doing straight conversions, although I also attempted to
->>implement a better compatibility layer that does the pagetable "folding"
->>for you if you don't need to use the full range of them.
->>
->>Caveats are that there is still something slightly broken with it on i386,
->>and so I haven't looked at x86-64 yet. I don't see why this wouldn't work
->>though.
->>
->>I've called the new level 'pud'. u for upper or something.
-> 
-> 
-> Well, yes, your base appetites have led you to the name "pud",
-> where my refined intellect led me to "phd", with h for higher ;)
-> 
-
-Oh now I think that is going to cause you all sorts of problems ;)
-
-> 
->>Sorry the patch isn't in very good shape at the moment - I won't have time
->>to work on it for a week, so I thought this would be a good point just to
->>solicit initial comments.
-> 
-> 
-> I doubt it's worthwhile now, particularly if you do have to patch arches.
-> 
-
-When I get time I'll do another cut with minimal possible architecture
-changes first, and put 'improvements' on top of that.
-
-I think I'll hopefully have time to get something more productive to add
-to the debate before 2.6.10 comes out. I'm not completely adverse to Andi's
-system, but this is going to be around for the next n-years, so I figure
-an alternate perspective can't hurt.
-
-Thanks
-Nick
+diff -puN mm/mmigrate.c~marcelo-FIX1 mm/mmigrate.c
+--- linux-2.6.9-rc4/mm/mmigrate.c~marcelo-FIX1	Tue Nov 16 10:43:56 2004
++++ linux-2.6.9-rc4-taka/mm/mmigrate.c	Tue Nov 16 11:07:10 2004
+@@ -114,14 +114,14 @@ int migration_remove_entry(swp_entry_t e
+ 
+ 	lock_page(page);	
+ 
+-	migration_remove_reference(page);
++	migration_remove_reference(page, 1);
+ 
+ 	unlock_page(page);
+ 
+ 	page_cache_release(page);
+ }
+ 
+-int migration_remove_reference(struct page *page)
++int migration_remove_reference(struct page *page, int dec)
+ {
+ 	struct counter *c;
+ 	swp_entry_t entry;
+@@ -134,10 +134,9 @@ int migration_remove_reference(struct pa
+ 
+ 	read_unlock_irq(&migration_space.tree_lock);
+ 
+-	if (!c->i)
+-		BUG();
++	BUG_ON(c->i < dec);
+ 
+-	c->i--;
++	c->i -= dec;
+ 
+ 	if (!c->i) {
+ 		remove_from_migration_cache(page, page->private);
+@@ -146,6 +145,15 @@ int migration_remove_reference(struct pa
+ 	}
+ }
+ 
++int detach_from_migration_cache(struct page *page)
++{
++	lock_page(page);	
++	migration_remove_reference(page, 0);
++	unlock_page(page);
++
++	return 0;
++}
++
+ int add_to_migration_cache(struct page *page, int gfp_mask) 
+ {
+ 	int error, offset;
+@@ -522,7 +530,9 @@ generic_migrate_page(struct page *page, 
+ 
+ 	/* map the newpage where the old page have been mapped. */
+ 	touch_unmapped_address(&vlist);
+-	if (PageSwapCache(newpage)) {
++	if (PageMigration(newpage))
++		detach_from_migration_cache(newpage);
++	else if (PageSwapCache(newpage)) {
+ 		lock_page(newpage);
+ 		__remove_exclusive_swap_page(newpage, 1);
+ 		unlock_page(newpage);
+@@ -538,7 +548,9 @@ out_busy:
+ 	/* Roll back all operations. */
+ 	unwind_page(page, newpage);
+ 	touch_unmapped_address(&vlist);
+-	if (PageSwapCache(page)) {
++	if (PageMigration(page))
++		detach_from_migration_cache(page);
++	else if (PageSwapCache(page)) {
+ 		lock_page(page);
+ 		__remove_exclusive_swap_page(page, 1);
+ 		unlock_page(page);
+@@ -550,6 +562,8 @@ out_removing:
+ 		BUG();
+ 	unlock_page(page);
+ 	unlock_page(newpage);
++	if (PageMigration(page))
++		detach_from_migration_cache(page);
+ 	return ret;
+ }
+ 
+diff -puN mm/vmscan.c~marcelo-FIX1 mm/vmscan.c
+--- linux-2.6.9-rc4/mm/vmscan.c~marcelo-FIX1	Mon Nov 15 12:20:35 2004
++++ linux-2.6.9-rc4-taka/mm/vmscan.c	Tue Nov 16 11:06:06 2004
+@@ -459,6 +459,10 @@ int shrink_list(struct list_head *page_l
+ 			goto keep_locked;
+ 		}
+ 
++		if (PageMigration(page)) {
++			write_unlock_irq(&mapping->tree_lock);
++			goto keep_locked;
++		}
+ #ifdef CONFIG_SWAP
+ 		if (PageSwapCache(page)) {
+ 			swp_entry_t swap = { .val = page->private };
+diff -puN mm/memory.c~marcelo-FIX1 mm/memory.c
+--- linux-2.6.9-rc4/mm/memory.c~marcelo-FIX1	Tue Nov 16 11:06:31 2004
++++ linux-2.6.9-rc4-taka/mm/memory.c	Tue Nov 16 11:06:57 2004
+@@ -1621,7 +1621,7 @@ again:
+ 		if (vm_swap_full())
+ 			remove_exclusive_swap_page(page);
+ 	} else {
+-		migration_remove_reference(page);
++		migration_remove_reference(page, 1);
+ 	}
+ 
+ 	mm->rss++;
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
