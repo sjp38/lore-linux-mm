@@ -1,33 +1,65 @@
-Date: Sun, 24 Oct 2004 16:37:47 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] Migration cache
-In-Reply-To: <20041024122133.GA17762@logos.cnet>
-Message-ID: <Pine.LNX.4.44.0410241633530.12020-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Received: from kubu (unknown [213.80.72.14])
+	by kubrik.opensource.se (Postfix) with ESMTP id 19A2F3752C
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2004 12:51:57 +0200 (CEST)
+Subject: objrmap and nonlinear vma:s
+From: Magnus Damm <damm@opensource.se>
+Content-Type: text/plain
+Message-Id: <1098702692.23463.123.camel@kubu.opensource.se>
+Mime-Version: 1.0
+Date: Mon, 25 Oct 2004 13:11:33 +0200
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, haveblue@us.ibm.com, iwamoto@valinux.co.jp, kamezawa.hiroyu@jp.fujitsu.com, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 24 Oct 2004, Marcelo Tosatti wrote:
-> 
-> BTW, while I was reading the code, I wondered:
-> 
-> struct swap_info_struct swap_info[MAX_SWAPFILES];
-> 
-> This array should be created dynamically. Worth 
-> the trouble?
+Hello all,
 
-It is rather primitive, but I don't think it's worth the trouble to
-change it on its own - certainly not worth changing it to allocate
-the full array at runtime, and if you changed it to allocate slot by
-slot then quite a few places (within swapfile.c) would need changing.
-I can imagine someone doing a big cleanup of swapfile.c in which that
-static array vanished, but I don't think it's worth doing on its own.
+I am currently investigating how to unmap a physical page belonging to a
+nonlinear file backed vma. 
 
-Hugh
+By studying the 2.6.9 source code and by reading the excellent VMM book
+by Mel Gorman I believe that:
+
+- physical pages belonging to linear file backed vma:s are currently
+reverse mapped using the prio_tree i_mmap.
+
+- physical pages belonging to nonlinear file backed vma:s are currently
+reverse mapped using the linked list i_mmap_nonlinear.
+
+Please let me know if something above is incorrect.
+
+The reverse mapping code for nonlinear vma:s does not seem to scale very
+well today with the linked list implementation. It seems to me that the
+assumption is made that the number of users of nonlinear vma:s are few
+and that they probably not very often want do anything resulting in a
+reverse mapping operation.
+
+Some questions:
+
+1) Is everyone happy with the solution today? Is the linked list
+implementation fast enough? It seems to me that the nonlinear code in
+try_to_unmap_file() is good enough for swap but does not always unmap
+the requested page. This behavior is not very suitable for memory
+hotswap. And a linear scan of all page tables is not very suitable for
+swap.
+
+2) Any particular reason why the prio_tree is avoided for nonlinear
+vma:s? We could modify the code to use one "union shared" together with
+one vm_pgoff per page in struct vm_area_struct for nonlinear vma:s. That
+way it would be possible to rmap nonlinear vma:s with the prio_tree. But
+maybe that is unholy misuse of the prio_tree data structure, who knows.
+
+3) Using prio_tree to rmap nonlinear vma:s like above would of course
+lead to a higher memory use per page belonging to a nonlinear vma. That
+raises the question why nonlinear vma:s aren't implemented as several
+vma:s - one vma per page? I mean, if remap_file_pages() should be able
+to change protection per page in the future - exactly what do we have
+then? Several vma:s?
+
+Thanks!
+
+/ magnus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
