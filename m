@@ -1,65 +1,72 @@
-Message-ID: <3A97273B.6007463@amis.com>
-Date: Fri, 23 Feb 2001 20:15:07 -0700
-From: Eric Whiting <ewhiting@amis.com>
+Message-ID: <3A976CE1.C7493E89@ucla.edu>
+Date: Sat, 24 Feb 2001 00:12:17 -0800
+From: Benjamin Redelings I <bredelin@ucla.edu>
 MIME-Version: 1.0
-Subject: Re: large mem, heavy paging issues (256M VmStk on Athlon)
-References: <Pine.LNX.4.31.0102232136210.8568-100000@localhost.localdomain>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: VM balancing problems under 2.4.2-ac1
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> 
-> If your lisp engine is dynamically linked to glibc, a simple
-> glibc upgrade should do the trick (if this thing is fixed in
-> newer glibcs).
-> 
-> > I think the strace showed the process is using mainly malloc (mmap)
-> > for memory allocation. I do see some brk() calls at the first. (these
-> > appear to be returning a 2G number not a 1G number like you suggested)
-> 
-> > brk(0x805a000)                          = 0x805a000
-> 
-> Actually, this would be 0x0805a000 if you wrote out the leading
-> 0 ... this is more like 128 MB ;)
-
-oops -- yes I need to count digits better.
-
-The mmaps look ok however:
-
-HERE is a successful malloc of 1.7G
  
-old_mmap(0x57bf4000, 1731616768, PROT_READ|PROT_WRITE|PROT_EXEC,
-MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) =
-0x57bf4000                        
+Content-Type: text/plain; charset=big5
+Content-Transfer-Encoding: 7bit
 
-I'll go back to the application and work on this from some other
-angles.
+Rik van Riel wrote:
+> In 2.4.1-pre<something> the kernel swaps out cache 32 times more
+> agressively than it scans pages in processes. Until we find a way
+> to auto-balance these things, expect them to be wrong for at least
+> some workloads ;(
 
-Thanks for the sanity check and suggestions.
+and elsewhere,
 
-eric
+> That's because your problem requires a change to the
+> balancing between swap_out() and refill_inactive_scan()
+> in refill_inactive()...
 
+Rik, can you explain why we still need to "balance" things, instead of
+just swapping out the least used pages?  Is this only a problem with the
+2.4 implementation (e.g. will refill_inactive_scan eventually do
+swap_out in 2.5, or something?), or is it a generic VM issue that has to
+be solved?
 
-> 
-> regards,
-> 
-> Rik
-> --
-> Virtual memory is like a game you can't win;
-> However, without VM there's truly nothing to lose...
-> 
->                 http://www.surriel.com/
-> http://www.conectiva.com/       http://distro.conectiva.com.br/
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux.eu.org/Linux-MM/
+I'm not quite sure what is going on, but is there perhaps some way that
+we can get better information about recent use for pages?  Or do we have
+to treat age pages of different type differently based on their usage
+pattern, which depends on the type of workload?
+
+Regarding better information on recent page accesses, one thing that
+seems strange to me is aging pages down to 0 before making them
+inactive.  In order to have the most amount of information in the page
+ages, we don't want more than 1/PAGE_AGE_MAX pages to have the same
+age.  (Well, there are problems to that view, )  If we only consider
+pages with age 0 to be inactive, then if we want a lot of inactive
+pages, we make all those pages age zero.  Instead, it seems like a good
+thing to do, would be to have a variable "inactive_level", so that a
+page is inactive if the age is less than inactive_level.  If we want
+more pages to be inactive, we increase inactive_level.  I guess I can
+thing of some problems for this approach, but maybe it can be rescued.
+
+In any case, is there a file in /proc/ that displays the number of pages
+at each age?  It could be interesting to calculate Shannon Entropy from
+this and see how many bits of information we get - a better entropy
+could indicate a better aging algorithm.  I guess "6" is the best we
+could get right now.
+
+Also, somebody posted a paper reference to linux-mm a few months ago,
+about how the optimal page aging strategy aged pages according to how
+rapidly referenced bits were being set.  I guess the background page
+aging tries to do something like this.  I don't know how well it
+succeeds though...
+
+	Thanks for any response/explanation!
+
+-BenRI
+-- 
+"...assisted of course by pride, for we teach them to describe the
+ Creeping Death, as Good Sense, or Maturity, or Experience." 
+- "The Screwtape Letters"
+Benjamin Redelings I      <><     http://www.bol.ucla.edu/~bredelin/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
