@@ -29,9 +29,9 @@ References: <1085369393.15315.28.camel@gaston>
 	 <1085546780.5584.19.camel@gaston>
 	 <Pine.LNX.4.58.0405252151100.15534@ppc970.osdl.org>
 Content-Type: text/plain
-Message-Id: <1085547339.5584.26.camel@gaston>
+Message-Id: <1085550105.5584.33.camel@gaston>
 Mime-Version: 1.0
-Date: Wed, 26 May 2004 14:55:40 +1000
+Date: Wed, 26 May 2004 15:41:46 +1000
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -39,37 +39,166 @@ To: Linus Torvalds <torvalds@osdl.org>
 Cc: "David S. Miller" <davem@redhat.com>, wesolows@foobazco.org, willy@debian.org, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, mingo@elte.hu, bcrl@kvack.org, linux-mm@kvack.org, Linux Arch list <linux-arch@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-05-26 at 14:54, Linus Torvalds wrote:
-> On Wed, 26 May 2004, Benjamin Herrenschmidt wrote:
-> >
-> > Ok, your patch just missed the do_wp_page() case which needs the same
-> > medication as break_cow(), which leaves us with only one caller of
-> > ptep_establish... the one which just sets those 2 bits and shouldn't
-> > be named ptep establish at all ;)
-> 
-> Actually, the do_wp_page() one doesn't change the page, but it potentially
-> changes _three_ bits: accessed, dirty _and_ writable.
+Ok, here it is. I blasted ptep_establish completely and the macro
+thing and changed the function to ptep_set_access_flags() which
+becomes also responsible for the flush if necesary.
 
-Hrm... that would work if we only ever set writable, so yes.
+Overall, I feel it's more consistent this way with the other stuff
+in there.
 
-> But the fix on ppc64 should be to add the writable bit to the mask of 
-> things, and rename the function to reflect that fact.
-> 
-> > I'd rather have ptep_establish do the ptep_clear_flush & set_pte, and
-> > the later just do the bit flip, but then, the arch (and possibly
-> > generic) implementation of that bit flip must also do the TLB flush
-> > when necessary (it's not on ppc).
-> 
-> I agree on the renaming, but please don't use the ptep_clear_flush() in 
-> do_wp_page(), because it really isn't changing the virtual mapping, it's 
-> only a (slightly) extended case of the same old "set another bit".
+I did the ppc64 impl, the x86 one (hope I got it right). I still need to
+do ppc32 and I suppose s390 must be fixed now that ptep_estabish is gone
+but I'll leave that to someone who understand something about these things ;)
 
-Ok, I just wasn't sure what this function was all about.
+Here it is, boots on g5 :
 
-I'll cook a new patch including all the changes we discussed, may take some
-time, but hopefully you'll get it today.
-
-Ben.
+===== include/asm-generic/pgtable.h 1.5 vs edited =====
+--- 1.5/include/asm-generic/pgtable.h	2004-05-26 06:04:54 +10:00
++++ edited/include/asm-generic/pgtable.h	2004-05-26 15:37:02 +10:00
+@@ -1,24 +1,11 @@
+ #ifndef _ASM_GENERIC_PGTABLE_H
+ #define _ASM_GENERIC_PGTABLE_H
+ 
+-#ifndef __HAVE_ARCH_PTEP_ESTABLISH
+-
+-#ifndef ptep_update_dirty_accessed
+-#define ptep_update_dirty_accessed(__ptep, __entry, __dirty) set_pte(__ptep, __entry)
+-#endif
+-
+-/*
+- * Establish a new mapping:
+- *  - flush the old one
+- *  - update the page tables
+- *  - inform the TLB about the new one
+- *
+- * We hold the mm semaphore for reading and vma->vm_mm->page_table_lock
+- */
+-#define ptep_establish(__vma, __address, __ptep, __entry, __dirty)	\
+-do {									\
+-	ptep_update_dirty_accessed(__ptep, __entry, __dirty);		\
+-	flush_tlb_page(__vma, __address);				\
++#ifndef __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
++#define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
++do {				  					  \
++	set_pte(__ptep, __entry);					  \
++	flush_tlb_page(__vma, __address);				  \
+ } while (0)
+ #endif
+ 
+===== include/asm-i386/pgtable.h 1.45 vs edited =====
+--- 1.45/include/asm-i386/pgtable.h	2004-05-26 06:04:54 +10:00
++++ edited/include/asm-i386/pgtable.h	2004-05-26 15:34:57 +10:00
+@@ -325,9 +325,13 @@
+  * bit at the same time.
+  */
+ #define update_mmu_cache(vma,address,pte) do { } while (0)
+-#define ptep_update_dirty_accessed(__ptep, __entry, __dirty)	\
+-	do {							\
+-		if (__dirty) set_pte(__ptep, __entry);		\
++#define  __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
++#define ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
++	do {								  \
++		if (__dirty) {						  \
++			set_pte(__ptep, __entry);		  	  \
++			flush_tlb_page(__vma, __address);		  \
++		}							  \
+ 	} while (0)
+ 
+ /* Encode and de-code a swap entry */
+===== include/asm-ppc64/pgtable.h 1.33 vs edited =====
+--- 1.33/include/asm-ppc64/pgtable.h	2004-05-23 07:56:24 +10:00
++++ edited/include/asm-ppc64/pgtable.h	2004-05-26 15:32:38 +10:00
+@@ -306,7 +306,10 @@
+ 	return old;
+ }
+ 
+-/* PTE updating functions */
++/* PTE updating functions, this function puts the PTE in the
++ * batch, doesn't actually triggers the hash flush immediately,
++ * you need to call flush_tlb_pending() to do that.
++ */
+ extern void hpte_update(pte_t *ptep, unsigned long pte, int wrprot);
+ 
+ static inline int ptep_test_and_clear_young(pte_t *ptep)
+@@ -318,7 +321,7 @@
+ 	old = pte_update(ptep, _PAGE_ACCESSED);
+ 	if (old & _PAGE_HASHPTE) {
+ 		hpte_update(ptep, old, 0);
+-		flush_tlb_pending();	/* XXX generic code doesn't flush */
++		flush_tlb_pending();
+ 	}
+ 	return (old & _PAGE_ACCESSED) != 0;
+ }
+@@ -396,10 +399,34 @@
+  */
+ static inline void set_pte(pte_t *ptep, pte_t pte)
+ {
+-	if (pte_present(*ptep))
++	if (pte_present(*ptep)) {
+ 		pte_clear(ptep);
++		flush_tlb_pending();
++	}
+ 	*ptep = __pte(pte_val(pte)) & ~_PAGE_HPTEFLAGS;
+ }
++
++/* Set the dirty and/or accessed bits atomically in a linux PTE, this
++ * function doesn't need to flush the hash entry
++ */
++#define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS
++static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry, int dirty)
++{
++	unsigned long bits = pte_val(entry) &
++		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW);
++	unsigned long tmp;
++
++	__asm__ __volatile__(
++	       "1:     ldarx   %0,0,%3\n\
++                or      %0,%2,%0\n\
++                stdcx.  %0,0,%3\n\
++                bne-    1b"
++	:"=&r" (tmp), "=m" (*ptep)
++	:"r" (bits), "r" (ptep)
++	:"cc");
++}
++#define  ptep_set_access_flags(__vma, __address, __ptep, __entry, __dirty) \
++        __ptep_set_access_flags(__ptep, __entry, __dirty)
+ 
+ /*
+  * Macro to mark a page protection value as "uncacheable".
+===== mm/memory.c 1.177 vs edited =====
+--- 1.177/mm/memory.c	2004-05-26 05:37:09 +10:00
++++ edited/mm/memory.c	2004-05-26 15:35:40 +10:00
+@@ -1004,7 +1004,11 @@
+ 	flush_cache_page(vma, address);
+ 	entry = maybe_mkwrite(pte_mkdirty(mk_pte(new_page, vma->vm_page_prot)),
+ 			      vma);
+-	ptep_establish(vma, address, page_table, entry, 1);
++
++	/* Get rid of the old entry, replace with new */
++	ptep_clear_flush(vma, address, page_table);
++	set_pte(page_table, entry);
++
+ 	update_mmu_cache(vma, address, entry);
+ }
+ 
+@@ -1056,7 +1060,7 @@
+ 			flush_cache_page(vma, address);
+ 			entry = maybe_mkwrite(pte_mkyoung(pte_mkdirty(pte)),
+ 					      vma);
+-			ptep_establish(vma, address, page_table, entry, 1);
++       			ptep_set_access_flags(vma, address, page_table, entry, 1);
+ 			update_mmu_cache(vma, address, entry);
+ 			pte_unmap(page_table);
+ 			spin_unlock(&mm->page_table_lock);
+@@ -1646,7 +1650,7 @@
+ 		entry = pte_mkdirty(entry);
+ 	}
+ 	entry = pte_mkyoung(entry);
+-	ptep_establish(vma, address, pte, entry, write_access);
++	ptep_set_access_flags(vma, address, pte, entry, write_access);
+ 	update_mmu_cache(vma, address, entry);
+ 	pte_unmap(pte);
+ 	spin_unlock(&mm->page_table_lock);
 
 
 --
