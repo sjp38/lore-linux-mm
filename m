@@ -1,59 +1,87 @@
-Date: Thu, 5 Jun 2003 10:46:41 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: pgcl-2.5.70-bk10-1
-Message-ID: <20030605174641.GJ20413@holomorphy.com>
+Subject: [PATCH] fix discontig with 0-sized nodes
+From: Dave Hansen <haveblue@us.ibm.com>
+Content-Type: multipart/mixed; boundary="=-eid7bhARILCPnhpLqL8t"
+Message-Id: <1054948422.10502.632.camel@nighthawk>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: 06 Jun 2003 18:14:30 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Patricia Gaughen <gone@us.ibm.com>, Andrew Theurer <habanero@us.ibm.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->From pgcl-2.5.70-bk9-2:
-Do some intelligent pagetable preconstruction, in combination with a
-small bit of restoration of struct mmu_gather's opacity to the core VM.
->From pgcl-2.5.70-bk9-3:
-Also inline various things to cope with identified regressions and for
-utterly trivial functions that can be inlined with the non-private
-structure declaration.
+--=-eid7bhARILCPnhpLqL8t
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
-This hopefully addresses a performance degradation in pte_alloc_one()
-in the autoconf build benchmark identified by Randy Hron. Further
-tuning may be required to keep space consumption more tightly bounded.
-Oddly, this technique is potentially also applicable to mainline. I
-vaguely wonder why no one's done it yet.
+In order to turn an 8-way x440 into a 4-way for testing, we often use
+mem=(1/2 of total) and maxcpus=4.  maxcpus has always worked, but mem=
+hasn't.  The mem= parameter actually changes the kernel's e820
+structure, which manifests itself as max_pfn.  node_end_pfn[] obeys this
+because of find_max_pfn_node(), but node_start_pfn[] wasn't modified. 
 
-Unfortunately, neither the sysenter bug nor the bug encountered during
-the AIM7 run have had progress made on them.
+If you have a mem= line that causes memory to stop before the beginning
+of a node, you get a condition where start > end (because start was
+never modified).  There is a bug check for this, but it was placed just
+_before_ the error was made :)
 
-The unified anonymizing fault handling may end up just going in even
-with those bugs pending since it doesn't look likely forward progress
-will get made on either in a timely fashion. For testers looking to
-just avoid the bugs for now, there are workarounds to #ifdef out some
-of the sysenter hooks for ELF loading and coredumping that can help
-carry out test runs of things like LTP without tripping things up
-I can send out in private mail. The AIM7 bug has no known workaround
-or reliable method of reproduction. The sysenter bug is trivial to
-reproduce, so don't bother hunting.
-
-This thing's broken the 300KB of diff mark and I've yet to touch a
-significant number of drivers, fs's, or non-i386 architectures (3 or 4
-drivers, 0 fs's, and 0 non-i386 architectures), and worse yet, I've yet
-to polish off the actual core functionality. It could get harder to
-maintain, I suppose, but I'm not sure how. I guess I asked for it.
-
-I'm at least hoping the aggressive keeping up-to-date of the past week
-or so will float me through the time I'm preoccupied with cpumask_t,
-which should happen soon, since the big MIPS merge looks like it's
-rapidly closing in on -CURRENT.
-
-As usual, available from:
-ftp://ftp.kernel.org/pub/linux/kernel/people/wli/vm/pgcl/
+Also, the bootmem alloc functions die if you request something of zero
+size from them.  This patch avoids that too.  This shouldn't have much
+of an effect on non-NUMA systems.  
+-- 
+Dave Hansen
+haveblue@us.ibm.com
 
 
--- wli
+
+
+--=-eid7bhARILCPnhpLqL8t
+Content-Disposition: attachment; filename="nice-x440-mem=-2.5.70-1.patch"
+Content-Type: text/x-patch; name="nice-x440-mem=-2.5.70-1.patch"; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 7bit
+
+diff -ru linux-2.5.70-clean/arch/i386/mm/discontig.c linux-2.5.70-numa-mem=1/arch/i386/mm/discontig.c
+--- linux-2.5.70-clean/arch/i386/mm/discontig.c	Mon May 26 18:00:40 2003
++++ linux-2.5.70-numa-mem=1/arch/i386/mm/discontig.c	Fri Jun  6 16:52:18 2003
+@@ -114,10 +114,16 @@
+  */
+ static void __init find_max_pfn_node(int nid)
+ {
+-	if (node_start_pfn[nid] >= node_end_pfn[nid])
+-		BUG();
+ 	if (node_end_pfn[nid] > max_pfn)
+ 		node_end_pfn[nid] = max_pfn;
++	/*
++	 * if a user has given mem=XXXX, then we need to make sure 
++	 * that the node _starts_ before that, too, not just ends
++	 */
++	if (node_start_pfn[nid] > max_pfn)
++		node_start_pfn[nid] = max_pfn;
++	if (node_start_pfn[nid] > node_end_pfn[nid])
++		BUG();
+ }
+ 
+ /* 
+diff -ru linux-2.5.70-clean/mm/page_alloc.c linux-2.5.70-numa-mem=1/mm/page_alloc.c
+--- linux-2.5.70-clean/mm/page_alloc.c	Mon May 26 18:00:22 2003
++++ linux-2.5.70-numa-mem=1/mm/page_alloc.c	Fri Jun  6 16:57:30 2003
+@@ -1153,8 +1153,11 @@
+ 	for (i = 0; i < MAX_NR_ZONES; i++)
+ 		size += zones_size[i];
+ 	size = LONG_ALIGN((size + 7) >> 3);
+-	pgdat->valid_addr_bitmap = (unsigned long *)alloc_bootmem_node(pgdat, size);
+-	memset(pgdat->valid_addr_bitmap, 0, size);
++	if (size) {
++		pgdat->valid_addr_bitmap = 
++			(unsigned long *)alloc_bootmem_node(pgdat, size);
++		memset(pgdat->valid_addr_bitmap, 0, size);
++	}
+ }
+ 
+ /*
+
+--=-eid7bhARILCPnhpLqL8t--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
