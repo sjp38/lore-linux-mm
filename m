@@ -1,41 +1,57 @@
-Date: Mon, 22 Jul 2002 14:56:53 -0400
-From: Benjamin LaHaise <bcrl@redhat.com>
-Subject: Re: alloc_pages_bulk
-Message-ID: <20020722145653.D6428@redhat.com>
-References: <1615040000.1027363248@flay>
+Subject: Re: [PATCH 2/2] move slab pages to the lru, for 2.5.27
+From: Steven Cole <elenstev@mesatop.com>
+In-Reply-To: <Pine.LNX.4.44.0207210245080.6770-100000@loke.as.arizona.edu>
+References: <Pine.LNX.4.44.0207210245080.6770-100000@loke.as.arizona.edu>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 22 Jul 2002 12:54:28 -0600
+Message-Id: <1027364068.12588.26.camel@spc9.esa.lanl.gov>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1615040000.1027363248@flay>; from Martin.Bligh@us.ibm.com on Mon, Jul 22, 2002 at 11:40:48AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
-Cc: Andrew Morton <akpm@zip.com.au>, Bill Irwin <wli@holomorphy.com>, linux-mm@kvack.org
+To: Craig Kulesa <ckulesa@as.arizona.edu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Steven Cole <scole@lanl.gov>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 22, 2002 at 11:40:48AM -0700, Martin J. Bligh wrote:
-> Below is a first cut at a bulk page allocator. This has no testing whatsoever,
-> not even being compiled ... I just want to get some feedback on the approach,
-> so if I get slapped, I'm less far down the path that I have to back out of.
-> The __alloc_pages cleanup is also tacked on the end because I'm lazy at
-> creating diff trees - sorry ;-)
+On Sun, 2002-07-21 at 05:24, Craig Kulesa wrote:
 > 
-> Comments, opinions, abuse?
+> 
+> This is an update for the 2.5 port of Ed Tomlinson's patch to move slab
+> pages onto the lru for page aging, atop 2.5.27 and the full rmap patch.  
+> It is aimed at being a fairer, self-tuning way to target and evict slab
+> pages.
+> 
+> Previous description:  
+> 	http://mail.nl.linux.org/linux-mm/2002-07/msg00216.html
+> Patch URL:
+> 	http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/2.5.27/
+> 
 
-The inline for alloc_pages is wasteful: regparm on 386 allows us to pass 
-3 arguments to a function without going to the stack; by making _alloc_pages 
-take an additional argument which is a pointer, the stack manipulations and 
-dereference add several instructions of bloat per alloc_pages inline.  Keep 
-a seperate entry point around for alloc_pages to avoid this.  Also, what 
-effect does this have on single page allocations for single processor and 
-dual processor systems?
+While trying to boot 2.5.27-rmap-slablru, I got this early in the boot:
 
-That said, why use an array?  You could just have alloc_pages return a linked 
-list of pages.  This would allow you to make the allocation operation faster 
-by doing a single snip of the portion of the list that has the required 
-number of pages in the fast case.
+Kernel panic: Failed to create pte-chain mempool!
+In idle task - not syncing
 
-		-ben
+No other information was available.
+I had previously booted and run 2.5.27 and 2.5.27-rmap.  I had to unset
+CONFIG_QUOTA to get 2.5.27-rmap-slablru to compile.
+I first applied the 2.5.27-rmap-1-rmap13b patch for 2.5.27-rmap, and
+then applied the 2.5.27-rmap-2-slablru patch for 2.5.27-rmap-slablru.
+
+The test machine is a dual p3 valinux 2231. Some options from .config:
+
+[steven@spc9 linux-2.5.27-ck]$ grep HIGH .config
+# CONFIG_NOHIGHMEM is not set
+CONFIG_HIGHMEM4G=y
+# CONFIG_HIGHMEM64G is not set
+# CONFIG_HIGHPTE is not set
+CONFIG_HIGHMEM=y
+
+Steven
+
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
