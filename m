@@ -1,56 +1,83 @@
-Subject: Re: Suspend 2 merge: 43/51: Utility functions.
-From: Nigel Cunningham <ncunningham@linuxmail.org>
-Reply-To: ncunningham@linuxmail.org
-In-Reply-To: <20041125234635.GF2909@elf.ucw.cz>
-References: <1101292194.5805.180.camel@desktop.cunninghams>
-	 <1101299832.5805.371.camel@desktop.cunninghams>
-	 <20041125234635.GF2909@elf.ucw.cz>
-Content-Type: text/plain
-Message-Id: <1101427475.27250.170.camel@desktop.cunninghams>
+Date: Fri, 26 Nov 2004 16:58:33 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH]: 1/4 batch mark_page_accessed()
+Message-ID: <20041126185833.GA7740@logos.cnet>
+References: <16800.47044.75874.56255@gargle.gargle.HOWL>
 Mime-Version: 1.0
-Date: Fri, 26 Nov 2004 11:04:35 +1100
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <16800.47044.75874.56255@gargle.gargle.HOWL>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@ucw.cz>, Linux Memory Management <linux-mm@kvack.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Nikita Danilov <nikita@clusterfs.com>
+Cc: Linux Kernel Mailing List <Linux-Kernel@vger.kernel.org>, Andrew Morton <AKPM@Osdl.ORG>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi.
-
-On Fri, 2004-11-26 at 10:46, Pavel Machek wrote:
-> Hi!
+On Sun, Nov 21, 2004 at 06:44:04PM +0300, Nikita Danilov wrote:
+> Batch mark_page_accessed() (a la lru_cache_add() and lru_cache_add_active()):
+> page to be marked accessed is placed into per-cpu pagevec
+> (page_accessed_pvec). When pagevec is filled up, all pages are processed in a
+> batch.
 > 
-> > These are the routines that I think could possibly be useful elsewhere
-> > too.
-> > 
-> > - A snprintf routine that returns the number of bytes actually put into
-> > the buffer, not the number that would have been put in if the buffer was
-> > big enough.
-> > - Routine for finding a proc dir entry (we use it to find /proc/splash
-> > when)
-> > - Support routines for dynamically allocated pageflags. Save those
-> > precious bits!
-> 
-> How many bits do you need? Two? I'd rather use thow two bits than have
-> yet another abstraction. Also note that it is doing big order
-> allocation.
+> This is supposed to decrease contention on zone->lru_lock.
 
-Three if checksumming is enabled IIRC. I'll happily use normal page
-flags, but we only need them when suspending, and I understood they were
-rarer than hen's teeth :>
+Here are the STP 8way results:
 
-MM guys copied so they can tell me I'm wrong :>
+8way:
 
-Nigel
--- 
-Nigel Cunningham
-Pastoral Worker
-Christian Reformed Church of Tuggeranong
-PO Box 1004, Tuggeranong, ACT 2901
+reaim default (database IO intensive load), increases performance _significantly_:
+------------------------------------------
+kernel: patch-2.6.10-rc2
+Peak load Test: Maximum Jobs per Minute 8491.96 (average of 3 runs)
+Quick Convergence Test: Maximum Jobs per Minute 8326.23 (average of 3 runs)
 
-You see, at just the right time, when we were still powerless, Christ
-died for the ungodly.		-- Romans 5:6
+kernel: nikita-b2
+Peak load Test: Maximum Jobs per Minute 9039.56 (average of 3 runs)
+Quick Convergence Test: Maximum Jobs per Minute 8325.09 (average of 3 runs)
+
+
+reaim -w compute (compute intensive load), decreases performance:
+-----------------------------------------
+kernel: patch-2.6.10-rc2
+Peak load Test: Maximum Jobs per Minute 9591.82 (average of 3 runs)
+Quick Convergence Test: Maximum Jobs per Minute 9359.76 (average of 3 runs)
+
+kernel: nikita-b2
+Peak load Test: Maximum Jobs per Minute 9533.34 (average of 3 runs)
+Quick Convergence Test: Maximum Jobs per Minute 9324.25 (average of 3 runs)
+
+kernbench 
+
+Decreases performance significantly (on -j4 more notably), probably due to 
+the additional atomic operations as noted by Andrew:
+
+kernel: nikita-b2                               kernel: patch-2.6.10-rc2
+Host: stp8-002                                  Host: stp8-003
+
+Average Optimal -j 32 Load Run:                 Average Optimal -j 32 Load Run:
+Elapsed Time 130                                Elapsed Time 129.562
+User Time 872.816                               User Time 871.898
+System Time 88.978                              System Time 87.346
+Percent CPU 739.2                               Percent CPU 739.8
+Context Switches 35111.4                        Context Switches 34973.2
+Sleeps 28182.6                                  Sleeps 28465.2
+
+Average Maximal -j Load Run:                    Average Maximal -j Load Run:
+Elapsed Time 128.862                            Elapsed Time 128.334
+User Time 868.234                               User Time 867.702
+System Time 86.888                              System Time 85.318
+Percent CPU 740.6                               Percent CPU 742.2
+Context Switches 27278.2                        Context Switches 27210
+Sleeps 19889                                    Sleeps 19898.4
+
+Average Half Load -j 4 Run:                     Average Half Load -j 4 Run:
+Elapsed Time 274.916                            Elapsed Time 245.026
+User Time 833.63                                User Time 832.34
+System Time 73.704                              System Time 73.41
+Percent CPU 335.8                               Percent CPU 373.6
+Context Switches 12984.8                        Context Switches 13427.4
+Sleeps 21459.2                                  Sleeps 21642
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
