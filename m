@@ -1,27 +1,40 @@
-Received: from northrelay02.pok.ibm.com (northrelay02.pok.ibm.com [9.117.200.22])
-	by e4.ny.us.ibm.com (8.9.3/8.9.3) with ESMTP id RAA150886
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2001 17:08:20 -0500
-Received: from d01ml233.pok.ibm.com (d01ml233.pok.ibm.com [9.117.200.63])
-	by northrelay02.pok.ibm.com (8.8.8m3/NCO v4.95) with ESMTP id RAA38766
-	for <linux-mm@kvack.org>; Thu, 25 Jan 2001 17:06:10 -0500
-Subject: How do you determine PA in the X86_PAE mode.
-Message-ID: <OF0A565D7B.D20E47EA-ON852569DF.00791D69@pok.ibm.com>
-From: "Bulent Abali" <abali@us.ibm.com>
-Date: Thu, 25 Jan 2001 17:09:40 -0500
+Subject: Re: limit on number of kmapped pages
+References: <y7rsnmav0cv.fsf@sytry.doc.ic.ac.uk>
+	<m1r91udt59.fsf@frodo.biederman.org>
+	<y7rofwxeqin.fsf@sytry.doc.ic.ac.uk>
+	<20010125181621.W11607@redhat.com>
+From: David Wragg <dpw@doc.ic.ac.uk>
+Date: 25 Jan 2001 23:53:16 +0000
+In-Reply-To: "Stephen C. Tweedie"'s message of "Thu, 25 Jan 2001 18:16:21 +0000"
+Message-ID: <y7rwvbjmbo3.fsf@sytry.doc.ic.ac.uk>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Given struct page * p, how do you determine the physical page number in the
-CONFIG_X86_PAE mode?
-Is it simply  (p - mem_map)  ?  Thanks for any suggestions.
+"Stephen C. Tweedie" <sct@redhat.com> writes:
+> On Wed, Jan 24, 2001 at 12:35:12AM +0000, David Wragg wrote:
+> > 
+> > > And why do the pages need to be kmapped? 
+> > 
+> > They only need to be kmapped while data is being copied into them.
+> 
+> But you only need to kmap one page at a time during the copy.  There
+> is absolutely no need to copy the whole chunk at once.
 
-Bulent Abali
+The chunks I'm copying are always smaller than a page.  Usually they
+are a few hundred bytes.
+
+Though because I'm copying into the pages in a bottom half, I'll have
+to use kmap_atomic.  After a page is filled, it is put into the page
+cache.  So they have to be allocated with page_cache_alloc(), hence
+__GFP_HIGHMEM and the reason I'm bothering with kmap at all.
 
 
+David Wragg
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
