@@ -1,35 +1,36 @@
 Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
 From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1085376888.24948.45.camel@gaston>
+In-Reply-To: <20040524073929.GA23216@elte.hu>
 References: <1085369393.15315.28.camel@gaston>
 	 <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
 	 <1085371988.15281.38.camel@gaston>
 	 <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
 	 <1085373839.14969.42.camel@gaston>
 	 <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
-	 <1085376888.24948.45.camel@gaston>
+	 <20040524073929.GA23216@elte.hu>
 Content-Type: text/plain
-Message-Id: <1085377091.15281.49.camel@gaston>
+Message-Id: <1085377151.15025.51.camel@gaston>
 Mime-Version: 1.0
-Date: Mon, 24 May 2004 15:38:12 +1000
+Date: Mon, 24 May 2004 15:39:12 +1000
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Well, the original scenario triggering that from userland is, imho, so
-> broken, that we may just not care losing that dirty bit ... Oh well :)
-> Anyway, apply my patch. If pte is not present, this will have no effect,
-> if it is, it makes sure we never leave a stale HPTE in the hash, which
-> is fatal in far worse ways.
+On Mon, 2004-05-24 at 17:39, Ingo Molnar wrote:
+> * Linus Torvalds <torvalds@osdl.org> wrote:
+> 
+> > Who else has been working on the page tables that could verify this
+> > for me? Ingo? Ben LaHaise? I forget who even worked on this, because
+> > it's so long ago we went through all the atomicity issues with the
+> > page table updates on SMP. There may be some reason that I'm
+> > overlooking that explains why I'm full of sh*t.
+> 
+> Ben's the master of atomic dirty pte updates! :)
 
-Hrm... Or maybe I should just do in set_pte something like
-
- BUG_ON(pte_present(ptep))
-
-That would make me sleep better ;)
+Precise which Ben :) Well, in this case it's obvious but still.. :)
 
 Ben.
 
