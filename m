@@ -1,43 +1,32 @@
-From: David Mosberger <davidm@napali.hpl.hp.com>
+Date: Fri, 28 May 2004 22:08:55 -0400 (EDT)
+From: Rik van Riel <riel@surriel.com>
+Subject: Re: mmap() > phys mem problem
+In-Reply-To: <Pine.LNX.4.44.0405251523250.18898-100000@pygar.sc.orionmulti.com>
+Message-ID: <Pine.LNX.4.55L.0405282208210.32578@imladris.surriel.com>
+References: <Pine.LNX.4.44.0405251523250.18898-100000@pygar.sc.orionmulti.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <16566.26579.689594.710403@napali.hpl.hp.com>
-Date: Thu, 27 May 2004 15:12:35 -0700
-Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
-In-Reply-To: <1085695254.7835.126.camel@gaston>
-References: <1085369393.15315.28.camel@gaston>
-	<Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
-	<1085371988.15281.38.camel@gaston>
-	<Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
-	<1085373839.14969.42.camel@gaston>
-	<Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
-	<20040525034326.GT29378@dualathlon.random>
-	<Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org>
-	<20040525042054.GU29378@dualathlon.random>
-	<16562.52948.981913.814783@napali.hpl.hp.com>
-	<20040525045322.GX29378@dualathlon.random>
-	<16566.25617.363386.115466@napali.hpl.hp.com>
-	<1085695254.7835.126.camel@gaston>
-Reply-To: davidm@hpl.hp.com
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: davidm@hpl.hp.com, Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Ben LaHaise <bcrl@kvack.org>, linux-mm@kvack.org, Architectures Group <linux-arch@vger.kernel.org>
+To: Ron Maeder <rlm@orionmulti.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> On Fri, 28 May 2004 08:00:54 +1000, Benjamin Herrenschmidt <benh@kernel.crashing.org> said:
+On Tue, 25 May 2004, Ron Maeder wrote:
 
-  Benjamin> Same for PPC, but we still have a race where we can reach
-  Benjamin> that code, see my initial mail (typically, because your
-  Benjamin> low level code, for obvious reasons, doesn't take the mm
-  Benjamin> semaphore, thus the page may have been mapped right after
-  Benjamin> you decide to go to do_page_fault and before it takes the
-  Benjamin> mm sem).
+> Is this an "undocumented feature" or is this a linux error?  I would
+> expect pages of the mmap()'d file would get paged back to the original
+> file. I know this won't be fast, but the performance is not an issue for
+> this application.
 
-Yes; I was only explaining how this works on ia64.
+It looks like a kernel bug.  Can you reproduce this problem
+with the latest 2.6 kernel or is it still there ?
 
-	--david
+Rik
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
