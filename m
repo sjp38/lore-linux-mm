@@ -1,32 +1,46 @@
-Date: Sat, 12 May 2001 10:21:28 -0700 (PDT)
-From: Matt Dillon <dillon@earth.backplane.com>
-Message-Id: <200105121721.f4CHLSS18553@earth.backplane.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 1F5B716C5B
+	for <linux-mm@kvack.org>; Sat, 12 May 2001 18:17:17 -0300 (EST)
+Date: Sat, 12 May 2001 18:17:15 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: on load control / process swapping
-References: <Pine.LNX.4.21.0105121109210.5468-100000@imladris.rielhome.conectiva>
+In-Reply-To: <200105121721.f4CHLSS18553@earth.backplane.com>
+Message-ID: <Pine.LNX.4.33.0105121816190.18102-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: Matt Dillon <dillon@earth.backplane.com>
 Cc: arch@freebsd.org, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
 List-ID: <linux-mm.kvack.org>
 
-:
-:Ahhh, so FreeBSD _does_ have a maxscan equivalent, just one that
-:only kicks in when the system is under very heavy memory pressure.
-:
-:That explains why FreeBSD's thrashing detection code works... ;)
-:
-:(I'm not convinced, though, that limiting the speed at which we
-:scan the active list is a good thing. There are some arguments
-:in favour of speed limiting, but it mostly seems to come down
-:to a short-cut to thrashing detection...)
+On Sat, 12 May 2001, Matt Dillon wrote:
 
-    Note that there is a big distinction between limiting the page
-    queue scan rate (which we do not do), and sleeping between full
-    scans (which we do).  Limiting the page queue scan rate on a
-    page-by-page basis does not scale.  Sleeping in between full queue
-    scans (in an extreme case) does scale.
+> :Ahhh, so FreeBSD _does_ have a maxscan equivalent, just one that
+> :only kicks in when the system is under very heavy memory pressure.
+> :
+> :That explains why FreeBSD's thrashing detection code works... ;)
+>
+>     Note that there is a big distinction between limiting the page
+>     queue scan rate (which we do not do), and sleeping between full
+>     scans (which we do).  Limiting the page queue scan rate on a
+>     page-by-page basis does not scale.  Sleeping in between full queue
+>     scans (in an extreme case) does scale.
 
-						-Matt
+I'm not convinced it's doing a very useful thing, though ;)
+
+(see the rest of the email you replied to)
+
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
+
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
