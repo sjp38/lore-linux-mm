@@ -1,40 +1,29 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA09434
-	for <linux-mm@kvack.org>; Thu, 28 Jan 1999 13:25:21 -0500
-Date: Thu, 28 Jan 1999 18:25:08 GMT
-Message-Id: <199901281825.SAA03425@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from snowcrash.cymru.net (snowcrash.cymru.net [163.164.160.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA09549
+	for <linux-mm@kvack.ORG>; Thu, 28 Jan 1999 13:34:56 -0500
+Message-Id: <m105x2f-0007U2C@the-village.bc.nu>
+From: alan@lxorguk.ukuu.org.uk (Alan Cox)
 Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
-In-Reply-To: <Pine.LNX.3.95.990128101220.32418I-100000@penguin.transmeta.com>
-References: <199901281807.SAA03328@dax.scot.redhat.com>
-	<Pine.LNX.3.95.990128101220.32418I-100000@penguin.transmeta.com>
+Date: Thu, 28 Jan 1999 19:23:52 +0000 (GMT)
+In-Reply-To: <Pine.LNX.3.95.990128101220.32418I-100000@penguin.transmeta.com> from "Linus Torvalds" at Jan 28, 99 10:17:37 am
+Content-Type: text
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@e-mind.com>, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, "David S. Miller" <davem@dm.COBALTMICRO.COM>, gandalf@szene.CH, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.COM, djf-lists@ic.NET, tomh@taz.ccs.fau.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
+Cc: sct@redhat.com, andrea@e-mind.com, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, davem@dm.COBALTMICRO.COM, gandalf@szene.CH, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.COM, djf-lists@ic.NET, tomh@taz.ccs.fau.edu, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+> Anyway, for 2.2.1 I don't even want to be clever. As it is (with the bogus
+> array.c race "fixes" removed), the page may get freed without any kernel
+> lock, and we may return _completely_ bogus information, but that is (a) 
+> extremely unlikely in the first place and (b) basically harmless and
+> pretty much impossible to exploit. 
 
-On Thu, 28 Jan 1999 10:17:37 -0800 (PST), Linus Torvalds
-<torvalds@transmeta.com> said:
+(c) you can check if the thing has disappeared after using it and clear
+the buffer if so.
 
-> I'd much rather just use some stale "struct task_struct" data.
 
-The problem isn't the risk of using stale data: it is the risk of using
-complete garbage if the task_struct page gets reused.  The procfs code
-does check that tsk->mm is non-zero before following the pointers, but
-if there is a non-zero address there then it _will_ be dereferenced
-regardless.
+Alan
 
-> What we _might_ do in /proc, is to just increment the usage count for the
-> (double) page that contains the task structure,
-
-That would certainly take care of it.
-
---Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
