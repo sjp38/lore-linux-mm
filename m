@@ -1,36 +1,63 @@
-Date: Sun, 15 Sep 2002 14:54:27 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: RE: 2.5.34-mm4
-In-Reply-To: <HBEHIIBBKKNOBLMPKCBBAEAHFGAA.znmeb@aracnet.com>
-Message-ID: <Pine.LNX.4.44L.0209151452560.1857-100000@imladris.surriel.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id LAA28234
+	for <linux-mm@kvack.org>; Sun, 15 Sep 2002 11:39:26 -0700 (PDT)
+Message-ID: <3D84D799.557653C7@digeo.com>
+Date: Sun, 15 Sep 2002 11:55:21 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: 2.5.34-mm4
+References: <HBEHIIBBKKNOBLMPKCBBAEAHFGAA.znmeb@aracnet.com> <Pine.LNX.4.44L.0209151452560.1857-100000@imladris.surriel.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "M. Edward Borasky" <znmeb@aracnet.com>
-Cc: Andrew Morton <akpm@digeo.com>, Axel Siebenwirth <axel@hh59.org>, Con Kolivas <conman@kolivas.net>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "M. Edward Borasky" <znmeb@aracnet.com>, Axel Siebenwirth <axel@hh59.org>, Con Kolivas <conman@kolivas.net>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 15 Sep 2002, M. Edward Borasky wrote:
+Rik van Riel wrote:
+> 
+> On Sun, 15 Sep 2002, M. Edward Borasky wrote:
+> 
+> > Borasky's Corollary 1: If you *can* measure it and it *does* exist, the
+> > cheapest solution may still be to buy more memory, more disks or a
+> > faster processor.
+> 
+> Current 2.5 is sluggish on systems with a fast CPU and 768 MB
+> of RAM, whereas current -ac runs the same workload smoothly
+> with 128 MB of RAM.
+> 
 
-> Borasky's Corollary 1: If you *can* measure it and it *does* exist, the
-> cheapest solution may still be to buy more memory, more disks or a
-> faster processor.
+I've been running 2.5 on my desktop at work (800MHz/256M UP) since
+2.5.26 and on the machine at home (Dual 850MHz/768M) on-and-off
+(recent freizures sent that machine back to Marcelo; need to try
+again).  I also ran 2.4.19-ac-something for a couple of weeks.
 
-Current 2.5 is sluggish on systems with a fast CPU and 768 MB
-of RAM, whereas current -ac runs the same workload smoothly
-with 128 MB of RAM.
+Impressions are:
 
-Now tell me, what's your point ?
+- 2.5 swaps a lot in response to heavy pagecache activity.
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
+  SEGQ didn't change that, actually.  And this is correct,
+  as-designed behaviour.  We'll need some "don't be irritating"
+  knob to prevent this.  Or speculative pagein when the load
+  has subsided, which would be a fair-sized project.
 
-http://www.surriel.com/		http://distro.conectiva.com/
+- In both -ac and 2.5 the scheduler is prone to starving interactive
+  applications (netscape 4, gkrellm, command-line gdb, others) when
+  there is a compilation happening.
 
-Spamtraps of the month:  september@surriel.com trac@trac.org
+  This is very, very noticeable; and it afects applications which
+  do not use sched_yield().  Ingo has put some extra stuff in since
+  then and I need to retest.
 
+- In -ac, there are noticeable stalls during heavy writeout.  This
+  may be an ext3 thing, but I can't think of any IO scheduling
+  differences in -ac ext3.  I'd be guessing that it is due to
+  bdflush/kupdate lumpiness.
+
+Overall I find Marcelo kernels to be the most comfortable, followed
+by 2.5.  Alan's kernels I find to be the least comfortable in a
+"developer's desktop" situation.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
