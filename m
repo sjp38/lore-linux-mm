@@ -1,50 +1,29 @@
-Date: Thu, 24 May 2001 16:23:32 +0200 (CEST)
-From: Mike Galbraith <mikeg@wen-online.de>
-Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-In-Reply-To: <Pine.LNX.4.33.0105240800020.10469-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.33.0105241557160.894-100000@mikeg.weiden.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from Beto.cablemas.com ([209.242.157.147]) by
+          cmas-tj.cablemas.com (Netscape Messaging Server 4.15) with SMTP
+          id GDV5F400.87X for <linux-mm@kvack.org>; Thu, 24 May 2001
+          16:33:04 -0700
+From: florence_smyth@representative.com
+Message-ID: <990720239@Beto.cablemas.com>
+Date: Thu, 24 May 2001 16:03:58 -0700
+Subject: Link Request
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 May 2001, Rik van Riel wrote:
+Hello, 
 
-> > > > OK.. let's forget about throughput for a moment and consider
-> > > > those annoying reports of 0 order allocations failing :)
-> > >
-> > > Those are ok.  All failing 0 order allocations are either
-> > > atomic allocations or GFP_BUFFER allocations.  I guess we
-> > > should just remove the printk()  ;)
-> >
-> > Hmm.  The guy who's box locks up on him after a burst of these
-> > probably doesn't think these failures are very OK ;-)  I don't
-> > think order 0 failing is cool at all.. ever.
->
-> You may not think it's cool, but it's needed in order to
-> prevent deadlocks. Just because an allocation cannot do
-> disk IO or sleep, that's no reason to loop around like
-> crazy in __alloc_pages() and hang the machine ... ;)
+I came across your site while surfing the internet, and I wanted to drop a line and say how pleased I am with the excellent content and superior layout design of your site.  In light of this, I would like to request permission to add a link from my client?s site to yours.  I would be very honored if you would add a link from your site to my client?s.  My client?s corporate site is a forerunner in developing products and servicing needs in their industry.  However, I cannot give you the URL of my client until I receive permission from you. 
 
-True, but if we have resources available there's no excuse for a
-failure.  Well, yes there is.  If the cost of that resource is
-higher than the value of letting the allocation succeed.  We have
-no data on the value of success, but we do plan on consuming the
-reclaimable pool and do that (must), so I still think turning
-these resources loose at strategic moments is logically sound.
-(doesn't mean there's not a better way.. it's just an easy way)
+What I am attempting to do is increase both of our website?s visibility through reciprocal links. Although our sites are not completely related, cross-linking would still be beneficial. There are several benefits, one being the obvious click-through traffic potential. Also, quality links pointing to your site as well as mine help boost your popularity rating within popular search engines. That translates into more traffic. 
 
-I'd really like someone who has this problem to try the patch to
-see if it does help.  I don't have this darn problem myself, so
-I'm left holding a bag of idle curiosity. ;-)
+Please let me know who I may contact via email.  It is a pleasure, and I hope that I hear from you soon. 
 
-	Cheers,
-
-	-Mike
-
+Sincerely, 
+Florence Smyth 
+Link Builder 
+ ____________________________________________________________________ 
+explore  contact with your free 2bpop software http://www.bcity.com/linkenterprise/2bpop
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
