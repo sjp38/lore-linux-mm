@@ -1,30 +1,30 @@
-Date: Fri, 27 Feb 2004 18:11:53 +1100
-From: Anton Blanchard <anton@samba.org>
+Date: Thu, 26 Feb 2004 23:21:27 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: mapped page in prep_new_page()..
-Message-ID: <20040227071153.GA5801@krispykreme>
-References: <Pine.LNX.4.58.0402262230040.2563@ppc970.osdl.org> <20040226225809.669d275a.akpm@osdl.org>
+Message-Id: <20040226232127.27cefb26.akpm@osdl.org>
+In-Reply-To: <20040227071153.GA5801@krispykreme>
+References: <Pine.LNX.4.58.0402262230040.2563@ppc970.osdl.org>
+	<20040226225809.669d275a.akpm@osdl.org>
+	<20040227071153.GA5801@krispykreme>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040226225809.669d275a.akpm@osdl.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, hch@infradead.org, linux-mm@kvack.org
+To: Anton Blanchard <anton@samba.org>
+Cc: torvalds@osdl.org, hch@infradead.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
- 
-> There have been a few.  I don't recall seeing any against x86.
+Anton Blanchard <anton@samba.org> wrote:
+>
+> > So what is the access address here?  That will tell us what value was in
+> > page.pte.chain.
+> 
+> We tried to access 0x5f00000008. Doesnt look like much to me.
+> 
 
-There was a G5 user that was seeing oopses in buffered_rmqueue (I notice
-thats in the backtrace), it turned out to be bad RAM.
+So on a G5 that is neither a valid kernel pointer nor a valid pte_addr_t?
 
-> So what is the access address here?  That will tell us what value was in
-> page.pte.chain.
-
-We tried to access 0x5f00000008. Doesnt look like much to me.
-
-Anton
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
