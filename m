@@ -1,24 +1,42 @@
-From: "Javan Dempsey" <raz@mailhost.directlink.net>
-Reply-To: "Javan Dempsey" <raz@mailhost.directlink.net>
-Date: Fri, 27 Aug 99 13:10:26 -0500
-Subject: A laugh for Linus and everyone else, (again)
-Message-Id: <199908271310437.SM00652@mailhost.directlink.net>
+Received: from zange.cs.tu-berlin.de (pokam@zange.cs.tu-berlin.de [130.149.31.198])
+	by mail.cs.tu-berlin.de (8.9.1/8.9.1) with ESMTP id MAA05983
+	for <linux-mm@kvack.org>; Sat, 28 Aug 1999 12:03:45 +0200 (MET DST)
+From: Gilles Pokam <pokam@cs.tu-berlin.de>
+Received: (from pokam@localhost)
+	by zange.cs.tu-berlin.de (8.9.1/8.9.0) id MAA29351
+	for linux-mm@kvack.org; Sat, 28 Aug 1999 12:03:42 +0200 (MET DST)
+Message-Id: <199908281003.MAA29351@zange.cs.tu-berlin.de>
+Subject: question on remap_page_range()
+Date: Sat, 28 Aug 1999 12:03:41 +0200 (MET DST)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-	
-	So I dont know if this is quite something I should post to this list, but I got a laugh out of it, and so may all of you. Any of you familliar with Oracle under Linux, may or may not have run into, what in my opinion, has been a large lacking on their front concearning Oracle's attention to quality in the Linux port. Apart from the handfull of install issues with the 8.0.5 release, to the documentation which was sent, being the solaris documentation which was basically just :s/solaris/linux'd.
-	So now to the funny part... Months now have I been waiting for a copy of the Oracle 8i port that they have been promising, and even longer for it to ship. About a week ago, it finally arrives in the mail. I inspect the CD case to find, in nice black letters the words "Oralce 8i Enterprise Edition" or some such nonsense, further inspection finds the same on the back side of the CD case, with one minor exception, it reads "Oracle 8i for *Linus*". So, happy birthday Linus, Oracle loves you.
+Hi everyone,
 
-Feel free to send me hate mail for wasting everyone's time.
+I have some questions about the behavior of the remap_page_range function as 
+well as the ioremap. 
 
---
-raz (Javan.D)
-Senior Unix Sys. Admin.
-iCelebrate.Com Inc.
+1. remap_page_range (as well as ioremap or vremap) takes a "physical address"
+   as argument. In Rubini's book it is said that the so-called "physical
+   address" is in reality a virtual address offset by PAGE_OFFSET from the 
+   real physical address:
+	phys = real_phys + PAGE_OFFSET 
+   In x86 2.0.x kernel i had no problems with this convertion because the
+   PAGE_OFFSET is almost defined to be 0, so that phys = virt address.
 
+2. But now i have tried to run my code on a x86 2.2.x kernel and the 
+   remap_page_range function fails! When i ignore the PAGE_OFFSET macro
+   it works strangely ...! 
+
+  My question is, what is the definition of the physical address in the
+  remap_page_range and vremap functions ?
+
+  Regards 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
