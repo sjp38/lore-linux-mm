@@ -1,286 +1,373 @@
-Date: Wed, 24 Jul 2002 19:24:19 +0300
-From: Dan Aloni <da-x@gmx.net>
-Subject: [PATCH 2.5] arch/i386/mm/init.c
-Message-ID: <20020724162419.GA6473@callisto.yi.org>
-Mime-Version: 1.0
+Received: from westrelay03.boulder.ibm.com (westrelay03.boulder.ibm.com [9.17.194.24])
+	by e21.nc.us.ibm.com (8.12.2/8.12.2) with ESMTP id g6OJFeRY069780
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2002 15:15:40 -0400
+Received: from gateway1.beaverton.ibm.com (gateway1.beaverton.ibm.com [138.95.180.2])
+	by westrelay03.boulder.ibm.com (8.12.3/NCO/VER6.3) with ESMTP id g6OJFdGt103164
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2002 13:15:39 -0600
+Received: from flay (mbligh@dyn9-47-17-70.beaverton.ibm.com [9.47.17.70])
+	by gateway1.beaverton.ibm.com (8.11.6/8.11.6) with ESMTP id g6OJCQK14011
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2002 12:12:26 -0700
+Date: Wed, 24 Jul 2002 12:14:22 -0700
+From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Subject: [CFT] dispose of _alloc_pages
+Message-ID: <27130000.1027538062@flay>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-mm mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This pulls the dust out of init.c, with cleanups, refactoring, 
-comments, etc... 
+This is a forward port from Andrea's tree of the killing of _alloc_pages
+(I think it originally came from SGI?). It inverts the loop of
+"foreach(node) { foreach(zone) }" into "foreach(zone) { foreach(node) }"
+which seems to make much more sense, and it cleans up a lot of code
+in the process.
 
-Currently, it only covers the pieces of code which I understood. It's
-amazing how much you can learn just from cleaning another people's code.
+I've touch tested it on my machine, but without NUMA support as yet.
+If anyone else could / would test it on a different type of NUMA machine,
+that'd be most helpful. It's against 2.5.25 to avoid the current stability
+problems we're having with the bleeding edge stuff, but should be dead
+easy to move forward if you can use 2.5.27.
 
-In this patch: 
- + change a few printk's to BUG()s.
- + inlining set_pte_phys is not needed.
- + reduce code duplication: refactor one_page_table_init() and 
-   one_md_table_init() out of fixrange_init(), and later out of pagetable_init(). 
- + fixrange_init() is be really named page_table_range_init(). It has no code specific to
-   fixmaps so it shouldn't be prefixed with it.
- + refactor kernel_physical_mapping_init out of pagetable_init(), because it's 
-   a complex task that can be done seperately.
- + 0x1 is really _PAGE_PRESENT in 'set_pgd(pgd, __pgd(__pa(pmd) + 0x1));'.
- + also, set_pmd(pmd, __pmd(_KERNPG_TABLE + __pa(pte))) should be:
-   set_pmd(pmd, __pmd(__pa(pte) | _KERNPG_TABLE)).  
+I need to test this more before submitting it. Comments?
 
-BTW, it's more a functionality change than a cleanup, but I think it will be healthy 
-to set the entries of swapper_pg_dir to the zero page also in non-PAE compilation mode. 
-Am I right?
+M.
 
-Comments welcomed.
-
---- init.c.pcs	2002-07-21 07:03:19.000000000 +0300
-+++ init.c	2002-07-24 19:18:59.000000000 +0300
-@@ -100,8 +100,8 @@
- extern char _text, _etext, _edata, __bss_start, _end;
- extern char __init_begin, __init_end;
- 
--static inline void set_pte_phys (unsigned long vaddr,
--			unsigned long phys, pgprot_t flags)
+diff -urN virgin-2.5.25/arch/sparc64/mm/init.c 2.5.25-A01-numa-mm/arch/sparc64/mm/init.c
+--- virgin-2.5.25/arch/sparc64/mm/init.c	Fri Jul  5 16:42:21 2002
++++ 2.5.25-A01-numa-mm/arch/sparc64/mm/init.c	Wed Jul 24 12:05:12 2002
+@@ -1708,7 +1708,7 @@
+ 	 * Set up the zero page, mark it reserved, so that page count
+ 	 * is not manipulated when freeing the page from user ptes.
+ 	 */
+-	mem_map_zero = _alloc_pages(GFP_KERNEL, 0);
++	mem_map_zero = alloc_pages(GFP_KERNEL, 0);
+ 	if (mem_map_zero == NULL) {
+ 		prom_printf("paging_init: Cannot alloc zero page.\n");
+ 		prom_halt();
+diff -urN virgin-2.5.25/include/asm-alpha/max_numnodes.h 2.5.25-A01-numa-mm/include/asm-alpha/max_numnodes.h
+--- virgin-2.5.25/include/asm-alpha/max_numnodes.h	Wed Dec 31 16:00:00 1969
++++ 2.5.25-A01-numa-mm/include/asm-alpha/max_numnodes.h	Wed Jul 24 12:05:12 2002
+@@ -0,0 +1,13 @@
++#ifndef _ASM_MAX_NUMNODES_H
++#define _ASM_MAX_NUMNODES_H
 +
-+static void set_pte_phys (unsigned long vaddr, unsigned long phys, pgprot_t flags)
- {
- 	pgd_t *pgd;
- 	pmd_t *pmd;
-@@ -109,12 +109,12 @@
- 
- 	pgd = swapper_pg_dir + __pgd_offset(vaddr);
- 	if (pgd_none(*pgd)) {
--		printk("PAE BUG #00!\n");
-+		BUG();
- 		return;
- 	}
- 	pmd = pmd_offset(pgd, vaddr);
- 	if (pmd_none(*pmd)) {
--		printk("PAE BUG #01!\n");
-+		BUG();
- 		return;
- 	}
- 	pte = pte_offset_kernel(pmd, vaddr);
-@@ -133,112 +133,153 @@
- 	unsigned long address = __fix_to_virt(idx);
- 
- 	if (idx >= __end_of_fixed_addresses) {
--		printk("Invalid __set_fixmap\n");
-+		BUG();
- 		return;
- 	}
- 	set_pte_phys(address, phys, flags);
- }
- 
--static void __init fixrange_init (unsigned long start, unsigned long end, pgd_t *pgd_base)
-+/*
-+ * Creates a middle page table and put a pointer to it in the
-+ * given global directory entry. This only returns the gd entry
-+ * in non-PAE compilation mode, since the middle layer is folded.
-+ */
-+static pmd_t * __init one_md_table_init(pgd_t *pgd_entry)
-+{
-+	pmd_t *md_table;
-+		
-+#if CONFIG_X86_PAE
-+	md_table = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
-+	set_pgd(pgd_entry, __pgd(__pa(md_table) | _PAGE_PRESENT));
-+	if (md_table != pmd_offset(pgd_entry, 0)) 
-+		BUG();
++#include <linux/config.h>
++
++#ifdef CONFIG_ALPHA_WILDFIRE
++#include <asm/core_wildfire.h>
++#define MAX_NUMNODES		WILDFIRE_MAX_QBB
 +#else
-+	md_table = pmd_offset(pgd_entry, 0);
++#define MAX_NUMNODES		1
 +#endif
 +
-+	return md_table;
-+}
-+
-+/*
-+ * Create a page table and place a pointer to it in a middle page
-+ * directory entry.
-+ */
-+static pte_t * __init one_page_table_init(pmd_t *pmd)
-+{
-+	pte_t *page_table = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
-+	set_pmd(pmd, __pmd(__pa(page_table) | _KERNPG_TABLE));
-+	if (page_table != pte_offset_kernel(pmd, 0))
-+		BUG();	
-+
-+	return page_table;
-+}
-+
-+/*
-+ * This function initializes a certain range of kernel virtual memory 
-+ * with new bootmem page tables, everywhere page tables are missing in
-+ * the given range.
-+ */
-+static void __init page_table_range_init (unsigned long start, unsigned long end, pgd_t *pgd_base)
- {
- 	pgd_t *pgd;
- 	pmd_t *pmd;
--	pte_t *pte;
--	int i, j;
-+	int pgd_ofs, pmd_ofs;
- 	unsigned long vaddr;
++#endif
+diff -urN virgin-2.5.25/include/asm-alpha/mmzone.h 2.5.25-A01-numa-mm/include/asm-alpha/mmzone.h
+--- virgin-2.5.25/include/asm-alpha/mmzone.h	Fri Jul  5 16:42:21 2002
++++ 2.5.25-A01-numa-mm/include/asm-alpha/mmzone.h	Wed Jul 24 12:05:12 2002
+@@ -37,11 +37,9 @@
+ #ifdef CONFIG_ALPHA_WILDFIRE
+ # define ALPHA_PA_TO_NID(pa)	((pa) >> 36)	/* 16 nodes max due 43bit kseg */
+ #define NODE_MAX_MEM_SIZE	(64L * 1024L * 1024L * 1024L) /* 64 GB */
+-#define MAX_NUMNODES		WILDFIRE_MAX_QBB
+ #else
+ # define ALPHA_PA_TO_NID(pa)	(0)
+ #define NODE_MAX_MEM_SIZE	(~0UL)
+-#define MAX_NUMNODES		1
+ #endif
  
- 	vaddr = start;
--	i = __pgd_offset(vaddr);
--	j = __pmd_offset(vaddr);
--	pgd = pgd_base + i;
-+	pgd_ofs = __pgd_offset(vaddr);
-+	pmd_ofs = __pmd_offset(vaddr);
-+	pgd = pgd_base + pgd_ofs;
-+
-+	for ( ; (pgd_ofs < PTRS_PER_PGD) && (vaddr != end); pgd++, pgd_ofs++) {
-+		if (pgd_none(*pgd)) 
-+			one_md_table_init(pgd);
+ #define PHYSADDR_TO_NID(pa)		ALPHA_PA_TO_NID(pa)
+@@ -63,8 +61,6 @@
+ }
+ #endif
  
--	for ( ; (i < PTRS_PER_PGD) && (vaddr != end); pgd++, i++) {
--#if CONFIG_X86_PAE
--		if (pgd_none(*pgd)) {
--			pmd = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
--			set_pgd(pgd, __pgd(__pa(pmd) + 0x1));
--			if (pmd != pmd_offset(pgd, 0))
--				printk("PAE BUG #02!\n");
--		}
- 		pmd = pmd_offset(pgd, vaddr);
--#else
--		pmd = (pmd_t *)pgd;
--#endif
--		for (; (j < PTRS_PER_PMD) && (vaddr != end); pmd++, j++) {
--			if (pmd_none(*pmd)) {
--				pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
--				set_pmd(pmd, __pmd(_KERNPG_TABLE + __pa(pte)));
--				if (pte != pte_offset_kernel(pmd, 0))
--					BUG();
--			}
-+		for (; (pmd_ofs < PTRS_PER_PMD) && (vaddr != end); pmd++, pmd_ofs++) {
-+			if (pmd_none(*pmd)) 
-+				one_page_table_init(pmd);
-+
- 			vaddr += PMD_SIZE;
- 		}
--		j = 0;
-+		pmd_ofs = 0;
- 	}
+-#ifdef CONFIG_DISCONTIGMEM
+-
+ /*
+  * Following are macros that each numa implmentation must define.
+  */
+@@ -121,7 +117,5 @@
+ 
+ #define numa_node_id()	cputonode(smp_processor_id())
+ #endif /* CONFIG_NUMA */
+-
+-#endif /* CONFIG_DISCONTIGMEM */
+ 
+ #endif /* _ASM_MMZONE_H_ */
+diff -urN virgin-2.5.25/include/linux/gfp.h 2.5.25-A01-numa-mm/include/linux/gfp.h
+--- virgin-2.5.25/include/linux/gfp.h	Fri Jul  5 16:42:19 2002
++++ 2.5.25-A01-numa-mm/include/linux/gfp.h	Wed Jul 24 12:05:12 2002
+@@ -39,7 +39,6 @@
+  * can allocate highmem pages, the *get*page*() variants return
+  * virtual kernel addresses to the allocated page(s).
+  */
+-extern struct page * FASTCALL(_alloc_pages(unsigned int gfp_mask, unsigned int order));
+ extern struct page * FASTCALL(__alloc_pages(unsigned int gfp_mask, unsigned int order, zonelist_t *zonelist));
+ extern struct page * alloc_pages_node(int nid, unsigned int gfp_mask, unsigned int order);
+ 
+@@ -50,7 +49,13 @@
+ 	 */
+ 	if (order >= MAX_ORDER)
+ 		return NULL;
+-	return _alloc_pages(gfp_mask, order);
++	/*
++	 * we get the zone list from the current node and the gfp_mask.
++	 * This zone list contains a maximum of MAXNODES*MAX_NR_ZONES zones.
++	 */
++	return __alloc_pages(gfp_mask, order,
++			NODE_DATA(numa_node_id())->node_zonelists + 
++			(gfp_mask & GFP_ZONEMASK));
  }
  
-+/*
-+ * This maps physical memory to kernel virtual address space, a total of
-+ * max_low_pfn pages, by creating page tables starting from address 
-+ * PAGE_OFFSET.
-+ */
-+static void __init kernel_physical_mapping_init(pgd_t *pgd_base)
+ #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
+diff -urN virgin-2.5.25/include/linux/mmzone.h 2.5.25-A01-numa-mm/include/linux/mmzone.h
+--- virgin-2.5.25/include/linux/mmzone.h	Fri Jul  5 16:42:02 2002
++++ 2.5.25-A01-numa-mm/include/linux/mmzone.h	Wed Jul 24 12:06:52 2002
+@@ -107,8 +107,18 @@
+  * so despite the zonelist table being relatively big, the cache
+  * footprint of this construct is very small.
+  */
++#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_MULTIQUAD        /* can have multiple nodes without discontig */
++#define MAX_NUMNODES 16
++#else
++#define MAX_NUMNODES 1
++#endif
++#else
++#include <asm/max_numnodes.h>
++#endif /* !CONFIG_DISCONTIGMEM */
++
+ typedef struct zonelist_struct {
+-	zone_t * zones [MAX_NR_ZONES+1]; // NULL delimited
++	zone_t * zones [MAX_NUMNODES * MAX_NR_ZONES+1]; // NULL delimited
+ } zonelist_t;
+ 
+ #define GFP_ZONEMASK	0x0f
+@@ -160,6 +170,7 @@
+ extern void free_area_init_core(int nid, pg_data_t *pgdat, struct page **gmap,
+   unsigned long *zones_size, unsigned long paddr, unsigned long *zholes_size,
+   struct page *pmap);
++extern void build_all_zonelists(void);
+ 
+ extern pg_data_t contig_page_data;
+ 
+diff -urN virgin-2.5.25/init/main.c 2.5.25-A01-numa-mm/init/main.c
+--- virgin-2.5.25/init/main.c	Fri Jul  5 16:42:14 2002
++++ 2.5.25-A01-numa-mm/init/main.c	Wed Jul 24 12:05:12 2002
+@@ -342,6 +342,7 @@
+ 	lock_kernel();
+ 	printk(linux_banner);
+ 	setup_arch(&command_line);
++	build_all_zonelists();
+ 	setup_per_cpu_areas();
+ 	printk("Kernel command line: %s\n", saved_command_line);
+ 	parse_options(command_line);
+diff -urN virgin-2.5.25/kernel/ksyms.c 2.5.25-A01-numa-mm/kernel/ksyms.c
+--- virgin-2.5.25/kernel/ksyms.c	Fri Jul  5 16:42:02 2002
++++ 2.5.25-A01-numa-mm/kernel/ksyms.c	Wed Jul 24 12:05:12 2002
+@@ -90,7 +90,6 @@
+ EXPORT_SYMBOL(exit_mm);
+ 
+ /* internal kernel memory management */
+-EXPORT_SYMBOL(_alloc_pages);
+ EXPORT_SYMBOL(__alloc_pages);
+ EXPORT_SYMBOL(alloc_pages_node);
+ EXPORT_SYMBOL(__get_free_pages);
+@@ -112,7 +111,10 @@
+ EXPORT_SYMBOL(vmalloc);
+ EXPORT_SYMBOL(vmalloc_32);
+ EXPORT_SYMBOL(vmalloc_to_page);
++#ifndef CONFIG_DISCONTIGMEM
++EXPORT_SYMBOL(contig_page_data);
+ EXPORT_SYMBOL(mem_map);
++#endif
+ EXPORT_SYMBOL(remap_page_range);
+ EXPORT_SYMBOL(max_mapnr);
+ EXPORT_SYMBOL(high_memory);
+diff -urN virgin-2.5.25/mm/numa.c 2.5.25-A01-numa-mm/mm/numa.c
+--- virgin-2.5.25/mm/numa.c	Fri Jul  5 16:42:20 2002
++++ 2.5.25-A01-numa-mm/mm/numa.c	Wed Jul 24 12:05:12 2002
+@@ -82,49 +82,4 @@
+ 	memset(pgdat->valid_addr_bitmap, 0, size);
+ }
+ 
+-static struct page * alloc_pages_pgdat(pg_data_t *pgdat, unsigned int gfp_mask,
+-	unsigned int order)
+-{
+-	return __alloc_pages(gfp_mask, order, pgdat->node_zonelists + (gfp_mask & GFP_ZONEMASK));
+-}
+-
+-/*
+- * This can be refined. Currently, tries to do round robin, instead
+- * should do concentratic circle search, starting from current node.
+- */
+-struct page * _alloc_pages(unsigned int gfp_mask, unsigned int order)
+-{
+-	struct page *ret = 0;
+-	pg_data_t *start, *temp;
+-#ifndef CONFIG_NUMA
+-	unsigned long flags;
+-	static pg_data_t *next = 0;
+-#endif
+-
+-	if (order >= MAX_ORDER)
+-		return NULL;
+-#ifdef CONFIG_NUMA
+-	temp = NODE_DATA(numa_node_id());
+-#else
+-	spin_lock_irqsave(&node_lock, flags);
+-	if (!next) next = pgdat_list;
+-	temp = next;
+-	next = next->node_next;
+-	spin_unlock_irqrestore(&node_lock, flags);
+-#endif
+-	start = temp;
+-	while (temp) {
+-		if ((ret = alloc_pages_pgdat(temp, gfp_mask, order)))
+-			return(ret);
+-		temp = temp->node_next;
+-	}
+-	temp = pgdat_list;
+-	while (temp != start) {
+-		if ((ret = alloc_pages_pgdat(temp, gfp_mask, order)))
+-			return(ret);
+-		temp = temp->node_next;
+-	}
+-	return(0);
+-}
+-
+ #endif /* CONFIG_DISCONTIGMEM */
+diff -urN virgin-2.5.25/mm/page_alloc.c 2.5.25-A01-numa-mm/mm/page_alloc.c
+--- virgin-2.5.25/mm/page_alloc.c	Fri Jul  5 16:42:03 2002
++++ 2.5.25-A01-numa-mm/mm/page_alloc.c	Wed Jul 24 12:05:12 2002
+@@ -252,14 +252,6 @@
+ }
+ #endif /* CONFIG_SOFTWARE_SUSPEND */
+ 
+-#ifndef CONFIG_DISCONTIGMEM
+-struct page *_alloc_pages(unsigned int gfp_mask, unsigned int order)
+-{
+-	return __alloc_pages(gfp_mask, order,
+-		contig_page_data.node_zonelists+(gfp_mask & GFP_ZONEMASK));
+-}
+-#endif
+-
+ static /* inline */ struct page *
+ balance_classzone(zone_t * classzone, unsigned int gfp_mask,
+ 			unsigned int order, int * freed)
+@@ -670,13 +662,41 @@
+ /*
+  * Builds allocation fallback zone lists.
+  */
+-static inline void build_zonelists(pg_data_t *pgdat)
++static int __init build_zonelists_node(pg_data_t *pgdat, zonelist_t *zonelist, int j, int k)
 +{
-+	unsigned long pfn;
-+	pgd_t *pgd;
-+	pmd_t *pmd;
-+	pte_t *pte;
-+	int pgd_ofs, pmd_ofs, pte_ofs;
-+
-+	pgd_ofs = __pgd_offset(PAGE_OFFSET);
-+	pgd = pgd_base + pgd_ofs;
-+	pfn = 0;
-+
-+	for (; pgd_ofs < PTRS_PER_PGD && pfn < max_low_pfn; pgd++, pgd_ofs++) {
-+		pmd = one_md_table_init(pgd);
-+		for (pmd_ofs = 0; pmd_ofs < PTRS_PER_PMD && pfn < max_low_pfn; pmd++, pmd_ofs++) {
-+			/* Map with big pages if possible, otherwise create normal page tables. */
-+			if (cpu_has_pse) {
-+				set_pmd(pmd, pfn_pmd(pfn, PAGE_KERNEL_LARGE));
-+				pfn += PTRS_PER_PTE;
-+			} else {
-+				pte = one_page_table_init(pmd);
-+
-+				for (pte_ofs = 0; pte_ofs < PTRS_PER_PTE && pfn < max_low_pfn; pte++, pfn++, pte_ofs++)
-+					set_pte(pte, pfn_pte(pfn, PAGE_KERNEL));
-+			}
++	switch (k) {
++		zone_t *zone;
++	default:
++		BUG();
++	case ZONE_HIGHMEM:
++		zone = pgdat->node_zones + ZONE_HIGHMEM;
++		if (zone->size) {
++#ifndef CONFIG_HIGHMEM
++			BUG();
++#endif
++			zonelist->zones[j++] = zone;
 +		}
-+	}	
++	case ZONE_NORMAL:
++		zone = pgdat->node_zones + ZONE_NORMAL;
++		if (zone->size)
++			zonelist->zones[j++] = zone;
++	case ZONE_DMA:
++		zone = pgdat->node_zones + ZONE_DMA;
++		if (zone->size)
++			zonelist->zones[j++] = zone;
++	}
++
++	return j;
 +}
 +
- unsigned long __PAGE_KERNEL = _PAGE_KERNEL;
- 
- static void __init pagetable_init (void)
++static void __init build_zonelists(pg_data_t *pgdat)
  {
--	unsigned long vaddr, pfn;
--	pgd_t *pgd, *pgd_base;
 -	int i, j, k;
--	pmd_t *pmd;
--	pte_t *pte, *pte_base;
-+	unsigned long vaddr;
-+	pgd_t *pgd_base = swapper_pg_dir;
-+	int i;
++	int i, j, k, node, local_node;
  
--	pgd_base = swapper_pg_dir;
- #if CONFIG_X86_PAE
-+	/* Init entries of the first-level page table to the zero page */
- 	for (i = 0; i < PTRS_PER_PGD; i++)
- 		set_pgd(pgd_base + i, __pgd(__pa(empty_zero_page) | _PAGE_PRESENT));
- #endif
-+
-+	/* Enable PSE if available */
- 	if (cpu_has_pse) {
- 		set_in_cr4(X86_CR4_PSE);
- 	}
-+
-+	/* Enable PGE if available */
- 	if (cpu_has_pge) {
- 		set_in_cr4(X86_CR4_PGE);
- 		__PAGE_KERNEL |= _PAGE_GLOBAL;
- 	}
++	local_node = pgdat->node_id;
++	printk("Building zonelist for node : %d\n", local_node);
+ 	for (i = 0; i <= GFP_ZONEMASK; i++) {
+ 		zonelist_t *zonelist;
+-		zone_t *zone;
  
--	i = __pgd_offset(PAGE_OFFSET);
--	pfn = 0;
--	pgd = pgd_base + i;
--
--	for (; i < PTRS_PER_PGD && pfn < max_low_pfn; pgd++, i++) {
--#if CONFIG_X86_PAE
--		pmd = (pmd_t *) alloc_bootmem_low_pages(PAGE_SIZE);
--		set_pgd(pgd, __pgd(__pa(pmd) | _PAGE_PRESENT));
--#else
--		pmd = (pmd_t *) pgd;
+ 		zonelist = pgdat->node_zonelists + i;
+ 		memset(zonelist, 0, sizeof(*zonelist));
+@@ -688,33 +708,32 @@
+ 		if (i & __GFP_DMA)
+ 			k = ZONE_DMA;
+ 
+-		switch (k) {
+-			default:
+-				BUG();
+-			/*
+-			 * fallthrough:
+-			 */
+-			case ZONE_HIGHMEM:
+-				zone = pgdat->node_zones + ZONE_HIGHMEM;
+-				if (zone->size) {
+-#ifndef CONFIG_HIGHMEM
+-					BUG();
 -#endif
--		for (j = 0; j < PTRS_PER_PMD && pfn < max_low_pfn; pmd++, j++) {
--			if (cpu_has_pse) {
--				set_pmd(pmd, pfn_pmd(pfn, PAGE_KERNEL_LARGE));
--				pfn += PTRS_PER_PTE;
--			} else {
--				pte_base = pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
--
--				for (k = 0; k < PTRS_PER_PTE && pfn < max_low_pfn; pte++, pfn++, k++)
--					set_pte(pte, pfn_pte(pfn, PAGE_KERNEL));
--
--				set_pmd(pmd, __pmd(__pa(pte_base) | _KERNPG_TABLE));
--			}
+-					zonelist->zones[j++] = zone;
+-				}
+-			case ZONE_NORMAL:
+-				zone = pgdat->node_zones + ZONE_NORMAL;
+-				if (zone->size)
+-					zonelist->zones[j++] = zone;
+-			case ZONE_DMA:
+-				zone = pgdat->node_zones + ZONE_DMA;
+-				if (zone->size)
+-					zonelist->zones[j++] = zone;
 -		}
--	}
-+	kernel_physical_mapping_init(pgd_base);
++ 		j = build_zonelists_node(pgdat, zonelist, j, k);
++ 		/*
++ 		 * Now we build the zonelist so that it contains the zones
++ 		 * of all the other nodes.
++ 		 * We don't want to pressure a particular node, so when
++ 		 * building the zones for node N, we make sure that the
++ 		 * zones coming right after the local ones are those from
++ 		 * node N+1 (modulo N)
++ 		 */
++ 		for (node = local_node + 1; node < numnodes; node++)
++ 			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
++ 		for (node = 0; node < local_node; node++)
++ 			j = build_zonelists_node(NODE_DATA(node), zonelist, j, k);
++ 
+ 		zonelist->zones[j++] = NULL;
+ 	} 
+ }
  
- 	/*
- 	 * Fixed mappings, only the page table structure has to be
- 	 * created - mappings will be set by set_fixmap():
- 	 */
- 	vaddr = __fix_to_virt(__end_of_fixed_addresses - 1) & PMD_MASK;
--	fixrange_init(vaddr, 0, pgd_base);
-+	page_table_range_init(vaddr, 0, pgd_base);
++void __init build_all_zonelists(void)
++{
++	int i;
++
++	for(i = 0 ; i < numnodes ; i++)
++		build_zonelists(NODE_DATA(i));
++}
++
+ /*
+  * Helper functions to size the waitqueue hash table.
+  * Essentially these want to choose hash table sizes sufficiently
+@@ -915,7 +934,6 @@
+ 			  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
+ 		}
+ 	}
+-	build_zonelists(pgdat);
+ }
  
- #if CONFIG_HIGHMEM
- 	/*
- 	 * Permanent kmaps:
- 	 */
- 	vaddr = PKMAP_BASE;
--	fixrange_init(vaddr, vaddr + PAGE_SIZE*LAST_PKMAP, pgd_base);
-+	page_table_range_init(vaddr, vaddr + PAGE_SIZE*LAST_PKMAP, pgd_base);
- 
- 	pgd = swapper_pg_dir + __pgd_offset(vaddr);
- 	pmd = pmd_offset(pgd, vaddr);
+ void __init free_area_init(unsigned long *zones_size)
 
-
--- 
-Dan Aloni
-da-x@gmx.net
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
