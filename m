@@ -1,79 +1,27 @@
-Date: Wed, 22 Jan 2003 01:19:00 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Linux 2.4 VM Documentation - Take 3
-Message-ID: <Pine.LNX.4.44.0301212359350.2402-100000@skynet>
+Received: from dreambringer (znmeb.cust.aracnet.com [216.99.196.115])
+	by franka.aracnet.com (8.12.5/8.12.5) with SMTP id h0M2pAU3006962
+	for <linux-mm@kvack.org>; Tue, 21 Jan 2003 18:51:12 -0800
+From: "M. Edward Borasky" <znmeb@aracnet.com>
+Subject: Kernel panic with Red Hat 2-4-18 kernel
+Date: Tue, 21 Jan 2003 18:57:44 -0800
+Message-ID: <DEEBJHMCKLIHOCFBLNCCMEMGCDAA.znmeb@aracnet.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.4.50L.0301201933360.18171-100000@imladris.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is the third draft at a pair of papers aimed at documenting fully how
-the 2.4 VM functions. I have made a large number of additions and
-corrections so I felt another release would not hurt even if I still have
-a few chapters to go. The most notable change is the introduction of a
-chapter on the boot memory allocator. The full list of changes as best as
-I can remember is listed at the end of this mail.
+Is there a fix available for the following, generated on a 6 GB SMP P4 Xeon
+system with the Red Hat 2.4.18 kernel?
 
-It can be found in the various formats at
+Kernel panic: Fix pte_chain allocation, you lazy bastard!
 
-Understanding the Linux Virtual Memory Manager
-PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
-HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
-Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
-
-Code Commentary on the Linux Virtual Memory Manager
-PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
-HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code
-Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
-
-Any and all comments and corrections, especially on the bootmem allocator,
-are welcome. If there is some section that you feel is not covered in
-adequate detail or is omitted entirely, email me and I'll see what can be
-done.
-
->> Fullish list of changes, can't remember them all :-/ <<
-
-o Added a chapter description how the boot memory allocator works
-
-o Added an explanation on the difference between mm_users and mm_count
-
-o Fixed the explanation on pages_min, pages_low and pages_high. The
-  language was quite confusing the way it was and open to misinterpretation
-
-o Added sections on exception handling and how it applies to copying
-  to/from userspace. Thanks go to Ingo Oeser for highlighting the
-  importance and clarifying exactly how it worked to me (Thanks Ingo!)
-
-o Large number of grammar and spelling mistakes, thanks to all who sent
-  corrections as I am useless at proof reading this document now, the list
-  of people is too large to list
-
-o Corrected a part of the buddy allocator code commentary where a typo
-  reversed the meaning of __GFP_WAIT
-
-o Fixed a section where it is explained why 64GiB is an impractical
-  amount of memory because of ZONE_NORMAL pressure. I calculated the
-  amount of memory needed for mem_map wrong (Thank you Jean Francois Martinez)
-
-o Fixed some call graphs where the order when traversed depth-first did
-  not match what was in the code due to a bug in gengraph. New release of
-  gengraph is out which works with recent 2.5 kernels and fixes the
-  traversals
-
-o Various other bits and pieces I can't recall
-
--- 
-Mel Gorman				| "Documentation is like sex: when it is
-MSc Student, University of Limerick	| good, it is very, very good and when
-http://www.csn.ul.ie/~mel		| it is bad, it is better than nothing"
-							-- Dick Brandon
-
-
-
-
+I searched the web and found copious references in the context of 2.5, but
+nothing in 2.4, Red Hat or otherwise.
 
 
 --
