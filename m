@@ -1,10 +1,10 @@
-Message-ID: <4212C429.4080508@sgi.com>
-Date: Tue, 15 Feb 2005 21:55:21 -0600
+Message-ID: <4212C481.9040103@sgi.com>
+Date: Tue, 15 Feb 2005 21:56:49 -0600
 From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
 Subject: Re: manual page migration -- issue list
-References: <42128B25.9030206@sgi.com>	<20050215165106.61fd4954.pj@sgi.com> <20050215171709.64b155ec.pj@sgi.com>
-In-Reply-To: <20050215171709.64b155ec.pj@sgi.com>
+References: <42128B25.9030206@sgi.com> <20050215174109.238b7135.pj@sgi.com>
+In-Reply-To: <20050215174109.238b7135.pj@sgi.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -14,43 +14,62 @@ Cc: linux-mm@kvack.org, holt@sgi.com, ak@muc.de, haveblue@us.ibm.com, marcello@c
 List-ID: <linux-mm.kvack.org>
 
 Paul Jackson wrote:
-> As a straw man, let me push the factored migration call to the
-> extreme, and propose a call:
+> A couple comments in response to Andi's earlier post on the
+> related lkml thread ...
 > 
->   sys_page_migrate(pid, oldnode, newnode)
+> Andi wrote:
 > 
-> that moves any physical page in the address space of pid that is
-> currently located on oldnode to newnode.
-> 
-> Won't this come about as close as we are going to get to replicating the
-> physical memory layout of a job, if we just call it once, for each task
-> in that job?  Oops - make that one call for each node in use by the job
-> - see the following ...
+>>Sorry, but the only real difference between your API and mbind is that
+>>yours has a pid argument. 
 > 
 > 
-> Earlier I (pj) wrote:
+> One other difference shouts out at me.  I am unsure of my reading of
+> Andi's post, so I can't tell if (1) it was so obvious Andi didn't
+> bother mentioning it, or (2) he doesn't see it as a difference.
 > 
->>The one thing not trivially covered in such a one task, one node pair at
->>a time factoring is memory that is placed on a node that is remote from
->>any of the tasks which map that memory.  Let me call this 'remote
->>placement.'  Offhand, I don't know why anyone would do this.
+> That difference is this.
 > 
+>     The various numa mechanisms, such as mbind, set_mempolicy and cpusets,
+>     as well as the simple first touch that MPI jobs rely on, are all about
+>     setting a policy for where future allocations should go.
 > 
-> Well - one case - headless nodes.  These are memory-only nodes.
+>     This page migration mechanism is all about changing the placement of
+>     physical pages of ram that are currently allocated.
 > 
-> Typically one sys_page_migrate() call will be needed for each such node,
-> specifying some task in the job that has all the relevent memory on that
-> node mapped, specifying that (old) node, and specifying which new node
-> that memory should be migrated to.
+> At any point in time, numa policy guides future allocations, and page
+> migration redoes past allocations.
 > 
 
-This works provide you get Robin and Jack and all to drop the requirement
-that my page migration facility support overlapping sets of origin and
-destination nodes.  Otherwise, this is a non-starter.
+Very nicely said, thanks.  And the concern I have been trying to raise with
+Andi is:
 
-So, lets go back to that one.  Robin, can you provide me with a concrete
-(not hypothetical example) of a case where the from and to sets of nodes
-are overlapping?
+       How does that page migration mechanism redo a past allocation using
+       a memory policy if the orginal allocation was not done with a memory
+       policy, but instead done via first touch?
+
+> 
+> Andi wrote:
+> 
+>>My thinking is the simplest way to handle that is to have a call that just
+>>migrates everything. 
+> 
+> 
+> I might have ended up at the same place, not sure, when I just suggested
+> in my previous post:
+> 
+> pj wrote:
+> 
+>>As a straw man, let me push the factored migration call to the
+>>extreme, and propose a call:
+>>
+>>  sys_page_migrate(pid, oldnode, newnode)
+>>
+>>that moves any physical page in the address space of pid that is
+>>currently located on oldnode to newnode.
+> 
+> 
+> 
+
 
 -- 
 -----------------------------------------------
