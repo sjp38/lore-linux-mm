@@ -1,50 +1,68 @@
-Date: Mon, 13 Dec 2004 09:42:23 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: Automated performance testing system was Re: Text form for STP tests
-Message-ID: <20041213114223.GH24597@logos.cnet>
-References: <20041201131607.GH2250@dmt.cyclades> <200412012004.iB1K49n23315@mail.osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Akinobu Mita <amgta@yacht.ocn.ne.jp>
+Subject: Re: Anticipatory prefaulting in the page fault handler V1
+Date: Mon, 13 Dec 2004 23:30:23 +0900
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain> <156610000.1102546207@flay> <Pine.LNX.4.58.0412091130160.796@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0412091130160.796@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <200412012004.iB1K49n23315@mail.osdl.org>
+Message-Id: <200412132330.23893.amgta@yacht.ocn.ne.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Cliff White <cliffw@osdl.org>
-Cc: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>, "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: nickpiggin@yahoo.com.au, Jeff Garzik <jgarzik@pobox.com>, torvalds@osdl.org, hugh@veritas.com, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 01, 2004 at 12:04:09PM -0800, Cliff White wrote:
-> > On Wed, Dec 01, 2004 at 10:28:24AM -0800, Cliff White wrote:
-> > > > Linux-MM fellows,
-> > > > 
-> > > > I've been talking to Cliff about the need for a set of benchmarks,
-> > > > covering as many different workloads as possible, for developers to have a 
-> > > > better notion of impact on performance changes. 
-> > > > 
-> [snip]
-> > > robots are running this test series against linux-2.6.7 ( for history data )
-> > > There will need to be some adjustments - some of these tests will no doubt
-> > > fail for reasons of script error or configuration ( i see already kernbench will 
-> > > have to be redunced for 1-cpu systems, as it runs > 13.5 hours :( )
-> > > 
-> > > And, the second part of the automation is already done, but needs input.
-> > > I can aim this test battery at any kernel patch, where 'any kernel patch'
-> > > is identified by a regexp. What kernels do you want this against? 
-> > 
-> > The most recent 2.6.10-rc2 and 2.6.10-rc2-mm in STP.
-> > 
-> > Will this be available through the web interface? 
-> 
-> Yes, the results should be visible. If something looks wrongs, email.
-> the 'advanced search' bit needs some test-specific fixes, and may not work
-> for all tests - some of the kits still needs some patching..
-> cliffw
+On Friday 10 December 2004 04:32, Christoph Lameter wrote:
+> On Wed, 8 Dec 2004, Martin J. Bligh wrote:
+> > I tried benchmarking it ... but processes just segfault all the time.
+> > Any chance you could try it out on SMP ia32 system?
+>
+> I tried it on my i386 system and it works fine. Sorry about the puny
+> memory sizes (the system is a PIII-450 with 384k memory)
+>
 
-Any news on the automatic test series scripts Cliff ? 
+I also encountered processes segfault.
+Below patch fix several problems.
 
-Haven't seen any results yet.
+1) if no pages could allocated, returns VM_FAULT_OOM
+2) fix duplicated pte_offset_map() call
+3) don't set_pte() for the entry which already have been set
 
-Thanks 
+Acutually, 3) fixes my segfault problem.
+
+--- 2.6-rc/mm/memory.c.orig	2004-12-13 22:17:04.000000000 +0900
++++ 2.6-rc/mm/memory.c	2004-12-13 22:22:14.000000000 +0900
+@@ -1483,6 +1483,8 @@ do_anonymous_page(struct mm_struct *mm, 
+ 				} else
+ 					break;
+ 			}
++			if (a == addr)
++				goto no_mem;
+ 			end_addr = a;
+ 
+ 			spin_lock(&mm->page_table_lock);
+@@ -1514,8 +1516,17 @@ do_anonymous_page(struct mm_struct *mm, 
+ 			}
+  		} else {
+  			/* Read */
++			int first = 1;
++
+  			for(;addr < end_addr; addr += PAGE_SIZE) {
+-				page_table = pte_offset_map(pmd, addr);
++				if (!first)
++					page_table = pte_offset_map(pmd, addr);
++				first = 0;
++				if (!pte_none(*page_table)) {
++					/* Someone else got there first */
++					pte_unmap(page_table);
++					continue;
++				}
+  				entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
+ 				set_pte(page_table, entry);
+ 				pte_unmap(page_table);
 
 
 --
