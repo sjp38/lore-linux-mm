@@ -1,49 +1,60 @@
-Date: Mon, 03 Feb 2003 16:09:38 -0600
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [PATCH 2.5.59-mm6] Speed up task exit
-Message-ID: <91720000.1044310178@baldur.austin.ibm.com>
-In-Reply-To: <20030203134719.0a416c3b.akpm@digeo.com>
-References: <64880000.1043786464@baldur.austin.ibm.com>
- <20030203134719.0a416c3b.akpm@digeo.com>
+Message-ID: <3E3EFE94.2020203@us.ibm.com>
+Date: Mon, 03 Feb 2003 15:43:16 -0800
+From: Matthew Dobson <colpatch@us.ibm.com>
+Reply-To: colpatch@us.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [question] shm_nattch in sys_shmat?
+References: <3E3AFA3A.6050205@us.ibm.com> <ov4r7lf8mm.fsf@sap.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-mm@kvack.org
+To: Christoph Rohland <cr@sap.com>
+Cc: linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>
 List-ID: <linux-mm.kvack.org>
 
---On Monday, February 03, 2003 13:47:19 -0800 Andrew Morton
-<akpm@digeo.com> wrote:
-
-> Sorry David, I just haven't had time to play with this.  I did some quick
-> testing on uniprocessor shell-script-intensive loads and saw no
-> bottom-line change at all.
+Christoph Rohland wrote:
+> Hi Matthew,
 > 
-> What load did you test with?
+> On Fri, 31 Jan 2003, Matthew Dobson wrote:
+> 
+>>	sys_shmat, does in fact increment shm_nattch, but only to
+>>	decrement it again a few lines later, as seen in this code
+>>	snippet.  Can anyone please explain why this is?
+> 
+> 
+> sys_shmat temporarily increases shm_nattch to make sure it's never zero:
+> 
+> 
+>> >>>	shp->shm_nattch++;
+> 
+> 
+> Make sure shm_nattch is greater than zero.
+> 
+> 
+>> >	user_addr = (void*) do_mmap (file, addr, size, prot,
+> 
+> 
+> map the segment which increments shm_nattch in shm_mmap accounting for
+> the actual mapping
+> 
+> 
+>> >>>	shp->shm_nattch--;
+> 
+> 
+> Correct it again.
+> 
+> Greetings
+> 		Christoph
 
-I used a simple test program that forks a null child and waits for it to
-exit.  It does it multiple times (default 100) and times the aggregate
-time, then computes an average.
+Ah ha...   I hadn't followed the do_mmap call chain deep enough to 
+notice that it would call the shm_mmap call through the f_op function 
+pointer.  Thanks for pointing that out.  It makes much more sense now. 
+A small comment in there would make it *much* more obvious what is going on.
 
-Like I said, I saw roughly 10% improvement in that test with my patch.
+Cheers!
 
-I'm surprised that shell scripts wouldn't show an improvement.  I expected
-they'd be more sensitive to exit performance, given how they highlighted
-the performance issues with shared page tables.
-
-My original reason for attacking clear_all_pages was because it kept
-showing up in my profiling as significant, and a quick examination of it
-looked like it had significant overhead that could be eliminated by keeping
-a few reference counts.
-
-Dave
-
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
+-Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
