@@ -1,26 +1,48 @@
-Message-ID: <393ECC87.E4CAA5D6@reiser.to>
-Date: Wed, 07 Jun 2000 15:28:23 -0700
-From: Hans Reiser <hans@reiser.to>
+Date: Wed, 7 Jun 2000 19:29:16 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: journaling & VM  
+In-Reply-To: <Pine.LNX.4.10.10006072304580.21297-100000@dax.joh.cam.ac.uk>
+Message-ID: <Pine.LNX.4.21.0006071927350.14304-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
- it'snot just the code)
-References: <393E8AEF.7A782FE4@reiser.to> <Pine.LNX.4.21.0006071459040.14304-100000@duckman.distro.conectiva> <20000607205819.E30951@redhat.com> <ytt1z29dxce.fsf@serpe.mitica> <20000607222421.H30951@redhat.com> <yttvgzlcgps.fsf@serpe.mitica> <20000607224908.K30951@redhat.com>
-Content-Type: text/plain; charset=koi8-r
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: James Sutherland <jas88@cam.ac.uk>
+Cc: Hans Reiser <hans@reiser.to>, "Stephen C. Tweedie" <sct@redhat.com>, "Quintela Carreira Juan J." <quintela@fi.udc.es>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
-Juan, while the FS cannot immediately unpin the pages, if pushed into doing so
-it can startup the mechanisms to unpin them.  The pressure to start those
-mechanisms should be proportional to the amount of pages it is hogging.
+On Wed, 7 Jun 2000, James Sutherland wrote:
+> On Wed, 7 Jun 2000, Hans Reiser wrote:
+> 
+> > Let me convey an aspect of its rightness.
+> > 
+> > Caches have a declining marginal utility.
+> 
+> Incidentally, this effect comes up in Andrew Schulman's book,
+> Unauthorized Windows '95, in the section where he compares raw
+> DOS, SmartDrive, Windows 3.1 with 32 bit disk access,
 
-Memory pressure should have a central pusher and decentralized FS delegated
-response to the pushing.
+	[SNIP]
 
-Hans
+The difference here is that those systems do NOT have a
+unified VM. Also, mmap() isn't used for program data and
+lots of other stuff we're doing isn't done on those
+systems.
+
+In a world where you mmap() your executables and major
+parts of your program data, properly managing all the
+caches *is* important...
+
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
