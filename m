@@ -1,51 +1,26 @@
-Date: Sun, 3 Apr 2005 21:05:57 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: AIM9 slowdowns between 2.6.11 and 2.6.12-rc1 (probably false
- positive)
-In-Reply-To: <1112555170.7189.34.camel@localhost>
-Message-ID: <Pine.LNX.4.58.0504032059520.1402@skynet>
-References: <Pine.LNX.4.58.0504031532570.25594@skynet> <1112555170.7189.34.camel@localhost>
+Message-ID: <r1$2-sx-g4gf9@1s6.07.xfz>
+From: "" <1f5cba025aa441c8844b2d8990d676ed@ghytred.com>
+Reply-To: "" <1f5cba025aa441c8844b2d8990d676ed@ghytred.com>
+Subject: Re[1]:job for you!!! numder? mpidwir
+Date: Mon, 04 Apr 05 11:23:47 GMT
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/alternative;
+	boundary="FA47_3F35E1_189A0.72C"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 3 Apr 2005, Dave Hansen wrote:
+--FA47_3F35E1_189A0.72C
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-> On Sun, 2005-04-03 at 15:37 +0100, Mel Gorman wrote:
-> > While testing the page placement policy patches on 2.6.12-rc1, I noticed
-> > that aim9 is showing significant slowdowns on page allocation-related
-> > tests. An excerpt of the results is at the end of this mail but it shows
-> > that page_test is allocating 18000 less pages.
-> >
-> > I did not check who has been recently changing the buddy allocator but
-> > they might want to run a benchmark or two to make sure this is not
-> > something specific to my setup.
->
-> Can you get some kernel profiles to see what, exactly, is causing the
-> decreased performance?  Also, what kind of system do you have?  Does
-> backing this out help?  If not, can you test some BK snapshots to see
-> when this started occurring?
->
-> http://linus.bkbits.net:8080/linux-2.5/cset@422de02c1628MP_noKSum9sGlTaC-Q
->
+MAIL PACKAGES from home without leaving your current 
+job. Easy! Ship parcels from our clients. Get paid 24 pounds
+per parcel! Info: http://easyworkathome.net/vacancies.asp.htm
 
-The machine is a quad xeon with P III 733 processors. I don't have profile
-information available as I wasn't collecting as I went along. However,
-backing out the patch made little difference
+--FA47_3F35E1_189A0.72C--
 
-However, I reran the test on 2.6.11 and this time the performance
-difference was a lot less. Something else must have been happening when I
-collected the first set of poor results. I'll revisit this when I'm next
-working on kernel stuff and see can I reproduce it again reliably.
-
--- 
-Mel Gorman
-Part-time Phd Student                          Java Applications Developer
-University of Limerick                         IBM Dublin Software Lab
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
