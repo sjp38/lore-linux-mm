@@ -1,37 +1,55 @@
-Date: Wed, 30 Apr 2003 13:24:07 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: [BUG 2.4] Buffers Span Zones
-Message-ID: <2387750000.1051734247@flay>
-In-Reply-To: <3EB0071B.2020308@google.com>
-References: <3EB0071B.2020308@google.com>
+Date: 30 Apr 2003 22:14:38 -0000
+Message-ID: <20030430221438.16759.qmail@webmail35.rediffmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+From: "anand kumar" <a_santha@rediffmail.com>
+Reply-To: "anand kumar" <a_santha@rediffmail.com>
+Subject: Memory allocation problem
+Content-type: text/plain;
+	format=flowed
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ross Biro <rossb@google.com>, Linux-MM@kvack.org
+To: linux-mm@kvack.org
+Cc: kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-> I've found that changing PAGE_OFFSET to reduce the amount of lowmem has been a very good way to exercies the VM.  I've been able to cause all sorts of interesting problems by having ~20M of lowmem and 3G of highmem. I assume that many of these problems would occur on systems with 1G of lowmem and 16-20G of highmem.
-> 
-> Please CC me on any responses.
+Hi,
 
-It does indeed fall over quite easily on larger machines. Raw IO makes 
-it fall over under a light breath of wind (I think it allocates 1024 
-buffer_heads up front). 
+We are developing a PCI driver for a specialized hardware which
+needs blocks of physically contiguous memory regions of
+32 KB. We need to allocate 514 such blocks for a total of 16 MB
+We were using an ioctl implementation in the driver which uses
+kmalloc() to allocate the required memory blocks. 
+kmalloc()(GFP_KERNEL)
+fails after allocating some 250 blocks of memory (probably due to 
+fragmentation).
+We then tried using __get_free_pages() and the result was the 
+same.
+Even though the free pages in zone NORMAL and DMA were 10000 and 
+1500 respectively.
 
-I've seen about 400MB of buffer_heads before - sucks.
+Are we hitting some limit because of fragmentation and are
+not able to allocate 8 contiguous physical pages? We tried moving 
+the
+memory allocation in init_module and made the driver load during 
+boot
+time, during which allocation succeeds.
 
-There were some discussion on the archives with Andrew around the middle
-of last year - those might prove helpful. We agreed at OLS last year 
-to free them immediately after read, but Andrea wanted to keep them around 
-after write, and reclaim them lazily (I might have that switched read vs 
-write). That's fixed in 2.5 and 2.4-aa I think (though I haven't retested
-2.4-aa with raw IO recently). None of it is merged in mailine 2.4 still,
-as far as I know, so it still falls over pretty easily.
+The kernel version we are using is 2.4.18 (Redhat 8.0) and the 
+total
+amount of memory available in the box is 128MB
 
-M.
+Is there any other mechanism to allocate large amount of 
+physically
+contiguous memory blocks during normal run time of the driver? Is 
+this
+being addressed in later kernels.
+
+Rgds
+Anand
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
