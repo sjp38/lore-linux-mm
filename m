@@ -1,31 +1,54 @@
-Date: Tue, 23 May 2000 12:59:44 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: Accessing shared memory in a kernel module
-In-Reply-To: <v0300780ab55062f164db@[194.5.49.5]>
-Message-ID: <Pine.LNX.3.96.1000523125806.1878D-100000@kanga.kvack.org>
+Date: Tue, 23 May 2000 12:51:15 -0400 (EDT)
+From: Chuck Lever <cel@monkey.org>
+Subject: Re: [PATCH--] Re: Linux VM/IO balancing (fwd to linux-mm?) (fwd)
+In-Reply-To: <392AA3D5.FD6B5399@norran.net>
+Message-ID: <Pine.BSO.4.20.0005231244060.1176-100000@naughty.monkey.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephane Letz <letz@grame.fr>
-Cc: linux-mm@kvack.org
+To: Roger Larsson <roger.larsson@norran.net>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, Matthew Dillon <dillon@apollo.backplane.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 May 2000, Stephane Letz wrote:
+hi roger-
 
-> We need to access to  shared memory segment in the kernel but not in the
-> context of a user space process call. Actually the user application send a
-> shared memory cell in the kernel module and "later" (in the context of a
-> kernel timer interrupt), the kernel module needs to access the memory cell
-> and give it back to another user application.
+list manipulations are probably more expensive than maintaining a "load
+average" value associated with a page.  usually a list manipulation will
+require several memory writes into areas shared across CPUs; maintaining a
+weighted load average requires a single write.
+
+this was an issue with andrea's original LRU implementation, IIRC.
+
+On Tue, 23 May 2000, Roger Larsson wrote:
+
+> From: Matthew Dillon <dillon@apollo.backplane.com>
+> >     The algorithm is a *modified* LRU.  Lets say you decide on a weighting
+> >     betweeen 0 and 10.  When a page is first allocated (either to the
+> >     buffer cache or for anonymous memory) its statistical weight is
+> >     set to the middle (5).  If the page is used often the statistical 
+> >     weight slowly rises to its maximum (10).  If the page remains idle
+> >     (or was just used once) the statistical weight slowly drops to its
+> >     minimum (0).
 > 
-> Any idea?
+> My patches has been approaching this a while... [slowly...]
+> The currently included patch adds has divided lru in four lists [0..3].
+> New pages are added at level 1.
+> Scan is performed - and referenced pages are moved up.
+> 
+> Pages are moved down due to list balancing, but I have been playing with
+> other ideas.
+> 
+> These patches should be a good continuation point.
+> Patches are against pre9-3 with Quintela applied.
 
-Without knowing more of what you're trying to do, I'll give the generic
-advice of allocate the memory in your driver at startup (open or configure
-time) and provide an mmap method -- see the sound drivers et al.
+	- Chuck Lever
+--
+corporate:	<chuckl@netscape.com>
+personal:	<chucklever@bigfoot.com>
 
-		-ben
+The Linux Scalability project:
+	http://www.citi.umich.edu/projects/linux-scalability/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
