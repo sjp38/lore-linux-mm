@@ -1,131 +1,53 @@
-Date: Wed, 02 Apr 2003 11:18:23 -0600
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: [PATCH 2.5.66-mm2] Optimizaction for object-based rmap
-Message-ID: <9770000.1049303903@baldur.austin.ibm.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="==========856700887=========="
+Date: Wed, 2 Apr 2003 13:29:39 -0800
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: [PATCH 2.5.66-mm2] Fix page_convert_anon locking issues
+Message-Id: <20030402132939.647c74a6.akpm@digeo.com>
+In-Reply-To: <8910000.1049303582@baldur.austin.ibm.com>
+References: <8910000.1049303582@baldur.austin.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---==========856700887==========
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Dave McCracken <dmccr@us.ibm.com> wrote:
+>
+> 
+> I came up with a scheme for accessing the page tables in page_convert_anon
+> that should work without requiring locks.  Hugh has looked at it and agrees
+> it addresses the problems he found.  Anyway, here's the patch.
+> 
 
+I am unable to convince myself that this is correct.  It's playing with pmd
+and pte pages which can be freed, reallocated and filled with random stuff.
+I really don't see how that can work, but am willing to be taught.
 
-It occurred to me that a simple way to improve objrmap performance would be
-to sort the vma chains off address_space by offset.  Here's a patch that
-does it.  Tests show no measureable cost, and it could significantly reduce
-the impact of the worst case scenario (100 mappings * 100 processes) we've
-all worried about.
+Because we hold i_shared_sem we know that the pgd layer is stable and that
+the mm's aren't going away.
 
-Dave McCracken
+Is it not possible to take each mm's page_table_lock?  There's a ranking
+problem with pte_chain_lock(), but that can presumably be resolved by doing a
+trylock on the page_table_lock and if that fails, restart the whole operation.
 
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
+But then again, why is it not possible to just do:
 
---==========856700887==========
-Content-Type: text/plain; charset=us-ascii; name="objsort-2.5.66-mm2-1.diff"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename="objsort-2.5.66-mm2-1.diff";
- size=2893
+	list_for_each_entry(vma, &mapping->i_mmap, shared) {
+		if (!pte_chain)
+			pte_chain = pte_chain_alloc(GFP_KERNEL);
+		spin_lock(&mm->page_table_lock);
+		pte = find_pte(vma, page, NULL);
+		if (pte)
+			pte_chain = page_add_rmap(page, pte, pte_chain);
+		spin_unlock(&mm->page_table_lock);
+	}
 
---- 2.5.66-mm2-test/./mm/mmap.c	2003-04-01 11:23:35.000000000 -0600
-+++ 2.5.66-mm2-fix/./mm/mmap.c	2003-04-01 11:25:31.000000000 -0600
-@@ -311,14 +311,26 @@ static inline void __vma_link_file(struc
- 	if (file) {
- 		struct inode * inode = file->f_dentry->d_inode;
- 		struct address_space *mapping = inode->i_mapping;
-+		struct list_head *vmlist, *vmhead;
- 
- 		if (vma->vm_flags & VM_DENYWRITE)
- 			atomic_dec(&inode->i_writecount);
- 
- 		if (vma->vm_flags & VM_SHARED)
--			list_add_tail(&vma->shared, &mapping->i_mmap_shared);
-+			vmhead = &mapping->i_mmap_shared;
- 		else
--			list_add_tail(&vma->shared, &mapping->i_mmap);
-+			vmhead = &mapping->i_mmap;
-+
-+		list_for_each(vmlist, &mapping->i_mmap_shared) {
-+			struct vm_area_struct *vmtemp;
-+			vmtemp = list_entry(vmlist, struct vm_area_struct, shared);
-+			if (vmtemp->vm_pgoff >= vma->vm_pgoff)
-+				break;
-+		}
-+		if (vmlist == vmhead)
-+			list_add_tail(&vma->shared, vmlist);
-+		else
-+			list_add(&vma->shared, vmlist);
- 	}
- }
- 
---- 2.5.66-mm2-test/./mm/rmap.c	2003-04-01 14:09:26.000000000 -0600
-+++ 2.5.66-mm2-fix/./mm/rmap.c	2003-04-01 11:30:21.000000000 -0600
-@@ -207,12 +207,16 @@ page_referenced_obj(struct page *page)
- 	if (down_trylock(&mapping->i_shared_sem))
- 		return 1;
- 	
--	list_for_each_entry(vma, &mapping->i_mmap, shared)
-+	list_for_each_entry(vma, &mapping->i_mmap, shared) {
-+		if (vma->vm_pgoff > (page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT)))
-+			break;
- 		referenced += page_referenced_obj_one(vma, page);
--
--	list_for_each_entry(vma, &mapping->i_mmap_shared, shared)
-+	}
-+	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
-+		if (vma->vm_pgoff > (page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT)))
-+			break;
- 		referenced += page_referenced_obj_one(vma, page);
--
-+	}
- 	up(&mapping->i_shared_sem);
- 
- 	return referenced;
-@@ -572,12 +576,16 @@ try_to_unmap_obj(struct page *page)
- 		return ret;
- 	
- 	list_for_each_entry(vma, &mapping->i_mmap, shared) {
-+		if (vma->vm_pgoff > (page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT)))
-+			break;
- 		ret = try_to_unmap_obj_one(vma, page);
- 		if (ret == SWAP_FAIL || !page->pte.mapcount)
- 			goto out;
- 	}
- 
- 	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
-+		if (vma->vm_pgoff > (page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT)))
-+			break;
- 		ret = try_to_unmap_obj_one(vma, page);
- 		if (ret == SWAP_FAIL || !page->pte.mapcount)
- 			goto out;
-@@ -868,6 +876,8 @@ again:
- 		index = NRPTE - index;
- 
- 	list_for_each_entry(vma, &mapping->i_mmap, shared) {
-+		if (vma->vm_pgoff > (page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT)))
-+			break;
- 		pte = find_pte(vma, page, NULL);
- 		if (pte) {
- 			ptecount++;
-@@ -886,6 +896,8 @@ again:
- 		}
- 	}
- 	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
-+		if (vma->vm_pgoff > (page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT)))
-+			break;
- 		pte = find_pte(vma, page, NULL);
- 		if (pte) {
- 			ptecount++;
+	pte_chain_free(pte_chain);
+	up(&mapping->i_shared_sem);
 
---==========856700887==========--
-
+?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
