@@ -1,44 +1,45 @@
+Date: Sat, 7 Jun 2003 17:56:49 -0700
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.70-mm6
+Message-Id: <20030607175649.6bf3813b.akpm@digeo.com>
+In-Reply-To: <873cilz9os.fsf@lapper.ihatent.com>
 References: <20030607151440.6982d8c6.akpm@digeo.com>
-From: Alexander Hoogerhuis <alexh@ihatent.com>
-Date: 08 Jun 2003 02:37:07 +0200
-In-Reply-To: <20030607151440.6982d8c6.akpm@digeo.com>
-Message-ID: <873cilz9os.fsf@lapper.ihatent.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	<873cilz9os.fsf@lapper.ihatent.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alexander Hoogerhuis <alexh@ihatent.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@digeo.com> writes:
+Alexander Hoogerhuis <alexh@ihatent.com> wrote:
 >
-> [SNIP]
->
+> Andrew Morton <akpm@digeo.com> writes:
+> >
+> > [SNIP]
+> >
+> 
+> It builds nicely here and runs nicely so far, but my USB-drive still
+> blows up after a few gigs
 
-It builds nicely here and runs nicely so far, but my USB-drive still
-blows up after a few gigs and I have this one when plugging it in:
+Is that usb-storage?  There seem to have been a few reports of
+erratic behaviour lately.
 
-Attached scsi generic sg0 at scsi0, channel 0, id 0, lun 0,  type 0
-spurious 8259A interrupt: IRQ7.
-SCSI device sda: 490232832 512-byte hdwr sectors (250999 MB)
-sda: cache data unavailable
-sda: assuming drive cache: write through
- /dev/scsi/host0/bus0/target0/lun0: p1
-devfs_mk_dir(scsi/host0/bus0/target0/lun0): could not append to dir: ea549820 "target0"
-Attached scsi disk sda at scsi0, channel 0, id 0, lun 0
-kjournald starting.  Commit interval 5 seconds
-EXT3 FS 2.4-0.9.16, 02 Dec 2001 on sda1, internal journal
-EXT3-fs: recovery complete.
-EXT3-fs: mounted filesystem with ordered data mode.
+> and I have this one when plugging it in:
+> 
+> Attached scsi generic sg0 at scsi0, channel 0, id 0, lun 0,  type 0
+> spurious 8259A interrupt: IRQ7.
+> SCSI device sda: 490232832 512-byte hdwr sectors (250999 MB)
+> sda: cache data unavailable
+> sda: assuming drive cache: write through
+>  /dev/scsi/host0/bus0/target0/lun0: p1
+> devfs_mk_dir(scsi/host0/bus0/target0/lun0): could not append to dir: ea549820 "target0"
 
-mvh,
-A
--- 
-Alexander Hoogerhuis                               | alexh@ihatent.com
-CCNP - CCDP - MCNE - CCSE                          | +47 908 21 485
-"You have zero privacy anyway. Get over it."  --Scott McNealy
+Maybe Christph can decode this one for us.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
