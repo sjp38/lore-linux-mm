@@ -1,60 +1,45 @@
-Message-Id: <LYRIS0-1106731407--2960-lyris-admin@groups.ittoolbox.com>
-From: "Lyris ListManager" <lyris-admin@groups.ittoolbox.com>
-Reply-To: "Lyris ListManager" <lyris@groups.ittoolbox.com>
-Subject: Re: Delivery failed
-Date: Wed, 26 Jan 2005 04:23:27 -0500
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j0QEfEm4374284
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2005 09:41:14 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j0QEfEtB445186
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2005 07:41:14 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j0QEfD9r028773
+	for <linux-mm@kvack.org>; Wed, 26 Jan 2005 07:41:13 -0700
+Date: Wed, 26 Jan 2005 06:37:16 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [RFC][PATCH 0/5] consolidate i386 NUMA init code
+Message-ID: <15640000.1106750236@flay>
+In-Reply-To: <1106698985.6093.39.camel@localhost>
+References: <1106698985.6093.39.camel@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Sorry, but Lyris ListManager did not find your email address
--> "linux-mm@kvack.org"
+> The following five patches reorganize and consolidate some of the i386
+> NUMA/discontigmem code.  They grew out of some observations as we
+> produced the memory hotplug patches.
+> 
+> Only the first one is really necessary, as it makes the implementation
+> of one of the hotplug components much simpler and smaller.  2 and 3 came
+> from just looking at the effects on the code after 1.
+> 
+> 4 and 5 aren't absolutely required for hotplug either, but do allow
+> sharing a bunch of code between the normal boot-time init and hotplug
+> cases.  
+> 
+> These are all on top of 2.6.11-rc2-mm1.
 
-listed as a member of java-l.
+Looks reasonable. How much testing have they had, on what platforms?
 
-Only members of java-l are allowed to contribute messages.
-
-Because Lyris ListManager could not confirm that you are a member of java-l,
-your message was not accepted.
-
----
-
-Return-Path: <linux-mm@kvack.org>
-Received: from kvack.org ([62.210.99.240]) by  with SMTP (Lyris ListManager WIN32 version 7.0f); Wed, 26 Jan 2005 04:23:21 -0500
-From: linux-mm@kvack.org
-To: java-l@openitx.com
-Subject: Delivery failed
-Date: Wed, 26 Jan 2005 10:23:58 +0100
-MIME-Version: 1.0
-Content-Type: text/plain;
-Content-Transfer-Encoding: 7bit
-X-Priority: 3
-X-MSMail-Priority: Normal
-X-Mailer: Microsoft Outlook Express 6.00.2600.0000
-X-MIMEOLE: Produced By Microsoft MimeOLE V6.00.2600.0000
-
-Your message was undeliverable due to the following reason:
-
-Your message could not be delivered because the destination server was
-unreachable within the allowed queue period. The amount of time
-a message is queued before it is returned depends on local configura-
-tion parameters.
-
-Most likely there is a network problem that prevented delivery, but
-it is also possible that the computer is turned off, or does not
-have a mail system running right now.
-
-Your message could not be delivered within 6 days:
-Host 181.37.214.67 is not responding.
-
-The following recipients could not receive this message:
-
-
-Please reply to postmaster@openitx.com
-if you feel this message to be in error.
-
-
+M
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
