@@ -1,67 +1,93 @@
-Received: from westrelay03.boulder.ibm.com (westrelay03.boulder.ibm.com [9.17.195.12])
-	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j04Hex9g082350
-	for <linux-mm@kvack.org>; Tue, 4 Jan 2005 12:40:59 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay03.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j04Hex7j367998
-	for <linux-mm@kvack.org>; Tue, 4 Jan 2005 10:40:59 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j04HexLw018490
-	for <linux-mm@kvack.org>; Tue, 4 Jan 2005 10:40:59 -0700
+Message-ID: <41DADFB9.2090607@sgi.com>
+Date: Tue, 04 Jan 2005 12:26:01 -0600
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
 Subject: Re: process page migration
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <41DAD2AF.80604@sgi.com>
-References: <41D99743.5000601@sgi.com>	<1104781061.25994.19.camel@localhost>
-	 <41D9A7DB.2020306@sgi.com> <20050104.234207.74734492.taka@valinux.co.jp>
-	 <41DAD2AF.80604@sgi.com>
-Content-Type: text/plain
-Date: Tue, 04 Jan 2005 09:40:56 -0800
-Message-Id: <1104860456.7581.21.camel@localhost>
-Mime-Version: 1.0
+References: <41D99743.5000601@sgi.com>	<1104781061.25994.19.camel@localhost>	 <41D9A7DB.2020306@sgi.com> <20050104.234207.74734492.taka@valinux.co.jp>	 <41DAD2AF.80604@sgi.com> <1104860456.7581.21.camel@localhost>
+In-Reply-To: <1104860456.7581.21.camel@localhost>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
+To: Dave Hansen <haveblue@us.ibm.com>
 Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm <linux-mm@kvack.org>, Rick Lindsley <ricklind@us.ibm.com>, "Matthew C. Dobson [imap]" <colpatch@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-01-04 at 11:30 -0600, Ray Bryant wrote:
-> My thinking on this was to update the mempolicy after page migration.
-> This works for my purposes since my plan is to
+Dave Hansen wrote:
+> On Tue, 2005-01-04 at 11:30 -0600, Ray Bryant wrote:
 > 
-> (1)  suspend the process via SIGSTOP
-> (2)  update the mempolicy
-> (3)  migrate the process's pages
-> (4)  migrate the process to the new cpu via set_schedaffinity()
-> (5)  resume the process via SIGCONT
+>
 > 
-> These steps are to be performed via a user space program that implements
-> the actual migration function; the (2)-(4) are just the system calls that
-> implement this.  This keeps some of the function (i. e. which processes to
-> migrate) out of the kernel and allows the user some flexibility in what
-> order operations are performed as well as other functions that may go
-> along with this migration request.  (The actual function we are trying
-> to implement is to support >>job<< migration from one set of NUMA nodes to
-> another, and a job may consist of several processes.)
+> 
+> We already have scheduler code which has some knowledge of when a
+> process is dragged from one node to another.  Combined with the per-node
+> RSS, could we make a decision about when a process needs to have
+> migration performed on its pages on a more automatic basis, without the
+> syscalls?
+> 
 
-We already have scheduler code which has some knowledge of when a
-process is dragged from one node to another.  Combined with the per-node
-RSS, could we make a decision about when a process needs to have
-migration performed on its pages on a more automatic basis, without the
-syscalls?
+The only time I am proposing to do process and memory migration is in
+response to requests issued from userspace.  This is not an automatic
+process (see below for more details.)
 
-We could have a tunable for how aggressive this mechanism is, so that
-the process wouldn't start running again on the more strict SGI machines
-until a very large number of the pages are pulled over.  However, on
-machines where process latency is more of an issue, the tunable could be
-set to a much less aggressive value.
+> We could have a tunable for how aggressive this mechanism is, so that
+> the process wouldn't start running again on the more strict SGI machines
+> until a very large number of the pages are pulled over.  However, on
+> machines where process latency is more of an issue, the tunable could be
+> set to a much less aggressive value.
+> 
+> This would give normal, somewhat less exotic, NUMA machines the benefits
+> of page migration without the need for the process owner to do anything
+> manually to them, while also making sure that we keep the number of
+> interfaces to the migration code to a relative minimum.  
+> 
+> -- Dave
+> 
+>
 
-This would give normal, somewhat less exotic, NUMA machines the benefits
-of page migration without the need for the process owner to do anything
-manually to them, while also making sure that we keep the number of
-interfaces to the migration code to a relative minimum.  
+What I am working on is indeed manual process and page migration in a NUMA
+system.  Specifically, we are running with cpusets, and the idea is to
+support moving a job from one cpuset to another in response to batch scheduler
+related decisions.  (The basic scenario is that a bunch of jobs are running,
+each in its own cpuset, when a new high priority job arrives at the batch
+scheduler.  The batch scheduler will pick some job to suspend, and start
+the new job in that cpuset.  At some later point, one of the other jobs
+finishes, and the scheduler now decides to move the suspended job to the
+newly free cpuset.)  However, I don't want to tie the migration code I
+am working on into cpusets, since the future of that is still uncertain.
 
--- Dave
+Hence the migration system call I am proposing is something like:
 
+     migrate_process_pages(pid, numnodes, old_node_list, new_node_list)
+
+where the node lists are one dimensional arrays of size numnodes.
+Pages on old_node_list[i] are moved to new_node_list[i].
+
+(If cpusets exist on the underlying system, we will use the cpuset
+infrastructure to tell us which pid's need to be moved.)
+
+The only other new system call needed is something to update the memory
+policy of the process to correspond to the new set of nodes.
+
+Existing interfaces can be used to do the rest of the migration
+functionality.
+
+SGI's experience with automatically detecting when to pull pages from one
+node to another based on program usage patterns has not been good.  IRIX
+supported this kind of functionality, and all it ever seemed to do was to
+move the wrong page at the wrong time (so I am told; it was before my time
+with SGI...)
+
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
