@@ -1,34 +1,50 @@
-Date: Sun, 31 Aug 2003 11:44:32 -0400 (EDT)
-From: Zwane Mwaikambo <zwane@linuxpower.ca>
-Subject: Re: 2.6.0-test4-mm4
-In-Reply-To: <Pine.LNX.4.44.0308310926120.26483-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.53.0308311142550.16584@montezuma.fsmlabs.com>
-References: <Pine.LNX.4.44.0308310926120.26483-100000@localhost.localdomain>
+Date: Sat, 30 Aug 2003 23:22:52 -0400
+Message-Id: <200308310322.XAA19703@sg5.global-submit.com>
+From: promos@global-submit.com
+Subject: About your site mail.nl.linux.org/linux-mm/2000-05/msg00418.html
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Molina <tmolina@cablespeed.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 31 Aug 2003, Thomas Molina wrote:
+You are receiving this e-mail because you were added to
+http://www.global-submit.com in the past. Here is the URL
+that was submitted to our search engine database.
+http://mail.nl.linux.org/linux-mm/2000-05/msg00418.html
 
-> Thank you Adrew.  I have been following a panic in store_stackinfo since 
-> it was introduced with CONFIG_DEBUG_PAGEALLOC (see bugzilla #973).  
-> 2.6.0-test4-mm4 was the first kernel version I have tested which didn't 
-> exhibit this failure mode.  
-> 
-> I do get a hang on boot in RedHat 8 if all the other "kernel hacking" 
-> options are enabled.  This hang comes at the point in the boot sequence 
-> where the next message I would expect is the mounting of /proc.  I've not 
-> looked into it too deeply since it sounded similar to what others have 
-> seen, and it wasn't my main focus.  I'll go back later and look into it if 
-> the condition persists.
+Hello, My name is William,
 
-Well you appeared to have serio problems and there have been a number of 
-changes in the input department. Do you know which kernel hacking option 
-causes the new hang?
+I visited your web site and I was wondering if I could
+help promote your site? I am referring to mail.nl.linux.org/linux-mm/2000-05/msg00418.html
+
+If you think that you could benefit from more traffic to
+your web site, please visit my web site at
+http://william.global-submit.com or feel free to send
+an e-mail to william@global-submit.com
+
+We offer everything from Banner Advertising, Safe E-mail
+Marketing to web site development.
+
+Thank you and have a nice day,
+
+William Hanks
+http://william.global-submit.com
+william@global-submit.com
+
+
+
+
+
+
+
+RMV MESSAGE ID : T838455R524607
+
+If would like to be taken out of our database then please visit this web site.
+http://www.global-submit.com/cgi-bin/remove.cgi?T838455R524607
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
