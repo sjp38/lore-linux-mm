@@ -1,34 +1,80 @@
-Received: from petasus.hd.intel.com (petasus.hd.intel.com [10.127.45.3])
-	by hermes.hd.intel.com (8.11.6/8.11.6/d: outer.mc,v 1.51 2002/09/23 20:43:23 dmccart Exp $) with ESMTP id h1LMlYY10047
-	for <linux-mm@kvack.org>; Fri, 21 Feb 2003 22:47:34 GMT
-Received: from orsmsxvs040.jf.intel.com (orsmsxvs040.jf.intel.com [192.168.65.206])
-	by petasus.hd.intel.com (8.11.6/8.11.6/d: inner.mc,v 1.28 2003/01/13 19:44:39 dmccart Exp $) with SMTP id h1LMk0J19327
-	for <linux-mm@kvack.org>; Fri, 21 Feb 2003 22:46:01 GMT
-Message-ID: <A46BBDB345A7D5118EC90002A5072C780A7D51C6@orsmsx116.jf.intel.com>
-From: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>
-Subject: RE: Silly question: How to map a user space page in kernel space?
-Date: Fri, 21 Feb 2003 14:49:23 -0800
+Message-ID: <3E56C4FA.8010400@us.ibm.com>
+Date: Fri, 21 Feb 2003 16:31:54 -0800
+From: Matthew Dobson <colpatch@us.ibm.com>
+Reply-To: colpatch@us.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
+Subject: [rfc][patch] clean up redundant code for alloc_pages
+Content-Type: multipart/mixed;
+ boundary="------------020000030803070307010401"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "'Martin J. Bligh'" <mbligh@aracnet.com>, "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@transmeta.com>, Andrew Morton <akpm@digeo.com>, Martin Bligh <mjbligh@us.ibm.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Martin J. Bligh wrote:
->
-> > So, the question is, how can I map it into the kernel space in a
-> portable
-> > manner? Am I missing anything very basic here?
-> 
-> kmap or kmap_atomic
+This is a multi-part message in MIME format.
+--------------020000030803070307010401
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Thanks Martin, you are the man :)
+Well, alloc_pages() and alloc_pages_node() look *REAAALY* similar.  This 
+is a really small patch to just shrink alloc_pages_node() a bit and 
+point alloc_page() and alloc_pages() at alloc_pages_node() with the 
+appropriate arguments.
 
-Inaky Perez-Gonzalez --- Not speaking for Intel -- all opinions are my own
-(and my fault)
+It is a pretty trivial change, just curious if there are any violent 
+objections to such a change.
+
+[mcd@arrakis push]$ diffstat alloc_pages_cleanup-2.5.62.patch
+  gfp.h |   18 +++++-------------
+  1 files changed, 5 insertions(+), 13 deletions(-)
+
+Cheers!
+
+-Matt
+
+--------------020000030803070307010401
+Content-Type: text/plain;
+ name="alloc_pages_cleanup-2.5.62.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="alloc_pages_cleanup-2.5.62.patch"
+
+diff -Nur --exclude-from=/usr/src/.dontdiff linux-2.5.62-vanilla/include/linux/gfp.h linux-2.5.62-alloc_pages/include/linux/gfp.h
+--- linux-2.5.62-vanilla/include/linux/gfp.h	Mon Feb 17 14:56:09 2003
++++ linux-2.5.62-alloc_pages/include/linux/gfp.h	Fri Feb 21 16:15:59 2003
+@@ -49,24 +49,16 @@
+ extern struct page * FASTCALL(__alloc_pages(unsigned int, unsigned int, struct zonelist *));
+ static inline struct page * alloc_pages_node(int nid, unsigned int gfp_mask, unsigned int order)
+ {
+-	struct pglist_data *pgdat = NODE_DATA(nid);
+-	unsigned int idx = (gfp_mask & GFP_ZONEMASK);
+-
+ 	if (unlikely(order >= MAX_ORDER))
+ 		return NULL;
+-	return __alloc_pages(gfp_mask, order, pgdat->node_zonelists + idx);
+-}
+-static inline struct page * alloc_pages(unsigned int gfp_mask, unsigned int order)
+-{
+-	struct pglist_data *pgdat = NODE_DATA(numa_node_id());
+-	unsigned int idx = (gfp_mask & GFP_ZONEMASK);
+ 
+-	if (unlikely(order >= MAX_ORDER))
+-		return NULL;
+-	return __alloc_pages(gfp_mask, order, pgdat->node_zonelists + idx);
++	return __alloc_pages(gfp_mask, order, NODE_DATA(nid)->node_zonelists + (gfp_mask & GFP_ZONEMASK));
+ }
+ 
+-#define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
++#define alloc_pages(gfp_mask, order) \
++		alloc_pages_node(numa_node_id(), gfp_mask, order)
++#define alloc_page(gfp_mask) \
++		alloc_pages_node(numa_node_id(), gfp_mask, 0)
+ 
+ extern unsigned long FASTCALL(__get_free_pages(unsigned int gfp_mask, unsigned int order));
+ extern unsigned long FASTCALL(get_zeroed_page(unsigned int gfp_mask));
+
+--------------020000030803070307010401--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
