@@ -1,55 +1,42 @@
-Reply-To: "Celeste " <Irvinso@aol.com>
-From: "Adele " <Irvinso@aol.com>
-Subject: There is an answer to your problem
-Date: Mon, 28 Feb 2005 00:12:14 -0600
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--04-34622-3497-952-03789"
-Message-Id: <20050228061058Z26594-23302+318@kvack.org>
+Received: from mail.activatormail.com (dpclt038057.direcpc.com [64.157.38.57])
+ by a34-mta01.direcway.com
+ (iPlanet Messaging Server 5.2 HotFix 1.25 (built Mar  3 2004))
+ with ESMTP id <0ICL00INHOXWD3@a34-mta01.direcway.com> for linux-mm@kvack.org;
+ Mon, 28 Feb 2005 07:20:49 -0500 (EST)
+Date: Mon, 28 Feb 2005 04:09:52 -0800
+From: Dora Muniz <wczsvmekw@mailpanda.com>
+Subject: Urgent notice for you
+Message-id: <091801c51d90$69ff43c0$d89f1dde@m.fe>
+MIME-version: 1.0
+Content-type: text/plain; charset=iso-8859-1
+Content-transfer-encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: gustavk@kvack.net, linux-mm@kvack.org, aguilar@kvaconsult.com, munoz@kvaconsult.com, hodges@kvaconsult.com, hopkins@kvaconsult.com, garza@kvaconsult.com, kelley@kvaconsult.com, gardner@kvaconsult.com, cobb@kvaconsult.com, cross@kvaconsult.com, cohen@kvaconsult.com, hines@kvaconsult.com, alexander@kvaconsult.com, garrett@kvaconsult.com
 List-ID: <linux-mm.kvack.org>
 
-----04-34622-3497-952-03789
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
+Hello, 
 
-Hey Carmen
+We tried contacting you awhile ago about your low interest mortgage rate. 
 
-I know how it feels to have my phone ring constantly from debt collectors.=
- Shit happens, times get tough. But they dont have to stay this way!
+You have qualified for the lowest rate in years... 
 
-One day my friend showed me this website where I got information on how to=
- lower my monthly mortgage payment while paying off my overdue bills. 
+You could get over $380,000 for as little as $500 a
+month! 
 
-I got back on track and started saving money for the first time in two yea=
-rs without using any of my own money!
- 
-Take a look at what helped me out. It's easy and FREE!
+Bad credit? Doesn't matter, low rates are fixed no matter what! 
 
-http://www.4orty4.com/mortgages.asp
+To get a free, no obli,gation consultation click below: 
 
+http://www.beztratez.com/low/
 
+Best Regards, 
 
-See ya later,
+Jo Erwin
 
-Kirk
+to be removed:       
+http://www.beztratez.com/x/st.html
 
-
-
-
-no mroe
-
-
-http://www.4orty4.com/gone.asp
-
-
-When a clock is hungry, it goes back four seconds. I love to give homemade=
- gifts... which one of my kids do you want? I marvel at the strength of hu=
-man weakness.=20 Good fences make good neighbours.
-
-----04-34622-3497-952-03789--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
