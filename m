@@ -1,27 +1,51 @@
-Date: Sat, 6 Nov 2004 09:47:56 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages /
-    all_unreclaimable braindamage
-In-Reply-To: <20041106015051.GU8229@dualathlon.random>
-Message-ID: <Pine.LNX.4.44.0411060944150.2721-100000@localhost.localdomain>
+Message-ID: <418C9DFF.5010809@yahoo.com.au>
+Date: Sat, 06 Nov 2004 20:48:47 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Subject: Re: removing mm->rss and mm->anon_rss from kernel?
+References: <4189EC67.40601@yahoo.com.au>  <Pine.LNX.4.58.0411040820250.8211@schroedinger.engr.sgi.com>  <418AD329.3000609@yahoo.com.au>  <Pine.LNX.4.58.0411041733270.11583@schroedinger.engr.sgi.com>  <418AE0F0.5050908@yahoo.com.au>  <418AE9BB.1000602@yahoo.com.au> <1099622957.29587.101.camel@gaston> <418C55A7.9030100@yahoo.com.au> <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@novell.com>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 6 Nov 2004, Andrea Arcangeli wrote:
+Christoph Lameter wrote:
+> My page scalability patches need to make rss atomic and now with the
+> addition of anon_rss I would also have to make that atomic.
 > 
-> all allocations should have a failure path to avoid deadlocks. But in
-> the meantime __GFP_REPEAT is at least localizing the problematic places ;)
+> But when I looked at the code I found that the only significant use of
+> both is in for proc statistics. There are 3 other uses in mm/rmap.c where
+> the use of mm->rss may be replaced by mm->total_vm.
+> 
+> So I removed all uses of mm->rss and anon_rss from the kernel and
+> introduced a bean counter count_vm() that is only run when the
+> corresponding /proc file is used. count_vm then runs throught the vm
+> and counts all the page types. This could also add additional page types to our
+> statistics and solve some of the consistency issues.
+> 
+> The patch is by no means perfect. If you think this is worth pursuing then
+> I will finish the support for other archs and deal with the locking
+> issues etc. This patch may also remove hot spot issues that may arise with
+> the use of these two variables and so is of interest to us.
+> 
+> But a kernel with this patch boots fine and the statistics in /proc look
+> still okay (its late though....)
+> 
 
-Problematic, yes: don't overlook that GFP_REPEAT and GFP_NOFAIL _can_
-fail, returning NULL: when the process is being OOM-killed (PF_MEMDIE).
+Nice.
 
-Hugh
+Seems like a pretty good idea to me. Optimising the fast path is what we've
+always done, especially when keeping /proc stats. Maybe this would make the
+/proc cost prohibitive though? (Hopefully not).
 
+What I was thinking of doing was to keep per-CPU magazines, and use them to
+amortise operations to a global atomic counter. That would drift, be
+inaccurate, and possibly go negative (without more logic). Obviously far
+more unwieldily (and basically crap) compared to your elegant solution.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
