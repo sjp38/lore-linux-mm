@@ -1,37 +1,38 @@
-Received: from deliverator.sgi.com (deliverator.sgi.com [204.94.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA31391
-	for <linux-mm@kvack.org>; Fri, 14 May 1999 18:45:40 -0400
+Received: from pneumatic-tube.sgi.com (pneumatic-tube.sgi.com [204.94.214.22])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id AAA26455
+	for <Linux-MM@kvack.org>; Mon, 17 May 1999 00:03:03 -0400
 From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199905142245.PAA96635@google.engr.sgi.com>
-Subject: [RFT] [PATCH] kanoj-mm1.3-2.2.9 ia32 4Gb memory patch
-Date: Fri, 14 May 1999 15:45:10 -0700 (PDT)
+Message-Id: <199905170402.VAA25069@google.engr.sgi.com>
+Subject: [PATCH] kanoj-mm2.0-2.2.9 unneccesary page force in by munlock
+Date: Sun, 16 May 1999 21:02:04 -0700 (PDT)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linux-MM@kvack.org
+Cc: torvalds@transmeta.com, number6@the-village.bc.nu
 List-ID: <linux-mm.kvack.org>
 
-The 4Gb memory patch advertised at 
+While looking at the code for munlock() in mm/mlock.c, I found
+that munlock() unneccesarily executes a code path that forces
+page fault in over the entire range. The following patch fixes 
+this problem:
 
-http://humbolt.nl.linux.org/lists/linux-mm/1999-05/msg00016.html
+--- /usr/tmp/p_rdiff_a007Qs/mlock.c     Sun May 16 20:48:12 1999
++++ mm/mlock.c  Sun May 16 20:47:01 1999
+@@ -117,8 +117,9 @@
+                pages = (end - start) >> PAGE_SHIFT;
+                if (!(newflags & VM_LOCKED))
+                        pages = -pages;
++               else
++                       make_pages_present(start, end);
+                vma->vm_mm->locked_vm += pages;
+-               make_pages_present(start, end);
+        }
+        return retval;
+ }
 
-and
-
-http://humbolt.nl.linux.org/lists/linux-mm/1999-05/msg00029.html
-
-has been updated to fix a couple of bugs. The 2.2.9 patch is at
-
-http://reality.sgi.com/kanoj_engr/kanoj-mm1.3-2.2.9
-
-with a short description at
-
-http://reality.sgi.com/kanoj_engr/
-
-This is the last email I am sending out about this patch and
-bug fixes to the mailing lists. Please contact me at
-kanoj@engr.sgi.com if you are interested in downloading latest
-copies of this patch.
+Please review and include in the source.
 
 Thanks.
 
