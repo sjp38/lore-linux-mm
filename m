@@ -1,60 +1,33 @@
-Date: Mon, 27 Aug 2001 19:28:55 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
 Subject: Re: kernel: __alloc_pages: 1-order allocation failed
-In-Reply-To: <20010827225101Z16227-32386+152@humbolt.nl.linux.org>
-Message-ID: <Pine.LNX.4.21.0108271928250.7385-100000@freak.distro.conectiva>
+Date: Tue, 28 Aug 2001 02:08:05 +0200
+References: <Pine.LNX.4.21.0108271928250.7385-100000@freak.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0108271928250.7385-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 7BIT
+Message-Id: <20010828000128Z16263-32386+166@humbolt.nl.linux.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
 Cc: Andrew Kay <Andrew.J.Kay@syntegra.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Tue, 28 Aug 2001, Daniel Phillips wrote:
-
-> On August 27, 2001 10:14 pm, Andrew Kay wrote:
-> > I am having some rather serious problems with the memory management (i 
-> > think) in the 2.4.x kernels.  I am currently on the 2.4.9 and get lots 
-> > of these errors in /var/log/messages.
-> > 
-> > Aug 24 15:08:04 dell63 kernel: __alloc_pages: 1-order allocation failed.
-> > Aug 24 15:08:35 dell63 last message repeated 448 times
-> > Aug 24 15:09:37 dell63 last message repeated 816 times
-> > Aug 24 15:10:38 dell63 last message repeated 1147 times
-> > 
-> > I am running a Redhat 7.1 distro w/2.4.9 kernel on a Dell poweredge 6300 
-> > (4x500Mhz cpu, 4Gb ram).  I get this error while running the specmail 
-> > 2001 benchmarking software against our email server, Intrastore.  The 
-> > system  is very idle from what I can see.  The sar output shows user cpu 
-> > at around 1% and everything else rather low as well.  It seems to pop up 
-> > randomly and requires a reboot to fix it.
-> > 
-> > Is there any workarounds or something I can do to get a more useful 
-> > debug message than this?
+On August 28, 2001 12:28 am, Marcelo Tosatti wrote:
+> On Tue, 28 Aug 2001, Daniel Phillips wrote:
+> > On August 27, 2001 10:14 pm, Andrew Kay wrote:
+> > > I am having some rather serious problems with the memory management (i 
+> > > think) in the 2.4.x kernels.  I am currently on the 2.4.9 and get lots 
+> > > of these errors in /var/log/messages.
+> Its probably the bounce buffering thingie.
 > 
-> Please apply this patch:
-> 
-> --- 2.4.9.clean/mm/page_alloc.c	Thu Aug 16 12:43:02 2001
-> +++ 2.4.9/mm/page_alloc.c	Mon Aug 20 22:05:40 2001
-> @@ -502,7 +502,8 @@
->  	}
->  
->  	/* No luck.. */
-> -	printk(KERN_ERR "__alloc_pages: %lu-order allocation failed.\n", order);
-> +	printk(KERN_ERR "__alloc_pages: %lu-order allocation failed (gfp=0x%x/%i).\n",
-> +		order, gfp_mask, !!(current->flags & PF_MEMALLOC));
->  	return NULL;
->  }
->  
+> I'll send a patch to Linus soon.
 
-Daniel,
+That's what I thought too, but I thought, why not give him the patch and be 
+sure.
 
-Its probably the bounce buffering thingie.
-
-I'll send a patch to Linus soon.
-
+--
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
