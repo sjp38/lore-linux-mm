@@ -1,52 +1,58 @@
-From: Rudmer van Dijk <rudmer@legolas.dynup.net>
+Date: Thu, 22 May 2003 23:18:15 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: 2.5.69-mm8
-Date: Thu, 22 May 2003 23:21:15 +0200
-References: <20030522021652.6601ed2b.akpm@digeo.com> <3ECCBD6B.9070807@aitel.hist.no>
-In-Reply-To: <3ECCBD6B.9070807@aitel.hist.no>
+Message-ID: <17990000.1053670694@[10.10.2.4]>
+In-Reply-To: <20030522021652.6601ed2b.akpm@digeo.com>
+References: <20030522021652.6601ed2b.akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Content-Description: clearsigned data
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200305222321.26880.rudmer@legolas.dynup.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Helge Hafting <helgehaf@aitel.hist.no>, Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm8/
+> 
+> . One anticipatory scheduler patch, but it's a big one.  I have not stress
+>   tested it a lot.  If it explodes please report it and then boot with
+>   elevator=deadline.
+> 
+> . The slab magazine layer code is in its hopefully-final state.
+> 
+> . Some VFS locking scalability work - stress testing of this would be
+>   useful.
 
-On Thursday 22 May 2003 14:07, Helge Hafting wrote:
-> Andrew Morton wrote:
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.
-> >69-mm8/
-> >
-> > . One anticipatory scheduler patch, but it's a big one.  I have not
-> > stress tested it a lot.  If it explodes please report it and then boot
-> > with elevator=deadline.
-> >
-> > . The slab magazine layer code is in its hopefully-final state.
-> >
-> > . Some VFS locking scalability work - stress testing of this would be
-> >   useful.
->
-> It seems to work fine for UP and survives a kernel compile.
+Well, unsure about the problems I reported earlier - seems to be related
+to modem disconnects during SDET runs ... the hung session seems to lock
+up the system somehow. But that could have been around for ages - I'll
+try to be more scientific about reproducing it at some point.
 
-also for me, UP no preempt and it is running for 11 hours now without 
-problems. It survived a kernel compile, compilation of the kde-network 
-package and every other normal desktop-system usage. 
+SDET results are about the same, kernel compile is down a bit on systime
+(16-way NUMA-Q)
 
-	Rudmer
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
+Kernbench: (make -j vmlinux, maximal tasks)
+                              Elapsed      System        User         CPU
+               2.5.69-mm7       46.58      117.00      578.47     1492.00
+               2.5.69-mm8       46.09      115.11      570.74     1487.25
 
-iD8DBQE+zT9ShvANkaSdp/IRAh/IAJ4wuUoONk96noYpbLJOBbhvDsmNwwCeKsNa
-S9VGQ6HCiwrlQJv2rEjOBMA=
-=386g
------END PGP SIGNATURE-----
+      1004     2.0% default_idle
+       272     8.3% __copy_from_user_ll
+       129     1.7% __d_lookup
+        79     7.5% link_path_walk
+...
+       -50    -1.3% find_get_page
+       -55    -1.5% zap_pte_range
+       -66    -6.5% file_move
+       -74    -1.2% page_add_rmap
+       -80    -0.6% do_anonymous_page
+      -110    -6.9% schedule
+      -139    -7.0% atomic_dec_and_lock
+      -698    -0.4% total
+     -1139    -4.6% page_remove_rmap
+
+Not sure quite what that's all about, but there it is ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
