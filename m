@@ -1,34 +1,28 @@
-From: David Woodhouse <dwmw2@infradead.org>
-In-Reply-To: <200006281554.KAA19007@jen.americas.sgi.com> 
-References: <200006281554.KAA19007@jen.americas.sgi.com> 
+Date: Wed, 28 Jun 2000 12:24:06 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Subject: Re: kmap_kiobuf() 
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Date: Wed, 28 Jun 2000 17:06:30 +0100
-Message-ID: <13214.962208390@cygnus.co.uk>
+In-Reply-To: <13214.962208390@cygnus.co.uk>
+Message-ID: <Pine.LNX.3.96.1000628121852.22084D-100000@kanga.kvack.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lord@sgi.com
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, sct@redhat.com, riel@conectiva.com.br
+To: David Woodhouse <dwmw2@infradead.org>
+Cc: lord@sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-lord@sgi.com said:
->  I always knew it would go down like a ton of bricks, because of the
-> TLB flushing costs. As soon as you have a multi-cpu box this operation
-> gets expensive, the code could be changed to do lazy tlb flushes on
-> unmapping the pages, but you still have the cost every time you set a
-> mapping up. 
+On Wed, 28 Jun 2000, David Woodhouse wrote:
 
-Aha - is this why kmap uses a pre-allocated set of PTEs? I got about that 
-far before deciding I had no clue what was going on and giving up.
+> MM is not exactly my field - I just know I want to be able to lock down a 
+> user's buffer and treat it as if it were in kernel-space, passing its 
+> address to functions which expect kernel buffers.
 
-MM is not exactly my field - I just know I want to be able to lock down a 
-user's buffer and treat it as if it were in kernel-space, passing its 
-address to functions which expect kernel buffers.
+Then pass in a kiovec (we're planning on adding a rw_kiovec file op!) and
+use kmap/kmap_atomic on individual pages as required.  As to providing
+larger kmaps, I have yet to be convinced that providing primatives for
+dealing with objects larger than PAGE_SIZE is a Good Idea. 
 
---
-dwmw2
-
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
