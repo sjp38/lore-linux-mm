@@ -1,35 +1,33 @@
-Date: Tue, 26 Sep 2000 02:49:57 -0500 (CDT)
-From: Jeff Garzik <jgarzik@mandrakesoft.mandrakesoft.com>
-Subject: Re: virt_to_phys for ioremap'd memory
-In-Reply-To: <20000925192431Z131283-10807+23@kanga.kvack.org>
-Message-ID: <Pine.LNX.3.96.1000926024929.11108F-100000@mandrakesoft.mandrakesoft.com>
+Subject: Re: the new VMt
+References: <Pine.LNX.4.21.0009251821170.9122-100000@elte.hu>
+From: Jes Sorensen <jes@linuxcare.com>
+Date: 26 Sep 2000 10:38:40 +0200
+In-Reply-To: Ingo Molnar's message of "Mon, 25 Sep 2000 18:22:42 +0200 (CEST)"
+Message-ID: <d3g0mny2cv.fsf@lxplus015.cern.ch>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: Linux MM mailing list <linux-mm@kvack.org>
+To: mingo@elte.hu
+Cc: Andrea Arcangeli <andrea@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Sep 2000, Timur Tabi wrote:
+>>>>> "Ingo" == Ingo Molnar <mingo@elte.hu> writes:
 
-> Can anyone help me figure out how to do virtual->physical translation on memory
-> obtained via ioremap()?  I know that you need to have the physical address in
-> order to call ioremap(), but I don't want to have to remember the physical
-> address for all the memory blocks that I allocate via ioremap().  It'd be a lot
-> easier for me to do virt->phys translations on the virtual addresses whenever I
-> needed them.
-> 
-> I know it has something to do with walking the pgd/pmd/pte chain, but even
-> after looking at the kernel source code, I can't make heads or tails of it.
+Ingo> On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
 
-Instead of worry about that stuff, bite the bullet and remember the
-physical addresses... :)
+>> > ie. 99.45% of all allocations are single-page! 0.50% is the 8kb
+>> 
+>> You're right. That's why it's a waste to have so many order in the
+>> buddy allocator. [...]
 
-	Jeff
+Ingo> yep, i agree. I'm not sure what the biggest allocation is, some
+Ingo> drivers might use megabytes or contiguous RAM?
 
+9.5KB blocks is common for people running Gigabit Ethernet with Jumbo
+frames at least.
 
-
+Jes
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
