@@ -1,38 +1,25 @@
-Date: Mon, 25 Sep 2000 13:28:42 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 25 Sep 2000 18:42:31 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: the new VMt
-In-Reply-To: <Pine.LNX.4.21.0009251817420.9122-100000@elte.hu>
-Message-ID: <Pine.LNX.4.21.0009251328200.14614-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000925184231.D27677@athlon.random>
+References: <20000925180500.B26719@athlon.random> <Pine.LNX.4.21.0009251321360.14614-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0009251321360.14614-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, Sep 25, 2000 at 01:22:40PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andi Kleen <ak@suse.de>, Andrea Arcangeli <andrea@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, mingo@elte.hu, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Sep 2000, Ingo Molnar wrote:
-> On Mon, 25 Sep 2000, Andi Kleen wrote:
-> 
-> > Another thing I would worry about are ports with multiple user page
-> > sizes in 2.5. Another ugly case is the x86-64 port which has 4K pages
-> > but may likely need a 16K kernel stack due to the 64bit stack bloat.
-> 
-> yep, but these cases are not affected, i think in the order != 0
-> case we should return NULL if a certain number of iterations did
-> not yield any free page.
+On Mon, Sep 25, 2000 at 01:22:40PM -0300, Rik van Riel wrote:
+> whereas the old allocator could break down even when
+> we still had enough swap free....
 
-Indeed. You're right here.
+As far I can see that's a bug that you hided introducing a deadlock.
 
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
