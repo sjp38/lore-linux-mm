@@ -1,214 +1,35 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id OAA28511
-	for <linux-mm@kvack.org>; Sat, 11 Jan 2003 14:42:53 -0800 (PST)
-Content-Type: text/plain;
-  charset="us-ascii"
-From: Andrew Morton <akpm@digeo.com>
-Subject: 2.5.56-mm1
-Date: Sat, 11 Jan 2003 14:43:08 -0800
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8BIT
-Message-Id: <200301111443.08527.akpm@digeo.com>
+Date: Sat, 11 Jan 2003 17:57:56 -0500
+From: Jeff Garzik <jgarzik@pobox.com>
+Subject: Re: 2.5.56-mm1
+Message-ID: <20030111225756.GA13330@gtf.org>
+References: <200301111443.08527.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200301111443.08527.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@math.psu.edu
 List-ID: <linux-mm.kvack.org>
 
-http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.56/2.5.56-mm1/
-
-Nothing much new here except for a fix for the ext3-related memory leak which
-Con reported recently.
-
-
-The main items which remain unmerged from the -mm patch series are now:
-
-- red/black-tree based insertion and sorting for the I/O scheduler.
-
-  Jens will be submitting this next week.  It's completely stable, and the
-  patch includes the addition of the I/O scheduler tunables in
-  /sys/block/hda/iosched/, which is fairly important.
-
-- Code to automatically unplug request queues on the basis of their
-  occupancy and a timeout.
-
-  Jens will be reviewing this soon.
-
-- dcache-RCU.
-
-  This was recently updated to fix a rename race.  It's quite stable.  I'm
-  not sure where we stand wrt merging it now.  Al seems to have disappeared.
-
-- Ingo Oeser's user page walking rework.  This appears to be stable,
-  although I'm not sure what testing it has had apart from a lot of direct-io
-  testing.
-
-- Quite a lot of misc stuff which I need to go through and either send or
-  toss.
-
-
-Changes since 2.5.55-mm1:
-
-
-+linus.patch
-
- Latest from Linus
-
--inlines-net.patch
--deadline-fixups.patch
--i_shared_sem.patch
--cond_resched_lock-rework.patch
--untypedef-mmu_gather.patch
--touched_by_munmap-go-forwards.patch
--low-latency-page-unmapping.patch
--misc.patch
--smp-preempt-latency-fix.patch
--set_page_dirty_lock.patch
--inline-constant-small-copy_user.patch
-
- Merged
-
-+deadline-fixes.patch
-
- Some deadline scheduler tweaks and fixes
-
-+deadline-sysfs-fix.patch
-
- Fix up the deadline scheduler patches to track recent sysfs changes
-
-+ext3-leak-fix.patch
-
- Fix the memory leak whcih Con reported
-
-+hugetlbfs-read-write.patch
-
- Don't permit reading or writing of hugetlbfs files.
-
-
-
-All 44 patches:
-
-linus.patch
-  cset-1.897-to-1.929.txt.gz
-
-kgdb.patch
-
-rcf.patch
-  run-child-first after fork
-
-devfs-fix.patch
-
-cputimes_stat.patch
-  Retore per-cpu time accounting, with a config option
-
-rbtree-iosched.patch
-  rbtree-based IO scheduler
-
-deadline-fixes.patch
-  deadsched cleanups/fixups
-
-deadline-sysfs-fix.patch
-
-ext3-ino_t-cleanup.patch
-  Subject: [PATCH] 2.5 ext3 ino_t removal
-
-smaller-head-arrays.patch
-
-setuid-exec-no-lock_kernel.patch
-  remove lock_kernel() from exec of setuid apps
-
-ptrace-flush.patch
-  Subject: [PATCH] ptrace on 2.5.44
-
-buffer-debug.patch
-  buffer.c debugging
-
-warn-null-wakeup.patch
-
-pentium-II.patch
-  Pentium-II support bits
-
-reiserfs-readpages.patch
-  reiserfs v3 readpages support
-
-rcu-stats.patch
-  RCU statistics reporting
-
-auto-unplug.patch
-  self-unplugging request queues
-
-less-unplugging.patch
-  Remove most of the blk_run_queues() calls
-
-ext3-fsync-speedup.patch
-  Clean up ext3_sync_file()
-
-lockless-current_kernel_time.patch
-  Lockless current_kernel_timer()
-
-scheduler-tunables.patch
-  scheduler tunables
-
-htlb-2.patch
-  hugetlb: fix MAP_FIXED handling
-
-ext3-leak-fix.patch
-  fix ext3 memory leak
-
-hugetlbfs-read-write.patch
-  hugetlbfs: don't implement read/write file_ops
-
-oprofile-p4.patch
-
-op4-fix.patch
-
-wli-02_do_sak.patch
-  (undescribed patch)
-
-wli-03_proc_super.patch
-  (undescribed patch)
-
-wli-06_uml_get_task.patch
-  (undescribed patch)
-
-wli-07_numaq_mem_map.patch
-  (undescribed patch)
-
-wli-08_numaq_pgdat.patch
-  (undescribed patch)
-
-wli-09_has_stopped_jobs.patch
-  (undescribed patch)
-
-wli-10_inode_wait.patch
-  (undescribed patch)
-
-wli-11_pgd_ctor.patch
-  (undescribed patch)
-
-wli-11_pgd_ctor-update.patch
-  pgd_ctor update
-
-wli-13_rmap_nrpte.patch
-  (undescribed patch)
-
-dcache_rcu-2.patch
-  dcache_rcu-2-2.5.51.patch
-
-dcache_rcu-3.patch
-  dcache_rcu-3-2.5.51.patch
-
-page-walk-api.patch
-
-page-walk-api-2.5.53-mm2-update.patch
-  pagewalk API update
-
-page-walk-scsi.patch
-
-page-walk-scsi-2.5.53-mm2.patch
-  pagewalk scsi update
-
-smalldevfs.patch
-  smalldevfs
+On Sat, Jan 11, 2003 at 02:43:08PM -0800, Andrew Morton wrote:
+> - dcache-RCU.
+> 
+>   This was recently updated to fix a rename race.  It's quite stable.  I'm
+>   not sure where we stand wrt merging it now.  Al seems to have disappeared.
+
+I talked to him in person last week, and this was one of the topics of
+discussion.  He seemed to think it was fundamentally unfixable.  He
+proceed to explain why, and then explained the scheme he worked out to
+improve things.  Unfortunately my memory cannot do justice to the
+details.
+
+Next time he explains it, I will write it down :)
+
+Sorry for so lame a data point :)
+
+	Jeff
 
 
 
