@@ -1,47 +1,64 @@
-From: Nikita Danilov <Nikita@Namesys.COM>
+Date: Tue, 01 Jul 2003 07:24:03 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: What to expect with the 2.6 VM
+Message-ID: <7950000.1057069435@[10.10.2.4]>
+In-Reply-To: <20030701085939.GG20413@holomorphy.com>
+References: <Pine.LNX.4.53.0307010238210.22576@skynet> <20030701022516.GL3040@dualathlon.random> <20030701032531.GC20413@holomorphy.com> <20030701043902.GP3040@dualathlon.random> <20030701063317.GF20413@holomorphy.com> <20030701074915.GQ3040@dualathlon.random> <20030701085939.GG20413@holomorphy.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <16129.33029.930495.661244@laputa.namesys.com>
-Date: Tue, 1 Jul 2003 16:39:33 +0400
-Subject: Re: 2.5.73-mm2
-In-Reply-To: <20030701110858.GF26348@holomorphy.com>
-References: <20030701105134.GE26348@holomorphy.com>
-	<Pine.LNX.4.44.0307011202550.1217-100000@localhost.localdomain>
-	<20030701110858.GF26348@holomorphy.com>
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>, Andrea Arcangeli <andrea@suse.de>
+Cc: Joel.Becker@oracle.com, Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III writes:
- > On Tue, 1 Jul 2003, William Lee Irwin III wrote:
- > >> Well, I was mostly looking for getting handed back 0 when lowmem is
- > >> empty; I actually did realize they didn't give entirely accurate counts
- > >> of free lowmem pages.
- > 
- > On Tue, Jul 01, 2003 at 12:08:03PM +0100, Hugh Dickins wrote:
- > > I'm not pleading for complete accuracy, but nr_free_buffer_pages()
- > > will never hand back 0 (if your system managed to boot).
- > > It's a static count of present_pages (adjusted), not of
- > > free pages.  Or am I misreading nr_free_zone_pages()?
- > 
- > You're right. Wow, that's even more worse than I suspected.
- > 
+> First I ask, "What is this exercising?" That answer is largely process
+> creation and destruction and SMP scheduling latency when there are very
+> rapidly fluctuating imbalances.
+> 
+> After observing that, the benchmark is flawed because
+> (a) it doesn't run long enough to produce stable numbers
+> (b) the results are apparently measured with gettimeofday(), which is
+> 	wildly inaccurate for such short-lived phenomena
 
-Another thing is that if one boots with mem=X, nr_free_pagecache_pages()
-returns X. However part of X (occupied by kernel image, etc) is not part
-of any zone. As a result, zone actually contains fewer pages than
-reported by nr_free_pagecache_pages(). With X small enough (comparable
-with kernel image size, for example) this can confuse
-balance_dirty_pages() enough so that throttling would never start, and
-VM will oom_kill().
+Bullshit. Use a maximal config file, and run it multiple times. I have
+sub 0.5% variance. 
 
- > 
- > -- wli
+> (c) large differences in performance appear to come about as a result
+> 	of differing versions of common programs (i.e. gcc)
 
-Nikita.
+So use the same frigging gcc each time. Why you want to screw with
+userspace at the same time as the kernel is a mystery to me. If you
+change gcc, you're also changing what's compiling your kernel, so you'll
+get different binaries - ergo the whole argument is fallacious anyway,
+and *any* benchmarking you're doing is completely innacurrate.
+
+>> if you want to change mlock to drop the pte_chains then it would
+>> definitely make mlock a VM bypass, even if not as strong as the
+>> remap_file_pages that bypass the vma layer too (not only the
+>> pte/pte_chain side).
+> 
+> Well, the thing is it's closer to the primitive. You're suggesting
+> making remap_file_pages() both locked and unaligned with the vma, where
+> it seems to me the real underlying mechanism is using the semantics of
+> locked memory to avoid creating pte_chains. Bypassing vma's doesn't
+> seem to be that exciting. There are only a couple of places where an
+> assumption remap_file_pages() breaks matters, i.e. vmtruncate() and
+> try_to_unmap_one_obj(), and that can be dodged with exhaustive search
+> in the non-anobjrmap VM's and is naturally handled by chaining the
+> distinct virtual addresses where pages are mapped against the page by
+> the anobjrmap VM's.
+
+If we just lock the damned things in memory, OR flag them at create
+time (or at least before use), none of this is an issue anyway - we
+get rid of all the conversion stuff. Seeing as this is mainly for big 
+DBs, I still don't see why mem locking it is a problem - no reason 
+for it to fuck up the rest of the VM.
+
+M.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
