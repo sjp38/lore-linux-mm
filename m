@@ -1,116 +1,59 @@
-Date: Tue, 21 Sep 2004 00:37:42 +0200
-From: Andi Kleen <ak@suse.de>
+Date: Mon, 20 Sep 2004 16:16:26 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [PATCH 2.6.9-rc2-mm1 0/2] mm: memory policy for page cache allocation
-Message-ID: <20040920223742.GA7899@wotan.suse.de>
-References: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com> <20040920205509.GF4242@wotan.suse.de> <414F560E.7060207@sgi.com>
+Message-ID: <20040920231626.GA9106@holomorphy.com>
+References: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com> <20040920205509.GF4242@wotan.suse.de> <414F560E.7060207@sgi.com> <20040920223742.GA7899@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <414F560E.7060207@sgi.com>
+In-Reply-To: <20040920223742.GA7899@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, stevel@mwwireless.net
+To: Andi Kleen <ak@suse.de>
+Cc: Ray Bryant <raybry@sgi.com>, Andrew Morton <akpm@osdl.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, stevel@mwwireless.net
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 20, 2004 at 05:13:34PM -0500, Ray Bryant wrote:
-> system wide memory allocation policy issue.  It seems cleaner to me to keep 
-> that all within the scope of the NUMA API rather than hiding details of it 
-> here and there in /proc.  And we need the full generality of the NUMA API, 
-> to, for example:
+On Tue, Sep 21, 2004 at 12:37:42AM +0200, Andi Kleen wrote:
+> Your counter can have the same worst case behaviour, just 
+> different.  You only have to add freeing into the picture.
+> Or when you consider getting more memory bandwidth from the interleaving
+> (I know this is not your primary goal with this) then a sufficient
+> access pattern could lead to rather uninterleaved allocation 
+> in the file.
+> Any allocation algorithm will have such a worst case, so I'm not
+> too worried. Given ia hash function is not too bad it should
+> be bearable.
+> The nice advantage of the static offset is that it makes benchmarks
+> actually repeatable and is completely lockless
 
-True for cpuset you will need it.
+The hash function looks like choosing the nth node whose corresponding
+bit is set in node_online_map such that linear_page_index(vma, address)
+(why isn't it using linear_page_index()?) mod num_online_nodes() is n,
+which actually appears weak compared to various hash functions I've
+seen in use for e.g. page coloring. The hash functions I've seen in use
+are not tremendously more expensive than mod, and generally meant to be
+computationally cheap as opposed to strong.
 
-> >Well, you just have to change the callers to pass it in. I think
-> >computing the interleaving on a offset and perhaps another file
-> >identifier is better than having the global counter.
-> >
-> 
-> In our case that means changing each and every call to page_cache_alloc()
-> to include an appropriate offset.  This is a change that richochets through 
-> the machine independent code and makes this harder to contain in the NUMA
-> subsystem.
+The kind of scheme you've employed for MPOL_INTERLEAVE is what would be
+called "direct mapped" in the context of page coloring, and Ray Bryant's
+would be called "bin hopping" there. A nontrivial (though not
+necessarily complex or expensive) hash function mod num_online_nodes()
+would be considered hashed, and the last category I see in use
+elsewhere is a "best bin" algorithm, which tracks utilization of bins
+(for page coloring, colors; here nodes) and chooses one of the least
+utilized bins thus far.
 
-I count two callers of page_cache_alloc in 2.6.9rc2 (filemap.c and
-XFS pagebuf). Hardly seems like a big issue to change them both. 
-Of course getting the offset there might be tricky, but should be 
-doable.
+I'd expect all 4 alternatives (and maybe even a variety of hash
+functions for address hashing) to be useful in various contexts,
+though I'm unaware of which kinds of apps want which algorithms most.
 
-> 
-> Is there a performance problem with the global counter?  We've been using 
-
-There might be. You will need a global lock. 
-
-> exactly that kind of implementation for our current Altix systems and it 
-> seems to work fine.  If you use some kind of offset and interleave as you 
-> suggest, how will you make sure that page cache allocations are evenly 
-> balanced across the nodes in a system, or the nodes in a cpuset?  Wouldn't 
-> it make more sense to spread them out dynamically based on actual usage?
-> 
-> For example, let suppose (just to be devious) that on a 2-node system you 
-> decided (poorly, admittedly) to use the bottom bit of the offset to chose 
-> the node.  And suppose that the user only touches the even numbered offsets 
-> in the file.  You'll clobber node 0 with all of the page cache pages, right?
-> 
-> Of course, that is a poor decision.  But, any type of static allocation 
-> like that based on offset is going to suffer from a similar type of worst 
-> case
-> behavior.  If you allocate the page cache page on the next node in sequence,
-> then we will smooth out page cache allocation based on actual usage 
-> patterns.
-
-Your counter can have the same worst case behaviour, just 
-different.  You only have to add freeing into the picture.
-Or when you consider getting more memory bandwidth from the interleaving
-(I know this is not your primary goal with this) then a sufficient
-access pattern could lead to rather uninterleaved allocation 
-in the file.
-
-Any allocation algorithm will have such a worst case, so I'm not
-too worried. Given ia hash function is not too bad it should
-be bearable.
-
-The nice advantage of the static offset is that it makes benchmarks
-actually repeatable and is completely lockless
-
-> >
-> >
-> >No sure what default policies you mean? 
-> >
-> 
-> Since there is (with this patch) a separate (default) policy to control 
-> allocation of page cache pages, there now has to be a way to set that 
-> policy.
-> Since the default_policy for regular page allocation can't be changed (it 
-> is, after all also the policy for allocating pages at interrupt time) there 
-> was no need for that API in the past.  Now, however, we need a way to set 
-> the system default page cache allocation policy, since some system 
-> administrators will want that to be MPOL_LOCAL and some will want that to 
-> be MPOL_INTERLEAVE or potentially MPOL_ROUNDROBIN depending on the workload 
-> that the system is running.
-
-I think I'm still a bit confused by your terminology.
-I thought the page cache policy was per process? Now you
-are talking about another global unrelated policy?
-
-With the per process policy the only way to change the policy
-for the whole system is to change it in init and restart everything.
-With a global policy you could change it on the fly, but 
-it probably wouldn't make too much sense without a restart
-because there would be already too much cache with the wrong
-policy.
-
-Anyways, I guess you could just add a high flag bit to the 
-mode argument of set_mempolicy. Something like
-
-set_mempolicy(MPOL_PAGECACHE | MPOL_INTERLEAVE, nodemask, len)
-
-That would work for setting the page cache policy of the current
-process. 
+I don't have any idea what kind of difference the variations on the
+locality domain for Bryant's bin hopping algorithm make; I'd tend to
+try to make it similar to the others' precedents, but there may be
+other interactions.
 
 
--Andi
-
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
