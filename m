@@ -1,36 +1,40 @@
-Date: Sat, 26 Apr 2003 10:37:11 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
+Date: Sat, 26 Apr 2003 08:03:45 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: TASK_UNMAPPED_BASE & stack location
-In-Reply-To: <459930000.1051302738@[10.10.2.4]>
-Message-ID: <Pine.LNX.4.44.0304261034180.27719-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20030426150345.GV8978@holomorphy.com>
+References: <459930000.1051302738@[10.10.2.4]> <Pine.LNX.4.44.0304261034180.27719-100000@chimarrao.boston.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0304261034180.27719-100000@chimarrao.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm mailing list <linux-mm@kvack.org>, Andrew Morton <akpm@digeo.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm mailing list <linux-mm@kvack.org>, Andrew Morton <akpm@digeo.com>
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 25 Apr 2003, Martin J. Bligh wrote:
+>> Is there any good reason we can't remove TASK_UNMAPPED_BASE, and just shove
+>> libraries directly above the program text? Red Hat seems to have patches to
+>> dynamically tune it on a per-processes basis anyway ...
 
-> Is there any good reason we can't remove TASK_UNMAPPED_BASE, and just shove
-> libraries directly above the program text? Red Hat seems to have patches to
-> dynamically tune it on a per-processes basis anyway ...
+On Sat, Apr 26, 2003 at 10:37:11AM -0400, Rik van Riel wrote:
+> What could be done is leave the stack where it is, but have
+> malloc() space and mmap() space grow towards each other:
+> 0                                            3G
+> | |prog | malloc -->         <-- mmap | stack |
+> The stack will get the stack size ulimit size and the space
+> between where malloc and mmap start should be about 2.7 GB.
+> That 2.7 GB will of course by divided between malloc and mmap,
+> but the division will be done dynamically based on whoever
+> needs the space.  Much better than the current static 1:1.7
+> division...
 
-What could be done is leave the stack where it is, but have
-malloc() space and mmap() space grow towards each other:
+My internal proposals (backed by code) already include this in addition
+to relocating the stack (whose kernel side is trivial).
 
-0                                            3G
-| |prog | malloc -->         <-- mmap | stack |
 
-The stack will get the stack size ulimit size and the space
-between where malloc and mmap start should be about 2.7 GB.
-
-That 2.7 GB will of course by divided between malloc and mmap,
-but the division will be done dynamically based on whoever
-needs the space.  Much better than the current static 1:1.7
-division...
-
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
