@@ -1,153 +1,89 @@
-Date: Fri, 5 Nov 2004 18:01:18 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
-Message-ID: <20041105200118.GA20321@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+From: Jesse Barnes <jbarnes@sgi.com>
+Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
+Date: Fri, 5 Nov 2004 15:32:50 -0800
+References: <20041105200118.GA20321@logos.cnet>
+In-Reply-To: <20041105200118.GA20321@logos.cnet>
+MIME-Version: 1.0
+Content-Type: Multipart/Mixed;
+  boundary="Boundary-00=_j2AjBJu8ghF2Nkn"
+Message-Id: <200411051532.51150.jbarnes@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+--Boundary-00=_j2AjBJu8ghF2Nkn
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-As you know the OOM is very problematic in 2.6 right now - so I went
-to investigate it. 
+On Friday, November 05, 2004 12:01 pm, Marcelo Tosatti wrote:
+> Hi,
+>
+> As you know the OOM is very problematic in 2.6 right now - so I went
+> to investigate it.
+>
+> Currently the oom killer is invoked from the task reclaim
+> code (try_to_free_pages), which IMO is fundamentally broken,
+> because its non deterministic - the chance the OOM killer
+> will be triggered increases as the number of tasks inside
+> reclaiming increases. And kswapd is freeing pages in parallel,
+> which is completly ignored by this approach.
+>
+> In my opinion the correct approach is to trigger the OOM killer
+> when kswapd is unable to free pages. Once that is done, the number
+> of tasks inside page reclaim is irrelevant.
 
-Currently the oom killer is invoked from the task reclaim 
-code (try_to_free_pages), which IMO is fundamentally broken, 
-because its non deterministic - the chance the OOM killer 
-will be triggered increases as the number of tasks inside 
-reclaiming increases. And kswapd is freeing pages in parallel, 
-which is completly ignored by this approach.
+That makes sense.
 
-In my opinion the correct approach is to trigger the OOM killer 
-when kswapd is unable to free pages. Once that is done, the number 
-of tasks inside page reclaim is irrelevant. 
+> With this in place I can't see spurious OOM kills - just need to guarantee
+> that it reliably OOM kills when we are really out of memory.
 
-So the following patch moves the out_of_memory() call to 
-balance_pgdat(), and makes it dependant on success reclaiming pages 
-when work has actually been done, and on priority reaching zero.
+That's good.  I can test it on a large machine (hopefully next week).
 
-It also removes the "If it's been a long time since last failure dont 
-OOM kill" logic which for me just tries to paper over a bigger issue. 
+> Comments?
 
-Relying on this information (kswapd failure after DEF_PRIORITY passes) 
-to trigger the OOM killer seems to be very reliable - it needs some 
-more testing though.
+Sounds good, though we may want to do a couple of more things, we shouldn't 
+kill root tasks quite as easily and we should avoid zombies since they may be 
+large apps in the process of exiting, and killing them would be bad (iirc 
+it'll cause a panic).
 
-With this in place I can't see spurious OOM kills - just need to guarantee
-that it reliably OOM kills when we are really out of memory.
+Thanks,
+Jesse
 
-While doing this, I noticed that kswapd will happily go to sleep 
-if all zones have all_unreclaimable set. I bet this is the reason 
-for the page allocation failures we are seeing. So the patch 
-also makes balance_pgdat() NOT return and go to "loop_again" 
-instead in case of page shortage - even if all_unreclaimable is set.
+--Boundary-00=_j2AjBJu8ghF2Nkn
+Content-Type: text/x-diff;
+  charset="iso-8859-1";
+  name="oom-fixes.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename="oom-fixes.patch"
 
-Basically the "loop_again" logic IS NOT WORKING! 
-
-Comments?
-
-My wife is almost killing me, its Friday night and I've been telling her 
-"just another minute" for hours. Have to run.
-
-diff -Nur --show-c-function --exclude='*.orig' linux-2.6.10-rc1-mm2.orig/mm/oom_kill.c linux-2.6.10-rc1-mm2/mm/oom_kill.c
---- linux-2.6.10-rc1-mm2.orig/mm/oom_kill.c	2004-11-04 22:50:50.000000000 -0200
-+++ linux-2.6.10-rc1-mm2/mm/oom_kill.c	2004-11-05 18:33:29.918459072 -0200
-@@ -240,23 +240,23 @@ void out_of_memory(int gfp_mask)
- 	 * If it's been a long time since last failure,
- 	 * we're not oom.
+===== mm/oom_kill.c 1.30 vs edited =====
+--- 1.30/mm/oom_kill.c	2004-10-13 21:08:29 -07:00
++++ edited/mm/oom_kill.c	2004-11-05 15:32:36 -08:00
+@@ -88,7 +88,7 @@
  	 */
--	if (since > 5*HZ)
--		goto reset;
-+	//if (since > 5*HZ)
-+	//	goto reset;
+ 	if (cap_t(p->cap_effective) & CAP_TO_MASK(CAP_SYS_ADMIN) ||
+ 				p->uid == 0 || p->euid == 0)
+-		points /= 4;
++		points /= 10;
  
  	/*
- 	 * If we haven't tried for at least one second,
- 	 * we're not really oom.
- 	 */
--	since = now - first;
--	if (since < HZ)
--		goto out_unlock;
-+	//since = now - first;
-+	//if (since < HZ)
-+	//	goto out_unlock;
+ 	 * We don't want to kill a process with direct hardware access.
+@@ -120,7 +120,7 @@
  
- 	/*
- 	 * If we have gotten only a few failures,
- 	 * we're not really oom. 
- 	 */
--	if (++count < 10)
--		goto out_unlock;
-+//	if (++count < 10)
-+//		goto out_unlock;
- 
- 	/*
- 	 * If we just killed a process, wait a while
-diff -Nur --show-c-function --exclude='*.orig' linux-2.6.10-rc1-mm2.orig/mm/vmscan.c linux-2.6.10-rc1-mm2/mm/vmscan.c
---- linux-2.6.10-rc1-mm2.orig/mm/vmscan.c	2004-11-04 22:50:50.000000000 -0200
-+++ linux-2.6.10-rc1-mm2/mm/vmscan.c	2004-11-05 19:53:35.915836416 -0200
-@@ -952,8 +952,6 @@ int try_to_free_pages(struct zone **zone
- 		if (sc.nr_scanned && priority < DEF_PRIORITY - 2)
- 			blk_congestion_wait(WRITE, HZ/10);
- 	}
--	if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NORETRY))
--		out_of_memory(gfp_mask);
- out:
- 	for (i = 0; zones[i] != 0; i++) {
- 		struct zone *zone = zones[i];
-@@ -997,13 +995,15 @@ static int balance_pgdat(pg_data_t *pgda
- 	int all_zones_ok;
- 	int priority;
- 	int i;
--	int total_scanned, total_reclaimed;
-+	int total_scanned, total_reclaimed, worked;
- 	struct reclaim_state *reclaim_state = current->reclaim_state;
- 	struct scan_control sc;
- 
-+
- loop_again:
- 	total_scanned = 0;
- 	total_reclaimed = 0;
-+	worked = 0;
- 	sc.gfp_mask = GFP_KERNEL;
- 	sc.may_writepage = 0;
- 	sc.nr_mapped = read_page_state(nr_mapped);
-@@ -1033,6 +1033,10 @@ loop_again:
- 				if (zone->present_pages == 0)
- 					continue;
- 
-+				if (!zone_watermark_ok(zone, order, 
-+						zone->pages_high, 0, 0, 0))
-+					all_zones_ok = 0;
-+
- 				if (zone->all_unreclaimable &&
- 						priority != DEF_PRIORITY)
- 					continue;
-@@ -1072,6 +1076,9 @@ scan:
- 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
- 				continue;
- 
-+			if (priority == 0)
-+				worked = 1;
-+
- 			if (nr_pages == 0) {	/* Not software suspend */
- 				if (!zone_watermark_ok(zone, order,
- 						zone->pages_high, end_zone, 0, 0))
-@@ -1129,6 +1136,9 @@ out:
- 		zone->prev_priority = zone->temp_priority;
- 	}
- 	if (!all_zones_ok) {
-+		if (priority == 0 && !total_reclaimed && worked)
-+			out_of_memory(GFP_KERNEL);
-+
- 		cond_resched();
- 		goto loop_again;
- 	}
+ 	do_posix_clock_monotonic_gettime(&uptime);
+ 	do_each_thread(g, p)
+-		if (p->pid) {
++		if (p->pid && !(p->state & TASK_ZOMBIE)) {
+ 			unsigned long points = badness(p, uptime.tv_sec);
+ 			if (points > maxpoints) {
+ 				chosen = p;
+
+--Boundary-00=_j2AjBJu8ghF2Nkn--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
