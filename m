@@ -1,29 +1,50 @@
-Date: Tue, 7 Aug 2001 15:23:18 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Date: Tue, 07 Aug 2001 11:19:13 -0400
+From: Chris Mason <mason@suse.com>
 Subject: Re: [RFC] using writepage to start io
-Message-ID: <20010807152318.H4036@redhat.com>
-References: <01080623182601.01864@starship> <5.1.0.14.2.20010807123805.027f19a0@pop.cus.cam.ac.uk> <01080715292606.02365@starship>
-Mime-Version: 1.0
+Message-ID: <75850000.997197553@tiny>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <01080715292606.02365@starship>; from phillips@bonn-fries.net on Tue, Aug 07, 2001 at 03:29:26PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Anton Altaparmakov <aia21@cam.ac.uk>, "Stephen C. Tweedie" <sct@redhat.com>, Chris Mason <mason@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-On Tue, Aug 07, 2001 at 03:29:26PM +0200, Daniel Phillips wrote:
+On Monday, August 06, 2001 11:18:26 PM +0200 Daniel Phillips
+<phillips@bonn-fries.net> wrote:
 
->   Ext3 has its own writeback daemon
+>> Grin, we're talking in circles.  My point is that by having two
+>> threads, bdflush is allowed to skip over older buffers in favor of
+>> younger ones because somebody else is responsible for writing the
+>> older ones out.
+> 
+> Yes, and you can't imagine an algorithm that could do that with *one* 
+> thread?
 
-Ext3 has a daemon to schedule commits to the journal, but it uses the
-normal IO scheduler for unforced writebacks.
+Imagine one?  Yes.  We're mixing a bunch of issues, so I'll list the 3
+different cases again.  memory pressure, write throttling, age limiting.
+Pretending that a single thread could get enough context information about
+which of the 3 (perhaps more than one) it is currently facing, it can make
+the right decisions.
 
-Cheers,
- Stephen
+The problem with that right now is that a single thread can't keep up (with
+one case, let alone all 3) as the number of devices increases.  We can more
+or less just replay the entire l-k discussion(s) on threading models here.
+
+In my mind, in order for a single thread to get the job done, it can't end
+up waiting on a device while there are still buffers ready for writeout to
+idle devices.
+
+As for a generic mechanism to schedule all FS writeback, I've been trying
+to use writepage ;-)  The bad part here it makes the async issues even
+bigger, since the flushing thread ends up calling into the FS (who knows
+what that might lead to).
+
+-chris
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
