@@ -1,114 +1,47 @@
-From: "Mercy Kume" <mrkume@hotmail.com>
-Reply-To: mercykume@netscape.net
-Date: Mon, 13 Dec 2004 17:29:57 -0800
-Subject: Please Help !!
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iBDMGkDr571326
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2004 17:16:46 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iBDMGjXP212550
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2004 15:16:46 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iBDMGjI3022223
+	for <linux-mm@kvack.org>; Mon, 13 Dec 2004 15:16:45 -0700
+Date: Mon, 13 Dec 2004 14:16:19 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: Anticipatory prefaulting in the page fault handler V1
+Message-ID: <8880000.1102976179@flay>
+In-Reply-To: <Pine.LNX.4.58.0412130905140.360@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain><156610000.1102546207@flay> <Pine.LNX.4.58.0412091130160.796@schroedinger.engr.sgi.com><200412132330.23893.amgta@yacht.ocn.ne.jp> <Pine.LNX.4.58.0412130905140.360@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 8BIT
-Message-Id: <20041213172929Z26617-767+389@kvack.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>, Akinobu Mita <amgta@yacht.ocn.ne.jp>
+Cc: nickpiggin@yahoo.com.au, Jeff Garzik <jgarzik@pobox.com>, torvalds@osdl.org, hugh@veritas.com, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Dear Friend,
+>> I also encountered processes segfault.
+>> Below patch fix several problems.
+>> 
+>> 1) if no pages could allocated, returns VM_FAULT_OOM
+>> 2) fix duplicated pte_offset_map() call
+> 
+> I also saw these two issues and I think I dealt with them in a forthcoming
+> patch.
+> 
+>> 3) don't set_pte() for the entry which already have been set
+> 
+> Not sure how this could have happened in the patch.
+> 
+> Could you try my updated version:
 
-I am Mrs.Mercy Kume, wife of late Mr Anthony Kume, a wealthy Zimbabwean 
-farmer who was brutally murdered in a land dispute together with his 
-oversea 
-partner Mr. pete Bailey and the whole of his family as result of land 
-act 
-reform by Zimbabwean president Robert Mugabe. The whole of  our 
-farmland amd 
-properties were destroyed by the mobs. The new land act reform which 
-affected the white and black farmers, resulting to massive killing by 
-war 
-veterans and lunatics in the society.
+Urgle. There was a fix from Hugh too ... any chance you could just stick
+a whole new patch somewhere? I'm too idle/stupid to work it out ;-)
 
-My husband died without leaving a word neither to me nor our only son, 
-but 
-his partner was rushed to the hospital where he later died after 2 
-days. 
-Before my husband partner died, he confided in me that he deposited 
-US$29,000,000 (Twenty Nine million united states dollars) in one 
-private 
-security company in Europe, that the money was meant for the purchase 
-of new 
-machineries for mechanised agriculture for the Zimbabwean farmers 
-movement 
-and new farms in Swaziland. He said that all I have to do is to source 
-for 
-an oversea partner who can be placed as the Beneficiary of the fund so 
-that 
-I and my son can have a new lease of life again. He made me promise 
-that 
-since he has no other leaving relatives, that I will not let money go 
-down 
-the drain.
-
-I was later diagnosed to have cancer of the breast which resulted to my 
-losing one part of the breast to surgery. Presently, I am hospitalised 
-because my condition started deteriorating in a very strange manner. My 
-doctor gave me the saddest news of life as he told me that the cancer 
-has 
-spread to every part of my body including my liver. I have been boldly 
-told 
-that I just have a very short time to leave. As things are now, I am 
-not 
-afraid to die, but I don!?t want my son to suffer and I don!?t want to 
-let 
-late Mr.Bailey down by not having this claimed.
-
-Consequently, my proposal is that I will like you as a foreigner to 
-stand in 
-as the next of kin to Late Mr. Pete Bailey .This you can do by 
-corroborating 
-with my Kenneth who is currently seeking political asylum in Europe, 
-and our 
-family attorney to actualise this claim. I will request that you send 
-me 
-your personal details viz: Your full name and private home address, 
-your 
-telephone and fax number.this will enable the attorney to place you as 
-the 
-next of kin to late Mr.Pete Bailey.The sharing mode will be as follows.
-
-1.30% of the fund will be for you
-
-2.50% will be for my son which you will have to invest for him as his 
-guadian.
-
-3.10% will be donated to the Southern African research center for 
-cancer.
-
-4.While 10% will be set out for all the bills encured to conclude this 
-transaction including the attorney fees.
-
-There is no risk at all as all the paperwork for this transaction will 
-be 
-done by the Attorney and with my support and endorsement I can 
-guarantee the 
-successful execution of this transaction. I cannot answer to any phone 
-calls 
-here in the hospital because of my situation.So if you are interested 
-in 
-this transaction, kindly declare your interest by replying to this  
-e-mail 
-via my private mail mercykume@netscape.net
-
-For your information the success and safety of this transaction will 
-depend 
-on your co-operation to keep it confidential and secret.As soon as I 
-receive 
-your favourable reply , I will proceed to forward you with further 
-information.
-
-Thank you and may God bless you.
-
-Yours respectfully,
-
-Mercy Kume(Mrs)
-
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
