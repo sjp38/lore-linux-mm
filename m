@@ -1,43 +1,50 @@
-Received: from majestic ([192.168.12.245])
-	by cyber.java.dezcom.mephi.edu (8.12.3/8.12.3/Debian -4) with ESMTP id gAKCBSE6031282
-	for <linux-mm@kvack.org>; Wed, 20 Nov 2002 15:11:38 +0300
-From: "Alexander Sbitnev" <shuras@dezcom.mephi.ru>
-Subject: Different page cache polices for different devices?
-Date: Wed, 20 Nov 2002 15:21:34 +0300
-Message-ID: <000301c2908f$61566450$f50ca8c0@majestic>
+content-class: urn:content-classes:message
 MIME-Version: 1.0
 Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: Porting to from Solaris 64bit to Linux 32B - 36B.
+Date: Wed, 20 Nov 2002 10:36:14 -0700
+Message-ID: <C5BF7C2C6ADF24448763CC46235FB3A691C833@ulysses.neocore.com>
+From: "Jon Goldberg" <jgoldberg@neocore.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>, Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
- 
-	I am searching for a way to tune page cache separately for
-different disk storage.
-Our problem is that we have file server and application server at the
-one server box. Thus there
-are continuous reads of files that placed on the file server disk
-arrays. Effectiveness of page cache 
-in this case is not big because we have a big amount of files and
-absolutely uniform access to 
-this files. 
- And there are a some seldom used files on the applications partitions.
-This files can be effectively 
-cached only if there is a way to keep them in the memory instead of
-recently read fileserver areas. 
+Andrew,
 
-Is there the way of tuning Linux page cache to accept pages from the
-separate device with higher/lower 
-priority over pages from all other devices? Is there any solutions to
-it?
+	Will that return a 64 bit offset pointer to the file or just let me map 3-4GB in a 10 BG file with a 64 bit offset pointer.  What I would like to do is mmap the full 10GB file and walk it with a 64 bit pointer knowing that not more that 2GB can be in memory.
 
-Regards,
-Shuras
+Thanks for all the help!
+
+Jon
+
+-----Original Message-----
+From: Andrew Morton [mailto:akpm@digeo.com]
+Sent: Wednesday, November 20, 2002 1:34 AM
+To: Rik van Riel
+Cc: Jon Goldberg; linux-mm@kvack.org
+Subject: Re: Porting to from Solaris 64bit to Linux 32B - 36B.
 
 
+Rik van Riel wrote:
+> 
+> On Tue, 19 Nov 2002, Jon Goldberg wrote:
+> 
+> >       We are currently at porting to Linux 2.4 kernel and I am having
+> > troubles finding information on VM.  Since the 2.4 Kernel support large
+> > amount of swap < 1TB and Physical Ram < 64GB.  Is there a way to get
+> > memory functions like mmap to use a 64 bit pointer instead of the 32bit
+> > pointer.  Since a memory mapped file the file is used as swap I should
+> > be able to have it map a file larger than 4GB and have the OS do the
+> > page management.
+> 
+> No, this is not possible because of fundamental reasons.
+> 
+
+I think he's asking "where is mmap64()"?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
