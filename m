@@ -1,34 +1,61 @@
-Date: Sat, 16 Sep 2000 04:57:55 -0300 (BRST)
+Date: Sat, 16 Sep 2000 06:13:27 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Happiness with t8-vmpatch4 (was Re:  Does page-aging really
- work?)
-In-Reply-To: <39C31C9F.1C202CD8@ucla.edu>
-Message-ID: <Pine.LNX.4.21.0009160455260.1519-100000@duckman.distro.conectiva>
+Subject: TODO list for new VM
+Message-ID: <Pine.LNX.4.21.0009160544000.1519-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Redelings I <bredelin@ucla.edu>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.redhat.com, Linus Torvalds <torvalds@transmeta.com>, Matthew Dillon <dillon@apollo.backplane.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Sep 2000, Benjamin Redelings I wrote:
+Hi,
 
->    1. test8-vmpatch4 does not swap very much at first, but then
-> swaps a lot of memory in a short time when triggered.
+Here is the TODO list for the new VM. The only thing
+really needed for 2.4 is the OOM handler and the
+page->mapping->flush() callback is really wanted by
+the journaling filesystem folks.
 
->   2. I guess we could wish that unused programs got swapped a
-> bit sooner instead of all at once - but presumably that can be
-> tuned.
+The rest are mostly extra's that would be nice; these
+things won't be pushed for inclusion except if it turns
+out to be really trivial to implement, high performance
+on the cases they're supposed to affect and their influence
+is highly localised...
 
-This is indeed something to look at. Maybe we could give
-idle processes (sleeping for more than 20 seconds?) a
-"full" swap_cnt instead of swap_cnt = rss >> SWAP_SHIFT ?
+(sorry folks, but for 2.4 I'll be really conservative)
 
-And we could also start swapping a bit earlier when the
-cache is getting small, but I'm not sure about how to
-do this or exactly what performance benefits that would
-give ...
+---> TODO list for the new VM <---
+
+for kernel 2.4, necessary:
+- out of memory handling
+	[integrate the OOM killer, 10 minutes work]
+
+for kernel 2.4, really wanted:
+- page->mapping->flush() callback in page_launder(),
+  for easier integration with journaling filesystems
+  and maybe the network filesystems
+	[about 30 minutes of work on the VM side]
+
+for kernel 2.4, wanted:
+- include Ben LaHaise's code, which moves readahead
+  to the VMA level, this way we can do streaming swap
+  IO, complete with drop_behind()
+- code to make the "knee" smoother, currently the system
+  keeps eating memory from the cache up to a certain point
+  and then starts to swap a lot, it would be nice to smooth
+  this curve a bit
+- thrashing control, maybe process suspension with some
+  forced swapping ?
+
+for kernel 2.5:
+- physical->virtual reverse mapping, so we can do much
+  better page aging with less CPU usage spikes
+- better IO clustering for swap (and filesystem) IO
+- move all the global VM variables, lists, etc. into
+  the pgdat struct for better NUMA scalability
+- (maybe) some QoS things, as far as they are major
+  improvements with minor intrusion
 
 regards,
 
