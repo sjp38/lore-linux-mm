@@ -1,273 +1,855 @@
-Date: Wed, 5 Jan 2005 20:55:05 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: page migration patchset
-In-Reply-To: <41DC34EF.7010507@mvista.com>
-Message-ID: <Pine.LNX.4.44.0501052008160.8705-100000@localhost.localdomain>
+Message-ID: <41DC7193.60505@mvista.com>
+Date: Wed, 05 Jan 2005 15:00:35 -0800
+From: Steve Longerbeam <stevel@mvista.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Subject: Re: page migration patchset
+References: <41DB35B8.1090803@sgi.com> <m1wtusd3y0.fsf@muc.de> <41DB5CE9.6090505@sgi.com> <41DC34EF.7010507@mvista.com> <41DC3E96.4020807@sgi.com>
+In-Reply-To: <41DC3E96.4020807@sgi.com>
+Content-Type: multipart/mixed;
+ boundary="------------030406070807080705000602"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steve Longerbeam <stevel@mvista.com>
-Cc: Ray Bryant <raybry@sgi.com>, Andi Kleen <ak@muc.de>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, andrew morton <akpm@osdl.org>
+To: Ray Bryant <raybry@sgi.com>
+Cc: Andi Kleen <ak@muc.de>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, andrew morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Steve,
+This is a multi-part message in MIME format.
+--------------030406070807080705000602
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-On Wed, 5 Jan 2005, Steve Longerbeam wrote:
-> 
-> Note that Andrew had to drop my patch from 2.6.10, because
-> the 4-level page tables feature was re-implemented using a
-> different interface, which broke my patch. So Andrew asked me
-> to re-do the patch for inclusion in 2.6.11. That gives us ~2 months
-> to work on integrating the page migration and NUMA mempolicy
-> filemap patches.
+Ray Bryant wrote:
 
-Something I found odd about your patch was that you had filemap.c
-doing NUMA policy one way (via mapping->policy), but left shmem.c
-doing NUMA policy another way (via info->policy).  I was preparing
-a patch against 2.6.10-rc3-mm1 to clean that up, but got diverted.
+> Hi Steve!
+>
+> Steve Longerbeam wrote:
+>
+>>
+>> well, I need to study the page migration patch more (this is the
+>> first time I've heard of it). But it sounds as if my patch and the
+>> page migration patch are complementary.
+>>
+>
+> Did you get the url from the last email?
+>
+> http://sr71.net/patches/2.6.10/2.6.10-mm1-mhp-test7/page_migration/
 
-Or was I missing a significant distinction?
 
-I seem also to have concluded that destroy_inode ought always to
-do the mpol_free_shared_policy itself rather than leaving it to the
-filesystem's ->destroy_inode; but offhand can't remember my reasoning
-(just to match alloc_inode doing its _init, or a more vital reason?).
-Does that make sense to you?
+yes, I'll start looking it over.
 
-Below is the patch I was working on then (like you I don't have NUMA,
-so it was only build tested): would you like to factor it into yours,
-or would you prefer me to come along and add it to -mm after yours
-has gone in?
+> <snip>
+>
+> Oh yeah, I have access to a >>few<< Altix systems.  :-)
+>
+> I'd be happy to test your patches on Altix.
 
-I did think your patch would be better split into two (if not more):
-the (straightforward) implementation of mapping->policy, and then
-the (more complex) page migration business on top of that.
 
-There is more cleanup I'd like to do (or even better, let someone
-else do!) in that area: not originating in your patch, but I loathe
-the way the vma interface demands construction of a temporary struct
-vm_area_struct (pvma) on the stack to get things done - to me that
-just indicates the interface is wrong.  The user interface must of
-course stay, but should be better handled internally.  Separate job.
+cool.
 
-(And I still don't know what should be done about NUMA policy versus
-swap: it has not been anyone's priority, but swapin_readahead's NUMA
-belief that swap is laid out linearly following vmas is quite wrong.
-Should page migration be used instead?  Should swap be divided into
-per-node extents?  Does swap readahead really serve a useful purpose,
-or could we just delete that code?  Should NUMA policy on a file be
-determining NUMA policy on private swap copies of that file?  Feel
-free to ignore these questions, they're really not on your track;
-but I can't glance at that code without wondering, and someone
-reading this mail might have better ideas.)
+>   I have another project sitting
+> on the back burner to get page cache allocated (by default) in 
+> round-robin
+> memory for Altix; I need to see how to integrate this with your work 
+> (which
+> is how this was all left a few months back when I got pulled off to 
+> work on
+> the latest release for Altix.)  So that is another area for 
+> collaboration.
 
-Hugh
 
---- 2.6.10-rc3-mm1/fs/inode.c	2004-12-14 11:15:38.000000000 +0000
-+++ linux/fs/inode.c	2004-12-14 12:02:01.751655096 +0000
-@@ -178,12 +178,11 @@ void destroy_inode(struct inode *inode) 
- 	if (inode_has_buffers(inode))
- 		BUG();
+you mean like a global mempolicy for the page cache? This shouldn't
+be difficult to integrate with my patch, ie. when allocating a page
+for the cache, first check if the mapping object has a policy (my patch),
+if not, then check if there is a global pagecache policy (your patch).
+
+>
+> Is the latest version of your patch the one from lkml dated 11/02/2004?
+
+
+probably not the latest version. I've attached the latest.
+
+Steve
+
+
+--------------030406070807080705000602
+Content-Type: text/plain;
+ name="mempol-2.6.10-rc1-mm5.filemap-policy.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="mempol-2.6.10-rc1-mm5.filemap-policy.patch"
+
+Source: MontaVista Software, Inc., Steve Longerbeam <stevel@mvista.com>
+Type: Enhancement
+Disposition: merge to kernel.org
+Acked-by: Andi Kleen <ak@suse.de>
+Description:
+    Patches NUMA mempolicy to allow policies for file mappings. Also adds
+    a new mbind() flag that attempts to move existing anonymous and
+    filemap pages that do not satisfy a mapping's policy (MPOL_MF_MOVE).
+
+diff -Nuar -X /home/stevel/dontdiff linux-2.6.10-rc1-mm5.orig/fs/cachefs/block.c linux-2.6.10-rc1-mm5/fs/cachefs/block.c
+--- linux-2.6.10-rc1-mm5.orig/fs/cachefs/block.c	2004-11-12 10:23:13.000000000 -0800
++++ linux-2.6.10-rc1-mm5/fs/cachefs/block.c	2004-11-15 10:59:33.116735936 -0800
+@@ -374,7 +374,7 @@
+ 		mapping = super->imisc->i_mapping;
+ 
+ 		ret = -ENOMEM;
+-		newpage = page_cache_alloc_cold(mapping);
++		newpage = page_cache_alloc_cold(mapping, block->bix);
+ 		if (!newpage)
+ 			goto error;
+ 
+diff -Nuar -X /home/stevel/dontdiff linux-2.6.10-rc1-mm5.orig/fs/inode.c linux-2.6.10-rc1-mm5/fs/inode.c
+--- linux-2.6.10-rc1-mm5.orig/fs/inode.c	2004-11-12 10:23:12.000000000 -0800
++++ linux-2.6.10-rc1-mm5/fs/inode.c	2004-11-12 10:25:43.000000000 -0800
+@@ -152,6 +152,7 @@
+ 		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
+ 		mapping->assoc_mapping = NULL;
+ 		mapping->backing_dev_info = &default_backing_dev_info;
++ 		mpol_shared_policy_init(&mapping->policy);
+ 
+ 		/*
+ 		 * If the block_device provides a backing_dev_info for client
+@@ -179,8 +180,10 @@
  	security_inode_free(inode);
-+	mpol_free_shared_policy(&inode->i_mapping->policy);
  	if (inode->i_sb->s_op->destroy_inode)
  		inode->i_sb->s_op->destroy_inode(inode);
--	else {
--		mpol_free_shared_policy(&inode->i_mapping->policy);
-+	else
+-	else
++	else {
++		mpol_free_shared_policy(&inode->i_mapping->policy);
  		kmem_cache_free(inode_cachep, (inode));
--	}
++	}
  }
  EXPORT_SYMBOL(destroy_inode);
  
---- 2.6.10-rc3-mm1/include/linux/mempolicy.h	2004-12-14 11:15:39.000000000 +0000
-+++ linux/include/linux/mempolicy.h	2004-12-14 12:02:01.784650080 +0000
-@@ -156,6 +156,9 @@ struct page *alloc_page_shared_policy(un
+diff -Nuar -X /home/stevel/dontdiff linux-2.6.10-rc1-mm5.orig/include/linux/fs.h linux-2.6.10-rc1-mm5/include/linux/fs.h
+--- linux-2.6.10-rc1-mm5.orig/include/linux/fs.h	2004-11-12 10:24:05.000000000 -0800
++++ linux-2.6.10-rc1-mm5/include/linux/fs.h	2004-11-12 10:25:43.000000000 -0800
+@@ -18,6 +18,7 @@
+ #include <linux/cache.h>
+ #include <linux/prio_tree.h>
+ #include <linux/kobject.h>
++#include <linux/mempolicy.h>
+ #include <asm/atomic.h>
+ 
+ struct iovec;
+@@ -352,6 +353,7 @@
+ 	struct address_space_operations *a_ops;	/* methods */
+ 	unsigned long		flags;		/* error bits/gfp mask */
+ 	struct backing_dev_info *backing_dev_info; /* device readahead, etc */
++	struct shared_policy    policy;         /* page alloc policy */
+ 	spinlock_t		private_lock;	/* for use by the address_space */
+ 	struct list_head	private_list;	/* ditto */
+ 	struct address_space	*assoc_mapping;	/* ditto */
+diff -Nuar -X /home/stevel/dontdiff linux-2.6.10-rc1-mm5.orig/include/linux/mempolicy.h linux-2.6.10-rc1-mm5/include/linux/mempolicy.h
+--- linux-2.6.10-rc1-mm5.orig/include/linux/mempolicy.h	2004-11-12 10:24:05.000000000 -0800
++++ linux-2.6.10-rc1-mm5/include/linux/mempolicy.h	2004-11-12 10:25:43.000000000 -0800
+@@ -22,6 +22,8 @@
+ 
+ /* Flags for mbind */
+ #define MPOL_MF_STRICT	(1<<0)	/* Verify existing pages in the mapping */
++#define MPOL_MF_MOVE	(1<<1)	/* Attempt to move pages in mapping that do
++				   not satisfy policy */
+ 
+ #ifdef __KERNEL__
+ 
+@@ -149,7 +151,8 @@
+ void mpol_free_shared_policy(struct shared_policy *p);
+ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
+ 					    unsigned long idx);
+-
++struct page *alloc_page_shared_policy(unsigned gfp, struct shared_policy *sp,
++				      unsigned long idx);
  extern void numa_default_policy(void);
  extern void numa_policy_init(void);
  
-+int generic_file_set_policy(struct vm_area_struct *, struct mempolicy *);
-+struct mempolicy *generic_file_get_policy(struct vm_area_struct *, unsigned long);
+@@ -215,6 +218,13 @@
+ #define vma_policy(vma) NULL
+ #define vma_set_policy(vma, pol) do {} while(0)
+ 
++static inline struct page *
++alloc_page_shared_policy(unsigned gfp, struct shared_policy *sp,
++			 unsigned long idx)
++{
++	return alloc_pages(gfp, 0);
++}
 +
- #else
- 
- struct mempolicy {};
---- 2.6.10-rc3-mm1/include/linux/mm.h	2004-12-14 11:15:39.000000000 +0000
-+++ linux/include/linux/mm.h	2004-12-14 12:02:01.834642480 +0000
-@@ -555,15 +555,10 @@ extern void show_free_areas(void);
- #ifdef CONFIG_SHMEM
- struct page *shmem_nopage(struct vm_area_struct *vma,
- 			unsigned long address, int *type);
--int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *new);
--struct mempolicy *shmem_get_policy(struct vm_area_struct *vma,
--					unsigned long addr);
- int shmem_lock(struct file *file, int lock, struct user_struct *user);
- #else
- #define shmem_nopage filemap_nopage
- #define shmem_lock(a, b, c) 	({0;})	/* always in memory, no need to lock */
--#define shmem_set_policy(a, b)	(0)
--#define shmem_get_policy(a, b)	(NULL)
- #endif
- struct file *shmem_file_setup(char *name, loff_t size, unsigned long flags);
- 
---- 2.6.10-rc3-mm1/include/linux/shmem_fs.h	2004-10-18 22:56:50.000000000 +0100
-+++ linux/include/linux/shmem_fs.h	2004-12-14 12:02:01.835642328 +0000
-@@ -14,7 +14,6 @@ struct shmem_inode_info {
- 	unsigned long		alloced;	/* data pages alloced to file */
- 	unsigned long		swapped;	/* subtotal assigned to swap */
- 	unsigned long		next_index;	/* highest alloced index + 1 */
--	struct shared_policy	policy;		/* NUMA memory alloc policy */
- 	struct page		*i_indirect;	/* top indirect blocks page */
- 	swp_entry_t		i_direct[SHMEM_NR_DIRECT]; /* first blocks */
- 	struct list_head	swaplist;	/* chain of maybes on swap */
---- 2.6.10-rc3-mm1/ipc/shm.c	2004-12-14 11:15:39.000000000 +0000
-+++ linux/ipc/shm.c	2004-12-14 12:02:01.885634728 +0000
-@@ -168,8 +168,8 @@ static struct vm_operations_struct shm_v
- 	.close	= shm_close,	/* callback for when the vm-area is released */
- 	.nopage	= shmem_nopage,
- #ifdef CONFIG_NUMA
--	.set_policy = shmem_set_policy,
--	.get_policy = shmem_get_policy,
-+	.set_policy = generic_file_set_policy,
-+	.get_policy = generic_file_get_policy,
- #endif
- };
- 
---- 2.6.10-rc3-mm1/mm/shmem.c	2004-12-14 11:15:40.000000000 +0000
-+++ linux/mm/shmem.c	2004-12-14 12:02:01.930627888 +0000
-@@ -879,10 +879,10 @@ static struct page *shmem_swapin_async(s
- 	return page;
- }
- 
--struct page *shmem_swapin(struct shmem_inode_info *info, swp_entry_t entry,
--			  unsigned long idx)
-+struct page *shmem_swapin(struct address_space *mapping,
-+			swp_entry_t entry, unsigned long idx)
+ static inline void numa_policy_init(void)
  {
--	struct shared_policy *p = &info->policy;
-+	struct shared_policy *p = &mapping->policy;
- 	int i, num;
- 	struct page *page;
- 	unsigned long offset;
-@@ -898,27 +898,13 @@ struct page *shmem_swapin(struct shmem_i
- 	lru_add_drain();	/* Push any new pages onto the LRU now */
- 	return shmem_swapin_async(p, entry, idx);
  }
--
--static struct page *
--shmem_alloc_page(unsigned long gfp, struct shmem_inode_info *info,
--		 unsigned long idx)
--{
--	return alloc_page_shared_policy(gfp, &info->policy, idx);
--}
- #else
--static inline struct page *
--shmem_swapin(struct shmem_inode_info *info,swp_entry_t entry,unsigned long idx)
-+static inline struct page *shmem_swapin(struct address_space *mapping,
-+			swp_entry_t entry, unsigned long idx)
- {
- 	swapin_readahead(entry, 0, NULL);
- 	return read_swap_cache_async(entry, NULL, 0);
- }
--
--static inline struct page *
--shmem_alloc_page(unsigned long gfp,struct shmem_inode_info *info,
--				 unsigned long idx)
--{
--	return alloc_page(gfp);
--}
- #endif
+diff -Nuar -X /home/stevel/dontdiff linux-2.6.10-rc1-mm5.orig/include/linux/page-flags.h linux-2.6.10-rc1-mm5/include/linux/page-flags.h
+--- linux-2.6.10-rc1-mm5.orig/include/linux/page-flags.h	2004-11-12 10:23:55.000000000 -0800
++++ linux-2.6.10-rc1-mm5/include/linux/page-flags.h	2004-11-12 10:25:43.000000000 -0800
+@@ -75,6 +75,8 @@
+ #define PG_swapcache		16	/* Swap page: swp_entry_t in private */
+ #define PG_mappedtodisk		17	/* Has blocks allocated on-disk */
+ #define PG_reclaim		18	/* To be reclaimed asap */
++#define PG_sharedpolicy         19      /* Page was allocated for a file
++					   mapping using a shared_policy */
+ 
  
  /*
-@@ -980,7 +966,7 @@ repeat:
- 				inc_page_state(pgmajfault);
- 				*type = VM_FAULT_MAJOR;
- 			}
--			swappage = shmem_swapin(info, swap, idx);
-+			swappage = shmem_swapin(mapping, swap, idx);
- 			if (!swappage) {
- 				spin_lock(&info->lock);
- 				entry = shmem_swp_alloc(info, idx, sgp);
-@@ -1092,9 +1078,7 @@ repeat:
+@@ -293,6 +295,10 @@
+ #define SetPageCompound(page)	set_bit(PG_compound, &(page)->flags)
+ #define ClearPageCompound(page)	clear_bit(PG_compound, &(page)->flags)
  
- 		if (!filepage) {
- 			spin_unlock(&info->lock);
--			filepage = shmem_alloc_page(mapping_gfp_mask(mapping),
--						    info,
--						    idx);
-+			filepage = page_cache_alloc(mapping, idx);
- 			if (!filepage) {
- 				shmem_unacct_blocks(info->flags, 1);
- 				shmem_free_blocks(inode, 1);
-@@ -1206,24 +1190,6 @@ static int shmem_populate(struct vm_area
++#define PageSharedPolicy(page)      test_bit(PG_sharedpolicy, &(page)->flags)
++#define SetPageSharedPolicy(page)   set_bit(PG_sharedpolicy, &(page)->flags)
++#define ClearPageSharedPolicy(page) clear_bit(PG_sharedpolicy, &(page)->flags)
++
+ #ifdef CONFIG_SWAP
+ #define PageSwapCache(page)	test_bit(PG_swapcache, &(page)->flags)
+ #define SetPageSwapCache(page)	set_bit(PG_swapcache, &(page)->flags)
+diff -Nuar -X /home/stevel/dontdiff linux-2.6.10-rc1-mm5.orig/include/linux/pagemap.h linux-2.6.10-rc1-mm5/include/linux/pagemap.h
+--- linux-2.6.10-rc1-mm5.orig/include/linux/pagemap.h	2004-11-12 10:23:56.000000000 -0800
++++ linux-2.6.10-rc1-mm5/include/linux/pagemap.h	2004-11-12 10:25:43.000000000 -0800
+@@ -50,14 +50,24 @@
+ #define page_cache_release(page)	put_page(page)
+ void release_pages(struct page **pages, int nr, int cold);
+ 
+-static inline struct page *page_cache_alloc(struct address_space *x)
++
++static inline struct page *__page_cache_alloc(struct address_space *x,
++					      unsigned long idx,
++					      unsigned int gfp_mask)
++{
++	return alloc_page_shared_policy(gfp_mask, &x->policy, idx);
++}
++
++static inline struct page *page_cache_alloc(struct address_space *x,
++					    unsigned long idx)
+ {
+-	return alloc_pages(mapping_gfp_mask(x), 0);
++	return __page_cache_alloc(x, idx, mapping_gfp_mask(x));
+ }
+ 
+-static inline struct page *page_cache_alloc_cold(struct address_space *x)
++static inline struct page *page_cache_alloc_cold(struct address_space *x,
++						 unsigned long idx)
+ {
+-	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD, 0);
++	return __page_cache_alloc(x, idx, mapping_gfp_mask(x)|__GFP_COLD);
+ }
+ 
+ typedef int filler_t(void *, struct page *);
+diff -Nuar -X /home/stevel/dontdiff linux-2.6.10-rc1-mm5.orig/mm/filemap.c linux-2.6.10-rc1-mm5/mm/filemap.c
+--- linux-2.6.10-rc1-mm5.orig/mm/filemap.c	2004-11-12 10:25:07.000000000 -0800
++++ linux-2.6.10-rc1-mm5/mm/filemap.c	2004-11-12 10:25:43.000000000 -0800
+@@ -586,7 +586,8 @@
+ 	page = find_lock_page(mapping, index);
+ 	if (!page) {
+ 		if (!cached_page) {
+-			cached_page = alloc_page(gfp_mask);
++			cached_page = __page_cache_alloc(mapping, index,
++							 gfp_mask);
+ 			if (!cached_page)
+ 				return NULL;
+ 		}
+@@ -679,7 +680,7 @@
+ 		return NULL;
+ 	}
+ 	gfp_mask = mapping_gfp_mask(mapping) & ~__GFP_FS;
+-	page = alloc_pages(gfp_mask, 0);
++	page = __page_cache_alloc(mapping, index, gfp_mask);
+ 	if (page && add_to_page_cache_lru(page, mapping, index, gfp_mask)) {
+ 		page_cache_release(page);
+ 		page = NULL;
+@@ -866,7 +867,7 @@
+ 		 * page..
+ 		 */
+ 		if (!cached_page) {
+-			cached_page = page_cache_alloc_cold(mapping);
++			cached_page = page_cache_alloc_cold(mapping, index);
+ 			if (!cached_page) {
+ 				desc->error = -ENOMEM;
+ 				goto out;
+@@ -1129,7 +1130,7 @@
+ 	struct page *page; 
+ 	int error;
+ 
+-	page = page_cache_alloc_cold(mapping);
++	page = page_cache_alloc_cold(mapping, offset);
+ 	if (!page)
+ 		return -ENOMEM;
+ 
+@@ -1519,9 +1520,35 @@
+ 	return page->mapping->a_ops->page_mkwrite(page);
+ }
+ 
++
++#ifdef CONFIG_NUMA
++int generic_file_set_policy(struct vm_area_struct *vma,
++			    struct mempolicy *new)
++{
++	struct address_space *mapping = vma->vm_file->f_mapping;
++	return mpol_set_shared_policy(&mapping->policy, vma, new);
++}
++
++struct mempolicy *
++generic_file_get_policy(struct vm_area_struct *vma,
++			unsigned long addr)
++{
++	struct address_space *mapping = vma->vm_file->f_mapping;
++	unsigned long idx;
++
++	idx = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
++	return mpol_shared_policy_lookup(&mapping->policy, idx);
++}
++#endif
++
++
+ struct vm_operations_struct generic_file_vm_ops = {
+ 	.nopage		= filemap_nopage,
+ 	.populate	= filemap_populate,
++#ifdef CONFIG_NUMA
++	.set_policy     = generic_file_set_policy,
++	.get_policy     = generic_file_get_policy,
++#endif
+ };
+ 
+ struct vm_operations_struct generic_file_vm_mkwr_ops = {
+@@ -1580,7 +1607,7 @@
+ 	page = find_get_page(mapping, index);
+ 	if (!page) {
+ 		if (!cached_page) {
+-			cached_page = page_cache_alloc_cold(mapping);
++			cached_page = page_cache_alloc_cold(mapping, index);
+ 			if (!cached_page)
+ 				return ERR_PTR(-ENOMEM);
+ 		}
+@@ -1662,7 +1689,7 @@
+ 	page = find_lock_page(mapping, index);
+ 	if (!page) {
+ 		if (!*cached_page) {
+-			*cached_page = page_cache_alloc(mapping);
++			*cached_page = page_cache_alloc(mapping, index);
+ 			if (!*cached_page)
+ 				return NULL;
+ 		}
+diff -Nuar -X /home/stevel/dontdiff linux-2.6.10-rc1-mm5.orig/mm/mempolicy.c linux-2.6.10-rc1-mm5/mm/mempolicy.c
+--- linux-2.6.10-rc1-mm5.orig/mm/mempolicy.c	2004-11-12 10:25:07.000000000 -0800
++++ linux-2.6.10-rc1-mm5/mm/mempolicy.c	2004-11-16 10:14:06.135753597 -0800
+@@ -2,6 +2,7 @@
+  * Simple NUMA memory policy for the Linux kernel.
+  *
+  * Copyright 2003,2004 Andi Kleen, SuSE Labs.
++ * Copyright 2004 Steve Longerbeam, MontaVista Software.
+  * Subject to the GNU Public License, version 2.
+  *
+  * NUMA policy allows the user to give hints in which node(s) memory should
+@@ -47,15 +48,28 @@
+  */
+ 
+ /* Notebook:
+-   fix mmap readahead to honour policy and enable policy for any page cache
+-   object
+-   statistics for bigpages
+-   global policy for page cache? currently it uses process policy. Requires
+-   first item above.
++   Page cache pages can now be policied, by adding a shared_policy tree to
++   inodes (actually located in address_space). One entry in the tree for
++   each mapped region of a file. Generic files now have set_policy and
++   get_policy methods in generic_file_vm_ops [stevel].
++
++   Added a page-move feature, whereby existing pte-mapped or filemap
++   pagecache pages that are/can be mapped to the given virtual memory
++   region, that do not satisfy the NUMA policy, are moved to a new
++   page that satisfies the policy. Enabled by the new mbind flag
++   MPOL_MF_MOVE [stevel].
++
++   statistics for bigpages.
++
++   global policy for page cache? currently it uses per-file policies in
++   address_space (see first item above).
++
+    handle mremap for shared memory (currently ignored for the policy)
+    grows down?
++
+    make bind policy root only? It can trigger oom much faster and the
+    kernel is not always grateful with that.
++
+    could replace all the switch()es with a mempolicy_ops structure.
+ */
+ 
+@@ -66,6 +80,7 @@
+ #include <linux/kernel.h>
+ #include <linux/sched.h>
+ #include <linux/mm.h>
++#include <linux/pagemap.h>
+ #include <linux/nodemask.h>
+ #include <linux/cpuset.h>
+ #include <linux/gfp.h>
+@@ -76,6 +91,9 @@
+ #include <linux/init.h>
+ #include <linux/compat.h>
+ #include <linux/mempolicy.h>
++#include <linux/rmap.h>
++#include <linux/swap.h>
++#include <asm/pgalloc.h>
+ #include <asm/uaccess.h>
+ 
+ static kmem_cache_t *policy_cache;
+@@ -236,33 +254,225 @@
+ 	return policy;
+ }
+ 
+-/* Ensure all existing pages follow the policy. */
++
++/* Return effective policy for a VMA */
++static struct mempolicy *
++get_vma_policy(struct vm_area_struct *vma, unsigned long addr)
++{
++	struct mempolicy *pol = current->mempolicy;
++
++	if (vma) {
++		if (vma->vm_ops && vma->vm_ops->get_policy)
++		        pol = vma->vm_ops->get_policy(vma, addr);
++		else if (vma->vm_policy &&
++				vma->vm_policy->policy != MPOL_DEFAULT)
++			pol = vma->vm_policy;
++	}
++	if (!pol)
++		pol = &default_policy;
++	return pol;
++}
++
++
++/* Find secondary valid nodes for an allocation */
++static int __mpol_node_valid(int nid, struct mempolicy *pol)
++{
++	switch (pol->policy) {
++	case MPOL_PREFERRED:
++	case MPOL_DEFAULT:
++	case MPOL_INTERLEAVE:
++		return 1;
++	case MPOL_BIND: {
++		struct zone **z;
++		for (z = pol->v.zonelist->zones; *z; z++)
++			if ((*z)->zone_pgdat->node_id == nid)
++				return 1;
++		return 0;
++	}
++	default:
++		BUG();
++		return 0;
++	}
++}
++
++int mpol_node_valid(int nid, struct vm_area_struct *vma, unsigned long addr)
++{
++	return __mpol_node_valid(nid, get_vma_policy(vma, addr));
++}
++
++/*
++ * The given page doesn't match a file mapped VMA's policy. If the
++ * page is unused, remove it from the page cache, so that a new page
++ * can be later reallocated to the cache using the correct policy.
++ * Returns 0 if the page was removed from the cache, < 0 if failed.
++ *
++ * We use invalidate_mapping_pages(), which doesn't try very hard.
++ * It won't remove pages which are locked (won't wait for a lock),
++ * dirty, under writeback, or mapped by pte's. All the latter are
++ * valid checks for us, but we might be able to improve our success
++ * by waiting for a lock.
++ */
++static int
++remove_invalid_filemap_page(struct page * page,
++			    struct vm_area_struct *vma,
++			    pgoff_t pgoff)
++{
++	/*
++	 * the page in the cache is not in any of the nodes this
++	 * VMA's policy wants it to be in. Can we remove it?
++	 */
++	if (!PageSharedPolicy(page) &&
++	    invalidate_mapping_pages(vma->vm_file->f_mapping,
++				     pgoff, pgoff) > 0) {
++		PDprintk("removed cache page in node %ld, "
++			 "pgoff=%lu, for %s\n",
++			 page_to_nid(page), pgoff,
++			 vma->vm_file->f_dentry->d_name.name);
++		return 0;
++	}
++
++	/*
++	 * the page is being used by other pagetable mappings,
++	 * or is currently locked, dirty, or under writeback.
++	 */
++	PDprintk("could not remove cache page in node %ld, "
++		 "pgoff=%lu, for %s\n",
++		 page_to_nid(page), pgoff,
++		 vma->vm_file->f_dentry->d_name.name);
++	return -EIO;
++}
++
++/*
++ * The given page doesn't match a VMA's policy. Allocate a new
++ * page using the policy, copy contents from old to new, free
++ * the old page, map in the new page. This looks a lot like a COW.
++ */
++static int
++move_invalid_page(struct page * page, struct mempolicy *pol,
++		  struct vm_area_struct *vma, unsigned long addr,
++		  pmd_t *pmd)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	struct page * new_page;
++	struct vm_area_struct pvma;
++	pte_t *page_table;
++	pte_t entry;
++	
++	PDprintk("moving anon page in node %ld, address=%08lx\n",
++		 page_to_nid(page), addr);
++	
++	if (!PageReserved(page))
++		page_cache_get(page);
++	spin_unlock(&mm->page_table_lock);
++	if (unlikely(anon_vma_prepare(vma)))
++		goto err_no_mem;
++
++	/* Create a pseudo vma that just contains the policy */
++	memset(&pvma, 0, sizeof(struct vm_area_struct));
++	pvma.vm_end = PAGE_SIZE;
++	pvma.vm_pgoff = vma->vm_pgoff;
++	pvma.vm_policy = pol;
++	new_page = alloc_page_vma(GFP_HIGHUSER, &pvma, addr);
++	if (!new_page)
++		goto err_no_mem;
++
++	copy_user_highpage(new_page, page, addr);
++
++	spin_lock(&mm->page_table_lock);
++	page_table = pte_offset_map(pmd, addr);
++	if (!PageReserved(page))
++		page_remove_rmap(page);
++
++	flush_cache_page(vma, addr);
++	entry = pte_mkdirty(mk_pte(new_page, vma->vm_page_prot));
++	if (likely(vma->vm_flags & VM_WRITE))
++		entry = pte_mkwrite(entry);
++	ptep_establish(vma, addr, page_table, entry);
++	update_mmu_cache(vma, addr, entry);
++	lru_cache_add_active(new_page);
++	page_add_anon_rmap(new_page, vma, addr);
++
++	pte_unmap(page_table);
++	page_cache_release(page); /* release our ref on the old page */
++	page_cache_release(page); /* release our pte ref on the old page */
++	return 0;
++
++ err_no_mem:
++	spin_lock(&mm->page_table_lock);
++	return -ENOMEM;
++}
++
++/* Ensure all existing pages in a VMA follow the policy. */
+ static int
+-verify_pages(struct mm_struct *mm,
+-	     unsigned long addr, unsigned long end, unsigned long *nodes)
++move_verify_pages(struct vm_area_struct *vma, struct mempolicy *pol,
++		  unsigned long flags)
+ {
+-	while (addr < end) {
++	struct mm_struct *mm = vma->vm_mm;
++	unsigned long addr;
++	unsigned long start = vma->vm_start;
++	unsigned long end = vma->vm_end;
++	
++	if (!(flags & (MPOL_MF_MOVE | MPOL_MF_STRICT)))
++		return 0;
++
++	for (addr = start; addr < end; addr += PAGE_SIZE) {
+ 		struct page *p;
+ 		pte_t *pte;
+ 		pmd_t *pmd;
+ 		pgd_t *pgd;
+ 		pml4_t *pml4;
++		int err;
++		
++		/*
++		 * first, if this is a file mapping and we are moving pages,
++		 * check for invalid page cache pages, and if they are unused,
++		 * remove.
++		 */
++		if (vma->vm_ops && vma->vm_ops->nopage) {
++			struct address_space *mapping =
++				vma->vm_file->f_mapping;
++			unsigned long pgoff =
++				((addr - vma->vm_start) >> PAGE_CACHE_SHIFT) +
++				vma->vm_pgoff;
++			
++			p = find_get_page(mapping, pgoff);
++			if (p) {
++				err = 0;
++				if (!__mpol_node_valid(page_to_nid(p), pol)) {
++					if (!(flags & MPOL_MF_MOVE))
++						err = -EIO;
++					else
++						err = remove_invalid_filemap_page(
++							p,vma,pgoff);
++				}
++				page_cache_release(p);  /* find_get_page */
++				if (err && (flags & MPOL_MF_STRICT))
++					return err;
++			}
++		}
++		
++		/*
++		 * Now let's see if there is a pte-mapped page that doesn't
++		 * satisfy the policy. Because of the above, we can be sure
++		 * from here that, if there is a VMA page that's pte-mapped
++		 * and it belongs to the page cache, it either satisfies the
++		 * policy, or we don't mind if it doesn't (MF_STRICT not set).
++		 */
++		spin_lock(&mm->page_table_lock);
+ 		pml4 = pml4_offset(mm, addr);
+ 		if (pml4_none(*pml4)) {
+-			unsigned long next = (addr + PML4_SIZE) & PML4_MASK;
+-			if (next > addr)
+-				break;
+-			addr = next;
++			spin_unlock(&mm->page_table_lock);
+ 			continue;
+ 		}
+ 		pgd = pml4_pgd_offset(pml4, addr);
++
+ 		if (pgd_none(*pgd)) {
+-			addr = (addr + PGDIR_SIZE) & PGDIR_MASK;
++			spin_unlock(&mm->page_table_lock);
+ 			continue;
+ 		}
+ 		pmd = pmd_offset(pgd, addr);
+ 		if (pmd_none(*pmd)) {
+-			addr = (addr + PMD_SIZE) & PMD_MASK;
++			spin_unlock(&mm->page_table_lock);
+ 			continue;
+ 		}
+ 		p = NULL;
+@@ -271,19 +481,29 @@
+ 			p = pte_page(*pte);
+ 		pte_unmap(pte);
+ 		if (p) {
+-			unsigned nid = page_to_nid(p);
+-			if (!test_bit(nid, nodes))
+-				return -EIO;
++			err = 0;
++			if (!__mpol_node_valid(page_to_nid(p), pol)) {
++				if (!(flags & MPOL_MF_MOVE))
++					err = -EIO;
++				else
++					err = move_invalid_page(p, pol, vma,
++								addr, pmd);
++			}
++			if (err && (flags & MPOL_MF_STRICT)) {
++				spin_unlock(&mm->page_table_lock);
++				return err;
++			}
+ 		}
+-		addr += PAGE_SIZE;
++		spin_unlock(&mm->page_table_lock);
+ 	}
++
  	return 0;
  }
  
--#ifdef CONFIG_NUMA
--int shmem_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
--{
--	struct inode *i = vma->vm_file->f_dentry->d_inode;
--	return mpol_set_shared_policy(&SHMEM_I(i)->policy, vma, new);
--}
--
--struct mempolicy *
--shmem_get_policy(struct vm_area_struct *vma, unsigned long addr)
--{
--	struct inode *i = vma->vm_file->f_dentry->d_inode;
--	unsigned long idx;
--
--	idx = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
--	return mpol_shared_policy_lookup(&SHMEM_I(i)->policy, idx);
--}
--#endif
--
- int shmem_lock(struct file *file, int lock, struct user_struct *user)
+ /* Step 1: check the range */
+ static struct vm_area_struct *
+ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
+-	    unsigned long *nodes, unsigned long flags)
++	    struct mempolicy *policy, unsigned long flags)
  {
- 	struct inode *inode = file->f_dentry->d_inode;
-@@ -1293,7 +1259,6 @@ shmem_get_inode(struct super_block *sb, 
- 		case S_IFREG:
- 			inode->i_op = &shmem_inode_operations;
- 			inode->i_fop = &shmem_file_operations;
--			mpol_shared_policy_init(&info->policy);
- 			break;
- 		case S_IFDIR:
- 			inode->i_nlink++;
-@@ -1303,11 +1268,6 @@ shmem_get_inode(struct super_block *sb, 
- 			inode->i_fop = &simple_dir_operations;
- 			break;
- 		case S_IFLNK:
--			/*
--			 * Must not load anything in the rbtree,
--			 * mpol_free_shared_policy will not be called.
--			 */
--			mpol_shared_policy_init(&info->policy);
- 			break;
- 		}
- 	} else if (sbinfo) {
-@@ -2026,10 +1986,6 @@ static struct inode *shmem_alloc_inode(s
+ 	int err;
+ 	struct vm_area_struct *first, *vma, *prev;
+@@ -297,9 +517,8 @@
+ 			return ERR_PTR(-EFAULT);
+ 		if (prev && prev->vm_end < vma->vm_start)
+ 			return ERR_PTR(-EFAULT);
+-		if ((flags & MPOL_MF_STRICT) && !is_vm_hugetlb_page(vma)) {
+-			err = verify_pages(vma->vm_mm,
+-					   vma->vm_start, vma->vm_end, nodes);
++		if (flags & (MPOL_MF_MOVE | MPOL_MF_STRICT)) {
++			err = move_verify_pages(vma, policy, flags);
+ 			if (err) {
+ 				first = ERR_PTR(err);
+ 				break;
+@@ -366,12 +585,13 @@
+ 	DECLARE_BITMAP(nodes, MAX_NUMNODES);
+ 	int err;
  
- static void shmem_destroy_inode(struct inode *inode)
- {
--	if ((inode->i_mode & S_IFMT) == S_IFREG) {
--		/* only struct inode is valid if it's an inline symlink */
--		mpol_free_shared_policy(&SHMEM_I(inode)->policy);
+-	if ((flags & ~(unsigned long)(MPOL_MF_STRICT)) || mode > MPOL_MAX)
++	if ((flags & ~(unsigned long)(MPOL_MF_STRICT | MPOL_MF_MOVE)) ||
++	    mode > MPOL_MAX)
+ 		return -EINVAL;
+ 	if (start & ~PAGE_MASK)
+ 		return -EINVAL;
+ 	if (mode == MPOL_DEFAULT)
+-		flags &= ~MPOL_MF_STRICT;
++		flags &= ~(MPOL_MF_STRICT | MPOL_MF_MOVE);
+ 	len = (len + PAGE_SIZE - 1) & PAGE_MASK;
+ 	end = start + len;
+ 	if (end < start)
+@@ -391,7 +611,7 @@
+ 			mode,nodes[0]);
+ 
+ 	down_write(&mm->mmap_sem);
+-	vma = check_range(mm, start, end, nodes, flags);
++	vma = check_range(mm, start, end, new, flags);
+ 	err = PTR_ERR(vma);
+ 	if (!IS_ERR(vma))
+ 		err = mbind_range(vma, start, end, new);
+@@ -624,24 +844,6 @@
+ 
+ #endif
+ 
+-/* Return effective policy for a VMA */
+-static struct mempolicy *
+-get_vma_policy(struct vm_area_struct *vma, unsigned long addr)
+-{
+-	struct mempolicy *pol = current->mempolicy;
+-
+-	if (vma) {
+-		if (vma->vm_ops && vma->vm_ops->get_policy)
+-		        pol = vma->vm_ops->get_policy(vma, addr);
+-		else if (vma->vm_policy &&
+-				vma->vm_policy->policy != MPOL_DEFAULT)
+-			pol = vma->vm_policy;
 -	}
- 	kmem_cache_free(shmem_inode_cachep, SHMEM_I(inode));
+-	if (!pol)
+-		pol = &default_policy;
+-	return pol;
+-}
+-
+ /* Return a zonelist representing a mempolicy */
+ static struct zonelist *zonelist_policy(unsigned gfp, struct mempolicy *policy)
+ {
+@@ -882,28 +1084,6 @@
+ 	return 0;
  }
  
-@@ -2135,8 +2091,8 @@ static struct vm_operations_struct shmem
- 	.nopage		= shmem_nopage,
- 	.populate	= shmem_populate,
- #ifdef CONFIG_NUMA
--	.set_policy     = shmem_set_policy,
--	.get_policy     = shmem_get_policy,
-+	.set_policy     = generic_file_set_policy,
-+	.get_policy     = generic_file_get_policy,
- #endif
- };
+-/* Find secondary valid nodes for an allocation */
+-int mpol_node_valid(int nid, struct vm_area_struct *vma, unsigned long addr)
+-{
+-	struct mempolicy *pol = get_vma_policy(vma, addr);
+-
+-	switch (pol->policy) {
+-	case MPOL_PREFERRED:
+-	case MPOL_DEFAULT:
+-	case MPOL_INTERLEAVE:
+-		return 1;
+-	case MPOL_BIND: {
+-		struct zone **z;
+-		for (z = pol->v.zonelist->zones; *z; z++)
+-			if ((*z)->zone_pgdat->node_id == nid)
+-				return 1;
+-		return 0;
+-	}
+-	default:
+-		BUG();
+-		return 0;
+-	}
+-}
  
+ /*
+  * Shared memory backing store policy support.
+@@ -1023,10 +1203,14 @@
+ 	/* Take care of old policies in the same range. */
+ 	while (n && n->start < end) {
+ 		struct rb_node *next = rb_next(&n->nd);
+-		if (n->start >= start) {
+-			if (n->end <= end)
++		if (n->start == start && n->end == end &&
++		    mpol_equal(n->policy, new->policy)) {
++			/* the same shared policy already exists, just exit */
++			goto out;
++		} else if (n->start >= start) {
++			if (n->end <= end) {
+ 				sp_delete(sp, n);
+-			else
++			} else
+ 				n->start = end;
+ 		} else {
+ 			/* Old policy spanning whole new range. */
+@@ -1052,6 +1236,7 @@
+ 	}
+ 	if (new)
+ 		sp_insert(sp, new);
++ out:
+ 	spin_unlock(&sp->lock);
+ 	if (new2) {
+ 		mpol_free(new2->policy);
+@@ -1103,6 +1288,37 @@
+ 	spin_unlock(&p->lock);
+ }
+ 
++struct page *
++alloc_page_shared_policy(unsigned gfp, struct shared_policy *sp,
++			 unsigned long idx)
++{
++	struct page *page;
++	struct mempolicy * shared_pol = NULL;
++
++	if (sp->root.rb_node) {
++		struct vm_area_struct pvma;
++		/* Create a pseudo vma that just contains the policy */
++		memset(&pvma, 0, sizeof(struct vm_area_struct));
++		pvma.vm_end = PAGE_SIZE;
++		pvma.vm_pgoff = idx;
++		shared_pol = mpol_shared_policy_lookup(sp, idx);
++		pvma.vm_policy = shared_pol;
++		page = alloc_page_vma(gfp, &pvma, 0);
++		mpol_free(pvma.vm_policy);
++	} else {
++		page = alloc_pages(gfp, 0);
++	}
++
++	if (page) {
++		if (shared_pol)
++			SetPageSharedPolicy(page);
++		else
++			ClearPageSharedPolicy(page);
++	}
++	
++	return page;
++}
++
+ /* assumes fs == KERNEL_DS */
+ void __init numa_policy_init(void)
+ {
+diff -Nuar -X /home/stevel/dontdiff linux-2.6.10-rc1-mm5.orig/mm/readahead.c linux-2.6.10-rc1-mm5/mm/readahead.c
+--- linux-2.6.10-rc1-mm5.orig/mm/readahead.c	2004-11-12 10:25:08.000000000 -0800
++++ linux-2.6.10-rc1-mm5/mm/readahead.c	2004-11-12 10:30:08.000000000 -0800
+@@ -246,7 +246,7 @@
+ 			continue;
+ 
+ 		read_unlock_irq(&mapping->tree_lock);
+-		page = page_cache_alloc_cold(mapping);
++		page = page_cache_alloc_cold(mapping, page_offset);
+ 		read_lock_irq(&mapping->tree_lock);
+ 		if (!page)
+ 			break;
+diff -Nuar -X /home/stevel/dontdiff linux-2.6.10-rc1-mm5.orig/mm/shmem.c linux-2.6.10-rc1-mm5/mm/shmem.c
+--- linux-2.6.10-rc1-mm5.orig/mm/shmem.c	2004-11-12 10:25:07.000000000 -0800
++++ linux-2.6.10-rc1-mm5/mm/shmem.c	2004-11-12 10:25:43.000000000 -0800
+@@ -903,16 +903,7 @@
+ shmem_alloc_page(unsigned long gfp, struct shmem_inode_info *info,
+ 		 unsigned long idx)
+ {
+-	struct vm_area_struct pvma;
+-	struct page *page;
+-
+-	memset(&pvma, 0, sizeof(struct vm_area_struct));
+-	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
+-	pvma.vm_pgoff = idx;
+-	pvma.vm_end = PAGE_SIZE;
+-	page = alloc_page_vma(gfp, &pvma, 0);
+-	mpol_free(pvma.vm_policy);
+-	return page;
++	return alloc_page_shared_policy(gfp, &info->policy, idx);
+ }
+ #else
+ static inline struct page *
 
+--------------030406070807080705000602--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
