@@ -1,53 +1,37 @@
-Date: Sat, 6 Nov 2004 15:48:58 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: manual page migration, revisited...
-Message-ID: <20041106174857.GA23420@logos.cnet>
-References: <418C03CD.2080501@sgi.com> <1099695742.4507.114.camel@desktop.cunninghams>
+Date: Sat, 6 Nov 2004 13:31:06 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: removing mm->rss and mm->anon_rss from kernel?
+Message-ID: <20041106213106.GH2890@holomorphy.com>
+References: <16781.12572.181444.967905@wombat.chubb.wattle.id.au> <Pine.LNX.4.44.0411061553120.21150-100000@chimarrao.boston.redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1099695742.4507.114.camel@desktop.cunninghams>
+In-Reply-To: <Pine.LNX.4.44.0411061553120.21150-100000@chimarrao.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nigel Cunningham <ncunningham@linuxmail.org>
-Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Linux Memory Management <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Peter Chubb <peter@chubb.wattle.id.au>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Nov 06, 2004 at 10:02:22AM +1100, Nigel Cunningham wrote:
-> Hi.
-> 
-> On Sat, 2004-11-06 at 09:50, Ray Bryant wrote:
-> > Marcelo and Takahashi-san (and anyone else who would like to comment),
-> > 
-> > This is a little off topic, but this is as good of thread as any to start this 
-> > discussion on.  Feel free to peel this off as a separate discussion thread 
-> > asap if you like.
-> > 
-> > We have a requirement (for a potential customer) to do the following kind of
-> > thing:
-> > 
-> > (1)  Suspend and swap out a running process so that the node where the process
-> >       is running can be reassigned to a higher priority job.
-> > 
-> > (2)  Resume and swap back in those suspended jobs, restoring the original
-> >       memory layout on the original nodes, or
-> > 
-> > (3)  Resume and swap back in those suspended jobs on a new set of nodes, with
-> >       as similar topological layout as possible.  (It's also possible we may
-> >       want to just move the jobs directly from one set of nodes to another
-> >       without swapping them out first.
-> 
-> You may not even need any kernel patches to accomplish this. Bernard
-> Blackham wrote some code called cryopid: http://cryopid.berlios.de/. I
-> haven't tried it myself, but it sounds like it might be at least part of
-> what you're after.
+On Sun, 7 Nov 2004, Peter Chubb wrote:
+>> Is this going to scale properly to large machines, which usually have
+>> large numbers of active processes?  top is already
+>> almost unuseably slow on such machines; if all the pagetables have to
+>> be scanned to get RSS, it'll probably slow to a halt.
 
-Hi Ray, Nigel,
+On Sat, Nov 06, 2004 at 03:54:17PM -0500, Rik van Riel wrote:
+> Not probably.  Certainly.
+> Christopher would do well to actually use his patch, while
+> running eg. an Oracle benchmark and using top to monitor
+> system activity.
 
-And the swsusp code itself, isnt it what its doing? Stopping all processes, 
-saving their memory to disk, and resuming later on.
+OAST with a few thousand clients should do it. I think it tops out
+around 5000 or 1000 without benchmark source adjustments. The database
+itself, of course, has no trouble with many clients, the workload
+simulator was merely not intended for so many.
 
-You should just need an API to stop a specific process? 
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
