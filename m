@@ -1,44 +1,63 @@
-Message-ID: <3EB2A125.4000407@us.ibm.com>
-Date: Fri, 02 May 2003 09:47:33 -0700
-From: Dave Hansen <haveblue@us.ibm.com>
-MIME-Version: 1.0
+Date: Fri, 02 May 2003 09:54:43 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: 2.5.68-mm4
-References: <20030502020149.1ec3e54f.akpm@digeo.com> <20030502131857.GH8978@holomorphy.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Message-ID: <31670000.1051894482@[10.10.2.4]>
+In-Reply-To: <20030502020149.1ec3e54f.akpm@digeo.com>
+References: <20030502020149.1ec3e54f.akpm@digeo.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="==========878600887=========="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andi Kleen <ak@muc.de>
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
->> On Fri, May 02, 2003 at 02:01:49AM -0700, Andrew Morton wrote:
->>+dont-set-kernel-pgd-on-PAE.patch
->> little ia32 optimisation/cleanup
-> 
-> It looks like no one listened to my commentary on the set_pgd() patch.
-> 
-> Remove pointless #ifdef, pointless set_pgd(), and a mysterious line
-> full of nothing but whitespace after the #endif, and update commentary.
-> -#ifndef CONFIG_X86_PAE
-> -		set_pgd(pgd, *pgd_k);
-> -#endif
+--==========878600887==========
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-I wask thinking that the PMD set in 4G mode was a noop.  But, it isn't,
-so it makes up for the completely removed pgd set.
+Fix up NUMA-Q build with new generic apic mode stuff
 
-This comment needs to get updated in include/asm-i386/pgtable-2level.h:
-/*
- * (pmds are folded into pgds so this doesn't get actually called,
- * but the define is needed for a generic inline function.)
- */
-#define set_pmd(pmdptr, pmdval) (*(pmdptr) = pmdval)
-#define set_pgd(pgdptr, pgdval) (*(pgdptr) = pgdval)
 
--- 
-Dave Hansen
-haveblue@us.ibm.com
+--==========878600887==========
+Content-Type: text/plain; charset=iso-8859-1; name=mm4-fixed
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: attachment; filename=mm4-fixed; size=777
+
+diff -urpN -X /home/fletch/.diff.exclude =
+mm4/include/asm-i386/mach-numaq/mach_apic.h =
+mm4-fixed/include/asm-i386/mach-numaq/mach_apic.h
+--- mm4/include/asm-i386/mach-numaq/mach_apic.h	Wed Mar  5 07:37:06 2003
++++ mm4-fixed/include/asm-i386/mach-numaq/mach_apic.h	Fri May  2 09:45:58 =
+2003
+@@ -1,6 +1,9 @@
+ #ifndef __ASM_MACH_APIC_H
+ #define __ASM_MACH_APIC_H
+=20
++#include <asm/io.h>
++#include <linux/mmzone.h>
++
+ #define APIC_DFR_VALUE	(APIC_DFR_CLUSTER)
+=20
+ #define TARGET_CPUS (0xf)
+@@ -102,5 +105,14 @@ static inline int check_phys_apicid_pres
+ {
+ 	return (1);
+ }
++
++#define APIC_ID_MASK (0xF<<24)
++
++static inline unsigned get_apic_id(unsigned long x)
++{
++	        return (((x)>>24)&0x0F);
++}
++
++#define         GET_APIC_ID(x)  get_apic_id(x)
+=20
+ #endif /* __ASM_MACH_APIC_H */
+
+--==========878600887==========--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
