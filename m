@@ -1,37 +1,49 @@
-Date: Tue, 11 Apr 2000 14:47:14 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: lock_page/LockPage/UnlockPage
-In-Reply-To: <200004102341.SAA49583@fsgi344.americas.sgi.com>
-Message-ID: <Pine.LNX.4.21.0004111442180.25673-100000@maclaurin.suse.de>
+Message-ID: <38F339A2.FB3F1699@colorfullife.com>
+Date: Tue, 11 Apr 2000 16:41:38 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: zap_page_range(): TLB flush race
+References: <200004082331.QAA78522@google.engr.sgi.com> <E12e4mo-0003Pn-00@the-village.bc.nu> <20000410232149.M17648@redhat.com> <200004102312.QAA05115@pizda.ninka.net> <20000411101418.E2740@redhat.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jim Mostek <mostek@sgi.com>
-Cc: linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "David S. Miller" <davem@redhat.com>, alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 10 Apr 2000, Jim Mostek wrote:
+"Stephen C. Tweedie" wrote:
+> 
+> 
+> OK, I'm sure there are optimisation issues, but I was worried about
+> correctness problems from what Alan said.
+> 
 
->Just a minor nit, but it seems to me that if UnlockPage wakes up
->sleepers, LockPage should go to sleep.
+They are correctness problems:
+[I'm only reading the asm source, I might be wrong]
 
-LockPage can be executed only in places where you know the page to be
-unlocked. You could use it for example to set the PG_locked bitflag before
-adding the page to the hashtable.
+* s390 has hardware support for tlb flush ipis.
+* it doesn't support hardware contexts (address space numbers, region
+id,...)
+* They need the old pte value and the virtual address for their flush
+ipi.
 
-LockPage could be implemented with:
+-->
+	set_pte()
+	flush_tlb_page()
+doesn't work.
 
-	if (test_and_set_bit(PG_locked, &page->flags)
-		BUG();
+Obviously their work-around
+	flush_tlb_page()
+	set_pte()
+is wrong as well, and it breaks all other architectures :-/
 
-And TryLockPage() should really not be changed since by design it's only a
-bitflag operator and it's right it to remains so.
+They need an atomic set_and_flush_pte() macro.
+OTHO on i386 a tlb flush during set_pte() would cause a dramatic
+slowdown.
 
-Only UnlockPage() should be called unlock_page() if you care about style.
-
-Andrea
-
+--
+	Manfred
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
