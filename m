@@ -1,41 +1,28 @@
-Date: Wed, 25 Aug 2004 13:54:57 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: Documentation/vm/balance really outdated
-Message-ID: <20040825205457.GJ2793@holomorphy.com>
-References: <20040825184520.GA23878@logos.cnet>
+Date: Wed, 25 Aug 2004 13:53:08 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [Bug 3268] New: Lowmemory exhaustion problem with v2.6.8.1-mm4
+ 16gb
+Message-Id: <20040825135308.2dae6a5d.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.44.0408252104540.2664-100000@localhost.localdomain>
+References: <1093460701.5677.1881.camel@knk>
+	<Pine.LNX.4.44.0408252104540.2664-100000@localhost.localdomain>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040825184520.GA23878@logos.cnet>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-mm@kvack.org, akpm@osdl.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: kmannth@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 25, 2004 at 03:45:20PM -0300, Marcelo Tosatti wrote:
-> The file Documentation/vm/balance was written by Kanoj in 2000, and
-> is completly outdated to what we have now.
-> Last paragraph:
-> pages_min/pages_low/pages_high/low_on_memory/zone_wake_kswapd: These are
-> per-zone fields, used to determine when a zone needs to be balanced. When
-> the number of pages falls below pages_min, the hysteric field low_on_memory
-> gets set. This stays set till the number of free pages becomes pages_high.
-> When low_on_memory is set, page allocation requests will try to free some
-> pages in the zone (providing GFP_WAIT is set in the request). Orthogonal
-> to this, is the decision to poke kswapd to free some zone pages. That
-> decision is not hysteresis based, and is done when the number of free
-> pages is below pages_low; in which case zone_wake_kswapd is also set.
-> Should we just remove it? 
+Hugh Dickins <hugh@veritas.com> wrote:
+>
+> (hmm, does lowmem shortage exert
+>  any pressure on highmem cache these days, I wonder?);
 
-pages_min, pages_low, and pages_high are still in use, but with more
-precisely-defined semantics. low_on_memory is gone, and min_free_kb,
-overcommit_memory, and swappiness have arrived for different purposes.
-I find the value of this documentation rather unclear particularly given
-that it's not been examined in so long. Maybe kerneldoc is the way.
+It does, indirectly - when we reclaim an unused inode we also shoot down
+all that inode's pagecache.
 
-
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
