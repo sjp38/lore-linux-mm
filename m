@@ -1,24 +1,27 @@
-Message-ID: <38B52CC0.7AC1169E@intermec.com>
-Date: Thu, 24 Feb 2000 14:06:08 +0100
-From: lars brinkhoff <lars.brinkhoff@intermec.com>
-MIME-Version: 1.0
 Subject: Re: mmap/munmap semantics
-References: <Pine.LNX.4.10.10002221702370.20791-100000@linux14.zdv.uni-tuebingen.de>
-		<14516.11124.729025.321352@dukat.scot.redhat.com>
-		<20000224033502.B6548@pcep-jamie.cern.ch> <14517.8311.194809.598957@dukat.scot.redhat.com>
+References: <Pine.LNX.4.10.10002221702370.20791-100000@linux14.zdv.uni-tuebingen.de> <14516.11124.729025.321352@dukat.scot.redhat.com> <20000224033502.B6548@pcep-jamie.cern.ch> <14517.8311.194809.598957@dukat.scot.redhat.com>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 24 Feb 2000 07:41:45 -0600
+In-Reply-To: "Stephen C. Tweedie"'s message of "Thu, 24 Feb 2000 12:13:43 +0000 (GMT)"
+Message-ID: <m166velnty.fsf@flinx.hidden>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Stephen C. Tweedie" <sct@redhat.com>
 Cc: Jamie Lokier <lk@tantalophile.demon.co.uk>, Richard Guenther <richard.guenther@student.uni-tuebingen.de>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, glame-devel@lists.sourceforge.net, Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" wrote:
+"Stephen C. Tweedie" <sct@redhat.com> writes:
+
+> Hi,
+> 
 > On Thu, 24 Feb 2000 03:35:02 +0100, Jamie Lokier
 > <lk@tantalophile.demon.co.uk> said:
+> 
 > > I don't think MADV_DONTNEED actually drops privately modified data does
-> > it?
+> > it?  
+> 
 > Yes, it does.  From the DU man pages:
 > 
 >       MADV_DONTNEED
@@ -31,25 +34,19 @@ List-ID: <linux-mm.kvack.org>
 >                       though it is being accessed for the first time.
 >                       Reserved swap space is not affected by this call.
 
->From a FreeBSD man page at
-http://dorifer.heim3.tu-clausthal.de/cgi-bin/man/madvise.2.html
+Which is fine but if it works this way on shared memory it is broken,
+at least unless all mappings set (MADV_DONTNEED) and you can prove there
+was no file-io.  Otherwise you could loose legitimate file writes.
 
-     MADV_DONTNEED    Allows the VM system to decrease the in-memory priority
-                      of pages in the specified range.  Additionally future
-                      references to this address range will incur a page
-                      fault.
+Also from an irix man page:
 
-     MADV_FREE        Gives the VM system the freedom to free pages, and tells
-                      the system that information in the specified page range
-                      is no longer important.  This is an efficient way of al-
-                      lowing malloc(3) to free pages anywhere in the address
-                      space, while keeping the address space valid.  The next
-                      time that the page is referenced, the page might be de-
-                      mand zeroed, or might contain the data that was there
-                      before the MADV_FREE call.  References made to that ad-
-                      dress space range will not make the VM system page the
-                      information back in from backing store until the page is
-                      modified again.
+     MADV_DONTNEED    informs the system that the address range from addr to
+                      addr + len will likely not be referenced in the near
+                      future.  The memory to which the indicated addresses are
+                      mapped will be the first to be reclaimed when memory is
+                      needed by the system.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
