@@ -1,73 +1,36 @@
-Message-ID: <40CAA904.8080305@yahoo.com.au>
-Date: Sat, 12 Jun 2004 16:56:04 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: Keeping mmap'ed files in core regression in 2.6.7-rc
-References: <20040608142918.GA7311@traveler.cistron.net>
-In-Reply-To: <20040608142918.GA7311@traveler.cistron.net>
-Content-Type: multipart/mixed;
- boundary="------------070500000901040105060001"
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Miquel van Smoorenburg <miquels@cistron.nl>
-Cc: linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-
-This is a multi-part message in MIME format.
---------------070500000901040105060001
+Received: from root by main.gmane.org with local (Exim 3.35 #1 (Debian))
+	id 1BZDuC-0000fB-00
+	for <linux-mm@kvack.org>; Sat, 12 Jun 2004 21:11:04 +0200
+Received: from arennes-303-1-34-114.w81-250.abo.wanadoo.fr ([81.250.16.114])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Sat, 12 Jun 2004 21:11:04 +0200
+Received: from tyler by arennes-303-1-34-114.w81-250.abo.wanadoo.fr with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Sat, 12 Jun 2004 21:11:04 +0200
+From: Tyler <tyler@agat.net>
+Subject: Memory management questions
+Date: Sat, 12 Jun 2004 21:02:16 +0200
+Message-ID: <cafjtv$76d$2@sea.gmane.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
 
-Miquel van Smoorenburg wrote:
+Hi all,
 
-> Now I tried 2.6.7-rc2 and -rc3 (well rc2-bk-latest-before-rc3) and
-> with those kernels, performance goes to hell because no matter
-> how much I tune, the kernel will throw out the mmap'ed pages first.
-> RSS of the innd process hovers around 200-250 MB instead of 600.
-> 
-> Ideas ?
-> 
+I've always thinked that paging or virtual memory was practical to avoid 
+memory fragmentation. I thinked that you can map contiguous virtual 
+pages to non contiguous physical page frames.
+But let's take a look at the macros __va(x) and __pa(x) :
+#define __pa(x) ((unsigned long)x-PAGE_OFFSET)
+#define __va(x) ((unsigned long)x+PAGE_OFFSET)
+PAGE_OFFSET is a constant. For me, this means that virtual contiguous 
+adresses have to be mapped to contiguous physical adresses. Am I wrong ?:)
 
-Can you try the following patch please?
-
---------------070500000901040105060001
-Content-Type: text/x-patch;
- name="vm-revert-fix.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="vm-revert-fix.patch"
-
- linux-2.6-npiggin/mm/vmscan.c |    7 ++-----
- 1 files changed, 2 insertions(+), 5 deletions(-)
-
-diff -puN mm/vmscan.c~vm-revert-fix mm/vmscan.c
---- linux-2.6/mm/vmscan.c~vm-revert-fix	2004-06-12 16:53:02.000000000 +1000
-+++ linux-2.6-npiggin/mm/vmscan.c	2004-06-12 16:54:26.000000000 +1000
-@@ -813,9 +813,8 @@ shrink_caches(struct zone **zones, int p
- 		struct zone *zone = zones[i];
- 		int max_scan;
- 
--		zone->temp_priority = priority;
--		if (zone->prev_priority > priority)
--			zone->prev_priority = priority;
-+		if (zone->free_pages < zone->pages_high)
-+			zone->temp_priority = priority;
- 
- 		if (zone->all_unreclaimable && priority != DEF_PRIORITY)
- 			continue;	/* Let kswapd poll it */
-@@ -996,8 +995,6 @@ scan:
- 					all_zones_ok = 0;
- 			}
- 			zone->temp_priority = priority;
--			if (zone->prev_priority > priority)
--				zone->prev_priority = priority;
- 			max_scan = (zone->nr_active + zone->nr_inactive)
- 								>> priority;
- 			reclaimed = shrink_zone(zone, max_scan, GFP_KERNEL,
-
-_
-
---------------070500000901040105060001--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
