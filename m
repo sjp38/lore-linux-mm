@@ -1,31 +1,50 @@
-Date: Wed, 19 Sep 2001 14:55:34 -0700 (PDT)
-Message-Id: <20010919.145534.104033668.davem@redhat.com>
 Subject: Re: broken VM in 2.4.10-pre9
-From: "David S. Miller" <davem@redhat.com>
-In-Reply-To: <m1elp2g8vd.fsf@frodo.biederman.org>
-References: <E15jnIB-0003gh-00@the-village.bc.nu>
-	<m1elp2g8vd.fsf@frodo.biederman.org>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Date: Wed, 19 Sep 2001 23:04:10 +0100 (BST)
+In-Reply-To: <m1iteegag6.fsf@frodo.biederman.org> from "Eric W. Biederman" at Sep 19, 2001 03:03:21 PM
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-Id: <E15jpRy-0003yt-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ebiederm@xmission.com
-Cc: alan@lxorguk.ukuu.org.uk, phillips@bonn-fries.net, rfuller@nsisoftware.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Daniel Phillips <phillips@bonn-fries.net>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-   That I think is a significant cost.
+> That added to the fact that last time someone ran the numbers linux
+> was considerably faster than the BSD for mm type operations when not
+> swapping.  And this is the common case.
 
-My own personal feeling, after having tried to implement a much
-lighter weight scheme involving "anon areas", is that reverse maps or
-something similar should be looked at as a latch ditch effort.
+"Linux VM works wonderfully when nobody is using it"
 
-We are tons faster than anyone else in fork/exec/exit precisely
-because we keep track of so little state for anonymous pages.
+Which is rather like the scheduler works well for one task then by three is
+making bad decisions.
 
-Later,
-David S. Miller
-davem@redhat.com
+> But I have not seen the argument that not having reverse maps make it
+> undoable.  In fact previous versions of linux seem to put the proof
+> that you can get at least reasonable swapping under load without
+> reverse page tables.
+
+The last decent Linx VM behaviour was about 2.1.100 or so - which was
+without reverse maps. It's been downhill since then. So yes you may be
+right.
+
+> So my suggestion was to look at getting anonymous pages backed by what
+> amounts to a shared memory segment.  In that vein.  By using an extent
+> based data structure we can get the cost down under the current 8 bits
+> per page that we have for the swap counts, and make allocating swap
+> pages faster.  And we want to cluster related swap pages anyway so
+> an extent based system is a natural fit.
+
+Much of this goes away if you get rid of both the swap and anonymous page
+special cases. Back anonymous pages with the "whoops everything I write here
+vanishes mysteriously" file system and swap with a swapfs
+
+Reverse mappings make linear aging easier to do but are not critical (we
+can walk all physical pages via the page map array).
+
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
