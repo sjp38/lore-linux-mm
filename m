@@ -1,64 +1,40 @@
-Received: from fred.muc.de (exim@ns2075.munich.netsurf.de [195.180.232.75])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA21413
-	for <linux-mm@kvack.org>; Mon, 31 May 1999 15:54:08 -0400
-Date: Mon, 31 May 1999 21:54:38 +0200
-From: Andi Kleen <ak@muc.de>
-Subject: Re: Application load times
-Message-ID: <19990531215438.B3037@fred.muc.de>
-References: <199905311911.PAA13206@bucky.physics.ncsu.edu>
-Mime-Version: 1.0
+Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA23924
+	for <linux-mm@kvack.org>; Mon, 31 May 1999 20:02:08 -0400
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <199905311911.PAA13206@bucky.physics.ncsu.edu>; from Emil Briggs on Mon, May 31, 1999 at 09:11:08PM +0200
+Content-Transfer-Encoding: 7bit
+Message-ID: <14163.8950.319558.793463@dukat.scot.redhat.com>
+Date: Tue, 1 Jun 1999 01:01:58 +0100 (BST)
+Subject: Re: Q: PAGE_CACHE_SIZE?
+In-Reply-To: <Pine.LNX.4.05.9905310111460.7712-100000@laser.random>
+References: <14159.18916.728327.550606@dukat.scot.redhat.com>
+	<Pine.LNX.4.05.9905310111460.7712-100000@laser.random>
 Sender: owner-linux-mm@kvack.org
-To: Emil Briggs <briggs@bucky.physics.ncsu.edu>
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@nl.linux.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, ak@muc.de, ebiederm+eric@ccr.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 31, 1999 at 09:11:08PM +0200, Emil Briggs wrote:
-> Are there any vm tuning parameters that can improve initial application
-> load times on a freshly booted system? I'm asking since I found the
-> following load times with Netscape Communicator and StarOffice.
-> 
-> 
-> Communicator takes 14 seconds to load on a freshly booted system
-> 
-> On the other hand it takes 4 seconds to load using a program of this sort
-> 
->   fd = open("/opt/netscape/netscape", O_RDONLY);
->   read(fd, buffer, 13858288);    
->   execv("/opt/netscape/netscape", argv);
-> 
-> With StarOffice the load time drops from 40 seconds to 15 seconds.
-> 
-> 
-> The reason this came up is because I installed Linux on a friends
-> computer who usually boots it a couple of times a day to check email,
-> webbrowse or run StarOffice -- they immediately asked me why it
-> was so slow. Since I know how they usually use their computer it was
-> easy enough to remedy this with the little bit of code above. Anyway
-> does anyone know if there a more general way of improving initial load
-> times with some tuning parameters to the vm system?
+Hi,
 
-The reason is that the read can use the disk bandwidth fully including
-read-a-head, which the execv reads the block in the order the functions
-which are called at loadup are laid out in the executable. This is especially
-bad which C++ programs which usually have small constructors spread out
-all over the file, which are called at boot up. The solution are special
-programs which rearrange the executable and lay out the function on 
-page boundaries to minimize the working set and load time.
+On Mon, 31 May 1999 01:12:43 +0200 (CEST), Andrea Arcangeli
+<andrea@suse.de> said:
 
-These programs exist for most other OS with various names (e.g. pixie on
-Irix). Not on Linux yet. Nat Friedman apparently presented a design for
-"grope" on the LinuxExpo, but it isn't released yet.
+> I am just rewriting swapped-in pages to their previous location on
+> swap to avoid swap fragmentation. No need to have dirty pages into the
+> swap cache to handle that. We just have the information cached in the
+> page-map-> offset field. We only need to know when it make sense to
+> know if we should use it or not. To handle that I simply added a
+> PG_swap_entry bitflag set at swapin time and cleared after swapout to
+> the old entry or at free_page_and_swap_cache() time. The thing runs
+> like a charm (the swapin performances definitely improves a lot).
 
-2.2 made program loading already quite a bit faster by introducing readahead
-for mmap. 
+Cute!  When, oh when, are you going to start releasing these things as
+separate patches which I can look at?  This is one simple optimisation
+that I'd really like to see in 2.3 asap.
 
-
-
--Andi
--- 
-This is like TV. I don't like TV.
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
