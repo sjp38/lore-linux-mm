@@ -1,194 +1,109 @@
-Date: Tue, 16 Nov 2004 13:07:18 +0900 (JST)
-Message-Id: <20041116.130718.34767806.taka@valinux.co.jp>
-Subject: Re: migration cache, updated
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20041105151631.GA19473@logos.cnet>
-References: <20041028160520.GB7562@logos.cnet>
-	<20041105.224958.94279091.taka@valinux.co.jp>
-	<20041105151631.GA19473@logos.cnet>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Message-ID: <4199BC5F.5020400@tebibyte.org>
+Date: Tue, 16 Nov 2004 09:37:51 +0100
+From: Chris Ross <chris@tebibyte.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH] fix spurious OOM kills
+References: <20041111112922.GA15948@logos.cnet> <4193E056.6070100@tebibyte.org> <4194EA45.90800@tebibyte.org> <20041113233740.GA4121@x30.random> <20041114094417.GC29267@logos.cnet> <20041114170339.GB13733@dualathlon.random>
+In-Reply-To: <20041114170339.GB13733@dualathlon.random>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: marcelo.tosatti@cyclades.com
-Cc: linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
+To: Andrea Arcangeli <andrea@novell.com>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <piggin@cyberone.com.au>, Rik van Riel <riel@redhat.com>, Martin MOKREJ? <mmokrejs@ribosome.natur.cuni.cz>, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-Hi Marcelo,
+Andrea Arcangeli escreveu:
+> Chris, since you can reproduce so easily, could you try a `vmstat 1`
+> while the oom killing happens, and can you post it?
 
-I've been testing the memory migration code with your patch.
-I found problems and I think the attached patch would
-fix some of them.
-
-One of the problems is a race condition between add_to_migration_cache()
-and try_to_unmap(). Some pages in the migration cache cannot
-be removed with the current implementation. Please suppose
-a process space might be removed between them. In this case
-no one can remove pages the process had from the migration cache,
-because they can be removed only when the pagetables pointed
-the pages.
-
-Therefore, I made pages removed from the migration cache
-at the end of generic_migrate_page() if they remain in the cache.
-
-The another is a fork() related problem. If fork() has occurred
-during page migration, the previous work may not go well.
-pages may not be removed from the migration cache.
-
-So I made the swapcode ignore pages in the migration cache.
-However, as you know this is just a workaround and not a correct
-way to fix it.
-
-> Hi Hirokazu!
-> 
-> The problem is that another thread can fault in the pte 
-> (removing the radix tree entry) while the current thread dropped the 
-> page_table_lock - which explains the NULL lookup_migration_cache. 
-> The swap code handles this situation, but I've completly missed it. 
-> 
-> Updated patch attached.
-> 
-> Extreme thanks for your testing, its being crucial! 
-> 
-> We're getting there.
-> 
-> do_swap_page now does:
-> 
->  again:
-> +       if (pte_is_migration(orig_pte)) {
-> +               page = lookup_migration_cache(entry.val);
-> +               if (!page) {
-> +                       spin_lock(&mm->page_table_lock);
-> +                       page_table = pte_offset_map(pmd, address);
-> +                       if (likely(pte_same(*page_table, orig_pte)))
-> +                               ret = VM_FAULT_OOM;
-> +                       else
-> +                               ret = VM_FAULT_MINOR;
-> +                       pte_unmap(page_table);
-> +                       spin_unlock(&mm->page_table_lock);
-> +                       goto out;
-> +               }
-> +       } else {
-> 
+This is with linux-2.6.10-rc2 (and no patches).
 
 
+procs -----------memory---------- ---swap-- -----io---- --system-- 
+----cpu----
+  r  b   swpd   free   buff  cache   si   so    bi    bo   in    cs us 
+sy id wa
+  2  0   5044   2888   5128  12696  320 1892  4532  1892 1157   295 20 
+20  0 60
+  0  1   6860    756   3076  15368  148 1920  4428  1920 1175   261 13 
+14  0 73
+  0  1   9460    712   2492  12404   28 2736  4896  2736 1142   247 15 
+19  0 66
+  0  2  22228   3176   2460   4144  240 13316  2556 13356 1146   132 14 
+30  0 56
+  0  1  21612    960   2556   7932  300    0  4936   172 1145   195 16 
+12  0 72
+  0  2  22964    552   2440   4088  992 1720  6760  1720 1316   407 11 
+27  0 62
+  0  3  23492    712   2456   3520 1476  876  3968   876 1487   376  2 
+18  0 81
+  2  2  24904    580   2484   3784 1156 1664  2592  1664 1432   319  1 
+13  0 86
+  0  3  35012    704   2616   5604  864 10116  2872 10184 1139   207  4 
+15  0 81
+  2  2  34756    880   2848   6444  232    0  1072   340 1248   171  5 
+12  0 83
+  0  2  34740    752   2992   7220 1448    0  2308     0 1111   267 23 
+13  0 65
+  0  2  34740    736   3200   7308 1288    0  1544     0 1109   318 46 
+18  0 35
+  2  0  34740    548   3364   7436  924    0  1892     0 1116   320 55 
+22  0 23
+  1  1  34740    932   3216   6592 1196    0  1676     0 1104   183 51 
+19  0 30
+  0  2  34732    652   3440   5572 1752   12  1752   420 1085   162 74 
+4  0 22
+  0  1  34736    788   3088   4300 2656    8  2656   384 1235   245 46 
+7  0 48
+  1  2  35076    700   2740   5068 1940  440  3512   440 1290   303 11 
+10  0 80
+  0  1  35208    676   2756   5020 1096  192  4480   192 1275   309  1 
+11  0 88
+  0  1  35432    672   2760   3700  280  408  3884  1076 1579   346 10 
+23  0 67
+  0  6  35432    396   2760   3300 2512  272  3936   568 4782  2045  0 
+25  0 74
+  1  1   6260  41364   2800   4480 2220    0  3812     0 1180   359  1 
+8  0 91
+  1  0   6260  41200   2908   4488   64    0    84   168 1040    52  0 
+2 92  6
+  0  0   6260  41200   2908   4488    4    0     4     0 1005     8  0 
+0 99  1
 
-Signed-off-by: Hirokazu Takahashi <taka@valinux.co.jp>
----
 
- linux-2.6.9-rc4-taka/mm/memory.c   |    2 +-
- linux-2.6.9-rc4-taka/mm/mmigrate.c |   28 +++++++++++++++++++++-------
- linux-2.6.9-rc4-taka/mm/vmscan.c   |    4 ++++
- 3 files changed, 26 insertions, 8 deletions
-
-diff -puN mm/mmigrate.c~marcelo-FIX1 mm/mmigrate.c
---- linux-2.6.9-rc4/mm/mmigrate.c~marcelo-FIX1	Tue Nov 16 10:43:56 2004
-+++ linux-2.6.9-rc4-taka/mm/mmigrate.c	Tue Nov 16 11:07:10 2004
-@@ -114,14 +114,14 @@ int migration_remove_entry(swp_entry_t e
- 
- 	lock_page(page);	
- 
--	migration_remove_reference(page);
-+	migration_remove_reference(page, 1);
- 
- 	unlock_page(page);
- 
- 	page_cache_release(page);
- }
- 
--int migration_remove_reference(struct page *page)
-+int migration_remove_reference(struct page *page, int dec)
- {
- 	struct counter *c;
- 	swp_entry_t entry;
-@@ -134,10 +134,9 @@ int migration_remove_reference(struct pa
- 
- 	read_unlock_irq(&migration_space.tree_lock);
- 
--	if (!c->i)
--		BUG();
-+	BUG_ON(c->i < dec);
- 
--	c->i--;
-+	c->i -= dec;
- 
- 	if (!c->i) {
- 		remove_from_migration_cache(page, page->private);
-@@ -146,6 +145,15 @@ int migration_remove_reference(struct pa
- 	}
- }
- 
-+int detach_from_migration_cache(struct page *page)
-+{
-+	lock_page(page);	
-+	migration_remove_reference(page, 0);
-+	unlock_page(page);
-+
-+	return 0;
-+}
-+
- int add_to_migration_cache(struct page *page, int gfp_mask) 
- {
- 	int error, offset;
-@@ -522,7 +530,9 @@ generic_migrate_page(struct page *page, 
- 
- 	/* map the newpage where the old page have been mapped. */
- 	touch_unmapped_address(&vlist);
--	if (PageSwapCache(newpage)) {
-+	if (PageMigration(newpage))
-+		detach_from_migration_cache(newpage);
-+	else if (PageSwapCache(newpage)) {
- 		lock_page(newpage);
- 		__remove_exclusive_swap_page(newpage, 1);
- 		unlock_page(newpage);
-@@ -538,7 +548,9 @@ out_busy:
- 	/* Roll back all operations. */
- 	unwind_page(page, newpage);
- 	touch_unmapped_address(&vlist);
--	if (PageSwapCache(page)) {
-+	if (PageMigration(page))
-+		detach_from_migration_cache(page);
-+	else if (PageSwapCache(page)) {
- 		lock_page(page);
- 		__remove_exclusive_swap_page(page, 1);
- 		unlock_page(page);
-@@ -550,6 +562,8 @@ out_removing:
- 		BUG();
- 	unlock_page(page);
- 	unlock_page(newpage);
-+	if (PageMigration(page))
-+		detach_from_migration_cache(page);
- 	return ret;
- }
- 
-diff -puN mm/vmscan.c~marcelo-FIX1 mm/vmscan.c
---- linux-2.6.9-rc4/mm/vmscan.c~marcelo-FIX1	Mon Nov 15 12:20:35 2004
-+++ linux-2.6.9-rc4-taka/mm/vmscan.c	Tue Nov 16 11:06:06 2004
-@@ -459,6 +459,10 @@ int shrink_list(struct list_head *page_l
- 			goto keep_locked;
- 		}
- 
-+		if (PageMigration(page)) {
-+			write_unlock_irq(&mapping->tree_lock);
-+			goto keep_locked;
-+		}
- #ifdef CONFIG_SWAP
- 		if (PageSwapCache(page)) {
- 			swp_entry_t swap = { .val = page->private };
-diff -puN mm/memory.c~marcelo-FIX1 mm/memory.c
---- linux-2.6.9-rc4/mm/memory.c~marcelo-FIX1	Tue Nov 16 11:06:31 2004
-+++ linux-2.6.9-rc4-taka/mm/memory.c	Tue Nov 16 11:06:57 2004
-@@ -1621,7 +1621,7 @@ again:
- 		if (vm_swap_full())
- 			remove_exclusive_swap_page(page);
- 	} else {
--		migration_remove_reference(page);
-+		migration_remove_reference(page, 1);
- 	}
- 
- 	mm->rss++;
-_
+Nov 16 09:25:20 sleepy oom-killer: gfp_mask=0xd2
+Nov 16 09:25:20 sleepy DMA per-cpu:
+Nov 16 09:25:20 sleepy cpu 0 hot: low 2, high 6, batch 1
+Nov 16 09:25:20 sleepy cpu 0 cold: low 0, high 2, batch 1
+Nov 16 09:25:20 sleepy Normal per-cpu:
+Nov 16 09:25:20 sleepy cpu 0 hot: low 4, high 12, batch 2
+Nov 16 09:25:20 sleepy cpu 0 cold: low 0, high 4, batch 2
+Nov 16 09:25:20 sleepy HighMem per-cpu: empty
+Nov 16 09:25:20 sleepy
+Nov 16 09:25:20 sleepy Free pages:         244kB (0kB HighMem)
+Nov 16 09:25:20 sleepy Active:12246 inactive:392 dirty:0 writeback:0 
+unstable:0 free:61 slab:1294 mapped:11933 pagetables:172
+Nov 16 09:25:20 sleepy DMA free:60kB min:60kB low:120kB high:180kB 
+active:11876kB inactive:0kB present:16384kB pages_scanned:12100 
+all_unreclaimable? yes
+Nov 16 09:25:20 sleepy protections[]: 0 0 0
+Nov 16 09:25:20 sleepy Normal free:184kB min:188kB low:376kB high:564kB 
+active:37108kB inactive:1568kB present:49144kB pages_scanned:40510 
+all_unreclaimable
+? yes
+Nov 16 09:25:20 sleepy protections[]: 0 0 0
+Nov 16 09:25:20 sleepy HighMem free:0kB min:128kB low:256kB high:384kB 
+active:0kB inactive:0kB present:0kB pages_scanned:0 all_unreclaimable? no
+Nov 16 09:25:20 sleepy protections[]: 0 0 0
+Nov 16 09:25:20 sleepy DMA: 1*4kB 1*8kB 1*16kB 1*32kB 0*64kB 0*128kB 
+0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 60kB
+Nov 16 09:25:20 sleepy Normal: 0*4kB 1*8kB 1*16kB 1*32kB 0*64kB 1*128kB 
+0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 184kB
+Nov 16 09:25:20 sleepy HighMem: empty
+Nov 16 09:25:20 sleepy Swap cache: add 8591929, delete 8588661, find 
+723569/2416017, race 3+15
+Nov 16 09:25:20 sleepy Out of Memory: Killed process 22511 (ld).
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
