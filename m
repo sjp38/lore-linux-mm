@@ -1,29 +1,38 @@
-Date: Tue, 26 Sep 2000 17:29:27 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
-Subject: [CFT][PATCH] ext2 directories in pagecache
-In-Reply-To: <Pine.GSO.4.21.0009250101150.14096-100000@weyl.math.psu.edu>
-Message-ID: <Pine.GSO.4.21.0009261715320.22614-100000@weyl.math.psu.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 27 Sep 2000 00:16:20 +0200
+From: Marko Kreen <marko@l-t.ee>
+Subject: Re: [CFT][PATCH] ext2 directories in pagecache
+Message-ID: <20000927001620.A26488@l-t.ee>
+References: <Pine.GSO.4.21.0009250101150.14096-100000@weyl.math.psu.edu> <Pine.GSO.4.21.0009261715320.22614-100000@weyl.math.psu.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.GSO.4.21.0009261715320.22614-100000@weyl.math.psu.edu>; from viro@math.psu.edu on Tue, Sep 26, 2000 at 05:29:27PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, Alexander Viro <aviro@redhat.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
+To: Alexander Viro <viro@math.psu.edu>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, Alexander Viro <aviro@redhat.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-be really working (survives assorted builds, does the right thing on
-find-based scripts and obvious local tests, yodda, yodda). It certainly
-needs more testing, but I would call it (early) beta.
+On Tue, Sep 26, 2000 at 05:29:27PM -0400, Alexander Viro wrote:
+> Comments and help in testing are more than welcome.
 
-	Folks, give it a try - just keep decent backups. Similar code will
-have to go into UFS in 2.4 and that (ext2) variant may be of interest for
-2.4.<late>/2.5.<early> timeframe.
+There is something fishy in ext2_empty_dir:
 
-	I'm putting it on ftp.math.psu.edu/pub/viro/ext2-patch-7.gz.
-Comments and help in testing are more than welcome.
-							Cheers,
-								Al
++                               /* check for . and .. */
++                               if (de->name[0] != '.')
++                                       goto not_empty;
++                               if (!de->name[1]) {
++                                       if (de->inode !=
++                                           le32_to_cpu(inode->i_ino))
++                                               goto not_empty;
++                               } else if (de->name[2])
++                                       goto not_empty;
++                               else if (de->name[1] != '.')
++                                       goto not_empty;
 
+
+-- 
+marko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
