@@ -1,53 +1,29 @@
-Received: from mail.ccr.net (ccr@alogconduit1af.ccr.net [208.130.159.6])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA27660
-	for <linux-mm@kvack.org>; Sun, 27 Dec 1998 19:52:40 -0500
-Subject: Re: Large-File support of 32-bit Linux v0.01 available!
-References: <19981227220446Z92289-18655+40@mea.tmt.tele.fi>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 27 Dec 1998 19:01:25 -0600
-In-Reply-To: Matti Aarnio's message of "Mon, 28 Dec 1998 00:04:37 +0200 (EET)"
-Message-ID: <m1ww3d3wre.fsf@flinx.ccr.net>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA32538
+	for <linux-mm@kvack.org>; Mon, 28 Dec 1998 17:01:43 -0500
+Received: from mirkwood.dummy.home (riel@anx1p7.phys.uu.nl [131.211.33.96])
+	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id XAA09505
+	for <linux-mm@kvack.org>; Mon, 28 Dec 1998 23:01:17 +0100 (MET)
+Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with ESMTP id XAA15136 for <linux-mm@kvack.org>; Mon, 28 Dec 1998 23:01:00 +0100
+Date: Mon, 28 Dec 1998 23:00:59 +0100 (CET)
+From: Rik van Riel <riel@humbolt.geo.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@humbolt.geo.uu.nl>
+Subject: archive test (again)
+Message-ID: <Pine.LNX.4.03.9812282300240.14333-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Matti Aarnio <matti.aarnio@sonera.fi>
-Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "MA" == Matti Aarnio <matti.aarnio@sonera.fi> writes:
+I moved the setup of my mail system so I need another
+test (sorry).
 
->> I have some other logic mostly complete that keeps offset parameter in
->> the vm_area struct at 32 bits, and hopefully a greater chunck of the
->> page cache.
-
-MA> 	You mean 'vm_offset' field ?
-MA> 	There are 37 files with (sub)string 'vm_offset' in them.
-MA> 	Changeing its type from current  loff_t  to  pgoff_t  would
-MA> 	help finding its instances, I guess.  (And thus ease locating
-MA> 	places using it for page (non-)aligned things.)
-
-I changed the name from vm_offset to vm_index.  Works equally well.
-
-As far as non page alinged things, the only instance I have heard of
-to date was with a.out.
-
-There are a lot of implications to changing vm_offset in filemap.c
-that I'm just finishing working out.
-
-That and putting tests to see if the file size is bigger than we can
-handle in the page cache at approprate places.
-
-I believe I started at the really efficient end and you started at the
-functional end.
-
-Makes life fun . . .
-
-MA> 	That part about "a greater chunk" I don't understand, though.
-
-Poorly worded, (Thinking to fast probably!)
-
-My meaning was changing the meaning of vm_offset you remove potential
-64bit calculations from a lot of places.
-
-Eric
+Rik -- If a Microsoft product fails, who do you sue?
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        riel@humbolt.geo.uu.nl |
+| Scouting Vries cubscout leader.    http://humbolt.geo.uu.nl/~riel |
++-------------------------------------------------------------------+
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
