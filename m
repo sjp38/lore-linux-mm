@@ -1,40 +1,42 @@
-Message-ID: <394F0B6C.3925591B@norran.net>
-Date: Tue, 20 Jun 2000 08:13:00 +0200
-From: Roger Larsson <roger.larsson@norran.net>
-MIME-Version: 1.0
-Subject: latancy test of -ac22-riel
-References: <Pine.LNX.4.21.0006192052001.7938-100000@duckman.distro.conectiva>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: (from jmm@localhost)
+	by bp6.sublogic.lan (8.9.3/8.9.3) id CAA02249
+	for linux-mm@kvack.org; Tue, 20 Jun 2000 02:27:52 -0400
+Date: Tue, 20 Jun 2000 02:27:52 -0400
+From: James Manning <jmm@computer.org>
+Subject: redundant BAD_RANGE check?
+Message-ID: <20000620022752.A2246@bp6.sublogic.lan>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="MGYHOYXEY6WxJCY8"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
+--MGYHOYXEY6WxJCY8
+Content-Type: text/plain; charset=us-ascii
 
-Things are looking better and better :-)
-Running with SCHED_FIFO now gives most interrupt to process
-latencies below 3 ms !!!
-(streaming 1.5 times RAM; read, write, copy tested)
+Given that expand() appears to do its own BAD_RANGE check, it looks
+unnecessary to check it again in rmqueue.
 
-But there are some, nowadays very few, spikes that hurts...
-Worst is above 100 ms
+James
 
-But in this kernel does not have the loop limits in shrink_mmap
+--MGYHOYXEY6WxJCY8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="bad_range.diff"
 
-/RogerL
+--- linux-2.4.0-test1-ac22/mm/page_alloc.c.orig	Tue Jun 20 02:24:20 2000
++++ linux-2.4.0-test1-ac22/mm/page_alloc.c	Tue Jun 20 02:25:42 2000
+@@ -203,8 +203,6 @@
+ 			spin_unlock_irqrestore(&zone->lock, flags);
+ 
+ 			set_page_count(page, 1);
+-			if (BAD_RANGE(zone,page))
+-				BUG();
+ 			return page;	
+ 		}
+ 		curr_order++;
 
-PS
-  Used test programs are at:
-  http://www.gardena.net/benno/linux/audio 
-  for test programs.
-DS
-
---
-Home page:
-  http://www.norran.net/nra02596/
+--MGYHOYXEY6WxJCY8--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
