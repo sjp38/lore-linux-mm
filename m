@@ -1,67 +1,40 @@
-Date: Tue, 25 May 2004 15:00:09 -0700 (PDT)
+Date: Tue, 25 May 2004 15:01:55 -0700 (PDT)
 From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
-In-Reply-To: <Pine.LNX.4.58.0405251452590.9951@ppc970.osdl.org>
-Message-ID: <Pine.LNX.4.58.0405251455320.9951@ppc970.osdl.org>
-References: <1085369393.15315.28.camel@gaston>  <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
-  <1085371988.15281.38.camel@gaston>  <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
-  <1085373839.14969.42.camel@gaston>  <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
-  <20040525034326.GT29378@dualathlon.random>  <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org>
-  <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk>
- <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org>  <20040525153501.GA19465@foobazco.org>
-  <Pine.LNX.4.58.0405250841280.9951@ppc970.osdl.org>  <20040525102547.35207879.davem@redhat.com>
-  <Pine.LNX.4.58.0405251034040.9951@ppc970.osdl.org>  <20040525105442.2ebdc355.davem@redhat.com>
-  <Pine.LNX.4.58.0405251056520.9951@ppc970.osdl.org> <1085521251.24948.127.camel@gaston>
- <Pine.LNX.4.58.0405251452590.9951@ppc970.osdl.org>
+In-Reply-To: <20040525215500.GI29378@dualathlon.random>
+Message-ID: <Pine.LNX.4.58.0405251500250.9951@ppc970.osdl.org>
+References: <1085371988.15281.38.camel@gaston> <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
+ <1085373839.14969.42.camel@gaston> <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
+ <20040525034326.GT29378@dualathlon.random> <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org>
+ <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk>
+ <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org> <20040525212720.GG29378@dualathlon.random>
+ <Pine.LNX.4.58.0405251440120.9951@ppc970.osdl.org> <20040525215500.GI29378@dualathlon.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: "David S. Miller" <davem@redhat.com>, wesolows@foobazco.org, willy@debian.org, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, mingo@elte.hu, bcrl@kvack.org, linux-mm@kvack.org, Linux Arch list <linux-arch@vger.kernel.org>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Matthew Wilcox <willy@debian.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Ben LaHaise <bcrl@kvack.org>, linux-mm@kvack.org, Architectures Group <linux-arch@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
 
-On Tue, 25 May 2004, Linus Torvalds wrote:
+On Tue, 25 May 2004, Andrea Arcangeli wrote:
 > 
-> 
-> On Wed, 26 May 2004, Benjamin Herrenschmidt wrote:
-> > 
-> > Well, just setting one of those 2 bits doesn't require a hash table
-> > invalidate as long as nothing else changes.
-> 
-> Ok. And nothing ever writes to the SW page tables outside the page table 
-> lock, right? So on ppc64, we could just do
-> 
-> 	#define ptep_update_dirty_accessed(ptep, entry, dirty) \
-> 		*(ptep) = (entry)
-> 
-> and be done with it. No?
+> I expected the pal code to re-read the pte if the control bits asked for
+> page fault, like it must happen if the control bits are set to
+> non-present.
 
-No. I'm an idiot. We do need to keep the "hashed" bit atomically, so it
-would need to be something on the order of
+That may or may not be true. I _think_ it wasn't true.
 
-	static inline void ptep_update_dirty_accessed(pte_t *ptep, pte_t entry, int dirty)
-	{
-		unsigned long bits = pte_value(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED);
-		unsigned long tmp;
+> This latter this must be true or linux wouldn't run at all
+> on alpha.
 
-		__asm__ __volatile__(
-	"1:	lwarx	%0,0,%3\n\
-		or	%0,%2,%0\n\
-		stwcx.	%0,0,%3\n\
-		bne-	1b"
-		:"=&r" (tmp), "=m" (*ptep)
-		:"r" (bits), "r" (ptep)
-		:"cc");
-	}
+A "not-present" fault is a totally different fault from a "protection 
+fault". Only the not-present fault ends up walking the page tables, if I 
+remember correctly.
 
-	/* Make asm-generic/pgtable.h know about it.. */
-	#define ptep_update_dirty_accessed ptep_update_dirty_accessed
-
-or whatever.
-
-Anyway, I don't feel competent enough to commit it, so..
+The PAL-code sources are out there somewhere, so I guess this should be 
+easy to check if I wasn't so lazy.
 
 		Linus
 --
