@@ -1,53 +1,37 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i7P0J0wH026407 for <linux-mm@kvack.org>; Wed, 25 Aug 2004 09:19:00 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s4.gw.fujitsu.co.jp by m2.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i7P0J0ti030809 for <linux-mm@kvack.org>; Wed, 25 Aug 2004 09:19:00 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from fjmail505.fjmail.jp.fujitsu.com (fjmail505-0.fjmail.jp.fujitsu.com [10.59.80.104]) by s4.gw.fujitsu.co.jp (8.12.11)
-	id i7P0IxXN006741 for <linux-mm@kvack.org>; Wed, 25 Aug 2004 09:18:59 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from jp.fujitsu.com
- (fjscan501-0.fjmail.jp.fujitsu.com [10.59.80.120]) by
- fjmail505.fjmail.jp.fujitsu.com
- (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I2Z009CU7JKCQ@fjmail505.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Wed, 25 Aug 2004 09:18:57 +0900 (JST)
-Date: Wed, 25 Aug 2004 09:24:06 +0900
-From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [Lhms-devel] Re: [RFC/PATCH] free_area[] bitmap	elimination[1/3]
-In-reply-to: <1093392120.4030.119.camel@nighthawk>
-Message-id: <412BDC26.8020007@jp.fujitsu.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-References: <412B3455.1000604@jp.fujitsu.com>
- <1093366752.1009.44.camel@nighthawk> <412BD597.1050001@jp.fujitsu.com>
- <1093392120.4030.119.camel@nighthawk>
+Date: Wed, 25 Aug 2004 15:05:58 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [Bug 3268] New: Lowmemory exhaustion problem with v2.6.8.1-mm4
+    16gb
+In-Reply-To: <1093400029.5677.1866.camel@knk>
+Message-ID: <Pine.LNX.4.44.0408251448370.4332-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, William Lee Irwin III <wli@holomorphy.com>, Hirokazu Takahashi <taka@valinux.co.jp>, ncunningham@linuxmail.org
+To: keith <kmannth@us.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-
->>But "size" is a variable which is used in memmap_init_zone(size, start_pfn, zone)
->>and I think it is better not to change a name of an inherited variable from a caller.
->>(I say size is inherited from memmap_init_zone() in its meaning.)
+On Tue, 24 Aug 2004, keith wrote:
 > 
-> 
-> Don't use existing bad code as an example :)  I don't see any good
-> reason that you can't change it.  Nobody complains when making variable
-> names *more* descriptive.
-> 
-Hmm, I'll consider more descriptive name and what kind of code is easier to read .
+> Ok I created an attachment in the bug for the slab/buddy/mem info.  
+> You can watch zone normal get exhausted :)
+> http://bugme.osdl.org/show_bug.cgi?id=3268
 
---Kame
+Thanks.  Yes, your lowmem is full of Slab, and that's entirely
+unsurprising since you have CONFIG_DEBUG_PAGEALLOC on: so every
+slab object needs a full 4096-byte page to itself (well, there
+are some exceptions, but that doesn't change the picture).
 
--- 
---the clue is these footmarks leading to the door.--
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+That's a _very_ distorting config option, and I think this means that
+your report is of no interest in itself - sorry.  But it does raise a
+valid question whether it can happen in real, non-debug life - thanks.
+
+I'll do the arithmetic on that when I've more leisure: I expect the
+answer to be that it can happen, and I ought to adjust defaulting of
+maximum tmpfs inodes.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
