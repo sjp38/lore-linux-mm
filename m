@@ -1,38 +1,71 @@
-From: William Lee Irwin III <wli@holomorphy.com>
+From: mel@csn.ul.ie (Mel Gorman)
 Subject: Re: [RFC] My research agenda for 2.7
-Date: Tue, 24 Jun 2003 18:30:50 -0700
+Date: Wed, 25 Jun 2003 10:29:58 +0100
 Sender: linux-kernel-owner@vger.kernel.org
-Message-ID: <20030625013050.GQ26348@holomorphy.com>
-References: <200306250111.01498.phillips@arcor.de> <200306250307.18291.phillips@arcor.de> <20030625011031.GP26348@holomorphy.com> <200306250325.47529.phillips@arcor.de>
+Message-ID: <20030625092938.GA13771@skynet.ie>
+References: <200306250111.01498.phillips@arcor.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Return-path: <linux-kernel-owner+linux-kernel=40quimby.gnus.org@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <200306250325.47529.phillips@arcor.de>
+In-Reply-To: <200306250111.01498.phillips@arcor.de>
 To: Daniel Phillips <phillips@arcor.de>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-On Wednesday 25 June 2003 03:10, William Lee Irwin III wrote:
->> It severely limits its usefulness. Dropping in a more flexible data
->> structure should be fine.
+> 1) Active memory defragmentation
+> 
+> I doubt anyone will deny that this is desirable.  Active defragmentation will 
+> eliminate higher order allocation failures for non-atomic allocations, and I 
+> hope, generally improve the efficiency and transparency of the kernel memory 
+> allocator.
+> 
 
-On Wed, Jun 25, 2003 at 03:25:47AM +0200, Daniel Phillips wrote:
-> Eventually it could well make sense to do that, e.g., the radix tree 
-> eventually ought to evolve into a btree of extents (probably).  But making 
-> things so complex in the first version, thus losing much of the incremental 
-> development advantage, would not be smart.  With a single size of page per 
-> address_space,  changes to the radix tree code are limited to a couple of 
-> lines, for example.
-> But perhaps you'd like to supply some examples where more than one size of 
-> page in the same address space really matters?
+It might be just me, but this scheme sounds a bit complicated (I'm still
+absorbing the other two). I find it difficult to see what happens when a
+page used by a kernel pointer changes for any case other than vmalloc()
+but I probably am missing something.
 
-Software-refill TLB architectures would very much like to be handed the
-largest physically contiguous chunk of memory out of pagecache possible
-and map it out using the fewest number of TLB entries possible. Dropping
-in a B+ tree to replace radix trees should be a weekend project at worst.
-Speculatively allocating elements that are "as large as sane/possible"
-will invariably result in variable-sized elements in the same tree.
+How about: Move order-0 allocations to slab (ignoring bootstrap issues for 
+now but shouldn't be hard anyway)
 
+Each cache slab is 2^MAX_GFP_ORDER large and there is three caches
+  o order0-user
+  o order0-kreclaim
+  o order0-knoreclaim
 
--- wli
+order0-user is for any userspace allocation. These pages should be
+trivially reclaimable with rmap available. If a large order block is
+necessary, select one slab and reclaim it. This will break LRU ordering
+something rotten but I am guessing that LRU ordering is not the prime
+concern here. If a defrag daemon exists, scan MAX_DEFRAG_SCAN slabs and 
+pick the one with the most clean filesystem backed pages to chuck out 
+(least IO involved in reclaim).
+
+order0-kreclaim is for kernel allocations which are trivially reclaimable
+and that can be safely discared knowing that no pointer exists to them.  
+This is most likely to be usable for slab allocations of caches like
+dentry's which can be safely thrown out. A quick look of /proc/slabinfo
+shows that most slabs are just 1 page large. Slabs already have a
+set_shrinker() callback for the removal of objects so it is likely that
+this could be extended for telling caches to clear all objects and discard
+a particular slab.
+
+order0-knoreclaim is for kernel allocations which cannot be easily 
+reclaimed and have pointers to the allocation which are difficult to 
+reclaim. For all intents and purposes, these are not reclaimable without 
+impementing swapping in kernel space.
+
+This has a couple of things going for it
+
+o Reclaimable pages are in easy to search globs
+o Gets nifty per-cpu alloc and caching that comes with slab automatically
+o Freeing high order pages is a case of discarding pages in one slab
+o Doesn't require fancy pants updating of pointers or page tables
+o Possible ditch the mempool interface as slab already has similar functionality
+o Seems simple
+
+Opinions?
+
+-- 
+Mel Gorman
