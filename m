@@ -1,34 +1,51 @@
-Date: Wed, 20 Sep 2000 01:41:38 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: Test8 performance
-Message-ID: <20000920014138.A6784@athlon.random>
-References: <39C67FA1.89FDCD72@sgi.com>
-Mime-Version: 1.0
+Message-ID: <39C806D8.7A600DA5@norran.net>
+Date: Wed, 20 Sep 2000 02:37:44 +0200
+From: Roger Larsson <roger.larsson@norran.net>
+MIME-Version: 1.0
+Subject: Re: Freezes with test9-pre4 + mmap002
+References: <yttg0mwaqg2.fsf@serpe.mitica>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <39C67FA1.89FDCD72@sgi.com>; from ananth@sgi.com on Mon, Sep 18, 2000 at 01:48:33PM -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: linux-mm@kvack.org
+To: "Juan J. Quintela" <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-As first thanks again for those very useful benchmark checkpoints.
+"Juan J. Quintela" wrote:
+> 
+> Hi
+>         while I am running mmap002 in test9-pre4 I got the computer
+>         frozen, it don't answer to my open windows anymore, it answers
+>         only to pings.  I have got the attached traces.  The machine
+>         is SMP with IDE disks.
 
-On Mon, Sep 18, 2000 at 01:48:33PM -0700, Rajagopal Ananthanarayanan wrote:
-> ------
-> Bonnie
-> ------
+I run from command line. No X-windows.
+UP (= not SMP nor UP specific) with IDE disks.
 
-The "seek" columns of bonnie are calculated with a different input randomized
-in function of the pid. I'd suggest to replace the srandom(getpid()) with a
-srandom(fixednumber), so that we can more reliably compare the seek column
-(it will be comparable as far as the pseudo random generator of glibc uses the
-same algorithm).
+(got the same problem with test9-pre2, upgraded and retested)
 
-Also tiotest has the same bug btw.
+> 
+>         I had no additional/local patches applied.
 
-Andrea
+Me too.
+
+
+
+As I reported earlier it looks like pages are ping ponged between
+Active and inactive_dirty (the sum is always the same!)
+inactive_clean is zero (always)
+slab contains very few pages.
+
+Hope this info helps.
+
+/RogerL
+
+
+
+--
+Home page:
+  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
