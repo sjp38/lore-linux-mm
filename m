@@ -1,33 +1,50 @@
-Date: Thu, 26 Feb 1998 22:36:18 GMT
-Message-Id: <199802262236.WAA03891@dax.dcs.ed.ac.uk>
+Date: Thu, 26 Feb 1998 22:41:26 GMT
+Message-Id: <199802262241.WAA03911@dax.dcs.ed.ac.uk>
 From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Subject: Re: Fairness in love and swapping
-In-Reply-To: <199802261300.OAA03665@boole.fs100.suse.de>
+In-Reply-To: <Pine.LNX.3.91.980226152230.878A-100000@mirkwood.dummy.home>
 References: <199802260805.JAA00715@cave.BitWizard.nl>
-	<199802261300.OAA03665@boole.fs100.suse.de>
+	<Pine.LNX.3.91.980226152230.878A-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
-To: "Dr. Werner Fink" <werner@suse.de>
-Cc: R.E.Wolff@BitWizard.nl, sct@dcs.ed.ac.uk, torvalds@transmeta.com, blah@kvack.org, H.H.vanRiel@fys.ruu.nl, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
+To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Cc: Rogier Wolff <R.E.Wolff@BitWizard.nl>, "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, torvalds@transmeta.com, blah@kvack.org, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, linux-kernel@vger.rutgers.edu, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Thu, 26 Feb 1998 14:00:18 +0100, "Dr. Werner Fink" <werner@suse.de> said:
+On Thu, 26 Feb 1998 15:30:25 +0100 (MET), Rik van Riel
+<H.H.vanRiel@fys.ruu.nl> said:
 
->> "swapping" (as opposed to paging) is becoming a required
->> strategy
+> Now, how do we select which processes to suspend temporarily
+> and which to wake up again...
+> Suspending X wouldn't be to good, since then a lot of other
+> procesess would block on it... But this gives us a good clue
+> as to what to do.
 
-> In other words: the pages swapped in or cached into the swap cache
-> should get their initial age which its self is calculated out of the
-> current priority of the corresponding process?
+> We could:
+> - force-swap out processes which have slept for some time
+> - suspend & force-swap out the largest process
+> - wake it up again when there are two proceses waiting on
+>   it (to prevent X from being swapped out)
 
-No, the idea is that we stop paging one or more processes altogether
-and suspend them for a while, flushing their entire resident set out
-to disk for the duration.  It's something very valuable when you are
-running big concurrent batch jobs, and essentially moves the fairness
-problem out of the memory space and into the scheduler, where we _can_
-make a reasonable stab at being fair.
+Define the number of processes waiting on a given process?
 
---Stephen
+Another way of making the distinction between batch and interactive
+processes might be to observe that interactive processes spend some of
+their time in "S" (interruptible sleep) state, whereas we expect
+compute-bound jobs to be in "R" or "D" state most of the time.
+However, that breaks down too when you consider batch jobs involving
+pipelines, such as gcc -pipe.
+
+> Doing this together with a dynamic RSS-limit strategy and
+> page cache page aging might give us quite an improvement
+> in VM performance.
+
+Yes, and doing streamed writeahead and clustered swapin will up the
+throughput to/from swap quite significantly too.
+
+Cheers,
+ Stephen.
