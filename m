@@ -1,41 +1,28 @@
-Received: by fenrus.demon.nl
-	via sendmail from stdin
-	id <m13DObS-000OVtC@amadeus.home.nl> (Debian Smail3.2.0.102)
-	for linux-mm@kvack.org; Sat, 15 Jul 2000 11:51:22 +0200 (CEST)
-Message-Id: <m13DObS-000OVtC@amadeus.home.nl>
-Date: Sat, 15 Jul 2000 11:51:22 +0200 (CEST)
-From: arjan@fenrus.demon.nl (Arjan van de Ven)
+Message-ID: <39708418.2221DB9E@ucla.edu>
+Date: Sat, 15 Jul 2000 08:32:40 -0700
+From: Benjamin Redelings I <bredelin@ucla.edu>
+MIME-Version: 1.0
 Subject: Re: test5-pre1 VM best its EVER been!
-In-Reply-To: <396F9F0A.99DFC1A2@ucla.edu>
+References: <m13DObS-000OVtC@amadeus.home.nl>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Redelings I <bredelin@ucla.edu>
+To: Arjan@ucla.edu, van@ucla.edu, de@ucla.edu, Ven@ucla.edu
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In article <396F9F0A.99DFC1A2@ucla.edu> you wrote:
-> Hi - I've been testing test5-pre1.  I have a UP PPro 166, and 64Mb RAM.
-
-> The last kernel that I tried was test3-p7, and it had some problems.  It
-> tended to swap when there was FREE (not cache) memory still available. 
-> Also, it never completely swapped out unused daemons, and tended to swap
-> out large running processes, like netscape.
-
-> test5-pre1 is wonderful.  I mean, both the stats from vmstat, free, and
-> xosview, and the interactive feel.  I can REALLY run both netscape and
-> quake and the same time!  The system rarely hits the disk - which is a
-> welcome change.  Things the you might hope to be in the cache,
-> apparently are...
-
-I am much less happy. My 128Mb system will not stop freeing memory (from the
-buffer/page caches) until at least 16 Mb is really free. This means I
-typically end up with 400kb buffer and 20M cached, which could be much
-higher..... 
-
-The swap behaviour seems OK though... only 8Mb in swap.
-
-Greetings,
-   Arjan van de Ven
+> I am much less happy. My 128Mb system will not stop freeing memory (from the
+> buffer/page caches) until at least 16 Mb is really free. This means I
+> typically end up with 400kb buffer and 20M cached, which could be much
+> higher.....
+	This is the same problem that I had with test3.  So I guess its still
+there, but is only visible on systems with more memory than mine.
+-- 
+"I want to be in the light, as He is in the Light,
+ I want to shine like the stars in the heavens." - DC Talk, "In the
+Light"
+Benjamin Redelings I      <><     http://www.bol.ucla.edu/~bredelin/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
