@@ -1,38 +1,44 @@
-Date: Thu, 7 Nov 2002 03:38:42 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: get_user_pages rewrite (completed, updated for 2.4.46)
-Message-ID: <20021107113842.GB23425@holomorphy.com>
-References: <20021107110840.P659@nightmaster.csn.tu-chemnitz.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20021107110840.P659@nightmaster.csn.tu-chemnitz.de>
+Date: Thu, 7 Nov 2002 11:41:56 -0500 (EST)
+From: Bill Davidsen <davidsen@tmr.com>
+Subject: Re: 2.5.46-mm1
+In-Reply-To: <3DC8D423.DAD2BF1A@digeo.com>
+Message-ID: <Pine.LNX.3.96.1021107113557.30525C-100000@gatekeeper.tmr.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 07, 2002 at 11:08:40AM +0100, Ingo Oeser wrote:
-+#ifdef OBSOLETE_PAGE_WALKER
-+	if (vmas) {
-+		gup_u.pv.vmas = vmas;
-+		gup_u.pv.max_vmas = len;
-+		walker = gup_add_pv;
-+		printk("Obsolete argument \"vmas\" used!"
-+		       " Please send this report to linux-mm@vger.kernel.org"
-+		       " or fix the caller. Stack trace follows...\n");
-+		WARN_ON(vmas);
-+	}
-+#else
-+	/* FIXME: Or should we simply ignore it? -ioe */
-+	BUG_ON(vmas);
-+#endif
+On Wed, 6 Nov 2002, Andrew Morton wrote:
 
-What on earth? Why not just remove the obsolete code?
+> 
+> url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.46/2.5.46-mm1/
+> 
+> It wasn't clear whether it was useful or desirable to keep these patchsets
+> turning over.  But it will be helpful to keep them as a marshalling point
+> for people to see what is queued up, to get some additional testing and
+> stabilisation and for people to sync up against.  And also to keep things
+> like shared pagetables and dcache-rcu under test.
 
+For what it's worth, the last mm kernel which booted on my old P-II IDE
+test machine was 44-mm2. With 44-mm6 and this one I get an oops on boot.
+Unfortunately it isn't written to disk, scrolls off the console, and
+leaves the machine totally dead to anything less than a reset. I will try
+2.5.46 base after I apply the few patches needed to make it compile, and
+send you my config if you think it will help.
 
-Bill
+2.5.44 and all 4[45]-ac? builds booted and ran.
+
+This is just a "problem present" notice, I have no decent info for
+debugging.
+
+-- 
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
