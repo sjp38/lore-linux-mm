@@ -1,89 +1,50 @@
-Subject: Re: ext3 writeback mode slower than ordered mode?
-References: <871yi5wh93.fsf@atlas.iskon.hr> <3C12C57C.FF93FAC0@zip.com.au>
-Reply-To: zlatko.calusic@iskon.hr
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Date: 09 Dec 2001 20:46:02 +0100
-In-Reply-To: <3C12C57C.FF93FAC0@zip.com.au> (Andrew Morton's message of "Sat, 08 Dec 2001 17:59:24 -0800")
-Message-ID: <877krwch39.fsf@atlas.iskon.hr>
+Received: from scs.ch (nutshell.scs.ch [172.18.1.10])
+	by mail.scs.ch (8.11.6/8.11.6) with ESMTP id fBA8rQV17038
+	for <linux-mm@kvack.org>; Mon, 10 Dec 2001 09:53:26 +0100
+Message-ID: <3C147805.99B2EE4A@scs.ch>
+Date: Mon, 10 Dec 2001 09:53:25 +0100
+From: Martin Maletinsky <maletinsky@scs.ch>
 MIME-Version: 1.0
+Subject: how has set_pgdir been replaced in 2.4.x
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: sct@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@zip.com.au> writes:
+Hello,
 
-> Zlatko Calusic wrote:
-> > 
-> > Hi!
-> > 
-> > My apologies if this is an FAQ, and I'm still catching up with
-> > the linux-kernel list.
-> > 
-> > Today I decided to convert my /tmp partition to be mounted in
-> > writeback mode, as I noticed that ext3 in ordered mode syncs every 5
-> > seconds and that is something defenitely not needed for /tmp, IMHO.
-> > 
-> > Then I did some tests in order to prove my theory. :)
-> > 
-> > But, alas, writeback is slower.
-> > 
-> 
-> I cannot reproduce this.  Using http://www.zip.com.au/~akpm/writer.c
-> 
-> ext2:            0.03s user 1.43s system 97% cpu 1.501 total
-> ext3 writeback:  0.02s user 2.33s system 96% cpu 2.431 total
-> ext3 ordered:    0.02s user 2.52s system 98% cpu 2.574 total
-> 
+In the 2.2.x Linux kernel there used to be a function set_pgdir(), in charge of keeping all page global directories consistent. I.e. when modifying the kernel page tables
+(e.g. in vmalloc, or ioremap), set_pgdir() was called, to update the corresponding entry in any processes global page directory, as well as in the cached global page
+directories.
 
-Hm, at first I got exactly the same results for writeback/ordered
-cases, as you did above, so my theory fell on the ground.
-Later, bloody thing resurected again. Something really fishy is goin'
-on here...
+I noticed that in the 2.4.x Linux kernel the function set_pgdir() has gone (at least for most platforms). When looking at code that modifies kernel page tables (e.g.
+vmalloc_area_pages) I could not figure out, how the page global directories are kept consistent. It looks to me as if
+global page directory entries were modified in one global page directory (the swapper_pg_dir) only. If this is the case, I wonder how the modifications are 'propagated'
+into all the other global page directories (I think they *must* at one moment be copied into all other global page directories, in order to make the new memory mapping
+visible in all process contexts).
+
+I thought that maybe one global page directory was used for all processes, but than I wonder how the user space mappings in the beginning of the virtual address space
+(which are process specific) can be handled.
+
+Please put me on cc: in your reply, since I am not subscribed to the list.
+
+thank you in advance, regards
+Martin
+
+--
+Supercomputing System AG          email: maletinsky@scs.ch
+Martin Maletinsky                 phone: +41 (0)1 445 16 05
+Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
+CH-8005 Zurich
 
 
- {atlas} [/mnt]# time ~zcalusic/try/awriter
- ~zcalusic/try/awriter  0.07s user 3.50s system 99% cpu 3.594 total
- {atlas} [/mnt]# cd /tmp
- {atlas} [/tmp]# time ~zcalusic/try/awriter
- ~zcalusic/try/awriter  0.00s user 6.05s system 98% cpu 6.129 total
- {atlas} [/tmp]# mount | egrep '/tmp|/mnt'
- /dev/hde2 on /tmp type ext3 (rw,data=writeback)
- /dev/hde3 on /mnt type ext3 (rw)
-
-
-So /tmp is writeback and /mnt is ordered (doublechecked!). See for
-yourself how ext3 is slower in writeback mode. awriter is your
-small program, of course.
-
-Just for the record, I mke2fs-ed /dev/hde3 again and made it pure
-ext2.
-
-
- {atlas} [~]# mount | grep '/mnt'      
- /dev/hde3 on /mnt type ext2 (rw)
- {atlas} [~]# cd /mnt
- {atlas} [/mnt]# time ~zcalusic/try/awriter
- ~zcalusic/try/awriter  0.01s user 1.86s system 98% cpu 1.893 total
-
-
-To sumarize:
-
-ext2            0.01s user 1.86s system 98% cpu 1.893 total
-ext3/ordered    0.07s user 3.50s system 99% cpu 3.594 total
-ext3/writeback  0.00s user 6.05s system 98% cpu 6.129 total
-
-What is strange is that not always I've been able to get different
-results for writeback case (comparing to ordered), but when I get it,
-it is repeatable.
-
-This is a SMP machine, if that makes any difference.
-
-Regards,
--- 
-Zlatko
+--
+Kernelnewbies: Help each other learn about the Linux kernel.
+Archive:       http://mail.nl.linux.org/kernelnewbies/
+IRC Channel:   irc.openprojects.net / #kernelnewbies
+Web Page:      http://www.kernelnewbies.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
