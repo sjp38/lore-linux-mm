@@ -1,72 +1,48 @@
 Content-Type: text/plain;
   charset="iso-8859-1"
 From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.5.x opps stopping serial
-Date: Sat, 12 Oct 2002 10:18:45 -0400
-References: <3DA683F4.944DFC11@digeo.com> <200210110845.24687.tomlins@cam.org>
-In-Reply-To: <200210110845.24687.tomlins@cam.org>
+Subject: Re: [PATCH 2.5.41-mm1] new snapshot of shared page tables
+Date: Sat, 12 Oct 2002 10:19:58 -0400
+References: <228900000.1034197657@baldur.austin.ibm.com> <20021010031928.GT12432@holomorphy.com> <200210101829.40432.tomlins@cam.org>
+In-Reply-To: <200210101829.40432.tomlins@cam.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Message-Id: <200210121018.45115.tomlins@cam.org>
+Message-Id: <200210121019.58055.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On October 11, 2002 08:45 am, Ed Tomlinson wrote:
+On October 10, 2002 06:29 pm, Ed Tomlinson wrote:
+> On October 9, 2002 11:19 pm, William Lee Irwin III wrote:
+> > On Wed, Oct 09, 2002 at 11:04:47PM -0400, Ed Tomlinson wrote:
+> > > After realizing (thanks Dave) that kmail 3.03 has a bug saving
+> > > multipart/mixed mime messages, I was able to use uudeview to extract
+> > > a clean patch, and build kernel which boot fine.  Thats the good news.
+> > > When I try to start kde 3.03 on an up to date debian sid (X 4.2 etc)
+> > > kde fails to start. It complains that ksmserver cannot be started.
+> > > Same setup works with 41-mm1.
+> > > Know this is not a meaty report.  With X4.2 I have not yet figgered
+> > > out how to get more debug messages (the log from xstart is anemic)
+> > > nor is there anything in messages, kern.log or on the serial console.
+> > > The box is a K6-III 400 on a via MVP3 chipset.
+> > > What other info can I gather?
+> > > Ed Tomlinson
+> >
+> > Could you strace ksmserver on a working and non-working console and
+> > (privately) send (probably large) logs to dmc & me? Please use
+> > strace -f -ff or some equivalent that follows children.
+>
+> Hope the straces helped...
+>
+> I tried again this evening with mm2 plus shpte-2.5.41-mm2-1.diff and
+> shpte-2.5.41-mm2-2.diff and still get the same error.
 
-Still happening with 2.5.42-mm2 (email problems - using different smtp server)
+And again with 2.5.42-mm2 - still no joy.  Errror looks the same here.
+Do you want another set of traces?
 
-> Hi,
->
-> I have been seeing this during shutdown ever since I started using 2.5. 
-> Figured I really should report it...   There are three serial ports.  One
-> for a serial console, the second for a backUPS ups, the third for a (real)
-> modem.  Dist is debian sid.
->
-> Saving state of known serial devices... Unable to handle kernel NULL
-> pointer dereference at virtual addres s 00000114
->  printing eip:
-> c0191f73
-> *pde = 00000000
-> Oops: 0000
-> af_packet snd-seq-midi snd-seq-oss snd-seq-midi-event snd-seq snd-pcm-oss
-> snd-mixer-oss snd-cs46xx snd-pcm snd-timer snd-rawmidi snd-seq-device
-> snd-ac97-codec snd soundcore gameport softdog matroxfb_base matroxfb _g450
-> matroxfb_DAC1064 g450_pll matroxfb_accel fbcon-cfb24 fbcon-cfb8 fbcon-cfb32
-> fbcon-cfb16 matroxfb_mis c mga agpgart pppoe pppox ipchains msdos fat
-> sd_mod floppy dummy bsd_comp ppp_generic slhc parport_pc lp p arport ipip
-> smbfs nls_cp850 nls_cp437 nfs lockd sunrpc binfmt_aout autofs4 cdrom
-> via-rhine mii tulip crc32 usb-storage scsi_mod pl2303 usbserial hid
-> CPU:    0
-> EIP:    0060:[<c0191f73>]    Not tainted
-> EFLAGS: 00010246
-> EIP is at uart_block_til_ready+0x15b/0x1a4
-> eax: 00000000   ebx: d9cd4000   ecx: dffe381c   edx: c17a5114
-> esi: d9cd5e84   edi: 00000202   ebp: c17a50c0   esp: d9cd5e58
-> ds: 0068   es: 0068   ss: 0068
-> Process bkupsd (pid: 1096, threadinfo=d9cd4000 task=dc75a160)
-> Stack: c0284800 d9b75000 c17a50c0 00000000 c0356804 dffe381c 00000000
-> dc75a160 c0110868 00000000 00000000 00000000 dc75a160 c0110868 c17a5114
-> c17a5114 c0192269 d9e64d20 c17a50c0 00000000 00000100 00000000 dec0b3b4
-> d9cd4000 Call Trace:
->  [<c0110868>] default_wake_function+0x0/0x2c
->  [<c0110868>] default_wake_function+0x0/0x2c
->  [<c0192269>] uart_open+0x1d9/0x220
->  [<c0199d72>] tty_open+0x1e6/0x39c
->  [<c0199da3>] tty_open+0x217/0x39c
->  [<c0139759>] get_chrfops+0xa1/0x164
->  [<c0139a03>] chrdev_open+0x5b/0x94
->  [<c01382f9>] dentry_open+0xb9/0x16c
->  [<c0138237>] filp_open+0x43/0x4c
->  [<c01385d8>] sys_open+0x34/0x70
->  [<c0106ef7>] syscall_call+0x7/0xb
->
-> Code: f6 80 14 01 00 00 02 75 34 8b 44 24 44 50 e8 6a 6b 00 00 83
->  backing up serial.conf done.
->
-> Ideas?
-> Ed Tomlinson
+Ed 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
