@@ -1,37 +1,55 @@
-Date: Thu, 19 Sep 2002 13:07:52 +0200
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Subject: Re: [Lse-tech] Rollup patch of basic rmap against 2.5.26
-Message-ID: <20020919130752.I642@nightmaster.csn.tu-chemnitz.de>
-References: <41260000.1032286918@baldur.austin.ibm.com> <3D879968.B346D1C7@digeo.com> <3D879BD1.D02F645E@digeo.com>
+Date: Thu, 19 Sep 2002 17:09:59 +0200
+From: axel@hh59.org
+Subject: Re: 2.5.36-mm1
+Message-ID: <20020919150959.GA1887@prester.hh59.org>
+References: <3D8839B5.B37DF31C@digeo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <3D879BD1.D02F645E@digeo.com>; from akpm@digeo.com on Tue, Sep 17, 2002 at 02:17:05PM -0700
+In-Reply-To: <3D8839B5.B37DF31C@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: Linux Scalability Effort List <lse-tech@lists.sourceforge.net>, Linux Memory Management <linux-mm@kvack.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, riel@conectiva.com.br
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi Andrew!
 
-On Tue, Sep 17, 2002 at 02:17:05PM -0700, Andrew Morton wrote:
-> rmap's overhead manifests with workloads which are setting
-> up and tearing doen pagetables a lot.
-> fork/exec/exit/pagefaults/munmap/etc.  I guess forking servers
-> may hurt.
+On Wed, 18 Sep 2002, Andrew Morton wrote:
 
-Hmm, so we gave up one of our advantages: fork() as fast as
-thread creation in other OSes.
+> A reminder that this changes /proc files.  Updated top(1) and
+> vmstat(1) source is available at http://surriel.com/procps/
 
-Or did someone benchmark shell script execution on 2.4.x, 2.5.x,
-a later rmap-Kernel and compare that all with other Unices around?
+Well. I have retrieved procps from CVS and built it. But then vmstat gets an
+segmentation fault. It looks like this..
 
-Regards
+prester:/root# vmstat
+   procs                      memory      swap          io     system
+cpu
+ r  b  w   swpd   free   buff  cache   si   so    bi    bo   in    cs us sy
+id
+Segmentation fault
+Exit 139
 
-Ingo Oeser
--- 
-Science is what we can tell a computer. Art is everything else. --- D.E.Knuth
+And with strace it looks like this...
+
+...
+getdents64(0x5, 0x804d038, 0x400, 0)    = 0
+close(5)                                = 0
+open("/proc/meminfo", O_RDONLY)         = 5
+lseek(5, 0, SEEK_SET)                   = 0
+read(5, "MemTotal:       191112 kB\nMemFre"..., 1023) = 543
+open("/proc/stat", O_RDONLY)            = 6
+read(6, "cpu  35477 2 4565 80407 9871\ncpu"..., 8191) = 815
+close(6)                                = 0
+--- SIGSEGV (Segmentation fault) ---
++++ killed by SIGSEGV +++
+
+Don't know what I have done wrong. Or is the procps package for mm-series a
+special one differing from the regular procps by Rik?
+
+Best regards,
+Axel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
