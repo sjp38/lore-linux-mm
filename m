@@ -1,85 +1,172 @@
-Received: from localhost (riel@localhost)
-	by duckman.distro.conectiva (8.9.3/8.8.7) with ESMTP id OAA26953
-	for <linux-mm@kvack.org>; Wed, 24 May 2000 14:17:05 -0300
-Date: Wed, 24 May 2000 09:16:45 -0700 (PDT)
-From: Matthew Dillon <dillon@apollo.backplane.com>
-Message-Id: <200005241616.JAA75488@apollo.backplane.com>
-Subject: Re: [RFC] 2.3/4 VM queues idea
-ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.4.21.0005241417010.24993@duckman.distro.conectiva>
+Subject: PATCH: Rewrite of truncate_inode_pages (take 4)
+References: <yttsnvk28jy.fsf@vexeta.dc.fi.udc.es>
+	<yttog5y9333.fsf@serpe.mitica>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: "Juan J. Quintela"'s message of "22 May 2000 14:33:36 +0200"
+Date: 24 May 2000 19:16:50 +0200
+Message-ID: <ytt1z2rool9.fsf_-_@serpe.mitica>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: linux-mm@kvack.org
+Cc: linux-fsdevel@vger.rutgers.edu, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-     All right!  I think your spec is coming together nicely!   The
-     multi-queue approach is the right way to go (for the same reason
-     FBsd took that approach).  The most important aspect of using
-     a multi-queue design is to *not* blow-off the page weighting tests
-     within each queue.  Having N queues alone is not fine enough granularity,
-     but having N queues and locating the lowest (in FreeBSD's case 0)
-     weighted pages within a queue is the magic of making it work well.
+>>>>> "juan" == Juan J Quintela <quintela@fi.udc.es> writes:
 
-     I actually tried to blow off the weighting tests in FreeBSD, even just
-     a little, but when I did FreeBSD immediately started to stall as the
-     load increased.  Needless to say I threw away that patchset :-).
+Hi Linus
+   I am resending to you this patch, it works here, and nobody has
+   complained about it the previous times that I post it here.
+    
+Later, Juan.
+
+juan>         I have reworte the function truncate_inode_pages.  The version
+juan>         in vanilla pre9-3 does busy waiting in the partial page, with
+juan>         this version the locking for the partial page and from the
+juan>         rest of the pages is the same.  This make that we have less
+juan>         special cases.  For the rest of pages the function works the
+juan>         same.  The only difference is that version is cleaner IMHO.
+juan>         Or there are some corner case that I have failed to see?
+
+juan>         Comments?
+
+juan>         Later, Juan.
+
+juan>         I have CC: the linux-fsdevel people, they are the users of
+juan>         that function, could somebody give me some feedback against
+juan>         the change?
 
 
-     I have three comments:
 
-     * On the laundry list.  In FreeBSD 3.x we laundered pages as we went
-       through the inactive queue.   In 4.x I changed this to a two-pass
-       algorithm (vm_pageout_scan() line 674 vm/vm_pageout.c around the 
-       rescan0: label).  It tries to locate clean inactive pages in pass1,
-       and if there is still a page shortage (line 927 vm/vm_pageout.c,
-       the launder_loop conditional) we go back up and try again, this 
-       time laundering pages.
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude work/mm/filemap.c testing/mm/filemap.c
+--- work/mm/filemap.c	Fri May 12 23:46:46 2000
++++ testing/mm/filemap.c	Sun May 14 22:08:45 2000
+@@ -146,9 +146,39 @@
+ 	spin_unlock(&pagecache_lock);
+ }
+ 
+-/*
++static inline void truncate_partial_page(struct page *page, unsigned partial)
++{
++	memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
++				
++	if (page->buffers)
++		block_flushpage(page, partial);
++
++}
++
++static inline void truncate_complete_page(struct page *page)
++{
++	if (!page->buffers || block_flushpage(page, 0))
++		lru_cache_del(page);
++	
++	/*
++	 * We remove the page from the page cache _after_ we have
++	 * destroyed all buffer-cache references to it. Otherwise some
++	 * other process might think this inode page is not in the
++	 * page cache and creates a buffer-cache alias to it causing
++	 * all sorts of fun problems ...  
++	 */
++	remove_inode_page(page);
++	page_cache_release(page);
++}
++
++/**
++ * truncate_inode_pages - truncate *all* the pages from an offset
++ * @mapping: mapping to truncate
++ * @lstart: offset from with to truncate
++ *
+  * Truncate the page cache at a set offset, removing the pages
+  * that are beyond that offset (and zeroing out partial pages).
++ * If any page is locked we wait for it to become unlocked.
+  */
+ void truncate_inode_pages(struct address_space * mapping, loff_t lstart)
+ {
+@@ -168,11 +198,10 @@
+ 
+ 		page = list_entry(curr, struct page, list);
+ 		curr = curr->next;
+-
+ 		offset = page->index;
+ 
+-		/* page wholly truncated - free it */
+-		if (offset >= start) {
++		/* Is one of the pages to truncate? */
++		if ((offset >= start) || (partial && (offset + 1) == start)) {
+ 			if (TryLockPage(page)) {
+ 				page_cache_get(page);
+ 				spin_unlock(&pagecache_lock);
+@@ -183,22 +212,14 @@
+ 			page_cache_get(page);
+ 			spin_unlock(&pagecache_lock);
+ 
+-			if (!page->buffers || block_flushpage(page, 0))
+-				lru_cache_del(page);
+-
+-			/*
+-			 * We remove the page from the page cache
+-			 * _after_ we have destroyed all buffer-cache
+-			 * references to it. Otherwise some other process
+-			 * might think this inode page is not in the
+-			 * page cache and creates a buffer-cache alias
+-			 * to it causing all sorts of fun problems ...
+-			 */
+-			remove_inode_page(page);
++			if (partial && (offset + 1) == start) {
++				truncate_partial_page(page, partial);
++				partial = 0;
++			} else 
++				truncate_complete_page(page);
+ 
+ 			UnlockPage(page);
+ 			page_cache_release(page);
+-			page_cache_release(page);
+ 
+ 			/*
+ 			 * We have done things without the pagecache lock,
+@@ -209,37 +230,6 @@
+ 			 */
+ 			goto repeat;
+ 		}
+-		/*
+-		 * there is only one partial page possible.
+-		 */
+-		if (!partial)
+-			continue;
+-
+-		/* and it's the one preceeding the first wholly truncated page */
+-		if ((offset + 1) != start)
+-			continue;
+-
+-		/* partial truncate, clear end of page */
+-		if (TryLockPage(page)) {
+-			spin_unlock(&pagecache_lock);
+-			goto repeat;
+-		}
+-		page_cache_get(page);
+-		spin_unlock(&pagecache_lock);
+-
+-		memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
+-		if (page->buffers)
+-			block_flushpage(page, partial);
+-
+-		partial = 0;
+-
+-		/*
+-		 * we have dropped the spinlock so we have to
+-		 * restart.
+-		 */
+-		UnlockPage(page);
+-		page_cache_release(page);
+-		goto repeat;
+ 	}
+ 	spin_unlock(&pagecache_lock);
+ }
 
-       There is also a heuristic prior to the first loop, around line 650
-       ('Figure out what to do with dirty pages...'), where it tries to 
-       figure out whether it is worth doing two passes or whether it should
-       just start laundering pages immediately.
-
-     * On page aging.   This is going to be the most difficult item for you
-       to implement under linux.  In FreeBSD the PV entry mmu tracking 
-       structures make it fairly easy to scan *physical* pages then check
-       whether they've been used or not by locating all the pte's mapping them,
-       via the PV structures.  
-
-       In linux this is harder to do, but I still believe it is the right
-       way to do it - that is, have the main page scan loop scan physical 
-       pages rather then virtual pages, for reasons I've outlined in previous
-       emails (fairness in the weighting calculation).
-
-       (I am *not* advocating a PV tracking structure for linux.  I really 
-       hate the PV stuff in FBsd).
-
-     * On write clustering.  In a completely fair aging design, the pages
-       you extract for laundering will tend to appear to be 'random'.  
-       Flushing them to disk can be expensive due to seeking.
-
-       Two things can be done:  First, you collect a bunch of pages to be
-       laundered before issuing the I/O, allowing you to sort the I/O
-       (this is what you suggest in your design ideas email).  (p.p.s.
-       don't launder more then 64 or so pages at a time, doing so will just
-       stall other processes trying to do normal I/O).
-
-       Second, you can locate other pages nearby the ones you've decided to
-       launder and launder them as well, getting the most out of the disk
-       seeking you have to do anyway.
-
-       The first item is important.  The second item will help extend the
-       life of the system in a heavy-load environment by being able to
-       sustain a higher pagout rate.  
-
-       In tests with FBsd, the nearby-write-clustering doubled the pageout
-       rate capability under high disk load situations.  This is one of the
-       main reasons why we do 'the weird two-level page scan' stuff.
-
-       (ok to reprint this email too!)
-
-						-Matt
-
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
