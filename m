@@ -1,46 +1,33 @@
-Received: from bem0ogv47wmg59uio (16.208.254.184) by oqimjt43.prodigy.net
-          (InterMail vM.5.01.06.05 588-295-961-738-995-6074195) with SMTP
-          id <991193431.UWEG18.bcqwxw72452.prodigy.net@densecx1pe44w43m>
-          for <linux-mm@kvack.org>; Sat, 05 Mar 2005 11:07:25 -0500
-Message-ID: <6456xzt458m82637$76376$pby8e1@fgk99fy3ln819db>
-From: " Koenig" <bwkgoxduadavsc@prodigy.net>
-Subject: Re:    brussels
-Date: Sat, 05 Mar 2005 20:09:25 +0400
+Date: Sat, 05 Mar 2005 11:55:31 -0800
+Message-Id: <YD8641UMQ04.XOY171RXF22-YJ14SMS39.Z779WDS2-LN02KSKC3.ZY903ADVT6@acadia.org>
+From: "Oogi.Busby@sbcglobal.net" <Iwu.Mathews@sbcglobal.net>
+Subject: linux-aio@kvack.org Your application has been approved Sat, 05 Mar 2005 11:55:31 -0800
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--cation"
+Content-Type: text; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-aio@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----cation
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
+Hello,
 
-<head>
+We sent you an email a while ago, because you now qualify
+for a much lower rate based on the biggest rate drop in years.
 
-</head>
+You can now get $325,000 for as little as $615 a month!
+Bad credit? Doesn't matter, low rates are fixed no matter what!
 
-<body>
+Follow this link to process your application and a 24 hour approval:
 
-<p>We give free playstations </p>
-<p>don't believe </p>
-<p>come here to see</p>
-<p><a href=3D"http://www.c-u-i.com/freeps.php?94TD87">
-http://www.c-u-i.com/freeps.php?94TD87</a> </p>
-<p>click the link </p>
-<p><a href=3D"http://www.c-u-i.com/freeps.php?94TD87">
-http://www.c-u-i.com/freeps.php?94TD87</a> </p>
-<p>??</p>
-<p>??</p>
-bonus conjoint
-</body>
+http://www.gr8lendez.com/x/loan.php?id=d17
 
-</html>
 
-----cation--
+Best Regards,
+Jannie Robbins
 
+http://www.gr8lendez.com/x/st.html
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
