@@ -1,53 +1,48 @@
-Date: Tue, 26 Sep 2000 16:05:54 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-Message-ID: <20000926160554.B13832@athlon.random>
-References: <20000924224303.C2615@redhat.com> <20000925001342.I5571@athlon.random> <20000925003650.A20748@home.ds9a.nl> <20000925014137.B6249@athlon.random> <20000925172442.J2615@redhat.com> <20000925190347.E27677@athlon.random> <20000925190657.N2615@redhat.com> <20000925213242.A30832@athlon.random> <20000925205457.Y2615@redhat.com> <qwwd7hriqxs.fsf@sap.com>
+Date: Tue, 26 Sep 2000 09:17:44 -0600
+From: yodaiken@fsmlabs.com
+Subject: Re: the new VMt
+Message-ID: <20000926091744.A25214@hq.fsmlabs.com>
+References: <20000925105247.A13935@hq.fsmlabs.com> <20000925191829.A14612@pcep-jamie.cern.ch> <20000925115139.A14999@hq.fsmlabs.com> <20000925200454.A14728@pcep-jamie.cern.ch> <20000925121315.A15966@hq.fsmlabs.com> <20000925192453.R2615@redhat.com> <20000925123456.A16612@hq.fsmlabs.com> <20000925202549.V2615@redhat.com> <20000925140419.A18243@hq.fsmlabs.com> <20000925171411.A2397@codepoet.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <qwwd7hriqxs.fsf@sap.com>; from cr@sap.com on Tue, Sep 26, 2000 at 08:54:23AM +0200
+In-Reply-To: <20000925171411.A2397@codepoet.org>; from Erik Andersen on Mon, Sep 25, 2000 at 05:14:11PM -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Rohland <cr@sap.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: yodaiken@fsmlabs.com, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 26, 2000 at 08:54:23AM +0200, Christoph Rohland wrote:
-> "Stephen C. Tweedie" <sct@redhat.com> writes:
+On Mon, Sep 25, 2000 at 05:14:11PM -0600, Erik Andersen wrote:
+> On Mon Sep 25, 2000 at 02:04:19PM -0600, yodaiken@fsmlabs.com wrote:
+> > 
+> > > all of the pending requests just as long as they are serialised, is
+> > > this a problem?
+> > 
+> > I think you are solving the wrong problem. On a small memory machine, the kernel,
+> > utilities, and applications should be configured to use little memory.  
+> > BusyBox is better than BeanCount. 
+> > 
 > 
-> > Hi,
-> > 
-> > On Mon, Sep 25, 2000 at 09:32:42PM +0200, Andrea Arcangeli wrote:
-> > 
-> > > Having shrink_mmap that browse the mapped page cache is useless
-> > > as having shrink_mmap browsing kernel memory and anonymous pages
-> > > as it does in 2.2.x as far I can tell. It's an algorithm
-> > > complexity problem and it will waste lots of CPU.
-> > 
-> > It's a compromise between CPU cost and Getting It Right.  Ignoring the
-> > mmap is not a good solution either.
-> > 
-> > > Now think this simple real life example. A 2G RAM machine running
-> > > an executable image of 1.5G, 300M in shm and 200M in cache.
-> 
-> Hey that's ridiculous: 1.5G executable image and 300M shm? Take it
-> vice-versa and you are approaching real life.
+> Granted that smaller apps can help -- for a particular workload.  But while I
+> am very partial to BusyBox (in fact I am about to cut a new release) I can
+> assure you that OOM is easily possible even when your user space is tiny.  I do
+> it all the time.  There are mallocs in busybox and when under memory pressure,
+> the kernel still tends to fall over...
 
-Could you tell me what's wrong in having an app with a 1.5G mapped executable
-(or a tiny executable but with a 1.5G shared/private file mapping if you
-prefer), 300M of shm (or 300M of anonymous memory if you prefer) and 200M as
-filesystem cache?
+Operating systems cannot make more memory appear by magic.
+The question is really about the best strategy for dealing with low memory. In my
+opinion, the OS should not try to out-think physical limitations. Instead, the OS 
+should take as little space as possible and provide the ability for user level 
+clever management of space. In a truly embedded system, there can easily be a user level
+root process that watches memory usage and prevents DOS attacks -- if the OS provides
+settable enforced quotas etc. 
 
-The application have a misc I/O load that in some part will run out
-of the working set, what's wrong with this?
 
-What's ridiculous? Please elaborate.
+-- 
+---------------------------------------------------------
+Victor Yodaiken 
+Finite State Machine Labs: The RTLinux Company.
+ www.fsmlabs.com  www.rtlinux.com
 
-To emulate that workload we only need to mmap(1.5G, MAP_PRIVATE or MAP_SHARED),
-fault into it, and run bonnie.
-
-Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
