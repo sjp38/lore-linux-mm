@@ -1,60 +1,35 @@
-From: Con Kolivas <kernel@kolivas.org>
-Subject: Rising io_load results Re: 2.5.63-mm1
-Date: Fri, 28 Feb 2003 08:22:09 +1100
-References: <20030227025900.1205425a.akpm@digeo.com>
-In-Reply-To: <20030227025900.1205425a.akpm@digeo.com>
+Received: from sp1n293en1.watson.ibm.com (sp1n293en1.watson.ibm.com [9.2.112.57])
+	by igw2.watson.ibm.com (8.11.4/8.11.4) with ESMTP id h1RLlDj32060
+	for <linux-mm@kvack.org>; Thu, 27 Feb 2003 16:47:13 -0500
+Received: from watson.ibm.com (discohall.watson.ibm.com [9.2.17.22])
+	by sp1n293en1.watson.ibm.com (8.11.4/8.11.4) with ESMTP id h1RLlCV51024
+	for <linux-mm@kvack.org>; Thu, 27 Feb 2003 16:47:12 -0500
+Message-ID: <3E5E8832.688AE0CB@watson.ibm.com>
+Date: Thu, 27 Feb 2003 16:50:42 -0500
+From: "Raymond B. Jennings III" <raymondj@watson.ibm.com>
+Reply-To: raymondj@watson.ibm.com
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Top 128MB of virtual address space
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200302280822.09409.kernel@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I mentioned this previously; it's still happening.
+For linux running on an Intel machine without PAE, the top 128MB of
+virtual address space:
 
-This started some time around 2.5.62-mm3 with the io_load results on contest 
-benchmarking (http://contest.kolivas.org) rising with each run. It still 
-occurs with 2.5.63-mm1 regardless of which elevator is specified. This is the 
-io load result time(seconds) for 6 consecutive runs in compile time:
+If
+PKMAP_BASE = FE000000
 
-111
-147
-221
-284
-334
-358
+and
+FIXADDR_START=FFF55000
 
-/proc/meminfo after 6 runs and mem flushing:
+That leaves a 32MB area.  I believe the permanent highmem mappings are
+1024 pages so that leaves 28MB of address space.  What is this space
+used for if anything?
 
-MemTotal:       256156 kB
-MemFree:        238708 kB
-Buffers:          2320 kB
-Cached:           1552 kB
-SwapCached:       1780 kB
-Active:           5876 kB
-Inactive:         2120 kB
-HighTotal:           0 kB
-HighFree:            0 kB
-LowTotal:       256156 kB
-LowFree:        238708 kB
-SwapTotal:     4194272 kB
-SwapFree:      4192416 kB
-Dirty:              28 kB
-Writeback:           0 kB
-Mapped:       4294923652 kB
-Slab:             4872 kB
-Committed_AS:     7032 kB
-PageTables:        200 kB
-ReverseMaps:       631
-
-I am refraining from publishing any benchmark results with this happening. It 
-doesn't seem to occur on 2.5.63
-
-Con
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
