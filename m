@@ -1,62 +1,62 @@
-Date: Tue, 11 Jul 2000 17:23:08 +0200 (CEST)
-From: Richard Guenther <richard.guenther@student.uni-tuebingen.de>
-Subject: Re: sys_exit() and zap_page_range()
-In-Reply-To: <20000711143558.E1054@redhat.com>
-Message-ID: <Pine.LNX.4.21.0007111713580.31978-100000@fs1.dekanat.physik.uni-tuebingen.de>
+Subject: PATCH: alloc_pages solving problems for machines with a lot of memory
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+Date: 11 Jul 2000 18:10:32 +0200
+Message-ID: <yttsntgmyvb.fsf@serpe.mitica>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Andrew Morton <andrewm@uow.edu.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org, lkml <linux-kernel@vger.rutgers.edu>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Jul 2000, Stephen C. Tweedie wrote:
+Hi
+        Users of 1GB RAM machines are having problems with the
+        machines swapping too soon.  That happens due to the fact that
+        they got out of pages in the HIGH_MEM zone (only around 100MB
+        on that machines)  and they begin to swap searching for pages
+        free in the NORMAL zone.  That problem also appears with the
+        DMA zone.  This is the same patch that I send to
+        2.4.0-test1-ac22-*
 
-> Hi,
-> 
-> On Tue, Jul 11, 2000 at 09:24:56PM +1000, Andrew Morton wrote:
-> > 
-> > Nope.  Take out the msyncs and it still does it.
-> 
-> Unmapping a writable region results in an implicit msync.  That
-> includes exit() and munmap().
+Later, Juan.
 
-Can we have some feature like deferred munmap() which recycles
-virtual memory space only if needed? I.e. basically an asynchronous
-munmap() which allows an already munmapped section to be re-mapped
-without having the implicit msync() and future page-ins?
+This patch does:
+- We allocate for a zone with more than pages_high free pages if
+  possible.
 
-So basically
+diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/mm/page_alloc.c working/mm/page_alloc.c
+--- base/mm/page_alloc.c	Tue Jul 11 12:00:55 2000
++++ working/mm/page_alloc.c	Tue Jul 11 17:39:07 2000
+@@ -227,6 +227,23 @@
+ 	 * We are falling back to lower-level zones if allocation
+ 	 * in a higher zone fails.
+ 	 */
++
++	for (;;) {
++		zone_t *z = *(zone++);
++		if (!z)
++			break;
++		if (!z->size)
++			BUG();
++
++		/* If there are zones with a lot of free memory allocate from them */
++		if (z->free_pages > z->pages_high) {
++			struct page *page = rmqueue(z, order);
++			if (page)
++				return page;
++		}
++	}
++
++	zone = zonelist->zones;
+ 	for (;;) {
+ 		zone_t *z = *(zone++);
+ 		if (!z)
 
-	mem = mmap(NULL, PAGESIZE, PROT_READ|PROT_WRITE, MAP_SHARED, file,
-0);
-	/* muck with mem */
-	special_munmap(mem, PAGESIZE);
 
-	/* re-map the same memory again - dont care if the resulting
-         * virtual address is the same as above. */
-	mem = mmap(.....);
 
-	etc.
-
-with the munmap() not causing disk activity, instead the physical page
-(or the mapping itself) gets cached and reused by the following mmap().
-
-Of course implementing this via munmap() breaks posix - so we might want
-to do it using madvise(,, MADV_LAZY_UNMAP) or the like? Btw. having a
-mmap() operation that works recursively, i.e. returns the same virtual
-mapping for the same mapping and keeping a reference count, would be cool,
-too. [In case you're wondering, I'm doing virtual memory management in
-userspace]
-
-Richard.
-
---
-Richard Guenther <richard.guenther@student.uni-tuebingen.de>
-WWW: http://www.anatom.uni-tuebingen.de/~richi/
-The GLAME Project: http://www.glame.de/
-
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
