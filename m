@@ -1,33 +1,45 @@
-Received: from free.fr (IDENT:riccardi@bastard [127.0.0.1])
-	by antoinette.inria.fr (8.9.3/8.9.3) with ESMTP id PAA03685
-	for <linux-mm@kvack.org>; Mon, 4 Sep 2000 15:39:04 +0200
-Message-ID: <39B3A5F8.29C18EC1@free.fr>
-Date: Mon, 04 Sep 2000 15:39:04 +0200
-From: Fabio Riccardi <fabio.riccardi@free.fr>
+Date: Mon, 4 Sep 2000 12:22:31 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: Bad page count   with 2.4.0-t8p1-vmpatch2b
+In-Reply-To: <39B33D14.C7239FB8@sgi.com>
+Message-ID: <Pine.LNX.4.21.0009041221280.8855-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Subject: zero copy IO project
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sun, 3 Sep 2000, Rajagopal Ananthanarayanan wrote:
 
-after having analyzed a bit the various souces of inefficiency in Linux
-(wrt a high end server), and having discarded what other people already
-seem to be working on,  I'd like to enroll myself into a zero copy IO
-project, much like that of UVM, genie, io-lite, fbufs, etc.
+> The previous boot problem was apparently due to a
+> bad run of lilo: at that time test8-pre2 was on
+> the system, so may be there is some problem in test8-pre2.
+> Anyway, I can now boot test8-pre1 + 2.4.0-t8p1-vmpatch2b.
+> But a simple copy of a large file (filesize > memsize)
+> brings out lots of messages on the console:
+> 
+> ---------
+> Bad page count
+> Bad page count
+> Bad page count
+> Bad page count
+> ---------------
 
-Is anybody aready working on this? Does anybody have ideas about it?
-Anybody interested in a discussion of pros and cons of such an
-architectural change to Linux?
+Bad debugging check. This was a false alarm (which slipped
+in under pressure to locate the SMP race)
 
-TIA, ciao,
+2.4.0-t8p1-vmpatch2 (without the b) should be better...
 
- - Fabio
+regards,
 
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
