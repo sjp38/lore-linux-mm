@@ -1,52 +1,39 @@
-Date: Tue, 9 Jan 2001 20:11:30 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Yet another bogus piece of do_try_to_free_pages() 
-In-Reply-To: <Pine.LNX.4.21.0101091929140.7500-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0101091959560.7500-100000@freak.distro.conectiva>
+Date: Tue, 9 Jan 2001 16:06:59 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: Yet another bogus piece of do_try_to_free_pages() 
+In-Reply-To: <Pine.LNX.4.21.0101091959560.7500-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10101091604180.2906-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
- 
-Hi,
 
-Look at this piece of code from kswapd: 
+On Tue, 9 Jan 2001, Marcelo Tosatti wrote:
+> 
+> The problem is that do_try_to_free_pages uses the "wait" argument when
+> calling page_launder() (where the paramater is used to indicate if we want
+> todo sync or async IO) _and_ used to call refill_inactive(), where this
+> parameter is used to indicate if its being called from a normal process or
+> from kswapd:
 
-                /* If needed, try to free some memory. */
-                if (inactive_shortage() || free_shortage()) {
-                        int wait = 0;
-                        /* Do we need to do some synchronous flushing? */
-                        if (waitqueue_active(&kswapd_done))
-                                wait = 1;
-                        do_try_to_free_pages(GFP_KSWAPD, wait);
-                }
+Yes. Bogus.
 
-The problem is that do_try_to_free_pages uses the "wait" argument when
-calling page_launder() (where the paramater is used to indicate if we want
-todo sync or async IO) _and_ used to call refill_inactive(), where this
-parameter is used to indicate if its being called from a normal process or
-from kswapd:
+I suspect that the proper fix is something more along the lines of what we
+did to bdflush: get rid of the notion of waiting synchronously from
+bdflush, and instead do the work yourself. 
 
- * OTOH, if we're a user process (and not kswapd), we
- * really care about latency. In that case we don't try
- * to free too many pages.
- */
-static int refill_inactive(unsigned int gfp_mask, int user)
-{
-        int priority, count, start_count;
+Doing the same to kswapd would imply getting rid of that kswapd_wait
+thing, and instead of having people wait on it, they would do
+"page_launder(gfp_mask, 1)" themselves (and we _do_ want them to wait,
+because that ends up being rate-limiting especially on the applications
+that do a lot of memory allocation - which are the applications that end
+up being the problem in the first place).
 
-        count = inactive_shortage() + free_shortage();
-        if (user)
-                count = (1 << page_cluster);
-        start_count = count;
-
-
-This is probably quite nasty in practice (low memory conditions) because
-if we have waiters on kswapd, we want to free more memory.
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
