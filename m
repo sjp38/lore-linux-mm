@@ -1,34 +1,37 @@
 Subject: Re: [RFC] Enabling other oom schemes
 From: Robert Love <rml@tech9.net>
-In-Reply-To: <3F614912.3090801@genebrew.com>
+In-Reply-To: <3F614E36.7030206@genebrew.com>
 References: <200309120219.h8C2JANc004514@penguin.co.intel.com>
-	 <3F614912.3090801@genebrew.com>
+	 <3F614912.3090801@genebrew.com> <3F614C1F.6010802@nortelnetworks.com>
+	 <3F614E36.7030206@genebrew.com>
 Content-Type: text/plain
-Message-Id: <1063342032.700.234.camel@localhost>
+Message-Id: <1063342102.700.237.camel@localhost>
 Mime-Version: 1.0
-Date: Fri, 12 Sep 2003 00:47:13 -0400
+Date: Fri, 12 Sep 2003 00:48:22 -0400
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rahul Karnik <rahul@genebrew.com>
-Cc: rusty@linux.co.intel.com, riel@conectiva.com.br, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Chris Friesen <cfriesen@nortelnetworks.com>, rusty@linux.co.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2003-09-12 at 00:18, Rahul Karnik wrote:
+On Fri, 2003-09-12 at 00:40, Rahul Karnik wrote:
 
-> How does this interact with the overcommit handling? Doesn't strict 
-> overcommit also not oom, but rather return a memory allocation error?
+> I was referring to the "strict overcommit" mode described in 
+> Documentation/vm/overcommit-accounting.
 
-Right.  Technically, with strict overcommit and a sufficient overcommit
-ratio, you cannot OOM.
+Right.  What Chris said is true.  Strict overcommit has limitations, and
+hence it is not the default.
 
-But this is for people who do have a chance of OOM, because strict
-overcommit is not for everyone.
+> To me, it sounded like it was 
+> describing modes that were alternatives to the proposed kernel panic on 
+> oom, and I was merely suggesting we use the same /proc/sys/vm method to 
+> specify oom behavior (maybe a string rather than numeric codes in case 
+> we have several such options in the future). Apologies if this is not 
+> related to what Rusty is talking about.
 
-> Could we not add another overcommit mode where oom conditions cause a 
-> kernel panic?
-
-The two are unrelated.
+I don't think the two are related.  You can have both, separately or
+together.
 
 	Robert Love
 
