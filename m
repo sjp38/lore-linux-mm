@@ -1,146 +1,77 @@
-Message-ID: <3989F22B.F466FA58@norran.net>
-Date: Fri, 04 Aug 2000 00:28:59 +0200
-From: Roger Larsson <roger.larsson@norran.net>
-MIME-Version: 1.0
+Date: Thu, 3 Aug 2000 19:33:38 -0700
+From: David Gould <dg@suse.com>
 Subject: Re: RFC: design for new VM
-References: <Pine.LNX.4.21.0008031703250.24022-100000@duckman.distro.conectiva>
+Message-ID: <20000803193335.A31816@archimedes.suse.com>
+References: <Pine.LNX.4.21.0008021212030.16377-100000@duckman.distro.conectiva> <Pine.LNX.4.10.10008031020440.6384-100000@penguin.transmeta.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <Pine.LNX.4.10.10008031020440.6384-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Thu, Aug 03, 2000 at 11:05:47AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org, "Scott F. Kaplan" <sfkaplan@cs.amherst.edu>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
+On Thu, Aug 03, 2000 at 11:05:47AM -0700, Linus Torvalds wrote:
+... 
+> As far as I can tell, the above is _exactly_ equivalent to having one
+> single list, and multiple "scan-points" on that list. 
 > 
-> On Thu, 3 Aug 2000, Roger Larsson wrote:
-> 
-> > > - data structures (page lists)
-> > >     - active list
-> > >         - per node/pgdat
-> > >         - contains pages with page->age > 0
-> > >         - pages may be mapped into processes
-> > >         - scanned and aged whenever we are short
-> > >           on free + inactive pages
-> > >         - maybe multiple lists for different ages,
-> > >           to be better resistant against streaming IO
-> > >           (and for lower overhead)
-> >
-> > Does this really need to be a list? Since most pages should
-> > be on this list can't it be virtual - pages on no other list
-> > are on active list. All pages are scanned all the time...
-> 
-> It doesn't have to be a list per se, but since we have the
-> list head in the page struct anyway we might as well make
-> it one.
-> 
+> A "scan-point" is actually very easy to implement: anybody at all who
+> needs to scan the list can just include his own "anchor-page": a "struct
+> page_struct" that is purely local to that particular scanner, and that
+> nobody else will touch because it has an artificially elevated usage count
+> (and because there is actually no real page associated with that virtual
+> "struct page" the page count will obviosly never decrease ;).
 
-If we do not want to increase the size of the page struct.
-A union could be added instead - age info _or_ actual list.
-(not on any list unless age is zero)
+I have seen this done in other contexts, where there was a single more or
+less LRU list, with different regions, mainly, a "wash" region which
+cleaned dirty pages. Regions were just pointers into the list.
 
-> > >     - inactive_dirty list
-> > >         - per zone
-> > >         - contains dirty, old pages (page->age == 0)
-> > >         - pages are not mapped in any process
-> > >     - inactive_clean list
-> > >         - per zone
-> > >         - contains clean, old pages
-> > >         - can be reused by __alloc_pages, like free pages
-> > >         - pages are not mapped in any process
-> >
-> > What will happen to pages on these lists if pages gets referenced?
-> > * Move them back to the active list? Then it is hard to know how
-> >   many free able pages there really are...
-> 
-> Indeed, we will move such a page back to the active list.
-> "Luckily" the inactive pages are not mapped, so we have to
-> locate them through find_page_nolock() and friends, which
-> allows us to move the page back to the active list, adjust
-> statistics and maybe even wake up kswapd as needed.
-> 
-> > > - other data structures
-> > >     - int memory_pressure
-> > >         - on page allocation or reclaim, memory_pressure++
-> > >         - on page freeing, memory_pressure--  (keep it >= 0, though)
-> > >         - decayed on a regular basis (eg. every second x -= x>>6)
-> > >         - used to determine inactive_target
-> > >     - inactive_target == one (two?) second(s) worth of memory_pressure,
-> > >       which is the amount of page reclaims we'll do in one second
-> > >         - free + inactive_clean >= zone->pages_high
-> > >         - free + inactive_clean + inactive_dirty >= zone->pages_high \
-> > >                 + one_second_of_memory_pressure * (zone_size / memory_size)
-> >
-> > One of the most interesting aspects (IMHO) of Scott F. Kaplands
-> > "Compressed Cache and Virtual Memory Simulation" was the use of
-> > VM time instead of wall time. One second could be too long of a
-> > reaction time - relative to X allocations/sec etc.
-> 
-> It's just the inactive target. Trying to keep one second of
-> unmapped pages with page->age==0 around is mainly done to:
-> - make sure we can flush all of them on time
-> - put an "appropriate" amount of pressure on the
->   pages in the active list, so page aging is smoothed
->   out a little bit
-> 
-
-Yes, but why one second? Why not 1/10 second, one jiffie, ...
-
-
-> > > If memory_pressure is high and we're doing a lot of dirty
-> > > disk writes, the bdflush percentage will kick in and we'll
-> > > be doing extra-agressive cleaning. In that case bdflush
-> > > will automatically become more agressive the more page
-> > > replacement is going on, which is a good thing.
-> >
-> > I think that one of the omissions in Kaplands report is the
-> > time it takes to clean dirty pages. (Or have I missed
-> > something... Need to select the pages earlier)
-> 
-> Page replacement (select which page to replace) should always
-> be independant from page flushing. You can make pretty decent
-> decisions on which page(s) to free and the last thing you want
-> is having them messed up by page flushing.
-> 
-> > >                 Misc
-> > >
-> > > Page aging and flushing are completely separated in this
-> > > scheme. We'll never end up aging and freeing a "wrong" clean
-> > > page because we're waiting for IO completion of old and
-> > > to-be-freed pages.
-> >
-> > Is page ageing modification of LRU enough?
-> 
-> It seems to work fine for FreeBSD. Also, we can always change
-> the "aging" of the active pages with something else. The
-> system is modular enough that we can do that.
-> 
-> > In many cases it will probably behave worse than plain LRU
-> > (slower phase adaptions).
-> 
-> We can change that by using exponential decay for the page
-> age, or by using some different aging technique...
->
-
-Another research subject...
+Bad ascii art concept drawing:
+   'U' is used, 'D' is dirty',
+   'W' is washing, 'C' is clean
  
-> > The access pattern diagrams in Kaplans report are very
-> > enlightening...
-> 
-> They are very interesting indeed, but I miss one very
-> common workload in their report. A lot of systems do
-> (multimedia) streaming IO these days, where a lot of
-> data passes through the cache quickly, but all of the
-> data is only touched once (or maybe twice).
+  [new]->U-U-U-U-D-U-D-U-U-D-U-U-D-D-U-*-W-W-W-W-W-W-W-W-*-C-C-C-C-C->[old]
+                                       ^                ^
+                 ... active ...        | ... wash ....  |  ... free ...
+                                                        |
+                                       <- size of wash->\washptr
 
-And at the same time browsing www with netscape...
+Basically when a page aged into the "wash" section of the list, it would be
+cleaned and moved on to the clean section. This was done either on demand
+by tasks trying to find free pages, or by a pagecleaner task. Tunables were
+the size of the wash, the size goals for the free section, i/o rate, how
+on demand tasks would scan after finding a page, how agressive the pagecleaner
+etc.
+
+It seemed to work ok, and the code was not too horrible.
+
+> etc.. Basically, you can have any number of virtual "clocks" on a single
+> list.
+
+Yes.
  
-/RogerL
+>    For example, imagine a common problem with floppies: we have a timeout
+>    for the floppy motor because it's costly to start them up again. And
+>    they are removable. A perfect floppy driver would notice when it is
+>    idle, and instead of turning off the motor it might decide to scan for
+>    dirty pages for the floppy on the (correct) assumption that it would be
+>    nice to have them all written back instead of turning off the motor and
+>    making the floppy look idle.
 
---
-Home page:
-  http://www.norran.net/nra02596/
+This would be a big win for laptops. Instead of turning off flushing, or
+flushing too often, just piggy back all the flushing onto time when the
+drive was already spun up anyway. Happy result, less power and noise, and
+more safety.
+
+
+-dg
+
+-- 
+David Gould                                                 dg@suse.com
+SuSE, Inc.,  580 2cd St. #210,  Oakland, CA 94607          510.628.3380
+"I sense a disturbance in the source"  -- Alan Cox
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
