@@ -1,63 +1,43 @@
-Subject: Re: New mm and highmem reminder
-References: <Pine.LNX.4.21.0010251601120.943-100000@duckman.distro.conectiva>
-From: Christoph Rohland <cr@sap.com>
-Date: 25 Oct 2000 22:08:10 +0200
-In-Reply-To: Rik van Riel's message of "Wed, 25 Oct 2000 16:02:01 -0200 (BRDT)"
-Message-ID: <m3snpkelat.fsf@linux.local>
+Message-ID: <39F74876.29130E9B@norran.net>
+Date: Wed, 25 Oct 2000 22:54:14 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
+Subject: Re: New mm and highmem reminder
+References: <Pine.LNX.4.21.0010251601120.943-100000@duckman.distro.conectiva> <m3snpkelat.fsf@linux.local>
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
+To: Christoph Rohland <cr@sap.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Rik,
+Hi,
 
-Rik van Riel <riel@conectiva.com.br> writes:
+Christoph please check with Alt-SysRq-M if you have run out
+of memory in a specific zone.
 
-> On 25 Oct 2000, Christoph Rohland wrote:
-> 
-> Could you test if /normal/ swapping works on highmem
-> machines?
+Christoph Rohland wrote:
 
-I tested this by mmaping named files instead of shm files. The machine
-does not lock up and does not swap because the processes are stuck
-uninteruptible and ps and vmstat do lock up on them.
+> MemFree:        182064 kB 
+>  - - -
+> Inact_dirty:   2793900 kB
+> Inact_clean:         0 kB
 
-I can else work on the machine
+Rik, notice the imbalance between inactive dirty and
+inactive clean...
 
-[root@ls3016 /root]# cat /proc/meminfo
-         total:    used:    free:  shared: buffers:  cached: 
-Mem:  4144390144 3957956608 186433536        0  9175040 3708989440 
-Swap: 2048053248        0 2048053248 
-MemTotal:      8241560 kB 
-MemFree:        182064 kB 
-MemShared:           0 kB 
-Buffers:          8960 kB 
-Cached:        7816364 kB 
-Active:        5031424 kB 
-Inact_dirty:   2793900 kB 
-Inact_clean:         0 kB 
-Inact_target:    21936 kB 
-HighTotal:     7471104 kB 
-HighFree:         2036 kB 
-LowTotal:       770456 kB 
-LowFree:        180028 kB 
-SwapTotal:     2000052 kB 
-SwapFree:      2000052 kB 
+In this kind of situation when will page_lauder run?
 
+Christoph, can you put a printk in page_launder to
+see if it ever runs? (There are a lot of && conditions
+to fulfil before kflushd will start)
 
-later:
+/RogerL
 
-Active:        5029908 kB
-Inact_dirty:   2795424 kB
-Inact_clean:         0 kB
-Inact_target:     6528 kB                                       
-
-Greetings
-                Christoph
-
+--
+Home page:
+  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
