@@ -1,34 +1,57 @@
-Date: Fri, 18 May 2001 22:09:58 +0200 (CEST)
-From: Mike Galbraith <mikeg@wen-online.de>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id DC4FB16B8F
+	for <linux-mm@kvack.org>; Fri, 18 May 2001 17:12:01 -0300 (EST)
+Date: Fri, 18 May 2001 17:12:01 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Linux 2.4.4-ac10
-In-Reply-To: <Pine.LNX.4.33.0105181521400.5251-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.33.0105182153570.387-100000@mikeg.weiden.de>
+In-Reply-To: <20010518205843.T806@nightmaster.csn.tu-chemnitz.de>
+Message-ID: <Pine.LNX.4.33.0105181710540.5251-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Cc: Mike Galbraith <mikeg@wen-online.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 May 2001, Rik van Riel wrote:
+On Fri, 18 May 2001, Ingo Oeser wrote:
+> On Fri, May 18, 2001 at 03:23:03PM -0300, Rik van Riel wrote:
 
-> On Fri, 18 May 2001, Ingo Oeser wrote:
+> > "such a tradeoff" ?
+> >
+> > While this sounds reasonable, I have to point out that
+> > up to now nobody has described exactly WHAT tradeoff
+> > they'd like to make tunable and why...
 >
-> > Rik: Would you take patches for such a tradeoff sysctl?
+> Amount of pages reclaimed from swapout_mm() versus amount of
+> pages reclaimed from caches.
 >
-> "such a tradeoff" ?
+> A value that says: "use XX% of my main memory for RSS of
+> processes, even if I run heavy disk loadf now" would be nice.
 >
-> While this sounds reasonable, I have to point out that
-> up to now nobody has described exactly WHAT tradeoff
-> they'd like to make tunable and why...
+> For general purpose machines, where I run several services but
+> also play games, this would allow both to survive.
+>
+> The external services would go slower. Who cares, if some CVS
+> updates or NFS services go slower, if I can play my favorite game
+> at full speed? ;-)
 
-While I'd love to have more control, I can't say I have a clear
-picture of exactly how I'd like those knobs to look.  I always
-start out trying to get it to seek the right behavior.. :) and
-end up fighting so many different fires I get lost in the smoke.
+Remember that the executable and data of that game reside
+in the filesystem cache. This "double counting" makes it
+quite a bit harder to actually implement what seems like
+a simple tradeoff.
 
-	-Mike
+regards,
+
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
+
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
