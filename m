@@ -1,26 +1,30 @@
-Received: from mea.tmt.tele.fi (mea.tmt.tele.fi [194.252.70.2])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA07320
-	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 07:31:46 -0500
-Subject: Loop-trap desired into linux-mm !
-Date: Tue, 12 Jan 1999 14:31:07 +0200 (EET)
-From: Matti Aarnio <matti.aarnio@sonera.fi>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA08099
+	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 09:50:48 -0500
+Date: Tue, 12 Jan 1999 15:49:53 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Subject: Re: Results: Zlatko's new vm patch
+In-Reply-To: <Pine.LNX.3.95.990111213013.15291A-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.3.96.990112154822.315B-100000@laser.bogus>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Message-Id: <19990112123119Z92293-3067+13@mea.tmt.tele.fi>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Steve Bergman <steve@netplus.net>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 11 Jan 1999, Linus Torvalds wrote:
 
-  Now the problem isn't what Stephen wrote, but this damn french
-subscriber whose mailsystem decides to send all received messages
-back out to the address(es) in the "To:" and "Cc:" headers :-(
+> Note that there are very few people who are testing interactive feel. I'd
+> be happier with more people giving more subjective comments on how the
+> system feels under heavy memory load. 
 
-The address I killed at VGER's lists is:  eznerald@mnet.fr
+With my latest free_user_and_cache() (arca-vm >= 16) you can't get bad
+iteractive performances. Usually bad iteractive performances are due
+unbalaced algorithms in the big try_to_free_pages() path.
 
-I don't know if s/he has subscribed to  linux-mm, but s/he sure
-*was* at  linux-kernel ...
+Andrea Arcangeli
 
-  /Matti Aarnio <matti.aarnio@sonera.fi>  ... back to coding (of MTA)
+--
+This is a majordomo managed list.  To unsubscribe, send a message with
+the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
