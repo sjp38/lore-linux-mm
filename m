@@ -1,65 +1,70 @@
-Date: Sun, 14 Nov 1999 11:06:25 +1300
-From: Chris Wedgwood <cw@f00f.org>
+Date: Sun, 14 Nov 1999 11:16:40 +0100 (CET)
+From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
 Subject: Re: [patch] zoned-2.3.28-G5, zone-allocator, highmem, bootmem fixes
-Message-ID: <19991114110625.A155@caffeine.ix.net.nz>
-References: <Pine.LNX.4.10.9911132007310.4346-200000@chiara.csoma.elte.hu> <Pine.LNX.4.10.9911132231550.5769-101000@chiara.csoma.elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.10.9911132231550.5769-101000@chiara.csoma.elte.hu>; from Ingo Molnar on Sat, Nov 13, 1999 at 10:33:29PM +0100
+In-Reply-To: <19991114110625.A155@caffeine.ix.net.nz>
+Message-ID: <Pine.LNX.4.10.9911141110480.1278-100000@chiara.csoma.elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+To: Chris Wedgwood <cw@f00f.org>
 Cc: Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu, "Stephen C. Tweedie" <sct@redhat.com>, Christoph Rohland <hans-christoph.rohland@sap.com>
 List-ID: <linux-mm.kvack.org>
 
-> - modules should compile again.
+On Sun, 14 Nov 1999, Chris Wedgwood wrote:
 
-you missed:
+> > - modules should compile again.
+> 
+> you missed:
 
---- kernel/ksyms.c.orig	Sun Nov 14 10:38:09 1999
-+++ kernel/ksyms.c	Sun Nov 14 10:38:24 1999
-@@ -92,6 +92,7 @@
- EXPORT_SYMBOL(exit_sighand);
- 
- /* internal kernel memory management */
-+EXPORT_SYMBOL(zonelists);
- EXPORT_SYMBOL(__alloc_pages);
- EXPORT_SYMBOL(__free_pages_ok);
- EXPORT_SYMBOL(kmem_find_general_cachep);
+> +EXPORT_SYMBOL(zonelists);
 
-> - cleaned up pgtable.h, split into lowlevel and highlevel parts, this
->   fixes dependencies in mm.h & misc.c.
+whoops, thanks.
 
-should asm-i386/pgtable include pgalloc.h? This is required for
-binfmt_aout but I don't think it is verr clean
+> > - cleaned up pgtable.h, split into lowlevel and highlevel parts, this
+> >   fixes dependencies in mm.h & misc.c.
+> 
+> should asm-i386/pgtable include pgalloc.h? This is required for
+> binfmt_aout but I don't think it is verr clean
 
---- fs/binfmt_aout.c.orig	Sun Nov 14 10:39:17 1999
-+++ fs/binfmt_aout.c	Sun Nov 14 10:57:50 1999
-@@ -28,6 +28,9 @@
- #include <asm/system.h>
- #include <asm/uaccess.h>
- #include <asm/pgtable.h>
-+#ifdef CONFIG_X86
-+#include <asm/pgalloc.h>
-+#endif
- 
- static int load_aout_binary(struct linux_binprm *, struct pt_regs * regs);
- static int load_aout_library(int fd);
+> --- fs/binfmt_aout.c.orig	Sun Nov 14 10:39:17 1999
+> +++ fs/binfmt_aout.c	Sun Nov 14 10:57:50 1999
+>  #include <asm/pgtable.h>
+> +#ifdef CONFIG_X86
+> +#include <asm/pgalloc.h>
+> +#endif
 
-> - fixed boot task's swapper_pg_dir clearing
+the solution is to:
 
-what else needs to be done to alloc the buffer cache to use the low
-16MB? 
+ -#include <asm/pgtable.h>
+ +#include <asm/pgalloc.h>
 
-Oh, and on my laptop, performance is way down and it now swaps where
-it did not before... (looks like processes can't use the lower 16M
-either)
+we do not want to put #ifdef CONFIG_X86-type of stuff into the main
+kernel.
 
+basically there are some 'low level' include files that need low-level
+paging details, but do not have the highlevel structures defined like
+struct mm. So i've split out all the highlevel code from pgtable.h (TLB
+flushing and page table allocation) and have put it into pgalloc.h.
+pgalloc.h includes pgtable.h.
 
+> > - fixed boot task's swapper_pg_dir clearing
+> 
+> what else needs to be done to alloc the buffer cache to use the low
+> 16MB? 
 
--cw
+fallback from 'highmem => normalmem => dmamem' should work already.
 
+> Oh, and on my laptop, performance is way down and it now swaps where
+> it did not before... (looks like processes can't use the lower 16M
+> either)
 
+will have a look - i think we are simply out of balance somewhere, but
+maybe it's something else. What i saw on 16MB is that kswapd is almost
+constantly running, but process pages do get allocated in the lowest 16MB
+as well.
+
+-- mingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
