@@ -1,154 +1,124 @@
-Date: Mon, 11 Sep 2000 22:28:03 -0400 (EDT)
-From: Ben LaHaise <bcrl@redhat.com>
-Subject: [PATCH] 2.2.18pre5 version of pte dirty bit psmp race atch
-Message-ID: <Pine.LNX.4.21.0009112223010.28441-100000@devserv.devel.redhat.com>
+From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Message-Id: <200009120234.TAA39381@google.engr.sgi.com>
+Subject: Re: [PATCH] workaround for lost dirty bits on x86 SMP
+Date: Mon, 11 Sep 2000 19:34:04 -0700 (PDT)
+In-Reply-To: <Pine.LNX.3.96.1000911210010.7937B-100000@kanga.kvack.org> from "bcrl@redhat.com" at Sep 11, 2000 09:36:35 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@redhat.com>
-Cc: linux-mm@kvack.org
+To: bcrl@redhat.com
+Cc: linux-mm@kvack.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-Same patch as last time, except for 2.2.  In case I wasn't clear enough
-previously, the race is avoided by forcing a page fault to occur for clean
-but writable pages.  The page fault path in turn takes the locks needed to
-protect against the race during the window between reading the pte and
-then doing the pte_clear/mk_clean in the swapper or msync/etc.
+> 
+> On Mon, 11 Sep 2000, Kanoj Sarcar wrote:
+> 
+> > One of the worst races is in the page stealing path, when the stealer
+> > thread checks whether the page is dirty, decides to pte_clear(), and
+> > right then, the user dirties the pte, before the stealer thread has done
+> > the flush_tlb. Are you trying to handle this situation?
+> 
+> That's the one.  It also crops up in msync, munmap and such.
+> 
+> > FWIW, previous notes/patches on this topic can be found at
+> > 
+> > 	http://reality.sgi.com/kanoj_engr/smppte.patch
+> > 
+> > and this also tries to handle the filemap cases. 
+> 
+> Right, that doesn't look so good -- it walks over the memory an extra pass
+> or two, which is not good.
 
-		-ben
+Not really, I thought I had it in a state where the bare minimum
+was being done. Of course, this was the non-PAE version ...
 
-diff -ur v2.2.18pre5/arch/i386/kernel/process.c work-v2.2.18pre5/arch/i386/kernel/process.c
---- v2.2.18pre5/arch/i386/kernel/process.c	Wed May  3 20:16:31 2000
-+++ work-v2.2.18pre5/arch/i386/kernel/process.c	Mon Sep 11 20:53:11 2000
-@@ -277,7 +277,7 @@
- 	/* Make sure the first page is mapped to the start of physical memory.
- 	   It is normally not mapped, to trap kernel NULL pointer dereferences. */
- 
--	pg0[0] = _PAGE_RW | _PAGE_PRESENT;
-+	pg0[0] = _PAGE_RW | _PAGE_W | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_PRESENT;
- 
- 	/*
- 	 * Use `swapper_pg_dir' as our page directory.  We bother with
-diff -ur v2.2.18pre5/arch/i386/kernel/smp.c work-v2.2.18pre5/arch/i386/kernel/smp.c
---- v2.2.18pre5/arch/i386/kernel/smp.c	Mon Sep 11 20:48:10 2000
-+++ work-v2.2.18pre5/arch/i386/kernel/smp.c	Mon Sep 11 21:47:34 2000
-@@ -469,7 +469,7 @@
- 					 */
- 			
- 					cfg=pg0[0];
--					pg0[0] = (mp_lapic_addr | _PAGE_RW | _PAGE_PRESENT);
-+					pg0[0] = (mp_lapic_addr | _PAGE_RW | _PAGE_W | _PAGE_PRESENT | _PAGE_DIRTY | _PAGE_ACCESSED);
- 					local_flush_tlb();
- 
- 					boot_cpu_id = GET_APIC_ID(*((volatile unsigned long *) APIC_ID));
-@@ -1559,7 +1559,7 @@
- 		 *	Install writable page 0 entry.
- 		 */
- 		cfg = pg0[0];
--		pg0[0] = _PAGE_RW | _PAGE_PRESENT;	/* writeable, present, addr 0 */
-+		pg0[0] = _PAGE_RW | _PAGE_W | _PAGE_PRESENT  | _PAGE_DIRTY | _PAGE_ACCESSED;	/* writeable, present, addr 0 */
- 		local_flush_tlb();
- 	
- 		/*
-diff -ur v2.2.18pre5/arch/i386/mm/ioremap.c work-v2.2.18pre5/arch/i386/mm/ioremap.c
---- v2.2.18pre5/arch/i386/mm/ioremap.c	Mon Sep 11 20:48:10 2000
-+++ work-v2.2.18pre5/arch/i386/mm/ioremap.c	Mon Sep 11 21:45:00 2000
-@@ -23,7 +23,7 @@
- 	do {
- 		if (!pte_none(*pte))
- 			printk("remap_area_pte: page already exists\n");
--		set_pte(pte, mk_pte_phys(phys_addr, __pgprot(_PAGE_PRESENT | _PAGE_RW | 
-+		set_pte(pte, mk_pte_phys(phys_addr, __pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_W | 
- 					_PAGE_DIRTY | _PAGE_ACCESSED | flags)));
- 		address += PAGE_SIZE;
- 		phys_addr += PAGE_SIZE;
-diff -ur v2.2.18pre5/drivers/char/drm/vm.c work-v2.2.18pre5/drivers/char/drm/vm.c
---- v2.2.18pre5/drivers/char/drm/vm.c	Mon Sep 11 20:48:10 2000
-+++ work-v2.2.18pre5/drivers/char/drm/vm.c	Mon Sep 11 20:53:11 2000
-@@ -262,15 +262,11 @@
- 	
- 	if (!capable(CAP_SYS_ADMIN) && (map->flags & _DRM_READ_ONLY)) {
- 		vma->vm_flags &= VM_MAYWRITE;
--#if defined(__i386__)
--		pgprot_val(vma->vm_page_prot) &= ~_PAGE_RW;
--#else
- 				/* Ye gads this is ugly.  With more thought
-                                    we could move this up higher and use
-                                    `protection_map' instead.  */
- 		vma->vm_page_prot = __pgprot(pte_val(pte_wrprotect(
- 			__pte(pgprot_val(vma->vm_page_prot)))));
--#endif
- 	}
- 
- 	switch (map->type) {
-diff -ur v2.2.18pre5/include/asm-i386/pgtable.h work-v2.2.18pre5/include/asm-i386/pgtable.h
---- v2.2.18pre5/include/asm-i386/pgtable.h	Wed May  3 20:16:47 2000
-+++ work-v2.2.18pre5/include/asm-i386/pgtable.h	Mon Sep 11 22:19:41 2000
-@@ -219,7 +219,7 @@
-  * memory. 
-  */
- #define _PAGE_PRESENT	0x001
--#define _PAGE_RW	0x002
-+#define _PAGE_PHY_RW	0x002
- #define _PAGE_USER	0x004
- #define _PAGE_PWT	0x008
- #define _PAGE_PCD	0x010
-@@ -230,15 +230,34 @@
- 
- #define _PAGE_PROTNONE	0x080	/* If not present */
- 
--#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED | _PAGE_DIRTY)
--#define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED | _PAGE_DIRTY)
--#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
-+#if defined(CONFIG_SMP)
-+/* To work around an SMP race which would require us to use
-+ * atomic operations to clear *all* page tables which might
-+ * have the dirty bit set, we do the following: treat the
-+ * physical dirty and writable bits as one entity -- if one
-+ * is set, the other *must* be set.  That way, if the dirty
-+ * bit is cleared, write access is taken away and a fault
-+ * with proper serialization (via mmap_sem) will take place.
-+ * This is the same thing done on most RISC processors. -ben
-+ */
-+#define _PAGE_VIR_RW  0x200
-+#define _PAGE_W               _PAGE_PHY_RW
-+#define _PAGE_RW      _PAGE_VIR_RW
-+
-+#else
-+#define _PAGE_W               0x000
-+#define _PAGE_RW      _PAGE_PHY_RW
-+#endif
-+
-+#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_W | _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_USER)
-+#define _KERNPG_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_W | _PAGE_ACCESSED | _PAGE_DIRTY)
-+#define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_W)
- 
- #define PAGE_NONE	__pgprot(_PAGE_PROTNONE | _PAGE_ACCESSED)
- #define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER | _PAGE_ACCESSED)
- #define PAGE_COPY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
- #define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
--#define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED)
-+#define PAGE_KERNEL	__pgprot(_PAGE_PRESENT | _PAGE_RW | _PAGE_W | _PAGE_DIRTY | _PAGE_ACCESSED)
- #define PAGE_KERNEL_RO	__pgprot(_PAGE_PRESENT | _PAGE_DIRTY | _PAGE_ACCESSED)
- 
- /*
-@@ -343,12 +362,12 @@
- 
- extern inline pte_t pte_rdprotect(pte_t pte)	{ pte_val(pte) &= ~_PAGE_USER; return pte; }
- extern inline pte_t pte_exprotect(pte_t pte)	{ pte_val(pte) &= ~_PAGE_USER; return pte; }
--extern inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~_PAGE_DIRTY; return pte; }
-+extern inline pte_t pte_mkclean(pte_t pte)	{ pte_val(pte) &= ~(_PAGE_DIRTY | _PAGE_W); return pte; }
- extern inline pte_t pte_mkold(pte_t pte)	{ pte_val(pte) &= ~_PAGE_ACCESSED; return pte; }
--extern inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) &= ~_PAGE_RW; return pte; }
-+extern inline pte_t pte_wrprotect(pte_t pte)	{ pte_val(pte) &= ~(_PAGE_RW | _PAGE_W); return pte; }
- extern inline pte_t pte_mkread(pte_t pte)	{ pte_val(pte) |= _PAGE_USER; return pte; }
- extern inline pte_t pte_mkexec(pte_t pte)	{ pte_val(pte) |= _PAGE_USER; return pte; }
--extern inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= _PAGE_DIRTY; return pte; }
-+extern inline pte_t pte_mkdirty(pte_t pte)	{ pte_val(pte) |= _PAGE_DIRTY | _PAGE_W; return pte; }
- extern inline pte_t pte_mkyoung(pte_t pte)	{ pte_val(pte) |= _PAGE_ACCESSED; return pte; }
- extern inline pte_t pte_mkwrite(pte_t pte)	{ pte_val(pte) |= _PAGE_RW; return pte; }
- 
+> 
+> > I _think_ that with your patch, the page fault rate would go up, so
+> > it would be appropriate to generate some benchmark numbers.
+> 
+> Yes, the fault rate will go up, but only for clean-but-writable pages that
+> are written to and only on SMP kernels.  We already do this on SPARC
+> (which the _PAGE_W trick was modeled after) and MIPS, so the overhead
+> should be reasonably low.  Note that we may wish to do this anyways to
+> keep track of the number of pinned pages in the system.
+
+Yes, this approach is mentioned in the web page, alongwith the 
+types of apps that will see the greatest hit:
+
+"Note that an alternate solution to the ia32 SMP pte race is to change 
+PAGE_SHARED in include/asm-i386/pgtable.h to not drop in _PAGE_RW. On a 
+write fault, mark the pte dirty, as well as drop in the _PAGE_RW bit into 
+the pte. Basically, behave as if the processor does not have a hardware 
+dirty bit, and adopt the same strategy as in the alpha/mips code. 
+Disadvantage - take an extra fault on shm/file mmap'ed pages when a 
+program accesses the page, *then* dirties it (no change if the first access 
+is a write)."
+
+> 
+> > I would be willing to port the patch on the web page to 2.4, but 
+> > thus far, my impression is that Linus is not happy with its
+> > implementation ...
+> 
+> The alternative is to replace pte_clear on a clean but writable pte with
+> an xchg to get the old pte value.  For non-threaded programs the
+> locked bus cycles will slow things down for no real gain.  Another
+> possibility is to implement real tlb shootdown.
+> 
+> Fwiw, with the patch, running a make -j bzImage on a 4 way box does not
+> seem to have made a difference.  A patched run:
+> 
+> bcrl@toolbox linux-v2.4.0-test8]$ time make -j -s bzImage
+> init.c:74: warning: `get_bad_pmd_table' defined but not used
+> Root device is (8, 1)
+> Boot sector 512 bytes.
+> Setup is 4522 bytes.
+> System is 873 kB
+> 294.04user 23.81system 1:26.78elapsed 366%CPU (0avgtext+0avgdata
+> 0maxresident)k
+> 0inputs+0outputs (382013major+542948minor)pagefaults 0swaps
+> [bcrl@toolbox linux-v2.4.0-test8]$ 
+> 
+> vs unpatched:
+> 
+> [bcrl@toolbox linux-v2.4.0-test8]$ time make -j -s bzImage
+> init.c:74: warning: `get_bad_pmd_table' defined but not used
+> Root device is (8, 1)
+> Boot sector 512 bytes.
+> Setup is 4522 bytes.
+> System is 873 kB
+> 294.19user 23.94system 1:26.88elapsed 366%CPU (0avgtext+0avgdata
+> 0maxresident)k
+> 0inputs+0outputs (382013major+542947minor)pagefaults 0swaps
+> [bcrl@toolbox linux-v2.4.0-test8]$ 
+> 
+> So it's in the noise for this case (hot cache for both runs).  It probably
+> makes a bigger difference for threaded programs in the presense of lots of
+> msync/memory pressure, but the overhead in tlb shootdown on cleaning the
+
+With the above type of apps, you do not need too high a _memory_ pressure
+to trigger this, just compute pressure. Each time you come in to drop in
+the "dirty" bit, you would need to do establish_pte(), which does a 
+flush_tlb_page(), which gets costly when you have higher cpu counts. 
+
+This of course depends on how smart flush_tlb_page is, and the processor
+involved.
+
+Kanoj
+
+> dirty bit probably dwarfs the extra page fault, not to mention the actual
+> io taking place.  There are other areas that need improving before
+> write-faults on clean-writable pages make much of a difference.
+> 
+> 		-ben
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux.eu.org/Linux-MM/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
