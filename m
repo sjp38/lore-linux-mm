@@ -2,71 +2,50 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14281.20264.576540.243956@dukat.scot.redhat.com>
-Date: Sun, 29 Aug 1999 16:18:00 +0100 (BST)
-Subject: Re: question on remap_page_range()
-In-Reply-To: <199908281003.MAA29351@zange.cs.tu-berlin.de>
-References: <199908281003.MAA29351@zange.cs.tu-berlin.de>
+Message-ID: <14281.23624.70350.745345@dukat.scot.redhat.com>
+Date: Sun, 29 Aug 1999 17:14:00 +0100 (BST)
+Subject: Re: accel handling
+In-Reply-To: <Pine.LNX.4.10.9908291037120.28136-100000@imperial.edgeglobal.com>
+References: <Pine.LNX.4.10.9908291037120.28136-100000@imperial.edgeglobal.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gilles Pokam <pokam@cs.tu-berlin.de>
-Cc: linux-mm@kvack.org
+To: James Simmons <jsimmons@edgeglobal.com>
+Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Sat, 28 Aug 1999 12:03:41 +0200 (MET DST), Gilles Pokam
-<pokam@cs.tu-berlin.de> said:
+On Sun, 29 Aug 1999 10:52:29 -0400 (EDT), James Simmons
+<jsimmons@edgeglobal.com> said:
 
-> I have some questions about the behavior of the remap_page_range function as 
-> well as the ioremap. 
+>  My name is James Simmons and I'm one of the new core designers for the
+> framebuffer devices for linux. Well I have redesigned the framebuffer
+> system and now it takes advantages of accels. Now the problem is that alot
+> of cards can't have simulanteous access to the framebuffer and the accel
+> engine. What I need to a way to put any process to sleep when they access
+> the framebuffer while the accel engine is active. This is for both read
+> and write access. Then once the accel engine is idle wake up the
+> process.
 
-> 1. remap_page_range (as well as ioremap or vremap) takes a "physical address"
->    as argument. 
+You really need to have a cooperative locking engine.  Doing this sort
+of thing by playing VM tricks is not acceptable: you are just making the
+driver side of things simpler by placing a whole extra lot of work onto
+the VM, and things will not necessarily go any faster.  
 
-Yes.
+The real problem with a VM solution is that threaded applications on a
+multi-processor machine will go *immensely* slower.  Every time you need
+to lock out a VM region, you have to send a storm of interrupts to the
+other CPUs to make sure they aren't in the middle of accessing the same
+region from a related thread.  In general, any solution which requires
+fast twiddling of VM to make this work just will not be accepted.
 
->    In Rubini's book it is said that the so-called "physical
->    address" is in reality a virtual address offset by PAGE_OFFSET from the 
->    real physical address:
+A combination of shared-memory spinlocks (for fast tight-loop locking)
+and SysV semaphores (for a blocking lock if the lock is taken for too
+long) can be combined to give a simple but very efficient locking engine
+for this type of thing.
 
-No.  Either Rubini is wrong or you have misinterpreted.  A physical
-address is just that --- the physical address of the memory as it
-appears on the cpu bus when the cpu goes to read from ram.  It is
-completely untranslated.  The first physical address in the system is
-usually zero, not PAGE_OFFSET.  
-
-> 	phys = real_phys + PAGE_OFFSET 
-
-No, phys == real_phys.  The *virtual* address is real_phys +
-PAGE_OFFSET.  You can convert between the two using phys_to_virt() and
-virt_to_phys().
-
->    In x86 2.0.x kernel i had no problems with this convertion because the
->    PAGE_OFFSET is almost defined to be 0, so that phys = virt address.
-
-That is because 2.0 hid the physical/virtual translation behind a layer
-of i386 segmentation tricks.
-
-> 2. But now i have tried to run my code on a x86 2.2.x kernel and the 
->    remap_page_range function fails! When i ignore the PAGE_OFFSET macro
->    it works strangely ...! 
-
-Yes.  remap_page_range is designed to remap real, honest physical
-addresses.  These addresses have no translation applied:
-remap_page_range is supposed to be able to work even if applied to some
-physical address that is outside the normal kernel virtual address
-translation pages (eg. video framebuffers).
-
->   My question is, what is the definition of the physical address in the
->   remap_page_range and vremap functions ?
-
-Physical == physical.  There's nothing fancy going on.  Only when you
-start using virtual addresses do the numbers change.
-
-Read linux/Documentation/IO-mapping.txt for all the gory details.
-
---Stephen
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
