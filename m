@@ -1,31 +1,28 @@
-Date: Tue, 5 Feb 2002 09:26:29 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH *] rmap based VM, 12c
-In-Reply-To: <20020205091607.GA11426@codepoet.org>
-Message-ID: <Pine.LNX.4.33L.0202050926090.17850-100000@imladris.surriel.com>
+Received: from chiara.elte.hu (chiara.elte.hu [157.181.150.200])
+	by mx2.elte.hu (Postfix) with ESMTP id 1DF024856C
+	for <linux-mm@kvack.org>; Tue,  5 Feb 2002 15:14:09 +0100 (CET)
+Date: Tue, 5 Feb 2002 17:11:56 +0100 (CET)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: <mingo@elte.hu>
+Subject: [patch] O(1) scheduler -K2 for rmap 12c
+Message-ID: <Pine.LNX.4.33.0202051708280.13312-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Erik Andersen <andersen@codepoet.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Feb 2002, Erik Andersen wrote:
-> On Sun Feb 03, 2002 at 11:50:09PM -0200, Rik van Riel wrote:
-> > Due to field circus duty I forgot to announce 12b ... so here is 12c
-> >
->
-> FYI, rmap 12c claims to be rmap 12b in the EXTRAVERSION...
+a number of people have expressed interest in running both the rmap patch
+and the O(1) scheduler, but Rik's patch touches sched.h in nonobvious ways
+which collides with the O(1) scheduler patch. I've uploaded the following
+merge:
 
-Indeed, I forgot to update that ;)
+  http://redhat.com/~mingo/O(1)-scheduler/sched-O1-2.4.17-rmap-12c-K2.patch
 
-Rik
--- 
-"Linux holds advantages over the single-vendor commercial OS"
-    -- Microsoft's "Competing with Linux" document
+this patch should be applied after applying 2.4.17-rmap-12c.
 
-http://www.surriel.com/		http://distro.conectiva.com/
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
