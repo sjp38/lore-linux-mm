@@ -1,32 +1,44 @@
-Date: Tue, 15 Mar 2005 13:29:52 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] Move code to isolate LRU pages into separate function
-Message-ID: <20050315162952.GB12809@logos.cnet>
-References: <20050314214941.GP3286@localhost> <20050315153754.GB12574@logos.cnet>
+Subject: [PATCH] Add freezer call in
+From: Nigel Cunningham <ncunningham@cyclades.com>
+Reply-To: ncunningham@cyclades.com
+Content-Type: text/plain
+Message-Id: <1110925280.6454.143.camel@desktop.cunningham.myip.net.au>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050315153754.GB12574@logos.cnet>
+Date: Wed, 16 Mar 2005 09:21:20 +1100
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Hicks <mort@sgi.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
+To: Andrew Morton <akpm@digeo.com>, Pavel Machek <pavel@ucw.cz>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 15, 2005 at 12:37:54PM -0300, Marcelo Tosatti wrote:
-> Hi Martin,
-> 
-> The -LHMS tree contains a similar "modularization" - which, however, 
-> does not add the being-remove-pages to any linked list and does not 
-> include the while loop.
+This patch adds a freezer call to the slow path in __alloc_pages. It
+thus avoids freezing failures in low memory situations. Like the other
+patches, it has been in Suspend2 for longer than I can remember.
 
-Addition: it removes only one page from the LRU, thus it can be used
-outside vmscan guts.
-> 
-> steal_page_from_lru() (the -mhp version) is much more generic. 
-> 
-> Check it out:
-> http://sr71.net/patches/2.6.11/
+Signed-of-by: Nigel Cunningham <ncunningham@cyclades.com>
+
+diff -ruNp 213-missing-refrigerator-calls-old/mm/page_alloc.c 213-missing-refrigerator-calls-new/mm/page_alloc.c
+--- 213-missing-refrigerator-calls-old/mm/page_alloc.c	2005-02-03 22:33:50.000000000 +1100
++++ 213-missing-refrigerator-calls-new/mm/page_alloc.c	2005-03-16 09:01:28.000000000 +1100
+@@ -838,6 +838,7 @@ rebalance:
+ 			do_retry = 1;
+ 	}
+ 	if (do_retry) {
++		try_to_freeze(0);
+ 		blk_congestion_wait(WRITE, HZ/50);
+ 		goto rebalance;
+ 	}
+ 
+
+-- 
+Nigel Cunningham
+Software Engineer, Canberra, Australia
+http://www.cyclades.com
+Bus: +61 (2) 6291 9554; Hme: +61 (2) 6292 8028;  Mob: +61 (417) 100 574
+
+Maintainer of Suspend2 Kernel Patches http://suspend2.net
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
