@@ -1,34 +1,30 @@
-Date: Tue, 23 Jul 2002 17:01:32 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [OOPS] 2.5.27 - __free_pages_ok()
-In-Reply-To: <1027454241.7700.34.camel@plars.austin.ibm.com>
-Message-ID: <Pine.LNX.4.44L.0207231701000.3086-100000@imladris.surriel.com>
+Received: from wildwood.eecs.umich.edu (haih@wildwood.eecs.umich.edu [141.213.4.68])
+	by smtp.eecs.umich.edu (8.12.2/8.12.3) with ESMTP id g6NLIEwK024129
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2002 17:18:14 -0400
+Date: Tue, 23 Jul 2002 17:21:30 -0400 (EDT)
+From: Hai Huang <haih@eecs.umich.edu>
+Subject: Anyone seen this before
+Message-ID: <Pine.LNX.4.33.0207231717120.3622-100000@wildwood.eecs.umich.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Larson <plars@austin.ibm.com>
-Cc: dmccr@us.ibm.com, William Lee Irwin III <wli@holomorphy.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, haveblue@us.ibm.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 23 Jul 2002, Paul Larson wrote:
+Hi,
 
-> I was asking Dave McCracken and he mentioned that rmap and highmem pte
-> don't play nice together.  I tried turning that off and it boots without
-> error now.
+By dumping the mem_map, I've observed some werid pages. Let me know
+if you've seen this before or have a hunch about it.
 
-OK, good to hear that.
+Basically, I've seen many of pages with page->count == 1 and page->flags
+= 0x1000000.  I'm using kernel 2.4.18-3 w/ rmap and w/HIGHMEM disabled.
+The machine only has one entry on the pgdat_list (that's why the 1 in
+0x1000000).  But I can decipher what can cause a page to be allocated with
+an empty page->flag.  Any clues?
 
-> Someone might want to take a look at getting those two to
-> work cleanly together especially now that rmap is in.
-
-William Irwin has been working on this for a few days now ;)
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
+-
+hai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
