@@ -1,69 +1,55 @@
-Message-ID: <396653EC.5D146D55@norran.net>
-Date: Sat, 08 Jul 2000 00:04:28 +0200
-From: Roger Larsson <roger.larsson@norran.net>
-MIME-Version: 1.0
+Date: Fri, 7 Jul 2000 18:58:41 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [linux-audio-dev] Re: [PATCH really] latency improvements, one
- reschedule moved
-References: <395D520C.F16DD7D6@norran.net> <39628664.7756172A@norran.net>
-		<39638C9B.64AB2544@norran.net> <873dlnkpk1.fsf@atlas.iskon.hr>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+  reschedule moved
+In-Reply-To: <396653EC.5D146D55@norran.net>
+Message-ID: <Pine.LNX.4.10.10007071846510.3444-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: zlatko@iskon.hr
-Cc: Linus Torvalds <torvalds@transmeta.com>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Roger Larsson <roger.larsson@norran.net>
+Cc: zlatko@iskon.hr, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Zlatko Calusic wrote:
+
+On Sat, 8 Jul 2000, Roger Larsson wrote:
 > 
-> Roger Larsson <roger.larsson@norran.net> writes:
-> 
-> > Again... :-(
-> >
-> > Patch included this time...
-> >
-> 
-> Hi, Roger, Linus, others!
-> 
-> 2.4.0-test3-pre4 (which includes this patch) is really a pleasant
-> surprise. The I/O bandwidth has greatly improved and I'm still trying
-> to understand how can patch this simple be so effective. :)
-> 
-> Great work Roger!
-> 
-> I see this as the first (and most critical) step of returning my faith
-> in good performing 2.4.0-final.
-> 
-> Keep up the good work!
-> --
-> Zlatko
+> I examined the patches again and the fact that it runs
+> do_try_to_free_pages
+> periodically may improve performance due to its page cleaning effect -
+> all pages won't be dirty at the same time...
 
-It was not intended to give better performance...
-(something masks the expected latency improvements - floppy is
-disturbing
- me, recal_interrupt. And kmem stuff - but that is more understandable
- we will issue additional 'kmem_cache_reap']
+One potential problem with this, though, is that it keeps shrinking the
+dcache etc: even though various parts of the system refuse to touch pages
+once the machine has "enough" memory, the periodic wake-up will cause
+those caches that don't have the "I don't need to do this" logic to
+potentially be starved.
 
+The keep_kswapd_awake() logic protects from the worst case (it won't go on
+forever), but I wonder if it might still not cause bad behaviour when one
+zone is getting balanced and the other zones shouldn't be touched, but the
+continual trickle will cause the dcache etc stuff to be free'd with very
+little good reason.
 
-I examined the patches again and the fact that it runs
-do_try_to_free_pages
-periodically may improve performance due to its page cleaning effect -
-all pages won't be dirty at the same time...
+The "one zone gets rebalanced" is normal behaviour, so this is why I worry
+about the dcache.
 
-But it has a downside too - it will destroy the LRU order of pages...
-PG_referenced loses some of its meaning...
+> But it has a downside too - it will destroy the LRU order of pages...
+> PG_referenced loses some of its meaning...
 
-Streaming writes are likely to gain the most.
-Non uniform random accesses may loose :-(
+That part doesn't bother me in the least - it can be seen as a simple
+aging of the referenced bit. Especially if we're going to re-introduce the
+multi-bit page "age" code, aging the reference bits actually only improves
+stuff. 
 
+The fact that shrink_mmap() gets called regularly also makes bdflush
+potentially less important, because shrink_mmap() actually does a better
+job of flushing dirty data anyway these days, and in many ways it makes
+sense to have this kind of background LRU list activity.
 
-I have an idea...
+		Linus
 
-/RogerL
-
---
-Home page:
-  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
