@@ -1,67 +1,26 @@
-Received: from mailrelay3.lanl.gov (localhost.localdomain [127.0.0.1])
-	by mailwasher-b.lanl.gov (8.12.9/8.12.9/(ccn-5)) with ESMTP id h7RIbAKO014048
-	for <linux-mm@kvack.org>; Wed, 27 Aug 2003 12:37:10 -0600
+Message-ID: <3F4D0B26.5040102@lanil.mine.nu>
+Date: Wed, 27 Aug 2003 21:48:54 +0200
+From: Christian Axelsson <smiler@lanil.mine.nu>
+MIME-Version: 1.0
 Subject: Re: 2.6.0-test4-mm2
-From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <3F4CAB0B.2030705@lanil.mine.nu>
-References: <20030826221053.25aaa78f.akpm@osdl.org>
-	 <3F4CAB0B.2030705@lanil.mine.nu>
-Content-Type: text/plain
-Message-Id: <1061999696.1670.66.camel@spc9.esa.lanl.gov>
-Mime-Version: 1.0
-Date: 27 Aug 2003 09:54:56 -0600
+References: <20030826221053.25aaa78f.akpm@osdl.org>	<3F4CAB0B.2030705@lanil.mine.nu> <20030827102522.7d2339bc.akpm@osdl.org> <3F4CF17B.1020300@namesys.com>
+In-Reply-To: <3F4CF17B.1020300@namesys.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christian Axelsson <smiler@lanil.mine.nu>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hans Reiser <reiser@namesys.com>
+To: Hans Reiser <reiser@namesys.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Reiserfs developers mail-list <Reiserfs-Dev@namesys.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2003-08-27 at 06:58, Christian Axelsson wrote:
-> -----BEGIN PGP SIGNED MESSAGE-----
-> Hash: SHA1
-> 
-> Is there any work beeing done on getting reiser4 into mm?
-> I havent tried it myself yet but Ive heard of colliding code in scheduler.
+I think it would be a good thing to get it in mm as in serves as
+testingbase for linus tree. It will reach more users and that means more
+testing (but also more whining if option not marked VERY UNSTABLE or
+something like that).
 
-There are some rejects when applying yesterday's reiser4 snapshot.
-
-[steven@spc9 linux-2.6.0-test4-mm2]$ patch -p1 <../reiser4.diff
-patching file arch/i386/kernel/entry.S
-Hunk #1 FAILED at 879.
-1 out of 1 hunk FAILED -- saving rejects to file arch/i386/kernel/entry.S.rej
-patching file fs/Kconfig
-patching file fs/Makefile
-patching file fs/buffer.c
-Hunk #1 succeeded at 262 (offset 23 lines).
-patching file fs/fs-writeback.c
-patching file fs/inode.c
-patching file fs/jbd/transaction.c
-patching file fs/sysfs/inode.c
-patching file include/asm-i386/unistd.h
-Hunk #1 FAILED at 278.
-Hunk #2 succeeded at 398 (offset 2 lines).
-1 out of 2 hunks FAILED -- saving rejects to file include/asm-i386/unistd.h.rej
-patching file include/linux/fs.h
-Hunk #2 succeeded at 871 (offset 15 lines).
-Hunk #3 succeeded at 1249 (offset 21 lines).
-patching file include/linux/init_task.h
-Hunk #1 FAILED at 107.
-1 out of 1 hunk FAILED -- saving rejects to file include/linux/init_task.h.rej
-patching file include/linux/jbd.h
-patching file include/linux/mm.h
-patching file include/linux/sched.h
-Hunk #1 succeeded at 307 (offset 3 lines).
-Hunk #2 succeeded at 469 (offset 6 lines).
-patching file include/linux/writeback.h
-patching file kernel/ksyms.c
-
-The rest of the reiser4.diff applied OK from this point.
-
-Getting reiser4 into mm might be helpful.
-
-Steven
-
+-- 
+Christan Axelsson
+smiler@lanil.mine.nu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
