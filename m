@@ -1,166 +1,34 @@
-Message-ID: <3D7437AC.74EAE22B@zip.com.au>
-Date: Mon, 02 Sep 2002 21:16:44 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
-Subject: 2.5.33-mm1
+Date: Mon, 2 Sep 2002 22:12:04 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: About the free page pool
+Message-ID: <20020903051204.GG18114@holomorphy.com>
+References: <3D73CB28.D2F7C7B0@zip.com.au> <218D9232-BEBF-11D6-A3BE-000393829FA4@cs.amherst.edu> <3D740C35.9E190D04@zip.com.au>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <3D740C35.9E190D04@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: Scott Kaplan <sfkaplan@cs.amherst.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Sep 02, 2002 at 06:11:17PM -0700, Andrew Morton wrote:
+> Note that the kernel statically allocates about 10M when it boots.  This
+> is basically a bug, and fixing it is a matter of running around shouting
+> at people.  This will happen ;)  This is the low-hanging fruit.
 
-Seven new patches - mostly just code cleanups.
-
-+slablru-speedup.patch
-
-  A patch to improve slablru cpu efficiency.  Ed is
-  redoing this.
-
-+oom-fix.patch
-
-  Fix an OOM-killing episode on large highmem machines.
-
-+tlb-cleanup.patch
-
-  Remove debug code from the tlb_gather rework, tidy up a couple of
-  things.
-
-+dump-stack.patch
-
-  Arch-independent stack-dumping debug function
-
-+madvise-move.patch
-
-  Move the madvise implementation out of filemap.c into madvise.c
-
-+split-vma.patch
-
-  Rationalise lots of the VMA-manipulation code.
-
-+buffer-ops-move.patch
-
-  Move the buffer_head IO functions out of ll_rw_blk.c, into buffer.c
+Are you referring to boot-time allocations using get_free_pages()
+instead of bootmem? Killing those off would be nice, yes. It limits
+the size of some hash tables on larger machines where "proportional
+to memory" means "bigger than MAX_ORDER". (Changing the algorithms to
+not use gargantuan hash tables might also be an interesting exercise
+but one I've not got the bandwidth to take on.)
 
 
-
-
-scsi_hack.patch
-  Fix block-highmem for scsi
-
-ext3-htree.patch
-  Indexed directories for ext3
-
-rmap-locking-move.patch
-  move rmap locking inlines into their own header file.
-
-discontig-paddr_to_pfn.patch
-  Convert page pointers into pfns for i386 NUMA
-
-discontig-setup_arch.patch
-  Rework setup_arch() for i386 NUMA
-
-discontig-mem_init.patch
-  Restructure mem_init for i386 NUMA
-
-discontig-i386-numa.patch
-  discontigmem support for i386 NUMA
-
-cleanup-mem_map-1.patch
-  Clean up lots of open-coded uese of mem_map[].  For ia32 NUMA
-
-zone-pages-reporting.patch
-  Fix the boot-time reporting of each zone's available pages
-
-enospc-recovery-fix.patch
-  Fix the __block_write_full_page() error path.
-
-fix-faults.patch
-  Back out the initial work for atomic copy_*_user()
-
-spin-lock-check.patch
-  spinlock/rwlock checking infrastructure
-
-refill-rate.patch
-  refill the inactive list more quickly
-
-copy_user_atomic.patch
-
-kmap_atomic_reads.patch
-  Use kmap_atomic() for generic_file_read()
-
-kmap_atomic_writes.patch
-  Use kmap_atomic() for generic_file_write()
-
-throttling-fix.patch
-  Fix throttling of heavy write()rs.
-
-dirty-state-accounting.patch
-  Make the global dirty memory accounting more accurate
-
-rd-cleanup.patch
-  Cleanup and fix the ramdisk driver (doesn't work right yet)
-
-discontig-cleanup-1.patch
-  i386 discontigmem coding cleanups
-
-discontig-cleanup-2.patch
-  i386 discontigmem cleanups
-
-writeback-thresholds.patch
-  Downward adjustments to the default dirtymemory thresholds
-
-buffer-strip.patch
-  Limit the consumption of ZONE_NORMAL by buffer_heads
-
-rmap-speedup.patch
-  rmap pte_chain space and CPU reductions
-
-wli-highpte.patch
-  Resurrect CONFIG_HIGHPTE - ia32 pagetables in highmem
-
-readv-writev.patch
-  O_DIRECT support for readv/writev
-
-slablru.patch
-  age slab pages on the LRU
-
-slablru-speedup.patch
-  slablru optimisations
-
-llzpr.patch
-  Reduce scheduling latency across zap_page_range
-
-buffermem.patch
-  Resurrect buffermem accounting
-
-config-PAGE_OFFSET.patch
-  Configurable kenrel/user memory split
-
-lpp.patch
-  ia32 huge tlb pages
-
-ext3-sb.patch
-  u.ext3_sb -> generic_sbp
-
-oom-fix.patch
-  Fix an OOM condition on big highmem machines
-
-tlb-cleanup.patch
-  Clean up the tlb gather code
-
-dump-stack.patch
-  arch-neutral dump_stack() function
-
-madvise-move.patch
-  move mdavise implementation into mm/madvise.c
-
-split-vma.patch
-  VMA splitting patch
-
-buffer-ops-move.patch
-  Move submit_bh() and ll_rw_block() into fs/buffer.c
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
