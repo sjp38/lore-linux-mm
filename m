@@ -1,74 +1,42 @@
-Message-ID: <3DA11FC6.80308@us.ibm.com>
-Date: Sun, 06 Oct 2002 22:46:46 -0700
-From: Dave Hansen <haveblue@us.ibm.com>
+Message-ID: <3DA1A95C.AE5076D5@scs.ch>
+Date: Mon, 07 Oct 2002 17:33:48 +0200
+From: Martin Maletinsky <maletinsky@scs.ch>
 MIME-Version: 1.0
-Subject: Re: 2.5.40-mm2
-References: <3DA0854E.CF9080D7@digeo.com> <3DA0A144.8070301@us.ibm.com> <3DA0B151.6EF8C8D9@digeo.com> <3DA0B422.C23B23D4@digeo.com> <3DA0B52C.6E1E53FD@digeo.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: question on mmput()
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>
+To: linux-mm@kvack.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> grr.  So that's what that "send" button does.
-> 
-> Updated patch:
+Hello,
 
-Still dies :(
+I write a device driver, that accesses a processes user space memory. In case of an unexpected exit of the user space process (i.e. an exit while the underlying hardware
+device is set up to transfer data in to the processes memory), the driver while still need access to the processes (former)  memory (e.g. to unlock the pages the driver did
+lock, when the transfer was set up).
 
-Unable to handle kernel NULL pointer dereference at virtual addre
-ss 00000004
-  printing eip:
-80120479
-*pde = 64502001
-*pte = 00000000
-Oops: 0002
+When the drivers open() file operation is called, it increments the mm_users field in the processes mm_struct, to prevent it from being released, while the driver still
+needs to access it.
+Once the driver is done with the mm_struct, it should call mmput(), to decrement the usage count, and release the mm_struct if the count drops to 0. Unfortunatly mmput() is
+not exported by the kernel (vers. 2.4.18), and can therefore not be used by the driver, which is compiled as a module.
 
-CPU:    2
-EIP:    0060:[<80120479>]    Not tainted
-EFLAGS: 00010012
-EIP is at run_timer_tasklet+0xcd/0x13c
-eax: 00000000   ebx: 80264a38   ecx: e4f46e20   edx: 00000000
-esi: e4f47040   edi: 80399ac0   ebp: 00000282   esp: e474df64
-ds: 0068   es: 0068   ss: 0068
-Process httpd (pid: 2587, threadinfo=e474c000 task=f55d17e0)
-Stack: 8c093148 00000000 e474c000 00000001 8011d295 00000000 00000001
-        80397960 fffffffe 00000040 8037c1a4 8037c1a4 8011cf9a 80397960
-        00000008 00000002 00000001 7ffff89c 00000046 801111dd 0813eff0
-        0813ef14 0813f064 80107a8a
-Call Trace:
-  [<8011d295>] tasklet_hi_action+0x85/0xe0
-  [<8011cf9a>] do_softirq+0x5a/0xac
-  [<801111dd>] smp_apic_timer_interrupt+0x111/0x118
-  [<80107a8a>] apic_timer_interrupt+0x1a/0x20
+1) Why is mmput() not exported as a symbol?
 
-Code: 89 50 04 89 02 c7 06 00 00 00 00 c7 46 04 00 00 00 00 c7 46
+2) Is there any alternate solution, to properly release the mm_struct once the driver is done with it?
 
+Thanks in advance for any help
+with best regards
+Martin Maletinsky
 
-8012046a:       39 c6                   cmp    %eax,%esi
-8012046c:       74 42   <the last if>   je     801204b0 
-<run_timer_tasklet+0x104>
-8012046e:       8b 5e 0c                mov    0xc(%esi),%ebx
-80120471:       8b 4e 10                mov    0x10(%esi),%ecx
-80120474:       8b 56 04                mov    0x4(%esi),%edx
-80120477:       8b 06                   mov    (%esi),%eax
-80120479:       89 50 04      ------->  mov    %edx,0x4(%eax)
-8012047c:       89 02                   mov    %eax,(%edx)
-8012047e:       c7 06 00 00 00 00       movl   $0x0,(%esi)
-80120484:       c7 46 04 00 00 00 00    movl   $0x0,0x4(%esi)
-8012048b:       c7 46 14 00 00 00 00    movl   $0x0,0x14(%esi)
-80120492:       89 77 08                mov    %esi,0x8(%edi)
-80120495:       c6 07 01                movb   $0x1,(%edi)
-80120498:       55                      push   %ebp
-80120499:       9d                      popf
+P.S. Please put me on CC: in your reply, since I am not in the mailing list.
 
+--
+Supercomputing System AG          email: maletinsky@scs.ch
+Martin Maletinsky                 phone: +41 (0)1 445 16 05
+Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
+CH-8005 Zurich
 
--- 
-Dave Hansen
-haveblue@us.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
