@@ -1,115 +1,79 @@
-Date: Tue, 5 Apr 2005 21:17:01 -0700 (PDT)
-From: Ray Bryant <raybry@sgi.com>
-Message-Id: <20050406041701.25060.91114.75958@jackhammer.engr.sgi.com>
-In-Reply-To: <20050406041633.25060.64831.21849@jackhammer.engr.sgi.com>
-References: <20050406041633.25060.64831.21849@jackhammer.engr.sgi.com>
-Subject: [PATCH_FOR_REVIEW 2.6.12-rc1 2/3] mm: manual page migration-rc1 -- add node_map arg to try_to_migrate_pages()
+Date: Wed, 6 Apr 2005 00:58:04 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: "orphaned pagecache memleak fix" question.
+Message-Id: <20050406005804.0045faf9.akpm@osdl.org>
+In-Reply-To: <16978.46735.644387.570159@gargle.gargle.HOWL>
+References: <16978.46735.644387.570159@gargle.gargle.HOWL>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Andi Kleen <ak@suse.de>, Marcello Tosatti <marcello@cyclades.com>
-Cc: Ray Bryant <raybry@sgi.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>
+To: Nikita Danilov <nikita@clusterfs.com>
+Cc: Andrea@Suse.DE, linux-mm@kvack.org, AKPM@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-This patch changes the interface to try_to_migrate_pages() so that one
-can specify the nodes where the pages are to be migrated to.  This is
-done by adding a "node_map" argument to try_to_migrate_pages(), node_map
-is of type "short *".
+Nikita Danilov <nikita@clusterfs.com> wrote:
+>
+> Hello,
+> 
+> I have few question about recent "orphaned pagecache memleak fix"
+> change-set:
 
-If this argument is NULL, then try_to_migrate_pages() behaves exactly
-as before and this is the interface the rest of the memory hotplug
-patch should use.  (Note:  This patchset does not include the changes
-for the rest of the memory hotplug patch that will be necessary to use
-this new interface [if it is accepted].  Those chagnes will be provided
-as a distinct patch.)
+Something was wrong with that patch.  I accidentally left a printk in there
+and nobody has ever reported the printk coming out.
 
-If the argument is non-NULL, the node_map points at an array of shorts
-of size MAX_NUMNODES.   node_map[N] is either the id of an online node
-or -1.  If node_map[N] >=0 then pages found in the page list passed
-to try_to_migrate_pages() that are found on node N are migrated to node
-node_map[N].  if node_map[N] == -1, then pages found on node N are left
-where they are.
+IOW: we can probably revert it (or fix it!) but first we need to get down
+and work out what's happening.
 
-This change depends on previous changes to migrate_onepage()
-that support migrating a page to a specified node.  These changes 
-are already part of the memory migration sub-patch of the memory
-hotplug patch.
+>  - how is it supposed to work with file systems that use page->private
+>  (and PG_private) for something else than buffer head ring? Such file
+>  systems may leak truncated pages for precisely the same reasons
+>  reiserfs does, and try_to_free_buffers(page) will most likely oops;
 
-Signed-off-by:  Ray Bryant <raybry@sgi.com>
+You're screwed, sorry.  If PagePrivate is set and ->mapping is null we just
+assume that the thing at ->private is buffers.  It's awful.
 
-Index: linux-2.6.12-rc1-mhp3-page-migration/include/linux/mmigrate.h
-===================================================================
---- linux-2.6.12-rc1-mhp3-page-migration.orig/include/linux/mmigrate.h	2005-03-28 22:10:27.000000000 -0800
-+++ linux-2.6.12-rc1-mhp3-page-migration/include/linux/mmigrate.h	2005-03-28 22:20:37.000000000 -0800
-@@ -16,7 +16,23 @@ extern int migrate_page_buffer(struct pa
- extern int page_migratable(struct page *, struct page *, int,
- 					struct list_head *);
- extern struct page * migrate_onepage(struct page *, int nodeid);
--extern int try_to_migrate_pages(struct list_head *);
-+extern int try_to_migrate_pages(struct list_head *, short *);
-+
-+#ifdef CONFIG_NUMA
-+static inline struct page *node_migrate_onepage(struct page *page, short *node_map) 
-+{
-+	if (node_map)
-+		return migrate_onepage(page, node_map[page_to_nid(page)]);
-+	else
-+		return migrate_onepage(page, MIGRATE_NODE_ANY); 
-+		
-+}
-+#else
-+static inline struct page *node_migrate_onepage(struct page *page, short *node_map) 
-+{
-+	return migrate_onepage(page, MIGRATE_NODE_ANY); 
-+}
-+#endif
- 
- #else
- static inline int generic_migrate_page(struct page *page, struct page *newpage,
-Index: linux-2.6.12-rc1-mhp3-page-migration/mm/mmigrate.c
-===================================================================
---- linux-2.6.12-rc1-mhp3-page-migration.orig/mm/mmigrate.c	2005-03-28 22:10:25.000000000 -0800
-+++ linux-2.6.12-rc1-mhp3-page-migration/mm/mmigrate.c	2005-03-28 22:20:18.000000000 -0800
-@@ -501,9 +501,11 @@ out_unlock:
- /*
-  * This is the main entry point to migrate pages in a specific region.
-  * If a page is inactive, the page may be just released instead of
-- * migration.
-+ * migration.  node_map is supplied in those cases (on NUMA systems)
-+ * where the caller wishes to specify to which nodes the pages are
-+ * migrated.  If node_map is null, the target node is MIGRATE_NODE_ANY.
-  */
--int try_to_migrate_pages(struct list_head *page_list)
-+int try_to_migrate_pages(struct list_head *page_list, short *node_map)
- {
- 	struct page *page, *page2, *newpage;
- 	LIST_HEAD(pass1_list);
-@@ -541,7 +543,7 @@ int try_to_migrate_pages(struct list_hea
- 	list_for_each_entry_safe(page, page2, &pass1_list, lru) {
- 		list_del(&page->lru);
- 		if (PageLocked(page) || PageWriteback(page) ||
--		    IS_ERR(newpage = migrate_onepage(page, MIGRATE_NODE_ANY))) {
-+		    IS_ERR(newpage = node_migrate_onepage(page, node_map))) {
- 			if (page_count(page) == 1) {
- 				/* the page is already unused */
- 				putback_page_to_lru(page_zone(page), page);
-@@ -559,7 +561,7 @@ int try_to_migrate_pages(struct list_hea
- 	 */
- 	list_for_each_entry_safe(page, page2, &pass2_list, lru) {
- 		list_del(&page->lru);
--		if (IS_ERR(newpage = migrate_onepage(page, MIGRATE_NODE_ANY))) {
-+		if (IS_ERR(newpage = node_migrate_onepage(page, node_map))) {
- 			if (page_count(page) == 1) {
- 				/* the page is already unused */
- 				putback_page_to_lru(page_zone(page), page);
+If the fs doesn't leave buffers at ->private then it simply cannot allow
+->invalidatepage() to return 0.  It must invalidate the page.  We could do
+that right now in ext3 (for example) by blocking in ->invalidatepage(). 
+(Run a commit, retry the invalidation).
 
--- 
-Best Regards,
-Ray
------------------------------------------------
-Ray Bryant                       raybry@sgi.com
-The box said: "Requires Windows 98 or better",
-           so I installed Linux.
------------------------------------------------
+The assumption that the thing at ->private is buffers should be viewed
+as a performance hack for buffer-backed address_spaces only.
+
+Note that the patch to which you refer doesn't add this hack - it's already
+been there for a long time, in a different place:
+
+		if (PagePrivate(page)) {
+			if (!try_to_release_page(page, sc->gfp_mask))
+				goto activate_locked;
+			if (!mapping && page_count(page) == 1)
+				goto free_it;
+		}
+
+If we get here with a null ->mapping, we'll assume that ->private contains
+a buffer ring.
+
+
+To which reiserfs do you refer?  reiser4, I assume?
+
+
+>  - as I see it, nr_dirty shouldn't be updated after calling
+>  ClearPageDirty() because page->mapping was NULL already at the time of
+>  corresponding __set_page_dirty_nobuffers() call. Right?
+
+That seems to be correct, yes.
+
+>  - wouldn't it be simpler to unconditionally remove page from LRU in
+>  ->invalidatepage()?
+
+I guess that's an option, yes.  If the fs cannot successfully invalidate
+the page then it can either block (as described above) or remove the page
+from the LRU.  The fs then wholly owns the page.
+
+I think it would be better to make ->invalidatepage always succeed though. 
+The situation is probably rare.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
