@@ -1,52 +1,51 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id RAA09913
-	for <linux-mm@kvack.org>; Sat, 21 Sep 2002 17:03:04 -0700 (PDT)
-Message-ID: <3D8D08B7.419DD093@digeo.com>
-Date: Sat, 21 Sep 2002 17:03:03 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
+Date: Sat, 21 Sep 2002 17:08:17 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Reply-To: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: overcommit stuff
-References: <3D8D0046.EF119E03@digeo.com> <14599773.1032625910@[10.10.2.3]>
+Message-ID: <16785326.1032628095@[10.10.2.3]>
+In-Reply-To: <3D8D08B7.419DD093@digeo.com>
+References: <3D8D08B7.419DD093@digeo.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
+To: Andrew Morton <akpm@digeo.com>
 Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-"Martin J. Bligh" wrote:
+> "It" being vm_committed_space.
 > 
-> > running 10,000 tiobench threads I'm showing 23 gigs of
-> > `Commited_AS'.  Is this right?  Those pages are shared,
-> > and if they're not PROT_WRITEable then there's no way in
-> > which they can become unshared?   Seems to be excessively
-> > pessimistic?
-> >
-> > Or is 2.5 not up to date?
+> The problem is that it's read from frequently, as well as
+> updated frequently.  So we would still have problems when
+> we have to reach across and fish the cpu-local counters
+> out of remote corners of the machine all the time.
+
+Not if you set overcommit = 1, as far as I can see.
+
+> The usual tricks for amortising this counter's cost have (serious)
+> accuracy implications.
+
+Well, seems it's a rough guess anyway ... at least it's vastly
+inaccurate in one direction (pessimistic).
+ 
+> I am planning on sitting down and working out exactly what we're
+> trying to account here - presumably there's another way.  Just
+> havent got onto it yet.
 > 
-> It's also a global atomic counter that burns up a fair amount
-> of CPU time bouncing cachelines on the NUMA boxes ... even when
-> overcommit is set to 1, and it's not used for anything other
-> than meminfo ... any chance of this either becoming a per-cpu
-> thing, or dying, or not being used when overcommit is 1?
+> Worst come to worst, we can hide it inside CONFIG_NOT_WHACKOMATIC
+> I guess.
 
-"It" being vm_committed_space.
+I was thinking of moving the update in vm_enough_memory under
+the switch for what type of overcommit you had, and doing something
+similar for the other places it's updated. I suppose that would do
+unfortunate things if you turned overcommit from 1 to something
+else whilst the system was running though ... not convinced that's
+a good idea anyway OTOH.
 
-The problem is that it's read from frequently, as well as
-updated frequently.  So we would still have problems when
-we have to reach across and fish the cpu-local counters
-out of remote corners of the machine all the time.
+M.
 
-The usual tricks for amortising this counter's cost have (serious)
-accuracy implications.
-
-I am planning on sitting down and working out exactly what we're
-trying to account here - presumably there's another way.  Just
-havent got onto it yet.
-
-Worst come to worst, we can hide it inside CONFIG_NOT_WHACKOMATIC
-I guess.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
