@@ -1,37 +1,33 @@
-Date: Wed, 18 Aug 1999 10:55:44 +0200 (CEST)
-From: Rik van Riel <riel@humbolt.nl.linux.org>
-Subject: Re: AW: [bigmem-patch] 4GB with Linux on IA32
-In-Reply-To: <A91A08D00A4FD2119BD500104B55BDF6021A6694@pdbh936a.pdb.siemens.de>
-Message-ID: <Pine.LNX.4.05.9908181054140.5444-100000@humbolt.nl.linux.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 18 Aug 1999 20:59:52 +0900
+From: Neil Booth <NeilB@earthling.net>
+Subject: Re: where does vmlist be initiated?
+Message-ID: <19990818205952.B8819@monkey.rosenet.ne.jp>
+References: <000901bee855$ec448410$0601a8c0@honey.cs.tsinghua.edu.cn>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <000901bee855$ec448410$0601a8c0@honey.cs.tsinghua.edu.cn>; from Wang Yong on Tue, Aug 17, 1999 at 10:12:10AM +0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Wichert, Gerhard" <Gerhard.Wichert@pdb.siemens.de>
-Cc: 'Matthew Wilcox' <Matthew.Wilcox@genedata.com>, "'linux-kernel@vger.rutgers.edu'" <linux-kernel@vger.rutgers.edu>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: Wang Yong <wung_y@263.net>
+Cc: Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Aug 1999, Wichert, Gerhard wrote:
+Wang Yong wrote:-
+> hi,
+>   i found this structure is defined in mm/vmalloc.c :
+>   "static struct vm_struct * vmlist = NULL;"
+> 
+>   it appears that vmlist be initiated as null. but in function
+> get_vm_area(), which is called by kmalloc(), it doesn't work if vmlist is
+> null. so i think vmlist must be initiated somewhere else. but where? thx
 
-> This shows that we get only approx. 2% overhead in the worst case. In
-> real-world applications you won't probably see any performance
-> degradation.
+Hi Wang,
 
-And even if it's possible to create even worse degradations,
-it doesn't matter.
+There's only 3 lines that reference it in vmalloc.c, so it
+shouldn't be too hard to figure out, no?
 
-People can simply take into account the way the system works
-and (if performance really matters) optimize for it. And if
-performance doesn't matter, who cares?
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
---
-work at:	http://www.reseau.nl/
-home at:	http://www.nl.linux.org/~riel/
-
+Neil.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
