@@ -1,8 +1,8 @@
-Date: Fri, 6 Sep 2002 19:22:28 -0300 (BRT)
+Date: Fri, 6 Sep 2002 19:23:59 -0300 (BRT)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: inactive_dirty list
-In-Reply-To: <Pine.LNX.4.44L.0209061902120.1857-100000@imladris.surriel.com>
-Message-ID: <Pine.LNX.4.44L.0209061921060.1857-100000@imladris.surriel.com>
+In-Reply-To: <3D7929F7.7B19C9C@zip.com.au>
+Message-ID: <Pine.LNX.4.44L.0209061923020.1857-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,25 +11,25 @@ To: Andrew Morton <akpm@zip.com.au>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Sep 2002, Rik van Riel wrote:
-> On Fri, 6 Sep 2002, Andrew Morton wrote:
->
-> > hum.  I'm trying to find a model where the VM can just ignore
-> > dirty|writeback pagecache.  We know how many pages are out
-> > there, sure.  But we don't scan them.  Possible?
->
-> Owww duh, I see it now.
->
-> So basically pages should _only_ go into the inactive_dirty list
-> when they are under writeout.
+On Fri, 6 Sep 2002, Andrew Morton wrote:
 
-As an aside, we might want to limit the amount of in-flight
-data to a sane limit and just go to sleep for a bit if the
-VM has far too much data in flight already.
+> > So basically pages should _only_ go into the inactive_dirty list
+> > when they are under writeout.
+>
+> Or if they're just dirty.  The thing I'm trying to achieve
+> is to minimise the amount of scanning of unreclaimable pages.
+>
+> So park them elsewhere, and don't scan them.  We know how many
+> pages are there, so we can make decisions based on that.  But let
+> IO completion bring them back onto the inactive_reclaimable(?)
+> list.
 
-If we need 2 MB of extra free memory, it doesn't make sense
-to monopolise the whole IO subsystem by writing out 100 MB
-at once ;)
+I guess this means the dirty limit should be near 1% for the
+VM.
+
+Every time there is a noticable amount of dirty pages, kick
+pdflush and have it write out a few of them, maybe the number
+of pages needed to reach zone->pages_high ?
 
 regards,
 
