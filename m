@@ -1,54 +1,61 @@
-Date: Wed, 4 Mar 1998 16:33:46 +0100 (MET)
-From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: Re: [uPATCH] small kswapd improvement ???
-In-Reply-To: <199803041400.PAA06227@boole.fs100.suse.de>
-Message-ID: <Pine.LNX.3.91.980304162522.24591A-100000@mirkwood.dummy.home>
+Date: Wed, 4 Mar 1998 21:26:18 GMT
+Message-Id: <199803042126.VAA01736@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: reverse pte lookups and anonymous private mappings; avl trees?
+In-Reply-To: <Pine.LNX.3.95.980302235716.8007A-100000@as200.spellcast.com>
+References: <199803022303.XAA03640@dax.dcs.ed.ac.uk>
+	<Pine.LNX.3.95.980302235716.8007A-100000@as200.spellcast.com>
 Sender: owner-linux-mm@kvack.org
-To: "Dr. Werner Fink" <werner@suse.de>
-Cc: sct@dcs.ed.ac.uk, torvalds@transmeta.com, blah@kvack.org, linux-mm@kvack.org
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, linux-mm@kvack.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Mar 1998, Dr. Werner Fink wrote:
+Hi,
 
-> Maybe that's the reason why the bigger initial age for swapped in pages gives
-> an improvement in 2.0.33 ... it's a ``better protection'' for often needed
-> pages.
+Another observation on the subject of new page lists.
 
-I think I'm going to try a more LRU like aging algorithm
-now. (I've worked with some SGI boxes at school, and it
-looks like they're less phrone to trashing)
+You suggested adding:
 
-Algorithm:
+> +	/* used for private mappings -> inode == NULL or &swapper_inode */
+> +	struct vm_area_struct *vma;
+> +	unsigned long vma_offset;
+> +
+> +	/* page on one of the circular page_queues */
+> +	struct page *pgq_next;
+> +	struct page *pgq_prev;
 
-age_page(page) {
-	page->age >>= 1;
-}
-touch_page(page) {
-	page->age >>= 1;
-	page->age |= 0x80;
-}
+to the struct page.  However, note that the vma and vma_offset fields
+are irrelevant to pages which are not mapped (the fields can be
+initialised on first map, and a page which is purely in the page or swap
+cache is not attached to any particular vma and so doesn't need these
+lookups).  Detecting such unmapped pages reliably may require separate
+unmapped and mapped page counts.
 
-and in vmscan.c/filemap.c:
+Given this, can we not over load the two new fields and reduce the
+expansion of the struct page?  The answer is yes, if and only if we
+restrict the new page queues to unmapped pages.  For my own code, the
+only queue which is really necessary is the list of pages ready to be
+reclaimed at interrupt time, and those pages will never be mapped.  The
+other queues you mention:
 
--	if (page->age)
-+	if (page->age < 1 << (MIN_SWAP_AGE + (nr_free_pages < free_pages_low 
-? 1 : 0))
+> +#define PgQ_Locked	0	/* page is unswappable - mlock()'d */
+> +#define PgQ_Active	1	/* page is mapped and active -> young */
+> +#define PgQ_Inactive	2	/* page is mapped, but hasn't been referenced recently -> old */
+> +#define PgQ_Swappable	3	/* page has no mappings, is dirty */
+> +#define PgQ_Swapping	4	/* page is being swapped */
+> +#define PgQ_Dumpable	5	/* page has no mappings, is not dirty, but is still in the page cache */
 
-Then we could use the MIN_SWAP_AGE sysctl variable
-to control the CPU usage / swap 'precision' of
-kswapd. Even better would be a dynamic adjusment,
-so kswapd would:
-- never use more than 5% CPU (over a 10 sec interval?)
-- use the maximum precision possible
-- scan a maximum of MIN_SWAP_AGE + 2 times the number of
-  pages it frees
+don't seem to give us all that much extra, since we probably never want
+to go out and explicitly search for all pages on such lists.  (That's
+assuming that the page aging and swapping scanner is working by walking
+pages in physical address order, not by traversing any other lists.)
 
-Rik.
-+-----------------------------+------------------------------+
-| For Linux mm-patches, go to | "I'm busy managing memory.." |
-| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
-| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
-+-----------------------------+------------------------------+
+Other than that, I like this idea more and more.  Overloading these two
+sets of fields gives us huge extra functionality over the 2.0 vm, and at
+the cost of only one extra longword per page.
+
+Cheers,
+ Stephen.
