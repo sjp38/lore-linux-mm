@@ -1,36 +1,62 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by postfix.conectiva.com.br (Postfix) with SMTP id BF9B816B13
-	for <linux-mm@kvack.org>; Sun, 25 Mar 2001 14:59:56 -0300 (EST)
-Date: Sun, 25 Mar 2001 14:08:03 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] OOM handling
-In-Reply-To: <3ABE0CC2.268D8C3C@evision-ventures.com>
-Message-ID: <Pine.LNX.4.21.0103251407420.1863-100000@imladris.rielhome.conectiva>
+Date: Sun, 25 Mar 2001 10:07:44 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [patch] pae-2.4.3-A4
+In-Reply-To: <Pine.LNX.4.30.0103251643070.6469-200000@elte.hu>
+Message-ID: <Pine.LNX.4.31.0103251001090.8737-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Dalecki <dalecki@evision-ventures.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "James A. Sutherland" <jas88@cam.ac.uk>, Guest section DW <dwguest@win.tue.nl>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Linux Kernel List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 25 Mar 2001, Martin Dalecki wrote:
-> Rik van Riel wrote:
 
-> > - the AGE_FACTOR calculation will overflow after the system has
-> >   an uptime of just _3_ days
-> 
-> I esp. the behaviour will be predictable.
+On Sun, 25 Mar 2001, Ingo Molnar wrote:
+>
+> one nontrivial issue was that on PAE the pgd has to be installed with
+> 'present' pgd entries, due to a CPU erratum. This means that the
+> pgd_present() code in mm/memory.c, while correct theoretically, doesnt
+> work with PAE. An equivalent solution is to use !pgd_none(), which also
+> works with the PAE workaround.
 
-Ummmm ?
+Note that due to the very same erratum, we really should populate the PGD
+from the very beginning. See the other thread about how we currently
+fail to properly invalidate the TLB on other CPU's when we add a new PGD
+entry, exactly because the other CPU's are caching the "nonexistent" PGD
+entry that we just replaced.
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
+So my suggestion for PAE is:
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+ - populate in gdb_alloc() (ie just do the three "alloc_page()" calls to
+   allocate the PMD's immediately)
+
+   NOTE: This makes the race go away, and will actually speed things up as
+   we will pretty much in practice always populate the PGD _anyway_, the
+   way the VM areas are laid out.
+
+ - make "pgd_present()" always return 1.
+
+   NOTE: This will speed up the page table walkers anyway. It will also
+   avoid the problem above.
+
+ - make "free_pmd()" a no-op.
+
+All of the above will (a) simplify things (b) remove special cases and (c)
+remove actual and existing bugs.
+
+(In fact, the reason why the PGD populate missing TLB invalidate probably
+never happens in practice is exactly the fact that the PGD is always
+populated so fast that it's hard to make a test-case that shows this. But
+it's still a bug - probably fairly easily triggered by a threaded program
+that is statically linked (so that the code loads at 0x40000000 and
+doesn't have the loader linked low - so the lowest PGD entry is not
+allocated until later).
+
+Does anybody see any problems with the above? It looks like the obvious
+fix.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
