@@ -1,40 +1,66 @@
-Subject: Re: PATCH: rewrite of invalidate_inode_pages
-References: <Pine.LNX.4.10.10005111445370.819-100000@penguin.transmeta.com> <yttya5ghhtr.fsf@vexeta.dc.fi.udc.es> <shsd7msemwu.fsf@charged.uio.no> <yttbt2chf46.fsf@vexeta.dc.fi.udc.es> <14619.16278.813629.967654@charged.uio.no> <ytt1z38acqg.fsf@vexeta.dc.fi.udc.es> <391BEAED.C9313263@sympatico.ca> <yttg0ro6lt8.fsf@vexeta.dc.fi.udc.es>
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-Date: 12 May 2000 14:51:26 +0200
-In-Reply-To: "Juan J. Quintela"'s message of "12 May 2000 13:37:55 +0200"
-Message-ID: <shs7ld0dj8x.fsf@charged.uio.no>
+Date: Fri, 12 May 2000 14:57:27 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] balanced highmem subsystem under pre7-9
+In-Reply-To: <Pine.LNX.4.10.10005121307370.3348-100000@elte.hu>
+Message-ID: <Pine.LNX.4.21.0005121419460.554-100000@inspiron>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>, Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
->>>>> " " == Juan J Quintela <quintela@fi.udc.es> writes:
+On Fri, 12 May 2000, Ingo Molnar wrote:
 
-     > This was a first approach patch, if people like the thing
-     > configurable, I can try to do that the weekend.
+>what bad effects? the LRU list of the pagecache is a completely
+>independent mechanizm. Highmem pages are LRU-freed just as effectively as
+>normal pages. The pagecache LRU list is not per-zone but (IMHO correctly)
+>global, so the particular zone of highmem pages is completely transparent
 
-Juan, Linus,
+It shouldn't be global but per-NUMA-node as I have in the classzone patch.
 
-   Could you please look into changing the name of
-invalidate_inode_pages() to invalidate_pages_noblock() or something
-like that? Since NFS is the only place where this function is used, a
-change of name should not break any other code.
+>and irrelevant to the LRU mechanizm. I cannot see any bad effects wrt. LRU
+>recycling and the highmem zone here. (let me know if you ment some
+>different recycling mechanizm)
 
-The reason I think this is necessary, is that this is the second time
-the 2.3.x kernel is broken because somebody has misunderstood, and has
-added wait_on_page() functionality to the same function.
-Alternatively, please make sure that we add explicit comments to that
-effect.
+See line 320 of filemap.c in 2.3.99-pre7-pre9. (ignore the fact it will
+recycle 1 page, it's just because they didn't expected pages_high to be
+zero)
 
-     > Notice: that will be my first trip to /proc land....
+>'balanced' means: 'keep X amount of highmem free'. What is your point in
+>keeping free highmem around?
 
-Ugh. Sounds like an extremely complex "solution" to something which
-has not yet been demonstrated to be a problem.
+Assuming there is no point, you still want to free also from the highmem
+zone while doing LRU aging of the cache.
 
-Cheers,
-  Trond
+And if you don't keep X amount of highmem free you'll break if an irq will
+do a GFP_HIGHMEM allocation.
+
+Note also that with highmem I don't mean not the memory between 1giga and
+64giga, but the memory between 0 and 64giga. When you allocate with
+GFP_HIGHUSER you ask to the MM a page between 0 and 64giga.
+
+And in turn what is the point of keeping X amount of normal/regular memory
+free? You just try to keep such X amount of memory free in the DMA zone,
+so why you also try to keep it free on the normal zone? The problem is the
+same.
+
+Please read my emails on linux-mm of a few weeks ago about classzone
+approch. I can forward them to linux-kernel if there is interest (I don't
+know if there's a web archive but I guess there is).
+
+If the current strict zone approch wouldn't be broken we could as well
+choose to split the ZONE_HIGHMEM in 10/20 zones to scales 10/20 times
+better during allocations, no? Is this argulemnt enough to make you to at
+least ring a bell that the current design is flawed? The flaw is that we
+pay that with drawbacks and by having the VM that does the wrong thing
+because it have no enough information (it only see a little part of the
+picture). You can't fix it without looking the whole picture (the
+classzone).
+
+Andrea
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
