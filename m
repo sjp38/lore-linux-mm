@@ -1,7 +1,7 @@
-Date: Thu, 22 Jan 2004 11:05:48 +0000
+Date: Thu, 22 Jan 2004 11:07:31 +0000
 From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: 2.6.2-rc1-mm1
-Message-ID: <20040122110548.A9290@infradead.org>
+Message-ID: <20040122110731.A9319@infradead.org>
 References: <20040122013501.2251e65e.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,10 +13,11 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> tty_io-uml-fix.patch
->   uml: make tty_init callable from UML functions
+> uml-update.patch
+>   UML update
 
-This is broken.  UML shouldn't mess with tty_init at all.
+And this one brings in perfectly broken 2.4 block drivers.  This quality
+of the UML code makes me nervous.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
