@@ -1,79 +1,141 @@
-Date: Tue, 7 Sep 2004 23:18:16 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: swapping and the value of /proc/sys/vm/swappiness
-Message-ID: <20040908021816.GB2942@logos.cnet>
-References: <413CB661.6030303@sgi.com> <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <20040907212051.GC3492@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040907212051.GC3492@logos.cnet>
+Received: from m7.gw.fujitsu.co.jp ([10.0.50.77]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i88BZAtx014649 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:35:10 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s0.gw.fujitsu.co.jp by m7.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i88BZ9E8010212 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:35:10 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s0.gw.fujitsu.co.jp (s0 [127.0.0.1])
+	by s0.gw.fujitsu.co.jp (Postfix) with ESMTP id DB00AA7CD2
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 20:35:09 +0900 (JST)
+Received: from fjmail501.fjmail.jp.fujitsu.com (fjmail501-0.fjmail.jp.fujitsu.com [10.59.80.96])
+	by s0.gw.fujitsu.co.jp (Postfix) with ESMTP id 85468A7CCB
+	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 20:35:09 +0900 (JST)
+Received: from jp.fujitsu.com
+ (fjscan501-0.fjmail.jp.fujitsu.com [10.59.80.120]) by
+ fjmail501.fjmail.jp.fujitsu.com
+ (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
+ with ESMTP id <0I3Q00D3406JSD@fjmail501.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Wed,  8 Sep 2004 20:35:09 +0900 (JST)
+Date: Wed, 08 Sep 2004 20:40:25 +0900
+From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [RFC][PATCH] no bitmap buddy allocator:  remove free_area->map (0/4)
+Message-id: <413EEFA9.9030007@jp.fujitsu.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: Andrew Morton <akpm@osdl.org>, raybry@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, piggin@cyberone.com.au, mbligh@aracnet.com
+To: Linux Kernel ML <linux-kernel@vger.kernel.org>
+Cc: LHMS <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-> Spent some time doing a few tests.
-> 
-> A contained test (512MB box, allocate 450MB of memory, touch and sleep + 
-> huge dd) show's that 2.6.6 and 2.6.7 are equivalent (swapout 120-150M when the "dd" 
-> starts writing out data).
-> 
-> 2.6.9-rc1 swaps out 350M on the same test. Doenst seem nice, I'll try to isolate 
-> what causes this tomorrow (this is probably what is hitting desktop users which
-> is fixed by Con's patches). Thats problem #1. Something needs a little tweaking 
-> I think. 
-> 
-> Ray, I see the additional swapouts increase the dd performance for your particular testcase:
-> 
-> on 2.6.6:
->         Total I/O   Avg Swap   min    max     pg cache    min    max
->        ----------- --------- ------- ------  --------- ------- -------
->    0   242.47 MB/s      0 MB (     0,     0)   3195 MB (  3138,  3266)
->   20   256.06 MB/s      0 MB (     0,     0)   3170 MB (  3074,  3234)
->   40   267.29 MB/s      0 MB (     0,     0)   3189 MB (  3137,  3234)
->   60   289.43 MB/s    666 MB (    72,  1680)   3847 MB (  3296,  4817)		<---------- 
-> 
-> So for this one testcase it is being beneficial. 
-> 
-> However, decreasing the "swappiness" value does not seem to make much of a difference:
-> 
-> Kernel Version 2.6.8.1-mm4:
->         Total I/O   Avg Swap   min    max     pg cache    min    max
->        ----------- --------- ------- ------  --------- ------- -------
->    0   287.28 MB/s    710 MB (    46,  3060)   4082 MB (  3426,  6308)
->   20   288.05 MB/s    508 MB (    94,  1417)   3848 MB (  3442,  4739)
->   40   287.03 MB/s    588 MB (   199,  1251)   3909 MB (  3570,  4515)
->   60   290.08 MB/s    640 MB (   210,  1190)   3976 MB (  3538,  4531)
->   80   287.73 MB/s    693 MB (   316,  1195)   4049 MB (  3713,  4545)
->  100   166.17 MB/s  26001 MB ( 26001, 26002)  28798 MB ( 28740, 28852)
->                                                                                                                                                                                    
-> Kernel Version 2.6.9-rc1-mm3:
->         Total I/O   Avg Swap   min    max     pg cache    min    max
->        ----------- --------- ------- ------  --------- ------- -------
->    0   274.80 MB/s  10511 MB (  5644, 14492)  13293 MB (  8596, 17156)
->   20   267.02 MB/s  12624 MB (  5578, 16287)  15298 MB (  8468, 18889)
->   40   267.66 MB/s  13541 MB (  6619, 17461)  16199 MB (  9393, 20044)
->   60   233.73 MB/s  18094 MB ( 16550, 19676)  20629 MB ( 19103, 22192)
->   80   213.64 MB/s  20950 MB ( 15844, 22977)  23450 MB ( 18496, 25440)
->  100   164.58 MB/s  26004 MB ( 26004, 26004)  28410 MB ( 28327, 28455)
-> 
-> And that is a problem #2 - swappinness not being honoured. Guys, 
-> any ideas on the reason for that?
+Hi,
 
-Hum I just tested it on my 512MB box and swappiness is working fine on 2.6.8.. (it
-has expected effects), unlike Ray's tests.
+This series of patches remove bitmaps from kernel's page allocator,
+so-called buddy allocator.This is part (0/4) and removes free_area->map.
 
-> 
-> Andrew, dirty_ratio and dirty_background_ratio (as low as 5% each) did not significantly 
-> affect the amount of swapped out data, only a small effect on _how soon_ anonymous 
-> memory was swapped out.
-> 
-> And finally, Ray, the difference you see between 2.6.6 and 2.6.7 can be explained, 
-> as noted by others in this thread, to vmscan.c changes (page replacement/scanning policy
-> changes were made).
-> 
-> Will continue with more tests tomorrow.
+By removing bitmap, we can reduce a strcuture whose size is depends on
+installed memory size.
+Removing it is good for implementing memory-hotplug and some other codes.
+
+In buddy system, a page's order means size of contiguous free pages.
+If a free page[x] 's order is Y, there are contiguous free pages
+from page[X] to page[X + 2^(Y) - 1]
+
+In this patch, when a page is a head of contiguous free pages of order X,
+it is marked with PG_private and set page->private to X.
+A page's buddy in order X is simply calculated by
+
+buddy_idx = page_idx ^ (1 << X).
+
+We can coalece 2 contiguous pages if
+let buddy = pfn_to_page(zone->zone_start_pfn + page_idx ^ (1 << X)),
+(page_is_free(buddy) && PagePrivate(buddy) && page_order(buddy) == 'X')
+
+Although a look of code is changed, this algorithm itself is not different from
+the original buddy allocator. Only difference is there is no bitmap.
+
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+
+
+
+---
+
+  test-kernel-kamezawa/include/linux/mm.h     |   26 ++++++++++++++++++++++++++
+  test-kernel-kamezawa/include/linux/mmzone.h |    7 ++++++-
+  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff -puN include/linux/mm.h~eliminate-bitmap-includes include/linux/mm.h
+--- test-kernel/include/linux/mm.h~eliminate-bitmap-includes	2004-09-08 17:31:41.341538896 +0900
++++ test-kernel-kamezawa/include/linux/mm.h	2004-09-08 17:31:41.346538136 +0900
+@@ -213,6 +213,9 @@ struct page {
+  					 * usually used for buffer_heads
+  					 * if PagePrivate set; used for
+  					 * swp_entry_t if PageSwapCache
++					 * When page is free:
++					 * this indicates order of page
++					 * in buddy allocator.
+  					 */
+  	struct address_space *mapping;	/* If low bit clear, points to
+  					 * inode address_space, or NULL.
+@@ -326,6 +329,29 @@ static inline void put_page(struct page
+  #endif		/* CONFIG_HUGETLB_PAGE */
+
+  /*
++ * These functions are used in alloc_pages()/free_pages(), buddy allocator.
++ * page_order(page) returns an order of a free page in buddy allocator.
++ *
++ * this is used with PG_private flag
++ *
++ * Note : all PG_private operations used in buddy system is done while
++ * zone->lock is acquired. So set and clear PG_private bit operation
++ * does not need to be atomic.
++ */
++
++#define PAGE_INVALID_ORDER (~0UL)
++
++static inline unsigned long page_order(struct page *page)
++{
++	return page->private;
++}
++
++static inline void set_page_order(struct page *page,unsigned long order)
++{
++	page->private = order;
++}
++
++/*
+   * Multiple processes may "see" the same page. E.g. for untouched
+   * mappings of /dev/null, all processes see the same page full of
+   * zeroes, and text pages of executables and shared libraries have
+diff -puN include/linux/mmzone.h~eliminate-bitmap-includes include/linux/mmzone.h
+--- test-kernel/include/linux/mmzone.h~eliminate-bitmap-includes	2004-09-08 17:31:41.343538592 +0900
++++ test-kernel-kamezawa/include/linux/mmzone.h	2004-09-08 17:31:41.347537984 +0900
+@@ -22,7 +22,6 @@
+
+  struct free_area {
+  	struct list_head	free_list;
+-	unsigned long		*map;
+  };
+
+  struct pglist_data;
+@@ -207,6 +206,12 @@ struct zone {
+  	unsigned long		zone_start_pfn;
+
+  	/*
++	 * indicates start_pfn/end_pfn of initialized mem_map
++	 */
++	unsigned long           memmap_start_pfn;
++	unsigned long           memmap_end_pfn;
++
++        /*
+  	 * rarely used fields:
+  	 */
+  	char			*name;
+
+_
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
