@@ -1,77 +1,34 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id LAA01645
-	for <linux-mm@kvack.org>; Mon, 7 Oct 2002 11:23:30 -0700 (PDT)
-Message-ID: <3DA1D121.222DECFC@digeo.com>
-Date: Mon, 07 Oct 2002 11:23:29 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: Re: 2.5.40-mm2
-References: <3DA0854E.CF9080D7@digeo.com> from "Andrew Morton" at Oct 06, 2002 10:47:42 AM PST <200210071745.g97Hjth23332@eng2.beaverton.ibm.com>
+Date: Mon, 7 Oct 2002 19:30:36 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: Breakout struct page
+Message-ID: <20021007193036.A25200@infradead.org>
+References: <1165733025.1033777103@[10.10.2.3]>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <1165733025.1033777103@[10.10.2.3]>; from mbligh@aracnet.com on Sat, Oct 05, 2002 at 12:18:23AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andrew Morton <akpm@digeo.com>, linux-mm mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Badari Pulavarty wrote:
+On Sat, Oct 05, 2002 at 12:18:23AM -0700, Martin J. Bligh wrote:
+> This very boring patch breaks out struct page into it's own header
+> file. This should allow you to do struct page arithmetic in other
+> header files using static inlines instead of horribly complex macros 
+> ... by just including <linux/struct_page.h>, which avoids dependency
+> problems.
 > 
-> ...
-> drivers/built-in.o: In function `aic7xxx_biosparam':
-> drivers/built-in.o(.text+0xcfc71): undefined reference to `__udivdi3'
-> drivers/built-in.o(.text+0xcfca8): undefined reference to `__udivdi3'
-> drivers/built-in.o: In function `qla1280_proc_info':
-> drivers/built-in.o(.text+0xd0ca0): undefined reference to `get_free_page'
-> drivers/built-in.o: In function `qla1280_biosparam':
-> drivers/built-in.o(.text+0xd1daa): undefined reference to `__udivdi3'
-> drivers/built-in.o(.text+0xd1dce): undefined reference to `__udivdi3'
-> make: *** [.tmp_vmlinux] Error 1
+> (inlined to read, attatched for lower probability of mangling)
 
-For the __udivdi3 thing, the below patch should fix that up.
+I don't like a struct_page.h in addition to page-flags.h.  I had a patch
+for early 2.5 that create <linux/page.h> with struct page and stuff that
+depends only on it (Test/Set/etc macros).  IHMO that's a nicer split,
+but people may flame me for this..
 
-For the get_free_page thing I need a grep-for-dummies book.  Please
-just go into  qla1280_proc_info() and replace get_free_page() with
-get_zeroed_page().  I need to do a second round on that patch.
+I'm inclinde to resubmit that one after feature freeze.
 
-
-
---- 2.5.40/drivers/scsi/aic7xxx_old.c~lbd-fixes-1	Mon Oct  7 11:18:28 2002
-+++ 2.5.40-akpm/drivers/scsi/aic7xxx_old.c	Mon Oct  7 11:19:18 2002
-@@ -11735,13 +11735,13 @@ aic7xxx_biosparam(Disk *disk, struct blo
-   
-   heads = 64;
-   sectors = 32;
--  cylinders = disk->capacity / (heads * sectors);
-+  cylinders = sector_div(disk->capacity, heads * sectors);
- 
-   if ((p->flags & AHC_EXTEND_TRANS_A) && (cylinders > 1024))
-   {
-     heads = 255;
-     sectors = 63;
--    cylinders = disk->capacity / (heads * sectors);
-+    cylinders = sector_div(disk->capacity, heads * sectors);
-   }
- 
-   geom[0] = heads;
---- 2.5.40/drivers/scsi/qla1280.c~lbd-fixes-1	Mon Oct  7 11:19:42 2002
-+++ 2.5.40-akpm/drivers/scsi/qla1280.c	Mon Oct  7 11:20:06 2002
-@@ -1705,11 +1705,11 @@ qla1280_biosparam(Disk * disk, struct bl
- 
- 	heads = 64;
- 	sectors = 32;
--	cylinders = disk->capacity / (heads * sectors);
-+	cylinders = sector_div(disk->capacity, heads * sectors);
- 	if (cylinders > 1024) {
- 		heads = 255;
- 		sectors = 63;
--		cylinders = disk->capacity / (heads * sectors);
-+		cylinders = sector_div(disk->capacity, heads * sectors);
- 		/* if (cylinders > 1023)
- 		   cylinders = 1023; */
- 	}
-
-.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
