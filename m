@@ -1,33 +1,29 @@
-Date: Wed, 19 Jun 2002 13:09:23 -0700 (MST)
+Date: Wed, 19 Jun 2002 13:21:29 -0700 (MST)
 From: Craig Kulesa <ckulesa@as.arizona.edu>
-Subject: Re: [PATCH] (2/2) reverse mappings for current 2.5.23 VM
-In-Reply-To: <E17Kiio-0000sO-00@starship>
-Message-ID: <Pine.LNX.4.44.0206191248190.4292-100000@loke.as.arizona.edu>
+Subject: Re: [PATCH] (1/2) reverse mapping VM for 2.5.23 (rmap-13b)
+In-Reply-To: <Pine.LNX.4.44.0206192151390.20865-100000@e2>
+Message-ID: <Pine.LNX.4.44.0206191310590.4292-100000@loke.as.arizona.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Rik van Riel <riel@conectiva.com.br>, Dave Jones <davej@suse.de>, Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, rwhron@earthlink.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Jun 2002, Daniel Phillips wrote:
+On Wed, 19 Jun 2002, Ingo Molnar wrote:
 
-> You might conclude from the above that the lru+rmap is superior to 
-> aging+rmap: while they show the same wall-clock time, lru+rmap consumes 
-> considerably less disk bandwidth.  
+> btw., isnt there a fair chance that by 'fixing' the aging+rmap code to
+> swap out less, you'll ultimately swap in more? [because the extra swappout
+> likely ended up freeing up RAM as well, which in turn decreases the amount
+> of trashing.]
 
-I wouldn't draw _any_ conclusions about either patch yet, because as you 
-said, it's only one type of load.  And it was a single tick in vmstat 
-where page_launder() was aggressive that made the difference between the 
-two.  In a different test, where I had actually *used* more of the 
-application pages instead of simply closing most of the applications 
-(save one, the memory hog), the results are likely to have been very 
-different.  
+Agree.  Heightened swapout in this rather simplified example) isn't a 
+problem in itself, unless it really turns out to be a bottleneck in a 
+wide variety of loads.  As long as the *right* pages are being swapped 
+and don't have to be paged right back in again.   
 
-I think that Rik's right: this simply points out that page_launder(), at 
-least in its interaction with 2.5, needs some tuning.  I think both 
-approaches look very promising, but each for different reasons.  
+I'll try a more varied set of tests tonight, with cpu usage tabulated.
 
 -Craig
 
