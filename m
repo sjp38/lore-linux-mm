@@ -1,51 +1,49 @@
+Date: Thu, 8 Jun 2000 12:35:41 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH,incomplete] shm integration into shrink_mmap
-References: <Pine.LNX.4.21.0006071025330.14304-100000@duckman.distro.conectiva>
-	<qww7lc1pnt0.fsf@sap.com> <20000607154350.N30951@redhat.com>
-	<qwwg0qob4ef.fsf_-_@sap.com>
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: Christoph Rohland's message of "08 Jun 2000 17:04:24 +0200"
-Date: 08 Jun 2000 17:21:30 +0200
-Message-ID: <yttpupsb3lx.fsf@serpe.mitica>
+In-Reply-To: <qwwg0qob4ef.fsf_-_@sap.com>
+Message-ID: <Pine.LNX.4.21.0006081229554.22665-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <Pine.LNX.4.21.0006081229556.22665@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Rohland <cr@sap.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "christoph" == Christoph Rohland <cr@sap.com> writes:
+On 8 Jun 2000, Christoph Rohland wrote:
 
-Hi christoph
+> Here is my first proposal for changing shm to be integrated into
+> shrink_mmap.
+> 
+> It gives you a function 'int shm_write_swap (struct page *page)'
+> to write out a page to swap and replace the pte in the shm
+> structures.
 
-christoph> Here is my first proposal for changing shm to be integrated into
-christoph> shrink_mmap.
+> What do you think?
 
-christoph> It gives you a function 'int shm_write_swap (struct page *page)' to
-christoph> write out a page to swap and replace the pte in the shm structures.  I
-christoph> tested the stuff with no swapping and it seems stable so far. But
-christoph> shm_write_swap is completely untested.
+This is a great start. We probably want to make the
+shm_write_swap() function a function pointer in the
+page->mapping struct so the shrink_mmap() code can
+call the same function for every page, but other than
+that this is the direction I'd like VM to go.
 
-christoph> It probably needs to add the pages in shm_nopage_core to your lru
-christoph> queues and of course it needs the calls from shrink_mmap.
+I've seen Juan Quintela is already looking into your
+patch trying to write the missing part, so I guess
+I'll continue on the active/inactive/scavenge list
+code and not look at your patch in detail today ;)
 
-christoph> I think it would be nicer to only have a notify function instead of
-christoph> shm_write_swap, which gets the page and the swap_entry and can simply
-christoph> put the swap_entry into the shm structures without handling the
-christoph> swapping at all.
+regards,
 
-christoph> What do you think?
-christoph>         		Christoph
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-It lacks the cleanup of the SHM page bit :)))
-But it looks great so far.  I am working just now it the shrink_mmap
-integration.
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
-Later, Juan.
-
--- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
