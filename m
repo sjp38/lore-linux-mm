@@ -1,42 +1,43 @@
-Date: Sat, 4 Aug 2001 00:39:27 -0400 (EDT)
-From: Ben LaHaise <bcrl@redhat.com>
+Date: Fri, 3 Aug 2001 21:47:16 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-In-Reply-To: <Pine.LNX.4.33.0108032116130.25779-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.33.0108040026490.14842-100000@touchme.toronto.redhat.com>
+In-Reply-To: <Pine.LNX.4.33.0108040026490.14842-100000@touchme.toronto.redhat.com>
+Message-ID: <Pine.LNX.4.33.0108032141370.894-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
+To: Ben LaHaise <bcrl@redhat.com>
 Cc: Daniel Phillips <phillips@bonn-fries.net>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Aug 2001, Linus Torvalds wrote:
+On Sat, 4 Aug 2001, Ben LaHaise wrote:
+>
+> Using the number of queued sectors in the io queues is, imo, the right way
+> to throttle io.  The high/low water marks give us decent batching as well
+> as the delays that we need for throttling writers.  If we remove that,
+> we'll need another way to wait for io to complete.
 
-> That implies that we are trying to flush way too few buffers at a time and
-> do not get any overlapping IO.
+Well, we actually _do_ have that other way already - that should be, after
+all, the whole point in the request allocation.
 
-It started out at full throughput, but eventually became jerky and
-chaotic.  After I sent the message I noticed it was at 0% idle with
-kswapd, kreclaimd, kflushd and kupdated all eating cycles in addition to
-dd.
+It's when we allocate the request that we know whether we already have too
+many requests pending.. And we have the batching there too. Maybe the
+current maximum number of requests is just way too big?
 
-> Btw, how did you test this? Do you have a patch for inode_fsync() already?
+[ Quick grep later ]
 
-Nah, didn't do that patch yet.  The test was the same old dd </dev/zero
-of=/tmp/foo bs=1024k with vmstat running and executing commands on another
-shell (gotta automate that).  Note that the other approach of leaving the
-throttling in and limited to 2MB queues resulted in fairly consistent
-60MB/s throughput with no chaotic breakdown.
+On my 1GB machine, we apparently allocate 1792 requests for _each_ queue.
+Considering that a single request can have hundreds of buffers allocated
+to it, that is just _ridiculous_.
 
-Using the number of queued sectors in the io queues is, imo, the right way
-to throttle io.  The high/low water marks give us decent batching as well
-as the delays that we need for throttling writers.  If we remove that,
-we'll need another way to wait for io to complete.  Waiting on pages
-simply does not work as the page chosen may not be in the "right place" in
-the queue.  So, what's the plan?
+How about capping the number of requests to something sane, like 128? Then
+the natural request allocation (together with the batching that we already
+have) should work just dandy.
 
-		-ben
+Ben, willing to do some quick benchmarks?
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
