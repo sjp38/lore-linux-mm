@@ -1,7 +1,8 @@
-Date: Wed, 19 Jun 2002 04:18:00 -0700 (MST)
+Date: Wed, 19 Jun 2002 04:21:12 -0700 (MST)
 From: Craig Kulesa <ckulesa@as.arizona.edu>
-Subject: [PATCH] (1/2) reverse mapping VM for 2.5.23 (rmap-13b)
-Message-ID: <Pine.LNX.4.44.0206181340380.3031-100000@loke.as.arizona.edu>
+Subject: [PATCH] (2/2) reverse mappings for current 2.5.23 VM
+In-Reply-To: <Pine.LNX.4.44.0206181340380.3031@loke.as.arizona.edu>
+Message-ID: <Pine.LNX.4.44.0206190231520.3637-100000@loke.as.arizona.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,125 +12,68 @@ Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-Where:  http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/
+Where: 	   http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/
 
-This patch implements Rik van Riel's patches for a reverse mapping VM 
-atop the 2.5.23 kernel infrastructure.  The principal sticky bits in 
-the port are correct interoperability with Andrew Morton's patches to 
-cleanup and extend the writeback and readahead code, among other things.  
-This patch reinstates Rik's (active, inactive dirty, inactive clean) 
-LRU list logic with the rmap information used for proper selection of pages 
-for eviction and better page aging.  It seems to do a pretty good job even 
-for a first porting attempt.  A simple, indicative test suite on a 192 MB 
-PII machine (loading a large image in GIMP, loading other applications, 
-heightening memory load to moderate swapout, then going back and 
-manipulating the original Gimp image to test page aging, then closing all 
-apps to the starting configuration) shows the following:
+This rather smaller patch serves a very different purpose than patch #1.  
+It introduces the "minimal" rmap functionality of Rik van Riel's reverse 
+mapping patches atop the current 2.5.23 classzone VM.  This quick patch 
+was done on a whim at 1 AM, but it actually seems to perform pretty 
+decently on my laptop.  Page eviction choice is quite good, even 
+in the absence of any sort of page aging.  Using the same quick test as 
+in the previous email: 
 
 2.5.22 vanilla:
 Total kernel swapouts during test = 29068 kB
 Total kernel swapins during test  = 16480 kB
 Elapsed time for test: 141 seconds
 
-2.5.23-rmap13b:
+2.5.23-rmap (this patch -- "rmap-minimal"):           
+Total kernel swapouts during test = 24068 kB
+Total kernel swapins during test  =  6480 kB
+Elapsed time for test: 133 seconds
+
+2.5.23-rmap13b (Rik's "rmap-13b complete") :
 Total kernel swapouts during test = 40696 kB
 Total kernel swapins during test  =   380 kB
 Elapsed time for test: 133 seconds
 
-Although rmap's page_launder evicts a ton of pages under load, it seems to 
-swap the 'right' pages, as it doesn't need to swap them back in again.
-This is a good sign.  [recent 2.4-aa work pretty nicely too]
+[Gotta tone down page_launder() a bit...]
 
-Various details for the curious or bored:
+Modifications:
 
-	- Tested:   UP, 16 MB < mem < 256 MB, x86 arch. 
-	  Untested: SMP, highmem, other archs.  
+	- in vmscan.c: dropped swap_out_add_to_swap_cache(), integrated 
+	  its contents to rmap's add_to_swap() in swap_state.c.  This is a 
+	  more reasonable place for it anyway. 
 
-	  In particular, I didn't even attempt to port rmap-related 
-	  changes to 2.5's arch/arm/mm/mm-armv.c.  
+	- Dropped try_to_swap_out(), swap_out(), and all its brethren from 
+	  vmscan.c.  What a great feeling! :)
 
-	- page_launder() is coarse and tends to clean/flush too 
-	  many pages at once.  This is known behavior, but seems slightly 
-	  worse in 2.5 for some reason. 
+	- In vmscan.c's shrink_cache():
+	  If a page is actively referenced and page mapping in use, move 
+	  the inactive page to the active list; alloc some swap space for 
+	  anon pages, then if we must, fall to rmap's try_to_unmap() to 
+	  swap.  Drop the max_mapped logic, since swap_out() is gone and 
+	  we don't need it.  If try_to_unmap() fails, put the page on the 
+	  active list.  These are all pieces of Rik's page_launder() 
+	  logic in his integrated rmap scheme.  
 
-	- pf_gfp_mask() doesn't exist in 2.5, nor does PF_NOIO.  I have 
-	  simply dropped the call in try_to_free_pages() in vmscan.c, but 
-	  there is probably a way to reinstate its logic 
-	  (i.e. avoid memory balancing I/O if the current task 
-	  can't block on I/O).  I didn't even attempt it.
+	- use page_referenced() instead of TestClearPageReferenced() in 
+	  refill_inactive()
 
-	- Writeback:  instead of forcing reinstating a page on the 
-	  inactive list when !PageActive, page->mapping, !Pagedirty, and 
-	  !PageWriteback (see mm/page-writeback.c, fs/mpage.c), I just 
-	  let it go without any LRU list changes.  If the page is 
-	  inactive and needs attention, it'll end up on the inactive 
-	  dirty list soon anyway, AFAICT.  Seems okay so far, but that 
-	  may be flawed/sloppy reasoning... We could always look at the 
-	  page flags and reinstate the page to the appropriate LRU list 
-	  (i.e. inactive clean or dirty) if this turns out to be a 
-	  problem...
+	- compilation patches as per "complete" rmap patch #1 (previous 
+	  email)
 
-	- Make shrink_[i,d,dq]cache_memory return the result of 
-	  kmem_cache_shrink(), not simply 0.  Seems pointless to waste 
-	  that information, since we're getting it for free.  Rik's patch 
-	  wants that info anyway...
+Okay it's quick and dirty, but it seems to work pretty well in initial 
+(and not yet rigorous) tests.  Like the full rmap patch for 2.5, I'll try 
+to keep this patch up to date with the 2.5 and rmap trees until VM 
+development switches to 2.5.
 
-	- Readahead and drop_behind:  With the new readahead code, we have 
-	  some choices regarding under what circumstances we choose to 
-	  drop_behind (i.e. only drop_behind if the reads look really 
-	  sequential, etc...).  This patch blindly calls drop_behind at 
-	  the conclusion of page_cache_readahead().  Hopefully the 
-	  drop_behind code correctly interprets the new readahead indices. 
-	  It *seems* to behave correctly, but a quick look by another 
-	  pair of eyes would be reassuring. 
+Comments, patches, fixes & feedback always welcome. :)
 
-	- A couple of trivial rmap cleanups for Rik:
-		a) Semicolon day!  System fails to boot if rmap debugging 
-		   is enabled in rmap.c.  Fix is to remove the extraneous 
-		   semicolon in page_add_rmap():
-
-				if (!ptep_to_mm(ptep)); <--
-
-		b) The pte_chain_unlock/lock() pair between the tests for 
-		   "The page is in active use" and "Anonymous process 
-		   memory without backing store" in vmscan.c seems
-		   unnecessary. 
-
-		c) Drop PG_launder page flag, ala current 2.5 tree.
-
-		d) if(page_count(page)) == 0)  --->  if(!page_count(page))
-		   and things like that...
-
-	- To be consistent with 2.4-rmap, this patch includes a 
-	  minimal BIO-ified port of Andrew Morton's read-latency2 patch
-	  (i.e. minus the elvtune ioctl stuff) to 2.5, from his patch 
-	  sets.  This adds about 7 kB to the patch. 
-
-	- The patch also includes compilation fixes:  
-	(2.5.22)
-	      drivers/scsi/constants.c (undeclared integer variable)
-	      drivers/pci/pci-driver.c (unresolved symbol in pcmcia_core)
-	(2.5.23)
-	      include/linux/smp.h (define cpu_online_map for UP)
-	      kernel/ksyms.c    (export default_wake_function for modules)  
-	      arch/i386/i386_syms.c   (export ioremap_nocache for modules)
-
-
-Hope this is of use to someone!  It's certainly been a fun and 
-instructive exercise for me so far.  ;)
-
-I'll attempt to keep up with the 2.5 and rmap changes, fix inevitable 
-bugs in porting, and will upload regular patches to the above URL, at 
-least until the usual VM suspects start paying more attention to 2.5.  
-I'll post a quick changelog to the list occasionally if and when any 
-changes are significant, i.e. other then boring hand patching and 
-diffing.   
-
-
-Comments, feedback & patches always appreciated!
 
 Craig Kulesa
 Steward Observatory, Univ. of Arizona
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
