@@ -1,49 +1,49 @@
-Date: Fri, 6 Apr 2001 22:03:41 +0200
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Fri, 6 Apr 2001 12:52:26 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH] swap_state.c thinko
-Message-ID: <20010406220341.A935@athlon.random>
-References: <20010406211416.B785@athlon.random> <Pine.LNX.4.21.0104061954470.1407-100000@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0104061954470.1407-100000@localhost.localdomain>; from hugh@veritas.com on Fri, Apr 06, 2001 at 08:03:08PM +0100
+In-Reply-To: <Pine.LNX.4.21.0104061932300.1374-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.31.0104061245320.25931-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
+Cc: Andrea Arcangeli <andrea@suse.de>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 06, 2001 at 08:03:08PM +0100, Hugh Dickins wrote:
-> On Fri, 6 Apr 2001, Andrea Arcangeli wrote:
-> > On Fri, Apr 06, 2001 at 09:09:08PM +0200, Andrea Arcangeli wrote:
-> > > We always overstimate anyways, we have to because we don't have information
-> > > about the really freeable memory (think at the buffer cache pinned in the
-> > 
-> > ah, and btw, even if we would have information about the really freeable memory
-> > in the cache and swap cache that would still useless in real life because we
-> > don't reserve memory for the previous malloc calls (endless overcommit
-> > discussion), so allocation could still fail during page fault and process will
-> > have to be killed the linux way.
-> 
-> How indelicate you are!  I've been careful to avoid all mention of that...
-> Seriously, there's good debate to have there, but it's another issue
 
-This is not another issue. It is the same issue. If you don't do reservation
-for the userspace memory you can only overstimate, if you understimate you are
-wrong because you are not even able to use all the resources in your machine
-and that is the current bug (while overstimating and overcommit may allow you
-to better optimize the memory usage with the downside that you can have to kill
-a task during a page fault and that is why it should be optional behaviour).
+On Fri, 6 Apr 2001, Hugh Dickins wrote:
+>
+> swapper_space.nrpages, that's neat, but I insist it's not right.
 
-So I repeat: if you don't reserve the memory to make sure you will always be
-able to allocate the malloced memory you just overstimate, and so the
-vm_enough_memory automatically become a very imprecise guess, it's an heuristic
-that is only meant to avoid ridicolous big allocations and that must _never_
-understimate.
+It's not "right", but I suspect it's actually good enough.
 
-This is my last email about this issue.
+Also, note that when if get _really_ low on memory, the swap cache effect
+should be going away: if we still have the swap cache pages in memory,
+we've obviously not paged everything out yet. So the double accounting
+should have a limit error of zero as we approach being truly low on
+memory. And that, I suspect, is the most important thing - making sure
+that we allow programs to run when they can, but at least having _some_
+concept of "enough is enough".
 
-Andrea
+Note that we should probably also have a small "negative" count: it might
+not be a bad idea to say "we always want to have X MB free in _some_ form,
+be it swap or RAM. So I don't think it would necessarily be wrong to say
+something like
+
+	free -= num_physpages >> 6;
+
+to approximate the notion of "keep 1 percent slop" (remember, the 1% may
+well be on the swap device, not actually kept as free memory).
+
+vm_enough_memory() is a heuristic, nothing more. We want it to reflect
+_some_ view of reality, but the Linux VM is _fundamentally_ based on the
+notion of over-commit, and that won't change. vm_enough_memory() is only
+meant to give a first-order appearance of not overcommitting wildly. It
+has never been anything more than that.
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
