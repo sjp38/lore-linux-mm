@@ -1,69 +1,40 @@
-Message-ID: <3D376567.4040307@us.ibm.com>
-Date: Thu, 18 Jul 2002 18:03:35 -0700
-From: Matthew Dobson <colpatch@us.ibm.com>
-Reply-To: colpatch@us.ibm.com
-MIME-Version: 1.0
-Subject: [patch] Useless locking in mm/numa.c
-Content-Type: multipart/mixed;
- boundary="------------020700060601010906070601"
+Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
+	id 17VMOL-0007dj-00
+	for <linux-mm@kvack.org>; Thu, 18 Jul 2002 18:17:09 -0700
+Date: Thu, 18 Jul 2002 18:17:09 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: preliminary report on pagetable occupation rates
+Message-ID: <20020719011709.GD1022@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>, Martin Bligh <mjbligh@us.ibm.com>, linux-mm@kvack.org, Michael Hohnbaum <hohnbaum@us.ibm.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------020700060601010906070601
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+I added a statistic PteChainActv counting the number of reverse
+mappings performed, as opposed to the number of pte_chains allocated,
+as Dave McCracken's optimization defeats space consumption of
+pte_chains as a metric of pagetable occupancy.
 
-There is a lock that is apparently protecting nothing.  The node_lock spinlock 
-in mm/numa.c is protecting read-only accesses to pgdat_list.  Here is a patch 
-to get rid of it.
+This was collected during a run of tbench 4096 on a 16 cpu 16GB i386.
 
-Cheers!
+The steady state result is:
 
--Matt
+PageTables:      98564 kB
+PteChainTot:      8508 kB
+PteChainUsed:     8408 kB
+PteChainActv:  1236684
 
---------------020700060601010906070601
-Content-Type: text/plain;
- name="node_lock.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="node_lock.patch"
+Where this implies an occupancy rate of:
 
---- linux-2.5.26-vanilla/mm/numa.c	Tue Jul 16 16:49:30 2002
-+++ linux-2.5.26-vanilla/mm/numa.c.fixed	Thu Jul 18 17:59:35 2002
-@@ -44,15 +44,11 @@
- 
- #define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
- 
--static spinlock_t node_lock = SPIN_LOCK_UNLOCKED;
--
- void show_free_areas_node(pg_data_t *pgdat)
- {
- 	unsigned long flags;
- 
--	spin_lock_irqsave(&node_lock, flags);
- 	show_free_areas_core(pgdat);
--	spin_unlock_irqrestore(&node_lock, flags);
- }
- 
- /*
-@@ -106,11 +102,9 @@
- #ifdef CONFIG_NUMA
- 	temp = NODE_DATA(numa_node_id());
- #else
--	spin_lock_irqsave(&node_lock, flags);
- 	if (!next) next = pgdat_list;
- 	temp = next;
- 	next = next->node_next;
--	spin_unlock_irqrestore(&node_lock, flags);
- #endif
- 	start = temp;
- 	while (temp) {
+	(1236684*4)/98564 = 50.1881
 
---------------020700060601010906070601--
 
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
