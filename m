@@ -1,42 +1,38 @@
-Date: Wed, 30 Apr 2003 11:35:44 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: 2.5.68-mm3
-Message-ID: <20030430183544.GB23891@kroah.com>
-References: <20030429235959.3064d579.akpm@digeo.com> <1051696273.591.4.camel@teapot.felipe-alfaro.com>
-Mime-Version: 1.0
+Date: Wed, 30 Apr 2003 13:24:07 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [BUG 2.4] Buffers Span Zones
+Message-ID: <2387750000.1051734247@flay>
+In-Reply-To: <3EB0071B.2020308@google.com>
+References: <3EB0071B.2020308@google.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <1051696273.591.4.camel@teapot.felipe-alfaro.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
-Cc: Andrew Morton <akpm@digeo.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Ross Biro <rossb@google.com>, Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 30, 2003 at 11:51:13AM +0200, Felipe Alfaro Solana wrote:
+> I've found that changing PAGE_OFFSET to reduce the amount of lowmem has been a very good way to exercies the VM.  I've been able to cause all sorts of interesting problems by having ~20M of lowmem and 3G of highmem. I assume that many of these problems would occur on systems with 1G of lowmem and 16-20G of highmem.
 > 
-> drivers/pcmcia/cs.c: In function `pcmcia_register_socket':
-> drivers/pcmcia/cs.c:361: `dev' undeclared (first use in this function)
-> drivers/pcmcia/cs.c:361: (Each undeclared identifier is reported only
-> once
-> drivers/pcmcia/cs.c:361: for each function it appears in.)
-> drivers/pcmcia/cs.c: At top level:
-> drivers/pcmcia/cs.c:391: conflicting types for
-> `pcmcia_unregister_socket'
-> drivers/pcmcia/cs.c:306: previous declaration of
-> `pcmcia_unregister_socket'
-> make[4]: *** [drivers/pcmcia/cs.o] Error 1
-> make[3]: *** [drivers/pcmcia] Error 2
-> make[2]: *** [drivers] Error 2
-> make[1]: *** [vmlinux] Error 2
-> 
-> Config file attached :-)
+> Please CC me on any responses.
 
-Does this also happen on the latest -bk tree?
+It does indeed fall over quite easily on larger machines. Raw IO makes 
+it fall over under a light breath of wind (I think it allocates 1024 
+buffer_heads up front). 
 
-thanks,
+I've seen about 400MB of buffer_heads before - sucks.
 
-greg k-h
+There were some discussion on the archives with Andrew around the middle
+of last year - those might prove helpful. We agreed at OLS last year 
+to free them immediately after read, but Andrea wanted to keep them around 
+after write, and reclaim them lazily (I might have that switched read vs 
+write). That's fixed in 2.5 and 2.4-aa I think (though I haven't retested
+2.4-aa with raw IO recently). None of it is merged in mailine 2.4 still,
+as far as I know, so it still falls over pretty easily.
+
+M.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
