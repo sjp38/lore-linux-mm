@@ -1,34 +1,52 @@
-Message-ID: <404E8240.7090905@cyberone.com.au>
-Date: Wed, 10 Mar 2004 13:49:36 +1100
+Message-ID: <404EA645.8010900@cyberone.com.au>
+Date: Wed, 10 Mar 2004 16:23:17 +1100
 From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 4/4] vm-mapped-x-active-lists
-References: <404D56D8.2000008@cyberone.com.au> <404D5784.9080004@cyberone.com.au> <200403091626.39479@WOLK>
-In-Reply-To: <200403091626.39479@WOLK>
+Subject: Re: blk_congestion_wait racy?
+References: <OFAAC6B1AC.5886C5F2-ONC1256E52.0061A30B-C1256E52.0062656E@de.ibm.com>
+In-Reply-To: <OFAAC6B1AC.5886C5F2-ONC1256E52.0061A30B-C1256E52.0062656E@de.ibm.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marc-Christian Petersen <m.c.p@wolk-project.de>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-Marc-Christian Petersen wrote:
+Martin Schwidefsky wrote:
 
->On Tuesday 09 March 2004 06:35, Nick Piggin wrote:
+>
+>
 >
 >Hi Nick,
 >
->seems the following patch is required ontop of your patches?
+>
+>>Another problem is that if there are no requests anywhere in the system,
+>>sleepers in blk_congestion_wait will not get kicked. blk_congestion_wait
+>>could probably have blk_run_queues moved after prepare_to_wait, which
+>>might help.
+>>
+>I tried putting blk_run_queues after prepare_to_wait, it worked but it
+>didn't help. The test still needs close to a minute.
 >
 >
 
-Hi Marc,
-Yep thanks for that one. You're right of course, minus the typo.
-It's funny, I made the same one in about 3 other places.
+OK. This was *with* the memory barrier changes too, was it? Not that
+they should make that much difference. The test is still racy, but
+the window just gets smaller.
 
-Nick
+But I'm guessing that you have no requests in flight by the time
+blk_congestion_wait gets called, so nothing ever gets kicked.
+
+I prefer something more like this model: if 'current' submits a request
+to a congested queue then it gets put on the congestion waitqueue.
+You can then run blk_congestion_wait afterwards and it won't block if
+the queue you've written to has come out of congestion at any time.
+
+This also means that you can (should, in fact) stop uncongested queues
+from waking up the waiters every time they complete a request. Hmm, I
+like it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
