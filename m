@@ -1,39 +1,45 @@
-Date: Mon, 24 Jan 2005 12:33:47 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Extend clear_page by an order parameter
-In-Reply-To: <20050124122350.1142ee81.davem@davemloft.net>
-Message-ID: <Pine.LNX.4.58.0501241232330.17210@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0501041512450.1536@schroedinger.engr.sgi.com>
- <Pine.LNX.4.44.0501082103120.5207-100000@localhost.localdomain>
- <20050108135636.6796419a.davem@davemloft.net>
- <Pine.LNX.4.58.0501211210220.25925@schroedinger.engr.sgi.com>
- <20050122234517.376ef3f8.akpm@osdl.org> <Pine.LNX.4.58.0501240835041.15963@schroedinger.engr.sgi.com>
- <20050124122350.1142ee81.davem@davemloft.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] Avoiding fragmentation through different allocator
+From: James Bottomley <jejb@steeleye.com>
+In-Reply-To: <20050124154927.GJ5925@logos.cnet>
+References: <20050120101300.26FA5E598@skynet.csn.ul.ie>
+	 <20050121142854.GH19973@logos.cnet>
+	 <Pine.LNX.4.58.0501222128380.18282@skynet>
+	 <20050122215949.GD26391@logos.cnet>
+	 <Pine.LNX.4.58.0501241141450.5286@skynet>
+	 <20050124122952.GA5739@logos.cnet> <1106585052.5513.26.camel@mulgrave>
+	 <20050124154927.GJ5925@logos.cnet>
+Content-Type: text/plain
+Date: Mon, 24 Jan 2005 14:36:09 -0600
+Message-Id: <1106598969.5513.43.camel@mulgrave>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@davemloft.net>
-Cc: akpm@osdl.org, hugh@veritas.com, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Mel Gorman <mel@csn.ul.ie>, William Lee Irwin III <wli@holomorphy.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Grant Grundler <grundler@parisc-linux.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Jan 2005, David S. Miller wrote:
+On Mon, 2005-01-24 at 13:49 -0200, Marcelo Tosatti wrote:
+> So is it valid to affirm that on average an operation with one SG element pointing to a 1MB 
+> region is similar in speed to an operation with 16 SG elements each pointing to a 64K 
+> region due to the efficient onboard SG processing? 
 
-> On Mon, 24 Jan 2005 08:37:15 -0800 (PST)
-> Christoph Lameter <clameter@sgi.com> wrote:
->
-> > Then it may also be better to pass the page struct to clear_pages
-> > instead of a memory address.
->
-> What is more generally available at the call sites at this time?
-> Consider both HIGHMEM and non-HIGHMEM setups in your estimation
-> please :-)
+it's within a few percent, yes.  And the figures depend on how good the
+I/O card is at it.  I can imagine there are some wildly varying I/O
+cards out there.
 
-The only call site is prep_zero_page which has a GFP flag, the order and
-the pointer to struct page.
+However, also remember that 1MB of I/O is getting beyond what's sensible
+for a disc device anyway.  The cable speed is much faster than the
+platter speed, so the device takes the I/O into its cache as it services
+it.  If you overrun the cache it will burp (disconnect) and force a
+reconnection to get the rest (effectively splitting the I/O up anyway).
+This doesn't apply to arrays with huge caches, but it does to pretty
+much everything else.  The average disc cache size is only a megabyte or
+so.
 
-The patch makes the huge page code call prep_zero_page and scrubd will
-also call prep_zero_page.
+James
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
