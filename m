@@ -1,70 +1,38 @@
-Date: Mon, 11 Oct 1999 20:11:38 +0200 (CEST)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: simple slab alloc question
-In-Reply-To: <19991011131021.A952@fred.muc.de>
-Message-ID: <Pine.LNX.4.10.9910112007250.26190-100000@imladris.dummy.home>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <199910111907.MAA15028@google.engr.sgi.com>
+Subject: Re: locking question: do_mmap(), do_munmap()
+Date: Mon, 11 Oct 1999 12:07:08 -0700 (PDT)
+In-Reply-To: <38022640.3447ECA6@colorfullife.com> from "Manfred Spraul" at Oct 11, 99 08:02:40 pm
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Jeff Garzik <jgarzik@pobox.com>, linux-mm@kvack.org
+To: Manfred Spraul <manfreds@colorfullife.com>
+Cc: viro@math.psu.edu, sct@redhat.com, andrea@suse.de, linux-kernel@vger.rutgers.edu, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Oct 1999, Andi Kleen wrote:
-> On Mon, Oct 11, 1999 at 12:09:47AM +0200, Jeff Garzik wrote:
-> > kmalloc seems to allocate against various kmem_cache sizes: 32,
-> > 64...1024...65536...
-> > 
-> > Does this mean that allocations of various sizes are stored in different
-> > "buckets"?  Would that not reduce fragmentation and the need for a zone
-> > allocator?
 > 
-> kmalloc uses these buckets. Other clients use their own slab pool
-> (e.g. skb headers etc.). This is a variant of a zone allocator,
-> but only for relatively small objects.
+> What about something like a rw-semaphore which protects the vma list:
+> vma-list modifiers [ie merge_segments(), insert_vm_struct() and
+> do_munmap()] grab it exclusive, swapper grabs it "shared, starve
+> exclusive".
+> All other vma-list readers are protected by mm->mmap_sem.
 > 
-> Slab sits on top of the page allocator and is on its mercy.
+> This should not dead-lock, and no changes are required in
+> vm_ops->swapout().
+>
 
-Indeed.
+I have tried to follow most of the logic and solutions proposed
+on this thread. This is the best solution, imo. In fact, I had
+already coded something on these lines against a 2.2.10 kernel,
+which I still have around. I will try to port this against a 
+2.3.19 kernel over the next couple of days and post it for
+everyone to review.
 
-> Even other major users get their pages from the page allocator
-> directly (inodes, dcache). These used to be (still are?) a major
-> source of fragmentation, because they tend to wire whole pages
-> down even where there is only a single active inode/dentry on it.
+Thanks.
 
-A zone allocator would not help in this case. A zone
-which has only one active inode/dentry on it is just
-as wired down as a normal page.
-
-What we need here is a trick to emergency-recycle the
-last two(?) inodes on a page when memory is short. Of
-course the real number should be calculated by memory
-pressure, but I don't have time to think about that
-now :)
-
-> The page allocator uses the buddy algorithm, which is very prone
-> to fragmentation.
-
-> The basic idea is to replace the buddy with another zone allocator.
-
-I hope to be working on a design for something like that from
-december onwards. With a bit of luck the first code will be
-ready just before we begin the 2.5 development cycle.
-
-(doing things earlier doesn't make much sense and we're too
-late for 2.4 anyway)
-
-cheers,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
---
-work at:	http://www.reseau.nl/
-home at:	http://www.nl.linux.org/~riel/
-
+Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
