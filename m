@@ -1,38 +1,45 @@
-Date: Tue, 19 Dec 2000 18:35:10 +0100
-From: Christoph Hellwig <hch@caldera.de>
-Subject: Re: [ANNOUNCE] kiobuf IO mailinglist
-Message-ID: <20001219183510.A29656@caldera.de>
-References: <20001218231828.A13112@caldera.de> <3A16B4EE.5FF64EFF@conectiva.com.br>
-Mime-Version: 1.0
+Message-ID: <3A423423.F73F1225@innominate.de>
+Date: Thu, 21 Dec 2000 17:47:31 +0100
+From: Daniel Phillips <phillips@innominate.de>
+MIME-Version: 1.0
+Subject: Re: Interesting item came up while working on FreeBSD's pageout daemon
+References: <200012162016.eBGKGW902633@apollo.backplane.com>
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <3A16B4EE.5FF64EFF@conectiva.com.br>; from clausen@conectiva.com.br on Sat, Nov 18, 2000 at 02:57:18PM -0200
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Clausen <clausen@conectiva.com.br>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Matthew Dillon <dillon@apollo.backplane.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Nov 18, 2000 at 02:57:18PM -0200, Andrew Clausen wrote:
-> Christoph Hellwig wrote:
-> > 
-> > I would like to announce a new mailinglist devoted to the
-> > development of kiobuf based IO pathes.  The address is
-> > 
-> >         kiobuf-io-devel@lists.sourceforge.net
-> 
-> Could you post the subscription address/whatever?
-> 
-> Saves O(n) effort ;-)
+Matthew Dillon wrote:
+>     My conclusion from this is that I was wrong before when I thought that
+>     clean and dirty pages should be treated the same, and I was also wrong
+>     trying to give clean pages 'ultimate' priority over dirty pages, but I
+>     think I may be right giving dirty pages two go-arounds in the queue
+>     before flushing.  Limiting the number of dirty page flushes allowed per
+>     pass also works but has unwanted side effects.
 
-You can easily subscribe at
+Hi, I'm a newcomer to the mm world, but it looks like fun, so I'm
+jumping in. :-)
 
-    http://lists.sourceforge.net/mailman/listinfo/kiobuf-io-devel
+It looks like what you really want are separate lru lists for clean and
+dirty.  That way you can tune the rate at which dirty vs clean pages are
+moved from active to inactive.
 
+It makes sense that dirty pages should be treated differently from clean
+ones because guessing wrong about the inactiveness of a dirty page costs
+twice as much as guessing wrong about a clean page (write+read vs just
+read).  Does that mean that make dirty pages should hang around on
+probation twice as long as clean ones?  Sounds reasonable.
 
-	Christoph
+I was going to suggest aging clean and dirty pages at different rates,
+then I realized that an inactive_dirty page actually has two chance to
+be reactivated, once while it's on inactive_dirty, and again while it's
+on inactive_clean, and you get a double-length probation from that.
 
--- 
-Whip me.  Beat me.  Make me maintain AIX.
+--
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
