@@ -1,80 +1,85 @@
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71]) by fgwmail5.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i942X1UI026383 for <linux-mm@kvack.org>; Mon, 4 Oct 2004 11:33:01 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s1.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i942X0ND026978 for <linux-mm@kvack.org>; Mon, 4 Oct 2004 11:33:00 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s1.gw.fujitsu.co.jp (s1 [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id ADFCF216FC1
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2004 11:33:00 +0900 (JST)
+Received: from fjmail504.fjmail.jp.fujitsu.com (fjmail504-0.fjmail.jp.fujitsu.com [10.59.80.102])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 49C71216F54
+	for <linux-mm@kvack.org>; Mon,  4 Oct 2004 11:33:00 +0900 (JST)
+Received: from jp.fujitsu.com
+ (fjscan502-0.fjmail.jp.fujitsu.com [10.59.80.122]) by
+ fjmail504.fjmail.jp.fujitsu.com
+ (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
+ with ESMTP id <0I5100A8AGEYNX@fjmail504.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Mon,  4 Oct 2004 11:32:59 +0900 (JST)
+Date: Mon, 04 Oct 2004 11:38:32 +0900
+From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20041003.131338.41636688.taka@valinux.co.jp>
-References: <20041001234200.GA4635@logos.cnet>
-	 <20041002.183015.41630389.taka@valinux.co.jp>
-	 <20041002183349.GA7986@logos.cnet>
-	 <20041003.131338.41636688.taka@valinux.co.jp>
-Content-Type: text/plain
-Message-Id: <1096856540.3684.7610.camel@localhost>
-Mime-Version: 1.0
-Date: Sun, 03 Oct 2004 19:22:20 -0700
-Content-Transfer-Encoding: 7bit
+In-reply-to: <20041001182221.GA3191@logos.cnet>
+Message-id: <4160B7A8.7010607@jp.fujitsu.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii; format=flowed
+Content-transfer-encoding: 7bit
+References: <20041001182221.GA3191@logos.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: marcelo.tosatti@cyclades.com, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, piggin@cyberone.com.au, Arjan van de Ven <arjanv@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-mm@kvack.org, akpm@osdl.org, Nick Piggin <piggin@cyberone.com.au>, arjanv@redhat.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2004-10-02 at 21:13, Hirokazu Takahashi wrote:
-> > Questions: are there any documents on the memory hotplug userspace tools? 
-> > Where can I find them?
-> 
-> IBM guys and Fujitsu guys are designing user interface independently.
-> IBM team is implementing memory section hotplug while Fujitsu team
-> try to implement NUMA node hotplug. But both of the designs use
-> regular hot-plug mechanism, which kicks /sbin/hotplug script to control
-> devices via sysfs.
-> 
-> Dave, would you explain about it?
+how about inserting this if-sentense ?
 
-First of all, we're still on the first set of these APIs.  So, either
-we're really, really smart (unlikely) or we have a few revisions an
-rewrites to go before everybody is happy.
+-- Kame
 
-ls /sys/devices/system/memory/ gives you each memory area, with
-arbitrary numbers like this:
-memory0
-memory1
-memory2
-memory8953
+Marcelo Tosatti wrote:
+> +int coalesce_memory(unsigned int order, struct zone *zone)
+> +{
+<snip>
 
-We haven't decided whether to make each of those represent a constant
-sized area, or let them be variable.  In any case, there will either be
-a range inside of each or a global block size something like here:
+> +		while (entry != &area->free_list) {
+> +			int ret;
+> +			page = list_entry(entry, struct page, lru);
+> +			entry = entry->next;
+> +
 
-	/sys/devices/system/memory/block_size
+   +              if (((page_to_pfn(page) - zone->zone_start_pfn) & (1 << toorder)) {
 
-Each memory device would have a directory like this:
-
-# ls /sys/devices/system/memory/memory8953/
-node -> ../../node/node4 (for the NUMA case)
-state
-phys_start_addr
-
-To take a memory section offline, you 
-		
-	echo offline > /sys/devices/system/memory/memory8953/state
-
-For now, that takes the section offline by allocating all of its pages
-and migrating the test.  It also removes the sysfs node, triggering a
-/sbin/hotplug event for the device removal.  We might makes this 2
-different states in the future (offline and removal).  This could also
-potentially be triggered by hardware alone.
-
-For now, you can also add memory, but it's hackish and will certainly
-change:
-
-	echo 0x8000000 > /sys/devices/system/memory/probe
-
-will add SECTION_SIZE amount of memory at 2GB.  Yes, SECTION_SIZE is
-hard-coded, but this is only for testing.  We'll eventually take ranges
-and maybe NUMA information into there somehow.  Why can't the hardware
-just do this?  It's a long story :)
-
--- 
-Dave Hansen
-haveblue@us.ibm.com
+> +			pwalk = page;
+> +
+> +			/* Look backwards */
+> +
+> +			for (walkcount = 1; walkcount<nr_pages; walkcount++) {
+                         ..................
+> +			}
+> +
+   +               } else {
+> +forward:
+> +
+> +			pwalk = page;
+> +
+> +			/* Look forward, skipping the page frames from this 
+> +			  high order page we are looking at */
+> +
+> +			for (walkcount = (1UL << torder); walkcount<nr_pages; 
+> +					walkcount++) {
+> +				pwalk = page+walkcount;
+> +
+> +				ret = can_move_page(pwalk);
+> +
+> +				if (ret) 
+> +					nr_freed_pages++;
+> +				else
+> +					goto loopey;
+> +
+> +				if (nr_freed_pages == nr_pages)
+> +					goto success;
+> +			}
+> +
+   +                }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
