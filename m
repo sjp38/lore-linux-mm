@@ -1,81 +1,83 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: shared pagetable benchmarking
-Date: Fri, 27 Dec 2002 16:59:09 +0100
-References: <3E02FACD.5B300794@digeo.com> <E18RqyB-0001ui-00@starship> <3E0C2462.ADF727C7@digeo.com>
-In-Reply-To: <3E0C2462.ADF727C7@digeo.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id PAA02003
+	for <linux-mm@kvack.org>; Sat, 28 Dec 2002 15:28:23 -0800 (PST)
+Message-ID: <3E0E3394.489C7BD6@digeo.com>
+Date: Sat, 28 Dec 2002 15:28:20 -0800
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E18RwtV-0001up-00@starship>
+Subject: Re: shared pagetable benchmarking
+References: <3E0D4B83.FEE220B8@digeo.com> <Pine.LNX.4.44.0212272338040.4568-100000@home.transmeta.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, Daniel Phillips <phillips@arcor.de>
-Cc: Dave McCracken <dmccr@us.ibm.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Dave McCracken <dmccr@us.ibm.com>, Daniel Phillips <phillips@arcor.de>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+Linus Torvalds wrote:
+> 
+> > ...
+> The mmap() case should
+> _not_ use that system call path at all, but should instead just call the
+> populate function directly. Something like the appended patch.
 
-On Friday 27 December 2002 10:58, Andrew Morton wrote:
-> > A feature of my original demonstration patch was that I could
-> > enable/disable sharing with a per-fork granularity.  This is a good
-> > thing.  You can use this by detecting the case you can't optimize, i.e.,
-> > forking from bash, and essentially using the old code.  The sawoff for
-> > improved efficiency comes in somewhere over 4 meg worth of shared memory,
-> > which just doesn't happen in fork+exec from bash.  Then there is
-> > always-unshare situation with the stack, which I'm sure you're aware of,
-> > where it's never worth doing the share.
->
-> Yes, Dave did a prototype of that, and I am sure that it will pull back
-> the small additional cost of pagetable sharing in those cases.
->
-> But that's not the problem.  The problem is that it doesn't *speed up*
-> that case.  Which appears to be the only thing which interests Linus
-> in shared pagetables at this time: he "_hate_"s the fact that fork/exec
-> got slower.
+Seems to do the right thing, but alas, it's slower:
 
-Did you ask Linus?  To my thinking, if it breaks even on small forks and wins
-on the big forks that are bothering the database people etc (and aren't we 
-all database people in the end) it's a clear win.
+without:
+pushpatch 99  8.20s user 10.00s system 99% cpu 18.341 total
+poppatch 99  5.76s user 6.65s system 99% cpu 12.521 total
+c0114c64 kmap_atomic_to_page                          84   0.9438
+c01308ec handle_mm_fault                              92   0.4340
+c01c4b58 __copy_from_user                             94   0.8393
+c012f330 clear_page_tables                           113   0.5650
+c01305b0 do_anonymous_page                           123   0.3844
+c011a9c0 do_softirq                                  145   0.8239
+c0113d9c pte_alloc_one                               146   1.1406
+c012f534 copy_page_range                             174   0.3595
+c01c4af0 __copy_to_user                              188   1.8077
+c01306f0 do_no_page                                  241   0.4744
+c012f718 zap_pte_range                               265   0.6370
+c0113ec0 do_page_fault                               321   0.2956
+c0133a8c page_add_rmap                               322   1.1838
+c0114be4 kmap_atomic                                 326   3.0185
+c0133b9c page_remove_rmap                            360   0.9574
+c012ff54 do_wp_page                                 1245   1.9095
+00000000 total                                      6812   0.0042
 
-> > That said, was not Ingo working on a replacement for fork+exec that
-> > doesn't do the useless fork?  Would this not make the vast majority of
-> > impossible-to-optimize cases go away?
->
-> That's news to me.
->
-> posix_spawn() has been suggested by Ulrich, and he says that things like
-> bash could easily be converted.
+(374019 pagefaults)
 
-Yes, that's the reference.  I somehow got Ingo mixed in there because they 
-were doing the thread cleanups together at the time, which quite possibly 
-inspired that rather badly needed improvement.
+with:
+pushpatch 99  8.16s user 11.76s system 99% cpu 20.072 total
+poppatch 99  5.68s user 7.93s system 99% cpu 13.656 total
+c012f330 clear_page_tables                           111   0.5550
+c0114c64 kmap_atomic_to_page                         121   1.3596
+c0113d9c pte_alloc_one                               140   1.0938
+c011a9c0 do_softirq                                  150   0.8523
+c01305b0 do_anonymous_page                           157   0.4906
+c01c4af0 __copy_to_user                              157   1.5096
+c012e590 install_page                                202   0.6012
+c0113ec0 do_page_fault                               209   0.1924
+c012f534 copy_page_range                             215   0.4442
+c01306f0 do_no_page                                  224   0.4409
+c0114be4 kmap_atomic                                 392   3.6296
+c012f718 zap_pte_range                               417   1.0024
+c0133a8c page_add_rmap                               563   2.0699
+c0133b9c page_remove_rmap                            653   1.7367
+c012ff54 do_wp_page                                 1318   2.0215
+00000000 total                                      8072   0.0050
 
-> I don't how much it would gain - possibly not a huge amount; the rmap
-> setup in exec seems to be where the major cost lies.  Plus there's still
-> exit().
+(240622 pagefaults)
 
-What you'd lose is the useless setup/teardown of three page table pages every 
-fork+exec, a good thing regardless of page table sharing, but especially 
-convenient for sharing, as it carves away a good percentage of the 
-non-improved cases, allowing the improved ones to stand out more.
+That's uniprocessor, highpte.  Presumably there are lots of cached
+libc pages which these scripts don't actually need.
 
-Anyway, I'll bow out of the rmap-optimizing game until next cycle.  There are 
-still some nice optimizations that can be done, but what's the hurry?  There 
-is plenty of longstanding kernel badness that dwarves this in importance 
-(knfsd comes to mind).  I am just glad that rmap has stuck, as I am very 
-happy to trade a few percentage points of speed in some applications that 
-suck by design, in return for a VM that actually gives BSD a run for its 
-money in terms of stability.
+It needs more analysis/instrumentation/work, but it's not promising.
 
-I guess that if pte sharing doesn't make it into Linus's tree then Redhat 
-will be only too pleased to make it part of Advanced Server, as there are a 
-couple of ridiculously big tech companies I could name that need it so badly 
-it hurts.
-
-Regards,
-
-Daniel
+Cache misses against the pte_chains is what is hurting here. Something
+which may help on P4 is to keep the pte_chains at 32 bytes, so that
+virtually-adjacent pages' pte_chains will probably share cachelines.  I
+have a pseudo-4way HT box sitting here awaiting commissioning...
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
