@@ -1,44 +1,44 @@
-Date: Tue, 11 Apr 2000 18:40:06 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: zap_page_range(): TLB flush race
-In-Reply-To: <38F339A2.FB3F1699@colorfullife.com>
-Message-ID: <Pine.LNX.4.21.0004111824090.19969-100000@maclaurin.suse.de>
+Date: Tue, 11 Apr 2000 14:40:37 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
+Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
+In-Reply-To: <Pine.LNX.4.21.0004111752550.19969-100000@maclaurin.suse.de>
+Message-ID: <Pine.LNX.4.21.0004111438440.1118-100000@duckman.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfreds@colorfullife.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "David S. Miller" <davem@redhat.com>, alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Ben LaHaise <bcrl@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Apr 2000, Manfred Spraul wrote:
+On Tue, 11 Apr 2000, Andrea Arcangeli wrote:
+> On Mon, 10 Apr 2000, Kanoj Sarcar wrote:
+> 
+> >While forking, a parent might copy a swap handle into the child, but we
+> 
+> That's a bug in fork. Simply let fork to check if the swaphandle
+> is SWAPOK or not before increasing the swap count. If it's
+> SWAPOK then swap_duplicate succesfully,
 
->* They need the old pte value and the virtual address for their flush
->ipi.
+"it was hard to write, it should be hard to maintain"
 
-Why can't they flush all the address space unconditionally on the other
-cpus? I can't find a valid reason for which they do need the old pte
-value. The tlb should be a virtual->physical mapping only, the pte isn't
-relevant at all with the TLB. however if they really need both old pte
-address and the virtual address of the page, they can trivially pass the
-parameters to the other CPUs acquring a spinlock and using some global
-variable exactly as IA32 does to avoid flushing the whole TLB on the other
-CPUs in the flush_tlb_page case.
+Relying on pieces of magic like this, spread out all over
+the kernel source will make the code more fragile and hell
+to maintain.
 
->Obviously their work-around
->	flush_tlb_page()
->	set_pte()
->is wrong as well, and it breaks all other architectures :-/
+Unless somebody writes the documentation for all of this,
+of course...
 
-I bet it breaks s390 too.
+regards,
 
-The other filemap_sync race with threads that Kanoj was talking about is
-very less severe since it can't make the machine unstable, but it can only
-forgot to write some bit using strange userspace app design (only _data_
-corruption can happen to the shared mmaping of the patological app).
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-Andrea
-
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
