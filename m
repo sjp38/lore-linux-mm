@@ -1,62 +1,43 @@
-Date: Tue, 14 May 2002 08:39:56 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 72C4138DEB
+	for <linux-mm@kvack.org>; Tue, 14 May 2002 13:36:11 -0300 (EST)
+Date: Tue, 14 May 2002 13:36:00 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC][PATCH] iowait statistics
-Message-ID: <20020514153956.GI15756@holomorphy.com>
-References: <Pine.LNX.4.44L.0205132214480.32261-100000@imladris.surriel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44L.0205132214480.32261-100000@imladris.surriel.com>
+In-Reply-To: <20020514153956.GI15756@holomorphy.com>
+Message-ID: <Pine.LNX.4.44L.0205141335080.9490-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: William Lee Irwin III <wli@holomorphy.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 13, 2002 at 10:19:26PM -0300, Rik van Riel wrote:
-> 2) if no process is running, the timer interrupt adds a jiffy
->    to the iowait time
-[...]
-> 4) on SMP systems the iowait time can be overestimated, no big
->    deal IMHO but cheap suggestions for improvement are welcome
+On Tue, 14 May 2002, William Lee Irwin III wrote:
+> On Mon, May 13, 2002 at 10:19:26PM -0300, Rik van Riel wrote:
+> > 2) if no process is running, the timer interrupt adds a jiffy
+> >    to the iowait time
+> [...]
+> > 4) on SMP systems the iowait time can be overestimated, no big
+> >    deal IMHO but cheap suggestions for improvement are welcome
+                     ^^^^^
+> This appears to be global across all cpu's. Maybe nr_iowait_tasks
+> should be accounted on a per-cpu basis, where
 
-This appears to be global across all cpu's. Maybe nr_iowait_tasks
-should be accounted on a per-cpu basis, where
+While your proposal should work, somehow I doubt it's worth
+the complexity. It's just a statistic to help sysadmins ;)
 
-	(1) If a task sleeps for an io while bound to a cpu it
-		counts toward the cpu's number of iowait tasks.
+regards,
 
-	(2) iowait time is accounted and reports are generated already
-		on a per-cpu basis, so there's nothing to do there.
+Rik
+-- 
+	http://www.linuxsymposium.org/2002/
+"You're one of those condescending OLS attendants"
+"Here's a nickle kid.  Go buy yourself a real t-shirt"
 
-	(3) The global statistic does not need to be entirely accurate;
-		a lockfree approximation by summing across all cpus'
-		local counters should suffice for global iowait. I also
-		suspect it will not fluctuate rapidly enough for truly
-		horribly inaccurate results to occur.
+http://www.surriel.com/		http://distro.conectiva.com/
 
-	(4) A per-cpu nr_iowait_tasks counter may still well need
-		to be atomic as other cpu's may be stealing sleeping
-		tasks purportedly bound to a given cpu at migration
-		time (in order to prevent going negative) and in that
-		process altering other cpus' counters.
-
-	(5) A flag marking a task as in iowait may well need to be kept
-		in the task_struct so that at migration time the
-		appropriate counter adjustments can be made.
-
-	(6) Given sufficient cpu affinity in the scheduler the case
-		where one cpu's counter needs alteration from another
-		should be relatively uncommon.
-
-The scheduler already participates in keeping per_cpu_user[],
-per_cpu_system[], and per_cpu_nice[] up-to-date, so it's not
-unreasonable to expect its support for per_cpu_iowait[].
-
-
-Cheers,
-Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
