@@ -1,30 +1,34 @@
-Date: Wed, 7 Jun 2000 18:13:14 +0100
+Date: Wed, 7 Jun 2000 18:14:05 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: reiserfs being part of the kernel: it's not just the code
-Message-ID: <20000607181314.V30951@redhat.com>
-References: <20000607120030.D29432@redhat.com> <Pine.LNX.4.21.0006071409020.14304-100000@duckman.distro.conectiva>
+Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel: it'snot just the code)
+Message-ID: <20000607181405.W30951@redhat.com>
+References: <20000607144102.F30951@redhat.com> <Pine.LNX.4.21.0006071103560.14304-100000@duckman.distro.conectiva> <20000607154620.O30951@redhat.com> <yttog5decvq.fsf@serpe.mitica> <20000607163519.S30951@redhat.com> <393E8204.D7AAACC5@timpanogas.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0006071409020.14304-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Wed, Jun 07, 2000 at 02:11:42PM -0300
+In-Reply-To: <393E8204.D7AAACC5@timpanogas.com>; from jmerkey@timpanogas.com on Wed, Jun 07, 2000 at 11:10:28AM -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org
+To: "Jeff V. Merkey" <jmerkey@timpanogas.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Quintela Carreira Juan J." <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>, Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Wed, Jun 07, 2000 at 02:11:42PM -0300, Rik van Riel wrote:
+On Wed, Jun 07, 2000 at 11:10:28AM -0600, Jeff V. Merkey wrote:
+> 
+> When will the journalling subsystem you are working on be available, and
+> where can I get it to start integration work.  It sounds like you will
+> be "bundling"  associated LRU meta-data blocks in the buffer cache for
+> journal commits?  What Alan described to me sounds fairly decent.  I am
+> wondering when you will have this posted so the rest of us can
+> instrument your journalling code into our FS's.
 
-> Maybe OLS would be a more suitable event to discuss these
-> matters?  Most of the people involved seem to be speaking
-> at OLS anyway (and the GFS people are relatively near, at
-> car or train distance, almost).
+Have a look at the fs/jfs directory in ext3 if you want to see
+what I've been implementing.
 
-Sure, I can do OLS too.
-
---Stephen
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
