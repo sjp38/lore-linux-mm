@@ -1,42 +1,44 @@
-Date: Fri, 19 Jul 2002 02:30:27 -0700 (MST)
-From: Craig Kulesa <ckulesa@as.arizona.edu>
-Subject: [PATCH 6/6] VM statistics for full rmap
-Message-ID: <Pine.LNX.4.44.0207190154390.4647-100000@loke.as.arizona.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 19 Jul 2002 22:19:57 +0530
+From: Amit Shah <shahamit@gmx.net>
+Subject: Re: [PATCH] strict VM overcommit for stock 2.4
+Message-Id: <20020719221957.068f8323.shahamit@gmx.net>
+In-Reply-To: <1027018996.1116.136.camel@sinai>
+References: <Pine.LNX.3.95.1020718144203.1123A-100000@chaos.analogic.com>
+	<1027018996.1116.136.camel@sinai>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
+To: Robert Love <rml@tech9.net>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+One question: do you have a strict vm overcommit patch for 2.4.18?
 
-This adopts Rik van Riel's recent extended VM statistics patch for the 
-'armed-to-the-gills-kitchen-sink rmap' against 2.5.26.  The aim, in 
-combination with a meaningful benchmark suite, is to be able to have the 
-statistical ammunition to fine tune the VM properly, rather than twiddling 
-all knobs at once hoping to make things better. 
+On 18 Jul 2002 12:03:16 -0700
+Robert Love <rml@tech9.net> wrote:
 
-Get the patch series here: 
-	http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/2.5.26/
+RL> On Thu, 2002-07-18 at 11:56, Richard B. Johnson wrote:
+RL> 
+RL> > What should have happened is each of the tasks need only about
+RL> > 4k until they actually access something. Since they can't possibly
+RL> > access everything at once, we need to fault in pages as needed,
+RL> > not all at once. This is what 'overcomit' is, and it is necessary.
+RL> 
+RL> Then do not enable strict overcommit, Dick.
+RL> 
+RL> > If you have 'fixed' something so that no RAM ever has to be paged
+RL> > you have a badly broken system.
+RL> 
+RL> That is not the intention of Alan or I's work at all.
+RL> 
+RL> 	Robert Love
 
-Rik's original announcement is here:
-	http://mail.nl.linux.org/linux-mm/2002-07/msg00172.html
+--- 
 
-and I have added Bill Irwin's alterations to the patch, described here:
-	http://www.cs.helsinki.fi/linux/linux-kernel/2002-28/1287.html
-
-Given the late hour, I have almost certainly forgotten some hooks in 
-vmscan, so count it as a first, harmless cut at the problem.  Feedback 
-and fixes welcome! :)
-
-For 2.5.27, I'll make sure this patch is incremental to Rik's stats patch, 
-and not a replacement for it.  Sorry 'bout that...
-
-Craig Kulesa
-Steward Observatory
-Univ. of Arizona
-
+  - Amit
+Want to know more about me? Follow this link-> http://amitshah.nav.to/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
