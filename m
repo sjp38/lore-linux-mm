@@ -1,48 +1,56 @@
-Message-ID: <39147CB9.256D1EEA@norran.net>
-Date: Sat, 06 May 2000 22:12:41 +0200
-From: Roger Larsson <roger.larsson@norran.net>
+Date: Sat, 6 May 2000 15:31:58 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
+Subject: Re: PG_referenced and lru_cache (cpu%)...
+In-Reply-To: <39147CB9.256D1EEA@norran.net>
+Message-ID: <Pine.LNX.4.21.0005061529280.4627-100000@duckman.conectiva>
 MIME-Version: 1.0
-Subject: PG_referenced and lru_cache (cpu%)...
-References: <8evk0f$7jote$1@fido.engr.sgi.com> <39145287.D8F1F0C1@sgi.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: Roger Larsson <roger.larsson@norran.net>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sat, 6 May 2000, Roger Larsson wrote:
 
-When _add_to_page_cache adds a page to the lru_cache
-it forces it to be referenced.
+> When _add_to_page_cache adds a page to the lru_cache
+> it forces it to be referenced.
+> In addition it will be added as youngest in list.
 
-In addition it will be added as youngest in list.
+Which is IMHO a good thing, since the page *was* referenced
+and was referenced last.
 
-When a page is needed it is very likely that a lot of
-the youngest pages are marked as referenced.
+> When a page is needed it is very likely that a lot of
+> the youngest pages are marked as referenced.
 
-In other cases when a pages is moved to front the
-PG_referenced is cleared.
+> order=0 is the only that tries to search the full list.
 
-order=0 is the only that tries to search the full list.
+No. Referenced pages are not counted, so if we encounter
+a lot of them we will happily age them all without decreasing
+the value of count.
 
-When the shrink_mmap finds PG_referenced pages they are
-moved to local list young and will not be inserted before
-shink_mmap returns, again does not matter...
+> When the shrink_mmap finds PG_referenced pages they are
+> moved to local list young and will not be inserted before
+> shink_mmap returns, again does not matter...
 
-With "all" possible pages in young, the list is searched
-maxloop (256) times... (with a lot of CPU usage)
+So the next time shrink_mmap() is called, we'll free the
+page.
 
-Conclusion:
+> Conclusion:
 
-I think PG_reference should be cleared in lru_cache_add
-and that shrink_mmap should place referenced pages on top
-not on an separate list.
+	[snip]
 
+regards,
+
+Rik
 --
-Home page:
-  http://www.norran.net/nra02596/
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
