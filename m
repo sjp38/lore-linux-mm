@@ -1,136 +1,104 @@
-Message-ID: <4153C1FA.3070508@sgi.com>
-Date: Fri, 24 Sep 2004 01:43:06 -0500
+Message-ID: <41544097.1020500@sgi.com>
+Date: Fri, 24 Sep 2004 10:43:19 -0500
 From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm: eliminate node 0 bias in MPOL_INTERLEAVE
-References: <20040923043236.2132.2385.23158@raybryhome.rayhome.net> <20040923043256.2132.93167.33080@raybryhome.rayhome.net> <20040923092954.GA4836@wotan.suse.de>
-In-Reply-To: <20040923092954.GA4836@wotan.suse.de>
+Subject: Re: [PATCH 0/2] mm: memory policy for page cache allocation
+References: <fa.b014hh3.12l6193@ifi.uio.no> <fa.ep2m52m.1p0edrq@ifi.uio.no>
+In-Reply-To: <fa.ep2m52m.1p0edrq@ifi.uio.no>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Ray Bryant <raybry@austin.rr.com>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>, Nick Piggin <piggin@cyberone.com.au>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>
+To: Steve Longerbeam <stevel@mwwireless.net>
+Cc: linux-mm <linux-mm@kvack.org>, lse-tech <lse-tech@lists.sourceforge.net>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-(Resending to removing annoying long lines....)
+Steve Longerbeam wrote:
+> Ray Bryant wrote:
+> 
+>> Hi Steve,
+>>
 
-Andi Kleen wrote:
-> On Wed, Sep 22, 2004 at 11:32:45PM -0500, Ray Bryant wrote:
-> 
->>Each of these cases potentially breaks the (assumed) invariant of
-> 
-> 
-> I would prefer to keep the invariant.
+<snip>
+
+
+> So in MTA there is only one policy, which is very similar to the BIND 
+> policy in
+> 2.6.8.
+>
+> MTA requires per mapped file policies. The patch I posted adds a
+> shared_policy tree to the address_space object, so that every file
+> can have it's own policy for page cache allocations. A mapped file
+> can have a tree of policies, one for each mapped region of the file,
+> for instance, text and initialized data. With the patch, file mapped
+> policies would work across all filesystems, and the specific support
+> in tmpfs and hugetlbfs can be removed.
+>
+
+Just mapped files, not regular files as well?  So you don't care about
+placement of page cache pages for regular files?
+
+> The goal of MTA is to direct an entire program's resident pages (text
+> and data regions of the executable and all its shared libs) to a
+> single node or a specific set of nodes. The primary use of MTA (by
+> the customer) is to allow portions of memory to be powered off for
+> low power modes, and still have critical system applications running.
 > 
 
-I understand, but read on.
+Interesting.  Sounds like there is a lot of commonality between what you
+want and we want.
+
+> In MTA the executable file's policies are stored in the ELF image.
+> There is a utility to add a section containing the list of prefered nodes
+> for the executable's text and data regions. That section is parsed by
+> load_elf_binary(). The section data is in the form of mnemonic node
+> name strings, which load_elf_binary() converts to a node id list.
+
+Above you said "per mapped file policies".  So it sounds as if you could have 
+different policies for different mapped files in a single application.  How
+do you specify which mapped file gets which policy using the info in the 
+header?  (in particular, how do you match up info the header with files in
+the application?  First one opened gets this policy, next gets that one, or 
+what?)  [I guess in this paragraph "policy" == "node list" for your case.]
+
+Or is the policy description more general, i. e. all text pages on nodes 3&5,
+all mapped file pages on nodes 4,7,9.
+
+Within a node list, is there any notion of local allocation?  That is, if
+the current policy puts mapped file pages on nodes 4, 7, 9, and a process
+on node 7 touches a page, is there a preference to allocate it on node 7?
 
 > 
->>+++ linux-2.6.9-rc2-mm1/mm/mempolicy.c	2004-09-21 17:44:58.000000000 -0700
->>@@ -435,7 +435,7 @@ asmlinkage long sys_set_mempolicy(int re
->> 		default_policy[policy] = new;
->> 	}
->> 	if (new && new->policy == MPOL_INTERLEAVE)
->>-		current->il_next = find_first_bit(new->v.nodes, MAX_NUMNODES);
->>+		current->il_next = current->pid % MAX_NUMNODES;
+> MTA also supports policies for the slab allocator.
 > 
-> 
-> Please do the find_next/find_first bit here in the slow path. 
-> 
-> Another useful change may be to check if il_next points to a node
-> that is in the current interleaving mask. If yes don't change it.
-> This way skew when interleaving policy is set often could be avoided.
-> 
-> 
->> 	return 0;
->> }
->> 
->>@@ -714,6 +714,11 @@ static unsigned interleave_nodes(struct 
->> 
->> 	nid = me->il_next;
->> 	BUG_ON(nid >= MAX_NUMNODES);
->>+	if (!test_bit(nid, policy->v.nodes)) {
->>+		nid = find_next_bit(policy->v.nodes, MAX_NUMNODES, 1+nid);
->>+		if (nid >= MAX_NUMNODES)
->>+			nid = find_first_bit(policy->v.nodes, MAX_NUMNODES);
->>+	}
-> 
-> 
-> And remove it here.
-> 
-> 
-Regardless of whether we remove this or not, then we have a potential problem,
-I think.  The reason is that there is a single il_next for all policies.  So
-we get into trouble if the current process's page allocation policy and
-its page cache allocation policy are MPOL_INTERLEAVE, but the node masks for
-the two policies are significantly different. Just to be specific, suppose
-there are 64 nodes, and the page allocation policy selects nodes 0-53 and
-the page cache allocation policy chooses nodes 54-63.  Further suppose that
-allocation requests are page, page cache, page, page cache, etc....
 
-Then if il_next starts out at zero, here are the nodes that will be selected:
-(I'm assuming here that the code I inserted above is not present.)
+Is that a global or per process policy or is it finer grained than that?
+(i. e. by cache type).
 
-request a page, get 0 and using the page allocation mask, next is set to 1
-
-request page cache, get 1 and using the page cache allocation mask, next is 
-set to 54
-
-request a page, get 54 and using the page allocation mask, next is set to 0
-
-request page cache, get 0  and using the page cache allocation mask, next is 
-set to 54
-
-request a page, get 54 and using the page allocation mask, next is set to 0
-etc...
-
-This is not good.  Generally speaking, all of the pages are allocated from the
-1st page cache node and all of the page cache pages are allocated from the 1st
-page allocation node.
-
-I guess I am back to passing an offset etc in via page cache alloc.  Or we
-have to have a second il_next for the page cache policy, and that is more
-cruft than we are willing to live with, I expect.
-
-I'll look at Steve's patch and see how he handles this.
-
->> 	next = find_next_bit(policy->v.nodes, MAX_NUMNODES, 1+nid);
->> 	if (next >= MAX_NUMNODES)
->> 		next = find_first_bit(policy->v.nodes, MAX_NUMNODES);
->>Index: linux-2.6.9-rc2-mm1/kernel/fork.c
->>===================================================================
->>--- linux-2.6.9-rc2-mm1.orig/kernel/fork.c	2004-09-21 16:24:49.000000000 -0700
->>+++ linux-2.6.9-rc2-mm1/kernel/fork.c	2004-09-21 17:41:12.000000000 -0700
->>@@ -873,6 +873,8 @@ static task_t *copy_process(unsigned lon
->> 			goto bad_fork_cleanup;
->> 		}
->> 	}
->>+	/* randomize placement of first page across nodes */
->>+	p->il_next = p->pid % MAX_NUMNODES;
+>>
+>> (Just trying to figure out how to work both of our requirements into
+>> the kernel in as simple as possible (but no simpler!) fashion.)
 > 
 > 
-> Same here.
 > 
-> -Andi
+> could we have both a global page cache policy as well as per file
+> policies. That is, if a mapped file has a policy, it overrides the
+> global policy. That would work fine for MTA.
+> 
+
+I don't see why not.  You could fall back on that if there is no
+file policy.
+
+When you are done, is the intent to merge this into the mainline or does
+MontaVista intend to maintain a "added value" patch of some kind?
+
+> Steve
 > -
 > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
 > the body of a message to majordomo@vger.kernel.org
 > More majordomo info at  http://vger.kernel.org/majordomo-info.html
 > Please read the FAQ at  http://www.tux.org/lkml/
-> 
 
-
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
