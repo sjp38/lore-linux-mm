@@ -1,72 +1,60 @@
-Received: from atlas.infra.CARNet.hr (zcalusic@atlas.infra.CARNet.hr [161.53.160.131])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA16057
-	for <linux-mm@kvack.org>; Wed, 29 Apr 1998 15:48:17 -0400
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA22180
+	for <linux-mm@kvack.org>; Thu, 30 Apr 1998 17:20:14 -0400
+Date: Thu, 30 Apr 1998 22:57:02 +0200 (MET DST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Subject: Re: Out of VM idea
-References: <Pine.LNX.3.91.980429071621.20465B-100000@mirkwood.dummy.home>
-Reply-To: Zlatko.Calusic@CARNet.hr
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 29 Apr 1998 21:46:58 +0200
-In-Reply-To: Rik van Riel's message of "Wed, 29 Apr 1998 07:19:51 +0200 (MET DST)"
-Message-ID: <8790ootnpp.fsf@atlas.infra.CARNet.hr>
+In-Reply-To: <8790ootnpp.fsf@atlas.infra.CARNet.hr>
+Message-ID: <Pine.LNX.3.91.980430225256.1311H-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+To: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
 Cc: George <greerga@nidhogg.ham.muohio.edu>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
+On 29 Apr 1998, Zlatko Calusic wrote:
 
-> On Tue, 28 Apr 1998, George wrote:
-> > On Tue, 28 Apr 1998, Rik van Riel wrote:
-> > 
-> > >Following some observations from Michael Remski (sent
-> > >to me by private e-mail), I've come to the conlusion
-> > >that we really should do something about out-of-VM
-> > >situations.
-> > 
-> > At the moment, (2.1.98), I can lock my 64 MB machine up with a 'make
-> > MAKE='make -j20' zImage'.
-> > 
-> > At the time of memory death:
-> > * It has 4 megabytes of free pages.
-> > * It has 6 megabytes of buffer memory.
-> > * But it dies because it has 0 swap left.
-> > 
-> > Those hard limits on memory how much memory to not grab should definitely
-> > go. 
+> > You can tune the buffermem & pagecache amount of memory
+> > in /proc/sys/vm/{buffermem,pagecache}.
 > 
-> You can tune the buffermem & pagecache amount of memory
-> in /proc/sys/vm/{buffermem,pagecache}.
+> Every time before he starts compiling, and then return to old values
+> when he's finished?
+> 
+> IMNSHO, kernel should be autotuning.
 
-Every time before he starts compiling, and then return to old values
-when he's finished?
+How do you propose we should do this? The round-robin
+deallocation and on-demand allocation of buffer/user
+pages are somewhat auto-tuning.
+Maybe we should age the page cache & buffermem pages
+to achieve a more LRU-like discarding scheme (the
+buffer pages are thrown out randomly at the moment).
 
-IMNSHO, kernel should be autotuning.
+> > But why your system has 4 MB of free memory I really
+> > don't know...
 
-> But why your system has 4 MB of free memory I really
-> don't know...
+> 	if (nr_free_pages > num_physpages >> 4)
+> 		return nr+1;
+> 
+> With 64MB of memory, last 4MB are almost never used!!!
 
-mm/page_alloc.c (in free_memory_available()):
+I believe George said something about my patch, with
+which the number should be lower.
+Anyway, the freepages number should be sysctl tunable,
+together with kswapd agressiveness and clustering
+size.
 
-	/*
-	 * If we have more than about 6% of all memory free,
-	 * consider it to be good enough for anything.
-	 * It may not be, due to fragmentation, but we
-	 * don't want to keep on forever trying to find
-	 * free unfragmented memory.
-	 */
-	if (nr_free_pages > num_physpages >> 4)
-		return nr+1;
+> MM in last kernels is not very good.
 
-With 64MB of memory, last 4MB are almost never used!!!
+True, but maybe Linus will integrate my patch, which
+makes the kernel behave somewhat more predictable, and
+which has a builtin low/high watermark so thrashing is
+reduced.
 
-MM in last kernels is not very good.
-
-Except Stephens great improvements of the swapping system, where he
-did a really good job, I believe we did a step backward with recent
-changes.
-
-Regards,
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-	  (A)bort, (R)etry, (P)retend this never happened...
+Rik.
++-------------------------------------------+--------------------------+
+| Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
+|        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
+|     http://www.phys.uu.nl/~riel/          | <H.H.vanRiel@phys.uu.nl> |
++-------------------------------------------+--------------------------+
