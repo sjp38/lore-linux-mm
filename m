@@ -1,85 +1,42 @@
+Date: Sun, 26 Mar 2000 22:07:48 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH] Re: kswapd
-References: <200003270121.RAA88890@google.engr.sgi.com>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 27 Mar 2000 00:02:31 -0600
-In-Reply-To: kanoj@google.engr.sgi.com's message of "Sun, 26 Mar 2000 17:21:11 -0800 (PST)"
-Message-ID: <m1aejlvtl4.fsf@flinx.hidden>
+In-Reply-To: <200003270121.RAA88890@google.engr.sgi.com>
+Message-ID: <Pine.LNX.4.10.10003262200520.1538-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: linux-mm@kvack.org
+Cc: riel@nl.linux.org, Russell King <rmk@arm.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-kanoj@google.engr.sgi.com (Kanoj Sarcar) writes:
 
-> What is the problem that your patch is fixing? 
-
+On Sun, 26 Mar 2000, Kanoj Sarcar wrote:
 > 
->                 do {
->                         /* kswapd is critical to provide GFP_ATOMIC
->                            allocations (not GFP_HIGHMEM ones). */
->                         if (nr_free_pages() - nr_free_highpages() >=
-> freepages.high)
-> 
->                                 break;
->                         if (!do_try_to_free_pages(GFP_KSWAPD, 0))
->                                 break;
->                         run_task_queue(&tq_disk);
->                 } while (!tsk->need_resched);
->                 tsk->state = TASK_INTERRUPTIBLE;
->                 interruptible_sleep_on(&kswapd_wait);
->         }
+> What is the problem that your patch is fixing?
 
-Hmm.  This loop runs until either 
-(a) it has free pages or
-(b) it has used up it's time slice.
+I agree with Rik's patch - the old behaviour kicked us out of the regular
+loop whenever "need_resched" was set, and that is not necessarily a good
+idea at all.
 
-> > --- linux-2.3.99-pre3/mm/vmscan.c.orig	Sat Mar 25 12:57:20 2000
-> > +++ linux-2.3.99-pre3/mm/vmscan.c	Sun Mar 26 21:37:19 2000
-> > @@ -499,19 +499,19 @@
-> >  		 * the processes needing more memory will wake us
-> >  		 * up on a more timely basis.
-> >  		 */
-> > -		do {
-> > -			pgdat = pgdat_list;
-> > -			while (pgdat) {
-> > -				for (i = 0; i < MAX_NR_ZONES; i++) {
-> > -					zone = pgdat->node_zones + i;
-> > - if ((!zone->size) || (!zone->zone_wake_kswapd))
-> 
-> > -						continue;
-> > -					do_try_to_free_pages(GFP_KSWAPD, zone);
-> > -				}
-> > -				pgdat = pgdat->node_next;
-> > +		pgdat = pgdat_list;
-> > +		while (pgdat) {
-> > +			for (i = 0; i < MAX_NR_ZONES; i++) {
-> > +				zone = pgdat->node_zones + i;
-> > +				if (tsk->need_resched)
-> > +					schedule();
-> > +				if ((!zone->size) || (!zone->zone_wake_kswapd))
-> > +					continue;
-> > +				do_try_to_free_pages(GFP_KSWAPD, zone);
-> >  			}
-> > -			run_task_queue(&tq_disk);
-> > -		} while (!tsk->need_resched);
-> > +			pgdat = pgdat->node_next;
-> > +		}
-> > +		run_task_queue(&tq_disk);
-> >  		tsk->state = TASK_INTERRUPTIBLE;
-> >  		interruptible_sleep_on(&kswapd_wait);
-> >  	}
+>From a conceptual standpoint, going to sleep when "need_resched" gets set
+is not the right thing at all - the flag doesn't really have any bearing
+on whether kswapd should sleep, it only has meaning from a scheduling
+latency standpoint (ie "need_resched" does not mean "go to sleep", it
+means "let somebody else run now" - different things).
 
-The removed loop runs until a reschedule is needed.
-Having enough memory isn't sufficient to get out of the loop.
-So it can spin in run_task_queue(&tq_disk);
+On the other hand you're definitely right that this is not a new bug
+introduced by you, Kanoj - this seems to be just a thinko that has been
+there for a long long time. And I suspect I may have been the original
+perpetrator of the crime.
 
-The added loop runs only while (pgdat).
-Running out of time slice will put it to sleep now.
+The new code looks much saner: it reschedules when asked to, and it stops
+looping when it makes sense (ie when there is no longer any reason to free
+pages). Instead of mixing the two up.
 
-Eric
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
