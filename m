@@ -1,80 +1,82 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA28170
-	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 14:00:48 -0500
-Date: Wed, 25 Nov 1998 17:47:18 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: Two naive questions and a suggestion
-In-Reply-To: <199811251446.OAA01094@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.981125173723.11080C-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA28648
+	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 15:43:30 -0500
+Subject: Re: Linux-2.1.129..
+References: <m1r9uudxth.fsf@flinx.ccr.net> <Pine.LNX.3.95.981123120028.5712B-100000@penguin.transmeta.com> <199811241525.PAA00862@dax.scot.redhat.com>
+Reply-To: Zlatko.Calusic@CARNet.hr
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: 8bit
+From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Date: 25 Nov 1998 21:33:50 +0100
+In-Reply-To: "Stephen C. Tweedie"'s message of "Tue, 24 Nov 1998 15:25:03 GMT"
+Message-ID: <87n25f5x75.fsf@atlas.CARNet.hr>
 Sender: owner-linux-mm@kvack.org
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: jfm2@club-internet.fr, Linux MM <linux-mm@kvack.org>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, Linux-MM List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 25 Nov 1998, Stephen C. Tweedie wrote:
-> On Wed, 25 Nov 1998 14:08:47 +0100 (CET), Rik van Riel
-> <H.H.vanRiel@phys.uu.nl> said:
-> 
-> > If we tried to implement RSS limits now, it would mean that
-> > the large task(s) we limited would be continuously thrashing
-> > and keep the I/O subsystem busy -- this impacts the rest of
-> > the system a lot.
-> 
-> WRONG.  We can very very easily unlink pages from a process's pte
-> (hence reducing the process's RSS) without removing that page from
-> memory.  It's trivial.  We do it all the time.  Rik, you should
-> probably try to work out how try_to_swap_out() actually works one of
-> these days.
+"Stephen C. Tweedie" <sct@redhat.com> writes:
 
-I just looked in mm/vmscan.c of kernel version 2.1.129, and
-line 173, 191 and 205 feature a prominent:
-			free_page_and_swap_cache(page);
+> --- mm/vmscan.c~	Tue Nov 17 15:43:55 1998
+> +++ mm/vmscan.c	Mon Nov 23 17:05:33 1998
+> @@ -170,7 +170,7 @@
+>  			 * copy in memory, so we add it to the swap
+>  			 * cache. */
+>  			if (PageSwapCache(page_map)) {
+> -				free_page_and_swap_cache(page);
+> +				free_page(page);
+>  				return (atomic_read(&page_map->count) == 0);
+>  			}
+>  			add_to_swap_cache(page_map, entry);
+> @@ -188,7 +188,7 @@
+>  		 * asynchronously.  That's no problem, shrink_mmap() can
+>  		 * correctly clean up the occassional unshared page
+>  		 * which gets left behind in the swap cache. */
+> -		free_page_and_swap_cache(page);
+> +		free_page(page);
+>  		return 1;	/* we slept: the process may not exist any more */
+>  	}
+>  
+> @@ -202,7 +202,7 @@
+>  		set_pte(page_table, __pte(entry));
+>  		flush_tlb_page(vma, address);
+>  		swap_duplicate(entry);
+> -		free_page_and_swap_cache(page);
+> +		free_page(page);
+>  		return (atomic_read(&page_map->count) == 0);
+>  	} 
+>  	/* 
+> @@ -218,7 +218,11 @@
+>  	flush_cache_page(vma, address);
+>  	pte_clear(page_table);
+>  	flush_tlb_page(vma, address);
+> +#if 0
+>  	entry = page_unuse(page_map);
+> +#else
+> +	entry = (atomic_read(&page_map->count) == 1);
+> +#endif
+>  	__free_page(page_map);
+>  	return entry;
+>  }
 
-> We are really a lot closer to having a proper unified page handling
-> mechanism than you think.  The handling of dirty pages is pretty
-> much the only missing part of the mechanism right now. 
+I must admit that after some preliminary testing I can't believe how
+GOOD these changes work!
 
-I know how close we are. I think I posted an assesment on
-what to do and what to leave yesterday :)) The most essential
-things can probably be coded in a day or two, if we want to.
+Stephen, you've done a *really* good job.
 
-Oh, one question. Can we attach a swap page to the swap cache
-while there's no program using it? This way we can implement
-a very primitive swapin readahead right now, improving the
-algorithm as we go along...
+I will still do some more testing, not to find bugs, but to enjoy
+great performance. :)
 
-> Even that is not necessarily a bad thing: there are good performance
-> reasons why we might want the swap cache to contain only clean
-> pages:  for example, it makes it easier to guarantee that those
-> pages can be reclaimed for another use at short notice. 
+Everybody, get pre-2.1.130-3 (which already includes above changes),
+add #include <linux/interrupt.h> in kernel/itimer.c and enjoy the most
+fair MM in Linux, EVER!
 
-IMHO it would be a big loss to have dirty pages in the swap
-cache. Writing out swap pages is cheap since we do proper
-I/O clustering, not writing them out immediately will result
-in them being written out in the order that shrink_mmap()
-comes across them, which is a suboptimal way for when we
-want to read the pages back.
-
-Besides, having a large/huge clean swap cache means that we
-can very easily free up memory when we need to, this is
-essential for NFS buffers, networking stuff, etc.
-
-If we keep a quota of 20% of memory in buffers and unmapped
-cache, we can also do away with a buffer for the 8 and 16kB
-area's. We can always find some contiguous area in swap/page
-cache that we can free...
-
-cheers,
-
-Rik -- slowly getting used to dvorak kbd layout...
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
-
+Stephen, thanks for such a good code!
+-- 
+Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
+---------------------------------------------------------------------
+	   REALITY.SYS Corrupted: Re-boot universe? (Y/N/Q)
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
