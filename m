@@ -1,64 +1,87 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iBH0gsFJ632960
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2004 19:42:58 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iBH0gsVt185914
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2004 17:42:54 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iBH0gsLD014418
-	for <linux-mm@kvack.org>; Thu, 16 Dec 2004 17:42:54 -0700
-Subject: Re: [patch] [RFC] make WANT_PAGE_VIRTUAL a config option
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.12.10/8.12.10) with ESMTP id iBH0iM6q011204
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2004 19:44:22 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iBH0iLqZ282590
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2004 19:44:21 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iBH0iLHq000300
+	for <linux-mm@kvack.org>; Thu, 16 Dec 2004 19:44:21 -0500
+Subject: [patch] CONFIG_ARCH_HAS_ATOMIC_UNSIGNED
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.61.0412170133560.793@scrub.home>
-References: <E1Cf3bP-0002el-00@kernel.beaverton.ibm.com>
-	 <Pine.LNX.4.61.0412170133560.793@scrub.home>
-Content-Type: text/plain
-Message-Id: <1103244171.13614.2525.camel@localhost>
-Mime-Version: 1.0
-Date: Thu, 16 Dec 2004 16:42:51 -0800
-Content-Transfer-Encoding: 7bit
+Date: Thu, 16 Dec 2004 16:44:20 -0800
+Message-Id: <E1Cf6EG-00015y-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roman Zippel <zippel@linux-m68k.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, geert@linux-m68k.org, ralf@linux-mips.org, linux-mm <linux-mm@kvack.org>
+To: ak@suse.de
+Cc: linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-12-16 at 16:36, Roman Zippel wrote:
-> On Thu, 16 Dec 2004, Dave Hansen wrote:
-> > I'm working on breaking out the struct page definition into its
-> > own file.  There seem to be a ton of header dependencies that
-> > crop up around struct page, and I'd like to start getting rid
-> > of thise.
-> 
-> Why do you want to move struct page into a separate file?
+This reduces another one of the dependencies that struct page's
+definition has on any arch-specific header files.  Currently,
+only x86_64 uses this, so it's the only architecture that needed
+to be modified.
 
-Circular header dependencies suck :)
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+---
 
-I posted another patch, shortly after the one that I cc'd you on, with
-the following description.  Cristoph suggested just making it
-linux/page.h and maybe combining it with page-flags.h, but otherwise the
-idea remains the same.  
+ apw2-dave/arch/x86_64/Kconfig         |    4 ++++
+ apw2-dave/include/asm-x86_64/bitops.h |    2 --
+ apw2-dave/include/linux/mm.h          |    2 +-
+ apw2-dave/include/linux/mmzone.h      |    2 +-
+ 4 files changed, 6 insertions(+), 4 deletions(-)
 
-> There are currently 24 places in the tree where struct page is
-> predeclared.  However, a good number of these places also have to
-> do some kind of arithmetic on it, and end up using macros because
-> static inlines wouldn't have the type fully defined at
-> compile-time.
-> 
-> But, in reality, struct page has very few dependencies on outside
-> macros or functions, and doesn't really need to be a part of the
-> header include mess which surrounds many of the VM headers.
-> 
-> So, put 'struct page' into structpage.h, along with a nasty comment
-> telling everyone to keep their grubby mitts out of the file.
-> 
-> Now, we can use static inlines for almost any 'struct page'
-> operations with no problems, and get rid of many of the
-> predeclarations.
-
-
--- Dave
-
+diff -puN arch/x86_64/Kconfig~000-CONFIG_ARCH_HAS_ATOMIC_UNSIGNED arch/x86_64/Kconfig
+--- apw2/arch/x86_64/Kconfig~000-CONFIG_ARCH_HAS_ATOMIC_UNSIGNED	2004-12-16 16:29:29.000000000 -0800
++++ apw2-dave/arch/x86_64/Kconfig	2004-12-16 16:30:48.000000000 -0800
+@@ -193,6 +193,10 @@ config X86_LOCAL_APIC
+ 	bool
+ 	default y
+ 
++config ARCH_HAS_ATOMIC_UNSIGNED
++	bool
++	default y
++
+ config MTRR
+ 	bool "MTRR (Memory Type Range Register) support"
+ 	---help---
+diff -puN include/linux/mm.h~000-CONFIG_ARCH_HAS_ATOMIC_UNSIGNED include/linux/mm.h
+--- apw2/include/linux/mm.h~000-CONFIG_ARCH_HAS_ATOMIC_UNSIGNED	2004-12-16 16:29:29.000000000 -0800
++++ apw2-dave/include/linux/mm.h	2004-12-16 16:30:57.000000000 -0800
+@@ -216,7 +216,7 @@ struct vm_operations_struct {
+ struct mmu_gather;
+ struct inode;
+ 
+-#ifdef ARCH_HAS_ATOMIC_UNSIGNED
++#ifdef CONFIG_ARCH_HAS_ATOMIC_UNSIGNED
+ typedef unsigned page_flags_t;
+ #else
+ typedef unsigned long page_flags_t;
+diff -puN include/linux/mmzone.h~000-CONFIG_ARCH_HAS_ATOMIC_UNSIGNED include/linux/mmzone.h
+--- apw2/include/linux/mmzone.h~000-CONFIG_ARCH_HAS_ATOMIC_UNSIGNED	2004-12-16 16:29:29.000000000 -0800
++++ apw2-dave/include/linux/mmzone.h	2004-12-16 16:31:07.000000000 -0800
+@@ -388,7 +388,7 @@ extern struct pglist_data contig_page_da
+ 
+ #include <asm/mmzone.h>
+ 
+-#if BITS_PER_LONG == 32 || defined(ARCH_HAS_ATOMIC_UNSIGNED)
++#if BITS_PER_LONG == 32 || defined(CONFIG_ARCH_HAS_ATOMIC_UNSIGNED)
+ /*
+  * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
+  * there are 3 zones (2 bits) and this leaves 8-2=6 bits for nodes.
+diff -puN include/asm-x86_64/bitops.h~000-CONFIG_ARCH_HAS_ATOMIC_UNSIGNED include/asm-x86_64/bitops.h
+--- apw2/include/asm-x86_64/bitops.h~000-CONFIG_ARCH_HAS_ATOMIC_UNSIGNED	2004-12-16 16:32:42.000000000 -0800
++++ apw2-dave/include/asm-x86_64/bitops.h	2004-12-16 16:32:48.000000000 -0800
+@@ -411,8 +411,6 @@ static __inline__ int ffs(int x)
+ /* find last set bit */
+ #define fls(x) generic_fls(x)
+ 
+-#define ARCH_HAS_ATOMIC_UNSIGNED 1
+-
+ #endif /* __KERNEL__ */
+ 
+ #endif /* _X86_64_BITOPS_H */
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
