@@ -1,49 +1,68 @@
-Date: Tue, 22 Oct 2002 13:36:49 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
-Message-ID: <145460000.1035311809@baldur.austin.ibm.com>
-In-Reply-To: <Pine.LNX.4.44L.0210221514430.1648-100000@duckman.distro.conectiva>
-References: <Pine.LNX.4.44L.0210221514430.1648-100000@duckman.distro.conecti
- va>
-MIME-Version: 1.0
+Date: Tue, 22 Oct 2002 20:43:13 +0200
+From: bert hubert <ahu@ds9a.nl>
+Subject: vm scenario tool / mincore(2) functionality for regular pages?
+Message-ID: <20021022184313.GA12081@outpost.ds9a.nl>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, Andrew Morton <akpm@digeo.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Bill Davidsen <davidsen@tmr.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---On Tuesday, October 22, 2002 15:15:29 -0200 Rik van Riel
-<riel@conectiva.com.br> wrote:
+I'm building a tool to subject the VM to different scenarios and I'd like to
+be able to determine if a page is swapped out or not. For a file I can
+easily determine if a page is in memory (in the page cache) or not using the
+mincore(2) system call.
 
->> Or large pages.  I confess to being a little perplexed as to
->> why we're pursuing both.
-> 
-> I guess that's due to two things.
-> 
-> 1) shared pagetables can speed up fork()+exec() somewhat
-> 
-> 2) if we have two options that fix the Oracle problem,
->    there's a better chance of getting at least one of
->    the two merged ;)
+I want to expand my tool so it can investigate which of its pages are
+swapped out under cache pressure or real memory pressure.
 
-And
-  3) The current large page implementation is only for applications
-     that want anonymous *non-pageable* shared memory.  Shared page
-     tables reduce resource usage for any shared area that's mapped
-     at a common address and is large enough to span entire pte pages.
-     Since all pte pages are shared on a COW basis at fork time, children
-     will continue to share all large read-only areas with their
-     parent, eg large executables.
+However, to do this, I need a way to determine if a page is there or if it
+is swapped out. My two questions are:
 
-Dave McCracken
+	1) is there an existing way to do this
+	   (the kernel obviously knows)
 
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
+	2) would it be correct to expand mincore to also work on
+           non-filebacked memory so it works for 'swap-backed' memory too?
 
+Thanks.
+
+Some current output of the scenario tool:
+
+vmloader> alloc 25
+Arena now 25 megabytes, 6250 pages
+
+vmloader> sweep
+Sweeping from mbyte 0 to 25, 6250 pages. Done
+
+vmloader> rusage
+minor: 6250, major: 2, swaps: 0
+
+vmloader> sweep 0 12
+Sweeping from mbyte 0 to 12, 1440 pages. Done
+
+vmloader> rusage
+minor: 0, major: 0, swaps: 0
+
+vmloader> touch
+Touching from mbyte 0 to 25, 6250 pages. Done
+
+vmloader> rusage
+minor: 6249, major: 0, swaps: 0
+
+vmloader> rsweep
+Random sweeping from mbyte 0 to 25, 6250 pages. Done
+
+vmloader> rusage
+minor: 0, major: 0, swaps: 0
+
+
+-- 
+http://www.PowerDNS.com          Versatile DNS Software & Services
+http://lartc.org           Linux Advanced Routing & Traffic Control HOWTO
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
