@@ -1,39 +1,60 @@
-Date: Fri, 6 Aug 1999 09:33:32 +0100 (GMT)
-From: Matthew Kirkwood <weejock@ferret.lmh.ox.ac.uk>
-Subject: Re: SHM, Issue attaching Oracle >500MB shared mem
-In-Reply-To: <199908051636781.SM00258@mailhost.directlink.net>
-Message-ID: <Pine.LNX.4.10.9908060928050.15557-100000@ferret.lmh.ox.ac.uk>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <199908062312.QAA00496@google.engr.sgi.com>
+Subject: [PATCH] Fix sys_mount not to free_page(0)
+Date: Fri, 6 Aug 1999 16:12:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Javan Dempsey <raz@mailhost.directlink.net>
-Cc: linux-mm@kvack.org
+To: torvalds@transmeta.com, alan@lxorguk.ukuu.org.uk
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Aug 1999, Javan Dempsey wrote:
+Linus/Alan,
 
-> We're currently running a number of Linux based ia32 Oracle 8.0.5 DB
-> Servers, and we seem to be running into a problem with attaching to >
-> 500MB shared mem. I've increased SHMMAX and tweaked various other
-> things in an attempt to fix the problem. Nothing seems to work, no
-> matter what SHMMAX is set to, or anything else. SVRMGRL gives this
-> error when trying to startup -
+Could you please take this patch into the 2.2 and 2.3 streams? It
+basically prevents sys_mount() from trying to invoke free_page(0).
+Note that copy_mount_options() might return 0 both in the case
+where it allocates a page, and in the case it does not.
 
-Where did you change this value?
+Thanks.
 
-Your capitals would seem to indicate that you hacked on the kernel,
-but the new place to tune such parameters is /proc/sys/kernel/shmmax.
+Kanoj
+kanoj@engr.sgi.com
 
-It would seem to default to 32Mb, which isn't nearly enough for a
-big Oracle setup.
-
-# echo `expr 1024 \* 1024 \* 1024` > /proc/sys/kernel/shmmax
-
-should allow you 1Gb of shared memory.
-
-Matthew.
-
+--- /usr/tmp/p_rdiff_a005Eo/super.c	Fri Aug  6 16:01:57 1999
++++ fs/super.c	Fri Aug  6 15:00:35 1999
+@@ -1037,7 +1037,8 @@
+ 		retval = do_remount(dir_name,
+ 				    new_flags & ~MS_MGC_MSK & ~MS_REMOUNT,
+ 				    (char *) page);
+-		free_page(page);
++		if (page)
++			free_page(page);
+ 		goto out;
+ 	}
+ 
+@@ -1045,7 +1046,8 @@
+ 	if (retval < 0)
+ 		goto out;
+ 	fstype = get_fs_type((char *) page);
+-	free_page(page);
++	if (page)
++		free_page(page);
+ 	retval = -ENODEV;
+ 	if (!fstype)		
+ 		goto out;
+@@ -1099,7 +1101,8 @@
+ 	}
+ 	retval = do_mount(dev, dev_name, dir_name, fstype->name, flags,
+ 				(void *) page);
+-	free_page(page);
++	if (page)
++		free_page(page);
+ 	if (retval)
+ 		goto clean_up;
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
