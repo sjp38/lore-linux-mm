@@ -1,52 +1,42 @@
-Date: Mon, 20 Aug 2001 11:42:26 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] 
-Message-ID: <Pine.LNX.4.33L.0108201133550.5646-100000@imladris.rielhome.conectiva>
+Message-ID: <3B813743.5080400@ucla.edu>
+Date: Mon, 20 Aug 2001 09:13:55 -0700
+From: Benjamin Redelings I <bredelin@ucla.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: 2.4.8/2.4.9 VM problems
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Alan,
+Daniel Phillips wrote:
+> Could you please try this patch against 2.4.9 (patch -p0):
+> 
+> --- ../2.4.9.clean/mm/memory.c	Mon Aug 13 19:16:41 2001
+> +++ ./mm/memory.c	Sun Aug 19 21:35:26 2001
+> @@ -1119,6 +1119,7 @@
+>  			 */
+>  			return pte_same(*page_table, orig_pte) ? -1 : 1;
+>  		}
+> +		SetPageReferenced(page);
+>  	}
+>  
+>  	/*
+> 
 
-the following patch fixes reclaim_page() and page_launder() to
-correctly reactivate a page based one page->count value.
 
-Note that we shouldn't be hitting this code very much with the
-current immediate reactivation in __find_page_nolock(), but I
-guess it would be useful to have as a safety net against things
-like the shmem code and other areas I don't about ;)
+Well, I tried this, and.... WOW!  Much better  [:)]
+Was it really true, that swapped in pages didn't get marked as 
+referenced before?  It almost felt that bad, but that seems kind of 
+crazy - I don't completely understand what this fix is doing...
 
-regards,
-
-Rik
---
-IA64: a worthy successor to i860.
-
-
---- linux-2.4.8-ac7/mm/vmscan.c.orig	Mon Aug 20 11:29:24 2001
-+++ linux-2.4.8-ac7/mm/vmscan.c	Mon Aug 20 11:30:46 2001
-@@ -456,7 +456,7 @@
-
- 		/* Page is or was in use?  Move it to the active list. */
- 		if (PageReferenced(page) || page->age > 0 ||
--				(!page->buffers && page_count(page) > 1)) {
-+				page_count(page) > (1 + !!page->buffers)) {
- 			del_page_from_inactive_clean_list(page);
- 			add_page_to_active_list(page);
- 			continue;
-@@ -594,7 +594,7 @@
-
- 		/* Page is or was in use?  Move it to the active list. */
- 		if (PageReferenced(page) || page->age > 0 ||
--				(!page->buffers && page_count(page) > 1) ||
-+				page_count(page) > (1 + !!page->buffers) ||
- 				page_ramdisk(page)) {
- 			del_page_from_inactive_dirty_list(page);
- 			add_page_to_active_list(page);
+-BenRI
+P.S. I tried this on my 64Mb PPro and a 128Mb PIII, and both felt like 
+they had a lot more memory - e.g. less swapping and stuff.
+-- 
+"I will begin again" - U2, 'New Year's Day'
+Benjamin Redelings I      <><     http://www.bol.ucla.edu/~bredelin/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
