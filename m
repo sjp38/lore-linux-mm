@@ -1,32 +1,55 @@
-Subject: Re: [Lhms-devel] new memory hotremoval patch
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20040701055836.A688F70A92@sv1.valinux.co.jp>
+Date: Thu, 01 Jul 2004 16:16:47 +0900 (JST)
+Message-Id: <20040701.161647.119874601.taka@valinux.co.jp>
+Subject: [patch] new memory hotremoval patch for hugetlbpages
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20040630111719.EBACF70A92@sv1.valinux.co.jp>
 References: <20040630111719.EBACF70A92@sv1.valinux.co.jp>
-	 <1088640671.5265.1017.camel@nighthawk>
-	 <20040701030543.8CE8F70A92@sv1.valinux.co.jp>
-	 <1088659723.10720.3.camel@nighthawk>
-	 <20040701055836.A688F70A92@sv1.valinux.co.jp>
-Content-Type: text/plain
-Message-Id: <1088662503.10720.6.camel@nighthawk>
 Mime-Version: 1.0
-Date: Wed, 30 Jun 2004 23:15:03 -0700
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
+Cc: iwamoto@valinux.co.jp
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-06-30 at 22:58, IWAMOTO Toshihiro wrote:
-> Such code only appears only in try_to_unuse and do_swap_page.  These
-> functions aren't for page caches.
+Hello, 
+
+> this is an updated version of my memory hotremoval patch.
+> I'll only include the main patch which contains page remapping code.
+> The other two files, which haven't changed much from April, can be
+> found at http://people.valinux.co.jp/~iwamoto/mh.html .
+	(snip)
+> My patch supports remapping of normal pages, Takahashi's hugepage
+> remapping patch will be posted in a few days.
+
+I also post new hugepage remapping patches which is against linux-2.6.7.
+I have change it to use objrmap so that the code become clean.
+
+The patches can be downloaded from 
+   http://people.valinux.co.jp/~taka/hpageremap.html .
+
+There may remain some bugs. if you find them, would you let me know.
+
+> I will be working on the following items.
 > 
-> I'm confused.  Weren't you talking about page cache code?
+>   1.  Prototype implementation of memsection support.
+>       It seems some people wants to hotremove small regions of memory
+>       rather than zones or nodes.  A prototype implementation will
+>       show how Takahashi's hugetlb page code can be used for such a
+>       purpose.
 
-Ahh.  Gotcha.  MI saw some of the BUG_ON()s and some of the swap code
-and misinterpreted where the flag was being used.  
+This is my interst and I'll work on it.
 
--- Dave
+>   2.  Handling of pages with dirty buffers without writing them back.
+>       This is file system specific.  I plan to do against ext2 and
+>       ext3.
+
+Thank you,
+Hirokazu Takahashi.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
