@@ -1,84 +1,116 @@
-Date: Tue, 24 Feb 1998 23:38:14 GMT
-Message-Id: <199802242338.XAA03262@dax.dcs.ed.ac.uk>
+Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA20052
+	for <linux-mm@kvack.org>; Tue, 24 Feb 1998 18:40:22 -0500
+Date: Tue, 24 Feb 1998 23:38:05 GMT
+Message-Id: <199802242338.XAA03259@dax.dcs.ed.ac.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 Subject: Re: PATCH: Swap shared pages (was: How to read-protect a vm_area?)
-In-Reply-To: <Pine.LNX.3.91.980224102818.1909A-100000@mirkwood.dummy.home>
+In-Reply-To: <Pine.LNX.3.96.980224152231.7112A-100000@renass3.u-strasbg.fr>
 References: <199802232317.XAA06136@dax.dcs.ed.ac.uk>
-	<Pine.LNX.3.91.980224102818.1909A-100000@mirkwood.dummy.home>
+	<Pine.LNX.3.96.980224152231.7112A-100000@renass3.u-strasbg.fr>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, "Benjamin C.R. LaHaise" <blah@kvack.org>, Linus Torvalds <torvalds@transmeta.com>, Itai Nahshon <nahshon@actcom.co.il>, Alan Cox <alan@lxorguk.ukuu.org.uk>, paubert@iram.es, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
+To: Stephane Casset <sept@renass3.u-strasbg.fr>
+Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Tue, 24 Feb 1998 10:42:48 +0100 (MET), Rik van Riel
-<H.H.vanRiel@fys.ruu.nl> said:
-
-> [linux-kernel trimmed from f-ups]
-> On Mon, 23 Feb 1998, Stephen C. Tweedie wrote:
+On Tue, 24 Feb 1998 15:31:37 +0000 (GMT), Stephane Casset
+<sept@renass3.u-strasbg.fr> said:
 
 >> The patch below, against 2.1.88, adds a bunch of new functionality to
 >> the swapper.  The main changes are:
->> 
->> * All swapping goes through the swap cache (aka. page cache) now.
 
-> Does this mean that _after_ the pages are properly aged
-> as user-pages, they'll be aged again as page-cache pages?
-> (when proper aging is added to the page cache, by eg. my patch)
+> I tried it but got the following message :
+> ipc/ipc.o: In function `shm_swap_in':
+> ipc/ipc.o(.text+0x37e4): undefined reference to `read_swap_page'
+> ipc/ipc.o: In function `shm_swap':
+> ipc/ipc.o(.text+0x3b57): undefined reference to `write_swap_page'
+> make: *** [vmlinux] Error 1
 
-No --- the swap cache is using the same data structures as the page
-cache, but mainly to get lookup of swap entries still in physical
-memory.  The swapout code does not leave swapped pages around in memory
-unnecessarily (although it does leave the door open to performing
-readahead of swap, which _would_ look very much like the current page
-cache readahead and would be reclaimed by shrink_mmap()).
-
-The page cache swapout creates a page cache association for a page when
-swapping begins, and clears the link when the swapping is finished.  The
-swap cache does not linger.
-
-> I think it might be far better to:
-> - put user-pages in the swap cache after they haven't been used
->   for two aging rounds
-> - free swap-cache pages and page-cache pages after they haven't
->   been used for eight aging rounds (so the real aging and waiting
->   takes place here)
-> - use right-shift aging here {age << 1; if(touched) age |= 0x80}
-> - adapt the get_free_pages so it can allocate clean page-cache and
->   swap-cache pages when:
->   - a bigorder area can't be found
->   - there are no free pages left (and kswapd hasn't found new ones)
-
-That is already scheduled as part of phase 4 of this work.  The patch I
-have just posted is phase 2, modifying the swapper for shared pages.
-Phase three is to implement MAP_SHARED | MAP_ANONYMOUS, and part four is
-to do much what you describe, proactively soft-swapping data out
-into the swap cache up to a predefined limit, and allowing get_free_page
-to reclaim these pages atomically even from within an interrupt.  I have
-already begun the work of spin-irq-locking the relevant page cache
-structures.
-
-> For more improvements, we could use Ben's pte_list <name?>
-> patch so we could force-free bigorder areas and run somewhat
-> more efficiently.
-
-Ben has already been talking about some similar ideas, and I think that
-yes, we do want to upgrade the swapout policy layer to work on a
-physical page basis, using the pte_list walking to do its work.  The
-swap cache mechanism will still be needed to perform readahead and
-writeahead, but the only reason I have had to integrate it so tightly
-into the policy code right now is that without pte-walking there is no
-other way to properly keep pages shared over swapping.
-
-Ideally, we really want to have just one function walking over physical
-pages for reclamation, and that function should be able to deal with
-swap/filemap pages, page/swap cache, buffer cache and SysV shm pages as
-they come up.  I think that is achievable without too much more work
-now, and it ought to give us much better performance from the swapper.
+The diff below includes a patch against ipc/shm.c was missing from my
+first post, and another fix for spurious warnings about shared dirty
+pages.
 
 Cheers,
  Stephen.
+----------------------------------------------------------------
+Index: ipc/shm.c
+===================================================================
+RCS file: /home/rcs/CVS/kswap3/linux/ipc/shm.c,v
+retrieving revision 1.1
+retrieving revision 1.2
+diff -u -r1.1 -r1.2
+--- shm.c	1998/02/24 08:50:30	1.1
++++ shm.c	1998/02/24 08:51:37	1.2
+@@ -689,7 +689,7 @@
+ 			goto done;
+ 		}
+ 		if (!pte_none(pte)) {
+-			read_swap_page(pte_val(pte), (char *) page);
++			rw_swap_page_nocache(READ, pte_val(pte), (char *)page);
+ 			pte = __pte(shp->shm_pages[idx]);
+ 			if (pte_present(pte))  {
+ 				free_page (page); /* doesn't sleep */
+@@ -820,7 +820,7 @@
+ 	if (atomic_read(&mem_map[MAP_NR(pte_page(page))].count) != 1)
+ 		goto check_table;
+ 	shp->shm_pages[idx] = swap_nr;
+-	write_swap_page (swap_nr, (char *) pte_page(page));
++	rw_swap_page_nocache (WRITE, swap_nr, (char *) pte_page(page));
+ 	free_page(pte_page(page));
+ 	swap_successes++;
+ 	shm_swp++;
+Index: mm/page_io.c
+===================================================================
+RCS file: /home/rcs/CVS/kswap3/linux/mm/page_io.c,v
+retrieving revision 1.4
+diff -u -r1.4 page_io.c
+--- page_io.c	1998/02/23 22:14:27	1.4
++++ page_io.c	1998/02/24 09:28:08
+@@ -201,7 +201,9 @@
+ 	}
+ 	page->inode = &swapper_inode;
+ 	page->offset = entry;
++	atomic_inc(&page->count);	/* Protect from shrink_mmap() */
+ 	rw_swap_page(rw, entry, buffer, 1);
++	atomic_dec(&page->count);
+ 	page->inode = 0;
+ 	clear_bit(PG_swap_cache, &page->flags);
+ }
+Index: mm/vmscan.c
+===================================================================
+RCS file: /home/rcs/CVS/kswap3/linux/mm/vmscan.c,v
+retrieving revision 1.5
+diff -u -r1.5 vmscan.c
+--- vmscan.c	1998/02/23 22:14:28	1.5
++++ vmscan.c	1998/02/24 09:22:47
+@@ -108,18 +108,16 @@
+ 	 *
+ 	 * -- Stephen Tweedie 1998 */
+ 
+-	if (pte_write(pte)) {
+-		/* 
+-		 * We _will_ allow dirty cached mappings later on, once
+-		 * MAP_SHARED|MAP_ANONYMOUS is working, but for now
+-		 * catch this as a bug.
+-		 */
+-		if (is_page_shared(page_map)) {
+-			printk ("VM: Found a shared writable dirty page!\n");
++	if (PageSwapCache(page_map)) {
++		if (pte_write(pte)) {
++			printk ("VM: Found a writable swap-cached page!\n");
+ 			return 0;
+ 		}
+-		if (PageSwapCache(page_map)) {
+-			printk ("VM: Found a writable swap-cached page!\n");
++		/* We _will_ allow dirty cached mappings later
++		 * on, once MAP_SHARED|MAP_ANONYMOUS is working,
++		 * but for now catch this as a bug.  */
++		if (is_page_shared(page_map)) {
++			printk ("VM: Found a shared writable dirty page!\n");
+ 			return 0;
+ 		}
+ 	}
+----------------------------------------------------------------
