@@ -1,46 +1,26 @@
-Date: Tue, 17 Aug 1999 02:29:37 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] care about the age of the pte even if we are low on
- memory
-In-Reply-To: <Pine.LNX.4.10.9908091244590.7493-100000@laser.random>
-Message-ID: <Pine.LNX.4.10.9908170228430.16783-100000@laser.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <000901bee855$ec448410$0601a8c0@honey.cs.tsinghua.edu.cn>
+From: "Wang Yong" <wung_y@263.net>
+Subject: where does vmlist be initiated?
+Date: Tue, 17 Aug 1999 10:12:10 +0800
+Mime-Version: 1.0
+Content-Type: text/plain;
+	charset="gb2312"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Conway <nconway.list@ukaea.org.uk>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
+To: linux-mm mail list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Aug 1999, Andrea Arcangeli wrote:
+hi,
+  i found this structure is defined in mm/vmalloc.c :
+  "static struct vm_struct * vmlist = NULL;"
 
->On Mon, 9 Aug 1999, Neil Conway wrote:
->
->>Ouch - let's try to keep those comments up to date folks.  Good comments
->
->You are plain right, excuse me (I have not read the comment). When the
->patch will be applyed I'll provide an update to the comment. Thanks for
->pointing this out.
+  it appears that vmlist be initiated as null. but in function
+get_vm_area(), which is called by kmalloc(), it doesn't work if vmlist is
+null. so i think vmlist must be initiated somewhere else. but where? thx
 
-As Neil pointed out I have not updated the comment, please apply to
-2.3.13:
-
---- 2.3.13/mm/vmscan.c	Thu Aug 12 02:53:26 1999
-+++ /tmp/vmscan.c	Tue Aug 17 02:28:09 1999
-@@ -50,10 +50,7 @@
- 	if (pte_val(pte) != pte_val(*page_table))
- 		goto out_failed_unlock;
- 
--	/*
--	 * Dont be too eager to get aging right if
--	 * memory is dangerously low.
--	 */
-+	/* Don't look at this pte if it's been accessed recently. */
- 	if (pte_young(pte)) {
- 		/*
- 		 * Transfer the "accessed" bit from the page
-
-Andrea
+regards,
+Wang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
