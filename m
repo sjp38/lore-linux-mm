@@ -1,43 +1,50 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e1.ny.us.ibm.com (8.12.10/8.12.10) with ESMTP id j191F2Pc005904
-	for <linux-mm@kvack.org>; Tue, 8 Feb 2005 20:15:02 -0500
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j191F2uq282464
-	for <linux-mm@kvack.org>; Tue, 8 Feb 2005 20:15:02 -0500
-Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
-	by d01av04.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j191F1QW031640
-	for <linux-mm@kvack.org>; Tue, 8 Feb 2005 20:15:02 -0500
-Subject: Re: [Lhms-devel] [RFC][PATCH] no per-arch mem_map init
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.10/8.12.10) with ESMTP id j191Ham4007085
+	for <linux-mm@kvack.org>; Tue, 8 Feb 2005 20:17:36 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j191HZ5U189940
+	for <linux-mm@kvack.org>; Tue, 8 Feb 2005 20:17:35 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j191HZlq010631
+	for <linux-mm@kvack.org>; Tue, 8 Feb 2005 20:17:35 -0500
+Subject: Re: [RFC][PATCH] no per-arch mem_map init
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050208161218.883A.YGOTO@us.fujitsu.com>
+In-Reply-To: <20050209010452.GA20515@localhost.localdomain>
 References: <1107891434.4716.16.camel@localhost>
-	 <20050208161218.883A.YGOTO@us.fujitsu.com>
+	 <20050209010452.GA20515@localhost.localdomain>
 Content-Type: text/plain
-Date: Tue, 08 Feb 2005 17:14:35 -0800
-Message-Id: <1107911675.4716.49.camel@localhost>
+Date: Tue, 08 Feb 2005 17:17:30 -0800
+Message-Id: <1107911850.4716.52.camel@localhost>
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <ygoto@us.fujitsu.com>
-Cc: lhms <lhms-devel@lists.sourceforge.net>, Jesse Barnes <jbarnes@engr.sgi.com>, Bob Picco <bob.picco@hp.com>, linux-mm <linux-mm@kvack.org>
+To: Bob Picco <bob.picco@hp.com>
+Cc: lhms <lhms-devel@lists.sourceforge.net>, Jesse Barnes <jbarnes@engr.sgi.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-02-08 at 16:39 -0800, Yasunori Goto wrote:
-> Hi Dave-san.
-> 
-> > This patch has been one of the base patches in the -mhp tree for a bit
-> > now, and seems to be working pretty well, at least on x86.  I would like
-> > to submit it upstream, but I want to get a bit more testing first.  Is
-> > there a chance you ia64 guys could give it a quick test boot to make
-> > sure that it doesn't screw you over?  
-> 
-> I tried this single patch with 2.6.11-rc2-mm2 on my Tiger4, and
-> there is no problem in booting. In addition, I compliled other
-> kernel as simple workload test on this test kernel, I didn't find
-> any problem.
+On Tue, 2005-02-08 at 20:04 -0500, Bob Picco wrote:
+> > -		mem_map = contig_page_data.node_mem_map = vmem_map;
+> > +		NODE_DATA(0)->node_mem_map = vmem_map;
+> This has to be changed to.
+> 		mem_map = NODE_DATA(0)->node_mem_map = vmem_map;
+> >  		free_area_init_node(0, &contig_page_data, zones_size,
+> >  				    0, zholes_size);
+> >  
+> [snip]
+> I actually submitted an identical change within my last patchset to lhms.
 
-Thanks for the testing!
+Good to know.  I hadn't actually noticed that bit in your patch.  It's
+another good example why to split things up into as many small, logical
+pieces as possible.  
+
+> Not making this change requires changing use of mem_map throughout contig.c
+> and one BUG assertion in init.c.  I haven't tested this patch but it was
+> indirectly tested by me in FLATMEM configuration for lhms.
+
+Hmm.  Do you really need the 'mem_map = ' part?  I *think*
+free_area_init_node() calls alloc_node_mem_map(), which should do that
+exact assignment for you.  
 
 -- Dave
 
