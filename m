@@ -1,53 +1,53 @@
-Date: Tue, 25 Feb 2003 11:57:08 -0600
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: 2.5.62-mm3 - no X for me
-Message-ID: <131360000.1046195828@[10.1.1.5]>
-In-Reply-To: <20030225015537.4062825b.akpm@digeo.com>
-References: <20030223230023.365782f3.akpm@digeo.com>
- <3E5A0F8D.4010202@aitel.hist.no><20030224121601.2c998cc5.akpm@digeo.com>
- <20030225094526.GA18857@gemtek.lt> <20030225015537.4062825b.akpm@digeo.com>
-MIME-Version: 1.0
+Message-Id: <200302251849.h1PInh921599@mail.osdl.org>
+Subject: 2.5.62-mm3 -Panics during dbt2 run
+In-Reply-To: Message from Andrew Morton <akpm@digeo.com>
+   of "Tue, 25 Feb 2003 01:55:37 PST." <20030225015537.4062825b.akpm@digeo.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Date: Tue, 25 Feb 2003 10:49:43 -0800
+From: Cliff White <cliffw@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: Zilvinas Valinskas <zilvinas@gemtek.lt>, helgehaf@aitel.hist.no, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave McCracken <dmccr@us.ibm.com>, cliffw@osdl.org
 List-ID: <linux-mm.kvack.org>
 
---On Tuesday, February 25, 2003 01:55:37 -0800 Andrew Morton
-<akpm@digeo.com> wrote:
+Tried hard to test this, but all it does for me is panic.
+Is this fixed in 2.5.63?
+This is 4-way PIII system. 
+ panic, while booting
+Press Y within 1 seconds to force file system integrity check...
+ [<c02409e8>] as_next_request+0x38/0x50
+ [<c02385c6>] elv_next_request+0x16/0x110
+ [<c02823bc>] scsi_request_fn+0x4c/0x300
+ [<c023a358>] blk_remove_plug+0x88/0x100
+ [<c023a64d>] __blk_run_queue+0x1d/0x30
+ [<c0281739>] scsi_queue_next_request+0xa9/0x240
+ [<c023c060>] end_that_request_last+0x50/0x90
+ [<c02819d2>] scsi_end_request+0x102/0x120
+ [<c0281d31>] scsi_io_completion+0x161/0x4e0
+ [<c02a545c>] ahc_done+0x1ec/0x470
+ [<c02ab3fb>] sd_rw_intr+0x7b/0x210
+ [<c027b6f6>] scsi_finish_command+0x86/0xf0
+ [<c027b4d9>] scsi_softirq+0xc9/0x220
+ [<c0129515>] do_softirq+0xc5/0xd0
+ [<c010bf35>] do_IRQ+0x1c5/0x1f0
+ [<c0107340>] default_idle+0x0/0x40
+ [<c010a584>] common_interrupt+0x18/0x20
+ [<c0107340>] default_idle+0x0/0x40
+ [<c010736d>] default_idle+0x2d/0x40
+ [<c010740a>] cpu_idle+0x4a/0x60
+ [<c0105000>] rest_init+0x0/0x80
 
-> Ah, thank you.
-> 
-> 	kernel BUG at mm/rmap.c:248!
-> 
-> The fickle finger of fate points McCrackenwards.
+Code: 8b 46 14 8b 40 50 89 04 24 e8 5e 9b ff ff 8d 43 70 e8 c6 52
+---------------------------------
 
-Yep.  He tripped over my sanity check that pages not marked anon actually
-have a real mapping pointer.  Apparently X allocates a page that should be
-marked anon but isn't.
+It died again, while bunzipping the db backup, but
+i did not get the panic string
 
-My main reason for adding the anon flag was to prove to myself that the
-mapping pointer can be trusted.  Apparently it can, generally, but it looks
-like I haven't successfully tracked down all the places that should set it.
-It looks like anon pages can come from random sources, so it might be an
-impossible task to find them all.
+--------------------------------------
+cliffw
 
-I know you said you like the idea of having the flag, but I think the
-cleanest fix would be to change the check from
-
-	if (PageAnon(page))
-to
-	if (page->mapping && !PageSwapCache(page))
-
-Or I could set the anon flag based on that test.  I know page flags are
-getting scarce, so I'm leaning toward removing the flag entirely.
-
-What would you recommend?
-
-Dave McCracken
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
