@@ -1,39 +1,43 @@
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: 2.5.38-mm2 [PATCH] 
-In-reply-to: Your message of "Tue, 24 Sep 2002 15:54:28 +0530."
-             <20020924155428.B4085@in.ibm.com>
-Date: Wed, 25 Sep 2002 00:56:17 +1000
-Message-Id: <20020924150424.415792C054@lists.samba.org>
+Date: Tue, 24 Sep 2002 17:10:54 -0400 (EDT)
+From: Bill Davidsen <davidsen@tmr.com>
+Subject: Re: 2.5.38-mm2
+In-Reply-To: <20020923071633.GA15479@suse.de>
+Message-ID: <Pine.LNX.3.96.1020924170725.19732C-100000@gatekeeper.tmr.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: dipankar@in.ibm.com
-Cc: akpm@digeo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jens Axboe <axboe@suse.de>
+Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-In message <20020924155428.B4085@in.ibm.com> you write:
-> On Tue, Sep 24, 2002 at 02:41:09PM +1000, Rusty Russell wrote:
-> > On Mon, 23 Sep 2002 15:15:59 +0530
-> > Dipankar Sarma <dipankar@in.ibm.com> wrote:
-> > > Later I will submit a full rcu_ltimer patch that contains
-> > > the call_rcu_preempt() interface which can be useful for
-> > > module unloading and the likes. This doesn't affect
-> > > the non-preemption path.
-> > 
-> > You don't need this: I've dropped the requirement for module
-> > unload.
+On Mon, 23 Sep 2002, Jens Axboe wrote:
+
+> Ah interesting. I do still think that it is worth to investigate _why_
+> both elevator_linus and deadline does not prevent the read starvation.
+> The read-latency is a hack, not a solution imo.
 > 
-> Isn't wait_for_later() similar to synchornize_kernel() or has the
-> entire module unloading design been changed since ?
+> >  tagged command queueing on scsi - it appears to be quite stupidly
+> >  implemented.
+> 
+> Ahem I think you are being excessively harsh, or maybe passing judgement
+> on something you haven't even looked at. Did you consider that you
+> _drive_ may be the broken component? Excessive turn-around times for
+> request when using deep tcq is not unusual, by far.
 
-Yes, that was *days* ago 8)
+I do think that's what he meant!  I think most drives are optimized this
+way, and performance would be better if the kernel used the queueing more
+sparingly, so the drive couldn't just run with the writes and let the
+reads take the leftovers. 
 
-I now just use a synchronize_kernel() which schedules on every CPU,
-and disable preempt in magic places.
+I think that's a better long run solution, although the fix addresses the
+immediate problem.
 
-Ingo growled at me...
-Rusty.
---
-  Anyone who quotes me in their sig is an idiot. -- Rusty Russell.
+-- 
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
