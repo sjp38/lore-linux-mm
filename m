@@ -1,74 +1,39 @@
-Date: Mon, 25 Sep 2000 10:52:47 -0600
-From: yodaiken@fsmlabs.com
+Date: Mon, 25 Sep 2000 14:10:07 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: the new VMt
-Message-ID: <20000925105247.A13935@hq.fsmlabs.com>
-References: <Pine.LNX.4.21.0009251714480.9122-100000@elte.hu> <E13da01-00057k-00@the-village.bc.nu> <20000925164249.G2615@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <20000925164249.G2615@redhat.com>; from Stephen C. Tweedie on Mon, Sep 25, 2000 at 04:42:49PM +0100
+In-Reply-To: <20000925191703.G27677@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009251407020.20061-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Andi Kleen <ak@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 04:42:49PM +0100, Stephen C. Tweedie wrote:
-> Hi,
+On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+> On Mon, Sep 25, 2000 at 07:03:46PM +0200, Ingo Molnar wrote:
+> > [..] __GFP_SOFT solves this all very nicely [..]
 > 
-> On Mon, Sep 25, 2000 at 04:16:56PM +0100, Alan Cox wrote:
-> > 
-> > Unless Im missing something here think about this case
-> > 
-> > 2 active processes, no swap
-> > 
-> > #1					#2
-> > kmalloc 32K				kmalloc 16K
-> > OK					OK
-> > kmalloc 16K				kmalloc 32K
-> > block					block
-> > 
-> 
-> ... and we get two wakeup_kswapd()s.  kswapd has PF_MEMALLOC and so is
-> able to eat memory which processes #1 and #2 are not allowed to touch.
-> Progress is made, clean pages are discarded and dirty ones queued for
-> write, memory becomes free again and the world is a better place.
-> 
-> Or so goes the theory, at least.
+> s/very nicely/throwing away lots of useful cache for no one good reason/
 
-from fs/select.c
+Not really. We could fix this by making the page freeing
+functions smarter and only free the pages we need.
 
-   walk = out;
-        while(nfds > 0) {
-                poll_table *tmp = (poll_table *) __get_free_page(GFP_KERNEL);
-                if (!tmp) {
-                        while(out != NULL) {
-                                tmp = out->next;
-                                free_page((unsigned long)out);
-                                out = tmp;
-                        }
-                        return NULL;
-                }
-                tmp->nr = 0;
-                tmp->entry = (struct poll_table_entry *)(tmp + 1);
-                tmp->next = NULL;
-                walk->next = tmp;
-                walk = tmp;
-                nfds -=__MAX_POLL_TABLE_ENTRIES;
-        }
+I just don't know if this is worth it for 0.5% of the 
+allocations (and further more, since we allocate the
+1-page allocations directly from the cache when we're
+low on free memory, fragmentation isn't as bad as it
+used to be with the old VM).
 
+regards,
 
-> 
-> --Stephen
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> Please read the FAQ at http://www.tux.org/lkml/
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
 
--- 
----------------------------------------------------------
-Victor Yodaiken 
-Finite State Machine Labs: The RTLinux Company.
- www.fsmlabs.com  www.rtlinux.com
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
