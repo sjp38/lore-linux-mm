@@ -1,39 +1,67 @@
-Date: Fri, 31 Jan 2003 10:15:09 +0000
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [rfc][patch] GFP_ZONEMASK vs. MAX_NR_ZONES
-Message-ID: <20030131101509.A18876@infradead.org>
-References: <3E39DCE8.8050101@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3E39DCE8.8050101@us.ibm.com>; from colpatch@us.ibm.com on Thu, Jan 30, 2003 at 06:18:16PM -0800
+Date: Fri, 31 Jan 2003 12:45:11 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] rmap 15c
+In-Reply-To: <200301301709.09692.m.c.p@wolk-project.de>
+Message-ID: <Pine.LNX.4.50L.0301311244280.2429-100000@imladris.surriel.com>
+References: <Pine.LNX.4.50L.0301301131220.27926-100000@imladris.surriel.com>
+ <200301301709.09692.m.c.p@wolk-project.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, "Martin J. Bligh" <mbligh@aracnet.com>, William Lee Irwin III <wli@holomorphy.com>, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@zip.com.au>, Rik van Riel <riel@conectiva.com.br>
+To: Marc-Christian Petersen <m.c.p@wolk-project.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Arjan van de Ven <arjanv@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 30, 2003 at 06:18:16PM -0800, Matthew Dobson wrote:
-> Whilst reading through some code for an unrelated patch the other day, I 
-> stumbled across the build_zonelist* functions.  It seemed to me that the 
-> bounds on the loop seemed too large.
-> 
-> There are only 3 memory zones: DMA (__GFP_DMA = 0x01), NORMAL, & HIGHMEM 
-> (__GFP_DMA = 0x02).  Thus, GFP_ZONEMASK doesn't need to be 0x0f, but 
-> only 0x03.  My guess this was to leave room for future zones?  In any 
-> case, the loop in build_zonelists should almost certainly not go from 
-> i=0..GFP_ZONEMASK.  This instantiates 13 zones that are never used, 
-> because there is no case that I could find where any zonemask above 0x02 
-> is used.  A zonemask of 0x03 would be DMA | HIGHMEM, but I could not 
-> find an instance of that either, probably because it wouldn't make much 
-> sense to request a chunk of memory from DMA & HIGHMEM.
+On Thu, 30 Jan 2003, Marc-Christian Petersen wrote:
+> On Thursday 30 January 2003 14:32, Rik van Riel wrote:
+>
+> Hi Rik,
+>
+> > rmap 15c:
+> >   - backport and audit akpm's reliable pte_chain alloc
+> >     code from 2.5                                         (me)
+> >   - reintroduce cache size tuning knobs in /proc          (me)
+> >     | on very, very popular request
+>
+> GREAT to see this. Already merged for wolk4.0s-pre10 :)
 
-Erich Focht added a hack to NEC's tree so he can represent different
-nodes on their IA64 machines as memory zones and most 64it architectures
-really only needs a single zone (ZONE_NORMAL), so it might be an interesting
-option to make all this stuff per-arch..
+Better merge this little patch, too.  Arjan spotted this
+bug and now I'm not sure why rmap15c worked at all, let
+alone why it survived a night of stress testing ... ;)
 
-> 
+# This is a BitKeeper generated patch for the following project:
+# Project Name: Linux kernel tree
+# This patch format is intended for GNU patch command version 2.5 or higher.
+# This patch includes the following deltas:
+#	           ChangeSet	1.793   -> 1.794
+#	           fs/exec.c	1.24    -> 1.25
+#
+# The following is the BitKeeper ChangeSet Log
+# --------------------------------------------
+# 03/01/31	riel@imladris.surriel.com	1.794
+# uh oh, here we could end up freeing a used pte_chain
+# (thanks arjan)
+# --------------------------------------------
+#
+diff -Nru a/fs/exec.c b/fs/exec.c
+--- a/fs/exec.c	Fri Jan 31 12:44:30 2003
++++ b/fs/exec.c	Fri Jan 31 12:44:30 2003
+@@ -308,7 +308,7 @@
+ 	flush_dcache_page(page);
+ 	flush_page_to_ram(page);
+ 	set_pte(pte, pte_mkdirty(pte_mkwrite(mk_pte(page, PAGE_COPY))));
+-	page_add_rmap(page, pte, pte_chain);
++	pte_chain = page_add_rmap(page, pte, pte_chain);
+ 	tsk->mm->rss++;
+ 	pte_unmap(pte);
+ 	spin_unlock(&tsk->mm->page_table_lock);
+
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
+http://www.surriel.com/		http://guru.conectiva.com/
+Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
