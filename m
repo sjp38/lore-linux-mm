@@ -1,55 +1,42 @@
-Date: Sun, 28 Oct 2001 09:59:14 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: xmm2 - monitor Linux MM active/inactive lists graphically
-In-Reply-To: <E15xu2b-0008QL-00@the-village.bc.nu>
-Message-ID: <Pine.LNX.4.33.0110280945150.7360-100000@penguin.transmeta.com>
+Date: Sun, 28 Oct 2001 18:22:00 +0000 (GMT)
+In-Reply-To: <Pine.LNX.4.33.0110280945150.7360-100000@penguin.transmeta.com> from "Linus Torvalds" at Oct 28, 2001 09:59:14 AM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <E15xuZM-0008W5-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Zlatko Calusic <zlatko.calusic@iskon.hr>, Jens Axboe <axboe@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Zlatko Calusic <zlatko.calusic@iskon.hr>, Jens Axboe <axboe@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 28 Oct 2001, Alan Cox wrote:
->
-> > Does the -ac patches have any hpt366-specific stuff? Although I suspect
-> > you're right, and that it's just the driver (or controller itself) being
->
-> The IDE code matches between the two. It isnt a driver change
+> In contrast, the -ac logic says roughly "Who the hell cares if the driver
+> can merge requests or not, we can just give it thousands of small requests
+> instead, and cap the total number of _sectors_ instead of capping the
+> total number of requests earlier"
 
-It might, of course, just be timing, but that sounds like a bit _too_ easy
-an explanation. Even if it could easily be true.
+If you think about it the major resource constraint is sectors - or another
+way to think of it "number of pinned pages the VM cannot rescue until the
+I/O is done". We also have many devices where the latency is horribly
+important - IDE is one because it lacks sensible overlapping I/O. I'm less
+sure what the latency trade offs are. Less commands means less turnarounds
+so there is counterbalance.
 
-The fact that -ac gets higher speeds, and -ac has a very different
-request watermark strategy makes me suspect that that might be the cause.
+In the case of IDE the -ac tree will do basically the same merging - the
+limitations on IDE DMA are pretty reasonable. DMA IDE has scatter gather
+tables and is actually smarter than many older scsi controllers. The IDE
+layer supports up to 128 chunks of up to just under 64Kb (should be 64K
+but some chipsets get 64K = 0 wrong and its not pretty)
 
-In particular, the standard kernel _requires_ that in order to get good
-performance you can merge many bh's onto one request. That's a very
-reasonable assumption: it basically says that any high-performance driver
-has to accept merging, because that in turn is required for the elevator
-overhead to not grow without bounds. And if the driver doesn't accept big
-requests, that driver cannot perform well because it won't have many
-requests pending.
+> In my opinion, the -ac logic is really bad, but one thing it does allow is
+> for stupid drivers that look like high-performance drivers. Which may be
+> why it got implemented.
 
-In contrast, the -ac logic says roughly "Who the hell cares if the driver
-can merge requests or not, we can just give it thousands of small requests
-instead, and cap the total number of _sectors_ instead of capping the
-total number of requests earlier".
-
-In my opinion, the -ac logic is really bad, but one thing it does allow is
-for stupid drivers that look like high-performance drivers. Which may be
-why it got implemented.
-
-And it may be that the hpt366 IDE driver has always had this braindamage,
-which the -ac code hides. Or something like this.
-
-Does anybody know the hpt driver? Does it, for example, limit the maximum
-number of sectors per merge somehow for some reason?
-
-Jens?
-
-		Linus
+Well I'm all for making dumb hardware go as fast as smart stuff but that
+wasn't the original goal - the original goal was to fix the bad behaviour
+with the base kernel and large I/O queues to slow devices like M/O disks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
