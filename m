@@ -1,78 +1,61 @@
-Subject: Re: 2.6.3-rc2-mm1 (compile stats)
-From: John Cherry <cherry@osdl.org>
-In-Reply-To: <20040212015710.3b0dee67.akpm@osdl.org>
+From: Alistair John Strachan <s0348365@sms.ed.ac.uk>
+Reply-To: s0348365@sms.ed.ac.uk
+Subject: Re: 2.6.3-rc2-mm1
+Date: Thu, 12 Feb 2004 18:43:54 +0000
 References: <20040212015710.3b0dee67.akpm@osdl.org>
-Content-Type: text/plain
-Message-Id: <1076605608.23437.3.camel@cherrytest.pdx.osdl.net>
-Mime-Version: 1.0
-Date: Thu, 12 Feb 2004 09:06:48 -0800
+In-Reply-To: <20040212015710.3b0dee67.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200402121843.55084.s0348365@sms.ed.ac.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linux 2.6 (mm tree) Compile Statistics (gcc 3.2.2)
-Warnings/Errors Summary
+On Thursday 12 February 2004 09:57, you wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.3-rc2/2.6
+>.3-rc2-mm1/
+>
+>
+> - Added the big ISDN update
+>
+> - Device Mapper update
+>
+[snip]
 
-Kernel            bzImage   bzImage  bzImage  modules  bzImage  modules
-                (defconfig) (allno) (allyes) (allyes) (allmod) (allmod)
---------------- ---------- -------- -------- -------- -------- --------
-2.6.3-rc2-mm1     1w/0e     0w/265e 144w/ 5e   7w/0e   3w/0e    145w/0e
-2.6.3-rc1-mm1     1w/0e     0w/265e 141w/ 5e   7w/0e   3w/0e    143w/0e
-2.6.2-mm1         2w/0e     0w/264e 147w/ 5e   7w/0e   3w/0e    173w/0e
-2.6.2-rc3-mm1     2w/0e     0w/265e 146w/ 5e   7w/0e   3w/0e    172w/0e
-2.6.2-rc2-mm2     0w/0e     0w/264e 145w/ 5e   7w/0e   3w/0e    171w/0e
-2.6.2-rc2-mm1     0w/0e     0w/264e 146w/ 5e   7w/0e   3w/0e    172w/0e
-2.6.2-rc1-mm3     0w/0e     0w/265e 144w/ 8e   7w/0e   3w/0e    169w/0e
-2.6.2-rc1-mm2     0w/0e     0w/264e 144w/ 5e  10w/0e   3w/0e    171w/0e
-2.6.2-rc1-mm1     0w/0e     0w/264e 144w/ 5e  10w/0e   3w/0e    171w/0e
-2.6.1-mm5         2w/5e     0w/264e 153w/11e  10w/0e   3w/0e    180w/0e
-2.6.1-mm4         0w/821e   0w/264e 154w/ 5e   8w/1e   5w/0e    179w/0e
-2.6.1-mm3         0w/0e     0w/0e   151w/ 5e  10w/0e   3w/0e    177w/0e
-2.6.1-mm2         0w/0e     0w/0e   143w/ 5e  12w/0e   3w/0e    171w/0e
-2.6.1-mm1         0w/0e     0w/0e   146w/ 9e  12w/0e   6w/0e    171w/0e
-2.6.1-rc2-mm1     0w/0e     0w/0e   149w/ 0e  12w/0e   6w/0e    171w/4e
-2.6.1-rc1-mm2     0w/0e     0w/0e   157w/15e  12w/0e   3w/0e    185w/4e
-2.6.1-rc1-mm1     0w/0e     0w/0e   156w/10e  12w/0e   3w/0e    184w/2e
-2.6.0-mm2         0w/0e     0w/0e   161w/ 0e  12w/0e   3w/0e    189w/0e
-2.6.0-mm1         0w/0e     0w/0e   173w/ 0e  12w/0e   3w/0e    212w/0e
+I don't know if it's still worth reporting these, but at the risk of sounding 
+like a broken record..
 
-Web page with links to complete details:
-   http://developer.osdl.org/cherry/compile/
+Badness in interruptible_sleep_on at kernel/sched.c:2235
+Call Trace:
+ [<c011b289>] interruptible_sleep_on+0xe9/0x120
+ [<c011ae80>] default_wake_function+0x0/0x20
+ [<c0365c17>] copy_block+0xa7/0xe0
+ [<c036167c>] emu10k1_audio_write+0x1ac/0x320
+ [<c03614d0>] emu10k1_audio_write+0x0/0x320
+ [<c015370a>] vfs_write+0x10a/0x150
+ [<c010f26a>] do_gettimeofday+0x1a/0xb0
+ [<c0153802>] sys_write+0x42/0x70
+ [<c03f0266>] sysenter_past_esp+0x43/0x65
 
+Haven't noticed it before.
 
-Error Summary (individual module builds):
+Other than that, the whole ACPI on nForce2 thing seems to have been fixed. 
+Back to -mm for me.
 
-   drivers/net: 0 warnings, 1 errors
+-- 
+Cheers,
+Alistair.
 
-
-Warning Summary (individual module builds):
-
-   drivers/block: 1 warnings, 0 errors
-   drivers/cdrom: 3 warnings, 0 errors
-   drivers/char: 4 warnings, 0 errors
-   drivers/ide: 5 warnings, 0 errors
-   drivers/isdn: 2 warnings, 0 errors
-   drivers/message: 1 warnings, 0 errors
-   drivers/mtd: 23 warnings, 0 errors
-   drivers/net: 7 warnings, 0 errors
-   drivers/pcmcia: 3 warnings, 0 errors
-   drivers/scsi/pcmcia: 1 warnings, 0 errors
-   drivers/scsi: 32 warnings, 0 errors
-   drivers/serial: 1 warnings, 0 errors
-   drivers/telephony: 5 warnings, 0 errors
-   drivers/usb: 2 warnings, 0 errors
-   drivers/video/aty: 3 warnings, 0 errors
-   drivers/video/console: 2 warnings, 0 errors
-   drivers/video/matrox: 5 warnings, 0 errors
-   drivers/video: 8 warnings, 0 errors
-   sound/isa: 6 warnings, 0 errors
-   sound/oss: 33 warnings, 0 errors
-
-John
-
+personal:   alistair()devzero!co!uk
+university: s0348365()sms!ed!ac!uk
+student:    CS/AI Undergraduate
+contact:    7/10 Darroch Court,
+            University of Edinburgh.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
