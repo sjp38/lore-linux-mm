@@ -1,48 +1,91 @@
-Received: from bolivar.varner.com (root@bolivar.varner.com [208.236.160.18])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA01542
-	for <linux-mm@kvack.org>; Thu, 2 Jul 1998 11:36:05 -0400
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by bolivar.varner.com (8.8.5/8.8.5) with ESMTP id KAA06475
-	for <linux-mm@kvack.org>; Thu, 2 Jul 1998 10:36:20 -0500 (CDT)
-Subject: Re: (reiserfs) Re: More on Re: (reiserfs) Reiserfs and ext2fs (was Re: (reiserfs) Sum Benchmarks (these look typical?))
-References: <Pine.HPP.3.96.980617035608.29950A-100000@ixion.honeywell.com>
-	<199806221138.MAA00852@dax.dcs.ed.ac.uk>
-	<358F4FBE.821B333C@ricochet.net> <m11zsgrvnf.fsf@flinx.npwt.net>
-	<199806241154.MAA03544@dax.dcs.ed.ac.uk>
-	<m11zse6ecw.fsf@flinx.npwt.net>
-	<199806251100.MAA00835@dax.dcs.ed.ac.uk>
-	<m1emwcf97d.fsf@flinx.npwt.net>
-	<199806291035.LAA00733@dax.dcs.ed.ac.uk>
-	<m1u354dlna.fsf@flinx.npwt.net>
-	<199806301610.RAA00957@dax.dcs.ed.ac.uk>
-	<m1n2au77ck.fsf@flinx.npwt.net>
-	<199807010912.KAA00789@dax.dcs.ed.ac.uk>
-	<m13ecl7m25.fsf@flinx.npwt.net>
-	<199807012007.VAA04529@dax.dcs.ed.ac.uk>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 02 Jul 1998 10:17:56 -0500
-In-Reply-To: "Stephen C. Tweedie"'s message of Wed, 1 Jul 1998 21:07:32 +0100
-Message-ID: <m1lnqc5ljv.fsf@flinx.npwt.net>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA01852
+	for <linux-mm@kvack.org>; Thu, 2 Jul 1998 12:38:44 -0400
+Received: from mirkwood.dummy.home (root@anx1p3.phys.uu.nl [131.211.33.92])
+	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id SAA11227
+	for <linux-mm@kvack.org>; Thu, 2 Jul 1998 18:38:33 +0200 (MET DST)
+Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with SMTP id SAA08142 for <linux-mm@kvack.org>; Thu, 2 Jul 1998 18:13:58 +0200
+Date: Thu, 2 Jul 1998 18:13:55 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: zone allocator design (partly)
+Message-ID: <Pine.LNX.3.96.980702174702.8137A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Hans Reiser <reiser@ricochet.net>, Shawn Leas <sleas@ixion.honeywell.com>, Reiserfs <reiserfs@devlinux.com>, Ken Tetrick <ktetrick@ixion.honeywell.com>, linux-mm@kvack.org
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
->> I just took the time and looked.  
+Hi,
 
->> And in buffer.c in get_hash_table if we are returning a locked buffer,
->> we always wait on that buffer until it is unlocked.  So to date we I
->> don't see us tempting fate, with writing to locked buffers.
+I've come up with a design for the zone allocator.
+Basically, we allocate 32-page areas first, and
+then we allocate pages inside these area's.
 
-ST> Whoops, yes, we do currently do copies for msync().  It's been too long
-ST> since I was digging in that code...
+The areas are divided both by usage type and physical
+type. Usage is divided in large SLAB, DMA, small SLAB,
+pagetable, user pages. Physical type is divided in the
+following types: DMAable memory, cached memory and slow
+memory.
 
-Well I asked on Linux kernel and talked a little bit about this with Alan Cox.
-He figures if we try and stop something like DMA half way through we
-are in trouble but otherwise we should be o.k.
+The distinction between large SLAB and DMA is only made when
+total memory goes above the DMA limit. The distinction between
+small SLAB and pagetable is only made when we have slow
+(uncached / add-on) memory and the user tells us to...
 
-So for the next round I'll implement the cheap clear the dirty bit, on
-the page tables trick.
+In addition, we also have different lists depending on
+how used the areas are, this gives us the following
+lists:
 
-Eric
+large/DMA	small/PTE	user		empty
+full		full		full		DMA
+3/4		30/32		30/32		normal
+1/2		28/32		28/32		slow
+1/4		20/32		20/32
+		8/32		8/32
+
+Areas are allocated in the following order:
+user, slab	-> normal, slow, DMA
+pagetable	-> slow, normal, DMA
+DMA		-> DMA
+
+On allocation, a page is always taken from the first area
+on the 'almost full' list; when we have few free pages,
+we give pages inside an almost empty area (page in the lowest
+populated queue, or last page in 30/32 queue) an extra
+penalty (or we just force-free them) so we can free up an
+extra area when needed. We skip DMA areas on our fist
+pass over a list, we allocate from them only on our
+second pass...
+
+The individual area's are described by the following
+struct; next and prev are used for the lists mentioned
+above, the flags could maybe be dropped, but they might
+be nice for statistics and stuff (and we want alignment
+anyway), the page_map is a bitmap of pages and the
+num_used is there to move pages from queue to queue
+easily. The reason I chose for a bitmap instead of the
+currently used linked-list-on-page-itself structure
+is that it allows us to keep pages in-core for longer
+times so we can do lazy-reclamation...
+The structure is aligned to 4 longs, both on x86
+and Alpha; don't know about UltraSPARC though.
+Heck, I don't even know if it needs alignment :-)
+
+struct memory_area {
+	memory_area * next, prev;
+	unsigned short flags;
+	unsigned long page_map;	/* bitmap of used/free pages */
+	unsigned short num_used; /* nr of used pages, used to move us
+				around the list of memory_area's */
+};
+
+As usual, I want/need comments. This weekend, I might even
+be able to create some time for coding up the allocator.
+(after I have a working linux-mm archive on our homepage)
+
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
