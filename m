@@ -1,55 +1,71 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 953A238C0C
-	for <linux-mm@kvack.org>; Mon, 25 Jun 2001 20:59:11 -0300 (EST)
-Date: Mon, 25 Jun 2001 20:59:11 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Message-Id: <200106260114.f5Q1EVg27737@mailg.telia.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Roger Larsson <roger.larsson@norran.net>
 Subject: Re: [RFC] VM statistics to gather
-In-Reply-To: <200106252339.f5PNd9x07535@maile.telia.com>
-Message-ID: <Pine.LNX.4.33L.0106252048230.23373-100000@duckman.distro.conectiva>
+Date: Tue, 26 Jun 2001 03:11:03 +0200
+References: <Pine.LNX.4.33L.0106252048230.23373-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.33L.0106252048230.23373-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 26 Jun 2001, Roger Larsson wrote:
-
-> What about
+On Tuesday 26 June 2001 01:59, Rik van Riel wrote:
+> On Tue, 26 Jun 2001, Roger Larsson wrote:
+> > What about
+> >
+> >    unsigned int vm_pgfails /* failed alloc attempts, in pages (not calls)
+> > */
 >
->    unsigned int vm_pgfails /* failed alloc attempts, in pages (not calls) */
-
-What would that represent ?
-
-How often __alloc_pages() exits without allocating anything?
-
-> maybe even a
+> What would that represent ?
 >
->    unsigned int vm_pgallocs /* alloc attempts, in pages */
+> How often __alloc_pages() exits without allocating anything?
+
+Yes, failed allocs  [Call it vm_pgalloc_fails ?]
+
 >
-> for sanity checking - should be the sum of several other combinations...
+> > maybe even a
+> >
+> >    unsigned int vm_pgallocs /* alloc attempts, in pages */
+> >
+> > for sanity checking - should be the sum of several other combinations...
+>
+> Sounds like a nice idea.
+>
 
-Sounds like a nice idea.
+Let this and vm_pgalloc_fails work together,
 
-> Should memory zone be used as dimension?
+at __alloc_pages entry (always done) account in vm_pgallocs
+at failed exit account in vm_pgallocs_failed
 
-Useful for allocations I guess, but it may be too confusing
-if we do this for all statistics... OTOH...
+> > Should memory zone be used as dimension?
+>
+> Useful for allocations I guess, but it may be too confusing
+> if we do this for all statistics... OTOH...
 
-Comments, anyone?
+Using order as another dimension could also be interesting...
+Something like this?
 
-regards,
+vm_pgallocs[
+	order < MAX_ACCOUNT_ORDER ? order : MAX_ACCOUNT_ORDER][
+	gfp_mask & GFP_ZONEMASK] += (1 << order)
 
-Rik
---
-Executive summary of a recent Microsoft press release:
-   "we are concerned about the GNU General Public License (GPL)"
+Or even simpler (assuming MAX_ACCOUNT_ORDER == 1)
 
+vm_pgallocs[!!order][gfp_mask & GFP_ZONEMASK] += (1 << order)
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
+BTW, why is GFP_ZONEMASK 0xf when MAX_NR_ZONES is 3 ? (i.e. 0..2)
 
+/RogerL
+
+-- 
+Roger Larsson
+Skelleftea
+Sweden
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
