@@ -1,58 +1,47 @@
-Message-ID: <42124551.8060401@sgi.com>
-Date: Tue, 15 Feb 2005 12:54:09 -0600
-From: Ray Bryant <raybry@sgi.com>
-MIME-Version: 1.0
-Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration --	sys_page_migrate
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>	 <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>	 <1108242262.6154.39.camel@localhost>	 <20050214135221.GA20511@lnx-holt.americas.sgi.com>	 <1108407043.6154.49.camel@localhost>	 <20050214220148.GA11832@lnx-holt.americas.sgi.com>	 <1108419774.6154.58.camel@localhost>	 <20050215105056.GC19658@lnx-holt.americas.sgi.com> <1108492753.6154.82.camel@localhost>
-In-Reply-To: <1108492753.6154.82.camel@localhost>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Tue, 15 Feb 2005 12:59:43 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
+Message-ID: <20050215185943.GA24401@lnx-holt.americas.sgi.com>
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com> <1108242262.6154.39.camel@localhost> <20050214135221.GA20511@lnx-holt.americas.sgi.com> <1108407043.6154.49.camel@localhost> <20050214220148.GA11832@lnx-holt.americas.sgi.com> <20050215074906.01439d4e.pj@sgi.com> <20050215162135.GA22646@lnx-holt.americas.sgi.com> <20050215083529.2f80c294.pj@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050215083529.2f80c294.pj@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Robin Holt <holt@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Hugh DIckins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Marcello Tosatti <marcello@cyclades.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Paul Jackson <pj@sgi.com>
+Cc: Robin Holt <holt@sgi.com>, haveblue@us.ibm.com, raybry@sgi.com, taka@valinux.co.jp, hugh@veritas.com, akpm@osdl.org, marcello@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
-> On Tue, 2005-02-15 at 04:50 -0600, Robin Holt wrote:
+On Tue, Feb 15, 2005 at 08:35:29AM -0800, Paul Jackson wrote:
+> What about the suggestion I had that you sort of skipped over, which
+> amounted to changing the system call from a node array to just one
+> node:
 > 
->>What is the fundamental opposition to an array from from-to node mappings?
->>They are not that difficult to follow.  They make the expensive traversal
->>of ptes the single pass operation.  The time to scan the list of from nodes
->>to locate the node this page belongs to is relatively quick when compared
->>to the time to scan ptes and will result in probably no cache trashing
->>like the long traversal of all ptes in the system required for multiple
->>system calls.  I can not see the node array as anything but the right way
->>when compared to multiple system calls.  What am I missing?
+>     sys_page_migrate(pid, va_start, va_end, count, old_nodes, new_nodes);
 > 
+> to:
 > 
-> I don't really have any fundamental opposition.  I'm just trying to make
-> sure that there's not a simpler (better) way of doing it.  You've
-> obviously thought about it a lot more than I have, and I'm trying to
-> understand your process.
+>     sys_page_migrate(pid, va_start, va_end, old_node, new_node);
 > 
-> As far as the execution speed with a simpler system call.  Yes, it will
-> likely be slower.  However, I'm not sure that the increase in scan time
-> is all that significant compared to the migration code (it's pretty
-> slow).
-> 
-> -- Dave
-> 
-> 
-I'm worried about doing all of those find_get_page() things over and over
-when the mapped file we are migrating is large.  I suppose one can argue
-that that is never going to be the case (e. g. no one in their right mind
-would migrate a job with a 300 GB mapped file).  So we are back to the
-overlapping set of nodes issue.  Let me look into this some more.
+> Doesn't that let you do all you need to?  Is it insane too?
 
--- 
------------------------------------------------
-Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-	 so I installed Linux.
------------------------------------------------
+Migration could be done in most cases and would only fall apart when
+there are overlapping node lists and no nodes available as temp space
+and we are not moving large chunks of data.
+
+What is the fundamental concern with passing in an array of integers?
+That seems like a fairly easy to verify item with very little chance
+of breaking.  I don't feel the concern that others seem to.
+
+I do see the benefit to those arrays as being a single pass through the
+page tables, the ability to migrate without using a temporary node, and
+reducing the number of times data is copied when there are overlapping
+nodes.  To me, those seem to be very compelling reasons when compared
+to the potential for a possible problem with an array of integers.
+
+Thanks,
+Robin
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
