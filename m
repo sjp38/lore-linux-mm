@@ -1,139 +1,53 @@
-Date: Mon, 4 Apr 2005 14:28:27 -0500
-From: Jack Steiner <steiner@sgi.com>
-Subject: per_cpu_pagesets degrades MPI performance
-Message-ID: <20050404192827.GA15142@sgi.com>
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j34NNNCt002313
+	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 19:23:23 -0400
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j34NNNGh198470
+	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 19:23:23 -0400
+Received: from d01av04.pok.ibm.com (loopback [127.0.0.1])
+	by d01av04.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j34NNNPg010984
+	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 19:23:23 -0400
+Date: Mon, 4 Apr 2005 16:22:54 -0700
+From: Mike Kravetz <kravetz@us.ibm.com>
+Subject: Re: [PATCH 1/4] create mm/Kconfig for arch-independent memory options
+Message-ID: <20050404232254.GC6500@w-mikek2.ibm.com>
+References: <E1DIViE-0006Kf-00@kernel.beaverton.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <E1DIViE-0006Kf-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org, hugh@veritas.com
-Cc: linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-Performnace of a number of MPI benchmarks degraded when we upgraded 
-from 2.4 based kernels to 2.6 based kernels.  Surprisingly, we isolated 
-the cause of the degradation to page coloring problems caused by
-the per_cpu_pagesets feature that was added to 2.6. I'm sure that
-this feature is a significant win for many workloads but it is
-causing degradations for MPI workloads.
+On Mon, Apr 04, 2005 at 10:50:09AM -0700, Dave Hansen wrote:
+diff -puN mm/Kconfig~A6-mm-Kconfig mm/Kconfig
+--- memhotplug/mm/Kconfig~A6-mm-Kconfig 2005-04-04 09:04:48.000000000 -0700
++++ memhotplug-dave/mm/Kconfig  2005-04-04 10:15:23.000000000 -0700
+@@ -0,0 +1,25 @@
+> +choice
+> +	prompt "Memory model"
+> +	default FLATMEM
+> +	default SPARSEMEM if ARCH_SPARSEMEM_DEFAULT
+> +	default DISCONTIGMEM if ARCH_DISCONTIGMEM_DEFAULT
+> +
 
-I'm running on an IA64 using systems with L3 caches of 1.5MB, 3MB & 9MB. The
-degradation has been seen on all systems. The L3 caches on these systems
-are physically tagged & have 16 (1.5MB, 3MB) or 32 (9MB) colors.
+Yet the changes to the defconfig files that had DISCONTIGMEM as
+the default look like.
 
-MPI programs consist of multiple threads that are simultaneously
-launched by a control thread. The threads typically allocate memory
-in parallel during the initialization phase.
+-CONFIG_DISCONTIGMEM=y
++CONFIG_ARCH_DISCONTIGMEM_ENABLE=y
 
-With per_cpu_pagesets, pages are allocated & released in small batchs.
-The batch size on the test system that I used is 4. Batching allocations
-introduces a bias into the colors of the pages that are assigned to
-a thread and is causing excessive L3 cache misses.
-
-I wrote a simple test program that forked 2 threads, then each thread
-malloc'ed & referenced 10MB of memory.  I then counted the colors of
-each of the pages in the 10MB region of the 2 threads:
-
-	(color = (phys-addr / pagesize) % 16
-
-           ----------- color--------------------------------------------
-           0   1   2   3   4   5   6   7   8   9  10  11  12  13  14  15
-Thread 0:  2   2   2   2  75  75  75  75   1   1   1   1  74  74  75  76
-Thread 1: 74  74  74  74   1   1   1   1  75  76  76  76   2   2   2   2
-
-Note that thread 0 has most of it pages with colors 4-7 & 12-15 whereas 
-the other thread has colors 0-3 & 8-11. This effectively cuts the size of 
-the L3 in half. 
-
-The threads are nicely interleaving assignments of the batches of 4 pages.
-
-I see this same skew in page colors assigned to real user programs but it not
-as bad as the example shown above. However, performance of MPI programs is
-limited by the speed of the slowest thread. If only a single thread has
-poor coloring, performance of all threads degrades.
-
-I added a hack to disable the per_cpu_pagesets, the color skew disappears &
-both 2.4 & 2.6 kernel perform the same.
-
-With per_cpu_pagesets disabled, I see a tendency to assign a series of 
-odd pages to one thread & even pages to the other thread. However, there 
-appears to be enough noise in the system so that the pattern does not 
-persist for a long time and overall each thread has approximately the same 
-number of pages of each color.
-
-I also changed the batch size to 16. (I was running on a system that had
-an L3 with 16 colors). Again, the degradation disappeared.
-
-
-Here is data from a real benchmark suite.  The tests wer run on a 
-production system with 64p, 32 nodes.  The numbers show the time
-required to run each test. Benchmarks 1, 2 & 5 show significant
-degradation caused by the per_cpu_pagesets.
-
-              - PER_CPU_PAGESETS -
-TESTCASE      ENABLED     DISABLED        RATIO
-BENCHMARK1
-      4P         9.97         6.29         0.63
-      8P         5.34         3.84         0.72
-     16P         2.60         1.96         0.75
-     32P         1.64         1.07         0.65
-     64P         0.94         0.55         0.59
-    128P         0.60         0.33         0.56
-
-BENCHMARK2
-      4P      3061.46      2877.89         0.94
-      8P      1794.32      1707.51         0.95
-     16P      1201.00      1129.44         0.94
-     32P      1017.43       932.83         0.92
-
-BENCHMARK3
-     32P      3832.90      3897.00         1.02
-
-BENCHMARK4
-      2P      1387.00      1378.00         0.99
-      4P       698.23       714.24         1.02
-      8P       341.71       350.20         1.02
-     16P       174.82       170.84         0.98
-     32P        73.75        81.54         1.11
-
-BENCHMARK5
-      4P       761.07       757.09         0.99
-      8P       341.54       295.69         0.87
-     16P       142.38       136.37         0.96
-     32P        68.41        56.60         0.83
-     64P        35.17        34.43         0.98
-
-BENCHMARK6
-      1P       155.42       154.94         1.00
-      2P        73.40        72.86         0.99
-      4P        38.43        37.25         0.97
-      6P        25.66        25.49         0.99
-      8P        19.93        19.70         0.99
-     12P        13.99        13.94         1.00
-     16P        10.98        10.85         0.99
-     24P         8.02         7.92         0.99
-     48P         5.58         5.73         1.03
-
-Has anyone else seen this problem? I am considering adding
-a config option to allow a site to control the batch size
-used for per_cpu_pagesets. Are there other ideas that should 
-be pursued? 
-
-
-I should also note that the amount of memory potentially trapped in the 
-per_cpu_pagesets gets excessively large on big multinode systems.
-I'll post another note about this, but it looks like a 
-256 node, 512p system can have many GB of memory in the
-per_cpu_pagesets.
+Do you need to set ARCH_DISCONTIGMEM_DEFAULT instead of just
+CONFIG_ARCH_DISCONTIGMEM_ENABLE to have DISCONTIGMEM be the
+default? or am I missing something?  I don't see
+ARCH_DISCONTIGMEM_DEFAULT turned on by default in any of these
+patches.
 
 -- 
-Thanks
-
-Jack Steiner (steiner@sgi.com)          651-683-5302
-Principal Engineer                      SGI - Silicon Graphics, Inc.
-
-
+Mike
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
