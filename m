@@ -1,77 +1,353 @@
-Received: from oscar (localhost [127.0.0.1])
-	by oscar.casa.dyndns.org (Postfix) with SMTP id C6240ADCEC
-	for <linux-mm@kvack.org>; Sat,  3 Jun 2000 10:54:28 -0400 (EDT)
-From: Ed Tomlinson <tomlins@cam.org>
-Reply-To: tomlins@cam.org
-Subject: vm patch #2 plus
-Date: Sat, 3 Jun 2000 10:49:33 -0400
-Content-Type: text/plain
+Date: Sat, 3 Jun 2000 12:17:16 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] VM patch 3 for -ac7
+Message-ID: <Pine.LNX.4.21.0006031212580.1123-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Message-Id: <00060310542800.00858@oscar>
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: yoann@mandrakesoft.com, gandalf@wlug.westbo.se, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-after conversing with Rik on kernelnewbies he figured out what was wrong with 
-#2.  Then he released he was suposted to be learning another (human) language.
-In any case.  This diff applied on top of #2 seems to work well.
+this patch (versus 2.4.0-test1-ac7) fixes the last balancing
+problems with virtual memory. It adds two negative feedback
+loops, one in __alloc_pages to make sure kswapd is woken up
+often enough but not too often and another one in
+do_try_to_free_pages, to balance between the memory freed and
+the amount of pages unmapped to "generate" more freeable memory.
 
----------------------------------------------------------------
---- vmscan.c.orig	Sat Jun  3 09:33:01 2000
-+++ vmscan.c	Sat Jun  3 09:37:14 2000
-@@ -467,9 +467,10 @@
+This one seems to really work, but of course I'm interested in
+feedback ;)
+
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
+
+--- linux-2.4.0-t1-ac7/fs/buffer.c.orig	Thu Jun  1 10:37:59 2000
++++ linux-2.4.0-t1-ac7/fs/buffer.c	Thu Jun  1 14:51:14 2000
+@@ -1868,6 +1868,7 @@
+ 	}
+ 	
+ 	spin_unlock(&unused_list_lock);
++	wake_up(&buffer_wait);
+ 
+ 	return iosize;
+ }
+@@ -2004,6 +2005,8 @@
+ 		__put_unused_buffer_head(bh[bhind]);
+ 	}
+ 	spin_unlock(&unused_list_lock);
++	wake_up(&buffer_wait);
++
+ 	goto finished;
+ }
+ 
+@@ -2181,6 +2184,12 @@
+ }
+ 
+ /*
++ * Can the buffer be thrown out?
++ */
++#define BUFFER_BUSY_BITS	((1<<BH_Dirty) | (1<<BH_Lock) | (1<<BH_Protected))
++#define buffer_busy(bh)		(atomic_read(&(bh)->b_count) | ((bh)->b_state & BUFFER_BUSY_BITS))
++
++/*
+  * Sync all the buffers on one page..
+  *
+  * If we have old buffers that are locked, we'll
+@@ -2190,7 +2199,7 @@
+  * This all is required so that we can free up memory
+  * later.
+  */
+-static void sync_page_buffers(struct buffer_head *bh, int wait)
++static int sync_page_buffers(struct buffer_head *bh, int wait)
+ {
+ 	struct buffer_head * tmp = bh;
+ 
+@@ -2203,13 +2212,17 @@
+ 		} else if (buffer_dirty(p))
+ 			ll_rw_block(WRITE, 1, &p);
+ 	} while (tmp != bh);
+-}
+ 
+-/*
+- * Can the buffer be thrown out?
+- */
+-#define BUFFER_BUSY_BITS	((1<<BH_Dirty) | (1<<BH_Lock) | (1<<BH_Protected))
+-#define buffer_busy(bh)		(atomic_read(&(bh)->b_count) | ((bh)->b_state & BUFFER_BUSY_BITS))
++	do {
++		struct buffer_head *p = tmp;
++		tmp = tmp->b_this_page;
++		if (buffer_busy(p))
++			return 0;
++	} while (tmp != bh);
++
++	/* Success. Now try_to_free_buffers can free the page. */
++	return 1;
++}
+ 
+ /*
+  * try_to_free_buffers() checks if all the buffers on this particular page
+@@ -2227,6 +2240,7 @@
+ 	struct buffer_head * tmp, * bh = page->buffers;
+ 	int index = BUFSIZE_INDEX(bh->b_size);
+ 
++again:
+ 	spin_lock(&lru_list_lock);
+ 	write_lock(&hash_table_lock);
+ 	spin_lock(&free_list[index].lock);
+@@ -2272,7 +2286,8 @@
+ 	spin_unlock(&free_list[index].lock);
+ 	write_unlock(&hash_table_lock);
+ 	spin_unlock(&lru_list_lock);	
+-	sync_page_buffers(bh, wait);
++	if (sync_page_buffers(bh, wait))
++		goto again;
+ 	return 0;
+ }
+ 
+--- linux-2.4.0-t1-ac7/mm/vmscan.c.orig	Wed May 31 14:08:50 2000
++++ linux-2.4.0-t1-ac7/mm/vmscan.c	Sat Jun  3 10:29:54 2000
+@@ -439,12 +439,12 @@
+  * latency.
+  */
+ #define FREE_COUNT	8
+-#define SWAP_COUNT	16
+ static int do_try_to_free_pages(unsigned int gfp_mask)
+ {
+ 	int priority;
+ 	int count = FREE_COUNT;
+-	int swap_count;
++	int swap_count = 0;
++	int ret = 0;
+ 
+ 	/* Always trim SLAB caches when memory gets low. */
+ 	kmem_cache_reap(gfp_mask);
+@@ -452,6 +452,7 @@
+ 	priority = 64;
+ 	do {
+ 		while (shrink_mmap(priority, gfp_mask)) {
++			ret = 1;
+ 			if (!--count)
+ 				goto done;
+ 		}
+@@ -466,9 +467,12 @@
  			 */
  			count -= shrink_dcache_memory(priority, gfp_mask);
  			count -= shrink_icache_memory(priority, gfp_mask);
 -			if (count <= 0)
 +			if (count <= 0) {
- 				ret = 1;
++				ret = 1;
  				goto done;
-+                        } 
++			}
  			while (shm_swap(priority, gfp_mask)) {
- 				ret = 1;
++				ret = 1;
  				if (!--count)
-@@ -487,7 +488,7 @@
- 		 * The amount we page out is the amount of pages we're
- 		 * short freeing.
+ 					goto done;
+ 			}
+@@ -480,24 +484,30 @@
+ 		 * This will not actually free any pages (they get
+ 		 * put in the swap cache), so we must not count this
+ 		 * as a "count" success.
++		 *
++		 * The amount we page out is the amount of pages we're
++		 * short freeing, amplified by the number of times we
++		 * failed above. This generates a negative feedback loop:
++		 * the more difficult it was to free pages, the easier we
++		 * will make it.
  		 */
--		swap_count = count;
+-		swap_count = SWAP_COUNT;
+-		while (swap_out(priority, gfp_mask))
 +		swap_count += count;
- 		while (swap_out(priority, gfp_mask))
++		while (swap_out(priority, gfp_mask)) {
  			if (--swap_count < 0)
  				break;
-------------------------------------------------------------------
++		}
+ 
+ 	} while (--priority >= 0);
+ 
+ 	/* Always end on a shrink_mmap.. */
+ 	while (shrink_mmap(0, gfp_mask)) {
++		ret = 1;
+ 		if (!--count)
+ 			goto done;
+ 	}
+-	/* We return 1 if we are freed some page */
+-	return (count != FREE_COUNT);
+ 
+ done:
+-	return 1;
++	return ret;
+ }
+ 
+ DECLARE_WAIT_QUEUE_HEAD(kswapd_wait);
+--- linux-2.4.0-t1-ac7/mm/page_alloc.c.orig	Wed May 31 14:08:50 2000
++++ linux-2.4.0-t1-ac7/mm/page_alloc.c	Fri Jun  2 15:29:21 2000
+@@ -222,6 +222,9 @@
+ {
+ 	zone_t **zone = zonelist->zones;
+ 	extern wait_queue_head_t kswapd_wait;
++	static int last_woke_kswapd;
++	static int kswapd_pause = HZ;
++	int gfp_mask = zonelist->gfp_mask;
+ 
+ 	/*
+ 	 * (If anyone calls gfp from interrupts nonatomically then it
+@@ -248,14 +251,28 @@
+ 		}
+ 	}
+ 
+-	/* All zones are in need of kswapd. */
+-	if (waitqueue_active(&kswapd_wait))
++	/*
++	 * Kswapd should be freeing enough memory to satisfy all allocations
++	 * immediately.  Calling try_to_free_pages from processes will slow
++	 * down the system a lot.  On the other hand, waking up kswapd too
++	 * often means wasted memory and cpu time.
++	 *
++	 * We tune the kswapd pause interval in such a way that kswapd is
++	 * always just agressive enough to free the amount of memory we
++	 * want freed.
++	 */
++	if (waitqueue_active(&kswapd_wait) &&
++			time_after(jiffies, last_woke_kswapd + kswapd_pause)) {
++		kswapd_pause++;
++		last_woke_kswapd = jiffies;
+ 		wake_up_interruptible(&kswapd_wait);
++	}
+ 
+ 	/*
+ 	 * Ok, we don't have any zones that don't need some
+ 	 * balancing.. See if we have any that aren't critical..
+ 	 */
++again:
+ 	zone = zonelist->zones;
+ 	for (;;) {
+ 		zone_t *z = *(zone++);
+@@ -267,16 +284,29 @@
+ 				z->low_on_memory = 1;
+ 			if (page)
+ 				return page;
++		} else {
++			if (kswapd_pause > 0)
++				kswapd_pause--;
+ 		}
+ 	}
+ 
++	/* We didn't kick kswapd often enough... */
++	kswapd_pause /= 2;
++	if (waitqueue_active(&kswapd_wait))
++		wake_up_interruptible(&kswapd_wait);
++	/* If we're low priority, we just wait a bit and try again later. */
++	if ((gfp_mask & __GFP_WAIT) && current->need_resched &&
++				current->state == TASK_RUNNING) {
++		schedule();
++		goto again;
++	}
++
+ 	/*
+ 	 * Uhhuh. All the zones have been critical, which means that
+ 	 * we'd better do some synchronous swap-out. kswapd has not
+ 	 * been able to cope..
+ 	 */
+ 	if (!(current->flags & PF_MEMALLOC)) {
+-		int gfp_mask = zonelist->gfp_mask;
+ 		if (!try_to_free_pages(gfp_mask)) {
+ 			if (!(gfp_mask & __GFP_HIGH))
+ 				goto fail;
+@@ -303,7 +333,6 @@
+ 	zone = zonelist->zones;
+ 	for (;;) {
+ 		zone_t *z = *(zone++);
+-		int gfp_mask = zonelist->gfp_mask;
+ 		if (!z)
+ 			break;
+ 		if (z->free_pages > z->pages_min) {
+--- linux-2.4.0-t1-ac7/mm/filemap.c.orig	Wed May 31 14:08:50 2000
++++ linux-2.4.0-t1-ac7/mm/filemap.c	Fri Jun  2 15:42:25 2000
+@@ -334,13 +334,6 @@
+ 
+ 		count--;
+ 		/*
+-		 * Page is from a zone we don't care about.
+-		 * Don't drop page cache entries in vain.
+-		 */
+-		if (page->zone->free_pages > page->zone->pages_high)
+-			goto dispose_continue;
+-
+-		/*
+ 		 * Avoid unscalable SMP locking for pages we can
+ 		 * immediate tell are untouchable..
+ 		 */
+@@ -375,6 +368,13 @@
+ 			}
+ 		}
+ 
++		/*
++		 * Page is from a zone we don't care about.
++		 * Don't drop page cache entries in vain.
++		 */
++		if (page->zone->free_pages > page->zone->pages_high)
++			goto unlock_continue;
++
+ 		/* Take the pagecache_lock spinlock held to avoid
+ 		   other tasks to notice the page while we are looking at its
+ 		   page count. If it's a pagecache-page we'll free it
+@@ -400,8 +400,15 @@
+ 				goto made_inode_progress;
+ 			}
+ 			/* PageDeferswap -> we swap out the page now. */
+-			if (gfp_mask & __GFP_IO)
+-				goto async_swap_continue;
++			if (gfp_mask & __GFP_IO) {
++				spin_unlock(&pagecache_lock);
++				/* Do NOT unlock the page ... brw_page does. */
++				ClearPageDirty(page);
++				rw_swap_page(WRITE, page, 0);
++				spin_lock(&pagemap_lru_lock);
++				page_cache_release(page);
++				goto dispose_continue;
++			}
+ 			goto cache_unlock_continue;
+ 		}
+ 
+@@ -422,14 +429,6 @@
+ unlock_continue:
+ 		spin_lock(&pagemap_lru_lock);
+ 		UnlockPage(page);
+-		page_cache_release(page);
+-		goto dispose_continue;
+-async_swap_continue:
+-		spin_unlock(&pagecache_lock);
+-		/* Do NOT unlock the page ... that is done after IO. */
+-		ClearPageDirty(page);
+-		rw_swap_page(WRITE, page, 0);
+-		spin_lock(&pagemap_lru_lock);
+ 		page_cache_release(page);
+ dispose_continue:
+ 		list_add(page_lru, &lru_cache);
+--- linux-2.4.0-t1-ac7/include/linux/swap.h.orig	Wed May 31 21:00:06 2000
++++ linux-2.4.0-t1-ac7/include/linux/swap.h	Thu Jun  1 11:51:25 2000
+@@ -166,7 +166,7 @@
+  * The 2.4 code, however, is mostly simple and stable ;)
+  */
+ #define PG_AGE_MAX	64
+-#define PG_AGE_START	5
++#define PG_AGE_START	2
+ #define PG_AGE_ADV	3
+ #define PG_AGE_DECL	1
+ 
 
-Please wait for Rik to make it offical...
-
-Here are some vmstats with this applied:
-
-   procs                      memory    swap          io     system         cpu
- r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
- 2  0  0   7320   3212   1412  13988   0   3     5     1  164   775  44  11  45
- 8  0  1  11344   3076    504  12764   3  57    11    20  190   964  43  22  35
- 4  0  0  11352   6488   1008  17084  17 147   150    37  224  1062  47  14  39
- 4  0  0  11352   7260   1136  16260   3  95    11    25  181   920  44   8  48
- 2  0  0  17332   5732    840  21380  17  21    79     6  217   898  61  11  28
- 3  0  0  17332   4744    948  22312   0   0    16     1  272   788  45   8  47
- 1  0  0  17332   4600    968  22620   0   0     5     0  200   669  40   7  53
- 4  0  0  17308   2824   1476  23460   2   4    52     5  262  1141  46   8  46
- 3  0  0  17380   2600   1604  23344   1 396    30    99  211  1155  53   9  38
- 1  0  0  17308   4376   1556  18380   6   0    10     2  155   889  47   8  44
- 2  0  0  17308   8036   1580  18536   1   0     3     0  159   888  46   6  48
- 3  0  0  17308   7660   1628  18856   0   0     5     4  159   744  43   7  50
- 7  0  0  17308   4272   1688  21348  28   0    43     0  192  1229  57   7  36
-
-System remains responsive, mp3s do not jump, all in all nice perf here.
-
-Luck,
-
-Ed Tomlinson <tomlins@cam.org>
-http://www.cam.org/~tomlins/njpipes.html
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
