@@ -1,25 +1,30 @@
-Received: from UNIX50.andrew.cmu.edu (UNIX50.andrew.cmu.edu [128.2.13.180])
-	(user=aeswaran mech=GSSAPI (0 bits))
-	by smtp3.andrew.cmu.edu (8.12.10/8.12.10) with ESMTP id i1O3Ecir009630
-	for <linux-mm@kvack.org>; Mon, 23 Feb 2004 22:14:38 -0500
-Date: Mon, 23 Feb 2004 22:14:37 -0500 (EST)
-From: Anand Eswaran <aeswaran@andrew.cmu.edu>
-Subject: Quick question
-Message-ID: <Pine.LNX.4.58-035.0402232213250.18964@unix50.andrew.cmu.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Quick question
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <Pine.LNX.4.58-035.0402232213250.18964@unix50.andrew.cmu.edu>
+References: <Pine.LNX.4.58-035.0402232213250.18964@unix50.andrew.cmu.edu>
+Content-Type: text/plain
+Message-Id: <1077596693.8563.53.camel@nighthawk>
+Mime-Version: 1.0
+Date: Mon, 23 Feb 2004 20:24:53 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Anand Eswaran <aeswaran@andrew.cmu.edu>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi :
+On Mon, 2004-02-23 at 19:14, Anand Eswaran wrote:
+>    Are there any particular flags for a page that I can use to check if a
+> given page is used by the slab-allocator or not.
 
-   Are there any particular flags for a page that I can use to check if a
-given page is used by the slab-allocator or not.
+#define PageSlab(page)          test_bit(PG_slab, &(page)->flags)
+#define SetPageSlab(page)       set_bit(PG_slab, &(page)->flags)
+#define ClearPageSlab(page)     clear_bit(PG_slab, &(page)->flags)
+#define TestClearPageSlab(page) test_and_clear_bit(PG_slab, &(page)->flags)
+#define TestSetPageSlab(page)   test_and_set_bit(PG_slab, &(page)->flags)
 
-Thanks a lot,
-Anand.
+-- dave
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
