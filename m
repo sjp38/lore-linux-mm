@@ -1,62 +1,50 @@
-Message-ID: <418DAB45.7040907@sgi.com>
-Date: Sat, 06 Nov 2004 22:57:41 -0600
+Message-ID: <418DADDC.1030601@sgi.com>
+Date: Sat, 06 Nov 2004 23:08:44 -0600
 From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
 Subject: Re: manual page migration, revisited...
-References: <418C03CD.2080501@sgi.com> <1099695742.4507.114.camel@desktop.cunninghams>
-In-Reply-To: <1099695742.4507.114.camel@desktop.cunninghams>
+References: <418C03CD.2080501@sgi.com> <1099695742.4507.114.camel@desktop.cunninghams> <20041106174857.GA23420@logos.cnet>
+In-Reply-To: <20041106174857.GA23420@logos.cnet>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ncunningham@linuxmail.org
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Linux Memory Management <linux-mm@kvack.org>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Nigel Cunningham <ncunningham@linuxmail.org>, Hirokazu Takahashi <taka@valinux.co.jp>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nigel Cunningham wrote:
-> Hi.
-> 
-> On Sat, 2004-11-06 at 09:50, Ray Bryant wrote:
-> 
->>Marcelo and Takahashi-san (and anyone else who would like to comment),
->>
->>This is a little off topic, but this is as good of thread as any to start this 
->>discussion on.  Feel free to peel this off as a separate discussion thread 
->>asap if you like.
->>
->>We have a requirement (for a potential customer) to do the following kind of
->>thing:
->>
->>(1)  Suspend and swap out a running process so that the node where the process
->>      is running can be reassigned to a higher priority job.
->>
->>(2)  Resume and swap back in those suspended jobs, restoring the original
->>      memory layout on the original nodes, or
->>
->>(3)  Resume and swap back in those suspended jobs on a new set of nodes, with
->>      as similar topological layout as possible.  (It's also possible we may
->>      want to just move the jobs directly from one set of nodes to another
->>      without swapping them out first.
-> 
-> 
-> You may not even need any kernel patches to accomplish this. Bernard
-> Blackham wrote some code called cryopid: http://cryopid.berlios.de/. I
-> haven't tried it myself, but it sounds like it might be at least part of
-> what you're after.
-> 
-> Regards,
-> 
-> Nigel
-Nigel,
+Marcelo Tosatti wrote:
 
-I think that having the resumed processes show up with a different pid than 
-they had before is show-stopper.  In a multiprocess parallel program, we have
-no idea whether the program itself has saved way pid's and is using them to
-send signals or whatnot.  So I don't think there is a user space-only solution
-that will solve this problem for us, but it an interesting alternative to
-the kernel-only solutions I've been contemplating.  There is probably some
-intermediate ground there which holds the real solution.
+>>You may not even need any kernel patches to accomplish this. Bernard
+>>Blackham wrote some code called cryopid: http://cryopid.berlios.de/. I
+>>haven't tried it myself, but it sounds like it might be at least part of
+>>what you're after.
+> 
+> 
+> Hi Ray, Nigel,
+> 
+> And the swsusp code itself, isnt it what its doing? Stopping all processes, 
+> saving their memory to disk, and resuming later on.
+> 
+> You should just need an API to stop a specific process? 
+> 
 
+I think that sending the process a SIGSTOP is probably good enough to stop
+it for our purposes.  But in addition to that, the reason we stopped the
+process is so we can start up another process on that node.  Now, we can
+wait for memory pressure to grow to the point that kswap will force out
+the stopped processes's pages, but, why should the VM have to go to the
+effort to figure that out?  Why not tell them VM somehow, that we don't
+want these pages in memory, and to please swap them out to make space for
+the new program that is running?
+
+Of course, one can argue that we don't know for sure that the new program
+will use enough space to force the other process out, but we worry that in
+that case, the new program could still end up with non-local memory allocation
+and that is an anathema to the HPC world where we require the good performance
+that local storage allocation provides.  We want the new process that is
+run on the node to get as good performance as it would have gotten if it had
+started on an idle node.
 -- 
 Best Regards,
 Ray
