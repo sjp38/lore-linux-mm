@@ -1,182 +1,189 @@
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: Slab corruption mm3 + davem fixes
-Date: Sun, 11 May 2003 12:21:25 -0400
-References: <20030511031940.97C24251B@oscar.casa.dyndns.org>
-In-Reply-To: <20030511031940.97C24251B@oscar.casa.dyndns.org>
-MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200305111221.26048.tomlins@cam.org>
+Subject: Re: [PATCH] Fix for vma merging refcounting bug
+From: "Stephen C. Tweedie" <sct@redhat.com>
+In-Reply-To: <20030510163336.GB15010@dualathlon.random>
+References: <1052483661.3642.16.camel@sisko.scot.redhat.com>
+	 <20030510163336.GB15010@dualathlon.random>
+Content-Type: multipart/mixed; boundary="=-ioKWzMS7mRPSZYpBHhrX"
+Message-Id: <1052683446.4609.29.camel@sisko.scot.redhat.com>
+Mime-Version: 1.0
+Date: 11 May 2003 21:04:06 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@digeo.com, davem@redhat.com, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@digeo.com>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
+
+--=-ioKWzMS7mRPSZYpBHhrX
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
 Hi,
 
-I am also seeing this on 69-bk (as of Sunday morning)
+On Sat, 2003-05-10 at 17:33, Andrea Arcangeli wrote:
+> On Fri, May 09, 2003 at 01:34:21PM +0100, Stephen C. Tweedie wrote:
+> > When a new vma can be merged simultaneously with its two immediate
+> > neighbours in both directions, vma_merge() extends the predecessor vma
+> > and deletes the successor.  However, if the vma maps a file, it fails to
+> > fput() when doing the delete, leaving the file's refcount inconsistent.
 
-Ed
+> great catch! nobody could notice it in practice
 
-On May 10, 2003 11:19 pm, Ed Tomlinson wrote:
-> Hi,
->
-> I looked at my logs and found the following error in it.  My kernel is
-> 69-mm3 with two davem fixes on it.
->
-> May 10 22:41:06 oscar kernel:
-> ***************************************************************************
->**********
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************** May 10 22:41:06 oscar kernel:
-> **********************************************************************A5
-> May 10 22:41:06 oscar kernel: Call Trace:
-> May 10 22:41:06 oscar kernel:  [__slab_error+30/32] __slab_error+0x1e/0x20
-> May 10 22:41:06 oscar kernel:  [check_poison_obj+376/384]
-> check_poison_obj+0x178/0x180 May 10 22:41:06 oscar kernel: 
-> [kmalloc+221/392] kmalloc+0xdd/0x188 May 10 22:41:06 oscar kernel: 
-> [alloc_skb+64/240] alloc_skb+0x40/0xf0 May 10 22:41:06 oscar kernel: 
-> [alloc_skb+64/240] alloc_skb+0x40/0xf0 May 10 22:41:06 oscar kernel: 
-> [skb_copy+45/204] skb_copy+0x2d/0xcc May 10 22:41:06 oscar kernel: 
-> [_end+615445203/1070187180] skb_ip_make_writable+0xcf/0x164 [iptable_nat]
-> May 10 22:41:06 oscar kernel:  [cache_init_objs+71/308]
-> cache_init_objs+0x47/0x134 May 10 22:41:06 oscar kernel: 
-> [_end+615444563/1070187180] icmp_reply_translation+0x33/0x1e4 [iptable_nat]
-> May 10 22:41:06 oscar kernel:  [_end+615450270/1070187180]
-> gcc2_compiled.+0xc2/0x1d8 [iptable_nat] May 10 22:41:06 oscar kernel: 
-> [_end+615450641/1070187180] ip_nat_out+0x5d/0x64 [iptable_nat] May 10
-> 22:41:06 oscar kernel:  [ip_finish_output2+0/416]
-> ip_finish_output2+0x0/0x1a0 May 10 22:41:06 oscar kernel: 
-> [nf_iterate+63/156] nf_iterate+0x3f/0x9c May 10 22:41:06 oscar kernel: 
-> [ip_finish_output2+0/416] ip_finish_output2+0x0/0x1a0 May 10 22:41:06 oscar
-> kernel:  [nf_hook_slow+149/296] nf_hook_slow+0x95/0x128 May 10 22:41:06
-> oscar kernel:  [ip_finish_output2+0/416] ip_finish_output2+0x0/0x1a0 May 10
-> 22:41:06 oscar kernel:  [_end+615462636/1070187180] ip_nat_out_ops+0x0/0x1c
-> [iptable_nat] May 10 22:41:06 oscar kernel:  [ip_output+535/544]
-> ip_output+0x217/0x220 May 10 22:41:06 oscar kernel: 
-> [ip_finish_output2+0/416] ip_finish_output2+0x0/0x1a0 May 10 22:41:06 oscar
-> kernel:  [nf_hook_slow+149/296] nf_hook_slow+0x95/0x128 May 10 22:41:06
-> oscar kernel:  [ip_forward_finish+39/60] ip_forward_finish+0x27/0x3c May 10
-> 22:41:06 oscar kernel:  [nf_hook_slow+208/296] nf_hook_slow+0xd0/0x128 May
-> 10 22:41:06 oscar kernel:  [ip_forward+490/564] ip_forward+0x1ea/0x234 May
-> 10 22:41:06 oscar kernel:  [ip_forward_finish+0/60]
-> ip_forward_finish+0x0/0x3c May 10 22:41:06 oscar kernel: 
-> [ip_rcv_finish+441/512] ip_rcv_finish+0x1b9/0x200 May 10 22:41:06 oscar
-> kernel:  [nf_hook_slow+208/296] nf_hook_slow+0xd0/0x128 May 10 22:41:06
-> oscar kernel:  [ip_rcv+924/984] ip_rcv+0x39c/0x3d8 May 10 22:41:06 oscar
-> kernel:  [ip_rcv_finish+0/512] ip_rcv_finish+0x0/0x200 May 10 22:41:06
-> oscar kernel:  [netif_receive_skb+283/332] netif_receive_skb+0x11b/0x14c
-> May 10 22:41:06 oscar kernel:  [process_backlog+113/292]
-> process_backlog+0x71/0x124 May 10 22:41:06 oscar kernel: 
-> [net_rx_action+114/328] net_rx_action+0x72/0x148 May 10 22:41:06 oscar
-> kernel:  [do_softirq+82/172] do_softirq+0x52/0xac May 10 22:41:06 oscar
-> kernel:  [local_bh_enable+82/108] local_bh_enable+0x52/0x6c May 10 22:41:06
-> oscar kernel:  [_end+614250407/1070187180] ppp_asynctty_receive+0x4f/0x84
-> [ppp_async] May 10 22:41:06 oscar kernel:  [pty_write+237/336]
-> pty_write+0xed/0x150 May 10 22:41:06 oscar kernel:  [write_chan+424/516]
-> write_chan+0x1a8/0x204 May 10 22:41:06 oscar kernel: 
-> [default_wake_function+0/24] default_wake_function+0x0/0x18 May 10 22:41:06
-> oscar kernel:  [default_wake_function+0/24] default_wake_function+0x0/0x18
-> May 10 22:41:06 oscar kernel:  [tty_write+515/708] tty_write+0x203/0x2c4
-> May 10 22:41:06 oscar kernel:  [write_chan+0/516] write_chan+0x0/0x204 May
-> 10 22:41:06 oscar kernel:  [vfs_write+162/208] vfs_write+0xa2/0xd0 May 10
-> 22:41:06 oscar kernel:  [sys_write+46/76] sys_write+0x2e/0x4c May 10
-> 22:41:06 oscar kernel:  [syscall_call+7/11] syscall_call+0x7/0xb May 10
-> 22:41:06 oscar kernel:
->
-> And with an ipchains based firewall:
->
-> May  9 19:55:54 oscar kernel:
-> ***************************************************************************
->**********
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************************
-> ***************************************************************************
->****************************** May  9 19:55:54 oscar kernel:
-> **********************************************************************A5
-> May  9 19:55:54 oscar kernel: Call Trace:
-> May  9 19:55:55 oscar kernel:  [__slab_error+30/32] __slab_error+0x1e/0x20
-> May  9 19:55:55 oscar kernel:  [check_poison_obj+376/384]
-> check_poison_obj+0x178/0x180 May  9 19:55:55 oscar kernel: 
-> [kmalloc+221/392] kmalloc+0xdd/0x188 May  9 19:55:55 oscar kernel: 
-> [alloc_skb+64/240] alloc_skb+0x40/0xf0 May  9 19:55:55 oscar kernel: 
-> [alloc_skb+64/240] alloc_skb+0x40/0xf0 May  9 19:55:55 oscar kernel: 
-> [_end+547372157/1070273676] icmp_manip_pkt+0x45/0x64 [ipchains] May  9
-> 19:55:55 oscar kernel:  [skb_copy+45/204] skb_copy+0x2d/0xcc May  9
-> 19:55:55 oscar kernel:  [_end+547367523/1070273676]
-> skb_ip_make_writable+0xcf/0x164 [ipchains] May  9 19:55:55 oscar kernel: 
-> [_end+547367236/1070273676] icmp_reply_translation+0x194/0x1e4 [ipchains]
-> May  9 19:55:55 oscar kernel:  [_end+547366883/1070273676]
-> icmp_reply_translation+0x33/0x1e4 [ipchains] May  9 19:55:55 oscar kernel: 
-> [_end+547362523/1070273676] check_for_demasq+0xbb/0x1bc [ipchains] May  9
-> 19:55:55 oscar kernel:  [_end+547400300/1070273676]
-> ip_conntrack_protocol_icmp+0x0/0x40 [ipchains] May  9 19:55:55 oscar
-> kernel:  [_end+547359450/1070273676] fw_in+0x162/0x2b8 [ipchains] May  9
-> 19:55:55 oscar kernel:  [_end+547400948/1070273676] ipfw_ops+0x0/0x18
-> [ipchains] May  9 19:55:55 oscar kernel:  [_end+547359672/1070273676]
-> fw_in+0x240/0x2b8 [ipchains] May  9 19:55:55 oscar kernel: 
-> [nf_iterate+63/156] nf_iterate+0x3f/0x9c May  9 19:55:55 oscar kernel: 
-> [ip_rcv_finish+0/512] ip_rcv_finish+0x0/0x200 May  9 19:55:55 oscar kernel:
->  [nf_hook_slow+149/296] nf_hook_slow+0x95/0x128 May  9 19:55:55 oscar
-> kernel:  [ip_rcv_finish+0/512] ip_rcv_finish+0x0/0x200 May  9 19:55:55
-> oscar kernel:  [_end+547400364/1070273676] preroute_ops+0x0/0x1c [ipchains]
-> May  9 19:55:55 oscar kernel:  [ip_rcv+924/984] ip_rcv+0x39c/0x3d8 May  9
-> 19:55:55 oscar kernel:  [ip_rcv_finish+0/512] ip_rcv_finish+0x0/0x200 May 
-> 9 19:55:55 oscar kernel:  [netif_receive_skb+283/332]
-> netif_receive_skb+0x11b/0x14c May  9 19:55:55 oscar kernel: 
-> [process_backlog+113/292] process_backlog+0x71/0x124 May  9 19:55:55 oscar
-> kernel:  [net_rx_action+114/328] net_rx_action+0x72/0x148 May  9 19:55:55
-> oscar kernel:  [do_softirq+82/172] do_softirq+0x52/0xac May  9 19:55:55
-> oscar kernel:  [local_bh_enable+82/108] local_bh_enable+0x52/0x6c May  9
-> 19:55:55 oscar kernel:  [_end+547215751/1070273676]
-> ppp_asynctty_receive+0x4f/0x84 [ppp_async] May  9 19:55:55 oscar kernel: 
-> [pty_write+237/336] pty_write+0xed/0x150 May  9 19:55:55 oscar kernel: 
-> [write_chan+424/516] write_chan+0x1a8/0x204 May  9 19:55:55 oscar kernel: 
-> [default_wake_function+0/24] default_wake_function+0x0/0x18 May  9 19:55:55
-> oscar kernel:  [default_wake_function+0/24] default_wake_function+0x0/0x18
-> May  9 19:55:55 oscar kernel:  [tty_write+515/708] tty_write+0x203/0x2c4
-> May  9 19:55:55 oscar kernel:  [write_chan+0/516] write_chan+0x0/0x204 May 
-> 9 19:55:55 oscar kernel:  [vfs_write+162/208] vfs_write+0xa2/0xd0 May  9
-> 19:55:55 oscar kernel:  [sys_write+46/76] sys_write+0x2e/0x4c May  9
-> 19:55:55 oscar kernel:  [syscall_call+7/11] syscall_call+0x7/0xb May  9
-> 19:55:55 oscar kernel:
->
-> Hope this helps,
-> Ed Tomlinson
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+Yep --- I only noticed it because I was running a quick-and-dirty vma
+merging test and wanted to test on a shmfs file, and noticed that the
+temporary shmfs filesystem became unmountable afterwards.  Test
+attached, in case anybody is interested (it's the third test, mapping a
+file page by page in two interleaved passes, which triggers this case.)
+
+> I'm attaching for review what I'm applying to my -aa tree, to fix the
+> above and the other issue with the non-ram vma merging fixed in 2.5.
+
+Looks OK.
+
+Cheers,
+ Stephen
+
+
+--=-ioKWzMS7mRPSZYpBHhrX
+Content-Disposition: inline; filename=vma-merge.c
+Content-Type: text/x-c; name=vma-merge.c; charset=ISO-8859-15
+Content-Transfer-Encoding: quoted-printable
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+static char *testfile =3D "/tmp/vma-test.dat";
+
+#define TEST_PAGES 1024
+int pagesize;
+int filesize;
+
+char *map_addr;
+
+void DIE(char *) __attribute__ ((noreturn));
+
+void DIE(char *why)
+{
+	perror(why);
+	exit(1);
+}
+
+#define plural(n) (((n) =3D=3D 1) ? "" : "s")
+=09
+void test_maps(char *which)
+{
+	int fd;
+	int rc;
+	int count =3D 0;
+	char buffer[256];
+	char filename[128];
+	FILE *mapfile;
+
+	fd =3D open("/proc/self/maps", O_RDONLY);
+	if (fd < 0)
+		DIE("open(/proc/self/maps");
+
+
+	mapfile =3D fopen("/proc/self/maps", "r");
+
+	while (1) {
+		if (!fgets(buffer, 256, mapfile))
+			break;
+	=09
+		rc =3D sscanf(buffer,=20
+			    "%*x-%*x %*4s %*x %*5s %*d %127s\n",=20
+			    filename);
+		if (!rc)
+			continue;
+		if (!strcmp(testfile, filename))
+			count++;
+	}
+=09
+	printf("Testing %s: found %d map%s\n", which, count, plural(count));
+}
+
+#define clear_maps() \
+	err =3D munmap(map_addr, filesize); 	\
+	if (err)			\
+		DIE("munmap");		\
+
+static void map_page(int fd, int i)
+{=09
+	char *ptr;
+
+	ptr =3D mmap(map_addr + i * pagesize,
+		   pagesize,
+		   PROT_READ,
+		   MAP_SHARED | MAP_FIXED,
+		   fd,
+		   i * pagesize);
+	if (ptr =3D=3D MAP_FAILED)
+		DIE("mmap");
+	if (ptr !=3D map_addr + i * pagesize) {
+		fprintf(stderr, "mmap returned unexpected address\n");
+		exit(1);
+	}
+}
+
+int main(int argc, char *argv[])
+{
+	int fd;
+	int err;
+	int i;
+
+	if (argc > 1)
+		testfile =3D argv[1];
+=09
+	pagesize =3D getpagesize();
+	filesize =3D TEST_PAGES * pagesize;
+
+	fd =3D open(testfile, O_CREAT|O_TRUNC|O_RDWR, 0666);
+	if (fd < 0)
+		DIE("open");
+
+	err =3D ftruncate(fd, filesize);
+	if (err)
+		DIE("ftuncate");
+
+	/* Find a suitable mmap address for the entire file */
+	map_addr =3D mmap(0, filesize, PROT_READ, MAP_SHARED, fd, 0);
+	if (map_addr =3D=3D MAP_FAILED)
+		DIE("mmap");
+	clear_maps();
+
+	/* Now map it in piece by piece */
+	for (i =3D 0; i < TEST_PAGES; i++)
+		map_page(fd, i);
+	test_maps("backwards merging");
+	clear_maps();
+
+	/* Next, map it in backwards */
+	for (i =3D TEST_PAGES; i-- > 0; )
+		map_page(fd, i);
+	test_maps("forwards merging");
+	clear_maps();
+
+	/* Finally, map it in in two interleaved passes */
+	for (i =3D 0; i < TEST_PAGES; i+=3D2)
+		map_page(fd, i);
+	for (i =3D 1; i < TEST_PAGES; i+=3D2)
+		map_page(fd, i);
+	test_maps("interleaved merging");
+
+	close(fd);
+	unlink(testfile);
+=09
+	return 0;
+}
+
+--=-ioKWzMS7mRPSZYpBHhrX--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
