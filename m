@@ -1,23 +1,42 @@
-Message-ID: <3FC4767B.6050401@gmx.de>
-Date: Wed, 26 Nov 2003 10:46:35 +0100
-From: "Prakash K. Cheemplavam" <prakashpublic@gmx.de>
-MIME-Version: 1.0
+Date: Wed, 26 Nov 2003 04:42:51 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: 2.6.0-test10-mm1
+Message-Id: <20031126044251.3b8309c1.akpm@osdl.org>
+In-Reply-To: <20031126085123.A1952@infradead.org>
 References: <20031125211518.6f656d73.akpm@osdl.org>
-In-Reply-To: <20031125211518.6f656d73.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+	<20031126085123.A1952@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: Christoph Hellwig <hch@infradead.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-without setting readahead higher then default. Now I must set it to 
-10096 to get about the same performance (though not quite reaching 
-it:25mb/sec, with 20mb/sec at defaults). Tested with hdparm.
+Christoph Hellwig <hch@infradead.org> wrote:
+>
+> On Tue, Nov 25, 2003 at 09:15:18PM -0800, Andrew Morton wrote:
+> > +invalidate_mmap_range-non-gpl-export.patch
+> > 
+> >  Export invalidate_mmap_range() to all modules
+> 
+> Why?
 
-Prakash
+The individual patches in the broken-out/ directory are usually
+changelogged.  This one says:
+
+  It was EXPORT_SYMBOL_GPL(), however IBM's GPFS is not GPL.
+
+  - the GPFS team contributed to the testing and development of
+    invaldiate_mmap_range().
+
+  - GPFS was developed under AIX and was ported to Linux, and hence meets
+    Linus's "some binary modules are OK" exemption.
+
+  - The export makes sense: clustering filesystems need it for shootdowns to
+    ensure cache coherency.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
