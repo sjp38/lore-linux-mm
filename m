@@ -1,13 +1,13 @@
-Message-Id: <Kilauea97945-17741-82853435-1@hdynamic.covad.net>
-From: "Isabella Clark" <nostro@yebox.com>
+Message-Id: <Kilauea97945-17741-82853435-1@wdynamic.covad.net>
+From: "Evangeline Gross" <masandy@didamail.com>
 Date: Mon, 7 Mar 2005 15:23:38 -0400 (EDT) 
-Message-Id: <LNXSVHSHKTXLYXPMZUQP61.i93CbiTw009335@www2.gmail.com>
-Subject: Lowest rates in 45 years
+Message-Id: <LNXSVHSHKTXLYXPMZUQP17.i93HlcTw000383@www8.gmail.com>
+Subject: Approved 3.25 mortage rate
 Mime-Version: 1.0
 Content-Type: text/plain;
-Return-Path: <nostro@yebox.com>
-To: linux-aio@kvack.org
-Cc: linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.org
+Return-Path: <masandy@didamail.com>
+To: linux-mm@kvack.org
+Cc: linux-mm-archive@kvack.org, mailer-daemon@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.orgux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -29,7 +29,7 @@ Hello,
 
  Best Regards,
 
- Aurelia Murphy
+ Heidi Kearney
  
  to be remov(ed:	http://www.nowratez.com/x/st.html
 
