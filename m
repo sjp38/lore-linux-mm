@@ -1,34 +1,74 @@
-Message-ID: <3D764A9F.B296F6C0@zip.com.au>
-Date: Wed, 04 Sep 2002 11:02:08 -0700
+Message-ID: <3D76549B.3C53D0AC@zip.com.au>
+Date: Wed, 04 Sep 2002 11:44:43 -0700
 From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Subject: Re: 2.5.33-mm1
-References: <3D75CD24.AF9B769B@zip.com.au> <1031159814.23852.21.camel@plars.austin.ibm.com>
+Subject: Re: nonblocking-vm.patch
+References: <3D75E054.B341E067@zip.com.au> <Pine.LNX.4.44L.0209041030510.1857-100000@imladris.surriel.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Larson <plars@linuxtestproject.org>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Larson wrote:
+Rik van Riel wrote:
 > 
-> I havn't tried this with stock 2.5.33 or 2.5.33-mm2 yet, but I was
-> trying the old fork07 ltp test and got a problem when I was testing
-> mm1.  The fork bomb part of that test is now in the fork12 test in LTP
-> and is not run by runalltests anymore due to the recent kernel changes.
-> Here's the ksymoops output for now, and I'll see about trying to
-> reproduce it.
+> On Wed, 4 Sep 2002, Andrew Morton wrote:
 > 
-> ..
-> >>EIP; c0131ef0 <kmem_shrink_slab+40/b0>   <=====
+> > - If the page is dirty, and mapped into pagetables then write the
+> >   thing anyway (haven't tested this yet).  This is to get around the
+> >   problem of big dirty mmaps - everything stalls on request queues.
+> >   Oh well.
+> 
+> I don't think we need this.  If the request queue is saturated, and
+> free memory is low, the request queue is guaranteed to be full of
+> writes, which will result in memory becoming freeable soon.
+> 
+
+OK.  But I've gone and removed just about all the VM throttling (with
+some glee, I might add).
+
+We do need something in there to prevent kswapd from going berzerk.
+I'm thinking something like this:
+
+- My code only addresses write(2) pagecache.  Need to handle the (IMO rare)
+  situation of large amounts of dirty MAP_SHARED data.
+
+  We do this by always writing it out, and blocking on the request queue.
+  And by waiting on PageWriteback pages.  That's just the pre-me behaviour.
+  Should be OK for a first pass.
+
+- Similarly, always write out dirty pagecache, so we throttle on the swapdev's
+  request queue.
+
+Which I think just leaves us with the no-swap-available problem. In this case
+we really do need to slow page allocators down (I think.  I haven't done _any_
+swapless testing).
+
+I have a new function in the block layer `blk_congestion_wait()' which will
+make the caller take a nap until some request queue comes unblocked.   That's
+probably appropriate.  There's a corner case where there's writeout underway, but
+no queues are congested.  In that case we can probably add a wakeup to
+end_page_writeback(), and kick it on every 32nd page or whatever.  I'll play
+with that a bit.
 
 
-hm.  We seem to have a corrupted slabp->list.  I don't recall any
-slab fixes post 2.3.33-mm1.  hm.
+Now, wrt the magical 40% thing.  I'm thinking that we can change it in
+this manner:
 
-Questions, please: how much physical memory, how many CPUs?
+maximum amount of dirty+writeback pagecache =
+	min((total memory - mapped memory) / 2, 40% or memory)
+
+(Need some more accurate logic to calculate "total memory")
+
+This means that half of the pool of unmapped memory is available to
+heavy writers.  So if the machine is busy with lots of mapped memory,
+and a burst of writes happens then they will initially be throttled
+back fairly hard.  But if the write activity continues, `mapped memory'
+will shrink due to swapout and pageout, and the amount of memory which
+is available to the heavy writer will climb until it hits the (configurable)
+40%.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
