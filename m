@@ -1,66 +1,57 @@
-Received: from front7.grolier.fr (front7.grolier.fr [194.158.96.57])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA28705
-	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 15:51:41 -0500
+Received: from front2.grolier.fr (front2.grolier.fr [194.158.96.52])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA28719
+	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 15:51:48 -0500
 Received: from sidney.remcomp.fr (ppp-163-157.villette.club-internet.fr [195.36.163.157])
-	by front7.grolier.fr (8.9.0/MGC-980407-Frontal-No_Relay) with SMTP id VAA06780
-	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 21:51:59 +0100 (MET)
-Date: 25 Nov 1998 20:01:40 -0000
-Message-ID: <19981125200140.1226.qmail@sidney.remcomp.fr>
+	by front2.grolier.fr (8.9.0/MGC-980407-Frontal-No_Relay) with SMTP id VAA16294
+	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 21:51:29 +0100 (MET)
+Date: 25 Nov 1998 20:29:27 -0000
+Message-ID: <19981125202927.1916.qmail@sidney.remcomp.fr>
 From: jfm2@club-internet.fr
-In-reply-to: <Pine.LNX.3.96.981125073253.30767B-100000@mirkwood.dummy.home>
-	(message from Rik van Riel on Wed, 25 Nov 1998 07:41:41 +0100 (CET))
+In-reply-to: <m1af1fde1q.fsf@flinx.ccr.net> (ebiederm+eric@ccr.net)
 Subject: Re: Two naive questions and a suggestion
-References: <Pine.LNX.3.96.981125073253.30767B-100000@mirkwood.dummy.home>
+References: <19981119002037.1785.qmail@sidney.remcomp.fr> 	<199811231808.SAA21383@dax.scot.redhat.com> 	<19981123215933.2401.qmail@sidney.remcomp.fr> <199811241117.LAA06562@dax.scot.redhat.com> <19981124214432.2922.qmail@sidney.remcomp.fr> <m1af1fde1q.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: H.H.vanRiel@phys.uu.nl
+To: ebiederm+eric@ccr.net
 Cc: jfm2@club-internet.fr, sct@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 > 
-> Without swapin readahead, we'll be unable to implement them
-> properly however :(
+> >>>>> "jfm2" == jfm2  <jfm2@club-internet.fr> writes:
 > 
-> > > > And now we are at it: in 2.0 I found a deamon can be killed by the
-> > > > system if it runs out of VM.  
-> > > 
-> > > Same on any BSD.
-> > 
-> > Say the Web or database server can be deemed important enough for it
-> > not being killed just because some dim witt is playing with the GIMP
-> > at the console and the GIMP has allocated 80 Megs.
+> jfm2> Say the Web or database server can be deemed important enough for it
+> jfm2> not being killed just because some dim witt is playing with the GIMP
+> jfm2> at the console and the GIMP has allocated 80 Megs.
 > 
-> I sounds remarkably like you want my Out Of Memory killer
-> patch. This patch tries to remove the randomness in killing
-> a process when you're OOM by carefully selecting a process
-> based on a lot of different factors (size, age, CPU used,
-> suid, root, IOPL, etc).
+> jfm2> More reallistically, it can happen that the X server is killed
+> jfm2> (-9) due to the misbeahviour of a user program and you get
+> jfm2> trapped with a useless console.  Very diificult to recover.  Specially
+> jfm2> if you consider inetd could have been killed too, so no telnetting.
 > 
-> It needs to be cleaned up, ported to 2.1.129 and improved
-> a little bit though... After that it should be ready for
-> inclusion in the kernel.
+> jfm2> You can also find half of your daemons, are gone.  That is no mail, no
+> jfm2> printing, no nothing.
+> 
+> initd is never killed. Won't & can't be killed.
+> initd should be configured to restart all of your important daemons if
+> they go down.
 > 
 
-Your scheme is (IMHO) far too complicated and (IMHO) falls short.  The
-problem is that the kernel has no way to know what is the really
-important process in the box.  For instance you can have a database
-server running as normal user and that be considered far more
-important the X server (setuid root) whose only real goal is to allow
-a user friendly UI for administering the database.
+This does not solve the problem.  To begin with after an unclean
+shutdown a database server spends time rolling back uncommitted
+transactions and possibly writing somye comitted ones to the database
+from its journals.  Users could prefer a database who doesn't go down
+in the first place.
 
-Why not simply allow a root-owned process declare itself (and the
-program it will exec into) as "guaranteed"?  Only a human can know
-what is important and what is unimportant in a box so it should be a
-human who, by the way of starting a program throuh a "guaranteer", has
-the final word on what should be protected
+Second: the 80 Megs GIMP is still there so when init restarts the
+database, the databse tries to allocate memory and it crashes again.
 
-Allow an option for having this priviliege extended to descendents of
-the process given some database programs start special daemons for
-other tasks and will not run without them.  Or a box used as a mail
-server using qmail: qmail starts sub-servers each one for a different
-task.
+Third: A process can crash because it is misconfigured or a file is
+corrupted.  And crash again if you restart it.  It si not Init's job
+to do things like try five times and use a pager interface to send a
+message to the admin in case there is a sixth crash.
 
-Of course this is only a suugestion for a mechanism but the important
-is allowing a human to have the final word.
+
+It could be considered that "guaranteed" processes is not a good idea
+but using Init is not the way to address the problem.
 
 -- 
 			Jean Francois Martinez
