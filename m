@@ -1,52 +1,59 @@
+Date: Sun, 7 Jan 2001 19:16:47 -0200 (BRDT)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [patch] mm-cleanup-1 (2.4.0)
-References: <Pine.LNX.4.21.0101071701250.4416-100000@freak.distro.conectiva>
-Reply-To: zlatko@iskon.hr
-From: Zlatko Calusic <zlatko@iskon.hr>
-Date: 07 Jan 2001 22:11:45 +0100
-In-Reply-To: Marcelo Tosatti's message of "Sun, 7 Jan 2001 17:07:59 -0200 (BRST)"
-Message-ID: <dnitnrcbji.fsf@magla.iskon.hr>
+In-Reply-To: <87snmv9k13.fsf@atlas.iskon.hr>
+Message-ID: <Pine.LNX.4.21.0101071912570.21675-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
+To: Zlatko Calusic <zlatko@iskon.hr>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo@conectiva.com.br> writes:
+On 7 Jan 2001, Zlatko Calusic wrote:
 
-> On 7 Jan 2001, Zlatko Calusic wrote:
+> The following patch cleans up some obsolete structures from the
+> mm & proc code.
 > 
-> > The following patch cleans up some obsolete structures from the mm &
-> > proc code.
-> > 
-> > Beside that it also fixes what I think is a bug:
-> > 
-> >         if ((rw == WRITE) && atomic_read(&nr_async_pages) >
-> >                        pager_daemon.swap_cluster * (1 << page_cluster))
-> > 
-> > In that (swapout logic) it effectively says swap out 512KB at once (at
-> > least on my memory configuration). I think that is a little too much.
-> > I modified it to be a little bit more conservative and send only
-> > (1 << page_cluster) to the swap at a time. Same applies to the
-> > swapin_readahead() function. Comments welcome.
+> Beside that it also fixes what I think is a bug:
 > 
-> 512kb is the maximum limit for in-flight swap pages, not the cluster size 
-> for IO. 
+>         if ((rw == WRITE) && atomic_read(&nr_async_pages) >
+>                        pager_daemon.swap_cluster * (1 << page_cluster))
 > 
-> swapin_readahead actually sends requests of (1 << page_cluster) to disk
-> at each run.
->  
+> In that (swapout logic) it effectively says swap out 512KB at
+> once (at least on my memory configuration). I think that is a
+> little too much.
 
-OK, maybe I was too fast in concluding with that change. I'm still
-trying to find out why is MM working bad in some circumstances (see my
-other email to the list).
+Since we submit a whole cluster of (1 << page_cluster)
+size at once, your change would mean that the VM can
+only do one IO at a time...
 
-Anyway, I would than suggest to introduce another /proc entry and call
-it appropriately: max_async_pages. Because that is what we care about,
-anyway. I'll send another patch.
--- 
-Zlatko
+Have you actually measured your changes or is it just
+a gut feeling that the current default is too much?
+
+(I can agree with 1/2 MB being a bit much, but doing
+just one IO at a time is probably wrong too...)
+
+
+The cleanup part of your patch is nice. I think that
+one should be submitted as soon as the 2.4 bugfix
+period is over ...
+
+(and yes, I'm not submitting any of my own trivial
+patches either unless they're REALLY needed, lets make
+sure Linus has enough time to focus on the real bugfixes)
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
