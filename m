@@ -1,7 +1,7 @@
-Date: Thu, 4 Nov 2004 07:55:45 -0200
+Date: Thu, 4 Nov 2004 08:02:26 -0200
 From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: [PATCH 2/3] higher order watermarks
-Message-ID: <20041104095545.GA7902@logos.cnet>
+Message-ID: <20041104100226.GB7902@logos.cnet>
 References: <417F5584.2070400@yahoo.com.au> <417F55B9.7090306@yahoo.com.au> <417F5604.3000908@yahoo.com.au> <20041104085745.GA7186@logos.cnet> <418A1EA6.70500@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -10,10 +10,8 @@ In-Reply-To: <418A1EA6.70500@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
-
-Hi Nick!
 
 On Thu, Nov 04, 2004 at 11:20:54PM +1100, Nick Piggin wrote:
 > Marcelo Tosatti wrote:
@@ -111,83 +109,24 @@ On Thu, Nov 04, 2004 at 11:20:54PM +1100, Nick Piggin wrote:
 > that will satisfy order-2 *and above* (this is important) is the following:
 > 
 > 	z->free_pages - (order[0].nr_free << 0) - (order[1].nr_free << 1)
-
-Shouldnt that be then
-
-free_pages -= z->free_area[o].nr_free << o;
-
-instead of the current 
-
-free_pages -= z->free_area[order].nr_free << o;
-
-No?
-
+> 
 > to find order-3 and above, you also need to subtract (order[2].nr_free << 
 > 2).
 > 
 > I quite liked this method because it has progressively less cost on lower
 > order allocations, and for order-0 we don't need to do any calculation.
-
-OK, now I get it. The only think which bugs me is the multiplication of 
-values with different meanings.
-
+> 
 > Of course it is slightly racy, which is why I say free_pages can go 
 > negative,
 > but that should be OK.
-
-Yeap.
-
 > 
 > Probably the comment there is woefully inadequate? - I sometimes forget that
 > people can't read my mind :\
-> 
-> >
-> >>+
-> >>+		if (free_pages <= min)
-> >>+			return 0;
-> >>+	}
-> >>+	return 1;
-> >>+}
-> >>+
-> >>+/*
-> >> * This is the 'heart' of the zoned buddy allocator.
-> >> *
-> >> * Herein lies the mysterious "incremental min".  That's the
-> >>@@ -606,7 +637,6 @@ __alloc_pages(unsigned int gfp_mask, uns
-> >>		struct zonelist *zonelist)
-> >>{
-> >>	const int wait = gfp_mask & __GFP_WAIT;
-> >>-	unsigned long min;
-> >>	struct zone **zones, *z;
-> >>	struct page *page;
-> >>	struct reclaim_state reclaim_state;
-> >>@@ -636,9 +666,9 @@ __alloc_pages(unsigned int gfp_mask, uns
-> >>
-> >>	/* Go through the zonelist once, looking for a zone with enough free 
-> >>	*/
-> >>	for (i = 0; (z = zones[i]) != NULL; i++) {
-> >>-		min = z->pages_low + (1<<order) + z->protection[alloc_type];
-> >>
-> >>-		if (z->free_pages < min)
-> >>+		if (!zone_watermark_ok(z, order, z->pages_low,
-> >>+				alloc_type, 0, 0))
-> >
-> >
-> >
-> >The original code didnt had the can_try_harder/gfp_high decrease 
-> >which is now on zone_watermark_ok. 
-> >
-> >Means that those allocations will now be successful earlier, instead
-> >of going to the next zonelist iteration. kswapd will not be awake
-> >when it used to be.
-> >
-> >Hopefully it doesnt matter that much. You did this by intention?
-> >
-> 
-> That should be OK: the last two zero arguments mean that doesn't
-> get evaluated; so it should work as you'd expect I think?
 
-Oh correct, pardon me.
+Nick, care to add a comment on top of zone_watermark_ok explaining 
+the reasoning behind the calculation and its expected effects? 
+
+That would be really nice.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
