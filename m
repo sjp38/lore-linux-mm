@@ -1,133 +1,183 @@
-Date: Wed, 9 Apr 2003 13:30:59 -0700
-From: "Randy.Dunlap" <rddunlap@osdl.org>
-Subject: Re: 2.5.67-mm1 cause framebuffer crash at bootup
-Message-Id: <20030409133059.338c47ad.rddunlap@osdl.org>
-In-Reply-To: <PAO-EX01DJb0LxA56iY0000151b@pao-ex01.pao.digeo.com>
-References: <20030408042239.053e1d23.akpm@digeo.com>
-	<3E93EB0E.4030609@aitel.hist.no>
-	<PAO-EX01DJb0LxA56iY0000151b@pao-ex01.pao.digeo.com>
+Date: Thu, 10 Apr 2003 12:24:21 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: [PATCH] bootmem speedup from the IA64 tree
+Message-ID: <20030410122421.A17889@lst.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: helgehaf@aitel.hist.no, linux-kernel@vger.kernel.org, linux-mm@kvack.org, vandrove@vc.cvut.cz
+To: akpm@zip.com.au
+Cc: davidm@napali.hpl.hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 9 Apr 2003 03:18:45 -0700 Andrew Morton <akpm@digeo.com> wrote:
+This patch is from the IA64 tree, with some minor cleanups by me.
+David described it as:
 
-| 
-| Helge Hafting <helgehaf@aitel.hist.no> wrote:
-| >
-| > 2.5.67 works with framebuffer console, 2.5.67-mm1 dies before activating
-| > graphichs mode on two different machines:
-| > 
-| > smp with matroxfb, also using a patch that makes matroxfb work in 2.5
-| > up with radeonfb, also using patches that fixes the broken devfs in mm1.
-| > 
-| > I use devfs and preempt in both cases, and monolithic kernels without module
-| > support.
-| > 
-| > 2.5.67-mm1 works if I drop framebuffer support completely.
-| >
-| > Here is the printed backtrace for the radeon case, the matrox case was 
-| > similiar:
-| 
-| Well I tried to reproduce this with an
-| 
-| 	nVidia Corporation NV17 [GeForce4 MX440] (rev a3)
-| 
-| and the screen came up in a strange mixture of penguins and obviously uninitialised
-| video RAM overlayed on top of text.  I can't read a thing.
-| 
-| But there is no oops.
-| 
-| The Cirrus drivers still do not compile, so scrub that test box.
-| 
-| We have some compilation scruffies:
-| drivers/video/aty/mach64_gx.c:194: warning: initialization from incompatible pointer type
-....
-| 
-| Another machine here uses
-| 
-| 	ATI Technologies Inc Rage Mobility M3 AGP 2x (rev 02)
-| 
-| and..... it oopses!   Backing out 
-| 
-| ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.67/2.5.67-mm1/broken-out/earlier-keyboard-init.patch
-| 
-| prevents it oopsing.  Can you please try that?
-| 
-| 
-| Despite the lack of oopses, framebuffer support is sick on this machine also.
-| The LCD alternates between blackness and a strange smeary set of flickering
-| lines.
+  This is a performance speed up and some minor indendation fixups.
 
-Argh.  This is ridiculous.... OK, I'm over it.  I'll look into this more.
-I'd settle for Vojtech making an appearance.  :)
-
-I can reproduce the problem with the earlier-keyboard-init.patch, but if
-I reverse it, I get this [using Petr's 2.5.66-bk12 mga patch].  Is that the
-right one to use?  do I need to use any kernel command line options with it?
-Matrox G400 dual-head capable, but only using one of them.
+  The problem is that the bootmem code is (a) hugely slow and (b) has
+  execution that grow quadratically with the size of the bootmap bitmap.
+  This causes noticable slowdowns, especially on machines with (relatively)
+  large holes in the physical memory map.  Issue (b) is addressed by
+  maintaining the "last_success" cache, so that we start the next search
+  from the place where we last found some memory (this part of the patch
+  could stand additional reviewing/testing).  Issue (a) is addressed by
+  using find_next_zero_bit() instead of the slow bit-by-bit testing.
 
 
-matroxfb: Matrox G450 detected
-matroxfb: MTRR's turned on
-matroxfb: 640x480x8bpp (virtual: 640x26208)
-matroxfb: framebuffer at 0xEC000000, mapped to 0xf8805000, size 16777216
-<1>Unable to handle kernel NULL pointer dereference at virtual address 00000000
- printing eip:
-00000000
-*pde = 00000000
-Oops: 0000 [#1]
-CPU:    0
-EIP:    0060:[<00000000>]    Not tainted
-EFLAGS: 00010246
-EIP is at 0x0
-eax: c04b77c8   ebx: f7f9fccc   ecx: c1ada17f   edx: c04b6f40
-esi: ffffffff   edi: 00000030   ebp: 00000030   esp: f7f9fc78
-ds: 007b   es: 007b   ss: 0068
-Process swapper (pid: 1, threadinfo=f7f9e000 task=f7f9c080)
-Stack: c0292c1e c04b6f40 f7f9fccc ffffffff ffffffff 00000000 00000000 00000400 
-       00000008 00000001 000000ff 0000000c c04b6f40 00000030 c1a41480 c0292e65 
-       c1a41480 c04b6f40 f7f9fccc 00000030 c00bb1c0 00000000 00000108 00000180 
-Call Trace:
- [<c0292c1e>] putcs_aligned+0x16e/0x1b0
- [<c0292e65>] accel_putcs+0xc5/0xf0
- [<c02939ce>] fbcon_putcs+0x7e/0x90
- [<c01feb73>] vt_console_print+0x103/0x2b0
- [<c011f616>] __call_console_drivers+0x46/0x60
- [<c011f762>] call_console_drivers+0xc2/0xf0
- [<c011fb23>] release_console_sem+0xa3/0x140
- [<c011f9d8>] printk+0x1d8/0x230
- [<c029367a>] fbcon_set_display+0x33a/0x4c0
- [<c01f8031>] set_inverse_transl+0x41/0xa0
- [<c013ecad>] kmalloc+0xdd/0x190
- [<c010b592>] do_IRQ+0x112/0x1f0
- [<c02930cd>] fbcon_init+0xdd/0xf0
- [<c01fba0f>] visual_init+0x9f/0x100
- [<c01ff3bd>] take_over_console+0xad/0x180
- [<c02981f5>] register_framebuffer+0x175/0x1a0
- [<c029be10>] initMatrox2+0x8e0/0x990
- [<c02d07ad>] pcibios_enable_device+0x1d/0x20
- [<c029c3c2>] matroxfb_probe+0x2c2/0x2f0
- [<c01e320f>] pci_device_probe+0x3f/0x60
- [<c021d4c4>] bus_match+0x34/0x60
- [<c021d594>] driver_attach+0x34/0x60
- [<c021d847>] bus_add_driver+0x97/0xd0
- [<c01e3326>] pci_register_driver+0x46/0x60
- [<c01050fb>] init+0x7b/0x220
- [<c0105080>] init+0x0/0x220
- [<c0107165>] kernel_thread_helper+0x5/0x10
-
-Code:  Bad EIP value.
- <0>Kernel panic: Attempted to kill init!
-
-
---
-~Randy
+--- 1.14/mm/bootmem.c	Sat Dec 14 12:42:15 2002
++++ edited/mm/bootmem.c	Thu Apr 10 07:28:20 2003
+@@ -135,26 +135,24 @@
+  * is not a problem.
+  *
+  * On low memory boxes we get it right in 100% of the cases.
+- */
+-
+-/*
++ *
+  * alignment has to be a power of 2 value.
++ *
++ * NOTE:  This function is _not_ reenetrant.
+  */
+-static void * __init __alloc_bootmem_core (bootmem_data_t *bdata, 
+-	unsigned long size, unsigned long align, unsigned long goal)
++static void * __init
++__alloc_bootmem_core(struct bootmem_data *bdata, unsigned long size,
++		unsigned long align, unsigned long goal)
+ {
+-	unsigned long i, start = 0;
++	unsigned long offset, remaining_size, areasize, preferred;
++	unsigned long i, start = 0, incr, eidx;
++	static unsigned long last_success;
+ 	void *ret;
+-	unsigned long offset, remaining_size;
+-	unsigned long areasize, preferred, incr;
+-	unsigned long eidx = bdata->node_low_pfn - (bdata->node_boot_start >>
+-							PAGE_SHIFT);
+-
+-	if (!size) BUG();
+ 
+-	if (align & (align-1))
+-		BUG();
++	BUG_ON(!size);
++	BUG_ON(align & (align-1));
+ 
++	eidx = bdata->node_low_pfn - (bdata->node_boot_start >> PAGE_SHIFT);
+ 	offset = 0;
+ 	if (align &&
+ 	    (bdata->node_boot_start & (align - 1UL)) != 0)
+@@ -166,8 +164,11 @@
+ 	 * first, then we try to allocate lower pages.
+ 	 */
+ 	if (goal && (goal >= bdata->node_boot_start) && 
+-			((goal >> PAGE_SHIFT) < bdata->node_low_pfn)) {
++	    ((goal >> PAGE_SHIFT) < bdata->node_low_pfn)) {
+ 		preferred = goal - bdata->node_boot_start;
++
++		if (last_success >= preferred)
++			preferred = last_success;
+ 	} else
+ 		preferred = 0;
+ 
+@@ -179,6 +180,8 @@
+ restart_scan:
+ 	for (i = preferred; i < eidx; i += incr) {
+ 		unsigned long j;
++		i = find_next_zero_bit(bdata->node_bootmem_map, eidx, i);
++		i = (i + incr - 1) & -incr;
+ 		if (test_bit(i, bdata->node_bootmem_map))
+ 			continue;
+ 		for (j = i + 1; j < i + areasize; ++j) {
+@@ -189,31 +192,33 @@
+ 		}
+ 		start = i;
+ 		goto found;
+-	fail_block:;
++	fail_block:
++		;
+ 	}
++
+ 	if (preferred) {
+ 		preferred = offset;
+ 		goto restart_scan;
+ 	}
+ 	return NULL;
++
+ found:
+-	if (start >= eidx)
+-		BUG();
++	last_success = start << PAGE_SHIFT;
++	BUG_ON(start >= eidx);
+ 
+ 	/*
+ 	 * Is the next page of the previous allocation-end the start
+ 	 * of this allocation's buffer? If yes then we can 'merge'
+ 	 * the previous partial page with this allocation.
+ 	 */
+-	if (align < PAGE_SIZE
+-	    && bdata->last_offset && bdata->last_pos+1 == start) {
++	if (align < PAGE_SIZE &&
++	    bdata->last_offset && bdata->last_pos+1 == start) {
+ 		offset = (bdata->last_offset+align-1) & ~(align-1);
+-		if (offset > PAGE_SIZE)
+-			BUG();
++		BUG_ON(offset > PAGE_SIZE);
+ 		remaining_size = PAGE_SIZE-offset;
+ 		if (size < remaining_size) {
+ 			areasize = 0;
+-			// last_pos unchanged
++			/* last_pos unchanged */
+ 			bdata->last_offset = offset+size;
+ 			ret = phys_to_virt(bdata->last_pos*PAGE_SIZE + offset +
+ 						bdata->node_boot_start);
+@@ -231,11 +236,12 @@
+ 		bdata->last_offset = size & ~PAGE_MASK;
+ 		ret = phys_to_virt(start * PAGE_SIZE + bdata->node_boot_start);
+ 	}
++
+ 	/*
+ 	 * Reserve the area now:
+ 	 */
+ 	for (i = start; i < start+areasize; i++)
+-		if (test_and_set_bit(i, bdata->node_bootmem_map))
++		if (unlikely(test_and_set_bit(i, bdata->node_bootmem_map)))
+ 			BUG();
+ 	memset(ret, 0, size);
+ 	return ret;
+@@ -256,21 +262,21 @@
+ 	map = bdata->node_bootmem_map;
+ 	for (i = 0; i < idx; ) {
+ 		unsigned long v = ~map[i / BITS_PER_LONG];
+-		if (v) { 
++		if (v) {
+ 			unsigned long m;
+-			for (m = 1; m && i < idx; m<<=1, page++, i++) { 
++			for (m = 1; m && i < idx; m<<=1, page++, i++) {
+ 				if (v & m) {
+-			count++;
+-			ClearPageReserved(page);
+-			set_page_count(page, 1);
+-			__free_page(page);
+-		}
+-	}
++					count++;
++					ClearPageReserved(page);
++					set_page_count(page, 1);
++					__free_page(page);
++				}
++			}
+ 		} else {
+ 			i+=BITS_PER_LONG;
+-			page+=BITS_PER_LONG; 
+-		} 	
+-	}	
++			page += BITS_PER_LONG;
++		}
++	}
+ 	total += count;
+ 
+ 	/*
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
