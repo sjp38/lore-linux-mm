@@ -1,56 +1,71 @@
-Date: Mon, 14 Oct 2002 17:24:22 -0400 (EDT)
-From: Bill Davidsen <davidsen@tmr.com>
-Subject: Re: 2.5.42-mm2 on small systems
-In-Reply-To: <1969404353.1034580835@[10.10.2.3]>
-Message-ID: <Pine.LNX.3.96.1021014171849.8102A-100000@gatekeeper.tmr.com>
+Message-ID: <3DAB5DF2.5000002@us.ibm.com>
+Date: Mon, 14 Oct 2002 17:14:42 -0700
+From: Matthew Dobson <colpatch@us.ibm.com>
+Reply-To: colpatch@us.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [rfc][patch] Memory Binding API v0.3 2.5.41
+References: <3DA4D3E4.6080401@us.ibm.com> <m165w6m12t.fsf@frodo.biederman.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Ed Tomlinson <tomlins@cam.org>, Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, LSE <lse-tech@lists.sourceforge.net>, Andrew Morton <akpm@zip.com.au>, Martin Bligh <mjbligh@us.ibm.com>, Michael Hohnbaum <hohnbaum@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Oct 2002, Martin J. Bligh wrote:
+Eric W. Biederman wrote:
+> Matthew Dobson <colpatch@us.ibm.com> writes:
+>>Greetings & Salutations,
+>>	Here's a wonderful patch that I know you're all dying for...  Memory
+>>Binding!  It works just like CPU Affinity (binding) except that it binds a
+>>processes memory allocations (just buddy allocator for now) to specific memory
+>>blocks.
+> Due we want this per numa area or simply per zone?  My suspicion is that
+> internally at least we want this per zone.
+I think that per memory block is better.  We already have a method for 
+allocating from specific zones (GFP_* flags).  Also, using per zone 
+binding would involve setting up some way of enumerating the zones, 
+which would not be immediately obvious to the users of the API.  The 
+memory block already has a straight-forward definition and an easy way 
+for users to get the appropriate number for the appropriate block 
+(in-kernel topology).  I'm not fanatically opposed to per zone binding, 
+though, and if there is a general agreement that it would be better that 
+way, I don't think it would be unreasonably difficult to change it.
 
->  
-> > I have an old 486 with 64m and 512M of disk that I use as a serial 
-> ...
-> > with 2.5.42-mm2 it does not finish.  The machine is sort of usable 
-> > while its runing and control C has no problem ending the program.  
-> > I waited 11 hours for the spawnload test to complete - it was 
-> 
-> What does spawnload do (for those of us who don't have the inclination
-> to go source diving)?
+> The API doesn't make much sense at the moment.
+Hmm..  That is unfortunate, I'd aimed to make it as simple as possible.
 
-In this case a half scree of source diving is the best answer, it forks a
-process which fork/exec's a shell, which either runs the builtin pwd or
-/bin/pwd depending on what shell you have set. In most cases that's bash,
-and uses the builtin. Does a bunch of process creation and cleanup, and
-can generate some impressive contet switching.
+> 1) You are operating on tasks and not mm's, or preferably vmas.
+Correct.  There are plans (somewhere inside my cranium) to allow binding 
+at that granularity.  For now, per task seemed an appropriate level.
 
-    while (RunMe) {
-        if (pid = fork()) {
-            (void)wait();
-            NumFork++;
-        } else {
-            // Do a 2nd level fork/exec a few times
-            system("pwd >/dev/null");
-            exit(0);
-        }
+> 2) sys_mem_setbinding does not move the mm to the new binding.
+Also correct.  A task may wish to allocate several large data structures 
+from one memory area, rebind, do more allocations, rebind, ad nauseum. 
+There are plans to have a flag that, if set, would force relocation of 
+all currently allocated memory.
 
-I will say that I ran 41-mm2 and 41-mm2v (Con Kolivas' patch) just fine, I
-can't get 5.42 anything to even build, it's looking for NLS and the config
-has no NLS, unless I have a bad patch. I'm going to scan the list for
-patches later, but that's my current eperience.
+> 3) You specify a pid and then change current task instead of
+>    the specified one.
+Yep... That was definitely a typo...  fixed.
 
-The README (choose text, Postscript or HTML) has a description of what
-each test does. Or what I think it does.
+> 4) An ordered zone list is probably the more natural mapping.
+See my comments above about per zone/memblk.  And you reemphasize my 
+point, how do we order the zone lists in such a way that a user of the 
+API can easily know/find out what zone #5 is?
 
--- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
+> 5) mprotect is the more natural model rather than set_cpu_affinity.
+Well, I think that may be true for the API you are imagining (per zone, 
+per mm/vma, etc), not the one that I've written.
+
+> 6) The code belongs in mm/* not kernel/*
+Possibly...  I just stuck it in with the vast majority of other syscalls 
+in kernel/sys.c.  As those changes are just code additions, they can 
+easily be moved if it is deemed appropriate.
+
+Cheers!
+
+-Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
