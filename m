@@ -1,42 +1,29 @@
-Date: Fri, 16 Mar 2001 12:53:38 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: changing mm->mmap_sem  (was: Re: system call for process information?)
-Message-ID: <20010316125338.L30889@redhat.com>
-References: <20010316094918.F30889@redhat.com> <Pine.LNX.4.21.0103160844300.5790-100000@imladris.rielhome.conectiva>
+Date: Fri, 16 Mar 2001 14:12:34 +0100
+From: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Subject: Re: [PATCH/RFC] fix missing tlb flush on x86 smp+pae
+Message-ID: <20010316141234.B1805@pcep-jamie.cern.ch>
+References: <Pine.LNX.4.30.0103151438140.16542-100000@today.toronto.redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0103160844300.5790-100000@imladris.rielhome.conectiva>; from riel@conectiva.com.br on Fri, Mar 16, 2001 at 08:50:25AM -0300
+In-Reply-To: <Pine.LNX.4.30.0103151438140.16542-100000@today.toronto.redhat.com>; from bcrl@redhat.com on Thu, Mar 15, 2001 at 02:50:50PM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, george anzinger <george@mvista.com>, Alexander Viro <viro@math.psu.edu>, linux-mm@kvack.org, bcrl@redhat.com, linux-kernel@vger.kernel.org
+To: Ben LaHaise <bcrl@redhat.com>
+Cc: torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Ben LaHaise wrote:
+> Below is a patch for 2.4 (it's against 2.4.2-ac20) that fixes a case where
+> pmd_alloc could install a new entry without causing a tlb flush on other
+> CPUs.  This was fatal with PAE because the CPU caches the top level of the
+> page tables, which was showing up as an infinite stream of identical page
+> faults.
 
-On Fri, Mar 16, 2001 at 08:50:25AM -0300, Rik van Riel wrote:
-> On Fri, 16 Mar 2001, Stephen C. Tweedie wrote:
-> 
-> > > Write locks would be used in the code where we actually want
-> > > to change the VMA list and page faults would use an extra lock
-> > > to protect against each other (possibly a per-pagetable lock
-> > 
-> > Why do we need another lock?  The critical section where we do the
-> > final update on the pte _already_ takes the page table spinlock to
-> > avoid races against the swapper.
-> 
-> The problem is that mmap_sem seems to be protecting the list
-> of VMAs, so taking _only_ the page_table_lock could let a VMA
-> change under us while a page fault is underway ...
+Ew.  Is this the only case where adding a new entry requires a tlb
+flush?  It is quite an unusual requirement.
 
-Right, I'm not suggesting removing that: making the mmap_sem
-read/write is fine, but yes, we still need that semaphore.  But as for
-the "page faults would use an extra lock to protect against each
-other" bit --- we already have another lock, the page table lock,
-which can be used in this way, so ANOTHER lock should be unnecessary.
-
---Stephen
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
