@@ -1,35 +1,43 @@
-Date: Mon, 22 Nov 2004 15:13:25 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: deferred rss update instead of sloppy rss
-In-Reply-To: <41A271AE.7090802@yahoo.com.au>
-Message-ID: <Pine.LNX.4.58.0411221510470.24333@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
- <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
- <20041122141148.1e6ef125.akpm@osdl.org> <Pine.LNX.4.58.0411221408540.22895@schroedinger.engr.sgi.com>
- <20041122144507.484a7627.akpm@osdl.org> <Pine.LNX.4.58.0411221444410.22895@schroedinger.engr.sgi.com>
- <41A271AE.7090802@yahoo.com.au>
+Message-ID: <41A272BA.9000705@yahoo.com.au>
+Date: Tue, 23 Nov 2004 10:14:02 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: deferred rss update instead of sloppy rss
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain> <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411221419440.20993@ppc970.osdl.org> <41A26910.7090401@yahoo.com.au> <Pine.LNX.4.58.0411221436570.22895@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0411221436570.22895@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, hugh@veritas.com, torvalds@osdl.org, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Nov 2004, Nick Piggin wrote:
+Christoph Lameter wrote:
+> On Tue, 23 Nov 2004, Nick Piggin wrote:
+> 
+> 
+>>Deferred rss might be a practical solution, but I'd prefer this if it can
+>>be made workable.
+> 
+> 
+> Both results in an additional field in task_struct that is going to be
+> incremented when the page_table_lock is not held. It would be possible
+> to switch to looping in procfs later. The main question with this patchset
+> is:
+> 
 
-> > The timer tick occurs every 1 ms. The maximum pagefault frequency that I
-> > have  seen is 500000 faults /second. The max deviation is therefore
-> > less than 500 (could be greater if page table lock / mmap_sem always held
-> > when the tick occurs).
-> I think that by the time you get the spilling code in, the mm-list method
-> will be looking positively elegant!
+Sure.
 
-I do not care what gets in as long as something goes in to address the
-performance issues. So far everyone seems to have their pet ideas. By all
-means do the mm-list method and post it. But we have already seen
-objections by other against loops in proc. So that will also cause
-additional controversy.
+> How and when can we get this get into the kernel?
+> 
+
+Well it is a good starting platform for the various PTL reduction patches
+floating around.
+
+I'd say Andrew could be convinced to stick it in -mm after 2.6.10, but we'd
+probably need a clear path to one of the PTL patches before anything would
+move into 2.6.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
