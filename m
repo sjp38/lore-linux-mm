@@ -1,60 +1,32 @@
-Date: Fri, 27 Sep 2002 22:44:24 +0530
-From: Dipankar Sarma <dipankar@in.ibm.com>
-Subject: Re: 2.5.38-mm3
-Message-ID: <20020927224424.A28529@in.ibm.com>
-Reply-To: dipankar@in.ibm.com
-References: <20020927152833.D25021@in.ibm.com> <502559422.1033113869@[10.10.2.3]>
-Mime-Version: 1.0
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id LAA03007
+	for <linux-mm@kvack.org>; Fri, 27 Sep 2002 11:32:20 -0700 (PDT)
+Message-ID: <3D94A43B.49C65AE8@digeo.com>
+Date: Fri, 27 Sep 2002 11:32:27 -0700
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: Re: VolanoMark Benchmark results for 2.5.26, 2.5.26 + rmap, 2.5.35,and  
+ 2.5.35 + mm1
+References: <Pine.LNX.4.44L.0209172219200.1857-100000@imladris.surriel.com> <3D948EA6.A6EFC26B@austin.ibm.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <502559422.1033113869@[10.10.2.3]>; from mbligh@aracnet.com on Fri, Sep 27, 2002 at 08:04:31AM -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Zwane Mwaikambo <zwane@linuxpower.ca>, Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Bill Hartner <hartner@austin.ibm.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net, mbligh@aracnet.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 27, 2002 at 08:04:31AM -0700, Martin J. Bligh wrote:
-> >> > What application were you all running ?
+Bill Hartner wrote:
 > 
-> Kernel compile on NUMA-Q looks like this:
+> ...
+> 2.5.35       44693  86.1 1.45        1,982,236 KB  5,393,152 KB  7,375,388 KB
+> 2.5.35mm1    39679  99.6 1.50       *2,720,600 KB *6,154,512 KB *8,875,112 KB
 > 
-> 125673 total
-> 82183 default_idle
-> 2288 d_lookup
-> 1921 vm_enough_memory
-> 1883 __generic_copy_from_user
-> 1566 file_read_actor
-> 1381 .text.lock.file_table           <-------------
 
-More likely, this is contention for the files_lock. Do you have any 
-lockmeter data ?  That should give us more information. If so,
-the files_struct_rcu isn't likely to help.
+2.5.35 was fairly wretched from the swapout point of view.
+Would be interesting to retest on 2.5.38-mm/2.5.39 sometime.
 
-> 1168 find_get_page
-> 1116 get_empty_filp
-> 
-> Presumably that's the same thing? Interestingly, if I look back at 
-> previous results, I see it's about twice the cost in -mm as it is 
-> in mainline, not sure why ... at least against 2.5.37 virgin it was.
-
-Not sure why it shows up more in -mm, but likely because -mm has
-lot less contention on other locks like dcache_lock.
-
-> 
-> > Please try running the files_struct_rcu patch where fget() is lockfree
-> > and let me know what you see.
-> 
-> Will do ... if you tell me where it is ;-)
-
-Oh, the usual place -
-http://sourceforge.net/project/showfiles.php?group_id=8875&release_id=112473
-I wish sourceforge FRS continued to allow direct links to patches.
-
-Thanks
--- 
-Dipankar Sarma  <dipankar@in.ibm.com> http://lse.sourceforge.net
-Linux Technology Center, IBM Software Lab, Bangalore, India.
+(This always happens, sorry.  But stuff is changing fast)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
