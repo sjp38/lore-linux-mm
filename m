@@ -1,60 +1,63 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA26289
-	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 07:27:39 -0500
-Date: Wed, 25 Nov 1998 12:27:25 GMT
-Message-Id: <199811251227.MAA00808@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA26549
+	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 08:25:23 -0500
+Date: Wed, 25 Nov 1998 14:08:47 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Subject: Re: Two naive questions and a suggestion
-In-Reply-To: <Pine.LNX.3.96.981125073253.30767B-100000@mirkwood.dummy.home>
-References: <19981124214432.2922.qmail@sidney.remcomp.fr>
-	<Pine.LNX.3.96.981125073253.30767B-100000@mirkwood.dummy.home>
+In-Reply-To: <199811251227.MAA00808@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.96.981125140245.8544A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: jfm2@club-internet.fr, sct@redhat.com, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Rik van Riel <H.H.vanRiel@phys.uu.nl>, jfm2@club-internet.fr, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, 25 Nov 1998, Stephen C. Tweedie wrote:
+> On Wed, 25 Nov 1998 07:41:41 +0100 (CET), Rik van Riel
+> <H.H.vanRiel@phys.uu.nl> said:
+> 
+> > I do have a few ideas for the scheduling stuff though, with
+> > RSS limits (we can safely implement those when the swap cache
+> > trick is implemented) and the keeping of a few statistics,
+> > we will be able to implement the swapping tricks.
+> 
+> Rick, get real: when will you work out how the VM works?  We can
+> safely implement RSS limits *today*, and have been able to since
+> 2.1.89.  <grin> It's just a matter of doing a vmscan on the current
+> process whenever it exceeds its own RSS limit.  The mechanism is all
+> there. 
 
-On Wed, 25 Nov 1998 07:41:41 +0100 (CET), Rik van Riel
-<H.H.vanRiel@phys.uu.nl> said:
+If we tried to implement RSS limits now, it would mean that
+the large task(s) we limited would be continuously thrashing
+and keep the I/O subsystem busy -- this impacts the rest of
+the system a lot.
 
-> When the mythical swapin readahead will be merged, we can
-> gain some ungodly amount of speed almost for free. I don't
-> know if we'll ever implement the scheduling tricks...
+With the new scheme, we can implement the RSS limit, but the
+truly busily used pages would simply stay inside the swap cache,
+freeing up I/O bandwidth (at the cost of some memory) for the
+rest of the system.
 
-Agreed: usage patterns these days are very different.  We simply don't
-expect to run parallel massive processes whose combined working sets
-exceed physical memory these days.  Making sure that we don't thrash to
-death is still an important point, but we can achieve that by
-guaranteeing processes a minimum rss quota (so that only those processes
-exceeding that quota compete for the remaining physical memory).
+I think that with the new scheme the balancing will be so
+much better that we can implement RSS limits without a
+negative impact on the rest of the system. With the current
+VM system RSS limits would probably hamper the performance
+the rest of the system gets.
 
-> I do have a few ideas for the scheduling stuff though, with
-> RSS limits (we can safely implement those when the swap cache
-> trick is implemented) and the keeping of a few statistics,
-> we will be able to implement the swapping tricks.
+We might want to perform the scheduling tricks for over-RSS
+processes however. Without swap readahead I really don't see
+any way we could run them without keeping back the rest of
+the system too much...
 
-Rick, get real: when will you work out how the VM works?  We can safely
-implement RSS limits *today*, and have been able to since 2.1.89.
-<grin>  It's just a matter of doing a vmscan on the current process
-whenever it exceeds its own RSS limit.  The mechanism is all there.
+cheers,
 
-> Without swapin readahead, we'll be unable to implement them
-> properly however :(
+Rik -- slowly getting used to dvorak kbd layout...
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
-No, we don't need readahead (although the swap cache itself already
-includes all of the necessary mechanism: rw_swap_page(READ, nowait) will
-do it).  The only extra functionality we might want is extra control
-over when we write swap-cached pages: right now, all dirty pages need to
-be in the RSS, and we write them to disk when we evict them to the swap
-cache.  Thus, only clean pages can be in the swap cache.  If we want to
-support processes with a dirty working set > RSS, we'd need to extend
-this.
-
---Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
