@@ -1,69 +1,35 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id AC7DD16B18
-	for <linux-mm@kvack.org>; Sun, 20 May 2001 03:42:19 -0300 (EST)
-Date: Sun, 20 May 2001 03:42:18 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Sun, 20 May 2001 19:38:59 +0200 (CEST)
+From: Mike Galbraith <mikeg@wen-online.de>
 Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-In-Reply-To: <Pine.LNX.4.33.0105200509130.488-100000@mikeg.weiden.de>
-Message-ID: <Pine.LNX.4.33.0105200339150.23366-100000@duckman.distro.conectiva>
+In-Reply-To: <20010520173252.Q754@nightmaster.csn.tu-chemnitz.de>
+Message-ID: <Pine.LNX.4.33.0105201740570.1377-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@wen-online.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 20 May 2001, Mike Galbraith wrote:
-> On Sat, 19 May 2001, Rik van Riel wrote:
-> > On Sat, 19 May 2001, Mike Galbraith wrote:
-> > > On Fri, 18 May 2001, Stephen C. Tweedie wrote:
-> > >
-> > > > That's the main problem with static parameters.  The problem you are
-> > > > trying to solve is fundamentally dynamic in most cases (which is also
-> > > > why magic numbers tend to suck in the VM.)
-> > >
-> > > Magic numbers might be sucking some performance right now ;-)
-> >
-> > ... so you replace them with some others ... ;)
+On Sun, 20 May 2001, Ingo Oeser wrote:
+
+> On Sun, May 20, 2001 at 05:29:49AM +0200, Mike Galbraith wrote:
+> > I'm not sure why that helps.  I didn't put it in as a trick or
+> > anything though.  I put it in because it didn't seem like a
+> > good idea to ever have more cleaned pages than free pages at a
+> > time when we're yammering for help.. so I did that and it helped.
 >
-> I reused one of our base numbers to classify the severity of the
-> situation.. not the same as inventing new ones.  (well, not quite
-> the same anyway.. half did come from the south fourty;)
+> The rationale for this is easy: free pages is wasted memory,
+> clean pages is hot, clean cache. The best state a cache can be in.
 
-*nod* ;)
+Sure.  Under low load, cache is great.  Under stress, keeping it is
+not an option though ;-)  We're at or beyond capacity and moving at
+a high delda V (people yammering for help).  If you can recognize and
+kill the delta rapidly by dumping that which you are going to have
+to dump anyway, you save time getting back on your feet.  (my guess
+as to why dumping clean pages does measurably help in this case)
 
-(not that I'm saying this is bad ... it's just that I'd
-like to know why things work before looking at applying
-them)
-
-> > > (yes, the last hunk looks out of place wrt my text.
-> >
-> > It also looks kind of bogus and geared completely towards this
-> > particular workload ;)
->
-> I'm not sure why that helps.  I didn't put it in as a trick or
-> anything though.  I put it in because it didn't seem like a
-> good idea to ever have more cleaned pages than free pages at a
-> time when we're yammering for help.. so I did that and it helped.
-       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Note that this is not the normal situation. Now think
-about the amount of data you'd be blowing away from the
-inactive_clean pages after a bit of background aging
-has gone on on a lightly loaded system.  Not Good(tm)
-
-regards,
-
-Rik
---
-Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
-
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
