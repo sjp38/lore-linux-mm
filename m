@@ -1,52 +1,41 @@
-Date: Fri, 27 Oct 2000 18:36:13 +0100 (BST)
-From: James Sutherland <jas88@cam.ac.uk>
-Subject: Re: Discussion on my OOM killer API
-In-Reply-To: <20001027191010.N18138@nightmaster.csn.tu-chemnitz.de>
-Message-ID: <Pine.LNX.4.10.10010271832020.13084-100000@dax.joh.cam.ac.uk>
+Message-ID: <39F9BDB2.8C0CFE94@sgi.com>
+Date: Fri, 27 Oct 2000 10:38:58 -0700
+From: Rajagopal Ananthanarayanan <ananth@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: page fault.
+References: <Pine.LNX.4.21.0010261752510.15696-100000@duckman.distro.conectiva> <Pine.GSO.4.05.10010262213310.16485-100000@aa.eps.jhu.edu> <8tboe4$3bfb7$1@fido.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Cc: Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Oct 2000, Ingo Oeser wrote:
-
-> On Fri, Oct 27, 2000 at 12:58:44AM +0100, James Sutherland wrote:
-> > Which begs the question, where did the userspace OOM policy daemon go? It,
-> > coupled with Rik's simple in-kernel last-ditch handler, should cover most
-> > eventualities without the need for nasty kernel kludges.
+"Stephen C. Tweedie" wrote:
 > 
-> If I do the full blown variant of my patch: 
+> Hi,
 > 
-> echo "my-kewl-oom-killer" >/proc/sys/vm/oom_handler
+> On Thu, Oct 26, 2000 at 10:14:23PM -0400, afei@jhu.edu wrote:
+> > You are right. I misunderstood what he wants. To know when the pagefault
+> > occured, one simply can work on the pagefault handler. It is trivial.
 > 
-> will try to load the module with this name for a new one and
-> uninstall the old one.
-
-EBADIDEA. The kernel's OOM killer is a last ditch "something's going to
-die - who's first?" - adding extra bloat like this is BAD.
-
-Policy should be decided user-side, and should prevent the kernel-side
-killer EVER triggering.
-
-> The original idea was an simple "I install a module and lock it
-> into memory" approach[1] for kernel hackers, which is _really_
-> easy to to and flexibility for nothing[2].
+> Page faults already produce a SIGSEGV which gets passed a sigcontext
+> struct describing where the fault occurred.
 > 
-> If the Rik and Linus prefer the user-accessable variant via
-> /proc, I'll happily implement this.
-> 
-> I just intended to solve a "religious" discussion via code
-> instead of words ;-)
 
-I was planning to implement a user-side OOM killer myself - perhaps we
-could split the work, you do kernel-side, I'll do the userspace bits?
+Isn't it that only unsatisfied pagefaults generate
+SIGSEGV? The original question was whether there
+is a way to track all pagefaults in a given program.
+Please correct if I'm wrong: the answer to this latter
+question is no. Unless one modifies do_pagefault to
+generate such a signal on all faults ...
 
 
-James.
-
+--------------------------------------------------------------------------
+Rajagopal Ananthanarayanan ("ananth")
+Member Technical Staff, SGI.
+--------------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
