@@ -1,87 +1,49 @@
-Subject: [PATCH] aic7xxx parallel build
-From: John Cherry <cherry@osdl.org>
-Content-Type: multipart/mixed; boundary="=-hLxl7l5tTsbRel96GUyG"
-Message-Id: <1074800332.29125.55.camel@cherrypit.pdx.osdl.net>
+Date: Thu, 22 Jan 2004 12:31:56 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: 2.6.2-rc1-mm1
+Message-Id: <20040122123156.2588d0a1.akpm@osdl.org>
+In-Reply-To: <20040122151943.GW21151@parcelfarce.linux.theplanet.co.uk>
+References: <20040122013501.2251e65e.akpm@osdl.org>
+	<20040122110342.A9271@infradead.org>
+	<20040122151943.GW21151@parcelfarce.linux.theplanet.co.uk>
 Mime-Version: 1.0
-Date: Thu, 22 Jan 2004 11:38:53 -0800
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Justin T. Gibbs" <gibbs@scsiguy.com>, akpm@osdl.org
-Cc: linux-mm@kvack.org, linux-scsi@vger.kernel.org
+To: viro@parcelfarce.linux.theplanet.co.uk
+Cc: hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-hLxl7l5tTsbRel96GUyG
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+viro@parcelfarce.linux.theplanet.co.uk wrote:
+>
+> { raw driver stuff ]
+>
 
-The Makefiles for aic7xxx and aicasm have changed since I submitted a
-patch for the parallel build problem several months ago.  Justin's patch
-has disappeared from the mm builds, so we continue to have parallel
-build problems.
+I'd be inclined to leave the raw driver as-is, frankly.  It's deprecated,
+obsolete and we should be trying to remove it from 2.7.
 
-The following patch fixes the parallel build problem and it still
-applies to 2.6.2-rc1-mm1.  This is Justin's fix.
-
-John
-
-
-
---=-hLxl7l5tTsbRel96GUyG
-Content-Disposition: attachment; filename=patch.aic7xxx_par_build
-Content-Type: text/plain; name=patch.aic7xxx_par_build; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
-
---- linux-2.6.0/drivers/scsi/aic7xxx/aicasm/Makefile	2003-11-09 16:45:05.000000000 -0800
-+++ 25/drivers/scsi/aic7xxx/aicasm/Makefile	2003-12-22 20:17:16.000000000 -0800
-@@ -49,14 +49,18 @@ aicdb.h:
- clean:
- 	rm -f $(clean-files)
+--- 25/drivers/char/Kconfig~raw-is-obsolete	2004-01-22 12:30:02.000000000 -0800
++++ 25-akpm/drivers/char/Kconfig	2004-01-22 12:31:32.000000000 -0800
+@@ -961,12 +961,15 @@ config SCx200_GPIO
+ 	  If compiled as a module, it will be called scx200_gpio.
  
--aicasm_gram.c aicasm_gram.h: aicasm_gram.y
-+aicasm_gram.c: aicasm_gram.h
-+	mv $(<:.h=).tab.c $(<:.h=.c)
+ config RAW_DRIVER
+-	tristate "RAW driver (/dev/raw/rawN)"
++	tristate "RAW driver (/dev/raw/rawN) (OBSOLETE)"
+ 	help
+ 	  The raw driver permits block devices to be bound to /dev/raw/rawN. 
+ 	  Once bound, I/O against /dev/raw/rawN uses efficient zero-copy I/O. 
+ 	  See the raw(8) manpage for more details.
+ 
++          The raw driver is deprecated and may be removed from 2.7 kernels.
++          Applications should simply open /dev/hda with the O_DIRECT flag.
 +
-+aicasm_gram.h: aicasm_gram.y
- 	$(YACC) $(YFLAGS) -b $(<:.y=) $<
--	mv $(<:.y=).tab.c $(<:.y=.c)
- 	mv $(<:.y=).tab.h $(<:.y=.h)
- 
--aicasm_macro_gram.c aicasm_macro_gram.h: aicasm_macro_gram.y
-+aicasm_macro_gram.c: aicasm_macro_gram.h
-+	mv $(<:.h=).tab.c $(<:.h=.c)
-+
-+aicasm_macro_gram.h: aicasm_macro_gram.y
- 	$(YACC) $(YFLAGS) -b $(<:.y=) -p mm $<
--	mv $(<:.y=).tab.c $(<:.y=.c)
- 	mv $(<:.y=).tab.h $(<:.y=.h)
- 
- aicasm_scan.c: aicasm_scan.l
---- linux-2.6.0/drivers/scsi/aic7xxx/Makefile	2003-11-09 16:45:05.000000000 -0800
-+++ 25/drivers/scsi/aic7xxx/Makefile	2003-12-22 20:17:16.000000000 -0800
-@@ -58,7 +58,9 @@ aicasm-7xxx-opts-$(CONFIG_AIC7XXX_REG_PR
- 	-p $(obj)/aic7xxx_reg_print.c -i aic7xxx_osm.h
- 
- ifeq ($(CONFIG_AIC7XXX_BUILD_FIRMWARE),y)
--$(aic7xxx-gen-y): $(src)/aic7xxx.seq $(src)/aic7xxx.reg $(obj)/aicasm/aicasm
-+$(aic7xxx-gen-y): $(src)/aic7xxx.seq
-+
-+$(src)/aic7xxx.seq: $(obj)/aicasm/aicasm $(src)/aic7xxx.reg
- 	$(obj)/aicasm/aicasm -I$(src) -r $(obj)/aic7xxx_reg.h \
- 			      $(aicasm-7xxx-opts-y) -o $(obj)/aic7xxx_seq.h \
- 			      $(src)/aic7xxx.seq
-@@ -72,7 +74,9 @@ aicasm-79xx-opts-$(CONFIG_AIC79XX_REG_PR
- 	-p $(obj)/aic79xx_reg_print.c -i aic79xx_osm.h
- 
- ifeq ($(CONFIG_AIC79XX_BUILD_FIRMWARE),y)
--$(aic79xx-gen-y): $(src)/aic79xx.seq $(src)/aic79xx.reg $(obj)/aicasm/aicasm
-+$(aic79xx-gen-y): $(src)/aic79xx.seq
-+
-+$(src)/aic79xx.seq: $(obj)/aicasm/aicasm $(src)/aic79xx.reg
- 	$(obj)/aicasm/aicasm -I$(src) -r $(obj)/aic79xx_reg.h \
- 			      $(aicasm-79xx-opts-y) -o $(obj)/aic79xx_seq.h \
- 			      $(src)/aic79xx.seq
+ config MAX_RAW_DEVS
+ 	int "Maximum number of RAW devices to support (1-8192)"
+ 	depends on RAW_DRIVER
 
---=-hLxl7l5tTsbRel96GUyG--
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
