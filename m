@@ -1,35 +1,28 @@
-Date: Mon, 25 Sep 2000 16:08:38 +0200
-From: Jens Axboe <axboe@suse.de>
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-Message-ID: <20000925160838.R26339@suse.de>
-References: <20000925155650.F22882@athlon.random> <Pine.LNX.4.21.0009251555420.9122-100000@elte.hu> <20000925161358.J22882@athlon.random>
+Date: Mon, 25 Sep 2000 16:23:11 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: the new VM
+Message-ID: <20000925162311.L22882@athlon.random>
+References: <20000925160412.G22882@athlon.random> <Pine.LNX.4.21.0009251603180.9122-100000@elte.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20000925161358.J22882@athlon.random>; from andrea@suse.de on Mon, Sep 25, 2000 at 04:13:58PM +0200
+In-Reply-To: <Pine.LNX.4.21.0009251603180.9122-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 04:04:14PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25 2000, Andrea Arcangeli wrote:
-> > i had yesterday - those were simple VM deadlocks. I dont see any deadlocks
-> 
-> Definitely. They can't explain anything about the VM deadlocks. I was
-> _only_ talking about the blkdev hangs that caused you to unplug the
-> queue at each reschedule in tux and that Eric reported me for the SG
-> driver (and I very much hope that with EXCLUSIVE gone away and the
-> wait_on_* fixed those hangs will go away because I don't see anything else
-> wrong at this moment).
+On Mon, Sep 25, 2000 at 04:04:14PM +0200, Ingo Molnar wrote:
+> exactly, and this is why if a higher level lets through a GFP_KERNEL, then
+> it *must* succeed. Otherwise either the higher level code is buggy, or the
+> VM balance is buggy, but we want to have clear signs of it.
 
-The sg problem was different. When sg queues a request, it invokes the
-request_fn to handle it. But if the queue is currently plugged, the
-scsi_request_fn will not do anything.
+I'm not sure if we should restrict the limiting only to the cases that needs
+them. For example do_anonymous_page looks a place that could rely on the
+GFP retval.
 
--- 
-* Jens Axboe <axboe@suse.de>
-* SuSE Labs
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
