@@ -1,47 +1,39 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA10454
-	for <linux-mm@kvack.org>; Tue, 3 Mar 1998 06:01:27 -0500
-Date: Tue, 3 Mar 1998 08:39:30 +0100 (MET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA11306
+	for <linux-mm@kvack.org>; Tue, 3 Mar 1998 10:02:26 -0500
+Date: Tue, 3 Mar 1998 14:10:20 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: Re: [PATCH] kswapd fix & logic improvement
-In-Reply-To: <Pine.LNX.3.95.980303073840.437A-100000@mikeg.weiden.de>
-Message-ID: <Pine.LNX.3.91.980303083346.16214A-100000@mirkwood.dummy.home>
+Subject: Re: [PATCH] kswapd fix & logic improvement 
+In-Reply-To: <199803031135.MAA19461@max.fys.ruu.nl>
+Message-ID: <Pine.LNX.3.91.980303140552.21962A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Michael L. Galbraith" <mikeg@weiden.de>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
+To: jahakala@cc.jyu.fi
+Cc: linux-mm <linux-mm@kvack.org>, "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Mar 1998, Michael L. Galbraith wrote:
+On Tue, 3 Mar 1998, Jani Hakala wrote:
 
-> I was able to stimulate a 'swap-attack' which took almost a hour to
-> recover control from.
-> 
-> 2.1.89pre5 + swap patch
+> I patched pre5 with your diff.  Now I get 'kswapd: failed, got 73 of 
+> 128' messages all the time.
 
-The attack you mention is going to affect _every_ kernel
-out there. It's just that without my patch a lot of
-random processes are going to be killed with signal 7 (sigbus).
+Maybe you should play around a little with /proc/sys/vm/swapctl
+and /proc/sys/vm/freepages...
+A 1:2:4 ratio for freepages usualy works wonders.
+And a echo "10 3 1 3 0 0 0 0 1024" > swapctl gives some
+improvement too. As a matter of fact, I'm currently (read:
+now) removing some of the 1.1.xx artifacts from mm/vmscan.c...
 
-Now kswapd is somewhat better to keep up with things, it
-will remain swapping, instead of killing...
+Things will straighten up RSN, but until that time, you can:
+- tune /proc/sys/vm/*
+- tune mm/vmscan.c (just make it more agressive)
 
-To 'recover from' or 'handle' your attack (180+ mb working
-set on an 80 mb machine) is going to need 'real' swapping,
-ie. the temporary suspension of processes to reduce VM load.
-
-I'd like you to try to even start your stress test under a
-normal kernel (it'll probably work, but not without the
-neccesary oom()s and signal 7s).
-
-This patch is only an improvement for normal use. Anyways,
-thrashing can't be combatted by paging algorithms, no matter
-how good.
-
-I'll be working on the swapping daemon as soon as I've got
-the current patch sorted out...
+The main reason that you didn't get that message with the
+old kernel is that it doesn't show you the error, but
+you're right, I should limit the printout of the error
+(to once every 5 seconds?).
 
 Rik.
 +-----------------------------+------------------------------+
