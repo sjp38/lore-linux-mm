@@ -1,49 +1,45 @@
-Message-ID: <3B8BBD94.B57510A2@pp.inet.fi>
-Date: Tue, 28 Aug 2001 18:49:40 +0300
-From: Jari Ruusu <jari.ruusu@pp.inet.fi>
+Received: from skynet.csn.ul.ie (skynet [136.201.105.2])
+	by holly.csn.ul.ie (Postfix) with ESMTP id A91052B39A
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2001 10:55:27 +0100 (IST)
+Received: from localhost (localhost [127.0.0.1])
+	by skynet.csn.ul.ie (Postfix) with ESMTP id 373F0E88C
+	for <linux-mm@kvack.org>; Wed, 29 Aug 2001 10:55:27 +0100 (IST)
+Date: Wed, 29 Aug 2001 10:55:27 +0100 (IST)
+From: Mel <mel@csn.ul.ie>
+Subject: Brief introduction
+Message-ID: <Pine.LNX.4.32.0108291050010.1979-100000@skynet>
 MIME-Version: 1.0
-Subject: Re: VM problem with 2.4.8-ac9 (fwd)
-References: <Pine.LNX.4.33L.0108241710040.31410-100000@duckman.distro.conectiva> <3B87A3BC.EB5A9989@pp.inet.fi>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Rik van Riel <riel@conectiva.com.br>, Marcelo Tosatti <marcelo@conectiva.com.br>, Hugh Dickins <hugh@veritas.com>, Jeremy Linton <jlinton@interactivesi.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-2.4.8-ac12
-~~~~~~~~~~
-5 hours of VM torture. 1 incident where a process died with SIGSEGV.
+Hello Linux-MM,
 
-Got these on serial console:
-> Unused swap offset entry in swap_dup 0007e400
-> VM: Bad swap entry 0007e400
-> Unused swap offset entry in swap_count 0007e400
-> Unused swap offset entry in swap_count 0007e400
-> Unused swap offset entry in swap_count 0007e400
-> VM: Bad swap entry 0007e400
+As part of a larger project, I am to write a small paper describing how
+the Linux MM works, including the algorithms used and the O(whatever)
+running time each of them takes. This includes everything from the
+different ways of allocating memory, to swapping, to the individual
+optimisations such as use-once. I will be starting with kernel 2.4.9 but
+will do my best to keep up to date with the various patches that affect
+the memory manager and will be lurking here on the list.
 
-2.4.9-ac1
-~~~~~~~~~
-13 hours of VM torture. 2 incidents where a process died with SIGSEGV. No
-"swap offset" messages. Both SIGSEGV incidents appeared to happen
-simultaneously, suggesting that one erratic behavior caused both.
+This in it's very early days so it'll be some time before I actually have
+something to show, but if people have areas they would like to see
+concentrated on or suggestions on what the most important sections to
+highlight are, I would be glad to hear them.
 
-2.4.9-ac3
-~~~~~~~~~
-Kernel compiled with -fno-strength-reduce. 3 hours of VM torture. 2
-incidents where a process died with SIGSEGV. No "swap offset" messages. Both
-SIGSEGV incidents appeared to happen simultaneously, suggesting that one
-erratic behavior caused both.
+As appaling as this may sound to some of you ;), this is purely a
+documentation effort and I don't intend to submit patches yet except in
+the unlikely event I notice something blatently wrong. When I am finished,
+I hope to have something that will help people get a grip on how the MM
+functions that isn't just "read the source"
 
-2.4.10-pre1
-~~~~~~~~~~~
-2 hours of VM torture. 1 incident where a process died with SIGSEGV. No
-"swap offset" messages.
+Thanks for your time
 
-Regards,
-Jari Ruusu <jari.ruusu@pp.inet.fi>
+-- 
+		Mel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
