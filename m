@@ -1,55 +1,52 @@
-Date: Sat, 6 Jul 2002 02:31:38 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH][RFT](2) minimal rmap for 2.5 - akpm tested
-Message-ID: <Pine.LNX.4.44L.0207060228460.8346-100000@imladris.surriel.com>
+Message-ID: <3D268E19.B68559F6@zip.com.au>
+Date: Fri, 05 Jul 2002 23:28:41 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH][RFT](2) minimal rmap for 2.5 - akpm tested
+References: <Pine.LNX.4.44L.0207060228460.8346-100000@imladris.surriel.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@zip.com.au>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Rik van Riel wrote:
+> 
+> Hi,
+> 
+> Almost the same patch as before, except this one has had
+> a few hours of testing by Andrew Morton and two bugs have
+> been ironed out, most notably the truncate_complete_page()
+> race.  This patch is probably safe since Andrew got bored
+> when no new bugs showed up ...
+> 
 
-Almost the same patch as before, except this one has had
-a few hours of testing by Andrew Morton and two bugs have
-been ironed out, most notably the truncate_complete_page()
-race.  This patch is probably safe since Andrew got bored
-when no new bugs showed up ...
+The box died, but not due to rmap.  We have a lock ranking
+bug:
 
-If you have some time left this weekend and feel brave,
-please test the patch which can be found at:
+        do_exit
+        ->mmput
+          ->exit_mmap                           page_table_lock
+            ->removed_shared_vm_struct
+              ->lock_vma_mappings               i_shared_lock
 
-	http://surriel.com/patches/2.5/2.5.25-rmap-akpmtested
+versus
 
-This patch is based on Craig Kulesa's minimal rmap patch
-for 2.5.24, with a few changes:
-- removed a few unrelated changes
-- updated armv/rmap.h for new pagetable layout of linux/arm
-- dropped per-zone pte_chain freelists, we want to make per-cpu
-  ones for SMP scalability
-- ported to 2.5.25 (PF_NOWARN instead of PF_RADIX_TREE)
-- drop spelling and whitespace fixes (should be merged separately)
-- fix truncate_complete_page race condition (akpm)
+        do_truncate
+        ->notify_change
+          ->inode_setattr
+            ->vmtruncate                        i_shared_lock
+              ->vmtruncate_list
+                ->zap_page_range                page_table_lock
 
-It should be mostly ready for being integrated into the 2.5 tree,
-with the note that pte-highmem support still needs to be implemented
-(some IBMers have been volunteered for this task, this functionality
-can easily be added afterwards).
+It seems that in 2.5.16, a call to remove_shared_vm_struct() was
+added to exit_mmap(), inside mm->page_table_lock.
 
-Right now this patch needs testing and careful scrutiny. If you can
-find anything wrong with it, please let me know.
+That ranking conflicts with truncate.
 
-kind regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-
+-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
