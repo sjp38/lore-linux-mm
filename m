@@ -1,38 +1,51 @@
-Received: from sun4.apsoft.com (sun4.apsoft.com [209.1.28.81])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA10747
-	for <linux-mm@kvack.org>; Tue, 14 Apr 1998 17:37:50 -0400
-From: Perry Harrington <pedward@sun4.apsoft.com>
-Message-Id: <199804142127.OAA09136@sun4.apsoft.com>
-Subject: Re: new kmod.c - debuggers and testers needed
-Date: Tue, 14 Apr 1998 14:27:53 -0700 (PDT)
-In-Reply-To: <Pine.LNX.3.91.980414200024.1070J-100000@mirkwood.dummy.home> from "Rik van Riel" at Apr 14, 98 08:02:09 pm
-Content-Type: text
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA11047
+	for <linux-mm@kvack.org>; Tue, 14 Apr 1998 18:47:42 -0400
+Date: Tue, 14 Apr 1998 23:38:50 +0200 (MET DST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: H.H.vanRiel@phys.uu.nl
+Subject: [PATCH] low/high water marks in free_memory_available()
+Message-ID: <Pine.LNX.3.91.980414233503.20137A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: H.H.vanRiel@fys.ruu.nl
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> 
-> On Tue, 7 Apr 1998, Perry Harrington wrote:
-> 
-> >                                                           Threads
-> > are useful in their appropriate context, and kswapd, and kmod would benefit
-> > from them.
-> 
-> Hmm, maybe it would be useful for kswapd and bdflush to fork()
-> off threads to do the actual disk I/O, so the main thread won't
-> be blocked and paused... This could remove some bottlenecks.
+Hi Linus,
 
-I was thinking that kswapd could use some of it's spare time to do an LRU
-paging scan, consolidate free space, and possibly do remapping of process
-memory spaces to make them more efficient (map pages to contiguous chunks
-of memory and swap).
+it seems that most of the thrashing in recent kernels comes
+from the fact that kswapd is busy continuously.
+Adding a very simple high/low water mark should help in most
+cases, since kswapd won't run all of the time and the disk
+will be idle more, giving other disk processes better performance.
 
-> 
-> Rik.
+Also, since a value is added to (num_physpages >> 5), it
+isn't shifted by 4 anymore... On large-mem machines, >>5
+is enough, and on small machines the added value will make
+up for the difference (I hope).
 
---Perry
+The patch below is a very rough patch against 2.1.95.
 
--- 
-Perry Harrington       Linux rules all OSes.    APSoft      ()
-email: perry@apsoft.com 			Think Blue. /\
+Rik.
++-------------------------------------------+--------------------------+
+| Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
+|        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
+|     http://www.fys.ruu.nl/~riel/          | <H.H.vanRiel@fys.ruu.nl> |
++-------------------------------------------+--------------------------+
+
+--- linux/mm/page_alloc.c.orig	Tue Apr 14 23:27:23 1998
++++ linux/mm/page_alloc.c	Tue Apr 14 23:34:21 1998
+@@ -134,8 +134,10 @@
+ 	 * It may not be, due to fragmentation, but we
+ 	 * don't want to keep on forever trying to find
+ 	 * free unfragmented memory.
++	 * Added low/high water marks so the disk will be idle
++	 * more of the time -- Rik, 14.4.98.
+ 	 */
+-	if (nr_free_pages > num_physpages >> 4)
++	if (nr_free_pages > (num_physpages >> 5) + (NR_MEM_LISTS - nr) * SWAP_CLUSTER_MAX)
+ 		return nr+1;
+ 
+ 	list = free_area + NR_MEM_LISTS;
