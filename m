@@ -1,38 +1,87 @@
-Received: from [192.168.7.150] (helo=johnson)
-	by shitbox with smtp (Exim 3.36 #1 (Debian))
-	id 19LFBJ-00013Z-00
-	for <linux-mm@kvack.org>; Thu, 29 May 2003 00:38:25 -0400
-Message-ID: <00f401c3259a$af9dc6d0$9607a8c0@johnson>
-From: "Alain Toussaint" <alain@toussaint.dyndns.org>
-References: <20030408042239.053e1d23.akpm@digeo.com> <3ED49A14.2020704@aitel.hist.no> <20030528111345.GU8978@holomorphy.com> <3ED49EB8.1080506@aitel.hist.no> <20030528113544.GV8978@holomorphy.com> <20030528225913.GA1103@hh.idb.hist.no>
-Subject: Re: 2.5.70-mm1 bootcrash, possibly RAID-1
-Date: Thu, 29 May 2003 00:27:59 -0400
+Date: Wed, 28 May 2003 23:23:23 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: 2.5.70-mm1
+Message-ID: <1980000.1054189401@[10.10.2.4]>
+In-Reply-To: <20030527004255.5e32297b.akpm@digeo.com>
+References: <20030527004255.5e32297b.akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Unable to handle kernel paging request at virtual address 8a8a8ab6
-> *pde=0 OOPS 0000 [#1]
-> EIP at put_all_bios+0x47/0x80
-> (edx was the register containing 8a8a8a8a)
-> Process swapper pid=0 threadinfo c1352000 task=c13f52d0
+> . A number of fixes against the ext3 work which Alex and I have been doing.
+>   This code is stable now.  I'm using it on my main SMP desktop machine.
+> 
+>   These are major changes to a major filesystem.  I would ask that
+>   interested parties now subject these patches to stresstesting and to
+>   performance testing.  The performance gains on SMP will be significant.
 
-I've seen something similar too when installing Gentoo on my box (stock
-gentoo kernel 2.4.20 with the royal bunch of patch they put in),i was in the
-bootstrap process building glibc,system is a Celery 566 with 512MB of ram (+
-512MB of swap enabled during the install,don't think it was needed
-though),the hard disk (maxtor 40GB) is hooked to a promise Ultra133TX2 card
-but the dvd drive and the cd burner are hooked to the stock controller (Via
-694Z mainboard),all are set to master,there's no slave device and the
-computer has a gazillions fans making as much noise as a boeing 747 in order
-to keep everything cool and i don't overclock.
+Sexy. SDET beats the hell out of this, and is much improved:
 
-Alain
+SDET 128  (see disclaimer)
+                           Throughput    Std. Dev
+               2.5.66-mm2       100.0%         0.6%
+          2.5.66-mm2-ext3         3.9%         0.4%
+
+SDET 128  (see disclaimer)
+                           Throughput    Std. Dev
+          2.5.70-mm1-ext2       100.0%         0.1%
+          2.5.70-mm1-ext3        22.7%         2.0%
+
+
+diffprofile 2.5.70-mm1-ext2 2.5.70-mm1-ext3
+(for SDET 128: + worse with ext3, - better.)
+   1857406   245.2% total
+   1531720   431.5% default_idle
+    106589     0.0% .text.lock.transaction
+     40119     0.0% do_get_write_access
+     37170     0.0% journal_dirty_metadata
+     35031  6560.1% __down
+     24412  8030.3% .text.lock.attr
+     19535  2556.9% __wake_up
+     19201   907.0% schedule
+     11344     0.0% start_this_handle
+     10104     0.0% journal_add_journal_head
+     10007     0.0% .text.lock.sched
+      7352     0.0% journal_stop
+      5949  99150.0% prepare_to_wait_exclusive
+      5867  3008.7% __blk_queue_bounce
+      4724   335.3% __find_get_block
+      4618     0.0% ext3_get_inode_loc
+      4410     0.0% journal_dirty_data
+      3754   590.3% __find_get_block_slow
+      3079   738.4% .text.lock.base
+      2176     0.0% ext3_do_update_inode
+      2132  11844.4% unlock_buffer
+      1995     0.0% ext3_journal_start
+      1888     0.0% ext3_orphan_del
+      1783   145.2% __brelse
+      1642  4829.4% blk_run_queues
+      1555     0.0% ext3_orphan_add
+      1495     0.0% ext3_new_inode
+      1430     0.0% ext3_reserve_inode_write
+      1412     0.0% journal_destroy_handle_cache
+      1344     0.0% journal_cancel_revoke
+      1279     0.0% journal_unmap_buffer
+      1198     0.0% ext3_free_blocks
+...
+     -1057   -88.4% .text.lock.highmem
+     -1064   -24.5% remove_shared_vm_struct
+     -1112   -52.8% .text.lock.dec_and_lock
+     -1126  -100.0% ext2_new_inode
+     -1516  -100.0% grab_block
+     -1594   -28.3% path_lookup
+     -1599   -28.0% atomic_dec_and_lock
+     -1660   -10.4% copy_page_range
+     -1695   -15.4% __d_lookup
+     -2585   -23.6% release_pages
+     -2614   -13.5% zap_pte_range
+     -9758   -20.7% page_add_rmap
+    -26185   -25.3% page_remove_rmap
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
