@@ -1,34 +1,39 @@
-Date: Thu, 5 Feb 2004 10:50:11 +0000
-From: Russell King <rmk+lkml@arm.linux.org.uk>
+Message-ID: <40222D4B.6050608@cyberone.com.au>
+Date: Thu, 05 Feb 2004 22:47:23 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
+MIME-Version: 1.0
 Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat"
-Message-ID: <20040205105011.C5426@flint.arm.linux.org.uk>
-References: <20040205014405.5a2cf529.akpm@osdl.org> <20040205100004.A5426@flint.arm.linux.org.uk> <40221CDA.5040008@pobox.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <40221CDA.5040008@pobox.com>; from jgarzik@pobox.com on Thu, Feb 05, 2004 at 05:37:14AM -0500
+References: <20040205014405.5a2cf529.akpm@osdl.org>
+In-Reply-To: <20040205014405.5a2cf529.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@pobox.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 05, 2004 at 05:37:14AM -0500, Jeff Garzik wrote:
-> > I'd like to get those patches into mainline so I can close bugme bug
-> > 1711, but I think Jeff's waiting for responses from the individual
-> > net driver maintainers first. ;(
-> 
-> Nope, was just waiting for 2.6.2 to be released.  The first post-262 
-> batch has been merged, am now sending the second batch.  Yours is in the 
-> third batch :)
 
-Ah, ok - that's excellent.  Thanks.
+Andrew Morton wrote:
 
--- 
-Russell King
- Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
- maintainer of:  2.6 PCMCIA      - http://pcmcia.arm.linux.org.uk/
-                 2.6 Serial core
+>ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.2/2.6.2-mm1/
+>
+>
+>- Merged some page reclaim fixes from Nick and Nikita.  These yield some
+>  performance improvements in low memory and heavy paging situations.
+>
+>
+
+Nikita's vm-dont-rotate-active-list.patch still has this:
+
++/* dummy pages used to scan active lists */
++static struct page scan_pages[MAX_NUMNODES][MAX_NR_ZONES];
++
+
+Which probably needs its nodes and cachelines untangled.
+Maybe it doesn't - I really don't know.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
