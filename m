@@ -1,34 +1,28 @@
-Received: from list by main.gmane.org with local (Exim 3.35 #1 (Debian))
-	id 19Y8Xt-0000CS-00
-	for <linux-mm@kvack.org>; Thu, 03 Jul 2003 20:11:01 +0200
-From: Pasi Savolainen <psavo@iki.fi>
-Subject: Re: 2.5.74-mm1
-Date: Thu, 3 Jul 2003 18:11:00 +0000 (UTC)
-Message-ID: <be1rjk$nj$1@main.gmane.org>
-References: <20030703023714.55d13934.akpm@osdl.org>
+Date: Thu, 3 Jul 2003 19:48:25 +0100
+From: Jamie Lokier <jamie@shareable.org>
+Subject: Re: What to expect with the 2.6 VM
+Message-ID: <20030703184825.GA17090@mail.jlokier.co.uk>
+References: <20030702214032.GH20413@holomorphy.com> <20030702220246.GS23578@dualathlon.random> <20030702221551.GH26348@holomorphy.com> <20030702222641.GU23578@dualathlon.random> <20030702231122.GI26348@holomorphy.com> <20030702233014.GW23578@dualathlon.random> <20030702235540.GK26348@holomorphy.com> <20030703113144.GY23578@dualathlon.random> <20030703114626.GP26348@holomorphy.com> <20030703125839.GZ23578@dualathlon.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030703125839.GZ23578@dualathlon.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-* Andrew Morton <akpm@osdl.org>:
-> 
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.74/2.5.74-mm1/
-> 
+Andrea Arcangeli wrote:
+> but I didn't hear any emulator developer ask for this feature yet
 
-Has -mm had some monotonic clock patches at around 2.5.72-mm3?
-2.5.74-mm1 seems to produce non-monotonic gettimeofday.
-(tested with http://www.swcp.com/~hudson/gettimeofday.c)
-'lag' is sporadic and may take several iterations to come up.
+No, but there was a meek request to get writable/read-only protection
+working with remap_file_pages, so that a garbage collector can change
+protection on individual pages without requiring O(nr_pages) vmas.
 
+Perhaps that should have nothing to do with remap_file_pages, though.
 
-Machine is 2xK7 with a ACPI C2 sleep driver (TSC's get unsynched).
-2.5.72-mm3 didn't show these.
-
--- 
-   Psi -- <http://www.iki.fi/pasi.savolainen>
-
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
