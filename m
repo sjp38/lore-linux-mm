@@ -1,51 +1,99 @@
-Date: Thu, 15 May 2003 10:50:23 +0200
+Date: Thu, 15 May 2003 10:55:19 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: Race between vmtruncate and mapped areas?
-Message-ID: <20030515085023.GU1429@dualathlon.random>
-References: <199610000.1052864784@baldur.austin.ibm.com> <20030513181018.4cbff906.akpm@digeo.com> <18240000.1052924530@baldur.austin.ibm.com> <20030514103421.197f177a.akpm@digeo.com> <82240000.1052934152@baldur.austin.ibm.com> <20030514105706.628fba15.akpm@digeo.com> <99000000.1052935556@baldur.austin.ibm.com> <20030514111748.57670088.akpm@digeo.com> <108250000.1052936665@baldur.austin.ibm.com> <20030514115319.51a54174.akpm@digeo.com>
+Message-ID: <20030515085519.GV1429@dualathlon.random>
+References: <154080000.1052858685@baldur.austin.ibm.com> <20030513181018.4cbff906.akpm@digeo.com> <18240000.1052924530@baldur.austin.ibm.com> <20030514103421.197f177a.akpm@digeo.com> <82240000.1052934152@baldur.austin.ibm.com> <20030515004915.GR1429@dualathlon.random> <20030515013245.58bcaf8f.akpm@digeo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030514115319.51a54174.akpm@digeo.com>
+In-Reply-To: <20030515013245.58bcaf8f.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: Dave McCracken <dmccr@us.ibm.com>, mika.penttila@kolumbus.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: dmccr@us.ibm.com, mika.penttila@kolumbus.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 14, 2003 at 11:53:19AM -0700, Andrew Morton wrote:
-> converting i_sem to an rwsem and taking it in the pagefault would certainly
-> stitch it up.  Unpopular, very messy.
-
-and very slow, down_read on every page fault wouldn't scale
-
-> Could "truncate file" return some code to say pages were left behind, so
-> truncate re-runs zap_page_range()?  Sounds unpleasant.
+On Thu, May 15, 2003 at 01:32:45AM -0700, Andrew Morton wrote:
+> Andrea Arcangeli <andrea@suse.de> wrote:
+> >
+> >  what do you think of this untested fix?
+> > 
+> >  I wonder if vm_file is valid for all nopage operations, I think it
+> >  should, and the i_mapping as well should always exist, but in the worst
+> >  case it shouldn't be too difficult to take care of special cases
+> >  (just checking if the new_page is reserved and if the vma is VM_SPECIAL)
+> >  would eliminate most issues, shall there be any.
 > 
+> yes, I think this is a good solution.
 > 
-> Yes, re-checking the page against i_size from do_no_page() would fix it up.
-
-think if there are two truncates, one zapping the entere file, and
-another restoring the previous i_size, in such case the new_page will be
-wrong, as it won't be zeroed out. I mean if we do anything about it, we
-should close all races and make it 100% correct.
-
-My fix has no scalability cost, no indirect calls, touches mostly just
-hot cachelines anyways, and addresses the multiple truncate case too.
-
-
->  But damn, that's another indirect call, 64-bit math, etc on _every_
-> file-backed pagefault.
+> In 2.5 (at least) we can push all the sequence number work into
+> filemap_nopage(), and add a new vm_ops->revalidate() thing, so do_no_page()
+> doesn't need to know about inodes and such.
 > 
-> 
-> Remind me again what problem this whole thing is currently causing?
+> So the mm/memory.c part would look something like:
 
-the only thing I can imagine is an app trapping SIGBUS to garbage
-collect the end of a file. So for example you truncate the file and you
-wait the SIGBUS to know you've to re-extend it. it would be a legitimate
-use, and this is a bug, it's not read against write that has no way to
-synchronize anyways, however I doubt any application is being bitten by
-this race.
+this is your i_size check idea, and it's still racy (though less racy
+than before ;), you will corrupt the user address space again if you get
+two truncates under you (the first truncating the page under fault, and
+the second extending the file past the page under fault) and since you
+only call revalidate after re-taking the spinlock you can't catch the
+first truncate that mandates the page to be zeroed out despite the
+i_size check.
+
+you could trap this by checking the page->mapping inside the
+page_table_lock probably but taking lock_page before page_table_lock in
+do_no_page is way overkill compared to my read-lockless patch.
+
+> 
+> diff -puN mm/memory.c~a mm/memory.c
+> --- 25/mm/memory.c~a	2003-05-15 01:29:21.000000000 -0700
+> +++ 25-akpm/mm/memory.c	2003-05-15 01:32:02.000000000 -0700
+> @@ -1399,7 +1399,7 @@ do_no_page(struct mm_struct *mm, struct 
+>  					pmd, write_access, address);
+>  	pte_unmap(page_table);
+>  	spin_unlock(&mm->page_table_lock);
+> -
+> +retry:
+>  	new_page = vma->vm_ops->nopage(vma, address & PAGE_MASK, 0);
+>  
+>  	/* no page was available -- either SIGBUS or OOM */
+> @@ -1408,9 +1408,11 @@ do_no_page(struct mm_struct *mm, struct 
+>  	if (new_page == NOPAGE_OOM)
+>  		return VM_FAULT_OOM;
+>  
+> -	pte_chain = pte_chain_alloc(GFP_KERNEL);
+> -	if (!pte_chain)
+> -		goto oom;
+> +	if (!pte_chain) {
+> +		pte_chain = pte_chain_alloc(GFP_KERNEL);
+> +		if (!pte_chain)
+> +			goto oom;
+> +	}
+>  
+>  	/*
+>  	 * Should we do an early C-O-W break?
+> @@ -1428,6 +1430,17 @@ do_no_page(struct mm_struct *mm, struct 
+>  	}
+>  
+>  	spin_lock(&mm->page_table_lock);
+> +
+> +	/*
+> +	 * comment goes here
+> +	 */
+> +	if (vma->vm_ops && vma->vm_ops->revalidate &&
+> +			vma->vm_ops->revalidate(vma, address) {
+> +		spin_unlock(&mm->page_table_lock);
+> +		put_page(new_page);
+> +		goto retry;
+> +	}
+> +
+>  	page_table = pte_offset_map(pmd, address);
+>  
+>  	/*
+> 
+> _
+> 
+
 
 Andrea
 --
