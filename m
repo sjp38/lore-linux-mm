@@ -1,29 +1,45 @@
-Received: from SMTP (orsmsxvs01-1.jf.intel.com [192.168.65.200])
-	by ganymede.or.intel.com (8.9.1a+p1/8.9.1/d: relay.m4,v 1.22 2000/04/06 17:58:51 dmccart Exp $) with SMTP id PAA22294
-	for <linux-mm@kvack.org>; Wed, 12 Apr 2000 15:13:58 -0700 (PDT)
-Message-ID: <A63AFB20111ED311AC5500A0C96B7BF5661F5A@orsmsx36.jf.intel.com>
-From: "Chu, Hao-Hua" <hao-hua.chu@intel.com>
-Subject: questions
-Date: Wed, 12 Apr 2000 15:13:55 -0700
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="ISO-8859-1"
+Date: Thu, 13 Apr 2000 02:35:28 +0200
+From: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Subject: Re: Stack & policy
+Message-ID: <20000413023528.D27244@pcep-jamie.cern.ch>
+References: <Pine.LNX.3.95.1000412174014.810A-100000@ppp-pat138.tee.gr> <nnaeizpdfu.fsf@code.and.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <nnaeizpdfu.fsf@code.and.org>; from James Antill on Wed, Apr 12, 2000 at 11:05:25AM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: James Antill <james@and.org>
+Cc: axanth@tee.gr, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+James Antill wrote:
+> > Some time ago I posted a message about a kernel feature where the
+> > application can request the vma->vm_start of its stack virtual memory area
+> > in order to unmap part of the unused stack (esp - vma->vm_start).
+> > 
+> > Such a feature is very useful for an alternative programming technique.
+> 
+>  Have you seen jamie and chuck talking about madvise() flags ?
+>  Just doing madvise(cur_stack, MADV_DONTNEED, cur_stack - end_stack)[1]
+> after a function that uses alloca() or has a large auto should be
+> a pretty simple addition to gcc (although you might not want to put it
+> there).
+> 
+>  Those seem like a much better idea to me, as they can also be used in
+> pthreads (much as I hate pthreads) and other bits of memory that has
+> similar usage patterns.
+>  This would also be much more likely to work on other OSes.
 
-Here are my questions ....
-1. How does the readahead work in page cache?  (file->raend, ralen, ramax,
-rawin)
-2. What kind of pages are in the lru_cache?  (via lru_cache_add())
+You'd use MADV_FREE, as it allows the app to reuse stack pages
+immediately without the overhead of them being unmapped, remapped and
+rezeroed -- if it reuses them before the kernel finds another use for
+them.  The most efficiently place to put this call is probably in a
+timer signal handler.
 
-Thanks.
+You still need to get the base of the mapped region though.  You can
+parse /proc/self/maps for this :-)
 
-Hao   
-
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
