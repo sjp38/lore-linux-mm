@@ -1,43 +1,45 @@
-Date: Thu, 27 Jan 2000 13:50:23 -0500 (EST)
-From: Chuck Lever <cel@monkey.org>
-Subject: Re: possible brw_page optimization
-In-Reply-To: <14479.33307.9093.845257@dukat.scot.redhat.com>
-Message-ID: <Pine.BSO.4.10.10001271342110.20668-100000@funky.monkey.org>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14480.38782.751251.577294@dukat.scot.redhat.com>
+Date: Thu, 27 Jan 2000 19:07:42 +0000 (GMT)
+Subject: Re: 2.2.1{3,4,5pre*} VM bug found
+In-Reply-To: <Pine.LNX.4.10.10001250421090.482-100000@mirkwood.dummy.home>
+References: <Pine.LNX.4.10.10001250421090.482-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@nl.linux.org>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux MM <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Jan 2000, Stephen C. Tweedie wrote:
-> On Wed, 26 Jan 2000 11:02:37 -0500 (EST), Chuck Lever <cel@monkey.org>
-> said:
-> > however, somehow i'd have to guarantee that all buffers associated with a
-> > page that is to be compressed/encrypted are read/written at once.  
-> 
-> Why?  The swapper already does per-page IO locking, so you are protected
-> against any conflicts while a page is being written out.
+Hi,
 
-it's not a locking issue. the encryption algorithm is a block cipher on
-the whole page. in order to decrypt a page, you need to be sure you have
-all the pieces.  you can't read parts of the page and decrypt them.
+On Tue, 25 Jan 2000 04:27:43 +0100 (CET), Rik van Riel
+<riel@nl.linux.org> said:
 
-forgetting about encryption for a moment, you don't think the optimization
-is useful in the general case?  it's hardly ever used, if at all; plus it
-seems to introduce some bugs.  that code would be a lot cleaner without
-all the bother.  the "common case," by far, is to read/write the whole
-page.
+> Sometimes a process with tsk->state != TASK_RUNNABLE
+> calls __get_free_pages(). When we're (almost) out of
+> memory, the process will wake up kswapd and try to
+> free some memory itself.
 
-	- Chuck Lever
---
-corporate:	<chuckl@netscape.com>
-personal:	<chucklever@netscape.net> or <cel@monkey.org>
+> In 2.2.15pre4 or when the call to try_to_free_pages()
+> generates disk I/O, the task will call schedule().
+> Since the task state != TASK_RUNNABLE, schedule() will
+> immedately remove it from the run queue ...
 
-The Linux Scalability project:
-	http://www.citi.umich.edu/projects/linux-scalability/
+Shouldn't be a problem.  Anywhere that we stall in try_to_free_pages()
+to wait for disk IO, we obviously have to set task->state to
+TASK_UNINTERRUPTIBLE, as we're about to block.  If we do that as a
+result of disk IO, then we have necessarily already scheduled a wakeup
+event which will set the task state back to runnable.
 
+So, the only risk is that the call to try_to_free_pages() has the
+unexpected side effect of setting the task state to TASK_RUNNABLE.  That
+isn't a problem: the only effect it will have on the caller is to make a
+call schedule() return sooner than expected.  
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
