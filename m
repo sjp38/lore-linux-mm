@@ -1,53 +1,87 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id BAA13749
-	for <linux-mm@kvack.org>; Fri, 17 Jan 2003 01:05:44 -0800 (PST)
-Date: Fri, 17 Jan 2003 01:06:58 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: 2.5.59-mm1
-Message-Id: <20030117010658.4900da96.akpm@digeo.com>
-In-Reply-To: <20030117084600.GA26172@krispykreme>
-References: <20030117002451.69f1eda1.akpm@digeo.com>
-	<20030117084600.GA26172@krispykreme>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Subject: Kernel BUG(oops) does not occur after upgrading glibc
+Message-ID: <OF5B129FA7.EE286E9B-ON65256CB1.003172CC@in.ibm.com>
+From: "Srikrishnan Sundararajan" <srikrishnan@in.ibm.com>
+Date: Fri, 17 Jan 2003 14:33:46 +0530
+MIME-Version: 1.0
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Blanchard <anton@samba.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Anton Blanchard <anton@samba.org> wrote:
->
->  
-> > -cputimes_stat.patch
-> > 
-> >  Not to Linus's taste.
-> 
-> Pity, I just had another reason to use this today (Checking if a network
-> app was locking itself down to a cpu)
+Hi,
+I got the following oops message using my S/390 VM-type linux image with
+2GB of memory. (Kernel BUG at page_alloc.c:91!)
+Using 2.4.19. I was running a test program which keeps on allocating memory
+using malloc and assigns values  (with proper checking of return value of
+malloc. ) While using brk( ) system call, I did not get any problems.
+When I upgraded my glibc from version 2.2.5 to 2.3.1, the oops or Kernel
+BUG no longer occurred. As it was a "Kernel BUG" in the first place, do we
+still consider this as a BUG in the kernel or purely an error in glibc
+which was fixed in the 2.3.1 version?
 
-You can query that with sched_getaffinity()
+My inference is that using malloc which is part of the older glibc (2.2.5)
+was corrupting a kernel data structure, which resulted in the oops during
+swap_out.
+Note: I was not able to reproduce this problem on intel. I do not have any
+nVidia driver.
 
-> > -lockless-current_kernel_time.patch
-> > 
-> >  Is ia32-only.
-> 
-> We can fix that. Ive been avoiding it because it will take some non
-> trivial cleanup of our ppc64 time.c. Based on how often get_current_time
-> is appearing in profiles
+The oops message:
 
-Have you some numbers handy?
+Kernel BUG at page_alloc.c:91! (2.4.19)
+From: Heiko Carstens (Heiko.Carstens@de.ibm.com)
+Date: Mon Sep 02 2002 - 03:26:56 EST
 
-> and also how gettimeofday has been known to
-> cause problems on large SMP (due to read_lock on xtime starving
-> write_lock in the timer irq) I think this should get merged.
-> 
 
-OK.  I've had basically zero success getting non-ia32 people to test these
-patches, and breaking their build won't help that.
+Hi,
+I experienced several kernel BUGs while running the linux kernel version
+2.4.19 on a single cpu s390 machine with 2GB RAM and 256MB of swap space.
+All of these  BUGs happened at page_alloc.c in the function
+__free_pages_ok. In that function there is the check if (page->mapping) BUG
+();  which is exactly what happened. A page had a mapping but
+__free_pages_ok()  got called anyway. Looking at the backtrace I was able
+to see that this  specific BUG() occurred when page_cache_release() was
+called from the function  try_to_swap_out().
 
-But yes, this code needs to go ahead.
+
+Looks to me that this function itself has a bug: after the drop_pte label
+it is  checked if the current page has a mapping. If this is true there is
+a jump  to  the drop_pte label, where without any further checking
+page_cache_release() gets
+called which will result in the above described BUG() if page_count(page)
+== 1.
+
+Here is the output of the kernel (I removed all inline statements in
+vmscan.c):
+
+
+kernel BUG at page_alloc.c:91!
+illegal operation: 0001
+CPU: 0 Not tainted
+           80042730 00000001 013c578c 6ce26e00
+           00000020 575a0001 6ce26e00 00000000
+           013c578c 80042388 80042730 6c7e13c8
+           00000000 00000000 00000000 00000000
+           00000000 00000000 00000000 00000000
+           00000000 00000000 00000000 00000000
+Call Trace: [<000430d2>] [<00040eec>] [<00041088>] [<00041132>]
+            [<000411da>] [<000412cc>] [<000413b0>] [<00041646>]
+Warning (Oops_read): Code line not seen, dumping what data is available
+
+
+Trace; 000430d2 <__free_pages+52/58>
+Trace; 00040eec <try_to_swap_out+224/284>
+Trace; 00041088 <swap_out_pmd+13c/178>
+Trace; 00041132 <swap_out_pgd+6e/a0>
+Trace; 000411da <swap_out_vma+76/bc>
+Trace; 000412cc <swap_out_mm+ac/d0>
+Trace; 000413b0 <swap_out+c0/150>
+Trace; 00041646 <shrink_cache+206/5c8>
+
+
+regards,
+Heiko
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
