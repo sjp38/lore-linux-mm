@@ -1,56 +1,55 @@
-Date: Thu, 23 Sep 2004 21:01:17 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [Patch/RFC]Removing zone and node ID from page->flags[0/3]
-Message-ID: <20040924040117.GS9106@holomorphy.com>
-References: <20040923135108.D8CC.YGOTO@us.fujitsu.com> <20040923232713.GJ9106@holomorphy.com> <20040923203516.0207.YGOTO@us.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040923203516.0207.YGOTO@us.fujitsu.com>
+Message-ID: <41539EC1.1040301@sgi.com>
+Date: Thu, 23 Sep 2004 23:12:49 -0500
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/2] mm: page cache mempolicy for page cache allocation
+References: <20040923043236.2132.2385.23158@raybryhome.rayhome.net> <20040923043246.2132.91877.24290@raybryhome.rayhome.net> <20040923092416.GC6146@wotan.suse.de>
+In-Reply-To: <20040923092416.GC6146@wotan.suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <ygoto@us.fujitsu.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
+To: Andi Kleen <ak@suse.de>
+Cc: Ray Bryant <raybry@austin.rr.com>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Jackson <pj@sgi.com>, Nick Piggin <piggin@cyberone.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 23, 2004 at 08:51:58PM -0700, Yasunori Goto wrote:
-> Thank you for comment.
+Andi Kleen wrote:
 
-At some point in the past, I wrote:
->> Looks relatively innocuous. I wonder if cosmetically we may want
->> s/struct zone_tbl/struct zone_table/
-
-On Thu, Sep 23, 2004 at 08:51:58PM -0700, Yasunori Goto wrote:
-> Do you mean "struct zone_table" is better as its name?
-> If so, I'll change it.
-
-I'm not extremely picky about naming conventions, and the abbreviation
-isn't bad or anything. If there's someone else who also likes it better,
-or if you yourself do, I'd change it then.
+> 
+> Overall when I look at all the complications you add for the per process
+> page policy which doesn't even have a demonstrated need I'm not sure
+> it is really worth it.
+>
 
 
-At some point in the past, I wrote:
->> I like the path compression in the 2-level radix tree.
+Polling people inside of SGI, they seem to think that a per file memory policy
+is a good thing, but it needs to be settable from outside the process without
+changing the header or code of the process (think of an ISV application that
+we want to run on Altix.)  I can't quite get my head around what that means
+(do you have to specify this externally based on the order that files are
+opened in [e. g. file 1 has policy this, file 2 has policy that, etc] or does
+one specify this by type of file [text, mapped file, etc]).  Does this end up
+being effectively a per process policy with a per file override?  (e. g. all
+files for this process are managed with policy "this", except for the 5th file
+opened [or whatever] and it has policy "that".)
 
-On Thu, Sep 23, 2004 at 08:51:58PM -0700, Yasunori Goto wrote:
-> Hmmmm.....
-> Current radix tree code uses slab allocator.
-> But, zone_table must be initialized before free_all_bootmem()
-> and kmem_cache_alloc().
-> So, if I use it for zone_table, I think I have to change radix tree
-> code to use bootmem or have to write other original code.
-> I'm not sure it is better way....
+Steve -- how does your MTA design handle this?
 
-I meant it as an instance of a radix tree data structure, not to e.g.
-be consolidated with the kernel's radix tree library functions (which
-have the bootstrap ordering issues you describe preventing their use
-for this kind of purpose). The generic software pagetables are also
-radix trees, but similarly have constraints (e.g. use on machines with
-hardware-interpreted pagetables) preventing consolidation with the
-radix tree library code.
+Anyway, I'm about to throw in the towel on the per process page cache memory
+policy.  I can't make a strong enough argument for it.
 
+I assume that is acceptable, Andi?  :-)
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
