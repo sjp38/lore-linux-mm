@@ -1,55 +1,50 @@
-Date: Thu, 16 Aug 2001 23:09:37 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: help for swap encryption
-In-Reply-To: <Pine.GSO.4.31.0108161312050.29454-100000@cardinal0.Stanford.EDU>
-Message-ID: <Pine.LNX.4.33L.0108162307290.5646-100000@imladris.rielhome.conectiva>
+Subject: Re: 0-order allocation problem
+References: <Pine.LNX.4.33.0108151304340.2714-100000@penguin.transmeta.com>
+	<20010816082419Z16176-1232+379@humbolt.nl.linux.org>
+	<20010816112631.N398@redhat.com>
+	<20010816121237Z16445-1231+1188@humbolt.nl.linux.org>
+	<m1itfoow4p.fsf@frodo.biederman.org> <20010816173733.Y398@redhat.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 16 Aug 2001 21:20:21 -0600
+In-Reply-To: <20010816173733.Y398@redhat.com>
+Message-ID: <m1ae0zpe2y.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ted Unangst <tedu@Stanford.EDU>
-Cc: linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Daniel Phillips <phillips@bonn-fries.net>, Linus Torvalds <torvalds@transmeta.com>, Hugh Dickins <hugh@veritas.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Aug 2001, Ted Unangst wrote:
+"Stephen C. Tweedie" <sct@redhat.com> writes:
 
-> 1.  the data is at page->virtual, right?  that's what i want.
+> Hi,
+> 
+> On Thu, Aug 16, 2001 at 09:35:50AM -0600, Eric W. Biederman wrote:
+> 
+> > > > It needs to be a count, not a flag (consider multiple mlock() calls
+> > > > from different processes, or multiple direct IO writeouts from the
+> > > > same memory to disk.)  
+> > > 
+> > > Yes, the question is how to do this without adding a yet another field
+> > > to struct page.
+> > 
+> > atomic_add(&page->count, 65536);
+> 
+> That only leaves 8 bits for the pinned references (some architectures
+> limit atomic_t to 24 bits), and 16 bits for genuine references isn't
+> enough for some pages such as the zero page.
 
-Doing this will make your scheme unable to work on
-machines with more than 890MB of RAM.
+O.k. So that angle is out, but the other suggested approach where
+we scan the list of vmas will still work.  Question do you know if
+this logic would need to apply to things like ext3 and the journalling
+filesystems.  
 
-> 2.  if a page gets written to disk, nobody will be trying to read the
-> former RAM location, correct?  i was going to encrypt the ram in place.
-> nobody is going to go back and try reading that RAM again, are they?
+If we can limit the logic for accounting to things we have absolutely
+no control over, it might just be reasonable.  Otherwise it starts
+looking very tricky.
 
-Wrong. You'll have to remove the page from the swap
-cache first, possibly moving it to an encrypted
-swap cache ;)
-
-> 3.  when a page is pulled off disk, it's not automatically deleted.
-> when does that occur?
-
-It only occurs when swap space is getting full and
-is done in do_swap_page().
-
-> 4.  i don't know much about kernel programming style.  would it be
-> better to store tables of data as static variables, or kmalloc a big
-> chunk at some point?
-
-Using static variables you'd make your algorithm
-unable to run on multiple CPUs at the same time on
-an SMP system and is cause for instant disqualification.
-
-regards,
-
-Rik
---
-IA64: a worthy successor to i860.
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
