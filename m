@@ -1,6 +1,6 @@
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] 8/4  -ac to newer rmap
-Message-Id: <20021113145002Z80339-18062+20@imladris.surriel.com>
+Subject: [PATCH] 9/4  -ac to newer rmap
+Message-Id: <20021113145002Z80365-18062+19@imladris.surriel.com>
 Date: Wed, 13 Nov 2002 12:50:02 -0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -8,53 +8,37 @@ To: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Cc: Arjan van de Ven <arjanv@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Patch by Paul Mackarras to make sure that remap_pmd_range calls
-pte_alloc with the full address, so we don't have pagetables with
-wrong pte->mm and pte->index
+No need to check PageSwapCache(page) twice in a row.
 
 (ObWork: my patches are sponsored by Conectiva, Inc)
---- linux-2.4.19/mm/memory.c	2002-11-13 08:48:31.000000000 -0200
-+++ linux-2.4-rmap/mm/memory.c	2002-11-13 12:10:45.000000000 -0200
-@@ -164,6 +164,7 @@ int check_pgt_cache(void)
- void clear_page_tables(struct mm_struct *mm, unsigned long first, int nr)
+--- linux-2.4.19/mm/page_io.c	2002-11-13 08:48:31.000000000 -0200
++++ linux-2.4-rmap/mm/page_io.c	2002-11-13 12:10:46.000000000 -0200
+@@ -87,7 +87,6 @@ static int rw_swap_page_base(int rw, swp
+  *  - it's marked as being swap-cache
+  *  - it's associated with the swap inode
+  */
+-
+ void rw_swap_page(int rw, struct page *page)
  {
- 	pgd_t * page_dir = mm->pgd;
-+	unsigned long	last = first + nr;
- 
- 	spin_lock(&mm->page_table_lock);
- 	page_dir += first;
-@@ -173,6 +175,8 @@ void clear_page_tables(struct mm_struct 
- 	} while (--nr);
- 	spin_unlock(&mm->page_table_lock);
- 
-+	flush_tlb_pgtables(mm, first * PGDIR_SIZE, last * PGDIR_SIZE);
-+	
- 	/* keep the page table cache within bounds */
- 	check_pgt_cache();
+ 	swp_entry_t entry;
+@@ -98,8 +97,6 @@ void rw_swap_page(int rw, struct page *p
+ 		PAGE_BUG(page);
+ 	if (!PageSwapCache(page))
+ 		PAGE_BUG(page);
+-	if (page->mapping != &swapper_space)
+-		PAGE_BUG(page);
+ 	if (!rw_swap_page_base(rw, entry, page))
+ 		UnlockPage(page);
  }
-@@ -886,18 +889,19 @@ static inline void remap_pte_range(pte_t
- static inline int remap_pmd_range(struct mm_struct *mm, pmd_t * pmd, unsigned long address, unsigned long size,
- 	unsigned long phys_addr, pgprot_t prot)
- {
--	unsigned long end;
-+	unsigned long base, end;
- 
-+	base = address & PGDIR_MASK;
- 	address &= ~PGDIR_MASK;
- 	end = address + size;
- 	if (end > PGDIR_SIZE)
- 		end = PGDIR_SIZE;
- 	phys_addr -= address;
- 	do {
--		pte_t * pte = pte_alloc(mm, pmd, address);
-+		pte_t * pte = pte_alloc(mm, pmd, address + base);
- 		if (!pte)
- 			return -ENOMEM;
--		remap_pte_range(pte, address, end - address, address + phys_addr, prot);
-+		remap_pte_range(pte, base + address, end - address, address + phys_addr, prot);
- 		address = (address + PMD_SIZE) & PMD_MASK;
- 		pmd++;
- 	} while (address && (address < end));
+@@ -115,8 +112,6 @@ void rw_swap_page_nolock(int rw, swp_ent
+ 	
+ 	if (!PageLocked(page))
+ 		PAGE_BUG(page);
+-	if (PageSwapCache(page))
+-		PAGE_BUG(page);
+ 	if (page->mapping)
+ 		PAGE_BUG(page);
+ 	/* needs sync_page to wait I/O completation */
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
