@@ -1,18 +1,19 @@
-Message-ID: <20000905190334.4067.qmail@web6403.mail.yahoo.com>
-Date: Tue, 5 Sep 2000 12:03:34 -0700 (PDT)
+Message-ID: <20000906063923.20382.qmail@web6404.mail.yahoo.com>
+Date: Tue, 5 Sep 2000 23:39:23 -0700 (PDT)
 From: Zeshan Ahmad <zeshan_uet@yahoo.com>
-Subject: Re: stack overflow
+Subject: kernel stack overflow
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Hemment <markhe@veritas.com>
-Cc: tigran@veritas.com, linux-mm@kvack.org
+To: tigran@veritas.com
+Cc: markhe@veritas.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi
-
-I have figured out why the patch is'nt working. 
+ 
+I have tried the patch which Mark sent me but it
+has'nt solved the problem.
 
 Mark wrote:
 >In my original, the code assumes that all general
@@ -25,13 +26,16 @@ Mark wrote:
   
 Since I am already using 2.2.x, so the patch is not
 working. This means i am already using the variable
-"found".
-So this will not work i presume.
+"found". Hence the problem is still there.
 
-Any other solution available?
+Is there any other solution available? Plz help me.
+
+Waiting anxiously for ur reply.
 
 Regards
 Zeshan
+
+
 
 __________________________________________________
 Do You Yahoo!?
