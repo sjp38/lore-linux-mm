@@ -1,27 +1,37 @@
-Date: Thu, 30 Jan 2003 09:23:29 -0800 (PST)
-From: "Randy.Dunlap" <rddunlap@osdl.org>
 Subject: Re: Linus rollup
-In-Reply-To: <20030130172543.GA14213@averell>
-Message-ID: <Pine.LNX.4.33L2.0301300922590.4084-100000@dragon.pdx.osdl.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Stephen Hemminger <shemminger@osdl.org>
+In-Reply-To: <20030130015427.GU1237@dualathlon.random>
+References: <20030129022617.62800a6e.akpm@digeo.com>
+	 <1043879752.10150.387.camel@dell_ss3.pdx.osdl.net>
+	 <20030129151206.269290ff.akpm@digeo.com>
+	 <20030129.163034.130834202.davem@redhat.com>
+	 <20030129172743.1e11d566.akpm@digeo.com>
+	 <20030130013522.GP1237@dualathlon.random>
+	 <20030129180054.03ac0d48.akpm@digeo.com>
+	 <20030130015427.GU1237@dualathlon.random>
+Content-Type: text/plain
+Message-Id: <1043948226.10150.587.camel@dell_ss3.pdx.osdl.net>
+Mime-Version: 1.0
+Date: 30 Jan 2003 09:37:06 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Stephen Hemminger <shemminger@osdl.org>, Andrea Arcangeli <andrea@suse.de>, Jeff Garzik <jgarzik@pobox.com>, Andrew Morton <akpm@digeo.com>, David Miller <davem@redhat.com>, rmk@arm.linux.org.uk, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org, rth@twiddle.net
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Andrew Morton <akpm@digeo.com>, David Miller <davem@redhat.com>, rmk@arm.linux.org.uk, ak@muc.de, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org, rth@twiddle.net
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 30 Jan 2003, Andi Kleen wrote:
+> you certainly mean wmb() not rmb(), right? If yes, then yes.
+> 
+> I actually didn't notice the write_begin/end, not sure who could need
+> them, I would suggest removing them, rather than to revert the mb()
+> there too.
 
-| > You can follow Andrea's suggestion and call it a kaos_lock
-| > (for Keith Owens).
-|
-| How about just seq_lock (sequence lock) ?
+The write_begin/end was suggested by Andrew as a simplification for use
+when using this to update values already write-locked by other means.
 
-Hey, that makes some sense...
+One possible usage was to fix the race issues with non-atomic update
+of 64 bit i_size.
 
--- 
-~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
