@@ -1,34 +1,56 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.5.59-mm5 got stuck during boot
-Date: Fri, 24 Jan 2003 14:18:18 -0500
-References: <20030123195044.47c51d39.akpm@digeo.com> <200301241244.05268.tomlins@cam.org> <3E317E6A.7020507@cyberone.com.au>
-In-Reply-To: <3E317E6A.7020507@cyberone.com.au>
+From: David Lang <david.lang@digitalinsight.com>
+Date: Fri, 24 Jan 2003 11:14:50 -0800 (PST)
+Subject: Re: your mail
+In-Reply-To: <57047.210.212.228.78.1043401756.webmail@mail.nitc.ac.in>
+Message-ID: <Pine.LNX.4.44.0301241110470.10187-100000@dlang.diginsite.com>
 MIME-Version: 1.0
-Message-Id: <200301241418.18275.tomlins@cam.org>
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
+To: "Anoop J." <cs99001@nitc.ac.in>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On January 24, 2003 12:56 pm, Nick Piggin wrote:
-> Processes get sleep waiting for a page and never wake up.
-> It doesn't seem to be an anticipatory scheduling problem but
-> if you have time, try changing drivers/block/deadline-iosched.c
+the cache never sees the virtual addresses, it operated excclusivly on the
+physical addresses so the problem of aliasing never comes up.
+
+virtual to physical addres mapping is all resolved before anything hits
+the cache.
+
+David Lang
+
+On Fri, 24 Jan 2003, Anoop J. wrote:
+
+> Date: Fri, 24 Jan 2003 15:19:16 +0530 (IST)
+> From: Anoop J. <cs99001@nitc.ac.in>
+> To: david.lang@digitalinsight.com
+> Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+> Subject: Re: your mail
 >
-> static int antic_expire = HZ / 25;
-> to
-> static int antic_expire = 0;
+> ok i shall put it in another way
+> since virtual indexing is a representation of the virtual memory,
+> it is possible for more multiple virtual addresses to represent the same
+> physical address.So the problem of aliasing occurs in the cache.Does page
+> coloring guarantee a unique mapping of physical address.If so how is the
+> maping from virtual to physical address
 >
-> And see if you can reproduce.
-
-It boots with this change.
-
-Ed 
-
+>
+>
+> Thanks
+>
+>
+>
+> > I think this is a case of the same tuerm being used for two different
+> > purposes. I don't know the use you are refering to.
+> >
+> > David Lang
+> >
+> >
+> >
+>
+>
+>
+>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
