@@ -1,50 +1,48 @@
+Date: Sun, 1 Aug 2004 09:02:28 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: [PATCH] token based thrashing control
-From: Arjan van de Ven <arjanv@redhat.com>
-Reply-To: arjanv@redhat.com
-In-Reply-To: <20040801040553.305f0275.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.58.0407301730440.9228@dhcp030.home.surriel.com>
+Message-ID: <Pine.LNX.4.58.0408010856240.13053@dhcp030.home.surriel.com>
 References: <Pine.LNX.4.58.0407301730440.9228@dhcp030.home.surriel.com>
-	 <20040801040553.305f0275.akpm@osdl.org>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-drP37/Ab+2BiGsw4j7nc"
-Message-Id: <1091358809.2816.7.camel@laptop.fenrus.com>
-Mime-Version: 1.0
-Date: Sun, 01 Aug 2004 13:13:29 +0200
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, sjiang@cs.wm.edu
+To: linux-mm@kvack.org
+Cc: sjiang@cs.wm.edu, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---=-drP37/Ab+2BiGsw4j7nc
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Fri, 30 Jul 2004, Rik van Riel wrote:
 
+> I have run a very unscientific benchmark on my system to test
+> the effectiveness of the patch, timing how a 230MB two-process
+> qsbench run takes, with and without the token thrashing
+> protection present.
+> 
+> normal 2.6.8-rc2:	6m45s
+> 2.6.8-rc2 + token:	4m24s
 
-> btw, in page_referenced_one():
->=20
-> +	if (mm !=3D current->mm && has_swap_token(mm))
-> +		referenced++;
->=20
-> what's the reason for the `mm !=3D current->mm' test?
->=20
+OK, I've now also ran day-long kernel compilate tests,
+3 times each with make -j 10, 20, 30, 40, 50 and 60 on
+my dual pIII w/ 384 MB and a 180 MB named in the background.
 
-so that you can steal pages from yourself if you really need to, say if
-your own working set is bigger than ram.
+For make -j 10 through make -j 50 the differences are in
+the noise, basically giving the same result for each kernel.
 
+However, for make -j 60 there's a dramatic difference between
+a kernel with the token based swapout and a kernel without.
 
---=-drP37/Ab+2BiGsw4j7nc
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+normal 2.6.8-rc2:	1h20m runtime / ~26% CPU use average
+2.6.8-rc2 + token:	  42m runtime / ~52% CPU use average
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.4 (GNU/Linux)
+Time to dig out a dedicated test machine at the office and
+do some testing with (RE-)AIM7, I wonder if the max number
+of users supported will grow...
 
-iD8DBQBBDNBZxULwo51rQBIRAqpJAJ9PhrHstE3TvcA7jWYRxk1qoFoS9gCggnl7
-rJRu6mCmVt9holUpSZuDgVM=
-=V+aL
------END PGP SIGNATURE-----
-
---=-drP37/Ab+2BiGsw4j7nc--
-
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
