@@ -1,103 +1,246 @@
-Message-ID: <40365A0F.8070003@movaris.com>
-Date: Fri, 20 Feb 2004 11:03:43 -0800
-From: Kirk True <ktrue@movaris.com>
-MIME-Version: 1.0
-Subject: Re: LTP VM test slower under 2.6.3 than 2.4.20
-References: <40363778.20900@movaris.com> <3800000.1077295177@[10.10.2.4]> <40365887.6020204@movaris.com>
-In-Reply-To: <40365887.6020204@movaris.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Fri, 20 Feb 2004 04:02:55 -0800
+From: "Paul E. McKenney" <paulmck@us.ibm.com>
+Subject: Re: Non-GPL export of invalidate_mmap_range
+Message-ID: <20040220120255.GA1269@us.ibm.com>
+Reply-To: paulmck@us.ibm.com
+References: <20040216190927.GA2969@us.ibm.com> <200402192106.02086.phillips@arcor.de> <20040219194751.GN1269@us.ibm.com> <200402200007.25832.phillips@arcor.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200402200007.25832.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kirk True <ktrue@movaris.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, kernelnewbies <kernelnewbies@nl.linux.org>, Linux-MM@kvack.org
+To: Daniel Phillips <phillips@arcor.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-OK, try this profile for 2.4.20 instead (helps to use the right System.map):
+On Fri, Feb 20, 2004 at 12:07:25AM -0500, Daniel Phillips wrote:
+> On Thursday 19 February 2004 14:47, Paul E. McKenney wrote:
+> > OK, I surrender.  I got some private email agreeing with this
+> > viewpoint.  Any dissenters, speak soon, or...
+> 
+> An implementation is going to look something like the patch below. 
+> Unfortunately I don't think there is a way around passing an extra parameter
+> all the way down the unmap call chain.  Doubly unfortunately, this doesn't
+> give any benefit at all to anybody who doesn't use a clustered filesystem
+> (which is nearly everybody) while there is a marginal cost.  Do you know a
+> better way?  Anyway, this is the price of correct MAP_PRIVATE semantics for
+> clustered filesystems.  At least I have quantified it so we can decide if it's
+> worth it.  (My opinion: correctness is always worth it.)
 
-    221 default_idle                               4.6042
-      2 error_code                                 0.0333
-      1 restore_fpu                                0.0312
-     12 apm_bios_call_simple                       0.0833
-      6 do_page_fault                              0.0047
-      1 do_anonymous_page                          0.0039
-      1 pte_alloc                                  0.0057
-      2 set_page_dirty                             0.0179
-      1 add_to_page_cache_unique                   0.0078
-      2 mark_page_accessed                         0.0417
-      1 kmem_cache_free                            0.0208
-      1 activate_page                              0.0078
-      1 lru_cache_add                              0.0104
-      2 __lru_cache_del                            0.0179
-     14 shrink_cache                               0.0179
-      3 swap_out_pmd                               0.0117
-      2 try_to_swap_out                            0.0048
-      2 __free_pages_ok                            0.0030
-      7 rmqueue                                    0.0129
-      1 try_to_free_buffers                        0.0039
-      1 ide_dmaproc                                0.0012
-     53 fast_clear_page                            0.6625
-    337 total                                      0.0003
+"My work is done!"  ;-)
 
-Kirk
+Almost, anyway.  A few comments interspersed.  This would be in
+addition to invalidate_mmap_range-non-gpl-export.patch, right?
 
+I cannot think of any reasonable alternative to passing the parameter
+down either, as it certainly does not be reasonable to duplicate the
+code...
 
-Kirk True wrote:
+						Thanx, Paul
 
-> Hi all,
+> Regards,
 > 
->  > A kernel profile might help.
+> Daniel
 > 
-> Here's the profiles comparing the two versions. I don't understand why
-> no "do_page_fault" shows up under 2.4.20 or why "gunzip" does.
-> 
-> Kirk
-> 
-> -------------------------------------------------
-> 
-> 
-> 
-> 2.6.3:
-> 
-> # readprofile -r;./mem01;readprofile -m /boot/System.map-2.6.3 \
->        >> captured_profile2.6.3
-> 
->    1446 poll_idle                                 24.9310
->       4 delay_tsc                                  0.1667
->      71 do_page_fault                              0.0536
->      41 schedule                                   0.0238
->      13 __might_sleep                              0.0637
->       1 prepare_to_wait                            0.0068
->       1 put_files_struct                           0.0042
->    3229 do_softirq                                16.3081
->       1 run_timer_softirq                          0.0022
->    4807 total                                      0.0262
-> 
-> 
-> 
-> 2.4.20:
-> 
-> # readprofile -r;./mem01;readprofile -m /boot/System.map-2.4.20 \
->        >> captured_profile2.4.20
-> 
->     347 gunzip                                     0.1559
->       8 acpi_restore_state_mem                     0.0021
->       2 proc_dostring                              0.0033
->       3 access_process_vm                          0.0054
->       2 __mod_timer                                0.0038
->       1 del_timer                                  0.0065
->       1 update_one_process                         0.0036
->       1 notifier_chain_unregister                  0.0052
->     365 total                                      0.0020
-> 
-> -- 
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
-> 
+> --- 2.6.3.clean/include/linux/mm.h	2004-02-17 22:57:13.000000000 -0500
+> +++ 2.6.3/include/linux/mm.h	2004-02-19 23:18:08.000000000 -0500
+> @@ -434,9 +434,7 @@
+>  			unsigned long size);
+>  int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
+>  		struct vm_area_struct *start_vma, unsigned long start_addr,
+> -		unsigned long end_addr, unsigned long *nr_accounted);
+> -void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> -			unsigned long address, unsigned long size);
+> +		unsigned long end_addr, unsigned long *nr_accounted, int zap);
 
+How about something like "private_too" instead of "zap"?
 
+(Ah!  unmap_page_range() converted to static, since it is used only
+in memory.c.)
+
+>  void clear_page_tables(struct mmu_gather *tlb, unsigned long first, int nr);
+>  int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+>  			struct vm_area_struct *vma);
+> @@ -444,8 +442,7 @@
+>  			unsigned long size, pgprot_t prot);
+>  
+>  extern void invalidate_mmap_range(struct address_space *mapping,
+> -				  loff_t const holebegin,
+> -				  loff_t const holelen);
+> +			  loff_t const holebegin,  loff_t const holelen, int zap);
+>  extern int vmtruncate(struct inode * inode, loff_t offset);
+>  extern pmd_t *FASTCALL(__pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address));
+>  extern pte_t *FASTCALL(pte_alloc_kernel(struct mm_struct *mm, pmd_t *pmd, unsigned long address));
+> --- 2.6.3.clean/mm/memory.c	2004-02-17 22:57:47.000000000 -0500
+> +++ 2.6.3/mm/memory.c	2004-02-19 23:48:23.000000000 -0500
+> @@ -386,7 +386,7 @@
+>  
+>  static void
+>  zap_pte_range(struct mmu_gather *tlb, pmd_t * pmd,
+> -		unsigned long address, unsigned long size)
+> +		unsigned long address, unsigned long size, int zap)
+>  {
+>  	unsigned long offset;
+>  	pte_t *ptep;
+> @@ -414,7 +414,7 @@
+>  			tlb_remove_tlb_entry(tlb, ptep, address+offset);
+>  			if (pfn_valid(pfn)) {
+>  				struct page *page = pfn_to_page(pfn);
+> -				if (!PageReserved(page)) {
+> +				if (!PageReserved(page) && (zap || (page->mapping && !PageSwapCache(page)))) {
+
+Longish line...
+
+>  					if (pte_dirty(pte))
+>  						set_page_dirty(page);
+>  					if (page->mapping && pte_young(pte) &&
+> @@ -436,7 +436,7 @@
+>  
+>  static void
+>  zap_pmd_range(struct mmu_gather *tlb, pgd_t * dir,
+> -		unsigned long address, unsigned long size)
+> +		unsigned long address, unsigned long size, int zap)
+>  {
+>  	pmd_t * pmd;
+>  	unsigned long end;
+> @@ -453,14 +453,14 @@
+>  	if (end > ((address + PGDIR_SIZE) & PGDIR_MASK))
+>  		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
+>  	do {
+> -		zap_pte_range(tlb, pmd, address, end - address);
+> -		address = (address + PMD_SIZE) & PMD_MASK; 
+> +		zap_pte_range(tlb, pmd, address, end - address, zap);
+> +		address = (address + PMD_SIZE) & PMD_MASK;
+>  		pmd++;
+>  	} while (address < end);
+>  }
+>  
+> -void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> -			unsigned long address, unsigned long end)
+> +static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+> +			unsigned long address, unsigned long end, int zap)
+>  {
+>  	pgd_t * dir;
+>  
+> @@ -474,7 +474,7 @@
+>  	dir = pgd_offset(vma->vm_mm, address);
+>  	tlb_start_vma(tlb, vma);
+>  	do {
+> -		zap_pmd_range(tlb, dir, address, end - address);
+> +		zap_pmd_range(tlb, dir, address, end - address, zap);
+>  		address = (address + PGDIR_SIZE) & PGDIR_MASK;
+>  		dir++;
+>  	} while (address && (address < end));
+> @@ -524,7 +524,7 @@
+>   */
+>  int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
+>  		struct vm_area_struct *vma, unsigned long start_addr,
+> -		unsigned long end_addr, unsigned long *nr_accounted)
+> +		unsigned long end_addr, unsigned long *nr_accounted, int zap)
+>  {
+>  	unsigned long zap_bytes = ZAP_BLOCK_SIZE;
+>  	unsigned long tlb_start = 0;	/* For tlb_finish_mmu */
+> @@ -568,7 +568,7 @@
+>  				tlb_start_valid = 1;
+>  			}
+>  
+> -			unmap_page_range(*tlbp, vma, start, start + block);
+> +			unmap_page_range(*tlbp, vma, start, start + block, zap);
+>  			start += block;
+>  			zap_bytes -= block;
+>  			if ((long)zap_bytes > 0)
+> @@ -594,8 +594,8 @@
+>   * @address: starting address of pages to zap
+>   * @size: number of bytes to zap
+>   */
+> -void zap_page_range(struct vm_area_struct *vma,
+> -			unsigned long address, unsigned long size)
+> +void invalidate_page_range(struct vm_area_struct *vma,
+
+Would it be useful for this to be inline?  (Wouldn't seem so,
+zapping mappings has enough overhead that an extra level of
+function call should be deep down in the noise...)
+
+> +			unsigned long address, unsigned long size, int zap)
+>  {
+>  	struct mm_struct *mm = vma->vm_mm;
+>  	struct mmu_gather *tlb;
+> @@ -612,11 +612,17 @@
+>  	lru_add_drain();
+>  	spin_lock(&mm->page_table_lock);
+>  	tlb = tlb_gather_mmu(mm, 0);
+> -	unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted);
+> +	unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted, zap);
+>  	tlb_finish_mmu(tlb, address, end);
+>  	spin_unlock(&mm->page_table_lock);
+>  }
+>  
+> +void zap_page_range(struct vm_area_struct *vma,
+> +			unsigned long address, unsigned long size)
+> +{
+> +	invalidate_page_range(vma, address, size, 1);
+> +}
+> +
+>  /*
+>   * Do a quick page-table lookup for a single page.
+>   * mm->page_table_lock must be held.
+> @@ -1095,9 +1101,9 @@
+>  		    	continue;	/* Mapping disjoint from hole. */
+>  		zba = (hba <= vba) ? vba : hba;
+>  		zea = (vea <= hea) ? vea : hea;
+> -		zap_page_range(vp,
+> +		invalidate_page_range(vp,
+>  			       ((zba - vba) << PAGE_SHIFT) + vp->vm_start,
+> -			       (zea - zba + 1) << PAGE_SHIFT);
+> +			       (zea - zba + 1) << PAGE_SHIFT, 1);
+>  	}
+>  }
+>  
+> @@ -1116,7 +1122,7 @@
+>   * end of the file.
+>   */
+>  void invalidate_mmap_range(struct address_space *mapping,
+> -		      loff_t const holebegin, loff_t const holelen)
+> +		      loff_t const holebegin, loff_t const holelen, int zap)
+>  {
+>  	unsigned long hba = holebegin >> PAGE_SHIFT;
+>  	unsigned long hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+Doesn't the new argument need to be passed down through
+invalidate_mmap_range_list()?
+
+> @@ -1156,7 +1162,7 @@
+>  	if (inode->i_size < offset)
+>  		goto do_expand;
+>  	i_size_write(inode, offset);
+> -	invalidate_mmap_range(mapping, offset + PAGE_SIZE - 1, 0);
+> +	invalidate_mmap_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
+>  	truncate_inode_pages(mapping, offset);
+>  	goto out_truncate;
+>  
+> --- 2.6.3.clean/mm/mmap.c	2004-02-17 22:58:32.000000000 -0500
+> +++ 2.6.3/mm/mmap.c	2004-02-19 22:46:01.000000000 -0500
+> @@ -1134,7 +1134,7 @@
+>  
+>  	lru_add_drain();
+>  	tlb = tlb_gather_mmu(mm, 0);
+> -	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted);
+> +	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted, 1);
+>  	vm_unacct_memory(nr_accounted);
+>  
+>  	if (is_hugepage_only_range(start, end - start))
+> @@ -1436,7 +1436,7 @@
+>  	flush_cache_mm(mm);
+>  	/* Use ~0UL here to ensure all VMAs in the mm are unmapped */
+>  	mm->map_count -= unmap_vmas(&tlb, mm, mm->mmap, 0,
+> -					~0UL, &nr_accounted);
+> +					~0UL, &nr_accounted, 1);
+>  	vm_unacct_memory(nr_accounted);
+>  	BUG_ON(mm->map_count);	/* This is just debugging */
+>  	clear_page_tables(tlb, FIRST_USER_PGD_NR, USER_PTRS_PER_PGD);
+> 
+> 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
