@@ -1,35 +1,41 @@
-Date: Wed, 17 Jan 2001 18:08:18 +1100 (EST)
+Date: Wed, 17 Jan 2001 17:52:31 +1100 (EST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: pre2 swap_out() changes
-In-Reply-To: <873denhe6l.fsf@atlas.iskon.hr>
-Message-ID: <Pine.LNX.4.31.0101171807140.30841-100000@localhost.localdomain>
+Subject: Re: Yet another bogus piece of do_try_to_free_pages() 
+In-Reply-To: <Pine.LNX.4.10.10101091604180.2906-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.31.0101171751060.30841-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zlatko Calusic <zlatko@iskon.hr>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 13 Jan 2001, Zlatko Calusic wrote:
+On Tue, 9 Jan 2001, Linus Torvalds wrote:
+> On Tue, 9 Jan 2001, Marcelo Tosatti wrote:
+> >
+> > The problem is that do_try_to_free_pages uses the "wait" argument when
+> > calling page_launder() (where the paramater is used to indicate if we want
+> > todo sync or async IO) _and_ used to call refill_inactive(), where this
+> > parameter is used to indicate if its being called from a normal process or
+> > from kswapd:
+>
+> Yes. Bogus.
+>
+> I suspect that the proper fix is something more along the lines
+> of what we did to bdflush: get rid of the notion of waiting
+> synchronously from bdflush, and instead do the work yourself.
 
-> 2.2.17     -> make -j32  392.49s user 47.87s system 168% cpu 4:21.13 total
-> 2.4.0      -> make -j32  389.59s user 31.29s system 182% cpu 3:50.24 total
-> 2.4.0-pre2 -> make -j32  393.32s user 138.20s system 129% cpu 6:51.82 total
-> pre3-bgage -> make -j32  394.11s user 424.52s system 131% cpu 10:21.41 total
+Agreed. I've been working on this a bit in the last week and
+have achieved some interesting results.
 
-Hmmm, could you try my quick&dirty patch on
-http://www.surriel.com/patches/  ?
+The main thing I found that it is *not* trivial to do this
+because we can end up with multiple instances of eg. page_launder()
+running at the same time and we will want to balance them against
+each other in some way to prevent them from flushing too many pages
+at once.
 
-Since I'm on linux.conf.au now, I don't have all
-that much time to test these things myself, but I
-have the idea this patch may be going in the right
-direction.
-
-If it is, I'll clean up more code and split up things
-for Linus.
-
-thanks,
+regards,
 
 Rik
 --
