@@ -1,53 +1,21 @@
-Subject: Re: 2.6.0-test4-mm2
-From: Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br>
-In-Reply-To: <20030828090240.2cccf4d9.akpm@osdl.org>
-References: <20030826221053.25aaa78f.akpm@osdl.org>
-	 <1062075227.422.2.camel@lorien>  <20030828090240.2cccf4d9.akpm@osdl.org>
-Content-Type: text/plain; charset=iso-8859-1
-Message-Id: <1062090715.484.1.camel@lorien>
-Mime-Version: 1.0
-Date: Thu, 28 Aug 2003 14:11:56 -0300
-Content-Transfer-Encoding: 8BIT
+Received: from federal-ohtekie (c210-49-251-92.werrb1.vic.optusnet.com.au [210.49.251.92])
+	by mail002.syd.optusnet.com.au (8.11.6p2/8.11.6) with SMTP id h7T1v0418633
+	for <linux-mm@kvack.org>; Fri, 29 Aug 2003 11:57:02 +1000
+From: dave <ag051379@hotmail.com>
+Subject: Re: mm1/2 stops while booting
+Date: Fri, 29 Aug 2003 11:57:25 +1000
+Message-Id: <pan.2003.08.29.01.57.10.82190@hotmail.com>
+References: <1061985422.4317.14.camel@federal-ohtekie>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Em Qui, 2003-08-28 as 13:02, Andrew Morton escreveu:
-> Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br> wrote:
-> >
-> > when using the hdparm program, thus:
-> > 
-> >  # hdparm /dev/hda
-> > 
-> >  I'm getting this:
-> > 
-> >  Oops: 0000 [#1]
-> 
-> This should fix it.
-> 
-> --- 25/include/linux/genhd.h~large-dev_t-12-fix	2003-08-27 10:36:32.000000000 -0700
-> +++ 25-akpm/include/linux/genhd.h	2003-08-27 10:36:32.000000000 -0700
-> @@ -197,7 +197,7 @@ extern void rand_initialize_disk(struct 
->  
->  static inline sector_t get_start_sect(struct block_device *bdev)
->  {
-> -	return bdev->bd_part->start_sect;
-> +	return bdev->bd_contains == bdev ? 0 : bdev->bd_part->start_sect;
->  }
->  static inline sector_t get_capacity(struct gendisk *disk)
->  {
-
- fixed! :)
-
- thanks,
-
--- 
-Luiz Fernando N. Capitulino
-
-<lcapitulino@prefeitura.sp.gov.br>
-<http://www.telecentros.sp.gov.br>
+Happens with test4 too, without joydev or any joysticks builtin. Removed
+the drivers/input/* patches from test4 and it still happens, I'm lost.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
