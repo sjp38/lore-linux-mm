@@ -1,51 +1,29 @@
-Message-Id: <99Nov3.094606gmt.66315@gateway.ukaea.org.uk>
-Date: Wed, 3 Nov 1999 09:48:11 +0000
-From: Neil Conway <nconway.list@ukaea.org.uk>
+Date: Wed, 3 Nov 1999 15:29:35 +0100 (CET)
+From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+Subject: Re: Why don't we make mmap MAP_SHARED with /dev/zero possible?
+In-Reply-To: <qwwzox6l3nh.fsf@sap.com>
+Message-ID: <Pine.LNX.4.10.9911031527070.6110-100000@chiara.csoma.elte.hu>
 MIME-Version: 1.0
-Subject: The 4GB memory thing
-Content-Type: multipart/mixed; boundary="------------8C597550CEC840E9F68E4220"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM <linux-mm@kvack.org>
+To: Christoph Rohland <hans-christoph.rohland@sap.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, fxzhang@chpc.ict.ac.cn, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------8C597550CEC840E9F68E4220
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+On 26 Oct 1999, Christoph Rohland wrote:
 
-The recent thread about >4GB surprised me, as I didn't even think >2GB
-was very stable yet.  Am I wrong?  Are people out there using 4GB boxes
-with decent stability?  I presume it's a 2.3 feature, yes?
+> This lines up with some remarks from Eric Biederman about his shmfs,
+> which is BTW a feature I would _love_ to have in Linux to do posix shm
+> and perhaps redo sysv shm. He said that he would like to make the
+> pagecache highmem-capable and AFAIK the main work for shmfs was
+> makeing the pagecache working with writeable pages.
 
-Sorry for my ignorance, I guess I've been dozing a bit of late.
+hm, i've got the pagecache in high memory already on my box, patch under
+cleanup right now. It was the next natural step after doing all the hard
+work to get 64GB RAM support. Eric, is there any conflicting work here?
 
-Neil
---------------8C597550CEC840E9F68E4220
-Content-Type: message/rfc822
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-
-Message-ID: <38200466.5839E78E@ukaea.org.uk>
-Date: Wed, 03 Nov 1999 09:46:14 +0000
-From: Neil Conway <nconway.list@ukaea.org.uk>
-Organization: Fusion
-X-Mailer: Mozilla 4.06 [en] (X11; I; Linux 2.2.13pre14 i686)
-MIME-Version: 1.0
-To: "linux-smp@vger.rutgers.edu" <linux-smp@vger.rutgers.edu>
-Subject: The 4GB memory thing
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-
-The recent thread about >4GB surprised me, as I didn't even think >2GB
-was very stable yet.  Am I wrong?  Are people out there using 4GB boxes
-with decent stability?  I presume it's a 2.3 feature, yes?
-
-Sorry for my ignorance, I guess I've been dozing a bit of late.
-
-Neil
-
---------------8C597550CEC840E9F68E4220--
+-- mingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
