@@ -1,32 +1,51 @@
-Date: Fri, 22 Sep 2000 11:34:11 +0200 (CEST)
-From: Molnar Ingo <mingo@debella.aszi.sztaki.hu>
+Date: Fri, 22 Sep 2000 07:27:30 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: test9-pre5+t9p2-vmpatch VM deadlock during write-intensive
  workload
-In-Reply-To: <Pine.LNX.4.21.0009221113130.12532-100000@debella.aszi.sztaki.hu>
-Message-ID: <Pine.LNX.4.21.0009221131110.12532-200000@debella.aszi.sztaki.hu>
+In-Reply-To: <Pine.LNX.4.21.0009221131110.12532-200000@debella.aszi.sztaki.hu>
+Message-ID: <Pine.LNX.4.21.0009220725590.4442-200000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="1443086817-781029003-969615251=:12532"
+Content-Type: MULTIPART/Mixed; BOUNDARY="1443086817-781029003-969615251=:12532"
+Content-ID: <Pine.LNX.4.21.0009220725591.4442@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Molnar Ingo <mingo@debella.ikk.sztaki.hu>, "David S. Miller" <davem@redhat.com>, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Molnar Ingo <mingo@debella.ikk.sztaki.hu>
+Cc: "David S. Miller" <davem@redhat.com>, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 --1443086817-781029003-969615251=:12532
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <Pine.LNX.4.21.0009220725592.4442@duckman.distro.conectiva>
 
+On Fri, 22 Sep 2000, Molnar Ingo wrote:
 
-yep this has done the trick, the deadlock is gone. I've attached the full
-VM-fixes patch (this fix included) against vanilla test9-pre5.
+> yep this has done the trick, the deadlock is gone. I've attached the full
+> VM-fixes patch (this fix included) against vanilla test9-pre5.
 
-	Ingo
+Linus,
+
+could you please include this patch in the next
+pre patch?
+
+(in the mean time, I'll go back to looking at the
+balancing thing with shared memory ... which is
+unrelated to this deadlock problem)
+
+thanks,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
 
 --1443086817-781029003-969615251=:12532
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name="vmfixes-2.4.0-test9-A1"
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII; NAME="vmfixes-2.4.0-test9-A1"
 Content-Transfer-Encoding: BASE64
 Content-ID: <Pine.LNX.4.21.0009221134111.12532@debella.aszi.sztaki.hu>
 Content-Description: 
-Content-Disposition: attachment; filename="vmfixes-2.4.0-test9-A1"
+Content-Disposition: ATTACHMENT; FILENAME="vmfixes-2.4.0-test9-A1"
 
 LS0tIGxpbnV4L2ZzL2J1ZmZlci5jLm9yaWcJRnJpIFNlcCAyMiAwMjozMTow
 NyAyMDAwDQorKysgbGludXgvZnMvYnVmZmVyLmMJRnJpIFNlcCAyMiAwMjoz
