@@ -1,53 +1,36 @@
-Date: Wed, 6 Apr 2005 12:27:11 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: "orphaned pagecache memleak fix" question.
-Message-Id: <20050406122711.1875931a.akpm@osdl.org>
-In-Reply-To: <16979.53442.695822.909010@gargle.gargle.HOWL>
-References: <16978.46735.644387.570159@gargle.gargle.HOWL>
-	<20050406005804.0045faf9.akpm@osdl.org>
-	<16979.53442.695822.909010@gargle.gargle.HOWL>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <42544D7E.1040907@linux-m68k.org>
+Date: Wed, 06 Apr 2005 22:58:38 +0200
+From: Roman Zippel <zippel@linux-m68k.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH 1/4] create mm/Kconfig for arch-independent memory options
+References: <E1DIViE-0006Kf-00@kernel.beaverton.ibm.com>
+In-Reply-To: <E1DIViE-0006Kf-00@kernel.beaverton.ibm.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nikita Danilov <nikita@clusterfs.com>
-Cc: Andrea@Suse.DE, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-Nikita Danilov <nikita@clusterfs.com> wrote:
->
->   > I think it would be better to make ->invalidatepage always succeed though. 
->   > The situation is probably rare.
-> 
->  What about the following:
->  ----------------------------------------------------------------------
->  diff -u bk-linux-2.5/Documentation/filesystems/Locking bk-linux/Documentation/filesystems/Locking
->  --- bk-linux-2.5/Documentation/filesystems/Locking	2005-04-04 19:40:53.000000000 +0400
->  +++ bk-linux/Documentation/filesystems/Locking	2005-04-06 15:57:46.000000000 +0400
->  @@ -266,10 +266,13 @@
->   instances do not actually need the BKL. Please, keep it that way and don't
->   breed new callers.
->   
->  -	->invalidatepage() is called when the filesystem must attempt to drop
->  -some or all of the buffers from the page when it is being truncated.  It
->  -returns zero on success.  If ->invalidatepage is zero, the kernel uses
->  -block_invalidatepage() instead.
->  +    ->invalidatepage() is called when whole page or its portion is invalidated
->  +during truncate. PG_locked and PG_writeback bits of the page are acquired by
->  +the current thread before calling ->invalidatepage(), so it is guaranteed that
->  +no IO against this page is going on. Result of ->invalidatepage() is ignored
->  +and page is unconditionally removed from the mapping. File system has to
->  +either release all additional references to the page or to remove the page
->  +from ->lru list and to track its lifetime.
+Hi,
 
-I'd prefer to say "the fs _must_ release the page's private metadata,
-unless, as a special concession to block-backed filesystems, that happens
-to be buffer_heads".
+Dave Hansen wrote:
 
-Not for any deep reason: it's just that thus-far we've avoided fiddling
-witht he LRU queues in filesystems and it'd be nice to retain that.
+> diff -puN mm/Kconfig~A6-mm-Kconfig mm/Kconfig
+> --- memhotplug/mm/Kconfig~A6-mm-Kconfig	2005-04-04 09:04:48.000000000 -0700
+> +++ memhotplug-dave/mm/Kconfig	2005-04-04 10:15:23.000000000 -0700
+> @@ -0,0 +1,25 @@
+> +choice
+> +	prompt "Memory model"
+> +	default FLATMEM
+> +	default SPARSEMEM if ARCH_SPARSEMEM_DEFAULT
+> +	default DISCONTIGMEM if ARCH_DISCONTIGMEM_DEFAULT
 
+Does this really have to be a user visible option and can't it be
+derived from other values? The help text entries are really no help at all.
+
+bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
