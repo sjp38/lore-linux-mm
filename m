@@ -1,32 +1,25 @@
-Message-ID: <3F155536.8090608@aitel.hist.no>
-Date: Wed, 16 Jul 2003 15:37:58 +0200
-From: Helge Hafting <helgehaf@aitel.hist.no>
-MIME-Version: 1.0
+Date: Wed, 16 Jul 2003 07:03:27 -0700
+From: "Barry K. Nathan" <barryn@pobox.com>
 Subject: Re: 2.6.0-test1-mm1
-References: <6uwueidhdd.fsf@zork.zork.net> <Pine.LNX.4.44.0307161052310.6193-100000@localhost.localdomain> <20030716101949.GE2684@wind.cocodriloo.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20030716140327.GC25829@ip68-4-255-84.oc.oc.cox.net>
+References: <20030715225608.0d3bff77.akpm@osdl.org> <20030716104448.GC25869@ip68-4-255-84.oc.oc.cox.net> <20030716035848.560674ac.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030716035848.560674ac.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Antonio Vargas <wind@cocodriloo.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Sean Neakums <sneakums@zork.net>, Andrew Morton <akpm@osdl.org>, Con Kolivas <kernel@kolivas.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: "Barry K. Nathan" <barryn@pobox.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-Antonio Vargas wrote:
-[...]
-> It always happened to me when I run "make menuconfig" under gnome-terminal on
-> redhat 9 with 2.5.73. Is it because of busy-waiting on a variable shared
-> amongst multiple processes/threads? If so, it smells of a bug in the application,
-> busy-waiting is _BAD_.
+On Wed, Jul 16, 2003 at 03:58:48AM -0700, Andrew Morton wrote:
+> Try this:
+[patch snipped]
 
-Ouch.  Well, it is good that scheduler changes made the bug visible,
-so it can be fixed.  Certainly no reason to
-work around it in the kernel, the effort is better spent on fixing
-the bug.  Distributors can make sure they have fixed their apps
-before distributing 2.6.
+That eliminates the shift-related warnings quite nicely.
 
-Helge Hafting
-
+-Barry K. Nathan <barryn@pobox.com>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
