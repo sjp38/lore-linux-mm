@@ -1,49 +1,39 @@
-Message-ID: <417EA06B.5040609@kolumbus.fi>
-Date: Tue, 26 Oct 2004 22:07:23 +0300
-From: =?ISO-8859-15?Q?Mika_Penttil=E4?= <mika.penttila@kolumbus.fi>
-MIME-Version: 1.0
+Received: from westrelay04.boulder.ibm.com (westrelay04.boulder.ibm.com [9.17.193.32])
+	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id i9QJgULv139550
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2004 15:42:30 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id i9QJgUd6143770
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2004 13:42:30 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id i9QJgTa7008740
+	for <linux-mm@kvack.org>; Tue, 26 Oct 2004 13:42:30 -0600
 Subject: Re: [Lhms-devel] Re: 150 nonlinear
-References: <E1CJYc0-0000aK-A8@ladymac.shadowen.org> <1098815779.4861.26.camel@localhost>
-In-Reply-To: <1098815779.4861.26.camel@localhost>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=us-ascii; format=flowed
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <417EA06B.5040609@kolumbus.fi>
+References: <E1CJYc0-0000aK-A8@ladymac.shadowen.org>
+	 <1098815779.4861.26.camel@localhost>  <417EA06B.5040609@kolumbus.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Message-Id: <1098819748.5633.0.camel@localhost>
+Mime-Version: 1.0
+Date: Tue, 26 Oct 2004 12:42:28 -0700
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
+To: Mika =?ISO-8859-1?Q?Penttil=E4?= <mika.penttila@kolumbus.fi>
 Cc: Andy Whitcroft <apw@shadowen.org>, lhms <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
+On Tue, 2004-10-26 at 12:07, Mika Penttila wrote:
+> What do you consider as Dave M's nonlinear?
 
->Hi Andy,
->
->I've been thinking about how we're going to merge up the code that uses
->Dave M's nonlinear with your new implementation.
->
->There are two problems that are being solved: having a sparse layout
->requiring splitting up mem_map (solved by discontigmem and your
->nonlinear), and supporting non-linear phys to virt relationships (Dave
->M's implentation which does the mem_map split as well).
->
->I think both Dave M. and I agree that your implementation is the way to
->go, mostly because it properly starts the separation of these two
->distinct problems.
->
->So, I propose the following: your code should be referred to as
->something like CONFIG_SPARSEMEM.  The code supporting non-linear p::v
->retains the CONFIG_NONLINEAR name.
->
->Do you think your code is in a place where it's ready for wider testing
->on a few more architectures?  In which case, would you like it held in
->the -mhp tree while it's waiting to get merged?  
->
->-- Dave
->
->  
->
-What do you consider as Dave M's nonlinear?
+This, basically:
 
---Mika
+http://sprucegoose.sr71.net/patches/2.6.9-rc3-mm3-mhp1/C-nonlinear-base.patch
+
+There's a little there that isn't Dave M's direct work, but it's all in
+the spirit of his implementation.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
