@@ -1,45 +1,37 @@
-Date: Sat, 20 Jul 2002 18:42:03 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH][1/2] return values shrink_dcache_memory etc
-In-Reply-To: <Pine.LNX.4.44.0207201351160.1552-100000@home.transmeta.com>
-Message-ID: <Pine.LNX.4.44L.0207201838430.12241-100000@imladris.surriel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 20 Jul 2002 15:27:03 -0700 (PDT)
+Message-Id: <20020720.152703.102669295.davem@redhat.com>
+Subject: Re: [PATCH] generalized spin_lock_bit
+From: "David S. Miller" <davem@redhat.com>
+In-Reply-To: <1027196511.1555.767.camel@sinai>
+References: <1027196511.1555.767.camel@sinai>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ed Tomlinson <tomlins@cam.org>
+To: rml@tech9.net
+Cc: torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@conectiva.com.br, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 20 Jul 2002, Linus Torvalds wrote:
-> On Sat, 20 Jul 2002, Rik van Riel wrote:
-> >
-> > OK, I'll try to forward-port Ed's code to do that from 2.4 to 2.5
-> > this weekend...
->
-> Side note: while I absolutely think that is the right thing to do, that's
-> also the much more "interesting" change. As a result, I'd be happier if it
-> went through channels (ie probably Andrew) and had some wider testing
-> first at least in the form of a CFT on linux-kernel.
+   
+   Thanks to Christoph Hellwig for prodding to make it per-architecture,
+   Ben LaHaise for the loop optimization, and William Irwin for the
+   original bit locking.
 
-Absolutely. This idea has been implemented but hasn't yet
-received wider testing.
+Just note that the implementation of these bit spinlocks will be
+extremely expensive on some platforms that lack "compare and swap"
+type instructions (or something similar like "load locked, store
+conditional" as per mips/alpha).
 
-I guess I'll try to get this patch on LWN with a large
-CFT attached ;)))
+Why not just use the existing bitops implementation?  The code is
+going to be mostly identical, ala:
 
-> [ Or has it already been in 2.4.x in any major tree?
+	while (test_and_set_bit(ptr, nr)) {
+		while (test_bit(ptr, nr))
+			barrier();
+	}
 
-Not yet. I'll pass it on through Andrew...
-
-cheers,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+This makes less work for architectures to support this thing.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
