@@ -1,43 +1,33 @@
-Date: Wed, 16 Jul 2003 09:38:31 -0700
+Date: Wed, 16 Jul 2003 10:21:41 -0700
 From: Andrew Morton <akpm@osdl.org>
 Subject: Re: 2.6.0-test1-mm1
-Message-Id: <20030716093831.6d9aa8f1.akpm@osdl.org>
-In-Reply-To: <20030716150953.GL15452@holomorphy.com>
+Message-Id: <20030716102141.69d9c3cb.akpm@osdl.org>
+In-Reply-To: <1058368072.1636.2.camel@spc9.esa.lanl.gov>
 References: <20030715225608.0d3bff77.akpm@osdl.org>
-	<20030716104448.GC25869@ip68-4-255-84.oc.oc.cox.net>
-	<20030716035848.560674ac.akpm@osdl.org>
-	<20030716122454.GJ15452@holomorphy.com>
-	<20030716143221.GD25829@ip68-4-255-84.oc.oc.cox.net>
-	<20030716144155.GK15452@holomorphy.com>
-	<20030716150207.GE25829@ip68-4-255-84.oc.oc.cox.net>
-	<20030716150953.GL15452@holomorphy.com>
+	<20030716061642.GA4032@triplehelix.org>
+	<20030715232233.7d187f0e.akpm@osdl.org>
+	<1058368072.1636.2.camel@spc9.esa.lanl.gov>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: barryn@pobox.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Steven Cole <elenstev@mesatop.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III <wli@holomorphy.com> wrote:
+Steven Cole <elenstev@mesatop.com> wrote:
 >
-> On Wed, Jul 16, 2003 at 07:41:55AM -0700, William Lee Irwin III wrote:
-> >> Oh, well that won't fly; it effectively isn't a constant initializer.
-> >> I'll see what can be rammed past gcc. We're shooting for something
-> >> with array element 0 equal to 0x1UL and all others 0.
+> drivers/eisa/eisa-bus.c:26: warning: padding struct size to alignment boundary
+> make[2]: *** [drivers/eisa/eisa-bus.o] Error 1
+> make[1]: *** [drivers/eisa] Error 2
+> make: *** [drivers] Error 2
+> make: *** Waiting for unfinished jobs....
+>   CC      fs/ext3/balloc.o
 > 
-> On Wed, Jul 16, 2003 at 08:02:07AM -0700, Barry K. Nathan wrote:
-> > BTW, following my e-mail signature in this message is my .config. I
-> > guess the most notable setting is that CONFIG_SMP is disabled (i.e.,
-> > it's a UP compile).
-> 
-> Hmm. Well, ditching the strong typechecking would "fix" it, though
-> that's really only papering over it.
-> 
+> Reverting wpadded.patch allowed -mm1 to build with CONFIG_EISA.
 
-It doesn't _have_ to be initialised at compile time.  Just stick a
-little loop in init_IRQ()?
+Yes, some smarty added -Werror to drivers/eisa/Makefile.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
