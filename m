@@ -1,55 +1,51 @@
-Date: Wed, 10 Nov 2004 18:09:22 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] ignore referenced pages on reclaim when OOM
-Message-ID: <20041110200922.GE12867@logos.cnet>
-References: <16783.59834.7179.464876@thebsh.namesys.com> <Pine.LNX.4.44.0411081655410.8589-100000@chimarrao.boston.redhat.com> <20041108142837.307029fc.akpm@osdl.org> <20041110184134.GC12867@logos.cnet> <20041110142900.09552f7f.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041110142900.09552f7f.akpm@digeo.com>
+Message-ID: <4192C32E.6070001@yahoo.com.au>
+Date: Thu, 11 Nov 2004 12:41:02 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3] higher order watermarks
+References: <417F5584.2070400@yahoo.com.au> <417F55B9.7090306@yahoo.com.au> <417F5604.3000908@yahoo.com.au> <20041104085745.GA7186@logos.cnet> <20041110162311.GA12696@logos.cnet>
+In-Reply-To: <20041110162311.GA12696@logos.cnet>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: riel@redhat.com, nikita@clusterfs.com, linux-mm@kvack.org, piggin@cyberone.com.au
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 10, 2004 at 02:29:00PM -0800, Andrew Morton wrote:
-> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
-> >
-> > So z->all_unreclaimable logic and "OOM detection" are conflicting goals.
+Marcelo Tosatti wrote:
+> On Thu, Nov 04, 2004 at 06:57:45AM -0200, Marcelo Tosatti wrote:
 > 
-> Only in a single case: where a zone is all_unreclaimable and some pages
-> have recently become reclaimable but we don't know about it yet.
-
-The thing is - if you dont scan the zones "enough" you have no way of 
-reliably knowing it is OOM.
-
-But on the other hand, scanning it wastes CPU time - what you call "mad scanning".
-
-They are two extremes, I feel we need a balance between them.
-
-> Certainly it can happen, but it sounds really unlikely to me.  So I suspect
-> that if you were to fix that problem by some means, it wouldn't help
-> anything.
 > 
->But maybe I'm wrong, or maybe the all_unreclaimable logic has rotted. 
+>>The original code didnt had the can_try_harder/gfp_high decrease 
+>>which is now on zone_watermark_ok. 
+>>
+>>Means that those allocations will now be successful earlier, instead
+>>of going to the next zonelist iteration. kswapd will not be awake
+>>when it used to be.
+>>
+>>Hopefully it doesnt matter that much. You did this by intention?
+> 
+> 
+> Another thing Nick is that now balance_pgdat uses zone_watermark_ok, 
+> and that sums "z->protection[alloc_type]".
+> 
+>         if (free_pages <= min + z->protection[alloc_type])
+>                 return 0;
+> 
+> Since balance_pgdat calls with alloc_type=0, the code will sum ZONE_DMA
+> (alloc_type = 0) protection, and it should not.
+> 
+> kswapd should be working on the bare min/low/high watermarks AFAICT, 
+> without the protections.
+> 
+> Comments?
+> 
+> 
 
-I dont think all_unreclaimable logic is rotted - it does what what it is
-expected to do. 
-
-At least thats how I see things, maybe I'm wrong and it is indeed rotted.
-
-> Have you tried simply disabling it?
-
-Tried now - if I disable it then balance_pgdat() detects the OOM situation by noticing
-its not successful freeing pages (thus setting worked_dma and worked_normal, 
-see patch), and kills the memory hog. Side note, the memory hog runs _much_ faster
-without all_unreclaimable logic.
-
-I'll continue hacking on this tomorrow.
-
-As always, thanks for the input :D
-
+Yeah.. I think z->protection[0] should always be 0, shouldn't it?
+I was just hesitant to add another parameter to the function and
+have yet another case to check.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
