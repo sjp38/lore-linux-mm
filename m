@@ -1,12 +1,12 @@
-Date: Mon, 14 Feb 2005 06:36:10 -0700
-Message-Id: <Kilauea104675-13118-246794060-1436.i93ZvnTw007605@www3.flonetwork.com>
-From: "Catalina Alfaro" <aglia@didamail.com>
+Date: Mon, 14 Feb 2005 14:04:18 -0700
+Message-Id: 200410150705.i9F750Kk01345759.i93WznTw003489@b-mail09.real-email.net>
+From: "Alton Acosta" <phrygia@fadmail.com>
 Subject: Approved mortage rate
 Mime-Version: 1.0
 Content-Type: text/plain;
-Return-Path: <aglia@didamail.com>
-To: kernel@kvack.org
-Cc: linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.org
+Return-Path: <phrygia@fadmail.com>
+To: aart@kvack.org
+Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, needpcparts.com@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -28,7 +28,7 @@ Hello,
 
  Best Regards,
 
- Shelby Duran
+ Kathy Mcelroy
  
  to be remov(ed:	http://www.qklenders.com/x/st.html
 
