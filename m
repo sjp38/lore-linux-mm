@@ -1,48 +1,34 @@
-Date: Wed, 31 Jan 2001 06:40:18 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [PATCH] vma limited swapin readahead
-In-Reply-To: <20010131102158.O11607@redhat.com>
-Message-ID: <Pine.LNX.4.21.0101310636530.16408-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from d12relay01.de.ibm.com (d12relay01.de.ibm.com [9.165.215.22])
+	by d12lmsgate.de.ibm.com (1.0.0) with ESMTP id NAA103310
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2001 13:34:25 +0100
+From: TON@de.ibm.com
+Received: from d12mta07.de.ibm.com (d12mta07_cs0 [9.165.222.240])
+	by d12relay01.de.ibm.com (8.8.8m3/NCO v4.95) with SMTP id NAA230512
+	for <linux-mm@kvack.org>; Wed, 31 Jan 2001 13:34:26 +0100
+Message-ID: <C12569E5.00450D18.00@d12mta07.de.ibm.com>
+Date: Wed, 31 Jan 2001 13:33:13 +0100
+Subject: Testsuite for memory management
+Mime-Version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 Jan 2001, Stephen C. Tweedie wrote:
 
-> Hi,
-> 
-> On Wed, Jan 31, 2001 at 01:05:02AM -0200, Marcelo Tosatti wrote:
-> > 
-> > However, the pages which are contiguous on swap are not necessarily
-> > contiguous in the virtual memory area where the fault happened. That means
-> > the swapin readahead code may read pages which are not related to the
-> > process which suffered a page fault.
-> > 
-> Yes, but reading extra sectors is cheap, and throwing the pages out of
-> memory again if they turn out not to be needed is also cheap.  The
-> on-disk swapped pages are likely to have been swapped out at roughly
-> the same time, which is at least a modest indicator of being of the
-> same age and likely to have been in use at the same time in the past.
+Hi,
+I am looking for a testsuite for linux memory management especially for
+stress tests. Some time ago a mmap02 test was mentioned on the kernel
+mailing list, but I don't find it anywhere. Does anybody have any info?
 
-You're throwing away pages from memory to do the readahead. 
+Regards / Mit freundlichen Gruessen
+Gerhard
 
-This pages might be more useful than the pages which you're reading from
-swap. 
+Gerhard Tonn, Linux/390 Design & Development, +(49)-7031-16-4716, Lotus
+Notes: ton@ibmde,
+   Internet: ton@de.ibm.com
 
-> I'd like to see at lest some basic performance numbers on this,
-> though.
-
-I'm not sure if limiting the readahead the way my patch does is a better
-choice, too.
-
-I posted it to lkml so people can test it under different workloads and
-report results.
-
-Thanks for your feedback. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
