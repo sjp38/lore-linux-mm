@@ -1,34 +1,39 @@
-Date: Sat, 8 Apr 2000 12:42:48 -0700 (PDT)
-From: John Alvord <jalvo@mbay.net>
-Subject: Re: Is Linux kernel 2.2.x Pageable?
-In-Reply-To: <CA2568BB.005CE512.00@d73mta05.au.ibm.com>
-Message-ID: <Pine.LNX.4.20.0004081240520.12925-100000@otter.mbay.net>
+Message-ID: <38EF9135.2A42DC6E@colorfullife.com>
+Date: Sat, 08 Apr 2000 22:06:13 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: zap_page_range(): TLB flush race
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: pnilesh@in.ibm.com
-Cc: linux-mm@kvack.org
+To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 8 Apr 2000 pnilesh@in.ibm.com wrote:
+it seems we have a smp race in zap_page_range():
 
-> >This is silly.  To begin with one of those slow, stupid & dangerous
-> >kernels called VM was able to host 41400 Linux virtual machines on a
-> >single mainframe.  Second: one of those slow, stupid and dangerous
-> >kernels called MVS probably holds the world record for reliability and
-> >in the 60s/70s was already managing entire BIG companies on boxes who
-> >by today sxtandards are ridiculously underpowered.
-> 
-> It's great to hear about many Linux Virtual machine running on a mainframe.
-> Does Linux runs on any mainframe as Linux Real Machine ?Just curious.
+When we remove a page from the page tables, we must call:
 
-The Linux/390 support includes running straight on an LPAR (isolated
-division on a S/390) as well as a virtual machine. It also runs on a P390,
-which is a mini-390 where the I/O is done on a PC and a separate
-board/memory handles the instruction processing.
+	flush_cache_page();
+	pte_clear();
+	flush_tlb_page();
+	free_page();
 
-john
+We must not free the page before we have called flush_tlb_xy(),
+otherwise the second cpu could access memory that already freed.
+
+but zap_page_range() calls free_page() before the flush_tlb() call.
+
+Is that really a bug, has anyone a good idea how to fix that?
+
+filemap_sync() calls flush_tlb_page() for each page, but IMHO this is a
+really bad idea, the performance will suck with multi-threaded apps on
+SMP.
+
+Perhaps build a linked list, and free later?
+We could abuse the next pointer from "struct page".
+--
+	Manfred
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
