@@ -1,41 +1,29 @@
-Date: Sun, 13 Oct 2002 12:52:36 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Sun, 13 Oct 2002 18:04:02 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: 2.5.42-mm2
-Message-ID: <20021013195236.GC27878@holomorphy.com>
-References: <3DA7C3A5.98FCC13E@digeo.com> <20021013101949.GB2032@holomorphy.com> <3DA9B1A7.A747ADD6@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3DA9B1A7.A747ADD6@digeo.com>
+In-Reply-To: <20021013195236.GC27878@holomorphy.com>
+Message-ID: <Pine.LNX.4.44L.0210131803400.22735-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
->> @@ -1104,6 +1126,7 @@ static void __init free_area_init_core(s
->>                         pcp->low = 0;
->>                         pcp->high = 32;
->>                         pcp->batch = 16;
->> +                       pcp->reserved = 0;
->>                         INIT_LIST_HEAD(&pcp->list);
->>                 }
->>                 INIT_LIST_HEAD(&zone->active_list);
+On Sun, 13 Oct 2002, William Lee Irwin III wrote:
 
-On Sun, Oct 13, 2002 at 10:47:19AM -0700, Andrew Morton wrote:
-> OK.  But that's been there since 2.5.40-mm2.  Why did it suddenly
-> bite?
+> (1) It's embedded in struct zone, hence bootmem allocated, hence
+> 	already zeroed.
 
-I must have been way too tired or something:
+The struct zone doesn't get automatically zeroed on all architectures.
 
-(1) It's embedded in struct zone, hence bootmem allocated, hence
-	already zeroed.
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
+http://www.surriel.com/		http://distro.conectiva.com/
+Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
 
-(2) The logs still show the show_free_areas() call immediately after
-	free_all_bootmem_core() seeing the garbage ->reserved values.
-
-Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
