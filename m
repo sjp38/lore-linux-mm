@@ -1,44 +1,43 @@
-Subject: Re: 2.6.0-test5-mm1
-From: Jeremy Fitzhardinge <jeremy@goop.org>
-In-Reply-To: <20030908235028.7dbd321b.akpm@osdl.org>
-References: <20030908235028.7dbd321b.akpm@osdl.org>
-Content-Type: text/plain
-Message-Id: <1063093989.12321.28.camel@ixodes.goop.org>
+Date: Tue, 9 Sep 2003 01:08:20 +0200
+From: Adrian Bunk <bunk@fs.tum.de>
+Subject: Re: 2.6.0-test4-mm5 and below: Wine and XMMS problems
+Message-ID: <20030908230820.GG14800@fs.tum.de>
+References: <20030902231812.03fae13f.akpm@osdl.org> <20030907100843.GM14436@fs.tum.de> <3F5B0AD2.3000706@cyberone.com.au>
 Mime-Version: 1.0
-Date: Tue, 09 Sep 2003 00:53:09 -0700
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3F5B0AD2.3000706@cyberone.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, Con Kolivas <kernel@kolivas.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2003-09-08 at 23:50, Andrew Morton wrote:
-> +group_leader-rework.patch
+On Sun, Sep 07, 2003 at 08:39:14PM +1000, Nick Piggin wrote:
 > 
->  Use the thread group leader's pgrp rather than the current thread's pgrp
->  everywhere.
+> Hi Adrian,
 
-Missed one:
+Hi Nick,
 
- fs/autofs/inode.c |    2 +-
- 1 files changed, 1 insertion(+), 1 deletion(-)
+> It would be great if you could test the latest mm kernel (mm6 as of now
+> I think), which has Con's latest stuff in it. You could also test my
+> newest scheduler patch. Thanks for the feedback.
 
-diff -puN fs/autofs/inode.c~fix-pgrp fs/autofs/inode.c
---- local-2.6/fs/autofs/inode.c~fix-pgrp	2003-09-09 00:29:35.000000000 -0700
-+++ local-2.6-jeremy/fs/autofs/inode.c	2003-09-09 00:30:05.000000000 -0700
-@@ -129,7 +129,7 @@ int autofs_fill_super(struct super_block
- 	sbi->magic = AUTOFS_SBI_MAGIC;
- 	sbi->catatonic = 0;
- 	sbi->exp_timeout = 0;
--	sbi->oz_pgrp = current->pgrp;
-+	sbi->oz_pgrp = process_group(current);
- 	autofs_initialize_hash(&sbi->dirhash);
- 	sbi->queues = NULL;
- 	memset(sbi->symlink_bitmap, 0, sizeof(long)*AUTOFS_SYMLINK_BITMAP_LEN);
+I didn't check -mm6 (I had a different problem with -mm6 and not that 
+much time).
 
-_
+I tried plain test4 with your sched-rollup-v14 and I got these awful
+slower sound like when wou manually retard a record.
 
+cu
+Adrian
+
+-- 
+
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
