@@ -1,60 +1,65 @@
-Message-ID: <39A4F3A3.3030102@SANgate.com>
-Date: Thu, 24 Aug 2000 13:06:27 +0300
-From: BenHanokh Gabriel <gabriel@SANgate.com>
+Received: from tuke.sk (sfinx.uvt.tuke.sk [147.232.1.98])
+	by ccsun.tuke.sk (8.9.3/8.9.3/Debian/GNU) with ESMTP id MAA22435
+	for <linux-mm@kvack.org>; Thu, 24 Aug 2000 12:13:30 +0200
+Message-ID: <39A4F548.B8EB5308@tuke.sk>
+Date: Thu, 24 Aug 2000 12:13:28 +0200
+From: Jan Astalos <astalos@tuke.sk>
 MIME-Version: 1.0
-Subject: purging file cache
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Question: memory management and QoS
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-MM mailing list <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hi
+Hello,
 
-i'm trying to find a way to purge file caching in a consistent way.
-i found 2 relevant function
-invalidate_inode_pages()
-truncate_inode_pages()
+I have a question about possibility to provide Quality of Service
+guaranties by Linux memory management. I'm asking this in the
+context of possible use of Linux clusters in computational grids
+(http://www.gridforum.org/). There is still more computing power
+(mostly unused) in workstations...
 
-does truncate_inode_pages() remove the page_cache only or that it 
-actually truncate the on-disk file?
+One of the most important issues (IMO) is QoS. Especially, how
+OS can guarantee availability of resources. Since Linux is 
+top-ranking OS in high-performance clusters, obviously there will
+be need to implement QoS in it.
 
-can cache purging be done with a better granularity than the whole page, 
-some thing like purge_inode_cache( mapping, start, length ) ?
+So, why am I writing this to this list ? In last couple of days
+I was experimenting with Linux MM subsystem to find out whether
+Linux can (how it could) assure exclusive access to some amount 
+of memory for user. Of course I was searching the archives. So 
+far, I found only the beancounter patch, which is designed for 
+limiting of memory usage. This is not quite exactly what I am 
+looking for. Rather, users should have their memory reserved... 
 
+If I missed something please send me the pointers.
 
-i don't realy understand the new VM model in linux 2.4 and what level of 
-consistancy exists between the page-cache and the file-buffers so i got 
-a few more questions:
+I have some (rough) ideas how it could work and I would be 
+happy if you'll send me your opinions.
 
-can i invalidate cache for mmaped file? ( the reason i'm asking this is 
-that there is at least one os which doesn;t allow to purge cache from a 
-mmaped file )
+Concept of personal swapfiles:
 
-can i invalidate mmaped section of a file which some process own a 
-READ-lock on it( so the next access to that section will cause 
-page-fault) or that this will break the mmap semantic ?
+- each user would have its own swapfile (size would depend on 
+  his memory needs and disk quota, he would be able to resize it)
+- system swapfile would be shared between daemons and superuser
+- each active user would have some amount of physical pages 
+  allocated (according to selected policy)
 
-are files marked for mandatory locking protected from mmap access, or 
-that the file locks are checked only on the FS system_calls( read, 
-write...) ?
+The benefits (among others):
+- there wouldn't be system OOM (only per user OOM)
+- user would be able to check his available memory
+- no limits for VM address space
+- there could be more policies for sharing of physical memory
+  by users (and system)
 
-hope that at least some of those many questions will be answers
+Drawbacks:
+<please fill>
 
-please CC me for any answer
+Thanks in advance for your comments,
 
--- 
-regards
-Benhanokh Gabriel
-
------------------------------------------------------------------------------
-"If you think C++ is not overly complicated, just what is a
-protected abstract virtual base class with a pure virtual private 
-destructor,
-and when was the last time you needed one?"
--- Tom Cargil, C++ Journal, Fall 1990. --
-
+Jan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
