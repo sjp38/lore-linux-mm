@@ -1,13 +1,13 @@
 Received: from sunA.comp.nus.edu.sg (zoum@sunA.comp.nus.edu.sg [137.132.87.10])
-	by x86unx3.comp.nus.edu.sg (8.9.1/8.9.1) with ESMTP id RAA25026
-	for <linux-mm@kvack.org>; Sat, 24 Feb 2001 17:29:43 +0800 (GMT-8)
+	by x86unx3.comp.nus.edu.sg (8.9.1/8.9.1) with ESMTP id RAA25319
+	for <linux-mm@kvack.org>; Sat, 24 Feb 2001 17:41:22 +0800 (GMT-8)
 Received: (from zoum@localhost)
-	by sunA.comp.nus.edu.sg (8.8.5/8.8.5) id RAA00883
-	for linux-mm@kvack.org; Sat, 24 Feb 2001 17:29:15 +0800 (GMT-8)
-Date: Sat, 24 Feb 2001 17:29:15 +0800
+	by sunA.comp.nus.edu.sg (8.8.5/8.8.5) id RAA01938
+	for linux-mm@kvack.org; Sat, 24 Feb 2001 17:40:54 +0800 (GMT-8)
+Date: Sat, 24 Feb 2001 17:40:54 +0800
 From: Zou Min <zoum@comp.nus.edu.sg>
-Subject: besides replacable pages in memory
-Message-ID: <20010224172915.A29030@comp.nus.edu.sg>
+Subject: size of shared memory, buffer cache, page cache, etc.
+Message-ID: <20010224174054.B29030@comp.nus.edu.sg>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -16,18 +16,23 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi, all,
 
-I am a newbie in the study of memory management in linux.
-Usually, in OS, some of the kernel's code and data pages may not be replaceable,
-e.g. the nonpaged pool in Windows NT/2000. I would like to find out, in Linux 
-what are the portion of pages in memory, which are not replacable. And what are
-they used for in details?
+Sorry to bother you to answer these naive questions about linux mm.
 
-Lastly, may I know how to find out the size of the non-replacable pages in 
-memory, given any workload. 
+I know that in linux memory management, besides the pages actually used by
+the some workload, there are also some shared pages (e.g. Copy-On-Write or 
+IPC shared memory), disk caches (buffer/page cache), swap cache, dentry cache,
+slab cache, etc, in order to improve the performance.
 
-Many thanks!
+My 1st question is: usually, how can I roughly found out the size of the part 
+of memory which is occupied by all those shared pages, different caches?
+(assume there is some processes running)
+
+2nd question is: how are those special pages managed differently, when there
+is only single process running and when there are multiple processes running?
+
+Thank you.
 
 -- 
 Cheers!
@@ -35,8 +40,7 @@ Cheers!
 
 zoum@comp.nus.edu.sg			URL: http://www.comp.nus.edu.sg/~zoum
 -----------------------------------------------------------------------------
-        Punch, brothers! punch with care!
-        Punch in the presence of the passenjare!
+Presume not that I am the thing I was.		--William Shakespeare
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
