@@ -1,66 +1,47 @@
-Date: Thu, 08 May 2003 15:41:44 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: Redundant zonelist initialization
-Message-ID: <28740000.1052433703@[10.10.2.4]>
-In-Reply-To: <20030508145218.GA4355@averell>
-References: <20030508112339.GA7394@averell> <24990000.1052396565@[10.10.2.4]> <20030508145218.GA4355@averell>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: [PATCH] Fix for vma merging refcounting bug
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Message-Id: <1052483661.3642.16.camel@sisko.scot.redhat.com>
+Mime-Version: 1.0
+Date: 09 May 2003 13:34:21 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: linux-mm@kvack.org, akpm@digeo.com
+To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Stephen Tweedie <sct@redhat.com>, Andrew Morton <akpm@digeo.com>, Andrea Arcangeli <andrea@suse.de>
 List-ID: <linux-mm.kvack.org>
 
->> > When booting 2.5.69 on a 4 Node CONFIG_DISCONTIGMEM machine I get:
->> > 
->> > Building zonelist for node : 0
->> > Building zonelist for node : 1
->> > Building zonelist for node : 2
->> > Building zonelist for node : 3
->> > Building zonelist for node : 0
->> > Building zonelist for node : 0
->> > Building zonelist for node : 0
->> > Building zonelist for node : 0
->> > 
->> > Why does it initialize the zonelist for node 0 five times?
->> 
->> Looks like you have numnodes wrong ...
->> 
->> void __init build_all_zonelists(void)
->> {
->>         int i;
->> 
->>         for(i = 0 ; i < numnodes ; i++)
->>                 build_zonelists(NODE_DATA(i));
->> }
-> 
-> Only with new mathematics :-) How can any value for numnodes explain 
-> such a sequence ? 
+When a new vma can be merged simultaneously with its two immediate
+neighbours in both directions, vma_merge() extends the predecessor vma
+and deletes the successor.  However, if the vma maps a file, it fails to
+fput() when doing the delete, leaving the file's refcount inconsistent.
 
-I was thinking of "numnodes = 8", and just screwed up data for the last
-few. Not quite sure how you'd avoid derefing a NULL ptr though, I guess.
+# This is a BitKeeper generated patch for the following project:
+# Project Name: Linux kernel tree
+# This patch format is intended for GNU patch command version 2.5 or higher.
+# This patch includes the following deltas:
+#	           ChangeSet	1.1083  -> 1.1084 
+#	           mm/mmap.c	1.79    -> 1.80   
+#
+# The following is the BitKeeper ChangeSet Log
+# --------------------------------------------
+# 03/05/09	sct@sisko.scot.redhat.com	1.1084
+# Fix vma merging problem leading to file refcount getting out of sync.
+# --------------------------------------------
+#
+diff -Nru a/mm/mmap.c b/mm/mmap.c
+--- a/mm/mmap.c	Fri May  9 13:26:53 2003
++++ b/mm/mmap.c	Fri May  9 13:26:53 2003
+@@ -471,6 +471,8 @@
+ 			spin_unlock(lock);
+ 			if (need_up)
+ 				up(&inode->i_mapping->i_shared_sem);
++			if (file)
++				fput(file);
  
-> I think it actually comes from the two loops calling build_zonelist_node 
-> in build_zonelists(). 
+ 			mm->map_count--;
+ 			kmem_cache_free(vm_area_cachep, next);
 
-I don't see how it can - that printk is before the loops.
-
-static void __init build_zonelists(pg_data_t *pgdat)
-{
-        int i, j, k, node, local_node;
-
-        local_node = pgdat->node_id;
-        printk("Building zonelist for node : %d\n", local_node);
-
-> But I'm not sure why it produces such a strange sequence.
-
-Throw a few printks in there, should tell you easily enough. 
-I'll bet you a couple of beers on it being numnodes ;-)
-
-M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
