@@ -1,48 +1,45 @@
-Message-ID: <393ECAA7.AD0DC0D6@reiser.to>
-Date: Wed, 07 Jun 2000 15:20:23 -0700
-From: Hans Reiser <hans@reiser.to>
+Message-ID: <393ECB3C.91299E78@colorfullife.com>
+Date: Thu, 08 Jun 2000 00:22:52 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
 MIME-Version: 1.0
-Subject: Re: journaling & VM 
-References: <20000607144102.F30951@redhat.com> <Pine.LNX.4.21.0006071103560.14304-100000@duckman.distro.conectiva> <20000607154620.O30951@redhat.com> <yttog5decvq.fsf@serpe.mitica> <393EAD84.A4BB6BD9@reiser.to> <20000607215436.F30951@redhat.com> <393EBEB5.AEEFF501@reiser.to> <20000607223352.J30951@redhat.com>
-Content-Type: text/plain; charset=koi8-r
+Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
+ it'snot just the code)
+References: <393E8AEF.7A782FE4@reiser.to> <Pine.LNX.4.21.0006071459040.14304-100000@duckman.distro.conectiva> <20000607205819.E30951@redhat.com> <ytt1z29dxce.fsf@serpe.mitica> <20000607222421.H30951@redhat.com> <yttvgzlcgps.fsf@serpe.mitica> <20000607224908.K30951@redhat.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Quintela Carreira Juan J." <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+Cc: "Juan J. Quintela" <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>, Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
 "Stephen C. Tweedie" wrote:
 > 
 > Hi,
 > 
-> On Wed, Jun 07, 2000 at 02:29:25PM -0700, Hans Reiser wrote:
-> >
-> > If I understand Juan correctly, they fixed this issue.  Aging 1/64th of the
-> > cache for every cache evenly at every round of trying to free pages should be an
-> > excellent fix.  It should do just fine at the task of handling a system with
-> > both ext3 and reiserfs running.
+> On Wed, Jun 07, 2000 at 11:40:47PM +0200, Juan J. Quintela wrote:
+> > Hi
+> > Fair enough, don't put pinned pages in the LRU, *why* do you want put
+> > pages in the LRU if you can't freed it when the LRU told it: free that
+> > page?
 > 
-> That is _exactly_ what breaks the VM balance!  The net result of
-> an algorithm like that is that all caches are shrunk at the same
-> rate regardless of which ones are busy.  The "shrink everything
-> at once" principle is what used to cause large filesystem scans
-> (such as find|grep over a large source tree) to swap all our
-> running processes out.
+> Because even if the information about which page is least recently
+> used doesn't help you, the information about which filesystems are
+> least active _does_ help.
 > 
-> There _has_ to be a way to allow the relative ages of the different
-> pages to influence the reclamation of pages from different sources.
-> 
-> Cheers,
->  Stephen
 
-I am confused, if a page is accessed the aging is undone.  Aging 1/64th is not
-the same as flushing 1/64th.  If cache A is not used the aging process gradually
-shrinks it to nothing because its pages aren't unaged, if cache B is heavily
-used the aging process doesn't age fast enough to overcome the unaging and new
-pages get added and it grows.  I am missing something....
+What about using a time based aproach for pinned pages?
 
-Hans
+* only individually freeable pages are added into the LRU.
+* everyone else registers callbacks.
+* shrink_mmap estimates (*) the age (in jiffies) of the oldest entry in
+the LRU, and then it calls the pressure callbacks with that time.
+
+(*) nr_of_lru_pages/lru_reclaimed_pages_during_last_jiffies. Another
+field in "struct page" is too expensive.
+
+--
+	Manfred
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
