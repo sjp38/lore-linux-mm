@@ -1,255 +1,81 @@
-Date: Tue, 15 Oct 2002 10:40:50 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: [PATCH 2.5.42-mm3] More shared page table fixes
-Message-ID: <75990000.1034696450@baldur.austin.ibm.com>
+Subject: Re: [rfc][patch] Memory Binding API v0.3 2.5.41
+References: <3DA4D3E4.6080401@us.ibm.com> <m165w6m12t.fsf@frodo.biederman.org>
+	<3DAB5DF2.5000002@us.ibm.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 15 Oct 2002 11:21:26 -0600
+In-Reply-To: <3DAB5DF2.5000002@us.ibm.com>
+Message-ID: <m1y98z39ex.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="==========1880309384=========="
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: colpatch@us.ibm.com
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, LSE <lse-tech@lists.sourceforge.net>, Andrew Morton <akpm@zip.com.au>, Martin Bligh <mjbligh@us.ibm.com>, Michael Hohnbaum <hohnbaum@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
---==========1880309384==========
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Matthew Dobson <colpatch@us.ibm.com> writes:
 
+> Eric W. Biederman wrote:
+> > Matthew Dobson <colpatch@us.ibm.com> writes:
+> >>Greetings & Salutations,
+> >>	Here's a wonderful patch that I know you're all dying for...  Memory
+> >>Binding!  It works just like CPU Affinity (binding) except that it binds a
+> >>processes memory allocations (just buddy allocator for now) to specific memory
+> 
+> >>blocks.
+> > Due we want this per numa area or simply per zone?  My suspicion is that
+> > internally at least we want this per zone.
+> I think that per memory block is better. 
+[snip]
+> I'm not fanatically
+> opposed to per zone binding, though, and if there is a general agreement that it
+> would be better that way, I don't think it would be unreasonably difficult to
+> change it.
 
-This patch gets the unmap_all_pages function right for PAE-enabled
-machines.  It also adds a forgotten spinlock to pte_try_to_share.
+My only feeling with zones is that it could be useful in the non numa cases,
+if it was per zone. 
 
-Dave McCracken
+But unless this API becomes is a pure hint we need at least one specifier that 
+says writing to swap is o.k.
 
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
+> > The API doesn't make much sense at the moment.
+> Hmm..  That is unfortunate, I'd aimed to make it as simple as possible.
 
---==========1880309384==========
-Content-Type: text/plain; charset=us-ascii; name="shpte-2.5.42-mm3-1.diff"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment; filename="shpte-2.5.42-mm3-1.diff"; size=5123
+Simple is good only if the proper pieces are connected.
+ 
+> > 1) You are operating on tasks and not mm's, or preferably vmas.
+> Correct.  There are plans (somewhere inside my cranium) to allow binding at that
+> 
+> granularity.  For now, per task seemed an appropriate level.
 
---- 2.5.42-mm3/./mm/memory.c	2002-10-15 09:59:37.000000000 -0500
-+++ 2.5.42-mm3-shpte/./mm/memory.c	2002-10-15 10:18:15.000000000 -0500
-@@ -372,6 +372,7 @@
- 	struct vm_area_struct *lvma;
- 	struct page *ptepage;
- 	unsigned long base;
-+	pte_t *pte = NULL;
- 
- 	/*
- 	 * It already has a pte page.  No point in checking further.
-@@ -394,6 +395,8 @@
- 
- 	as = vma->vm_file->f_dentry->d_inode->i_mapping;
- 
-+	spin_lock(&as->i_shared_lock);
-+
- 	list_for_each_entry(lvma, &as->i_mmap_shared, shared) {
- 		pgd_t *lpgd;
- 		pmd_t *lpmd;
-@@ -431,9 +434,11 @@
- 		else
- 			pmdval = pmd_wrprotect(*lpmd);
- 		set_pmd(pmd, pmdval);
--		return pte_page_map(ptepage, address);
-+		pte = pte_page_map(ptepage, address);
-+		break;
- 	}
--	return NULL;
-+	spin_unlock(&as->i_shared_lock);
-+	return pte;
- }
- #endif
- 
-@@ -846,14 +851,16 @@
- 	if (end > ((address + PGDIR_SIZE) & PGDIR_MASK))
- 		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
- 	do {
--		ptepage = pmd_page(*pmd);
--		pte_page_lock(ptepage);
-+		if (pmd_present(*pmd)) {
-+			ptepage = pmd_page(*pmd);
-+			pte_page_lock(ptepage);
- #ifdef CONFIG_SHAREPTE
--		if (page_count(ptepage) > 1)
--			BUG();
-+			if (page_count(ptepage) > 1)
-+				BUG();
- #endif
--		zap_pte_range(tlb, pmd, address, end - address);
--		pte_page_unlock(ptepage);
-+			zap_pte_range(tlb, pmd, address, end - address);
-+			pte_page_unlock(ptepage);
-+		}
- 		address = (address + PMD_SIZE) & PMD_MASK; 
- 		pmd++;
- 	} while (address < end);
-@@ -938,72 +945,105 @@
- 	mmu_gather_t *tlb;
- 	pgd_t *pgd;
- 	pmd_t *pmd;
--	unsigned long address;
--	unsigned long end;
-+	unsigned long address = 0;
-+	unsigned long vm_end = 0, prev_end, pmd_end;
- 
- 	tlb = tlb_gather_mmu(mm, 1);
- 
- 	vma = mm->mmap;
--	if (!vma)
--		goto out;
--
--	mm->map_count--;
--	if (is_vm_hugetlb_page(vma)) {
--		vma->vm_ops->close(vma);
--		goto next_vma;
--	}
--
--	address = vma->vm_start;
--	end = ((address + PGDIR_SIZE) & PGDIR_MASK);
-+	for (;;) {
-+		if (address >= vm_end) {
-+			if (!vma)
-+				goto out;
- 
--	pgd = pgd_offset(mm, address);
--	pmd = pmd_offset(pgd, address);
--	do {
--		do {
--			if (pmd_none(*pmd))
--				goto skip_pmd;
--			if (pmd_bad(*pmd)) {
--				pmd_ERROR(*pmd);
--				pmd_clear(pmd);
--				goto skip_pmd;
--			}
--		
--			ptepage = pmd_page(*pmd);
--			pte_page_lock(ptepage);
--			if (page_count(ptepage) > 1) {
--				pmd_clear(pmd);
--				pgtable_remove_rmap_locked(ptepage, mm);
--				mm->rss -= ptepage->private;
--				put_page(ptepage);
--			} else {
--				zap_pte_range(tlb, pmd, address, end - address);
--			}
--			pte_page_unlock(ptepage);
--skip_pmd:
--			pmd++;
--			address = (address + PMD_SIZE) & PMD_MASK;
--			if (address >= vma->vm_end) {
-+			address = vma->vm_start;
- next_vma:
--				vma = vma->vm_next;
--				if (!vma)
--					goto out;
--
--				mm->map_count--;
--				if (is_vm_hugetlb_page(vma)) {
-+			prev_end = vm_end;
-+			vm_end = vma->vm_end;
-+			mm->map_count--;
-+			/*
-+			 * Advance the vma pointer to the next vma.
-+			 * To facilitate coalescing adjacent vmas, the
-+			 * pointer always points to the next one
-+			 * beyond the range we're currently working
-+			 * on, which means vma will be null on the
-+			 * last iteration.
-+			 */
-+			vma = vma->vm_next;
-+			if (vma) {
-+				/*
-+				 * Go ahead and include hugetlb vmas
-+				 * in the range we process.  The pmd
-+				 * entry will be cleared by close, so
-+				 * we'll just skip over them.  This is
-+				 * easier than trying to avoid them.
-+				 */
-+				if (is_vm_hugetlb_page(vma))
- 					vma->vm_ops->close(vma);
-+
-+				/*
-+				 * Coalesce adjacent vmas and process
-+				 * them all in one iteration.
-+				 */
-+				if (vma->vm_start == prev_end) {
- 					goto next_vma;
- 				}
-+			}
-+		}
-+		pgd = pgd_offset(mm, address);
-+		do {
-+			if (pgd_none(*pgd))
-+				goto skip_pgd;
- 
--				address = vma->vm_start;
--				end = ((address + PGDIR_SIZE) & PGDIR_MASK);
--				pgd = pgd_offset(mm, address);
--				pmd = pmd_offset(pgd, address);
-+			if (pgd_bad(*pgd)) {
-+				pgd_ERROR(*pgd);
-+				pgd_clear(pgd);
-+skip_pgd:
-+				address += PGDIR_SIZE;
-+				if (address > vm_end)
-+					address = vm_end;
-+				goto next_pgd;
- 			}
--		} while (address < end);
--		pgd++;
--		pmd = pmd_offset(pgd, address);
--		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
--	} while (vma);
-+			pmd = pmd_offset(pgd, address);
-+			if (vm_end > ((address + PGDIR_SIZE) & PGDIR_MASK))
-+				pmd_end = (address + PGDIR_SIZE) & PGDIR_MASK;
-+			else
-+				pmd_end = vm_end;
-+
-+			for (;;) {
-+				if (pmd_none(*pmd))
-+					goto next_pmd;
-+				if (pmd_bad(*pmd)) {
-+					pmd_ERROR(*pmd);
-+					pmd_clear(pmd);
-+					goto next_pmd;
-+				}
-+				
-+				ptepage = pmd_page(*pmd);
-+				pte_page_lock(ptepage);
-+				if (page_count(ptepage) > 1) {
-+					pmd_clear(pmd);
-+					pgtable_remove_rmap_locked(ptepage, mm);
-+					mm->rss -= ptepage->private;
-+					put_page(ptepage);
-+				} else
-+					zap_pte_range(tlb, pmd, address,
-+						      vm_end - address);
-+
-+				pte_page_unlock(ptepage);
-+next_pmd:
-+				address += PMD_SIZE;
-+				if (address >= pmd_end) {
-+					address = pmd_end;
-+					break;
-+				}
-+				pmd++;
-+			}
-+next_pgd:
-+			pgd++;
-+		} while (address < vm_end);
-+
-+	}
- 
- out:
- 	clear_page_tables(tlb, FIRST_USER_PGD_NR, USER_PTRS_PER_PGD);
+It makes it terribly unpredictable.  If you have two threads each bound
+to a different location there are race conditions which area the memory
+is allocated from.  
 
---==========1880309384==========--
+> > 2) sys_mem_setbinding does not move the mm to the new binding.
+> Also correct.  A task may wish to allocate several large data structures from
+> one memory area, rebind, do more allocations, rebind, ad nauseum. There are
+> plans to have a flag that, if set, would force relocation of all currently
+> allocated memory.
 
+Actually the bindings need to stick to the vma or to the struct address_space.
+Otherwise you are talking about an allocation hint, as swapping can trivially
+undue it and nothing happens when the actual call is made.  A hint is a very
+different thing from a binding.
+
+And if we stick this to struct address_space for the non anonymous cases
+having a fmem_setbinding(struct fd) that works on files would be a useful
+thing as well.
+
+> > 5) mprotect is the more natural model rather than set_cpu_affinity.
+> Well, I think that may be true for the API you are imagining (per zone, per
+> mm/vma, etc), not the one that I've written.
+
+For a binding with respect to memory I imagine things like mlock().  For
+anything else you are talking a future hint to the memory allocators, which
+feels less much useful.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
