@@ -1,66 +1,115 @@
 From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199906281725.KAA72836@google.engr.sgi.com>
-Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8 Fix swapoff races
-Date: Mon, 28 Jun 1999 10:25:45 -0700 (PDT)
-In-Reply-To: <14199.41900.732658.354175@dukat.scot.redhat.com> from "Stephen C. Tweedie" at Jun 28, 99 05:32:44 pm
+Message-Id: <199906281711.KAA87788@google.engr.sgi.com>
+Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
+Date: Mon, 28 Jun 1999 10:11:52 -0700 (PDT)
+In-Reply-To: <Pine.LNX.4.10.9906281227550.364-100000@laser.random> from "Andrea Arcangeli" at Jun 28, 99 12:35:24 pm
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: andrea@suse.de, torvalds@transmeta.com, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: torvalds@transmeta.com, sct@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+> Here it is the alternate fix:
 > 
-> Hi,
+> Index: mm/swap_state.c
+> ===================================================================
+> RCS file: /var/cvs/linux/mm/swap_state.c,v
+> retrieving revision 1.1.1.3
+> diff -u -r1.1.1.3 swap_state.c
+> --- mm/swap_state.c	1999/06/14 15:30:09	1.1.1.3
+> +++ mm/swap_state.c	1999/06/28 10:15:15
+> @@ -125,7 +125,7 @@
+>  		"swap_duplicate: entry %08lx, offset exceeds max\n", entry);
+>  	goto out;
+>  bad_unused:
+> -	printk(KERN_ERR
+> +	printk(KERN_WARNING
+>  		"swap_duplicate at %8p: entry %08lx, unused page\n", 
+>  	       __builtin_return_address(0), entry);
+>  	goto out;
+> @@ -291,20 +291,15 @@
+>  	       entry, wait ? ", wait" : "");
+>  #endif
+>  	/*
+> -	 * Make sure the swap entry is still in use.
+> -	 */
+> -	if (!swap_duplicate(entry))	/* Account for the swap cache */
+> -		goto out;
+> -	/*
+>  	 * Look for the page in the swap cache.
+>  	 */
+>  	found_page = lookup_swap_cache(entry);
+>  	if (found_page)
+> -		goto out_free_swap;
+> +		goto out;
+>  
+>  	new_page_addr = __get_free_page(GFP_USER);
+>  	if (!new_page_addr)
+> -		goto out_free_swap;	/* Out of memory */
+> +		goto out;	/* Out of memory */
+>  	new_page = mem_map + MAP_NR(new_page_addr);
+>  
+>  	/*
+> @@ -313,6 +308,11 @@
+>  	found_page = lookup_swap_cache(entry);
+>  	if (found_page)
+>  		goto out_free_page;
+> +	/*
+> +	 * Make sure the swap entry is still in use.
+> +	 */
+> +	if (!swap_duplicate(entry))	/* Account for the swap cache */
+> +		goto out_free_page;
+>  	/* 
+>  	 * Add it to the swap cache and read its contents.
+>  	 */
+> @@ -330,8 +330,6 @@
+>  
+>  out_free_page:
+>  	__free_page(new_page);
+> -out_free_swap:
+> -	swap_free(entry);
+>  out:
+>  	return found_page;
+>  }
 > 
-> On Sun, 27 Jun 1999 18:48:47 -0700 (PDT), kanoj@google.engr.sgi.com
-> (Kanoj Sarcar) said:
 > 
-> > Linus/Andrea/Stephen,
-> > This is the patch that tries to cure the swapoff races with processes
-> > forking, exiting, and (readahead) swapping by faulting. 
 > 
-> > Basically, all these operations are synchronized by the process
-> > mmap_sem. Unfortunately, swapoff has to visit all processes, during
-> > which it must hold tasklist_lock, a spinlock. Hence, it can not take
-> > the mmap_sem, a sleeping mutex. 
-> 
-> But it can atomic_inc(&mm->count) to pin the mm, drop the task lock and
-> take the mm semaphore, and mmput() once it has finished.
->
+> NOTE: this will cause swap_duplicate to generate some warning message but
 
-Hmm, hadn't thought about that one. Of course, as soon as you drop 
-the task_lock, in theory, you have to resume your search from the
-beginning of the task list, since the list might have changed while
-you dropped the task_lock (assume for a moment that the vm code does
-not know how the task list is managed). That prevents any forward
-progress by swapoff. 
+Or not, depending on whether the swap id has already been allocated 
+to a newly added swap device. In which case, the worst we will do is
+read-ahead in some unneeded swap pages. Not too bad ... I thought 
+about this solution, and figured that a better idea is probably to
+give up on read-ahead in swapin_readahead() if the faulting pte
+had already been swapped in.
 
-I did think of other ways to maintain a hold on the process,
-preventing it from forking or exitting, but my judgement was they
-were going to be more heavyweight than my current solution.
-
-> > So, the patch links up all active mm's in a list that swapoff can
-> > visit
-> 
-> There shouldn't be need for a new data structure.  A bit of extra work
-> in swapoff should be all that is needed, and that avoids adding any
-> extra code at all on the hot paths.
-> 
-> Adding extra locks is the sort of thing other unixes do to solve
-> problems like this: we don't want to fall into that trap on Linux. :)
-> 
-
-Agreed ... if you can come up with a reasonably simple and lightweight
-solution without using locks.
+Anyway, it seems to prevent fork/exit races, grabbing mmap_sem is
+needed in the swapoff path. Best to use that synchronization, since
+the fault path also grabs mmap_sem.
 
 Thanks.
 
 Kanoj
-kanoj@engr.sgi.com
-> --Stephen
+
+> everything will work fine then, exactly because the swapin code just check
+> if the pte is changed (swapped in from swapoff) before looking if
+> read_swap_cache returned a NULL pointer. (also the shm.c swap-cache code
+> checks if the pte is changed before to go oom).
+> 
+> But probably the right thing to do is to grab the mm semaphore in swapoff
+> as you did since we don't risk to deadlock there :).
+> 
+> Comments?
+> 
+> Andrea
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://humbolt.geo.uu.nl/Linux-MM/
 > 
 
 --
