@@ -1,33 +1,69 @@
-Date: Wed, 8 Sep 2004 14:04:31 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
+Date: Wed, 8 Sep 2004 13:45:49 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: swapping and the value of /proc/sys/vm/swappiness
-In-Reply-To: <5860000.1094664673@flay>
-Message-ID: <Pine.LNX.4.44.0409081403500.23362-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20040908164549.GA4284@logos.cnet>
+References: <413CB661.6030303@sgi.com> <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <413D8FB2.1060705@cyberone.com.au> <413D93EF.80305@kolivas.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <413D93EF.80305@kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Ray Bryant <raybry@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, piggin@cyberone.com.au
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>, raybry@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, mbligh@aracnet.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Sep 2004, Martin J. Bligh wrote:
+On Tue, Sep 07, 2004 at 08:56:47PM +1000, Con Kolivas wrote:
+> Nick Piggin wrote:
+> >
+> >
+> >Marcelo Tosatti wrote:
+> >
+> >>
+> >>Hi kernel fellows,
+> >>
+> >>I volunteer. I'll try something tomorrow to compare swappiness of 
+> >>older kernels like  2.6.5 and 2.6.6, which were fine on SGI's Altix 
+> >>tests, up to current newer kernels (on small memory boxes of course).
+> >>
+> >
+> >Hi Marcelo,
+> >
+> >Just a suggestion - I'd look at the thrashing control patch first.
+> >I bet that's the cause.
+> 
+> Good point!
+> 
+> I recall one of my users found his workload which often hit swap lightly 
+> was swapping much heavier and his performance dropped dramatically until 
+> I stopped including the swap thrash control patch. I informed Rik about 
+> it some time back so I'm not sure if he addressed it in the meantime.
 
-> For HPC, maybe. For a fileserver, it might be far too little. That's the
-> trouble ... it's all dependant on the workload. Personally, I'd prefer
-> to get rid of manual tweakables (which are a pain in the ass in the field
-> anyway), and try to have the kernel react to what the customer is doing.
+Swap thrashing code doesnt affect anything, at least on my simple contained test.
+With the same test, the amount of swapped out memory with 2.6.6/2.6.7 is 100-150MB,
+ while 2.6.8/2.6.9-mm* swaps out around 250MB.
 
-Agreed.  Many of these things should be self-tunable pretty
-easily, too...
+I tried 2.6.7's "vmscan.c" on 2.6.8 without noticeable difference, I wonder why. 
 
+What I've noticed before with the swap token code is total crap interactivity 
+when memory hog is running. Which doesnt happen without it.
 
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+Con, I've seen your hard swappiness patch, why do you remove the current
+swap_tendency calculation? Can you give us some insight into it? 
 
+The thing is, if the user thinks the machine is swapping out too heavily
+he can always decrease vm_swappinness. Whatever change that might happen
+on VM swapout policy can be tuned with vm_swappinness. 
 
+It works - its not very smooth, changing from "53" to "50" causes the 
+amount of swapped data to be 4 times smaller (due to 
+if (swap_tendency >= 100) I believe). Apart from that its fine, 
+and behaves as expected.
+
+Maybe the current value of "60" is too high for most desktop users, 
+if so it can be decreased a little bit. 
+
+But whats the point of your patch?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
