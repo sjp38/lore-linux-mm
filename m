@@ -1,30 +1,42 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iA2N0nAd821284
-	for <linux-mm@kvack.org>; Tue, 2 Nov 2004 18:00:59 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iA2N0TAY145006
-	for <linux-mm@kvack.org>; Tue, 2 Nov 2004 16:00:29 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iA2N0SlH027371
-	for <linux-mm@kvack.org>; Tue, 2 Nov 2004 16:00:28 -0700
-Message-ID: <4188118A.5050300@us.ibm.com>
-Date: Tue, 02 Nov 2004 15:00:26 -0800
-From: Dave Hansen <haveblue@us.ibm.com>
-MIME-Version: 1.0
+Date: Wed, 3 Nov 2004 00:12:27 +0100
+From: Andrea Arcangeli <andrea@novell.com>
 Subject: Re: fix iounmap and a pageattr memleak (x86 and x86-64)
-References: <4187FA6D.3070604@us.ibm.com> <20041102220720.GV3571@dualathlon.random> <41880E0A.3000805@us.ibm.com>
-In-Reply-To: <41880E0A.3000805@us.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20041102231227.GX3571@dualathlon.random>
+References: <4187FA6D.3070604@us.ibm.com> <Pine.LNX.4.44.0411021728460.8117-100000@dhcp83-105.boston.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0411021728460.8117-100000@dhcp83-105.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrea Arcangeli <andrea@novell.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
+To: Jason Baron <jbaron@redhat.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-BTW, please don't anyone going even trying to apply that piece of crap I 
-just sent out, I just wanted to demonstrate what solves my immediate 
-problem.
+On Tue, Nov 02, 2004 at 05:34:08PM -0500, Jason Baron wrote:
+> I've seen the page_count being -1 (not sure why), for a number of pages in
+> the identity mapped region...So the BUG() on 0 doesn't seem valid to me.
+
+bugcheck on 0 is valid there, it signals memleak. page_count == -1
+signals another bug that might or might not be fixed by this as far as I
+can tell (this furthermore is a pte, so it sure can't have page_count ==
+0 or -1). So please try to track down which pages had page_count == -1.
+
+Note, we must not confuse page->count with page_count, for the former
+value -1 means "in the freelist". For the latter it signals a bug.
+
+> Also, in order to tell if the pages should be merged back to create a huge
+> page, i don't see how the patch differentiates b/w pages that were split
+> and those that weren't simply based on the page_count....
+
+that's a page_count of the _pte_, not of the pages. so we're guaranteed
+it's always 1 unless we deal with this very pageattr code that is the
+only one that evers boost a pte page_count to > 1.
+
+If you mean how can we provide an universal API with only keeping track
+of things with the page_count of the pte, we can't, and that's why it's
+not an universal API and that's why some symmetry is required by the
+API.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
