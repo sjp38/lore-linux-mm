@@ -1,36 +1,34 @@
-Message-Id: <E0A4nm6-6499Yt-00@mail.nitros6.org>
-Date: Thu, 10 Mar 2005 04:14:14 +0400
-From: "Fritz Courtney" <xnvkcetdchyhe@yahoo.com>
-Subject: V-codin and Xa'nx are Cheeap %RANDOMCHAR
+Date: Wed, 09 Mar 2005 03:44:39 -0800
+Message-Id: <AVT498OTU71.XUX602XIQVV9-VFN3753NRNCR5.CVKZ25BWSEA7-HL293KSJ99.VP4061ASX78@axolotl.org>
+From: "Raz.Doty@usa.net" <Dvy.Cannon@usa.net>
+Subject: Pre-approved Application for linux-aio@kvack.org Wed, 09 Mar 2005 03:44:39 -0800
+MIME-Version: 1.0
+Content-Type: text; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: aart@kvack.org
-Cc: adrian@kvack.org, linux-mm@kvack.org
+To: linux-aio@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Look at this of-fers:
+Hello,
 
-V-codin - 225.00 (90 pi lls) 
-Hydrocodonee - 297.00 (90 pi lls)
-Valliuum - 153.00 (90 pi lls)
-Vi graa - 270.00 (90 pi lls)
-Cai llis - 348.00 (90 pi lls)
-Codeinne - 126.00 (90 pi lls)
-X|a naax - 171.00 (90 pi lls)
+We sent you an email a while ago, because you now qualify
+for a much lower rate based on the biggest rate drop in years.
 
-All orderrs are delivered by Fedex with full tracking 24/7.
-Satisfactiionnss guaaranteeed...
+You can now get $327,000 for as little as $617 a month!
+Bad credit? Doesn't matter, low rates are fixed no matter what!
 
-http://quicklikemedstou.com/2/?wid=200007
+Follow this link to process your application and a 24 hour approval:
 
+http://www.qklenders.com/x/loan.php?id=d17
 
+Best Regards,
+Arnulfo Babb
 
 
-
-
-This is 1 -time mailing. N0-re m0val are re'qui-red
-
-transgress lure tit perverse affirmation
+http://www.qklenders.com/x/st.html
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
