@@ -1,101 +1,82 @@
-Date: Wed, 10 Jul 2002 15:22:10 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] Optimize out pte_chain take three
-Message-ID: <20020710222210.GU25360@holomorphy.com>
-References: <20810000.1026311617@baldur.austin.ibm.com> <Pine.LNX.4.44L.0207101213480.14432-100000@imladris.surriel.com> <20020710173254.GS25360@holomorphy.com> <3D2C9288.51BBE4EB@zip.com.au>
-Mime-Version: 1.0
+Date: Wed, 10 Jul 2002 15:43:20 -0700
+From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Subject: Re: scalable kmap (was Re: vm lock contention reduction)
+Message-ID: <91460000.1026341000@flay>
+In-Reply-To: <3D2BC6DB.B60E010D@zip.com.au>
+References: <3D2A55D0.35C5F523@zip.com.au> <1214790647.1026163711@[10.10.2.3]> <3D2A7466.AD867DA7@zip.com.au> <20020709173246.GG8878@dualathlon.random> <3D2BC6DB.B60E010D@zip.com.au>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <3D2C9288.51BBE4EB@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: Rik van Riel <riel@conectiva.com.br>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@zip.com.au>, Andrea Arcangeli <andrea@suse.de>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
-[11 other things]
->> (12) the reverse mappings enable proper RSS limit enforcement
->>         implemented and merged in 2.4-based rmap
+> Here's the diff.  The kmap() and kmap_atomic() rate is way down
+> now.  Still no benefit from it all through.  Martin.  Help.
 
-On Wed, Jul 10, 2002 at 01:01:12PM -0700, Andrew Morton wrote:
-> Score one.
+Hmmm ... well I have some preliminary results on the 16-way NUMA
+for kernel compile, and it doesn't make things faster - if anything there's
+a barely perceptible slowdown (may just be statistical error). 
 
-Phenomenally harsh.
+On the other hand, Hanna just did some dbench measurements on an
+8-way SMP, and got about 15% improvement out of it (she mailed the
+results to lkml just now). 
 
+The profile comparison between 2.4 and 2.5 is interesting. Unless I've
+screwed something up in the profiling, seems like we're spending a lot
+of time in do_page_fault (with or without your patch). It's *so* different,
+that I'm inclined to suspect my profiling .... (profile=2).
 
-On Wed, Jul 10, 2002 at 01:01:12PM -0700, Andrew Morton wrote:
-> c'mon, guys.  It's all fluff.  We *have* to do better than this.
-> It's just software, and this is just engineering.  There's no
-> way we should be asking Linus to risk changing his VM based on
-> this sort of advocacy.
+2.5:
 
-I did not give detailed results, but there is quantitative measurement
-to back up claims that several of these improve performance. Part of
-this "flop" is that the criteria are unclear, and another is my fault
-for not benchmarking as much as I should.
+ 46361 total                                      0.3985
+ 36500 default_idle                             570.3125
+  5556 do_page_fault                              4.5653
+  1087 do_softirq                                 5.2260
+   673 pte_alloc_one                              3.8239
+   529 schedule                                   0.5700
+   304 exit_notify                                0.3800
+   192 __wake_up                                  1.7143
+   188 do_fork                                    0.0904
+   180 system_call                                4.0909
+   174 pgd_alloc                                  2.7188
+   109 timer_bh                                   0.1548
 
-What I gave was meant to be of this form, namely "algorithmic
-improvement X" and "feature enablement Y". But this is clearly
-not what you're after.
+2.4 + patches
 
+ 22256 total                                      0.0237
+ 13510 default_idle                             259.8077
+  2042 _text_lock_swap                           37.8148
+   585 lru_cache_add                              6.3587
+   551 do_anonymous_page                          1.6596
+   488 do_generic_file_read                       0.4388
+   401 lru_cache_del                             18.2273
+   385 _text_lock_namei                           0.3688
+   363 __free_pages_ok                            0.6927
+   267 __generic_copy_from_user                   2.5673
+   222 __d_lookup                                 0.8672
+   211 zap_page_range                             0.2409
+   188 _text_lock_dec_and_lock                    7.8333
+   179 rmqueue                                    0.4144
+   178 __find_get_page                            2.7812
+   161 _text_lock_read_write                      1.3644
+   157 file_read_actor                            0.6886
+   151 nr_free_pages                              2.9038
+   123 link_path_walk                             0.0478
+   118 set_page_dirty                             1.2292
+   101 fput                                       0.4353
 
-On Wed, Jul 10, 2002 at 01:01:12PM -0700, Andrew Morton wrote:
-> Bill, please throw away your list and come up with a new one.
-> Consisting of workloads and tests which we can run to evaluate
-> and optimise page replacement algorithms.
+Interestingly, kmap doesn't show up in the virgin 2.5 profile at all,
+but it does in the 2.4 profile ... 
 
-Your criteria are quantitative. I can't immediately measure all
-of them but can go about collecting missing data immediately and post
-as I go, then. Perhaps I'll even have helpers. =)
-
-
-On Wed, Jul 10, 2002 at 01:01:12PM -0700, Andrew Morton wrote:
-> Alternatively, please try to enumerate the `operating regions'
-> for the page replacement code.  Then, we can identify measurable
-> tests which exercise them.  Then we can identify combinations of
-> those tests to model a `workload'.    We need to get this ball
-> rolling somehow.
-> btw, I told Rik I'd start on that definition today, but I'm having
-> trouble getting started.  Your insight would be muchly appreciated.
-
-Excellent. I'll not waste any more time discussing these kinds of
-benefits and focus on the ones considered relevant by maintainers.
-
-I've already gone about asking for help benchmarking dmc's pte_chain
-space optimization, and I envision the following list of TODO items
-being things you're more interested in:
-
-(1) measure the effect of rmap on page fault rate
-(1.5) try to figure out how many of mainline's faults came from the
-	virtual scan unmapping things
-(2) measure the effect of rmap on scan rate
-(3) measure the effect of rmap on cpu time consumed by scanning
-(4) measure the effect of per-zone LRU lists on cpu time consumed by
-	scanning
-(5) measure the effect of per-zone LRU list locks on benchmarks
-(6) maybe hack a simulator to compare the hardware referenced bits
-	to the software one computed by rmap and mainline
-(7) re-do(?) swap accuracy measurements in a more meaningful way
-
-(5) may involve some pain to forward port and (6) is painful too.
-And these involve writing lots of instrumentation code...
-
-What other missing data are you after and which of these should
-be chucked?
-
-As far as operating regions for page replacement go I see 3 obvious ones:
-(1) lots of writeback with no swap
-(2) churning clean pages with no swap
-(3) swapping
-
-And each of these with several proportions of memory sharing.
-Sound reasonable?
+   7 flush_all_zero_pkmaps                      0.0700
+109 kmap_high                                  0.3028
 
 
-Thanks,
-Bill
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
