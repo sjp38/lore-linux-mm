@@ -1,334 +1,261 @@
-Content-Type: text/plain;
-  charset="us-ascii"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: [PATCH][RFC] slabnow
-Date: Sat, 7 Sep 2002 10:06:18 -0400
+Date: Sat, 07 Sep 2002 22:08:32 -0700
+From: "Martin J. Bligh" <fletch@aracnet.com>
+Subject: Cleanup of alloc_pages code (removes _alloc_pages)
+Message-ID: <185353754.1031436512@[10.10.2.3]>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200209071006.18869.tomlins@cam.org>
+Content-Type: multipart/mixed; boundary="==========185371270=========="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@zip.com.au>, Rik van Riel <riel@conectiva.com.br>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: linux-mm mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+--==========185371270==========
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Andrew took a good look at slablru and asked a few deep questions.  One was why does
-slab not release pages immediately?  Since Rik explained that using a lazy reclaim of free
-pages from the lru worked badly, it does not make much sense to use a lazy reclaim of
-slab pages either...
+This patch is was originally from Andrea's tree (from SGI??), 
+and has been tweaked since by both Christoph (who cleaned up
+all the code), and myself (who just hit it until it worked).
 
-Second question was can you do this without the lru?  He then suggested we think about
-seeks.  If we assume a lru page takes a seek to recreate and a slab object also takes a
-one to recreate we can use the percentage of pages reclaimed to drive the slab shrinking.
+It removes _alloc_pages, and adds all nodes to the zonelists
+directly, which also changes the fallback zone order to 
+something more sensible ... instead of:
+"foreach (node) { foreach (zone) }"
+we now do something more like
+"foreach (zone_type) { foreach (node) }"
 
-This has some major implications.  If it works well slab.c will get gutted.  We will no longer
-need *shrink* calls in slab nor will kmem_cache_reap do anything and the slabs_free list
-can go too...  This version of the patch defers the slab.c cleanup.
+Christoph has a more recent version that's fancier and does
+a couple more cleanups, but it seems to have a bug in it that
+I can't track down easily, so I propose we do the simple thing
+for now, and take the rest of the cleanups when it works ... 
+it seems to build nicely on top of this seperately to me.
 
-Here is my implementation.  There is one thing missing from it.  In shrink_cache we 
-need to avoid shrinking when we are not working with ZONE_DMA or ZONE_NORMAL.  I
-am not sure the best way to test this.  Andrew?  Also I need to find a better name for
-nr_used_zone_pages, which should tell us the number of pages used by ZONE_DMA and
-ZONE_NORMAL.
+Tested on 16-way NUMA-Q with discontigmem + NUMA support
+and on a standard PC (well, boots and appears functional).
+On top of 2.5.33-mm4
 
-This is against Linus bk at cset 1.575.1.45 (Thusday evening).  Its been tested on UP
-without highmem - it needs a the zone test for highmem to work correctly.  Testing
-used:
+M.
 
-find / -name "*" > /dev/null
-multiple tiobenchs
-dbench on reiserfs and tmpfs
-gimp working with massive tifs
-plus my normal workstation load
+--==========185371270==========
+Content-Type: application/octet-stream; name=33-alloc_pages
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename=33-alloc_pages; size=11920
 
-As always comments very welcome.
+ZGlmZiAtdXJOIC1YIC9ob21lL21ibGlnaC8uZGlmZi5leGNsdWRlIDMyLWZyZWVfYXJlYV9pbml0
+L2FyY2gvc3BhcmM2NC9tbS9pbml0LmMgMzMtYWxsb2NfcGFnZXMvYXJjaC9zcGFyYzY0L21tL2lu
+aXQuYwotLS0gMzItZnJlZV9hcmVhX2luaXQvYXJjaC9zcGFyYzY0L21tL2luaXQuYwlGcmkgU2Vw
+ICA2IDIyOjQwOjQ3IDIwMDIKKysrIDMzLWFsbG9jX3BhZ2VzL2FyY2gvc3BhcmM2NC9tbS9pbml0
+LmMJU2F0IFNlcCAgNyAwOTowMzozMyAyMDAyCkBAIC0xNzM0LDcgKzE3MzQsNyBAQAogCSAqIFNl
+dCB1cCB0aGUgemVybyBwYWdlLCBtYXJrIGl0IHJlc2VydmVkLCBzbyB0aGF0IHBhZ2UgY291bnQK
+IAkgKiBpcyBub3QgbWFuaXB1bGF0ZWQgd2hlbiBmcmVlaW5nIHRoZSBwYWdlIGZyb20gdXNlciBw
+dGVzLgogCSAqLwotCW1lbV9tYXBfemVybyA9IF9hbGxvY19wYWdlcyhHRlBfS0VSTkVMLCAwKTsK
+KwltZW1fbWFwX3plcm8gPSBhbGxvY19wYWdlcyhHRlBfS0VSTkVMLCAwKTsKIAlpZiAobWVtX21h
+cF96ZXJvID09IE5VTEwpIHsKIAkJcHJvbV9wcmludGYoInBhZ2luZ19pbml0OiBDYW5ub3QgYWxs
+b2MgemVybyBwYWdlLlxuIik7CiAJCXByb21faGFsdCgpOwpkaWZmIC11ck4gLVggL2hvbWUvbWJs
+aWdoLy5kaWZmLmV4Y2x1ZGUgMzItZnJlZV9hcmVhX2luaXQvaW5jbHVkZS9hc20tYWxwaGEvbW16
+b25lLmggMzMtYWxsb2NfcGFnZXMvaW5jbHVkZS9hc20tYWxwaGEvbW16b25lLmgKLS0tIDMyLWZy
+ZWVfYXJlYV9pbml0L2luY2x1ZGUvYXNtLWFscGhhL21tem9uZS5oCUZyaSBTZXAgIDYgMjM6MDM6
+MTkgMjAwMgorKysgMzMtYWxsb2NfcGFnZXMvaW5jbHVkZS9hc20tYWxwaGEvbW16b25lLmgJU2F0
+IFNlcCAgNyAwOTowMzo1OCAyMDAyCkBAIC0zNiwxMiArMzYsMTAgQEAKIAogI2lmZGVmIENPTkZJ
+R19BTFBIQV9XSUxERklSRQogIyBkZWZpbmUgQUxQSEFfUEFfVE9fTklEKHBhKQkoKHBhKSA+PiAz
+NikJLyogMTYgbm9kZXMgbWF4IGR1ZSA0M2JpdCBrc2VnICovCi0jZGVmaW5lIE5PREVfTUFYX01F
+TV9TSVpFCSg2NEwgKiAxMDI0TCAqIDEwMjRMICogMTAyNEwpIC8qIDY0IEdCICovCi0jZGVmaW5l
+IE1BWF9OVU1OT0RFUwkJV0lMREZJUkVfTUFYX1FCQgorIyBkZWZpbmUgTk9ERV9NQVhfTUVNX1NJ
+WkUJKDY0TCAqIDEwMjRMICogMTAyNEwgKiAxMDI0TCkgLyogNjQgR0IgKi8KICNlbHNlCiAjIGRl
+ZmluZSBBTFBIQV9QQV9UT19OSUQocGEpCSgwKQotI2RlZmluZSBOT0RFX01BWF9NRU1fU0laRQko
+fjBVTCkKLSNkZWZpbmUgTUFYX05VTU5PREVTCQkxCisjIGRlZmluZSBOT0RFX01BWF9NRU1fU0la
+RQkofjBVTCkKICNlbmRpZgogCiAjZGVmaW5lIFBIWVNBRERSX1RPX05JRChwYSkJCUFMUEhBX1BB
+X1RPX05JRChwYSkKZGlmZiAtdXJOIC1YIC9ob21lL21ibGlnaC8uZGlmZi5leGNsdWRlIDMyLWZy
+ZWVfYXJlYV9pbml0L2luY2x1ZGUvYXNtLWFscGhhL251bW5vZGVzLmggMzMtYWxsb2NfcGFnZXMv
+aW5jbHVkZS9hc20tYWxwaGEvbnVtbm9kZXMuaAotLS0gMzItZnJlZV9hcmVhX2luaXQvaW5jbHVk
+ZS9hc20tYWxwaGEvbnVtbm9kZXMuaAlXZWQgRGVjIDMxIDE2OjAwOjAwIDE5NjkKKysrIDMzLWFs
+bG9jX3BhZ2VzL2luY2x1ZGUvYXNtLWFscGhhL251bW5vZGVzLmgJU2F0IFNlcCAgNyAwOTowMzoz
+MyAyMDAyCkBAIC0wLDAgKzEsMTIgQEAKKyNpZm5kZWYgX0FTTV9NQVhfTlVNTk9ERVNfSAorI2Rl
+ZmluZSBfQVNNX01BWF9OVU1OT0RFU19ICisKKy8qCisgKiBDdXJyZW50bHkgdGhlIFdpbGRmaXJl
+IGlzIHRoZSBvbmx5IGRpc2NvbnRpZ21lbS9OVU1BIGNhcGFibGUgQWxwaGEgY29yZS4KKyAqLwor
+I2lmIGRlZmluZWQoQ09ORklHX0FMUEhBX1dJTERGSVJFKSB8fCBkZWZpbmVkKENPTkZJR19BTFBI
+QV9HRU5FUklDKQorIyBpbmNsdWRlIDxhc20vY29yZV93aWxkZmlyZS5oPgorIyBkZWZpbmUgTUFY
+X05VTU5PREVTCQlXSUxERklSRV9NQVhfUUJCCisjZW5kaWYKKworI2VuZGlmIC8qIF9BU01fTUFY
+X05VTU5PREVTX0ggKi8KZGlmZiAtdXJOIC1YIC9ob21lL21ibGlnaC8uZGlmZi5leGNsdWRlIDMy
+LWZyZWVfYXJlYV9pbml0L2luY2x1ZGUvYXNtLWkzODYvbWF4X251bW5vZGVzLmggMzMtYWxsb2Nf
+cGFnZXMvaW5jbHVkZS9hc20taTM4Ni9tYXhfbnVtbm9kZXMuaAotLS0gMzItZnJlZV9hcmVhX2lu
+aXQvaW5jbHVkZS9hc20taTM4Ni9tYXhfbnVtbm9kZXMuaAlGcmkgU2VwICA2IDIyOjQwOjUxIDIw
+MDIKKysrIDMzLWFsbG9jX3BhZ2VzL2luY2x1ZGUvYXNtLWkzODYvbWF4X251bW5vZGVzLmgJV2Vk
+IERlYyAzMSAxNjowMDowMCAxOTY5CkBAIC0xLDEyICswLDAgQEAKLSNpZm5kZWYgX0FTTV9NQVhf
+TlVNTk9ERVNfSAotI2RlZmluZSBfQVNNX01BWF9OVU1OT0RFU19ICi0KLSNpbmNsdWRlIDxsaW51
+eC9jb25maWcuaD4KLQotI2lmZGVmIENPTkZJR19YODZfTlVNQVEKLSNpbmNsdWRlIDxhc20vbnVt
+YXEuaD4KLSNlbHNlCi0jZGVmaW5lIE1BWF9OVU1OT0RFUwkxCi0jZW5kaWYgLyogQ09ORklHX1g4
+Nl9OVU1BUSAqLwotCi0jZW5kaWYgLyogX0FTTV9NQVhfTlVNTk9ERVNfSCAqLwpkaWZmIC11ck4g
+LVggL2hvbWUvbWJsaWdoLy5kaWZmLmV4Y2x1ZGUgMzItZnJlZV9hcmVhX2luaXQvaW5jbHVkZS9h
+c20taTM4Ni9tbXpvbmUuaCAzMy1hbGxvY19wYWdlcy9pbmNsdWRlL2FzbS1pMzg2L21tem9uZS5o
+Ci0tLSAzMi1mcmVlX2FyZWFfaW5pdC9pbmNsdWRlL2FzbS1pMzg2L21tem9uZS5oCUZyaSBTZXAg
+IDYgMjM6MDM6MTkgMjAwMgorKysgMzMtYWxsb2NfcGFnZXMvaW5jbHVkZS9hc20taTM4Ni9tbXpv
+bmUuaAlTYXQgU2VwICA3IDExOjMxOjI2IDIwMDIKQEAgLTYsNiArNiw4IEBACiAjaWZuZGVmIF9B
+U01fTU1aT05FX0hfCiAjZGVmaW5lIF9BU01fTU1aT05FX0hfCiAKKyNpbmNsdWRlIDxhc20vc21w
+Lmg+CisKICNpZmRlZiBDT05GSUdfRElTQ09OVElHTUVNCiAKICNpZmRlZiBDT05GSUdfWDg2X05V
+TUFRCmRpZmYgLXVyTiAtWCAvaG9tZS9tYmxpZ2gvLmRpZmYuZXhjbHVkZSAzMi1mcmVlX2FyZWFf
+aW5pdC9pbmNsdWRlL2FzbS1pMzg2L251bW5vZGVzLmggMzMtYWxsb2NfcGFnZXMvaW5jbHVkZS9h
+c20taTM4Ni9udW1ub2Rlcy5oCi0tLSAzMi1mcmVlX2FyZWFfaW5pdC9pbmNsdWRlL2FzbS1pMzg2
+L251bW5vZGVzLmgJV2VkIERlYyAzMSAxNjowMDowMCAxOTY5CisrKyAzMy1hbGxvY19wYWdlcy9p
+bmNsdWRlL2FzbS1pMzg2L251bW5vZGVzLmgJRnJpIFNlcCAgNiAyMjo0MDo1MSAyMDAyCkBAIC0w
+LDAgKzEsMTIgQEAKKyNpZm5kZWYgX0FTTV9NQVhfTlVNTk9ERVNfSAorI2RlZmluZSBfQVNNX01B
+WF9OVU1OT0RFU19ICisKKyNpbmNsdWRlIDxsaW51eC9jb25maWcuaD4KKworI2lmZGVmIENPTkZJ
+R19YODZfTlVNQVEKKyNpbmNsdWRlIDxhc20vbnVtYXEuaD4KKyNlbHNlCisjZGVmaW5lIE1BWF9O
+VU1OT0RFUwkxCisjZW5kaWYgLyogQ09ORklHX1g4Nl9OVU1BUSAqLworCisjZW5kaWYgLyogX0FT
+TV9NQVhfTlVNTk9ERVNfSCAqLwpkaWZmIC11ck4gLVggL2hvbWUvbWJsaWdoLy5kaWZmLmV4Y2x1
+ZGUgMzItZnJlZV9hcmVhX2luaXQvaW5jbHVkZS9saW51eC9nZnAuaCAzMy1hbGxvY19wYWdlcy9p
+bmNsdWRlL2xpbnV4L2dmcC5oCi0tLSAzMi1mcmVlX2FyZWFfaW5pdC9pbmNsdWRlL2xpbnV4L2dm
+cC5oCVNhdCBBdWcgMzEgMTU6MDQ6NTMgMjAwMgorKysgMzMtYWxsb2NfcGFnZXMvaW5jbHVkZS9s
+aW51eC9nZnAuaAlTYXQgU2VwICA3IDA5OjA4OjQ2IDIwMDIKQEAgLTM5LDE4ICszOSwyNSBAQAog
+ICogY2FuIGFsbG9jYXRlIGhpZ2htZW0gcGFnZXMsIHRoZSAqZ2V0KnBhZ2UqKCkgdmFyaWFudHMg
+cmV0dXJuCiAgKiB2aXJ0dWFsIGtlcm5lbCBhZGRyZXNzZXMgdG8gdGhlIGFsbG9jYXRlZCBwYWdl
+KHMpLgogICovCi1leHRlcm4gc3RydWN0IHBhZ2UgKiBGQVNUQ0FMTChfYWxsb2NfcGFnZXModW5z
+aWduZWQgaW50IGdmcF9tYXNrLCB1bnNpZ25lZCBpbnQgb3JkZXIpKTsKIGV4dGVybiBzdHJ1Y3Qg
+cGFnZSAqIEZBU1RDQUxMKF9fYWxsb2NfcGFnZXModW5zaWduZWQgaW50IGdmcF9tYXNrLCB1bnNp
+Z25lZCBpbnQgb3JkZXIsIHN0cnVjdCB6b25lbGlzdCAqem9uZWxpc3QpKTsKIGV4dGVybiBzdHJ1
+Y3QgcGFnZSAqIGFsbG9jX3BhZ2VzX25vZGUoaW50IG5pZCwgdW5zaWduZWQgaW50IGdmcF9tYXNr
+LCB1bnNpZ25lZCBpbnQgb3JkZXIpOwogCisvKgorICogV2UgZ2V0IHRoZSB6b25lIGxpc3QgZnJv
+bSB0aGUgY3VycmVudCBub2RlIGFuZCB0aGUgZ2ZwX21hc2suCisgKiBUaGlzIHpvbmUgbGlzdCBj
+b250YWlucyBhIG1heGltdW0gb2YgTUFYTk9ERVMqTUFYX05SX1pPTkVTIHpvbmVzLgorICoKKyAq
+IEZvciB0aGUgbm9ybWFsIGNhc2Ugb2Ygbm9uLURJU0NPTlRJR01FTSBzeXN0ZW1zIHRoZSBOT0RF
+X0RBVEEoKSBnZXRzCisgKiBvcHRpbWl6ZWQgdG8gJmNvbnRpZ19wYWdlX2RhdGEgYXQgY29tcGls
+ZS10aW1lLgorICovCiBzdGF0aWMgaW5saW5lIHN0cnVjdCBwYWdlICogYWxsb2NfcGFnZXModW5z
+aWduZWQgaW50IGdmcF9tYXNrLCB1bnNpZ25lZCBpbnQgb3JkZXIpCiB7Ci0JLyoKLQkgKiBHZXRz
+IG9wdGltaXplZCBhd2F5IGJ5IHRoZSBjb21waWxlci4KLQkgKi8KLQlpZiAob3JkZXIgPj0gTUFY
+X09SREVSKQorCXBnX2RhdGFfdCAqcGdkYXQgPSBOT0RFX0RBVEEobnVtYV9ub2RlX2lkKCkpOwor
+CXVuc2lnbmVkIGludCBpZHggPSAoZ2ZwX21hc2sgJiBHRlBfWk9ORU1BU0spOworCisJaWYgKHVu
+bGlrZWx5KG9yZGVyID49IE1BWF9PUkRFUikpCiAJCXJldHVybiBOVUxMOwotCXJldHVybiBfYWxs
+b2NfcGFnZXMoZ2ZwX21hc2ssIG9yZGVyKTsKKworCXJldHVybiBfX2FsbG9jX3BhZ2VzKGdmcF9t
+YXNrLCBvcmRlciwgcGdkYXQtPm5vZGVfem9uZWxpc3RzICsgaWR4KTsKIH0KIAogI2RlZmluZSBh
+bGxvY19wYWdlKGdmcF9tYXNrKSBhbGxvY19wYWdlcyhnZnBfbWFzaywgMCkKZGlmZiAtdXJOIC1Y
+IC9ob21lL21ibGlnaC8uZGlmZi5leGNsdWRlIDMyLWZyZWVfYXJlYV9pbml0L2luY2x1ZGUvbGlu
+dXgvbW16b25lLmggMzMtYWxsb2NfcGFnZXMvaW5jbHVkZS9saW51eC9tbXpvbmUuaAotLS0gMzIt
+ZnJlZV9hcmVhX2luaXQvaW5jbHVkZS9saW51eC9tbXpvbmUuaAlGcmkgU2VwICA2IDIzOjIxOjUx
+IDIwMDIKKysrIDMzLWFsbG9jX3BhZ2VzL2luY2x1ZGUvbGludXgvbW16b25lLmgJU2F0IFNlcCAg
+NyAwOToxODowMSAyMDAyCkBAIC0xMCwxMSArMTAsMTQgQEAKICNpbmNsdWRlIDxsaW51eC93YWl0
+Lmg+CiAjaW5jbHVkZSA8bGludXgvY2FjaGUuaD4KICNpbmNsdWRlIDxhc20vYXRvbWljLmg+Cisj
+aWZkZWYgQ09ORklHX0RJU0NPTlRJR01FTQorI2luY2x1ZGUgPGFzbS9udW1ub2Rlcy5oPgorI2Vu
+ZGlmCisjaWZuZGVmIE1BWF9OVU1OT0RFUworI2RlZmluZSBNQVhfTlVNTk9ERVMgMQorI2VuZGlm
+CiAKLS8qCi0gKiBGcmVlIG1lbW9yeSBtYW5hZ2VtZW50IC0gem9uZWQgYnVkZHkgYWxsb2NhdG9y
+LgotICovCi0KKy8qIEZyZWUgbWVtb3J5IG1hbmFnZW1lbnQgLSB6b25lZCBidWRkeSBhbGxvY2F0
+b3IuICAqLwogI2lmbmRlZiBDT05GSUdfRk9SQ0VfTUFYX1pPTkVPUkRFUgogI2RlZmluZSBNQVhf
+T1JERVIgMTUKICNlbHNlCkBAIC0xMzcsNyArMTQwLDcgQEAKICAqIGZvb3RwcmludCBvZiB0aGlz
+IGNvbnN0cnVjdCBpcyB2ZXJ5IHNtYWxsLgogICovCiBzdHJ1Y3Qgem9uZWxpc3QgewotCXN0cnVj
+dCB6b25lICp6b25lc1tNQVhfTlJfWk9ORVMrMV07IC8vIE5VTEwgZGVsaW1pdGVkCisJc3RydWN0
+IHpvbmUgKnpvbmVzW01BWF9OVU1OT0RFUyAqIE1BWF9OUl9aT05FUyArIDFdOyAvLyBOVUxMIGRl
+bGltaXRlZAogfTsKIAogI2RlZmluZSBHRlBfWk9ORU1BU0sJMHgwZgpAQCAtMTkwLDYgKzE5Myw3
+IEBACiBleHRlcm4gdm9pZCBmcmVlX2FyZWFfaW5pdF9jb3JlKHBnX2RhdGFfdCAqcGdkYXQsIHVu
+c2lnbmVkIGxvbmcgKnpvbmVzX3NpemUsCiAJCXVuc2lnbmVkIGxvbmcgKnpob2xlc19zaXplKTsK
+IHZvaWQgZ2V0X3pvbmVfY291bnRzKHVuc2lnbmVkIGxvbmcgKmFjdGl2ZSwgdW5zaWduZWQgbG9u
+ZyAqaW5hY3RpdmUpOworZXh0ZXJuIHZvaWQgYnVpbGRfYWxsX3pvbmVsaXN0cyh2b2lkKTsKIAog
+ZXh0ZXJuIHBnX2RhdGFfdCBjb250aWdfcGFnZV9kYXRhOwogCmRpZmYgLXVyTiAtWCAvaG9tZS9t
+YmxpZ2gvLmRpZmYuZXhjbHVkZSAzMi1mcmVlX2FyZWFfaW5pdC9pbml0L21haW4uYyAzMy1hbGxv
+Y19wYWdlcy9pbml0L21haW4uYwotLS0gMzItZnJlZV9hcmVhX2luaXQvaW5pdC9tYWluLmMJRnJp
+IFNlcCAgNiAyMjo0MDo1MSAyMDAyCisrKyAzMy1hbGxvY19wYWdlcy9pbml0L21haW4uYwlTYXQg
+U2VwICA3IDA5OjAzOjMzIDIwMDIKQEAgLTM5Niw2ICszOTYsNyBAQAogCXByaW50ayhsaW51eF9i
+YW5uZXIpOwogCXNldHVwX2FyY2goJmNvbW1hbmRfbGluZSk7CiAJc2V0dXBfcGVyX2NwdV9hcmVh
+cygpOworCWJ1aWxkX2FsbF96b25lbGlzdHMoKTsKIAlwcmludGsoIktlcm5lbCBjb21tYW5kIGxp
+bmU6ICVzXG4iLCBzYXZlZF9jb21tYW5kX2xpbmUpOwogCXBhcnNlX29wdGlvbnMoY29tbWFuZF9s
+aW5lKTsKIAl0cmFwX2luaXQoKTsKZGlmZiAtdXJOIC1YIC9ob21lL21ibGlnaC8uZGlmZi5leGNs
+dWRlIDMyLWZyZWVfYXJlYV9pbml0L2tlcm5lbC9rc3ltcy5jIDMzLWFsbG9jX3BhZ2VzL2tlcm5l
+bC9rc3ltcy5jCi0tLSAzMi1mcmVlX2FyZWFfaW5pdC9rZXJuZWwva3N5bXMuYwlGcmkgU2VwICA2
+IDIzOjAzOjE5IDIwMDIKKysrIDMzLWFsbG9jX3BhZ2VzL2tlcm5lbC9rc3ltcy5jCVNhdCBTZXAg
+IDcgMDk6MjA6MTggMjAwMgpAQCAtODksNyArODksNiBAQAogRVhQT1JUX1NZTUJPTChleGl0X21t
+KTsKIAogLyogaW50ZXJuYWwga2VybmVsIG1lbW9yeSBtYW5hZ2VtZW50ICovCi1FWFBPUlRfU1lN
+Qk9MKF9hbGxvY19wYWdlcyk7CiBFWFBPUlRfU1lNQk9MKF9fYWxsb2NfcGFnZXMpOwogRVhQT1JU
+X1NZTUJPTChhbGxvY19wYWdlc19ub2RlKTsKIEVYUE9SVF9TWU1CT0woX19nZXRfZnJlZV9wYWdl
+cyk7CkBAIC0xMTYsNiArMTE1LDcgQEAKIEVYUE9SVF9TWU1CT0wodm1hbGxvY190b19wYWdlKTsK
+IEVYUE9SVF9TWU1CT0wocmVtYXBfcGFnZV9yYW5nZSk7CiAjaWZuZGVmIENPTkZJR19ESVNDT05U
+SUdNRU0KK0VYUE9SVF9TWU1CT0woY29udGlnX3BhZ2VfZGF0YSk7CiBFWFBPUlRfU1lNQk9MKG1l
+bV9tYXApOwogRVhQT1JUX1NZTUJPTChtYXhfbWFwbnIpOwogI2VuZGlmCmRpZmYgLXVyTiAtWCAv
+aG9tZS9tYmxpZ2gvLmRpZmYuZXhjbHVkZSAzMi1mcmVlX2FyZWFfaW5pdC9tbS9udW1hLmMgMzMt
+YWxsb2NfcGFnZXMvbW0vbnVtYS5jCi0tLSAzMi1mcmVlX2FyZWFfaW5pdC9tbS9udW1hLmMJRnJp
+IFNlcCAgNiAyMzowMzoxOSAyMDAyCisrKyAzMy1hbGxvY19wYWdlcy9tbS9udW1hLmMJU2F0IFNl
+cCAgNyAwOTowMzozMyAyMDAyCkBAIC04NSw0OCArODUsNCBAQAogCW1lbXNldChwZ2RhdC0+dmFs
+aWRfYWRkcl9iaXRtYXAsIDAsIHNpemUpOwogfQogCi1zdGF0aWMgc3RydWN0IHBhZ2UgKiBhbGxv
+Y19wYWdlc19wZ2RhdChwZ19kYXRhX3QgKnBnZGF0LCB1bnNpZ25lZCBpbnQgZ2ZwX21hc2ssCi0J
+dW5zaWduZWQgaW50IG9yZGVyKQotewotCXJldHVybiBfX2FsbG9jX3BhZ2VzKGdmcF9tYXNrLCBv
+cmRlciwgcGdkYXQtPm5vZGVfem9uZWxpc3RzICsgKGdmcF9tYXNrICYgR0ZQX1pPTkVNQVNLKSk7
+Ci19Ci0KLS8qCi0gKiBUaGlzIGNhbiBiZSByZWZpbmVkLiBDdXJyZW50bHksIHRyaWVzIHRvIGRv
+IHJvdW5kIHJvYmluLCBpbnN0ZWFkCi0gKiBzaG91bGQgZG8gY29uY2VudHJhdGljIGNpcmNsZSBz
+ZWFyY2gsIHN0YXJ0aW5nIGZyb20gY3VycmVudCBub2RlLgotICovCi1zdHJ1Y3QgcGFnZSAqIF9h
+bGxvY19wYWdlcyh1bnNpZ25lZCBpbnQgZ2ZwX21hc2ssIHVuc2lnbmVkIGludCBvcmRlcikKLXsK
+LQlzdHJ1Y3QgcGFnZSAqcmV0ID0gMDsKLQlwZ19kYXRhX3QgKnN0YXJ0LCAqdGVtcDsKLSNpZm5k
+ZWYgQ09ORklHX05VTUEKLQl1bnNpZ25lZCBsb25nIGZsYWdzOwotCXN0YXRpYyBwZ19kYXRhX3Qg
+Km5leHQgPSAwOwotI2VuZGlmCi0KLQlpZiAob3JkZXIgPj0gTUFYX09SREVSKQotCQlyZXR1cm4g
+TlVMTDsKLSNpZmRlZiBDT05GSUdfTlVNQQotCXRlbXAgPSBOT0RFX0RBVEEobnVtYV9ub2RlX2lk
+KCkpOwotI2Vsc2UKLQlpZiAoIW5leHQpCi0JCW5leHQgPSBwZ2RhdF9saXN0OwotCXRlbXAgPSBu
+ZXh0OwotCW5leHQgPSBuZXh0LT5wZ2RhdF9uZXh0OwotI2VuZGlmCi0Jc3RhcnQgPSB0ZW1wOwot
+CXdoaWxlICh0ZW1wKSB7Ci0JCWlmICgocmV0ID0gYWxsb2NfcGFnZXNfcGdkYXQodGVtcCwgZ2Zw
+X21hc2ssIG9yZGVyKSkpCi0JCQlyZXR1cm4ocmV0KTsKLQkJdGVtcCA9IHRlbXAtPnBnZGF0X25l
+eHQ7Ci0JfQotCXRlbXAgPSBwZ2RhdF9saXN0OwotCXdoaWxlICh0ZW1wICE9IHN0YXJ0KSB7Ci0J
+CWlmICgocmV0ID0gYWxsb2NfcGFnZXNfcGdkYXQodGVtcCwgZ2ZwX21hc2ssIG9yZGVyKSkpCi0J
+CQlyZXR1cm4ocmV0KTsKLQkJdGVtcCA9IHRlbXAtPnBnZGF0X25leHQ7Ci0JfQotCXJldHVybigw
+KTsKLX0KLQogI2VuZGlmIC8qIENPTkZJR19ESVNDT05USUdNRU0gKi8KZGlmZiAtdXJOIC1YIC9o
+b21lL21ibGlnaC8uZGlmZi5leGNsdWRlIDMyLWZyZWVfYXJlYV9pbml0L21tL3BhZ2VfYWxsb2Mu
+YyAzMy1hbGxvY19wYWdlcy9tbS9wYWdlX2FsbG9jLmMKLS0tIDMyLWZyZWVfYXJlYV9pbml0L21t
+L3BhZ2VfYWxsb2MuYwlGcmkgU2VwICA2IDIzOjI4OjQxIDIwMDIKKysrIDMzLWFsbG9jX3BhZ2Vz
+L21tL3BhZ2VfYWxsb2MuYwlTYXQgU2VwICA3IDExOjQxOjAzIDIwMDIKQEAgLTI1NiwxNCArMjU2
+LDYgQEAKIH0KICNlbmRpZiAvKiBDT05GSUdfU09GVFdBUkVfU1VTUEVORCAqLwogCi0jaWZuZGVm
+IENPTkZJR19ESVNDT05USUdNRU0KLXN0cnVjdCBwYWdlICpfYWxsb2NfcGFnZXModW5zaWduZWQg
+aW50IGdmcF9tYXNrLCB1bnNpZ25lZCBpbnQgb3JkZXIpCi17Ci0JcmV0dXJuIF9fYWxsb2NfcGFn
+ZXMoZ2ZwX21hc2ssIG9yZGVyLAotCQljb250aWdfcGFnZV9kYXRhLm5vZGVfem9uZWxpc3RzKyhn
+ZnBfbWFzayAmIEdGUF9aT05FTUFTSykpOwotfQotI2VuZGlmCi0KIHN0YXRpYyAvKiBpbmxpbmUg
+Ki8gc3RydWN0IHBhZ2UgKgogYmFsYW5jZV9jbGFzc3pvbmUoc3RydWN0IHpvbmUqIGNsYXNzem9u
+ZSwgdW5zaWduZWQgaW50IGdmcF9tYXNrLAogCQkJdW5zaWduZWQgaW50IG9yZGVyLCBpbnQgKiBm
+cmVlZCkKQEAgLTY3OSwxMyArNjcxLDQxIEBACiAvKgogICogQnVpbGRzIGFsbG9jYXRpb24gZmFs
+bGJhY2sgem9uZSBsaXN0cy4KICAqLwotc3RhdGljIGlubGluZSB2b2lkIGJ1aWxkX3pvbmVsaXN0
+cyhwZ19kYXRhX3QgKnBnZGF0KQorc3RhdGljIGludCBfX2luaXQgYnVpbGRfem9uZWxpc3RzX25v
+ZGUocGdfZGF0YV90ICpwZ2RhdCwgc3RydWN0IHpvbmVsaXN0ICp6b25lbGlzdCwgaW50IGosIGlu
+dCBrKQoreworCXN3aXRjaCAoaykgeworCQlzdHJ1Y3Qgem9uZSAqem9uZTsKKwlkZWZhdWx0Ogor
+CQlCVUcoKTsKKwljYXNlIFpPTkVfSElHSE1FTToKKwkJem9uZSA9IHBnZGF0LT5ub2RlX3pvbmVz
+ICsgWk9ORV9ISUdITUVNOworCQlpZiAoem9uZS0+c2l6ZSkgeworI2lmbmRlZiBDT05GSUdfSElH
+SE1FTQorCQkJQlVHKCk7CisjZW5kaWYKKwkJCXpvbmVsaXN0LT56b25lc1tqKytdID0gem9uZTsK
+KwkJfQorCWNhc2UgWk9ORV9OT1JNQUw6CisJCXpvbmUgPSBwZ2RhdC0+bm9kZV96b25lcyArIFpP
+TkVfTk9STUFMOworCQlpZiAoem9uZS0+c2l6ZSkKKwkJCXpvbmVsaXN0LT56b25lc1tqKytdID0g
+em9uZTsKKwljYXNlIFpPTkVfRE1BOgorCQl6b25lID0gcGdkYXQtPm5vZGVfem9uZXMgKyBaT05F
+X0RNQTsKKwkJaWYgKHpvbmUtPnNpemUpCisJCQl6b25lbGlzdC0+em9uZXNbaisrXSA9IHpvbmU7
+CisJfQorCisJcmV0dXJuIGo7Cit9CisKK3N0YXRpYyB2b2lkIF9faW5pdCBidWlsZF96b25lbGlz
+dHMocGdfZGF0YV90ICpwZ2RhdCkKIHsKLQlpbnQgaSwgaiwgazsKKwlpbnQgaSwgaiwgaywgbm9k
+ZSwgbG9jYWxfbm9kZTsKIAorCWxvY2FsX25vZGUgPSBwZ2RhdC0+bm9kZV9pZDsKKwlwcmludGso
+IkJ1aWxkaW5nIHpvbmVsaXN0IGZvciBub2RlIDogJWRcbiIsIGxvY2FsX25vZGUpOwogCWZvciAo
+aSA9IDA7IGkgPD0gR0ZQX1pPTkVNQVNLOyBpKyspIHsKIAkJc3RydWN0IHpvbmVsaXN0ICp6b25l
+bGlzdDsKLQkJc3RydWN0IHpvbmUgKnpvbmU7CiAKIAkJem9uZWxpc3QgPSBwZ2RhdC0+bm9kZV96
+b25lbGlzdHMgKyBpOwogCQltZW1zZXQoem9uZWxpc3QsIDAsIHNpemVvZigqem9uZWxpc3QpKTsK
+QEAgLTY5NywzMyArNzE3LDMyIEBACiAJCWlmIChpICYgX19HRlBfRE1BKQogCQkJayA9IFpPTkVf
+RE1BOwogCi0JCXN3aXRjaCAoaykgewotCQkJZGVmYXVsdDoKLQkJCQlCVUcoKTsKLQkJCS8qCi0J
+CQkgKiBmYWxsdGhyb3VnaDoKLQkJCSAqLwotCQkJY2FzZSBaT05FX0hJR0hNRU06Ci0JCQkJem9u
+ZSA9IHBnZGF0LT5ub2RlX3pvbmVzICsgWk9ORV9ISUdITUVNOwotCQkJCWlmICh6b25lLT5zaXpl
+KSB7Ci0jaWZuZGVmIENPTkZJR19ISUdITUVNCi0JCQkJCUJVRygpOwotI2VuZGlmCi0JCQkJCXpv
+bmVsaXN0LT56b25lc1tqKytdID0gem9uZTsKLQkJCQl9Ci0JCQljYXNlIFpPTkVfTk9STUFMOgot
+CQkJCXpvbmUgPSBwZ2RhdC0+bm9kZV96b25lcyArIFpPTkVfTk9STUFMOwotCQkJCWlmICh6b25l
+LT5zaXplKQotCQkJCQl6b25lbGlzdC0+em9uZXNbaisrXSA9IHpvbmU7Ci0JCQljYXNlIFpPTkVf
+RE1BOgotCQkJCXpvbmUgPSBwZ2RhdC0+bm9kZV96b25lcyArIFpPTkVfRE1BOwotCQkJCWlmICh6
+b25lLT5zaXplKQotCQkJCQl6b25lbGlzdC0+em9uZXNbaisrXSA9IHpvbmU7Ci0JCX0KKyAJCWog
+PSBidWlsZF96b25lbGlzdHNfbm9kZShwZ2RhdCwgem9uZWxpc3QsIGosIGspOworIAkJLyoKKyAJ
+CSAqIE5vdyB3ZSBidWlsZCB0aGUgem9uZWxpc3Qgc28gdGhhdCBpdCBjb250YWlucyB0aGUgem9u
+ZXMKKyAJCSAqIG9mIGFsbCB0aGUgb3RoZXIgbm9kZXMuCisgCQkgKiBXZSBkb24ndCB3YW50IHRv
+IHByZXNzdXJlIGEgcGFydGljdWxhciBub2RlLCBzbyB3aGVuCisgCQkgKiBidWlsZGluZyB0aGUg
+em9uZXMgZm9yIG5vZGUgTiwgd2UgbWFrZSBzdXJlIHRoYXQgdGhlCisgCQkgKiB6b25lcyBjb21p
+bmcgcmlnaHQgYWZ0ZXIgdGhlIGxvY2FsIG9uZXMgYXJlIHRob3NlIGZyb20KKyAJCSAqIG5vZGUg
+TisxIChtb2R1bG8gTikKKyAJCSAqLworIAkJZm9yIChub2RlID0gbG9jYWxfbm9kZSArIDE7IG5v
+ZGUgPCBudW1ub2Rlczsgbm9kZSsrKQorIAkJCWogPSBidWlsZF96b25lbGlzdHNfbm9kZShOT0RF
+X0RBVEEobm9kZSksIHpvbmVsaXN0LCBqLCBrKTsKKyAJCWZvciAobm9kZSA9IDA7IG5vZGUgPCBs
+b2NhbF9ub2RlOyBub2RlKyspCisgCQkJaiA9IGJ1aWxkX3pvbmVsaXN0c19ub2RlKE5PREVfREFU
+QShub2RlKSwgem9uZWxpc3QsIGosIGspOworIAogCQl6b25lbGlzdC0+em9uZXNbaisrXSA9IE5V
+TEw7CiAJfSAKIH0KIAordm9pZCBfX2luaXQgYnVpbGRfYWxsX3pvbmVsaXN0cyh2b2lkKQorewor
+CWludCBpOworCisJZm9yKGkgPSAwIDsgaSA8IG51bW5vZGVzIDsgaSsrKQorCQlidWlsZF96b25l
+bGlzdHMoTk9ERV9EQVRBKGkpKTsKK30KKwogdm9pZCBfX2luaXQgY2FsY3VsYXRlX3RvdGFscGFn
+ZXMgKHBnX2RhdGFfdCAqcGdkYXQsIHVuc2lnbmVkIGxvbmcgKnpvbmVzX3NpemUsCiAJdW5zaWdu
+ZWQgbG9uZyAqemhvbGVzX3NpemUpCiB7CkBAIC05MTksNyArOTM4LDYgQEAKIAkJCSAgKHVuc2ln
+bmVkIGxvbmcgKikgYWxsb2NfYm9vdG1lbV9ub2RlKHBnZGF0LCBiaXRtYXBfc2l6ZSk7CiAJCX0K
+IAl9Ci0JYnVpbGRfem9uZWxpc3RzKHBnZGF0KTsKIH0KIAogI2lmbmRlZiBDT05GSUdfRElTQ09O
+VElHTUVNCg==
 
-Ed Tomlinson
+--==========185371270==========--
 
---------- slabasap_A0
-# This is a BitKeeper generated patch for the following project:
-# Project Name: Linux kernel tree
-# This patch format is intended for GNU patch command version 2.5 or higher.
-# This patch includes the following deltas:
-#	           ChangeSet	1.580   -> 1.584  
-#	  include/linux/mm.h	1.77    -> 1.78   
-#	     mm/page_alloc.c	1.96    -> 1.97   
-#	         fs/dcache.c	1.29    -> 1.31   
-#	         mm/vmscan.c	1.100   -> 1.102  
-#	          fs/dquot.c	1.44    -> 1.46   
-#	           mm/slab.c	1.26    -> 1.27   
-#	          fs/inode.c	1.67    -> 1.69   
-#	include/linux/dcache.h	1.15    -> 1.16   
-#
-# The following is the BitKeeper ChangeSet Log
-# --------------------------------------------
-# 02/09/05	ed@oscar.et.ca	1.581
-# free slab pages asap
-# --------------------------------------------
-# 02/09/07	ed@oscar.et.ca	1.584
-# Here we assume one reclaimed page takes one seek to recreate.  We also
-# assume a dentry or inode also takes a seek to rebuild.  With this in 
-# mind we trim the cache by the same percentage we trim the lru.
-# --------------------------------------------
-#
-diff -Nru a/fs/dcache.c b/fs/dcache.c
---- a/fs/dcache.c	Sat Sep  7 09:30:46 2002
-+++ b/fs/dcache.c	Sat Sep  7 09:30:46 2002
-@@ -573,19 +572,11 @@
- 
- /*
-  * This is called from kswapd when we think we need some
-- * more memory, but aren't really sure how much. So we
-- * carefully try to free a _bit_ of our dcache, but not
-- * too much.
-- *
-- * Priority:
-- *   1 - very urgent: shrink everything
-- *  ...
-- *   6 - base-level: try to shrink a bit.
-+ * more memory. 
-  */
--int shrink_dcache_memory(int priority, unsigned int gfp_mask)
-+int shrink_dcache_memory(int ratio, unsigned int gfp_mask)
- {
--	int count = 0;
--
-+	int entries = dentry_stat.nr_dentry / ratio + 1;
- 	/*
- 	 * Nasty deadlock avoidance.
- 	 *
-@@ -600,11 +591,8 @@
- 	if (!(gfp_mask & __GFP_FS))
- 		return 0;
- 
--	count = dentry_stat.nr_unused / priority;
--
--	prune_dcache(count);
--	kmem_cache_shrink(dentry_cache);
--	return 0;
-+	prune_dcache(entries);
-+	return entries;
- }
- 
- #define NAME_ALLOC_LEN(len)	((len+16) & ~15)
-diff -Nru a/fs/dquot.c b/fs/dquot.c
---- a/fs/dquot.c	Sat Sep  7 09:30:46 2002
-+++ b/fs/dquot.c	Sat Sep  7 09:30:46 2002
-@@ -480,26 +480,17 @@
- 
- /*
-  * This is called from kswapd when we think we need some
-- * more memory, but aren't really sure how much. So we
-- * carefully try to free a _bit_ of our dqcache, but not
-- * too much.
-- *
-- * Priority:
-- *   1 - very urgent: shrink everything
-- *   ...
-- *   6 - base-level: try to shrink a bit.
-+ * more memory
-  */
- 
--int shrink_dqcache_memory(int priority, unsigned int gfp_mask)
-+int shrink_dqcache_memory(int ratio, unsigned int gfp_mask)
- {
--	int count = 0;
-+	entries = dqstats.allocated_dquots / ratio + 1;
- 
- 	lock_kernel();
--	count = dqstats.free_dquots / priority;
--	prune_dqcache(count);
-+	prune_dqcache(entries);
- 	unlock_kernel();
--	kmem_cache_shrink(dquot_cachep);
--	return 0;
-+	return entries;
- }
- 
- /*
-diff -Nru a/fs/inode.c b/fs/inode.c
---- a/fs/inode.c	Sat Sep  7 09:30:46 2002
-+++ b/fs/inode.c	Sat Sep  7 09:30:46 2002
-@@ -415,19 +415,11 @@
- 
- /*
-  * This is called from kswapd when we think we need some
-- * more memory, but aren't really sure how much. So we
-- * carefully try to free a _bit_ of our icache, but not
-- * too much.
-- *
-- * Priority:
-- *   1 - very urgent: shrink everything
-- *  ...
-- *   6 - base-level: try to shrink a bit.
-+ * more memory. 
-  */
--int shrink_icache_memory(int priority, int gfp_mask)
-+int shrink_icache_memory(int ratio, unsigned int gfp_mask)
- {
--	int count = 0;
--
-+	int entries = inodes_stat.nr_inodes / ratio + 1;
- 	/*
- 	 * Nasty deadlock avoidance..
- 	 *
-@@ -438,12 +430,10 @@
- 	if (!(gfp_mask & __GFP_FS))
- 		return 0;
- 
--	count = inodes_stat.nr_unused / priority;
--
--	prune_icache(count);
--	kmem_cache_shrink(inode_cachep);
--	return 0;
-+	prune_icache(entries);
-+	return entries;
- }
-+EXPORT_SYMBOL(shrink_icache_memory);
- 
- /*
-  * Called with the inode lock held.
-diff -Nru a/include/linux/dcache.h b/include/linux/dcache.h
---- a/include/linux/dcache.h	Sat Sep  7 09:30:46 2002
-+++ b/include/linux/dcache.h	Sat Sep  7 09:30:46 2002
-@@ -186,7 +186,7 @@
- extern void prune_dcache(int);
- 
- /* icache memory management (defined in linux/fs/inode.c) */
--extern int shrink_icache_memory(int, int);
-+extern int shrink_icache_memory(int, unsigned int);
- extern void prune_icache(int);
- 
- /* quota cache memory management (defined in linux/fs/dquot.c) */
-diff -Nru a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h	Sat Sep  7 09:30:46 2002
-+++ b/include/linux/mm.h	Sat Sep  7 09:30:46 2002
-@@ -498,6 +498,7 @@
- 
- extern struct page * vmalloc_to_page(void *addr);
- extern unsigned long get_page_cache_size(void);
-+extern unsigned int nr_used_zone_pages(void);
- 
- #endif /* __KERNEL__ */
- 
-diff -Nru a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c	Sat Sep  7 09:30:46 2002
-+++ b/mm/page_alloc.c	Sat Sep  7 09:30:46 2002
-@@ -486,6 +486,19 @@
- 	return sum;
- }
- 
-+unsigned int nr_used_zone_pages(void)
-+{
-+	pg_data_t *pgdat;
-+	unsigned int pages = 0;
-+
-+	for_each_pgdat(pgdat) {
-+		pages += pgdat->node_zones[ZONE_DMA].nr_active;
-+		pages += pgdat->node_zones[ZONE_NORMAL].nr_inactive;
-+	}
-+
-+	return pages;
-+}
-+
- static unsigned int nr_free_zone_pages(int offset)
- {
- 	pg_data_t *pgdat;
-diff -Nru a/mm/slab.c b/mm/slab.c
---- a/mm/slab.c	Sat Sep  7 09:30:46 2002
-+++ b/mm/slab.c	Sat Sep  7 09:30:46 2002
-@@ -1500,7 +1500,11 @@
- 		if (unlikely(!--slabp->inuse)) {
- 			/* Was partial or full, now empty. */
- 			list_del(&slabp->list);
--			list_add(&slabp->list, &cachep->slabs_free);
-+/*			list_add(&slabp->list, &cachep->slabs_free); 		*/
-+			if (unlikely(list_empty(&cachep->slabs_partial)))
-+				list_add(&slabp->list, &cachep->slabs_partial);
-+			else
-+				kmem_slab_destroy(cachep, slabp);
- 		} else if (unlikely(inuse == cachep->num)) {
- 			/* Was full. */
- 			list_del(&slabp->list);
-@@ -1969,7 +1973,7 @@
- 	}
- 	list_for_each(q,&cachep->slabs_partial) {
- 		slabp = list_entry(q, slab_t, list);
--		if (slabp->inuse == cachep->num || !slabp->inuse)
-+		if (slabp->inuse == cachep->num)
- 			BUG();
- 		active_objs += slabp->inuse;
- 		active_slabs++;
-diff -Nru a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c	Sat Sep  7 09:30:46 2002
-+++ b/mm/vmscan.c	Sat Sep  7 09:30:46 2002
-@@ -464,11 +464,13 @@
- 	unsigned int gfp_mask, int nr_pages)
- {
- 	unsigned long ratio;
--	int max_scan;
-+	int max_scan, nr_pages_in, pages, a, b;
- 
--	/* This is bogus for ZONE_HIGHMEM? */
--	if (kmem_cache_reap(gfp_mask) >= nr_pages)
--  		return 0;
-+	if (nr_pages <= 0)
-+		return 0;
-+
-+	pages = nr_used_zone_pages();
-+	nr_pages_in = nr_pages;
- 
- 	/*
- 	 * Try to keep the active list 2/3 of the size of the cache.  And
-@@ -483,7 +485,7 @@
- 	ratio = (unsigned long)nr_pages * zone->nr_active /
- 				((zone->nr_inactive | 1) * 2);
- 	atomic_add(ratio+1, &zone->refill_counter);
--	if (atomic_read(&zone->refill_counter) > SWAP_CLUSTER_MAX) {
-+	while (atomic_read(&zone->refill_counter) > SWAP_CLUSTER_MAX) {
- 		atomic_sub(SWAP_CLUSTER_MAX, &zone->refill_counter);
- 		refill_inactive_zone(zone, SWAP_CLUSTER_MAX);
- 	}
-@@ -492,18 +494,27 @@
- 	nr_pages = shrink_cache(nr_pages, zone,
- 				gfp_mask, priority, max_scan);
- 
-+	/*
-+	 * Here we assume it costs one seek to replace a lru page and that
-+	 * it also takes a seek to recreate a cache object.  With this in
-+	 * mind we age equal percentages of the lru and ageable caches.
-+	 * This should balance the seeks generated by these structures.
-+	 */
-+	if (likely(nr_pages_in > nr_pages)) {
-+		ratio = pages / (nr_pages_in-nr_pages);
-+		shrink_dcache_memory(ratio, gfp_mask);
-+
-+		/* After aging the dcache, age inodes too .. */
-+		shrink_icache_memory(ratio, gfp_mask);
-+#ifdef CONFIG_QUOTA
-+		shrink_dqcache_memory(ratio, gfp_mask);
-+#endif
-+	}
-+
- 	if (nr_pages <= 0)
- 		return 0;
- 
- 	wakeup_bdflush();
--
--	shrink_dcache_memory(priority, gfp_mask);
--
--	/* After shrinking the dcache, get rid of unused inodes too .. */
--	shrink_icache_memory(1, gfp_mask);
--#ifdef CONFIG_QUOTA
--	shrink_dqcache_memory(DEF_PRIORITY, gfp_mask);
--#endif
- 
- 	return nr_pages;
- }
-
----------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
