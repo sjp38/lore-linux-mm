@@ -1,59 +1,26 @@
-Date: Thu, 28 Sep 2000 17:12:34 +0200 (CEST)
-From: Mike Galbraith <mikeg@weiden.de>
-Subject: Re: 2.4.0-t9p7 and mmap002 - freeze
-In-Reply-To: <Pine.LNX.4.21.0009280710230.1814-100000@duckman.distro.conectiva>
-Message-ID: <Pine.Linu.4.10.10009281625130.763-100000@mikeg.weiden.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 28 Sep 2000 17:23:51 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
+Message-ID: <20000928172351.O17518@athlon.random>
+References: <20000928165427.K17518@athlon.random> <Pine.LNX.4.21.0009281704430.9445-100000@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0009281704430.9445-100000@elte.hu>; from mingo@elte.hu on Thu, Sep 28, 2000 at 05:13:59PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Roger Larsson <roger.larsson@norran.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Rik van Riel <riel@conectiva.com.br>, Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Sep 2000, Rik van Riel wrote:
+On Thu, Sep 28, 2000 at 05:13:59PM +0200, Ingo Molnar wrote:
+> Can anyone see any problems with the concept of this approach? This can be
 
-> On Thu, 28 Sep 2000, Mike Galbraith wrote:
-> > On Wed, 27 Sep 2000, Roger Larsson wrote:
-> > 
-> > > Tried latest patch with the same result - freeze...
-> > 
-> > Ditto.
-> 
-> I'm finally back from Linux Kongress and Linux Expo and
-> will look at the latest tree and integrate the fixes I
-> made while on the road later today (after I get some
-> sleep).
-> 
-> I have fixed this particular bug, which was caused by
-> us moving unfreeable pages to the inactive_dirty list
-> and back again, while not accomplishing anything useful.
-> 
-> The fix for this is trivial and I'll post it later
-> today (cleaned up and working in the current source
-> tree).
+It works only on top of a filesystem while all the checkpointing clever stuff
+is done internally by the DB (infact it _needs_ O_SYNC when it works on the
+fs).
 
-Cool!
-
-I've had a tiny bit of success (swptst _passed_ once, and currently
-locks with 1 inactive_clean page instead of always 0;) by fiddling
-with __alloc_pages() a bit.
-
-One thing that I _think_ may be a problem is using stale information.
-direct_reclaim is set once, it's set without checking that a reclaim
-is possible, and it's not updated as we proceed although the situation
-may change.
-
-Another thing I'm curious about is increasing memory pressure in the
-event of an allocation failure (retry).  Why do we do that?
-
-Comments?
-
-	-Mike (down periscope.. ahead dead slow;)
-
-P.S.  in buffer.c, we do a LockPage(), but no UnlockPage() in the
-case of no_buffer_head.. is that correct?
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
