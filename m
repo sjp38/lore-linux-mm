@@ -1,31 +1,36 @@
-Date: Mon, 2 Jul 2001 16:38:24 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Can reverse VM locks?
-In-Reply-To: <Pine.LNX.4.33.0107022014190.9756-100000@alloc.wat.veritas.com>
-Message-ID: <Pine.LNX.4.33L.0107021637260.14332-100000@imladris.rielhome.conectiva>
+Date: Tue, 3 Jul 2001 12:46:22 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: Removal of PG_marker scheme from 2.4.6-pre
+In-Reply-To: <Pine.LNX.4.33L.0107012301460.19985-100000@imladris.rielhome.conectiva>
+Message-ID: <Pine.LNX.4.21.0107031245590.2868-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: markhe@veritas.com
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Jul 2001 markhe@veritas.com wrote:
 
-> True?
+On Sun, 1 Jul 2001, Rik van Riel wrote:
 
-Yes, I think it is. Reversing the order of these locks would
-be cool indeed (especially for 2.5 ;))
+> On Sat, 30 Jun 2001, Marcelo Tosatti wrote:
+> 
+> > In pre7:
+> >
+> > "me: undo page_launder() LRU changes, they have nasty side effects"
+> >
+> > Can you be more verbose about this ?
+> 
+> I think this was fixed by the GFP_BUFFER vs. GFP_CAN_FS + GFP_CAN_IO
+> thing and Linus accidentally backed out the wrong code ;)
+> 
+> cheers,
+> Rik
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
+Nope.
 
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+-ac also freezes and it does not have the GFP_BUFFER changes. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
