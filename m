@@ -1,65 +1,47 @@
-Received: from oh1.openhere.com ([165.254.210.60])
- by oh1 (Mail-Gear 1.1.1) with SMTP id M2000022720131101569
- for <linux-mm@kvack.org>; Sun, 27 Feb 2000 20:13:11 -0500
-From: Sara@openhere.com
-Date: Sun, 27 Feb 2000 20:13:11 -0500
-Subject: Your site has been included on OpenHere
-Message-Id: <M2000022720131101569@openhere.com>
+Subject: Re: [RFC] [RFT] Shared /dev/zero mmaping feature
+References: <200002252308.PAA76871@google.engr.sgi.com>
+From: Christoph Rohland <hans-christoph.rohland@sap.com>
+Date: 29 Feb 2000 11:54:36 +0100
+In-Reply-To: kanoj@google.engr.sgi.com's message of "Fri, 25 Feb 2000 15:08:49 -0800 (PST)"
+Message-ID: <qwwem9wnus3.fsf@sap.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-Your site was recently submitted to OpenHere.com.  
-
-We have reviewed your site and decided to include it as follows:
-Link:  http://www.linux.eu.org/Linux-MM/
-Title:  Linux Memory Management
-Description:  This page should give a complete view of how the Linux MM subsystem works, what features are in the making, what patches are available and...
-OpenHere Category:  http://www.openhere.com/tech1/software/operating-systems/linux/kernel/
+Hi Kanoj,
 
 
-As you are listed as a contact person on the home page
-of this site, I am dropping you a quick note to let you
-know about your inclusion on OpenHere.
+kanoj@google.engr.sgi.com (Kanoj Sarcar) writes:
+> This is a patch against 2.3.47 that tries to implement shared /dev/zero
+> mappings. This is just a first cut attempt, I am hoping I will find a
+> few people to apply the patch and throw some real life programs at it
+> (preferably on low memory machines so that swapping is induced). 
+> 
+> Currently, you will also need to turn on CONFIG_SYSVIPC, but most of
+> the shm.c code can be split into a new ipc/shm_core.c file that is
+> always compiled in, irrespective of CONFIG_SYSVIPC. Linus, do you 
+> think this is the proper direction to follow?
+> 
+> Thanks. Comments and feedback welcome ...
 
-OpenHere is one of the 10 largest index and search sites 
-on the Internet and is specifically focused on creating 
-resources for the family.  
+Why do you use this special zero_id stuff? It clutters up the whole
+code.
 
-You can dynamically modify your site's listing at any time,  
-or include your site's listing in other categories on OpenHere.com.  
+If you would simply open a normal shm segment with key IPC_PRIVATE and
+directly remove it nobody can attach to it and it will be released on
+exit and everything. No special handling needed any more. BTW that's
+exectly what we do in user space to circumvent the missing MAP_ANON |
+MAP_SHARED.
 
-When you modify your site's listing, it is automatically placed at the 
-top of the category in which it is included, and is placed first in the 
-search engine results for the keywords relating to your site.
+I would also prefer to be able to see the allocated segments with the
+ipc* commands.
 
-To modify, add or delete your listing:
-
-1.  Go to the OpenHere category where your site is listed.
-2.  Click on the "Suggest a Site" link.
-3.  Follow the instructions for changing your listing.
-
-All of the modifications you submit to OpenHere.com are processed 
-in real time.  As soon as you see the response to your submission, 
-your site listing should be updated.
-
-OpenHere is frequented by both children and families.  
-As a result, www.OpenHere.com does not include links to material 
-which is illegal to display to minors.
-
-If you have a question, or need help in any way, please just send me a note.  
-Yes, I am a real person!
-
-Sara
-www.OpenHere.com
-Your key to the Net!
-
-
-
-
+Greetings
+          Christoph
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
