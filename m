@@ -1,56 +1,34 @@
-Message-ID: <20020427032438.84689.qmail@mail.com>
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Disposition: inline
-Content-Transfer-Encoding: 7bit
+Message-ID: <3CCAFC69.8090306@zytor.com>
+Date: Sat, 27 Apr 2002 12:30:49 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-From: "David Burrows" <spilt@catlover.com>
-Date: Fri, 26 Apr 2002 22:24:38 -0500
-Subject: Newsletter: Something for Everyone !                    78121
+Subject: Re: memory exhausted
+References: <5.1.0.14.2.20020424145006.00b17cb0@notes.tcindex.com> <Pine.LNX.4.44L.0204242318240.1960-100000@imladris.surriel.com> <20020425025753.GJ26092@holomorphy.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kezdo-request@mlf.linux.rulez.org, linux@legato.com, linux@milano.uis.edu.co, linux-mips@fnet.fr, linux@mlf.linux.rulez.org, linux-mm@kvack.org, linux-msdos@vger.rutgers.edu, linux-net@vger.rutgers.edu, linuxpl-request@cgs.pl, linux-ppp@vger.rutgers.edu
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Vivian Wang <vivianwang@tcindex.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The Hottest Sites on the Net - Something for Everyone !
+William Lee Irwin III wrote:
+> 
+> This is larger than the virtual address space of i386 machines,
+> but not larger than the physical address space. In principle, an
+> executive taking advantage of 36-bit physical addressing extensions and
+> performing its own memory management on the bare metal could perform an
+> in-core sort on a 36-bit physical addressing -capable 32-bit machine,
+> e.g. i386-style PAE/highmem machines and some 32-bit MIPS machines. A
+> kernel module could also in principle take advantage of the kernel's
+> low-level memory management facilities to perform such an in-core sort.
+> While possible, this is absolutely not recommended.
+> 
 
-Check this out: http://virginbest.com
+Good God, I hope x86-64 catches on soon and kills off this PAE silliness...
 
-This is a great newsletter for good people.  I found this site, http://virginbest.com while I was looking for excellent adult material.  And let me tell you, that this is one of the BEST sites around.  They have _EVERYTHING_, teen sluts getting banged in all holes, all positions, and all likings.  Old ladies, young ladies,big tits, little tits, nice ass, big ass, EVERYTHING!  And their damn movie collection is the bomb.  They have ALL original and UNIQUE content, if you take the time to look at the page: http://virginbest.com you will know what i'm talkin about.  
+	-hpa
 
-So, get your hand out of your pants and signup for some real good quality adult material, then put it back down again cuz you'll know what i'm talkin about :)
-
-Tell your friends too, the site is: http://virginbest.com
-
-Remove instructions below:
------
-In English:
-We apologize sincerely if you've received this message in error.  Often, when people subscribe to our newsletter they may enter wrong addresses, or addresses of their friends and others. Because of this, we ask that you visit http://virginbest.com/cgi/WWCnotify.pl to remove yourself from our newsletter.  We will _NOT_ email you again if you remove your email address. Because email is still not as reliable as web, we ask that you only go to http://virginbest.com/cgi/WWCnotify.pl to remove yourself and not respond to this mail.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
--- 
-
-_______________________________________________
-Sign-up for your own FREE Personalized E-mail at Mail.com
-http://www.mail.com/?sr=signup
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
