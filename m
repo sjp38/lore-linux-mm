@@ -1,45 +1,64 @@
-From: Alistair John Strachan <s0348365@sms.ed.ac.uk>
-Reply-To: s0348365@sms.ed.ac.uk
-Subject: Re: 2.6.4-rc2-mm1
-Date: Mon, 8 Mar 2004 19:44:01 +0000
+Message-ID: <404D06AA.6070100@cyberone.com.au>
+Date: Tue, 09 Mar 2004 10:50:02 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: blk_congestion_wait racy?
+References: <OF335311D8.7BCE1E48-ONC1256E51.0049DBF1-C1256E51.004AEA2A@de.ibm.com>
+In-Reply-To: <OF335311D8.7BCE1E48-ONC1256E51.0049DBF1-C1256E51.004AEA2A@de.ibm.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <200403081944.01964.s0348365@sms.ed.ac.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 08 March 2004 06:32, you wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.4-rc2/2.6
->.4-rc2-mm1/
+Martin Schwidefsky wrote:
+
 >
 >
-> - Added Jens's patch which teaches the kernel to use DMA when reading
->   audio from IDE CDROM drives.  These devices tend to be flakey, and we
->   need lots of testing please.
-[snip]
+>
+>>Gad, that'll make the VM scan its guts out.
+>>
+>Yes, I expected something like this.
+>
+>
+>>>2.6.4-rc2 + "fix" with 1 cpu
+>>>sys     0m0.880s
+>>>
+>>>2.6.4-rc2 + "fix" with 2 cpu
+>>>sys     0m1.560s
+>>>
+>>system time was doubled though.
+>>
+>That would be the additional cost for not waiting.
+>
+>
 
-This seems to work okay. When ripping a CD, cdparanoia's CPU utilisation
- never peaks beyond 4.0%. Very nice.
+I'd say its more like cacheline contention or something: reclaim
+won't simply be spinning with nothing to do because you're dirtying
+plenty of memory. And if any queues were full it will mostly just be
+blocking in the block layer.
 
-  PID USER      PR  NI  VIRT  RES  SHR S %CPU %MEM    TIME+  COMMAND
-  445 alistair  18   0  5008 3428 1576 R  4.0  0.7   0:06.25 cdparanoia
+>>Nope, something is obviously broken.   I'll take a look.
+>>
+>That would be very much appreciated.
+>
 
-No crashes so far. I'll try some bad discs and see how it recovers.
+I'm looking at 2.6.1 source, so apologies if I'm wrong, but
+drivers/block/ll_rw_blk.c:
+freed_request does not need the memory barrier because the queue is
+protected by the per queue spinlock. And I think clear_queue_congested
+should have a memory barrier right before if (waitqueue_active(wqh)).
 
---
-Cheers,
-Alistair.
+Another problem is that if there are no requests anywhere in the system,
+sleepers in blk_congestion_wait will not get kicked. blk_congestion_wait
+could probably have blk_run_queues moved after prepare_to_wait, which
+might help.
 
-personal:   alistair()devzero!co!uk
-university: s0348365()sms!ed!ac!uk
-student:    CS/AI Undergraduate
-contact:    7/10 Darroch Court,
-            University of Edinburgh.
+Just some ideas.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
