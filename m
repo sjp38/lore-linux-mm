@@ -1,101 +1,56 @@
-Content-class: urn:content-classes:message
+Date: Mon, 12 Jul 2004 16:11:29 -0500
+From: Brent Casavant <bcasavan@sgi.com>
+Reply-To: Brent Casavant <bcasavan@sgi.com>
+Subject: Scaling problem with shmem_sb_info->stat_lock
+Message-ID: <Pine.SGI.4.58.0407121546460.111008@kzerza.americas.sgi.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----_=_NextPart_001_01C4654E.954BEF84"
-Subject: RE: Which is the proper way to bring in the backing store behindaninode as an struct page?
-Date: Thu, 8 Jul 2004 17:45:41 -0700
-Message-ID: <F989B1573A3A644BAB3920FBECA4D25A6EBF28@orsmsx407>
-From: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: "Chen, Kenneth W" <kenneth.w.chen@intel.com>, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>
+To: hugh@veritas.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+Hugh,
 
-------_=_NextPart_001_01C4654E.954BEF84
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+Christoph Hellwig recommended I email you about this issue.
 
-> From: Ram Pai [mailto:linuxram@us.ibm.com]
->
-> I dont' see why any of the readpage() methods need the filp =
-information.
-> A quick scan shows that  zisofs_readpage() deferences filp.
-> zisofs_readpage() uses the filp to get to the inode, which it can =
-always
-> get through  page->mapping->host
+In the Linux kernel, in both 2.4 and 2.6, in the mm/shmem.c code, there
+is a stat_lock in the shmem_sb_info structure which protects (among other
+things) the free_blocks field and (under 2.6) the inode i_blocks field.
 
-Hm, so that is something that could be patched.
+At SGI we've found that on larger systems (>32P) undergoing parallel
+/dev/zero page faulting, as often happens during parallel application
+startup, this locking does not scale very well due to the lock cacheline
+bouncing between CPUs.
 
-> >  - the error paths, for example, for "error_unlock", #77, leaving
-> >    the page in the LRU cache [is this ok? will somebody else
-> >    use it or will it drop automatically?]
->=20
-> page_cache_release() takes care of that. So this should be ok.
+Back in 2.4 Jack Steiner hacked on this code to avoid taking the lock
+when free_blocks was equal to ULONG_MAX, as it makes little sense to
+perform bookkeeping operations when there were no practical limits
+being requested.  This (along with scaling fixes in other parts of the
+VM system) provided for very good scaling of /dev/zero page faulting.
+However, this could lead to problems in the shmem_set_size() function
+during a remount operation; but as that operation is apparently fairly
+rare on running systems, it solved the scaling problem in practice.
 
-Ok.
+I've hacked up the 2.6 shmem.c code to not require the stat_lock to
+be taken while accessing these two fields (free_blocks and i_blocks),
+but unfortunately this does nothing more than change which cacheline
+is bouncing around the system (the fields themselves, instead of
+the lock).  This of course was not unexpected.
 
-I went on an digged in some more similar code, like =
-swapfile.c:sys_swapon(),
-where it calls read_cache_page(). I realized I could accomplish the same =
+Looking at this code, I don't see any straightforward way to alleviate
+this problem.  So, I was wondering if you might have any ideas how one
+might approach this.  I'm hoping for something that will give us good
+scaling all the way up to 512P.
 
-[almost] with the following:
+Thanks,
+Brent Casavant
 
-01 struct page * page_cache_readpage (struct inode *inode, unsigned long =
-pgoff)
-02 {
-03         struct page *page;
-04         struct address_space *mapping =3D inode->i_mapping;
-05        =20
-06         page =3D read_cache_page (mapping, pgoff,=20
-07                                 (filler_t *) =
-mapping->a_ops->readpage,
-08                                 NULL);
-09         if (IS_ERR (page))
-10                 goto out;
-11         wait_on_page_locked (page);
-12         if (!PageUptodate (page)) {
-13                 page_cache_release (page);
-14                 page =3D ERR_PTR (-EIO);
-15         }
-16 out:
-17         return page;
-18 }
-
-For the time being I should add some BUG_ON()s on inode->i_mapping
-being NULL, but this should do better than the monster I coded.
-
-THanks!
-
-I=F1aky P=E9rez-Gonz=E1lez -- Not speaking for Intel -- all opinions are =
-my own (and my fault)
-
-
-------_=_NextPart_001_01C4654E.954BEF84
-Content-Type: text/plain;
-	name="t.txt"
-Content-Transfer-Encoding: base64
-Content-Description: t.txt
-Content-Disposition: attachment;
-	filename="t.txt"
-
-MDEgc3RydWN0IHBhZ2UgKiBwYWdlX2NhY2hlX3JlYWRwYWdlIChzdHJ1Y3QgaW5vZGUgKmlub2Rl
-LCB1bnNpZ25lZCBsb25nIHBnb2ZmKQowMiB7CjAzICAgICAgICAgc3RydWN0IHBhZ2UgKnBhZ2U7
-CjA0ICAgICAgICAgc3RydWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmcgPSBpbm9kZS0+aV9tYXBw
-aW5nOwowNSAgICAgICAgIAowNiAgICAgICAgIHBhZ2UgPSByZWFkX2NhY2hlX3BhZ2UgKG1hcHBp
-bmcsIHBnb2ZmLCAKMDcgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAoZmlsbGVyX3Qg
-KikgbWFwcGluZy0+YV9vcHMtPnJlYWRwYWdlLAowOCAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgIE5VTEwpOwowOSAgICAgICAgIGlmIChJU19FUlIgKHBhZ2UpKQoxMCAgICAgICAgICAg
-ICAgICAgZ290byBvdXQ7CjExICAgICAgICAgd2FpdF9vbl9wYWdlX2xvY2tlZCAocGFnZSk7CjEy
-ICAgICAgICAgaWYgKCFQYWdlVXB0b2RhdGUgKHBhZ2UpKSB7CjEzICAgICAgICAgICAgICAgICBw
-YWdlX2NhY2hlX3JlbGVhc2UgKHBhZ2UpOwoxNCAgICAgICAgICAgICAgICAgcGFnZSA9IEVSUl9Q
-VFIgKC1FSU8pOwoxNSAgICAgICAgIH0KMTYgb3V0OgoxNyAgICAgICAgIHJldHVybiBwYWdlOwox
-OCB9Cg==
-
-------_=_NextPart_001_01C4654E.954BEF84--
+-- 
+Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
+Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
+Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
