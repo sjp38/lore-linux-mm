@@ -1,26 +1,32 @@
-Received: from snowcrash.cymru.net (snowcrash.cymru.net [163.164.160.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA21880
-	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 13:50:20 -0500
-Message-Id: <m0zzQnp-0007U2C@the-village.bc.nu>
-From: alan@lxorguk.ukuu.org.uk (Alan Cox)
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA22034
+	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 14:03:43 -0500
+Date: Sun, 10 Jan 1999 20:03:41 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
 Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-Date: Sun, 10 Jan 1999 19:45:36 +0000 (GMT)
-In-Reply-To: <Pine.LNX.3.95.990110103201.7668D-100000@penguin.transmeta.com> from "Linus Torvalds" at Jan 10, 99 10:35:10 am
-Content-Type: text
+In-Reply-To: <m0zzQnp-0007U2C@the-village.bc.nu>
+Message-ID: <Pine.LNX.3.96.990110195557.1193B-100000@laser.bogus>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: sct@redhat.com, saw@msu.ru, andrea@e-mind.com, steve@netplus.net, ebiederm+eric@ccr.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, Zlatko.Calusic@CARNet.hr, bmccann@indusriver.com, alan@lxorguk.ukuu.org.uk, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, H.H.vanRiel@phys.uu.nl, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Linus Torvalds <torvalds@transmeta.com>, sct@redhat.com, saw@msu.ru, steve@netplus.net, ebiederm+eric@ccr.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, Zlatko.Calusic@CARNet.hr, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, H.H.vanRiel@phys.uu.nl, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> point where we would otherwise deadlock on the writer semaphore it's much
-> better to just allow nested writes. I suspect all filesystems can already
-> handle nested writes - they are a lot easier to handle than truly
-> concurrent ones.
+On Sun, 10 Jan 1999, Alan Cox wrote:
 
-Suspect makes me kind of nervous. Especially so close to 2.2 and given the
-normal results of making a bad file system error.
+> Suspect makes me kind of nervous. Especially so close to 2.2 and given the
+> normal results of making a bad file system error.
 
-Alan
+Another way to fix the thing could be to left only to kswapd the work to
+sync shared-mmapped page out to disk when needed. We could wakeup kswapd
+from the inside of filemap_swapout... It's dirty but should work fine
+without the need of reentrant semaphores. BTW, before my
+always-async-swapout idea kswapd was hiding the bug pretty well ;). 
+
+Personally I like far more the clean solution but...
+
+Andrea Arcangeli
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
