@@ -1,56 +1,44 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA13742
-	for <linux-mm@kvack.org>; Fri, 4 Dec 1998 15:50:54 -0500
-Date: Fri, 4 Dec 1998 21:47:04 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: [PATCH] swapin readahead and fixes
-In-Reply-To: <Pine.LNX.3.96.981204192244.28834B-100000@ferret.lmh.ox.ac.uk>
-Message-ID: <Pine.LNX.3.96.981204214235.28282A-100000@mirkwood.dummy.home>
+Received: from chiara.csoma.elte.hu (chiara.csoma.elte.hu [157.181.71.18])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA16823
+	for <linux-mm@kvack.org>; Sat, 5 Dec 1998 02:51:34 -0500
+Date: Sat, 5 Dec 1998 08:51:13 +0100 (CET)
+From: MOLNAR Ingo <mingo@chiara.csoma.elte.hu>
+Subject: Re: SWAP: Linux far behind Solaris or I missed something (fwd)
+In-Reply-To: <Pine.LNX.3.96.981204162132.21578A-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.96.981205083722.23557B-100000@chiara.csoma.elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Chris Evans <chris@ferret.lmh.ox.ac.uk>
-Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Neil Conway <nconway.list@ukaea.org.uk>, Linux MM <linux-mm@kvack.org>, Jean-Michel.Vansteene@bull.net, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Dec 1998, Chris Evans wrote:
-> On Thu, 3 Dec 1998, Rik van Riel wrote:
+
+On Fri, 4 Dec 1998, Rik van Riel wrote:
+
+> > I know.  That's why relying on fixed margins to ensure good
+> > performance is wrong: the system really ought to be self-tuning.
+> > We may yet get it right for 2.2: there are people working on this.
 > 
-> > here is a patch (against 2.1.130, but vs. 2.1.131 should
-> > be trivial) that improves the swapping performance both
-> > during swapout and swapin and contains a few minor fixes.
-> 
-> I'm very interested in performance for sequential swapping. This
-> occurs in for example scientific applications which much sweep
-> through vast arrays much larger than physical RAM. 
-> 
-> This is one area in which FreeBSD stomps on us. Theoretically it
-> should be possible to get swap with readahead pulling pages into RAM
-> at disk speed. 
+> It appears that 2.1.130 + my little patches only needs the
+> borrow percentage (otherwise kswapd doesn't have enough
+> reason to switch from the always-succesful swap_out()),
+> and that only needs to be set to a high value...
 
-We're not at that point yet, not at all :(
+'borrow percentage' is just yet another arbitrary parameter (*). The
+solution is not to increase the number of parameters and tweak them until
+there is more or less ok fit on all testcases! (i know that borrow
+percentage was there originally) The task is to _decrease_ the number of
+parameters as much as possible. (preferably no 'number' parameters at all,
+just one basic self-tuning framework) [Unfortunately this is much much
+harder than adding parameters, it needs a thorough understanding of all
+issues involved.]
 
-We probably could put in an algorithm that does that as
-well, but the current patch consists mainly of a proof-
-of-concept (read really stupid) readahead algorithm :)
+-- mingo
 
-The advantage of that algorithm however is that it doesn't
-incur any extra disk seeks (only linear readahead inside
-the swap area). The way kswapd swaps out things this might
-also help with the readahead of tiled date, etc...
-
-I will compile a new patch (against 2.1.130 again, since
-2.1.131 contains mostly VM mistakes that I want reversed)
-this weekend...
-
-regards,
-
-Rik -- the flu hits, the flu hits, the flu hits -- MORE
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+(*) parameter: degree of freedom in an algorithm, both kernel-source
+    compiled-in constants/tweaks/rules and user-supplied (possibly
+    runtime) parameters.
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
