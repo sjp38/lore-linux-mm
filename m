@@ -1,37 +1,28 @@
-Date: Wed, 28 May 2003 09:53:46 -0500
+Received: from localhost (localhost [127.0.0.1])
+	by baldur.austin.ibm.com (8.12.9/8.12.9/Debian-3) with ESMTP id h4SFRqFA012371
+	for <linux-mm@kvack.org>; Wed, 28 May 2003 10:27:53 -0500
+Date: Wed, 28 May 2003 10:27:52 -0500
 From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: hard question re: swap cache
-Message-ID: <21290000.1054133626@baldur.austin.ibm.com>
-In-Reply-To: <20030527214157.31893.qmail@web41501.mail.yahoo.com>
-References: <20030527214157.31893.qmail@web41501.mail.yahoo.com>
+Subject: Question about locking in mmap.c
+Message-ID: <33460000.1054135672@baldur.austin.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Carl Spalletta <cspalletta@yahoo.com>, linux-mm@kvack.org
+To: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Your question is a bit ambiguous because in kernel terms there are two
-distinct cases.
+It's been my understanding that most vma manipulation is protected by
+mm->mmap_sem, and the page table is protected by mm->page_table_lock.  I've
+been rummaging through mmap.c and see a number of places that take
+page_table_lock when the code is about to make changes to the vma chains.
+These places are already holding mmap_sem for write.
 
-A shared page, ie one mapped by mmap or shmmap is not anonymous in kernel
-terms.  It has a temporary file created for the region.  A shared page in
-this file is tracked through the page cache, so it's trivially found via
-either page cache lookup or by pagein through file system calls.
-
-A truly anonymous page is generally either bss space or stack, and can only
-become shared through fork.  When a page of this type is unmapped, its
-address in swap space is written into the page table entry.  The page is
-also put into the swap cache at this time.  When the process tries to map
-the page again, it uses the swap address to look first in the swap cache,
-or, failing that, read it from swap space.
-
-An additional twist to this is that pages are not unmapped for swapout on a
-per-process basis in 2.5.  Page stealing is done via the active and
-inactive lists, which are by physical page.  They are unmapped in all
-processes at the same time by using the pte_chain mechanism.
+My question is what is page_table_lock supposed to be protecting against?
+Am I wrong that mmap_sem is sufficient to protect against concurrent
+changes to the vmas?
 
 Dave McCracken
 
