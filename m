@@ -1,26 +1,25 @@
-Date: Wed, 2 Jul 2003 14:07:03 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
+Date: Wed, 2 Jul 2003 20:13:27 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: What to expect with the 2.6 VM
-In-Reply-To: <461030000.1057165809@flay>
-Message-ID: <Pine.LNX.4.44.0307021406040.31191-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20030702181327.GO23578@dualathlon.random>
+References: <Pine.LNX.4.53.0307010238210.22576@skynet> <20030701022516.GL3040@dualathlon.random> <Pine.LNX.4.53.0307021641560.11264@skynet> <20030702171159.GG23578@dualathlon.random> <461030000.1057165809@flay> <20030702174700.GJ23578@dualathlon.random> <528080000.1057168362@flay>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <528080000.1057168362@flay>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2 Jul 2003, Martin J. Bligh wrote:
+On Wed, Jul 02, 2003 at 10:52:42AM -0700, Martin J. Bligh wrote:
+> Indeed - if we could memlock it, it'd be OK to drop that stuff. Would
+> make everything a lot simpler.
 
-> Maybe I'm just taking this out of context, and it's twisting my brain,
-> but as far as I know, the nonlinear vma's *are* backed by pte_chains.
+yes.
 
-They are, but IMHO they shouldn't be.  The nonlinear vmas are used
-only for database shared memory segments and other "bypass the VM"
-applications, so I don't see any reason why we need to complicate
-things hopelessly in order to deal with corner cases like truncate.
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
