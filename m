@@ -1,39 +1,42 @@
-Message-ID: <41DD608A.80003@sgi.com>
-Date: Thu, 06 Jan 2005 10:00:10 -0600
+Message-ID: <41DDA6CB.6050307@sgi.com>
+Date: Thu, 06 Jan 2005 14:59:55 -0600
 From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
-Subject: Re: page migration patchset
-References: <Pine.LNX.4.44.0501052008160.8705-100000@localhost.localdomain> <41DC7EAD.8010407@mvista.com> <20050106144307.GB59451@muc.de>
-In-Reply-To: <20050106144307.GB59451@muc.de>
+Subject: page migration patchset
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andi Kleen <ak@muc.de>
-Cc: Steve Longerbeam <stevel@mvista.com>, Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@sgi.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, andrew morton <akpm@osdl.org>
+Cc: Paul Jackson <pj@sgi.com>, Steve Longerbeam <stevel@mwwireless.net>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
-
-Andi Kleen wrote:
-
-> 
-> You need lazy hugetlbfs to use it (= allocate at page fault time,
-> not mmap time). Otherwise the policy can never be applied. I implemented 
-> my own version of lazy allocation for SLES9, but when I wanted to 
-> merge it into mainline some other people told they had a much better 
-> singing&dancing lazy hugetlb patch. So I waited for them, but they 
-> never went forward with their stuff and their code seems to be dead
-> now. So this is still a dangling end :/
-> 
-> If nothing happens soon regarding the "other" hugetlb code I will
-> forward port my SLES9 code. It already has NUMA policy support.
 
 Andi,
 
-I too have been frustrated by this process.  I think Christoph Lameter
-at SGI is looking at forward porting the "old" lazy hugetlbpage allocation
-code.  Of course, the proof is in the "doing" of this and I am not sure
-what other priorities he has at the moment.
+Under the topic of modifying a processes's mems_allowed bitmask,
+Paul Jackson has been telling me that this is hard, in general.
+This is unfortunate, as part of the page migration work I am
+doing, it seems that part of the necessary work is to change
+the NUMA memory policy so newly allocated pages go onto the
+new nodes.
 
+Now I know there is no locking protection around the mems_allowed
+bitmask, so changing this while the process is still running
+sounds hard.  But part of the plan I am working under assumes
+that the process is stopped before it is migrated.  (Shared
+pages that are only shared among processes all of whom are to be
+moved would similarly be handled; pages shsared among migrated
+and non-migrated processes, e. g. glibc pages, would not
+typically need to be moved at all, since they likely reside
+somewhere outside the set of nodes to be migrated from.)
+
+But if the process is suspended, isn't all that is needed just
+to do the obvious translation on the mems_allowed vector?
+(Similarly for the dedicated node stuff, I forget the name for
+that at the moment...)
+
+Am I missing something big here that makes this task harder
+than I am thinking it is?
 -- 
 Best Regards,
 Ray
@@ -44,7 +47,6 @@ raybry@sgi.com             raybry@austin.rr.com
 The box said: "Requires Windows 98 or better",
             so I installed Linux.
 -----------------------------------------------
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
