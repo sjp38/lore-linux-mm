@@ -1,33 +1,45 @@
-Date: Mon, 2 Oct 2000 12:43:25 -0300 (BRST)
+Date: Mon, 2 Oct 2000 12:45:38 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: 2.4.0-test9-pre8 + Rik Riel's latest VM patch -- Athlon system
- lockup
-In-Reply-To: <39D845E1.BFB8AC74@speakeasy.org>
-Message-ID: <Pine.LNX.4.21.0010021242210.22539-100000@duckman.distro.conectiva>
+Subject: Re: [PATCH] fix for VM  test9-pre7
+In-Reply-To: <39D844E0.A8B4203E@norran.net>
+Message-ID: <Pine.LNX.4.21.0010021244350.22539-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Miles Lane <miles@speakeasy.org>
-Cc: MM mailing list <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>
+To: Roger Larsson <roger.larsson@norran.net>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Oct 2000, Miles Lane wrote:
+On Mon, 2 Oct 2000, Roger Larsson wrote:
 
-> I was stress testing this machine harder than I ever have
-> before. I saw my load average reach as high as 19.2 and the CPU
-> was pegged for about half an hour.  I was performing
-> simultaneous intensive reads and writes on the internal EIDE
-> drive and and external ORB drive accessed over a USB connection.  
-> In addition, I was running x11perf.  I had launched enough
-> programs to consume all my swap space and free physical memory
-> was pegged, too.
+> > The attached patch seems to fix all the reported deadlock
+> > problems with the new VM. Basically they could be grouped
+> > into 2 categories:
+> > 
+> > 1) __GFP_IO related locking issues
+> > 2) something sleeps on a free/clean/inactive page goal
+> >    that isn't worked towards
+> 
+> Trying mmapp002 it gets killed due to no free
+> memory left...
 
-As was mentioned in my email, out of memory handling isn't
-in this patch yet ;)
+????
 
-If the current feature set proves stable, I'll add out of
-memory handling.
+I don't believe you. If the system runs out of memory the
+current code should loop around and hang the system in a
+nasty kind of livelock...
+
+What error messages did you get?
+
+> This was on a 96MB RAM, 180MHz PPro, IDE disks
+> 
+> Riel, have you tested to run with little memory or
+>       limit your memory size? Or rather what system do
+>       you test in.
+
+I'm testing on a 64MB test machine, but haven't tested
+this one with mem=8m yet..
 
 regards,
 
