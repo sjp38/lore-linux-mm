@@ -1,28 +1,29 @@
-Date: Tue, 3 Mar 1998 14:17:33 -0500 (EST)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: [PATCH] kswapd fix & logic improvement
-In-Reply-To: <Pine.LNX.3.91.980303181105.414D-100000@mirkwood.dummy.home>
-Message-ID: <Pine.LNX.3.95.980303141259.12379A-100000@as200.spellcast.com>
+Date: Tue, 3 Mar 1998 20:09:49 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: Re: [uPATCH] small kswapd improvement ???
+In-Reply-To: <Pine.LNX.3.91.980303180022.414A-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.91.980303200853.2575B-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Cc: "Michael L. Galbraith" <mikeg@weiden.de>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
+Cc: Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, "Benjamin C.R. LaHaise" <blah@kvack.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 3 Mar 1998, Rik van Riel wrote:
-...
-> > Turned out the kswapd messages weren't related to the thrashing.
-> > I would have seen it if I hadn't jumped straight into X.
-> 
-> Ahh, yes. X allocates a _lot_ of memory at once, and then
-> the damn thing _uses_ it at once... This is guaranteed to
-> make kswapd a bit nervous, both with or without my patch.
 
-Not only that, but the network activity X induces puts additional stress
-on an already low-memory system by allocating lots of unswappable memory.
-When might we see Pavel's patches to the networking stack meant to get
-swapping over TCP working, but I think they'll really help stability on 
-systems with low-memory and busy networks, get integrated?
+> I think I have 'corrected' the code. Not so much made a
+> large performance increase, but merely a 'correction' for
+> the sake of correctness and a small improvement.
 
-		-ben
+I'm currenly running a way-too-large gnuchess next
+to my other applications, and I hardly notice it's
+running... The disk noise is the major givaway :-)
+
+Rik.
++-----------------------------+------------------------------+
+| For Linux mm-patches, go to | "I'm busy managing memory.." |
+| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
+| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
++-----------------------------+------------------------------+
