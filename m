@@ -1,31 +1,41 @@
-Date: Fri, 18 Aug 2000 12:50:23 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Date: Fri, 18 Aug 2000 14:49:38 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: filemap.c SMP bug in 2.4.0-test* (fwd)
-Message-ID: <20000818125023.C6993@redhat.com>
-References: <Pine.LNX.4.21.0008172017450.16454-100000@duckman.distro.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0008172017450.16454-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Thu, Aug 17, 2000 at 08:18:39PM -0300
+In-Reply-To: <Pine.LNX.4.21.0008172017450.16454-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0008181443560.18597-100000@inspiron.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+>Proc A                                Proc B
+>page faults
+>...
+>read_swap_cache_async
+>  lookup_swap_cache fails twice       page faults (same page)
+>                                      ...
+>                                      read_swap_cache_async
+>  init of page info (insert in
+>  hash tables...)
 
-On Thu, Aug 17, 2000 at 08:18:39PM -0300, Rik van Riel wrote:
-> 
-> it seems that Roger has done some deep puzzling today...
-> I'm not sure if he found something or not, could somebody
-> else with a more intimate knowledge of the source take a
-> look at Roger's idea?
+as first on proc B read_swap_cache_async can't be started in between the
+second fail of the lookup and the init of the page info and insert
+hashtables on proc A, because of the big kernel lock.
 
-Yes, it looks correct --- read_swap_cache_async() should be using
-__find_page_nolock, I think.
+>                                      lookup_swap_cache
+>	                                 __find_page_nolock
+>                                         (succeeds, page not active
+>                                          activate)
+>
 
---Stephen
+The page is inserted locked into the hashtable and lookup_swap_cache uses
+find_lock_page so it can't race.
+
+Andrea
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
