@@ -1,65 +1,160 @@
-Message-ID: <4239AE80.1070403@shadowen.org>
-Date: Thu, 17 Mar 2005 16:21:20 +0000
-From: Andy Whitcroft <apw@shadowen.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/4] sparsemem intro patches
-References: <1110834883.19340.47.camel@localhost> <20050314183042.7e7087a2.akpm@osdl.org>
-In-Reply-To: <20050314183042.7e7087a2.akpm@osdl.org>
-Content-Type: text/plain; charset=US-ASCII; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 17 Mar 2005 18:58:52 +0100
+From: Herbert Poetzl <herbert@13thfloor.at>
+Subject: [PATCH] include cleanup in pgalloc.h
+Message-ID: <20050317175852.GC28633@mail.13thfloor.at>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Martin J. Bligh" <mbligh@aracnet.com>
+To: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> Dave Hansen <haveblue@us.ibm.com> wrote:
-> 
->> The following four patches provide the last needed changes before the
->> introduction of sparsemem.  For a more complete description of what this
->> will do, please see this patch:
->>
->> http://www.sr71.net/patches/2.6.11/2.6.11-bk7-mhp1/broken-out/B-sparse-150-sparsemem.patch
+Hi Folks!
 
-> I don't know what to think about this.  Can you describe sparsemem a little
-> further, differentiate it from discontigmem and tell us why we want one? 
-> Is it for memory hotplug?  If so, how does it support hotplug?
+this patch cleans up asm-*/pgalloc.h by removing the
+generous includes which are obsoleted (duplicated) by 
+including linux/mm.h (and friends)
 
-SPARSEMEM was born out of discussions which followed the OLS last year 
-over the NONLINEAR memory model which was being proposed for hotplug. 
-We got interested as it appeared that a simple form of NONLINEAR memory 
-could help us handle some problematics cases with DISCONTIG memory. 
-Particularly the case where we have large intra-node memory holes.
+they are double checked and verified by the PLM
+cross compiling service (the patched kernel gives
+the same warnings/errors as the unpatched)
 
-The DISCONTIGMEM memory model appears to have been designed to handle 
-discontiguous UMA configuration.  It was subsequently put into service 
-to provide node support under NUMA configurations.  This dual use seems 
-to have led to confusing code and compromises on functionality.  In its 
-current form we can only express inter-node memory spaces, making it 
-majorly inefficient for NUMA systems with sparse physical inter-node 
-memory maps, effectivly not supporting some configurations.  Also, 
-although DISCONTIGMEM is a common model between a number of 
-architectures there is almost no code overlap.
+http://osdl.org/plm-cgi/plm?module=patch_info&patch_id=4313
 
-SPARSEMEM essentially is a replacement for DISCONTIGMEM providing 
-support for non-contigious memory but with the advantage of handling 
-both inter- and intra-node memory holes.  The goal of the implementation 
-was to design a clean memory memory model covering the needs of both UMA 
-and NUMA discontigouos memory layouts whilst providing a basis for 
-hotplug.  This should allow us to consolidate the implementation of 
-various "discontiguous" memory model whilst trying to fix its short comings.
+best,
+Herbert
 
-Hotplug at its most complex puts two requirements on the memory model. 
-Firstly, It requires the arbirary replacement of physical memory with 
-memory which may be at a different address (the breaking of V=P+c) to 
-cope with the case of memory replacement under unmovable kernel objects. 
-  Secondly, it requires we cope with memory "all over" the physical map. 
-  SPARSEMEM is geared towards providing the required infrastructure for 
-NONLINEAR memory needed in hotplug.  The idea being that NONLINEAR would 
-be layered on top of it and share its implementation.
 
--apw.
+Signed-off-by: Herbert Potzl <herbert@13thfloor.at>
+
+diff -NurpP --minimal linux-2.6.11.4/include/asm-cris/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-cris/pgalloc.h
+--- linux-2.6.11.4/include/asm-cris/pgalloc.h	Sun Mar  6 20:05:43 2005
++++ linux-2.6.11.4-pgalloc-01/include/asm-cris/pgalloc.h	Thu Mar 17 01:48:31 2005
+@@ -1,7 +1,6 @@
+ #ifndef _CRIS_PGALLOC_H
+ #define _CRIS_PGALLOC_H
+ 
+-#include <asm/page.h>
+ #include <linux/threads.h>
+ #include <linux/mm.h>
+ 
+diff -NurpP --minimal linux-2.6.11.4/include/asm-i386/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-i386/pgalloc.h
+--- linux-2.6.11.4/include/asm-i386/pgalloc.h	Sun Mar  6 20:05:43 2005
++++ linux-2.6.11.4-pgalloc-01/include/asm-i386/pgalloc.h	Thu Mar 17 01:48:06 2005
+@@ -2,7 +2,6 @@
+ #define _I386_PGALLOC_H
+ 
+ #include <linux/config.h>
+-#include <asm/processor.h>
+ #include <asm/fixmap.h>
+ #include <linux/threads.h>
+ #include <linux/mm.h>		/* for struct page */
+diff -NurpP --minimal linux-2.6.11.4/include/asm-ia64/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-ia64/pgalloc.h
+--- linux-2.6.11.4/include/asm-ia64/pgalloc.h	Sun Mar  6 20:05:43 2005
++++ linux-2.6.11.4-pgalloc-01/include/asm-ia64/pgalloc.h	Thu Mar 17 01:47:50 2005
+@@ -21,7 +21,6 @@
+ #include <linux/threads.h>
+ 
+ #include <asm/mmu_context.h>
+-#include <asm/processor.h>
+ 
+ /*
+  * Very stupidly, we used to get new pgd's and pmd's, init their contents
+diff -NurpP --minimal linux-2.6.11.4/include/asm-m32r/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-m32r/pgalloc.h
+--- linux-2.6.11.4/include/asm-m32r/pgalloc.h	Sun Mar  6 20:05:43 2005
++++ linux-2.6.11.4-pgalloc-01/include/asm-m32r/pgalloc.h	Thu Mar 17 01:47:35 2005
+@@ -7,7 +7,6 @@
+ #include <linux/mm.h>
+ 
+ #include <asm/io.h>
+-#include <asm/pgtable.h>
+ 
+ #define pmd_populate_kernel(mm, pmd, pte)	\
+ 	set_pmd(pmd, __pmd(_PAGE_TABLE + __pa(pte)))
+diff -NurpP --minimal linux-2.6.11.4/include/asm-parisc/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-parisc/pgalloc.h
+--- linux-2.6.11.4/include/asm-parisc/pgalloc.h	Sun Mar  6 20:05:44 2005
++++ linux-2.6.11.4-pgalloc-01/include/asm-parisc/pgalloc.h	Thu Mar 17 01:46:49 2005
+@@ -7,7 +7,6 @@
+ #include <asm/processor.h>
+ #include <asm/fixmap.h>
+ 
+-#include <asm/pgtable.h>
+ #include <asm/cache.h>
+ 
+ /* Allocate the top level pgd (page directory)
+diff -NurpP --minimal linux-2.6.11.4/include/asm-ppc64/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-ppc64/pgalloc.h
+--- linux-2.6.11.4/include/asm-ppc64/pgalloc.h	Mon Oct 18 23:53:07 2004
++++ linux-2.6.11.4-pgalloc-01/include/asm-ppc64/pgalloc.h	Thu Mar 17 01:46:11 2005
+@@ -5,9 +5,6 @@
+ #include <linux/slab.h>
+ #include <linux/cpumask.h>
+ #include <linux/percpu.h>
+-#include <asm/processor.h>
+-#include <asm/tlb.h>
+-#include <asm/page.h>
+ 
+ extern kmem_cache_t *zero_cache;
+ 
+diff -NurpP --minimal linux-2.6.11.4/include/asm-s390/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-s390/pgalloc.h
+--- linux-2.6.11.4/include/asm-s390/pgalloc.h	Mon Oct 18 23:54:37 2004
++++ linux-2.6.11.4-pgalloc-01/include/asm-s390/pgalloc.h	Thu Mar 17 01:49:11 2005
+@@ -14,7 +14,6 @@
+ #define _S390_PGALLOC_H
+ 
+ #include <linux/config.h>
+-#include <asm/processor.h>
+ #include <linux/threads.h>
+ #include <linux/gfp.h>
+ #include <linux/mm.h>
+diff -NurpP --minimal linux-2.6.11.4/include/asm-sh/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-sh/pgalloc.h
+--- linux-2.6.11.4/include/asm-sh/pgalloc.h	Sun Mar  6 20:05:44 2005
++++ linux-2.6.11.4-pgalloc-01/include/asm-sh/pgalloc.h	Thu Mar 17 01:49:20 2005
+@@ -1,7 +1,6 @@
+ #ifndef __ASM_SH_PGALLOC_H
+ #define __ASM_SH_PGALLOC_H
+ 
+-#include <asm/processor.h>
+ #include <linux/threads.h>
+ #include <linux/slab.h>
+ #include <linux/mm.h>
+diff -NurpP --minimal linux-2.6.11.4/include/asm-sh64/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-sh64/pgalloc.h
+--- linux-2.6.11.4/include/asm-sh64/pgalloc.h	Sun Mar  6 20:05:44 2005
++++ linux-2.6.11.4-pgalloc-01/include/asm-sh64/pgalloc.h	Thu Mar 17 01:49:27 2005
+@@ -14,7 +14,6 @@
+  *
+  */
+ 
+-#include <asm/processor.h>
+ #include <linux/threads.h>
+ #include <linux/mm.h>
+ 
+diff -NurpP --minimal linux-2.6.11.4/include/asm-sparc64/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-sparc64/pgalloc.h
+--- linux-2.6.11.4/include/asm-sparc64/pgalloc.h	Sun Mar  6 20:05:44 2005
++++ linux-2.6.11.4-pgalloc-01/include/asm-sparc64/pgalloc.h	Thu Mar 17 01:49:53 2005
+@@ -7,9 +7,7 @@
+ #include <linux/sched.h>
+ #include <linux/mm.h>
+ 
+-#include <asm/page.h>
+ #include <asm/spitfire.h>
+-#include <asm/pgtable.h>
+ #include <asm/cpudata.h>
+ 
+ /* Page table allocation/freeing. */
+diff -NurpP --minimal linux-2.6.11.4/include/asm-x86_64/pgalloc.h linux-2.6.11.4-pgalloc-01/include/asm-x86_64/pgalloc.h
+--- linux-2.6.11.4/include/asm-x86_64/pgalloc.h	Sun Mar  6 20:05:45 2005
++++ linux-2.6.11.4-pgalloc-01/include/asm-x86_64/pgalloc.h	Thu Mar 17 01:50:13 2005
+@@ -1,7 +1,6 @@
+ #ifndef _X86_64_PGALLOC_H
+ #define _X86_64_PGALLOC_H
+ 
+-#include <asm/processor.h>
+ #include <asm/fixmap.h>
+ #include <asm/pda.h>
+ #include <linux/threads.h>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
