@@ -1,36 +1,34 @@
-Date: Thu, 5 Apr 2001 11:46:58 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Fwd: Re: [PATCH][RFC] appling preasure to icache and dcache
-In-Reply-To: <01040507350800.00699@oscar>
-Message-ID: <Pine.LNX.4.21.0104051145360.27736-100000@imladris.rielhome.conectiva>
+Date: Thu, 5 Apr 2001 11:56:48 -0400 (EDT)
+From: Ben LaHaise <bcrl@redhat.com>
+Subject: [PATCH] swap_state.c thinko
+Message-ID: <Pine.LNX.4.30.0104051155380.1767-100000@today.toronto.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
-Cc: sfkaplan@cs.amherst.edu, linux-mm@kvack.org
+To: arjanv@redhat.com, alan@redhat.com, torvalds@transmeta.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Apr 2001, Ed Tomlinson wrote:
+Hey folks,
 
-> I am very aware that heavy paging, which is ok _if_ you have the
-> bandwidth, and thrashing are different.
+Here's another one liner that closes an smp race that could corrupt
+things.
 
-So can we conclude that for a simple "thrashing approximation"
-we should at least measure if we're loading the disk subsystem
-heavily ?
+		-ben
 
-(heavy disk load -> more disk seeks -> self-perpetuating situation)
-
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+diff -urN v2.4.3/mm/swap_state.c work-2.4.3/mm/swap_state.c
+--- v2.4.3/mm/swap_state.c	Fri Dec 29 18:04:27 2000
++++ work-2.4.3/mm/swap_state.c	Thu Apr  5 11:55:00 2001
+@@ -140,7 +140,7 @@
+ 	/*
+ 	 * If we are the only user, then try to free up the swap cache.
+ 	 */
+-	if (PageSwapCache(page) && !TryLockPage(page)) {
++	if (!TryLockPage(page) && PageSwapCache(page)) {
+ 		if (!is_page_shared(page)) {
+ 			delete_from_swap_cache_nolock(page);
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
