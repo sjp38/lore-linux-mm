@@ -1,53 +1,37 @@
-Received: from knoppix.wat.veritas.com ([10.10.188.58]) (2025 bytes) by
-    megami.veritas.com via sendmail with P:esmtp/R:smart_host/T:smtp
-    (sender: <hugh@veritas.com>) id <m1Bwgk2-0000zlC@megami.veritas.com> for
-    <linux-mm@kvack.org>; Mon, 16 Aug 2004 05:37:34 -0700 (PDT)
-    (Smail-3.2.0.101 1997-Dec-17 #15 built 2001-Aug-30)
-Date: Mon, 16 Aug 2004 13:37:29 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: __set_page_dirty_nobuffers superfluous check
-In-Reply-To: <20040814133717.GA32755@logos.cnet>
-Message-ID: <Pine.LNX.4.44.0408161324140.31643-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Date: Mon, 16 Aug 2004 16:29:42 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: use for page_state accounting fields
+Message-ID: <20040816192941.GB21238@logos.cnet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+To: akpm@osdl.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 14 Aug 2004, Marcelo Tosatti wrote:
-> 
-> Makes sense, why arent tmpfs/swap using mpage operations? 
+Hi Andrew,
 
-They don't fit together usefully.
+I suppose you wrote the page_state per-CPU statistics structure.
 
-Because the multipage operations are designed to help
-disk-based filesystems, gathering together readaheads and writeouts
-to reduce disk seeking; but tmpfs and swap are cases too special.
+There are some fields, for instance pgactivate/pgdeactivate, that
+do not seem to be used anywhere. Sure, they are useful for statistics, 
+but no place in the kernel exports them to userspace AFAICS.
 
-writepages is important for guaranteeing data to disk efficiently;
-but tmpfs and swap don't need any such guarantee, sync'ing them is
-just a waste of effort (and so they're marked as "memory_backed"
-to avoid it).
+        unsigned long pgactivate;       /* pages moved inactive->active */
+        unsigned long pgdeactivate;     /* pages moved active->inactive */
 
-swap already had its own swapin_readahead (of limited value:
-swap locality is much less significant than file locality),
-not much point in trying to convert that over to readpages.
+Counting them is somewhat expensive I believe (need to disable IRQ), based
+on the assumption that these days any cycle is a loss.
 
-tmpfs is mainly in memory, does overflow to swap and thence to disk,
-but the rules of that exchange are too peculiar to use general routines.
+So, from my POV we should 
 
-When he originated the readpages and writepages operations, akpm did
-start off calling writepages from vmscan.c.  I don't remember just why
-he dropped that in the end (certainly tmpfs had to suppress it, I forget
-how it fared with swap), perhaps just too much complication for too little
-gain.  Nowadays, if vmscan is doing too many little file writeouts, the
-answer is usually to tweak thresholds to kick in pdflush earlier to do
-the more efficient writepages, rather than try to shoehorn writepages
-back into vmscan.
+a) export them to userspace
+b) surround them by CONFIG_DEBUG_MMSTATS or something similar
 
-Hugh
+Tell me I'm wrong.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
