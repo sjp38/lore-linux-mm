@@ -1,36 +1,30 @@
-Date: Wed, 6 Feb 2002 10:25:34 -0200 (BRST)
+Date: Wed, 6 Feb 2002 22:07:23 -0200 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: .Help with measuring working-set
-In-Reply-To: <20020206100344.A28700@wotan.suse.de>
-Message-ID: <Pine.LNX.4.33L.0202061023490.17850-100000@imladris.surriel.com>
+Subject: Re: Huge vmalloc request? Need help...
+In-Reply-To: <3C617066.3DF01E66@tsl.uu.se>
+Message-ID: <Pine.LNX.4.33L.0202062206230.17850-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Suresh Duddi <dp@netscape.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Feb 2002, Andi Kleen wrote:
-> On Mon, Feb 04, 2002 at 06:21:00PM -0800, Suresh Duddi wrote:
+On Wed, 6 Feb 2002, Yuri Petukhov wrote:
 
-> > http://www.mozilla.org/projects/footprint/footprint-guide.html
-> >
-> > One thing we are struggling with is measurement of working set of app
-> > during a time interval.
+>  I tried to allocate (vmalloc) huge (512MB) memory block inside my
+> init_module(), but without success. It is possible to get about
+> 48MB only. I work on Pentium SMP, 1GB RAM, RedHat-6.2 with kernel
+> 2.2.18. Is there some restrictions on vmalloc'ed size? I need
+> non-swapped memory block, of course.
 
-> > Any pointers ? Are the metrics the best ones to measure and optimize ?
->
-> I guess you would prefer to know which pages are mapped at a given
-> point. This would require some custom patching to add a trace facility
-> for that. Shouldn't be that hard to implement, but I don't know of a
-> ready patch.
+Don't do this, you don't need this space.
 
-I think Mike Shaver (you know him) has made a kernel patch
-to measure exacty this, also for Mozilla development.
+On a 1 GB machine, the system leaves only 128 MB of space
+for both highmem bounce buffers and vmalloc.
 
-You should be able to just use his patch, if he still has
-it.
+Your solution would be to keep track of which pages you're
+using yourself.
 
 regards,
 
