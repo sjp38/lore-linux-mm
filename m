@@ -1,28 +1,34 @@
-Date: Wed, 29 Jan 2003 01:35:30 -0800 (PST)
-Message-Id: <20030129.013530.98324132.davem@redhat.com>
+Date: Wed, 29 Jan 2003 20:54:17 +1100
+From: Anton Blanchard <anton@samba.org>
 Subject: Re: Linus rollup
-From: "David S. Miller" <davem@redhat.com>
-In-Reply-To: <20030129013354.03f5ee33.akpm@digeo.com>
+Message-ID: <20030129095417.GB18250@krispykreme>
 References: <20030128220729.1f61edfe.akpm@digeo.com>
-	<20030129013354.03f5ee33.akpm@digeo.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030128220729.1f61edfe.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@digeo.com
-Cc: rmk@arm.linux.org.uk, ak@muc.de, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: Russell King <rmk@arm.linux.org.uk>, Andi Kleen <ak@muc.de>, "David S. Miller" <davem@redhat.com>, David Mosberger <davidm@napali.hpl.hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-   
-   Forgot to mention:
-   
-I wish there was some way people could easily add an
-#error to the build so that arch's know which syscalls
-need to be added next time someone tries to run make
-for that platform.
+> I've sifted out all the things which I intend to send to the boss soon.  It
+> would be good if you could perform some quick non-ia32 testing please.
+> 
+> Possible breakage would be in the new frlock-for-xtime_lock code and the
+> get_order() cleanup.
+> 
+> The frlock code is showing nice speedups, but I think the main reason we want
+> this is to fix the problem wherein an application spinning on gettimeofday()
+> can make time stop.
 
-Nothing comes immediately to mind as an idea however.
+Checks out OK on ppc64 bar some problems with the get_order patch.
+(should include linux/bitops.h instead of asm/bitops.h).
+
+It passed some stress tests (sdet, tpc-h)
+
+Anton
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
