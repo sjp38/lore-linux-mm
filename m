@@ -1,27 +1,21 @@
 Received: from neuman.interaccess.com (neuman.interaccess.com [207.70.126.130])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id XAA02027
-	for <linux-mm@kvack.org>; Tue, 16 Mar 1999 23:56:07 -0500
-Message-ID: <36EF35C3.E0EFC58D@interaccess.com>
-Date: Tue, 16 Mar 1999 22:55:31 -0600
+	by kvack.org (8.8.7/8.8.7) with ESMTP id AAA02122
+	for <linux-mm@kvack.org>; Wed, 17 Mar 1999 00:03:23 -0500
+Message-ID: <36EF3786.8A20FA58@interaccess.com>
+Date: Tue, 16 Mar 1999 23:03:02 -0600
 From: "Paul F. Dietz" <dietz@interaccess.com>
 MIME-Version: 1.0
-Subject: Small patch to mm/mmap_avl.c
+Subject: small patch to mm/mmap_avl.c: fixed
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.rutgers.edu
+To: linux-kernel@fvger.rugers.edu
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I want to rewrite the AVL tree code in mm/mmap_avl.c.
-Before I do that, though, I wanted to clean up the
-existing code a bit.  Here's a small patch to 2.2.3 that
-gets rid of some unnecessary counters.  After this,
-I want to recode using the AVL tree routines from
-Knuth vol. 3, storing the height difference of the
-children at each node, rather than the height itself.
+Some lines got wrapped.  Here's the unscrewed-up version.
 
-===============================================================
+==========================================
 --- linux-backup/mm/mmap_avl.c	Thu Mar 11 06:34:07 1999
 +++ linux/mm/mmap_avl.c	Sun Mar 14 20:56:06 1999
 @@ -84,9 +84,10 @@
@@ -127,8 +121,7 @@ children at each node, rather than the height itself.
  		*nodeplace = node->vm_avl_left;
 @@ -267,7 +265,7 @@
  		*nodeplace_to_delete = node; /* replace node_to_delete */
- 		*stack_ptr_to_delete = &node->vm_avl_left; /* replace
-&node_to_delete->vm_avl_left */
+ 		*stack_ptr_to_delete = &node->vm_avl_left; /* replace &node_to_delete->vm_avl_left */
  	}
 -	avl_rebalance(stack_ptr,stack_count);
 +	avl_rebalance(stack_ptr,&stack[0]);
