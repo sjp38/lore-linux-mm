@@ -1,82 +1,181 @@
-From: "Madam Marie Eyadema" <eyademarie@mail2world.com>
-Reply-To: eyademarie@yahoo.co.uk
-Date: Mon, 14 Mar 2005 21:43:06 +0000
-Subject: Reference
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: 8BIT
-Message-Id: <20050314214233Z26640-23302+1027@kvack.org>
+Date: Mon, 14 Mar 2005 16:49:41 -0500
+From: Martin Hicks <mort@sgi.com>
+Subject: [PATCH] Move code to isolate LRU pages into separate function
+Message-ID: <20050314214941.GP3286@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: majordomo@kvack.org
+To: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
-Compliment of the day to you, I would like to use this
-medium to introduce my self to you, though we have not
-met before. I am Marie Eyadema a widow to the Late
-Eyadema of Togo who just died,  I know you might be
-surprised to receive this kind of proposal from me but
-my instincts motivated me to write you due to my
-present situation which I hope you may be of help.
+Hi,
 
-My late husband got married to three wives as African
-culture demanded, I was lucky to be the favourite
-among all, I was so close to my husband when he was
-still alive. After his death I have been persecuted by
-other wives out of jealousy; before the death of my
-husband, he enstrusted to me a substantial amount of
-money.
+I noticed that the loop to pull pages out of the LRU lists for
+processing occurred twice.  This just sticks that code into a separate
+function to improve readability.
 
- This money was budgeted for his new company
-project which he had at hand before he died. This
-money was being kept in my possession due to the trust he
-had on me.
+The patch is against 2.6.11-mm2 but should apply to anything recent.
+Build and boot tested on sn2.
 
-Now that the First son of the Family has taken over
-the office as the new head of government in Togo, my
-life and that of my children are in great danger due to
-family crisis; so, luckyly for me and my children we
-were able to move away with the money from Togo to Dakar
-Senegal where I and the children are residing at the
-moment and we have deposited the money with a Trust and
-Security company for safe keeping pending the time we will be
-able to find a trusted person who will help in moving
-this cash out of Africa for investment in a developed
-economy.
+Thanks,
+mh
 
-What I want you to do is to indicate your interest
-that you will assist us by receiving the money on our
-behalf. Acknowledge this message, so that I can
-introduce you to my son (Malik) who has the modalities
-for the claim of the funds. I want you to assist
-in investing this money, but I will not want my
-identity revealed. I will also like to buy properties
-and stock in multinational companies and to engage in
-other safe and non-speculative investment portfolios.
-May I at this point emphasis the high level of confidentiality
-which this business demands, and hope you will not
-betray the trust and confidence, which I entrust on
-you.
 
- In conclusion, if you want to assist us, my son
-will put you in the picture of the
-business by telling you were the funds are currently
-being kept, and also discuss other modalities including
-remunerations for your service.
+Signed-Off-By: Martin Hicks <mort@sgi.com>
+
+ vmscan.c |  111 ++++++++++++++++++++++++++++++++-------------------------------
+ 1 files changed, 57 insertions(+), 54 deletions(-)
+
+Index: linux-2.6.11/mm/vmscan.c
+===================================================================
+--- linux-2.6.11.orig/mm/vmscan.c	2005-03-14 13:39:53.000000000 -0800
++++ linux-2.6.11/mm/vmscan.c	2005-03-14 13:40:34.000000000 -0800
+@@ -550,14 +550,57 @@
+ }
  
-Kindly furnish us your contact information, that is
-your personal telephone and fax
-numbers for confidential purposes and acknowledge
-receipt of this mail
-
-Do contact me through this email address : eyademarie@yahoo.co.uk
-
-Best regards
-Mrs Marie Eyadema.
-
-
+ /*
+- * zone->lru_lock is heavily contented.  We relieve it by quickly privatising
+- * a batch of pages and working on them outside the lock.  Any pages which were
+- * not freed will be added back to the LRU.
++ * zone->lru_lock is heavily contended.  Some of the functions that
++ * shrink the lists perform better by taking out a batch of pages
++ * and working on them outside the LRU lock.
+  *
+- * shrink_cache() adds the number of pages reclaimed to sc->nr_reclaimed
++ * For pagecache intensive workloads, this function is the hottest
++ * spot in the kernel (apart from copy_*_user functions).
++ *
++ * Appropriate locks must be held before calling this function.
++ *
++ * @nr_to_scan:	The number of pages to look through on the list.
++ * @src:	The LRU list to pull pages off.
++ * @dst:	The temp list to put pages on to.
++ * @scanned:	The number of pages that were scanned.
+  *
+- * For pagecache intensive workloads, the first loop here is the hottest spot
+- * in the kernel (apart from the copy_*_user functions).
++ * returns how many pages were moved onto *@dst.
++ */
++static int isolate_lru_pages(int nr_to_scan, struct list_head *src,
++			     struct list_head *dst, int *scanned)
++{
++	int nr_taken = 0;
++	struct page *page;
++
++	BUG_ON(scanned == NULL);
++
++	*scanned = 0;
++	while (*scanned++ < nr_to_scan && !list_empty(src)) {
++		page = lru_to_page(src);
++		prefetchw_prev_lru_page(page, src, flags);
++
++		if (!TestClearPageLRU(page))
++			BUG();
++		list_del(&page->lru);
++		if (get_page_testone(page)) {
++			/*
++			 * It is being freed elsewhere
++			 */
++			__put_page(page);
++			SetPageLRU(page);
++			list_add(&page->lru, src);
++			continue;
++		} else {
++			list_add(&page->lru, dst);
++			nr_taken++;
++		}
++		*scanned++;
++	}
++	return nr_taken;
++}
++
++/*
++ * shrink_cache() adds the number of pages reclaimed to sc->nr_reclaimed
+  */
+ static void shrink_cache(struct zone *zone, struct scan_control *sc)
+ {
+@@ -571,32 +614,13 @@
+ 	spin_lock_irq(&zone->lru_lock);
+ 	while (max_scan > 0) {
+ 		struct page *page;
+-		int nr_taken = 0;
+-		int nr_scan = 0;
++		int nr_taken;
++		int nr_scan;
+ 		int nr_freed;
+ 
+-		while (nr_scan++ < sc->swap_cluster_max &&
+-				!list_empty(&zone->inactive_list)) {
+-			page = lru_to_page(&zone->inactive_list);
+-
+-			prefetchw_prev_lru_page(page,
+-						&zone->inactive_list, flags);
+-
+-			if (!TestClearPageLRU(page))
+-				BUG();
+-			list_del(&page->lru);
+-			if (get_page_testone(page)) {
+-				/*
+-				 * It is being freed elsewhere
+-				 */
+-				__put_page(page);
+-				SetPageLRU(page);
+-				list_add(&page->lru, &zone->inactive_list);
+-				continue;
+-			}
+-			list_add(&page->lru, &page_list);
+-			nr_taken++;
+-		}
++		nr_taken = isolate_lru_pages(sc->swap_cluster_max,
++					     &zone->inactive_list,
++					     &page_list, &nr_scan);
+ 		zone->nr_inactive -= nr_taken;
+ 		zone->pages_scanned += nr_scan;
+ 		spin_unlock_irq(&zone->lru_lock);
+@@ -662,7 +686,7 @@
+ {
+ 	int pgmoved;
+ 	int pgdeactivate = 0;
+-	int pgscanned = 0;
++	int pgscanned;
+ 	int nr_pages = sc->nr_to_scan;
+ 	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+ 	LIST_HEAD(l_inactive);	/* Pages to go onto the inactive_list */
+@@ -675,30 +699,9 @@
+ 	long swap_tendency;
+ 
+ 	lru_add_drain();
+-	pgmoved = 0;
+ 	spin_lock_irq(&zone->lru_lock);
+-	while (pgscanned < nr_pages && !list_empty(&zone->active_list)) {
+-		page = lru_to_page(&zone->active_list);
+-		prefetchw_prev_lru_page(page, &zone->active_list, flags);
+-		if (!TestClearPageLRU(page))
+-			BUG();
+-		list_del(&page->lru);
+-		if (get_page_testone(page)) {
+-			/*
+-			 * It was already free!  release_pages() or put_page()
+-			 * are about to remove it from the LRU and free it. So
+-			 * put the refcount back and put the page back on the
+-			 * LRU
+-			 */
+-			__put_page(page);
+-			SetPageLRU(page);
+-			list_add(&page->lru, &zone->active_list);
+-		} else {
+-			list_add(&page->lru, &l_hold);
+-			pgmoved++;
+-		}
+-		pgscanned++;
+-	}
++	pgmoved = isolate_lru_pages(nr_pages, &zone->active_list,
++				    &l_hold, &pgscanned);
+ 	zone->pages_scanned += pgscanned;
+ 	zone->nr_active -= pgmoved;
+ 	spin_unlock_irq(&zone->lru_lock);
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
