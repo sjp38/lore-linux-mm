@@ -1,753 +1,531 @@
-Message-Id: <200405222204.i4MM4rr12547@mail.osdl.org>
-Subject: [patch 14/57] rmap 13 include/asm deletions
+Message-Id: <200405222205.i4MM53r12618@mail.osdl.org>
+Subject: [patch 15/57] Convert i_shared_sem back to a spinlock
 From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:04:22 -0700
+Date: Sat, 22 May 2004 15:04:31 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
-Cc: linux-mm@kvack.org, akpm@osdl.org, hugh@veritas.com
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
+
+
+Having a semaphore in there causes modest performance regressions on heavily
+mmap-intensive workloads on some hardware.  Specifically, up to 30% in SDET on
+NUMAQ and big PPC64.
+
+So switch it back to being a spinlock.  This does mean that unmap_vmas() needs
+to be told whether or not it is allowed to schedule away; that's simple to do
+via the zap_details structure.
+
+This change means that there will be high scheuling latencies when someone
+truncates a large file which is currently mmapped, but nobody does that
+anyway.  The scheduling points in unmap_vmas() are mainly for munmap() and
+exit(), and they still will work OK for that.
 
 From: Hugh Dickins <hugh@veritas.com>
 
-Delete include/asm*/rmap.h
-Delete pte_addr_t typedef from include/asm*/pgtable.h
-Delete KM_PTE2 from subset of include/asm*/kmap_types.h
-Beware when 4G/4G returns to -mm: i386 may need KM_FILLER for 8K stack.
+  Sorry, my premature optimizations (trying to pass down NULL zap_details
+  except when needed) have caught you out doubly: unmap_mapping_range_list was
+  NULLing the details even though atomic was set; and if it hadn't, then
+  zap_pte_range would have missed free_swap_and_cache and pte_clear when pte
+  not present.  Moved the optimization into zap_pte_range itself.  Plus
+  massive documentation update.
+
+From: Hugh Dickins <hugh@veritas.com>
+
+  Here's a second patch to add to the first: mremap's cows can't come home
+  without releasing the i_mmap_lock, better move the whole "Subtle point"
+  locking from move_vma into move_page_tables.  And it's possible for the file
+  that was behind an anonymous page to be truncated while we drop that lock,
+  don't want to abort mremap because of VM_FAULT_SIGBUS.
+
+  (Eek, should we be checking do_swap_page of a vm_file area against the
+  truncate_count sequence?  Technically yes, but I doubt we need bother.)
+
+
+- We cannot hold i_mmap_lock across move_one_page() because
+  move_one_page() needs to perform __GFP_WAIT allocations of pagetable pages.
+
+- Move the cond_resched() out so we test it once per page rather than only
+  when move_one_page() returns -EAGAIN.
+
 
 
 ---
 
- /dev/null                               |  288 --------------------------------
- 25-akpm/include/asm-alpha/pgtable.h     |    2 
- 25-akpm/include/asm-arm/kmap_types.h    |    1 
- 25-akpm/include/asm-arm/pgtable.h       |    2 
- 25-akpm/include/asm-arm26/pgtable.h     |    2 
- 25-akpm/include/asm-cris/pgtable.h      |    2 
- 25-akpm/include/asm-h8300/pgtable.h     |    2 
- 25-akpm/include/asm-i386/kmap_types.h   |   11 -
- 25-akpm/include/asm-i386/pgtable.h      |   12 -
- 25-akpm/include/asm-ia64/pgtable.h      |    2 
- 25-akpm/include/asm-m68k/pgtable.h      |    2 
- 25-akpm/include/asm-m68knommu/pgtable.h |    2 
- 25-akpm/include/asm-mips/kmap_types.h   |   11 -
- 25-akpm/include/asm-mips/pgtable-32.h   |    6 
- 25-akpm/include/asm-mips/pgtable-64.h   |    2 
- 25-akpm/include/asm-parisc/pgtable.h    |    2 
- 25-akpm/include/asm-ppc/pgtable.h       |    2 
- 25-akpm/include/asm-ppc64/pgtable.h     |    2 
- 25-akpm/include/asm-s390/pgtable.h      |    2 
- 25-akpm/include/asm-sh/pgtable.h        |    2 
- 25-akpm/include/asm-sparc/kmap_types.h  |    1 
- 25-akpm/include/asm-sparc/pgtable.h     |    2 
- 25-akpm/include/asm-sparc64/pgtable.h   |    2 
- 25-akpm/include/asm-um/pgtable.h        |   12 -
- 25-akpm/include/asm-v850/pgtable.h      |    2 
- 25-akpm/include/asm-x86_64/pgtable.h    |    2 
- 26 files changed, 10 insertions(+), 368 deletions(-)
+ 25-akpm/Documentation/vm/locking |    2 +-
+ 25-akpm/fs/hugetlbfs/inode.c     |    4 ++--
+ 25-akpm/fs/inode.c               |    2 +-
+ 25-akpm/include/linux/fs.h       |    2 +-
+ 25-akpm/include/linux/mm.h       |    1 +
+ 25-akpm/include/linux/rmap.h     |   10 ++--------
+ 25-akpm/kernel/fork.c            |    4 ++--
+ 25-akpm/mm/filemap.c             |    6 +++---
+ 25-akpm/mm/madvise.c             |   10 ++++------
+ 25-akpm/mm/memory.c              |   17 +++++++++--------
+ 25-akpm/mm/mmap.c                |   32 ++++++++++++++++----------------
+ 25-akpm/mm/mremap.c              |   13 -------------
+ 25-akpm/mm/rmap.c                |   12 ++++++------
+ 13 files changed, 48 insertions(+), 67 deletions(-)
 
-diff -puN include/asm-alpha/pgtable.h~rmap-13-include-asm-deletions include/asm-alpha/pgtable.h
---- 25/include/asm-alpha/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.488520728 -0700
-+++ 25-akpm/include/asm-alpha/pgtable.h	2004-05-22 14:56:23.547511760 -0700
-@@ -349,6 +349,4 @@ extern void paging_init(void);
- /* We have our own get_unmapped_area to cope with ADDR_LIMIT_32BIT.  */
- #define HAVE_ARCH_UNMAPPED_AREA
+diff -puN fs/hugetlbfs/inode.c~i_mmap_lock fs/hugetlbfs/inode.c
+--- 25/fs/hugetlbfs/inode.c~i_mmap_lock	2004-05-22 14:56:23.904457496 -0700
++++ 25-akpm/fs/hugetlbfs/inode.c	2004-05-22 14:59:40.589556816 -0700
+@@ -321,12 +321,12 @@ static int hugetlb_vmtruncate(struct ino
+ 	pgoff = offset >> HPAGE_SHIFT;
  
--typedef pte_t *pte_addr_t;
--
- #endif /* _ALPHA_PGTABLE_H */
-diff -L include/asm-alpha/rmap.h -puN include/asm-alpha/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-alpha/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef _ALPHA_RMAP_H
--#define _ALPHA_RMAP_H
--
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#endif
-diff -puN include/asm-arm26/pgtable.h~rmap-13-include-asm-deletions include/asm-arm26/pgtable.h
---- 25/include/asm-arm26/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.490520424 -0700
-+++ 25-akpm/include/asm-arm26/pgtable.h	2004-05-22 14:56:23.548511608 -0700
-@@ -290,8 +290,6 @@ static inline pte_t mk_pte_phys(unsigned
- #define io_remap_page_range(vma,from,phys,size,prot) \
- 		remap_page_range(vma,from,phys,size,prot)
- 
--typedef pte_t *pte_addr_t;
--
- #endif /* !__ASSEMBLY__ */
- 
- #endif /* _ASMARM_PGTABLE_H */
-diff -L include/asm-arm26/rmap.h -puN include/asm-arm26/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-arm26/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,66 +0,0 @@
--#ifndef _ARM_RMAP_H
--#define _ARM_RMAP_H
--
--/*
-- * linux/include/asm-arm26/proc-armv/rmap.h
-- *
-- * Architecture dependant parts of the reverse mapping code,
-- *
-- * ARM is different since hardware page tables are smaller than
-- * the page size and Linux uses a "duplicate" one with extra info.
-- * For rmap this means that the first 2 kB of a page are the hardware
-- * page tables and the last 2 kB are the software page tables.
-- */
--
--static inline void pgtable_add_rmap(struct page *page, struct mm_struct * mm, unsigned long address)
--{
--        page->mapping = (void *)mm;
--        page->index = address & ~((PTRS_PER_PTE * PAGE_SIZE) - 1);
--        inc_page_state(nr_page_table_pages);
--}
--
--static inline void pgtable_remove_rmap(struct page *page)
--{
--        page->mapping = NULL;
--        page->index = 0;
--        dec_page_state(nr_page_table_pages);
--}
--
--static inline struct mm_struct * ptep_to_mm(pte_t * ptep)
--{
--	struct page * page = virt_to_page(ptep);
--        return (struct mm_struct *)page->mapping;
--}
--
--/* The page table takes half of the page */
--#define PTE_MASK  ((PAGE_SIZE / 2) - 1)
--
--static inline unsigned long ptep_to_address(pte_t * ptep)
--{
--        struct page * page = virt_to_page(ptep);
--        unsigned long low_bits;
--
--        low_bits = ((unsigned long)ptep & PTE_MASK) * PTRS_PER_PTE;
--        return page->index + low_bits;
--}
-- 
--//FIXME!!! IS these correct?
--static inline pte_addr_t ptep_to_paddr(pte_t *ptep)
--{
--        return (pte_addr_t)ptep;
--}
--
--static inline pte_t *rmap_ptep_map(pte_addr_t pte_paddr)
--{
--        return (pte_t *)pte_paddr;
--}
--
--static inline void rmap_ptep_unmap(pte_t *pte)
--{
--        return;
--}
--
--
--//#include <asm-generic/rmap.h>
--
--#endif /* _ARM_RMAP_H */
-diff -puN include/asm-arm/kmap_types.h~rmap-13-include-asm-deletions include/asm-arm/kmap_types.h
---- 25/include/asm-arm/kmap_types.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.493519968 -0700
-+++ 25-akpm/include/asm-arm/kmap_types.h	2004-05-22 14:56:23.549511456 -0700
-@@ -14,7 +14,6 @@ enum km_type {
- 	KM_BIO_DST_IRQ,
- 	KM_PTE0,
- 	KM_PTE1,
--	KM_PTE2,
- 	KM_IRQ0,
- 	KM_IRQ1,
- 	KM_SOFTIRQ0,
-diff -puN include/asm-arm/pgtable.h~rmap-13-include-asm-deletions include/asm-arm/pgtable.h
---- 25/include/asm-arm/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.495519664 -0700
-+++ 25-akpm/include/asm-arm/pgtable.h	2004-05-22 14:56:23.550511304 -0700
-@@ -407,8 +407,6 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD
- #define io_remap_page_range(vma,from,phys,size,prot) \
- 		remap_page_range(vma,from,phys,size,prot)
- 
--typedef pte_t *pte_addr_t;
--
- #define pgtable_cache_init() do { } while (0)
- 
- #endif /* !__ASSEMBLY__ */
-diff -L include/asm-arm/rmap.h -puN include/asm-arm/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-arm/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,6 +0,0 @@
--#ifndef _ARM_RMAP_H
--#define _ARM_RMAP_H
--
--#include <asm-generic/rmap.h>
--
--#endif /* _ARM_RMAP_H */
-diff -puN include/asm-cris/pgtable.h~rmap-13-include-asm-deletions include/asm-cris/pgtable.h
---- 25/include/asm-cris/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.497519360 -0700
-+++ 25-akpm/include/asm-cris/pgtable.h	2004-05-22 14:56:23.550511304 -0700
-@@ -337,6 +337,4 @@ extern inline void update_mmu_cache(stru
- #define pte_to_pgoff(x)	(pte_val(x) >> 6)
- #define pgoff_to_pte(x)	__pte(((x) << 6) | _PAGE_FILE)
- 
--typedef pte_t *pte_addr_t;
--
- #endif /* _CRIS_PGTABLE_H */
-diff -L include/asm-cris/rmap.h -puN include/asm-cris/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-cris/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef _CRIS_RMAP_H
--#define _CRIS_RMAP_H
--
--/* nothing to see, move along :) */
--#include <asm-generic/rmap.h>
--
--#endif
-diff -L include/asm-generic/rmap.h -puN include/asm-generic/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-generic/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,91 +0,0 @@
--#ifndef _GENERIC_RMAP_H
--#define _GENERIC_RMAP_H
--/*
-- * linux/include/asm-generic/rmap.h
-- *
-- * Architecture dependent parts of the reverse mapping code,
-- * this version should work for most architectures with a
-- * 'normal' page table layout.
-- *
-- * We use the struct page of the page table page to find out
-- * the process and full address of a page table entry:
-- * - page->mapping points to the process' mm_struct
-- * - page->index has the high bits of the address
-- * - the lower bits of the address are calculated from the
-- *   offset of the page table entry within the page table page
-- *
-- * For CONFIG_HIGHPTE, we need to represent the address of a pte in a
-- * scalar pte_addr_t.  The pfn of the pte's page is shifted left by PAGE_SIZE
-- * bits and is then ORed with the byte offset of the pte within its page.
-- *
-- * For CONFIG_HIGHMEM4G, the pte_addr_t is 32 bits.  20 for the pfn, 12 for
-- * the offset.
-- *
-- * For CONFIG_HIGHMEM64G, the pte_addr_t is 64 bits.  52 for the pfn, 12 for
-- * the offset.
-- */
--#include <linux/mm.h>
--
--static inline void pgtable_add_rmap(struct page * page, struct mm_struct * mm, unsigned long address)
--{
--#ifdef BROKEN_PPC_PTE_ALLOC_ONE
--	/* OK, so PPC calls pte_alloc() before mem_map[] is setup ... ;( */
--	extern int mem_init_done;
--
--	if (!mem_init_done)
--		return;
--#endif
--	page->mapping = (void *)mm;
--	page->index = address & ~((PTRS_PER_PTE * PAGE_SIZE) - 1);
--	inc_page_state(nr_page_table_pages);
--}
--
--static inline void pgtable_remove_rmap(struct page * page)
--{
--	page->mapping = NULL;
--	page->index = 0;
--	dec_page_state(nr_page_table_pages);
--}
--
--static inline struct mm_struct * ptep_to_mm(pte_t * ptep)
--{
--	struct page * page = kmap_atomic_to_page(ptep);
--	return (struct mm_struct *) page->mapping;
--}
--
--static inline unsigned long ptep_to_address(pte_t * ptep)
--{
--	struct page * page = kmap_atomic_to_page(ptep);
--	unsigned long low_bits;
--	low_bits = ((unsigned long)ptep & (PTRS_PER_PTE*sizeof(pte_t) - 1))
--			* (PAGE_SIZE/sizeof(pte_t));
--	return page->index + low_bits;
--}
--
--#ifdef CONFIG_HIGHPTE
--static inline pte_addr_t ptep_to_paddr(pte_t *ptep)
--{
--	pte_addr_t paddr;
--	paddr = ((pte_addr_t)page_to_pfn(kmap_atomic_to_page(ptep))) << PAGE_SHIFT;
--	return paddr + (pte_addr_t)((unsigned long)ptep & ~PAGE_MASK);
--}
--#else
--static inline pte_addr_t ptep_to_paddr(pte_t *ptep)
--{
--	return (pte_addr_t)ptep;
--}
--#endif
--
--#ifndef CONFIG_HIGHPTE
--static inline pte_t *rmap_ptep_map(pte_addr_t pte_paddr)
--{
--	return (pte_t *)pte_paddr;
--}
--
--static inline void rmap_ptep_unmap(pte_t *pte)
--{
--	return;
--}
--#endif
--
--#endif /* _GENERIC_RMAP_H */
-diff -puN include/asm-h8300/pgtable.h~rmap-13-include-asm-deletions include/asm-h8300/pgtable.h
---- 25/include/asm-h8300/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.501518752 -0700
-+++ 25-akpm/include/asm-h8300/pgtable.h	2004-05-22 14:56:23.551511152 -0700
-@@ -7,8 +7,6 @@
- #include <asm/page.h>
- #include <asm/io.h>
- 
--typedef pte_t *pte_addr_t;
--
- #define pgd_present(pgd)     (1)       /* pages are always present on NO_MM */
- #define pgd_none(pgd)		(0)
- #define pgd_bad(pgd)		(0)
-diff -puN include/asm-i386/kmap_types.h~rmap-13-include-asm-deletions include/asm-i386/kmap_types.h
---- 25/include/asm-i386/kmap_types.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.502518600 -0700
-+++ 25-akpm/include/asm-i386/kmap_types.h	2004-05-22 14:56:23.552511000 -0700
-@@ -19,12 +19,11 @@ D(5)	KM_BIO_SRC_IRQ,
- D(6)	KM_BIO_DST_IRQ,
- D(7)	KM_PTE0,
- D(8)	KM_PTE1,
--D(9)	KM_PTE2,
--D(10)	KM_IRQ0,
--D(11)	KM_IRQ1,
--D(12)	KM_SOFTIRQ0,
--D(13)	KM_SOFTIRQ1,
--D(14)	KM_TYPE_NR
-+D(9)	KM_IRQ0,
-+D(10)	KM_IRQ1,
-+D(11)	KM_SOFTIRQ0,
-+D(12)	KM_SOFTIRQ1,
-+D(13)	KM_TYPE_NR
+ 	inode->i_size = offset;
+-	down(&mapping->i_shared_sem);
++	spin_lock(&mapping->i_mmap_lock);
+ 	if (!list_empty(&mapping->i_mmap))
+ 		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
+ 	if (!list_empty(&mapping->i_mmap_shared))
+ 		hugetlb_vmtruncate_list(&mapping->i_mmap_shared, pgoff);
+-	up(&mapping->i_shared_sem);
++	spin_unlock(&mapping->i_mmap_lock);
+ 	truncate_hugepages(mapping, offset);
+ 	return 0;
+ }
+diff -puN fs/inode.c~i_mmap_lock fs/inode.c
+--- 25/fs/inode.c~i_mmap_lock	2004-05-22 14:56:23.906457192 -0700
++++ 25-akpm/fs/inode.c	2004-05-22 14:59:39.592708360 -0700
+@@ -196,7 +196,7 @@ void inode_init_once(struct inode *inode
+ 	init_rwsem(&inode->i_alloc_sem);
+ 	INIT_RADIX_TREE(&inode->i_data.page_tree, GFP_ATOMIC);
+ 	spin_lock_init(&inode->i_data.tree_lock);
+-	init_MUTEX(&inode->i_data.i_shared_sem);
++	spin_lock_init(&inode->i_data.i_mmap_lock);
+ 	atomic_set(&inode->i_data.truncate_count, 0);
+ 	INIT_LIST_HEAD(&inode->i_data.private_list);
+ 	spin_lock_init(&inode->i_data.private_lock);
+diff -puN include/linux/fs.h~i_mmap_lock include/linux/fs.h
+--- 25/include/linux/fs.h~i_mmap_lock	2004-05-22 14:56:23.907457040 -0700
++++ 25-akpm/include/linux/fs.h	2004-05-22 14:59:39.594708056 -0700
+@@ -331,7 +331,7 @@ struct address_space {
+ 	struct address_space_operations *a_ops;	/* methods */
+ 	struct list_head	i_mmap;		/* list of private mappings */
+ 	struct list_head	i_mmap_shared;	/* list of shared mappings */
+-	struct semaphore	i_shared_sem;	/* protect both above lists */
++	spinlock_t		i_mmap_lock;	/* protect both above lists */
+ 	atomic_t		truncate_count;	/* Cover race condition with truncate */
+ 	unsigned long		flags;		/* error bits/gfp mask */
+ 	struct backing_dev_info *backing_dev_info; /* device readahead, etc */
+diff -puN include/linux/mm.h~i_mmap_lock include/linux/mm.h
+--- 25/include/linux/mm.h~i_mmap_lock	2004-05-22 14:56:23.909456736 -0700
++++ 25-akpm/include/linux/mm.h	2004-05-22 14:59:41.376437192 -0700
+@@ -477,6 +477,7 @@ struct zap_details {
+ 	struct address_space *check_mapping;	/* Check page->mapping if set */
+ 	pgoff_t	first_index;			/* Lowest page->index to unmap */
+ 	pgoff_t last_index;			/* Highest page->index to unmap */
++	int atomic;				/* May not schedule() */
  };
  
- #undef D
-diff -puN include/asm-i386/pgtable.h~rmap-13-include-asm-deletions include/asm-i386/pgtable.h
---- 25/include/asm-i386/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.504518296 -0700
-+++ 25-akpm/include/asm-i386/pgtable.h	2004-05-22 14:56:23.552511000 -0700
-@@ -314,18 +314,6 @@ static inline pte_t pte_modify(pte_t pte
- #define pte_unmap_nested(pte) do { } while (0)
- #endif
+ void zap_page_range(struct vm_area_struct *vma, unsigned long address,
+diff -puN kernel/fork.c~i_mmap_lock kernel/fork.c
+--- 25/kernel/fork.c~i_mmap_lock	2004-05-22 14:56:23.911456432 -0700
++++ 25-akpm/kernel/fork.c	2004-05-22 14:59:40.802524440 -0700
+@@ -324,9 +324,9 @@ static inline int dup_mmap(struct mm_str
+ 				atomic_dec(&inode->i_writecount);
+       
+ 			/* insert tmp into the share list, just after mpnt */
+-			down(&file->f_mapping->i_shared_sem);
++			spin_lock(&file->f_mapping->i_mmap_lock);
+ 			list_add(&tmp->shared, &mpnt->shared);
+-			up(&file->f_mapping->i_shared_sem);
++			spin_unlock(&file->f_mapping->i_mmap_lock);
+ 		}
  
--#if defined(CONFIG_HIGHPTE) && defined(CONFIG_HIGHMEM4G)
--typedef u32 pte_addr_t;
--#endif
--
--#if defined(CONFIG_HIGHPTE) && defined(CONFIG_HIGHMEM64G)
--typedef u64 pte_addr_t;
--#endif
--
--#if !defined(CONFIG_HIGHPTE)
--typedef pte_t *pte_addr_t;
--#endif
--
+ 		/*
+diff -puN mm/filemap.c~i_mmap_lock mm/filemap.c
+--- 25/mm/filemap.c~i_mmap_lock	2004-05-22 14:56:23.912456280 -0700
++++ 25-akpm/mm/filemap.c	2004-05-22 14:59:37.978953688 -0700
+@@ -55,17 +55,17 @@
  /*
-  * The i386 doesn't have any external MMU info: the kernel page
-  * tables contain all the necessary information.
-diff -L include/asm-i386/rmap.h -puN include/asm-i386/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-i386/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,21 +0,0 @@
--#ifndef _I386_RMAP_H
--#define _I386_RMAP_H
+  * Lock ordering:
+  *
+- *  ->i_shared_sem		(vmtruncate)
++ *  ->i_mmap_lock		(vmtruncate)
+  *    ->private_lock		(__free_pte->__set_page_dirty_buffers)
+  *      ->swap_list_lock
+  *        ->swap_device_lock	(exclusive_swap_page, others)
+  *          ->mapping->tree_lock
+  *
+  *  ->i_sem
+- *    ->i_shared_sem		(truncate->unmap_mapping_range)
++ *    ->i_mmap_lock		(truncate->unmap_mapping_range)
+  *
+  *  ->mmap_sem
+- *    ->i_shared_sem		(various places)
++ *    ->i_mmap_lock		(various places)
+  *
+  *  ->mmap_sem
+  *    ->lock_page		(access_process_vm)
+diff -puN mm/madvise.c~i_mmap_lock mm/madvise.c
+--- 25/mm/madvise.c~i_mmap_lock	2004-05-22 14:56:23.913456128 -0700
++++ 25-akpm/mm/madvise.c	2004-05-22 14:59:36.404193088 -0700
+@@ -92,16 +92,14 @@ static long madvise_willneed(struct vm_a
+ static long madvise_dontneed(struct vm_area_struct * vma,
+ 			     unsigned long start, unsigned long end)
+ {
+-	struct zap_details details;
 -
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#ifdef CONFIG_HIGHPTE
--static inline pte_t *rmap_ptep_map(pte_addr_t pte_paddr)
--{
--	unsigned long pfn = (unsigned long)(pte_paddr >> PAGE_SHIFT);
--	unsigned long off = ((unsigned long)pte_paddr) & ~PAGE_MASK;
--	return (pte_t *)((char *)kmap_atomic(pfn_to_page(pfn), KM_PTE2) + off);
--}
--
--static inline void rmap_ptep_unmap(pte_t *pte)
--{
--	kunmap_atomic(pte, KM_PTE2);
--}
--#endif
--
--#endif
-diff -puN include/asm-ia64/pgtable.h~rmap-13-include-asm-deletions include/asm-ia64/pgtable.h
---- 25/include/asm-ia64/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.506517992 -0700
-+++ 25-akpm/include/asm-ia64/pgtable.h	2004-05-22 14:56:23.553510848 -0700
-@@ -469,8 +469,6 @@ extern void hugetlb_free_pgtables(struct
- 	struct vm_area_struct * prev, unsigned long start, unsigned long end);
- #endif
+ 	if (vma->vm_flags & VM_LOCKED)
+ 		return -EINVAL;
  
--typedef pte_t *pte_addr_t;
--
- /*
-  * IA-64 doesn't have any external MMU info: the page tables contain all the necessary
-  * information.  However, we use this routine to take care of any (delayed) i-cache
-diff -L include/asm-ia64/rmap.h -puN include/asm-ia64/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-ia64/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef _ASM_IA64_RMAP_H
--#define _ASM_IA64_RMAP_H
--
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#endif /* _ASM_IA64_RMAP_H */
-diff -puN include/asm-m68knommu/pgtable.h~rmap-13-include-asm-deletions include/asm-m68knommu/pgtable.h
---- 25/include/asm-m68knommu/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.509517536 -0700
-+++ 25-akpm/include/asm-m68knommu/pgtable.h	2004-05-22 14:56:23.554510696 -0700
-@@ -11,8 +11,6 @@
- #include <asm/page.h>
- #include <asm/io.h>
+ 	if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
+-		details.check_mapping = NULL;
+-		details.nonlinear_vma = vma;
+-		details.first_index = 0;
+-		details.last_index = ULONG_MAX;
++		struct zap_details details = {
++			.nonlinear_vma = vma,
++			.last_index = ULONG_MAX,
++		};
+ 		zap_page_range(vma, start, end - start, &details);
+ 	} else
+ 		zap_page_range(vma, start, end - start, NULL);
+diff -puN mm/memory.c~i_mmap_lock mm/memory.c
+--- 25/mm/memory.c~i_mmap_lock	2004-05-22 14:56:23.915455824 -0700
++++ 25-akpm/mm/memory.c	2004-05-22 14:59:40.054638136 -0700
+@@ -365,6 +365,8 @@ static void zap_pte_range(struct mmu_gat
+ 	if (offset + size > PMD_SIZE)
+ 		size = PMD_SIZE - offset;
+ 	size &= PAGE_MASK;
++	if (details && !details->check_mapping && !details->nonlinear_vma)
++		details = NULL;
+ 	for (offset=0; offset < size; ptep++, offset += PAGE_SIZE) {
+ 		pte_t pte = *ptep;
+ 		if (pte_none(pte))
+@@ -518,6 +520,7 @@ int unmap_vmas(struct mmu_gather **tlbp,
+ 	unsigned long tlb_start = 0;	/* For tlb_finish_mmu */
+ 	int tlb_start_valid = 0;
+ 	int ret = 0;
++	int atomic = details && details->atomic;
  
--typedef pte_t *pte_addr_t;
+ 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
+ 		unsigned long start;
+@@ -555,7 +558,7 @@ int unmap_vmas(struct mmu_gather **tlbp,
+ 			zap_bytes -= block;
+ 			if ((long)zap_bytes > 0)
+ 				continue;
+-			if (need_resched()) {
++			if (!atomic && need_resched()) {
+ 				int fullmm = tlb_is_full_mm(*tlbp);
+ 				tlb_finish_mmu(*tlbp, tlb_start, start);
+ 				cond_resched_lock(&mm->page_table_lock);
+@@ -583,8 +586,6 @@ void zap_page_range(struct vm_area_struc
+ 	unsigned long end = address + size;
+ 	unsigned long nr_accounted = 0;
+ 
+-	might_sleep();
 -
- /*
-  * Trivial page table functions.
+ 	if (is_vm_hugetlb_page(vma)) {
+ 		zap_hugepage_range(vma, address, size);
+ 		return;
+@@ -1133,8 +1134,7 @@ static void unmap_mapping_range_list(str
+ 			zea = vea;
+ 		zap_page_range(vma,
+ 			((zba - vba) << PAGE_SHIFT) + vma->vm_start,
+-			(zea - zba + 1) << PAGE_SHIFT,
+-			details->check_mapping? details: NULL);
++			(zea - zba + 1) << PAGE_SHIFT, details);
+ 	}
+ }
+ 
+@@ -1155,7 +1155,7 @@ static void unmap_mapping_range_list(str
+  * but 0 when invalidating pagecache, don't throw away private data.
   */
-diff -L include/asm-m68knommu/rmap.h -puN include/asm-m68knommu/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-m68knommu/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,2 +0,0 @@
--/* Do not need anything here */
--
-diff -puN include/asm-m68k/pgtable.h~rmap-13-include-asm-deletions include/asm-m68k/pgtable.h
---- 25/include/asm-m68k/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.511517232 -0700
-+++ 25-akpm/include/asm-m68k/pgtable.h	2004-05-22 14:56:23.554510696 -0700
-@@ -168,8 +168,6 @@ static inline void update_mmu_cache(stru
- 	    ? (__pgprot((pgprot_val(prot) & _CACHEMASK040) | _PAGE_NOCACHE_S))	\
- 	    : (prot)))
+ void unmap_mapping_range(struct address_space *mapping,
+-	loff_t const holebegin, loff_t const holelen, int even_cows)
++		loff_t const holebegin, loff_t const holelen, int even_cows)
+ {
+ 	struct zap_details details;
+ 	pgoff_t hba = holebegin >> PAGE_SHIFT;
+@@ -1173,10 +1173,11 @@ void unmap_mapping_range(struct address_
+ 	details.nonlinear_vma = NULL;
+ 	details.first_index = hba;
+ 	details.last_index = hba + hlen - 1;
++	details.atomic = 1;	/* A spinlock is held */
+ 	if (details.last_index < details.first_index)
+ 		details.last_index = ULONG_MAX;
  
--typedef pte_t *pte_addr_t;
--
- #endif /* !__ASSEMBLY__ */
+-	down(&mapping->i_shared_sem);
++	spin_lock(&mapping->i_mmap_lock);
+ 	/* Protect against page fault */
+ 	atomic_inc(&mapping->truncate_count);
+ 	if (unlikely(!list_empty(&mapping->i_mmap)))
+@@ -1187,7 +1188,7 @@ void unmap_mapping_range(struct address_
+ 
+ 	if (unlikely(!list_empty(&mapping->i_mmap_shared)))
+ 		unmap_mapping_range_list(&mapping->i_mmap_shared, &details);
+-	up(&mapping->i_shared_sem);
++	spin_unlock(&mapping->i_mmap_lock);
+ }
+ EXPORT_SYMBOL(unmap_mapping_range);
+ 
+diff -puN mm/mmap.c~i_mmap_lock mm/mmap.c
+--- 25/mm/mmap.c~i_mmap_lock	2004-05-22 14:56:23.916455672 -0700
++++ 25-akpm/mm/mmap.c	2004-05-22 14:59:41.184466376 -0700
+@@ -63,7 +63,7 @@ EXPORT_SYMBOL(sysctl_max_map_count);
+ EXPORT_SYMBOL(vm_committed_space);
  
  /*
-diff -L include/asm-m68k/rmap.h -puN include/asm-m68k/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-m68k/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef _M68K_RMAP_H
--#define _M68K_RMAP_H
--
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#endif
-diff -puN include/asm-mips/kmap_types.h~rmap-13-include-asm-deletions include/asm-mips/kmap_types.h
---- 25/include/asm-mips/kmap_types.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.514516776 -0700
-+++ 25-akpm/include/asm-mips/kmap_types.h	2004-05-22 14:56:23.555510544 -0700
-@@ -19,12 +19,11 @@ D(5)	KM_BIO_SRC_IRQ,
- D(6)	KM_BIO_DST_IRQ,
- D(7)	KM_PTE0,
- D(8)	KM_PTE1,
--D(9)	KM_PTE2,
--D(10)	KM_IRQ0,
--D(11)	KM_IRQ1,
--D(12)	KM_SOFTIRQ0,
--D(13)	KM_SOFTIRQ1,
--D(14)	KM_TYPE_NR
-+D(9)	KM_IRQ0,
-+D(10)	KM_IRQ1,
-+D(11)	KM_SOFTIRQ0,
-+D(12)	KM_SOFTIRQ1,
-+D(13)	KM_TYPE_NR
- };
+- * Requires inode->i_mapping->i_shared_sem
++ * Requires inode->i_mapping->i_mmap_lock
+  */
+ static inline void
+ __remove_shared_vm_struct(struct vm_area_struct *vma, struct inode *inode)
+@@ -84,9 +84,9 @@ static void remove_shared_vm_struct(stru
  
- #undef D
-diff -puN include/asm-mips/pgtable-32.h~rmap-13-include-asm-deletions include/asm-mips/pgtable-32.h
---- 25/include/asm-mips/pgtable-32.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.515516624 -0700
-+++ 25-akpm/include/asm-mips/pgtable-32.h	2004-05-22 14:56:23.555510544 -0700
-@@ -216,10 +216,4 @@ static inline pmd_t *pmd_offset(pgd_t *d
- #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
- #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+ 	if (file) {
+ 		struct address_space *mapping = file->f_mapping;
+-		down(&mapping->i_shared_sem);
++		spin_lock(&mapping->i_mmap_lock);
+ 		__remove_shared_vm_struct(vma, file->f_dentry->d_inode);
+-		up(&mapping->i_shared_sem);
++		spin_unlock(&mapping->i_mmap_lock);
+ 	}
+ }
  
--#ifdef CONFIG_64BIT_PHYS_ADDR
--typedef u64 pte_addr_t;
--#else
--typedef pte_t *pte_addr_t;
--#endif
--
- #endif /* _ASM_PGTABLE_32_H */
-diff -puN include/asm-mips/pgtable-64.h~rmap-13-include-asm-deletions include/asm-mips/pgtable-64.h
---- 25/include/asm-mips/pgtable-64.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.516516472 -0700
-+++ 25-akpm/include/asm-mips/pgtable-64.h	2004-05-22 14:56:23.555510544 -0700
-@@ -214,8 +214,6 @@ static inline pte_t mk_swap_pte(unsigned
- #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
- #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+@@ -286,12 +286,12 @@ static void vma_link(struct mm_struct *m
+ 		mapping = vma->vm_file->f_mapping;
  
--typedef pte_t *pte_addr_t;
--
+ 	if (mapping)
+-		down(&mapping->i_shared_sem);
++		spin_lock(&mapping->i_mmap_lock);
+ 	spin_lock(&mm->page_table_lock);
+ 	__vma_link(mm, vma, prev, rb_link, rb_parent);
+ 	spin_unlock(&mm->page_table_lock);
+ 	if (mapping)
+-		up(&mapping->i_shared_sem);
++		spin_unlock(&mapping->i_mmap_lock);
+ 
+ 	mark_mm_hugetlb(mm, vma);
+ 	mm->map_count++;
+@@ -301,7 +301,7 @@ static void vma_link(struct mm_struct *m
  /*
-  * Used for the b0rked handling of kernel pagetables on the 64-bit kernel.
+  * Insert vm structure into process list sorted by address and into the inode's
+  * i_mmap ring. The caller should hold mm->page_table_lock and
+- * ->f_mappping->i_shared_sem if vm_file is non-NULL.
++ * ->f_mappping->i_mmap_lock if vm_file is non-NULL.
   */
-diff -L include/asm-mips/rmap.h -puN include/asm-mips/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-mips/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef __ASM_RMAP_H
--#define __ASM_RMAP_H
--
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#endif /* __ASM_RMAP_H */
-diff -puN include/asm-parisc/pgtable.h~rmap-13-include-asm-deletions include/asm-parisc/pgtable.h
---- 25/include/asm-parisc/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.519516016 -0700
-+++ 25-akpm/include/asm-parisc/pgtable.h	2004-05-22 14:56:23.556510392 -0700
-@@ -488,8 +488,6 @@ static inline void ptep_mkdirty(pte_t *p
+ static void
+ __insert_vm_struct(struct mm_struct * mm, struct vm_area_struct * vma)
+@@ -391,7 +391,7 @@ static struct vm_area_struct *vma_merge(
+ {
+ 	spinlock_t *lock = &mm->page_table_lock;
+ 	struct inode *inode = file ? file->f_dentry->d_inode : NULL;
+-	struct semaphore *i_shared_sem;
++	spinlock_t *i_mmap_lock;
  
- #define pte_same(A,B)	(pte_val(A) == pte_val(B))
+ 	/*
+ 	 * We later require that vma->vm_flags == vm_flags, so this tests
+@@ -400,7 +400,7 @@ static struct vm_area_struct *vma_merge(
+ 	if (vm_flags & VM_SPECIAL)
+ 		return NULL;
  
--typedef pte_t *pte_addr_t;
--
- #endif /* !__ASSEMBLY__ */
+-	i_shared_sem = file ? &file->f_mapping->i_shared_sem : NULL;
++	i_mmap_lock = file ? &file->f_mapping->i_mmap_lock : NULL;
  
- #define io_remap_page_range remap_page_range
-diff -L include/asm-parisc/rmap.h -puN include/asm-parisc/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-parisc/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef _PARISC_RMAP_H
--#define _PARISC_RMAP_H
--
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#endif
-diff -puN include/asm-ppc64/pgtable.h~rmap-13-include-asm-deletions include/asm-ppc64/pgtable.h
---- 25/include/asm-ppc64/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.521515712 -0700
-+++ 25-akpm/include/asm-ppc64/pgtable.h	2004-05-22 14:56:23.557510240 -0700
-@@ -471,8 +471,6 @@ extern struct vm_struct * im_get_area(un
- 			int region_type);
- unsigned long im_free(void *addr);
+ 	if (!prev) {
+ 		prev = rb_entry(rb_parent, struct vm_area_struct, vm_rb);
+@@ -417,7 +417,7 @@ static struct vm_area_struct *vma_merge(
  
--typedef pte_t *pte_addr_t;
--
- long pSeries_lpar_hpte_insert(unsigned long hpte_group,
- 			      unsigned long va, unsigned long prpn,
- 			      int secondary, unsigned long hpteflags,
-diff -L include/asm-ppc64/rmap.h -puN include/asm-ppc64/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-ppc64/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,9 +0,0 @@
--#ifndef _PPC64_RMAP_H
--#define _PPC64_RMAP_H
--
--/* PPC64 calls pte_alloc() before mem_map[] is setup ... */
--#define BROKEN_PPC_PTE_ALLOC_ONE
--
--#include <asm-generic/rmap.h>
--
--#endif
-diff -puN include/asm-ppc/pgtable.h~rmap-13-include-asm-deletions include/asm-ppc/pgtable.h
---- 25/include/asm-ppc/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.523515408 -0700
-+++ 25-akpm/include/asm-ppc/pgtable.h	2004-05-22 14:56:23.558510088 -0700
-@@ -670,8 +670,6 @@ extern void kernel_set_cachemode (unsign
+ 		if (unlikely(file && prev->vm_next &&
+ 				prev->vm_next->vm_file == file)) {
+-			down(i_shared_sem);
++			spin_lock(i_mmap_lock);
+ 			need_up = 1;
+ 		}
+ 		spin_lock(lock);
+@@ -435,7 +435,7 @@ static struct vm_area_struct *vma_merge(
+ 			__remove_shared_vm_struct(next, inode);
+ 			spin_unlock(lock);
+ 			if (need_up)
+-				up(i_shared_sem);
++				spin_unlock(i_mmap_lock);
+ 			if (file)
+ 				fput(file);
+ 
+@@ -445,7 +445,7 @@ static struct vm_area_struct *vma_merge(
+ 		}
+ 		spin_unlock(lock);
+ 		if (need_up)
+-			up(i_shared_sem);
++			spin_unlock(i_mmap_lock);
+ 		return prev;
+ 	}
+ 
+@@ -460,13 +460,13 @@ static struct vm_area_struct *vma_merge(
+ 			return NULL;
+ 		if (end == prev->vm_start) {
+ 			if (file)
+-				down(i_shared_sem);
++				spin_lock(i_mmap_lock);
+ 			spin_lock(lock);
+ 			prev->vm_start = addr;
+ 			prev->vm_pgoff -= (end - addr) >> PAGE_SHIFT;
+ 			spin_unlock(lock);
+ 			if (file)
+-				up(i_shared_sem);
++				spin_unlock(i_mmap_lock);
+ 			return prev;
+ 		}
+ 	}
+@@ -1232,7 +1232,7 @@ int split_vma(struct mm_struct * mm, str
+ 		 mapping = vma->vm_file->f_mapping;
+ 
+ 	if (mapping)
+-		down(&mapping->i_shared_sem);
++		spin_lock(&mapping->i_mmap_lock);
+ 	spin_lock(&mm->page_table_lock);
+ 
+ 	if (new_below) {
+@@ -1245,7 +1245,7 @@ int split_vma(struct mm_struct * mm, str
+ 
+ 	spin_unlock(&mm->page_table_lock);
+ 	if (mapping)
+-		up(&mapping->i_shared_sem);
++		spin_unlock(&mapping->i_mmap_lock);
+ 
+ 	return 0;
+ }
+@@ -1479,7 +1479,7 @@ void exit_mmap(struct mm_struct *mm)
+ 
+ /* Insert vm structure into process list sorted by address
+  * and into the inode's i_mmap ring.  If vm_file is non-NULL
+- * then i_shared_sem is taken here.
++ * then i_mmap_lock is taken here.
   */
- #define pgtable_cache_init()	do { } while (0)
+ void insert_vm_struct(struct mm_struct * mm, struct vm_area_struct * vma)
+ {
+diff -puN mm/mremap.c~i_mmap_lock mm/mremap.c
+--- 25/mm/mremap.c~i_mmap_lock	2004-05-22 14:56:23.917455520 -0700
++++ 25-akpm/mm/mremap.c	2004-05-22 14:59:41.914355416 -0700
+@@ -180,7 +180,6 @@ static unsigned long move_vma(struct vm_
+ 		unsigned long new_len, unsigned long new_addr)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+-	struct address_space *mapping = NULL;
+ 	struct vm_area_struct *new_vma;
+ 	unsigned long vm_flags = vma->vm_flags;
+ 	unsigned long new_pgoff;
+@@ -201,16 +200,6 @@ static unsigned long move_vma(struct vm_
+ 	if (!new_vma)
+ 		return -ENOMEM;
  
--typedef pte_t *pte_addr_t;
--
- extern int get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep);
+-	if (vma->vm_file) {
+-		/*
+-		 * Subtle point from Rajesh Venkatasubramanian: before
+-		 * moving file-based ptes, we must lock vmtruncate out,
+-		 * since it might clean the dst vma before the src vma,
+-		 * and we propagate stale pages into the dst afterward.
+-		 */
+-		mapping = vma->vm_file->f_mapping;
+-		down(&mapping->i_shared_sem);
+-	}
+ 	moved_len = move_page_tables(vma, new_addr, old_addr, old_len, &cows);
+ 	if (moved_len < old_len) {
+ 		/*
+@@ -227,8 +216,6 @@ static unsigned long move_vma(struct vm_
+ 	if (cows)	/* Downgrade or remove this message later */
+ 		printk(KERN_WARNING "%s: mremap moved %d cows\n",
+ 							current->comm, cows);
+-	if (mapping)
+-		up(&mapping->i_shared_sem);
  
- #endif /* !__ASSEMBLY__ */
-diff -L include/asm-ppc/rmap.h -puN include/asm-ppc/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-ppc/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,9 +0,0 @@
--#ifndef _PPC_RMAP_H
--#define _PPC_RMAP_H
--
--/* PPC calls pte_alloc() before mem_map[] is setup ... */
--#define BROKEN_PPC_PTE_ALLOC_ONE
--
--#include <asm-generic/rmap.h>
--
--#endif
-diff -puN include/asm-s390/pgtable.h~rmap-13-include-asm-deletions include/asm-s390/pgtable.h
---- 25/include/asm-s390/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.526514952 -0700
-+++ 25-akpm/include/asm-s390/pgtable.h	2004-05-22 14:56:23.559509936 -0700
-@@ -760,8 +760,6 @@ extern inline pte_t mk_swap_pte(unsigned
- #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
- #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
+ 	/* Conceal VM_ACCOUNT so old reservation is not undone */
+ 	if (vm_flags & VM_ACCOUNT) {
+diff -puN mm/rmap.c~i_mmap_lock mm/rmap.c
+--- 25/mm/rmap.c~i_mmap_lock	2004-05-22 14:56:23.919455216 -0700
++++ 25-akpm/mm/rmap.c	2004-05-22 14:59:41.916355112 -0700
+@@ -300,7 +300,7 @@ migrate:
+  *
+  * This function is only called from page_referenced for object-based pages.
+  *
+- * The semaphore address_space->i_shared_sem is tried.  If it can't be gotten,
++ * The semaphore address_space->i_mmap_lock is tried.  If it can't be gotten,
+  * assume a reference count of 0, so try_to_unmap will then have a go.
+  */
+ static inline int page_referenced_file(struct page *page)
+@@ -313,7 +313,7 @@ static inline int page_referenced_file(s
+ 	int referenced = 0;
+ 	int failed = 0;
  
--typedef pte_t *pte_addr_t;
--
- #ifndef __s390x__
- # define PTE_FILE_MAX_BITS	26
- #else /* __s390x__ */
-diff -L include/asm-s390/rmap.h -puN include/asm-s390/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-s390/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef _S390_RMAP_H
--#define _S390_RMAP_H
--
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#endif
-diff -puN include/asm-sh/pgtable.h~rmap-13-include-asm-deletions include/asm-sh/pgtable.h
---- 25/include/asm-sh/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.528514648 -0700
-+++ 25-akpm/include/asm-sh/pgtable.h	2004-05-22 14:56:23.560509784 -0700
-@@ -274,8 +274,6 @@ extern void update_mmu_cache(struct vm_a
+-	if (down_trylock(&mapping->i_shared_sem))
++	if (!spin_trylock(&mapping->i_mmap_lock))
+ 		return 0;
  
- #define pte_same(A,B)	(pte_val(A) == pte_val(B))
+ 	list_for_each_entry(vma, &mapping->i_mmap, shared) {
+@@ -355,7 +355,7 @@ static inline int page_referenced_file(s
  
--typedef pte_t *pte_addr_t;
--
- #endif /* !__ASSEMBLY__ */
+ 	WARN_ON(!failed);
+ out:
+-	up(&mapping->i_shared_sem);
++	spin_unlock(&mapping->i_mmap_lock);
+ 	return referenced;
+ }
  
- #define kern_addr_valid(addr)	(1)
-diff -L include/asm-sh/rmap.h -puN include/asm-sh/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-sh/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef _SH_RMAP_H
--#define _SH_RMAP_H
--
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#endif
-diff -puN include/asm-sparc64/pgtable.h~rmap-13-include-asm-deletions include/asm-sparc64/pgtable.h
---- 25/include/asm-sparc64/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.531514192 -0700
-+++ 25-akpm/include/asm-sparc64/pgtable.h	2004-05-22 14:56:23.561509632 -0700
-@@ -386,8 +386,6 @@ extern unsigned long get_fb_unmapped_are
+@@ -725,7 +725,7 @@ out:
+  *
+  * This function is only called from try_to_unmap for object-based pages.
+  *
+- * The semaphore address_space->i_shared_sem is tried.  If it can't be gotten,
++ * The semaphore address_space->i_mmap_lock is tried.  If it can't be gotten,
+  * return a temporary error.
+  */
+ static inline int try_to_unmap_file(struct page *page)
+@@ -740,7 +740,7 @@ static inline int try_to_unmap_file(stru
+ 	unsigned long max_nl_cursor = 0;
+ 	unsigned long max_nl_size = 0;
  
- extern void check_pgt_cache(void);
+-	if (down_trylock(&mapping->i_shared_sem))
++	if (!spin_trylock(&mapping->i_mmap_lock))
+ 		return ret;
  
--typedef pte_t *pte_addr_t;
--
- #endif /* !(__ASSEMBLY__) */
+ 	list_for_each_entry(vma, &mapping->i_mmap, shared) {
+@@ -839,7 +839,7 @@ static inline int try_to_unmap_file(stru
+ relock:
+ 	page_map_lock(page);
+ out:
+-	up(&mapping->i_shared_sem);
++	spin_unlock(&mapping->i_mmap_lock);
+ 	return ret;
+ }
  
- #endif /* !(_SPARC64_PGTABLE_H) */
-diff -L include/asm-sparc64/rmap.h -puN include/asm-sparc64/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-sparc64/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef _SPARC64_RMAP_H
--#define _SPARC64_RMAP_H
--
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#endif
-diff -puN include/asm-sparc/kmap_types.h~rmap-13-include-asm-deletions include/asm-sparc/kmap_types.h
---- 25/include/asm-sparc/kmap_types.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.533513888 -0700
-+++ 25-akpm/include/asm-sparc/kmap_types.h	2004-05-22 14:56:23.561509632 -0700
-@@ -11,7 +11,6 @@ enum km_type {
- 	KM_BIO_DST_IRQ,
- 	KM_PTE0,
- 	KM_PTE1,
--	KM_PTE2,
- 	KM_IRQ0,
- 	KM_IRQ1,
- 	KM_SOFTIRQ0,
-diff -puN include/asm-sparc/pgtable.h~rmap-13-include-asm-deletions include/asm-sparc/pgtable.h
---- 25/include/asm-sparc/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.535513584 -0700
-+++ 25-akpm/include/asm-sparc/pgtable.h	2004-05-22 14:56:23.562509480 -0700
-@@ -497,8 +497,6 @@ extern int io_remap_page_range(struct vm
+diff -puN Documentation/vm/locking~i_mmap_lock Documentation/vm/locking
+--- 25/Documentation/vm/locking~i_mmap_lock	2004-05-22 14:56:23.920455064 -0700
++++ 25-akpm/Documentation/vm/locking	2004-05-22 14:56:23.937452480 -0700
+@@ -66,7 +66,7 @@ in some cases it is not really needed. E
+ expand_stack(), it is hard to come up with a destructive scenario without 
+ having the vmlist protection in this case.
  
- #include <asm-generic/pgtable.h>
+-The page_table_lock nests with the inode i_shared_sem and the kmem cache
++The page_table_lock nests with the inode i_mmap_lock and the kmem cache
+ c_spinlock spinlocks.  This is okay, since the kmem code asks for pages after
+ dropping c_spinlock.  The page_table_lock also nests with pagecache_lock and
+ pagemap_lru_lock spinlocks, and no code asks for memory with these locks
+diff -puN include/linux/rmap.h~i_mmap_lock include/linux/rmap.h
+--- 25/include/linux/rmap.h~i_mmap_lock	2004-05-22 14:56:23.921454912 -0700
++++ 25-akpm/include/linux/rmap.h	2004-05-22 14:59:37.542020112 -0700
+@@ -69,15 +69,9 @@ static inline int mremap_moved_anon_rmap
+ static inline int make_page_exclusive(struct vm_area_struct *vma,
+ 					unsigned long addr)
+ {
+-	switch (handle_mm_fault(vma->vm_mm, vma, addr, 1)) {
+-	case VM_FAULT_MINOR:
+-	case VM_FAULT_MAJOR:
++	if (handle_mm_fault(vma->vm_mm, vma, addr, 1) != VM_FAULT_OOM)
+ 		return 0;
+-	case VM_FAULT_OOM:
+-		return -ENOMEM;
+-	default:
+-		return -EFAULT;
+-	}
++	return -ENOMEM;
+ }
  
--typedef pte_t *pte_addr_t;
--
- #endif /* !(__ASSEMBLY__) */
- 
- /* We provide our own get_unmapped_area to cope with VA holes for userland */
-diff -L include/asm-sparc/rmap.h -puN include/asm-sparc/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-sparc/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef _SPARC_RMAP_H
--#define _SPARC_RMAP_H
--
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#endif
-diff -puN include/asm-um/pgtable.h~rmap-13-include-asm-deletions include/asm-um/pgtable.h
---- 25/include/asm-um/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.537513280 -0700
-+++ 25-akpm/include/asm-um/pgtable.h	2004-05-22 14:56:23.562509480 -0700
-@@ -384,18 +384,6 @@ static inline pmd_t * pmd_offset(pgd_t *
- #define pte_unmap(pte) kunmap_atomic((pte), KM_PTE0)
- #define pte_unmap_nested(pte) kunmap_atomic((pte), KM_PTE1)
- 
--#if defined(CONFIG_HIGHPTE) && defined(CONFIG_HIGHMEM4G)
--typedef u32 pte_addr_t;
--#endif
--
--#if defined(CONFIG_HIGHPTE) && defined(CONFIG_HIGHMEM64G)
--typedef u64 pte_addr_t;
--#endif
--
--#if !defined(CONFIG_HIGHPTE)
--typedef pte_t *pte_addr_t;
--#endif
--
- #define update_mmu_cache(vma,address,pte) do ; while (0)
- 
- /* Encode and de-code a swap entry */
-diff -L include/asm-um/rmap.h -puN include/asm-um/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-um/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,6 +0,0 @@
--#ifndef __UM_RMAP_H
--#define __UM_RMAP_H
--
--#include "asm/arch/rmap.h"
--
--#endif
-diff -puN include/asm-v850/pgtable.h~rmap-13-include-asm-deletions include/asm-v850/pgtable.h
---- 25/include/asm-v850/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.540512824 -0700
-+++ 25-akpm/include/asm-v850/pgtable.h	2004-05-22 14:56:23.563509328 -0700
-@@ -5,8 +5,6 @@
- #include <asm/page.h>
- 
- 
--typedef pte_t *pte_addr_t;
--
- #define pgd_present(pgd)	(1) /* pages are always present on NO_MM */
- #define pgd_none(pgd)		(0)
- #define pgd_bad(pgd)		(0)
-diff -L include/asm-v850/rmap.h -puN include/asm-v850/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-v850/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1 +0,0 @@
--/* Do not need anything here */
-diff -puN include/asm-x86_64/pgtable.h~rmap-13-include-asm-deletions include/asm-x86_64/pgtable.h
---- 25/include/asm-x86_64/pgtable.h~rmap-13-include-asm-deletions	2004-05-22 14:56:23.542512520 -0700
-+++ 25-akpm/include/asm-x86_64/pgtable.h	2004-05-22 14:56:23.564509176 -0700
-@@ -390,8 +390,6 @@ extern inline pte_t pte_modify(pte_t pte
- #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
- #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
- 
--typedef pte_t *pte_addr_t;
--
- #endif /* !__ASSEMBLY__ */
- 
- extern int kern_addr_valid(unsigned long addr); 
-diff -L include/asm-x86_64/rmap.h -puN include/asm-x86_64/rmap.h~rmap-13-include-asm-deletions /dev/null
---- 25/include/asm-x86_64/rmap.h
-+++ /dev/null	2003-09-15 06:40:47.000000000 -0700
-@@ -1,7 +0,0 @@
--#ifndef _X8664_RMAP_H
--#define _X8664_RMAP_H
--
--/* nothing to see, move along */
--#include <asm-generic/rmap.h>
--
--#endif
+ /*
 
 _
 --
