@@ -1,45 +1,61 @@
 Received: from alogconduit1ah.ccr.net (root@alogconduit1ak.ccr.net [208.130.159.11])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA06462
-	for <linux-mm@kvack.org>; Sun, 30 May 1999 13:41:39 -0400
-Subject: Re: [PATCHES]
-References: <Pine.LNX.3.96.990523171206.21583A-100000@chiara.csoma.elte.hu> 	<m1emk7skik.fsf@flinx.ccr.net> <14156.58667.141026.238904@dukat.scot.redhat.com>
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA06468
+	for <linux-mm@kvack.org>; Sun, 30 May 1999 13:41:52 -0400
+Subject: Re: [PATCH] cache large files in the page cache
+References: <Pine.LNX.3.95.990526104127.14018K-100000@penguin.transmeta.com>
 From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 30 May 1999 12:01:23 -0500
-In-Reply-To: "Stephen C. Tweedie"'s message of "Thu, 27 May 1999 07:24:43 +0100 (BST)"
-Message-ID: <m17lpq4hlo.fsf@flinx.ccr.net>
+Date: 30 May 1999 12:17:16 -0500
+In-Reply-To: Linus Torvalds's message of "Wed, 26 May 1999 10:44:02 -0700 (PDT)"
+Message-ID: <m1675a4gv7.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Jakub Jelinek <jj@sunsite.ms.mff.cuni.cz>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
+>>>>> "LT" == Linus Torvalds <torvalds@transmeta.com> writes:
 
-ST> Hi,
-ST> On 23 May 1999 13:34:11 -0500, ebiederm+eric@ccr.net (Eric W. Biederman) said:
+LT> On Wed, 26 May 1999, Jakub Jelinek wrote:
+>> 
+>> I have minor suggestion to the patch. Instead of using vm_index <<
+>> PAGE_SHIFT and page->key << PAGE_CACHE_SHIFT shifts either choose different
+>> constant names for this shifting (VM_INDEX_SHIFT and PAGE_KEY_SHIFT) or hide
+>> these shifts by some pretty macros (you'll need two for each for both
+>> directions in that case - if you go the macro way, maybe it would be a good
+>> idea to make vm_index and key type some structure with a single member like
+>> mm_segment_t for more strict typechecking).
 
->> My work on dirty pages sets up a bdflush like mechanism on top of the page
->> cache.  So for anything that can fit in the page cache the buffer cache
->> simply isn't needed.   Where the data goes when it is written simply doesn't
->> matter.
+LT> Indeed. An dI would suggest that the shift be limited to at most 9 anyway:
+LT> right now I applied the part that disallows non-page-aligned offsets, but
+LT> I think that we may in the future allow anonymous mappings again at finer
+LT> granularity (somebody made a really good argument about wine for this).
 
-ST> One good reason for using buffers aliased into the page cache is
-ST> precisely to avoid a new bdflush mechanism.  We have had enough deadlock
-ST> and resource starvation issues with one bdflush that I get nervous about
-ST> adding another one!
+I'd love to hear the argument.   Something that would negate the disadvantage
+of ntuple buffering, and the need for reverse page maps, and isn't portable.
 
-I agree, multiple bdflushes are a problem.   But this is precisely the
-reason why we put bdflush into the page cache.
+LT> Thinking that the VM mapping shift has to be the same as the page shift is
+LT> not necessarily the right thing. With just 9 bits of shift, you still get
+LT> large files - 41 bits of files on a 32-bit architecture, and by the time
+LT> you want more you _really_ can say that you had better upgrade your CPU. 
 
-The buffer cache is not general purpose.
+Well, currectly supporting non-aligned mappings needs more than just a
+few extra bits.  The code to update all mappings on write, and the
+ability to ensure that a given byte is only faulted in for a single
+offset at a time.   (Admittedly if everything is a read mapping you
+can be a smidge more lax).
 
-It has a maximum buffer size of 4k,  and doesn't even attempt to work for
-non block based filesystems.
+My solution to the issue of potentials was the idea of the vm_store.
+The idea of using something besides struct inode for the page cache.
+For unaligned mappings or really huge files you could have multiple
+vm_store's per inode, (plus the code to keep them in sync).  
 
-We need something in the page cache that can be used by everyone, otherwise
-we will eventually have coda-bdflush, smbfs-bdflush, nfs-bdflush, ....
-And all of an inferior quality because they don't share code.
+And it shouldn't incur a noticeable performance penalty as it is in
+an outer loop.
 
-Also using the current bdflush we can't implement allocate on write.
+To date all I've implemented is the existence of such a structure.
+And the seperation of what is the page cache from all the other junk
+in filemap.c
+
+My current patch follows seperately for review.
 
 Eric
 --
