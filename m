@@ -1,39 +1,74 @@
-Date: Mon, 8 Oct 2001 18:28:20 -0700
-Subject: Re: [CFT][PATCH *] faster cache reclaim
-Message-ID: <20011008182820.A6361@gnuppy>
-References: <Pine.LNX.4.33L.0110082032070.26495-100000@duckman.distro.conectiva>
-Mime-Version: 1.0
+Subject: Re: redundant RAMFS and cache pages on embedded system
+References: <F265RQAOCop3wyv9kI3000143b1@hotmail.com>
+	<3BC1928D.455D0A49@earthlink.net> <3BC1931E.3A7429A@earthlink.net>
+From: ebiederman@uswest.net (Eric W. Biederman)
+Date: 09 Oct 2001 14:56:42 -0600
+In-Reply-To: <3BC1931E.3A7429A@earthlink.net>
+Message-ID: <m1r8scv8fp.fsf@frodo.biederman.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.33L.0110082032070.26495-100000@duckman.distro.conectiva>
-From: Bill Huey <billh@gnuppy.monkey.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org, kernelnewbies@nl.linux.org, linux-kernel@vger.kernel.org
+To: Joseph A Knapka <jknapka@earthlink.net>
+Cc: Gavin Dolling <gavin_dolling@hotmail.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 08, 2001 at 08:38:27PM -0300, Rik van Riel wrote:
-> It also reduces the distance between inactive_shortage and
-> inactive_plenty, so kswapd should spend much less time rolling
-> over pages from zones we're not interested in.
+Joseph A Knapka <jknapka@earthlink.net> writes:
+
+> (Sorry, just realized I should have supplied a useful
+> subject line on my previous message.)
 > 
-> This patch is meant to fix the problems where heavy cache
-> activity flushes out pages from the working set, while still
-> allowing the cache to put some pressure on the working set.
+> Joseph A Knapka wrote:
+> > Gavin Dolling wrote:
+> > >
+> > > Your VM page has helped me immensely. I'm after so advice though about the
+> > > following. No problem if you are too busy, etc. your site has already helped
+> 
+> > > me a great deal so just hit that delete key now ...
+> > >
+> > > I have an embedded linux system running out of 8M of RAM. It has no backing
+> > > store and uses a RAM disk as its FS. It boots from a flash chip - at boot
+> > > time things are uncompressed into RAM. Running an MTD type system with a
+> > > flash FS is not an option.
+> > >
+> > > Memory is very tight and it is unfortunate that the binaries effectively
+> > > appear twice in memory. They are in the RAM FS in full and also get paged
+> > > into memory. There is a lot of paging going on which I believe is drowning
+> > > the system.
 
-Rik,
+The simple solution is to use ramfs, not a ramdisk with a fs on it.  As
+ramfs puts the pages directly in the page cache, so you don't get
+double buffering.  Possibly tmpfs/shmfs is a better solution as it has
+a few more features and can't really be removed from the kernel.
 
-It work well when I pressure it under some intensive IO operations under
-dpkg and made progress when previous VMs basically froze. I did have two
-running programs that have large working sets which created a lot of
-contention and some CPU choppiness, but possibly some per process thrash
-control should allow for both to make progress. ;-)
+> > > We have no swap file (that would obviously be stupid) but a large number of
+> > > buffers (i.e. a lot of dirty pages). The application is networking stuff so
+> > > it is supposed to perform at line rate - the paging appears to be preventing
+> 
+> > > this.
+> > >
+> > > What I wish to do is to page the user space binaries into the page cache,
+> > > mark them so they are never evicted. Delete them from the RAMFS and recover
+> > > the memory. This should be the most optimum way of running the system - in
+> > > terms of memory usage anyway.
 
-Good work.
+This exactly what you get with ramfs, or shmfs.
 
-bill
+> > > So basically:
+> > >
+> > > a) Is this feasible?
 
+It is done.
+> > 
+> > > b) When I delete the binary can I prevent it from being evicted from the
+> > > page cache?
+Don't go there.
+
+> > > d) Am I insane to try this? (Why would be more useful than just a yes ;-) )
+Yes, it is done.
+Just use uncompress into ramfs instead of a ramdisk.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
