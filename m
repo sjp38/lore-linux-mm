@@ -1,40 +1,54 @@
-Message-Id: <200106252339.f5PNd9x07535@maile.telia.com>
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Roger Larsson <roger.larsson@norran.net>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 953A238C0C
+	for <linux-mm@kvack.org>; Mon, 25 Jun 2001 20:59:11 -0300 (EST)
+Date: Mon, 25 Jun 2001 20:59:11 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC] VM statistics to gather
-Date: Tue, 26 Jun 2001 01:35:42 +0200
-References: <Pine.LNX.4.33L.0106252002560.23373-100000@duckman.distro.conectiva>
-In-Reply-To: <Pine.LNX.4.33L.0106252002560.23373-100000@duckman.distro.conectiva>
+In-Reply-To: <200106252339.f5PNd9x07535@maile.telia.com>
+Message-ID: <Pine.LNX.4.33L.0106252048230.23373-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Roger Larsson <roger.larsson@norran.net>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 26 Jun 2001, Roger Larsson wrote:
 
-What about
+> What about
+>
+>    unsigned int vm_pgfails /* failed alloc attempts, in pages (not calls) */
 
-   unsigned int vm_pgfails /* failed alloc attempts, in pages (not calls) */
+What would that represent ?
 
-maybe even a
+How often __alloc_pages() exits without allocating anything?
 
-   unsigned int vm_pgallocs /* alloc attempts, in pages */
+> maybe even a
+>
+>    unsigned int vm_pgallocs /* alloc attempts, in pages */
+>
+> for sanity checking - should be the sum of several other combinations...
 
-for sanity checking - should be the sum of several other combinations...
+Sounds like a nice idea.
 
-Should memory zone be used as dimension?
+> Should memory zone be used as dimension?
+
+Useful for allocations I guess, but it may be too confusing
+if we do this for all statistics... OTOH...
+
+Comments, anyone?
+
+regards,
+
+Rik
+--
+Executive summary of a recent Microsoft press release:
+   "we are concerned about the GNU General Public License (GPL)"
 
 
-/RogerL
-
-
--- 
-Roger Larsson
-Skelleftea
-Sweden
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
