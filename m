@@ -1,41 +1,58 @@
-Date: Mon, 28 Aug 2000 16:12:52 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: How does the kernel map physical to virtual addresses?
-Message-ID: <20000828161252.C1467@redhat.com>
-References: <20000825233748Z130198-15329+2857@vger.kernel.org> <Pine.LNX.4.21.0008281351470.1021-100000@saturn.homenet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0008281351470.1021-100000@saturn.homenet>; from tigran@veritas.com on Mon, Aug 28, 2000 at 01:56:34PM +0100
+Date: Mon, 28 Aug 2000 14:25:10 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: Question: memory management and QoS
+In-Reply-To: <39AA30AF.14C17C50@tuke.sk>
+Message-ID: <Pine.LNX.4.21.0008281421180.18553-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tigran Aivazian <tigran@veritas.com>
-Cc: Timur Tabi <ttabi@interactivesi.com>, Linux MM mailing list <linux-mm@kvack.org>, Linux Kernel Mailing list <linux-kernel@vger.kernel.org>
+To: Jan Astalos <astalos@tuke.sk>
+Cc: Andrey Savochkin <saw@saw.sw.com.sg>, linux-mm@kvack.org, Yuri Pudgorodsky <yur@asplinux.ru>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 28 Aug 2000, Jan Astalos wrote:
 
-On Mon, Aug 28, 2000 at 01:56:34PM +0100, Tigran Aivazian wrote:
-> 
-> it is interesting to observe that many questions that deal with _details_
-> are answered quickly but questions related to fundamental concepts related
-> to how Linux is designed, baffle all of us (since 0 people answered). So,
-> is there really nobody in the whole world who can answer this? I would
-> like to know the answer (about global kernel memory layout - i.e. what
-> goes into PSE pages and what goes into normal ones, and how does PAE mode
-> change the picture?) myself...
+> I still claim that per user swapfiles will:
+> - be _much_ more efficient in the sense of wasting disk space (saving money)
+>   because it will teach users efficiently use their memory resources (if
+>   user will waste the space inside it's own disk quota it will be his own
+>   problem)
+> - provide QoS on VM memory allocation to users (will guarantee amount of
+>   available VM for user)
+> - be able to improve _per_user_ performance of system (localizing performance
+>   problems to users that caused them and reducing disk seek times)
+> - shift the problem with OOM from system to user.
 
-If PSE is available, it is used to map the bits of the kernel's
-VA which permanently maps all of physical memory.  As a result, those
-pages cannot necessarily be looked up via a normal page table walk.
-Anything dynamically mapped --- ie. high pages (if using PAE), or
-vmalloc/ioremap pages --- is mapped using normal 4k ptes.  
+Do you have any reasons for this, or are you just asserting
+them as if they were fact? ;)
 
-mem_map[] is completely unaffected by the use of PSE, and continues to
-keep one entry per 4k physical page regardless of how the page tables
-have been constructed.
+I think we can achieve the same thing, with higher over-all
+system performance, if we simply give each user a VM quota
+and do the bookkeeping on a central swap area.
 
---Stephen
+The reasons for this are multiple:
+1) having one swap partition will reduce disk seeks
+   (no matter how you put it, disk seeks are a _system_
+   thing, not a per user thing)
+2) not all users are logged in at the same time, so you
+   can do a minimal form of overcomitting here (if you want)
+3) you can easily give users _2_ VM quotas, a guaranteed one
+   and a maximum one ... if a user goes over the guaranteed
+   quota, processes can be killed in OOM situations
+   (this allows each user to make their own choices wrt.
+   overcommitment)
+
+regards,
+
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
