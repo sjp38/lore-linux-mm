@@ -1,50 +1,79 @@
-Date: Thu, 13 Jan 2000 16:34:15 -0500 (EST)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <200001132140.NAA27848@google.engr.sgi.com>
 Subject: Re: [RFC] 2.3.39 zone balancing
-In-Reply-To: <200001132102.NAA20091@google.engr.sgi.com>
-Message-ID: <Pine.LNX.3.96.1000113161742.1295B-100000@kanga.kvack.org>
+Date: Thu, 13 Jan 2000 13:40:09 -0800 (PST)
+In-Reply-To: <Pine.LNX.4.21.0001132059590.981-100000@alpha.random> from "Andrea Arcangeli" at Jan 13, 2000 09:13:41 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@nl.linux.org>, torvalds@transmeta.com, mingo@chiara.csoma.elte.hu, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Rik van Riel <riel@nl.linux.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Jan 2000, Kanoj Sarcar wrote:
+> 
+> On Thu, 13 Jan 2000, Rik van Riel wrote:
+> 
+> >Now we'll only want to build something into kswapd
+> >so that rebalancing the high memory zones is done in
+> >the background.
+> 
+> You never need to rebance the bigmem between 1g and 64g withing kswapd.
+> This because bh/irq handlers are not going to use it. So kswapd has to
+> care only about the memory below the bigmem boundary.
+>
 
-> No, I am referring to a different problem that I mentioned in the
-> doc. If you have a large number of free regular pages, and the dma
-> zone is completely exhausted, the 2.2 decision of balacing the dma
-> zone might never fetch an "yes" answer, because it is based on total
-> number of free pages, not also the per zone free pages. Right? Things 
-> will get worse the more non-dma pages there are.
+Ohh, then there's another problem. Note that try_to_swap_out() currently
+does
+        if (PageReserved(page)
+            || PageLocked(page)
+            || (zone && (!memclass(page->zone, zone))))
+                goto out_failed;
 
-Kanoj, you're wrong.  2.2 works quite well because of the fact that the
-low memory mark will tend to consist almost entirely of DMAable pages.
-The only allocations that regularly eat into them on a loaded machine are
-interrupts, which tend to be short term allocations anyways.  But as soon
-as DMAable memory is freed, it tends not to be allocated until interrupts
-consume all memory again.
+kswapd passes in a zone = 0 argument. 
 
-> Oh, okay I see. There is nothing about the dma zone then, you could 
-> make the balancing more aggressive for the other zones too. Basically,
-> these kinds of tuning should be controlled by sysctls (instead of 
-> >>7, do >> N), so while most sites will prefer to run with the least
-> aggressive balancing, there may be sites with drivers that need 
-> many high-order pages, they would be willing to sacrifice some 
-> performance by doing more aggressive balancing. Comes under finetuning 
-> in the doc.
+This (and all similar places) will need to be changed to
+        if (PageReserved(page)
+            || PageLocked(page)
+            || (zone && (!memclass(page->zone, zone)))
+            || ((zone == 0) && PageHighMem(page)))
 
-Whoa, hold on here.  Last time we tried to do more aggresive balancing, it
-was a complete and total disaster that resulted in completely random swap
-storms, resulting in spectacularly unusable systems on the lower end
-(iirc 64mb was around the breakeven point).  Before harder limits are
-placed on memory types and orders, the behaviour of both kswapd and the
-allocator need to be tweaked.  so put in the mechanism, but don't start
-enforcing it too aggresively.
+Either that, or we should teach kswapd about zones, then kswapd can
+pass in the zone pointer it is trying to get balanced. For 2.3, kswapd
+will not pass in the highmem zone pointer. That would also mean that
+Andrea's patch below will not be needed.
 
-		-ben
+I will create a zone-aware kswapd patch, built on top of the one I
+already put out, and send that out asap.
+
+Kanoj
+ 
+> BTW I just noticed currently (2.3.40pre1) kswapd is completly
+> screwedup. kswapd should still do:
+> 
+> 		while (nr_free_pages - nr_free_bigpages < freepages.high)
+> 
+> exactly like in our early 2.3.18 bigmem code because _nothing_ is changed
+> is the basic MM design since that time.
+> 
+> The fix against 2.3.40pre1 to re-activate kswapd is this:
+> 
+> --- 2.3.40pre1/mm/vmscan.c	Sun Jan  9 20:45:31 2000
+> +++ /tmp/vmscan.c	Thu Jan 13 21:09:33 2000
+> @@ -503,7 +503,7 @@
+>  		do {
+>  			/* kswapd is critical to provide GFP_ATOMIC
+>  			   allocations (not GFP_HIGHMEM ones). */
+> -			if (nr_free_buffer_pages() >= freepages.high)
+> +			if (nr_free_pages() - nr_free_highpages() >= freepages.high)
+>  				break;
+>  			if (!do_try_to_free_pages(GFP_KSWAPD, 0))
+>  				break;
+> 
+> 
+> Andrea
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
