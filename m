@@ -1,56 +1,45 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id SAA09702
-	for <linux-mm@kvack.org>; Wed, 6 Nov 2002 18:51:11 -0800 (PST)
-Message-ID: <3DC9D51B.4CF2B06D@digeo.com>
-Date: Wed, 06 Nov 2002 18:51:07 -0800
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: Re: PageLRU BUG() when preemption is turned on (2.4 kernel)
-References: <20021106183317.E15363@mvista.com>
+Date: Wed, 6 Nov 2002 21:15:38 +0100
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: Usage of get_user_pages() in fs/aio.c
+Message-ID: <20021106211538.M659@nightmaster.csn.tu-chemnitz.de>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jun Sun <jsun@mvista.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Benjamin LaHaise <bcrl@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jun Sun wrote:
-> 
-> I am chasing a nasty bug that shows up in 2.4 kernel when preemption
-> is turned on.  I would appreciate any help.  Please cc your reply
-> to me email account.
-> 
-> I caught the BUG() live with kgdb (on a MIPS board).  See the backtrace
-> attached at the end.
-> 
-> In a nutshell, access_process_vm() calls put_page(), which
-> calls __free_pages(), where it finds page->count is 0 but does not
-> like the fact that page->flags still has LRU bit set.
-> 
+Hi Ben,
 
-That's a bug in older 2.4 kernels.  You'll need to use a more recent
-kernel, or change that put_page() to be a page_cache_release(),
-or forward-port this chunk:
+in kernel 2.5.46 in file fs/aio.c line 150 you use
+get_user_pages() in a way that makes no sense to me.
 
+Your call is:
 
-        /*
-         * Yes, think what happens when other parts of the kernel take 
-         * a reference to a page in order to pin it for io. -ben
-         */
-        if (PageLRU(page)) {
-                if (unlikely(in_interrupt()))
-                        BUG();
-                lru_cache_del(page);
-        }
+info->nr_pages = get_user_pages(current, ctx->mm,
+                                  info->mmap_base, info->mmap_size, 
+                                  1, 0, info->ring_pages, NULL);
 
-to your __free_pages_ok().
+info->mmap_size contains the number of BYTES mapped by the pages
+in the ring_pages ARRAY.
 
-The problem is that `put_page()' doesn't know how to deal with the
-final release of a page which is on the LRU.  Someone else released
-their reference, leaving access_process_vm() unexpectedly holding
-the last reference to the page.  But it does put_page(), which then
-says "why didn't you remove this page from the LRU?  BUG."
+get_user_pages() expects the number of ELEMENTS in the array
+instead.
+
+What this can cause is clear ;-)
+
+Simple fix would be to replace "info->mmap_size" with "nr_pages",
+that you compute just some lines above.
+
+Please tell me, if I'm wrong here.
+
+Regards
+
+Ingo Oeser
+-- 
+Science is what we can tell a computer. Art is everything else. --- D.E.Knuth
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
