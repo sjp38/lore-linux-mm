@@ -1,48 +1,128 @@
-Subject: Re: memory leakage detection tools
-From: Koni <mhw6@cornell.edu>
-Content-Type: text/plain
+Received: from localhost ([24.51.245.164]) by
+          smtprelay1.dc3.adelphia.net (Netscape Messaging Server 4.15)
+          with ESMTP id GQL2CX00.49Q for <linux-mm@kvack.org>; Sun, 27 Jan
+          2002 01:07:45 -0500
+From: Requested Info <requestedinfo@stayhomemakecash.com>
+Date: Sat, 26 Jan 2002 22:05:53 -0800
+Subject: Work Smarter Not Harder
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
 Content-Transfer-Encoding: 7bit
-Date: 25 Jan 2002 14:50:13 -0500
-Message-Id: <1011988214.8838.12.camel@abertzale>
-Mime-Version: 1.0
+Message-Id: <20020127060436Z26532-940+333@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mehul radheshyam choube <mehulchoube_lpsg@rediffmail.com>
-Cc: kplug-newbie@kernel-panic.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-You can also try "memprof" -- a gnome app I believe, for visualizing and
-tracking memory leaks by using a mark-and-sweep garbage collector to
-find allocated chunks that are not referenced anywhere, or something
-like that. Worked very well for me on a few items. Sometimes its helpful
-to link against debug builds of libraries though as I found sometimes
-the stack traces would get messed up without the debugging symbols for
-glibc and what not. Only problem with the memprof version I used (it was
-a while ago) is I couldn't figure out how to set the command line
-arguments for the process I wanted to profile.
+YOU ARE NEEDED!
 
-Good luck!
+$300-$2000 PLUS WEEKLY (or more)
 
-Cheers,
-Koni
+Simple, pleasant work...you do at home...on the
+Internet!
+<p><a href="http://www.stayhomemakecash.com/b5/">Click Here</a></p>
+Dear Friend,
 
-Try "Bounds Checking", a GPL-ed (I believe) program.
+Are you seeking a rewarding second income? Would
+you like to set your own work schedule? Work the
+hours you choose? Earn extra income for your
+family? If so, then I may have the answer.
+Current statistics show that by the year 2010,
+40-60% of the American work-force will be working
+from home. Get a jump on your future and secure a
+job through us. My company provides a special
+work-at-home program that is used by thousands of
+people and businesses across the globe. This job
+requires no special skill or experience, just
+a sincere desire to GET STARTED, and EARN MONEY!
+In fact, your are your own BOSS!
+<p><a href="http://www.stayhomemakecash.com/b5/">Click Here</a></p>
+YOU CAN EARN GOOD MONEY!!!
 
- - Neil Fergusson
+Potential incomes range from $300 to $2000 weekly
+or more, depending only on the amount of free
+time you have available. The effort you invest
+can make you a substantial income. You'll find
+this work, done easily and quickly, can double or
+even triple your income. With just one or two
+hours per day you will be excitedly surprised at
+how easy we've made it and how profitable this
+actually is. You can earn enough money working in
+your spare time to purchase that new car or boat
+you've been wanting, pay off credit cards, bills,
+or even take a vacation. Maybe just add more
+financial security for yourself or your family.
+Whatever the reason, you can't go wrong.
+<p><a href="http://www.stayhomemakecash.com/b5/">Click Here</a></p>
+ALL BUSINESS DONE ON THE INTERNET
+
+You can start the same day you receive our
+programs and instructions and begin receiving
+money within a matter of days. This position
+requires no prior experience or special
+skills and the program is specifically designed
+to get you up and running as fast as possible.
+And all work is done over the Internet! No
+"face-to-face" selling or anything remotely
+similar is ever needed. Not ever! Just
+"follow the numbers" and you will be amazed at
+how much you make!
+
+HELP SOLVE YOUR MONEY PROBLEMS
+
+There are only a limited number of these
+positions available and as soon as these are
+filled, I will cease to offer this program. Your
+help is needed now! So, if you're a productive,
+positive person, I am looking forward to hearing
+from you and seeing you benefit from our program.
+
+SIMPLE, EASY, AND PROFITABLE, THIS PROGRAM MAY BE
+THE BEST WAY TO MAKE AN EXCELLENT INCOME AT HOME.
+
+If this sounds like something you might be
+interested in, please:
+
+<p><a href="http://www.stayhomemakecash.com/b5/">Click Here</a></p>
+
+for very complete information.
+
+Thank You.
+
+Clark J. Coleman
+P.S.--Look below at what others are saying!
 
 
-guy keren wrote:
+I want to thank you for giving me this
+opportunity to work from my home. It couldn't
+have come along at a better time. The work is so
+simple and the pay is incredible. My wife and I
+have been working at home together part-time
+and are exceeding what either of us make at our
+full-time jobs. Thanks again!
 
-[snip]
+B. Roberts ------ Tampa, FL
 
--- 
-mhw6@cornell.edu
-Koni (Mark Wright)
-Solanaceae Genome Network	250 Emerson Hall - Cornell University
-Strategic Forecasting		242 Langmuir Laboratory
-Lightlink Internet		http://www.lightlink.com/
+Thanks for everything! I was having trouble
+making ends meet at my present employment. But
+thanks to you and your Program, I was able to pay
+off some old bills and put money in the bank. Now
+I'm looking forward to taking a well deserved
+vacation.
 
-"If I'm right 90% of the time, why quibble about the other 3%?"
+K. Williams ----- Seattle, WA
+
+This message is sent in compliance of the proposed bill SECTION 301. per Section 
+301, Paragraph (a)(2)(C) of S. 1618. Further transmission to you by the sender 
+of this e-mail may be stopped at no cost to you by sending a reply to : "requestedinfo@stayhomemakecash.com" 
+with the word Remove in the subject line. 
+
+This message is not intended for residents in the States of Washington, California 
+and Virginia. 
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
