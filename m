@@ -1,49 +1,60 @@
-From: Jeremy Hall <jhall@maoz.com>
-Message-Id: <200304160341.h3G3fa4E028180@sith.maoz.com>
-Subject: Re: interrupt context
-In-Reply-To: <1050442843.3664.165.camel@localhost> from Robert Love at "Apr 15,
- 2003 05:40:44 pm"
-Date: Tue, 15 Apr 2003 23:41:36 -0400 (EDT)
+Received: from [200.230.55.6] (account <djruslan@hotmail.kz>)
+  by relay2.nursat.net (CommuniGate Pro WebUser 3.5.9)
+  with HTTP id 7585500 for <linux-mm@kvack.org>; Thu, 17 Apr 2003 02:10:27 +0700
+From: "djruslan" <djruslan@hotmail.kz>
+Subject: You wrote a letter to me. Who are you?
+Date: Thu, 17 Apr 2003 02:10:27 +0700
+Message-ID: <web-7585500@relay2.nursat.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="KOI8-R"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robert Love <rml@tech9.net>
-Cc: Jeremy Hall <jhall@maoz.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-With the tasklet version, I now have a different problem and don't fully 
-understand how we got here.
+Hello!
 
-Both CPUs are in snd_pcm_stop, which is a macro.  gdb has a hard time with 
-this and can't reference some of the preprocessor code.
+You have received a postcard. You can see it here:
+http://postcards.rin.ru/postcards/post/humour1.html
 
-snd_pcm_stop is running for the same card but on different CPUs.  How'd 
-that happen? I thought the tasklet wouldn't run ... oh but it only blocks 
-itself from running on the local CPU twice
+Only for adults:
+    SEX-TEST - http://eros.rin.ru/index_e.html and
+    WALLPAPERS - http://wallpapers.rin.ru/index_e.html
 
-nice
+For music-lovers:
+    Free 100 000 mp3-files - http://mp3.rin.ru/index_e.html
 
-Do I need to use spin_lock_irqsave or spin_lock to protect itself from 
-running concurrently on different CPUs?
+And for all:
+    Surprise! - http://humor.rin.ru/photo_e.html
 
-_J
 
-In the new year, Robert Love wrote:
-> On Mon, 2003-04-14 at 23:44, Jeremy Hall wrote:
-> 
-> > My quandery is where to put the lock so that both cards will use it.  I 
-> > need a layer that is visible to both and don't fully understand the alsa 
-> > architecture enough to know where to put it.
-> 
-> OK, I understand you now. :)
-> 
-> What is the relationship between the two things that are conflicting?
-> 
-> 	Robert Love
-> 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Goodby, Gerry.
+You can refuse to receive letters. For that just send a
+letter to unsubscribe14.com with the subject: DELETE.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
