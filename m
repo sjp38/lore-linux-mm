@@ -1,71 +1,50 @@
-Date: Mon, 25 Sep 2000 17:24:42 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-Message-ID: <20000925172442.J2615@redhat.com>
-References: <20000924231240.D5571@athlon.random> <Pine.LNX.4.21.0009242310510.8705-100000@elte.hu> <20000924224303.C2615@redhat.com> <20000925001342.I5571@athlon.random> <20000925003650.A20748@home.ds9a.nl> <20000925014137.B6249@athlon.random>
+Date: Mon, 25 Sep 2000 18:41:24 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: the new VMt
+Message-ID: <20000925184124.C27677@athlon.random>
+References: <20000925180448.A25083@gruyere.muc.suse.de> <Pine.LNX.4.21.0009251817420.9122-100000@elte.hu> <20000925181817.A25553@gruyere.muc.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20000925014137.B6249@athlon.random>; from andrea@suse.de on Mon, Sep 25, 2000 at 01:41:37AM +0200
+In-Reply-To: <20000925181817.A25553@gruyere.muc.suse.de>; from ak@suse.de on Mon, Sep 25, 2000 at 06:18:17PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Mon, Sep 25, 2000 at 01:41:37AM +0200, Andrea Arcangeli wrote:
+On Mon, Sep 25, 2000 at 06:18:17PM +0200, Andi Kleen wrote:
+> On Mon, Sep 25, 2000 at 06:19:07PM +0200, Ingo Molnar wrote:
+> > > Another thing I would worry about are ports with multiple user page
+> > > sizes in 2.5. Another ugly case is the x86-64 port which has 4K pages
+> > > but may likely need a 16K kernel stack due to the 64bit stack bloat.
+> > 
+> > yep, but these cases are not affected, i think in the order != 0 case we
+> > should return NULL if a certain number of iterations did not yield any
+> > free page.
 > 
-> Since you're talking about this I'll soon (as soon as I'll finish some other
-> thing that is just work in progress) release a classzone against latest's
-> 2.4.x. My approch is _quite_ different from the curren VM. Current approch is
-> very imperfect and it's based solely on aging whereas classzone had hooks into
-> pagefaults paths and all other map/unmap points to have perfect accounting of
-> the amount of active/inactive stuff.
+> Ok, that would just break fork()
 
-Andrea, I'm not quite sure what you're saying here.  Could you be a
-bit more specific?
+Not sure if I have the whole context (I've not yet received Ingo's email
+that you're replying to).
 
-The current VM _does_ track the amount of active/inactive stuff.  It
-does so by keeping separate list of active and inactive stuff.
-Accounting on memory pressure on these different lists is used to
-generate dynamic targets for how many pages we aim to have on those
-lists, so aging/reclaim activity is tuned to the current memory load.
+Currently we do a memory balancing pass indipendently by the order of the
+allocation. Thus we don't do any iteraction and the memory balancing
+is completly order blind (unfortunately it's also zone blind, while
+at least in 2.2.x the memory balancing known which zone it had
+to allocate memory from).
 
-Your other recent complaint, that newly-swapped pages end up on the
-wrong end of the LRU lists and can't be reclaimed without cycling the
-rest of the pages in shrink_mmap, is also cured in Rik's code, by
-placing pages which are queued for swapout on a different list
-altogether.  I thought we had managed to agree in Ottawa that such a
-cure for the old 2.4 VM was desirable.
+If Ingo suggested more iteractions of memory balancing for those cases
+that should only make things better with respect to fragmentation.
 
-> The mapped pages was never seen by
-> anything except swap_out, if they was mapped (it's not a if page->age then move
-> into the active list, with classzone the page was _just_ in the active list in
-> first place since it was mapped).
+But I'd much prefer to pass not only the classzone from allocator
+to memory balancing, but _also_ the order of the allocation,
+and then shrink_mmap will know it doesn't worth to free anything 
+that isn't contigous on the order of the allocation that we need.
 
-This really seems to be the biggest difference between the two
-approaches right now.  The FreeBSD folks believe fervently that one of
-the main reasons that their VM rocks is that it ages cache pages and
-mapped pages at the same rate.  Having both on the same aging list
-achieves that.  Separating the two raises the question of how to
-balance the aging of cache vs. swap in a fair manner.
+classzone haven't reached this point yet.
 
-> In classzone the aging exists too but it's _completly_ orthogonal to how rest
-> of the VM works.
-
-Umm, that applies to Rik's stuff too!
-
-> This is my humble opinion at least. I may be wrong. I'll let you know
-> once I'll have a patch I'll happy with and some real life number to proof my
-> theory.
-
-Good, the best theoretical VM in the world can fall apart instantly on
-contact with the real world. :-)
-
-Cheers, 
- Stephen
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
