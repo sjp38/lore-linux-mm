@@ -1,53 +1,56 @@
-Received: from ttb by platypus.tentacle.dhs.org with local (Exim 3.12 #1 (Debian))
-	id 13XXRq-0008GN-00
-	for <linux-mm@kvack.org>; Fri, 08 Sep 2000 19:20:42 -0400
-Date: Fri, 8 Sep 2000 19:20:42 -0400
-From: deprogrammer <ttb@tentacle.dhs.org>
-Subject: test8-vmpatch performs great here!
-Message-ID: <20000908192042.A31685@tentacle.dhs.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Fri, 8 Sep 2000 20:29:43 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: test8-vmpatch performs great here!
+In-Reply-To: <20000908192042.A31685@tentacle.dhs.org>
+Message-ID: <Pine.LNX.4.21.0009082027060.1049-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: deprogrammer <ttb@tentacle.dhs.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 8 Sep 2000, deprogrammer wrote:
 
-After reading ben's email I dicided to run his same test on my box
-running test8 + vmpatch3 
+> The box remained somewhat interactive, but a few times during
+> the tar zxvf the box would stop responding for a few seconds
+> during which there would be alot of disk activity, same for the
+> tar xvf.
 
-some specs: K7 - 600, 128MB ram.
+This seems to be due to kflushd (bdflush) waking up
+tasks in LIFO order ...
 
-environment: X 4.0.1 and netscape 4.75 were running.
+>From fs/buffer.c:
 
-I ran 2 tests:
-	1) tar zxvf linux-2.4.0-test6.tar.gz
-	2) tar xvf linux-2.4.0-test6.tar
+in wakeup_bdflush()
+   2435         __set_current_state(TASK_UNINTERRUPTIBLE);
+   2436         add_wait_queue(&bdflush_done, &wait);
+   2437 
+   2438         wake_up_process(bdflush_tsk);
+   2439         schedule();
 
+(which adds our task to the front of the wait queue)
 
-free_before:
-	total       used       free     shared    buffers     cached
-	Mem:        127176      62960      64216          0       2164      25500
-	-/+ buffers/cache:      35296      91880
-	Swap:       128516          0     128516
+and in kflushd()
+   2622                 wake_up(&bdflush_done);
 
-free_after_tgz:
-	total       used       free     shared    buffers     cached
-	Mem:        127176     124892       2284          0       6612      80592
-	-/+ buffers/cache:      37688      89488
-	Swap:       128516          0     128516
+(which wakes up the first task on the wait queue)
 
-free_after_tar:
-total       used       free     shared    buffers     cached
-Mem:        127176     124952       2224          0       2848      85336
--/+ buffers/cache:      36768      90408
-Swap:       128516          0     128516
+This results in LIFO ordering for the wakeup. I've
+fixed this in my local tree (doing a wake_up_all()
+instead) and will release a new patch after tweaking
+things a bit more.
 
-The box remained somewhat interactive, but a few times during the tar zxvf the
-box would stop responding for a few seconds during which there would be alot
-of disk activity, same for the tar xvf.
+regards,
 
-john
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
