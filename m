@@ -1,8 +1,8 @@
-Date: Tue, 1 May 2001 13:09:52 -0400 (EDT)
+Date: Tue, 1 May 2001 13:14:17 -0400 (EDT)
 From: Alexander Viro <viro@math.psu.edu>
 Subject: Re: About reading /proc/*/mem
-In-Reply-To: <3AEEEA09.7000301@link.com>
-Message-ID: <Pine.GSO.4.21.0105011300110.9771-100000@weyl.math.psu.edu>
+In-Reply-To: <3AEEEC48.80709@link.com>
+Message-ID: <Pine.GSO.4.21.0105011311060.9771-100000@weyl.math.psu.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,27 +14,28 @@ List-ID: <linux-mm.kvack.org>
 
 On Tue, 1 May 2001, Richard F Weber wrote:
 
-> See this is where I start seeming to have problems.  I can open 
-> /proc/*/mem & lseek, but reads come back as "No such process".  However, 
-> if I first do a ptrace(PTRACE_ATTACH), then I can read the data, but the 
-> process stops.  I've kind of dug through the sys_ptrace() code under 
-> /usr/src/linux/arch/i386/kernel/ptrace.c, and can see and understand 
-> generally what it's doing, but that's getting into serious kernel-land 
-> stuff.  I wouldn't expect it to be this difficult to just open up 
-> another processes /proc/*/mem file to read data from.
- 
-> Is there something obvious I'm missing?  It seems to keep pointing back 
-> to ptrace & /proc/*/mem are very closely related (ie: the same) 
-> including stopping of the child.
+> The main thing I'm looking to do is examine data that's part of a 
+> real-time process.  The process's execution can't be interrupted, 
+> otherwise it makes debugging it inaccurate.  The applications is 
+> certainly not looking to see every line of code get executed, but rather 
+> have a real-time monitor of a symbol as it gets modified.  Now 
+> viewing/selecting the symbol is done through a combination of nm's & a 
+> console based util (hopefully GTK Based in the future).  Other 
+> applications include recording this data to disk for later playback & 
+> analysis.
+> 
+> Now the next logical step would be to create a debug module in the RT 
+> system itself that dumps out the values we care about.  The problem with 
+> this is we are looking at a lot of legacy code (done in fortran, C & 
+> Ada) as well as tons of variables.  By peeking at the memory on the fly 
+> we can dynamically decide which values are important for this run, 
+> without having to record all possible data to the disk (which in itself 
+> would be quite painful since disk accesses would make debugging again 
+> difficult).
 
-OK, here's something I really don't understand. Suppose that I tell your
-debugger to tell me when in the executed program foo becomes greater than
-bar[0] + 14. Or when cyclic list foo becomes longer than 1 element
-(i.e. foo.next != foo.prev).
-
-How do you do that if program is running? If you don't guarantee that
-it doesn't run during the access to its memory (moreover, between sever
-such accesses) - the data you get is worthless.
+You want the data in each frame be taken at the same moment. Otherwise
+you are going to see inconsistent data. I.e. tons of false warnings saying
+that data corruption is going on when there's none.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
