@@ -1,57 +1,42 @@
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: [RFC] Distributed mmap API
-Date: Wed, 25 Feb 2004 17:46:46 -0500
-References: <20040216190927.GA2969@us.ibm.com> <200402251707.05932.phillips@arcor.de> <20040225141646.28aa0750.akpm@osdl.org>
-In-Reply-To: <20040225141646.28aa0750.akpm@osdl.org>
+Message-ID: <403D4303.1020709@cyberone.com.au>
+Date: Thu, 26 Feb 2004 11:51:15 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: More vm benchmarking
+References: <403C66D2.6010302@cyberone.com.au>	<20040225014757.4c79f2af.akpm@osdl.org>	<403C7181.6050103@cyberone.com.au>	<20040225020425.2c409844.akpm@osdl.org> <20040225035043.6c536d99.akpm@osdl.org>
+In-Reply-To: <20040225035043.6c536d99.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200402251746.46598.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: paulmck@us.ibm.com, sct@redhat.com, hch@infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Nikita@Namesys.COM
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 25 February 2004 17:16, Andrew Morton wrote:
-> > but how can we legitimately get !pfn_valid there?
+
+Andrew Morton wrote:
+
+>Andrew Morton <akpm@osdl.org> wrote:
 >
-> A mapping of some I/O region?
+>>I'll do the pgsteal_lo splitup.
+>>
+>
+>OK, did that.   Running `make -j4 vmlinux' on the 2-way with mem=64m:
+>
+>Count how many pages were reclaimed from the various zones:
+>
+>					DMA	NORMAL	HIGH
+>up to shrink_slab-for-all-zones:	3749	192580	0	(1:51)
+>up to zone-balancing-fix:		5816	144545		(1:24)
+>up to zone-balancing-batching:		21446	85209		(1:4)
+>
+>It should be 1:3, but it's tons better than it used to be.
+>
+>
 
-With MAP_PRIVATE, on a distributed filesystem?  OK...
-
-Can we recognize those I/O vmas and handle them with their own separate loop, 
-saving a few cycles for the common case?  Or just:
-
-	if (pte_present(pte)) {
-		unsigned long pfn = pte_pfn(pte);
-		struct page *page;
-		if (unlikely(!pfn_valid(pfn))) {
-			ptep_get_and_clear(ptep);
-			tlb_remove_tlb_entry(tlb, ptep, address+offset);
-			continue;
-		}
-		page = pfn_to_page(pfn);
-		if (unlikely(!all) && is_anon(page))
-			continue;
-		pte = ptep_get_and_clear(ptep); /* get dirty bit atomically */
-		tlb_remove_tlb_entry(tlb, ptep, address+offset);
-		if (PageReserved(page))
-			continue;
-		if (pte_dirty(pte))
-			set_page_dirty(page);
-		if (page->mapping && pte_young(pte) && !PageSwapCache(page))
-			mark_page_accessed(page);
-		tlb->freed++;
-		page_remove_rmap(page, ptep);
-		tlb_remove_page(tlb, page);
-	} else {
-
-Regards,
-
-Daniel
+Yeah I'm not sure if that is entirely true though. You would
+expect ZONE_NORMAL to have more pages reclaimed from it
+because there should be more pressure on it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
