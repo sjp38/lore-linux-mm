@@ -1,42 +1,48 @@
-Message-ID: <27525795B28BD311B28D00500481B7601F1065@ftrs1.intranet.ftr.nl>
-From: "Heusden, Folkert van" <f.v.heusden@ftr.nl>
-Subject: RE: [PATCH] Prevent OOM from killing init
-Date: Thu, 22 Mar 2001 12:08:25 +0100
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Message-ID: <20010322124727.A5115@win.tue.nl>
+Date: Thu, 22 Mar 2001 12:47:27 +0100
+From: Guest section DW <dwguest@win.tue.nl>
+Subject: Re: [PATCH] Prevent OOM from killing init
+References: <3AB9313C.1020909@missioncriticallinux.com> <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva>; from Rik van Riel on Wed, Mar 21, 2001 at 08:48:54PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Since the system will panic if the init process is chosen by
-> the OOM killer, the following patch prevents select_bad_process()
-> from picking init.
+On Wed, Mar 21, 2001 at 08:48:54PM -0300, Rik van Riel wrote:
+> On Wed, 21 Mar 2001, Patrick O'Rourke wrote:
 
-Hmmm, wouldn't it be nice to make this all configurable? Like; have
-some list of PIDs that can be killed?
-I would hate it the daemon that checks my UPS would get killed...
-(that deamon brings the machine down safely when the UPS'
-batteries get emptied).
-Would be something like:
+> > Since the system will panic if the init process is chosen by
+> > the OOM killer, the following patch prevents select_bad_process()
+> > from picking init.
 
-int *dont_kill_pid, ndont_kill_pid;
-// initialize with at least pid '1' and n=1
+There is a dozen other processes that must not be killed.
+Init is just a random example.
 
-         for_each_task(p) {
-		int loop;
-		for(loop=ndont_kill_pid-1; loop>=0; loop--)
-		{
-			if (dont_kill_pid[loop] == p->pid) break;
-		}
-              if (p->pid && !(loop>=0)) {
-                         int points = badness(p);
-                         if (points > maxpoints) {
-                                 chosen = p;
+> One question ... has the OOM killer ever selected init on
+> anybody's system ?
+
+Last week I installed SuSE 7.1 somewhere.
+During the install: "VM: killing process rpm",
+leaving the installer rather confused.
+(An empty machine, 256MB, 144MB swap, I think 2.2.18.)
+
+Last month I had a computer algebra process running for a week.
+Killed. But this computation was the only task this machine had.
+Its sole reason of existence.
+Too bad - zero information out of a week's computation.
+(I think 2.4.0.)
+
+Clearly, Linux cannot be reliable if any process can be killed
+at any moment. I am not happy at all with my recent experiences.
+
+Andries
 
 
-(untested (not even compiled or anything) code)
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
