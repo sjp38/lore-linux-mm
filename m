@@ -1,28 +1,23 @@
-Date: Sun, 23 May 2004 05:55:54 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [patch 21/57] mpol in copy_vma
-In-Reply-To: <200405222207.i4MM76r12907@mail.osdl.org>
-Message-ID: <Pine.LNX.4.44.0405230550180.15086-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Date: Sat, 22 May 2004 23:58:31 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: current -linus tree dies on x86_64
+Message-Id: <20040522235831.7bdb509d.akpm@osdl.org>
+In-Reply-To: <20040522144857.3af1fc2c.akpm@osdl.org>
+References: <20040522144857.3af1fc2c.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: ak@suse.de, torvalds@osdl.org, linux-mm@kvack.org
+To: ak@muc.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 22 May 2004 akpm@osdl.org wrote:
-> 
-> From: Hugh Dickins <hugh@veritas.com>
-> 
-> I think Andi missed the copy_vma I recently added for mremap, and it'll
-> need something like below....  (Doesn't look like it'll optimize away when
-> it's not needed - rather bloaty.)
+Andrew Morton <akpm@osdl.org> wrote:
+>
+> As soon as I put in enough memory pressure to start swapping it oopses in
+>  release_pages().
 
-It did optimize away - that comment slandered Andi's work - I apologize!
-
-Hugh
-
+I'm doing the bsearch on this.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
