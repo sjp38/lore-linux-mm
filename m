@@ -1,7 +1,7 @@
-Date: Fri, 21 Nov 2003 18:48:55 +0100
+Date: Fri, 21 Nov 2003 18:49:16 +0100
 From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: [PATCH] Potential tlb flush race in install_page/install_file_pte.
-Message-ID: <20031121174855.GC1341@mschwid3.boeblingen.de.ibm.com>
+Subject: [PATCH] Minor rmap optimizations.
+Message-ID: <20031121174916.GD1341@mschwid3.boeblingen.de.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -11,113 +11,95 @@ To: linux-mm@kvack.org, linux-arch@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
-I think I found a potential race in install_page/install_file_pte. The
-inline function zap_pte releases pages by calling page_remove_rmap and
-page_cache_release.  If this was the last user of a page it can get
-purged from the page cache and then get immediatly reused. But there
-might still be a tlb for this page on another cpu. The tlb is removed
-in the callers of zap_pte, install_page and install_file_pte, but this
-is too late. I admit that its a very unlikely race but never the less..
+while working on my mm patch for s390 I played with rmap a bit, adding
+BUG statements and the like. While doing so I noticed some room for
+improvement in rmap. Its minor stuff but anyway... 
 
-I fixed this by using the new ptep_clear_flush function that is introduced
-with the tlb flush optimization patch for s/390.
+The first observation is that the pte chain array doesn't have holes,
+meaning that from the pte_chain_idx() of the first array every slot of
+all following pte chain arrays are full. That is there can't be NULL
+pointers. The "if (!pte_paddr)" check in try_to_unmap() can be removed
+and if the loop in page_referenced() is started from pte_chain_idx(pc)
+then the "if (!pte_paddr)" in page_referenced() can be removed as well.
+
+The second observation is that the first pte array of a pte chain has
+at least one entry. Empty pte chain arrays are always freed immediatly
+after the last entry was removed. Because of that victim_i can be
+calculated in a simpler way. Instead of setting victim_i to -1 and then
+check in each loop iteration against -1 victim_i can just be set to
+the pte_chain_idx of the first pte chain array.
 
 blue skies,
   Martin.
 
 diffstat:
- mm/fremap.c |   20 +++++++-------------
- 1 files changed, 7 insertions(+), 13 deletions(-)
+ mm/rmap.c |   16 ++++------------
+ 1 files changed, 4 insertions(+), 12 deletions(-)
 
-diff -urN linux-2.6/mm/fremap.c linux-2.6-s390/mm/fremap.c
---- linux-2.6/mm/fremap.c	Sat Oct 25 20:42:47 2003
-+++ linux-2.6-s390/mm/fremap.c	Fri Nov 21 16:20:24 2003
-@@ -19,18 +19,18 @@
- #include <asm/cacheflush.h>
- #include <asm/tlbflush.h>
+diff -urN linux-2.6/mm/rmap.c linux-2.6-s390/mm/rmap.c
+--- linux-2.6/mm/rmap.c	Sat Oct 25 20:44:44 2003
++++ linux-2.6-s390/mm/rmap.c	Fri Nov 21 16:20:25 2003
+@@ -132,12 +132,10 @@
+ 		for (pc = page->pte.chain; pc; pc = pte_chain_next(pc)) {
+ 			int i;
  
--static inline int zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
-+static inline void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long addr, pte_t *ptep)
- {
- 	pte_t pte = *ptep;
+-			for (i = NRPTE-1; i >= 0; i--) {
++			for (i = pte_chain_idx(pc); i < NRPTE; i++) {
+ 				pte_addr_t pte_paddr = pc->ptes[i];
+ 				pte_t *p;
  
- 	if (pte_none(pte))
--		return 0;
-+		return;
- 	if (pte_present(pte)) {
- 		unsigned long pfn = pte_pfn(pte);
- 
- 		flush_cache_page(vma, addr);
--		pte = ptep_get_and_clear(ptep);
-+		pte = ptep_clear_flush(vma, addr, ptep);
- 		if (pfn_valid(pfn)) {
- 			struct page *page = pfn_to_page(pfn);
- 			if (!PageReserved(page)) {
-@@ -41,12 +41,10 @@
- 				mm->rss--;
- 			}
- 		}
--		return 1;
+-				if (!pte_paddr)
+-					break;
+ 				p = rmap_ptep_map(pte_paddr);
+ 				if (ptep_test_and_clear_young(p))
+ 					referenced++;
+@@ -242,7 +240,7 @@
  	} else {
- 		if (!pte_file(pte))
- 			free_swap_and_cache(pte_to_swp_entry(pte));
- 		pte_clear(ptep);
--		return 0;
- 	}
- }
+ 		struct pte_chain *start = page->pte.chain;
+ 		struct pte_chain *next;
+-		int victim_i = -1;
++		int victim_i = pte_chain_idx(start);
  
-@@ -57,7 +55,7 @@
- int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long addr, struct page *page, pgprot_t prot)
+ 		for (pc = start; pc; pc = next) {
+ 			int i;
+@@ -253,8 +251,6 @@
+ 			for (i = pte_chain_idx(pc); i < NRPTE; i++) {
+ 				pte_addr_t pa = pc->ptes[i];
+ 
+-				if (victim_i == -1)
+-					victim_i = i;
+ 				if (pa != pte_paddr)
+ 					continue;
+ 				pc->ptes[i] = start->ptes[victim_i];
+@@ -386,7 +382,7 @@
  {
--	int err = -ENOMEM, flush;
-+	int err = -ENOMEM;
- 	pte_t *pte;
- 	pgd_t *pgd;
- 	pmd_t *pmd;
-@@ -78,7 +76,7 @@
- 	if (!pte)
- 		goto err_unlock;
+ 	struct pte_chain *pc, *next_pc, *start;
+ 	int ret = SWAP_SUCCESS;
+-	int victim_i = -1;
++	int victim_i;
  
--	flush = zap_pte(mm, vma, addr, pte);
-+	zap_pte(mm, vma, addr, pte);
+ 	/* This page should not be on the pageout lists. */
+ 	if (PageReserved(page))
+@@ -407,6 +403,7 @@
+ 	}		
  
- 	mm->rss++;
- 	flush_icache_page(vma, page);
-@@ -86,8 +84,6 @@
- 	pte_chain = page_add_rmap(page, pte, pte_chain);
- 	pte_val = *pte;
- 	pte_unmap(pte);
--	if (flush)
--		flush_tlb_page(vma, addr);
- 	update_mmu_cache(vma, addr, pte_val);
- 	spin_unlock(&mm->page_table_lock);
- 	pte_chain_free(pte_chain);
-@@ -109,7 +105,7 @@
- int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long addr, unsigned long pgoff, pgprot_t prot)
- {
--	int err = -ENOMEM, flush;
-+	int err = -ENOMEM;
- 	pte_t *pte;
- 	pgd_t *pgd;
- 	pmd_t *pmd;
-@@ -126,13 +122,11 @@
- 	if (!pte)
- 		goto err_unlock;
+ 	start = page->pte.chain;
++	victim_i = pte_chain_idx(start);
+ 	for (pc = start; pc; pc = next_pc) {
+ 		int i;
  
--	flush = zap_pte(mm, vma, addr, pte);
-+	zap_pte(mm, vma, addr, pte);
+@@ -416,11 +413,6 @@
+ 		for (i = pte_chain_idx(pc); i < NRPTE; i++) {
+ 			pte_addr_t pte_paddr = pc->ptes[i];
  
- 	set_pte(pte, pgoff_to_pte(pgoff));
- 	pte_val = *pte;
- 	pte_unmap(pte);
--	if (flush)
--		flush_tlb_page(vma, addr);
- 	update_mmu_cache(vma, addr, pte_val);
- 	spin_unlock(&mm->page_table_lock);
- 	return 0;
+-			if (!pte_paddr)
+-				continue;
+-			if (victim_i == -1) 
+-				victim_i = i;
+-
+ 			switch (try_to_unmap_one(page, pte_paddr)) {
+ 			case SWAP_SUCCESS:
+ 				/*
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
