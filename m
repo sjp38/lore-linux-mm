@@ -1,89 +1,59 @@
-Message-ID: <413FAE0E.40304@kolivas.org>
-Date: Thu, 09 Sep 2004 11:12:46 +1000
-From: Con Kolivas <kernel@kolivas.org>
+Message-ID: <413FC8AC.7030707@sgi.com>
+Date: Wed, 08 Sep 2004 22:06:20 -0500
+From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
 Subject: Re: swapping and the value of /proc/sys/vm/swappiness
-References: <413CB661.6030303@sgi.com> <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <413D8FB2.1060705@cyberone.com.au> <413D93EF.80305@kolivas.org> <20040908164549.GA4284@logos.cnet>
-In-Reply-To: <20040908164549.GA4284@logos.cnet>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="------------enigF4309F1C92B485643BC3288A"
+References: <413CB661.6030303@sgi.com> <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <20040907212051.GC3492@logos.cnet> <413F1518.7050608@sgi.com> <20040908165412.GB4284@logos.cnet> <413F5EE7.6050705@sgi.com> <20040908193036.GH4284@logos.cnet>
+In-Reply-To: <20040908193036.GH4284@logos.cnet>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>, raybry@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, mbligh@aracnet.com
+Cc: Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, piggin@cyberone.com.au, mbligh@aracnet.com
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
---------------enigF4309F1C92B485643BC3288A
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Marcelo,
 
-Marcelo Tosatti wrote:
-> On Tue, Sep 07, 2004 at 08:56:47PM +1000, Con Kolivas wrote:
-> 
->>Nick Piggin wrote:
->>
->>>
->>>Marcelo Tosatti wrote:
->>>
->>>
->>>>Hi kernel fellows,
->>>>
->>>>I volunteer. I'll try something tomorrow to compare swappiness of 
->>>>older kernels like  2.6.5 and 2.6.6, which were fine on SGI's Altix 
->>>>tests, up to current newer kernels (on small memory boxes of course).
->>>>
->>>
->>>Hi Marcelo,
->>>
->>>Just a suggestion - I'd look at the thrashing control patch first.
->>>I bet that's the cause.
->>
->>Good point!
->>
->>I recall one of my users found his workload which often hit swap lightly 
->>was swapping much heavier and his performance dropped dramatically until 
->>I stopped including the swap thrash control patch. I informed Rik about 
->>it some time back so I'm not sure if he addressed it in the meantime.
-> 
-> 
-> Swap thrashing code doesnt affect anything, at least on my simple contained test.
-> With the same test, the amount of swapped out memory with 2.6.6/2.6.7 is 100-150MB,
->  while 2.6.8/2.6.9-mm* swaps out around 250MB.
-> 
-> I tried 2.6.7's "vmscan.c" on 2.6.8 without noticeable difference, I wonder why. 
-> 
-> What I've noticed before with the swap token code is total crap interactivity 
-> when memory hog is running. Which doesnt happen without it.
-> 
-> Con, I've seen your hard swappiness patch, why do you remove the current
-> swap_tendency calculation? Can you give us some insight into it? 
+For what it is worth, here are the benchmark results for the kernel with the 
+patch I discussed before, along with the previous 2.6.9-rc1-mm3 results:
 
-Sure. It was painfully simple. The swap tendency worked basically the 
-same but did not take into account distress. ie It made the "swappiness" 
-knob purely dependant on mapped ratio. For whatever reason, if the 
-swappiness value is the same in later kernels but swaps more, there is 
-more "distress" meaning we are priority scanning much more aggressively.
+Kernel Version 2.6.9-rc1-mm3:
+         Total I/O   Avg Swap   min    max     pg cache    min    max
+        ----------- --------- ------- ------  --------- ------- -------
+    0   274.80 MB/s  10511 MB (  5644, 14492)  13293 MB (  8596, 17156)
+   20   267.02 MB/s  12624 MB (  5578, 16287)  15298 MB (  8468, 18889)
+   40   267.66 MB/s  13541 MB (  6619, 17461)  16199 MB (  9393, 20044)
+   60   233.73 MB/s  18094 MB ( 16550, 19676)  20629 MB ( 19103, 22192)
+   80   213.64 MB/s  20950 MB ( 15844, 22977)  23450 MB ( 18496, 25440)
+  100   164.58 MB/s  26004 MB ( 26004, 26004)  28410 MB ( 28327, 28455)
 
-Cheers,
-Con
+Kernel Version 2.6.9-rc1-mm3-kdb-nrmap:
+         Total I/O   Avg Swap   min    max     pg cache    min    max
+        ----------- --------- ------- ------  --------- ------- -------
+    0   286.93 MB/s   7288 MB (  4847, 14536)  10122 MB (  7771, 17138)
+   20   252.43 MB/s  13305 MB (  3950, 18337)  15938 MB (  6866, 20876)
+   40   268.52 MB/s  11538 MB (  5333, 17298)  14238 MB (  8247, 19836)
+   60   242.72 MB/s  16367 MB (  8652, 21217)  18909 MB ( 11514, 23561)
+   80   212.94 MB/s  19424 MB (  5632, 24047)  21937 MB (  8567, 26469)
+  100   161.66 MB/s  26006 MB ( 26004, 26007)  28445 MB ( 28407, 28471)
 
---------------enigF4309F1C92B485643BC3288A
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
+Except for the swappiness = 20 case, things are a smallish bit better for
+the modified kernel than 2.6.9-rc1-mm3.  Clearly we haven't found the root of 
+this problem yet.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.4 (GNU/Linux)
-Comment: Using GnuPG with Thunderbird - http://enigmail.mozdev.org
+Have you still been unable to duplicate this problem on a small i386 platform?
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 
-iD8DBQFBP64QZUg7+tp6mRURAqmvAJ9PbRDWLU5cnsf7ObL/pSj9u9HREQCfShJG
-Nyfmx+LOP5hiubDiMmmIu/4=
-=9MXI
------END PGP SIGNATURE-----
-
---------------enigF4309F1C92B485643BC3288A--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
