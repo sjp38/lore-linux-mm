@@ -1,38 +1,31 @@
-Message-ID: <415ACACE.1020008@ammasso.com>
-Date: Wed, 29 Sep 2004 09:46:38 -0500
-From: Timur Tabi <timur.tabi@ammasso.com>
-MIME-Version: 1.0
+Date: Wed, 29 Sep 2004 16:01:34 +0100
+From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: get_user_pages() still broken in 2.6
-References: <4159E85A.6080806@ammasso.com>	 <20040929000325.A6758@infradead.org> <1096413678.16198.16.camel@localhost>
-In-Reply-To: <1096413678.16198.16.camel@localhost>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20040929160134.A13683@infradead.org>
+References: <4159E85A.6080806@ammasso.com> <20040929000325.A6758@infradead.org> <415ACB29.5000104@ammasso.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <415ACB29.5000104@ammasso.com>; from timur.tabi@ammasso.com on Wed, Sep 29, 2004 at 09:48:09AM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, kernelnewbies@nl.linux.org
+To: Timur Tabi <timur.tabi@ammasso.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Hansen wrote:
+On Wed, Sep 29, 2004 at 09:48:09AM -0500, Timur Tabi wrote:
+> Christoph Hellwig wrote:
+> 
+> > get_user_pages locks the page in memory.  It doesn't do anything about ptes.
+> 
+> I don't understand the difference.  I thought a locked page is one that 
+> stays in memory (i.e. isn't swapped out) and whose physical address 
+> never changes.  Is that wrong?
 
-> You probably want mlock(2) to keep the kernel from messing with the ptes
-> at all.
+Yes.  But if you're walking ptes you're looking at virtual addresses
+somehow.  Can you send me a pointer to your code please?  I suspect
+it's doing something terribly stupid.
 
-mlock() can only be called via sys_mlock(), which is a user-space call. 
-  Not only that, but only root can call sys_mlock().  This is not 
-compatible with our needs.
-
- >  But, you should probably really be thinking about why you're
-> accessing the page tables at all.  I count *ONE* instance in drivers/
-> where page tables are accessed directly.
-
-I access PTEs to get the physical addresses of a user-space buffer, so 
-that we can DMA to/from it directly.
-
--- 
-Timur Tabi
-Staff Software Engineer
-timur.tabi@ammasso.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
