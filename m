@@ -1,12 +1,12 @@
-Date: Mon, 14 Feb 2005 06:36:10 -0700
-Message-Id: <200410031467.i93KdeTw000891@www7.gmail.com>
-From: "Jayne Daniels" <nati@sogoodrates.com>
-Subject: Rates fixed at 3.25
+Date: Mon, 14 Feb 2005 14:04:18 -0700
+Message-Id: 200410150705.i9F750Kk01345724.i93JnqTw002440@b-mail09.real-email.net>
+From: "Denis Norris" <gurvine@casholasavings.com>
+Subject: You've been selected for a low rate
 Mime-Version: 1.0
 Content-Type: text/plain;
-Return-Path: <nati@sogoodrates.com>
-To: aart@kvack.org
-Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org
+Return-Path: <gurvine@casholasavings.com>
+To: linux-mm@kvack.org
+Cc: linux-mm-archive@kvack.org, mailer-daemon@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.orgux-aio@kvack.orgwner-linux-aio@kvack.orgwner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -28,7 +28,7 @@ Hello,
 
  Best Regards,
 
- Pat Woodward
+ Delbert Fernandez
  
  to be remov(ed:	http://www.bestlenderz.com/x/st.html
 
