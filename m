@@ -1,26 +1,34 @@
-Date: Thu, 18 Jul 2002 20:01:08 +0200 (MEST)
-From: Szakacsits Szabolcs <szaka@sienet.hu>
 Subject: Re: [PATCH] strict VM overcommit for stock 2.4
-In-Reply-To: <1027022323.8154.38.camel@irongate.swansea.linux.org.uk>
-Message-ID: <Pine.LNX.4.30.0207181956200.30902-100000@divine.city.tvnet.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <Pine.LNX.3.95.1020718144203.1123A-100000@chaos.analogic.com>
+References: <Pine.LNX.3.95.1020718144203.1123A-100000@chaos.analogic.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 18 Jul 2002 12:03:16 -0700
+Message-Id: <1027018996.1116.136.camel@sinai>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Robert Love <rml@tech9.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: root@chaos.analogic.com
+Cc: Szakacsits Szabolcs <szaka@sienet.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 18 Jul 2002, Alan Cox wrote:
-> Adjusting the percentages to have a root only zone is doable. It helps
-> in some conceivable cases but not all. Do people think its important, if
-> so I'll add it
+On Thu, 2002-07-18 at 11:56, Richard B. Johnson wrote:
 
-"Why isn't in the kernel?" was the other FAQ I got besides "when it
-will be ported to 2.4?" [about the reserved root vm patch I mentioned
-in my other email].
+> What should have happened is each of the tasks need only about
+> 4k until they actually access something. Since they can't possibly
+> access everything at once, we need to fault in pages as needed,
+> not all at once. This is what 'overcomit' is, and it is necessary.
 
-	Szaka
+Then do not enable strict overcommit, Dick.
+
+> If you have 'fixed' something so that no RAM ever has to be paged
+> you have a badly broken system.
+
+That is not the intention of Alan or I's work at all.
+
+	Robert Love
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
