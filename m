@@ -1,44 +1,52 @@
-Date: Fri, 28 Jan 2000 12:26:50 -0500
-Message-Id: <200001281726.MAA12528@tsx-prime.MIT.EDU>
-From: "Theodore Y. Ts'o" <tytso@MIT.EDU>
-In-reply-to: Ivan Kokshaysky's message of Fri, 28 Jan 2000 19:48:27 +0300,
-	<20000128194827.A23800@jurassic.park.msu.ru>
-Subject: Re: 2.2.15pre4 VM fix
+Subject: PATHC: SHM mappings beyond the end of a segment.
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 29 Jan 2000 22:28:42 -0600
+Message-ID: <m17lgsgp39.fsf@flinx.hidden>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@nl.linux.org>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-   On Fri, Jan 28, 2000 at 02:40:30PM +0000, Alan Cox wrote:
-   > > n_tty_open() has been caught with your patch.
-   > > Thanks!
-   > 
-   > Do you know which drivers (serial,tty) you were using it. n_tty_open itself
-   > seems ok, but the caller may be guilty
+Currently it is possible to extend the vma for a shm segment
+with mremap.  The shm code has no checks for access beyond the
+end of the shm segment.  Resulting in writes to shp->shm_dir in 2.3
+and shp->shm_pages in 2.2 past the allocated end of the array.
 
-   It happened when ppp connection was terminated (remote end hangup).
-   Serial driver is Comtrol Rocketport. The problem is repeatable
-   (3 times last 20 hours), so I can investigate further to see who
-   is the caller.
+By playing with this processes can create weird memory overwrites,
+and effectively mlocked private pages.
 
-I think it's a flase positive.  It's happeninig because tty_do_hangup()
-is calling ldisc.open --- which means n_tty_open() inside an interrupt
-context.  n_tty_open() makes a check to see whether it is being called
-inside an interrupt, and uses GFP_ATOMIC to avoid blocking inside the
-interrupt.  
+As using mremap to extend a shm mapping is basically silly,
+and linux specific.  I don't think it affects anything in practice.
 
+The attached patch caused SIGBUS to be delivered when
+we write past the end of our shm area.
 
-static int n_tty_open(struct tty_struct *tty)
-{
-	....
-		get_zeroed_page(in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
-	...
-}
+Eric
 
-This should be OK, I think.
-
-						- Ted
+===File linux-2.3.41.eb1.diff==============
+diff -uNrX linux-ignore-files linux-2.3.41/ipc/shm.c linux-2.3.41.eb1/ipc/shm.c
+--- linux-2.3.41/ipc/shm.c	Mon Jan 24 13:04:37 2000
++++ linux-2.3.41.eb1/ipc/shm.c	Sat Jan 29 18:57:58 2000
+@@ -840,6 +840,15 @@
+ 	idx = (address - shmd->vm_start) >> PAGE_SHIFT;
+ 	idx += shmd->vm_pgoff;
+ 
++	/*
++	 * A shared mapping past the last page of the file is an error
++	 * and results in a SIGBUS, so logically a shared mapping past 
++	 * the end of a shared memory segment should result in SIGBUS
++	 * as well.
++	 */
++	if (idx >= shp->shm_npages) { 
++		return NULL;
++	}
+ 	down(&shp->sem);
+ 	if(shp != shm_lock(shp->id))
+ 		BUG();
+============================================================
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
