@@ -1,49 +1,52 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by postfix.conectiva.com.br (Postfix) with SMTP id 3B8D216B0E
-	for <linux-mm@kvack.org>; Sat, 24 Mar 2001 13:30:17 -0300 (EST)
-Date: Sat, 24 Mar 2001 13:21:29 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Sat, 24 Mar 2001 17:56:27 +0100
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
 Subject: Re: Reduce Linux memory requirements for an Embedded PC
-In-Reply-To: <20010324133926.A1584@fred.local>
-Message-ID: <Pine.LNX.4.21.0103241319480.1863-100000@imladris.rielhome.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20010324175627.F26121@nightmaster.csn.tu-chemnitz.de>
+References: <20010324133926.A1584@fred.local> <Pine.LNX.4.21.0103241319480.1863-100000@imladris.rielhome.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0103241319480.1863-100000@imladris.rielhome.conectiva>; from riel@conectiva.com.br on Sat, Mar 24, 2001 at 01:21:29PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Petr Dusil <pdusil@razdva.cz>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Andi Kleen <ak@muc.de>, Petr Dusil <pdusil@razdva.cz>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 24 Mar 2001, Andi Kleen wrote:
-> On Sat, Mar 24, 2001 at 10:59:36AM +0100, Petr Dusil wrote:
+On Sat, Mar 24, 2001 at 01:21:29PM -0300, Rik van Riel wrote:
+> I'm willing to work on a CONFIG_TINY option for 2.5 which
+> does things like this (but I'll have to finish some VM
+> things first ;)).
 
-> > I am developing a Linux distribution for a Jumptec Embedded PC. It is
-> > targeted to an I486, 16MB DRAM, 16MB DiskOnChip. I have decided to use
-> > Redhat 6.2  (2.2.14 kernel) and to reduce its size to fit the EPC. I
-> > have simplified the kernel (removed support of all unwanted hardware),
+Why not 2.4? It is only a configuration thing, right? People are
+using Linux more and more for embedded stuff. So waiting 2 years
+more is not an option.
 
-> One way is to go back to a 2.0 kernel, which uses somewhat less
-> memory. I did that on a 4MB box. There are also ways to reduce memory
-> usage further for both 2.0 and 2.2, but it requires a bit of source
-> patching. Basically you go through nm --size-sort -t d vmlinux and try
-> to reduce all big symbols, like the static super block array and
-> reducing sizes of preallocated hash tables (e.g. buffer and networking
-> hash is very big in 2.2)
+I'm willing to help, if we collect some ideas on WHAT to do
+first.
 
-I'm willing to work on a CONFIG_TINY option for 2.5 which
-does things like this (but I'll have to finish some VM
-things first ;)).
+I had problems even on 64MB with no swap attached, so this is a
+serious problem (look at comment on OOM killer does not trigger).
 
-regards,
+Esp. in the network layer we need to reduce memory usage, since
+this triggered it for me on this oversized box.
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
+Also a set of configs (may be sysctl stuff) to adjust trade-off
+decisions on throughput vs. latency or memory vs. speed and the
+like.
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+Autotuning is nice, but has always the chance to fail for corner
+cases. Taking these into account to generates too much code
+bloat. So making the required tunables available (as already
+happend with threads-max, file-max and the like) is supporting
+the idea of 'providing features, not policy'.
 
+Regards
+
+Ingo Oeser
+-- 
+10.+11.03.2001 - 3. Chemnitzer LinuxTag <http://www.tu-chemnitz.de/linux/tag>
+         <<<<<<<<<<<<     been there and had much fun   >>>>>>>>>>>>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
