@@ -1,38 +1,47 @@
-Message-Id: <Kilauea97945-17741-82853435-1@flonetwork.com>
-From: "Frankie Coffey" <bsagar@didamail.com>
-Date: Mon, 14 Feb 2005 15:23:38 -0400 (EDT) 
-Message-Id: <200410031442.i93LfbTw009505@www7.gmail.com>
-Subject: Become one of the low 3.25% rates
+Date: Mon, 28 Feb 2005 16:42:34 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 0/5] prepare x86/ppc64 DISCONTIG code for hotplug
+Message-Id: <20050228164234.38cb774c.akpm@osdl.org>
+In-Reply-To: <1109616858.6921.39.camel@localhost>
+References: <1109616858.6921.39.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain;
-Return-Path: <bsagar@didamail.com>
-To: linux-mm@kvack.org
-Cc: linux-mm-archive@kvack.org, mailer-daemon@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.orgux-aio@kvack.orgwner-linux-aio@kvack.orgwner-majordomo@kvack.org
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: kmannth@us.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Dave Hansen <haveblue@us.ibm.com> wrote:
+>
+> Subject pretty much says it all.  Descriptions are in the individual
+> patches.  These patches replace the
+> "allow-hot-add-enabled-i386-numa-box-to-boot.patch" which is currently
+> in -mm.  Please drop it.  
+> 
+> They apply to 2.6.11-rc5 after a few patches from -mm which conflicted:
+> 
+> 	stop-using-base-argument-in-__free_pages_bulk.patch
+> 	consolidate-set_max_mapnr_init-implementations.patch
+> 	refactor-i386-memory-setup.patch
+> 	remove-free_all_bootmem-define.patch
+> 	mostly-i386-mm-cleanup.patch
+> 
+> Boot-tested on plain x86 laptop, NUMAQ, and Summit.  These probably
+> deserve to stay in -mm for a release or two.
+> 
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+Most of these patches needed little fixups due to other patches which you
+folks have already sent me:
 
- You have qualified for the lowest rate in years...
+	allow-hot-add-enabled-i386-numa-box-to-boot
+	refactor-i386-memory-setup
+	consolidate-set_max_mapnr_init-implementations
 
- You could get over $380,000 for as little as $500 a month!
-
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
-
- 
- To get a free, no obli,gation consultation click below:
-
- http://www.bestlenderz4u.com/x/loan.php?id=nu
-
-
-
- Best Regards,
-
- Jerrod Boykin
- 
- to be remov(ed:	http://www.bestlenderz4u.com/x/st.html
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+I'll try to get a -mm out this evening - please retest this stuff.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
