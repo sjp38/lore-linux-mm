@@ -1,82 +1,59 @@
 Subject: Re: msync() behaviour broken for MS_ASYNC, revert patch?
 From: "Stephen C. Tweedie" <sct@redhat.com>
-In-Reply-To: <20040331145352.23df0831.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.58.0403311433240.1116@ppc970.osdl.org>
 References: <1080771361.1991.73.camel@sisko.scot.redhat.com>
-	 <20040331145352.23df0831.akpm@osdl.org>
+	 <Pine.LNX.4.58.0403311433240.1116@ppc970.osdl.org>
 Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Message-Id: <1080775221.1991.91.camel@sisko.scot.redhat.com>
+Message-Id: <1080776487.1991.113.camel@sisko.scot.redhat.com>
 Mime-Version: 1.0
-Date: 01 Apr 2004 00:20:21 +0100
+Date: 01 Apr 2004 00:41:27 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Ulrich Drepper <drepper@redhat.com>, Linus Torvalds <torvalds@osdl.org>, Stephen Tweedie <sct@redhat.com>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, Ulrich Drepper <drepper@redhat.com>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Wed, 2004-03-31 at 23:53, Andrew Morton wrote:
-> "Stephen C. Tweedie" <sct@redhat.com> wrote:
-
-> > Unfortunately, this seems to contradict SingleUnix requirements, which
-> > state:
-> >         When MS_ASYNC is specified, msync() shall return immediately
-> >         once all the write operations are initiated or queued for
-> >         servicing
+On Wed, 2004-03-31 at 23:37, Linus Torvalds wrote:
+> On Wed, 31 Mar 2004, Stephen C. Tweedie wrote:
+> >         
 > > although I can't find an unambiguous definition of "queued for service"
 > > in the online standard.  I'm reading it as requiring that the I/O has
-> > reached the block device layer
+> > reached the block device layer, not simply that it has been marked dirty
+> > for some future writeback pass to catch; Uli agrees with that
+> > interpretation.
+> 
+> That interpretation makes pretty much zero sense.
+> 
+> If you care about the data hitting the disk, you have to use fsync() or 
+> similar _anyway_, and pretending anything else is just bogus.
 
-> I don't think I agree with that.  If "queued for service" means we've
-> started the I/O, then what does "initiated" mean, and why did they specify
-> "initiated" separately?
+You can make the same argument for either implementation of MS_ASYNC. 
+And there's at least one way in which the "submit IO now" version can be
+used meaningfully --- if you've got several specific areas of data in
+one or more mappings that need flushed to disk, you'd be able to
+initiate IO with multiple MS_ASYNC calls and then wait for completion
+with either MS_SYNC or fsync().  That gives you an interface that
+corresponds somewhat with the region-based filemap_sync();
+filemap_fdatawrite(); filemap_datawait() that the kernel itself uses.  
 
-I'd interpret "initiated" as having reached hardware.  "Queued for
-service" is much more open to interpretation: Uli came up with "the data
-must be actively put in a stage where I/O is initiated", which still
-doesn't really address what sort of queueing is allowed.
+> Having the requirement that it is on some sw-only request queue is
+> nonsensical, since such a queue is totally invisible from a user
+> perspective.
 
-> What triggered all this was a dinky little test app which Linus wrote to
-> time some aspect of P4 tlb writeback latency.  It sits in a loop dirtying a
-> page then msyncing it with MS_ASYNC.  It ran very poorly, because MS_ASYNC
-> ended up waiting on the previously-submitted I/O before starting new I/O.
+It's very much visible, just from a performance perspective, if you want
+to support "kick off this IO, I'm going to wait for the completion
+shortly."  If that's the interpretation of MS_ASYNC, then the app is
+basically saying it doesn't want the writeback mechanism to be idle
+until the writes have completed, regardless of whether it's a block
+device or an NFS file or whatever underneath.
 
-Sure.  There are lots of ways an interface can be misused, though: you
-only know if one use is valid or not once you've determined what the
-_correct_ use is.  I'm much more concerned about getting a correct
-interpretation of the spec than of making IO fast for the sake of a
-memory benchmark. :-)
+But whether that's a legal use of MS_ASYNC really depends on what the
+standard is requiring.  I could be persuaded either way.  Uli?
 
-> One approach to improving that would be for MS_ASYNC to say "if the page is
-> already under writeout then just skip the I/O".  But that's worthless,
-> really - it makes the MS_ASYNC semantics too vague.
-
-Agreed.
-
-> Your reversion patch would mean that current applications which use
-> MS_ASYNC will again suffer large latencies if the pages are under writeout.
-
-Well, this whole issue came up precisely because somebody was seeing
-exactly such a latency hit going from 2.4.9 to a later kernel.  We've
-not really been consistent about it in the past.
-
-> Sure, users could switch apps to using flags=0 to avoid that, but people
-> don't know to do that.
-
-Exactly why we need documentation for that combination, whatever
-happens.
-
-> So given that SUS is ambiguous about this, I'd suggest that we be able to
-> demonstrate some real-world reason why this matters.  Why are you concerned
-> about this?
-
-Just for the reason you mentioned --- a real-world app (in-house, so
-flags==0 is actually a valid solution for them) which was seeing
-performance degradation when the "MS_ASYNC submits IO" was introduced in
-the first place.  But it was internally written, so I've no idea at all
-whether or not the app was assuming one behaviour or the other on other
-Unixen.
+Does anyone know what other Unixen do here?
 
 --Stephen
 
