@@ -1,102 +1,67 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA04742
-	for <linux-mm@kvack.org>; Sat, 18 Jul 1998 09:28:24 -0400
-Subject: Re: More info: 2.1.108 page cache performance on low memory
-References: <199807131653.RAA06838@dax.dcs.ed.ac.uk> 	<m190lxmxmv.fsf@flinx.npwt.net> 	<199807141730.SAA07239@dax.dcs.ed.ac.uk> <m14swgm0am.fsf@flinx.npwt.net>
-Reply-To: Zlatko.Calusic@CARNet.hr
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 18 Jul 1998 15:28:17 +0200
-In-Reply-To: ebiederm+eric@npwt.net's message of "17 Jul 1998 20:10:25 -0500"
-Message-ID: <87d8b370ge.fsf@atlas.CARNet.hr>
+Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA05411
+	for <linux-mm@kvack.org>; Sat, 18 Jul 1998 11:50:23 -0400
+Subject: Re: Comments on shmfs-0.1.010
+References: <87n2a9o3m3.fsf@atlas.CARNet.hr> <m167gwm17r.fsf@flinx.npwt.net>
+	<87hg0ffh7t.fsf@atlas.CARNet.hr>
+From: ebiederm+eric@npwt.net (Eric W. Biederman)
+Date: 18 Jul 1998 11:03:10 -0500
+In-Reply-To: Zlatko Calusic's message of 18 Jul 1998 14:59:02 +0200
+Message-ID: <m1r9zjjge9.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@npwt.net>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: Zlatko.Calusic@CARNet.hr
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ebiederm+eric@npwt.net (Eric W. Biederman) writes:
+>>>>> "ZC" == Zlatko Calusic <Zlatko.Calusic@CARNet.hr> writes:
 
-> >>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
-> 
-> ST> Hi,
-> ST> On 13 Jul 1998 13:08:56 -0500, ebiederm+eric@npwt.net (Eric
-> ST> W. Biederman) said:
-> 
-> >>>>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
-> >> 1) We have a minimum size for the buffer cache in percent of physical pages.
-> >> Setting the minimum to 0% may help.
-> 
-> ST> ...
-> 
-> >> Personally I think it is broken to set the limits of cache sizes
-> >> (buffer & page) to anthing besides: max=100% min=0% by default.
-> 
-> ST> Yep; I disabled those limits for the benchmarks I announced.  Disabling
-> ST> the ageing but keeping the limits in place still resulted in a
-> ST> performance loss.
-> 
-> >> 2) If we play with LRU list it may be most practical use page->next
-> >> and page->prev fields for the list, and for truncate_inode_pages &&
-> >> invalidate_inode_pages
-> 
-> ST> Yikes --- for large files the proposal that we do
-> 
-> >> do something like:
-> >> for(i = 0; i < inode->i_size; i+= PAGE_SIZE) {
-> >> page = find_in_page_cache(inode, i);
-> >> if (page) 
-> >> /* remove it */
-> >> ;
-> >> }
-> 
-> ST> will be disasterous.  No, I think we still need the per-inode page
-> ST> lists.  When we eventually get an fsync() which works through the page
-> ST> cache, this will become even more important.
-> 
-> Duh.  Ext2 only does with in truncate with the block cache on a real
-> truncate, when and inode is closed it doesn't need to do that.  Sorry
-> I though I had precedent for that algorithm.
-> 
-> O.k. scracth that idea.
-> 
-> So I guess a LRU list for pages will require that we increase the size
-> of struct page.  I guess it is makes sense if we can ultimately:
-> a) use if for every page on the system ala the swap cache.
-> b) remove the buffer cache which should provide the necessary
->    expansion room.  So we won't ultimately use more space.
-> c) use it for a lru on dirty pages.
-> d) doesn't fragment memory with slabs...
-> 
-> I hate considering expanding struct page after all of the work
-> that has gone into shriking the lately....
-> 
-> And for writes it looks like I'll need a write time too, for best
-> performance.  I've written the code I just haven't tested it yet.
-> 
-> Zlatko could I talk you into setting the defines in mmap.h so it shmfs
-> will use those and report if bonnie improves...
-> 
+>> This is a normal case with no harm.  
+>> I think normal 2.1.101 should cause it too.
+>> It's simply a result of swapping adding swap.
 
-When it comes to benchmarking, I'm always prepared. :)
+ZC> Well, it looks like it's harmless. I don't know why. :)
 
-It's just, that I didn't understand completely what are you trying to
-do, but if you have a prepared patch, I'll gladly test it.
+In that case it is harmless because it is reading the first page of
+swap onto the swap lock!  And since there are no races there the lock
+isn't needed.
 
-BTW, looking at 2.1.109, I'm very pleased with the changes made in mm/ 
-directory. Finally, free_memory_available is simple, readable and
-efficient. ;)
+>> Are you creating really large files in shmfs?
 
-Next week, I will test some ideas which possibly could improve things
-WITH page aging.
+ZC> Yes, I was creating very big file to test some things.
 
-I must admit, after lot of critics I made upon page aging, that I
-believe it's the right way to go, but it should be done properly.
-Performance should be better, not worse.
+ZC> But after I applied my patch, I never saw those kmalloc messages?!
 
-Regards,
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-  Any sufficiently advanced bug is indistinguishable from a feature.
+Currently all of pointers to file blocks are allocated just in kernel
+memory.  So really big files might cause that.  I haven't seen them so
+I haven't a clue.
+
+ZC> Unfortunately not. Time for experimenting ran out. :(
+
+Well that at least tells me which options were used to get those
+performance marks.
+
+
+ZC> Yesterday I tried to copy linux tree to /shm and got these errors:
+
+ZC> Tree has around 4200 files (which is slightly more than inode limit on 
+ZC> Linux!). Few last files didn't get copied.
+
+The story is that I allocate a fixed number of inodes to shmfs at mount time.
+And then when I need one I look through those structures for one that is unused.
+
+That is fine for testing my kernel patch, but in the long run it is a problem.
+The temporary work around is to due:
+mount -t shmfs -o inodes=10240 none /tmp
+Anything less than 65535 should be legal.
+
+The raw development version has a fix for this and a few other things
+that I allocate in kernel memory, but it isn't stable yet.  I'm using
+the stable code to create my kernel patches.
+
+Eric
+
+
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
