@@ -1,7 +1,7 @@
-Date: Thu, 22 Jan 2004 11:03:42 +0000
+Date: Thu, 22 Jan 2004 11:05:48 +0000
 From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: 2.6.2-rc1-mm1
-Message-ID: <20040122110342.A9271@infradead.org>
+Message-ID: <20040122110548.A9290@infradead.org>
 References: <20040122013501.2251e65e.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,11 +13,10 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> sysfs-class-06-raw.patch
->   From: Greg KH <greg@kroah.com>
->   Subject: [PATCH] add sysfs class support for raw devices [06/10]
+> tty_io-uml-fix.patch
+>   uml: make tty_init callable from UML functions
 
-This one exports get_gendisk, which is a no-go.
+This is broken.  UML shouldn't mess with tty_init at all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
