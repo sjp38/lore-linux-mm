@@ -1,41 +1,38 @@
-Date: Tue, 07 Aug 2001 16:22:51 -0400
-From: Chris Mason <mason@suse.com>
+Date: Tue, 7 Aug 2001 13:50:52 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-Message-ID: <493160000.997215771@tiny>
-In-Reply-To: <Pine.LNX.4.33.0108071251100.3977-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.33L.0108071621180.1439-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.33.0108071232001.1031-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Daniel Phillips <phillips@bonn-fries.net>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Ben LaHaise <bcrl@redhat.com>, Daniel Phillips <phillips@bonn-fries.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 7 Aug 2001, Rik van Riel wrote:
+>
+> Hmmmm, indeed.  All lazy movement can do is make it
+> easier to run into a wall, but it should still be
+> possible without it ...
 
-On Tuesday, August 07, 2001 12:52:11 PM -0700 Linus Torvalds
-<torvalds@transmeta.com> wrote:
+Yes.
 
-> On Tue, 7 Aug 2001, Chris Mason wrote:
->> 
->> Linus seemed pretty sure kswapd wasn't deadlocked, but though I would
->> mention this anyway....
-> 
-> The thing that Leonard seems able to repeat pretty well is just doing a
-> "mke2fs" on a big partition. I don't think xfs is involved there at all.
+One of the things this problem seems to show is that "kswapd" really does
+too many different things.
 
-It depends, mke2fs could be just another GFP_NOFS process waiting around
-for kswapd to free buffers.  If a journaled filesystem is there, and it is
-locking up kswapd, any heavy buffer allocator could make the problem seem
-worse.
+Some people who wake up kswapd really want kswapd to work at _freeing_
+pages. Exactly because things like network traffic, buffer flushing etc
+may not be able to do everything due to atomicity constraints or fear of
+deadlocks.
 
-But, if you mean XFS is not mounted at all, I'm way off ;-)
+At the same time, kswapd _also_ ends up doing background aging, so kswapd
+basically wakes up itself once a second. And when kswapd wakes up itself
+it does _not_ want to actively free pages, so it has to have that test for
+"free_shortage()"..
 
--chris
-
-
-
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
