@@ -1,54 +1,41 @@
-Received: from bowery.psl.cs.columbia.edu (bowery.psl.cs.columbia.edu [128.59.23.43])
-	by cs.columbia.edu (8.9.1/8.9.1) with ESMTP id FAA17725
-	for <linux-mm@kvack.org>; Thu, 9 Dec 1999 05:21:26 -0500 (EST)
-Received: from bowery.psl.cs.columbia.edu (localhost [127.0.0.1])
-	by bowery.psl.cs.columbia.edu (8.9.3/8.9.3) with ESMTP id FAA21828
-	for <linux-mm@kvack.org>; Thu, 9 Dec 1999 05:21:48 -0500
-Message-Id: <199912091021.FAA21828@bowery.psl.cs.columbia.edu>
-From: Chris Vaill <cvaill@cs.columbia.edu>
-Subject: Motivation for page replace alg.?
-Date: Thu, 09 Dec 1999 05:21:47 -0500
+Date: Thu, 9 Dec 1999 13:25:00 +0100 (CET)
+From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+Subject: Re: Getting big areas of memory, in 2.3.x?
+In-Reply-To: <384F17BA.174B4C6D@mandrakesoft.com>
+Message-ID: <Pine.LNX.4.10.9912091319030.1223-100000@chiara.csoma.elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Jeff Garzik <jgarzik@mandrakesoft.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I'm a kernel newbie, and I apologize if my question is answered by
-easily accessible docs, but I couldn't find any such answers in my
-search.
+On Wed, 8 Dec 1999, Jeff Garzik wrote:
 
-I've been looking into the swap out routines, and in particular their
-behavior when faced with several competing processes aggressively
-allocating and using memory (more memory, collectively, than is
-physically available).  I've found that this results in repeated
-drastic swings in rss for each process over time.
+> > > What's the best way to get a large region of DMA'able memory for use
+> > > with framegrabbers and other greedy drivers?
+> > 
+> > Do you need physically linear memory >
+> 
+> Yes.  For the Meteor-II grabber I don't think so, but it looks like the
+> older (but mostly compatible) Corona needs it.
 
-As far as I can tell, this results from the way swap_cnt is separated
-from rss.  A victim process is chosen because it has the highest
-swap_cnt, but as its rss falls, the swap_cnt stays high, so the same
-victim process is chosen over and over again until no more pages can
-be swapped from that process, and swap_cnt is zeroed.  From my (very
-naive) perspective, it seems that always choosing the same victim
-process for swapping would not result in a good approximation of LRU.
+hm, you could use the bootmem allocator for now - it allocates a
+physically continuous 165MB mem_map[] on my box just fine. The problem
+with bootmem is that it's "too early" in the bootup process, you cannot
+cleanly hook into it, because it's use is forbidden after
+free_all_bootmem() is called.
 
-My questions are, is my read of the code correct here, and is this the
-intended behavior of the page replacement algorithm?  If so, what is
-the motivation?  Is this based on some existing mm research, or
-informal observation and testing, or something else entirely?
+hm, does anyone have any conceptual problem with a new
+allocate_largemem(pages) interface in page_alloc.c? It's not terribly hard
+to scan all bitmaps for available RAM and mark the large memory area
+allocated and remove all pages from the freelists. Such areas can only be
+freed via free_largemem(pages). Both calls will be slow, so should be only
+used at driver initialization time and such.
 
-I've heard it mentioned that the swap routines were not meant to deal
-with trashing procs, which is basically what I am testing here.
-Obviously the swap routines work pretty well for normal, well-behaved
-procs; I'm just trying to get a little insight into the design process
-here.
+-- mingo
 
-Thanks for any info or pointers anyone can provide.
-
--Chris
-
-P.S. I did my testing on 2.2.13, but it is my understanding that the
-algorithm is the same in the 2.3 kernels.  Smack me if this is not the
-case.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
