@@ -1,67 +1,61 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA16688
-	for <linux-mm@kvack.org>; Sun, 29 Nov 1998 13:45:27 -0500
-Date: Mon, 30 Nov 1998 13:52:08 GMT
-Message-Id: <199811301352.NAA03313@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA16980
+	for <linux-mm@kvack.org>; Sun, 29 Nov 1998 14:44:27 -0500
+Date: Mon, 30 Nov 1998 13:37:37 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: [2.1.130-3] Page cache DEFINATELY too persistant... feature?
+In-Reply-To: <8767c0q55d.fsf@atlas.CARNet.hr>
+Message-ID: <Pine.LNX.3.96.981130133229.17889E-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: Update shared mappings
-In-Reply-To: <87btm3dmxy.fsf@atlas.CARNet.hr>
-References: <87btm3dmxy.fsf@atlas.CARNet.hr>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>, Zlatko.Calusic@CARNet.hr
-Cc: Linux-MM List <linux-mm@kvack.org>, Andi Kleen <andi@zero.aec.at>
+To: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Benjamin Redelings I <bredelin@ucsd.edu>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 27 Nov 1998, Zlatko Calusic wrote:
+> "Stephen C. Tweedie" <sct@redhat.com> writes:
+> 
+> > The real problem seems to be that shrink_mmap() can fail for two
+> > completely separate reasons.  First of all, we might fail to find a
+> > free page because all of the cache pages we find are recently
+> > referenced.  Secondly, we might fail to find a cache page at all.
+> 
+> Yesterday, I was trying to understand the very same problem you're
+> speaking of. Sometimes kswapd decides to swapout lots of things,
+> sometimes not.
+> 
+> I applied your patch, but it didn't solve the problem.
+> To be honest, things are now even slightly worse. :(
 
-On 20 Nov 1998 05:10:01 +0100, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-said:
+The 'fix' is to lower the borrow percentages for both
+the buffer cache and the page cache. If we don't do
+that (or abolish the percentages completely) kswapd
+doesn't have an incentive to switch from a succesful
+round of swap_out() -- which btw doesn't free any
+actual memory so kswapd just continues doing that --
+to shrink_mmap().
 
-> Should this patch be applied to kernel? [Andrea's
-> update_shared_mappings patch]
+Another thing we might want to try is inserting the
+following test in do_try_to_free_page():
 
-No.
+if (atomic_read(&nr_async_pages) >= pager_daemon.swap_cluster)
+	state = 0;
 
-> Index: 129.2/mm/filemap.c
-> --- 129.2/mm/filemap.c Thu, 19 Nov 1998 18:20:34 +0100 zcalusic (linux-2.1/y/b/29_filemap.c 1.2.4.1.1.1.1.1 644)
-> +++ 129.3/mm/filemap.c Fri, 20 Nov 1998 05:07:24 +0100 zcalusic (linux-2.1/y/b/29_filemap.c 1.2.4.1.1.1.1.2 644)
-> @@ -5,6 +5,10 @@
->   */
- 
-> +static void update_one_shared_mapping(struct vm_area_struct *shared,
-> +				      unsigned long address, pte_t orig_pte)
-> +{
-> +	pgd_t *pgd;
-> +	pmd_t *pmd;
-> +	pte_t *pte;
-> +	struct semaphore * mmap_sem = &shared->vm_mm->mmap_sem;
-> +
-> +	down(mmap_sem);
+This will switch kswapd to shrink_mmap() when we have enough
+pages queued for efficient swap I/O. Of course this 'fix'
+decreases swap throughput so we might want to think up something
+more clever instead...
 
-The mmap_semaphore is already taken out _much_ earlier on in msync(), or
-the vm_area_struct can be destroyed by another thread.  Is this patch
-tested?  Won't we deadlock immediately on doing this extra down()
-operation? 
+regards,
 
-The only reason that this patch works in its current state is that
-exit_mmap() skips the down(&mm->mmap_sem).  It can safely do so only
-because if we are exiting the mmap, we know we are the last thread and
-so no other thread can be playing games with us.  So, exit_mmap()
-doesn't deadlock, but a sys_msync() on the region looks as if it will.
+Rik -- now completely used to dvorak kbd layout...
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
-Other than that, it looks fine.  One other thing occurs to me, though:
-it would be easy enough to add a condition (atomic_read(&page->count) >
-2) on this to disable the update-mappings call entirely if the page is
-only mapped by one vma (which will be a very common case).  We already
-access the count field, so we are avoiding the cost of any extra cache
-misses if we make this check.
-
-Comments?
-
---Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
