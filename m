@@ -1,66 +1,58 @@
-Date: Sat, 19 Jul 2003 23:12:30 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.0-test1-mm2
-Message-Id: <20030719231230.4de39ffe.akpm@osdl.org>
-In-Reply-To: <200307200647.43410.Starborn@anime-city.co.uk>
-References: <20030719174350.7dd8ad59.akpm@osdl.org>
-	<20030720024102.GA18576@triplehelix.org>
-	<20030720042918.GA19219@triplehelix.org>
-	<200307200647.43410.Starborn@anime-city.co.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <170EBA504C3AD511A3FE00508BB89A920234CD4F@exnanycmbx4.ipc.com>
+From: "Downing, Thomas" <Thomas.Downing@ipc.com>
+Subject: RE: 2.6.0-test1-mm1
+Date: Sun, 20 Jul 2003 14:50:40 -0400
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michael Morris <Starborn@anime-city.co.uk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joshua Kwan <joshk@triplehelix.org>
+To: 'Andrew Morton' <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Michael Morris <Starborn@anime-city.co.uk> wrote:
->
-> Here's my oops:
+> -----Original Message-----
+> From: Andrew Morton [mailto:akpm@osdl.org]
 > 
-> Unable to handle kernel NULL pointer dereference at virtual address 00000014
-> EIP is at journal_dirty_metadata+0x38/0x210
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/
+> 2.6.0-test1/2.6.0-test1-mm1/
+> 
+> . Lots of bugfixes.
+> . Another interactivity patch from Con.  Feedback is needed on this
+>   please - we cannot make much progress on this fairly subjective work
+>   without lots of people telling us how it is working for them.
+> 
 
-OK, bad bug.  This should fix it.
+I have been testing interactivity now for for a while.  The only
+symptom (subjective) that I can see is occasional but repeatable
+(if you get what I mean) video _only_ skips in xine.  The audio
+does not skip.  The video skips are very short, only a 4-5 frames
+at most.
 
- fs/ext3/inode.c |   16 +++++++---------
- 1 files changed, 7 insertions(+), 9 deletions(-)
+They occur _only_ when performing such operations as rendering a 
+large bitmap to the screen.  They do _not_ occur when dragging
+windows (with contents visible during drag,) nor does CPU load
+seem to have an effect.
 
-diff -puN fs/ext3/inode.c~ext3_getblk-race-fix-fix fs/ext3/inode.c
---- 25/fs/ext3/inode.c~ext3_getblk-race-fix-fix	2003-07-19 22:59:50.000000000 -0700
-+++ 25-akpm/fs/ext3/inode.c	2003-07-19 23:07:42.000000000 -0700
-@@ -936,19 +936,17 @@ struct buffer_head *ext3_getblk(handle_t
- 			   ext3_get_block instead, so it's not a
- 			   problem. */
- 			lock_buffer(bh);
--			if (!buffer_uptodate(bh)) {
--				BUFFER_TRACE(bh, "call get_create_access");
--				fatal = ext3_journal_get_create_access(handle, bh);
--				if (!fatal) {
--					memset(bh->b_data, 0,
--							inode->i_sb->s_blocksize);
--					set_buffer_uptodate(bh);
--				}
-+			BUFFER_TRACE(bh, "call get_create_access");
-+			fatal = ext3_journal_get_create_access(handle, bh);
-+			if (!fatal && !buffer_uptodate(bh)) {
-+				memset(bh->b_data, 0, inode->i_sb->s_blocksize);
-+				set_buffer_uptodate(bh);
- 			}
- 			unlock_buffer(bh);
- 			BUFFER_TRACE(bh, "call ext3_journal_dirty_metadata");
- 			err = ext3_journal_dirty_metadata(handle, bh);
--			if (!fatal) fatal = err;
-+			if (!fatal)
-+				fatal = err;
- 		} else {
- 			BUFFER_TRACE(bh, "not a new buffer");
- 		}
+Playing games with nice/renice on xine or on other processes,
+especially GIMP etc., does not seem to have an effect.  
 
-_
+>From this it seems to my limited view that the remaining skips
+might be XFree86 issues?
 
+Some pertinent details:
+
+2 x P4 Xeon 2.4 Mhz, 512Mb ram.
+Radeon VQ + Matrox Mystique.
+Premptive kernel
+Hyperthreading enabled.
+IDE DVD, no SCSI in system.
+
+No problems at all, only minor niggles since 2.5.67.  (I have
+been following -mm patches.)
+
+Thanks for the wonderful work!
+
+td
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
