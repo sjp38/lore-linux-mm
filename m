@@ -1,31 +1,34 @@
-Received: from talaria.sc.intel.com (talaria.sc.intel.com [10.3.253.5])
-	by hermes.sc.intel.com (8.12.9-20030918-01/8.12.9/d: major-outer.mc,v 1.15 2004/01/30 18:16:28 root Exp $) with ESMTP id i62I8gIZ009340
-	for <linux-mm@kvack.org>; Fri, 2 Jul 2004 18:08:42 GMT
-Message-Id: <200407021805.i62I5TY14608@unix-os.sc.intel.com>
-From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
-Subject: RE: Which is the proper way to bring in the backing store behind an inode as an struct page?
-Date: Fri, 2 Jul 2004 11:07:29 -0700
+Subject: Re: Which is the proper way to bring in the backing store behind
+	an inode as an struct page?
+From: Dave Hansen <haveblue@us.ibm.com>
 In-Reply-To: <F989B1573A3A644BAB3920FBECA4D25A6EBED8@orsmsx407>
+References: <F989B1573A3A644BAB3920FBECA4D25A6EBED8@orsmsx407>
+Content-Type: text/plain
+Message-Id: <1088794019.28076.43.camel@nighthawk>
+Mime-Version: 1.0
+Date: Fri, 02 Jul 2004 11:46:59 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>, linux-mm@kvack.org
+To: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Perez-Gonzalez, Inaky wrote on Thursday, July 01, 2004 11:35 PM
-> Dummy question that has been evading me for the last hours. Can you
-> help? Please bear with me here, I am a little lost in how to deal
-> with inodes and the cache.
->
-> ....
->
-> Thus, what I need is a way that given the pair (inode,pgoff)
+On Thu, 2004-07-01 at 23:34, Perez-Gonzalez, Inaky wrote:
+> Thus, what I need is a way that given the pair (inode,pgoff) 
 > returns to me the 'struct page *' if the thing is cached in memory or
 > pulls it up from swap/file into memory and gets me a 'struct page *'.
->
+> 
 > Is there a way to do this?
 
-find_get_page() might be the one you are looking for.
+Do you have the VMA?  Why not just use the user mapping, and something
+like copy_to_user()?  It already handles all of the mess getting the
+page into memory and pulling it out of swap if necessary.  
 
+If you go into the page cache yourself, you'll have to deal with all of
+the usual !PageUptodate() and so forth.  
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
