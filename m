@@ -1,40 +1,50 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@bonn-fries.net>
+Date: Wed, 20 Feb 2002 15:30:08 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [RFC] Page table sharing
-Date: Wed, 20 Feb 2002 15:57:37 +0100
-References: <Pine.LNX.4.21.0202201435230.1136-100000@localhost.localdomain>
-In-Reply-To: <Pine.LNX.4.21.0202201435230.1136-100000@localhost.localdomain>
+In-Reply-To: <E16dXZm-0001Lv-00@starship.berlin>
+Message-ID: <Pine.LNX.4.21.0202201439100.1136-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E16dYBd-0001M9-00@starship.berlin>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
+To: Daniel Phillips <phillips@bonn-fries.net>
 Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, dmccr@us.ibm.com, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Robert Love <rml@tech9.net>, mingo@redhat.com, Andrew Morton <akpm@zip.com.au>, manfred@colorfullife.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On February 20, 2002 03:38 pm, Hugh Dickins wrote:
-> On Wed, 20 Feb 2002, Daniel Phillips wrote:
+On Wed, 20 Feb 2002, Daniel Phillips wrote:
+> On February 19, 2002 07:11 pm, Hugh Dickins wrote:
 > > 
-> > Looking at the current try_to_swap_out code I see only a local invalidate, 
-> > flush_tlb_page(vma, address), why is that?  How do we know that this mm could 
-> > not be in context on another cpu?
+> > It's a little worse than this, I think.  Propagating pte_dirty(pte) to
+> > set_page_dirty(page) cannot be done until after the flush_tlb_cpus,
 > 
-> I made the same mistake a few months ago: not noticing #ifndef CONFIG_SMP
-> in the header.  arch/i386/kernel/smp.c has the real i386 flush_tlb_page().
+> You mean, because somebody might re-dirty an already cleaned page?  Or are
+> you driving at something more subtle?
 
-OK, well if I'm making the same mistakes then I'm likely on the right track ;)
+You are right to press me on this.  Now I reflect upon it, I think I
+was scare-mongering, and I'm sure you don't need that!  I apologize.
 
-So it seems that what we need for tlb invalidate of shared page tables is
-not worse than what we already have, though there's some extra bookkeeping 
-to handle.
+If the i386 pte was already marked dirty, there's no issue at all.
+If the i386 pte was not already marked dirty, but another processor
+has that entry in its TLB (not marked dirty), and goes to dirty it
+at the wrong moment, either it does so successfully just before the
+ptep_get_and_clear (and we see the dirty bit), or it tries to do so
+just after the (atomic part of) the ptep_get_and_clear, finds pte
+not present and faults (page not yet dirtied).  No problem.
 
-Why would we run into your page dirty propagation problem with shared page
-tables and not with the current code?
+This (one cpu invalidating pte while another is halfway through ucode
+updating dirty or referenced bit) is errata territory on Pentium Pro.
+But if we were going to worry about that, we should have done so
+before, you're not introducing any new problem in that respect.
 
--- 
-Daniel
+I'm unfamiliar with the other architectures, but I have no reason
+to suppose they behave critically differently here.  Ben will have
+checked this all out when he brought in tlb_remove_page(): and though
+his propagation of dirty from pte to page occurs after the flush TLB,
+it's irrelevant: that pte comes from ptep_get_and_clear before.
+
+Sorry again,
+Hugh
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
