@@ -1,33 +1,34 @@
-From: Nikita Danilov <Nikita@Namesys.COM>
+Subject: Re: buddy system inventor
+References: <Pine.LNX.4.33.0211141207050.18370-100000@wildwood.eecs.umich.edu>
+	<15827.56145.430393.208400@laputa.namesys.com>
+From: Momchil Velikov <velco@fadata.bg>
+Date: 14 Nov 2002 19:35:14 +0200
+In-Reply-To: <15827.56145.430393.208400@laputa.namesys.com>
+Message-ID: <87y97wt5pp.fsf@merlin.maxx.bg>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <15827.56145.430393.208400@laputa.namesys.com>
-Date: Thu, 14 Nov 2002 20:20:17 +0300
-Subject: Re: buddy system inventor
-In-Reply-To: <Pine.LNX.4.33.0211141207050.18370-100000@wildwood.eecs.umich.edu>
-References: <Pine.LNX.4.33.0211141207050.18370-100000@wildwood.eecs.umich.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hai Huang <haih@eecs.umich.edu>
-Cc: linux-mm@kvack.org
+To: Nikita Danilov <Nikita@Namesys.COM>
+Cc: Hai Huang <haih@eecs.umich.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hai Huang writes:
- > Who is its inventor?  Any knows?
+>>>>> "Nikita" == Nikita Danilov <Nikita@Namesys.COM> writes:
 
-"Unix Internals" gives a reference to
+    Nikita> Hai Huang writes:
+    >> Who is its inventor?  Any knows?
 
-Peterson J.L., and Norman T.A., "Buddy Systems," Communications of the
-ACM, Vol. 20, No. 6, Jun. 1977, pp. 421-431
+    Nikita> "Unix Internals" gives a reference to
 
- > 
- > -
- > Hai
+    Nikita> Peterson J.L., and Norman T.A., "Buddy Systems,"
+    Nikita> Communications of the ACM, Vol. 20, No. 6, Jun. 1977,
+    Nikita> pp. 421-431
 
-Nikita.
+I believe Knuth in TAOCP is earlier, like 1973 IIRC.
 
- > 
+~velco
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
