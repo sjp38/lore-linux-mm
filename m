@@ -1,33 +1,52 @@
-Received: from davir04nok.americas.nokia.com (davir04nok.americas.nokia.com [172.18.242.87])
-	by mgw-dax1.ext.nokia.com (Switch-2.1.0/Switch-2.1.0) with ESMTP id f78J9hi11884
-	for <Linux-MM@kvack.org>; Wed, 8 Aug 2001 14:09:44 -0500 (CDT)
-Received: from daebh001.NOE.Nokia.com (unverified) by davir04nok.americas.nokia.com
- (Content Technologies SMTPRS 4.2.1) with ESMTP id <T553eea80b1ac12f257079@davir04nok.americas.nokia.com> for <Linux-MM@kvack.org>;
- Wed, 8 Aug 2001 14:09:35 -0500
-content-class: urn:content-classes:message
-Subject: Reg. skbuff.h
-Date: Wed, 8 Aug 2001 13:35:46 -0500
-Message-ID: <B9CFA6CE8FFDD211A1FB0008C7894E4604558FE5@bseis01nok>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 0F06438C96
+	for <linux-mm@kvack.org>; Wed,  8 Aug 2001 16:11:13 -0300 (EST)
+Date: Wed, 8 Aug 2001 16:11:12 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: Swapping anonymous pages
+In-Reply-To: <200108081729.f78HTvY06100@srcintern6.pa.dec.com>
+Message-ID: <Pine.LNX.4.33L.0108081603400.1439-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-From: "Ramasubramanian Ramamoorthy (EXT-NRC/Boston)"
-        <EXT-Ramamoorthy.Ramasubramanian@nokia.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-MM@kvack.org
+To: Keir Fraser <fraser@pa.dec.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
-Can you please help me out with this problem?
-I need to extract the same data from the mbuf structure in BSD and the
-skbuff structure in Linux? Can you tell me what is the equivalent of
-"M_databuf" which is in BSD for Linux in the skbuff structure.
+On Wed, 8 Aug 2001, Keir Fraser wrote:
 
-Thanks for your time.
+> The only reasons I can see for doing the current way are:
+>  * keeping the reverse (physical -> virtual) mappings would eat too
+>    much memory.
+>  * since it's old (pre-2.4) code, perhaps noone has yet got round to
+>    rewriting it for the new design.
+>
+> So, I'm curious to know which of the two it is (or whether the current
+> way was found to be "good enough").
 
-Ramamoorthy. R.
+Both ;)
+
+Even without the reverse mapping overhead (8 bytes per
+pte for shared pages in my current implementation) we
+have FAR too much pagetable overhead on large memory
+machines anyway.
+
+This means we need to support 2MB / 4MB pages, after
+which the point about reverse mappings being too much
+overhead pretty much becomes moot...
+
+I'm planning to implement some of this stuff for 2.5.
+
+regards,
+
+Rik
+--
+IA64: a worthy successor to the i860.
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
