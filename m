@@ -1,38 +1,46 @@
-Date: Mon, 9 Sep 2002 12:13:48 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: [RFC] On paging of kernel VM.
-Message-ID: <20020909121348.B4855@redhat.com>
-References: <2653.1031563253@redhat.com>
+From: David Woodhouse <dwmw2@infradead.org>
+In-Reply-To: <20020909121348.B4855@redhat.com> 
+References: <20020909121348.B4855@redhat.com>  <2653.1031563253@redhat.com> 
+Subject: Re: [RFC] On paging of kernel VM. 
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2653.1031563253@redhat.com>; from dwmw2@infradead.org on Mon, Sep 09, 2002 at 10:20:53AM +0100
+Date: Mon, 09 Sep 2002 12:24:40 +0100
+Message-ID: <28099.1031570680@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Woodhouse <dwmw2@infradead.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+sct@redhat.com said:
+>  The alternative is a kmap-style mechanism for temporarily mapping
+> pages beyond physical memory on demand.
 
-On Mon, Sep 09, 2002 at 10:20:53AM +0100, David Woodhouse wrote:
-> I think I'd like to introduce 'real' VMAs into kernel space, so that areas
-> in the vmalloc range can have 'real' vm_ops and more to the point a real
-> nopage function.
+That's a possibility I'd considered, but in this case there are problems
+with explicitly mapping and unmapping the pages. The locking of the chip is
+a detail I was hoping to avoid exposing to the users of the device. 
 
-The alternative is a kmap-style mechanism for temporarily mapping
-pages beyond physical memory on demand.  That would avoid the space
-limits we have on vmalloc etc; there's only a few tens of MB of
-address space we can use for mmap tricks in kernel space, so
-persistent maps are seriously constrained if you've got a lot of flash
-you want to map.
+With mapping/unmapping done explicitly, not only does an active mapping
+prevent all other users from writing to the same device, hence requiring a
+'cond_temporarily_unmap()' kind of function, but you also get deadlock if a
+user of the device tries to write while they have a mapping active. The
+answer "don't do that then" is workable but not preferable. 
 
-And with a kmap interface, your locking problems are much simpler ---
-you can trap accesses at source and you don't have to go hunting ptes
-to invalidate.
+Given that all the logic to mark pages present on read and then invalidate
+them on write access is going to have to be there for userspace _anyway_,
+being able to keep the API nice and simple by using that in kernelspace too
+would be far better, if we can justify the change to the slow path of the 
+vmalloc fault case.
 
-Cheers,
- Stephen
+But yes, what you suggest is the current API for the flash stuff, sans the 
+'cond_temporarily_unmap_if_people_are_waiting()' bit. And that's why I've 
+avoided actually _using_ it, preferring to put up with the overhead of 
+reading into a RAM buffer until we can fix it.
+
+--
+dwmw2
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
