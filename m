@@ -1,8 +1,8 @@
-Date: Sun, 24 Sep 2000 11:57:48 +0200 (CEST)
+Date: Sun, 24 Sep 2000 12:11:47 +0200 (CEST)
 From: Ingo Molnar <mingo@elte.hu>
 Reply-To: mingo@elte.hu
-Subject: refill_inactive()
-Message-ID: <Pine.LNX.4.21.0009241148100.2789-100000@elte.hu>
+Subject: __GFP_IO && shrink_[d|i]cache_memory()?
+Message-ID: <Pine.LNX.4.21.0009241158050.2789-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,19 +11,21 @@ To: Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.ne
 Cc: Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-i'm wondering about the following piece of code in refill_inactive():
+i've seen a couple of GFP_BUFFER allocation deadlocks in an atypical
+system which had lots of RAM allocated to inodes. The reason for the
+deadlock is that the shrink_*() functions cannot be called if __GFP_IO is
+not set. Nothing else can be freed at that point, so the try_again: loop
+in page_alloc() gets into an infinite loop.
 
-                if (current->need_resched && (gfp_mask & __GFP_IO)) {
-                        __set_current_state(TASK_RUNNING);
-                        schedule();
-                }
+as an immediate solution the previous __GFP_WAIT suggestion solves the
+deadlock - because the GFP_BUFFER allocator yields the CPU and kswapd can
+run and do the dcache/icache shrinking. [i cannot reproduce any deadlocks
+after doing this change.]
 
-shouldnt this be __GFP_WAIT? It's true that __GFP_IO implies __GFP_WAIT
-(because IO cannot be done without potentially scheduling), so the code is
-not buggy, but the above 'yielding' of the CPU should be done in the
-GFP_BUFFER case as well. (which is __GFP_WAIT but not __GFP_IO)
-
-Objections?
+as a longer term solution, i'm wondering how hard it would be to propagate
+gfp_mask into the shrink_*() functions, and prevent recursion similarly to
+the swap-out logic? This way even GFP_BUFFER allocators could touch/free
+the dcache/icache.
 
 	Ingo
 
