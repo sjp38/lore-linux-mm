@@ -1,40 +1,32 @@
-Reply-To: iiekumki@okada-dc.com
-Message-ID: <Pine.LNX.4.30.6404061749510.15353-100000@dialsprint.net>
-Date: Mon, 14 Mar 2005 08:47:43 -0200
-From: "Aldo Boucher" <iiekumki@okada-dc.com>
-Subject: Professional Mortgages at low rates
+Date: Mon, 14 Mar 2005 13:31:12 +0100
+From: "Keri Marion " <G.Clay72@ch0icelenders.com>
+Message-Id: <20020002023845.04AEA33F46@daserver>
+Subject: No strings attatched.
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
+Cc: owner-linux-mm@kvack.org, owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If you are paying more than 3.5% on your mortgage,
-you may be paying too much!
+After careful consideration.
+our team of experts have chosen a selected 1000 people to recieve an inexpensive home loan.
+This offer is unconditional to you only and your credit is in no way a factor.
 
-Our US Lenders will provide you with the absolute best rates possible.
+Please find all details below:
 
-
-Click the link below for an insta-quote and
-monthly savings calculation:
-
-http://www.r-fi-now.com/42.asp
-
-No other way to so quickly and easily
-lower your monthly bill payments
-while putting cash now in your pocket!
+_________SUMMARY__________
+Interest: As low as 3.95%
+Term: Up to 360 months
+Max Price: $80,000 and Up
+Closing Date: 30 days 
 
 
+Fill out this 30 sec. form and you will be approved in 24 hours.
+http://www.choicelenders.net/index2.php?refid=phade
 
 
-
-
-
-
-
-
-
-
-domicile gz tass klw [2
+Lastly, if uninterested please discard this email.
+It was only sent to a selected few that we felt deemworthy of this oppurtunity.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
