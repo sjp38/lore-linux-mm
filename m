@@ -1,66 +1,53 @@
-Date: Thu, 8 Jun 2000 19:07:19 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
-Subject: Re: Contention on ->i_shared_lock in dup_mmap()
-In-Reply-To: <393FC7F4.C8E4B4B6@colorfullife.com>
-Message-ID: <Pine.GSO.4.10.10006081855220.10800-100000@weyl.math.psu.edu>
+Date: Thu, 8 Jun 2000 20:09:57 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: Allocating a page of memory with a given physical address
+In-Reply-To: <20000608225108Z131165-245+107@kanga.kvack.org>
+Message-ID: <Pine.LNX.4.21.0006082003120.22665-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfreds@colorfullife.com>
-Cc: linux-mm@kvack.org
+To: Timur Tabi <ttabi@interactivesi.com>
+Cc: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 8 Jun 2000, Manfred Spraul wrote:
-
-> Alexander Viro wrote:
-> > 
-> > OK, do_syslog() is just plain silly - it's resetting the buffer and code
-> > in question looks so:
-> >                 spin_lock_irq(&console_lock);
-> >                 logged_chars = 0;
-> >                 spin_unlock_irq(&console_lock);
-> > ... which is for all purposes equivalent to
-> >                 if (logged_chars) {
-> >                         ...
-> >                 }
-> > so this one is easy (looks like a klogd silliness).
-> > 
-> cpu0: do_syslog
-> 	logged_chars = 0;
+On Thu, 8 Jun 2000, Timur Tabi wrote:
+> ** Reply to message from "Juan J. Quintela" <quintela@fi.udc.es> on 09 Jun 2000
+> 00:15:39 +0200
 > 
-> cpu1: printk()
-> 	logged_chars++;
+> > Try to grep the kernel for mem_map_reserve uses, it does something
+> > similar, and can be similar to what you want to do.  Notice that you
+> > need to reserve the page *soon* in the boot process.
 > 
-> We really need the spinlock :-(
+> Unfortunately, that's not an option.  We need to be able to
+> reserve/allocate pages in a driver's init_module() function, and
+> I don't mean drivers that are compiled with the kernel.  We need
+> to be able to ship a stand-alone driver that can work with
+> pretty much any Linux distro of a particular version (e.g. we
+> can say that only 2.4.14 and above is supported).
+> 
+> For the time being, we can work with a patch to the kernel, but
+> that patch be relatively generic, and it must support our
+> dynamically loadable driver.
 
-And? With the current code:
+Linus his policy on this is pretty strict. We won't kludge
+stuff into our kernel just to support some proprietary driver.
 
-cpu0:					cpu1:
-	spin_lock_irq
-	logged_chars = 0
-	spin_unlock_irq
-					spin_lock_irq
-					...
-					logged_chars++;
-	break;
+Since nothing else seems to need the contorted functionality
+you're asking for, I guess you should look for another way
+to do things...
 
-IOW, you have no warranty that upon the exit from do_syslog() you will
-have logged_chars == 0 and that's precisely the same as you will get if
-you replace the code with
-	if (logged_chars) {
-		spin_lock_irq(&console_lock);
-		logged_chars = 0;
-		spin_unlock_irq(&console_lock);
-	}
-- if logged_chars was non-zero we are getting the same result anyway and
-if it was and something was in the middle of a changing it to non-zero -
-fine, we just act as if do_syslog() happened before that.
+(or opensource the driver, of course)
 
-As for the source of contention... beats me. _Probably_ weird mutated
-klogd, but I didn't look at the patches RH slapped on it. syslog(5,...) is
-damn silly anyway - it's an unavoidable race.
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
