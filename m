@@ -1,76 +1,89 @@
-Received: from noc.nyx.net (mail@noc.nyx.net [206.124.29.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA13416
-	for <linux-mm@kvack.org>; Tue, 5 Jan 1999 07:52:57 -0500
-Received: from nyx10.nyx.net (colin@nyx10.nyx.net [206.124.29.2])
-	by noc.nyx.net (8.9.1a+3.1W/8.9.1/esr) with ESMTP id FAA01230
-	for <linux-mm@kvack.org>; Tue, 5 Jan 1999 05:51:59 -0700 (MST)
-Received: (from colin@localhost)
-	by nyx10.nyx.net (8.8.8/8.8.8/esr) id FAA15706
-	for linux-mm@kvack.org; Tue, 5 Jan 1999 05:51:52 -0700 (MST)
-Date: Tue, 5 Jan 1999 05:51:52 -0700 (MST)
-From: Colin Plumb <colin@nyx.net>
-Message-Id: <199901051251.FAA15706@nyx10.nyx.net>
-Subject: Why don't shared anonymous mappings work?
+Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA13599
+	for <linux-mm@kvack.org>; Tue, 5 Jan 1999 08:26:21 -0500
+Subject: Re: [patch] arca-vm-6, killed kswapd [Re: [patch] new-vm improvement , [Re: 2.2.0 Bug summary]]
+References: <Pine.LNX.3.96.990105124806.494E-100000@laser.bogus>
+Reply-To: Zlatko.Calusic@CARNet.hr
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="=-=-="
+From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Date: 05 Jan 1999 14:23:23 +0100
+In-Reply-To: Andrea Arcangeli's message of "Tue, 5 Jan 1999 12:49:58 +0100 (CET)"
+Message-ID: <8767alua44.fsf@atlas.CARNet.hr>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I was trying to explain to Paul R. Wilson why shared anonymous mappings
-don't work and started having problems provinf that it couldn't
-work without significant software changes.  Could someone check me
-on the following logic which purports to explain how it could be done?
+This is a MIME multipart message.  If you are reading
+this, you shouldn't.
 
-Shared anonymous mappings are easy as long as the page never leaves
-memory.
+--=-=-=
 
-In any given PTE, a page is either "in" or "out".  If "out", the PTE
-is marked invalid but holds a swap offset where the page can be found.
+Andrea Arcangeli <andrea@e-mind.com> writes:
 
-A page may be both in memory and in swap.  In this case, the page cache
-(indexed on inode and offset) is used to implement a swap cache, using
-a special swapper_inode and the swap offset.  Once a page is in the
-swap cache, mappings in both directions are efficient.  In memory, the
-struct page contains the swap offset, and given the swap offset, the
-page cache hash table will efficiently find the struct page (if any).
+> On 5 Jan 1999, Zlatko Calusic wrote:
+> 
+> > At this point (output of Alt-SysRq-M), machine locked:
+> 
+> Are you been able to continue using SysRq-K?
 
-When a page is put into the swap cache, it is marked read-only.
-Since there is only one PTE referencing it, all attempts to modify the
-page will be trapped, and the swap cache entry invalidated.
-(The call is in do_wp_page in mm/memory.c.)
+Erm... I continued with *&#&%$ Alt-SysRq-{S,U,B}.
+That worked for me. :)
 
-But why can't we allow writeable swap-cached pages?  Which engender
-dirty swap-cached pages, of course.  If a swap-cached page is dirty,
-its disk data is invalid, but the address is still kept because
-it may be in some PTEs.  (At least until the swap_map reaches 0.)
+> 
+> Could you reproduce and press ALT-right+Scroll-Lock and tell me what the
+> kernel was executing at that time...
+>
 
-It seems that the handling would be just like mapped files as long
-as you maintained a swap file entry for the page.  There are differences,
-such as the fact that when mapping a not-present page, the inode is
-implicit in the fact that it's an anonymous vma range and the offset
-is taken from the PTE, rather than being derived from the VMA
-offset.
+I tried few times, but to no avail. Looks like subtle race, bad news
+for you, unfortunately.
 
-There is some hairy magic relating to closing off all of the writeable
-mappings of a page before it can be written to disk and marked clean,
-but I presume those are handled for file mappings.
+*BUT*, after I pressed ctrl-c against mmap-sync in one of the torture
+tests, the program stuck in down_failed (loadav += 2). Few minutes
+later machine got very unstable and I decided to reboot it. Go figure.
 
-Basically, a dirty swap-cached page would only be written when it
-was removed from the *last* process's PTE.  A less-efficient way would
-be to write it out each time a dirty mapping is removed.  (This seems
-to be what happens to dirty pages in filemap_swapout.  Ideally,
-as long as there are writeable mappings, it should just copy the
-reference's dirty bit to the page and then write the page if needed
-when the last writeable mapping is removed.)
+> Could you send me also the proggy for the shared-mmaps to allow me to
+> reproduce?
+> 
 
-The only significant difference is that in do_wp_page, you don't
-remove the page from the swap cache if there are other references to it
-in swap_map.
+Sure, just be careful. :)
 
-Okay, now... I'm sure this is not some brilliant insight that everyone
-else has missed.  Sould someone tell methe part *I* missed about  why it
-won't work?
+
+--=-=-=
+Content-Type: application/octet-stream
+Content-Disposition: attachment
+Content-Description: Exercise shared mappings
+Content-Transfer-Encoding: base64
+
+I2luY2x1ZGUgPHVuaXN0ZC5oPgojaW5jbHVkZSA8ZmNudGwuaD4KI2luY2x1ZGUgPHN5cy9t
+bWFuLmg+CiNpbmNsdWRlIDxzeXMvdHlwZXMuaD4KI2luY2x1ZGUgPHN5cy9zdGF0Lmg+Cgov
+KiAKICogZmlsZSBzaXplLCBzaG91bGQgYmUgaGFsZiBvZiB0aGUgc2l6ZSBvZiB0aGUgcGh5
+c2ljYWwgbWVtb3J5CiAqLwojZGVmaW5lIEZJTEVTSVpFICgzMiAqIDEwMjQgKiAxMDI0KQoK
+aW50IG1haW4odm9pZCkKewogIGNoYXIgKnB0cjsKICBpbnQgZmQsIGk7CiAgY2hhciBjID0g
+J0EnOwogIHBpZF90IHBpZDsKCiAgaWYgKChmZCA9IG9wZW4oImZvbyIsIE9fUkRXUiB8IE9f
+Q1JFQVQgfCBPX1RSVU5DKSkgPT0gLTEpIHsKICAgIHBlcnJvcigib3BlbiIpOwogICAgZXhp
+dCgxKTsKICB9CiAgbHNlZWsoZmQsIEZJTEVTSVpFIC0gMSwgU0VFS19TRVQpOwogIC8qIHdy
+aXRlIG9uZSBieXRlIHRvIGV4dGVuZCB0aGUgZmlsZSAqLwogIHdyaXRlKGZkLCAmZmQsIDEp
+OwoKICAvKiBnZXQgYSBzaGFyZWQgbWFwcGluZyAqLwogIHB0ciA9IG1tYXAoMCwgRklMRVNJ
+WkUsIFBST1RfUkVBRCB8IFBST1RfV1JJVEUsIE1BUF9TSEFSRUQsIGZkLCAwKTsKICBpZiAo
+cHRyID09IE5VTEwpIHsKICAgIHBlcnJvcigibW1hcCIpOwogICAgZXhpdCgxKTsKICB9Cgog
+IC8qIHRvdWNoIGFsbCBwYWdlcyBpbiB0aGUgbWFwcGluZyAqLwogIGZvciAoaSA9IDA7IGkg
+PCBGSUxFU0laRTsgaSArPSA0MDk2KQogICAgcHRyW2ldID0gYzsKCiAgd2hpbGUgKDEpIHsK
+ICAgIGlmICgocGlkID0gZm9yaygpKSkgeyAvKiBwYXJlbnQsIHdhaXQgKi8KICAgICAgd2Fp
+dHBpZChwaWQsIE5VTEwsIDApOwogICAgfSBlbHNlIHsgLyogY2hpbGQsIGV4ZWMgYXdheSAq
+LwojaWYgMAogICAgICBleGVjbCgiL2Jpbi9lY2hvIiwgImVjaG8iLCAiYmxhaCIpOwojZWxz
+ZQogICAgICBmc3luYyhmZCk7CiAgICAgIHByaW50ZigiYmxhaFxuIik7CiAgICAgIGV4aXQo
+MCk7CiNlbmRpZgogICAgfQogICAgc2xlZXAoNSk7CiAgfQp9Cg==
+
+--=-=-=
+
+
+P.S. Apologies for too many jokes, I didn't sleep at all last night. ;)
 -- 
-	-Colin
+Zlatko
+
+--=-=-=--
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
