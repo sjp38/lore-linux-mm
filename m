@@ -1,140 +1,217 @@
-Received: from petasus.fm.intel.com (petasus.fm.intel.com [10.1.192.37])
-	by hermes.fm.intel.com (8.11.6/8.11.6/d: outer.mc,v 1.51 2002/09/23 20:43:23 dmccart Exp $) with ESMTP id h1832c925900
-	for <linux-mm@kvack.org>; Sat, 8 Feb 2003 03:02:38 GMT
-Received: from fmsmsxvs042.fm.intel.com (fmsmsxvs042.fm.intel.com [132.233.42.128])
-	by petasus.fm.intel.com (8.11.6/8.11.6/d: inner.mc,v 1.28 2003/01/13 19:44:39 dmccart Exp $) with SMTP id h1830Ms05269
-	for <linux-mm@kvack.org>; Sat, 8 Feb 2003 03:00:22 GMT
-content-class: urn:content-classes:message
-Subject: RE: hugepage patches
-Date: Fri, 7 Feb 2003 19:05:32 -0800
-Message-ID: <6315617889C99D4BA7C14687DEC8DB4E023D2E70@fmsmsx402.fm.intel.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed;
-	boundary="----_=_NextPart_001_01C2CF1E.F153677E"
-From: "Seth, Rohit" <rohit.seth@intel.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA00178
+	for <linux-mm@kvack.org>; Sat, 8 Feb 2003 00:48:38 -0800 (PST)
+Date: Sat, 8 Feb 2003 00:48:42 -0800
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: hugepage patches
+Message-Id: <20030208004842.0327e98e.akpm@digeo.com>
+In-Reply-To: <6315617889C99D4BA7C14687DEC8DB4E023D2E70@fmsmsx402.fm.intel.com>
+References: <6315617889C99D4BA7C14687DEC8DB4E023D2E70@fmsmsx402.fm.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, "Seth, Rohit" <rohit.seth@intel.com>
+To: "Seth, Rohit" <rohit.seth@intel.com>
 Cc: davem@redhat.com, davidm@napali.hpl.hp.com, anton@samba.org, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+"Seth, Rohit" <rohit.seth@intel.com> wrote:
+>
+> Attached is the updated patch based on your comments.  
 
-------_=_NextPart_001_01C2CF1E.F153677E
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+Thanks.
 
-> OK, but it needs some changes.
->=20
-> - is_valid_hugepage_range() will not compile.  `addrp' vs `addr'
->=20
-> - We should not pass in a flag variable which alters a=20
-> function's behaviour
->   in this manner.  Especially when it has the wonderful name=20
-> "flag", and no
->   supporting commentary!
->=20
->   Please split this into two separate (and documented) functions.
+The MAP_FIXED alignment fix is clearly needed.
 
+But the chk_align_and_fix_addr() part looks odd.  Bear in mind that MAP_FIXED
+requests never make it down into the file_ops.get_unmapped_area() method.
 
-Attached is the updated patch based on your comments. =20
+So what is this check/fixup doing in hugetlbfs_get_unmapped_area()?
 
->=20
-> - A name like "is_valid_hugepage_range" implies that this function is
->   purely a predicate.  Yet it is capable of altering part of=20
-> the caller's
->   environment.  Can we have a more appropriate name?
->=20
-> - I've been trying to keep ia64/sparc64/x86_64 as uptodate as I can
->   throughout this.  I think we can safely copy the ia32=20
-> implementation over
->   into there as well, can't we?
+If we really need some arch-specific check/fixup in there then it will need
+to be applied as hugetlbfs_get_unmapped_area() walks through the VMA's.  I
+suspect it would be simpler to cut-n-paste the whole function into the arch
+code, and work on it there.
 
-For ia64, there is a separate kernel patch that David Mosberger
-maintains.  Linus's tree won't work as is on ia64. Not sure about
-x86_64/sparc64.
+My understanding of the ia64 problem is that a certain range of the user's
+virtual address space is reserved for hugepages.  Normal size pages may not
+be placed there, and huge pages may not be placed elsewhere.
 
->=20
->   If there's any doubt then probably it's best to just leave=20
-> the symbol
->   undefined, let the arch maintainers curse us ;)
+In that case, we still need to put the check in mm/mmap.c for users placing
+regular-sized pages inside the hugepage virtual address range with MAP_FIXED.
+I thought it was pretty pointless putting that hook into Linus's tree until
+the ia64 code which actually implemented the hook was also in his tree.
 
->=20
-> Are you working against Linus's current tree?  A lot has=20
-> changed in there.=20
-> I'd like to hear if hugetlbfs is working correctly in a=20
-> non-ia32 kernel.
+And the ia64 version of hugetlb_get_unmapped_area() will merely need to
+maintain the VMA tree inside address region 4.
 
-Yeah, I am working on Linus's 2.5.59 tree. Will download your mm9 to get
-my tree updated.  Is there any other patch that you want me to apply
-before sending you any more updates.
+So...  I don't see why we need more than the below code, at least until
+Linus's ia64 directory is up to date?
 
-As far as non-ia32 kernel is concerned, hugetlbfs on ia64 should be
-working fine. Though I've not yet tried the 2.5.59 on ia64. 2.5.59 ia64
-patch that David maintains has the same level of hugetlb support as i386
-tree.=20
+> For ia64, there is a separate kernel patch that David Mosberger
+> maintains.  Linus's tree won't work as is on ia64. Not sure about
+> x86_64/sparc64.
+
+Why isn't David keeping Linus in sync?
+
+> Yeah, I am working on Linus's 2.5.59 tree. Will download your mm9 to get
+> my tree updated.  Is there any other patch that you want me to apply
+> before sending you any more updates.
+
+I threw -mm9 away.  Signals were very broken in it.  I'll do -mm10 or
+2.5.60-mm1 this weekend; please check out the hugepage work in there - there
+have been a number of changes.
+
+> As far as non-ia32 kernel is concerned, hugetlbfs on ia64 should be
+> working fine. Though I've not yet tried the 2.5.59 on ia64. 2.5.59 ia64
+> patch that David maintains has the same level of hugetlb support as i386
+> tree. 
+
+OK, thanks.
 
 
->=20
 
-------_=_NextPart_001_01C2CF1E.F153677E
-Content-Type: application/octet-stream;
-	name="patch.750"
-Content-Transfer-Encoding: base64
-Content-Description: patch.750
-Content-Disposition: attachment;
-	filename="patch.750"
+diff -puN arch/i386/mm/hugetlbpage.c~hugepage-address-validation arch/i386/mm/hugetlbpage.c
+--- 25/arch/i386/mm/hugetlbpage.c~hugepage-address-validation	2003-02-08 00:34:42.000000000 -0800
++++ 25-akpm/arch/i386/mm/hugetlbpage.c	2003-02-08 00:34:42.000000000 -0800
+@@ -88,6 +88,18 @@ static void set_huge_pte(struct mm_struc
+ 	set_pte(page_table, entry);
+ }
+ 
++/*
++ * This function checks for proper alignment of input addr and len parameters.
++ */
++int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
++{
++	if (len & ~HPAGE_MASK)
++		return -EINVAL;
++	if (addr & ~HPAGE_MASK)
++		return -EINVAL;
++	return 0;
++}
++
+ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			struct vm_area_struct *vma)
+ {
+diff -puN arch/ia64/mm/hugetlbpage.c~hugepage-address-validation arch/ia64/mm/hugetlbpage.c
+--- 25/arch/ia64/mm/hugetlbpage.c~hugepage-address-validation	2003-02-08 00:34:42.000000000 -0800
++++ 25-akpm/arch/ia64/mm/hugetlbpage.c	2003-02-08 00:34:42.000000000 -0800
+@@ -96,6 +96,18 @@ set_huge_pte (struct mm_struct *mm, stru
+ 	return;
+ }
+ 
++/*
++ * This function checks for proper alignment of input addr and len parameters.
++ */
++int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
++{
++	if (len & ~HPAGE_MASK)
++		return -EINVAL;
++	if (addr & ~HPAGE_MASK)
++		return -EINVAL;
++	return 0;
++}
++
+ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			struct vm_area_struct *vma)
+ {
+diff -puN arch/sparc64/mm/hugetlbpage.c~hugepage-address-validation arch/sparc64/mm/hugetlbpage.c
+--- 25/arch/sparc64/mm/hugetlbpage.c~hugepage-address-validation	2003-02-08 00:34:42.000000000 -0800
++++ 25-akpm/arch/sparc64/mm/hugetlbpage.c	2003-02-08 00:34:42.000000000 -0800
+@@ -232,6 +232,18 @@ out_error:
+ 	return -1;
+ }
+ 
++/*
++ * This function checks for proper alignment of input addr and len parameters.
++ */
++int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
++{
++	if (len & ~HPAGE_MASK)
++		return -EINVAL;
++	if (addr & ~HPAGE_MASK)
++		return -EINVAL;
++	return 0;
++}
++
+ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			    struct vm_area_struct *vma)
+ {
+diff -puN arch/x86_64/mm/hugetlbpage.c~hugepage-address-validation arch/x86_64/mm/hugetlbpage.c
+--- 25/arch/x86_64/mm/hugetlbpage.c~hugepage-address-validation	2003-02-08 00:34:42.000000000 -0800
++++ 25-akpm/arch/x86_64/mm/hugetlbpage.c	2003-02-08 00:34:42.000000000 -0800
+@@ -86,6 +86,18 @@ static void set_huge_pte(struct mm_struc
+ 	set_pte(page_table, entry);
+ }
+ 
++/*
++ * This function checks for proper alignment of input addr and len parameters.
++ */
++int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
++{
++	if (len & ~HPAGE_MASK)
++		return -EINVAL;
++	if (addr & ~HPAGE_MASK)
++		return -EINVAL;
++	return 0;
++}
++
+ int
+ copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			struct vm_area_struct *vma)
+diff -puN include/linux/hugetlb.h~hugepage-address-validation include/linux/hugetlb.h
+--- 25/include/linux/hugetlb.h~hugepage-address-validation	2003-02-08 00:34:42.000000000 -0800
++++ 25-akpm/include/linux/hugetlb.h	2003-02-08 00:34:42.000000000 -0800
+@@ -26,6 +26,7 @@ struct vm_area_struct *hugepage_vma(stru
+ 					unsigned long address);
+ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 				pmd_t *pmd, int write);
++int is_aligned_hugepage_range(unsigned long addr, unsigned long len);
+ int pmd_huge(pmd_t pmd);
+ 
+ extern int htlbpage_max;
+@@ -56,6 +57,7 @@ static inline int is_vm_hugetlb_page(str
+ #define hugepage_vma(mm, addr)			0
+ #define mark_mm_hugetlb(mm, vma)		do { } while (0)
+ #define follow_huge_pmd(mm, addr, pmd, write)	0
++#define is_aligned_hugepage_range(addr, len)	0
+ #define pmd_huge(x)	0
+ 
+ #ifndef HPAGE_MASK
+diff -puN mm/mmap.c~hugepage-address-validation mm/mmap.c
+--- 25/mm/mmap.c~hugepage-address-validation	2003-02-08 00:34:42.000000000 -0800
++++ 25-akpm/mm/mmap.c	2003-02-08 00:34:42.000000000 -0800
+@@ -801,6 +801,13 @@ get_unmapped_area(struct file *file, uns
+ 			return -ENOMEM;
+ 		if (addr & ~PAGE_MASK)
+ 			return -EINVAL;
++		if (is_file_hugepages(file)) {
++			unsigned long ret;
++
++			ret = is_aligned_hugepage_range(addr, len);
++			if (ret)
++				return ret;
++		}
+ 		return addr;
+ 	}
+ 
+@@ -1224,8 +1231,10 @@ int do_munmap(struct mm_struct *mm, unsi
+ 	/* we have  start < mpnt->vm_end  */
+ 
+ 	if (is_vm_hugetlb_page(mpnt)) {
+-		if ((start & ~HPAGE_MASK) || (len & ~HPAGE_MASK))
+-			return -EINVAL;
++		int ret = is_aligned_hugepage_range(start, len);
++
++		if (ret)
++			return ret;
+ 	}
+ 
+ 	/* if it doesn't overlap, we have nothing.. */
 
-LS0tIG1tL21tYXAuYy43NTAJRnJpIEZlYiAgNyAxODo1MDoyNyAyMDAzCisrKyBtbS9tbWFwLmMJ
-RnJpIEZlYiAgNyAxODo1MDo1NSAyMDAzCkBAIC02ODIsNyArNjgyLDcgQEAKIAkJCXJldHVybiAt
-RU5PTUVNOwogCQlpZiAoYWRkciAmIH5QQUdFX01BU0spCiAJCQlyZXR1cm4gLUVJTlZBTDsKLQkJ
-aWYgKGlzX2ZpbGVfaHVnZXBhZ2VzKGZpbGUpICYmIChyZXQgPSBpc192YWxpZF9odWdlcGFnZV9y
-YW5nZSgmYWRkciwgbGVuLCAxKSkpCisJCWlmIChpc19maWxlX2h1Z2VwYWdlcyhmaWxlKSAmJiAo
-cmV0ID0gaXNfYWxpZ25faHVnZXBhZ2VfcmFuZ2UoYWRkciwgbGVuKSkpCiAJCQlyZXR1cm4gcmV0
-OwogCQlyZXR1cm4gYWRkcjsKIAl9Ci0tLSBpbmNsdWRlL2xpbnV4L2h1Z2V0bGIuaC43NTAJRnJp
-IEZlYiAgNyAxODo1NTozNyAyMDAzCisrKyBpbmNsdWRlL2xpbnV4L2h1Z2V0bGIuaAlGcmkgRmVi
-ICA3IDE4OjQ5OjI0IDIwMDMKQEAgLTIxLDcgKzIxLDggQEAKIHZvaWQgaHVnZXRsYl9yZWxlYXNl
-X2tleShzdHJ1Y3QgaHVnZXRsYl9rZXkgKik7CiBpbnQgaHVnZXRsYl9yZXBvcnRfbWVtaW5mbyhj
-aGFyICopOwogaW50IGlzX2h1Z2VwYWdlX21lbV9lbm91Z2goc2l6ZV90KTsKLXVuc2lnbmVkIGxv
-bmcgaXNfdmFsaWRfaHVnZXBhZ2VfcmFuZ2UodW5zaWduZWQgbG9uZyAqLCB1bnNpZ25lZCBsb25n
-LCBpbnQpOwordW5zaWduZWQgbG9uZyBjaGtfYWxpZ25fYW5kX2ZpeF9hZGRyKHVuc2lnbmVkIGxv
-bmcgKiwgdW5zaWduZWQgbG9uZyk7Cit1bnNpZ25lZCBsb25nIGlzX2FsaWduX2h1Z2VwYWdlX3Jh
-bmdlKHVuc2lnbmVkIGxvbmcsIHVuc2lnbmVkIGxvbmcpOwogCiBleHRlcm4gaW50IGh0bGJwYWdl
-X21heDsKIApAQCAtMzksNyArNDAsNyBAQAogI2RlZmluZSBodWdlX3BhZ2VfcmVsZWFzZShwYWdl
-KQkJCUJVRygpCiAjZGVmaW5lIGlzX2h1Z2VwYWdlX21lbV9lbm91Z2goc2l6ZSkJCTAKICNkZWZp
-bmUgaHVnZXRsYl9yZXBvcnRfbWVtaW5mbyhidWYpCQkwCi0jZGVmaW5lIGlzX3ZhbGlkX2h1Z2Vw
-YWdlX3JhbmdlKGFkZHIsIGxlbiwgZmxnKQkJMAorI2RlZmluZSBpc19hbGlnbl9odWdlcGFnZV9y
-YW5nZShhZGRyLCBsZW4pCTAKIAogI2VuZGlmIC8qICFDT05GSUdfSFVHRVRMQl9QQUdFICovCiAK
-LS0tIGFyY2gvaTM4Ni9tbS9odWdldGxicGFnZS5jLjc1MAlGcmkgRmViICA3IDE4OjQwOjU0IDIw
-MDMKKysrIGFyY2gvaTM4Ni9tbS9odWdldGxicGFnZS5jCUZyaSBGZWIgIDcgMTg6NTk6MTcgMjAw
-MwpAQCAtODgsMTcgKzg4LDI0IEBACiAJc2V0X3B0ZShwYWdlX3RhYmxlLCBlbnRyeSk7CiB9CiAK
-LXVuc2lnbmVkIGxvbmcgaXNfdmFsaWRfaHVnZXBhZ2VfcmFuZ2UodW5zaWduZWQgbG9uZyAqYWRk
-cnAsIHVuc2lnbmVkIGxvbmcgbGVuLCBpbnQgZmxhZykKKy8qIFRoaXMgZnVuY3Rpb24gY2hlY2tz
-IGZvciBwcm9wZXIgYWxpZ25tZW50IGZvciBsZW4uICBJdCB1cGRhdGVzIHRoZSBpbnB1dCBhZGRy
-cCBwYXJhbWV0ZXIgc28gdGhhdAorICogaXQgcG9pbnRzIHRvIHZhbGlkKGFuZCBhbGlnbmVkKSBo
-dWdlcGFnZSBhZGRyZXNzIHJhbmdlIChGb3IgaTM4NiBpdCBpcyBqdXN0IHByb3BlciBhbGlnbm1l
-bnQpLgorICovCit1bnNpZ25lZCBsb25nIGNoa19hbGlnbl9hbmRfZml4X2FkZHIodW5zaWduZWQg
-bG9uZyAqYWRkcnAsIHVuc2lnbmVkIGxvbmcgbGVuKQogewogCWlmIChsZW4gJiB+SFBBR0VfTUFT
-SykKIAkJcmV0dXJuIC1FSU5WQUw7Ci0JaWYgKGZsYWcpIHsKLQkJaWYgKCphZGRyICYgfkhQQUdF
-X01BU0spCi0JCQlyZXR1cm4gLUVJTlZBTDsKLQkJcmV0dXJuIDA7Ci0JfQotCWlmIChsZW4gPiBU
-QVNLX1NJWkUpCi0JCXJldHVybiAtRU5PTUVNOworCSphZGRycCA9IEFMSUdOKCphZGRycCwgSFBB
-R0VfU0laRSk7CisJcmV0dXJuIDA7Cit9CisvKiBUaGlzIGZ1bmN0aW9uIGNoZWNrcyBmb3IgcHJv
-cGVyIGFsaWduZW1lbnQgb2YgaW5wdXQgYWRkciBhbmQgbGVuIHBhcmFtZXRlcnMuCisgKi8KK3Vu
-c2lnbmVkIGxvbmcgaXNfYWxpZ25faHVnZXBhZ2VfcmFuZ2UodW5zaWduZWQgbG9uZyBhZGRyLCB1
-bnNpZ25lZCBsb25nIGxlbikKK3sKKwlpZiAobGVuICYgfkhQQUdFX01BU0spCisJCXJldHVybiAt
-RUlOVkFMOworCWlmIChhZGRyICYgfkhQQUdFX01BU0spCisJCXJldHVybiAtRUlOVkFMOwogCXJl
-dHVybiAwOwogfQogCi0tLSBmcy9odWdldGxiZnMvaW5vZGUuYy43NTAJRnJpIEZlYiAgNyAxODoz
-ODozMSAyMDAzCisrKyBmcy9odWdldGxiZnMvaW5vZGUuYwlGcmkgRmViICA3IDE4OjQ2OjA0IDIw
-MDMKQEAgLTg5LDExICs4OSwxMCBAQAogCXN0cnVjdCB2bV9hcmVhX3N0cnVjdCAqdm1hOwogCXVu
-c2lnbmVkIGxvbmcgcmV0ID0gMDsKIAotCWlmIChyZXQgPSBpc192YWxpZF9odWdlcGFnZV9yYW5n
-ZSgmYWRkciwgbGVuLCAwKSkKKwlpZiAocmV0ID0gY2hrX2FsaWduX2FuZF9maXhfYWRkcigmYWRk
-ciwgbGVuKSkKIAkJcmV0dXJuIHJldDsKIAogCWlmIChhZGRyKSB7Ci0JCWFkZHIgPSBBTElHTihh
-ZGRyLCBIUEFHRV9TSVpFKTsKIAkJdm1hID0gZmluZF92bWEobW0sIGFkZHIpOwogCQlpZiAoVEFT
-S19TSVpFIC0gbGVuID49IGFkZHIgJiYKIAkJICAgICghdm1hIHx8IGFkZHIgKyBsZW4gPD0gdm1h
-LT52bV9zdGFydCkpCg==
+_
 
-------_=_NextPart_001_01C2CF1E.F153677E--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
