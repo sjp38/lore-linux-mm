@@ -1,77 +1,68 @@
-Message-ID: <3CE362B0.CA79EB33@zip.com.au>
-Date: Thu, 16 May 2002 00:41:36 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
+Message-ID: <51039.193.133.92.239.1021542563.squirrel@lbbrown.homeip.net>
+Date: Thu, 16 May 2002 10:49:23 +0100 (BST)
 Subject: Re: [RFC][PATCH] iowait statistics
-References: <Pine.LNX.4.44L.0205132214480.32261-100000@imladris.surriel.com> <3CE073FA.57DAC578@zip.com.au> <200205151200.g4FC0MY13196@Port.imtp.ilyichevsk.odessa.ua>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+From: "Leigh Brown" <leigh@solinno.co.uk>
+In-Reply-To: <Pine.LNX.4.44L.0205151310130.9490-100000@duckman.distro.conectiva>
+References: <Pine.LNX.4.44L.0205151310130.9490-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: vda@port.imtp.ilyichevsk.odessa.ua
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: riel@conectiva.com.br
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Denis Vlasenko wrote:
-> 
-> On 14 May 2002 00:18, Andrew Morton wrote:
-> > Rik van Riel wrote:
-> > > 4) on SMP systems the iowait time can be overestimated, no big
-> > >    deal IMHO but cheap suggestions for improvement are welcome
-> >
-> > I suspect that a number of these statistical accounting mechanisms
-> > are going to break.  The new irq-affinity code works awfully well.
-> >
-> > The kernel profiler in 2.5 doesn't work very well at present.
-> > When investigating this, I ran a busy-wait process.  It attached
-> > itself to CPU #3 and that CPU received precisely zero interrupts
-> > across a five minute period.  So the profiler cunningly avoids profiling
-> > busy CPUs, which is rather counter-productive.  Fortunate that oprofile
-> > uses NMI.
-> 
-> What, even local APIC interrupts did not happen on CPU#3
-> in these five mins?
+Yesterday, Rik van Riel wrote:
+> On Wed, 15 May 2002, Denis Vlasenko wrote:
+>
+>> I think two patches for same kernel piece at the same time is
+>> too many. Go ahead and code this if you want.
+>
+> OK, here it is.   Changes against yesterday's patch:
+>
+> 1) make sure idle time can never go backwards by incrementing
+>   the idle time in the timer interrupt too (surely we can
+>   take this overhead if we're idle anyway ;))
+>
+> 2) get_request_wait also raises nr_iowait_tasks (thanks akpm)
+>
+> This patch is against the latest 2.5 kernel from bk and
+> pretty much untested. If you have the time, please test
+> it and let me know if it works.
 
-CPU1 is busy:
+First off, let me say that I've wanted this functionality for a long
+time.  I do quite a lot of AIX Systems Admin and it's one of those
+metrics that doesn't really give you any concrete data but does help
+to get an idea on what the system's doing.
 
-quad:/home/akpm> cat /proc/interrupts ; sleep 10 ; cat /proc/interrupts
-           CPU0       CPU1       CPU2       CPU3       
-  0:      36059      33847      38948      33846    IO-APIC-edge  timer
-  1:          1          1          1          4    IO-APIC-edge  keyboard
-  2:          0          0          0          0          XT-PIC  cascade
-  4:          1          1          1          0    IO-APIC-edge  GDB-stub
-  8:          0          0          0          1    IO-APIC-edge  rtc
- 12:          0          1          0          0    IO-APIC-edge  PS/2 Mouse
- 14:          1          2          0          3    IO-APIC-edge  ide0
- 15:       7558       7557       7633       8025    IO-APIC-edge  ide1
- 19:      17088      17707      17210      18610   IO-APIC-level  ide2, ide3, ide4, ide5
- 35:         38         71         56        174   IO-APIC-level  aic7xxx
- 38:        955       1798        584        517   IO-APIC-level  eth0
- 58:      25368      19911      27931      20695   IO-APIC-level  aic7xxx
-NMI:     164030     164030     164030     164030 
-LOC:     142543     142543     142542     142542 
-ERR:          0
-MIS:          0
-           CPU0       CPU1       CPU2       CPU3       
-  0:      36388      33847      39289      34178    IO-APIC-edge  timer
-  1:          1          1          1          4    IO-APIC-edge  keyboard
-  2:          0          0          0          0          XT-PIC  cascade
-  4:          1          1          1          0    IO-APIC-edge  GDB-stub
-  8:          0          0          0          1    IO-APIC-edge  rtc
- 12:          0          1          0          0    IO-APIC-edge  PS/2 Mouse
- 14:          1          2          0          3    IO-APIC-edge  ide0
- 15:       7565       7557       7633       8026    IO-APIC-edge  ide1
- 19:      17088      17707      17210      18610   IO-APIC-level  ide2, ide3, ide4, ide5
- 35:         38         71         56        174   IO-APIC-level  aic7xxx
- 38:        969       1798        590        525   IO-APIC-level  eth0
- 58:      25368      19911      27931      20695   IO-APIC-level  aic7xxx
-NMI:     165032     165032     165032     165032 
-LOC:     143545     143545     143544     143544 
-ERR:          0
-MIS:          0
+I've tried this patch against Red Hat's 2.4.18 kernel on my laptop, and
+patched top to display the results.  It certainly seems to be working
+correctly running a few little contrived tests.
+
+The only little issue I have is that I tried the previous patch and it
+accounted raw I/O (using /dev/raw/raw*) as system time rather than wait
+time.  The new version seems better in this regard but I'm not sure if
+it is 100% correct.  If I run a "dd if=/dev/hdc of=/dev/null bs=2048"
+a typical result would be:
+
+CPU states: 0.5% user,  3.5% system,  0.0% nice,  0.0% idle, 95.8% wait
+
+which is what I'd expect based on my experience.    However, Doing a
+"raw /dev/raw/raw1 /dev/hdc" followed by a "dd if=/dev/raw/raw1 ..."
+gives this sort of result:
+
+CPU states: 0.3% user,  8.9% system,  0.0% nice, 77.2% idle, 13.3% wait
+
+I'm not sure if that can be explained by the way the raw I/O stuff works,
+or because I'm running it against 2.4.  Anyway, overall it's looking good.
+
+Cheers,
+
+Leigh.
 
 
--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
