@@ -1,78 +1,63 @@
-Subject: Poor DBT-3 pgsql 8way numbers on recent 2.6 mm kernels
-From: Mary Edie Meredith <maryedie@osdl.org>
-Reply-To: maryedie@osdl.org
-Content-Type: text/plain
-Message-Id: <1079130684.2961.134.camel@localhost>
-Mime-Version: 1.0
-Date: Fri, 12 Mar 2004 14:31:25 -0800
+Message-ID: <40523B6C.7070409@matchmail.com>
+Date: Fri, 12 Mar 2004 14:36:28 -0800
+From: Mike Fedyk <mfedyk@matchmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] 2.6.4-rc2-mm1: vm-split-active-lists
+References: <OF62A00090.6117DDE8-ON86256E55.004FED23@raytheon.com> <4051D39D.80207@cyberone.com.au> <20040312193547.GD18799@mail.shareable.org> <405228DC.1010107@matchmail.com> <20040312222139.GG18799@mail.shareable.org>
+In-Reply-To: <20040312222139.GG18799@mail.shareable.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Mary Edie Meredith <maryedie@osdl.org>
+To: Jamie Lokier <jamie@shareable.org>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Mark_H_Johnson@raytheon.com, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, m.c.p@wolk-project.de, owner-linux-mm@kvack.org, plate@gmx.tm, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-For the last few mm kernels, I have discovered a
-performance problem in DBT-3 (using PostgreSQL) 
-in the "throughput" portion of the test (when the
-test is running multiple processes ) on our 8-way
-STP systems as compared to 4-way runs and the baseline
-kernel results.
+Jamie Lokier wrote:
+> Mike Fedyk wrote:
+> 
+>>That would have other side benefits.  If the anon page matches (I'm not 
+>>calling it "!dirty" since that might have other semantics in the current 
+>>VM) what is in swap, it can be cleaned without performing any IO.  Also, 
+>> suspending will have much less IO to perform before completion.
+> 
+> 
+> Exactly those sort of benefits.
 
-Using the default DBT-3 options (ie using LVM, ext2, 
-PostgreSQL version 7.4.1) on RH9 for 2.6.4-mm1 (PLM 2745)
-[Note that the 4-way number is _better than the 8-way 
-number]
+:)
 
-2.6.4-mm1
-Runid..CPUs.Thruput (bigger is better) 
-289860 8    86.5<-----------(profiling data below)
-289831 4    112.7
- 
-Compare to base:  
-linux-2.6.4
-Runid..CPUs.Thruput 
-289421 8    137.2<----------
-289383 4    120.73
+> 
+> Btw, When you say "You're saying all anon memory should become
+> swap_cache eventually" it's worth noting that there are benefits to
+> doing it the other way too: speculatively pulling in pages that are
+> thought likely to be good for interactive response, at the expense of
+> pages which have been used more recently, and must remain in RAM for a
+> short while while they are considered in use, but aren't ranked so
+> highly based on some interactivity heuristics.
+> 
 
-DBT-3 is a read mostly DSS workload and the throughput 
-phase  is where we run multiple query streams (as 
-many as we have CPUs).  In this workload, the database 
-is stored on a file system and it almost completely 
-caches in page cache early on. So there is not a lot 
-of physical IO in the throughput portion of the test. 
+IIUC, the current VM loses the aging information as soon as a page is 
+swapped out.  You might be asking for a LFU list instead of a LRU list.
+Though, a reverse LFU (MFU -- most frequently used?) used only for swap 
+might do what you want also...
 
-I also found similar 8way thruput numbers on these 
-mm kernels:
+> I.e. fixing the "everything swapped out in the morning" problem by
+> having a long term slow rebalancing in favour of pages which seem to
+> be requested for interactive purposes, competing against the short
+> term balance of whichever pages have been used recently or are
+> predicted by short term readahead.
+> 
 
-Kernel........PLM..Thruput 
-2.6.4rc2-mm1  2676  84.56
-2.6.4rc1-mm2  2666  85.54
-2.6.4rc1-mm1  2664  85.73
+There was talk in Andrea's objrmap thread about using two LRU lists, but 
+I forget what the benefits of that were.
 
+> Both replicating RAM pages to swap, and replicating swap or
+> file-backed pages to RAM can be speculative and down slowly, over the
+> long term, and when there is little other activity or I/O.
 
-Before the 2.6.3-mm4 kernel, the test we are running
-now (with LVM and pgsql 7.4.1 was not available) so 
-results are not availablewithout running them manually.  
-I did run 2.6.1-mm5and it had a thruput result of 124.02 
-on an 8way. Still not great but definitely better 
-than ~86.0.
+In short, that probably would require some major surgery in the VM.
 
-I just wanted to report this and I wonder if you already
-know why this is happening.
-
-
---------------------------------------------------
-Profiling data from RUNID 289860 sorted first by 
-ticks, second by load:
-http://khack.osdl.org/stp/289860/profile/Framework_Close-tick.sort
-http://khack.osdl.org/stp/289860/profile/Framework_Close-load.sort
--- 
-Mary Edie Meredith 
-maryedie@osdl.org
-503-626-2455 x42
-Open Source Development Labs
-
+Mike
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
