@@ -1,80 +1,94 @@
-Date: Sun, 11 Aug 2002 21:17:01 +0100 (IST)
-From: Mel <mel@csn.ul.ie>
-Subject: [ANNOUNCE] VM Regress - A VM regression and test tool
-Message-ID: <Pine.LNX.4.44.0208112109110.16360-100000@skynet>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: Broad questions about the current design
+Date: Mon, 12 Aug 2002 11:13:15 +0200
+References: <66ABF318-ABAA-11D6-8D07-000393829FA4@cs.amherst.edu>
+In-Reply-To: <66ABF318-ABAA-11D6-8D07-000393829FA4@cs.amherst.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17eBGG-0001nL-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Scott Kaplan <sfkaplan@cs.amherst.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Project page: http://www.csn.ul.ie/~mel/projects/vmregress/
-Download:     http://www.csn.ul.ie/~mel/projects/vmregress/vmregress-0.4.tar.gz
+On Friday 09 August 2002 17:12, Scott Kaplan wrote:
+> 1) What happened to page ages?  I found them in 2.4.0, but they're
+>     gone by 2.4.19, and remain gone in 2.5.30.
 
-This is the first public release of VM Regress v0.4 (BumbleBee). It is the
-beginnings of a regression, benchmarking and test tool for the Linux VM.
-The web page has an introduction and the project itself has quiet
-comprehensive documentation and commentary so I am not going to go into
-heavy detail here.
+One day, around 2.4.9, Andrea showed up on lkml with a 'VM rewrite', which 
+replaced the page aging with a simpler LRU mechanism (described below).  As 
+we had never managed to get Rik's aging mechanism tuned so that it would 
+behave predictably in corner cases, Linus decided to switch out the whole 
+aging mechanism in favor or Andrea's patch.  Though the decision was 
+controversial at the time, it turned out to be quite correct, as you can see 
+that VM-related complaints on lkml dropped off rapidly starting from that 
+time.
 
-There appears to be frequent trouble reliably testing the VM and comparing
-the impact (beneficial or otherwise) of VM features. As best as I can
-tell, there is heavy reliance on stress testing or intuitive decisions
-made by individual kernel developers to prove a VM is working or that is
-is better than another implementation. This tool eventually will be able
-to provide empirical data on VM performance as well as acting as a
-regression tool to make sure changes don't break anything.
+The jury is still out as to whether aging or LRU is the better page 
+replacement policy, and to date, no formal comparisons have been done.
 
-It works by using kernel modules to get a definite view of what the kernel
-is at and to provide reliable, reproducible tests. Modules are divided
-up into 4 catagories. Core modules provide infrastructure for the tool.
-Sense modules tell what is going on in the VM. Test tests particular
-features and bench modules (none yet) will benchmark different sections
-of the VM.
+>     The active list scan
+>     seems to start at the tail and work its way towards the head,
+>     demoting to the inactive list those pages whose reference bit is
+>     cleared.  This seems to be like some kind of hybrid inbetween a
+>     FIFO policy and a CLOCK algorithm.  Pages are inserted and scanned
+>     based on the FIFO ordering, but given a second chance much like a
+>     CLOCK.  Is a similar approach used for queuing pages for cleaning
+>     and for reclaimation?  Am I interpreting this code in
+>     refill_inactive correctly?
+>
 
-The aim is to eventually eliminate guesswork in development. The tool will
-be able to tell for definite if a feature works. If it does work, it will
-be able to tell how well or poorly the feature performed. This will
-hopefully replace ad-hoc shell script tests and provide concrete
-performance data any developer can reliably produce and use as proof of
-"Feature X is better"
+This code implements the LRU on the active list:
 
-The interface to the tests are via proc at /proc/vmregress. Help is provided
-for most of them by cat'ing the entries after module load. The README and
-manual are very comprehensive and each c file has a detailed description at
-the top so I'm not going to go into heavy detail in this mail. The README
-includes a sample set of tests to illustrate how the tool can be used to
-provide useful information about performance.
+http://lxr.linux.no/source/mm/vmscan.c?v=2.5.28#L349:
 
-This was developed against 2.4.18 and 2.4.19 but will compile with 2.5.30
-and takes into account the existence of rmap (will compile and work with
-or without rmap). Bear in mind the tool is far for complete and I'm just
-looking for feedback on the viability and usefulness (or the lack thereof)
-of this tool. Consequently, it doesn't do much. Currently it
+349                 if (page->pte.chain && page_referenced(page)) {
+350                         list_del(&page->lru);
+351                         list_add(&page->lru, &active_list);
+352                         pte_chain_unlock(page);
+353                         continue;
+354                 }
 
-o Provides infrastructure such as proc helper functions, page table walk
-  functions and so on
-o Provides tests for the /proc interface to ensure it works
-o Prints out the sizeof() VM related structs and prints out the memory usage
-o Prints out information on all zones in the system
-o Tests physical page allocation/free functions with either GFP_ATOMIC or
-  GFP_KERNEL flags
-o Tests page faulting routines
+Yes, it was supposed to be LRU but as you point out, it's merely a clock.
+It would be an LRU if the list deletion and reinsertion occured directly in 
+try_to_swap_out, but there the page referenced bit is merely set.  I asked
+Andrea why he did not do this and he wasn't sure, but he thought that maybe 
+the way he did it was more efficient.
 
-This has been tested heavily with UML 2.4.18 and with a dual PII350 running
-2.4.19 . It is known to compile with 2.5.30 but I haven't done any 2.5 testing
-yet due to the lack of a crash box. It will work with or without rmap as
-the tool was written with it (as well as every other VM feature) in mind.
+For any page that is explicitly touched, e.g., by file IO, we use 
+activate_page, which moves the page to the head of the active list regardless 
+of which list the page is currently on.  This is a classic LRU.
 
-Any feedback is appreciated.
+http://lxr.linux.no/source/mm/swap.c?v=2.5.28#L39:
+
+39 static inline void activate_page_nolock(struct page * page)
+40 {
+41         if (PageLRU(page) && !PageActive(page)) {
+42                 del_page_from_inactive_list(page);
+43                 add_page_to_active_list(page);
+44                 KERNEL_STAT_INC(pgactivate);
+45         }
+46 }
+
+The inactive list is a fifo queue.  So you have a (sort-of) LRU feeding pages
+from its cold end into the FIFO, and if the page stays on the FIFO long 
+enough to reach the code end it gets evicted, or at least it starts on the
+process.  It's a fairly effective arrangement, except for the part about not 
+really implementing the LRU properly, and needing to find page referenced 
+bits by virtual scanning.  The latter means that the referenced information 
+at the cold end of the LRU and FIFO is unreliable.
+
+The LRU behavior would be better, I suppose, if the page activation were done 
+in try_to_swap_out.  I haven't tried this, because I think it's more 
+important to get the reverse mapping work nailed down so that the page 
+referenced information is reliable.  Otherwise, tuning the scanner is just 
+too frustrating, and better left to those who, by instinct, can keep Fiats 
+running ;-)
 
 -- 
-Mel Gorman
-MSc Student, University of Limerick
-http://www.csn.ul.ie/~mel
-
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
