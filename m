@@ -1,40 +1,37 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id RAA18866
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2003 17:44:55 -0800 (PST)
-Date: Wed, 29 Jan 2003 18:01:50 -0800
-From: Andrew Morton <akpm@digeo.com>
+Message-ID: <3E3884DA.9060600@pobox.com>
+Date: Wed, 29 Jan 2003 20:50:18 -0500
+From: Jeff Garzik <jgarzik@pobox.com>
+MIME-Version: 1.0
 Subject: Re: Linus rollup
-Message-Id: <20030129180150.790295b9.akpm@digeo.com>
-In-Reply-To: <20030130012458.GA7284@averell>
-References: <20030129022617.62800a6e.akpm@digeo.com>
-	<1043879752.10150.387.camel@dell_ss3.pdx.osdl.net>
-	<20030129151206.269290ff.akpm@digeo.com>
-	<20030129.163034.130834202.davem@redhat.com>
-	<20030129172743.1e11d566.akpm@digeo.com>
-	<20030130012458.GA7284@averell>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20030129022617.62800a6e.akpm@digeo.com>	<1043879752.10150.387.camel@dell_ss3.pdx.osdl.net>	<20030129151206.269290ff.akpm@digeo.com>	<20030129.163034.130834202.davem@redhat.com>	<20030129172743.1e11d566.akpm@digeo.com>	<20030130013522.GP1237@dualathlon.random> <20030129180054.03ac0d48.akpm@digeo.com>
+In-Reply-To: <20030129180054.03ac0d48.akpm@digeo.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: davem@redhat.com, shemminger@osdl.org, rmk@arm.linux.org.uk, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org, andrea@suse.de
+To: Andrew Morton <akpm@digeo.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, davem@redhat.com, shemminger@osdl.org, rmk@arm.linux.org.uk, ak@muc.de, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org, rth@twiddle.net
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen <ak@muc.de> wrote:
->
-> > This is an optimisation to the ia64, ia32 and x86_64 do_gettimeofday() code
-> > above and beyond the base frlock work.
+Andrew Morton wrote:
+> #ifndef __LINUX_FRLOCK_H
+> #define __LINUX_FRLOCK_H
 > 
-> Hmm? No x86_64 changes in there.
-> 
-> > arch/i386/kernel/time.c             |    7 +++----
-> > arch/i386/kernel/timers/timer_pit.c |    7 +++----
-> > arch/ia64/kernel/time.c             |    5 ++---
-> > include/linux/frlock.h              |    8 ++++++--
->    
+> /*
+>  * Fast read-write spinlocks.
 
-True.  Hmm.  Maybe Stephen made some x86_64 changes, but didn't send them?
+
+Can we please pick a unique name whose meaning will not change over 
+time?  Even "andre[wa]_rw_lock" would be better, because its meaning is 
+not tied to performance at this specific point in time, on today's ia32 
+flavor-of-the-month.
+
+If we discover even-yet-faster read-write spinlocks tomorrow, this name 
+is going to become a joke :)
+
+	Jeff
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
