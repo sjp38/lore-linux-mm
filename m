@@ -1,53 +1,34 @@
-Message-Id: <200302251849.h1PInh921599@mail.osdl.org>
-Subject: 2.5.62-mm3 -Panics during dbt2 run
-In-Reply-To: Message from Andrew Morton <akpm@digeo.com>
-   of "Tue, 25 Feb 2003 01:55:37 PST." <20030225015537.4062825b.akpm@digeo.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id LAA09198
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2003 11:11:47 -0800 (PST)
+Date: Tue, 25 Feb 2003 11:12:15 -0800
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: 2.5.62-mm3 -Panics during dbt2 run
+Message-Id: <20030225111215.27c14ac7.akpm@digeo.com>
+In-Reply-To: <200302251849.h1PInh921599@mail.osdl.org>
+References: <20030225015537.4062825b.akpm@digeo.com>
+	<200302251849.h1PInh921599@mail.osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Date: Tue, 25 Feb 2003 10:49:43 -0800
-From: Cliff White <cliffw@osdl.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave McCracken <dmccr@us.ibm.com>, cliffw@osdl.org
+To: Cliff White <cliffw@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dmccr@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Tried hard to test this, but all it does for me is panic.
-Is this fixed in 2.5.63?
-This is 4-way PIII system. 
- panic, while booting
-Press Y within 1 seconds to force file system integrity check...
- [<c02409e8>] as_next_request+0x38/0x50
- [<c02385c6>] elv_next_request+0x16/0x110
- [<c02823bc>] scsi_request_fn+0x4c/0x300
- [<c023a358>] blk_remove_plug+0x88/0x100
- [<c023a64d>] __blk_run_queue+0x1d/0x30
- [<c0281739>] scsi_queue_next_request+0xa9/0x240
- [<c023c060>] end_that_request_last+0x50/0x90
- [<c02819d2>] scsi_end_request+0x102/0x120
- [<c0281d31>] scsi_io_completion+0x161/0x4e0
- [<c02a545c>] ahc_done+0x1ec/0x470
- [<c02ab3fb>] sd_rw_intr+0x7b/0x210
- [<c027b6f6>] scsi_finish_command+0x86/0xf0
- [<c027b4d9>] scsi_softirq+0xc9/0x220
- [<c0129515>] do_softirq+0xc5/0xd0
- [<c010bf35>] do_IRQ+0x1c5/0x1f0
- [<c0107340>] default_idle+0x0/0x40
- [<c010a584>] common_interrupt+0x18/0x20
- [<c0107340>] default_idle+0x0/0x40
- [<c010736d>] default_idle+0x2d/0x40
- [<c010740a>] cpu_idle+0x4a/0x60
- [<c0105000>] rest_init+0x0/0x80
+Cliff White <cliffw@osdl.org> wrote:
+>
+> 
+> Tried hard to test this, but all it does for me is panic.
+> Is this fixed in 2.5.63?
+> This is 4-way PIII system. 
+>  panic, while booting
+> Press Y within 1 seconds to force file system integrity check...
+>  [<c02409e8>] as_next_request+0x38/0x50
 
-Code: 8b 46 14 8b 40 50 89 04 24 e8 5e 9b ff ff 8d 43 70 e8 c6 52
----------------------------------
-
-It died again, while bunzipping the db backup, but
-i did not get the panic string
-
---------------------------------------
-cliffw
-
+We have some rough edges in the anticipatory scheduler.  Please
+boot with elevator=deadline for now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
