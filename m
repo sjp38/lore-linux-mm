@@ -1,92 +1,49 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id DB19C38DD4
-	for <linux-mm@kvack.org>; Mon, 19 Nov 2001 14:41:36 -0300 (EST)
-Date: Mon, 19 Nov 2001 14:23:54 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: kupdated high load with heavy disk I/O
-In-Reply-To: <20011114233005.A762@tentacle.dhs.org>
-Message-ID: <Pine.LNX.4.21.0111191423030.7289-100000@freak.distro.conectiva>
+Received: from sp1n294en1.watson.ibm.com (sp1n294en1.watson.ibm.com [9.2.112.58])
+	by igw3.watson.ibm.com (8.11.4/8.11.4) with ESMTP id fAKJn5O09682
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2001 14:49:05 -0500
+Received: from watson.ibm.com (discohall.watson.ibm.com [9.2.17.22])
+	by sp1n294en1.watson.ibm.com (8.11.4/8.11.4) with ESMTP id fAKJn5p28820
+	for <linux-mm@kvack.org>; Tue, 20 Nov 2001 14:49:05 -0500
+Message-ID: <3BFAB48D.1A772321@watson.ibm.com>
+Date: Tue, 20 Nov 2001 14:52:45 -0500
+From: "Raymond B. Jennings III" <raymondj@watson.ibm.com>
+Reply-To: raymondj@watson.ibm.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: help with highmem
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John McCutchan <ttb@tentacle.dhs.org>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Could you please guys try to reproduce the problem with kernel profiling
-turned on and send us the output of readprofile? 
+I was wondering why if CONFIG_HIGHMEM is NOT turned on, the vmalloc area
 
-This way we can know which function is using more CPU time, thus we can
-identify the problem. 
+goes almost to the end of the 4GB boundary:
 
+VMALLOC_END = FIXADDR_START - 2*PAGE_SIZE
+- or -
+VMALLOC_END = (FIXADDR_TOP - FIXADDR_SIZE) - 2*PAGE_SIZE
+- or - (on my particular setup)
+VMALLOC_END = (FFFFE000h - 4*PAGE_SIZE) - 2*PAGE_SIZE
 
-On Wed, 14 Nov 2001, John McCutchan wrote:
+In any case it is pretty close to the 4GB boundary
 
-> Hi,
-> 
-> I also have the exact same behaviour when running mkisofs. During the 
-> creation of the ISO the interactive feel is sluggish and after mkisofs
-> is complete the box is sluggish and appears to lock up. During
-> this sluggish period there is alot of disk activity. This is under
-> 2.4.14
-> 
-> John
-> On Wed, Nov 14, 2001 at 06:01:23PM -0500, Rechenberg, Andrew wrote:
-> > Hello,
-> > 
-> > I have read some previous threads about kupdated consuming 99% of CPU under
-> > intense disk I/O in kernel 2.4.x on the archives of linux-kernel (April
-> > 2001), and some issues about I/O problems on linux-mm, but have yet to find
-> > any suggestions or fixes.  I am currently experiencing the same issue and
-> > was wondering if anyone has any thoughts or suggestions on the issue.  I am
-> > not subscribed to the list so would you please CC: me directly on any
-> > responses?  I can also check out the archives at theaimsgroup.com if a CC:
-> > would not be appropriate.  Thank you.
-> > 
-> > The issue that I am having is that when there is a heavy amount a disk I/O,
-> > the box becomes slightly unresponsive and kupdated is using 99.9% in 'top.'
-> > Sometimes the box appears to totally lock up.  If one waits several seconds
-> > to a couple of minutes the system appears to 'unlock' and runs sluggishly
-> > for a while.  This cycle will repeat itself until the I/O subsides.  The
-> > memory usage goes up to the full capacity of the box and then about 10MB of
-> > swap is used while this problem is occurring.  Memory and swap does not get
-> > relinquished afer the incident.
-> > 
-> > The issue appears in kernel 2.4.14 compiled directly from source from
-> > kernel.org with no patches.  These problems manifest themselves with only
-> > one user doing heavy disk I/O.  The normal user load on the box can run
-> > between 350-450 users so this behavior would be unacceptable because the
-> > application that is being run is interactive.  With 450 users, and the same
-> > process running on a 2.2.20 kernel the performance of the box is great, with
-> > only a very slightly noticeable slow down.
-> > 
-> > I am running the Informix database UniVerse version 9.6.2.4 on a 4 processor
-> > 700MHz Xeon Dell PowerEdge 6400.  The disk subsystem is controlled by a PERC
-> > 2/DC RAID card with 128MB on-board cache (megaraid driver compiled directly
-> > in to the kernel).  Data array is on 5 36GB 10K Ultra160 disks in a RAID5
-> > configuration.  The box has 4GB RAM, but is only using 2GB due to the move
-> > back to the 2.2 kernel.  The only kernel paramters that have been modified
-> > are in /proc/sys/kernel/sem.  All filesystems are ext2.
-> > 
-> > If you need any more detailed info, please let me know.  Any help on this
-> > problem would be immensely appreciated.  Thank you in advance.
-> > 
-> > Regards,
-> > Andrew Rechenberg
-> > Network Team, Sherman Financial Group
-> > arechenberg@shermanfinancialgroup.com
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/
-> > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/
-> 
+BUT when you have CONFIG_HIGHMEM turned on:
+
+VMALLOC_END = PKMAP_BASE - 2*PAGE_SIZE
+
+I realize you need room for the pkmap_count array but the array only
+allows for 1024 pages.
+If PKMAP_BASE = FE000000h then this fills the address space upto
+FE400000.  What is being used in the remaining section of the address
+space?
+
+Couldn't PKMAP_BASE be moved up (allow for a larger vmalloc area) or
+enlarge the pkmap_count array up to the point of VMALLOC_END as when
+CONFIG_HIGHMEM is turned off?
+
+Thanks for any help.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
