@@ -1,31 +1,39 @@
-Date: Tue, 17 Aug 2004 10:58:56 +0100
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [Lhms-devel] Making hotremovable attribute with memory section[0/4]
-Message-ID: <20040817095856.GA19243@redhat.com>
-References: <1092699350.1822.43.camel@nighthawk> <1092702436.21359.3.camel@localhost.localdomain> <20040816214017.77A3.YGOTO@us.fujitsu.com>
-Mime-Version: 1.0
+Date: Tue, 17 Aug 2004 15:18:34 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: arch_get_unmapped_area_topdown vs stack reservations
+Message-ID: <170170000.1092781114@flay>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20040816214017.77A3.YGOTO@us.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <ygoto@us.fujitsu.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Dave Hansen <haveblue@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Martin J. Bligh" <mbligh@aracnet.com>
+To: Ingo Molnar <mingo@elte.hu>, Arjan van de Ven <arjanv@redhat.com>
+Cc: linux-mm mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 16, 2004 at 10:15:51PM -0700, Yasunori Goto wrote:
- > > Consider
- > > - Video capture
- > > - AGP Gart
- > > - AGP based framebuffer (intel i8/9xx)
- > 
- > I didn't consider deeply about this, because usually
- > enterprise server doesn't need Video capture feature or AGP.
+I worry that the current code will allow us to intrude into the 
+reserved stack space with a vma allocation if it's requested at
+an address too high up. One could argue that they got what they
+asked for ... but not sure we should be letting them do that?
 
-AMD64's IOMMU is implemented using the AGP GART.
-This feature is certainly used in server environments.
+Is the following change acceptable? Not tested yet, but will do
+if you're happy with it.
 
-		Dave
+Signed-off-by: Martin J. Bligh <mbligh@aracnet.com>
+
+diff -purN -X /home/mbligh/.diff.exclude /home/linux/views/linux-2.6.8.1-mm1/mm/mmap.c 2.6.8.1-mm1-topdown_fix/mm/mmap.c
+--- /home/linux/views/linux-2.6.8.1-mm1/mm/mmap.c	2004-08-17 14:43:07.000000000 -0700
++++ 2.6.8.1-mm1-topdown_fix/mm/mmap.c	2004-08-17 14:52:55.000000000 -0700
+@@ -1101,7 +1101,7 @@ arch_get_unmapped_area_topdown(struct fi
+ 	if (addr) {
+ 		addr = PAGE_ALIGN(addr);
+ 		vma = find_vma(mm, addr);
+-		if (TASK_SIZE - len >= addr &&
++		if (base - len >= addr &&
+ 				(!vma || addr + len <= vma->vm_start))
+ 			return addr;
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
