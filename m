@@ -1,61 +1,62 @@
-Date: Mon, 2 Oct 2000 18:42:58 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 2 Oct 2000 23:57:03 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
 Subject: Re: [highmem bug report against -test5 and -test6] Re: [PATCH] Re:
  simple FS application that hangs 2.4-test5, mem mgmt problem or FS buffer
  cache mgmt problem? (fwd)
-In-Reply-To: <Pine.LNX.4.10.10010021429230.826-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0010021836090.1067-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.10.10010021417200.826-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0010022337030.13733-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, MM mailing list <linux-mm@kvack.org>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 2 Oct 2000, Linus Torvalds wrote:
-> On Mon, 2 Oct 2000, Rik van Riel wrote:
-> > 
-> > OK, so we want something like the following in
-> > refill_inactive_scan() ?
-> > 
-> > if (free_shortage() && inactive_shortage() && page->mapping &&
-> > 			page->buffers)
-> > 	try_to_free_buffers(page, 0);
+
+> > except for writes, there we cache the block # in the bh and do not have to
+> > call the lowlevel FS repeatedly to calculate the FS position of the page.
 > 
-> That's just nasty.
+> Oh, I agree 100%.
 > 
-> Why not just do it unconditionally whenever we do the
-> age_page_down_ageonly(page) too? Simply something like
-> 
-> 	if (page->buffers)
-> 		try_to_free_buffers(page, 1);
+> Note that this is why I think we should just do it the way we used to
+> handle it: we keep the buffer heads around "indefinitely" (because we
+> _may_ need them - we don't know a priori one way or the other), but
+> because they _do_ potentially use up a lot of memory we do free them in
+> the normal aging process when we're low on memory.
 
-You will want to add page->mapping too, so we won't be kicking
-buffermem data out of memory when we don't need to.
+yep, this would be nice, but i think it will be quite tough to balance
+this properly. There are two kinds of bhs in this aging scheme: 'normal'
+bhs (metadata), and 'virtual' bhs (aliased to a page). Freeing a 'normal'
+bh will get rid of the bh, and will (statistically) free the data buffer
+behind. A 'virtual' bh on the other hand has only sizeof(*bh) bytes worth
+of RAM footprint.
 
-Also, you really want to free the bufferheads on the pages that
-are in heavy use (say glibc shared ages) too...
+another thing is the complexity of marking a page dirty - right now we can
+assume that page->buffers holds all the blocks. With aging we must check
+wether a bh is there or not, which further complicates the block_*()
+functions in buffer.c. Plus some sort of locking has to be added as well -
+right now we dont have to care about anyone else accessing page->buffers
+if the PG_lock held - with an aging mechanizm this could get tougher.
+(unless the buffer-cache aging mechanizm 'knows' about pages and locks
+them - this is what my former hash-all-buffers scheme did :-)
 
-> (and yes, I think it should also start background writing - we
-> probably need the gfp_mask to know whether we can do that).
+but i agree, currently even in the 4k filesystem case the per-page bh
+causes +2.0% data-cache RAM footprint. (struct page accounts for ~1.7%)
 
-Background writing is done by kupdate / kflushd.
+> So if we have "lots" of memory, we basically optimize for speed (leave
+> the cached mapping around), while if we get low on memory we
+> automatically optimize for space (get rid of bh's when we don't know
+> that we'll need them).
 
-> I hate code that tries to be clever. 
+i'd love to have all the cached objects within the system on a global,
+size-neutral LRU list. (or at least attach a last-accessed timestamp to
+them.) This way we could synchronize the pagecache, inode/dentry and
+buffer-cache LRU lists.
 
-*nod*
-
-You're right that my last idea was too complicated ;)
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
