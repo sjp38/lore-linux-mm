@@ -1,32 +1,25 @@
 Subject: Re: [PATCH] Prevent OOM from killing init
-Date: Thu, 22 Mar 2001 22:52:09 +0000 (GMT)
-In-Reply-To: <20010322230041.A5598@win.tue.nl> from "Guest section DW" at Mar 22, 2001 11:00:41 PM
+Date: Thu, 22 Mar 2001 22:53:39 +0000 (GMT)
+In-Reply-To: <3ABA7851.AB080D44@redhat.com> from "Doug Ledford" at Mar 22, 2001 05:10:25 PM
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <E14gDwB-0003Tj-00@the-village.bc.nu>
+Message-Id: <E14gDxd-0003Tw-00@the-village.bc.nu>
 From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Guest section DW <dwguest@win.tue.nl>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Clouse <stephenc@theiqgroup.com>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Doug Ledford <dledford@redhat.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> > Eventually you have to kill something or the machine deadlocks.
+> > How do you return an out of memory error to a C program that is out of memory
+> > due to a stack growth fault. There is actually not a language construct for it
 > 
-> Alan, this is a fake argument.
+> Simple, you reclaim a few of those uptodate buffers.  My testing here has
 
-No it is not.
-
-> You see, the bug is that malloc does not fail. This means that the
-> decisions about what to do are not taken by the program that knows
-> what it is doing, but by the kernel.
-
-Even if malloc fails the situation is no different. You can do 
-overcommit avoidance in Linux if you are bored enough to try it. I did it
-in 1.2 one afternoon when bored. You simply account address space. Almost
-everything you need to touch is in mm/*.c and localised. The only exception
-is ptrace.
+If you have reclaimable buffers you are not out of memory. If oom is triggered
+in that state it is a bug. If you are complaining that the oom killer triggers
+at the wrong time then thats a completely unrelated issue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
