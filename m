@@ -1,33 +1,37 @@
-Subject: Re: 2.6.0-test8-mm1
-From: John Cherry <cherry@osdl.org>
-In-Reply-To: <20031020020558.16d2a776.akpm@osdl.org>
-References: <20031020020558.16d2a776.akpm@osdl.org>
-Content-Type: text/plain
-Message-Id: <1066663958.2882.4.camel@cherrytest.pdx.osdl.net>
-Mime-Version: 1.0
-Date: 20 Oct 2003 08:32:38 -0700
+From: Ruthiano Simioni Munaretti <ruthiano@exatas.unisinos.br>
+Subject: Non-contiguous memory allocation
+Date: Mon, 20 Oct 2003 14:00:59 -0200
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="us-ascii"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200310201400.59334.ruthiano@exatas.unisinos.br>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: sisopiii-l@cscience.org, lmb@exatas.unisinos.br
 List-ID: <linux-mm.kvack.org>
 
-Full compile stats for mm builds at...
+Hello folks!
 
-http://developer.osdl.org/cherry/compile/
+Two months ago, you suggest us an interface implementation in non-contiguous 
+memory allocation:
 
-Kernel version: 2.6.0-test8-mm1
-Kernel build: 
-   Making bzImage (defconfig): 0 warnings, 0 errors
-   Making modules (defconfig): 0 warnings, 0 errors
-   Making bzImage (allnoconfig): 0 warnings, 0 errors
-   Making bzImage (allyesconfig): 183 warnings, 0 errors
-   Making modules (allyesconfig): 13 warnings, 0 errors
-   Making bzImage (allmodconfig): 3 warnings, 0 errors
-   Making modules (allmodconfig): 223 warnings, 0 errors
+William Lee Irwin III wrote:
+> The suggestion was to add an interface to fetch more than one page in
+> one call, to reduce various kinds of overheads associated with the round
+> trip through the codepaths (dis/re -enabling ints, ticking counters, etc.)
 
-John
+Our question: there are (or --> there was... :) any work in this area? 
+Somebody tried to implement this?
+
+Also, do you have any suggestions on how to measure the benefits of this 
+approach once it is implemented? For example, which metrics should be used 
+and which tools can we use to measure them?
+
+Thanks!
+LMB, Ruthiano.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
