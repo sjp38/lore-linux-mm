@@ -1,49 +1,49 @@
-Message-ID: <4191675B.3090903@cyberone.com.au>
-Date: Wed, 10 Nov 2004 11:56:59 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
-MIME-Version: 1.0
+Date: Tue, 9 Nov 2004 21:16:54 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: [PATCH] kswapd shall not sleep during page shortage
-References: <20041109164642.GE7632@logos.cnet>	<20041109121945.7f35d104.akpm@osdl.org>	<20041109174125.GF7632@logos.cnet>	<20041109133343.0b34896d.akpm@osdl.org>	<20041109182622.GA8300@logos.cnet> <20041109142257.1d1411e1.akpm@osdl.org>
-In-Reply-To: <20041109142257.1d1411e1.akpm@osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20041109231654.GE8414@logos.cnet>
+References: <20041109164642.GE7632@logos.cnet> <20041109121945.7f35d104.akpm@osdl.org> <20041109174125.GF7632@logos.cnet> <20041109133343.0b34896d.akpm@osdl.org> <20041109182622.GA8300@logos.cnet> <20041109142257.1d1411e1.akpm@osdl.org> <20041109203143.GC8414@logos.cnet> <20041109162801.7f7ca242.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041109162801.7f7ca242.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org, piggin@cyberone.com.au
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Nov 09, 2004 at 04:28:01PM -0800, Andrew Morton wrote:
+> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+> >
+> > Back to arguing in favour of my patch - it seemed to me that kswapd could 
+> >  go to sleep leaving allocators which can't reclaim pages themselves in a 
+> >  bad situation. 
+> 
+> Yes, but those processes would be sleeping in blk_congestion_wait() during,
+> say, a GFP_NOIO/GFP_NOFS allocation attempt. 
 
-Andrew Morton wrote:
+I was thinking about interrupts when I mentioned "allocators which can't reclaim 
+pages" :)
 
->Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
->
->
->>Does it makes sense to you?
->>
->
->Maybe.  We really shouldn't be sending kswapd into a busy loop if all zones
->are unreclaimable.  Because it could just be that there's some disk I/O in
->flight and we'll find rotated reclaimable pages available once that I/O has
->completed.  (example: all of memory becomes dirty due to a large msync of
->MAP_SHARED memory).  So rather than madly scanning, we should throttle
->kswapd to make it wait for I/O completions.  Via blk_congestion_wait(). 
->That's what the total_scanned logic is supposed to do.
->
->
->
+> And in that case, they may be
+> holding locks whcih prevent kswapd from being able to do any work either.
 
-I think the patch is possibly not a good idea. Unless it fixes up
-those #*%! allocation failures (*).
+OK... Just out of curiosity:
+Isnt the "lock contention" at this level (filesystem) a relatively rare situation? 
 
-For OOM conditions, kswapd can be a bit lax precisely because it
-doesn't oom kill things. If there is a shortage, and kswapd can't
-make progress though, I think it really should sleep rather than busy
-wait (albiet nicely with cond_resched()).
+It could be a NFS lock for example? What other kind of lock?
 
-(*) I'm beginning to think they're due to me accidentally bumping the
-    page watermarks when 'fixing' them. I'll check that out presently.
-
+> >  It would have to be waken up by another instance of alloc_pages to then 
+> >  execute and start doing its job, while if it was executing already (madly 
+> >  scanning as you say), the chance it would find freeable pages quite
+> >  earlier.
+> > 
+> >  Note that not only disk IO can cause pages to become freeable. A user
+> >  can give up its reference on pagecache page for example (leaving
+> >  the page on LRU to be found and freed by kswapd).
+> 
+> yup.  Or munlock(), or direct-io completion. 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
