@@ -1,30 +1,39 @@
-Date: Wed, 10 Jul 2002 17:38:42 -0300 (BRT)
+Date: Wed, 10 Jul 2002 17:42:41 -0300 (BRT)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] Optimize out pte_chain take three
-In-Reply-To: <3D2C9900.EF65CE2E@zip.com.au>
-Message-ID: <Pine.LNX.4.44L.0207101737400.14432-100000@imladris.surriel.com>
+Subject: Re: [PATCH][RFT](2) minimal rmap for 2.5 - akpm tested
+In-Reply-To: <20020710193545.272bedab.sebastian.droege@gmx.de>
+Message-ID: <Pine.LNX.4.44L.0207101741380.14432-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Sebastian Droege <sebastian.droege@gmx.de>
+Cc: linux-kernel@vger.kernel.org, akpm@zip.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Jul 2002, Andrew Morton wrote:
+On Wed, 10 Jul 2002, Sebastian Droege wrote:
+> On Sat, 6 Jul 2002 02:31:38 -0300 (BRT)
+> Rik van Riel <riel@conectiva.com.br> wrote:
+>
+> > If you have some time left this weekend and feel brave,
+> > please test the patch which can be found at:
+> >
+> > 	http://surriel.com/patches/2.5/2.5.25-rmap-akpmtested
 
-> How do the BSD and proprietary kernel developers evaluate
-> their VMs?
+> after running your patch some time I have to say that the old VM
+> implementation and the full rmap patch (by Craig Kulesa) was better. The
+> system becomes very slow and has to swap in too much after some uptime
+> (4 hours - 2 days) and memory intensive tasks...
+> Maybe this happens only to me but it's fully reproducable
 
-Proper statistics inside their VM, combined with some
-basic workload testing.
+It's a known problem with use-once. Users of plain 2.4.18
+are complaining about it, too.
 
-Most importantly, they don't seem to hang themselves
-on benchmarks. Benchmarks can be won by finetuning
-whatever you have but measuring a new basis (still
-without tuning) by benchmarking it just doesn't work.
+This is something to touch on after the rmap mechanism
+has been merged, Linus has indicated that he wants to merge
+the thing in small bits so that's what we'll be doing ;)
 
-regards,
+kind regards,
 
 Rik
 -- 
