@@ -1,46 +1,36 @@
-Date: Tue, 26 Jun 2001 02:10:49 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Date: Tue, 26 Jun 2001 08:42:05 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: [RFC] VM statistics to gather
-In-Reply-To: <Pine.LNX.4.21.0106260206240.1676-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0106260210340.1676-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20010626084205.Q18856@redhat.com>
+References: <200106252339.f5PNd9x07535@maile.telia.com> <Pine.LNX.4.33L.0106252048230.23373-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.33L.0106252048230.23373-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, Jun 25, 2001 at 08:59:11PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <andrewm@uow.edu.au>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Roger Larsson <roger.larsson@norran.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Tue, 26 Jun 2001, Marcelo Tosatti wrote:
+On Mon, Jun 25, 2001 at 08:59:11PM -0300, Rik van Riel wrote:
 
+> > Should memory zone be used as dimension?
 > 
-> On Tue, 26 Jun 2001, Andrew Morton wrote:
-> 
-> > Rik van Riel wrote:
-> > > 
-> > > Hi,
-> > > 
-> > > I am starting the process of adding more detailed instrumentation
-> > > to the VM subsystem and am wondering which statistics to add.
-> > > A quick start of things to measure are below, but I've probably
-> > > missed some things. Comments are welcome ...
-> > 
-> > Neat.
-> > 
-> > - bdflush wakeups
-> > - pages written via page_launder's writepage by kswapd
-> > - pages written via page_launder's writepage by non-PF_MEMALLOC
-> >   tasks.  (ext3 has an interest in this because of nasty cross-fs
-> >   reentrancy and journal overflow problems with writepage)
-> 
-> Does ext3 call page_launder() with __GFP_IO ? 
-> 
-> If it does not (which I believe so), page_launder() without PF_MEMALLOC
-> never happens. 
+> Useful for allocations I guess, but it may be too confusing
+> if we do this for all statistics... OTOH...
 
-s/page_launder()/page_launder() without PF_MEMALLOC/ 
+Then user space monitor apps can summarise over all zones.
 
+Rik, having this information available per-zone is critically
+important for doing VM tuning.  Whenever we see VM lockups, being able
+to deduce when we're spinning on a single zone will be enormously
+helpful.
+
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
