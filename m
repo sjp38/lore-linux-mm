@@ -1,42 +1,55 @@
-Subject: Re: Process not given >890MB on a 4MB machine ?????????
-References: <5D2F375D116BD111844C00609763076E050D164D@exch-staff1.ul.ie>
-	<20010920125616.A14985@top.worldcontrol.com>
-From: Thierry Vignaud <tvignaud@mandrakesoft.com>
-Date: 20 Sep 2001 22:36:06 +0200
-In-Reply-To: <20010920125616.A14985@top.worldcontrol.com> (brian@worldcontrol.com's message of "Thu, 20 Sep 2001 12:56:16 -0700")
-Message-ID: <m23d5heh1l.fsf@vador.mandrakesoft.com>
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
+Subject: Re: broken VM in 2.4.10-pre9
+Date: Fri, 21 Sep 2001 10:13:11 +0200
+References: <Pine.LNX.4.33L.0109200903100.19147-100000@imladris.rielhome.conectiva>
+In-Reply-To: <Pine.LNX.4.33L.0109200903100.19147-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7BIT
+Message-Id: <20010921080549Z16344-2758+350@humbolt.nl.linux.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: brian@worldcontrol.com
-Cc: "Gabriel.Leen" <Gabriel.Leen@ul.ie>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-brian@worldcontrol.com writes:
-
-> > The problem in a nutshell is:
-> >
-> > a) I have a 4GB ram 1.7Gh Xeon box
-> > b) I'm running a process which requires around 3GB of ram
-> > c) RedHat 2.4.9 will only give it 890MB, then core dumps with the warning
-> > "segmentation fault"
-> > when it reaches this memory usage and "asks for more"
+> That still doesn't mean we can't _approximate_ aging in
+> another way. With linear page aging (3 up, 1 down) the
+> page ages of pages referenced only in the page tables
+> will still go up, albeit a tad slower than expected.
 >
-> That is exacly what I've seen.
+> It's exponential aging which makes the page age go into
+> the other direction, with linear aging things seem to
+> work again.
 >
-> The limit I ran into was in glibc.  My code used malloc, and apparently
-> some versions of malloc in glibc try "harder" than others to allocate
-> memory.  Check your version of glibc and try a later one if available.
+> I've done some experiments recently and found that (with
+> reverse mappings) exponential aging is faster when we have
+> a small inactive list and linear aging is faster when we
+> have a large inactive list.
 
-the problem is that the glibc has various algo to allocate memory, depending of
-the requested size (greater than a page or not), and use the "classic" sbrk() if
-lesser (bellow 1Gb) or an anonymous mapping (from 1Gb to a limit that depends of
-the virtual memory split between the kernel and the process space).
-therefore small malloc will eat space below 1GB and cannot use more than this GB
-(minus the process text & data).
-anyway for small objects set, there's more efficient techniques (one big malloc
-is less costly than several small malloc()).
+Have you tried making the down increment larger and the up increment smaller
+when the active list is larger?  This has a natural interpretation: when the
+active list is large the scanning period is longer.  During this longer scan
+period an active page *should* be more likely to have its ref bit set, so it
+gets a smaller boost if it is.  If not we should penalize it more heavily.
+
+There are three points here:
+
+  - small inactive list really means large active list (and vice versa)
+  - aging increments need to depend on the size of the active list
+  - "exponential" aging may be completely bogus
+
+> This means we need linear page aging with a large inactive
+> list in order to let the page ages move into the right
+> direction when we run a system without reverse mapping,
+> the patch for that was sent to Alan yesterday.
+
+So, the question is, does my suggestion produce essentially the same
+beneficial effect?  And by the way, what are your test cases?  I'd like to
+see if I can your results here.
+
+--
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
