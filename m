@@ -1,100 +1,60 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Shane Nay <shane@minirl.com>
-Subject: VM Report was:Re: Break 2.4 VM in five easy steps
-Date: Thu, 7 Jun 2001 16:29:17 -0700
-References: <Pine.LNX.4.21.0106071722450.1156-100000@freak.distro.conectiva>
-In-Reply-To: <Pine.LNX.4.21.0106071722450.1156-100000@freak.distro.conectiva>
+Date: Thu, 7 Jun 2001 20:34:24 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps (fwd)
+Message-ID: <Pine.LNX.4.21.0106072033260.1156-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Message-Id: <0106071629171E.32519@compiler>
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Shane Nay <shane@minirl.com>
 List-ID: <linux-mm.kvack.org>
 
-(VM report at Marcelo Tosatti's request.  He has mentioned that rather than 
-complaining about the VM that people mention what there experiences were.  I 
-have tried to do so in the way that he asked.)
+First report of better interactivity under high VM loads with the vm-mt
+patch against 2.4.6-pre1. 
 
-> 1) Describe what you're running. (your workload)
-
-A lot of daemons, all on a private network so there is no throughput load on 
-them.  About 13 rxvt's, freeamp actively playing music at all times, xemacs 
-with 25 active buffers, a few instances of vi, opera, no "desktop env", just 
-windowmaker.  (Though I have a few KDE2 apps open, and one or two GTK based 
-apps open, so lots of library code swapping in and out I imagine)  Now what 
-I've noticed lately is this, with 2.4.2 my machine would lock quite 
-frequently when I was compiling code and had other apps that were allocing 
-memory.  With 2.4.5 I haven't had that behaviour, but I've been much lighter 
-on my machine.  (I was doing full toolchain builds with 2.4.2 when I had the 
-real problems)  But processes were still running when the machine would 
-lock..., like the mp3 player was still playing I noticed one time.  With 
-2.4.5 (not -ac) I haven't had any deadlocks, but the system seems very 
-sluggish at acute moments .  While doing absolutely nothing processor 
-intensive (I've been loading up top and ps'ing with regularity when this 
-happens, looking for kswapd going crazy), when I switch between workspaces 
-the refresh is much more sluggish on occasion, like I can watch windows 
-appear.  Almost like a micro freeze really.
-(AMD T-Bird 1.333Mhz 256MB-DDR)
-
-> 2) Describe what you're feeling. (eg "interactivity is crap when I run
-> this or that thing", etc)
-
-Freeing memory takes *forever*, but I think that's a function of how I'm 
-allocing in this polygon rendering routine I'm working on.  Like literally 
-sucks up vast numbers of cycles and makes picogui totally unusable.  But I 
-think this is unrelated to the kernel..., I think that's just because I 
-haven't implemented re-use in memory structures for the polygon routine.  
-(It's malloc/freeing massive numbers of small chunks of memory rather than 
-doing it's own memory management, probably related to glibc memory 
-organization)
-
-Here's a vmstat line after a 8 days of uptime and before contrived mem tests:
-   procs                      memory    swap          io     system         
-cpu
- r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  
-id
- 1  0  0      0   3056   7856 121872   0   0     7     4   37    16   1   0  
-40
+---------- Forwarded message ----------
+Date: Thu, 7 Jun 2001 17:41:47 -0700
+From: Shane Nay <shane@minirl.com>
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps
 
 
-> If we need more info than that I'll request in private.
 >
-> Also send this reports to the linux-mm list, so other VM hackers can also
-> get those reports and we avoid traffic on lk.
+> Could you please try
+> http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.6pre1/2.4.6pre1-vm-
+>mt.patch and tell me if interactivity gets better?
+>
+> Thanks a lot!
 
-> By performance you mean interactivity or throughput?
+Okay, I tried 2.4.6pre1 plus the patch that you point to here.  Good and bad 
+news.  The bad news is I couldn't replicate my normal working enviroment 
+because the NVidia module blew up on insertion into the kernel.  (I think 
+some symbol mangling thing..., not sure, didn't look at too too closely)
 
-Interactivity.  I don't have any throughput needs to speak of.
+Anyway, so what I did instead was run my contrived tests in console mode 
+under both different versions several times.  And here is where the good news 
+comes in.  Yes, the 2.4.6pre1 plus the patch you sent does make the machine 
+much more "interactive" during high memory pressure/VM stress.  What happened 
+a couple times with 2.4.5 was that it literally hung half way through trying 
+to run the shell util free for a quite noticable amount of time, delaying 
+keyboard output to screen during that period at the console.  I repeated the 
+tests under the same precise conditions with 2.4.6pre1 but could not get it 
+to exhibit the same broken behaviour.
 
-I just ran a barage of tests on my machine, and the smallest it would ever 
-make the cache was 16M, it would prefer to kill processes rather than make 
-the cache smaller than that.
+The only thing that bugged me about 2.4.6pre1 + your patch's VM is that it 
+makes pretty broken choices as to what to OOM kill..., but I realize this is 
+a point of great controversy.  (It killed identd with great frequency for 
+some reason)  Anyway, the same is true of 2.4.5, it made what looked like the 
+same choices.  (But I didn't write that information down)  It was quite happy 
+with minimizing the cache, which 2.4.5 under console did as well.  But 2.4.5s 
+minimizing of the cache seemed to be what sort of started the slow down of 
+interactivity.
 
-Contrived stressor program: (pseudo code)
-fork(); fork(); fork(); fork();  //16 total processes
-for (i=0;i<n;i++) {
-  ptr=malloc(1M)
-  while(++m<ptrsize) ptr[m]='b';
-  sleep(2);
-}
-I would change n such that the total amount of memory was less than the 
-amount of cache plus free memory.  Running this put the entire system into 
-chaos in short order.  After it had killed off only one of the contrived 
-memory hungry processes and at least two others (MP3 player and opera), the 
-machine was slugish..., very slow to respond to any key input.  It stayed in 
-this near freeze state for about 20 seconds, after that it started to speed 
-up to user input gradually.  (Probably swapping code from disk into cache or 
-something like that)  It took about 5-10 minutes to come back "up to speed".
-
-> Just do what I described above.
-
-Done :).
-
-Thanks,
+Thank You,
 Shane Nay.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
