@@ -1,27 +1,28 @@
-Date: Sun, 9 Apr 2000 01:39:10 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
-In-Reply-To: <200004082321.QAA01209@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.21.0004090135050.620-100000@alpha.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 8 Apr 2000 16:44:14 -0700
+Message-Id: <200004082344.QAA02536@pizda.ninka.net>
+From: "David S. Miller" <davem@redhat.com>
+In-reply-to: <200004082111.OAA73647@google.engr.sgi.com>
+	(kanoj@google.engr.sgi.com)
+Subject: Re: zap_page_range(): TLB flush race
+References: <200004082111.OAA73647@google.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: kanoj@google.engr.sgi.com
+Cc: manfreds@colorfullife.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 8 Apr 2000, Kanoj Sarcar wrote:
+   > filemap_sync() calls flush_tlb_page() for each page, but IMHO this is a
+   > really bad idea, the performance will suck with multi-threaded apps on
+   > SMP.
 
->As I mentioned before, have you stress tested this to make sure grabbing
+   The best you can do probably is a flush_tlb_range?
 
-I have stress tested the whole thing (also a few minutes ago to check the
-latest patch) but it never locked up so we have to think about it.
+People, look at the callers of filemap_sync, it does range tlb/cache
+flushes so the flushes in filemap_sync_pte() are in fact spurious.
 
-Could you explain why you think it's the inverse lock ordering?
-
-Andrea
-
+Later,
+David S. Miller
+davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
