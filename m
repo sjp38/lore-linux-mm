@@ -1,87 +1,36 @@
-Date: Tue, 5 Jun 2001 12:32:35 +0200 (CEST)
-From: Mike Galbraith <mikeg@wen-online.de>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
 Subject: Re: Comment on patch to remove nr_async_pages limit
-In-Reply-To: <Pine.LNX.4.21.0106050307250.2846-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.33.0106051140270.1227-100000@mikeg.weiden.de>
+Date: Tue, 5 Jun 2001 07:42:28 -0400
+References: <Pine.LNX.4.33.0106051140270.1227-100000@mikeg.weiden.de>
+In-Reply-To: <Pine.LNX.4.33.0106051140270.1227-100000@mikeg.weiden.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <01060507422800.28232@oscar>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
+To: Mike Galbraith <mikeg@wen-online.de>, Marcelo Tosatti <marcelo@conectiva.com.br>
 Cc: Zlatko Calusic <zlatko.calusic@iskon.hr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 5 Jun 2001, Marcelo Tosatti wrote:
+Hi,
 
-> On Tue, 5 Jun 2001, Mike Galbraith wrote:
->
-> > On Mon, 4 Jun 2001, Marcelo Tosatti wrote:
-> >
-> > > Zlatko,
-> > >
-> > > I've read your patch to remove nr_async_pages limit while reading an
-> > > archive on the web. (I have to figure out why lkml is not being delivered
-> > > correctly to me...)
-> > >
-> > > Quoting your message:
-> > >
-> > > "That artificial limit hurts both swap out and swap in path as it
-> > > introduces synchronization points (and/or weakens swapin readahead),
-> > > which I think are not necessary."
-> > >
-> > > If we are under low memory, we cannot simply writeout a whole bunch of
-> > > swap data. Remember the writeout operations will potentially allocate
-> > > buffer_head's for the swapcache pages before doing real IO, which takes
-> > > _more memory_: OOM deadlock.
-> >
-> > What's the point of creating swapcache pages, and then avoiding doing
-> > the IO until it becomes _dangerous_ to do so?
->
-> Its not dangerous to do the IO. Now it _is_ dangerous to do the IO without
-> having any sane limit on the amount of data being written out at the same
-> time.
+To paraphase Mike,
 
-Yes.  If we start writing out sooner, we aren't stuck with pushing a
-ton of IO all at once and can use prudent limits.  Not only because of
-potential allocation problems, but because our situation is changing
-rapidly so small corrections done often is more precise than whopping
-big ones can be.
+We defer doing IO until we are under short of storage.  Doing IO uses storage.
+So delaying IO as much as we do forces us to impose limits.  If we did the IO
+earlier we would not need this limit often, if at all.
 
-> > That's what we're doing right now.  This is a problem because we
-> > guarantee it will become one.
->
-> Its not really about swapcache pages --- its about anonymous memory.
+Does this make any sense?
 
-(swapcache is the biggest pain in the butt for the portion of the spetrum
-I'm hammering on though)
+Maybe we can have the best of both worlds.  Is it possible to allocate the BH
+early and then defer the IO?  The idea being to make IO possible without having
+to allocate.  This would let us remove the async page limit but would ensure
+we could still free.
 
-> If you're memory is full of anonymous data, you have to push some of this
-> data to disk. (conceptually it does not really matter if its swapcache or
-> not, think about anonymous memory)
->
-> > We guarantee that the pagecache will become almost pure swapcache by
-> > delaying the writeout so long that everything else is consumed.
->
-> Exactly. And when we reach a low watermark of memory, we start writting
-> out the anonymous memory.
->
-> > In experiments, speeding swapcache pages on their way helps.  Special
-> > handling (swapcache bean counting) also helps. (was _really ugly_ code..
-> > putting them on a seperate list would be a lot easier on the stomach:)
->
-> I agree that the current way of limiting on-flight swapout can be changed
-> to perform better.
->
-> Removing the amount of data being written to disk when we have a memory
-> shortage is not nice.
-
-Here, that doesn't make any real difference.  We can have too many pages
-completing IO too late or too few.. problem is that they start coming
-out of the pipe too late.  I'd rather see my poor disk saturated than
-partly idle when my box is choking on dirtclods ;-)
-
-	-Mike
-
+Thoughts?
+Ed Tomlinson
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
