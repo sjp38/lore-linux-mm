@@ -1,47 +1,40 @@
-Date: Tue, 20 Jun 2000 13:20:19 +1000
-From: David Gibson <dgibson@linuxcare.com>
-Subject: Re: [PATCH] ramfs fixes
-Message-ID: <20000620132019.A28309@tweedle.linuxcare.com.au>
-References: <20000619182802.B22551@tweedle.linuxcare.com.au> <Pine.LNX.4.21.0006191059080.13200-100000@duckman.distro.conectiva>
-Mime-Version: 1.0
+Message-ID: <394F0B6C.3925591B@norran.net>
+Date: Tue, 20 Jun 2000 08:13:00 +0200
+From: Roger Larsson <roger.larsson@norran.net>
+MIME-Version: 1.0
+Subject: latancy test of -ac22-riel
+References: <Pine.LNX.4.21.0006192052001.7938-100000@duckman.distro.conectiva>
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0006191059080.13200-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, Jun 19, 2000 at 11:02:22AM -0300
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: David Gibson <dgibson@linuxcare.com>, linux-fsdevel@vger.rutgers.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 19, 2000 at 11:02:22AM -0300, Rik van Riel wrote:
-> On Mon, 19 Jun 2000, David Gibson wrote:
-> 
-> > The PG_dirty bit is cleared in add_to_swap_cache() and
-> > __add_to_page_cache() so this is kind of redundant, but the
-> > detach_page hook is good news in general.
-> 
-> Oww, good that you alert me to this bug. It makes no sense to
-> clear the bit there since we may have dirty pages in both the
-> filecache and the swapcache...
-> 
-> (well, it doesn't cause any bugs, but it could add some nasty
-> surprises later when we change the code so we can have dirty
-> pages in all the caches)
+Hi all,
 
-This actually went in somewhat recently, in 2.3.99pre something (where
-something is around 4 IIRC). This fixed a bug in ramfs, since
-previously the dirty bit was never being cleared.
+Things are looking better and better :-)
+Running with SCHED_FIFO now gives most interrupt to process
+latencies below 3 ms !!!
+(streaming 1.5 times RAM; read, write, copy tested)
 
-At the time ramfs was the *only* place using PG_dirty - it looked like
-it was just a misleading name for something analagous to BH_protected.
+But there are some, nowadays very few, spikes that hurts...
+Worst is above 100 ms
 
-Obviously that's not true any more. What does the PG_dirty bit mean
-these days?
+But in this kernel does not have the loop limits in shrink_mmap
 
--- 
-David Gibson, Technical Support Engineer, Linuxcare, Inc.
-+61 2 6262 8990
-dgibson@linuxcare.com, http://www.linuxcare.com/ 
-Linuxcare. Support for the revolution.
+/RogerL
+
+PS
+  Used test programs are at:
+  http://www.gardena.net/benno/linux/audio 
+  for test programs.
+DS
+
+--
+Home page:
+  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
