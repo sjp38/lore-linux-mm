@@ -1,50 +1,40 @@
-Subject: Re: [RFC] per thread page reservation patch
-References: <1105019521.7074.79.camel@tribesman.namesys.com>
-	<20050107144644.GA9606@infradead.org>
-	<1105118217.3616.171.camel@tribesman.namesys.com>
-	<41DEDF87.8080809@grupopie.com> <m1llb5q7qs.fsf@clusterfs.com>
-	<20050107132459.033adc9f.akpm@osdl.org> <m1d5wgrir7.fsf@clusterfs.com>
-	<20050107150315.3c1714a4.akpm@osdl.org> <m18y74rfqs.fsf@clusterfs.com>
-	<20050107154305.790b8a51.akpm@osdl.org> <20050109113551.GB9144@logos.cnet>
-From: Nikita Danilov <nikita@clusterfs.com>
-Date: Sun, 09 Jan 2005 21:16:24 +0300
-In-Reply-To: <20050109113551.GB9144@logos.cnet> (Marcelo Tosatti's message
- of "Sun, 9 Jan 2005 09:35:51 -0200")
-Message-ID: <m1k6qmcvt3.fsf@clusterfs.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.12.10/8.12.10) with ESMTP id j0A2wjgg025640
+	for <linux-mm@kvack.org>; Sun, 9 Jan 2005 21:58:45 -0500
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j0A2wjsq252952
+	for <linux-mm@kvack.org>; Sun, 9 Jan 2005 21:58:45 -0500
+Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
+	by d01av03.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j0A2wjdX008527
+	for <linux-mm@kvack.org>; Sun, 9 Jan 2005 21:58:45 -0500
+Subject: Re: page migration patch
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <41DEBB96.3030607@sgi.com>
+References: <41D99743.5000601@sgi.com>	<1104781061.25994.19.camel@localhost>
+	 <41D9A7DB.2020306@sgi.com> <20050104.234207.74734492.taka@valinux.co.jp>
+	 <41DAD2AF.80604@sgi.com> <1104860456.7581.21.camel@localhost>
+	 <41DADFB9.2090607@sgi.com>  <41DEBB96.3030607@sgi.com>
+Content-Type: text/plain
+Date: Sun, 09 Jan 2005 18:58:40 -0800
+Message-Id: <1105325920.6788.3.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Andrew Morton <akpm@osdl.org>, pmarques@grupopie.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hch@infradead.org
+To: Ray Bryant <raybry@sgi.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo.tosatti@cyclades.com> writes:
+On Fri, 2005-01-07 at 10:40 -0600, Ray Bryant wrote:
+> Attached is a trivial little patch that fixes the names on
+> the initial #ifdef and #define in linux/include/mmigrate.h
+> to match that file's name (it appears this was copied over from
+> some memory hotplug patch and was never updated....)
 
-[...]
+Looks obvious enough.  Thanks.
 
->
-> - all instances of an allocator from the current thread will eat from the perthread
->   reserves, you probably want only a few special allocations to eat from the reserves?
->   Thing is its not really a reservation intended for emergency situations,
->   rather a "generic per-thread pool" the way things are now.
+-- Dave
 
-Per-thread reservations are only useful when they are transparent. If
-users have to call special function, or to pass special flag to
-__alloc_pages() they might just use mempool as well. Idea is to reserve
-some number of pages before starting complex operation so that generic
-function (like find_get_page()) called as part of this operation are
-guaranteed to succeed.
-
->
-> - its a real fast path, we're adding quite some instructions there which are only
->   used by reiserfs now.
-
-Yes, this worries me too. Possibly we should move this check below in
-__alloc_pages(), so that per-thread reservation is only checked if
-fast-path allocation failed.
-
-Nikita.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
