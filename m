@@ -1,42 +1,45 @@
-Received: from host81-157-22-140.range81-157.btcentralplus.com ([81.157.22.140] helo=pop.linkpartne-1)
-	by astatine.webfusion.co.uk with asmtp (Exim 3.36 #1)
-	id 1C2nD4-0002ZB-00
-	for linux-mm@kvack.org; Thu, 02 Sep 2004 09:44:47 +0100
-Reply-To: "Richard Smith" <links@infofree.co.uk>
-From: "Richard Smith" <links@infofree.co.uk>
-Subject: Request to trade links with 
-Date: Thu, 2 Sep 2004 09:49:12 +0100
+Date: Thu, 2 Sep 2004 05:05:06 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: Kernel 2.6.8.1: swap storm of death - nr_requests > 1024 on swap
+ partition
+In-Reply-To: <20040831172531.GA18184@logos.cnet>
+Message-ID: <Pine.LNX.4.44.0409020502560.23477-100000@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Message-Id: <E1C2nD4-0002ZB-00@astatine.webfusion.co.uk>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Karl Vogel <karl.vogel@seagha.com>, Andrew Morton <akpm@osdl.org>, karl.vogel@pandora.be, axboe@suse.de, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 31 Aug 2004, Marcelo Tosatti wrote:
+> On Tue, Aug 31, 2004 at 08:24:31PM +0200, Karl Vogel wrote:
+> > On Tuesday 31 August 2004 18:52, Marcelo Tosatti wrote:
+> > > I've seen extreme decreases in performance (interactivity) with hungry
+> > > memory apps with Rik's swap token code.
+> > 
+> > Decrease?!
+> 
+> Yep, its odd. Rik knows the exact reason.
 
-I came across your site at  and wondered if you would like to trade links with a business opportunity site, www.4freepack.com for our mutual benefit in search engine rankings.
+Yes, it appears that the swap token patch works great on
+systems where the workload consists of similar applications.
+If you have a desktop, the swap token makes switching between
+apps faster.  If you have a server, the swap token helps
+increase throughput.
 
-Adding your link to the directory is easy with the automated link exchange system, simply add the following link details into your links page, then choose a category here: www.4freepack.com/directory/ .. and then submit your link by clicking on "submit your link". Our link system will then check your site to verify our link details are correct, and then approve your link within in a matter of minutes. It's simple and easy!
+However, if you have one app that needs more memory than the
+system has and the rest of the apps are all "friendly", then
+the swap token can help the system hog steal resources from
+the other processes.
 
-Our link details:
+This needs to be fixed somehow, but I'm at a conference now
+so I don't think I'll get around to it this week ;)
 
-Category: Business Opportunity / Work From Home / Franchises / Business
- 
-Anchor text: Franchise UK Opportunity
-URL: http://www.4freepack.com
-Description: The number one franchise opportunity in the UK and Ireland. Start-up costs less than GBP200.00p! Apply now for your free information pack.
-
-If you would like us to add your link information for you, please return your details to us, along with the location of our link on your pages. We will do the rest and you will be notified by email when you link is online, usually within an hour.
-
-Thankyou for taking the time to read this email and if it is of no interest to you I will not contact you again.
- 
-Kind Regards, 
- 
-Richard Smith
-http://www.4freepack.com
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
