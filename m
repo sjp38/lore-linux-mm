@@ -2,39 +2,32 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14199.63731.189456.865467@dukat.scot.redhat.com>
-Date: Mon, 28 Jun 1999 23:36:35 +0100 (BST)
-Subject: Re: filecache/swapcache questions
-In-Reply-To: <199906211846.LAA91751@google.engr.sgi.com>
-References: <14190.31543.461985.372712@dukat.scot.redhat.com>
-	<199906211846.LAA91751@google.engr.sgi.com>
+Message-ID: <14199.62101.566519.64494@dukat.scot.redhat.com>
+Date: Mon, 28 Jun 1999 23:09:25 +0100 (BST)
+Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
+In-Reply-To: <199906281955.MAA06984@google.engr.sgi.com>
+References: <Pine.BSO.4.10.9906281530400.24888-100000@funky.monkey.org>
+	<199906281955.MAA06984@google.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+Cc: Chuck Lever <cel@monkey.org>, andrea@suse.de, torvalds@transmeta.com, sct@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Mon, 21 Jun 1999 11:46:27 -0700 (PDT), kanoj@google.engr.sgi.com
+On Mon, 28 Jun 1999 12:55:23 -0700 (PDT), kanoj@google.engr.sgi.com
 (Kanoj Sarcar) said:
 
->> Look no further than swap_in(), which knows that there is no pte (so
->> swapout concurrency is not a problem) and it holds the mmap lock (so
->> there are no concurrent swap_ins on the page).  It reads in the page adn
->> unconditionally sets up the pte to point to it, assuming that nobody
->> else can conceivably set the pte while we do the swap outselves.
+> Agreed this would be a nice thing to be able to do ...  Other than the
+> deadlock problem, there's another issue involved, I think. Processes
+> can go to sleep (inside drivers/fs for example while
+> mmaping/munmaping/faulting) holding their mmap_sem, so any solution
+> should be able to guarantee that (at least one of) the memory free'ers
+> do not go to sleep indefinitely (or for some time that is upto
+> driver/fs code to determine).
 
-> Hmm, am I being fooled by the comment in swap_in?
-
-> /*
->  * The tests may look silly, but it essentially makes sure that
->  * no other process did a swap-in on us just as we were waiting.
->  *
-
-afaik only swapoff can trigger that.  Concurrent swap-in on the same
-entry can occur into the page cache, but not into the page tables
-because those are protected by the semaphore.
+Which is why we don't take the mm semaphore in swapout.
 
 --Stephen
 --
