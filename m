@@ -1,38 +1,32 @@
-Date: Thu, 20 Jul 2000 12:12:39 -0700 (PDT)
-From: Ivan Passos <lists@cyclades.com>
-Subject: Re: phys-to-virt kernel mapping and ioremap()
-In-Reply-To: <20000720183534Z156966-31297+1096@vger.rutgers.edu>
-Message-ID: <Pine.LNX.4.10.10007201208210.11710-100000@main.cyclades.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 20 Jul 2000 14:47:44 -0500
+From: Timur Tabi <ttabi@interactivesi.com>
+References: <20000719181648Z131171-4588+3@kanga.kvack.org> <20000720154702Z131167-4587+7@kanga.kvack.org>
+In-Reply-To: <397725F8.34744F7A@colorfullife.com>
+Subject: Re: Marking a physical page as uncacheable
+Message-Id: <20000720200754Z131167-4584+7@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel Mailing list <linux-kernel@vger.rutgers.edu>
-Cc: Linux MM mailing list <linux-mm@kvack.org>
+To: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 20 Jul 2000, Timur Tabi wrote:
-> 
-> > Timur> 1) Doesn't this mapping break the phys_to_virt and virt_to_phys
-> > Timur> macros?
-> > 
-> > Those two macros are not defined on ioremap'ed regions so it is
-> > irrelevant.
-> 
-> In that case, how do I do virt-to-phys and phys-to-virt translations on the
-> memory addresses for ioremap'ed regions?
+** Reply to message from Manfred Spraul <manfred@colorfullife.com> on Thu, 20
+Jul 2000 18:16:56 +0200
 
-Why would you wanna do that for a PCI MMIO region??
 
-1) ioremap(PCI_addr) returns a virtual address.
-2) Use read[bwl], write[bwl], memcpy_toio, memcpy_fromio, memset_io ...
-   with the obtained virtual address to access the MMIO region.
+> You could use ClearPageReserved() + ioremap(), but ioremap() is limited
+> to the first 4 GB.
 
-What else do you need?? Please let us know.
+Is there an ioUNremap()?  I need to perform tests on the memory region with the
+cache disabled.  If the tests don't reveal what I'm looking for, then I need to
+unallocate the block.  
 
-Regards,
-Ivan
 
+
+--
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
+
+When replying to a mailing-list message, please don't cc: me, because then I'll just get two copies of the same message.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
