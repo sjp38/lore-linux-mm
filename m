@@ -1,51 +1,55 @@
-Message-ID: <39C91CC8.F8D27899@norran.net>
-Date: Wed, 20 Sep 2000 22:23:36 +0200
-From: Roger Larsson <roger.larsson@norran.net>
+Received: from localhost (garlick@localhost)
+	by spork.llnl.gov (8.9.3/8.9.3) with ESMTP id RAA06508
+	for <linux-mm@kvack.org>; Wed, 20 Sep 2000 17:07:34 -0700
+Date: Wed, 20 Sep 2000 17:07:32 -0700 (PDT)
+From: Jim Garlick <garlick@llnl.gov>
+Subject: 2.2.14 - pte's not cleared before fop->mmap?
+Message-ID: <Pine.LNX.4.21.0009201700300.6478-100000@spork.llnl.gov>
 MIME-Version: 1.0
-Subject: 2.4.0-test9-pre4: __alloc_pages(...) try_again:
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@conectiva.com.br>, "Juan J. Quintela" <quintela@fi.udc.es>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
+I'm working on a driver (2.2.14 / alpha) which has an mmap facility.  
+In my fop->mmap function, just prior to calling remap_page_range to 
+actually perform the mapping, I scan the user virtual address space I'm 
+about to map to look for pte's that are not clear.  Occasionally I find 
+a range that has valid pte's in it, pointing to strange physical addresses:
 
-Trying to find out why test9-pre4 freezes with mmap002
-I added a counter for try_again loops.
+verify_area_isclean: uaddr=20000800000 already mapped to paddr=0
+verify_area_isclean: uaddr=20000802000 already mapped to paddr=1ffff1002000
+verify_area_isclean: uaddr=20000804000 already mapped to paddr=0
+verify_area_isclean: uaddr=20000806000 already mapped to paddr=1ffff1002000
+verify_area_isclean: uaddr=20000808000 already mapped to paddr=0
+verify_area_isclean: uaddr=2000080e000 already mapped to paddr=0
+verify_area_isclean: uaddr=20000810000 already mapped to paddr=0
+verify_area_isclean: uaddr=20000812000 already mapped to paddr=1002000
+verify_area_isclean: uaddr=20000814000 already mapped to paddr=1002000
+verify_area_isclean: uaddr=20000816000 already mapped to paddr=1002000
+verify_area_isclean: uaddr=2000081e000 already mapped to paddr=1ffff0000000
+verify_area_isclean: uaddr=20000820000 already mapped to paddr=1002000
+verify_area_isclean: uaddr=20000822000 already mapped to paddr=6000
+verify_area_isclean: uaddr=20000824000 already mapped to paddr=1ffff0000000
+verify_area_isclean: uaddr=20000828000 already mapped to paddr=0
+verify_area_isclean: uaddr=2000082a000 already mapped to paddr=6e77c000
+verify_area_isclean: uaddr=2000082c000 already mapped to paddr=0
+verify_area_isclean: uaddr=2000082e000 already mapped to paddr=0
+verify_area_isclean: uaddr=20000830000 already mapped to paddr=1ffff0000000
+...
 
-... __alloc_pages(...)
 
-        int direct_reclaim = 0;
-        unsigned int gfp_mask = zonelist->gfp_mask;
-        struct page * page = NULL;
-+       int try_again_loops = 0;
+I'm at a loss as to why this is the case.  It looks like do_mmap calls
+do_munmap, which calls zap_page_range on the pte's just prior to calling
+my fop->mmap function, so the range should be clear, right?
 
-- - -
+This only occurs occasionally.  Any thoughts would be appreciated.
 
-+         printk("VM: sync kswapd (direct_reclaim: %d) try_again #
-%d\n",
-+                direct_reclaim, ++try_again_loops);
-                        wakeup_kswapd(1);
-                        goto try_again;
+Jim
 
-
-Result was surprising:
-  direct_reclaim was 1.
-  try_again_loops did never stop increasing (note: it is not static,
-  and should restart from zero after each success)
-
-Why does this happen?
-a) kswapd did not succeed in freeing a suitable page?
-b) __alloc_pages did not succeed in grabbing the page?
-
-/RogerL
-
---
-Home page:
-  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
