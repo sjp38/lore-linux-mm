@@ -1,59 +1,35 @@
-Message-ID: <39472366.6E417A20@sgi.com>
-Date: Tue, 13 Jun 2000 23:17:10 -0700
-From: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Message-ID: <3945ED59.F13FFADC@optronic.se>
+From: Roger Larsson <roger.larsson@optronic.se>
+Reply-To: roger.larsson@norran.net
 MIME-Version: 1.0
 Subject: Re: [patch] improve streaming I/O [bug in shrink_mmap()]
-References: <8i3qe8$lltbv$1@fido.engr.sgi.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Date: Tue, 13 Jun 2000 10:10:33 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> 
-	[ ... ]
+> On Mon, 12 Jun 2000, Stephen C. Tweedie wrote:
+> > On Mon, Jun 12, 2000 at 11:46:09PM +0200, Zlatko Calusic wrote:
+> > > 
+> > > This simple one-liner solves a long standing problem in Linux VM.
+> > > While searching for a discardable page in shrink_mmap() Linux was too
+> > > easily failing and subsequently falling back to swapping. The problem
+> > > was that shrink_mmap() counted pages from the wrong zone, and in case
+> > > of balancing a relatively smaller zone (e.g. DMA zone on a 128MB
+> > > computer) "count" would be mistakenly spent dealing with pages from
+> > > the wrong zone. The net effect of all this was spurious swapping that
+> > > hurt performance greatly.
+> > 
+> > Nice --- it might also explain some of the excessive kswap CPU 
+> > utilisation we've seen reported now and again.
 > 
 > Indeed. And to be honest, the patch can be made even simpler.
 > 
 > We can simply move the test up to above the count--, so we won't
 > start IO for the "wrong" zones either.
-
-No, I think that leads to other problems. Almost a month ago,
-when pre6-8 was having serious issues here, I also happened
-to chance on the same set of problems. And here's the summary
-of the discussions with Linus: (1) shrink_mmap should
-not give up having tried one of the pages from a balanced zone
-(2) regardless of zone being balanced or not, memory pressure
-should trigger I/O. Otherwise the buffer-heads attached to the
-pages in the balanced zones can never be recovered in time.
-Here's a quote from Linus' message:
-
------------- Begin Quote ------------------------------------------
-Linus Torvalds wrote:
-> 
-        [ ... ]
-> 
-> The "don't page out pages from zones that don't need it" test is a good
-> test, but it turns out that it triggers a rather serious problem: the way
-> the buffer cache dirty page handling is done is by having shrink_mmap() do
-> a "try_to_free_buffers()" on the pages it encounters that have
-> "page->buffer" set.
-> 
-> And doing that is quite important, because without that logic the buffers
-> don't get written to disk in a timely manner, nor do already-written
-> buffers get refiled to their proper lists. So you end up being "out of
-> memory" - not because the machine is really out of memory, but because
-> those buffers have a tendency to stick around if they aren't constantly
-> looked after by "try_to_free_buffers()".
-> 
-> So the real fix ended up being to re-order the tests in shrink_mmap() a
-> bit, so that try_to_free_buffers() is called even for pages that are on
-> a good zone that doesn't need any real balancing..
-------------------------- End Quote ------------------------
-
-.... Back to Rik's message ....
 > 
 > There's only one serious bug left with the current shrink_mmap,
 > a bug which appears to be easy to trigger with this patch, but
@@ -69,16 +45,13 @@ Linus Torvalds wrote:
 > triggering this bug.
 
 
-This, I agree. And something I gave up trying to bring up earlier as well:
-There should be some mechanism to check that enough pages have been examined
-in the presence of pages from balanced zones.
+An I have already released such a patch.
+See "reduce swap due to shrink_mmap failures".
 
+But it is probable that we should clean pages (= start I/O) even on
+zones with no pressure - like Rajagopal reported.
 
-
---------------------------------------------------------------------------
-Rajagopal Ananthanarayanan ("ananth")
-Member Technical Staff, SGI.
---------------------------------------------------------------------------
+/RogerL
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
