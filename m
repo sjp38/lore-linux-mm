@@ -1,63 +1,37 @@
-Date: Tue, 15 Feb 2005 06:15:52 -0600
-From: Robin Holt <holt@sgi.com>
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
-Message-ID: <20050215121552.GB20607@lnx-holt.americas.sgi.com>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <42114279.5070202@sgi.com> <20050215115302.GB19586@wotan.suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20050215115302.GB19586@wotan.suse.de>
+Message-ID: <incredulous-edzyirg@houseofsmack.net>
+Reply-To: "wiest kiet" <dwarves.820919julien@houseofsmack.net>
+From: "wiest kiet" <dwarves.820919julien@houseofsmack.net>
+Subject: Application Form Accepted
+Date: Tue, 15 Feb 2005 17:04:42 +0200
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--804468_175326.XO59"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Ray Bryant <raybry@sgi.com>, Andi Kleen <ak@muc.de>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, stevel@mvista.com
+To: linux-mm@kvack.org
+Cc: ner-linux-aio@kvack.orger-linux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 15, 2005 at 12:53:03PM +0100, Andi Kleen wrote:
-> > (2)  You really only want to migrate pages once.  If a file is mapped
-> >      into several of the pid's that are being migrated, then you want
-> >      to figure this out and issue one call to have it moved wrt one of
-> >      the pid's.
-> >      (The page migration code from the memory hotplug patch will handle
-> >      updating the pte's of the other processs (thank goodness for
-> >      rmap...))
-> 
-> I don't get this. Surely the migration code will check if a page
-> is already in the target node, and when that is the case do nothing.
-> 
-> How could this "double migration" happen? 
+----804468_175326.XO59
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7Bit
 
-A node is not always equal distant to a cpu.  We need to keep node-to-cpu
-distant relatively constant between the original and final placement.
-There may be a time where you are moving stuff from node 8 to node 4
-and stuff from node 12 to node 8.  If you scan the vmas for both the
-processes in the wrong order you will migrate memory from node 12 to 8
-for the second process and then from node 8 to node 4 for the second.
+Hello Account #7297475,
 
-> > (3)  In the case where a particular file is mapped into different
-> >      processes at different file offsets (and we are migrating both
-> >      of the processes), one has to examine the file offsets to figure
-> >      out if the mappings overlap or not. If they overlap, then you've
-> >      got to issue two calls, each of which describes a non-overlapping
-> >      region; both calls taken together would cover the entire range
-> >      of pages mapped to the file.  Similarly if the ranges do not
-> >      overlap.
-> 
-> That sounds like a quite obscure corner case which I'm not sure
-> is worth all the complexity.
+Your application was approved. You are eligible for $400,000 with a 3.7 % rate.
 
-So obscure that nearly every example batch job we looked at had exactly
-this circumstance.  Turns out that quite a few batch jobs we looked at
-have a parent that maps their working set initially.  After the workers
-are forked, they map some part of the same data file to different parts
-of their own address space.  They also commonly map over the top of the
-large file mapping that was originally done leaving us with a jumble of
-address space.  This really showed the need for a user-space application
-to figure the problem out and allow the flexibility to come up with more
-advanced migration algorithms.
+Please confirm your information here: http://low-rate-mort-gages.com/2/index/mal/marmillo
 
-Thanks,
-Robin
+We look forward to hearing from you.
+
+Regards,
+wiest kiet, Senior Account Manager
+FTK Financial Group
+
+r*mv. -> http://low-rate-mort-gages.com/rem.php
+
+----804468_175326.XO59--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
