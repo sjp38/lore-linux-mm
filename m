@@ -1,54 +1,67 @@
-Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA19221
-	for <linux-mm@kvack.org>; Fri, 28 Aug 1998 06:25:37 -0400
-Date: Fri, 28 Aug 1998 10:35:36 +0100
-Message-Id: <199808280935.KAA06221@dax.dcs.ed.ac.uk>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from flinx.npwt.net (inetnebr@oma-pm1-002.inetnebr.com [206.222.220.46])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA20388
+	for <linux-mm@kvack.org>; Fri, 28 Aug 1998 10:28:33 -0400
 Subject: Re: [PATCH] 498+ days uptime
-In-Reply-To: <87ww7v73zg.fsf@atlas.CARNet.hr>
 References: <199808262153.OAA13651@cesium.transmeta.com>
 	<87ww7v73zg.fsf@atlas.CARNet.hr>
+	<199808271207.OAA15842@hwal02.hyperwave.com>
+	<87emu2zkc0.fsf@atlas.CARNet.hr>
+	<199808271243.OAA28073@hwal02.hyperwave.com>
+	<m1d89lex3t.fsf@flinx.npwt.net>
+	<199808280909.LAA19060@hwal02.hyperwave.com>
+From: ebiederm@inetnebr.com (Eric W. Biederman)
+Date: 28 Aug 1998 08:14:57 -0500
+In-Reply-To: Bernhard Heidegger's message of Fri, 28 Aug 1998 11:09:59 +0200 (MET DST)
+Message-ID: <m1btp5dz8u.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: Zlatko.Calusic@CARNet.hr
-Cc: "H. Peter Anvin" <hpa@transmeta.com>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, Linux-MM List <linux-mm@kvack.org>
+To: Bernhard Heidegger <bheide@hyperwave.com>
+Cc: "Eric W. Biederman" <ebiederm@inetnebr.com>, Zlatko.Calusic@CARNet.hr, "H. Peter Anvin" <hpa@transmeta.com>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, Linux-MM List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+>>>>> "BH" == Bernhard Heidegger <bheide@hyperwave.com> writes:
 
-On 27 Aug 1998 00:49:55 +0200, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-said:
+>>>>> ">" == Eric W Biederman <ebiederm@inetnebr.com> writes:
 
-> I thought it was done this way (update running in userspace) so to
-> have control how often buffers get flushed. But, I believe bdflush
-> program had this functionality, and it is long gone (as you correctly
-> noticed).
+>>> bdflush lets buffers sit for 30 seconds and every 5 seconds it checks
+>>> for buffers that are at least 30 seconds old and flushes them.
 
-update(8) _is_ the old bdflush program. :)
+BH> Ahh, is this bh->b_flushtime?
+yes.
 
-There are two entirely separate jobs being done.  One is to flush all
-buffers which are beyond their dirty timelimit: that job is done by the
-bdflush syscall called by update/bdflush every 5 seconds.  The second
-job is to trickle back some dirty buffers to disk if we are getting
-short of clean buffer space in memory. 
+>>> bdflush does most of the work.
 
-These are completely different jobs.  They select which buffers and how
-many buffers to write based on different criteria, and they are woken up
-by different events.  That's why we have two daemons.  The fact that one
-spends its wait time in user mode and one spends its time in kernel mode
-is irrelevant; even if they were both kernel threads we'd still have two
-separate jobs needing done.
+BH> Yes, I know :-(
 
-> I'm crossposting this mail to linux-mm where some clever MM people can
-> be found. Hopefully we can get an explanation why do we still need
-> update.
+BH> Is it possible to reduce the sync_old_buffers() routine to soemthing like:
 
-Because kflushd does not do the job which update needs to do.  It does a
-different job.
+>>> No.  Major performance problem.
 
---Stephen 
+BH> Why?
+
+BH> Imagine an application which has most of the (index) file pages in memory
+BH> and many of the pages are dirty. bdflush will flush the pages regularly,
+BH> but the pages will get dirty immediately again.
+BH> If you can be sure, that the power cannot fail the performance should be
+BH> much better without bdflush, because kflushd has to write pages only if
+BH> the system is running low on memory...
+
+The performance improvement comes when looking for free memory.  In
+most cases bdflush's slow but steady writing of pages keeps buffers
+clean.  When the application wants more memory with bdflush in the
+background unsually the pages it needs will be clean (because the I/O
+started before the application needed it), so they can just be dropped
+out of memory.  Relying on kflushd means nothing is written until an
+application needs the memory and then it must wait until something is
+written to disk, which is much slower.
+
+Further 
+a) garanteeing no power failure is hard.
+b) generally there is so much data on the disk you must write it
+   sometime, because you can't hold it all in memory.
+c) I have trouble imagining a case where a small file would be rewritten
+   continually.
+
+Eric 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
