@@ -1,53 +1,54 @@
-From: James A. Sutherland <jas88@cam.ac.uk>
-Subject: Re: suspend processes at load
-Date: Fri, 20 Apr 2001 07:35:06 +0100
-Message-ID: <d3mvdtsi5qivmim4o2uji2ca97017qq71f@4ax.com>
-References: <1809062307.20010319210655@dragon.cz> <rnhudtssc00ia2r1unis96lfjd2slb8mup@4ax.com> <m1g0f4rz0v.fsf@frodo.biederman.org>
-In-Reply-To: <m1g0f4rz0v.fsf@frodo.biederman.org>
+Date: Fri, 20 Apr 2001 14:14:29 +0200 (MET DST)
+From: Szabolcs Szakacsits <szaka@f-secure.com>
+Subject: Re: suspend processes at load (was Re: a simple OOM ...)
+In-Reply-To: <mibudt848g9vrhaac88qjdpnaut4hajooa@4ax.com>
+Message-ID: <Pine.LNX.4.30.0104201203280.20939-100000@fs131-224.f-secure.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: happz <happz@dragon.cz>, linux-mm@kvack.org
+To: "James A. Sutherland" <jas88@cam.ac.uk>
+Cc: Dave McCracken <dmc@austin.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 19 Apr 2001 22:11:28 -0600, you wrote:
+On Thu, 19 Apr 2001, James A. Sutherland wrote:
 
->"James A. Sutherland" <jas88@cam.ac.uk> writes:
->
->> On Mon, 19 Mar 2001 21:06:55 +0100, you wrote:
->> 
->> >What about this: give to process way how to tell kernel "it is not
->> >good to suspend me, because there are process' that depend on me and
->> >wouldn't be blocked." Syscall or /proc filesystem could be used.
->> >
->> >It is not the way how to say which process should be suspended but a
->> >way how to say which could NOT - usefull for example for X server, may
->> >be some daemons, aso.
->> 
->> Possibly; TBH, I don't think it's worth it. Remember, "suspending" X
->> would just stop your mouse moving etc. for (e.g.) 5 seconds; in fact,
->> that should block most graphical processes, which may well resolve the
->> thrashing in itself!
->
->Actually we should only apply suspension and the like to SCHED_OTHER.
->The realtime scheduling classes should be left as is.  If an
->application is safe to run realtime, it should be o.k. in the
->thrashing situation. 
->
->Also actually suspending a realtime process would be a violation of
->the realtime scheduling guarantees, where with SCHED_OTHER you can be
->expected to be suspended at any time.
+> That's my suspicion too: The "strangled" processes eat up system
+> resources and still get nowhere (no win there: might as well suspend
+> them until they can run properly!) and you are wasting resources which
+> could be put to good use by other processes.
 
-Yes, I was taking that for granted; apart from anything else, realtime
-processes are "supposed to" (according to the manpages, anyway!) be
-mlock()ed, which makes suspending them pointless: it won't free any
-memory anyway.
+You assumes processes are completely equal or their goodnesses are based
+on their thrasing behavior. No. Processes are not like that from user
+point of view (admins, app developers) moreover they can have complex
+relationships between them.
+
+Kernel must give mechanisms to enforce policies, not to dictate them.
+And this can be done even at present. You want to create and solve a
+problem that doesn't exist because you don't want to RTFM.
+
+> More to the point, though, what about the worst case, where every
+> process is thrashing?
+
+What about the simplest case when one process thrasing? You suspend it
+continuously from time to time so it won't finish e.g. in 10 minutes but
+in 1 hour.
+
+> With my approach, some processes get suspended, others run to
+> completion freeing up resources for others.
+
+This is black magic also. Why do you think they will run to completion
+or/and free up memory?
+
+> With this approach, every process will still thrash indefinitely:
+> perhaps the effects on other processes will be reduced, but you
+> don't actually get out of the hole you're in!
+
+So both approach failed.
+
+	Szaka
 
 
-James.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
