@@ -1,46 +1,43 @@
-Date: Mon, 9 Oct 2000 20:11:33 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Write-back/VM question
-In-Reply-To: <39E25034.6B1203CE@sgi.com>
-Message-ID: <Pine.LNX.4.21.0010092010480.1562-100000@duckman.distro.conectiva>
+From: "Albert D. Cahalan" <acahalan@cs.uml.edu>
+Message-Id: <200010092313.e99NDQX173855@saturn.cs.uml.edu>
+Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
+Date: Mon, 9 Oct 2000 19:13:25 -0400 (EDT)
+In-Reply-To: <200010092207.PAA08714@pachyderm.pa.dec.com> from "Jim Gettys" at Oct 09, 2000 03:07:53 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: linux-mm@kvack.org
+To: Jim Gettys <jg@pa.dec.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2000, Rajagopal Ananthanarayanan wrote:
+Jim Gettys writes:
+>> From: Linus Torvalds <torvalds@transmeta.com>
 
-> One of the behaviors of the new VM seems to be that it starts
-> I/O on a written page fairly early. This "aggressive" write is
-> great for streaming I/O, but seems to have a penalty when the
-> application has write-locality. Dbench is a one case, which is
-> write intensive and a lot of the writes are to a previously
-> written page.
-> 
-> I'm not exactly certain why starting write-out early would cause
-> problems, but I've a couple of quick questions:
-> 
-> 1. Is the page locked during write-out?
+>> One of the biggest bitmaps is the background bitmap. So you have a
+>> client that uploads it to X and then goes away. There's nobody to
+>> un-count to by the time X decides to switch to another background.
+>
+> Actually, the big offenders are things other than the background
+> bitmap: things like E do absolutely insane things, you would not
+> believe (or maybe you would).  The background pixmap is generally
+> in the worst case typically no worse than 4 megabytes (for those
+> people who are crazy enough to put images up as their root window
+> on 32 bit deep displays, at 1kX1k resolution).
 
-The buffers on the page are. I'm not sure about the page
-itself though ...
+Still, it would be nice to recover that 4 MB when the system
+doesn't have any memory left.
 
-> 2. Is there a tuneable that I can use to
->    control write-back behaviour?
+X, and any other big friendly processes, could participate in
+memory balancing operations. X could be made to clean out a
+font cache when the kernel signals that memory is low. When
+the situation becomes serious, X could just mmap /dev/zero over
+top of the background image.
 
-/proc/sys/vm/bdflush, first value
+Netscape could even be hacked to dump old junk... or if it is
+just too leaky, it could exec itself to fix the problem.
 
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
