@@ -1,35 +1,31 @@
-Date: Fri, 23 Jun 2000 00:59:45 +0100
-From: Stephen Tweedie <sct@redhat.com>
+Received: from oscar (localhost [127.0.0.1])
+	by oscar.casa.dyndns.org (Postfix) with SMTP id A635FD0D7
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2000 20:52:19 -0400 (EDT)
+From: Ed Tomlinson <tomlins@cam.org>
+Reply-To: tomlins@cam.org
 Subject: Re: [RFC] RSS guarantees and limits
-Message-ID: <20000623005945.E9244@redhat.com>
-References: <Pine.LNX.4.21.0006221834530.1137-100000@duckman.distro.conectiva> <m2itv19vt9.fsf@boreas.southchinaseas>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <m2itv19vt9.fsf@boreas.southchinaseas>; from vii@penguinpowered.com on Thu, Jun 22, 2000 at 11:48:18PM +0100
+Date: Thu, 22 Jun 2000 20:49:41 -0400
+Content-Type: text/plain
+References: <Pine.LNX.4.21.0006222022420.1137-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0006222022420.1137-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Message-Id: <00062220521900.11608@oscar>
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Fremlin <vii@penguinpowered.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Thu, Jun 22, 2000 at 11:48:18PM +0100, John Fremlin wrote:
-> 
-> I booted up with mem=8M today, and found that even small things like
-> bash were about 20% of system ram. By not letting a single big process
-> (about the biggest that'd fit was emacs) get most all of the memory
-> from the various junk that wasn't being used, the system would be
-> completely unusable rather than merely a little slow.
+Just wondering what will happen with java applications?  These beasts
+typically have working sets of 16M or more and use 10-20 threads.  When
+using native threads linux sees each one as a process.  They all share 
+the same memory though.
 
-The RSS bounds are *DYNAMIC*.  If there is contention for memory ---
-if lots of other processes want the memory that that emacs is 
-holding --- then absolutely you want to cut back on the emacs RSS.
-If there is no competition, and emacs is the only active process, then
-there is no need to prune its RSS.
-
---Stephen
+-- 
+Ed Tomlinson <tomlins@cam.org>
+http://www.cam.org/~tomlins/njpipes.html
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
