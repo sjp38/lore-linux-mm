@@ -1,31 +1,45 @@
-Subject: mm1/2 stops while booting
-From: dave! <ag051379@hotmail.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Message-Id: <1061985422.4317.14.camel@federal-ohtekie>
+Date: Thu, 28 Aug 2003 09:02:40 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: 2.6.0-test4-mm2
+Message-Id: <20030828090240.2cccf4d9.akpm@osdl.org>
+In-Reply-To: <1062075227.422.2.camel@lorien>
+References: <20030826221053.25aaa78f.akpm@osdl.org>
+	<1062075227.422.2.camel@lorien>
 Mime-Version: 1.0
-Date: Wed, 27 Aug 2003 21:57:02 +1000
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br> wrote:
+>
+> when using the hdparm program, thus:
+> 
+>  # hdparm /dev/hda
+> 
+>  I'm getting this:
+> 
+>  Oops: 0000 [#1]
 
-test4-mm1 and mm2 just stall while booting for me at this part of
-bootup, disk activity stops, waited a few minutes but still nothing
+This should fix it.
 
-drivers/usb/core/usb.c: registered new driver hid
-drivers/usb/input/hid-core.c: v2.0:USB HID core driver
-mice: PS/2 mouse device common for all mice
-gamecon.c: Pad type -1069438251 unknown
-input: PSX controller on parport0
+--- 25/include/linux/genhd.h~large-dev_t-12-fix	2003-08-27 10:36:32.000000000 -0700
++++ 25-akpm/include/linux/genhd.h	2003-08-27 10:36:32.000000000 -0700
+@@ -197,7 +197,7 @@ extern void rand_initialize_disk(struct 
+ 
+ static inline sector_t get_start_sect(struct block_device *bdev)
+ {
+-	return bdev->bd_part->start_sect;
++	return bdev->bd_contains == bdev ? 0 : bdev->bd_part->start_sect;
+ }
+ static inline sector_t get_capacity(struct gendisk *disk)
+ {
 
-then nothing...
+_
 
-Ive used most versions of the mm patchset with the test kernels without
-problems, havnt tried vanilla test4 yet, but before I do how do I go
-about capturing the text from a failed boot? I'm using grub btw
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
