@@ -1,37 +1,41 @@
-Date: Mon, 14 Feb 2005 14:04:18 -0700
-Message-Id: 200410150705.i9F750Kk01345738.i93RpjTw002443@b-mail09.real-email.net>
-From: "Lynne Foreman" <mazey@yebox.com>
-Subject: 3.25% rate approval
-Mime-Version: 1.0
-Content-Type: text/plain;
-Return-Path: <mazey@yebox.com>
+Message-Id: <521.3@melbpc.org.au>
+Date: Fri, 04 Mar 2005 17:06:13 +0300
+From: "Kristina Kyle" <vlpexgjdafveez@esquinadelasflores.com.ar>
+Subject: It doesn`t hurt to check Emil
+In-Reply-To: <5180929.00b0a2670@designs.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-mm-archive@kvack.org, mailer-daemon@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.orgux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Would you REFINANCE if you knew you'd save THOUSANDZ?
+Or get a Loan of 405,000.00, you already qualified.
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+We'll get you the lowest possible rate.
+Don't believe me? Fill out our small online questionaire and we'll show you how.
 
- You have qualified for the lowest rate in years...
+Get the home/house or car you always wanted, it only takes 35 seconds of your time.
 
- You could get over $380,000 for as little as $500 a month!
+Click this link:
+http://www.low-mo-rt-gag-e.com/1/index/bvk
 
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
-
- 
- To get a free, no obli,gation consultation click below:
-
- http://www.fasteratez.com/x/loan.php?id=nu
-
+Best Regards,
+Kristina Kyle
 
 
- Best Regards,
 
- Enrique Houser
- 
- to be remov(ed:	http://www.fasteratez.com/x/st.html
 
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+
+
+
+
+
+
+
+concept pwo allemand qa sevenfold pjw strife uom morphology cc snyder msz 
+jackknife dao cult ct [2
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
