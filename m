@@ -1,42 +1,61 @@
-Date: Wed, 17 Nov 1999 05:18:33 +0100 (CET)
-From: Mike Galbraith <mikeg@weiden.de>
-Subject: Re: [patch] zoned-2.3.28-K2 [ramdisk OOM]
-In-Reply-To: <Pine.LNX.4.10.9911161329430.3924-100000@chiara.csoma.elte.hu>
-Message-ID: <Pine.Linu.4.10.9911170454270.418-100000@mikeg.weiden.de>
+Date: Wed, 17 Nov 1999 10:44:11 +0100 (CET)
+From: Jesus Peco <peco@iit.upco.es>
+Subject: 128M
+Message-ID: <Pine.LNX.4.10.9911171033130.655-100000@robleda.iit.upco.es>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Cc: MM mailing list <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
+To: MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Nov 1999, Ingo Molnar wrote:
+   I have a Pentium II celeron and RedHat6.0 with
+128M RAM. I have just recompiled the kernel 2.2.5-15
+for a pentium II processor.
 
-> 
-> the latest patchset is at:
-> 
-> 	http://www.redhat.com/~mingo/zoned-2.3.28-K2
-> 
-> this patch is supposed to fix all known problems (including the 16MB kept
-> free thing), let me know if there is still something left.
+   I have changed the lilo.conf like this:
 
-Hi Ingo,
+boot=/dev/hda
+map=/boot/map
+install=/boot/boot.b
+prompt
+timeout=50
 
-I ran into an OOM problem while testing.  Having heard someone mention
-ramdisk troubles, I enabled it and booted with ramdisk_size=16384. Made
-an fs (mke2fs /dev/ram0) mounted it and ran Bonnie -s 12 a few times.
-Result was terminal OOM.  Everything else seems to work fine, so this
-may just be a driver bug(?).  I can't revert my tree just yet to find
-out for sure.
+image=/boot/vmlinuz131099
+        label=linux
+        root=/dev/hda3
+        read-only
+	append="mem=128m"
+other=/dev/hda1
+        label=winnt
+        table=/dev/hda
 
-Memleak results with line numbers translated to zoned-2.3.28-K2 stock.
 
-buffer.c:1054: 15698 13710 15260 DELTA: 28970
-filemap.c:1852: 3430 3448 3921 DELTA: 7369
-slab.c:507: 468 173 142 DELTA: 315
+I have also tried to put append="mem=127M" and
+append="mem=128M", but unfortunately, after saving
+this file and running 
 
-	-Mike
+/sbin/lilo -v
+
+I run 
+
+free
+
+which reports that I only have 64M. I reboot and
+the same thing happens when I run free or when I
+see the Settings->Information->Memory window from
+KDE.
+
+Is there a way to make linux see I have 128M?
+Do I have a hardware problem?
+Is it a software configuration problem?
+
+	Thank you very much!
+
+---------------------------------------------------
+Jesus Pascual Peco Gonzalez
+
+E-mail: peco@iit.upco.es
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
