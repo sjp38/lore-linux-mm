@@ -1,43 +1,48 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA24876
-	for <linux-mm@kvack.org>; Tue, 1 Dec 1998 10:13:31 -0500
-Date: Tue, 1 Dec 1998 15:13:22 GMT
-Message-Id: <199812011513.PAA18172@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA25033
+	for <linux-mm@kvack.org>; Tue, 1 Dec 1998 10:29:36 -0500
+Date: Tue, 1 Dec 1998 16:28:13 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: [PATCH] swapin readahead v3 + kswapd fixes
+In-Reply-To: <Pine.LNX.3.96.981201091401.969C-100000@dragon.bogus>
+Message-ID: <Pine.LNX.3.96.981201162640.437A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH] swapin readahead
-In-Reply-To: <Pine.LNX.3.96.981127001214.445A-100000@mirkwood.dummy.home>
-References: <Pine.LNX.3.96.981127001214.445A-100000@mirkwood.dummy.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: Linux MM <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: Linux MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>, Linux-Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-Hi Rik,
+On Tue, 1 Dec 1998, Andrea Arcangeli wrote:
+> On Tue, 1 Dec 1998, Rik van Riel wrote:
+> 
+> >--- ./mm/vmscan.c.orig	Thu Nov 26 11:26:50 1998
+> >+++ ./mm/vmscan.c	Tue Dec  1 07:12:28 1998
+> >@@ -431,6 +431,8 @@
+> > 	kmem_cache_reap(gfp_mask);
+> > 
+> > 	if (buffer_over_borrow() || pgcache_over_borrow())
+> >+		state = 0;		
+> 
+> This _my_ patch should be enough. Did you tried it without the other
+> stuff?
 
-In article <Pine.LNX.3.96.981127001214.445A-100000@mirkwood.dummy.home>,
-Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
+Yes, I tried the other stuff but something broke without
+the little piece I added. All my piece added to vmscan.c
+does is make sure that we actually free memory when we
+have done some swap_out()s.
 
-> here is a very first primitive version of as swapin
-> readahead patch. It seems to give much increased
-> throughput to swap and the desktop switch time has
-> decreased noticably.
+Otherwise kswapd won't stop swapping when things 'go well'.
 
-> The checks are all needed. The first two checks are there
-> to avoid annoying messages from swap_state.c :)) 
+cheers,
 
-There's a third check needed, I think, which probably accounts for the
-swap_duplicate errors people have been noting.  You need to skip pages
-which are marked as locked in the swap_lockmap, or the async page read
-may block (you might be trying to read in a page which is still being
-written to swap).  In this case, by the time you have slept, the swap
-entry is not necessarily still in use, so you may end up reading an
-unused swap entry.  That would certainly lead to swap_duplicate
-warnings, although I think they should be benign.
+Rik -- now completely used to dvorak kbd layout...
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
---Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
