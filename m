@@ -1,7 +1,7 @@
-Date: Tue, 20 Jan 2004 11:14:41 +0000
+Date: Tue, 20 Jan 2004 11:35:11 +0000
 From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: 2.6.1-mm5
-Message-ID: <20040120111441.A14570@infradead.org>
+Message-ID: <20040120113511.A14742@infradead.org>
 References: <20040120000535.7fb8e683.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,11 +13,12 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Any reason you keep CardServices-compatibility-layer.patch around?
-Having a compat layer for old driver around just for some architectures,
-thus having drivers that only compile on some for no deeper reasons sounds
-like an incredibly bad idea.  Especially when that API is not used by any
-intree driver and only in -mm ;)
+(ghash.patch)
+
+Please don't readd include/linux/ghash.h - it was removed because it's
+utter crap.  Better switch UML to use some sane hashing.
+
+Damn, I really hoped that beast would be dead.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
