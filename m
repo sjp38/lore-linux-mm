@@ -1,81 +1,116 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iABKYEJT541392
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2004 15:34:15 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iABKYE1p240234
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2004 13:34:14 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iABKYE0u030070
-	for <linux-mm@kvack.org>; Thu, 11 Nov 2004 13:34:14 -0700
-Subject: Re: [Fwd: Page allocator doubt]
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <4193CA1B.1090409@tteng.com.br>
-References: <41937940.9070001@tteng.com.br>
-	 <1100200247.932.1145.camel@localhost>  <4193BD07.5010100@tteng.com.br>
-	 <1100201816.7883.22.camel@localhost>  <4193CA1B.1090409@tteng.com.br>
-Content-Type: text/plain
-Message-Id: <1100205251.7883.90.camel@localhost>
+Date: Thu, 11 Nov 2004 22:45:50 +0100
+From: Andrea Arcangeli <andrea@novell.com>
+Subject: Re: [PATCH] fix spurious OOM kills
+Message-ID: <20041111214550.GB5138@x30.random>
+References: <20041111112922.GA15948@logos.cnet> <20041111154238.GD18365@x30.random> <20041111123850.GA16349@logos.cnet> <20041111165050.GA5822@x30.random> <20041111135614.GB16349@logos.cnet>
 Mime-Version: 1.0
-Date: Thu, 11 Nov 2004 12:34:11 -0800
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041111135614.GB16349@logos.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luciano A. Stertz" <luciano@tteng.com.br>
-Cc: linux-mm <linux-mm@kvack.org>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <piggin@cyberone.com.au>, Rik van Riel <riel@redhat.com>, Martin MOKREJ? <mmokrejs@ribosome.natur.cuni.cz>, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-11-11 at 12:22, Luciano A. Stertz wrote:
-> Dave Hansen wrote:
-> > On Thu, 2004-11-11 at 11:27, Luciano A. Stertz wrote:
-> > 
-> >>	But... are they allocated to me, even with page_count zeroed? Do I need 
-> >>to do get_page on the them? Sorry if it's a too lame question, but I 
-> >>still didn't understand and found no place to read about this.
-> > 
-> > 
-> > Do you see anywhere in the page allocator where it does a loop like
-> > yours?
-> > 
-> >         for (i = 1; i< 1<<order; i++)
-> > 		get_page(page + i);
-> 	Actually this loop isn't mine. It's part of the page allocator, but 
-> it's only executed on systems without a MMU.
+On Thu, Nov 11, 2004 at 11:56:14AM -0200, Marcelo Tosatti wrote:
+> It does get it right. It only triggers OOM killer if _both_ 
+> GFP_DMA / GFP_KERNEL are full _and_ there is a task failing 
+> to allocate/free memory.
 
-Well, what does that tell you?  How can page_count(page[i]) be non-zero
-unless someone goes and sets it like that for pages other than the first
-(0th) one?
+you should check for highmem too before killing the task.
 
-> 	Unhappily I can't post any code yet, but I'll try to give an insight of 
-> what we're trying to do.
-> 	It's not a driver. We're doing an implementation to allow the kernel to 
-> execute compressed files, decompressing pages on demand.
-> 	These files will usually be compressed in small blocks, typically 4kb. 
-> But if they got compressed in blocks bigger then a page (say 8kb blocks 
-> on a 4kb page system), the kernel will have more than one decompressed 
-> page each time a block have to be decompressed; and I'd like to add them 
-> both to the page cache.
+> I think you missed the "task_looping_oom" variable in the patch, which is
+> set as soon as a task is unable to allocate/free memory. This variable
+> is set where the code used to call the OOM killer.
 
- Why do 2 *uncompressed* blocks have to be physically contiguous?  If
-you're decompressing and you need more than one page, just allocate
-another one.  I understand that your algorithms may not be optimized for
-this right now, but that's what you get for doing it in the kernel. :)
+why do you use a global variable to pass a message from the task context
+to kswapd, when you can do the real thing in the task context since the
+first place?
 
-> 	So, seems I would have to break multi-order allocated pages. Is this 
-> possible / viable? If not, maybe I'll have to work only with small 
-> blocks, but I wouldn't like to...
+> But still, the main idea is valid here.
 
-It's possible, but you shouldn't do it.  Multi-order pages are a very
-valuable commodity and should be reserved for things that *ABSOLUTELY*
-need them, like DMA buffers.  If you ever get a system up for a while
-and under a lot of memory pressure, those non-order-zero allocations are
-going to start failing all over the place.
+Putting the oom killer in kswapd is just flawed. I recall somebody
+already put it in kswapd in the old days, but that can't work right in
+all scenarios.
 
-Make your code handle all order-0 pages now.  You'll need to do it
-eventually.  
+The single fact you had to implement the task_looping_oom variable,
+means you also felt the need to send some bit of info to kswapd from the
+task context, then why don't you do the real thing from the task
+context where you've a load of additional information to know exactly
+what to do in the first place instead of adding global variables?
 
--- Dave
+> I'll say this again just in case: If ZONE_DMA and ZONE_NORMAL reclaiming 
+> efforts are in vain, and there is task which is looping on try_to_free_pages() 
+> unable to succeed, _and_ both DMA/normal are below pages_min, the OOM 
+> killer will be triggered.
 
+the oom killer must be triggered even if only ZONE_DMA is under page_min
+if somebody allocates with __GFP_NOFAIL|GFP_DMA. Those special cases
+don't make much sense to me. The only one that can know what to do is
+the task context, never kswapd. And I don't see the point of using the
+task_looping_oom variable when you can invoke the oom killer from
+page_alloc _after_ checking the watermarks again with lowmem_reserve
+into the equation (something that sure kswapd can't do, unless you pass
+more bits of info than just a 0 or 1 via task_looping_oom).
 
+> (should be pages_min + higher protection).
+
+higher protection requires you to define the classzone where the task is
+allocating from, only the task context knows it.
+
+> > Plus you're checking for all zones, but kswapd cannot know that it
+> > doesn't matter if the zone dma is under pages_min, as far as there's no
+> > GFP_DMA.
+> 
+> You mean boxes with no DMA zone?
+
+I mean GFP_DMA as an allocation from the DMA classzone. If nobody
+allocates ram passing GFP_DMA to alloc pages, nobody should worry or
+notice if the GFP_DMA is under pages_min, because no allocation risk to
+fail.
+
+The oom killing must be strictly connected with a classzone allocation
+failing (the single zone doesn't matter) and if nobody uses GFP_DMA it
+doesn't matter if the dma zone is under pages_min.
+
+2.4 gets all of this perfectly right and for sure it's not even remotely
+attempting at killing anything from kswapd (and infact there's not a
+single bugreport outstanding). all it can happen in 2.4 is some wasted
+cpu while kswapd tries to do the paging, but exactly because kswapd is
+purerly an helper (like 2.6 right now too and I don't want to change
+this bit, since kswapd in 2.6 looks sane, much saner than the task
+context itself which is the real problematic part that needs fixing),
+nothing risk to go wrong (you can only argue about performance issues
+when the dma zone gets pinned and under watermark[].min ;).
+
+> If the task chooses to return -ENOMEM it wont set "task_looping_oom"
+> flag. 
+> 
+> OK - you are right to say that "only the context of the task can choose
+> to return -ENOMEM or invoke the oom killer". 
+> 
+> This allocator-context-only information is passed to kswapd via
+>  "task_looping_oom".
+
+what's the point of passing info to kswapd? why don't you schedule a
+callback instead, why don't you use keventd instead of kswapd? I just
+don't get what benefit you get from that except form complexity and
+overhead. And to do it right right like this you'd need to pass more
+than 1 bit of info.
+
+I mean, one could even change the code to send the whole task
+information to an userspace daemon, that will open a device driver and
+issue an ioctl that eventually calls the oom killer on a certain pid, in
+order to invoke the oom killer. I just don't see why to waste any effort
+with non trivial message passing when the oom killer itself can be
+invoked by page_alloc.c where all the watermark checks are already
+implemented, without passing down information to some random kernel
+daemon.
+
+> Good luck!
+
+thanks! ;)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
