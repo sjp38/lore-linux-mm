@@ -1,42 +1,56 @@
-Received: from ds02c00.directory.ray.com (ds02c00.directory.ray.com [147.25.138.118])
-	by dfw-gate2.raytheon.com (8.12.5/8.12.5) with ESMTP id g8DElpNa014442
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2002 09:47:52 -0500 (CDT)
-Received: from ds02c00.directory.ray.com (root@localhost)
-	by ds02c00.directory.ray.com (8.12.1/8.12.1) with ESMTP id g8DEljkR024674
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2002 09:47:50 -0500 (CDT)
-Received: from rtshou-ds01.hou.us.ray.com ([192.27.45.147])
-	by ds02c00.directory.ray.com (8.12.1/8.12.1) with ESMTP id g8DElZC9024572
-	for <linux-mm@kvack.org>; Fri, 13 Sep 2002 09:47:35 -0500 (CDT)
+Message-ID: <20020913181116.49236.qmail@web12304.mail.yahoo.com>
+Date: Fri, 13 Sep 2002 11:11:16 -0700 (PDT)
+From: Ravi <kravi26@yahoo.com>
+Subject: Re: bootmem ?
+In-Reply-To: <55E277B99171E041ABF5F4B1C6DDCA0683E8B4@haritha.hclt.com>
 MIME-Version: 1.0
-From: Mark_H_Johnson@raytheon.com
-Subject: Query on mlockall and reported RSS
-Date: Fri, 13 Sep 2002 09:46:32 -0500
-Message-ID: <OFBE4B072B.F17F9B97-ON86256C33.0051285A-86256C33.00512A7F@hou.us.ray.com>
-Content-type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "Somshekar. C. Kadam - CTD, Chennai." <som_kadam@ctd.hcltech.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Just curious, but if I have an application, run as root, that uses
- mlocall (MCL_CURRENT | MCL_FUTURE)
-with no error status returned, we get output like the following in top...
+> struct bootmem_data
+> unsigned long node_boot_start what for 
+ 
+  node_boot_start always gets set to 0.
+ 
+> void *node_bootmem_map what is this  for 
+>
+>  if i am right node_bootmem_map is a pointer to beginig of bitmap
+> that is the end of kernel
 
- ...  SIZE   RSS    SHARE  ...
- ...  160M   84M    34256  ...
+  init_bootmem_core() creates a bitmap representing all pages available
+to the bootmem allocator. To make sure this bitmap doesn't overwrite 
+kernel text or data, the address beyond end of kernel is passed
+to init_bootmem_core(). The location of this bitmap is stored in
+node_bootmem_map.
+  
+ 
+>    what should be the value of node_boot_start 
+ 
+>  i am having 32 mb ram 
+>    my kernel is loaded from 0x400 after 1mb(including text data and
+> bss) which is end of kernel 
+> i am setting node_boot_start as the pouinter to bit map  storing 
+> bitmap after the end of the kernel
 
-for our application. It seems odd to us that RSS and SIZE are not equal.
-This is being seen on a kernel built from 2.4.16.
+ I didn't understand what you meant by that. Why do you have to set
+node_boot_start? You just need to call init_bootmem() with the
+right parameters - a safe address for creating the bootmem bitmap
+and number of pages available to the bootmem allocator. 
+  After initializing bootmem allocator, you have to make sure that
+pages where kernel is loaded and the pages containing the bootmem
+bitmap itself are marked reserved.
 
- - How can we truly be sure that all of our application is locked
-into memory?
- - Could someone explain why the RSS is not equal to the size in
-this case?
+Hope this helps,
+Ravi.
 
-Thanks.
-  --Mark Johnson
-
-
+__________________________________________________
+Do you Yahoo!?
+Yahoo! News - Today's headlines
+http://news.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
