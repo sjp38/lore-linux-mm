@@ -1,77 +1,58 @@
-Message-ID: <4051C8BF.1050001@cyberone.com.au>
-Date: Sat, 13 Mar 2004 01:27:11 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
-MIME-Version: 1.0
 Subject: Re: [PATCH] 2.6.4-rc2-mm1: vm-split-active-lists
-References: <OF9DC8F5B1.0044A21E-ON86256E55.004DF368@raytheon.com>
-In-Reply-To: <OF9DC8F5B1.0044A21E-ON86256E55.004DF368@raytheon.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <OF62A00090.6117DDE8-ON86256E55.004FED23@raytheon.com>
+From: Mark_H_Johnson@raytheon.com
+Date: Fri, 12 Mar 2004 09:00:43 -0600
+MIME-Version: 1.0
+Content-type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark_H_Johnson@Raytheon.com
+To: Nick Piggin <piggin@cyberone.com.au>
 Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mfedyk@matchmail.com, m.c.p@wolk-project.de, owner-linux-mm@kvack.org, plate@gmx.tm
 List-ID: <linux-mm.kvack.org>
 
 
-Mark_H_Johnson@Raytheon.com wrote:
 
->
->
->
->Nick Piggin <piggin@cyberone.com.au> wrote:
->
->>Andrew Morton wrote:
+
+Nick Piggin <piggin@cyberone.com.au> wrote:
+>Mark_H_Johnson@Raytheon.com wrote:
+>>Nick Piggin <piggin@cyberone.com.au> wrote:
 >>
->
->>>That effect is to cause the whole world to be swapped out when people
->>>return to their machines in the morning.  Once they're swapped back in
+>>>Andrew Morton wrote:
 >>>
->the
->
->>>first thing they do it send bitchy emails to you know who.
->>>
->>>>From a performance perspective it's the right thing to do, but nobody
->>>
->likes
->
->>>it.
->>>
->>>
->>>
->>Yeah. I wonder if there is a way to be smarter about dropping these
->>used once pages without putting pressure on more permanent pages...
->>I guess all heuristics will fall down somewhere or other.
 >>
+>>>>That effect is to cause the whole world to be swapped out when people
+>>>>return to their machines in the morning.  Once they're swapped back in
+>>>>
+[this is the symptom being reported]
+>>Just a question, but I remember from VMS a long time ago that
+>>as part of the working set limits, the "free list" was used to keep
+>>pages that could be freely used but could be put back into the working
+>>set quite easily (a "fast" page fault). Could you keep track of the
+>>swapped pages in a similar manner so you don't have to go to disk to
+>>get these pages [or is this already being done]? You would pull them
+>>back from the free list and avoid the disk I/O in the morning.
 >
->Just a question, but I remember from VMS a long time ago that
->as part of the working set limits, the "free list" was used to keep
->pages that could be freely used but could be put back into the working
->set quite easily (a "fast" page fault). Could you keep track of the
->swapped pages in a similar manner so you don't have to go to disk to
->get these pages [or is this already being done]? You would pull them
->back from the free list and avoid the disk I/O in the morning.
->
->
+>Not too sure what you mean. If we've swapped out the pages, it is
+>because we need the memory for something else. So no.
 
-Not too sure what you mean. If we've swapped out the pages, it is
-because we need the memory for something else. So no.
+Actually - no, from what Andrew said, the system was not under memory
+pressure and did not need the memory for something else. The swapping
+occurred "just because". In that case, it would be better to keep track
+of where the pages came from (i.e., swap them in from the free list).
 
-One thing you could do is re read swapped pages when you have
-plenty of free memory and the disks are idle.
+Don't get me wrong - that behavior may be the "right thing" from an
+overall performance standpoint. A little extra disk I/O when the system
+is relatively idle may provide needed reserve (free pages) for when the
+system gets busy again.
 
->By the way - with 2.4.24 I see a similar behavior anyway [slow to get
->going in the morning]. I believe it is due to our nightly backup walking
->through the disks. If you could FIX the retention of sequentially read
->disk blocks from the various caches - that would help a lot more in
->my mind.
->
->
+>One thing you could do is re read swapped pages when you have
+>plenty of free memory and the disks are idle.
+That may also be a good idea. However, if you keep a mapping between
+pages on the "free list" and those in the swap file / partition, you
+do not actually have to do the disk I/O to accomplish that.
 
-updatedb really wants to be able to provide better hints to the VM
-that it is never going to use these pages again. I hate to cater for
-the worst possible case that only happens because everyone has it as
-a 2am cron job.
+--Mark H Johnson
+  <mailto:Mark_H_Johnson@raytheon.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
