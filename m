@@ -1,77 +1,61 @@
-Date: Fri, 12 Jan 2001 17:22:17 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Date: Fri, 12 Jan 2001 16:23:15 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: pre2 swap_out() changes
-In-Reply-To: <Pine.LNX.4.10.10101121138060.2249-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0101121705540.10842-100000@freak.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0101121705540.10842-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10101121617230.8097-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
 Cc: Zlatko Calusic <zlatko@iskon.hr>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Jan 2001, Linus Torvalds wrote:
 
-> That's an effect of replacing "wakeup_kswapd(1)" with shrinking the inode
-> and dentry caches and page_launder(), and it is probably the nicest kernel
-> for stuff that wants to avoid caching stuff excessively. But it does mean
-> that we don't try to swap stuff out very much, and it also means that we
-> end up shrinking the directory cache in particular more aggressively than
-> before. Which is bad.
+On Fri, 12 Jan 2001, Marcelo Tosatti wrote:
+> > 
+> > I really think that that page_launder() should be a "try_to_free_page()"
+> > instead.
 > 
-> I really think that that page_launder() should be a "try_to_free_page()"
-> instead.
+> Linus,
+> 
+> do_try_to_free_pages() will shrink the caches too, so I'm not sure if that
+> is the reason for the slowdown Zlatko is seeing. 
 
-Linus,
+The point is that do_try_to_free_pages() will _also_ cause some VM swapout
+activity, which will cause _future_ out-of-memory behaviour to be less of
+a problem (because in the future we can depend on page_launder() instead
+of having to flush caches).
 
-do_try_to_free_pages() will shrink the caches too, so I'm not sure if that
-is the reason for the slowdown Zlatko is seeing. 
+> I dont understand the following changes you've done to try_to_swapout() in
+> pre2 (as someone previously commented on this thread): 
 
-I dont understand the following changes you've done to try_to_swapout() in
-pre2 (as someone previously commented on this thread): 
+I removed the extra aging, because basically it was a hack to avoid
+swapping out stuff that shouldn't be swapped out.
 
--   onlist = PageActive(page);
-    /* Don't look at this pte if it's been accessed recently. */
-    if (ptep_test_and_clear_young(page_table)) {
--       age_page_up(page);
--       goto out_failed;
-+       page->age += PAGE_AGE_ADV;
-+       if (page->age > PAGE_AGE_MAX)
-+           page->age = PAGE_AGE_MAX;
-+       return;
-    }
--   if (!onlist)
--       /* The page is still mapped, so it can't be freeable... */
--       age_page_down_ageonly(page);
--
--   /*
--    * If the page is in active use by us, or if the page
--    * is in active use by others, don't unmap it or
--    * (worse) start unneeded IO.
--    */
--   if (page->age > 0)
--       goto out_failed;
+> Secondly, you removed the "(page->age > 0)" check which is obviously
+> correct to me (we don't want to unmap the page if it does not have age 0)
 
+It's NOT "obviously correct". In fact, it's obviously _not_ correct. The
+fact that the _page_ is new, does not mean that the page table reference
+to that page is new. We _should_ drop the page from the page tables:
+because that will mean that we will be better able to handle it in
+page_launder().
 
-First, age_page_up() will move the page to the active list if it was not
-active before and your change simply increases the page age.
+If the page truly is new (because of some other user), then page_launder()
+won't drop it, and it doesn't matter. But dropping it from the VM means
+that the list handling can work right, and that the page will be aged (and
+thrown out) at the same rate as other pages.
 
-Secondly, you removed the "(page->age > 0)" check which is obviously
-correct to me (we don't want to unmap the page if it does not have age 0)
+Now, I did find one bug: we should say
 
-The third thing is that we dont age down pages anymore. (ok, the
-"onlist" thing was wrong, but anyway...)
+	if (!page->age)
+		deactivate_page(page);
 
-The patch I posted previously to add background pte scanning changed this
-stuff. 
+because we should not deactivate the page if it has an age (but we SHOULD
+throw it out of the page tables).
 
-Zlatko, could you try
-http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.1pre2/bg_cond_pte_aging.patch
-and report results?
-
-Thanks
-
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
