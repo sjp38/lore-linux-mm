@@ -1,68 +1,42 @@
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by postfix.conectiva.com.br (Postfix) with SMTP id AABA816EC5
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2001 14:00:07 -0300 (EST)
+Date: Thu, 22 Mar 2001 13:29:44 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Prevent OOM from killing init
-References: <3AB9313C.1020909@missioncriticallinux.com> <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva> <20010322124727.A5115@win.tue.nl>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 22 Mar 2001 09:41:56 -0700
-In-Reply-To: Guest section DW's message of "Thu, 22 Mar 2001 12:47:27 +0100"
-Message-ID: <m14rwl3gdn.fsf@frodo.biederman.org>
+In-Reply-To: <4605B269DB001E4299157DD1569079D2809930@EXCHANGE03.plaza.ds.adp.com>
+Message-ID: <Pine.LNX.4.21.0103221329000.21415-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Guest section DW <dwguest@win.tue.nl>
-Cc: Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tom Kondilis <tomk@plaza.ds.adp.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Guest section DW <dwguest@win.tue.nl> writes:
+On Thu, 22 Mar 2001, Tom Kondilis wrote:
 
-> On Wed, Mar 21, 2001 at 08:48:54PM -0300, Rik van Riel wrote:
-> > On Wed, 21 Mar 2001, Patrick O'Rourke wrote:
-> 
-> > > Since the system will panic if the init process is chosen by
-> > > the OOM killer, the following patch prevents select_bad_process()
-> > > from picking init.
-> 
-> There is a dozen other processes that must not be killed.
-> Init is just a random example.
+> I had a 2.4.3pre3 do a 'Killing Init'
+> My assuption is that I had a large benchmark running, while the benchmark
+> was running,  I updated inittab to uncomment a mgetty of my serial port, and
+> followed it with a 'telinit q'.
+> When the system thought it ran out of memory with '1-order allocation
+> failures' during a fork, which I think its a defect , because I still have
+> 14GB of Swap left in the system. My system was dead.
+> A real life case of killing Init.
 
-Not killing init provides enough for recovery if you truly hit
-an out of memory situation.  With 2.4.x at least it is a box
-misconfiguration that causes it.   The 2.2.x VM doesn't always try
-to swap, and free things up hard enough, before reporting out of
-memory.  But even the 2.2.x problems are rare.
+That's not the OOM killer however, but init dying because it
+couldn't get the memory it needed to satisfy a page fault or
+somesuch...
 
-> 
-> > One question ... has the OOM killer ever selected init on
-> > anybody's system ?
-> 
-> Last week I installed SuSE 7.1 somewhere.
-> During the install: "VM: killing process rpm",
-> leaving the installer rather confused.
-> (An empty machine, 256MB, 144MB swap, I think 2.2.18.)
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-swap < RAM. ouch!  This is a misconfiguration on a machine that
-actually starts swapping, and where out of memory problems are a
-reality.  The fact an installer would trigger swapping on a 256MB
-machine is a second problem. 
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
-> Last month I had a computer algebra process running for a week.
-> Killed. But this computation was the only task this machine had.
-> Its sole reason of existence.
-> Too bad - zero information out of a week's computation.
-> (I think 2.4.0.)
-
-It looks like you didn't have enough resources on that machine
-period.  I pretty much trust 2.4.x in this department.  Did that
-machine also have it's swap misconfigured?
-
-> 
-> Clearly, Linux cannot be reliable if any process can be killed
-> at any moment. I am not happy at all with my recent experiences.
-
-Hmm.  It should definitely not be at any moment.  It should only be
-when resources are exhausted.  So putting enough swap on a machine
-should be enough, to stop this from ever happening.
-
-Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
