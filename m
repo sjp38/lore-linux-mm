@@ -1,51 +1,73 @@
-Received: from ds02w00.directory.ray.com (ds02w00.directory.ray.com [147.25.146.118])
-	by bos-gate3.raytheon.com (8.11.0.Beta3/8.11.0.Beta3) with ESMTP id f9U0hot28671
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2001 19:43:50 -0500 (EST)
-Received: from rtshou-ds01.hou.us.ray.com (localhost [127.0.0.1])
-	by ds02w00.directory.ray.com (8.9.3/8.9.3) with ESMTP id QAA15666
-	for <linux-mm@kvack.org>; Mon, 29 Oct 2001 16:43:48 -0800 (PST)
-Subject: Physical address of a user virtual address
-Message-ID: <OF59D35C34.54785967-ON86256AF5.0002C7E7@hou.us.ray.com>
-From: Mark_H_Johnson@Raytheon.com
-Date: Mon, 29 Oct 2001 18:42:51 -0600
-MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Date: Tue, 30 Oct 2001 09:56:06 +0100
+From: Jens Axboe <axboe@suse.de>
+Subject: Re: xmm2 - monitor Linux MM active/inactive lists graphically
+Message-ID: <20011030095606.I618@suse.de>
+References: <E15xu2b-0008QL-00@the-village.bc.nu> <Pine.LNX.4.33.0110280945150.7360-100000@penguin.transmeta.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.33.0110280945150.7360-100000@penguin.transmeta.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: James_P_Cassidy@Raytheon.com
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Zlatko Calusic <zlatko.calusic@iskon.hr>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-We have an application where we will be...
- - using mlockall() to lock the application into physical memory
- - communicating to / from other systems using an interface similar to
-shared memory
- - most of the other systems run Linux - we have a device driver to handle
-that case (they exchange information so the operation is "safe")
- - but one of the other systems does not have an operating system - just
-our code
+On Sun, Oct 28 2001, Linus Torvalds wrote:
+> 
+> On Sun, 28 Oct 2001, Alan Cox wrote:
+> >
+> > > Does the -ac patches have any hpt366-specific stuff? Although I suspect
+> > > you're right, and that it's just the driver (or controller itself) being
+> >
+> > The IDE code matches between the two. It isnt a driver change
+> 
+> It might, of course, just be timing, but that sounds like a bit _too_ easy
+> an explanation. Even if it could easily be true.
+> 
+> The fact that -ac gets higher speeds, and -ac has a very different
+> request watermark strategy makes me suspect that that might be the cause.
+> 
+> In particular, the standard kernel _requires_ that in order to get good
+> performance you can merge many bh's onto one request. That's a very
+> reasonable assumption: it basically says that any high-performance driver
+> has to accept merging, because that in turn is required for the elevator
+> overhead to not grow without bounds. And if the driver doesn't accept big
+> requests, that driver cannot perform well because it won't have many
+> requests pending.
 
-For the system with our code in it, we need the physical address of a
-region in the user's virtual address space. We are aware of the problems
-with memory fragmentation and would be probing several addresses (at 4
-Kbyte boundaries) to compute the base address & lengths of each contiguous
-region.
+Nod
 
-We can't seem to find any "easy" way (e.g., call a function) that converts
-an address in the virtual address space of an application to the physical
-address. The book "Linux Device Drivers" basically tells us to walk the
-page tables. From that, we think we must create a driver or kernel module
-to get access to the proper variables and functions. That looks like a lot
-of work for something that sounds simple.
+> In contrast, the -ac logic says roughly "Who the hell cares if the driver
+> can merge requests or not, we can just give it thousands of small requests
+> instead, and cap the total number of _sectors_ instead of capping the
+> total number of requests earlier".
 
-Has someone already solved this done this and can point us to some code
-that implements this?
+Not true, that was not the intended goal. We always want the driver to
+get merged requests, even if we can have ridicilously large queue
+lengths. The large queues were a benchmark win (blush), since it allowed
+the elevator to reorder seeks across a big bench run effieciently. I've
+later done more real life testing and I don't think it matters too much
+here, in fact it only seems to incur greater latency and starvation.
 
-Is there a better way to solve this problem?
+> In my opinion, the -ac logic is really bad, but one thing it does allow is
+> for stupid drivers that look like high-performance drivers. Which may be
+> why it got implemented.
 
-Thanks.
---Mark H Johnson
-  <mailto:Mark_H_Johnson@raytheon.com>
+Don't mix up the larger queues with lack of will to merge, that is not
+the case.
+
+> And it may be that the hpt366 IDE driver has always had this braindamage,
+> which the -ac code hides. Or something like this.
+> 
+> Does anybody know the hpt driver? Does it, for example, limit the maximum
+> number of sectors per merge somehow for some reason?
+
+hpt366 has no special work arounds or stuff it disables, it can't be
+anything like that.
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
