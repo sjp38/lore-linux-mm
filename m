@@ -1,36 +1,31 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA27310
-	for <linux-mm@kvack.org>; Wed, 7 Apr 1999 09:42:49 -0400
-Date: Wed, 7 Apr 1999 15:42:28 +0200 (CEST)
-From: Andrea Arcangeli <andrea@e-mind.com>
+Received: from chiara.csoma.elte.hu (chiara.csoma.elte.hu [157.181.71.18])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA27422
+	for <linux-mm@kvack.org>; Wed, 7 Apr 1999 09:48:43 -0400
+Date: Wed, 7 Apr 1999 15:47:50 +0200 (CEST)
+From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
 Subject: Re: [patch] only-one-cache-query [was Re: [patch] arca-vm-2.2.5]
 In-Reply-To: <Pine.LNX.4.05.9904070243310.222-100000@laser.random>
-Message-ID: <Pine.LNX.4.05.9904071540010.265-100000@laser.random>
+Message-ID: <Pine.LNX.3.96.990407154601.30376E-100000@chiara.csoma.elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mark Hemment <markhe@sco.COM>, Chuck Lever <cel@monkey.org>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: Mark Hemment <markhe@sco.COM>, Chuck Lever <cel@monkey.org>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 7 Apr 1999, Andrea Arcangeli wrote:
 
->I would ask Chuck to bench this my new code (it should be an obvious
->improvement).
+>  void prune_dcache(int count)
+>  {
+> +	gfp_sleeping_cookie++;
 
-Don't try it!! I have a bug in the code that is corrupting the cache
-(noticed now).
+this can be done via an existing variable, kstat.ctxsw, no need to add yet
+another 'have we scheduled' flag. But the whole approach is quite flawed
+and volatile, it simply relies on us having the big kernel lock. With more
+finegrained SMP locking in that area we will have big problems preserving
+that solution.
 
-I am working on a fix now.
-
-I just noticed that kmem_cache_reap can theorically sleep in down() so
-here I moved the cookie++ in do_try_to_free_pages(), it will be less
-finegrined but safer... But I still have corruption so I am looking at
-filemap.c now...
-
-BTW, why kmem_cache_reap() need a serializing semaphore?
-
-Andrea Arcangeli
+-- mingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
