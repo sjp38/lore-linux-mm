@@ -1,69 +1,58 @@
-Date: Wed, 7 Jun 2000 22:49:08 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel: it'snot just the code)
-Message-ID: <20000607224908.K30951@redhat.com>
-References: <393E8AEF.7A782FE4@reiser.to> <Pine.LNX.4.21.0006071459040.14304-100000@duckman.distro.conectiva> <20000607205819.E30951@redhat.com> <ytt1z29dxce.fsf@serpe.mitica> <20000607222421.H30951@redhat.com> <yttvgzlcgps.fsf@serpe.mitica>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <yttvgzlcgps.fsf@serpe.mitica>; from quintela@fi.udc.es on Wed, Jun 07, 2000 at 11:40:47PM +0200
+Message-ID: <393EC40A.376BB072@reiser.to>
+Date: Wed, 07 Jun 2000 14:52:10 -0700
+From: Hans Reiser <hans@reiser.to>
+MIME-Version: 1.0
+Subject: Re: journaling & VM  
+References: <Pine.LNX.4.21.0006071818580.14304-100000@duckman.distro.conectiva>
+Content-Type: text/plain; charset=koi8-r
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Quintela Carreira Juan J." <quintela@fi.udc.es>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Let me convey an aspect of its rightness.
 
-On Wed, Jun 07, 2000 at 11:40:47PM +0200, Juan J. Quintela wrote:
-> Hi
-> Fair enough, don't put pinned pages in the LRU, *why* do you want put
-> pages in the LRU if you can't freed it when the LRU told it: free that
-> page?
+Caches have a declining marginal utility.  It is a good idea to keep at least a
+little bit of each cache around.  The classic problem is when you switch usage
+patterns back and forth, and one of the caches has been completely flushed by,
+say, a large file read.  If just 3% of the amount of cache remained from when it
+was being used that 3% might give you a lot of speedup when the usage pattern
+flipped back.
 
-Because even if the information about which page is least recently
-used doesn't help you, the information about which filesystems are
-least active _does_ help.
+Hans
 
-> Ok. New example.  You have the 10 (put here any number) older
-> pages in the LRU.  That pages are pinned in memory, i.e. you can't
-> remove them.  You will call the ->flush() function in each of them
-> (put it any name for the method).  Now, the same fs has a lot of new
-> pages in the LRU that are being used actively, but are not pinned in
-> this precise instant.  Each time that we call the flush method, we
-> will free some dirty pages, not the pinned ones, evidently. We will
-> call that flush function 10 times consecutively.  Posibly we will
-> flush all the pages from the cache for that fs, and for not good
-> reason.
-
-No, Rik was explicitly allowing the per-fs flush functions to 
-indicate how much progress was being made, to avoid this.
-
-> I will be also very happy with only one place where doing the aging,
-> cleaning, ... of _all_ the pages, but for that place we need a policy,
-> and that policy _must_ be honored (almost) always or it doesn't make
-> sense and we will arrive to unstable/unfair situations.
-
-We _have_ to have separate mechanisms for page cleaning and for page
-reclaim.  Interrupt load requires that we free pages rapidly on 
-demand, regardless of whether the page cleaner is stalled in the 
-middle of a write operation or not.
-
-> I am working just now in a patch that will allow pages to be defered
-> the write of mmaped pages from the swap_out function to shrink_mmap
-> time.  The same that we do with swap pages actually, but for fs pages
-> mmaped in processes.  That would help that.  But note that in this
-> case, I put in the LRU pages that can be freed.  I can't understand
-> putting pages that are not freeable.
-
-We are talking about separate queues for the different page types ---
-you obviously don't want to pollute the clean (inactive?) list with
-pinned pages.  Within the list of pinned pages (or dirty pages), we
-still want to maintain enough ordering so that we go to the filesystems
-in the right order when we start cleaning pages.
-
-Cheers,
- Stephen
+Rik van Riel wrote:
+> 
+> On Wed, 7 Jun 2000, Hans Reiser wrote:
+> 
+> > The new age one 64th of your objects scheme causes pressure to
+> > be proportional.....
+> 
+> Which is wrong, unless the oldest pages from each zone happen
+> to be the same age ;)
+> 
+> Suppose a 5MB SHM segment gets deattached and not used for a
+> long time. In this situation it makes little sense to round-robin
+> free from the different caches if the other caches are under more
+> pressure.
+> 
+> > I am looking forward to reading the new 2.4 mm code during my
+> > next aeroflot experience this sunday....
+> 
+> I'm working on it, but I can't promise to have all of the
+> active/inactive/scavenge list framework ready by then ;)
+> 
+> regards,
+> 
+> Rik
+> --
+> The Internet is not a network of computers. It is a network
+> of people. That is its real strength.
+> 
+> Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+> http://www.conectiva.com/               http://www.surriel.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
