@@ -1,51 +1,22 @@
-Message-ID: <4192C32E.6070001@yahoo.com.au>
-Date: Thu, 11 Nov 2004 12:41:02 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] higher order watermarks
-References: <417F5584.2070400@yahoo.com.au> <417F55B9.7090306@yahoo.com.au> <417F5604.3000908@yahoo.com.au> <20041104085745.GA7186@logos.cnet> <20041110162311.GA12696@logos.cnet>
-In-Reply-To: <20041110162311.GA12696@logos.cnet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Received: from bix (build.pdx.osdl.net [172.20.1.2])
+	by mail.osdl.org (8.11.6/8.11.6) with SMTP id iABAeL926737
+	for <linux-mm@kvack.org>; Thu, 11 Nov 2004 02:40:28 -0800
+Date: Thu, 11 Nov 2004 02:40:15 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: follow_page()
+Message-Id: <20041111024015.7c50c13d.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti wrote:
-> On Thu, Nov 04, 2004 at 06:57:45AM -0200, Marcelo Tosatti wrote:
-> 
-> 
->>The original code didnt had the can_try_harder/gfp_high decrease 
->>which is now on zone_watermark_ok. 
->>
->>Means that those allocations will now be successful earlier, instead
->>of going to the next zonelist iteration. kswapd will not be awake
->>when it used to be.
->>
->>Hopefully it doesnt matter that much. You did this by intention?
-> 
-> 
-> Another thing Nick is that now balance_pgdat uses zone_watermark_ok, 
-> and that sums "z->protection[alloc_type]".
-> 
->         if (free_pages <= min + z->protection[alloc_type])
->                 return 0;
-> 
-> Since balance_pgdat calls with alloc_type=0, the code will sum ZONE_DMA
-> (alloc_type = 0) protection, and it should not.
-> 
-> kswapd should be working on the bare min/low/high watermarks AFAICT, 
-> without the protections.
-> 
-> Comments?
-> 
-> 
+Can anyone think of a sane reason why this thing is marking the page dirty?
 
-Yeah.. I think z->protection[0] should always be 0, shouldn't it?
-I was just hesitant to add another parameter to the function and
-have yet another case to check.
+I mean, we're supposed to mark the page dirty _after_ modifying its
+contents.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
