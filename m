@@ -1,28 +1,36 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.5.44-mm2
-Date: Mon, 21 Oct 2002 08:46:04 -0400
-References: <3DB3B858.C7CD5DA1@digeo.com>
-In-Reply-To: <3DB3B858.C7CD5DA1@digeo.com>
+Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
+References: <Pine.LNX.3.96.1021019151523.29078E-200000@gatekeeper.tmr.com>
+	<2458064740.1035069495@[10.10.2.3]>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 21 Oct 2002 08:55:24 -0600
+In-Reply-To: <2458064740.1035069495@[10.10.2.3]>
+Message-ID: <m1bs5nvo2r.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200210210846.04077.tomlins@cam.org>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Dave McCracken <dmccr@us.ibm.com>, William Lee Irwin III <wli@holomorphy.com>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+"Martin J. Bligh" <mbligh@aracnet.com> writes:
 
-> shpte-ng.patch
+> >> For reference, one of the tests was TPC-H.  My code reduced the number of
+> >> allocated pte_chains from 5 million to 50 thousand.
+> > 
+> > Don't tease, what did that do for performance? I see that someone has
+> > already posted a possible problem, and the code would pass for complex for
+> > most people, so is the gain worth the pain?
+> 
+> In many cases, this will stop the box from falling over flat on it's 
+> face due to ZONE_NORMAL exhaustion (from pte-chains), or even total
+> RAM exhaustion (from PTEs). Thus the performance gain is infinite ;-)
 
-I thought maybe the pipe fix might help.  No joy.  Still cannot start kde3 
-with shared page tables enabled...
+So why has no one written a pte_chain reaper?  It is perfectly sane
+to allocate a swap entry and move an entire pte_chain to the swap
+cache.  
 
-Ed
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
