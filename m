@@ -1,34 +1,35 @@
-Date: Thu, 29 Apr 1999 14:09:13 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Reply-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: 1GB ramdisk
-In-Reply-To: <v04020a00b34e1e944f31@[198.115.92.60]>
-Message-ID: <Pine.LNX.3.95.990429105157.23748A-100000@as200.spellcast.com>
+Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA31387
+	for <linux-mm@kvack.org>; Thu, 29 Apr 1999 20:54:59 -0400
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14120.65367.60211.158632@dukat.scot.redhat.com>
+Date: Fri, 30 Apr 1999 01:54:47 +0100 (BST)
+Subject: Re: Hello
+In-Reply-To: <v04020a01b34cd7f3c7c3@[198.115.92.60]>
+References: <v04020a01b34cd7f3c7c3@[198.115.92.60]>
 Sender: owner-linux-mm@kvack.org
 To: "James E. King, III" <jking@ariessys.com>
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Apr 1999, James E. King, III wrote:
+Hi,
 
-> Someone suggested using alpha which would solve all of my problems.  True,
-> but where can I find a quad processor 500MHz alpha box for around $25,000?
-> Let me know.  Last time I checked, the list price on an AlphaServer 4100
-> configured this way was over $100,000.
+On Wed, 28 Apr 1999 11:28:07 -0400, "James E. King, III"
+<jking@ariessys.com> said:
 
-I'm going to play a skeptic here as I think Xeons aren't the best use of
-people's money, but that's just my opinion.  What are the actual
-bottlenecks in your system -- remember that filesystem access and vm
-operations are still serialized in 2.2, so going from 2 to 4 cpus may not 
-get you the performance improvement you deserved.  A dual processor 21264
-box with 512M of RAM goes for ~$15000 (see http://www.dcginc.com/), which 
-is worth considering.
+> 1. If I purchase a Quad Xeon 550 with 4 GB of memory, will Linux work
+>    on it?  (I saw the whole thing about tweaking kernel parameters to
+>    change from a 3:1 split to a 2:2 split)
 
-		-ben
+It _will_ work, but by default will only use 1GB.  The most it can use
+if you recompile the kernel is 2GB.
 
+However, we have plans to support 64GB cleanly --- watch this space. :)
 
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
