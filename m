@@ -1,32 +1,52 @@
-From: Duncan Sands <baldrick@free.fr>
-Subject: Re: [linux-usb-devel] Patch for UHCI driver (from kernel 2.6.6).
-Date: Tue, 15 Jun 2004 19:23:52 +0200
-References: <Pine.LNX.4.44L0.0406151221220.1960-100000@ida.rowland.org> <40CF2CF5.5000209@pacbell.net>
-In-Reply-To: <40CF2CF5.5000209@pacbell.net>
-MIME-Version: 1.0
+Date: Tue, 15 Jun 2004 19:44:36 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Subject: [PATCH] s390: lost dirty bits.
+Message-ID: <20040615174436.GA10098@mschwid3.boeblingen.de.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200406151923.52709.baldrick@free.fr>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-usb-devel@lists.sourceforge.net
-Cc: David Brownell <david-b@pacbell.net>, Alan Stern <stern@rowland.harvard.edu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Nicolas DET <nd@bplan-gmbh.de>, linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Actually I thought it was quite explicit:  "without having
-> to worry about caching effects".  What you described is
-> clearly a caching effect:  caused by caching.
+Hi Andrew,
+we just tracked down a severe bug in the memory management
+code of s390. There is a race window where s390 can loose
+a dirty bit. I never expected that SetPageUptodate is called
+on an already up to date page...
 
-Is it really a cache effect?  Isn't it caused by the hc writing
-more bytes to memory than you expected?  Now, it so
-happens that the number of bytes it writes is equal to the
-cache line size (or so it seems), but isn't that irrelevant?
+blue skies,
+  Martin.
 
-Ciao,
+---
 
-Duncan.
+[PATCH] s390: lost dirty bits.
+
+The SetPageUptodate function is called for pages that are already
+up to date. The arch_set_page_uptodate function of s390 may not
+clear the dirty bit in that case otherwise a dirty bit which is set
+between the start of an i/o for a writeback and a following call
+to SetPageUptodate is lost.
+
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+
+diffstat:
+
+--- linux-2.5/include/asm-s390/pgtable.h	24 Mar 2004 18:18:22 -0000	1.23
++++ linux-2.5/include/asm-s390/pgtable.h	15 Jun 2004 16:43:35 -0000	1.23.2.1
+@@ -652,7 +652,8 @@
+ 
+ #define arch_set_page_uptodate(__page)					  \
+ 	do {								  \
+-		asm volatile ("sske %0,%1" : : "d" (0),			  \
++		if (!PageUptodate(__page))				  \
++			asm volatile ("sske %0,%1" : : "d" (0),		  \
+ 			      "a" (__pa((__page-mem_map) << PAGE_SHIFT)));\
+ 	} while (0)
+ 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
