@@ -1,93 +1,40 @@
-Date: Thu, 10 Mar 2005 14:31:09 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH] 0/2 Buddy allocator with placement policy (Version 9)
- + prezeroing (Version 4)
-In-Reply-To: <1110239966.6446.66.camel@localhost>
-Message-ID: <Pine.LNX.4.58.0503101421260.2105@skynet>
-References: <20050307193938.0935EE594@skynet.csn.ul.ie> <1110239966.6446.66.camel@localhost>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from server1.graffiti.net  (mail.graffiti.net  [205.158.62.141])
+	by fep2.sacmail.com (Postfix) with ESMTP id A025C5041
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2005 15:41:45 +0100 (EDT)
+Received: from nobody by sacmail.com with local (Exim 4.04)
+	id 1C1rjW-9359oD-My
+	for <linux-mm@kvack.org>; Thu, 10 Mar 2005 13:37:45 -0100
+Subject: Word...
+From: "Courtney Hays" <CourtneyfgjHaysfgj@sacmail.com>
+Message-ID: <193063702459.7eb1e8389271@sacmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 8bit
+Date: Thu, 10 Mar 2005 20:40:45 +0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Mar 2005, Dave Hansen wrote:
+Client Update:
 
-> On Mon, 2005-03-07 at 19:39 +0000, Mel Gorman wrote:
-> > The placement policy patch should now be more Hotplug-friendly and I
-> > would like to hear from the Hotplug people if they have more
-> > requirements of this patch.
->
-> It looks like most of what we need is there already.  There are two
-> things that come to mind.  We'll likely need some modifications that
-> will deal with committing memory areas that are larger than MAX_ORDER to
-> the different allocation pools.  That's because a hotplug area (memory
-> section) might be larger than a single MAX_ORDER area, and each section
-> may need to be limited to a single allocation type.
->
+Several Companies have been competing for your mortgage
+refinance application over the past 2 weeks.  
 
-As you say later, stuff like that can be easily grafted on by fiddling
-with the bitmap, just with more than one block of MAX_ORDER pages.
+The company that offered the lowest rate, and largest
+loan quantity has requested your information be verified.
 
-> The other thing is that we'll probably have to be a lot more strict
-> about how the allocations fall back.  Some users will probably prefer to
-> kill an application rather than let a kernel allocation fall back into a
-> user memory area.
->
+http://aecastro.re-finance-forever.com/refimort.asp
 
-That will be a tad trickier because we'll need a way of specifying a
-"fallback policy" at configure time. However, the fallback policy is
-currently isolated within one while loop, having different fallback
-policies is doable. The kicker is that that there might be nasty
-interaction with the page reclaim code where the allocator is not falling
-back due to policy but the reclaim code things everything is just fine.
 
-> BTW, I wrote some requirements about how these section divisions might
-> be dealt with.  Note that this is a completely hotplug-centric view of
-> the whole problem, I didn't discern between reclaimable and
-> unreclaimable kernel memory as your patch does.  This is probably waaaay
-> more than you wanted to hear, but I thought I'd share anyway. :)
->
+Thanks,
+Courtney Hays
+Back On Top Finances
+Fin-Clerk
 
-No, better to hear about it now so I have something to chew over :)
+ 
 
-> > There are 2 kinds of sections: user and kernel.  The traditional
-> > ZONE_HIGHMEM is full of user sections (except for vmalloc).
-
-And PTEs if configured to be allocated from high memory. I have not double
-checked but I don't think they can be trivially reclaimed.
-
-> > Any
-> > section which has slab pages or any kernel caller to alloc_pages() is
-> > a kernel section.
-> >
-
-Slab pages could be moved to the user section as long as the cache owner
-was able to reclaim the slabs on demand.
-
-> > Some properties of these sections:
-> > a. User sections are easily removed.
-> > b. Kernel sections are hard to remove. (considered impossible)
-> > c. User sections may *NOT* be used for kernel pages if all user
-> >    sections are full. (but, see f.)
-> > d. Kernel sections may be used for user pages if all user sections are
-> >    full.
-> > e. A transition from a kernel section to a user section is hard, and
-> >    requires that it be empty of all kernel users.
-> > f. A transition from a user section to a kernel section is easy.
-> >    (although easy, this should be avoided because it's hard to turn it
-> >    _back_ into a user section)
->
-
-All of these requirements are similar (just not as strict) as those for
-fragmentation so common ground should continue to exist.
-
--- 
-Mel Gorman
-Part-time Phd Student				Java Applications Developer
-University of Limerick				    IBM Dublin Software Lab
+No Longer require Help?
+http://ducochran.re-finance-forever.com/gone.asp
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
