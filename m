@@ -1,69 +1,57 @@
-Received: from f03n07e.au.ibm.com
-	by ausmtp02.au.ibm.com (IBM AP 1.0) with ESMTP id SAA227706
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2000 18:59:22 +1000
-From: pnilesh@in.ibm.com
-Received: from d73mta05.au.ibm.com (f06n05s [9.185.166.67])
-	by f03n07e.au.ibm.com (8.8.8m2/8.8.7) with SMTP id TAA38626
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2000 19:03:49 +1000
-Message-ID: <CA2568B0.002E6B38.00@d73mta05.au.ibm.com>
-Date: Tue, 28 Mar 2000 13:49:04 +0530
-Subject: Re: your mail
+Date: Tue, 28 Mar 2000 14:22:53 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: how text page of executable are shared ?
+Message-ID: <20000328142253.A16752@redhat.com>
+References: <CA2568B0.0015EFDB.00@d73mta05.au.ibm.com>
 Mime-Version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <CA2568B0.0015EFDB.00@d73mta05.au.ibm.com>; from pnilesh@in.ibm.com on Tue, Mar 28, 2000 at 09:21:59AM +0530
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: linux-mm@kvack.org
+To: pnilesh@in.ibm.com
+Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
+On Tue, Mar 28, 2000 at 09:21:59AM +0530, pnilesh@in.ibm.com wrote:
+> 
+> Suppose a text page of an executable is mapped in the address space of 2
+> processes. The page count will be one.
 
+No, the page count will be three at least.  The presence of the page 
+in the page cache counts as one, and both of the page-table mappings of
+the page each count as a further reference.
 
-No, if both processes have faulted in the page into their ptes, it will
-be 2. The page count is normally the number of references from user
-ptes, plus any long/short term holds kernel code establishes on the
-page.
+> The page table entries of both the process will have entry for this page.
+> But when the page is discarded only the page entry of only one process get
+> cleared , this is what I have understood from the swap_out () function .
 
-I was confused as Maurice Bach increases region reference count when any
-region say text is shared among more than one processes, and not the page
-reference count.
+Yes.  swap_out() is responsible for unlinking pages from process page 
+tables.  In the case you describe, the page will still have outstanding
+references, from the other process and from the page cache.  Only when
+the page cache cleanup function (shrink_mmap) gets called, after all of
+the ptes to the page have been cleared, will the page be freed.
 
-One more thing if the process ocurrs a page fault on text page it calls
-file_no_page()
->From what you said in this case it should increment the page count but in
-this function no where I could see the page count getting incremented.
+If you think about it, this is natural: when a process pages in a binary
+and then exits, we really want the pages still to remain in memory so 
+that if you immediately rerun the program, we don't have to go back to
+disk for the pages.  The process exiting acts a bit like a complete
+swap_out, freeing up the pte reference to the page, but the page still
+remains in the page cache until the memory is needed for something else.
 
-
->
-> Q    When a page of a file is in page hash queue, does this page have
-page
+> Q    When a page of a file is in page hash queue, does this page have page
 > table entry in any process ?
 
-Possibly, if the file is mmaped into some other process.
+It may have, but it doesn't have to.
 
 > Q     Can this be discarded right away , if the need arises?
->
-At the minimum, you need to write modified contents back to disk, if
-the file page has not already been discarded.
 
-The David Rusling book says when reducing page cache and buffer cache the
-page table entries are not modified and the pages can be dropped directly.
+Not without first doing a swap_out() on all the references to the page.
+The Linux VM does its swapout based on virtual, not physical, page
+scanning (although shrink_mmap() is physical).
 
-Kanoj
-
-> Nilesh Patel
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux.eu.org/Linux-MM/
->
-
-
-
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
