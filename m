@@ -1,54 +1,66 @@
-Message-ID: <3C9BCD6E.94A5BAA0@evision-ventures.com>
-Date: Sat, 23 Mar 2002 01:33:50 +0100
-From: Martin Dalecki <dalecki@evision-ventures.com>
-MIME-Version: 1.0
+Date: Thu, 22 Mar 2001 17:43:40 -0600
+From: Stephen Clouse <stephenc@theiqgroup.com>
 Subject: Re: [PATCH] Prevent OOM from killing init
-References: <3AB9313C.1020909@missioncriticallinux.com> <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva> <20010322124727.A5115@win.tue.nl> <20010322142831.A929@owns.warpcore.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Message-ID: <20010322174340.A1406@owns.warpcore.org>
+References: <20010322142831.A929@owns.warpcore.org> <E14gCYn-0003K3-00@the-village.bc.nu>
+Mime-Version: 1.0
+Content-Type: text/plain
+Content-Disposition: inline; filename="msg.pgp"
+In-Reply-To: <E14gCYn-0003K3-00@the-village.bc.nu>; from alan@lxorguk.ukuu.org.uk on Thu, Mar 22, 2001 at 09:23:54PM +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephen Clouse <stephenc@theiqgroup.com>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Cc: Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Stephen Clouse wrote:
-> 
-> -----BEGIN PGP SIGNED MESSAGE-----
-> Hash: SHA1
-> 
-> On Thu, Mar 22, 2001 at 12:47:27PM +0100, Guest section DW wrote:
-> > Last week I installed SuSE 7.1 somewhere.
-> > During the install: "VM: killing process rpm",
-> > leaving the installer rather confused.
-> > (An empty machine, 256MB, 144MB swap, I think 2.2.18.)
-> >
-> > Last month I had a computer algebra process running for a week.
-> > Killed. But this computation was the only task this machine had.
-> > Its sole reason of existence.
-> > Too bad - zero information out of a week's computation.
-> > (I think 2.4.0.)
-> >
-> > Clearly, Linux cannot be reliable if any process can be killed
-> > at any moment. I am not happy at all with my recent experiences.
-> 
-> Really the whole oom_kill process seems bass-ackwards to me.  I can't in my mind
-> logically justify annihilating large-VM processes that have been running for
-> days or weeks instead of just returning ENOMEM to a process that just started
-> up.
-> 
-> We run Oracle on a development box here, and it's always the first to get the
-> axe (non-root process using 70-80 MB VM).  Whenever someone's testing decides to
-> run away with memory, I usually spend the rest of the day getting intimate with
-> the backup files, since SIGKILLing random Oracle processes, as you might have
-> guessed, has a tendency to rape the entire database.
-> 
-> It would be nice to give immunity to certain uids, or better yet, just turn the
-> damn thing off entirely.  I've already hacked that in...errr, out.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-AMEN! TO THIS!
-Uptime of a process is a much better mesaure for a killing candidate
-then it's size.
+On Thu, Mar 22, 2001 at 09:23:54PM +0000, Alan Cox wrote:
+> How do you return an out of memory error to a C program that is out of memory
+> due to a stack growth fault. There is actually not a language construct for it
+
+Hmmm...the old "Error 3 while attempting to report Error 3" dialog from MS
+Excel.  
+
+> Eventually you have to kill something or the machine deadlocks. The oom killing
+> doesnt kick in until that point. So its up to you how you like your errors.
+
+It's interesting that I never recall oom being a problem (like this) with 2.0 or 
+2.2.  And the machines I was working with at the time were far crappier than
+these current boxen -- they'd ride the oom line almost constantly.  Back then a
+new process would either a) scream "Out of memory!" or b) segfault.  You could
+argue that b is not desirable, but I'd prefer that to the current behavior, 
+really.  In fact this type of behavior still happens under 2.4 when we hit OOM
+on the development boxen, although not consistently (only about half the time);
+oom_kill annihilates something we don't want it to, then the mallocing process
+that triggered it decides it has become bored with life and procceds to
+abort/segfault anyway.  I wish I could reproduce it consistently.
+
+In any case, the behavior of oom_kill (whether you consider it correct or
+not) is really the symptom and not the cause.  We've alleviated most of it via
+creative use of ulimit.  Still, the seemingly draconian behavior needs a bit
+finer-grained control.
+
+> One of the things that we badly need to resurrect for 2.5 is the beancounter
+> work which would let you reasonably do things like guaranteed Oracle a certain
+> amount of the machine, or restrict all the untrusted users to a total of 200Mb
+> hard limit between them etc
+
+Let me know when you branch :)  Sounds like a fun project.
+
+- -- 
+Stephen Clouse <stephenc@theiqgroup.com>
+Senior Programmer, IQ Coordinator Project Lead
+The IQ Group, Inc. <http://www.theiqgroup.com/>
+
+-----BEGIN PGP SIGNATURE-----
+Version: PGP 6.5.8
+
+iQA/AwUBOrqOLAOGqGs0PadnEQKWFACfaqzjtUQD4uGaLFnxn6M9Xc4N6QIAoJO3
+nJTISp0ekbXEUiAY9PJVf2vr
+=B3u4
+-----END PGP SIGNATURE-----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
