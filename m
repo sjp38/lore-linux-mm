@@ -1,59 +1,79 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e1.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1FNp9KU014267
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 18:51:09 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1FNp9fN182166
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 18:51:09 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1FNp8Bu023253
-	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 18:51:08 -0500
-Date: Tue, 15 Feb 2005 15:51:04 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
-Message-ID: <31650000.1108511464@flay>
-In-Reply-To: <421283E6.9030707@sgi.com>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>	<20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>	<1108242262.6154.39.camel@localhost>	<20050214135221.GA20511@lnx-holt.americas.sgi.com>	<1108407043.6154.49.camel@localhost>	<20050214220148.GA11832@lnx-holt.americas.sgi.com>	<20050215074906.01439d4e.pj@sgi.com>	<20050215162135.GA22646@lnx-holt.americas.sgi.com>	<20050215083529.2f80c294.pj@sgi.com>	<20050215185943.GA24401@lnx-holt.americas.sgi.com> <16914.28795.316835.291470@wombat.chubb.wattle.id.au> <421283E6.9030707@sgi.com>
+Message-ID: <42128B25.9030206@sgi.com>
+Date: Tue, 15 Feb 2005 17:52:05 -0600
+From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: manual page migration -- issue list
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>, Peter Chubb <peterc@gelato.unsw.edu.au>
-Cc: raybry@austin.rr.com, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: Paul Jackson <pj@sgi.com>, Robin Holt <holt@sgi.com>, Andi Kleen <ak@muc.de>, Dave Hansen <haveblue@us.ibm.com>, Marcello Tosatti <marcello@cyclades.com>, Steve Longerbeam <stevel@mwwireless.net>, Peter Chubb <peterc@gelato.unsw.edu.au>
 List-ID: <linux-mm.kvack.org>
 
->> A possibly stupid suggestion: 
->> 
->> Can page migration be done lazily, instead of all at once?  Move the
->> process, mark its pages as candidates for migration, and when 
->> the page faults, decide whether to copy across or not...
->> 
->> That way you only copy the pages the process is using, and only copy
->> each page once.  It makes copy for replication easier in some future
->> incarnation, too, because the same basic infrastructure can be used.
->> 
-> 
-> I think that part of the motivation here (e. g. the batch scheduler on
-> a  large NUMA machine) is to push pages off of the old nodes so that
-> a new job running on the old nodes can allocate memory quickly and
-> efficiently (i. e. without having to swap out the old job's pages).
+I've been asked to repost this to the list with cc:'s to the interested 
+parties.  The content below is the same as before, its the email headers
+that are more interesting. :-)  (I hope I didn't miss anyone.)
 
-If our VM code wasn't crap, we'd do that automatically. It seems somewhat
-excessive to do that from a manual interface?
+==============================REPOSTING================================
+The following is an attempt to summarize the issues that have
+been raised thus far in this discussion.  I'm hoping that this
+list can help us resolve the issues in a (somewhat) organized
+manner:
 
-> True enough, we may move pages that are not currently being used.
-> But. on our large NUMA systems, we want the nodes where a new job
-> starts to be relatively clean so that local page allocations are
-> indeed satisfied by local pages and that these requests do not
-> spill off node.
+(1)  Should there be a new API or should/can the migration functionality
+      be folded under the NUMA API?
 
-Yes. The objective was to kick the LRU page off this node onto some other
-node, or to disk ... at the moment, if one node is more heavily used, we
-will always allocate off node for all new pages. that's crap.
+(2)  If we decide to make a new API, then what parameters should
+      that system call take?  Proposals have been made for all of
+      the following:
 
-M.
+      -- pid, va_start, va_end, count, old_nodes, new_nodes
+      -- pid, va_start, va_end, old_node_mask, new_node_mask
+      -- pid, va_start, va_end, old_node, new_node
+      -- same variations as above without the va_start/end arguments
 
+(2)  If we make a new API, how does that new API interact with the
+      NUMA API?
+      -- e. g.what happens when we migrate a VMA that has a mempolicy
+         associated with it?
+
+(3)  If we make a new API, how does this API interact with the rest
+      of the VM system.  For example, when we migrate part of a VMA
+      do we split the VMA or not?  (See also (4) below since if we
+      decide that the migration interface needs to be able to migrate
+      processes without stopping them, the whole concept of talking
+      about such ephemeral things as VMAs becomes pointless.)
+
+(4)  How general of a migration model are we supporting?
+      -- migration where old and new set of nodes might not be disjoint
+      -- migration of general processes (without suspension) or just
+         of suspended processes
+      -- how general of a migration model is necessary to get sufficient
+         users (more than SGI, say) to increase the chances of getting
+         the facility merged into the kernel.
+
+(5)  How do we determine what vma's to migrate?   (Subquestion:  Is
+      this done by the kernel or in user space?)
+      -- original idea:  reference counts in /proc/pid/maps
+      -- newer idea: exclusion lists either set by marking the
+         file in some special way or by an explicit list
+      -- if we mark files as non-migratable, where is this information
+         stored?
+
+(6)  How does the migration API (in whatever form it takes) interact
+      with cpusets?
+
+So first off, is this the complete list of issues?  Can anyone suggest
+an issue that isn't covered here?
+-- 
+-----------------------------------------------
+Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+	 so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
