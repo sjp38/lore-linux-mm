@@ -1,29 +1,39 @@
-Date: Mon, 24 May 2004 09:39:29 +0200
-From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
-Message-ID: <20040524073929.GA23216@elte.hu>
-References: <1085369393.15315.28.camel@gaston> <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org> <1085371988.15281.38.camel@gaston> <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org> <1085373839.14969.42.camel@gaston> <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+In-Reply-To: <1085376888.24948.45.camel@gaston>
+References: <1085369393.15315.28.camel@gaston>
+	 <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
+	 <1085371988.15281.38.camel@gaston>
+	 <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
+	 <1085373839.14969.42.camel@gaston>
+	 <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
+	 <1085376888.24948.45.camel@gaston>
+Content-Type: text/plain
+Message-Id: <1085377091.15281.49.camel@gaston>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
+Date: Mon, 24 May 2004 15:38:12 +1000
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Linus Torvalds <torvalds@osdl.org> wrote:
+> Well, the original scenario triggering that from userland is, imho, so
+> broken, that we may just not care losing that dirty bit ... Oh well :)
+> Anyway, apply my patch. If pte is not present, this will have no effect,
+> if it is, it makes sure we never leave a stale HPTE in the hash, which
+> is fatal in far worse ways.
 
-> Who else has been working on the page tables that could verify this
-> for me? Ingo? Ben LaHaise? I forget who even worked on this, because
-> it's so long ago we went through all the atomicity issues with the
-> page table updates on SMP. There may be some reason that I'm
-> overlooking that explains why I'm full of sh*t.
+Hrm... Or maybe I should just do in set_pte something like
 
-Ben's the master of atomic dirty pte updates! :)
+ BUG_ON(pte_present(ptep))
 
-	Ingo
+That would make me sleep better ;)
+
+Ben.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
