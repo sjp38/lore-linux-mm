@@ -1,136 +1,83 @@
-Date: Wed, 02 Apr 2003 07:34:31 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: 2.5.66-mm2
-Message-ID: <31520000.1049297670@[10.10.2.4]>
-In-Reply-To: <20030401173402.2a6f728f.akpm@digeo.com>
-References: <20030401000127.5acba4bc.akpm@digeo.com><151780000.1049245829@flay> <20030401173402.2a6f728f.akpm@digeo.com>
+Date: Wed, 02 Apr 2003 11:13:02 -0600
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: [PATCH 2.5.66-mm2] Fix page_convert_anon locking issues
+Message-ID: <8910000.1049303582@baldur.austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: multipart/mixed; boundary="==========1813199384=========="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: bzzz@tmi.comex.ru, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
->> Ho hum. All very strange. Kernbench seems to be really behaving itself
->> quite well now, but SDET sucks worse than ever. The usual 16x NUMA-Q 
->> machine .... 
->> 
->> Kernbench: (make -j N vmlinux, where N = 2 x num_cpus)
->>                               Elapsed      System        User         CPU
->>                2.5.66-mm2       44.04       81.12      569.40     1476.75
->>           2.5.66-mm2-ext3       44.43       84.10      568.82     1469.00
-> 
-> Is this ext2 versus ext3?  If so, that's a pretty good result isn't it?  I
-> forget what kernbench looked like for stock ext3.
+--==========1813199384==========
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Yes, it's splendid. Used to look more like this:
 
-Kernbench: (make -j N vmlinux, where N = 2 x num_cpus)
-                              Elapsed      System        User         CPU
-            2.5.61-mjb0.1       46.04      115.46      563.07     1472.25
-       2.5.61-mjb0.1-ext3       48.45      143.79      564.14     1459.00
+I came up with a scheme for accessing the page tables in page_convert_anon
+that should work without requiring locks.  Hugh has looked at it and agrees
+it addresses the problems he found.  Anyway, here's the patch.
 
-That was before I had noatime though (I think) ...
+Dave McCracken
 
-Kernbench: (make -j N vmlinux, where N = 2 x num_cpus)
-                              Elapsed      System        User         CPU
-              2.5.65-mjb1       43.73       81.69      563.54     1475.00
-         2.5.65-mjb1-ext3       44.13       79.77      564.56     1460.25
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmccr@us.ibm.com                                        T/L   678-3059
 
-So I think after noatime, SDET was really the big problem.
+--==========1813199384==========
+Content-Type: text/plain; charset=us-ascii; name="objlock-2.5.66-mm2-1.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="objlock-2.5.66-mm2-1.diff";
+ size=1116
 
->> SDET 32  (see disclaimer)
->>                            Throughput    Std. Dev
->>                2.5.66-mm2       100.0%         0.7%
->>           2.5.66-mm2-ext3         4.7%         1.5%
-> 
-> Yes, this is presumably a lot more metadata-intensive, so we're just
-> hammering the journal semaphore to death.  We're working on it.
-
-Ah, that makes sense, thanks.
+--- 2.5.66-mm2/./mm/rmap.c	2003-04-01 11:23:35.000000000 -0600
++++ 2.5.66-mm2-fix/./mm/rmap.c	2003-04-01 11:30:21.000000000 -0600
+@@ -95,7 +95,9 @@ find_pte(struct vm_area_struct *vma, str
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	pgd_t *pgd;
++	pgd_t pgdval;
+ 	pmd_t *pmd;
++	pmd_t pmdval;
+ 	pte_t *pte;
+ 	unsigned long loffset;
+ 	unsigned long address;
+@@ -106,17 +108,27 @@ find_pte(struct vm_area_struct *vma, str
+ 		goto out;
  
->> ftp://ftp.kernel.org/pub/linux/kernel/people/mbligh/benchmarks/2.5.66-mm2-ext3/
-> 
-> Offtopic, a raw sdet64 profile says:
-> 
-> 5392317 total
-> 4478683 default_idle
-> 307163 __down
-> 169770 .text.lock.sched
-> 106769 schedule
-> 88092 __wake_up
-> 57280 .text.lock.transaction
-> 
-> I'm slightly surprised that the high context switch rate is showing up so
-> much contention in sched.c.  I'm assuming that it's on the sleep/wakeup path
-> and not in the context switch path.  It would be interesting to inline the
-> spinlock code and reprofile.
+ 	pgd = pgd_offset(mm, address);
+-	if (!pgd_present(*pgd))
++	pgdval = *pgd;
++	if (!pgd_present(pgdval))
+ 		goto out;
+ 
+-	pmd = pmd_offset(pgd, address);
+-	if (!pmd_present(*pmd))
++	pmd = pmd_offset(&pgdval, address);
++	pmdval = *pmd;
++	if (!pmd_present(pmdval))
+ 		goto out;
+ 
+-	pte = pte_offset_map(pmd, address);
++	/* Double check to make sure the pmd page hasn't been freed */
++	if (!pgd_present(*pgd))
++		goto out;
++
++	pte = pte_offset_map(&pmdval, address);
+ 	if (!pte_present(*pte))
+ 		goto out_unmap;
+ 
++	/* Double check to make sure the pte page hasn't been freed */
++	if (!pmd_present(*pmd))
++		goto out_unmap;
++
+ 	if (page_to_pfn(page) != pte_pfn(*pte))
+ 		goto out_unmap;
+ 
 
-OK, done. diffprofile with an without spinlines below:
-
-    350487   158.8% schedule
-     67691     0.6% total
-     49184     0.5% default_idle
-     43095  1680.1% journal_start
-     42048   136.1% do_get_write_access
-     34988   638.7% journal_stop
-     16813  1527.1% inode_change_ok
-      6752     3.6% __wake_up
-      5960     0.9% __down
-      3942  3718.9% sem_exit
-      3323   725.5% inode_setattr
-      3191  1470.5% proc_pid_readlink
-      1646  2743.3% sys_ioctl
-       418    16.8% atomic_dec_and_lock
-       408     4.4% journal_add_journal_head
-       303   841.7% proc_root_lookup
-       258     4.6% __find_get_block
-       256    33.0% follow_mount
-       245     1.7% journal_dirty_metadata
-       223     4.7% __find_get_block_slow
-       213  2366.7% chrdev_open
-       209  1492.9% proc_root_readdir
-       202     2.6% find_get_page
-       171     8.8% journal_unlock_journal_head
-       146     6.2% kmem_cache_free
-       126     2.7% do_anonymous_page
-       120     1.3% copy_page_range
-       111  1387.5% sys_sysctl
-       107    93.9% journal_get_create_access
-       106     0.8% cpu_idle
-       106   963.6% __posix_lock_file
-       101   280.6% put_filp
-       100  1666.7% de_put
-...
-      -102   -13.1% fget
-      -118  -100.0% .text.lock.char_dev
-      -120    -2.2% block_write_full_page
-      -123   -20.0% block_prepare_write
-      -127   -93.4% remove_from_page_cache
-      -142  -100.0% .text.lock.sysctl
-      -167    -1.5% __blk_queue_bounce
-      -183   -27.8% do_generic_mapping_read
-      -203   -11.7% free_hot_cold_page
-      -205  -100.0% .text.lock.dcache
-      -211   -13.0% buffered_rmqueue
-      -237   -98.8% .text.lock.namei
-      -426  -100.0% .text.lock.dec_and_lock
-      -458  -100.0% .text.lock.root
-      -516    -8.8% __copy_to_user_ll
-      -781  -100.0% .text.lock.journal
-     -1696  -100.0% .text.lock.ioctl
-     -3123  -100.0% .text.lock.base
-     -4048  -100.0% .text.lock.sem
-    -19538  -100.0% .text.lock.attr
-   -117523   -99.9% .text.lock.transaction
-   -347530  -100.0% .text.lock.sched
-
-Thanks, 
-
-M.
+--==========1813199384==========--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
