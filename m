@@ -1,47 +1,46 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA16959
-	for <linux-mm@kvack.org>; Mon, 22 Dec 1997 20:05:03 -0500
-Date: Mon, 22 Dec 1997 23:14:33 +0100 (MET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA05317
+	for <linux-mm@kvack.org>; Thu, 8 Jan 1998 18:12:40 -0500
+Date: Fri, 9 Jan 1998 00:05:24 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: H.H.vanRiel@fys.ruu.nl
-Subject: Re: mmap-age patch, comments wanted 
-In-Reply-To: <m0xkBUW-000sMBC@linux.biostat.hfh.edu>
-Message-ID: <Pine.LNX.3.91.971222230403.15190B-100000@mirkwood.dummy.home>
+Subject: [patch *] mmap-age 2.1.78 released.
+Message-ID: <Pine.LNX.3.91.980108235813.3139A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Noel Maddy <ncm@biostat.hfh.edu>
+To: linux-kernel <linux-kernel@vger.rutgers.edu>
 Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 22 Dec 1997, Noel Maddy wrote:
+Hi,
 
-> That was definitely the case with your older vhand patches -- with 
-> them, I could get about 20M more into virtual memory before 
-> performance started degrading.  What I'm seeing now is a change in 
-> performance at the same load level.  I'm not sure whether the overall 
-> performance is hurt, because the vanilla kernel thrashes a lot in the 
-> same situation, but the system remains responsive.  It could be that 
-> the load takes longer in the vanilla kernel (I'll try to check that 
-> today), but the lack of responsiveness with the mmap-age patch makes 
-> it *seem* slower.  
+I am proud to announce to you the new version of mmap-age :-)
 
-With vhand, the kernel didn't properly age user-pages, so
-swap usage was overly high compared to vanilla or mmap-age,
-so comparing swap usage is no good indication of system load.
+This patch is an enhancement for the VM subsystem, it:
+- combats fragmentation (albeit in a primitive, but effective way)
+- makes the slab-system somewhat friendlier to the VM system
+- ages mmap'ed pages, for higher performance
+- makes kswapd a bit more intelligent, so there's less chance
+  of running out of memory / large fragments.
 
-Also, between vanilla and mmap-age, the mmap-age patched kernel
-uses swap more than the vanilla one. But the difference should
-be very small, so swap usage should still be usable as an
-indication for VM load.
+As usual, kudo's to Zlatko Calusic for the anti-frag stuff...
 
-I think that what's really making things slower, is that kswapd
-now has to scan more pages before it can swap one out. This
-makes the swapout slower (as MAX_SWAP_FAIL still is set at 3)
-so there are less free pages left to swap things in again.
-I'm going to try to resolve this issue right now...
+You can get it from my homepage. If you throw this message
+away and can't remember the address later, my homepage can
+be reached via LinuxHQ -> 21unoff.html.
+
+It's all 'tried and tested' code, so it should be safe.
+And with the improved logic and Linus' old allocation code,
+it works better than ever...
+
+As usual, reports are welcomed,
 
 Rik.
+
+ps. I'd really like to get this into 2.2 if we can't find a
+better solution against fragmentation. And the extra performance
+also comes in handy :-)
 +-----------------------------+------------------------------+
 | For Linux mm-patches, go to | "I'm busy managing memory.." |
 | my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
