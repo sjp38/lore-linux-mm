@@ -1,36 +1,52 @@
 From: Alistair J Strachan <alistair@devzero.co.uk>
 Subject: Re: 2.6.0-test5-mm4
-Date: Mon, 22 Sep 2003 14:54:16 +0100
-References: <20030922013548.6e5a5dcf.akpm@osdl.org> <20030922143605.GA9961@gemtek.lt> <200309221449.37677.alistair@devzero.co.uk>
-In-Reply-To: <200309221449.37677.alistair@devzero.co.uk>
+Date: Mon, 22 Sep 2003 15:29:57 +0100
+References: <20030922013548.6e5a5dcf.akpm@osdl.org> <200309221317.42273.alistair@devzero.co.uk> <20030922134813.GF7665@parcelfarce.linux.theplanet.co.uk>
+In-Reply-To: <20030922134813.GF7665@parcelfarce.linux.theplanet.co.uk>
 MIME-Version: 1.0
 Content-Disposition: inline
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <200309221454.16116.alistair@devzero.co.uk>
+Message-Id: <200309221529.57836.alistair@devzero.co.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zilvinas Valinskas <zilvinas@gemtek.lt>
+To: viro@parcelfarce.linux.theplanet.co.uk
 Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 22 September 2003 14:49, Alistair J Strachan wrote:
-[snip]
+On Monday 22 September 2003 14:48, you wrote:
+> On Mon, Sep 22, 2003 at 01:17:42PM +0100, Alistair J Strachan wrote:
+> > One possible explanation is that I have devfs compiled into my kernel. I
+> > do not, however, have it automatically mounting on boot. It overlays /dev
+> > (which is populated with original style device nodes) after INIT has
+> > loaded.
 >
-> I'll try that, thanks. But I have this in lilo.conf:
+> Amazingly idiotic typo.  And yes, it gets hit only if devfs is configured.
 >
-> boot=/dev/discs/disc0/disc
-> root=/dev/discs/disc0/part2
->
-> /dev/discs is indeed a symlink, but it should be resolved when LILO is
-> installed, i.e., prior to the reboot. Why has this behaviour changed?
->
+> diff -u B5-real32/init/do_mounts.h B5-current/init/do_mounts.h
+> --- B5-real32/init/do_mounts.h	Sun Sep 21 21:22:33 2003
+> +++ B5-current/init/do_mounts.h	Mon Sep 22 09:41:21 2003
+> @@ -53,7 +53,7 @@
+>  static inline u32 bstat(char *name)
+>  {
+>  	struct stat64 stat;
+> -	if (!sys_stat64(name, &stat) != 0)
+> +	if (sys_stat64(name, &stat) != 0)
+>  		return 0;
+>  	if (!S_ISBLK(stat.st_mode))
+>  		return 0;
+> @@ -65,7 +65,7 @@
+>  static inline u32 bstat(char *name)
+>  {
+>  	struct stat stat;
+> -	if (!sys_newstat(name, &stat) != 0)
+> +	if (sys_newstat(name, &stat) != 0)
+>  		return 0;
+>  	if (!S_ISBLK(stat.st_mode))
+>  		return 0;
 
-Changing it as per your suggestion makes no difference. I still cannot boot, 
-and the error is identical.
-
-Disregard my last email.
+Thanks for that. It's working fine now.
 
 Cheers,
 Alistair.
