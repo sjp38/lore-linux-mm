@@ -1,44 +1,31 @@
-Date: Wed, 11 Jun 2003 09:50:17 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: How to fix the total size of buffer caches in 2.4.5?
-Message-ID: <20030611165017.GS15692@holomorphy.com>
-References: <20030611162224.GR15692@holomorphy.com> <Pine.LNX.4.44.0306111226160.1656-100000@ickis.cs.wm.edu>
+Date: Wed, 11 Jun 2003 11:56:26 -0700
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: [2.5.70-mm8] NETDEV WATCHDOG: eth0: transmit timed out
+Message-Id: <20030611115626.26ddac3a.akpm@digeo.com>
+In-Reply-To: <200306111725.49952.schlicht@uni-mannheim.de>
+References: <20030611013325.355a6184.akpm@digeo.com>
+	<200306111356.52950.schlicht@uni-mannheim.de>
+	<200306111516.46648.schlicht@uni-mannheim.de>
+	<200306111725.49952.schlicht@uni-mannheim.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0306111226160.1656-100000@ickis.cs.wm.edu>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Shansi Ren <sren@CS.WM.EDU>
-Cc: linux-mm@kvack.org
+To: Thomas Schlichter <schlicht@uni-mannheim.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 11, 2003 at 12:28:18PM -0400, Shansi Ren wrote:
-> What version do you suggest then? The reason why I choose 2.4.5 is that 
-> I'm doing a research project. Experiments on earlier versions may not be 
-> persuasive to audience.
+Thomas Schlichter <schlicht@uni-mannheim.de> wrote:
+>
+> OK, I've found it...!
 
-That's actually too old, not too new.
+Thanks.
 
-You do realize that the 3rd number in the point releases is a
-patchlevel, and does not indicate major kernel-wide changes? i.e. if
-you're going to hack on 2.4.x, the highest value of x indicates the
-version with the most bugfixes. 2.4.y vs. 2.4.x with y > x does not
-indicate a brand new major kernel version with oodles of new features,
-major subsystems redesigned, and so on.
+> After reverting the pci-init-ordering-fix everything works as expected 
+> again...
 
-Also, 2.4.x is relatively deeply frozen. I won't consult Marcelo (he
-has enough to deal with), but IMHO it's not productive to demonstrate
-major design changes against a codebase that can (by definition) never
-absorb them. i.e. it'd be best to try to work against current 2.5.x.
-
-I myself am brewing up something that appears to be suffering from bad
-timing wrt. the release cycle. The way I'm going to handle that is just
-keeping it current until the next development cycle opens. This is not
-painless (in fact, it is "very painful").
-
-
--- wli
+Damn.  That patch fixes other bugs.  i386 pci init ordering is busted.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
