@@ -1,65 +1,44 @@
-Message-Id: <200309291750.h8THojfr001310@turing-police.cc.vt.edu>
-Subject: Re: zombies 
-In-Reply-To: Your message of "Mon, 29 Sep 2003 09:43:30 PDT."
-             <20030929094330.15485106.akpm@osdl.org>
-From: Valdis.Kletnieks@vt.edu
-References: <32F7E536759ED611BBA9001083CFB165C07333@savion.cc.huji.ac.il>
-            <20030929094330.15485106.akpm@osdl.org>
+Date: Mon, 29 Sep 2003 11:56:50 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: 2.6.0-test6-mm1
+Message-Id: <20030929115650.46472ede.akpm@osdl.org>
+In-Reply-To: <20030929111447.GA21451@redhat.com>
+References: <20030928191038.394b98b4.akpm@osdl.org>
+	<20030929111447.GA21451@redhat.com>
 Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_660582116P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Date: Mon, 29 Sep 2003 13:50:42 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Liviu Voicu <liviuv@savion.cc.huji.ac.il>, linux-mm@kvack.org, linux-kernel@osdl.org, linux-kernel@vger.kernel.org
+To: Dave Jones <davej@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_660582116P
-Content-Type: text/plain; charset=us-ascii
+Dave Jones <davej@redhat.com> wrote:
+>
+> On Sun, Sep 28, 2003 at 07:10:38PM -0700, Andrew Morton wrote:
+>  
+>  > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test6/2.6.0-test6-mm1
+> 
+> Debug: sleeping function called from invalid context at include/linux/rwsem.h:43
+> in_atomic():0, irqs_disabled():1
+> Call Trace:
+>  [<02123550>] do_page_fault+0x0/0x588
+>  [<021291be>] __might_sleep+0x9e/0xc0
+>  [<021237e0>] do_page_fault+0x290/0x588
+>  [<02135a85>] update_process_times+0x45/0x50
+>  [<02113ab8>] timer_interrupt+0x188/0x1e0
+>  [<0210ea0b>] do_IRQ+0x18b/0x230
+>  [<02123550>] do_page_fault+0x0/0x588
+> 
 
-On Mon, 29 Sep 2003 09:43:30 PDT, Andrew Morton said:
+You have the 4G split enabled, and took a pagefault in the timer interrupt
+handler.  Conceivably that fault hit vmalloc space, but I don't see how.
 
-> ah, OK.  What happens if you do a `patch -R -p1' using
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test6/2.6
-.0-test6-mm1/broken-out/call_usermodehelper-retval-fix-2.patch ?
+Even if it did, it shouldn't have got through to taking mmap_sem.
 
-That fixes up the problem here as well.  Also, note that it wasn't just
-the Synaptics driver:
+I'm stumped.  Maybe Ingo can spot it?
 
-ps alwx|grep Z
-F   UID   PID  PPID PRI  NI   VSZ  RSS WCHAN  STAT TTY        TIME COMMAND
-1     0   290     3   6 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
-1     0   292     3   5 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
-1     0   294     3   5 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
-1     0   296     3   5 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
-1     0   298     3   6 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
-1     0   300     3   6 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
-0     0   578     3   6 -10     0    0 do_exi Z<   ?          0:00 [ifup <defunct>]
-1     0  1029     3   6 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
-0     0  1216     3   5 -10     0    0 ct>    Z<   ?          0:00 [net.agent <defunct>]
-1     0  1227     3   5 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
-1     0  1229     3   6 -10     0    0 t>     Z<   ?          0:00 [events/0 <defunct>]
-
-The ifup was probably attached to either a wireless or Xircom ethernet card,
-the net.agent was probably from a PPP connection starting up (based on the PID
-of the process).
-
-
---==_Exmh_660582116P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQE/eHDycC3lWbTT17ARArXSAJ95d4hlQDCkcG/ekMQBFBagDGos4QCg56y/
-gXaq86DP7nrs34q0x3TfRDY=
-=p1SJ
------END PGP SIGNATURE-----
-
---==_Exmh_660582116P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
