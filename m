@@ -1,5 +1,5 @@
-Message-ID: <4153BFC2.9000500@sgi.com>
-Date: Fri, 24 Sep 2004 01:33:38 -0500
+Message-ID: <4153C1FA.3070508@sgi.com>
+Date: Fri, 24 Sep 2004 01:43:06 -0500
 From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 2/2] mm: eliminate node 0 bias in MPOL_INTERLEAVE
@@ -13,6 +13,8 @@ To: Andi Kleen <ak@suse.de>
 Cc: Ray Bryant <raybry@austin.rr.com>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>, Nick Piggin <piggin@cyberone.com.au>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
+(Resending to removing annoying long lines....)
+
 Andi Kleen wrote:
 > On Wed, Sep 22, 2004 at 11:32:45PM -0500, Ray Bryant wrote:
 > 
@@ -22,7 +24,7 @@ Andi Kleen wrote:
 > I would prefer to keep the invariant.
 > 
 
-I understand, but read on...
+I understand, but read on.
 
 > 
 >>+++ linux-2.6.9-rc2-mm1/mm/mempolicy.c	2004-09-21 17:44:58.000000000 -0700
@@ -56,13 +58,13 @@ I understand, but read on...
 > 
 > 
 > And remove it here.
->
-
-Regardless of whether we remove this or not, then we have a potential problem, 
-I think.  The reason is that there is a single il_next for all policies.  So 
+> 
+> 
+Regardless of whether we remove this or not, then we have a potential problem,
+I think.  The reason is that there is a single il_next for all policies.  So
 we get into trouble if the current process's page allocation policy and
 its page cache allocation policy are MPOL_INTERLEAVE, but the node masks for
-the two policies are significantly different. Just to be specific, suppose 
+the two policies are significantly different. Just to be specific, suppose
 there are 64 nodes, and the page allocation policy selects nodes 0-53 and
 the page cache allocation policy chooses nodes 54-63.  Further suppose that
 allocation requests are page, page cache, page, page cache, etc....
@@ -83,8 +85,8 @@ set to 54
 request a page, get 54 and using the page allocation mask, next is set to 0
 etc...
 
-This is not good.  Generally speaking, all of the pages are allocated from the 
-1st page cache node and all of the page cache pages are allocated from the 1st 
+This is not good.  Generally speaking, all of the pages are allocated from the
+1st page cache node and all of the page cache pages are allocated from the 1st
 page allocation node.
 
 I guess I am back to passing an offset etc in via page cache alloc.  Or we
@@ -93,7 +95,6 @@ cruft than we are willing to live with, I expect.
 
 I'll look at Steve's patch and see how he handles this.
 
-> 
 >> 	next = find_next_bit(policy->v.nodes, MAX_NUMNODES, 1+nid);
 >> 	if (next >= MAX_NUMNODES)
 >> 		next = find_first_bit(policy->v.nodes, MAX_NUMNODES);
@@ -112,6 +113,11 @@ I'll look at Steve's patch and see how he handles this.
 > Same here.
 > 
 > -Andi
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 > 
 
 
