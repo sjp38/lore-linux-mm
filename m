@@ -1,52 +1,32 @@
-Message-ID: <20050113212912.93033.qmail@web14308.mail.yahoo.com>
-Date: Thu, 13 Jan 2005 13:29:12 -0800 (PST)
-From: Kanoj Sarcar <kanojsarcar@yahoo.com>
+Date: Fri, 14 Jan 2005 08:59:55 +1100
+From: Anton Blanchard <anton@samba.org>
 Subject: Re: smp_rmb in mm/memory.c in 2.6.10
-In-Reply-To: <20050113210624.GG20738@wotan.suse.de>
-MIME-Version: 1.0
+Message-ID: <20050113215955.GB6309@krispykreme.ozlabs.ibm.com>
+References: <20050113210624.GG20738@wotan.suse.de> <20050113212912.93033.qmail@web14308.mail.yahoo.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050113212912.93033.qmail@web14308.mail.yahoo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org
+To: Kanoj Sarcar <kanojsarcar@yahoo.com>
+Cc: Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---- Andi Kleen <ak@suse.de> wrote:
+ 
+Hi Kanoj,
 
-> > In include/asm-i386/spinlock.h, spin_unlock_string
-> has
-> > a "xchgb" (in case its required). That should be
-> > enough  of a barrier for the hardware, no? 
-> 
-> It is, but only for broken PPros or OOSTORE system
-> (currently only VIA C3). For kernels compiled for
-> non broken CPUs  
-> there isn't any kind of barrier. 
-> 
-> -Andi
+> Okay, I think I see what you and wli meant. But the assumption that
+> spin_lock will order memory operations is still correct, right?
 
-Okay, I think I see what you and wli meant. But the
-assumption that spin_lock will order memory operations
-is still correct, right?
+A spin_lock will only guarantee loads and stores inside the locked
+region dont leak outside. Loads and stores before the spin_lock may leak
+into the critical region. Likewise loads and stores after the
+spin_unlock may leak into the critical region.
 
-Going back to what I meant in the first place, the
-memory.c code is doing something like 1. read
-truncate_count, 2. invoke nopage, which will probably
-get locks, which will ensure the read of
-truncate_count is complete, right? So, the original
-point that smp_rmb() is not required (at least in the
-position it currently is in) still holds, correct?
+Also they dont guarantee ordering for cache inhibited loads and stores.
 
-Thanks.
-
-Kanoj
-
-
-		
-__________________________________ 
-Do you Yahoo!? 
-Take Yahoo! Mail with you! Get it on your mobile phone. 
-http://mobile.yahoo.com/maildemo 
+Anton
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
