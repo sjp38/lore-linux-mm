@@ -1,41 +1,55 @@
-Date: Mon, 14 May 2001 10:43:05 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from m2hub.mail.wipro.com (m2hub.wipro.com [164.164.27.50])
+	by wiprom2mx1.wipro.com (8.9.3+Sun/8.9.3) with ESMTP id PAA07501
+	for <linux-mm@kvack.org>; Mon, 14 May 2001 15:24:01 GMT
+Received: from m2vwall2.wipro.com ([164.164.27.52]) by
+          m2hub.mail.wipro.com (Netscape Messaging Server 4.15) with SMTP
+          id GDBK7N00.762 for <linux-mm@kvack.org>; Mon, 14 May 2001
+          15:10:35 +0530
+Date: Mon, 14 May 2001 15:19:54 +0530 (IST)
+From: Kunaal Mahanti <kunaal.mahanti@wipro.com>
 Subject: Re: kernel position
-Message-ID: <20010514104305.N7594@redhat.com>
-References: <20010514092219.55514.qmail@web13202.mail.yahoo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20010514092219.55514.qmail@web13202.mail.yahoo.com>; from any_and@yahoo.com on Mon, May 14, 2001 at 02:22:19AM -0700
+In-Reply-To: <20010514092219.55514.qmail@web13202.mail.yahoo.com>
+Message-ID: <Pine.PTX.3.96.1010514150742.26385A-100000@wipro.wipsys.sequent.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Any Anderson <any_and@yahoo.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 14 May 2001, Any Anderson wrote:
+
 Hi,
-
-On Mon, May 14, 2001 at 02:22:19AM -0700, Any Anderson wrote:
-
 > I wann know where in the physical memory is kernel
-> loaded by the loader (such as lilo)
+> loaded by the loader (such as lilo) and does this
+> position has any significance in mm system. If that
 
-Look at the Technical_Guide.ps documentation file in the lilo
-distribution: it contains a lot of detail on exactly what gets loaded
-where during boot.
+The kernel is loaded loaded beyond 0x1000000 (1MB), this is a h/w
+constraint as most DMA devices cannot address beyond that, so we leave if
+free, although there should'nt be any problem using a lower address for
+kernel.
 
-> and does this
-> position has any significance in mm system. 
+> location is to be changed which files should be
+> changed. Lets assume we are talking for x86 platform.
+> Thanks in advance for your time.
 
-Not really, no.  The only impact is that the architecture-specific
-parts of the MM's initialisation need to be aware of a few details of
-the boot process.  In particular, they need to know where any initrd
-ramdisk has been loaded so that they don't try to reuse that memory
-until the initial ramdisk has been freed.  Apart from that, the MM
-system really knows nothing about booting.
+I think all we need is to use -Ttext flag while loading the kernel to
+modify the load address. If I am correct the other things will fall in
+place. mem_init() will take care of marking the remaining memory as
+dynamic.
+-
 
-Cheers,
- Stephen
+Kunaal Mahanti
+Senior Software Engineer,
+IBM NUMA-Q IDC,
+Wipro Technologies.
+Ph : +91-80-5732293/96 Ext: 5242
+Fax: +91-80-5732296
+-------------------------------------------------------------------------------
+Visit us at http://www.wipro.com/ and http://www.wiproindia.com/ 
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
