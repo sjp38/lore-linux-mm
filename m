@@ -1,66 +1,50 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199911090324.TAA27308@google.engr.sgi.com>
-Subject: [PATCH] kanoj-mm26-2.3.26 Fix nonPAE kernel panics
-Date: Mon, 8 Nov 1999 19:24:45 -0800 (PST)
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 9 Nov 1999 11:26:28 +0200
+From: "Arkadi E. Shishlov" <arkadi@it.lv>
+Subject: Re: IO mappings; verify_area() on SMP
+Message-ID: <19991109112628.A559@it.lv>
+References: <19991108134325.A589@it.lv> <199911081925.LAA28960@google.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <199911081925.LAA28960@google.engr.sgi.com>; from Kanoj Sarcar on Mon, Nov 08, 1999 at 11:25:11AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@transmeta.com
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus,
+  Thank you for fast response. Now I know, how to deal with memory io.
 
-Please put this patch into 2.3.27. It prevents a nonPAE kernel from
-attempting to use >4Gb physical memory, if the ia32 box has that
-much. My non PAE kernel is now able to multiuser boot my ia32 box
-which has slightly more than 4Gb RAM.
+On Mon, Nov 08, 1999 at 11:25:11AM -0800, Kanoj Sarcar wrote:
+> > 
+> >   Second question is about verify_area() safety. Many drivers contain
+> >   following sequence:
+> > 
+> >   if ((ret = verify_area(VERIFY_WRITE, buffer, count)))
+> > 	    return r;
+> >   ...
+> >   copy_to_user(buffer, driver_data_buf, count);
+> > 
+> >   Even protected by cli()/sti() pairs, why multithreaded program on
+> >   SMP machine can't unmap this verified buffer between calls to
+> >   verify_area() and copy_to_user()? Of course it can't be true, but
+> >   maybe somebody can write two-three words about reason that prevent
+> >   this situation.
+> 
+> In most cases, the address spaces' mmap_sem is held, which prevents
+> unmap's from happening until the caller of verify_area/copy_to_user
+> releases it. This is if copy_to_user takes a page fault. If there
+> is no page fault, the caller probably holds the kernel_lock 
+> monitor, which excludes anyone else from doing a lot of things 
+> inside the kernel, including unmaps.
 
-Also, add in helpful messages for sysadmins, so that they can create
-the best possible kernel for their ia32 boxes.
+  Hmm... Your explanation is somewhat different from Andi Kleen wrote.
+  I don't see use of mmap_sem in conjunction with drivers (only char/mem).
+  If I mistaken - sorry, I will dig into kernel and investigate this.
 
-Thanks.
 
-Kanoj
-
---- /usr/tmp/p_rdiff_a006bj/setup.c	Mon Nov  8 19:22:00 1999
-+++ arch/i386/kernel/setup.c	Mon Nov  8 18:17:08 1999
-@@ -583,6 +583,7 @@
- #define VMALLOC_RESERVE	(unsigned long)(128 << 20)
- #define MAXMEM		(unsigned long)(-PAGE_OFFSET-VMALLOC_RESERVE)
- #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
-+#define MAX_NONPAE_PFN	(1 << 20)
- 
- 	/*
- 	 * partially used pages are not usable - thus
-@@ -608,8 +609,26 @@
- 	 * Determine low and high memory ranges:
- 	 */
- 	max_low_pfn = max_pfn;
--	if (max_low_pfn > MAXMEM_PFN)
-+	if (max_low_pfn > MAXMEM_PFN) {
- 		max_low_pfn = MAXMEM_PFN;
-+#ifndef CONFIG_HIGHMEM
-+		/* Maximum memory usable is what is directly addressable */
-+		printk(KERN_WARNING "Warning only %ldMB will be used.\n",
-+					MAXMEM>>20);
-+		if (max_pfn > MAX_NONPAE_PFN)
-+			printk(KERN_WARNING "Use a PAE enabled kernel.\n");
-+		else
-+			printk(KERN_WARNING "Use a HIGHMEM enabled kernel.\n");
-+#else /* !CONFIG_HIGHMEM */
-+#ifndef CONFIG_X86_PAE
-+		if (max_pfn > MAX_NONPAE_PFN) {
-+			max_pfn = MAX_NONPAE_PFN;
-+			printk(KERN_WARNING "Warning only 4GB will be used.\n");
-+			printk(KERN_WARNING "Use a PAE enabled kernel.\n");
-+		}
-+#endif /* !CONFIG_X86_PAE */
-+#endif /* !CONFIG_HIGHMEM */
-+	}
- 
+arkadi.
+-- 
+Just arms curvature radius.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
