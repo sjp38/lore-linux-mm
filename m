@@ -1,51 +1,29 @@
-Received: from agnes.fremen.dune (bas5-12.idf7-1.club-internet.fr [195.36.255.12])
-	by front3.grolier.fr (8.9.3/No_Relay+No_Spam_MGC990224) with SMTP id VAA15550
-	for <linux-mm@kvack.org>; Tue, 6 Feb 2001 21:24:22 +0100 (MET)
-Message-Id: <200102062024.VAA15550@front3.grolier.fr>
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Disposition: inline
-Content-Transfer-Encoding: 7bit
-MIME-Version: 1.0
-From: Jean Francois Martinez <jfm2@club-internet.fr>
-Subject: Another Mindcradt case?
-Date: 06 Feb 2001 21:25:10 CET
-Reply-To: Jean Francois Martinez <jfm2@club-internet.fr>
+Date: Tue, 6 Feb 2001 21:27:04 +0100
+From: Christoph Hellwig <hch@ns.caldera.de>
+Subject: Re: Another Mindcradt case?
+Message-ID: <20010206212704.A5882@caldera.de>
+References: <200102062024.VAA15550@front3.grolier.fr>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <200102062024.VAA15550@front3.grolier.fr>; from jfm2@club-internet.fr on Tue, Feb 06, 2001 at 09:25:10PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Jean Francois Martinez <jfm2@club-internet.fr>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Moshe Barr is claiming on Byte that sendmail and mysql are 30% faster on
-FreeBSD than Linux 2.4.   Now given that I don't think that mysql is spending
-30% of its time in kernel mode there are not many ways FreeBSD can be 30%
-faster.
+On Tue, Feb 06, 2001 at 09:25:10PM +0100, Jean Francois Martinez wrote:
+> Moshe Barr is claiming on Byte that sendmail and mysql are 30% faster on
+> FreeBSD than Linux 2.4.   Now given that I don't think that mysql is spending
+> 30% of its time in kernel mode there are not many ways FreeBSD can be 30%
+> faster.
 
-1) Compiler issues.  Moshe Barr does not tell what distrib ha was using so we
-don't know what distribution was used and with what 
+As he has not even documented all the parameters:  Ignore him.
 
-2) Driver problems, specally those related to enabling UltraDma since without
-UltraDMA most disks are both very slow and CPU hogs.
+	Christoph
 
-3) Options not enabled.  This a 2.2 Linux distrib with a 2.4 keernel plastered
-on it and thus software has not been compiled to take advantage of 2.4bfeatures
-and the boot sequence does not do a good job of tuning the kernel through
-sysctl
-
-4) Memory management.  If FreeBSD is smarter than Linux about which page to
-thow out it will be _much_ faster when memory is tight.
-
-
-Now what about a Mindcraft-style reaction?  Check what was wrong in the test
-protocol, write an answer if it was due to the test and in case it was not the
-test but a perfomance bottleneck fix it.
-
-Moshe (and a few other people will do the same) was wondering why to stay with
-Linux so better fix the problems if we want Linux and not BSD reaching world
-domination. 
-
-
-									JF
-Martinez
+-- 
+Whip me.  Beat me.  Make me maintain AIX.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
