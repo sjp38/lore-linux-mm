@@ -1,12 +1,11 @@
-Date: Wed, 06 Apr 2005 18:23:09 +0500
-From: "Lea Andrews" <erjon@mailAccount.com>
-Message-Id: <CFE8.AA79.9A01erjon@mailAccount.com>
-Subject: Rates fixed 
-Return-Path: <erjon@mailAccount.com>
+Date: Wed, 06 Apr 2005 09:53:43 -0400
+From: "Kathrine Christie" <campier@doramail.com>
+Subject: Lowest rate approval
+Message-ID: <110741.6373.campier@doramail.com>
+Return-Path: <campier@doramail.com>
 To: io@kvack.org
-Cc: jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.orgmo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.org
+Cc: jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.orgmo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
-
 
 Hello,
 
@@ -27,7 +26,7 @@ Hello,
 
  Best Regards,
 
- Fletcher Odom
+ Levi Stokes
  
  to be remov(ed:	http://www.3-m-n.net/gone.asp
 
