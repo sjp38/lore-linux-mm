@@ -1,56 +1,42 @@
-Received: from noc.nyx.net (mail@noc.nyx.net [206.124.29.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA20465
-	for <linux-mm@kvack.org>; Wed, 13 Jan 1999 16:32:00 -0500
-Date: Wed, 13 Jan 1999 14:31:41 -0700 (MST)
-From: Colin Plumb <colin@nyx.net>
-Message-Id: <199901132131.OAA09149@nyx10.nyx.net>
-Subject: Re: Why don't shared anonymous mappings work?
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA20770
+	for <linux-mm@kvack.org>; Wed, 13 Jan 1999 17:10:40 -0500
+Date: Wed, 13 Jan 1999 22:10:12 GMT
+Message-Id: <199901132210.WAA07391@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH] Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <Pine.LNX.3.96.990113191421.185E-100000@laser.bogus>
+References: <199901131755.RAA06476@dax.scot.redhat.com>
+	<Pine.LNX.3.96.990113191421.185E-100000@laser.bogus>
 Sender: owner-linux-mm@kvack.org
-To: sct@redhat.com
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@humbolt.geo.uu.nl>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Um, I just thought of another problem with shared anonymous pages.
-It's similar to the zero-page issue you raised, but it's no longer
-a single special case.
+Hi,
 
-Copy-on-write and shared mappings.  Let's say that process 1 has a COW
-copy of page X.  Then the page is shared (via mmap /proc/1/mem or some
-such) with process 2.  Now process A writes to the page.
+On Wed, 13 Jan 1999 19:52:03 +0100 (CET), Andrea Arcangeli
+<andrea@e-mind.com> said:
 
-While copying the page, we have to update B's pte to point to the new copy.
-But we have no data structure to keep track of the sharing structure.
+> Note that we don't need nr_async_pages at all. Here when the limit of
+> nr_async_pages is low it's only a bottleneck for swapout performances. I
+> have not removed it (because it could be useful to decrease swapout I/O if
+> somebody needs this strange feature), but I have added a
+> page_daemon.max_async_pages and set it to something like 256. Now I check
+> nr_async_pages against the new max_async_pages. 
 
-It's a fairly simple structure, really, since a given physical page maps
-(via COW) to one or more separate logical pages, which are in turn each
-mapped into one or more memory maps.  Becasue of the "one or more", you
-can hope to integrate it into another structure, but ugh.  For n copies,
-you need n-1 non-null pointers.  That's a lot of null pointers when n
-has its usual value of 1.
+The problem is that if you do this, it is easy for the swapper to
+generate huge amounts of async IO without actually freeing any real
+memory: there's a question of balancing the amount of free memory we
+have available right now with the amount which we are in the process of
+freeing.  Setting the nr_async_pages bound to 256 just makes the swapper
+keen to send a whole 1MB of memory out to disk at a time, which is a bit
+steep on an 8MB box.
 
-One possible fix is to consider multiple mappings of a logical page to
-be a write for the purposes of COW copying.  That way, each physical
-page is *either* COW-mapped to multiple logical pages, each present in
-*one* mmap, or corresponds to one logical page which is present in one
-or more maps.  This reduces the tree down to one level, and a type bit
-in the page structure will do.
-
-It *is* possible to link PTE entries together in a singly-linked list
-where a pointer to another PTE is distinguishable from a pointer to
-a disk block or a valid PTE.  I have thought of using this to update
-more PTEs when a page is swapped in, as the swapper-in would traverse
-the list to find the page at the end, swap it in if necessary, and
-copy the mapping to all the entries it traversed.
-
-Come to think of it, this *could* be used for zero-mapped pages.
-Make it a circularly linked list.  (You could even distinguish
-circular and non-circular lists if you need both.)  Then when
-the page is accessed, allocate it and copy the pointer to all the
-other PTEs on the list.
-
-Do you have any other ideas?
--- 
-	-Colin
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
