@@ -1,40 +1,39 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA31037
-	for <linux-mm@kvack.org>; Fri, 27 Feb 1998 06:00:55 -0500
-Date: Fri, 27 Feb 1998 10:58:34 +0100 (MET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA12225
+	for <linux-mm@kvack.org>; Fri, 27 Feb 1998 07:03:21 -0500
+Date: Fri, 27 Feb 1998 12:26:23 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: Re: [2x PATCH] page map aging & improved kswap logic
-In-Reply-To: <199802270929.KAA28081@boole.fs100.suse.de>
-Message-ID: <Pine.LNX.3.91.980227105614.17899A-100000@mirkwood.dummy.home>
+Subject: Re: Fairness in love and swapping
+In-Reply-To: <199802270729.IAA00680@cave.BitWizard.nl>
+Message-ID: <Pine.LNX.3.91.980227122502.19469A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Dr. Werner Fink" <werner@suse.de>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
+To: Rogier Wolff <R.E.Wolff@BitWizard.nl>
+Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Feb 1998, Dr. Werner Fink wrote:
+On Fri, 27 Feb 1998, Rogier Wolff wrote:
 
-> > The kswapd logic is almost completely redone. Basically,
-> > kswapd tries (free_pages_high - nr_free_pages) times to
-> > free a page, but when memory becomes tighter, the number
-> > of tries become even higher.
+> Rik van Riel wrote:
+> > fil_dsc - number of file descriptors (if it has loads of
+> >           file descriptors, it communicates a lot with the environment
+> >           and is less likely a batch process)
 > 
-> Is the explicit call of run_task_queue(&tq_disk) really needed?
-> Maybe setting of the __GFP_WAIT flag would work in the same manner:
+> At shell they have 3D datasets. 
 > 
->         gfp_mask = __GFP_IO;
->         if (atomic_read(&nr_async_pages) >= SWAP_CLUSTER_MAX)
->                 gfp_mask |= __GFP_WAIT;
+> They store them in an "array of 2D files". That way you can do:
+> 
+>          (echo "P5";echo 230 500;cat file24) | xv -
+> 
+> A program processing these e.g. in 2D, but then along a different axis
+> as over here, would have all 300 files open at the same time.......
 
-Wouldn't that just mean that the pages that are
-swapped out from now on will be done synchronously?
-
-What I wanted kswapd to do, was to select SWAP_CLUSTER_MAX
-pages and swap them out in _one_ I/O operation. Because
-this should save head movement, it might give us an improvement
-over syncing each swapped page seperately.
+OK, we could take the number of non-file file descriptors.
+The number of network connections (to not-self) is usually
+a good indication of program interaction. The number of
+network I/Os also is a good bonus.
 
 Rik.
 +-----------------------------+------------------------------+
