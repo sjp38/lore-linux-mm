@@ -1,44 +1,35 @@
-Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA28240
-	for <linux-mm@kvack.org>; Mon, 11 Jan 1999 02:03:33 -0500
-Date: Sun, 10 Jan 1999 23:02:47 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: testing/pre-7 and do_poll()
-In-Reply-To: <19990111015958.E3767@perlsupport.com>
-Message-ID: <Pine.LNX.3.95.990110225652.1997J-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail.ccr.net (ccr@alogconduit1ag.ccr.net [208.130.159.7])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA28401
+	for <linux-mm@kvack.org>; Mon, 11 Jan 1999 02:20:59 -0500
+Subject: Re: vfork & co bugfix
+References: <Pine.LNX.3.95.990110223325.1997E-100000@penguin.transmeta.com>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 11 Jan 1999 00:59:27 -0600
+In-Reply-To: Linus Torvalds's message of "Sun, 10 Jan 1999 22:35:44 -0800 (PST)"
+Message-ID: <m13e5i47n4.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: Chip Salzenberg <chip@perlsupport.com>
+To: Linus Torvalds <torvalds@transmeta.com>
 Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+>>>>> "LT" == Linus Torvalds <torvalds@transmeta.com> writes:
 
+LT> I missed it too, until I started thinking about all the possible
+LT> combinations.
 
-On Mon, 11 Jan 1999, Chip Salzenberg wrote:
-> > 
-> > Hint: HZ is a define - not 100.
-> > You just ended up dividing by zero on certain architectures.
-> 
-> I didn't think HZ ranged over 1000 in practice, else of course I would
-> not have written the above.
+>> Question.  Why don't we let CLONE_VFORK be a standard clone flag?
 
-I made the same assumption wrt usecs (notice how I myself would divide by
-zero on any architecture where HZ is over 1000000).
+LT> Because then we're back to the old problem: before doing a vfork(),
+LT> somebody could do a "clone(CLONE_VFORK)" (which would _not_ wait on the
+LT> semaphore like a real vfork() would), and now the wrong child can wake up
+LT> the parent and mess up the real vfork(). 
 
-Right now, HZ is 100 on most architectures, with alpha being the exception
-at 1024. Some of the PC speaker patches used to have HZ at 8192 even on a
-PC, although later versions scaled it down (and just internally used a
-timer tick happening at 8kHz, leaving HZ at 100).
+Sorry.  I had the implicit assumption that if CLONE_VFORK was a
+standard clone flag, do_fork would include the five lines of semaphore
+code.
 
-With modern machines, 100Hz is just peanuts, and a HZ in the kilohertz
-certainly makes sense - and allows for nicer granularity for a lot of
-things. So far, megahertz are still far in the future, but maybe I some
-day will have to remove even that assumption. Unlikely to be a problem in
-my lifetime, but hey, I can hope (whether due to a long life or really
-fast CPU's, I don't care ;) 
+Eric
 
-		Linus
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
