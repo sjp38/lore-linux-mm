@@ -1,256 +1,133 @@
-Received: from cesarb by flower.cesarb.personal with local (Exim 3.16 #1 (Debian))
-	id 13TvAS-0000Hr-00
-	for <linux-mm@kvack.org>; Tue, 29 Aug 2000 20:51:48 -0300
-Date: Tue, 29 Aug 2000 20:51:48 -0300
-Subject: sieve.c
-Message-ID: <20000829205148.A1052@cesarb.personal>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="k1lZvvs/B4yU6o8G"
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-From: Cesar Eduardo Barros <cesarb@nitnet.com.br>
+Message-ID: <39ACB9E6.4914CB89@tuke.sk>
+Date: Wed, 30 Aug 2000 09:38:14 +0200
+From: Jan Astalos <astalos@tuke.sk>
+MIME-Version: 1.0
+Subject: Re: Question: memory management and QoS
+References: <Pine.LNX.4.21.0008281421180.18553-100000@duckman.distro.conectiva>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>, Andrey Savochkin <saw@saw.sw.com.sg>, Yuri Pudgorodsky <yur@asplinux.ru>, Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---k1lZvvs/B4yU6o8G
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
+Rik van Riel wrote:
+> 
+> On Mon, 28 Aug 2000, Jan Astalos wrote:
+> 
+> > I still claim that per user swapfiles will:
+> > - be _much_ more efficient in the sense of wasting disk space (saving money)
+> >   because it will teach users efficiently use their memory resources (if
+> >   user will waste the space inside it's own disk quota it will be his own
+> >   problem)
+> > - provide QoS on VM memory allocation to users (will guarantee amount of
+> >   available VM for user)
+> > - be able to improve _per_user_ performance of system (localizing performance
+> >   problems to users that caused them and reducing disk seek times)
+> > - shift the problem with OOM from system to user.
+> 
+> Do you have any reasons for this, or are you just asserting
+> them as if they were fact? ;)
+> 
+> I think we can achieve the same thing, with higher over-all
+> system performance, if we simply give each user a VM quota
+> and do the bookkeeping on a central swap area.
 
-Some time ago I sent riel and quintela a program which, used with the right
-parameter, turns into a kinda "worst case" memory trasher. Since it looks like
-they didn't have enough time to look into it, I'm sending it to the whole list
-now.
+Sorry, As a user I wouldn't care a bit about overall system 
+performance... I would care only if I can get the service I 
+has paid for.
 
-I also figured out the ideal number to stress test everything is 16 times your
-memory size in bytes (of course you can use more or maybe less, which makes the
-effect in the memory subsystem a bit different).
+> 
+> The reasons for this are multiple:
+> 1) having one swap partition will reduce disk seeks
+>    (no matter how you put it, disk seeks are a _system_
+>    thing, not a per user thing)
 
------ Forwarded message from cesarb -----
+I would be happy if you said that "we can guarantee that pages
+of one process will be swapped to compact swap area". Reading
+the code I didn't get that impression...
 
-Date: Sun, 20 Aug 2000 01:25:34 -0300
-To: quintela@fi.udc.es
-Cc: riel@conectiva.com.br
-Subject: [cesarb: sieve.c]
-User-Agent: Mutt/1.2.5i
+I didn't tested it (I always thought it's obvious) that
+storing a bunch of pages to and get another bunch from the
+same cylinder is _much_ faster than getting pages scattered
+over large disk space (maybe in different order) forcing
+disk heads to jump like mad. If you have tested it and can send
+me your results, please, do it. I may be wrong, nobody's perfect. :-)
+Technology changes, maybe disks have changed too...
 
-riel thinks this should be included in your memtest suite. So I put it in
-public domain (as something that simple deserves).
+> 2) not all users are logged in at the same time, so you
+>    can do a minimal form of overcomitting here (if you want)
 
-It was a sieve program I made last year. Was also my first pthreads program
-(since I *had* to move the printf out of the main loop, it was killing the
-performance).
+Overcommitting of what ? Virtual memory ? 
 
-riel says it is a pretty realistic sweep pattern.
+> 3) you can easily give users _2_ VM quotas, a guaranteed one
+>    and a maximum one ... if a user goes over the guaranteed
+>    quota, processes can be killed in OOM situations
+>    (this allows each user to make their own choices wrt.
+>    overcommitment)
 
-The only change you might want to make to it (to make it work even better as a
-VM test) would be to comment out the printf ("%u ", I2N (i)); from the output
-loop, so the last sweep still gets done but is not dependent anymore in the tty
-speed (you should also comment out the printf ("%u ", 2); line). Leave the
-final count output there to check for bad runtime errors.
+What if user "suddenly" realizes that his guaranteed quota 
+is not sufficient. Checkpoint ? Immediately contact sysadmin ?
 
-If you want to use it for even larger numbers (but getting a bit more CPU
-bound) you should comment out the output lines I mentioned above, change bitpos
-to a unsigned long long, and change BITPOS_FORMAT to match. I didn't test that,
-but the program was ready for that kind of change from day one.
+Killing is bad (in general). By killing a process just to step
+outside of guaranteed quota may waste all resources consumed
+by killed process (including CPU time). Not saying that it's
+quite inconvenient for users. (thrashing, stealing, killing
+I wonder what's the most appropriate name for MM ;)
 
-You could also include this email in your test suite's documentation. It's
-pretty much the only documentation sieve.c would get.
+What I'd like to have are per user guarantees for:
+ - performance: no one will use physical memory allocated to me.
+                No matter whether I'm drinking coffee or not.
+                Waiting for system to swap-in/out pages that I have
+                paid for is absolutely unacceptable performance
+                drop. (I may not be drinking coffee, my app
+                may be just waiting for input from its other
+                part located anywhere else).
+ - reliability: system would prevent me from consuming more resources
+                than I have. Especially the amount of requested
+                VM can change over time.
 
------ Forwarded message from cesarb -----
+Only if I ask, system will overcommit my VM memory. Then I should do
+checkpointing (if I'm able to do it and accept performance drop). 
+Overcommitting of physical memory up to VM guarantee is obviously desired.
+Only if I allow others to use my unused memory, they would be allowed
+to. This can be motivated by different charging policies.
+No page stealing (just lending and reclaiming).
 
-Date: Sun, 20 Aug 2000 00:57:32 -0300
-To: riel@conectiva.com.br
-Subject: sieve.c
-User-Agent: Mutt/1.2.5i
+Yes. This can be done with one big swapfile. But I tried to imagine
+how such system would be administered. And what would be the scalability
+of that administration. I got a sysadmin nightmare...
+- users should be charged for guarantied amount of VM.
+  Otherwise they would have maximal requirements -> wasted resources
+- the requirements could vary quite deeply (user to user and also by time)
+- sysadmin (or more likely his MM agent) will have to schedule users
+  to resources by their (changing) requirements and should take care
+  about not to guarantee more than he actually can. As I said, user may
+  know his VM needs only when he decides to run his app with
+  desired arguments.
 
-Here is it. I compile it with gcc -W -Wall -O3 -march=k6 -lpthread -save-temps
+Consider the maintenance costs in the case of per user swapfiles.
+Maybe they waste disk space when user is not logged in, but that's
+user's own disk space. He can do anything he like with it, right ? (QoS).
+(It could be used for storing of some persistent IPC objects...)
 
-You need 1 billion (bah, screw the english. Um bilhao) maximum to get 60Mb
-core. 2 billion get you 118Mb, which causes severe trashing and awful latency
-on a 128Mb machine with X+gnome+mozilla+xmms+xchat+lotsa xterms+the kitchen
-sink running.
+Maybe I'm only one with this view about memory QoS, but this can be solved only
+putting both solutions to users/sysadmins/managers and see what will happen...
+I'm far from claiming that per user swapfiles will be appropriate for
+all situations. So don't look at it as I would claim that anyone with different
+opinion is stupid. Everyone tends to bound his solution to concrete problem
+he has to solve. And seeing how my solution will fit to the requirements of other
+people is always helpful. I'm always willing to learn new things...
 
------ End forwarded message -----
+I certainly will implement my approach (in fact the most important
+part is more or less done by Andrey (thanks). If for nothing else, then just for
+seeing how it will perform. Look at it as at different approach to swap clustering.
+My main intention is to get the list of potential implementation pitfalls that can 
+arise. Thanks.
 
------ End forwarded message -----
+Regards,
 
--- 
-Cesar Eduardo Barros
-cesarb@nitnet.com.br
-cesarb@dcc.ufrj.br
-
---k1lZvvs/B4yU6o8G
-Content-Type: text/x-csrc; charset=us-ascii
-Content-Disposition: attachment; filename="sieve.c"
-
-/* sieve.c - Crivo de Eratostenes
- *
- * Estudante: Cesar Eduardo Barros (991.302.397)
- * Data: 22 de Maio de 1999
- *
- * Feito num AMD K6 rodando Linux */
-
-#define _GNU_SOURCE
-/* define funcoes seguras para threads */
-#define _REENTRANT
-#define _THREAD_SAFE
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-#include <pthread.h>
-
-/* Note: ao mudar algo no codigo, cuidado para nao confudir N's com I's e
- * esquecer a conversao */
-
-typedef unsigned unit;
-typedef unsigned bitpos;
-
-#define UNIT_SIZE_BYTES (sizeof (unit))
-#define UNIT_SIZE_BITS (UNIT_SIZE_BYTES * 8)
-#define UNIT_FORMAT "%u"
-#define BITPOS_FORMAT "%u"
-
-/* forces rounding up */
-#define NUM_UNITS(n) (((n) + (UNIT_SIZE_BITS - 1)) / UNIT_SIZE_BITS)
-#define NUM_BYTES(n) (NUM_UNITS(n) * UNIT_SIZE_BYTES)
-
-#define BIT_MASK(b) ((unit)0x1 << ((b) % UNIT_SIZE_BITS))
-#define BIT_MASK_ALL (~ (unit)0x0)
-#define BIT_MASK_NONE ((unit)0x0)
-/* WARNING! These macros evaluate b twice on non-GNU compilers */
-#ifndef __GNUC__
-#define GET_BIT(v,b) ((v) [(b) / UNIT_SIZE_BITS] & BIT_MASK ((b)))
-#define SET_BIT(v,b) ((v) [(b) / UNIT_SIZE_BITS] |= BIT_MASK ((b)))
-#define CLEAR_BIT(v,b) ((v) [(b) / UNIT_SIZE_BITS] &= ~ BIT_MASK ((b)))
-#else
-#define GET_BIT(v,b) ( __extension__ ({ bitpos _b = (b); \
-			(v) [_b / UNIT_SIZE_BITS] & BIT_MASK (_b); }))
-#define SET_BIT(v,b) ( __extension__ ({ bitpos _b = (b); \
-			(v) [_b / UNIT_SIZE_BITS] |= BIT_MASK (_b); ; }))
-#define CLEAR_BIT(v,b) ( __extension__ ({ bitpos _b = (b); \
-			(v) [_b / UNIT_SIZE_BITS] &= ~ BIT_MASK (_b); ; }))
-#endif
-
-/* nota: arrays em C comecam por 0, arrays de bits tambem */
-#define I2N(i) (2 * (i) + 3)
-#define N2I(n) (((n) - 3) / 2)
-
-static bitpos printf_i, printf_N2I_limit;
-static pthread_mutex_t printf_mutex;
-
-static void * printf_thread (void * p)
-{
-	bitpos temp_printf_i;
-	bitpos N2I_limit;
-	struct timespec timer;
-
-	timer.tv_sec = 0;
-	timer.tv_nsec = 100000;
-
-	N2I_limit = printf_N2I_limit;
-
-	while (1)
-	{
-		pthread_mutex_lock (&printf_mutex);
-		temp_printf_i = printf_i;
-		pthread_mutex_unlock (&printf_mutex);
-	
-		fprintf (stderr, "\r%3f%%",
-				temp_printf_i * 100. / N2I_limit);
-		fflush (stderr);
-
-		nanosleep (&timer, NULL);
-	}
-}
-
-int main (int argc, char * argv[])
-{
-	unit * sieve;
-	bitpos limit;
-	bitpos i, j;
-	bitpos count;
-	/* threading (for printf) */
-	pthread_t t;
-	bitpos N2I_limit;
-
-	fprintf (stderr, "Maximum: ");
-	fflush (stderr);
-	scanf (BITPOS_FORMAT, &limit);
-
-	if (limit <= 2)
-		goto out_small_limit;
-
-	N2I_limit = N2I (limit);
-
-	sieve = malloc (NUM_BYTES (N2I_limit + 1));
-	if (sieve == NULL)
-		goto out_no_mem;
-
-	for (i = 0; i < NUM_UNITS (N2I_limit); ++i)
-		sieve [i] = BIT_MASK_NONE;
-
-	printf_i = 0;
-	printf_N2I_limit = N2I_limit;
-	pthread_mutex_init (&printf_mutex, NULL);
-	pthread_create (&t, NULL, printf_thread, NULL);
-
-	for (i = 0; i <= N2I_limit; ++i)
-	{
-		/* meus testes mostraram que printf() estava reduzindo muito a
-		 * velocidade neste ponto quando i tendia a N2I (limit).
-		 * Portanto dividi o programa em dois threads para reduzir a
-		 * taxa de chamadas a printf sem complicar muito o codigo */
-		/* note que o loop ainda para neste ponto durante chamadas a
-		 * printf, se printf_thread travar o mutex enquanto tenta-se
-		 * trava-lo aqui. Isso nao faz muita diferenca uma vez que o
-		 * mutex e travado pelo menor tempo possivel */
-		/* O calculo da percentagem tambem foi movido para
-		 * printf_thread; agora esta thread nao usa ponto flutuante no
-		 * loop (evitando as computacoes caras de ponto flutuante) */
-		pthread_mutex_lock (&printf_mutex);
-		printf_i = i;
-		pthread_mutex_unlock (&printf_mutex);
-
-		if (!GET_BIT (sieve, i))
-			for (j = i + I2N (i); j <= N2I_limit; j += I2N (i))
-				SET_BIT (sieve, j);
-	}
-
-	pthread_cancel (t);
-	pthread_join (t, NULL);
-	pthread_mutex_destroy (&printf_mutex);
-
-	fprintf (stderr, "\n");
-
-	printf ("%u ", 2);
-	count = 1; /* 2 included here */
-	for (i = 0; i <= N2I_limit; ++i)
-		if (!GET_BIT (sieve, i))
-		{
-			printf ("%u ", I2N (i));
-			++count;
-		}
-
-	printf ("\nPrimes found: " BITPOS_FORMAT "\n", count);
-
-	free (sieve);
-
-	return EXIT_SUCCESS;
-
-out_small_limit:
-	fprintf (stderr, "%s: Maximum too small\n", argv [0]);
-	return EXIT_FAILURE;
-
-out_no_mem:
-	perror (argv[0]);
-	return EXIT_FAILURE;
-}
-
---k1lZvvs/B4yU6o8G--
+Jan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
