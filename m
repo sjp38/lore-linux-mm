@@ -1,48 +1,33 @@
-Date: Thu, 10 May 2001 13:43:46 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [PATCH] allocation looping + kswapd CPU cycles 
-In-Reply-To: <Pine.LNX.4.21.0105100935040.31900-100000@alloc>
-Message-ID: <Pine.LNX.4.21.0105101341130.19732-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 10 May 2001 20:52:04 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [PATCH] allocation looping + kswapd CPU cycles
+Message-ID: <20010510205204.O16590@redhat.com>
+References: <Pine.LNX.4.21.0105100935040.31900-100000@alloc> <Pine.LNX.4.21.0105101341130.19732-100000@freak.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0105101341130.19732-100000@freak.distro.conectiva>; from marcelo@conectiva.com.br on Thu, May 10, 2001 at 01:43:46PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Hemment <markhe@veritas.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Mark Hemment <markhe@veritas.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Thu, 10 May 2001, Mark Hemment wrote:
+On Thu, May 10, 2001 at 01:43:46PM -0300, Marcelo Tosatti wrote:
 
+> No. __GFP_FAIL can to try to reclaim pages from inactive clean.
 > 
-> On Wed, 9 May 2001, Marcelo Tosatti wrote:
-> > On Wed, 9 May 2001, Mark Hemment wrote:
-> > >   Could introduce another allocation flag (__GFP_FAIL?) which is or'ed
-> > > with a __GFP_WAIT to limit the looping?
-> > 
-> > __GFP_FAIL is in the -ac tree already and it is being used by the bounce
-> > buffer allocation code. 
-> 
-> Thanks for the pointer.
-> 
->   For non-zero order allocations, the test against __GFP_FAIL is a little
-> too soon; it would be better after we've tried to reclaim pages from the
-> inactive-clean list.  Any nasty side effects to this?
+> We just want to avoid __GFP_FAIL allocations from going to
+> try_to_free_pages().
 
-No. __GFP_FAIL can to try to reclaim pages from inactive clean.
+Why?  __GFP_FAIL is only useful as an indication that the caller has
+some magic mechanism for coping with failure.  There's no other
+information passed, so a brief call to try_to_free_pages is quite
+appropriate.
 
-We just want to avoid __GFP_FAIL allocations from going to
-try_to_free_pages().
-
->   Plus, the code still prevents PF_MEMALLOC processes from using the
-> inactive-clean list for non-zero order allocations.  As the trend seems to
-> be to make zero and non-zero allocations 'equivalent', shouldn't this
-> restriction to lifted?
-
-I don't see any problem about making non-zero allocations be able to
-directly reclaim pages.
-
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
