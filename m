@@ -1,47 +1,57 @@
-Date: Mon, 14 Oct 2002 14:25:14 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [patch, feature] nonlinear mappings, prefaulting support, 2.5.42-F8
-Message-ID: <20021014212514.GG27878@holomorphy.com>
-References: <Pine.LNX.4.44.0210141739510.8792-100000@localhost.localdomain> <Pine.LNX.4.44.0210141800160.9302-100000@localhost.localdomain> <20021014212045.GF27878@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20021014212045.GF27878@holomorphy.com>
+Date: Mon, 14 Oct 2002 17:24:22 -0400 (EDT)
+From: Bill Davidsen <davidsen@tmr.com>
+Subject: Re: 2.5.42-mm2 on small systems
+In-Reply-To: <1969404353.1034580835@[10.10.2.3]>
+Message-ID: <Pine.LNX.3.96.1021014171849.8102A-100000@gatekeeper.tmr.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Ed Tomlinson <tomlins@cam.org>, Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 14, 2002 at 02:20:45PM -0700, William Lee Irwin III wrote:
-+			offset = (start - vma->vm_start) >> PAGE_CACHE_SHIFT
-+					+ vma->vm_pgoff;
+On Mon, 14 Oct 2002, Martin J. Bligh wrote:
 
-I'm not so old I should be forgetting C already.
+>  
+> > I have an old 486 with 64m and 512M of disk that I use as a serial 
+> ...
+> > with 2.5.42-mm2 it does not finish.  The machine is sort of usable 
+> > while its runing and control C has no problem ending the program.  
+> > I waited 11 hours for the spawnload test to complete - it was 
+> 
+> What does spawnload do (for those of us who don't have the inclination
+> to go source diving)?
 
+In this case a half scree of source diving is the best answer, it forks a
+process which fork/exec's a shell, which either runs the builtin pwd or
+/bin/pwd depending on what shell you have set. In most cases that's bash,
+and uses the builtin. Does a bunch of process creation and cleanup, and
+can generate some impressive contet switching.
 
+    while (RunMe) {
+        if (pid = fork()) {
+            (void)wait();
+            NumFork++;
+        } else {
+            // Do a 2nd level fork/exec a few times
+            system("pwd >/dev/null");
+            exit(0);
+        }
 
---- mpop-2.5.42/mm/fremap.c	2002-10-14 11:43:03.000000000 -0700
-+++ wlipop-2.5.42/mm/fremap.c	2002-10-14 14:17:11.000000000 -0700
-@@ -129,10 +129,16 @@
- 			end > start && start >= vma->vm_start &&
- 				end <= vma->vm_end) {
- 		/*
--		 * Change the default protection to PROT_NONE:
-+		 * Change the default protection to PROT_NONE if
-+		 * the file offset doesn't coincide with the vma's:
- 		 */
--		if (pgprot_val(vma->vm_page_prot) != pgprot_val(__S000))
--			vma->vm_page_prot = __S000;
-+		if (pgprot_val(vma->vm_page_prot) != pgprot_val(__S000)) {
-+			unsigned long offset;
-+			offset = ((start - vma->vm_start) >> PAGE_CACHE_SHIFT)
-+					+ vma->vm_pgoff;
-+			if (offset != pgoff)
-+				vma->vm_page_prot = __S000;
-+		}
- 		err = vma->vm_ops->populate(vma, start, size, prot,
- 						pgoff, flags & MAP_NONBLOCK);
- 	}
+I will say that I ran 41-mm2 and 41-mm2v (Con Kolivas' patch) just fine, I
+can't get 5.42 anything to even build, it's looking for NLS and the config
+has no NLS, unless I have a bad patch. I'm going to scan the list for
+patches later, but that's my current eperience.
+
+The README (choose text, Postscript or HTML) has a description of what
+each test does. Or what I think it does.
+
+-- 
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
