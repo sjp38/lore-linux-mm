@@ -1,36 +1,37 @@
-Date: Fri, 8 Jun 2001 21:05:11 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: Background scanning change on 2.4.6-pre1
-In-Reply-To: <Pine.LNX.4.21.0106090047320.10415-100000@imladris.rielhome.conectiva>
-Message-ID: <Pine.LNX.4.21.0106082102330.24643-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <l0313032cb7475100fc4a@[192.168.239.105]>
+In-Reply-To: <Pine.LNX.4.33.0106090541370.480-100000@mikeg.weiden.de>
+References: <l0313032bb7471092da13@[192.168.239.105]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Date: Sat, 9 Jun 2001 05:05:41 +0100
+From: Jonathan Morton <chromi@cyberspace.org>
+Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, "David S. Miller" <davem@redhat.com>, Mike Galbraith <mikeg@wen-online.de>, Zlatko Calusic <zlatko.calusic@iskon.hr>, linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, John Stoffel <stoffel@casc.com>, Tobias Ringstrom <tori@unhappy.mine.nu>, Shane Nay <shane@minirl.com>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 9 Jun 2001, Rik van Riel wrote:
-> 
-> This would work if we had all the anonymous pages on the
-> active list, so we have an idea when we have had to "skip"
-> too many pages due to being mapped.
+>> On the subject of Mike Galbraith's kernel compilation test, how much
+>> physical RAM does he have for his machine, what type of CPU is it, and what
+>> (approximate) type of device does he use for swap?  I'll see if I can
+>> partially duplicate his results at this end.  So far all my tests have been
+>> done with a fast CPU - perhaps I should try the P166/MMX or even try
+>> loading linux-pmac onto my 8100.
+>
+>It's a PIII/500 with one ide disk.
 
-Well, we already have an idea of that. Or rather - by making th ecall to
-swap_out() unconditional, we never end up skipping anything at all: we
-always balance all pools of memory, whether they are active, inactive, or
-mapped.
+...with how much RAM?  That's the important bit.
 
-Let's see how people react to -pre2 (and yes, I forgot to bump the version
-number, so it claims to be -pre1 still. Don't send me any more bugreports
-on that ;)
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
 
-The way it is in -pre2 will at least not confuse people overmuch wrt the
-"why is my machine claiming to be swapping even though it's not doing
-anything and the disk light isn't on?" issue..
+The key to knowledge is not to rely on people to teach you it.
 
-		Linus
+GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
+PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
