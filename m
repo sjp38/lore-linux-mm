@@ -1,70 +1,68 @@
-Received: from srv11-sao.sao.terra.com.br (srv11-sao.sao.terra.com.br [200.246.248.66])
-	by emergencia.sao.terra.com.br (8.9.3/8.9.3) with ESMTP id TAA27509
-	for <linux-mm@kvack.org>; Wed, 1 Nov 2000 19:25:13 -0200
-Received: from einstein (root@dl-tnt6-C8B08B8C.sao.terra.com.br [200.176.139.140])
-	by srv11-sao.sao.terra.com.br (8.9.3/8.9.3) with ESMTP id TAA19026
-	for <linux-mm@kvack.org>; Wed, 1 Nov 2000 19:25:10 -0200
-Date: Wed, 1 Nov 2000 18:51:50 -0200
-From: "Rodrigo S. de Castro" <rodsc@bigfoot.com>
-Subject: Re: [RFC] Structure in Compressed Cache
-Message-ID: <20001101185150.A967@einstein>
-References: <20001030190922.A5183@linux.ime.usp.br> <Pine.LNX.4.21.0010311404210.1475-100000@freak.distro.conectiva>
+From: 520042837423-0001@t-online.de (ECS Startup Info)
+Subject: Personal StartUP-Information
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/html; charset="ISO-8859-1"
+Date: Wed, 1 Nov 2000 22:29:06 +0100
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <Pine.LNX.4.21.0010311404210.1475-100000@freak.distro.conectiva>; from marcelo@conectiva.com.br on Tue, Oct 31, 2000 at 02:06:08PM -0200
+Message-ID: <13r5S0-0xl6yeC@fwd04.sul.t-online.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: linux-mm@kvack.org, kernel@tutu.ime.usp.br
+To: Linux-MM list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 31, 2000 at 02:06:08PM -0200, Marcelo Tosatti wrote:
-> On Mon, 30 Oct 2000, Rodrigo S. de Castro wrote:
-> > 	In my implementation of compressed cache (kernel 2.2.16), I
-> > started the project having my cache as a slab cache, structure
-> > provided by kernel. I have all step 1 (a cache with no compression)
-> > done, but I had a problem with marking pages in my cache. After an
-> > email sent to the list about this subject, I started looking at shared
-> > memory mechanism (mainly ipc/shm.c), and I saw that there's another
-> > way of making it: with a page table allocation and memory mapping. I
-> > could go on with my initial idea (with slab cache) but I think that
-> > doing the latter way (with page table and memory mapping) would be
-> > more complete (and, of course, harder). I will have a pool of
-> > (compressed) pages that gotta be always in memory and will be
-> > "between" physical memory and swap. As the project is growing I would
-> > like to define now which path to follow, taking in account
-> > completeness and upgradeability (to future versions of kernel). Which
-> > way do you think that is better? Please, I also ask you to tell me in
-> > case you know if there's another way, maybe better, of doing it.
-> 
-> Slab cache memory is physically contiguous and non swappable, so it may be
-> a waste to use it to cache userspace data. 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 FINAL//EN">
 
-	Today I reread Bonwick's paper (The Slab Allocator: An
-Object-Caching Kernel Memory Allocator) and I saw that a slab of
-objects 'consists of one or more pages of virtually contiguous memory'
-and the whole cache (that has many slabs) doesn't, necessarily. I am
-storing on a slab cache only a small structure that holds some
-information about and a pointer to a physical page that is allocated
-in its constructor. In that way, a slab will certainly have a size of
-a page (since its structure is smaller than 1/8 of page), and thus
-there's no problem for us at all, because there won't have actually
-any continguous data. I hope you could get it. I am wondering if I
-missing something, because I can't see a problem that this approach
-would waste. :-) I did tried to understand some code of slab.c and
-even then I couldn't see contiguous memory problem in our whole
-cache. Well, I ask anyone who knows something about slab cache to join
-this discussion. :-)
+<HTML>
+<HEAD><META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
 
-[]'s
--- 
-Rodrigo S. de Castro   <rcastro@linux.ime.usp.br>
-University of Sao Paulo - Brazil
-Compressed Caching - http://tutu.ime.usp.br
+<TITLE>Home</TITLE>
+<META NAME="Generator" CONTENT="Don't know">
 
+</HEAD>
 
+<BODY  BGCOLOR="#FFFFFF" LINK="#0000FF" VLINK="#990000" TEXT="#000000" TOPMARGIN=16 LEFTMARGIN=10 MARGINWIDTH=10 MARGINHEIGHT=16>
 
+  <TABLE BORDER=0 CELLSPACING=0 CELLPADDING=0 WIDTH=541>
+   <TR VALIGN="top" ALIGN="left">
+	<TD WIDTH=541 COLSPAN=2>
+<P ALIGN="CENTER"><A HREF="http://www.geocities.com/bigearn909/easycashsystem.html"><FONT SIZE="+3"><U>Easy-Cash-System</U></FONT></A></U></FONT>
+<TABLE WIDTH=539 BORDER=0 CELLSPACING=0 CELLPADDING=0 ALIGN=LEFT><TR>
+<TD>
+<P>I apologize if this e-mail came to you by mistake. If you don't want to receive future e-mail messages about Easy-Cash-System, please do NOT reply to this e-mail message. <BR>Instead, use this link to beremoved from this mailing list.<FONT COLOR="#669900"> </FONT><A HREF="mailto:b_earn@hotmail.com?subject=REMOVE"><FONT COLOR="#669900"></FONT><FONT COLOR="#999900">REMOVE NOW!</FONT></A><FONT COLOR="#999900"><BR></FONT>Otherwise, if you do nothing you should even be removed from this list. <BR>&nbsp;</TD></TR></TABLE>
+<FONT SIZE="+3"><U><A HREF="http://www.geocities.com/bigearn999/easycashsystem.html"><FONT SIZE="+3"><U></U></FONT></A><FONT SIZE="+3"><U></U></FONT></TD>
+   </TR>
+   <TR VALIGN="top" ALIGN="left">
+	<TD WIDTH=539 HEIGHT =33><IMG SRC="./clearpixel.gif" WIDTH =539 HEIGHT=1 BORDER=0></TD>
+	<TD WIDTH=2><IMG SRC="./clearpixel.gif" WIDTH =2 HEIGHT=1 BORDER=0></TD>
+   </TR>
+   <TR VALIGN="top" ALIGN="left">
+	<TD WIDTH=539>
+<P ALIGN="CENTER"><B><FONT SIZE="+1">Still reading?</P>
+<P ALIGN="CENTER"></FONT></B><FONT SIZE="+1">So read on, and it could bring you another opportunity to earn <BR></FONT><FONT COLOR="#FF0033" SIZE="+2"><B>cash</B></FONT><FONT SIZE="+1"> while you are </FONT><FONT COLOR="#FF0033" SIZE="+2"><B>surfing</B></FONT><FONT COLOR="#FF0033" SIZE="+1"><B>.</B></FONT></TD>
+	<TD></TD>
+   </TR>
+   <TR VALIGN="top" ALIGN="left">
+	<TD COLSPAN=2 HEIGHT =60></TD>
+   </TR>
+   <TR VALIGN="top" ALIGN="left">
+	<TD WIDTH=539>
+<P ALIGN="CENTER">The following is a list of mostly recommended payment systems I&#194;&#180;ve found.</P>
+<P ALIGN="CENTER">If you like you can use the following links to start making moneyright away!!!! <BR><BR>It&#194;&#180;s also possible to visit my page when you <A HREF="http://www.geocities.com/bigearn999/easycashsystem.html">click here</A>. There&#194;&#180;s the possibility to sign up for the newsletter which includes only the best paying programms.</TD>
+	<TD></TD>
+   </TR>
+   <TR VALIGN="top" ALIGN="left">
+	<TD COLSPAN=2 HEIGHT =28></TD>
+   </TR>
+   <TR VALIGN="top" ALIGN="left">
+	<TD WIDTH=539>
+<P ALIGN="CENTER">When you decide to use this pages, please,<B> use these links!<BR></B>So, it&#194;&#180;s possible to send you more of this programs directly to your home!</P>
+<P ALIGN="CENTER"><FONT SIZE="+2">My favourite pages with </FONT><FONT COLOR="#FF0033" SIZE="+2"><B>high payouts</B></FONT><FONT SIZE="+2"> are:</P>
+<P ALIGN="CENTER"></FONT><A HREF="http://www.bepaid.com/users.rhtml?REFID=11041966"><FONT SIZE="+2">BePaid</FONT></A><FONT SIZE="+2"><BR></FONT><A HREF="http://www.cashfiesta.com/php/join.php?ref=bigearn999"><FONT SIZE="+2">CashFiesta</FONT></A><FONT SIZE="+2"><BR></FONT><A HREF="http://net-4-biz.affiliatetracking.net/al/a?96232"><FONT SIZE="+2">NetBiz</FONT></A><FONT SIZE="+2"><BR></FONT><A HREF="http://www.jackpot.com/win.asp?ref=BigEarns"><FONT SIZE="+2">JACKPOT!</FONT></A><FONT SIZE="+2"><BR>&nbsp;</P>
+<P ALIGN="CENTER"></FONT>So, please<B> use the above links</B>.<BR>Thank you for spending your time reading this.<BR><A HREF="http://www.geocities.com/bigearn909/easycashsystem.html">Easy-Cash-System<BR></A>&nbsp;</TD>
+	<TD></TD>
+   </TR>
+  </TABLE></BODY>
+</HTML>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
