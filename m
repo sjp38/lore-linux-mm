@@ -1,55 +1,67 @@
-From: jordi polo <wigsm@LatinMail.com>
-Date: Wed, 16 Aug 2000 20:26:15 -0400
-Subject: some silly things
-Message-Id: <200008162026446.SM00157@latinmail.com>
+Message-ID: <DD0DC14935B1D211981A00105A1B28DB018BE677@NL-ASD-EXCH-1>
+From: "Leeuw van der, Tim" <tim.leeuwvander@nl.unisys.com>
+Subject: RE: [prePATCH] new VM (2.4.0-test4)
+Date: Thu, 17 Aug 2000 02:51:03 -0500
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: 'Rik van Riel ' <riel@conectiva.com.br>, "'linux-kernel@vger.rutgers.edu'" <linux-kernel@vger.rutgers.edu>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
- - it seems to me that you don't do nr_inactive_clear_pages   when you get a new inactive_clear page
  
- - I don't know why you have to test if a page is dirty in reclaim_page(), there isn't the place, it is supposed that when the page is written, in other place must be allocated in inactive_dirty. Here we can expect inactive_clean pages are really inactive clean pages.
- 
- - what do you think of 4 lists, active_clean active_dirty inactive_clean inactive_dirty. When a write operation occurs in a page this will go to active_dirty, from active_dirty to inactive_dirty , from active_clean to inactive_clean directly without need to test if it's dirty or not.
- In fact is the same but with 4 list you can make a state machine and you can track exactly a page trought the states, but your 3 list approach seems all right for me too.
- 
-> - And the improvement I was trying to explain you the other day, something this way:
-> 
-> if ((PageActiveClear(page)) && (page->age < MINIM )){
-> deactivate_page(page); //this page will go to inactive_clear
-> }
-> else if ((PageActiveDirty(page)) && (!page->age )){
-> deactivate_page(page); // this will go to inactive_dirty 
-> }
- 
-> Here MINIM will be something like 1 (or 2) (maybe need to change
-PAGE_AGE_START and PAGE_AGE_ADV), this will do that the clear pages have it
-easier to go to inactive_clear and then easier to become free pages and I think
-this is a good thing because it's harder to get a free page from inactive_dirty
-than from inactive_clear. > I know in your code first begin to free the
-inactive_clear and when you are running off it you use inactive_dirty, that's
-allright, but if you do it my way there will be more pages in inactive_clear
-that will make that you need to free less pages from inactive_dirty  
+Hello!
 
-- age_page_down() : page->age /=2;   > you make a silly improvement with  
-page->age >>=2; 
-- you can do in the zone structure a field named available_pages=
-free_pages inactive_free so you mustn't calculate it everytime.   
+I tried the new patch last night / this morning and so far, it's GREAT. It
+ROCKS.
+
+I can install .deb files with good interactive performance while compiling a
+kernel. Gnome/Enlightenment startup has never been so fast, the difference
+is clearly visible. It's great.
+
+Much faster than the untuned version, and much faster than 2.2.17pre.
 
 
- Just hoping these things will be useful to you.
- Jordi Polo (trusmis)
- mumismo@wanadoo.es
+The only thing I haven't yet tried is playing back an MP3 while doing all
+this. I'm more than happy with what I've seen so far :-)
+
+And you say that it can get even faster? WoW!
 
 
+Much success,
 
+--Tim
 
+-----Original Message-----
+From: Rik van Riel
+To: tim.leeuwvander@nl.unisys.com
+Cc: linux-kernel@vger.rutgers.edu
+Sent: 8/16/00 5:34 PM
+Subject: Re: [prePATCH] new VM (2.4.0-test4)
 
+On Wed, 16 Aug 2000, Tim N . van der Leeuw wrote:
 
-_________________________________________________________
-http://www.latinmail.com.  Gratuito, latino y en espanol.
+> Performance is quite good, much better than plain 2.4testX for
+> certain. Under load the performance starts to fall apart: On my
+> 64Mb machine, MP3 playback and interactive performance sufer
+> horribly when installing a package with dpkg.
 
+You may want to test the second patch against 2.4.0-test7-pre4.
+That patch has been tuned for performance, in contrast to the
+patch you've been testing with ;)
+
+> When the load is not so high, the computer is very very fast!
+> I'm very encouraged by the results so far.
+
+cheers,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
