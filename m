@@ -1,65 +1,39 @@
-Message-ID: <487p6vd9r-bpi3l403t$-23--352-7@a4m2t.eb.jj>
-From: "Coleman Colon" <mnohpgvhs@yahoo.com>
-Reply-To: "Coleman Colon" <mnohpgvhs@yahoo.com>
-Subject: Rx: VICODIN is Here - Just Pennies per Tablet...jera
-Date: Sun, 26 Oct 2003 00:17:48 -0100
+Message-ID: <pc$3n2r-721eg9bn-ln8e8@j0enw.3k>
+From: "Kieth Delarosa" <jesw9fnr@iopus.com>
+Reply-To: "Kieth Delarosa" <jesw9fnr@iopus.com>
+Subject: Debt fixers!! hc ycao zfoxolwq
+Date: Sun, 26 Oct 03 12:23:40 GMT
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="ECE9.FD75ED"
+	boundary="BE.3EA.7ABD5"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---ECE9.FD75ED
+--BE.3EA.7ABD5
 Content-Type: text/plain;
 Content-Transfer-Encoding: quoted-printable
 
-VICODIN Is Here
+LET US HELP YOU GET OUT OF DEBT FAST!
 
-FRE.E-shipping on a 3 month supply (90-count)
+We are the premiere leaders in the debt reduction field. Our business is g=
+etting people like you out of debt. We have helped thousands of people jus=
+t like YOU get their life back into high gear. Join with us and you will s=
+ee your debt managed within no time. Our customer representatives are avai=
+lable around the clock to answer your every need.
 
+CLICK ON THE LINK BELOW AND FILL OUT THE VERY SHORT FORM!
 
+http://www.takemeoutofdebttoday.com/11000.html
 
-www.rxanytime.biz/superstore
+Our representatives are waiting help your needs!
 
+cvilkj mgpazv
+tvolxv wzwsa ukxir maxjve xmhmp 
+svpmzkhf
 
-
-Vicodin ES 30 tablets - 4.63 per tablet
-
-ES 90 tablets - 2.32 per tablet - BEST DEAL - Plus FRE.E-SHIPPING
-
-
-
-www.rxanytime.biz/superstore
-
-
-
-
-
-No more ads - www.rxanytime.biz/a.html
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-bxw fqc
-kprjewgt
-
---ECE9.FD75ED--
+--BE.3EA.7ABD5--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
