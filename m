@@ -1,8 +1,8 @@
 From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <200004082139.OAA06375@google.engr.sgi.com>
+Message-Id: <200004082147.OAA75650@google.engr.sgi.com>
 Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
-Date: Sat, 8 Apr 2000 14:39:06 -0700 (PDT)
-In-Reply-To: <Pine.LNX.4.21.0004081514470.559-100000@alpha.random> from "Andrea Arcangeli" at Apr 08, 2000 03:20:25 PM
+Date: Sat, 8 Apr 2000 14:47:29 -0700 (PDT)
+In-Reply-To: <Pine.LNX.4.21.0004080305490.2459-100000@alpha.random> from "Andrea Arcangeli" at Apr 08, 2000 03:14:40 PM
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -12,77 +12,33 @@ To: Andrea Arcangeli <andrea@suse.de>
 Cc: Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-As I said before, unless you have a _good_ reason, I don't see any point
-in changing the code, just because it appears cleaner. As you note, there
-are ample races with the swapdeletion code removing the page from the
-swapcache, while a lookup is in progress, the PageLock _might_ be used
-to fix those. In any case, after we agree that the races have been fixed
-(and that's theoretically, there will probably be races observed under
-real stress), it would be okay to then go and change the find_lock_page 
-to find_get_page in lookup_swap_cache(). IMO, of course ...
-
 > 
 > On Fri, 7 Apr 2000, Kanoj Sarcar wrote:
 > 
-> >Okay, I think I found at least one reason why the lockpage was being done
-> >in lookup_swap_cache(). It was effectively to check the PageSwapCache bit,
-> >since shrink_mmap:__delete_from_swap_cache could race with a 
-> >lookup_swap_cache.
+> >> BTW, swap_out() always used the same locking order that I added to swapoff
+> >> so if my patch is wrong, swap_out() is always been wrong as well ;).
+> >
+> >Not sure what you mean ... swap_out never grabbed the mmap_sem/page_table_lock
+> >before (in 2.2. too).
 > 
-> shrink_mmap can't race with a find_get_cache. find_get_page increments the
-> reference count within the critical section and shrink_mmap checks the
-> page count and drop the page in one whole transaction within a mutually
-> exclusive critical section.
+> In 2.2.x page_table_lock wasn't necessary because we was holding the big
+> kernel lock.
 
-Okay, how's this (from pre3):
+You have answered your own question in a later email. I quote you:
+"Are you using read_swap_cache from any
+swapin event? The problem is swapin can't use read_swap_cache because with
+read_swap_cache we would never know if we're doing I/O on an inactive swap
+entry"
 
-shrink_mmap
---------------						__find_get_page
-get pagemap_lru_lock					----------------
-LockPage					
-drop pagemap_lru_lock
-Fail if page_count(page) > 1
-get pagecache_lock
-get_page
-Fail if page_count(page) != 2
-if PageSwapCache, drop pagecache_lock
-							get pagecache_lock
-							Finds page in swapcache,
-								does get_page
-							drop pagecache_lock
-	and __delete_from_swap_cache,
-	which releases PageLock.
-							LockPage succeeds,
-							erronesouly believes he
-							has swapcache page.
-
-Did I miss some interlocking step that would prevent this from happening?
-	
-> 
-> >Yes, I did notice the recent shrink_mmap SMP race fixes that you posted,
-> 
-> They weren't relative to the cache, but only to the LRU list
-> inserction/deletion. There wasn't races between shrink_mmap and
-> find_get_page and friends.
-
-Ok, so that's irrelevant ...
-
-> 
-> >now it _*might*_ be unneccesary to do a find_lock_page() in 
-> >lookup_swap_cache() (just for this race). I will have to look at the 
-> 
-> It isn't. Checking PageSwapCache while the page is locked is not
-> necessary. The only thing which can drop the page from the swap cache is
-> swapoff that will do that as soon as you do the unlock before returning
-> from lookup_swap_cache anyway.
-
-Yes, see above too. Its probably better to have overenthusiastic locking,
-than having lesser locking. As I mentioned before, the shrink_mmap race
-is probably one of the reasons I did the PageLocking in lookup_swap_cache(),
-I was probably thinking of swapdeletion too ...
+Grabbing lock_kernel in swap_in is not enough since it might get dropped
+if the swap_in code goes to sleep for some reason.
 
 Kanoj
 
+> 
+> In 2.3.x vmlist_*_lock is alias to spin_lock(&mm->page_table_lock) and
+> swap_out isn't even calling the spin_lock explicitly but it's doing what
+> the fixed swapoff does.
 > 
 > Andrea
 > 
