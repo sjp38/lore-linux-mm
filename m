@@ -1,89 +1,86 @@
 Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA23294
-	for <linux-mm@kvack.org>; Fri, 28 Aug 1998 18:04:14 -0400
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA23388
+	for <linux-mm@kvack.org>; Fri, 28 Aug 1998 18:16:45 -0400
 Subject: Re: [PATCH] 498+ days uptime
-References: <199808262153.OAA13651@cesium.transmeta.com> 	<87ww7v73zg.fsf@atlas.CARNet.hr> 	<199808271207.OAA15842@hwal02.hyperwave.com> 	<87emu2zkc0.fsf@atlas.CARNet.hr> 	<199808271243.OAA28073@hwal02.hyperwave.com> 	<m1d89lex3t.fsf@flinx.npwt.net> 	<199808280909.LAA19060@hwal02.hyperwave.com> 	<m1btp5dz8u.fsf@flinx.npwt.net> <199808281603.SAA05389@hwal02.hyperwave.com>
+References: <199808262153.OAA13651@cesium.transmeta.com> 	<87ww7v73zg.fsf@atlas.CARNet.hr> <199808280935.KAA06221@dax.dcs.ed.ac.uk>
 Reply-To: Zlatko.Calusic@CARNet.hr
 From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 29 Aug 1998 00:03:09 +0200
-In-Reply-To: Bernhard Heidegger's message of "Fri, 28 Aug 1998 18:03:17 +0200 (MET DST)"
-Message-ID: <87pvdkhihu.fsf@atlas.CARNet.hr>
+Date: 29 Aug 1998 00:16:34 +0200
+In-Reply-To: "Stephen C. Tweedie"'s message of "Fri, 28 Aug 1998 10:35:36 +0100"
+Message-ID: <87ogt4hhvh.fsf@atlas.CARNet.hr>
 Sender: owner-linux-mm@kvack.org
-To: Bernhard Heidegger <bheide@hyperwave.com>
-Cc: "Eric W. Biederman" <ebiederm@inetnebr.com>, "H. Peter Anvin" <hpa@transmeta.com>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, Linux-MM List <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "H. Peter Anvin" <hpa@transmeta.com>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, Linux-MM List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Bernhard Heidegger <bheide@hyperwave.com> writes:
+"Stephen C. Tweedie" <sct@redhat.com> writes:
 
-> >>>>> ">" == Eric W Biederman <ebiederm@inetnebr.com> writes:
+> Hi,
 > 
-> >>>> No.  Major performance problem.
+> On 27 Aug 1998 00:49:55 +0200, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+> said:
 > 
-> BH> Why?
+> > I thought it was done this way (update running in userspace) so to
+> > have control how often buffers get flushed. But, I believe bdflush
+> > program had this functionality, and it is long gone (as you correctly
+> > noticed).
 > 
-> BH> Imagine an application which has most of the (index) file pages in memory
-> BH> and many of the pages are dirty. bdflush will flush the pages regularly,
-> BH> but the pages will get dirty immediately again.
-> BH> If you can be sure, that the power cannot fail the performance should be
-> BH> much better without bdflush, because kflushd has to write pages only if
-> BH> the system is running low on memory...
-> 
-> >> The performance improvement comes when looking for free memory.  In
-> >> most cases bdflush's slow but steady writing of pages keeps buffers
-> >> clean.  When the application wants more memory with bdflush in the
-> >> background unsually the pages it needs will be clean (because the I/O
-> >> started before the application needed it), so they can just be dropped
-> >> out of memory.  Relying on kflushd means nothing is written until an
-> >> application needs the memory and then it must wait until something is
-> >> written to disk, which is much slower.
-> 
-> >> Further 
-> >> a) garanteeing no power failure is hard.
-> 
-> Use and UPS and regularly flush/sync the primary data to disk from
-> the application
+> update(8) _is_ the old bdflush program. :)
 
-Update/bdflush costs you nothing. UPS costs you lots of money. Big
-difference.
+I know. But in that old days, I believe, we had two daemons, update
+AND bdflush. They were started from the same binary, but their
+functionality was different.
 
-Also, flushing/syncing data to disk doesn't always mean data really
-got to media. Check your favorite sync(2) manpage. :)
-
-Using completely synchronous API in applications would consideraly cut
-performances down. Why would your application wait for disk to commit
-buffers, when your CPU can do other useful things in the meantime.
-Also, don't forget that disk latency times are measured in
-milliseconds, where modern CPU's run in units of (almost) nanoseconds.
+Too bad 1.2.13 can't be compiled in todays setups. :)
 
 > 
-> >> b) generally there is so much data on the disk you must write it
-> >>    sometime, because you can't hold it all in memory.
+> There are two entirely separate jobs being done.  One is to flush all
+> buffers which are beyond their dirty timelimit: that job is done by the
+> bdflush syscall called by update/bdflush every 5 seconds.  The second
+> job is to trickle back some dirty buffers to disk if we are getting
+> short of clean buffer space in memory. 
 > 
-> only a question of how much RAM you can put in your PC
+> These are completely different jobs.  They select which buffers and how
+> many buffers to write based on different criteria, and they are woken up
+> by different events.  That's why we have two daemons.  The fact that one
+> spends its wait time in user mode and one spends its time in kernel mode
+> is irrelevant; even if they were both kernel threads we'd still have two
+> separate jobs needing done.
 
-Still requires money. :)
+Right, I agree entirely.
+
+Maybe I should reformulate my question. :)
+
+Why is the former in the userspace?
+
+I believe it is not that hard to code bdflush in the kernel, where we
+lose nothing, but save few pages of memory. One less process to run,
+as I already pointed out.
+
+You probably did have an opportunity to visit Paul Gortmaker's page,
+helpful for those with low memory machines. There you can find "few
+lines of assembly" program that replaces update. I ran that program
+for few years to save few kilobytes of memory on my old 386 / 5MB RAM.
 
 > 
-> >> c) I have trouble imagining a case where a small file would be rewritten
-> >>    continually.
+> > I'm crossposting this mail to linux-mm where some clever MM people can
+> > be found. Hopefully we can get an explanation why do we still need
+> > update.
 > 
-> Not really small, but a database application may use btree based indexes,
-> where many blocks will get dirty when inserting/deleting data. If you flush
-> the dirty buffers and the next insertion dirty the same buffer(s) you have
-> lost performance (Note: the btree based indexes are secondary data; you
-> can rebuild it from scratch if the system fails)
+> Because kflushd does not do the job which update needs to do.  It does a
+> different job.
 > 
 
-Right, we agree. But performance doesn't go down if you write buffers
-every few tens of seconds. That is a LOT of time, if you ask your
-application. Some of them never get so old. :)
+Yep, but allow me one more question, please.
 
-And (big) databases mostly like to have their own memory management,
-because "they know better".
+If I happen to get some free time (very unlikely) to code bdflush
+completely in the kernel, so we can get rid of update, now running as
+daemon, would you consider it for inclusion in the official kernel
+(sending patches to Linus, etc..)? 
 -- 
 Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
 ---------------------------------------------------------------------
-	Vi is the God of editors. Emacs is the editor of Gods.
+		  It's bad luck to be superstitious.
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
