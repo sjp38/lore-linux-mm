@@ -1,111 +1,45 @@
-Subject: [PATCH] for_each_zone
-From: Robert Love <rml@tech9.net>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 20 Jul 2002 13:22:23 -0700
-Message-Id: <1027196543.1555.775.camel@sinai>
-Mime-Version: 1.0
+Date: Sat, 20 Jul 2002 13:40:22 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [PATCH] generalized spin_lock_bit
+In-Reply-To: <1027196511.1555.767.camel@sinai>
+Message-ID: <Pine.LNX.4.44.0207201335560.1492-100000@home.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@zip.com.au, torvalds@transmeta.com
-Cc: riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wli@holomorphy.com
+To: Robert Love <rml@tech9.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@conectiva.com.br, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Attached patch implements for_each_zone(zont_t *) which is a helper
-macro to cleanup code of the form:
 
-	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next) { 
-		for (i = 0; i < MAX_NR_ZONES; ++i) { 
-			zone_t * z = pgdat->node_zones + i; 
-			/* ... */ 
-		} 
-	} 
+On 20 Jul 2002, Robert Love wrote:
+>
+> The attached patch implements bit-sized spinlocks via the following
+> interfaces:
 
-and replace it with:
+I'm not entirely convinced.
 
-	for_each_zone(zone) {
-		/* ... */
-	}
+Some architectures simply aren't good at doing bitwise locking, and we may
+have to change the current "pte_chain_lock()" to a different
+implementation.
 
-This patch only replaces one use of the above loop with the new macro. 
-Pending code, however, currently in the full rmap patch uses
-for_each_zone more extensively.
+In particular, with the current pte_chain_lock() interface, it will be
+_trivial_ to turn that bit in page->flags to be instead a hash based on
+the page address into an array of spinlocks. Which is a lot more portable
+than the current code.
 
-This is from Rik's 2.4-rmap patch and by William Irwin.
+(The current code works, but look at what it generates on old sparcs, for
+example).
 
-This patch requires the previous for_each_pgdat patch, but only to apply
-cleanly.
+Your patch, while it cleans up some things, makes it a lot harder to do
+those kinds of changes later.
 
-	Robert Love
+So I would suggest (at least for now) to _not_ get rid of the
+pte_chain_lock() abstraction, and re-doing your patch with that in mind.
+Gettign rid of the (unnecessary) UP locking is good, but getting rid of
+the abstraction doesn't look like a wonderful idea to me.
 
-diff -urN linux-2.5.27/include/linux/mmzone.h linux/include/linux/mmzone.h
---- linux-2.5.27/include/linux/mmzone.h	Sat Jul 20 12:11:05 2002
-+++ linux/include/linux/mmzone.h	Sat Jul 20 13:00:48 2002
-@@ -163,6 +163,43 @@
- 
- extern pg_data_t contig_page_data;
- 
-+/*
-+ * next_zone - helper magic for for_each_zone()
-+ * Thanks to William Lee Irwin III for this piece of ingenuity.
-+ */
-+static inline zone_t * next_zone(zone_t * zone)
-+{
-+	pg_data_t *pgdat = zone->zone_pgdat;
-+
-+	if (zone - pgdat->node_zones < MAX_NR_ZONES - 1)
-+		zone++;
-+	else if (pgdat->node_next) {
-+		pgdat = pgdat->node_next;
-+		zone = pgdat->node_zones;
-+	} else
-+		zone = NULL;
-+
-+	return zone;
-+}
-+
-+/**
-+ * for_each_zone - helper macro to iterate over all memory zones
-+ * @zone - pointer to zone_t variable
-+ *
-+ * The user only needs to declare the zone variable, for_each_zone
-+ * fills it in. This basically means for_each_zone() is an
-+ * easier to read version of this piece of code:
-+ *
-+ * for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next)
-+ * 	for (i = 0; i < MAX_NR_ZONES; ++i) {
-+ * 		zone_t * z = pgdat->node_zones + i;
-+ * 		...
-+ * 	}
-+ * }
-+ */
-+#define for_each_zone(zone) \
-+	for (zone = pgdat_list->node_zones; zone; zone = next_zone(zone))
-+
- #ifndef CONFIG_DISCONTIGMEM
- 
- #define NODE_DATA(nid)		(&contig_page_data)
-diff -urN linux-2.5.27/mm/page_alloc.c linux/mm/page_alloc.c
---- linux-2.5.27/mm/page_alloc.c	Sat Jul 20 12:11:07 2002
-+++ linux/mm/page_alloc.c	Sat Jul 20 13:00:48 2002
-@@ -477,12 +477,12 @@
-  */
- unsigned int nr_free_pages(void)
- {
--	unsigned int i, sum = 0;
--	pg_data_t *pgdat;
-+	unsigned int sum;
-+	zone_t *zone;
- 
--	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next)
--		for (i = 0; i < MAX_NR_ZONES; ++i)
--			sum += pgdat->node_zones[i].free_pages;
-+	sum = 0;
-+	for_each_zone(zone)
-+		sum += zone->free_pages;
- 
- 	return sum;
- }
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
