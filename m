@@ -1,36 +1,33 @@
+Received: from list by main.gmane.org with local (Exim 3.35 #1 (Debian))
+	id 19Y8Xt-0000CS-00
+	for <linux-mm@kvack.org>; Thu, 03 Jul 2003 20:11:01 +0200
+From: Pasi Savolainen <psavo@iki.fi>
 Subject: Re: 2.5.74-mm1
-From: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
-In-Reply-To: <20030703023714.55d13934.akpm@osdl.org>
+Date: Thu, 3 Jul 2003 18:11:00 +0000 (UTC)
+Message-ID: <be1rjk$nj$1@main.gmane.org>
 References: <20030703023714.55d13934.akpm@osdl.org>
-Content-Type: text/plain
-Message-Id: <1057248147.599.2.camel@teapot.felipe-alfaro.com>
-Mime-Version: 1.0
-Date: 03 Jul 2003 18:02:27 +0200
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2003-07-03 at 11:37, Andrew Morton wrote:
+* Andrew Morton <akpm@osdl.org>:
+> 
 > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.74/2.5.74-mm1/
 > 
-> . Included Con's CPU scheduler changes.  Feedback on the effectiveness of
->   this and the usual benchmarks would be interesting.
-> 
->   Changes to the CPU scheduler tend to cause surprising and subtle problems
->   in areas where you least expect it, and these do take a long time to
->   materialise.  Alterations in there need to be made carefully and cautiously.
->   We shall see...
 
-Currently testing all the new things...
+Has -mm had some monotonic clock patches at around 2.5.72-mm3?
+2.5.74-mm1 seems to produce non-monotonic gettimeofday.
+(tested with http://www.swcp.com/~hudson/gettimeofday.c)
+'lag' is sporadic and may take several iterations to come up.
 
->From what I've seen until date, the new scheduler patches are very, very
-promising. I like them very much, but I still prefer Mike+Ingo combo
-patch a little bit more for my laptop.
 
-Will keep you informed if I see something strange ;-)
+Machine is 2xK7 with a ACPI C2 sleep driver (TSC's get unsynched).
+2.5.72-mm3 didn't show these.
+
+-- 
+   Psi -- <http://www.iki.fi/pasi.savolainen>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
