@@ -1,51 +1,44 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id E465638C73
-	for <linux-mm@kvack.org>; Tue, 31 Jul 2001 06:51:52 -0300 (EST)
-Date: Tue, 31 Jul 2001 06:51:32 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: strange locking __find_get_swapcache_page()
-In-Reply-To: <Pine.LNX.4.33.0107301839440.19638-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.33L.0107310639480.5582-100000@duckman.distro.conectiva>
+Message-ID: <3B668629.34797B3F@zip.com.au>
+Date: Tue, 31 Jul 2001 20:19:21 +1000
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: strange locking __find_get_swapcache_page()
+References: <Pine.LNX.4.33L.0107301542230.5582-100000@duckman.distro.conectiva> <Pine.LNX.4.33.0107301839440.19638-100000@penguin.transmeta.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <andrewm@uow.edu.au>, Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Jul 2001, Linus Torvalds wrote:
+Linus Torvalds wrote:
+> 
 > On Mon, 30 Jul 2001, Rik van Riel wrote:
 > >
 > > I've encountered a suspicious piece of code in filemap.c:
 > >
 > > struct page * __find_get_swapcache_page( ... )
->
-> Hmm. I thin the whole PageSwapCache() test is bogus - if we
-> found it on the swapper_space address space, then the page had
-> better be a swap-cache page, and testing for it explicitly is
-> silly.
-
-*nod*
-
+> 
+> Hmm. I thin the whole PageSwapCache() test is bogus - if we found it on
+> the swapper_space address space, then the page had better be a swap-cache
+> page, and testing for it explicitly is silly.
+> 
 > Also, it appears that the only caller of this is
-> find_get_swapcache_page(), which in itself really doesn't even
+> find_get_swapcache_page(), which in itself really doesn't even care: it
+> just uses the lookup as a boolen on whether to add a new page to the swap
+> cache, and does even _that_ completely wrong. There's a big race there,
+> see if you can spot it.
 
-It's even simpler than that.  The only user is lookup_swap_cache(),
-which is used only to see if a page is present in the swap cache
-or not ...
+read_swap_cache_async()?  All code paths in that area are
+under lock_kernel().
 
-regards,
+> The fix, I suspect, is to pretty much get rid of the code altogether, and
+> make it use add_to_page_cache_unique() or whatever it is called that gets
+> the duplicate check _right_.
 
-Rik
---
-Executive summary of a recent Microsoft press release:
-   "we are concerned about the GNU General Public License (GPL)"
-
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
+The whole lot needed spring cleaning 1-2 years ago, but I see no
+bugs in there.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
