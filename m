@@ -1,95 +1,37 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.4.8-pre7: still buffer cache problems
-Date: Thu, 9 Aug 2001 21:52:50 -0400
-References: <Pine.LNX.4.33L.0108091749580.1439-100000@duckman.distro.conectiva>
-In-Reply-To: <Pine.LNX.4.33L.0108091749580.1439-100000@duckman.distro.conectiva>
+Subject: Re: Swapping for diskless nodes
+References: <Pine.LNX.4.33L.0108091758070.1439-100000@duckman.distro.conectiva>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 10 Aug 2001 02:11:46 -0600
+In-Reply-To: <Pine.LNX.4.33L.0108091758070.1439-100000@duckman.distro.conectiva>
+Message-ID: <m1k80ctjul.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <20010810015251.7DBC193B8@oscar.casa.dyndns.org>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, marc heckmann <heckmann@hbesoftware.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Dirk W. Steinberg" <dws@dirksteinberg.de>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Rik,
+Rik van Riel <riel@conectiva.com.br> writes:
 
-This has nice effects here.  With 320M memory starting a tob backup would put 
-about 120M in the buffer cache.  With this applied it peaks at about 60M - the
-system also remains more interactive.
+> On 9 Aug 2001, Eric W. Biederman wrote:
+> 
+> > I don't know about that.  We already can swap over just about
+> > everything because we can swap over the loopback device.
+> 
+> Last I looked the loopback device could deadlock your
+> system without you needing to swap over it ;)
 
-If buffer_mem.borrow_percent is not used anywhere else suggest we reduce the
-default percentage a bit more and see if things get even better.
+It wouldn't suprise me.  But the fact remains that in 2.4 we allow it.
+And if we allw it there is little excuse for doing it wrong.
 
-Thoughts
+Actually except for network cases it looks easier to prevent deadlocks
+on the swapping path than with the loop back devices.  We can call
+aops->prepare_write_out when we place the page in the swap cache
+to make certain we aren't over a hole in a file, and there is room in the
+filesystem to store the data.
 
-Ed Tomlinson
-
-On August 9, 2001 04:55 pm, Rik van Riel wrote:
-> On Thu, 9 Aug 2001, marc heckmann wrote:
-> > While 2.4.8-pre7 definitely fixes the "dd if=/dev/zero
-> > of=bigfile bs=1000k count=bignumber" case. The "dd if=/dev/hda
-> > of=/dev/null" is still quite broken for me.
->
-> OK, there is no obvious way to do do drop-behind on
-> buffer cache pages, but I think we can use a quick
-> hack to make the system behave well under the presence
-> of large amounts of buffer cache pages.
->
-> What we could do is, in refill_inactive_scan(), just
-> moving buffer cache pages to the inactive list regardless
-> of page aging when there are too many buffercache pages
-> around in the system.
->
-> Does the patch below help you ?
->
-> regards,
->
-> Rik
-> --
-> IA64: a worthy successor to the i860.
->
-> 		http://www.surriel.com/
-> http://www.conectiva.com/	http://distro.conectiva.com/
->
->
-> --- linux-2.4.7-ac7/mm/vmscan.c.buffer	Thu Aug  9 17:54:24 2001
-> +++ linux-2.4.7-ac7/mm/vmscan.c	Thu Aug  9 17:55:09 2001
-> @@ -708,6 +708,8 @@
->   * This function will scan a portion of the active list to find
->   * unused pages, those pages will then be moved to the inactive list.
->   */
-> +#define too_many_buffers (atomic_read(&buffermem_pages) > \
-> +		(num_physpages * buffer_mem.borrow_percent / 100))
->  int refill_inactive_scan(zone_t *zone, unsigned int priority, int target)
->  {
->  	struct list_head * page_lru;
-> @@ -770,6 +772,18 @@
->  				page_active = 1;
->  			}
->  		}
-> +
-> +		/*
-> +		 * If the amount of buffer cache pages is too
-> +		 * high we just move every buffer cache page we
-> +		 * find to the inactive list. Eventually they'll
-> +		 * be reclaimed there...
-> +		 */
-> +		if (page->buffers && !page->mapping && too_many_buffers) {
-> +			deactivate_page_nolock(page);
-> +			page_active = 0;
-> +		}
-> +
->  		/*
->  		 * If the page is still on the active list, move it
->  		 * to the other end of the list. Otherwise we exit if
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
