@@ -1,34 +1,65 @@
-Date: Wed, 28 Aug 2002 19:23:51 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: slablru for 2.5.32-mm1
-In-Reply-To: <3D6D3F88.5E7A1972@zip.com.au>
-Message-ID: <Pine.LNX.4.44L.0208281923190.1857-100000@imladris.surriel.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: MM patches against 2.5.31
+Date: Thu, 29 Aug 2002 00:04:46 +0200
+References: <3D644C70.6D100EA5@zip.com.au> <E17k9dO-0002tR-00@starship> <3D6D3AA4.31A4AD3A@zip.com.au>
+In-Reply-To: <3D6D3AA4.31A4AD3A@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17kAvf-0002tx-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@zip.com.au>
-Cc: Ed Tomlinson <tomlins@cam.org>, linux-mm@kvack.org
+Cc: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Aug 2002, Andrew Morton wrote:
+On Wednesday 28 August 2002 23:03, Andrew Morton wrote:
+> Daniel Phillips wrote:
+> > 
+> > Going right back to basics, what do you suppose is wrong with the 2.4
+> > strategy of always doing the lru removal in free_pages_ok?
+> 
+> That's equivalent to what we have at present, which is:
+> 
+> 	if (put_page_testzero(page)) {
+> 		/* window here */
+> 		lru_cache_del(page);
+> 		__free_pages_ok(page, 0);
+> 	}
+> 
+> versus:
+> 
+> 	spin_lock(lru lock);
+> 	page = list_entry(lru, ...);
+> 	if (page_count(page) == 0)
+> 		continue;
+> 	/* window here */
+> 	page_cache_get(page);
+> 	page_cache_release(page);	/* double-free */
 
-> But we do need to slowly sift through the active list even when the
-> inactive list is enormously bigger.  Otherwise, completely dead pages
-> will remain in-core forever if there's a lot of pagecache activity going
-> on.
+Indeed it is.  In 2.4.19 we have:
 
-Doesn't that just indicate we want to get rid of use-once
-and replace it with something slightly more predictable ?
+(vmscan.c: shrink_cache)                        (page_alloc.c: __free_pages)
 
-regards,
+365       if (unlikely(!page_count(page)))
+366               continue;
+					        444         if (!PageReserved(page) && put_page_testzero(page))
+          [many twisty paths, all different]
+511       /* effectively free the page here */
+512       page_cache_release(page);
+					        445                 __free_pages_ok(page, order);
+                                                [free it again just to make sure]
 
-Rik
+So there's no question that the race is lurking in 2.4.  I noticed several
+more paths besides the one above that look suspicious as well.  The bottom
+line is, 2.4 needs a fix along the lines of my suggestion or Christian's,
+something that can actually be proved.
+
+It's a wonder that this problem manifests so rarely in practice.
+
 -- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
