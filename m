@@ -1,26 +1,32 @@
-Date: Sat, 23 Sep 2000 18:02:18 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: mingo@elte.hu
-Subject: Re: test9-pre6 and GFP_BUFFER allocations
-In-Reply-To: <39CCCC15.DB052A65@norran.net>
-Message-ID: <Pine.LNX.4.21.0009231802040.5934-100000@elte.hu>
+Subject: memory pressure and kswapd
+Message-ID: <OF84F4052E.D0DA6D69-ON88256963.005F5758@LocalDomain>
+From: "Ying Chen/Almaden/IBM" <ying@almaden.ibm.com>
+Date: Sat, 23 Sep 2000 10:31:04 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@conectiva.com.br>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 23 Sep 2000, Roger Larsson wrote:
+Hi,
 
-> One approach could be: only goto try_again if GFP_IO is set.
-> And alloc one page from the critical memory pool.
-> I will try this.
+I have a question on the memory_pressure() and keep_kswapd_awake() calls.
+The question may be specific to test6, since vm has been changed in more
+recently releases.
+Why should memory_pressure() and keep_kswapd_awake() return 1 as long as
+one of the zones is low on memory? Shouldn't it be the case that when all
+of the zones are low then return 1? I noticed that in some cases, when I
+ran out of memory in DMA and low memory zones, kswapd would kick in and is
+kept awake for ever, despite the fact that I still have about 1GB memory in
+the HIGH memory zone. At least I'd think that for NORMAL memory
+allocations, they should be able to use both LOW and HIGH memory zones, and
+only kick kswapd when both LOW and HIGH zones are short of memory.
+Am I missing something here?
 
-i'll try this too.
 
-	Ingo
+Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
