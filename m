@@ -1,35 +1,43 @@
-Date: Mon, 14 Jun 1999 07:30:26 +0200 (CEST)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: Where is the Page Table Entry of a process kept?
-In-Reply-To: <3764EDA0.75CF859F@asdc.com.cn>
-Message-ID: <Pine.LNX.4.03.9906140728500.534-100000@mirkwood.nl.linux.org>
+Received: from asdc.com.cn ([9.196.36.117]) by ultra.asdc-beijing.com
+          (Netscape Mail Server v2.02) with ESMTP id AAA13381
+          for <linux-mm@kvack.org>; Mon, 14 Jun 1999 15:37:01 +0800
+Message-ID: <3765243A.8926786B@asdc.com.cn>
+Date: Mon, 14 Jun 1999 15:48:11 +0000
+From: ZhangWeiXue <ZhangWeiXue@asdc.com.cn>
+Reply-To: ZhangWeiXue@asdc.com.cn
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: I do not know what the code means.
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ZhangWeiXue <ZhangWeiXue@asdc.com.cn>
-Cc: Linux MM <linux-mm@kvack.org>
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Jun 1999, ZhangWeiXue wrote:
+Dear all,
 
-> Page Table Entry of a process is very import to transfer virsual
-> address to physical address,
-> I want to know where is a process's Page Table Entry kept, which
-> data struct holds the information?
+The following code is cut from the head.s, I do not know exactly what it
+do?
+If you can explain the meaning of " .long 0x00102007 " and " .fill
+__USER_PGD_PTRS-1,4,0" for me,
+I will appreciate deeply.
+Best regards.
 
-It's in the page tables. The page tables are referenced through
-a PDE (Pagetable Directory Entry, aka first-level page table).
-The pointer to that structure can be found in the TSS structure.
+/*
+ * This is initialized to create a identity-mapping at 0-4M (for bootup
+ * purposes) and another mapping of the 0-4M area at virtual address
+ * PAGE_OFFSET.
+ */
+.org 0x1000
+ENTRY(swapper_pg_dir)
+ .long 0x00102007
+ .fill __USER_PGD_PTRS-1,4,0
+ /* default: 767 entries */
+ .long 0x00102007
+ /* default: 255 entries */
+ .fill __KERNEL_PGD_PTRS-1,4,0
 
-cheers,
 
-Rik -- Open Source: you deserve to be in control of your data.
-+-------------------------------------------------------------------+
-| Le Reseau netwerksystemen BV:               http://www.reseau.nl/ |
-| Linux Memory Management site:   http://www.linux.eu.org/Linux-MM/ |
-| Nederlandse Linux documentatie:          http://www.nl.linux.org/ |
-+-------------------------------------------------------------------+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
