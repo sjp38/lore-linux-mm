@@ -1,44 +1,41 @@
-Date: Sat, 15 May 2004 21:56:35 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: VM documentation and book
-Message-ID: <Pine.LNX.4.58.0405152152110.14376@skynet>
+From: Marc-Christian Petersen <m.c.p@kernel.linux-systeme.com>
+Subject: Re: VM documentation and book
+Date: Mon, 17 May 2004 10:35:28 +0200
+References: <Pine.LNX.4.58.0405152152110.14376@skynet>
+In-Reply-To: <Pine.LNX.4.58.0405152152110.14376@skynet>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Disposition: inline
+Message-Id: <200405171035.28170@WOLK>
+Content-Type: text/plain;
+  charset="iso-8859-15"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Saturday 15 May 2004 22:56, Mel Gorman wrote:
 
-A long time ago, I told a number of people that I was asked to write a
-book based on the Linux VM documentation I had up on
-http://www.csn.ul.ie/~mel/projects/vm . I am happy to announce that this
-book is finished and now available in online stores
-(http://www.phptr.com/title/0131453483). Yes, this is a plug! It is
-published under the OPL as per the criteria of the Bruce Perens Open Book
-Series (http://www.perens.com/books) meaning it will be available for free
-download after 90 days. In other words, I intended for it to be easily
-available like the online documentation was but the option of having your
-own shiny printed copy is there :)
+Hi Mel,
 
-The information on the web site will remain as it is for people that want
-to read it but the book has a lot more information in it including TLB
-management, shared memory filesystem, a lot more code commentary and extra
-material and clarifications throughout the whole book. Each chapter also
-has information on the 2.6 kernel as was known around about 2.6.0-test4
-which will help anyone trying to figure out the more recent code for
-themselves.
+> http://www.csn.ul.ie/~mel/projects/vm . I am happy to announce that this
+> book is finished and now available in online stores
+> (http://www.phptr.com/title/0131453483). Yes, this is a plug! It is
+> published under the OPL as per the criteria of the Bruce Perens Open Book
+> Series (http://www.perens.com/books) meaning it will be available for free
+> download after 90 days. In other words, I intended for it to be easily
+> available like the online documentation was but the option of having your
+> own shiny printed copy is there :)
 
-It has been fun and I hope people enjoy the final result.
-
--- 
-Mel Gorman
+I can't say how much I appreciate this and your effort. Thanks alot!
 
 
--- 
-Mel Gorman
+> It has been fun and I hope people enjoy the final result.
+
+I'm gonna buy that book this week.
+
+ciao, Marc
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
