@@ -1,32 +1,53 @@
-Date: Tue, 13 Feb 2001 10:08:37 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: [PATCH] guard mm->rss with page_table_lock (241p11)
-Message-ID: <20010213100837.O20696@redhat.com>
-References: <20010129222337.F603@jaquet.dk> <Pine.LNX.4.21.0101291929120.1321-100000@duckman.distro.conectiva> <20010129224311.H603@jaquet.dk> <3A88A6ED.6B51BCA9@mvista.com>
-Mime-Version: 1.0
+From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Message-Id: <200102150150.RAA62793@google.engr.sgi.com>
+Subject: x86 ptep_get_and_clear question
+Date: Wed, 14 Feb 2001 17:50:05 -0800 (PST)
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3A88A6ED.6B51BCA9@mvista.com>; from george@mvista.com on Mon, Feb 12, 2001 at 07:15:57PM -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: george anzinger <george@mvista.com>
-Cc: Rasmus Andersen <rasmus@jaquet.dk>, Rik van Riel <riel@conectiva.com.br>, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: bcrl@redhat.com, mingo@redhat.com, alan@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I would like to understand how ptep_get_and_clear() works for x86 on
+2.4.1.
 
-On Mon, Feb 12, 2001 at 07:15:57PM -0800, george anzinger wrote:
-> Excuse me if I am off base here, but wouldn't an atomic operation be
-> better here.  There are atomic inc/dec and add/sub macros for this.  It
-> just seems that that is all that is needed here (from inspection of the
-> patch).
+I am assuming on x86, we do not implement software dirty bit, as is
+implemented in the mips processors. Rather, the kernel relies on the
+x86 hardware to update the dirty bit automatically (from looking at 
+the implementation of pte_mkwrite()).
 
-The counter-argument is that we already hold the page table lock in
-the vast majority of places where the rss is modified, so overall it's
-cheaper to avoid the extra atomic update.
+Say I have processors 1 and 2. Say both processors have pulled in the 
+mapping into their tlbs.
 
-Cheers,
- Stephen
+processor 1 is doing change_pte_range(), as an exmaple. It does the
+ptep_get_and_clear(pte), which atomically reads the hardware managed
+dirty bit, then clears the pte in memory. Now say processor 2 dirties
+the page, and I am not sure what will happen. One possibility is that
+processor 2 will see in its tlb that the page hasn't been dirtied on 
+that processor yet, so then it will go look into the in-memory copy,
+see that the pte is not marked dirty, and hence will mark the pte 
+dirty. Thus, this dirty bit update is lost. Hence, ptep_get_and_clear()
+isn't doing what I assume it was designed to do (from the comments in
+mm/mprotect.c) (There are alternative fixes possible)
+
+The other possibility of course is that somehow processor 2 will interlock
+out (via hardware), processor 1 will do the flush_tlb_range() out of 
+change_protection(), and then processor 1 will continue. If this is 
+the assumption, I would like to know if this is in some Intel x86 specs.
+
+Am I missing something?
+
+I am assuming Ben Lahaise wrote this code. I remember having an earlier 
+conversation with Alan about this too (we did not know which scenario 
+could happen), who suggested I ask Ingo. I do not remember what happened
+after that.
+
+Thanks.
+
+Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
