@@ -1,65 +1,36 @@
-Date: Thu, 22 Mar 2001 22:01:30 +0100
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
 Subject: Re: [PATCH] Prevent OOM from killing init
-Message-ID: <20010322220130.G11126@nightmaster.csn.tu-chemnitz.de>
-References: <3AB9313C.1020909@missioncriticallinux.com> <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva> <20010322124727.A5115@win.tue.nl> <20010322142831.A929@owns.warpcore.org>
-Mime-Version: 1.0
+Date: Thu, 22 Mar 2001 21:23:54 +0000 (GMT)
+In-Reply-To: <20010322142831.A929@owns.warpcore.org> from "Stephen Clouse" at Mar 22, 2001 02:28:31 PM
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20010322142831.A929@owns.warpcore.org>; from stephenc@theiqgroup.com on Thu, Mar 22, 2001 at 02:28:31PM -0600
+Content-Transfer-Encoding: 7bit
+Message-Id: <E14gCYn-0003K3-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Stephen Clouse <stephenc@theiqgroup.com>
 Cc: Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Mar 22, 2001 at 02:28:31PM -0600, Stephen Clouse wrote:
-[Another OOM-Killing thread] 
-> It would be nice to give immunity to certain uids, or better
-> yet, just turn the damn thing off entirely.  I've already
-> hacked that in...errr, out.
+> Really the whole oom_kill process seems bass-ackwards to me.  I can't in my mind
+> logically justify annihilating large-VM processes that have been running for 
+> days or weeks instead of just returning ENOMEM to a process that just started 
+> up.
 
-That's fine and suits best for all.
+How do you return an out of memory error to a C program that is out of memory
+due to a stack growth fault. There is actually not a language construct for it
 
-I have provided an API for installing such OOM handlers (and have
-provided even an simple example for using it).
+> It would be nice to give immunity to certain uids, or better yet, just turn the
+> damn thing off entirely.  I've already hacked that in...errr, out.
 
-See http://www.tu-chemnitz.de/~ioe/oom-kill-api/index.html for
-details.
+Eventually you have to kill something or the machine deadlocks. The oom killing
+doesnt kick in until that point. So its up to you how you like your errors.
 
-It applies to all regular kernels and with some offsets even to
-ac20. So this is the way to go for custom OOM handling. 
+One of the things that we badly need to resurrect for 2.5 is the beancounter
+work which would let you reasonably do things like guaranteed Oracle a certain
+amount of the machine, or restrict all the untrusted users to a total of 200Mb
+hard limit between them etc
 
-Rik noted once, that not much research has been done yet on this
-topic and that he is certain, that his code cannot cover all
-cases.
-
-Linus on the other hand doesn't like the idea of 'plugins' for
-core kernel code. 
-
-So this patch is the best thing, that can be done about the
-situation.
-
-All work should be based on it, since it allows customers and
-researchers, that LIKE to try such 'plugins' to try all of them
-instead of having to patch and recompile the kernel for every OOM
-handler available.
-
-I would LOVE to start a link collection for all OOM handlers
-based on my patch or even host them, IF they are implemented as
-modules (as suggested by my API). This should avoid duplicate
-effort of this.
-
-Of course I hope to satisfy all needs by this. I'm also willing
-to include any API changes (read: exported functions, structs and
-variables) necessary for some OOM handlers in my patch.
-
-Thanks & Regards
-
-Ingo Oeser
--- 
-10.+11.03.2001 - 3. Chemnitzer LinuxTag <http://www.tu-chemnitz.de/linux/tag>
-         <<<<<<<<<<<<     been there and had much fun   >>>>>>>>>>>>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
