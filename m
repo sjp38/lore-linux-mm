@@ -1,48 +1,37 @@
-Date: Wed, 3 Nov 1999 18:09:46 +0100 (CET)
-From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Subject: Re: The 64GB memory thing
-In-Reply-To: <99Nov3.154619gmt.66624@gateway.ukaea.org.uk>
-Message-ID: <Pine.LNX.4.10.9911031802330.7408-100000@chiara.csoma.elte.hu>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <199911031809.KAA88220@google.engr.sgi.com>
+Subject: Re: The 4GB memory thing
+Date: Wed, 3 Nov 1999 10:09:37 -0800 (PST)
+In-Reply-To: <99Nov3.094606gmt.66315@gateway.ukaea.org.uk> from "Neil Conway" at Nov 3, 99 09:48:11 am
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Neil Conway <nconway.list@ukaea.org.uk>
-Cc: Linux MM <linux-mm@kvack.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 3 Nov 1999, Neil Conway wrote:
-
-> > the 64GB stuff got included recently. It's a significant rewrite of the
-> > lowlevel x86 MM and generic MM layer, here is a short description about
-> > it:
-> > 
-> > my 'HIGHMEM patch' went into the 2.3 kernel starting at pre4-2.3.23. This
-> > ...
 > 
-> Wow, that's good news.  But hang on a second, ;-) wasn't there a feature
-> freeze at 2.3.18?
+> This is a multi-part message in MIME format.
+> --------------8C597550CEC840E9F68E4220
+> Content-Type: text/plain; charset=us-ascii
+> Content-Transfer-Encoding: 7bit
+> 
+> The recent thread about >4GB surprised me, as I didn't even think >2GB
+> was very stable yet.  Am I wrong?  Are people out there using 4GB boxes
+> with decent stability?  I presume it's a 2.3 feature, yes?
+> 
+> Sorry for my ignorance, I guess I've been dozing a bit of late.
+> 
+> Neil
 
-most of the changes are in the cleanup category, but yes, it's a boundary
-case. I had to and still have to work hard to make this as painless as
-possible ...
+I have a 2.2 patch for 4Gb support, which has seen a lot of stress
+testing by now. The 2.3 >2gb support uses a different (and better
+approach), but last I checked, things like rawio did not work above
+>2Gb. The 64Gb support is completely new ...
 
-> And presumably each process is still limited to a 32-bit address space,
-> right?
-
-yes, this is a fundamental limitation of x86 processors. Under Linux -in
-all 3 high memory modes- user-space virtual memory is 3GB. Nevertheless on
-a 8-way box you likely want to run either lots of processes, or a few (but
-more than 8 ) processes/threads to use up all available CPU time. This
-means with 8x 2GB RSS number crunching processes we already cover 16GB
-RAM. So it's not at all unrealistic to have support for more than 4GB RAM!
-The foundation for this is that under Linux all 64GB RAM can be mapped
-into user processes transparently. I believe other x86 unices (not to talk
-about NT) do not have this propertly, they handle 'high memory' as a
-special kind of RAM which can be accessed through special system calls.
-
--- mingo
-
+Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
