@@ -1,34 +1,52 @@
-Date: Fri, 30 Jan 2004 15:43:16 -0800
-From: Tim Hockin <thockin@sun.com>
-Subject: Re: 2.6.2-rc2-mm2
-Message-ID: <20040130234316.GI9155@sun.com>
-Reply-To: thockin@sun.com
-References: <1075490624.4272.7.camel@laptop.fenrus.com> <20040130114701.18aec4e8.akpm@osdl.org> <20040130201731.GY9155@sun.com> <20040130123301.70009427.akpm@osdl.org> <20040130211256.GZ9155@sun.com> <20040130140024.4b409335.akpm@osdl.org> <20040130223105.GC9155@sun.com> <20040130150819.2425386b.akpm@osdl.org> <20040130232103.GF9155@sun.com> <20040130153149.00bcb210.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040130153149.00bcb210.akpm@osdl.org>
+Message-ID: <401B02A9.90506@cyberone.com.au>
+Date: Sat, 31 Jan 2004 12:19:37 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
+MIME-Version: 1.0
+Subject: Re: [BENCHMARKS] 2.6 kbuild results (with add_to_swap patch)
+References: <Pine.LNX.4.44.0401300704130.20553-100000@chimarrao.boston.redhat.com>
+In-Reply-To: <Pine.LNX.4.44.0401300704130.20553-100000@chimarrao.boston.redhat.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: arjanv@redhat.com, thomas.schlichter@web.de, thoffman@arnor.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@osdl.org>, Nikita Danilov <Nikita@Namesys.COM>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 30, 2004 at 03:31:49PM -0800, Andrew Morton wrote:
-> > The caller in fs/nfsd/nfsfh.c still needs to check the return value and do
-> > something with it, or all this is just dumb.
-> 
-> We can add that to Neil's todo list ;)
 
-The final patch of this plus my original (which included the
-EXPORT_SYMBOL()s) looks good to me.
+Rik van Riel wrote:
 
+>On Fri, 30 Jan 2004, Nick Piggin wrote:
+>
+>
+>>Small big significantly better on kbuild when tested on top of the other
+>>two patches (dont-rotate-active-list and my mapped-fair).
+>>
+>
+>Where can I grab those ?
+>
+>
 
--- 
-Tim Hockin
-Sun Microsystems, Linux Software Engineering
-thockin@sun.com
-All opinions are my own, not Sun's
+I've put the all here for now.
+They are against the latest mm with the RSS patch backed out.
+
+http://kerneltrap.org/~npiggin/vm/
+
+>>With this patch as well, we are now as good or better than 2.4 on
+>>medium and heavy swapping kbuilds and much better than stock 2.6
+>>with light swapping loads (not as good as 2.4 but close).
+>>
+>>http://www.kerneltrap.org/~npiggin/vm/3/
+>>
+>
+>Neat!  Does it have any side effects to interactive
+>desktop behaviour ?
+>
+>
+
+To be honest I haven't tried them on my desktop. I would guess
+they should be fine.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
