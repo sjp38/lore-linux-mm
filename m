@@ -1,45 +1,27 @@
-Received: from root by main.gmane.org with local (Exim 3.35 #1 (Debian))
-	id 19PSCC-0000z3-00
-	for <linux-mm@kvack.org>; Mon, 09 Jun 2003 21:20:44 +0200
-From: Pasi Savolainen <psavo@iki.fi>
+Date: Mon, 9 Jun 2003 21:42:36 +0200 (CEST)
+From: Maciej Soltysiak <solt@dns.toxicfilms.tv>
 Subject: Re: 2.5.70-mm6
-Date: Mon, 9 Jun 2003 19:07:30 +0000 (UTC)
-Message-ID: <bc2lti$ss7$1@main.gmane.org>
-References: <20030607151440.6982d8c6.akpm@digeo.com> <Pine.LNX.4.51.0306091943580.23392@dns.toxicfilms.tv>
+In-Reply-To: <51250000.1055184690@flay>
+Message-ID: <Pine.LNX.4.51.0306092140450.32624@dns.toxicfilms.tv>
+References: <20030607151440.6982d8c6.akpm@digeo.com><Pine.LNX.4.51.0306091943580.23392@dns.toxicfilms.tv>
+ <46580000.1055180345@flay> <Pine.LNX.4.51.0306092017390.25458@dns.toxicfilms.tv>
+ <51250000.1055184690@flay>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-* Maciej Soltysiak <solt@dns.toxicfilms.tv>:
->> . -mm kernels will be running at HZ=100 for a while.  This is because
->>   the anticipatory scheduler's behaviour may be altered by the lower
->>   resolution.  Some architectures continue to use 100Hz and we need the
->>   testing coverage which x86 provides.
-> The interactivity seems to have dropped. Again, with common desktop
-> applications: xmms playing with ALSA, when choosing navigating through
-> evolution options or browsing with opera, music skipps.
-> X is running with nice -10, but with mm5 it ran smoothly.
+> > on mm6 the gpg part stops the sound for a few seconds. (with X -10 and 0)
+> > on mm5 xmms plays without stops. (with X -10)
+>
+> Does this (from Ingo?) do anything useful to it?
+No, maybe a little bit, the skips are still there.
 
-I see that idle() is called much less often than before (1000
-calls/second down to 150 calls/second, estimated and non-scientifical).
-
-non-linear scale down is most probably because processes get more done
-and don't wait so much.
-
-idle() is also get called more when there is some load.
-
-There is something weird though, I have this constant 0.8 load which I
-can't pinpoint, in -mm4 fully idle machine was at about 0.1 load.
-
-Regarding my stupidly reported Xfree86 -problem, it was PEBKAC, though I
-can't tell what exactly that was. Only one module changed way to iterate
-pci_find_device between boots.
-
-
--- 
-   Psi -- <http://www.iki.fi/pasi.savolainen>
+Regards,
+Maciej
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
