@@ -1,85 +1,67 @@
-Subject: [PATCH] balance inactive_dirty list
-Reply-To: zlatko.calusic@iskon.hr
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Date: 03 Jun 2001 00:01:34 +0200
-Message-ID: <87pucma6dd.fsf@atlas.iskon.hr>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Message-Id: <l03130301b73f486b8acb@[192.168.239.105]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Date: Sun, 3 Jun 2001 03:06:22 +0100
+From: Jonathan Morton <chromi@cyberspace.org>
+Subject: Some VM tweaks (against 2.4.5)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@transmeta.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For a long time I've been thinking that inactive list is too small,
-while observing lots of different workloads (all I/O bound). Finally,
-I decided to take a look and try to improve things. In mm/vmscan.c I
-found this overly complicated piece of heuristics:
+I've made a collection of small tweaks to the 2.4.5 VM which "work for me",
+and hopefully are largely applicable to other workloads as well.
 
-if (!target) {
-        int inactive = nr_free_pages() + nr_inactive_clean_pages() +
-                                        nr_inactive_dirty_pages;
-        int active = MAX(nr_active_pages, num_physpages / 2);
-        if (active > 10 * inactive)
-                maxscan = nr_active_pages >> 4;
-        else if (active > 3 * inactive)
-                maxscan = nr_active_pages >> 8;
-        else
-                return 0;
-}
+http://www.chromatix.uklinux.net/linux-patches/vm-update-1.patch
 
-We're trying to be too clever there, and that eventually hurts
-performance because inactive_dirty list is too small for typical
-scenarios. Especially that 'return 0' is hurting us, as it effectively
-stops background scan, so too many pages stay active without the real
-need.
+Summary (roughly in order as found in the patchfile):
 
-With patch below performance is much better under lots of workloads I
-have tested. The patch simplifies code a lot and removes unnecessary
-complex calculation. Code is now completely autotuning. I have a
-modified xmem utility that shows the state of the lists in a graphical
-manner, so it's easy to see what's going on. Things look much more
-smooth now.
+- Increased PAGE_AGE_MAX and PAGE_AGE_START to help newly-created and
+frequently-accessed pages remain in physical RAM.
 
-I think I've seen Mike Galbraith (on the list) trying to solve almost
-the same problem, although in a slightly different way. Mike, could
-you give this patch a try.
+- Includes my tweak to vm_enough_memory(), to limit memory reservation
+under low-memory conditions (this isn't quite working as expected, but
+seems to be harmless).
 
-All comments welcome, of course. :)
+- Fixes out_of_memory() to use the same (and more correct) criteria as
+vm_enough_memory().  Does NOT include my revised OOM-killer algorithm,
+although it is probably sorely needed.
 
-Index: 5.2/mm/vmscan.c
---- 5.2/mm/vmscan.c Sat, 26 May 2001 20:44:49 +0200 zcalusic (linux24/j/9_vmscan.c 1.1.7.1.1.1.2.1.1.1 644)
-+++ 5.2(w)/mm/vmscan.c Sat, 02 Jun 2001 23:25:40 +0200 zcalusic (linux24/j/9_vmscan.c 1.1.7.1.1.1.2.1.1.1 644)
-@@ -655,24 +655,10 @@
- 
- 	/*
- 	 * When we are background aging, we try to increase the page aging
--	 * information in the system. When we have too many inactive pages
--	 * we don't do background aging since having all pages on the
--	 * inactive list decreases aging information.
--	 *
--	 * Since not all active pages have to be on the active list, we round
--	 * nr_active_pages up to num_physpages/2, if needed.
-+	 * information in the system.
- 	 */
--	if (!target) {
--		int inactive = nr_free_pages() + nr_inactive_clean_pages() +
--						nr_inactive_dirty_pages;
--		int active = MAX(nr_active_pages, num_physpages / 2);
--		if (active > 10 * inactive)
--			maxscan = nr_active_pages >> 4;
--		else if (active > 3 * inactive)
--			maxscan = nr_active_pages >> 8;
--		else
--			return 0;
--	}
-+	if (!target)
-+		maxscan = nr_active_pages >> 4;
- 
- 	/* Take the lock while messing with the list... */
- 	spin_lock(&pagemap_lru_lock);
+- Changed age_page_down() and family to use a decrement instead of divide
+(gives frequently-accessed pages a longer lease of life).
 
--- 
-Zlatko
+- In try_to_swap_out(), take page->age into account and age it down rather
+than swapping it out immediately.
+
+- In swap_out_mm(), don't allow large processes to force out processes
+which have smaller RSS than them.  kswapd can still cause any process to be
+paged out.  This replaces my earlier "enforce minimum RSS" hack.
+
+- Bump up the page->age to PAGE_AGE_START when moving a page to the active
+list in page_launder().
+
+- Includes Zlatko Calusic's patch from earlier today, since I can't see
+anything immediately wrong about it.
+
+Please go ahead and test, and (constructively) criticise.
+
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
+big-mail: chromatix@penguinpowered.com
+uni-mail: j.d.morton@lancaster.ac.uk
+
+The key to knowledge is not to rely on people to teach you it.
+
+Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
+
+-----BEGIN GEEK CODE BLOCK-----
+Version 3.12
+GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
+PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+-----END GEEK CODE BLOCK-----
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
