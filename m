@@ -1,58 +1,38 @@
+Date: Wed, 24 Oct 2001 21:19:55 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: xmm2 - monitor Linux MM active/inactive lists graphically
-References: <Pine.LNX.4.21.0110241225560.2593-100000@freak.distro.conectiva>
-Reply-To: zlatko.calusic@iskon.hr
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Date: 25 Oct 2001 02:25:45 +0200
-In-Reply-To: <Pine.LNX.4.21.0110241225560.2593-100000@freak.distro.conectiva> (Marcelo Tosatti's message of "Wed, 24 Oct 2001 12:26:36 -0200 (BRST)")
-Message-ID: <dnlmi0pnue.fsf@magla.zg.iskon.hr>
+In-Reply-To: <dnlmi0pnue.fsf@magla.zg.iskon.hr>
+Message-ID: <Pine.LNX.4.33.0110242117150.9147-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo@conectiva.com.br> writes:
+On 25 Oct 2001, Zlatko Calusic wrote:
+>
+> Sure. Output of 'vmstat 1' follows:
+>
+>  1  0  0      0 254552   5120 183476   0   0    12    24  178   438 2  37  60
+>  0  1  0      0 137296   5232 297760   0   0     4  5284  195   440 3  43  54
+>  1  0  0      0 126520   5244 308260   0   0     0 10588  215   230 0   3  96
+>  0  2  0      0 117488   5252 317064   0   0     0  8796  176   139 1   3  96
+>  0  2  0      0 107556   5264 326744   0   0     0  9704  174    78 0   3  97
 
-> On 24 Oct 2001, Zlatko Calusic wrote:
-> 
-> > P.S. BTW, 2.4.13 still has very unoptimal writeout performance and
-> >      andrea@suse.de is redirected to /dev/null. <g>
-> 
-> Zlatko,
-> 
-> Could you please show us your case of bad writeout performance ? 
-> 
-> Thanks
-> 
+This does not look like a VM issue at all - at this point you're already
+getting only 10MB/s, yet the VM isn't even involved (there's definitely no
+VM pressure here).
 
-Sure. Output of 'vmstat 1' follows:
+> Notice how there's planty of RAM. I'm writing sequentially to a file
+> on the ext2 filesystem. The disk I'm writing on is a 7200rpm IDE,
+> capable of ~ 22 MB/s and I'm still getting only ~ 9 MB/s. Weird!
 
+Are you sure you haven't lost some DMA setting or something?
 
- 1  0  0      0 254552   5120 183476   0   0    12    24  178   438 2  37  60
- 0  1  0      0 137296   5232 297760   0   0     4  5284  195   440 3  43  54
- 1  0  0      0 126520   5244 308260   0   0     0 10588  215   230 0   3  96
- 0  2  0      0 117488   5252 317064   0   0     0  8796  176   139 1   3  96
- 0  2  0      0 107556   5264 326744   0   0     0  9704  174    78 0   3  97
- 0  2  0      0  99552   5268 334548   0   0     0  7880  174    67 0   3  97
- 0  2  0      0  89448   5280 344392   0   0     0  9804  175    76 0   4  96
- 0  1  0      0  79352   5288 354236   0   0     0  9852  176    87 0   5  95
- 0  1  0      0  71220   5300 362156   0   0     4  7884  170   120 0   4  96
- 0  1  0      0  63088   5308 370084   0   0     0  7936  174    76 0   3  97
- 0  2  0      0  52988   5320 379924   0   0     0  9920  175    77 0   4  96
- 0  2  0      0  43148   5328 389516   0   0     0  9548  174    97 0   4  95
- 0  2  0      0  35144   5336 397316   0   0     0  7820  176    73 0   3  97
- 0  2  0      0  25172   5344 407036   0   0     0  9724  188   183 0   4  96
- 0  2  1      0  17300   5352 414708   0   0     0  7744  174    78 0   4  96
- 0  1  0      0   7068   5360 424684   0   0     0  9920  175    93 0   3  97
- 0  1  0      0   3128   4132 430132   0   0     0  9920  174    81 0   4  96
+		Linus
 
-Notice how there's planty of RAM. I'm writing sequentially to a file
-on the ext2 filesystem. The disk I'm writing on is a 7200rpm IDE,
-capable of ~ 22 MB/s and I'm still getting only ~ 9 MB/s. Weird!
--- 
-Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
