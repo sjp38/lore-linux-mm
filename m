@@ -1,31 +1,52 @@
-Date: Mon, 26 Jul 2004 21:01:34 -0500
-From: Dimitri Sivanich <sivanich@sgi.com>
-Subject: Re: [PATCH] Locking optimization for cache_reap
-Message-ID: <20040727020134.GA23967@sgi.com>
-References: <20040723190555.GB16956@sgi.com> <20040726180104.62c480c6.akpm@osdl.org> <20040727014757.GA23937@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Aroop MP <aroop@poornam.com>
+Subject: lsattr: Inappropriate ioctl for device While reading flags!!!
+Date: Tue, 27 Jul 2004 07:41:43 +0530
+References: <20040723190555.GB16956@sgi.com> <200407270729.45116.aroop@poornam.com> <20040727020338.GB23967@sgi.com>
+In-Reply-To: <20040727020338.GB23967@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20040727014757.GA23937@sgi.com>
+Message-Id: <200407270741.44003.aroop@poornam.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: manfred@colorfullife.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
+To: Dimitri Sivanich <sivanich@sgi.com>, manfred@colorfullife.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 26, 2004 at 08:47:57PM -0500, Dimitri Sivanich wrote:
-> 
-> While you've got irq's disabled, drain_array() (the function my patch removes)
-> acquires the cache spin_lock, then releases it.  Cache_reap then acquires
-> it again (with irq's having been off the entire time).  My testing has found
-> that simply acquiring the lock once while irq's are off results in fewer
-> excessively long latencies.
-> 
-> Results probably vary somewhat depending on the circumstance.
+Hi,
 
-Of course, I should add that all of this is from the perspective of the
-cpu doing the cache_reap.  If others feel that this may add too much
-latency to other paths, other solutions may be in order.
+Thanks for your quick reply. When i check lsattr of the file 
+/usr/local/cpanel/3rdparty/etc/php.ini  i got the following error.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Server[~]# lsattr /usr/local/cpanel/3rdparty/etc/php.ini
+lsattr: Inappropriate ioctl for device While reading flags on 
+/usr/local/cpanel/3rdparty/etc/php.ini
+Server[~]#
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Please get back to me if you need any more  info. regarding this.
+
+Thank You.
+
+On Tuesday 27 Jul 2004 7:33 am, you wrote:
+> On Tue, Jul 27, 2004 at 07:29:44AM +0530, Aroop MP wrote:
+> > I have a simple doubt. Please answer it.
+> > Why the error " Inappropriate ioctl for device While reading flags
+> > ......................" is ocuring?. YOur replies will be greatly
+> > appreciated.
+>
+> I have not seen this.  Can you elaborate?
+
+-- 
+
+ Regards, 
+ Aroop M.P
+ ---------------------------------------------------
+ "NO MATTER WHERE YOU ARE IN THE WORLD,IF YOU HAVE DECIDED TO DO  SOMETHING 
+DEEP FROM YOUR HEART YOU CAN DO IT. IT HAS ALWAYS BEEN THE   THOUGHT THAT 
+MATTERS... "
+ ---------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
