@@ -1,62 +1,119 @@
-Date: Tue, 30 Nov 2004 20:57:07 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH]: 1/4 batch mark_page_accessed()
-Message-ID: <20041130225707.GA2315@dmt.cyclades>
-References: <16800.47044.75874.56255@gargle.gargle.HOWL> <20041126185833.GA7740@logos.cnet> <41A7CC3D.9030405@yahoo.com.au> <20041130162956.GA3047@dmt.cyclades> <20041130173323.0b3ac83d.akpm@osdl.org>
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
+Date: Tue, 02 Nov 2004 17:30:25 -0800
+Message-ID: <255590000.1099445425@flay>
+References: <Pine.SGI.4.58.0411011901540.77038@kzerza.americas.sgi.com><14340000.1099410418@[10.10.2.4]><20041102155507.GA323@wotan.suse.de><40740000.1099414515@[10.10.2.4]><Pine.SGI.4.58.0411021613300.79056@kzerza.americas.sgi.com> <239530000.1099435919@flay> <Pine.SGI.4.58.0411021832240.79056@kzerza.americas.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner+glk-linux-kernel=40m.gmane.org-S261285AbUKCBb0@vger.kernel.org>
+In-Reply-To: <Pine.SGI.4.58.0411021832240.79056@kzerza.americas.sgi.com>
 Content-Disposition: inline
-In-Reply-To: <20041130173323.0b3ac83d.akpm@osdl.org>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: nickpiggin@yahoo.com.au, nikita@clusterfs.com, Linux-Kernel@vger.kernel.org, linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Brent Casavant <bcasavan@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
+List-Id: linux-mm.kvack.org
 
-On Tue, Nov 30, 2004 at 05:33:23PM -0800, Andrew Morton wrote:
-> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
-> >
-> > Because the ordering of LRU pages should be enhanced in respect to locality, 
-> >  with the mark_page_accessed batching you group together tasks accessed pages 
-> >  and move them at once to the active list. 
-> > 
-> >  You maintain better locality ordering, while decreasing the precision of aging/
-> >  temporal locality.
-> > 
-> >  Which should enhance disk writeout performance.
+--On Tuesday, November 02, 2004 19:12:10 -0600 Brent Casavant <bcasavan@sgi.com> wrote:
+
+> On Tue, 2 Nov 2004, Martin J. Bligh wrote:
 > 
-> I'll buy that explanation.  Although I'm a bit sceptical that it is
-> measurable.
-
-Its just a theory that makes sense to me, but yes we need to be measure it.
-
-> Was that particular workload actually performing significant amounts of
-> writeout in vmscan.c?  (We should have direct+kswapd counters for that, but
-> we don't.  /proc/vmstat:pgrotated will give us an idea).
-
-I strongly believe so, its a memory hungry benchmark - I'll collect status later 
-on this week or the next.
-
-> >  On the other hand, without batching you mix the locality up in LRU - the LRU becomes 
-> >  more precise in terms of "LRU aging", but less ordered in terms of sequential 
-> >  access pattern.
-> > 
-> >  The disk IO intensive reaim has very significant gain from the batching, its
-> >  probably due to the enhanced LRU ordering (what Nikita says).
-> > 
-> >  The slowdown is probably due to the additional atomic_inc by page_cache_get(). 
-> > 
-> >  Is there no way to avoid such page_cache_get there (and in lru_cache_add also)?
+>> > The manner I'm concerned about is when a long-lived file (long-lived
+>> > meaning at least for the duration of the run of a large multithreaded app)
+>> > is placed in memory as an accidental artifact of the CPU which happened
+>> > to create the file.
+>> 
+>> Agreed, I see that point - if it's a globally accessed file that's
+>> created by one CPU, you want it spread around. However ... how the hell
+>> is the VM meant to distinguish that? The correct way is for the application
+>> to tell us that - ie use the NUMA API.
 > 
-> Not really.  The page is only in the pagevec at that time - if someone does
-> a put_page() on it the page will be freed for real, and will then be
-> spilled onto the LRU.  Messy. 
+> Right.  The application can already tell us that without this patch,
+> but only if the file is mapped.  Using writes there doesn't appear to
+> be any way to control this behavior (unless I overlooked something).
+> So it is impossible to use normal system utilities (i.e. cp, dd, tar)
+> and get appropriate placement.
 
-We could handle such situation on allocation and during vmscan - maybe its doable.
-Just pondering, maybe its indeed too messy to even ponder about.
+Ah yes, I see your point.
+ 
+> This change gives us a method to get a different default (i.e write)
+> behavior.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+OK. Might still be more useful to have it per filehandle, but we'd need
+a way to send info on an existing filehandle.
+
+> Yep.  Also, bear in mind that many applications/utilities are not going
+> to be very savvy in regard to tmpfs placement, and really shouldn't be.
+> I wouldn't expect a compiler to have special code to lay out the generated
+> objects in a friendly manner.  Currently, all it takes is one unaware
+> application/utility to mess things up for us.
+
+Well, on certain extreme workloads, yes. But not for most people.
+ 
+> With local-by-default placement, as today, every single application and
+> utility needs to cooperate in order to be successful.
+> 
+> Which, I guess, might be something to consider (thinking out loud here)...
+
+I don't like apps having to co-operate any more than you do, as they
+obviously won't. However, remember that most workloads won't hit this,
+and there are a couple of other approaches:
+
+1) your global switch is making more sense to me now.
+2) We can balance nodes under mem pressure (we don't currently)
+
+Number 2 fixes a variety of evils, and we've been talking about fixing
+that for a while (see the previous one on pagecache ... do we have to
+fix each case?).
+
+What scares me is that what all these discussions are pointing towards
+is "we want global striping for all allocations, because Linux is too 
+crap to deal with cross-node balancing pressure". I don't want to see 
+us go that way ;-). Some things are more obviously global than others
+(eg shmem is more likely to be shared) ... whether we think the usage
+of tmpfs is local or global is very much up to debate though. 
+
+There are a few other indicators I could see us using as hints from the 
+OS that might help - the size of the file vs the amount of mem in the
+node, for one. How many processes have the file open, and which nodes
+they're on for another. Neither of which are flawless, or even terribly
+simple, but we're making heuristic guesses.
+
+> An application which uses the NUMA API obviously cares about placement.
+> If it causes data to be placed locally when it would otherwise be placed
+> globally, it will not cause a problem for a seperate application/utility
+> which doesn't care (much?) about locality.
+
+99.9% of apps won't be NUMA aware, nor should they have to be. Standard
+code should just work out the box ... I'm not going to take the viewpoint
+that these are only specialist servers running one or two apps - they'll
+run all sorts of stuff, esp with the advent of AMD in the marketplace,
+and hopefully Intel will get their ass into gear and do local mem soon
+as well.
+
+> However, if an application/utility which does not care (much?) about
+> locality fails to use the NUMA API and causes data to be placed locally,
+> it may very well cause a problem for a seperate application which does
+> care about locality.
+> 
+> Thus, to me, a default of spreading the allocation globally makes
+> sense.  The burden of adding code to "do the right thing" falls to
+> the applications which care.  No other program requires changes and
+> as such everything will "just work".
+> 
+> But, once again, I fess up to a bias. :)
+
+Yeah ;-) I'm strongly against taking the road of "NUMA performance will
+suck unless your app is NUMA aware" (ie default to non-local alloc).
+OTOH, I don't like us crapping out under imbalance either. However,
+I think there are other ways to solve this (see above).
+ 
+>> Another way might be a tmpfs mount option ... I'd prefer that to a sysctl
+>> personally, but maybe others wouldn't. Hugh, is that nuts?
+> 
+> I kind of like that -- it shouldn't be too hard to stuff into the tmpfs
+> superblock.  But I agree, Hugh knows better than I do.
+
+OK, that'd be under the sysadmin's control fairly easily at least. 
+
+M>
