@@ -1,38 +1,56 @@
-Date: Tue, 13 May 2003 16:20:38 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: Race between vmtruncate and mapped areas?
-Message-ID: <20030513232038.GB8978@holomorphy.com>
-References: <154080000.1052858685@baldur.austin.ibm.com> <3EC15C6D.1040403@kolumbus.fi> <199610000.1052864784@baldur.austin.ibm.com> <20030513224929.GX8978@holomorphy.com> <220550000.1052866808@baldur.austin.ibm.com> <20030513231139.GZ8978@holomorphy.com> <247390000.1052867776@baldur.austin.ibm.com>
+Date: Tue, 13 May 2003 16:19:38 -0700
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: [RFC][PATCH] Interface to invalidate regions of mmaps
+Message-Id: <20030513161938.1fc00a5e.akpm@digeo.com>
+In-Reply-To: <3EC17BA3.7060403@zabbo.net>
+References: <20030513133636.C2929@us.ibm.com>
+	<20030513152141.5ab69f07.akpm@digeo.com>
+	<3EC17BA3.7060403@zabbo.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <247390000.1052867776@baldur.austin.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Mika Penttil? <mika.penttila@kolumbus.fi>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Zach Brown <zab@zabbo.net>
+Cc: paulmck@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mjbligh@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday, May 13, 2003 16:11:39 -0700 William Lee Irwin III <wli@holomorphy.com> wrote:
->> Okay, what's stopping filemap_nopage() from fetching the page from
->> pagecache after one of the mm->mmap_sem's is dropped but before
->> truncate_inode_pages() removes the page? The fault path is only locked
->> out for one mm during one part of the operation. I can see taking
->> ->i_sem in do_no_page() fixing it, but not ->mmap_sem in vmtruncate()
->> (but of course that's _far_ too heavy-handed to merge at all).
+Zach Brown <zab@zabbo.net> wrote:
+>
+> so what we'd like most is the ability to invalidate a region of the file
+> in an efficient go.
+> 
+> void truncate_inode_pages(struct address_space * mapping, loff_t lstart,
+> loff_t end)
+> 
+> that sort of thing.
 
-On Tue, May 13, 2003 at 06:16:16PM -0500, Dave McCracken wrote:
-> mmap_sem is held for read across the entire fault, so by the time
-> vmtruncate_list() can call zap_page_range() the page has been instantiated
-> in the page table and will get removed.
+That's trivial in 2.5.
 
-That's not quite the answer, inode->i_size is.
+>  this might not suck so bad if the page cache was an
+> rbtree :)
 
-The mmap_sem works because then ->i_size can't be sampled by
-filemap_nopage() before the pagetable wiping operation starts.
+Or a radix tree.
+
+> but on the other hand, this doesn't solve another problem we have with
+> opportunistic lock extents and sparse page cache populations.  Ideally
+> we'd like a FS specific pointer in struct page so we can associate pages
+> in the cache with a lock,
+
+In 2.5, page->buffers was abstracted out to page->private, and is available
+to filesystems for functions such as this.
 
 
--- wli
+> but I can't imagine suggesting such a thing
+> within earshot of wli. 
+
+wli doesn't have to run your kernel.  If you want to add a pointer to the
+pageframe, go add it.  But I'd suggest that you do it with a view to
+migrating it to page->private.
+
+When you finally decide to do your development in a development kernel ;)
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
