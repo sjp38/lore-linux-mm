@@ -1,40 +1,45 @@
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA04189
-	for <linux-mm@kvack.org>; Mon, 25 May 1998 10:33:10 -0400
+Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA11339
+	for <linux-mm@kvack.org>; Tue, 26 May 1998 16:24:48 -0400
+Date: Tue, 26 May 1998 19:00:25 +0100
+Message-Id: <199805261800.TAA01935@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Subject: Re: patch for 2.1.102 swap code
+In-Reply-To: <199805251342.GAA03658@dm.cobaltmicro.com>
 References: <356478F0.FE1C378F@star.net>
 	<199805241728.SAA02816@dax.dcs.ed.ac.uk>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 25 May 1998 07:38:40 -0500
-In-Reply-To: "Stephen C. Tweedie"'s message of Sun, 24 May 1998 18:28:48 +0100
-Message-ID: <m190nq4jan.fsf@flinx.npwt.net>
+	<3569699E.6C552C74@star.net>
+	<199805251342.GAA03658@dm.cobaltmicro.com>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: Bill Hawes <whawes@star.net>, linux-mm@kvack.org
+To: "David S. Miller" <davem@dm.cobaltmicro.com>
+Cc: whawes@star.net, sct@dcs.ed.ac.uk, linux-kernel@vger.rutgers.edu, torvalds@transmeta.com, linux-mm@kvack.org, number6@the-village.bc.nu
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ST" == Stephen C Tweedie <sct@dcs.ed.ac.uk> writes:
+Hi,
 
-ST> On Thu, 21 May 1998 14:56:48 -0400, Bill Hawes <whawes@star.net> said:
->> In try_to_unuse_page there were some problems with swap counts still
->> non-zero after replacing all of the process references to a page,
->> apparently due to the swap map count being elevated while swapping is in
->> progress. (It shows up if a swapoff command is run while the system is
->> swapping heavily.) I've modified the code to make multiple passes in the
->> event that pages are still in use, and to report EBUSY if the counts
->> can't all be cleared.
+On Mon, 25 May 1998 06:42:53 -0700, "David S. Miller"
+<davem@dm.cobaltmicro.com> said:
 
-ST> Hmm.  That shouldn't be a problem if everything is working correctly.
-ST> However, your first change (the extra swap_duplicate) will leave the
-ST> swap count elevated while swapin is occurring, and that could certainly
-ST> lead to this symptom in swapoff().  Does the swapoff problem still occur
-ST> on an unmodified kernel?
+> Alas, I thought about this some more.  And one piece of code needs to
+> be fixed for this invariant about the semaphore being held in the
+> fault processing code paths to be true everywhere... ptrace()...
 
-Note: there is a problem with swapoff that should at least be considered.
-If you use have a SYSV shared memory, and don't map it into a process,
-and that memory get's swapped out, swapoff will not be able to find it.
+Yep --- I was just about to reply to your last mail with this point when
+I got your follow-up.  I've also had one report that the writable cached
+page reports started when debugging an electric-fenced binary under
+gdb.  Has anyody seen these vm messages who has definitely NOT been
+running gdb?
 
-This is a very long standing bug and appears not to be a problem in practice.
-But it is certainly a potential problem.
+There's also the point that the whole swapout code munges page tables
+without ever taking the mm semaphore, but that case ought to be
+protected by the combination of (a) having the kernel spinlock and (b)
+never stalling between starting a vma walk and modifying the pte.  (The
+swapout code is pretty paranoid about this.)  However, I'm not
+absolutely 100% sure that we don't have any unfortunate races left by
+this exception.  (For example, do we ever protect a vma by the mm
+semaphore without also doing a lock_kernel()?)
 
-Eric
+--Stephen
