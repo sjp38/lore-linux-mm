@@ -1,47 +1,38 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id DBDA738FF3
-	for <linux-mm@kvack.org>; Mon,  8 Oct 2001 20:38:41 -0300 (EST)
-Date: Mon, 8 Oct 2001 20:38:27 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [CFT][PATCH *] faster cache reclaim
-Message-ID: <Pine.LNX.4.33L.0110082032070.26495-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 8 Oct 2001 18:28:20 -0700
+Subject: Re: [CFT][PATCH *] faster cache reclaim
+Message-ID: <20011008182820.A6361@gnuppy>
+References: <Pine.LNX.4.33L.0110082032070.26495-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.33L.0110082032070.26495-100000@duckman.distro.conectiva>
+From: Bill Huey <billh@gnuppy.monkey.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: kernelnewbies@nl.linux.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, kernelnewbies@nl.linux.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, Oct 08, 2001 at 08:38:27PM -0300, Rik van Riel wrote:
+> It also reduces the distance between inactive_shortage and
+> inactive_plenty, so kswapd should spend much less time rolling
+> over pages from zones we're not interested in.
+> 
+> This patch is meant to fix the problems where heavy cache
+> activity flushes out pages from the working set, while still
+> allowing the cache to put some pressure on the working set.
 
-after looking at some other things for a while, I made a patch to
-get 2.4.10-ac* to correctly eat pages from the cache when it is
-about pages belonging to files which aren't currently in use. This
-should also give some of the benefits of use-once, but without the
-flaw of not putting pressure on the working set when a streaming IO
-load is going on.
+Rik,
 
-It also reduces the distance between inactive_shortage and
-inactive_plenty, so kswapd should spend much less time rolling
-over pages from zones we're not interested in.
+It work well when I pressure it under some intensive IO operations under
+dpkg and made progress when previous VMs basically froze. I did have two
+running programs that have large working sets which created a lot of
+contention and some CPU choppiness, but possibly some per process thrash
+control should allow for both to make progress. ;-)
 
-This patch is meant to fix the problems where heavy cache
-activity flushes out pages from the working set, while still
-allowing the cache to put some pressure on the working set.
+Good work.
 
-I've only done a few tests with this patch, reports on how
-different workloads are handled are very much welcome:
-
-http://www.surriel.com/patches/2.4/2.4.10-ac9-eatcache
-
-regards,
-
-Rik
--- 
-DMCA, SSSCA, W3C?  Who cares?  http://thefreeworld.net/  (volunteers needed)
-
-http://www.surriel.com/		http://distro.conectiva.com/
+bill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
