@@ -1,41 +1,46 @@
-Message-ID: <3905DFCF.B8695E16@mandrakesoft.com>
-Date: Tue, 25 Apr 2000 14:11:27 -0400
-From: Jeff Garzik <jgarzik@mandrakesoft.com>
-MIME-Version: 1.0
+Date: Tue, 25 Apr 2000 15:33:53 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
 Subject: Re: 2.3.x mem balancing
-References: <Pine.LNX.4.21.0004251437540.10408-100000@duckman.conectiva>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <3905DFCF.B8695E16@mandrakesoft.com>
+Message-ID: <Pine.LNX.4.21.0004251531560.10408-100000@duckman.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
+To: Jeff Garzik <jgarzik@mandrakesoft.com>
 Cc: Linus Torvalds <torvalds@transmeta.com>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> Another thing which we probably want before 2.4 is scanning
-> big processes more agressively than small processes. I've
-> implemented most of what is needed for that and it seems to
-> have a good influence on performance because:
-> - small processes suffer less from the presence of memory hogs
-> - memory hogs have their pages aged more agressively, making it
->   easier for them to do higher throughput from/to swap or disk
+On Tue, 25 Apr 2000, Jeff Garzik wrote:
+> Rik van Riel wrote:
+> > Another thing which we probably want before 2.4 is scanning
+> > big processes more agressively than small processes. I've
+> > implemented most of what is needed for that and it seems to
+> > have a good influence on performance because:
+> > - small processes suffer less from the presence of memory hogs
+> > - memory hogs have their pages aged more agressively, making it
+> >   easier for them to do higher throughput from/to swap or disk
+> 
+> Since you do not mention a new sysctl here...
 
-Since you do not mention a new sysctl here...
+Yeah, I forgot to mention that. This is something which can
+be made switchable by the admin very easily.
 
-The change you propose is policy.  Favoring interactivity over memory
-hogs is not always a good idea and should be left up to the sysadmin not
-kernel hacker to decide.
+I'll add the sysctl switch (and remove some old redundant
+ones) later, when the code has stabilised and we know what's
+needed.
 
-	Jeff
+regards,
 
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
-
--- 
-Jeff Garzik              | Nothing cures insomnia like the
-Building 1024            | realization that it's time to get up.
-MandrakeSoft, Inc.       |        -- random fortune
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
