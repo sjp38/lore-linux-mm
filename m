@@ -1,58 +1,39 @@
-From: Dimitri Sivanich <sivanich@sgi.com>
-Message-Id: <200405241539.i4OFddJQ016338@fsgi142.americas.sgi.com>
-Subject: Re: Slab cache reap and CPU availability
-Date: Mon, 24 May 2004 10:39:39 -0500 (CDT)
-In-Reply-To: <20040521191609.6f4a49a7.akpm@osdl.org> from "Andrew Morton" at May 21, 2004 07:16:09 PM
+Date: Mon, 24 May 2004 21:15:45 +0000
+From: jcisaac@ftp.ie.xemacs.org
+Subject: l O 5, 5 =?ISO-8859-1?Q?1=D5?= 8 6 Engtlish
+References: <55A01CI2CE5CI436@kvack.org>
+In-Reply-To: <55A01CI2CE5CI436@kvack.org>
+Message-ID: <AK67E29DBHJG3KI8@ftp.ie.xemacs.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=koi8-r
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> 
-> Dimitri Sivanich <sivanich@sgi.com> wrote:
-> >
-> > Hi all,
-> > 
-> > I have a fairly general question about the slab cache reap code.
-> > 
-> > In running realtime noise tests on the 2.6 kernels (spinning to detect periods
-> > of CPU unavailability to RT threads) on an IA/64 Altix system, I have found the
-> > cache_reap code to be the source of a number of larger holdoffs (periods of
-> > CPU unavailability).  These can last into the 100's of usec on 1300 MHz CPUs.
-> > Since this code runs periodically every few seconds as a timer softirq on all
-> > CPUs, holdoffs can occur frequently.
-> > 
-> > Has anyone looked into less interruptive alternatives to running cache_reap
-> > this way (for the 2.6 kernel), or maybe looked into potential optimizations
-> > to the routine itself?
-> > 
-> 
-> Do you have stack backtraces?  I thought the problem was via the RCU
-> softirq callbacks, not via the timer interrupt.  Dipankar spent some time
-> looking at the RCU-related problem but solutions are not comfortable.
-> 
-> What workload is triggering this?
-> 
+=?ISO-8859-1?Q?=F0=D2=C9=D7=C5=D4,?= =?ISO-8859-1?Q?=CB=C1=CB?= =?ISO-8859-1?Q?=C4=C5=CC=C1=3F?=
+Return-Path: <owner-linux-mm@kvack.org>
+X-Envelope-To: <"|/home/majordomo/wrapper archive -f /home/ftp/pub/archives/linux-mm/linux-mm -m -a"> (uid 0)
+X-Orcpt: rfc822;linux-mm-outgoing
+Original-Recipient: rfc822;linux-mm-outgoing
 
-The IA/64 backtrace with all the cruft removed looks as follows:
+dOAAIACAAI AUOOOI xUOTHEOO oAUCIxIOIUE AICIEEOEEE NUUE 
+oIEEAIOIAN IAOIAEEA IAOTHAIEN - IUUIAIEA, DOIEUIIUAIEA, OOEIO OATHE.
 
-0xa000000100149ac0 reap_timer_fnc+0x100
-0xa0000001000f4d70 run_timer_softirq+0x2d0
-0xa0000001000e9440 __do_softirq+0x200
-0xa0000001000e94e0 do_softirq+0x80
-0xa000000100017f50 ia64_handle_irq+0x190
+oAI. 9 9 5 - 8 2 - 4 1 iIOExA. uxIIEOA OAETHAO! dOEEIAEOA OACIAIN!
 
-The system is running mostly AIM7, but I've seen holdoffs > 30 usec with
-virtually no load on the system.
+iAU OAEO wwww.amercenter.com -start learning english Today!
 
-Which uncomfortable solutions (which could relate to this case) have been
-investigated?
+oACIxIOIUE EOOO DIIIOAO xAI IA DIOAONOON x IAAIE OEOOAAEE.
+oxAOAIIIOOO E AAOIIAOIUE EIIOOIIO x IAAIE OEOOAAEE- IO AUOIDIOOA 
+AI IOAIN, AI xOOOATHE O EIIOOOAIIUI DAOOIAOII E xAOAIIE OOOIxEE 
+- aICIEEOEEE UOI IA OAE OIIOII.
 
 
-Dimitri Sivanich <sivanich@sgi.com>
+oxAOAUE AAUIxUE OOIxAIO E DOAEOETHAOEEA IAxUEE. oOA THAOAU IAONA xU 
+xIUIIOII OAExEOA OxIEIE UIAIENIE AOOUAE E UIAEIIUE, EIIIAC A CIAxIIA 
+OAIICI OAAN. 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
