@@ -1,25 +1,50 @@
-Date: Tue, 6 Apr 2004 18:01:41 +0200
+Date: Tue, 6 Apr 2004 23:54:41 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
-Message-ID: <20040406160141.GX2234@dualathlon.random>
-References: <20040402205410.A7194@infradead.org> <20040402203514.GR21341@dualathlon.random> <20040403094058.A13091@infradead.org> <20040403152026.GE2307@dualathlon.random> <20040403155958.GF2307@dualathlon.random> <20040403170258.GH2307@dualathlon.random> <20040405105912.A3896@infradead.org> <20040405131113.A5094@infradead.org> <20040406042222.GP2234@dualathlon.random> <20040406061646.B14800@infradead.org>
+Message-ID: <20040406215441.GK2234@dualathlon.random>
+References: <20040402205410.A7194@infradead.org> <20040402203514.GR21341@dualathlon.random> <20040403094058.A13091@infradead.org> <20040403152026.GE2307@dualathlon.random> <20040403155958.GF2307@dualathlon.random> <20040403170258.GH2307@dualathlon.random> <20040405105912.A3896@infradead.org> <20040405131113.A5094@infradead.org> <20040406042222.GP2234@dualathlon.random> <20040405214330.05e4ecd7.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040406061646.B14800@infradead.org>
+In-Reply-To: <20040405214330.05e4ecd7.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: hch@infradead.org, hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 06, 2004 at 06:16:46AM +0100, Christoph Hellwig wrote:
-> Can you try the patch below (testing it now, but I'm pretty sure it'll fix it)
-> instead of all the kmalloc changes?:
+On Mon, Apr 05, 2004 at 09:43:30PM -0700, Andrew Morton wrote:
+> It does pagebuf I/O with kmalloced memory?  Wow.  Pretty much anything
+> which goes from kmalloc virtual addresses back to pageframes is a big fat
+> warning sign.
 
-I'm having some email dealy so I don't know if you sent me more recent
-emails, did it work fine as expected or should I keep my kmalloc change?
+it's tricky indeed, though it worked fine as far as compound was left
+disabled with hugetlbfs=n.
 
-thanks
+> Do you see any reason why we shouldn't flip things around and make the
+> hugetlb code explicitly request the compound page metadata when allocating
+> the pages?
+
+I definitely agree we should reverse the logic to __GFP_COMP instead of
+__GFP_NO_COMP in mainline. Problem is I coudln't do it in the short term
+to avoid invalidating the testing done with hugetlbfs=y. Soon I can
+reverse it and add the __GFP_COMP only for the hugetlbfs big-order
+dyanmic allocations that should be quick to identify.
+
+Christoph, I got no positive feedback yet for the alternate fix you
+proposed and it's not obvious to my eyes (isn't good_pages going to be
+screwed with your fix?), but I wanted to checkin a fix into CVS in the
+meanwhile, so for now I've checked in my __GFP_NO_COMP fix that I'm sure
+doesn't require any testing since it's obviously safe and it should
+definitely fix the problem. This way you can also take your time for the
+testing of your better fix.
+
+What's not clear to me about your fix is if it's really working safe
+with good_pages being overdecremented (good_pages doesn't look just an
+hint, there seems to be a valid reason you're doing the set_bit/test_bit
+on page->private, no?).
+
+thanks.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
