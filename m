@@ -1,138 +1,115 @@
-Date: Wed, 18 Jul 2001 01:02:52 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Large PAGE_SIZE
-In-Reply-To: <Pine.LNX.4.21.0107051737340.1577-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.21.0107172337340.1015-100000@localhost.localdomain>
+Date: Wed, 18 Jul 2001 10:54:52 +0200 (CEST)
+From: Mike Galbraith <mikeg@wen-online.de>
+Subject: Re: [PATCH] Separate global/perzone inactive/free shortage
+In-Reply-To: <OF11D0664E.20E72543-ON85256A8B.004B248D@pok.ibm.com>
+Message-ID: <Pine.LNX.4.33.0107180808470.724-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
+To: Bulent Abali <abali@us.ibm.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Dirk Wetter <dirkw@rentec.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-is the promised Large PAGE_SIZE patch against 2.4.6.  If you'd like
-to try these large pages, you'll have to edit include/asm-i386/page.h
-PAGE_MMUSHIFT from 0 to 1 or 2 or 3: no configuration yet.  There's
-a sense in which the patch is now complete, but I'll probably be
-ashamed of that claim tomorrow (several of the drivers haven't even
-got compiled yet, much more remains untested).  I'll update to 2.4.7
-once it appears, but probably have to skip the -pres.
+On Mon, 16 Jul 2001, Bulent Abali wrote:
 
-My original mail repeated below, to give a little explanation of what
-you'll find; but I've changed it to match the current patch, saying
-"MMU" where originally it said "SUB".  You did suggest VM_PAGE_SIZE
-to match vm_pgoff, but I soon found even that too ambiguous.
+> >> On Sat, 14 Jul 2001, Marcelo Tosatti wrote:
+> >
+> >> On highmem machines, wouldn't it save a LOT of time to prevent
+> allocation
+> >> of ZONE_DMA as VM pages?  Or, if we really need to, get those pages into
+> >> the swapcache instantly?  Crawling through nearly 4 gig of VM looking
+> for
+> >> 16 MB of ram has got to be very expensive.  Besides, those pages are
+> just
+> >> too precious to allow some user task to sit on them.
+> >
+> >Can't we balance that automatically?
+> >
+> >Why not just round-robin between the eligible zones when allocating,
+> >biasing each zone based on size?  On a 4GB box you'd basically end up
+> >doing 3 times as many allocations from the highmem zone as the normal
+> >zone and only very occasionally would you try to dig into the dma
+> >zone.
+> >Cheers,
+> > Stephen
+>
+> If I understood page_alloc.c:build_zonelists() correctly
+> ZONE_HIGHMEM includes ZONE_NORMAL which includes ZONE_DMA.
+> Memory allocators (other than ZONE_DMA) will dip in to the dma zone
+> only when there are no highmem and/or normal zone pages available.
+> So, the current method is more conservative (better) than round-robin
+> it seems to me.
 
-I've not merged Ben's multipage PAGE_CACHE_SIZE into this version:
-I couldn't think coolly enough to decide page_cluster readahead as
-PAGE_SIZE and PAGE_CACHE_SIZE vary; and some other issues I'll need
-to settle with Ben first.
+Not really.  As soon as ZONE_NORMAL is engaged such that free_pages
+hits pages_low, we will pilpher ZONE_DMA.  That's guaranteed to happen
+because that's exactly what we balance for.  Once ZONE_NORMAL reaches
+pages_low, we will fall back to allocating ZONE_DMA exclusively.
 
-Hugh
+(problem yes?.. if agree, skip to 'possible solution' below;)
 
-On Thu, 5 Jul 2001, Hugh Dickins wrote:
-> 
-> Linus,
-> 
-> Ben's mail on multipage PAGE_CACHE_SIZE support prompts me to let you
-> know now what I've been doing, and ask your opinion on this direction.
-> 
-> Congratulations to Ben for working out multipage PAGE_CACHE_SIZE.
-> I couldn't see where it was headed, and PAGE_CACHE_SIZE has been
-> PAGE_SIZE for so long that I assumed everyone had given up on it.
-> 
-> I'm interested in larger pages, but wary of multipage PAGE_CACHE_SIZE:
-> partly because it relies on non-0-order page allocations, partly because
-> it seems a shame then to break I/O into smaller units below the cache.
-> 
-> So instead I'm using a larger PAGE_SIZE throughout the kernel: here's an
-> extract from include/asm-i386/page.h (currently edited not configured):
-> 
-> /*
->  * One mmupage is represented by one Page Table Entry at the MMU level,
->  * and corresponds to one page at the user process level: its size is
->  * the same as param.h EXEC_PAGESIZE (for getpagesize(2) and mmap(2)).
->  */
-> #define MMUPAGE_SHIFT	12
-> #define MMUPAGE_SIZE	(1UL << MMUPAGE_SHIFT)
-> #define MMUPAGE_MASK	(~(MMUPAGE_SIZE-1))
-> 
-> /*
->  * 2**N adjacent mmupages may be clustered to make up one kernel page.
->  * Reasonable and tested values for PAGE_MMUSHIFT are 0 (4k page),
->  * 1 (8k page), 2 (16k page), 3 (32k page).  Higher values will not
->  * work without further changes e.g. to unsigned short b_size.
->  */
-> #define PAGE_MMUSHIFT	0
-> #define PAGE_MMUCOUNT	(1UL << PAGE_MMUSHIFT)
-> 
-> /*
->  * One kernel page is represented by one struct page (see mm.h),
->  * and is the kernel's principal unit of memory allocation.
->  */
-> #define PAGE_SHIFT	(PAGE_MMUSHIFT + MMUPAGE_SHIFT)
-> #define PAGE_SIZE	(1UL << PAGE_SHIFT)
-> #define PAGE_MASK	(~(PAGE_SIZE-1))
-> 
-> The kernel patch which applies these definitions is, of course, much
-> larger than Ben's multipage PAGE_CACHE_SIZE patch.   Currently against
-> 2.4.4 (I'm rebasing to 2.4.6 in the next week) plus some other patches
-> we're using inhouse, it's about 350KB touching 160 files.  Not quite
-> complete yet (trivial macros still to be added to non-i386 arches; md
-> readahead size not yet resolved; num_physpages in tuning to be checked;
-> vmscan algorithms probably misscaled) and certainly undertested, but
-> both 2GB SMP machine and 256MB laptop run stably with 32k pages (though
-> 4k pages are better on the laptop, to keep kernel source tree in cache).
-> 
-> Most of the patch is simple and straightforward, replacing PAGE_SIZE
-> by MMUPAGE_SIZE where appropriate (in drivers that's usually only when
-> handling vm_pgoff).
-> 
-> Some of the patch is rather tangential: seemed right to implement proper
-> flush_tlb_range() and flush_tlb_range_k() for flushing mmupages togther;
-> hard to resist tidyups like changing zap_page_range() arg from size to
-> end when it's always sandwiched between start,end functions.  Unless
-> PAGE_CACHE_SIZE definition were to be removed too, no change at all
-> to most filesystems (cramfs, ncpfs, proc being exceptions).
-> 
-> Kernel physical and virtual address space mostly in PAGE_SIZE units:
-> __get_free_page(), vmalloc(), ioremap(), kmap_atomic(), kmap() pages;
-> but early alloc_bootmem_pages() and fixmap.h slots in MMUPAGE_SIZE.
-> 
-> User address space has to be in MMUPAGE_SIZE units (unless I want to
-> rebuild all my userspace): so the difficult part of the patch is the
-> mm/memory.c fault handlers, and preventing the anonymous MMUPAGE_SIZE
-> pieces from degenerating into needing a PAGE_SIZE physical page each,
-> and how to translate exclusive_swap_page().
-> 
-> These page fault handlers now prepare and operate upon a
-> pte_t *folio[PAGE_MMUCOUNT], different parts of the same large page
-> expected at respective virtual offsets (yes, mremap() can spoil that,
-> but it's exceptional).  Anon mappings may have non-0 vm_pgoff, to share
-> page with adjacent private mappings e.g. bss share large page with data,
-> so KIO across data-bss boundary works (KIO page granularity troublesome,
-> but would have been a shame to revert to the easier MMUPAGE_SIZE there).
-> Hard to get the macros right, to melt away to efficient code in the
-> PAGE_MMUSHIFT 0 case: I've done the best I can for now,
-> you'll probably find them clunky and suggest better.
-> 
-> Performance?  Not yet determined, we're just getting around to that.
-> Unless it performs significantly better than multipage PAGE_CACHE_SIZE,
-> it should be forgotten: no point in extensive change for no gain.
-> 
-> I've said enough for now: either you're already disgusted, and will
-> reply "Never!", or you'll sometime want to cast an eye over the patch
-> itself (or nominate someone else to do so), to get the measure of it.
-> If the latter, please give me a few days to put it together against
-> 2.4.6, minus our other inhouse pieces, then I can put the result on
-> an ftp site for you.
-> 
-> I would have preferred to wait a little longer before unveiling this,
-> but it's appropriate to consider it with multipage PAGE_CACHE_SIZE.
-> 
-> Thanks for your time!
-> Hugh
+Thinking about doing a find /usr on my box:  we commit ZONE_NORMAL,
+then transition to exclusive use of ZONE_DMA instantly.  These pages
+will go to kernel structures.  (except for metadata.  Metadata will
+be aged/laundered, and become available for more kernel structures)
+The tendancy is for ever increasing quantities to become invisible
+to the balancing mechanisms.
+
+Thinking about Dirk's logs of rsync leads me to believe that this must
+be the case.  kreclaimd is eating cpu.  It can't possibly be any other
+zone.  When rsync has had 30 minutes of cpu, kswapd has had 40 minutes.
+kreclaimd has eaten 15 solid minutes.  It can't possibly accumulate
+that much time unless ZONE_DMA is the problem.. the other zones are
+just too easy to find/launder/reclaim.
+
+Much worse is the case of Dirk's two 2gig simulations on a dual cpu
+4gig box.  It will guaranteed allocate all of the dma zone to his two
+tasks vm.  It will also guaranteed unbalance the zone.  Doesn't that
+also guarantee that we will walk pagetables endlessly each and every
+time a ZONE_DMA page is issued?  Try to write out a swapcache page,
+and you might get a dma page, try to do _anything_ and you might get
+a ZONE_DMA page.  With per zone balancing, you will turn these pages
+over much much faster than before, and the aging will be unfair in
+the extreme.. it absolutely has to be.  SCT's suggestion would make
+the total pressure equal, but it would not (could not) correct the
+problem of searching for this handful of pages, the very serious cost
+of owning a ZONE_DMA page, nor the problem of a specific request for
+GFP_DMA pages having a reasonable chance of succeeding.
+
+IMHO, it is really really bad, that any fallback allocation can also
+bring the dma zone into critical, and these allocations may end up in
+kernel structures which are invisible to the balancing logic, making
+a search a complete waste of time.  In any case, on a machine with
+lots of ram, the search is going to be disproportionately expensive
+due to the size of the search area.
+
+Possible solution:
+
+Effectively reserving the last ~meg (pick a number, scaled by ramsize
+would be better) of ZONE_DMA for real GFP_DMA allocations would cure
+Dirk's problem I bet, and also cure most of the others too, simply by
+ensuring that the ONLY thing that could unbalance that zone would be
+real GFP_DMA pressure.  That way, you'd only eat the incredible cost
+of balancing that zone when it really really had to be done.
+
+> I think Marcello is proposing to make ZONE_DMA exclusive in large
+> memory machines, which might make it better for allocators
+> needing ZONE_DMA pages...
+
+That would have to save very much time on HIGHMEM boxes.  No box with
+>= a gig of ram would even miss (a lousy;) 16MB.  The very small bit of
+extra balancing of other zones would easily be paid for by the reduced
+search time (supposition).  You'd certainly be doing large tasks a big
+favor by refusing to give them ZONE_DMA pages on a fallback allocation.
+
+I'd almost bet money (will bet a bogobeer:) that disabling fallback to
+ZONE_DMA entirely on Dirk's box will make his troubles instantly gone.
+Not that we don't need per zone balancing anyway mind you.. it's just
+the tiny zone case that is an absolute guaranteed performance killer.
+
+Comments?
+
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
