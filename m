@@ -1,38 +1,115 @@
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.5.69-mm4
-Date: Tue, 13 May 2003 08:43:20 -0400
-References: <20030512225504.4baca409.akpm@digeo.com> <20030513001135.2395860a.akpm@digeo.com> <87n0hr8edh.fsf@lapper.ihatent.com>
-In-Reply-To: <87n0hr8edh.fsf@lapper.ihatent.com>
+Message-ID: <3EC0FB9E.8030305@aitel.hist.no>
+Date: Tue, 13 May 2003 16:05:18 +0200
+From: Helge Hafting <helgehaf@aitel.hist.no>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: [PATCH] Re: 2.5.69-mm4 undefined active_load_balance
+References: <20030512225504.4baca409.akpm@digeo.com>	<87vfwf8h2n.fsf@lapper.ihatent.com>	<20030513001135.2395860a.akpm@digeo.com>	<87n0hr8edh.fsf@lapper.ihatent.com>	<20030513085525.GA7730@hh.idb.hist.no> <20030513020414.5ca41817.akpm@digeo.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <200305130843.20737.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, alexh@ihatent.com
 List-ID: <linux-mm.kvack.org>
 
-On May 13, 2003 04:00 am, Alexander Hoogerhuis wrote:
->         ld -m elf_i386  -T arch/i386/vmlinux.lds.s arch/i386/kernel/head.o
-> arch/i386/kernel/init_task.o   init/built-in.o --start-group
->  usr/built-in.o  arch/i386/kernel/built-in.o  arch/i386/mm/built-in.o
->  arch/i386/mach-default/built-in.o  kernel/built-in.o  mm/built-in.o
->  fs/built-in.o  ipc/built-in.o  security/built-in.o  crypto/built-in.o
->  lib/lib.a  arch/i386/lib/lib.a  drivers/built-in.o  sound/built-in.o
->  arch/i386/pci/built-in.o  net/built-in.o --end-group  -o .tmp_vmlinux1
->
-> kernel/built-in.o(.text+0x1005): In function `schedule':
-> : undefined reference to `active_load_balance'
->
-> make: *** [.tmp_vmlinux1] Error 1
-> alexh@lapper ~/src/linux/linux-2.5.69-mm4 $
+Andrew Morton wrote:
+> Helge Hafting <helgehaf@aitel.hist.no> wrote:
+> 
+>>>: undefined reference to `active_load_balance'
+>>
+>> I got this one too
+> 
+> 
+> I don't think so.  Please do a `make clean' and try again.
+> 
+You don't think so?  How come?
+Note that this was a clean install, I unpacked
+the 2.5.69 tarball, applied 2.5.69-mm3, copied a
+.config file, and ran "make oldconfig; make bzImage"
 
-This happens here too on a tree that was mrproper(ed).
+I tried make clean, and still get
+kernel/built-in.o(.text+0x102a): In function `schedule':
+: undefined reference to `active_load_balance'
+drivers/built-in.o(.text+0x7d534): In function `fb_prepare_logo':
+: undefined reference to `find_logo'
+make: *** [.tmp_vmlinux1] Error 1
 
-Ed 
+During compile, I got a warning that active_load_balance
+was implicitly declared or some such.
+
+Looking at sched.c I see that
+active_load_balance is declared if  CONFIG_SHARE_RUNQUEUE
+is not set.
+
+Later, if we have CONFIG_SMP _and_ CONFIG_SHARE_RUNQUEUE
+we get a longer version of active_load_balance
+
+So, active_load_balance doesn't exist if
+CONFIG_SHARE_RUNQUEUE is set on a non-smp machine.
+
+but schedule() later do a call to active_load_balance
+that isn't masked by any #ifdef.  This machine isn't SMP,
+and CONFIG_SHARE_RUNQUEUE gets set - so it goes wrong.
+
+The problem seems to be in sched.h, which says:
+/*
+  * Is there a way to do this via Kconfig?
+  */
+#ifdef CONFIG_NR_SIBLINGS_2
+# define CONFIG_NR_SIBLINGS 2
+#elif defined(CONFIG_NR_SIBLINGS_4)
+# define CONFIG_NR_SIBLINGS 4
+#else
+# define CONFIG_NR_SIBLINGS 0
+#endif
+
+#ifdef CONFIG_NR_SIBLINGS
+# define CONFIG_SHARE_RUNQUEUE 1
+#else
+# define CONFIG_SHARE_RUNQUEUE 0
+#endif
+
+I get
+# define CONFIG_NR_SIBLINGS 0
+and the #ifdef CONFIG_NR_SIBLINGS
+test triggers because something #defined
+to 0 is #defined.  I guess this is the problem,
+and if so, changing the #ifdef CONFIG_NR_SIBLINGS
+to #if CONFIG_NR_SIBLINGS should do the trick.
+
+A patch for this is at the end of the message.
+
+> 
+>>, as well as:
+>> drivers/built-in.o(.text+0x7d534): In function `fb_prepare_logo':
+>> : undefined reference to `find_logo'
+> 
+> 
+> Is that thing _still_ there?
+> 
+> Does this fix?
+[...]
+Yes, thanks!
+
+Patch for the active_load_balance problem.
+It is not yet tested, it is compiling right now
+and that takes time.
+
+Helge Hafting
+
+--- sched.h.orig        2003-05-13 15:45:17.000000000 +0200
++++ sched.h     2003-05-13 15:45:43.000000000 +0200
+@@ -158,7 +158,7 @@
+  # define CONFIG_NR_SIBLINGS 0
+  #endif
+
+-#ifdef CONFIG_NR_SIBLINGS
++#if CONFIG_NR_SIBLINGS
+  # define CONFIG_SHARE_RUNQUEUE 1
+  #else
+  # define CONFIG_SHARE_RUNQUEUE 0
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
