@@ -1,35 +1,31 @@
-Date: Fri, 26 May 2000 08:49:57 -0300 (BRST)
+Date: Fri, 26 May 2000 09:04:23 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC] 2.3/4 VM queues idea
-In-Reply-To: <20000526121139.D10082@redhat.com>
-Message-ID: <Pine.LNX.4.21.0005260848500.26570-100000@duckman.distro.conectiva>
+In-Reply-To: <20000526120805.C10082@redhat.com>
+Message-ID: <Pine.LNX.4.21.0005260859090.26570-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org, Matthew Dillon <dillon@apollo.backplane.com>, Arnaldo Carvalho de Melo <acme@conectiva.com.br>
+Cc: Jamie Lokier <lk@tantalophile.demon.co.uk>, Matthew Dillon <dillon@apollo.backplane.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Fri, 26 May 2000, Stephen C. Tweedie wrote:
-> On Wed, May 24, 2000 at 12:11:35PM -0300, Rik van Riel wrote:
+> On Thu, May 25, 2000 at 06:50:59PM +0200, Jamie Lokier wrote:
+> > 
+> > Fwiw, with COW address_spaces (I posted an article a couple of weeks ago
+> > explaining) it should be fairly simple to find all the ptes for a given
+> > page without the space overhead of pte chaining.
 > 
-> > - try to keep about one second worth of allocations around in
-> >   the inactive queue (we do 100 allocations/second -> at least
-> >   100 inactive pages), we do this in order to:
-> >   - get some aging in that queue (one second to be reclaimed)
-> >   - have enough old pages around to free
-> 
-> Careful here.  If your box is running several Gig Ethernet
-> interfaces, it could well be allocating 100s of MB of skbuffs
-> every second, each allocation being very short-lived.  The rate
-> of allocation is not a good indicator of memory load.  The rate
-> of allocations which could not be satisfied immediately would be
-> a far better metric.
+> Davem's anon area stuff already implements a large chunk of what
+> is needed.
 
-Oh definately. The number of pages taken off of the cache
-queue (aka. scavenge list) per second, averaged over time,
-will probably be the measure to use.
+It would be cool if somebody could take the time and implement
+the rest of what's needed. I'm currently working at making page
+aging and deferred swapout work, so we have the basic mechanisms
+for aging the active pages and doing swapout from the inactive
+queue.
 
 regards,
 
