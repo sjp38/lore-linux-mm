@@ -1,93 +1,38 @@
-Received: from sj-msg-av-2.cisco.com (sj-msg-av-2.cisco.com [171.69.24.12])
-	by sj-msg-core-4.cisco.com (8.12.2/8.12.2) with ESMTP id g7SJwGW4001304
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2002 12:58:16 -0700 (PDT)
-Received: from nisser.cisco.com (localhost [127.0.0.1])
-	by sj-msg-av-2.cisco.com (8.12.2/8.12.2) with ESMTP id g7SJwFL3006767
-	for <linux-mm@kvack.org>; Wed, 28 Aug 2002 12:58:15 -0700 (PDT)
-Received: from HZHONGW2K1 (dhcp-171-71-49-187.cisco.com [171.71.49.187]) by nisser.cisco.com (8.8.6 (PHNE_14041)/CISCO.SERVER.1.2) with SMTP id MAA01102 for <linux-mm@kvack.org>; Wed, 28 Aug 2002 12:58:14 -0700 (PDT)
-From: "Hua Zhong" <hzhong@cisco.com>
-Subject: [Q] task_lock and mm_struct protection
-Date: Wed, 28 Aug 2002 12:58:13 -0700
-Message-ID: <FEEFKBEFIEBONNKJABKDGEAAFGAA.hzhong@cisco.com>
+Date: Wed, 28 Aug 2002 14:02:15 -0600 (MDT)
+From: Thunder from the hill <thunder@lightweight.ods.org>
+Subject: Re: [patch] SImple Topology API v0.3 (1/2)
+In-Reply-To: <20020828192917.GC10487@atrey.karlin.mff.cuni.cz>
+Message-ID: <Pine.LNX.4.44.0208281400580.3234-100000@hawkeye.luckynet.adm>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <FEEFKBEFIEBONNKJABKDGEPMFFAA.hzhong@cisco.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Pavel Machek <pavel@suse.cz>
+Cc: Thunder from the hill <thunder@lightweight.ods.org>, Matthew Dobson <colpatch@us.ibm.com>, Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Andrea Arcangeli <andrea@suse.de>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Please cc to me as I am not on the list....
+Hi,
 
-I have a locking question regarding to task_lock and mm_struct.
+On Wed, 28 Aug 2002, Pavel Machek wrote:
+> > Because NUMA is subordinate to X86, and another technology named NUMA 
+> > might appear? Nano-uplinked micro-array... No Ugliness Munched Archive? 
+> > Whatever...
+> 
+> NUMA means non-uniform memory access. At least IBM, AMD and SGI do
+> NUMA; and I guess anyone with 100+ nodes *has* numa machine. (BUt as
+> andrea already explained, CONFIG_NUMA is already taken for generic
+> NUMA support.)
 
-Typically when we need to read mm_struct of another process, we do something
-like:
+I'm aware of that. You didn't get my point, though. I was just suggesting 
+that there might be other things called NUMA, so CONFIG_X86_NUMA may be 
+just right.
 
-	task_lock(task);
-	mm = task->mm;
-	if(mm)
-		atomic_inc(&mm->mm_users);
-	task_unlock(task);
-	if (mm) {
-		do_something_time_consuming(mm);
-		mmput(mm);
-	}
-
-If the do_something_time_consuming() is not really time consuming, we may
-just do:
-
-	task_lock(task);
-	mm = task->mm;
-	if(mm)
-		do_something(mm);
-	task_unlock(task);
-
-Is this correct? Do I need to do atomic_inc and mmput around do_something?
-I.e., does task_lock already protect the mm_struct? I think so, otherwise
-anything bad can happen b/t if(mm) and do_something(mm).
-
-However I looked at the code of exit_mm(), and didn't find obvious code that
-proves so. It seems to be a race condition to me. This is the code:
-
-static inline void __exit_mm(struct task_struct * tsk)
-{
-	struct mm_struct * mm = tsk->mm;
-
-	mm_release();
-	if (mm) {
-		atomic_inc(&mm->mm_count);
-		if (mm != tsk->active_mm) BUG();
-		/* more a memory barrier than a real lock */
-		task_lock(tsk);
-		tsk->mm = NULL;
-		enter_lazy_tlb(mm, current, smp_processor_id());
-		task_unlock(tsk);
-		mmput(mm);
-	}
-}
-
-Apparently, mmput(mm) doesn't require task_lock (it's outside). So could
-this happen:
-
-A (exit_mm)                      B (do something)
-task_unlock(tsk)
-                                 task_lock(tsk)
-                                 mm = task->mm;
-                                 if(mm)
-mmput(mm)
-                                     do_something(mm);
-                                 task_unlock(task);
-
-In this case even you do atomic_inc/mmput around do_something it wouldn't
-work. I think I must be missing something, but it seems to me a race
-condition anyway.
-
-Thanks for your reply.
-
-Hua
+			Thunder
+-- 
+--./../...-/. -.--/---/..-/.-./..././.-../..-. .---/..-/.../- .-
+--/../-./..-/-/./--..-- ../.----./.-../.-.. --./../...-/. -.--/---/..-
+.- -/---/--/---/.-./.-./---/.--/.-.-.-
+--./.-/-.../.-./.././.-../.-.-.-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
