@@ -1,41 +1,36 @@
-Date: Tue, 24 Feb 2004 15:38:58 -0800
+Date: Tue, 24 Feb 2004 15:43:47 -0800
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: LTP VM test slower under 2.6.3 than 2.4.20
-Message-Id: <20040224153858.77692658.akpm@osdl.org>
-In-Reply-To: <403B6905.2010505@movaris.com>
-References: <40363778.20900@movaris.com>
-	<20040222231903.5f9ead5c.akpm@osdl.org>
-	<403A2F89.4070405@movaris.com>
-	<403B6905.2010505@movaris.com>
+Subject: Re: vm benchmarking
+Message-Id: <20040224154347.2b1536ee.akpm@osdl.org>
+In-Reply-To: <403C76D8.3000302@cyberone.com.au>
+References: <20040224034036.22953169.akpm@osdl.org>
+	<403C76D8.3000302@cyberone.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kirk True <kirk@movaris.com>
-Cc: kernelnewbies@nl.linux.org, Linux-MM@kvack.org
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Kirk True <kirk@movaris.com> wrote:
+Nick Piggin <piggin@cyberone.com.au> wrote:
 >
-> I just upgraded to 2.6.3-mm2 but am still seeing a factor of two speed
-> slowdown between 2.4.20 and 2.6.3-mm2 for both sequential and random
-> memory accesses into 1024 MB allocated from malloc.
+> My machine doesn't touch swap at make -j4 with mem=64m. It is
+> dual CPU with a SMP kernel but I was using maxcpus=1.
 
-2.6 VM has problems, but is usually OK for single-task stuff.
+It is light-to-moderate paging.
 
-You'd need to tell us a lot about your machine, and provide sufficient
-information for others to reproduce what you're seeing.
+> It compiles 2.4.21 with gcc-3.3.3 I think (I can tell you when I
+> get home).
 
-And run some other tests to verify that your disk system is achieving the
-same bandwidth under both kernels.  Not `hdparm -t' please, it is crap. 
-Something like
+gcc version 3.2.2 20030222 (Red Hat Linux 3.2.2-5)
 
-	time (dd if=/dev/zero of=/mnt/x/foo bs=1M count=2000 ; sync)
-	umount /mnt/x
-	mount /mnt/x
-	time dd if=/mnt/x/foo of=/dev/null bs=1M
+This is a 2.4.19 defconfig build.
 
+> I can't explain your results. Maybe you have other stuff running.
+
+Only `vmstat 1'.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
