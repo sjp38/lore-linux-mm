@@ -1,102 +1,194 @@
-Date: Thu, 31 Oct 2002 08:54:43 +0100
-From: Henrik =?iso-8859-1?Q?St=F8rner?= <henrik@hswn.dk>
-Subject: Re: [FIX] Re: 2.5.42-mm2 hangs system
-Message-ID: <20021031075443.GA32455@hswn.dk>
-References: <20021013160451.GA25494@hswn.dk> <3DA9CA28.155BA5CB@digeo.com> <20021013223332.GA870@hswn.dk> <20021016183907.B29405@in.ibm.com> <20021016154943.GA13695@hswn.dk> <20021016185908.GA863@hswn.dk> <20021030151846.D2613@in.ibm.com>
+Date: Fri, 1 Nov 2002 23:56:20 +0100
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: Huge TLB pages always physically continious?
+Message-ID: <20021101235620.A5263@nightmaster.csn.tu-chemnitz.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="6TrnltStXW4iwmi0"
 Content-Disposition: inline
-In-Reply-To: <20021030151846.D2613@in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Maneesh Soni <maneesh@in.ibm.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Maneesh,
+--6TrnltStXW4iwmi0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-On Wed, Oct 30, 2002 at 03:18:46PM +0530, Maneesh Soni wrote:
-> Hello Henrik,
-> 
-> I hope the following patch should solve your problem. The patch is made
-> over 2.5.44-mm6 kernel. The problem was due to anonymous dentries getting
-> connected with DCACHE_UNHASHED flag set.
+Hi there,
 
-the patch does fix the sudden halts that I was seeing with
-2.5.42-mm2. The system has now survived about 10 successive kernel
-compiles and it is still running.
+are huge TLB pages always physically continous in memory?
 
-There are a couple of odd things going on, though - but I don't know
-for sure if they are related to the mm patch or not. I am seeing these
-messages regularly - disk activity seems to provoke them.
+What does follow_hugetlb_page do exactly? I simply don't
+understand what the code does.
 
-Oct 30 23:14:44 osiris kernel: bad: scheduling while atomic!
-Oct 30 23:14:44 osiris kernel: Call Trace:
-Oct 30 23:14:44 osiris kernel:  [do_schedule+763/768] do_schedule+0x2fb/0x300
-Oct 30 23:14:44 osiris kernel:  [<c011973b>] do_schedule+0x2fb/0x300
-Oct 30 23:14:44 osiris kernel:  [kswapd+236/284] kswapd+0xec/0x11c
-Oct 30 23:14:44 osiris kernel:  [<c013bd9c>] kswapd+0xec/0x11c
-Oct 30 23:14:44 osiris kernel:  [autoremove_wake_function+0/80] autoremove_wake_function+0x0/0x50
-Oct 30 23:14:44 osiris kernel:  [<c011ae70>] autoremove_wake_function+0x0/0x50
-Oct 30 23:14:44 osiris kernel:  [preempt_schedule+54/80] preempt_schedule+0x36/0x50
-Oct 30 23:14:44 osiris kernel:  [<c0119776>] preempt_schedule+0x36/0x50
-Oct 30 23:14:44 osiris kernel:  [autoremove_wake_function+0/80] autoremove_wake_function+0x0/0x50
-Oct 30 23:14:44 osiris kernel:  [<c011ae70>] autoremove_wake_function+0x0/0x50
-Oct 30 23:14:44 osiris kernel:  [kswapd+0/284] kswapd+0x0/0x11c
-Oct 30 23:14:44 osiris kernel:  [<c013bcb0>] kswapd+0x0/0x11c
-Oct 30 23:14:44 osiris kernel:  [kernel_thread_helper+5/24] kernel_thread_helper+0x5/0x18
-Oct 30 23:14:44 osiris kernel:  [<c01074cd>] kernel_thread_helper+0x5/0x18
-Oct 30 23:14:44 osiris kernel: 
+I would like to build up a simplified get_user_pages_sgl() to
+build a scatter gather list from user space adresses.
 
-And one full blown Oops apparently when I tried to login to an X
-session (I use KDE for the desktop):
+If I want to coalesce physically continous pages (if they are
+also virtually continious) anyway, can I write up a simplified
+follow_hugetlb_page_sgl() function which handles the huge page
+really as only one page?
 
-Oct 31 08:38:11 osiris kernel: Unable to handle kernel paging request at virtual address 4172f058
-Oct 31 08:38:11 osiris kernel:  printing eip:
-Oct 31 08:38:11 osiris kernel: 083b80d4
-Oct 31 08:38:11 osiris kernel: *pde = 06437067
-Oct 31 08:38:11 osiris kernel: *pte = 00000000
-Oct 31 08:38:11 osiris kernel: Oops: 0006
-Oct 31 08:38:11 osiris kernel: eepro100 mii sb sb_lib uart401 sound soundcore  
-Oct 31 08:38:11 osiris kernel: CPU:    0
-Oct 31 08:38:11 osiris kernel: EIP:    0023:[serport_exit+138115172/-1072695408]    Not tainted
-Oct 31 08:38:11 osiris kernel: EIP:    0023:[<083b80d4>]    Not tainted
-Oct 31 08:38:11 osiris kernel: EFLAGS: 00013206
-Oct 31 08:38:11 osiris kernel: eax: 0021449c   ebx: 4172f058   ecx: 00000000   edx: 00000000
-Oct 31 08:38:11 osiris kdm[8787]: Server for display :0 terminated unexpectedly
-Oct 31 08:38:11 osiris kernel: esi: 088674dc   edi: 0021449c   ebp: 00000002   esp: bffff58c
-Oct 31 08:38:12 osiris kernel: ds: 002b   es: 002b   ss: 002b
-Oct 31 08:38:12 osiris kernel: Process X (pid: 25678, threadinfo=d1f54000 task=d675cce0)
-Oct 31 08:38:12 osiris kernel:  <6>note: X[25678] exited with preempt_count 2
-Oct 31 08:38:12 osiris kernel: Debug: sleeping function called from illegal context at include/asm/semaphore.h:119
-Oct 31 08:38:12 osiris kernel: Call Trace:
-Oct 31 08:38:12 osiris kernel:  [shm_close+48/192] shm_close+0x30/0xc0
-Oct 31 08:38:12 osiris kernel:  [<c0200190>] shm_close+0x30/0xc0
-Oct 31 08:38:12 osiris kernel:  [exit_mmap+214/224] exit_mmap+0xd6/0xe0
-Oct 31 08:38:12 osiris kernel:  [<c0133146>] exit_mmap+0xd6/0xe0
-Oct 31 08:38:12 osiris kernel:  [mmput+78/160] mmput+0x4e/0xa0
-Oct 31 08:38:12 osiris kernel:  [<c011b10e>] mmput+0x4e/0xa0
-Oct 31 08:38:12 osiris kernel:  [do_exit+197/688] do_exit+0xc5/0x2b0
-Oct 31 08:38:12 osiris kernel:  [<c0120aa5>] do_exit+0xc5/0x2b0
-Oct 31 08:38:12 osiris kernel:  [die+134/144] die+0x86/0x90
-Oct 31 08:38:12 osiris kernel:  [<c010a456>] die+0x86/0x90
-Oct 31 08:38:12 osiris kernel:  [do_page_fault+358/1268] do_page_fault+0x166/0x4f4
-Oct 31 08:38:12 osiris kernel:  [<c0118006>] do_page_fault+0x166/0x4f4
-Oct 31 08:38:12 osiris kernel:  [vfs_read+230/320] vfs_read+0xe6/0x140
-Oct 31 08:38:12 osiris kernel:  [<c0149cf6>] vfs_read+0xe6/0x140
-Oct 31 08:38:12 osiris kernel:  [sys_setitimer+86/192] sys_setitimer+0x56/0x160
-Oct 31 08:38:12 osiris kernel:  [<c0121c16>] sys_setitimer+0x56/0x160
-Oct 31 08:38:12 osiris kernel:  [sys_read+69/96] sys_read+0x45/0x60
-Oct 31 08:38:12 osiris kernel:  [<c0149f95>] sys_read+0x45/0x60
-Oct 31 08:38:12 osiris kernel:  [do_page_fault+0/1268] do_page_fault+0x0/0x4f4
-Oct 31 08:38:12 osiris kernel:  [<c0117ea0>] do_page_fault+0x0/0x4f4
-Oct 31 08:38:12 osiris kernel:  [error_code+45/56] error_code+0x2d/0x38
-Oct 31 08:38:12 osiris kernel:  [<c0109e75>] error_code+0x2d/0x38
-Oct 31 08:38:12 osiris kernel: 
+Motivation:
 
+Currently doing scatter gather DMA of user pages requires THREE
+runs over the pages and I would like to save at least the second
+one and possibly shorten the third one.
+
+The three steps required:
+
+   1) get_user_pages() to obtain the pages and lock them in page_cache
+   2) translate the vector of pointers to struct page to a vector
+      of struct scatterlist
+   3) pci_map_sg() a decent amount[1], DMA it, wait for completion 
+      or abortion, pci_unmap_sg() it and start again with the remainder
+
+Step 2) could be eliminated completely and also the allocation of
+the temporary vector of struct page.
+
+Step 3) could be shortend, if I coalesce physically continous
+ranges into a single scatterlist entry with just a ->length
+bigger than PAGE_SIZE. I know that this is only worth it on
+architectures, where physical address == bus address.
+
+As each step is a for() loop and should be considered running on
+more than 1MB worth of memory, I see significant improvements.
+
+Without supporting huge TLB pages, I only add 700 bytes to the
+kernel while simply copying get_user_pages() into a function,
+which takes an vector of struct scatterlist instead of struct
+page.
+
+This sounds a promising tradeoff for a first time implementation.
+
+Patch attached. No users yet, but they will follow. First
+candidate is the v4l DMA stuff.
+
+Regards
+
+Ingo Oeser
+
+[1] How much can I safely map on the strange architectures, where
+   this is a limited? AFAIK there is no value or function telling
+   me how far I can go.
 -- 
-Henrik Storner <henrik@hswn.dk> 
+Science is what we can tell a computer. Art is everything else. --- D.E.Knuth
 
+--6TrnltStXW4iwmi0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="get_user_pages_sgl.patch"
+
+diff -Naur linux-2.5.44/kernel/ksyms.c linux-2.5.44-ioe/kernel/ksyms.c
+--- linux-2.5.44/kernel/ksyms.c	Sat Oct 19 06:01:08 2002
++++ linux-2.5.44-ioe/kernel/ksyms.c	Fri Nov  1 23:12:48 2002
+@@ -136,6 +136,7 @@
+ EXPORT_SYMBOL(page_address);
+ #endif
+ EXPORT_SYMBOL(get_user_pages);
++EXPORT_SYMBOL(get_user_pages_sgl);
+ 
+ /* filesystem internal functions */
+ EXPORT_SYMBOL(def_blk_fops);
+diff -Naur linux-2.5.44/mm/memory.c linux-2.5.44-ioe/mm/memory.c
+--- linux-2.5.44/mm/memory.c	Sat Oct 19 06:01:52 2002
++++ linux-2.5.44-ioe/mm/memory.c	Fri Nov  1 23:48:42 2002
+@@ -49,6 +49,7 @@
+ #include <asm/uaccess.h>
+ #include <asm/tlb.h>
+ #include <asm/tlbflush.h>
++#include <asm/scatterlist.h>
+ 
+ #include <linux/swapops.h>
+ 
+@@ -514,6 +515,85 @@
+ }
+ 
+ 
++int get_user_pages_sgl(struct task_struct *tsk, struct mm_struct *mm,
++		unsigned long start, int len, int write,
++		struct scatterlist **sgl)
++{
++	int i;
++	unsigned int flags;
++
++	/* Without this structure, it makes no sense to call this */
++	BUG_ON(!sgl);
++
++	/* 
++	 * Require read or write permissions.
++	 */
++	flags = write ? VM_WRITE : VM_READ;
++	i = 0;
++
++	do {
++		struct vm_area_struct *	vma;
++
++		vma = find_extend_vma(mm, start);
++
++		if (!vma || (vma->vm_flags & VM_IO)
++				|| !(flags & vma->vm_flags))
++			return i ? : -EFAULT;
++
++		/* Doesn't work with huge pages! */
++		BUG_ON(is_vm_hugetlb_page(vma));
++		
++		spin_lock(&mm->page_table_lock);
++		do {
++			struct page *map;
++			while (!(map = follow_page(mm, start, write))) {
++				spin_unlock(&mm->page_table_lock);
++				switch (handle_mm_fault(mm,vma,start,write)) {
++				case VM_FAULT_MINOR:
++					tsk->min_flt++;
++					break;
++				case VM_FAULT_MAJOR:
++					tsk->maj_flt++;
++					break;
++				case VM_FAULT_SIGBUS:
++					return i ? i : -EFAULT;
++				case VM_FAULT_OOM:
++					return i ? i : -ENOMEM;
++				default:
++					BUG();
++				}
++				spin_lock(&mm->page_table_lock);
++			}
++			sgl[i]->page = get_page_map(map);
++			if (!sgl[i]->page) {
++				spin_unlock(&mm->page_table_lock);
++				while (i--)
++					page_cache_release(sgl[i]->page);
++				i = -EFAULT;
++				goto out;
++			}
++			if (!PageReserved(sgl[i]->page))
++				page_cache_get(sgl[i]->page);
++			
++			/* TODO: Do coalescing of physically continious pages
++			 * here
++			 */
++			sgl[i]->offset=0;
++			sgl[i]->length=PAGE_SIZE;
++
++			i++;
++			start += PAGE_SIZE;
++			len--;
++		} while(len && start < vma->vm_end);
++		spin_unlock(&mm->page_table_lock);
++	} while(len);
++	
++	/* This might be pointless, if start is always aligned to pages */
++	sgl[0]->offset=start & ~PAGE_MASK;
++	sgl[0]->length=PAGE_SIZE - (start & ~PAGE_MASK);
++out:
++	return i;
++}
+ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+ 		unsigned long start, int len, int write, int force,
+ 		struct page **pages, struct vm_area_struct **vmas)
+
+--6TrnltStXW4iwmi0--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
