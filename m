@@ -1,43 +1,39 @@
-Received: from editec-lotteries.com [192.168.0.138] by editec-lotteries.com [195.246.135.30]
-	with SMTP (MDaemon.v3.1.1.R)
-	for <linux-mm@kvack.org>; Tue, 17 Apr 2001 12:51:40 +0200
-Message-ID: <3ADC21C4.3000807@editec-lotteries.com>
-Date: Tue, 17 Apr 2001 12:58:12 +0200
-From: Uman <a.lahun@editec-lotteries.com>
-MIME-Version: 1.0
-Subject: limit for number of processes
-References: <200104121659.f3CGxX714605@tuttle.kansas.net>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Tue, 17 Apr 2001 13:42:51 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: Ideas for adding physically contiguous memory support to mmap()??
+Message-ID: <20010417134251.B2505@redhat.com>
+References: <C78C149684DAD311B757009027AA5CDC094DA2A8@xboi02.boi.hp.com> <Pine.LNX.3.96.1010410191553.22333A-100000@kanga.kvack.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.3.96.1010410191553.22333A-100000@kanga.kvack.org>; from blah@kvack.org on Tue, Apr 10, 2001 at 07:24:12PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: "LUTZ,TODD (HP-Boise,ex1)" <tlutz@hp.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-hello.
-Yesterday when i wrote program which use fork for every connection, and
-made stupid mistake. So i tested my PC(kernel 2.4.3-pre2+xfs) with 
-something like
-while(1){
-fork();
-}
-i had ulimit 4000 processes  but my box became completely unresponsible 
-in X.
-As i understood it started to use swap intensively . But amount of 
-memory was enough
-so no OOM killing. The only thing i could do is to reboot.
-After testing  i found that if i create up to 3200 processes i still can 
-Ctrl-C  and everything
-will be good. If i have more i can kill them but  kernel threads , as i 
-understand, continue
-to thrash system and the only thing i can do Sys-Rq. 
-So my question is , what is amount of processes kernel can support (if  
-i have enough memory)
-without  thrashing  my system  and requiring reboot for  normal job.
-Thank you.
-Andrei.
+Hi,
 
+On Tue, Apr 10, 2001 at 07:24:12PM -0400, Benjamin C.R. LaHaise wrote:
+> On Tue, 10 Apr 2001, LUTZ,TODD (HP-Boise,ex1) wrote:
+> 
+> > 1. Able to specify any size that is a multiple of PAGE_SIZE (not just powers
+> > of 2).
+> 
+> First off: why do you need this functionality?  It does not sound like it
+> provides any significant benefits over the current system once you take
+> into consideration the effects it will have on memory fragmentation.
 
+Indeed.  Most of the motivation for large contiguous memory areas in
+user space are concerned with cache line colouring and efficient use
+of tlbs.  An API for large page support and kernel support for cache
+colouring would be nice, but in general the more of this that can be
+done opportunistically (without any application API changes), the
+better.
+
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
