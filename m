@@ -1,36 +1,77 @@
+From: Dmitry Torokhov <dtor_core@ameritech.net>
 Subject: Re: 2.6.1-mm3
+Date: Wed, 14 Jan 2004 08:06:41 -0500
 References: <20040114014846.78e1a31b.akpm@osdl.org>
-From: Jes Sorensen <jes@wildopensource.com>
-Date: 14 Jan 2004 07:27:34 -0500
 In-Reply-To: <20040114014846.78e1a31b.akpm@osdl.org>
-Message-ID: <yq04quyr9zd.fsf@wildopensource.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200401140806.43510.dtor_core@ameritech.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jesse Barnes <jbarnes@sgi.com>
+To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+On Wednesday 14 January 2004 04:48 am, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.1/2.6
 
-Tiny patch to make -mm3 compile on an NUMA box with NR_CPUS >
-BITS_PER_LONG.
+> +psmouse-drop-timed-out-bytes.patch
 
-Cheers,
-Jes
+Andrew,
 
---- old/kernel/sched.c~	Wed Jan 14 02:59:53 2004
-+++ new/kernel/sched.c	Wed Jan 14 03:18:28 2004
-@@ -3249,7 +3249,7 @@
- 		for_each_cpu_mask(j, node->cpumask) {
- 			struct sched_group *cpu = &sched_group_cpus[j];
+Could you please queue this one for your next -mm - first attempt was too
+eager at complaining - it's ok to have timeout while we probing ports, etc.
+so warnings should only be produced if mouse is in active state.
+
+
+The patch depends on the one you have.
+
+Dmitry
+
+===================================================================
+
+
+ChangeSet@1.1514, 2004-01-10 23:50:51-05:00, dtor_core@ameritech.net
+  Input: Change the way timeouts/parity errors are handled:
+         - Only complain about errors from keyboard controller if mouse
+           is activated
+         - Reset packet count to 0 as the next received byte will most
+           likely be the first byte of a new packet
+         - If expecting an ACK from the mouse set NACK condition
+
+
+ psmouse-base.c |   12 +++++++++---
+ 1 files changed, 9 insertions(+), 3 deletions(-)
+
+
+===================================================================
+
+
+
+diff -Nru a/drivers/input/mouse/psmouse-base.c b/drivers/input/mouse/psmouse-base.c
+--- a/drivers/input/mouse/psmouse-base.c	Sat Jan 10 23:55:28 2004
++++ b/drivers/input/mouse/psmouse-base.c	Sat Jan 10 23:55:28 2004
+@@ -122,9 +122,15 @@
+ 		goto out;
  
--			cpu->cpumask = CPU_MASK_NONE;
-+			cpus_clear(cpu->cpumask);
- 			cpu_set(j, cpu->cpumask);
+ 	if (flags & (SERIO_PARITY|SERIO_TIMEOUT)) {
+-		printk(KERN_WARNING "psmouse.c: bad data from KBC -%s%s\n",
+-			flags & SERIO_TIMEOUT ? " timeout" : "",
+-			flags & SERIO_PARITY ? " bad parity" : "");
++		if (psmouse->state == PSMOUSE_ACTIVATED)
++			printk(KERN_WARNING "psmouse.c: bad data from KBC -%s%s\n",
++				flags & SERIO_TIMEOUT ? " timeout" : "",
++				flags & SERIO_PARITY ? " bad parity" : "");
++		if (psmouse->acking) {
++			psmouse->ack = -1;
++			psmouse->acking = 0;
++		}
++		psmouse->pktcnt = 0;
+ 		goto out;
+ 	}
  
- 			printk(KERN_INFO "CPU%d\n", j);
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
