@@ -1,40 +1,43 @@
-Date: Fri, 26 May 2000 22:41:13 +0200
-From: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Subject: Re: [RFC] 2.3/4 VM queues idea
-Message-ID: <20000526224113.A22069@pcep-jamie.cern.ch>
-References: <20000525185059.A20563@pcep-jamie.cern.ch> <20000526120805.C10082@redhat.com> <20000526132219.C21510@pcep-jamie.cern.ch> <20000526141526.E10082@redhat.com> <20000526163129.B21662@pcep-jamie.cern.ch> <20000526153821.N10082@redhat.com> <20000526183640.A21731@pcep-jamie.cern.ch> <20000526174018.Q10082@redhat.com> <20000526190208.A21856@pcep-jamie.cern.ch> <20000526181509.R10082@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <20000526181509.R10082@redhat.com>; from sct@redhat.com on Fri, May 26, 2000 at 06:15:09PM +0100
+Received: from localhost (riel@localhost)
+	by duckman.distro.conectiva (8.9.3/8.8.7) with ESMTP id RAA14857
+	for <linux-mm@kvack.org>; Fri, 26 May 2000 17:58:21 -0300
+Date: Fri, 26 May 2000 17:58:21 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] deferred swapping + page aging
+Message-ID: <Pine.LNX.4.21.0005261756270.26570-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Matthew Dillon <dillon@apollo.backplane.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Stephen C. Tweedie wrote:
-> > The stacked private address_spaces I described don't have to be shared
-> > between address_spaces in a single mm.  You can have one per vma --
-> > that's simple but maybe wasteful.
-> 
-> That's basically exactly what davem's stuff did.
+Hi,
 
-Ok, I shall look more carefully at davem's code.
-Is this the most recent one?:
+Here is a WORKING version of the deferred swapping & page aging
+patch for 2.4.0-test1.
 
-> Date:   Wed, 17 May 2000 11:00:34 +0100
-> Subject: [davem@redhat.com: my paging work]
-> From:   "Stephen C. Tweedie" <sct@redhat.com>
-> 
-> Hi,
-> 
-> Here's davem's page-based swapout snapshot.  It's UNFINISHED + DANGEROUS
-> WILL_EAT_YOUR_DISK (his words!), but somebody may want to archive this
-> and pick up on the work in 2.5.
-> 
-> --Stephen
-> 
-> ----- Forwarded message from "David S. Miller" <davem@redhat.com> -----
+The patch implements:
+- deferred IO for pageout
+- rudimentary page aging, a start of what we want
+  for when we have an active list later
+
+TODO:
+- deferred swapping for other IO (file, shm)
+- page aging for all pages
+- inactive / laundry / cache queues
+- ...
+
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
