@@ -1,55 +1,53 @@
-Received: from ns.weiden.de (ns.weiden.de [193.203.186.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA11587
-	for <linux-mm@kvack.org>; Tue, 3 Mar 1998 11:11:29 -0500
-Date: Tue, 3 Mar 1998 17:10:28 +0100 (MET)
-From: "Michael L. Galbraith" <mikeg@weiden.de>
-Subject: Re: [PATCH] kswapd fix & logic improvement
-In-Reply-To: <Pine.LNX.3.91.980303083346.16214A-100000@mirkwood.dummy.home>
-Message-ID: <Pine.LNX.3.95.980303161235.2407A-100000@mikeg.weiden.de>
+Date: Tue, 3 Mar 1998 18:05:18 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: [uPATCH] small kswapd improvement ???
+Message-ID: <Pine.LNX.3.91.980303180022.414A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, "Benjamin C.R. LaHaise" <blah@kvack.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Mar 1998, Rik van Riel wrote:
+Hi,
 
-> On Tue, 3 Mar 1998, Michael L. Galbraith wrote:
-> 
-> > I was able to stimulate a 'swap-attack' which took almost a hour to
-> > recover control from.
-> > 
-> > 2.1.89pre5 + swap patch
-> 
-> To 'recover from' or 'handle' your attack (180+ mb working
-> set on an 80 mb machine) is going to need 'real' swapping,
-> ie. the temporary suspension of processes to reduce VM load.
-> 
-> I'd like you to try to even start your stress test under a
-> normal kernel (it'll probably work, but not without the
-> neccesary oom()s and signal 7s).
-> 
+I remember the 1.1 or 1.2 days when Stephen reworked the
+swap code and I played around with a small piece of
+vmscan.c. Back then a simple bug was encountered and 'fixed'
+by always starting the memory scan at adress 0, which gives
+a highly unfair and inefficient aging process.
 
-I've run much larger working sets on this machine without either
-losing control or having the tasks killed. I've run simulations
-which ate 400+ Mb. The realtime aspect was a joke, but it worked.
+I think I have 'corrected' the code. Not so much made a
+large performance increase, but merely a 'correction' for
+the sake of correctness and a small improvement.
 
-> This patch is only an improvement for normal use. Anyways,
-> thrashing can't be combatted by paging algorithms, no matter
-> how good.
-> 
+Patch attached.
 
-OK.. thought you wanted it pounded upon.
+Rik.
++-----------------------------+------------------------------+
+| For Linux mm-patches, go to | "I'm busy managing memory.." |
+| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
+| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
++-----------------------------+------------------------------+
 
-It was running fine with all tasks being scheduled smoothly until
-something triggered a mega-thrash.
-
-> I'll be working on the swapping daemon as soon as I've got
-> the current patch sorted out...
-> 
-
-Turned out the kswapd messages weren't related to the thrashing.
-I would have seen it if I hadn't jumped straight into X.
-
-	-Mike
+--- linux/mm/vmscan.c.orig	Tue Mar  3 14:57:53 1998
++++ linux/mm/vmscan.c	Tue Mar  3 17:51:22 1998
+@@ -333,14 +333,15 @@
+ 	 * Go through process' page directory.
+ 	 */
+ 	address = p->swap_address;
+-	p->swap_address = 0;
+ 
+ 	/*
+ 	 * Find the proper vm-area
+ 	 */
+ 	vma = find_vma(p->mm, address);
+-	if (!vma)
++	if (!vma) {
++		p->swap_address = 0;
+ 		return 0;
++	}
+ 	if (address < vma->vm_start)
+ 		address = vma->vm_start;
+ 
