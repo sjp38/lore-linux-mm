@@ -2,12 +2,12 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14199.62101.566519.64494@dukat.scot.redhat.com>
-Date: Mon, 28 Jun 1999 23:09:25 +0100 (BST)
+Message-ID: <14199.62915.809286.123824@dukat.scot.redhat.com>
+Date: Mon, 28 Jun 1999 23:22:59 +0100 (BST)
 Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
-In-Reply-To: <199906281955.MAA06984@google.engr.sgi.com>
-References: <Pine.BSO.4.10.9906281530400.24888-100000@funky.monkey.org>
-	<199906281955.MAA06984@google.engr.sgi.com>
+In-Reply-To: <199906282138.OAA36935@google.engr.sgi.com>
+References: <Pine.BSO.4.10.9906281715420.24888-100000@funky.monkey.org>
+	<199906282138.OAA36935@google.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
@@ -16,18 +16,16 @@ List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Mon, 28 Jun 1999 12:55:23 -0700 (PDT), kanoj@google.engr.sgi.com
+On Mon, 28 Jun 1999 14:38:43 -0700 (PDT), kanoj@google.engr.sgi.com
 (Kanoj Sarcar) said:
 
-> Agreed this would be a nice thing to be able to do ...  Other than the
-> deadlock problem, there's another issue involved, I think. Processes
-> can go to sleep (inside drivers/fs for example while
-> mmaping/munmaping/faulting) holding their mmap_sem, so any solution
-> should be able to guarantee that (at least one of) the memory free'ers
-> do not go to sleep indefinitely (or for some time that is upto
-> driver/fs code to determine).
+> The page is not really free for reallocation, unless kswapd can
+> push out the contents to disk, right? Which means, kswapd should
+> have as minimal sleep/memallocation points as possible ...
 
-Which is why we don't take the mm semaphore in swapout.
+The kswapd process is marked with the PF_MEMALLOC process flag, so any
+recursive memory allocations it attempts get satisfied without IO being
+invoked.  kswapd does not sleep during memory allocation.
 
 --Stephen
 --
