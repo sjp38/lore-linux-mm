@@ -1,55 +1,41 @@
-Date: Fri, 18 May 2001 23:18:37 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: on load control / process swapping
-In-Reply-To: <l03130302b72ad6e553b5@[192.168.239.105]>
-Message-ID: <Pine.LNX.4.21.0105182315430.5531-100000@imladris.rielhome.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 18 May 2001 19:32:03 -0700
+From: Mike Castle <dalgoda@ix.netcom.com>
+Subject: Re: Linux 2.4.4-ac10
+Message-ID: <20010518193203.C29686@thune.mrc-home.com>
+Reply-To: Mike Castle <dalgoda@ix.netcom.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0105182310580.5531-100000@imladris.rielhome.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Morton <chromi@cyberspace.org>
-Cc: Matt Dillon <dillon@earth.backplane.com>, Terry Lambert <tlambert2@mindspring.com>, Charles Randall <crandall@matchlogic.com>, Roger Larsson <roger.larsson@norran.net>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 May 2001, Jonathan Morton wrote:
+On Fri, May 18, 2001 at 11:12:32PM -0300, Rik van Riel wrote:
+> Basic rule for VM: once you start swapping, you cannot
+> win;  All you can do is make sure no situation loses
+> really badly and most situations perform reasonably.
 
-> FWIW, I've been running with a 2-line hack in my kernel for some weeks
-> now, which essentially forces the RSS of each process not to be forced
-> below some arbitrary "fair share" of the physical memory available.  
-> It's not a very clean hack, but it improves performance by a very
-> large margin under a thrashing load.  The only problem I'm seeing is a
-> deadlock when I run out of VM completely, but I think that's a
-> separate issue that others are already working on.
+Do you mean paging in general or thrashing?
 
-I'm pretty sure I know what you're running into.
+I always thought: paging good, thrashing bad.
 
-Say you guarantee a minimum of 3% of memory for each process;
-now when you have 30 processes running your memory is full and
-you cannot reclaim any pages when one of the processes runs
-into a page fault.
+A good effecient paging system, always moving data between memory and disk,
+is great.  It's when you have the greater than physical memory working set
+that things go to hell in a hand basket.
 
-The minimum RSS guarantee is a really nice thing to prevent the
-proverbial root shell from thrashing, but it really only works
-if you drop such processes every once in a while and swap them
-out completely. You especially need to do this when you're
-getting tight on memory and you have idle processes sitting around
-using their minimum RSS worth of RAM ;)
+Did Linux ever do the old trick of "We've too much going on!  You!
+(randomly points to a process) take a seat!  You're not running for a
+while!" and the process gets totatlly swapped out for a "while," not even
+scheduled?
 
-It'd work great together with load control though. I guess I should
-post a patch for - simple&naive - load control code once I've got
-the inodes and the dirty page writeout code balancing fixed.
-
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
-
+mrc
+-- 
+       Mike Castle       Life is like a clock:  You can work constantly
+  dalgoda@ix.netcom.com  and be right all the time, or not work at all
+www.netcom.com/~dalgoda/ and be right at least twice a day.  -- mrc
+    We are all of us living in the shadow of Manhattan.  -- Watchmen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
