@@ -1,51 +1,34 @@
-Message-ID: <3DAB669B.3000801@us.ibm.com>
-Date: Mon, 14 Oct 2002 17:51:39 -0700
-From: Matthew Dobson <colpatch@us.ibm.com>
-Reply-To: colpatch@us.ibm.com
-MIME-Version: 1.0
-Subject: Re: [rfc][patch] Memory Binding API v0.3 2.5.41
-References: <3DAB6385.9000207@us.ibm.com> <2005946728.1034617377@[10.10.2.3]>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: [Lse-tech] Re: [rfc][patch] Memory Binding API v0.3 2.5.41
+From: john stultz <johnstul@us.ibm.com>
+In-Reply-To: <3DAB6385.9000207@us.ibm.com>
+References: <3DAB5DF2.5000002@us.ibm.com>
+	<2004595005.1034616026@[10.10.2.3]>  <3DAB6385.9000207@us.ibm.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Date: 14 Oct 2002 17:55:53 -0700
+Message-Id: <1034643354.19094.149.camel@cog>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, LSE <lse-tech@lists.sourceforge.net>, Andrew Morton <akpm@zip.com.au>, Michael Hohnbaum <hohnbaum@us.ibm.com>
+To: Matt <colpatch@us.ibm.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, LSE Tech <lse-tech@lists.sourceforge.net>, Andrew Morton <akpm@zip.com.au>, Michael Hohnbaum <hohnbaum@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Martin J. Bligh wrote:
->>>>>4) An ordered zone list is probably the more natural mapping.
->>>>
->>>>See my comments above about per zone/memblk.  And you reemphasize my point, how do we order the zone lists in such a way that a user of the API can easily know/find out what zone #5 is?
->>>
->>>Could you explain how that problem is different from finding out
->>>what memblk #5 is ... I don't see the difference?
->>
->>Errm...  __memblk_to_node(5)
-> 
-> As opposed to creating __zone_to_node(5) ?
->  
->>I"m not saying that we couldn't add a similar interface for zones... something along the lines of:
->>	__memblk_and_zone_to_flat_zone_number(5, DMA)
->>or some such.  It just isn't there now...
-> 
-> Surely this would dispose of the need for memblks? If not, then
-> I'd agree it's probably just adding more complication.
-Well, since each node's memory (or memblk in the parlance of my head ;) 
-has several 'zones' in it (DMA, HIGHMEM, etc), this conversion function 
-will need 2 parameters.  It may well be called 
-__node_and_zone_type_to_flat_zone_number(node, DMA|NORMAL|HIGHMEM).
+On Mon, 2002-10-14 at 17:38, Matthew Dobson wrote:
+> Also, right now, memblks map to nodes in a straightforward manner (1-1 
+> on NUMA-Q, the only architecture that has defined them).  It will likely 
+> look the same on most architectures, too.
 
-Or, we could have:
-__zone_to_node(5) = node #
-and
-__zone_to_zone_type(5) = DMA|NORMAL|HIGHMEM.
+Just an FYI: I believe the x440 breaks this assumption. 
 
-But either way, we would need to specify both pieces.
+There are 2 chunks on the first CEC. The current discontig patch for it
+has to drop the second chunk (anything over 3.5G on the first CEC) in
+order to work w/ the existing code. However, that will probably need to
+be addressed at some point, so be aware that this might affect you as
+well. 
 
-Cheers!
-
--Matt
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
