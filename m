@@ -1,152 +1,207 @@
-Date: Thu, 7 Feb 2002 21:28:22 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH *] rmap VM 12d
-Message-ID: <Pine.LNX.4.33L.0202072127490.17850-100000@imladris.surriel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 7 Feb 2002 16:37:11 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: for_each_zone cleanup
+Message-ID: <20020208003711.GE11971@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: riel@surriel.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-The fourth maintenance release of the 12th version of the reverse
-mapping based VM is now available.
-This is an attempt at making a more robust and flexible VM
-subsystem, while cleaning up a lot of code at the same time.
-The patch is available from:
+Well, this has been floating around for a while, but here it is.
+Others will shortly follow.
 
-           http://surriel.com/patches/2.4/2.4.17-rmap-12d
-and        http://linuxvm.bkbits.net/
+Cheers,
+Bill
 
-
-My big TODO items for a next release are:
-  - auto-tuning readahead, readahead per VMA
-  - fix starvation issue in get_request_wait()
-
-rmap 12d:
-  - fix compiler warning in rmap.c                        (Roger Larsson)
-  - read latency improvement   (read-latency2)            (Andrew Morton)
-rmap 12c:
-  - fix small balancing bug in page_launder_zone          (Nick Piggin)
-  - wakeup_kswapd / wakeup_memwaiters code fix            (Arjan van de Ven)
-  - improve RSS limit enforcement                         (me)
-rmap 12b:
-  - highmem emulation (for debugging purposes)            (Andrea Arcangeli)
-  - ulimit RSS enforcement when memory gets tight         (me)
-  - sparc64 page->virtual quickfix                        (Greg Procunier)
-rmap 12a:
-  - fix the compile warning in buffer.c                   (me)
-  - fix divide-by-zero on highmem initialisation  DOH!    (me)
-  - remove the pgd quicklist (suspicious ...)             (DaveM, me)
-rmap 12:
-  - keep some extra free memory on large machines         (Arjan van de Ven, me)
-  - higher-order allocation bugfix                        (Adrian Drzewiecki)
-  - nr_free_buffer_pages() returns inactive + free mem    (me)
-  - pages from unused objects directly to inactive_clean  (me)
-  - use fast pte quicklists on non-pae machines           (Andrea Arcangeli)
-  - remove sleep_on from wakeup_kswapd                    (Arjan van de Ven)
-  - page waitqueue cleanup                                (Christoph Hellwig)
-rmap 11c:
-  - oom_kill race locking fix                             (Andres Salomon)
-  - elevator improvement                                  (Andrew Morton)
-  - dirty buffer writeout speedup (hopefully ;))          (me)
-  - small documentation updates                           (me)
-  - page_launder() never does synchronous IO, kswapd
-    and the processes calling it sleep on higher level    (me)
-  - deadlock fix in touch_page()                          (me)
-rmap 11b:
-  - added low latency reschedule points in vmscan.c       (me)
-  - make i810_dma.c include mm_inline.h too               (William Lee Irwin)
-  - wake up kswapd sleeper tasks on OOM kill so the
-    killed task can continue on its way out               (me)
-  - tune page allocation sleep point a little             (me)
-rmap 11a:
-  - don't let refill_inactive() progress count for OOM    (me)
-  - after an OOM kill, wait 5 seconds for the next kill   (me)
-  - agpgart_be fix for hashed waitqueues                  (William Lee Irwin)
-rmap 11:
-  - fix stupid logic inversion bug in wakeup_kswapd()     (Andrew Morton)
-  - fix it again in the morning                           (me)
-  - add #ifdef BROKEN_PPC_PTE_ALLOC_ONE to rmap.h, it
-    seems PPC calls pte_alloc() before mem_map[] init     (me)
-  - disable the debugging code in rmap.c ... the code
-    is working and people are running benchmarks          (me)
-  - let the slab cache shrink functions return a value
-    to help prevent early OOM killing                     (Ed Tomlinson)
-  - also, don't call the OOM code if we have enough
-    free pages                                            (me)
-  - move the call to lru_cache_del into __free_pages_ok   (Ben LaHaise)
-  - replace the per-page waitqueue with a hashed
-    waitqueue, reduces size of struct page from 64
-    bytes to 52 bytes (48 bytes on non-highmem machines)  (William Lee Irwin)
-rmap 10:
-  - fix the livelock for real (yeah right), turned out
-    to be a stupid bug in page_launder_zone()             (me)
-  - to make sure the VM subsystem doesn't monopolise
-    the CPU, let kswapd and some apps sleep a bit under
-    heavy stress situations                               (me)
-  - let __GFP_HIGH allocations dig a little bit deeper
-    into the free page pool, the SCSI layer seems fragile (me)
-rmap 9:
-  - improve comments all over the place                   (Michael Cohen)
-  - don't panic if page_remove_rmap() cannot find the
-    rmap in question, it's possible that the memory was
-    PG_reserved and belonging to a driver, but the driver
-    exited and cleared the PG_reserved bit                (me)
-  - fix the VM livelock by replacing > by >= in a few
-    critical places in the pageout code                   (me)
-  - treat the reclaiming of an inactive_clean page like
-    allocating a new page, calling try_to_free_pages()
-    and/or fixup_freespace() if required                  (me)
-  - when low on memory, don't make things worse by
-    doing swapin_readahead                                (me)
-rmap 8:
-  - add ANY_ZONE to the balancing functions to improve
-    kswapd's balancing a bit                              (me)
-  - regularize some of the maximum loop bounds in
-    vmscan.c for cosmetic purposes                        (William Lee Irwin)
-  - move page_address() to architecture-independent
-    code, now the removal of page->virtual is portable    (William Lee Irwin)
-  - speed up free_area_init_core() by doing a single
-    pass over the pages and not using atomic ops          (William Lee Irwin)
-  - documented the buddy allocator in page_alloc.c        (William Lee Irwin)
-rmap 7:
-  - clean up and document vmscan.c                        (me)
-  - reduce size of page struct, part one                  (William Lee Irwin)
-  - add rmap.h for other archs (untested, not for ARM)    (me)
-rmap 6:
-  - make the active and inactive_dirty list per zone,
-    this is finally possible because we can free pages
-    based on their physical address                       (William Lee Irwin)
-  - cleaned up William's code a bit                       (me)
-  - turn some defines into inlines and move those to
-    mm_inline.h (the includes are a mess ...)             (me)
-  - improve the VM balancing a bit                        (me)
-  - add back inactive_target to /proc/meminfo             (me)
-rmap 5:
-  - fixed recursive buglet, introduced by directly
-    editing the patch for making rmap 4 ;)))              (me)
-rmap 4:
-  - look at the referenced bits in page tables            (me)
-rmap 3:
-  - forgot one FASTCALL definition                        (me)
-rmap 2:
-  - teach try_to_unmap_one() about mremap()               (me)
-  - don't assign swap space to pages with buffers         (me)
-  - make the rmap.c functions FASTCALL / inline           (me)
-rmap 1:
-  - fix the swap leak in rmap 0                           (Dave McCracken)
-rmap 0:
-  - port of reverse mapping VM to 2.4.16                  (me)
-
-Rik
--- 
-"Linux holds advantages over the single-vendor commercial OS"
-    -- Microsoft's "Competing with Linux" document
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+# This is a BitKeeper generated patch for the following project:
+# Project Name: Long-term Linux VM development
+# This patch format is intended for GNU patch command version 2.5 or higher.
+# This patch includes the following deltas:
+#	           ChangeSet	1.190   -> 1.191  
+#	include/linux/mm_inline.h	1.13    -> 1.14   
+#	include/linux/mmzone.h	1.12    -> 1.13   
+#	         mm/vmscan.c	1.93    -> 1.94   
+#
+# The following is the BitKeeper ChangeSet Log
+# --------------------------------------------
+# 02/02/07	wli@tisifone.holomorphy.com	1.191
+# Cleanup of for_each_zone() specifically addressing
+# (1) call by reference instead of returning a value in __next_zone()
+# (2) the use of an unnecessary pg_data_t state variable in for_each_zone()
+# -- wli
+# --------------------------------------------
+#
+diff --minimal -Nru a/include/linux/mm_inline.h b/include/linux/mm_inline.h
+--- a/include/linux/mm_inline.h	Thu Feb  7 16:30:27 2002
++++ b/include/linux/mm_inline.h	Thu Feb  7 16:30:27 2002
+@@ -126,13 +126,12 @@
+ static inline int free_limit(struct zone_struct * zone, int limit)
+ {
+ 	int shortage = 0, local;
+-	pg_data_t * pgdat;
+ 
+ 	if (zone == ALL_ZONES) {
+-		for_each_zone(pgdat, zone)
++		for_each_zone(zone)
+ 			shortage += zone_free_limit(zone, limit);
+ 	} else if (zone == ANY_ZONE) {
+-		for_each_zone(pgdat, zone) {
++		for_each_zone(zone) {
+ 			local = zone_free_limit(zone, limit);
+ 			shortage += max(local, 0);
+ 		}
+@@ -222,13 +221,12 @@
+ static inline int inactive_limit(struct zone_struct * zone, int limit)
+ {
+ 	int shortage = 0, local;
+-	pg_data_t * pgdat;
+ 
+ 	if (zone == ALL_ZONES) {
+-		for_each_zone(pgdat, zone)
++		for_each_zone(zone)
+ 			shortage += zone_inactive_limit(zone, limit);
+ 	} else if (zone == ANY_ZONE) {
+-		for_each_zone(pgdat, zone) {
++		for_each_zone(zone) {
+ 			local = zone_inactive_limit(zone, limit);
+ 			shortage += max(local, 0);
+ 		}
+diff --minimal -Nru a/include/linux/mmzone.h b/include/linux/mmzone.h
+--- a/include/linux/mmzone.h	Thu Feb  7 16:30:27 2002
++++ b/include/linux/mmzone.h	Thu Feb  7 16:30:27 2002
+@@ -162,28 +162,31 @@
+ extern pg_data_t contig_page_data;
+ 
+ /*
+- * __next_zone - helper magic for for_each_zone()
++ * next_zone - helper magic for for_each_zone()
+  * Thanks to William Lee Irwin III for this piece of ingenuity.
+  */
+-static inline void __next_zone(pg_data_t **pgdat, zone_t **zone)
++static inline zone_t *next_zone(zone_t *zone)
+ {
+-	(*zone)++;
+-	if(*zone - (*pgdat)->node_zones >= MAX_NR_ZONES) {
+-		*pgdat = (*pgdat)->node_next;
+-		if(*pgdat)
+-			*zone = (*pgdat)->node_zones;
+-		else
+-			*zone = NULL;
+-	}
++	pg_data_t *pgdat = zone->zone_pgdat;
++
++	if (zone - pgdat->node_zones < MAX_NR_ZONES - 1)
++		zone++;
++
++	else if (pgdat->node_next) {
++		pgdat = pgdat->node_next;
++		zone = pgdat->node_zones;
++	} else
++		zone = NULL;
++
++	return zone;
+ }
+ 
+ /**
+  * for_each_zone - helper macro to iterate over all memory zones
+- * @pgdat - pg_data_t * variable
+  * @zone - zone_t * variable
+  *
+- * The user only needs to declare both variables, for_each_zone
+- * fills them in. This basically means for_each_zone() is an
++ * The user only needs to declare the zone variable, for_each_zone
++ * fills it in. This basically means for_each_zone() is an
+  * easier to read version of this piece of code:
+  *
+  * for(pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next)
+@@ -193,10 +196,8 @@
+  * 	}
+  * }
+  */
+-#define for_each_zone(pgdat, zone)				\
+-	for(pgdat = pgdat_list, zone = pgdat->node_zones;	\
+-			pgdat && zone;				\
+-			__next_zone(&pgdat, &zone))
++#define for_each_zone(zone) \
++	for(zone = pgdat_list->node_zones; zone; zone = next_zone(zone))
+ 
+ 
+ #ifndef CONFIG_DISCONTIGMEM
+diff --minimal -Nru a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c	Thu Feb  7 16:30:27 2002
++++ b/mm/vmscan.c	Thu Feb  7 16:30:27 2002
+@@ -421,18 +421,17 @@
+ {
+ 	int maxtry = 1 << DEF_PRIORITY;
+ 	struct zone_struct * zone;
+-	pg_data_t * pgdat;
+ 	int freed = 0;
+ 
+ 	/* Global balancing while we have a global shortage. */
+ 	while (maxtry-- && free_high(ALL_ZONES) >= 0) {
+-		for_each_zone(pgdat, zone)
++		for_each_zone(zone)
+ 			if (free_plenty(zone) >= 0)
+ 				freed += page_launder_zone(zone, gfp_mask, 6);
+ 	}
+ 	
+ 	/* Clean up the remaining zones with a serious shortage, if any. */
+-	for_each_zone(pgdat, zone)
++	for_each_zone(zone)
+ 		if (free_min(zone) >= 0)
+ 			freed += page_launder_zone(zone, gfp_mask, 0);
+ 
+@@ -524,20 +523,19 @@
+ int refill_inactive(void)
+ {
+ 	int maxtry = 1 << DEF_PRIORITY;
+-	pg_data_t * pgdat;
+ 	zone_t * zone;
+ 	int ret = 0;
+ 
+ 	/* Global balancing while we have a global shortage. */
+ 	while (maxtry-- && inactive_low(ALL_ZONES) >= 0) {
+-		for_each_zone(pgdat, zone) {
++		for_each_zone(zone) {
+ 			if (inactive_high(zone) >= 0)
+ 				ret += refill_inactive_zone(zone, DEF_PRIORITY);
+ 		}
+ 	}
+ 
+ 	/* Local balancing for zones which really need it. */
+-	for_each_zone(pgdat, zone) {
++	for_each_zone(zone) {
+ 		if (inactive_min(zone) >= 0)
+ 			ret += refill_inactive_zone(zone, 0);
+ 	}
+@@ -558,9 +556,8 @@
+ static inline void background_aging(int priority)
+ {
+ 	struct zone_struct * zone;
+-	pg_data_t * pgdat;
+ 
+-	for_each_zone(pgdat, zone)
++	for_each_zone(zone)
+ 		if (inactive_high(zone) > 0)
+ 			refill_inactive_zone(zone, priority);
+ }
+@@ -624,10 +621,9 @@
+ static void refill_freelist(void)
+ {
+ 	struct page * page;
+-	pg_data_t * pgdat;
+ 	zone_t * zone;
+ 
+-	for_each_zone(pgdat, zone) {
++	for_each_zone(zone) {
+ 		if (!zone->size || zone->free_pages >= zone->pages_min)
+ 			continue;
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
