@@ -1,31 +1,41 @@
-From: Marc-Christian Petersen <m.c.p@wolk-project.de>
-Subject: Re: 2.5.70-mm1
-Date: Tue, 27 May 2003 12:38:25 +0200
-References: <20030527004255.5e32297b.akpm@digeo.com>
-In-Reply-To: <20030527004255.5e32297b.akpm@digeo.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Received: from root by main.gmane.org with local (Exim 3.35 #1 (Debian))
+	id 19KhVD-0005ik-00
+	for <linux-mm@kvack.org>; Tue, 27 May 2003 18:40:43 +0200
+From: Nicholas Wourms <nwourms@myrealbox.com>
+Subject: Re: 2.5.69-mm9
+Date: Sun, 25 May 2003 12:47:08 -0400
+Message-ID: <3ED0F38C.5020203@myrealbox.com>
+References: <20030525042759.6edacd62.akpm@digeo.com> <200305251456.39404.rudmer@legolas.dynup.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200305271238.25935.m.c.p@wolk-project.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 27 May 2003 09:42, Andrew Morton wrote:
+Rudmer van Dijk wrote:
+> On Sunday 25 May 2003 13:27, Andrew Morton wrote:
+> 
+>>. 2.5.69-mm9 is not for the timid.  It includes extensive changes to the
+>>  ext3 filesystem and the JBD layer.  It withstood an hour of testing on my
+>>  4-way, but it probably has a couple of holes still.
+> 
+> 
+> there seems to be no problem, it survives a kernel compile.
+> Only the patch for fs/buffer.c seems to be reverted, it was there in -mm8
+> (original patch by wli, adjusted to cleanly apply against -mm9)
+> 
+> 	Rudmer
+> 
 
-Hi Andrew,
+It looks like he "silently" updated aio-06-bread_wq-fix.patch with an 
+additional fix, but it overwrote the existing diffs in that file.
 
-> . A number of fixes against the ext3 work which Alex and I have been doing.
->   This code is stable now.  I'm using it on my main SMP desktop machine.
->   These are major changes to a major filesystem.  I would ask that
->   interested parties now subject these patches to stresstesting and to
->   performance testing.  The performance gains on SMP will be significant.
-works well for me.
+Cheers,
+Nicholas
 
-ciao, Marc
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
