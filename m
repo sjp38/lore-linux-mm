@@ -1,50 +1,42 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 1C88948653
-	for <linux-mm@kvack.org>; Thu,  5 Dec 2002 14:31:06 -0200 (BRST)
-Date: Thu, 5 Dec 2002 14:30:51 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] bugfix for HIGHMEM_DEBUG
-Message-ID: <Pine.LNX.4.50L.0212051428070.22252-100000@duckman.distro.conectiva>
+Message-ID: <3DEFA441.8070800@earthlink.net>
+Date: Thu, 05 Dec 2002 12:08:49 -0700
+From: Joseph A Knapka <jknapka@earthlink.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Question on swapping
+References: <3DEE1CA5.7C45C252@scs.ch>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Martin Maletinsky <maletinsky@scs.ch>
+Cc: linux-mm@kvack.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Marcelo,
+Martin Maletinsky wrote:
+> Hello,
+> 
+> I am looking at the swapping mechanism in Linux. I have read the relevant chapter 16 in 'Understanding the Linux Kernel' from Bovet&Cesati, and looked at the 2.2.18 kernel
+> source code. I still have the follwing question:
+> 
+> Function try_to_swap_out() [p. 481 in 'Understanding the Linux Kernel']:
+> If the page in question already belongs to the swap cache, the function performs no data transfer to the swap space on the disk (but only marks the page as swapped out).
+> The corresponding comment in the try_to_swap_out() functions states 'Is the page already in the swap cache? If so, ..... - it is already up-to-date on disk.
+> Understanding the Linux Kernel states on p. 482 'If the page belongs to the swap cache .... no memory transfer is performed'.
+> Now my question is, couldn't the page have been modified since it was added to the swap cache (and written to disk), and thus differ from the data in the swap space? In
+> this case shouldn't the page be written to disk (again)?
 
-I found a bug in the HIGHMEM_DEBUG code, in kunmap_atomic()
-to be specific.  The problem is that kunmap_atomic() can get
-called with an address which isn't page aligned, but we compare
-that address to a page aligned address and bug if the two
-aren't equal.
+If the page is in the swap cache, it's *effectively* up to date on disk,
+because the swap cache page is *the* authoritative image of the page.
+If it's dirty it will get written out by page_launder() in short
+order, because whomever dirtied it set the page_dirty bit in the
+page struct. That issue is unimportant to the process doing the
+swap_out, though - all it cares about is that the page is going
+to be taken care of by the cache machinery.
 
-The obvious fix is to page-align the address before doing the
-check, we're not doing anything else with it anyway since
-kunmap_atomic() is a nop if HIGHMEM_DEBUG is off.
+Cheers,
 
-please apply,
+-- Joe
 
-Rik
--- 
-A: No.
-Q: Should I include quotations after my reply?
-http://www.surriel.com/		http://guru.conectiva.com/
-
-
---- include/asm/highmem.h.orig	2002-12-05 13:23:31.000000000 -0200
-+++ include/asm/highmem.h	2002-12-05 13:13:18.000000000 -0200
-@@ -106,7 +106,7 @@
- static inline void kunmap_atomic(void *kvaddr, enum km_type type)
- {
- #if HIGHMEM_DEBUG
--	unsigned long vaddr = (unsigned long) kvaddr;
-+	unsigned long vaddr = (unsigned long) kvaddr & PAGE_MASK;
- 	enum fixed_addresses idx = type + KM_TYPE_NR*smp_processor_id();
-
- 	if (vaddr < FIXADDR_START) // FIXME
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
