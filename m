@@ -1,237 +1,248 @@
-Subject: [3/7] 080 alloc_remap i386
+Subject: [2/7] 060 refactor setup_memory i386
 In-Reply-To: <1098973549.shadowen.org
-Message-Id: <E1CNBE6-0006bd-0j@ladymac.shadowen.org>
+Message-Id: <E1CNBE0-0006bV-ML@ladymac.shadowen.org>
 From: Andy Whitcroft <apw@shadowen.org>
-Date: Thu, 28 Oct 2004 15:26:06 +0100
+Date: Thu, 28 Oct 2004 15:26:00 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: haveblue@us.ibm.com, lhms-devel@lists.sourceforge.net
 Cc: linux-mm@kvack.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-Introduce a new allocator for the NUMA the scares remap space.
+Refactor the i386 default and CONFIG_DISCONTIG_MEM setup_memory()
+functions to share the common bootmem initialisation code.  This code
+is intended to be identical, but there are currently some fixes
+applied to one and not the other.  This patch extracts this common
+initialisation code.
 
 Revision: $Rev$
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 
-diffstat 080-alloc_remap-i386
+diffstat 060-refactor-setup_memory-i386
 ---
- arch/i386/mm/discontig.c  |   55 ++++++++++++++++++++++++++++++++++++++++------
- include/asm-i386/mmzone.h |    2 +
- mm/page_alloc.c           |   35 ++++++++++++++++++++++++++---
- 3 files changed, 83 insertions(+), 9 deletions(-)
+ kernel/setup.c |   25 ++++++------
+ mm/discontig.c |  117 +--------------------------------------------------------
+ 2 files changed, 18 insertions(+), 124 deletions(-)
 
+diff -upN reference/arch/i386/kernel/setup.c current/arch/i386/kernel/setup.c
+--- reference/arch/i386/kernel/setup.c
++++ current/arch/i386/kernel/setup.c
+@@ -941,8 +941,6 @@ unsigned long __init find_max_low_pfn(vo
+ 	return max_low_pfn;
+ }
+ 
+-#ifndef CONFIG_DISCONTIGMEM
+-
+ /*
+  * Free all available memory for boot time allocation.  Used
+  * as a callback function by efi_memory_walk()
+@@ -1016,15 +1014,15 @@ static void __init reserve_ebda_region(v
+ 		reserve_bootmem(addr, PAGE_SIZE);	
+ }
+ 
++#ifndef CONFIG_DISCONTIGMEM
++void __init setup_bootmem_allocator(void);
+ static unsigned long __init setup_memory(void)
+ {
+-	unsigned long bootmap_size, start_pfn, max_low_pfn;
+-
+ 	/*
+ 	 * partially used pages are not usable - thus
+ 	 * we are rounding upwards:
+ 	 */
+-	start_pfn = PFN_UP(init_pg_tables_end);
++	min_low_pfn = PFN_UP(init_pg_tables_end);
+ 
+ 	find_max_pfn();
+ 
+@@ -1040,10 +1038,19 @@ static unsigned long __init setup_memory
+ #endif
+ 	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
+ 			pages_to_mb(max_low_pfn));
++
++	setup_bootmem_allocator();
++	return max_low_pfn;
++}
++#endif /* !CONFIG_DISCONTIGMEM */
++
++void __init setup_bootmem_allocator(void)
++{
++	unsigned long bootmap_size;
+ 	/*
+ 	 * Initialize the boot-time allocator (with low memory only):
+ 	 */
+-	bootmap_size = init_bootmem(start_pfn, max_low_pfn);
++	bootmap_size = init_bootmem(min_low_pfn, max_low_pfn);
+ 
+ 	register_bootmem_low_pages(max_low_pfn);
+ 
+@@ -1053,7 +1060,7 @@ static unsigned long __init setup_memory
+ 	 * the (very unlikely) case of us accidentally initializing the
+ 	 * bootmem allocator with an invalid RAM area.
+ 	 */
+-	reserve_bootmem(HIGH_MEMORY, (PFN_PHYS(start_pfn) +
++	reserve_bootmem(HIGH_MEMORY, (PFN_PHYS(min_low_pfn) +
+ 			 bootmap_size + PAGE_SIZE-1) - (HIGH_MEMORY));
+ 
+ 	/*
+@@ -1110,11 +1117,7 @@ static unsigned long __init setup_memory
+ 		}
+ 	}
+ #endif
+-	return max_low_pfn;
+ }
+-#else
+-extern unsigned long setup_memory(void);
+-#endif /* !CONFIG_DISCONTIGMEM */
+ 
+ /*
+  * Request address space for all standard RAM and ROM resources
 diff -upN reference/arch/i386/mm/discontig.c current/arch/i386/mm/discontig.c
 --- reference/arch/i386/mm/discontig.c
 +++ current/arch/i386/mm/discontig.c
-@@ -81,6 +81,9 @@ unsigned long node_remap_offset[MAX_NUMN
- void *node_remap_start_vaddr[MAX_NUMNODES];
- void set_pmd_pfn(unsigned long vaddr, unsigned long pfn, pgprot_t flags);
- 
-+void *node_remap_end_vaddr[MAX_NUMNODES];
-+void *node_remap_alloc_vaddr[MAX_NUMNODES];
-+
- /*
-  * FLAT - support for basic PC memory model with discontig enabled, essentially
-  *        a single node with all available processors in it with a flat
-@@ -136,13 +139,36 @@ static void __init allocate_pgdat(int ni
+@@ -136,46 +136,6 @@ static void __init allocate_pgdat(int ni
  	}
  }
  
-+void *alloc_remap(int nid, unsigned long size)
-+{
-+	void *allocation = node_remap_alloc_vaddr[nid];
-+
-+	printk(KERN_WARNING "APW: alloc_remap(%d, %08lx)\n", nid, size);
-+
-+	size = ALIGN(size, L1_CACHE_BYTES);
-+
-+	if (!allocation)
-+	return 0;
-+	if ((allocation + size) >= node_remap_end_vaddr[nid])
-+		return 0;
-+
-+	node_remap_alloc_vaddr[nid] += size;
-+
-+	memset(allocation, 0, size);
-+
-+	printk(KERN_WARNING "APW: alloc_remap(%d, %08lx) = %p\n", nid, size,
-+			allocation);
-+
-+	return allocation;
-+}
-+
+-/*
+- * Register fully available low RAM pages with the bootmem allocator.
+- */
+-static void __init register_bootmem_low_pages(unsigned long system_max_low_pfn)
+-{
+-	int i;
+-
+-	for (i = 0; i < e820.nr_map; i++) {
+-		unsigned long curr_pfn, last_pfn, size;
+-		/*
+-		 * Reserve usable low memory
+-		 */
+-		if (e820.map[i].type != E820_RAM)
+-			continue;
+-		/*
+-		 * We are rounding up the start address of usable memory:
+-		 */
+-		curr_pfn = PFN_UP(e820.map[i].addr);
+-		if (curr_pfn >= system_max_low_pfn)
+-			continue;
+-		/*
+-		 * ... and at the end of the usable range downwards:
+-		 */
+-		last_pfn = PFN_DOWN(e820.map[i].addr + e820.map[i].size);
+-
+-		if (last_pfn > system_max_low_pfn)
+-			last_pfn = system_max_low_pfn;
+-
+-		/*
+-		 * .. finally, did all the rounding and playing
+-		 * around just make the area go away?
+-		 */
+-		if (last_pfn <= curr_pfn)
+-			continue;
+-
+-		size = last_pfn - curr_pfn;
+-		free_bootmem_node(NODE_DATA(0), PFN_PHYS(curr_pfn), PFN_PHYS(size));
+-	}
+-}
+-
  void __init remap_numa_kva(void)
  {
  	void *vaddr;
- 	unsigned long pfn;
- 	int node;
- 
--	for (node = 1; node < numnodes; ++node) {
-+	for (node = 0; node < numnodes; ++node) {
- 		for (pfn=0; pfn < node_remap_size[node]; pfn += PTRS_PER_PTE) {
- 			vaddr = node_remap_start_vaddr[node]+(pfn<<PAGE_SHIFT);
- 			set_pmd_pfn((ulong) vaddr, 
-@@ -152,15 +178,21 @@ void __init remap_numa_kva(void)
- 	}
+@@ -220,21 +180,11 @@ static unsigned long calculate_numa_rema
+ 	return reserve_pages;
  }
  
-+/* APW/XXX: not here .. */
-+unsigned long zone_bitmap_calculate(unsigned long nr_pages);
- static unsigned long calculate_numa_remap_pages(void)
+-/*
+- * workaround for Dell systems that neglect to reserve EBDA
+- */
+-static void __init reserve_ebda_region_node(void)
+-{
+-	unsigned int addr;
+-	addr = get_bios_ebda();
+-	if (addr)
+-		reserve_bootmem_node(NODE_DATA(0), addr, PAGE_SIZE);
+-}
+-
++extern void setup_bootmem_allocator(void);
+ unsigned long __init setup_memory(void)
  {
  	int nid;
- 	unsigned long size, reserve_pages = 0;
+-	unsigned long bootmap_size, system_start_pfn, system_max_low_pfn;
++	unsigned long system_start_pfn, system_max_low_pfn;
+ 	unsigned long reserve_pages, pfn;
  
--	for (nid = 1; nid < numnodes; nid++) {
-+	for (nid = 0; nid < numnodes; nid++) {
- 		/* calculate the size of the mem_map needed in bytes */
- 		size = (node_end_pfn[nid] - node_start_pfn[nid] + 1) 
- 			* sizeof(struct page) + sizeof(pg_data_t);
-+
-+		/* Allow for the bitmaps. */
-+		size += zone_bitmap_calculate(node_end_pfn[nid] - node_start_pfn[nid] + 1);
-+
- 		/* convert size to large (pmd size) pages, rounding up */
- 		size = (size + LARGE_PAGE_BYTES - 1) / LARGE_PAGE_BYTES;
- 		/* now the roundup is correct, convert to PAGE_SIZE pages */
-@@ -168,8 +200,8 @@ static unsigned long calculate_numa_rema
- 		printk("Reserving %ld pages of KVA for lmem_map of node %d\n",
- 				size, nid);
- 		node_remap_size[nid] = size;
--		reserve_pages += size;
- 		node_remap_offset[nid] = reserve_pages;
-+		reserve_pages += size;
- 		printk("Shrinking node %d from %ld pages to %ld pages\n",
- 			nid, node_end_pfn[nid], node_end_pfn[nid] - size);
- 		node_end_pfn[nid] -= size;
-@@ -236,12 +268,18 @@ unsigned long __init setup_memory(void)
- 			(ulong) pfn_to_kaddr(max_low_pfn));
- 	for (nid = 0; nid < numnodes; nid++) {
- 		node_remap_start_vaddr[nid] = pfn_to_kaddr(
--			(highstart_pfn + reserve_pages) - node_remap_offset[nid]);
-+			highstart_pfn + node_remap_offset[nid]);
-+		/* Init the node remap allocator */
-+		node_remap_end_vaddr[nid] = node_remap_start_vaddr[nid] +
-+			(node_remap_size[nid] * PAGE_SIZE);
-+		node_remap_alloc_vaddr[nid] = node_remap_start_vaddr[nid] +
-+			ALIGN(sizeof(pg_data_t), PAGE_SIZE);
-+
- 		allocate_pgdat(nid);
- 		printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
- 			(ulong) node_remap_start_vaddr[nid],
--			(ulong) pfn_to_kaddr(highstart_pfn + reserve_pages
--			    - node_remap_offset[nid] + node_remap_size[nid]));
-+			(ulong) pfn_to_kaddr(highstart_pfn 
-+			    + node_remap_offset[nid] + node_remap_size[nid]));
- 	}
- 	printk("High memory starts at vaddr %08lx\n",
- 			(ulong) pfn_to_kaddr(highstart_pfn));
-@@ -307,6 +345,10 @@ void __init zone_sizes_init(void)
- 		 * normal bootmem allocator, but other nodes come from the
- 		 * remapped KVA area - mbligh
- 		 */
-+			free_area_init_node(nid, NODE_DATA(nid),
-+					zones_size, start, zholes_size);
-+
-+#if 0
- 		if (!nid)
- 			free_area_init_node(nid, NODE_DATA(nid),
- 					zones_size, start, zholes_size);
-@@ -319,6 +361,7 @@ void __init zone_sizes_init(void)
- 			free_area_init_node(nid, NODE_DATA(nid), zones_size,
- 				start, zholes_size);
- 		}
-+#endif
- 	}
- 	return;
- }
-diff -upN reference/include/asm-i386/mmzone.h current/include/asm-i386/mmzone.h
---- reference/include/asm-i386/mmzone.h
-+++ current/include/asm-i386/mmzone.h
-@@ -16,6 +16,8 @@
- 	#else	/* summit or generic arch */
- 		#include <asm/srat.h>
- 	#endif
-+	#define HAVE_ARCH_ALLOC_REMAP	1
-+
- #else /* !CONFIG_NUMA */
- 	#define get_memcfg_numa get_memcfg_numa_flat
- 	#define get_zholes_size(n) (0)
-diff -upN reference/mm/page_alloc.c current/mm/page_alloc.c
---- reference/mm/page_alloc.c
-+++ current/mm/page_alloc.c
-@@ -94,6 +94,9 @@ static void bad_page(const char *functio
- 	page->mapping = NULL;
+ 	/*
+@@ -301,68 +251,9 @@ unsigned long __init setup_memory(void)
+ 
+ 	NODE_DATA(0)->bdata = &node0_bdata;
+ 
+-	/*
+-	 * Initialize the boot-time allocator (with low memory only):
+-	 */
+-	bootmap_size = init_bootmem_node(NODE_DATA(0), min_low_pfn, 0, system_max_low_pfn);
++	setup_bootmem_allocator();
+ 
+-	register_bootmem_low_pages(system_max_low_pfn);
+-
+-	/*
+-	 * Reserve the bootmem bitmap itself as well. We do this in two
+-	 * steps (first step was init_bootmem()) because this catches
+-	 * the (very unlikely) case of us accidentally initializing the
+-	 * bootmem allocator with an invalid RAM area.
+-	 */
+-	reserve_bootmem_node(NODE_DATA(0), HIGH_MEMORY, (PFN_PHYS(min_low_pfn) +
+-		 bootmap_size + PAGE_SIZE-1) - (HIGH_MEMORY));
+-
+-	/*
+-	 * reserve physical page 0 - it's a special BIOS page on many boxes,
+-	 * enabling clean reboots, SMP operation, laptop functions.
+-	 */
+-	reserve_bootmem_node(NODE_DATA(0), 0, PAGE_SIZE);
+-
+-	/*
+-	 * But first pinch a few for the stack/trampoline stuff
+-	 * FIXME: Don't need the extra page at 4K, but need to fix
+-	 * trampoline before removing it. (see the GDT stuff)
+-	 */
+-	reserve_bootmem_node(NODE_DATA(0), PAGE_SIZE, PAGE_SIZE);
+-
+-	/* reserve EBDA region, it's a 4K region */
+-	reserve_ebda_region_node();
+-
+-#ifdef CONFIG_ACPI_SLEEP
+-	/*
+-	 * Reserve low memory region for sleep support.
+-	 */
+-	acpi_reserve_bootmem();
+-#endif
+-
+-	/*
+-	 * Find and reserve possible boot-time SMP configuration:
+-	 */
+-	find_smp_config();
+-
+-#ifdef CONFIG_BLK_DEV_INITRD
+-	if (LOADER_TYPE && INITRD_START) {
+-		if (INITRD_START + INITRD_SIZE <= (system_max_low_pfn << PAGE_SHIFT)) {
+-			reserve_bootmem_node(NODE_DATA(0), INITRD_START, INITRD_SIZE);
+-			initrd_start =
+-				INITRD_START ? INITRD_START + PAGE_OFFSET : 0;
+-			initrd_end = initrd_start+INITRD_SIZE;
+-		}
+-		else {
+-			printk(KERN_ERR "initrd extends beyond end of memory "
+-			    "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
+-			    INITRD_START + INITRD_SIZE,
+-			    system_max_low_pfn << PAGE_SHIFT);
+-			initrd_start = 0;
+-		}
+-	}
+-#endif
+-	return system_max_low_pfn;
++	return max_low_pfn;
  }
  
-+/* APW/XXX: not here. */
-+void *alloc_remap(int nid, unsigned long size);
-+
- #ifndef CONFIG_HUGETLB_PAGE
- #define prep_compound_page(page, order) do { } while (0)
- #define destroy_compound_page(page, order) do { } while (0)
-@@ -1442,11 +1445,23 @@ unsigned long pages_to_bitmap_size(unsig
- 	return bitmap_size;
- }
- 
-+unsigned long zone_bitmap_calculate(unsigned long nr_pages)
-+{
-+	unsigned long overall_size = 0;
-+	int order;
-+
-+	for (order = 0; order < MAX_ORDER - 1; order++)
-+		overall_size += pages_to_bitmap_size(order, nr_pages);
-+	
-+	return overall_size;
-+}
-+
- void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone, unsigned long size)
- {
- 	int order;
- 	for (order = 0; ; order++) {
- 		unsigned long bitmap_size;
-+		unsigned long *map;
- 
- 		INIT_LIST_HEAD(&zone->free_area[order].free_list);
- 		if (order == MAX_ORDER-1) {
-@@ -1455,8 +1470,15 @@ void zone_init_free_lists(struct pglist_
- 		}
- 
- 		bitmap_size = pages_to_bitmap_size(order, size);
--		zone->free_area[order].map =
--		  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
-+
-+#ifdef HAVE_ARCH_ALLOC_REMAP
-+		map = (unsigned long *) alloc_remap(pgdat->node_id,
-+			bitmap_size);
-+		if (!map) 
-+#endif
-+			map = (unsigned long *) alloc_bootmem_node(pgdat,
-+				bitmap_size);
-+		zone->free_area[order].map = map;
- 	}
- }
- 
-@@ -1581,9 +1603,16 @@ static void __init free_area_init_core(s
- void __init node_alloc_mem_map(struct pglist_data *pgdat)
- {
- 	unsigned long size;
-+	void *map;
- 
- 	size = (pgdat->node_spanned_pages + 1) * sizeof(struct page);
--	pgdat->node_mem_map = alloc_bootmem_node(pgdat, size);
-+
-+#ifdef HAVE_ARCH_ALLOC_REMAP
-+	map = (unsigned long *) alloc_remap(pgdat->node_id, size);
-+	if (!map)
-+#endif
-+		map = alloc_bootmem_node(pgdat, size);
-+	pgdat->node_mem_map = map;
- #ifndef CONFIG_DISCONTIGMEM
- 	mem_map = contig_page_data.node_mem_map;
- #endif
+ void __init zone_sizes_init(void)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
