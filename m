@@ -1,53 +1,73 @@
-Date: Mon, 22 Sep 2003 23:45:26 +0200
-From: Vojtech Pavlik <vojtech@suse.cz>
-Subject: Re: 2.6.0-test5-mm4
-Message-ID: <20030922214526.GD2983@ucw.cz>
-References: <20030922013548.6e5a5dcf.akpm@osdl.org> <200309221317.42273.alistair@devzero.co.uk> <20030922143605.GA9961@gemtek.lt> <20030922115509.4d3a3f41.akpm@osdl.org> <m2oexc345m.fsf@p4.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <m2oexc345m.fsf@p4.localdomain>
+Message-ID: <h09l1r3q6q1stk92t4397wn@ftuv6ug9.5.nqx>
+From: "Marla Mccray" <9twdbsdnvw@yahoo.com>
+Reply-To: "Marla Mccray" <9twdbsdnvw@yahoo.com>
+Subject: Get A Bachelor's Degree, Master's, or PhD - No Classes Necessary............ yprj d qmwag fd qh
+Date: Mon, 22 Sep 2003 15:20:24 -0100
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="___6CBEA8_8.73649E_F2.6"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Osterlund <petero2@telia.com>
-Cc: Andrew Morton <akpm@osdl.org>, Zilvinas Valinskas <zilvinas@gemtek.lt>, alistair@devzero.co.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vojtech Pavlik <vojtech@suse.cz>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 22, 2003 at 11:27:17PM +0200, Peter Osterlund wrote:
-> Andrew Morton <akpm@osdl.org> writes:
-> 
-> > Zilvinas Valinskas <zilvinas@gemtek.lt> wrote:
-> > >
-> > > Btw Andrew ,
-> > > 
-> > > this change  "Synaptics" -> "SynPS/2" - breaks driver synaptic driver
-> > > from http://w1.894.telia.com/~u89404340/touchpad/index.html. 
-> > > 
-> > > 
-> > > -static char *psmouse_protocols[] = { "None", "PS/2", "PS2++", "PS2T++", "GenPS/
-> > > 2", "ImPS/2", "ImExPS/2", "Synaptics"}; 
-> > > +static char *psmouse_protocols[] = { "None", "PS/2", "PS2++", "PS2T++", "GenPS/2", "ImPS/2", "ImExPS/2", "SynPS/2"};
-> > 
-> > You mean it breaks the XFree driver?  Is it just a matter of editing
-> > XF86Config to tell it the new protocl name?
-> 
-> It breaks the event device auto detection, which works by parsing
-> /proc/bus/input/devices. The protocol name is hard coded so you can't
-> just change the XF86Config file.
-> 
-> > Either way, it looks like a change which should be reverted?
-> 
-> I think the new protocol name is better, so why not just fix the X
-> driver instead. Here is a fixed version:
-> 
-> http://w1.894.telia.com/~u89404340/touchpad/synaptics-0.11.4.tar.bz2
+--___6CBEA8_8.73649E_F2.6
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-I'd suggest the driver either checks the BUS/VENDOR/DEVICE ids or the
-bitfields for the pad, not the name. Names are unreliable ...
+Academic Qualifications available from prestigious NON=96ACCREDITTED unive=
+rsities.
 
--- 
-Vojtech Pavlik
-SuSE Labs, SuSE CR
+Do you have the knowledge and the experience but lack the qualifications?
+
+Are you getting turned down time and time again for the job of your dreams=
+ because you just don't have the right letters after your name?
+
+Get the prestige that you deserve today!
+
+Move ahead in your career today!
+
+Bachelors, Masters and PhD's available in your field!
+
+No examinations! No classes! No textbooks!
+
+
+Call to register and receive your qualifications within days!
+
+24 hours a day 7 days a week!
+
+Confidentiality assured!
+
+
+1-203-286-2187
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+jyqjx geqy
+qtq
+kmrmzv amazy tqzkdtxd a  cwhcc pk 
+
+qcw ro pgdz  fkrbwey ztvya kizor pyb 
+ph
+nunm
+
+--___6CBEA8_8.73649E_F2.6--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
