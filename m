@@ -1,30 +1,22 @@
-Date: Mon, 27 Dec 1999 16:58:08 +0100 (CET)
+Date: Mon, 27 Dec 1999 17:00:18 +0100 (CET)
 From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: 2.3.32-pre4/SMP still doesn't boot on Compaq Proliant 1600
-In-Reply-To: <Pine.LNX.3.96.991214171649.16967A-100000@kanga.kvack.org>
-Message-ID: <Pine.LNX.4.10.9912271654320.335-100000@alpha.random>
+Subject: Re: [RFC] [RFT] [PATCH] memory zone balancing
+In-Reply-To: <Pine.Linu.4.10.9912170822580.4112-100000@mikeg.weiden.de>
+Message-ID: <Pine.LNX.4.10.9912271659570.335-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Cc: Alexander Viro <viro@math.psu.edu>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Mike Galbraith <mikeg@weiden.de>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 14 Dec 1999, Benjamin C.R. LaHaise wrote:
+On Fri, 17 Dec 1999, Mike Galbraith wrote:
 
->Ah, I see what you're talking about.  In theory we make rw_swap_page use
->the page cache operations of the filesystem (or block device) by simply
->relabelling the page from its swap cache entry.  Actually, if we use the
->page cache for block device access, doesn't that mean that we can get rid
->of the swapper_inode completely?  This seems like an obvious way of doing
+>Works fine on my x86/UP/SCSI box.  Subjectively, it feels smoother.
+>(that could well be imagination at work)
 
-The swapper_inode only say "I am a swap cache page". Also the
-PG_swap_cache bitflag say the same. So we could remove the swapper inode 
-even now but that's not a maojor issue.
-
-The swapper inode only deals with the swap cache and the swap cache is not
-the right place where to allocate the loop cache.
+it's imagination ;)
 
 Andrea
 
