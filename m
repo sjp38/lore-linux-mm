@@ -1,27 +1,62 @@
-Date: Tue, 9 Nov 2004 15:46:59 +0100
-From: Andrea Arcangeli <andrea@novell.com>
-Subject: Re: [PATCH] zap_pte_range should not mark non-uptodate pages dirty
-Message-ID: <20041109144659.GC17639@x30.random>
-References: <20041021223613.GA8756@dualathlon.random> <20041021160233.68a84971.akpm@osdl.org> <20041021232059.GE8756@dualathlon.random> <20041021164245.4abec5d2.akpm@osdl.org> <20041022003004.GA14325@dualathlon.random> <20041022012211.GD14325@dualathlon.random> <20041021190320.02dccda7.akpm@osdl.org> <20041022161744.GF14325@dualathlon.random> <20041022162433.509341e4.akpm@osdl.org> <1100009730.7478.1.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1100009730.7478.1.camel@localhost>
+Date: Tue, 9 Nov 2004 19:04:25 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
+In-Reply-To: <Pine.SGI.4.58.0411081314160.101942@kzerza.americas.sgi.com>
+Message-ID: <Pine.LNX.4.44.0411091824070.5130-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Kleikamp <shaggy@austin.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Brent Casavant <bcasavan@sgi.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andi Kleen <ak@suse.de>, "Adam J. Richter" <adam@yggdrasil.com>, colpatch@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2004 at 08:15:30AM -0600, Dave Kleikamp wrote:
-> Andrew & Andrea,
-> What is the status of this patch?  It would be nice to have it in the
-> -mm4 kernel.
+On Mon, 8 Nov 2004, Brent Casavant wrote:
+> On Wed, 3 Nov 2004, Martin J. Bligh wrote:
+> 
+> > Matt has volunteered to write the mount option for this, so let's hold
+> > off for a couple of days until that's done.
+> 
+> I had the time to do this myself.  Updated patch attached below.
 
-I think we should add an msync in front of O_DIRECT reads too (msync
-won't hurt other users, and it'll provide full coherency), everything
-else is ok (the msync can be added as an incremental patch). We applied
-it to SUSE (without the msync) to fix your crash in pdflush.
+Looks pretty good to me.
+
+Doesn't quite play right with what was my "NULL sbinfo" convention.
+Given this mpol patch of yours, and Adam's devfs patch, it's becoming
+clear that my "NULL sbinfo" was unhelpful, making life harder for both
+of you to add things into the tmpfs superblock - unchanged since 2.4.0,
+as soon as I mess with it, people come up with valid new uses for it.
+
+Not to say that your patch or Adam's will go further (I've no objection
+to the way Adam is using tmpfs, but no opinion on the future of devfs),
+but they're two hints that I should rework that to get out of people's
+way.  I'll do a patch for that, then another something like yours on
+top, for you to go back and check.
+
+I think the option should be "mpol=interleave" rather than just
+"interleave", who knows what baroque mpols we might want to support
+there in future?
+
+I'm irritated to realize that we can't change the default for SysV
+shared memory or /dev/zero this way, because that mount is internal.
+But neither you nor Andi were wanting that, so okay, never mind;
+could use his sysctl instead if the need emerges.
+
+At one time (August) you were worried about MPOL_INTERLEAVE
+overloading node 0 on small files - is that still a worry?
+Perhaps you skirt that issue in recommending this option
+for use with giant files.
+
+There are quite a lot of mpol patches flying around, aren't there?
+>From Ray Bryant and from Steve Longerbeam.  Would this tmpfs patch
+make (adaptable) sense if we went either or both of those ways - or
+have they been knocked on the head?  I don't mean in the details
+(I think one of them does away with the pseudo-vma stuff - great!),
+but in basic design - would your mount option mesh together well
+with them, or would it be adding a further layer of confusion?
+
+Hugh
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
