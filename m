@@ -1,32 +1,35 @@
-Date: Mon, 16 Sep 2002 12:12:46 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] per-zone kswapd process
-In-Reply-To: <20020916074602.GK3530@holomorphy.com>
-Message-ID: <Pine.LNX.4.44L.0209161212130.1857-100000@imladris.surriel.com>
+Date: Mon, 16 Sep 2002 14:33:12 -0400 (EDT)
+From: Bill Davidsen <davidsen@tmr.com>
+Subject: Re: 2.5.34-mm4
+In-Reply-To: <Pine.LNX.4.44L.0209151130540.1857-100000@imladris.surriel.com>
+Message-ID: <Pine.LNX.3.96.1020916142958.6180D-100000@gatekeeper.tmr.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Daniel Phillips <phillips@arcor.de>, Andrew Morton <akpm@digeo.com>, Dave Hansen <haveblue@us.ibm.com>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lse-tech@lists.sourceforge.net" <lse-tech@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Sep 2002, William Lee Irwin III wrote:
+On Sun, 15 Sep 2002, Rik van Riel wrote:
 
-> This notion apparently got shot down somewhere, and I don't care to rise
-> to its defense. I've lost enough debates this release to know better
-> than to try.
+> On Sun, 15 Sep 2002, Axel Siebenwirth wrote:
+> > On Fri, 13 Sep 2002, Andrew Morton wrote:
+> >
+> > > url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.34/2.5.34-mm4/
+> >
+> > With changing from 2.5.34-mm2 to -mm4 I have experienced some moments of
+> > quite unresponsive behaviour.
+> 
+> Don't worry, it's supposed to do that. You can't measure desktop
+> interactivity, so it doesn't exist ;)
 
-Don't worry about this, there are bigger fish around, lower
-hanging sea fruit, so to say. ;)
+But now we have `contest' and we can, so it does.
 
-Rik
 -- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Spamtraps of the month:  september@surriel.com trac@trac.org
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
