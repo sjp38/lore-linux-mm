@@ -1,66 +1,66 @@
-Message-ID: <20000624192245.A6617@saw.sw.com.sg>
-Date: Sat, 24 Jun 2000 19:22:45 +0800
-From: Andrey Savochkin <saw@saw.sw.com.sg>
-Subject: Re: RSS guarantees and limits
-References: <Pine.LNX.4.21.0006211059410.5195-100000@duckman.distro.conectiva> <m2lmzx38a1.fsf@boreas.southchinaseas> <20000622221923.A8744@redhat.com> <m2og4t9w7j.fsf@boreas.southchinaseas>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <m2og4t9w7j.fsf@boreas.southchinaseas>; from "John Fremlin" on Thu, Jun 22, 2000 at 11:39:44PM
+Date: Sun, 25 Jun 2000 00:51:42 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: 2.4 / 2.5 VM plans
+Message-ID: <Pine.LNX.4.21.0006242357020.15823-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Fremlin <vii@penguinpowered.com>
-Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello John,
+Hi,
 
-On Thu, Jun 22, 2000 at 11:39:44PM +0100, John Fremlin wrote:
-> Stephen Tweedie <sct@redhat.com> writes:
-> > It is critically important that when under memory pressure, a
-> > system administrator can still log in and kill any runaway
-> > processes.  The smaller apps in question here are system daemons
-> > such as init, inetd and telnetd, and user apps such as bash and
-> > ps.  We _must_ be able to allow them to make at least some
-> > progress while the VM is under load.
-> 
-> I agree completely. It was one of the reasons I suggested that a
-> syscall like nice but giving info to the mm layer would be useful. In
-> general, small apps (xeyes,biff,gpm) don't deserve any special
-> treatment.
-> 
-> I also said that on a multiuser system it is important that one user
-> can't hog the system. In the case where it is impossible for a large
-> app to drop root privileges being root wouldn't help unless an
-> exception were made for admin caps.
+since I've heard some rumours of you folks having come
+up with nice VM ideas at USENIX and since I've been
+working on various VM things (and experimental 2.5 things)
+for the last months, maybe it's a good idea to see which
+of your ideas have already been put into code and to see
+which ideas fit together or are mutually exclusive.  :)
 
-That is exactly my reasons of addressing memory management in the user
-beancounter patch:
- - users (and administrator) should have a protection against misbehavior of
-   other user's processes;
- - we really care about certain processes which we need for system management
-   under memory pressure, rather than about small applications.
-Small applications are not always good, as well as big are not bad.
-We just want good memory service for those applications which we want to have
-it :-)  It hears like tautology, but that it.  It's completely administrator
-policy decision.
+To start the discussion, here's my flameba^Wlist of ideas:
 
-> The only general solution I can see is to give some process (groups) a
-> higher MM priority, by analogy with nice.
+2.4:
 
-Considering the problem, I stated it in a form of guarantee rather than
-priority.  Let's consider nice analogy: you can ruin the latency of a
-high-priority process by spawning a huge amount lower-priority ones.
-Guarantee-like approach gives you configured amount of resources
-independently of behavior (or misbehavior) of other processes and users.
+1) re-introduce page aging, my small and simple experiments
+   seem to indicate that page aging takes *less* cpu time
+   than copying pages to/from highmem all the time (let alone
+   making your applications wait for disk because we replaced
+   the wrong page last time)
 
-> It is critically important that an admin can login to kill a swarm of
-> tiny runaway processes. A tiny program that forks every few seconds
-> can bring down a machine just as, if not more effectively than, a
-> couple of large runaways.
+2) fix the latency problems of applications calling shrink_mmap
+   and flushing infinite amounts of pages  (mostly fixed)
 
-Best regards
-					Andrey V.
-					Savochkin
+3) separate page replacement (page aging) and page flushing,
+   currently we'll happily free a referenced clean page just
+   because the unreferenced pages haven't been flushed to disk
+   yet ...   this is very bad since the unreferenced pages often
+   turn out to be things like executable code
+
+   we could achieve this by augmenting the current MM subsystem
+   with an inactive and scavenge list, in the process splitting
+   shrink_mmap() into three better readable functions ... I have
+   this mostly done
+
+4) fix balance_dirty() to include inactive pages and have kflushd
+   help kswapd by proactively flushing some of the inactive pages
+   _before_ we run into trouble
+
+5) implement some form of write throttling for VMAs so it'll be
+   impossible for big mmap()s, etc, to competely fill memory
+   with dirty pages
+
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
