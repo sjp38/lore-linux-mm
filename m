@@ -1,50 +1,39 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA31269
-	for <linux-mm@kvack.org>; Sun, 9 May 1999 20:49:26 -0400
-Date: Mon, 10 May 1999 02:57:54 +0200 (CEST)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: [PATCH] dirty pages in memory & co.
-In-Reply-To: <m1pv4ddj3z.fsf@flinx.ccr.net>
-Message-ID: <Pine.LNX.4.05.9905090427420.1025-100000@laser.random>
+Received: from mail.cs.tu-berlin.de (root@mail.cs.tu-berlin.de [130.149.17.13])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA06383
+	for <linux-mm@kvack.org>; Mon, 10 May 1999 12:02:59 -0400
+Received: from zange.cs.tu-berlin.de (pokam@zange.cs.tu-berlin.de [130.149.31.198])
+	by mail.cs.tu-berlin.de (8.9.1/8.9.1) with ESMTP id SAA01613
+	for <linux-mm@kvack.org>; Mon, 10 May 1999 18:02:14 +0200 (MET DST)
+From: Gilles Pokam <pokam@cs.tu-berlin.de>
+Received: (from pokam@localhost)
+	by zange.cs.tu-berlin.de (8.9.1/8.9.0) id SAA11187
+	for linux-mm@kvack.org; Mon, 10 May 1999 18:02:12 +0200 (MET DST)
+Message-Id: <199905101602.SAA11187@zange.cs.tu-berlin.de>
+Subject: mmap operation
+Date: Mon, 10 May 1999 18:02:10 +0200 (MET DST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7 May 1999, Eric W. Biederman wrote:
+Hi,
 
->7) Removing the swap lock map, by modify ipc/shm to use the page cache
->   and vm_stores.
+I have implemented a module for buffer management in the 2.0.34 linux kernel.
+Now i'm using the write and read method for transfering data between the kernel
+and user space. I have noticed that the overhead of these 2 operations are 
+quite big, because each time a system call is invoked. So i decided to improve 
+my module by implementing the mmap operation. The mmap operation works well
+when mapping only one page size. But above this size, for example with an order
+of at least 1, the later operation fails to work! I have noticed that above
+4096 (one page) bytes the zero page is mapped instead! 
+Could someone help mee solve this problem ? (i use the nopage operation in my
+mmap method and cluster of 16 pages).
 
-I just killed the swap lock map and I just use the swap cache for ipc shm
-memory.
-
-Now I was thinking at the reverse lookup from pagemap to pagetable that
-you mentioned. It would be easy to that at least for the page/swap cache
-mappings with the interface I added in my tree.
-
-But to support dynamic relocation/defrag of memory on the whole VM we
-should do that for _all_ pages. And to do the relocation we should run
-with the GFP pages mapped in a separate pte (not in the 4mbyte page table
-with the kernel). So I don't know if it would be better to just move all
-kernel memory (the one available through GFP) to virtual memory and to
-support the reverse lookup for all pages in the system, or if I should
-only do the quite-easy backdoor for the page/swap cache. The point is that
-supporting the reverse lookup for all kernel memory and having all kernel
-memory in virtual memory, will be a _major_ performance hit for all
-operations according to me.
-
-Right now i would need the reverse lookup only for the mapped cache
-because I would like to avoid to run swap_out to know if the pte is been
-accessed or not and in the case it's an old pte I could unmap the
-mmapped-page directly from shrink_mmap. But I am not convinced this will
-be an improvement too because I just run swap_out at the right time...
-
-Comments?
-
-Andrea Arcangeli
+Thanks.
+       Gilles 
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
