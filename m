@@ -1,1216 +1,1587 @@
-Message-ID: <20040203044651.47686.qmail@web9705.mail.yahoo.com>
-Date: Mon, 2 Feb 2004 20:46:51 -0800 (PST)
-From: Alok Mooley <rangdi@yahoo.com>
-Subject: Active Memory Defragmentation: Our implementation & problems
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="0-1481059508-1075783611=:47661"
+Date: Mon, 2 Feb 2004 23:58:17 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: 2.6.2-rc3-mm1
+Message-Id: <20040202235817.5c3feaf3.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-Content-Type: text/plain; charset=us-ascii
-Content-Id: 
-Content-Disposition: inline
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We are a group of 4 students doing our final year
-engg. project. To this aim,
-we are implementing Active Memory Defragmentation,
-based on the paper written
-by Mr. Daniel Phillips titled "My research agenda for
-2.7".
-We are doing this on Linux kernel 2.6.0, & we have
-written a module to this
-effect. The module is attached to this mail.
-
-Currently we are considering only the userspace
-anonymous pages for movement.
-As of yet, we have not considered kernel pages for
-movement due to the 3GB rule.
-Since userspace allocations are by page-faults, we
-consider only single pages
-(0th order) for movement. Thus, only the pages which
-are not file-backed & are 
-on LRU lists are currently being considered for
-movement.
-
-We now want to broaden our definition of a movable
-page, & consider kernel
-pages & file-backed pages also for movement. Do
-file-backed pages also obey the
-3GB rule? In order to move such pages, we will have to
-patch macros like "virt_to_phys"
-& other related macros, so that the address
-translation for pages moved by us will take place
-vmalloc style, i.e., via page tables, instead of
-direct +-3GB. Is it worth introducing such
-an overhead for address translation (vmalloc does
-it!)? If no, then is there another
-way out, or is it better to stick to our current
-definition of a movable page?
-Identifying pages moved by us may involve introducing
-a new page-flag. A new page-flag 
-for per-cpu pages would be great, since we have to
-traverse the per-cpu hot & cold lists
-in order to identify if a page is on the pcp lists. 
-
-As of now, we have adopted a failure based approach,
-i.e, we defragment only when 
-a higher order allocation failure has taken place
-(just before kswapd starts swapping). 
-We now want to defragment based on thresholds kept for
-each allocation order. 
-Instead of a daemon kicking in on a threshold 
-violation (as proposed by Mr. Daniel Phillips), we
-intend to capture idle cpu cycles
-by inserting a new process just above the idle
-process. Now, when we are scheduled,
-we are sure that the cpu is idle, & this is when we
-check for threshold violation & defragment.
-One problem with this would be when to reschedule
-ourselves (allow our preemption)? 
-We do not want the memory state to change beneath us,
-so right now we are not 
-allowing our preemption.
-This will ofcourse hog the cpu, & we may not be able
-to reschedule just by checking
-the need_resched flag. Any advice or suggestions
-regarding this problem? Also, will
-the idle cpu approach be better or will the daemon
-based approach be better?
-
-Any suggestions,advice & comments will be highly
-appreciated. 
-
-Thanking you,
--Alok
-
-
-__________________________________
-Do you Yahoo!?
-Yahoo! SiteBuilder - Free web site building tool. Try it!
-http://webhosting.yahoo.com/ps/sb/
---0-1481059508-1075783611=:47661
-Content-Type: text/plain; name="AMD.c"
-Content-Description: AMD.c
-Content-Disposition: inline; filename="AMD.c"
-
-/*
-* Active Memory Defragmentation
-*/
-#include<linux/asap.h>
-
-#include"AMD.h"
-
-MODULE_LICENSE("GPL");
-
-/*
-* This is the order till which the block freed went
-* (for debugging)
-*/
-static int cnt_order;
-/*
-*This is the init module
-*/
-static int amd_init(void)
-{
-	int order = ORDER;
-        printk("\nModule: AMD loaded\n");
-#ifdef CALL_FROM_HERE
-	/*
-	 * Personally call the module
-	 */
-	defrag(order,zone_table[ZONE_NORMAL]);
-#else
-	/*
-	 * The buddy allocator calls the module just before fallback
-	 */
-	func_defrag = defrag;
-#endif
-        return 0;
-}
-
-/*
-* Userspace pages which are not file-backed as movable are considered.
-* The Page Flags needed to be set currently are PG_lru and PG_direct
-* The PG_active and PG_referenced are don't care
-* The page mappings must be NULL i.e it must not be file backed
-*/
-static int movable_page(struct page *page)
-{
-        unsigned long flags;
-        /*
-	 * mask the upper 12 flag bits (top 8 bits contain the zone no.)
-	 */
-	flags = page->flags & FLAG_MASK;
-	/*
-	 * See that page is not file backed & flags are as desired.
-	 * PG_lru , PG_direct (currently) must be set
-	 */
-	if(!page->mapping && (flags==0x10020 || flags==0x10024 || 
-flags==0x10060 || 
-flags==0x10064) && page_count(page))
-		return 1;
-	/*Page is not movable*/
-	return 0;
-
-}
-
-/*
-* This will update the PTEs to point to the new page.
-* This function sets the previous PTE entry to the new value.
-* "pte" is the PTE to be modified
-*/
-static void update_to_ptes(struct page *to)
-{
-	pte_t *pte = to->pte.direct;
-	pgprot_t pgprot;
-	/*
-	 * These give the protection bits
-	 * This code is not architecture independent
-	 */
-        pgprot.pgprot = (pte->pte_low) & (PAGE_SIZE-1);
-	/*
-	 * The physical address of the pte is changed to that of the new page
-	 */
-	set_pte_atomic(pte,mk_pte(to,pgprot));
-}
-
-/*
-* Frees the page pointed by 'page'
-*/
-static void free_allocated_page(struct page *page)
-{
-	unsigned long page_idx,index,mask,order = 0;
-	struct zone *zone = page_zone(page);
-	struct page *base = zone->zone_mem_map;
-	struct free_area *area = zone->free_area;
-	mask = ~0;
-
-	page_idx = page - base;
-
-	/*
-	 * The bitmap offset is given by index
-	 */
-	index = page_idx >> (1 + order);
-	cnt_order = 0;
-
-	while (mask + (1 << (MAX_ORDER-1))) {
-
-		struct page *buddy1, *buddy2;
-		if (!__test_and_change_bit(index, area->map)) {						/*
-			 * the buddy page is still allocated.
-			 */
-			break;
-		}
-
-		/*
-		 * Move the buddy up one level.
-		 * This code is taking advantage of the identity:
-		 * 	-mask = 1+~mask
-		 */
-		cnt_order++;
-		buddy1 = base + (page_idx ^ -mask);
-		buddy2 = base + page_idx;
-		list_del(&buddy1->list);
-		/* Mask for the immediate upper order*/
-		mask <<= 1;
-		area++;
-		/*Bit offset at level n is offset at level (n-1) >> 1 */
-		index >>= 1;
-		page_idx &= mask;
-	}
-	list_add(&(base + page_idx)->list, &area->free_list);
-}
-
-/*
-* Flush the cache and tlb entries corresponding to the pte for the
-* 'from' page
-* Flush the tlb entries corresponding to the given page and not the 
-whole
-* tlb.
-*/
-static void flush_from_caches(pte_addr_t paddr)
-{
-	pte_t *ptep = rmap_ptep_map(paddr);
-	unsigned long address = ptep_to_address(ptep);
-	struct mm_struct * mm = ptep_to_mm(ptep);
-	struct vm_area_struct * vma;
-
-	vma = find_vma(mm, address);
-	if (!vma) {
-		printk("\n Page vma is NULL");
-		return ;
-	}
-
-	/* The page is mlock()d, cannot swap it out. */
-	if (vma->vm_flags & VM_LOCKED) {
-		printk("\n Page is vmlocked");
-		return ;
-	}
-
-	/* Nuke the page table entry. */
-	flush_cache_page(vma, address);
-	flush_tlb_page(vma, address);
-}
-
-/*
-* This will update the "to" & "from" struct pages
-* The _to_ will become the exact replica of the _from_.
-*/
-static void update_struct_page(struct page *to,struct page *from,struct 
-zone 
-*zone)
-{
-	pte_addr_t pte_to_flush;
-
-	unsigned long flag;
-	/*
-	 * delete "to" from the order 0 free-list
-	 * If the to->private is 0 then remove it from the free_list
-	 * For higher order pages they were removed during the time of
-	 * selecting them for 'to_pages'.
-	 */
-	if(!to->private) {
-		list_del(&to->list);
-               	__change_bit((to - 
-zone->zone_mem_map)>>1,zone->free_area[0].map);
-	}
-	 /*
-	  * Assign all other members as it is
-	  */
-	*to = *from;
-
-	spin_lock_irqsave(&zone->lru_lock,flag);
-
-	/*
-	 * Add "to" to the LRU list
-	 * Remove "from" from the LRU lists
-	 */
-	list_add_tail(&to->lru,&from->lru);
-	list_del(&from->lru);
-	spin_unlock_irqrestore(&zone->lru_lock,flag);
-
-	/*
-	 * Now update the individual entries of "from"
-	 * Reset the flag dword for "from"
-	 * Set the no. of references to 0
-	 * In this case set the direct ptr to 0
-	 * (Currently `from pages' have direct bit set)
-	 */
-	from->flags &= ~FLAG_MASK;
-	set_page_count(from,0);
-	pte_to_flush = from->pte.direct;
-	from->pte.direct = NULL;
-
-	/*
-	 * Now return this page (which was previously allocated)
-	 * to the free-list.
-	 */
-	free_allocated_page(from);
-	update_to_ptes(to);
-	flush_from_caches(pte_to_flush);
-}
-/*
-* Traverse the free list of the given order
-* This is done once before calling defrag and again after defragmenting
-* It gives the the free pages in the _order_ in given _zone_
-*/
-static int traverse_free_list(int order,struct zone *zone)
-{
-	struct free_area *area = zone->free_area;
-	struct list_head *ele;
-	int cnt = 0;
-	list_for_each(ele,&area[order].free_list) {
-		cnt++;
-	}
-	return cnt;
-}
-
-/*
-* Perform the copying, updating and freeing here
-*/
-static void move_page(struct page *from,struct page *to,struct zone 
-*zone)
-{
-	copy_page(page_address(to),page_address(from));
-	update_struct_page(to,from,zone);
-}
-
-/*
-* In case sufficient no. of free pages (to) were not found, return all
-* the pages to buddy.
-* The pages have page->private corresponding to the order from whose 
-free_list
-* they were removed. Order 0 pages were not removed from the free_list.
-*/
-static void return_to_buddy(struct page **to_pages,struct zone 
-*zone,int 
-allocated)
-{
-	int count = 0;
-	struct free_area *area = zone->free_area;
-	struct page *base = zone->zone_mem_map;
-
-	while(count<allocated && to_pages[count]) {
-		struct page *page = to_pages[count];
-
-		/*
-		 * Return only higher order pages to buddy as order 0 pages
-		 * were not ACTUALLY allocated.
-		 */
-		if(page->private) {
-			list_add(&page->list,&area[page->private].free_list);
-			
-__change_bit((page-base)>>(1+page->private),area[page->private].map);
-			count += 1<<(page->private);
-		}
-		else
-			count++;
-	}
-}
-
-/*
-* Defrag & make a block of required order
-*/
-static int defrag(int failed_order,struct zone *zone)
-{
-	unsigned long flags;
-	int count,to_count,no_slots,ret_val;
-        struct page *from;
-        int cnt_before=0,cnt_after=0,ret=0,allocated=0;
-	unsigned long *alloc_bitmap;
-	struct page **to_pages;
-
-	printk("\n\n**** Entering AMD for order %d****\n",failed_order);
-	no_slots = ((1<<failed_order)*sizeof(struct page *));
-	to_pages = (struct page **)kmalloc(no_slots,GFP_KERNEL);
-	if(!to_pages){
-		printk("\n No MEM for to_pages");
-		return 0;
-	}
-	if(!(alloc_bitmap = (unsigned long 
-*)kmalloc(1<<(MAX_ORDER-4),GFP_KERNEL))){
-		printk("\n NO MEM FOR  alloc bitmap ");
-		kfree((void *)to_pages);
-		return 0;
-	}
-	for(count=0;count<(1<<failed_order);count++)
-		to_pages[count]=NULL;
-
-        spin_lock_irqsave(&zone->lock,flags);
-	cnt_before = traverse_free_list(failed_order,zone);
-	allocated = 0;
-
-	from = get_from_block(failed_order-1,zone,alloc_bitmap);
-
-	if(from) {
-		allocated = count_alloc_pages(failed_order,alloc_bitmap);
-		printk("\n Allocated = %d failed_order %d",allocated,failed_order);
-		ret = find_to_pages(failed_order,zone,from,allocated,to_pages);
-		if(!ret){
-			return_to_buddy(to_pages,zone,allocated);
-			printk("\n Didn't find to pages");
-			ret_val = 0;
-			goto bail_out;
-		}
-	} else {
-		ret_val = 0;
-		goto bail_out;
-	}
-
-	count = (1<<failed_order)-1;
-	to_count = allocated-1;
-	ret_val = 1;
-	while(count>=0) {
-		if(bit_test(count,alloc_bitmap)) {
-			move_page(from+count,to_pages[to_count--],zone);
-		}
-		count--;
-	}
-
-	cnt_after = traverse_free_list(failed_order ,zone);
-
-bail_out:
-	spin_unlock_irqrestore(&zone->lock,flags);
-	kfree((void *)to_pages);
-	kfree((void *)alloc_bitmap);
-	if(from && ret_val) {
-		printk ("\n The free in order %d before = %d and after = 
-%d",failed_order,cnt_before,cnt_after);
-		printk("\n The free page gone to order %d",cnt_order);
-	}
-	return ret_val;
-}
-
-static void amd_exit(void)
-{
-        printk("\n Module: AMD removed\n");
-#ifndef CALL_FROM_HERE
-	func_defrag = 0;
-#endif
-}
-module_init(amd_init);
-module_exit(amd_exit);
-
-/*
-* 
-*************************************************************************
-* ******************** TO PAGES 
-*******************************************
-* 
-*************************************************************************
-*/
-
-/*
-* order = order of failure
-* In the worst case all the pages in the _from_ block need to be moved
-* Total number of pages in the _from_ block is 1<<(order) where
-* order is the order of failure
-* This function is called once the from pages are found
-*/
-static int count_alloc_pages(int order,unsigned long *alloc_bitmap)
-{
-	int count =0;
-	int i;
-	printk("\n Alloc bitmap\n ");
-	for(i = 0;i < (1<<order);i++) {
-		if(bit_test(i,alloc_bitmap)){
-			printk("1");
-			count++;
-		}
-		else
-			printk("0");
-	}
-	return count;
-}
-
-/*
-* The bitmap of _order_ is set to 1 ,now find out which of the buddies 
-is 
-free
-* We have 2 options
-* 	a. Scan all the pages of a given buddy. If any one page is allocated
-* 	   then it is the allocated one. We return its buddy
-* 	b. Scan the free list of that order if the buddy is in the free list
-* 	   it is the free buddy else its buddy is the free one.
-* order is the order where the 1 was found in the bitmap at bit_offset
-* if order <= LINEAR_SCAN_THRESHOLD do 'a' else 'b'
-*/
-static struct page *get_free_buddy(int order,int bit_offset,struct zone 
-*zone)
-{
-	struct page *base = zone->zone_mem_map;
-	struct free_area *area = zone->free_area;
-	if(order <= LINEAR_SCAN_THRESHOLD) {
-		struct page *buddy1,*buddy2,*page;
-		int mask= (~0)<<order,count;
-		page = buddy1 = base + (bit_offset<<(order+1));
-		buddy2 = base + ((bit_offset<<(order+1))^(-mask));
-		count = 1<<order;
-		while(count--) {
-			if(page_count(page))
-				return buddy2;
-			else {
-				if(page_free(page))
-					page++;
-				else
-					return buddy2;
-			}
-		}
-		return buddy1;
-	} else {
-		/*
-                 * Find the free block using free list
-		 */
-	        struct list_head *ele;
-		struct page *buddy1,*buddy2;
-		int mask =  (~0)<<order;
-		/*
-	         * buddy1 and buddy2 are start pages for the two buddies
-	         */
-	        buddy1 = base + (bit_offset<<(order+1));
-	        buddy2 = base + ((bit_offset<<(order+1))^(-mask));
-		list_for_each(ele,&area[order].free_list) {
-			struct page *page = list_entry(ele,struct page,list);
-			if(buddy1 == page)
-				return buddy1;
-			else if(buddy2 == page)
-				return buddy2;
-		}
-	}
-	return	NULL;
-}
-
-/*
-* Split the block starting from 'free_buddy' of order _order_
-* so that the 'need' is satisfied.
-* "non_movable" & "movable" have to be the PRECISE indices where the 
-corr.
-* entries ended.
-*/
-static void split_block(int order,int *non_movable,int *movable,struct 
-page 
-*free_buddy,struct page**to_pages,struct zone *zone)
-{
-	int diff,diff_init,count;
-	struct page *base = zone->zone_mem_map;
-	struct page *temp;
-	/*
-	 * Delete the block from the free-list & toggle the bit.
-	 * This is done to bring the higher order block to order 0
-	 * Now see how many pages are needed and put the remaining blocks
-	 * in the appropriate free lists.
-	 */
-	list_del(&free_buddy->list);
-	__change_bit((free_buddy-base)>>(1+order),zone->free_area[order].map);
-
-	/*
-	 * a. 1<<order gives the total no of pages in the block of _order_
-	 * b. movable- (non_movable+1)-- the need
-	 * diff =  a - b  :: are the excess pages
-	 * if (diff >0)
-	 * 	free the access pages
-	 * Now the remaining pages are added to the to_pages array
-	 * The start page has the page->private member with the
-	 * order in whose free_list the block was
-	 */
-	diff_init = diff = (1<<order)-((*movable)-(*non_movable)-1);
-	while(diff>0) {
-		free_allocated_page(free_buddy+(1<<order)-diff);
-		diff--;
-	}
-	/*
-	 * Find the no. of spaces in to_pages to be filled
-	 */
-	if(diff_init<=0)
-		diff_init = (1<<order);
-	else
-		diff_init = (1<<order)-diff_init;
-
-	temp = free_buddy;
-	/*
-	 * Store the order in free_buddy->private
-	 * This variable is not used for elements in the free lists
-	 * Order 0 pages are removed from their free lists only when
-	 * a page in the _from_ block is copied in it.
-	 * For pages brought from higher order i.e split
-	 * put them back in the appropriate free lists if defrag not possible
-	 */
-	for(count=(*non_movable)+1;count<((*non_movable)+1+diff_init);count++) 
-{
-		temp->private = order;
-		to_pages[count] = temp++;
-	}
-	*non_movable += diff_init;
-}
-/*
-* Find 1's in higher order 'order' except forbidden 
-(start+no_forbidden_bits)
-* Try to get 'need' no of free pages and store page pointers in 
-to_pages
-*/
-static int get_to_pages_higher(int order,struct zone *zone,struct page 
-*start_page,int *non_movable,int *movable,struct page **to_pages,int 
-no_forbidden_bits)
-{
-	struct page *base = zone->zone_mem_map;
-	struct page *free_buddy;
-	/*
-	 * don't check these bits, since they represent _from_ block
-	 */
-	int forbidden_start = (start_page - base) >>(order + 1);
-	int num_bits = zone->present_pages>>(order+1);
-	int count = 0;
-	while(count<num_bits) {
-		if(count==forbidden_start) {
-			count += no_forbidden_bits;
-			continue;
-		}
-		if(bit_test(count,zone->free_area[order].map)) {
-			/*
-			 * a 1 is found, split it to get free order 0
-			 * pages so as to satisfy need
-			 */
-			free_buddy = get_free_buddy(order,count,zone);
-			split_block(order,non_movable,movable,free_buddy,to_pages,zone);
-			if( (*movable)==(*non_movable)+1)
-				return 0;
-		}
-		count++;
-	}
-	/*The need is returned*/
-	return ((*movable) - (*non_movable) - 1);
-}
-
-/*
-* Get the free pages from order 0 from where _from_ pages are to be 
-dumped
-* movable = allocated
-* non_movable = -1;
-* page->private = order for all pages selected from _order_
-* Non-movable moves fill array from left and movable from the right
-*/
-
-static void get_to_pages(struct zone *zone,struct page *start_page,int 
-allocated,struct page **to_pages,int *non_movable,int *movable,int 
-forbidden_bits)
-{
-	/*
-	 * This is the separate routine for scannig order-0  1's
-	 */
-	int num_bits = (zone->present_pages)>>1;
-	int count = 0;
-	struct page *base = zone->zone_mem_map;
-	int forbidden_zone_start = (start_page - base)>>1;
-	int mask = (~0);
-
-	*non_movable = -1;
-	*movable = allocated;
-
-	while(count<num_bits) {
-		/*
-		 * Skip the forbidden zone
-		 */
-		if(count==forbidden_zone_start)	{
-			count = count + forbidden_bits;
-			continue;
-		} else if(bit_test(count,zone->free_area[0].map)) {
-			struct page *buddy1 = base + (count<<1);
-			struct page *buddy2 = base + ((count<<1) ^ -mask);
-			if(page_count(buddy1)) {
-				buddy2->private = 0;
-				if(movable_page(buddy1))
-					to_pages[--(*movable)] = buddy2;
-				else
-					to_pages[++(*non_movable)] = buddy2;
-			} else if(page_count(buddy2)){
-				buddy1->private = 0;
-				if(movable_page(buddy2))
-					to_pages[--(*movable)] = buddy1;
-				else
-					to_pages[++(*non_movable)] = buddy1;
-			}
-			if( (*movable)==(*non_movable)+1)
-			{
-				printk("\n Alloc :%d Non_movable: %d  Movable: 
-%d",allocated,(*non_movable)+1,allocated - (*movable));
-				return;
-			}
-		}
-		count++;
-	}
-}
-
-/*
-* Find out free pages where 'from' is to be moved
-*  - allocated(no. of allocated pages) is counted and passed
-*  - called with order = 0
-*  - start_pages indicates start of forbidden block( 'from' block)
-*  - to_pages stores free page pointers
-*/
-
-static int find_to_pages(int failed_order,struct zone *zone,struct page 
-*start_page,int allocated,struct page **to_pages)
-{
-	int non_movable,movable;
-	int need = 0,order;
-	int no_forbidden_bits = 1<<(failed_order-1); //no of pages in 'from'
-	/*
-	 * get non-movable and movable 1's in order 0 bitmap
-	 * here need = (movable - non_movable - 1)
-	 * non_movable is offset where non-movable pointers end
-	 */
-	
-get_to_pages(zone,start_page,allocated,to_pages,&non_movable,&movable,no_forbidden_bits);
-	/*
-	 * keep finding free pages in higher orders until the need is 
-satisfied
-	 * or failure order is reached
-	 */
-	order = 1;
-	need = (movable - non_movable - 1);
-	printk("\n After order 0 need = %u\n",need);
-	while(need && order<failed_order) {
-		printk("\n Going to Order %d for to_pages need %d",order,need);
-		no_forbidden_bits>>=1;
-		need = 
-get_to_pages_higher(order++,zone,start_page,&non_movable,&movable,to_pages,no_forbidden_bits);
-	}
-	printk("\n Scanned upto order %d need = %d 
-failed_order=%d",order-1,need,failed_order);
-
-	if(!need)
-		return 1;	//successful
-	printk("\n NEED NOT MET !!!");
-	return 0;		//failed
-}
-
-/* 
-*************************************************************************
-* *********************** FROM PAGES 
-**************************************
-* 
-*************************************************************************
-*/
-
-/*
-* While finding _from_ pages only the allocated pages are to be moved
-* The allocated pages in the block to be moved are set in the bitmap at 
-their
-* corresponding offset from the start page of the block
-* */
-static void clear_bitmap(unsigned long *bitmap,int order)
-{
-	int i;
-	int cnt = (1<<(MAX_ORDER-4))/sizeof(unsigned long);
-	for(i=0;i<cnt;i++)
-		bitmap[i] = 0;
-
-}
-/*
-* The test bit of the kernel is for long and if unsigned long is to be
-*/
-static int bit_test(int nr,unsigned long *addr)
-{
-	int mask;
-	addr += nr >>5;
-	mask = 1<<(nr & 0x1f);
-	return ((*addr & mask) != 0);
-}
-
-/*
-* This is the first thing done for deframentation.
-* This is the function which does the job of identifying the
-* block which is to be moved to create a free block.
-* (order+1) is the order whose free block is not avaialable
-*/
-
-/*
-* Get the start page of the allocated block which can be moved
-* Here order+1 is the _order_ of the block to create(free)
-*
-* Find a 1 in the bitmap of order and find out whether the allocated
-* buddy is movable or not
-* alloc_bitmap: is the bitmap used to specify whether the page in the
-* 		 movable block is allocated(1) or free (0)
-* */
-static struct page * get_from_block(int order,struct zone 
-*zone,unsigned 
-long   *alloc_bitmap)
-{
-	struct page * start_page= NULL;
-	unsigned long *map = zone->free_area[order].map;
-	long bit_offset = 0,num_bits = zone->present_pages>>(order+1);
-	for(bit_offset=0;bit_offset<num_bits;bit_offset++){
-		clear_bitmap(alloc_bitmap,order+1);
-		if((bit_test(bit_offset,map)==1) && (start_page = 
-movable_block(bit_offset,order-1,zone,alloc_bitmap))) {
-			return start_page;
-		}
-	}
-	clear_bitmap(alloc_bitmap,order +1);
-	printk("\n Entering scan mem_map pages");
-	start_page = scan_mem_page(order+1,zone,alloc_bitmap);
-	if(!start_page){
-		printk("\n No movable block found of order %d",order+1);
-		return NULL;
-	}
-	printk("\n End of _from_ routine :: start page %x",(unsigned 
-int)start_page);
-	return start_page;
-}
-/*
-* Linearly scan the pages of a buddy given by start_page
-* The buddy is of order given by order
-* Finds out whether the 0 is movable in order = order
-* Return value (flag):
-* 0 = free
-* 1 = non-movable
-* 2 = don't scan next 0 of order,since this one is movable
-* */
-static int linear_scan_pages(struct page *page,struct page* 
-start_page,int 
-order,unsigned long *alloc_bitmap)
-{
-	int count = 1<<order,flag = 0;
-	while(count--)	{
-		if(page_count(page)){
-			/*
-			 * block is allocated
-			 */
-			flag = 2;
-			if(movable_page(page))
-				/*
-				 * Set the bit corresponding to this page
-				 * in alloc_bitmap
-				 */
-				set_bit(page-start_page,alloc_bitmap);
-			else
-				/*
-				 * page is non-movable
-				 */
-				  return 1;
-
-		}
-		else {
-			if(!page_free(page))
-				return 1;
-		}
-		page++;
-	}
-	/*
-	 * page is free/movable
-	 */
-	return flag;
-}
-/*
-* bit_offset: the offset of the 1 found in (order+1) bitmap
-* find out whether the 1 in order=order+1 results in a movable block
-* returns the start page of the block corresponding to the 1
-*/
-static struct page *movable_block(long bit_offset,int order,struct zone 
-*zone,unsigned long *alloc_bitmap)
-{
-	struct page *base = zone->zone_mem_map;
-	struct free_area *area = zone->free_area;
-	/*
-	 * start_page is the page correspong to the first page in the
-	 * buddy of the order whose shortage called above fn
-	 * hence order+2 is the order which is failed
-	 */
-	struct page *start_page = base + (bit_offset<<(order+2));
-	while(order>=0)	{
-		if(bit_test(bit_offset<<1,area[order].map)==1)
-			bit_offset <<= 1;
-		else {
-			if (bit_test((bit_offset<<1)+1,area[order].map)==1)
-				bit_offset = (bit_offset<<1)+1;
-			else
-				break;
-		}
-		order--;
-	}
-	printk("\n Last 1 in order %u ",order+1);
-	/*
-	 * here (order+1) gives us the order where the last 1 was found
-	 * and bit_offset gives us the offset of the last 1 in order+1
-	 */
-	if(order == -1)	{
-		/*
-		 * We are here : as a the block of order which is required
-		 * is split to satisfy an order 0 allocation
-		 * We now find which of the buddy is the allocated one
-		 */
-		struct page *buddy1,*buddy2;
-		int mask = (~0);
-		buddy1 = base + (bit_offset<<1);
-		buddy2 = base + ((bit_offset<<1)^(-mask));
-
-		if(page_count(buddy1)) {
-			if(movable_page(buddy1)) {
-				set_bit(buddy1-start_page,alloc_bitmap);
-				return start_page;
-			}
-		} else if(page_count(buddy2)){
-			if(movable_page(buddy2)) {
-				set_bit(buddy2-start_page,alloc_bitmap);
-				return start_page;
-			}
-		}
-		/*
-		 * The order 0 allocation is for a non-movable page
-		 */
-		return NULL;
-	}
-	/*
-	 * (order+1)bitmap has 0's as its children in _order_
-	 * scan the 0's of order to find the allocated & movable blocks
-	 */
-	if(order < LINEAR_SCAN_THRESHOLD) {
-		/*
-		 * bit at bit_offset in order+1 map is a 1
-		 */
-		struct page *buddy1,*buddy2;
-		int mask;
-		/*
-		 * current order = order of two 0s
-		 * go to order = order where 1 is found
-		 */
-		order++;
-		mask= (~0)<<order;
-		buddy1 = base + (bit_offset<<(order+1));
-		switch(linear_scan_pages(buddy1,start_page,order,alloc_bitmap)) {
-		case 0:
-			/*
-			 * scan second 0,since first one is free
-			 */
-			buddy2 = base + (bit_offset<<(order+1)^(-mask));
-			if(linear_scan_pages(buddy2,start_page,order,alloc_bitmap)==2) {
-				/*
-				 * this block is movable,so return start page
-				 */
-				return start_page;
-			} else {
-				/*
-				 * second 0 is non-movable,return failure
-				 */
-				return NULL;
-			}
-			break;
-		case 2:	/*
-			 * first 0 is movable,
-			 */
-			return start_page;
-
-		case 1:
-			/*
-			 * first 0 is non-movable,so return failure
-			 */
-			return NULL;
-		}
-	} else {
-		/*
-		 * Find the free block by scanning free list of order = order+1
-		 */
-		struct list_head *ele;
-		struct page *buddy1,*buddy2;
-		int mask;
-		/*
-		 * current order = order of two 0s
-		 * go to order = order where 1 is found
-		 */
-		order++;
-	       	mask= (~0)<<order;
-		/*
-		 * buddy1 and buddy2 are start pages for the two 0's
-		 */
-		buddy1 = base + (bit_offset<<(order+1));
-		buddy2 = base + ((bit_offset<<(order+1))^(-mask));
-		list_for_each(ele,&area[order].free_list) {
-			struct page *page = list_entry(ele,struct page,list);
-			if(buddy1 == page) {
-			/*
-			 * buddy1 is free
-			 */
-				if(linear_scan_pages(buddy2,start_page,order,alloc_bitmap) == 1)
-					return NULL;//buddy2 non-movable
-				return start_page;
-
-			}
-			else if(buddy2 == page){
-			/*
-			 * buddy2 is free
-			 */
-			if(linear_scan_pages(buddy1,start_page,order,alloc_bitmap) == 1)
-				return NULL;//buddy1 non-movable
-			return start_page;
-			}
-		}
-	}
-	return NULL;
-}
-
-
-/*
-* Checks if a page is really free
-* All pages having page count = 0 are free EXCEPT pcp pages which are
-* semi-free, they have page count 0 and are not on free lists
-* Check whether the page is on hot or cold pcp lists
-* If its found on the pcp lists then its treated as non-movable 
-currently
-*/
-static int page_free(struct page *page)
-{
-	struct zone *zone = page_zone(page);
-
-	struct per_cpu_pages *pcp = &zone->pageset[0].pcp[0];
-	unsigned long flags;
-	struct list_head *ele;
-	struct page *temp;
-
-	if(!page_count(page) && !PageCompound(page)&& !page->mapping ) {
-		local_irq_save(flags);
-		/*
-		 * Currently the only way of finding whether a page is in
-		 * pcp lists is to scan the pcp lists
-		 */
-		list_for_each(ele,&pcp->list){
-			temp = list_entry(ele,struct page,list);
-			if(temp==page) {
-				local_irq_restore(flags);
-				return 0;
-			}
-		}
-		pcp = &zone->pageset[0].pcp[1];
-		list_for_each(ele,&pcp->list) {
-			temp = list_entry(ele,struct page,list);
-			if(temp==page) {
-				local_irq_restore(flags);
-				return 0;
-			}
-
-		}
-		local_irq_restore(flags);
-		/*
-		 * page is not in pcp lists and thus is free
-		 */
-		return 1;
-	}
-	return 0;
-}
-
-/*
-* Linearly scan the pages in memory for movable buddies
-* of order failed_order.
-* The scanning is done for each of the buddies of the failed order in 
-the
-* memory. If all the pages of the buddy can be moved then it is 
-selected
-* For all the allocated pages their corresponding bit in the 
-_alloc_bitmap_
-* are set to identify the pages whose content are to be copied
-*/
-static struct page * scan_mem_page(int order,struct zone * 
-zone,unsigned 
-long   *alloc_bitmap)
-{
-	int pages_per_block = (1<<order),page_no,cnt,flag,mov_cnt;
-	struct page *start_page = zone->zone_mem_map,*page_in_block;
-	page_no = 0;
-	mov_cnt =0;
-
-	while(page_no<zone->present_pages) {
-		page_in_block = start_page;
-		cnt = 0;
-		flag = 0;
-		mov_cnt=0;
-		while(cnt<pages_per_block &&((flag=movable_page(page_in_block)) || 
-page_free(page_in_block))) {
-			if(flag){
-				set_bit(page_in_block-start_page,alloc_bitmap);
-				mov_cnt=1;
-			}
-			page_in_block++;
-			cnt++;
-		}
-		if(cnt==pages_per_block && mov_cnt)
-			return start_page;
-		clear_bitmap(alloc_bitmap,order);
-		start_page +=pages_per_block;
-		page_no = page_no + pages_per_block;
-	}
-	/* After the scan of buddies in the memory no movable buddy of the
-	 * failed order are found
-	 */
-	return NULL;
-}
-
-
-
-
---0-1481059508-1075783611=:47661
-Content-Type: text/plain; name="AMD.h"
-Content-Description: AMD.h
-Content-Disposition: inline; filename="AMD.h"
-
-#ifndef AMD_DEFRAG_H
-#define AMD_DEFRAG_H
-
-#include<linux/module.h>
-#include<linux/init.h>
-#include<linux/mmzone.h>
-#include<linux/mm.h>
-#include<asm/page.h>
-#include<linux/string.h>
-#include<linux/list.h>
-#include<linux/preempt.h>
-#include<linux/page-flags.h>
-#include<asm/rmap.h>
-#include<linux/slab.h>
-#include<linux/vmalloc.h>
-#include<linux/slab.h>
-#include<asm/tlbflush.h>
-#include<asm/cacheflush.h>
-#include<asm/bitops.h>
-
-#define LINEAR_SCAN_THRESHOLD ((MAX_ORDER>>1)-1)
-
-#define FLAG_MASK 0x000fffff
-#define MAX_SIZE (1<<MAX_ORDER)
-#define CALL_FROM_HERE
-
-#define ORDER 1
-
-
-
-/*
-* header for main module
-* */
-static int amd_init(void);
-static void amd_exit(void);
-static int movable_page(struct page *page);
-static void update_to_ptes(struct page *to);
-static void free_allocated_page(struct page *page);
-static void flush_from_caches(pte_addr_t paddr);
-static void update_struct_page(struct page *to,struct page *from,struct 
-zone 
-*zone);
-static int defrag(int order,struct zone *zone);
-static int traverse_free_list(int order,struct zone *zone);
-static void move_page(struct page *from,struct page *to,struct zone 
-*zone);
-static int page_free(struct page *page);
-
-/*
-* header for to_pages
-* */
-static int count_alloc_pages(int order,unsigned long *alloc_bitmap);
-
-static struct page *get_free_buddy(int order,int bit_offset,struct zone 
-*zone);
-
-static void split_block(int order,int *non_movable,int *movable,struct 
-page 
-*free_buddy,struct page**to_pages,struct zone *zone);
-
-static int get_to_pages_higher(int order,struct zone *zone,struct page 
-*start_page,int *non_movable,int *movable,struct page **to_pages,int 
-no_forbidden_bits);
-
-static void get_to_pages(struct zone *zone,struct page *start_page,int 
-allocated,struct page **to_pages,int *non_movable,int *movable,int 
-forbidden_bits);
-
-static int find_to_pages(int failed_order,struct zone *zone,struct page 
-*start_page,int allocated,struct page **to_pages);
-
-/*
-* header for from_pages
-* */
-static struct page *get_from_block(int order,struct zone *zone,unsigned 
-long 
-*alloc_bitmap);
-
-static int linear_scan_pages(struct page *page,struct page* 
-start_page,int 
-order,unsigned long *alloc_bitmap);
-
-static struct page *movable_block(long bit_offset,int order,struct zone 
-*zone,unsigned long *alloc_bitmap);
-
-static struct page *scan_mem_page(int order,struct zone * zone,unsigned 
-long 
-*alloc_bitmap);
-
-static void clear_bitmap(unsigned long *bitmap,int order);
-
-static int bit_test(int nr,unsigned long *addr);
-
-#endif
-
-
-
---0-1481059508-1075783611=:47661--
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.2-rc3/2.6.2-rc3-mm1/
+
+
+- There is a debug patch in here which detects when someone calls
+  i_size_write() without holding the inode's i_sem.  It generates a warning
+  and a stack backtrace.  We know that XFS generates such a trace.  It will
+  turn itself off after the first ten warnings.  Please don't report the XFS
+  case.
+
+- Added the CPU hotplug code.
+
+- This kernel is currently broken on ppc64.  Something to do with the
+  sched-domains patch although at this stage we do not know whether the
+  problem lies with that patch or with the ppc64 code.
+
+- A big Altix update
+
+- Latest versions of various other developers' trees.  See below for
+  details.
+
+- Various other fixes
+
+
+
+Changes since 2.6.2-rc2-mm2:
+
+
+ linus.patch
+
+ Latest Linus tree
+
+ bk-alsa.patch
+
+ Latest ALSA tree
+
+ bk-netdev.patch
+
+ Latest experimental netdev tree
+
+ bk-input.patch
+
+ Latest input tree
+
+ bk-acpi.patch
+
+ Latest ACPI tree
+
+ bk-usb.patch
+
+ Latest USB tree
+
+ bk-pci.patch
+
+ Latest PCI tree
+
+ bk-i2c.patch
+
+ Latest i2c tree
+
+ bk-driver-core.patch
+
+ Latest sysfs/driver core tree
+
+-bk-xfs.patch
+-ppc32-MBX-mac-address-fix.patch
+-ppc32-watchdog-defines-fixes.patch
+-ppc64-include_guards.patch
+-ppc64-lparcfg_write.patch
+-ppc64-no_device_tree.patch
+-ppc64-ppc32_timer_create.patch
+-ppc64-defconfig_update.patch
+-ppc64-use-preferred-console.patch
+-ppc64-config_h.patch
+-ppc64-export_symbols.patch
+-ppc64-lparcfg_fixes.patch
+-ppc64-slb_rewrite.patch
+-ppc64-xmon-sysrq.patch
+-ppc64-hugepage-cleanups.patch
+-ide-pci-modules-fix.patch
+-fix-improve-modular-ide.patch
+-ide-pdc4030-build-fix.patch
+-ppc32-ide-build-fix.patch
+-s390-general-update.patch
+-s390-inline-assembly-constraints.patch
+-s390-sclp-fixes.patch
+
+ Merged
+
++input-2wheel-mouse-fix.patch
+
+ Mouse fix
+
++acpi-NR_IRQ_VECTORS-build-fix.patch
+
+ ACPI build fix (redundant, I think)
+
++ppc64-__ste_allocate-cleanup.patch
+
+ PPC64 cleanup
+
++get_user_pages-restore-protections.patch
++get_user_pages-restore-protections-fix.patch
+
+ Fix interaction between ptrace and MM (probably this will be implemented
+ differently)
+
+-acpi-numa-printk-level-fixes.patch
+
+ Merged into the ACPI patch
+
++kthread_stop-race-fix.patch
+
+ Fix a race in the kthread code.
+
++bitmap-avoid-alloca.patch
+
+ Avoid variable-sized local arrays in the bitmap code.
+
++cpuhotplug-01-cpu_active_map.patch
++cpuhotplug-02-drain_local_pages.patch
++cpuhotplug-03-core.patch
++cpuhotplug-up-fixes.patch
++set_cpus_allowed-fix.patch
++cpuhotplug-04-x86-support.patch
++cpuhotplug-x86-up-fixes.patch
+
+ CPU hotplug code.
+
+-increase-NGROUPS-cleanup.patch
+
+ Folded into increase-NGROUPS.patch
+
++increase-NGROUPS-nfsd-cleanup.patch
+
+ Fix a few things with nfsd.
+
++CDROMREADAUDIO-frames-fix.patch
+
+ CDROM audio fix
+
++unneeded-dentry-assignment.patch
+
+ Kill already-dead code
+
++export-cpu_2_node.patch
+
+ NUMA compile fix
+
++remove-kmalloc_percpu_init.patch
+
+ Dead code
+
++i_size_write-check.patch
+
+ Check for people calling i_size_write() without i_sem.
+
++sysfs_symlink-needs-i_sem.patch
+
+ Take i_sem during sysfs_symlink()
+
++bd_set_size-i_size-fix.patch
+
+ Don't use i_size_write() in here at all
+
++nfs-d_drop-lowmem.patch
+
+ Handle OOM in nfs
+
++ppp-allocation-fix.patch
+
+ Try harder with 4-order allocation in ppp deflate initialisation.
+
++initramfs-kinit_command.patch
+
+ Try to launch /sbin/init if it came in via the initramfs cpio archive.
+
++access-permissions-fix.patch
+
+ Make access() mode posixly correct.
+
++neofb-warning-fix.patch
+
+ Fix a warning.
+
++snprintf-commentary.patch
+
+ Add some comments.
+
++snprintf-fixes.patch
+
+ Add new funtions scnprintf() and vscnprintf() which actually do have the
+ return semantics which the rest of the kernel though snprintf() and
+ vsnprintf() had, then migrate the kernel over to using them.
+
++devfs-race-fix-cleanup.patch
+
+ Fix a devfs race, clean some things up.
+
++gate_vma-fixes.patch
+
+ Fix the "gate" pseudo-vma code again.
+
++istallion-compile-fix.patch
++moxa-serial-compile-fix.patch
++specialix-compile-fix.patch
++hisax-compile-fix.patch
++dvb-compile-fix.patch
++selinux-compile-fix.patch
+
+ Compile fixes for CONFIG_PCI=n
+
++coredump-memleak-fix.patch
+
+ Fix a memleak in the ELF coredump code
+
++x86_64-boot-fix.patch
+
+ Make x86_64 boot with CONFIG_DEBUG_INFO
+
++O_DIRECT-race-fixes-rollup-use-f_mapping.patch
+
+ Use file->f_mapping, not file->f_dentry->d_inode->i_mapping
+
+
+
+
+
+All 437 patches:
+
+
+linus.patch
+
+bk-alsa.patch
+
+bk-netdev.patch
+
+bk-input.patch
+
+bk-acpi.patch
+
+bk-usb.patch
+
+bk-pci.patch
+
+bk-i2c.patch
+
+bk-driver-core.patch
+
+mm.patch
+  add -mmN to EXTRAVERSION
+
+speedo-warning-fix.patch
+  eepro100.c warning fix
+
+input-2wheel-mouse-fix.patch
+  input: 2-wheel mouse fix
+
+acpi-NR_IRQ_VECTORS-build-fix.patch
+
+kgdb-ga.patch
+  kgdb stub for ia32 (George Anzinger's one)
+  kgdbL warning fix
+  kgdb buffer overflow fix
+  kgdbL warning fix
+  kgdb: CONFIG_DEBUG_INFO fix
+  x86_64 fixes
+
+kgdb-doc-fix.patch
+  correct kgdb.txt Documentation link (against  2.6.1-rc1-mm2)
+
+kgdboe-netpoll.patch
+  kgdb-over-ethernet via netpoll
+
+kgdboe-non-ia32-build-fix.patch
+
+kgdb-warning-fixes.patch
+  kgdb warning fixes
+
+kgdb-x86_64-support.patch
+  kgdb-x86_64-support.patch for 2.6.2-rc1-mm3
+
+big-pmac-3.patch
+
+must-fix.patch
+  must fix lists update
+  must fix list update
+  mustfix update
+
+must-fix-update-5.patch
+  must-fix update
+
+psmouse-drop-timed-out-bytes.patch
+  psmouse: log and discard timed out bytes
+
+ppc64-__ste_allocate-cleanup.patch
+  Remove useless argument from __ste_allocate()
+
+ppc64-bar-0-fix.patch
+  Allow PCI BARs that start at 0
+
+ppc64-reloc_hide.patch
+
+nuke-noisy-printks.patch
+  quiet down SMP boot messages
+
+invalidate_inodes-speedup.patch
+  invalidate_inodes speedup
+  more invalidate_inodes speedup fixes
+
+cfq-4.patch
+  CFQ io scheduler
+  CFQ fixes
+
+config_spinline.patch
+  uninline spinlocks for profiling accuracy.
+
+ramdisk-cleanup.patch
+
+intel8x0-cleanup.patch
+  intel8x0 cleanups
+
+pdflush-diag.patch
+
+zap_page_range-debug.patch
+  zap_page_range() debug
+
+get_user_pages-restore-protections.patch
+  restore protections after forced fault in get_user_pages
+
+get_user_pages-restore-protections-fix.patch
+
+get_user_pages-handle-VM_IO.patch
+
+support-zillions-of-scsi-disks.patch
+  support many SCSI disks
+
+pci_set_power_state-might-sleep.patch
+
+CONFIG_STANDALONE-default-to-n.patch
+  Make CONFIG_STANDALONE default to N
+
+extra-buffer-diags.patch
+
+CONFIG_SYSFS.patch
+  From: Pat Mochel <mochel@osdl.org>
+  Subject: [PATCH] Add CONFIG_SYSFS
+
+CONFIG_SYSFS-boot-from-disk-fix.patch
+
+slab-leak-detector.patch
+  slab leak detector
+
+loop-remove-blkdev-special-case.patch
+
+loop-highmem.patch
+  remove useless highmem bounce from loop/cryptoloop
+
+loop-bio-handling-fix.patch
+  loop: BIO handling fix
+
+loop-init-fix.patch
+  loop.c doesn't fail init gracefully
+
+loop-remove-redundant-assignment.patch
+  loop: remove redundant initialisation
+
+acpi-pm-timer-3.patch
+  ACPI PM timer version 3
+
+acpi-pm-timer-kill-printks.patch
+
+use-TSC-for-delay_pmtmr-2.patch
+  Use TSC for delay_pmtmr()
+
+scale-nr_requests.patch
+  scale nr_requests with TCQ depth
+
+truncate_inode_pages-check.patch
+
+local_bh_enable-warning-fix.patch
+
+pnp-8250_pnp-fix.patch
+  Fix oops due to 8250_pnp module unload
+
+pnp-resource-flags-reorganisation.patch
+  pnp: resource flag reorganisation
+
+pnp-BIOS-workaround.patch
+  PNP: work around BIOS device disabling bugs
+
+pnp-avoid-static-allocations.patch
+  pnp: avoid static resource allocation requests
+
+pnp-move-ID-declarations.patch
+  pnp: move device ID declarations
+
+pnp-file2alias-update.patch
+  pnp: file2alias update
+
+pnp-update-matching-code.patch
+  pnp: update matching code
+
+pnp-additional-sysfs-info.patch
+  pnp: add additional sysfs info
+
+pnp-config-cleanup.patch
+  pnp: Kconfig cleanup
+
+sched-find_busiest_node-resolution-fix.patch
+  sched: improved resolution in find_busiest_node
+
+sched-domains.patch
+  sched: scheduler domain support
+
+sched-clock-fixes.patch
+  fix sched_clock()
+
+sched-build-fix.patch
+  sched: fix for NR_CPUS > BITS_PER_LONG
+
+sched-sibling-map-to-cpumask.patch
+  sched: cpu_sibling_map to cpu_mask
+
+p4-clockmod-sibling-map-fix.patch
+  p4-clockmod sibling_map fix
+
+p4-clockmod-more-than-two-siblings.patch
+  p4-clockmod: handle more than two siblings
+
+sched-domains-i386-ht.patch
+  sched: implement domains for i386 HT
+
+sched-find_busiest_group-fix.patch
+  sched: Fix CONFIG_SMT oops on UP
+
+sched-domain-tweak.patch
+  i386-sched-domain code consolidation
+
+sched-no-drop-balance.patch
+  sched: handle inter-CPU jiffies skew
+
+sched-arch_init_sched_domains-fix.patch
+  Change arch_init_sched_domains to use cpu_online_map
+
+sched-find_busiest_group-clarification.patch
+  sched: clarify find_busiest_group
+
+sched-remove-noisy-printks.patch
+
+sched-directed-migration.patch
+  sched_balance_exec(): don't fiddle with the cpus_allowed mask
+
+sched-domain-debugging.patch
+  sched_domain debugging
+
+ide-siimage-seagate.patch
+
+ide-ali-UDMA6-support.patch
+  IDE: Add support of UDMA6 on ALi rev > 0xc4
+
+fa311-mac-address-fix.patch
+  wrong mac address with netgear FA311 ethernet card
+
+laptop-mode-2.patch
+  laptop-mode for 2.6, version 6
+  Documentation/laptop-mode.txt
+  laptop-mode documentation updates
+
+laptop-mode-doc-update-4.patch
+  Laptop mode documentation addition
+
+vt-locking-fixes-2.patch
+  VT locking fixes
+
+pid_max-fix.patch
+  Bug when setting pid_max > 32k
+
+use-soft-float.patch
+  Use -msoft-float
+
+DRM-cvs-update.patch
+  DRM cvs update
+
+drm-include-fix.patch
+
+lock_cpu_hotplug-fixes.patch
+  ock_cpu_hotplug only if CONFIG_CPU_HOTPLUG
+
+kthread-primitive.patch
+  kthread primitive
+
+kthread_stop-race-fix.patch
+  Fix race in kthread_stop
+
+kthread-block-all-signals.patch
+  kthread: block all signals
+
+use-kthread-primitives.patch
+  Use kthread primitives
+
+module-removal-use-kthread.patch
+  Module removal to use kthread
+
+kthread-affinity-fix.patch
+  Affinity of kthread fix
+
+call_usermodehelper-affinity-fix.patch
+  Affinity of call_usermode_helper fix
+
+limit-hash-table-sizes.patch
+  Limit hash table size
+
+slab-poison-hex-dumping.patch
+  slab: hexdump for check_poison
+
+pentium-m-support.patch
+  add Pentium M and Pentium-4 M options
+
+old-gcc-supports-k6.patch
+  gcc 2.95 supports -march=k6 (no need for check_gcc)
+
+amd-elan-is-a-different-subarch.patch
+  AMD Elan is a different subarch
+
+better-i386-cpu-selection.patch
+  better i386 CPU selection
+
+cpu-options-default-to-y.patch
+  cpu options default to "yes"
+
+i386-default-to-n.patch
+
+serial-02-fixups.patch
+  serial fixups (untested)
+  serial-02 fixes
+  serial-02 fixes
+
+serial-03-fixups.patch
+  more serial driver fixups
+  serial-03 fixes
+  serial-03 fixes
+
+ia32-MSI-vector-handling-fix.patch
+  ia32 MSI vector handling fix
+
+aha152x-update.patch
+  aha152x update
+
+aha152x-update-fix.patch
+  aha152x update fix
+
+PP0-full_list-RC1.patch
+  parport fixes [1/5]
+
+PP1-parport_locking-RC1.patch
+  parport fixes [2/5]
+
+PP2-enumerate1-RC1.patch
+  parport fixes [3/5]
+
+PP2-enumerate1-RC1-fix.patch
+
+PP3-parport_gsc-RC1.patch
+  parport fixes [4/5]
+
+PP4-bwqcam-RC1.patch
+  parport fixes [5/5]
+
+bw-qcam-typo-fix.patch
+  bw-qcam typo fix
+
+PP5-daisy-RC1.patch
+  parport fixes [2/5]
+
+PI0-schedule_claimed-RC1.patch
+  paride cleanups and fixes [1/24]
+
+PI1-expansion-RC1.patch
+  paride cleanups and fixes [2/24]
+
+PI2-crapectomy-RC1.patch
+  paride cleanups and fixes [3/24]
+
+PI3-ps_ready-RC1.patch
+  paride cleanups and fixes [4/24]
+
+PI4-pd_busy-RC1.patch
+  paride cleanups and fixes [5/24]
+
+PI5-do_pd_io-RC1.patch
+  paride cleanups and fixes [6/24]
+
+PI6-bogus_requests-RC1.patch
+  paride cleanups and fixes [7/24]
+
+PI7-claim_reorder-RC1.patch
+  paride cleanups and fixes [8/24]
+
+PI8-do_pd_request1-RC1.patch
+  paride cleanups and fixes [9/24]
+
+PI9-run_fsm-RC1.patch
+  paride cleanups and fixes [10/24]
+
+PI10-action-RC1.patch
+  paride cleanups and fixes [2/24]
+
+PI11-disconnect-RC1.patch
+  paride cleanups and fixes [12/24]
+
+PI12-unclaim-RC1.patch
+  paride cleanups and fixes [13/24]
+
+PI13-run_fsm-loop-RC1.patch
+  paride cleanups and fixes [14/24]
+
+PI14-next_request-RC1.patch
+  paride cleanups and fixes [15/24]
+
+PI15-do_pd_io-gone-RC1.patch
+  paride cleanups and fixes [16/24]
+
+PI16-pd_claimed-RC1.patch
+  paride cleanups and fixes [17/24]
+
+PI17-connect-RC1.patch
+  paride cleanups and fixes [18/24]
+
+PI18-reorder-RC1.patch
+  paride cleanups and fixes [19/24]
+
+PI19-special1-RC1.patch
+  paride cleanups and fixes [20/24]
+
+PI20-gendisk_setup-RC1.patch
+  paride cleanups and fixes [21/24]
+
+PI21-present-RC1.patch
+  paride cleanups and fixes [22/24]
+
+PI22-pd_init_units-RC1.patch
+  paride cleanups and fixes [23/24]
+
+PI23-special2-RC1.patch
+  paride cleanups and fixes [24/24]
+
+PI24-paride64-RC1.patch
+  paride cleanups and fixes [25/24]
+
+IMM0-lindent-RC1.patch
+  drivers/scsi/imm.c cleanups and fixes [1/8]
+
+IMM1-references-RC1.patch
+  drivers/scsi/imm.c cleanups and fixes [2/8]
+
+IMM2-claim-RC1.patch
+  drivers/scsi/imm.c cleanups and fixes [3/8]
+
+IMM3-scsi_module-RC1.patch
+  drivers/scsi/imm.c cleanups and fixes [4/8]
+
+IMM4-imm_probe-RC1.patch
+  drivers/scsi/imm.c cleanups and fixes [5/8]
+
+IMM5-imm_wakeup-RC1.patch
+  drivers/scsi/imm.c cleanups and fixes [6/8]
+
+IMM6-imm_hostdata-RC1.patch
+  drivers/scsi/imm.c cleanups and fixes [7/8]
+
+IMM7-imm_attach-RC1.patch
+  drivers/scsi/imm.c cleanups and fixes [8/8]
+
+PPA0-ppa_lindent-RC1.patch
+  drivers/scsi/ppa.c cleanups and fixes [1/9]
+
+PPA1-ppa_references-RC1.patch
+  drivers/scsi/ppa.c cleanups and fixes [2/9]
+
+PPA2-ppa_claim-RC1.patch
+  drivers/scsi/ppa.c cleanups and fixes [3/9]
+
+PPA3-ppa_scsi_module-RC1.patch
+  drivers/scsi/ppa.c cleanups and fixes [4/9]
+
+PPA4-ppa_probe-RC1.patch
+  drivers/scsi/ppa.c cleanups and fixes [5/9]
+
+PPA5-ppa_wakeup-RC1.patch
+  drivers/scsi/ppa.c cleanups and fixes [6/9]
+
+PPA6-ppa_hostdata-RC1.patch
+  drivers/scsi/ppa.c cleanups and fixes [7/9]
+
+PPA7-ppa_attach-RC1.patch
+  drivers/scsi/ppa.c cleanups and fixes [8/9]
+
+PPA8-ppa_lock_fix-RC1.patch
+  drivers/scsi/ppa.c cleanups and fixes [9/9]
+
+nfs-01-rpc_pipe_timeout.patch
+  NFSv4/RPCSEC_GSS: userland upcall timeouts
+
+nfs-02-auth_gss.patch
+  RPCSEC_GSS: More fixes to the upcall mechanism.
+
+nfs-03-pipe_close.patch
+  RPCSEC_GSS: detect daemon death
+
+nfs-04-fix_nfs4client.patch
+  NFSv4: oops fix
+
+nfs-05-fix_idmap.patch
+  NFSv4: client name fixes
+
+nfs-06-fix_idmap2.patch
+  NFSv4: Bugfixes and cleanups client name to uid mapper.
+
+nfs-07-gss_krb5.patch
+  RPCSEC_GSS: Make it safe to share crypto tfms among multiple threads.
+
+nfs-08-gss_missingkfree.patch
+  RPCSEC_GSS: Oops. Major memory leak here.
+
+nfs-09-memleaks.patch
+  RPCSEC_GSS: Fix two more memory leaks found by the stanford checker.
+
+nfs-10-refleaks.patch
+  RPCSEC_GSS: Fix yet more memory leaks.
+
+nfs-11-krb5_cleanup.patch
+  RPCSEC_GSS: krb5 cleanups
+
+nfs-12-gss_nokmalloc.patch
+  RPCSEC_GSS: memory allocation fixes
+
+nfs-13-krb5_integ.patch
+  RPCSEC_GSS: Client-side only support for rpcsec_gss integrity protection.
+
+nfs-14-clnt_seqno_to_req.patch
+  RPCSEC_GSS: gss sequence number history fixes
+
+nfs-15-encode_pages_tail.patch
+  XDR: page encoding fix
+
+nfs-16-rpc_clones.patch
+  RPC: transport sharing
+
+nfs-17-rpc_clone2.patch
+  NFSv4/RPCSEC_GSS: use RPC cloning
+
+nfs-18-renew_xdr.patch
+  NFSv4: make RENEW a standalone RPC call
+
+nfs-19-renewd.patch
+  NFSv4: make lease renewal daemon per-server
+
+nfs-20-fsinfo_xdr.patch
+  NFSv4: Split the code for retrieving static server information out of the GETATTR compound.
+
+nfs-21-setclientid_xdr.patch
+  NFSv4: Make SETCLIENTID and SETCLIENTID_CONFIRM standalone operations
+
+nfs-22-errno.patch
+  NFSv4: errno fixes
+
+nfs-23-open_reclaim.patch
+  NFSv4: Preparation for the server reboot recovery code.
+
+nfs-24-state_recovery.patch
+  NFSv4: Basic code for recovering file OPEN state after a server reboot.
+
+nfs-25-soft.patch
+  RPC/NFSv4: Allow lease RENEW calls to be soft
+
+nfs-26-sock_disconnect.patch
+  RPC: TCP timeout fixes
+
+nfs-27-atomic_open.patch
+  NFSv4: Atomic open()
+
+nfs-28-open_owner.patch
+  NFSv4: Share open_owner structs
+
+nfs-29-fix_idmap3.patch
+  NFSv4: fix multi-partition mount oops
+
+nfs_idmap-warning-fix.patch
+
+nfs-30-lock.patch
+  NFSv4: Add support for POSIX file locking.
+
+nfs-old-gcc-fix.patch
+  NFS: fix for older gcc's
+
+nfs-31-attr.patch
+  NFSv2/v3/v4: New attribute revalidation code
+
+ghash.patch
+  ghash.h from 2.4
+
+tty_io-uml-fix.patch
+  uml: make tty_init callable from UML functions
+
+uml-update.patch
+  UML update
+
+blk_congestion_wait-return-remaining.patch
+  return remaining jiffies from blk_congestion_wait()
+
+vmscan-remove-priority.patch
+  mm/vmscan.c: remove unused priority argument.
+
+kswapd-throttling-fixes.patch
+  kswapd throttling fixes
+
+vm-rss-limit-enforcement.patch
+  RSS limit enforcement for 2.6
+
+kbuild-unmangle-include-options.patch
+  kbuild: Unmangle include options for gcc
+
+sunrpc-sleep_on-removal.patch
+  remove sleep_on from sunrpc
+
+sisfb-update.patch
+  sisfb update
+
+add-config-for-mregparm-3-ng.patch
+  Add CONFIG for -mregparm=3
+
+add-config-for-mregparm-3-ng-fixes.patch
+  arch/i386/Makefile,scripts/gcc-version.sh,Makefile small fixes
+
+use-funit-at-a-time.patch
+  Use -funit-at-a-time on ia32
+
+add-noinline-attribute.patch
+  Add noinline attribute
+
+dont-inline-rest_init.patch
+  use noinline for rest_init()
+
+kernel_thread_helper-section-fix.patch
+  Force kernel_thread_helper() into .text
+
+fix-more-gcc-34-warnings.patch
+  Fix more gcc 3.4 warnings
+
+gcc-35-netlink.patch
+  gcc-3.5: netlink
+
+gcc-35-packet.patch
+  gcc-3.5: af_packet
+
+gcc-34-string-fixes.patch
+  string fixes for gcc 3.4
+
+gcc-35-bio_phys_segments.patch
+  gcc-3.5: fix extern inline decls
+
+gcc-35-ident-warnings.patch
+  gcc-3.5: #ident fixes
+
+gcc-35-binfmt_elf-warning-fix.patch
+  gcc-3.5: binfmt_elf warning fix
+
+gcc-35-pcm_misc-warnings.patch
+  gcc-3.5: pcm_misc.c warnings
+
+gcc-35-pcm_plugin-warnings.patch
+
+gcc-35-reiserfs-fixes.patch
+  gcc-3.5: reiserfs fixes
+
+gcc-35-tcp_put_port-fix.patch
+  gcc-3.5: tcp_put_port() fix
+
+gcc-35-ip6-ndisc-fix.patch
+  gcc-3.5: ipv6/ndisc.c fixes
+
+gcc-35-ide-fix.patch
+  gcc-3.5: ide.h fixes
+
+gcc-35-elevator.patch
+  gcc-3.5: elevator.h fixes
+
+gcc-35-keyboard-fixes.patch
+  gcc-3.5: keyboard.c fixes
+
+gcc-35-exit-fix.patch
+  gcc-3.5: _exit fix
+
+gcc-35-parport.patch
+  Fix inlining failure (all GCCs) in parport
+
+gcc-34-compilation-fixes.patch
+  More 3.4 compilation fixes
+
+gcc-35-seq_clientmgr.patch
+  gcc-3.5: sound/core/seq/seq_clientmgr.c
+
+gcc-35-tg3.patch
+  gcc-3.5: tg3.c warnings
+
+gcc-35-parport2.patch
+  gcc-3.5: parport warnings
+
+gcc-35-i810_accel.patch
+  gcc-3.5: i810_accel fix
+
+gcc-35-puts-fix.patch
+  gcc-3.5: misc.c warning fix
+
+gcc-35-filesystems.patch
+  gcc-3.5: fsfilter.h, ntfs.h
+
+gcc-35-zatm-fix.patch
+  gcc-3.5: zatm.c fix
+
+gcc-35-vxfs-idents.patch
+  gcc-3.5: vxfs fixes
+
+gcc-35-hfs-fix.patch
+  gcc-3.5: hfs fixes
+
+gcc-35-uPD98402.patch
+  gcc-3.5: drivers/atm/uPD98402.c
+
+gcc-35-intermezzo.patch
+  gcc-3.5: intermezzo
+
+gcc-35-iphase.patch
+  gcc-3.5: iphase.c
+
+gcc-35-suni.patch
+  gcc-3.5: suni.c
+
+gcc-35-fore2000e.patch
+  gcc-3.5: drivers/atm/fore200e.c
+
+gcc-35-ncpfs.patch
+  gcc-3.5: ncpfs
+
+gcc-35-eni.patch
+  gcc-3.5: drivers/atm/eni.c
+
+gcc-35-xfs.patch
+  gcc-3.5: XFS fixes
+
+gcc-35-idt77105.patch
+  gcc-3.5: drivers/atm/idt77105.c
+
+gcc-35-atmtcp.patch
+  gcc-3.5: drivers/atm/atmtcp.c
+
+gcc-35-appletalk.patch
+  gcc-3.5: appletalk
+
+gcc-35-he.patch
+  gcc-3.5: drivers/atm/he.c
+
+gcc-35-atm-common.patch
+  gcc-3.5: net/atm/common.c
+
+gcc-35-it87.patch
+  gcc-3.5: drivers/i2c/chips/it87.c
+
+gcc-35-econet.patch
+  gcc-3.5: econet
+
+gcc-35-decnet.patch
+  gcc-3.5: decnet
+
+gcc-35-radeon.patch
+  gcc-3.5: radeon
+
+gcc-35-sc1200.patch
+  gcc-3.5: drivers/ide/pci/sc1200.c
+
+gcc-35-ipx.patch
+  gcc-3.5: ipx
+
+gcc-35-irda.patch
+  gcc-3.5: irda
+
+gcc-35-raid6x86.patch
+  gcc-3.5: raid6
+
+gcc-35-mtd.patch
+  gcc-3.5: mtd
+
+gcc-35-dvb.patch
+  gcc-35: DVB
+
+gcc-35-bonding.patch
+  gcc-3.5: bonding
+
+gcc-35-ax25.patch
+  gcc-3.5: ax25
+
+gcc-35-pcmcia.patch
+  gcc-3.5: PCMCIA
+
+gcc-35-video.patch
+  gcc-3.5: video
+
+gcc-35-net-key.patch
+  gcc-3.5: net/key/af_key.c
+
+gcc-35-netrom.patch
+  gcc-3.5: netrom
+
+gcc-35-llc.patch
+  gcc-3.5: llc
+
+gcc-35-pnpbios.patch
+  gcc-3.5: pnpbios
+
+gcc-35-rose.patch
+  gcc-3.5: net/rose
+
+gcc-35-53c700.patch
+  gcc-3.5: drivers/scsi/53c700
+
+gcc-35-advansys.patch
+  gcc-3.5: advansys.c
+
+gcc-35-sctp-attribute_packed-fix.patch
+  gcc-3.5: sctp
+
+gcc-35-atp870u.patch
+  gcc-3.5: atp870u.c
+
+gcc-35-gdth.patch
+  gcc-3.5: gdth.c
+
+gcc-35-pppoe.patch
+  gcc-3.5: pppoe
+
+gcc-35-fbcon.patch
+  gcc-3.5: fbcon.c
+
+gcc-35-riva-fbdev.patch
+  gcc-3.5: drivers/video/riva/fbdev.c
+
+gcc-35-video-cfbimgblt.patch
+  gcc-3.5: drivers/video/cfbimgblt.c
+
+gcc-35-video-vgastate.patch
+  gcc-3.5: drivers/video/vgastate.c
+
+gcc-35-traps.patch
+  gcc-3.5: arch/i386/kernel/traps.c
+
+gcc-35-x86_64.patch
+  x86-64 fixes for gcc 3.5
+
+bitmap-parsing-printing-v4.patch
+  bitmap parsing/printing routines, version 4
+
+bitmap-parsing-cleanup.patch
+  bitmap parsing/printing routines cleanup
+
+bitmap-avoid-alloca.patch
+  bitmap: avoid using alloca()
+
+non-readable-binaries.patch
+  Handle non-readable binfmt_misc executables
+
+janitor-09-i387-usercopy-check.patch
+  i387: handle copy_from_user() error
+
+doc-remove-modules-conf-references.patch
+  Documentation: remove /etc/modules.conf refs
+
+more-MODULE_ALIASes.patch
+  add some more MODULE_ALIASes
+
+bonding-alias-revert-and-docco-fix.patch
+  bonding alias revert and documentation fix
+
+simplify-net_ratelimit.patch
+  simplify net_ratelimit()
+
+printk-rate_limit-fixes.patch
+  printk_ratelimit() tweaks
+
+readX_relaxed.patch
+  add readX_relaxed() interface
+
+kconfig-use-select-2.patch
+  Kconfig: use select statements
+
+kconfig-remove-enable.patch
+  kconfig/wireless: Replace enable with select
+
+use-attribute-const-everywhere.patch
+  use __attribute_const__ everywhere
+
+edd-disksig.patch
+  EDD: read disk80 MBR signature, export through edd module
+
+edd-url-fix.patch
+  EDD report URL change
+
+swsusp-stop-DMA-on-resume.patch
+  swsusp does not stop DMA properly during resume
+
+swsusp-stop-DMA-on-resume-fix.patch
+
+swsusp-trivial-cleanups.patch
+  Trivial cleanups for swsusp
+
+swsusp-more-cleanups.patch
+  More cleanups for swsusp
+
+swsusp-software_suspend-retval-fix.patch
+  Allow software_suspend to fail
+
+swsusp-software_suspend-retval-fix-fix.patch
+
+vmalloc-address-offset-fix.patch
+  vmalloc address offset fix
+
+hugetlbfs_remove_dirent.patch
+  hugetlbfs directory entry cleanup
+
+libfs_timestamp_fixes.patch
+  libfs mtime/ctime updates
+
+hugetlbfs_cleanup.patch
+  hugetlbfs cleanup
+
+console_driver-definition-fix.patch
+  missing `console_driver' with CONFIG_VT && !CONFIG_VT_CONSOLE
+
+partition-naming-fix.patch
+  Make naming of parititions in sysfs match /proc/partitions.
+
+ppc32-1000-hz.patch
+  ppc32: Set HZ to 1000 on ppc32
+
+fix-blockdev-getro.patch
+  fix blockdev --getro for sr, sd, ide-floppy
+
+remove-kstat-cpu-notifiers.patch
+  Remove kstat cpu notifiers
+
+workqueue-cleanup-2.patch
+  Minor workqueue.c cleanup
+
+remove-more-cpu-notifiers.patch
+  Remove More Unneccessary CPU Notifiers
+
+use-CPU_UP_PREPARE-properly.patch
+  Use CPU_UP_PREPARE properly
+
+cpuhotplug-01-cpu_active_map.patch
+  CPU Hotplug: add cpu_active_map
+
+cpuhotplug-02-drain_local_pages.patch
+  CPU Hotplug: drain downed CPU's local pages
+
+cpuhotplug-03-core.patch
+  CPU Hotplug: The Core
+
+cpuhotplug-up-fixes.patch
+  cpuhotplug: UP build fixes
+
+set_cpus_allowed-fix.patch
+  cpumask fix
+
+cpuhotplug-04-x86-support.patch
+  CPU Hotplug: i386 support
+
+cpuhotplug-x86-up-fixes.patch
+  cpuhotplug: x86 UP build fixes
+
+support-wider-consoles.patch
+  console: support for > 127 chars
+
+remove-valid_addr_bitmap.patch
+  remove valid_addr_bitmap
+
+osst-warning-fix.patch
+  osst.c: suppress page allocation failure warnings
+
+init-cpu_vm_mask-in-init_mm.patch
+  initialise cpu_vm_mask in init_mm
+
+raw-is-obsolete.patch
+  deprecate the raw driver
+
+sleep_on-needs_lock_kernel.patch
+  sleep_on(): check for lock_kernel
+
+ncpfs-stack-usage-fix.patch
+  Fix deep stack usage in ncpfs
+
+remove_suid-fix.patch
+  remove_suid() fix
+
+md-02-preferred_minor-fix.patch
+  md: Move the test in preferred_minor to where it is used.
+
+md-03-debugging-output-cleanup.patch
+  md: Fixes to make debuging output nicer.
+
+md-04-personality-stats-collection.patch
+  md: Collect device IO statistics for MD personalities.
+
+md-05-device-in-error-printing-fix.patch
+  md: Change the way the name of an md device is printed in error messages.
+
+proc-partitions-omit-removable-media.patch
+  /proc/paritions: omit removable media
+  Mark floppies as being removeable
+
+remove-SIIG-PCI-IDs-from-parport_pc.patch
+  remove SIIG combo cards PCI ids from parport_pc
+
+i830-agp-pm-fix.patch
+  Intel i830 AGP fix
+
+remove-memblks.patch
+  Remove memblks from the kernel
+
+scsi-tape-fixes.patch
+  SCSI tape cdev fixes
+
+raid-makefile-cleanup.patch
+  Clean up raid6 kbuild output
+
+fancy-lost-ticks-message.patch
+  Better "Losing Ticks" Error Message
+
+x86_64-make-xconfig-fix.patch
+  Fix make xconfig on /lib64 systems
+
+reserve-NUMA-API-syscall-slots.patch
+  Reserve system calls for NUMA API
+
+posix-timers-fixes.patch
+  posix_timers fixes
+
+mount-option-overrun-fix.patch
+  Zero last byte of mount option page.
+
+futex-redundant-test.patch
+  futex: remove redundant test
+
+CONFIG_SYSRQ-fixes.patch
+  [janitor] change a few SYSRQ to MAGIC_SYSRQ
+
+dz-verify_area-removal.patch
+  [janitor] dz: verify_area() removal
+
+oss-c99-fixes.patch
+  [janitor] sound/oss: use C99 inits.
+
+usb-sddr09-documentation.patch
+  add comments to sddr09.c
+
+console-makefile-cleanup.patch
+  console cleanup
+
+oprofile-ringbuffer-wrap-fix.patch
+  oprofile per-cpu buffer overrun
+
+oprofile-alpha-fix.patch
+  oprofile, typo in alpha driver
+
+copy_namespace-enomem-fix.patch
+  copy_namespace ENOMEM fix
+
+vgastate-missing-iounmaps.patch
+  [janitor] vgastate: cleanup iounmap() usage
+
+vga16fb-missing-iounmap.patch
+  [janitor] vga16fb: add missing iounmap()
+
+d_path-needs-vfsmount_lock.patch
+  __d_path needs vfsmount_lock
+
+namei-needs-vfsmount_lock.patch
+  namei.c: take vfsmount_lock
+
+try-reiserfs-earlier.patch
+  try reiserfs before other filesystems
+
+ufs-use-silent.patch
+  UFS: honour `silent' parameter.
+
+time-rounding-accuracy.patch
+  Fine tune the time conversion to eliminate conversion errors.
+
+proc-stat-btime-fix-2.patch
+  /proc/stat:btime fix
+
+menuconfig-choice-display-fix.patch
+  fix menuconfig choice item help display
+
+use-uint32_t-for-crosscompiling.patch
+  u_int32_t causes cross-compile problems
+
+ac97-remove-fix.patch
+  ac97 OSS driver removal fix
+
+is_subdir-locking-fix.patch
+  is_subdir locking fix
+
+proc_check_root-locking-fix.patch
+  proc_check_root() locking fix
+
+pcnet32-locking-fix.patch
+  pcmet32 locking fixes
+
+ide-cd-MO-write-protect.patch
+  ide-cd mo write protect
+
+nr_free_pages-is-expensive.patch
+  rate limit nr_free_pages
+
+mmap-use-address-hint.patch
+  Use address hint in mmap for search
+
+shrink_list-swapcache-check-fix.patch
+  shrink_list(): check PageSwapCache() after add_to_swap()
+
+as-docco-update.patch
+  as-iosched.txt update
+
+cscope-use-inverted-index.patch
+  enable fast symbol lookup via an inverted index in cscope
+
+nfs-server-in-root_server_path.patch
+  Pull NFS server address out of root_server_path
+
+pcix-enhanced.patch
+  PCI Express Enhanced Config Patch
+
+Lindent-goodness.patch
+  Lindent fixed to match reality
+
+increase-NGROUPS.patch
+  NGROUPS 2.6.2rc2 + fixups
+  NGROUPS: remove TASK_SIZE usage
+
+increase-NGROUPS-nfsd-cleanup.patch
+  NGROUPS: nfsd cleanup
+
+intermezzo-NGROUPS-is-broken.patch
+
+move-cpu_vm_mask.patch
+  Move cpu_vm_mask to be closer to mmu_context_t in struct mm
+
+compat-signal-noarch-2004-01-29.patch
+
+compat-signal-ppc64-2004-01-29.patch
+
+compat-signal-ia64-2004-01-29.patch
+
+pci-scan-all-functions.patch
+  PCI Scan all functions
+
+CDROMREADAUDIO-frames-fix.patch
+  CDROMREADAUDIO frames
+
+unneeded-dentry-assignment.patch
+  Remove uneeded dentry assignment
+
+export-cpu_2_node.patch
+  missing export of cpu_2_node
+
+remove-kmalloc_percpu_init.patch
+  Remove the unused kmalloc_percpu_init()
+
+i_size_write-check.patch
+
+sysfs_symlink-needs-i_sem.patch
+  sysfs_symlink needs i_sem
+
+bd_set_size-i_size-fix.patch
+  bd_set_size i_size handling
+
+nfs-d_drop-lowmem.patch
+  NFS: handle nfs_fhget() error
+
+ppp-allocation-fix.patch
+  ppp: try harder to allocate the deflate buffer
+
+initramfs-kinit_command.patch
+  initramfs: look for /sbin/init
+
+access-permissions-fix.patch
+  fix access() POSIX compliance
+
+neofb-warning-fix.patch
+  fix compilation warnings in neofb.c
+
+snprintf-commentary.patch
+  snprintf() commentary
+
+snprintf-fixes.patch
+  snprintf fixes
+
+devfs-race-fix-cleanup.patch
+  devfs: race fixes and cleanup
+
+gate_vma-fixes.patch
+  Fix ptrace in the vsyscall dso area
+
+istallion-compile-fix.patch
+  istallion compile fix
+
+moxa-serial-compile-fix.patch
+  Moxa serial compile fixes
+
+specialix-compile-fix.patch
+  Specialix compile fix
+
+hisax-compile-fix.patch
+  Hisax compile fix
+
+dvb-compile-fix.patch
+  DVB compile fix
+
+selinux-compile-fix.patch
+  SElinux compile fix
+
+coredump-memleak-fix.patch
+  fix memory leak while coredumping
+
+x86_64-boot-fix.patch
+  Fix x86-64 boot problem
+
+altix-01.patch
+  Altix update: various, mainly cleanups
+
+altix-02.patch
+  Altix update: small cleanups
+
+altix-03.patch
+  Altix update: misc changes
+
+altix-04.patch
+  Altix update: add MINIMAL_ATE_FLAG
+
+altix-05.patch
+  Altix update: io changes
+
+altix-06.patch
+  Altix update: pcibr_invalidate_ate check
+
+altix-07.patch
+  Altix update: early_probe_for_widget() improvement
+
+altix-08.patch
+  Altix update: VGA, keyboard, other changes
+
+altix-09.patch
+  Altix update: remove pcibr_intr_func()
+
+altix-10.patch
+  Altix update: irq fixes
+
+altix-11.patch
+  Altix update: pci_bus_cvlink.c fixes
+
+altix-12.patch
+  Altix update: pci_bus_cvlink.c fixes
+
+list_del-debug.patch
+  list_del debug check
+
+print-build-options-on-oops.patch
+
+show_task-free-stack-fix.patch
+  show_task() fix and cleanup
+
+show_task-fix.patch
+  show_task() is not SMP safe
+
+oops-dump-preceding-code.patch
+  i386 oops output: dump preceding code
+
+lockmeter.patch
+
+ia64-lockmeter-fix.patch
+
+4g-2.6.0-test2-mm2-A5.patch
+  4G/4G split patch
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g/4g usercopy atomicity fix
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g/4g usercopy atomicity fix
+  4G/4G preempt on vstack
+  4G/4G: even number of kmap types
+  4g4g: fix __get_user in slab
+  4g4g: Remove extra .data.idt section definition
+  4g/4g linker error (overlapping sections)
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g4g: show_registers() fix
+  4g/4g usercopy atomicity fix
+  4g4g: debug flags fix
+  4g4g: Fix wrong asm-offsets entry
+  cyclone time fixmap fix
+  4G/4G preempt on vstack
+  4G/4G: even number of kmap types
+  4g4g: fix __get_user in slab
+  4g4g: Remove extra .data.idt section definition
+  4g/4g linker error (overlapping sections)
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g4g: show_registers() fix
+  4g/4g usercopy atomicity fix
+  4g4g: debug flags fix
+  4g4g: Fix wrong asm-offsets entry
+  cyclone time fixmap fix
+  use direct_copy_{to,from}_user for kernel access in mm/usercopy.c
+  4G/4G might_sleep warning fix
+  4g/4g pagetable accounting fix
+  Fix 4G/4G and WP test lockup
+  4G/4G KERNEL_DS usercopy again
+  Fix 4G/4G X11/vm86 oops
+  Fix 4G/4G athlon triplefault
+  4g4g SEP fix
+  Fix 4G/4G split fix for pre-pentiumII machines
+  4g/4g PAE ACPI low mappings fix
+
+zap_low_mappings-fix.patch
+  zap_low_mappings() cannot be __init
+
+4g4g-locked-userspace-copy.patch
+  Do a locked user-space copy for 4g/4g
+
+ppc-fixes.patch
+  make mm4 compile on ppc
+
+O_DIRECT-race-fixes-rollup.patch
+  DIO fixes forward port and AIO-DIO fix
+  O_DIRECT race fixes comments
+  O_DRIECT race fixes fix fix fix
+  DIO locking rework
+  O_DIRECT XFS fix
+
+O_DIRECT-race-fixes-rollup-use-f_mapping.patch
+
+dio-aio-fixes.patch
+  direct-io AIO fixes
+  dio-aio fix fix
+
+aio-fallback-bio_count-race-fix-2.patch
+  AIO+DIO bio_count race fix
+
+aio-sysctl-parms.patch
+  aio sysctl parms
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
