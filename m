@@ -1,59 +1,63 @@
-Date: Tue, 8 May 2001 17:18:16 -0700 (PDT)
-From: Matt Dillon <dillon@earth.backplane.com>
-Message-Id: <200105090018.f490IGR87881@earth.backplane.com>
-Subject: Re: on load control / process swapping 
+Content-return: prohibited
+Date: Wed, 09 May 2001 12:07:43 +1000
+From: Peter Jeremy <peter.jeremy@alcatel.com.au>
+Subject: Re: on load control / process swapping
+In-reply-to: <200105090018.f490IGR87881@earth.backplane.com>; from
+ dillon@earth.backplane.com on Tue, May 08, 2001 at 05:18:16PM -0700
+Message-id: <20010509120743.Y59150@gsmx07.alcatel.com.au>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-disposition: inline
 References: <200105082052.NAA08757@beastie.mckusick.com>
+ <200105090018.f490IGR87881@earth.backplane.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kirk McKusick <mckusick@mckusick.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
+To: Matt Dillon <dillon@earth.backplane.com>
+Cc: Kirk McKusick <mckusick@mckusick.com>, Rik van Riel <riel@conectiva.com.br>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
 List-ID: <linux-mm.kvack.org>
 
-    I looked at the code fairly carefully last night... it doesn't
-    swap out running processes and it also does not appear to swap
-    out processes blocked in a page-fault (on I/O).  Now, of course
-    we can't swap a process out right then (it might be holding locks),
-    but I think it would be beneficial to be able to mark the process
-    as 'requesting a swapout on return to user mode' or something
-    like that.  At the moment what gets picked for swapping is
-    hit-or-miss due to the wait states.
+On 2001-May-08 17:18:16 -0700, Matt Dillon <dillon@earth.backplane.com> wrote:
+>    I don't think we want to kick out running processes.  Thrashing
+>    by definition means that many of the processes are stuck in 
+>    disk-wait, usually from a VM fault, and not running.  The other 
+>    effect of thrashing is, of course, the the cpu idle time goes way
+>    up due to all the process stalls.  A process that is actually able 
+>    to run under these circumstances probably has a small run-time footprint
+>    (at least for whatever operation it is currently doing), so it should
+>    definitely be allowed to continue to run.
 
-:As to the size issue, we used to be biased towards the processes
-:with large resident set sizes in kicking things out. In general,
-:swapping out small things does not buy you much memory and it
+I don't think this follows.  A program that does something like:
+{
+	extern char	memory[BIG_NUMBER];
+	int		i;
 
-    The VM system does enforce the 'memoryuse' resource limit when
-    the memory load gets heavy.  But once the load goes beyond that
-    the VM system doesn't appear to care how big the process is.
+	for (i = 0; i < BIG_NUMBER; i += PAGE_SIZE)
+		memory[i]++;
+}
+will thrash nicely (assuming BIG_NUMBER is large compared to the
+currently available physical memory).  Occasionally, it will be
+runnable - at which stage it has a footprint of only two pages, but
+after executing a couple of instructions, it'll have another page
+fault.  Old pages will remain resident for some time before they age
+enough to be paged out.  If the VM system is stressed, swapping this
+process out completely would seem to be a win.
 
-:...
-:biggest processes. Also note that this is a last ditch algorithm
-:used only after there are no more idle processes available to
-:kick out. Our decision that we had had to kick out running
-:processes was: (1) no idle processes available to swap, (2) load
-:average over one (if there is just one process, kicking it out
-:does not solve the problem :-), (3) paging rate above a specified
-:threshhold over the entire previous 30 seconds (e.g., been bad 
-:for a long time and not getting better in the short term), and
-:(4) paging rate to/from swap area using more than half the 
-:available disk bandwidth (if your filesystems are on the same
-:disk as you swap areas, you can get a false sense of success
-:because all your process stop paging while they are blocked
-:waiting for their file data.
-:
-:	Kirk
+Whilst this code is artificial, a process managing a very large hash
+table will have similar behaviour.
 
-    I don't think we want to kick out running processes.  Thrashing
-    by definition means that many of the processes are stuck in 
-    disk-wait, usually from a VM fault, and not running.  The other 
-    effect of thrashing is, of course, the the cpu idle time goes way
-    up due to all the process stalls.  A process that is actually able 
-    to run under these circumstances probably has a small run-time footprint
-    (at least for whatever operation it is currently doing), so it should
-    definitely be allowed to continue to run.
+Given that most (all?) recent CPU's have cheap hi-resolution clocks,
+would it be worthwhile for the VM system to maintain a per-process
+page fault rate?  (average clock cycles before a process faults).  If
+you ignore spikes due to process initialisation etc, a process that
+faults very quickly after being given the CPU wants a working set size
+that is larger than the VM system currently allows.  The fault rate
+would seem to be proportional to the ratio between the wanted WSS and
+allowed RSS.  This would seem to be a useful parameter to help decide
+which process to swap out - in an ideal world the VM subsystem would
+swap processes to keep the WSS of all in-core processes at about the
+size of non-kernel RAM.
 
-						-Matt
-
+Peter
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
