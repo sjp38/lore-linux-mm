@@ -1,12 +1,12 @@
 Date: Mon, 14 Feb 2005 06:36:10 -0700
-Message-Id: <200410031463.i93RdyTw009446@www9.warnerreprise.com>
-From: "Isiah Gifford" <sparrow@savedatcash.com>
-Subject: Become a homeowner with low rates
+Message-Id: <200410031467.i93KdeTw000891@www7.gmail.com>
+From: "Jayne Daniels" <nati@sogoodrates.com>
+Subject: Rates fixed at 3.25
 Mime-Version: 1.0
 Content-Type: text/plain;
-Return-Path: <sparrow@savedatcash.com>
+Return-Path: <nati@sogoodrates.com>
 To: aart@kvack.org
-Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
+Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -28,7 +28,7 @@ Hello,
 
  Best Regards,
 
- Adele Baird
+ Pat Woodward
  
  to be remov(ed:	http://www.bestlenderz.com/x/st.html
 
