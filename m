@@ -1,344 +1,64 @@
 Subject: Re: PATCH: rewrite of invalidate_inode_pages
-References: <Pine.LNX.4.10.10005111519590.819-100000@penguin.transmeta.com>
+References: <Pine.LNX.4.10.10005111445370.819-100000@penguin.transmeta.com>
+	<yttya5ghhtr.fsf@vexeta.dc.fi.udc.es> <shsd7msemwu.fsf@charged.uio.no>
+	<yttbt2chf46.fsf@vexeta.dc.fi.udc.es>
+	<14619.16278.813629.967654@charged.uio.no>
 From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: Linus Torvalds's message of "Thu, 11 May 2000 15:22:15 -0700 (PDT)"
-Date: 12 May 2000 03:01:19 +0200
-Message-ID: <yttbt2c8tuo.fsf@vexeta.dc.fi.udc.es>
+In-Reply-To: Trond Myklebust's message of "Fri, 12 May 2000 01:17:42 +0200 (CEST)"
+Date: 12 May 2000 01:28:07 +0200
+Message-ID: <ytt1z38acqg.fsf@vexeta.dc.fi.udc.es>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: trond.myklebust@fys.uio.no
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
->>>>> "linus" == Linus Torvalds <torvalds@transmeta.com> writes:
+>>>>> "trond" == Trond Myklebust <trond.myklebust@fys.uio.no> writes:
 
-Hi
+>>>>> " " == Juan J Quintela <quintela@fi.udc.es> writes:
+>> Then you want only invalidate the non_locked pages: do you
 
-linus> What we _could_ do is to just for clarity have
+trond> That's right. This patch looks much more appropriate.
 
-linus> 	#define page_cache_get()	get_page()
+>> + while (count == ITERATIONS) {
+>> + spin_lock(&pagecache_lock);
+>> + spin_lock(&pagemap_lru_lock);
+>> + head = &inode->i_mapping->pages;
+>> + curr = head->next;
+>> + count = 0;
+>> +
+>> + while ((curr != head) && (count++ < ITERATIONS)) {
 
-linus> and then pair up every "page_cache_get()" with "page_cache_release()".
-linus> Which makes sense to me. So if you feel strongly about this issue..
+trond> Just one question: Isn't it better to do it all in 1 iteration through
+trond> the loop rather than doing it in batches of 100 pages?
+trond> You can argue that you're freeing up the spinlocks for the duration of
+trond> the loop_and_test, but is that really going to make a huge difference
+trond> to SMP performance?
 
-You ask for it, here is the patch. Noted that I have changed all the
-get_page/put_page/__free_page that I have find to the equivalents in
-the page_cache_get/page_cache_release/page_cache_release.
+Trond, I have not an SMP machine (yet), and I can not tell you numbers
+now.  I put the counter there to show that we *may* want to limit the
+latency there.  I am thinking in the write of a big file, that can
+take a lot to free all the pages, but I don't know, *you* are the NFS
+expert, this was one of the reasons that we want feedback from the
+users of the call.  (You have been very good giving comments).
 
-There are two points where I am not sure about the thing to do:
+My idea to put a limit is to put a limit than normally you do all in
+one iteration, but in the exceptional case of a big amount of pages,
+the latency is limited.  There is a limit in the number of pages that
+can be in that list?
 
-- In shm.c it calls alloc_pages, I have substituted it for page_cache,
-  due to the fact that shm use the page_cache, if somebody changes
-  the page_cache, it needs to change the shm code acordingly.
+100 is one number that can need tuning, I don't know.  SMP experts
+anywhere?
 
-- In buffers.c it calls alloc_page, but it calls it with a different
-  mask, then I have left the alloc_pages, call. But I have put the
-  get/put operations as page_cache_* operations, due to the fact that
-  they use the page_cache.
-
-Once that we are here, what are the *semantic* difference between
-page_cache_release and page_cache_free?
-
-Any comment?
+By the way, while we are here, the only difference between
+truncate_inode_pages and invalidate_inode_pages is the one that you
+told here before?  I am documenting some of the MM stuff, and your
+comments in that aspect are really wellcome.  (You will have noted
+now that I am quite newbie here).
 
 Later, Juan.
-
-diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/fs/buffer.c testing2/fs/buffer.c
---- pre7/fs/buffer.c	Fri May 12 01:11:40 2000
-+++ testing2/fs/buffer.c	Fri May 12 02:44:30 2000
-@@ -1264,7 +1264,7 @@
- 		set_bit(BH_Mapped, &bh->b_state);
- 	}
- 	tail->b_this_page = head;
--	get_page(page);
-+	page_cache_get(page);
- 	page->buffers = head;
- 	return 0;
- }
-@@ -1351,7 +1351,7 @@
- 	} while (bh);
- 	tail->b_this_page = head;
- 	page->buffers = head;
--	get_page(page);
-+	page_cache_get(page);
- }
- 
- static void unmap_underlying_metadata(struct buffer_head * bh)
-@@ -2106,7 +2106,7 @@
- 	return 1;
- 
- no_buffer_head:
--	__free_page(page);
-+	page_cache_release(page);
- out:
- 	return 0;
- }
-@@ -2190,7 +2190,7 @@
- 
- 	/* And free the page */
- 	page->buffers = NULL;
--	__free_page(page);
-+	page_cache_release(page);
- 	spin_unlock(&free_list[index].lock);
- 	write_unlock(&hash_table_lock);
- 	spin_unlock(&lru_list_lock);
-diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/fs/nfs/write.c testing2/fs/nfs/write.c
---- pre7/fs/nfs/write.c	Fri May 12 01:11:41 2000
-+++ testing2/fs/nfs/write.c	Fri May 12 01:56:29 2000
-@@ -528,7 +528,7 @@
- 	 * long write-back delay. This will be adjusted in
- 	 * update_nfs_request below if the region is not locked. */
- 	req->wb_page    = page;
--	get_page(page);
-+	page_cache_get(page);
- 	req->wb_offset  = offset;
- 	req->wb_bytes   = count;
- 	req->wb_dentry  = dget(dentry);
-diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/include/linux/pagemap.h testing2/include/linux/pagemap.h
---- pre7/include/linux/pagemap.h	Fri May 12 01:11:42 2000
-+++ testing2/include/linux/pagemap.h	Fri May 12 01:45:46 2000
-@@ -28,6 +28,7 @@
- #define PAGE_CACHE_MASK		PAGE_MASK
- #define PAGE_CACHE_ALIGN(addr)	(((addr)+PAGE_CACHE_SIZE-1)&PAGE_CACHE_MASK)
- 
-+#define page_cache_get(x)	get_page(x);
- #define page_cache_alloc()	alloc_pages(GFP_HIGHUSER, 0)
- #define page_cache_free(x)	__free_page(x)
- #define page_cache_release(x)	__free_page(x)
-diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/ipc/shm.c testing2/ipc/shm.c
---- pre7/ipc/shm.c	Fri May 12 01:11:43 2000
-+++ testing2/ipc/shm.c	Fri May 12 02:35:59 2000
-@@ -1348,7 +1348,7 @@
- 		   could potentially fault on our pte under us */
- 		if (pte_none(pte)) {
- 			shm_unlock(shp->id);
--			page = alloc_page(GFP_HIGHUSER);
-+			page = page_cache_alloc();
- 			if (!page)
- 				goto oom;
- 			clear_user_highpage(page, address);
-@@ -1380,7 +1380,7 @@
- 	}
- 
- 	/* pte_val(pte) == SHM_ENTRY (shp, idx) */
--	get_page(pte_page(pte));
-+	page_cache_get(pte_page(pte));
- 	return pte_page(pte);
- 
- oom:
-@@ -1448,7 +1448,7 @@
- 	lock_kernel();
- 	rw_swap_page(WRITE, page, 0);
- 	unlock_kernel();
--	__free_page(page);
-+	page_cache_release(page);
- }
- 
- static int shm_swap_preop(swp_entry_t *swap_entry)
-@@ -1537,7 +1537,7 @@
- 
- 	pte = pte_mkdirty(mk_pte(page, PAGE_SHARED));
- 	SHM_ENTRY(shp, idx) = pte;
--	get_page(page);
-+	page_cache_get(page);
- 	shm_rss++;
- 
- 	shm_swp--;
-diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/mm/filemap.c testing2/mm/filemap.c
---- pre7/mm/filemap.c	Fri May 12 01:11:43 2000
-+++ testing2/mm/filemap.c	Fri May 12 02:00:07 2000
-@@ -145,7 +145,7 @@
- 
- 		if (head->next!=head) {
- 			page = list_entry(head->next, struct page, list);
--			get_page(page);
-+			page_cache_get(page);
- 			spin_unlock(&pagemap_lru_lock);
- 			spin_unlock(&pagecache_lock);
- 			/* We need to block */
-@@ -187,13 +187,13 @@
- 		/* page wholly truncated - free it */
- 		if (offset >= start) {
- 			if (TryLockPage(page)) {
--				get_page(page);
-+				page_cache_get(page);
- 				spin_unlock(&pagecache_lock);
- 				wait_on_page(page);
- 				page_cache_release(page);
- 				goto repeat;
- 			}
--			get_page(page);
-+			page_cache_get(page);
- 			spin_unlock(&pagecache_lock);
- 
- 			if (!page->buffers || block_flushpage(page, 0))
-@@ -237,7 +237,7 @@
- 			spin_unlock(&pagecache_lock);
- 			goto repeat;
- 		}
--		get_page(page);
-+		page_cache_get(page);
- 		spin_unlock(&pagecache_lock);
- 
- 		memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
-@@ -252,9 +252,9 @@
- 		 */
- 		UnlockPage(page);
- 		page_cache_release(page);
--		get_page(page);
-+		page_page_get(page);
- 		wait_on_page(page);
--		put_page(page);
-+		page_cache_release(page);
- 		goto repeat;
- 	}
- 	spin_unlock(&pagecache_lock);
-@@ -312,7 +312,7 @@
- 		spin_unlock(&pagemap_lru_lock);
- 
- 		/* avoid freeing the page while it's locked */
--		get_page(page);
-+		page_cache_get(page);
- 
- 		/*
- 		 * Is it a buffer page? Try to clean it up regardless
-@@ -376,7 +376,7 @@
- unlock_continue:
- 		spin_lock(&pagemap_lru_lock);
- 		UnlockPage(page);
--		put_page(page);
-+		page_cache_release(page);
- dispose_continue:
- 		list_add(page_lru, dispose);
- 	}
-@@ -386,7 +386,7 @@
- 	page_cache_release(page);
- made_buffer_progress:
- 	UnlockPage(page);
--	put_page(page);
-+	page_cache_release(page);
- 	ret = 1;
- 	spin_lock(&pagemap_lru_lock);
- 	/* nr_lru_pages needs the spinlock */
-@@ -474,7 +474,7 @@
- 		if (page->index < start)
- 			continue;
- 
--		get_page(page);
-+		page_cache_get(page);
- 		spin_unlock(&pagecache_lock);
- 		lock_page(page);
- 
-@@ -516,7 +516,7 @@
- 	if (!PageLocked(page))
- 		BUG();
- 
--	get_page(page);
-+	page_cache_get(page);
- 	spin_lock(&pagecache_lock);
- 	page->index = index;
- 	add_page_to_inode_queue(mapping, page);
-@@ -541,7 +541,7 @@
- 
- 	flags = page->flags & ~((1 << PG_uptodate) | (1 << PG_error) | (1 << PG_dirty));
- 	page->flags = flags | (1 << PG_locked) | (1 << PG_referenced);
--	get_page(page);
-+	page_cache_get(page);
- 	page->index = offset;
- 	add_page_to_inode_queue(mapping, page);
- 	__add_page_to_hash_queue(page, hash);
-@@ -683,7 +683,7 @@
- 	spin_lock(&pagecache_lock);
- 	page = __find_page_nolock(mapping, offset, *hash);
- 	if (page)
--		get_page(page);
-+		page_cache_get(page);
- 	spin_unlock(&pagecache_lock);
- 
- 	/* Found the page, sleep if locked. */
-@@ -733,7 +733,7 @@
- 	spin_lock(&pagecache_lock);
- 	page = __find_page_nolock(mapping, offset, *hash);
- 	if (page)
--		get_page(page);
-+		page_cache_get(page);
- 	spin_unlock(&pagecache_lock);
- 
- 	/* Found the page, sleep if locked. */
-@@ -1091,7 +1091,7 @@
- 		if (!page)
- 			goto no_cached_page;
- found_page:
--		get_page(page);
-+		page_cache_get(page);
- 		spin_unlock(&pagecache_lock);
- 
- 		if (!Page_Uptodate(page))
-@@ -1594,7 +1594,7 @@
- 		set_pte(ptep, pte_mkclean(pte));
- 		flush_tlb_page(vma, address);
- 		page = pte_page(pte);
--		get_page(page);
-+		page_cache_get(page);
- 	} else {
- 		if (pte_none(pte))
- 			return 0;
-diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/mm/memory.c testing2/mm/memory.c
---- pre7/mm/memory.c	Fri May 12 01:11:43 2000
-+++ testing2/mm/memory.c	Fri May 12 02:30:44 2000
-@@ -861,7 +861,7 @@
- 	 * Ok, we need to copy. Oh, well..
- 	 */
- 	spin_unlock(&mm->page_table_lock);
--	new_page = alloc_page(GFP_HIGHUSER);
-+	new_page = page_cache_alloc();
- 	if (!new_page)
- 		return -1;
- 	spin_lock(&mm->page_table_lock);
-diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/mm/swap_state.c testing2/mm/swap_state.c
---- pre7/mm/swap_state.c	Fri May 12 01:11:43 2000
-+++ testing2/mm/swap_state.c	Fri May 12 02:23:47 2000
-@@ -136,7 +136,7 @@
- 		}
- 		UnlockPage(page);
- 	}
--	__free_page(page);
-+	put_page_release(page);
- }
- 
- 
-@@ -172,7 +172,7 @@
- 		 */
- 		if (!PageSwapCache(found)) {
- 			UnlockPage(found);
--			__free_page(found);
-+			page_cache_release(found);
- 			goto repeat;
- 		}
- 		if (found->mapping != &swapper_space)
-@@ -187,7 +187,7 @@
- out_bad:
- 	printk (KERN_ERR "VM: Found a non-swapper swap page!\n");
- 	UnlockPage(found);
--	__free_page(found);
-+	page_cache_release(found);
- 	return 0;
- }
- 
-@@ -237,7 +237,7 @@
- 	return new_page;
- 
- out_free_page:
--	__free_page(new_page);
-+	page_cache_release(new_page);
- out_free_swap:
- 	swap_free(entry);
- out:
-
-
-
 
 
 -- 
