@@ -1,49 +1,48 @@
-Date: Mon, 25 Sep 2000 20:25:49 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: the new VMt
-Message-ID: <20000925202549.V2615@redhat.com>
-References: <Pine.LNX.4.21.0009251714480.9122-100000@elte.hu> <E13da01-00057k-00@the-village.bc.nu> <20000925164249.G2615@redhat.com> <20000925105247.A13935@hq.fsmlabs.com> <20000925191829.A14612@pcep-jamie.cern.ch> <20000925115139.A14999@hq.fsmlabs.com> <20000925200454.A14728@pcep-jamie.cern.ch> <20000925121315.A15966@hq.fsmlabs.com> <20000925192453.R2615@redhat.com> <20000925123456.A16612@hq.fsmlabs.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20000925123456.A16612@hq.fsmlabs.com>; from yodaiken@fsmlabs.com on Mon, Sep 25, 2000 at 12:34:56PM -0600
+Date: Mon, 25 Sep 2000 16:26:17 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
+In-Reply-To: <20000925213242.A30832@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009251622500.4997-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: yodaiken@fsmlabs.com
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Jamie Lokier <lk@tantalophile.demon.co.uk>, Alan Cox <alan@lxorguk.ukuu.org.uk>, mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Mon, Sep 25, 2000 at 12:34:56PM -0600, yodaiken@fsmlabs.com wrote:
-
-> > > Process 1,2 and 3 all start allocating 20 pages
-> > >     now 57 pages are locked up in non-swapable kernel space and the system deadlocks OOM.
-> > 
-> > Or go the beancounter route: process 1 asks "can I pin 20 pages", gets
-> > told "yes", and goes allocating them, blocking as necessary until it
+On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+> On Mon, Sep 25, 2000 at 07:06:57PM +0100, Stephen C. Tweedie wrote:
+> > Good.  One of the problems we always had in the past, though, was that
+> > getting the relative aging of cache vs. vmas was easy if you had a
+> > small set of test loads, but it was really, really hard to find a
+> > balance that didn't show pathological behaviour in the worst cases.
 > 
-> So you have a "pre-allocation allocator"?  Leads to interesting and hard to detect
-> bugs with old code that does not pre-allocate or with code that incorrectly pre-allocates
-> or that blocks on something unrelated
+> Yep, that's not trivial.
 
-Right, but if the alternative is spurious ENOMEM when we can satisfy
-all of the pending requests just as long as they are serialised, is
-this a problem?
+It is. Just do physical-page based aging (so you age all the
+pages in the system the same) and the problem is solved.
 
-If you want, wrap it in a "get_free_pagev" call which returns a vector
-of pointers to free pages, doing whatever accounting is needed.  You
-don't have to push all of it to the callers.
+> > > I may be overlooking something but where do you notice when a page
+> > > gets unmapped from the last mapping and put it back into a place
+> > > that can be reached from shrink_mmap (or whatever the cache recycler is)?
+> > 
+> > It doesn't --- that is part of the design.  The vm scanner propagates
+> 
+> And that's the inferior part of the design IMHO.
 
-However, you just can't escape from the fact that on low memory
-machinnes, we *need* beancounter-style accounting of pinned pages or
-we'll be in Deep Trouble (TM).  We already have nasty DoS situations
-which are embarassingly easy to reproduce.  If we need such
-beancounter protection, AND such protection can prevent the situation
-you describe, then do we need to go looking for another way of
-achieving the same protection?
+Indeed, but physical page based aging is a definate
+2.5 thing ... ;(
 
---Stephen
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
