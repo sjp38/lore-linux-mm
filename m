@@ -1,41 +1,45 @@
-Date: Fri, 15 Oct 2004 22:54:43 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] use find_trylock_page in free_swap_and_cache instead of
-    hand coding
-In-Reply-To: <20041015183556.GB4937@logos.cnet>
-Message-ID: <Pine.LNX.4.44.0410152248460.7849-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Received: from westrelay04.boulder.ibm.com (westrelay04.boulder.ibm.com [9.17.193.32])
+	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id i9FMhDNX070384
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2004 18:43:16 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id i9FMhCOX159148
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2004 16:43:12 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id i9FMhCti013799
+	for <linux-mm@kvack.org>; Fri, 15 Oct 2004 16:43:12 -0600
+Subject: Re: [PATCH] reduce fragmentation due to kmem_cache_alloc_node
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <1097863727.2861.43.camel@dyn318077bld.beaverton.ibm.com>
+References: <41684BF3.5070108@colorfullife.com>
+	 <1097863727.2861.43.camel@dyn318077bld.beaverton.ibm.com>
+Content-Type: text/plain
+Message-Id: <1097879593.2861.61.camel@dyn318077bld.beaverton.ibm.com>
+Mime-Version: 1.0
+Date: 15 Oct 2004 15:33:14 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-mm@kvack.org, akpm@osdl.org
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 15 Oct 2004, Marcelo Tosatti wrote:
-> On Fri, Oct 15, 2004 at 02:20:08PM +0100, Hugh Dickins wrote:
-> > But please extend your patch to mm/swap_state.c, where you can get rid
-> > of the two radix_tree_lookups by reverting to find_get_page - thanks!
+On Fri, 2004-10-15 at 11:08, Badari Pulavarty wrote:
+
 > 
-> Here it is. Can you please review an Acked-by?
-
-Looks good, thanks, yes, help yourself to one of these:
-Acked-by: Hugh Dickins <hugh@veritas.com>
-
-> That raises a question in my mind: The swapper space statistics
-> are not protected by anything.
+> I see size-64 "inuse" objects increasing. Eventually, it fills
+> up entire low-mem. I guess while freeing up scsi-debug disks,
+> is not cleaning up all the allocations :(
 > 
-> Two processors can write to it at the same time - I can imagine
-> we lose a increment (two CPUs increasing at the same time), but
-> what else can happen to the statistics due to the lack of locking?
+> But one question I have is - Is it possible to hold size-64 slab,
+> because it has a management allocation (slabp - 40 byte allocations)
+> from alloc_slabmgmt() ?  I remember seeing this earlier. Is it worth
+> moving all managment allocations to its own slab ? should I try it ?
 
-That's right.  It just doesn't matter at all: much better to lose
-the occasional increment than weigh it down with locking or atomicity.
+Nope. Moving "slabp" allocations to its own slab, didn't fix anything.
+I guess scsi-debug is not cleaning up properly :(
 
-When was the last time you or anyone took any interest in those
-numbers?  From time to time I think of just ripping them  out.
-
-Hugh
+Thanks,
+Badari
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
