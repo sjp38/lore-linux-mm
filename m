@@ -1,40 +1,77 @@
-Received: from chip by tytlal.su.valinux.com with local (Exim 3.12 #1 (Debian))
-	id 12ztFM-0003X8-00
-	for <linux-mm@kvack.org>; Wed, 07 Jun 2000 20:44:44 -0700
-Date: Wed, 7 Jun 2000 20:44:44 -0700
-From: Chip Salzenberg <chip@valinux.com>
-Subject: raid0 and buffers larger than PAGE_SIZE
-Message-ID: <20000607204444.A453@perlsupport.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from weyl.math.psu.edu (weyl.math.psu.edu [146.186.130.226])
+	by math.psu.edu (8.9.3/8.9.3) with ESMTP id XAA25131
+	for <linux-mm@kvack.org>; Wed, 7 Jun 2000 23:45:58 -0400 (EDT)
+Received: from localhost (viro@localhost)
+	by weyl.math.psu.edu (8.9.3/8.9.3) with ESMTP id XAA13863
+	for <linux-mm@kvack.org>; Wed, 7 Jun 2000 23:45:58 -0400 (EDT)
+Date: Wed, 7 Jun 2000 23:45:58 -0400 (EDT)
+From: Alexander Viro <viro@math.psu.edu>
+Subject: Contention on ->i_shared_lock in dup_mmap()
+Message-ID: <Pine.GSO.4.10.10006072235360.10800-100000@weyl.math.psu.edu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I'm using raid0 under 2.2.16pre4 and I've just started observing a new
-failure mode that's completely preventing it from working: getblk(),
-and therefore refill_freelist(), is being called with a size greater
-than PAGE_SIZE.  This is triggered by e2fsck on the /dev/md0, and it's
-probably been a while since the last e2fsck, so I don't know when the
-was actually introduced.
+tests with -ac10 + dcache-ac10-MM1 and results are interesting: most of
+contention comes from the dup_mmap().
+109 dup_mmap:->i_shared_lock
+48 do_syslog(case 5):console_lock
+25 d_lookup:dcache_lock
+21 enable_irq:desc->lock
+20 bdget:bdev_lock
+13 bdput:bdev_lock
+9 __set_personality:->exit_sem
+8 get_empty_filp:files_lock
+7 insert_into_queues:hash_table_lock
+...
 
-I'm using an Intel CPU, so PAGE_SIZE is 4K, but getblk() is being
-called with a size of 16K, which is (not coincidentally) my raid0
-chunk size.  It ends up in an infinite loop, as getblk() calls
-refill_freelist() forever until it succeeds, which it never does!
+OK, do_syslog() is just plain silly - it's resetting the buffer and code
+in question looks so:
+                spin_lock_irq(&console_lock);
+                logged_chars = 0;
+                spin_unlock_irq(&console_lock);
+... which is for all purposes equivalent to
+		if (logged_chars) {
+			...
+		}
+so this one is easy (looks like a klogd silliness).
 
-I'm not sure whether the bug is in raid0 (is setting a block device
-block size greater than PAGE_SIZE legal?), refill_freelist (is
-creating buffer heads that span multiple pages legal?), or something
-else entirely....  Help?!
+dcache_lock may need splitting. Or maybe not - I want to see more testing
+results before going there.
 
-Clues, anyone?
--- 
-Chip Salzenberg              - a.k.a. -              <chip@valinux.com>
-"I wanted to play hopscotch with the impenetrable mystery of existence,
-    but he stepped in a wormhole and had to go in early."  // MST3K
+bdget() and bdput() are my fault (bad hash-function and too small hash
+table). Fixable.
+
+__set_personality() one is actually a bug (it shouldn't be called at all
+in the tests I've run) and that's also on todo list.
+
+However, all that stuff pales compared to dup_mmap() one. What happens
+there is that we copy all VMAs and insert them into ->i_shared lists of
+their inodes. Which requires ->i_shared_lock and that amounts to visible
+contention. Notice that most of the calls are followed by exec() and thus
+by exit_mmap(), which merrily removes all these VMAs from their lists and
+frees them.
+
+Proposal: let's take the head of ->mmap out of the mm_struct, add
+reference counter and allow the thing to be shared between different
+mm_struct. Rules:
+	a) whenever we take ->mmap_sem, take a semaphore on that new
+structure (in principle that may make some uses of ->mmap_sem unneeded,
+but that's another story).
+	b) if we are going to modify the ->mmap (which requires ->mmap_sem
+taken) && ->mmap is shared - create a private copy and use it (decrement
+the counter on old one, indeed).
+	c) fork() should just share the ->mmap with parent.
+	d) exec() should drop the reference to ->mmap, killing it if we
+were the sole owners.
+
+	In effect it's COW for ->mmap. Comments?
+
+PS: yes, the big lock was _way_ down the list - nowhere near the top ;-)
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
