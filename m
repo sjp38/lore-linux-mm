@@ -1,35 +1,48 @@
-Message-ID: <3D7798CE.D74518F1@zip.com.au>
-Date: Thu, 05 Sep 2002 10:47:58 -0700
+Message-ID: <3D779C77.39ABD952@zip.com.au>
+Date: Thu, 05 Sep 2002 11:03:35 -0700
 From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Subject: Re: MAP_SHARED handling
-References: <3D7705C5.E41B5D5F@zip.com.au> <E17mzs8-00068y-00@starship>
+Subject: Re: 2.5.33-mm3 dbench hang and 2.5.33 page allocation failures
+References: <1031246639.2799.68.camel@spc9.esa.lanl.gov>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>
-Cc: Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Steven Cole <elenstev@mesatop.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Daniel Phillips wrote:
+Steven Cole wrote:
 > 
-> ...
+> I booted 2.5.33-mm3 and ran dbench with increasing
+> numbers of clients: 1,2,3,4,6,8,10,12,16,etc. while
+> running vmstat -n 1 600 from another terminal.
 > 
-> Why not just ensure the page is scheduled for writing, sometime,
-> we don't care exactly when as long as it's relatively soon.  Just bump
-> the page's mapping to the hot end of your writeout list and let things
-> take their course.
+> After about 3 minutes, the output from vmstat stopped,
+> and the dbench 16 output stopped.  The machine would
+> respond to pings, but not to anything else. I had to
+> hard-reset the box. Nothing interesting was saved in
+> /var/log/messages. I have the output from vmstat if needed.
 
-Good point.  Marking the pages dirty and not starting IO on them
-exposes them to pdflush.  Chances are, by the time those pages
-come around again, they'll all be under writeback or clean.
+That sounds like a race-leading-to-deadlock.  Feeding the SYSRQ-T
+output into ksymoops is about the only way you have of diagnosing that
+I'm afraid.
 
-And, umm, yes.  If a pass across all the zones in the classzone
-doesn't free enough stuff, we run wakeup_bdflush() and then
-take an up-to-quarter-second nap.  So pdflush will immediately
-start working on all those pages which we just marked dirty.
-It looks about right.
+> The test box is dual p3, 1GB, scsi, ext3 fs.
+> Kernels are SMP,_HIGHMEM4G, no PREEMPT, no HIGHPTE.
+> 
+> Earlier this morning, I ran 2.5.33 and the dbench test and got many
+> page allocation failure messages before I terminated the test.
+> 
+> Steven
+> 
+> Sep  5 07:20:01 spc5 kernel: dbench: page allocation failure. order:0, mode:0x50
+> Sep  5 07:28:32 spc5 kernel: dbench: page allocation failure. order:0, mode:0x50
+
+Presumably, this was when running a lot more than 16 clients?
+
+It's just a warning, btw.  Allocation failures are expected for GFP_NOIO
+allocations.  Increasingly so lately, actually.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
