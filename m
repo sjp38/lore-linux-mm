@@ -1,104 +1,43 @@
-From: Con Kolivas <kernel@kolivas.org>
+From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: 2.5.74-mm1
-Date: Sun, 6 Jul 2003 13:41:31 +1000
-References: <20030703023714.55d13934.akpm@osdl.org> <200307060201.04219.kernel@kolivas.org> <200307051947.10726.phillips@arcor.de>
-In-Reply-To: <200307051947.10726.phillips@arcor.de>
+Date: Sun, 6 Jul 2003 15:54:48 +0200
+References: <20030703023714.55d13934.akpm@osdl.org> <200307060414.34827.phillips@arcor.de> <Pine.LNX.4.55.0307051918310.4599@bigblue.dev.mcafeelabs.com>
+In-Reply-To: <Pine.LNX.4.55.0307051918310.4599@bigblue.dev.mcafeelabs.com>
 MIME-Version: 1.0
-Content-Disposition: inline
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <200307061341.31243.kernel@kolivas.org>
+Content-Disposition: inline
+Message-Id: <200307061554.48126.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Davide Libenzi <davidel@xmailserver.org>
+Cc: Jamie Lokier <jamie@shareable.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 6 Jul 2003 03:47, Daniel Phillips wrote:
-> On Saturday 05 July 2003 18:01, Con Kolivas wrote:
-> > Have you taken the next twist in the road? I posted a second patch which
-> > should go on top of what's in 2.5.74-mm1 a couple of days ago. Just in
-> > case, here is a link to it.
+On Sunday 06 July 2003 04:21, Davide Libenzi wrote:
+> On Sun, 6 Jul 2003, Daniel Phillips wrote:
+> > On Sunday 06 July 2003 03:28, Jamie Lokier wrote:
+> > > Your last point is most important.  At the moment, a SCHED_RR process
+> > > with a bug will basically lock up the machine, which is totally
+> > > inappropriate for a user app.
 > >
-> > http://kernel.kolivas.org/2.5/
-> >
-> > it's called patch-O2int-0307041440
+> > How does the lockup come about?  As defined, a single SCHED_RR process
+> > could lock up only its own slice of CPU, as far as I can see.
 >
-> This one is a regression.  Window dragging now causes the same kind of
-> dropouts as I saw on 2.5.73 mainline.  But see below.
+> They're de-queued and re-queue in the active array w/out having dynamic
+> priority adjustment (like POSIX states). This means that any task with
+> lower priority will starve if the RR task will not release the CPU.
 
-X is still getting sustained priority in this one; This version addressed 
-other more important issues. The next version may help when I've made it. 
+OK, I see, I didn't pay close enough attention to the "it will be put at the 
+end of the list _for its priority_" part.
 
->
-> > It makes significant headway in smoothing the corner cases. I need
-> > testing at each point before I can post another update, and am doing much
-> > less frequent smaller updates now, with the aim of having no more than
-> > one patch for each -mm, so I can have a decent sized audience for each
-> > change.
-> >
-> > Andrew can you please apply this one on top in the next -mm if you are to
-> > continue testing this patch series.
->
-> Well...
->
-> It should help you to know that up till now I've been running Zinf at
-> priority 0 (of -20..19).  I just changed change that to -10, and all the
-> dropouts went away.  Duh.  The thing is, Zinf is a (soft) realtime
-> application, or at least the sound servicing part of it is.  It's hard to
-> see how the kernel can ever figure that out automagically - it has to be
-> told.  So I told it.
->
-> My only reservation is that nice is not a very (ahem) nice way of doing
-> this. We really want Zinf to take care of that itself.  Zinf knows it has a
-> realtime component and it knows which component that is, so it needs to
-> tell the kernel, presumeably via setpriority (nice is just a frontend to
-> setpriority).  Blindly choosing some higher priority to run at is certainly
-> crude, but for now it solves the problem, so I won't have to apologize to
-> my wife about destroying her audio experience with the latest, greatest
-> kernel.
->
-> Not having to worry about detecting and babying along the realtime sound
-> thread should make your job considerably easier.  OK, looking at the Zinf
-> code I see that it does know about thread priority, via pthreads.  It's
-> either not working, or it's not set to sensible defaults.  I'm looking into
-> that.
+So SCHED_RR is broken by design, too bad.  Now, how would SCHED_RR_NOTBROKEN 
+work?
 
-Well if it gets real time scheduling all that goes away.. But of course that 
-would mean it needs root or equivalent user access. Even the lowest priority 
-real time apps get scheduled ahead of any nice priority boosted or 
-interactive boosted normal scheduling apps. However I'm going to give X less 
-buffer in the next version so it should get better without RT scheduling. 
+Regards,
 
-WRT the other lkml threads, audio should work without skips on normal desktop 
-loads without priority changes, without root privileges and without RT 
-scheduling. Therefore I am still considering it a regression.
-
->
-> Now, just so this doesn't get too easy for you, I have a nice little opengl
-> application here:
->
->   http://nl.linux.org/~phillips/world.tgz
->   (3D engine - see screenshots on the same page)
->
-> The "bounce" demo is suitable for testing how steady the framerate is. 
-> It's working pretty well since 2.4.73, if you leave the window in one
-> place, but scheduling gets challenging (i.e., sucks) when you drag the 3D
-> window around. How should we fix that?  It's my code so I'm willing to add
-> whatever priority control is appropriate.
-
-I assume you're not asking for the scheduler to be tweaked for this. You want 
-the 3d rendering to occur regardless of what is happening anywhere else? If 
-it doesn't use much cpu time but wakes lots then in it's current form the 
-scheduler will happily put this equal sharing with everything at nice 0. X 
-intermittently gets cpu hungry so will make this slow down at the moment 
-during those bursts. Your app will go ahead of everything else at a priority 
-of -3. 
-
-If it is cpu hungry, it will need at least -8 to get in on the act, and -13 to 
-be ahead of everyone (not really recommended though).
-
-Con
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
