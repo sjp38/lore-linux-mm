@@ -1,106 +1,119 @@
-Received: (from sct@localhost)
-	by sisko.scot.redhat.com (8.11.6/8.11.2) id gA6LxmK23126
-	for linux-mm@kvack.org; Wed, 6 Nov 2002 21:59:48 GMT
-Date: Wed, 6 Nov 2002 21:59:48 GMT
-Resent-Message-Id: <200211062159.gA6LxmK23126@sisko.scot.redhat.com>
-Message-Id: <200211062159.gA6LxmK23126@sisko.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: [patch] Buffers pinning inodes in icache forever
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="sHrvAb52M6C8blB9"
-Content-Disposition: inline
-Resent-To: linux-mm@kvack.org
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id OAA01743
+	for <linux-mm@kvack.org>; Wed, 6 Nov 2002 14:40:08 -0800 (PST)
+Message-ID: <3DC99A47.6016C6E9@digeo.com>
+Date: Wed, 06 Nov 2002 14:40:07 -0800
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: Re: [patch] Buffers pinning inodes in icache forever
+References: <200211062159.gA6LxmK23126@sisko.scot.redhat.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>, linux-mm@kvack.org
-Cc: Stephen Tweedie <sct@redhat.com>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---sHrvAb52M6C8blB9
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+"Stephen C. Tweedie" wrote:
+> 
+> ...
+> Doing the refile really isn't hard, either.  We expect IO completion
+> to be happening in approximately list order on the BUF_LOCKED list, so
+> simply doing a refile on any unlocked buffers at the head of that list
+> is going to keep it under control in O(1) time per buffer.
+> 
+> With the patch below we've not seen this particular pathology recur.
+> Comments?
 
-Hi,
+See IRC for discussion ;)  Seems good.
 
-In chasing a performance problem on a 2.4.9-based VM (yes, that one!),
-we found a case where kswapd was consuming massive CPU time, 97% of
-which was in prune_icache (and of that, about 7% was in the
-inode_has_buffers() sub-function).  slabinfo showed about 100k inodes
-in use.
+2.5 will have the same problem, and doesn't have the global
+buffer list.  So doing it per-inode should work.  Untested patch
+follows.  (This approach would work in 2.4 as well?)
 
-The hypothesis is that we've got buffers in cache pinning the inodes.
-It's not pages doing the pinning because if the inode page count is
-zero we never perform the inode_has_buffers() test.
 
-On buffer write, the bh goes onto BUF_LOCKED, but never gets removed
-from there.  In other testing I've seen several GB of memory in
-BUF_LOCKED bh'es during extensive write loads. 
 
-That's normally no problem, except that the lack of a refile_buffer()
-on those bh'es also keeps them on the inode's own buffer lists.  If
-it's metadata that the buffers back (ie. it's all in low memory) and
-the demand on the system is for highmem pages, then we're not
-necessarily going to be aggressively doing try_to_release_page() on
-the lowmem pages which would allow the bhes to be refiled.
-
-Doing the refile really isn't hard, either.  We expect IO completion
-to be happening in approximately list order on the BUF_LOCKED list, so
-simply doing a refile on any unlocked buffers at the head of that list
-is going to keep it under control in O(1) time per buffer.
-
-With the patch below we've not seen this particular pathology recur.
-Comments?
-
---Stephen
-
---sHrvAb52M6C8blB9
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="io-postprocess.patch"
-
---- linux/fs/buffer.c.orig	Fri Oct 25 09:53:43 2002
-+++ linux/fs/buffer.c	Fri Oct 25 10:15:51 2002
-@@ -2835,6 +2835,30 @@
- 	}
+--- 25/fs/buffer.c~remove-inode-buffers	Wed Nov  6 14:17:36 2002
++++ 25-akpm/fs/buffer.c	Wed Nov  6 14:24:58 2002
+@@ -870,6 +870,28 @@ void invalidate_inode_buffers(struct ino
  }
  
-+
-+/*
-+ * Do some IO post-processing here!!!
+ /*
++ * Remove any clean buffers from the inode's buffer list.  This is called
++ * when we're trying to free the inode itself.  Those buffers can pin it.
 + */
-+void do_io_postprocessing(void)
++void remove_inode_buffers(struct inode *inode)
 +{
-+	int i;
-+	struct buffer_head *bh, *next;
++	if (inode_has_buffers(inode)) {
++		struct address_space *mapping = inode->i_mapping;
++		struct list_head *list = &mapping->private_list;
++		struct address_space *buffer_mapping = mapping->assoc_mapping;
 +
-+	spin_lock(&lru_list_lock);
-+	bh = lru_list[BUF_LOCKED];
-+	if (bh) {
-+		for (i = nr_buffers_type[BUF_LOCKED]; i-- > 0; bh = next) {
-+			next = bh->b_next_free;
-+
-+			if (!buffer_locked(bh)) 
-+				__refile_buffer(bh);
-+			else 
++		spin_lock_irq(&buffer_mapping->i_private_lock);
++		while (!list_empty(list)) {
++			struct buffer_head *bh = BH_ENTRY(list->next);
++			if (buffer_dirty(bh))
 +				break;
++			__remove_assoc_queue(bh);
 +		}
++		spin_unlock_irq(&buffer_mapping->i_private_lock);
 +	}
-+	spin_unlock(&lru_list_lock);
 +}
 +
- /*
-  * This is the kernel update daemon. It was used to live in userspace
-  * but since it's need to run safely we want it unkillable by mistake.
-@@ -2886,6 +2910,7 @@
- #ifdef DEBUG
- 		printk(KERN_DEBUG "kupdate() activated...\n");
- #endif
-+		do_io_postprocessing();
- 		sync_old_buffers();
- 	}
++/*
+  * Create the appropriate buffers when given a page for data area and
+  * the size of each buffer.. Use the bh->b_this_page linked list to
+  * follow the buffers created.  Return NULL if unable to create more
+--- 25/include/linux/buffer_head.h~remove-inode-buffers	Wed Nov  6 14:17:36 2002
++++ 25-akpm/include/linux/buffer_head.h	Wed Nov  6 14:17:36 2002
+@@ -141,6 +141,7 @@ void buffer_insert_list(spinlock_t *lock
+ void mark_buffer_dirty_inode(struct buffer_head *bh, struct inode *inode);
+ int inode_has_buffers(struct inode *);
+ void invalidate_inode_buffers(struct inode *);
++void remove_inode_buffers(struct inode *inode);
+ int fsync_buffers_list(spinlock_t *lock, struct list_head *);
+ int sync_mapping_buffers(struct address_space *mapping);
+ void unmap_underlying_metadata(struct block_device *bdev, sector_t block);
+--- 25/fs/inode.c~remove-inode-buffers	Wed Nov  6 14:17:36 2002
++++ 25-akpm/fs/inode.c	Wed Nov  6 14:17:36 2002
+@@ -371,6 +371,8 @@ static int can_unuse(struct inode *inode
+ 		return 0;
+ 	if (atomic_read(&inode->i_count))
+ 		return 0;
++	if (inode->i_data.nrpages)
++		return 0;
+ 	return 1;
  }
+ 
+@@ -399,13 +401,14 @@ static void prune_icache(int nr_to_scan)
+ 
+ 		inode = list_entry(inode_unused.prev, struct inode, i_list);
+ 
+-		if (!can_unuse(inode)) {
++		if (inode->i_state || atomic_read(&inode->i_count)) {
+ 			list_move(&inode->i_list, &inode_unused);
+ 			continue;
+ 		}
+-		if (inode->i_data.nrpages) {
++		if (inode_has_buffers(inode) || inode->i_data.nrpages) {
+ 			__iget(inode);
+ 			spin_unlock(&inode_lock);
++			remove_inode_buffers(inode);
+ 			invalidate_inode_pages(&inode->i_data);
+ 			iput(inode);
+ 			spin_lock(&inode_lock);
+@@ -415,8 +418,6 @@ static void prune_icache(int nr_to_scan)
+ 				continue;	/* wrong inode or list_empty */
+ 			if (!can_unuse(inode))
+ 				continue;
+-			if (inode->i_data.nrpages)
+-				continue;
+ 		}
+ 		list_del_init(&inode->i_hash);
+ 		list_move(&inode->i_list, &freeable);
 
---sHrvAb52M6C8blB9--
-
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
