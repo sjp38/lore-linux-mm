@@ -1,34 +1,53 @@
-Date: Mon, 11 Oct 1999 13:57:50 -0400 (EDT)
-From: James Simmons <jsimmons@edgeglobal.com>
-Subject: Re: MMIO regions
-In-Reply-To: <14338.6581.988257.647691@dukat.scot.redhat.com>
-Message-ID: <Pine.LNX.4.10.9910111354090.20596-100000@imperial.edgeglobal.com>
+Message-ID: <38022640.3447ECA6@colorfullife.com>
+Date: Mon, 11 Oct 1999 20:02:40 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: locking question: do_mmap(), do_munmap()
+References: <Pine.GSO.4.10.9910111157310.18777-100000@weyl.math.psu.edu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linux MM <linux-mm@kvack.org>
+To: Alexander Viro <viro@math.psu.edu>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> You seem to be looking for a solution which doesn't exist, though. :)
+Alexander Viro wrote:
+> 
+> On Mon, 11 Oct 1999, Stephen C. Tweedie wrote:
+> 
+> > Hi,
+> >
+> > On Sun, 10 Oct 1999 15:03:45 -0400 (EDT), Alexander Viro
+> > <viro@math.psu.edu> said:
+> >
+> > > Hold on. In swap_out_mm() you have to protect find_vma() (OK, it doesn't
+> > > block, but we'll have to take care of mm->mmap_cache) _and_ you'll have to
+> > > protect vma from destruction all way down to try_to_swap_out(). And to
+> > > vma->swapout(). Which can sleep, so spinlocks are out of question
+> > > here.
+> >
+> > No, spinlocks would be ideal.  The vma swapout codes _have_ to be
+> > prepared for the vma to be destroyed as soon as we sleep.  In fact, the
+> > entire mm may disappear if the process happens to exit.  Once we know
+> > which page to write where, the swapout operation becomes a per-page
+> > operation, not per-vma.
+> 
+> Aha, so you propose to drop it in ->swapout(), right? (after get_file() in
+> filemap_write_page()... Ouch. Probably we'ld better lambda-expand the call
+> in filemap_swapout() - the thing is called from other places too)...
 
-Well my next experiment is RTLinux with acceleration. From what I have
-been learning SGI kernel has a special schedular for its graphics to
-ensure hard real time performace. I want to see how much of a impact
-RTLinux wil have with acceleration.    
+What about something like a rw-semaphore which protects the vma list:
+vma-list modifiers [ie merge_segments(), insert_vm_struct() and
+do_munmap()] grab it exclusive, swapper grabs it "shared, starve
+exclusive".
+All other vma-list readers are protected by mm->mmap_sem.
 
-> It is an unfortunate, but true, fact that the broken video hardware
-> doesn't let you provide memory mapped access which is (a) fast, (b)
-> totally safe, and (c) functional.  Choose which of a, b and c you are
-> willing to sacrifice and then we can look for solutions.  DRI sacrifices
-> (b), for example, by making the locking cooperative rather than
-> compulsory.  The basic unaccelerated fbcon sacrifices (c).  Using VM
-> protection would sacrifice (a).  It's not the ideal choice, sadly.
+This should not dead-lock, and no changes are required in
+vm_ops->swapout().
 
-Well I see SGI uses usemsa which is its version of flocking. If SGI does
-it then its the right way :) Yes I think SGI hardware is teh greatest in
-the world.
+--
+	Manfred
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
