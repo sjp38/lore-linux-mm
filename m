@@ -1,181 +1,50 @@
-Subject: Re: 2.5.44-mm5 - ltp-cvs (current) - 98.74% Pass
-From: Paul Larson <plars@linuxtestproject.org>
-In-Reply-To: <3DB8D94B.20D3D5BD@digeo.com>
-References: <3DB8D94B.20D3D5BD@digeo.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 25 Oct 2002 14:00:08 -0500
-Message-Id: <1035572409.3447.205.camel@plars>
+Date: Sat, 26 Oct 2002 10:13:10 +0200
+From: Rogier Wolff <R.E.Wolff@BitWizard.nl>
+Subject: Re: running 2.4.2 kernel under 4MB Ram
+Message-ID: <20021026101310.A16359@bitwizard.nl>
+References: <1035281203.31873.34.camel@irongate.swansea.linux.org.uk> <1035333109.2200.2.camel@amol.in.ishoni.com> <1035301164.31917.78.camel@irongate.swansea.linux.org.uk>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1035301164.31917.78.camel@irongate.swansea.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, ltp-results <ltp-results@lists.sourceforge.net>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Amol Kumar Lad <amolk@ishoni.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-2.5.44-mm5 does not have any new or unexpected LTP failures above
-2.5.44-vanilla.  These results are the same for both.
+On Tue, Oct 22, 2002 at 04:39:24PM +0100, Alan Cox wrote:
+> On Wed, 2002-10-23 at 01:31, Amol Kumar Lad wrote:
+> > It means that I _cannot_ run 2.4.2 on a 4MB box. 
+> > Actually my embedded system already has 2.4.2 running on a 16Mb. I was
+> > looking for a way to run it in 4Mb. 
+> > So Is upgrade to 2.4.19 the only option ??
+> 
+> You should move to a later kernel anyway 2.4.2 has a lot of bugs
+> including some security ones.
 
-These results are on an 8-way PIII-700 16 GB.  Preempt off, PAE on,
-HUGETLB on, Shared PTE on
+If the "embedded system" just brews his coffee, then there are not
+many security issues he cares about. It gets the job done. 
 
-tag=nanosleep02 stime=1035560360 dur=1 exit=exited stat=1 core=no cu=0
-cs=0
-tag=personality02 stime=1035560367 dur=0 exit=exited stat=1 core=no cu=0
-cs=0
-tag=pread02 stime=1035560372 dur=0 exit=exited stat=1 core=no cu=1 cs=1
-tag=pwrite02 stime=1035560372 dur=0 exit=exited stat=1 core=no cu=0 cs=1
-tag=writev01 stime=1035560429 dur=0 exit=exited stat=1 core=no cu=0 cs=1
-tag=dio04 stime=1035561857 dur=0 exit=exited stat=1 core=no cu=0 cs=0
-tag=dio10 stime=1035561870 dur=400 exit=exited stat=1 core=no cu=124
-cs=465
-tag=sem02 stime=1035562935 dur=20 exit=exited stat=1 core=no cu=0 cs=0
+Amol, Just add a "mem=4M" to the kernel commandline and see what 
+happens. It depends a lot on what and how many applications you run
+on that system. 
 
----test_start---
-tag=nanosleep02 stime=1035525897
-cmdline="nanosleep02"
-contacts=""
-analysis=exit
-initiation_status="ok"
----test_output---
-nanosleep02    1  FAIL  :  Remaining sleep time 4001000 usec doesn't
-match with the expected 3998337 usec time
-nanosleep02    1  FAIL  :  child process exited abnormally
----execution_status---
-duration=1 termination_type=exited termination_id=1 corefile=no
-cutime=0 cstime=1
----test_end---
----test_start---
-tag=personality02 stime=1035525903
-cmdline="personality02"
-contacts=""
-analysis=exit
-initiation_status="ok"
----test_output---
-personality02    1  FAIL  :  call failed - errno = 0 - Success
----execution_status---
-duration=0 termination_type=exited termination_id=1 corefile=no
-cutime=0 cstime=0
----test_end---
----test_start---
-tag=pread02 stime=1035525908
-cmdline="pread02"
-contacts=""
-analysis=exit
-initiation_status="ok"
----test_output---
-pread02     1  PASS  :  pread() fails, file descriptor is a PIPE or
-FIFO, errno:29
-pread02     2  FAIL  :  pread() returned 0, expected -1, errno:22
----execution_status---
-duration=0 termination_type=exited termination_id=1 corefile=no
-cutime=0 cstime=0
----test_end---
----test_start---
-tag=pwrite02 stime=1035525908
-cmdline="pwrite02"
-contacts=""
-analysis=exit
-initiation_status="ok"
----test_output---
-pwrite02    1  PASS  :  file descriptor is a PIPE or FIFO, errno:29
-caught SIGXFSZ
-pwrite02    2  FAIL  :  specified offset is -ve or invalid, unexpected
-errno:27, expected:22
-pwrite02    3  PASS  :  file descriptor is bad, errno:9
----execution_status---
-duration=0 termination_type=exited termination_id=1 corefile=no
-cutime=0 cstime=0
----test_end---
----test_start---
-tag=writev01 stime=1035525965
-cmdline="writev01"
-contacts=""
-analysis=exit
-initiation_status="ok"
----test_output---
-writev01    0  INFO  :  Enter Block 1
-writev01    0  INFO  :  Received EINVAL as expected
-writev01    0  INFO  :  block 1 PASSED
-writev01    0  INFO  :  Exit block 1
-writev01    0  INFO  :  Enter block 2
-writev01    1  FAIL  :  writev() failed unexpectedly
-writev01    0  INFO  :  block 2 FAILED
-writev01    0  INFO  :  Exit block 2
-writev01    0  INFO  :  Enter block 3
-writev01    0  INFO  :  block 3 PASSED
-writev01    0  INFO  :  Exit block 3
-writev01    0  INFO  :  Enter block 4
-writev01    0  INFO  :  Received EBADF as expected
-writev01    0  INFO  :  block 4 PASSED
-writev01    0  INFO  :  Exit block 4
-writev01    0  INFO  :  Enter block 5
-writev01    0  INFO  :  Received EINVAL as expected
-writev01    0  INFO  :  block 5 PASSED
-writev01    0  INFO  :  Exit block 5
-writev01    0  INFO  :  Enter block 6
-writev01    2  PASS  :  writev() wrote 0 iovectors
-writev01    0  INFO  :  block 6 PASSED
-writev01    0  INFO  :  Exit block 6
-writev01    0  INFO  :  Enter block 7
-writev01    3  PASS  :  writev passed writing 64 bytes, followed by two
-NULL vectors
-writev01    0  INFO  :  block 7 PASSED
-writev01    0  INFO  :  Exit block 7
-writev01    0  INFO  :  Enter block 8
-writev01    0  INFO  :  Received EPIPE as expected
-writev01    0  INFO  :  block 8 PASSED
-writev01    0  INFO  :  Exit block 8
----execution_status---
-duration=0 termination_type=exited termination_id=1 corefile=no
-cutime=0 cstime=0
----test_end---
----test_start---
-tag=dio04 stime=1035527610
-cmdline="diotest4"
-contacts=""
-analysis=exit
-initiation_status="ok"
----test_output---
-[9] open /dev/null:Invalid argument
----execution_status---
-duration=1 termination_type=exited termination_id=1 corefile=no
-cutime=0 cstime=38
----test_end---
----test_start---
-tag=dio10 stime=1035527680
-cmdline="diotest4 -b 65536"
-contacts=""
-analysis=exit
-initiation_status="ok"
----test_output---
-[9] open /dev/null:Invalid argument
----execution_status---
-duration=1444 termination_type=exited termination_id=1 corefile=no
-cutime=127 cstime=118842
----test_end---
----test_start---
-tag=sem02 stime=1035530115
-cmdline="sem02"
-contacts=""
-analysis=exit
-initiation_status="ok"
----test_output---
-Waiter, pid = 5116
-Poster, pid = 5117, posting
-Poster posted
-Poster exiting
-Waiter waiting, pid = 5116
-sem02: FAIL
-Waiter done waiting
----execution_status---
-duration=20 termination_type=exited termination_id=1 corefile=no
-cutime=0 cstime=1
----test_end---
+But still, Alan is right. You might run into odd problems that are
+simply fixed if you upgrade. (My workstation was "pretty good" at 
+staying up under 2.4.2 (about a month at a time), and I didn't want 
+to upgrade, for fear of it getting worse. I upgraded and now get
+much better uptimes (until my colleague types "reboot -n -f" into 
+the wrong window)). 
 
-Thanks,
-Paul Larson
+		Roger.	
 
+-- 
+** R.E.Wolff@BitWizard.nl ** http://www.BitWizard.nl/ ** +31-15-2600998 **
+*-- BitWizard writes Linux device drivers for any device you may have! --*
+* The Worlds Ecosystem is a stable system. Stable systems may experience *
+* excursions from the stable situation. We are currently in such an      * 
+* excursion: The stable situation does not include humans. ***************
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
