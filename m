@@ -1,45 +1,45 @@
-Date: Mon, 27 Mar 2000 12:50:17 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Reply-To: riel@nl.linux.org
-Subject: Re: [RFT] balancing patch
-In-Reply-To: <Pine.LNX.4.10.10003270756160.2378-100000@coffee.psychology.mcmaster.ca>
-Message-ID: <Pine.LNX.4.21.0003271244470.1104-100000@duckman.conectiva>
+Received: (from uucp@localhost)
+	by annwfn.erfurt.thur.de (8.9.3/8.9.2) with UUCP id SAA29727
+	for linux-mm@kvack.org; Mon, 27 Mar 2000 18:06:01 +0200
+Received: from nibiru.pauls.erfurt.thur.de (uucp@localhost)
+	by pauls.erfurt.thur.de (8.9.3/8.9.3) with bsmtp id RAA04127
+	for linux-mm@kvack.org; Mon, 27 Mar 2000 17:55:27 +0200
+Received: from nibiru.pauls.erfurt.thur.de (localhost [127.0.0.1])
+	by nibiru.pauls.erfurt.thur.de (8.9.3/8.9.3) with ESMTP id MAA06805
+	for <linux-mm@kvack.org>; Mon, 27 Mar 2000 12:50:10 GMT
+Message-ID: <38DF5901.CEBF90B0@nibiru.pauls.erfurt.thur.de>
+Date: Mon, 27 Mar 2000 12:50:09 +0000
+From: Enrico Weigelt <weigelt@nibiru.pauls.erfurt.thur.de>
+Reply-To: weigelt@nibiru.pauls.erfurt.thur.de
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: compressed swap 
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
-Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 27 Mar 2000, Mark Hahn wrote:
+hi,
 
-> > see whether it helps them. If you try the patch, and see that it
-> > helps, or hinders, your system performance, please let me know. 
-> 
-> doesn't help: kswapd still wastes major CPU.
+i'm currenty thinking about a compressed swapspace-manager.
+not to save diskspace, but to reduce the IO-upcome.
 
-I'm now testing Kanoj' balancing patch together with my kswapd
-infinite-loop-removal patch. The system seems to work quite well,
-I haven't seen any big strangeness in the VM load (the variance
-in the amount of free memory is a bit bigger, naturally, but that's
-to be expected) and interactive performance from the console seems
-unaffected.
+in today's PCs the blottleneck is the disk-bandwith when the
+system is swapping. (okay, people could buy more ram ... hmmm :()
 
-It would be nice if a few more people tested the combination of
-2.3.99-pre3 with Kanoj' balancing patch and my infinite-loop-
-removal patch ...   (because YMMV)
+i'm quite new to the linux-mm - so how should i start ?
 
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+bye,
+ew.
+-------------------------------------------------------------------------------
+KAMPF GEGEN ECHOLON - DIE USA SCHNEIDED WELTWEIT DEN EMAIL-VERKEHR
+MIT!!!
+BITTE ALLE MITMACHEN UND "GEFAEHRLICHE" WOERTER IN DIE SIGNATUR
+SCHREIBEN
+...
+againstNSAletskillthemallaufstanddollarwirtschaftskrieseusakillthepresident
+shitfuckingusawewillattacknextweekterrorecholonforkommunismagainstdemocracy.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
