@@ -1,70 +1,86 @@
-Received: from 218-101-109-95.dialup.clear.net.nz
- (218-101-109-95.dialup.clear.net.nz [218.101.109.95])
- by smtp2.clear.net.nz (CLEAR Net Mail)
- with ESMTP id <0HRY003WYWT9ES@smtp2.clear.net.nz> for linux-mm@kvack.org; Sat,
- 24 Jan 2004 13:17:36 +1300 (NZDT)
-Date: Sat, 24 Jan 2004 13:20:25 +1300
-From: Nigel Cunningham <ncunningham@users.sourceforge.net>
-Subject: Re: Can a page be HighMem without having the HighMem flag set?
-In-reply-to: <20040124000435.GC1016@holomorphy.com>
-Reply-to: ncunningham@users.sourceforge.net
-Message-id: <1074903624.2093.51.camel@laptop-linux>
-MIME-version: 1.0
-Content-type: multipart/signed; boundary="=-he0Bfb1YNsktdVPlWtRD";
- protocol="application/pgp-signature"; micalg=pgp-sha1
-References: <1074824487.12774.185.camel@laptop-linux>
- <20040123022617.GY1016@holomorphy.com>
- <1074828647.12774.212.camel@laptop-linux>
- <1074900629.2024.44.camel@laptop-linux> <20040124000435.GC1016@holomorphy.com>
+Subject: [PATCH] use-tsc-for-delay_pmtmr.patch
+From: john stultz <johnstul@us.ibm.com>
+In-Reply-To: <1074886056.12447.36.camel@localhost>
+References: <20040123013740.58a6c1f9.akpm@osdl.org>
+	 <20040123160152.GA18073@ss1000.ms.mff.cuni.cz>
+	 <20040123161946.GA6934@ucw.cz>  <1074886056.12447.36.camel@localhost>
+Content-Type: text/plain
+Message-Id: <1074904017.12446.159.camel@localhost>
+Mime-Version: 1.0
+Date: Fri, 23 Jan 2004 16:26:57 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, vojtech@suse.cz
 List-ID: <linux-mm.kvack.org>
 
---=-he0Bfb1YNsktdVPlWtRD
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Fri, 2004-01-23 at 11:27, john stultz wrote:
+> If that is going to cause problems, then we'll need to pull out the
+> use-pmtmr-for-delay_pmtmr patch. I guess our only option is then to use
+> the TSC for delay_pmtrm() (as a loop based delay fails in other cases).
+> I'll write that up and send it your way, Andrew. 
 
-That's fine. I'll just ignore those pages for the sake of suspending and
-resuming. I've just successfully suspended with those changes, but
-suspending is the easy part.... resuming worked too :>
+Andrew, 
+	Here's the patch to replace use-pmtmr-for-delay_pmtmr. It simply uses
+the TSC for delay_pmtmr much as delay_tsc does.  The only gottcha is
+that __delay will be affected by cpu-frequency changes (much as the
+existing loop based delay) until I hook in the cpufreq notificaiton into
+the ACPI PM timesource code. I'll get to that issue early next week
+(sorry, I had a few other things I had to finish today). 
+Let me know if this solves the APIC trouble on your system and if so,
+I'd be interested to see how it works in -mm. 
 
-Regards,
+thanks
+-john
 
-Nigel
+diff -Nru a/arch/i386/kernel/timers/timer_pm.c b/arch/i386/kernel/timers/timer_pm.c
+--- a/arch/i386/kernel/timers/timer_pm.c	Fri Jan 23 13:57:38 2004
++++ b/arch/i386/kernel/timers/timer_pm.c	Fri Jan 23 13:57:38 2004
+@@ -73,6 +73,10 @@
+ 	if (!pmtmr_ioport)
+ 		return -ENODEV;
+ 
++	/* we use the TSC for delay_pmtmr, so make sure it exists */
++	if (!cpu_has_tsc)
++		return -ENODEV;
++
+ 	/* "verify" this timing source */
+ 	value1 = read_pmtmr();
+ 	for (i = 0; i < 10000; i++) {
+@@ -173,23 +177,16 @@
+ 	return ret;
+ }
+ 
+-static void delay_pmtmr(unsigned long total_loops)
++static void delay_pmtmr(unsigned long loops)
+ {
+-	u32 then, now;
+-	unsigned long loops;
++	unsigned long bclock, now;
+ 	
+-	do{
+-		if (total_loops > ACPI_PM_MASK)
+-			loops = ACPI_PM_MASK;
+-		else
+-			loops =  total_loops;
+-		total_loops -= loops;
+-		
+-		then = read_pmtmr();
+-		do{ 
+-			now = read_pmtmr();
+-		} while (((now - then)&ACPI_PM_MASK) < loops);
+-	} while (total_loops);
++	rdtscl(bclock);
++	do
++	{
++		rep_nop();
++		rdtscl(now);
++	} while ((now-bclock) < loops);
+ }
+ 
+ 
 
-On Sat, 2004-01-24 at 13:04, William Lee Irwin III wrote:
-> > It's the pages efff6000- which are causing me grief. if I understand
-> > things correctly, page_is_ram is returning 0 for those pages, and as a
-> > result they get marked reserved and not HighMem by one_highpage_init.
-> > I suppose, then, that I need to check for and ignore pages >
-> > highstart_pfn where PageHighMem is not set/Reserved is set. (Either
-> > okay?).
->=20
-> If it's reserved, most/all bets are off -- only the "owner" of the thing
-> understands what it is. Some more formally-defined semantics for reserved
-> are needed, but 2.6 is unlikely to get them soon.
->=20
->=20
-> -- wli
---=20
-My work on Software Suspend is graciously brought to you by
-LinuxFund.org.
-
---=-he0Bfb1YNsktdVPlWtRD
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.3 (GNU/Linux)
-
-iD8DBQBAEbpIVfpQGcyBBWkRAi+AAKCXKyjMgs3OCI7Nerb0Nqaiay5nVwCgn44T
-Ou3M6nUelTpJeVR+7dS3Sjg=
-=WdbT
------END PGP SIGNATURE-----
-
---=-he0Bfb1YNsktdVPlWtRD--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
