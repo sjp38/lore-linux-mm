@@ -1,64 +1,79 @@
-Received: from front2.grolier.fr (front2.grolier.fr [194.158.96.52])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA28719
-	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 15:51:48 -0500
-Received: from sidney.remcomp.fr (ppp-163-157.villette.club-internet.fr [195.36.163.157])
-	by front2.grolier.fr (8.9.0/MGC-980407-Frontal-No_Relay) with SMTP id VAA16294
-	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 21:51:29 +0100 (MET)
-Date: 25 Nov 1998 20:29:27 -0000
-Message-ID: <19981125202927.1916.qmail@sidney.remcomp.fr>
-From: jfm2@club-internet.fr
-In-reply-to: <m1af1fde1q.fsf@flinx.ccr.net> (ebiederm+eric@ccr.net)
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA28885
+	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 16:03:06 -0500
+Date: Wed, 25 Nov 1998 21:02:56 GMT
+Message-Id: <199811252102.VAA05466@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Subject: Re: Two naive questions and a suggestion
-References: <19981119002037.1785.qmail@sidney.remcomp.fr> 	<199811231808.SAA21383@dax.scot.redhat.com> 	<19981123215933.2401.qmail@sidney.remcomp.fr> <199811241117.LAA06562@dax.scot.redhat.com> <19981124214432.2922.qmail@sidney.remcomp.fr> <m1af1fde1q.fsf@flinx.ccr.net>
+In-Reply-To: <Pine.LNX.3.96.981125173723.11080C-100000@mirkwood.dummy.home>
+References: <199811251446.OAA01094@dax.scot.redhat.com>
+	<Pine.LNX.3.96.981125173723.11080C-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
-To: ebiederm+eric@ccr.net
-Cc: jfm2@club-internet.fr, sct@redhat.com, linux-mm@kvack.org
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, jfm2@club-internet.fr, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> 
-> >>>>> "jfm2" == jfm2  <jfm2@club-internet.fr> writes:
-> 
-> jfm2> Say the Web or database server can be deemed important enough for it
-> jfm2> not being killed just because some dim witt is playing with the GIMP
-> jfm2> at the console and the GIMP has allocated 80 Megs.
-> 
-> jfm2> More reallistically, it can happen that the X server is killed
-> jfm2> (-9) due to the misbeahviour of a user program and you get
-> jfm2> trapped with a useless console.  Very diificult to recover.  Specially
-> jfm2> if you consider inetd could have been killed too, so no telnetting.
-> 
-> jfm2> You can also find half of your daemons, are gone.  That is no mail, no
-> jfm2> printing, no nothing.
-> 
-> initd is never killed. Won't & can't be killed.
-> initd should be configured to restart all of your important daemons if
-> they go down.
-> 
+Hi,
 
-This does not solve the problem.  To begin with after an unclean
-shutdown a database server spends time rolling back uncommitted
-transactions and possibly writing somye comitted ones to the database
-from its journals.  Users could prefer a database who doesn't go down
-in the first place.
+On Wed, 25 Nov 1998 17:47:18 +0100 (CET), Rik van Riel
+<H.H.vanRiel@phys.uu.nl> said:
 
-Second: the 80 Megs GIMP is still there so when init restarts the
-database, the databse tries to allocate memory and it crashes again.
+>> WRONG.  We can very very easily unlink pages from a process's pte
+>> (hence reducing the process's RSS) without removing that page from
+>> memory.  It's trivial.  We do it all the time.  Rik, you should
+>> probably try to work out how try_to_swap_out() actually works one of
+>> these days.
 
-Third: A process can crash because it is misconfigured or a file is
-corrupted.  And crash again if you restart it.  It si not Init's job
-to do things like try five times and use a pager interface to send a
-message to the admin in case there is a sixth crash.
+> I just looked in mm/vmscan.c of kernel version 2.1.129, and
+> line 173, 191 and 205 feature a prominent:
+> 			free_page_and_swap_cache(page);
 
+It is not there in 2.1.130-pre3, however. :) That misses the point,
+though.  The point is that it is trivial to remove these mappings
+without freeing the swap cache, and the code you point to confirms this:
+vmscan actually has to go to _extra_ trouble to free the underlying
+cache if that is wanted (the shared page case is the same, hence the
+unuse_page call at the end of try_to_swap_out() (also removed in
+2.1.130-3).  The default action of the free_page alone removes the
+mapping but not the cache entry, and the functionality of leaving the
+cache present is already there.
 
-It could be considered that "guaranteed" processes is not a good idea
-but using Init is not the way to address the problem.
+> Oh, one question. Can we attach a swap page to the swap cache
+> while there's no program using it? This way we can implement
+> a very primitive swapin readahead right now, improving the
+> algorithm as we go along...
 
--- 
-			Jean Francois Martinez
+Yes, rw_swap_page(READ, nowait) does exactly that: it primes the swap
+cache asynchronously but does not map it anywhere.  It should be
+completely safe right now: the normal swap read is just a special case
+of this.
 
-Project Independence: Linux for the Masses
-http://www.independence.seul.org
+> IMHO it would be a big loss to have dirty pages in the swap
+> cache. Writing out swap pages is cheap since we do proper
+> I/O clustering ...
 
+> Besides, having a large/huge clean swap cache means that we
+> can very easily free up memory when we need to, this is
+> essential for NFS buffers, networking stuff, etc.
+
+Yep, absolutely: agreed on both counts.  This is exactly how 2.1.130-3
+works! 
+
+> If we keep a quota of 20% of memory in buffers and unmapped
+> cache, we can also do away with a buffer for the 8 and 16kB
+> area's. We can always find some contiguous area in swap/page
+> cache that we can free...
+
+That will kill performance if you have a large simulation which has a
+legitimate need to keep 90% of physical memory full of anonymous pages.
+I'd rather do without that 20% magic limit if we can.  The only special
+limit we really need is to make sure that kswapd keeps far enough in
+advance of interrupt memory load that the free list doesn't empty.
+
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
