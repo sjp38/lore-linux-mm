@@ -1,32 +1,162 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA10516
-	for <linux-mm@kvack.org>; Sat, 16 Jan 1999 08:22:23 -0500
-Date: Sat, 16 Jan 1999 14:22:10 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: VM20 behavior on a 486DX/66Mhz with 16mb of RAM
-In-Reply-To: <19990116115459.A7544@hexagon>
-Message-ID: <Pine.LNX.3.96.990116141939.701A-100000@laser.bogus>
+Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA11035
+	for <linux-mm@kvack.org>; Sat, 16 Jan 1999 09:17:10 -0500
+Subject: Review and report of linux kernel VM (fwd)
+Reply-To: Zlatko.Calusic@CARNet.hr
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Date: 16 Jan 1999 15:17:01 +0100
+Message-ID: <87btjz9uaq.fsf@atlas.CARNet.hr>
 Sender: owner-linux-mm@kvack.org
-To: Nimrod Zimerman <zimerman@deskmail.com>
-Cc: Linux Kernel mailing list <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
+To: Linux-MM List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 16 Jan 1999, Nimrod Zimerman wrote:
+This was forwarded to linux-kernel, and now I'm forwarding it to
+linux-mm. :)
 
-> Personally, I don't like the way the pager works. It is too magical. Change
-> 'priority', and it might work better. Why? Because. I much preferred the old
-> approach, of being able to simply tell the cache (and buffers, though I
-> don't see this unless I explicitly try to enlarge it) to *never*, *ever* grow
-> over some arbitrary limit. This is far better for smaller machines, at
-> least as far as I can currently see.
+------- Start of forwarded message -------
+Date: Wed, 13 Jan 1999 23:20:22 -0800 (PST)
+From: Matthew Dillon <dillon@apollo.backplane.com>
+Message-Id: <199901140720.XAA22609@apollo.backplane.com>
+To: "John S. Dyson" <root@dyson.iquest.net>, dg@root.com, jkh@FreeBSD.ORG
+Cc: hackers@FreeBSD.ORG
+Subject: Review and report of linux kernel VM
+Sender: owner-freebsd-hackers@FreeBSD.ORG
 
-Setting an high limit for the cache when we are low memory is easy doable.
-Comments from other mm guys?
+				General Overview
 
-Andrea Arcangeli
+    I've been looking at the linux kernel VM - mainly just to see what they've
+    changed since I last looked at it.  It's quite interesting... not bad at
+    all though it is definitely a bit more memory-resource-intensive then
+    FreeBSD's.  However, it needs a *lot* of work when it comes to freeing 
+    up pages. 
 
+    I apologize in advance for any mistakes I've made!
+
+    Basically, the linux kernel uses persistent hardware-level page tables
+    in a mostly platform-independant fashion.  The function of the persistent
+    page tables is roughly equivalent to the function of FreeBSD's vm_object's.
+    That is, the page tables are used to manage sharing and copy-on-write
+    functions for VM objects.
+
+    For example, when a process fork()'s, pages are duplicated literally by
+    copying pte's.  Writeable MAP_PRIVATE pages are write-protected and marked
+    for copy-on-write.  A global resident-page array is used to keep track
+    of shared reference counts.  
+
+    Swapped-out pages are also represented by pte's and also marked for 
+    copy-on-write as appropriate.  The swap block is stored in the PFN 
+    area of the pte (as far as I can tell).  The swap system keeps a separate
+    shared reference count to manage swap usage.  The overhead is around 
+    3 bytes per swap page (whether it is in use or not), and another pte-sized
+    (int usually) field when storing the swap block in the pagetable.
+
+    Linux cannot swap out its page tables, mainly due to the direct use of
+    the page tables in handling VM object sharing.
+
+    In general terms, linux's VM system is much cleaner then FreeBSD's... and
+    I mean a *whole lot* cleaner, but at the cost of eating some extra memory.
+    It isn't a whole lot of extra memory - maybe a meg or two for a typical
+    system managing a lot of processes, and much less for typical 'small'
+    systems.  They are able to completely avoid the vm_object stacking
+    (and related complexity) that we do, and they are able to completely
+    avoid most of the pmap complexity in FreeBSD as well.
+
+    Linux appears to implement a unified buffer cache.  It's pretty 
+    straight forward except the object relationship is stored in
+    the memory-map management structures in each process rather then
+    in a vm_object type of structure.
+
+    Linux appears to map all of physical memory into KVM.  This avoids
+    FreeBSD's (struct buf) complexity at the cost of not being able to 
+    deal with huge-memory configurations.  I'm not 100% sure of this, but
+    its my read of the code until someone corrects me.
+
+				Problems
+
+    Swap allocation is terrible.  Linux uses a linear array which it scans
+    looking for a free swap block.  It does a relatively simple swap
+    cluster cache, but eats the full linear scan if that fails which can be
+    terribly nasty.  The swap clustering algorithm is a piece of crap, 
+    too -- once swap becomes fragmented, the linux swapper falls on its face.
+    It does read-ahead based on the swapblk which wouldn't be bad if it
+    clustered writes by object or didn't have a fragmentation problem.
+    As it stands, their read clustering is useless.  Swap deallocation is 
+    fast since they are using a simple reference count array. 
+
+    File read-ahead is half-hazard at best.
+
+    The paging queues ( determing the age of the page and whether to 
+    free or clean it) need to be written... the algorithms being used
+    are terrible.
+
+     * For the nominal page scan, it is using a one-hand clock algorithm.  
+       All I can say is:  Oh my god!  Are they nuts?  That was abandoned
+       a decade ago.  The priority mechanism they've implemented is nearly
+       useless.
+
+     * To locate pages to swap out, it takes a pass through the task list. 
+       Ostensibly it locates the task with the largest RSS to then try to
+       swap pages out from rather then select pages that are not in use.
+       From my read of the code, it also botches this badly.
+
+    Linux does not appear to do any page coloring whatsoever, but it would
+    not be hard to add it in.
+
+    Linux cannot swap-out its page tables or page directories.  Thus, idle
+    tasks can eat a significant amount of memory.  This isn't a big deal for
+    most systems ( small systems: no problem.  Big systems: probably have lots
+    of memory anyway ).  But, mmap()'d files can create a significant burden
+    if you have a lot of forked processes ( news, sendmail, web server, 
+    etc...).  Not only does Linux have to scan the page tables for all the
+    processes mapping the file, whether or not they are actively using the
+    page being checked for, but Linux's swapout algorithm scans page tables
+    and, effectively, makes redundant scans of shared objects.
+
+			     What FreeBSD can learn
+
+    Well, the main thing is that the Linux VM system is very, very clean
+    compared to the FreeBSD implementation.  Cleaning up FreeBSD's VM system
+    complexity is what I've been concentrating on and will continue to 
+    concentrate on.   However, part of the reason that FreeBSD's VM system 
+    is more complex is because it does not use the page tables to store 
+    reference information.  Instead, it uses the vm_object and pmap modules.
+    I actually like this feature of FreeBSD.  A lot. 
+
+    The biggest thing we need to do to clean up our VM system is, basically,
+    to completely rewrite the struct buf filesystem buffering mechanism to
+    make it much, much less complex - basically it should only be used as
+    placeholders for read and write ops and not used to cache block number
+    mappings between the files and the VM system, nor should it be used to
+    map pages into KVM.  Separating out these three mechanisms into three
+    different subsystems would simplify the code enormously, I think.  For
+    example, we could implement a simple vm_object KVM mapping mechanism
+    using FreeBSD's existing vm_object stacking model to map portions of a
+    vm_object (aka filesystem partition) into KVM.
+
+    Linux demarks interrupts from supervisor code much better then we do.
+    If we move some of the more sophisticated operational capabilities
+    out of our interrupt subsystem, we could get rid of most of the spl*()
+    junk we currently have to do.  This is a real sore spot in current
+    FreeBSD code.  Interrupts are just too complex.  I'd also get rid of
+    FreeBSD's intermediate 'software interrupt' layer, which is able to
+    do even more complex things then hard interrupt code.  The latency
+    considerations just don't make any sense verses running pending software
+    interrupts synchronously in tsleep(), prior to actually sleeping.  We 
+    need to do this anyway ( or move softints to kernel threads ) to be able
+    to take advantage of SMP mechanisms.  The *only* thing our interrupts
+    should be allowed to do is finish I/O on a page or use zalloc().  
+
+						-Matt
+
+					Matthew Dillon 
+					<dillon@backplane.com>
+
+------- End of forwarded message -------
+
+-- 
+Zlatko
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
