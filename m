@@ -1,46 +1,40 @@
-Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA12376
-	for <linux-mm@kvack.org>; Fri, 12 Jun 1998 19:13:57 -0400
-Date: Fri, 12 Jun 1998 23:58:39 +0100
-Message-Id: <199806122258.XAA02298@dax.dcs.ed.ac.uk>
-From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA14050
+	for <linux-mm@kvack.org>; Sat, 13 Jun 1998 02:45:50 -0400
+Date: Sat, 13 Jun 1998 08:15:33 +0200 (MET DST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: TODO list, v0.01
+In-Reply-To: <199806122247.XAA02295@dax.dcs.ed.ac.uk>
+Message-ID: <Pine.LNX.3.95.980613081315.3680B-100000@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: update re: fork() failures in 2.1.101
-In-Reply-To: <Pine.LNX.3.95.980612063348.22741A-100000@localhost>
-References: <19980611173940.51846@adore.lightlink.com>
-	<Pine.LNX.3.95.980612063348.22741A-100000@localhost>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: Paul Kimoto <kimoto@lightlink.com>, Linux MM <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
+Cc: Rik van Riel <H.H.vanRiel@phys.uu.nl>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Fri, 12 Jun 1998, Stephen C. Tweedie wrote:
+> On Thu, 11 Jun 1998 23:59:45 +0200 (MET DST), Rik van Riel
+> <H.H.vanRiel@phys.uu.nl> said:
+> 
+> > Other projects are yet to be added -- what ones?
+> 
+> Lots --- mainly sorting out performance and fragmentation issues for
+> 2.2 in the short term.  More after Usenix...
 
-On Fri, 12 Jun 1998 06:36:53 +0200 (MET DST), Rik van Riel
-<H.H.vanRiel@phys.uu.nl> said:
+The fragmentation issue will get better when I have written
+the new allocator. When I keep it simple and really trivial
+I might even convince Linus to merge it in a stable release.
 
-> [Paul get's "cannot fork" errors after 60 or more hours of
->  uptime. This suggests fragmentation problems.]
+The performance will mainly need swapin readahead. I've
+found swapout to be quite fast already.
+The other performance issue is with multiple scanning of
+shared pages, which will be fixed for free once the PTE
+chaining of you and Ben is done...
 
-Kernel version?
-
-> Ahh, I think I see it now. The fragmentation on your system persists
-> because of the swap cache. The swap cache 'caches' swap pages and
-> kinda makes sure they are reloaded to the same physical address.
-
-No.  As it stands right now, the "caching" component of the swap cache
-is an *on disk* cache of resident pages.  Once the pages are swapped
-out they are paged back in anywhere appropriate.  That part of the
-fragmentation does not persist.
-
-The real problem is not swapper, I suspect, but the various consumers of
-slab cache (especially dcache).  The slab allocator has some really
-nasty properties; just one single in-use object will pin an entire slab
-(up to 32k) into memory.  If the slabs become small, then it will be 4k
-pages which get so pinned, and at that point we cannot allocate any
-stack pages.  There are a number of ways we may tackle this in 2.1, but
-disabling the swap cache won't help at all.
-
---Stephen
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
