@@ -1,64 +1,171 @@
-Subject: problems with sync_all_inode() in prune_icache() and kupdate()
-Message-ID: <OFF8FB6856.584FAA00-ON88256994.0064C480@LocalDomain>
-From: "Ying Chen/Almaden/IBM" <ying@almaden.ibm.com>
-Date: Sat, 11 Nov 2000 11:01:25 -0800
-MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+From: inkforyou@china.com
+Message-Id: <200011121829.CAA08674@szclib.>
+Subject: Hi,  Low price inkjet cartridges 
+Date: Sun, 12 Nov 2000 13:33:58 -0600
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+new inkjet price list will save you even more money.
+ 
+  We currently have the follow specials on new inkjet compatible  cartridges for Epson, 
+    Canon  and  LOTS  of others ...
+   
+$$$$$ SAVE 10 % MORE on  Canon & Epson  ( if order is 9  pcs or more  )$$$$$
+..
 
-I'm wondering if someone can tell me why sync_all_inodes() is called in
-prune_icache().
-sync_all_inodes() can cause problems in some situations when memory is
-short and shrink_icache_memory() is called.
-For instance, when the system is really short of memory,
-do_try_to_free_pages() is invoked (either by application or kswapd) and
-shrink_icache_memory() is also invoked, but when prune_icache() is called,
-the first thing is does is to sync_all_inodes(). If the inode block is not
-in memory, it may have to bread the inode block in, so the kswapd() can
-block until the inode block is brought into memory. Not only that, since
-the system is short of memory, there may not even be memory available for
-the inode block. Even if there is, given that there is only a single kswapd
-thread who is doing sync_all_inodes(), if the dirty inode list if
-relatively long (like a tens of thousands as in something like SPEC SFS),
-it'll take practically forever for sync_all_inodes() to finish. To user,
-this looks like the system is hang (although it isn't really). It's just
-taking a looooooong time to do shrink_icache_memory!
+  .........CANON.......CANON.......CANON .................
+Compatible ink Cartridges	
+2 & 3 packs (you will get 2 or 3 in a box for the price listed(
 
-One solution to this is not to call sync_all_inodes() at all in
-prune_icache(), since other parts of the kernel, like kupdate() will also
-try to sync_inodes periodically anyway, but I don't know if this has other
-implications or not. I don't see a problem with this myself. In fact, I
-have been using this fix in my own test9 kernel, and I get much smoother
-kernel behavior when running high load SPEC SFS than using the default
-prune_icache(). Actually if sync_all_inodes() is called, SPEC SFS sometimes
-simply fails due to the long response time on the I/O requests.
+Cartridge #	Machine	Price
+BCI - 10	Canon BJC - 50 / 70 / 80 / BJ-30 Black Ink Tank (use in BC-10 Cartridge $ 9.00 ==( 3 Pack)
+BCI - 11 C	Canon BJC - 50 / 70 / 80 / Color Ink Tank (use in BC - 11e Cartridge)	$15.00 ==(3 Pack)
+BCI - 11BK	Canon BJC - 50 / 70 / 80 / Black Ink Tank (use in BC-11e Cartridge)	$8.00  ==(3 Pack)
+BCI - 21B	Canon BJC - 2000 / 4000 Series Black Tank (use in BJ - 21e Cartridge)  	$4.50
+BCI - 21C	Canon BJC - 2000 / 4000 Series 3 Color Tank (use in BJ - 21e Cartridge )   $6.95
+BCI - 3BK	Canon BJC - 6000 Black Ink Tank (use in BC - 30B Cartridge)	$8.50
+BCI - 3C/M/Y	Canon BJC - 6000 Cyan/Magenta/Yellow Ink Tanks (use in BC - 31C Cartridge)  $8.00
+BCI - 3PBK	Canon BJC - 6000 Photo Black Ink Tank (use in BC - 32 Photo Cartridge)	  $8.00
+ BCI - 3PC/PM	Canon BJC - 6000 Photo Cyan/Mag Ink Tanks (use in BC - 32 Photo Cartridge)	$8.00
+BCI - 5BK	Canon BJC - 8200 Black Ink Tank (use in BC - 50 Printhead)	$8.50
+BCI - 5C/M/Y	Canon BJC - 8200 Cyan/Mag/Yellow Ink Tanks (use in BC - 50 Printhead)	$8.50
+BCI - 5PC/PM	Canon BJC - 8200 Photo Cyan/Mag Ink Tanks (use in BC - 32 Photo Cartridge)	$8.50
+BJI - 201C/M/Y	Canon BJC - 600 / 600e / 610 / 620 Cartridge - C/M/Y Ink Tanks	$9.95    (2 Pack)
+BJI - 201HC	Canon BJC - 600 / 600e / 610 / 620 Cartridge - Black High Capacity	$ 9.95===(2 Pack)
+BJI - 642	Canon BJ - 300/330 Cartridge - Black	$6.00
+BJI - 643BK	Canon BJC - 800 Series - Black	 $8.45
+BJI - 643C	Canon BJC - 800 Series - Cyan	 $8.50
+BJI - 643M	Canon BJC - 800 Series - Magenta $8.50
+BJI - 643Y	Canon BJC - 800 Series - Yellow	 $8.50
+Premium Remanufactured Cartridges	 
+Cartridge #	Machine	Price
+BC-01/ 02	Canon Star Writer Word Processors 60/ 70 / 80 / 85 Canon BJ100/ 200/ 200e/ 200ex/ 220JC/ 200JS/ 230/ 240 /250 - Black	$ 21.53 
+BC-01/ 02	Canon Starrier Word Processors 60/ 70 / 80 / 85 Canon BJ100/ 200/ 200e/ 200ex/ 220JC/ 200JS/ 230/ 240 /250 - Black	$ 21.53 
+BC-05	Canon BJ100/ 200/ 200e/ 200ex/ 220JC/ 200JS/ 230/ 240 /250 - Black	$ 25.58 
+BC-05	Canon BJ100/ 200/ 200e/ 200ex/ 220JC/ 200JS/ 230/ 240 /250 - Black	$ 25.58 
+BC-20/ 23	Canon BJC2000/ 4000/ 4100/ 4200/ 4300/ 4400/ 4500/ 5000 Series - Black	$ 20.92 
+BX-3	Multipass 800/ 1000	$ 22.32 
+FX1	Canon FX1	$35.81
+FX2	Canon FX2	$49.20
+FX3	Canon FX3	$55.18
+FX4	Canon FX4	$53.17
 
-The similar theory goes with kupdate() daemon. That is, since there is only
-a single thread that does the inode and buffer flushing, under high load,
-kupdate() would not get a chance to call flush_dirty_buffers() until after
-sync_inodes() is completed. But sync_inodes() can take forever since inodes
-are flushed serially to disk. Imagine how long it might take if each inode
-flushing causes one read from disk! In my experience with SPEC SFS,
-sometimes, if kupdate() is invoked during the SPEC SFS run, it simply
-cannot finish sync_inode() until the entire benchmark run is finished! So,
-all the dirty buffers that flush_dirty_buffer(1) is supposed to flush would
-never be called during the benchmark run and system is constantly running
-in the bdflush() mode, which is really supposed to be called only in a
-panic mode!
+ 
+.......EPSON........EPSON........EPSON......
+Compatible Inkjet Cartridges	
+Cartridge #	Machine	Price
+S020010	Epson SQ - 870 / SQ - 1170 / SQ - 2570 - Black	$13.45
+S020025	Epson Stylus 400/ 800+ / 800 / 1000 Black	$8.00
+S020034	Epson Stylus Color / Stylus Color Pro / Pro XL - Black	$8.00
+S020036	Epson Stylus Color / Stylus Color Pro / Pro XL - 3 Color	$15.00
+S020047	Epson Stylus Color II / IIs / 200 / Stylus 820 / Black	$8.50
+S020049	Epson Stylus Color II / IIs / Stylus 820 / 1500 - 3 Color	$12.00
+S020062	Epson Stylus 1500 Stylus Color 1500 - Black 	$12.45
+ S020089	Epson Stylus Color 400 / 600 /800 / 850 / 850N / 850Ne / 1520 - 3 Color--$ 9.95
+S020093	Epson Stylus Color 400 / 500 / 600 / Stylus Photo 700 / EX - Black	$ 7.95
+S020097	Epson Stylus Color 200 / 500 - 3 Color	$ 8.95
+S020108	Epson Stylus Color 800 / 850 / 850N / 850Ne / 1520 - Black  ---$8.95
+S020110	Epson Stylus Photo / 700 / EX - 5 Color - 5 Color	$13.95
+S020118	Epson Stylus Color 3000 / Stylus Pro 5000 - Black	$12.00
+S020122	Epson Stylus Color 3000 / Stylus Pro 5000 - Yellow	$12.00
+S020126	Epson Stylus Color 3000 - Magenta	$12.00
+S020130	Epson Stylus Color 3000 - Cyan	$12.00
+S020138	Epson Stylus Color 300 - 4 Color (Black & 3 Colors)	$12.50
+S020143	Epson Stylus Pro 5000 - Light Magenta	$14.35
+S020147	Epson Stylus Pro 5000 - Light Cyan	$14.35
+S020187	Epson Stylus Color 440 / 640 / 660 / 670 / Stylus Photo 750 / 1200 - Black	$9.50
+S020189	Epson Stylus Color 740 / 740i / 760 / 860 / 1160 - Black-----$10.50
+S020191	Epson Stylus Color 440 / 640 / 660 / 670 / 740 / 740i / 760 / 860 / 1160-3 Color	$11.50
+S020193	Epson Stylus Photo 750 - 5 Color	$13.75
+T001011	Epson Stylus Photo 1200 - 5 Color (5 Color)	$15.50
+T003011	Epson Stylus Color 900 / 900N / 900G - Black	$14.95
+T005011	Epson Stylus Color 900 / 900N / 900G - 3 Color	$16.50
+T407011	Epson Stylus Pro 9000 - Black	
+T408011	Epson Stylus Pro 9000 - Yellow	$23.85
+T409011	Epson Stylus Pro 9000 - Magenta	$23.85
+T410011	Epson Stylus Pro 9000 - Cyan	$23.90
+T411011	Epson Stylus Pro 9000 - Light Magenta	$23.85
+T412011	Epson Stylus Pro 9000 - Light Cyan	$23.85
+Premium Compatible Printer Ribbons in White Boxes	
+Premium #	Machine	Price
+RB 884	Epson DFX 5000 DFX 8000 Black	$8.16
+RB 273	Epson FX/MX - 80 LX300 LX800 Black	$2.06
+RB 320	Epson FX/MX - 100 / 1050 / 1170 Black	$2.31
+RB 477	Epson LQ 200 / 500 / 570 / 800 / 870 Black	$2.31
+RB 478	Epson LQ 1000 / 1050 / 1070 / 1170 Black	$2.55
+RB 901	Epson LQ 2500 / 2550 / 860 / 1060 Black	$2.22
 
-Again, the solution can be simple, one can create multiple
-dirty_buffer_flushing daemon threads that calls flush_dirty_buffer()
-without sync_super or sync_inode stuff. I have done so in my own test9
-kernel, and the results with SPEC SFS is much more pleasant.
 
-Ying
 
+Canon 2000/4000/4100/4200 Black cartridge                   (BC-21)
+$4.25
+Canon 2000/4000/4100/4200 Color cartridge                   (BC-21)
+$6.95
+Canon 600/610/620 Color set BCMY cartridges
+$9.95
+
+   ..... MANY...OTHER TYPES and styles ..(type   FULL-LIST  in subject line)
+  .
+      ...............THE INK HOUSE............
+    For ORDERS    PHONE  610 - 223 - 9435      Mon- Sat    9am - 8pm   EST
+
+    FAX    610 - 944 - 5282    -FAX
+*****************************************************************
+          click on link to get OUR FULL LIST                                                                
+  mailto:a1out34@netzero.net?subject=FULL-LIST                   
+        a list will be sent to you by email
+   type   FULL-LIST  in subject line for more ink types
+.          
+  **********   For ORDERS ***************
+   mailto: ink1spot@usa. net    Subject   ORDER                                                                         
+    ***********For ORDERS  ***************
+.
+ Looking for others not on this list?   please type " FULL-LIST " in subject line
+and a full price list will be email to you or click on link
+      mailto:a1out34@netzero.net?subject=FULL-LIST
+                    
+Shipping is $3.50 per order  
+(we ship outside USA as well )
+         We accept MC, Visa and AMEX.
+     One year warranty on all products sold.
+
+   All Epson &, Canon  cartridges are new compatibles.
+.
+.
+.
+.****************************************************************************** 
+   To be REMOVED from future offers use link below:
+     mailto:a1out34@netzero.net?subject=remove 
+******************************************************************************  
+" Save a tree ..use email   "
+    
+
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+.
+
+To be removed from this email list you must reply to  a1out34@netzero. net
+and in suject line please type " remove "This is the only way to be removed.
+ If you type a removal request anywhere other than this address you will 
+not be removed. Thank you!
+ We keep a good list of "remove" names and this keeps you for any
+other emails of ours, Thanks
+ .
+.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
