@@ -1,45 +1,43 @@
-Message-ID: <416CE423.3000607@cyberone.com.au>
-Date: Wed, 13 Oct 2004 18:15:31 +1000
-From: Nick Piggin <piggin@cyberone.com.au>
-MIME-Version: 1.0
+Date: Wed, 13 Oct 2004 01:39:41 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: Page cache write performance issue
-References: <20041013054452.GB1618@frodo> <20041012231945.2aff9a00.akpm@osdl.org> <20041013063955.GA2079@frodo> <20041013000206.680132ad.akpm@osdl.org> <20041013172352.B4917536@wobbly.melbourne.sgi.com>
-In-Reply-To: <20041013172352.B4917536@wobbly.melbourne.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-Id: <20041013013941.49693816.akpm@osdl.org>
+In-Reply-To: <416CE423.3000607@cyberone.com.au>
+References: <20041013054452.GB1618@frodo>
+	<20041012231945.2aff9a00.akpm@osdl.org>
+	<20041013063955.GA2079@frodo>
+	<20041013000206.680132ad.akpm@osdl.org>
+	<20041013172352.B4917536@wobbly.melbourne.sgi.com>
+	<416CE423.3000607@cyberone.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nathan Scott <nathans@sgi.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-xfs@oss.sgi.com
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: nathans@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-
-Nathan Scott wrote:
-
->On Wed, Oct 13, 2004 at 12:02:06AM -0700, Andrew Morton wrote:
+Nick Piggin <piggin@cyberone.com.au> wrote:
 >
->>Well something else if fishy: how can you possibly achieve only 4MB/sec? 
->>
->
->These are 1K writes too remember, so it feels a bit like we
->write 'em out one at a time, sync (though no O_SYNC, or fsync,
->or such involved here).  This is on an i686, so 4K pages, and
->using 4K filesystem blocksizes (both xfs and ext2).
->
->
+>  Andrew probably has better ideas.
 
-Still shouldn't cause such a big slowdown. Seems like they
-might be getting written off the end of the page reclaim
-LRU (although in that case it is a bit odd that increasing
-the dirty thresholds are improving performance).
+uh, is this an ia32 highmem box?
 
-I don't think we have any vmscan metrics for this... kswapd
-definitely has become more active in 2.6.9-rc. If you're stuck
-for ideas, try editing mm/vmscan.c:may_write_to_queue - comment
-out the if(current_is_kswapd()) check.
+If so, you've hit the VM sour spot.  That 128M highmem zone gets 100%
+filled with dirty pages and we end up doing a ton of writeout off the page
+LRU.  And we do that while `dd' is cheerfully writing to a totally
+different part of the disk via balance_dirty_pages().  Seekstorm ensues. 
+Although last time I looked (a long time ago) the slowdown was only 2:1 -
+perhaps your disk is in writethrough mode??
 
-It is a long shot though. Andrew probably has better ideas.
+Basically, *any* other config is fine.  896MB and below, 1.5GB and above.
 
+I could well understand that a minor kswapd tweak would make this bad
+situation worse.  Making the dirty ratios really small (dirty_ratio less
+than the 128MB) should make it go away.
+
+If it's not ia32 then dunno.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
