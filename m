@@ -1,30 +1,36 @@
-Date: Mon, 2 Apr 2001 20:17:50 +0200 (MET DST)
-From: Szabolcs Szakacsits <szaka@f-secure.com>
+Date: Mon, 2 Apr 2001 14:40:14 -0400 (EDT)
+From: Richard Jerrell <jerrell@missioncriticallinux.com>
 Subject: Re: [PATCH] Reclaim orphaned swap pages 
-Message-ID: <Pine.LNX.4.30.0104021952000.406-100000@fs131-224.f-secure.com>
+In-Reply-To: <Pine.LNX.4.30.0104021952000.406-100000@fs131-224.f-secure.com>
+Message-ID: <Pine.LNX.4.21.0104021430160.12558-100000@jerrell.lowell.mclinux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Richard Jerrell <jerrell@missioncriticallinux.com>
+To: Szabolcs Szakacsits <szaka@f-secure.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> From what I can see of the patch vm_enough_memory will still fail
-> causing premature oom
+> Actually if vm_enough_memory fails that prevents oom, apps get ENOMEM
+> instead of killed by oom_kill later. Moreover vm_enough_memory is long
+> different and apparently it's just overestimating free pages that makes
+> people unhappy with the resulted higher oom_kill/ENOMEM rate. If you
 
-Actually if vm_enough_memory fails that prevents oom, apps get ENOMEM
-instead of killed by oom_kill later. Moreover vm_enough_memory is long
-different and apparently it's just overestimating free pages that makes
-people unhappy with the resulted higher oom_kill/ENOMEM rate. If you
-want to prevent premature oom you should patch out_of_memory but be
-careful if you overestimate you can/will lockup. Anyway I think the
-right place for oom_kill would be in the page fault handler [just as for
-early kernels] but this needs a small change in __alloc_pages otherwise
-processes get stuck there [see goto try_again] when system is low on
-memory.
+That's not really what I'm getting at.  Currently if you run a memory
+intensive application, quit after it's pages are on an lru, and try to
+restart, you won't be able to get the memory.  This is because pages which
+are sitting around in the swap cache are not counted as free, and they
+should be, because they are freeable.  So the patch isn't to prevent the
+oom killer from terminating your processes, it's to prevent the temporary
+memory leak from making your system think it is low on memory when it
+really isn't.  When vm_enough_memory says you can get the amount you
+request, when you fault on those pages you can trigger the swapper,
+launder, and reclaimer.  That will free up the pages bound to the swap
+cache that no one cares about and you will get your memory.  If you don't
+modify vm_enough_memory, you aren't going to get those pages back until
+you happen to trigger the swapping code again.
 
-	Szaka
+Rich
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
