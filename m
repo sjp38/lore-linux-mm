@@ -1,63 +1,59 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id EAA15558
-	for <linux-mm@kvack.org>; Wed, 18 Nov 1998 04:19:44 -0500
-Date: Wed, 18 Nov 1998 09:19:34 GMT
-Message-Id: <199811180919.JAA00748@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id FAA15903
+	for <linux-mm@kvack.org>; Wed, 18 Nov 1998 05:25:48 -0500
+Date: Wed, 18 Nov 1998 09:58:58 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Subject: Re: useless report -- perhaps memory allocation problems in 2.1.12[678]
-In-Reply-To: <Pine.LNX.3.95.981117171051.1077V-100000@penguin.transmeta.com>
-References: <199811180109.BAA04628@dax.scot.redhat.com>
-	<Pine.LNX.3.95.981117171051.1077V-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.3.95.981117174031.23128A-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.3.96.981118095143.21442C-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, Jeffrey Hundstad <jeffrey.hundstad@mankato.msus.edu>, Linux MM <linux-mm@kvack.org>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Jeffrey Hundstad <jeffrey.hundstad@mankato.msus.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 17 Nov 1998, Linus Torvalds wrote:
+> On Tue, 17 Nov 1998, Linus Torvalds wrote:
+> > 
+> > But whether kswapd should go page-synchronous at some point? Maybe. I can
+> > see arguments both for and against (the "for" argument is that we prefer
+> > to have more intense bouts of IO followed by a nice clean wait, while the
+> > "against" argument is that maybe we want to spread out the thing). 
+> 
+> Oh, well, I'm currently leaning for "for", which means your patch to
+> page_io.c is what I have now.. I don't like "trickling" pages by
+> running out of requests or something like that, so having the
+> occasional nice wait is probably best. 
 
-On Tue, 17 Nov 1998 17:21:23 -0800 (PST), Linus Torvalds
-<torvalds@transmeta.com> said:
+It seems like you decided for my point of view before I
+woke up again, so I'll just let you know that this is
+one of the reasons why I submitted the original (2.1.90?)
+patch to you. The other reason was that async, clustered
+swapouts have a much higher bandwidth than synchronous
+swapouts. This means we can do more swap I/O without
+getting into trouble.
 
-> On Wed, 18 Nov 1998, Stephen C. Tweedie wrote:
+The only request I have to make is that you use the
+sysctl tuneable limit pager_daemon.swap_cluster as
+the limit.  Doing this will enable people to optimize
+their kswapd configuration for multiple swap partitions
+or disks with loads of tagged queues (or a shortage 
+thereoff).
 
-> Yes. But in that case we already have __GPF_IO set, so in this case we
-> _will_ wait synchronously.
+I have found that setting that limit to SWAP_CLUSTER_MAX
+* number_of_highest_priority_swap_areas doubled swapout
+performance, leaving 50% extra I/O bandwidth for swapins.
 
-Right.
+cheers,
 
-> It's only kswapd that does this asynchronously as far as I can see, and
-> it's ok for kswapd to not be that asynchronous. It just must not be _too_
-> asynchronous - we must decide to start the requests at some point, to make
-> sure there aren't too many things in transit. 
+Rik -- slowly getting used to dvorak kbd layout...
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
-That's exactly my concern, and if it's only kswap which is using the
-async code then I don't think it matters too much _where_ we do the
-nr_async_pages check.
-
-> So the difference in behaviour then becomes one of "does kswapd actually
-> start to synchronously wait on certain pages when it's done a lot of
-> asynchronous requests" or "should kswapd just make sure that the async
-> requests go out in an orderly manner"? 
-
-There's a related question: should kswapd keep on swapping at all once
-it has submitted enough async IO?  Beyond a certain point we _know_ that
-these pages will become free; swapping even more dirty pages won't help
-us.  There's only any point in kswapd carrying on if we restrict
-ourselves to unmapping clean pages: that's the only way we'll actually
-increase the free page count right now.
-
-So, should try_to_swap_out skip dirty pages if nr_async_pages is too
-high?  This sounds like an attractive answer, if we are below
-freepages.low, becuase it will let kswapd find free memory for interrupt
-traffic.  If we aren't that low in memory then we don't want to be
-unnecessarily unfair to clean pages.
-
-I'm off to SANE now --- back next week.
-
---Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
