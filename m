@@ -1,364 +1,903 @@
-Subject: [PATCH 2.6.0-test9-mm5] aio-dio-fallback-bio_count-race.patch
-From: Daniel McNeil <daniel@osdl.org>
-In-Reply-To: <20031124094249.GA11349@in.ibm.com>
-References: <20031112233002.436f5d0c.akpm@osdl.org>
-	 <1068761038.1805.35.camel@ibm-c.pdx.osdl.net>
-	 <20031117052518.GA11184@in.ibm.com>
-	 <1069118109.1842.31.camel@ibm-c.pdx.osdl.net>
-	 <1069119433.1842.43.camel@ibm-c.pdx.osdl.net>
-	 <20031118115520.GA4291@in.ibm.com>
-	 <1069199273.1906.14.camel@ibm-c.pdx.osdl.net>
-	 <20031124094249.GA11349@in.ibm.com>
-Content-Type: multipart/mixed; boundary="=-HpnmnusaQXe23JsKsifB"
-Message-Id: <1069804171.1841.23.camel@ibm-c.pdx.osdl.net>
+Date: Tue, 25 Nov 2003 21:15:18 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: 2.6.0-test10-mm1
+Message-Id: <20031125211518.6f656d73.akpm@osdl.org>
 Mime-Version: 1.0
-Date: 25 Nov 2003 15:49:31 -0800
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Suparna Bhattacharya <suparna@in.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "linux-aio@kvack.org" <linux-aio@kvack.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-HpnmnusaQXe23JsKsifB
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test10/2.6.0-test10-mm1
 
-Suparna,
 
-Yes your patch did help.  I originally had CONFIG_DEBUG_SLAB=y which
-was helping me see problems because the the freed dio was getting
-poisoned.  I also tested with CONFIG_DEBUG_PAGEALLOC=y which is
-very good at catching these.
+. Various small fixes
 
-I updated your AIO fallback patch plus your AIO race plus I fixed
-the bio_count decrement fix.  This patch has all three fixes and
-it is working for me.
+. Device mapper and RAID updates which need testing please.
 
-I fixed the bio_count race, by changing bio_list_lock into bio_lock
-and using that for all the bio fields.  I changed bio_count and
-bios_in_flight from atomics into int.  They are now proctected by
-the bio_lock.  I fixed the race, by in finished_one_bio() by
-leaving the bio_count at 1 until after the dio_complete()
-and then do the bio_count decrement and wakeup holding the bio_lock.
+. The problematic PNP patches are still here.  If this kernel crashes
+  mysteriously during boot, please try reverting the following patches (from
+  the broken-out directory):
 
-Take a look, give it a try, and let me know what you think.
+	pnp-fix-3.patch
+	pnp-fix-2.patch
+	pnp-fix-1.patch
 
-I've tested this on my 2-way and so far all my tests have past.
-I have more testing to do, but this is working better.
-
-Thanks,
-
-Daniel
+  and send a report, thanks.
 
 
 
-On Mon, 2003-11-24 at 01:42, Suparna Bhattacharya wrote:
-> On Tue, Nov 18, 2003 at 03:47:53PM -0800, Daniel McNeil wrote:
-> > Suparna,
-> > 
-> > I was unable to reproduce the hang in io_submit() without your patch.
-> > I ran aiocp with 1k i/o size constantly for 2 hours and it never hung.
-> > 
-> > I re-ran with your patch with both as-iosched and deadline and both
-> > hung in io_submit().  aiocp would run a few times, but I put the
-> > aiocp in a while loop and it hung on the 1st or 2nd time.  It
-> > did get most of the way through copying the file before hanging.
-> > This is on a 2-proc to ide disks running ext3.
-> > 
-> 
-> Found one race ... not sure if its the one causing the hangs
-> you see. The attached patch is not a complete fix (there is one
-> other race to close), but it would be interesting to see if 
-> this makes any difference for you.
-> 
-> Regards
-> Suparna
 
---=-HpnmnusaQXe23JsKsifB
-Content-Disposition: attachment; filename=2.6.0-test9-mm5.aio-dio-fallback-bio_count-race.patch
-Content-Type: text/x-patch; name=2.6.0-test9-mm5.aio-dio-fallback-bio_count-race.patch; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Changes since 2.6.0-test9-mm5:
 
-diff -rupN -X /home/daniel/dontdiff linux-2.6.0-test9-mm5/fs/direct-io.c linux-2.6.0-test9-mm5.ddm/fs/direct-io.c
---- linux-2.6.0-test9-mm5/fs/direct-io.c	2003-11-24 09:06:05.000000000 -0800
-+++ linux-2.6.0-test9-mm5.ddm/fs/direct-io.c	2003-11-25 14:52:43.566103685 -0800
-@@ -74,6 +74,7 @@ struct dio {
- 					   been performed at the start of a
- 					   write */
- 	int pages_in_io;		/* approximate total IO pages */
-+	size_t	size;			/* total request size (doesn't change)*/
- 	sector_t block_in_file;		/* Current offset into the underlying
- 					   file in dio_block units. */
- 	unsigned blocks_available;	/* At block_in_file.  changes */
-@@ -115,9 +116,9 @@ struct dio {
- 	int page_errors;		/* errno from get_user_pages() */
- 
- 	/* BIO completion state */
--	atomic_t bio_count;		/* nr bios to be completed */
--	atomic_t bios_in_flight;	/* nr bios in flight */
--	spinlock_t bio_list_lock;	/* protects bio_list */
-+	spinlock_t bio_lock;		/* protects BIO fields below */
-+	int bio_count;			/* nr bios to be completed */
-+	int bios_in_flight;		/* nr bios in flight */
- 	struct bio *bio_list;		/* singly linked via bi_private */
- 	struct task_struct *waiter;	/* waiting task (NULL if none) */
- 
-@@ -221,20 +222,38 @@ static void dio_complete(struct dio *dio
-  */
- static void finished_one_bio(struct dio *dio)
- {
--	if (atomic_dec_and_test(&dio->bio_count)) {
-+	unsigned long flags;
-+
-+	spin_lock_irqsave(&dio->bio_lock, flags);
-+	if (dio->bio_count == 1) {
- 		if (dio->is_async) {
-+			/*
-+			 * Last reference to the dio is going away.
-+			 * Drop spinlock and complete the DIO.
-+			 */
-+			spin_unlock_irqrestore(&dio->bio_lock, flags);
- 			dio_complete(dio, dio->block_in_file << dio->blkbits,
- 					dio->result);
- 			/* Complete AIO later if falling back to buffered i/o */
--			if (dio->result != -ENOTBLK) {
-+			if (dio->result >= dio->size || dio->rw == READ) {
- 				aio_complete(dio->iocb, dio->result, 0);
- 				kfree(dio);
-+				return;
- 			} else {
-+				/*
-+				 * Falling back to buffered
-+				 */
-+				spin_lock_irqsave(&dio->bio_lock, flags);
-+				dio->bio_count--;
- 				if (dio->waiter)
- 					wake_up_process(dio->waiter);
-+				spin_unlock_irqrestore(&dio->bio_lock, flags);
-+				return;
- 			}
- 		}
- 	}
-+	dio->bio_count--;
-+	spin_unlock_irqrestore(&dio->bio_lock, flags);
- }
- 
- static int dio_bio_complete(struct dio *dio, struct bio *bio);
-@@ -268,13 +287,13 @@ static int dio_bio_end_io(struct bio *bi
- 	if (bio->bi_size)
- 		return 1;
- 
--	spin_lock_irqsave(&dio->bio_list_lock, flags);
-+	spin_lock_irqsave(&dio->bio_lock, flags);
- 	bio->bi_private = dio->bio_list;
- 	dio->bio_list = bio;
--	atomic_dec(&dio->bios_in_flight);
--	if (dio->waiter && atomic_read(&dio->bios_in_flight) == 0)
-+	dio->bios_in_flight--;
-+	if (dio->waiter && dio->bios_in_flight == 0)
- 		wake_up_process(dio->waiter);
--	spin_unlock_irqrestore(&dio->bio_list_lock, flags);
-+	spin_unlock_irqrestore(&dio->bio_lock, flags);
- 	return 0;
- }
- 
-@@ -307,10 +326,13 @@ dio_bio_alloc(struct dio *dio, struct bl
- static void dio_bio_submit(struct dio *dio)
- {
- 	struct bio *bio = dio->bio;
-+	unsigned long flags;
- 
- 	bio->bi_private = dio;
--	atomic_inc(&dio->bio_count);
--	atomic_inc(&dio->bios_in_flight);
-+	spin_lock_irqsave(&dio->bio_lock, flags);
-+	dio->bio_count++;
-+	dio->bios_in_flight++;
-+	spin_unlock_irqrestore(&dio->bio_lock, flags);
- 	if (dio->is_async && dio->rw == READ)
- 		bio_set_pages_dirty(bio);
- 	submit_bio(dio->rw, bio);
-@@ -336,22 +358,22 @@ static struct bio *dio_await_one(struct 
- 	unsigned long flags;
- 	struct bio *bio;
- 
--	spin_lock_irqsave(&dio->bio_list_lock, flags);
-+	spin_lock_irqsave(&dio->bio_lock, flags);
- 	while (dio->bio_list == NULL) {
- 		set_current_state(TASK_UNINTERRUPTIBLE);
- 		if (dio->bio_list == NULL) {
- 			dio->waiter = current;
--			spin_unlock_irqrestore(&dio->bio_list_lock, flags);
-+			spin_unlock_irqrestore(&dio->bio_lock, flags);
- 			blk_run_queues();
- 			io_schedule();
--			spin_lock_irqsave(&dio->bio_list_lock, flags);
-+			spin_lock_irqsave(&dio->bio_lock, flags);
- 			dio->waiter = NULL;
- 		}
- 		set_current_state(TASK_RUNNING);
- 	}
- 	bio = dio->bio_list;
- 	dio->bio_list = bio->bi_private;
--	spin_unlock_irqrestore(&dio->bio_list_lock, flags);
-+	spin_unlock_irqrestore(&dio->bio_lock, flags);
- 	return bio;
- }
- 
-@@ -393,7 +415,12 @@ static int dio_await_completion(struct d
- 	if (dio->bio)
- 		dio_bio_submit(dio);
- 
--	while (atomic_read(&dio->bio_count)) {
-+	/*
-+	 * The bio_lock is not held for the read of bio_count.
-+	 * This is ok since it is the dio_bio_complete() that changes
-+	 * bio_count.
-+	 */
-+	while (dio->bio_count) {
- 		struct bio *bio = dio_await_one(dio);
- 		int ret2;
- 
-@@ -420,10 +447,10 @@ static int dio_bio_reap(struct dio *dio)
- 			unsigned long flags;
- 			struct bio *bio;
- 
--			spin_lock_irqsave(&dio->bio_list_lock, flags);
-+			spin_lock_irqsave(&dio->bio_lock, flags);
- 			bio = dio->bio_list;
- 			dio->bio_list = bio->bi_private;
--			spin_unlock_irqrestore(&dio->bio_list_lock, flags);
-+			spin_unlock_irqrestore(&dio->bio_lock, flags);
- 			ret = dio_bio_complete(dio, bio);
- 		}
- 		dio->reap_counter = 0;
-@@ -889,6 +916,7 @@ direct_io_worker(int rw, struct kiocb *i
- 	dio->blkbits = blkbits;
- 	dio->blkfactor = inode->i_blkbits - blkbits;
- 	dio->start_zero_done = 0;
-+	dio->size = 0;
- 	dio->block_in_file = offset >> blkbits;
- 	dio->blocks_available = 0;
- 	dio->cur_page = NULL;
-@@ -913,9 +941,9 @@ direct_io_worker(int rw, struct kiocb *i
- 	 * (or synchronous) device could take the count to zero while we're
- 	 * still submitting BIOs.
- 	 */
--	atomic_set(&dio->bio_count, 1);
--	atomic_set(&dio->bios_in_flight, 0);
--	spin_lock_init(&dio->bio_list_lock);
-+	dio->bio_count = 1;
-+	dio->bios_in_flight = 0;
-+	spin_lock_init(&dio->bio_lock);
- 	dio->bio_list = NULL;
- 	dio->waiter = NULL;
- 
-@@ -925,7 +953,7 @@ direct_io_worker(int rw, struct kiocb *i
- 
- 	for (seg = 0; seg < nr_segs; seg++) {
- 		user_addr = (unsigned long)iov[seg].iov_base;
--		bytes = iov[seg].iov_len;
-+		dio->size += bytes = iov[seg].iov_len;
- 
- 		/* Index into the first page of the first block */
- 		dio->first_block_in_page = (user_addr & ~PAGE_MASK) >> blkbits;
-@@ -956,6 +984,13 @@ direct_io_worker(int rw, struct kiocb *i
- 		}
- 	} /* end iovec loop */
- 
-+	if (ret == -ENOTBLK && rw == WRITE) {
-+		/*
-+		 * The remaining part of the request will be 
-+		 * be handled by buffered I/O when we return
-+		 */
-+		ret = 0;
-+	}
- 	/*
- 	 * There may be some unwritten disk at the end of a part-written
- 	 * fs-block-sized block.  Go zero that now.
-@@ -985,32 +1020,35 @@ direct_io_worker(int rw, struct kiocb *i
- 	 * reflect the number of to-be-processed BIOs.
- 	 */
- 	if (dio->is_async) {
--		if (ret == 0)
--			ret = dio->result;	/* Bytes written */
--		if (ret == -ENOTBLK) {
--			/*
--			 * The request will be reissued via buffered I/O
--			 * when we return; Any I/O already issued
--			 * effectively becomes redundant.
--			 */
--			dio->result = ret;
-+		int should_wait = 0;
-+		
-+		if (dio->result < dio->size && rw == WRITE) {
- 			dio->waiter = current;
-+			should_wait = 1;
- 		}
-+		if (ret == 0)
-+			ret = dio->result;
- 		finished_one_bio(dio);		/* This can free the dio */
- 		blk_run_queues();
--		if (ret == -ENOTBLK) {
-+		if (should_wait) {
-+			unsigned long flags;
- 			/*
- 			 * Wait for already issued I/O to drain out and
- 			 * release its references to user-space pages
- 			 * before returning to fallback on buffered I/O
- 			 */
-+
-+			spin_lock_irqsave(&dio->bio_lock, flags);
- 			set_current_state(TASK_UNINTERRUPTIBLE);
--			while (atomic_read(&dio->bio_count)) {
-+			while (dio->bio_count) {
-+				spin_unlock_irqrestore(&dio->bio_lock, flags);
- 				io_schedule();
-+				spin_lock_irqsave(&dio->bio_lock, flags);
- 				set_current_state(TASK_UNINTERRUPTIBLE);
- 			}
-+			spin_unlock_irqrestore(&dio->bio_lock, flags);
- 			set_current_state(TASK_RUNNING);
--			dio->waiter = NULL;
-+			kfree(dio);
- 		}
- 	} else {
- 		finished_one_bio(dio);
-@@ -1032,7 +1070,8 @@ direct_io_worker(int rw, struct kiocb *i
- 		}
- 		dio_complete(dio, offset, ret);
- 		/* We could have also come here on an AIO file extend */
--		if (!is_sync_kiocb(iocb) && (ret != -ENOTBLK))
-+		if (!is_sync_kiocb(iocb) && !(rw == WRITE && ret >= 0 && 
-+			dio->result < dio->size))
- 			aio_complete(iocb, ret, 0);
- 		kfree(dio);
- 	}
-diff -rupN -X /home/daniel/dontdiff linux-2.6.0-test9-mm5/mm/filemap.c linux-2.6.0-test9-mm5.ddm/mm/filemap.c
---- linux-2.6.0-test9-mm5/mm/filemap.c	2003-11-24 09:06:06.000000000 -0800
-+++ linux-2.6.0-test9-mm5.ddm/mm/filemap.c	2003-11-21 14:20:09.000000000 -0800
-@@ -1908,14 +1908,16 @@ __generic_file_aio_write_nolock(struct k
- 		 */
- 		if (written >= 0 && file->f_flags & O_SYNC)
- 			status = generic_osync_inode(inode, mapping, OSYNC_METADATA);
--		if (written >= 0 && !is_sync_kiocb(iocb))
-+		if (written >= count && !is_sync_kiocb(iocb))
- 			written = -EIOCBQUEUED;
--		if (written != -ENOTBLK)
-+		if (written < 0 || written >= count)
- 			goto out_status;
- 		/*
- 		 * direct-io write to a hole: fall through to buffered I/O
-+		 * for completing the rest of the request.
- 		 */
--		written = 0;
-+		pos += written;
-+		count -= written;
- 	}
- 
- 	buf = iov->iov_base;
 
---=-HpnmnusaQXe23JsKsifB--
+ linus.patch
+
+ Latest Linus tree
+
+-promise-sata-id.patch
+-pnp-fix-4.patch
+
+ Merged
+
+-acpi-pm-timer-fixes.patch
+-acpi-pm_timer-init-cpu_khz.patch
+-timer_pm-fix-fix-fix.patch
+-timer_pm-monotonic-clock-fix.patch
++acpi-pm-timer-fixes-2.patch
+
+ More futzing with the ACPI PM timer source.   We think it works now.
+
+-make-for_each_cpu-useful.patch
+-make-for_each_cpu-useful-fix.patch
+-use-for_each_cpu.patch
+
+ These were causing compilation problems and need a revisit.
+
++x86_64-update.patch
++x86_64-statfs64-fix.patch
++x86_64-aout-support.patch
+
+ x86_64 update
+
++remove-mm-swap_address.patch
+
+ Cleanup
+
++sis-assignment-fix.patch
+
+ typo fix
+
++sync_dquots-oops-fix.patch
++ext3-quota-deadlock-fix.patch
+
+ Quota fixes
+
++buslogic-update.patch
+
+ Buslogic driver update
+
++binfmt_elf-help-update.patch
+
+ Kconfig help fix
+
++aic7xxx_old-proc-oops-fix.patch
+
+ Fix oops accessing /proc files with the aic7xxx_old driver
+
++invalidate_mmap_range-non-gpl-export.patch
+
+ Export invalidate_mmap_range() to all modules
+
++md-1-limit_max_sectors.patch
++md-2-set-ra_pages.patch
+
+ RAID/MD update
+
++alsa-sleep-in-spinlock-fix.patch
+
+ Alsa locking fix
+
++do_gettimeofday-tick_usec-fix.patch
+
+ ia32 gettimeofday() fix.
+
++tty-proc-oops-fix.patch
+
+ Fix secret oops accessing tty /proc files
+
++dm-1-fix-block-device-resizing.patch
++dm-2-remove-dynamic-table-resizing.patch
++dm-3-v4-ioctl-default.patch
++dm-4-set-io-restriction-defaults.patch
++dm-5-sleep-in-spinlock-fix.patch
+
+ Device Mapper update
+
++fix-ELF-exec-with-huge-bss.patch
+
+ Handle oversizes 32-bit executables on 64-bit machines more nicely.
+
++direct-io-memleak-fix.patch
+
+ Fix direct-IO memory leak.
+
+
+
+
+
+All 252 patches:
+
+
+linus.patch
+
+mm.patch
+  add -mmN to EXTRAVERSION
+
+kgdb-ga.patch
+  kgdb stub for ia32 (George Anzinger's one)
+  kgdbL warning fix
+
+kgdb-buff-too-big.patch
+  kgdb buffer overflow fix
+
+kgdb-warning-fix.patch
+  kgdbL warning fix
+
+kgdb-build-fix.patch
+
+kgdb-spinlock-fix.patch
+
+kgdb-fix-debug-info.patch
+  kgdb: CONFIG_DEBUG_INFO fix
+
+kgdb-cpumask_t.patch
+
+kgdb-x86_64-fixes.patch
+  x86_64 fixes
+
+kgdb-over-ethernet.patch
+  kgdb-over-ethernet patch
+
+kgdb-over-ethernet-fixes.patch
+  kgdb-over-ethernet fixlets
+
+kgdb-CONFIG_NET_POLL_CONTROLLER.patch
+  kgdb: replace CONFIG_KGDB with CONFIG_NET_RX_POLL in net drivers
+
+kgdb-handle-stopped-NICs.patch
+  kgdb: handle netif_stopped NICs
+
+eepro100-poll-controller.patch
+
+tlan-poll_controller.patch
+
+tulip-poll_controller.patch
+
+tg3-poll_controller.patch
+  kgdb: tg3 poll_controller
+
+8139too-poll_controller.patch
+  8139too poll controller
+
+kgdb-eth-smp-fix.patch
+  kgdb-over-ethernet: fix SMP
+
+kgdb-eth-reattach.patch
+
+kgdb-skb_reserve-fix.patch
+  kgdb-over-ethernet: skb_reserve() fix
+
+must-fix.patch
+
+should-fix.patch
+
+must-fix-update-01.patch
+  must fix lists update
+
+must-fix-update-2.patch
+  must fix list update
+
+RD1-cdrom_ioctl-B6.patch
+
+RD2-ioctl-B6.patch
+
+RD2-ioctl-B6-fix.patch
+  RD2-ioctl-B6 fixes
+
+RD3-cdrom_open-B6.patch
+
+RD4-open-B6.patch
+
+RD5-cdrom_release-B6.patch
+
+RD6-release-B6.patch
+
+RD7-presto_journal_close-B6.patch
+
+RD8-f_mapping-B6.patch
+
+RD9-f_mapping2-B6.patch
+
+RD10-i_sem-B6.patch
+
+RD11-f_mapping3-B6.patch
+
+RD12-generic_osync_inode-B6.patch
+
+RD13-bd_acquire-B6.patch
+
+RD14-generic_write_checks-B6.patch
+
+RD15-I_BDEV-B6.patch
+
+cramfs-use-pagecache.patch
+  cramfs: use pagecache better
+
+invalidate_inodes-speedup.patch
+  invalidate_inodes speedup
+
+invalidate_inodes-speedup-fixes-2.patch
+  more invalidate_inodes speedup fixes
+
+serio-01-renaming.patch
+  serio: rename serio_[un]register_slave_port to __serio_[un]register_port
+
+serio-02-race-fix.patch
+  serio: possible race between port removal and kseriod
+
+serio-03-blacklist.patch
+  Add black list to handler<->device matching
+
+serio-04-synaptics-cleanup.patch
+  Synaptics: code cleanup
+
+serio-05-reconnect-facility.patch
+  serio: reconnect facility
+
+serio-06-synaptics-use-reconnect.patch
+  Synaptics: use serio_reconnect
+
+acpi_off-fix.patch
+  fix acpi=off
+
+cfq-4.patch
+  CFQ io scheduler
+  CFQ fixes
+
+config_spinline.patch
+  uninline spinlocks for profiling accuracy.
+
+ppc64-bar-0-fix.patch
+  Allow PCI BARs that start at 0
+
+ppc64-reloc_hide.patch
+
+ppc64-sched_clock-fix.patch
+  implement sched_clock properly
+
+ppc64-use-statfs64.patch
+  use compat_statfs64 on ppc64
+
+ppc64-compat_clock.patch
+  ppc64: use compat clock syscalls
+
+ppc64-numa-sign-extension-fix.patch
+  ppc64: fix sign extension bug in NUMA code
+
+ppc64-IRQ_INPROGRESS-fix.patch
+  ppc64: revert IRQ_INPROGRESS change
+
+sn2-console-driver-fix.patch
+  sn_serial console fix
+
+qla1280-update.patch
+  qla1280 update
+
+sym-speed-fix.patch
+  sym2 Ultra-160 fix
+
+input-use-after-free-checks.patch
+  input layer debug checks
+
+aic7xxx-parallel-build-fix.patch
+  fix parallel builds for aic7xxx
+
+ramdisk-cleanup.patch
+
+intel8x0-cleanup.patch
+  intel8x0 cleanups
+
+pdflush-diag.patch
+
+futex-uninlinings.patch
+  futex uninlining
+
+zap_page_range-debug.patch
+  zap_page_range() debug
+
+call_usermodehelper-retval-fix-3.patch
+  Make call_usermodehelper report exit status
+
+asus-L5-fix.patch
+  Asus L5 framebuffer fix
+
+jffs-use-daemonize.patch
+
+tulip-NAPI-support.patch
+  tulip NAPI support
+
+tulip-napi-disable.patch
+  tulip NAPI: disable poll in close
+
+get_user_pages-handle-VM_IO.patch
+
+ia32-MSI-support.patch
+  Updated ia32 MSI Patches
+
+ia32-MSI-support-x86_64-fixes.patch
+
+msi-various-fixes.patch
+  MSI Update Based on 2.6.0-test9-mm3
+
+ia32-efi-support.patch
+  EFI support for ia32
+  efi warning fix
+  fix EFI for ppc64, ia64
+  efi: warning fixes
+  ia32 EFI: Add CONFIG_EFI
+  efi: Update Kconfig help
+  efi update patch (ia64)
+
+support-zillions-of-scsi-disks.patch
+  support many SCSI disks
+
+SGI-IOC4-IDE-chipset-support.patch
+  Add support for SGI's IOC4 chipset
+
+sparc32-sched_clock.patch
+
+pcibios_test_irq-fix.patch
+  Fix pcibios test IRQ handler return
+
+fixmap-in-proc-pid-maps.patch
+  report user-readable fixmap area in /proc/PID/maps
+
+i82365-sysfs-ordering-fix.patch
+  Fix init_i82365 sysfs ordering oops
+
+pci_set_power_state-might-sleep.patch
+
+ia64-ia32-missing-compat-syscalls.patch
+  From: Arun Sharma <arun.sharma@intel.com>
+  Subject: Missing compat syscalls in ia64
+
+compat-layer-fixes.patch
+  Minor bug fixes to the compat layer
+
+compat-ioctl-for-i2c.patch
+  compat_ioctl for i2c
+
+fix-sqrt.patch
+  sqrt() fixes
+
+scale-min_free_kbytes.patch
+  scale the initial value of min_free_kbytes
+
+cdrom-allocation-try-harder.patch
+  Use __GFP_REPEAT for cdrom buffer
+
+sym-2.1.18f.patch
+
+CONFIG_STANDALONE-default-to-n.patch
+  Make CONFIG_STANDALONE default to N
+
+extra-buffer-diags.patch
+
+nosysfs.patch
+
+slab-leak-detector.patch
+  slab leak detector
+
+early-serial-registration-fix.patch
+  serial console registration bugfix
+
+3c527-smp-update.patch
+  SMP support on 3c527 net driver
+
+3c527-race-fix.patch
+
+ext3-latency-fix.patch
+  ext3 scheduling latency fix
+
+firmware-kernel_thread-on-demand.patch
+  Remove workqueue usage from request_firmware_async()
+
+loop-autoloading-fix.patch
+  Fix loop module auto loading
+
+loop-module-alias.patch
+  loop needs MODULE_ALIAS_BLOCK
+
+loop-remove-blkdev-special-case.patch
+
+loop-highmem.patch
+  remove useless highmem bounce from loop/cryptoloop
+
+loop-highmem-fixes.patch
+
+loop-bio-handling-fix.patch
+  loop: BIO handling fix
+
+cmpci-set_fs-fix.patch
+  cmpci.c: remove pointless set_fs()
+
+dentry-bloat-fix-2.patch
+  Fix dcache and icache bloat with deep directories
+
+nls-config-fixes.patch
+  NSL config fixes
+
+proc_pid_lookup-vs-exit-race-fix.patch
+  Fix proc_pid_lookup vs exit race
+
+gcc-Os-if-embedded.patch
+  Add `gcc -Os' config option
+
+aic7xxx-sleep-in-spinlock-fix.patch
+
+vm86-sysenter-fix.patch
+  Fix sysenter disabling in vm86 mode
+
+refill_counter-overflow-fix.patch
+  vmscan: reset refill_counter after refilling the inactive list
+
+verbose-timesource.patch
+  be verbose about the time source
+
+acpi-pm-timer.patch
+  ACPI PM Timer
+
+acpi-pm-timer-fixes-2.patch
+  ACPI PM timer fixes
+
+timer_pm-verbose-timesource-fix.patch
+  Subject: [PATCH] linux-2.6.0-test9-mm3_verbose-timesource-acpi-pm_A0
+
+as-regression-fix.patch
+  Fix IO scheduler regression
+
+as-request-poisoning.patch
+  AS: request poisoning
+
+as-request-poisoning-fix.patch
+  AS: request poisining fix
+
+as-fix-all-known-bugs.patch
+  AS fixes
+
+as-new-process-estimation.patch
+  AS: new process estimation
+
+as-cooperative-thinktime.patch
+  AS: thinktime improvement
+
+scale-nr_requests.patch
+  scale nr_requests with TCQ depth
+
+truncate_inode_pages-check.patch
+
+local_bh_enable-warning-fix.patch
+
+cdc-acm-softirq-rx.patch
+  cdc-acm: move rx processing to softirq
+
+forcedeth.patch
+  forcedeth: nForce ethernet driver
+
+forcedeth-update-2.patch
+  forcedeth update
+
+proc-pid-maps-output-fix.patch
+  Restore /proc/pid/maps formatting
+
+sis900-pm-support.patch
+  Add PM support to sis900 network driver
+
+8139too-locking-fix.patch
+  8139too locking fix
+
+ia32-wp-test-cleanup.patch
+  ia32 WP test cleanup
+
+powermate-payload-size-fix.patch
+  Griffin Powermate fix
+
+more-than-256-cpus.patch
+  Fix for more than 256 CPUs
+
+ZONE_SHIFT-from-NODES_SHIFT.patch
+  Use NODES_SHIFT to calculate ZONE_SHIFT
+
+memmove-speedup.patch
+  optimize ia32 memmove
+
+pipe-readv-writev.patch
+  Fix writev atomicity on pipe/fifo
+
+lockless-semop.patch
+  lockless semop
+
+percpu_counter-use-alloc_percpu.patch
+  use alloc_percpu in percpu_counters
+
+i450nx-scanning-fix.patch
+  i450nx PCI scanning fix
+
+serio-pm-fix.patch
+  psmouse pm resume fix
+
+find_busiest_queue-commentary.patch
+  find_busiest_queue() commentary fix
+
+SOUND_CMPCI-config-typo-fix.patch
+  fix SOUND_CMPCI Configure help entry
+
+atkbd-24-compatibility.patch
+  Fixes for keyboard 2.4 compatibility
+
+context-switch-accounting-fix.patch
+  Fix context switch accounting
+
+access-vfs_permission-fix.patch
+  Subject: Re: [PATCH] fix access() / vfs_permission() bug
+
+eicon-linkage-fix.patch
+  eicon/ and hardware/eicon/ drivers using the same symbols
+
+kobject-docco-additions.patch
+  Improve documentation for kobjects
+
+radeon-line-length-fix.patch
+  radeonfb fix
+
+proc-interrupts-use-seq-file.patch
+  seq_file version of /proc/interrupts
+
+proc-interrupts-use-seq_file-2.patch
+  Finish /proc/interrupts seq_file patch
+
+ide-tape-update.patch
+  ide-tape update
+
+intel-440gx-ids-fix.patch
+
+centrino-1ghz-support.patch
+  support centrino 1GHz
+
+pnp-fix-1.patch
+  PnP Fixes #1
+
+pnp-fix-2.patch
+  PnP Fixes #2
+
+pnp-fix-3.patch
+  PnP Fixes #3
+
+document-elevator-equals.patch
+  document elevator= parameter
+
+cpio-offset-fix.patch
+  missing padding in cpio_mkfile in usr/gen_init_cpio.c
+
+watchdog-retval-fix.patch
+  watchdog write() return value fixes
+
+document-lib-parser.patch
+  Add lib/parser.c kernel-doc
+
+format_cpumask.patch
+  format_cpumask()
+
+init-remove-CLONE_FILES.patch
+  Remove CLONE_FILES from init kernel thread creation
+
+alpha-stack-dump.patch
+
+usb-msgsize-fix.patch
+  HiSpd Isoc 1024KB submits: -EMSGSIZE
+
+pagefault-accounting-fix.patch
+  pagefault accounting fix
+
+pagefault-accounting-fix-fix.patch
+  pagefault accounting fix fix
+
+pagefault_accounting-fix-fix-fix-fix.patch
+  pagefault accounting again
+
+proc_kill_inodes-oops-fix.patch
+
+proc_bus_pci_lseek-remove-lock_kernel.patch
+  remove lock_kernel() from proc_bus_pci_lseek()
+
+acpi-update.patch
+  acpi update
+
+acpi-update-warning-fix.patch
+
+pagemap-include-recursion-fix.patch
+  remove include recursion from linux/pagemap.h
+
+dm-bounce-buffer-fix.patch
+  dm and bounce buffer panic fix
+
+ia64-piix5-fix.patch
+  PIIX5 Doesn't work on IA64
+
+ide-dma-disabled-fix.patch
+  Can't disable IDE DMA
+
+sysfs_remove_dir-vs-dcache_readdir-race-fix.patch
+  sysfs_remove_dir Vs dcache_readdir race fix
+
+ext3-external-journal-bd_claim.patch
+  ext3: bd_claim for journal device
+
+page-alloc-failure-dump_stack.patch
+
+mpparse_es7000.patch
+  mpparse: fix IRQ breakage from the es7000 merge
+
+x86_64-update.patch
+  x86-64 update for 2.6.0test9-mm5
+
+x86_64-statfs64-fix.patch
+  Fix statfs64 emulation on x86-64
+
+x86_64-aout-support.patch
+  Add a.out support for x86-64
+
+remove-mm-swap_address.patch
+  remove mm->swap_address
+
+sis-assignment-fix.patch
+  sis comparison / assignment operator fix
+
+sync_dquots-oops-fix.patch
+  Subject: [PATCH] Fix possible oops in vfs_quota_sync()
+
+ext3-quota-deadlock-fix.patch
+  Ext3+quota deadlock fix
+
+buslogic-update.patch
+  BusLogic Driver update
+
+binfmt_elf-help-update.patch
+  BINFMT_ELF=m is not an option
+
+aic7xxx_old-proc-oops-fix.patch
+  aic7x_old /proc oops fix
+
+invalidate_mmap_range-non-gpl-export.patch
+  mark invalidate_mmap_range() as EXPORT_SYMBOL
+
+md-1-limit_max_sectors.patch
+  md: Limit max_sectors on md when merge_bvec_fn defined on underlying device.
+
+md-2-set-ra_pages.patch
+  md: set ra_pages for raid0/raid5 devices properly.
+
+alsa-sleep-in-spinlock-fix.patch
+  ALSA sleep in spinlock fix
+
+do_gettimeofday-tick_usec-fix.patch
+  Erronous use of tick_usec in do_gettimeofday
+
+tty-proc-oops-fix.patch
+  prevent oops from read of proc entry for tty drivers
+
+dm-1-fix-block-device-resizing.patch
+  dm: fix block device resizing
+
+dm-2-remove-dynamic-table-resizing.patch
+  dm: remove dynamic table resizing
+
+dm-3-v4-ioctl-default.patch
+  dm: make v4 of the ioctl interface the default
+
+dm-4-set-io-restriction-defaults.patch
+  dm: set io restriction defaults
+
+dm-5-sleep-in-spinlock-fix.patch
+  dm: dm_table_event() sleep on spinlock bug
+
+fix-ELF-exec-with-huge-bss.patch
+  fix ELF exec with huge bss
+
+direct-io-memleak-fix.patch
+  O_DIRECT memory leak fix
+
+list_del-debug.patch
+  list_del debug check
+
+print-build-options-on-oops.patch
+
+show_task-free-stack-fix.patch
+  show_task() fix and cleanup
+
+oops-dump-preceding-code.patch
+  i386 oops output: dump preceding code
+
+lockmeter.patch
+
+lockmeter-sparc64-fix.patch
+
+lockmeter-sparc64-fix-fix.patch
+
+lockmeter-preemption-fixes.patch
+  lockmeter preemption fixes
+
+printk-oops-mangle-fix.patch
+  disentangle printk's whilst oopsing on SMP
+
+4g-2.6.0-test2-mm2-A5.patch
+  4G/4G split patch
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g/4g usercopy atomicity fix
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g/4g usercopy atomicity fix
+  4G/4G preempt on vstack
+  4G/4G: even number of kmap types
+  4g4g: fix __get_user in slab
+  4g4g: Remove extra .data.idt section definition
+  4g/4g linker error (overlapping sections)
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g4g: show_registers() fix
+  4g/4g usercopy atomicity fix
+  4g4g: debug flags fix
+  4g4g: Fix wrong asm-offsets entry
+  cyclone time fixmap fix
+  4G/4G preempt on vstack
+  4G/4G: even number of kmap types
+  4g4g: fix __get_user in slab
+  4g4g: Remove extra .data.idt section definition
+  4g/4g linker error (overlapping sections)
+  4G/4G: remove debug code
+  4g4g: pmd fix
+  4g/4g: fixes from Bill
+  4g4g: fpu emulation fix
+  4g4g: show_registers() fix
+  4g/4g usercopy atomicity fix
+  4g4g: debug flags fix
+  4g4g: Fix wrong asm-offsets entry
+  cyclone time fixmap fix
+  use direct_copy_{to,from}_user for kernel access in mm/usercopy.c
+  4G/4G might_sleep warning fix
+  4g/4g pagetable accounting fix
+
+4g4g-athlon-prefetch-handling-fix.patch
+
+4g4g-wp-test-fix.patch
+  Fix 4G/4G and WP test lockup
+
+4g4g-KERNEL_DS-usercopy-fix.patch
+  4G/4G KERNEL_DS usercopy again
+
+4g4g-vm86-fix.patch
+  Fix 4G/4G X11/vm86 oops
+
+4g4g-athlon-triplefault-fix.patch
+  Fix 4G/4G athlon triplefault
+
+ppc-fixes.patch
+  make mm4 compile on ppc
+
+aic7xxx_old-oops-fix.patch
+
+O_DIRECT-race-fixes-rollup.patch
+  DIO fixes forward port and AIO-DIO fix
+  O_DIRECT race fixes comments
+  O_DRIECT race fixes fix fix fix
+  DIO locking rework
+  O_DIRECT XFS fix
+
+dio-aio-fixes.patch
+  direct-io AIO fixes
+
+dio-aio-fixes-fixes.patch
+  dio-aio fix fix
+
+readahead-multiple-fixes.patch
+  readahead: multipole performance fixes
+
+readahead-simplification.patch
+  readahead simplification
+
+aio-sysctl-parms.patch
+  aio sysctl parms
+
+aio-01-retry.patch
+  AIO: Core retry infrastructure
+  Fix aio process hang on EINVAL
+  AIO: flush workqueues before destroying ioctx'es
+  AIO: hold the context lock across unuse_mm
+  task task_lock in use_mm()
+
+4g4g-aio-hang-fix.patch
+  Fix AIO and 4G-4G hang
+
+aio-retry-elevated-refcount.patch
+  aio: extra ref count during retry
+
+aio-splice-runlist.patch
+  Splice AIO runlist for fairer handling of multiple io contexts
+
+aio-02-lockpage_wq.patch
+  AIO: Async page wait
+
+aio-03-fs_read.patch
+  AIO: Filesystem aio read
+
+aio-04-buffer_wq.patch
+  AIO: Async buffer wait
+  lock_buffer_wq fix
+
+aio-05-fs_write.patch
+  AIO: Filesystem aio write
+
+aio-06-bread_wq.patch
+  AIO: Async block read
+
+aio-07-ext2getblk_wq.patch
+  AIO: Async get block for ext2
+
+O_SYNC-speedup-2.patch
+  speed up O_SYNC writes
+
+O_SYNC-speedup-2-f_mapping-fixes.patch
+
+aio-09-o_sync.patch
+  aio O_SYNC
+  AIO: fix a BUG
+  Unify o_sync changes for aio and regular writes
+  aio-O_SYNC-fix bits got lost
+  aio: writev nr_segs fix
+  More AIO O_SYNC related fixes
+
+aio-09-o_sync-f_mapping-fixes.patch
+
+gang_lookup_next.patch
+  Change the page gang lookup API
+
+aio-gang_lookup-fix.patch
+  AIO gang lookup fixes
+
+aio-O_SYNC-short-write-fix.patch
+  Fix for O_SYNC short writes
+
+aio-12-readahead.patch
+  AIO: readahead fixes
+  aio O_DIRECT no readahead
+  Unified page range readahead for aio and regular reads
+
+aio-12-readahead-f_mapping-fix.patch
+
+aio-readahead-speedup.patch
+  Readahead issues and AIO read speedup
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
