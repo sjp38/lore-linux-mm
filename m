@@ -1,67 +1,41 @@
-Message-ID: <3ABE132F.E919F908@evision-ventures.com>
-Date: Sun, 25 Mar 2001 17:47:59 +0200
-From: Martin Dalecki <dalecki@evision-ventures.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] OOM handling
-References: <3ABDF8A6.7580BD7D@evision-ventures.com> <l03130321b6e3c0533688@[192.168.239.101]>
+Date: Sun, 25 Mar 2001 17:33:44 +0100
+From: Russell King <rmk@arm.linux.org.uk>
+Subject: Re: [patch] pae-2.4.3-A4
+Message-ID: <20010325173344.B30655@flint.arm.linux.org.uk>
+References: <Pine.LNX.4.31.0103191839510.1003-100000@penguin.transmeta.com> <Pine.LNX.4.30.0103251643070.6469-200000@elte.hu>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.30.0103251643070.6469-200000@elte.hu>; from mingo@elte.hu on Sun, Mar 25, 2001 at 04:53:37PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Morton <chromi@cyberspace.org>
-Cc: Rik van Riel <riel@conectiva.com.br>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "James A. Sutherland" <jas88@cam.ac.uk>, Guest section DW <dwguest@win.tue.nl>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Linux Kernel List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Jonathan Morton wrote:
-> 
-> >- the AGE_FACTOR calculation will overflow after the system has
-> >  an uptime of just _3_ days
-> 
-> Tsk tsk tsk...
-> 
-> >Now if you can make something which preserves the heuristics which
-> >serve us so well on desktop boxes and add something that makes it
-> >also work on your Oracle servers, then I'd be interested.
-> 
-> What do people think of my "adjustments" to the existing algorithm?  Mostly
-> it gives extra longevity to low-UID and long-running processes, which to my
-> mind makes sense for both server and desktop boxen.
-> 
-> Taking for example an 80Mb process under my adjustments, it is reduced to
-> under the badness of a new shell process after less than a week's uptime
-> (compared to several months), especially if it is run as low-UID.  Small,
-> short-lived interactive processes still don't get *too* adversely affected,
-> but a memory hog with only a few hours' uptime will still get killed with
-> high probability (pretty much what we want).
-> 
-> I didn't quite understand Martin's comments about "not normalised" -
-> presumably this is some mathematical argument, but what does this actually
-> mean?
+On Sun, Mar 25, 2001 at 04:53:37PM +0200, Ingo Molnar wrote:
+> one nontrivial issue was that on PAE the pgd has to be installed with
+> 'present' pgd entries, due to a CPU erratum. This means that the
+> pgd_present() code in mm/memory.c, while correct theoretically, doesnt
+> work with PAE. An equivalent solution is to use !pgd_none(), which also
+> works with the PAE workaround.
 
-Not mathematics. It's from physics. Very trivial physics, basic scool
-indeed.
-If you try to calculate some weightning
-factors which involve different units (in this case mostly seconds and
-bits)
-then you will have to make sure tha those units get factorized out.
-Rik is just throwing the absolute values together...
+Certainly that's the way the original *_alloc routines used to work.
+In fact, ARM never had need to implement the pmd_present() macros, since
+they were never referenced - only the pmd_none() macros were.
 
-Trivial example:
-"How long does it take to travel from A to B?"
-"It takes about 1000sec."
-"How long does it take to travel from C to D?"
-"It takes about  100sec."
-"Ah, so it's 10 times longer from A to B then from C to D".
+However, I'm currently struggling with this change on ARM - so far after
+a number of hours trying to kick something into shape, I've not managed
+to even get to the stange where I get a kernel image to link, let alone
+the compilation to finish.
 
-Write it down - you just divide the seconds out.
+One of my many dilemas at the moment is how to allocate the page 0 PMD
+in pgd_alloc(), where we don't have a mm_struct to do the locking against.
 
-In case of varying intervalls you have to normalize
-measures by max/min values. Since for example the
-amount of RAM in a box can vary as well. Otherwise
-your algorithms will behave very differently on boxes
-with low RAM in comparision to boxes with huge amounts of
-it. That's what one says if he talks about an
-algorithm "scalling well".
+--
+Russell King (rmk@arm.linux.org.uk)                The developer of ARM Linux
+             http://www.arm.linux.org.uk/personal/aboutme.html
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
