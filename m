@@ -1,39 +1,33 @@
 Reply-To: Gerrit Huizenga <gh@us.ibm.com>
 From: Gerrit Huizenga <gh@us.ibm.com>
 Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch 
-In-reply-to: Your message of Tue, 22 Oct 2002 10:09:47 PDT.
-             <3DB5865B.4462537F@digeo.com>
+In-reply-to: Your message of 22 Oct 2002 19:22:14 BST.
+             <1035310934.31917.124.camel@irongate.swansea.linux.org.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
-Content-ID: <6644.1035312307.1@us.ibm.com>
-Date: Tue, 22 Oct 2002 11:45:11 -0700
-Message-Id: <E18441g-0001jW-00@w-gerrit2>
+Content-ID: <7648.1035312457.1@us.ibm.com>
+Date: Tue, 22 Oct 2002 11:47:37 -0700
+Message-Id: <E184442-0001zQ-00@w-gerrit2>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Benjamin LaHaise <bcrl@redhat.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-In message <3DB5865B.4462537F@digeo.com>, > : Andrew Morton writes:
-> Rik van Riel wrote:
-> > 
-> > ...
-> > In short, we really really want shared page tables.
+In message <1035310934.31917.124.camel@irongate.swansea.linux.org.uk>, > : Alan
+ Cox writes:
+> > I think the fact that large page support doesn't support mmap for users 
+> > that need it is utterly appauling; there are numerous places where it is 
+> > needed.  The requirement for root-only access makes it useless for most 
+> > people, especially in HPC environments where it is most needed as such 
+> > machines are usually shared and accounts are non-priveledged.
 > 
-> Or large pages.  I confess to being a little perplexed as to
-> why we're pursuing both.
+> I was very suprised the large page crap went in, in the form it
+> currently exists. Merging pages makes sense, spotting and doing 4Mb page
+> allocations kernel side makes sense. The rest is very questionable
 
-Large pages benefit the performance of large applications which
-explicity take advantage of them (at least today - maybe in the
-future, large pages will be automagically handed out to those that
-can use them).  And, as a side effect, they reduce KVA overhead.
-Oh, and at the moment, they are non-pageable, e.g. permanently stuck
-in memory.
-
-On the other hand, shared page tables benefit any application that
-shares data, including those that haven't been trained to roll over
-and beg for large pages.  Shared page tables are already showing large
-space savings with at least one database.
+Hmm.  Isn't it great that 2.6/3.0 will be stable soon and we can
+start working on this for 2.7/3.1?
 
 gerrit
 --
