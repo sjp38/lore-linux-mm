@@ -1,43 +1,50 @@
-Date: Mon, 4 Sep 2000 09:51:57 +0200
-From: Ralf Baechle <ralf@uni-koblenz.de>
-Subject: Re: Memory partitioning
-Message-ID: <20000904095157.A1186@bacchus.dhis.org>
-References: <4.3.2.7.0.20000822155755.00aa3e00@192.168.1.9>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <4.3.2.7.0.20000822155755.00aa3e00@192.168.1.9>; from santosh@sony.co.in on Tue, Aug 22, 2000 at 04:02:51PM +0530
+Date: Mon, 4 Sep 2000 21:49:56 -0400 (EDT)
+From: Ben LaHaise <bcrl@redhat.com>
+Subject: Re: zero copy IO project
+In-Reply-To: <39B3FD1D.EB33427D@free.fr>
+Message-ID: <Pine.LNX.4.21.0009042136030.23932-100000@devserv.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Santosh Eraniose <santosh@sony.co.in>
-Cc: Linux-MM@kvack.org
+To: Fabio Riccardi <fabio.riccardi@free.fr>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 22, 2000 at 04:02:51PM +0530, Santosh Eraniose wrote:
+On Mon, 4 Sep 2000, Fabio Riccardi wrote:
 
-> Is it possible to partition the MMU such that multiple OS
-> can run on the same platform.
-> In all examples I see like MKLinux , the mem mgmt of Linux is mapped to the
-> underlying Mach kernel.
-> The other extreme is as in RTAI (Real time App Interface), where the MMU is 
-> handled by linux, but the
-> scheduling is done by RTAI.
+> Hi, thanks for the pointers & explainations!
+> 
+> What I want is a server capable of handling high bandwidth communication and
+> the kiobuf mechanisms seem to be able to do the right thing, provided that
+> one rewrites the user applications accordingly...
+> 
+> If I understand correctly the kiobuf interface allows a user process to map a
+> piece of kernel memory in its own addressing space to use as an IO buffer.
+> What I originally had in mind was more something like netbsd's
+> UVM: _transparent_ zero-copy IO.
 
-Several approaches:
+> With the UVM  user applications just invokes the plain old fwrite (buff,
+> ...) and the system grabs the buffer from the user space into kernel space
+> without the application noticing it (the original buffer becomes TCOW in the
+> application space).
 
- - IBM S390 can partition the hardware.  In cooperation with IBM's VM this
-   allows to completly - and efficiently - subdivide the machine into multiple
-   virtual machines.  VMs can even nest.
- - Less perfect due to not available VM-like software and no support of the
-   hardware as on the S390 for example Sun's E10000 or SGI Origin 2000/3000
-   offer partitioning.  This style of partitioning is mostly implemented
-   by the hardware of the machines.
+Anything that requires playing VM tricks is not something you'll find a
+great deal of support for amongst developers -- see the posting Linus made
+against exactly this.
 
-The two approaches guarantee that even a virtual machine or partition that goes nuts can't crash another virtual machine or partition.
+It comes down to complexity and the amount of gain in generic
+applications.  Take apache for example.  Enabling "zero copy" through VM
+tricks will buy you no benefit when it comes to the http header sent out
+on a request.  But the act of transmitting a file is already well handled
+by the sendfile() model.
 
- - Not implemented but in theory implementable would be multiple kernels
-   running on top RTLinux's realtime kernel.
+Fwiw, there are lots of libc optimisations that are worth *more* than
+"zero copy" for typical applications.  Like pre-linking libraries.  stdio
+could make use of mmap for fread.
 
-  Ralf
+		-ben
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
