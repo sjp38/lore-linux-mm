@@ -1,33 +1,53 @@
-Date: Thu, 15 May 2003 01:42:07 -0700
-From: Andrew Morton <akpm@digeo.com>
+Date: Thu, 15 May 2003 10:50:23 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: Race between vmtruncate and mapped areas?
-Message-Id: <20030515014207.64be0afa.akpm@digeo.com>
-In-Reply-To: <20030515013245.58bcaf8f.akpm@digeo.com>
-References: <154080000.1052858685@baldur.austin.ibm.com>
-	<20030513181018.4cbff906.akpm@digeo.com>
-	<18240000.1052924530@baldur.austin.ibm.com>
-	<20030514103421.197f177a.akpm@digeo.com>
-	<82240000.1052934152@baldur.austin.ibm.com>
-	<20030515004915.GR1429@dualathlon.random>
-	<20030515013245.58bcaf8f.akpm@digeo.com>
+Message-ID: <20030515085023.GU1429@dualathlon.random>
+References: <199610000.1052864784@baldur.austin.ibm.com> <20030513181018.4cbff906.akpm@digeo.com> <18240000.1052924530@baldur.austin.ibm.com> <20030514103421.197f177a.akpm@digeo.com> <82240000.1052934152@baldur.austin.ibm.com> <20030514105706.628fba15.akpm@digeo.com> <99000000.1052935556@baldur.austin.ibm.com> <20030514111748.57670088.akpm@digeo.com> <108250000.1052936665@baldur.austin.ibm.com> <20030514115319.51a54174.akpm@digeo.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030514115319.51a54174.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: andrea@suse.de, dmccr@us.ibm.com, mika.penttila@kolumbus.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: Dave McCracken <dmccr@us.ibm.com>, mika.penttila@kolumbus.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@digeo.com> wrote:
->
-> So the mm/memory.c part would look something like:
+On Wed, May 14, 2003 at 11:53:19AM -0700, Andrew Morton wrote:
+> converting i_sem to an rwsem and taking it in the pagefault would certainly
+> stitch it up.  Unpopular, very messy.
 
-er, right patch, wrong concept.  That's the "check i_size after taking
-page_table_lock" patch.
+and very slow, down_read on every page fault wouldn't scale
 
-It's actually not too bad.  Yes, there's 64-bit arith involved, but it is
-only a shift.
+> Could "truncate file" return some code to say pages were left behind, so
+> truncate re-runs zap_page_range()?  Sounds unpleasant.
+> 
+> 
+> Yes, re-checking the page against i_size from do_no_page() would fix it up.
 
+think if there are two truncates, one zapping the entere file, and
+another restoring the previous i_size, in such case the new_page will be
+wrong, as it won't be zeroed out. I mean if we do anything about it, we
+should close all races and make it 100% correct.
+
+My fix has no scalability cost, no indirect calls, touches mostly just
+hot cachelines anyways, and addresses the multiple truncate case too.
+
+
+>  But damn, that's another indirect call, 64-bit math, etc on _every_
+> file-backed pagefault.
+> 
+> 
+> Remind me again what problem this whole thing is currently causing?
+
+the only thing I can imagine is an app trapping SIGBUS to garbage
+collect the end of a file. So for example you truncate the file and you
+wait the SIGBUS to know you've to re-extend it. it would be a legitimate
+use, and this is a bug, it's not read against write that has no way to
+synchronize anyways, however I doubt any application is being bitten by
+this race.
+
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
