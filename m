@@ -1,34 +1,52 @@
+Date: Sat, 20 Jul 2002 16:25:21 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH] generalized spin_lock_bit
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
-In-Reply-To: <20020720.152703.102669295.davem@redhat.com>
-References: <1027196511.1555.767.camel@sinai>
-	<20020720.152703.102669295.davem@redhat.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 21 Jul 2002 01:26:25 +0100
-Message-Id: <1027211185.17234.48.camel@irongate.swansea.linux.org.uk>
-Mime-Version: 1.0
+In-Reply-To: <1027200016.1086.800.camel@sinai>
+Message-ID: <Pine.LNX.4.44.0207201622350.1814-100000@home.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: rml@tech9.net, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@conectiva.com.br, wli@holomorphy.com
+To: Robert Love <rml@tech9.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@conectiva.com.br, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2002-07-20 at 23:27, David S. Miller wrote:
-> Why not just use the existing bitops implementation?  The code is
-> going to be mostly identical, ala:
-> 
-> 	while (test_and_set_bit(ptr, nr)) {
-> 		while (test_bit(ptr, nr))
-> 			barrier();
-> 	}
 
-Firstly your code is wrong for Intel already
+On 20 Jul 2002, Robert Love wrote:
+>
+> My assumption was similar - that the bit locking may be inefficient on
+> other architectures - so I put the spin_lock_bit code in per-arch
+> headers.
 
-Secondly many platforms want to implement their locks in other ways.
-Atomic bitops are an x86 luxury so your proposal simply generates
-hideously inefficient code compared to arch specific sanity
+Well, but you also passed it an unsigned long, and the bit number.
 
+Which at least to me implies that they have to set that bit.
+
+Which is totally unnecessary, if they _instead_ decide to set something
+else altogether.
+
+For example, the implementation on pte_chain_lock(page) might be something
+like this instead:
+
+	static void pte_chain_lock(struct page *page)
+	{
+		unsigned long hash = hash(page) & PTE_CHAIN_MASK;
+		spin_lock(pte_chain[hash]);
+	}
+
+	static void pte_chain_unlock(struct page *page)
+	{
+		unsigned long hash = hash(page) & PTE_CHAIN_MASK;
+		spin_unlock(pte_chain[hash]);
+	}
+
+> In other words, I assumed we may need to make some changes but to
+> bit-locking in general and not rip out the whole design.
+
+bit-locking in general doesn't work. Some architectures can sanely only
+lock a byte (or even just a word).
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
