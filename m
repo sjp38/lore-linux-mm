@@ -1,37 +1,51 @@
-Date: Wed, 3 May 2000 18:38:50 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
-In-Reply-To: <200005031608.JAA87583@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.10.10005031828520.950-100000@penguin.transmeta.com>
+Message-ID: <3910E40B.25FBEED4@sgi.com>
+Date: Wed, 03 May 2000 19:44:27 -0700
+From: Rajagopal Ananthanarayanan <ananth@sgi.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
+References: <Pine.LNX.4.10.10005031828520.950-100000@penguin.transmeta.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Rajagopal Ananthanarayanan <ananth@sgi.com>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Ok,
- there's a pre7-4 out there that does the swapout with the page locked.
-I've given it some rudimentary testing, but certainly nothing really
-exotic. Please comment..
+Linus Torvalds wrote:
+> 
+> Ok,
+>  there's a pre7-4 out there that does the swapout with the page locked.
+> I've given it some rudimentary testing, but certainly nothing really
+> exotic. Please comment..
 
-David pointed out that swapout_highmem can't really work, and he's right
-and wrong. It does work, but it works for rather undocumented reasons: it
-only gets invoced for anonymous dirty pages, and they are always
-cow-shared, so it's ok to "break" the page up into an "old" page and a
-"new" page with the same contents. Even though it's not legal in general.
+One quick comment: Looking at this part of the diff to mm/vmscan.c:
 
-I'm not claiming that this fixes any known bugs, but it _does_ mean that
-we probably have the page locked in all fundamental cases where it really
-matters. If anybody finds a case where we play with the page-cached-ness
-(or similar) of a page without holding the page lock, please holler
-loudly.
+----------
+@@ -138,6 +139,7 @@
+                flush_tlb_page(vma, address);
+                vmlist_access_unlock(vma->vm_mm);
+                error = swapout(page, file);
++               UnlockPage(page);
+                if (file) fput(file);
+                if (!error)
+                        goto out_free_success;
+-----------------
 
-This way it should be easy to verify that yes, our coherency is fine.
+Didn't you mean the UnlockPage() to go before swapout(...)?
+For example, one of the swapout routines, filemap_write_page()
+expects the page to be unlocked. If called with page locked,
+I'd expect a "double-trip" dead-lock. Right?
 
-		Linus
+Like you said in an  earlier mail, most of the code in
+try_to_swap_out expects the page to be unlocked. Now,
+of course, the reverse is true ... need to watch out!
 
+-- 
+--------------------------------------------------------------------------
+Rajagopal Ananthanarayanan ("ananth")
+Member Technical Staff, SGI.
+--------------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
