@@ -1,66 +1,54 @@
-Date: Mon, 11 Aug 2003 23:52:35 +0200
-From: Roger Luethi <rl@hellgate.ch>
-Subject: Re: Is /proc/#/statm worth fixing?
-Message-ID: <20030811215235.GB13180@k3.hellgate.ch>
-References: <20030811090213.GA11939@k3.hellgate.ch> <20030811160222.GE3170@holomorphy.com>
+Date: Mon, 11 Aug 2003 15:16:28 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: 2.6.0-test3-mm1
+Message-ID: <20030811221628.GR1715@holomorphy.com>
+References: <20030811113943.47e5fd85.akpm@osdl.org> <873510000.1060633024@flay>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030811160222.GE3170@holomorphy.com>
+In-Reply-To: <873510000.1060633024@flay>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 11 Aug 2003 09:02:22 -0700, William Lee Irwin III wrote:
-> I've restored a number of the fields to the 2.4.x semantics in tandem
+On Mon, Aug 11, 2003 at 01:17:04PM -0700, Martin J. Bligh wrote:
+> Buggered if I know what Letext is doing there ???
+>       6577     3.9% total
+>       1157     0.0% Letext
+>        937     0.0% direct_strnlen_user
+>        748   440.0% filp_close
+>        722    21.2% __copy_from_user_ll
+>        610     2.6% page_remove_rmap
+>        492   487.1% file_ra_state_init
+>        452    12.4% find_get_page
+>        405     7.6% __copy_to_user_ll
+>        402    28.6% schedule
+>        386     0.0% kpmd_ctor
+>        348     4.4% __d_lookup
+>        310    16.6% atomic_dec_and_lock
+>        300   174.4% may_open
 
-So what _are_ the semantics?
+You can figure out what it is by reading addresses directly out of
+/proc/profile that would correspond to it (i.e. modifying readprofile)
+and correlating it with an area of text in a disassembled kernel.
 
-# total program size (linux-2.6.0-test3/Documentation/filesystems/proc.txt)
-2.6 and I believe the first field (size) should be the same (in pages, of
-course) as VmSize, but 2.4 doesn't think so.
+kpmd_ctor() is unusual; how many runs does this profile represent?
+Does it represent the first run? Ideally, all your kernel pmd's should
+be cached. If it's not the first run, then logged slab cache statistics
+would be interesting to determine whether this is still the case even
+while effective cacheing is going on or whether slab cache reaping is
+blowing these things away (i.e. either ineffective cacheing is happening
+or for some reason cacheing them isn't good enough).
 
-# size of memory portions (proc.txt)
-The second field (resident) is actually equal to VmRSS on both 2.4 and 2.6.
-That looks okay.
+Of course, it would probably be better to deal with first-order effects
+first. On that note, how many profile hits total? How many runs is this
+summed together from? Which run is this (numerically in the order you
+ran them) if the profiles are from only one run?
 
-# number of pages that are shared (proc.txt)
-Field three (shared) is text + data for program and shared libs on 2.6, but
-not on on 2.4.
 
-# number of pages that are 'code' (proc.txt)
-Field four is program text + data.
-
-# number of pages of data/stack (proc.txt; wrong, this should be field six)
-Field five is set to 0 in 2.6 (lib), and AFAICT always equals 0 on 2.4
-(lrs) although it pretends to work out the libraries' size (by checking for
-vm_end > 0x60000000 which seems rather odd).
-
-# number of pages of library (proc.txt; wrong, should be field five)
-Field six is text + data for program and shared libs + some anonymous
-mappings for 2.6 (data), but not on 2.4 (drs).
-
-# number of dirty pages (proc.txt)
-Field seven is always 0 on 2.6, but not on 2.4 (dt).
-
-We can get all that data from /proc/#/maps and /proc/#/status (minus the
-dirty pages which are always 0 in 2.6 anyway).
-
-Are there _any_ programs using /proc/#/statm for real and producing
-meaningful data from it? I doubt it. I don't think the problem is 2.6 which
-has actually more values that seem correct as it is now. Since statm has
-been broken in 2.4, fixing it for 2.6 means basically _introducing_ a file
-full of redundant information with unclear semantics, a file which nobody
-missed in 2.4. I still think the file should die.
-
-> I dumped the forward port of the patch into -wli, available at:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/wli/kernels/
-
-Is it this one? (latest one I found)
-ftp://ftp.kernel.org/pub/linux/kernel/people/wli/kernels/2.6.0-test1/2.6.0-test1-wli-1B.bz2
-
-Roger
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
