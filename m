@@ -1,28 +1,31 @@
-Date: Thu, 10 Apr 2003 03:35:33 -0700
-From: Andrew Morton <akpm@digeo.com>
+Date: Thu, 10 Apr 2003 09:59:30 -0400
+From: Benjamin LaHaise <bcrl@redhat.com>
 Subject: Re: [PATCH] bootmem speedup from the IA64 tree
-Message-Id: <20030410033533.21343911.akpm@digeo.com>
-In-Reply-To: <20030410122421.A17889@lst.de>
+Message-ID: <20030410095930.D9136@redhat.com>
 References: <20030410122421.A17889@lst.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030410122421.A17889@lst.de>; from hch@lst.de on Thu, Apr 10, 2003 at 12:24:21PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Hellwig <hch@lst.de>
-Cc: davidm@napali.hpl.hp.com, linux-mm@kvack.org
+Cc: akpm@zip.com.au, davidm@napali.hpl.hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig <hch@lst.de> wrote:
->
-> This patch is from the IA64 tree, with some minor cleanups by me.
-> David described it as:
-> 
->   This is a performance speed up and some minor indendation fixups.
+On Thu, Apr 10, 2003 at 12:24:21PM +0200, Christoph Hellwig wrote:
+>  	if (goal && (goal >= bdata->node_boot_start) && 
+> -			((goal >> PAGE_SHIFT) < bdata->node_low_pfn)) {
+> +	    ((goal >> PAGE_SHIFT) < bdata->node_low_pfn)) {
+>  		preferred = goal - bdata->node_boot_start;
+> +
+> +		if (last_success >= preferred)
+> +			preferred = last_success;
 
-OK, thanks - I'll queue this up for a bit of testing.
+I suspect you need a range check on last_success here for machines which have 
+multiple nodes of memory, or else store it in bdata.
 
-Martin, can you please also test this?
+		-ben
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
