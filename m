@@ -1,32 +1,36 @@
-Date: Sun, 1 Jun 2003 14:53:49 -0700
+Date: Mon, 2 Jun 2003 01:02:01 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.70-bk4+: oops by mc -v /proc/bus/pci/00/00.0
-Message-ID: <20030601215349.GB20413@holomorphy.com>
-References: <20030531165523.GA18067@steel.home> <20030531195414.10c957b7.akpm@digeo.com> <20030601143439.O626@nightmaster.csn.tu-chemnitz.de> <20030601125809.4e28453e.akpm@digeo.com>
+Subject: pgcl-2.5.70-bk6-1
+Message-ID: <20030602080201.GC20413@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030601125809.4e28453e.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 01, 2003 at 12:58:09PM -0700, Andrew Morton wrote:
-> Well not really.  Yes, a slab-based ctor would be nice, but it requires that
-> all objects be kfreed in a "constructed" state.  So a full audit/fixup of
-> all users is needed.
-> For now I was thinking more along the lines of
-> struct vma_struct alloc_vma(gfp_flags)
-> {
-> 	vma = kmem_cache_alloc();
-> 	memset(vma);
-> 	return vma;
-> }
-> And then deleting tons of open-coded init stuff elsewhere...
+(1) fix incorrect virtual address calculation in kmap_atomic()
+(2) more compilefixes for arch/i386/mm/highmem.c
+(3) checking for alignment of kmap() and kmap_atomic() virtualspace
+        in arch/i386/mm/init.c
+(4) rework fixmap enums yet again so kmap() and kmap_atomic() areas
+        actually come out properly aligned
+(5) change FIXADDR_TOP to -PAGE_SIZE so the offset calculation isn't
+        as easy to screw up
+(6) fix mismerge of pgd_ctor() bits that installed garbage pmd's on
+        CONFIG_HIGHMEM64G
 
-I'll add vma ctor bits to my TODO list, behind numerous other things..
+Also available vs. pgcl-2.5.70-bk5-2 as pgcl-2.5.70-bk5-3.
+
+This appears to boot and run on CONFIG_HIGHMEM64G, but I've had reports
+of some sysenter bug. If I could get them reproduced with this release
+so I can look further into them, I'd be much obliged. Testers running
+with CONFIG_HIGHMEM64G, please update to this release.
+
+As usual, available from:
+ftp://ftp.kernel.org/pub/linux/kernel/people/wli/vm/pgcl/
 
 
 -- wli
