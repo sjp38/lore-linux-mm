@@ -1,37 +1,40 @@
-Received: from atlas.iskon.hr (atlas.iskon.hr [213.191.131.6])
-	by inje.iskon.hr (8.9.3/8.9.3/Debian 8.9.3-6) with ESMTP id VAA21315
-	for <linux-mm@kvack.org>; Sun, 7 Jan 2001 21:41:15 +0100
-Subject: page_launder() questions...
-Reply-To: zlatko@iskon.hr
-From: Zlatko Calusic <zlatko@iskon.hr>
-Date: 07 Jan 2001 21:41:14 +0100
-Message-ID: <87ofxj9jth.fsf@atlas.iskon.hr>
+Date: Sun, 7 Jan 2001 17:07:59 -0200 (BRST)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: [patch] mm-cleanup-1 (2.4.0)
+In-Reply-To: <87snmv9k13.fsf@atlas.iskon.hr>
+Message-ID: <Pine.LNX.4.21.0101071701250.4416-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Zlatko Calusic <zlatko@iskon.hr>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-In page_launder():
 
-		/* First time through? Move it to the back of the list */
-		if (!launder_loop) {
-			list_del(page_lru);
-			list_add(page_lru, &inactive_dirty_list);
-			UnlockPage(page);
-			continue;
-		}
+On 7 Jan 2001, Zlatko Calusic wrote:
 
-Well, it has just found a dirty page and instead of writing it out it
-skips it and continues scanning. I don't get it!
+> The following patch cleans up some obsolete structures from the mm &
+> proc code.
+> 
+> Beside that it also fixes what I think is a bug:
+> 
+>         if ((rw == WRITE) && atomic_read(&nr_async_pages) >
+>                        pager_daemon.swap_cluster * (1 << page_cluster))
+> 
+> In that (swapout logic) it effectively says swap out 512KB at once (at
+> least on my memory configuration). I think that is a little too much.
+> I modified it to be a little bit more conservative and send only
+> (1 << page_cluster) to the swap at a time. Same applies to the
+> swapin_readahead() function. Comments welcome.
 
-Also, all comments speak about swap cache pages, but if I understand
-correctly, now even "normal" page cache pages get the dirty bit when
-dirtied, so they should also be written out in the page_launder()
-function, right?
--- 
-Zlatko
+512kb is the maximum limit for in-flight swap pages, not the cluster size 
+for IO. 
+
+swapin_readahead actually sends requests of (1 << page_cluster) to disk
+at each run.
+ 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
