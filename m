@@ -1,38 +1,44 @@
-Received: from localhost (amitjain@localhost)
-	by mailhost.tifr.res.in (8.9.3+3.2W/8.9.3/Debian 8.9.3-21) with ESMTP id PAA31012
-	for <linux-mm@kvack.org>; Sat, 30 Mar 2002 15:27:30 +0530
-Date: Sat, 30 Mar 2002 15:27:30 +0530 (IST)
-From: "Amit S. Jain" <amitjain@tifr.res.in>
-Subject: Memory allocation in Linux
-Message-ID: <Pine.LNX.4.21.0203301519070.30461-100000@mailhost.tifr.res.in>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: linux kernel hash table vs rbtree
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <20020402185739L.hyoshiok@miraclelinux.com>
+Date: Tue, 02 Apr 2002 18:57:39 +0900
+From: Hiro Yoshioka <hyoshiok@miraclelinux.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: chucklever@bigfoot.com, linux-scalability@citi.umich.edu
+Cc: hyoshiok@miraclelinux.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello everyone,
-               I am confused about the concept of memory allocation in
-Linux and hope u all can please clear this.
-Obtaining large amount of continuous memory from the kernel is not a
-good practice and is also not possible.However,as far as non-contiguous
-memory is concerned ...cant those be obtained in huge amounts (I am talkin
-in terms of MB).Using get_free_pages or vmalloc cant large amounts of
-memory be obtained.I tried doing this but I got continuous message ssayin
-PCI bus error 2290...wass this bout???ne idea. 
+Hi,
 
-Also,I will be highly obliged if you could refer a good document which can
-gimme a good explaination bout mmap function.I basically want to obtain
-zero copy from the user area straigt to the network interface without any
-copies in the kernel area. kiobuff can provide one such interface,however
-I also want to try using mmap....so please could u refer me some good
-document.   
+I have read papers: 'Linux Kernel Hash Table Behavior:
+analysis and improvements'
 
-Thanking you
-Regards
-Amit
+http://www.citi.umich.edu/projects/linux-scalability/reports/hash.html
+http://www.citi.umich.edu/techreports/reports/citi-tr-00-1.pdf
+http://www.usenix.org/publications/library/proceedings/als2000/lever.html
 
+It is very interesting though it is based on the kernel 2.2.
+
+I also found the kernel 2.4.10 has been introducing a rbtree
+instead of AVL tree.
+
+Your paper has suggested rbtree performs better than the
+original but not better than other algorithm.
+
+Do you know any performance data (quantitative data)
+which supports rbtree has good performance?
+
+I'm CCing linux-mm mailing list since there are maintainers.
+
+Regards,
+  Hiro
+--
+Hiro Yoshioka/CTO, Miracle Linux
+mailto:hyoshiok@miraclelinux.com
+http://www.miraclelinux.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
