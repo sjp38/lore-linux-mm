@@ -1,31 +1,40 @@
-Date: Mon, 5 Mar 2001 11:52:19 +0100
-From: Andi Kleen <ak@muc.de>
-Subject: Re: Shared mmaps
-Message-ID: <20010305115219.A573@fred.local>
-References: <20010304211053.F1865@parcelfarce.linux.theplanet.co.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <20010304211053.F1865@parcelfarce.linux.theplanet.co.uk>; from matthew@wil.cx on Sun, Mar 04, 2001 at 10:10:53PM +0100
+Date: Mon, 5 Mar 2001 06:36:14 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: [PATCH] ac7: page_launder() & refill_inactive() changes
+In-Reply-To: <3AA15E3C.39BD9A82@ucla.edu>
+Message-ID: <Pine.LNX.4.21.0103050634470.1884-100000@freak.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
+To: Benjamin Redelings I <bredelin@ucla.edu>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Mar 04, 2001 at 10:10:53PM +0100, Matthew Wilcox wrote:
-> Sparc & IA64 use a flag in the task_struct to indicate that they're trying
-> to allocate an mmap which is shared.  That's really ugly, let's just pass
-> the flags in to the get_mapped_area function instead.  I had to invent a
-> new flag for this because mremap's flags are different to mmap's (bah!)
+
+On Sat, 3 Mar 2001, Benjamin Redelings I wrote:
+
+>  
+> Content-Type: text/plain; charset=big5
+> Content-Transfer-Encoding: 7bit
 > 
-> Comments?
+> Hi Marcelo:
+> 	In the patch you provided, have you perhaps reverse the sense of this
+> test:
+> 
+> +                       if (try_to_free_buffers(page, wait))
+> +                               flushed_pages++;
+> 
+> Should this have a NOT (!) instead?
 
-With some extensions I would also find it useful for x86-64 for the 32bit
-mmap emulation (currently it's using a current-> hack)
-For that flags would need to be passed to TASK_UNMAPPED_BASE.
+No. 
 
+I changed try_to_free_buffers() to return true if it did IO. 
 
--Andi
+> 
+> +                       if (!try_to_free_buffers(page, wait))
+> +                               flushed_pages++;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
