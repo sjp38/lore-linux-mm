@@ -1,26 +1,17 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199911022310.PAA73648@google.engr.sgi.com>
-Subject: Re: >4GB memory support.. ?
-Date: Tue, 2 Nov 1999 15:10:29 -0800 (PST)
-In-Reply-To: <199911021653859.SM00207@mailhost.directlink.net> from "Javan Dempsey" at Nov 2, 99 04:53:21 pm
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: "Javan Dempsey" <raz@mailhost.directlink.net>
+Reply-To: "Javan Dempsey" <raz@mailhost.directlink.net>
+Date: Tue,  2 Nov 99 17:18:22 -0600
+Subject: >4GB, I stand corrected. It's already there.
+Message-Id: <199911021718703.SM00207@mailhost.directlink.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: raz@mailhost.directlink.net
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> Anyone have any plans of tackling >4GB support? We just rolled some machines into production with 4GB recently, and are looking at needing support for more mem if remotely possible soon. Our machines will currently take upto 6GB. Kanoj? =)
->
+I see someone already beat me to this, I guess I should pay better attention. One question though, in my fair about of cluelessness, has anyone a patch specifically for this? Or can someone verify the stability of the 2.3.x kernels that have this support? These machines are extreamly hard hit Oracle servers, so obviously I need as stable a kernel as possible. Any advice on how I should go about upgrading from a 2.2.x kernel towards this end will be greatly appreciated.
 
-Ingo Molnar from RedHat has put in the 64Gb support code into 2.3.
-You can turn on this support during make config by 
-Processor type and features -> High Memory Support.  
-
-Kanoj
+Thanks,
+	Javan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
