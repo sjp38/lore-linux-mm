@@ -1,92 +1,140 @@
-Date: Thu, 25 Apr 2002 00:21:21 -0400
-From: msimons@moria.simons-clan.com
-Subject: Re: memory exhausted
-Message-ID: <20020425002121.V940@moria.reston01.va.comcast.net>
-References: <5.1.0.14.2.20020424145006.00b17cb0@notes.tcindex.com> <Pine.LNX.4.44L.0204242318240.1960-100000@imladris.surriel.com> <20020425025753.GJ26092@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <20020425025753.GJ26092@holomorphy.com>
+Date: Thu, 25 Apr 2002 16:19:22 +0100 (BST)
+From: Christian Smith <csmith@micromuse.com>
+Subject: Re: Why *not* rmap, anyway?
+In-Reply-To: <Pine.LNX.4.44L.0204241112090.7447-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.33.0204251240510.1968-100000@erol>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Vivian Wang <vivianwang@tcindex.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Wed, 24 Apr 2002, Vivian Wang wrote:
-> >> I try to sort my 11 GB file, but I got message about memory exhausted.
-> >> sort -u file1 -o file2
-> >> What I should do?
+On Wed, 24 Apr 2002, Rik van Riel wrote:
 
-Vivian,
+>On Wed, 24 Apr 2002, Christian Smith wrote:
+>> On Tue, 23 Apr 2002, Rik van Riel wrote:
+>> >On Tue, 23 Apr 2002, Christian Smith wrote:
+>> >
+>> >> The question becomes, how much work would it be to rip out the Linux MM
+>> >> piece-meal, and replace it with an implementation of UVM?
+>> >
+>> >I doubt we want the Mach pmap layer.
+>>
+>> Why not? It'd surely make porting to new architecures easier (not that
+>> I've tried it either way, mind)
+>
+>You really need to read the pmap code and interface instead
+>of repeating the statements made by other people. Have you
+>ever taken a close look at the overhead implicit in the pmap
+>layer ?
 
-  If you are using the GNU version of sort it does not even try to load 
-the input set into memory, it does a splintering and merge multiple merge 
-sorts of the input files.  The sort operation will be very disk I/O bound...
+Just how much overhead is there? The only overhead that would come into 
+play would/should be when:
+- On a TLB based MMU, when there is a soft page fault and a pmap 
+  implementation doesn't cache translations over and above those in the 
+  TLB.
+- Inverted page table when the required <address_space,virtual_address> 
+  lookup fails.
+- When mapping in a new page after a hard page fault (small compared to 
+  the overhead of paging in from backing store.)
 
-  You must set -T (or TMPDIR) to point at a filesystem with enough disk 
-space to store the temporary files if your /tmp doesn't have enough room.
-You didn't paste the exact text of the error message so I didn't check 
-to see what error is generated if /tmp fills up while working.
+>
+>
+>> interface. Pmap can hide the differences between forward mapping page
+>> table, TLB or inverted page table lookups, can do SMP TLB shootdown
+>> transparently. If not the Mach pmap layer, then surely another pmap-like
+>> layer would be beneficial.
+>
+>Then how about the Linux pmap layer ?
+>
+>The datastructure is a radix tree, which happens to map 1 to 1
+>with the MMU on most architectures. On architectures that don't
+>have forward page tables Linux fills in the hardware's translation
+>tables with data from those radix trees.
+
+Thus resulting in redundant information. The benefit of the pmap/hat 
+is that on architectures with forward mapping, this can be used as is, 
+whereas other MMU architectures can dispense with the middle man 
+completely.
+
+For a "pmap" interface, the "Linux pmap" is horribly complex. Not only the 
+fact that it is a three level page table, but also that fact that it 
+contains swap information.
+
+It's a similar situation to what <4.4BSD was in, when they had their VAX
+based paging VM. Upon moving to Mach VM, they could do all sorts of
+optimasations that were simply not viable with the old VM, and improved
+performance significantly, as well as simplified maintainance and eased
+porting.
+
+Same with SunOS's hat based VM, Same with SysV when they inherited the
+SunOS VM.
+
+About the only other major OS I know of that uses the page table as their 
+primary VM management data structure is the NT kernel.
+
+When it comes down to it, the platform independant part of VM works with
+address space identifiers, virtual addresses, physical addresses and
+protection attributes. That should then be all the pmap interface exposes,
+and is indeed all that the Mach pmap interface exposes. A clean 
+seperation.
+
+>
+>
+>> It can handle sparse address space management without the hackery of
+>> n-level page tables, where a couple of years ago, 3 levels was enough for
+>> anyone, but now we're not so sure.
+>>
+>> The n-level page table doesn't fit in with a high level, platform
+>> independant MM, and doesn't easily work for all classes of low level MMU.
+>> It doesn't really scale up or down.
+>
+>Do you have any arguments or are you just repeating what you
+>read somewhere else ?
+
+And an argument I've read is any less valid because...
+
+Actually, the scaling issue is something I've thought about as I have an 
+interest in small systems, that don't really want to be wasting pages for 
+page tables that can't be discarded or reused until they are finished 
+with. With the current Linux VM, page tables are not discardable or 
+reusable. With an opaque pmap interface, page tables can be discarded if 
+they haven't been used for a while and the subsequent free memory used 
+elsewhere.
+
+Similarly for big systems, a server with hundreds of processes has to keep 
+all the page tables resident, even if most of the processes are idle 
+99.9% of the time.
+
+>
+>Just think about it for a second ... the radix tree structure
+>of page tables are as good a datastructure as any other.
+>
+>The mythical "sparse mappings" seem to be very rare in real
+>life and I'm not convinced they are a reason to change all of
+>our VM.
+
+I'm worried that the rmap fix is a band-aid on a hacked i386 based VM
+system. Rather than trying to adapt a previously hacked solution, it might 
+be better just to wipe the slate clean.
+
+>
+>
+>regards,
+>
+>Rik
+>
+
+-- 
+    /"\
+    \ /    ASCII RIBBON CAMPAIGN - AGAINST HTML MAIL 
+     X                           - AGAINST MS ATTACHMENTS
+    / \
 
 
-  It appears there is a restriction that sort must be able to load a few
-of the longest lines into memory.
 
-- What is the longest line in your input file?
-  (run "wc -L input file")
-
-  In my own testing of very big data files (with short line lengths)
-I had no problems.  If that is a number larger than memory you may
-need to find a way to chop your data into shorter lines...
-
-
-  Lastly, sort splits the files into 500 KiB byte chunks on the first
-pass.  This will create about 22000 files in your TMPDIR location on 
-first pass, if you are using a filesystem with any sort of number of
-files per directory limitation you could be having a problem there.
-
-
-  Check those things and if you are still having a problem, send the
-error messages you see, and some more information (like longest line).
-
-    Good Luck,
-      Mike
-
-ps:
-  I think this question may be off topic, since it's a userspace not kernel
-problem... so if anyone complains you might want to take it off channel
-or to some GNU textutils related mailing list.
-
-
-On Wed, Apr 24, 2002 at 07:57:53PM -0700, William Lee Irwin III wrote:
-> On Wed, Apr 24, 2002 at 11:19:50PM -0300, Rik van Riel wrote:
-> On Wed, 24 Apr 2002, Vivian Wang wrote:
-> >> I try to sort my 11 GB file, but I got message about memory exhausted.
-> >> I used the command like this:
-> >> sort -u file1 -o file2
-> >> Is this correct?
-> 
-> On Wed, Apr 24, 2002 at 11:19:50PM -0300, Rik van Riel wrote:
-> > Yes, sort only has a maximum of 3 GB of virtual address space so
-> > it will never be able to load the whole 11 GB file into memory.
-[...]
-> On Wed, 24 Apr 2002, Vivian Wang wrote:
-> >> What I should do?
-> 
-> On Wed, Apr 24, 2002 at 11:19:50PM -0300, Rik van Riel wrote:
-> > You could either write your own sort program that doesn't need
-> > to have the whole file loaded or you could use a 64 bit machine
-> > with at least 11 GB of available virtual memory, probably the
-> > double...
-> > regards,
-> > Rik
-> 
-> It's doubtful the above "solutions" I mentioned above are practical for
-> your purposes unless you are under the most extreme duress and have
-> access to uncommon hardware. I suggest polyphase merge sorting or any
-> of the various algorithms recommended in Donald E. Knuth's "The Art of
-> Computer Programming", specifically its chapter on external sorting,
-> which I'm willing to discuss and assist in implementations of off-list.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
