@@ -1,52 +1,39 @@
-Received: (from sct@localhost)
-	by dukat.scot.redhat.com (8.9.3/8.9.3) id LAA03610
-	for linux-mm@kvack.org; Mon, 11 Dec 2000 11:38:49 GMT
-Resent-Message-Id: <200012111138.LAA03610@dukat.scot.redhat.com>
-From: Ulrich.Weigand@de.ibm.com
-Message-ID: <C12569AE.005AF14B.00@d12mta01.de.ibm.com>
-Date: Thu, 7 Dec 2000 17:33:17 +0100
-Subject: bug: merge_segments vs. lock_vma_mappings?
+Date: Fri, 15 Dec 2000 16:13:23 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: New patches for 2.2.18pre24 raw IO (fix for bounce buffer copy)
+Message-ID: <20001215161323.P11931@redhat.com>
+References: <20001204205004.H8700@redhat.com> <20001208130633.A31920@inspiron.random>
 Mime-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Resent-To: linux-mm@kvack.org
+In-Reply-To: <20001208130633.A31920@inspiron.random>; from andrea@suse.de on Fri, Dec 08, 2000 at 01:06:33PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: schwidefsky@de.ibm.com
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, Andi Kleen <ak@muc.de>, wtenhave@sybase.com, hdeller@redhat.com, Eric Lowe <elowe@myrile.madriver.k12.oh.us>, Larry Woodman <woodman@missioncriticallinux.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-Hello,
+On Fri, Dec 08, 2000 at 01:06:33PM +0100, Andrea Arcangeli wrote:
+> On Mon, Dec 04, 2000 at 08:50:04PM +0000, Stephen C. Tweedie wrote:
+> > I have pushed another set of raw IO patches out, this time to fix a
+> This fix is missing:
+> 
+> --- rawio-sct/mm/memory.c.~1~	Fri Dec  8 03:05:01 2000
+> +++ rawio-sct/mm/memory.c	Fri Dec  8 03:57:48 2000
+> @@ -455,7 +455,7 @@
+> -	struct vm_area_struct *	vma = 0;
+> +	struct vm_area_struct *	vma;
+> @@ -478,6 +478,7 @@
+>   repeat:
+> +	vma = NULL;
+>  	down(&mm->mmap_sem);
 
-since test11, the merge_segments() routine assumes that every
-VMA that it frees has been locked with lock_vma_mappings().
+Applied, I'm pushing out a 2.2.18 set of diffs now.
 
-While most callers have been adapted to perform this locking,
-at least two, do_mlock and sys_mprotect, do *not* currently.
-This causes a deadlock in certain situations.
+--Stephen
 
-What's the correct way to fix this?  In mlock and mprotect,
-potentially many segments could be freed; do we need to
-call lock_vma_mappings on all of them before calling
-merge_segments?
-
-
-Mit freundlichen Gruessen / Best Regards
-
-Ulrich Weigand
-
---
-  Dr. Ulrich Weigand
-  Linux for S/390 Design & Development
-  IBM Deutschland Entwicklung GmbH, Schoenaicher Str. 220, 71032 Boeblingen
-  Phone: +49-7031/16-3727   ---   Email: Ulrich.Weigand@de.ibm.com
-
-
--
-To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-the body of a message to majordomo@vger.kernel.org
-Please read the FAQ at http://www.tux.org/lkml/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
