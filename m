@@ -1,378 +1,405 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA16995
-	for <linux-mm@kvack.org>; Fri, 5 Feb 1999 11:54:18 -0500
-Date: Fri, 5 Feb 1999 16:53:38 GMT
-Message-Id: <199902051653.QAA01763@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA28200
+	for <linux-mm@kvack.org>; Sat, 6 Feb 1999 12:04:37 -0500
+Date: Sat, 6 Feb 1999 17:24:30 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Subject: [patch] kpiod fixes and improvements
+Message-ID: <Pine.LNX.3.96.990206165047.209A-100000@laser.bogus>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: [PATCH] Fix for VM deadlock in 2.2.1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>, Alan Cox <number6@the-village.bc.nu>
-Cc: linux-kernel@vger.rutgers.edu, Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi Stephen.
 
-The VM deadlock problems we still have in 2.2 are triggered on both
-inode and superblock locks, but the underlying cause is not the
-filesystem locking but the VM reentrancy involved.  Any file IO
-operation (write, msync or whatever) which holds a critical vfs lock
-while allocating memory can recurse if the file is mmap()ed writably
-anywhere, as we go down the path get_free_pages() -> try_to_free_pages()
--> try_to_swap_out() -> filemap_write_page().
+I applyed 2.2.2-pre2 and I seen your kpiod. I tried it and it was working
+bad (as anticipated by your email ;).
 
-Even with the recursive inode semaphore, it is trivial to reproduce this
-using two or more processes each doing mmap + write to their own files.
+The main problem is that you forget to set PF_MEMALLOC in kpiod, so it was
+recursing and was making pio request to itself and was stalling completly
+in try_to_free_pages and shrink_mmap(). At least that was happening with
+my VM (never tried clean 2.2.2-pre2, but it should make no differences).
 
-One the way to hack this problem out bit by bit is to redo the locking
-on all filesystems, and the recursive semaphore code is a start down
-this path.
+Fixed this bug kpiod was working rasonable well but the number of pio
+request had too high numbers.
 
-The way to completely eliminate the problem is for the VM to avoid this
-recursion in the first place.  The patch below adds a new kpiod (page IO
-daemon) thread to augment kswapd.  All filemap page writes get queued to
-this thread for IO rather than being executed in the context of the
-caller, and the caller never blocks waiting for that IO to complete.  In
-other words, the caller can never fail eventually to release any vfs
-locks currently held, so the page write is guaranteed to succeed
-eventually.  Even recursive allocations within the kpiod thread are
-safe, since that just results in a queuing of the recursive page write:
-the actual IO is deferred until the kpiod thread loops to its next
-request.
+So I've changed make_pio_request() to do a schedule_yield() to allow kpiod
+to run in the meantime. This doesn't assure that the pio request queue 
+gets too big, but it's a good and safe barrier to avoid too high
+peaks.
 
-The downside of the change is that we are limited to a single thread of
-execution when doing memory mapped writeback, although starting multiple
-kpiod threads will avoid this if it proves to be a problem.  On ext2fs,
-only the copying of the page to the buffer cache is serialised in this
-way; the actual disk IO will proceed asynchronously via bdflush as
-usual.
+Now if I lauch a proggy like this:
 
-msync() does not use the new kpiod thread for its page writes, nor does
-it need to.
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
-A reproducer which stresses writeable mmap and write()s in parallel
-would reliably lock up within a couple of iterations on 2.2.1, but I got
-bored after listening to it successfully thrash the disk for a couple of
-hours with the fix in place.
+/* file size, should be half of the size of the physical memory  */
+#define FILESIZE (160 * 1024 * 1024)
 
-The second patch below is a tiny one I had queued for post-2.2.1, and
-just moves the swap_cnt and swap_address task_struct fields to the
-mm_struct, preventing the VM from making multiple swap passes over a
-single mm if there are multiple threads using that mm.
+int main(void)
+{
+	char *ptr;
+	int fd, i;
+	char c = 'A';
+	pid_t pid;
 
---Stephen
+	if ((fd = open("foo", O_RDWR | O_CREAT | O_EXCL, 0666)) == -1) {
+		perror("open");
+		exit(1);
+	}
+	lseek(fd, FILESIZE - 1, SEEK_SET);
+	/* write one byte to extend the file */
+	write(fd, &fd, 1);
+	ptr = mmap(0, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (ptr == NULL) {
+		perror("mmap");
+		exit(1);
+	}
 
-----------------------------------------------------------------
---- init/main.c.~1~	Wed Jan 20 18:18:53 1999
-+++ init/main.c	Wed Feb  3 17:47:08 1999
-@@ -64,6 +64,7 @@
- static int init(void *);
- extern int bdflush(void *);
- extern int kswapd(void *);
-+extern int kpiod(void *);
- extern void kswapd_setup(void);
+	for (;;)
+	{
+		for (i = 0; i < FILESIZE; i += 4096)
+			ptr[i] = c;
+		/* dirty every page in the mapping */
+		msync(ptr, FILESIZE, MS_SYNC);
+	}
+}
+
+the HD continue to work all the time and the system is still enough
+responsive. Without my patch once I started the proggy above I get
+everything stalled completly (with a very little I/O) until I killed the
+proggy.
+
+Here my changes against pre-2.2.2-2, you'll have some offset error but
+no rejectes:
+
+Index: arch/i386/mm/init.c
+===================================================================
+RCS file: /var/cvs/linux/arch/i386/mm/init.c,v
+retrieving revision 1.1.2.2
+diff -u -r1.1.2.2 init.c
+--- init.c	1999/01/26 19:03:54	1.1.2.2
++++ linux/arch/i386/mm/init.c	1999/02/06 14:57:03
+@@ -175,6 +175,7 @@
+ #ifdef CONFIG_NET
+ 	show_net_buffers();
+ #endif
++	show_pio_request();
+ }
  
- extern void init_IRQ(void);
-@@ -1271,6 +1272,7 @@
- 	kernel_thread(bdflush, NULL, CLONE_FS | CLONE_FILES | CLONE_SIGHAND);
- 	/* Start the background pageout daemon. */
- 	kswapd_setup();
-+	kernel_thread(kpiod, NULL, CLONE_FS | CLONE_FILES | CLONE_SIGHAND);
- 	kernel_thread(kswapd, NULL, CLONE_FS | CLONE_FILES | CLONE_SIGHAND);
+ extern unsigned long free_area_init(unsigned long, unsigned long);
+Index: drivers/scsi/scsi_error.c
+===================================================================
+RCS file: /var/cvs/linux/drivers/scsi/scsi_error.c,v
+retrieving revision 1.1.2.2
+diff -u -r1.1.2.2 scsi_error.c
+--- scsi_error.c	1999/02/04 14:50:38	1.1.2.2
++++ linux/drivers/scsi/scsi_error.c	1999/02/06 14:31:21
+@@ -1972,7 +1972,6 @@
+ 	     */
+             SCSI_LOG_ERROR_RECOVERY(1,printk("Error handler sleeping\n"));
+ 	    down_interruptible (&sem);
+-	    sem.owner = 0;
  
- #if CONFIG_AP1000
---- mm/filemap.c.~1~	Mon Jan 25 18:47:11 1999
-+++ mm/filemap.c	Wed Feb  3 20:34:54 1999
-@@ -19,6 +19,7 @@
- #include <linux/blkdev.h>
- #include <linux/file.h>
- #include <linux/swapctl.h>
-+#include <linux/slab.h>
+ 	    if (signal_pending(current) )
+ 	      break;
+Index: include/asm-i386/semaphore.h
+===================================================================
+RCS file: /var/cvs/linux/include/asm-i386/semaphore.h,v
+retrieving revision 1.1.1.2
+diff -u -r1.1.1.2 semaphore.h
+--- semaphore.h	1999/01/18 13:39:43	1.1.1.2
++++ linux/include/asm-i386/semaphore.h	1999/02/06 14:24:25
+@@ -23,49 +23,14 @@
+ #include <asm/atomic.h>
+ #include <asm/spinlock.h>
  
- #include <asm/pgtable.h>
- #include <asm/uaccess.h>
-@@ -39,6 +40,26 @@
+-/*
+- * Semaphores are recursive: we allow the holder process
+- * to recursively do down() operations on a semaphore that
+- * the process already owns. In order to do that, we need
+- * to keep a semaphore-local copy of the owner and the
+- * "depth of ownership".
+- *
+- * NOTE! Nasty memory ordering rules:
+- *  - "owner" and "owner_count" may only be modified once you hold the
+- *    lock. 
+- *  - "owner_count" must be written _after_ modifying owner, and
+- *    must be read _before_ reading owner. There must be appropriate
+- *    write and read barriers to enforce this.
+- *
+- * On an x86, writes are always ordered, so the only enformcement
+- * necessary is to make sure that the owner_depth is written after
+- * the owner value in program order.
+- *
+- * For read ordering guarantees, the semaphore wake_lock spinlock
+- * is already giving us ordering guarantees.
+- *
+- * Other (saner) architectures would use "wmb()" and "rmb()" to
+- * do this in a more obvious manner.
+- */
+ struct semaphore {
+ 	atomic_t count;
+-	unsigned long owner, owner_depth;
+ 	int waking;
+ 	struct wait_queue * wait;
+ };
+-
+-/*
+- * Because we want the non-contention case to be
+- * fast, we save the stack pointer into the "owner"
+- * field, and to get the true task pointer we have
+- * to do the bit masking. That moves the masking
+- * operation into the slow path.
+- */
+-#define semaphore_owner(sem) \
+-	((struct task_struct *)((2*PAGE_MASK) & (sem)->owner))
  
- #define release_page(page) __free_page((page))
+-#define MUTEX ((struct semaphore) { ATOMIC_INIT(1), 0, 0, 0, NULL })
+-#define MUTEX_LOCKED ((struct semaphore) { ATOMIC_INIT(0), 0, 1, 0, NULL })
++#define MUTEX ((struct semaphore) { ATOMIC_INIT(1), 0, NULL })
++#define MUTEX_LOCKED ((struct semaphore) { ATOMIC_INIT(0), 0, NULL })
  
-+/* 
-+ * Define a request structure for outstanding page write requests
-+ * to the background page io daemon
-+ */
-+
-+struct pio_request 
-+{
-+	struct pio_request *	next;
-+	struct file *		file;
-+	unsigned long		offset;
-+	unsigned long		page;
-+};
-+static struct pio_request *pio_first = NULL, **pio_last = &pio_first;
-+static kmem_cache_t *pio_request_cache;
-+static struct wait_queue *pio_wait = NULL;
-+
-+static inline void 
-+make_pio_request(struct file *, unsigned long, unsigned long);
-+
-+
+ asmlinkage void __down_failed(void /* special register calling convention */);
+ asmlinkage int  __down_failed_interruptible(void  /* params in registers */);
+@@ -94,53 +59,13 @@
+ 	spin_unlock_irqrestore(&semaphore_wake_lock, flags);
+ }
+ 
+-/*
+- * NOTE NOTE NOTE!
+- *
+- * We read owner-count _before_ getting the semaphore. This
+- * is important, because the semaphore also acts as a memory
+- * ordering point between reading owner_depth and reading
+- * the owner.
+- *
+- * Why is this necessary? The "owner_depth" essentially protects
+- * us from using stale owner information - in the case that this
+- * process was the previous owner but somebody else is racing to
+- * aquire the semaphore, the only way we can see ourselves as an
+- * owner is with "owner_depth" of zero (so that we know to avoid
+- * the stale value).
+- *
+- * In the non-race case (where we really _are_ the owner), there
+- * is not going to be any question about what owner_depth is.
+- *
+- * In the race case, the race winner will not even get here, because
+- * it will have successfully gotten the semaphore with the locked
+- * decrement operation.
+- *
+- * Basically, we have two values, and we cannot guarantee that either
+- * is really up-to-date until we have aquired the semaphore. But we
+- * _can_ depend on a ordering between the two values, so we can use
+- * one of them to determine whether we can trust the other:
+- *
+- * Cases:
+- *  - owner_depth == zero: ignore the semaphore owner, because it
+- *    cannot possibly be us. Somebody else may be in the process
+- *    of modifying it and the zero may be "stale", but it sure isn't
+- *    going to say that "we" are the owner anyway, so who cares?
+- *  - owner_depth is non-zero. That means that even if somebody
+- *    else wrote the non-zero count value, the write ordering requriement
+- *    means that they will have written themselves as the owner, so
+- *    if we now see ourselves as an owner we can trust it to be true.
+- */
+-static inline int waking_non_zero(struct semaphore *sem, struct task_struct *tsk)
++static inline int waking_non_zero(struct semaphore *sem)
+ {
+ 	unsigned long flags;
+-	unsigned long owner_depth = sem->owner_depth;
+ 	int ret = 0;
+ 
+ 	spin_lock_irqsave(&semaphore_wake_lock, flags);
+-	if (sem->waking > 0 || (owner_depth && semaphore_owner(sem) == tsk)) {
+-		sem->owner = (unsigned long) tsk;
+-		sem->owner_depth++;	/* Don't use the possibly stale value */
++	if (sem->waking > 0) {
+ 		sem->waking--;
+ 		ret = 1;
+ 	}
+@@ -161,9 +86,7 @@
+ 		"lock ; "
+ #endif
+ 		"decl 0(%0)\n\t"
+-		"js 2f\n\t"
+-		"movl %%esp,4(%0)\n"
+-		"movl $1,8(%0)\n\t"
++		"js 2f\n"
+ 		"1:\n"
+ 		".section .text.lock,\"ax\"\n"
+ 		"2:\tpushl $1b\n\t"
+@@ -185,8 +108,6 @@
+ #endif
+ 		"decl 0(%1)\n\t"
+ 		"js 2f\n\t"
+-		"movl %%esp,4(%1)\n\t"
+-		"movl $1,8(%1)\n\t"
+ 		"xorl %0,%0\n"
+ 		"1:\n"
+ 		".section .text.lock,\"ax\"\n"
+@@ -210,7 +131,6 @@
+ {
+ 	__asm__ __volatile__(
+ 		"# atomic up operation\n\t"
+-		"decl 8(%0)\n\t"
+ #ifdef __SMP__
+ 		"lock ; "
+ #endif
+Index: include/linux/mm.h
+===================================================================
+RCS file: /var/cvs/linux/include/linux/mm.h,v
+retrieving revision 1.1.2.9
+diff -u -r1.1.2.9 mm.h
+--- mm.h	1999/01/29 14:22:35	1.1.2.9
++++ linux/include/linux/mm.h	1999/02/06 15:34:39
+@@ -12,6 +12,7 @@
+ extern unsigned long num_physpages;
+ extern void * high_memory;
+ extern int page_cluster;
++extern int max_pio_request;
+ 
+ #include <asm/page.h>
+ #include <asm/atomic.h>
+@@ -306,6 +307,7 @@
+ extern void truncate_inode_pages(struct inode *, unsigned long);
+ extern unsigned long get_cached_page(struct inode *, unsigned long, int);
+ extern void put_cached_page(unsigned long);
++extern void show_pio_request(void);
+ 
  /*
-  * Invalidate the pages of an inode, removing all pages that aren't
-  * locked down (those are sure to be up-to-date anyway, so we shouldn't
-@@ -1079,8 +1100,9 @@
+  * GFP bitmasks..
+Index: include/linux/sysctl.h
+===================================================================
+RCS file: /var/cvs/linux/include/linux/sysctl.h,v
+retrieving revision 1.1.2.1
+diff -u -r1.1.2.1 sysctl.h
+--- sysctl.h	1999/01/18 01:33:05	1.1.2.1
++++ linux/include/linux/sysctl.h	1999/02/06 15:08:59
+@@ -112,7 +112,8 @@
+ 	VM_PAGECACHE=7,		/* struct: Set cache memory thresholds */
+ 	VM_PAGERDAEMON=8,	/* struct: Control kswapd behaviour */
+ 	VM_PGT_CACHE=9,		/* struct: Set page table cache parameters */
+-	VM_PAGE_CLUSTER=10	/* int: set number of pages to swap together */
++	VM_PAGE_CLUSTER=10,	/* int: set number of pages to swap together */
++	VM_PIO_REQUEST=11	/* int: limit of kpiod request */
+ };
+ 
+ 
+Index: kernel/sched.c
+===================================================================
+RCS file: /var/cvs/linux/kernel/sched.c,v
+retrieving revision 1.1.2.10
+diff -u -r1.1.2.10 sched.c
+--- sched.c	1999/02/06 13:36:49	1.1.2.10
++++ linux/kernel/sched.c	1999/02/06 14:23:59
+@@ -888,7 +888,7 @@
+ 	 * who gets to gate through and who has to wait some more.	 \
+ 	 */								 \
+ 	for (;;) {							 \
+-		if (waking_non_zero(sem, tsk))	/* are we waking up?  */ \
++		if (waking_non_zero(sem))	/* are we waking up?  */ \
+ 			break;			/* yes, exit loop */
+ 
+ #define DOWN_TAIL(task_state)			\
+Index: kernel/sysctl.c
+===================================================================
+RCS file: /var/cvs/linux/kernel/sysctl.c,v
+retrieving revision 1.1.2.2
+diff -u -r1.1.2.2 sysctl.c
+--- sysctl.c	1999/01/24 02:46:31	1.1.2.2
++++ linux/kernel/sysctl.c	1999/02/06 15:06:59
+@@ -229,6 +229,8 @@
+ 	 &pgt_cache_water, 2*sizeof(int), 0600, NULL, &proc_dointvec},
+ 	{VM_PAGE_CLUSTER, "page-cluster", 
+ 	 &page_cluster, sizeof(int), 0600, NULL, &proc_dointvec},
++	{VM_PIO_REQUEST, "max-pio-request", 
++	 &max_pio_request, sizeof(int), 0600, NULL, &proc_dointvec},
+ 	{0}
+ };
+ 
+Index: mm/filemap.c
+===================================================================
+RCS file: /var/cvs/linux/mm/filemap.c,v
+retrieving revision 1.1.2.14
+diff -u -r1.1.2.14 filemap.c
+--- filemap.c	1999/02/06 13:36:49	1.1.2.14
++++ linux/mm/filemap.c	1999/02/06 15:44:21
+@@ -59,6 +59,8 @@
+ static struct pio_request *pio_first = NULL, **pio_last = &pio_first;
+ static kmem_cache_t *pio_request_cache;
+ static struct wait_queue *pio_wait = NULL;
++static int nr_pio_request = 0;
++int max_pio_request = 500;
+ 
+ static inline void 
+ make_pio_request(struct file *, unsigned long, unsigned long);
+@@ -1682,6 +1684,7 @@
+ 	pio_first = p->next;
+ 	if (!pio_first)
+ 		pio_last = &pio_first;
++	nr_pio_request--;
+ 	return p;
  }
  
- static int filemap_write_page(struct vm_area_struct * vma,
--	unsigned long offset,
--	unsigned long page)
-+			      unsigned long offset,
-+			      unsigned long page,
-+			      int wait)
- {
- 	int result;
- 	struct file * file;
-@@ -1098,6 +1120,17 @@
- 	 * and file could be released ... increment the count to be safe.
- 	 */
- 	file->f_count++;
-+
-+	/* 
-+	 * If this is a swapping operation rather than msync(), then
-+	 * leave the actual IO, and the restoration of the file count,
-+	 * to the kpiod thread.  Just queue the request for now.
-+	 */
-+	if (!wait) {
-+		make_pio_request(file, offset, page);
-+		return 0;
-+	}
-+	
- 	down(&inode->i_sem);
- 	result = do_write_page(inode, file, (const char *) page, offset);
- 	up(&inode->i_sem);
-@@ -1113,7 +1146,7 @@
-  */
- int filemap_swapout(struct vm_area_struct * vma, struct page * page)
- {
--	return filemap_write_page(vma, page->offset, page_address(page));
-+	return filemap_write_page(vma, page->offset, page_address(page), 0);
- }
+@@ -1694,6 +1697,7 @@
+ 	struct pio_request *p;
  
- static inline int filemap_sync_pte(pte_t * ptep, struct vm_area_struct *vma,
-@@ -1150,7 +1183,7 @@
- 			return 0;
- 		}
- 	}
--	error = filemap_write_page(vma, address - vma->vm_start + vma->vm_offset, page);
-+	error = filemap_write_page(vma, address - vma->vm_start + vma->vm_offset, page, 1);
- 	free_page(page);
- 	return error;
- }
-@@ -1568,4 +1601,121 @@
- 	clear_bit(PG_locked, &page->flags);
- 	wake_up(&page->wait);
- 	__free_page(page);
-+}
+ 	atomic_inc(&mem_map[MAP_NR(page)].count);
++	nr_pio_request++;
+ 
+ 	/* 
+ 	 * We need to allocate without causing any recursive IO in the
+@@ -1720,8 +1724,19 @@
+ 
+ 	put_pio_request(p);
+ 	wake_up(&pio_wait);
 +
-+
-+/* Add request for page IO to the queue */
-+
-+static inline void put_pio_request(struct pio_request *p)
-+{
-+	*pio_last = p;
-+	p->next = NULL;
-+	pio_last = &p->next;
-+}
-+
-+/* Take the first page IO request off the queue */
-+
-+static inline struct pio_request * get_pio_request(void)
-+{
-+	struct pio_request * p = pio_first;
-+	pio_first = p->next;
-+	if (!pio_first)
-+		pio_last = &pio_first;
-+	return p;
-+}
-+
-+/* Make a new page IO request and queue it to the kpiod thread */
-+
-+static inline void make_pio_request(struct file *file,
-+				    unsigned long offset,
-+				    unsigned long page)
-+{
-+	struct pio_request *p;
-+
-+	atomic_inc(&mem_map[MAP_NR(page)].count);
-+
-+	/* 
-+	 * We need to allocate without causing any recursive IO in the
-+	 * current thread's context.  We might currently be swapping out
-+	 * as a result of an allocation made while holding a critical
-+	 * filesystem lock.  To avoid deadlock, we *MUST* not reenter
-+	 * the filesystem in this thread.
-+	 *
-+	 * We can wait for kswapd to free memory, or we can try to free
-+	 * pages without actually performing further IO, without fear of
-+	 * deadlock.  --sct
-+	 */
-+
-+	while ((p = kmem_cache_alloc(pio_request_cache, GFP_BUFFER)) == NULL) {
-+		if (try_to_free_pages(__GFP_WAIT))
-+			continue;
-+		current->state = TASK_INTERRUPTIBLE;
-+		schedule_timeout(HZ/10);
-+	}
-+	
-+	p->file   = file;
-+	p->offset = offset;
-+	p->page   = page;
-+
-+	put_pio_request(p);
-+	wake_up(&pio_wait);
-+}
-+
-+
-+/*
-+ * This is the only thread which is allowed to write out filemap pages
-+ * while swapping.
-+ * 
-+ * To avoid deadlock, it is important that we never reenter this thread.
-+ * Although recursive memory allocations within this thread may result
-+ * in more page swapping, that swapping will always be done by queuing
-+ * another IO request to the same thread: we will never actually start
-+ * that IO request until we have finished with the current one, and so
-+ * we will not deadlock.  
-+ */
-+
-+int kpiod(void * unused)
-+{
-+	struct wait_queue wait = {current};
-+	struct inode * inode;
-+	struct dentry * dentry;
-+	struct pio_request * p;
-+	
-+	current->session = 1;
-+	current->pgrp = 1;
-+	strcpy(current->comm, "kpiod");
-+	sigfillset(&current->blocked);
-+	init_waitqueue(&pio_wait);
-+
-+	lock_kernel();
-+	
-+	pio_request_cache = kmem_cache_create("pio_request", 
-+					      sizeof(struct pio_request),
-+					      0, SLAB_HWCACHE_ALIGN, 
-+					      NULL, NULL);
-+	if (!pio_request_cache)
-+		panic ("Could not create pio_request slab cache");
-+	
-+	while (1) {
-+		current->state = TASK_INTERRUPTIBLE;
-+		add_wait_queue(&pio_wait, &wait);
-+		while (!pio_first)
-+			schedule();
-+		remove_wait_queue(&pio_wait, &wait);
-+		current->state = TASK_RUNNING;
-+
-+		while (pio_first) {
-+			p = get_pio_request();
-+			dentry = p->file->f_dentry;
-+			inode = dentry->d_inode;
-+			
-+			down(&inode->i_sem);
-+			do_write_page(inode, p->file,
-+				      (const char *) p->page, p->offset);
-+			up(&inode->i_sem);
-+			fput(p->file);
-+			free_page(p->page);
-+			kmem_cache_free(pio_request_cache, p);
-+		}
++	/* can't loop because we could hold a lock needed by kpiod -arca */
++	if (nr_pio_request > max_pio_request)
++	{
++		current->policy |= SCHED_YIELD;
++		schedule();
 +	}
  }
-----------------------------------------------------------------
---- include/linux/sched.h.~1~	Tue Jan 26 00:06:22 1999
-+++ include/linux/sched.h	Wed Feb  3 17:49:31 1999
-@@ -174,6 +174,8 @@
- 	unsigned long rss, total_vm, locked_vm;
- 	unsigned long def_flags;
- 	unsigned long cpu_vm_mask;
-+	unsigned long swap_cnt;	/* number of pages to swap on next pass */
-+	unsigned long swap_address;
- 	/*
- 	 * This is an architecture-specific pointer: the portable
- 	 * part of Linux does not know about any segments.
-@@ -191,7 +193,7 @@
- 		0, 0, 0, 				\
- 		0, 0, 0, 0,				\
- 		0, 0, 0,				\
--		0, 0, NULL }
-+		0, 0, 0, 0, NULL }
  
- struct signal_struct {
- 	atomic_t		count;
-@@ -276,8 +278,6 @@
- /* mm fault and swap info: this can arguably be seen as either mm-specific or thread-specific */
- 	unsigned long min_flt, maj_flt, nswap, cmin_flt, cmaj_flt, cnswap;
- 	int swappable:1;
--	unsigned long swap_address;
--	unsigned long swap_cnt;		/* number of pages to swap on next pass */
- /* process credentials */
- 	uid_t uid,euid,suid,fsuid;
- 	gid_t gid,egid,sgid,fsgid;
-@@ -361,7 +361,7 @@
- /* utime */	{0,0,0,0},0, \
- /* per CPU times */ {0, }, {0, }, \
- /* flt */	0,0,0,0,0,0, \
--/* swp */	0,0,0, \
-+/* swp */	0, \
- /* process credentials */					\
- /* uid etc */	0,0,0,0,0,0,0,0,				\
- /* suppl grps*/ 0, {0,},					\
---- mm/vmscan.c.~1~	Mon Jan 25 19:08:56 1999
-+++ mm/vmscan.c	Wed Feb  3 17:47:09 1999
-@@ -202,7 +202,7 @@
++void show_pio_request(void)
++{
++	printk("%d request in kpiod queue\n", nr_pio_request);
++}
  
- 	do {
- 		int result;
--		tsk->swap_address = address + PAGE_SIZE;
-+		tsk->mm->swap_address = address + PAGE_SIZE;
- 		result = try_to_swap_out(tsk, vma, address, pte, gfp_mask);
- 		if (result)
- 			return result;
-@@ -274,7 +274,7 @@
- 	/*
- 	 * Go through process' page directory.
- 	 */
--	address = p->swap_address;
-+	address = p->mm->swap_address;
- 
- 	/*
- 	 * Find the proper vm-area
-@@ -296,8 +296,8 @@
- 	}
- 
- 	/* We didn't find anything for the process */
--	p->swap_cnt = 0;
--	p->swap_address = 0;
-+	p->mm->swap_cnt = 0;
-+	p->mm->swap_address = 0;
- 	return 0;
- }
- 
-@@ -345,9 +345,9 @@
- 				continue;
- 			/* Refresh swap_cnt? */
- 			if (assign)
--				p->swap_cnt = p->mm->rss;
--			if (p->swap_cnt > max_cnt) {
--				max_cnt = p->swap_cnt;
-+				p->mm->swap_cnt = p->mm->rss;
-+			if (p->mm->swap_cnt > max_cnt) {
-+				max_cnt = p->mm->swap_cnt;
- 				pbest = p;
- 			}
- 		}
+ /*
+  * This is the only thread which is allowed to write out filemap pages
+@@ -1756,7 +1771,9 @@
+ 					      NULL, NULL);
+ 	if (!pio_request_cache)
+ 		panic ("Could not create pio_request slab cache");
+-	
++
++	current->flags |= PF_MEMALLOC;
++
+ 	while (1) {
+ 		current->state = TASK_INTERRUPTIBLE;
+ 		add_wait_queue(&pio_wait, &wait);
+
+
+
+Ah and I removed the recursive semaphores, because I don't need them
+anymore now, and my kernel looks safer to me with them removed because I
+don't have time now to check every piece of my kernel that uses a
+MUTEX_LOCKED and that starts with a down() and then to think if it should
+be converted to a down_norecurse().
+
+When I'll need recursive mutex I'll only need to open semaphore.h and
+sched.c of 2.2.1 and cut-and-paste them after a s/semahore/mutex/.
+
+Andrea Arcangeli
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
