@@ -1,21 +1,34 @@
-Subject: Re: 2.6.0-test5-mm2
-References: <20030914234843.20cea5b3.akpm@osdl.org>
-From: Sean Neakums <sneakums@zork.net>
-Date: Wed, 17 Sep 2003 14:51:05 +0100
-In-Reply-To: <20030914234843.20cea5b3.akpm@osdl.org> (Andrew Morton's
- message of "Sun, 14 Sep 2003 23:48:43 -0700")
-Message-ID: <6usmmvr0ae.fsf@zork.zork.net>
+From: Leandro Motta Barros <lmb@exatas.unisinos.br>
+Subject: __vmalloc and alloc_page
+Date: Wed, 17 Sep 2003 13:26:11 -0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200309171326.11848.lmb@exatas.unisinos.br>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: sisopiii-l@cscience.org
 List-ID: <linux-mm.kvack.org>
 
-I've forgotten precisely when it stopped working (test4 or test4-mm1,
-maybe), but I chanced to try it today and I've been able to
-successfully do APM suspend to/resume from RAM with this kernel.
+Hello again,
+
+Thanks for the feedback on the previous email. Well, there is another thing we 
+thought that could be done. '__vmalloc()' allocates its memory by calling 
+'alloc_page()' for every necessary page. Wouldn't it be better calling 
+'alloc_pages()' to allocate more pages at once whenever possible? We would 
+need more bookeepping, and sometimes it could be necessary to actually 
+allocate the memory page per page, but we think this approach could be a way 
+to use memory blocks of higher order.
+
+Do you think this is feasible or useful?
+
+Also, we would like to know if you have suggestions on topics that we could 
+explore and implement.
+
+LMB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
