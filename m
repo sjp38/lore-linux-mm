@@ -1,57 +1,44 @@
-Date: Mon, 4 Oct 1999 13:56:23 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Date: Mon, 4 Oct 1999 14:26:31 -0400 (EDT)
+From: James Simmons <jsimmons@edgeglobal.com>
 Subject: Re: MMIO regions
-In-Reply-To: <Pine.LNX.4.10.9910041308080.8295-100000@imperial.edgeglobal.com>
-Message-ID: <Pine.LNX.3.96.991004134519.1698A-100000@kanga.kvack.org>
+In-Reply-To: <Pine.LNX.3.96.991004134519.1698A-100000@kanga.kvack.org>
+Message-ID: <Pine.LNX.4.10.9910041409120.8295-100000@imperial.edgeglobal.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: James Simmons <jsimmons@edgeglobal.com>
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 4 Oct 1999, James Simmons wrote:
-
-> On Mon, 4 Oct 1999, Benjamin C.R. LaHaise wrote:
+> > Which means only one application can ever have access to the MMIO. If
+> > another process wanted it then this application would have to tell the
+> > other appilcation hey I want it so unmap. Then the application demanding
+> > it would then have to mmap it.  
 > 
-> > On Mon, 4 Oct 1999, James Simmons wrote:
-> > 
-> > > And if the process holding the locks dies then no other process can access
-> > > this resource. Also if the program forgets to release the lock you end up
-> > > with other process never being able to access this piece of hardware.   
-> > 
-> > Eh?  That's simply not true -- it's easy enough to handle via a couple of
-> > different means: in the release fop or munmap which both get called on
-> > termination of a task.  
+> GUG!  Think: you've got a file descriptor, if you implement an ioctl to
+> lock it, then your release op gets called when the app dies.  But
+> Stephen's suggestion of using the SYSV semaphores for the user code is
+> better. 
+
+Okay that can be fixed. What about if the process goes to sleep? Most
+important thing I was trying to get at was both processes both wanting to
+use the MMIO region at the same time. Okay if we expand on the idea of
+semaphore what we are doing is really recreating shared memory of IPC.
+Note IPC sharded memory does not handle similatneous access to the memory.
+Usually a userland semaphore is used. Now a rogue app can access this
+memory if they have the key and ignore the semaphore. Of course this is
+only ram and this would only fubar the apps using this memory. What I'm
+talking about is messing up the hardware and locking the machine.
+
+> > How would you use this method?
 > 
-> Which means only one application can ever have access to the MMIO. If
-> another process wanted it then this application would have to tell the
-> other appilcation hey I want it so unmap. Then the application demanding
-> it would then have to mmap it.  
+> man 2 kill.
 
-GUG!  Think: you've got a file descriptor, if you implement an ioctl to
-lock it, then your release op gets called when the app dies.  But
-Stephen's suggestion of using the SYSV semaphores for the user code is
-better. 
-
-> > Or in userspace from the SIGCHLD to the parent, 
-> 
-> Thats assuming its always a child that has access to a MMIO region.
-
-This is a commonly used trick in unix programming: at the start of the
-program, you fork and perform all operations in the child so that the
-parent can clean up after the child.
-
-> > or if you're really paranoid, you can save the pid in an owner field in
-> the
-> > lock and periodically check that the process is still there.
->  
-> How would you use this method?
-
-man 2 kill.
-
-		-ben
+Userland has to explictly kill it or have the other process send a
+kill signal for within the kernel. All I want to do is suspend the
+processes that might access the MMIO region while one is using it. Of
+course I could use signals in the kernel to do that.  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
