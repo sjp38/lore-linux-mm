@@ -1,61 +1,45 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e3.ny.us.ibm.com (8.12.10/8.12.9) with ESMTP id iAAL3lW7675584
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2004 16:03:47 -0500
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iAAL3he0279924
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2004 16:03:47 -0500
-Received: from d01av03.pok.ibm.com (loopback [127.0.0.1])
-	by d01av03.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iAAL3hU7030898
-	for <linux-mm@kvack.org>; Wed, 10 Nov 2004 16:03:43 -0500
-Subject: [PATCH] bug in radix_tree_delete
-From: Dave Kleikamp <shaggy@austin.ibm.com>
-Content-Type: text/plain
-Message-Id: <1100120622.7468.16.camel@localhost>
+Date: Wed, 10 Nov 2004 16:14:50 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH] kswapd shall not sleep during page shortage
+Message-ID: <20041110181450.GB12867@logos.cnet>
+References: <20041109164642.GE7632@logos.cnet> <20041109121945.7f35d104.akpm@osdl.org> <20041109174125.GF7632@logos.cnet> <20041109133343.0b34896d.akpm@osdl.org> <20041109182622.GA8300@logos.cnet> <20041109142257.1d1411e1.akpm@osdl.org> <20041109203143.GC8414@logos.cnet> <20041109162801.7f7ca242.akpm@osdl.org>
 Mime-Version: 1.0
-Date: Wed, 10 Nov 2004 15:03:42 -0600
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041109162801.7f7ca242.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org, piggin@cyberone.com.au
 List-ID: <linux-mm.kvack.org>
 
-I was looking through the radix tree code and came across what I think
-is a bug in radix_tree_delete.
+On Tue, Nov 09, 2004 at 04:28:01PM -0800, Andrew Morton wrote:
+> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+> >
+> > Back to arguing in favour of my patch - it seemed to me that kswapd could 
+> >  go to sleep leaving allocators which can't reclaim pages themselves in a 
+> >  bad situation. 
+> 
+> Yes, but those processes would be sleeping in blk_congestion_wait() during,
+> say, a GFP_NOIO/GFP_NOFS allocation attempt.  And in that case, they may be
+> holding locks whcih prevent kswapd from being able to do any work either.
+> 
+> >  It would have to be waken up by another instance of alloc_pages to then 
+> >  execute and start doing its job, while if it was executing already (madly 
+> >  scanning as you say), the chance it would find freeable pages quite
+> >  earlier.
+> > 
+> >  Note that not only disk IO can cause pages to become freeable. A user
+> >  can give up its reference on pagecache page for example (leaving
+> >  the page on LRU to be found and freed by kswapd).
+> 
+> yup.  Or munlock(), or direct-io completion.
 
-	for (idx = 0; idx < RADIX_TREE_TAG_LONGS; idx++) {
-		if (pathp[0].node->tags[tag][idx]) {
-			tags[tag] = 1;
-			nr_cleared_tags--;
-			break;
-		}
-	}
+Andrew,
 
-The above loop should only be executed if tags[tag] is zero.  Otherwise,
-when walking up the tree, we can decrement nr_cleared_tags twice or more
-for the same value of tag, thus potentially exiting the outer loop too
-early.
-
-radix-tree: Ensure that nr_cleared_tags is only decremented once for each tag.
-
-Signed-off-by: Dave Kleikamp <shaggy@austin.ibm.com>
-diff -Nurp linux-2.6.10-rc1-mm4/lib/radix-tree.c linux/lib/radix-tree.c
---- linux-2.6.10-rc1-mm4/lib/radix-tree.c	2004-11-10 14:45:18.259269000 -0600
-+++ linux/lib/radix-tree.c	2004-11-10 14:45:59.292031072 -0600
-@@ -725,8 +725,10 @@ void *radix_tree_delete(struct radix_tre
- 		for (tag = 0; tag < RADIX_TREE_TAGS; tag++) {
- 			int idx;
- 
--			if (!tags[tag])
--				tag_clear(pathp[0].node, tag, pathp[0].offset);
-+			if (tags[tag])
-+				continue;
-+
-+			tag_clear(pathp[0].node, tag, pathp[0].offset);
- 
- 			for (idx = 0; idx < RADIX_TREE_TAG_LONGS; idx++) {
- 				if (pathp[0].node->tags[tag][idx]) {
-
-
+Shouldnt the kernel ideally clear zone->all_unreclaimable in those 
+situations? (munlock, direct-io completion, last reference on pagecache
+page, etc).
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
