@@ -1,36 +1,63 @@
-Date: Thu, 1 Apr 2004 06:05:47 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity
-    fix
-In-Reply-To: <20040401020126.GW2143@dualathlon.random>
-Message-ID: <Pine.LNX.4.44.0404010549540.28566-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Date: Thu, 1 Apr 2004 15:35:55 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
+Message-ID: <20040401133555.GC18585@dualathlon.random>
+References: <20040401020126.GW2143@dualathlon.random> <Pine.LNX.4.44.0404010549540.28566-100000@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0404010549540.28566-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
+To: Hugh Dickins <hugh@veritas.com>
 Cc: Andrew Morton <akpm@osdl.org>, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 1 Apr 2004, Andrea Arcangeli wrote:
-> On Wed, Mar 31, 2004 at 05:51:13PM -0800, Andrew Morton wrote:
-> > rw_swap_page_sync() is a general-purpose library function and we shouldn't
-> > be making assumptions about the type of page which the caller happens to be
-> > feeding us.
-> 
-> that is a specialized backdoor to do I/O on _private_ pages, it's not a
-> general-purpose library function for doing anonymous pages
+Let's forget the "should we allow people to use rw_swap_page_sync to
+swapout/swapin anonymous pages" discussion, there's a major issue that
+my latest patch still doesn't work:
 
-I'm not against anal checks (except personally :), but I'm very much
-with Andrea on this: rw_swap_page_sync is horrid, but does manage to
-do a particular job.  The header page is great fun: sys_swapon and
-mkswap read and write it by a totally different route, I shudder
-(especially when it's a swapfile with blocksize less than pagesize).
-It would be nice to make it more general and correct, but that's
-not something you should get stuck on right now.
+Writing data to swap (5354 pages): .<1>Unable to handle kernel NULL pointer dereference at virtual address 00000004
+ printing eip:
+c01d9b34
+*pde = 00000000
+Oops: 0000 [#1]
+CPU:    0
+EIP:    0060:[<c01d9b34>]    Not tainted
+EFLAGS: 00010082   (2.6.4-41.8-default)
+EIP is at radix_tree_delete+0x14/0x160
+eax: 00000004   ebx: c10361c0   ecx: 00000016   edx: 000023ee
+esi: 000023ee   edi: 00000000   ebp: 000000d0   esp: cdee5e1c
+ds: 007b   es: 007b   ss: 0068
+Process bash (pid: 1, threadinfo=cdee4000 task=cdf9d7b0)
+Stack: 00000000 f7b0d200 00000004 00000016 c041d440 c03ffe2e c0108d48 c041d440
+       00000000 000003fd 000026b6 c041d440 c03ffe2e 00000320 0000007b ffff007b
+       ffffff00 c021a39e 00000060 c10361c0 c0341d20 00000056 00000056 00000056
+Call Trace:
+ [<c0108d48>] common_interrupt+0x18/0x20
+ [<c021a39e>] serial_in+0x1e/0x40
+ [<c014fc3c>] swap_free+0x1c/0x30
+ [<c0151597>] remove_exclusive_swap_page+0x97/0x155
+ [<c013bc1f>] __remove_from_page_cache+0x3f/0xa0
+ [<c013bc9b>] remove_from_page_cache+0x1b/0x27
+ [<c014eb59>] rw_swap_page_sync+0xa9/0x1d0
+ [<c013588d>] do_magic_suspend_2+0x27d/0x7d0
+ [<c0275c2d>] do_magic+0x4d/0x130
+ [<c0135310>] software_suspend+0xd0/0xe0
+ [<c01fad86>] acpi_system_write_sleep+0xb5/0xd2
+ [<c01facd1>] acpi_system_write_sleep+0x0/0xd2
+ [<c0153e4e>] vfs_write+0xae/0xf0
+ [<c0153f2c>] sys_write+0x2c/0x50
+ [<c0107dc9>] sysenter_past_esp+0x52/0x79
 
-Hugh
+Code: 8b 28 8d 7c 24 10 3b 14 ad 00 99 41 c0 0f 87 18 01 00 00 8d
+ <0>Kernel panic: Attempted to kill init!
 
+
+Pavel told me a SMP kernel cannot suspend, that's probably why I
+couldn't reproduce, I'll recompile UP and hopefully I will be able to
+reproduce, so I can debug it, and I can try latest Andrew's patch too
+(the one allowing anonymous memory swapin/swapouts too).
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
