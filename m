@@ -1,56 +1,31 @@
-Date: Sun, 6 Apr 2003 16:51:05 +0200
-From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: objrmap and vmtruncate
-Message-ID: <20030406145105.GO1326@dualathlon.random>
-References: <12880000.1049508832@flay> <20030405024414.GP16293@dualathlon.random> <20030404192401.03292293.akpm@digeo.com> <20030405040614.66511e1e.akpm@digeo.com> <20030405163003.GD1326@dualathlon.random> <20030405132406.437b27d7.akpm@digeo.com> <20030405220621.GG1326@dualathlon.random> <20030405143138.27003289.akpm@digeo.com> <20030405231008.GI1326@dualathlon.random> <20030406073836.GE1828@holomorphy.com>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+In-Reply-To: <72740000.1049599406@[10.10.2.4]>
+References: <20030404163154.77f19d9e.akpm@digeo.com>
+	 <12880000.1049508832@flay><20030405024414.GP16293@dualathlon.random>
+	 <20030404192401.03292293.akpm@digeo.com>
+	 <20030405040614.66511e1e.akpm@digeo.com>  <72740000.1049599406@[10.10.2.4]>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Message-Id: <1049640548.962.10.camel@dhcp22.swansea.linux.org.uk>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030406073836.GE1828@holomorphy.com>
+Date: 06 Apr 2003 15:49:08 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andrew Morton <akpm@digeo.com>, andrea@suse.de, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Apr 05, 2003 at 11:38:36PM -0800, William Lee Irwin III wrote:
-> On Sun, Apr 06, 2003 at 01:10:08AM +0200, Andrea Arcangeli wrote:
-> > I still think we shouldn't associate any metadata with the nonlinear.
-> > nonlinaer should be enabled via a sysctl and have it run at true full
-> > speed, it's a bypass for the VM so you can mangle the pagetables from
-> > userspace.
-> > As soon as you start associating metadata to nonlinar, it's not the
-> > "raw fast" thing anymore and it increases the complexity.
+On Sul, 2003-04-06 at 03:23, Martin J. Bligh wrote:
+> > 	14.91s user 75.30s system 24% cpu 6:15.84 total
 > 
-> One of the big reasons why it's desirable is to reduce the metadata,
-> so I agree here.
-> 
-> 
-> On Sun, Apr 06, 2003 at 01:10:08AM +0200, Andrea Arcangeli wrote:
-> > running bochs after echoing 1 into a sysctl should be fine, like also
-> > uml should echoing 1 into a sysctl to get revirtualized vsyscalls
-> > (unless we make it a prctl but that'll be more complex and slower).
-> > When bochs starts and runs the mmap(VM_NONLINEAR) it will get -EPERM and
-> > it will fall into the mmap mode (for 2.4 anyways). Or they can as well
-> > require the echoing so they won't need to maintain two modes.
-> > the nonlinear should work only in a separate special vma, its current
-> > api is very unclean since it can mix with original linear stuff into the
-> > same linear vma, and it doesn't allow more than one file into the same
-> > nonlinear vma. I still reccomend all my points that I posted yesterday
-> > to change the API to something much more approriate.
-> 
-> This is an unusual idea; I'd expect capable(CAP_IPC_LOCK) to suffice
-> to provide the privilege checks for direct mlocking as well as other
-> operations that lock memory (please don't look at hugetlbfs for this...).
+> Isn't the intent to use sys_remap_file_pages for these sort of workloads
+> anyway? In which case partial objrmap = rmap for these tests, so we're
+> still OK?
 
-that would be enough if you could ask any capability to those apps.
-Still you could override the sysctl check and allow the
-mmap(VM_NONLINEAR) to work even w/ the sysctl, iff CAP_IPC_LOCK is set,
-that's certainly safe, I don't mind about it.
+What matters is the worst case not the best case. Users will do non
+optimal things on a regular basis. 
 
-so it could be an additional way to gain access to such functionalty,
-but it doesn't obviate the need of the sysctl IMHO.
-
-Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
