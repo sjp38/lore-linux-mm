@@ -1,46 +1,38 @@
-Date: Thu, 29 May 2003 10:36:28 -0700
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: 2.5.70-mm2
-Message-Id: <20030529103628.54d1e4a0.akpm@digeo.com>
-In-Reply-To: <170EBA504C3AD511A3FE00508BB89A920221E5FF@exnanycmbx4.ipc.com>
-References: <170EBA504C3AD511A3FE00508BB89A920221E5FF@exnanycmbx4.ipc.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: [RFC][PATCH] Avoid vmtruncate/mmap-page-fault race
+Date: Thu, 29 May 2003 19:39:47 +0200
+References: <Pine.LNX.4.44.0305291723310.1800-100000@localhost.localdomain> <200305291915.22235.phillips@arcor.de>
+In-Reply-To: <200305291915.22235.phillips@arcor.de>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200305291939.47451.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Downing, Thomas" <Thomas.Downing@ipc.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+Cc: akpm@digeo.com, hch@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-"Downing, Thomas" <Thomas.Downing@ipc.com> wrote:
+On Thursday 29 May 2003 19:15, Daniel Phillips wrote:
+> On Thursday 29 May 2003 18:33, you wrote:
+> > Me?  I much preferred your original, much sparer, nopagedone patch
+> > (labelled "uglyh as hell" by hch).
 >
-> -----Original Message-----
-> From: Andrew Morton [mailto:akpm@digeo.com]
-> 
-> >
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70-
-> mm2/
-> [snip]
-> >  Needs lots of testing.
-> [snip]
-> 
-> I for one would like to help in that testing, as might others.
-> Could you point to/name some effective test tools/scripts/suites 
-> for testing your work?  As it is, my testing is just normal usage,
-> lots of builds.
-> 
+> "me too".
 
-I was specifically referring to the O_SYNC changes there.  That means
-databases: postgresql, mysql, sapdb, etc.
+Oh wait, I mispoke... there is another formulation of the patch that hasn't 
+yet been posted for review.  Instead of having the nopagedone hook, it turns 
+the entire do_no_page into a hook, per hch's suggestion, but leaves in the 
+->nopage hook, which makes the patch small and obviously right.  I need to 
+post that version for comparison, please bear with me.
 
-Some of these use fsync()-based synchronisation and won't benefit, but they
-may have compile-time or runtime options to use O_SYNC instead.
+IMHO, it's nicer than the ->nopagedone form.
 
+Regards,
 
-Apart from that, just using the kernel in day-to-day activity is the most
-important thing.  If everyone does that, and everyone is happy then by
-definition this kernel is a wrap.
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
