@@ -1,93 +1,62 @@
-Date: Mon, 27 Dec 2004 14:48:38 -0800
+Date: Mon, 27 Dec 2004 14:50:57 -0800
 From: "David S. Miller" <davem@davemloft.net>
-Subject: Re: Prezeroing V2 [2/4]: add second parameter to clear_page() for
- all arches
-Message-Id: <20041227144838.41d1597f.davem@davemloft.net>
-In-Reply-To: <20041224090539.40bba423.davem@davemloft.net>
+Subject: Re: Prezeroing V2 [0/3]: Why and When it works
+Message-Id: <20041227145057.4c5cd651.davem@davemloft.net>
+In-Reply-To: <Pine.LNX.4.58.0412241018430.2654@ppc970.osdl.org>
 References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com>
 	<41C20E3E.3070209@yahoo.com.au>
 	<Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
 	<Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.58.0412231132170.31791@schroedinger.engr.sgi.com>
-	<Pine.LNX.4.58.0412231133130.31791@schroedinger.engr.sgi.com>
-	<20041224090539.40bba423.davem@davemloft.net>
+	<16843.13418.630413.64809@cargo.ozlabs.ibm.com>
+	<Pine.LNX.4.58.0412231325420.2654@ppc970.osdl.org>
+	<1103879668.4131.15.camel@laptopd505.fenrus.org>
+	<Pine.LNX.4.58.0412241018430.2654@ppc970.osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@davemloft.net>
-Cc: clameter@sgi.com, akpm@osdl.org, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: arjan@infradead.org, paulus@samba.org, clameter@sgi.com, akpm@osdl.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 24 Dec 2004 09:05:39 -0800
-"David S. Miller" <davem@davemloft.net> wrote:
+On Fri, 24 Dec 2004 10:21:24 -0800 (PST)
+Linus Torvalds <torvalds@osdl.org> wrote:
 
-> On Thu, 23 Dec 2004 11:33:59 -0800 (PST)
-> Christoph Lameter <clameter@sgi.com> wrote:
-> 
-> > Modification made but it would be good to have some feedback from the arch maintainers:
-> > 
->  ...
-> > sparc64
-> 
-> I don't see any sparc64 bits in this patch, else I'd
-> review them :-)
+> Absolutely. I would want to see some real benchmarks before we do this.  
+> Not just some microbenchmark of "how many page faults can we take without
+> _using_ the page at all".
 
-So I found time to implement the missing sparc64 clear_page()
-changes, here they are:
+Here's my small contribution.  I did three "make -j3 vmlinux" timed
+runs, one running a kernel without the pre-zeroing stuff applied,
+one with it applied.  It did shave a few seconds off the build
+consistently.  Here is the before:
 
-===== arch/sparc64/lib/clear_page.S 1.1 vs edited =====
---- 1.1/arch/sparc64/lib/clear_page.S	2004-08-08 19:54:07 -07:00
-+++ edited/arch/sparc64/lib/clear_page.S	2004-12-24 08:53:29 -08:00
-@@ -28,9 +28,12 @@
- 	.text
- 
- 	.globl		_clear_page
--_clear_page:		/* %o0=dest */
-+_clear_page:		/* %o0=dest, %o1=order */
-+	sethi		%hi(PAGE_SIZE/64), %o2
-+	clr		%o4
-+	or		%o2, %lo(PAGE_SIZE/64), %o2
- 	ba,pt		%xcc, clear_page_common
--	 clr		%o4
-+	 sllx		%o2, %o1, %o1
- 
- 	/* This thing is pretty important, it shows up
- 	 * on the profiles via do_anonymous_page().
-@@ -69,16 +72,16 @@ clear_user_page:	/* %o0=dest, %o1=vaddr 
- 	flush		%g6
- 	wrpr		%o4, 0x0, %pstate
- 
-+	sethi		%hi(PAGE_SIZE/64), %o1
- 	mov		1, %o4
-+	or		%o1, %lo(PAGE_SIZE/64), %o1
- 
- clear_page_common:
- 	VISEntryHalf
- 	membar		#StoreLoad | #StoreStore | #LoadStore
- 	fzero		%f0
--	sethi		%hi(PAGE_SIZE/64), %o1
- 	mov		%o0, %g1		! remember vaddr for tlbflush
- 	fzero		%f2
--	or		%o1, %lo(PAGE_SIZE/64), %o1
- 	faddd		%f0, %f2, %f4
- 	fmuld		%f0, %f2, %f6
- 	faddd		%f0, %f2, %f8
-===== include/asm-sparc64/page.h 1.19 vs edited =====
---- 1.19/include/asm-sparc64/page.h	2004-07-27 12:54:49 -07:00
-+++ edited/include/asm-sparc64/page.h	2004-12-24 08:52:17 -08:00
-@@ -14,8 +14,8 @@
- 
- #ifndef __ASSEMBLY__
- 
--extern void _clear_page(void *page);
--#define clear_page(X)	_clear_page((void *)(X))
-+extern void _clear_page(void *page, unsigned long order);
-+#define clear_page(X,Y)	_clear_page((void *)(X),(Y))
- struct page;
- extern void clear_user_page(void *addr, unsigned long vaddr, struct page *page);
- #define copy_page(X,Y)	memcpy((void *)(X), (void *)(Y), PAGE_SIZE)
+real	8m35.248s
+user	15m54.132s
+sys	1m1.098s
+
+real	8m32.202s
+user	15m54.329s
+sys	1m0.229s
+
+real	8m31.932s
+user	15m54.160s
+sys	1m0.245s
+
+and here is the after:
+
+real	8m29.375s
+user	15m43.296s
+sys	0m59.549s
+
+real	8m28.213s
+user	15m39.819s
+sys	0m58.790s
+
+real	8m26.140s
+user	15m44.145s
+sys	0m58.872s
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
