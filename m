@@ -1,42 +1,43 @@
-Date: Thu, 30 Sep 1999 12:05:24 -0400 (EDT)
-From: James Simmons <jsimmons@edgeglobal.com>
-Subject: Re: mm->mmap_sem
-In-Reply-To: <Pine.LNX.3.96.990930110519.3724A-100000@kanga.kvack.org>
-Message-ID: <Pine.LNX.4.10.9909301144170.4106-100000@imperial.edgeglobal.com>
+Message-ID: <000301bf0cb4$cbd31c40$0601a8c0@honey.cs.tsinghua.edu.cn>
+From: "Alan Wang" <wung_y@263.net>
+Subject: about get_pte_fast and more
+Date: Sat, 2 Oct 1999 17:02:03 +0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="gb2312"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Marcus Sundberg <erammsu@kieray1.p.y.ki.era.ericsson.se>, linux-mm@kvack.org
+To: linux-mm mail list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > Here is another question since its very expensive putting another process 
-> > to sleep. If the process owns both the accel engine and framebuffer then I
-> > should be able to put the process to sleep while the accel engine is
-> > running? Since the process is asleep it can't acces the framebuffer but
-> > the accel engine is still running on the card.    
-> 
-> Oh gawd...  How much does the kernel know about the accelerator?
+Hi, all:
+ I am studying the source code of mm in linux. Here, I have a question and I
+am looking forward for any of your comments.
+ The question have bother me for a long time is about some functions defined
+in arch/i386/pgtable.h. to make it clear, I paste one of them here:
 
-Its a memory region thats mmap to userspace. Thats all it knows. By the
-way what I suggested above would work.
+extern __inline__ pte_t *get_pte_fast(void)
+{
+ unsigned long *ret;
 
-> Something to consider is that the 'right' solution might be to make the
-> kernel pass console handling to a user task -- have you ever considered
-> that?
+ if((ret = (unsigned long *)pte_quicklist) != NULL) {
+  pte_quicklist = (unsigned long *)(*ret);
+  ret[0] = ret[1];
+  pgtable_cache_size--;
+ }
+ return (pte_t *)ret;
+}
 
-Uhm. No. I don't think that will work for what I want.
+my questions are:
+1. what is pte_quicklist and pgd_quicklist? Are they TLB?
+2.what!?s on earth the function of these strange code? It appears
+pte_quicklist is only a pointer to long integer but never a list and why
+!(R)ret[0]=ret[1]!??
 
-> >   These are mmapped regions. So locking out the kernel will not help. You
-> > have to prevent userland from accessing the memory region to prevent the
-> > machine from locking. 
-> 
-> And the performance-correct way to do this is with a cooperative lock that
-> is *not part* of the mmap'd region. 
+thank you.
 
-That still doesn't prevent a rogue aplication from locking the machine on
-purpose. A application could just ignore the locks.
+Wang
 
 
 --
