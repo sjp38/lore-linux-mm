@@ -1,33 +1,45 @@
-Date: Sun, 1 Jul 2001 20:14:42 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: Removal of PG_marker scheme from 2.4.6-pre
-In-Reply-To: <Pine.LNX.4.33L.0107012358460.9312-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.33.0107012000440.7651-100000@penguin.transmeta.com>
+Date: Mon, 2 Jul 2001 19:39:50 +0100 (BST)
+From: <markhe@veritas.com>
+Subject: Can reverse VM locks?
+Message-ID: <Pine.LNX.4.33.0107021917250.9756-100000@alloc.wat.veritas.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Correction: I said -ac13 was bad, but ac13 was actually ok. It was ac14
-that was the problem spot.
+Hi,
 
-Also note how Alan happened to merge the MM patches in the reverse order
-from the preX series: in the -ac series, Rik's page_launder() patch is in
--ac14, while my VM changes are merged in -ac15. In my series, it was the
-other way around: mine went in in -pre2, while Rik went into -pre3. In
-both cases, it's the page_launder() thing that triggers it.
+  I have been working with a quite old kernel tree, where
+__find_page_nolock() was calling age_page_up() (which could have ended up
+taking the "pagemap_lru_lock").
+  Looking at recent kernels, I see that __find_page_nolock() is now simply
+setting the PG_referenced bit.
 
-And in the -ac tree, there wasn't any interaction with other patches at
-all, and ac14 has the "pure" page_launder() patch that was reversed in
--pre7.
+  As far as I am aware, the old behaviour of __find_page_nolock() defined
+the lock ordering between the "pagecache_lock" and "pagemap_lru_lock", and
+other places had to follow this ordering.
 
-And to make doubly sure, Tim <tcm@nac.net> also tested out various
-pre-kernels and unofficial combinations. Thanks.
+  Now, isn't is possible to reverse this ordering?
 
-			Linus
+  The reason for wanting to do so is scalability - the "pagecache_lock"
+suffers from contention on high-way boxes.
+
+  In functions, such as reclaim_page() and invalidate_inode_pages(), the
+"pagecache_lock" is taken earlier than needed due to the lock ordering
+with "page_lru_lock".  It should now be possible to delay taking this lock
+until after the "page_lru_lock" and until some of the tests have been
+preformed on the page (some of the tests would need to be redo after
+taking the lock to avoid dangerious false negatives).
+
+  Anyone know of any places where reversing the lock ordering would break?
+  Unless anyone can think of any serious issues, I'll start coding this up
+tomorrow (and find the issues for myself :)).
+
+Thanks,
+Mark
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
