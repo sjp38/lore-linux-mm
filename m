@@ -1,31 +1,51 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: opps in kswapd
-Date: Sun, 24 Nov 2002 20:31:33 -0500
-References: <25282B06EFB8D31198BF00508B66D4FA03EA5B14@fmsmsx114.fm.intel.com> <200211241327.10443.tomlins@cam.org> <3DE17CBE.9F0FEC62@digeo.com>
-In-Reply-To: <3DE17CBE.9F0FEC62@digeo.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200211242031.33305.tomlins@cam.org>
+Date: Mon, 25 Nov 2002 08:37:59 +0100
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: Re: [PATCH] Really start using the page walking API
+Message-ID: <20021125083759.G5263@nightmaster.csn.tu-chemnitz.de>
+References: <20021124233449.F5263@nightmaster.csn.tu-chemnitz.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20021124233449.F5263@nightmaster.csn.tu-chemnitz.de>; from ingo.oeser@informatik.tu-chemnitz.de on Sun, Nov 24, 2002 at 11:34:49PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On November 24, 2002 08:28 pm, Andrew Morton wrote:
-> Ed Tomlinson wrote:
-> > Here is another 2.5.49-mm1 oops.
->
-> Looks like half an oops to me.  Is the rest of the info
-> not available?  Access address?  Code dump?  Type of
-> exception?
+Hi Andrew,
+hi lkmm,
 
-Thats all that was in the logs...
+On Sun, Nov 24, 2002 at 11:34:49PM +0100, Ingo Oeser wrote:
+> First: make_pages_present() would do an infinite recursion, if
+>    used in find_extend_vma(). I fixed this. Might as well have
+>    caused the ntp crash, that has been observed. 
+>    So these make_pages_present parts are really important.
 
-Ed
+Ok, I looked deeper and saw, that the original code had the same
+"problem", but it was always ensured, that this recursion is not
+triggered.
 
+find_extend_vma() returns right before calling make_pages_present(), if
+that vma is not a growable stack. For the second call of
+find_extend_vma() (in old get_user_pages() code) this vma has
+already been successfully grown, so recursion is limited to one
+level and it works by magic ;-)
+
+My latest patch just made that more explicit, by passing the vma
+directly from the make_pages_present caller down to the
+walk_user_pages() and thus skipping the vma search.
+
+If sth. goes wrong we still catch the BUG_ON() checks, so no harm
+will be done to data.
+
+In short: I made deep magic more visible here and reduced stack
+   usage again. But I did NOT fix the ntp BUG, because it wasn't
+   caused by this code.
+
+Regards
+-- 
+Science is what we can tell a computer. Art is everything else. --- D.E.Knuth
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
