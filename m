@@ -1,62 +1,210 @@
-Date: Wed, 14 Jul 2004 23:06:54 +0900 (JST)
-Message-Id: <20040714.230654.58831017.taka@valinux.co.jp>
-Subject: [PATCH] memory hotremoval for linux-2.6.7 [16/16]
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20040714.224138.95803956.taka@valinux.co.jp>
-References: <20040714.224138.95803956.taka@valinux.co.jp>
+Date: Wed, 14 Jul 2004 13:09:42 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: [PATCH] Move cache_reap out of timer context
+Message-ID: <20040714180942.GA18425@sgi.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, lhms-devel@lists.sourceforge.net
-Cc: linux-mm@kvack.org
+To: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
---- linux-2.6.7.ORG/fs/direct-io.c	Thu Jun 17 15:17:13 2032
-+++ linux-2.6.7/fs/direct-io.c	Thu Jun 17 15:28:44 2032
-@@ -27,6 +27,7 @@
- #include <linux/slab.h>
- #include <linux/highmem.h>
- #include <linux/pagemap.h>
-+#include <linux/hugetlb.h>
- #include <linux/bio.h>
- #include <linux/wait.h>
- #include <linux/err.h>
-@@ -110,7 +111,11 @@ struct dio {
- 	 * Page queue.  These variables belong to dio_refill_pages() and
- 	 * dio_get_page().
- 	 */
-+#ifndef CONFIG_HUGETLB_PAGE
- 	struct page *pages[DIO_PAGES];	/* page buffer */
-+#else
-+	struct page *pages[HPAGE_SIZE/PAGE_SIZE];	/* page buffer */
-+#endif
- 	unsigned head;			/* next page to process */
- 	unsigned tail;			/* last valid page + 1 */
- 	int page_errors;		/* errno from get_user_pages() */
-@@ -143,9 +148,20 @@ static int dio_refill_pages(struct dio *
- {
- 	int ret;
- 	int nr_pages;
-+	struct vm_area_struct * vma;
+I'm submitting two patches associated with moving cache_reap functionality
+out of timer context.  Note that these patches do not make any further
+optimizations to cache_reap at this time.
+
+The first patch adds a function similiar to schedule_delayed_work to
+allow work to be scheduled on another cpu.
+
+The second patch makes use of schedule_delayed_work_on to schedule
+cache_reap to run from keventd.
+
+These patches apply to 2.6.8-rc1.
+
+Signed-off-by: Dimitri Sivanich <sivanich@sgi.com>
+
+
+Index: linux/include/linux/workqueue.h
+===================================================================
+--- linux.orig/include/linux/workqueue.h
++++ linux/include/linux/workqueue.h
+@@ -63,6 +63,8 @@
  
--	nr_pages = min(dio->total_pages - dio->curr_page, DIO_PAGES);
- 	down_read(&current->mm->mmap_sem);
-+#ifdef CONFIG_HUGETLB_PAGE
-+	vma = find_vma(current->mm, dio->curr_user_address);
-+	if (vma && is_vm_hugetlb_page(vma)) {
-+		unsigned long n = dio->curr_user_address & PAGE_MASK;
-+		n = (n & ~HPAGE_MASK) >> PAGE_SHIFT;
-+		n = HPAGE_SIZE/PAGE_SIZE - n;
-+		nr_pages = min(dio->total_pages - dio->curr_page, (int)n);
-+	} else
-+#endif
-+		nr_pages = min(dio->total_pages - dio->curr_page, DIO_PAGES);
+ extern int FASTCALL(schedule_work(struct work_struct *work));
+ extern int FASTCALL(schedule_delayed_work(struct work_struct *work, unsigned long delay));
 +
- 	ret = get_user_pages(
- 		current,			/* Task for fault acounting */
- 		current->mm,			/* whose pages? */
++extern int schedule_delayed_work_on(int cpu, struct work_struct *work, unsigned long delay);
+ extern void flush_scheduled_work(void);
+ extern int current_is_keventd(void);
+ extern int keventd_up(void);
+Index: linux/kernel/workqueue.c
+===================================================================
+--- linux.orig/kernel/workqueue.c
++++ linux/kernel/workqueue.c
+@@ -398,6 +398,26 @@
+ 	return queue_delayed_work(keventd_wq, work, delay);
+ }
+ 
++int schedule_delayed_work_on(int cpu,
++			struct work_struct *work, unsigned long delay)
++{
++	int ret = 0;
++	struct timer_list *timer = &work->timer;
++
++	if (!test_and_set_bit(0, &work->pending)) {
++		BUG_ON(timer_pending(timer));
++		BUG_ON(!list_empty(&work->entry));
++		/* This stores keventd_wq for the moment, for the timer_fn */
++		work->wq_data = keventd_wq;
++		timer->expires = jiffies + delay;
++		timer->data = (unsigned long)work;
++		timer->function = delayed_work_timer_fn;
++		add_timer_on(timer, cpu);
++		ret = 1;
++	}
++	return ret;
++}
++
+ void flush_scheduled_work(void)
+ {
+ 	flush_workqueue(keventd_wq);
+
+
+
+
+Index: linux/mm/slab.c
+===================================================================
+--- linux.orig/mm/slab.c
++++ linux/mm/slab.c
+@@ -519,11 +519,11 @@
+ 	FULL
+ } g_cpucache_up;
+ 
+-static DEFINE_PER_CPU(struct timer_list, reap_timers);
++static DEFINE_PER_CPU(struct work_struct, reap_work);
+ 
+-static void reap_timer_fnc(unsigned long data);
+ static void free_block(kmem_cache_t* cachep, void** objpp, int len);
+ static void enable_cpucache (kmem_cache_t *cachep);
++static void cache_reap (void *unused);
+ 
+ static inline void ** ac_entry(struct array_cache *ac)
+ {
+@@ -573,35 +573,25 @@
+ }
+ 
+ /*
+- * Start the reap timer running on the target CPU.  We run at around 1 to 2Hz.
+- * Add the CPU number into the expiry time to minimize the possibility of the
++ * Initiate the reap timer running on the target CPU.  We run at around 1 to 2Hz
++ * via the workqueue/eventd.
++ * Add the CPU number into the expiration time to minimize the possibility of the
+  * CPUs getting into lockstep and contending for the global cache chain lock.
+  */
+ static void __devinit start_cpu_timer(int cpu)
+ {
+-	struct timer_list *rt = &per_cpu(reap_timers, cpu);
++	struct work_struct *reap_work = &per_cpu(reap_work, cpu);
+ 
+-	if (rt->function == NULL) {
+-		init_timer(rt);
+-		rt->expires = jiffies + HZ + 3*cpu;
+-		rt->data = cpu;
+-		rt->function = reap_timer_fnc;
+-		add_timer_on(rt, cpu);
+-	}
+-}
+-
+-#ifdef CONFIG_HOTPLUG_CPU
+-static void stop_cpu_timer(int cpu)
+-{
+-	struct timer_list *rt = &per_cpu(reap_timers, cpu);
+-
+-	if (rt->function) {
+-		del_timer_sync(rt);
+-		WARN_ON(timer_pending(rt));
+-		rt->function = NULL;
++	/*
++	 * When this gets called from do_initcalls via cpucache_init(),
++	 * init_workqueues() has already run, so keventd will be setup
++	 * at that time.
++	 */
++	if (keventd_up() && reap_work->func == NULL) {
++		INIT_WORK(reap_work, cache_reap, NULL);
++		schedule_delayed_work_on(cpu, reap_work, HZ + 3 * cpu);
+ 	}
+ }
+-#endif
+ 
+ static struct array_cache *alloc_arraycache(int cpu, int entries, int batchcount)
+ {
+@@ -654,7 +644,6 @@
+ 		break;
+ #ifdef CONFIG_HOTPLUG_CPU
+ 	case CPU_DEAD:
+-		stop_cpu_timer(cpu);
+ 		/* fall thru */
+ 	case CPU_UP_CANCELED:
+ 		down(&cache_chain_sem);
+@@ -2674,15 +2663,15 @@
+ /**
+  * cache_reap - Reclaim memory from caches.
+  *
+- * Called from a timer, every few seconds
++ * Called from workqueue/eventd every few seconds.
+  * Purpose:
+  * - clear the per-cpu caches for this CPU.
+  * - return freeable pages to the main free memory pool.
+  *
+  * If we cannot acquire the cache chain semaphore then just give up - we'll
+- * try again next timer interrupt.
++ * try again on the next iteration.
+  */
+-static void cache_reap (void)
++static void cache_reap (void *unused)
+ {
+ 	struct list_head *walk;
+ 
+@@ -2690,8 +2679,11 @@
+ 	BUG_ON(!in_interrupt());
+ 	BUG_ON(in_irq());
+ #endif
+-	if (down_trylock(&cache_chain_sem))
++	if (down_trylock(&cache_chain_sem)) {
++		/* Give up. Setup the next iteration. */
++		schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC + smp_processor_id());
+ 		return;
++	}
+ 
+ 	list_for_each(walk, &cache_chain) {
+ 		kmem_cache_t *searchp;
+@@ -2755,22 +2747,8 @@
+ 	}
+ 	check_irq_on();
+ 	up(&cache_chain_sem);
+-}
+-
+-/*
+- * This is a timer handler.  There is one per CPU.  It is called periodially
+- * to shrink this CPU's caches.  Otherwise there could be memory tied up
+- * for long periods (or for ever) due to load changes.
+- */
+-static void reap_timer_fnc(unsigned long cpu)
+-{
+-	struct timer_list *rt = &__get_cpu_var(reap_timers);
+-
+-	/* CPU hotplug can drag us off cpu: don't run on wrong CPU */
+-	if (!cpu_is_offline(cpu)) {
+-		cache_reap();
+-		mod_timer(rt, jiffies + REAPTIMEOUT_CPUC + cpu);
+-	}
++	/* Setup the next iteration */
++	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC + smp_processor_id());
+ }
+ 
+ #ifdef CONFIG_PROC_FS
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
