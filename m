@@ -1,100 +1,115 @@
+Date: Fri, 6 Aug 2004 20:21:31 +0200
+From: Roger Luethi <rl@hellgate.ch>
 Subject: Re: [proc.txt] Fix /proc/pid/statm documentation
-From: Albert Cahalan <albert@users.sf.net>
-In-Reply-To: <20040806170832.GA898@k3.hellgate.ch>
-References: <1091754711.1231.2388.camel@cube>
-	 <20040806094037.GB11358@k3.hellgate.ch>
-	 <20040806104630.GA17188@holomorphy.com>
-	 <20040806120123.GA23081@k3.hellgate.ch> <1091800948.1231.2454.camel@cube>
-	 <20040806170832.GA898@k3.hellgate.ch>
-Content-Type: text/plain
-Message-Id: <1091805296.3547.2522.camel@cube>
+Message-ID: <20040806182131.GA2611@k3.hellgate.ch>
+References: <1091754711.1231.2388.camel@cube> <20040806094037.GB11358@k3.hellgate.ch> <1091797122.1231.2452.camel@cube> <20040806163428.GA31285@k3.hellgate.ch> <1091803883.1231.2502.camel@cube>
 Mime-Version: 1.0
-Date: 06 Aug 2004 11:14:56 -0400
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1091803883.1231.2502.camel@cube>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Luethi <rl@hellgate.ch>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-kernel mailing list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Albert Cahalan <albert@users.sf.net>
+Cc: linux-kernel mailing list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2004-08-06 at 13:08, Roger Luethi wrote:
-> On Fri, 06 Aug 2004 10:02:28 -0400, Albert Cahalan wrote:
+On Fri, 06 Aug 2004 10:51:24 -0400, Albert Cahalan wrote:
+> Everybody else can parse ps output.
 
-> > > what a good solution would look like. Files like /proc/pid/status
-> > > are human-readable and maintenance-friendly (the parser can recognize
-> > > unknown values and gets a free label along with it; obsolete fields can
-> > > be removed).
-> > 
-> > If you're just spewing the values with a perl script, sure.
-> > I'm not sure this matters.
+Not everybody wants to. And ps doesn't provide all the process
+information I can get via proc anyway.
+
+> > Some users may prefer written documentation over reading the kernel
+> > source. In addition, in the case of statm, there is nothing to document
+> > the expected behavior in the source, either. Which is precisely why
+> > statm has been utterly broken forever.
 > 
-> It matters to me. I like to have tools that don't need updates to
-> cope with new fields. Having to wait for tool authors to catch up with
-> kernels is annoying.
+> A correct proc.txt would not have avoided this.
 
-Not many people want raw data, so the tool authors
-will need to put out new releases anyway.
+It would have helped some of us confirming our suspicions.
 
-It doesn't take more than a week generally.
+> The source code needs a few comments.
 
-> > If it's going to be this dynamic, then just give me DWARF2 debug
-> > info and the raw data. Like this:
-> > 
-> > /proc/DWARF2
-> > /proc/1000/mm_struct
-> > /proc/1000/signal_struct
-> > /proc/1000/sighand_struct
-> > /proc/1000/task/1024/thread_info
-> > /proc/1000/task/1024/task_struct
-> > /proc/1000/task/1024/fs_struct
+Works for me. I'm looking forward to see that fixed.
+
+> > It was not dumb. Some people actually prefer human-readable output when
+> > working with proc.
 > 
-> That's different. The overhead would be prohibitive. Also, this exposes
-> internal kernel structures.
+> These people shouldn't be working in /proc. It's easier and
 
-The overhead? I'm not seeing much, other than the multiple
-files and the very fact that field locations are movable.
+Let me be the one to decide when I use a proc file.
 
-As long as I can fall back to the old /proc files when truly
-radical kernel changes happen, exposure of kernel internals
-isn't a serious problem.
-
-If I had the DWARF2 data alone, /dev/mem might be enough.
-(sadly, "top" would require some major work before I'd trust it)
-
-> > > Or use netlink maybe? It sure would be nice to monitor all processes
-> > > with lower overhead, and to have tools that can deal with new data
-> > > items without an update.
-> > 
-> > I've been thinking netlink might be good.
+> more portable to use "ps" for their scripts. You can select
+> which fields you want, get a header if you like, have the
+> processes filtered for you, and so on. Look:
 > 
-> Alright. Maybe we can move our discussion into this direction?
-
-I'll need to track down some netlink documentation.
-Last time I looked, there wasn't any.
- 
-> > > - Split proc information by new criteria: Slow, expensive items should
-> > >   not be in the same file as information that tools typically
-> > >   and frequently read. For instance, you could have status_basic,
-> > >   status_exotic, and status_slow. Even status_basic could have a format
-> > >   similar to /proc/pid/status, but would be shorter and contain only
-> > >   the most frequently used values (like statm today -- with all the
-> > >   problems that come with such a pre-made selection).
-> > 
-> > Split by:
-> > 1. locking
-> > 2. security.
+> ps -U root -u root -o pid= -o ppid= -o args
 > 
-> Hmmm... How does this translate to a netlink interface? Can you elaborate?
+> What's not to like about that? It's portable even.
 
-I don't think it does.
+I wouldn't like ps to be the gatekeeper to proc information. Plus
+there's non-portable information in proc that I care about.
 
-For the existing files though:
+> > > On AIX:  ps -eo trs
+> > > On BSD:  ps axo trss
+> > 
+> > I trust they take that information from /proc/pid/statm, too?
+> 
+> The point is that the name "trs" has a specific meaning.
+> The statm file was created to support ps. It wouldn't exist
+> if ps didn't need to display a TRS column. So the proper
+> behavior of ps is what defines the meaning. Run these two
 
-Some SE Linux policies block all access to /proc. Some security
-feature patches zero out things that would reveal addresses.
-(start_code, end_code, wchan...)
+Fair enough. I think proc.txt should note this relation between
+statm and ps.
 
+> > > >> + dt       number of dirty pages   (always 0 on 2.6)
+> > > >>
+> > > >> This one would be useful.
+> > > >
+> > > > Agreed. It would be nice to have it somewhere else.
+> > > 
+> > > No, it's not nice to go moving things around. How about you go
+> > 
+> > This field is 0 on 2.6. Zero. Always. I am suggesting to have the
+> > information available somewhere. That sure ought to count as an
+> > improvement.
+> 
+> Sure. That "somewhere" should be where it was before.
 
+I wouldn't mind seeing it in /proc/pid/status if the accounting gets
+merged.
+
+> > > > Hey, I am all _for_ improving proc. But rather than adding more values,
+> > > > I'd like to address some design problems first: For example, I'd
+> > > > like to have a reserved value for N/A (currently, kernels just set
+> > > > obsolete fields to 0 and parsers must guess whether it's truly 0 or not
+> > > > available).
+> > > 
+> > > Don't even think of changing this.
+> > 
+> > Why not? Got a better solution?
+> 
+> Old tools need a value that will best make them work. (zero)
+
+True for old fields. New fields are a different matter.
+
+> New tools can examine the kernel version number.
+
+Right. And every user space tool reading proc needs a database to
+remember which field is active in which kernel version.
+
+> > The current state of statm code clearly demonstrates the level of
+> > interest in this concept.
+> 
+> It demonstrates that misleading data is hard to spot.
+> It demonstrates that people hacking on the kernel are
+> often unconcerned with providing correct stats for others.
+
+I'd agree to some extent, but statm was pretty much impossible to fix
+for even the most concerned kernel hacker.
+
+Roger
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
