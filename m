@@ -1,944 +1,674 @@
-Subject: Re: 2.6.0-test7-mm1
-From: Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br>
+Subject: Re: 2.6.0-test7-mm1 (compile stats)
+From: John Cherry <cherry@osdl.org>
 In-Reply-To: <20031015013649.4aebc910.akpm@osdl.org>
 References: <20031015013649.4aebc910.akpm@osdl.org>
-Content-Type: text/plain; charset=iso-8859-1
-Message-Id: <1066231252.24524.6.camel@telecentrolivre>
+Content-Type: text/plain
+Message-Id: <1066235943.3866.19.camel@cherrytest.pdx.osdl.net>
 Mime-Version: 1.0
-Date: Wed, 15 Oct 2003 13:20:53 -0200
-Content-Transfer-Encoding: 8BIT
+Date: 15 Oct 2003 09:39:04 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+Compile stats posted at: http://developer.osdl.org/cherry/compile/
 
-Em Qua, 2003-10-15 as 06:36, Andrew Morton escreveu:
+This is done for all mm releases now.
+
+John
+
+On Wed, 2003-10-15 at 01:36, Andrew Morton wrote:
 > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test7/2.6.0-test7-mm1
-
-getting this while compiling with gcc-3.2 (almost I sure that the tree
-is ok, I made the download twice):
-
-arch/i386/kernel/efi_stub.S: Assembler messages:
-arch/i386/kernel/efi_stub.S:26: Warning: ignoring changed section attributes for .text
-drivers/ide/ide-io.c: In function `ide_complete_barrier':
-drivers/ide/ide-io.c:335: warning: long long unsigned int format, different type arg (arg 3)
-
-config bellow:
-#
-# Automatically generated make config: don't edit
-#
-CONFIG_X86=y
-CONFIG_MMU=y
-CONFIG_UID16=y
-CONFIG_GENERIC_ISA_DMA=y
-
-#
-# Code maturity level options
-#
-CONFIG_EXPERIMENTAL=y
-CONFIG_CLEAN_COMPILE=y
-# CONFIG_STANDALONE is not set
-CONFIG_BROKEN_ON_SMP=y
-
-#
-# General setup
-#
-CONFIG_SWAP=y
-CONFIG_SYSVIPC=y
-# CONFIG_BSD_PROCESS_ACCT is not set
-CONFIG_SYSCTL=y
-CONFIG_LOG_BUF_SHIFT=14
-CONFIG_IKCONFIG=y
-CONFIG_IKCONFIG_PROC=y
-# CONFIG_EMBEDDED is not set
-CONFIG_KALLSYMS=y
-CONFIG_FUTEX=y
-CONFIG_EPOLL=y
-CONFIG_IOSCHED_NOOP=y
-CONFIG_IOSCHED_AS=y
-CONFIG_IOSCHED_DEADLINE=y
-CONFIG_IOSCHED_CFQ=y
-
-#
-# Loadable module support
-#
-CONFIG_MODULES=y
-CONFIG_MODULE_UNLOAD=y
-CONFIG_MODULE_FORCE_UNLOAD=y
-CONFIG_OBSOLETE_MODPARM=y
-# CONFIG_MODVERSIONS is not set
-CONFIG_KMOD=y
-
-#
-# Processor type and features
-#
-CONFIG_X86_PC=y
-# CONFIG_X86_VOYAGER is not set
-# CONFIG_X86_NUMAQ is not set
-# CONFIG_X86_SUMMIT is not set
-# CONFIG_X86_BIGSMP is not set
-# CONFIG_X86_VISWS is not set
-# CONFIG_X86_GENERICARCH is not set
-# CONFIG_X86_ES7000 is not set
-# CONFIG_M386 is not set
-# CONFIG_M486 is not set
-# CONFIG_M586 is not set
-# CONFIG_M586TSC is not set
-# CONFIG_M586MMX is not set
-# CONFIG_M686 is not set
-# CONFIG_MPENTIUMII is not set
-CONFIG_MPENTIUMIII=y
-# CONFIG_MPENTIUM4 is not set
-# CONFIG_MK6 is not set
-# CONFIG_MK7 is not set
-# CONFIG_MK8 is not set
-# CONFIG_MELAN is not set
-# CONFIG_MCRUSOE is not set
-# CONFIG_MWINCHIPC6 is not set
-# CONFIG_MWINCHIP2 is not set
-# CONFIG_MWINCHIP3D is not set
-# CONFIG_MCYRIXIII is not set
-# CONFIG_MVIAC3_2 is not set
-# CONFIG_X86_GENERIC is not set
-CONFIG_X86_CMPXCHG=y
-CONFIG_X86_XADD=y
-CONFIG_X86_L1_CACHE_SHIFT=5
-CONFIG_RWSEM_XCHGADD_ALGORITHM=y
-CONFIG_X86_WP_WORKS_OK=y
-CONFIG_X86_INVLPG=y
-CONFIG_X86_BSWAP=y
-CONFIG_X86_POPAD_OK=y
-CONFIG_X86_GOOD_APIC=y
-CONFIG_X86_INTEL_USERCOPY=y
-CONFIG_X86_USE_PPRO_CHECKSUM=y
-# CONFIG_X86_4G is not set
-# CONFIG_X86_SWITCH_PAGETABLES is not set
-# CONFIG_X86_4G_VM_LAYOUT is not set
-# CONFIG_X86_UACCESS_INDIRECT is not set
-# CONFIG_X86_HIGH_ENTRY is not set
-# CONFIG_HPET_TIMER is not set
-# CONFIG_HPET_EMULATE_RTC is not set
-# CONFIG_SMP is not set
-# CONFIG_PREEMPT is not set
-# CONFIG_X86_UP_APIC is not set
-CONFIG_X86_TSC=y
-# CONFIG_X86_MCE is not set
-# CONFIG_TOSHIBA is not set
-# CONFIG_I8K is not set
-# CONFIG_MICROCODE is not set
-CONFIG_X86_MSR=y
-CONFIG_X86_CPUID=y
-# CONFIG_EDD is not set
-CONFIG_NOHIGHMEM=y
-# CONFIG_HIGHMEM4G is not set
-# CONFIG_HIGHMEM64G is not set
-# CONFIG_MATH_EMULATION is not set
-CONFIG_MTRR=y
-CONFIG_BOOT_IOREMAP=y
-
-#
-# Power management options (ACPI, APM)
-#
-# CONFIG_PM is not set
-
-#
-# ACPI (Advanced Configuration and Power Interface) Support
-#
-# CONFIG_ACPI is not set
-
-#
-# CPU Frequency scaling
-#
-# CONFIG_CPU_FREQ is not set
-
-#
-# Bus options (PCI, PCMCIA, EISA, MCA, ISA)
-#
-CONFIG_PCI=y
-# CONFIG_PCI_GOBIOS is not set
-# CONFIG_PCI_GODIRECT is not set
-CONFIG_PCI_GOANY=y
-CONFIG_PCI_BIOS=y
-CONFIG_PCI_DIRECT=y
-CONFIG_PCI_LEGACY_PROC=y
-CONFIG_PCI_NAMES=y
-CONFIG_ISA=y
-# CONFIG_EISA is not set
-# CONFIG_MCA is not set
-# CONFIG_SCx200 is not set
-# CONFIG_HOTPLUG is not set
-
-#
-# Executable file formats
-#
-CONFIG_BINFMT_ELF=y
-CONFIG_BINFMT_AOUT=y
-CONFIG_BINFMT_MISC=y
-
-#
-# Device Drivers
-#
-
-#
-# Generic Driver Options
-#
-
-#
-# Memory Technology Devices (MTD)
-#
-# CONFIG_MTD is not set
-
-#
-# Parallel port support
-#
-CONFIG_PARPORT=y
-CONFIG_PARPORT_PC=y
-CONFIG_PARPORT_PC_CML1=y
-# CONFIG_PARPORT_SERIAL is not set
-# CONFIG_PARPORT_PC_FIFO is not set
-# CONFIG_PARPORT_PC_SUPERIO is not set
-# CONFIG_PARPORT_OTHER is not set
-CONFIG_PARPORT_1284=y
-
-#
-# Plug and Play support
-#
-CONFIG_PNP=y
-# CONFIG_PNP_DEBUG is not set
-
-#
-# Protocols
-#
-# CONFIG_ISAPNP is not set
-# CONFIG_PNPBIOS is not set
-
-#
-# Block devices
-#
-CONFIG_BLK_DEV_FD=y
-# CONFIG_BLK_DEV_XD is not set
-# CONFIG_PARIDE is not set
-# CONFIG_BLK_CPQ_DA is not set
-# CONFIG_BLK_CPQ_CISS_DA is not set
-# CONFIG_BLK_DEV_DAC960 is not set
-# CONFIG_BLK_DEV_UMEM is not set
-CONFIG_BLK_DEV_LOOP=y
-# CONFIG_BLK_DEV_CRYPTOLOOP is not set
-# CONFIG_BLK_DEV_NBD is not set
-# CONFIG_BLK_DEV_RAM is not set
-# CONFIG_BLK_DEV_INITRD is not set
-# CONFIG_LBD is not set
-
-#
-# ATA/ATAPI/MFM/RLL support
-#
-CONFIG_IDE=y
-CONFIG_BLK_DEV_IDE=y
-
-#
-# Please see Documentation/ide.txt for help/info on IDE drives
-#
-# CONFIG_BLK_DEV_HD_IDE is not set
-CONFIG_BLK_DEV_IDEDISK=y
-CONFIG_IDEDISK_MULTI_MODE=y
-# CONFIG_IDEDISK_STROKE is not set
-CONFIG_BLK_DEV_IDECD=y
-# CONFIG_BLK_DEV_IDETAPE is not set
-# CONFIG_BLK_DEV_IDEFLOPPY is not set
-# CONFIG_IDE_TASK_IOCTL is not set
-# CONFIG_IDE_TASKFILE_IO is not set
-
-#
-# IDE chipset support/bugfixes
-#
-# CONFIG_BLK_DEV_CMD640 is not set
-# CONFIG_BLK_DEV_IDEPNP is not set
-CONFIG_BLK_DEV_IDEPCI=y
-CONFIG_IDEPCI_SHARE_IRQ=y
-# CONFIG_BLK_DEV_OFFBOARD is not set
-CONFIG_BLK_DEV_GENERIC=y
-# CONFIG_BLK_DEV_OPTI621 is not set
-# CONFIG_BLK_DEV_RZ1000 is not set
-CONFIG_BLK_DEV_IDEDMA_PCI=y
-# CONFIG_BLK_DEV_IDE_TCQ is not set
-# CONFIG_BLK_DEV_IDEDMA_FORCED is not set
-CONFIG_IDEDMA_PCI_AUTO=y
-# CONFIG_IDEDMA_ONLYDISK is not set
-# CONFIG_IDEDMA_PCI_WIP is not set
-CONFIG_BLK_DEV_ADMA=y
-# CONFIG_BLK_DEV_AEC62XX is not set
-# CONFIG_BLK_DEV_ALI15X3 is not set
-# CONFIG_BLK_DEV_AMD74XX is not set
-# CONFIG_BLK_DEV_CMD64X is not set
-# CONFIG_BLK_DEV_TRIFLEX is not set
-# CONFIG_BLK_DEV_CY82C693 is not set
-# CONFIG_BLK_DEV_CS5520 is not set
-# CONFIG_BLK_DEV_CS5530 is not set
-# CONFIG_BLK_DEV_HPT34X is not set
-# CONFIG_BLK_DEV_HPT366 is not set
-# CONFIG_BLK_DEV_SC1200 is not set
-CONFIG_BLK_DEV_PIIX=y
-# CONFIG_BLK_DEV_NS87415 is not set
-# CONFIG_BLK_DEV_PDC202XX_OLD is not set
-# CONFIG_BLK_DEV_PDC202XX_NEW is not set
-# CONFIG_BLK_DEV_SVWKS is not set
-# CONFIG_BLK_DEV_SGIIOC4 is not set
-# CONFIG_BLK_DEV_SIIMAGE is not set
-# CONFIG_BLK_DEV_SIS5513 is not set
-# CONFIG_BLK_DEV_SLC90E66 is not set
-# CONFIG_BLK_DEV_TRM290 is not set
-CONFIG_BLK_DEV_VIA82CXXX=y
-# CONFIG_IDE_CHIPSETS is not set
-CONFIG_BLK_DEV_IDEDMA=y
-# CONFIG_IDEDMA_IVB is not set
-CONFIG_IDEDMA_AUTO=y
-# CONFIG_DMA_NONPCI is not set
-# CONFIG_BLK_DEV_HD is not set
-
-#
-# SCSI device support
-#
-# CONFIG_SCSI is not set
-
-#
-# Old CD-ROM drivers (not SCSI, not IDE)
-#
-# CONFIG_CD_NO_IDESCSI is not set
-
-#
-# Multi-device support (RAID and LVM)
-#
-# CONFIG_MD is not set
-
-#
-# Fusion MPT device support
-#
-
-#
-# IEEE 1394 (FireWire) support (EXPERIMENTAL)
-#
-# CONFIG_IEEE1394 is not set
-
-#
-# I2O device support
-#
-# CONFIG_I2O is not set
-
-#
-# Networking support
-#
-CONFIG_NET=y
-
-#
-# Networking options
-#
-CONFIG_PACKET=y
-# CONFIG_PACKET_MMAP is not set
-# CONFIG_NETLINK_DEV is not set
-CONFIG_UNIX=y
-# CONFIG_NET_KEY is not set
-CONFIG_INET=y
-# CONFIG_IP_MULTICAST is not set
-# CONFIG_IP_ADVANCED_ROUTER is not set
-# CONFIG_IP_PNP is not set
-# CONFIG_NET_IPIP is not set
-# CONFIG_NET_IPGRE is not set
-# CONFIG_ARPD is not set
-# CONFIG_INET_ECN is not set
-CONFIG_SYN_COOKIES=y
-# CONFIG_INET_AH is not set
-# CONFIG_INET_ESP is not set
-# CONFIG_INET_IPCOMP is not set
-# CONFIG_IPV6 is not set
-# CONFIG_DECNET is not set
-# CONFIG_BRIDGE is not set
-# CONFIG_NETFILTER is not set
-
-#
-# SCTP Configuration (EXPERIMENTAL)
-#
-CONFIG_IPV6_SCTP__=y
-# CONFIG_IP_SCTP is not set
-# CONFIG_ATM is not set
-# CONFIG_VLAN_8021Q is not set
-# CONFIG_LLC2 is not set
-# CONFIG_IPX is not set
-# CONFIG_ATALK is not set
-# CONFIG_X25 is not set
-# CONFIG_LAPB is not set
-# CONFIG_NET_DIVERT is not set
-# CONFIG_ECONET is not set
-# CONFIG_WAN_ROUTER is not set
-# CONFIG_NET_FASTROUTE is not set
-# CONFIG_NET_HW_FLOWCONTROL is not set
-
-#
-# QoS and/or fair queueing
-#
-# CONFIG_NET_SCHED is not set
-
-#
-# Network testing
-#
-# CONFIG_NET_PKTGEN is not set
-CONFIG_NETDEVICES=y
-
-#
-# ARCnet devices
-#
-# CONFIG_ARCNET is not set
-# CONFIG_DUMMY is not set
-# CONFIG_BONDING is not set
-# CONFIG_EQUALIZER is not set
-# CONFIG_TUN is not set
-# CONFIG_NET_SB1000 is not set
-
-#
-# Ethernet (10 or 100Mbit)
-#
-CONFIG_NET_ETHERNET=y
-# CONFIG_MII is not set
-# CONFIG_HAPPYMEAL is not set
-# CONFIG_SUNGEM is not set
-# CONFIG_NET_VENDOR_3COM is not set
-# CONFIG_LANCE is not set
-# CONFIG_NET_VENDOR_SMC is not set
-# CONFIG_NET_VENDOR_RACAL is not set
-
-#
-# Tulip family network device support
-#
-CONFIG_NET_TULIP=y
-# CONFIG_DE2104X is not set
-# CONFIG_TULIP is not set
-# CONFIG_DE4X5 is not set
-# CONFIG_WINBOND_840 is not set
-CONFIG_DM9102=y
-# CONFIG_AT1700 is not set
-# CONFIG_DEPCA is not set
-# CONFIG_HP100 is not set
-# CONFIG_NET_ISA is not set
-# CONFIG_NET_PCI is not set
-# CONFIG_NET_POCKET is not set
-
-#
-# Ethernet (1000 Mbit)
-#
-# CONFIG_ACENIC is not set
-# CONFIG_DL2K is not set
-# CONFIG_E1000 is not set
-# CONFIG_NS83820 is not set
-# CONFIG_HAMACHI is not set
-# CONFIG_YELLOWFIN is not set
-# CONFIG_R8169 is not set
-# CONFIG_SIS190 is not set
-# CONFIG_SK98LIN is not set
-# CONFIG_TIGON3 is not set
-
-#
-# Ethernet (10000 Mbit)
-#
-# CONFIG_IXGB is not set
-# CONFIG_FDDI is not set
-# CONFIG_HIPPI is not set
-CONFIG_PLIP=y
-# CONFIG_PPP is not set
-# CONFIG_SLIP is not set
-
-#
-# Wireless LAN (non-hamradio)
-#
-# CONFIG_NET_RADIO is not set
-
-#
-# Token Ring devices
-#
-# CONFIG_TR is not set
-# CONFIG_RCPCI is not set
-# CONFIG_SHAPER is not set
-# CONFIG_NET_POLL_CONTROLLER is not set
-
-#
-# Wan interfaces
-#
-# CONFIG_WAN is not set
-
-#
-# Amateur Radio support
-#
-# CONFIG_HAMRADIO is not set
-
-#
-# IrDA (infrared) support
-#
-# CONFIG_IRDA is not set
-
-#
-# Bluetooth support
-#
-# CONFIG_BT is not set
-
-#
-# ISDN subsystem
-#
-# CONFIG_ISDN_BOOL is not set
-
-#
-# Telephony Support
-#
-# CONFIG_PHONE is not set
-
-#
-# Input device support
-#
-CONFIG_INPUT=y
-
-#
-# Userland interfaces
-#
-CONFIG_INPUT_MOUSEDEV=y
-CONFIG_INPUT_MOUSEDEV_PSAUX=y
-CONFIG_INPUT_MOUSEDEV_SCREEN_X=1024
-CONFIG_INPUT_MOUSEDEV_SCREEN_Y=768
-# CONFIG_INPUT_JOYDEV is not set
-# CONFIG_INPUT_TSDEV is not set
-# CONFIG_INPUT_EVDEV is not set
-# CONFIG_INPUT_EVBUG is not set
-
-#
-# Input I/O drivers
-#
-# CONFIG_GAMEPORT is not set
-CONFIG_SOUND_GAMEPORT=y
-CONFIG_SERIO=y
-CONFIG_SERIO_I8042=y
-# CONFIG_SERIO_SERPORT is not set
-# CONFIG_SERIO_CT82C710 is not set
-# CONFIG_SERIO_PARKBD is not set
-# CONFIG_SERIO_PCIPS2 is not set
-
-#
-# Input Device Drivers
-#
-CONFIG_INPUT_KEYBOARD=y
-CONFIG_KEYBOARD_ATKBD=y
-# CONFIG_KEYBOARD_SUNKBD is not set
-# CONFIG_KEYBOARD_XTKBD is not set
-# CONFIG_KEYBOARD_NEWTON is not set
-CONFIG_INPUT_MOUSE=y
-CONFIG_MOUSE_PS2=y
-# CONFIG_MOUSE_PS2_SYNAPTICS is not set
-CONFIG_MOUSE_SERIAL=y
-# CONFIG_MOUSE_INPORT is not set
-# CONFIG_MOUSE_LOGIBM is not set
-# CONFIG_MOUSE_PC110PAD is not set
-# CONFIG_INPUT_JOYSTICK is not set
-# CONFIG_INPUT_TOUCHSCREEN is not set
-CONFIG_INPUT_MISC=y
-CONFIG_INPUT_PCSPKR=y
-# CONFIG_INPUT_UINPUT is not set
-
-#
-# Character devices
-#
-CONFIG_VT=y
-CONFIG_VT_CONSOLE=y
-CONFIG_HW_CONSOLE=y
-# CONFIG_SERIAL_NONSTANDARD is not set
-
-#
-# Serial drivers
-#
-CONFIG_SERIAL_8250=y
-# CONFIG_SERIAL_8250_CONSOLE is not set
-CONFIG_SERIAL_8250_NR_UARTS=4
-# CONFIG_SERIAL_8250_EXTENDED is not set
-
-#
-# Non-8250 serial port support
-#
-CONFIG_SERIAL_CORE=y
-CONFIG_UNIX98_PTYS=y
-CONFIG_UNIX98_PTY_COUNT=256
-# CONFIG_PRINTER is not set
-# CONFIG_PPDEV is not set
-# CONFIG_TIPAR is not set
-
-#
-# I2C support
-#
-# CONFIG_I2C is not set
-
-#
-# I2C Algorithms
-#
-
-#
-# I2C Hardware Bus support
-#
-
-#
-# I2C Hardware Sensors Chip support
-#
-# CONFIG_I2C_SENSOR is not set
-
-#
-# Mice
-#
-# CONFIG_BUSMOUSE is not set
-# CONFIG_QIC02_TAPE is not set
-
-#
-# IPMI
-#
-# CONFIG_IPMI_HANDLER is not set
-
-#
-# Watchdog Cards
-#
-# CONFIG_WATCHDOG is not set
-CONFIG_HW_RANDOM=y
-# CONFIG_NVRAM is not set
-CONFIG_RTC=y
-# CONFIG_DTLK is not set
-# CONFIG_R3964 is not set
-# CONFIG_APPLICOM is not set
-# CONFIG_SONYPI is not set
-
-#
-# Ftape, the floppy tape device driver
-#
-# CONFIG_FTAPE is not set
-CONFIG_AGP=y
-# CONFIG_AGP_ALI is not set
-# CONFIG_AGP_ATI is not set
-# CONFIG_AGP_AMD is not set
-# CONFIG_AGP_AMD64 is not set
-CONFIG_AGP_INTEL=y
-# CONFIG_AGP_NVIDIA is not set
-# CONFIG_AGP_SIS is not set
-# CONFIG_AGP_SWORKS is not set
-CONFIG_AGP_VIA=y
-CONFIG_DRM=y
-# CONFIG_DRM_TDFX is not set
-# CONFIG_DRM_GAMMA is not set
-CONFIG_DRM_R128=y
-# CONFIG_DRM_RADEON is not set
-# CONFIG_DRM_I810 is not set
-# CONFIG_DRM_I830 is not set
-# CONFIG_DRM_MGA is not set
-# CONFIG_DRM_SIS is not set
-# CONFIG_MWAVE is not set
-# CONFIG_RAW_DRIVER is not set
-# CONFIG_HANGCHECK_TIMER is not set
-
-#
-# Multimedia devices
-#
-# CONFIG_VIDEO_DEV is not set
-
-#
-# Digital Video Broadcasting Devices
-#
-# CONFIG_DVB is not set
-
-#
-# Graphics support
-#
-# CONFIG_FB is not set
-# CONFIG_VIDEO_SELECT is not set
-
-#
-# Console display driver support
-#
-CONFIG_VGA_CONSOLE=y
-# CONFIG_MDA_CONSOLE is not set
-CONFIG_DUMMY_CONSOLE=y
-
-#
-# Sound
-#
-CONFIG_SOUND=y
-
-#
-# Advanced Linux Sound Architecture
-#
-CONFIG_SND=y
-CONFIG_SND_SEQUENCER=y
-# CONFIG_SND_SEQ_DUMMY is not set
-CONFIG_SND_OSSEMUL=y
-CONFIG_SND_MIXER_OSS=y
-CONFIG_SND_PCM_OSS=y
-CONFIG_SND_SEQUENCER_OSS=y
-# CONFIG_SND_RTCTIMER is not set
-# CONFIG_SND_VERBOSE_PRINTK is not set
-# CONFIG_SND_DEBUG is not set
-
-#
-# Generic devices
-#
-# CONFIG_SND_DUMMY is not set
-# CONFIG_SND_VIRMIDI is not set
-# CONFIG_SND_MTPAV is not set
-# CONFIG_SND_SERIAL_U16550 is not set
-# CONFIG_SND_MPU401 is not set
-
-#
-# ISA devices
-#
-# CONFIG_SND_AD1848 is not set
-# CONFIG_SND_CS4231 is not set
-# CONFIG_SND_CS4232 is not set
-# CONFIG_SND_CS4236 is not set
-# CONFIG_SND_ES1688 is not set
-# CONFIG_SND_ES18XX is not set
-# CONFIG_SND_GUSCLASSIC is not set
-# CONFIG_SND_GUSEXTREME is not set
-# CONFIG_SND_GUSMAX is not set
-# CONFIG_SND_INTERWAVE is not set
-# CONFIG_SND_INTERWAVE_STB is not set
-# CONFIG_SND_OPTI92X_AD1848 is not set
-# CONFIG_SND_OPTI92X_CS4231 is not set
-# CONFIG_SND_OPTI93X is not set
-# CONFIG_SND_SB8 is not set
-# CONFIG_SND_SB16 is not set
-# CONFIG_SND_SBAWE is not set
-# CONFIG_SND_WAVEFRONT is not set
-# CONFIG_SND_CMI8330 is not set
-# CONFIG_SND_OPL3SA2 is not set
-# CONFIG_SND_SGALAXY is not set
-# CONFIG_SND_SSCAPE is not set
-
-#
-# PCI devices
-#
-# CONFIG_SND_ALI5451 is not set
-# CONFIG_SND_AZT3328 is not set
-# CONFIG_SND_CS46XX is not set
-# CONFIG_SND_CS4281 is not set
-# CONFIG_SND_EMU10K1 is not set
-# CONFIG_SND_KORG1212 is not set
-# CONFIG_SND_NM256 is not set
-# CONFIG_SND_RME32 is not set
-# CONFIG_SND_RME96 is not set
-# CONFIG_SND_RME9652 is not set
-# CONFIG_SND_HDSP is not set
-# CONFIG_SND_TRIDENT is not set
-# CONFIG_SND_YMFPCI is not set
-# CONFIG_SND_ALS4000 is not set
-CONFIG_SND_CMIPCI=y
-# CONFIG_SND_ENS1370 is not set
-# CONFIG_SND_ENS1371 is not set
-# CONFIG_SND_ES1938 is not set
-# CONFIG_SND_ES1968 is not set
-# CONFIG_SND_MAESTRO3 is not set
-# CONFIG_SND_FM801 is not set
-# CONFIG_SND_ICE1712 is not set
-# CONFIG_SND_ICE1724 is not set
-# CONFIG_SND_INTEL8X0 is not set
-# CONFIG_SND_SONICVIBES is not set
-# CONFIG_SND_VIA82XX is not set
-# CONFIG_SND_VX222 is not set
-
-#
-# Open Sound System
-#
-# CONFIG_SOUND_PRIME is not set
-
-#
-# USB support
-#
-# CONFIG_USB is not set
-# CONFIG_USB_GADGET is not set
-
-#
-# File systems
-#
-CONFIG_EXT2_FS=y
-CONFIG_EXT2_FS_XATTR=y
-# CONFIG_EXT2_FS_POSIX_ACL is not set
-# CONFIG_EXT2_FS_SECURITY is not set
-CONFIG_EXT3_FS=y
-CONFIG_EXT3_FS_XATTR=y
-CONFIG_EXT3_FS_POSIX_ACL=y
-# CONFIG_EXT3_FS_SECURITY is not set
-CONFIG_JBD=y
-# CONFIG_JBD_DEBUG is not set
-CONFIG_FS_MBCACHE=y
-# CONFIG_REISERFS_FS is not set
-# CONFIG_JFS_FS is not set
-CONFIG_FS_POSIX_ACL=y
-# CONFIG_XFS_FS is not set
-CONFIG_MINIX_FS=y
-# CONFIG_ROMFS_FS is not set
-# CONFIG_QUOTA is not set
-# CONFIG_AUTOFS_FS is not set
-# CONFIG_AUTOFS4_FS is not set
-
-#
-# CD-ROM/DVD Filesystems
-#
-CONFIG_ISO9660_FS=y
-CONFIG_JOLIET=y
-CONFIG_ZISOFS=y
-CONFIG_ZISOFS_FS=y
-# CONFIG_UDF_FS is not set
-
-#
-# DOS/FAT/NT Filesystems
-#
-CONFIG_FAT_FS=y
-CONFIG_MSDOS_FS=y
-CONFIG_VFAT_FS=y
-# CONFIG_NTFS_FS is not set
-
-#
-# Pseudo filesystems
-#
-CONFIG_PROC_FS=y
-CONFIG_PROC_KCORE=y
-# CONFIG_DEVFS_FS is not set
-CONFIG_DEVPTS_FS=y
-# CONFIG_DEVPTS_FS_XATTR is not set
-# CONFIG_TMPFS is not set
-# CONFIG_HUGETLBFS is not set
-# CONFIG_HUGETLB_PAGE is not set
-CONFIG_RAMFS=y
-
-#
-# Miscellaneous filesystems
-#
-# CONFIG_ADFS_FS is not set
-# CONFIG_AFFS_FS is not set
-# CONFIG_HFS_FS is not set
-# CONFIG_BEFS_FS is not set
-# CONFIG_BFS_FS is not set
-# CONFIG_EFS_FS is not set
-# CONFIG_CRAMFS is not set
-# CONFIG_VXFS_FS is not set
-# CONFIG_HPFS_FS is not set
-# CONFIG_QNX4FS_FS is not set
-# CONFIG_SYSV_FS is not set
-# CONFIG_UFS_FS is not set
-
-#
-# Network File Systems
-#
-CONFIG_NFS_FS=y
-CONFIG_NFS_V3=y
-# CONFIG_NFS_V4 is not set
-# CONFIG_NFS_DIRECTIO is not set
-CONFIG_NFSD=y
-CONFIG_NFSD_V3=y
-# CONFIG_NFSD_V4 is not set
-# CONFIG_NFSD_TCP is not set
-CONFIG_LOCKD=y
-CONFIG_LOCKD_V4=y
-CONFIG_EXPORTFS=y
-CONFIG_SUNRPC=y
-# CONFIG_SUNRPC_GSS is not set
-# CONFIG_SMB_FS is not set
-# CONFIG_CIFS is not set
-# CONFIG_NCP_FS is not set
-# CONFIG_CODA_FS is not set
-# CONFIG_INTERMEZZO_FS is not set
-# CONFIG_AFS_FS is not set
-
-#
-# Partition Types
-#
-# CONFIG_PARTITION_ADVANCED is not set
-CONFIG_MSDOS_PARTITION=y
-CONFIG_NLS=y
-
-#
-# Native Language Support
-#
-CONFIG_NLS_DEFAULT="iso8859-1"
-CONFIG_NLS_CODEPAGE_437=y
-# CONFIG_NLS_CODEPAGE_737 is not set
-# CONFIG_NLS_CODEPAGE_775 is not set
-# CONFIG_NLS_CODEPAGE_850 is not set
-# CONFIG_NLS_CODEPAGE_852 is not set
-# CONFIG_NLS_CODEPAGE_855 is not set
-# CONFIG_NLS_CODEPAGE_857 is not set
-# CONFIG_NLS_CODEPAGE_860 is not set
-# CONFIG_NLS_CODEPAGE_861 is not set
-# CONFIG_NLS_CODEPAGE_862 is not set
-# CONFIG_NLS_CODEPAGE_863 is not set
-# CONFIG_NLS_CODEPAGE_864 is not set
-# CONFIG_NLS_CODEPAGE_865 is not set
-# CONFIG_NLS_CODEPAGE_866 is not set
-# CONFIG_NLS_CODEPAGE_869 is not set
-# CONFIG_NLS_CODEPAGE_936 is not set
-# CONFIG_NLS_CODEPAGE_950 is not set
-# CONFIG_NLS_CODEPAGE_932 is not set
-# CONFIG_NLS_CODEPAGE_949 is not set
-# CONFIG_NLS_CODEPAGE_874 is not set
-# CONFIG_NLS_ISO8859_8 is not set
-# CONFIG_NLS_CODEPAGE_1250 is not set
-# CONFIG_NLS_CODEPAGE_1251 is not set
-CONFIG_NLS_ISO8859_1=y
-# CONFIG_NLS_ISO8859_2 is not set
-# CONFIG_NLS_ISO8859_3 is not set
-# CONFIG_NLS_ISO8859_4 is not set
-# CONFIG_NLS_ISO8859_5 is not set
-# CONFIG_NLS_ISO8859_6 is not set
-# CONFIG_NLS_ISO8859_7 is not set
-# CONFIG_NLS_ISO8859_9 is not set
-# CONFIG_NLS_ISO8859_13 is not set
-# CONFIG_NLS_ISO8859_14 is not set
-# CONFIG_NLS_ISO8859_15 is not set
-# CONFIG_NLS_KOI8_R is not set
-# CONFIG_NLS_KOI8_U is not set
-# CONFIG_NLS_UTF8 is not set
-
-#
-# Profiling support
-#
-# CONFIG_PROFILING is not set
-
-#
-# Kernel hacking
-#
-CONFIG_DEBUG_KERNEL=y
-CONFIG_DEBUG_STACKOVERFLOW=y
-CONFIG_DEBUG_SLAB=y
-# CONFIG_DEBUG_IOVIRT is not set
-CONFIG_MAGIC_SYSRQ=y
-# CONFIG_DEBUG_SPINLOCK is not set
-CONFIG_DEBUG_PAGEALLOC=y
-# CONFIG_SPINLINE is not set
-CONFIG_DEBUG_INFO=y
-# CONFIG_DEBUG_SPINLOCK_SLEEP is not set
-# CONFIG_KGDB is not set
-CONFIG_FRAME_POINTER=y
-
-#
-# Security options
-#
-# CONFIG_SECURITY is not set
-
-#
-# Cryptographic options
-#
-# CONFIG_CRYPTO is not set
-
-#
-# Library routines
-#
-CONFIG_CRC32=y
-CONFIG_ZLIB_INFLATE=y
-CONFIG_X86_BIOS_REBOOT=y
-CONFIG_PC=y
-
--- 
-Luiz Fernando N. Capitulino
-<lcapitulino@prefeitura.sp.gov.br>
-<http://www.telecentros.sp.gov.br>
+> 
+> Nothing major here; mainly small fixes.
+> 
+> 
+>  linus.patch
+> 
+>  Latest Linus BK
+> 
+> -selectable-logbuf-size.patch
+> -8139too-edimax.patch
+> -futex_refs_and_lock_fix.patch
+> -futex-locking-fix-fix.patch
+> -node-enumeration-cleanup-01.patch
+> -node-enumeration-cleanup-02.patch
+> -node-enumeration-cleanup-03.patch
+> -node-enumeration-cleanup-04.patch
+> -node-enumeration-cleanup-05.patch
+> -node-enumeration-cleanup-fix-01.patch
+> -compat-ioctl-consolidation.patch
+> -compat-ioctl-consolidation-job-control-update.patch
+> -alsa-gameport-fix.patch
+> -sizeof-in-ioctl-fix.patch
+> -ax25-timer-cleanup.patch
+> -calc_vm_trans-commentary.patch
+> -proc-sys-auxv.patch
+> -kernel-doc-fixes.patch
+> -kill-CONFIG_EISA_ALWAYS.patch
+> -ext3-concurrent-alloc-locking-fix.patch
+> -dscc4-fixes.patch
+> -cpufreq-sysfs-oops-fix.patch
+> -move-job-control-fields.patch
+> -move-job-control-fields-ia64-fix.patch
+> -do_no_page-pte_chain_leak-fix.patch
+> -20-odirect_enable.patch
+> -21-odirect_cruft.patch
+> -22-read_proc.patch
+> -23-write_proc.patch
+> -24-commit_proc.patch
+> -25-odirect.patch
+> -athlon-prefetch-handling.patch
+> -athlon-prefetch-handling-fix.patch
+> 
+>  Merged
+> 
+> +8139too-poll_controller.patch
+> 
+>  8139too kgb support.
+> 
+> -io-refcount-debugging.patch
+> 
+>  Dropped, too noisy.
+> 
+> +sjcd-usercopy-checks.patch
+> 
+>  copy_*_user retval checks.
+> 
+> +might_sleep-vs-jiffies-wrap.patch
+> 
+>  might_sleep() was broken by the jiffywrap detector.
+> 
+> +selinux-add-policyvers.patch
+> 
+>  SELinux things.
+> 
+> +mandocs-case-fix.patch
+> 
+>  Kernel doc generation fix
+> 
+> +pcibios_test_irq-fix.patch
+> 
+>  Fix an "unhandled interrupt" problem.
+> 
+> +fixmap-in-proc-pid-maps.patch
+> 
+>  Make the special ia32 fixmap area appear in /proc/pid/maps
+> 
+> +ajdtimex-vs-gettimeofday.patch
+> 
+>  Stop gettimeofday() from going backwards due to adjtimex activity.
+> 
+> +i82365-sysfs-ordering-fix.patch
+> 
+>  Fix an oops due to i82365 sysfs handling
+> 
+> +swapon-handle-no-readpage.patch
+> 
+>  Don't swapon files which have no readpage a_op.
+> 
+> +pci_set_power_state-might-sleep.patch
+> 
+>  Debug check.
+> 
+> +reiserfs-url-fixes.patch
+> 
+>  Documentation update.
+> 
+> +numaq-mpc-warning-fix.patch
+> 
+>  NUMAQ compile warning fix
+> 
+> +invalidate_inodes-speedup.patch
+> +invalidate_inodes-speedup-fixes.patch
+> 
+>  Speed up unmount when there are lots of inodes.
+> 
+> +ide-piix-fallback-fix.patch
+> 
+>  Fix PIIX fallback-to-PIO code
+> 
+> +ext3-i_disksize-locking-fix.patch
+> 
+>  Missed ext3 locking.
+> 
+> +applicom-fixes.patch
+> 
+>  Resource handling fixes
+> 
+> +compat_ioctl-cleanup.patch
+> 
+>  Consolidate the compat code.
+> 
+> +acl-signedness-fix.patch
+> 
+>  Don't do "if (unsigned < 0)"
+> 
+> +saa7134-build-fix.patch
+> 
+>  Fix compile for gcc-2.9x
+> 
+> +ide-write-barrier-support.patch
+> 
+>  IDE write barriers
+> 
+> +jbd-barrier-selection.patch
+> 
+>  Enable the barrier code in ext3.  Use
+> 
+> 	mount -o barrier=1
+> 	mount -o barrier=0
+> 	mount -o remount,barrier=1
+> 	mount -o remount,barrier=0
+> 
+> +scale-min_free_kbytes.patch
+> 
+>  Scale min_free_kbytes according to machine size.
+> 
+> +sym-2.1.18f.patch
+> 
+>  Sym driver update.
+> 
+> +CONFIG_STANDALONE-default-to-n.patch
+> 
+>  Make CONFIG_STANDALONE default to "n".
+> 
+> +nosysfs.patch
+> 
+>  Add "nosysfs" boot parameter to nobble sysfs, and save some RAM.
+> 
+> -nfs-O_DIRECT-always-enabled.patch
+> 
+>  Dropped, it was debug.
+> 
+> +4g4g-athlon-prefetch-handling-fix.patch
+> 
+>  Fix 4g/4g for athlon prefetch stuff.
+> 
+> +4g4g-aio-hang-fix.patch
+> 
+>  Fix AIO for the 4g/4g split.
+> 
+> +aio-splice-runlist.patch
+> 
+>  AIO I/O fairness tweak.
+> 
+> 
+> 
+> 
+> 
+> 
+> All 150 patches
+> 
+> 
+> linus.patch
+> 
+> mm.patch
+>   add -mmN to EXTRAVERSION
+> 
+> kgdb-ga.patch
+>   kgdb stub for ia32 (George Anzinger's one)
+>   kgdbL warning fix
+> 
+> kgdb-buff-too-big.patch
+>   kgdb buffer overflow fix
+> 
+> kgdb-warning-fix.patch
+>   kgdbL warning fix
+> 
+> kgdb-build-fix.patch
+> 
+> kgdb-spinlock-fix.patch
+> 
+> kgdb-fix-debug-info.patch
+>   kgdb: CONFIG_DEBUG_INFO fix
+> 
+> kgdb-cpumask_t.patch
+> 
+> kgdb-x86_64-fixes.patch
+>   x86_64 fixes
+> 
+> kgdb-over-ethernet.patch
+>   kgdb-over-ethernet patch
+> 
+> kgdb-over-ethernet-fixes.patch
+>   kgdb-over-ethernet fixlets
+> 
+> kgdb-CONFIG_NET_POLL_CONTROLLER.patch
+>   kgdb: replace CONFIG_KGDB with CONFIG_NET_RX_POLL in net drivers
+> 
+> kgdb-handle-stopped-NICs.patch
+>   kgdb: handle netif_stopped NICs
+> 
+> eepro100-poll-controller.patch
+> 
+> tlan-poll_controller.patch
+> 
+> tulip-poll_controller.patch
+> 
+> tg3-poll_controller.patch
+>   kgdb: tg3 poll_controller
+> 
+> 8139too-poll_controller.patch
+>   8139too poll controller
+> 
+> kgdb-eth-smp-fix.patch
+>   kgdb-over-ethernet: fix SMP
+> 
+> kgdb-eth-reattach.patch
+> 
+> kgdb-skb_reserve-fix.patch
+>   kgdb-over-ethernet: skb_reserve() fix
+> 
+> must-fix.patch
+> 
+> should-fix.patch
+> 
+> RD0-initrd-B6.patch
+> 
+> RD1-cdrom_ioctl-B6.patch
+> 
+> RD2-ioctl-B6.patch
+> 
+> RD2-ioctl-B6-fix.patch
+>   RD2-ioctl-B6 fixes
+> 
+> RD3-cdrom_open-B6.patch
+> 
+> RD4-open-B6.patch
+> 
+> RD5-cdrom_release-B6.patch
+> 
+> RD6-release-B6.patch
+> 
+> RD7-presto_journal_close-B6.patch
+> 
+> RD8-f_mapping-B6.patch
+> 
+> RD9-f_mapping2-B6.patch
+> 
+> RD10-i_sem-B6.patch
+> 
+> RD11-f_mapping3-B6.patch
+> 
+> RD12-generic_osync_inode-B6.patch
+> 
+> RD13-bd_acquire-B6.patch
+> 
+> RD14-generic_write_checks-B6.patch
+> 
+> RD15-I_BDEV-B6.patch
+> 
+> RD16-rest-B6.patch
+> 
+> serio-01-renaming.patch
+>   serio: rename serio_[un]register_slave_port to __serio_[un]register_port
+> 
+> serio-02-race-fix.patch
+>   serio: possible race between port removal and kseriod
+> 
+> serio-03-blacklist.patch
+>   Add black list to handler<->device matching
+> 
+> serio-04-synaptics-cleanup.patch
+>   Synaptics: code cleanup
+> 
+> serio-05-reconnect-facility.patch
+>   serio: reconnect facility
+> 
+> serio-06-synaptics-use-reconnect.patch
+>   Synaptics: use serio_reconnect
+> 
+> acpi_off-fix.patch
+>   fix acpi=off
+> 
+> cfq-4.patch
+>   CFQ io scheduler
+>   CFQ fixes
+> 
+> config_spinline.patch
+>   uninline spinlocks for profiling accuracy.
+> 
+> ppc64-bar-0-fix.patch
+>   Allow PCI BARs that start at 0
+> 
+> ppc64-reloc_hide.patch
+> 
+> ppc64-semaphore-reimplementation.patch
+>   ppc64: use the ia32 semaphore implementation
+> 
+> ppc64-sym2-fix.patch
+>   ppc64 sym2 fix
+> 
+> sym-do-160.patch
+>   make the SYM driver do 160 MB/sec
+> 
+> input-use-after-free-checks.patch
+>   input layer debug checks
+> 
+> fbdev.patch
+>   framebbuffer driver update
+> 
+> cursor-flashing-fix.patch
+>   fbdev: fix cursor letovers
+> 
+> radeonfb-line_length-fix.patch
+>   Radeon framebuffer line length fix
+> 
+> aic7xxx-parallel-build-fix.patch
+>   fix parallel builds for aic7xxx
+> 
+> ramdisk-cleanup.patch
+> 
+> intel8x0-cleanup.patch
+>   intel8x0 cleanups
+> 
+> uml-update.patch
+>   Update UML to 2.6.0-test5
+> 
+> pdflush-diag.patch
+> 
+> kobject-oops-fixes.patch
+>   fix oopses is kobject parent is removed before child
+> 
+> futex-uninlinings.patch
+>   futex uninlining
+> 
+> zap_page_range-debug.patch
+>   zap_page_range() debug
+> 
+> acpi-thinkpad-fix.patch
+>   APCI fix for thinkpads
+> 
+> scsi-handle-zero-length-requests.patch
+>   scsi: handle zero-length requests
+> 
+> call_usermodehelper-retval-fix-3.patch
+>   Make call_usermodehelper report exit status
+> 
+> asus-L5-fix.patch
+>   Asus L5 framebuffer fix
+> 
+> jffs-use-daemonize.patch
+> 
+> tulip-NAPI-support.patch
+>   tulip NAPI support
+> 
+> tulip-napi-disable.patch
+>   tulip NAPI: disable poll in close
+> 
+> get_user_pages-handle-VM_IO.patch
+> 
+> ia32-MSI-support.patch
+>   Updated ia32 MSI Patches
+> 
+> ia32-MSI-support-tweaks.patch
+> 
+> ia32-efi-support.patch
+>   EFI support for ia32
+> 
+> CONFIG_ACPI_EFI-defaults-off.patch
+> 
+> ia32-efi-support-warning-fixes.patch
+> 
+> ia32-efi-support-tidy.patch
+> 
+> ia32-efi-other-arch-fix.patch
+>   fix EFI for ppc64, ia64
+> 
+> support-zillions-of-scsi-disks.patch
+>   support many SCSI disks
+> 
+> dynamic-irq_vector-allocation.patch
+>   dynamic irq_vector allocation for ia32
+> 
+> SGI-IOC4-IDE-chipset-support.patch
+>   Add support for SGI's IOC4 chipset
+> 
+> vma-split-truncate-race-fix.patch
+>   fix split_vma vs. invalidate_mmap_range_list race
+> 
+> vma-split-truncate-race-fix-tweaks.patch
+> 
+> sparc32-sched_clock.patch
+> 
+> unmap_vmas-warning-fix.patch
+>   Fix unmap_vmas() compile warning
+> 
+> sjcd-usercopy-checks.patch
+>   Add missing sjcd uaccess checks
+> 
+> might_sleep-vs-jiffies-wrap.patch
+>   Fix early __might_sleep() calls
+> 
+> selinux-add-policyvers.patch
+>   SELINUX: add policyvers to selinuxfs
+> 
+> mandocs-case-fix.patch
+>   Correct case sensitivity in make mandocs
+> 
+> pcibios_test_irq-fix.patch
+>   Fix pcibios test IRQ handler return
+> 
+> fixmap-in-proc-pid-maps.patch
+>   report user-readable fixmap area in /proc/PID/maps
+> 
+> ajdtimex-vs-gettimeofday.patch
+>   Time precision, adjtime(x) vs. gettimeofday
+> 
+> i82365-sysfs-ordering-fix.patch
+>   Fix init_i82365 sysfs ordering oops
+> 
+> swapon-handle-no-readpage.patch
+>   Don't swap to files which do not implement readpage
+> 
+> pci_set_power_state-might-sleep.patch
+> 
+> reiserfs-url-fixes.patch
+>   reiserfs documentation URL fixes
+> 
+> numaq-mpc-warning-fix.patch
+>   silence smp_read_mpc_oem() declared static but never defined warning
+> 
+> invalidate_inodes-speedup.patch
+>   invalidate_inodes speedup
+> 
+> invalidate_inodes-speedup-fixes.patch
+> 
+> ide-piix-fallback-fix.patch
+>   IDE: PIIX DMA fallback fix
+> 
+> ext3-i_disksize-locking-fix.patch
+>   ext3: i_disksize locking fix
+> 
+> applicom-fixes.patch
+>   applicom: fix LEAK, unwind on errors;
+> 
+> compat_ioctl-cleanup.patch
+>   cleanup of compat_ioctl functions
+> 
+> acl-signedness-fix.patch
+>   ext2/ext3 acl signeness fixes
+> 
+> saa7134-build-fix.patch
+>   saa7134-core.c compile fix for old gcc
+> 
+> ide-write-barrier-support.patch
+>   ide write barrier support
+> 
+> jbd-barrier-selection.patch
+> 
+> scale-min_free_kbytes.patch
+>   scale the initial value of min_free_kbytes
+> 
+> sym-2.1.18f.patch
+> 
+> CONFIG_STANDALONE-default-to-n.patch
+>   Make CONFIG_STANDALONE default to N
+> 
+> nosysfs.patch
+> 
+> keyboard-repeat-rate-setting-fix.patch
+>   keyboard repeat rate setting fix
+> 
+> list_del-debug.patch
+>   list_del debug check
+> 
+> print-build-options-on-oops.patch
+>   print a few config options on oops
+> 
+> show_task-free-stack-fix.patch
+>   show_task() fix and cleanup
+> 
+> oops-dump-preceding-code.patch
+>   i386 oops output: dump preceding code
+> 
+> lockmeter.patch
+> 
+> printk-oops-mangle-fix.patch
+>   disentangle printk's whilst oopsing on SMP
+> 
+> 4g-2.6.0-test2-mm2-A5.patch
+>   4G/4G split patch
+>   4G/4G: remove debug code
+>   4g4g: pmd fix
+>   4g/4g: fixes from Bill
+>   4g4g: fpu emulation fix
+>   4g/4g usercopy atomicity fix
+>   4G/4G: remove debug code
+>   4g4g: pmd fix
+>   4g/4g: fixes from Bill
+>   4g4g: fpu emulation fix
+>   4g/4g usercopy atomicity fix
+>   4G/4G preempt on vstack
+>   4G/4G: even number of kmap types
+>   4g4g: fix __get_user in slab
+>   4g4g: Remove extra .data.idt section definition
+>   4g/4g linker error (overlapping sections)
+>   4G/4G: remove debug code
+>   4g4g: pmd fix
+>   4g/4g: fixes from Bill
+>   4g4g: fpu emulation fix
+>   4g4g: show_registers() fix
+>   4g/4g usercopy atomicity fix
+>   4g4g: debug flags fix
+>   4g4g: Fix wrong asm-offsets entry
+>   cyclone time fixmap fix
+>   4G/4G preempt on vstack
+>   4G/4G: even number of kmap types
+>   4g4g: fix __get_user in slab
+>   4g4g: Remove extra .data.idt section definition
+>   4g/4g linker error (overlapping sections)
+>   4G/4G: remove debug code
+>   4g4g: pmd fix
+>   4g/4g: fixes from Bill
+>   4g4g: fpu emulation fix
+>   4g4g: show_registers() fix
+>   4g/4g usercopy atomicity fix
+>   4g4g: debug flags fix
+>   4g4g: Fix wrong asm-offsets entry
+>   cyclone time fixmap fix
+>   use direct_copy_{to,from}_user for kernel access in mm/usercopy.c
+>   4G/4G might_sleep warning fix
+>   4g/4g pagetable accounting fix
+> 
+> 4g4g-athlon-prefetch-handling-fix.patch
+> 
+> ppc-fixes.patch
+>   make mm4 compile on ppc
+> 
+> aic7xxx_old-oops-fix.patch
+> 
+> O_DIRECT-race-fixes-rollup.patch
+>   DIO fixes forward port and AIO-DIO fix
+>   O_DIRECT race fixes comments
+>   O_DRIECT race fixes fix fix fix
+>   DIO locking rework
+> 
+> O_DIRECT-race-fixes-rework-XFS-fix.patch
+>   O_DIRECT XFS fix
+> 
+> aio-01-retry.patch
+>   AIO: Core retry infrastructure
+>   Fix aio process hang on EINVAL
+>   AIO: flush workqueues before destroying ioctx'es
+>   AIO: hold the context lock across unuse_mm
+>   task task_lock in use_mm()
+> 
+> 4g4g-aio-hang-fix.patch
+>   Fix AIO and 4G-4G hang
+> 
+> aio-refcounting-fix.patch
+>   aio ref count in io_submit_one
+> 
+> aio-retry-elevated-refcount.patch
+>   aio: extra ref count during retry
+> 
+> aio-splice-runlist.patch
+>   Splice AIO runlist for fairer handling of multiple io contexts
+> 
+> aio-02-lockpage_wq.patch
+>   AIO: Async page wait
+> 
+> aio-03-fs_read.patch
+>   AIO: Filesystem aio read
+> 
+> aio-04-buffer_wq.patch
+>   AIO: Async buffer wait
+>   lock_buffer_wq fix
+> 
+> aio-05-fs_write.patch
+>   AIO: Filesystem aio write
+> 
+> aio-06-bread_wq.patch
+>   AIO: Async block read
+> 
+> aio-07-ext2getblk_wq.patch
+>   AIO: Async get block for ext2
+> 
+> O_SYNC-speedup-2.patch
+>   speed up O_SYNC writes
+> 
+> O_SYNC-speedup-2-f_mapping-fixes.patch
+> 
+> aio-09-o_sync.patch
+>   aio O_SYNC
+>   AIO: fix a BUG
+>   Unify o_sync changes for aio and regular writes
+>   aio-O_SYNC-fix bits got lost
+>   aio: writev nr_segs fix
+>   More AIO O_SYNC related fixes
+> 
+> aio-09-o_sync-f_mapping-fixes.patch
+> 
+> gang_lookup_next.patch
+>   Change the page gang lookup API
+> 
+> aio-gang_lookup-fix.patch
+>   AIO gang lookup fixes
+> 
+> aio-O_SYNC-short-write-fix.patch
+>   Fix for O_SYNC short writes
+> 
+> aio-12-readahead.patch
+>   AIO: readahead fixes
+>   aio O_DIRECT no readahead
+>   Unified page range readahead for aio and regular reads
+> 
+> aio-12-readahead-f_mapping-fix.patch
+> 
+> aio-readahead-speedup.patch
+>   Readahead issues and AIO read speedup
+> 
+> 
+> 
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
