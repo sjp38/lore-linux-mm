@@ -1,27 +1,25 @@
-Message-ID: <3E36BD6B.6080000@shaolinmicro.com>
-Date: Wed, 29 Jan 2003 01:27:07 +0800
-From: David Chow <davidchow@shaolinmicro.com>
-MIME-Version: 1.0
-Subject: dirty pages path in kernel
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-Id: <200301281749.MAA12566@boo-mda02.boo.net>
+From: jasonp@boo.net
+Subject: Re: [PATCH] page coloring for 2.5.59 kernel, version 1
+Date: Tue, 28 Jan 2003 17:49:37 GMT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+> If a benefit cannot be show on some sort of semi-realistic workload,
+> it's probably not worth it, IMHO.
 
-If I do the following to an inode mapping page .
+With the present state of the patch my own limited tests don't uncover any
+speedups at all on my x86 test machine. For the Alpha with 2MB cache (and the 
+2.4 patch) there are measurable speedups; number-crunching benchmarks show it 
+the most.
 
-1. Generate a "struct page" from read_cache_page()
-2. kmap() the page, do some memset() (Dirty the page)
-3. kunmap() and page_cache_release() the page.
+jasonp
 
-Since I didn't change any flags in the struct page, and I don't call to the corresponding commit_write() path. How is this page handled afterwards? Does the kernel will call its corresponding writepage() routine when unmap? Or it will ignore the dirty page as the kernel doesn't detects it. What will happen then? Will I loose any changes to that page data? I'm trying to implement some asynchronous mechasim on purging dirty pages on disk writes. Please give advice.
-
-regards,
-David
+---------------------------------------------
+This message was sent using Endymion MailMan.
+http://www.endymion.com/products/mailman/
 
 
 --
