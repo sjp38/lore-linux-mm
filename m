@@ -1,49 +1,61 @@
-Date: Wed, 6 Jun 2001 10:19:45 -0600
-Message-Id: <200106061619.f56GJjw15740@vindaloo.ras.ucalgary.ca>
-From: Richard Gooch <rgooch@ras.ucalgary.ca>
-Subject: Re: Requirement: swap = RAM x 2.5 ??
-In-Reply-To: <3B1E572B.1CEEF41B@mandrakesoft.com>
-References: <3B1D5ADE.7FA50CD0@illusionary.com>
-	<991815578.30689.1.camel@nomade>
-	<20010606095431.C15199@dev.sportingbet.com>
-	<0106061316300A.00553@starship>
-	<200106061528.f56FSKa14465@vindaloo.ras.ucalgary.ca>
-	<000701c0ee9f$515fd6a0$3303a8c0@einstein>
-	<3B1E52FC.C17C921F@mandrakesoft.com>
-	<200106061612.f56GCbA14901@vindaloo.ras.ucalgary.ca>
-	<3B1E572B.1CEEF41B@mandrakesoft.com>
+Message-Id: <l0313030fb743f99e010e@[192.168.239.105]>
+In-Reply-To: <3B1E2C3C.55DF1E3C@uow.edu.au>
+References: <3B1E203C.5DC20103@uow.edu.au>,	
+ <l03130308b7439bb9f187@[192.168.239.105]>
+ <l0313030db743d4a05018@[192.168.239.105]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Date: Wed, 6 Jun 2001 17:44:44 +0100
+From: Jonathan Morton <chromi@cyberspace.org>
+Subject: Re: [PATCH] reapswap for 2.4.5-ac10
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@mandrakesoft.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christian =?iso-8859-1?Q?Borntr=E4ger?= <linux-kernel@borntraeger.net>, Derek Glidden <dglidden@illusionary.com>
+To: Andrew Morton <andrewm@uow.edu.au>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jeff Garzik writes:
-> Richard Gooch wrote:
-> > 
-> > Jeff Garzik writes:
-> > >
-> > > I'm sorry but this is a regression, plain and simple.
-> > >
-> > > Previous versons of Linux have worked great on diskless workstations
-> > > with NO swap.
-> > >
-> > > Swap is "extra space to be used if we have it" and nothing else.
-> > 
-> > Sure. But Linux still works without swap. It's just that if you *do*
-> > have swap, it works best with 2* RAM.
-> 
-> Yes, but that's not the point of the discussion.  Currently 2*RAM is
-> more of a requirement than a recommendation.
+>> >So the more users, the more slowly it ages.  You get the idea.
+>>
+>> However big you make that scaling constant, you'll always find some pages
+>> which have more users than that.
+>
+>2^24?
 
-Um, do you mean "2*RAM is required, always", or "2*RAM or more swap is
-required if swap != 0"?
+True, you aren't going to find 16 million processes on a box anytime soon.
+However, it still doesn't quite appeal to me - it looks too much like a
+hack.  What happens if, by some freak, someone does build a machine which
+can handle that much?  Consider some future type of machine which is
+essentially a Beowulf cluster with a single address space - I imagine NUMA
+machines are already approaching this size.
 
-				Regards,
+>> BUT, as it turns out, refill_inactive_scan() already does ageing down on a
+>> page-by-page basis, rather than process-by-process.
+>
+>Yes.  page->count needs looking at if you're doing physically-addressed
+>scanning.  Rik's patch probably does that.
 
-					Richard....
-Permanent: rgooch@atnf.csiro.au
-Current:   rgooch@ras.ucalgary.ca
+Explain...
+
+AFAICT, the scanning in refill_inactive_scan() simply looks at a list of
+pages, and doesn't really do physical addresses.  The age of a page should
+be independent on the number of mappings it has, but dependent instead on
+how much it is used (or how long it is not used for).  That code already
+exists, and it works.
+
+Also, I just sat down for a few minutes and figured out a very simple way
+to get a proper working-set calculation without the fuss...  'course I have
+to test it first.
+
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
+
+The key to knowledge is not to rely on people to teach you it.
+
+GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
+PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
