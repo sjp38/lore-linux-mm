@@ -1,50 +1,77 @@
-Message-ID: <3AB76309.76A23434@transmeta.com>
-Date: Tue, 20 Mar 2001 06:02:49 -0800
-From: "H. Peter Anvin" <hpa@transmeta.com>
+Message-ID: <3AB77311.77EB7D60@uow.edu.au>
+Date: Wed, 21 Mar 2001 02:11:13 +1100
+From: Andrew Morton <andrewm@uow.edu.au>
 MIME-Version: 1.0
 Subject: Re: 3rd version of R/W mmap_sem patch available
-References: <3AB6C7C2.D1A49FEF@uow.edu.au> <Pine.LNX.4.31.0103191932240.7210-100000@penguin.transmeta.com> <20010320123800.A10222@redhat.com>
+References: <Pine.LNX.4.33.0103192254130.1320-100000@duckman.distro.conectiva> <Pine.LNX.4.31.0103191839510.1003-100000@penguin.transmeta.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Andrew Morton <andrewm@uow.edu.au>, linux-mm@kvack.org, Jeff Uphoff <juphoff@transmeta.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Please don't ping *me* when these things happen.  I was out of town. 
-ftpadmin@kernel.org is the proper address; it goes to me and Jeff at the
-moment.
+Linus Torvalds wrote:
+> 
+> There is a 2.4.3-pre5 in the test-directory on ftp.kernel.org.
+> 
 
-	-hpa
+I stared long and hard at expand_stack().  Its first access
+to vma->vm_start appears to be safe wrt other threads which 
+can alter this, but perhaps the page_table_lock should be
+acquired earlier here?
 
 
-"Stephen C. Tweedie" wrote:
-> 
-> Hi,
-> 
-> On Mon, Mar 19, 2001 at 07:35:08PM -0800, Linus Torvalds wrote:
-> > >
-> > > I can't see it.  Where did you hide it?
-> >
-> > Ahh. The mirroring is apparently broken. I put my stuff on a faster local
-> > connection to "master.kernel.org", and depend on it being mirrored
-> > automatically. And apparently the mirroring has been down for a few days
-> > now. Ugh. I'll ping Peter.
-> 
-> Mirrored for now in
-> 
->         ftp.uk.linux.org:/pub/linux/sct/kernel/
-> 
-> for the sake of anyone else helping with this.
-> 
-> Cheers,
->  Stephen
 
--- 
-<hpa@transmeta.com> at work, <hpa@zytor.com> in private!
-"Unix gives you enough rope to shoot yourself in the foot."
-http://www.zytor.com/~hpa/puzzle.txt
+We now have:
+
+	free_pgd_slow();
+	pmd_free_slow();
+	pte_free_slow();
+
+Could we please have consistent naming back?
+
+
+
+in do_wp_page():
+
+        spin_unlock(&mm->page_table_lock);
+        new_page = alloc_page(GFP_HIGHUSER);
+        if (!new_page)
+                return -1;
+        spin_lock(&mm->page_table_lock);
+
+Should retake the spinlock before returning.
+
+
+
+General comment: an expensive part of a pagefault
+is zeroing the new page.  It'd be nice if we could
+drop the page_table_lock while doing the clear_user_page()
+and, if possible, copy_user_page() functions.  Very nice.
+
+
+
+
+read_zero_pagealigned()->zap_page_range()
+
+	The handling of mm->rss is racy.  But I think
+	it always has been?
+
+
+
+
+This comment in mprotect.c:
++       /* XXX: maybe this could be down_read ??? - Rik */
+
+I don't think so.  The decisions about where in the 
+vma tree to place the new vma would be unprotected and racy.
+
+
+
+Apart from that - I looked at it (x86-only) very closely and
+it seems solid.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
