@@ -1,8 +1,8 @@
-Date: Thu, 30 Mar 2000 20:41:30 +0200 (CEST)
+Date: Thu, 30 Mar 2000 20:57:34 +0200 (CEST)
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: shrink_mmap SMP race fix
-In-Reply-To: <Pine.LNX.4.21.0003301415270.1104-100000@duckman.conectiva>
-Message-ID: <Pine.LNX.4.21.0003301921270.3831-100000@alpha.random>
+In-Reply-To: <Pine.LNX.4.21.0003301406530.1104-100000@duckman.conectiva>
+Message-ID: <Pine.LNX.4.21.0003302042030.8695-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,57 +13,54 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 30 Mar 2000, Rik van Riel wrote:
 
->On Thu, 30 Mar 2000, Andrea Arcangeli wrote:
->> On Thu, 30 Mar 2000, Andrea Arcangeli wrote:
->> 
->> >[..] If something the higher is the priority the
->> >harder we should shrink the cache (that's the opposite that the patch
->> >achieves). Usually priority is always zero and the below check has no
->> >effect. [..]
->> 
->> thinko, I noticed I was wrong about this, apologies (prio start with 6 and
->> 0 is the most severe one).
->> 
->> anyway I keep not enjoying such path for all the other reasons. It should
->> at _least_ be done outside the loop before calculating `count`.
->
->True. The only reason this check is inside shrink_mmap() is that we
->may want to do the page aging on the LRU pages anyway because of
->page replacement reasons. It will be interesting to see if moving
+>Sorry, but if page aging happens elsewhere, why do we go through
+>the trouble of maintaining an LRU list in the first place?
 
-I don't think there were any valid reason to clear all reference bits
-while enforcing the minimal limit of the lru size.
+We can use the LRU for the page aging at any time. I did that at first.
+But to do that we have to roll the page-LRU at each page/swap/buffer cache
+hit and that's slow and not worty. Setting a bit is much faster and the
+roll of the list become zero cost in shrink_mmap and the current aging
+works fine as far I can tell.
 
-The check is only a kind of barrier that tries to preserve some lru cache
-based on an hardwired value (took from the freepages min level that have
-nothing to do with the lru minimal size btw) while the system is under
-swap. It tries to forbid shrink_mmap to eat too much cache pages. This may
-have the effect that the `ls` binary gets not took out of the cache while
-you hit swap or something like that depending how big is `ls` in your
-system.
+>The answer is that the one-bit "page aging" (NRU replacement) of
+>pages in the page tables simply isn't enough. I agree that the
 
-That's very similar to the pgcache_under_min() hack we just have but that
-is a page-cache only thing and since it's not a global lru thing it make
-sense to not break the loop in such case (since such check doesn't know
-anything about the buffer cache). The main difference is that
-pgcache_under_min doesn't care about the severity of the shrink_mmap (it's
-not in function of `priority').
+Actually it's better than NRU for the aging anyway since new pages are
+allocated always added to the bottom of the LRU for example. Also with the
+LRU we avoid wasting time in non-cache pages and if almost all cache is
+freeable shrink_mmap works in O(1) despite of how much memory is allocated
+in userspace or in non cache things (that wasn't true in
+2.2.x). Also thanks to the page-LRU 2.3.x doesn't random swap as 2.2.x
+does.
 
-So I believe that we just have a kind of hack to try to preserve the `ls`
-binary to be shrunk from the cache and we don't need a secondary one.
+>The idea of this approach is that we need the LRU cache to do some
+>aging on pages we're about to free. We absolutely need this because
+>otherwise the system will be thrashing much earlier than needed.
+>Good page replacement simply is a must.
 
-IMHO it's also better to replace the pgcache_under_min with a global lru
-sysctl where we can set a low limit on the percentage of the lru cache.
-And then we do:
+I really don't think aging is the problem. If you want I can send you the
+patch to replace the test_and_set_bit(PG_referenced) with a perfect and
+costly roll of the lru list. That's almost trivial patch. But I'm 99& sure
+you'll get the same swap behaviour.
 
-	if (nr_lru_pages < lru_min)
-		return;
+The _real_ problem is that we have to split the LRU in page/buffer-cache
+LRU and swap-cache LRU. And then we have to always try to shrink the
+swap-cache LRU first. This is what we have to do for great swap behaviour
+IMHO. But there's a problem, to do that we have to keep the mapped pages
+out of the LRU (at least out of the swap-cache LRU), otherwise we'll have
+to pass over all the unfreeable mapped swap cache pages before we can
+shrink the page/buffer cache and that would have a too high complexity
+cost that we can't accept (it would hit us also when the memory pressure
+is finished).
 
-before enterning the loop.
+Shrinking the unused swap cache first is the way to go.
 
-In practice the above sysctl will act the same as the current
-pgcache_under_min but it avoid wasting CPU power and it also won't
-penalize the buffer cache for no good reason.
+>That would be great!
+
+Do you think we should do that for 2.4.x? How is the current swap
+behaviour with low mem? It doesn't feel bad to me while pushing 100mbyte
+on swap in 2.3.99-pre4-pre1 + the latest posted patches (but I have to say
+that I don't hit swap while closing the linux-kernel folder anymore... ;).
 
 Andrea
 
