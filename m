@@ -1,44 +1,38 @@
-Date: Wed, 16 Oct 2002 16:55:36 -0400 (EDT)
-From: Bill Davidsen <davidsen@tmr.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
 Subject: Re: 2.5.42-mm2 on small systems
-In-Reply-To: <3DABB8EF.5E00AF4E@digeo.com>
-Message-ID: <Pine.LNX.3.96.1021016164613.12145A-100000@gatekeeper.tmr.com>
+Date: Wed, 16 Oct 2002 18:43:10 -0400
+References: <Pine.LNX.3.96.1021016164613.12145A-100000@gatekeeper.tmr.com>
+In-Reply-To: <Pine.LNX.3.96.1021016164613.12145A-100000@gatekeeper.tmr.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Message-Id: <200210161843.10095.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Ed Tomlinson <tomlins@cam.org>, linux-mm@kvack.org
+To: Bill Davidsen <davidsen@tmr.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Oct 2002, Andrew Morton wrote:
+On October 16, 2002 04:55 pm, Bill Davidsen wrote:
+> On Mon, 14 Oct 2002, Andrew Morton wrote:
+> > hm.  Works for me.  The default setting are waaay too boring, so
+> > I used ./resp -m2 -M5 -w5
 
-> hm.  Works for me.  The default setting are waaay too boring, so
-> I used ./resp -m2 -M5 -w5
+> This was intended to be a simple test of how the kernel feels, and it is
+> that, but some kernels I've tried get to one test or another and shit the
+> bed every time. It's not a stress test! How can I get my numbers if the
+> kernel keeps hanging solid? ;-)
 
-The problem with reducing the sleep is that it hides a kernel which is
-swappy, since there isn't time to build up a big backlog of disk writes,
-and the swap doesn't seem to happen right away.
+You add sufficient tracing so you can find were it hangs...  And report it
+so it can get fixed.  IMHO, while not a stress test, it can put stress on
+the kernel - it needs to to test the interactive response.
 
-And I often see jackpot cases which are less likely to happen if you
-reduce the number of tests. Again it makes the kernel look good, but may
-not reflect what's really happening. I agree that it's slow, I've been
-debugging it for several weeks now, but every time I think I've got the
-corner cases cornered I find another corner.
+Still trying to figure out what is happening on my 64m 486.
 
-The next version will add -R to set the retry max count, because some
-kernels don't recover from one test and return no resources on fork()
-because they haven't cleaned up all terminated processes.
+Thanks for the interesting benchmark.
 
-This was intended to be a simple test of how the kernel feels, and it is
-that, but some kernels I've tried get to one test or another and shit the
-bed every time. It's not a stress test! How can I get my numbers if the
-kernel keeps hanging solid? ;-)
-
--- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
+Ed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
