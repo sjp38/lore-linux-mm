@@ -1,57 +1,34 @@
-Date: 6 Jan 2005 15:43:07 +0100
-Date: Thu, 6 Jan 2005 15:43:07 +0100
-From: Andi Kleen <ak@muc.de>
+Date: Thu, 6 Jan 2005 09:50:14 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: page migration patchset
-Message-ID: <20050106144307.GB59451@muc.de>
-References: <Pine.LNX.4.44.0501052008160.8705-100000@localhost.localdomain> <41DC7EAD.8010407@mvista.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <41DC7EAD.8010407@mvista.com>
+In-Reply-To: <41DD608A.80003@sgi.com>
+Message-ID: <Pine.LNX.4.58.0501060947470.16240@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.44.0501052008160.8705-100000@localhost.localdomain>
+ <41DC7EAD.8010407@mvista.com> <20050106144307.GB59451@muc.de> <41DD608A.80003@sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steve Longerbeam <stevel@mvista.com>
-Cc: Hugh Dickins <hugh@veritas.com>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, andrew morton <akpm@osdl.org>
+To: Ray Bryant <raybry@sgi.com>
+Cc: Andi Kleen <ak@muc.de>, Steve Longerbeam <stevel@mvista.com>, Hugh Dickins <hugh@veritas.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, andrew morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 05, 2005 at 03:56:29PM -0800, Steve Longerbeam wrote:
-> Hugetlbfs is also defining its own shared policy RB tree in its
-> inode info struct, but it doesn't seem to be used, just initialized
-> and freed at alloc/destroy inode time. Does anyone know why that
-> is there? A place-holder for future hugetlbfs mempolicy support?
-> If so, it can be removed and use the generic_file policies instead.
+On Thu, 6 Jan 2005, Ray Bryant wrote:
 
-You need lazy hugetlbfs to use it (= allocate at page fault time,
-not mmap time). Otherwise the policy can never be applied. I implemented 
-my own version of lazy allocation for SLES9, but when I wanted to 
-merge it into mainline some other people told they had a much better 
-singing&dancing lazy hugetlb patch. So I waited for them, but they 
-never went forward with their stuff and their code seems to be dead
-now. So this is still a dangling end :/
+> > If nothing happens soon regarding the "other" hugetlb code I will
+> > forward port my SLES9 code. It already has NUMA policy support.
+> I too have been frustrated by this process.  I think Christoph Lameter
+> at SGI is looking at forward porting the "old" lazy hugetlbpage allocation
+> code.  Of course, the proof is in the "doing" of this and I am not sure
+> what other priorities he has at the moment.
 
-If nothing happens soon regarding the "other" hugetlb code I will
-forward port my SLES9 code. It already has NUMA policy support.
+Sorry I did not have time to continue the huge stuff in face of other
+things that came up in the fall. I ported the stuff to 2.6.10 yesterday
+but it still needs some rework.
 
-For now you can remove the hugetlb policy code from mainline if you
-want, it would be easy to readd it when lazy hugetlbfs is merged.
-
-> 
-> >(And I still don't know what should be done about NUMA policy versus
-> >swap: it has not been anyone's priority, but swapin_readahead's NUMA
-> >belief that swap is laid out linearly following vmas is quite wrong.
-> >Should page migration be used instead?  Should swap be divided into
-> >per-node extents?  Does swap readahead really serve a useful purpose,
-> >or could we just delete that code?  Should NUMA policy on a file be
-> >determining NUMA policy on private swap copies of that file?
-
-It's on my TODO list, but I haven't had time to work on it. But Steve's
-simple minded page migration is probably the right way to fix it anyways,
-so once that it is in it just needs some extension.
-
-Basically you would delete the code and then later migrate the pages.
-Not very nice, but I didn't come up with a better design so far.
-
--Andi
+Could you sent me the most up to date version of the SLES9 stuff including
+any unintegrated changes? I can work though this next week I believe and
+post a new huge pages patch.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
