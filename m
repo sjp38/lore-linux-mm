@@ -1,42 +1,42 @@
-Date: Tue, 15 Jun 1999 09:32:19 +0200 (CEST)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: filecache/swapcache questions
-In-Reply-To: <199906150716.AAA88552@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.05.9906150930310.13631-100000@humbolt.nl.linux.org>
+Received: from vega.wipinfo.soft.net (root@vega [192.168.223.136])
+	by patriot.wipinfo.soft.net (8.9.2/8.9.2) with ESMTP id NAA23949
+	for <linux-mm@kvack.org>; Tue, 15 Jun 1999 13:34:05 -0500 (GMT)
+Received: from prashanth (unknown_cad183 [192.168.224.183]) by wipinfo.soft.net (8.6.12/8.6.9) with SMTP id NAA30558 for <linux-mm@kvack.org>; Tue, 15 Jun 1999 13:16:31 +0500
+Reply-To: <cprash@wipinfo.soft.net>
+From: "Prashanth C." <cprash@wipinfo.soft.net>
+Subject: kmem_cache_init() question
+Date: Tue, 15 Jun 1999 13:39:12 +0530
+Message-ID: <000001beb706$5a8b06a0$b7e0a8c0@prashanth.wipinfo.soft.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Jun 1999, Kanoj Sarcar wrote:
+Hi All,
 
-> Q1. Is it really needed to put all the swap pages in the swapper_inode
-> i_pages?
+This question is with reference to following segment of code [ver 2.2.9] in
+kmem_cache_init() function (mm/slab.c):
 
-Yes, see below.
+if (num_physpages > (32 << 20) >> PAGE_SHIFT)
+    slab_break_gfp_order = SLAB_BREAK_GFP_ORDER_HI;
 
-> How will it be possible for a page to be in the swapcache, for its
-> reference count to be 1 (which has been checked just before), and for
-> its swap_count(page->offset) to also be 1? I can see this being
-> possible only if an unmap/exit path might lazily leave a anonymous
-> page in the swap cache, but I don't believe that happens.
+I found that num_physpages is initialized in mem_init() function
+(arch/i386/mm/init.c).  But start_kernel() calls kmem_cache_init() before
+mem_init().  So, num_physpages will always(?) be zero when the above code
+segment is executed.
 
-It does happen. We use a 'two-stage' reclamation process instead
-of page aging. It seems to work wonderfully -- nice page aging
-properties without the overhead. Plus, it automatically balances
-swap and cache memory since the same reclamation routine passes
-over both types of pages.
+Is num_physpages is initialized somewhere else before kmem_cache_init() is
+called by start_kernel()?  Please let me know if I am missing something [if
+my observation is indeed correct, then slab_break_gfp_order will never be
+set to SLAB_BREAK_GFP_ORDER_HI].
 
+Thanks a lot.
 
-Rik -- Open Source: you deserve to be in control of your data.
-+-------------------------------------------------------------------+
-| Le Reseau netwerksystemen BV:               http://www.reseau.nl/ |
-| Linux Memory Management site:   http://www.linux.eu.org/Linux-MM/ |
-| Nederlandse Linux documentatie:          http://www.nl.linux.org/ |
-+-------------------------------------------------------------------+
+Prashanth.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
