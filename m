@@ -1,64 +1,45 @@
-Date: Fri, 6 Apr 2001 19:23:16 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+Date: Fri, 6 Apr 2001 20:47:13 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [PATCH] swap_state.c thinko
-In-Reply-To: <Pine.LNX.4.31.0104061011120.12081-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0104061849290.1331-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20010406204713.P28118@athlon.random>
+References: <Pine.LNX.4.21.0104061638200.1098-100000@localhost.localdomain> <Pine.LNX.4.31.0104061011120.12081-100000@penguin.transmeta.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.31.0104061011120.12081-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Fri, Apr 06, 2001 at 10:21:38AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
+Cc: Hugh Dickins <hugh@veritas.com>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 6 Apr 2001, Linus Torvalds wrote:
-> 
-> On Fri, 6 Apr 2001, Hugh Dickins wrote:
-> >
-> > I like this direction, but (if I understand the issues better today
-> > than I did yesterday) the patch you posted looks seriously incomplete
-> > to me.  While it deals with one of the issues raised by Rich Jerrell
-> > (writing dead swap pages), doesn't it exacerbate his other issue?
-> 
-> Yes. However, I'm assuming most of that is just "statistics get buggered",
-> in that swap pages tend to stay around for longer than they really are
-> used. It was true before, but it would be _consistently_ true now.
-
-Yes, I like it that the pte_present route becomes consistent with
-the !pte_present route, and I share your belief that any problems
-won't be _new_ ones.  But I supposed that Rich was describing a
-practical problem, not just temporarily buggered statistics.
-
+On Fri, Apr 06, 2001 at 10:21:38AM -0700, Linus Torvalds wrote:
 > I don't agree with your vm_enough_memory() worry - it should be correct
 > already, because it shows up as page cache pages (and that, in turn, is
 > already taken care of). In fact, the swap cache pages shouldn't even
 > create any new special cases: they are exactly equivalent to already-
 > existing page cache pages.
 
-It is, of course, remotely conceivable that I'm confused, but...
-I realize that the page cache pages (including those of swap)
-are already added into "free" by vm_enough_memory().  But it's also
-adding in nr_swap_pages, and that number is significantly less than
-what it should be, because freeable swap slots have not been freed.
-Therefore I think we need to add in that (sadly unknown) number of
-should-have-been-freed slots - not because the memory hasn't been
-properly counted, but because the swap hasn't been properly counted.
+swap cache also decrease the amount free-swap-space, that will be reclaimed as
+soon as we collect the swap cache. so we must add the swap cache size to the
+amount of virtual memory available (in addition to the in-core pagecachesize)
+to take care of the swap side. I suggested that as the fix for the failed
+malloc issue to the missioncritical guys when they asked me about that.
+However I think I seen some overkill patch floating around, the fix is just a
+one liner:
 
-If this is not the case, then I (again) don't understand Rich's
-difficulty in running the program just after it exited.
+--- 2.4.3aa/mm/mmap.c.~1~	Fri Apr  6 05:10:16 2001
++++ 2.4.3aa/mm/mmap.c	Fri Apr  6 20:44:18 2001
+@@ -64,6 +64,7 @@
+ 	free += atomic_read(&page_cache_size);
+ 	free += nr_free_pages();
+ 	free += nr_swap_pages;
++	free += swapper_space.nrpages;
+ 	/*
+ 	 * The code below doesn't account for free space in the inode
+ 	 * and dentry slab cache, slab cache fragmentation, inodes and
 
-> (I considered moving the swap-cache page earlier in page_launder(), but
-> I'd just be happier if we could have this all in swap_writepage() and not
-> pollute any of the rest of the VM at all. Pipe-dream, maybe).
-
-Aside from the vm_enough_memory() issue, if you leave page_launder()
-to clean up, then some reordering there might well be good: isn't it
-liable to clean and free some aged but potentially useful pages (e.g.
-cached pages of live data on swap) before the entirely useless cached
-pages of dead process data?
-
-Hugh
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
