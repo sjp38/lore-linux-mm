@@ -1,69 +1,97 @@
-Date: Thu, 23 Sep 2004 11:29:54 +0200
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [PATCH 2/2] mm: eliminate node 0 bias in MPOL_INTERLEAVE
-Message-ID: <20040923092954.GA4836@wotan.suse.de>
-References: <20040923043236.2132.2385.23158@raybryhome.rayhome.net> <20040923043256.2132.93167.33080@raybryhome.rayhome.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040923043256.2132.93167.33080@raybryhome.rayhome.net>
+Message-ID: <4152F19C.4000804@sgi.com>
+Date: Thu, 23 Sep 2004 10:54:04 -0500
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/2] mm: memory policy for page cache allocation
+References: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com> <20040920205509.GF4242@wotan.suse.de> <414F6C69.8060406@mwwireless.net>
+In-Reply-To: <414F6C69.8060406@mwwireless.net>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@austin.rr.com>
-Cc: Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@osdl.org>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>, Nick Piggin <piggin@cyberone.com.au>, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>
+To: Steve Longerbeam <stevel@mwwireless.net>
+Cc: linux-mm <linux-mm@kvack.org>, lse-tech <lse-tech@lists.sourceforge.net>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 22, 2004 at 11:32:45PM -0500, Ray Bryant wrote:
-> Each of these cases potentially breaks the (assumed) invariant of
+Hi Steve,
 
-I would prefer to keep the invariant.
+Steve Longerbeam wrote:
 
-> +++ linux-2.6.9-rc2-mm1/mm/mempolicy.c	2004-09-21 17:44:58.000000000 -0700
-> @@ -435,7 +435,7 @@ asmlinkage long sys_set_mempolicy(int re
->  		default_policy[policy] = new;
->  	}
->  	if (new && new->policy == MPOL_INTERLEAVE)
-> -		current->il_next = find_first_bit(new->v.nodes, MAX_NUMNODES);
-> +		current->il_next = current->pid % MAX_NUMNODES;
+> -------- original email follows ----------
+> 
+> Hi Andi,
+> 
+> I'm working on adding the features to NUMA mempolicy
+> necessary to support MontaVista's MTA.
+> 
+> Attached is the first of those features, support for
+> global page allocation policy for mapped files. Here's
+> what the patch is doing:
+> 
+> 1. add a shared_policy tree to the address_space object in fs.h.
+> 2. modify page_cache_alloc() in pagemap.h to take an address_space
+>    object and page offset, and use those to allocate a page for the
+>    page cache using the policy in the address_space object.
+> 3. modify filemap.c to pass the additional {mapping, page offset} pair
+>    to page_cache_alloc().
+> 4. Also in filemap.c, implement generic file {set|get}_policy() methods and
+>    add those to generic_file_vm_ops.
+> 5. In filemap_nopage(), verify that any existing page located in the cache
+>    is located in a node that satisfies the file's policy. If it's not in 
+> a node that
+>    satisfies the policy, it must be because the page was allocated 
+> before the
+>    file had any policies. If it's unused, free it and goto retry_find 
+> (will allocate
+>    a new page using the file's policy). Note that a similar operation is 
+> done in
+>    exec.c:setup_arg_pages() for stack pages.
+> 6. Init the file's shared policy in alloc_inode(), and free the shared 
+> policy in
+>    destroy_inode().
+> 
+> I'm working on the remaining features needed for MTA. They are:
+> 
+> - support for policies contained in ELF images, for text and data regions.
+> - support for do_mmap_mempolicy() and do_brk_mempolicy(). Do_mmap()
+>   can allocate pages to the region before the function exits, such as 
+> when pages
+>   are locked for the region. So it's necessary in that case to set the 
+> VMA's policy
+>   within do_mmap() before those pages are allocated.
+> - system calls for mmap_mempolicy and brk_mempolicy.
+> 
+> Let me know your thoughts on the filemap policy patch.
+> 
+> Thanks,
+> Steve
+> 
+> 
 
-Please do the find_next/find_first bit here in the slow path. 
+Steve,
 
-Another useful change may be to check if il_next points to a node
-that is in the current interleaving mask. If yes don't change it.
-This way skew when interleaving policy is set often could be avoided.
+I guess I am a little lost on this without understanding what MTA is.
+Is there a design/requirements document you can point me at?
 
->  	return 0;
->  }
->  
-> @@ -714,6 +714,11 @@ static unsigned interleave_nodes(struct 
->  
->  	nid = me->il_next;
->  	BUG_ON(nid >= MAX_NUMNODES);
-> +	if (!test_bit(nid, policy->v.nodes)) {
-> +		nid = find_next_bit(policy->v.nodes, MAX_NUMNODES, 1+nid);
-> +		if (nid >= MAX_NUMNODES)
-> +			nid = find_first_bit(policy->v.nodes, MAX_NUMNODES);
-> +	}
+Also, can you comment on how the above is related to my page cache
+allocation policy patch?   Does having a global page cache allocation
+policy with a per process override satisfy your requirements at all
+or do you specifically have per file policies you want to specify?
 
-And remove it here.
+(Just trying to figure out how to work both of our requirements into
+the kernel in as simple as possible (but no simpler!) fashion.)
 
->  	next = find_next_bit(policy->v.nodes, MAX_NUMNODES, 1+nid);
->  	if (next >= MAX_NUMNODES)
->  		next = find_first_bit(policy->v.nodes, MAX_NUMNODES);
-> Index: linux-2.6.9-rc2-mm1/kernel/fork.c
-> ===================================================================
-> --- linux-2.6.9-rc2-mm1.orig/kernel/fork.c	2004-09-21 16:24:49.000000000 -0700
-> +++ linux-2.6.9-rc2-mm1/kernel/fork.c	2004-09-21 17:41:12.000000000 -0700
-> @@ -873,6 +873,8 @@ static task_t *copy_process(unsigned lon
->  			goto bad_fork_cleanup;
->  		}
->  	}
-> +	/* randomize placement of first page across nodes */
-> +	p->il_next = p->pid % MAX_NUMNODES;
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 
-Same here.
-
--Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
