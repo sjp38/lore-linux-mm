@@ -1,44 +1,45 @@
-From: Nikita Danilov <Nikita@Namesys.COM>
+Date: Thu, 05 Feb 2004 08:11:57 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat"
+Message-ID: <68430000.1075997516@[10.10.2.4]>
+In-Reply-To: <40222D4B.6050608@cyberone.com.au>
+References: <20040205014405.5a2cf529.akpm@osdl.org> <40222D4B.6050608@cyberone.com.au>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <16418.26985.77248.358318@laputa.namesys.com>
-Date: Thu, 5 Feb 2004 19:03:53 +0300
-Subject: Re: [PATCH 0/5] mm improvements
-In-Reply-To: <40226793.3000306@cyberone.com.au>
-References: <16416.64425.172529.550105@laputa.namesys.com>
-	<Pine.LNX.4.44.0402041459420.3574-100000@localhost.localdomain>
-	<16417.3444.377405.923166@laputa.namesys.com>
-	<4021A6BA.5000808@cyberone.com.au>
-	<16418.19751.234876.491644@laputa.namesys.com>
-	<40225D1F.8090103@cyberone.com.au>
-	<40225E0B.70200@cyberone.com.au>
-	<16418.24401.323448.472921@laputa.namesys.com>
-	<40226267.3080703@cyberone.com.au>
-	<16418.25964.158500.724463@laputa.namesys.com>
-	<40226793.3000306@cyberone.com.au>
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin writes:
- > 
+--Nick Piggin <piggin@cyberone.com.au> wrote (on Thursday, February 05, 2004 22:47:23 +1100):
 
-[...]
+> 
+> Andrew Morton wrote:
+> 
+>> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.2/2.6.2-mm1/
+>> 
+>> 
+>> - Merged some page reclaim fixes from Nick and Nikita.  These yield some
+>>  performance improvements in low memory and heavy paging situations.
+>> 
+>> 
+> 
+> Nikita's vm-dont-rotate-active-list.patch still has this:
+> 
+> +/* dummy pages used to scan active lists */
+> +static struct page scan_pages[MAX_NUMNODES][MAX_NR_ZONES];
+> +
+> 
+> Which probably needs its nodes and cachelines untangled.
+> Maybe it doesn't - I really don't know.
 
- > 
- > That wasn't my immediate problem, but rather than an 'if'.
- > 
- > The main thing I'm worried about is you seem to be not
- > handling the error case correctly.
+The idle toad's way is to shove it in the pgdat.
+Maybe even the zone structure?
 
-Take a look at the for-loops conditions.
-
- > 
-
-Nikita.
+M.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
