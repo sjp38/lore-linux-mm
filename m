@@ -1,59 +1,37 @@
-Received: from pub.xaonline.com (pub.online.xa.sn.cn [202.100.4.15])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA21433
-	for <linux-mm@kvack.org>; Sun, 9 May 1999 01:39:32 -0400
-Received: from pub ([10.173.17.183]) by pub.xaonline.com
-          (Netscape Messaging Server 3.6)  with ESMTP id AAA5EFC
-          for <linux-mm@kvack.org>; Sun, 9 May 1999 12:39:28 +0800
-From: "kanghua" <kanghua@pub.xaonline.com>
-Subject: Can you tell me what functions of "mm" to do  
-Date: Sun, 9 May 1999 12:37:08 +0800
+Received: from post.mail.nl.demon.net (post-10.mail.nl.demon.net [194.159.73.20])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id FAA23383
+	for <linux-mm@kvack.org>; Sun, 9 May 1999 05:19:50 -0400
+Date: Sun, 9 May 1999 11:15:30 +0200 (CEST)
+From: Rik van Riel <riel@nl.linux.org>
+Subject: Re: Can you tell me what functions of "mm" to do  
+In-Reply-To: <77271898F57.AAA5EFC@pub.xaonline.com>
+Message-ID: <Pine.LNX.4.03.9905091114120.256-100000@mirkwood.nl.linux.org>
 MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="----=_NextPart_000_01BE9A18.A7365140"
-Content-Transfer-Encoding: 7bit
-Message-ID: <77271898F57.AAA5EFC@pub.xaonline.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: kanghua <kanghua@pub.xaonline.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
+On Sun, 9 May 1999, kanghua wrote:
 
-------=_NextPart_000_01BE9A18.A7365140
-Content-Type: text/plain; charset=HZ-GB-2312
-Content-Transfer-Encoding: 7bit
+>   I puzzled by some functions in directory of "mm" in linux kernel
+> source . I know it is a hard and mass work. and to it is too
+> excessive requir. but I wish I can get your help.
 
-mr:
-  I am student in Chain ,and I am interesting in stadying " memory
-management " about linux. but my knowleage on this is so poor that I can't
-analyse it independently. therefor I am eager to get your help or that of
-anyone else .
-  I puzzled by some functions in directory of "mm" in linux kernel source .
-I know it is a hard and mass work. and to it is too excessive 
-requir. but I wish I can get your help.
-                                       kanghua 
-                                             5.10
-------=_NextPart_000_01BE9A18.A7365140
-Content-Type: text/html; charset=HZ-GB-2312
-Content-Transfer-Encoding: quoted-printable
+If you could tell us which functions cause your confusion and
+tell us the nature of the confusion, we would be able to give
+you the advice you need in order to permanently get rid of
+said confusion...
 
-<html><head></head><BODY bgcolor=3D"#FFFFFF"><p><font size=3D2 =
-color=3D"#000000" face=3D"~{KNLe~}">mr:<br> &nbsp;I am student in Chain =
-,and I am interesting in stadying &quot; memory management &quot; about =
-linux. but my knowleage on this is so poor that I can't analyse it =
-independently. therefor I am eager to get your help or that of anyone =
-else .<br> &nbsp;I puzzled by some functions in directory of =
-&quot;mm&quot; in linux kernel source . I know it is a hard and mass =
-work. and to it is too excessive <br>requir. but I wish I can get your =
-help.<br> =
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
-nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
-bsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb=
-sp;&nbsp;kanghua <br> =
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
-nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
-bsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb=
-sp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;5.10</p>
-</font></body></html>
-------=_NextPart_000_01BE9A18.A7365140--
+regards,
+
+Rik -- Open Source: you deserve to be in control of your data.
++-------------------------------------------------------------------+
+| Le Reseau netwerksystemen BV:               http://www.reseau.nl/ |
+| Linux Memory Management site:  http://humbolt.geo.uu.nl/Linux-MM/ |
+| Nederlandse Linux documentatie:          http://www.nl.linux.org/ |
++-------------------------------------------------------------------+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
