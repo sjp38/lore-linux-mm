@@ -1,46 +1,39 @@
-Date: Sat, 14 Jun 2003 01:01:39 -0700
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: 2.5.70-mm9
-Message-Id: <20030614010139.2f0f1348.akpm@digeo.com>
-In-Reply-To: <3EEAD41B.2090709@us.ibm.com>
-References: <20030613013337.1a6789d9.akpm@digeo.com>
-	<3EEAD41B.2090709@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Oliver Neukum <oliver@neukum.org>
+Subject: Re: [RFC] recursive pagetables for x86 PAE
+Date: Sat, 14 Jun 2003 13:27:48 +0200
+References: <1055540875.3531.2581.camel@nighthawk>
+In-Reply-To: <1055540875.3531.2581.camel@nighthawk>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200306141327.48649.oliver@neukum.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mingming Cao <cmm@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-Mingming Cao <cmm@us.ibm.com> wrote:
+Am Freitag, 13. Juni 2003 23:47 schrieb Dave Hansen:
+> When you have lots of tasks, the pagetables start taking up lots of
+> lowmem.  We have the ability to push the PTE pages into highmem, but
+> that exacts a penalty from the atomic kmaps which, depending on
+> workload, can be a 10-15% performance hit.
 >
-> Andrew Morton wrote:
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70-mm9/
-> > 
-> > 
-> > Lots of fixes, lots of new things.
-> >
-> 
-> Good news, Andrew. I run 50 fsx tests on ext3 filesystems on 2.5.70-mm9. 
->    The hang problem I used seen on 2.5.70-mm6 kernel is gone. The tests 
-> runs fine for more than 9 hours. (Normally the problem will occur after 
-> 7 hours run on 2.5.70-mm6 kernel).
+> The following patches implement something which we like to call UKVA.
+> It's a Kernel Virtual Area which is private to a process, just like
+> Userspace.  You can put any process-local data that you want in the
+> area.  But, for now, I just put PTE pages in there.
 
-OK.  I'm no statistician, but I'd be more comfortable with 24 hours..
+If you put only such pages there, do you really want that memory to
+be per task? IMHO it should be per memory context to aid threading
+performance.
 
-> I am running the tests on 8 way PIII 700MHz, 4G memory, with 
-> elevator=deadline.
-> 
+Secondly, doesn't this scream for using large pages?
 
-Was elevator=deadline observed to fail in earlier kernels?  If not then it
-may be an anticipatory scheduler bug.  It certainly had all the appearances
-of that.
-
-So once you're really sure that elevator=deadline isn't going to fail,
-could you please test elevator=as?
-
+	Regards
+		Oliver
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
