@@ -1,54 +1,62 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id NAA03437
-	for <linux-mm@kvack.org>; Sat, 4 Jan 2003 13:18:58 -0800 (PST)
-Message-ID: <3E174FBB.9065575A@digeo.com>
-Date: Sat, 04 Jan 2003 13:18:51 -0800
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: Re: 2.5.54-mm3
-References: <3E16A2B6.A741AE17@digeo.com> <pan.2003.01.04.15.47.43.915841@softhome.net>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Message-Id: <3.0.6.32.20030104233111.007ed3c0@boo.net>
+Date: Sat, 04 Jan 2003 23:31:11 -0500
+From: Jason Papadopoulos <jasonp@boo.net>
+Subject: [PATCH] rewritten page coloring for 2.4.20 kernel
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steven Barnhart <sbarn03@softhome.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Steven Barnhart wrote:
-> 
-> On Sat, 04 Jan 2003 01:00:38 +0000, Andrew Morton wrote:
-> 
-> > Filesystem mount and unmount is a problem.  Probably, this will not be
-> > addressed.  People who have specialised latency requirements should avoid
-> > using automounters and those gadgets which poll CDROMs for insertion events.
-> 
-> That stinks...it don't work in .54 and I'd likem to have my automounter
-> functioning again. Oh well it *is* 2.5.
+Hello. After a year in stasis, I've completely rebuilt my kernel
+patch that implements page coloring. Improvements include:
 
-autofsv4 has been working fine across the 2.5 series.  You'll need to
-send a (much) better report.
+- Page coloring is now hardwired into the kernel. The hash
+  queues now use bootmem, and page coloring is always on. The
+  patch still creates /proc/page_color for statistics, but that
+  will go away in time.
 
-> > This work has broken the shared pagetable patch - it touches the same code
-> > in many places.   I shall put Humpty together again, but will not be
-> > including it for some time.  This is because there may be bugs in this
-> > patch series which are accidentally fixed in the shared pagetable patch. So
-> > shared pagetables will be reintegrated when these changes have had sufficient
-> > testing.
-> 
-> Also for some reason I always have to do a "touch /fastboot" and boot in
-> rw mode to boot the kernel. The kernel fails on remouting fs in r-w mode.
+- Automatic detection of external cache size on many architectures.
+  I have no idea if any of this code works, since I don't have any
+  of the target machines. The preferred way to initialize the coloring
+  is by passing "page_color=<external cache size in kB>" as a boot 
+  argument.
 
-Many more details are needed.  Sufficient for a developer to be able to
-reproduce the problem.
+- NUMA-safe, discontig-safe
 
-> X also don't work saying /dev/agpgart don't exist even though it does and
-> I saw it. agpgart module is loaded..maybe it would work as built into the
-> kernel? .config attached.
+Right now the actual page coloring algorithm is the same as in previous
+patches, and performs the same. In the next few weeks I'll be trying new
+ideas that will hopefully reduce fragmentation and increase performance.
+This is an early attempt to get some feedback on mistakes I may have made.
 
-You could try statically linking it, yes.  More details are needed,
-such as a description of what hardware you have and what driver you're
-using.
+lmbench shows no real gains or losses compared to an unpatched kernel; 
+some of the page fault and protection fault times are slightly slower, but
+it's close to the rounding error over five lmbench runs. 
+
+Here are all the performance results I have for the patch:
+
+1. Compile of 2.4.20 kernel with gcc 3.1.1 on 466MHz DS10 Alphaserver with
+   2MB cache: repeatable 1% speedup (573 sec vs. 579 sec)
+
+2. 1000x1000 matrix multiply: 10% speedup on Athlon II with 512kB cache
+   (Dieter Nutzel)
+
+3. Without page coloring, the alpha gets 80% of max theoretical bandwidth
+   for working sets at most 1/8 the size of its L2 cache. For larger working
+   sets than that the achieved bandwidth is only 30%-50% of max. With page
+   coloring, the 80% figure applies to the entire L2 cache.
+
+4. FFTW (alpha): 30% speedup for 64k-point FFTs, 20% speedup for 1M-point FFTs 
+
+Patch is available at
+
+www.boo.net/~jasonp/page_color-2.4.20-20030104.patch
+
+Thanks in advance for any feedback.
+jasonp
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
