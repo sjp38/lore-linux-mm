@@ -1,29 +1,26 @@
-Date: Tue, 12 Oct 2004 11:27:20 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
+Date: Tue, 12 Oct 2004 08:38:33 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: NUMA: Patch for node based swapping
-In-Reply-To: <Pine.LNX.4.58.0410120751010.11558@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.44.0410121126390.13693-100000@chimarrao.boston.redhat.com>
+In-Reply-To: <1513170000.1097594210@[10.10.2.4]>
+Message-ID: <Pine.LNX.4.58.0410120838100.12195@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0410120751010.11558@schroedinger.engr.sgi.com>
+ <1513170000.1097594210@[10.10.2.4]>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
 Cc: linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 12 Oct 2004, Christoph Lameter wrote:
+On Tue, 12 Oct 2004, Martin J. Bligh wrote:
 
-> The minimum may be controlled through /proc/sys/vm/node_swap.
-> By default node_swap is set to 100 which means that kswapd will be run on
-> a zone if less than 10% are available after allocation.
+> PS, might be possible to add a mechanism to ask kswapd to reclaim some
+> cache pages without doing swapout, but I fear of messing with the delicate
+> balance of the universe - cache vs user.
 
-That sounds like an extraordinarily bad idea for eg. AMD64
-systems, which have a very low numa factor.
-
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+That is also my concern. I think the patch is useful to address the
+immediate issue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
