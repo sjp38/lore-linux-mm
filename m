@@ -1,56 +1,53 @@
-Date: Wed, 9 Mar 2005 11:32:27 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: ia64 needs to shake memory from quicklists when there is memory
- pressure.
-Message-Id: <20050309113227.3501fb76.akpm@osdl.org>
-In-Reply-To: <20050309170915.GA1583@lnx-holt.americas.sgi.com>
-References: <20050309170915.GA1583@lnx-holt.americas.sgi.com>
+Subject: RE: [Suspend2-devel] How to reduce page cache?
+From: Nigel Cunningham <ncunningham@cyclades.com>
+Reply-To: ncunningham@cyclades.com
+In-Reply-To: <000001c5251e$f52ab2f0$59f22e93@PC>
+References: <000001c5251e$f52ab2f0$59f22e93@PC>
+Content-Type: text/plain; charset=UTF-8
+Message-Id: <1110424911.8870.80.camel@desktop.cunningham.myip.net.au>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Thu, 10 Mar 2005 14:21:51 +1100
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mm@kvack.org
+To: =?UTF-8?Q?=EC=A0=95=EC=A4=80?= =?UTF-8?Q?=EB=AA=A9?= Chun-Mok Chung <chunmok@davinci.snu.ac.kr>, Linux Memory Management <linux-mm@kvack.org>
+Cc: 'Suspend2 Development' <suspend2-devel@lists.suspend2.net>
 List-ID: <linux-mm.kvack.org>
 
-Robin Holt <holt@sgi.com> wrote:
->
-> Andrew,
-> 
-> I am searching for some direction.  I am in the process of pushing
-> changes to the ia64 page table cache (quicklist) code.  One result of
-> the changes is I end up changing the algorithm for freeing pages from
-> the quicklist being based on a boot-time calculation of a percentage of
-> total system memory to a percentage of memory free on the node (whole
-> system for non-numa) at the time the shrink call is made.
-> 
-> Right now, there are two places that the shrink is invoked.  One is
-> from the tlb_finish_mmu() code which would be immediately after the only
-> place that items are added to the list.  The other is from cpu_idle which
-> appears to be a carry over from when x86 code was pulled over to ia64.
-> The purpose for that appears to have been making the sysctl (which has
-> been removed) take effect in situations where a cpu is never calling
-> tlb_finish_mmu().
-> 
-> The "ideal" would be to have a node aware slab cache.  Since that
-> is probably a long time coming, I was wondering if there would be
-> any possibility of getting some sort of hook into wakeup_kswapd(),
-> kswapd(), or balance_pgdat().  Since the quicklists are maintained per
-> cpu, we would need to perform an smp_call_function_single() for other
-> cpus on this node.  Is there some mechanism in place already to handle
-> anything similar to this?  Is there a better way to accomplish this?
-> Can you offer any suggestions?
-> 
+Hi.
 
-Suggest you hook into the existing set_shrinker() API.
+On Thu, 2005-03-10 at 14:12, i ?i??ea(C) Chun-Mok Chung wrote:
+> You are right. If I don't reduce pageset2 size, swsusp2 works well.
+> And image_size_limit function works well, too.
+> 
+> The problem occurs because of my additional codes.
+> I tried reducing pageset2 to enhance resume performance by reducing disk
+> I/O time.
+> Because my box uses ramdisk, shrink_cache() doesn't write-back dirty page
+> to disk and the cache size decrease only a little.
+> So, I willing to release dirty pages in inactive_list which are mapped to
+> program file and not used any more.
 
-Then, in the shrinker callback, perform reclaim of the calling CPU's
-node's pages.
+Ah. Now I'm with you.
 
-Try to return the right numbers from the shrinker callback so that
-shrink_slab() will keep this cache balanced wrt all the other ones which it
-is managing.
+I wonder whether you'll get better help by talking to the guys who
+really understand the memory manager. They're accessible via the
+Linux-MM mailing list, which I've cc'd.
+
+Guys, Chun-mok is using a 2.4.19-rmk7-pxa2 kernel. Are you able to give
+him some suggestions?
+
+Regards,
+
+Nigel
+-- 
+Nigel Cunningham
+Software Engineer, Canberra, Australia
+http://www.cyclades.com
+Bus: +61 (2) 6291 9554; Hme: +61 (2) 6292 8028;  Mob: +61 (417) 100 574
+
+Maintainer of Suspend2 Kernel Patches http://suspend2.net
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
