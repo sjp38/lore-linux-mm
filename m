@@ -1,59 +1,48 @@
-Date: Wed, 4 Jul 2001 22:55:31 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [wip-PATCH] rfi: PAGE_CACHE_SIZE suppoort
-In-Reply-To: <Pine.LNX.4.33.0107050054470.5548-100000@toomuch.toronto.redhat.com>
-Message-ID: <Pine.LNX.4.33.0107042247230.21720-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from www21.ureach.com (IDENT:root@www21.ureach.com [172.16.2.49])
+	by ureach.com (8.9.1/8.8.5) with ESMTP id HAA14300
+	for <linux-mm@kvack.org>; Thu, 5 Jul 2001 07:57:50 -0400
+Date: Thu, 5 Jul 2001 07:57:50 -0400
+Message-Id: <200107051157.HAA10231@www21.ureach.com>
+From: Kapish K <kapish@ureach.com>
+Reply-to: <kapish@ureach.com>
+Subject: on MAXMEM_PFN and VMALLOC_RESERVE
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ben LaHaise <bcrl@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alexander Viro <viro@math.psu.edu>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Jul 2001, Ben LaHaise wrote:
->
-> I attacked the PAGE_CACHE_SIZE support in the kernel for the last few days
-> in an attempt to get multipage PAGE_CACHE_SIZE support working and below
-> is what I've come up with.  It currently boots to single user read only,
-> doesn't quite have write support fixed properly yet, but is going pretty
-> well.  The reason for sending this out now is the question of what to do
-> about kmap() support.
+Hello,
+ What does this code ( in arch/i386/kernel/setup.c ), actually 
+imply?
+/* 
+ *Determine low and high memory ranges: 
+ */
 
-I suggest making kmap _always_ map the "biggest" chunk of physical memory
-that the kernel ever touches at a time.
+max_low_pfn=max_pfn;
+if ( max_low_pfn > MAXMEM_PFN ){
+      max_low_pfn = MAXMEM_PFN;
+#ifndef CONFIG_HIGHMEM
+    /* Maximum memory usable is what is directlt addressable */
+Now here, what does this imply, and the significance of 
+VMALLOC_RESERVE in the MAXMEM_PFN calculations ( as in setup.c ) 
+:MAXMEM_PFN PFN_DOWN(MAXMEM)
+where MAXMEM = (unsigned long) ( -PAGE_OFFSET - VMALLOC_RESERVE 
+)
+Also, what is the significance of this in terms of physical RAM 
+sizes of 128 mb or more ( even greater than 1 GB ). I assume 
+that still will not be high mem.
+Any hints or pointers would be welcome.
+Thanks
 
-So I would _strongly_ suggest that you make the kmap granularity be at
-_least_ PAGE_CACHE_SIZE. For debugging reasons I would suggest you have a
-separate "PAGE_KMAP_SIZE" thing, so that you can get the kmap code working
-independently of the PAGE_CACHE_SIZE thing.
 
-Once you have the guarantee that "kmap(page)" will actually end up mapping
-the (power-of-two-aligned) power-of-two-sized PAGE_KMAP_SIZE around the
-page, the loops should all go away, and you should be able to use kmap()
-the same way you've always used it (whether the user actually cares about
-just one page or not ends up being a non-issue).
 
-> -	filp->f_pos = (n << PAGE_CACHE_SHIFT) | offset;
-> +	filp->f_pos = (n << PAGE_SHIFT) | offset;
-
-You're definitely doing something wrong here.
-
-You should _never_ care about PAGE_SHIFT, except in the case of a mmap()
-where you obviously end up mapping in "partial" page-cache pages.  I
-suspect you're doing all this exactly because of the kmap issue, but you
-really shouldn't need to do it.
-
-The whole point with having a bigger page-cache-size is to be able to
-process bigger chunks at a time.
-
-Now, one thing you might actually want to look into is to make the dirty
-bit be a "dirty bitmap", so that you have the option of marking things
-dirty at a finer granularity. But that, I feel, is after you've gotten the
-basic stuff working with a PAGE_CACHE_SIZE dirty granularity.
-
-		Linus
-
+________________________________________________
+Get your own "800" number
+Voicemail, fax, email, and a lot more
+http://www.ureach.com/reg/tag
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
