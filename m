@@ -1,75 +1,83 @@
-From: volodya@mindspring.com
-Date: Fri, 23 Jun 2000 11:36:49 -0400 (EDT)
-Reply-To: volodya@mindspring.com
-Subject: Re: [RFC] RSS guarantees and limits
-In-Reply-To: <Pine.LNX.4.21.0006231045220.4551-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.20.0006231126110.1106-100000@node2.localnet.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 23 Jun 2000 14:32:50 -0300
+From: Rodrigo Castro <rcastro@linux.ime.usp.br>
+Subject: Re: Problems in compressed cache development
+Message-ID: <20000623143250.A25847@linux.ime.usp.br>
+References: <20000623113239.A685@linux.ime.usp.br>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20000623113239.A685@linux.ime.usp.br>; from Rodrigo Castro on Fri, Jun 23, 2000 at 11:32:17AM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Ed Tomlinson <tomlins@cam.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-What about making some userspace hooks available and leaving the task to a
-daemon ?
+	I used GFP_ATOMIC flag to allocate with get_free_page (and
+when I tried kmalloc). 
+	Now I tried that with GFP_KERNEL and it worked!  We couldn't
+understand why it did work. I am calling my function (compressed_copy)
+from try_to_free_pages() that is a function from kswapd kernel
+thread. By what we understood (reading some documentation about it),
+it could result in a deadlock, because we would be trying to get a
+free page and how the number of free pages (nr_free_page) was smaller
+than the water mark (something like min_free_pages) and it wouldnt
+have a concurrent process to free pages to our allocation. What is
+wrong with our reasoning?
 
-  * pseudo-single mode: when memory pressure reserver a fixeed amount of
-    for root user owned fixed list of processes
-  * simple swapout algorithm (like in 2.0.x) by default
-  * hooks to allow a userspace program do all clever things as needed.
-    (partially mlocked userspace program ?)
+[]'s
+-- 
+Rodrigo Castro   <rcastro@linux.ime.usp.br>
+Computer Science undergraduate student - University of Sao Paulo
 
-why: 
-  * it was a while this discussion is going on, a userspace solution will
-    allow more space for experimentation without risk of corrupting kernel
-    data 
+Show me a sane man and I will cure him for you.
+                -- C.G. Jung
 
-  * isolate data collection and memory reclaim interfaces (I admit I am
-    vague on this part...) from the logic that takes decisiions
-
-  * swapping data out is expensive anyway (but reclaimation in read-only
-    mmaped files is not...)  
- 
-  * userspace daemons can differ for different setups. What is more one 
-    can direct them to do something specific when, say, running squid,
-    apache or something very particular..
-
-  * when we know what to do and what works merge them back into kernel 
-    (perhaps as kmod or perhaps as khttpd)
-
-
-                          Vladimir Dergachev
-
-
-On Fri, 23 Jun 2000, Rik van Riel wrote:
-
-> On Thu, 22 Jun 2000, Ed Tomlinson wrote:
+On Fri, Jun 23, 2000 at 11:32:17AM -0300, Rodrigo Castro wrote:
+> Hello,
 > 
-> > Just wondering what will happen with java applications?  These
-> > beasts typically have working sets of 16M or more and use 10-20
-> > threads.  When using native threads linux sees each one as a
-> > process.  They all share the same memory though.
+> 	I am an undergraduate student at University of Sao Paulo,
+> Brazil and I am working on a compressed cache implementation for Linux
+> kernel. Our group (there are two more students plus two professors) is
+> working on version 2.2.14 and we are just crawling in our
+> development. We've been spending such a long time studying memory
+> management system and we've started working on source code for about
+> two months. We implemented some functions to initialize a slab cache,
+> this cache is supposed to be the heart of our system, and a function
+> that copies the first ten pages that goes to swap (yeah, the first 10
+> that go to disk). We did that by allocating a page using get_free_page
+> and copying memory data with copy_page macro. Well, everything worked
+> just fine until we put that to work. Our test machine had 22 Mb of
+> free memory. We allocated 20 Mb with a test program, and after that,
+> allocated 3 Mb in order to force swapping pages. What happened is our
+> second test program (the one that allocated 3 Mb) has been killed by
+> VM (message from kern.log: VM: killing process test). Well, we
+> replaced get_free_page by kmalloc and we had the same problem. A
+> sudden idea came to our mind that we should be updating some variable
+> related to the free pages number, but we couldn't find which one would
+> be this (these) variable(s). Well, I am writing to you 'cause I would
+> like to know if you could have an idea of what may be happening, or
+> what we could do to find a solution to that. We've been studying the
+> code, and reading many books, but unsuccesfully. Could you give us a
+> hand?
 > 
-> Ahh, but these limits are of course applied per _MM_, not
-> per thread ;)
+> PS: We changed and allocated the 10 pages at initialization. Using
+> that, our test program worked, but it would be really useful to know
+> why we can't make it working allocating dynamically. 
+> PPS: After killing our process, if we run it again, trying to allocate
+> the 3 Mb, it works! Oh, the problem procedure is reproducible.
 > 
-> regards,
+> Thank you in advance,
+> -- 
+> Rodrigo Castro   <rcastro@linux.ime.usp.br>
+> Computer Science undergraduate student - University of Sao Paulo
 > 
-> Rik
-> --
-> The Internet is not a network of computers. It is a network
-> of people. That is its real strength.
-> 
-> Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-> http://www.conectiva.com/		http://www.surriel.com/
+> Show me a sane man and I will cure him for you.
+>                 -- C.G. Jung
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
 > the body to majordomo@kvack.org.  For more info on Linux MM,
 > see: http://www.linux.eu.org/Linux-MM/
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
