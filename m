@@ -1,59 +1,43 @@
-Message-Id: <l03130302b72ad6e553b5@[192.168.239.105]>
-In-Reply-To: <200105180620.f4I6KNd05878@earth.backplane.com>
-References: 
-        <Pine.LNX.4.33.0105161439140.18102-100000@duckman.distro.conectiva>
- <200105161754.f4GHsCd73025@earth.backplane.com>
- <3B04BA0D.8E0CAB90@mindspring.com>
+Date: Fri, 18 May 2001 12:53:54 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: Running out of vmalloc space
+Message-ID: <20010518125354.D8080@redhat.com>
+References: <3B04069C.49787EC2@fc.hp.com> <20010517183931.V2617@redhat.com> <3B045546.312BA42E@fc.hp.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Date: Fri, 18 May 2001 14:49:09 +0100
-From: Jonathan Morton <chromi@cyberspace.org>
-Subject: Re: on load control / process swapping
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3B045546.312BA42E@fc.hp.com>; from dp@fc.hp.com on Thu, May 17, 2001 at 04:48:38PM -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Dillon <dillon@earth.backplane.com>, Terry Lambert <tlambert2@mindspring.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Charles Randall <crandall@matchlogic.com>, Roger Larsson <roger.larsson@norran.net>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
+To: David Pinedo <dp@fc.hp.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->    The problem is not the resident set size, it's the
->    seeking that the program is causing as a matter of
->    course.
+Hi,
 
-The RSS of 'ld' isn't the problem, no.  However, the working-set idea would
-place an effective and sensible limit of the size of the disk cache, by
-ensuring that other apps aren't being paged out beyond their non-working
-sets.  Does this make sense?
+On Thu, May 17, 2001 at 04:48:38PM -0600, David Pinedo wrote:
 
-FWIW, I've been running with a 2-line hack in my kernel for some weeks now,
-which essentially forces the RSS of each process not to be forced below
-some arbitrary "fair share" of the physical memory available.  It's not a
-very clean hack, but it improves performance by a very large margin under a
-thrashing load.  The only problem I'm seeing is a deadlock when I run out
-of VM completely, but I think that's a separate issue that others are
-already working on.
+> Unfortunately, yes. It has to be in the kernel's virtual address space,
+> because the kernel graphics driver initiates DMAs to and from the
+> graphics board, which can only be done from the kernel using locked down
+> physical memory.
 
-To others: is there already a means whereby we can (almost) calculate the
-WS of a given process?  The "accessed" flag isn't a good one, but maybe the
-'age' value is better.  However, I haven't quite clicked on how the 'age'
-value is affected in either direction.
+Why does it have to be virtually contiguous?  If you are using vmalloc
+then you are necessarily using physically-discontiguous space.  If you
+are doing DMA on that space then the kernel isn't accessing it
+virtually at all, except perhaps to populate it, which can be done
+trivially page by page without having the space virtually contiguous.
 
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
-big-mail: chromatix@penguinpowered.com
-uni-mail: j.d.morton@lancaster.ac.uk
+It is often a lot easier on the kernel programmer if the addresses
+are virtually contiguous, but it is very rarely necessary.  It is
+trivial to create an "offset_to_virt" helper function which translates
+an offset within one of your pci regions to a virtual kernel address
+by indexing a physical page location array which contains the list of
+allocated pages.  The *only* thing which is measurably more difficult
+without vmalloc is crossing page boundaries.
 
-The key to knowledge is not to rely on people to teach you it.
-
-Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
-
------BEGIN GEEK CODE BLOCK-----
-Version 3.12
-GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
-PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
------END GEEK CODE BLOCK-----
-
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
