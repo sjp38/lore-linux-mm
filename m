@@ -1,65 +1,44 @@
-Received: from parora (parora [192.168.8.140])
-	by mailhost.baypackets.com (8.9.3+Sun/8.9.3) with ESMTP id PAA13216
-	for <linux-mm@kvack.org>; Wed, 26 May 2004 15:07:28 +0530 (IST)
-From: "Pankaj" <pankaj.arora@baypackets.com>
-Subject: Memory problem
-Date: Wed, 26 May 2004 15:44:17 +0530
-Message-ID: <NIBBLBNEDKOCMIIGKJCHMEJICAAA.pankaj.arora@baypackets.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from www1906.dulles19-verio.com (161.58.134.137)
+	by mail19g.dulles19-verio.com (RS ver 1.0.94vs) with SMTP id 4-0668111109
+	for <linux-mm@kvack.org>; Thu, 27 May 2004 08:31:49 -0400 (EDT)
+Date: Thu, 27 May 2004 08:31:50 -0400 (EDT)
+Message-Id: <200405271231.i4RCVoCR1121769@www1906.dulles19-verio.com>
+Subject: Constantin Timoc
+From: newsletter@Timoc-Presedinte.com
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Dragi compatrioti,
 
-I doing some performance test on my application. Platform is
+Numele meu este Constantin Timoc. 
 
-Red Hat Enterprise Linux ES release 3 (Taroon)
-Kernel 2.4.21-4.ELsmp on an i686
+Candidez la postul de presedinte al Romaniei pentru a asigura tuturor cetatenilor locuri de munca cat mai bine platite, pentru a distruge coruptia care paralizeaza intreaga societate si pentru a accelera aderarea tarii noastre la Uniunea Europeana.
 
-I have done some load test for my application and afterwards closed my
-application. Now
-no application is running on my machine. Following is output of my
-/proc/meminfo
+Fac apel catre toti cetatenii sa aleaga presedinte al Romaniei un candidat care e cinstit, care are credibilitatea de a atrage investitii straine si a obtine ajutoare si imprumuturi externe necesare pentru a salva Romania din actuala criza economica si care are o experienta bogata in domeniul organizarii statului democratic.
 
-[root@bplinux89 rsinsp]# cat /proc/meminfo
-        total:    used:    free:  shared: buffers:  cached:
-Mem:  4224958464 2294509568 1930448896        0 200970240 1705332736
-Swap: 2146787328        0 2146787328
-MemTotal:      4125936 kB
-MemFree:       1885204 kB
-MemShared:           0 kB
-Buffers:        196260 kB
-Cached:        1665364 kB
-SwapCached:          0 kB
-Active:         473520 kB
-ActiveAnon:      40996 kB
-ActiveCache:    432524 kB
-Inact_dirty:    118716 kB
-Inact_laundry: 1222752 kB
-Inact_clean:     86976 kB
-Inact_target:   380392 kB
-HighTotal:     3276716 kB
-HighFree:      1689640 kB
-LowTotal:       849220 kB
-LowFree:        195564 kB
-SwapTotal:     2096472 kB
-SwapFree:      2096472 kB
-HugePages_Total:     0
-HugePages_Free:      0
-Hugepagesize:     2048 kB
+Va invit sa participati anul acesta la salvarea Romaniei si sa votati TIMOC-PRESEDINTE
 
+Cu cele mai sincere si alese ganduri de bine si succes!
 
-I am really worried about high Inact_laundry and cached memory size. Is it
-normal?
+Constantin Timoc                http://www.timoc-presedinte.com
 
-Regards,
-Pankaj.
+Acest mesaj va este trimis deoarece adresa dvs a fost gasita pe un site public* sau ati optat sa primiti informatii despre Constantin Timoc. 
+ 
+Mesajul nu poate fi considerat 'spam' deoarece contine toate informatiile de contact ale expeditorului.
+ 
+Apreciem si intelegem intimitatea dumneavoastra si ne cerem scuze daca acest mesaj a ajuns din greseala la dumneavoastra. Pentru a evita alte neplaceri va rugam sa precizati si adresele de e-mail alternative, care vreti sa fie scoase din baza de date, altele decat adresa de e-mail la care ati primit acest mesaj.
+ 
+Va multumim.
+ 
+*Nota: un site public reprezinta site-uri ale camerelor de comert, cataloage online sau alte site-uri de interes general unde adresa dvs. de e-mail era publicata.
 
+Daca nu doriti sa mai primiti informatii despre Constantin Timoc va rugam sa faceti click pe link-ul de mai jos
+
+Click the link below to unsubscribe
+
+http://www.timoc-presedinte.com/newsletter?address=linux-mm@kvack.org
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
