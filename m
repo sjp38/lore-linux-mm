@@ -1,7 +1,7 @@
-Message-Id: <200405222202.i4MM2Tr11718@mail.osdl.org>
-Subject: [patch 04/57] vmscan: revert may_enter_fs changes
+Message-Id: <200405222203.i4MM31r12291@mail.osdl.org>
+Subject: [patch 05/57] Make sync_page use swapper_space again
 From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:01:50 -0700
+Date: Sat, 22 May 2004 15:02:13 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
@@ -9,60 +9,51 @@ Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
 
-Fix up the "may we call writepage" logic for the swapcache changes.
+Revert recent changes to sync_page().  Now that page_mapping() returns
+&swapper_space for swapcache pages we don't need to test for PageSwapCache in
+sync_page().
 
 
 ---
 
- 25-akpm/mm/vmscan.c |   13 +++++--------
- 1 files changed, 5 insertions(+), 8 deletions(-)
+ 25-akpm/mm/filemap.c    |   11 +++++------
+ 25-akpm/mm/swap_state.c |    1 +
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
-diff -puN mm/vmscan.c~vmscan-revert-may_enter_fs-changes mm/vmscan.c
---- 25/mm/vmscan.c~vmscan-revert-may_enter_fs-changes	2004-05-22 14:56:21.707791440 -0700
-+++ 25-akpm/mm/vmscan.c	2004-05-22 14:56:21.711790832 -0700
-@@ -247,7 +247,6 @@ static int
- shrink_list(struct list_head *page_list, unsigned int gfp_mask,
- 		int *nr_scanned, int do_writepage)
+diff -puN mm/filemap.c~sync_page-use-swapper-space mm/filemap.c
+--- 25/mm/filemap.c~sync_page-use-swapper-space	2004-05-22 14:56:21.856768792 -0700
++++ 25-akpm/mm/filemap.c	2004-05-22 14:59:42.131322432 -0700
+@@ -121,14 +121,13 @@ static inline int sync_page(struct page 
  {
--	struct address_space *mapping;
- 	LIST_HEAD(ret_pages);
- 	struct pagevec freed_pvec;
- 	int pgactivate = 0;
-@@ -257,6 +256,7 @@ shrink_list(struct list_head *page_list,
+ 	struct address_space *mapping;
  
- 	pagevec_init(&freed_pvec, 1);
- 	while (!list_empty(page_list)) {
-+		struct address_space *mapping;
- 		struct page *page;
- 		int may_enter_fs;
- 		int referenced;
-@@ -284,9 +284,6 @@ shrink_list(struct list_head *page_list,
- 			goto activate_locked;
- 		}
++	/*
++	 * FIXME, fercrissake.  What is this barrier here for?
++	 */
+ 	smp_mb();
+ 	mapping = page_mapping(page);
+-	if (mapping) {
+-		if (mapping->a_ops && mapping->a_ops->sync_page)
+-			return mapping->a_ops->sync_page(page);
+-	} else if (PageSwapCache(page)) {
+-		swap_unplug_io_fn(NULL, page);
+-	}
++	if (mapping && mapping->a_ops && mapping->a_ops->sync_page)
++		return mapping->a_ops->sync_page(page);
+ 	return 0;
+ }
  
--		mapping = page_mapping(page);
--		may_enter_fs = (gfp_mask & __GFP_FS);
--
- #ifdef CONFIG_SWAP
- 		/*
- 		 * Anonymous process memory has backing store?
-@@ -300,12 +297,12 @@ shrink_list(struct list_head *page_list,
- 				goto activate_locked;
- 			page_map_lock(page);
- 		}
--		if (PageSwapCache(page)) {
--			mapping = &swapper_space;
--			may_enter_fs = (gfp_mask & __GFP_IO);
--		}
- #endif /* CONFIG_SWAP */
+diff -puN mm/swap_state.c~sync_page-use-swapper-space mm/swap_state.c
+--- 25/mm/swap_state.c~sync_page-use-swapper-space	2004-05-22 14:56:21.857768640 -0700
++++ 25-akpm/mm/swap_state.c	2004-05-22 14:59:40.057637680 -0700
+@@ -23,6 +23,7 @@
+  */
+ static struct address_space_operations swap_aops = {
+ 	.writepage	= swap_writepage,
++	.sync_page	= block_sync_page,
+ 	.set_page_dirty	= __set_page_dirty_nobuffers,
+ };
  
-+		mapping = page_mapping(page);
-+		may_enter_fs = (gfp_mask & __GFP_FS) ||
-+			(PageSwapCache(page) && (gfp_mask & __GFP_IO));
-+
- 		/*
- 		 * The page is mapped into the page tables of one or more
- 		 * processes. Try to unmap it here.
 
 _
 --
