@@ -1,77 +1,102 @@
-Received: from scs.ch (nutshell.scs.ch [172.18.1.10])
-	by mail.scs.ch (8.11.6/8.11.6) with ESMTP id g0I9Ds124274
-	for <linux-mm@kvack.org>; Fri, 18 Jan 2002 10:13:54 +0100
-Message-ID: <3C47E752.FAF5AA48@scs.ch>
-Date: Fri, 18 Jan 2002 10:13:54 +0100
-From: Martin Maletinsky <maletinsky@scs.ch>
+Date: Fri, 18 Jan 2002 11:06:45 +0100 (CET)
+From: Roy Sigurd Karlsbakk <roy@karlsbakk.net>
+Subject: Re: [PATCH *] rmap VM 11c
+In-Reply-To: <012d01c19fb7$ba1cb680$02c8a8c0@kroptech.com>
+Message-ID: <Pine.LNX.4.30.0201181106230.10588-100000@mustard.heime.net>
 MIME-Version: 1.0
-Subject: timing of access to I/O memory
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Adam Kropelin <akropel1@rochester.rr.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+This looks a little like my problem...
 
-I am writing a driver for a PCI device. In order to start a certain functionality on the device,
-I need to successively write two (different) values (value1 and value2) into a register. In
-addition the register must hold value1 for (at least) x microseconds, before value2 is written
-into the register.
-The PCI device maps the register into an I/O memory region, thus the register is accessible through I/O memory, which the driver maps by an ioremap_nocache() call into the
-kernel's virtual address space (i.e. the
-driver can write to the register by writing to an address reg1).
+See http://karlsbakk.net/dev/kernel/vm-fsckup.txt
 
-I first thought the following lines of code should do the job:
-  ....
-  writeb(value1, reg1);
-  /* a memory barrier to ensure the write of value1 completes befor a subsequent write is
-      executed */
-  wmb();
-  /* a delay to ensure that value1 is in the register for at least x microseconds, before being
-      overwritten by value2 */
-  udelay(x);
-  writeb(value2, reg1);
-  ....
-However I am not quite sure, if this works correctly, for the following reason:
-Although the wmb() guarantees that write of value1 will complete, before value2 is written
-(see the description of memory barriers in Rubini&Corbet's Device Driver Book, p. 228),
-there is no guarantee that the write of value1 will complete, before execution of udelay() starts, nor that the execution of udelay() completes before value2 is written
-into the register.
-Thus there is no guarantee that value1 will have been in the register for at least x microseconds,
-before it is overwritten by value2.
-I.e. I fear the following scenario:
---> (time flows in this direction)
-write of value1          [start]------------[completion]
-execution of udelay()              [start]-------------[completion]
-write of value2                                  [start]----------[completion]
+On Thu, 17 Jan 2002, Adam Kropelin wrote:
 
-Now my questions:
-- Do the above lines of code guarantee a correct timing (and if so, why - i.e. where does the guarantee come from, that udelay() is executed after completion of the first
-writeb(), and before
-the completion of the second writeb())?
-- If correct timing is not guaranteed by the above lines of code, how can correct timing be achieved?
-- How is the udelay() function implemented (in particular does it do any read/write memory access)?
-
-Thank you in advance,
-regards
-Martin
-
-P.S. Please put me cc on your reply, since I am not in the list.
+> Rik van Riel <riel@conectiva.com.br>:
+> > For this release, IO tests are very much welcome ...
+>
+> Results from a run of my large FTP transfer test on this new release are...
+> interesting.
+>
+> Overall time shows an improvement (6:28), though not enough of one to take the
+> lead over 2.4.13-ac7.
+>
+> More interesting, perhaps, is the vmstat output, which shows this at first:
+>
+>    procs                      memory    swap          io     system         cpu
+>  r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+>  0  0  0      0  47816   2992  84236   0   0    10     0 4462   174   1  33  66
+>  1  0  0      0  41704   3004  89320   0   0    10     0 4322   167   0  33  67
+>  0  1  0      0  36004   3012  94064   0   0     9   877 4030   163   1  30  69
+>  0  1  1      0  33536   3016  96112   0   0     4  1616 1724    62   0  18  82
+>  0  1  2      0  31068   3020  98160   0   0     4  2048 1729    52   1  15  83
+>  0  1  1      0  28608   3024 100208   0   0     4  2064 1735    56   1  16  82
+>  0  1  1      0  26144   3028 102256   0   0     4  2048 1735    50   0  16  84
+>  0  1  1      0  23684   3032 104304   0   0     5  2048 1713    45   1  15  84
+>  0  1  1      0  21216   3036 106352   0   0     3  2064 1723    52   1  14  85
+>  1  0  2      0  18728   3040 108420   0   0     5  2048 1750    59   0  17  82
+>  0  1  1      0  16292   3044 110448   0   0     3  2064 1722    60   0  15  84
+>  1  0  1      0  13824   3048 112572   0   0     5  2032 1800    61   0  17  83
+>  1  0  1      0  11696   3052 114548   0   0     4  2528 1658    47   0  14  86
+>  1  0  1      0   9232   3056 116596   0   0     4  2048 1735    51   1  13  86
+>  0  1  2      0   6808   3060 118640   0   0     3  1584 1729    84   0  16  84
+>
+> (i.e., nice steady writeout reminiscent of -ac)
+>
+> ...but after about 20 seconds, behavior degrades again:
+>
+>    procs                      memory    swap          io     system         cpu
+>  r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+>  0  1  1      0   1500   3124 123268   0   0     0  3788  534    20   0   8  92
+>  0  1  1      0   1500   3124 123268   0   0     0     0  107    12   0   0 100
+>  0  1  1      0   1500   3124 123268   0   0     0     0  123    10   0   0 100
+>  0  1  1      0   1500   3124 123268   0   0     0  3666  123    12   0   2  97
+>  0  1  1      0   1500   3124 123268   0   0     1   259  109    12   0   8  92
+>  1  0  0      0   1404   3124 123360   0   0     2     0 1078    28   0   7  92
+>  1  0  0      0   1404   3136 123444   0   0    11     0 4560   178   0  39  61
+>  1  0  0      0   1404   3148 123448   0   0    10     0 4620   175   1  34  64
+>  0  0  0      0   1312   3156 123568   0   0    11     0 4276   181   0  36  64
+>  0  0  0      0   1404   3168 123492   0   0    10     0 4330   185   1  30  68
+>  0  1  1      0   1404   3172 123488   0   0     4  6864 1742    69   0  17  83
+>  0  1  1      0   1408   3172 123488   0   0     0     0  111    12   0   0  99
+>  0  1  1      0   1408   3172 123488   0   0     0     0  126     8   0   0 100
+>  0  1  1      0   1404   3172 123480   0   0     0  7456  518    18   0  10  90
+>  0  1  1      0   1404   3172 123480   0   0     0     0  112    10   0   0 100
+>  0  1  1      0   1404   3172 123480   0   0     0     0  123     9   0   0 100
+>  0  1  1      0   1404   3172 123476   0   0     1  7222  120    16   0   5  95
+>  0  1  1      0   1404   3172 123476   0   0     0     0  106     8   0   0 100
+>  0  1  1      0   1524   3172 123352   0   0     0  3790  519    18   0   8  92
+>  0  1  1      0   1524   3172 123352   0   0     0     0  113     8   0   0 100
+>  0  1  1      0   1524   3172 123352   0   0     0     0  125     8   0   0 100
+>
+> Previous tests showed fluctuating bo values from the start; this is the first
+> time I've seen them steady, so something in the patch definitely is showing
+> through here.
+>
+> I've a couple more tests to run, such as combining -rmap11c with cpqarray and
+> eepro driver updates from -ac. I'll keep you posted.
+>
+> --Adam
+>
+>
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+>
 
 --
-Supercomputing System AG          email: maletinsky@scs.ch
-Martin Maletinsky                 phone: +41 (0)1 445 16 05
-Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
-CH-8005 Zurich
+Roy Sigurd Karlsbakk, MCSE, MCNE, CLS, LCA
 
+Computers are like air conditioners.
+They stop working when you open Windows.
 
---
-Kernelnewbies: Help each other learn about the Linux kernel.
-Archive:       http://mail.nl.linux.org/kernelnewbies/
-IRC Channel:   irc.openprojects.net / #kernelnewbies
-Web Page:      http://www.kernelnewbies.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
