@@ -1,36 +1,39 @@
-Date: Tue, 4 Jan 2005 17:26:59 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: Prezeroing V3 [1/4]: Allow request for zeroed memory
-In-Reply-To: <Pine.LNX.4.58.0501041715280.2222@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.58.0501041724050.4111@ppc970.osdl.org>
-References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com>
-  <41C20E3E.3070209@yahoo.com.au>  <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
-  <Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0412231132170.31791@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0412231133130.31791@schroedinger.engr.sgi.com>
- <Pine.GSO.4.61.0501011123550.27452@waterleaf.sonytel.be>
- <Pine.LNX.4.58.0501041510430.1536@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0501041512450.1536@schroedinger.engr.sgi.com>
- <1104882342.16305.12.camel@localhost> <Pine.LNX.4.58.0501041715280.2222@schroedinger.engr.sgi.com>
+Subject: Re: page migration patchset
+References: <41DB35B8.1090803@sgi.com>
+From: Andi Kleen <ak@muc.de>
+Date: Wed, 05 Jan 2005 03:07:03 +0100
+In-Reply-To: <41DB35B8.1090803@sgi.com> (Ray Bryant's message of "Tue, 04
+ Jan 2005 18:32:56 -0600")
+Message-ID: <m1wtusd3y0.fsf@muc.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, Andrew Morton <akpm@osdl.org>, linux-ia64@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Linux Kernel Development <linux-kernel@vger.kernel.org>
+To: Ray Bryant <raybry@sgi.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, stevel@mvista.com
 List-ID: <linux-mm.kvack.org>
 
+Ray Bryant <raybry@sgi.com> writes:
 
-On Tue, 4 Jan 2005, Christoph Lameter wrote:
-> 
-> Ahh. Great. Do I need to submit a corrected patch that removes those two
-> lines or is it fine as is?
+> http://sr71.net/patches/2.6.10/2.6.10-mm1-mhp-test7/
+>
+> A number of us are interested in using the page migration patchset by itself:
+>
+> (1)  Myself, for a manual page migration project I am working on.  (This
+>       is for migrating jobs from one set of nodes to another under batch
+>       scheduler control).
+> (2)  Marcello, for his memory defragmentation work.
+> (3)  Of course, the memory hotplug project itself.
+>
+> (there are probably other "users" that I have not enumerated here).
 
-Please do split it up into a function of its own. It's going to look a lot 
-prettier as an intermediate phase. I realize that that touches #3 in the 
-series, but I suspect that one will also just be prettier as a result.
+Could you coordinate that with Steve Longerbeam (cc'ed) ? 
 
-		Linus
+He has a NUMA API extension ready to be merged into -mm* that also
+does kind of page migration when changing the policies of files.
+
+-Andi
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
