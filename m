@@ -1,39 +1,43 @@
-Date: Wed, 17 Jan 2001 17:52:31 +1100 (EST)
+Date: Wed, 17 Jan 2001 18:13:46 +1100 (EST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Yet another bogus piece of do_try_to_free_pages() 
-In-Reply-To: <Pine.LNX.4.10.10101091604180.2906-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.31.0101171751060.30841-100000@localhost.localdomain>
+Subject: Re: Locking issue on try_to_swap_out()
+In-Reply-To: <Pine.LNX.4.21.0101141154290.12327-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.31.0101171812460.30841-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Jan 2001, Linus Torvalds wrote:
-> On Tue, 9 Jan 2001, Marcelo Tosatti wrote:
-> >
-> > The problem is that do_try_to_free_pages uses the "wait" argument when
-> > calling page_launder() (where the paramater is used to indicate if we want
-> > todo sync or async IO) _and_ used to call refill_inactive(), where this
-> > parameter is used to indicate if its being called from a normal process or
-> > from kswapd:
->
-> Yes. Bogus.
->
-> I suspect that the proper fix is something more along the lines
-> of what we did to bdflush: get rid of the notion of waiting
-> synchronously from bdflush, and instead do the work yourself.
+On Sun, 14 Jan 2001, Marcelo Tosatti wrote:
 
-Agreed. I've been working on this a bit in the last week and
-have achieved some interesting results.
+> In theory, there is nothing which guarantees that nobody will
+> mess with the page between "UnlockPage" and "deactivate_page"
+> (that is pretty hard to happen, I suppose, but anyway)
+>
+> --- mm/vmscan.c.orig       Sun Jan 14 13:23:55 2001
+> +++ mm/vmscan.c    Sun Jan 14 13:24:16 2001
+> @@ -72,10 +72,10 @@
+>                 swap_duplicate(entry);
+>                 set_pte(page_table, swp_entry_to_pte(entry));
+>  drop_pte:
+> -               UnlockPage(page);
+>                 mm->rss--;
+>                 if (!page->age)
+>                         deactivate_page(page);
+> +               UnlockPage(page);
+>                 page_cache_release(page);
+>                 return;
+>         }
 
-The main thing I found that it is *not* trivial to do this
-because we can end up with multiple instances of eg. page_launder()
-running at the same time and we will want to balance them against
-each other in some way to prevent them from flushing too many pages
-at once.
+Why do you suppose the page_cache_release(page) is BELOW
+the deactivate_page(page) call ?
+
+We are still holding a reference on the page when we call
+deactivate_page(page), this is what keeps the page from
+going away from under us.
 
 regards,
 
