@@ -1,60 +1,39 @@
-Received: from deliverator.sgi.com (deliverator.sgi.com [204.94.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA12525
-	for <linux-mm@kvack.org>; Mon, 10 May 1999 20:10:43 -0400
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199905110010.RAA45630@google.engr.sgi.com>
-Subject: Re: [RFT] [PATCH] kanoj-mm1-2.2.5 ia32 big memory patch
-Date: Mon, 10 May 1999 17:10:14 -0700 (PDT)
-In-Reply-To: <14135.28332.780955.729082@dukat.scot.redhat.com> from "Stephen C. Tweedie" at May 11, 99 00:41:32 am
+Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA12643
+	for <linux-mm@kvack.org>; Mon, 10 May 1999 20:16:18 -0400
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <14135.30408.623997.961605@dukat.scot.redhat.com>
+Date: Tue, 11 May 1999 01:16:08 +0100 (BST)
+Subject: Re: [RFT] [PATCH] kanoj-mm1-2.2.5 ia32 big memory patch
+In-Reply-To: <199905110010.RAA45630@google.engr.sgi.com>
+References: <14135.28332.780955.729082@dukat.scot.redhat.com>
+	<199905110010.RAA45630@google.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-> 
-> Hi,
-> 
-> On Mon, 10 May 1999 10:33:59 -0700 (PDT), kanoj@google.engr.sgi.com
-> (Kanoj Sarcar) said:
-> 
-> > There are probably a lot of problems with the code as it stands
-> > today. Reviewers, please let me know of any possible improvements.
-> > Any ideas on how to improve the uaccess performance will also be
-> > greatly appreciated. Testers, your input will be most valuable.
-> 
-> On a first scan one thing in particular jumped out:
-> 
-> +/*
-> + * validate in a user page, so that the kernel can use the kernel direct
-> + * mapped vaddr for the physical page to access user data. This locking
-> + * relies on the fact that the caller has kernel_lock held, which restricts
-> + * kswapd (or anyone else looking for a free page) from running and stealing 
-> + * pages. By the same token, grabbing mmap_sem is not needed. 
-> + */
-> 
-> Unfortunately, mmap_sem _is_ needed here.  Both find_extend_vma and
-> handle_mm_fault need it.  You can't modify or block while scanning the
-> vma list without it, or you risk breaking things in threaded
-> applications (for example, taking a page fault in handle_mm_fault
-> without it can be nasty if you are in the middle of a munmap at the
-> time).
-> 
-> --Stephen
-> 
-Yes, how could I have missed that. mmap_sem is indeed needed in the 
-slowpath: cases (hopefully the performance impact will be insignificant,
-as this is the infrequent path). I will wait for people to show me more 
-problems, before I put in all the changes and publish v2 of the patch.
+Hi,
 
-Btw, is mmap_sem really needed for find_extend_vma, since we are already
-holding lock_kernel (which mmap/munmap also gets)?
+On Mon, 10 May 1999 17:10:14 -0700 (PDT), kanoj@google.engr.sgi.com
+(Kanoj Sarcar) said:
 
-Thanks.
+> Btw, is mmap_sem really needed for find_extend_vma, since we are already
+> holding lock_kernel (which mmap/munmap also gets)?
 
-Kanoj
+Yes: find_extend_vma modifies the vma, so you have to make sure that you
+aren't doing this while somebody else already has the mm semaphore.  You
+don't want to modify the vma while another process is doing the page
+fault, so you still need to serialise.
+
+The mmap code allocates new vmas, which calls kmalloc, and that can
+block if you run out of memory.  It really isn't safe to extend the vma
+while another thread is blocked like that.
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
