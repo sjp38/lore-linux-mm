@@ -1,73 +1,64 @@
-Date: Tue, 8 Apr 2003 09:10:48 -0700
-From: Andrew Morton <akpm@digeo.com>
+Date: Tue, 8 Apr 2003 09:14:56 -0700
+From: "Randy.Dunlap" <rddunlap@osdl.org>
 Subject: Re: 2.5.67-mm1
-Message-Id: <20030408091048.002a2e08.akpm@digeo.com>
-In-Reply-To: <200304080917.15648.tomlins@cam.org>
+Message-Id: <20030408091456.48015790.rddunlap@osdl.org>
+In-Reply-To: <200304081139.58218.tomlins@cam.org>
 References: <20030408042239.053e1d23.akpm@digeo.com>
 	<200304080917.15648.tomlins@cam.org>
+	<20030408083153.5dec0d0e.rddunlap@osdl.org>
+	<200304081139.58218.tomlins@cam.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ed Tomlinson <tomlins@cam.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@digeo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ed Tomlinson <tomlins@cam.org> wrote:
->
-> Hi,
-> 
-> This does not boot here.  I loop with the following message. 
-> 
-> i8042.c: Can't get irq 12 for AUX, unregistering the port.
-> 
-> irq 12 is used (correctly) by my 20267 ide card.  My mouse is
-> usb and AUX is not used.
-> 
+On Tue, 8 Apr 2003 11:39:58 -0400 Ed Tomlinson <tomlins@cam.org> wrote:
 
-Does the below patch help?  Probably not...
+| On April 8, 2003 11:31 am, Randy.Dunlap wrote:
+| > On Tue, 8 Apr 2003 09:17:15 -0400 Ed Tomlinson <tomlins@cam.org> wrote:
+| > | Hi,
+| > |
+| > | This does not boot here.  I loop with the following message.
+| > |
+| > | i8042.c: Can't get irq 12 for AUX, unregistering the port.
+| > |
+| > | irq 12 is used (correctly) by my 20267 ide card.  My mouse is
+| > | usb and AUX is not used.
+| > |
+| > | Ideas?
+| >
+| > I guess that's due to my early kbd init patch.
+| > So why do you have i8042 configured into your kernel?
+| 
+| One, What exactly configures it?  Two my keyboard is not usb, just
+| my mouse.
 
-And does reverting
-ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.67/2.5.67-mm1/broken-out/earlier-keyboard-init.patch
-fix it?
+CONFIG_SERIO=y
+CONFIG_SERIO_I8042=y
 
-Thanks.
+Is your keyboard PS/2 or PC-AT-like, or something else?
 
-diff -puN drivers/input/serio/i8042.c~i8042-share-irqs drivers/input/serio/i8042.c
---- 25/drivers/input/serio/i8042.c~i8042-share-irqs	2003-04-08 09:05:16.000000000 -0700
-+++ 25-akpm/drivers/input/serio/i8042.c	2003-04-08 09:05:59.000000000 -0700
-@@ -235,7 +235,8 @@ static int i8042_open(struct serio *port
- 		if (i8042_mux_open++)
- 			return 0;
- 
--	if (request_irq(values->irq, i8042_interrupt, 0, "i8042", NULL)) {
-+	if (request_irq(values->irq, i8042_interrupt,
-+			SA_SHIRQ, "i8042", NULL)) {
- 		printk(KERN_ERR "i8042.c: Can't get irq %d for %s, unregistering the port.\n", values->irq, values->name);
- 		values->exists = 0;
- 		serio_unregister_port(port);
-@@ -570,7 +571,7 @@ static int __init i8042_check_mux(struct
-  * Check if AUX irq is available.
-  */
- 
--	if (request_irq(values->irq, i8042_interrupt, 0, "i8042", NULL))
-+	if (request_irq(values->irq, i8042_interrupt, SA_SHIRQ, "i8042", NULL))
-                 return -1;
- 	free_irq(values->irq, NULL);
- 
-@@ -641,7 +642,7 @@ static int __init i8042_check_aux(struct
-  * in trying to detect AUX presence.
-  */
- 
--	if (request_irq(values->irq, i8042_interrupt, 0, "i8042", NULL))
-+	if (request_irq(values->irq, i8042_interrupt, SA_SHIRQ, "i8042", NULL))
-                 return -1;
- 	free_irq(values->irq, NULL);
- 
+| > The loop doesn't terminate?  Do you get the same message (above)
+| > over and over again?
+| 
+| Yes, until I trigger a reboot (SysReq+B).
 
-_
+Interesting.  If I force that register IRQ 12 to fail, I just get this
+one time:
 
+i8042.c: Can't get irq 12 for AUX, unregistering the port.
+serio: i8042 AUX port at 0x60,0x64 irq 12
+serio: i8042 KBD port at 0x60,0x64 irq 1
+
+
+Just saw Andrew's email...
+
+--
+~Randy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
