@@ -1,31 +1,30 @@
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14306.24964.242982.672946@dukat.scot.redhat.com>
-Date: Fri, 17 Sep 1999 16:43:00 +0100 (BST)
-Subject: Re: about the MTRR (memory type range reg)
-In-Reply-To: <Pine.SOL.4.10.9909171005120.2394-100000@elf>
-References: <Pine.SOL.4.10.9909171005120.2394-100000@elf>
+Received: from agnes.faerie.monroyaume (ppp-172-248.villette.club-internet.fr [195.36.172.248])
+	by front4.grolier.fr (8.9.3/No_Relay+No_Spam_MGC990224) with ESMTP id XAA03980
+	for <linux-mm@kvack.org>; Fri, 17 Sep 1999 23:55:27 +0200 (MET DST)
+Date: Fri, 17 Sep 1999 23:59:21 +0200
+Message-Id: <199909172159.XAA01101@agnes.faerie.monroyaume>
+From: JF Martinez <jfm2@club-internet.fr>
+Subject: Need ammo against BSD Fud
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gilles Pokam <pokam@cs.tu-berlin.de>
-Cc: linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+BSD people are writing tons of articles saying how superior BSD is
+respective to Linux.  There is a danger they will impregnate people
+with the idea: Linux=second rate system.  The Linux people tend to
+know little about BSD so we are at pain to fire back.  And BSD people
+tend to "forget" to mention those features Linux had years before BSD
+like modules or ELF support.  I would really appreciate info about
+features the Linux kernel has and BSDs haven't or about areas where
+Linux outperforms BSDs.
 
-On Fri, 17 Sep 1999 10:12:26 +0200 (MET DST), Gilles Pokam
-<pokam@cs.tu-berlin.de> said:
+-- 
+			Jean Francois Martinez
 
-> I want to change the memory type of a particular memory region. I know
-> that the MTRR (Memory Type Range Register) is responsible of that in most
-> pentium processor-based systems. My question is to know if there is an API
-> in Linux to access this register (if yes, do you have example ) ?
+Project Independence: Linux for the Masses
+http://www.independence.seul.org
 
-Yes: /proc/mtrr.  Read linux/Documentation/mtrr.txt
-
---Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
