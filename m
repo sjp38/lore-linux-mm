@@ -1,29 +1,40 @@
-Date: Mon, 19 Mar 2001 22:07:55 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Tue, 20 Mar 2001 01:29:48 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
 Subject: Re: 3rd version of R/W mmap_sem patch available
-In-Reply-To: <Pine.LNX.4.21.0103200113550.8828-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.31.0103192206030.1025-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.31.0103192206030.1025-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0103200125480.8873-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Rik van Riel <riel@conectiva.com.br>, Mike Galbraith <mikeg@wen-online.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Manfred Spraul <manfred@colorfullife.com>, MOLNAR Ingo <mingo@chiara.elte.hu>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Mike Galbraith <mikeg@wen-online.de>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>, Manfred Spraul <manfred@colorfullife.com>, MOLNAR Ingo <mingo@chiara.elte.hu>
 List-ID: <linux-mm.kvack.org>
 
 
-On Tue, 20 Mar 2001, Marcelo Tosatti wrote:
->
-> Could the IDE one cause corruption ?
+On Mon, 19 Mar 2001, Linus Torvalds wrote:
 
-Only with broken disks, as far as we know right now. There's been so far
-just one report of this problem, and nobody has heard back about which
-disk this was.. And it should be noisy about it when it happens -
-complaining about lost interrupts and resetting the IDE controller.
+> 
+> 
+> On Tue, 20 Mar 2001, Marcelo Tosatti wrote:
+> >
+> > Could the IDE one cause corruption ?
+> 
+> Only with broken disks, as far as we know right now. There's been so far
+> just one report of this problem, and nobody has heard back about which
+> disk this was.. And it should be noisy about it when it happens -
+> complaining about lost interrupts and resetting the IDE controller.
+> 
+> So unlikely.
 
-So unlikely.
+Ok, so I think we have a problem. The disk is OK -- no lost interrupts or
+resets. Just this message on syslog and pgbench complaining about
+corruption of the database.
 
-		Linus
+I'll put pre5 in and try to reproduce the problem (I hitted it while
+running pgbench + shmtest). 
+
+Damn. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
