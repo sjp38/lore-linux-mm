@@ -1,30 +1,38 @@
-Received: from d23rh901.au.ibm.com (d23rh901.au.ibm.com [9.185.167.100])
-	by ausmtp02.au.ibm.com (8.12.1/8.12.1) with ESMTP id g7FHFdK4356672
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2002 03:15:39 +1000
-Received: from d23m0067.in.ibm.com (d23m0067.in.ibm.com [9.184.199.180])
-	by d23rh901.au.ibm.com (8.12.3/NCO/VER6.3) with ESMTP id g7FHICHV038666
-	for <linux-mm@kvack.org>; Fri, 16 Aug 2002 03:18:13 +1000
-Subject: Re: oom_killer - Does not perform when stress-tested (system hangs)
-Message-ID: <OF634085C7.4F3F3305-ON65256C16.005D8A8C@in.ibm.com>
-From: "Srikrishnan Sundararajan" <srikrishnan@in.ibm.com>
-Date: Thu, 15 Aug 2002 22:32:56 +0530
-MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Received: from popmail.esa.lanl.gov (localhost.localdomain [127.0.0.1])
+	by mailrelay2.lanl.gov (8.12.3/8.12.3/(ccn-5)) with ESMTP id g7FHYLMl017600
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2002 11:34:54 -0600
+Received: from spc9.esa.lanl.gov (128.165.67.199) by popmail.esa.lanl.gov (Worldmail 1.3.167) for linux-mm@kvack.org; 15 Aug 2002 11:34:54 -0600
+Subject: kernel BUG at page_alloc.c:185! with 2.5.31 + akpm stuff
+From: Steven Cole <elenstev@mesatop.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 15 Aug 2002 11:31:54 -0600
+Message-Id: <1029432714.2051.232.camel@spc9.esa.lanl.gov>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I  used kernel 2.4.19. This has a few changes in oom_kill.c . It works well
-on my intel PC.
-ie. Even when I run 500 instances of my memory grabbing program, the
-oom_killer is able to kill these errant processes and makes the machine
-usable. (No hangs) Hats off to oom_kill!
+With this patch applied to 2.5.31,
 
-Thanks,
-Srikrishnan
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.31/stuff-sent-to-linus/everything.gz
 
+I got these BUGs,
 
+kernel BUG at page_alloc.c:185!
+ kernel BUG at page_alloc.c:98!
+
+I was running dbench as a stress tester.  I had run dbench with
+up to 128 clients with no problems, and was running my stress test a
+second time when the BUGs occurred with dbench 6.
+
+I have run the dbench 1..128 stress test with plain vanilla 2.5.31 four
+times without these failures.
+
+This is on a 2-way p-III box, CONFIG_SMP=y.
+
+Steven
 
 
 --
