@@ -1,43 +1,51 @@
-Date: Tue, 19 Feb 2002 14:30:43 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH *] new struct page shrinkage
-In-Reply-To: <3C7278B7.C0E4D126@mandrakesoft.com>
-Message-ID: <Pine.LNX.4.33L.0202191429420.7820-100000@imladris.surriel.com>
+Date: Tue, 19 Feb 2002 09:29:04 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [RFC] Page table sharing
+In-Reply-To: <E16d1E8-00010D-00@starship.berlin>
+Message-ID: <Pine.LNX.4.33.0202190923390.26476-100000@home.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@mandrakesoft.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Phillips <phillips@bonn-fries.net>
+Cc: Rik van Riel <riel@conectiva.com.br>, Hugh Dickins <hugh@veritas.com>, dmccr@us.ibm.com, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Robert Love <rml@tech9.net>, mingo@redhat.co, Andrew Morton <akpm@zip.com.au>, manfred@colorfullife.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 19 Feb 2002, Jeff Garzik wrote:
-> Rik van Riel wrote:
-> > I've also pulled the thing up to
-> > your latest changes from linux.bkbits.net so you should be
-> > able to just pull it into your tree from:
+
+On Tue, 19 Feb 2002, Daniel Phillips wrote:
+> >
+> > At that point you might as well make the TLB shootdown global (ie you keep
+> > track of a mask of CPU's whose TLB's you want to kill, and any pmd that
+> > has count > 1 just makes that mask be "all CPU's").
 >
-> Note that with BK, unlike CVS, it is not required that you update to
-> the latest Linus tree before he can pull.
->
-> It is only desired that you do so if there is an actual conflict you
-> need to resolve...
+> How do we know when to do the global tlb flush?
 
-In this case there were 2 files with a potential conflict
-(buffer.c and filemap.c).
+See above.
 
-No actual conflicts, but I thought it good manners to
-pull the tree and resolve any potential conflicts myself,
-instead of burdening Linus with the job.
+Basically, the algorithm is:
 
-regards,
+	invalidate_cpu_mask = 0;
 
-Rik
--- 
-"Linux holds advantages over the single-vendor commercial OS"
-    -- Microsoft's "Competing with Linux" document
+	.. for each page swapped out ..
 
-http://www.surriel.com/		http://distro.conectiva.com/
+		pte = ptep_get_and_clear(ptep);
+		save_pte_and_mm(pte_page(pte));
+		mask = mm->cpu_vm_mask;
+		if (page_count(pmd_page) > 1)
+			mask = ~0UL;
+		invalidate_cpu_mask |= mask;
+
+and then at the end you just do
+
+	flush_tlb_cpus(invalidate_cpu_mask);
+	for_each_page_saved() {
+		free_page(page);
+	}
+
+(yeah, yeah, add cache coherency etc).
+
+		Linus
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
