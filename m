@@ -1,23 +1,32 @@
-Message-ID: <3800B13E.655140FE@colorfullife.com>
-Date: Sun, 10 Oct 1999 17:31:10 +0200
-From: Manfred Spraul <manfreds@colorfullife.com>
+Date: Sun, 10 Oct 1999 23:53:37 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: locking question: do_mmap(), do_munmap()
+In-Reply-To: <Pine.GSO.4.10.9910101450250.16317-100000@weyl.math.psu.edu>
+Message-ID: <Pine.LNX.4.10.9910102350240.1556-100000@alpha.random>
 MIME-Version: 1.0
-Subject: execve-question
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Alexander Viro <viro@math.psu.edu>
+Cc: Manfred Spraul <manfreds@colorfullife.com>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-what happens / should happen if I call execve() in a multi-threaded
-application?
+On Sun, 10 Oct 1999, Alexander Viro wrote:
 
-I don't see that the mm structure is copied, and obviously noone
-acquires the mm->mmap_sem.
+>I still think that just keeping a cyclic list of pages, grabbing from that
+>list before taking mmap_sem _if_ we have a chance for blocking
+>__get_free_page(), refilling if the list is empty (prior to down()) and
+>returning the page into the list if we didn't use it may be the simplest
+>way.
 
---
-	Manfred
+I can't understand very well your plan.
+
+We just have a security pool. We just block only when the pool become low.
+To refill our just existing pool we have to walk the vmas. That's the
+problem in first place.
+
+Andrea
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
