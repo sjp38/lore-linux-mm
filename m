@@ -1,42 +1,34 @@
-Date: Sun, 11 Feb 2001 00:05:43 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: mmap002 execution time doubled... good or bad sign?
-In-Reply-To: <01021023231906.02374@dox>
-Message-ID: <Pine.LNX.4.21.0102110001130.27734-100000@freak.distro.conectiva>
+Received: from mountain.net ([198.77.57.48]) by riker.mountain.net
+          (Post.Office MTA v3.5.3 release 223 ID# 0-0U10L2S100V35)
+          with ESMTP id net for <linux-mm@kvack.org>;
+          Sun, 11 Feb 2001 01:30:30 -0500
+Message-ID: <3A8631AB.BCC39E26@mountain.net>
+Date: Sun, 11 Feb 2001 01:31:07 -0500
+From: Tom Leete <tleete@mountain.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [QUERY] Value of seperate mm_struct.h?
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: linux-mm@kvack.org
+To: MM List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Hello all,
 
-On Sat, 10 Feb 2001, Roger Larsson wrote:
+I produced a patch, k7-smp-include.patch, which splits task_struct out of
+sched.h into its own header. In doing that I inadvertently did the same for
+mm_struct (thought I was going to need it). I plan to revert that, but I'll
+leave it in if the consensus here wants it.
 
-> Hi,
-> 
-> I have been running various stress tests on disk for some time.
-> streaming write, copy, read, diff, dbench and mmap002
-> 
-> This is what I have seen:
-> 
-> >From 2.4.0 to 2.4.1 with Marcelos patch write were above 10 MB/s
-> and read >13 MB/s, dbench > 10 MB/s, mmap took around 2m30.
-> 
-> After 2.4.1-pre8 (did not test anything in between)
-> Write is at 9-10 [lost 1 MB/s] read is down to 11-12 MB/s [lost 2 MB/s]
-> dbench > 9 MB/s [one MB/s there too]
-> 
-> But the really strange one - mmap002 now takes > 4m30
-> Is this expected / good behaviour? mmap002 abuses mmaps...
+The patch was posted to linux-kernel at 14:49:30 UTC, Feb 10, under the
+Subject: '[PATCH} Athlon-SMP compiles & runs. inline fns honored'
 
-These are probably Jens modifications to the block queuing mechanisms
-since there were no VM changes from 2.4.1-pre8 to now in Linus tree.
+Cheers,
+Tom
 
-Its not necessarily a bad thing, since Jens modifications make processes
-throttle on IO sooner. 
-
+-- 
+The Daemons lurk and are dumb. -- Emerson
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
