@@ -1,33 +1,26 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA02009
-	for <linux-mm@kvack.org>; Thu, 26 Mar 1998 08:43:58 -0500
-Date: Thu, 26 Mar 1998 14:09:47 +0100 (MET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA02138
+	for <linux-mm@kvack.org>; Thu, 26 Mar 1998 09:15:16 -0500
+Date: Thu, 26 Mar 1998 15:08:12 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: H.H.vanRiel@fys.ruu.nl
-Subject: Re: shrink_mmap ()?
-In-Reply-To: <Pine.SUN.3.95.980326175034.17975N-100000@Kabini>
-Message-ID: <Pine.LNX.3.91.980326140853.1002A-100000@mirkwood.dummy.home>
+Subject: [PATCH] linux-2.1.91-pre2 crash fixed
+Message-ID: <Pine.LNX.3.91.980326150617.566A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Chirayu Patel <chirayu@wipro.tcpn.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-kernel <linux-kernel@vger.rutgers.edu>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Mar 1998, Chirayu Patel wrote:
+Hi Linus,
 
-> I was going through the source for shrink_mmap.......
-> 
-> We are freeing a page with count = 1 (referenced by one process only) but
-> we are not manipulating any page table entries. Why? Shouldnt we be
-> manipulating the page table entries or where are the page table entries
-> getting manipulated?
-> 
-> I know I have missed something terribly obvious over here. Can someone
-> please help me out. 
+I've found a small typo in mm/filemap.c, which prevented
+proper operation of the VM subsystem and, in effect, threw
+kswapd in a loop.
 
-When the count is 1, the page cache _is_ the only reference to
-the page.
+In effect, it refused to free buffer memory when it was
+_above_ the minimum percentage :)
 
 Rik.
 +-------------------------------------------+--------------------------+
@@ -35,3 +28,15 @@ Rik.
 |        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
 |     http://www.fys.ruu.nl/~riel/          | <H.H.vanRiel@fys.ruu.nl> |
 +-------------------------------------------+--------------------------+
+
+--- linux/mm/filemap.c.pre91-2	Thu Mar 26 15:03:44 1998
++++ linux/mm/filemap.c	Thu Mar 26 15:04:25 1998
+@@ -152,7 +152,7 @@
+ 			} while (tmp != bh);
+ 
+ 			/* Refuse to swap out all buffer pages */
+-			if ((buffermem >> PAGE_SHIFT) * 100 > (buffer_mem.min_percent * num_physpages))
++			if ((buffermem >> PAGE_SHIFT) * 100 < (buffer_mem.min_percent * num_physpages))
+ 				goto next;
+ 		}
+ 
