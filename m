@@ -1,45 +1,41 @@
-From: Ed Tomlinson <edt@aei.ca>
-Subject: Re: 2.6.1-mm4
-Date: Fri, 16 Jan 2004 08:45:16 -0500
-References: <20040115225948.6b994a48.akpm@osdl.org>
-In-Reply-To: <20040115225948.6b994a48.akpm@osdl.org>
+Received: from localhost (localhost [127.0.0.1])
+	by relay.inway.cz (Postfix) with ESMTP id 69430BE148
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2004 17:06:15 +0100 (CET)
+Received: from jan2 (unknown [213.151.94.198])
+	by relay.inway.cz (Postfix) with SMTP id 2CD34BE115
+	for <linux-mm@kvack.org>; Fri, 16 Jan 2004 17:06:15 +0100 (CET)
+Reply-To: <azmat@krakow-hotels.net>
+From: "Azmat Toigonbaev" <azmat@krakow-hotels.net>
+Subject: Vacacion familia
+Date: Fri, 16 Jan 2004 17:07:17 +0100
+Message-ID: <GGEOKEPNICIEHHHAOGCAEEAOCFAA.azmat@krakow-hotels.net>
 MIME-Version: 1.0
-Content-Disposition: inline
 Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Message-Id: <200401160845.17199.edt@aei.ca>
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@osdl.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On January 16, 2004 01:59 am, Andrew Morton wrote:
-> - There's a patch here which changes the ia32 CPU type selection.  Make
->   sure you go in there and select the right CPU type(s), else the kernel
->   won't compile.   We might need to set a default here.
->
-> - Kernel NFS server update
->
-> - MD update
->
-> - V4L update
->
-> - A string of fixes against the parport, paride and associated drivers
->
-> - Update to the latest UML
->
-> - Patches to support gcc-3.4 on ia32.  There is more to do here - more
->   warnings need to be fixed and the exception tables need to be sorted.  I
->   didn't add the `-Winline' patch because it's way too noisy at present.
+Hola,
 
-Hi Andrew,
+Ofrecemos servicios de alojamiento y pense que usted puede ser que este
+interesado en intercambio de enlaces. Proporcionamos varios sitios
+relacionados con viajes, uno de ellos es
 
-Doing a modules install with mm4 gets a nfsd.ko needs unknown symbol dnotify_parent
+http://www.barcelona-hotel.ws/index_es.htm
 
-Ideas?
-Ed Tomlinson
+We offer accommodation services and I thought you might be interested in
+link exchange. We provide several travel-related sites, one of them is
+
+http://www.barcelona-hotel.ws
+
+Best regards,
+Azmat Toigonbaev
+azmat@krakow-hotels.net
+http://www.krakow-hotels.net
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
