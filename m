@@ -1,37 +1,42 @@
-Received: from dax.scot.redhat.com (sct@[195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA06996
-	for <linux-mm@kvack.org>; Tue, 8 Dec 1998 18:02:10 -0500
-Date: Tue, 8 Dec 1998 22:59:09 GMT
-Message-Id: <199812082259.WAA00875@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Tiny one-line fix to swap readahead
+Received: from fgwnews.fujitsu.co.jp (fgwnews.fujitsu.co.jp [164.71.1.134])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA07973
+	for <linux-mm@kvack.org>; Tue, 8 Dec 1998 21:45:02 -0500
+Message-Id: <199812090241.LAA15658@fireball.otsd.ts.fujitsu.co.jp>
+Subject: Re: [PATCH] swapin readahead and fixes
+From: Drago Goricanec <drago@king.otsd.ts.fujitsu.co.jp>
+In-Reply-To: Your message of "Tue, 8 Dec 1998 03:31:25 +0100 (CET)"
+References: <Pine.LNX.3.96.981208032438.8407C-100000@mirkwood.dummy.home>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Date: Wed, 09 Dec 1998 11:41:52 +0900
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <number6@the-village.bc.nu>
-Cc: Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org, Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+To: H.H.vanRiel@phys.uu.nl
+Cc: Billy.Harvey@thrillseeker.net, sct@redhat.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 8 Dec 1998 03:31:25 +0100 (CET), Rik van Riel writes:
 
-I just noticed this when experimenting with a slightly different swapin
-optimisation: swapping in entire 64k aligned blocks rather than doing
-strict readahead.  A side effect was that a swapin in the first free
-pages of the swap file tried to swapin the swap header, which is marked
-SWAP_MAP_BAD.  This breaks.
+> On a swapout, we will scan ahead of where we are (p->swap_address)
+> and swap out the next number of pages too. We break the loop if:
+> - the page isn't present or already in swap
+> - the next two pages were touched since our last scan
+> - the page isn't allocated
+> - we reach the end of a SWAP_CLUSTER area in swap space
+> 
+> If we write this way (no more expensive than normal because
+> we write the stuff in one disk movement) swapin readahead
+> will be much more effective and performance will increase.
 
-Now the readahead code in Rik's own patches won't try to do this, but it
-_will_ have the same problem if you ever readahead past a bad page in
-the swap file.  The trick is to fix the test in mm/page_alloc.c,
-function swapin_readahead:
+Except for disk I/O bound processes, where the swapout writeahead
+steals some extra time from the disk.  I guess this is where having
+separate swap and data disks would help.
 
-	      if (!swapdev->swap_map[offset] ||
-		  swapdev->swap_map[offset] == SWAP_MAP_BAD ||  <<<< new line
-		  test_bit(offset, swapdev->swap_lockmap))
-		      continue;
+Looking forward to trying out your patches myself.
 
-Sorry this isn't a diff, but my other changes to this file mean that I
-don't have a patch handy against plain ac*.
+Drago
 
---Stephen
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
