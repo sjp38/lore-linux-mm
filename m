@@ -1,28 +1,58 @@
-Date: Sun, 28 Dec 2003 10:58:07 +0000
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: 2.6.0-mm1
-Message-ID: <20031228105807.A19546@infradead.org>
-References: <20031222211131.70a963fb.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20031222211131.70a963fb.akpm@osdl.org>; from akpm@osdl.org on Mon, Dec 22, 2003 at 09:11:31PM -0800
+Message-ID: <280---q6as4g5c3ii04g-3w5vhz@ua5au9.0napv8>
+From: "Fred Frye" <2iqtrexa@msn.com>
+Reply-To: "Fred Frye" <2iqtrexa@msn.com>
+Subject: Put your computer to work today  zp
+Date: Sun, 28 Dec 03 10:17:07 GMT
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="59.6_2DF61E.AADFC76_."
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 22, 2003 at 09:11:31PM -0800, Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test11/2.6.0-mm1/
-> 
-> 
-> Quite a lot of new material here.  It would be appreciated if people who have
-> significant patches in -mm could retest please.
+--59.6_2DF61E.AADFC76_.
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-BTW, could you please drop Al's RD* patches?  They change the entry points
-for block drivers and thus create some hassle for people hacking on out
-of tree block drivers, and obviously can't go into mainline as is.
+Are interested in Working Full time at home?
+
+
+If so just take one moment to see how you can start today.
+
+http://www.ecom-universe.net/splash1/FF.htm
+
+- No cold calling - No sales calls
+- Put your computer to work
+- No Boring Meetings to Attend.
+- A Simple Turnkey System.
+- You Can Earn Money Quickly.
+- You will GET RESIDUAL INCOME Over And Over.
+- Plus Great Support and Training.
+
+This system really works..thousands are cashing in and you can to.
+
+If this is something you have been wanting to do just take the test drive.=
+
+
+http://www.ecom-universe.net/splash1/FF.htm
+
+P.S. If I sent this to you by mistake just shoot me back an email and I wi=
+ll take you off the list...but please remember we only make money if you d=
+o and we NEED to make this work for you...let us know how we can help.
+
+Best Regards,
+
+Steve S.uqfoetrnrewaxkuy
+
+dtoh
+mu
+zpprr xtk
+ytvlozozjk wjlrm wigmmul dpanbj
+ rn
+czav n hvse gy ij kp
+
+--59.6_2DF61E.AADFC76_.--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
