@@ -1,30 +1,31 @@
-Date: Mon, 21 Oct 2002 17:14:30 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH] mm mremap freeze
-Message-ID: <Pine.LNX.4.44.0210211708030.16869-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Subject: 2.5.44-mm2 compile error using gcc 3.2 (gcc 2.96 works fine).
+From: Steven Cole <elenstev@mesatop.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 21 Oct 2002 12:40:43 -0600
+Message-Id: <1035225643.13078.86.camel@spc9.esa.lanl.gov>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-mremap's move_one_page tried to lock src_page twice
-#ifndef CONFIG_SHAREPTE (do I hear you hissing my disloyalty?)
+I got the following error compiling 2.5.44-mm2 with gcc 3.2
+as shipped with Mandrake 9.0 (3.2-1mdk).
 
---- 2.5.44-mm2/mm/mremap.c	Mon Oct 21 12:57:53 2002
-+++ linux/mm/mremap.c	Mon Oct 21 16:46:58 2002
-@@ -43,8 +43,8 @@
- 		goto out_unlock;
- 
- 	src_page = pmd_page(*src_pmd);
--	pte_page_lock(src_page);
- #ifdef CONFIG_SHAREPTE
-+	pte_page_lock(src_page);
- 	/*
- 	 * Unshare if necessary.  We unmap the return
- 	 * pointer because we may need to map it nested later.
+kernel/softirq.c:353: cpu_nfb causes a section type conflict
+make[1]: *** [kernel/softirq.o] Error 1
+
+I was able to compile 2.5.44-mm2 with the same .config on another
+machine using gcc 2.96 as shipped with RedHat 7.3 without this error.
+Plain 2.5.44 built OK using gcc 3.2.
+
+FWIW, I booted that 2.5.44-mm2 with CONFIG_SHAREPTE=y built with gcc
+2.96 and I have run KDE 3.0.3 without any problems so far.
+
+Steven
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
