@@ -1,36 +1,29 @@
-Date: Thu, 18 Mar 2004 23:04:32 +0100
-From: Pavel Machek <pavel@ucw.cz>
+Date: Thu, 25 Mar 2004 09:44:41 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: [PATCH] RSS limit enforcement for 2.6
-Message-ID: <20040318220432.GB1505@openzaurus.ucw.cz>
-References: <Pine.LNX.4.44.0403151816350.12895-100000@chimarrao.boston.redhat.com> <405699C1.7010906@cyberone.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <405699C1.7010906@cyberone.com.au>
+In-Reply-To: <20040318220432.GB1505@openzaurus.ucw.cz>
+Message-ID: <Pine.LNX.4.44.0403250944250.11915-100000@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>, Pavel Machek <pavel@ucw.cz>
+To: Pavel Machek <pavel@ucw.cz>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+On Thu, 18 Mar 2004, Pavel Machek wrote:
 
-> >Hugh Dickins found a bug in the 2.4-rmap RSS limit enforcing
-> >code that may well explain why the previous port of the code
-> >to 2.6 resulted in bad performance.  The split active lists
-> >in 2.4-rmap probably masked the largest damages, but in 2.6
-> >it was very much visible.
-> >
-> >
-> 
-> Hi Rik,
-> What was the problem by the way?
+> When running lingvistics computation, machine got completely
+> unusable due to bad memory pressure. nice -n 19 was
+> useless. Memory limit should help.
 
-When running lingvistics computation, machine got completely
-unusable due to bad memory pressure. nice -n 19 was
-useless. Memory limit should help.
+Is this with the new patch, with the old patch or
+without any RSS limiting patch ?
+
 -- 
-64 bytes from 195.113.31.123: icmp_seq=28 ttl=51 time=448769.1 ms         
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
