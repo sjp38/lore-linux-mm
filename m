@@ -1,43 +1,60 @@
-Date: Tue, 8 Apr 2003 18:19:11 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: meminfo documentation
-Message-ID: <20030409011911.GA21761@holomorphy.com>
-References: <3E936E2A.4080400@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3E936E2A.4080400@us.ibm.com>
+Message-ID: <3E93EB0E.4030609@aitel.hist.no>
+Date: Wed, 09 Apr 2003 11:42:38 +0200
+From: Helge Hafting <helgehaf@aitel.hist.no>
+MIME-Version: 1.0
+Subject: Re: 2.5.67-mm1 cause framebuffer crash at bootup
+References: <20030408042239.053e1d23.akpm@digeo.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, vandrove@vc.cvut.cz, jsimmons@infradead.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 08, 2003 at 05:49:46PM -0700, Dave Hansen wrote:
-> ReverseMaps:  number of rmap pte chains
+2.5.67 works with framebuffer console, 2.5.67-mm1 dies before activating
+graphichs mode on two different machines:
 
-It's not about the number of pte_chains. There are 3 ways to think of it:
+smp with matroxfb, also using a patch that makes matroxfb work in 2.5
+up with radeonfb, also using patches that fixes the broken devfs in mm1.
 
-(1) number of reverse mappings performed.
-(2) total number of pte's in pte_chains
-(3) total faulted-in memory-backed virtualspace
+I use devfs and preempt in both cases, and monolithic kernels without module
+support.
 
-pte_chain objects may partially utilize slabs, and a given chain of
-pte_chain objects may be partially utilized within a given chain,
-as there are 7 pointers or so in an object, and you have to fill a
-chain with a precise number of pte's to fully utilize the objects.
+2.5.67-mm1 works if I drop framebuffer support completely.
 
-So, there are two levels at which internal fragmentation can happen.
-This measures the one _not_ detectable from /proc/slabinfo, which is
-the internal fragmentation at the pte-filling-object-level.
+Here is the printed backtrace for the radeon case, the matrox case was 
+similiar:
 
-The number these days is not particularly useful for the measurement
-of internal fragmentation due to the PG_direct changes, but could be
-fixed up to measure it again. This stat is slated to be removed soon
-because it's measurably expensive to collect (which is good; any stat
-with that kind of performance impact should either die or be config'd).
+<a few lines scrolled off screen>
+pcibios_enable_device
+pci_enable_device_bars
+pci_enable_device
+radeonfb_pci_register
+sysfs_new_inode
+pci_device_probe
+bus_match
+device_attach
+bus_add_device
+kobject_add
+device_add
+pci_bus_add_devices
+pci_bus_add_devices
+pci_scan_bus_parented
+pcibios_scan_root
+pci_legacy_init
+do_initcalls
+init_workqueues
+init+0x36
+init+0x00
+kernel_thread_helper
+code: Bad EIP value <0>Kernel panic:attempt to kill init!
 
--- wli
+sysrq worked and let me reboot.  No filesystems were
+mounted at this point.
+
+Helge Hafting
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
