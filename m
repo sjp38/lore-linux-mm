@@ -1,41 +1,51 @@
-Received: from ext1.nea-fast.com (ext1.nea-fast.com [208.241.120.230])
-	by int2.nea-fast.com (8.8.8+Sun/8.8.8) with ESMTP id SAA15539
-	for <linux-mm@kvack.org>; Sun, 10 Oct 1999 18:09:52 -0400 (EDT)
-Received: from pobox.com (adsl-77-228-233.atl.bellsouth.net [216.77.228.233])
-	by ext1.nea-fast.com (8.8.8+Sun/8.8.8) with ESMTP id SAA12233
-	for <linux-mm@kvack.org>; Sun, 10 Oct 1999 18:13:44 -0400 (EDT)
-Message-ID: <38010EAB.ACC45162@pobox.com>
-Date: Sun, 10 Oct 1999 18:09:47 -0400
-From: Jeff Garzik <jgarzik@pobox.com>
+Date: Sun, 10 Oct 1999 13:48:13 -0400 (EDT)
+From: Alexander Viro <viro@math.psu.edu>
+Subject: Re: locking question: do_mmap(), do_munmap()
+In-Reply-To: <Pine.LNX.4.10.9910101900210.520-100000@alpha.random>
+Message-ID: <Pine.GSO.4.10.9910101327010.16317-100000@weyl.math.psu.edu>
 MIME-Version: 1.0
-Subject: simple slab alloc question
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Manfred Spraul <manfreds@colorfullife.com>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-kmalloc seems to allocate against various kmem_cache sizes: 32,
-64...1024...65536...
 
-Does this mean that allocations of various sizes are stored in different
-"buckets"?  Would that not reduce fragmentation and the need for a zone
-allocator?
+On Sun, 10 Oct 1999, Andrea Arcangeli wrote:
 
-Enlightenment from MM gurus appreciated :)
+> On Sun, 10 Oct 1999, Alexander Viro wrote:
+> 
+> >sys_swapoff(). It's a syscall. Andrea, could you show a scenario for
+> 
+> do_page_fault -> down() -> GFP -> swap_out() -> down() -> deadlock
 
-Regards,
+Yes, I had realized that I was looking into the wrong place. Unfortunately
+after I've sent a posting. My apologies.
 
-	Jeff
+> To grab the mm semaphore in swap_out we could swap_out only from kswapd
+> doing a kind of wakeup_and_wait_kswapd() ala wakeup_bdflush(1) but it would
+> be slow and I don't want to run worse than in 2.2.x in UP to get some more
+> SMP scalability in SMP (that won't pay the cost).
+> 
+> The other option is to make the mmap semaphore recursive checking that GFP
+> is not called in the middle of a vma change. I don't like this one it sound
+> not robust as the spinlock way to me (see below).
+> 
+> What I like is to go as in 2.2.x with a proper spinlock for doing vma
+> reads (I am _not_ talking about the big kernel lock!).
 
+I'm not sure that it will work (we scan the thing in many places and
+quite a few may be blocking ;-/), unless you propose to protect individual
+steps of the scan, which will give you lots of overhead. I suspect that
+swap_out_mm() needs fixing, not everything else... And it looks like we
+can't drop the sucker earlier in handle_mm_fault. Or can we?
 
+As crazy as it may sound, what about keeping a small cache of pages,
+taking from that cache and doing refills when we are crossing the boundary
+of dangerous area (refusing to enter it until the number of pages in cache
+will grow bigger than amount of processes in dangerous part)?
 
-
--- 
-Custom driver development	|    Never worry about theory as long
-Open source programming		|    as the machinery does what it's
-				|    supposed to do.  -- R. A. Heinlein
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
