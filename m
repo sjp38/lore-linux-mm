@@ -1,32 +1,47 @@
-Date: Sat, 3 Aug 2002 17:43:31 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] slablru for linux-2.5 bk tree
-In-Reply-To: <200208031527.15093.tomlins@cam.org>
-Message-ID: <Pine.LNX.4.44L.0208031741000.23404-100000@imladris.surriel.com>
+Message-ID: <3D4C9CB6.92504CF0@zip.com.au>
+Date: Sat, 03 Aug 2002 20:17:10 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] slablru for linux-2.5 bk tree
+References: <Pine.LNX.4.44.0207282324340.872-100000@home.transmeta.com> <200208011942.49342.tomlins@cam.org> <3D49C951.AB7C527E@zip.com.au> <200208031527.15093.tomlins@cam.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ed Tomlinson <tomlins@cam.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@zip.com.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 3 Aug 2002, Ed Tomlinson wrote:
+Ed Tomlinson wrote:
+> 
+> Hi,
+> 
+> Here the slablru patch ported to 2.5.30.
 
-> I have also updated the 2.4 version of the patch which can be pulled from
-> bk://casa.dyndns.org:3334/linux-2.4-rmap
-> Rik can we get this into your 2.4 rmap tree?
+Ed, it's going to take some time/effort to get this shaken down
+and into the tree, I expect.  There's quite a bit banked up
+at present.
 
-I'll pull it into rmap 14.
+I'll take care of any stability and performance stuff in slablru, but
+the wider question is: what behaviour do we actually _want_ for slab
+pages, and is this code delivering it?   Need to think about that.  But
+we certainly can't do worse than we are at present ;)
 
-thanks,
+I've merged your patch on top of the pagemap_lru_lock patches. A whole
+bunch of nastiness went away because those patches allow us to take that
+lock from interrupt context.
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
+The locking in slab.c needs some going over - I think it's wrong from a
+2.4 perspective: there's one ranking bug between pagemap_lru_lock and
+the cachep->spinlock.  I'd suggest that you change the 2.4 implementation
+to just drop pagemap_lru_lock before calling from vmscan into
+kmem_shrink_slab().  One thing will lead to another and the locking in slab
+will get simpler. Just make the lru lock nest inside the cachep->spinlock.
 
-http://www.surriel.com/		http://distro.conectiva.com/
+The fiddled patch is at http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.30/
+I'll read through it a bit more next week, give it a bit of testing.
 
+Thanks.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
