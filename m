@@ -1,42 +1,36 @@
-Date: Wed, 10 May 2000 22:10:13 -0700 (PDT)
+Date: Thu, 11 May 2000 00:23:19 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH] Recent VM fiasco - fixed
-In-Reply-To: <yttog6doq1m.fsf@vexeta.dc.fi.udc.es>
-Message-ID: <Pine.LNX.4.10.10005102204370.1155-100000@penguin.transmeta.com>
+In-Reply-To: <20000510215301.A322@stormix.com>
+Message-ID: <Pine.LNX.4.10.10005110019370.1355-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: "James H. Cloos Jr." <cloos@jhcloos.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Simon Kirby <sim@stormix.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
 
-On 11 May 2000, Juan J. Quintela wrote:
->
->         I have done my normal mmap002 test and this goes slower than
-> ever, it takes something like 3m50 seconds to complete, (pre7-8 2m50,
-> andrea classzone 2m8, and 2.2.15 1m55 for reference).
+Hmm..
 
-Note that the mmap002 test is avery bad performance test.
+ Having tested some more, the "wait for locked buffer" logic in
+fs/buffer.c (sync_page_buffers()) seems toserialize thingsawhole lote more
+than I initially thought..
 
-Why?
+Does it act the way you expect if you change the
 
-Because it's a classic "walk a large array in order" test, which means
-that the worst possible order to page things out in is LRU.
+	if (buffer_locked(p))
+		__wait_on_buffer(p);
+	else if (buffer_dirty(p))
+		ll_rw_block(..
 
-So toreally speed up mmap002, the best approach is to try to be as non-LRU
-as possible, which is obviously the wrong thing to do in real life. So in
-that sense optimizing mmap002 is a _bad_ thing.
+to a simpler
 
-What I found interesting was how the non-waiting version seemed to have
-the actual _disk_ throughput a lot higher. That's much harder to measure,
-and I don't have good numbers for it, the best I can say is that it causes
-my ncr SCSI controller to complain about too deep queueing depths, which
-is a sure sign that we're driving the IO layer hard. Which is a good
-thingwhen you measure how efficiently you page things in and out..
+	if (buffer_dirty(p) && !buffer_locked(p))
+		ll_rw_block(..
 
-But don't look at wall-clock times for mmap002. 
+which doesn't endup serializing the IO all the time?
 
 		Linus
 
