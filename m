@@ -1,27 +1,35 @@
 Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA03339
-	for <linux-mm@kvack.org>; Thu, 2 Jul 1998 16:57:25 -0400
-Received: from mirkwood.dummy.home (riel@anx1p6.phys.uu.nl [131.211.33.95])
-	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id WAA16170
-	for <linux-mm@kvack.org>; Thu, 2 Jul 1998 22:57:13 +0200 (MET DST)
-Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with SMTP id WAA10178 for <linux-mm@kvack.org>; Thu, 2 Jul 1998 22:57:05 +0200
-Date: Thu, 2 Jul 1998 22:57:03 +0200 (CEST)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA07297
+	for <linux-mm@kvack.org>; Fri, 3 Jul 1998 10:19:01 -0400
+Date: Fri, 3 Jul 1998 12:11:14 +0200 (CEST)
 From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: HTML mailing list archive [3rd attempt]
-In-Reply-To: <Pine.OSF.3.95.980702224339.13335A-100000@ruunat.phys.uu.nl>
-Message-ID: <Pine.LNX.3.96.980702225633.9657B-100000@mirkwood.dummy.home>
+Subject: Re: Kswapd-problems (?)
+In-Reply-To: <91F2D41BEDADD1119DCC0060B06D7BD10A0C4F@dserver.fleggaard.dk>
+Message-ID: <Pine.LNX.3.96.980703120910.13344A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linux MM <linux-mm@kvack.org>
+To: Brian Schau <bsc@fleggaard.dk>
+Cc: "'linux-kernel@vger.rutgers.edu'" <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2 Jul 1998, Rik van Riel wrote:
+On Fri, 3 Jul 1998, Brian Schau wrote:
 
-> OK, so it didn't work :(
+> PID USER     PRI  NI SIZE  RES SHRD STAT %CPU %MEM  TIME COMMAND
+>   3 root       4 -12    0    0    0 RW<  99.9  0.0738:01 kswapd
+> 
+> Why does 'kswapd' use so much resources?    And why has it used so many
+> resources during the night?
 
-3rd attempt, this should work...
+This is certainly a rare thing to happen. My best
+guess would be that you ran out of virtual
+memory and the system tried to go on anyway...
+
+Some output from /bin/free, procinfo and vmstat
+plus some info on what type of machine and
+workload you have would be useful to determine
+the exact cause of this problem.
 
 Rik.
 +-------------------------------------------------------------------+
