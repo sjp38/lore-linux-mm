@@ -4,54 +4,65 @@ References: <20050103011113.6f6c8f44.akpm@osdl.org>
 	<1105019521.7074.79.camel@tribesman.namesys.com>
 	<20050107144644.GA9606@infradead.org>
 	<1105118217.3616.171.camel@tribesman.namesys.com>
-	<41DEDF87.8080809@grupopie.com>
+	<20050107190545.GA13898@infradead.org> <m1pt0hq81x.fsf@clusterfs.com>
+	<20050107205444.GA15969@infradead.org>
 From: Nikita Danilov <nikita@clusterfs.com>
-Date: Fri, 07 Jan 2005 23:55:39 +0300
-In-Reply-To: <41DEDF87.8080809@grupopie.com> (Paulo Marques's message of
- "Fri, 07 Jan 2005 19:14:15 +0000")
-Message-ID: <m1llb5q7qs.fsf@clusterfs.com>
+Date: Sat, 08 Jan 2005 00:00:00 +0300
+In-Reply-To: <20050107205444.GA15969@infradead.org> (Christoph Hellwig's
+ message of "Fri, 7 Jan 2005 20:54:44 +0000")
+Message-ID: <m1hdltq7jj.fsf@clusterfs.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paulo Marques <pmarques@grupopie.com>
-Cc: linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@infradead.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Vladimir Saveliev <vs@namesys.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Paulo Marques <pmarques@grupopie.com> writes:
+Christoph Hellwig <hch@infradead.org> writes:
 
-[...]
-
+> On Fri, Jan 07, 2005 at 11:48:58PM +0300, Nikita Danilov wrote:
+>> sufficient to create and use per-thread reservations. Using
+>> current->private_pages_count directly
+>> 
+>>  - makes API less uniform, not contained within single namespace
+>>    (perthread_pages_*), and worse,
+>> 
+>>  - exhibits internal implementation detail to the user.
 >
-> This seems like a very asymmetrical behavior. If the code explicitly
-> reserves pages, it should explicitly use them, or it will become
-> impossible to track down who is using what (not to mention that this
-> will slow down every regular user of __alloc_pages, even if it is just
-> for a quick test).
+> Completely disagreed, hiding all the details doesn't help for such
+> trivial access, it's just obsfucating things.
 >
-> Why are there specialized functions to reserve the pages, but then they
-> are used through the standard __alloc_pages interface?
+> But looking at it the API doesn't make sense at all.  Number of pages
+> in the thread-pool is an internal implementation detail and no caller
+> must look at it - think about two callers, e.g. filesystem and iscsi
+> initiator using it in the same thread.
+>
+> Here's an updated patch with my suggestions implemented and other goodies
+> such a kerneldoc comments (but completely untested so far):
+>
+>
+> --- 1.20/include/linux/gfp.h	2005-01-05 18:30:39 +01:00
+> +++ edited/include/linux/gfp.h	2005-01-07 20:30:20 +01:00
+> @@ -130,6 +130,9 @@
+>  #define __free_page(page) __free_pages((page), 0)
+>  #define free_page(addr) free_pages((addr),0)
+>  
+> +extern int perthread_pages_reserve(unsigned int nrpages, unsigned int gfp_mask);
+> +extern void perthread_pages_release(unsigned int nrpages);
 
-That's the whole idea behind this patch: at the beginning of "atomic"
-operation, some number of pages is reserved. As these pages are
-available through page allocator, _all_ allocations done by atomic
-operation will use reserved pages transparently. For example:
+I don't see how this can work.
 
-        perthread_pages_reserve(nr, GFP_KERNEL);
+        /* make conservative estimation... */
+        perthread_pages_reserve(100, GFP_KERNEL);
 
-        foo()->
+        /* actually, use only 10 pages during atomic operation */
 
-            bar()->
+        /* want to release remaining 90 pages... */
+        perthread_pages_release(???);
 
-                page = find_or_create_page(some_mapping, ...);
-
-        perthread_pages_release(unused_pages);
-
-find_or_create() pages will use pages reserved for this thread and,
-hence, is guaranteed to succeed (given correct reservation).
-
-Alternative is to pass some sort of handle all the way down to actual
-calls to allocator, and to modify all generic code to use reservations.
+Can you elaborate how to calculate number of pages that has to be
+released?
 
 Nikita.
 --
