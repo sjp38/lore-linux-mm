@@ -1,12 +1,12 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e2.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1LNtVun015421
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2005 18:55:31 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1LNtVew029236
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2005 18:55:31 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1LNtUhd015167
-	for <linux-mm@kvack.org>; Mon, 21 Feb 2005 18:55:30 -0500
+Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
+	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j1M09jMN302022
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2005 19:09:45 -0500
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by d03relay05.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1M09j7B088970
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2005 17:09:45 -0700
+Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j1M09jKQ026707
+	for <linux-mm@kvack.org>; Mon, 21 Feb 2005 17:09:45 -0700
 Subject: Re: [RFC] [Patch] For booting a i386 numa system with no memory in
 	a node
 From: Dave Hansen <haveblue@us.ibm.com>
@@ -23,78 +23,23 @@ References: <1106881119.2040.122.camel@cog.beaverton.ibm.com>
 	 <1109017040.9817.1638.camel@knk>  <1109018361.21720.3.camel@localhost>
 	 <1109023409.9817.1667.camel@knk>  <1109024680.25666.4.camel@localhost>
 	 <1109029568.9817.1700.camel@knk>
-Content-Type: multipart/mixed; boundary="=-tK581pPp//0ZThizcSbM"
-Date: Mon, 21 Feb 2005 15:55:26 -0800
-Message-Id: <1109030126.25666.17.camel@localhost>
+Content-Type: text/plain
+Date: Mon, 21 Feb 2005 16:09:41 -0800
+Message-Id: <1109030981.25666.19.camel@localhost>
 Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: keith <kmannth@us.ibm.com>
 Cc: linux-mm <linux-mm@kvack.org>, "Martin J. Bligh" <mbligh@aracnet.com>, matt dobson <colpatch@us.ibm.com>, John Stultz <johnstul@us.ibm.com>, Andy Whitcroft <andyw@uk.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
---=-tK581pPp//0ZThizcSbM
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+This patch somewhat simplifies the code that you're working with.  You
+may want to apply it first because it solves a few of the same problems.
 
-I think you interpreted my suggestion about the if() backwards.  Is
-there a reason the attached patch won't work?
+http://www.sr71.net/patches/2.6.11/2.6.11-rc3-mhp1/broken-out/B-sparse-080-alloc_remap-i386.patch
 
 -- Dave
-
---=-tK581pPp//0ZThizcSbM
-Content-Disposition: attachment; filename=collapse-if.patch
-Content-Type: text/x-patch; name=collapse-if.patch; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 7bit
-
-
-
----
-
- sparse-dave/arch/i386/mm/discontig.c |   22 ++++++++++------------
- 1 files changed, 10 insertions(+), 12 deletions(-)
-
-diff -puN arch/i386/mm/discontig.c~collapse-if arch/i386/mm/discontig.c
---- sparse/arch/i386/mm/discontig.c~collapse-if	2005-02-21 15:53:54.000000000 -0800
-+++ sparse-dave/arch/i386/mm/discontig.c	2005-02-21 15:54:03.000000000 -0800
-@@ -401,24 +401,22 @@ void __init zone_sizes_init(void)
- 
- 		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
- 
--		if (node_has_online_mem(nid)){
--			if (start > low) {
-+		if ((start > low) || !node_has_online_mem(nid)) {
- #ifdef CONFIG_HIGHMEM
- 				BUG_ON(start > high);
- 				zones_size[ZONE_HIGHMEM] = high - start;
- #endif
--			} else {
--				if (low < max_dma)
--					zones_size[ZONE_DMA] = low;
--				else {
--					BUG_ON(max_dma > low);
--					BUG_ON(low > high);
--					zones_size[ZONE_DMA] = max_dma;
--					zones_size[ZONE_NORMAL] = low - max_dma;
-+		} else {
-+			if (low < max_dma)
-+				zones_size[ZONE_DMA] = low;
-+			else {
-+				BUG_ON(max_dma > low);
-+				BUG_ON(low > high);
-+				zones_size[ZONE_DMA] = max_dma;
-+				zones_size[ZONE_NORMAL] = low - max_dma;
- #ifdef CONFIG_HIGHMEM
--					zones_size[ZONE_HIGHMEM] = high - low;
-+				zones_size[ZONE_HIGHMEM] = high - low;
- #endif
--				}
- 			}
- 		}
- 
-_
-
---=-tK581pPp//0ZThizcSbM--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
