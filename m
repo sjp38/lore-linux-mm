@@ -1,75 +1,37 @@
-Date: Tue, 17 Sep 2002 00:27:16 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: dbench on tmpfs OOM's
-Message-ID: <20020917072716.GN3530@holomorphy.com>
-References: <3D86BE4F.75C9B6CC@digeo.com> <Pine.LNX.4.44.0209170726050.19523-100000@localhost.localdomain>
+Date: Sun, 15 Sep 2002 22:30:04 -0700
+From: Matt Porter <porter@cox.net>
+Subject: Re: [PATCH] add vmalloc stats to meminfo
+Message-ID: <20020915223004.A17831@home.com>
+References: <3D8422BB.5070104@us.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0209170726050.19523-100000@localhost.localdomain>
+In-Reply-To: <3D8422BB.5070104@us.ibm.com>; from haveblue@us.ibm.com on Sat, Sep 14, 2002 at 11:03:39PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Andrew Morton <akpm@zip.com.au>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 17, 2002 at 08:01:20AM +0100, Hugh Dickins wrote:
-> shmem uses GFP_USER for its index pages to GFP_HIGHUSER data pages.
-> Not to say there aren't other problems in the mix too, but Bill's
-> main problem here will be one you discovered a while ago, Andrew.
-> We fixed it then, but in my loopable tmpfs version, and I've been
-> slow to extract the fixes and push them to mainline (or now -mm),
-> since there's not much else that suffers than dbench.
-> The problem is that dbench likes to do large random(?) seeks and
-> then writes at resulting offset; and although shmem-tmpfs imposes
-> a cap (default: half of memory) on the data pages, it imposes no
-> cap on its index pages.  So it foolishly ends up filling normal
-> zone with empty index blocks for zero-length files, the index
-> page allocation being done _before_ the data cap check.
+On Sat, Sep 14, 2002 at 11:03:39PM -0700, Dave Hansen wrote:
+> Some workloads like to eat up a lot of vmalloc space.  It is often hard to tell
+> whether this is because the area is too small, or just too fragmented.  This 
+> makes it easy to determine.
 
-The extreme configurations of my machines put a great deal of stress on
-many codepaths. It shouldn't be regarded as any great failing that some
-corrections are required to function properly on them, as the visibility
-given to highmem-related pressures is far, far greater than seen elsewhere.
+Great, I was going to do something nearly the same to help out
+with debugging high-end embedded applications.  It is quite common
+for us to see multiple PCI masters with PCI memory windows in sizes
+ranging from 256MB-1GB that are being ioremapped and consuming
+vmalloc space (along with all the other consumers).  I'd love to
+see this in the kernel since it would make it much easier to debug
+some folks' custom board ports when they show symptoms of running
+out of vmalloc space (i.e. modules not loading).
 
-One thing to bear in mind is that though the kernel may be functioning
-correctly in refusing the requests made, the additional functionality
-of being capable of servicing them would be much appreciated and likely
-to be of good use for the machines in the field we serve. Although from
-your general stance on things, it seems I've little to convince you of.
-
-
-On Tue, Sep 17, 2002 at 08:01:20AM +0100, Hugh Dickins wrote:
-> I'll rebase the relevant fixes against 2.5.35-mm1 later today,
-> do a little testing and post the patch.
-> What I never did was try GFP_HIGHUSER and kmap on the index pages:
-> I think I decided back then that it wasn't likely to be needed
-> (sparsely filled file indexes are a rarer case than sparsely filled
-> pagetables, once the stupidity is fixed; and small files don't use
-> index pages at all).  But Bill's testing may well prove me wrong.
-
-I suspected you may well have plots here, as you have often before,
-so I held off on brewing up attempts at such myself until you replied.
-I'll defer to you.
-
-
-Thanks,
-Bill
-
-P.S.:
-
-The original intent of this testing was to obtain a profile of "best
-case" behavior not limited by throttling within the block layer. The
-method was derived from the observation that though the test on-disk
-was seek-bound according to the block layer, as the test was configured,
-it should have been able to have been carried out in-core. Carrying out
-the test on tmpfs was the method chosen to eliminate the block throttling.
-
-Whatever kind of additional stress-testing and optimization you have an
-interest in enabling tmpfs for I'd be at least moderately interested in
-providing, as I've some interest in using tmpfs to assist with
-generalized large page support within the core kernel.
+Regards,
+-- 
+Matt Porter
+porter@cox.net
+This is Linux Country. On a quiet night, you can hear Windows reboot.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
