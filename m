@@ -1,71 +1,39 @@
-Date: Wed, 18 Jul 2001 13:09:17 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] Separate global/perzone inactive/free shortage
-In-Reply-To: <12670000.995468875@baldur>
-Message-ID: <Pine.LNX.4.33L.0107181243490.9022-100000@imladris.rielhome.conectiva>
+Received: from austin.ibm.com (netmail2.austin.ibm.com [9.53.250.97])
+	by mg02.austin.ibm.com (AIX4.3/8.9.3/8.9.3) with ESMTP id LAA29020
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2001 11:25:03 -0500
+Received: from baldur.austin.ibm.com (baldur.austin.ibm.com [9.53.216.148])
+	by austin.ibm.com (AIX4.3/8.9.3/8.9.3) with ESMTP id LAA24358
+	for <linux-mm@kvack.org>; Wed, 18 Jul 2001 11:19:06 -0500
+Received: from baldur (localhost.austin.ibm.com [127.0.0.1])
+        by localhost.austin.ibm.com (8.12.0.Beta12/8.12.0.Beta12/Debian 8.12.0.Beta12) with ESMTP id f6IGJ6ak030609
+        for <linux-mm@kvack.org>; Wed, 18 Jul 2001 11:19:06 -0500
+Date: Wed, 18 Jul 2001 11:19:06 -0500
+From: Dave McCracken <dmc@austin.ibm.com>
+Subject: Basic MM question
+Message-ID: <17230000.995473146@baldur>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmc@austin.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Jul 2001, Dave McCracken wrote:
-> --On Wednesday, July 18, 2001 10:54:52 +0200 Mike Galbraith
-> <mikeg@wen-online.de> wrote:
->
-> > Possible solution:
-> >
-> > Effectively reserving the last ~meg (pick a number, scaled by ramsize
-> > would be better) of ZONE_DMA for real GFP_DMA allocations would cure
-> > Dirk's problem I bet, and also cure most of the others too, simply by
->
-> Couldn't something similar to this be accomplished by tweaking the
-> pages_{min,low,high} values to ZONE_DMA based on the total memory in the
-> machine?
+My apologies if this is a newbie question.  I'm still trying to figure out 
+the fine points of how MM works.
 
-I bet we can do this in a much simpler way with less
-reliance on magic numbers. My theory goes as follows:
+Why does read_swap_cache_async use GFP_USER as opposed to GFP_HIGHUSER for 
+swapped in pages?  Is there some characteristic of reading swap pages that 
+doesn't allow use of highmem?  Since anonymous pages can be allocated from 
+highmem, it seems to me it would make sense to also allow highmem pages 
+once they've been swapped out and back in.
 
-The problem with the current code is that the global
-free target (freepages.high) is the same as the sum
-of the per-zone free targets.
+Dave McCracken
 
-Because of this, we will always run into the local
-free shortages and the VM has to eat free pages from
-all zones and has no chance to properly balance usage
-bettween the zones depending on VM activity in the
-zone and desireability of allocating from this zone.
-
-We could try increasing the _global_ free target to
-something like 2 or 3 times the sum of the per-zone
-free targets.
-
-By doing that the system would have a much better
-chance of leaving eg. the DMA zone alone for allocations
-because kswapd doesn't just free the amount of pages
-required to bring each zone to the edge, it would free
-a whole bunch more pages, to whatever zone they happen
-to be in.  That way the VM would do the bulk of the
-allocations from the least loaded zone and leave the
-DMA zone (at the end of the fallback chain) alone.
-
-I'm not sure if this would work, but just increasing
-the global free target to something significantly
-higher than the sum of the per-zone free targets
-is an easy to test change ;)
-
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmc@austin.ibm.com                                      T/L   678-3059
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
