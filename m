@@ -1,62 +1,68 @@
-Received: from hpfcla.fc.hp.com (hpfcla.fc.hp.com [15.254.48.2])
-	by atlrel2.hp.com (Postfix) with ESMTP id 8EA43639
-	for <linux-mm@kvack.org>; Tue, 22 May 2001 19:16:49 -0400 (EDT)
-Received: from gplmail.fc.hp.com (nsmail@wslmail.fc.hp.com [15.1.92.20])
-	by hpfcla.fc.hp.com (8.9.3 (PHNE_22672)/8.9.3 SMKit7.01) with ESMTP id RAA14938
-	for <linux-mm@kvack.org>; Tue, 22 May 2001 17:16:48 -0600 (MDT)
-Received: from fc.hp.com (dome.fc.hp.com [15.1.89.118])
-          by gplmail.fc.hp.com (Netscape Messaging Server 3.6)  with ESMTP
-          id AAACD3 for <linux-mm@kvack.org>;
-          Tue, 22 May 2001 17:16:44 -0600
-Message-ID: <3B0AF30D.8D25806A@fc.hp.com>
-Date: Tue, 22 May 2001 17:15:26 -0600
-From: David Pinedo <dp@fc.hp.com>
+Received: from frejya.corp.netapp.com (frejya.corp.netapp.com [10.10.20.91])
+	by mx01-a.netapp.com (8.11.1/8.11.1/NTAP-1.2) with ESMTP id f4N1VUK05733
+	for <linux-mm@kvack.org>; Tue, 22 May 2001 18:31:34 -0700 (PDT)
+Received: from ussvlexc06.corp.netapp.com (localhost [127.0.0.1])
+	by frejya.corp.netapp.com (8.11.1/8.11.1/NTAP-1.2) with ESMTP id f4N1VUm12039
+	for <linux-mm@kvack.org>; Tue, 22 May 2001 18:31:30 -0700 (PDT)
+From: "Chuck Lever" <cel@netapp.com>
+Subject: RE: vm_enough_memory() and RAM disks
+Date: Tue, 22 May 2001 21:32:33 -0400
+Message-ID: <NFBBLKEIKLGDCJAAAEKOKEDPCAAA.cel@netapp.com>
 MIME-Version: 1.0
-Subject: Re: Running out of vmalloc space
-References: <3B04069C.49787EC2@fc.hp.com> <20010517183931.V2617@redhat.com> <3B045546.312BA42E@fc.hp.com>
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+In-Reply-To: <3B0ACB08.C9032ADB@mvista.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I followed up on the suggestion of several folks to not map the graphics
-board into kernel vm space. While investigating how to do that, I
-discovered that the frame buffer space did not need to be mapped -- it
-was already being mapped with the control space. So instead of needing
-(32M+16M)*2=96M of vmalloc space, I only need 32M*2=64M. That change
-seemed easier than figuring out how not to map the board into kernel vm
-space, so...
- 
-Given that VMALLOC_RESERVE is 128M, and there was about 92M left when my
-graphics driver was being initialized, I thought I should have plenty of
-room to map the two graphics boards. It worked -- the first time. If I
-exitted the X server and restarted it, I would get the same errors from
-the X server as when it was not able to map one of the devices.
+i've noticed a (possibly) related problem.
 
-I verified that the kernel vm space was being freed when the X server is
-shut down, so that wasn't the problem. On further investigation, I found
-that after the X server initialized the graphics boards, somebody else
-was allocating a 24k chunk of vm space, immiediately after the two
-chunks allocated by the graphics driver. When the graphics driver tried
-to re-allocate those two chunks the next time the X server was started,
-it was able to get the first, but not the second chunk. I looked at the
-get_vm_area code in vmalloc.c, I found that it will not allow a vm space
-to be allocated from a free space that is exactly the size of the space
-being allocated. I think the statement:
+i've configured an NFS server to export a largish RAM disk for
+the purposes of testing NFS performance.  the RAM disk is half
+as large as the server's physical memory.  i've seen several
+times that when the machine runs out of memory (the "free"
+column in vmstat output goes below 1M) and the kernel wants
+to swap, the system freezes up.  my theory was that something
+was attempting to flush buffers, but because the buffers were
+bh_protected (because they were part of a large RAM disk), the
+kernel wasn't successful at making any normal headway, and so
+it looped.
 
-    if (size + addr < (unsigned long) tmp->addr)
-          break;       
-
-should be:  
-
-    if (size + addr <= (unsigned long) tmp->addr)
-          break;
-
-Making this change seems to fix my problem. :-)
-
-David Pinedo
+> -----Original Message-----
+> From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org]On
+> Behalf Of Scott Anderson
+> Sent: Tuesday, May 22, 2001 4:25 PM
+> To: linux-mm@kvack.org
+> Subject: vm_enough_memory() and RAM disks
+> 
+> 
+> I've noticed that vm_enough_memory() does not account for the
+> fact that buffer cache could be used for RAM disks.  It appears that it
+> assumes that all of buffer cache is only being used for caching data
+> from disk drives and could be freed up as needed.  Logically, I think
+> what needs to happen is that the amount of space occupied by buffers
+> with BH_Protected needs to be subtracted off of buffermem_pages.
+> 
+> As you can well imagine, in small systems with relatively large RAM
+> disks, this does not lead to good behavior...
+> 
+> Now for the true confession: I'm not finding time to come up with a
+> patch for this right now.  However, I thought it would be better to at
+> least get this out instead of waiting around for me to find the time.
+> 
+> Thanks for listening,
+>     Scott Anderson
+>     scott_anderson@mvista.com   MontaVista Software Inc.
+>     (408)328-9214               1237 East Arques Ave.
+>     http://www.mvista.com       Sunnyvale, CA  94085
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux.eu.org/Linux-MM/
+> 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
