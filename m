@@ -1,37 +1,37 @@
-Received: from hermes.copt.junta-andalucia.es ([10.229.128.13])
-          by dns1.junta-andalucia.es (Netscape Messaging Server 3.6)
-           with ESMTP id AAA9B for <linux-mm@kvack.org>;
-          Fri, 26 Jan 2001 09:11:27 +0100
-Received: from sgtor3 (sgt-or3.copt.junta-andalucia.es [10.229.128.202] (may be forged))
-	by hermes.copt.junta-andalucia.es (8.9.3/8.9.3) with SMTP id JAA20972
-	for <linux-mm@kvack.org>; Fri, 26 Jan 2001 09:13:16 +0100
-Message-ID: <001f01c0876f$a9b67300$ca80e50a@copt.juntaandalucia.es>
-From: "Antonio Vargas" <avargas@sadiel.es>
-Subject: 
-Date: Fri, 26 Jan 2001 09:12:01 +0100
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
+Date: Fri, 26 Jan 2001 10:37:14 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: ioremap_nocache problem?
+Message-ID: <20010126103714.B11607@redhat.com>
+References: <3A6D5D28.C132D416@sangate.com> <20010123165117Z131182-221+34@kanga.kvack.org> <20010123165117Z131182-221+34@kanga.kvack.org> <20010125151655.V11607@redhat.com> <200101251556.f0PFuPd01743@mail.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200101251556.f0PFuPd01743@mail.redhat.com>; from ttabi@interactivesi.com on Thu, Jan 25, 2001 at 09:56:32AM -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Timur Tabi <ttabi@interactivesi.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Un saludo
-Antonio Vargas
-SADIEL, S.A.
-c/ Isaac Newton s/n Edificio Sadiel - Sodean, Isla de la Cartuja
-41092 SEVILLA - Spain
-Tel. +34955043600 Fax +34955043601
-http://www.sadiel.es
+Hi,
 
-e-mail:
-avargas@sadiel.es
-wind@dma4.com (casa, para mandar ficheros)
-http://synthesis.hn.org (offline hasta nuevo aviso)
+On Thu, Jan 25, 2001 at 09:56:32AM -0600, Timur Tabi wrote:
+> > ioremap*() is only supposed to be used on IO regions or reserved
+> > pages.  If you haven't marked the pages as reserved, then iounmap will
+> > do the wrong thing, so it's up to you to reserve the pages.
+> 
+> Au contraire!
+> 
+> I mark the page as reserved when I ioremap() it.  However, if I leave it marked
+> reserved, then iounmap() will not unmap it.  
 
+It certainly should do, and the 2.4 source certainly looks as if it
+does.  At least on i386, iounmap calls vfree, which ends up in
+free_area_pte(), which will unconditionally clear the pte (hence
+unmapping the page).
 
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
