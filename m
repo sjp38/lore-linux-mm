@@ -1,31 +1,35 @@
-Date: Tue, 2 Nov 2004 10:13:06 +0100
-From: Andi Kleen <ak@suse.de>
+Date: Tue, 02 Nov 2004 07:46:59 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
-Message-ID: <20041102091306.GC21619@wotan.suse.de>
-References: <Pine.SGI.4.58.0411011901540.77038@kzerza.americas.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-ID: <14340000.1099410418@[10.10.2.4]>
 In-Reply-To: <Pine.SGI.4.58.0411011901540.77038@kzerza.americas.sgi.com>
+References: <Pine.SGI.4.58.0411011901540.77038@kzerza.americas.sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Brent Casavant <bcasavan@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com, ak@suse.de
+To: Brent Casavant <bcasavan@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: hugh@veritas.com, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-> And now, for your viewing pleasure...
+> This patch causes memory allocation for tmpfs files to be distributed
+> evenly across NUMA machines.  In most circumstances today, tmpfs files
+> will be allocated on the same node as the task writing to the file.
+> In many cases, particularly when large files are created, or a large
+> number of files are created by a single task, this leads to a severe
+> imbalance in free memory amongst nodes.  This patch corrects that
+> situation.
 
-Patch is fine except that I would add a sysctl to enable/disable this.
+Yeah, but it also ruins your locality of reference (in a NUMA sense). 
+Not convinced that's a good idea. You're guaranteeing universally consistent
+worse-case performance for everyone. And you're only looking at a situation
+where there's one allocator on the system, and that's imbalanced.
 
-I can see that some people would like to not have interleave policy
-(e.g. when you use tmpfs as a large memory extender on 32bit NUMA
-then you probably want local affinity) 
+You WANT your data to be local. That's the whole idea.
 
-Best if you name it /proc/sys/vm/numa-tmpfs-rr
-
-Default can be set to one for now.
-
--Andi
+M.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
