@@ -1,64 +1,37 @@
-Date: Tue, 14 Aug 2001 03:41:41 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] "drop behind" for buffers
-Message-ID: <Pine.LNX.4.33L.0108140339250.6118-100000@imladris.rielhome.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 11 Aug 2001 01:13:29 +0000
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: Swapping for diskless nodes
+Message-ID: <20010811011329.C55@toy.ucw.cz>
+References: <OF452D802E.BE93E657-ON85256AA3.004E8422@pok.ibm.com> <E15UrUl-0007Rn-00@the-village.bc.nu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <E15UrUl-0007Rn-00@the-village.bc.nu>; from alan@lxorguk.ukuu.org.uk on Thu, Aug 09, 2001 at 04:13:11PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: linux-mm@kvack.org
+Cc: Bulent Abali <abali@us.ibm.com>, "Dirk W. Steinberg" <dws@dirksteinberg.de>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Alan,
+Hi
 
-the patch below bypasses page aging and drops buffers directly
-onto the inactive_dirty list when we have an excessive amount
-of buffercache pages.
+> > Last time I checked swapping over nbd required patching the network stack.
+> > Because swapping occurs when memory is low and when memory is low TCP
+> > doesn't do what you expect it to do...
+> 
+> Its a case of having sufficient memory in the atomic pools. Its possible to
+> do some ugly quick kernel hack to make the pool commit less likely to be a 
+> problem.
+> 
+> Ultimately its an insoluble problem, neither SunOS, Solaris or NetBSD are
+> infallible, they just never fail for any normal situation, and thats good
+> enough for me as a solution
 
-This should provide some of the benefits of drop behind for
-buffercache pages, while still giving the buffercache pages
-a good chance to stay resident in memory by being referenced
-while on the inactive_dirty list (and moved back onto the
-active list).
-
-regards,
-
-Rik
---
-IA64: a worthy successor to i860.
-
-
---- linux/mm/vmscan.c.buffer	Thu Aug  9 17:54:24 2001
-+++ linux/mm/vmscan.c	Thu Aug  9 17:55:09 2001
-@@ -708,6 +708,8 @@
-  * This function will scan a portion of the active list to find
-  * unused pages, those pages will then be moved to the inactive list.
-  */
-+#define too_many_buffers (atomic_read(&buffermem_pages) > \
-+		(num_physpages * buffer_mem.borrow_percent / 100))
- int refill_inactive_scan(zone_t *zone, unsigned int priority, int target)
- {
- 	struct list_head * page_lru;
-@@ -770,6 +772,18 @@
- 				page_active = 1;
- 			}
- 		}
-+
-+		/*
-+		 * If the amount of buffer cache pages is too
-+		 * high we just move every buffer cache page we
-+		 * find to the inactive list. Eventually they'll
-+		 * be reclaimed there...
-+		 */
-+		if (page->buffers && !page->mapping && too_many_buffers) {
-+			deactivate_page_nolock(page);
-+			page_active = 0;
-+		}
-+
- 		/*
- 		 * If the page is still on the active list, move it
- 		 * to the other end of the list. Otherwise we exit if
+Oops,  really? And if I can DoS such machine with ping -f (to eat atomic
+ram)? And what are you going to tel your users? "It died so reboot"?
+								Pavel
+-- 
+Philips Velo 1: 1"x4"x8", 300gram, 60, 12MB, 40bogomips, linux, mutt,
+details at http://atrey.karlin.mff.cuni.cz/~pavel/velo/index.html.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
