@@ -1,78 +1,166 @@
-Message-ID: <393DC544.8D8BA7B7@reiser.to>
-Date: Tue, 06 Jun 2000 20:45:08 -0700
-From: Hans Reiser <hans@reiser.to>
+Message-ID: <393DFB23.64FD2E3D@mandrakesoft.com>
+Date: Wed, 07 Jun 2000 03:34:59 -0400
+From: Jeff Garzik <jgarzik@mandrakesoft.com>
 MIME-Version: 1.0
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:  
- it'snot just the code)
-References: <Pine.LNX.4.21.0006061956360.7328-100000@duckman.distro.conectiva>
-		<393DA31A.358AE46D@reiser.to> <yttya4ifeka.fsf@serpe.mitica>
-Content-Type: text/plain; charset=koi8-r
-Content-Transfer-Encoding: 7bit
+Subject: PATCH 2.4.0.1.ac10: a KISS memory pressure callback
+Content-Type: multipart/mixed;
+ boundary="------------E7214397E2575411AFA345EC"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Quintela Carreira Juan J." <quintela@fi.udc.es>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: linux-mm@kvack.org
+Cc: Linux Kernel Mailing List <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-"Quintela Carreira Juan J." wrote:
-> 
-> >>>>> "hans" == Hans Reiser <hans@reiser.to> writes:
-> 
-> Hi
-> 
-> hans> quite happy to see you drive it, I suggest to check with zam as he has some code
-> hans> in progress.
-> 
-> hans> There are two issues to address:
-> 
-> hans> 1) If a buffer needs to be flushed to disk, how do we let the FS flush
-> hans> everything else that it is optimal to flush at the same time as that buffer.
-> hans> zam's allocate on flush code addresses that issue for reiserfs, and he has some
-> hans> general hooks implemented also.  He is guessed to be two weeks away.
-> 
-> Ok, register a cache function and it will receive the _priority_ (also
-> know as _how hard_ should try to free memory).  Once that memory is
-> freed put that pages in the LRU list.  Not need to have them there
-> before because there is no way that shrink_mmap would be able to free
-> them anyway.
-> 
-> This is the reason because of what I think that one operation in the
-> address space makes no sense.  No sense because it can't be called
-> from the page.
+This is a multi-part message in MIME format.
+--------------E7214397E2575411AFA345EC
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-What do you think of my argument that each of the subcaches should register
-currently_consuming counters which are the number of pages that subcache
-currently takes up in memory, plus register an integer "preciousness" value, and
-that the pressure API should pressure according to the formula:
+Cheesy maybe, effective probably.
+-- 
+Jeff Garzik              | Liberty is always dangerous, but
+Building 1024            | it is the safest thing we have.
+MandrakeSoft, Inc.       |      -- Harry Emerson Fosdick
+--------------E7214397E2575411AFA345EC
+Content-Type: text/plain; charset=us-ascii;
+ name="freemem.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="freemem.patch"
 
-pressure equals currently_consuming squared times preciousness
+Index: mm/vmscan.c
+===================================================================
+RCS file: /g/cvslan/linux_2_3/mm/vmscan.c,v
+retrieving revision 1.1.1.40
+diff -u -r1.1.1.40 vmscan.c
+--- mm/vmscan.c	2000/06/05 03:14:23	1.1.1.40
++++ mm/vmscan.c	2000/06/07 07:32:47
+@@ -428,6 +428,31 @@
+ }
+ 
+ /*
++ * The freemem notifier list holds a list of functions
++ * that are to be called when trying to free pages.
++ *
++ * Call them...  We don't use notifier_call_chain
++ * because the return code from a freemem notifier
++ * is treated as a shrink_*_memory-style return value.
++ */
++extern struct notifier_block *freemem_notifier_list;
++static int shrink_misc_memory (int priority, unsigned int gfp_mask)
++{
++	int count = 0;
++	struct notifier_block *nb = freemem_notifier_list;
++
++	while (nb) {
++		count += nb->notifier_call(nb,
++			(unsigned long) priority,
++			(void *)(unsigned long) gfp_mask);
++		nb = nb->next;
++	}
++
++	return count;
++}
++
++
++/*
+  * We need to make the locks finer granularity, but right
+  * now we need this so that we can do page allocations
+  * without holding the kernel lock etc.
+@@ -476,6 +501,13 @@
+ 				if (!--count)
+ 					goto done;
+ 			}
++		}
++
++		/* call everybody who registered a mem pressure notifier */
++		count -= shrink_misc_memory(priority, gfp_mask);
++		if (count <= 0) {
++			ret = 1;
++			goto done;
+ 		}
+ 
+ 		/*
+Index: kernel/ksyms.c
+===================================================================
+RCS file: /g/cvslan/linux_2_3/kernel/ksyms.c,v
+retrieving revision 1.1.1.62
+diff -u -r1.1.1.62 ksyms.c
+--- kernel/ksyms.c	2000/05/29 23:48:48	1.1.1.62
++++ kernel/ksyms.c	2000/06/07 07:32:53
+@@ -448,6 +448,8 @@
+ EXPORT_SYMBOL(machine_power_off);
+ EXPORT_SYMBOL(register_reboot_notifier);
+ EXPORT_SYMBOL(unregister_reboot_notifier);
++EXPORT_SYMBOL(register_freemem_notifier);
++EXPORT_SYMBOL(unregister_freemem_notifier);
+ EXPORT_SYMBOL(_ctype);
+ EXPORT_SYMBOL(secure_tcp_sequence_number);
+ EXPORT_SYMBOL(get_random_bytes);
+Index: kernel/sys.c
+===================================================================
+RCS file: /g/cvslan/linux_2_3/kernel/sys.c,v
+retrieving revision 1.1.1.19
+diff -u -r1.1.1.19 sys.c
+--- kernel/sys.c	2000/05/31 13:07:05	1.1.1.19
++++ kernel/sys.c	2000/06/07 07:32:53
+@@ -47,15 +47,51 @@
+  */
+ 
+ static struct notifier_block *reboot_notifier_list = NULL;
++struct notifier_block *freemem_notifier_list = NULL;
++static spinlock_t notifier_lock = SPIN_LOCK_UNLOCKED;
+ 
+ int register_reboot_notifier(struct notifier_block * nb)
+ {
+-	return notifier_chain_register(&reboot_notifier_list, nb);
++	int i;
++
++	spin_lock(&notifier_lock);
++	i = notifier_chain_register(&reboot_notifier_list, nb);
++	spin_unlock(&notifier_lock);
++
++	return i;
+ }
+ 
+ int unregister_reboot_notifier(struct notifier_block * nb)
++{
++	int i;
++
++	spin_lock(&notifier_lock);
++	i = notifier_chain_unregister(&reboot_notifier_list, nb);
++	spin_unlock(&notifier_lock);
++
++	return i;
++}
++
++int register_freemem_notifier(struct notifier_block * nb)
+ {
+-	return notifier_chain_unregister(&reboot_notifier_list, nb);
++	int i;
++
++	spin_lock(&notifier_lock);
++	i = notifier_chain_register(&freemem_notifier_list, nb);
++	spin_unlock(&notifier_lock);
++
++	return i;
++}
++
++int unregister_freemem_notifier(struct notifier_block * nb)
++{
++	int i;
++
++	spin_lock(&notifier_lock);
++	i = notifier_chain_unregister(&freemem_notifier_list, nb);
++	spin_unlock(&notifier_lock);
++
++	return i;
+ }
+ 
+ asmlinkage long sys_ni_syscall(void)
 
-Further, that the equation above should be a nice one line formula in one place
-in the kernel so that we can easily play with variations on it and benchmark the
-results.
+--------------E7214397E2575411AFA345EC--
 
-I don't like the current scheme of priorities of caches, it seems wrong to me
-intuitively.
-
-> 
-> hans> 2) If multiple kernel subsystem page pinners pin memory, how do we keep them
-> hans> from deadlocking.  Chris as you know is the reiserfs guy for that.
-> 
-> I think that Riel is also working in that just now.  I think that is
-> better to find one API that is good for everybody.
-
-I think the issue is not who can do it well, but would somebody finally just do
-it?  We have discussed it for 9 months now on fsdevel....:-)
-
-> 
-> I would also like to see some common API for this kind of allocation
-> of memory.
-> 
-> Later, Juan.
-> 
-> --
-> In theory, practice and theory are the same, but in practice they
-> are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
