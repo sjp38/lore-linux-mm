@@ -1,35 +1,36 @@
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id OAA17845
+	for <linux-mm@kvack.org>; Tue, 4 Mar 2003 14:13:13 -0800 (PST)
+Date: Tue, 4 Mar 2003 14:09:18 -0800
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.63-mm2
-From: Mark Wong <markw@osdl.org>
-In-Reply-To: <20030302180959.3c9c437a.akpm@digeo.com>
+Message-Id: <20030304140918.4092f09b.akpm@digeo.com>
+In-Reply-To: <1046815078.12931.79.camel@ibm-b>
 References: <20030302180959.3c9c437a.akpm@digeo.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 04 Mar 2003 13:57:57 -0800
-Message-Id: <1046815078.12931.79.camel@ibm-b>
+	<1046815078.12931.79.camel@ibm-b>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
+To: Mark Wong <markw@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It appears something is conflicting with the old Adapatec AIC7xxx.  My
-system halts when it attempts to probe the devices (I think it's that.) 
-So I started using the new AIC7xxx driver and all is well.  I don't see
-any messages to the console that points to any causes.  Is there
-someplace I can look for a clue to the problem?
+Mark Wong <markw@osdl.org> wrote:
+>
+> It appears something is conflicting with the old Adapatec AIC7xxx.  My
+> system halts when it attempts to probe the devices (I think it's that.) 
+> So I started using the new AIC7xxx driver and all is well.  I don't see
+> any messages to the console that points to any causes.  Is there
+> someplace I can look for a clue to the problem?
+> 
+> I actually didn't realize I was using the old driver and have no qualms
+> about not using it, but if it'll help someone else, I can help gather
+> information.
 
-I actually didn't realize I was using the old driver and have no qualms
-about not using it, but if it'll help someone else, I can help gather
-information.
-
--- 
-Mark Wong - - markw@osdl.org
-Open Source Development Lab Inc - A non-profit corporation
-15275 SW Koll Parkway - Suite H - Beaverton OR, 97006
-(503)-626-2455 x 32 (office)
-(503)-626-2436      (fax)
-http://www.osdl.org/archive/markw/
+There are "fixes" in that driver in Linus's tree.  I suggest you revert to
+the 2.5.63 version of aic7xxx_old.c, see if that fixes it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
