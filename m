@@ -1,60 +1,60 @@
-Message-Id: <200307101821.h6AIL87u013299@turing-police.cc.vt.edu>
-Subject: Re: 2.5.74-mm3 
-In-Reply-To: Your message of "Tue, 08 Jul 2003 22:35:48 PDT."
-             <20030708223548.791247f5.akpm@osdl.org>
-From: Valdis.Kletnieks@vt.edu
-References: <20030708223548.791247f5.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_-327683311P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: 2.5.74-mm1
+Date: Fri, 11 Jul 2003 03:04:11 +0200
+References: <20030703023714.55d13934.akpm@osdl.org> <200307100059.57398.phillips@arcor.de> <16140.51447.73888.717087@wombat.chubb.wattle.id.au>
+In-Reply-To: <16140.51447.73888.717087@wombat.chubb.wattle.id.au>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Date: Thu, 10 Jul 2003 14:21:08 -0400
+Content-Disposition: inline
+Message-Id: <200307110304.11216.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Chubb <peter@chubb.wattle.id.au>
+Cc: Jamie Lokier <jamie@shareable.org>, Davide Libenzi <davidel@xmailserver.org>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_-327683311P
-Content-Type: text/plain; charset=us-ascii
+On Thursday 10 July 2003 04:01, Peter Chubb wrote:
+> I suspect that what's really wanted here is not SCHED_RR but
+> guaranteed rate-of-forward progress.
 
-On Tue, 08 Jul 2003 22:35:48 PDT, Andrew Morton <akpm@osdl.org>  said:
+I suspect you are right.  I'd also like to note that this is ground so 
+thoroughly trodden that the grass is flat.  Realtime schedulers are a well 
+researched topic, it's just too bad that committees don't design them as well 
+as engineers would.
 
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.74/2.5.74-mm3/
+Thinking strictly about the needs of sound processing, what's needed is a 
+guarantee of so much cpu time each time the timer fires, and a user limit to 
+prevent cpu hogging.  It's worth pondering the difference between that and 
+rate-of-forward-progress.  I suspect some simple improvements to the current 
+scheduler can be made to do the job, and at the same time, avoid the 
+priorty-based starvation issue that seems to have been practically mandated 
+by POSIX.
 
-OK, I'm finally getting around to actually commenting, this has been a niggling issue for
-a while...
+> A dynamic-window-constrained
+> scheduler (that guarantees not that you'll run until you sleep, but
+> that in any (settable) time period you'll get the opportunity to run
+> for at least (a smaller settable period)) is closer to what's wanted.
 
-> All 113 patches:
+It's possible that may be equivalent to what I said :-)
 
-> 64-bit-dev_t-kdev_t.patch
->   64-bit dev_t and kdev_t
+> See http://www.cs.bu.edu/fac/richwest/dwcs.html
 
-Yes, this patch says "not ready for prime time, it breaks things".
+This is an interesting link.  One of the design rules has to be that O(1) 
+performance is never degraded, at least when there are no realtime processes.  
+Also, I want to be clear that I'm not suggesting this sort of thing has 
+anything to do with the current cycle, unless tweaking of the incumbent 
+sheduler fails for some reason, which it seems unlikely to do.
 
-In particular, this gives the device-mapper userspace indigestion, because the
-ioctl passes something other than a 64-bit kdev_t in from libdevmapper. Upshot
-is that the LVM2 'vgchange -ay' fails gloriously.
+Regards,
 
-Workaround:  Compile the devmapper/LVM stuff with a private copy of include/
-linux/kdev_t.h that matches the one the kernel uses.  No, I didn't actually get
-that to work, so I backed out the 64-bit patch...
+Daniel
+>
+> --
+> Dr Peter Chubb  http://www.gelato.unsw.edu.au  peterc AT gelato.unsw.edu.au
+> You are lost in a maze of BitKeeper repositories,   all slightly different.
 
-(And no, the recent devmapper/LVM2 stuff posted doesn't fix this).
-
---==_Exmh_-327683311P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQE/Da6TcC3lWbTT17ARApIQAJ9JMegsEJN357NYSvTStxnMzXgYpQCguhRW
-HlaLZRp46OZz+L7gRVIDV/A=
-=ZBv1
------END PGP SIGNATURE-----
-
---==_Exmh_-327683311P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
