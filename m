@@ -1,1442 +1,655 @@
-From: Christoph Lameter <clameter@sgi.com>
-Subject: page fault scalability patch v6: fallback to page_table_lock, s390
- support
-Date: Wed, 1 Sep 2004 13:11:27 -0700 (PDT)
-Sender: owner-linux-mm@kvack.org
-Message-ID: <Pine.LNX.4.58.0409011258100.10771__8826.13101644001$1094078574$gmane$org@schroedinger.engr.sgi.com>
-References: <20040901120946.GA2851@mschwid3.boeblingen.de.ibm.com>
+From: Steve Longerbeam <stevel@mwwireless.net>
+Subject: Re: [PATCH 2.6.9-rc2-mm1 0/2] mm: memory policy for page cache allocation
+Date: Mon, 20 Sep 2004 15:38:39 -0700
+Sender: lse-tech-admin@lists.sourceforge.net
+Message-ID: <414F5BEF.7010302@mwwireless.net>
+References: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com> <20040920205509.GF4242@wotan.suse.de>
 Mime-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Return-path: <owner-linux-mm@kvack.org>
-Received: from internal-mail-relay.corp.sgi.com (internal-mail-relay.corp.sgi.com [198.149.32.51])
-	by omx2.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id i81Nl1C1026829
-	for <linux-mm@kvack.org>; Wed, 1 Sep 2004 16:47:03 -0700
-Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13] (may be forged))
-	by internal-mail-relay.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id i81Memlb108929487
-	for <linux-mm@kvack.org>; Wed, 1 Sep 2004 15:40:48 -0700 (PDT)
-Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
-	by spindle.corp.sgi.com (8.12.9/8.12.9/generic_config-1.2) with ESMTP id i81MemKi39580901
-	for <linux-mm@kvack.org>; Wed, 1 Sep 2004 15:40:48 -0700 (PDT)
-In-Reply-To: <20040901120946.GA2851@mschwid3.boeblingen.de.ibm.com>
-ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.4.58.0409011540140.21358@schroedinger.engr.sgi.com>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@vger.kernel.org, linux-ia64@vger.kernel.org, akpm@osdl.org, wli@holomorphy.com, davem@redhat.com, raybry@sgi.com, ak@muc.de, manfred@colorfullife.com, vrajesh@umich.edu, hugh@veritas.com, benh@kernel.crashing.org
+Content-Type: multipart/mixed;
+ boundary="------------080707060509060002020408"
+Return-path: <lse-tech-admin@lists.sourceforge.net>
+In-Reply-To: <20040920205509.GF4242@wotan.suse.de>
+Errors-To: lse-tech-admin@lists.sourceforge.net
+List-Unsubscribe: <https://lists.sourceforge.net/lists/listinfo/lse-tech>,
+	<mailto:lse-tech-request@lists.sourceforge.net?subject=unsubscribe>
+List-Post: <mailto:lse-tech@lists.sourceforge.net>
+List-Help: <mailto:lse-tech-request@lists.sourceforge.net?subject=help>
+List-Subscribe: <https://lists.sourceforge.net/lists/listinfo/lse-tech>,
+	<mailto:lse-tech-request@lists.sourceforge.net?subject=subscribe>
+List-Archive: <http://sourceforge.net/mailarchive/forum.php?forum=lse-tech>
+To: Andi Kleen <ak@suse.de>
+Cc: Ray Bryant <raybry@sgi.com>, William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>
 List-Id: linux-mm.kvack.org
 
-On Wed, 1 Sep 2004, Martin Schwidefsky wrote:
+This is a multi-part message in MIME format.
+--------------080707060509060002020408
+Content-Type: multipart/alternative;
+ boundary="------------030808020406070705020805"
 
-> P.S. You should send patches against the memory management to the linux-mm
-> list.
 
-Thanks for all the feedback. I hope I got the s390 support right in the
-following patch. PowerPC falls back to the use of the page_table_lock now.
-The following patch is against 2.6.9-rc1 (last one was against mm1).
+--------------030808020406070705020805
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
 
-This is the sixth release of the page fault scalability patches.
-The scalability patches avoid locking during the creation of page table entries for anonymous
-memory in a threaded application running on a SMP system. The performance
-increases significantly for more than 2 threads running concurrently.
 
-Changes from V5:
-- Provide fallback routines in asm-generic/pgtable.h for platforms that do not
-  support atomic operations on pte/pmd/pgds.
-  The fallback routines will use the page_table_lock for very short times on
-  those platforms so that as much as possible of the performance gain through
-  concurrent page faults is preversed.
-- Provide s390 support for atomic pte operations.
+Andi Kleen wrote:
 
-Typical performance increases in the page fault rate are:
-2 CPUs -> 10%
-4 CPUs -> 30%
-8 CPUs -> 50%
+>On Mon, Sep 20, 2004 at 12:00:33PM -0700, Ray Bryant wrote:
+>  
+>
+>>Background
+>>----------
+>>
+>>Last month, Jesse Barnes proposed a patch to do round robin
+>>allocation of page cache pages on NUMA machines.  This got shot down
+>>for a number of reasons (see
+>>  http://marc.theaimsgroup.com/?l=linux-kernel&m=109235420329360&w=2
+>>and the related thread), but it seemed to me that one of the most
+>>significant issues was that this was a workload dependent optimization.
+>>That is, for an Altix running an HPC workload, it was a good thing,
+>>but for web servers or file servers it was not such a good idea.
+>>
+>>So the idea of this patch is the following:  it creates a new memory
+>>policy structure (default_pagecache_policy) that is used to control
+>>how storage for page cache pages is allocated.  So, for a large Altix
+>>running HPC workloads, we can specify a policy that does round robin
+>>allocations, and for other workloads you can specify the default policy
+>>(which results in page cache pages being allocated locally).
+>>
+>>The default_pagecache_policy is overrideable on a per process basis, so
+>>that if your application prefers to allocate page cache pages locally,
+>>it can.
+>>    
+>>
+>
+>I'm not sure this really makes sense. Do you have some clear use 
+>case where having so much flexibility is needed? 
+>
+>I would prefer to have a global setting somewhere for the page
+>cache (sysctl or sysfs or what you prefer) and some special handling for 
+>text pages. 
+>
+>This would keep the per thread bloat low. 
+>
+>Also I must say I got a patch submitted to do policy per
+>file from Steve Longerbeam. 
+>
+>It so far only supports this for ELF executables, but
+>it has most of the infrastructure to do individual policy
+>per file. Maybe it would be better to go into this direction,
+>only thing missing is a nice way to declare policy for 
+>arbitary files. Even in this case a global default would be useful.
+>
+>I haven't done anything with this patch yet due to missing time 
+>and there were a few small issues to resolve, but i hope it 
+>can be eventually integrated.
+>
+>[Steve, perhaps you can repost the patch to lse-tech for more
+>wider review?]
+>  
+>
 
-With a high number of CPUs (16..512) we are seeing the page fault rate roughly doubling.
+Sure, patch is attached. Also, here is a reposting of my original email to
+you (Andi) describing the patch. Btw, I received your comments on the
+patch, I will reply to your points seperately. Sorry I haven't replied 
+sooner,
+I'm in the middle of switching jobs  :-)
 
-This is accomplished by avoiding the use of the page_table_lock spinlock (but not
-mm->mmap_sem!) through providing new atomic operations on pte's (ptep_xchg, ptep_cmpxchg)
-and on pmd and pdg's (pgd_test_and_populate, pmd_test_and_populate). The page table lock
-can be avoided in the following situations:
 
-1. Operations where an empty pte or pmd entry is populated
-This is safe since the swapper may only depopulate them and the
-swapper code has been changed to never set a pte to be empty until the
-page has been evicted.
+-------- original email follows ----------
 
-2. Modifications of flags in a pte entry (write/accessed).
-These modifications are done by the CPU or by low level handlers
-on various platforms which is also bypassing all locks. So this
-seems to be safe too.
+Hi Andi,
 
-It was necessary to make mm->rss atomic since the page_table_lock was also used
-to protect incrementing and decrementing rss.
+I'm working on adding the features to NUMA mempolicy
+necessary to support MontaVista's MTA.
 
-Atomic operations are supported for i386, ia64, x86_64 and s390 (pmd_test_and_populate on s390
-still requires the page_table_lock).
+Attached is the first of those features, support for
+global page allocation policy for mapped files. Here's
+what the patch is doing:
 
-The scalability could be further increased if the locking scheme (mmap_sem, page_table lock etc)
-would be changed but this would require significant changes to the memory subsystem.
-This patch lays the groundwork for future work by providing a way to handle page table
-entries via xchg and cmpxchg.
+1. add a shared_policy tree to the address_space object in fs.h.
+2. modify page_cache_alloc() in pagemap.h to take an address_space
+    object and page offset, and use those to allocate a page for the
+    page cache using the policy in the address_space object.
+3. modify filemap.c to pass the additional {mapping, page offset} pair
+    to page_cache_alloc().
+4. Also in filemap.c, implement generic file {set|get}_policy() methods and
+    add those to generic_file_vm_ops.
+5. In filemap_nopage(), verify that any existing page located in the cache
+    is located in a node that satisfies the file's policy. If it's not 
+in a node that
+    satisfies the policy, it must be because the page was allocated 
+before the
+    file had any policies. If it's unused, free it and goto retry_find 
+(will allocate
+    a new page using the file's policy). Note that a similar operation 
+is done in
+    exec.c:setup_arg_pages() for stack pages.
+6. Init the file's shared policy in alloc_inode(), and free the shared 
+policy in
+    destroy_inode().
 
-Index: linux-2.6.9-rc1/kernel/fork.c
-===================================================================
---- linux-2.6.9-rc1.orig/kernel/fork.c	2004-08-24 00:01:54.000000000 -0700
-+++ linux-2.6.9-rc1/kernel/fork.c	2004-09-01 11:30:41.000000000 -0700
-@@ -282,7 +282,7 @@
- 	mm->mmap_cache = NULL;
- 	mm->free_area_cache = TASK_UNMAPPED_BASE;
- 	mm->map_count = 0;
--	mm->rss = 0;
-+	atomic_set(&mm->mm_rss, 0);
- 	cpus_clear(mm->cpu_vm_mask);
- 	mm->mm_rb = RB_ROOT;
- 	rb_link = &mm->mm_rb.rb_node;
-Index: linux-2.6.9-rc1/include/linux/sched.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/linux/sched.h	2004-08-24 00:01:54.000000000 -0700
-+++ linux-2.6.9-rc1/include/linux/sched.h	2004-09-01 11:30:41.000000000 -0700
-@@ -197,9 +197,10 @@
- 	pgd_t * pgd;
- 	atomic_t mm_users;			/* How many users with user space? */
- 	atomic_t mm_count;			/* How many references to "struct mm_struct" (users count as 1) */
-+	atomic_t mm_rss;			/* Number of pages used by this mm struct */
- 	int map_count;				/* number of VMAs */
- 	struct rw_semaphore mmap_sem;
--	spinlock_t page_table_lock;		/* Protects task page tables and mm->rss */
-+	spinlock_t page_table_lock;		/* Protects task page tables */
+I'm working on the remaining features needed for MTA. They are:
 
- 	struct list_head mmlist;		/* List of all active mm's.  These are globally strung
- 						 * together off init_mm.mmlist, and are protected
-@@ -209,7 +210,7 @@
- 	unsigned long start_code, end_code, start_data, end_data;
- 	unsigned long start_brk, brk, start_stack;
- 	unsigned long arg_start, arg_end, env_start, env_end;
--	unsigned long rss, total_vm, locked_vm;
-+	unsigned long total_vm, locked_vm;
- 	unsigned long def_flags;
+- support for policies contained in ELF images, for text and data regions.
+- support for do_mmap_mempolicy() and do_brk_mempolicy(). Do_mmap()
+   can allocate pages to the region before the function exits, such as 
+when pages
+   are locked for the region. So it's necessary in that case to set the 
+VMA's policy
+   within do_mmap() before those pages are allocated.
+- system calls for mmap_mempolicy and brk_mempolicy.
 
- 	unsigned long saved_auxv[40]; /* for /proc/PID/auxv */
-Index: linux-2.6.9-rc1/fs/proc/task_mmu.c
-===================================================================
---- linux-2.6.9-rc1.orig/fs/proc/task_mmu.c	2004-08-24 00:01:55.000000000 -0700
-+++ linux-2.6.9-rc1/fs/proc/task_mmu.c	2004-09-01 11:30:41.000000000 -0700
-@@ -30,14 +30,14 @@
- 	buffer += sprintf(buffer,
- 		"VmSize:\t%8lu kB\n"
- 		"VmLck:\t%8lu kB\n"
--		"VmRSS:\t%8lu kB\n"
-+		"VmRSS:\t%8u kB\n"
- 		"VmData:\t%8lu kB\n"
- 		"VmStk:\t%8lu kB\n"
- 		"VmExe:\t%8lu kB\n"
- 		"VmLib:\t%8lu kB\n",
- 		mm->total_vm << (PAGE_SHIFT-10),
- 		mm->locked_vm << (PAGE_SHIFT-10),
--		mm->rss << (PAGE_SHIFT-10),
-+		atomic_read(&mm->mm_rss) << (PAGE_SHIFT-10),
- 		data - stack, stack,
- 		exec - lib, lib);
- 	up_read(&mm->mmap_sem);
-@@ -55,7 +55,7 @@
- 	struct vm_area_struct *vma;
- 	int size = 0;
+Let me know your thoughts on the filemap policy patch.
 
--	*resident = mm->rss;
-+	*resident = atomic_read(&mm->mm_rss);
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 		int pages = (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
+Thanks,
+Steve
 
-Index: linux-2.6.9-rc1/mm/mmap.c
-===================================================================
---- linux-2.6.9-rc1.orig/mm/mmap.c	2004-08-24 00:02:58.000000000 -0700
-+++ linux-2.6.9-rc1/mm/mmap.c	2004-09-01 11:30:41.000000000 -0700
-@@ -1718,7 +1718,7 @@
- 	vma = mm->mmap;
- 	mm->mmap = mm->mmap_cache = NULL;
- 	mm->mm_rb = RB_ROOT;
--	mm->rss = 0;
-+	atomic_set(&mm->mm_rss, 0);
- 	mm->total_vm = 0;
- 	mm->locked_vm = 0;
 
-Index: linux-2.6.9-rc1/include/asm-generic/tlb.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-generic/tlb.h	2004-08-24 00:01:50.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-generic/tlb.h	2004-09-01 11:30:41.000000000 -0700
-@@ -88,11 +88,11 @@
- {
- 	int freed = tlb->freed;
- 	struct mm_struct *mm = tlb->mm;
--	int rss = mm->rss;
-+	int rss = atomic_read(&mm->mm_rss);
+--------------030808020406070705020805
+Content-Type: text/html; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
- 	if (rss < freed)
- 		freed = rss;
--	mm->rss = rss - freed;
-+	atomic_set(&mm->mm_rss, rss - freed);
- 	tlb_flush_mmu(tlb, start, end);
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+  <meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+  <title></title>
+</head>
+<body bgcolor="#ffffff" text="#000000">
+<meta content="text/html;charset=ISO-8859-1" http-equiv="Content-Type">
+<title></title>
+<br>
+<br>
+Andi Kleen wrote:
+<blockquote cite="mid20040920205509.GF4242@wotan.suse.de" type="cite">
+  <pre wrap="">On Mon, Sep 20, 2004 at 12:00:33PM -0700, Ray Bryant wrote:
+  </pre>
+  <blockquote type="cite">
+    <pre wrap="">Background
+----------
 
- 	/* keep the page table cache within bounds */
-Index: linux-2.6.9-rc1/fs/binfmt_flat.c
-===================================================================
---- linux-2.6.9-rc1.orig/fs/binfmt_flat.c	2004-08-24 00:01:50.000000000 -0700
-+++ linux-2.6.9-rc1/fs/binfmt_flat.c	2004-09-01 11:30:41.000000000 -0700
-@@ -650,7 +650,7 @@
- 		current->mm->start_brk = datapos + data_len + bss_len;
- 		current->mm->brk = (current->mm->start_brk + 3) & ~3;
- 		current->mm->context.end_brk = memp + ksize((void *) memp) - stack_len;
--		current->mm->rss = 0;
-+		atomic_set(current->mm->mm_rss, 0);
- 	}
+Last month, Jesse Barnes proposed a patch to do round robin
+allocation of page cache pages on NUMA machines.  This got shot down
+for a number of reasons (see
+  <a
+ class="moz-txt-link-freetext"
+ href="http://marc.theaimsgroup.com/?l=linux-kernel&amp;m=109235420329360&amp;w=2">http://marc.theaimsgroup.com/?l=linux-kernel&amp;m=109235420329360&amp;w=2</a>
+and the related thread), but it seemed to me that one of the most
+significant issues was that this was a workload dependent optimization.
+That is, for an Altix running an HPC workload, it was a good thing,
+but for web servers or file servers it was not such a good idea.
 
- 	if (flags & FLAT_FLAG_KTRACE)
-Index: linux-2.6.9-rc1/fs/exec.c
-===================================================================
---- linux-2.6.9-rc1.orig/fs/exec.c	2004-08-24 00:02:26.000000000 -0700
-+++ linux-2.6.9-rc1/fs/exec.c	2004-09-01 11:30:41.000000000 -0700
-@@ -319,7 +319,7 @@
- 		pte_unmap(pte);
- 		goto out;
- 	}
--	mm->rss++;
-+	atomic_inc(&mm->mm_rss);
- 	lru_cache_add_active(page);
- 	set_pte(pte, pte_mkdirty(pte_mkwrite(mk_pte(
- 					page, vma->vm_page_prot))));
-Index: linux-2.6.9-rc1/mm/memory.c
-===================================================================
---- linux-2.6.9-rc1.orig/mm/memory.c	2004-08-24 00:02:33.000000000 -0700
-+++ linux-2.6.9-rc1/mm/memory.c	2004-09-01 11:30:41.000000000 -0700
-@@ -158,9 +158,7 @@
- 	if (!pmd_present(*pmd)) {
- 		struct page *new;
+So the idea of this patch is the following:  it creates a new memory
+policy structure (default_pagecache_policy) that is used to control
+how storage for page cache pages is allocated.  So, for a large Altix
+running HPC workloads, we can specify a policy that does round robin
+allocations, and for other workloads you can specify the default policy
+(which results in page cache pages being allocated locally).
 
--		spin_unlock(&mm->page_table_lock);
- 		new = pte_alloc_one(mm, address);
--		spin_lock(&mm->page_table_lock);
- 		if (!new)
- 			return NULL;
+The default_pagecache_policy is overrideable on a per process basis, so
+that if your application prefers to allocate page cache pages locally,
+it can.
+    </pre>
+  </blockquote>
+  <pre wrap=""><!---->
+I'm not sure this really makes sense. Do you have some clear use 
+case where having so much flexibility is needed? 
 
-@@ -172,8 +170,11 @@
- 			pte_free(new);
- 			goto out;
+I would prefer to have a global setting somewhere for the page
+cache (sysctl or sysfs or what you prefer) and some special handling for 
+text pages. 
+
+This would keep the per thread bloat low. 
+
+Also I must say I got a patch submitted to do policy per
+file from Steve Longerbeam. 
+
+It so far only supports this for ELF executables, but
+it has most of the infrastructure to do individual policy
+per file. Maybe it would be better to go into this direction,
+only thing missing is a nice way to declare policy for 
+arbitary files. Even in this case a global default would be useful.
+
+I haven't done anything with this patch yet due to missing time 
+and there were a few small issues to resolve, but i hope it 
+can be eventually integrated.
+
+[Steve, perhaps you can repost the patch to lse-tech for more
+wider review?]
+  </pre>
+</blockquote>
+<br>
+Sure, patch is attached. Also, here is a reposting of my original email
+to<br>
+you (Andi) describing the patch. Btw, I received your comments on the<br>
+patch, I will reply to your points seperately. Sorry I haven't replied
+sooner,<br>
+I'm in the middle of switching jobs&nbsp;<span class="moz-smiley-s1"><span>
+:-) </span></span><br>
+<br>
+<br>
+-------- original email follows ----------<br>
+<br>
+Hi Andi,<br>
+<br>
+I'm working on adding the features to NUMA mempolicy<br>
+necessary to support MontaVista's MTA.<br>
+<br>
+Attached is the first of those features, support for<br>
+global page allocation policy for mapped files. Here's<br>
+what the patch is doing:<br>
+<br>
+1. add a shared_policy tree to the address_space object in fs.h.<br>
+2. modify page_cache_alloc() in pagemap.h to take an address_space<br>
+&nbsp;&nbsp;&nbsp; object and page offset, and use those to allocate a page for the<br>
+&nbsp;&nbsp;&nbsp; page cache using the policy in the address_space object.<br>
+3. modify filemap.c to pass the additional {mapping, page offset} pair<br>
+&nbsp;&nbsp;&nbsp; to page_cache_alloc().<br>
+4. Also in filemap.c, implement generic file {set|get}_policy() methods
+and<br>
+&nbsp;&nbsp;&nbsp; add those to generic_file_vm_ops.<br>
+5. In filemap_nopage(), verify that any existing page located in the
+cache<br>
+&nbsp;&nbsp;&nbsp; is located in a node that satisfies the file's policy. If it's not
+in a node that<br>
+&nbsp;&nbsp;&nbsp; satisfies the policy, it must be because the page was allocated
+before the<br>
+&nbsp;&nbsp;&nbsp; file had any policies. If it's unused, free it and goto retry_find
+(will allocate<br>
+&nbsp;&nbsp;&nbsp; a new page using the file's policy). Note that a similar operation
+is done in<br>
+&nbsp;&nbsp;&nbsp; exec.c:setup_arg_pages() for stack pages.<br>
+6. Init the file's shared policy in alloc_inode(), and free the shared
+policy in<br>
+&nbsp;&nbsp;&nbsp; destroy_inode().<br>
+<br>
+I'm working on the remaining features needed for MTA. They are:<br>
+<br>
+- support for policies contained in ELF images, for text and data
+regions.<br>
+- support for do_mmap_mempolicy() and do_brk_mempolicy(). Do_mmap()<br>
+&nbsp;&nbsp; can allocate pages to the region before the function exits, such as
+when pages<br>
+&nbsp;&nbsp; are locked for the region. So it's necessary in that case to set the
+VMA's policy<br>
+&nbsp;&nbsp; within do_mmap() before those pages are allocated.<br>
+- system calls for mmap_mempolicy and brk_mempolicy.<br>
+<br>
+Let me know your thoughts on the filemap policy patch.<br>
+<br>
+Thanks,<br>
+Steve<br>
+<br>
+</body>
+</html>
+
+--------------030808020406070705020805--
+
+--------------080707060509060002020408
+Content-Type: text/plain;
+ name="filemap-policy.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="filemap-policy.patch"
+
+diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/fs/exec.c 2.6.8-rc3/fs/exec.c
+--- 2.6.8-rc3.orig/fs/exec.c	2004-08-10 15:18:07.000000000 -0700
++++ 2.6.8-rc3/fs/exec.c	2004-09-01 21:53:25.000000000 -0700
+@@ -439,6 +439,25 @@
+ 	for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
+ 		struct page *page = bprm->page[i];
+ 		if (page) {
++#ifdef CONFIG_NUMA
++			if (!mpol_node_valid(page_to_nid(page), mpnt, 0)) {
++				void *from, *to;
++				struct page * new_page =
++					alloc_pages_current(GFP_HIGHUSER, 0);
++				if (!new_page) {
++					up_write(&mm->mmap_sem);
++					kmem_cache_free(vm_area_cachep, mpnt);
++					return -ENOMEM;
++				}
++				from = kmap(page);
++				to = kmap(new_page);
++				copy_page(to, from);
++				kunmap(page);
++				kunmap(new_page);
++				put_page(page);
++				page = new_page;
++			}
++#endif
+ 			bprm->page[i] = NULL;
+ 			install_arg_page(mpnt, page, stack_base);
  		}
-+		if (!pmd_test_and_populate(mm, pmd, new)) {
-+			pte_free(new);
-+			goto out;
-+		}
- 		inc_page_state(nr_page_table_pages);
--		pmd_populate(mm, pmd, new);
- 	}
- out:
- 	return pte_offset_map(pmd, address);
-@@ -325,7 +326,7 @@
- 					pte = pte_mkclean(pte);
- 				pte = pte_mkold(pte);
- 				get_page(page);
--				dst->rss++;
-+				atomic_inc(&dst->mm_rss);
- 				set_pte(dst_pte, pte);
- 				page_dup_rmap(page);
- cont_copy_pte_range_noset:
-@@ -1096,7 +1097,7 @@
- 	page_table = pte_offset_map(pmd, address);
- 	if (likely(pte_same(*page_table, pte))) {
- 		if (PageReserved(old_page))
--			++mm->rss;
-+			atomic_inc(&mm->mm_rss);
- 		else
- 			page_remove_rmap(old_page);
- 		break_cow(vma, new_page, address, page_table);
-@@ -1314,8 +1315,7 @@
- }
-
- /*
-- * We hold the mm semaphore and the page_table_lock on entry and
-- * should release the pagetable lock on exit..
-+ * We hold the mm semaphore
-  */
- static int do_swap_page(struct mm_struct * mm,
- 	struct vm_area_struct * vma, unsigned long address,
-@@ -1327,15 +1327,13 @@
- 	int ret = VM_FAULT_MINOR;
-
- 	pte_unmap(page_table);
--	spin_unlock(&mm->page_table_lock);
- 	page = lookup_swap_cache(entry);
- 	if (!page) {
-  		swapin_readahead(entry, address, vma);
-  		page = read_swap_cache_async(entry, vma, address);
- 		if (!page) {
- 			/*
--			 * Back out if somebody else faulted in this pte while
--			 * we released the page table lock.
-+			 * Back out if somebody else faulted in this pte
- 			 */
- 			spin_lock(&mm->page_table_lock);
- 			page_table = pte_offset_map(pmd, address);
-@@ -1378,7 +1376,7 @@
- 	if (vm_swap_full())
- 		remove_exclusive_swap_page(page);
-
--	mm->rss++;
-+	atomic_inc(&mm->mm_rss);
- 	pte = mk_pte(page, vma->vm_page_prot);
- 	if (write_access && can_share_swap_page(page)) {
- 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
-@@ -1406,14 +1404,12 @@
- }
-
- /*
-- * We are called with the MM semaphore and page_table_lock
-- * spinlock held to protect against concurrent faults in
-- * multithreaded programs.
-+ * We are called with the MM semaphore held.
-  */
- static int
- do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		pte_t *page_table, pmd_t *pmd, int write_access,
--		unsigned long addr)
-+		unsigned long addr, pte_t orig_entry)
- {
- 	pte_t entry;
- 	struct page * page = ZERO_PAGE(addr);
-@@ -1425,7 +1421,6 @@
- 	if (write_access) {
- 		/* Allocate our own private page. */
- 		pte_unmap(page_table);
--		spin_unlock(&mm->page_table_lock);
-
- 		if (unlikely(anon_vma_prepare(vma)))
- 			goto no_mem;
-@@ -1434,30 +1429,40 @@
- 			goto no_mem;
- 		clear_user_highpage(page, addr);
-
--		spin_lock(&mm->page_table_lock);
-+		lock_page(page);
- 		page_table = pte_offset_map(pmd, addr);
-
--		if (!pte_none(*page_table)) {
--			pte_unmap(page_table);
--			page_cache_release(page);
--			spin_unlock(&mm->page_table_lock);
--			goto out;
--		}
--		mm->rss++;
- 		entry = maybe_mkwrite(pte_mkdirty(mk_pte(page,
- 							 vma->vm_page_prot)),
- 				      vma);
--		lru_cache_add_active(page);
- 		mark_page_accessed(page);
--		page_add_anon_rmap(page, vma, addr);
- 	}
-
--	set_pte(page_table, entry);
-+	/* update the entry */
-+	if (!ptep_cmpxchg(mm, page_table, orig_entry, entry))
-+	{
-+		if (write_access) {
-+			pte_unmap(page_table);
-+			unlock_page(page);
-+			page_cache_release(page);
-+		}
-+		goto out;
-+	}
-+	if (write_access) {
-+		/*
-+		 * The following two functions are safe to use without
-+		 * the page_table_lock but do they need to come before
-+		 * the cmpxchg?
-+		 */
-+		lru_cache_add_active(page);
-+		page_add_anon_rmap(page, vma, addr);
-+		atomic_inc(&mm->mm_rss);
-+		unlock_page(page);
-+	}
- 	pte_unmap(page_table);
-
- 	/* No need to invalidate - it was non-present before */
- 	update_mmu_cache(vma, addr, entry);
--	spin_unlock(&mm->page_table_lock);
- out:
- 	return VM_FAULT_MINOR;
- no_mem:
-@@ -1473,12 +1478,12 @@
-  * As this is called only for pages that do not currently exist, we
-  * do not need to flush old virtual caches or the TLB.
-  *
-- * This is called with the MM semaphore held and the page table
-- * spinlock held. Exit with the spinlock released.
-+ * This is called with the MM semaphore held.
-  */
- static int
- do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
--	unsigned long address, int write_access, pte_t *page_table, pmd_t *pmd)
-+	unsigned long address, int write_access, pte_t *page_table,
-+        pmd_t *pmd, pte_t orig_entry)
- {
- 	struct page * new_page;
- 	struct address_space *mapping = NULL;
-@@ -1489,9 +1494,8 @@
-
- 	if (!vma->vm_ops || !vma->vm_ops->nopage)
- 		return do_anonymous_page(mm, vma, page_table,
--					pmd, write_access, address);
-+					pmd, write_access, address, orig_entry);
- 	pte_unmap(page_table);
--	spin_unlock(&mm->page_table_lock);
-
- 	if (vma->vm_file) {
- 		mapping = vma->vm_file->f_mapping;
-@@ -1552,7 +1556,7 @@
- 	/* Only go through if we didn't race with anybody else... */
- 	if (pte_none(*page_table)) {
- 		if (!PageReserved(new_page))
--			++mm->rss;
-+			atomic_inc(&mm->mm_rss);
- 		flush_icache_page(vma, new_page);
- 		entry = mk_pte(new_page, vma->vm_page_prot);
- 		if (write_access)
-@@ -1589,7 +1593,7 @@
-  * nonlinear vmas.
-  */
- static int do_file_page(struct mm_struct * mm, struct vm_area_struct * vma,
--	unsigned long address, int write_access, pte_t *pte, pmd_t *pmd)
-+	unsigned long address, int write_access, pte_t *pte, pmd_t *pmd, pte_t entry)
- {
- 	unsigned long pgoff;
- 	int err;
-@@ -1602,13 +1606,12 @@
- 	if (!vma->vm_ops || !vma->vm_ops->populate ||
- 			(write_access && !(vma->vm_flags & VM_SHARED))) {
- 		pte_clear(pte);
--		return do_no_page(mm, vma, address, write_access, pte, pmd);
-+		return do_no_page(mm, vma, address, write_access, pte, pmd, entry);
- 	}
-
- 	pgoff = pte_to_pgoff(*pte);
-
- 	pte_unmap(pte);
--	spin_unlock(&mm->page_table_lock);
-
- 	err = vma->vm_ops->populate(vma, address & PAGE_MASK, PAGE_SIZE, vma->vm_page_prot, pgoff, 0);
- 	if (err == -ENOMEM)
-@@ -1627,49 +1630,54 @@
-  * with external mmu caches can use to update those (ie the Sparc or
-  * PowerPC hashed page tables that act as extended TLBs).
-  *
-- * Note the "page_table_lock". It is to protect against kswapd removing
-- * pages from under us. Note that kswapd only ever _removes_ pages, never
-- * adds them. As such, once we have noticed that the page is not present,
-- * we can drop the lock early.
-- *
-+ * Note that kswapd only ever _removes_ pages, never adds them.
-+ * We need to insure to handle that case properly.
-+ *
-  * The adding of pages is protected by the MM semaphore (which we hold),
-  * so we don't need to worry about a page being suddenly been added into
-  * our VM.
-- *
-- * We enter with the pagetable spinlock held, we are supposed to
-- * release it when done.
-  */
- static inline int handle_pte_fault(struct mm_struct *mm,
- 	struct vm_area_struct * vma, unsigned long address,
- 	int write_access, pte_t *pte, pmd_t *pmd)
- {
- 	pte_t entry;
-+	pte_t new_entry;
-
- 	entry = *pte;
- 	if (!pte_present(entry)) {
+diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/fs/inode.c 2.6.8-rc3/fs/inode.c
+--- 2.6.8-rc3.orig/fs/inode.c	2004-08-10 15:18:07.000000000 -0700
++++ 2.6.8-rc3/fs/inode.c	2004-09-01 11:40:44.000000000 -0700
+@@ -150,6 +150,7 @@
+ 		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
+ 		mapping->assoc_mapping = NULL;
+ 		mapping->backing_dev_info = &default_backing_dev_info;
++ 		mpol_shared_policy_init(&mapping->policy);
+ 
  		/*
- 		 * If it truly wasn't present, we know that kswapd
- 		 * and the PTE updates will not touch it later. So
--		 * drop the lock.
-+		 * no need to acquire the page_table_lock.
- 		 */
- 		if (pte_none(entry))
--			return do_no_page(mm, vma, address, write_access, pte, pmd);
-+			return do_no_page(mm, vma, address, write_access, pte, pmd, entry);
- 		if (pte_file(entry))
--			return do_file_page(mm, vma, address, write_access, pte, pmd);
-+			return do_file_page(mm, vma, address, write_access, pte, pmd, entry);
- 		return do_swap_page(mm, vma, address, pte, pmd, entry, write_access);
- 	}
-
-+	/*
-+	 * This is the case in which we may only update some bits in the pte.
-+	 *
-+	 * The following statement was removed
-+	 * ptep_set_access_flags(vma, address, pte, new_entry, write_access);
-+	 * Not sure if all the side effects are replicated here for all platforms.
-+	 *
-+	 */
-+	new_entry = pte_mkyoung(entry);
- 	if (write_access) {
--		if (!pte_write(entry))
-+		if (!pte_write(entry)) {
-+			/* do_wp_page expects us to hold the page_table_lock */
-+			spin_lock(&mm->page_table_lock);
- 			return do_wp_page(mm, vma, address, pte, pmd, entry);
--
--		entry = pte_mkdirty(entry);
-+		}
-+		new_entry = pte_mkdirty(new_entry);
- 	}
--	entry = pte_mkyoung(entry);
--	ptep_set_access_flags(vma, address, pte, entry, write_access);
--	update_mmu_cache(vma, address, entry);
-+	if (ptep_cmpxchg(mm, pte, entry, new_entry))
-+		update_mmu_cache(vma, address, new_entry);
- 	pte_unmap(pte);
--	spin_unlock(&mm->page_table_lock);
- 	return VM_FAULT_MINOR;
- }
-
-@@ -1687,30 +1695,27 @@
-
- 	inc_page_state(pgfault);
-
--	if (is_vm_hugetlb_page(vma))
-+	if (unlikely(is_vm_hugetlb_page(vma)))
- 		return VM_FAULT_SIGBUS;	/* mapping truncation does this. */
-
- 	/*
--	 * We need the page table lock to synchronize with kswapd
--	 * and the SMP-safe atomic PTE updates.
-+	 * We rely on the mmap_sem and the SMP-safe atomic PTE updates.
-+	 * to synchronize with kswapd
- 	 */
--	spin_lock(&mm->page_table_lock);
- 	pmd = pmd_alloc(mm, pgd, address);
-
--	if (pmd) {
-+	if (likely(pmd)) {
- 		pte_t * pte = pte_alloc_map(mm, pmd, address);
--		if (pte)
-+		if (likely(pte))
- 			return handle_pte_fault(mm, vma, address, write_access, pte, pmd);
- 	}
--	spin_unlock(&mm->page_table_lock);
- 	return VM_FAULT_OOM;
- }
-
- /*
-  * Allocate page middle directory.
-  *
-- * We've already handled the fast-path in-line, and we own the
-- * page table lock.
-+ * We've already handled the fast-path in-line.
-  *
-  * On a two-level page table, this ends up actually being entirely
-  * optimized away.
-@@ -1719,9 +1724,7 @@
- {
- 	pmd_t *new;
-
--	spin_unlock(&mm->page_table_lock);
- 	new = pmd_alloc_one(mm, address);
--	spin_lock(&mm->page_table_lock);
- 	if (!new)
- 		return NULL;
-
-@@ -1733,7 +1736,11 @@
- 		pmd_free(new);
- 		goto out;
- 	}
--	pgd_populate(mm, pgd, new);
-+	/* Insure that the update is done in an atomic way */
-+	if (!pgd_test_and_populate(mm, pgd, new)) {
-+		pmd_free(new);
-+		goto out;
+ 		 * If the block_device provides a backing_dev_info for client
+@@ -177,11 +178,12 @@
+ 	security_inode_free(inode);
+ 	if (inode->i_sb->s_op->destroy_inode)
+ 		inode->i_sb->s_op->destroy_inode(inode);
+-	else
++	else {
++		mpol_free_shared_policy(&inode->i_mapping->policy);
+ 		kmem_cache_free(inode_cachep, (inode));
 +	}
- out:
- 	return pmd_offset(pgd, address);
  }
-Index: linux-2.6.9-rc1/include/asm-ia64/pgalloc.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-ia64/pgalloc.h	2004-08-24 00:01:52.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-ia64/pgalloc.h	2004-09-01 11:30:41.000000000 -0700
-@@ -34,6 +34,10 @@
- #define pmd_quicklist		(local_cpu_data->pmd_quick)
- #define pgtable_cache_size	(local_cpu_data->pgtable_cache_sz)
-
-+/* Empty entries of PMD and PGD */
-+#define PMD_NONE       0
-+#define PTE_NONE       0
+ 
+-
+ /*
+  * These are initializations that only need to be done
+  * once, because the fields are idempotent across use
+diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/include/linux/fs.h 2.6.8-rc3/include/linux/fs.h
+--- 2.6.8-rc3.orig/include/linux/fs.h	2004-08-10 15:18:31.000000000 -0700
++++ 2.6.8-rc3/include/linux/fs.h	2004-09-01 21:08:37.000000000 -0700
+@@ -18,6 +18,7 @@
+ #include <linux/cache.h>
+ #include <linux/prio_tree.h>
+ #include <linux/kobject.h>
++#include <linux/mempolicy.h>
+ #include <asm/atomic.h>
+ 
+ struct iovec;
+@@ -339,6 +340,7 @@
+ 	atomic_t		truncate_count;	/* Cover race condition with truncate */
+ 	unsigned long		flags;		/* error bits/gfp mask */
+ 	struct backing_dev_info *backing_dev_info; /* device readahead, etc */
++	struct shared_policy    policy;         /* page alloc policy */
+ 	spinlock_t		private_lock;	/* for use by the address_space */
+ 	struct list_head	private_list;	/* ditto */
+ 	struct address_space	*assoc_mapping;	/* ditto */
+diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/include/linux/mempolicy.h 2.6.8-rc3/include/linux/mempolicy.h
+--- 2.6.8-rc3.orig/include/linux/mempolicy.h	2004-08-10 15:18:31.000000000 -0700
++++ 2.6.8-rc3/include/linux/mempolicy.h	2004-09-01 21:54:34.000000000 -0700
+@@ -152,6 +152,8 @@
+ void mpol_free_shared_policy(struct shared_policy *p);
+ struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
+ 					    unsigned long idx);
++struct page *alloc_page_shared_policy(unsigned gfp, struct shared_policy *sp,
++				      unsigned long idx);
+ 
+ extern void numa_default_policy(void);
+ extern void numa_policy_init(void);
+diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/include/linux/pagemap.h 2.6.8-rc3/include/linux/pagemap.h
+--- 2.6.8-rc3.orig/include/linux/pagemap.h	2004-08-10 15:18:31.000000000 -0700
++++ 2.6.8-rc3/include/linux/pagemap.h	2004-09-01 11:04:24.000000000 -0700
+@@ -50,14 +50,24 @@
+ #define page_cache_release(page)	put_page(page)
+ void release_pages(struct page **pages, int nr, int cold);
+ 
+-static inline struct page *page_cache_alloc(struct address_space *x)
 +
- static inline pgd_t*
- pgd_alloc_one_fast (struct mm_struct *mm)
++static inline struct page *__page_cache_alloc(struct address_space *x,
++					      unsigned long idx,
++					      unsigned int gfp_mask)
++{
++	return alloc_page_shared_policy(gfp_mask, &x->policy, idx);
++}
++
++static inline struct page *page_cache_alloc(struct address_space *x,
++					    unsigned long idx)
  {
-@@ -84,6 +88,12 @@
- 	pgd_val(*pgd_entry) = __pa(pmd);
+-	return alloc_pages(mapping_gfp_mask(x), 0);
++	return __page_cache_alloc(x, idx, mapping_gfp_mask(x));
  }
-
-+/* Atomic populate */
-+static inline int
-+pgd_test_and_populate (struct mm_struct *mm, pgd_t *pgd_entry, pmd_t *pmd)
-+{
-+	return ia64_cmpxchg8_acq(pgd_entry,__pa(pmd), PMD_NONE) == PMD_NONE;
-+}
-
- static inline pmd_t*
- pmd_alloc_one_fast (struct mm_struct *mm, unsigned long addr)
-@@ -132,6 +142,13 @@
- 	pmd_val(*pmd_entry) = page_to_phys(pte);
- }
-
-+/* Atomic populate */
-+static inline int
-+pmd_test_and_populate (struct mm_struct *mm, pmd_t *pmd_entry, struct page *pte)
-+{
-+	return ia64_cmpxchg8_acq(pmd_entry, page_to_phys(pte), PTE_NONE) == PTE_NONE;
-+}
-+
- static inline void
- pmd_populate_kernel (struct mm_struct *mm, pmd_t *pmd_entry, pte_t *pte)
+ 
+-static inline struct page *page_cache_alloc_cold(struct address_space *x)
++static inline struct page *page_cache_alloc_cold(struct address_space *x,
++						 unsigned long idx)
  {
-Index: linux-2.6.9-rc1/include/asm-i386/pgtable.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-i386/pgtable.h	2004-08-24 00:03:28.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-i386/pgtable.h	2004-09-01 11:51:24.000000000 -0700
-@@ -419,6 +419,7 @@
- #define __HAVE_ARCH_PTEP_SET_WRPROTECT
- #define __HAVE_ARCH_PTEP_MKDIRTY
- #define __HAVE_ARCH_PTE_SAME
-+#define __HAVE_ARCH_ATOMIC_TABLE_OPS
- #include <asm-generic/pgtable.h>
-
- #endif /* _I386_PGTABLE_H */
-Index: linux-2.6.9-rc1/include/asm-i386/pgtable-3level.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-i386/pgtable-3level.h	2004-08-24 00:03:30.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-i386/pgtable-3level.h	2004-09-01 11:53:19.000000000 -0700
-@@ -6,7 +6,8 @@
-  * tables on PPro+ CPUs.
-  *
-  * Copyright (C) 1999 Ingo Molnar <mingo@redhat.com>
-- */
-+ * August 26, 2004 added ptep_cmpxchg and ptep_xchg <christoph@lameter.com>
-+*/
-
- #define pte_ERROR(e) \
- 	printk("%s:%d: bad pte %p(%08lx%08lx).\n", __FILE__, __LINE__, &(e), (e).pte_high, (e).pte_low)
-@@ -134,4 +135,26 @@
- #define pgoff_to_pte(off) ((pte_t) { _PAGE_FILE, (off) })
- #define PTE_FILE_MAX_BITS       32
-
-+/* Atomic PTE operations */
-+static inline pte_t ptep_xchg(struct mm_struct *mm, pte_t *ptep, pte_t newval)
-+{
-+	pte_t res;
-+
-+	/* xchg acts as a barrier before the setting of the high bits.
-+	 * (But we also have a cmpxchg8b. Why not use that? (cl))
-+	  */
-+	res.pte_low = xchg(&ptep->pte_low, newval.pte_low);
-+	res.pte_high = ptep->pte_high;
-+	ptep->pte_high = newval.pte_high;
-+
-+	return res;
-+}
-+
-+
-+static inline int ptep_cmpxchg(struct mm_struct *mm, pte_t *ptep, pte_t oldval, pte_t newval)
-+{
-+	return cmpxchg(ptep, pte_val(oldval), pte_val(newval)) == pte_val(oldval);
-+}
-+
-+
- #endif /* _I386_PGTABLE_3LEVEL_H */
-Index: linux-2.6.9-rc1/fs/binfmt_som.c
-===================================================================
---- linux-2.6.9-rc1.orig/fs/binfmt_som.c	2004-08-24 00:02:26.000000000 -0700
-+++ linux-2.6.9-rc1/fs/binfmt_som.c	2004-09-01 11:30:41.000000000 -0700
-@@ -259,7 +259,7 @@
- 	create_som_tables(bprm);
-
- 	current->mm->start_stack = bprm->p;
--	current->mm->rss = 0;
-+	atomic_set(current->mm->mm_rss, 0);
-
- #if 0
- 	printk("(start_brk) %08lx\n" , (unsigned long) current->mm->start_brk);
-Index: linux-2.6.9-rc1/mm/fremap.c
-===================================================================
---- linux-2.6.9-rc1.orig/mm/fremap.c	2004-08-24 00:01:51.000000000 -0700
-+++ linux-2.6.9-rc1/mm/fremap.c	2004-09-01 11:30:41.000000000 -0700
-@@ -38,7 +38,7 @@
- 					set_page_dirty(page);
- 				page_remove_rmap(page);
- 				page_cache_release(page);
--				mm->rss--;
-+				atomic_dec(&mm->mm_rss);
- 			}
+-	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD, 0);
++	return __page_cache_alloc(x, idx, mapping_gfp_mask(x)|__GFP_COLD);
+ }
+ 
+ typedef int filler_t(void *, struct page *);
+diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/mm/filemap.c 2.6.8-rc3/mm/filemap.c
+--- 2.6.8-rc3.orig/mm/filemap.c	2004-08-10 15:18:35.000000000 -0700
++++ 2.6.8-rc3/mm/filemap.c	2004-09-01 21:52:06.000000000 -0700
+@@ -534,7 +534,8 @@
+ 	page = find_lock_page(mapping, index);
+ 	if (!page) {
+ 		if (!cached_page) {
+-			cached_page = alloc_page(gfp_mask);
++			cached_page = __page_cache_alloc(mapping, index,
++							 gfp_mask);
+ 			if (!cached_page)
+ 				return NULL;
  		}
- 	} else {
-@@ -86,7 +86,7 @@
-
- 	zap_pte(mm, vma, addr, pte);
-
--	mm->rss++;
-+	atomic_inc(&mm->mm_rss);
- 	flush_icache_page(vma, page);
- 	set_pte(pte, mk_pte(page, prot));
- 	page_add_file_rmap(page);
-Index: linux-2.6.9-rc1/mm/swapfile.c
-===================================================================
---- linux-2.6.9-rc1.orig/mm/swapfile.c	2004-08-24 00:02:23.000000000 -0700
-+++ linux-2.6.9-rc1/mm/swapfile.c	2004-09-01 11:30:41.000000000 -0700
-@@ -430,7 +430,7 @@
- unuse_pte(struct vm_area_struct *vma, unsigned long address, pte_t *dir,
- 	swp_entry_t entry, struct page *page)
- {
--	vma->vm_mm->rss++;
-+	atomic_inc(&vma->vm_mm->mm_rss);
- 	get_page(page);
- 	set_pte(dir, pte_mkold(mk_pte(page, vma->vm_page_prot)));
- 	page_add_anon_rmap(page, vma, address);
-Index: linux-2.6.9-rc1/include/linux/mm.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/linux/mm.h	2004-08-24 00:01:52.000000000 -0700
-+++ linux-2.6.9-rc1/include/linux/mm.h	2004-09-01 11:30:41.000000000 -0700
-@@ -593,7 +593,7 @@
-  */
- static inline pmd_t *pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
- {
--	if (pgd_none(*pgd))
-+	if (unlikely(pgd_none(*pgd)))
- 		return __pmd_alloc(mm, pgd, address);
- 	return pmd_offset(pgd, address);
- }
-Index: linux-2.6.9-rc1/include/asm-generic/pgtable.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-generic/pgtable.h	2004-08-24 00:02:25.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-generic/pgtable.h	2004-09-01 11:39:58.000000000 -0700
-@@ -126,4 +126,77 @@
- #define pgd_offset_gate(mm, addr)	pgd_offset(mm, addr)
- #endif
-
-+#ifndef __HAVE_ARCH_ATOMIC_TABLE_OPS
-+/*
-+ * If atomic page table operations are not available then use
-+ * the page_table_lock to insure some form of locking.
-+ * Note thought that low level operations as well as the
-+ * page_table_handling of the cpu may bypass all locking.
-+ */
-+
-+#define ptep_xchg_flush(__vma, __address, __ptep, __pteval)		\
-+({									\
-+	pte_t __pte;							\
-+	spin_lock(&mm->page_table_lock);				\
-+	__pte = ptep_xchg((__vma)->vm_mm, __ptep, __pteval);				\
-+	flush_tlb_page(__vma, __address);				\
-+	spin_unlock(mm->page_table_lock);				\
-+	__pte;								\
-+})
-+
-+
-+#define ptep_get_clear_flush(__vma, __address, __ptep)			\
-+({									\
-+	pte_t __pte;							\
-+	spin_lock(&mm->page_table_lock);				\
-+	__pte = ptep_get_and_clear(__ptep);				\
-+	flush_tlb_page(__vma, __address);				\
-+	spin_unlock(mm->page_table_lock);				\
-+	__pte;								\
-+})
-+
-+
-+static inline pte_t ptep_cmpxchg(struct mm_struct *mm, pte_t *ptep, pte_t oldval, pte_t newval)
-+{
-+	pte_t val;
-+	int rc;
-+
-+	spin_lock(&mm->page_table_lock);
-+	rc = pte_same(*ptep, oldval);
-+	if (rc) set_pte(ptep, newval);
-+	spin_unlock(&mm->page_table_lock);
-+	return rc;
-+}
-+
-+static inline int pgd_test_and_populate(struct mm_struct *mm, pgd_t *pgd, pmd_t pmd) {
-+
-+	spin_lock(&mm->page_table_lock);
-+	rc = pmd_none(*pgd);
-+	if (rc) pgd_populate(mm, pgd, pmd);
-+	spin_unlock(&mm->page_table_lock);
-+}
-+
-+static inline int pgd_test_and_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte) {
-+
-+	spin_lock(&mm->page_table_lock);
-+	rc = pte_none(*pgd);
-+	if (rc) pgd_populate(mm, pmd, pte);
-+	spin_unlock(&mm->page_table_lock);
-+	return rc;
-+}
-+
-+#else
-+
-+#ifndef __HAVE_ARCH_PTEP_XCHG_FLUSH
-+#define ptep_xchg_flush(__vma, __address, __ptep, __pteval)		\
-+({									\
-+	pte_t __pte = ptep_xchg((__vma)->vm_mm, __ptep, __pteval);		\
-+	flush_tlb_page(__vma, __address);				\
-+	__pte;								\
-+})
-+
-+#endif
-+
-+#endif
-+
- #endif /* _ASM_GENERIC_PGTABLE_H */
-Index: linux-2.6.9-rc1/fs/binfmt_aout.c
-===================================================================
---- linux-2.6.9-rc1.orig/fs/binfmt_aout.c	2004-08-24 00:02:23.000000000 -0700
-+++ linux-2.6.9-rc1/fs/binfmt_aout.c	2004-09-01 11:30:41.000000000 -0700
-@@ -309,7 +309,7 @@
- 		(current->mm->start_brk = N_BSSADDR(ex));
- 	current->mm->free_area_cache = TASK_UNMAPPED_BASE;
-
--	current->mm->rss = 0;
-+	atomic_set(&current->mm->mm_rss, 0);
- 	current->mm->mmap = NULL;
- 	compute_creds(bprm);
-  	current->flags &= ~PF_FORKNOEXEC;
-Index: linux-2.6.9-rc1/include/asm-i386/pgtable-2level.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-i386/pgtable-2level.h	2004-08-24 00:02:48.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-i386/pgtable-2level.h	2004-09-01 11:57:10.000000000 -0700
-@@ -75,4 +75,8 @@
- #define pgoff_to_pte(off) \
- 	((pte_t) { (((off) & 0x1f) << 1) + (((off) >> 5) << 8) + _PAGE_FILE })
-
-+/* Atomic PTE operations */
-+#define ptep_xchg(mm,xp,a)       __pte(xchg(&(xp)->pte_low, (a).pte_low))
-+#define ptep_cmpxchg(mm,xp,oldpte,newpte) (cmpxchg(&(xp)->pte_low, (oldpte).pte_low, (newpte).pte_low)==(oldpte).pte_low)
-+
- #endif /* _I386_PGTABLE_2LEVEL_H */
-Index: linux-2.6.9-rc1/arch/ia64/mm/hugetlbpage.c
-===================================================================
---- linux-2.6.9-rc1.orig/arch/ia64/mm/hugetlbpage.c	2004-08-24 00:02:47.000000000 -0700
-+++ linux-2.6.9-rc1/arch/ia64/mm/hugetlbpage.c	2004-09-01 11:30:41.000000000 -0700
-@@ -65,7 +65,7 @@
- {
- 	pte_t entry;
-
--	mm->rss += (HPAGE_SIZE / PAGE_SIZE);
-+	atomic_add(HPAGE_SIZE / PAGE_SIZE, &mm->mm_rss);
- 	if (write_access) {
- 		entry =
- 		    pte_mkwrite(pte_mkdirty(mk_pte(page, vma->vm_page_prot)));
-@@ -108,7 +108,7 @@
- 		ptepage = pte_page(entry);
- 		get_page(ptepage);
- 		set_pte(dst_pte, entry);
--		dst->rss += (HPAGE_SIZE / PAGE_SIZE);
-+		atomic_add(HPAGE_SIZE / PAGE_SIZE, &dst->mm_rss);
- 		addr += HPAGE_SIZE;
+@@ -627,7 +628,7 @@
+ 		return NULL;
  	}
- 	return 0;
-@@ -249,7 +249,7 @@
- 		put_page(page);
- 		pte_clear(pte);
- 	}
--	mm->rss -= (end - start) >> PAGE_SHIFT;
-+	atomic_sub((end - start) >> PAGE_SHIFT, &mm->mm_rss);
- 	flush_tlb_range(vma, start, end);
- }
-
-Index: linux-2.6.9-rc1/include/asm-ia64/pgtable.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-ia64/pgtable.h	2004-08-24 00:02:25.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-ia64/pgtable.h	2004-09-01 11:30:41.000000000 -0700
-@@ -423,6 +423,19 @@
- extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
- extern void paging_init (void);
-
-+/* Atomic PTE operations */
-+static inline pte_t
-+ptep_xchg (struct mm_struct *mm, pte_t *ptep, pte_t pteval)
-+{
-+	return __pte(xchg((long *) ptep, pteval.pte));
-+}
-+
-+static inline int
-+ptep_cmpxchg (struct mm_struct *mm, pte_t *ptep, pte_t oldval, pte_t newval)
-+{
-+	return ia64_cmpxchg8_acq(&ptep->pte, newval.pte, oldval.pte) == oldval.pte;
-+}
-+
- /*
-  * Note: The macros below rely on the fact that MAX_SWAPFILES_SHIFT <= number of
-  *	 bits in the swap-type field of the swap pte.  It would be nice to
-@@ -558,6 +571,7 @@
- #define __HAVE_ARCH_PTEP_MKDIRTY
- #define __HAVE_ARCH_PTE_SAME
- #define __HAVE_ARCH_PGD_OFFSET_GATE
-+#define __HAVE_ARCH_ATOMIC_TABLE_OPS
- #include <asm-generic/pgtable.h>
-
- #endif /* _ASM_IA64_PGTABLE_H */
-Index: linux-2.6.9-rc1/fs/proc/array.c
-===================================================================
---- linux-2.6.9-rc1.orig/fs/proc/array.c	2004-08-24 00:02:58.000000000 -0700
-+++ linux-2.6.9-rc1/fs/proc/array.c	2004-09-01 11:30:41.000000000 -0700
-@@ -389,7 +389,7 @@
- 		jiffies_to_clock_t(task->it_real_value),
- 		start_time,
- 		vsize,
--		mm ? mm->rss : 0, /* you might want to shift this left 3 */
-+		mm ? (unsigned long)atomic_read(&mm->mm_rss) : 0, /* you might want to shift this left 3 */
- 		task->rlim[RLIMIT_RSS].rlim_cur,
- 		mm ? mm->start_code : 0,
- 		mm ? mm->end_code : 0,
-Index: linux-2.6.9-rc1/fs/binfmt_elf.c
-===================================================================
---- linux-2.6.9-rc1.orig/fs/binfmt_elf.c	2004-08-24 00:02:33.000000000 -0700
-+++ linux-2.6.9-rc1/fs/binfmt_elf.c	2004-09-01 11:30:41.000000000 -0700
-@@ -705,7 +705,7 @@
-
- 	/* Do this so that we can load the interpreter, if need be.  We will
- 	   change some of these later */
--	current->mm->rss = 0;
-+	atomic_set(&current->mm->mm_rss, 0);
- 	current->mm->free_area_cache = TASK_UNMAPPED_BASE;
- 	retval = setup_arg_pages(bprm, executable_stack);
- 	if (retval < 0) {
-Index: linux-2.6.9-rc1/include/asm-ia64/tlb.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-ia64/tlb.h	2004-08-24 00:02:32.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-ia64/tlb.h	2004-09-01 11:30:41.000000000 -0700
-@@ -45,6 +45,7 @@
- #include <asm/processor.h>
- #include <asm/tlbflush.h>
- #include <asm/machvec.h>
-+#include <asm/atomic.h>
-
- #ifdef CONFIG_SMP
- # define FREE_PTE_NR		2048
-@@ -160,11 +161,11 @@
- {
- 	unsigned long freed = tlb->freed;
- 	struct mm_struct *mm = tlb->mm;
--	unsigned long rss = mm->rss;
-+	unsigned long rss = atomic_read(&mm->mm_rss);
-
- 	if (rss < freed)
- 		freed = rss;
--	mm->rss = rss - freed;
-+	atomic_set(&mm->mm_rss, rss - freed);
- 	/*
- 	 * Note: tlb->nr may be 0 at this point, so we can't rely on tlb->start_addr and
- 	 * tlb->end_addr.
-Index: linux-2.6.9-rc1/include/asm-i386/pgalloc.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-i386/pgalloc.h	2004-08-24 00:01:53.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-i386/pgalloc.h	2004-09-01 11:53:57.000000000 -0700
-@@ -7,6 +7,8 @@
- #include <linux/threads.h>
- #include <linux/mm.h>		/* for struct page */
-
-+#define PTE_NONE 0L
-+
- #define pmd_populate_kernel(mm, pmd, pte) \
- 		set_pmd(pmd, __pmd(_PAGE_TABLE + __pa(pte)))
-
-@@ -16,6 +18,19 @@
- 		((unsigned long long)page_to_pfn(pte) <<
- 			(unsigned long long) PAGE_SHIFT)));
- }
-+
-+/* Atomic version */
-+static inline int pmd_test_and_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
-+{
-+#ifdef CONFIG_X86_PAE
-+	return cmpxchg8b( ((unsigned long long *)pmd), PTE_NONE, _PAGE_TABLE +
-+		((unsigned long long)page_to_pfn(pte) <<
-+			(unsigned long long) PAGE_SHIFT) ) == PTE_NONE;
-+#else
-+	return cmpxchg( (unsigned long *)pmd, PTE_NONE, _PAGE_TABLE + (page_to_pfn(pte) << PAGE_SHIFT)) == PTE_NONE;
-+#endif
-+}
-+
- /*
-  * Allocate and free page tables.
-  */
-@@ -49,6 +64,7 @@
- #define pmd_free(x)			do { } while (0)
- #define __pmd_free_tlb(tlb,x)		do { } while (0)
- #define pgd_populate(mm, pmd, pte)	BUG()
-+#define pgd_test_and_populate(mm, pmd, pte)	({ BUG(); 1; })
-
- #define check_pgt_cache()	do { } while (0)
-
-Index: linux-2.6.9-rc1/mm/rmap.c
-===================================================================
---- linux-2.6.9-rc1.orig/mm/rmap.c	2004-08-24 00:03:32.000000000 -0700
-+++ linux-2.6.9-rc1/mm/rmap.c	2004-09-01 11:42:43.000000000 -0700
-@@ -203,7 +203,7 @@
- 	pte_t *pte;
- 	int referenced = 0;
-
--	if (!mm->rss)
-+	if (!atomic_read(&mm->mm_rss))
- 		goto out;
- 	address = vma_address(page, vma);
- 	if (address == -EFAULT)
-@@ -335,7 +335,10 @@
-  * @vma:	the vm area in which the mapping is added
-  * @address:	the user virtual address mapped
-  *
-- * The caller needs to hold the mm->page_table_lock.
-+ * The caller needs to hold the mm->page_table_lock if page
-+ * is pointing to something that is known by the vm.
-+ * The lock does not need to be held if page is pointing
-+ * to a newly allocated page.
-  */
- void page_add_anon_rmap(struct page *page,
- 	struct vm_area_struct *vma, unsigned long address)
-@@ -434,7 +437,7 @@
- 	pte_t pteval;
- 	int ret = SWAP_AGAIN;
-
--	if (!mm->rss)
-+	if (!atomic_read(&mm->mm_rss))
- 		goto out;
- 	address = vma_address(page, vma);
- 	if (address == -EFAULT)
-@@ -496,11 +499,6 @@
-
- 	/* Nuke the page table entry. */
- 	flush_cache_page(vma, address);
--	pteval = ptep_clear_flush(vma, address, pte);
--
--	/* Move the dirty bit to the physical page now the pte is gone. */
--	if (pte_dirty(pteval))
--		set_page_dirty(page);
-
- 	if (PageAnon(page)) {
- 		swp_entry_t entry = { .val = page->private };
-@@ -510,11 +508,16 @@
- 		 */
- 		BUG_ON(!PageSwapCache(page));
- 		swap_duplicate(entry);
--		set_pte(pte, swp_entry_to_pte(entry));
--		BUG_ON(pte_file(*pte));
--	}
-+		pteval = ptep_xchg_flush(vma, address, pte, swp_entry_to_pte(entry));
-+                BUG_ON(pte_file(*pte));
-+	} else
-+		pteval = ptep_clear_flush(vma, address, pte);
-+
-+	/* Move the dirty bit to the physical page now the pte is gone. */
-+	if (pte_dirty(pteval))
-+		set_page_dirty(page);
-
--	mm->rss--;
-+	atomic_dec(&mm->mm_rss);
- 	BUG_ON(!page->mapcount);
- 	page->mapcount--;
- 	page_cache_release(page);
-@@ -602,21 +605,30 @@
- 		if (ptep_clear_flush_young(vma, address, pte))
- 			continue;
-
--		/* Nuke the page table entry. */
- 		flush_cache_page(vma, address);
--		pteval = ptep_clear_flush(vma, address, pte);
-+		/*
-+		 * There would be a race here with the handle_mm_fault code that
-+		 * bypasses the page_table_lock to allow a fast creation of ptes
-+		 * if we would zap the pte before
-+		 * putting something into it. On the other hand we need to
-+		 * have the dirty flag when we replaced the value.
-+		 * The dirty flag may be handled by a processor so we better
-+		 * use an atomic operation here.
-+		 */
-
- 		/* If nonlinear, store the file page offset in the pte. */
- 		if (page->index != linear_page_index(vma, address))
--			set_pte(pte, pgoff_to_pte(page->index));
-+			pteval = ptep_xchg_flush(vma, address, pte, pgoff_to_pte(page->index));
-+		else
-+			pteval = ptep_get_and_clear(pte);
-
--		/* Move the dirty bit to the physical page now the pte is gone. */
-+		/* Move the dirty bit to the physical page now that the pte is gone. */
- 		if (pte_dirty(pteval))
- 			set_page_dirty(page);
-
- 		page_remove_rmap(page);
+ 	gfp_mask = mapping_gfp_mask(mapping) & ~__GFP_FS;
+-	page = alloc_pages(gfp_mask, 0);
++	page = __page_cache_alloc(mapping, index, gfp_mask);
+ 	if (page && add_to_page_cache_lru(page, mapping, index, gfp_mask)) {
  		page_cache_release(page);
--		mm->rss--;
-+		atomic_dec(&mm->mm_rss);
- 		(*mapcount)--;
+ 		page = NULL;
+@@ -789,7 +790,7 @@
+ 		 * page..
+ 		 */
+ 		if (!cached_page) {
+-			cached_page = page_cache_alloc_cold(mapping);
++			cached_page = page_cache_alloc_cold(mapping, index);
+ 			if (!cached_page) {
+ 				desc->error = -ENOMEM;
+ 				goto out;
+@@ -1050,7 +1051,7 @@
+ 	struct page *page; 
+ 	int error;
+ 
+-	page = page_cache_alloc_cold(mapping);
++	page = page_cache_alloc_cold(mapping, offset);
+ 	if (!page)
+ 		return -ENOMEM;
+ 
+@@ -1070,6 +1071,7 @@
+ 	return error == -EEXIST ? 0 : error;
+ }
+ 
++
+ #define MMAP_LOTSAMISS  (100)
+ 
+ /*
+@@ -1090,7 +1092,7 @@
+ 	struct page *page;
+ 	unsigned long size, pgoff, endoff;
+ 	int did_readaround = 0, majmin = VM_FAULT_MINOR;
+-
++	
+ 	pgoff = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) + area->vm_pgoff;
+ 	endoff = ((area->vm_end - area->vm_start) >> PAGE_CACHE_SHIFT) + area->vm_pgoff;
+ 
+@@ -1162,6 +1164,38 @@
+ 			goto no_cached_page;
  	}
-
-@@ -716,7 +728,7 @@
- 			if (vma->vm_flags & (VM_LOCKED|VM_RESERVED))
- 				continue;
- 			cursor = (unsigned long) vma->vm_private_data;
--			while (vma->vm_mm->rss &&
-+			while (atomic_read(&vma->vm_mm->mm_rss) &&
- 				cursor < max_nl_cursor &&
- 				cursor < vma->vm_end - vma->vm_start) {
- 				ret = try_to_unmap_cluster(
-Index: linux-2.6.9-rc1/include/asm-i386/system.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-i386/system.h	2004-08-24 00:01:51.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-i386/system.h	2004-09-01 11:30:41.000000000 -0700
-@@ -203,77 +203,6 @@
-  __set_64bit(ptr, (unsigned int)(value), (unsigned int)((value)>>32ULL) ) : \
-  __set_64bit(ptr, ll_low(value), ll_high(value)) )
-
--/*
-- * Note: no "lock" prefix even on SMP: xchg always implies lock anyway
-- * Note 2: xchg has side effect, so that attribute volatile is necessary,
-- *	  but generally the primitive is invalid, *ptr is output argument. --ANK
-- */
--static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
--{
--	switch (size) {
--		case 1:
--			__asm__ __volatile__("xchgb %b0,%1"
--				:"=q" (x)
--				:"m" (*__xg(ptr)), "0" (x)
--				:"memory");
--			break;
--		case 2:
--			__asm__ __volatile__("xchgw %w0,%1"
--				:"=r" (x)
--				:"m" (*__xg(ptr)), "0" (x)
--				:"memory");
--			break;
--		case 4:
--			__asm__ __volatile__("xchgl %0,%1"
--				:"=r" (x)
--				:"m" (*__xg(ptr)), "0" (x)
--				:"memory");
--			break;
--	}
--	return x;
--}
--
--/*
-- * Atomic compare and exchange.  Compare OLD with MEM, if identical,
-- * store NEW in MEM.  Return the initial value in MEM.  Success is
-- * indicated by comparing RETURN with OLD.
-- */
--
--#ifdef CONFIG_X86_CMPXCHG
--#define __HAVE_ARCH_CMPXCHG 1
--#endif
--
--static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
--				      unsigned long new, int size)
--{
--	unsigned long prev;
--	switch (size) {
--	case 1:
--		__asm__ __volatile__(LOCK_PREFIX "cmpxchgb %b1,%2"
--				     : "=a"(prev)
--				     : "q"(new), "m"(*__xg(ptr)), "0"(old)
--				     : "memory");
--		return prev;
--	case 2:
--		__asm__ __volatile__(LOCK_PREFIX "cmpxchgw %w1,%2"
--				     : "=a"(prev)
--				     : "q"(new), "m"(*__xg(ptr)), "0"(old)
--				     : "memory");
--		return prev;
--	case 4:
--		__asm__ __volatile__(LOCK_PREFIX "cmpxchgl %1,%2"
--				     : "=a"(prev)
--				     : "q"(new), "m"(*__xg(ptr)), "0"(old)
--				     : "memory");
--		return prev;
--	}
--	return old;
--}
--
--#define cmpxchg(ptr,o,n)\
--	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
--					(unsigned long)(n),sizeof(*(ptr))))
--
- #ifdef __KERNEL__
- struct alt_instr {
- 	__u8 *instr; 		/* original instruction */
-Index: linux-2.6.9-rc1/arch/i386/Kconfig
-===================================================================
---- linux-2.6.9-rc1.orig/arch/i386/Kconfig	2004-08-24 00:01:55.000000000 -0700
-+++ linux-2.6.9-rc1/arch/i386/Kconfig	2004-09-01 11:30:41.000000000 -0700
-@@ -341,6 +341,11 @@
- 	depends on !M386
- 	default y
-
-+config X86_CMPXCHG8B
-+	bool
-+	depends on !M386 && !M486
-+	default y
-+
- config X86_XADD
- 	bool
- 	depends on !M386
-Index: linux-2.6.9-rc1/include/asm-i386/processor.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-i386/processor.h	2004-08-24 00:01:52.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-i386/processor.h	2004-09-01 12:20:40.000000000 -0700
-@@ -652,4 +652,137 @@
- #define ARCH_HAS_SCHED_WAKE_IDLE
- #endif
-
-+/*
-+ * Note: no "lock" prefix even on SMP: xchg always implies lock anyway
-+ * Note 2: xchg has side effect, so that attribute volatile is necessary,
-+ *	  but generally the primitive is invalid, *ptr is output argument. --ANK
-+ */
-+static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
-+{
-+	switch (size) {
-+		case 1:
-+			__asm__ __volatile__("xchgb %b0,%1"
-+				:"=q" (x)
-+				:"m" (*__xg(ptr)), "0" (x)
-+				:"memory");
-+			break;
-+		case 2:
-+			__asm__ __volatile__("xchgw %w0,%1"
-+				:"=r" (x)
-+				:"m" (*__xg(ptr)), "0" (x)
-+				:"memory");
-+			break;
-+		case 4:
-+			__asm__ __volatile__("xchgl %0,%1"
-+				:"=r" (x)
-+				:"m" (*__xg(ptr)), "0" (x)
-+				:"memory");
-+			break;
+ 
++#ifdef CONFIG_NUMA
++	if (!mpol_node_valid(page_to_nid(page), area, 0)) {
++		/*
++		 * the page in the cache is not in any of the nodes this
++		 * VMA's policy wants it to be in. Can we remove it?
++		 */
++		lock_page(page);
++		if (page_count(page) - !!PagePrivate(page) == 2) {
++			/*
++			 * This page isn't being used by any mappings,
++			 * so we can safely remove it. It must be left
++			 * over from an earlier file IO readahead when
++			 * there was no page allocation policy associated
++			 * with the file.
++			 */
++			spin_lock(&mapping->tree_lock);
++			__remove_from_page_cache(page);
++			spin_unlock(&mapping->tree_lock);
++			page_cache_release(page);  /* pagecache ref */
++			unlock_page(page);
++			page_cache_release(page);  /* us */
++			goto retry_find;
++		} else {
++			/*
++			 * darn, the page is being used by other mappings.
++			 * We'll just have to leave the page in this node.
++			 */
++			unlock_page(page);
++		}
 +	}
-+	return x;
++#endif
++	
+ 	if (!did_readaround)
+ 		ra->mmap_hit++;
+ 
+@@ -1431,9 +1465,35 @@
+ 	return 0;
+ }
+ 
++
++#ifdef CONFIG_NUMA
++int generic_file_set_policy(struct vm_area_struct *vma,
++			    struct mempolicy *new)
++{
++	struct address_space *mapping = vma->vm_file->f_mapping;
++	return mpol_set_shared_policy(&mapping->policy, vma, new);
 +}
 +
-+/*
-+ * Atomic compare and exchange.  Compare OLD with MEM, if identical,
-+ * store NEW in MEM.  Return the initial value in MEM.  Success is
-+ * indicated by comparing RETURN with OLD.
-+ */
-+
-+#ifdef CONFIG_X86_CMPXCHG
-+#define __HAVE_ARCH_CMPXCHG 1
-+#endif
-+
-+static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
-+				      unsigned long new, int size)
++struct mempolicy *
++generic_file_get_policy(struct vm_area_struct *vma,
++			unsigned long addr)
 +{
-+	unsigned long prev;
-+#ifndef CONFIG_X86_CMPXCHG
-+	/*
-+	 * Check if the kernel was compiled for an old cpu but the
-+	 * currently running cpu can do cmpxchg after all
-+	 */
-+	unsigned long flags;
-+
-+	/* All CPUs except 386 support CMPXCHG */
-+	if (cpu_data->x86 > 3) goto have_cmpxchg;
-+
-+	/* Poor man's cmpxchg for 386. Unsuitable for SMP */
-+	local_irq_save(flags);
-+	switch (size) {
-+	case 1:
-+		prev = * (u8 *)ptr;
-+		if (prev == old) *(u8 *)ptr = new;
-+		break;
-+	case 2:
-+		prev = * (u16 *)ptr;
-+		if (prev == old) *(u16 *)ptr = new;
-+	case 4:
-+		prev = *(u32 *)ptr;
-+		if (prev == old) *(u32 *)ptr = new;
-+		break;
-+	}
-+	local_irq_restore(flags);
-+	return prev;
-+have_cmpxchg:
++	struct address_space *mapping = vma->vm_file->f_mapping;
++	unsigned long idx;
++	
++	idx = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
++	return mpol_shared_policy_lookup(&mapping->policy, idx);
++}
 +#endif
-+	switch (size) {
-+	case 1:
-+		__asm__ __volatile__(LOCK_PREFIX "cmpxchgb %b1,%2"
-+				     : "=a"(prev)
-+				     : "q"(new), "m"(*__xg(ptr)), "0"(old)
-+				     : "memory");
-+		return prev;
-+	case 2:
-+		__asm__ __volatile__(LOCK_PREFIX "cmpxchgw %w1,%2"
-+				     : "=a"(prev)
-+				     : "q"(new), "m"(*__xg(ptr)), "0"(old)
-+				     : "memory");
-+		return prev;
-+	case 4:
-+		__asm__ __volatile__(LOCK_PREFIX "cmpxchgl %1,%2"
-+				     : "=a"(prev)
-+				     : "q"(new), "m"(*__xg(ptr)), "0"(old)
-+				     : "memory");
-+		return prev;
++
++
+ static struct vm_operations_struct generic_file_vm_ops = {
+ 	.nopage		= filemap_nopage,
+ 	.populate	= filemap_populate,
++#ifdef CONFIG_NUMA
++	.set_policy     = generic_file_set_policy,
++	.get_policy     = generic_file_get_policy,
++#endif
+ };
+ 
+ /* This is used for a general mmap of a disk file */
+@@ -1483,7 +1543,7 @@
+ 	page = find_get_page(mapping, index);
+ 	if (!page) {
+ 		if (!cached_page) {
+-			cached_page = page_cache_alloc_cold(mapping);
++			cached_page = page_cache_alloc_cold(mapping, index);
+ 			if (!cached_page)
+ 				return ERR_PTR(-ENOMEM);
+ 		}
+@@ -1565,7 +1625,7 @@
+ 	page = find_lock_page(mapping, index);
+ 	if (!page) {
+ 		if (!*cached_page) {
+-			*cached_page = page_cache_alloc(mapping);
++			*cached_page = page_cache_alloc(mapping, index);
+ 			if (!*cached_page)
+ 				return NULL;
+ 		}
+diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/mm/mempolicy.c 2.6.8-rc3/mm/mempolicy.c
+--- 2.6.8-rc3.orig/mm/mempolicy.c	2004-08-10 15:18:35.000000000 -0700
++++ 2.6.8-rc3/mm/mempolicy.c	2004-09-01 21:49:14.000000000 -0700
+@@ -638,6 +638,7 @@
+ 	return page;
+ }
+ 
++
+ /**
+  * 	alloc_page_vma	- Allocate a page for a VMA.
+  *
+@@ -683,6 +684,7 @@
+ 	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
+ }
+ 
++
+ /**
+  * 	alloc_pages_current - Allocate pages.
+  *
+@@ -1003,6 +1005,28 @@
+ 	up(&p->sem);
+ }
+ 
++struct page *
++alloc_page_shared_policy(unsigned gfp, struct shared_policy *sp,
++			 unsigned long idx)
++{
++	struct page *page;
++	
++	if (sp) {
++		struct vm_area_struct pvma;
++		/* Create a pseudo vma that just contains the policy */
++		memset(&pvma, 0, sizeof(struct vm_area_struct));
++		pvma.vm_end = PAGE_SIZE;
++		pvma.vm_pgoff = idx;
++		pvma.vm_policy = mpol_shared_policy_lookup(sp, idx);
++		page = alloc_page_vma(gfp, &pvma, 0);
++		mpol_free(pvma.vm_policy);
++	} else {
++		page = alloc_pages(gfp, 0);
 +	}
-+	return prev;
++
++	return page;
 +}
 +
-+static inline unsigned long long cmpxchg8b(volatile unsigned long long *ptr,
-+	       unsigned long long old, unsigned long long newv)
-+{
-+	unsigned long long prev;
-+#ifndef CONFIG_X86_CMPXCHG8B
-+	unsigned long flags;
-+
-+	/*
-+	 * Check if the kernel was compiled for an old cpu but
-+	 * we are running really on a cpu capable of cmpxchg8b
-+	 */
-+
-+	if (cpu_has(cpu_data, X86_FEATURE_CX8)) goto have_cmpxchg8b;
-+
-+	/* Poor mans cmpxchg8b for 386 and 486. Not suitable for SMP */
-+	local_irq_save(flags);
-+	prev = *ptr;
-+	if (prev == old) *ptr = newv;
-+	local_irq_restore(flags);
-+	return prev;
-+
-+have_cmpxchg8b:
-+#endif
-+
-+	 __asm__ __volatile__(
-+	LOCK_PREFIX "cmpxchg8b %4\n"
-+	: "=A" (prev)
-+	: "0" (old), "c" ((unsigned long)(newv >> 32)),
-+       		"b" ((unsigned long)(newv & 0xffffffffLL)), "m" (ptr)
-+	: "memory");
-+	return prev ;
-+}
-+
-+#define cmpxchg(ptr,o,n)\
-+	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
-+					(unsigned long)(n),sizeof(*(ptr))))
-+
- #endif /* __ASM_I386_PROCESSOR_H */
-Index: linux-2.6.9-rc1/include/asm-x86_64/pgalloc.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-x86_64/pgalloc.h	2004-08-24 00:02:47.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-x86_64/pgalloc.h	2004-09-01 11:30:41.000000000 -0700
-@@ -7,16 +7,26 @@
- #include <linux/threads.h>
- #include <linux/mm.h>
-
-+#define PMD_NONE 0
-+#define PTE_NONE 0
-+
- #define pmd_populate_kernel(mm, pmd, pte) \
- 		set_pmd(pmd, __pmd(_PAGE_TABLE | __pa(pte)))
- #define pgd_populate(mm, pgd, pmd) \
- 		set_pgd(pgd, __pgd(_PAGE_TABLE | __pa(pmd)))
-+#define pgd_test_and_populate(mm, pgd, pmd) \
-+		(cmpxchg(pgd, PMD_NONE, _PAGE_TABLE | __pa(pmd)) == PMD_NONE)
-
- static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
+ /* assumes fs == KERNEL_DS */
+ void __init numa_policy_init(void)
  {
- 	set_pmd(pmd, __pmd(_PAGE_TABLE | (page_to_pfn(pte) << PAGE_SHIFT)));
- }
-
-+static inline int pmd_test_and_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
-+{
-+	return cmpxchg(pmd, PTE_NONE, _PAGE_TABLE | (page_to_pfn(pte) << PAGE_SHIFT)) == PTE_NONE;
-+}
-+
- extern __inline__ pmd_t *get_pmd(void)
+diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/mm/readahead.c 2.6.8-rc3/mm/readahead.c
+--- 2.6.8-rc3.orig/mm/readahead.c	2004-08-10 15:18:35.000000000 -0700
++++ 2.6.8-rc3/mm/readahead.c	2004-09-01 20:39:14.000000000 -0700
+@@ -246,7 +246,7 @@
+ 			continue;
+ 
+ 		spin_unlock_irq(&mapping->tree_lock);
+-		page = page_cache_alloc_cold(mapping);
++		page = page_cache_alloc_cold(mapping, page_offset);
+ 		spin_lock_irq(&mapping->tree_lock);
+ 		if (!page)
+ 			break;
+diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/mm/shmem.c 2.6.8-rc3/mm/shmem.c
+--- 2.6.8-rc3.orig/mm/shmem.c	2004-08-10 15:18:35.000000000 -0700
++++ 2.6.8-rc3/mm/shmem.c	2004-09-01 11:14:48.000000000 -0700
+@@ -824,16 +824,7 @@
+ shmem_alloc_page(unsigned long gfp, struct shmem_inode_info *info,
+ 		 unsigned long idx)
  {
- 	return (pmd_t *)get_zeroed_page(GFP_KERNEL);
-Index: linux-2.6.9-rc1/include/asm-x86_64/pgtable.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-x86_64/pgtable.h	2004-08-24 00:03:19.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-x86_64/pgtable.h	2004-09-01 12:01:44.000000000 -0700
-@@ -436,6 +436,11 @@
- #define	kc_offset_to_vaddr(o) \
-    (((o) & (1UL << (__VIRTUAL_MASK_SHIFT-1))) ? ((o) | (~__VIRTUAL_MASK)) : (o))
-
-+
-+#define ptep_xchg(mm,xp,newval)	__pte(xchg(&(xp)->pte, pte_val(newval))
-+#define ptep_cmpxchg(mm,xp,newval,oldval) (cmpxchg(&(xp)->pte, pte_val(newval), pte_val(oldval) == pte_val(oldval))
-+#define __HAVE_ARCH_ATOMIC_TABLE_OPS
-+
- #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
- #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_DIRTY
- #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
-Index: linux-2.6.9-rc1/include/asm-s390/pgtable.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-s390/pgtable.h	2004-08-24 00:03:30.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-s390/pgtable.h	2004-09-01 12:09:15.000000000 -0700
-@@ -783,6 +783,19 @@
-
- #define kern_addr_valid(addr)   (1)
-
-+/* Atomic PTE operations */
-+#define __HAVE_ARCH_ATOMIC_TABLE_OPS
-+
-+static inline pte_t ptep_xchg(struct mm_struct *mm, pte_t *ptep, pte_t pteval)
-+{
-+	return __pte(xchg(ptep, pte_val(pteval)));
-+}
-+
-+static inline int ptep_cmpxchg (struct mm_struct *mm, pte_t *ptep, pte_t oldval, pte_t newval)
-+{
-+	return cmpxchg(ptep, pte_val(oldval), pte_val(newval)) == pte_val(oldval);
-+}
-+
- /*
-  * No page table caches to initialise
-  */
-Index: linux-2.6.9-rc1/include/asm-s390/pgalloc.h
-===================================================================
---- linux-2.6.9-rc1.orig/include/asm-s390/pgalloc.h	2004-08-24 00:02:58.000000000 -0700
-+++ linux-2.6.9-rc1/include/asm-s390/pgalloc.h	2004-09-01 12:15:41.000000000 -0700
-@@ -97,6 +97,10 @@
- 	pgd_val(*pgd) = _PGD_ENTRY | __pa(pmd);
+-	struct vm_area_struct pvma;
+-	struct page *page;
+-
+-	memset(&pvma, 0, sizeof(struct vm_area_struct));
+-	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
+-	pvma.vm_pgoff = idx;
+-	pvma.vm_end = PAGE_SIZE;
+-	page = alloc_page_vma(gfp, &pvma, 0);
+-	mpol_free(pvma.vm_policy);
+-	return page;
++	return alloc_page_shared_policy(gfp, &info->policy, idx);
  }
+ #else
+ static inline struct page *
 
-+static inline int pgd_test_and_populate(struct mm_struct *mm, pdg_t *pgd, pmd_t *pmd)
-+{
-+	return cmpxchg(pgd, _PAGE_TABLE_INV, _PGD_ENTRY | __pa(pmd)) == _PAGE_TABLE_INV;
-+}
- #endif /* __s390x__ */
 
- static inline void
-@@ -119,6 +123,18 @@
- 	pmd_populate_kernel(mm, pmd, (pte_t *)((page-mem_map) << PAGE_SHIFT));
- }
+--------------080707060509060002020408--
 
-+static inline int
-+pmd_test_and_populate(struct mm_struct *mm, pmd_t *pmd, struct page *page)
-+{
-+	int rc;
-+	spin_lock(&mm->page_table_lock);
-+
-+	rc=pte_same(*pmd, _PAGE_INVALID_EMPTY);
-+	if (rc) pmd_populate(mm, pmd, page);
-+	spin_unlock(&mm->page_table_lock);
-+	return rc;
-+}
-+
- /*
-  * page table entry allocation/free routines.
-  */
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+
+-------------------------------------------------------
+This SF.Net email is sponsored by: YOU BE THE JUDGE. Be one of 170
+Project Admins to receive an Apple iPod Mini FREE for your judgement on
+who ports your project to Linux PPC the best. Sponsored by IBM.
+Deadline: Sept. 24. Go here: http://sf.net/ppc_contest.php
