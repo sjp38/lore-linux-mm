@@ -1,30 +1,27 @@
-Subject: Significant Memory Reduction Using Sharepte Patch on Database Workload
-Message-ID: <OF889EDB45.3A485EF3-ON85256C5D.004A5547@pok.ibm.com>
+Subject: Significant Memory Reduction Using Huge Page Patch on Database Workload
+Message-ID: <OF3B2D710E.252B485F-ON85256C5D.00500150@pok.ibm.com>
 From: "Peter Wong" <wpeter@us.ibm.com>
-Date: Fri, 25 Oct 2002 09:43:32 -0500
+Date: Fri, 25 Oct 2002 11:38:58 -0500
 MIME-Version: 1.0
 Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@zip.com.au, dmccr@us.ibm.com, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
+To: akpm@zip.com.au, William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 Cc: Bill Hartner <bhartner@us.ibm.com>, "Martin J. Bligh" <mbligh@aracnet.com>
 List-ID: <linux-mm.kvack.org>
 
-     I used a very heavy database workload to evaluate two kernels:
+     (1) 2.5.43-mm2:
+         2.5.43 + Andrew Morton's mm2 patch
 
-     (1) 2.5.44-mm2:
-         2.5.44 + Andrew Morton's mm2 patch
-
-     (2) 2.5.44-mm2-less-shpte:
-         2.5.44 + Andrew Morton's mm2 patch
-                - Dave McCracken's shpte-ng.patch
+     (2) 2.5.43-mm2+huge:
+         2.5.43 + Andrew Morton's mm2 patch
+                + Bill Irwin's hugetlb patch
 
      Andrew' mm2 patch can be found at:
-http://www.zipworld.com.au/~akpm/linux/patches/2.5/2.5.44/2.5.44-mm2/.
+http://www.zipworld.com.au/~akpm/linux/patches/2.5/2.5.43/2.5.43-mm2/.
 
-     Note that Dave's shared pte patch is included in Andrew's mm2
-patch. The objective of this comparison is to measure the impact
-of Dave's patch.
+     The objective of this comparison is to measure the impact of
+Bill's patch. We used 680 for nr_hugepages, ~2.66 GB for the runs.
 
 ----------------------------------------------------------------------
 System Information:
@@ -36,26 +33,24 @@ System Information:
 
      Based upon the performance metrics and CPU utilization, the two
 kernels achieve similar performance. However, memory consumption
-by rmap and page tables is reduced significantly by using Dave's
-patch. Basically, a large number of I/O prefetchers and database
-agents can share two small sets of page tables, which in turn
-reduce the amount of rmap memory.
+by rmap and page tables is reduced significantly by using Bill's
+patch.
 
 
-                               2.5.44-mm2     2.5.44-mm2-less-shpte
+                               2.5.43-mm2         2.5.43-mm2+huge
      ==============================================================
-     pte_chain  (max) (MB)        1.2                182.3
+     pte_chain  (max) (MB)        4.3                182.4
 
 
-     PageTables (max) (MB)        5.2                153.0
+     PageTables (max) (MB)        9.5                153.7
 
 
-     In total, we save ~330 MB in the low memory area.
+     In total, we save ~322 MB in the low memory area.
 
 Regards,
-Peter
+Partha and Peter
 
-Peter Wai Yee Wong
+Partha Narayanan and Peter Wai Yee Wong
 IBM LTC Performance Team
 email: wpeter@us.ibm.com
 
