@@ -1,36 +1,65 @@
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [PATCH] shm fs v2 against 2.3.41
+From: GOTO Masanori <gotom@debian.or.jp>
+In-Reply-To: <qwwemazzj8u.fsf@sap.com>
+References: <qwwemazzj8u.fsf@sap.com>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14485.53937.931834.378699@dukat.scot.redhat.com>
-Date: Mon, 31 Jan 2000 18:21:37 +0000 (GMT)
-Subject: Re: Eliminating bounce buffers
-In-Reply-To: <3895CAEF.B5078F0B@missioncriticallinux.com>
-References: <3891C3E9.CD7B1A76@missioncriticallinux.com>
-	<14485.49949.396513.567501@dukat.scot.redhat.com>
-	<3895CAEF.B5078F0B@missioncriticallinux.com>
+Message-Id: <20000201190720E.gotom@fe.dis.titech.ac.jp>
+Date: Tue, 01 Feb 2000 19:07:20 +0900
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Larry Woodman <woodman@missioncriticallinux.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: hans-christoph.rohland@sap.com
+Cc: linux-kernel@vger.rutgers.edu, linux-MM@kvack.org, Linus Torvalds <torvalds@transmeta.com>, gotom@debian.or.jp
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Calling shmget( key, size, shmflg ) with size = 0,
+I got an error EINVAL. The below patch fix it,
+please apply into 2.3.41+shmfs14 patch.
 
-On Mon, 31 Jan 2000 12:48:31 -0500, Larry Woodman
-<woodman@missioncriticallinux.com> said:
+---------------------
+--- linux-2.3.41_shmfs14/ipc/shm.c      Tue Feb  1 18:49:02 2000
++++ linux-2.3.41_shmfs14_fixed/ipc/shm.c        Tue Feb  1 18:57:52 2000
+@@ -660,7 +660,7 @@
+                return -EINVAL;
+        }
+ 
+-       if (size < SHMMIN)
++       if ((size != 0) && (size < SHMMIN))
+                return -EINVAL;
+ 
+        down(&shm_ids.sem);
+---------------------
 
-> Yes, I totally agree that after we pass 4GB of physical memory we
-> still need to copy to pages which are less than 4GB before doing IO.
-> Do you think its worth having yet another zone for this???
+And now I have a question:
+I guess almost all users have no shmpath (default: /var/shm),
+and they maybe make a dir and have to mount it.
+IMHO, it is better to change that sysv shared memory works
+samely, whenever shmfs is not mounted. Is it feasible, 
+or only my mistaken ?
 
-Yes.  Ideally, on large PAE36 Intel boxes we want to use the memory
-below 4G for uses which will require IO (ie. page cache), and memory
-above that point for anonymous pages which we don't expect IO on except
-if we start swapping.  Having separate zones will make that a lot easier
-to arrange.
 
---Stephen
+From: Christoph Rohland <hans-christoph.rohland@sap.com>
+Subject: [PATCH] shm fs v2 against 2.3.41
+> Hi Folks,
+> 
+> Here is my newest version of shm over a filesystem:
+> 
+> Changes to the previous versio:
+> 
+> - It does not try to autodetect the path any more. Per default it
+>   expects to be mounted at /var/shm. If you mount it somewhere else,
+>   put the new path into /proc/sys/kernel/shmpath
+> - No more /proc/sys/kernel/{shmall,shmmni}. Use mount options
+>   nr_blocks and nr_pages. You can change these parameters with remount.
+> - You can set the initial mode of the directory with mount option 'mode'.
+> - It frees all objects on umount.
+> 
+> I tested the shm fs heavily on 2.3.40+some patches to make smp and
+> page_cache stable. It survived one day swap test.
+
+Regards,
+-- GOTO Masanori
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
