@@ -1,76 +1,43 @@
-Date: Fri, 24 Dec 2004 12:23:01 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: Splitting the page migration patches out of  the memory hotplug patch
-Message-ID: <20041224142301.GA7219@logos.cnet>
-References: <41CC4517.3080506@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <41CC4517.3080506@sgi.com>
-Content-Transfer-Encoding: 8BIT
+Date: Fri, 24 Dec 2004 10:21:24 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
+Subject: Re: Prezeroing V2 [0/3]: Why and When it works
+In-Reply-To: <1103879668.4131.15.camel@laptopd505.fenrus.org>
+Message-ID: <Pine.LNX.4.58.0412241018430.2654@ppc970.osdl.org>
+References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com>
+  <41C20E3E.3070209@yahoo.com.au>  <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
+  <Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com>
+ <16843.13418.630413.64809@cargo.ozlabs.ibm.com>  <Pine.LNX.4.58.0412231325420.2654@ppc970.osdl.org>
+ <1103879668.4131.15.camel@laptopd505.fenrus.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, Dave@sr71.net, Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm <linux-mm@kvack.org>
+To: Arjan van de Ven <arjan@infradead.org>
+Cc: Paul Mackerras <paulus@samba.org>, Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 24, 2004 at 10:34:31AM -0600, Ray Bryant wrote:
-> (Addling linux-mm, Marcello and Hirakazu....what I'm up
-> to is trying to create a roll-up patch that contains just
-> the memory migration code from mhp3, since I need page
-> migration for some work I am doing.)
-> 
-> Dave,
-> 
-> Well, the only other big change I made (other than dropping
-> P32-memsection_migrate.patch) to get it to compile and boot
-> for Altix were as follows:
-> 
-> (I'll work on testing it after the holiday.)
-> 
-> P29-add-memory-migration-to-Kconfig-ia64.patch
-> 
->         Add memory migration to the config menu
->         for ia64.
-> 
-> P30-remove-page_under_capture.patch
-> 
->         removed page_under_capture() from the end
->         of shrink_cache() in mm/vmscan.c.  This
->         is not defined in the P series of patches.
->         This particular call was introduced by patch
->         P01-steal_page_from_lru.patch
-> 
-> (I'm not sure how to number these patches to fit in with
-> your scheme, so just made some stuff up.)
-> 
-> (Oh yeah, this is in top of 2.6.10-rc2-mm4.)
-> 
-> Now it would be nice if we could figure out a way to keep
-> these patchsets distinct (i. e. so work on page migration
-> and hotplug can continue without me redoing this every
-> week or two.)
-> 
-> One way to do that would be to fix it so that the page
-> migration patches are first in the hotplug patch, or to
-> separate the two out and assume that hotplug patch goes
-> on top of the page migration patch.  How would you like
-> to go about this? (I'll take a whack at moving them to
-> the top of the mhp3 series file and see how much trouble
-> I get into....)
 
-I think thats up to Dave who maintains the patchset.
+On Fri, 24 Dec 2004, Arjan van de Ven wrote:
+> 
+> problem is.. will it buy you anything if you use the page again
+> anyway... since such pages will be cold cached now. So for sure some of
+> it is only shifting latency from kernel side to userspace side, but
+> readprofile doesn't measure the later so it *looks* better...
 
-> PS:  It doesn't look like Marcello and Hirakazu's
-> migration patch is part of your P* series.  Is
-> that correct?
+Absolutely. I would want to see some real benchmarks before we do this.  
+Not just some microbenchmark of "how many page faults can we take without
+_using_ the page at all".
 
-Yes, the plan is to merge the migration cache to the memory 
-hotplug as soon as its well tested - we still lack transformation of 
-migration pages into swap pages, which involves redoing all pte's
-of a given migration page. 
+I agree 100% with you that we shouldn't shift the costs around. Having a
+hice hot-spot that we know about is a good thing, and it means that
+performance profiles show what the time is really spent on. Often getting
+rid of the hotspot just smears out the work over a wider area, making
+other optimizations (like trying to make the memory footprint _smaller_
+and removing the work entirely that way) totally impossible because now
+the performance profile just has a constant background noise and you can't 
+tell what the real problem is.
 
-Happy holiday!
+		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
