@@ -1,35 +1,37 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA10440
-	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 14:07:14 -0500
-Date: Tue, 12 Jan 1999 20:05:21 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <87d84kl49u.fsf@atlas.CARNet.hr>
-Message-ID: <Pine.LNX.3.96.990112200143.1382B-100000@laser.bogus>
+Received: from f04n07.cac.psu.edu (f04s07.cac.psu.edu [128.118.141.35])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA11003
+	for <linux-mm@kvack.org>; Tue, 12 Jan 1999 15:24:52 -0500
+Message-ID: <369BAD5A.235762CE@psu.edu>
+Date: Tue, 12 Jan 1999 15:15:22 -0500
+From: Michael K Vance <mkv102@psu.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: Results: Zlatko's new vm patch
+References: <Pine.LNX.3.95.990111213013.15291A-100000@penguin.transmeta.com>
+		<Pine.LNX.4.05.9901121055350.723-100000@alien.cowboy.net> <199901121816.SAA11120@dax.scot.redhat.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Cc: Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Joseph Anthony <jga@cowboy.net>, Linus Torvalds <torvalds@transmeta.com>, Steve Bergman <steve@netplus.net>, Andrea Arcangeli <andrea@e-mind.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On 12 Jan 1999, Zlatko Calusic wrote:
+"Stephen C. Tweedie" wrote:
 
-> Could somebody spare a minute to explain why is that so, and what
-> needs to be done to make SHM swapping asynchronous?
+> > Well, sometimes the system writes to swap before I have used half my
+> > memory ( in X ) I view this with wmmon in windowmaker..
+> 
+> Suspect wmmon in that case.  If you can show this happening in a trace
+> output from "vmstat 1", then I'll start to worry.
 
-Maybe because nobody care about shm? I think shm can wait for 2.3 to be
-improved.
+wmmon stuffs both swap and physical mem in its "MEM" area, and also has a
+listing for "SWP", ie swap. I assume top is still reliable?
 
-> Also, while we're at MM fixes, I'm appending below a small patch that
-> will improve interactive feel.
+m.
 
-This is just in my latest arca patches as you have just noticed. Don't
-think that this thing make some difference though. But sometimes
-could improve performances and make tons of sense.
-
-Andrea Arcangeli
-
+-- 
+"We watched her fall over and lay down,
+ shouting the poetic truths of high school journal keepers."
+ -- Lee Rinaldo, Sonic Youth
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
