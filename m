@@ -1,42 +1,37 @@
-Date: Wed, 2 Oct 2002 03:00:15 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: my VM TODO list
-Message-ID: <20021002100015.GC31587@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
+Date: Wed, 2 Oct 2002 11:27:41 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: my VM TODO list
+In-Reply-To: <20021002100015.GC31587@holomorphy.com>
+Message-ID: <Pine.LNX.4.44L.0210021126590.22735-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: riel@surriel.com
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
--------
+On Wed, 2 Oct 2002, William Lee Irwin III wrote:
 
-(1) hugetlbfs
-	written, needs to return -EINVAL higher up instead of BUG_ON()
-	lower down, and make shm bits DTRT.
+> (2) pagetable reclaim
+> 	Figured out where the pmd weirdness happens and restarted
+> 	lookups, need to find a spot to go blow them away, when
+> 	to do it, and maybe do something about private anonymous.
+>
+> (3) help out with pagetable sharing
+> 	Not sure what's going on there.
 
-(2) pagetable reclaim
-	Figured out where the pmd weirdness happens and restarted
-	lookups, need to find a spot to go blow them away, when
-	to do it, and maybe do something about private anonymous.
+I'm willing to help out with both of these.   Is there any current
+code around I could take a look at and work from ?
 
-(3) help out with pagetable sharing
-	Not sure what's going on there.
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
 
------
-long-since vetoed/hated/whatever wishlist items omitted
+http://www.surriel.com/		http://distro.conectiva.com/
 
-Wishlist:
---------
-(1) x86 page clustering
-	Pretending 1 << order pte's are a single pte is easy.
-	IA64 appears to have subpage mmapping code to cherry pick
-	for 4KB compatibility, possibly omit it if it's a problem.
+Spamtraps of the month:  september@surriel.com trac@trac.org
 
-Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
