@@ -1,39 +1,33 @@
-Date: Tue, 1 Jul 2003 03:51:34 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.73-mm2
-Message-ID: <20030701105134.GE26348@holomorphy.com>
-References: <20030701003958.GB20413@holomorphy.com> <Pine.LNX.4.44.0307011137001.1161-100000@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0307011137001.1161-100000@localhost.localdomain>
+Date: Tue, 1 Jul 2003 12:01:21 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: What to expect with the 2.6 VM
+In-Reply-To: <20030630200237.473d5f82.akpm@digeo.com>
+Message-ID: <Pine.LNX.4.44.0307011147460.1161-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Jun 2003, William Lee Irwin III wrote:
->> It was suggested during my last round of OOM killer fixes that one of
->> my patches, which just checked nr_free_buffer_pages() > 0, should also
->> consider userspace (i.e. reclaimable at will) memory free.
+On Mon, 30 Jun 2003, Andrew Morton wrote:
+> Andrea Arcangeli <andrea@suse.de> wrote:
+> > 
+> > described this way it sounds like NOFAIL imply a deadlock condition.
+> 
+> NOFAIL is what 2.4 has always done, and has the deadlock opportunities
+> which you mention.  The other modes allow the caller to say "don't try
+> forever".
 
-On Tue, Jul 01, 2003 at 11:46:34AM +0100, Hugh Dickins wrote:
-> If you pursued it, wouldn't your patch also need to change
-> nr_free_buffer_pages() to do what you think it does, count
-> the free lowmem pages?  It, and nr_free_pagecache_pages(),
-> and nr_free_zone_pages(), are horribly badly named.  They
-> count present_pages-pages_high, they don't count free pages:
-> okay for initialization estimates, useless for anything dynamic.
-> Hugh
-> p.s. any chance of some more imaginative Subject lines :-?
+__GFP_NOFAIL is also very badly named: patently it can and does fail,
+when PF_MEMALLOC or PF_MEMDIE or not __GFP_WAIT.  Or is the idea that
+its users might as well oops when it does fail?  Should its users be
+changed to use the less perniciously named __GFP_REPEAT, or should
+__alloc_pages be changed to deadlock more thoroughly?
 
-Well, I was mostly looking for getting handed back 0 when lowmem is
-empty; I actually did realize they didn't give entirely accurate counts
-of free lowmem pages.
+Hugh
 
-
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
