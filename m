@@ -1,65 +1,60 @@
-Subject: Re: page fault scalability patch V16 [3/4]: Drop page_table_lock
-	in handle_mm_fault
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-In-Reply-To: <Pine.LNX.4.58.0502011843570.6511@schroedinger.engr.sgi.com>
-References: <41E5B7AD.40304@yahoo.com.au>
-	 <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
-	 <41E5BC60.3090309@yahoo.com.au>
-	 <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
-	 <20050113031807.GA97340@muc.de>
-	 <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
-	 <20050113180205.GA17600@muc.de>
-	 <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
-	 <20050114043944.GB41559@muc.de>
-	 <Pine.LNX.4.58.0501140838240.27382@schroedinger.engr.sgi.com>
-	 <20050114170140.GB4634@muc.de>
-	 <Pine.LNX.4.58.0501281233560.19266@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.58.0501281237010.19266@schroedinger.engr.sgi.com>
-	 <41FF00CE.8060904@yahoo.com.au>
-	 <Pine.LNX.4.58.0502011047330.3205@schroedinger.engr.sgi.com>
-	 <1107304296.5131.13.camel@npiggin-nld.site>
-	 <Pine.LNX.4.58.0502011718240.5549@schroedinger.engr.sgi.com>
-	 <1107308498.5131.28.camel@npiggin-nld.site>
-	 <Pine.LNX.4.58.0502011843570.6511@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Wed, 02 Feb 2005 14:09:37 +1100
-Message-Id: <1107313778.5131.32.camel@npiggin-nld.site>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+From: Miss Mary Fati <m_fati@indiatimes.com>
+Reply-To: m_fati@walla.com
+Subject: From Miss Mary Fati
+Date: Wed, 02 Feb 2005 18:09:58 +0400
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="c3d0f0cb-4775-48f0-ab99-ba90456f2cbf"
+Message-Id: <20050202141026Z26566-20892+209@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Andi Kleen <ak@muc.de>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2005-02-01 at 18:49 -0800, Christoph Lameter wrote:
-> On Wed, 2 Feb 2005, Nick Piggin wrote:
-> 
-> > Well yeah, but the interesting case is when that isn't a lock ;)
-> >
-> > I'm not saying what you've got is no good. I'm sure it would be fine
-> > for testing. And if it happens that we can do the "page_count doesn't
-> > mean anything after it has reached zero and been freed. Nor will it
-> > necessarily be zero when a new page is allocated" thing without many
-> > problems, then this may be a fine way to do it.
-> >
-> > I was just pointing out this could be a problem without putting a
-> > lot of thought into it...
-> 
-> Surely we need to do this the right way. Do we really need to
-> use page_cache_get()? Is anything relying on page_count == 2 of
-> the old_page?
-> 
-> I mean we could just speculatively copy, risk copying crap and
-> discard that later when we find that the pte has changed. This would
-> simplify the function:
-> 
+This is a multi-part message in MIME format
+--c3d0f0cb-4775-48f0-ab99-ba90456f2cbf
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: quoted-printable
 
-I think this may be the better approach. Anyone else?
+MISS MARY FATI
+EMAIL: m_fati@walla.com
+TEL:
+ACCRA-GHANA
+DATE: 02-02-05
 
+REQUEST FORASSISTANCE
 
-Find local movie times and trailers on Yahoo! Movies.
-http://au.movies.yahoo.com
+DEAR FRIEND,
+
+I AM MISS MARY FATI, A SUDANESE 25 YEAROLD GIRL. I AM DESPERATELY IN NEED OF =
+YOUR ASSISTANCE IN SAFEGUIDING MYLIFE AND THAT OF MY ONLY SURVIVING BROTHER =
+(DAVID).
+WE LOST OURPARENTS ALONGSIDE MY ONLY SISTER AND TWO BROTHERS IN THE EVENT OF =
+DARFUR(SUDAN) CRISES.
+MY BROTHER AND I ARE ALIVE TODAY BECAUSE WE WERE INTHE BOARDING SCHOOL WHEN =
+OUR FAMILY HOUSE WAS ATTACKED WITH ALL THEOCCUPANTS KILLED.
+WE MANAGED TO ESCAPE FROM SUDAN WITH A SAFE WE GOTFROM MY FATHER?S PRIVATE =
+ROOM, WHICH CONTAINS ALL HIS BUSINESSDOCUMENTS. AMONG OTHER DOCUMENTS WE =
+FOUND A CERTIFICATE OF DEPOSITEALONG SIDE HIS WILL.
+MY FATHER DEPOSITED A SAFE WITH A PRIVATESECURITY COMPANY IN GHANA CLAIMING =
+THE CONTENT IS VITAL DOCUMENTS WHILEIN HIS WILL HE MADE IT CLEAR THAT A FUND =
+WORTH OF US$20,500,000.00 IS INTHE DEPOSITED SAFE.
+I AM HERE IN GHANA WHILE MY BROTHER IS IN DUBAIBOTH OF US CONFUSSED ON HOW =
+BEST TO PROCEED WITH OUR LIVES.
+PLEASE WENEED YOUR ASSISTANCE IN RETRIVING THISSAFE FROM THIS SECURITY =
+COMPANY ASWELL AS SETTLING THE FUND IN ANY OF YOUR PRIVATE ACCOUNTS ANYWHERE =
+ITWILL BE SAFE.
+FROM THE AGREEMENT OF DEPOSITE, THE SECURITY COMPANY ISREADY TO DELIEVER THE =
+SAFE IN ANY OF OUR CHOOSEN DESTINATIONS WHEREGHANA IS NOT CONVINIENT FOR US.
+PLEASE CONFIRM YOUR READINESS TO HELPUS OUT AND I WILL LET YOU KNOW ALL THE =
+DETAILS AS WELL AS LINKING YOU UPTO MY BROTHER.
+REMEMBER YOUR LITTLE HELP CAN MAKE US SMILE FOREVERAND WE WILL EVER REMAIN =
+GREATFUL.
+
+BEST REGARDS,
+
+MARY FATI  
+--c3d0f0cb-4775-48f0-ab99-ba90456f2cbf--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
