@@ -1,49 +1,38 @@
-Date: Wed, 17 Sep 2003 21:48:03 +0200
-From: Sam Ravnborg <sam@ravnborg.org>
-Subject: Re: 2.6.0-test5-mm2
-Message-ID: <20030917194803.GA12177@mars.ravnborg.org>
-References: <20030914234843.20cea5b3.akpm@osdl.org> <1063646389.1311.0.camel@teapot.felipe-alfaro.com>
+Date: Wed, 17 Sep 2003 12:50:44 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: How best to bypass the page cache from within a kernel module?
+Message-ID: <20030917195044.GH14079@holomorphy.com>
+References: <Pine.LNX.4.44L0.0309171402370.1171-100000@ida.rowland.org> <1063827869.13097.124.camel@nighthawk>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1063646389.1311.0.camel@teapot.felipe-alfaro.com>
+In-Reply-To: <1063827869.13097.124.camel@nighthawk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Alan Stern <stern@rowland.harvard.edu>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 15, 2003 at 07:19:50PM +0200, Felipe Alfaro Solana wrote:
-> On Mon, 2003-09-15 at 08:48, Andrew Morton wrote:
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test5/2.6.0-test5-mm2/
-> 
-> > Changes since 2.6.0-test5-mm1:
-> 
-> Hmmm...
-> 
-> "make rpm" support is broken in 2.6.0-test5-mm2. However, it works fine
-> with 2.6.0-test5-bk3.
+On Wed, 2003-09-17 at 11:24, Alan Stern wrote:
+>> However, all that seems rather roundabout.  An equally acceptable solution 
+>> would be simply to invalidate all the entries in the page cache referring 
+>> to my file, so that reads would be forced to go to the drive.  Can anyone 
+>> tell me how to do that?
 
-I broke that as part of the separate output directory patch.
-The following should fix it.
+On Wed, Sep 17, 2003 at 12:44:29PM -0700, Dave Hansen wrote:
+> Whatever you're trying to do, you probably shouldn't be doing it in the
+> kernel to begin with.  Do it from userspace, it will save you a lot of
+> pain.
 
-Andrew, I will come up with a better patch tomorrow.
+If you really want to bypass the pagecache etc. entirely, use raw io and
+don't even bother mounting the filesystem, and do it all from userspace.
+If you need it simultaneously mounted then you're in somewhat deeper
+trouble, though you can probably be rescued by nefarious means like that
+bit about shooting down the pagecache so you don't have some incoherent
+cache headache.
 
-	Sam
 
-===== Makefile 1.428 vs edited =====
---- 1.428/Makefile	Thu Sep 11 12:01:23 2003
-+++ edited/Makefile	Wed Sep 17 21:46:41 2003
-@@ -97,7 +97,7 @@
- # We process the rest of the Makefile if this is the final invocation of make
- ifeq ($(skip-makefile),)
- 
--srctree		:= $(if $(KBUILD_SRC),$(KBUILD_SRC),.)
-+srctree		:= $(if $(KBUILD_SRC),$(KBUILD_SRC),$(CURDIR))
- TOPDIR		:= $(srctree)
- # FIXME - TOPDIR is obsolete, use srctree/objtree
- objtree		:= $(CURDIR)
-
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
