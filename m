@@ -1,86 +1,67 @@
-Message-Id: <200107272347.f6RNlTs15460@maild.telia.com>
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Roger Larsson <roger.larsson@skelleftea.mail.telia.com>
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
 Subject: Re: 2.4.8-pre1 and dbench -20% throughput
-Date: Sat, 28 Jul 2001 01:43:31 +0200
-References: <200107272112.f6RLC3d28206@maila.telia.com> <0107280034050V.00285@starship>
-In-Reply-To: <0107280034050V.00285@starship>
+Date: Sat, 28 Jul 2001 03:11:16 +0200
+References: <200107272112.f6RLC3d28206@maila.telia.com> <0107280034050V.00285@starship> <200107272347.f6RNlTs15460@maild.telia.com>
+In-Reply-To: <200107272347.f6RNlTs15460@maild.telia.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Message-Id: <0107280311160X.00285@starship>
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org
+To: Roger Larsson <roger.larsson@skelleftea.mail.telia.com>, linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi again,
-
-It might be variations in dbench - but I am not sure since I run
-the same script each time.
-
-(When I made a testrun in a terminal window - with X running, but not doing 
-anything activly, I got
-[some '.' deleted] 
-.............++++++++++++++++++++++++++++++++********************************
-Throughput 15.8859 MB/sec (NB=19.8573 MB/sec  158.859 MBit/sec)
-14.74user 22.92system 4:26.91elapsed 14%CPU (0avgtext+0avgdata 0maxresident)k
-0inputs+0outputs (912major+1430minor)pagefaults 0swaps
-
-I have never seen anyting like this - all '+' together! 
-
-I logged off and tried again - got more normal values 32 MB/s
-and '+' were spread out.
-
-More testing needed...
-
-/RogerL
-
-On Saturdayen den 28 July 2001 00:34, Daniel Phillips wrote:
-> On Friday 27 July 2001 23:08, Roger Larsson wrote:
-> > Hi all,
-> >
-> > I have done some throughput testing again.
-> > Streaming write, copy, read, diff are almost identical to earlier 2.4
-> > kernels. (Note: 2.4.0 was clearly better when reading from two files
-> > - i.e. diff - 15.4 MB/s v. around 11 MB/s with later kenels - can be
-> > a result of disk layout too...)
-> >
-> > But "dbench 32" (on my 256 MB box) results has are the most
-> > interesting:
-> >
-> > 2.4.0 gave 33 MB/s
-> > 2.4.8-pre1 gives 26.1 MB/s (-21%)
-> >
-> > Do we now throw away pages that would be reused?
-> >
-> > [I have also verified that mmap002 still works as expected]
+On Saturday 28 July 2001 01:43, Roger Larsson wrote:
+> Hi again,
 >
-> Could you run that test again with /usr/bin/time (the GNU time
-> function) so we can see what kind of swapping it's doing?
+> It might be variations in dbench - but I am not sure since I run
+> the same script each time.
 >
-> The use-once approach depends on having a fairly stable inactive_dirty
-> + inactive_clean queue size, to give use-often pages a fair chance to
-> be rescued.  To see how the sizes of the queues are changing, use
-> Shift-ScrollLock on your text console.
+> (When I made a testrun in a terminal window - with X running, but not
+> doing anything activly, I got
+> [some '.' deleted]
+> .............++++++++++++++++++++++++++++++++************************
+>******** Throughput 15.8859 MB/sec (NB=19.8573 MB/sec  158.859
+> MBit/sec) 14.74user 22.92system 4:26.91elapsed 14%CPU
+> (0avgtext+0avgdata 0maxresident)k 0inputs+0outputs
+> (912major+1430minor)pagefaults 0swaps
 >
-> To tell the truth, I don't have a deep understanding of how dbench
-> works.  I should read the code now and see if I can learn more about it
+> I have never seen anyting like this - all '+' together!
 >
-> :-/  I have noticed that it tends to be highly variable in performance,
+> I logged off and tried again - got more normal values 32 MB/s
+> and '+' were spread out.
 >
-> sometimes showing variation of a few 10's of percents from run to run.
-> This variation seems to depend a lot on scheduling.  Do you see "*"'s
-> evenly spaced throughout the tracing output, or do you see most of them
-> bunched up near the end?
->
-> --
-> Daniel
+> More testing needed...
 
--- 
-Roger Larsson
-Skelleftea
-Sweden
+Truly wild, truly crazy.  OK, this is getting interesting.  I'll go 
+read the dbench source now, I really want to understand how the IO and 
+thread sheduling are interrelated.  I'm not even going to try to 
+advance a theory just yet ;-)
+
+I'd mentioned that dbench seems to run fastest when threads run and 
+complete all at different times instead of all together.  It's easy to 
+see why this might be so: if the sum of all working sets is bigger than 
+memory then the system will thrash and do its work much more slowly.  
+If the threads *can* all run independently (which I think is true of 
+dbench because it simulates SMB accesses from a number of unrelated 
+sources) then the optimal strategy is to suspend enough processes so 
+that all the working sets do fit in memory.  Linux has no mechanism for 
+detecting or responding to such situations (whereas FreeBSD - our 
+arch-rival in the mm sweepstakes - does) so we sometimes see what are 
+essentially random variations in scheduling causing very measurable 
+differences in throughput.  (The "butterfly effect" where the beating 
+wings of a butterfly in Alberta set in motion a chain of events that 
+culminates with a hurricane in Florida.)
+
+I am not saying this is the effect we're seeing here (the working set 
+effect, not the butterfly:-) but it is something to keep in mind when 
+investigating this.  There is such a thing as being too fair, and maybe 
+that's what we're running into here.
+
+--
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
