@@ -1,35 +1,40 @@
-Date: Thu, 11 May 2000 15:22:15 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: PATCH: rewrite of invalidate_inode_pages
-In-Reply-To: <yttya5ghhtr.fsf@vexeta.dc.fi.udc.es>
-Message-ID: <Pine.LNX.4.10.10005111519590.819-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <ytt4s84ix4z.fsf@vexeta.dc.fi.udc.es>
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
+Date: 12 May 2000 00:28:35 +0200
+In-Reply-To: "Juan J. Quintela"'s message of "11 May 2000 23:40:12 +0200"
+Message-ID: <shsg0roen70.fsf@charged.uio.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
+You seem to assume that invalidate_inode_pages() is supposed to
+invalidate *all* pages in the inode. This is NOT the case, and any
+rewrite is going to lead to hard lockups if you try to make it so.
 
-On 11 May 2000, Juan J. Quintela wrote:
-> 
-> Linus, I agree with you here, but we do a get_page 5 lines before, I
-> think that if I do a get_page I should do a put_page to liberate it. 
+Most calls to invalidate_inode_pages() are made while we hold the page
+lock for some page that has just been updated (and hence we know is up
+to date). The reason is that under NFS, we receive a set of attributes
+as part of the result from READ/WRITE/... If this triggers a cache
+invalidation, then we do not want to invalidate the page that we know
+is safe, hence we call invalidate_inode_pages() before the newly read
+in page is unlocked.
 
-No, "get_page()" really means "increment the usage count by one", and the
-problem is that it is obviously completely neutral wrt the actual size of
-the page.
+Your code of the form
 
-What we _could_ do is to just for clarity have
+    while (head != head->next) {
+... 
+   }
 
-	#define page_cache_get()	get_page()
+without some alternative method of exit will therefore lock up under NFS.
 
-and then pair up every "page_cache_get()" with "page_cache_release()".
-Which makes sense to me. So if you feel strongly about this issue..
+Filesystems which want to make sure they clear out locked pages should
+use truncate_inode_pages() instead.
 
-		Linus
-
+Cheers,
+  Trond
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
