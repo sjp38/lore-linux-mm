@@ -1,30 +1,28 @@
-Date: Fri, 14 Jan 2000 13:25:46 +0100
-From: Jamie Lokier <lkd@tantalophile.demon.co.uk>
+Date: Fri, 14 Jan 2000 14:43:42 +0100 (CET)
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [RFC] 2.3.39 zone balancing
-Message-ID: <20000114132546.A18109@pcep-jamie.cern.ch>
-References: <Pine.LNX.4.21.0001132059590.981-100000@alpha.random> <200001132140.NAA27848@google.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <200001132140.NAA27848@google.engr.sgi.com>; from Kanoj Sarcar on Thu, Jan 13, 2000 at 01:40:09PM -0800
+In-Reply-To: <20000114132546.A18109@pcep-jamie.cern.ch>
+Message-ID: <Pine.LNX.4.21.0001141441490.316-100000@alpha.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@nl.linux.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Jamie Lokier <lkd@tantalophile.demon.co.uk>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Rik van Riel <riel@nl.linux.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Speaking of kswapd zone balancing.  Can swap cache pages be moved from
-one zone to another, or even duplicated according to need later on?
+On Fri, 14 Jan 2000, Jamie Lokier wrote:
 
-It would seem logical that when a page in the DMA zone is only held for
-swap cache, it's worth copying it to the regular zone and using the copy
-when the page is needed again to free up DMA pages without hitting the
-disk.
+>It would seem logical that when a page in the DMA zone is only held for
+>swap cache, it's worth copying it to the regular zone and using the copy
+>when the page is needed again to free up DMA pages without hitting the
+>disk.
 
-I guess this sort of preemptive duplication is in a similar category to
-pre-zeroing.  
+That's basically what I am just doing for preserving regular pages w.r.t.
+high pages in replace_with_highmem but currently I am not graceful against
+DMA pages yet.
 
-just a thought,
--- Jamie
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
