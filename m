@@ -1,86 +1,146 @@
-Date: Sat, 4 Nov 2000 03:07:33 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: PATCH [2.4.0test10]: Kiobuf#02, fault-in fix
-Message-ID: <20001104030733.A23119@athlon.random>
-References: <20001103232721.D27034@athlon.random> <Pine.BSF.4.10.10011032029190.1962-100000@myrile.madriver.k12.oh.us>
+Date: Sun, 5 Nov 2000 00:37:08 +0100
+From: Rasmus Andersen <rasmus@jaquet.dk>
+Subject: Re: BUG FIX?: mm->rss is modified in some places without holding the  page_table_lock
+Message-ID: <20001105003708.C762@jaquet.dk>
+References: <200011031456.JAA21492@tsx-prime.MIT.EDU> <200011031451.GAA10924@pizda.ninka.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.BSF.4.10.10011032029190.1962-100000@myrile.madriver.k12.oh.us>; from elowe@myrile.madriver.k12.oh.us on Fri, Nov 03, 2000 at 08:36:08PM -0500
+In-Reply-To: <200011031451.GAA10924@pizda.ninka.net>; from davem@redhat.com on Fri, Nov 03, 2000 at 06:51:05AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eric Lowe <elowe@myrile.madriver.k12.oh.us>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@nl.linux.org>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org
+To: "David S. Miller" <davem@redhat.com>
+Cc: tytso@MIT.EDU, davej@suse.de, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 03, 2000 at 08:36:08PM -0500, Eric Lowe wrote:
-> I agree with you on this one, and in fact, my 2.2 patches already
-> do both these things.
+On Fri, Nov 03, 2000 at 06:51:05AM -0800, David S. Miller wrote:
+>    Are you saying that the original bug report may not actually be a
+>    problem?  Is ms->rss actually protected in _all_ of the right
+>    places, but people got confused because of the syntactic sugar?
+> 
+> I don't know if all of them are ok, most are.
+> 
 
-My one against 2.2.x is here:
+Would this do? This is a subset of Davej's patch. I also noted that
+fs/{exec.c,binfmt_aout.c,binfmt_elf.c} modifies rss without holding
+the lock. I think exec.c needs it, but am at a loss whether the 
+binfmt_* does too. The second patch below adds the lock to fs/exec.c.
 
-	ftp://ftp.us.kernel.org/pub/linux/kernel/people/andrea/kernels/v2.2/2.2.18pre17aa1/13_bigmem-rawio-2.2.18pre17aa1-5.bz2
+Comments?
 
-It fix several bugs (not only the ones that you attempted to fix).  Since your
-patch seems to have several problems I suggest you to base on my one (you
-may need to fix some reject to apply to clean 2.2.x though).
+diff -ura linux-240-t10-clean/mm/memory.c linux/mm/memory.c
+--- linux-240-t10-clean/mm/memory.c	Sat Nov  4 23:27:17 2000
++++ linux/mm/memory.c	Sun Nov  5 00:13:59 2000
+@@ -369,7 +369,6 @@
+ 		address = (address + PGDIR_SIZE) & PGDIR_MASK;
+ 		dir++;
+ 	} while (address && (address < end));
+-	spin_unlock(&mm->page_table_lock);
+ 	/*
+ 	 * Update rss for the mm_struct (not necessarily current->mm)
+ 	 * Notice that rss is an unsigned long.
+@@ -378,6 +377,7 @@
+ 		mm->rss -= freed;
+ 	else
+ 		mm->rss = 0;
++	spin_unlock(&mm->page_table_lock);
+ }
+ 
+ 
+@@ -1074,7 +1074,9 @@
+ 		flush_icache_page(vma, page);
+ 	}
+ 
++	spin_lock(&mm->page_table_lock);
+ 	mm->rss++;
++	spin_unlock(&mm->page_table_lock);
+ 
+ 	pte = mk_pte(page, vma->vm_page_prot);
+ 
+@@ -1113,7 +1115,9 @@
+ 			return -1;
+ 		clear_user_highpage(page, addr);
+ 		entry = pte_mkwrite(pte_mkdirty(mk_pte(page, vma->vm_page_prot)));
++		spin_lock(&mm->page_table_lock);
+ 		mm->rss++;
++		spin_unlock(&mm->page_table_lock);
+ 		flush_page_to_ram(page);
+ 	}
+ 	set_pte(page_table, entry);
+@@ -1152,7 +1156,9 @@
+ 		return 0;
+ 	if (new_page == NOPAGE_OOM)
+ 		return -1;
++	spin_lock(&mm->page_table_lock);
+ 	++mm->rss;
++	spin_unlock(&mm->page_table_lock);
+ 	/*
+ 	 * This silly early PAGE_DIRTY setting removes a race
+ 	 * due to the bad i386 page protection. But it's valid
+diff -ura linux-240-t10-clean/mm/mmap.c linux/mm/mmap.c
+--- linux-240-t10-clean/mm/mmap.c	Sat Nov  4 23:27:17 2000
++++ linux/mm/mmap.c	Sat Nov  4 23:53:49 2000
+@@ -843,8 +843,8 @@
+ 	spin_lock(&mm->page_table_lock);
+ 	mpnt = mm->mmap;
+ 	mm->mmap = mm->mmap_avl = mm->mmap_cache = NULL;
+-	spin_unlock(&mm->page_table_lock);
+ 	mm->rss = 0;
++	spin_unlock(&mm->page_table_lock);
+ 	mm->total_vm = 0;
+ 	mm->locked_vm = 0;
+ 	while (mpnt) {
+diff -ura linux-240-t10-clean/mm/swapfile.c linux/mm/swapfile.c
+--- linux-240-t10-clean/mm/swapfile.c	Sat Nov  4 23:27:17 2000
++++ linux/mm/swapfile.c	Sun Nov  5 00:19:15 2000
+@@ -231,7 +231,9 @@
+ 	set_pte(dir, pte_mkdirty(mk_pte(page, vma->vm_page_prot)));
+ 	swap_free(entry);
+ 	get_page(page);
++	spin_lock(&vma->vm_mm->page_table_lock);
+ 	++vma->vm_mm->rss;
++	spin_unlock(&vma->vm_mm->page_table_lock);
+ }
+ 
+ static inline void unuse_pmd(struct vm_area_struct * vma, pmd_t *dir,
+diff -ura linux-240-t10-clean/mm/vmscan.c linux/mm/vmscan.c
+--- linux-240-t10-clean/mm/vmscan.c	Sat Nov  4 23:27:17 2000
++++ linux/mm/vmscan.c	Sun Nov  5 00:19:48 2000
+@@ -95,7 +95,9 @@
+ 		set_pte(page_table, swp_entry_to_pte(entry));
+ drop_pte:
+ 		UnlockPage(page);
++		spin_lock(&mm->page_table_lock);
+ 		mm->rss--;
++		spin_unlock(&mm->page_table_lock);
+ 		flush_tlb_page(vma, address);
+ 		deactivate_page(page);
+ 		page_cache_release(page);
 
-> +	while (ptr < end) {
-> +		if (!vma || ptr >= vma->vm_end) {
-> +			vma = find_vma(current->mm, ptr);
-> +			if (!vma)
-> +				goto out_unlock;
-> +		}
 
-Here you miss the check for the vm_start and vma flags.
 
-> +		pte = get_pte(vma, ptr);
-> +		if (!pte)
-> +			goto out_unlock;
-> +
-> +		if (!fault_page_in(vma, ptr, write_access, pte))
-> +			goto out_unlock;
+Second patch:
 
-So your fault_page_in should also check that the pte is dirty if
-writing to memory.
+--- linux-240-t10-clean/fs/exec.c	Sat Nov  4 23:27:14 2000
++++ linux/fs/exec.c	Sat Nov  4 23:55:37 2000
+@@ -324,7 +324,9 @@
+ 		struct page *page = bprm->page[i];
+ 		if (page) {
+ 			bprm->page[i] = NULL;
++			spin_lock(mm->page_table_lock);
+ 			current->mm->rss++;
++			spin_unlock(mm->page_table_lock);
+ 			put_dirty_page(current,page,stack_base);
+ 		}
+ 		stack_base += PAGE_SIZE;
 
-> +		if (map) {
-> +			if (TryLockPage(map))
-> +				goto retry;
-> +			atomic_inc(&map->count);
-> +			set_bit(PG_dirty, &map->flags);
-> +		}
-> +
+-- 
+Regards,
+        Rasmus(rasmus@jaquet.dk)
 
-This doesn't fix the MM corruption (obviously since PG_dirty doesn't mean
-_anything_ in 2.2.x, and even if it would mean something like in 2.4.x you
-would need to rework core parts of the memory balancing to solve the MM
-corruption that way).  Note also that so far it was legal to do rawio on
-MAP_SHARED so I must preserve that semantics at least in the 2.2.x short term
-in case somebody was depending on it in previous aa kernels. So right now I'm
-locking down the pages during writes to memory. The _only_ real world downside
-is that you can't write to the same page from two tasks at the same time but
-_nobody_ really cares about that so unlikely corner case in real life.
-
-> +		if (!pte_present(*pte) || (write_access && !pte_write(*pte))) {
-> +			err = -EAGAIN;
-> +			goto out_unlock;
-> +		}
-
-This isn't necessary. If it would be necessary it would be wrong to do it here
-after you just grabbed the page reference.
-
-> +		if (write_access && !pte_dirty(*pte))
-> +			panic("map_user_kiobuf: writable page w/o dirty pte\n");
-
-As said above this case should be handled by follow_page.  You shouldn't panic
-but re-enter the page fault handler.
-
-All those problems should be just fixed properly in the rawio patch in the aa
-patchkit (and my stress stess is now happy on all kind of vmas). Please use
-it and let me know if you have any problem or you see any bug. thanks!
-
-Andrea
+Duct tape is like the force; it has a light side and a dark side, and
+it holds the universe together.
+  -- Anonymous
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
