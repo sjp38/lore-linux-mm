@@ -1,41 +1,38 @@
-Message-ID: <3DA5C94A.5040508@colorfullife.com>
-Date: Thu, 10 Oct 2002 20:39:06 +0200
-From: Manfred Spraul <manfred@colorfullife.com>
+Message-ID: <3DA5CA56.6070402@us.ibm.com>
+Date: Thu, 10 Oct 2002 11:43:34 -0700
+From: Matthew Dobson <colpatch@us.ibm.com>
+Reply-To: colpatch@us.ibm.com
 MIME-Version: 1.0
-Subject: Re: Hangs in 2.5.41-mm1
-References: <3DA4A06A.B84D4C05@digeo.com> <1034264750.30975.83.camel@plars> <3DA5B077.215D7626@digeo.com> <3DA5B277.B5BFC9C0@digeo.com>
+Subject: Re: [rfc][patch] Memory Binding API v0.3 2.5.41
+References: <3DA4D3E4.6080401@us.ibm.com> <1586204621.1034197575@[10.10.2.3]>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Paul Larson <plars@linuxtestproject.org>, linux-mm <linux-mm@kvack.org>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, LSE <lse-tech@lists.sourceforge.net>, Andrew Morton <akpm@zip.com.au>, Michael Hohnbaum <hohnbaum@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> Andrew Morton wrote:
+Martin J. Bligh wrote:
+>>+#define for_each_valid_zone(zone, zonelist) 		\
+>>+	for (zone = *zonelist->zones; zone; zone++)	\
+>>+		if (current->memblk_binding.bitmask & (1 << zone->zone_pgdat->memblk_id))
 > 
->>...
->>#0  0xc01357c7 in cache_alloc_refill (cachep=0xf7ffc740, flags=464) at mm/slab.c:1580
->>#1  0xc0135b1a in kmem_cache_alloc (cachep=0xf7ffc740, flags=464) at mm/slab.c:1670
->>#2  0xc0159c72 in alloc_inode (sb=0xf7f8a400) at fs/inode.c:99
->>#3  0xc015a3c5 in new_inode (sb=0xf7f8a400) at fs/inode.c:505
->>#4  0xc014f7ae in get_pipe_inode () at fs/pipe.c:510
->>#5  0xc014f867 in do_pipe (fd=0xf6693fb4) at fs/pipe.c:559
->>#6  0xc010ce01 in sys_pipe (fildes=0xbffff83c) at arch/i386/kernel/sys_i386.c:35
->>#7  0xc01070f3 in syscall_call () at net/sunrpc/stats.c:204
-> 
-> 
-> Or it could be that the inode cache has been corrupted.
-> Bill, can you review the handling in there?  It'd be a
-> bit sad if one of the hugetlb privately-kmalloced inodes
-> were put back onto the inode_cachep slab somehow.
+> Does the compiler optimise the last bit away on non-NUMA?
+Nope.
 
-Could you try to reproduce with slab debugging enabled? slab checks for 
-foreign objects and BUG's.
+> Want to wrap it in #ifdef CONFIG_NUMA_MEMBIND or something?
+Not a problem...  I've got some free time this afternoon...  Should only 
+take me a few hours to retool the patch to include this change.  ;)
 
---
-	Manfred
+> Not sure what the speed impact of this would be, but I'd
+> rather it was optional, even on NUMA boxen.
+Sounds reasonable...  It'll be in the next itteration.
+
+> Other than that, looks pretty good.
+Glad to hear!
+
+> M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
