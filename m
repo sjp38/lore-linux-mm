@@ -1,67 +1,82 @@
-Content-Type: text/plain; charset=US-ASCII
-From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: 2.4.8-pre1 and dbench -20% throughput
-Date: Sat, 28 Jul 2001 03:11:16 +0200
-References: <200107272112.f6RLC3d28206@maila.telia.com> <0107280034050V.00285@starship> <200107272347.f6RNlTs15460@maild.telia.com>
-In-Reply-To: <200107272347.f6RNlTs15460@maild.telia.com>
+Message-Id: <200107280144.DAA25730@mailb.telia.com>
+Content-Type: text/plain;
+  charset="iso-8859-15"
+From: Roger Larsson <roger.larsson@norran.net>
+Subject: [PATCH] MAX_READAHEAD gives doubled throuput
+Date: Sat, 28 Jul 2001 03:40:49 +0200
 MIME-Version: 1.0
-Message-Id: <0107280311160X.00285@starship>
-Content-Transfer-Encoding: 7BIT
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@skelleftea.mail.telia.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 28 July 2001 01:43, Roger Larsson wrote:
-> Hi again,
->
-> It might be variations in dbench - but I am not sure since I run
-> the same script each time.
->
-> (When I made a testrun in a terminal window - with X running, but not
-> doing anything activly, I got
-> [some '.' deleted]
-> .............++++++++++++++++++++++++++++++++************************
->******** Throughput 15.8859 MB/sec (NB=19.8573 MB/sec  158.859
-> MBit/sec) 14.74user 22.92system 4:26.91elapsed 14%CPU
-> (0avgtext+0avgdata 0maxresident)k 0inputs+0outputs
-> (912major+1430minor)pagefaults 0swaps
->
-> I have never seen anyting like this - all '+' together!
->
-> I logged off and tried again - got more normal values 32 MB/s
-> and '+' were spread out.
->
-> More testing needed...
+Hi all,
 
-Truly wild, truly crazy.  OK, this is getting interesting.  I'll go 
-read the dbench source now, I really want to understand how the IO and 
-thread sheduling are interrelated.  I'm not even going to try to 
-advance a theory just yet ;-)
+Got wondering why simultaneous streaming is so much slower than normal...
 
-I'd mentioned that dbench seems to run fastest when threads run and 
-complete all at different times instead of all together.  It's easy to 
-see why this might be so: if the sum of all working sets is bigger than 
-memory then the system will thrash and do its work much more slowly.  
-If the threads *can* all run independently (which I think is true of 
-dbench because it simulates SMB accesses from a number of unrelated 
-sources) then the optimal strategy is to suspend enough processes so 
-that all the working sets do fit in memory.  Linux has no mechanism for 
-detecting or responding to such situations (whereas FreeBSD - our 
-arch-rival in the mm sweepstakes - does) so we sometimes see what are 
-essentially random variations in scheduling causing very measurable 
-differences in throughput.  (The "butterfly effect" where the beating 
-wings of a butterfly in Alberta set in motion a chain of events that 
-culminates with a hurricane in Florida.)
+Are there any reasons nowadays why we should not attempt to read ahead more 
+than 31 pages at once?
 
-I am not saying this is the effect we're seeing here (the working set 
-effect, not the butterfly:-) but it is something to keep in mind when 
-investigating this.  There is such a thing as being too fair, and maybe 
-that's what we're running into here.
+31 pages equals 0.1 MB, it is read from the HD in 4 ms => very close to the 
+average access times. Resulting in a maximum of half the possible speed.
 
---
-Daniel
+With this patch copy and diff throughput are increased from 14 respective 11 
+MB/s to 27 and 28 !!!
+
+I enable the profiling as well... (one printk warning fixed)
+
+/RogerL
+
+*******************************************
+Patch prepared by: roger.larsson@norran.net
+
+--- linux/mm/filemap.c.orig	Fri Jul 27 21:31:41 2001
++++ linux/mm/filemap.c	Sat Jul 28 03:01:05 2001
+@@ -744,10 +744,8 @@
+ 	return NULL;
+ }
+ 
+-#if 0
+ #define PROFILE_READAHEAD
+ #define DEBUG_READAHEAD
+-#endif
+ 
+ /*
+  * Read-ahead profiling information
+@@ -791,13 +789,13 @@
+ 		}
+ 
+ 		printk("Readahead average:  max=%ld, len=%ld, win=%ld, async=%ld%%\n",
+-			total_ramax/total_reada,
+-			total_ralen/total_reada,
+-			total_rawin/total_reada,
+-			(total_async*100)/total_reada);
++		       total_ramax/total_reada,
++		       total_ralen/total_reada,
++		       total_rawin/total_reada,
++		       (total_async*100)/total_reada);
+ #ifdef DEBUG_READAHEAD
+-		printk("Readahead snapshot: max=%ld, len=%ld, win=%ld, raend=%Ld\n",
+-			filp->f_ramax, filp->f_ralen, filp->f_rawin, filp->f_raend);
++		printk("Readahead snapshot: max=%ld, len=%ld, win=%ld, raend=%ld\n",
++		       filp->f_ramax, filp->f_ralen, filp->f_rawin, filp->f_raend);
+ #endif
+ 
+ 		total_reada	= 0;
+--- linux/include/linux/blkdev.h.orig	Fri Jul 27 21:36:37 2001
++++ linux/include/linux/blkdev.h	Sat Jul 28 02:51:10 2001
+@@ -184,7 +184,7 @@
+ #define PageAlignSize(size) (((size) + PAGE_SIZE -1) & PAGE_MASK)
+ 
+ /* read-ahead in pages.. */
+-#define MAX_READAHEAD	31
++#define MAX_READAHEAD	511
+ #define MIN_READAHEAD	3
+ 
+ #define blkdev_entry_to_request(entry) list_entry((entry), struct request, 
+queue)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
