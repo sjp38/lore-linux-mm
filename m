@@ -1,30 +1,27 @@
-Date: Mon, 30 Apr 2001 15:00:36 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
+Date: Mon, 30 Apr 2001 15:02:40 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Subject: Re: Hopefully a simple question on /proc/pid/mem
-In-Reply-To: <20010430195007.F26638@redhat.com>
-Message-ID: <Pine.GSO.4.21.0104301457010.5737-100000@weyl.math.psu.edu>
+In-Reply-To: <Pine.GSO.4.21.0104301457010.5737-100000@weyl.math.psu.edu>
+Message-ID: <Pine.LNX.3.96.1010430145934.30664D-100000@kanga.kvack.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Richard F Weber <rfweber@link.com>, linux-mm@kvack.org
+To: Alexander Viro <viro@math.psu.edu>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Richard F Weber <rfweber@link.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 30 Apr 2001, Alexander Viro wrote:
 
-On Mon, 30 Apr 2001, Stephen C. Tweedie wrote:
+> I wonder what's wrong with reading from /proc/<pid>/mem, though - it's
+> using the same code as ptrace.
 
-> > Now I've tried using ptrace(), mmap() & lseek/read all with no success.  
-> > The closest I've been able to get is to use ptrace() to do an attach to 
-> > the target process, but couldn't read much of anything from it.
-> 
-> ptrace is what other debuggers use.  It really ought to work.
+We can actually do this cleanly now that we have proper page_dirty
+semantics for raw io.  The original reason for disabling /proc/*/mem was
+that it left big gaping holes in the mm code in 2.0, and it hasn't been
+repaired since.
 
-I wonder what's wrong with reading from /proc/<pid>/mem, though - it's
-using the same code as ptrace.
-
-Al, considering adding /proc/<pid>/{regs,fpregs,ctl} and moving ptrace()
-entirely to userland...
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
