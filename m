@@ -1,20 +1,33 @@
-From: "George Bonser" <george@gator.com>
-Subject: RE: [PATCH] 2.4.6-pre2 page_launder() improvements
-Date: Sun, 10 Jun 2001 02:08:06 -0700
-Message-ID: <CHEKKPICCNOGICGMDODJOEJNDEAA.george@gator.com>
+Subject: Re: Please test: workaround to help swapoff behaviour
+Message-ID: <OF083B7070.89B5A2B7-ON85256A67.004AD50A@pok.ibm.com>
+From: "Bulent Abali" <abali@us.ibm.com>
+Date: Sun, 10 Jun 2001 09:56:04 -0400
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-In-Reply-To: <Pine.LNX.4.33.0106100541200.1742-100000@duckman.distro.conectiva>
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Mike Galbraith <mikeg@wen-online.de>, Derek Glidden <dglidden@illusionary.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-My bad, I just looked at my notes again. It both went away and returned with
-right around 500 processes.
+
+>The fix is to kill the dead/orphaned swap pages before we get to
+>swapoff.  At shutdown time there is practically nothing active in
+> ...
+>Once the dead swap pages problem is fixed it is time to optimize
+>swapoff.
+
+I think fixing the orphaned swap pages problem will eliminate the
+problem all together.  Probably there is no need to optimize
+swapoff.
+
+Because as the system is shutting down all the processes will be
+killed and their pages in swap will be orphaned. If those pages
+were to be reaped in a timely manner there wouldn't be any work
+left for swapoff.
+
+Bulent
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
