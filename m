@@ -1,30 +1,35 @@
-Date: Wed, 28 Aug 2002 16:40:51 -0600 (MDT)
-From: Thunder from the hill <thunder@lightweight.ods.org>
-Subject: Re: [Lse-tech] Re: [patch] SImple Topology API v0.3 (1/2)
-In-Reply-To: <1030573915.3178.128.camel@wookie-t23.pdx.osdl.net>
-Message-ID: <Pine.LNX.4.44.0208281640240.3234-100000@hawkeye.luckynet.adm>
+Message-ID: <3D6D5128.9EE6DFDD@zip.com.au>
+Date: Wed, 28 Aug 2002 15:39:36 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: MM patches against 2.5.31
+References: <3D644C70.6D100EA5@zip.com.au> <E17k9dO-0002tR-00@starship> <3D6D3AA4.31A4AD3A@zip.com.au> <E17kAvf-0002tx-00@starship>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Timothy D. Witham" <wookie@osdl.org>
-Cc: Pavel Machek <pavel@suse.cz>, Thunder from the hill <thunder@lightweight.ods.org>, Matthew Dobson <colpatch@us.ibm.com>, Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Andrea Arcangeli <andrea@suse.de>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
+To: Daniel Phillips <phillips@arcor.de>
+Cc: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Daniel Phillips wrote:
+> 
+> ...
+> So there's no question that the race is lurking in 2.4.  I noticed several
+> more paths besides the one above that look suspicious as well.  The bottom
+> line is, 2.4 needs a fix along the lines of my suggestion or Christian's,
+> something that can actually be proved.
+> 
+> It's a wonder that this problem manifests so rarely in practice.
 
-On 28 Aug 2002, Timothy D. Witham wrote:
-> How about the old Marketing name CONFIG_CCNUMA?
+I sort-of glanced through the 2.4 paths and it appears that in all of the
+places where it could do a page_cache_get/release, that would never happen
+because of other parts of the page state.
 
-Why not keep CONFIG_X86_NUMA then?
+Like: it can't be in pagecache, so we won't run writepage, and
+it can't have buffers, so we won't run try_to_release_page().
 
-			Thunder
--- 
---./../...-/. -.--/---/..-/.-./..././.-../..-. .---/..-/.../- .-
---/../-./..-/-/./--..-- ../.----./.-../.-.. --./../...-/. -.--/---/..-
-.- -/---/--/---/.-./.-./---/.--/.-.-.-
---./.-/-.../.-./.././.-../.-.-.-
-
+Of course, I might have missed a path.  And, well, generally: ugh.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
