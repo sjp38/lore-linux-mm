@@ -1,163 +1,117 @@
-Date: Sun, 7 Nov 2004 01:48:09 +0100
+Date: Sun, 7 Nov 2004 02:16:38 +0100
 From: Andrea Arcangeli <andrea@novell.com>
 Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
-Message-ID: <20041107004809.GI3851@dualathlon.random>
-References: <20041105200118.GA20321@logos.cnet> <200411051532.51150.jbarnes@sgi.com> <20041106012018.GT8229@dualathlon.random> <20041106100516.GA22514@logos.cnet> <20041106154415.GD3851@dualathlon.random> <20041106170925.GA23324@logos.cnet>
+Message-ID: <20041107011638.GJ3851@dualathlon.random>
+References: <20041105200118.GA20321@logos.cnet> <200411051532.51150.jbarnes@sgi.com> <20041106012018.GT8229@dualathlon.random> <418C2861.6030501@cyberone.com.au> <20041106015051.GU8229@dualathlon.random> <16780.46945.925271.26168@thebsh.namesys.com> <20041106153209.GC3851@dualathlon.random> <16781.436.710721.667909@gargle.gargle.HOWL> <20041106174444.GF3851@dualathlon.random> <16781.9482.821680.375843@gargle.gargle.HOWL>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20041106170925.GA23324@logos.cnet>
+In-Reply-To: <16781.9482.821680.375843@gargle.gargle.HOWL>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Jesse Barnes <jbarnes@sgi.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nikita Danilov <nikita@clusterfs.com>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Nov 06, 2004 at 03:09:25PM -0200, Marcelo Tosatti wrote:
-> Sure NUMA can and has to be special cased, as I answered Nick. 
+On Sat, Nov 06, 2004 at 10:24:58PM +0300, Nikita Danilov wrote:
+> This means breaking all layering and passing mempool pointer all the way
+> down to the lowest layer allocators (like bio and drivers). The only
+
+bio and drivers already have their own mempools.  the blkdev layer is
+guaranteed to succeed and it can only try GFP_NOIO allocations (if those
+fails it'll fallback in the reserved mempool).
+
+> practical way to do this, is to put mempool pointer into current
+> task_struct. At which point it's no different from having per-thread
+> list of pages that __alloc_pages() looks into before falling back to
+> per-cpu page-sets and buddy. _Except_ in the latter case, reservation is
+> handled transparently in __alloc_pages() and code shouldn't be adjusted
+> to check for mempool in zillion of places.
+
+that's sure reasonable to avoid changing lots of code.
+
+> I think you are confusing "file system" and "ext2". I definitely know
+> from experience that with some file system types, system can be oommed
+> without any significant user-level allocation activity. Now, one can say
+> that either such file-systems are broken, or Linux MM lacks support for
+> features (like reservation) they need.
+
+the latter is true, I agree.
+
+>  > that's the PF_MEMALLOC path. A reservation already exists, or it would
+>  > never work since 2.2. PF_MEMALLOC and the min/2 watermark are meant to
+>  > allow writepage to allocate ram. however the amount reserved is limited,
 > 
-> "dont kill if we can allocate from other nodes", should be pretty simple.
+> low-mem watermark is mostly useless in the face of direct reclaim, when
+> unbounded number of threads enter try_to_free_pages() and call
+> ->writepage() simultaneously.
 
-then how do you call the oom killer if some highmem page is still free
-but there's a GFP_KERNEL|__GFP_NOFAIL allocation failing and looping
-forever?
+agreed.
 
-> If v2.6 is failing to return -ENOMEM to syscalls then its indeed screwed, 
-> but its not the same problem.
+>  > so it's not perfect. The only way to make it perfect I believe is to
+>  > reserve the stuff inside the fs with mempools as described above.
 > 
-> Have you done any tests on this respect?
-
-the only test I have are based on 2.6.5 and the box simply deadlock
-there, the oom killer is forbidden there if nr_swap_pages > 0. Not
-anymore in 2.6.9rc, however with 2.6.9 and more recent the oom killer is
-invoked too early.
-
-> So "not being able to make progress freeing pages" seems to be reliable
-> information on whether to trigger OOM. Note that reaching priority
-> 0 means we've tried VERY VERY hard already.
-
-yes, "not being able to make progress freeing pages" has always been the
-only reliable information in linux. The early 2.6 and some older 2.4
-deadlocked in corner cases (like mlock for example) at trying to guess
-the oom time by looking at a few stat numbers (nr_swap_pages for
-example).
-
-Though when we reach prio 0 clearly we didn't try hard enough if I'm
-getting spurious oom. It's also possible that the pages are being freed
-in other per-cpu queues and we lose visibility on them, so we do hard
-work and still we cannot allocate anything. Unfortunately I've never
-been able to reproduce the early oom kill here, so I could never figure
-out what's going on. and yes, I know there are patches floating around
-claiming they fixed it, but I'd like to hear positive feedback on those.
-
-> > kswapd page freeing efforts are not very useful. kswapd is an helper,
-> > it's not the thing that can or should guarantee allocations to succeed.
+> I don't see what advantages mempools have over page reservation handled
+> directly by page allocator, like in
 > 
-> Oh wait, kswapd job is to guarantee that allocations succeed. We used to 
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.9-rc4/2.6.9-rc4-mm1/broken-out/reiser4-perthread-pages.patch
 
-kswapd is all but a guarantee. kswapd is a pure helper.
+guess what, that patch is running in my kernel right now. However I
+believe this approch is very wasteful. I agree it'll work right, but
+you're wasting loads of ram and you're as well less efficient.
 
-> wait on kswapd before on v2.3 VM development - then we switched to 
-> task-goes-to-memory-reclaim for _performance_ reasons (parallelism).
+The efficient fix for your problem, is to have a global pool, protected
+by a global semaphore (definitely not per-thread), so that when you hit
+oom (and when you hit true oom the last thing you can care about is
+paralleism or the scalability on such a global semaphore), the VM will
+trasparently take the semaphore and start using the pool. This will
+still require you to mark the start and end of your critical section
+like this:
 
-it wasn't parallelism.  The only way you could make it safe is that you
-create a message passing mechanism where you post a request to kswapd
-and kswapd wakes you up back. But that'd inefficient compared to current
-model where kswapd is an helper.
+reiserf4_writepage()
+{
+	enable_reserved_pages_pool();
 
-Infact kswapd right now only hurts during heavy paging since it will
-prevent the freed pages to go into the right per-cpu queue. kswapd only
-hurts during paging, we should stop it as far as somebody is inside the
-critical section for a certain numa node.
+	find_or_create_page()
+	journal something
+	getblk
+	biowhatever
 
-> My point here is, kswapd is the entity responsible for freeing pages. 
+	disable_reserved_pages_pool();
+}
 
-it can't even know which is the per-cpu queue where it has to put the
-pages back.
+disable_reserved_pages_pool has to check a per-thread flag that the VM
+will set if it has used the reserved pool and taken the semaphore, but
+by that time the I/O can be guaranteed to complete and the memory will
+be guaranteed to be unlocked eventually when the bio I/O completes. So
+you can freely alloc_pages to refill the pool inside
+disable_reserved_pages_pool and then drop the semaphore.
+enable_reserved_pages_pool is only needed to set a per-thread flag to
+tell the VM it's allowed to fallback in the global pool by blocking in
+the global semaphore if the box is oom (instead of returning NULL).
 
-> The action of triggering OOM killer from inside a task context (whether 
-> its from the alloc_pages path or the fault path is irrelevant here) 
-> is WRONG because at the same time, kswapd, who is the main entity freeing 
-> pages, is also running the memory reclaim code - it might just have freed 
-> a bunch of pages but we have no way of knowing that from normal task context. 
+in disable_reserved_pages_pool you'll also have to clear the pre-thread
+flag before calling alloc_pages again to avoid deadlock on the semaphore
+if another oom condition happens of course.
 
-we definitely have a way of knowing, the fact the current code is buggy
-doesn't mean we don't have a way of knowing, 2.4 VM perfectly knows when
-kswapd did the right thing and helped. Though I agree kswapd generally
-hurts during paging and we'd better stop it to reduce the synchronous
-amount of work.
+then you need an create_reserved_pages_pool(nr_pages) while you mount the
+fs, and destroy_unreserve_pages_pool(nr_pages) when you unmont it. where
+many different users (i.e. different fs) will be allowed to reserve a
+different size for the global pool. They all will share the same pool,
+you've only need to track each user nr_pages to know which is the max
+reservation you need.
 
-the allocator must check if the levels are above pages.low before
-killing, if it doesn't do that it's broken, moving the oom killer in
-kswapd cannot fix this problem, because obviously then it'll be the task
-context that will have freed the additional pages instead of kswapd.
+That's still enterely transparent, it'll work in the thread context
+thanks to the global semaphore, but it'll avoid the waste of ram where
+every different task has to pin the ram into the task before starting
+the writepage I/O.
 
-The rule is to do:
+I mean, I understand the only point of the perthread-pages patch is
+deadlock avoidance during OOM. So you definitely don't need a per-thread
+reservation, the global pool methods I described above should be more
+than enough and they'll save ram and make your system faster as well.
 
-	paging
-	check the levels and kill
-
-If you just do paging and oom kill if paging has failed there's no way
-it can work. 2.6 is broken here, and that could be the reason of the oom
-kills too.
-
-There will be always a race condition even with the above, since the
-check for the levels and oom kill isn't an atomic operation and we don't
-block all other cpus in that path, but it's an insignificant window we
-don't have to worry about (only theoretical).
-
-But if you check the levels; paging; kill, like current 2.6, there is an
-huge window while we wait for I/O. After we finished the I/O the whole
-VM status may have changed and we may be full of free pages in the
-per-cpu queue and in the buddy as well. so we've to recheck the levels
-before killing anything. This is again why doing oom_kill inside the
-try_to_free_pages (or in kswapd anyways) is flawed.
-
-> > The rule is that if you want to allocate 1 page, you've to free the page
-> > yourself. Then if kswapd frees a page too, that's welcome. But keep also
-> > in mind kswapd may be running in another cpu, and it will put the pages
-> > back into the per-cpu queue of the other cpu. 
-> 
-> Exactly another reason for _NOT_ triggering the OOM killer from task context 
-> - pages which have been freed might be in the per-CPU queue (but a task
-> running on another CPU can't see them).
-> 
-> We should be flushing the per-cpu queues quite often under these circumstances. 
-
-we should never flush per-cpu pages, that'd hurt performance, per-cpu
-pages are lost memory. this is also why we must give up freeing memory
-only if everything else is not available, in 2.4 I had to stop after 50
-tries or so. We must keep going until all per-cpu queues are full,
-because if kswapd is in our way every other cpu may get the ram before
-us. This is why stopping kswapd would be beneficial while we're working
-on it, it'd probabilistically reduce the amount of synchronous work.
-
-> Why's that? blk_congestion_wait looks clean and correct to me - if the queue 
-> is full dont bother queueing more pages at this device.
-
-blk_contestion_wait is waiting on random I/O, it doesn't mean it's
-waiting on any substantial VM related paging (an O_DIRECT I/O would fool
-blk_congestion_wait), and if there's no I/O it just wakeup after a fixed
-random number of seconds.
-
-the VM should only throttle on locked pages or locked bh it can see,
-never on random I/O happening at the blkdev layer just because somebody
-is rolling some directio. Throttling on random I/O will lead to oom
-failures too and that's another bug in the 2.6 VM (and if it's not a
-bug, and we throttle elsewhere too, then it's simply useless and it
-should be replaced with a yield, if there's no I/O waiting there is a
-nosense, especially given that even if the oom killer triggers there
-won't be any additional ram to free, since the oom killer will generate
-free memory, not memory to free).
-
-> OK - so you seem to be agreeing with me that triggering OOM killer
-> from kswapd context is the correct thing to do now?
-
-I disagree about that sorry. not even try_to_free_pages should ever call
-the oom killer (unless you want to move the watermark checks from
-page_alloc.c to vmscan.c that would not be clean at all). Taking the
-decision on when to oom kill inside vmscan.c (like current 2.6 does)
-looks wrong to me.
+I agree PF_MEMALLOC has nothing to do with this.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
