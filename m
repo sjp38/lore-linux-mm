@@ -1,713 +1,1121 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: [RFC][PATCH] using page aging to shrink caches (pre8-ac5)
-Date: Wed, 29 May 2002 08:01:16 -0400
-References: <200205180010.51382.tomlins@cam.org> <20020521144759.B1153@redhat.com> <200205240728.45558.tomlins@cam.org>
-In-Reply-To: <200205240728.45558.tomlins@cam.org>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200205290800.22376.tomlins@cam.org>
+Date: Thu, 30 May 2002 04:02:39 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: lazy_buddy-2.5.19-1
+Message-ID: <20020530110239.GX21661@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, alan@lxorguk.ukuu.org.uk
+Cc: linux-mm@kvack.org, suparna@in.ibm.com, rwhron@earthlink.net, akpm@zip.com.au, rsf@us.ibm.com, pavel@ucw.cz
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Deferred coalescing is an important allocator optimization. In the case
+of binary buddy system allocators prior implementations have successfully
+yielded between 10% and 32% reductions in the average latency of
+allocation and freeing operations. The following patch is a rework of
+the buddy allocator in page_alloc.c to use deferred coalescing, updated
+for algorithmic compliance and to report fragmentation statistics, and
+to fix bugs reported by Randy Hron and Andrew Morton.
 
-Here is an improved version of the patch.  It fixes a race in kmem_freepages (I do
-not see why the race should not happen in straight ac) and makes the following 
-changes:
+The results achieved by this specific implementation are as of yet not
+entirely known, but some non-rigorous testing seems to reveal approximate
+parity with mainline. Ruth, Randy, I'd be much obliged to hear of the
+results of more rigorous testing to determine quality of implementation
+issues still needing to be addressed.
 
-Aging works a little differently for pruneable caches.  For these caches we use
-pruning to do aging.  The rate we prune is simpily the rate we see objects on
-pages processed by vmscan.  For the all other caches vm aging is used.  Without this
-change two aging methods we being applied to the dcache/icache.  This favored
-their pages and the vm was quite slow to trim them at times.
+Martin Bligh contributed the fragmentation statistics reporting, though
+adaptation was required to provide useful reporting for this algorithm,
+largely due to the additional reporting not relevant to mainline.
 
-Second, since there is almost no overhead (ie no disk access), when refill_inactive_zone
-sees a slab page it wants to free it releases the slab and moves the pages to the inactive
-clean list.  
+TODO
+(1)  kill zone_free_pages(), it's useless since ->free_pages has it all now
+(2)  get more feedback from Pavel Machek about whether he likes this
+	is_head_of_free_region()
+(3)  rigorous performance analysis for determining whether this has been
+	done properly and may be considered essentially finished
+(4)  More concise and to-the-point commentary.
+(5)  do some address-ordered queueing
+(6)  benchmarking
+(7)  audit for unnecessary cacheline dirtying
+(8)  port to 2.4.x & rmap
+(9)  optimize
+(10) collect statistics on the allocation rates for various orders
+(11) collect statistics on allocation failures due to fragmentation
 
-An interesting note.  If I directly free the pages in kmem_freepages I run into a race.
-It seems that freepages can be lost...   To see the race I do the following.
 
-find / -name "*" > /dev/null &
-irman &
-dbench 40 &
+The following TODO items essentially fall under the rubric of follow-on
+patches building upon this one:
 
-When irman start its memory stress test free pages are lost.  Its very easy to see this
-using zlatko calusic's xmm utility.  With my patch the number of kernel pages should
-be quite stable.  When the race occurs they jump and proc/meminfo shows missing
-pages.  This is on UP with no preempth.
+(12)  gang allocation support
+(13)  per-cpu pools
+(14)  gang preassembly and bulk transfer during gang allocation and refill
+	of per-cpu pools
 
-Patch applies to pre8-ac5.
 
-Comments?
+Cheers,
+Bill
 
-Ed Tomlinson
 
------------------
-# This is a BitKeeper generated patch for the following project:
-# Project Name: Linux kernel tree
-# This patch format is intended for GNU patch command version 2.5 or higher.
-# This patch includes the following deltas:
-#	           ChangeSet	1.406   -> 1.412  
-#	         fs/buffer.c	1.66    -> 1.68   
-#	         fs/dcache.c	1.19    -> 1.21   
-#	          fs/dquot.c	1.18    -> 1.20   
-#	         mm/vmscan.c	1.60    -> 1.65   
-#	           mm/slab.c	1.16    -> 1.21   
-#	include/linux/slab.h	1.8     -> 1.10   
-#	include/linux/dcache.h	1.11    -> 1.12   
-#	          fs/inode.c	1.36    -> 1.38   
-#
-# The following is the BitKeeper ChangeSet Log
-# --------------------------------------------
-# 02/05/24	ed@oscar.et.ca	1.407
-# age_pressure_v8.diff
-# --------------------------------------------
-# 02/05/24	ed@oscar.et.ca	1.408
-# Remove side effect from kmem_shrink_slab and fix vmscan to use the new
-# return codes.
-# --------------------------------------------
-# 02/05/24	ed@oscar.et.ca	1.409
-# Simpilify - try lates algorythm without touches in lookups.
-# --------------------------------------------
-# 02/05/24	ed@oscar.et.ca	1.410
-# Use either vm aging or prune call back aging, not both.  Keep slab
-# pages on the active list.
-# --------------------------------------------
-# 02/05/28	ed@oscar.et.ca	1.411
-# fix locking in slab to use pagemap_lru_lock when shrinking or growing
-# a cache.  Use the inactive clean list when freeing a slab's pages.
-# This avoid a race so the vm does not lose track of pages.
-# --------------------------------------------
-# 02/05/29	ed@oscar.et.ca	1.412
-# Prevent bug in page_launder from being hit due to a dangling 
-# referencebit.  Improve accounting in refill_inactive.
-# --------------------------------------------
-#
-diff -Nru a/fs/dcache.c b/fs/dcache.c
---- a/fs/dcache.c	Wed May 29 07:35:03 2002
-+++ b/fs/dcache.c	Wed May 29 07:35:03 2002
-@@ -321,7 +321,7 @@
- void prune_dcache(int count)
- {
- 	spin_lock(&dcache_lock);
--	for (;;) {
-+	for (; count ; count--) {
- 		struct dentry *dentry;
- 		struct list_head *tmp;
+diff -urN --exclude [xprs].* linux-2.5/fs/proc/proc_misc.c lazy_buddy/fs/proc/proc_misc.c
+--- linux-2.5/fs/proc/proc_misc.c	Thu May 30 03:21:31 2002
++++ lazy_buddy/fs/proc/proc_misc.c	Thu May 30 02:16:30 2002
+@@ -131,6 +131,7 @@
+ 	struct sysinfo i;
+ 	int len;
+ 	struct page_state ps;
++	extern unsigned long nr_deferred_pages(void);
  
-@@ -345,8 +345,6 @@
- 			BUG();
- 
- 		prune_one_dentry(dentry);
--		if (!--count)
--			break;
- 	}
- 	spin_unlock(&dcache_lock);
- }
-@@ -538,19 +536,10 @@
- 
+ 	get_page_state(&ps);
  /*
-  * This is called from kswapd when we think we need some
-- * more memory, but aren't really sure how much. So we
-- * carefully try to free a _bit_ of our dcache, but not
-- * too much.
-- *
-- * Priority:
-- *   0 - very urgent: shrink everything
-- *  ...
-- *   6 - base-level: try to shrink a bit.
-+ * more memory. 
-  */
--int shrink_dcache_memory(int priority, unsigned int gfp_mask)
-+int age_dcache_memory(kmem_cache_t *cachep, int entries, int gfp_mask)
- {
--	int count = 0;
--
- 	/*
- 	 * Nasty deadlock avoidance.
- 	 *
-@@ -565,10 +554,11 @@
- 	if (!(gfp_mask & __GFP_FS))
- 		return 0;
+@@ -158,7 +159,8 @@
+ 		"SwapTotal:    %8lu kB\n"
+ 		"SwapFree:     %8lu kB\n"
+ 		"Dirty:        %8lu kB\n"
+-		"Writeback:    %8lu kB\n",
++		"Writeback:    %8lu kB\n"
++		"Deferred:     %8lu kB\n",
+ 		K(i.totalram),
+ 		K(i.freeram),
+ 		K(i.sharedram),
+@@ -173,13 +175,30 @@
+ 		K(i.totalswap),
+ 		K(i.freeswap),
+ 		K(ps.nr_dirty),
+-		K(ps.nr_writeback)
++		K(ps.nr_writeback),
++		K(nr_deferred_pages())
+ 		);
  
--	count = dentry_stat.nr_unused / priority;
-+	if (entries > dentry_stat.nr_unused)
-+		entries = dentry_stat.nr_unused;
- 
--	prune_dcache(count);
--	return kmem_cache_shrink(dentry_cache);
-+	prune_dcache(entries);
-+	return entries;
+ 	return proc_calc_metrics(page, start, off, count, eof, len);
+ #undef K
  }
  
- #define NAME_ALLOC_LEN(len)	((len+16) & ~15)
-@@ -1186,6 +1176,8 @@
- 	if (!dentry_cache)
- 		panic("Cannot create dentry cache");
- 
-+	kmem_set_pruner(dentry_cache, (kmem_pruner_t)age_dcache_memory);
-+
- #if PAGE_SHIFT < 13
- 	mempages >>= (13 - PAGE_SHIFT);
- #endif
-@@ -1279,6 +1271,9 @@
- 			SLAB_HWCACHE_ALIGN, NULL, NULL);
- 	if (!dquot_cachep)
- 		panic("Cannot create dquot SLAB cache");
-+	
-+	kmem_set_pruner(dquot_cachep, (kmem_pruner_t)age_dqcache_memory);
-+	
- #endif
- 
- 	dcache_init(mempages);
-diff -Nru a/fs/dquot.c b/fs/dquot.c
---- a/fs/dquot.c	Wed May 29 07:35:03 2002
-+++ b/fs/dquot.c	Wed May 29 07:35:03 2002
-@@ -1026,10 +1026,13 @@
- 
- int shrink_dqcache_memory(int priority, unsigned int gfp_mask)
- {
-+	if (entries > nr_free_dquots)
-+		entries = nr_free_dquots;
-+
- 	lock_kernel();
--	prune_dqcache(nr_free_dquots / (priority + 1));
-+	prune_dqcache(entries);
- 	unlock_kernel();
--	return kmem_cache_shrink(dquot_cachep);
-+	return entries;
- }
- 
- /*
-diff -Nru a/fs/inode.c b/fs/inode.c
---- a/fs/inode.c	Wed May 29 07:35:03 2002
-+++ b/fs/inode.c	Wed May 29 07:35:03 2002
-@@ -672,10 +672,11 @@
- 
- 	count = 0;
- 	entry = inode_unused.prev;
--	while (entry != &inode_unused)
--	{
-+	for(; goal; goal--) {
- 		struct list_head *tmp = entry;
- 
-+		if (entry == &inode_unused)
-+			break;
- 		entry = entry->prev;
- 		inode = INODE(tmp);
- 		if (inode->i_state & (I_FREEING|I_CLEAR|I_LOCK))
-@@ -690,8 +691,6 @@
- 		list_add(tmp, freeable);
- 		inode->i_state |= I_FREEING;
- 		count++;
--		if (!--goal)
--			break;
- 	}
- 	inodes_stat.nr_unused -= count;
- 	spin_unlock(&inode_lock);
-@@ -708,10 +707,8 @@
- 		schedule_task(&unused_inodes_flush_task);
- }
- 
--int shrink_icache_memory(int priority, int gfp_mask)
-+int age_icache_memory(kmem_cache_t *cachep, int entries, int gfp_mask)
- {
--	int count = 0;
--
- 	/*
- 	 * Nasty deadlock avoidance..
- 	 *
-@@ -722,10 +719,11 @@
- 	if (!(gfp_mask & __GFP_FS))
- 		return 0;
- 
--	count = inodes_stat.nr_unused / priority;
-+	if (entries > inodes_stat.nr_unused)
-+		entries = inodes_stat.nr_unused;
- 
--	prune_icache(count);
--	return kmem_cache_shrink(inode_cachep);
-+	prune_icache(entries);
-+	return entries;
- }
- 
- /*
-@@ -1172,6 +1170,8 @@
- 					 NULL);
- 	if (!inode_cachep)
- 		panic("cannot create inode slab cache");
-+
-+	kmem_set_pruner(inode_cachep, (kmem_pruner_t)age_icache_memory);
- 
- 	unused_inodes_flush_task.routine = try_to_sync_unused_inodes;
- }
-diff -Nru a/include/linux/dcache.h b/include/linux/dcache.h
---- a/include/linux/dcache.h	Wed May 29 07:35:03 2002
-+++ b/include/linux/dcache.h	Wed May 29 07:35:03 2002
-@@ -171,15 +171,10 @@
- #define shrink_dcache() prune_dcache(0)
- struct zone_struct;
- /* dcache memory management */
--extern int shrink_dcache_memory(int, unsigned int);
- extern void prune_dcache(int);
- 
- /* icache memory management (defined in linux/fs/inode.c) */
--extern int shrink_icache_memory(int, int);
- extern void prune_icache(int);
--
--/* quota cache memory management (defined in linux/fs/dquot.c) */
--extern int shrink_dqcache_memory(int, unsigned int);
- 
- /* only used at mount-time */
- extern struct dentry * d_alloc_root(struct inode *);
-diff -Nru a/include/linux/slab.h b/include/linux/slab.h
---- a/include/linux/slab.h	Wed May 29 07:35:03 2002
-+++ b/include/linux/slab.h	Wed May 29 07:35:03 2002
-@@ -55,6 +55,26 @@
- 				       void (*)(void *, kmem_cache_t *, unsigned long));
- extern int kmem_cache_destroy(kmem_cache_t *);
- extern int kmem_cache_shrink(kmem_cache_t *);
-+
-+typedef int (*kmem_pruner_t)(kmem_cache_t *, int, int);
-+
-+extern void kmem_set_pruner(kmem_cache_t *, kmem_pruner_t);
-+extern int kmem_do_prunes(int);
-+extern int kmem_count_page(struct page *);
-+#define kmem_touch_page(addr)                 SetPageReferenced(virt_to_page(addr));
-+
-+/* shrink a slab */
-+extern int kmem_shrink_slab(struct page *);
-+
-+/* dcache prune ( defined in linux/fs/dcache.c) */
-+extern int age_dcache_memory(kmem_cache_t *, int, int);
-+
-+/* icache prune (defined in linux/fs/inode.c) */
-+extern int age_icache_memory(kmem_cache_t *, int, int);
-+
-+/* quota cache prune (defined in linux/fs/dquot.c) */
-+extern int age_dqcache_memory(kmem_cache_t *, int, int);
-+
- extern void *kmem_cache_alloc(kmem_cache_t *, int);
- extern void kmem_cache_free(kmem_cache_t *, void *);
- 
-diff -Nru a/mm/slab.c b/mm/slab.c
---- a/mm/slab.c	Wed May 29 07:35:03 2002
-+++ b/mm/slab.c	Wed May 29 07:35:03 2002
-@@ -72,6 +72,7 @@
- #include	<linux/slab.h>
- #include	<linux/interrupt.h>
- #include	<linux/init.h>
-+#include	<linux/mm_inline.h>
- #include	<asm/uaccess.h>
- 
- /*
-@@ -212,6 +213,8 @@
- 	kmem_cache_t		*slabp_cache;
- 	unsigned int		growing;
- 	unsigned int		dflags;		/* dynamic flags */
-+	kmem_pruner_t		pruner;	/* shrink callback */
-+	int 			count;		/* count used to trigger shrink */
- 
- 	/* constructor func */
- 	void (*ctor)(void *, kmem_cache_t *, unsigned long);
-@@ -381,6 +384,54 @@
- static void enable_cpucache (kmem_cache_t *cachep);
- static void enable_all_cpucaches (void);
- #endif
-+ 
-+/* set the prune call back function */
-+void kmem_set_pruner(kmem_cache_t * cachep, kmem_pruner_t thepruner) 
++extern int fragmentation_stats(char *, int);
++static int fragmentation_read_proc(	char *page,
++					char **start,
++					off_t off,
++					int count,
++					int *eof,
++					void *data)
 +{
-+	cachep->pruner = thepruner;
++	int nid, len = 0;
++
++	for (nid = 0; nid < numnodes; ++nid)
++		len += fragmentation_stats(page + len, nid);
++
++	return proc_calc_metrics(page, start, off, count, eof, len);
 +}
 +
-+/* used by refill_inactive_zone to determine caches that need pruning */
-+int kmem_count_page(struct page *page)
+ static int version_read_proc(char *page, char **start, off_t off,
+ 				 int count, int *eof, void *data)
+ {
+@@ -543,6 +562,7 @@
+ 		{"loadavg",     loadavg_read_proc},
+ 		{"uptime",	uptime_read_proc},
+ 		{"meminfo",	meminfo_read_proc},
++		{"fraginfo",	fragmentation_read_proc},
+ 		{"version",	version_read_proc},
+ #ifdef CONFIG_PROC_HARDWARE
+ 		{"hardware",	hardware_read_proc},
+diff -urN --exclude [xprs].* linux-2.5/include/linux/mmzone.h lazy_buddy/include/linux/mmzone.h
+--- linux-2.5/include/linux/mmzone.h	Thu May 30 03:21:37 2002
++++ lazy_buddy/include/linux/mmzone.h	Thu May 30 03:03:38 2002
+@@ -20,8 +20,9 @@
+ #endif
+ 
+ typedef struct free_area_struct {
+-	struct list_head	free_list;
+-	unsigned long		*map;
++	unsigned long	globally_free, active, locally_free;
++	list_t		free_list, deferred_pages;
++	unsigned long	*map;
+ } free_area_t;
+ 
+ struct pglist_data;
+@@ -142,8 +143,19 @@
+ extern int numnodes;
+ extern pg_data_t *pgdat_list;
+ 
+-#define memclass(pgzone, classzone)	(((pgzone)->zone_pgdat == (classzone)->zone_pgdat) \
+-			&& ((pgzone) <= (classzone)))
++static inline int memclass(zone_t *page_zone, zone_t *classzone)
 +{
-+	kmem_cache_t *cachep = GET_PAGE_CACHE(page);
-+	slab_t *slabp = GET_PAGE_SLAB(page);
-+	if (cachep->pruner != NULL)
-+		cachep->count += (slabp->inuse >> cachep->gfporder);
-+	return (cachep->pruner != NULL);
-+}
-+
-+/* call the prune functions to age pruneable caches */
-+int kmem_do_prunes(int gfp_mask) 
-+{
-+	int ret = 0;
-+	struct list_head *p;
-+
-+        if (gfp_mask & __GFP_WAIT)
-+                down(&cache_chain_sem);
-+        else
-+                if (down_trylock(&cache_chain_sem))
-+                        return 0;
-+
-+        list_for_each(p,&cache_chain) {
-+                kmem_cache_t *cachep = list_entry(p, kmem_cache_t, next);
-+		if (cachep->pruner != NULL) {
-+			if (cachep->count > 0) {
-+#ifdef DEBUGX
-+				int nr = (*cachep->pruner)(cachep, cachep->count, gfp_mask);
-+				printk("pruned %-17s %d\n",cachep->name, nr, gfp_mask)); 
-+#else
-+				(*cachep->pruner)(cachep, cachep->count, gfp_mask);
-+#endif
-+				cachep->count = 0;
-+
-+			}
-+		}
-+        }
-+        up(&cache_chain_sem);
++	if (page_zone->zone_pgdat != classzone->zone_pgdat)
++		return 0;
++	if (page_zone > classzone)
++		return 0;
 +	return 1;
 +}
 +
- 
- /* Cal the num objs, wastage, and bytes left over for a given slab size. */
- static void kmem_cache_estimate (unsigned long gfporder, size_t size,
-@@ -479,7 +530,9 @@
- 
- __initcall(kmem_cpucache_init);
- 
--/* Interface to system's page allocator. No need to hold the cache-lock.
-+/*
-+ * Interface to system's page allocator. No need to hold the cache-lock.
-+ * Call with pagemap_lru_lock held
-  */
- static inline void * kmem_getpages (kmem_cache_t *cachep, unsigned long flags)
- {
-@@ -513,10 +566,17 @@
- 	 * vm_scan(). Shouldn't be a worry.
- 	 */
- 	while (i--) {
--		PageClearSlab(page);
-+		if (cachep->flags & SLAB_NO_REAP) 
-+			PageClearSlab(page);
-+		else {
-+			ClearPageReferenced(page);
-+			del_page_from_active_list(page);
-+			add_page_to_inactive_clean_list(page);
-+		}
- 		page++;
- 	}
--	free_pages((unsigned long)addr, cachep->gfporder);
-+	if (cachep->flags & SLAB_NO_REAP)
-+		free_pages((unsigned long)addr, cachep->gfporder);
- }
- 
- #if DEBUG
-@@ -549,6 +609,7 @@
- /* Destroy all the objs in a slab, and release the mem back to the system.
-  * Before calling the slab must have been unlinked from the cache.
-  * The cache-lock is not held/needed.
-+ * pagemap_lru_lock should be held for kmem_freepages
-  */
- static void kmem_slab_destroy (kmem_cache_t *cachep, slab_t *slabp)
- {
-@@ -588,6 +649,32 @@
- 		kmem_cache_free(cachep->slabp_cache, slabp);
- }
- 
-+/* 
-+ * Used by page_launder_zone and refill_inactive_zone to 
-+ * try to shrink a slab. 
-+ * - shrink works and we return the pages shrunk
-+ * - shrink fails because the slab is in use, we return 0
-+ * called with pagemap_lru_lock held.
-+ */
-+int kmem_shrink_slab(struct page *page)
++static inline unsigned long zone_free_pages(zone_t *zone)
 +{
-+	kmem_cache_t *cachep = GET_PAGE_CACHE(page);
-+	slab_t *slabp = GET_PAGE_SLAB(page);
++	return zone->free_pages;
++}
+ 
+ /*
+  * The following two are not meant for general usage. They are here as
+diff -urN --exclude [xprs].* linux-2.5/mm/bootmem.c lazy_buddy/mm/bootmem.c
+--- linux-2.5/mm/bootmem.c	Tue May 21 08:25:32 2002
++++ lazy_buddy/mm/bootmem.c	Tue May 28 00:54:37 2002
+@@ -241,6 +241,7 @@
+ 	return ret;
+ }
+ 
++extern void forced_coalesce(zone_t *zone);
+ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
+ {
+ 	struct page *page = pgdat->node_mem_map;
+@@ -287,6 +288,9 @@
+ 	}
+ 	total += count;
+ 	bdata->node_bootmem_map = NULL;
 +
-+	spin_lock_irq(cachep->spinlock);
-+	if (!slabp->inuse) {
-+	 	if (!cachep->growing) {
-+			list_del(&slabp->list);
-+			spin_unlock_irq(cachep->spinlock);
-+			kmem_slab_destroy(cachep, slabp);
-+			return 1<<cachep->gfporder;
-+		}
-+	}
-+	spin_unlock_irq(cachep->spinlock);
-+	return 0; 
++	for (i = 0; i < MAX_NR_ZONES; ++i)
++		forced_coalesce(&pgdat->node_zones[i]);
+ 
+ 	return total;
+ }
+diff -urN --exclude [xprs].* linux-2.5/mm/page_alloc.c lazy_buddy/mm/page_alloc.c
+--- linux-2.5/mm/page_alloc.c	Thu May 30 03:21:38 2002
++++ lazy_buddy/mm/page_alloc.c	Thu May 30 02:16:40 2002
+@@ -10,6 +10,7 @@
+  *  Reshaped it to be a zoned allocator, Ingo Molnar, Red Hat, 1999
+  *  Discontiguous memory support, Kanoj Sarcar, SGI, Nov 1999
+  *  Zone balancing, Kanoj Sarcar, SGI, Jan 2000
++ *  Lazy buddy allocation, William Irwin, IBM, May 2002
+  */
+ 
+ #include <linux/config.h>
+@@ -26,9 +27,21 @@
+ 
+ unsigned long totalram_pages;
+ unsigned long totalhigh_pages;
++
++/*
++ * Page replacement statistics
++ */
+ int nr_swap_pages;
+-struct list_head inactive_list;
+-struct list_head active_list;
++
++/*
++ * global page replacement queues.
++ */
++list_t inactive_list;
++list_t active_list;
++
++/*
++ * global list of node structures
++ */
+ pg_data_t *pgdat_list;
+ 
+ /* Used to look up the address of the struct zone encoded in page->zone */
+@@ -36,42 +49,81 @@
+ EXPORT_SYMBOL(zone_table);
+ 
+ static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
++
++/*
++ * Page replacement threshold tables
++ */
+ static int zone_balance_ratio[MAX_NR_ZONES] __initdata = { 128, 128, 128, };
+ static int zone_balance_min[MAX_NR_ZONES] __initdata = { 20 , 20, 20, };
+ static int zone_balance_max[MAX_NR_ZONES] __initdata = { 255 , 255, 255, };
+ 
+ /*
+- * Free_page() adds the page to the free lists. This is optimized for
+- * fast normal cases (no error jumps taken normally).
+- *
+- * The way to optimize jumps for gcc-2.2.2 is to:
+- *  - select the "normal" case and put it inside the if () { XXX }
+- *  - no else-statements if you can avoid them
+- *
+- * With the above two rules, you get a straight-line execution path
+- * for the normal case, giving better asm-code.
++ * Temporary debugging check for pages not lying within a given zone.
++ */
++static inline int BAD_RANGE(zone_t *zone, struct page *page)
++{
++	unsigned long page_mapnr = (unsigned long)(page - mem_map);
++	if (page_mapnr >= zone->zone_start_mapnr + zone->size)
++		return 1;
++	if (page_mapnr < zone->zone_start_mapnr)
++		return 1;
++	if (zone != page_zone(page))
++		return 1;
++	return 0;
 +}
 +
-+
- /**
-  * kmem_cache_create - Create a cache.
-  * @name: A string which is used in /proc/slabinfo to identify this cache.
-@@ -780,6 +867,8 @@
- 		flags |= CFLGS_OPTIMIZE;
- 
- 	cachep->flags = flags;
-+	cachep->pruner = NULL;
-+	cachep->count = 0;
- 	cachep->gfpflags = 0;
- 	if (flags & SLAB_CACHE_DMA)
- 		cachep->gfpflags |= GFP_DMA;
-@@ -946,11 +1035,13 @@
- 
- 	drain_cpu_caches(cachep);
- 
-+	spin_lock(&pagemap_lru_lock);
- 	spin_lock_irq(&cachep->spinlock);
- 	__kmem_cache_shrink_locked(cachep);
- 	ret = !list_empty(&cachep->slabs_full) ||
- 		!list_empty(&cachep->slabs_partial);
- 	spin_unlock_irq(&cachep->spinlock);
-+	spin_unlock(&pagemap_lru_lock);
- 	return ret;
- }
- 
-@@ -969,10 +1060,12 @@
- 		BUG();
- 
- 	drain_cpu_caches(cachep);
--  
-+ 
-+	spin_lock(&pagemap_lru_lock);
- 	spin_lock_irq(&cachep->spinlock);
- 	ret = __kmem_cache_shrink_locked(cachep);
- 	spin_unlock_irq(&cachep->spinlock);
-+	spin_unlock(&pagemap_lru_lock);
- 
- 	return ret << cachep->gfporder;
- }
-@@ -1163,6 +1256,14 @@
- 	if (!(objp = kmem_getpages(cachep, flags)))
- 		goto failed;
- 
-+	/* 
-+	 * We need the pagemap_lru_lock - is there a way to wait here 
-+	 * or could we just spinlock without deadlocking ???
-+	 */
-+	if (!(cachep->flags & SLAB_NO_REAP))
-+		if (!spin_trylock(&pagemap_lru_lock))
-+			goto opps1;
-+
- 	/* Get slab management. */
- 	if (!(slabp = kmem_cache_slabmgmt(cachep, objp, offset, local_flags)))
- 		goto opps1;
-@@ -1174,9 +1275,16 @@
- 		SET_PAGE_CACHE(page, cachep);
- 		SET_PAGE_SLAB(page, slabp);
- 		PageSetSlab(page);
-+		if (!(cachep->flags & SLAB_NO_REAP)) {
-+			set_page_count(page, 1);
-+			add_page_to_active_list(page);
-+		}
- 		page++;
- 	} while (--i);
- 
-+	if (!(cachep->flags & SLAB_NO_REAP))
-+		spin_unlock(&pagemap_lru_lock);
-+
- 	kmem_cache_init_objs(cachep, slabp, ctor_flags);
- 
- 	spin_lock_irqsave(&cachep->spinlock, save_flags);
-@@ -1190,7 +1298,8 @@
- 	spin_unlock_irqrestore(&cachep->spinlock, save_flags);
- 	return 1;
- opps1:
--	kmem_freepages(cachep, objp);
-+	/* do not use kmem_freepages - we are not in the lru yet... */      
-+	free_pages((unsigned long)objp, cachep->gfporder);
- failed:
- 	spin_lock_irqsave(&cachep->spinlock, save_flags);
- 	cachep->growing--;
-@@ -1255,6 +1364,7 @@
- 		list_del(&slabp->list);
- 		list_add(&slabp->list, &cachep->slabs_full);
- 	}
-+	kmem_touch_page(objp);
- #if DEBUG
- 	if (cachep->flags & SLAB_POISON)
- 		if (kmem_check_poison_obj(cachep, objp))
-@@ -1816,6 +1926,7 @@
- 
- 	spin_lock_irq(&best_cachep->spinlock);
- perfect:
-+	spin_lock(&pagemap_lru_lock);
- 	/* free only 50% of the free slabs */
- 	best_len = (best_len + 1)/2;
- 	for (scan = 0; scan < best_len; scan++) {
-@@ -1841,6 +1952,7 @@
- 		kmem_slab_destroy(best_cachep, slabp);
- 		spin_lock_irq(&best_cachep->spinlock);
- 	}
-+	spin_unlock(&pagemap_lru_lock);
- 	spin_unlock_irq(&best_cachep->spinlock);
- 	ret = scan * (1 << best_cachep->gfporder);
- out:
-diff -Nru a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c	Wed May 29 07:35:03 2002
-+++ b/mm/vmscan.c	Wed May 29 07:35:03 2002
-@@ -137,6 +137,12 @@
- 			goto found_page;
- 		}
- 
-+		/* page just has the flag, its not in any cache/slab */
-+		if (PageSlab(page)) {
-+			PageClearSlab(page);
-+			goto found_page;
-+		}
-+
- 		/* We should never ever get here. */
- 		printk(KERN_ERR "VM: reclaim_page, found unknown page\n");
- 		list_del(page_lru);
-@@ -265,6 +271,10 @@
- 		if (unlikely(TryLockPage(page)))
- 			continue;
- 
-+		/* Slab pages should never get here... */
-+		if (PageSlab(page))
-+			BUG();
-+
- 		/*
- 		 * The page is in active use or really unfreeable. Move to
- 		 * the active list and adjust the page age if needed.
-@@ -470,12 +480,14 @@
-  * This function will scan a portion of the active list of a zone to find
-  * unused pages, those pages will then be moved to the inactive list.
++/*
++ * Wrappers for manipulations of buddy lists.
++ * TODO: implement address-ordered queueing of buddy block freelists
   */
++static inline void buddy_enqueue(free_area_t *area, struct page *page)
++{
++	list_add(&page->list, &area->free_list);
++	area->globally_free++;
++}
 +
- int refill_inactive_zone(struct zone_struct * zone, int priority)
- {
- 	int maxscan = zone->active_pages >> priority;
- 	int target = inactive_high(zone);
- 	struct list_head * page_lru;
- 	int nr_deactivated = 0;
-+	int nr_freed = 0;
- 	struct page * page;
- 
- 	/* Take the lock while messing with the list... */
-@@ -507,7 +519,7 @@
- 		 * both PG_locked and the pte_chain_lock are held.
- 		 */
- 		pte_chain_lock(page);
--		if (!page_mapping_inuse(page)) {
-+		if (!page_mapping_inuse(page) && !PageSlab(page)) {
- 			pte_chain_unlock(page);
- 			UnlockPage(page);
- 			drop_page(page);
-@@ -524,6 +536,31 @@
- 		}
- 
- 		/* 
-+		 * For slab pages we count entries for caches with their
-+		 * own pruning/aging method.  If we can count a page or
-+		 * its cold we try to free it.  We only use one aging
-+		 * method otherwise we end up with caches with lots
-+		 * of free pages...  kmem_shrink_slab moves free the
-+		 * slab and move the pages to the inactive clean list. 
-+		 */
-+		if (PageSlab(page)) {
-+			pte_chain_unlock(page);
-+			UnlockPage(page);
-+			if (kmem_count_page(page) || !page->age) {
-+				int pages = kmem_shrink_slab(page);
-+				if (!pages) {
-+					list_del(page_lru);
-+					list_add(page_lru, &zone->active_list);
-+				} else {
-+					nr_freed += pages;
-+					if (nr_deactivated+nr_freed > target)
-+						goto done; 
-+				}
-+			}
-+			continue;
-+		}
++static inline void buddy_remove(free_area_t *area, struct page *page)
++{
++	area->globally_free--;
++	list_del(&page->list);
++}
 +
-+		/* 
- 		 * If the page age is 'hot' and the process using the
- 		 * page doesn't exceed its RSS limit we keep the page.
- 		 * Otherwise we move it to the inactive_dirty list.
-@@ -533,7 +570,7 @@
- 			list_add(page_lru, &zone->active_list);
- 		} else {
- 			deactivate_page_nolock(page);
--			if (++nr_deactivated > target) {
-+			if (++nr_deactivated+nr_freed > target) {
- 				pte_chain_unlock(page);
- 				UnlockPage(page);
- 				goto done;
-@@ -553,9 +590,10 @@
- done:
- 	spin_unlock(&pagemap_lru_lock);
++static inline struct page *buddy_dequeue(free_area_t *area)
++{
++	struct page *page;
++	if (unlikely(list_empty(&area->free_list)))
++		return NULL;
  
--	return nr_deactivated;
-+	return nr_freed;
- }
+-#define memlist_init(x) INIT_LIST_HEAD(x)
+-#define memlist_add_head list_add
+-#define memlist_add_tail list_add_tail
+-#define memlist_del list_del
+-#define memlist_entry list_entry
+-#define memlist_next(x) ((x)->next)
+-#define memlist_prev(x) ((x)->prev)
++	page = list_entry(area->free_list.next, struct page, list);
++	buddy_remove(area, page);
++	return page;
++}
  
+ /*
+- * Temporary debugging check.
++ * Deferred coalescing page queues
++ * TODO: use a list of preassembled gangs for gang page transfers
+  */
+-#define BAD_RANGE(zone, page)						\
+-(									\
+-	(((page) - mem_map) >= ((zone)->zone_start_mapnr+(zone)->size))	\
+-	|| (((page) - mem_map) < (zone)->zone_start_mapnr)		\
+-	|| ((zone) != page_zone(page))					\
+-)
++static inline void deferred_enqueue(free_area_t *area, struct page *page)
++{
++	list_add(&page->list, &area->deferred_pages);
++	area->locally_free++;
++}
 +
- /**
-  * refill_inactive - checks all zones and refills the inactive list as needed
++static inline struct page *deferred_dequeue(free_area_t *area)
++{
++	struct page *page;
++
++	if (unlikely(list_empty(&area->deferred_pages)))
++		return NULL;
++
++	page = list_entry(area->deferred_pages.next, struct page, list);
++	list_del_init(&page->list);
++	area->locally_free--;
++	return page;
++}
+ 
+ /*
+- * Freeing function for a buddy system allocator.
++ * pure buddy system allocator
   *
-@@ -620,24 +658,15 @@
+  * The concept of a buddy system is to maintain direct-mapped table
+  * (containing bit values) for memory blocks of various "orders".
+@@ -82,61 +134,51 @@
+  * at the bottom level available, and propagating the changes upward
+  * as necessary, plus some accounting needed to play nicely with other
+  * parts of the VM system.
+- *
+- * TODO: give references to descriptions of buddy system allocators,
+- * describe precisely the silly trick buddy allocators use to avoid
+- * storing an extra bit, utilizing entry point information.
++ * More precisely, a buddy system for a given level maintains one bit
++ * for each pair of blocks, which is the xor of the "virtual bits"
++ * describing whether or not the individual blocks are available.
++ * While freeing, the block of pages being examined is known to be
++ * already allocated, so its "virtual bit" is 0 and its buddy's bit
++ * may be recovered by xor'ing with 0 (or just checking it). While
++ * allocating, the block of pages to be handed back is chosen from
++ * lists of free pages, and so the page's "virtual bit" is 1 and its
++ * buddy's bit may be recovered by xor'ing with 1 (or just inverting it).
++ * These virtual bits, when recovered, are used only to determine when
++ * to split or coalesce blocks of free pages and do the corresponding
++ * list manipulations. That is, if both were free and a smaller block
++ * is allocated from a free region then the remainder of the region
++ * must be split into blocks, or if a free block's buddy is freed then
++ * this triggers coalescing of blocks on the queues into a block of
++ * larger size.
+  *
+  * -- wli
+  */
  
- 	/*
- 	 * Eat memory from filesystem page cache, buffer cache,
--	 * dentry, inode and filesystem quota caches.
- 	 */
- 	ret += page_launder(gfp_mask);
--	ret += shrink_dcache_memory(DEF_PRIORITY, gfp_mask);
--	ret += shrink_icache_memory(1, gfp_mask);
--#ifdef CONFIG_QUOTA
--	ret += shrink_dqcache_memory(DEF_PRIORITY, gfp_mask);
--#endif
+-static void FASTCALL(__free_pages_ok (struct page *page, unsigned int order));
+-static void __free_pages_ok (struct page *page, unsigned int order)
++static void FASTCALL(buddy_free(struct page *, int order));
++static void buddy_free(struct page *page, int order)
+ {
+-	unsigned long index, page_idx, mask, flags;
++	unsigned long index, page_idx, mask;
+ 	free_area_t *area;
+ 	struct page *base;
+ 	zone_t *zone;
  
- 	/*
--	 * Move pages from the active list to the inactive list.
--	 */
--	refill_inactive();
+-	if (PagePrivate(page))
+-		BUG();
+-	if (page->mapping)
+-		BUG();
+-	if (PageLocked(page))
+-		BUG();
+-	if (PageLRU(page))
+-		BUG();
+-	if (PageActive(page))
+-		BUG();
+-	if (PageWriteback(page))
+-		BUG();
+-	ClearPageDirty(page);
+-	page->flags &= ~(1<<PG_referenced);
 -
--	/* 	
--	 * Reclaim unused slab cache memory.
-+	 * Move pages from the active list to the inactive list,
-+	 * then prune the prunable caches, aging them. 
- 	 */
--	ret += kmem_cache_reap(gfp_mask);
-+	ret += refill_inactive();
-+	kmem_do_prunes(gfp_mask);
+ 	if (current->flags & PF_FREE_PAGES)
+ 		goto local_freelist;
+- back_local_freelist:
  
- 	refill_freelist();
++back_local_freelist:
+ 	zone = page_zone(page);
+-
+ 	mask = (~0UL) << order;
+ 	base = zone->zone_mem_map;
+ 	page_idx = page - base;
+-	if (page_idx & ~mask)
+-		BUG();
++	BUG_ON(page_idx & ~mask);
+ 	index = page_idx >> (1 + order);
  
-@@ -646,11 +675,13 @@
- 		run_task_queue(&tq_disk);
+ 	area = zone->free_area + order;
  
- 	/*
--	 * Hmm.. Cache shrink failed - time to kill something?
-+	 * Hmm.. - time to kill something?
- 	 * Mhwahahhaha! This is the part I really like. Giggle.
- 	 */
--	if (!ret && free_min(ANY_ZONE) > 0)
--		out_of_memory();
-+	if (!ret && free_min(ANY_ZONE) > 0) {
-+		if (!kmem_cache_reap(gfp_mask))
-+			out_of_memory();
-+	}
+-	spin_lock_irqsave(&zone->lock, flags);
+-
+-	zone->free_pages -= mask;
+-
+ 	while (mask + (1 << (MAX_ORDER-1))) {
+ 		struct page *buddy1, *buddy2;
  
- 	return ret;
+-		if (area >= zone->free_area + MAX_ORDER)
+-			BUG();
++		BUG_ON(area >= zone->free_area + MAX_ORDER);
+ 		if (!__test_and_change_bit(index, area->map))
+ 			/*
+ 			 * the buddy page is still allocated.
+@@ -149,23 +191,20 @@
+ 		 */
+ 		buddy1 = base + (page_idx ^ -mask);
+ 		buddy2 = base + page_idx;
+-		if (BAD_RANGE(zone,buddy1))
+-			BUG();
+-		if (BAD_RANGE(zone,buddy2))
+-			BUG();
++		BUG_ON(BAD_RANGE(zone, buddy1));
++		BUG_ON(BAD_RANGE(zone, buddy2));
+ 
+-		memlist_del(&buddy1->list);
++		buddy_remove(area, buddy1);
+ 		mask <<= 1;
+ 		area++;
+ 		index >>= 1;
+ 		page_idx &= mask;
+ 	}
+-	memlist_add_head(&(base + page_idx)->list, &area->free_list);
++	buddy_enqueue(area, base + page_idx);
+ 
+-	spin_unlock_irqrestore(&zone->lock, flags);
+ 	return;
+ 
+- local_freelist:
++local_freelist:
+ 	if (current->nr_local_pages)
+ 		goto back_local_freelist;
+ 	if (in_interrupt())
+@@ -176,76 +215,342 @@
+ 	current->nr_local_pages++;
  }
-@@ -744,6 +775,7 @@
  
- 			/* Do background page aging. */
- 			background_aging(DEF_PRIORITY);
-+			kmem_do_prunes(GFP_KSWAPD);
+-#define MARK_USED(index, order, area) \
+-	__change_bit((index) >> (1+(order)), (area)->map)
++#ifdef CONFIG_SOFTWARE_SUSPEND
++extern void forced_coalesce(zone_t *zone);
++int is_head_of_free_region(struct page *page)
++{
++	zone_t *zone = page_zone(page);
++	int order;
++	list_t *curr;
++	unsigned long flags;
++
++	/*
++	 * Should not matter as we need quiescent system for
++	 * suspend anyway, but...
++	 */
++	spin_lock_irqsave(&zone->lock, flags);
++
++	forced_coalesce(zone);
++
++	for (order = MAX_ORDER - 1; order >= 0; --order)
++		list_for_each(curr, &zone->free_area[order].free_list) {
++			if (page != list_entry(curr, struct page, list))
++				continue;
++			spin_unlock_irqrestore(&zone->lock, flags);
++			return 1 << order;
++		}
++	spin_unlock_irqrestore(&zone->lock, flags);
++
++	return 0;
++}
++#endif /* CONFIG_SOFTWARE_SUSPEND */
++
++/*
++ * Entry point for alloc_pages() -internal routines to obtain pages from
++ * a zone's internal allocator state. Deferred coalescing is implemented
++ * here largely as described in Vahalia.
++ *
++ * The basic concept of the deferred coalescing buddy allocator, or lazy
++ * buddy, is to add freelists for each block class that cache free
++ * memory blocks not yet accounted in the buddy bitmaps in order to
++ * avoid coalescing overhead in the common case, and the following are
++ * the mechanics of cache reclamation:
++ *
++ * There are three state variables per class of free memory blocks:
++ * (1) active
++ *	these memory blocks have been granted to a caller of the
++ *	allocator
++ * (2) locally free
++ *	number of memory blocks on the deferred coalescing freelist
++ * (3) globally free
++ *	number of memory blocks on the buddy freelist
++ *
++ * When expressed in the terms used in Vahalia, the invariant of the
++ * lazy buddy algorithm is:
++ *
++ * area->active >= area->locally_free
++ *
++ * This is described as the invariant being slack >= 0, where
++ * slack = total_pages_of_block_class - 2*locally_free - globally_free
++ * where total_pages_of_block_class = active + locally_free + globally_free
++ * Finally, the slack may be written active - globally_free, and then
++ * slack >= 0 becomes what is presented above.
++ *
++ * Notable here is that the comparison is specific to a single blocksize's
++ * deferred page queue.
++ *
++ * There are three distinct regimes (states) identified by the allocator:
++ *
++ * (1) the lazy regime
++ *          The lazy regime is when area->active > area->locally_free + 1
++ *          or slack > 1. While in this regime the strategy always
++ *          allocates and frees from the deferred page queues while the
++ *          allocations may be satisfied from them.
++ *
++ * (2) the reclaiming regime
++ *          The reclaiming regime is when area->active == area->locally_free+1
++ *          or slack == 1. While in the reclaiming regime, the allocator
++ *          should try to use the buddy system to obtain and esp. free
++ *          its pages and so behaves like strict buddy in this regime.
++ *
++ * (3) the accelerated regime
++ *          The accelerated regime is when area->active == area->locally_free
++ *          or slack == 0. While in the accelerated regime, the allocator
++ *          should use the buddy system to obtain and free pages on behalf
++ *          of the caller, but in addition it should free as many deferred
++ *          coalesced pages as it grants to the caller.
++ *
++ * Vahalia reports that lazy buddy is a 10-32% gain over strict buddy in
++ * latency in the common case over strict buddy.
++ */
++static void FASTCALL(low_level_free(struct page *page, unsigned int order));
++static void low_level_free(struct page *page, unsigned int order)
++{
++	zone_t *zone = page_zone(page);
++	unsigned long offset;
++	unsigned long flags;
++	free_area_t *area;
++	struct page *deferred_page;
++
++	spin_lock_irqsave(&zone->lock, flags);
++
++	offset = page - zone->zone_mem_map;
++	area = &zone->free_area[order];
++
++	switch (area->active - area->locally_free) {
++		case 0:
++			/*
++			 * Free a deferred page; this is the accelerated
++			 * regime for page coalescing.
++			 */
++			deferred_page = deferred_dequeue(area);
++			if (deferred_page)
++				buddy_free(deferred_page, order);
++			/*
++			 * Fall through and also free the page we were
++			 * originally asked to free.
++			 */
++		case 1:
++			buddy_free(page, order);
++			break;
++		default:
++			deferred_enqueue(area, page);
++			break;
++	}
++
++	area->active -= min(area->active, 1UL);
++	zone->free_pages += 1UL << order;
++
++	spin_unlock_irqrestore(&zone->lock, flags);
++}
++
++/*
++ * In order satisfy high-order boottime allocations a further pass is
++ * made at boot-time to fully coalesce all pages. Furthermore, swsusp
++ * also seems to want to be able to detect free regions by making use
++ * of full coalescing, and so the functionality is provided here.
++ */
++void forced_coalesce(zone_t *zone)
++{
++	int order;
++	struct page *page;
++	unsigned int nr_pages;
++	free_area_t *area;
++
++	if (!zone->size)
++		return;
++
++	for (order = MAX_ORDER - 1; order >= 0; --order) {
++		nr_pages = 1UL << order;
++		area = &zone->free_area[order];
++		page = deferred_dequeue(area);
++		while (page) {
++			buddy_free(page, order);
++			page = deferred_dequeue(area);
++		}
++	}
++}
++
++static void FASTCALL(__free_pages_ok (struct page *page, unsigned int order));
++static void __free_pages_ok (struct page *page, unsigned int order)
++{
++	BUG_ON(PagePrivate(page));
++	BUG_ON(page->mapping);
++	BUG_ON(PageLocked(page));
++	BUG_ON(PageLRU(page));
++	BUG_ON(PageActive(page));
++	BUG_ON(PageWriteback(page));
++
++	ClearPageError(page);
++	ClearPageUptodate(page);
++	ClearPageDirty(page);
++	ClearPageSlab(page);
++	ClearPageNosave(page);
++	clear_bit(PG_checked, &page->flags);
+ 
+-static inline struct page * expand (zone_t *zone, struct page *page,
++	low_level_free(page, order);
++}
++
++/*
++ * A small optimization for marking the buddy bitmap is that one
++ * may simply remember the size of the initial free block, the
++ * initial free block itself, and the size actually allocated.
++ */
++static inline struct page *expand(zone_t *zone, struct page *page,
+ 	 unsigned long index, int low, int high, free_area_t * area)
+ {
+ 	unsigned long size = 1 << high;
+ 
+ 	while (high > low) {
+-		if (BAD_RANGE(zone,page))
+-			BUG();
++		BUG_ON(BAD_RANGE(zone, page));
+ 		area--;
+ 		high--;
+ 		size >>= 1;
+-		memlist_add_head(&(page)->list, &(area)->free_list);
+-		MARK_USED(index, high, area);
++		buddy_enqueue(area, page);
++		__change_bit(index >> (1+high), area->map);
+ 		index += size;
+ 		page += size;
+ 	}
+-	if (BAD_RANGE(zone,page))
+-		BUG();
++	BUG_ON(BAD_RANGE(zone, page));
+ 	return page;
+ }
+ 
+-static FASTCALL(struct page * rmqueue(zone_t *zone, unsigned int order));
+-static struct page * rmqueue(zone_t *zone, unsigned int order)
++/*
++ * Mark the bitmap checking our buddy, and descend levels breaking off
++ * free fragments in the bitmap along the way. When done, wrap up with
++ * the single pass of expand() to break off the various fragments from
++ * the free lists.
++ */
++static FASTCALL(struct page *buddy_alloc(zone_t *zone, unsigned int order));
++static struct page *buddy_alloc(zone_t *zone, unsigned int order)
+ {
+ 	free_area_t * area = zone->free_area + order;
+-	unsigned int curr_order = order;
+-	struct list_head *head, *curr;
+-	unsigned long flags;
++	unsigned int curr_order;
+ 	struct page *page;
+ 
+-	spin_lock_irqsave(&zone->lock, flags);
+-	do {
+-		head = &area->free_list;
+-		curr = memlist_next(head);
++	for (curr_order = order; curr_order < MAX_ORDER; ++curr_order, ++area) {
++		unsigned int index;
+ 
+-		if (curr != head) {
+-			unsigned int index;
++		page = buddy_dequeue(area);
+ 
+-			page = memlist_entry(curr, struct page, list);
+-			if (BAD_RANGE(zone,page))
+-				BUG();
+-			memlist_del(curr);
+-			index = page - zone->zone_mem_map;
+-			if (curr_order != MAX_ORDER-1)
+-				MARK_USED(index, curr_order, area);
+-			zone->free_pages -= 1UL << order;
+-
+-			page = expand(zone, page, index, order, curr_order, area);
+-			spin_unlock_irqrestore(&zone->lock, flags);
++		if (unlikely(!page))
++			continue;
+ 
+-			set_page_count(page, 1);
+-			if (BAD_RANGE(zone,page))
+-				BUG();
+-			if (PageLRU(page))
+-				BUG();
+-			if (PageActive(page))
+-				BUG();
+-			return page;	
+-		}
+-		curr_order++;
+-		area++;
+-	} while (curr_order < MAX_ORDER);
+-	spin_unlock_irqrestore(&zone->lock, flags);
++		BUG_ON(BAD_RANGE(zone, page));
+ 
++		index = page - zone->zone_mem_map;
++		if (curr_order != MAX_ORDER-1)
++			__change_bit(index >> (1+curr_order), area->map);
++
++		page = expand(zone, page, index, order, curr_order, area);
++		set_page_count(page, 1);
++
++		BUG_ON(BAD_RANGE(zone, page));
++		BUG_ON(PageLRU(page));
++		BUG_ON(PageActive(page));
++		return page;	
++	}
+ 	return NULL;
+ }
+ 
++/*
++ * split_pages() is much like expand, but operates only on the queues
++ * of deferred coalesced pages.
++ */
++static void FASTCALL(split_pages(zone_t *, struct page *, int, int));
++static void split_pages(zone_t *zone,
++			struct page *page,
++			int page_order,
++			int deferred_order)
++{
++	int split_order;
++	unsigned long split_offset;
++	struct page *split_page;
++
++	split_order = deferred_order - 1;
++	split_offset = 1UL << split_order;
++	while (split_order >= page_order) {
++
++		split_page = &page[split_offset];
++
++		deferred_enqueue(&zone->free_area[split_order], split_page);
++
++		--split_order;
++		split_offset >>= 1;
++	}
++}
++
++/*
++ * low_level_alloc() exports free page search functionality to the
++ * internal VM allocator. It uses the strategy outlined above
++ * low_level_free() in order to decide where to obtain its pages.
++ */
++static FASTCALL(struct page *low_level_alloc(zone_t *, unsigned int));
++static struct page *low_level_alloc(zone_t *zone, unsigned int order)
++{
++	struct page *page;
++	unsigned long flags;
++	free_area_t *area;
++
++	spin_lock_irqsave(&zone->lock, flags);
++
++	area = &zone->free_area[order];
++
++	page = deferred_dequeue(area);
++	if (unlikely(!page))
++		page = buddy_alloc(zone, order);
++	if (unlikely(!page))
++		goto out;
++	set_page_count(page, 1);
++	area->active++;
++	zone->free_pages -= 1UL << order;
++out:
++	spin_unlock_irqrestore(&zone->lock, flags);
++	return page;
++}
++
++/*
++ * Render fragmentation statistics for /proc/ reporting.
++ * It simply formats the counters maintained by the queueing
++ * discipline in the buffer passed to it.
++ */
++int fragmentation_stats(char *buf, int nid)
++{
++	int order, len = 0;
++	unsigned long flags;
++	zone_t *zone, *node_zones;
++
++	node_zones = NODE_DATA(nid)->node_zones;
++
++	for (zone = node_zones; zone - node_zones < MAX_NR_ZONES; ++zone) {
++		spin_lock_irqsave(&zone->lock, flags);
++		len += sprintf(	buf + len,
++				"Node %d, zone %8s\n",
++				nid,
++				zone->name);
++		len += sprintf(buf + len, "buddy:  ");
++		for (order = 0; order < MAX_ORDER; ++order) {
++			len += sprintf( buf + len,
++					"%6lu ",
++					zone->free_area[order].globally_free);
++		}
++		len += sprintf(buf + len, "\ndefer:  ");
++		for (order = 0; order < MAX_ORDER; ++order) {
++			len += sprintf( buf + len,
++					"%6lu ",
++					zone->free_area[order].locally_free);
++		}
++		len += sprintf(buf + len, "\nactive: ");
++		for (order = 0; order < MAX_ORDER; ++order) {
++			len += sprintf( buf + len,
++					"%6lu ",
++					zone->free_area[order].active);
++		}
++		spin_unlock_irqrestore(&zone->lock, flags);
++		len += sprintf(buf + len, "\n");
++	}
++	return len;
++}
+ #ifdef CONFIG_SOFTWARE_SUSPEND
+ int is_head_of_free_region(struct page *page)
+ {
+@@ -281,13 +586,15 @@
+ static struct page * FASTCALL(balance_classzone(zone_t *, unsigned int, unsigned int, int *));
+ static struct page * balance_classzone(zone_t * classzone, unsigned int gfp_mask, unsigned int order, int * freed)
+ {
+-	struct page * page = NULL;
++	struct page *page = NULL;
+ 	int __freed = 0;
++	list_t *entry, *local_pages, *save;
++	struct page * tmp;
++	int nr_pages;
+ 
+ 	if (!(gfp_mask & __GFP_WAIT))
+ 		goto out;
+-	if (in_interrupt())
+-		BUG();
++	BUG_ON(in_interrupt());
+ 
+ 	current->allocation_order = order;
+ 	current->flags |= PF_MEMALLOC | PF_FREE_PAGES;
+@@ -296,56 +603,51 @@
+ 
+ 	current->flags &= ~(PF_MEMALLOC | PF_FREE_PAGES);
+ 
+-	if (current->nr_local_pages) {
+-		struct list_head * entry, * local_pages;
+-		struct page * tmp;
+-		int nr_pages;
+-
+-		local_pages = &current->local_pages;
+-
+-		if (likely(__freed)) {
+-			/* pick from the last inserted so we're lifo */
+-			entry = local_pages->next;
+-			do {
+-				tmp = list_entry(entry, struct page, list);
+-				if (tmp->index == order && memclass(page_zone(tmp), classzone)) {
+-					list_del(entry);
+-					current->nr_local_pages--;
+-					set_page_count(tmp, 1);
+-					page = tmp;
+-
+-					if (PagePrivate(page))
+-						BUG();
+-					if (page->mapping)
+-						BUG();
+-					if (PageLocked(page))
+-						BUG();
+-					if (PageLRU(page))
+-						BUG();
+-					if (PageActive(page))
+-						BUG();
+-					if (PageDirty(page))
+-						BUG();
+-					if (PageWriteback(page))
+-						BUG();
++	if (!current->nr_local_pages)
++		goto out;
+ 
+-					break;
+-				}
+-			} while ((entry = entry->next) != local_pages);
+-		}
++	local_pages = &current->local_pages;
+ 
+-		nr_pages = current->nr_local_pages;
+-		/* free in reverse order so that the global order will be lifo */
+-		while ((entry = local_pages->prev) != local_pages) {
+-			list_del(entry);
+-			tmp = list_entry(entry, struct page, list);
+-			__free_pages_ok(tmp, tmp->index);
+-			if (!nr_pages--)
+-				BUG();
+-		}
+-		current->nr_local_pages = 0;
++	if (unlikely(!__freed))
++		goto reverse_free;
++
++	/* pick from the last inserted so we're lifo */
++	list_for_each_safe(entry, save, local_pages) {
++		tmp = list_entry(entry, struct page, list);
++
++		if (unlikely(tmp->index != order))
++			continue;
++		if (unlikely(!memclass(page_zone(page), classzone)))
++			continue;
++
++		list_del(entry);
++		current->nr_local_pages--;
++		set_page_count(tmp, 1);
++		page = tmp;
++
++		BUG_ON(PagePrivate(page));
++		BUG_ON(page->mapping);
++		BUG_ON(PageLocked(page));
++		BUG_ON(PageLRU(page));
++		BUG_ON(PageActive(page));
++		BUG_ON(PageDirty(page));
++		BUG_ON(PageWriteback(page));
++
++		break;
++	}
++
++reverse_free:
++	nr_pages = current->nr_local_pages;
++	/* free in reverse order so that the global order will be lifo */
++	while (!list_empty(local_pages)) {
++		entry = local_pages->prev;
++		list_del(entry);
++		tmp = list_entry(entry, struct page, list);
++		__free_pages_ok(tmp, tmp->index);
++		BUG_ON(!nr_pages--);
+ 	}
+- out:
++	current->nr_local_pages = 0;
++out:
+ 	*freed = __freed;
+ 	return page;
+ }
+@@ -353,16 +655,16 @@
+ /*
+  * This is the 'heart' of the zoned buddy allocator:
+  */
+-struct page * __alloc_pages(unsigned int gfp_mask, unsigned int order, zonelist_t *zonelist)
++struct page *__alloc_pages(unsigned int gfp_mask, unsigned int order, zonelist_t *zonelist)
+ {
+ 	unsigned long min;
+-	zone_t **zone, * classzone;
+-	struct page * page;
++	zone_t **zone, *classzone;
++	struct page *page;
+ 	int freed;
+ 
+ 	zone = zonelist->zones;
+ 	classzone = *zone;
+-	if (classzone == NULL)
++	if (!classzone)
+ 		return NULL;
+ 	min = 1UL << order;
+ 	for (;;) {
+@@ -371,8 +673,8 @@
+ 			break;
+ 
+ 		min += z->pages_low;
+-		if (z->free_pages > min) {
+-			page = rmqueue(z, order);
++		if (zone_free_pages(z) > min) {
++			page = low_level_alloc(z, order);
+ 			if (page)
+ 				return page;
  		}
+@@ -395,8 +697,8 @@
+ 		if (!(gfp_mask & __GFP_WAIT))
+ 			local_min >>= 2;
+ 		min += local_min;
+-		if (z->free_pages > min) {
+-			page = rmqueue(z, order);
++		if (zone_free_pages(z) > min) {
++			page = low_level_alloc(z, order);
+ 			if (page)
+ 				return page;
+ 		}
+@@ -412,7 +714,7 @@
+ 			if (!z)
+ 				break;
  
- 		wakeup_memwaiters();
-
------------------
-
-
+-			page = rmqueue(z, order);
++			page = low_level_alloc(z, order);
+ 			if (page)
+ 				return page;
+ 		}
+@@ -441,8 +743,8 @@
+ 			break;
+ 
+ 		min += z->pages_min;
+-		if (z->free_pages > min) {
+-			page = rmqueue(z, order);
++		if (zone_free_pages(z) > min) {
++			page = low_level_alloc(z, order);
+ 			if (page)
+ 				return page;
+ 		}
+@@ -513,15 +815,15 @@
+ unsigned int nr_free_pages(void)
+ {
+ 	unsigned int sum;
+-	zone_t *zone;
+-	pg_data_t *pgdat = pgdat_list;
++	int i;
++	pg_data_t *pgdat;
+ 
+ 	sum = 0;
+-	while (pgdat) {
+-		for (zone = pgdat->node_zones; zone < pgdat->node_zones + MAX_NR_ZONES; zone++)
+-			sum += zone->free_pages;
+-		pgdat = pgdat->node_next;
+-	}
++
++	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next)
++		for (i = 0; i < MAX_NR_ZONES; ++i)
++			sum += zone_free_pages(&pgdat->node_zones[i]);
++
+ 	return sum;
+ }
+ 
+@@ -578,6 +880,23 @@
+ }
+ #endif
+ 
++unsigned long nr_deferred_pages(void)
++{
++	pg_data_t *pgdat;
++	zone_t *node_zones;
++	int i, order;
++	unsigned long pages = 0;
++
++	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next) {
++		node_zones = pgdat->node_zones;
++		for (i = 0; i < MAX_NR_ZONES; ++i) {
++			for (order = 0; order < MAX_ORDER; ++order)
++				pages += node_zones[i].free_area[order].locally_free;
++		}
++	}
++	return pages;
++}
++
+ /*
+  * Accumulate the page_state information across all CPUs.
+  * The result is unavoidably approximate - it can change
+@@ -654,7 +973,7 @@
+ 			printk("Zone:%s freepages:%6lukB min:%6lukB low:%6lukB " 
+ 				       "high:%6lukB\n", 
+ 					zone->name,
+-					K(zone->free_pages),
++					K(zone_free_pages(zone)),
+ 					K(zone->pages_min),
+ 					K(zone->pages_low),
+ 					K(zone->pages_high));
+@@ -670,7 +989,7 @@
+ 		nr_free_pages());
+ 
+ 	for (type = 0; type < MAX_NR_ZONES; type++) {
+-		struct list_head *head, *curr;
++		list_t *head, *curr;
+ 		zone_t *zone = pgdat->node_zones + type;
+  		unsigned long nr, total, flags;
+ 
+@@ -682,7 +1001,7 @@
+ 				curr = head;
+ 				nr = 0;
+ 				for (;;) {
+-					curr = memlist_next(curr);
++					curr = curr->next;
+ 					if (curr == head)
+ 						break;
+ 					nr++;
+@@ -812,8 +1131,7 @@
+ 	unsigned long totalpages, offset, realtotalpages;
+ 	const unsigned long zone_required_alignment = 1UL << (MAX_ORDER-1);
+ 
+-	if (zone_start_paddr & ~PAGE_MASK)
+-		BUG();
++	BUG_ON(zone_start_paddr & ~PAGE_MASK);
+ 
+ 	totalpages = 0;
+ 	for (i = 0; i < MAX_NR_ZONES; i++) {
+@@ -912,7 +1230,7 @@
+ 			set_page_zone(page, nid * MAX_NR_ZONES + j);
+ 			set_page_count(page, 0);
+ 			SetPageReserved(page);
+-			memlist_init(&page->list);
++			INIT_LIST_HEAD(&page->list);
+ 			if (j != ZONE_HIGHMEM)
+ 				set_page_address(page, __va(zone_start_paddr));
+ 			zone_start_paddr += PAGE_SIZE;
+@@ -921,8 +1239,9 @@
+ 		offset += size;
+ 		for (i = 0; ; i++) {
+ 			unsigned long bitmap_size;
++			INIT_LIST_HEAD(&zone->free_area[i].deferred_pages);
+ 
+-			memlist_init(&zone->free_area[i].free_list);
++			INIT_LIST_HEAD(&zone->free_area[i].free_list);
+ 			if (i == MAX_ORDER-1) {
+ 				zone->free_area[i].map = NULL;
+ 				break;
+diff -urN --exclude [xprs].* linux-2.5/mm/vmscan.c lazy_buddy/mm/vmscan.c
+--- linux-2.5/mm/vmscan.c	Thu May 30 03:21:38 2002
++++ lazy_buddy/mm/vmscan.c	Thu May 30 02:16:40 2002
+@@ -682,7 +682,7 @@
+ 
+ 	first_classzone = classzone->zone_pgdat->node_zones;
+ 	while (classzone >= first_classzone) {
+-		if (classzone->free_pages > classzone->pages_high)
++		if (zone_free_pages(classzone) > classzone->pages_high)
+ 			return 0;
+ 		classzone--;
+ 	}
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
