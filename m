@@ -1,36 +1,37 @@
-Date: Wed, 27 Jun 2001 11:41:55 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: patch: highmem zero-bounce
-Message-ID: <20010627114155.A31910@athlon.random>
-References: <20010626182215.C14460@suse.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20010626182215.C14460@suse.de>; from axboe@suse.de on Tue, Jun 26, 2001 at 06:22:15PM +0200
+Date: Wed, 27 Jun 2001 07:09:14 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: VM tuning through fault trace gathering [with actual code]
+In-Reply-To: <m2vgljb6ao.fsf@boreas.yi.org.>
+Message-ID: <Pine.LNX.4.21.0106270707550.1291-100000@freak.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <axboe@suse.de>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "ZINKEVICIUS,MATT (HP-Loveland,ex1)" <matt_zinkevicius@hp.com>
+To: John Fremlin <vii@users.sourceforge.net>
+Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 26, 2001 at 06:22:15PM +0200, Jens Axboe wrote:
-> Hi,
+
+On 26 Jun 2001, John Fremlin wrote:
+
+> Marcelo Tosatti <marcelo@conectiva.com.br> writes:
 > 
-> I updated the patches to 2.4.6-pre5, and removed the zone-dma32
-> addition. This means that machines with > 4GB of RAM will need to go all
+> > ####################################################################
+> > Event     	          Time                   PID     Length Description
+> > ####################################################################
+> > 
+> > Trap entry              991,299,585,597,016     678     12      TRAP: page fault; EIP : 0x40067785
+> 
+> That looks like just the generic interrupt handling. It does not do
+> what I want to do, i.e. record some more info about the fault saying
+> where it comes from.
 
-good, we can relax the ZONE_NORMAL later, that's a separate problem with
-skipping the bounces.
+You can create custom events with LTT and then you can get them from a
+"big buffer" to userlevel later, then. 
 
-I can see one mm corruption race condition in the patch, you missed
-nested irq in the for kmap_irq_bh (PIO).  You must _always_
-__cli/__save_flags before accessing the KMAP_IRQ_BH slot, in case the
-remapping is required (so _only_ when the page is in the highmem zone).
-Otherwise memory corruption will happen when the race triggers (for
-example two ide disks in PIO mode doing I/O at the same time connected
-to different irq sources).
+I just told you about LTT because I think you are redoing work by creating
+the tracing facilities... 
 
-Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
