@@ -1,51 +1,43 @@
-From: David Woodhouse <dwmw2@infradead.org>
-In-Reply-To: <20020219161412.B16613@flint.arm.linux.org.uk> 
-References: <20020219161412.B16613@flint.arm.linux.org.uk>  <22292.1014134494@redhat.com> 
-Subject: Re: rmap for ARMV. 
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Date: Tue, 19 Feb 2002 16:42:11 +0000
-Message-ID: <7261.1014136931@redhat.com>
+Date: Tue, 19 Feb 2002 14:30:43 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH *] new struct page shrinkage
+In-Reply-To: <3C7278B7.C0E4D126@mandrakesoft.com>
+Message-ID: <Pine.LNX.4.33L.0202191429420.7820-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: riel@conectiva.com.br, linux-mm@kvack.org, linux-arm-kernel@lists.arm.linux.org.uk
+To: Jeff Garzik <jgarzik@mandrakesoft.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-linux@arm.linux.org.uk said:
->  When rmap gets merged into the 2.5 kernel series, I'll look at what
-> can be done to sort out the pte situation - we could re-jig the page
-> tables so a 'pgd' is 8 bytes per entry (made up of two hardware PTE
-> pointers), the second level page tables end up being 2K hardware + 2K
-> for Linux, which nicely maps to a page per PTE as viewed by Linux.
+On Tue, 19 Feb 2002, Jeff Garzik wrote:
+> Rik van Riel wrote:
+> > I've also pulled the thing up to
+> > your latest changes from linux.bkbits.net so you should be
+> > able to just pull it into your tree from:
+>
+> Note that with BK, unlike CVS, it is not required that you update to
+> the latest Linus tree before he can pull.
+>
+> It is only desired that you do so if there is an actual conflict you
+> need to resolve...
 
-That would probably make sense - I didn't really want to do something that 
-intrusive myself. In the meantime, this is also required:
+In this case there were 2 files with a potential conflict
+(buffer.c and filemap.c).
 
---- linux-2.4.17-arm-rmap.patch	19 Feb 2002 15:59:41 -0000	1.1
-+++ linux-2.4.17-arm-rmap.patch	19 Feb 2002 16:24:11 -0000
-@@ -39,7 +39,7 @@
-  	if (block & 2047)
-  		BUG();
-  
--@@ -475,11 +495,31 @@
-+@@ -475,11 +495,32 @@
-  			PTRS_PER_PTE * sizeof(pte_t), 0);
-  }
-  
-@@ -54,6 +54,7 @@
- +		struct page * page = virt_to_page(pte);
- +
- +		kmem_cache_free(pte_rmap_cache, page->mapping);
-++		page->mapping = NULL;
- +	}
- +}
- +
+No actual conflicts, but I thought it good manners to
+pull the tree and resolve any potential conflicts myself,
+instead of burdening Linus with the job.
 
+regards,
 
---
-dwmw2
+Rik
+-- 
+"Linux holds advantages over the single-vendor commercial OS"
+    -- Microsoft's "Competing with Linux" document
 
+http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
