@@ -1,115 +1,61 @@
-Date: Sat, 5 Jul 2003 15:03:33 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: 2.5.74-mm1
-Message-ID: <20030705220333.GB15452@holomorphy.com>
-References: <20030703023714.55d13934.akpm@osdl.org> <20030704210737.GI955@holomorphy.com> <20030704181539.2be0762a.akpm@osdl.org> <20030705104433.GK955@holomorphy.com> <20030705114308.6dacb5a2.akpm@osdl.org> <20030705211740.GA15452@holomorphy.com> <20030705142752.37a3566a.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Sun, 6 Jul 2003 00:10:25 +0200
+References: <20030703023714.55d13934.akpm@osdl.org> <200307052309.12680.phillips@arcor.de> <20030705214413.GA28824@mail.jlokier.co.uk>
+In-Reply-To: <20030705214413.GA28824@mail.jlokier.co.uk>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20030705142752.37a3566a.akpm@osdl.org>
+Message-Id: <200307060010.26002.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: anton@samba.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jamie Lokier <jamie@shareable.org>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III <wli@holomorphy.com> wrote:
->> Sorry, that was one hell of an oversight wrt. the initival value.
+On Saturday 05 July 2003 23:44, Jamie Lokier wrote:
+> Daniel Phillips wrote:
+> > Unfortunately, negative priority requires root privilege, at least
+> > on Debian.
+> >
+> > That's dumb.  By default, the root privilege requirement should kick
+> > in at something like -5 or -10, so ordinary users can set priorities
+> > higher than the default, as well as lower.  For the millions of
+> > desktop users out there, sound ought to work by default, not be
+> > broken by default.
+>
+> The security problem, on a multi-user box, is that negative priority
+> apps can easily take all of the CPU and effectively lock up the box.
 
-On Sat, Jul 05, 2003 at 02:27:52PM -0700, Andrew Morton wrote:
-> You made me read that code about 20 times ;)
-> Still.  Do we think we know what the actual bug is?  That tasklist_lock
-> doesn't pin tsk->mm?
-> If so then let's get that patch of yours happening, but please enhance it to
-> a) detect the situation where the mm went away, and tell us that it was
->    fixed up.  Sufficient to confirm your theory.
-> b) put in an explicit check for a kill of an mm-less process.  print a
->    warning, skip the process.
+I don't see that: the solution is to set the niceness any essential process 
+more negative than is possible for a normal user, which is just what we have 
+now.  The stupid thing is the making the most negative possible and the 
+default niceness the same.  What are you going to do if you have one 
+application you want to take priority, re-nice the other 50?
 
-exit_mm() is excluded by the task_lock(), so p->mm (or any of the
-others) can vanish at any time (the callers don't hold the tasklist_lock
-either). So did you have in mind something like this?
+An alternate solution is to allow the user to specify the default niceness.  
+For all I know, there is such a way.  If not, there ought to be, and it 
+should be higher than the superuser cutoff by default.  Then the sound app 
+will come along and grab the highest priority it can, and it will actually 
+succeed in obtaining a higher priority than garden variety processes, which 
+is not what happens now.
 
+> Something I've often thought would fix this is to allow normal users
+> to set negative priority which is limited to using X% of the CPU -
+> i.e. those tasks would have their priority raised if they spent more
+> than a small proportion of their time using the CPU.
 
--- wli
+That's essentially SCHED_RR.  As I mentioned above, it's not clear to me why 
+SCHED_RR requires superuser privilege, since the amount of CPU you can burn 
+that way is bounded.  Well, the total of all SCHED_RR processes would need to 
+be bounded as well, which is straightforward.
 
+Regards,
 
-===== mm/oom_kill.c 1.23 vs edited =====
---- 1.23/mm/oom_kill.c	Wed Apr 23 03:15:53 2003
-+++ edited/mm/oom_kill.c	Sat Jul  5 15:00:15 2003
-@@ -141,8 +141,16 @@
-  * CAP_SYS_RAW_IO set, send SIGTERM instead (but it's unlikely that
-  * we select a process with CAP_SYS_RAW_IO set).
-  */
--void oom_kill_task(struct task_struct *p)
-+static void __oom_kill_task(task_t *p)
- {
-+	task_lock(p);
-+	if (!p->mm || p->mm == &init_mm) {
-+		WARN_ON(1);
-+		printk(KERN_WARNING "tried to kill an mm-less task!\n");
-+		task_unlock(p);
-+		return;
-+	}
-+	task_unlock(p);
- 	printk(KERN_ERR "Out of Memory: Killed process %d (%s).\n", p->pid, p->comm);
- 
- 	/*
-@@ -161,6 +169,16 @@
- 	}
- }
- 
-+static struct mm_struct *oom_kill_task(task_t *p)
-+{
-+	struct mm_struct *mm = get_task_mm(p);
-+	if (!mm || mm == &init_mm)
-+		return NULL;
-+	__oom_kill_task(p);
-+	return mm;
-+}
-+
-+
- /**
-  * oom_kill - kill the "best" process when we run out of memory
-  *
-@@ -171,9 +189,11 @@
-  */
- static void oom_kill(void)
- {
-+	struct mm_struct *mm;
- 	struct task_struct *g, *p, *q;
- 	
- 	read_lock(&tasklist_lock);
-+retry:
- 	p = select_bad_process();
- 
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
-@@ -182,17 +202,21 @@
- 		panic("Out of memory and no killable processes...\n");
- 	}
- 
--	oom_kill_task(p);
-+	mm = oom_kill_task(p);
-+	if (!mm)
-+		goto retry;
- 	/*
- 	 * kill all processes that share the ->mm (i.e. all threads),
- 	 * but are in a different thread group
- 	 */
- 	do_each_thread(g, q)
--		if (q->mm == p->mm && q->tgid != p->tgid)
--			oom_kill_task(q);
-+		if (q->mm == mm && q->tgid != p->tgid)
-+			__oom_kill_task(q);
- 	while_each_thread(g, q);
--
-+	if (!p->mm)
-+		printk(KERN_INFO "Fixed up OOM kill of mm-less task\n");
- 	read_unlock(&tasklist_lock);
-+	mmput(mm);
- 
- 	/*
- 	 * Make kswapd go out of the way, so "p" has a good chance of
+Daniel
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
