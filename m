@@ -1,61 +1,81 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id JAA00041
-	for <linux-mm@kvack.org>; Tue, 21 Jan 2003 09:27:55 -0800 (PST)
-Date: Tue, 21 Jan 2003 09:27:54 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: 2.5.59-mm1
-Message-Id: <20030121092754.146e64ff.akpm@digeo.com>
-In-Reply-To: <Pine.LNX.3.96.1030121085913.30318A-100000@gatekeeper.tmr.com>
-References: <20030117002451.69f1eda1.akpm@digeo.com>
-	<Pine.LNX.3.96.1030121085913.30318A-100000@gatekeeper.tmr.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Wed, 22 Jan 2003 01:19:00 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Linux 2.4 VM Documentation - Take 3
+Message-ID: <Pine.LNX.4.44.0301212359350.2402-100000@skynet>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Davidsen <davidsen@tmr.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Bill Davidsen <davidsen@tmr.com> wrote:
->
-> On Fri, 17 Jan 2003, Andrew Morton wrote:
-> 
-> > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm1/
-> 
-> > -rcf.patch
-> > 
-> >  run-child-first didn't seem to help anything, and an alarming number of
-> >  cleanups and fixes were needed to get it working right.  Later.
-> 
-> I don't know about right, it seems to make threaded applications
-> originally developed on BSD work better (much lower context switching).
-> Anyone know if BSD does rcf? This may be an artifact of...
+This is the third draft at a pair of papers aimed at documenting fully how
+the 2.4 VM functions. I have made a large number of additions and
+corrections so I felt another release would not hurt even if I still have
+a few chapters to go. The most notable change is the introduction of a
+chapter on the boot memory allocator. The full list of changes as best as
+I can remember is listed at the end of this mail.
 
-"seems to make"?  This is too vague for me to comment on, unfortunately.
+It can be found in the various formats at
 
-What applications?  What measurements have been made?
+Understanding the Linux Virtual Memory Manager
+PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
+HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
+Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
 
-It can only affect creation of new threads, not the switching between extant
-ones.
+Code Commentary on the Linux Virtual Memory Manager
+PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
+HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code
+Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
 
-> > +ext3-scheduling-storm.patch
-> > 
-> >  Fix the bug wherein ext3 sometimes shows blips of 100k context
-> >  switches/sec.
-> 
-> Is this a 2.5 bug only? Does this need to be back ported to 2.4? Perhaps
-> this is why I have ctx rate problems and some other sites don't with a
-> certain application. Very commercial, unfortunately.
-> 
+Any and all comments and corrections, especially on the bootmem allocator,
+are welcome. If there is some section that you feel is not covered in
+adequate detail or is omitted entirely, email me and I'll see what can be
+done.
 
-The problem has existed in 2.4 since 2.4.20-pre5.  The context switch
-problem will only exhibit for small periods of time (say, 10's to 100's of
-milliseconds) when the filesystem is under heavy write load.
+>> Fullish list of changes, can't remember them all :-/ <<
 
-A patch for 2.4 is at
+o Added a chapter description how the boot memory allocator works
 
-http://www.zip.com.au/~akpm/linux/patches/2.4/2.4.20/ext3-scheduling-storm.patch
+o Added an explanation on the difference between mm_users and mm_count
+
+o Fixed the explanation on pages_min, pages_low and pages_high. The
+  language was quite confusing the way it was and open to misinterpretation
+
+o Added sections on exception handling and how it applies to copying
+  to/from userspace. Thanks go to Ingo Oeser for highlighting the
+  importance and clarifying exactly how it worked to me (Thanks Ingo!)
+
+o Large number of grammar and spelling mistakes, thanks to all who sent
+  corrections as I am useless at proof reading this document now, the list
+  of people is too large to list
+
+o Corrected a part of the buddy allocator code commentary where a typo
+  reversed the meaning of __GFP_WAIT
+
+o Fixed a section where it is explained why 64GiB is an impractical
+  amount of memory because of ZONE_NORMAL pressure. I calculated the
+  amount of memory needed for mem_map wrong (Thank you Jean Francois Martinez)
+
+o Fixed some call graphs where the order when traversed depth-first did
+  not match what was in the code due to a bug in gengraph. New release of
+  gengraph is out which works with recent 2.5 kernels and fixes the
+  traversals
+
+o Various other bits and pieces I can't recall
+
+-- 
+Mel Gorman				| "Documentation is like sex: when it is
+MSc Student, University of Limerick	| good, it is very, very good and when
+http://www.csn.ul.ie/~mel		| it is bad, it is better than nothing"
+							-- Dick Brandon
+
+
+
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
