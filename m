@@ -1,27 +1,23 @@
-Date: Thu, 14 Jun 2001 13:42:15 -0300 (BRT)
+Date: Thu, 14 Jun 2001 14:28:11 -0300 (BRT)
 From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: [PATCH] "unlazy swapcache" patch from 2.4.6pre3 to 2.4.5ac13
-Message-ID: <Pine.LNX.4.21.0106141335510.8439-100000@freak.distro.conectiva>
+Subject: Second patch against ac13: page_launder() changes
+Message-ID: <Pine.LNX.4.21.0106141426130.9084-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-Hi, 
+Here are Rik's page_launder() changes which have been merged in pre3. 
 
-I'm starting to "port" a few VM changes from 2.4.6pre series to 2.4.5ac. 
-
-This is the first one: Unlazy the swapcache and remove the
-clean_dead_swap_page() stuff added in the -ac series before.
-
-http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.5ac13/free_page_and_swap.patch
+Applies on top of the latest patch. 
 
 
-Alan, you may want to merge this. 
- 
+
+http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.5ac13/page_launder.patch
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
