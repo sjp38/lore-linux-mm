@@ -1,51 +1,42 @@
-Message-Id: <200305200731.h4K7Vcu03263@Port.imtp.ilyichevsk.odessa.ua>
-Content-Type: text/plain;
-  charset="koi8-r"
-From: Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>
-Reply-To: vda@port.imtp.ilyichevsk.odessa.ua
-Subject: Re: Finalised 2.4 VM Documentation
-Date: Tue, 20 May 2003 10:37:39 +0300
-References: <Pine.LNX.4.53.0305191329310.24249@skynet>
-In-Reply-To: <Pine.LNX.4.53.0305191329310.24249@skynet>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Date: Tue, 20 May 2003 01:11:57 -0700
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: [RFC][PATCH] vm_operation to avoid pagefault/inval race
+Message-Id: <20030520011157.3f6b73a6.akpm@digeo.com>
+In-Reply-To: <20030519182305.C1813@us.ibm.com>
+References: <200305172021.56773.phillips@arcor.de>
+	<20030517124948.6394ded6.akpm@digeo.com>
+	<20030519182305.C1813@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>
+To: paulmck@us.ibm.com
+Cc: phillips@arcor.de, hch@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 19 May 2003 15:53, Mel Gorman wrote:
-> I've finalised all the documentation that I'm going to do for the 2.4
-> VM and no further updates will be posted on the web site to this
-> version. At this stage it has been heavily read by a number of people
-> and there hasn't been a complaint or correction in a few weeks now. 
-> I'm happy to say it is now complete (and more importantly correct)
-> and acts as a detailed description of the 2.4 VM, the algorithms that
-> it is based on and comprehensive coverage of the code. People who are
-> only interested in the 2.5.x VMs will still find it much easier to
-> follow when they clearly know how 2.4 is put together.
+"Paul E. McKenney" <paulmck@us.ibm.com> wrote:
 >
-> As always, it comes in two parts. The first part is the actual
-> documentation and gives a description of the whole VM. The second is
-> a code commentary which covers a significant percentage of the VM for
-> guiding through the messier parts. They are available in PDF, HTML
-> and plain text formats.
->
-> Main site: http://www.csn.ul.ie/~mel/projects/vm/
->
-> Understanding the Linux Virtual Memory Manager
-> PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
-> HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
-> Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
->
-> Code Commentary on the Linux Virtual Memory Manager
-> PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
-> HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code
-> Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
+> So the general idea is to do something as follows, right?
 
-Wow! I'm going to sacrifice some dead wood media for that
---
-vda
+It sounds reasonable.  A matter of putting together the appropriate
+library functions and refactoring a few things.
+
+> 
+> o	Make a function, perhaps named something like
+> 	install_new_page(), that does the PTE-installation
+> 	and RSS-adjustment tasks currently performed by
+> 	both do_no_page() and by do_anonymous_page().
+
+That's similar to mm/fremap.c:install_page().  (Which forgets to call
+update_mmu_cache().  Debatably a buglet.)
+
+However there is not a lot of commonality between the various nopage()s and
+there may not be a lot to be gained from all this.  There is subtle code in
+there and it is performance-critical.  I'd be inclined to try to minimise
+overall code churn in this work.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
