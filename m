@@ -1,42 +1,44 @@
-Date: Mon, 5 Apr 2004 06:42:50 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
-Message-ID: <20040405044250.GB2234@dualathlon.random>
-References: <Pine.LNX.4.44.0403150527400.28579-100000@localhost.localdomain> <Pine.GSO.4.58.0403211634350.10248@azure.engin.umich.edu> <20040325225919.GL20019@dualathlon.random> <Pine.GSO.4.58.0403252258170.4298@azure.engin.umich.edu> <Pine.LNX.4.58.0404042311380.19523@red.engin.umich.edu>
+Date: Sun, 4 Apr 2004 22:59:20 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] get_user_pages shortcut for anonymous pages.
+Message-Id: <20040404225920.340c12ee.akpm@osdl.org>
+In-Reply-To: <20040402141710.GA1903@mschwid3.boeblingen.de.ibm.com>
+References: <20040402141710.GA1903@mschwid3.boeblingen.de.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0404042311380.19523@red.engin.umich.edu>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajesh Venkatasubramanian <vrajesh@umich.edu>
-Cc: akpm@osdl.org, hugh@veritas.com, mbligh@aracnet.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 04, 2004 at 11:14:25PM -0400, Rajesh Venkatasubramanian wrote:
-> 
-> This patch fixes a couple of mask overflow bugs in the prio_tree
-> search code. These bugs trigger in some very rare corner cases.
-> The patch also removes a couple of BUG_ONs from the fast paths.
-> 
-> Now the code is well-tested. I have tested all __vma_prio_tree_*
-> functions in the user-space with as many as 10 million vmas and
-> all prio_tree functions work fine.
+Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+>
+>  			struct page *map;
+>   			int lookup_write = write;
+>   			while (!(map = follow_page(mm, start, lookup_write))) {
+>  +				/*
+>  +				 * Shortcut for anonymous pages. We don't want
+>  +				 * to force the creation of pages tables for
+>  +				 * insanly big anonymously mapped areas that
+>  +				 * nobody touched so far. This is important
+>  +				 * for doing a core dump for these mappings.
+>  +				 */
+>  +				if (!lookup_write && 
+>  +				    (!vma->vm_ops || !vma->vm_ops->nopage)) {
+>  +					map = ZERO_PAGE(start);
+>  +					break;
+>  +				}
+>   				spin_unlock(&mm->page_table_lock);
 
-This is a great news.
+I think this will do the wrong thing if the virtual address refers to an
+anon page which is swapped out.
 
-> 
-> This patch is against 2.6.5-aa2. It will apply on top of Hugh's
-> patches also.
+You'd need to teach follow_page() to return one of three values:
+page-present, page-not-present-but-used-to-be or
+page-not-present-and-never-was.
 
-I'm releasing an update for this.
-
-> If you like to test the prio_tree code further in the user-space,
-> the programs in the following link may help you.
-> 
-> http://www-personal.engin.umich.edu/~vrajesh/linux/prio_tree/user_space/
-
-thanks for this great work.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
