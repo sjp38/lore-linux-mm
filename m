@@ -1,34 +1,26 @@
-Message-ID: <40205908.4080600@cyberone.com.au>
-Date: Wed, 04 Feb 2004 13:29:28 +1100
+Message-ID: <402065DE.9090902@cyberone.com.au>
+Date: Wed, 04 Feb 2004 14:24:14 +1100
 From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Subject: More VM benchmarks
+Subject: VM patches (please review)
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-OK I'm not too unhappy with kbuild now. I've flattened the
-curve a bit more since you last saw it. Would be nice if we
-could get j8 and j10 faster but you can't win them all.
+(may need to reload)
 
-I'm not sure what happens further on - Roger indicates that
-perhaps 2.4 overtakes 2.6 again at j24 although the patchset
-he used (http://www.kerneltrap.org/~npiggin/vm/3/) performs
-far worse than this one at j16. This is really not a big
-deal IMO, but I might run it and see what happens.
+Here are the patches to go with my earlier post.
+kernel is 2.6.2-rc3-mm1.
 
-The systime benchmarks are just a bit of fun. They don't
-mean too much because I didn't measure how much work kswapd
-is doing...
+I'm suire I've upset at least one uncommented^Wdivine
+balance so if anyone has time to review and comment
+it would be appreciated.
 
-Oh, the base kernel is 2.6.2-rc3-mm1 for -np3. I'll release
-the patches shortly.
-
-Best regards,
-Nick
+I can email the patches to the lists if anyone would
+like?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
