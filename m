@@ -1,40 +1,63 @@
-Date: Mon, 8 May 2000 11:20:58 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Mon, 8 May 2000 15:46:09 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Recent VM fiasco - fixed
 In-Reply-To: <dnln1kykkb.fsf@magla.iskon.hr>
-Message-ID: <Pine.LNX.4.10.10005081118200.811-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0005081544360.20958-100000@duckman.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Zlatko Calusic <zlatko@iskon.hr>
-Cc: riel@nl.linux.org, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-
 On 8 May 2000, Zlatko Calusic wrote:
+> Rik van Riel <riel@conectiva.com.br> writes:
+> > On 8 May 2000, Zlatko Calusic wrote:
+> > 
+> > > BTW, this patch mostly *removes* cruft recently added, and
+> > > returns to the known state of operation.
+> > 
+> > Which doesn't work.
+> > 
+> > Think of a 1GB machine which has a 16MB DMA zone,
+> > a 950MB normal zone and a very small HIGHMEM zone.
+> > 
+> > With the old VM code the HIGHMEM zone would be
+> > swapping like mad while the other two zones are
+> > idle.
+> > 
+> > It's Not That Kind Of Party(tm)
+> 
+> OK, I see now what you have in mind, and I'll try to test it when I
+> get home (yes, late worker... my only connection to the Net :))
+> If only I could buy 1GB to test in the real setup. ;)
 > 
 > But still, optimizing for 1GB, while at the same time completely
 > killing performances even *usability* for the 99% of users doesn't
 > look like a good solution, does it?
 
-Oh, definitely. I'll make a new pre7 that has a lot of the simplifications
-discussed here over the weekend, and seems to work for me (tested both on
-a 512MB setup and a 64MB setup for some sanity).
+20MB and 24MB machines will be in the same situation, if
+that's of any help to you ;)
 
-This pre7 almost certainly won't be all that perfect either, but gives a
-better starting point.
+> But after few hours spent dealing with the horrible VM that is
+> in the pre6, I'm not scared anymore. And I think that solution
+> to all our problems with zone balancing must be very simple.
 
-> But after few hours spent dealing with the horrible VM that is in the
-> pre6, I'm not scared anymore.
+It is. Linus is working on a conservative & simple solution
+while I'm trying a bit more "far-out" code (active and inactive
+list a'la BSD, etc...). We should have at least one good VM
+subsystem within the next few weeks ;)
 
-Good. This is really not scary stuff. Much of it is quite straightforward,
-and is mainly just getting the right "feel". It's really easy to make
-mistakes here, but they tend to be mistakes that just makes the system act
-badly, not the kind of _really_ scary mistakes (the ones that make it
-corrupt disks randomly ;)
+regards,
 
-		Linus
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
