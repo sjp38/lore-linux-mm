@@ -1,49 +1,48 @@
-Received: from sunsite.ms.mff.cuni.cz (sunsite.ms.mff.cuni.cz [195.113.19.66])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id DAA11611
-	for <linux-mm@kvack.org>; Wed, 26 May 1999 03:43:44 -0400
-Date: Wed, 26 May 1999 09:44:07 +0200
-From: Jakub Jelinek <jj@sunsite.ms.mff.cuni.cz>
-Subject: Re: [PATCH] cache large files in the page cache
-Message-ID: <19990526094407.J527@mff.cuni.cz>
-References: <m17lpzsi0h.fsf@flinx.ccr.net>
-Mime-Version: 1.0
+Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA16071
+	for <linux-mm@kvack.org>; Wed, 26 May 1999 12:14:58 -0400
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <m17lpzsi0h.fsf@flinx.ccr.net>; from Eric W. Biederman on Sun, May 23, 1999 at 02:28:14PM -0500
+Content-Transfer-Encoding: 7bit
+Message-ID: <14156.7671.583211.355576@dukat.scot.redhat.com>
+Date: Wed, 26 May 1999 17:14:47 +0100 (BST)
+Subject: Re: [VFS] move active filesystem
+In-Reply-To: <Pine.LNX.4.05.9905191820290.3829-100000@laser.random>
+References: <19990518183725.B30692@caffeine.ix.net.nz>
+	<Pine.LNX.4.05.9905191820290.3829-100000@laser.random>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Chris Wedgwood <cw@ix.net.nz>, Gabor Lenart <lgb@oxygene.terra.vein.hu>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Details:
-> 
-> This patch replaces vm_offset with vm_index, with the relationship:
-> vm_offset == (vm_index << PAGE_SHIFT).  Except vm_index can hold larger
-> offsets.
+Hi,
 
-I have minor suggestion to the patch. Instead of using vm_index <<
-PAGE_SHIFT and page->key << PAGE_CACHE_SHIFT shifts either choose different
-constant names for this shifting (VM_INDEX_SHIFT and PAGE_KEY_SHIFT) or hide
-these shifts by some pretty macros (you'll need two for each for both
-directions in that case - if you go the macro way, maybe it would be a good
-idea to make vm_index and key type some structure with a single member like
-mm_segment_t for more strict typechecking). This would have the advantage of
-avoiding shifting on 64bit archs, where it really is not necessary as no
-filesystem will support 16000EB filesizes in the near future. I know shifts
-are not expensive, on the other side count how many there will be and IMHO
-it should be considered. It could make the code more readable at the same
-time. VM_INDEX_SHIFT would be defined to 0 on alpha,sparc64
-(merced,mips64,ppc64) and PAGE_SHIFT on other platforms. The same with
-PAGE_KEY_SHIFT.
+On Wed, 19 May 1999 18:28:04 +0200 (CEST), Andrea Arcangeli
+<andrea@suse.de> said:
 
-Cheers,
-    Jakub
-___________________________________________________________________
-Jakub Jelinek | jj@sunsite.mff.cuni.cz | http://sunsite.mff.cuni.cz
-Administrator of SunSITE Czech Republic, MFF, Charles University
-___________________________________________________________________
-UltraLinux  |  http://ultra.linux.cz/  |  http://ultra.penguin.cz/
-Linux version 2.3.3 on a sparc64 machine (1343.49 BogoMips)
-___________________________________________________________________
+> BTW, allowing dirty pages in the page cache may avoid I/O to disk but
+> won't avoid memcpy data to the page cache even if the page cache was just
+> uptdate. So I am convinced right now update_shared_mappings() is the right
+> thing to do and it's not an dirty hack. It's only a not very efficient
+> implementation that has to play with pgd/pmd/pte because we don't have
+> enough information (yet) from the pagemap.
+
+To do it correctly, you need to do much more than just play with the
+page tables in the way your current update_shared_mappings() does,
+because the page can be at different addresses in different VAs.  For
+MAP_SHARED pages we have a list of all the VAs, but for MAP_PRIVATE
+pages we do not, and mremap() can still cause a shared private page
+(eg. data pages after fork()) to appear at different locations in
+different mms. 
+
+Dealing with that is a little tricky, but you can do it by keeping lists
+of "related" vmas, based on overlaps between the original addresses of
+the vmas, not their current addresses.  Private page sharing can only
+occur when the original address of the vmas overlapped, and that gives
+us an invariant to check for over mremap().
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
