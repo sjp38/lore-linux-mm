@@ -1,38 +1,31 @@
-Date: Sat, 6 Sep 2003 10:36:02 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: Ingo Molnar <mingo@elte.hu>
-Subject: Re: [PATCH 1/2] remap file pages MAP_NONBLOCK fix
-In-Reply-To: <202200000.1062791080@flay>
-Message-ID: <Pine.LNX.4.56.0309061034240.3396@localhost.localdomain>
-References: <Pine.LNX.4.44.0309051545190.22540-100000@chimarrao.boston.redhat.com>
- <202200000.1062791080@flay>
+Date: Sat, 6 Sep 2003 22:17:37 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: swap_free() inside delete_from_swap_cache
+In-Reply-To: <Pine.LNX.4.44.0309052200580.440-100000@tehran.clic.cs.columbia.edu>
+Message-ID: <Pine.LNX.4.44.0309062217090.6028-100000@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Rik van Riel <riel@redhat.com>, Jeff Garzik <jgarzik@pobox.com>, Rajesh Venkatasubramanian <vrajesh@eecs.umich.edu>, akpm@osdl.org, linux-mm@kvack.org
+To: "Raghu R. Arur" <rra2002@cs.columbia.edu>
+Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 5 Sep 2003, Martin J. Bligh wrote:
+On Fri, 5 Sep 2003, Raghu R. Arur wrote:
 
-> >> Or we could just kill remap_file_pages(), because it's a PITA to
-> >> maintain and it has maybe 10 legitimate users in the entire world...
-> > 
-> > It has its uses.  I just don't think it should support
-> > a non-mlocked VMA or deal with files being truncated.
-> > 
-> > The remap_file_pages we have in Taroon is pretty light
-> > weight. I hope the implementation in 2.6 will be
-> > simplified too ;)
-> 
-> We did actually agree to do this at Kernel Summit too ....
+>  Why is swap_free() called inside delete_from_swap_cache() in linux
+> 2.4.19? I believe delete_from_swap_cache() is called when we write a
+> page to the swap disk. swap_free() decreases the count of number of
+> references to that page.
 
-yep - i did most of the simplification for 2.4 and it worked out well.  
-Having fremap a non-swappable thing lessens the impact on the rest of the
-VM quite significantly.
+The swap cache itself has one of the references to the location
+on swap. 
 
-	Ingo
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
