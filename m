@@ -1,58 +1,39 @@
-Message-ID: <3ABB9CF2.E7715667@evision-ventures.com>
-Date: Fri, 23 Mar 2001 19:58:58 +0100
-From: Martin Dalecki <dalecki@evision-ventures.com>
-MIME-Version: 1.0
+Date: Fri, 23 Mar 2001 21:26:37 +0200 (MET DST)
+From: Szabolcs Szakacsits <szaka@f-secure.com>
 Subject: Re: [PATCH] Prevent OOM from killing init
-References: <E14gVQf-00056B-00@the-village.bc.nu>
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <E14gCYn-0003K3-00@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.30.0103232124120.13864-100000@fs131-224.f-secure.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: "James A. Sutherland" <jas88@cam.ac.uk>, Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I have a constructive proposal:
+On Thu, 22 Mar 2001, Alan Cox wrote:
 
-It would make much sense to make the oom killer
-leave not just root processes alone but processes belonging to a UID
-lower
-then a certain value as well (500). This would be:
+> One of the things that we badly need to resurrect for 2.5 is the
+> beancounter work which would let you reasonably do things like
+> guaranteed Oracle a certain amount of the machine, or restrict all
+> the untrusted users to a total of 200Mb hard limit between them etc
 
-1. Easly managable by the admin. Just let oracle/www and analogous users
-   have a UID lower then let's say 500.
+This would improve Linux reliability but it could be much better with
+added *optional* non-overcommit (most other OS also support this, also
+that's the default mostly [please no, "but it deadlocks" because it's
+not true, they also kill processes (Solaris, etc)]), reserved superuser
+memory (ala Solaris, True64, etc when OOM in non-overcommit, users
+complain and superuser acts, not the OS killing their tasks) and
+superuser *advisory* OOM killer [there was patch for this before], I
+think in the last area Linux is already more ahead than others at
+present.
 
-2. In full compliance with the port trick done by TCP/IP (ports < 1024
-vers other)
+About the "use resource limits!". Yes, this is one solution. The
+*expensive* solution (admin time, worse resource utilization, etc).
+Others make it cheaper mixing with the above ones.
 
-3. It wouldn't need any addition of new interface (no jebanoje gawno in
-/proc in addition()
+        Szaka
 
-4. Really simple to implement/document understand.
-
-5. Be the same way as Solaris does similiar things.
-
-...
-
-
-Damn: I will let my chess club alone toady and will just code it down
-NOW.
-
-Spec:
-
-1. Processes with a UID < 100 are immune to OOM killers.
-2. Processes with a UID >= 100 && < 500 are hard for the OOM killer to
-take on.
-3. Processes with a UID >= 500 are easy targets.
-
-Let me introduce a new terminology in full analogy to "fire walls"
-routers and therabouts:
-
-Processes of category 1. are called captains (oficerzy)
-Processes of category 2. are called corporals (porucznicy)
-Processes of category 2. are called privates (?o3nierze)
-
-;-)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
