@@ -1,27 +1,27 @@
-Received: from [179.134.208.145] (port=4059 helo=[paid])
-    by c-66-30-158-248.hsd1.ma.comcast.net with esmtp
-    id 2441963201acrobats48561
-    for linux-mm@kvack.org; Tue, 19 Jul 2005 20:06:21 -0700
+Received: from [110.161.91.152] (port=4536 helo=[ambassador])
+    by adsl196-146-210-206-196.adsl196-7.iam.net.ma with esmtp
+    id 2289625307monoprogramming58599
+    for linux-mm@kvack.org; Sat, 20 Jul 2002 21:27:36 +0000
 Mime-Version: 1.0 (Apple Message framework v728)
 Content-Transfer-Encoding: 7bit
-Message-Id: <5551647181.6280871783@c-66-30-158-248.hsd1.ma.comcast.net>
+Message-Id: <45141107242.10449215205@adsl196-146-210-206-196.adsl196-7.iam.net.ma>
 Content-Type: text/plain; charset=US-ASCII; format=flowed
-From: Caroline <spacers@weimer.com>
-Subject: Looking for quality oem software bundles? Try us at affordable wholesale rates for your business.
-Date: Tue, 19 Jul 2005 20:06:20 -0700
+From: Baldwin <Somali@soderstrom.as>
+Subject: Same medicine, different price!
+Date: Sat, 20 Jul 2002 21:27:35 +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Personalising technology solutions.
-http://efbh.lap06k3w0d3s0ml.retypekmdbh.com
+The Best Place To Find The Cheapest Medicine.
+http://jcxc.1gmu5k1cybj9n21.dcmioceneim.com
 
 
 
-
-Isn't everyone a part of everyone else?      
-Of all afflictions, the worst is self-contempt.      
+I prefer complexity to certainty, cheerful mysteries to sullen facts.   
+We are not sent into the world to air our moral prejudices. 
+The gods help them that help themselves.      
 
 
 --
