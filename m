@@ -1,30 +1,48 @@
-Date: Mon, 20 Oct 2003 13:10:08 -0700
+Date: Mon, 20 Oct 2003 14:48:36 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [BUG] Re: 2.6.0-test8-mm1
-Message-Id: <20031020131008.19125b7c.akpm@osdl.org>
-In-Reply-To: <1066677679.2121.3.camel@debian>
+Subject: Re: 2.6.0-test8-mm1
+Message-Id: <20031020144836.331c4062.akpm@osdl.org>
+In-Reply-To: <200310201811.18310.schlicht@uni-mannheim.de>
 References: <20031020020558.16d2a776.akpm@osdl.org>
-	<1066677679.2121.3.camel@debian>
+	<200310201811.18310.schlicht@uni-mannheim.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ramon.rey@hispalinux.es
-Cc: rrey@ranty.pantax.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Thomas Schlichter <schlicht@uni-mannheim.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ramon Rey Vicente <rrey@ranty.pantax.net> wrote:
+Thomas Schlichter <schlicht@uni-mannheim.de> wrote:
 >
-> The same problem with other kernel versions. I get it trying to delete
-> my local 2.6 svn repository:
+> On Monday 20 October 2003 11:05, Andrew Morton wrote:
+> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test8/2
+> >.6.0-test8-mm1
+> >
+> >
+> > . Included a much updated fbdev patch.  Anyone who is using framebuffers,
+> >   please test this.
+> >
+> > . Quite a large number of stability fixes.
 > 
-> EXT3-fs error (device hdb1): ext3_free_blocks: Freeing blocks in system
-> zones - Block = 512, count = 1
+> I've got a problem with NFS!
+> If the kernel NFS server (nfs-utils 1.0.6) is started I get following Oops:
+> 
+> Installing knfsd (copyright (C) 1996 okir@monad.swb.de).
+> Unable to handle kernel NULL pointer dereference at virtual address 00000000
+>  printing eip:
+> c0163c36
+> *pde = 00000000
+> Oops: 0000 [#1]
+> PREEMPT
+> CPU:    0
+> EIP:    0060:[invalidate_list+37/211]    Not tainted VLI
 
-This is consistent with a corrupted filesystem.  Have you forced a fsck
-against that partition?
+A colleague here has discovered that this crash is repeatable, but goes
+away when the radeon driver is disabled.  
 
+Are you using that driver?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
