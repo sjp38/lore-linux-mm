@@ -1,79 +1,48 @@
-Date: Wed, 6 Apr 2005 00:58:04 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: "orphaned pagecache memleak fix" question.
-Message-Id: <20050406005804.0045faf9.akpm@osdl.org>
-In-Reply-To: <16978.46735.644387.570159@gargle.gargle.HOWL>
-References: <16978.46735.644387.570159@gargle.gargle.HOWL>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <3e092hot96mw537dw$eiq584v30f1$dpy05hzc6@P5>
+From: "Douglas Schroeder" <ylzwx@163.net>
+References: <adolph13-JI0PALyzSdaQ944MGK67540z6@mixmail.com>
+Subject: Tha new rollax repliccas has finelly arrived algebraic
+Date: Wed, 06 Apr 2005 06:15:00 -0500
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--936du878abominablel955"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nikita Danilov <nikita@clusterfs.com>
-Cc: Andrea@Suse.DE, linux-mm@kvack.org, AKPM@osdl.org
+To: Linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nikita Danilov <nikita@clusterfs.com> wrote:
->
-> Hello,
-> 
-> I have few question about recent "orphaned pagecache memleak fix"
-> change-set:
+----936du878abominablel955
+Content-Type: text/plain;
+Content-Transfer-Encoding: 7Bit
 
-Something was wrong with that patch.  I accidentally left a printk in there
-and nobody has ever reported the printk coming out.
+The new craze is finnally here - one of the bast
+sites that can give you the things you've allways
+wanted to get - watchees, repliccas to be correct,
+of the bast brand s in the world! Impress you're lady
+with tag heur, roleex, and more. You naame it - We
+got it for you!
 
-IOW: we can probably revert it (or fix it!) but first we need to get down
-and work out what's happening.
+mmmmm show me more :-)
+http://abigail.edyo.com/r/jenna/adverb.htm
 
->  - how is it supposed to work with file systems that use page->private
->  (and PG_private) for something else than buffer head ring? Such file
->  systems may leak truncated pages for precisely the same reasons
->  reiserfs does, and try_to_free_buffers(page) will most likely oops;
+the piercinglife shop is the premier source in the world for unusual and exclusive top cheap quality body piercing jewellery catering for all tastes and fashions and delivering worldwide.
+fyi - greenwoods has had a major makeover and is now an up-market health center its actually not as bad as it sounds!
+fond memories of school classmates friends and family came rushing back as i scrol led through the postings.
+it was also good to see justice done today for the families and colleagues of the three officers shot in leeds last boxing day particularly for the family of pc broadhurst.
+hey gals i m the archon for the epsilon chi chapter and i stumbled upon your site at the request of another ex sister your site is awesome it looks really great! keep it up!
+the robert robbins famly that i am looking for married a leatha traylor i do not know anything els about my dad but his name i sure would like to know more thanks e r m chan.
+your site is very inspirational i wish only the best god has to offer to you he is a miracle worker!
+good work dj can t say i m getting all the gags but i like the writing seems quite open and personal like the art a lot too talk to you on the forums!
+what an incredible website!!!!! absolutely stupendous and obviously a work of love for the creators.
+thank you for sharing your experience with us all you remind me that nothing should be taken for granted.
+hello nice site keep up the good work if you have a minute please sing my guestbook gastenboek at my site tnkx greetings from holland the netherlands.
+called in to see your site and to welcome you to emeraldisle s ve will be delighted to support your site all the best in your competitions.
+great new work! i loved your home page with the lighthouse and moving water the website is very user friendly and the music lends it a great effect!! also i was impressed how quickly everything loaded.
+thank s for yor free stuff and i m waiting for your tutorial how make new character from new object.
+as the son of a police officer who was shot and seriously wounded whilst on duty an incident which also saw the tragic death of a young officer i commend you and thank you for the work you are doing.
 
-You're screwed, sorry.  If PagePrivate is set and ->mapping is null we just
-assume that the thing at ->private is buffers.  It's awful.
+----936du878abominablel955--
 
-If the fs doesn't leave buffers at ->private then it simply cannot allow
-->invalidatepage() to return 0.  It must invalidate the page.  We could do
-that right now in ext3 (for example) by blocking in ->invalidatepage(). 
-(Run a commit, retry the invalidation).
-
-The assumption that the thing at ->private is buffers should be viewed
-as a performance hack for buffer-backed address_spaces only.
-
-Note that the patch to which you refer doesn't add this hack - it's already
-been there for a long time, in a different place:
-
-		if (PagePrivate(page)) {
-			if (!try_to_release_page(page, sc->gfp_mask))
-				goto activate_locked;
-			if (!mapping && page_count(page) == 1)
-				goto free_it;
-		}
-
-If we get here with a null ->mapping, we'll assume that ->private contains
-a buffer ring.
-
-
-To which reiserfs do you refer?  reiser4, I assume?
-
-
->  - as I see it, nr_dirty shouldn't be updated after calling
->  ClearPageDirty() because page->mapping was NULL already at the time of
->  corresponding __set_page_dirty_nobuffers() call. Right?
-
-That seems to be correct, yes.
-
->  - wouldn't it be simpler to unconditionally remove page from LRU in
->  ->invalidatepage()?
-
-I guess that's an option, yes.  If the fs cannot successfully invalidate
-the page then it can either block (as described above) or remove the page
-from the LRU.  The fs then wholly owns the page.
-
-I think it would be better to make ->invalidatepage always succeed though. 
-The situation is probably rare.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
