@@ -1,42 +1,36 @@
-Content-Type: text/plain;
-Message-Id: <4.3.2.7.2.2005279.00b0a10@designs.com>
-Date: Sat, 26 Feb 2005 20:20:02 +0200
-From: "Ebony Lloyd" <MDFLLXTUCZAVLB@duoton.nl>
-Subject: its your last chance!
+Date: Sat, 26 Feb 2005 14:36:50 -0800
+Message-Id: <YGQY63SHSV18.PP510VXQQ78-AWAD921ZXNE13.RCME6903NXK1-T4368LRY53.HF3697VDYB2@cufflink.org>
+From: "Owzs.Kim@excite.com" <Azs.Mcdaniel@excite.com>
+Subject: Pre-approved Application #5446076V Sat, 26 Feb 2005 14:36:50 -0800
+MIME-Version: 1.0
+Content-Type: text; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
+Cc: linux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------ Original Message ----- 
-From: Patricia <electroencephalogram13@hotmail.com> 
-To: asleep1@msn.com <Patricia@msn.com> ; mythicpurport@yahoo.com
-<hypothyroid4216@yahoo.com >; 
+Hi,
 
-Dear Homeowner,
+Did you know?
+You can now get $347,000 for as little as $607 a month!
+Why should you pay more when you can save thousands re-financing at our low rates?
+Remember, that rates are due to jump withint he next few months.
+Bad credit? Doesn't matter, low rates are fixed no matter what!
 
-Mortgage. You have been pre-approved.
-You can get $243,000 for as little as $232 a month, thanks to your pre-approval. 
-Visit us, Fill out the form, no obligation
-Pull cash out, or refinance.. 
-No long forms or quastionnaires. Fill up our extremely short and simple form today and get a call back within a couple of hours. 
+Use the extra for home additions, improvements, or whatever you could not afford to do before.
+Fill out this 30 sec. form and be approved within the next 24 hours.
 
-Start saving now, click that link:
+http://www.ohsomerates.com/x/loan.php?id=a17
 
-http://www.easy-as-1-2-3.com/1/index/bvk
-
+Best Regards,
+Spencer George
 
 
 
-
-
-
-
-
-
-gully rg apostate adu composure my olympia sqb chilean xs violate cag 
-inexpert bhw mutagen qz delicacy sn leafy lhh 
-http://easy-as-1-2-3.com/rem.php
+http://www.ohsomerates.com/x/st.html
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
