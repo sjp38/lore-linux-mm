@@ -1,43 +1,71 @@
-Message-ID: <3BAFA2CA.FAA0D9CB@earthlink.net>
-Date: Mon, 24 Sep 2001 21:16:58 +0000
-From: Joseph A Knapka <jknapka@earthlink.net>
-MIME-Version: 1.0
-Subject: Re: Process not given >890MB on a 4MB machine ?????????
-References: <5D2F375D116BD111844C00609763076E050D1680@exch-staff1.ul.ie>
+Date: Tue, 25 Sep 2001 04:04:48 -0700
+From: Mike Fedyk <mfedyk@matchmail.com>
+Subject: Re: broken VM in 2.4.10-pre9
+Message-ID: <20010925040448.F8738@mikef-linux.matchmail.com>
+References: <Pine.LNX.4.33L.0109200903100.19147-100000@imladris.rielhome.conectiva> <20010921080549Z16344-2758+350@humbolt.nl.linux.org> <20010921112722.A3646@cs.cmu.edu> <20010922070205Z16210-2757+1207@humbolt.nl.linux.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20010922070205Z16210-2757+1207@humbolt.nl.linux.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Gabriel.Leen" <Gabriel.Leen@ul.ie>
-Cc: "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Gabriel.Leen" wrote:
+On Sat, Sep 22, 2001 at 09:09:10AM +0200, Daniel Phillips wrote:
+> On September 21, 2001 05:27 pm, Jan Harkes wrote:
+> > On Fri, Sep 21, 2001 at 10:13:11AM +0200, Daniel Phillips wrote:
+> > >   - small inactive list really means large active list (and vice versa)
+> > >   - aging increments need to depend on the size of the active list
+> > >   - "exponential" aging may be completely bogus
+> > 
+> > I don't think so, whenever there is sufficient memory pressure, the scan
+> > of the active list is not only done by kswapd, but also by the page
+> > allocations.
+> > 
+> > This does have the nice effect that with a large active list on a system
+> > that has a working set that fits in memory, pages basically always age
+> > up, and we get an automatic used-once/drop-behind behaviour for
+> > streaming data because the age of these pages is relatively low.
+> > 
+> > As soon as the rate of new allocations increases to the point that
+> > kswapd can't keep up, which happens if the number of cached used-once
+> > pages is too small, or the working set expands so that it doesn't fit in
+> > memory. The memory shortage then causes all pages to agressively get
+> > aged down, pushing out the less frequently used pages of the working set.
+> > 
+> > Exponential down aging simply causes us to loop fewer times in
+> > do_try_to_free_pages is such situations.
 > 
-> Hello again,
-> And thanks,
+> In such a situation that's a horribly inefficient way to accomplish this and 
+> throws away a lot of valuable information.  Consider that we're doing nothing 
+> but looping in the vm in this situation, so nobody gets a chance to touch 
+> pages, so nothing gets aged up.  So we are really just deactivating all the 
+> pages that lie below a given theshold.
 > 
->         >You will either need to use a true 64-bit machine (POWER, Alpha,
->         >UltraSPARC or MIPS)
+> Say that the threshold happens to be 16.  We loop through the active list 5 
+> times and now we have not only deactivated the pages we needed but collapsed 
+> all ages between 16 and 31 to the same value, and all ages between 32 and 63 
+> to just two values, losing most of the relative weighting information.
 > 
-> I hope (fingers crossed) that there is some way around this
-> I think that Redhat  now supports up to 64GB of ram,
-> as the Xeon has 36 address lines, see attached.
+> Would it not make more sense to go through the active list once, deactivate 
+> all pages with age less than some computed threshold, and subtract that 
+> threshold from the rest?
 > 
-> I'm only grasping at straws here, but I hope that it is somehow possible
-> on this machine?
 
-No. You still only get a maximum of 4GB of -virtual- space per
-process. The machine can address up to 64GB of -physical- RAM,
-but a single process (actually a single page directory) can
-see only 4GB at a time. Sorry :-(
+If I understand the thread between Rik and the guy from FreeBSD (sorry,
+don't remember his name), then what they are doing is they have a computed
+swap level that rises as needed, and doesn't modify the aging of any of the
+pages.
 
--- Joe
-# Replace the pink stuff with net to reply.
-# "You know how many remote castles there are along the
-#  gorges? You can't MOVE for remote castles!" - Lu Tze re. Uberwald
-# Linux MM docs:
-http://home.earthlink.net/~jknapka/linux-mm/vmoutline.html
+So, if you have pages ages at 5 7 15 30 45 each loop through
+do_try_to_free_pages will raise swap_thresh by whatever increment.
+
+Looping through, you first get the pages at 5, 7, then 15 until you swap out
+enough.  While this is happening, you let the normal referencing modify the
+aging, not the act of swapping.
+
+I know this is quite simplistic, but it may help.  What do you guys think?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
