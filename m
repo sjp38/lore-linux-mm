@@ -1,67 +1,37 @@
-Date: Fri, 4 Mar 2005 16:53:58 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: no page_cache_get in do_wp_page?
-In-Reply-To: <Pine.LNX.4.58.0503031104500.9773@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.61.0503041631580.4758@goblin.wat.veritas.com>
-References: <Pine.LNX.4.58.0503031104500.9773@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, akpm@osdl.org
+Date: Mon, 14 Feb 2005 06:36:10 -0700
+Message-Id: bqeyhc33juy5vubacxr8sdz18joj69.i93HovTw006729@vais.net>
+From: "Julian Sanderson" <bilbrey@emailaccount.com>
+Subject: Need a 3.25% mortage rate?
+Mime-Version: 1.0
+Content-Type: text/plain;
+Return-Path: <bilbrey@emailaccount.com>
+To: linux-mm-archive@kvack.org
+Cc: mailer-daemon@kvack.org, mm@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.orgux-aio@kvack.orgux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 3 Mar 2005, Christoph Lameter wrote:
+Hello,
 
-> We do a page_cache_get in do_wp_page but we check the pte for changes later.
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-I remember it well(ish) - end of July 2001, 2.4.8-pre - my change.
+ You have qualified for the lowest rate in years...
 
-> So why do a page_cache_get at all? Do the copy and maybe copy garbage and
-> if the pte was changed forget about it. This avoids having to keep state
-> for the page copied from.
-> 
-> Nick and I discussed this a few weeks ago and there were no further comments.
+ You could get over $380,000 for as little as $500 a month!
 
-Sorry, I seem to have missed that discussion.
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
 
-> Andrew thought that this need to be discussed in more detail.
-> 
-> So maybe there is a situation in which the pte
-> can go away and then be restored to exactly the
-> same value it had before?
-> 
-> The first action that would need to happen is that the swapper(?)
-> clears the pte (and puts the page on the free lists?).
-> 
-> Then the same page with the same pte flags would have to be mapped to
-> the same virtual address again but something significant about the page
-> must have changed.
+ 
+ To get a free, no obli,gation consultation click below:
 
-Exactly.  But for it to be a problem, there needs to be more.
+ http://www.gr8lendez.com/x/loan.php?id=nu
 
-You have to imagine the page is reused for some other purpose after
-it's freed from here, gets unrelated data written into it, do_wp_page's
-copy_user_highpage picks up some or all of that unrelated data, then
-it's freed again and chosen for the very same pte slot as before,
-all while the original do_wp_pager has dropped the page_table_lock.
 
-Not your most likely race, and I'd find it hard to write an exploit ;)
 
-But possible - or it was back then.  I have the ghost of a memory that
-shortly afterwards some unrelated mod by bcrl independently fixed the
-hole; but I can't see it now, perhaps that was in the -ac tree only.
+ Best Regards,
 
-> mmap and related stuff is all not possible because mmap_sem semaphore
-> is held but the page_table_lock is dropped for for the allocation and
-> the copy.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
+ Orville Carmichael
+ 
+ to be remov(ed:	http://www.gr8lendez.com/x/st.html
 
-Nacked-by: Hugh Dickins <hugh@veritas.com> !
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
