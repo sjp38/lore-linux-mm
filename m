@@ -1,81 +1,53 @@
-From: Ms.Nily <farming-machine@cqxh.com>
-Reply-To: farming-machine@cqxh.com
-Subject: Agriculture Machinery.
-Date: Mon, 22 Jul 2002 20:15:30 +0800
+Date: Mon, 22 Jul 2002 10:34:07 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH][1/2] return values shrink_dcache_memory etc
+In-Reply-To: <3D3BAA5B.E3C100A6@zip.com.au>
+Message-ID: <Pine.LNX.4.44L.0207221029590.3086-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="f35bfb27-9dad-11d6-8d77-00e08cc002f2"
-Message-Id: <20020722120833Z26539-14142+99@kvack.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, William Lee Irwin III <wli@holomorphy.com>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ed Tomlinson <tomlins@cam.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format
---f35bfb27-9dad-11d6-8d77-00e08cc002f2
-Content-Type: text/plain; charset=gb2312
-Content-Transfer-Encoding: quoted-printable
+On Sun, 21 Jul 2002, Andrew Morton wrote:
+> "Martin J. Bligh" wrote:
 
+> > These large NUMA machines should actually be rmap's glory day in the
+> > sun.
+>
+> "should be".  Sigh.  Be nice to see an "is" one day ;)
 
+You asked for a "minimal rmap" patch and you got it. ;)
 
-Dear Sir:
+Bill and I actually have code for many of the things listed
+but we haven't submitted it yet exactly because everybody
+wanted the code merged in small, manageable chunks.
 
-We are indebted for your address to the Internet. And know that you are in =
-the market for Agriculture Machinery. 
+> Do you think that large pages alone would be enough to allow us
+> to leave pte_chains (and page tables?) in ZONE_NORMAL, or would
+> shared pagetables also be needed?
 
-It is on this subject that we approach you today in the hope of establishing =
-mutually beneficial trading relations.
+Large pages should reduce the page table overhead by a factor
+of 1024 (or 512 for PAE) and have the same alignment restrictions
+that shared page tables have.
 
-Chongqing ZongShen General Power Machine Co. LTD. It is a subsidiary under =
-the jurisdiction of ZongShen Group, invested 50 Million CNY from ZongShen =
-Group&HongKong Enterprise. The company is mainly engaged in the R&D, =
-production of utility gasoline engine and also including the utility =
-machinery powered by which, the latest international utility engine =
-technology was introduced.
+OTOH, shared page tables would allow us to map in chunks smaller
+than 4MB ... but at what seems like a pretty horrible locking and
+accounting complexity, unless somebody comes up with a smart trick.
 
-Currently our company products range covers utility gasoline engine, =
-multi-functional Mini-tiller, generators, water pump, etc. Annual production =
-capacity can reach 500 thousand sets.
+Apart from both of these we'll also need code to garbage collect
+empty page tables so users can't clog up memory by mmaping a page
+every 4 MB ;)
 
-We determined high-tech&premium-quantity as our start point, aims to build-up =
-a hundred-year-managing enterprise, and to establish worldwide brand. With =
-the strong and powerful back-up from ZongShen Group, the first-class =
-personnel resource, the latest high-technology, advanced equipment, complete =
-management system, our company will put all our efforts to build-up the =
-first-rate brand in the specialized field.
+regards,
 
-Kindly please click on our website and get the detail information of our =
-products.
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
 
-
-
-http://www.cq114.com.cn/English/production/mechanic/nongji/zongshen/index.htm=
-r 
-
-
-
-For your information, in our trade with customers in many countries, we =
-always adhere to the principle of equality, mutual benefit and the exchange =
-of need goods thus, by our joint efforts, to promote both business and =
-friendship to our mutual advantage.
-
- 
-
-We look forward to receiving your enquires soon, and remain,
-
-
-
-Yours faithfully
-
-
-
-Ms. Nily
-E-mail: farming-machine@cqxh.com
-
-
-
- 
-  
---f35bfb27-9dad-11d6-8d77-00e08cc002f2--
+http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
