@@ -1,40 +1,34 @@
-Date: Fri, 27 Jun 2003 07:43:50 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: [RFC] My research agenda for 2.7
-Message-ID: <23430000.1056725030@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.53.0306271345330.14677@skynet>
-References: <200306250111.01498.phillips@arcor.de> <200306262100.40707.phillips@arcor.de><Pine.LNX.4.53.0306262030500.5910@skynet> <200306270222.27727.phillips@arcor.de> <Pine.LNX.4.53.0306271345330.14677@skynet>
+Date: Fri, 27 Jun 2003 16:54:46 +0200
+References: <200306250111.01498.phillips@arcor.de> <Pine.LNX.4.53.0306271345330.14677@skynet> <23430000.1056725030@[10.10.2.4]>
+In-Reply-To: <23430000.1056725030@[10.10.2.4]>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+Message-Id: <200306271654.46491.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, Daniel Phillips <phillips@arcor.de>
+To: "Martin J. Bligh" <mbligh@aracnet.com>, Mel Gorman <mel@csn.ul.ie>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> > I also wonder if moving kernel pages is really worth the hassle.
->> 
->> That's the question of course.  The benefit is getting rid of high order
->> allocation failures, and gaining some confidence that larger filesystem
->> blocksizes will work reliably, however the workload evolves.
+On Friday 27 June 2003 16:43, Martin J. Bligh wrote:
+> The buddy allocator is not a good system for getting rid of fragmentation.
 
-Oh, BTW ... I suspect you've realised this already, but ....
+We've talked in the past about throwing out the buddy allocator and adopting 
+something more modern and efficient and I hope somebody will actually get 
+around to doing that.  In any event, defragging is an orthogonal issue.  Some 
+allocation strategies may be statistically more resistiant to fragmentation 
+than others, but no allocator has been invented, or ever will be, that can 
+guarantee that terminal fragmentation will never occur - only active 
+defragmentation can provide such a guarantee.
 
-The buddy allocator is not a good system for getting rid of fragmentation. 
-If I group pages together in aligned pairs, and F is free and A is 
-allocated, it'll not do anything useful with this:
+Regards,
 
-F A   A F   F A   A F   F A   A F   F A   A F   F A   F A 
-
-because the adjacent "F"s aren't "buddies". It seems that the purpose of
-the buddy allocator was to be quick at allocating pages. Now that we stuck
-a front end cache on it, in the form of hot & cold pages, that goal no
-longer seems paramount - altering it to reduce fragmentation at the source,
-rather than actively defrag afterwards would seem like a good goal to me.
-
-M.
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
