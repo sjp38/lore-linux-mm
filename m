@@ -1,50 +1,51 @@
-Message-ID: <3D479F21.F08C406C@zip.com.au>
-Date: Wed, 31 Jul 2002 01:26:09 -0700
-From: Andrew Morton <akpm@zip.com.au>
+Date: Wed, 31 Jul 2002 13:10:00 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: How did paging_init ever work with PAE?
+In-Reply-To: <536090000.1028076330@flay>
+Message-ID: <Pine.LNX.4.21.0207311255100.980-100000@localhost.localdomain>
 MIME-Version: 1.0
-Subject: throttling dirtiers
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Cc: linux-mm mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Here's an interesting test.
+On Tue, 30 Jul 2002, Martin J. Bligh wrote:
+> We're crashing in paging_init under certain circumstances, but on
+> closer inspection, I'm unsure how this ever could have worked.
+> Obviously it does most of the time, so I'm missing something ....
+> 
+> With PAE on, the code path looks like this:
+> 
+>         pagetable_init();
+>         load_cr3(swapper_pg_dir);
+>         if (cpu_has_pae)
+>                 set_in_cr4(X86_CR4_PAE);
+> 
+> Hmmm .... pagetable_init sets up a PGD for PAE use, then we load
+> cr3 with this table .... then we turn on PAE mode.
+> 
+> How are we surviving in this limbo state between the point when
+> we reload cr3 and when we turn on PAE? If we take a page fault
+> (which we will, since reloading cr3 flushes the tlb) is the PGD 
+> somehow dual purpose and works for non-PAE systems as well?
 
-- mem=512m
-- Run a program which mallocs 400 megs and then madly sits
-  there touching each page.
-- Do a big `dd' to a file.
+Yes.
 
-Everything works nicely - all the anon memory sits on the active
-list, all writeback is via shrink_cache -> vm_writeback.
-Bandwidth is good.
+> Are we relying on the global bit on entries on the TLB cache which
+> we're just praying aren't going to fall out?
 
-But as we discussed, we really shouldn't be doing the IO from
-within the VM.  balance_dirty_pages() is never triggering
-because the system is not reaching 40% dirty.
+No.
 
-It would make sense for the VM to detect an overload
-of dirty pages coming off the tail of the LRU and to reach
-over and tell balance_dirty_pages() to provide throttling,
+See swapper_pg_dir in arch/i386/kernel/head.S: at swapper_pg_dir+0xc00
+there's a couple of 32-bit non-PAE entries to map 0xc0000000-0xc07fffff
+where the kernel is; whereas pagetable_init sets up four 64-bit PAE
+entries at swapper_pg_dir (overwriting the non-PAE identity mappings,
+yes, but they won't be needed during changeover from non-PAE to PAE).
 
-If we were to say "gee, of the last 1,000 pages, 25% were
-dirty, so tell balance_dirty_pages() to throttle everyone"
-then that would be too late because the LRU will be _full_
-of dirty pages.
+Hugh
 
-I can't think of a sane way of keeping track of the number
-of dirty pages on the inactive list, because the locking
-is quite disjoint.
-
-But we can certainly track the amount of anon memory in
-the machine, and set the balance_dirty_pages thresholds
-at 0.4 * (total memory - anon memory) or something like
-that.
-
-Thoughts?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
