@@ -1,34 +1,32 @@
-Date: Wed, 08 Sep 2004 10:31:13 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Wed, 8 Sep 2004 14:04:31 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: swapping and the value of /proc/sys/vm/swappiness
-Message-ID: <5860000.1094664673@flay>
-In-Reply-To: <413F1518.7050608@sgi.com>
-References: <413CB661.6030303@sgi.com> <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <20040907212051.GC3492@logos.cnet> <413F1518.7050608@sgi.com>
+In-Reply-To: <5860000.1094664673@flay>
+Message-ID: <Pine.LNX.4.44.0409081403500.23362-100000@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, piggin@cyberone.com.au
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Ray Bryant <raybry@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, piggin@cyberone.com.au
 List-ID: <linux-mm.kvack.org>
 
-> It seems to me that the 5% number in there is more or less arbitrary. 
-> If we are on a big memory Altix (4 TB), 5% of memory would be 200 GB. 
-> That is a lot of page cache.
+On Wed, 8 Sep 2004, Martin J. Bligh wrote:
 
-For HPC, maybe. For a fileserver, it might be far too little. That's the
-trouble ... it's all dependant on the workload. Personally, I'd prefer
-to get rid of manual tweakables (which are a pain in the ass in the field
-anyway), and try to have the kernel react to what the customer is doing.
-I guess we can leave them there for overrides, but a self-tunable default
-would be most desirable.
+> For HPC, maybe. For a fileserver, it might be far too little. That's the
+> trouble ... it's all dependant on the workload. Personally, I'd prefer
+> to get rid of manual tweakables (which are a pain in the ass in the field
+> anyway), and try to have the kernel react to what the customer is doing.
 
-For instance, would be nice if we started doing writeback to the spindles
-that weren't busy much earlier than if the disks were thrashing.
+Agreed.  Many of these things should be self-tunable pretty
+easily, too...
 
-M.
+
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
