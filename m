@@ -1,64 +1,41 @@
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA07921
-	for <linux-mm@kvack.org>; Fri, 12 Jun 1998 01:06:25 -0400
-Subject: shmfs-0.1.009 & shmfs-0.3.001 are available
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 12 Jun 1998 00:00:25 -0500
-Message-ID: <m11zsv5i52.fsf@flinx.npwt.net>
+Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA11932
+	for <linux-mm@kvack.org>; Fri, 12 Jun 1998 17:29:39 -0400
+Date: Fri, 12 Jun 1998 22:29:14 +0100
+Message-Id: <199806122129.WAA02233@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: patch for 2.1.102 swap code
+In-Reply-To: <m167i857t1.fsf@flinx.npwt.net>
+References: <356478F0.FE1C378F@star.net>
+	<199805241728.SAA02816@dax.dcs.ed.ac.uk>
+	<m190nq4jan.fsf@flinx.npwt.net>
+	<199805262152.WAA02934@dax.dcs.ed.ac.uk>
+	<m167i857t1.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: SHMFS list <ebiederm+shmfs@npwt.net>
-Cc: linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm+eric@npwt.net>
+Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-When pondering how to add POSIX.4 shared memory areas to linux it
-occured to me that probably the easiest way would be just to implement
-a simple filesystem, and code into libc in which directory to look.
+On 11 Jun 1998 09:31:22 -0500, ebiederm+eric@npwt.net (Eric W. Biederman) said:
 
-It also occured to me this would be a good opportunity to work on
-adding dirty page support to the page cache code and I have done that
-as well.
+>>>>>> "ST" == Stephen C Tweedie <sct@dcs.ed.ac.uk> writes:
+ST> Hi,
+>>> Note: there is a problem with swapoff that should at least be considered.
+>>> If you use have a SYSV shared memory, and don't map it into a process,
+>>> and that memory get's swapped out, swapoff will not be able to find it.
 
-The quick synopsis of what I have written is as follows:
-A complete filesystem that resides in swap, and for kicks and reduced
-  space consumption uses a btree for all of it's directories.
-A patch to allow the page cache to handle dirty files
-A patch to allow the swapoff to work with swap pages that do not
-  reside in page tables.  
-  SYSV shared memory has been modified to work with this, fixing a
-  really old/rare swapoff bug.
-A patch to allow asynchronous I/O to swapfiles.
+ST> Thanks; it's added to my list.
 
-This is an beta release, aimed at producing a stable version shortly.
+> Here is a preliminary patch that should fix the problem.
 
-My code is at:
-http://www.npwt.net/~ebiederm/files/
-files:
-shmfs-0.1.009.tar.gz shmfs-0.3.001.tar.gz
+Thanks; it's queued for attention.  I'm off to Usenix tomorrow, but
+I'll be doing lots and lots of VM stuff when I get back (I'm going
+full time courtesy of Red Hat --- yay!), so I'll check and test and
+then submit to Linus if all looks OK.
 
-shmfs-0.3.001 is a developmental version written primarily by 
-Gabor Kuti <seasons@falcon.sch.bme.hu> where new features are being
-worked upon.  Since I just started integrating his patches I may have
-done something stupid...
-
-shmfs-0.1.009 has hit the code freeze before becoming shmfs-0.2.000
-a stable and usefull version.  Strange interactions with kernel memory
-management are the only things left before 0.2
-
-This works with both kernels 2.0.32 and 2.1.101.  
-2.1.102-2.1.105 should also work but I haven't tested those.
-2.0.32 support is almost necessary so I can tell my bugs from, those
-of others :)
-
-Changes since 0.1.008:
-Fixed minor bugs and ported to kernel 101.  Now I should have a
-correct kernel patch, on a kernel that handles swapping correctly.
-Use on development kernels is no longer discouraged, only minor
-performance glitches appear to remain as problems there.
-
-Changes since 0.1.004:
-I have synchronized my two versions, and rewritten a bunch of namei
-code in the search for races.  And I have found and fixed my
-mysterious mutating symlink bug.
-
-Eric
+--Stephen
