@@ -1,70 +1,47 @@
-Date: Tue, 8 Apr 2003 18:43:06 +0200
+From: Ed Tomlinson <tomlins@cam.org>
 Subject: Re: 2.5.67-mm1
-Message-ID: <20030408164306.GB568@hh.idb.hist.no>
-References: <20030408042239.053e1d23.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 8 Apr 2003 12:50:55 -0400
+References: <20030408042239.053e1d23.akpm@digeo.com> <200304080917.15648.tomlins@cam.org> <20030408091048.002a2e08.akpm@digeo.com>
+In-Reply-To: <20030408091048.002a2e08.akpm@digeo.com>
+MIME-Version: 1.0
 Content-Disposition: inline
-In-Reply-To: <20030408042239.053e1d23.akpm@digeo.com>
-From: Helge Hafting <helgehaf@aitel.hist.no>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200304081250.55925.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Devfs fails to find all partitions with 2.5.67-mm1, plain 2.5.67 is fine
+On April 8, 2003 12:10 pm, Andrew Morton wrote:
+> Does the below patch help?
 
-I have 2 scsi disks, and 2.5.67-mm1 find only some of the partitions
-when I boot.  Below is ls -l listings for /dev/discs/disc0 and
-/dev/discs/disc1.  Note the missing stuff - linux wasn't at all 
-happy when the device for /usr couldn't be found at boot time.
-Running cfdisk showed that the partitions were there though.
+Yes.  With it 67-mm1 boots.  I do find the following in dmesg though: 
 
-Helge Hafting
+CPU: AMD-K6(tm) 3D+ Processor stepping 01
+Checking 'hlt' instruction... OK.
+POSIX conformance testing by UNIFIX
+Initializing RT netlink socket
+mtrr: v2.0 (20020519)
+pty: 256 Unix98 ptys configured
+Bad boy: i8042 (at 0xc0320738) called us without a dev_id!
+Bad boy: i8042 (at 0xc0320852) called us without a dev_id!
+Bad boy: i8042 (at 0xc020a9e8) called us without a dev_id!
+serio: i8042 AUX port at 0x60,0x64 irq 12
+Bad boy: i8042 (at 0xc020a9e8) called us without a dev_id!
+input: AT Set 2 keyboard on isa0060/serio0
+serio: i8042 KBD port at 0x60,0x64 irq 1
+PCI: PCI BIOS revision 2.10 entry at 0xfb520, last bus=1
+PCI: Using configuration type 1
+BIO: pool of 256 setup, 14Kb (56 bytes/bio)
 
-2.5.67-mm1: ls -l /dev/discs/disc0/ 
-total 0
-brw-rw----    1 root     disk       8,   0 Jan  1  1970 disc
-crw-------    1 root     root      21,   0 Jan  1  1970 generic
-brw-rw----    1 root     disk       8,   1 Jan  1  1970 part1
-brw-rw----    1 root     disk       8,   8 Jan  1  1970 part8
+Box seems to work fine.  There is nothing plugged onto AUX
+as my mouse is USB.  The keyboard is plugged into the other
+PS2 port...
 
-2.5.67:  ls -l /dev/discs/disc0/
-totalt 0
-brw-rw----    1 root     disk       8,   0 1970-01-01 01:00 disc
-crw-------    1 root     root      21,   0 1970-01-01 01:00 generic
-brw-rw----    1 root     disk       8,   1 1970-01-01 01:00 part1
-brw-rw----    1 root     disk       8,   2 1970-01-01 01:00 part2
-brw-rw----    1 root     disk       8,   3 1970-01-01 01:00 part3
-brw-rw----    1 root     disk       8,   5 1970-01-01 01:00 part5
-brw-rw----    1 root     disk       8,   6 1970-01-01 01:00 part6
-brw-rw----    1 root     disk       8,   7 1970-01-01 01:00 part7
-brw-rw----    1 root     disk       8,   8 1970-01-01 01:00 part8
-
-And the second disk:
-2.5.67-mm1: ls -l /dev/discs/disc1/
-total 0
-brw-rw----    1 root     disk       8,  16 Jan  1  1970 disc
-crw-------    1 root     root      21,   1 Jan  1  1970 generic
-brw-rw----    1 root     disk       8,  17 Jan  1  1970 part1
-brw-rw----    1 root     disk       8,  18 Jan  1  1970 part2
-brw-rw----    1 root     disk       8,  22 Jan  1  1970 part6
-brw-rw----    1 root     disk       8,  23 Jan  1  1970 part7
-brw-rw----    1 root     disk       8,  24 Jan  1  1970 part8
-
-2.5.67:  ls -l /dev/discs/disc1/
-totalt 0
-brw-rw----    1 root     disk       8,  16 1970-01-01 01:00 disc
-crw-------    1 root     root      21,   1 1970-01-01 01:00 generic
-brw-rw----    1 root     disk       8,  17 1970-01-01 01:00 part1
-brw-rw----    1 root     disk       8,  18 1970-01-01 01:00 part2
-brw-rw----    1 root     disk       8,  21 1970-01-01 01:00 part5
-brw-rw----    1 root     disk       8,  22 1970-01-01 01:00 part6
-brw-rw----    1 root     disk       8,  23 1970-01-01 01:00 part7
-brw-rw----    1 root     disk       8,  24 1970-01-01 01:00 part8
-
-
+Ed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
