@@ -1,36 +1,56 @@
-Date: Tue, 13 Jul 2004 15:22:19 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Tue, 13 Jul 2004 17:27:34 -0500
+From: Brent Casavant <bcasavan@sgi.com>
+Reply-To: Brent Casavant <bcasavan@sgi.com>
 Subject: Re: Scaling problem with shmem_sb_info->stat_lock
-Message-ID: <20040713222219.GL21066@holomorphy.com>
-References: <Pine.SGI.4.58.0407131449330.111843@kzerza.americas.sgi.com> <Pine.LNX.4.44.0407132113350.8577-100000@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <Pine.LNX.4.44.0407132113350.8577-100000@localhost.localdomain>
+Message-ID: <Pine.SGI.4.58.0407131722250.111843@kzerza.americas.sgi.com>
+References: <Pine.LNX.4.44.0407132113350.8577-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: Brent Casavant <bcasavan@sgi.com>, linux-mm@kvack.org
+Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 13, 2004 at 09:41:34PM +0100, Hugh Dickins wrote:
-> I think Jack's right: there's no visible mount point for df or du,
-> the files come ready-unlinked, nobody has an fd.
-> Though wli's per-cpu idea was sensible enough, converting to that
-> didn't appeal to me very much.  We only have a limited amount of
-> per-cpu space, I think, but an indefinite number of tmpfs mounts.
-> Might be reasonable to allow per-cpu for 4 or them (the internal
-> one which is troubling you, /dev/shm, /tmp and one other).  Tiresome.
-> Jack's perception appeals to me much more
-> (but, like you, I do wonder if it'll really work out in practice).
+On Tue, 13 Jul 2004, Hugh Dickins wrote:
 
-I ignored the specific usage case and looked only at the generic one.
-Though I actually had in mind just shoving an array of cachelines in
-the per-sb structure, it apparently is not even useful to maintain for
-the case in question, so why bother?.
+> On Tue, 13 Jul 2004, Brent Casavant wrote:
 
+> > Assuming this is correct, I imagine I should just snag the next
+> > bit in the flags field (bit 0 is SHMEM_PAGEIN (== VM_READ) and
+> > bit 1 is SHMEM_TRUNCATE (== VM_WRITE), I'd use bit 2 for
+> > SHMEM_NOACCT (== VM_EXEC)) and run with this idea, right?
+>
+> Yes, go ahead, though it's getting more and more embarrassing that I
+> started out reusing VM_ACCOUNT within shmem.c, it should now have its
+> own set of flags: let me tidy that up once you're done.  (Something
+> else I should do for your scalability is stop putting everything on
+> on the shmem_inodes list: that's only needed when pages are on swap.)
+>
+> But please don't call the new one SHMEM_NOACCT: ACCT or ACCOUNT refers
+> to the security_vm_enough_memory/vm_unacct_memory stuff throughout,
+> and _that_ accounting does still apply to these /dev/zero files.
+>
+> Hmm, I was about to suggest SHMEM_NOSBINFO,
+> but how about really no sbinfo, just NULL sbinfo?
 
--- wli
+OK, I gave this a try (calling it SHMEM_NOSBINFO).  It seems to work
+functionally.  I can't get time on our 512P until tomorrow morning (CDT),
+so I'll hold off on the patch until I've seen that it really fixes the
+problem.
+
+I'd really like to volunteer to do the work to have a NULL sbinfo
+entirely.  But that might take a lot more time to accomplish as
+I'm still puzzled by how all these pieces interact.
+
+Thanks,
+Brent
+
+-- 
+Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
+Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
+Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
