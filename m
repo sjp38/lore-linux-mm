@@ -1,34 +1,32 @@
-Received: from sp1n293en1.watson.ibm.com (sp1n293en1.watson.ibm.com [9.2.112.57])
-	by igw2.watson.ibm.com (8.11.4/8.11.4) with ESMTP id h1RLlDj32060
-	for <linux-mm@kvack.org>; Thu, 27 Feb 2003 16:47:13 -0500
-Received: from watson.ibm.com (discohall.watson.ibm.com [9.2.17.22])
-	by sp1n293en1.watson.ibm.com (8.11.4/8.11.4) with ESMTP id h1RLlCV51024
-	for <linux-mm@kvack.org>; Thu, 27 Feb 2003 16:47:12 -0500
-Message-ID: <3E5E8832.688AE0CB@watson.ibm.com>
-Date: Thu, 27 Feb 2003 16:50:42 -0500
-From: "Raymond B. Jennings III" <raymondj@watson.ibm.com>
-Reply-To: raymondj@watson.ibm.com
-MIME-Version: 1.0
-Subject: Top 128MB of virtual address space
-Content-Type: text/plain; charset=us-ascii
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id NAA13838
+	for <linux-mm@kvack.org>; Thu, 27 Feb 2003 13:47:28 -0800 (PST)
+Date: Thu, 27 Feb 2003 13:44:03 -0800
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: Rising io_load results Re: 2.5.63-mm1
+Message-Id: <20030227134403.776bf2e3.akpm@digeo.com>
+In-Reply-To: <200302280822.09409.kernel@kolivas.org>
+References: <20030227025900.1205425a.akpm@digeo.com>
+	<200302280822.09409.kernel@kolivas.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Con Kolivas <kernel@kolivas.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For linux running on an Intel machine without PAE, the top 128MB of
-virtual address space:
+Con Kolivas <kernel@kolivas.org> wrote:
+>
+> 
+> This started some time around 2.5.62-mm3 with the io_load results on contest 
+> benchmarking (http://contest.kolivas.org) rising with each run.
+> ...
+> Mapped:       4294923652 kB
 
-If
-PKMAP_BASE = FE000000
-
-and
-FIXADDR_START=FFF55000
-
-That leaves a 32MB area.  I believe the permanent highmem mappings are
-1024 pages so that leaves 28MB of address space.  What is this space
-used for if anything?
+Well that's gotta hurt.  This metric is used in making writeback decisions. 
+Probably the objrmap patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
