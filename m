@@ -1,49 +1,67 @@
-Message-ID: <38F339A2.FB3F1699@colorfullife.com>
-Date: Tue, 11 Apr 2000 16:41:38 +0200
-From: Manfred Spraul <manfreds@colorfullife.com>
+Date: Tue, 11 Apr 2000 18:22:31 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
+In-Reply-To: <200004110245.TAA57888@google.engr.sgi.com>
+Message-ID: <Pine.LNX.4.21.0004111752550.19969-100000@maclaurin.suse.de>
 MIME-Version: 1.0
-Subject: Re: zap_page_range(): TLB flush race
-References: <200004082331.QAA78522@google.engr.sgi.com> <E12e4mo-0003Pn-00@the-village.bc.nu> <20000410232149.M17648@redhat.com> <200004102312.QAA05115@pizda.ninka.net> <20000411101418.E2740@redhat.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "David S. Miller" <davem@redhat.com>, alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" wrote:
-> 
-> 
-> OK, I'm sure there are optimisation issues, but I was worried about
-> correctness problems from what Alan said.
-> 
+On Mon, 10 Apr 2000, Kanoj Sarcar wrote:
 
-They are correctness problems:
-[I'm only reading the asm source, I might be wrong]
+>While forking, a parent might copy a swap handle into the child, but we
 
-* s390 has hardware support for tlb flush ipis.
-* it doesn't support hardware contexts (address space numbers, region
-id,...)
-* They need the old pte value and the virtual address for their flush
-ipi.
+That's a bug in fork. Simply let fork to check if the swaphandle is SWAPOK
+or not before increasing the swap count. If it's SWAPOK then
+swap_duplicate succesfully, otherwise do the swapin using swap cache based
+locking as swapin now does in my current tree (check if the pte is changed
+before go to increase the swap side and undo the swapcache insertion in
+such case and serialize with swapoff and swap_out with page_cache_lock).
 
--->
-	set_pte()
-	flush_tlb_page()
-doesn't work.
+>Same problem exists in exit_mmap. In this case, one of the routines inside
+>exit_mmap() can very plausibly go to sleep. Eg: file_unmap.
 
-Obviously their work-around
-	flush_tlb_page()
-	set_pte()
-is wrong as well, and it breaks all other architectures :-/
+exit_mmap can sleep there. But it have not to hide the mmap as said in
+earlier email. It have to zap_page_range and then unlink the vmas all bit
+by bit serializing using the vmlist_modify_lock.
 
-They need an atomic set_and_flush_pte() macro.
-OTHO on i386 a tlb flush during set_pte() would cause a dramatic
-slowdown.
+>> swap_out() can't grab the mmap_sem for obvious reasons, so if you only
+>
+>Why not? Of course, not with tasklist_lock held (Hehehe, I am not that 
+>stupid :-)). But other mechanisms are possible.
 
---
-	Manfred
+Lock recursion -> deadlock.
+
+	userspace runs
+	page fault
+		down(&current->mm->mmap_sem);
+		try_to_free_pages();
+			swap_out();
+			down(&current->mm->mmap_sem); <- you deadlocked			
+
+We are serializing swap_out/do_wp_page with the page_cache_lock (in
+swapout the page_cache_lock is implied by the vmlist_access_lock).
+
+In the same way I'm serializing swapoff with swapin using swap cache based
+on locking and pagetable checks with page_cache_lock acquired and
+protecting swapoff with the vmlist_access_lock() that imply the
+page_cache_lock.
+
+Using the page_cache_lock and rechecking page table looks the right way to
+go to me. It have no design problems that ends in lock recursion.
+
+>Actually, let me put out the patch, for different reasons, IMO, it is the
+>right long term solution ...
+
+The patch is welcome indeed. However relying on the mmap_sem looks the
+wrong way to me.
+
+Andrea
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
