@@ -1,49 +1,35 @@
-From: Benno Senoner <sbenno@gardena.net>
-Subject: Re: [linux-audio-dev] Re: new latency report
-Date: Sun, 9 Jul 2000 20:13:47 +0200
-Content-Type: text/plain
-References: <E13BL8P-00022Z-00@the-village.bc.nu>
-In-Reply-To: <E13BL8P-00022Z-00@the-village.bc.nu>
+Date: Sun, 9 Jul 2000 14:11:09 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Swap clustering with new VM 
+In-Reply-To: <20000706142945.A4237@redhat.com>
+Message-ID: <Pine.LNX.4.21.0007091340520.14314-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Message-Id: <00070920393600.02245@smp>
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>, Roger Larsson <roger.larsson@norran.net>
-Cc: "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-audio-dev@ginette.musique.umontreal.ca" <linux-audio-dev@ginette.musique.umontreal.ca>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>, Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 09 Jul 2000, Alan Cox wrote:
-> > and the 704ms used to busy loop in modprobe...
-> > (SB16 non PnP)
-> 
-> I take patches for the sb16 if it bugs you enough to fix it.
+On Thu, 6 Jul 2000, Stephen C. Tweedie wrote:
 
-The point is that modprobe will be a general problem:
-many modules will freeze your box for dozen if not hundreds of msecs.
-( eg aic7xxx )
+<snip> 
 
-We can live with this if we require that the user insmods all the modules
-at  boottime. 
+> For example, our swap clustering relies on allocating
+> sequential swap addresses to sequentially scanned VM addresses, so
+> that clustered swapout and swapin work naturally.  Switch to
+> physically-ordered swapping and there's no longer any natural way of
+> getting the on-disk swap related to VA ordering, so that swapin
+> clustering breaks completely.  To fix this, you need the final swapout
+> to try to swap nearby pages in VA space at the same time.  It's a lot
+> of work to get it right.
 
-The problem could be the audiomatic module loading / cleaning 
-(kmod).
+AFAIK XFS's pagebuf structure contains a list of contiguous on-disk
+buffers, so the filesystem can do IO on a pagebuf structure avoiding disk
+seek time.
 
-For example how do we know in advance that the user wants to use
-pppd ? (ppp.o , slhc.o )
+Do you plan to fix the swap clustering problem with a similar idea? 
 
-If he is offline while doing low-latency audio , and suddenly needs
-something from the net, as soon as he fires up pppd, a latency-peak
-may occur.
-
-So a  way to avoid latency peaks would be to inform the user, that
-if (during his audio recording sessions) he wants to do some stuff which
-requires module loading , he has to preload the modules at boottime,
-and disable automatic module cleanup.
-
-Anyone better ideas ?
-
-Benno.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
