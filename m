@@ -1,8 +1,8 @@
-Date: Thu, 7 Sep 2000 05:08:56 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
+Date: Thu, 7 Sep 2000 10:30:25 +0100 (BST)
+From: Tigran Aivazian <tigran@veritas.com>
 Subject: Re: Would you please send me the Linux OS source code !
 In-Reply-To: <0056890013895956000002L962*@MHS>
-Message-ID: <Pine.GSO.4.10.10009070450370.286-100000@weyl.math.psu.edu>
+Message-ID: <Pine.LNX.4.21.0009071028140.1304-100000@saturn.homenet>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -10,7 +10,6 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: sanjay.bh@philips.com
 Cc: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
-
 
 On Thu, 7 Sep 2000 sanjay.bh@philips.com wrote:
 
@@ -21,20 +20,19 @@ On Thu, 7 Sep 2000 sanjay.bh@philips.com wrote:
 >    Thank you !
 >    my mail is: sanjay.bh@philips.com
 
-	Dear Sir,
+Hi Sanjay,
 
-	You have posted to mailing list with several dozens of subscribers
-requesting them to send about a gigabyte of gzipped sources to address
-sanjay.bh@philips.com. We regret to inform you that your request can
-not be processed unless you use the proper form. Correct way is to put
+Sorry if you were made fun of, a little bit - it was in order as your
+request was indeed rather stupid.
 
-X-Mailbomb-To: <address>
-X-Mailbomb-Size: <size>
+Anyway, don't take it personally and you can find the source code of the
+Linux kernel (for that is what "operating system" is - the kernel) at:
 
-in headers and leave the message body empty. Please, resubmit your request
-using the right form so that it could be processed. Thank you for
-cooperation.
-						The Management.
+ftp://ftp.kernel.org/pub/linux/kernel/v2.4
+
+Regards,
+Tigran
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
