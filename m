@@ -1,67 +1,52 @@
-Message-ID: <3ED92679.2030208@attbi.com>
-Date: Sat, 31 May 2003 17:02:33 -0500
-From: Jordan Breeding <jordan.breeding@attbi.com>
-MIME-Version: 1.0
-Subject: Re: 2.5.70-mm3
-References: <20030531013716.07d90773.akpm@digeo.com>
-In-Reply-To: <20030531013716.07d90773.akpm@digeo.com>
+Date: Sat, 31 May 2003 16:48:16 -0700
+From: "Paul E. McKenney" <paulmck@us.ibm.com>
+Subject: Re: Always passing mm and vma down (was: [RFC][PATCH] Convert do_no_page() to a hook to avoid DFS race)
+Message-ID: <20030531234816.GB1408@us.ibm.com>
+Reply-To: paulmck@us.ibm.com
+References: <20030530164150.A26766@us.ibm.com> <20030531104617.J672@nightmaster.csn.tu-chemnitz.de>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20030531104617.J672@nightmaster.csn.tu-chemnitz.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@digeo.com, hch@infradead.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
-
-Hello,
-
-  I have some good new and some bad news about 2.5.70-mm3.
-
-The good news:
-
-  The reiserfs changes seem to be stable, I have been running this
-kernel on an all reiserfs box since this morning and everything seems
-completely fine with it.
-
-The bad news:
-
-  Somewhere in the changes brought in from Linus BK (I assume since
-there were USB changes there, but none that I noticed in your changes),
-all my USB keyboard LEDs stopped working.  Numlock and capslock still
-seem to function correctly but the LEDs on the keyboard no longer work,
-with 2.5.70-mm2 they worked on VTs and in X, with 2.5.70-mm3 they don't
-work on either.
-
-Jordan
-
-Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70-mm3/
+On Sat, May 31, 2003 at 10:46:18AM +0200, Ingo Oeser wrote:
+> On Fri, May 30, 2003 at 04:41:50PM -0700, Paul E. McKenney wrote:
+> > -struct page *
+> > -ia32_install_shared_page (struct vm_area_struct *vma, unsigned long address, int no_share)
+> > +int
+> > +ia32_install_shared_page (struct mm_struct *mm, struct vm_area_struct *vma, unsigned long address, int write_access, pmd_t *pmd)
 > 
-> . More ext3 fixes.  It seems fully recovered now.
+> Why do we always pass mm and vma down, even if vma->vm_mm
+> contains the mm, where the vma belongs to? Is the connection
+> between a vma and its mm also protected by the mmap_sem?
 > 
-> . Some cleanups and enhancements to the O_SYNC rework.
+> Is this really necessary or an oversight and we waste a lot of
+> stack in a lot of places?
 > 
-> . A couple of fairly significant reiserfs enhancements.  See the changelogs
->   in the individual patches for detail
-> <snipped>
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
->
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
-Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org
+> If we just need it for accounting: We need current->mm, if we
+> need it to locate the next vma relatively to this vma, vma->vm_mm
+> is the one.
 
-iD8DBQE+2SZ9SigNyqq/SRwRAuNRAJ41zmOyRsBSAhfZgEnvtdEEvCM3lgCgnGuZ
-awd9bdIuzRipIrQBM+sAvH8=
-=rDoY
------END PGP SIGNATURE-----
+Interesting point.  The original do_no_page() API does this
+as well:
 
+	static int
+	do_no_page(struct mm_struct *mm, struct vm_area_struct *vma,
+		   unsigned long address, int write_access, pte_t *page_table, pmd_t *pmd)
+
+As does do_anonymous_page().  I assumed that there were corner
+cases where this one-to-one correspondence did not exist, but
+must confess that I did not go looking for them.
+
+Or is this a performance issue, avoiding a dereference and
+possible cache miss?
+
+					Thanx, Paul
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
