@@ -1,45 +1,44 @@
-Date: Fri, 4 Apr 2003 19:24:01 -0800
-From: Andrew Morton <akpm@digeo.com>
+Date: Fri, 04 Apr 2003 19:35:13 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: objrmap and vmtruncate
-Message-Id: <20030404192401.03292293.akpm@digeo.com>
-In-Reply-To: <20030405024414.GP16293@dualathlon.random>
-References: <20030404163154.77f19d9e.akpm@digeo.com>
-	<12880000.1049508832@flay>
-	<20030405024414.GP16293@dualathlon.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <8090000.1049513712@[10.10.2.4]>
+In-Reply-To: <20030404192201.75794957.akpm@digeo.com>
+References: <Pine.LNX.4.44.0304041453160.1708-100000@localhost.localdomain><20030404105417.3a8c22cc.akpm@digeo.com><20030404214547.GB16293@dualathlon.random><20030404150744.7e213331.akpm@digeo.com><20030405000352.GF16293@dualathlon.random><20030404163154.77f19d9e.akpm@digeo.com><12880000.1049508832@flay> <20030404192201.75794957.akpm@digeo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: andrea@suse.de, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli <andrea@suse.de> wrote:
->
-> Indeed. objrmap is the only way to avoid the big rmap waste. Infact I'm
-> not even convinced about the hybrid approch, rmap should be avoided even
-> for the anon pages. And the swap cpu doesn't matter, as far as we can
-> reach pagteables in linear time that's fine, doesn't matter how many
-> fixed cycles it takes. Only the complexity factor matters, and objrmap
-> takes care of it just fine.
+>> >   objrmap does not seem to help.  Page clustering might, but is unlikely to
+>> >   be enabled on the machines which actually care about the overhead.
+>> 
+>> eh? Not sure what you mean by that. It helped massively ...
+>> diffprofile from kernbench showed:
+>> 
+>>      -4666   -74.9% page_add_rmap
+>>     -10666   -92.0% page_remove_rmap
+>> 
+>> I'd say that about an 85% reduction in cost is pretty damned fine ;-)
+>> And that was about a 20% overall reduction in the system time for the
+>> test too ... that was all for partial objrmap (file backed, not anon).
+> 
+> In the test I use (my patch management scripts, which is basically bash
+> forking its brains out) objrmap reclaims only 30-50% of the rmap CPU
+> overhead.
+> 
+> Maybe you had a very high sharing level.
 
-Well not really.
+Not especially, I was running "make -j 32" for that one, which seems like
+a fairly small sharing load (though maybe a bit lighter than yours still).
+Going to high numbers of tasks will show even more impressive improvements.
+"make -j 256" actually looked reasonably similar.
 
-Consider the case where 100 processes each own 100 vma's against the same
-file.
-
-To unmap a page with objrmap we need to search those 10,000 vma's (10000
-cachelines).  With full rmap we need to search only 100 pte_chain slots (3 to
-33 cachelines).  That's an enormous difference.  It happens for *each* page.
-
-And, worse, we have the same cost when searching for referenced bits in the
-pagetables.  Nobody has written an "exploit" for this yet, but it's there.
-
-Possibly we should defer the assembly of the pte chain until a page hits the
-tail of the LRU.  That's an awkward time to be allocating memory though.  We
-could perhaps fall back to the vma walk if pte_chain allocation starts to
-endanger the page reserves.
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
