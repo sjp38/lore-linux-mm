@@ -1,26 +1,35 @@
-Date: Tue, 18 May 2004 12:22:33 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: VM documentation and book
-In-Reply-To: <200405171035.28170@WOLK>
-Message-ID: <Pine.LNX.4.58.0405181222040.26872@skynet>
-References: <Pine.LNX.4.58.0405152152110.14376@skynet> <200405171035.28170@WOLK>
+From: Dimitri Sivanich <sivanich@sgi.com>
+Message-Id: <200405211541.i4LFfpar001544@fsgi142.americas.sgi.com>
+Subject: Slab cache reap and CPU availability
+Date: Fri, 21 May 2004 10:41:50 -0500 (CDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marc-Christian Petersen <m.c.p@kernel.linux-systeme.com>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 May 2004, Marc-Christian Petersen wrote:
+Hi all,
 
-> I can't say how much I appreciate this and your effort. Thanks alot!
->
+I have a fairly general question about the slab cache reap code.
 
-No problem, it kept me out of mischief for a while :)
+In running realtime noise tests on the 2.6 kernels (spinning to detect periods
+of CPU unavailability to RT threads) on an IA/64 Altix system, I have found the
+cache_reap code to be the source of a number of larger holdoffs (periods of
+CPU unavailability).  These can last into the 100's of usec on 1300 MHz CPUs.
+Since this code runs periodically every few seconds as a timer softirq on all
+CPUs, holdoffs can occur frequently.
 
--- 
-Mel Gorman
+Has anyone looked into less interruptive alternatives to running cache_reap
+this way (for the 2.6 kernel), or maybe looked into potential optimizations
+to the routine itself?
+
+
+Thanks in advance,
+
+Dimitri Sivanich <sivanich@sgi.com>
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
