@@ -1,34 +1,59 @@
-Received: from concentric.net (adsl66-112-21-223-rb.sm.centurytel.net [66.112.21.223]) by l-daemon (iPlanet Messaging Server 5.2 HotFix 1.18 (built Jul 28 2003)) with ESMTP id <262B4F5803DFD3@l-daemon> for linux-mm@kvack.org; Wed, 09 Mar 2005 03:21:14 -0200
-Date: Wed, 09 Mar 2005 00:15:14 -0500
-From: Alissa Posey <nqrrnsouqg@concentric.net>
-Subject: National Treasure
-Message-ID: <02787815471644455166427$9a750b35b@webtv.net>
-MIME-version: 1.0
-Content-type: text/plain; charset=ISO-8859-1
-Content-transfer-encoding: 7bit
+Date: Tue, 8 Mar 2005 15:04:24 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] 2/2 Prezeroing large blocks of pages during allocation
+ Version 4
+In-Reply-To: <422D8F2A.4010002@jp.fujitsu.com>
+Message-ID: <Pine.LNX.4.58.0503081458440.3227@skynet>
+References: <20050307194021.E6A86E594@skynet.csn.ul.ie> <422D42BF.4060506@jp.fujitsu.com>
+ <Pine.LNX.4.58.0503081012270.30439@skynet> <422D8F2A.4010002@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Do you remember when I was telling you about that 
-link I received?
-http://www.makeitmetronow.com/html/htm.html
+On Tue, 8 Mar 2005, KAMEZAWA Hiroyuki wrote:
 
-You can file share dvd's, video games & music.  
-I bookmarked about 9 pages of dvd movies I wanted.
-Already started downloading them.
-Wait untill you see the selection of music and dvd's 
-- it's pretty awsome.
+> Mel Gorman wrote:
+>
+> > > >
+> > > Now, 5bits per  MAX_ORDER pages.
+> > > I think it is simpler to use "char[]" for representing type of  memory
+> > > alloc
+> > > type than bitmap.
+> > >
+> > >
+> >
+> > Possibly, but it would also use up that bit more space. That map could be
+> > condensed to 3 bits but would make it that bit (no pun) more complex and
+> > difficult to merge. On the other hand, it would be faster to use a char[]
+> > as it would be an array-index lookup to get a pageblock type rather than a
+> > number of bit operations.
+> >
+> > So, it depends on what people know to be better in general because I have
+> > not measured it to know for a fact. Is it better to use char[] and use
+> > array indexes rather than bit operations or is it better to leave it as a
+> > bitmap and condense it later when things have settled down?
+> >
+> Hmm, Okay, I'll wait for condensed version.
+> BTW, in space consumption/cache view,  does using bitmap have  real benefit
+> ?
+>
 
-Theres a few pages in there on how to get your selection 
-on CD if you need the help.
-I noticed in the movie section over lunch, they have 
-titles for download that are still in theaters - it's fantastic.
+For space, there is a small benefit. On my system with 1.5GiB of RAM, it
+is about 130 bytes saved for prezeroing and about 220 with just the
+placement policy.  For speed, I do not know how bitmaps normally perform
+with the CPU cache, but for the placement policy, it makes no difference.
+I implemented a version using char[] array and there was no performance
+difference that I could measure. The bitmaps just are not consulted often
+enough to make a big performance difference.
 
-Tell me when you get back.
-
-Alissa
+-- 
+Mel Gorman
+Part-time Phd Student				Java Applications Developer
+University of Limerick				    IBM Dublin Software Lab
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
