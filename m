@@ -1,41 +1,37 @@
-Received: from prefetch-atm.san.rr.com (root@ns1.san.rr.com [204.210.0.2])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA09801
-	for <linux-mm@kvack.org>; Sat, 9 Jan 1999 01:40:50 -0500
-Message-ID: <369709CF.E38FEE6F@ucsd.edu>
-Date: Fri, 08 Jan 1999 23:48:31 -0800
-From: Benjamin Redelings I <bredelin@ucsd.edu>
-MIME-Version: 1.0
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA09927
+	for <linux-mm@kvack.org>; Sat, 9 Jan 1999 01:46:00 -0500
+Date: Fri, 8 Jan 1999 22:44:25 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: 2.2.0-pre[56] swap performance poor with > 1 thrashing task
-References: <Pine.LNX.4.04.9901082246490.1183-100000@brookie.inconnect.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <87sodl552m.fsf@atlas.CARNet.hr>
+Message-ID: <Pine.LNX.3.95.990108223729.3436D-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Dax Kelson <dkelson@inconnect.com>
-Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Linus Torvalds <torvalds@transmeta.com>, Steve Bergman <steve@netplus.net>, Andrea Arcangeli <andrea@e-mind.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Cc: Dax Kelson <dkelson@inconnect.com>, Steve Bergman <steve@netplus.net>, Andrea Arcangeli <andrea@e-mind.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-	Maybe this is not really a problem with swapping, but more with
-concurrent I/O in general, because I KNOW that running low-priority
-niced jobs in the background (e.g. updatedb) can seriously degrade
-performance of tasks in the foreground (e.g. netscape) that are doing a
-minimal amount of I/O.  I think I've seen a few people mention this in
-the past also.
-	In any case, I've kind of assumed that that was the way it is supposed
-to be.  Perhaps it is just that IDE drives really don't like writing 2
-files at once.  Or that the background task does a lot of I/O, and the
-clustering algorithm makes sure it all gets written before anything else
-happens.  Anyway, I bet those explanations are wrong, but maybe there is
-another explanation.... I don't know.
-	Ah.  So Zlatko has a patch.  I look forward to it, and hope it improves
-performance of non-swapping applications also.
 
--benRI
--- 
-I don't need     education.
-I don't need ANY education.
-I don't need NO  education.
+Btw, if there are people there who actually like timing different things
+(something I _hate_ doing - I lose interest if things become just a matter
+of numbers rather than trying to get some algorithm right), then there's
+one thing I'd love to hear about: the effect of trying to do some
+access bit setting on buffer cache pages.
 
-Benjamin Redelings I       <><      http://sdcc13.ucsd.edu/~bredelin
+See my comments in linux/include/linux/fs.h, at around line 260 or so. 
+It's the "touch_buffer()" macro which is currently a no-op, and it is
+entirely possible that it really should set the PG_referenced bit. 
+
+As a no-op, it can now randomly and unprectably result in even worthwhile
+buffers just being thrown out - possibly quite soon after they've been
+loaded in. I happen to believe that it doesn't actually matter (and I'm
+not convinced that marking the pages referenced has no downsides), but I'm
+too lazy to bother to test it. 
+
+		Linus
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
