@@ -1,57 +1,66 @@
-Message-ID: <20041209125425.85749.qmail@web53901.mail.yahoo.com>
-Date: Thu, 9 Dec 2004 04:54:25 -0800 (PST)
-From: Fawad Lateef <fawad_lateef@yahoo.com>
-Subject: Fwd: Re: Plzz help me regarding HIGHMEM (PAE) confusion in Linux-2.4 ???
+Date: Thu, 9 Dec 2004 09:03:53 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: page fault scalability patch V12 [0/7]: Overview and performance
+ tests
+In-Reply-To: <41B8060A.4050402@yahoo.com.au>
+Message-ID: <Pine.LNX.4.58.0412090858420.10400@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
+ <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0411221419440.20993@ppc970.osdl.org>
+ <Pine.LNX.4.58.0411221424580.22895@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0411221429050.20993@ppc970.osdl.org>
+ <Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com>
+ <41B8060A.4050402@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: wli@holomorphy.com
-Cc: linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---- William Lee Irwin III <wli@holomorphy.com> wrote:
+On Thu, 9 Dec 2004, Nick Piggin wrote:
 
-> Only %cr3 is restricted to 32-bit physical
-> addresses. The entries in
-> the pgd's, pmd's, and pte's themselves are all
-> 36-bit physical
-> addresses.
-> 
+> > For more than 8 cpus the page fault rate increases by orders
+> > of magnitude. For more than 64 cpus the improvement in performace
+> > is 10 times better.
+>
+> Those numbers are pretty impressive. I thought you'd said with earlier
+> patches that performance was about doubled from 8 to 512 CPUS. Did I
+> remember correctly? If so, where is the improvement coming from? The
+> per-thread RSS I guess?
 
-but what I saw is that the pgd is loaded in cr3 when
-the switch_mm takes place in the scheduling of
-process. And PGD is of 64bit size ................ can
-u please explain this ???
+Right. The per-thread RSS seems to have made a big difference for high CPU
+counts. Also I was conservative in the estimates in earlier post since I
+did not have the numbers for the very high cpu counts.
 
-Actually I m concerned in accessing 4GB to 32GB for
-ramdisk, and when I used to access those through
-kmap_atomic in a single module system crashes after
-passing the first 4GB of RAM (screen shows garbage and
-then system crashes), I got to know that a process can
-only access 4GB, so I created kernel threads for each
-4GB and allocated struct mm_struct entry to that
-through mm_alloc function and then assigned that to
-the task_struct->active_mm to each thread, (in thread
-before mm_alloc I called daemonize too)......... 
+> On another note, these patches are basically only helpful to new
+> anonymous page faults. I guess this is the main thing you are concerned
+> about at the moment, but I wonder if you would see improvements with
+> my patch to remove the ptl from the other types of faults as well?
 
-Now I think that all threads are now different
-processes, but the system crashing behaviour is the
-same ............. kernel is 2.4.25 
+I can try that but I am frankly a bit sceptical since the ptl protects
+many other variables. It may be more efficient to have the ptl in these
+cases than doing the atomic ops all over the place. Do you have any number
+you could post? I believe I send you a copy of the code that I use for
+performance tests last week or so,
 
-Can u plz suggest me some way of doing this ???
+> The downside of my patch - well the main downsides - compared to yours
+> are its intrusiveness, and the extra cost involved in copy_page_range
+> which yours appears not to require.
 
+Is the patch known to be okay for ia64? I can try to see how it
+does.
 
-Thanks 
+> As I've said earlier though, I wouldn't mind your patches going in. At
+> least they should probably get into -mm soon, when Andrew has time (and
+> after the 4level patches are sorted out). That wouldn't stop my patch
+> (possibly) being merged some time after that if and when it was found
+> worthy...
 
-Fawad Lateef
-
-
-		
-__________________________________ 
-Do you Yahoo!? 
-All your favorites on one personal page ? Try My Yahoo!
-http://my.yahoo.com 
+I'd certainly be willing to poke around and see how beneficial this is. If
+it turns out to accellerate other functionality of the vm then you
+have my full support.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
