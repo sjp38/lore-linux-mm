@@ -1,38 +1,60 @@
-Date: Fri, 20 Apr 2001 14:18:34 +0200 (MET DST)
+Date: Fri, 20 Apr 2001 14:25:36 +0200 (MET DST)
 From: Szabolcs Szakacsits <szaka@f-secure.com>
 Subject: Re: suspend processes at load (was Re: a simple OOM ...) 
-In-Reply-To: <11530000.987705299@baldur>
-Message-ID: <Pine.LNX.4.30.0104201223390.20939-100000@fs131-224.f-secure.com>
+In-Reply-To: <cfcudto0dln5tvehbgt4pecqf7i6nfuirf@4ax.com>
+Message-ID: <Pine.LNX.4.30.0104201253500.20939-100000@fs131-224.f-secure.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmc@austin.ibm.com>
+To: "James A. Sutherland" <jas88@cam.ac.uk>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Apr 2001, Dave McCracken wrote:
-> --On Wednesday, April 18, 2001 23:32:25 +0200 Szabolcs Szakacsits
-> > How you want to avoid "deadlocks" when running processes have
-> > dependencies on suspended processes?
-> I think there's a semantic misunderstanding here.  If I understand Rik's
-> proposal right, he's not talking about completely suspending a process ala
-> SIGSTOP.  He's talking about removing it from the run queue for some small
-> length of time (ie a few seconds, probably) during which all the other
-> processes can make progress.
+On Thu, 19 Apr 2001, James A. Sutherland wrote:
 
-Yes, I also didn't mean deadlocks in its classical sense this is the
-reason I put it in quote. The issue is the unexpected potentially huge
-communication latencies between processes/threads or between user and
-system. App developers do write code taking load/latency into account
-but not in mind some of their processes/threads can get suspended for
-indeterminated interval from time to time.
+> Rik and I are both proposing that, AFAICS; however it's implemented
 
-> This kind of suspension won't be noticeable to users/administrators
-> or permanently block dependent processes.  In fact, it should make
-> the system appear more responsive than one in a thrashing state.
+Is it implemented? So why wasting words? Why don't you send the patch
+for tests?
 
-With occasionally suspended X, sshd, etc, etc, etc ;)
+> since I think it could be done more neatly) you just suspend the
+> process for a couple of seconds,
+
+Processes are already suspended in __alloc_pages() for potentially
+infinitely. This could explain why you see no progress and perhaps also
+other people's problems who reported lockups on lkml. I run with a patch
+that prevents this infinite looping in __alloc_pages().
+
+So suspend at page level didn't help, now comes process level. What
+next? Because it will not help either.
+
+What would help from kernel level?
+
+o reserved root vm, class/fair share scheduling (I run with the former
+  and helps a lot to take control back [well to be honest, your
+  statements about reboots are completely false even without too strict
+  resource limits])
+
+o non-overcommit [per process granularity and/or virtual swap spaces
+  would be nice as well]
+
+o better system monitoring: more info, more efficiently, smaller
+  latencies [I mean 1 sec is ok but not the occasional 10+ sec
+  accumulated stats that just hide a problem. This seems inrelevant but
+  would help users and kernel developers to understand better a particular
+  workload and tune or fix things (possibly not with the currently
+  popular hard coded values).
+
+As Stephen mentioned there are many [other] ways to improve things and I
+think process suspension is just the wrong one.
+
+> Indeed. It would certainly help with the usual test-case for such
+> things ("make -j 50" or similar): you'll end up with 40 gcc processes
+> being frozen at once, allowing the other 10 to complete first.
+
+Can I recommend a real life test-case? Constant/increasing rate hit
+to a dynamic web server.
 
 	Szaka
 
