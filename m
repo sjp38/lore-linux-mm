@@ -1,32 +1,37 @@
-From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Message-Id: <200007230107.SAA14200@google.engr.sgi.com>
-Subject: flush_icache_range 
-Date: Sat, 22 Jul 2000 18:07:08 -0700 (PDT)
-MIME-Version: 1.0
+Received: from cesarb by cesarb2.cesarb.personal with local (Exim 3.12 #1 (Debian))
+	id 13GAYO-0000OO-00
+	for <linux-mm@kvack.org>; Sat, 22 Jul 2000 22:27:40 -0300
+Date: Sat, 22 Jul 2000 22:27:40 -0300
+Subject: Inter-zone swapping
+Message-ID: <20000722222740.A1475@cesarb.personal>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+From: Cesar Eduardo Barros <cesarb@nitnet.com.br>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
-Cc: alan@lxorguk.ukuu.org.uk, torvalds@transmeta.com, Kanoj Sarcar <kanoj@google.engr.sgi.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Can anyone point out the logic of continued existance of flush_icache_range
-after the introduction of flush_icache_page()? I admit that 
-flush_icache_range is still needed in the module loading code, but do we
-need it anymore in the a.out loading code? That code should be incurring
-page faults, which will do the flush_icache_page anyway. Seems like
-double work to me to do flush_icache_range again after the loading has
-been done.
+(I'm a complete newbie at vm, so if I'm saying something stupid here, don't be
+ so hard on me)
 
-This argument to delete the flush_icache_range calls from the a.out
-loading code assumes that the f_op->read() code behaves sanely, ie does
-not do unexpected things like touch the user address (thus allocating
-the page, and doing the icache flush via the page fault handler much
-earlier) before it starts reading the a.out sections in ...
+I've been thinking about the following scenario: by some random chance, we have
+the DMA zone full of recent pages, the normal zone full of old pages, and the
+highmem zone empty (I don't have that much memory). So the right place to page
+out from would be the normal zone (since if we swap out from the DMA zone we'll
+be swapping out a page a program will need soon). But suppose the DMA zone is
+almost full, so something needs to be taken from it or we might risk not having
+free memory for atomic allocations for the sound card (or other random
+DMA-using driver).
 
-Kanoj
+Then would it be useful to "swap" a page from the DMA zone into the normal zone
+(and of course after that ending up swapping from the normal zone to the disk)?
 
+-- 
+Cesar Eduardo Barros
+cesarb@nitnet.com.br
+cesarb@dcc.ufrj.br
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
