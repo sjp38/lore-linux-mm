@@ -1,34 +1,37 @@
-Date: Sun, 2 Sep 2001 07:40:03 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Sun, 2 Sep 2001 12:51:18 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: 2.4.10-pre3 - bug report
-In-Reply-To: <m15dTRm-000QCGC@amadeus.home.nl>
-Message-ID: <Pine.LNX.4.33.0109020737430.7171-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.33.0109020737430.7171-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.33L.0109021249450.31976-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: arjan@fenrus.demon.nl
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: arjan@fenrus.demon.nl, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2 Sep 2001 arjan@fenrus.demon.nl wrote:
->
-> The patch I sent to linux-mm a week ago fixes this for "normal" loads.
+On Sun, 2 Sep 2001, Linus Torvalds wrote:
 
-I haven't seen the patch.
+> In short - if people have valid MM work that they want to be
+> considered for the standard kernel too, DON'T USE LINUX-MM.
 
-In fact, I'm not on the linux-mm mailing list, so if people think that I
-pick up patches from there, or pick up reasons for patches or see it at
-all, think again.
+Or rather, make sure Linus gets a CC of the email and
+the subject starts with [PATCH].
 
-In fact, I'm not on a _single_ mailing list, and I'm not going to be. I
-see some of the mailing lists (most notably linux-kernel) through a news
-gateway, but..
+I doubt most lkml subscribers would appreciate it if
+every subsystem mailed their email there and list traffic
+got three times as heavy ;)
 
-In short - if people have valid MM work that they want to be considered
-for the standard kernel too, DON'T USE LINUX-MM.
+cheers,
 
-		Linus
+Rik
+-- 
+IA64: a worthy successor to i860.
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
