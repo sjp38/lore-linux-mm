@@ -1,53 +1,42 @@
-Date: Wed, 16 Jun 2004 13:02:08 -0500
+Date: Wed, 16 Jun 2004 13:16:31 -0500
 From: Dimitri Sivanich <sivanich@sgi.com>
 Subject: Re: [PATCH]: Option to run cache reap in thread mode
-Message-ID: <20040616180208.GD6069@sgi.com>
-References: <40D08225.6060900@colorfullife.com>
+Message-ID: <20040616181631.GE6069@sgi.com>
+References: <27JKg-4ht-11@gated-at.bofh.it> <m3r7sfmq0r.fsf@averell.firstfloor.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <40D08225.6060900@colorfullife.com>
+In-Reply-To: <m3r7sfmq0r.fsf@averell.firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: linux-kernel@vger.kernel.org, lse-tech <lse-tech@lists.sourceforge.net>, linux-mm@kvack.org
+To: Andi Kleen <ak@muc.de>
+Cc: Manfred Spraul <manfred@colorfullife.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jun 16, 2004 at 07:23:49PM +0200, Manfred Spraul wrote:
-> Dimitri wrote:
+On Wed, Jun 16, 2004 at 06:22:28PM +0200, Andi Kleen wrote:
+> Dimitri Sivanich <sivanich@sgi.com> writes:
 > 
-> >In the process of testing per/cpu interrupt response times and CPU 
-> >availability,
-> >I've found that running cache_reap() as a timer as is done currently 
-> >results
-> >in some fairly long CPU holdoffs.
+> > I would like to know what others think about running cache_reap() as a low
+> > priority realtime kthread, at least on certain cpus that would be configured
+> > that way (probably configured at boottime initially).  I've been doing some
+> > testing running it this way on CPU's whose activity is mostly restricted to
+> > realtime work (requiring rapid response times).
 > >
-> What is fairly long?
-Into the 100's of usec.  I consider anything over 30 usec too long.
-I've seen this take longer than 30usec on a small (8p) system.
-
-> If cache_reap() is slow than the caches are too large.
-> Could you limit cachep->free_limit and check if that helps? It's right 
-> now scaled by num_online_cpus() - that's probably too much. It's 
-> unlikely that all 500 cpus will try to refill their cpu arrays at the 
-> same time. Something like a logarithmic increase should be sufficient.
-
-I haven't tried this yet, but I'm even seeing this on 4 cpu systems.
-
-> Do you use the default batchcount values or have you increased the values?
-
-Default.
-
-> I think the sgi ia64 system do not work with slab debugging, but please 
-> check that debugging is off. Debug enabled is slow.
-
-# CONFIG_DEBUG_SLAB is not set
-
+> > Here's my first cut at an initial patch for this (there will be other changes
+> > later to set the configuration and to optimize locking in cache_reap()).
 > 
-> --
->    Manfred
+> I would run it in the standard work queue threads. We already have 
+> too many kernel threads, no need to add more.
+> 
+> Also is there really a need for it to be real time? 
 
-Dimitri Sivanich <sivanich@sgi.com>
+Not especially.  Normal time sharing would be OK with me, but I'd like to
+emphasize that if it is real time, it would need to be lowest priority.
+
+> Note that we don't make any attempt at all in the linux kernel to handle
+> lock priority inversion, so this isn't an argument.
+> 
+> -Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
