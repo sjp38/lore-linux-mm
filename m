@@ -1,62 +1,74 @@
-Date: Mon, 3 Jan 2005 09:52:42 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: Prezeroing V2 [2/4]: add second parameter to clear_page() for
- all arches
-In-Reply-To: <20041224090539.40bba423.davem@davemloft.net>
-Message-ID: <Pine.LNX.4.58.0501030951590.21811@schroedinger.engr.sgi.com>
-References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com>
- <41C20E3E.3070209@yahoo.com.au> <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0412231132170.31791@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0412231133130.31791@schroedinger.engr.sgi.com>
- <20041224090539.40bba423.davem@davemloft.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from westrelay01.boulder.ibm.com (westrelay01.boulder.ibm.com [9.17.195.10])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j03IPlCO135784
+	for <linux-mm@kvack.org>; Mon, 3 Jan 2005 13:25:47 -0500
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by westrelay01.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j03IPlHb348648
+	for <linux-mm@kvack.org>; Mon, 3 Jan 2005 11:25:47 -0700
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j03IPlAv007594
+	for <linux-mm@kvack.org>; Mon, 3 Jan 2005 11:25:47 -0700
+Subject: Re: page migration
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <41D98556.8050605@sgi.com>
+References: <41D98556.8050605@sgi.com>
+Content-Type: text/plain
+Date: Mon, 03 Jan 2005 10:25:33 -0800
+Message-Id: <1104776733.25994.11.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@davemloft.net>
-Cc: akpm@osdl.org, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ray Bryant <raybry@sgi.com>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 24 Dec 2004, David S. Miller wrote:
+On Mon, 2005-01-03 at 11:48 -0600, Ray Bryant wrote:
+> The attached tar file contains a version of the mhp3 patch with the following
+> properties:
+> 
+> (1)  It splits out the memory migration patches into a separate series file.
+> (2)  The remaining patches are in the hotplug directory with its own
+>        series files.
+> (3)  Rollup patches for the two sets of patches are included.
+> 
+> If one applies the memory_migration patches first, the result compiles and
+> links but I admit I have not tested it.
 
-> On Thu, 23 Dec 2004 11:33:59 -0800 (PST)
-> Christoph Lameter <clameter@sgi.com> wrote:
->
-> > Modification made but it would be good to have some feedback from the arch maintainers:
-> >
->  ...
-> > sparc64
->
-> I don't see any sparc64 bits in this patch, else I'd
-> review them :-)
->
+Very cool, thanks for doing this.  
 
-Sorry here it is:
+> I've been unable to get (either) memory hotplug patch to compile.  It won't
+> compile for Altix at all, because Altix requires NUMA.  I tried it on a
+> Pentium machine, but apparently I didn't grab the correct config.
 
-Index: linux-2.6.9/include/asm-sparc64/page.h
-===================================================================
---- linux-2.6.9.orig/include/asm-sparc64/page.h 2004-10-18 14:53:51.000000000 -0700
-+++ linux-2.6.9/include/asm-sparc64/page.h      2005-01-03 09:50:16.000000000 -0800
-@@ -15,7 +15,17 @@
- #ifndef __ASSEMBLY__
+Hmmm.  Did you check the configs here?
 
- extern void _clear_page(void *page);
--#define clear_page(X)  _clear_page((void *)(X))
-+
-+static void inline clear_page(void *page, int order)
-+{
-+       unsigned int nr = 1 << order;
-+
-+       while (nr-- > 0) {
-+               _clear_page(page);
-+               page += PAGE_SIZE;
-+       }
-+}
-+
- struct page;
- extern void clear_user_page(void *addr, unsigned long vaddr, struct page *page);
- #define copy_page(X,Y) memcpy((void *)(X), (void *)(Y), PAGE_SIZE)
+	http://sr71.net/patches/2.6.10/2.6.10-rc2-mm4-mhp3/configs/
+
+> Anyway, the fact that the diff shows the split out patches are equivalent
+> to the full mhp3 patch should be good enough.
+> 
+> (The output of the comparison is included as the file reorder.diff).
+
+That's good to know.
+
+> I'd like to see this order of patches become the new order for the memory
+> hotplug patch.  That way, I won't have to pull the migration patches out
+> of the hotplug patch every time a new one comes out (I need the migration
+> code, but not the hotplug code for a project I am working on.)
+> 
+> Do you suppose this can be done???
+
+Absolutely.  I was simply working them in the order that they were
+implemented.  But, if we want the migration stuff merged first, I have
+absolutely no problem with putting it first in the patch set.  
+
+Next time I publish a tree, I'll see what I can do about producing
+similar rollups to what you have, with migration broken out from
+hotplug.
+
+Thanks again for doing all of this work.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
