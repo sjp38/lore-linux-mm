@@ -1,1354 +1,428 @@
-Date: Thu, 8 May 2003 01:01:35 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.69-mm2 Kernel panic, possibly network related
-Message-ID: <20030508080135.GK8978@holomorphy.com>
-References: <3EB8E4CC.8010409@aitel.hist.no> <20030507.025626.10317747.davem@redhat.com> <20030507144100.GD8978@holomorphy.com> <20030507.064010.42794250.davem@redhat.com> <20030507215430.GA1109@hh.idb.hist.no> <20030508013854.GW8931@holomorphy.com> <20030508065440.GA1890@hh.idb.hist.no>
+Date: Thu, 8 May 2003 01:39:58 -0700
+From: Andrew Morton <akpm@digeo.com>
+Subject: 2.5.69-mm3
+Message-Id: <20030508013958.157b27b7.akpm@digeo.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030508065440.GA1890@hh.idb.hist.no>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Helge Hafting <helgehaf@aitel.hist.no>
-Cc: "David S. Miller" <davem@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@digeo.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, May 07, 2003 at 06:38:54PM -0700, William Lee Irwin III wrote:
->> Can you try one kernel with the netfilter cset backed out, and another
->> with the re-slabification patch backed out? (But not with both backed
->> out simultaneously).
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.69-mm3.gz
 
-On Thu, May 08, 2003 at 08:54:40AM +0200, Helge Hafting wrote:
-> I'm compiling without reslabify now.
-> I got 
-> patching file arch/i386/mm/pageattr.c
-> Hunk #1 succeeded at 67 (offset 9 lines).
-> when backing it out - is this the effect of
-> some other patch touching the same file or could
-> my source be wrong somehow?
-> Which patch is the netfilter cset?  None of
-> the patches in mm2 looked obvious to me.  Or
-> is it part of the linus patch? Note that mm1
-> works for me, so anything found there too
-> isn't as likely to be the problem.
+  Will appear sometime at
 
-The fuzz/offset is safe. The netfilter patch to back out follows
-(there's actually a fix for it now but ignore that -- we just want
-to isolate the problem):
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm3/
 
-Thanks.
 
--- wli
+Small things.  Mainly a resync for various people...
 
--- wli
 
-# This is a BitKeeper generated patch for the following project:
-# Project Name: Linux kernel tree
-# This patch format is intended for GNU patch command version 2.5 or higher.
-# This patch includes the following deltas:
-#	           ChangeSet	1.1072  -> 1.1073 
-#	include/linux/netfilter_ipv4/ip_nat_core.h	1.1     -> 1.2    
-#	net/ipv4/netfilter/ip_nat_proto_tcp.c	1.3     -> 1.4    
-#	net/ipv4/netfilter/ip_nat_core.c	1.22    -> 1.23   
-#	net/ipv4/netfilter/ip_nat_helper.c	1.12    -> 1.13   
-#	net/ipv4/netfilter/ip_nat_proto_udp.c	1.1     -> 1.2    
-#	include/linux/netfilter_ipv4/ip_nat_helper.h	1.4     -> 1.5    
-#	net/ipv4/netfilter/ip_nat_tftp.c	1.2     -> 1.3    
-#	net/ipv4/netfilter/ip_nat_proto_icmp.c	1.1     -> 1.2    
-#	net/ipv4/netfilter/ip_nat_proto_unknown.c	1.2     -> 1.3    
-#	include/linux/netfilter_ipv4/ip_nat_protocol.h	1.1     -> 1.2    
-#	net/ipv4/netfilter/ip_nat_standalone.c	1.22    -> 1.23   
-#
-# The following is the BitKeeper ChangeSet Log
-# --------------------------------------------
-# 03/05/06	rusty@rustcorp.com.au	1.1073
-# [NETFILTER]: Make NAT code handle non-linear skbs.
-# Makes the NAT code and all NAT helpers handle non-linear skbs.
-# Main trick is to introduce skb_ip_make_writable which handles all
-# the decloning, linearizing, etc.
-# --------------------------------------------
-#
-diff -Nru a/include/linux/netfilter_ipv4/ip_nat_core.h b/include/linux/netfilter_ipv4/ip_nat_core.h
---- a/include/linux/netfilter_ipv4/ip_nat_core.h	Tue May  6 09:30:02 2003
-+++ b/include/linux/netfilter_ipv4/ip_nat_core.h	Tue May  6 09:30:02 2003
-@@ -16,10 +16,10 @@
- 
- extern struct list_head protos;
- 
--extern unsigned int icmp_reply_translation(struct sk_buff *skb,
--					   struct ip_conntrack *conntrack,
--					   unsigned int hooknum,
--					   int dir);
-+extern int icmp_reply_translation(struct sk_buff **pskb,
-+				  struct ip_conntrack *conntrack,
-+				  unsigned int hooknum,
-+				  int dir);
- 
- extern void replace_in_hashes(struct ip_conntrack *conntrack,
- 			      struct ip_nat_info *info);
-@@ -30,4 +30,10 @@
- extern struct ip_nat_protocol ip_nat_protocol_tcp;
- extern struct ip_nat_protocol ip_nat_protocol_udp;
- extern struct ip_nat_protocol ip_nat_protocol_icmp;
-+
-+/* Call this before modifying an existing IP packet: ensures it is
-+   modifiable and linear to the point you care about (writable_len).
-+   Returns true or false. */
-+extern int skb_ip_make_writable(struct sk_buff **pskb,
-+				unsigned int writable_len);
- #endif /* _IP_NAT_CORE_H */
-diff -Nru a/include/linux/netfilter_ipv4/ip_nat_helper.h b/include/linux/netfilter_ipv4/ip_nat_helper.h
---- a/include/linux/netfilter_ipv4/ip_nat_helper.h	Tue May  6 09:30:02 2003
-+++ b/include/linux/netfilter_ipv4/ip_nat_helper.h	Tue May  6 09:30:02 2003
-@@ -43,22 +43,23 @@
- 
- extern int ip_nat_helper_register(struct ip_nat_helper *me);
- extern void ip_nat_helper_unregister(struct ip_nat_helper *me);
-+
-+/* These return true or false. */
- extern int ip_nat_mangle_tcp_packet(struct sk_buff **skb,
- 				struct ip_conntrack *ct,
- 				enum ip_conntrack_info ctinfo,
- 				unsigned int match_offset,
- 				unsigned int match_len,
--				char *rep_buffer,
-+				const char *rep_buffer,
- 				unsigned int rep_len);
- extern int ip_nat_mangle_udp_packet(struct sk_buff **skb,
- 				struct ip_conntrack *ct,
- 				enum ip_conntrack_info ctinfo,
- 				unsigned int match_offset,
- 				unsigned int match_len,
--				char *rep_buffer,
-+				const char *rep_buffer,
- 				unsigned int rep_len);
--extern int ip_nat_seq_adjust(struct sk_buff *skb,
--				struct ip_conntrack *ct,
--				enum ip_conntrack_info ctinfo);
--extern void ip_nat_delete_sack(struct sk_buff *skb);
-+extern int ip_nat_seq_adjust(struct sk_buff **pskb, 
-+			     struct ip_conntrack *ct, 
-+			     enum ip_conntrack_info ctinfo);
- #endif
-diff -Nru a/include/linux/netfilter_ipv4/ip_nat_protocol.h b/include/linux/netfilter_ipv4/ip_nat_protocol.h
---- a/include/linux/netfilter_ipv4/ip_nat_protocol.h	Tue May  6 09:30:02 2003
-+++ b/include/linux/netfilter_ipv4/ip_nat_protocol.h	Tue May  6 09:30:02 2003
-@@ -18,10 +18,11 @@
- 	unsigned int protonum;
- 
- 	/* Do a packet translation according to the ip_nat_proto_manip
--	 * and manip type. */
--	void (*manip_pkt)(struct iphdr *iph, size_t len,
--			  const struct ip_conntrack_manip *manip,
--			  enum ip_nat_manip_type maniptype);
-+	 * and manip type.  Return true if succeeded. */
-+	int (*manip_pkt)(struct sk_buff **pskb,
-+			 unsigned int hdroff,
-+			 const struct ip_conntrack_manip *manip,
-+			 enum ip_nat_manip_type maniptype);
- 
- 	/* Is the manipable part of the tuple between min and max incl? */
- 	int (*in_range)(const struct ip_conntrack_tuple *tuple,
-diff -Nru a/net/ipv4/netfilter/ip_nat_core.c b/net/ipv4/netfilter/ip_nat_core.c
---- a/net/ipv4/netfilter/ip_nat_core.c	Tue May  6 09:30:02 2003
-+++ b/net/ipv4/netfilter/ip_nat_core.c	Tue May  6 09:30:02 2003
-@@ -13,6 +13,8 @@
- #include <net/icmp.h>
- #include <net/ip.h>
- #include <net/tcp.h>  /* For tcp_prot in getorigdst */
-+#include <linux/icmp.h>
-+#include <linux/udp.h>
- 
- #define ASSERT_READ_LOCK(x) MUST_BE_READ_LOCKED(&ip_nat_lock)
- #define ASSERT_WRITE_LOCK(x) MUST_BE_WRITE_LOCKED(&ip_nat_lock)
-@@ -698,14 +700,26 @@
- 	list_prepend(&byipsproto[ipsprotohash], &info->byipsproto);
- }
- 
--static void
--manip_pkt(u_int16_t proto, struct iphdr *iph, size_t len,
-+/* Returns true if succeeded. */
-+static int
-+manip_pkt(u_int16_t proto,
-+	  struct sk_buff **pskb,
-+	  unsigned int iphdroff,
- 	  const struct ip_conntrack_manip *manip,
--	  enum ip_nat_manip_type maniptype,
--	  __u32 *nfcache)
-+	  enum ip_nat_manip_type maniptype)
- {
--	*nfcache |= NFC_ALTERED;
--	find_nat_proto(proto)->manip_pkt(iph, len, manip, maniptype);
-+	struct iphdr *iph;
-+
-+	(*pskb)->nfcache |= NFC_ALTERED;
-+	if (!skb_ip_make_writable(pskb, iphdroff+sizeof(iph)))
-+		return 0;
-+
-+	iph = (void *)(*pskb)->data + iphdroff;
-+
-+	/* Manipulate protcol part. */
-+	if (!find_nat_proto(proto)->manip_pkt(pskb, iphdroff + iph->ihl*4,
-+					      manip, maniptype))
-+		return 0;
- 
- 	if (maniptype == IP_NAT_MANIP_SRC) {
- 		iph->check = ip_nat_cheat_check(~iph->saddr, manip->ip,
-@@ -716,17 +730,7 @@
- 						iph->check);
- 		iph->daddr = manip->ip;
- 	}
--#if 0
--	if (ip_fast_csum((u8 *)iph, iph->ihl) != 0)
--		DEBUGP("IP: checksum on packet bad.\n");
--
--	if (proto == IPPROTO_TCP) {
--		void *th = (u_int32_t *)iph + iph->ihl;
--		if (tcp_v4_check(th, len - 4*iph->ihl, iph->saddr, iph->daddr,
--				 csum_partial((char *)th, len-4*iph->ihl, 0)))
--			DEBUGP("TCP: checksum on packet bad\n");
--	}
--#endif
-+	return 1;
- }
- 
- static inline int exp_for_packet(struct ip_conntrack_expect *exp,
-@@ -754,25 +758,13 @@
- 	unsigned int i;
- 	struct ip_nat_helper *helper;
- 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
--	int is_tcp = (*pskb)->nh.iph->protocol == IPPROTO_TCP;
-+	int proto = (*pskb)->nh.iph->protocol;
- 
- 	/* Need nat lock to protect against modification, but neither
- 	   conntrack (referenced) and helper (deleted with
- 	   synchronize_bh()) can vanish. */
- 	READ_LOCK(&ip_nat_lock);
- 	for (i = 0; i < info->num_manips; i++) {
--		/* raw socket (tcpdump) may have clone of incoming
--                   skb: don't disturb it --RR */
--		if (skb_cloned(*pskb) && !(*pskb)->sk) {
--			struct sk_buff *nskb = skb_copy(*pskb, GFP_ATOMIC);
--			if (!nskb) {
--				READ_UNLOCK(&ip_nat_lock);
--				return NF_DROP;
--			}
--			kfree_skb(*pskb);
--			*pskb = nskb;
--		}
--
- 		if (info->manips[i].direction == dir
- 		    && info->manips[i].hooknum == hooknum) {
- 			DEBUGP("Mangling %p: %s to %u.%u.%u.%u %u\n",
-@@ -781,12 +773,12 @@
- 			       ? "SRC" : "DST",
- 			       NIPQUAD(info->manips[i].manip.ip),
- 			       htons(info->manips[i].manip.u.all));
--			manip_pkt((*pskb)->nh.iph->protocol,
--				  (*pskb)->nh.iph,
--				  (*pskb)->len,
--				  &info->manips[i].manip,
--				  info->manips[i].maniptype,
--				  &(*pskb)->nfcache);
-+			if (manip_pkt(proto, pskb, 0,
-+				      &info->manips[i].manip,
-+				      info->manips[i].maniptype) < 0) {
-+				READ_UNLOCK(&ip_nat_lock);
-+				return NF_DROP;
-+			}
- 		}
- 	}
- 	helper = info->helper;
-@@ -839,12 +831,14 @@
- 		
- 		/* Adjust sequence number only once per packet 
- 		 * (helper is called at all hooks) */
--		if (is_tcp && (hooknum == NF_IP_POST_ROUTING
--			       || hooknum == NF_IP_LOCAL_IN)) {
-+		if (proto == IPPROTO_TCP
-+		    && (hooknum == NF_IP_POST_ROUTING
-+			|| hooknum == NF_IP_LOCAL_IN)) {
- 			DEBUGP("ip_nat_core: adjusting sequence number\n");
- 			/* future: put this in a l4-proto specific function,
- 			 * and call this function here. */
--			ip_nat_seq_adjust(*pskb, ct, ctinfo);
-+			if (!ip_nat_seq_adjust(pskb, ct, ctinfo))
-+				ret = NF_DROP;
- 		}
- 
- 		return ret;
-@@ -855,39 +849,51 @@
- 	/* not reached */
- }
- 
--unsigned int
--icmp_reply_translation(struct sk_buff *skb,
-+int
-+icmp_reply_translation(struct sk_buff **pskb,
- 		       struct ip_conntrack *conntrack,
- 		       unsigned int hooknum,
- 		       int dir)
- {
--	struct iphdr *iph = skb->nh.iph;
--	struct icmphdr *hdr = (struct icmphdr *)((u_int32_t *)iph + iph->ihl);
--	struct iphdr *inner = (struct iphdr *)(hdr + 1);
--	size_t datalen = skb->len - ((void *)inner - (void *)iph);
-+	struct {
-+		struct icmphdr icmp;
-+		struct iphdr ip;
-+	} *inside;
- 	unsigned int i;
- 	struct ip_nat_info *info = &conntrack->nat.info;
- 
--	IP_NF_ASSERT(skb->len >= iph->ihl*4 + sizeof(struct icmphdr));
-+	if (!skb_ip_make_writable(pskb,(*pskb)->nh.iph->ihl*4+sizeof(*inside)))
-+		return 0;
-+	inside = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
-+
-+	/* We're actually going to mangle it beyond trivial checksum
-+	   adjustment, so make sure the current checksum is correct. */
-+	if ((*pskb)->ip_summed != CHECKSUM_UNNECESSARY
-+	    && (u16)csum_fold(skb_checksum(*pskb, (*pskb)->nh.iph->ihl*4,
-+					   (*pskb)->len, 0)))
-+		return 0;
-+
- 	/* Must be RELATED */
--	IP_NF_ASSERT(skb->nfct - (struct ip_conntrack *)skb->nfct->master
-+	IP_NF_ASSERT((*pskb)->nfct
-+		     - (struct ip_conntrack *)(*pskb)->nfct->master
- 		     == IP_CT_RELATED
--		     || skb->nfct - (struct ip_conntrack *)skb->nfct->master
-+		     || (*pskb)->nfct
-+		     - (struct ip_conntrack *)(*pskb)->nfct->master
- 		     == IP_CT_RELATED+IP_CT_IS_REPLY);
- 
- 	/* Redirects on non-null nats must be dropped, else they'll
-            start talking to each other without our translation, and be
-            confused... --RR */
--	if (hdr->type == ICMP_REDIRECT) {
-+	if (inside->icmp.type == ICMP_REDIRECT) {
- 		/* Don't care about races here. */
- 		if (info->initialized
- 		    != ((1 << IP_NAT_MANIP_SRC) | (1 << IP_NAT_MANIP_DST))
- 		    || info->num_manips != 0)
--			return NF_DROP;
-+			return 0;
- 	}
- 
- 	DEBUGP("icmp_reply_translation: translating error %p hook %u dir %s\n",
--	       skb, hooknum, dir == IP_CT_DIR_ORIGINAL ? "ORIG" : "REPLY");
-+	       *pskb, hooknum, dir == IP_CT_DIR_ORIGINAL ? "ORIG" : "REPLY");
- 	/* Note: May not be from a NAT'd host, but probably safest to
- 	   do translation always as if it came from the host itself
- 	   (even though a "host unreachable" coming from the host
-@@ -918,11 +924,13 @@
- 			       ? "DST" : "SRC",
- 			       NIPQUAD(info->manips[i].manip.ip),
- 			       ntohs(info->manips[i].manip.u.udp.port));
--			manip_pkt(inner->protocol, inner,
--				  skb->len - ((void *)inner - (void *)iph),
--				  &info->manips[i].manip,
--				  !info->manips[i].maniptype,
--				  &skb->nfcache);
-+			if (manip_pkt(inside->ip.protocol, pskb,
-+				      (*pskb)->nh.iph->ihl*4
-+				      + sizeof(inside->icmp),
-+				      &info->manips[i].manip,
-+				      !info->manips[i].maniptype) < 0)
-+				goto unlock_fail;
-+
- 			/* Outer packet needs to have IP header NATed like
- 	                   it's a reply. */
- 
-@@ -932,22 +940,82 @@
- 			       info->manips[i].maniptype == IP_NAT_MANIP_SRC
- 			       ? "SRC" : "DST",
- 			       NIPQUAD(info->manips[i].manip.ip));
--			manip_pkt(0, iph, skb->len,
--				  &info->manips[i].manip,
--				  info->manips[i].maniptype,
--				  &skb->nfcache);
-+			if (manip_pkt(0, pskb, 0,
-+				      &info->manips[i].manip,
-+				      info->manips[i].maniptype) < 0)
-+				goto unlock_fail;
- 		}
- 	}
- 	READ_UNLOCK(&ip_nat_lock);
- 
--	/* Since we mangled inside ICMP packet, recalculate its
--	   checksum from scratch.  (Hence the handling of incorrect
--	   checksums in conntrack, so we don't accidentally fix one.)  */
--	hdr->checksum = 0;
--	hdr->checksum = ip_compute_csum((unsigned char *)hdr,
--					sizeof(*hdr) + datalen);
-+	inside->icmp.checksum = 0;
-+	inside->icmp.checksum = csum_fold(skb_checksum(*pskb,
-+						       (*pskb)->nh.iph->ihl*4,
-+						       (*pskb)->len, 0));
-+	return 1;
- 
--	return NF_ACCEPT;
-+ unlock_fail:
-+	READ_UNLOCK(&ip_nat_lock);
-+	return 0;
-+}
-+
-+int skb_ip_make_writable(struct sk_buff **pskb, unsigned int writable_len)
-+{
-+	struct sk_buff *nskb;
-+	unsigned int iplen;
-+
-+	if (writable_len > (*pskb)->len)
-+		return 0;
-+
-+	/* Not exclusive use of packet?  Must copy. */
-+	if (skb_shared(*pskb) || skb_cloned(*pskb))
-+		goto copy_skb;
-+
-+	/* Alexey says IP hdr is always modifiable and linear, so ok. */
-+	if (writable_len <= (*pskb)->nh.iph->ihl*4)
-+		return 1;
-+
-+	iplen = writable_len - (*pskb)->nh.iph->ihl*4;
-+
-+	/* DaveM says protocol headers are also modifiable. */
-+	switch ((*pskb)->nh.iph->protocol) {
-+	case IPPROTO_TCP: {
-+		struct tcphdr hdr;
-+		if (skb_copy_bits(*pskb, (*pskb)->nh.iph->ihl*4,
-+				  &hdr, sizeof(hdr)) != 0)
-+			goto copy_skb;
-+		if (writable_len <= (*pskb)->nh.iph->ihl*4 + hdr.doff*4)
-+			goto pull_skb;
-+		goto copy_skb;
-+	}
-+	case IPPROTO_UDP:
-+		if (writable_len<=(*pskb)->nh.iph->ihl*4+sizeof(struct udphdr))
-+			goto pull_skb;
-+		goto copy_skb;
-+	case IPPROTO_ICMP:
-+		if (writable_len
-+		    <= (*pskb)->nh.iph->ihl*4 + sizeof(struct icmphdr))
-+			goto pull_skb;
-+		goto copy_skb;
-+	/* Insert other cases here as desired */
-+	}
-+
-+copy_skb:
-+	nskb = skb_copy(*pskb, GFP_ATOMIC);
-+	if (!nskb)
-+		return 0;
-+	BUG_ON(skb_is_nonlinear(nskb));
-+
-+	/* Rest of kernel will get very unhappy if we pass it a
-+	   suddenly-orphaned skbuff */
-+	if ((*pskb)->sk)
-+		skb_set_owner_w(nskb, (*pskb)->sk);
-+	kfree_skb(*pskb);
-+	*pskb = nskb;
-+	return 1;
-+
-+pull_skb:
-+	return pskb_may_pull(*pskb, writable_len);
- }
- 
- int __init ip_nat_init(void)
-diff -Nru a/net/ipv4/netfilter/ip_nat_helper.c b/net/ipv4/netfilter/ip_nat_helper.c
---- a/net/ipv4/netfilter/ip_nat_helper.c	Tue May  6 09:30:02 2003
-+++ b/net/ipv4/netfilter/ip_nat_helper.c	Tue May  6 09:30:02 2003
-@@ -46,14 +46,14 @@
- #endif
- 
- DECLARE_LOCK(ip_nat_seqofs_lock);
--			 
--static inline int 
--ip_nat_resize_packet(struct sk_buff **skb,
--		     struct ip_conntrack *ct, 
--		     enum ip_conntrack_info ctinfo,
--		     int new_size)
-+
-+/* Setup TCP sequence correction given this change at this sequence */
-+static inline void 
-+adjust_tcp_sequence(u32 seq,
-+		    int sizediff,
-+		    struct ip_conntrack *ct, 
-+		    enum ip_conntrack_info ctinfo)
- {
--	struct iphdr *iph;
- 	int dir;
- 	struct ip_nat_seq *this_way, *other_way;
- 
-@@ -65,52 +65,89 @@
- 	this_way = &ct->nat.info.seq[dir];
- 	other_way = &ct->nat.info.seq[!dir];
- 
--	if (new_size > (*skb)->len + skb_tailroom(*skb)) {
--		struct sk_buff *newskb;
--		newskb = skb_copy_expand(*skb, skb_headroom(*skb),
--					 new_size - (*skb)->len,
--					 GFP_ATOMIC);
--
--		if (!newskb) {
--			printk("ip_nat_resize_packet: oom\n");
--			return 0;
--		} else {
--			kfree_skb(*skb);
--			*skb = newskb;
--		}
-+	DEBUGP("ip_nat_resize_packet: Seq_offset before: ");
-+	DUMP_OFFSET(this_way);
-+
-+	LOCK_BH(&ip_nat_seqofs_lock);
-+
-+	/* SYN adjust. If it's uninitialized, of this is after last
-+	 * correction, record it: we don't handle more than one
-+	 * adjustment in the window, but do deal with common case of a
-+	 * retransmit */
-+	if (this_way->offset_before == this_way->offset_after
-+	    || before(this_way->correction_pos, seq)) {
-+		    this_way->correction_pos = seq;
-+		    this_way->offset_before = this_way->offset_after;
-+		    this_way->offset_after += sizediff;
- 	}
-+	UNLOCK_BH(&ip_nat_seqofs_lock);
- 
--	iph = (*skb)->nh.iph;
--	if (iph->protocol == IPPROTO_TCP) {
--		struct tcphdr *tcph = (void *)iph + iph->ihl*4;
--
--		DEBUGP("ip_nat_resize_packet: Seq_offset before: ");
--		DUMP_OFFSET(this_way);
--
--		LOCK_BH(&ip_nat_seqofs_lock);
--
--		/* SYN adjust. If it's uninitialized, of this is after last 
--		 * correction, record it: we don't handle more than one 
--		 * adjustment in the window, but do deal with common case of a 
--		 * retransmit */
--		if (this_way->offset_before == this_way->offset_after
--		    || before(this_way->correction_pos, ntohl(tcph->seq))) {
--			this_way->correction_pos = ntohl(tcph->seq);
--			this_way->offset_before = this_way->offset_after;
--			this_way->offset_after = (int32_t)
--				this_way->offset_before + new_size -
--				(*skb)->len;
--		}
-+	DEBUGP("ip_nat_resize_packet: Seq_offset after: ");
-+	DUMP_OFFSET(this_way);
-+}
-+
-+/* Frobs data inside this packet, which is linear. */
-+static void mangle_contents(struct sk_buff *skb,
-+			    unsigned int dataoff,
-+			    unsigned int match_offset,
-+			    unsigned int match_len,
-+			    const char *rep_buffer,
-+			    unsigned int rep_len)
-+{
-+	unsigned char *data;
-+
-+	BUG_ON(skb_is_nonlinear(skb));
-+	data = (unsigned char *)skb->nh.iph + dataoff;
- 
--		UNLOCK_BH(&ip_nat_seqofs_lock);
-+	/* move post-replacement */
-+	memmove(data + match_offset + rep_len,
-+		data + match_offset + match_len,
-+		skb->tail - (data + match_offset + match_len));
- 
--		DEBUGP("ip_nat_resize_packet: Seq_offset after: ");
--		DUMP_OFFSET(this_way);
-+	/* insert data from buffer */
-+	memcpy(data + match_offset, rep_buffer, rep_len);
-+
-+	/* update skb info */
-+	if (rep_len > match_len) {
-+		DEBUGP("ip_nat_mangle_packet: Extending packet by "
-+			"%u from %u bytes\n", rep_len - match_len,
-+		       skb->len);
-+		skb_put(skb, rep_len - match_len);
-+	} else {
-+		DEBUGP("ip_nat_mangle_packet: Shrinking packet from "
-+			"%u from %u bytes\n", match_len - rep_len,
-+		       skb->len);
-+		__skb_trim(skb, skb->len + rep_len - match_len);
- 	}
--	
--	return 1;
-+
-+	/* fix IP hdr checksum information */
-+	skb->nh.iph->tot_len = htons(skb->len);
-+	ip_send_check(skb->nh.iph);
-+	skb->csum = csum_partial(data, skb->len - dataoff, 0);
- }
- 
-+/* Unusual, but possible case. */
-+static int enlarge_skb(struct sk_buff **pskb, unsigned int extra)
-+{
-+	struct sk_buff *nskb;
-+
-+	if ((*pskb)->len + extra > 65535)
-+		return 0;
-+
-+	nskb = skb_copy_expand(*pskb, skb_headroom(*pskb), extra, GFP_ATOMIC);
-+	if (!nskb)
-+		return 0;
-+
-+	/* Transfer socket to new skb. */
-+	if ((*pskb)->sk)
-+		skb_set_owner_w(nskb, (*pskb)->sk);
-+#ifdef CONFIG_NETFILTER_DEBUG
-+	nskb->nf_debug = (*pskb)->nf_debug;
-+#endif
-+	kfree_skb(*pskb);
-+	*pskb = nskb;
-+	return 1;
-+}
- 
- /* Generic function for mangling variable-length address changes inside
-  * NATed TCP connections (like the PORT XXX,XXX,XXX,XXX,XXX,XXX
-@@ -121,91 +158,41 @@
-  *
-  * */
- int 
--ip_nat_mangle_tcp_packet(struct sk_buff **skb,
-+ip_nat_mangle_tcp_packet(struct sk_buff **pskb,
- 			 struct ip_conntrack *ct,
- 			 enum ip_conntrack_info ctinfo,
- 			 unsigned int match_offset,
- 			 unsigned int match_len,
--			 char *rep_buffer,
-+			 const char *rep_buffer,
- 			 unsigned int rep_len)
- {
--	struct iphdr *iph = (*skb)->nh.iph;
-+	struct iphdr *iph;
- 	struct tcphdr *tcph;
--	unsigned char *data;
--	u_int32_t tcplen, newlen, newtcplen;
- 
--	tcplen = (*skb)->len - iph->ihl*4;
--	newtcplen = tcplen - match_len + rep_len;
--	newlen = iph->ihl*4 + newtcplen;
--
--	if (newlen > 65535) {
--		if (net_ratelimit())
--			printk("ip_nat_mangle_tcp_packet: nat'ed packet "
--				"exceeds maximum packet size\n");
-+	if (!skb_ip_make_writable(pskb, (*pskb)->len))
- 		return 0;
--	}
- 
--	if ((*skb)->len != newlen) {
--		if (!ip_nat_resize_packet(skb, ct, ctinfo, newlen)) {
--			printk("resize_packet failed!!\n");
--			return 0;
--		}
--	}
-+	if (rep_len > match_len
-+	    && rep_len - match_len > skb_tailroom(*pskb)
-+	    && !enlarge_skb(pskb, rep_len - match_len))
-+		return 0;
- 
--	/* Alexey says: if a hook changes _data_ ... it can break
--	   original packet sitting in tcp queue and this is fatal */
--	if (skb_cloned(*skb)) {
--		struct sk_buff *nskb = skb_copy(*skb, GFP_ATOMIC);
--		if (!nskb) {
--			if (net_ratelimit())
--				printk("Out of memory cloning TCP packet\n");
--			return 0;
--		}
--		/* Rest of kernel will get very unhappy if we pass it
--		   a suddenly-orphaned skbuff */
--		if ((*skb)->sk)
--			skb_set_owner_w(nskb, (*skb)->sk);
--		kfree_skb(*skb);
--		*skb = nskb;
--	}
-+	SKB_LINEAR_ASSERT(*pskb);
- 
--	/* skb may be copied !! */
--	iph = (*skb)->nh.iph;
-+	iph = (*pskb)->nh.iph;
- 	tcph = (void *)iph + iph->ihl*4;
--	data = (void *)tcph + tcph->doff*4;
--
--	if (rep_len != match_len)
--		/* move post-replacement */
--		memmove(data + match_offset + rep_len,
--			data + match_offset + match_len,
--			(*skb)->tail - (data + match_offset + match_len));
--
--	/* insert data from buffer */
--	memcpy(data + match_offset, rep_buffer, rep_len);
--
--	/* update skb info */
--	if (newlen > (*skb)->len) {
--		DEBUGP("ip_nat_mangle_tcp_packet: Extending packet by "
--			"%u to %u bytes\n", newlen - (*skb)->len, newlen);
--		skb_put(*skb, newlen - (*skb)->len);
--	} else {
--		DEBUGP("ip_nat_mangle_tcp_packet: Shrinking packet from "
--			"%u to %u bytes\n", (*skb)->len, newlen);
--		skb_trim(*skb, newlen);
--	}
--
--	/* fix checksum information */
- 
--	iph->tot_len = htons(newlen);
--	(*skb)->csum = csum_partial((char *)tcph + tcph->doff*4,
--				    newtcplen - tcph->doff*4, 0);
-+	mangle_contents(*pskb, iph->ihl*4 + tcph->doff*4,
-+			match_offset, match_len, rep_buffer, rep_len);
- 
- 	tcph->check = 0;
--	tcph->check = tcp_v4_check(tcph, newtcplen, iph->saddr, iph->daddr,
-+	tcph->check = tcp_v4_check(tcph, (*pskb)->len - iph->ihl*4,
-+				   iph->saddr, iph->daddr,
- 				   csum_partial((char *)tcph, tcph->doff*4,
--					   (*skb)->csum));
--	ip_send_check(iph);
--
-+						(*pskb)->csum));
-+	adjust_tcp_sequence(ntohl(tcph->seq),
-+			    (int)match_len - (int)rep_len,
-+			    ct, ctinfo);
- 	return 1;
- }
- 			
-@@ -220,219 +207,164 @@
-  *       should be fairly easy to do.
-  */
- int 
--ip_nat_mangle_udp_packet(struct sk_buff **skb,
-+ip_nat_mangle_udp_packet(struct sk_buff **pskb,
- 			 struct ip_conntrack *ct,
- 			 enum ip_conntrack_info ctinfo,
- 			 unsigned int match_offset,
- 			 unsigned int match_len,
--			 char *rep_buffer,
-+			 const char *rep_buffer,
- 			 unsigned int rep_len)
- {
--	struct iphdr *iph = (*skb)->nh.iph;
--	struct udphdr *udph = (void *)iph + iph->ihl * 4;
--	unsigned char *data;
--	u_int32_t udplen, newlen, newudplen;
-+	struct iphdr *iph;
-+	struct udphdr *udph;
-+	int need_csum = ((*pskb)->csum != 0);
- 
--	udplen = (*skb)->len - iph->ihl*4;
--	newudplen = udplen - match_len + rep_len;
--	newlen = iph->ihl*4 + newudplen;
--
--	if (newlen > 65535) {
--		if (net_ratelimit())
--			printk("ip_nat_mangle_udp_packet: nat'ed packet "
--				"exceeds maximum packet size\n");
-+	if (!skb_ip_make_writable(pskb, (*pskb)->len))
- 		return 0;
--	}
- 
--	if ((*skb)->len != newlen) {
--		if (!ip_nat_resize_packet(skb, ct, ctinfo, newlen)) {
--			printk("resize_packet failed!!\n");
--			return 0;
--		}
--	}
--
--	/* Alexey says: if a hook changes _data_ ... it can break
--	   original packet sitting in tcp queue and this is fatal */
--	if (skb_cloned(*skb)) {
--		struct sk_buff *nskb = skb_copy(*skb, GFP_ATOMIC);
--		if (!nskb) {
--			if (net_ratelimit())
--				printk("Out of memory cloning TCP packet\n");
--			return 0;
--		}
--		/* Rest of kernel will get very unhappy if we pass it
--		   a suddenly-orphaned skbuff */
--		if ((*skb)->sk)
--			skb_set_owner_w(nskb, (*skb)->sk);
--		kfree_skb(*skb);
--		*skb = nskb;
--	}
-+	if (rep_len > match_len
-+	    && rep_len - match_len > skb_tailroom(*pskb)
-+	    && !enlarge_skb(pskb, rep_len - match_len))
-+		return 0;
- 
--	/* skb may be copied !! */
--	iph = (*skb)->nh.iph;
-+	iph = (*pskb)->nh.iph;
- 	udph = (void *)iph + iph->ihl*4;
--	data = (void *)udph + sizeof(struct udphdr);
--
--	if (rep_len != match_len)
--		/* move post-replacement */
--		memmove(data + match_offset + rep_len,
--			data + match_offset + match_len,
--			(*skb)->tail - (data + match_offset + match_len));
--
--	/* insert data from buffer */
--	memcpy(data + match_offset, rep_buffer, rep_len);
-+	mangle_contents(*pskb, iph->ihl*4 + sizeof(*udph),
-+			match_offset, match_len, rep_buffer, rep_len);
- 
--	/* update skb info */
--	if (newlen > (*skb)->len) {
--		DEBUGP("ip_nat_mangle_udp_packet: Extending packet by "
--			"%u to %u bytes\n", newlen - (*skb)->len, newlen);
--		skb_put(*skb, newlen - (*skb)->len);
--	} else {
--		DEBUGP("ip_nat_mangle_udp_packet: Shrinking packet from "
--			"%u to %u bytes\n", (*skb)->len, newlen);
--		skb_trim(*skb, newlen);
--	}
--
--	/* update the length of the UDP and IP packets to the new values*/
--	udph->len = htons((*skb)->len - iph->ihl*4);
--	iph->tot_len = htons(newlen);
-+	/* update the length of the UDP packet */
-+	udph->len = htons((*pskb)->len - iph->ihl*4);
- 
- 	/* fix udp checksum if udp checksum was previously calculated */
--	if ((*skb)->csum != 0) {
--		(*skb)->csum = csum_partial((char *)udph +
--					    sizeof(struct udphdr),
--					    newudplen - sizeof(struct udphdr),
--					    0);
--
-+	if (need_csum) {
- 		udph->check = 0;
--		udph->check = csum_tcpudp_magic(iph->saddr, iph->daddr,
--						newudplen, IPPROTO_UDP,
--						csum_partial((char *)udph,
-+		udph->check
-+			= csum_tcpudp_magic(iph->saddr, iph->daddr,
-+					    (*pskb)->len - iph->ihl*4,
-+					    IPPROTO_UDP,
-+					    csum_partial((char *)udph,
- 							 sizeof(struct udphdr),
--							(*skb)->csum));
--	}
--
--	ip_send_check(iph);
--
-+							 (*pskb)->csum));
-+	} else
-+		(*pskb)->csum = 0;
- 	return 1;
- }
- 
- /* Adjust one found SACK option including checksum correction */
- static void
--sack_adjust(struct tcphdr *tcph, 
--	    unsigned char *ptr, 
-+sack_adjust(struct sk_buff *skb,
-+	    struct tcphdr *tcph, 
-+	    unsigned int sackoff,
-+	    unsigned int sackend,
- 	    struct ip_nat_seq *natseq)
- {
--	struct tcp_sack_block *sp = (struct tcp_sack_block *)(ptr+2);
--	int num_sacks = (ptr[1] - TCPOLEN_SACK_BASE)>>3;
--	int i;
--
--	for (i = 0; i < num_sacks; i++, sp++) {
-+	while (sackoff < sackend) {
-+		struct tcp_sack_block *sack;
- 		u_int32_t new_start_seq, new_end_seq;
- 
--		if (after(ntohl(sp->start_seq) - natseq->offset_before,
-+		sack = (void *)skb->data + sackoff;
-+		if (after(ntohl(sack->start_seq) - natseq->offset_before,
- 			  natseq->correction_pos))
--			new_start_seq = ntohl(sp->start_seq) 
-+			new_start_seq = ntohl(sack->start_seq) 
- 					- natseq->offset_after;
- 		else
--			new_start_seq = ntohl(sp->start_seq) 
-+			new_start_seq = ntohl(sack->start_seq) 
- 					- natseq->offset_before;
- 		new_start_seq = htonl(new_start_seq);
- 
--		if (after(ntohl(sp->end_seq) - natseq->offset_before,
-+		if (after(ntohl(sack->end_seq) - natseq->offset_before,
- 			  natseq->correction_pos))
--			new_end_seq = ntohl(sp->end_seq)
-+			new_end_seq = ntohl(sack->end_seq)
- 				      - natseq->offset_after;
- 		else
--			new_end_seq = ntohl(sp->end_seq)
-+			new_end_seq = ntohl(sack->end_seq)
- 				      - natseq->offset_before;
- 		new_end_seq = htonl(new_end_seq);
- 
- 		DEBUGP("sack_adjust: start_seq: %d->%d, end_seq: %d->%d\n",
--			ntohl(sp->start_seq), new_start_seq,
--			ntohl(sp->end_seq), new_end_seq);
-+			ntohl(sack->start_seq), new_start_seq,
-+			ntohl(sack->end_seq), new_end_seq);
- 
- 		tcph->check = 
--			ip_nat_cheat_check(~sp->start_seq, new_start_seq,
--					   ip_nat_cheat_check(~sp->end_seq, 
-+			ip_nat_cheat_check(~sack->start_seq, new_start_seq,
-+					   ip_nat_cheat_check(~sack->end_seq, 
- 						   	      new_end_seq,
- 							      tcph->check));
--
--		sp->start_seq = new_start_seq;
--		sp->end_seq = new_end_seq;
-+		sack->start_seq = new_start_seq;
-+		sack->end_seq = new_end_seq;
-+		sackoff += sizeof(*sack);
- 	}
- }
--			
- 
--/* TCP SACK sequence number adjustment, return 0 if sack found and adjusted */
--static inline int
--ip_nat_sack_adjust(struct sk_buff *skb,
--			struct ip_conntrack *ct,
--			enum ip_conntrack_info ctinfo)
-+/* TCP SACK sequence number adjustment */
-+static inline unsigned int
-+ip_nat_sack_adjust(struct sk_buff **pskb,
-+		   struct tcphdr *tcph,
-+		   struct ip_conntrack *ct,
-+		   enum ip_conntrack_info ctinfo)
- {
--	struct iphdr *iph;
--	struct tcphdr *tcph;
--	unsigned char *ptr;
--	int length, dir, sack_adjusted = 0;
-+	unsigned int dir, optoff, optend;
- 
--	iph = skb->nh.iph;
--	tcph = (void *)iph + iph->ihl*4;
--	length = (tcph->doff*4)-sizeof(struct tcphdr);
--	ptr = (unsigned char *)(tcph+1);
-+	optoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct tcphdr);
-+	optend = (*pskb)->nh.iph->ihl*4 + tcph->doff*4;
-+
-+	if (!skb_ip_make_writable(pskb, optend))
-+		return 0;
- 
- 	dir = CTINFO2DIR(ctinfo);
- 
--	while (length > 0) {
--		int opcode = *ptr++;
--		int opsize;
-+	while (optoff < optend) {
-+		/* Usually: option, length. */
-+		unsigned char *op = (*pskb)->data + optoff;
- 
--		switch (opcode) {
-+		switch (op[0]) {
- 		case TCPOPT_EOL:
--			return !sack_adjusted;
-+			return 1;
- 		case TCPOPT_NOP:
--			length--;
-+			optoff++;
- 			continue;
- 		default:
--			opsize = *ptr++;
--			if (opsize > length) /* no partial opts */
--				return !sack_adjusted;
--			if (opcode == TCPOPT_SACK) {
--				/* found SACK */
--				if((opsize >= (TCPOLEN_SACK_BASE
--					       +TCPOLEN_SACK_PERBLOCK)) &&
--				   !((opsize - TCPOLEN_SACK_BASE)
--				     % TCPOLEN_SACK_PERBLOCK))
--					sack_adjust(tcph, ptr-2,
--						    &ct->nat.info.seq[!dir]);
--				
--				sack_adjusted = 1;
--			}
--			ptr += opsize-2;
--			length -= opsize;
-+			/* no partial options */
-+			if (optoff + 1 == optend
-+			    || optoff + op[1] > optend
-+			    || op[1] < 2)
-+				return 0;
-+			if (op[0] == TCPOPT_SACK
-+			    && op[1] >= 2+TCPOLEN_SACK_PERBLOCK
-+			    && ((op[1] - 2) % TCPOLEN_SACK_PERBLOCK) == 0)
-+				sack_adjust(*pskb, tcph, optoff+2,
-+					    optoff+op[1],
-+					    &ct->nat.info.seq[!dir]);
-+			optoff += op[1];
- 		}
- 	}
--	return !sack_adjusted;
-+	return 1;
- }
- 
--/* TCP sequence number adjustment */
--int 
--ip_nat_seq_adjust(struct sk_buff *skb, 
-+/* TCP sequence number adjustment.  Returns true or false.  */
-+int
-+ip_nat_seq_adjust(struct sk_buff **pskb, 
- 		  struct ip_conntrack *ct, 
- 		  enum ip_conntrack_info ctinfo)
- {
--	struct iphdr *iph;
- 	struct tcphdr *tcph;
- 	int dir, newseq, newack;
- 	struct ip_nat_seq *this_way, *other_way;	
--	
--	iph = skb->nh.iph;
--	tcph = (void *)iph + iph->ihl*4;
- 
- 	dir = CTINFO2DIR(ctinfo);
- 
- 	this_way = &ct->nat.info.seq[dir];
- 	other_way = &ct->nat.info.seq[!dir];
--	
-+
-+	/* No adjustments to make?  Very common case. */
-+	if (!this_way->offset_before && !this_way->offset_after
-+	    && !other_way->offset_before && !other_way->offset_after)
-+		return 1;
-+
-+	if (!skb_ip_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
-+		return 0;
-+
-+	tcph = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
- 	if (after(ntohl(tcph->seq), this_way->correction_pos))
- 		newseq = ntohl(tcph->seq) + this_way->offset_after;
- 	else
-@@ -458,9 +390,7 @@
- 	tcph->seq = newseq;
- 	tcph->ack_seq = newack;
- 
--	ip_nat_sack_adjust(skb, ct, ctinfo);
--
--	return 0;
-+	return ip_nat_sack_adjust(pskb, tcph, ct, ctinfo);
- }
- 
- static inline int
-diff -Nru a/net/ipv4/netfilter/ip_nat_proto_icmp.c b/net/ipv4/netfilter/ip_nat_proto_icmp.c
---- a/net/ipv4/netfilter/ip_nat_proto_icmp.c	Tue May  6 09:30:02 2003
-+++ b/net/ipv4/netfilter/ip_nat_proto_icmp.c	Tue May  6 09:30:02 2003
-@@ -42,17 +42,24 @@
- 	return 0;
- }
- 
--static void
--icmp_manip_pkt(struct iphdr *iph, size_t len,
-+static int
-+icmp_manip_pkt(struct sk_buff **pskb,
-+	       unsigned int hdroff,
- 	       const struct ip_conntrack_manip *manip,
- 	       enum ip_nat_manip_type maniptype)
- {
--	struct icmphdr *hdr = (struct icmphdr *)((u_int32_t *)iph + iph->ihl);
-+	struct icmphdr *hdr;
-+
-+	if (!skb_ip_make_writable(pskb, hdroff + sizeof(*hdr)))
-+		return 0;
-+
-+	hdr = (void *)(*pskb)->data + hdroff;
- 
- 	hdr->checksum = ip_nat_cheat_check(hdr->un.echo.id ^ 0xFFFF,
--					   manip->u.icmp.id,
--					   hdr->checksum);
-+					    manip->u.icmp.id,
-+					    hdr->checksum);
- 	hdr->un.echo.id = manip->u.icmp.id;
-+	return 1;
- }
- 
- static unsigned int
-diff -Nru a/net/ipv4/netfilter/ip_nat_proto_tcp.c b/net/ipv4/netfilter/ip_nat_proto_tcp.c
---- a/net/ipv4/netfilter/ip_nat_proto_tcp.c	Tue May  6 09:30:02 2003
-+++ b/net/ipv4/netfilter/ip_nat_proto_tcp.c	Tue May  6 09:30:02 2003
-@@ -7,6 +7,7 @@
- #include <linux/netfilter_ipv4/ip_nat.h>
- #include <linux/netfilter_ipv4/ip_nat_rule.h>
- #include <linux/netfilter_ipv4/ip_nat_protocol.h>
-+#include <linux/netfilter_ipv4/ip_nat_core.h>
- 
- static int
- tcp_in_range(const struct ip_conntrack_tuple *tuple,
-@@ -73,36 +74,49 @@
- 	return 0;
- }
- 
--static void
--tcp_manip_pkt(struct iphdr *iph, size_t len,
-+static int
-+tcp_manip_pkt(struct sk_buff **pskb,
-+	      unsigned int hdroff,
- 	      const struct ip_conntrack_manip *manip,
- 	      enum ip_nat_manip_type maniptype)
- {
--	struct tcphdr *hdr = (struct tcphdr *)((u_int32_t *)iph + iph->ihl);
-+	struct tcphdr *hdr;
- 	u_int32_t oldip;
--	u_int16_t *portptr;
-+	u_int16_t *portptr, oldport;
-+	int hdrsize = 8; /* TCP connection tracking guarantees this much */
-+
-+	/* this could be a inner header returned in icmp packet; in such
-+	   cases we cannot update the checksum field since it is outside of
-+	   the 8 bytes of transport layer headers we are guaranteed */
-+	if ((*pskb)->len >= hdroff + sizeof(struct tcphdr))
-+		hdrsize = sizeof(struct tcphdr);
-+
-+	if (!skb_ip_make_writable(pskb, hdroff + hdrsize))
-+		return 0;
-+
-+	hdr = (void *)(*pskb)->data + hdroff;
- 
- 	if (maniptype == IP_NAT_MANIP_SRC) {
- 		/* Get rid of src ip and src pt */
--		oldip = iph->saddr;
-+		oldip = (*pskb)->nh.iph->saddr;
- 		portptr = &hdr->source;
- 	} else {
- 		/* Get rid of dst ip and dst pt */
--		oldip = iph->daddr;
-+		oldip = (*pskb)->nh.iph->daddr;
- 		portptr = &hdr->dest;
- 	}
- 
--	/* this could be a inner header returned in icmp packet; in such
--	   cases we cannot update the checksum field since it is outside of
--	   the 8 bytes of transport layer headers we are guaranteed */
--	if(((void *)&hdr->check + sizeof(hdr->check) - (void *)iph) <= len) {
--		hdr->check = ip_nat_cheat_check(~oldip, manip->ip,
--					ip_nat_cheat_check(*portptr ^ 0xFFFF,
-+	oldport = *portptr;
-+	*portptr = manip->u.tcp.port;
-+
-+	if (hdrsize < sizeof(*hdr))
-+		return 1;
-+
-+	hdr->check = ip_nat_cheat_check(~oldip, manip->ip,
-+					ip_nat_cheat_check(oldport ^ 0xFFFF,
- 							   manip->u.tcp.port,
- 							   hdr->check));
--	}
--
--	*portptr = manip->u.tcp.port;
-+	return 1;
- }
- 
- static unsigned int
-diff -Nru a/net/ipv4/netfilter/ip_nat_proto_udp.c b/net/ipv4/netfilter/ip_nat_proto_udp.c
---- a/net/ipv4/netfilter/ip_nat_proto_udp.c	Tue May  6 09:30:02 2003
-+++ b/net/ipv4/netfilter/ip_nat_proto_udp.c	Tue May  6 09:30:02 2003
-@@ -72,22 +72,27 @@
- 	return 0;
- }
- 
--static void
--udp_manip_pkt(struct iphdr *iph, size_t len,
-+static int
-+udp_manip_pkt(struct sk_buff **pskb,
-+	      unsigned int hdroff,
- 	      const struct ip_conntrack_manip *manip,
- 	      enum ip_nat_manip_type maniptype)
- {
--	struct udphdr *hdr = (struct udphdr *)((u_int32_t *)iph + iph->ihl);
-+	struct udphdr *hdr;
- 	u_int32_t oldip;
- 	u_int16_t *portptr;
- 
-+	if (!skb_ip_make_writable(pskb, hdroff + sizeof(hdr)))
-+		return 0;
-+
-+	hdr = (void *)(*pskb)->data + hdroff;
- 	if (maniptype == IP_NAT_MANIP_SRC) {
- 		/* Get rid of src ip and src pt */
--		oldip = iph->saddr;
-+		oldip = (*pskb)->nh.iph->saddr;
- 		portptr = &hdr->source;
- 	} else {
- 		/* Get rid of dst ip and dst pt */
--		oldip = iph->daddr;
-+		oldip = (*pskb)->nh.iph->daddr;
- 		portptr = &hdr->dest;
- 	}
- 	if (hdr->check) /* 0 is a special case meaning no checksum */
-@@ -96,6 +101,7 @@
- 							   manip->u.udp.port,
- 							   hdr->check));
- 	*portptr = manip->u.udp.port;
-+	return 1;
- }
- 
- static unsigned int
-diff -Nru a/net/ipv4/netfilter/ip_nat_proto_unknown.c b/net/ipv4/netfilter/ip_nat_proto_unknown.c
---- a/net/ipv4/netfilter/ip_nat_proto_unknown.c	Tue May  6 09:30:02 2003
-+++ b/net/ipv4/netfilter/ip_nat_proto_unknown.c	Tue May  6 09:30:02 2003
-@@ -29,12 +29,13 @@
- 	return 0;
- }
- 
--static void
--unknown_manip_pkt(struct iphdr *iph, size_t len,
-+static int
-+unknown_manip_pkt(struct sk_buff **pskb,
-+		  unsigned int hdroff,
- 		  const struct ip_conntrack_manip *manip,
- 		  enum ip_nat_manip_type maniptype)
- {
--	return;
-+	return 1;
- }
- 
- static unsigned int
-diff -Nru a/net/ipv4/netfilter/ip_nat_standalone.c b/net/ipv4/netfilter/ip_nat_standalone.c
---- a/net/ipv4/netfilter/ip_nat_standalone.c	Tue May  6 09:30:02 2003
-+++ b/net/ipv4/netfilter/ip_nat_standalone.c	Tue May  6 09:30:02 2003
-@@ -71,10 +71,6 @@
- 	/* maniptype == SRC for postrouting. */
- 	enum ip_nat_manip_type maniptype = HOOK2MANIP(hooknum);
- 
--	/* FIXME: Push down to extensions --RR */
--	if (skb_is_nonlinear(*pskb) && skb_linearize(*pskb, GFP_ATOMIC) != 0)
--		return NF_DROP;
--
- 	/* We never see fragments: conntrack defrags on pre-routing
- 	   and local-out, and ip_nat_out protects post-routing. */
- 	IP_NF_ASSERT(!((*pskb)->nh.iph->frag_off
-@@ -95,12 +91,14 @@
- 		/* Exception: ICMP redirect to new connection (not in
-                    hash table yet).  We must not let this through, in
-                    case we're doing NAT to the same network. */
--		struct iphdr *iph = (*pskb)->nh.iph;
--		struct icmphdr *hdr = (struct icmphdr *)
--			((u_int32_t *)iph + iph->ihl);
--		if (iph->protocol == IPPROTO_ICMP
--		    && hdr->type == ICMP_REDIRECT)
--			return NF_DROP;
-+		if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP) {
-+			struct icmphdr hdr;
-+
-+			if (skb_copy_bits(*pskb, (*pskb)->nh.iph->ihl*4,
-+					  &hdr, sizeof(hdr)) == 0
-+			    && hdr.type == ICMP_REDIRECT)
-+				return NF_DROP;
-+		}
- 		return NF_ACCEPT;
- 	}
- 
-@@ -108,8 +106,11 @@
- 	case IP_CT_RELATED:
- 	case IP_CT_RELATED+IP_CT_IS_REPLY:
- 		if ((*pskb)->nh.iph->protocol == IPPROTO_ICMP) {
--			return icmp_reply_translation(*pskb, ct, hooknum,
--						      CTINFO2DIR(ctinfo));
-+			if (!icmp_reply_translation(pskb, ct, hooknum,
-+						    CTINFO2DIR(ctinfo)))
-+				return NF_DROP;
-+			else
-+				return NF_ACCEPT;
- 		}
- 		/* Fall thru... (Only ICMPs can be IP_CT_IS_REPLY) */
- 	case IP_CT_NEW:
-@@ -174,10 +175,6 @@
- 	   const struct net_device *out,
- 	   int (*okfn)(struct sk_buff *))
- {
--	/* FIXME: Push down to extensions --RR */
--	if (skb_is_nonlinear(*pskb) && skb_linearize(*pskb, GFP_ATOMIC) != 0)
--		return NF_DROP;
--
- 	/* root is playing with raw sockets. */
- 	if ((*pskb)->len < sizeof(struct iphdr)
- 	    || (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr))
-@@ -213,10 +210,6 @@
- 	u_int32_t saddr, daddr;
- 	unsigned int ret;
- 
--	/* FIXME: Push down to extensions --RR */
--	if (skb_is_nonlinear(*pskb) && skb_linearize(*pskb, GFP_ATOMIC) != 0)
--		return NF_DROP;
--
- 	/* root is playing with raw sockets. */
- 	if ((*pskb)->len < sizeof(struct iphdr)
- 	    || (*pskb)->nh.iph->ihl * 4 < sizeof(struct iphdr))
-@@ -387,4 +380,5 @@
- EXPORT_SYMBOL(ip_nat_mangle_tcp_packet);
- EXPORT_SYMBOL(ip_nat_mangle_udp_packet);
- EXPORT_SYMBOL(ip_nat_used_tuple);
-+EXPORT_SYMBOL(skb_ip_make_writable);
- MODULE_LICENSE("GPL");
-diff -Nru a/net/ipv4/netfilter/ip_nat_tftp.c b/net/ipv4/netfilter/ip_nat_tftp.c
---- a/net/ipv4/netfilter/ip_nat_tftp.c	Tue May  6 09:30:02 2003
-+++ b/net/ipv4/netfilter/ip_nat_tftp.c	Tue May  6 09:30:02 2003
-@@ -57,9 +57,7 @@
- 	      struct sk_buff **pskb)
- {
- 	int dir = CTINFO2DIR(ctinfo);
--	struct iphdr *iph = (*pskb)->nh.iph;
--	struct udphdr *udph = (void *)iph + iph->ihl * 4;
--	struct tftphdr *tftph = (void *)udph + 8;
-+	struct tftphdr tftph;
- 	struct ip_conntrack_tuple repl;
- 
- 	if (!((hooknum == NF_IP_POST_ROUTING && dir == IP_CT_DIR_ORIGINAL)
-@@ -71,7 +69,11 @@
- 		return NF_ACCEPT;
- 	}
- 
--	switch (ntohs(tftph->opcode)) {
-+	if (skb_copy_bits(*pskb, (*pskb)->nh.iph->ihl*4+sizeof(struct udphdr),
-+			  &tftph, sizeof(tftph)) != 0)
-+		return NF_DROP;
-+
-+	switch (ntohs(tftph.opcode)) {
- 	/* RRQ and WRQ works the same way */
- 	case TFTP_OPCODE_READ:
- 	case TFTP_OPCODE_WRITE:
-@@ -104,8 +106,10 @@
- #if 0
- 	const struct ip_conntrack_tuple *repl =
- 			&master->tuplehash[IP_CT_DIR_REPLY].tuple;
--	struct iphdr *iph = (*pskb)->nh.iph;
--	struct udphdr *udph = (void *)iph + iph->ihl*4;
-+	struct udphdr udph;
-+
-+	if (skb_copy_bits(*pskb,(*pskb)->nh.iph->ihl*4,&udph,sizeof(udph))!=0)
-+		return NF_DROP;
- #endif
- 
- 	IP_NF_ASSERT(info);
-@@ -119,8 +123,8 @@
- 		mr.range[0].min_ip = mr.range[0].max_ip = orig->dst.ip; 
- 		DEBUGP("orig: %u.%u.%u.%u:%u <-> %u.%u.%u.%u:%u "
- 			"newsrc: %u.%u.%u.%u\n",
--                        NIPQUAD((*pskb)->nh.iph->saddr), ntohs(udph->source),
--			NIPQUAD((*pskb)->nh.iph->daddr), ntohs(udph->dest),
-+                        NIPQUAD((*pskb)->nh.iph->saddr), ntohs(udph.source),
-+ 			NIPQUAD((*pskb)->nh.iph->daddr), ntohs(udph.dest),
- 			NIPQUAD(orig->dst.ip));
- 	} else {
- 		mr.range[0].min_ip = mr.range[0].max_ip = orig->src.ip;
-@@ -130,8 +134,8 @@
- 
- 		DEBUGP("orig: %u.%u.%u.%u:%u <-> %u.%u.%u.%u:%u "
- 			"newdst: %u.%u.%u.%u:%u\n",
--                        NIPQUAD((*pskb)->nh.iph->saddr), ntohs(udph->source),
--                        NIPQUAD((*pskb)->nh.iph->daddr), ntohs(udph->dest),
-+                        NIPQUAD((*pskb)->nh.iph->saddr), ntohs(udph.source),
-+                        NIPQUAD((*pskb)->nh.iph->daddr), ntohs(udph.dest),
-                         NIPQUAD(orig->src.ip), ntohs(orig->src.u.udp.port));
- 	}
- 
+
+
+Changes since 2.5.69-mm2:
+
+
+ linus.patch
+
+ Latest from Linus
+
+-generic-subarch.patch
+-altinstruction-linkage-fix.patch
+-cpia-section-fix.patch
+-opl3sa2-compile-fix.patch
+-alloc_skb-remove-debug-check.patch
+-misc.patch
+-mwave-build-fix.patch
+-drm-timer-init-fix.patch
+-slab-init-fixes.patch
+-sysrq-fs-cleanups.patch
+-UPDATE_ATIME-update_atime.patch
+-irqreturn-pcmcia_cs.patch
+-printscreen-fix.patch
+-disk_name-no-devfs.patch
+-devfs-01-api-change.patch
+-remove-partition_name.patch
+-switch-to-devfs_mk_bdev.patch
+-386-access_ok-race-fix.patch
+-swapfile-hold-i_sem.patch
+-dont-set-kernel-pgd-on-PAE.patch
+-nobody-listens-to-wli.patch
+-shrink_slab-accounting.patch
+-slab-debugging-improvement.patch
+-fget-speedup.patch
+-fget_light-fix.patch
+-i8042-share-irqs.patch
+-select-speedup.patch
+-security_d_instantiate-movement.patch
+-ext3-security-xattr.patch
+-ext2-security-xattr.patch
+-lsm-setxattr-changes.patch
+-sunrpc-gcc-bug-workaround.patch
+
+ Merged
+
++ppc64-xics-irq-fix.patch
+
+ ppc64 IRQ return fix
+
++hrtimers-fix-signone.patch
+
+ High-res timers fix
+
++netfilter-skbuff-fix.patch
+
+ Might fix a netfilter oops
+
++ext3-quota-reservation-fix.patch
+
+ Fix possible BUG with ext3+quotas
+
++quota-reference-drop-fix.patch
+
+ Quota fix
+
++visws-logo-fix.patch
+
+ visws fbcon logo fix
+
+-dcache_lock-vs-tasklist_lock-take-2.patch
+
+ Dropped for now - Manfred is redoing it.
+
++vmalloc-race-fix.patch
+
+ Fix nasty race in vmalloc/vfree.  Seems to only happen on preempt.  This
+ will fix the select()-related oops whch Felix von Leitner reported.  Kudos
+ to Mister Irwin.
+
++as-small-hashes.patch
+
+ Reduce anticipatory scheduler memory footprint
+
++tty-64-bit-dev_t-warning-fix.patch
+
+ Warning fix
+
++security-process-attribute-api.patch
+
+ Security API work
+
++thread-info-in-task_struct.patch
+
+ Infrastructure for supporting ia64 oddness
+
+-T25-cciss-C69.patch
+-T26-cpqarray-C69.patch
+-T27-kobject-C69.patch
+-T28-tty-C69.patch
+-T29-kobj_map-C69.patch
+-T30-cdev-C69.patch
+-T31-i_cdev-C69.patch
+
+ The tty changes broke these.
+
+
+
+
+All 104 patches:
+
+
+linus.patch
+
+mm.patch
+  add -mmN to EXTRAVERSION
+
+kgdb-ga.patch
+  kgdb stub for ia32 (George Anzinger's one)
+
+ipmi-warning-fixes.patch
+
+irqreturn-uml.patch
+  UML updates for the new IRQ API
+
+irqreturn-aic79xx.patch
+  Fix aic79xx for new IRQ API
+
+irqreturn-drivers-net.patch
+
+slab-magazine-layer.patch
+  magazine layer for slab
+
+config_spinline.patch
+  uninline spinlocks for profiling accuracy.
+
+ppc64-ioctl-pci-update.patch
+  From: Anton Blanchard <anton@samba.org>
+  Subject: ppc64 stuff
+
+ppc64-reloc_hide.patch
+
+ppc64-aio-32bit-emulation.patch
+  32/64bit emulation for aio
+
+ppc64-scruffiness.patch
+  Fix some PPC64 compile warnings
+
+ppc64-xics-irq-fix.patch
+  PPC64 irq return fix
+
+sym-do-160.patch
+  make the SYM driver do 160 MB/sec
+
+hrtimers-fix-signone.patch
+  hrtimers: fix timer_create(2) && SIGEV_NONE
+
+netfilter-skbuff-fix.patch
+  netfilter skbuff BUGfix
+
+irqreturn-snd-via-fix.patch
+  via sound irqreturn fix
+
+irq_cpustat-cleanup.patch
+  irq_cpustat cleanup
+
+config-PAGE_OFFSET.patch
+  Configurable kenrel/user memory split
+
+fat-speedup.patch
+  fat cluster search speedup
+
+irq-check-rate-limit.patch
+  IRQs: handle bad return values from handlers
+
+irq_desc-others.patch
+  Fix up irq_desc initialisation for non-ia32
+
+ext3-quota-reservation-fix.patch
+  Quota write transaction size fix
+
+quota-reference-drop-fix.patch
+  dquot_transfer() fix
+
+buffer-debug.patch
+  buffer.c debugging
+
+ext3-truncate-ordered-pages.patch
+  ext3: explicitly free truncated pages
+
+3c59x-irq-fix.patch
+
+VM_RESERVED-check.patch
+  VM_RESERVED check
+
+exit_mmap-TASK_SIZE.patch
+  exit_mmap() TASK_SIZE fix
+
+semop-race-fix-2.patch
+  semop race fix #2
+
+nfs-writeback-tweak.patch
+  Tweak to NFS memory management for writes...
+
+reiserfs_file_write-5.patch
+
+visws-logo-fix.patch
+  visws: fix penguin with sgi logo
+
+clustered-io_apic-fix.patch
+  Subject: [RFC][PATCH] fix for clusterd io_apics
+
+rcu-stats.patch
+  RCU statistics reporting
+
+ext3-journalled-data-assertion-fix.patch
+  Remove incorrect assertion from ext3
+
+ide_setting_sem-fix.patch
+
+reslabify-pgds-and-pmds.patch
+  re-slabify i386 pgd's and pmd's
+
+nfs-speedup.patch
+
+nfs-oom-fix.patch
+  nfs oom fix
+
+sk-allocation.patch
+  Subject: Re: nfs oom
+
+nfs-more-oom-fix.patch
+
+rpciod-atomic-allocations.patch
+  Make rcpiod use atomic allocations
+
+linux-isp.patch
+
+isp-update-1.patch
+
+clone-retval-fix.patch
+  copy_process return value fix
+
+de_thread-fix.patch
+  de_thread memory corruption fix
+
+list_del-debug.patch
+  list_del debug check
+
+airo-schedule-fix.patch
+  airo.c: don't sleep in atomic regions
+
+synaptics-mouse-support.patch
+  Add Synaptics touchpad tweaking to psmouse driver
+
+vmalloc-race-fix.patch
+  vmalloc race fix
+
+rq-dyn-works.patch
+  rq-dyn, dynamic request allocation
+
+kblockd.patch
+  Create `kblockd' workqueue
+
+cfq-infrastructure.patch
+
+elevator-completion-api.patch
+  elevator completion API
+
+as-iosched.patch
+  anticipatory I/O scheduler
+
+as-use-completion.patch
+  AS use completion notifier
+
+as-remove-debug-checks.patch
+  AS: remove debug checks
+
+as-iosched-dyn.patch
+  AS: update to dynamic request allocation API
+
+as-monitor-seek-distance.patch
+  AS: monitor seek distance
+
+as-div64-fix.patch
+  as: don't do 64-bit divides
+
+as-small-hashes.patch
+  AS: smaller hashes
+
+unplug-use-kblockd.patch
+  Use kblockd for running request queues
+
+cfq-2.patch
+  CFQ scheduler, #2
+
+cfq-iosched-dyn.patch
+  CFQ: update to rq-dyn API
+
+unmap-page-debugging.patch
+  unmap unused pages for debugging
+
+fremap-all-mappings.patch
+  Make all executable mappings be nonlinear
+
+sched-2.5.68-B2.patch
+  HT scheduler, sched-2.5.68-B2
+
+sched-numa-warning-fix.patch
+  scheduler warning fix for NUMA
+
+sched_idle-typo-fix.patch
+  fix sched_idle typo
+
+kgdb-ga-idle-fix.patch
+
+acpi-irq-ret-fix.patch
+  acpi irq return value fix
+
+sound-irq-hack.patch
+
+oprofile-build-fix.patch
+  Fix arch/i386/oprofile/init.c build error
+
+sched-2.5.64-D3.patch
+  sched-2.5.64-D3, more interactivity changes
+
+sched_best_cpu-fix.patch
+  sched_best_cpu does not pick best cpu
+
+sched_best_cpu-fix-2.patch
+  sched_best_cpu does not pick best cpu (2/2)
+
+generic_hweight64-fix.patch
+
+show_task-free-stack-fix.patch
+  show_task() fix and cleanup
+
+htree-nfs-fix.patch
+  Fix ext3 htree / NFS compatibility problems
+
+htree-nfs-fix-2.patch
+  htree nfs fix
+
+htree-leak-fix.patch
+  ext3: htree memory leak fix
+
+put_task_struct-debug.patch
+
+ia32-mknod64.patch
+  mknod64 for ia32
+
+ext2-64-bit-special-inodes.patch
+  ext2: support for 64-bit device nodes
+
+ext3-64-bit-special-inodes.patch
+  ext3: support for 64-bit device nodes
+
+64-bit-dev_t-kdev_t.patch
+  64-bit dev_t and kdev_t
+
+tty-64-bit-dev_t-warning-fix.patch
+  tty layer 64-bit dev_t printk warning fix
+
+oops-dump-preceding-code.patch
+  i386 oops output: dump preceding code
+
+lockmeter.patch
+
+security-process-attribute-api.patch
+  Process Attribute API for Security Modules
+
+thread-info-in-task_struct.patch
+  allow thread_info to be allocated as part of task_struct
+
+ext3-no-bkl.patch
+
+journal_dirty_metadata-speedup.patch
+
+journal_get_write_access-speedup.patch
+
+ext3-concurrent-block-inode-allocation.patch
+  Subject: [PATCH] concurrent block/inode allocation for EXT3
+
+ext3-orlov-approx-counter-fix.patch
+  Fix orlov allocator boundary case
+
+ext3-concurrent-block-allocation-fix-1.patch
+
+ext3-concurrent-block-allocation-hashed.patch
+  Subject: Re: [PATCH] concurrent block/inode allocation for EXT3
+
+pcmcia-deadlock-fix-2.patch
+  Fix PCMCIA deadlock (rev. 2)
+
+pcmcia-fix.patch
+
+kexec.patch
+  kexec
+
+fbdev-updates.patch
+  Fbdev update patch
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
