@@ -1,28 +1,38 @@
-Date: Tue, 6 May 2003 16:35:33 +0200
-From: Andi Kleen <ak@muc.de>
-Subject: Re: 2.5.68-mm4
-Message-ID: <20030506143533.GA22907@averell>
-References: <1051905879.2166.34.camel@spc9.esa.lanl.gov> <20030502133405.57207c48.akpm@digeo.com> <1051908541.2166.40.camel@spc9.esa.lanl.gov> <20030502140508.02d13449.akpm@digeo.com> <1051910420.2166.55.camel@spc9.esa.lanl.gov> <Pine.LNX.4.55.0305030014130.1304@jester.mews> <20030502164159.4434e5f1.akpm@digeo.com> <20030503025307.GB1541@averell> <Pine.LNX.4.55.0305030800140.1304@jester.mews> <Pine.LNX.4.55.0305061511020.3237@r2-pc.dcs.qmul.ac.uk>
+Date: Tue, 6 May 2003 20:55:55 +0530
+From: Dipankar Sarma <dipankar@in.ibm.com>
+Subject: Re: 2.5.69-mm1
+Message-ID: <20030506152555.GC9875@in.ibm.com>
+Reply-To: dipankar@in.ibm.com
+References: <20030504231650.75881288.akpm@digeo.com> <20030505210151.GO8978@holomorphy.com> <20030506110907.GB9875@in.ibm.com> <1052222542.983.27.camel@rth.ninka.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.55.0305061511020.3237@r2-pc.dcs.qmul.ac.uk>
+In-Reply-To: <1052222542.983.27.camel@rth.ninka.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matt Bernstein <mb--lkml@dcs.qmul.ac.uk>
-Cc: Andi Kleen <ak@muc.de>, Andrew Morton <akpm@digeo.com>, elenstev@mesatop.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "David S. Miller" <davem@redhat.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 06, 2003 at 04:15:55PM +0200, Matt Bernstein wrote:
-> Is this helpful?
+On Tue, May 06, 2003 at 05:02:22AM -0700, David S. Miller wrote:
+> On Tue, 2003-05-06 at 04:09, Dipankar Sarma wrote:
+> > That brings me to the point - with the fget-speedup patch, we should
+> > probably change ->file_lock back to an rwlock again. We now take this
+> > lock only when fd table is shared and under such situation the rwlock
+> > should help. Andrew, it that ok ?
+> 
+> rwlocks believe it or not tend not to be superior over spinlocks,
+> they actually promote cache line thrashing in the case they
+> are actually being effective (>1 parallel reader)
 
-What I really need is an probably decoded with ksymoops oops, not jpegs.
+Provided there isn't a very heavy contention among readers for the spin_lock.
+There is no evidence that this happens with ->file_lock as
+spin_lock, so I guess we are ok for now. We should probably watch out
+for some multi-threaded programs (Java->posix-threads ?) on
+large smp boxes though.
 
-Also you seem to be the only one with the problem so just to avoid
-any weird build problems do a make distclean and rebuild from scratch
-and reinstall the modules.
-
--Andi
+Thanks
+Dipankar
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
