@@ -1,42 +1,37 @@
-Date: Tue, 20 May 2003 01:11:57 -0700
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: [RFC][PATCH] vm_operation to avoid pagefault/inval race
-Message-Id: <20030520011157.3f6b73a6.akpm@digeo.com>
-In-Reply-To: <20030519182305.C1813@us.ibm.com>
-References: <200305172021.56773.phillips@arcor.de>
-	<20030517124948.6394ded6.akpm@digeo.com>
-	<20030519182305.C1813@us.ibm.com>
+Date: Tue, 20 May 2003 12:19:00 +0100
+From: Paulo Andre' <l16083@alunos.uevora.pt>
+Subject: Re: Finalised 2.4 VM Documentation
+Message-Id: <20030520121900.22522fa1.l16083@alunos.uevora.pt>
+In-Reply-To: <Pine.LNX.4.53.0305191329310.24249@skynet>
+References: <Pine.LNX.4.53.0305191329310.24249@skynet>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: paulmck@us.ibm.com
-Cc: phillips@arcor.de, hch@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-"Paul E. McKenney" <paulmck@us.ibm.com> wrote:
->
-> So the general idea is to do something as follows, right?
+On Mon, 19 May 2003 13:53:05 +0100 (IST)
+Mel Gorman <mel@csn.ul.ie> wrote:
 
-It sounds reasonable.  A matter of putting together the appropriate
-library functions and refactoring a few things.
+> I've finalised all the documentation that I'm going to do for the 2.4
+> VM and no further updates will be posted on the web site to this
+> version.
 
-> 
-> o	Make a function, perhaps named something like
-> 	install_new_page(), that does the PTE-installation
-> 	and RSS-adjustment tasks currently performed by
-> 	both do_no_page() and by do_anonymous_page().
+Ok... now onwards to a full 2.6 VM documentation just like this one.
 
-That's similar to mm/fremap.c:install_page().  (Which forgets to call
-update_mmu_cache().  Debatably a buglet.)
+Kidding! Let me thank you for the effort you've put into this, for how
+brilliantly put together it is and most of all for releasing it to the
+general public. I for one, really appreciate this as it is one GIANT
+leap towards documenting well an area of the kernel which has been
+historically less than well documented.
 
-However there is not a lot of commonality between the various nopage()s and
-there may not be a lot to be gained from all this.  There is subtle code in
-there and it is performance-critical.  I'd be inclined to try to minimise
-overall code churn in this work.
+Thanks again.
 
 
+		Paulo
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
