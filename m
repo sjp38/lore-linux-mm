@@ -1,48 +1,57 @@
-Date: Fri, 2 Aug 2002 16:40:49 -0700
-From: Chris Wedgwood <cw@f00f.org>
-Subject: Re: large page patch
-Message-ID: <20020802234049.GA28755@tapu.f00f.org>
-References: <3D49D45A.D68CCFB4@zip.com.au>
-Mime-Version: 1.0
+Date: Fri, 02 Aug 2002 16:54:53 -0700
+From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Subject: Re: large page patch (fwd) (fwd)
+Message-ID: <92200000.1028332493@flay>
+In-Reply-To: <Pine.LNX.4.33.0208021252090.2466-100000@penguin.transmeta.com>
+References: <Pine.LNX.4.33.0208021252090.2466-100000@penguin.transmeta.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <3D49D45A.D68CCFB4@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Seth, Rohit" <rohit.seth@intel.com>, "Saxena, Sunil" <sunil.saxena@intel.com>, "Mallick, Asit K" <asit.k.mallick@intel.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Hubertus Franke <frankeh@watson.ibm.com>, wli@holomorpy.com, gh@us.ibm.com, akpm@zip.com.au, swj@cse.unsw.edu.au, linux-mm mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2002 at 05:37:46PM -0700, Andrew Morton wrote:
+>> Let me than turn around the table. Have you looked at our patch for 2.4.18.
+>> It doesn't add anything to the hot path either, if the (vma->pg_order == 0).   
+>> Period.
+> 
+> Nobody has forwarded the patch, and I've seen no discussion of it on the
+> kernel mailing lists.
+> 
+> Guess what the answer is?
+> 
+> Is it 10 lines of code in the VM subsystem?
 
-    diff -Naru linux.org/arch/i386/kernel/entry.S linux.lp/arch/i386/kernel/entry.S
-    --- linux.org/arch/i386/kernel/entry.S	Mon Feb 25 11:37:53 2002
-    +++ linux.lp/arch/i386/kernel/entry.S	Tue Jul  2 15:12:23 2002
-    @@ -634,6 +634,10 @@
-     	.long SYMBOL_NAME(sys_ni_syscall)	/* 235 reserved for removexattr */
-     	.long SYMBOL_NAME(sys_ni_syscall)	/* reserved for lremovexattr */
-     	.long SYMBOL_NAME(sys_ni_syscall)	/* reserved for fremovexattr */
-    +	.long SYMBOL_NAME(sys_get_large_pages)	/* Get large_page pages */
-    +	.long SYMBOL_NAME(sys_free_large_pages)	/* Free large_page pages */
-    +	.long SYMBOL_NAME(sys_share_large_pages)/* Share large_page pages */
-    +	.long SYMBOL_NAME(sys_unshare_large_pages)/* UnShare large_page pages */
+No, and you're not going to like the patch in it's current incarnation by
+the sound of it. So, having listened to your objections, we're going to
+take a slightly different course - we will prepare a minimal version of
+the patch with very low impact on the core VM code, but using more 
+standard interfaces to access it (eg the shmem method you outlined
+earlier). It'll have a little less functionality, but so be it.
 
+There are other apps apart from Oracle that want the ability to use large
+pages (eg DB2 and Java), and it seems that most of those want them for 
+anonymous mmap or shmem. If we can provide an interface that's more 
+standard, it'll make people's porting much easier. IBM Research has done
+some significant benchmarking of large page support in a variety of
+applications, and has seen 20-40% performance boost for Java, and 
+6-22% improvment for the SPEC CPU2000 set of tests. For the full 
+details, see the OLS paper at:
+http://www.linux.org.uk/~ajh/ols2002_proceedings.pdf.gz
+Moreover, we need large pages to reduce PTE consumption in a variety
+of applications using shared memory, especially given the additional
+overhead of rmap.
 
-Must large pages be allocated this way?
+We should have this available in a few days - if you could hold off 
+until then, we should be able to do an objective comparison? I believe
+we can make something that's acceptable to you.
 
-At some point I would like to see code that mmap's large amounts of
-data (over 1GB) and have it take advantage of this once the kernel is
-potentially extended to deal with mapping of large and/or variable
-sized pages backed to disk.
+Thanks,
 
-Also, some scientific applications will malloc(3) gobs of ram, again
-in excess of 1GB, is it unreasonable to expect that the kernel will
-notice large allocations and try to provide large pages sbrk in
-invoked with suitable high values?
-
-
-
-  --cw
+Martin.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
