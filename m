@@ -1,49 +1,54 @@
-Received: from mail.intermedia.net ([207.5.44.129])
-	by kvack.org (8.8.7/8.8.7) with SMTP id KAA09565
-	for <linux-mm@kvack.org>; Sun, 23 May 1999 10:31:25 -0400
-Received: from [134.96.127.199] by mail.colorfullife.com (NTMail 3.03.0017/1.abcr) with ESMTP id va381389 for <linux-mm@kvack.org>; Sun, 23 May 1999 07:32:20 -0700
-Message-ID: <3748111C.3F040C1F@colorfullife.com>
-Date: Sun, 23 May 1999 16:30:52 +0200
-From: Manfred Spraul <manfreds@colorfullife.com>
-Reply-To: masp0008@stud.uni-sb.de
-MIME-Version: 1.0
-Subject: kernel_lock() profiling results
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from alogconduit1ah.ccr.net (root@alogconduit1al.ccr.net [208.130.159.12])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA09796
+	for <linux-mm@kvack.org>; Sun, 23 May 1999 10:52:24 -0400
+Subject: Re: [PATCHES]
+References: <Pine.LNX.3.95.990522225849.31920C-100000@penguin.transmeta.com>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 23 May 1999 09:54:53 -0500
+In-Reply-To: Linus Torvalds's message of "Sat, 22 May 1999 23:03:00 -0700 (PDT)"
+Message-ID: <m1k8tzsuo1.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, MOLNAR Ingo <mingo@chiara.csoma.elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-I've written a small patch that measures the duration how long the
-kernel-lock is owned.
-The main results:
-- compiling:
-* nearly 60% of all callers release the lock after less than 1024 CPU
-cycles.
-* a few callers own the lock very long, e.g. sys_bdflush for more than
-10 milliseconds (>0.01 seconds).
-- serving web pages with apache:
-* only 17% need less than 1024 CPU cycles
-* 55% need less than 2048 CPU cycles.
+>>>>> "LT" == Linus Torvalds <torvalds@transmeta.com> writes:
 
-The patch and a list of all functions which owned the lock for more then
-1.5 milliseconds is at
-http://www.colorfullife.com/manfreds/kernel_lock/
+LT> On 22 May 1999, Eric W. Biederman wrote:
+>> 
+>> I've been busy working to improve the basic mechanisms of the
+>> page cache, and finally what appears to be a stable set of patches, with
+>> no hacks against 2.3.3
+
+LT> I have three worries:
+LT>  - this is large, with no input from anybody else that I have seen.
+
+Not much.  I had aggreements in principal but no one else has looked at it
+real hard.
+
+LT>  - I absolutely detest getting encoded patches. It makes it much harder
+LT>    for me to just quickly look them over for an immediate feel for what
+LT>    they look like.
+O.k.  I do that for large patches because I'm paranoid about the mailers
+in between. . .
+
+LT>  - Ingo just did the page cache / buffer cache dirty stuff, this is going
+LT>    to clash quite badly with his changes I suspect.
+
+Interesting.  I have been telling folks I've been working on this for quite
+a while.    I wish I'd heard about him or vis versa.
+
+Ingo can I get a pointer to your work?
 
 
-OTHO, 2048 cpu cycles is about as long as __cpu_user() needs for 700
-bytes if source,dest are currently not in the cache (I've tested it
-with a 16 MB move from user mode). The memmove will be even
-slower with faster CPU's (i.e. with a higher cpu clock/bus clock
-multiplier)
+Linus, I'll be resending the patches later today (church is in about 5 minutes).
 
-My question:
-Shouldn't we change file_read_actor() [mm/filemap.c, the function which
-copies data from the page cache to user mode]:
-we could release the kernel lock if we copy more than 1024 bytes.
-(we currently do that only if the user mode memory is not paged in.)
+LT> The other worries I'll see about later. The short descriptions sound fine,
 
-Manfred
+Cool.  If you agree with my work in principal, that makes life easier.
+Now I just need to worry about the details of my patches.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
