@@ -1,100 +1,49 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA03864
-	for <linux-mm@kvack.org>; Thu, 23 Jul 1998 06:59:48 -0400
+Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA03902
+	for <linux-mm@kvack.org>; Thu, 23 Jul 1998 07:03:15 -0400
+Date: Thu, 23 Jul 1998 11:59:56 +0100
+Message-Id: <199807231059.LAA00991@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Subject: Re: More info: 2.1.108 page cache performance on low memory
-References: <199807131653.RAA06838@dax.dcs.ed.ac.uk> 	<m190lxmxmv.fsf@flinx.npwt.net> 	<199807141730.SAA07239@dax.dcs.ed.ac.uk> 	<m14swgm0am.fsf@flinx.npwt.net> 	<87d8b370ge.fsf@atlas.CARNet.hr> <199807221033.LAA00826@dax.dcs.ed.ac.uk>
-Reply-To: Zlatko.Calusic@CARNet.hr
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 23 Jul 1998 12:59:38 +0200
-In-Reply-To: "Stephen C. Tweedie"'s message of "Wed, 22 Jul 1998 11:33:18 +0100"
-Message-ID: <87hg08vnmt.fsf@atlas.CARNet.hr>
+In-Reply-To: <Pine.LNX.3.96.980722195943.13554A-100000@mirkwood.dummy.home>
+References: <199807221036.LAA00829@dax.dcs.ed.ac.uk>
+	<Pine.LNX.3.96.980722195943.13554A-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Eric W. Biederman" <ebiederm+eric@npwt.net>, linux-mm@kvack.org
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@npwt.net>, Zlatko.Calusic@CARNet.hr, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" <sct@redhat.com> writes:
+Hi,
 
-> Hi,
-> 
-> On 18 Jul 1998 15:28:17 +0200, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-> said:
-> 
-> > I must admit, after lot of critics I made upon page aging, that I
-> > believe it's the right way to go, but it should be done properly.
-> > Performance should be better, not worse.
-> 
-> Let me say one thing clearly: I'm not against page ageing (I implemented
-> it in the first place for the swapper), I'm against the bad tuning it
-> introduced.  *IF* we can fix that, then keep the ageing, sure.  However,
-> we need to fix it _completely_.  The non-cache-ageing scheme at least
-> has the advantage that we understand its behaviour, so fiddling too much
-> this close to 2.2 is not necessarily a good idea.  2.1.110, for example,
-> now fails to boot for me in low memory configurations because it cannot
-> keep enough higher order pages free for 4k NFS to work, never mind 8k.
-> 
-> That's the danger: we need to introduce new schemes like this at the
-> beginning of the development cycle for a new kernel, not the end.
-> 
+On Wed, 22 Jul 1998 20:01:51 +0200 (CEST), Rik van Riel
+<H.H.vanRiel@phys.uu.nl> said:
 
-Cool!
-Then we agree on all topics. :)
+> On Wed, 22 Jul 1998, Stephen C. Tweedie wrote:
+>> successfully with 8k NFS.  However, the zoned allocation can use memory
+>> less efficiently: the odd free pages in the paged zone cannot be used by
+>> non-paged users and vice versa, so overall performance may suffer.
+>> Right now I'm cleaning the code up for a release against 2.1.110 so
+>> that we can start testing.
 
-As promised, I did some testing and I maybe have a solution (big
-words, yeah! :)).
+> Hmm, I'm curious as to what categories your allocator
+> divides memory users in. Is it just plain swappable
+> vs. non-swappable
 
-As I see it, page cache seems too persistant (it grows out of bounds)
-when we age pages in it.
+Yes, and so far it seems to work pretty well.
 
-One wrong way of fixing it is to limit page cache size, IMNSHO.
+> or is it fragmentation-causing vs.  fragmentation sensitive or
+> something entirely different?
 
-I tried the other way, to age page cache harder, and it looks like it
-works very well. Patch is simple, so simple that I can't understand
-nobody suggested (something like) it yet.
+As long as there are enough higher-order free pages to go around, the
+fragmentation distinction is not so important.  The problem of course is
+that the more different zone types we have, the less efficiently we can
+use memory, so I really just want a minimal solution which does
+something about fragmentation for non-swappable allocations.
 
-
---- filemap.c.virgin   Tue Jul 21 18:41:30 1998
-+++ filemap.c   Thu Jul 23 12:14:43 1998
-@@ -171,6 +171,11 @@
-                                touch_page(page);
-                                break;
-                        }
-+                       /* Age named pages aggresively, so page cache
-+                        * doesn't grow too fast.    -zcalusic
-+                        */
-+                       age_page(page);
-+                       age_page(page);
-                        age_page(page);
-                        if (page->age)
-                                break;
-
-
-After lots of testing, I am quite pleased with performance with that
-small change.
-
-Where, using official kernel, copying few hundreds of data to
-/dev/null would outswap cca 20MB (and constantly keep swapping, thus
-killing performance), now it swaps out only 5MB, probably exactly that
-pages that are not needed anyway. And that is something that I like
-with aging.
-
-I can provide thorough benchmark data, if needed.
-
-If I put only two age_page()s, there's still too much swapping for my
-taste.
-
-With three age_page()s, read performance is as expected, and still we
-manage memory more efficiently than without page aging.
-
-Patch applies cleanly on 2.1.110.
-
-Comments?
-
-Regards,
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-	  Don't steal - the government hates competition...
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
