@@ -1,35 +1,23 @@
-Date: Tue, 3 Apr 2001 22:08:41 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Count swap faults which need to read data from the swap area as
- major faults
-In-Reply-To: <Pine.LNX.4.21.0104032010010.7175-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0104032208210.14090-100000@imladris.rielhome.conectiva>
+Date: Tue, 3 Apr 2001 23:44:01 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: 2.4 kernel memory corruption testing info
+In-Reply-To: <Pine.LNX.4.21.0104032022500.7175-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.3.96.1010403234323.27911A-100000@kanga.kvack.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+Cc: Andrea Arcangeli <andrea@suse.de>, Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org, arjanv@redhat.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Alexander Viro <aviro@redhat.com>, Chris Mason <mason@suse.com>, Theodore Ts'o <tytso@valinux.com>, Rik van Riel <riel@nl.linux.org>
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 3 Apr 2001, Marcelo Tosatti wrote:
 
-> Right now we are not accounting faults which nee to read data from
-> swap as major faults.
-> 
-> The following patch should fix that. 
+> Also hints for Ingo's fs stresser would be nice. 
 
-Looks good....
+See http://people.redhat.com/bmatthews/ 
 
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
