@@ -1,53 +1,45 @@
-Date: Wed, 22 Dec 2004 19:07:48 +0100
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
-Message-ID: <20041222180748.GB9339@wotan.suse.de>
-References: <Pine.LNX.4.44.0412210230500.24496-100000@localhost.localdomain> <Pine.LNX.4.58.0412201940270.4112@ppc970.osdl.org> <Pine.LNX.4.58.0412201953040.4112@ppc970.osdl.org> <20041221093628.GA6231@wotan.suse.de> <Pine.LNX.4.58.0412210925370.4112@ppc970.osdl.org> <20041221201927.GD15643@wotan.suse.de> <41C8B678.40007@yahoo.com.au> <20041222103800.GC15894@wotan.suse.de> <41C9582D.5020201@yahoo.com.au>
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iBN2K3FJ339094
+	for <linux-mm@kvack.org>; Wed, 22 Dec 2004 21:20:03 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iBN2K2sJ282966
+	for <linux-mm@kvack.org>; Wed, 22 Dec 2004 19:20:02 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iBN2K2Z6016934
+	for <linux-mm@kvack.org>; Wed, 22 Dec 2004 19:20:02 -0700
+Date: Wed, 22 Dec 2004 20:19:01 -0600
+From: "Jose R. Santos" <jrsantos@austin.ibm.com>
+Subject: Re: [PATCH 0/3] NUMA boot hash allocation interleaving
+Message-ID: <20041223021901.GA27746@rx8.austin.ibm.com>
+References: <Pine.SGI.4.61.0412141720420.22462@kzerza.americas.sgi.com> <50260000.1103061628@flay> <20041215045855.GH27225@wotan.suse.de> <20041215144730.GC24000@krispykreme.ozlabs.ibm.com> <20041216050248.GG32718@wotan.suse.de> <20041216051323.GI24000@krispykreme.ozlabs.ibm.com> <20041216141814.GA10292@rx8.austin.ibm.com> <20041220165629.GA21231@rx8.austin.ibm.com> <20041221114605.GB21710@krispykreme.ozlabs.ibm.com> <Pine.SGI.4.61.0412211019150.48124@kzerza.americas.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <41C9582D.5020201@yahoo.com.au>
+In-Reply-To: <Pine.SGI.4.61.0412211019150.48124@kzerza.americas.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andi Kleen <ak@suse.de>, Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: Brent Casavant <bcasavan@sgi.com>
+Cc: Anton Blanchard <anton@samba.org>, "Jose R. Santos" <jrsantos@austin.ibm.com>, Andi Kleen <ak@suse.de>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Dec 22, 2004 at 10:19:09PM +1100, Nick Piggin wrote:
-> But the advantages I see in the source code are a) pud folding matches 
-> exactly
-> how pmd folding was done on 2 level architectures, and b) it doesn't touch
-> either of the "business ends" of the page table structure (ie. top most or
-> bottom most levels).  I think these two points give some (if only slight)
-> advantage in maintainability and consistency.
+Brent Casavant <bcasavan@sgi.com> [041221]:
+> I didn't realize this was ppc64 testing.  What was the exact setup
+> for the testing?  The patch as posted (and I hope clearly explained)
+> only turns on the behavior by default when both CONFIG_NUMA and
+> CONFIG_IA64 were active.  It could be activated on non-IA64 by setting
+> hashdist=1 on the boot line, or by modifying the patch.
 
-Sure, but when it's merged then pml4_t (or p<whatever>_t) would be 
-the "business end", so it doesn't make much difference longer term.
-After all future linux coders will not really care what was in the
-past, just what is in the code at the time they hack on it.
+I wasn't aware of the little detail.  I re-tested with hashdist=1 and
+this time it shows a slowdown of about 3%-4% on a 4-Way Power5 system 
+(2 NUMA nodes) with 64GB.  Don't see a big problem if the things is off
+by default on non IA64 systems though.
 
+> I would hate to find out that the testing didn't actually enable the
+> new behavior.
 
-> If I can get the bulk of the architectures changed and tested, the arch
-> maintainers don't kick up too much fuss, it has a relatively trouble free 
-> run
-> in -mm, and Andrew and Linus are still happy to merge before 2.6.11, would 
-> you
-> be OK with the pud version (in principle)?
+Serves me right for not reading the entire thread. :)
 
-I can't say I'm very enthusiastic about it (but more due to scheduling
-issues than technical issues). I don't see anything wrong with them by itself,
-but I also don't think they have any particular advantages over the
-pml4 version. But in the end the main thing I care about is that
-4 level pagetables get in in some form, where exactly the
-new level is added and how it is named is secondary.
-
-I would prefer if it happened sooner though because the work
-is not finished (the optimized walking is still needed),
-and i've been just waiting for getting merged and settled
-down a bit before continuing. 
-
--Andi
-
+-JRS
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
