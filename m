@@ -1,79 +1,40 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j13LoNCO487048
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2005 16:50:23 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j13LoMfX321670
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2005 14:50:22 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j13LoLlq003163
-	for <linux-mm@kvack.org>; Thu, 3 Feb 2005 14:50:21 -0700
-Subject: [PATCH] make page_owner handle non-contiguous page ranges
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Thu, 03 Feb 2005 13:50:19 -0800
-Message-Id: <E1Cwork-0006No-00@kernel.beaverton.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <16898.46622.108835.631425@cargo.ozlabs.ibm.com>
+Date: Fri, 4 Feb 2005 10:39:10 +1100
+From: Paul Mackerras <paulus@samba.org>
+Subject: Re: A scrub daemon (prezeroing)
+In-Reply-To: <Pine.LNX.4.61.0502022204140.2678@chimarrao.boston.redhat.com>
+References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
+	<1106828124.19262.45.camel@hades.cambridge.redhat.com>
+	<20050202153256.GA19615@logos.cnet>
+	<Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
+	<20050202163110.GB23132@logos.cnet>
+	<Pine.LNX.4.61.0502022204140.2678@chimarrao.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: alexn@dsv.su.se, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Christoph Lameter <clameter@sgi.com>, David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-While super-nifty, the new page_owner code assumes a contiguous
-mem_map, which we don't all have.  This patch changes the
-iterator in the read_page_owner() to be a pfn instead of a
-'struct page'.  This makes it easy to jump around to different
-non-contiuous 'struct pages' as with the CONFIG_DISCONTIG code.
+Rik van Riel writes:
 
-It also uses pfn_valid() instead of max_pfn, which seems to be
-a bit more flexible, and handles holes where there are no 
-'struct pages' on the DISCONTIG systems.
+> I'm not convinced.  Zeroing a page takes 2000-4000 CPU
+> cycles, while faulting the page from RAM into cache takes
+> 200-400 CPU cycles per cache line, or 6000-12000 CPU
+> cycles.
 
-BTW, I have no idea why that loop ended with a continue;
+On my G5 it takes ~200 cycles to zero a whole page.  In other words it
+takes about the same time to zero a page as to bring in a single cache
+line from memory.  (PPC has an instruction to establish a whole cache
+line of zeroes in modified state without reading anything from
+memory.)
 
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
+Thus I can't see how prezeroing can ever be a win on ppc64.
 
- memhotplug-dave/fs/proc/proc_misc.c |   16 ++++++++++------
- 1 files changed, 10 insertions(+), 6 deletions(-)
-
-diff -puN fs/proc/proc_misc.c~A9-page_owner_no_contig fs/proc/proc_misc.c
---- memhotplug/fs/proc/proc_misc.c~A9-page_owner_no_contig	2005-02-03 13:26:47.000000000 -0800
-+++ memhotplug-dave/fs/proc/proc_misc.c	2005-02-03 13:28:13.000000000 -0800
-@@ -546,8 +546,9 @@ static struct file_operations proc_sysrq
- static ssize_t
- read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
- {
--	struct page *start = pfn_to_page(min_low_pfn);
--	static struct page *page;
-+	unsigned long start_pfn = min_low_pfn;
-+	static unsigned long pfn;
-+	struct page *page;
- 	char *kbuf, *modname;
- 	const char *symname;
- 	int ret = 0, next_idx = 1;
-@@ -555,15 +556,18 @@ read_page_owner(struct file *file, char 
- 	unsigned long offset = 0, symsize;
- 	int i;
- 
--	page = start + *ppos;
--	for (; page < pfn_to_page(max_pfn); page++) {
-+	pfn = start_pfn + *ppos;
-+	page = pfn_to_page(pfn);
-+	for (; pfn < max_pfn; pfn++) {
-+		if (!pfn_valid(pfn))
-+			continue;
-+		page = pfn_to_page(pfn);
- 		if (page->order >= 0)
- 			break;
- 		next_idx++;
--		continue;
- 	}
- 
--	if (page >= pfn_to_page(max_pfn))
-+	if (!pfn_valid(pfn))
- 		return 0;
- 
- 	*ppos += next_idx;
-_
+Regards,
+Paul.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
