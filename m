@@ -1,67 +1,44 @@
-Date: Mon, 17 Feb 2003 13:32:21 -0500 (EST)
-From: Bill Davidsen <davidsen@tmr.com>
-Subject: Re: 2.5.60-mm2
-In-Reply-To: <1045485310.3e50d6fe94f1e@rumms.uni-mannheim.de>
-Message-ID: <Pine.LNX.3.96.1030217132545.32676A-100000@gatekeeper.tmr.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <200302172244.h1HMi3n03557@mail.osdl.org>
+Subject: Re: 2.5.61-mm1 
+In-Reply-To: Message from Andrew Morton <akpm@digeo.com>
+   of "Fri, 14 Feb 2003 23:13:56 PST." <20030214231356.59e2ef51.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Date: Mon, 17 Feb 2003 14:44:03 -0800
+From: Cliff White <cliffw@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Schlichter <schlicht@rumms.uni-mannheim.de>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cliffw@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Feb 2003, Thomas Schlichter wrote:
-
-> Quoting Bill Davidsen <davidsen@tmr.com>:
-
-> > > I was looking for network issues when I started timing pings, and didn't
-> > > see any. I thought it was bad timing, like not raining when you have a
-> > > coat, but maybe I was curing it.
-> > 
-> > Since it's possible that pings will actually change the problem rather
-> > than measure it, I'll tcpdump for a while and see if that tells me
-> > anything. I suspected network problems, since tcp has priority over udp in
-> > some places.
-> > 
-> > I looked at the code last night, but I don't see anything explaining a
-> > ping making things better. Something getting flushed?
 > 
-> I'm sorry, I don't exactly know what you want me to do... I'm not involved in
-> the linux net code and I did not even try to understand it yet...
-
-Thanks, you've already done it! I assumed that when I didn't see any
-problems while the ping was running that it was just bad timing, and the
-problem didn't happen while I was looking. Your note that the pinging
-actually prevents the problem gives me something new to investigate.
-
-> I just have a small environment with a FreeBSD 4.6 box using my Linux box as a
-> NFS file server. This worked fine with my 2.4 kernel but with the 2.5.x test
-> kernels I've got the problem the FreeBSD box says 'NFS server not responding'
-> until I do simple pings (ICMP echo request, ICMP echo respond) to the linux box
-> (the NFS server)...
+> http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.61/2.5.61-mm1/
 > 
-> Letting the ping run all the time NFS works so stable I even can do lots of
-> compilations over it without any problems.
+> . Jens has fixed the request queue aliasing problem and we are no longer
+>   able to break the IO scheduler.  This was preventing the OSDL team from
+>   running dbt2 against recent kernels, so hopefully that is all fixed up now.
 > 
-> So I don't have any answer WHY this helps, but it does... Perhaps it really is
-> just a timing issue, I just don't know... If you can tell me what to measure and
-> which values would be interesting I'll do these tests and send you the
-> results...
+Thanks again for doing all this, really appreciate it.
+Well, we're closer....
+The showstopper for us is still the flock() issue. We have Mathew Wilcox's patch from
+2.5.52, which we have been applying to all recent kernels. The patch is in PLM as patch id
+# 1061. The issue is in BugMe as bug #94 . 
+Without proper flock() we cannot stop and restart the database, which means we can't run the test. 
+We've tried applying Wilcox's flock patch to -mm1, but it's doesn't go clean, and frankly we're not smart enough
+to do the merge by hand -  lock code scares us. 
 
-I someone can suggest "what to do" I'll do it as well. At the moment I'm
-building a table of 2.5.59 client against 2.4.19, AIX, BSD, etc, and vice
-versa. I am looking for hangs with and without the ping running, in hopes
-that the results will be useful, possibly to me but more likely to someone
-who can see what's happening.
+We just tested 2.5.61 vanilla, and 2.5.61-mm1. 
 
-For the record, I see severe hangs with 2.4.19 server and 2.5.59 client,
-I'll know what effect the ping has in a few minutes.
+The patch applies cleanly to stock 2.5.61, and we can cycle the database.
+We can't run dbt2 on stock 2.5.61, because of the scheduler bug. 
+We believe the scheduler fix in -mm1 will be the ticket, but we can't try
+it because of the flock() issue. So we're wedged. 
+Can someone smarter than us maybe do a merge? 
 
--- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
+thanks,
+cliffw
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
