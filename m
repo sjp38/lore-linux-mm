@@ -1,60 +1,44 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA00836
-	for <linux-mm@kvack.org>; Wed, 2 Dec 1998 16:19:15 -0500
+Received: from mail.ccr.net (ccr@alogconduit1af.ccr.net [208.130.159.6])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA03143
+	for <linux-mm@kvack.org>; Thu, 3 Dec 1998 01:28:52 -0500
 Subject: Re: [PATCH] swapin readahead
-References: <87vhjvkccu.fsf@atlas.CARNet.hr> <Pine.LNX.3.96.981201192554.4046A-100000@mirkwood.dummy.home> <199812021735.RAA04489@dax.scot.redhat.com>
-Reply-To: Zlatko.Calusic@CARNet.hr
-Mime-Version: 1.0
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 02 Dec 1998 22:18:58 +0100
-In-Reply-To: "Stephen C. Tweedie"'s message of "Wed, 2 Dec 1998 17:35:26 GMT"
-Message-ID: <87d862gs3h.fsf@atlas.CARNet.hr>
+References: <87vhjvkccu.fsf@atlas.CARNet.hr> <Pine.LNX.3.96.981201192554.4046A-100000@mirkwood.dummy.home> <199812021735.RAA04489@dax.scot.redhat.com> <87d862gs3h.fsf@atlas.CARNet.hr>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 02 Dec 1998 23:25:38 -0600
+In-Reply-To: Zlatko Calusic's message of "02 Dec 1998 22:18:58 +0100"
+Message-ID: <m1af15iyp9.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Rik van Riel <H.H.vanRiel@phys.uu.nl>, Linux MM <linux-mm@kvack.org>
+To: Zlatko.Calusic@CARNet.hr
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" <sct@redhat.com> writes:
+>>>>> "ZC" == Zlatko Calusic <Zlatko.Calusic@CARNet.hr> writes:
 
-> Hi,
-> 
-> On Tue, 1 Dec 1998 19:32:52 +0100 (CET), Rik van Riel
-> <H.H.vanRiel@phys.uu.nl> said:
-> 
-> > I took the bet that shrink_mmap() would take care of that, but
-> > aperrantly not always :(
-> 
-> shrink_mmap() only gets rid of otherwise unused pages (pages whose count
-> is one).  After read_swap_cache_async(), the page count will be three:
-> once for the swap cache, once for the io in progress, once for the
-> reference returned by read_swap_cache_async().  You need to free that
-> last reference explicitly after doing the readahead call.  The io
-> reference will be returned once IO completes, and shrink_mmap() will
-> take care of the final swap cache reference.
-> 
+ZC> Trying 2.1.131-2, I'm mostly satisfied with MM workout, but...
 
-That is exactly what I had in mind, but didn't have time to
-investigate further. Nor courage to say that, without trying first. :)
+ZC> Still, I have a feeling that limit imposed on cache growth is now too
+ZC> hard, unlike kernels from the 2.1.1[01]? era, that had opposite
+ZC> problems (excessive cache growth during voluminous I/O operations).
 
-I've been hacking shrink_mmap() and swap_out() most of the time last
-few days and in fact completely understood all inner workings of them.
-Quite complicated stuff, now I see why it so easily breaks if we
-change something aruond.
+My gut reaction is that we need a check in swap_out to see if we have
+written out a swap_cluster or some other indication that we have
+started all of the disk i/o that is reasonable for now and need to
+switch to something else.
 
-Trying 2.1.131-2, I'm mostly satisfied with MM workout, but...
+This should have the same effect as the switches with the limits on
+the swap cache but more autobalancing.  I'm nervous of a kernel that
+needs small limits on it's disk cache to work correctly.
 
-Still, I have a feeling that limit imposed on cache growth is now too
-hard, unlike kernels from the 2.1.1[01]? era, that had opposite
-problems (excessive cache growth during voluminous I/O operations).
+ZC> What I wanted to ask is: do you guys share my opinion, and what
+ZC> changes would you like to see before 2.2 comes out?
 
-What I wanted to ask is: do you guys share my opinion, and what
-changes would you like to see before 2.2 comes out?
+One thing worth putting in.  Probably before to 2.2 but definentily
+before any swap page readahead is done is to start using brw_page
+for swapfiles.  I don't know about synchronous cases, but in the when
+asynchronous operation is important it improves swapfile performance
+immensely.
 
-Thanks for any opinion.
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-	"640K ought to be enough for anybody." Bill Gates '81
+Eric
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
