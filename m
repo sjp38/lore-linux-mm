@@ -1,45 +1,24 @@
-Received: from smtp01.mail.gol.com (smtp01.mail.gol.com [203.216.5.11])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA27658
-	for <linux-mm@kvack.org>; Tue, 2 Mar 1999 08:09:43 -0500
-Received: from earthling.net (tc-1-130.ariake.gol.ne.jp [203.216.42.130])
-	by smtp01.mail.gol.com (8.9.3/8.9.3/893-SMTP-P) with ESMTP id WAA14313
-	for <linux-mm@kvack.org>; Tue, 2 Mar 1999 22:09:22 +0900 (JST)
-Message-ID: <36DBE391.EF9C1C06@earthling.net>
-Date: Tue, 02 Mar 1999 22:11:45 +0900
-From: Neil Booth <NeilB@earthling.net>
+Received: from calliope1.fm.intel.com (calliope1.fm.intel.com [132.233.247.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA02633
+	for <linux-mm@kvack.org>; Fri, 5 Mar 1999 19:21:13 -0500
+Received: from fmsmsx28.FM.INTEL.COM (fmsmsx28.fm.intel.com [132.233.42.28])
+	by calliope1.fm.intel.com (8.9.1a+p1/8.9.1/d: relay.m4,v 1.6 1998/11/24 22:10:56 iwep Exp iwep $) with ESMTP id AAA22679
+	for <linux-mm@kvack.org>; Sat, 6 Mar 1999 00:21:08 GMT
+Message-ID: <9319DDF797C4D211AC4700A0C96B7C940EB47C@ORSMSX42>
+From: "Lynch, Rusty" <rusty.lynch@intel.com>
+Subject: Tools for getting an applications memory finger print
+Date: Fri, 5 Mar 1999 16:21:06 -0800 
 MIME-Version: 1.0
-Subject: A couple of questions
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I have a couple of questions about do_wp_page; I hope they're welcome
-here.
+Are there any tools available for finding an application memory
+finger print or do I need to create one myself?
 
-1) do_wp_page has most execution paths doing an unlock_kernel() but
-there are a couple that don't. Why isn't this inconsistent? e.g. any of
-the branches that call end_wp_page do not unlock the kernel. What am I
-missing? Is it that these branches only happen if we slept while getting
-the free page, and sleeping always unlocks the kernel?
-
-2) The last 2 of the 3 branches to end_wp_page seem to me to be
-impossible code paths.
-
-	if (!pte_present(pte))
-		goto end_wp_page;
-	if (pte_write(pte))
-		goto end_wp_page;
-
-At entry, pte (= *page_table) is present and not writable as this is the
-only way do_wp_page gets called from handle_pte_fault (and we hold the
-kernel lock so nothing else can change *page_table). Being a local
-variable, it contents cannot change, so why these 2 tests?
-
-Cheers,
-
-Neil.
+	-Rusty Lynch
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
