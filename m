@@ -1,65 +1,69 @@
-Date: Sat, 6 May 2000 12:35:00 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [DATAPOINT] pre7-6 will not swap
-In-Reply-To: <39145287.D8F1F0C1@sgi.com>
-Message-ID: <Pine.LNX.4.10.10005061225460.1470-100000@penguin.transmeta.com>
+Message-ID: <391499C8.D4FDA2E6@norran.net>
+Date: Sun, 07 May 2000 00:16:40 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: PG_referenced and lru_cache (cpu%)...
+References: <Pine.LNX.4.21.0005061529280.4627-100000@duckman.conectiva>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: Benjamin Redelings I <bredelin@ucla.edu>, linux-mm@kvack.org
+To: riel@nl.linux.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Sat, 6 May 2000, Rajagopal Ananthanarayanan wrote:
+Rik van Riel wrote:
 > 
-> Linus has taken in the fix to "old" vs. "young" in shrink_mmap,
-> and taken out the aggressive counter change (also in shrink_mmap).
-> But apparently another change in try_to_swap_out is causing problems.
-> I haven't an analytical evaluation, but empericically, if I remove this
-> in try_to_swap_out (mm/vmscan.c), dbench runs ok.
+> On Sat, 6 May 2000, Roger Larsson wrote:
+> 
+> > When _add_to_page_cache adds a page to the lru_cache
+> > it forces it to be referenced.
+> > In addition it will be added as youngest in list.
+> 
+> Which is IMHO a good thing, since the page *was* referenced
+> and was referenced last.
 
-Yes. I was thinking some more about it, and it isusing the wrong test. It
-must use the same test as the one in page_alloc.cto determine whether
-azone is "interesting" or not - otherwise you get into a situation where
-page_alloc.c doesn't want to allocate from a zone because it's not quite
-empty enough, but at the same time vmscan doesn't want to free pages from
-the zone because it's not quite full enough.
+Ok, I can buy that.
 
-No wonder that if you get to that situation, the allocator starts getting
-unhappy and says "no free pages".
+> 
+> > When a page is needed it is very likely that a lot of
+> > the youngest pages are marked as referenced.
+> 
+> > order=0 is the only that tries to search the full list.
+> 
+> No. Referenced pages are not counted, so if we encounter
+> a lot of them we will happily age them all without decreasing
+> the value of count.
 
-> --------------- mm/vmscan.c around line 113 --------------
->         /*
->          * Don't do any of the expensive stuff if
->          * we're not really interested in this zone.
-> 	 */
->         if (!page->zone->zone_wake_kswapd)
->                 goto out_unlock;
+But if it is first in the order==0 run that they are found...
 
-Make this test be the same as in "__alloc_pages()" in mm/page_alloc.c, and
-it should be ok. The test there is:
+Extreme example:
+Suppose all DMA pages are referenced and last in list. No other zones
+with pressure.
+order = [6..1] will not find them.
+order = 0 will, but since they are referenced they are put in young.
+shrink_mmap will loop (256 times) without finding them...
+And return 0.
+order is 0
+=> no more shrink_mmap will be called...
+=> the pages were not found.
 
-                /* Are we supposed to free memory? Don't make it worse.. */
-                if (!z->zone_wake_kswapd && z->free_pages > z->pages_low) {
+I would feel a lot safer if the young pages was inserted at top
+of lru_cache instead of in another local list.
+With them in lru_cache they will be searched if it needs to
+loop that far...
 
-and I suspect that we mightactually make the vmscan.c test more eager to
-swap stuff out: my private source tree says
+/RogerL
 
-        /*
-         * Don't do any of the expensive stuff if
-         * we're not really interested in this zone.
-         */
-	if (z->free_pages > z->pages_high) 
-		goto out_unlock;
+PS.
+  This feels a little like archaeology with a new algorithm
+  soon to be released...
+  But at leas I can learn a lot from it - Rik thanks for your replies!
+DS
 
-in vmscan.c, and that seems to be quite well-behaved too (but if somebody
-has the energy to test the two different versions, I'd absolutely love to
-hear results..)
-
-		Linus
-
+--
+Home page:
+  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
