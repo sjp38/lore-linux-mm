@@ -1,66 +1,46 @@
-Date: Sun, 1 Aug 2004 17:52:00 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
+Date: Sun, 1 Aug 2004 17:56:18 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH] token based thrashing control
-In-Reply-To: <20040801040553.305f0275.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.58.0408011747240.13053@dhcp030.home.surriel.com>
+Message-Id: <20040801175618.711a3aac.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.58.0408010856240.13053@dhcp030.home.surriel.com>
 References: <Pine.LNX.4.58.0407301730440.9228@dhcp030.home.surriel.com>
- <20040801040553.305f0275.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	<Pine.LNX.4.58.0408010856240.13053@dhcp030.home.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, sjiang@cs.wm.edu
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, sjiang@cs.wm.edu, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 1 Aug 2004, Andrew Morton wrote:
-> Rik van Riel <riel@redhat.com> wrote:
-> >
-> > The following experimental patch implements token based thrashing
-> >  protection, 
+Rik van Riel <riel@redhat.com> wrote:
+>
+> On Fri, 30 Jul 2004, Rik van Riel wrote:
 > 
-> Thanks for this - it is certainly needed.
-
-I'm glad you like it ;)
-
-> As you say, qsbench throughput is greatly increased (4x here).  But the old
-> `make -j4 vmlinux' with mem=64m shows no benefit at all.
-
-I tested increasing make loads on my system here.  The system
-is a dual pIII with 384MB RAM and a 180MB named daemon in the
-background.
-
-With -j 10, 20, 30, 40 and 50 the patch didn't make much of a
-difference at all.  However, with 'make -j 60' it sped up the
-average compile time about a factor of 2, from 1:20 down to
-40 minutes.  CPU consumption also went up from ~26% to over 50%.
-
-> I figured it was the short-lived processes, so I added the below, which
-> passes the token to the child across exec, and back to the parent on exit. 
-> Although it appears to work correctly, it too make no difference.
-
-I've got some ideas for potential improvement, too.  However,
-I'd like to get the simplest code tested first ;)
-
-> btw, in page_referenced_one():
+>  > I have run a very unscientific benchmark on my system to test
+>  > the effectiveness of the patch, timing how a 230MB two-process
+>  > qsbench run takes, with and without the token thrashing
+>  > protection present.
+>  > 
+>  > normal 2.6.8-rc2:	6m45s
+>  > 2.6.8-rc2 + token:	4m24s
 > 
-> +	if (mm != current->mm && has_swap_token(mm))
-> +		referenced++;
+>  OK, I've now also ran day-long kernel compilate tests,
+>  3 times each with make -j 10, 20, 30, 40, 50 and 60 on
+>  my dual pIII w/ 384 MB and a 180 MB named in the background.
 > 
-> what's the reason for the `mm != current->mm' test?
+>  For make -j 10 through make -j 50 the differences are in
+>  the noise, basically giving the same result for each kernel.
+> 
+>  However, for make -j 60 there's a dramatic difference between
+>  a kernel with the token based swapout and a kernel without.
+> 
+>  normal 2.6.8-rc2:	1h20m runtime / ~26% CPU use average
+>  2.6.8-rc2 + token:	  42m runtime / ~52% CPU use average
 
-It's possible that the process that's currently holding
-the token wants more memory than the system has available.
-
-In that case it needs to be able to page part of itself
-out of memory, otherwise the system will deadlock until
-the moment where the token is handed off to the next
-task...
-
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+OK.  My test is usually around 50-60% CPU occupancy so we're not gaining in
+the moderate swapping range.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
