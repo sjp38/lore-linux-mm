@@ -1,41 +1,45 @@
-Date: Fri, 18 Aug 2000 14:49:38 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: filemap.c SMP bug in 2.4.0-test* (fwd)
-In-Reply-To: <Pine.LNX.4.21.0008172017450.16454-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0008181443560.18597-100000@inspiron.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 18 Aug 2000 14:34:06 -0500
+From: Timur Tabi <ttabi@interactivesi.com>
+Subject: spin_lock(&zone->lock)
+Message-Id: <20000818195028Z131165-15482+43@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->Proc A                                Proc B
->page faults
->...
->read_swap_cache_async
->  lookup_swap_cache fails twice       page faults (same page)
->                                      ...
->                                      read_swap_cache_async
->  init of page info (insert in
->  hash tables...)
+I have this code in my driver (truncataed for clarity):
 
-as first on proc B read_swap_cache_async can't be started in between the
-second fail of the lookup and the init of the page info and insert
-hashtables on proc A, because of the big kernel lock.
+    unsigned order;  // set to whatever order you want
+    zone_t *zone = contig_page_data.node_zones + ZONE_NORMAL;                  
+// Get the zone pointer
 
->                                      lookup_swap_cache
->	                                 __find_page_nolock
->                                         (succeeds, page not active
->                                          activate)
->
+    free_area_t *area = zone->free_area+order;                           //
+area contains the list_head and map bitmap
+    struct list_head *list = &area->free_list;                           //
+list contains the head of the mem_map_t linked list
+    mem_map_t *mm = (mem_map_t *) list->next;                                  
+// get the head of the mem_map_t linked list
 
-The page is inserted locked into the hashtable and lookup_swap_cache uses
-find_lock_page so it can't race.
+    spin_lock(&zone->lock);
+    list_del(&mm->list);                                        // yes, so
+delete it from the list
+    list_add(&mm->list, list);                                  // and add it
+back. This moves it to the head
+    spin_unlock(&zone->lock);
 
-Andrea
+Will the spinlock effectively protect the linked list in the mm structure from
+being modified by another thread?  Is the 2.4 kernel even re-entrant on an SMP
+system?  Last I heard, it wasn't, so this spinlock is probably unnecessary.  I
+had only one operating system class in college, so I always have a hard time
+fully understand spinlocks and stuff like that.
 
+
+
+--
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
+
+When replying to a mailing-list message, please don't cc: me, because then I'll just get two copies of the same message.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
