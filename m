@@ -1,59 +1,57 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iAI2IbJT528726
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 21:18:38 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iAI2IaQC183804
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 19:18:36 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iAI2Ia3Z008140
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 19:18:36 -0700
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e4.ny.us.ibm.com (8.12.10/8.12.9) with ESMTP id iAI2O6Kv455296
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 21:24:06 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iAI2O5b3284260
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 21:24:05 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iAI2O5Hf024622
+	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 21:24:05 -0500
 Subject: Re: [Lhms-devel] [RFC] fix for hot-add enabled SRAT/BIOS and numa
 	KVA areas
-From: keith <kmannth@us.ibm.com>
-In-Reply-To: <1100731354.12373.224.camel@localhost>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <1100743722.26335.644.camel@knk>
 References: <1100659057.26335.125.camel@knk>
-	 <20041117133315.92B7.YGOTO@us.fujitsu.com>
-	 <1100731354.12373.224.camel@localhost>
+	 <1100711519.5838.2.camel@localhost>  <1100743722.26335.644.camel@knk>
 Content-Type: text/plain
-Message-Id: <1100744315.26335.655.camel@knk>
+Message-Id: <1100744644.17510.8.camel@localhost>
 Mime-Version: 1.0
-Date: Wed, 17 Nov 2004 18:18:35 -0800
+Date: Wed, 17 Nov 2004 18:24:04 -0800
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Yasunori Goto <ygoto@us.fujitsu.com>, external hotplug mem list <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Chris McDermott <lcm@us.ibm.com>
+To: keith <kmannth@us.ibm.com>
+Cc: external hotplug mem list <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Chris McDermott <lcm@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-11-17 at 14:42, Dave Hansen wrote:
-> On Wed, 2004-11-17 at 14:33, Yasunori Goto wrote:
-> > But e820 probably indicates just memory areas which 
-> > are already connected on the board, right?
-> 
-> It's more than that.  It indicates which were connected the first time
-> that the machine was powered on.  If you suspend or hibernate the system
-> for some reason, it has to always present the e820 as it initially
-> appeared.  
+On Wed, 2004-11-17 at 18:08, keith wrote:
+>   I am not anticipating to support hot-add without config_nonlinear or
+> something similar which should provide more flexibility in allocation of
+> smaller section mem_maps.  This is only a issue when booted as a
+> discontig system.  We don't even consult the SRAT when we boot flat
+> (contiguous address space) so it is a non-issue.
 
-You use the acpi events to handle the addition of memory.  The e820 is
-what you use to boot with. 
+Once a system has been running for any length of time, finding any
+multi-order pages gets somewhat hard.  For a 16M section, you're still
+talking about ~128k of mem_map, which is still an order 5 allocation. 
+Nick's kswapd higher-order patches should help with this, though.
 
-> > BTW, I have a question.
-> >   - Can x445 be attached memory without removing the node?
-> >     In my concern machine, there is no physical space to
-> >     hot add or exchange memory without physical removing
-> >     the node. But, this SRAT table indicate that
-> >     all of proximity is 0x01....
-> >     Or is it just logical attachment?
-> 
-> You can't remove nodes, just DIMMs.  The x440 hotplug is more like the
-> SMP case that I've always been concerned with.
-> -- Dave
+>   Wasting 500k of lowmem for memory that "might" be there is no good.  I
+> don't think having to preallocate the mem_map for a hot-add is really
+> that good.  What if the system never adds memory?  What if it only adds
+> 8gig not 49g?  The system is crippled because it reserves the lmem_map
+> it "might" do a hot add with?  
 
-My hardware only supports addition of memory not removal.  
+I have the feeling we'll eventually need a boot-time option for this
+reservation.  Your patch, of course will work for now.  Do you want me
+to pick it up in my tree?
 
-Thanks,
-  Keith Mannthey 
+>   I forgot the mention that without this patch my system does not boot
+> with the hot-add support enabled in the bios.  
+
+Why not?  I'm just curious what caused the actual failure.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
