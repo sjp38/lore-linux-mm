@@ -1,45 +1,58 @@
-Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <1085377091.15281.49.camel@gaston>
-References: <1085369393.15315.28.camel@gaston>
-	 <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
-	 <1085371988.15281.38.camel@gaston>
-	 <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
-	 <1085373839.14969.42.camel@gaston>
-	 <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
-	 <1085376888.24948.45.camel@gaston>  <1085377091.15281.49.camel@gaston>
-Content-Type: text/plain
-Message-Id: <1085377936.15024.55.camel@gaston>
-Mime-Version: 1.0
-Date: Mon, 24 May 2004 15:52:17 +1000
+From: Dimitri Sivanich <sivanich@sgi.com>
+Message-Id: <200405241539.i4OFddJQ016338@fsgi142.americas.sgi.com>
+Subject: Re: Slab cache reap and CPU availability
+Date: Mon, 24 May 2004 10:39:39 -0500 (CDT)
+In-Reply-To: <20040521191609.6f4a49a7.akpm@osdl.org> from "Andrew Morton" at May 21, 2004 07:16:09 PM
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2004-05-24 at 15:38, Benjamin Herrenschmidt wrote:
-> > Well, the original scenario triggering that from userland is, imho, so
-> > broken, that we may just not care losing that dirty bit ... Oh well :)
-> > Anyway, apply my patch. If pte is not present, this will have no effect,
-> > if it is, it makes sure we never leave a stale HPTE in the hash, which
-> > is fatal in far worse ways.
 > 
-> Hrm... Or maybe I should just do in set_pte something like
+> Dimitri Sivanich <sivanich@sgi.com> wrote:
+> >
+> > Hi all,
+> > 
+> > I have a fairly general question about the slab cache reap code.
+> > 
+> > In running realtime noise tests on the 2.6 kernels (spinning to detect periods
+> > of CPU unavailability to RT threads) on an IA/64 Altix system, I have found the
+> > cache_reap code to be the source of a number of larger holdoffs (periods of
+> > CPU unavailability).  These can last into the 100's of usec on 1300 MHz CPUs.
+> > Since this code runs periodically every few seconds as a timer softirq on all
+> > CPUs, holdoffs can occur frequently.
+> > 
+> > Has anyone looked into less interruptive alternatives to running cache_reap
+> > this way (for the 2.6 kernel), or maybe looked into potential optimizations
+> > to the routine itself?
+> > 
 > 
->  BUG_ON(pte_present(ptep))
+> Do you have stack backtraces?  I thought the problem was via the RCU
+> softirq callbacks, not via the timer interrupt.  Dipankar spent some time
+> looking at the RCU-related problem but solutions are not comfortable.
 > 
-> That would make me sleep better ;)
+> What workload is triggering this?
+> 
 
- ... And would not work in the case you mentioned where we set it with
-the dirty bit set... for write protect, we have a separate function now,
-though. But I'm a bit paranoid with those PTE manipulations, so I think
-it would be better to play it the safe way and keep my original patch.
+The IA/64 backtrace with all the cruft removed looks as follows:
 
-Ben.
+0xa000000100149ac0 reap_timer_fnc+0x100
+0xa0000001000f4d70 run_timer_softirq+0x2d0
+0xa0000001000e9440 __do_softirq+0x200
+0xa0000001000e94e0 do_softirq+0x80
+0xa000000100017f50 ia64_handle_irq+0x190
+
+The system is running mostly AIM7, but I've seen holdoffs > 30 usec with
+virtually no load on the system.
+
+Which uncomfortable solutions (which could relate to this case) have been
+investigated?
 
 
+Dimitri Sivanich <sivanich@sgi.com>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
