@@ -1,88 +1,32 @@
-Date: Wed, 30 Mar 2005 19:50:22 -0800 (PST)
-From: Christoph Lameter <christoph@lameter.com>
-Subject: Re: [PATCH] Pageset Localization V2
-In-Reply-To: <20050330134049.GA21986@parcelfarce.linux.theplanet.co.uk>
-Message-ID: <Pine.LNX.4.58.0503301947450.26235@server.graphe.net>
-References: <Pine.LNX.4.58.0503292147200.32571@server.graphe.net>
- <20050330134049.GA21986@parcelfarce.linux.theplanet.co.uk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 31 Mar 2005 15:32:35 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: Fwd: [PATCH] Pageset Localization V2
+Message-ID: <20050331143235.GA18058@infradead.org>
+References: <Pine.LNX.4.58.0503292147200.32571@server.graphe.net> <20050330111439.GA13110@infradead.org> <bab4333005033003295f487e3d@mail.gmail.com> <1112187977.9773.15.camel@kuber>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1112187977.9773.15.camel@kuber>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org, shai@scalex86.org, Christoph Hellwig <hch@infradead.org>
+To: shobhit dayal <shobhit@calsoftinc.com>
+Cc: hch@infradead.org, christoph@lameter.com, manfred@colorfullife.com, akpm@osdl.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org, Shai Fultheim <shai@scalex86.org>
 List-ID: <linux-mm.kvack.org>
 
-Patch to fix the issues mentioned so far. The MAKE_LIST macro would also
-not be good to some things that I have planned so lets drop it.
+On Wed, Mar 30, 2005 at 06:36:18PM +0530, shobhit dayal wrote:
+> The goal here is to replace the head of a existing list pointed to by
+> 'list' with a new head pointed to by 'nlist'. 
+> First there is a memcpy that copies the contents of list to nlist then
+> this macro is called.
+> The macro makes sure that if the old head was empty then INIT_LIST_HEAD
+> the 'nlist', if not then make sure that the nodes before and after the
+> head now correclty point to nlist instead of list.
 
-Index: linux-2.6.11/mm/page_alloc.c
-===================================================================
---- linux-2.6.11.orig/mm/page_alloc.c	2005-03-30 19:45:23.000000000 -0800
-+++ linux-2.6.11/mm/page_alloc.c	2005-03-30 19:46:23.000000000 -0800
-@@ -1613,15 +1613,6 @@ void zone_init_free_lists(struct pglist_
- 	memmap_init_zone((size), (nid), (zone), (start_pfn))
- #endif
+Which would be much nicer done using INIT_LIST_HEAD on the new head
+always and then calling list_replace (of which currently only a _rcu variant
+exists).
 
--#define MAKE_LIST(list, nlist)  \
--	do {    \
--		if(list_empty(&list))      \
--			INIT_LIST_HEAD(nlist);          \
--		else {  nlist->next->prev = nlist;      \
--			nlist->prev->next = nlist;      \
--		}                                       \
--	}while(0)
--
- /*
-  * Dynamicaly allocate memory for the
-  * per cpu pageset array in struct zone.
-@@ -1629,6 +1620,7 @@ void zone_init_free_lists(struct pglist_
- static inline int __devinit process_zones(int cpu)
- {
- 	struct zone *zone, *dzone;
-+	int i;
-
- 	for_each_zone(zone) {
- 		struct per_cpu_pageset *npageset = NULL;
-@@ -1642,9 +1634,17 @@ static inline int __devinit process_zone
-
- 		if(zone->pageset[cpu]) {
- 			memcpy(npageset, zone->pageset[cpu], sizeof(struct per_cpu_pageset));
--			MAKE_LIST(zone->pageset[cpu]->pcp[0].list, (&npageset->pcp[0].list));
--			MAKE_LIST(zone->pageset[cpu]->pcp[1].list, (&npageset->pcp[1].list));
--		}
-+
-+			/* Fix up the list pointers */
-+			for(i = 0; i<2; i++) {
-+				if (list_empty(&zone->pageset[cpu]->pcp[i].list))
-+					INIT_LIST_HEAD(&npageset->pcp[i].list);
-+				else {
-+					npageset->pcp[i].list.next->prev = &npageset->pcp[i].list;
-+					npageset->pcp[i].list.prev->next = &npageset->pcp[i].list;
-+				}
-+			}
-+ 		}
- 		else {
- 			struct per_cpu_pages *pcp;
- 			unsigned long batch;
-@@ -1721,11 +1721,14 @@ struct notifier_block pageset_notifier =
-
- void __init setup_per_cpu_pageset()
- {
--	/*Iintialize per_cpu_pageset for cpu 0.
--	  A cpuup callback will do this for every cpu
--	  as it comes online
-+	int err;
-+
-+	/* Initialize per_cpu_pageset for cpu 0.
-+	 * A cpuup callback will do this for every cpu
-+	 * as it comes online
- 	 */
--	BUG_ON(process_zones(smp_processor_id()));
-+	err = process_zones(smp_processor_id());
-+	BUG_ON(err);
- 	register_cpu_notifier(&pageset_notifier);
- }
+Note to Christoph:  Just duplicating the code doesn't make it better ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
