@@ -1,57 +1,89 @@
-Message-ID: <40CFC67D.6020205@yahoo.com.au>
-Date: Wed, 16 Jun 2004 14:03:09 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: Keeping mmap'ed files in core regression in 2.6.7-rc
-References: <20040608142918.GA7311@traveler.cistron.net>	<40CAA904.8080305@yahoo.com.au>	<20040614140642.GE13422@traveler.cistron.net>	<40CE66EE.8090903@yahoo.com.au>	<20040615143159.GQ19271@traveler.cistron.net>	<40CFBB75.1010702@yahoo.com.au> <20040615205017.15dd1f1d.akpm@osdl.org>
-In-Reply-To: <20040615205017.15dd1f1d.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Date: Tue, 15 Jun 2004 21:09:19 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] s390: lost dirty bits.
+Message-Id: <20040615210919.1c82a5c8.akpm@osdl.org>
+In-Reply-To: <20040615174436.GA10098@mschwid3.boeblingen.de.ibm.com>
+References: <20040615174436.GA10098@mschwid3.boeblingen.de.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: miquels@cistron.nl, linux-mm@kvack.org
+To: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
+Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
+>
+> The SetPageUptodate function is called for pages that are already
+>  up to date. The arch_set_page_uptodate function of s390 may not
+>  clear the dirty bit in that case otherwise a dirty bit which is set
+>  between the start of an i/o for a writeback and a following call
+>  to SetPageUptodate is lost.
 > 
->>Can you send the test app over?
+>  Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
 > 
+>  diffstat:
 > 
-> logical next step.
-> 
-> 
->>Andrew, do you have any ideas about how to fix this so far?
-> 
-> 
-> Not sure what, if anything, is wrong yet.  It could be that reclaim is now
-> doing the "right" thing, but this particular workload preferred the "wrong"
-> thing.  Needs more investigation.
-> 
-> 
-> 
->>>See how "cache" remains stable, but free/buffers memory is oscillating?
->>>That shouldn't happen, right ? 
->>>
->>
->>If it is doing IO to large regions of mapped memory, the page reclaim
->>can start getting a bit chunky. Not much you can do about it, but it
->>shouldn't do any harm.
-> 
-> 
-> shrink_zone() will free arbitrarily large amounts of memory as the scanning
-> priority increases.  Probably it shouldn't.
-> 
-> 
+>  --- linux-2.5/include/asm-s390/pgtable.h	24 Mar 2004 18:18:22 -0000	1.23
+>  +++ linux-2.5/include/asm-s390/pgtable.h	15 Jun 2004 16:43:35 -0000	1.23.2.1
+>  @@ -652,7 +652,8 @@
+>   
+>   #define arch_set_page_uptodate(__page)					  \
+>   	do {								  \
+>  -		asm volatile ("sske %0,%1" : : "d" (0),			  \
+>  +		if (!PageUptodate(__page))				  \
+>  +			asm volatile ("sske %0,%1" : : "d" (0),		  \
+>   			      "a" (__pa((__page-mem_map) << PAGE_SHIFT)));\
+>   	} while (0)
 
-Especially for kswapd, I think, because it can end up fighting with
-memory allocators and think it is getting into trouble. It should
-probably rather just keep putting along quietly.
+Do you know what the call path for the redundant SetpageUptodate() is?
 
-I have a few experimental patches that magnify this problem, so I'll
-be looking at fixing it soon. The tricky part will be trying to
-maintain a similar prev_priority / temp_priority balance.
+This patch still has a little race - it'd be better to override _all_ of
+SetPageUptodate() in page-flags.h and do:
+
+	if (!test_and_set_bit(PG_uptodate, &page->flags))
+		...
+
+
+--- 25/include/asm-s390/pgtable.h~s390-lost-dirty-bits	2004-06-15 21:02:00.621441504 -0700
++++ 25-akpm/include/asm-s390/pgtable.h	2004-06-15 21:06:43.391453928 -0700
+@@ -656,7 +656,8 @@ static inline pte_t mk_pte_phys(unsigned
+ 
+ #define arch_set_page_uptodate(__page)					  \
+ 	do {								  \
+-		asm volatile ("sske %0,%1" : : "d" (0),			  \
++		if (!test_and_set_bit(PG_uptodate, __page))		  \
++			asm volatile ("sske %0,%1" : : "d" (0),		  \
+ 			      "a" (__pa((__page-mem_map) << PAGE_SHIFT)));\
+ 	} while (0)
+ 
+diff -puN include/linux/page-flags.h~s390-lost-dirty-bits include/linux/page-flags.h
+--- 25/include/linux/page-flags.h~s390-lost-dirty-bits	2004-06-15 21:04:58.982326528 -0700
++++ 25-akpm/include/linux/page-flags.h	2004-06-15 21:08:30.493171992 -0700
+@@ -194,16 +194,12 @@ extern unsigned long __read_page_state(u
+ #define ClearPageReferenced(page)	clear_bit(PG_referenced, &(page)->flags)
+ #define TestClearPageReferenced(page) test_and_clear_bit(PG_referenced, &(page)->flags)
+ 
+-#ifndef arch_set_page_uptodate
+-#define arch_set_page_uptodate(page) do { } while (0)
++#ifdef arch_set_page_uptodate
++#define SetPageUptodate(page) arch_set_page_uptodate(page)
++#else
++#define SetPageUptodate(page) set_bit(PG_uptodate, &(page)->flags)
+ #endif
+-
+ #define PageUptodate(page)	test_bit(PG_uptodate, &(page)->flags)
+-#define SetPageUptodate(page) \
+-	do {								\
+-		arch_set_page_uptodate(page);				\
+-		set_bit(PG_uptodate, &(page)->flags);			\
+-	} while (0)
+ #define ClearPageUptodate(page)	clear_bit(PG_uptodate, &(page)->flags)
+ 
+ #define PageDirty(page)		test_bit(PG_dirty, &(page)->flags)
+_
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
