@@ -1,47 +1,37 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j34NT6ua039034
-	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 19:29:06 -0400
-Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j34NT67c191792
-	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 17:29:06 -0600
-Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av04.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j34NT6hL032345
-	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 17:29:06 -0600
-Subject: Re: [PATCH 1/4] create mm/Kconfig for arch-independent memory
-	options
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050404232254.GC6500@w-mikek2.ibm.com>
-References: <E1DIViE-0006Kf-00@kernel.beaverton.ibm.com>
-	 <20050404232254.GC6500@w-mikek2.ibm.com>
-Content-Type: text/plain
-Date: Mon, 04 Apr 2005 16:29:02 -0700
-Message-Id: <1112657342.27328.64.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <4251DE87.10002@yahoo.com.au>
+Date: Tue, 05 Apr 2005 10:40:39 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
+Subject: Re: per_cpu_pagesets degrades MPI performance
+References: <20050404192827.GA15142@sgi.com>
+In-Reply-To: <20050404192827.GA15142@sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Kravetz <kravetz@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Whitcroft <apw@shadowen.org>
+To: Jack Steiner <steiner@sgi.com>
+Cc: akpm@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2005-04-04 at 16:22 -0700, Mike Kravetz wrote:
-> Do you need to set ARCH_DISCONTIGMEM_DEFAULT instead of just
-> CONFIG_ARCH_DISCONTIGMEM_ENABLE to have DISCONTIGMEM be the
-> default? or am I missing something?  I don't see
-> ARCH_DISCONTIGMEM_DEFAULT turned on by default in any of these
-> patches.
+Jack Steiner wrote:
 
-It's a wee bit confusing, but I think it all works out.
+[snip nice detective work]
 
-Doing ARCH_DISCONTIGMEM_ENABLE=y turns off the FLATMEM option in the
-mm/Kconfig prompt because FLATMEM depends on !ARCH_DISCONTIGMEM_ENABLE.
-So, if you enable it, it will end up being the default because there's
-no other choice.
+> Has anyone else seen this problem? I am considering adding
+> a config option to allow a site to control the batch size
+> used for per_cpu_pagesets. Are there other ideas that should 
+> be pursued? 
+> 
 
-For configs that *need* both options, you can re-enable FLATMEM with
-ARCH_FLATMEM_ENABLE
+What about using a non power of 2 for the batch? Like 5.
+If that helps, then we can make a patch to clamp it to a
+good value. At a guess I'd say a power of 2 +/- 1 might be
+the way to go.
 
--- Dave
+Nick
+
+-- 
+SUSE Labs, Novell Inc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
