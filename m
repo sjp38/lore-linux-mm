@@ -1,32 +1,29 @@
-Message-ID: <DVERFVFIEDXTSZTFLDCDC@yahoo.com>
-From: "Ora Goodwin" <john_Black068@yahoo.com>
-Reply-To: "Ora Goodwin" <john_Black068@yahoo.com>
-Subject: sugper viagrga bulldog debussy
-Date: Mon, 16 Feb 2004 15:51:57 +0200
+Date: Mon, 16 Feb 2004 07:47:21 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [PATCH] 2.6.3-rc3-mm1: align scan_page per node
+Message-ID: <7090000.1076946440@[10.10.2.4]>
+In-Reply-To: <4030BB86.8060206@cyberone.com.au>
+References: <4030BB86.8060206@cyberone.com.au>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--495971189711541"
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>
+Cc: Nikita Danilov <Nikita@Namesys.COM>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----495971189711541
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
+--Nick Piggin <piggin@cyberone.com.au> wrote (on Monday, February 16, 2004 23:45:58 +1100):
 
-Did you know That the normal cost for 
-Super Vkiagra is $20, per dose?
+> Ok ok, I'll do it... is this the right way to go about it?
+> I'm assuming it is worth doing?
 
-We are running a hot special!! 
-T0DAY Its only an amazing $3.00
-Shipped world wide!
 
-http://fastactingpills.com/sv/?pid=3Devaph6163
+What were the include dependencies you ran into originally? Were they 
+not fixable somehow? They probably need fixing anyway ;-)
 
-flabby seizure
-
-----495971189711541--
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
