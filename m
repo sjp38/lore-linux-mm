@@ -1,22 +1,23 @@
 Received: from mercury.it.wmich.edu (localhost [127.0.0.1])
-	by mercury.localmail (8.1340.2.132/20030331) with SMTP id h4PDwor4003278
-	for <linux-mm@kvack.org>; Sun, 25 May 2003 09:58:50 -0400 (EDT)
-Message-ID: <3ED0CC18.4000004@wmich.edu>
-Date: Sun, 25 May 2003 09:58:48 -0400
+	by mercury.localmail (8.1340.2.132/20030331) with SMTP id h4PE7Cr4004723
+	for <linux-mm@kvack.org>; Sun, 25 May 2003 10:07:12 -0400 (EDT)
+Message-ID: <3ED0CE0E.4080403@wmich.edu>
+Date: Sun, 25 May 2003 10:07:10 -0400
 From: Ed Sweetman <ed.sweetman@wmich.edu>
 MIME-Version: 1.0
 Subject: Re: 2.5.69-mm9
 References: <20030525042759.6edacd62.akpm@digeo.com> <200305251456.39404.rudmer@legolas.dynup.net>
 In-Reply-To: <200305251456.39404.rudmer@legolas.dynup.net>
 Content-Type: multipart/mixed;
- boundary="------------060408090703050500030400"
+ boundary="------------020705040201030003060009"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------060408090703050500030400
+--------------020705040201030003060009
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 
@@ -24,13 +25,13 @@ got this with my current config. Along with other misc gcc 3 warnings.
 
 Compiling with gcc (GCC) 3.3 (Debian)
 
-         ld -m elf_i386  -T arch/i386/vmlinux.lds.s 
-arch/i386/kernel/head.o arch/i386/kernel/init_task.o   init/built-in.o 
---start-group  usr/built-in.o  arch/i386/kernel/built-in.o 
-arch/i386/mm/built-in.o  arch/i386/mach-default/built-in.o 
-kernel/built-in.o  mm/built-in.o  fs/built-in.o  ipc/built-in.o 
-security/built-in.o  crypto/built-in.o  lib/lib.a  arch/i386/lib/lib.a 
-drivers/built-in.o  sound/built-in.o  arch/i386/pci/built-in.o 
+          ld -m elf_i386  -T arch/i386/vmlinux.lds.s
+arch/i386/kernel/head.o arch/i386/kernel/init_task.o   init/built-in.o
+--start-group  usr/built-in.o  arch/i386/kernel/built-in.o
+arch/i386/mm/built-in.o  arch/i386/mach-default/built-in.o
+kernel/built-in.o  mm/built-in.o  fs/built-in.o  ipc/built-in.o
+security/built-in.o  crypto/built-in.o  lib/lib.a  arch/i386/lib/lib.a
+drivers/built-in.o  sound/built-in.o  arch/i386/pci/built-in.o
 net/built-in.o --end-group  -o vmlinux
 kernel/built-in.o(.text+0x1708e): In function `free_module':
 : undefined reference to `percpu_modfree'
@@ -47,7 +48,8 @@ make: *** [vmlinux] Error 1
 
 i've attached my config
 
---------------060408090703050500030400
+
+--------------020705040201030003060009
 Content-Type: text/plain;
  name=".config"
 Content-Transfer-Encoding: 7bit
@@ -1221,7 +1223,8 @@ CONFIG_X86_MPPARSE=y
 CONFIG_CRC32=y
 CONFIG_X86_BIOS_REBOOT=y
 
---------------060408090703050500030400--
+
+--------------020705040201030003060009--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
