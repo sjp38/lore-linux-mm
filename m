@@ -1,27 +1,59 @@
-Date: Mon, 9 Oct 2000 23:25:54 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: mingo@elte.hu
+Date: Mon, 9 Oct 2000 14:21:05 -0700 (PDT)
+From: jg@pa.dec.com (Jim Gettys)
+Message-Id: <200010092121.OAA01924@pachyderm.pa.dec.com>
+In-Reply-To: <20001009225822.A21401@gruyere.muc.suse.de>
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-In-Reply-To: <E13ikBx-0002qs-00@the-village.bc.nu>
-Message-ID: <Pine.LNX.4.21.0010092325070.9803-100000@elte.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2000, Alan Cox wrote:
+> Sender: linux-kernel-owner@vger.kernel.org
+> From: "Andi Kleen" <ak@suse.de>
+> Date: 	Mon, 9 Oct 2000 22:58:22 +0200
+> To: Linus Torvalds <torvalds@transmeta.com>
+> Cc: Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>,
+>         Andrea Arcangeli <andrea@suse.de>,
+>         Rik van Riel <riel@conectiva.com.br>,
+>         Byron Stanoszek <gandalf@winds.org>,
+>         MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+> Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
+> -----
+> On Mon, Oct 09, 2000 at 01:52:21PM -0700, Linus Torvalds wrote:
+> > One thing we _can_ (and probably should do) is to do a per-user memory
+> > pressure thing - we have easy access to the "struct user_struct" (every
+> > process has a direct pointer to it), and it should not be too bad to
+> > maintain a per-user "VM pressure" counter.
+> >
+> > Then, instead of trying to use heuristics like "does this process have
+> > children" etc, you'd have things like "is this user a nasty user", which
+> > is a much more valid thing to do and can be used to find people who fork
+> > tons of processes that are mid-sized but use a lot of memory due to just
+> > being many..
+> 
+> Would not help much when "they" eat your memory by loading big bitmaps
+> into the X server which runs as root (it seems there are many programs
+> which are very good at this particular DOS ;)
+> 
 
-> Lets kill a 6 week long typical background compute job because
-> netscape exploded (and yes netscape has a child process)
+This is generic to any server program, not unique to X.
 
-in the paragraph you didnt quote i pointed this out and suggested adding
-all parent's badness value to children as well - so we'd end up killing
-netscape.
+Sounds like one needs in addition some mechanism for servers to "charge" clients for
+consumption. X certainly knows on behalf of which connection resources
+are created; the OS could then transfer this back to the appropriate client
+(at least when on machine).
 
-	Ingo
+					- Jim
+
+--
+Jim Gettys
+Technology and Corporate Development
+Compaq Computer Corporation
+jg@pa.dec.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
