@@ -1,50 +1,27 @@
-Message-ID: <3FF2C93F.2080908@pobox.com>
-Date: Wed, 31 Dec 2003 08:03:59 -0500
-From: Jeff Garzik <jgarzik@pobox.com>
+Content-class: urn:content-classes:message
+Subject: RE: 2.6.0-rc1-mm1 error in bond_main.c
 MIME-Version: 1.0
-Subject: Re: 2.6.0-rc1-mm1
-References: <20031231004725.535a89e4.akpm@osdl.org>
-In-Reply-To: <20031231004725.535a89e4.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset="utf-8"
+Content-Transfer-Encoding: base64
+Date: Wed, 31 Dec 2003 09:52:15 -0500
+Message-ID: <6BE35B06920A7841A6F6AFFC7303CE5EB84C@mbi-10.mbi.ufl.edu>
+From: "Jon K. Akers" <jka@mbi.ufl.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-rc1/2.6.0-rc1-mm1/
-> 
-> 
-> A few small additions, but mainly a resync with mainline.
-> 
-> 
-> 
-> 
-> Changes since 2.6.0-mm2:
-> 
-> 
-> -2.6.0-netdrvr-exp3.patch
-> -2.6.0-netdrvr-exp3-fix.patch
-> -Space_c-warning-fix.patch
-> -via-rhine-netpoll-support.patch
-> +2.6.0-bk2-netdrvr-exp1.patch
-
-
-Argh, I missed a bonding build fix, and warning fix...  Plus rediffed 
-against 2.6.0-rc1:
-
-http://www.kernel.org/pub/linux/kernel/people/jgarzik/patchkits/2.6/2.6.0-rc1-netdrvr-exp1.patch.bz2
-http://www.kernel.org/pub/linux/kernel/people/jgarzik/patchkits/2.6/2.6.0-rc1-netdrvr-exp1.log
-
-Have another big batch from Al Viro pending, with yet-more fixes from 
-his audits...
-
-	Jeff
-
-
-
+UmVjaWV2ZWQgdGhlIGZvbGxvd2luZyBlcnJvciB3aGVuIGNvbXBpbGluZyB0aGUgYm9uZGluZyBz
+ZWN0aW9uIG9mIHRoZSBuZXR3b3JrIGRyaXZlcnMgYXMgYSBtb2R1bGUuDQoNCiAgQ0MgW01dICBk
+cml2ZXJzL25ldC9ib25kaW5nL2JvbmRfbWFpbi5vDQpkcml2ZXJzL25ldC9ib25kaW5nL2JvbmRf
+bWFpbi5jOiBJbiBmdW5jdGlvbiBgYm9uZF9yZWxlYXNlJzoNCmRyaXZlcnMvbmV0L2JvbmRpbmcv
+Ym9uZF9tYWluLmM6MTY2MDogZXJyb3I6IHN0cnVjdHVyZSBoYXMgbm8gbWVtYmVyIG5hbWVkIGBw
+YXJhbXMnDQpkcml2ZXJzL25ldC9ib25kaW5nL2JvbmRfbWFpbi5jOjE2NjE6IGVycm9yOiBzdHJ1
+Y3R1cmUgaGFzIG5vIG1lbWJlciBuYW1lZCBgcGFyYW1zJw0KbWFrZVszXTogKioqIFtkcml2ZXJz
+L25ldC9ib25kaW5nL2JvbmRfbWFpbi5vXSBFcnJvciAxDQptYWtlWzJdOiAqKiogW2RyaXZlcnMv
+bmV0L2JvbmRpbmddIEVycm9yIDINCm1ha2VbMV06ICoqKiBbZHJpdmVycy9uZXRdIEVycm9yIDIN
+Cm1ha2U6ICoqKiBbZHJpdmVyc10gRXJyb3IgMg0KDQo=
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
