@@ -1,49 +1,33 @@
-Date: Mon, 25 Sep 2000 11:06:27 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: refill_inactive()
-In-Reply-To: <Pine.LNX.4.21.0009241148100.2789-100000@elte.hu>
-Message-ID: <Pine.LNX.4.21.0009251102420.14614-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 25 Sep 2000 16:20:09 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2
+Message-ID: <20000925162009.K22882@athlon.random>
+References: <20000925145856.A13011@athlon.random> <Pine.LNX.4.21.0009251504220.6224-100000@elte.hu> <20000925154952.O26339@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20000925154952.O26339@suse.de>; from axboe@suse.de on Mon, Sep 25, 2000 at 03:49:52PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Roger Larsson <roger.larsson@norran.net>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Jens Axboe <axboe@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 24 Sep 2000, Ingo Molnar wrote:
+On Mon, Sep 25, 2000 at 03:49:52PM +0200, Jens Axboe wrote:
+> And a new elevator was introduced some months ago to solve this.
 
-> i'm wondering about the following piece of code in refill_inactive():
-> 
->                 if (current->need_resched && (gfp_mask & __GFP_IO)) {
->                         __set_current_state(TASK_RUNNING);
->                         schedule();
->                 }
-> 
-> shouldnt this be __GFP_WAIT? It's true that __GFP_IO implies __GFP_WAIT
-> (because IO cannot be done without potentially scheduling), so the code is
-> not buggy, but the above 'yielding' of the CPU should be done in the
-> GFP_BUFFER case as well. (which is __GFP_WAIT but not __GFP_IO)
-> 
-> Objections?
+And now that I done some benchmark it seems the major optimization consists in
+the implementation of the new _ordering_ algorithm in test2, not really from
+the removal of the more finegrined latency control (said that I'm not going to
+reintroduce the previous latency control, the current one doesn't provide great
+latency but it's ok).
 
-1) if __GFP_WAIT isn't set, we cannot run try_to_free_pages at all
+As soon I patch my tree with Peter's perfect CSCAN ordering (that only changes
+the ordering algorithm), tiotest performance drops significantly in the
+2-thread-reading case. elvtune settings doesn't matter, that's only a matter of
+the ordering.
 
-2) you are right, we /can/ schedule when __GFP_IO isn't set, this is
-   mistake ... now I'm getting confused about what __GFP_IO is all
-   about, does anybody know the _exact_ meaning of __GFP_IO ?
-
-
-regards,
-
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
