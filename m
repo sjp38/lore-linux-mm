@@ -1,42 +1,41 @@
-Date: Wed, 11 Oct 2000 14:38:00 -0400
-Message-Id: <200010111838.e9BIc0M02456@trampoline.thunk.org>
-In-reply-to: 
-	<Pine.LNX.4.21.0010101738110.11122-100000@duckman.distro.conectiva>
-	(message from Rik van Riel on Tue, 10 Oct 2000 17:53:57 -0300 (BRST))
-Subject: Re: Updated 2.4 TODO List
-From: tytso@mit.edu
-References: <Pine.LNX.4.21.0010101738110.11122-100000@duckman.distro.conectiva>
+Date: Wed, 11 Oct 2000 21:59:10 +0100 (BST)
+From: Chris Evans <chris@scary.beasts.org>
+Subject: Re: 2.4.0test9 vm: disappointing streaming i/o under load
+In-Reply-To: <Pine.BSF.4.10.10010110734570.38557-100000@myrile.madriver.k12.oh.us>
+Message-ID: <Pine.LNX.4.21.0010112154300.23989-100000@ferret.lmh.ox.ac.uk>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@conectiva.com.br
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eric Lowe <elowe@myrile.madriver.k12.oh.us>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-   > 2. Capable Of Corrupting Your FS/data
-   > 
-   >      * Non-atomic page-map operations can cause loss of dirty bit on
-   >        pages (sct, alan)
+On Wed, 11 Oct 2000, Eric Lowe wrote:
 
-   Is anybody looking into fixing this bug ?
+> > Unfortunately, 2.4.0test9 exhibits poor streaming i/o performance when
+> > under a bit of memory pressure.
 
-According to sct (who's sitting next to me in my hotel room at ALS) Ben
-LaHaise has a bugfix for this, but it hasn't been merged.
+[...]
 
-   >      * VM: Fix the highmem deadlock, where the swapper cannot create low
-   >        memory bounce buffers OR swap out low memory because it has
-   >        consumed all resources {CRITICAL} (old bug, already reported in
-   >        2.4.0test6)
+> Would you try setting /proc/sys/vm/page-cluster to 8 or 16 and let
+> me know the results?  I think one _part_ of the problem is that
+> when the swapper isn't agressive enough, it causes too much disk
+> thrashing which gets in the way of normal I/O... my experience
+> has been that with modern disks with 512K+ cache you have to
+> write in 64K clusters to get optimum throughput.
 
-   Haven't been able to reproduce it on my 1GB test machine,
-   but it might still be there. Can anyone confirm if this
-   bug is still present ?
+Raising the cluster size didn't seem to do much apart from generally slow
+down interactive response. Lowering it, however, seemed to make playback
+less jittery. I guess that's to be expected; faulting in large chunks of
+sequential i/o won't help much when under memory pressure because the
+pages will get thrown out again before they get a chance to be
+used. Especially with drop_behind.
 
-Note: all of the issues on the TODO list with the "VM:" prefix are from
-a VM todo list you posted a week or two ago; so I'm assuming that you
-know more about those issues than I do.....  (feel free to send me an
-updated list and I'll merge it into the 2.4 TODO list.)
+Rik what do you think.
 
-						- Ted
+Cheers
+Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
