@@ -1,36 +1,50 @@
-Date: Fri, 25 Apr 2003 16:58:43 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: TASK_UNMAPPED_BASE & stack location
-Message-ID: <20030425235843.GU8978@holomorphy.com>
-References: <459930000.1051302738@[10.10.2.4]> <3EA9CA25.E140A02C@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3EA9CA25.E140A02C@us.ibm.com>
+Date: Sat, 26 Apr 2003 06:34:07 -0400 (EDT)
+From: Bill Davidsen <davidsen@tmr.com>
+Subject: Re: 2.5.68-mm2
+In-Reply-To: <1051295252.9767.143.camel@localhost>
+Message-ID: <Pine.LNX.3.96.1030426062917.20200A-100000@gatekeeper.tmr.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: badari <pbadari@us.ibm.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm mailing list <linux-mm@kvack.org>, Andrew Morton <akpm@digeo.com>
+To: Robert Love <rml@tech9.net>
+Cc: "Randy.Dunlap" <rddunlap@osdl.org>, bcrl@redhat.com, akpm@digeo.com, mbligh@aracnet.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 25, 2003 at 04:52:05PM -0700, badari wrote:
-> Only problem with moving TASK_UNMAPPED_BASE right above
-> text would be - limiting the malloc() space. malloc() is clever enough
-> to mmap() and do the right thing. Once I moved TASK_UNMAPPED_BASE
-> to 0x10000000 and I could not run some of the programs with large
-> data segments.
-> Moving stacks below text would be tricky. pthread library knows
-> the placement of stack. It uses this to distinguish between
-> threads and pthreads manager.
-> I don't know what other librarys/apps depend on this kind of stuff.
+On 25 Apr 2003, Robert Love wrote:
 
-STACK_TOP is easy to change to see what goes wrong; it's a single
-#define in include/asm-i386/a.out.h
+> On Fri, 2003-04-25 at 14:20, Randy.Dunlap wrote:
+> >  
+> > | The point is that even if bash is fixed it's desirable to address the
+> > | issue in the kernel, other applications may well misbehave as well.
+> > 
+> > So when would this ever end?
+> 
+> Exactly what I was thinking.
+> 
+> The kernel cannot be expected to cater to applications or make
+> concessions (read: hacks) for certain behavior.  If we offer a cleaner,
+> improved interface which offers the performance improvement, we are
+> done.  Applications need to start using it.
+> 
+> Of course, I am not arguing against optimizing the old interfaces or
+> anything of that nature.  I just believe we should not introduce hacks
+> for application behavior.  It is their job to do the right thing.
 
-Someone should spin it up and see how well pthreads copes.
+I don't care much if the kernel does something to make an application run
+better, that's an application problem. But if an application can do
+something which hurts the performance of the system as a whole, then the
+kernel should protect itself and the rest of the system.
 
+So I'm not advocating that the kernel cater to bash, just that doing
+legitimate things with bash not have a disproportionate impact on the rest
+of the system.
 
--- wli
+-- 
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
