@@ -1,33 +1,43 @@
-Date: Mon, 26 Nov 2001 16:29:58 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: kupdated high load with heavy disk I/O
-Message-ID: <20011126162958.O14196@athlon.random>
-References: <35F52ABC3317D511A55300D0B73EB8056FCC50@cinshrexc01.shermfin.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <35F52ABC3317D511A55300D0B73EB8056FCC50@cinshrexc01.shermfin.com>; from ARechenberg@shermanfinancialgroup.com on Mon, Nov 26, 2001 at 10:08:27AM -0500
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 92EBB38C12
+	for <linux-mm@kvack.org>; Mon, 26 Nov 2001 18:49:36 -0300 (EST)
+Date: Mon, 26 Nov 2001 19:49:22 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH *] VM for 2.4.16
+Message-ID: <Pine.LNX.4.33L.0111261943370.1491-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Rechenberg, Andrew" <ARechenberg@shermanfinancialgroup.com>
-Cc: 'Ken Brownfield' <brownfld@irridia.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>, "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>
+To: kernelnewbies@nl.linux.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 26, 2001 at 10:08:27AM -0500, Rechenberg, Andrew wrote:
-> Ken,
-> 
-> The 2.4.15pre7 kernel seems to have fixed my issue with kupdated and 4GB
-> RAM.  We did some testing over the weekend and the box was still interactive
-> with a load of 7+.  There still seems to be a lot of swapping going on
-> though.  I've read from previous threads that 2.4 uses swap more readily
-> than 2.2 did, but should it use 10% of my swap and have almost 8MB
-> SwapCached?
+Hi,
 
-if it only swapouts at a very slow rate over the time and it never
-swapin, then yes it seems sane. You may also give a spin to 2.4.15aa1
-that should swap a bit less.
+here's a patch which forward-ports my VM to 2.4.16,
+integrating the good stuff like blkdev-in-pagecache,
+rbtree, smoother zone fallback, etc...
 
-Andrea
+My 64 MB test box seems to be pretty happy doing a
+'make -j bzImage' over NFS, so I suspect it's quite
+stable now. Please give it a beating.
+
+http://www.surriel.com/patches/2.4/2.4.16-vm
+
+I'll look into making my bitkeeper tree available for
+general pulling so everybody can see the detailed
+changelog of each file, instead of just the comments
+in the patches.
+
+cheers,
+
+Rik
+-- 
+DMCA, SSSCA, W3C?  Who cares?  http://thefreeworld.net/
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
