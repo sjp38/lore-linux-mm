@@ -1,64 +1,51 @@
-Mime-Version: 1.0
-Message-Id: <a05100316b80221a2f45f@[192.168.239.101]>
-In-Reply-To: <20011028191328.CCC828A6EA@pobox.com>
-References: <20011028191328.CCC828A6EA@pobox.com>
-Date: Sun, 28 Oct 2001 21:42:17 +0000
-From: Jonathan Morton <chromi@cyberspace.org>
-Subject: Re: xmm2 - monitor Linux MM active/inactive lists graphically
-Content-Type: text/plain; charset="us-ascii" ; format="flowed"
+Received: from ds02w00.directory.ray.com (ds02w00.directory.ray.com [147.25.146.118])
+	by bos-gate3.raytheon.com (8.11.0.Beta3/8.11.0.Beta3) with ESMTP id f9U0hot28671
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2001 19:43:50 -0500 (EST)
+Received: from rtshou-ds01.hou.us.ray.com (localhost [127.0.0.1])
+	by ds02w00.directory.ray.com (8.9.3/8.9.3) with ESMTP id QAA15666
+	for <linux-mm@kvack.org>; Mon, 29 Oct 2001 16:43:48 -0800 (PST)
+Subject: Physical address of a user virtual address
+Message-ID: <OF59D35C34.54785967-ON86256AF5.0002C7E7@hou.us.ray.com>
+From: Mark_H_Johnson@Raytheon.com
+Date: Mon, 29 Oct 2001 18:42:51 -0600
+MIME-Version: 1.0
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: barryn@pobox.com, zlatko.calusic@iskon.hr
-Cc: Linus Torvalds <torvalds@transmeta.com>, Jens Axboe <axboe@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: James_P_Cassidy@Raytheon.com
 List-ID: <linux-mm.kvack.org>
 
->  > Unfortunately, things didn't change on my first disk (IBM 7200rpm
->>  @home). I'm still getting low numbers, check the vmstat output at the
->>  end of the email.
->>
->>  But, now I found something interesting, other two disk which are on
->>  the standard IDE controller work correctly (writing is at 17-22
->>  MB/sec). The disk which doesn't work well is on the HPT366 interface,
->>  so that may be our culprit. Now I got the idea to check patches
->  > retrogradely to see where it started behaving poorely.
+We have an application where we will be...
+ - using mlockall() to lock the application into physical memory
+ - communicating to / from other systems using an interface similar to
+shared memory
+ - most of the other systems run Linux - we have a device driver to handle
+that case (they exchange information so the operation is "safe")
+ - but one of the other systems does not have an operating system - just
+our code
 
->This really reminds me of a problem I once had with a hard drive of
->mine. It would usually go at 15-20MB/sec, but sometimes (under both
->Linux and Windows) would slow down to maybe 350KB/sec. The slowdown, or
->lack thereof, did seem to depend on the alignment of the stars. I lived
->with it for a number of months, then started getting intermittent I/O
->errors as well, as if the drive had bad sectors on disk.
->
->The problem turned out to be insufficient ventilation for the controller
->board on the bottom of the drive
+For the system with our code in it, we need the physical address of a
+region in the user's virtual address space. We are aware of the problems
+with memory fragmentation and would be probing several addresses (at 4
+Kbyte boundaries) to compute the base address & lengths of each contiguous
+region.
 
-As an extra datapoint, my IBM Deskstar 60GXP's (40Gb version) runs 
-slightly slower with writing than with reading.  This is on a VIA 
-686a controller, UDMA/66 active.  The drive also has plenty of air 
-around it, being in a 5.25" bracket with fans in front.
+We can't seem to find any "easy" way (e.g., call a function) that converts
+an address in the virtual address space of an application to the physical
+address. The book "Linux Device Drivers" basically tells us to walk the
+page tables. From that, we think we must create a driver or kernel module
+to get access to the proper variables and functions. That looks like a lot
+of work for something that sounds simple.
 
-Writing 1GB from /dev/zero takes 34.27s = 29.88MB/sec, 19% CPU
-Reading 1GB from test file takes 29.64s = 34.58MB/sec, 18% CPU
+Has someone already solved this done this and can point us to some code
+that implements this?
 
-Hmm, that's almost as fast as the 10000rpm Ultrastar sited just above 
-it, but with higher CPU usage.  Ultrastar gets 36MB/sec on reading 
-with hdparm, haven't tested write performance due to probable 
-fragmentation.
+Is there a better way to solve this problem?
 
-Both tests conducted using 'dd bs=1k' on my 1GHz Athlon with 256Mb 
-RAM.  Test file is on a freshly-created ext2 filesystem starting at 
-10Gb into the 40Gb drive (knowing IBM's recent trend, this'll still 
-be fairly close to the outer rim).  Write test includes a sync at the 
-end.  Kernel is Linus 2.4.9, no relevant patches.
-
--- 
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
-website:  http://www.chromatix.uklinux.net/vnc/
-geekcode: GCS$/E dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$
-           V? PS PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
-tagline:  The key to knowledge is not to rely on people to teach you it.
+Thanks.
+--Mark H Johnson
+  <mailto:Mark_H_Johnson@raytheon.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
