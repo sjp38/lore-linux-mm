@@ -1,7 +1,7 @@
-Date: Mon, 16 Aug 1999 12:19:30 -0400 (EDT)
+Date: Mon, 16 Aug 1999 12:44:19 -0400 (EDT)
 From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: [rfc] 2.3.14-1 patch: dma memory pool handling
-Message-ID: <Pine.LNX.3.96.990816121916.8427B-100000@mole.spellcast.com>
+Subject: [rfc] 2.3.14-1 patch: dma memory pool handling (fwd)
+Message-ID: <Pine.LNX.3.96.990816124400.23550A-100000@mole.spellcast.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -9,7 +9,7 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hey all,
+Hey all (third time's the charm, eh?),
 
 the following patch against 2.3.14-1 splits memory pools into different
 'types'.  For now that's only dma vs non, but I intend to add support for
@@ -251,6 +251,7 @@ diff -ur clean/2.3.14-1/mm/page_alloc.c lin/mm/page_alloc.c
  	}
  	return start_mem;
  }
+
 
 
 --
