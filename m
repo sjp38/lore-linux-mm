@@ -1,15 +1,15 @@
-From: "Sgt. Wallin" <ppshui@msn.com>
-Subject: Direct Generic Drugs! Save Over 70%! Overnight Shipping!                    UYNVDNAVO
-Date: Sun, 05 Dec 2004 22:01:30 01900
-Reply-To: ppshui@msn.com
+From: "Mr. Sachenger" <tinytrees@msn.com>
+Subject: Direct Generic Drugs! Save Over 70%! Overnight Shipping!                 DETGTCIK
+Date: Mon, 06 Dec 2004 03:52:05 -0500
+Reply-To: tinytrees@msn.com
 MIME-Version: 1.0
 Content-Type: text/plain;
 	charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Message-Id: <20041206030147Z26590-766+2077@kvack.org>
+Message-Id: <20041206085501Z26598-766+2117@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-request@liste.linux.org.tr, linux-openlvm-request@nl.linux.org, linux-network@liste.linux.org.tr, linux-neuchatel@alphanet.ch, linux-network-request@liste.linux.org.tr, linux-mm-www-request@nl.linux.org, linux-mm-bugs-request@nl.linux.org, linux-masaustu@liste.linux.org.tr, linux-programlama-request@liste.linux.org.tr, linux-mm@kvack.org
+To: ninara@tiscali.it, ramola23@rediffmail.com, support@burstfire.net, yourname@worldsgreatestchef.com, jobs@worldsite.ws, email@africa-11.com, lisedeke@rapote.net, vace@yi.com, fmnu@quickonlinepharmacy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Cheap Meds most charge $14.95 we charge only $2.59
