@@ -1,12 +1,12 @@
-Message-ID: <41C944CC.4040801@yahoo.com.au>
-Date: Wed, 22 Dec 2004 20:56:28 +1100
+Message-ID: <41C94449.20004@yahoo.com.au>
+Date: Wed, 22 Dec 2004 20:54:17 +1100
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: [PATCH 6/11] introduce 4-level nopud folding header
-References: <41C94361.6070909@yahoo.com.au> <41C943F0.4090006@yahoo.com.au> <41C94427.9020601@yahoo.com.au> <41C94449.20004@yahoo.com.au> <41C94473.7050804@yahoo.com.au> <41C9449A.4020607@yahoo.com.au>
-In-Reply-To: <41C9449A.4020607@yahoo.com.au>
+Subject: [PATCH 3/11] convert i386 to generic nopmd header
+References: <41C94361.6070909@yahoo.com.au> <41C943F0.4090006@yahoo.com.au> <41C94427.9020601@yahoo.com.au>
+In-Reply-To: <41C94427.9020601@yahoo.com.au>
 Content-Type: multipart/mixed;
- boundary="------------020504050107050704090902"
+ boundary="------------060509050809010303080604"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
@@ -14,192 +14,262 @@ Cc: Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@v
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------020504050107050704090902
+--------------060509050809010303080604
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 
-6/11
+3/11
 
---------------020504050107050704090902
+--------------060509050809010303080604
 Content-Type: text/plain;
- name="4level-compat.patch"
+ name="3level-i386-cleanup.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="4level-compat.patch"
+ filename="3level-i386-cleanup.patch"
 
 
-
-Generic headers to fold the 4-level pagetable into 3 levels.
+Adapt the i386 architecture to use the generic 2-level folding header.
+Just to show how it is done.
 
 Signed-off-by: Nick Piggin <nickpiggin@yahoo.com.au>
 
 
 ---
 
- linux-2.6-npiggin/include/asm-generic/pgtable-nopmd.h |   45 +++++++-------
- linux-2.6-npiggin/include/asm-generic/pgtable-nopud.h |   56 ++++++++++++++++++
- linux-2.6-npiggin/include/asm-generic/tlb.h           |    6 +
- 3 files changed, 85 insertions(+), 22 deletions(-)
+ linux-2.6-npiggin/include/asm-i386/mmzone.h              |    1 
+ linux-2.6-npiggin/include/asm-i386/page.h                |    6 --
+ linux-2.6-npiggin/include/asm-i386/pgalloc.h             |   17 +++----
+ linux-2.6-npiggin/include/asm-i386/pgtable-2level-defs.h |    2 
+ linux-2.6-npiggin/include/asm-i386/pgtable-2level.h      |   33 +++------------
+ linux-2.6-npiggin/include/asm-i386/pgtable-3level.h      |   11 +++++
+ linux-2.6-npiggin/include/asm-i386/pgtable.h             |   13 +----
+ 7 files changed, 31 insertions(+), 52 deletions(-)
 
-diff -puN /dev/null include/asm-generic/pgtable-nopud.h
---- /dev/null	2004-09-06 19:38:39.000000000 +1000
-+++ linux-2.6-npiggin/include/asm-generic/pgtable-nopud.h	2004-12-22 20:31:45.000000000 +1100
-@@ -0,0 +1,56 @@
-+#ifndef _PGTABLE_NOPUD_H
-+#define _PGTABLE_NOPUD_H
-+
-+#ifndef __ASSEMBLY__
-+
-+/*
-+ * Having the pud type consist of a pgd gets the size right, and allows
-+ * us to conceptually access the pgd entry that this pud is folded into
-+ * without casting.
-+ */
-+typedef struct { pgd_t pgd; } pud_t;
-+
-+#define PUD_SHIFT	PGDIR_SHIFT
-+#define PTRS_PER_PUD	1
-+#define PUD_SIZE  	(1UL << PUD_SHIFT)
-+#define PUD_MASK  	(~(PUD_SIZE-1))
-+
-+/*
-+ * The "pgd_xxx()" functions here are trivial for a folded two-level
-+ * setup: the pud is never bad, and a pud always exists (as it's folded
-+ * into the pgd entry)
-+ */
-+static inline int pgd_none(pgd_t pgd)		{ return 0; }
-+static inline int pgd_bad(pgd_t pgd)		{ return 0; }
-+static inline int pgd_present(pgd_t pgd)	{ return 1; }
-+static inline void pgd_clear(pgd_t *pgd)	{ }
-+#define pud_ERROR(pud)				(pgd_ERROR((pud).pgd))
-+
-+#define pgd_populate(mm, pgd, pud)		do { } while (0)
-+/*
-+ * (puds are folded into pgds so this doesn't get actually called,
-+ * but the define is needed for a generic inline function.)
-+ */
-+#define set_pgd(pgdptr, pgdval)			set_pud((pud_t *)(pgdptr), (pud_t) { pgdval })
-+
-+static inline pud_t * pud_offset(pgd_t * pgd, unsigned long address)
-+{
-+	return (pud_t *)pgd;
-+}
-+
-+#define pud_val(x)				(pgd_val((x).pgd))
-+#define __pud(x)				((pud_t) { __pgd(x) } )
-+
-+#define pgd_page(pgd)				(pud_page((pud_t){ pgd }))
-+#define pgd_page_kernel(pgd)			(pud_page_kernel((pud_t){ pgd }))
-+
-+/*
-+ * allocating and freeing a pud is trivial: the 1-entry pud is
-+ * inside the pgd, so has no extra memory associated with it.
-+ */
-+#define pud_alloc_one(mm, address)		NULL
-+#define pud_free(x)				do { } while (0)
-+#define __pud_free_tlb(tlb, x)			do { } while (0)
-+
-+#endif /* __ASSEMBLY__ */
-+#endif /* _PGTABLE_NOPUD_H */
-diff -puN include/asm-generic/pgtable-nopmd.h~4level-compat include/asm-generic/pgtable-nopmd.h
---- linux-2.6/include/asm-generic/pgtable-nopmd.h~4level-compat	2004-12-22 20:31:45.000000000 +1100
-+++ linux-2.6-npiggin/include/asm-generic/pgtable-nopmd.h	2004-12-22 20:31:45.000000000 +1100
-@@ -3,52 +3,53 @@
+diff -puN include/asm-i386/pgtable-2level.h~3level-i386-cleanup include/asm-i386/pgtable-2level.h
+--- linux-2.6/include/asm-i386/pgtable-2level.h~3level-i386-cleanup	2004-12-22 20:31:43.000000000 +1100
++++ linux-2.6-npiggin/include/asm-i386/pgtable-2level.h	2004-12-22 20:31:43.000000000 +1100
+@@ -1,44 +1,22 @@
+ #ifndef _I386_PGTABLE_2LEVEL_H
+ #define _I386_PGTABLE_2LEVEL_H
  
- #ifndef __ASSEMBLY__
- 
-+#include <asm-generic/pgtable-nopud.h>
++#include <asm-generic/pgtable-nopmd.h>
 +
- /*
-- * Having the pmd type consist of a pgd gets the size right, and allows
-- * us to conceptually access the pgd entry that this pmd is folded into
-+ * Having the pmd type consist of a pud gets the size right, and allows
-+ * us to conceptually access the pud entry that this pmd is folded into
-  * without casting.
-  */
--typedef struct { pgd_t pgd; } pmd_t;
-+typedef struct { pud_t pud; } pmd_t;
- 
--#define PMD_SHIFT	PGDIR_SHIFT
-+#define PMD_SHIFT	PUD_SHIFT
- #define PTRS_PER_PMD	1
- #define PMD_SIZE  	(1UL << PMD_SHIFT)
- #define PMD_MASK  	(~(PMD_SIZE-1))
+ #define pte_ERROR(e) \
+ 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, (e).pte_low)
+-#define pmd_ERROR(e) \
+-	printk("%s:%d: bad pmd %08lx.\n", __FILE__, __LINE__, pmd_val(e))
+ #define pgd_ERROR(e) \
+ 	printk("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
  
  /*
 - * The "pgd_xxx()" functions here are trivial for a folded two-level
-+ * The "pud_xxx()" functions here are trivial for a folded two-level
-  * setup: the pmd is never bad, and a pmd always exists (as it's folded
+- * setup: the pgd is never bad, and a pmd always exists (as it's folded
 - * into the pgd entry)
-+ * into the pud entry)
-  */
+- */
 -static inline int pgd_none(pgd_t pgd)		{ return 0; }
 -static inline int pgd_bad(pgd_t pgd)		{ return 0; }
 -static inline int pgd_present(pgd_t pgd)	{ return 1; }
--static inline void pgd_clear(pgd_t *pgd)	{ }
--#define pmd_ERROR(pmd)				(pgd_ERROR((pmd).pgd))
-+static inline int pud_none(pud_t pud)		{ return 0; }
-+static inline int pud_bad(pud_t pud)		{ return 0; }
-+static inline int pud_present(pud_t pud)	{ return 1; }
-+static inline void pud_clear(pud_t *pud)	{ }
-+#define pmd_ERROR(pmd)				(pud_ERROR((pmd).pud))
- 
--#define pgd_populate(mm, pmd, pte)		do { } while (0)
--#define pgd_populate_kernel(mm, pmd, pte)	do { } while (0)
-+#define pud_populate(mm, pmd, pte)		do { } while (0)
- 
- /*
+-#define pgd_clear(xp)				do { } while (0)
+-
+-/*
+  * Certain architectures need to do special things when PTEs
+  * within a page table are directly modified.  Thus, the following
+  * hook is made available.
+  */
+ #define set_pte(pteptr, pteval) (*(pteptr) = pteval)
+ #define set_pte_atomic(pteptr, pteval) set_pte(pteptr,pteval)
+-/*
 - * (pmds are folded into pgds so this doesn't get actually called,
-+ * (pmds are folded into puds so this doesn't get actually called,
-  * but the define is needed for a generic inline function.)
+- * but the define is needed for a generic inline function.)
+- */
+-#define set_pmd(pmdptr, pmdval) (*(pmdptr) = pmdval)
+-#define set_pgd(pgdptr, pgdval) (*(pgdptr) = pgdval)
++#define set_pmd(pmdptr, pmdval) (*(pmdptr) = (pmdval))
+ 
+-#define pgd_page(pgd) \
+-((unsigned long) __va(pgd_val(pgd) & PAGE_MASK))
+-
+-static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
+-{
+-	return (pmd_t *) dir;
+-}
+ #define ptep_get_and_clear(xp)	__pte(xchg(&(xp)->pte_low, 0))
+ #define pte_same(a, b)		((a).pte_low == (b).pte_low)
+ #define pte_page(x)		pfn_to_page(pte_pfn(x))
+@@ -47,6 +25,11 @@ static inline pmd_t * pmd_offset(pgd_t *
+ #define pfn_pte(pfn, prot)	__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+ #define pfn_pmd(pfn, prot)	__pmd(((pfn) << PAGE_SHIFT) | pgprot_val(prot))
+ 
++#define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
++
++#define pmd_page_kernel(pmd) \
++((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
++
+ /*
+  * All present user pages are user-executable:
   */
--#define set_pgd(pgdptr, pgdval)			set_pmd((pmd_t *)(pgdptr), (pmd_t) { pgdval })
-+#define set_pud(pudptr, pudval)			set_pmd((pmd_t *)(pudptr), (pmd_t) { pudval })
+diff -puN include/asm-i386/page.h~3level-i386-cleanup include/asm-i386/page.h
+--- linux-2.6/include/asm-i386/page.h~3level-i386-cleanup	2004-12-22 20:31:43.000000000 +1100
++++ linux-2.6-npiggin/include/asm-i386/page.h	2004-12-22 20:31:43.000000000 +1100
+@@ -46,11 +46,12 @@ typedef struct { unsigned long pte_low, 
+ typedef struct { unsigned long long pmd; } pmd_t;
+ typedef struct { unsigned long long pgd; } pgd_t;
+ typedef struct { unsigned long long pgprot; } pgprot_t;
++#define pmd_val(x)	((x).pmd)
+ #define pte_val(x)	((x).pte_low | ((unsigned long long)(x).pte_high << 32))
++#define __pmd(x) ((pmd_t) { (x) } )
+ #define HPAGE_SHIFT	21
+ #else
+ typedef struct { unsigned long pte_low; } pte_t;
+-typedef struct { unsigned long pmd; } pmd_t;
+ typedef struct { unsigned long pgd; } pgd_t;
+ typedef struct { unsigned long pgprot; } pgprot_t;
+ #define boot_pte_t pte_t /* or would you rather have a typedef */
+@@ -66,13 +67,10 @@ typedef struct { unsigned long pgprot; }
+ #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
+ #endif
  
--static inline pmd_t * pmd_offset(pgd_t * pgd, unsigned long address)
-+static inline pmd_t * pmd_offset(pud_t * pud, unsigned long address)
- {
--	return (pmd_t *)pgd;
-+	return (pmd_t *)pud;
- }
+-
+-#define pmd_val(x)	((x).pmd)
+ #define pgd_val(x)	((x).pgd)
+ #define pgprot_val(x)	((x).pgprot)
  
--#define pmd_val(x)				(pgd_val((x).pgd))
--#define __pmd(x)				((pmd_t) { __pgd(x) } )
-+#define pmd_val(x)				(pud_val((x).pud))
-+#define __pmd(x)				((pmd_t) { __pud(x) } )
+ #define __pte(x) ((pte_t) { (x) } )
+-#define __pmd(x) ((pmd_t) { (x) } )
+ #define __pgd(x) ((pgd_t) { (x) } )
+ #define __pgprot(x)	((pgprot_t) { (x) } )
  
--#define pgd_page(pgd)				(pmd_page((pmd_t){ pgd }))
--#define pgd_page_kernel(pgd)			(pmd_page_kernel((pmd_t){ pgd }))
-+#define pud_page(pud)				(pmd_page((pmd_t){ pud }))
-+#define pud_page_kernel(pud)			(pmd_page_kernel((pmd_t){ pud }))
+diff -puN include/asm-i386/pgtable-2level-defs.h~3level-i386-cleanup include/asm-i386/pgtable-2level-defs.h
+--- linux-2.6/include/asm-i386/pgtable-2level-defs.h~3level-i386-cleanup	2004-12-22 20:31:43.000000000 +1100
++++ linux-2.6-npiggin/include/asm-i386/pgtable-2level-defs.h	2004-12-22 20:31:43.000000000 +1100
+@@ -12,8 +12,6 @@
+  * the i386 is two-level, so we don't really have any
+  * PMD directory physically.
+  */
+-#define PMD_SHIFT	22
+-#define PTRS_PER_PMD	1
+ 
+ #define PTRS_PER_PTE	1024
+ 
+diff -puN include/asm-i386/pgtable-3level.h~3level-i386-cleanup include/asm-i386/pgtable-3level.h
+--- linux-2.6/include/asm-i386/pgtable-3level.h~3level-i386-cleanup	2004-12-22 20:31:43.000000000 +1100
++++ linux-2.6-npiggin/include/asm-i386/pgtable-3level.h	2004-12-22 20:35:54.000000000 +1100
+@@ -70,9 +70,18 @@ static inline void set_pte(pte_t *ptep, 
+  */
+ static inline void pgd_clear (pgd_t * pgd) { }
+ 
++#define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
++
++#define pmd_page_kernel(pmd) \
++((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
++
+ #define pgd_page(pgd) \
++((struct page *) __va(pgd_val(pgd) & PAGE_MASK))
++
++#define pgd_page_kernel(pgd) \
+ ((unsigned long) __va(pgd_val(pgd) & PAGE_MASK))
+ 
++
+ /* Find an entry in the second-level page table.. */
+ #define pmd_offset(dir, address) ((pmd_t *) pgd_page(*(dir)) + \
+ 			pmd_index(address))
+@@ -142,4 +151,6 @@ static inline pmd_t pfn_pmd(unsigned lon
+ #define __pte_to_swp_entry(pte)		((swp_entry_t){ (pte).pte_high })
+ #define __swp_entry_to_pte(x)		((pte_t){ 0, (x).val })
+ 
++#define __pmd_free_tlb(tlb, x)		do { } while (0)
++
+ #endif /* _I386_PGTABLE_3LEVEL_H */
+diff -puN include/asm-i386/pgalloc.h~3level-i386-cleanup include/asm-i386/pgalloc.h
+--- linux-2.6/include/asm-i386/pgalloc.h~3level-i386-cleanup	2004-12-22 20:31:43.000000000 +1100
++++ linux-2.6-npiggin/include/asm-i386/pgalloc.h	2004-12-22 20:35:54.000000000 +1100
+@@ -10,12 +10,10 @@
+ #define pmd_populate_kernel(mm, pmd, pte) \
+ 		set_pmd(pmd, __pmd(_PAGE_TABLE + __pa(pte)))
+ 
+-static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *pte)
+-{
+-	set_pmd(pmd, __pmd(_PAGE_TABLE +
+-		((unsigned long long)page_to_pfn(pte) <<
+-			(unsigned long long) PAGE_SHIFT)));
+-}
++#define pmd_populate(mm, pmd, pte) 				\
++	set_pmd(pmd, __pmd(_PAGE_TABLE +			\
++		((unsigned long long)page_to_pfn(pte) <<	\
++			(unsigned long long) PAGE_SHIFT)))
+ /*
+  * Allocate and free page tables.
+  */
+@@ -39,16 +37,15 @@ static inline void pte_free(struct page 
+ 
+ #define __pte_free_tlb(tlb,pte) tlb_remove_page((tlb),(pte))
+ 
++#ifdef CONFIG_X86_PAE
+ /*
+- * allocating and freeing a pmd is trivial: the 1-entry pmd is
+- * inside the pgd, so has no extra memory associated with it.
+- * (In the PAE case we free the pmds as part of the pgd.)
++ * In the PAE case we free the pmds as part of the pgd.
+  */
+-
+ #define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
+ #define pmd_free(x)			do { } while (0)
+ #define __pmd_free_tlb(tlb,x)		do { } while (0)
+ #define pgd_populate(mm, pmd, pte)	BUG()
++#endif
+ 
+ #define check_pgt_cache()	do { } while (0)
+ 
+diff -puN include/asm-i386/pgtable.h~3level-i386-cleanup include/asm-i386/pgtable.h
+--- linux-2.6/include/asm-i386/pgtable.h~3level-i386-cleanup	2004-12-22 20:31:43.000000000 +1100
++++ linux-2.6-npiggin/include/asm-i386/pgtable.h	2004-12-22 20:35:54.000000000 +1100
+@@ -50,12 +50,12 @@ void paging_init(void);
+  */
+ #ifdef CONFIG_X86_PAE
+ # include <asm/pgtable-3level-defs.h>
++# define PMD_SIZE	(1UL << PMD_SHIFT)
++# define PMD_MASK	(~(PMD_SIZE-1))
+ #else
+ # include <asm/pgtable-2level-defs.h>
+ #endif
+ 
+-#define PMD_SIZE	(1UL << PMD_SHIFT)
+-#define PMD_MASK	(~(PMD_SIZE-1))
+ #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
+ #define PGDIR_MASK	(~(PGDIR_SIZE-1))
+ 
+@@ -293,15 +293,8 @@ static inline pte_t pte_modify(pte_t pte
+ 
+ #define page_pte(page) page_pte_prot(page, __pgprot(0))
+ 
+-#define pmd_page_kernel(pmd) \
+-((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
+-
+-#ifndef CONFIG_DISCONTIGMEM
+-#define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
+-#endif /* !CONFIG_DISCONTIGMEM */
+-
+ #define pmd_large(pmd) \
+-	((pmd_val(pmd) & (_PAGE_PSE|_PAGE_PRESENT)) == (_PAGE_PSE|_PAGE_PRESENT))
++((pmd_val(pmd) & (_PAGE_PSE|_PAGE_PRESENT)) == (_PAGE_PSE|_PAGE_PRESENT))
  
  /*
-  * allocating and freeing a pmd is trivial: the 1-entry pmd is
-- * inside the pgd, so has no extra memory associated with it.
-+ * inside the pud, so has no extra memory associated with it.
-  */
- #define pmd_alloc_one(mm, address)		NULL
- #define pmd_free(x)				do { } while (0)
-diff -puN include/asm-generic/tlb.h~4level-compat include/asm-generic/tlb.h
---- linux-2.6/include/asm-generic/tlb.h~4level-compat	2004-12-22 20:31:45.000000000 +1100
-+++ linux-2.6-npiggin/include/asm-generic/tlb.h	2004-12-22 20:35:55.000000000 +1100
-@@ -141,6 +141,12 @@ static inline void tlb_remove_page(struc
- 		__pte_free_tlb(tlb, ptep);			\
- 	} while (0)
+  * the pgd page can be thought of an array like this: pgd_t[PTRS_PER_PGD]
+diff -puN include/asm-i386/mmzone.h~3level-i386-cleanup include/asm-i386/mmzone.h
+--- linux-2.6/include/asm-i386/mmzone.h~3level-i386-cleanup	2004-12-22 20:31:43.000000000 +1100
++++ linux-2.6-npiggin/include/asm-i386/mmzone.h	2004-12-22 20:31:44.000000000 +1100
+@@ -116,7 +116,6 @@ static inline struct pglist_data *pfn_to
+ 	(unsigned long)(__page - __zone->zone_mem_map)			\
+ 		+ __zone->zone_start_pfn;				\
+ })
+-#define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
  
-+#define pud_free_tlb(tlb, pudp)					\
-+	do {							\
-+		tlb->need_flush = 1;				\
-+		__pud_free_tlb(tlb, pudp);			\
-+	} while (0)
-+
- #define pmd_free_tlb(tlb, pmdp)					\
- 	do {							\
- 		tlb->need_flush = 1;				\
+ #ifdef CONFIG_X86_NUMAQ            /* we have contiguous memory on NUMA-Q */
+ #define pfn_valid(pfn)          ((pfn) < num_physpages)
 
 _
 
---------------020504050107050704090902--
+--------------060509050809010303080604--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
