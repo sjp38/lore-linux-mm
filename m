@@ -1,9 +1,9 @@
 Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on 2.4.0-test2
-References: <Pine.LNX.4.21.0007111944450.3644-100000@inspiron.random>
+References: <Pine.LNX.4.21.0007111938241.3644-100000@inspiron.random>
 From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: Andrea Arcangeli's message of "Tue, 11 Jul 2000 19:54:31 +0200 (CEST)"
-Date: 11 Jul 2000 20:03:41 +0200
-Message-ID: <yttem50mtmq.fsf@serpe.mitica>
+In-Reply-To: Andrea Arcangeli's message of "Tue, 11 Jul 2000 19:41:27 +0200 (CEST)"
+Date: 11 Jul 2000 20:13:42 +0200
+Message-ID: <ytt8zv8mt61.fsf@serpe.mitica>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -15,24 +15,19 @@ List-ID: <linux-mm.kvack.org>
 >>>>> "andrea" == Andrea Arcangeli <andrea@suse.de> writes:
 
 andrea> On Tue, 11 Jul 2000, Rik van Riel wrote:
->> This is why LRU is wrong and we need page aging (which
->> approximates both LRU and NFU).
->> 
->> The idea is to remove those pages from memory which will
->> not be used again for the longest time, regardless of in
->> which 'state' they live in main memory.
->> 
->> (and proper page aging is a good approximation to this)
+>> No. You just wrote down the strongest argument in favour of one
+>> unified queue for all types of memory usage.
 
-andrea> It will still drop _all_ VM mappings from memory if you left "cp /dev/zero
-andrea> ." in background for say 2 hours. This in turn mean that during streming
-andrea> I/O you'll have _much_ more than the current swapin/swapout troubles.
+andrea> Do that and download an dozen of iso image with gigabit ethernet in
+andrea> background.
 
-If you are copying in the background a cp and you don't touch your
-vi/emacs/whatever pages in 2 hours (i.e. age = 0) then I think that it
-is ok for that pages to be swaped out.  Notice that the cage pages
-will have _initial age_  and the pages of the binaries will have an
-_older_ age.
+With Gigabit etherenet, the pages that you are coping will never be
+touched again -> that means that its age will never will increase,
+that means that it will only remove pages from the cache that are
+younger/have been a lot of time without being used.  That looks quite
+ok to me.  Notice that the fact that the pages came from the Gigabit
+ethernet makes no diference that if you copy from other medium.  Only
+difference is that you will get them only faster.
 
 Later, Juan.
 
