@@ -1,235 +1,406 @@
-Message-ID: <391B71BE.6302F9BD@norran.net>
-Date: Fri, 12 May 2000 04:51:42 +0200
-From: Roger Larsson <roger.larsson@norran.net>
+Subject: PATCH: new page_cache_get() (try 2)
+References: <Pine.LNX.4.10.10005111519590.819-100000@penguin.transmeta.com>
+	<yttbt2c8tuo.fsf@vexeta.dc.fi.udc.es>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: "Juan J. Quintela"'s message of "12 May 2000 03:01:19 +0200"
+Date: 12 May 2000 04:02:13 +0200
+Message-ID: <yttwvl07cgq.fsf_-_@vexeta.dc.fi.udc.es>
 MIME-Version: 1.0
-Subject: [RFC][PATCH] shrink_mmap avoid list_del (Was: Re: [PATCH] Recent VM
- fiasco - fixed)
-References: <Pine.LNX.4.10.10005111700520.1319-100000@penguin.transmeta.com>
-Content-Type: multipart/mixed;
- boundary="------------E9FBE4D31EDAFD1C39BE086D"
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------E9FBE4D31EDAFD1C39BE086D
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+>>>>> "juan" == Juan J Quintela <quintela@fi.udc.es> writes:
 
-Hi,
+Hi again
 
-I tried to find a way to walk the lru list without list_del.
+juan> You ask for it, here is the patch. Noted that I have changed all the
+juan> get_page/put_page/__free_page that I have find to the equivalents in
+juan> the page_cache_get/page_cache_release/page_cache_release.
 
-Here is my patch:
-- not compiled nor run (low on HD...)
+juan> There are two points where I am not sure about the thing to do:
 
-Could something like this be used?
-If no, why not?
+juan> - In shm.c it calls alloc_pages, I have substituted it for page_cache,
+juan>   due to the fact that shm use the page_cache, if somebody changes
+juan>   the page_cache, it needs to change the shm code acordingly.
 
-/RogerL
+juan> - In buffers.c it calls alloc_page, but it calls it with a different
+juan>   mask, then I have left the alloc_pages, call. But I have put the
+juan>   get/put operations as page_cache_* operations, due to the fact that
+juan>   they use the page_cache.
 
+juan> Once that we are here, what are the *semantic* difference between
+juan> page_cache_release and page_cache_free?
 
-Linus Torvalds wrote:
-> 
-> On Thu, 11 May 2000, Simon Kirby wrote:
-> >
-> > Hrm!  pre7 release seems to be even better.  113 vmstat-line-seconds now
-> > (yes, I know this isn't a very scientific testing method :)).  Second try
-> > was 114 vmstat-line-seconds.  classzone-27 did it in 107, so that's not
-> > very far off!  Also, it swapped much less this time, and used less CPU.
-> > vmstat output attached.
-> 
-> The final pre7 did something that I'm not entirely excited about, but that
-> kind of makes sense at least from a CPU standpoint (as the SGI people have
-> repeated multiple times). What the real pre7 does is to just move any page
-> that has problems getting free'd to the head of the LRU list, so that we
-> won't try it immediately the next time. This way we don't test the same
-> pages over and over again when they are either shared, in the wrong zone,
-> or have dirty/locked buffers.
-> 
-> It means that the "LRU" is less LRU, but you could see it as a "how hard
-> do we want to free this" pressure-based system that really a least
-> recently _used_ system. And it avoids the "repeat the whole thing on the
-> same page" issue. And it looks like it behaves reasonably well, while
-> saving a lot of CPU.
-> 
-> Knock wood.
-> 
-> I'm still considering the pre7 as more a "ok, I tried to get rid of the
-> cruft" thing. Most of the special case code that has accumulated lately is
-> gone. We can start adding stuff back now, I'm happy that the basics are
-> reasonably clean.
-> 
-> I think Ingo already posted a very valid concern about high-memory
-> machines, and there are other issues we should look at. I just want to be
-> in a position where we can look at the code and say "we do X because Y",
-> rather than a collection of random tweaks that just happens to work.
-> 
->                 Linus
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux.eu.org/Linux-MM/
+I have done 2 errors in previous patch.  In this patch I had fixed
+that 2 errors, and I have included the new invalidate_inode_pages
+function that likes trond.  I have also removed the end of the loop in
+truncate_inode_pages to show that it doesn't make sense (at least to
+me).  We do an:
+      UnlockPage();
+      page_cache_release();
+      page_cache_get();
+      wait_on_page();       // here we will return fast almost sure
+                            // this functions is inlined and we have 
+                            // just dropped the lock
+      page_cache_release();
+      goto repeat;
 
---
-Home page:
-  http://www.norran.net/nra02596/
---------------E9FBE4D31EDAFD1C39BE086D
-Content-Type: text/plain; charset=us-ascii;
- name="patch-2.3.99-pre7-9-shrink_mmap.1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="patch-2.3.99-pre7-9-shrink_mmap.1"
+and I have changed that to:
 
-diff -Naur linux-2.3-pre9--/mm/filemap.c linux-2.3/mm/filemap.c
---- linux-2.3-pre9--/mm/filemap.c	Fri May 12 02:42:19 2000
-+++ linux-2.3/mm/filemap.c	Fri May 12 04:28:30 2000
-@@ -236,7 +236,6 @@
- int shrink_mmap(int priority, int gfp_mask)
- {
- 	int ret = 0, count;
--	LIST_HEAD(old);
- 	struct list_head * page_lru, * dispose;
- 	struct page * page = NULL;
- 	
-@@ -244,26 +243,29 @@
+    UnlockPage();
+    page_cache_release();
+    goto repeat;
+
+If somebody knows a reason to have the previous code, I am very
+interested in knowing it.
+
+Later, Juan.
+
+PD. Juan will learn not to make changes and don't recheck...
+    Juan will learn not to make changes and don't recheck...
+    .....
+
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/fs/buffer.c testing2/fs/buffer.c
+--- pre7/fs/buffer.c	Fri May 12 01:11:40 2000
++++ testing2/fs/buffer.c	Fri May 12 02:49:23 2000
+@@ -1264,7 +1264,7 @@
+ 		set_bit(BH_Mapped, &bh->b_state);
+ 	}
+ 	tail->b_this_page = head;
+-	get_page(page);
++	page_cache_get(page);
+ 	page->buffers = head;
+ 	return 0;
+ }
+@@ -1351,7 +1351,7 @@
+ 	} while (bh);
+ 	tail->b_this_page = head;
+ 	page->buffers = head;
+-	get_page(page);
++	page_cache_get(page);
+ }
  
- 	/* we need pagemap_lru_lock for list_del() ... subtle code below */
- 	spin_lock(&pagemap_lru_lock);
--	while (count > 0 && (page_lru = lru_cache.prev) != &lru_cache) {
-+	page_lru = &lru_cache;
-+	while (count > 0 && (page_lru = page_lru->prev) != &lru_cache) {
- 		page = list_entry(page_lru, struct page, lru);
--		list_del(page_lru);
+ static void unmap_underlying_metadata(struct buffer_head * bh)
+@@ -2106,7 +2106,7 @@
+ 	return 1;
  
- 		dispose = &lru_cache;
- 		if (PageTestandClearReferenced(page))
- 			goto dispose_continue;
+ no_buffer_head:
+-	__free_page(page);
++	page_cache_release(page);
+ out:
+ 	return 0;
+ }
+@@ -2190,7 +2190,7 @@
  
- 		count--;
--		dispose = &old;
+ 	/* And free the page */
+ 	page->buffers = NULL;
+-	__free_page(page);
++	page_cache_release(page);
+ 	spin_unlock(&free_list[index].lock);
+ 	write_unlock(&hash_table_lock);
+ 	spin_unlock(&lru_list_lock);
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/fs/nfs/write.c testing2/fs/nfs/write.c
+--- pre7/fs/nfs/write.c	Fri May 12 01:11:41 2000
++++ testing2/fs/nfs/write.c	Fri May 12 01:56:29 2000
+@@ -528,7 +528,7 @@
+ 	 * long write-back delay. This will be adjusted in
+ 	 * update_nfs_request below if the region is not locked. */
+ 	req->wb_page    = page;
+-	get_page(page);
++	page_cache_get(page);
+ 	req->wb_offset  = offset;
+ 	req->wb_bytes   = count;
+ 	req->wb_dentry  = dget(dentry);
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/include/linux/pagemap.h testing2/include/linux/pagemap.h
+--- pre7/include/linux/pagemap.h	Fri May 12 01:11:42 2000
++++ testing2/include/linux/pagemap.h	Fri May 12 03:44:11 2000
+@@ -28,6 +28,7 @@
+ #define PAGE_CACHE_MASK		PAGE_MASK
+ #define PAGE_CACHE_ALIGN(addr)	(((addr)+PAGE_CACHE_SIZE-1)&PAGE_CACHE_MASK)
+ 
++#define page_cache_get(x)	get_page(x);
+ #define page_cache_alloc()	alloc_pages(GFP_HIGHUSER, 0)
+ #define page_cache_free(x)	__free_page(x)
+ #define page_cache_release(x)	__free_page(x)
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/ipc/shm.c testing2/ipc/shm.c
+--- pre7/ipc/shm.c	Fri May 12 01:11:43 2000
++++ testing2/ipc/shm.c	Fri May 12 02:35:59 2000
+@@ -1348,7 +1348,7 @@
+ 		   could potentially fault on our pte under us */
+ 		if (pte_none(pte)) {
+ 			shm_unlock(shp->id);
+-			page = alloc_page(GFP_HIGHUSER);
++			page = page_cache_alloc();
+ 			if (!page)
+ 				goto oom;
+ 			clear_user_highpage(page, address);
+@@ -1380,7 +1380,7 @@
+ 	}
+ 
+ 	/* pte_val(pte) == SHM_ENTRY (shp, idx) */
+-	get_page(pte_page(pte));
++	page_cache_get(pte_page(pte));
+ 	return pte_page(pte);
+ 
+ oom:
+@@ -1448,7 +1448,7 @@
+ 	lock_kernel();
+ 	rw_swap_page(WRITE, page, 0);
+ 	unlock_kernel();
+-	__free_page(page);
++	page_cache_release(page);
+ }
+ 
+ static int shm_swap_preop(swp_entry_t *swap_entry)
+@@ -1537,7 +1537,7 @@
+ 
+ 	pte = pte_mkdirty(mk_pte(page, PAGE_SHARED));
+ 	SHM_ENTRY(shp, idx) = pte;
+-	get_page(page);
++	page_cache_get(page);
+ 	shm_rss++;
+ 
+ 	shm_swp--;
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/mm/filemap.c testing2/mm/filemap.c
+--- pre7/mm/filemap.c	Fri May 12 01:11:43 2000
++++ testing2/mm/filemap.c	Fri May 12 03:42:22 2000
+@@ -111,15 +111,23 @@
+ 
+ #define ITERATIONS 100
+ 
++/**
++ * invalidate_inode_pages - Invalidate all the unlocked pages of one inode
++ * @inode: the inode which pages we want to invalidate
++ *
++ * This function only removes the unlocked pages, if you want to
++ * remove all the pages of one inode, you must call truncate_inode_pages.
++ */
 +
-+		dispose = NULL;
+ void invalidate_inode_pages(struct inode * inode)
+ {
+ 	struct list_head *head, *curr;
+ 	struct page * page;
+-	int count;
++	int count = ITERATIONS;
+ 
+ 	head = &inode->i_mapping->pages;
+ 
+-	while (head != head->next) {
++	while (count == ITERATIONS) {
+ 		spin_lock(&pagecache_lock);
+ 		spin_lock(&pagemap_lru_lock);
+ 		head = &inode->i_mapping->pages;
+@@ -140,22 +148,8 @@
+ 			page_cache_release(page);
+ 		}
+ 
+-		/* At this stage we have passed through the list
+-		 * once, and there may still be locked pages. */
+-
+-		if (head->next!=head) {
+-			page = list_entry(head->next, struct page, list);
+-			get_page(page);
+-			spin_unlock(&pagemap_lru_lock);
+-			spin_unlock(&pagecache_lock);
+-			/* We need to block */
+-			lock_page(page);
+-			UnlockPage(page);
+-			page_cache_release(page);
+-		} else {                                         
+-			spin_unlock(&pagemap_lru_lock);
+-			spin_unlock(&pagecache_lock);
+-		}
++		spin_unlock(&pagemap_lru_lock);
++		spin_unlock(&pagecache_lock);
+ 	}
+ }
+ 
+@@ -187,13 +181,13 @@
+ 		/* page wholly truncated - free it */
+ 		if (offset >= start) {
+ 			if (TryLockPage(page)) {
+-				get_page(page);
++				page_cache_get(page);
+ 				spin_unlock(&pagecache_lock);
+ 				wait_on_page(page);
+ 				page_cache_release(page);
+ 				goto repeat;
+ 			}
+-			get_page(page);
++			page_cache_get(page);
+ 			spin_unlock(&pagecache_lock);
+ 
+ 			if (!page->buffers || block_flushpage(page, 0))
+@@ -237,7 +231,7 @@
+ 			spin_unlock(&pagecache_lock);
+ 			goto repeat;
+ 		}
+-		get_page(page);
++		page_cache_get(page);
+ 		spin_unlock(&pagecache_lock);
+ 
+ 		memclear_highpage_flush(page, partial, PAGE_CACHE_SIZE-partial);
+@@ -252,9 +246,6 @@
+ 		 */
+ 		UnlockPage(page);
+ 		page_cache_release(page);
+-		get_page(page);
+-		wait_on_page(page);
+-		put_page(page);
+ 		goto repeat;
+ 	}
+ 	spin_unlock(&pagecache_lock);
+@@ -312,7 +303,7 @@
+ 		spin_unlock(&pagemap_lru_lock);
+ 
+ 		/* avoid freeing the page while it's locked */
+-		get_page(page);
++		page_cache_get(page);
  
  		/*
- 		 * Avoid unscalable SMP locking for pages we can
- 		 * immediate tell are untouchable..
- 		 */
- 		if (!page->buffers && page_count(page) > 1)
--			goto dispose_continue;
-+			continue;
- 
-+		/* Lock this lru page, reentrant
-+		 * will be disposed correctly when unlocked */
- 		if (TryLockPage(page))
--			goto dispose_continue;
-+			continue;
- 
- 		/* Release the pagemap_lru lock even if the page is not yet
- 		   queued in any lru queue since we have just locked down
-@@ -281,7 +283,7 @@
- 		 */
- 		if (page->buffers) {
- 			if (!try_to_free_buffers(page))
--				goto unlock_continue;
-+				goto page_unlock_continue;
- 			/* page was locked, inode can't go away under us */
- 			if (!page->mapping) {
- 				atomic_dec(&buffermem_pages);
-@@ -336,27 +338,43 @@
- 
- cache_unlock_continue:
- 		spin_unlock(&pagecache_lock);
--unlock_continue:
-+page_unlock_continue:
+ 		 * Is it a buffer page? Try to clean it up regardless
+@@ -376,7 +367,7 @@
+ unlock_continue:
  		spin_lock(&pagemap_lru_lock);
  		UnlockPage(page);
- 		put_page(page);
-+		continue;
-+
- dispose_continue:
--		list_add(page_lru, dispose);
--	}
--	goto out;
-+		/* have the pagemap_lru_lock, lru cannot change */
-+		{
-+		  struct list_head * page_lru_to_move = page_lru; 
-+		  page_lru = page_lru->next; /* continues with page_lru.prev */
-+		  list_del(page_lru_to_move);
-+		  list_add(page_lru_to_move, dispose);
-+		}
-+		continue;
- 
- made_inode_progress:
--	page_cache_release(page);
+-		put_page(page);
 +		page_cache_release(page);
+ dispose_continue:
+ 		list_add(page_lru, dispose);
+ 	}
+@@ -386,7 +377,7 @@
+ 	page_cache_release(page);
  made_buffer_progress:
--	UnlockPage(page);
+ 	UnlockPage(page);
 -	put_page(page);
--	ret = 1;
--	spin_lock(&pagemap_lru_lock);
--	/* nr_lru_pages needs the spinlock */
--	nr_lru_pages--;
-+		/* like to have the lru lock before UnlockPage */
-+		spin_lock(&pagemap_lru_lock);
++	page_cache_release(page);
+ 	ret = 1;
+ 	spin_lock(&pagemap_lru_lock);
+ 	/* nr_lru_pages needs the spinlock */
+@@ -474,7 +465,7 @@
+ 		if (page->index < start)
+ 			continue;
  
--out:
--	list_splice(&old, lru_cache.prev);
-+		UnlockPage(page);
-+		put_page(page);
-+		ret++;
-+
-+		/* lru manipulation needs the spin lock */
-+		{
-+		  struct list_head * page_lru_to_free = page_lru; 
-+		  page_lru = page_lru->next; /* continues with page_lru.prev */
-+		  list_del(page_lru_to_free);
-+		}
-+
-+		/* nr_lru_pages needs the spinlock */
-+		nr_lru_pages--;
-+
-+	}
+-		get_page(page);
++		page_cache_get(page);
+ 		spin_unlock(&pagecache_lock);
+ 		lock_page(page);
  
- 	spin_unlock(&pagemap_lru_lock);
+@@ -516,7 +507,7 @@
+ 	if (!PageLocked(page))
+ 		BUG();
  
-diff -Naur linux-2.3-pre9--/mm/vmscan.c linux-2.3/mm/vmscan.c
---- linux-2.3-pre9--/mm/vmscan.c	Fri May 12 02:42:19 2000
-+++ linux-2.3/mm/vmscan.c	Fri May 12 04:32:16 2000
-@@ -443,10 +443,9 @@
+-	get_page(page);
++	page_cache_get(page);
+ 	spin_lock(&pagecache_lock);
+ 	page->index = index;
+ 	add_page_to_inode_queue(mapping, page);
+@@ -541,7 +532,7 @@
  
- 	priority = 6;
- 	do {
--		while (shrink_mmap(priority, gfp_mask)) {
--			if (!--count)
--				goto done;
--		}
-+	        count -= shrink_mmap(priority, gfp_mask);
-+		if (count <= 0)
-+		  goto done;
+ 	flags = page->flags & ~((1 << PG_uptodate) | (1 << PG_error) | (1 << PG_dirty));
+ 	page->flags = flags | (1 << PG_locked) | (1 << PG_referenced);
+-	get_page(page);
++	page_cache_get(page);
+ 	page->index = offset;
+ 	add_page_to_inode_queue(mapping, page);
+ 	__add_page_to_hash_queue(page, hash);
+@@ -683,7 +674,7 @@
+ 	spin_lock(&pagecache_lock);
+ 	page = __find_page_nolock(mapping, offset, *hash);
+ 	if (page)
+-		get_page(page);
++		page_cache_get(page);
+ 	spin_unlock(&pagecache_lock);
  
- 		/* Try to get rid of some shared memory pages.. */
- 		if (gfp_mask & __GFP_IO) {
-@@ -481,10 +480,9 @@
- 	} while (--priority >= 0);
+ 	/* Found the page, sleep if locked. */
+@@ -733,7 +724,7 @@
+ 	spin_lock(&pagecache_lock);
+ 	page = __find_page_nolock(mapping, offset, *hash);
+ 	if (page)
+-		get_page(page);
++		page_cache_get(page);
+ 	spin_unlock(&pagecache_lock);
  
- 	/* Always end on a shrink_mmap.. */
--	while (shrink_mmap(0, gfp_mask)) {
--		if (!--count)
--			goto done;
--	}
-+	count -= shrink_mmap(priority, gfp_mask);
-+	if (count <= 0)
-+	  goto done;
+ 	/* Found the page, sleep if locked. */
+@@ -1091,7 +1082,7 @@
+ 		if (!page)
+ 			goto no_cached_page;
+ found_page:
+-		get_page(page);
++		page_cache_get(page);
+ 		spin_unlock(&pagecache_lock);
  
+ 		if (!Page_Uptodate(page))
+@@ -1594,7 +1585,7 @@
+ 		set_pte(ptep, pte_mkclean(pte));
+ 		flush_tlb_page(vma, address);
+ 		page = pte_page(pte);
+-		get_page(page);
++		page_cache_get(page);
+ 	} else {
+ 		if (pte_none(pte))
+ 			return 0;
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/mm/memory.c testing2/mm/memory.c
+--- pre7/mm/memory.c	Fri May 12 01:11:43 2000
++++ testing2/mm/memory.c	Fri May 12 02:30:44 2000
+@@ -861,7 +861,7 @@
+ 	 * Ok, we need to copy. Oh, well..
+ 	 */
+ 	spin_unlock(&mm->page_table_lock);
+-	new_page = alloc_page(GFP_HIGHUSER);
++	new_page = page_cache_alloc();
+ 	if (!new_page)
+ 		return -1;
+ 	spin_lock(&mm->page_table_lock);
+diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7/mm/swap_state.c testing2/mm/swap_state.c
+--- pre7/mm/swap_state.c	Fri May 12 01:11:43 2000
++++ testing2/mm/swap_state.c	Fri May 12 03:13:09 2000
+@@ -136,7 +136,7 @@
+ 		}
+ 		UnlockPage(page);
+ 	}
+-	__free_page(page);
++        page_cache_release(page);
+ }
+ 
+ 
+@@ -172,7 +172,7 @@
+ 		 */
+ 		if (!PageSwapCache(found)) {
+ 			UnlockPage(found);
+-			__free_page(found);
++			page_cache_release(found);
+ 			goto repeat;
+ 		}
+ 		if (found->mapping != &swapper_space)
+@@ -187,7 +187,7 @@
+ out_bad:
+ 	printk (KERN_ERR "VM: Found a non-swapper swap page!\n");
+ 	UnlockPage(found);
+-	__free_page(found);
++	page_cache_release(found);
  	return 0;
+ }
  
+@@ -237,7 +237,7 @@
+ 	return new_page;
+ 
+ out_free_page:
+-	__free_page(new_page);
++	page_cache_release(new_page);
+ out_free_swap:
+ 	swap_free(entry);
+ out:
 
---------------E9FBE4D31EDAFD1C39BE086D--
 
+
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
