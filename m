@@ -1,28 +1,35 @@
-Subject: Re: limit on number of kmapped pages
-References: <Pine.LNX.3.96.1010123205643.7482A-100000@kanga.kvack.org> <y7r7l3ldzxp.fsf@sytry.doc.ic.ac.uk>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 24 Jan 2001 07:27:05 -0700
-In-Reply-To: David Wragg's message of "24 Jan 2001 10:09:22 +0000"
-Message-ID: <m1n1chdo06.fsf@frodo.biederman.org>
+Reply-To: <michael.ashe@imaginatics.net>
+From: "Michael C. Ashe" <michael.ashe@imaginatics.net>
+Subject: how to implement ramdisk on mandrake 7.2
+Date: Wed, 24 Jan 2001 11:53:51 -0500
+Message-ID: <LPBBLFGNNOOFJLCOBJEKOEGDCBAA.michael.ashe@imaginatics.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Wragg <dpw@doc.ic.ac.uk>
-Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-David Wragg <dpw@doc.ic.ac.uk> writes:
+Hi,
 
-> I'd still like to know what the basis for the current kmap limit
-> setting is.
+I am a relative newbie to linux programming. I am trying to learn how to
+create a ramdisk drive on a Mandrake 7.2 installation, set the size, mount
+point, etc. Any enlightenment that anyone could shed on this subject would
+be very appreciated.
 
-Mostly at one point kmap_atomic was all there was.  It was only the
-difficulty of implementing copy_from_user with kmap_atomic that convinced
-people we needed something more.  So actually if we can kmap several
-megabyte at once the kmap limit is quite high.
+TIA !
 
-Eric
+Mike
+
+********************************************
+Michael C. Ashe   Dir. of Engineering
+Imaginatics - Test & Control Systems
+943 North Road, Groton, CT 06340
+Phone (860) 446-2246 Fax (860) 405-0856
+email: michael.ashe@imaginatics.net
+********************************************
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
