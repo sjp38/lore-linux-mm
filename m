@@ -1,69 +1,48 @@
-From: "William J. Earl" <wje@cthulhu.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14357.60716.436104.461584@liveoak.engr.sgi.com>
-Date: Tue, 26 Oct 1999 11:04:28 -0700 (PDT)
+Date: Tue, 26 Oct 1999 11:05:58 +0200
+From: Ralf Baechle <ralf@uni-koblenz.de>
 Subject: Re: page faults
-In-Reply-To: <m1ln8qcjcs.fsf@flinx.hidden>
-References: <Pine.LNX.4.10.9910221930070.172-100000@imperial.edgeglobal.com>
-	<m1wvsc8ytq.fsf@flinx.hidden>
-	<14356.37630.420222.582735@liveoak.engr.sgi.com>
-	<m1ln8qcjcs.fsf@flinx.hidden>
+Message-ID: <19991026110558.A1588@uni-koblenz.de>
+References: <Pine.LNX.4.10.9910221930070.172-100000@imperial.edgeglobal.com> <m1wvsc8ytq.fsf@flinx.hidden>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <m1wvsc8ytq.fsf@flinx.hidden>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: Linux MM <linux-mm@kvack.org>
+Cc: James Simmons <jsimmons@edgeglobal.com>, "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Eric W. Biederman writes:
- > "William J. Earl" <wje@cthulhu.engr.sgi.com> writes:
-...
- > >       This of course the neglects the question of whether a broken
- > > user-mode program could damage the hardware, but then a broken
- > > single-threaded user-mode program, with no other programs using the
- > > hardware, could just as easily damage the hardware.  That is, if the
- > > hardware is not safe for direct access in general, threading does not
- > > make it any less safe.
- > 
- > Except on logically ``single thread'' hardware. Which I have heard exists.
- > Where the breakage point is simple writers hitting the harware at the
- > same time.
- > 
- > And since James work seems to have been how to protect the world from
- > broken hardware. . .
+On Sun, Oct 24, 1999 at 12:15:29PM -0500, Eric W. Biederman wrote:
 
-       Threading cannot make this more hazardous.  Suppose two threads, A and B,
-accessing the hardware concurrently, were each to do a series of instructions
-I[i].  Suppose these instructions were interleaved:
+> > Does this mean that linux/drivers/sgi/char/graphics.c page fault handler
+> > not work for a threaded program? It works great switching between
+> > different processes but if this is the case for threads this could be a
+> > problem.
+> 
+> It means it may not work as intended.
+> Once the page is faulted in all threads will have access to it.
 
-       I[0]-A
-       I[0]-B
-       I[1]-A
-       I[1]-B
-       I[2]-A
-       I[2]-B
-       ...
+This interface is inherited from IRIX where it is used for the X server
+and other direct rendering programs.  It probably even predates the
+IRIX sproc(2) interface for kernel threads.  And sproc(2) again has the
+advantage that it allows for thread-local mappings.  So for example
+IRIX threads always have their PRDA mapped locally and can have their
+stacks all at the same address because the stack area is mapped only
+locally.
 
-and that this broke the hardware.  Then suppose that, instead, 
-thread A simply executed a series of instructions with same effect
-on the hardware as the above series of instructions (with thread B
-not executing at all).  Then a single thread would damage the hardware.
-That is, if some series of user-mode instructions can damage the hardware,
-then broken threaded programs (where "broken" includes not adequately
-serializing their operations) are no more or less hazardous than
-a broken single threaded program.  If you rely on correct user-mode code
-(neglecting threading), then you are always at risk of having a broken
-application damage the hardware.
+In the past Linus already said that he doesn't want such a feature to
+enter mm and I agree with him because of the involved complexity.  So
+in short I'd say it's best to leave the operation of this interface
+undefined and recommend the usage of a separate rendering thread or
+a suitable mutual exclusion algorithem.
 
- > Also for the sgi hardware the design I believe is with the kernel
- > doing all of the thread/porocess synchronization by mapping/unmapping
- > the hardware.  That technique does not work on linux.
+> If the hardware cannot support two processors hitting the region
+> simultaneously, (support would be worst case the graphics would look
+> strange) you could have problems.
 
-     That is the way IRIX handles the hardware.  It is not trivially
-implementable on Linux.  The more important point is that SGI hardware
-can be context-switched.
+I'm sure there is stupid hardware which will allow to crash the system.
 
+  Ralf
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
