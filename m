@@ -1,35 +1,41 @@
-Received: from oscar (localhost [127.0.0.1])
-	by oscar.casa.dyndns.org (Postfix) with SMTP id 709B2ACCB5
-	for <linux-mm@kvack.org>; Fri,  2 Jun 2000 21:24:13 -0400 (EDT)
-From: Ed Tomlinson <tomlins@cam.org>
-Reply-To: tomlins@cam.org
-Subject: June 2 mm patch (#2) and swap
-Date: Fri, 2 Jun 2000 21:18:45 -0400
-Content-Type: text/plain
+Subject: Re: [PATCH] VM kswapd autotuning vs. -ac7
+References: <Pine.LNX.4.21.0006021259490.14259-100000@duckman.distro.conectiva>
+From: Christoph Rohland <cr@sap.com>
+Date: 03 Jun 2000 11:02:07 +0200
+In-Reply-To: Rik van Riel's message of "Fri, 2 Jun 2000 13:01:07 -0300 (BRST)"
+Message-ID: <qwwhfbbw31s.fsf@sap.com>
 MIME-Version: 1.0
-Message-Id: <00060221241300.02707@oscar>
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Christoph Rohland <cr@sap.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Rik van Riel <riel@conectiva.com.br> writes:
 
-This patch seems to be alergic to swap.  When I decided to try to force
-the issue (open lots apps) X was killed...  Think there is something not 
-quite right with ac7+patch #2,  Note vmstat showed zero swapped space and
-I would expect at the very least a few 1000...
+> On 2 Jun 2000, Christoph Rohland wrote:
+> 
+> > This patch still does not allow swapping with shm. Instead it
+> > kills all runnable processes without message.
+> 
+> As I said before, I haven't touched the SHM code at all.
+> Also, the shmtest test program runs fine here (except for
+> reduced system responsiveness)...
+> 
+> I'm quite interested in how you make your system die by
+> using SHM. I haven't succeeded in doing so here...
 
-Reverting to version #1 here, look forward to version #3 as things do seem
-to be moving in the right dirrection.
+Simply by running 
 
-Please reply via direct email I am not subscribed to linux-mm
+./ipctst 10 666000000 10 31 20&
+./ipctst 16 666000000 2 31 20&     
 
-TIA
-
-Ed Tomlinson <tomlins@cam.org>
-http://www.cam.org/~tomlins/njpipes.html
+But I have to correct me. It does not kill all runnable processes, but
+all I am using like ipctst, vmstat and xterm.
+ 
+Greetings
+		Christoph
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
