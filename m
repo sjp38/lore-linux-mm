@@ -1,225 +1,725 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA15463
-	for <linux-mm@kvack.org>; Sat, 18 Jan 2003 00:19:03 -0800 (PST)
-Date: Sat, 18 Jan 2003 00:20:27 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: 2.5.59-mm2
-Message-Id: <20030118002027.2be733c7.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from bigboot.humphrey.world (unknown [192.168.0.1])
+	by humphrey.dyndns.org (Postfix) with ESMTP id 6544243A94B
+	for <linux-mm@kvack.org>; Sat, 18 Jan 2003 16:53:52 -0800 (PST)
+Content-Type: text/plain;
+  charset="us-ascii"
+From: Brendon and Wendy <brendy33@attbi.com>
+Subject: 2.4.20-rmap15b does not build on sparc
+Date: Sat, 18 Jan 2003 15:59:53 -0800
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8BIT
+Message-Id: <200301181559.53654.brendy33@attbi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm2/
-
-- Added Andi's lockless current_kernel_time() patch again.  It'll break
-  non-ia32 builds.  But it appears that we should push ahead and get this
-  implemented across the other architectures.
-
-- Updated oprofile patches from John.
-
-- Adam's devfs rework is back in.  We only had two testers last time, (out
-  of maybe 150 downloads) which is fairly disappointing.
-
-  So if you use devfs, _please_ test this change and send either success or
-  failure reports (not to me though).
-
-  Adam said:
-
-   If you want devfsd functionality (well, at least the "REGISTER" and
-   "LOOKUP" events), you can get my user level program devfs_helper, which is
-   a reduced functionality replacement program for devfsd from the following
-   URL.
-
-	ftp://ftp.yggdrasil.com/pub/dist/device_control/devfs/devfs_helper-0.2.tar.gz
-
-
-
-
-Changes since 2.5.59-mm1:
-
-
-+lockless-current_kernel_time.patch
-
- Reinstated.
-
--mixer-bounds-check.patch
-
- This didn't look right.
-
-+kirq-up-fix.patch
-
- Fix the kirq build for non-SMP
-
--op4-fix.patch
-
- Not needed with the updated oprofile patch
-
-+oprofile_cpu-as-string.patch
-
- oprofile work from John.
-
-+remove-will_become_orphaned_pgrp.patch
-
- Cleanup
-
-+MAX_IO_APICS-ifdef.patch
-
- NUMA fix
-
-+dac960-error-retry.patch
-
- DAC960 robustness enhancements
-
-+put_user-warning-fix.patch
-
- ARM build fix
-
-+vmlinux-fix.patch
-
- Should fix the modprobe oopses with RH8.0 toolchains
-
-+smalldevfs.patch
-
- devfs rework
-
-+sound-firmware-load-fix.patch
-
- Build fix for OSS sound card firmware loading.
-
-+exit_mmap-fix2.patch
-
- Fix exec of 32-bit apps from 64-bit apps on PPC64/ia64/sparc64, perhaps.
-
-
-
-All 43 patches:
-
-kgdb.patch
-
-devfs-fix.patch
-
-deadline-np-42.patch
-  (undescribed patch)
-
-deadline-np-43.patch
-  (undescribed patch)
-
-setuid-exec-no-lock_kernel.patch
-  remove lock_kernel() from exec of setuid apps
-
-buffer-debug.patch
-  buffer.c debugging
-
-warn-null-wakeup.patch
-
-reiserfs-readpages.patch
-  reiserfs v3 readpages support
-
-fadvise.patch
-  implement posix_fadvise64()
-
-ext3-scheduling-storm.patch
-  ext3: fix scheduling storm and lockups
-
-auto-unplug.patch
-  self-unplugging request queues
-
-less-unplugging.patch
-  Remove most of the blk_run_queues() calls
-
-lockless-current_kernel_time.patch
-  Lockless current_kernel_timer()
-
-scheduler-tunables.patch
-  scheduler tunables
-
-htlb-2.patch
-  hugetlb: fix MAP_FIXED handling
-
-kirq.patch
-
-kirq-up-fix.patch
-  Subject: Re: 2.5.59-mm1
-
-ext3-truncate-ordered-pages.patch
-  ext3: explicitly free truncated pages
-
-prune-icache-stats.patch
-  add stats for page reclaim via inode freeing
-
-vma-file-merge.patch
-
-mmap-whitespace.patch
-
-read_cache_pages-cleanup.patch
-  cleanup in read_cache_pages()
-
-remove-GFP_HIGHIO.patch
-  remove __GFP_HIGHIO
-
-quota-lockfix.patch
-  quota locking fix
-
-quota-offsem.patch
-  quota semaphore fix
-
-oprofile-p4.patch
-
-oprofile_cpu-as-string.patch
-  oprofile cpu-as-string
-
-wli-11_pgd_ctor.patch
-  (undescribed patch)
-
-wli-11_pgd_ctor-update.patch
-  pgd_ctor update
-
-stack-overflow-fix.patch
-  stack overflow checking fix
-
-Richard_Henderson_for_President.patch
-  Subject: [PATCH] Richard Henderson for President!
-
-parenthesise-pgd_index.patch
-  Subject: i386 pgd_index() doesn't parenthesize its arg
-
-macro-double-eval-fix.patch
-  Subject: Re: i386 pgd_index() doesn't parenthesize its arg
-
-mmzone-parens.patch
-  asm-i386/mmzone.h macro paren/eval fixes
-
-blkdev-fixes.patch
-  blkdev.h fixes
-
-remove-will_become_orphaned_pgrp.patch
-  remove will_become_orphaned_pgrp()
-
-MAX_IO_APICS-ifdef.patch
-  MAX_IO_APICS #ifdef'd wrongly
-
-dac960-error-retry.patch
-  Subject: [PATCH] linux2.5.56 patch to DAC960 driver for error retry
-
-put_user-warning-fix.patch
-  Subject: Re: Linux 2.5.59
-
-vmlinux-fix.patch
-  vmlinux fix
-
-smalldevfs.patch
-  smalldevfs
-
-sound-firmware-load-fix.patch
-  soundcore.c referenced non-existent errno variable
-
-exit_mmap-fix2.patch
-  exit_mmap fix for 64bit->32bit execs
-
+Hi Group,
+
+Just a quick compilation failure report on the sparc64 architecture. rmap15a 
+builds & works just fine.
+
+My config->
+#
+# Automatically generated by make menuconfig: don't edit
+#
+
+#
+# Code maturity level options
+#
+CONFIG_EXPERIMENTAL=y
+
+#
+# Loadable module support
+#
+CONFIG_MODULES=y
+CONFIG_MODVERSIONS=y
+CONFIG_KMOD=y
+
+#
+# General setup
+#
+CONFIG_BBC_I2C=m
+CONFIG_VT=y
+CONFIG_VT_CONSOLE=y
+CONFIG_SMP=y
+CONFIG_SPARC64=y
+CONFIG_HOTPLUG=y
+CONFIG_HAVE_DEC_LOCK=y
+# CONFIG_RWSEM_GENERIC_SPINLOCK is not set
+CONFIG_RWSEM_XCHGADD_ALGORITHM=y
+# CONFIG_ISA is not set
+# CONFIG_ISAPNP is not set
+# CONFIG_EISA is not set
+# CONFIG_MCA is not set
+# CONFIG_PCMCIA is not set
+CONFIG_SBUS=y
+CONFIG_SBUSCHAR=y
+CONFIG_BUSMOUSE=y
+CONFIG_SUN_MOUSE=y
+CONFIG_SERIAL=y
+CONFIG_SUN_SERIAL=y
+CONFIG_SERIAL_CONSOLE=y
+CONFIG_SUN_KEYBOARD=y
+CONFIG_SUN_CONSOLE=y
+CONFIG_SUN_AUXIO=y
+CONFIG_SUN_IO=y
+CONFIG_PCI=y
+CONFIG_RTC=y
+# CONFIG_PCI_NAMES is not set
+CONFIG_SUN_OPENPROMFS=m
+CONFIG_NET=y
+CONFIG_SYSVIPC=y
+# CONFIG_BSD_PROCESS_ACCT is not set
+CONFIG_SYSCTL=y
+CONFIG_KCORE_ELF=y
+CONFIG_SPARC32_COMPAT=y
+CONFIG_BINFMT_ELF32=y
+# CONFIG_BINFMT_AOUT32 is not set
+CONFIG_BINFMT_ELF=y
+CONFIG_BINFMT_MISC=m
+# CONFIG_SUNOS_EMUL is not set
+CONFIG_SOLARIS_EMUL=m
+
+#
+# Parallel port support
+#
+# CONFIG_PARPORT is not set
+# CONFIG_PRINTER is not set
+CONFIG_ENVCTRL=m
+# CONFIG_DISPLAY7SEG is not set
+# CONFIG_WATCHDOG_CP1XXX is not set
+# CONFIG_WATCHDOG_RIO is not set
+
+#
+# Console drivers
+#
+# CONFIG_PROM_CONSOLE is not set
+
+#
+# Frame-buffer support
+#
+CONFIG_FB=y
+CONFIG_DUMMY_CONSOLE=y
+# CONFIG_FB_RIVA is not set
+# CONFIG_FB_CLGEN is not set
+# CONFIG_FB_PM2 is not set
+# CONFIG_FB_PM3 is not set
+# CONFIG_FB_CYBER2000 is not set
+# CONFIG_FB_MATROX is not set
+CONFIG_FB_ATY=y
+CONFIG_FB_ATY_GX=y
+CONFIG_FB_ATY_CT=y
+# CONFIG_FB_RADEON is not set
+# CONFIG_FB_ATY128 is not set
+# CONFIG_FB_SIS is not set
+# CONFIG_FB_NEOMAGIC is not set
+# CONFIG_FB_3DFX is not set
+# CONFIG_FB_VOODOO1 is not set
+# CONFIG_FB_TRIDENT is not set
+# CONFIG_FB_SBUS is not set
+CONFIG_FB_PCI=y
+CONFIG_FB_ATY=y
+CONFIG_FB_ATY_CT=y
+# CONFIG_FB_VIRTUAL is not set
+# CONFIG_FBCON_ADVANCED is not set
+CONFIG_FBCON_CFB8=y
+CONFIG_FBCON_CFB16=y
+CONFIG_FBCON_CFB24=y
+CONFIG_FBCON_CFB32=y
+# CONFIG_FBCON_FONTWIDTH8_ONLY is not set
+CONFIG_FONT_SUN8x16=y
+CONFIG_FONT_SUN12x22=y
+CONFIG_FBCON_FONTS=y
+CONFIG_FONT_8x8=y
+CONFIG_FONT_8x16=y
+# CONFIG_FONT_6x11 is not set
+# CONFIG_FONT_PEARL_8x8 is not set
+# CONFIG_FONT_ACORN_8x8 is not set
+
+#
+# Misc Linux/SPARC drivers
+#
+CONFIG_SUN_OPENPROMIO=m
+CONFIG_SUN_MOSTEK_RTC=y
+CONFIG_SAB82532=y
+# CONFIG_OBP_FLASH is not set
+# CONFIG_SUN_BPP is not set
+# CONFIG_SUN_VIDEOPIX is not set
+# CONFIG_SUN_AURORA is not set
+
+#
+# Linux/SPARC audio subsystem (EXPERIMENTAL)
+#
+# CONFIG_SPARCAUDIO is not set
+# CONFIG_SPARCAUDIO_CS4231 is not set
+# CONFIG_SPARCAUDIO_DUMMY is not set
+
+#
+# Memory Technology Devices (MTD)
+#
+# CONFIG_MTD is not set
+
+#
+# Block devices
+#
+CONFIG_BLK_DEV_FD=y
+CONFIG_BLK_DEV_LOOP=m
+CONFIG_BLK_DEV_NBD=m
+
+#
+# Multi-device support (RAID and LVM)
+#
+CONFIG_MD=y
+CONFIG_BLK_DEV_MD=m
+CONFIG_MD_LINEAR=m
+CONFIG_MD_RAID0=m
+CONFIG_MD_RAID1=m
+CONFIG_MD_RAID5=m
+CONFIG_MD_MULTIPATH=m
+CONFIG_BLK_DEV_LVM=m
+CONFIG_BLK_DEV_RAM=m
+CONFIG_BLK_DEV_RAM_SIZE=4096
+# CONFIG_BLK_DEV_INITRD is not set
+
+#
+# Networking options
+#
+CONFIG_PACKET=y
+CONFIG_PACKET_MMAP=y
+CONFIG_NETLINK_DEV=y
+# CONFIG_NETFILTER is not set
+# CONFIG_FILTER is not set
+CONFIG_UNIX=y
+CONFIG_INET=y
+# CONFIG_IP_MULTICAST is not set
+# CONFIG_IP_ADVANCED_ROUTER is not set
+# CONFIG_IP_PNP is not set
+# CONFIG_NET_IPIP is not set
+# CONFIG_NET_IPGRE is not set
+CONFIG_ARPD=y
+CONFIG_INET_ECN=y
+# CONFIG_SYN_COOKIES is not set
+CONFIG_IPV6=m
+# CONFIG_KHTTPD is not set
+# CONFIG_ATM is not set
+CONFIG_VLAN_8021Q=m
+CONFIG_IPX=m
+# CONFIG_IPX_INTERN is not set
+CONFIG_ATALK=m
+
+#
+# Appletalk devices
+#
+# CONFIG_DEV_APPLETALK is not set
+CONFIG_DECNET=m
+CONFIG_DECNET_SIOCGIFCONF=y
+# CONFIG_DECNET_ROUTER is not set
+# CONFIG_BRIDGE is not set
+# CONFIG_X25 is not set
+# CONFIG_LAPB is not set
+# CONFIG_LLC is not set
+# CONFIG_NET_DIVERT is not set
+# CONFIG_ECONET is not set
+# CONFIG_WAN_ROUTER is not set
+# CONFIG_NET_FASTROUTE is not set
+# CONFIG_NET_HW_FLOWCONTROL is not set
+
+#
+# QoS and/or fair queueing
+#
+CONFIG_NET_SCHED=y
+CONFIG_NET_SCH_CBQ=m
+CONFIG_NET_SCH_HTB=m
+CONFIG_NET_SCH_CSZ=m
+CONFIG_NET_SCH_PRIO=m
+CONFIG_NET_SCH_RED=m
+CONFIG_NET_SCH_SFQ=m
+CONFIG_NET_SCH_TEQL=m
+CONFIG_NET_SCH_TBF=m
+CONFIG_NET_SCH_GRED=m
+CONFIG_NET_SCH_DSMARK=m
+CONFIG_NET_QOS=y
+CONFIG_NET_ESTIMATOR=y
+CONFIG_NET_CLS=y
+CONFIG_NET_CLS_TCINDEX=m
+CONFIG_NET_CLS_ROUTE4=m
+CONFIG_NET_CLS_ROUTE=y
+CONFIG_NET_CLS_FW=m
+CONFIG_NET_CLS_U32=m
+CONFIG_NET_CLS_RSVP=m
+CONFIG_NET_CLS_RSVP6=m
+CONFIG_NET_CLS_POLICE=y
+
+#
+# Network testing
+#
+# CONFIG_NET_PKTGEN is not set
+
+#
+# ATA/IDE/MFM/RLL support
+#
+CONFIG_IDE=y
+
+#
+# IDE, ATA and ATAPI Block devices
+#
+CONFIG_BLK_DEV_IDE=y
+# CONFIG_BLK_DEV_HD_IDE is not set
+# CONFIG_BLK_DEV_HD is not set
+CONFIG_BLK_DEV_IDEDISK=y
+# CONFIG_IDEDISK_MULTI_MODE is not set
+# CONFIG_IDEDISK_STROKE is not set
+# CONFIG_BLK_DEV_IDEDISK_VENDOR is not set
+# CONFIG_BLK_DEV_IDEDISK_FUJITSU is not set
+# CONFIG_BLK_DEV_IDEDISK_IBM is not set
+# CONFIG_BLK_DEV_IDEDISK_MAXTOR is not set
+# CONFIG_BLK_DEV_IDEDISK_QUANTUM is not set
+# CONFIG_BLK_DEV_IDEDISK_SEAGATE is not set
+# CONFIG_BLK_DEV_IDEDISK_WD is not set
+# CONFIG_BLK_DEV_COMMERIAL is not set
+# CONFIG_BLK_DEV_TIVO is not set
+# CONFIG_BLK_DEV_IDECS is not set
+CONFIG_BLK_DEV_IDECD=y
+CONFIG_BLK_DEV_IDETAPE=m
+CONFIG_BLK_DEV_IDEFLOPPY=m
+# CONFIG_BLK_DEV_IDESCSI is not set
+# CONFIG_IDE_TASK_IOCTL is not set
+# CONFIG_BLK_DEV_CMD640 is not set
+# CONFIG_BLK_DEV_CMD640_ENHANCED is not set
+# CONFIG_BLK_DEV_ISAPNP is not set
+# CONFIG_BLK_DEV_RZ1000 is not set
+CONFIG_BLK_DEV_IDEPCI=y
+# CONFIG_IDEPCI_SHARE_IRQ is not set
+CONFIG_BLK_DEV_IDEDMA_PCI=y
+# CONFIG_BLK_DEV_OFFBOARD is not set
+# CONFIG_BLK_DEV_IDEDMA_FORCED is not set
+CONFIG_IDEDMA_PCI_AUTO=y
+# CONFIG_IDEDMA_ONLYDISK is not set
+CONFIG_BLK_DEV_IDEDMA=y
+# CONFIG_IDEDMA_PCI_WIP is not set
+# CONFIG_BLK_DEV_IDEDMA_TIMEOUT is not set
+# CONFIG_IDEDMA_NEW_DRIVE_LISTINGS is not set
+CONFIG_BLK_DEV_ADMA=y
+# CONFIG_BLK_DEV_AEC62XX is not set
+# CONFIG_AEC62XX_TUNING is not set
+CONFIG_BLK_DEV_ALI15X3=y
+# CONFIG_WDC_ALI15X3 is not set
+# CONFIG_BLK_DEV_AMD74XX is not set
+# CONFIG_AMD74XX_OVERRIDE is not set
+CONFIG_BLK_DEV_CMD64X=y
+# CONFIG_BLK_DEV_CMD680 is not set
+# CONFIG_BLK_DEV_CY82C693 is not set
+# CONFIG_BLK_DEV_CS5530 is not set
+# CONFIG_BLK_DEV_HPT34X is not set
+# CONFIG_HPT34X_AUTODMA is not set
+# CONFIG_BLK_DEV_HPT366 is not set
+CONFIG_BLK_DEV_NS87415=y
+# CONFIG_BLK_DEV_OPTI621 is not set
+# CONFIG_BLK_DEV_PDC202XX is not set
+# CONFIG_PDC202XX_BURST is not set
+# CONFIG_PDC202XX_FORCE is not set
+# CONFIG_BLK_DEV_SVWKS is not set
+# CONFIG_BLK_DEV_SIS5513 is not set
+# CONFIG_BLK_DEV_SLC90E66 is not set
+# CONFIG_BLK_DEV_TRM290 is not set
+# CONFIG_BLK_DEV_VIA82CXXX is not set
+# CONFIG_IDE_CHIPSETS is not set
+CONFIG_IDEDMA_AUTO=y
+# CONFIG_IDEDMA_IVB is not set
+# CONFIG_DMA_NONPCI is not set
+CONFIG_BLK_DEV_IDE_MODES=y
+CONFIG_BLK_DEV_ATARAID=m
+CONFIG_BLK_DEV_ATARAID_PDC=m
+CONFIG_BLK_DEV_ATARAID_HPT=m
+
+#
+# SCSI support
+#
+# CONFIG_SCSI is not set
+
+#
+# Fibre Channel support
+#
+# CONFIG_FC4 is not set
+# CONFIG_FC4_SOC is not set
+# CONFIG_FC4_SOCAL is not set
+# CONFIG_SCSI_PLUTO is not set
+# CONFIG_SCSI_FCAL is not set
+
+#
+# Fusion MPT device support
+#
+# CONFIG_FUSION is not set
+# CONFIG_FUSION_BOOT is not set
+# CONFIG_FUSION_ISENSE is not set
+# CONFIG_FUSION_CTL is not set
+# CONFIG_FUSION_LAN is not set
+
+#
+# IEEE 1394 (FireWire) support (EXPERIMENTAL)
+#
+# CONFIG_IEEE1394 is not set
+
+#
+# Network device support
+#
+CONFIG_NETDEVICES=y
+
+#
+# ARCnet devices
+#
+# CONFIG_ARCNET is not set
+CONFIG_DUMMY=m
+CONFIG_BONDING=m
+CONFIG_EQUALIZER=m
+CONFIG_TUN=m
+# CONFIG_ETHERTAP is not set
+
+#
+# Ethernet (10 or 100Mbit)
+#
+CONFIG_NET_ETHERNET=y
+CONFIG_SUNLANCE=y
+CONFIG_HAPPYMEAL=y
+CONFIG_SUNBMAC=m
+# CONFIG_SUNQE is not set
+# CONFIG_SUNGEM is not set
+# CONFIG_NET_VENDOR_3COM is not set
+# CONFIG_LANCE is not set
+# CONFIG_NET_VENDOR_SMC is not set
+# CONFIG_NET_VENDOR_RACAL is not set
+# CONFIG_HP100 is not set
+# CONFIG_NET_ISA is not set
+# CONFIG_NET_PCI is not set
+# CONFIG_NET_POCKET is not set
+
+#
+# Ethernet (1000 Mbit)
+#
+# CONFIG_ACENIC is not set
+# CONFIG_DL2K is not set
+# CONFIG_E1000 is not set
+# CONFIG_MYRI_SBUS is not set
+# CONFIG_NS83820 is not set
+# CONFIG_HAMACHI is not set
+# CONFIG_YELLOWFIN is not set
+# CONFIG_SK98LIN is not set
+# CONFIG_TIGON3 is not set
+# CONFIG_FDDI is not set
+# CONFIG_HIPPI is not set
+# CONFIG_PLIP is not set
+# CONFIG_PPP is not set
+# CONFIG_SLIP is not set
+
+#
+# Wireless LAN (non-hamradio)
+#
+# CONFIG_NET_RADIO is not set
+
+#
+# Token Ring devices
+#
+# CONFIG_TR is not set
+# CONFIG_NET_FC is not set
+# CONFIG_RCPCI is not set
+# CONFIG_SHAPER is not set
+
+#
+# Wan interfaces
+#
+# CONFIG_WAN is not set
+
+#
+# Unix 98 PTY support
+#
+CONFIG_UNIX98_PTYS=y
+CONFIG_UNIX98_PTY_COUNT=256
+
+#
+# Video For Linux
+#
+# CONFIG_VIDEO_DEV is not set
+
+#
+# XFree86 DRI support
+#
+# CONFIG_DRM_NEW is not set
+# CONFIG_DRM_FFB is not set
+# CONFIG_DRM_TDFX is not set
+# CONFIG_DRM_R128 is not set
+
+#
+# Input core support
+#
+# CONFIG_INPUT is not set
+# CONFIG_INPUT_KEYBDEV is not set
+# CONFIG_INPUT_MOUSEDEV is not set
+# CONFIG_INPUT_JOYDEV is not set
+# CONFIG_INPUT_EVDEV is not set
+
+#
+# File systems
+#
+# CONFIG_QUOTA is not set
+CONFIG_AUTOFS_FS=m
+CONFIG_AUTOFS4_FS=m
+# CONFIG_REISERFS_FS is not set
+# CONFIG_REISERFS_CHECK is not set
+# CONFIG_REISERFS_PROC_INFO is not set
+# CONFIG_ADFS_FS is not set
+# CONFIG_ADFS_FS_RW is not set
+# CONFIG_AFFS_FS is not set
+# CONFIG_HFS_FS is not set
+# CONFIG_BEFS_FS is not set
+# CONFIG_BEFS_DEBUG is not set
+# CONFIG_BFS_FS is not set
+CONFIG_EXT3_FS=y
+CONFIG_JBD=y
+# CONFIG_JBD_DEBUG is not set
+CONFIG_FAT_FS=m
+CONFIG_MSDOS_FS=m
+# CONFIG_UMSDOS_FS is not set
+CONFIG_VFAT_FS=m
+# CONFIG_EFS_FS is not set
+# CONFIG_JFFS_FS is not set
+# CONFIG_JFFS2_FS is not set
+# CONFIG_CRAMFS is not set
+CONFIG_TMPFS=y
+CONFIG_RAMFS=y
+CONFIG_ISO9660_FS=m
+CONFIG_JOLIET=y
+CONFIG_ZISOFS=y
+# CONFIG_JFS_FS is not set
+# CONFIG_JFS_DEBUG is not set
+# CONFIG_JFS_STATISTICS is not set
+# CONFIG_MINIX_FS is not set
+# CONFIG_VXFS_FS is not set
+# CONFIG_NTFS_FS is not set
+# CONFIG_NTFS_RW is not set
+# CONFIG_HPFS_FS is not set
+CONFIG_PROC_FS=y
+# CONFIG_DEVFS_FS is not set
+# CONFIG_DEVFS_MOUNT is not set
+# CONFIG_DEVFS_DEBUG is not set
+CONFIG_DEVPTS_FS=y
+# CONFIG_QNX4FS_FS is not set
+# CONFIG_QNX4FS_RW is not set
+# CONFIG_ROMFS_FS is not set
+CONFIG_EXT2_FS=y
+# CONFIG_SYSV_FS is not set
+# CONFIG_UDF_FS is not set
+# CONFIG_UDF_RW is not set
+# CONFIG_UFS_FS is not set
+# CONFIG_UFS_FS_WRITE is not set
+
+#
+# Network File Systems
+#
+# CONFIG_CODA_FS is not set
+# CONFIG_INTERMEZZO_FS is not set
+CONFIG_NFS_FS=y
+CONFIG_NFS_V3=y
+# CONFIG_ROOT_NFS is not set
+CONFIG_NFSD=m
+CONFIG_NFSD_V3=y
+CONFIG_NFSD_TCP=y
+CONFIG_SUNRPC=y
+CONFIG_LOCKD=y
+CONFIG_LOCKD_V4=y
+# CONFIG_SMB_FS is not set
+# CONFIG_NCP_FS is not set
+# CONFIG_NCPFS_PACKET_SIGNING is not set
+# CONFIG_NCPFS_IOCTL_LOCKING is not set
+# CONFIG_NCPFS_STRONG is not set
+# CONFIG_NCPFS_NFS_NS is not set
+# CONFIG_NCPFS_OS2_NS is not set
+# CONFIG_NCPFS_SMALLDOS is not set
+# CONFIG_NCPFS_NLS is not set
+# CONFIG_NCPFS_EXTRAS is not set
+CONFIG_ZISOFS_FS=m
+
+#
+# Partition Types
+#
+# CONFIG_PARTITION_ADVANCED is not set
+CONFIG_MSDOS_PARTITION=y
+CONFIG_SUN_PARTITION=y
+# CONFIG_SMB_NLS is not set
+CONFIG_NLS=y
+
+#
+# Native Language Support
+#
+CONFIG_NLS_DEFAULT="iso8859-1"
+# CONFIG_NLS_CODEPAGE_437 is not set
+# CONFIG_NLS_CODEPAGE_737 is not set
+# CONFIG_NLS_CODEPAGE_775 is not set
+# CONFIG_NLS_CODEPAGE_850 is not set
+# CONFIG_NLS_CODEPAGE_852 is not set
+# CONFIG_NLS_CODEPAGE_855 is not set
+# CONFIG_NLS_CODEPAGE_857 is not set
+# CONFIG_NLS_CODEPAGE_860 is not set
+# CONFIG_NLS_CODEPAGE_861 is not set
+# CONFIG_NLS_CODEPAGE_862 is not set
+# CONFIG_NLS_CODEPAGE_863 is not set
+# CONFIG_NLS_CODEPAGE_864 is not set
+# CONFIG_NLS_CODEPAGE_865 is not set
+# CONFIG_NLS_CODEPAGE_866 is not set
+# CONFIG_NLS_CODEPAGE_869 is not set
+# CONFIG_NLS_CODEPAGE_936 is not set
+# CONFIG_NLS_CODEPAGE_950 is not set
+# CONFIG_NLS_CODEPAGE_932 is not set
+# CONFIG_NLS_CODEPAGE_949 is not set
+# CONFIG_NLS_CODEPAGE_874 is not set
+# CONFIG_NLS_ISO8859_8 is not set
+# CONFIG_NLS_CODEPAGE_1250 is not set
+# CONFIG_NLS_CODEPAGE_1251 is not set
+# CONFIG_NLS_ISO8859_1 is not set
+# CONFIG_NLS_ISO8859_2 is not set
+# CONFIG_NLS_ISO8859_3 is not set
+# CONFIG_NLS_ISO8859_4 is not set
+# CONFIG_NLS_ISO8859_5 is not set
+# CONFIG_NLS_ISO8859_6 is not set
+# CONFIG_NLS_ISO8859_7 is not set
+# CONFIG_NLS_ISO8859_9 is not set
+# CONFIG_NLS_ISO8859_13 is not set
+# CONFIG_NLS_ISO8859_14 is not set
+# CONFIG_NLS_ISO8859_15 is not set
+# CONFIG_NLS_KOI8_R is not set
+# CONFIG_NLS_KOI8_U is not set
+# CONFIG_NLS_UTF8 is not set
+
+#
+# Sound
+#
+# CONFIG_SOUND is not set
+
+#
+# USB support
+#
+# CONFIG_USB is not set
+
+#
+# Bluetooth support
+#
+# CONFIG_BLUEZ is not set
+
+#
+# Watchdog
+#
+# CONFIG_SOFT_WATCHDOG is not set
+
+#
+# Kernel hacking
+#
+# CONFIG_DEBUG_KERNEL is not set
+# CONFIG_STACK_DEBUG is not set
+
+#
+# Library routines
+#
+CONFIG_ZLIB_INFLATE=m
+CONFIG_ZLIB_DEFLATE=y
+
+The compilation output->
+
+% make
+
+kgcc -Wall -Wstrict-prototypes -O2 -fomit-frame-pointer -o 
+scripts/split-include scripts/split-include.c
+scripts/split-include include/linux/autoconf.h include/config
+kgcc -D__KERNEL__ -I/usr/src/linux-2.4.20/include -Wall -Wstrict-prototypes 
+-Wno-trigraphs -O2 -fno-strict-aliasing -fno-common -fomit-frame-pointer -m64 
+-pipe -mno-fpu -mcpu=ultrasparc -mcmodel=medlow -ffixed-g4 -fcall-used-g5 
+-fcall-used-g7 -Wno-sign-compare -Wa,--undeclared-regs   
+-DKBUILD_BASENAME=main -c -o init/main.o init/main.c
+In file included from /usr/src/linux-2.4.20/include/linux/slab.h:14,
+                 from /usr/src/linux-2.4.20/include/linux/proc_fs.h:5,
+                 from init/main.c:15:
+/usr/src/linux-2.4.20/include/linux/mm.h:188: parse error before `pte_addr_t'
+/usr/src/linux-2.4.20/include/linux/mm.h:188: warning: no semicolon at end of 
+struct or union
+/usr/src/linux-2.4.20/include/linux/mm.h:188: warning: no semicolon at end of 
+struct or union
+/usr/src/linux-2.4.20/include/linux/mm.h:189: warning: type defaults to `int' 
+in declaration of `pte'
+/usr/src/linux-2.4.20/include/linux/mm.h:189: warning: data definition has no 
+type or storage class
+/usr/src/linux-2.4.20/include/linux/mm.h:208: parse error before `}'
+/usr/src/linux-2.4.20/include/linux/mm.h:208: warning: type defaults to `int' 
+in declaration of `mem_map_t'
+/usr/src/linux-2.4.20/include/linux/mm.h:208: warning: data definition has no 
+type or storage class
+/usr/src/linux-2.4.20/include/linux/mm.h: In function `pte_chain_lock':
+/usr/src/linux-2.4.20/include/linux/mm.h:364: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/linux/mm.h:365: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/linux/mm.h: In function `pte_chain_unlock':
+/usr/src/linux-2.4.20/include/linux/mm.h:374: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/linux/mm.h: In function `page_zone':
+/usr/src/linux-2.4.20/include/linux/mm.h:390: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/linux/mm.h:391: warning: control reaches end of 
+non-void function
+/usr/src/linux-2.4.20/include/linux/mm.h: In function `set_page_zone':
+/usr/src/linux-2.4.20/include/linux/mm.h:395: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/linux/mm.h:396: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/linux/mm.h: In function `page_mapped':
+/usr/src/linux-2.4.20/include/linux/mm.h:500: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/linux/mm.h:501: warning: control reaches end of 
+non-void function
+/usr/src/linux-2.4.20/include/linux/mm.h: At top level:
+/usr/src/linux-2.4.20/include/linux/mm.h:510: parse error before `*'
+/usr/src/linux-2.4.20/include/linux/mm.h:510: warning: type defaults to `int' 
+in declaration of `mem_map'
+/usr/src/linux-2.4.20/include/linux/mm.h:510: warning: data definition has no 
+type or storage class
+/usr/src/linux-2.4.20/include/linux/mm.h: In function 
+`is_page_cache_freeable':
+/usr/src/linux-2.4.20/include/linux/mm.h:620: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/linux/mm.h:620: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/linux/mm.h:621: warning: control reaches end of 
+non-void function
+/usr/src/linux-2.4.20/include/linux/highmem.h: In function `kmap':
+In file included from /usr/src/linux-2.4.20/include/linux/pagemap.h:16,
+                 from /usr/src/linux-2.4.20/include/linux/locks.h:8,
+                 from /usr/src/linux-2.4.20/include/linux/blk.h:5,
+                 from init/main.c:25:
+/usr/src/linux-2.4.20/include/linux/highmem.h:68: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/linux/highmem.h:68: warning: control reaches end 
+of non-void function
+/usr/src/linux-2.4.20/include/linux/pagemap.h: In function `wait_on_page':
+In file included from /usr/src/linux-2.4.20/include/linux/locks.h:8,
+                 from /usr/src/linux-2.4.20/include/linux/blk.h:5,
+                 from init/main.c:25:
+/usr/src/linux-2.4.20/include/linux/pagemap.h:97: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/asm/pci.h: In function `pci_dac_page_to_dma':
+In file included from /usr/src/linux-2.4.20/include/linux/pci.h:622,
+                 from init/main.c:40:
+/usr/src/linux-2.4.20/include/asm/pci.h:165: dereferencing pointer to 
+incomplete type
+/usr/src/linux-2.4.20/include/asm/pci.h:166: warning: control reaches end of 
+non-void function
+/usr/src/linux-2.4.20/include/asm/pci.h: In function `pci_dac_dma_to_page':
+/usr/src/linux-2.4.20/include/asm/pci.h:173: warning: return from incompatible 
+pointer type
+make: *** [init/main.o] Error 1
+
+
+Happy to test patches, whatever.
+
+
+Brendon
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
