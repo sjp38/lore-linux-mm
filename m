@@ -1,43 +1,31 @@
-Date: Wed, 17 Jan 2001 18:13:46 +1100 (EST)
+Date: Wed, 17 Jan 2001 18:12:03 +1100 (EST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Locking issue on try_to_swap_out()
-In-Reply-To: <Pine.LNX.4.21.0101141154290.12327-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.31.0101171812460.30841-100000@localhost.localdomain>
+Subject: Re: pre2 swap_out() changes
+In-Reply-To: <Pine.LNX.4.21.0101140136200.11917-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.31.0101171809560.30841-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@transmeta.com>, Zlatko Calusic <zlatko@iskon.hr>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Sun, 14 Jan 2001, Marcelo Tosatti wrote:
 
-> In theory, there is nothing which guarantees that nobody will
-> mess with the page between "UnlockPage" and "deactivate_page"
-> (that is pretty hard to happen, I suppose, but anyway)
->
-> --- mm/vmscan.c.orig       Sun Jan 14 13:23:55 2001
-> +++ mm/vmscan.c    Sun Jan 14 13:24:16 2001
-> @@ -72,10 +72,10 @@
->                 swap_duplicate(entry);
->                 set_pte(page_table, swp_entry_to_pte(entry));
->  drop_pte:
-> -               UnlockPage(page);
->                 mm->rss--;
->                 if (!page->age)
->                         deactivate_page(page);
-> +               UnlockPage(page);
->                 page_cache_release(page);
->                 return;
->         }
+> No, but I can imagine.
 
-Why do you suppose the page_cache_release(page) is BELOW
-the deactivate_page(page) call ?
+Please save imagination for the 2.5 kernel. 2.4.0 is
+reasonably fine and nobody wants to repeat 2.2...
 
-We are still holding a reference on the page when we call
-deactivate_page(page), this is what keeps the page from
-going away from under us.
+If you have a hunch something might help, but don't
+understand why, then you probably shouldn't put it in
+2.4.
+
+(OTOH, if you can exactly explain why something is b0rked
+in 2.4 and how to fix it and people agree with you, then
+it should be something that can be safely applied after a
+few days of stress-testing)
 
 regards,
 
