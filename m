@@ -2,15 +2,14 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14200.46326.332605.961051@dukat.scot.redhat.com>
-Date: Tue, 29 Jun 1999 12:58:46 +0100 (BST)
+Message-ID: <14200.46476.994769.970340@dukat.scot.redhat.com>
+Date: Tue, 29 Jun 1999 13:01:16 +0100 (BST)
 Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
- Fix swapoff races
-In-Reply-To: <Pine.BSO.4.10.9906282106580.10964-100000@funky.monkey.org>
-References: <Pine.LNX.4.10.9906290032460.1588-100000@laser.random>
-	<Pine.BSO.4.10.9906282106580.10964-100000@funky.monkey.org>
+In-Reply-To: <Pine.BSO.4.10.9906282203180.10964-100000@funky.monkey.org>
+References: <Pine.LNX.4.10.9906290053180.1588-100000@laser.random>
+	<Pine.BSO.4.10.9906282203180.10964-100000@funky.monkey.org>
 ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.3.96.990629093002.7614F@mole.spellcast.com>
+ReSent-Message-ID: <Pine.LNX.3.96.990629093005.7614G@mole.spellcast.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Chuck Lever <cel@monkey.org>
@@ -19,37 +18,30 @@ List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Mon, 28 Jun 1999 21:29:07 -0400 (EDT), Chuck Lever <cel@monkey.org>
+On Mon, 28 Jun 1999 22:13:15 -0400 (EDT), Chuck Lever <cel@monkey.org>
 said:
 
-> yes, that's exactly what i did.  what i can't figure out is why do the
-> shrink_mmap in both places?  seems like the shrink_mmap in kswapd is
-> overkill if it has just been awoken by try_to_free_pages.
+> On Tue, 29 Jun 1999, Andrea Arcangeli wrote:
+>> 
+>> Here the point is if you are swapping over your ramdisk or over my HD :).
+>> Over my HD (system+swap all in the same IDE disk) you must _avoid_ to swap
+>> at all costs if you care about performances.
 
-It hasn't necessarily.  It may have been woken by networking activity.
-If the memory requirements are being driven by interrupts, not
-processes, then kswapd is the only chance for shrink_mmap to be called.
+> i'm not so sure about that.  swapping out, if efficiently done, is a
+> series of asynchronous sequential writes.  the only performance that will
+> interfere with is heavily I/O-bound applications.  even so, if it gets
+> more pages out of an application's way, then shrink_mmap will be less
+> destructive to your working set, which is a *good* thing, and your caches
+> will perform better.
 
-> stephen also mentioned "rate controlling" a trashing process, but since
-> nothing in swap_out spins or sleeps, how could a process be slowed except
-> by a little extra CPU time spent behind the global lock?  that will slow
-> everyone else down too, yes?
+Absolutely.  The important thing is to do enough swapping to make sure
+that unused data is not kicking around in memory.  Maybe you don't want
+the swapper to be active during your kernel compile, but if you have
+less than a GB of physical memory then you probably want it to at least
+think about swapping unused stuff out as the compilation starts.
 
-There are IO queue limits which will eventually stall the process.  The
-ll_rw_block itself one rate limiter.  We also have a test in
-rw_swap_page_base:
-
-	/* Don't allow too many pending pages in flight.. */
-	if (atomic_read(&nr_async_pages) > pager_daemon.swap_cluster)
-		wait = 1;
-
-which causes the swapout to become synchronous once we have filled the
-swapper queues.
-
-> seems like try_to_free_pages ought to make a clear effort to recognize a
-> process that is growing quickly and slow it down by causing it to sleep.
-
-It does. 
+If you defer swapping too much, you just end up doing more paging IO
+since you can fit less of your working set into cache.
 
 --Stephen
 
