@@ -1,48 +1,51 @@
-Date: Wed, 17 Nov 2004 02:26:22 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Wed, 17 Nov 2004 04:38:32 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: [PATCH] fix spurious OOM kills
-Message-Id: <20041117022622.04e0e7d7.akpm@osdl.org>
-In-Reply-To: <20041117060852.GB19107@logos.cnet>
-References: <4193E056.6070100@tebibyte.org>
-	<4194EA45.90800@tebibyte.org>
-	<20041113233740.GA4121@x30.random>
-	<20041114094417.GC29267@logos.cnet>
-	<20041114170339.GB13733@dualathlon.random>
-	<20041114202155.GB2764@logos.cnet>
-	<419A2B3A.80702@tebibyte.org>
-	<419B14F9.7080204@tebibyte.org>
-	<20041117012346.5bfdf7bc.akpm@osdl.org>
-	<20041117060648.GA19107@logos.cnet>
-	<20041117060852.GB19107@logos.cnet>
+Message-ID: <20041117063832.GC19107@logos.cnet>
+References: <4194EA45.90800@tebibyte.org> <20041113233740.GA4121@x30.random> <20041114094417.GC29267@logos.cnet> <20041114170339.GB13733@dualathlon.random> <20041114202155.GB2764@logos.cnet> <419A2B3A.80702@tebibyte.org> <419B14F9.7080204@tebibyte.org> <20041117012346.5bfdf7bc.akpm@osdl.org> <20041117060648.GA19107@logos.cnet> <20041117060852.GB19107@logos.cnet>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041117060852.GB19107@logos.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: chris@tebibyte.org, andrea@novell.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, piggin@cyberone.com.au, riel@redhat.com, mmokrejs@ribosome.natur.cuni.cz, tglx@linutronix.de
+To: Andrew Morton <akpm@osdl.org>
+Cc: Chris Ross <chris@tebibyte.org>, andrea@novell.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, piggin@cyberone.com.au, riel@redhat.com, mmokrejs@ribosome.natur.cuni.cz, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
->
+On Wed, Nov 17, 2004 at 04:08:52AM -0200, Marcelo Tosatti wrote:
+> On Wed, Nov 17, 2004 at 04:06:48AM -0200, Marcelo Tosatti wrote:
+> > On Wed, Nov 17, 2004 at 01:23:46AM -0800, Andrew Morton wrote:
+> > > Chris Ross <chris@tebibyte.org> wrote:
+> > > >
+> > > > As I suspected, like a recalcitrant teenager it was sneakily waiting 
+> > > >  until everyone was out then it threw a wild party with several ooms and 
+> > > >  an oops. See below...
+> > > 
+> > > That's not an oops - it's just a stack trace.
+> > > 
+> > > >  This, obviously is still without Kame's patch, just the same tree as 
+> > > >  before with the one change you asked for.
+> > > 
+> > > Please ignore the previous patch and try the below.  It looks like Rik's
+> > > analysis is correct: when the caller doesn't have the swap token it just
+> > > cannot reclaim referenced pages and scans its way into an oom.  Defeating
+> > > that logic when we've hit the highest scanning priority does seem to fix
+> > > the problem and those nice qsbench numbers which the thrashing control gave
+> > > us appear to be unaffected.
+> > 
+> > Oh, this fixes my testcase, and was the reason for the hog slow speed.
+> > 
+> > Excellent, wasted several days in vain. :(
+> 
 > Before the swap token patches went in you remember spurious OOM reports  
->  or things were working fine then?
+> or things were working fine then?
 
-Hard to say, really.  Yes, I think the frequency of reports has increased a
-bit in the last month or two.  But it's always been a really small number
-of people so that may not be statistically significant.
+Just went on through the archives and indeed the spurious OOM kills started
+happening when the swap token code was added to the tree.
 
-umm,
-
-there was one report in January		(seems to be a kernel memory leak)
-One in February				(ditto)
-One in June
-Two in July (one was with no swap, one with laptop_mode)
-A few in August, but mainly due to the CDROM memory leak.
-On August 23 the thrashing control was added.
-After that, two or three people have been reporting it.
-
-So yes, we do seem to have gone from basically zero reports up to a trickle.
+Next time I should be looking into the easy stuff before trying miraculous 
+solutions. :(
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
