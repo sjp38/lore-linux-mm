@@ -1,98 +1,41 @@
-Message-ID: <4158DC27.9010603@yahoo.com.au>
-Date: Tue, 28 Sep 2004 13:36:07 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <4159E85A.6080806@ammasso.com>
+Date: Tue, 28 Sep 2004 17:40:26 -0500
+From: Timur Tabi <timur.tabi@ammasso.com>
 MIME-Version: 1.0
-Subject: Re: swapping and the value of /proc/sys/vm/swappiness
-References: <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <20040907212051.GC3492@logos.cnet> <413F1518.7050608@sgi.com> <20040908165412.GB4284@logos.cnet> <413F5EE7.6050705@sgi.com> <20040908193036.GH4284@logos.cnet> <413FC8AC.7030707@sgi.com> <20040909030916.GR3106@holomorphy.com> <4158C45B.8090409@sgi.com>
-In-Reply-To: <4158C45B.8090409@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: get_user_pages() still broken in 2.6
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: piggin@cyberone.com.au, William Lee Irwin III <wli@holomorphy.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-Ray Bryant wrote:
+I was hoping that this bug would be fixed in the 2.6 kernels, but 
+apparently it hasn't been.
 
-> Nick,
->
-> As reported to you elsewhere (and duplicated here to get on this thread),
-> application of the patch you sent (attached) dramatically changes the
-> swappiness behavior of the 2.6.9-rc1 (and presumably the rc2) kernel.
->
-> Here are the updated results:
->
-> Previously:
->
-> Kernel Version 2.6.9-rc1-mm3:
->         Total I/O   Avg Swap   min    max     pg cache    min    max
->        ----------- --------- ------- ------  --------- ------- -------
->    0   274.80 MB/s  10511 MB (  5644, 14492)  13293 MB (  8596, 17156)
->   20   267.02 MB/s  12624 MB (  5578, 16287)  15298 MB (  8468, 18889)
->   40   267.66 MB/s  13541 MB (  6619, 17461)  16199 MB (  9393, 20044)
->   60   233.73 MB/s  18094 MB ( 16550, 19676)  20629 MB ( 19103, 22192)
->   80   213.64 MB/s  20950 MB ( 15844, 22977)  23450 MB ( 18496, 25440)
->  100   164.58 MB/s  26004 MB ( 26004, 26004)  28410 MB ( 28327, 28455)
->
-> With Nick Piggin et al fix:
->
-> Kernel Version: linux-2.6.9-rc1-mm3-kswapdfix
->
->         Total I/O   Avg Swap   min    max     pg cache    min    max
->        ----------- --------- ------- ------  --------- ------- -------
->    0   279.97 MB/s     89 MB (    12,   265)   3062 MB (  2947,  3267)
->   20   283.55 MB/s    161 MB (    15,   372)   3190 MB (  3011,  3427)
->   40   282.32 MB/s    204 MB (     6,   407)   3187 MB (  2995,  3331)
->   60   279.42 MB/s     72 MB (    15,   171)   3091 MB (  3027,  3155)
->   80   283.34 MB/s    920 MB (   144,  3028)   3904 MB (  3106,  5957)
->  100   160.55 MB/s  26008 MB ( 26007, 26008)  28473 MB ( 28455, 28487)
->
-> (The drop at swappiness of 60 may just be randomness, not sure it
-> is significant, but these results are all based on 5 trials.)
->
-> At any rate, this patch appears to fix the problems I was seeing before.
-> (See
->     http://marc.theaimsgroup.com/?l=linux-kernel&m=109449778320333&w=2
->
-> for further details of the benchmark and the test environment).
->
->
+Function get_user_pages() is supposed to lock user memory.  However, 
+under extreme memory constraints, the kernel will swap out the "locked" 
+memory.
 
-Thanks Ray. From looking over your old results, it appears that -kswapdfix
-probably has the nicest swappiness ramp, which is probably to be expected,
-as the problem that is being fixed did exist in all other kernels you 
-tested,
-but the later ones just had other aggrivating changes.
+I have a test app which does this:
 
-The swappiness=60 weirdness might just be some obscure interaction with the
-workload. If that is the case, it is probably not too important, however it
-could be due to a possible oversight in my patch....
+1) Calls our driver, which issues a get_user_pages() call for one page.
+2) Calls our driver again to get the physical address of that page (the 
+driver uses pgd/pmd/pte_offset).
+3) Tries allocate 1GB of memory (this system has 1GB of physical RAM).
+4) Tries to get the physical address again.
 
-I'm not in front of the code right now, so I can't give you a new patch to
-try yet... if you're up for modifying it yourself though: we possibly should
-be updating "zone->prev_priority" after each 32 (SWAP_CLUSTER_MAX) pages 
-freed.
-So change the following:
+In step 4, the physical address is usually zero, which means either 
+pgd_offset or pmd_offset failed.  This indicates the page was swapped out.
 
-==>    if (total_reclaimed >= 32)
-==>       break;
-    }
-out:
-    for (i = 0; i < pgdat->nr_zones; i++) {
-       ... /* this updates zone->prev_priority */
-    }
-=>  if (!all_zones_ok)
-=>     goto loop_again;
-    return total_reclaimed;
-}
+I don't understand how this bug can continue to exist after all this 
+time.  get_user_pages() is supposed to lock the memory, because drivers 
+use it for DMA'ing directly into user memory.
 
-so it looks something like that.
-
-If you could run your tests again on that, it would be great.
-
-Thanks
-Nick
+-- 
+Timur Tabi
+Staff Software Engineer
+timur.tabi@ammasso.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
