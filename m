@@ -1,40 +1,36 @@
-Subject: PATCH: Bug in invalidate_inode_pages()?
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-Date: 09 May 2000 01:39:18 +0200
-Message-ID: <yttk8h4vcgp.fsf@vexeta.dc.fi.udc.es>
+Date: Mon, 8 May 2000 16:51:44 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: PATCH: Bug in invalidate_inode_pages()?
+In-Reply-To: <yttk8h4vcgp.fsf@vexeta.dc.fi.udc.es>
+Message-ID: <Pine.LNX.4.10.10005081648230.5411-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Hi
-        I think that I have found a bug in invalidate_inode_pages.
-It results that we don't remove the pages from the
-&inode->i_mapping->pages list, then when we return te do the next loop
-through all the pages, we can try to free a page that we have freed in
-the previous pass.  Once here I have also removed the goto
 
-Comments, have I lost something obvious?
+On 9 May 2000, Juan J. Quintela wrote:
+>         I think that I have found a bug in invalidate_inode_pages.
+> It results that we don't remove the pages from the
+> &inode->i_mapping->pages list, then when we return te do the next loop
+> through all the pages, we can try to free a page that we have freed in
+> the previous pass.
 
-Later, Juan.
+This is what "remove_inode_page()" does. Maybe that's not quite clear
+enough, so this function may certainly need some comments or something
+like that, but your patch is wrong (it will now delete the thing twice,
+which can and will result in list corruption).
 
-diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* --exclude=TAGS pre7-6/mm/filemap.c testing2/mm/filemap.c
---- pre7-6/mm/filemap.c	Fri May  5 23:58:56 2000
-+++ testing2/mm/filemap.c	Tue May  9 01:37:57 2000
-@@ -121,6 +121,7 @@
- 		/* We cannot invalidate a locked page */
- 		if (TryLockPage(page))
- 			continue;
-+                list_del(curr);
- 		spin_unlock(&pagecache_lock);
- 
- 		lru_cache_del(page);
+>  Once here I have also removed the goto
 
--- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
+Because we dropped the page cache lock, we really have to repeat, because
+the lists are now no longer protected..
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
