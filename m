@@ -1,38 +1,26 @@
-Subject: Re: zap_page_range(): TLB flush race
-Date: Sun, 9 Apr 2000 00:37:05 +0100 (BST)
-In-Reply-To: <200004082331.QAA78522@google.engr.sgi.com> from "Kanoj Sarcar" at Apr 08, 2000 04:31:38 PM
+Date: Sun, 9 Apr 2000 01:39:10 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
+In-Reply-To: <200004082321.QAA01209@google.engr.sgi.com>
+Message-ID: <Pine.LNX.4.21.0004090135050.620-100000@alpha.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E12e4mo-0003Pn-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Manfred Spraul <manfreds@colorfullife.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com, davem@redhat.com, alan@lxorguk.ukuu.org.uk
+Cc: Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> > Yes, establish_pte() is broken. We should reverse the calls:
-> > 
-> > 	set_pte(); /* update the kernel page tables */
-> > 	update_mmu(); /* update architecture specific page tables. */
-> > 	flush_tlb();  /* and flush the hardware tlb */
-> >
-> 
-> People are aware of this too, it was introduced during the 390 merge. 
-> I tried talking to the IBM guy about this, I didn't see a response from
-> him ...
+On Sat, 8 Apr 2000, Kanoj Sarcar wrote:
 
-Strange since I did and it included you
+>As I mentioned before, have you stress tested this to make sure grabbing
 
-> I think what we now need is a critical mass, something that will make us
-> go "okay, lets just fix these races once and for all".
+I have stress tested the whole thing (also a few minutes ago to check the
+latest patch) but it never locked up so we have to think about it.
 
-Basically establish_pte() has to be architecture specific, as some processors
-need different orders either to avoid races or to handle cpu specific
-limitations.
+Could you explain why you think it's the inverse lock ordering?
 
-Alan
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
