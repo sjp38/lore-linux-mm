@@ -1,64 +1,77 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i9Q1BxqK012378 for <linux-mm@kvack.org>; Tue, 26 Oct 2004 10:11:59 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s1.gw.fujitsu.co.jp by m5.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i9Q1Bxkt006487 for <linux-mm@kvack.org>; Tue, 26 Oct 2004 10:11:59 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s1.gw.fujitsu.co.jp (s1 [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 01F89216FBF
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2004 10:11:59 +0900 (JST)
-Received: from fjmail503.fjmail.jp.fujitsu.com (fjmail503-0.fjmail.jp.fujitsu.com [10.59.80.100])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1520F216FBE
-	for <linux-mm@kvack.org>; Tue, 26 Oct 2004 10:11:58 +0900 (JST)
-Received: from [10.124.100.187]
- (fjscan501-0.fjmail.jp.fujitsu.com [10.59.80.120])
- by fjmail503.fjmail.jp.fujitsu.com
- (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I6600E5X3BVRX@fjmail503.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Tue, 26 Oct 2004 10:11:56 +0900 (JST)
-Date: Tue, 26 Oct 2004 10:17:44 +0900
-From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: migration cache, updated
-In-reply-to: <20041025213923.GD23133@logos.cnet>
-Message-id: <417DA5B8.8000706@jp.fujitsu.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii; format=flowed
-Content-transfer-encoding: 7bit
-References: <20041025213923.GD23133@logos.cnet>
+Received: from fujitsu2.fujitsu.com (localhost [127.0.0.1])
+	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i9Q2PHNo001307
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2004 19:25:17 -0700 (PDT)
+Date: Mon, 25 Oct 2004 19:24:59 -0700
+From: Yasunori Goto <ygoto@us.fujitsu.com>
+Subject: [RFC/Patch]Making Removable zone[0/4]
+Message-Id: <20041025160642.690F.YGOTO@us.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: linux-mm@kvack.org, Hirokazu Takahashi <taka@valinux.co.jp>, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Hugh Dickins <hugh@veritas.com>
+To: lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Marcelo
+Hello.
 
-Marcelo Tosatti wrote:
-> Hi,
->  #define SWP_TYPE_SHIFT(e)	(sizeof(e.val) * 8 - MAX_SWAPFILES_SHIFT)
-> -#define SWP_OFFSET_MASK(e)	((1UL << SWP_TYPE_SHIFT(e)) - 1)
-> +#define SWP_OFFSET_MASK(e)	((1UL << (SWP_TYPE_SHIFT(e))) - 1)
-> +
-> +#define MIGRATION_TYPE  (MAX_SWAPFILES - 1)
->  
-At the first glance, I think MIGRATION_TYPE=0 is better.
-#define MIGRATION_TYPE  (0)
+This patch set is to make new zone (Hotremovable) for 
+memory hotplug to create area which is removed relatively easily.
+I made this patch set 2 month ago,
+but I thought this patch set has many problem,
+so I was worried whether it should be posted for a long time.
 
-In swapfile.c::sys_swapon()
-This code determines new swap_type for commanded swapon().
-=============
-p = swap_info;
-for (type = 0 ; type < nr_swapfiles ; type++,p++)
-          if (!(p->flags & SWP_USED))
-                break;
-error = -EPERM;
-==============
+However I'm feeling its time become too long. 
+So, I post this to ask which is better way.
+If you have any suggestions, please tell me.
 
-set nr_swapfiles=1, swap_info[0].flags = SWP_USED
-at boot time seems good. or fix swapon().
 
-Thanks.
-Kame <kamezawa.hiroyu@jp.fujitsu.com>
+
+This patches make Hotremovable attribute as orthogonal against
+DMA/Normal/Highmem. So, there will be six zones
+(DMA/Normal/Highmem/ Removable DMA/ Removable Normal/ 
+ Removable Highmem).
+However, this orthogonal attribute is cause of problems like 
+followings....
+
+  1) Zone Id bits in page->flags must be extended from 2 to 3
+     to make 6 zones. However, there is not enough space in it.
+  2) Array size of zonelist for 6 zones might be too big.
+     (Especially, when there are a lot of numbers of nodes)
+  3) Index of zonelist array is decided by __GFP_xxx bit. So,
+     index must be power of 2. But, GFP_Removable can be set with
+     GFP_HIGHMEM or GFP_DMA. (not power of 2).
+  4) Some of kernel codes assume that order of Zone's index is
+     DMA -> Normal -> Highmem. 
+     But removable attribute will break its order.
+  5) Zonelist order must be also changed. 
+     Which is better zonelist order? 
+     a) Removable Highmem -> Removable Normal -> Removable DMA
+        -> Highmem -> Normal -> DMA
+     b) Removable Highmem -> Highmem -> Removable Normal -> Normal 
+        -> Removable DMA -> DMA
+
+If the kind of zone is just 4 types like DMA/Normal/Highmem/Removable
+(Not orthogonal), some of these problems become easy.
+And I suppose 4) and 5) imply more codes like mem_molicy
+must be changed.
+
+But 6 zones code has an advantage for hotplug of kernel memory.
+If an component of kernel can become hot-removable, 
+probably it would like to use "Horemovable DMA" or
+"Hotremovable Normal".
+So, I also worried which type of removable zone is better.
+
+
+These patch set is old, but they can be applied against 2.6.9-mm1.
+Please comment.
+
+Bye.
+
+-- 
+Yasunori Goto <ygoto at us.fujitsu.com>
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
