@@ -1,27 +1,37 @@
-Date: Fri, 8 Feb 2002 09:53:35 +0100
-From: Jens Axboe <axboe@suse.de>
-Subject: Re: [PATCH *] rmap VM 12d
-Message-ID: <20020208095335.I4942@suse.de>
-References: <Pine.LNX.4.33L.0202072127490.17850-100000@imladris.surriel.com>
-Mime-Version: 1.0
+Message-ID: <3C63989D.5D973803@scs.ch>
+Date: Fri, 08 Feb 2002 10:21:33 +0100
+From: Martin Maletinsky <maletinsky@scs.ch>
+MIME-Version: 1.0
+Subject: addresses returned by __get_free_pages()
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.33L.0202072127490.17850-100000@imladris.surriel.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 07 2002, Rik van Riel wrote:
->   - fix starvation issue in get_request_wait()
+Hello,
 
-I'm currently fixing this (non-trivial) problem in 2.5, I'll do a 2.4
-back port afterwards. Hopefully with the same structure, if it doesn't
-become too big a change.
+In the 2.4.x kernel, can I apply the virt_to_page() macro to any address allocated by __get_free_pages() (i.e. when calling ret = __get_free_pages(flags, order), to any
+address in the interval [retval,  2^order * PAGE_SIZE])?
 
--- 
-Jens Axboe
+In other words are those addresses guaranteed to be kernel logical addresses (i.e. between PAGE_OFFSET and PAGE_OFFSET + high_memory (on ix86))?
+
+I know that in the 2.2.x kernel this used to be the case (i.e. __get_free_pages() returned kernel
+logical addresses, to which virt_to_page() could be applied), but I don't quite understand the
+memory managment of 2.4.x yet.
+
+Thanks in advance for any help
+regards
+Martin
+
+
+--
+Supercomputing System AG          email: maletinsky@scs.ch
+Martin Maletinsky                 phone: +41 (0)1 445 16 05
+Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
+CH-8005 Zurich
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
