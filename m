@@ -1,40 +1,34 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: [PATCH] slabasap-mm5_A2
-Date: Mon, 9 Sep 2002 17:33:44 -0400
-References: <200209071006.18869.tomlins@cam.org> <200209081142.02839.tomlins@cam.org> <3D7BB97A.6B6E4CA5@digeo.com>
-In-Reply-To: <3D7BB97A.6B6E4CA5@digeo.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200209091733.44112.tomlins@cam.org>
+Date: Mon, 9 Sep 2002 16:32:11 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] modified segq for 2.5
+Message-ID: <20020909233211.GI18800@holomorphy.com>
+References: <20020909224928.GH18800@holomorphy.com> <Pine.LNX.4.44L.0209091953550.1857-100000@imladris.surriel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44L.0209091953550.1857-100000@imladris.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Andrew Morton <akpm@digeo.com>, sfkaplan@cs.amherst.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+On Mon, 9 Sep 2002, William Lee Irwin III wrote:
+>> Ideally some distinction would be nice, even if only to distinguish I/O
+>> demanded to be done directly by the workload from background writeback
+>> and/or readahead.
 
-Found three oops when checking this afternoon's log.  Looks like *total_scanned can
-be zero...
+On Mon, Sep 09, 2002 at 07:54:29PM -0300, Rik van Riel wrote:
+> OK, are we talking about page replacement or does queue scanning
+> have priority over the quality of page replacement ? ;)
 
-how about;
-
-ratio = pages > *total_scanned ? pages / (*total_scanned | 1) : 1;
-
-Ed
-
-> +	 * NOTE: for now I do this for all zones.  If we find this is too
-> +	 * aggressive on large boxes we may want to exculude ZONE_HIGHMEM
-> +	 */
-> +	ratio = (pages / *total_scanned) + 1;
-> +	shrink_dcache_memory(ratio, gfp_mask);
-> +	shrink_icache_memory(ratio, gfp_mask);
+This is relatively tangential. The concern expressed has more to do
+with VM writeback starving workload-issued I/O than page replacement.
 
 
-
-
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
