@@ -1,58 +1,53 @@
 Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA11596
-	for <linux-mm@kvack.org>; Tue, 26 Jan 1999 09:01:32 -0500
-Date: Tue, 26 Jan 1999 13:23:33 +0100 (CET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA11845
+	for <linux-mm@kvack.org>; Tue, 26 Jan 1999 09:22:37 -0500
+Date: Tue, 26 Jan 1999 15:21:58 +0100 (CET)
 From: Rik van Riel <riel@nl.linux.org>
 Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <Pine.LNX.3.95.990125125512.411B-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.03.9901261314450.26867-100000@mirkwood.dummy.home>
+In-Reply-To: <m1059TX-0007U1C@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.03.9901261513280.26867-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Dr. Werner Fink" <werner@suse.de>, Andrea Arcangeli <andrea@e-mind.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, "Stephen C. Tweedie" <sct@redhat.com>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, groudier@club-internet.fr, torvalds@transmeta.com, werner@suse.de, andrea@e-mind.com, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Jan 1999, Linus Torvalds wrote:
-> On Mon, 25 Jan 1999, Dr. Werner Fink wrote:
-> > 
-> > This hypothetical bit should only be set if the page is read physical
-> > from the swap device/file.  That means it would take one step more
-> > to swap out this page again (test_and_clear_bit of both 
-> > PG_recently_swapped_in and PG_referenced).
-> 
-> Ehh - it is already marked "accessed" in the page tables, which
-> essentially amounts to exactly that kind of two-level aging (the
-> PG_referenced bit only takes effect once the swapped-in page has
-> once more been evicted from the page tables)
+On Tue, 26 Jan 1999, Alan Cox wrote:
 
-With a bit of imagination, you might even be able to
-call our current scheme two-handed...
+> Chop memory into 4Mb sized chunks that hold the perfectly normal
+> and existing pages and buddy memory allocator. Set a flag on
+> 25-33% of them to a max of say 10 and for <12Mb boxes simply say
+> "tough".
 
-Even though it's a bit different, it seems like we
-have all advantages and none of the disadvantages of
-a two-handed system. The main difference is that we
-do I/O on the first hand and page eviction on the
-second. This gives us a buffer of ready-to-evict
-pages which we can easily free when we're in a hurry.
+We might also want to flag non-cached and dma areas too.
+That way we can hand cached, non-dma memory to the kernel,
+use non-cached stuff for buffer memory and page tables,
+keeping dma-able memory relatively clean and keeping the
+kernel (and critical pages) fast.
 
-The only thing we really need now is a way to keep
-track of (and manage) that buffer of freeable pages.
-I believe Andrea has a patch for that -- we should
-check it out and incorporate something like that ASAP.
+Maybe the execute bit should also have some influence on
+placement. Having executable text in uncached memory may
+well give a larger performance penalty than putting user
+data there...
 
-There are several reasons why we need it:
-- we should never run out of freeable pages
-  because that can introduce too much latency
-  and possibly even system instability
-- page aging only is effective/optimal when the
-  freeable buffer is large enough
-- when the freeable buffer is too large, we might
-  have too many soft pagefaults or other overhead
-  (not very much of a concern, but still...)
-- keeping a more or less fixed distance between
-  both hands could make the I/O less bursty and
-  improve system I/O performance
+In my zone allocator design I have outlined 5 or 7 (depending
+on how you look at it) different memory usages for the Linux
+kernel. You might want to check that out to see if you've
+overlooked something:
+
+http://www.nl.linux.org/~riel/zone-alloc.html
+
+> The performance impact of that on free page requests seems to be
+> pretty minimal. In actual fact it wil help performance in some
+> cases since the machine can't easily be killed by going out of non
+> kernel space allocations - the 25% is also a "can do work" sanity
+> check.
+
+It's very well possible to keep separate free memory stats
+and free memory from the different area's as needed.
+
+cheers,
 
 Rik -- If a Microsoft product fails, who do you sue?
 +-------------------------------------------------------------------+
