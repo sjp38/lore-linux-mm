@@ -1,47 +1,44 @@
-Date: Fri, 15 Oct 2004 09:29:39 +0200
-From: Martin Waitz <tali@admingilde.org>
-Subject: Re: [RESEND][PATCH 5/6] Provide a filesystem-specific sync'able page bit
-Message-ID: <20041015072939.GK4072@admingilde.org>
-References: <24461.1097780707@redhat.com>
+Date: Fri, 15 Oct 2004 07:45:02 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: [PATCH] use find_trylock_page in free_swap_and_cache instead of hand coding
+Message-ID: <20041015104502.GA1989@logos.cnet>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="j3olVFx0FsM75XyV"
-Content-Disposition: inline
-In-Reply-To: <24461.1097780707@redhat.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: David Howells <dhowells@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-List-ID: <linux-mm.kvack.org>
-
---j3olVFx0FsM75XyV
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-mm@kvack.org, akpm@osdl.org
+Cc: hugh@veritas.com
+List-ID: <linux-mm.kvack.org>
 
-hi :)
+Hi,
 
-On Thu, Oct 14, 2004 at 08:05:07PM +0100, David Howells wrote:
-> +#define PG_fs_misc		 9	/* Filesystem specific bit */
+This small cleanup to free_swap_and_cache() substitues a 
+"lock - radix lookup - TestSetPageLocked - unlock" sequence
+of instructions with "find_trylock_page()" (which does 
+exactly that).
 
-name it PG_fs_private if it is intended to be used by the fs only?
+Please apply
 
---=20
-Martin Waitz
-
---j3olVFx0FsM75XyV
-Content-Type: application/pgp-signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.1 (GNU/Linux)
-
-iD8DBQFBb3xij/Eaxd/oD7IRArWgAJ44hzBW6p61XUuDx/B2ITDa0uGpAgCeOP3r
-CUZikRkRnhfOu/C/+jf1i1U=
-=Y7di
------END PGP SIGNATURE-----
-
---j3olVFx0FsM75XyV--
+--- rc4-mm1.orig/mm/swapfile.c	2004-10-15 01:03:11.000000000 -0300
++++ rc4-mm1/mm/swapfile.c	2004-10-15 09:24:05.696640488 -0300
+@@ -391,14 +391,8 @@ void free_swap_and_cache(swp_entry_t ent
+ 
+ 	p = swap_info_get(entry);
+ 	if (p) {
+-		if (swap_entry_free(p, swp_offset(entry)) == 1) {
+-			read_lock_irq(&swapper_space.tree_lock);
+-			page = radix_tree_lookup(&swapper_space.page_tree,
+-				entry.val);
+-			if (page && TestSetPageLocked(page))
+-				page = NULL;
+-			read_unlock_irq(&swapper_space.tree_lock);
+-		}
++		if (swap_entry_free(p, swp_offset(entry)) == 1) 
++			page = find_trylock_page(&swapper_space, entry.val);
+ 		swap_info_put(p);
+ 	}
+ 	if (page) {
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
