@@ -1,74 +1,95 @@
-Date: Tue, 30 Nov 2004 09:11:24 -0800
-From: cliff white <cliffw@osdl.org>
-Subject: Re: Automated performance testing system was Re: Text form for STP
- tests
-Message-Id: <20041130091124.45ef483c.cliffw@osdl.org>
-In-Reply-To: <127280000.1101834058@[10.10.2.4]>
-References: <20041125093135.GA15650@logos.cnet>
-	<200411282017.iASKH2F05015@mail.osdl.org>
-	<20041130004212.GB2310@dmt.cyclades>
-	<127280000.1101834058@[10.10.2.4]>
+Date: Tue, 30 Nov 2004 14:29:56 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH]: 1/4 batch mark_page_accessed()
+Message-ID: <20041130162956.GA3047@dmt.cyclades>
+References: <16800.47044.75874.56255@gargle.gargle.HOWL> <20041126185833.GA7740@logos.cnet> <41A7CC3D.9030405@yahoo.com.au>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <41A7CC3D.9030405@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: marcelo.tosatti@cyclades.com, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Nikita Danilov <nikita@clusterfs.com>, Linux Kernel Mailing List <Linux-Kernel@vger.kernel.org>, Andrew Morton <AKPM@Osdl.ORG>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Nov 2004 09:00:59 -0800
-"Martin J. Bligh" <mbligh@aracnet.com> wrote:
-
-> > I've been talking to Cliff about the need for a set of benchmarks,
-> > covering as many different workloads as possible, for developers to have a 
-> > better notion of impact on performance changes. 
-> > 
-> > Usually when one does a change which affects performance, he/she runs one 
-> > or two benchmarks with a limited amount of hardware configurations.
-> > This is a very painful, boring and time consuming process, which can 
-> > result in misinterpretation and/or limited understading of the results 
-> > of such changes.
-> > 
-> > It is important to automate such process, with a set of benchmarks 
-> > covering as wide as possible range of workloads, running on common 
-> > and most used hardware variations.
-> > 
-> > OSDL's STP provides the base framework for this.
-> > 
-> > Cliff mentioned an internal tool they are developing for this purpose, 
-> > based on XML-like configuration files. 
-> > 
-> > I have suggested him a set of benchmarks (available on STP right now, 
-> > we want to add other benchmarks there whenever necessary) and a set of 
-> > CPU/memory variations.
+On Sat, Nov 27, 2004 at 11:37:17AM +1100, Nick Piggin wrote:
+> Marcelo Tosatti wrote:
+> >On Sun, Nov 21, 2004 at 06:44:04PM +0300, Nikita Danilov wrote:
+> >
+> >>Batch mark_page_accessed() (a la lru_cache_add() and 
+> >>lru_cache_add_active()):
+> >>page to be marked accessed is placed into per-cpu pagevec
+> >>(page_accessed_pvec). When pagevec is filled up, all pages are processed 
+> >>in a
+> >>batch.
+> >>
+> >>This is supposed to decrease contention on zone->lru_lock.
+> >
+> >
+> >Here are the STP 8way results:
+> >
+> >8way:
+> >
 > 
-> Sounds like a good plan in general, by why on earth would you want to do
-> it in XML? Personally I'm not that much into masochism. A simple text
-> control file is perfectly sufficient (and yes, we do this internally).
-
-True, very true. What i was showing Marcelo was what we do internally, which
-was not desiged for humans. What we're working on currently _is designed for humans,
-and not XML.
-
-I'm making up this AM a control file for STP for the tests marcelo requested, and
-we won't be asking humans to do XML, no. 
-
-Martin, if you could share any of your internal goop ( and save me work ) it would be 
-great. If you all have a text format that large numbers of people find sensible, i'd love it.
-So far, it's just been me and the robots. 
-
-( btw, it's XML because XML::Simple just seemed so....simple. I was young then. ) 
-cliffw
-
+> ...
 > 
-> M.
+> >kernbench 
+> >
+> >Decreases performance significantly (on -j4 more notably), probably due to 
+> >the additional atomic operations as noted by Andrew:
+> >
+> >kernel: nikita-b2                               kernel: patch-2.6.10-rc2
+> >Host: stp8-002                                  Host: stp8-003
+> >
 > 
+> ...
+> 
+> >
+> >Average Half Load -j 4 Run:                     Average Half Load -j 4 Run:
+> >Elapsed Time 274.916                            Elapsed Time 245.026
+> >User Time 833.63                                User Time 832.34
+> >System Time 73.704                              System Time 73.41
+> >Percent CPU 335.8                               Percent CPU 373.6
+> >Context Switches 12984.8                        Context Switches 13427.4
+> >Sleeps 21459.2                                  Sleeps 21642
+> 
+> Do you think looks like it may be a CPU scheduling or disk/fs artifact?
+> Neither user nor system time are significantly worse, while the vanilla
+> kernel is using a lot more of the CPUs' power (ie waiting for IO less,
+> or becoming idle less often due to CPU scheduler balancing).
+
+Nick,
+
+I do not think it is a disk/fs artifact.
+
+Because the ordering of LRU pages should be enhanced in respect to locality, 
+with the mark_page_accessed batching you group together tasks accessed pages 
+and move them at once to the active list. 
+
+You maintain better locality ordering, while decreasing the precision of aging/
+temporal locality.
+
+Which should enhance disk writeout performance.
+
+On the other hand, without batching you mix the locality up in LRU - the LRU becomes 
+more precise in terms of "LRU aging", but less ordered in terms of sequential 
+access pattern.
+
+The disk IO intensive reaim has very significant gain from the batching, its
+probably due to the enhanced LRU ordering (what Nikita says).
+
+The slowdown is probably due to the additional atomic_inc by page_cache_get(). 
+
+Is there no way to avoid such page_cache_get there (and in lru_cache_add also)?
+
+> Aside: under-load conditions like this is actually something where the
+> CPU scheduler doesn't do brilliantly at currently. I attribute this to
+> probably most "performance tests" loading it up as much as possible.
+> I am (on and off) looking at improving performance in these conditions,
+> and am making some inroads. 
 
 
--- 
-The church is near, but the road is icy.
-The bar is far, but i will walk carefully. - Russian proverb
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
