@@ -1,61 +1,42 @@
-Received: from root by main.gmane.org with local (Exim 3.35 #1 (Debian))
-	id 1BALIG-0004LC-00
-	for <linux-mm@kvack.org>; Mon, 05 Apr 2004 06:01:04 +0200
-Received: from finn.gmane.org ([80.91.224.251])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 05 Apr 2004 06:01:04 +0200
-Received: from ku4s by finn.gmane.org with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 05 Apr 2004 06:01:04 +0200
-From: "Kuas (gmane)" <ku4s@users.sourceforge.net>
-Subject: Page Mapping
-Date: Sun, 04 Apr 2004 22:57:59 -0400
-Message-ID: <4070CB37.8070704@users.sourceforge.net>
+Date: Mon, 5 Apr 2004 06:42:50 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
+Message-ID: <20040405044250.GB2234@dualathlon.random>
+References: <Pine.LNX.4.44.0403150527400.28579-100000@localhost.localdomain> <Pine.GSO.4.58.0403211634350.10248@azure.engin.umich.edu> <20040325225919.GL20019@dualathlon.random> <Pine.GSO.4.58.0403252258170.4298@azure.engin.umich.edu> <Pine.LNX.4.58.0404042311380.19523@red.engin.umich.edu>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0404042311380.19523@red.engin.umich.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Rajesh Venkatasubramanian <vrajesh@umich.edu>
+Cc: akpm@osdl.org, hugh@veritas.com, mbligh@aracnet.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Sun, Apr 04, 2004 at 11:14:25PM -0400, Rajesh Venkatasubramanian wrote:
+> 
+> This patch fixes a couple of mask overflow bugs in the prio_tree
+> search code. These bugs trigger in some very rare corner cases.
+> The patch also removes a couple of BUG_ONs from the fast paths.
+> 
+> Now the code is well-tested. I have tested all __vma_prio_tree_*
+> functions in the user-space with as many as 10 million vmas and
+> all prio_tree functions work fine.
 
-This might be very trivial question for people in this mailing list. I 
-need to know if my understanding is correct.
+This is a great news.
 
-We are doing some experiment with Linux kernel for security. Right now, 
-we are trying to see some behavior in the Linux memory management. I am 
-trying to track and possibly scan (for now) all the pages that's just 
-brought into the memory. I am doing this in i386 arch and Linux kernel 
-2.4.22.
+> 
+> This patch is against 2.6.5-aa2. It will apply on top of Hugh's
+> patches also.
 
-I think it would be good to do it in: mm/memory.c in do_no_page(). At 
-the end of the function, I have references to pte_t and page struct of 
-the fresh new page that's just brought in from disk (not swapped).
+I'm releasing an update for this.
 
-This is diagram the diagram I'm going to refer:
-http://www.skynet.ie/~mel/projects/vm/guide/html/understand/node24.html
+> If you like to test the prio_tree code further in the user-space,
+> the programs in the following link may help you.
+> 
+> http://www-personal.engin.umich.edu/~vrajesh/linux/prio_tree/user_space/
 
- From my understanding from the diagram of Linear Address to Page 
-conversion (please let me know if I'm correct or misunderstood). The 
-struct "pte_t->pte_low" an entry if PTE table, is the base 'physical' 
-address of the page. In this case I can just use it to reference the 
-page. I can't find any other conversion method to get another address.
-
-Assuming I have that address, can I just direct reference that address 
-(assuming the address is physical and from kernel mode) or do I have to 
-use some methods to access the page content?
-
-How do I know the size of the page that's filled though? I can't see 
-that information from the page struct.
-
-Thanks in Advance for comments and information.
-
-
-Kuas
-
+thanks for this great work.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
