@@ -1,101 +1,42 @@
-Date: Tue, 16 Nov 1999 14:18:58 +0100 (CET)
-From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Subject: [patch] zoned-2.3.28-K2
-Message-ID: <Pine.LNX.4.10.9911161329430.3924-100000@chiara.csoma.elte.hu>
+Date: Wed, 17 Nov 1999 05:18:33 +0100 (CET)
+From: Mike Galbraith <mikeg@weiden.de>
+Subject: Re: [patch] zoned-2.3.28-K2 [ramdisk OOM]
+In-Reply-To: <Pine.LNX.4.10.9911161329430.3924-100000@chiara.csoma.elte.hu>
+Message-ID: <Pine.Linu.4.10.9911170454270.418-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
-Cc: Linus Torvalds <torvalds@transmeta.com>, Jeff Garzik <jgarzik@mandrakesoft.com>
+To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+Cc: MM mailing list <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-the latest patchset is at:
+On Tue, 16 Nov 1999, Ingo Molnar wrote:
 
-	http://www.redhat.com/~mingo/zoned-2.3.28-K2
+> 
+> the latest patchset is at:
+> 
+> 	http://www.redhat.com/~mingo/zoned-2.3.28-K2
+> 
+> this patch is supposed to fix all known problems (including the 16MB kept
+> free thing), let me know if there is still something left.
 
-this patch is supposed to fix all known problems (including the 16MB kept
-free thing), let me know if there is still something left.
+Hi Ingo,
 
-Changes in zoned-2.3.28-K0:
+I ran into an OOM problem while testing.  Having heard someone mention
+ramdisk troubles, I enabled it and booted with ramdisk_size=16384. Made
+an fs (mke2fs /dev/ram0) mounted it and ran Bonnie -s 12 a few times.
+Result was terminal OOM.  Everything else seems to work fine, so this
+may just be a driver bug(?).  I can't revert my tree just yet to find
+out for sure.
 
-- fixed stupid oom bug reported by Jeff and others, introduced in J5
+Memleak results with line numbers translated to zoned-2.3.28-K2 stock.
 
-- fixed memory balancing
+buffer.c:1054: 15698 13710 15260 DELTA: 28970
+filemap.c:1852: 3430 3448 3921 DELTA: 7369
+slab.c:507: 468 173 142 DELTA: 315
 
-- show_free_areas() bug fixed.
-
-- (includes Russell King's procfs fix)
-
-
-Changes in zoned-2.3.28-J5:
-
-- further page_alloc.c cleanups/speedups.
-
-- Alan and Rogier convinced me to optimize the 'top level zone is empty'
-  case a bit more.
-
-- show_free_areas() works again.
-
-- some more include file fixes
-
-
-Changes in zoned-2.3.28-H2:
-
-- fixed NFS to work out of high memory - tested with moderate load. All
-  NFS caches (directory, symlink, data, etc.) are in high memory.
-
-- modules fix ...
-
-- page->virtual is filled out for non-highmem pages too, this is a
-  nice speedup in certain cases.
-
-- fixed a bug in highmem support which might cause user-datapage
-  corruption in certain cases.
-
-
-Changes in zoned-2.3.28-G5:
-
-- this one should actually compile if modules support is turned on ...
-
-
-Changes in zoned-2.3.28-G4:
-
-- implemented 'zone chains' zonelist_t and gfp_mask indexed zonelists[]
-  speedups (Linus' idea) to handle fallback zones. This should enable
-  advanced NUMA-style allocations as well. [fallback to different CPUs is 
-  possible via changing build_zonelists().]
-
-- <=16MB RAM boxes should boot just fine now.
-
-- added page->zone for easier deallocation and generic cleanliness. This
-  also helps NUMA.
-
-- cleaned up the page-allocator namespace, there are only two 'core'
-  page-allocation functions left: __alloc_pages() and __free_pages_ok().
-
-- modules should compile again.
-
-- we are now inlining the 'put_page_testzero()' part of __free_page_ok.
-  This is subtle as page->count for reserved pages is now 'rotating' -
-  this is fine though and lets us to put the rare PageReserved() branch
-  into __free_page_ok().
-
-- cleaned up pgtable.h, split into lowlevel and highlevel parts, this
-  fixes dependencies in mm.h & misc.c.
-
-- serial.c didnt clear freshly allocated bootmem - as a result now all
-  bootmem allocations are explicitly cleared, it's not performance
-  critical anyway.
-
-- fixed code,data,initmem reporting.
-
-- fixed boot task's swapper_pg_dir clearing
-
--- mingo
-
-
-
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
