@@ -1,67 +1,32 @@
-Date: Fri, 25 Apr 2003 11:49:39 -0700
+Date: Fri, 25 Apr 2003 13:32:18 -0700
 From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: 2.5.68-mm2
-Message-ID: <428740000.1051296578@[10.10.2.4]>
-In-Reply-To: <1051295252.9767.143.camel@localhost>
-References: <20030424163334.A12180@redhat.com>
- <Pine.LNX.3.96.1030425135538.16623C-100000@gatekeeper.tmr.com>
- <20030425112042.37493d02.rddunlap@osdl.org>
- <1051295252.9767.143.camel@localhost>
+Subject: TASK_UNMAPPED_BASE & stack location
+Message-ID: <459930000.1051302738@[10.10.2.4]>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robert Love <rml@tech9.net>, "Randy.Dunlap" <rddunlap@osdl.org>
-Cc: Bill Davidsen <davidsen@tmr.com>, bcrl@redhat.com, akpm@digeo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm mailing list <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@digeo.com>
 List-ID: <linux-mm.kvack.org>
 
->> | The point is that even if bash is fixed it's desirable to address the
->> | issue in the kernel, other applications may well misbehave as well.
->> 
->> So when would this ever end?
-> 
-> Exactly what I was thinking.
-> 
-> The kernel cannot be expected to cater to applications or make
-> concessions (read: hacks) for certain behavior.  If we offer a cleaner,
-> improved interface which offers the performance improvement, we are
-> done.  Applications need to start using it.
-> 
-> Of course, I am not arguing against optimizing the old interfaces or
-> anything of that nature.  I just believe we should not introduce hacks
-> for application behavior.  It is their job to do the right thing.
+Is there any good reason we can't remove TASK_UNMAPPED_BASE, and just shove
+libraries directly above the program text? Red Hat seems to have patches to
+dynamically tune it on a per-processes basis anyway ...
 
-I would actually like us to do this (the non-deterministic nature of UNIX
-semantics wrt exec is hateful), but changing the kernel before the apps is
-ass-backwards. Once this distros fix all their binaries (at least in their
-bleeding edge versions) this makes more sense.
+Moreover, can we put the stack back where it's meant to be, below the
+program text, in that wasted 128MB of virtual space? Who really wants 
+> 128MB of stack anyway (and can't fix their app)?
 
-There are also some interesting comments the manpage for vfork:
+I'm sure there's some horrible reason we can't do this ... would just like
+to know what it is. If it's "standards compilance" I don't really believe
+it - we don't comply with the standard now anyway ...
 
-BUGS
-       It is rather unfortunate that Linux revived  this  spectre
-       from  the past.  The BSD manpage states: "This system call
-       will be eliminated when proper system  sharing  mechanisms
-       are  implemented.  Users  should  not depend on the memory
-       sharing semantics of vfork as it will, in  that  case,  be
-       made synonymous to fork."
+M.
 
-       Formally  speaking,  the  standard description given above
-       does not allow one to use vfork() since a  following  exec
-       might fail, and then what happens is undefined.
-
-       Details  of  the  signal  handling  are obscure and differ
-       between systems.  The BSD manpage states: "To avoid a pos-
-       sible  deadlock  situation, processes that are children in
-       the middle of a vfork are never sent  SIGTTOU  or  SIGTTIN
-       signals;  rather,  output  or ioctls are allowed and input
-       attempts result in an end-of-file indication."
-
-       Currently (Linux 2.3.25), strace(1) cannot follow  vfork()
-       and requires a kernel patch.
-
+PS. Motivation is creating large shmem segments for DBs.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
