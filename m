@@ -1,37 +1,51 @@
-Date: Fri, 23 Mar 2001 20:18:48 +0000 (GMT)
+Date: Fri, 23 Mar 2001 20:41:01 +0000 (GMT)
 From: Paul Jakma <paulj@itg.ie>
 Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <20010323182105.C6487@win.tue.nl>
-Message-ID: <Pine.LNX.4.33.0103232013490.31380-100000@rossi.itg.ie>
+In-Reply-To: <Pine.LNX.4.30.0103232124120.13864-100000@fs131-224.f-secure.com>
+Message-ID: <Pine.LNX.4.33.0103232026310.31380-100000@rossi.itg.ie>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Guest section DW <dwguest@win.tue.nl>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Rik van Riel <riel@conectiva.com.br>, Michael Peddemors <michael@linuxmagic.com>, Stephen Clouse <stephenc@theiqgroup.com>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Szabolcs Szakacsits <szaka@f-secure.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 Mar 2001, Guest section DW wrote:
+On Fri, 23 Mar 2001, Szabolcs Szakacsits wrote:
 
-> But yes, I am complaining because Linux by default is unreliable.
+> About the "use resource limits!". Yes, this is one solution. The
+> *expensive* solution (admin time, worse resource utilization, etc).
 
-no, your distribution is unreliable by default.
+traditional user limits have worse resource utilisation? think what
+kind of utilisation a guaranteed allocation system would have. instead
+of 128MB, you'd need maybe a GB of RAM and many many GB of swap for
+most systems.
 
-> I strongly prefer a system that is reliable by default,
-> and I'll leave it to others to run it in an unreliable mode.
+some hopefully non-ranting points:
 
-currently, setting sensible user limits on my machines means i never
-get a hosed machine due to OOM. These limits are easy to set via
-pam_limits. (not perfect though, i think its session specific..)
+- setting up limits on a RH system takes 1 minute by editing
+/etc/security/limits.conf.
 
-granted, if the machine hasn't been setup with user limits, then linux
-doesn't deal at all well with OOM, so this should be fixed. but it can
-easily be argued that admin error in not configuring limits is the
-main cause for OOM.
+- Rik's current oom killer may not do a good job now, but it's
+impossible for it to do a /perfect/ job without implementing
+kernel/esp.c.
 
-> Andries
+- with limits set you will have:
+ - /possible/ underutilisation on some workloads.
+ - chance of hitting Rik's OOM killer reduced to almost nothing.
 
-regards,
+no matter how good or bad Rik's killer is, i'd much rather set limits
+and just about /never/ have it invoked.
+
+more beancounting will make limits more useful (eg global?) and maybe
+dists can start setting up some kind of limits by default at install
+time based on the RAM installed and whether user selected
+server/workstation/etc.. install.
+
+Then hopefully we can be a little less concerned about how close Rik
+gets to the impossible task of implementing esp.c.
+
+>         Szaka
 
 --paulj
 
