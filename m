@@ -1,39 +1,39 @@
-Message-ID: <3AC4E593.1010909@missioncriticallinux.com>
-Date: Fri, 30 Mar 2001 14:59:15 -0500
-From: "Patrick O'Rourke" <orourke@missioncriticallinux.com>
-MIME-Version: 1.0
+Date: Fri, 30 Mar 2001 19:16:28 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Reclaim orphaned swap pages
-References: <20010328235958.A1724@redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20010328235958.A1724@redhat.com>
+Message-ID: <Pine.LNX.4.21.0103301915010.23093-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Stephen Tweedie <sct@redhat.com>
-Cc: Rik van Riel <riel@nl.linux.org>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Stephen Tweedie wrote:
+On Wed, 28 Mar 2001, Stephen Tweedie wrote:
 
- 
+> Rik, the patch below tries to reclaim orphaned swap pages after
+> swapped processes exit.  I've only given it basic testing but I want
+> to get feedback on it sooner rather than later --- we need to do
+> _something_ about this problem!
+> 
 > The patch works completely differently to the release-on-exit diffs:
-> this one works in refill_inactive(), so has zero impact on the hot
-> paths.  It also works by looking for such orphaned pages in the swap
-> cache, not by examining swap entries --- it is much cheaper to find
-> a swap entry for a given page than to find the swap cache page for a
-> given swap entry.
 
-It seems we would still have the situation whereby a process will be unable
-to allocate memory because vm_enough_memory() fails, even though there is
-sufficient orphaned swap pages available to satisfy the request. Isn't it
-possible there may be enough free memory such that refill_inactive_scan()
-isn't running, but still not enough to satisfy vm_enough_memory()?
+It looks good and simple enough to just plug into the
+kernel. I cannot see any problem with this patch, except
+that the PAGECACHE_LOCK macro doesn't seem to exist (yet)
+in my kernel tree ;))
 
-Pat
+cheers,
 
--- 
-Patrick O'Rourke
-978.606.0236
-orourke@missioncriticallinux.com
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
