@@ -1,33 +1,28 @@
-Date: Wed, 10 Dec 1997 14:13:14 -0500 (EST)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Reply-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Date: Wed, 10 Dec 1997 22:55:28 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: H.H.vanRiel@fys.ruu.nl
 Subject: Re: Ideas for memory management hackers.
-In-Reply-To: <199712101521.QAA25114@boole.fs100.suse.de>
-Message-ID: <Pine.LNX.3.95.971210133924.5452C-100000@as200.spellcast.com>
+In-Reply-To: <Pine.LNX.3.95.971210133924.5452C-100000@as200.spellcast.com>
+Message-ID: <Pine.LNX.3.91.971210225426.3314G-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Dr. Werner Fink" <werner@suse.de>
-Cc: Zlatko.Calusic@CARNet.hr, linux-mm@kvack.org
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: "Dr. Werner Fink" <werner@suse.de>, Zlatko.Calusic@CARNet.hr, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Dec 1997, Dr. Werner Fink wrote:
+On Wed, 10 Dec 1997, Benjamin C.R. LaHaise wrote:
 
-> In other words a better memory defragmentation is needed for 2.2, isn't it?
-> A simple approach could be an addition address check during the scans
-> in shrink_mmap (mm/filemap.c) instead of a freeing the first unused
-> (random) page. This could be used in the first few priorities to free pages
-> mostly useful for defragmentation.
-> 
-> An other approach is Ben's anonymous ageing of physical task pages
-> found in http://www.kvack.org/~blah/patches/v2_1_47_ben1.gz ... 
-> this approach gives a link of the pte of a page needed for ageing
-> the page.
+> The past few times this has come up, the general argument from a few core
+> people is that if one *really* cares to find the pte's pointing to a page,
+> traversing the list of vma's attached to the inode, for which a pointer
 
-The past few times this has come up, the general argument from a few core
-people is that if one *really* cares to find the pte's pointing to a page,
-traversing the list of vma's attached to the inode, for which a pointer
-already exists, would be sufficient.  Until I come up with something
-really kick-ass, I really doubt the pte-list stuff will be included.
+Well then, it looks like we've become the core people :)
+Let's just do what we want, and if the quality is good
+enough, Linus will include it.
 
-		-ben
+Rik.
+
+--
+Send Linux memory-management wishes to me: I'm currently looking
+for something to hack...
