@@ -1,108 +1,75 @@
-Date: Mon, 14 Oct 2002 08:20:48 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [patch, feature] nonlinear mappings, prefaulting support, 2.5.42-F8
-Message-ID: <20021014152048.GC4488@holomorphy.com>
-References: <20021014135232.GB4488@holomorphy.com> <Pine.LNX.4.44.0210141642160.3474-100000@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0210141642160.3474-100000@localhost.localdomain>
+Date: Mon, 14 Oct 2002 17:52:34 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [patch, feature] nonlinear mappings, prefaulting support,
+ 2.5.42-F8
+In-Reply-To: <20021014152048.GC4488@holomorphy.com>
+Message-ID: <Pine.LNX.4.44.0210141739510.8792-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
+To: William Lee Irwin III <wli@holomorphy.com>
 Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Mon, 14 Oct 2002, William Lee Irwin III wrote:
->> ISTR suggesting vectorizing this to reduce syscall traffic.
 
-On Mon, Oct 14, 2002 at 05:02:26PM +0200, Ingo Molnar wrote:
-> well, i dont agree with vectorizing everything, unless it's some really
-> lightweight thing and/or the operation is somehow naturally vectorized.  
-> (block and network IO, etc.)
+> > well, i dont agree with vectorizing everything, unless it's some really
+> > lightweight thing and/or the operation is somehow naturally vectorized.  
+> > (block and network IO, etc.)
+> 
+> I would say it makes sense for its intended purpose, as large volumes of
+> pages are expected to be remapped this way.
 
-I would say it makes sense for its intended purpose, as large volumes
-of pages are expected to be remapped this way.
+volume alone does not necessiate a vectored API - everything depends on
+whether the volume comes in chunks, ie. is predictable. For things like a
+LRU DB-cache the order of new cache entries are largely unpredictable.  
+Even if predictable then they are mostly continuous in the file space, ie.
+properly vectorized by the API already. There might be cases where there
+are bulk mappings, but the common case i'm quite sure isnt. Just like we
+dont have bulk mmap() support either. But, if it really turns out to be a
+problem then a bulk API can be added later on, which would just build upon
+the existing syscall.
 
+> The VM_RANDOM flag was a safety net I believed to be beneficial, in part
+> because userspace would be limited in how it can utilize the remapping
+> facility without guarantees that mappings are not implicitly established
+> in ways it does not expect.
 
-On Mon, 14 Oct 2002, William Lee Irwin III wrote:
->> The semantics of faulting in pages on such a region, while not
->> incorrect, are at least unusual enough to raise the question of whether
->> it's appropriate for the kernel to fill the pages as opposed to
->> returning an error to userspace. [...]
+if this is really an issue then we could force vma->vm_page_prot to
+PROT_NONE within remap_file_pages(), so at least all subsequent faults
+will be PROT_NONE and the user would have to explicitly re-mprotect() the
+vma again to change this.
 
-On Mon, Oct 14, 2002 at 05:02:26PM +0200, Ingo Molnar wrote:
-> the pagefault path simply does not have the information whether a mapping
-> was nonlinear, possibly long before. In the initial patch i had a
-> VM_RANDOM flag for vmas, which was set up at mmap() time, but this
-> restricted the API needlessly. Tracking whether a mapping was remapped
-> randomly before does not sound too useful to me either. So right now it's
-> the responsibility of the user to use the API in a meaningful way - is it
-> such a big problem?
+> > how would you do this actually, without other restrictions?
+> 
+> It would be easy to keep the VM_RANDOM flag for truly random vma's, and
+> check for file offsets matching in the prefault path for others.
 
-The VM_RANDOM flag was a safety net I believed to be beneficial, in
-part because userspace would be limited in how it can utilize the
-remapping facility without guarantees that mappings are not implicitly
-established in ways it does not expect.
+there is no 'VM_RANDOM' flag right now - because *any* shared mapping can
+be used with remap_file_pages(). I think forcing the default protection to
+PROT_NONE should solve the problem - this is the most logical thing to do
+in the MAP_LOCKED case as well.
 
+> A nonblocking filemap_populate() may partially populate a virtual
+> address range and the user may later fault in pages not file offset
+> contiguous in the prefaulted region as opposed to discovering them as
+> not present. For the MAP_LOCKED | PROT_NONE scenario this would apply
+> only with a nonblocking prefault on a MAP_LOCKED vma, where the caller
+> would find stale mappings where the prefault operation failed, and even
+> if the nonblocking path invalidated the pte's one would still return to
+> faulting in of the wrong pages. This is a safety question limiting the
+> usefulness of nonblocking prefaults on scatter gather vma's to
+> userspace.
 
-On Mon, 14 Oct 2002, William Lee Irwin III wrote:
->> [...] The requirement of MAP_LOCKED or PROT_NONE might as well be
->> in-kernel if the file offset contiguity assumption is not met, [...]
+this too is handled by changing the default protection to PROT_NONE. A
+user would have to deliberately change the protection to get rid of this
+safety net - at which point no harm will be done, the user will get what
+he asked for.
 
-On Mon, Oct 14, 2002 at 05:02:26PM +0200, Ingo Molnar wrote:
-> how would you do this actually, without other restrictions?
+	Ingo
 
-It would be easy to keep the VM_RANDOM flag for truly random vma's,
-and check for file offsets matching in the prefault path for others.
-
-
-On Mon, 14 Oct 2002, William Lee Irwin III wrote:
->> sys_remap_file_pages() also interacts in an unusual way with the
->> semantics of MAP_POPULATE. MAP_POPULATE seems to perform a non-blocking
->> make_pages_present() operation not shared with MAP_LOCKED, [...]
-
-On Mon, Oct 14, 2002 at 05:02:26PM +0200, Ingo Molnar wrote:
-> what it does is a blocking make_pages_present(), for nonblocking you also
-> need to specify MAP_NONBLOCK. I agree that the mlock path should/could be
-> merged with the populate path, this was suggested by Linus as well.
-
-It's optionally nonblocking, a small communication failure of mine.
-
-
-On Mon, 14 Oct 2002, William Lee Irwin III wrote:
->> [...] and filemap_populate() performs the file offset contiguous
->> prefaulting which again doesn't mix well with the scatter gather
->> semantics desired.
-
-On Mon, Oct 14, 2002 at 05:02:26PM +0200, Ingo Molnar wrote:
-> huh?
-
-A nonblocking filemap_populate() may partially populate a virtual
-address range and the user may later fault in pages not file offset
-contiguous in the prefaulted region as opposed to discovering them as
-not present. For the MAP_LOCKED | PROT_NONE scenario this would apply
-only with a nonblocking prefault on a MAP_LOCKED vma, where the caller
-would find stale mappings where the prefault operation failed, and even
-if the nonblocking path invalidated the pte's one would still return to
-faulting in of the wrong pages. This is a safety question limiting the
-usefulness of nonblocking prefaults on scatter gather vma's to userspace.
-
-
-On Mon, 14 Oct 2002, William Lee Irwin III wrote:
->> Also, I see a significant portion of filemap_nopage() duplicated in
->> filemap_getpage(), including long-stale hashtable-related comments.
-
-On Mon, Oct 14, 2002 at 05:02:26PM +0200, Ingo Molnar wrote:
-> check the announcement email for details about the seemingly duplicated
-> code of filemap_nopage() and filemap_getpage(). And which hashing comments
-> do you mean? We still hash pagecache pages.
-
-Since the inclusion of the radix tree pagecache I've regarded these
-comments about hashing as stale.
-
-
-Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
