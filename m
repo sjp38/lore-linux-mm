@@ -1,34 +1,47 @@
-Date: Wed, 4 Apr 2001 10:29:02 -0400 (EDT)
-From: Richard Jerrell <jerrell@missioncriticallinux.com>
-Subject: Re: [PATCH] Reclaim orphaned swap pages 
-In-Reply-To: <Pine.LNX.4.21.0104031910450.7175-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0104041025050.12558-100000@jerrell.lowell.mclinux.com>
+Received: from dyn-33.linux.theplanet.co.uk ([195.92.244.33] helo=caramon.arm.linux.org.uk)
+	by www.linux.org.uk with esmtp (Exim 3.13 #1)
+	id 14kpiB-0005xA-00
+	for linux-mm@kvack.org; Wed, 04 Apr 2001 17:00:47 +0100
+Received: from raistlin.arm.linux.org.uk (IDENT:root@raistlin.arm.linux.org.uk [192.168.0.3])
+	by caramon.arm.linux.org.uk (8.11.0/8.11.0) with ESMTP id f34G0kg03209
+	for <linux-mm@kvack.org>; Wed, 4 Apr 2001 17:00:46 +0100
+From: rmk@arm.linux.org.uk
+Received: (from rmk@localhost)
+	by raistlin.arm.linux.org.uk (8.7.4/8.7.3) id RAA01119
+	for linux-mm@kvack.org; Wed, 4 Apr 2001 17:00:45 +0100
+Message-Id: <200104041600.RAA01119@raistlin.arm.linux.org.uk>
+Subject: pte_young/pte_mkold/pte_mkyoung
+Date: Wed, 4 Apr 2001 17:00:44 +0100 (BST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Szabolcs Szakacsits <szaka@f-secure.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> But you should not count _all_ swapcache pages as freeable. 
+Hi,
 
-I see what you mean now.  But still, swapcache pages are freeable.  If it
-is still in the swapcache, then we still have space reserved on disk for
-it.  If your page is being referenced by pte's, then eventually the
-swapper will replace those pte's with a reference to the swap cell.  Then,
-the swap cache page will be written to disk and reclaimed.  The pages are
-not immediately freeable without any additional work, but they are there
-because the page is able to be swapped out.  If you are trying to say we
-can't count them because we don't know how much work it would take to free
-that particular page, then why do we include buffermem pages in the total
-of available memory.  We can't be guaranteed that those pages are
-freeable, because block_flushpage might just leave them sitting around as
-anonymous.  So, basically, I include the swap cache pages in the total
-amount of free memory because they are taking up twice as much space as
-they should be: one page on disk and one page in memory.
+We currently seem to have:
+	2 references to pte_mkyoung()
+	1 reference to pte_mkold()
+	0 references to pte_young()
 
-Rich
+This tells me that we're no longer using the hardware page tables on x86
+for page aging, which leads me nicely on to the following question.
+
+Are there currently any plans to use the hardware page aging bits in the
+future, and if there are, would architectures that don't have them be
+required to have them?
+
+I'm asking this question because for some time (1.3 onwards), the ARM
+architecture has had some code to handle software emulation of the young
+and dirty bits.  If its not required, then I'd like to get rid of this
+software emulation.
+
+--
+Russell King (rmk@arm.linux.org.uk)                The developer of ARM Linux
+             http://www.arm.linux.org.uk/personal/aboutme.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
