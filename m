@@ -1,37 +1,37 @@
-Message-ID: <20041204170217.45200.qmail@web53908.mail.yahoo.com>
-Date: Sat, 4 Dec 2004 09:02:17 -0800 (PST)
+Message-ID: <20041204185319.97207.qmail@web53905.mail.yahoo.com>
+Date: Sat, 4 Dec 2004 10:53:19 -0800 (PST)
 From: Fawad Lateef <fawad_lateef@yahoo.com>
-Subject: Re: Is sizeof(void *) ever != sizeof(unsigned long)?
-In-Reply-To: <1102155752.1018.7.camel@desktop.cunninghams>
+Subject: Can I change the kernel memory spliting in linux-2.4.25 + ?
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ncunningham@linuxmail.org
+To: kernelnewbies@nl.linux.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The sizeof(<pointer>) is always of 32bits or 4bytes on
-x86 Architecture, and you can say that it is actually
-the virtual address size of the Architecture. And
-unsigned long is actually what I understand is the
-size which a single architecture can address in a
-single atempt, like roughly you can say that in x86
-architecture long can be accesses in single cycle.
+Hello
 
-By defination, they can be not equal to each other but
-practically it is same .........
+Can I change the kernel memory spliting in
+linux-2.4.25 or onwards ??? Actually I want to change
+the kernel ZONE_NORMAL to 2GB from 1GB !!!! 
 
-Thanks and Regards,
+How can i do this ??? I won't be able to see any
+option in kernel configuration ...........
 
-Fawad 
+I tried to change the PAGE_OFFSET from 3G to 2G but
+got compilation error .............. 
 
+What I hav to do ???
 
-		
-__________________________________ 
-Do you Yahoo!? 
-Yahoo! Mail - now with 250MB free storage. Learn more.
-http://info.mail.yahoo.com/mail_250
+Thanks 
+
+Fawad
+
+__________________________________________________
+Do You Yahoo!?
+Tired of spam?  Yahoo! Mail has the best spam protection around 
+http://mail.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
