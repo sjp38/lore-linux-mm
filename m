@@ -1,36 +1,57 @@
-Date: Mon, 11 Aug 2003 16:39:43 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.6.0-test3-mm1
-Message-ID: <20030811233943.GI32488@holomorphy.com>
-References: <20030811113943.47e5fd85.akpm@osdl.org> <873510000.1060633024@flay> <20030811221628.GR1715@holomorphy.com> <884580000.1060642229@flay>
+Date: Tue, 12 Aug 2003 12:40:46 +0200
+From: Roger Luethi <rl@hellgate.ch>
+Subject: [PATCH] Deprecate /proc/#/statm
+Message-ID: <20030812104046.GA6606@k3.hellgate.ch>
+References: <20030811090213.GA11939@k3.hellgate.ch> <20030811160222.GE3170@holomorphy.com> <20030811215235.GB13180@k3.hellgate.ch> <20030811221646.GF3170@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <884580000.1060642229@flay>
+In-Reply-To: <20030811221646.GF3170@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-> On Mon, Aug 11, 2003 at 01:17:04PM -0700, Martin J. Bligh wrote:
->> kpmd_ctor() is unusual; how many runs does this profile represent?
->> Does it represent the first run? Ideally, all your kernel pmd's should
->> be cached. If it's not the first run, then logged slab cache statistics
->> would be interesting to determine whether this is still the case even
->> while effective cacheing is going on or whether slab cache reaping is
->> blowing these things away (i.e. either ineffective cacheing is happening
->> or for some reason cacheing them isn't good enough).
+On Mon, 11 Aug 2003 15:16:46 -0700, William Lee Irwin III wrote:
+> > has actually more values that seem correct as it is now. Since statm has
+> > been broken in 2.4, fixing it for 2.6 means basically _introducing_ a file
+> > full of redundant information with unclear semantics, a file which nobody
+> > missed in 2.4. I still think the file should die.
+> 
+> Not entirely unreasonable.
 
-On Mon, Aug 11, 2003 at 03:50:29PM -0700, Martin J. Bligh wrote:
-> It's the average of 5 runs, after an initial warmup run which is discarded.
+Alright. We have established that /proc/#/statm has been useless at least
+since 2.4. Procps doesn't even bother reading it.
 
+I propose this very non-invasive patch for 2.6. It replaces all values
+printed in statm (all of which are either redundant or bogus) with 0s (for
+kblockd and others statm is a line of zeroes already). IMO the real surgery
+should happen in 2.7.
 
-Okay, logging /proc/slabinfo and /proc/meminfo at various points
-throughout the run would be helpful here.
+Comments? Andrew?
 
+Roger
 
--- wli
+--- fs/proc/array.c.orig	2003-08-12 11:21:54.599717655 +0200
++++ fs/proc/array.c	2003-08-12 12:09:28.912397328 +0200
+@@ -392,6 +392,8 @@
+ int proc_pid_statm(struct task_struct *task, char *buffer)
+ {
+ 	int size = 0, resident = 0, shared = 0, text = 0, lib = 0, data = 0;
++	/* TODO Rip out /proc/#/statm in 2.7 */
++#if 0
+ 	struct mm_struct *mm = get_task_mm(task);
+ 	
+ 	if (mm) {
+@@ -401,6 +403,7 @@
+ 
+ 		mmput(mm);
+ 	}
++#endif
+ 
+ 	return sprintf(buffer,"%d %d %d %d %d %d %d\n",
+ 		       size, resident, shared, text, lib, data, 0);
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
