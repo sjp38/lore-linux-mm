@@ -1,65 +1,47 @@
-Received: from talaria.fm.intel.com (talaria.fm.intel.com [10.1.192.39])
-	by caduceus.fm.intel.com (8.11.6/8.11.6/d: outer.mc,v 1.51 2002/09/23 20:43:23 dmccart Exp $) with ESMTP id h0JJe3n19576
-	for <linux-mm@kvack.org>; Sun, 19 Jan 2003 19:40:03 GMT
-Received: from fmsmsxv040-1.fm.intel.com (fmsmsxvs040.fm.intel.com [132.233.42.124])
-	by talaria.fm.intel.com (8.11.6/8.11.6/d: inner.mc,v 1.28 2003/01/13 19:44:39 dmccart Exp $) with SMTP id h0JJlZL19192
-	for <linux-mm@kvack.org>; Sun, 19 Jan 2003 19:47:35 GMT
-content-class: urn:content-classes:message
-Subject: RE: 2.5.59-mm2
-Date: Sun, 19 Jan 2003 11:45:35 -0800
-Message-ID: <3014AAAC8E0930438FD38EBF6DCEB5647D1492@fmsmsx407.fm.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-From: "Nakajima, Jun" <jun.nakajima@intel.com>
+Date: Sun, 19 Jan 2003 20:18:34 +0000
+From: Arjan van de Ven <arjanv@redhat.com>
+Subject: Re: 2.5.59-mm2
+Message-ID: <20030119201834.A3965@devserv.devel.redhat.com>
+References: <3014AAAC8E0930438FD38EBF6DCEB5647D1492@fmsmsx407.fm.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3014AAAC8E0930438FD38EBF6DCEB5647D1492@fmsmsx407.fm.intel.com>; from jun.nakajima@intel.com on Sun, Jan 19, 2003 at 11:45:35AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: arjanv@redhat.com, Andrew Morton <akpm@digeo.com>
-Cc: linux-mm@kvack.org, "Kamble, Nitin A" <nitin.a.kamble@intel.com>, "Mallick, Asit K" <asit.k.mallick@intel.com>, "Saxena, Sunil" <sunil.saxena@intel.com>
+To: "Nakajima, Jun" <jun.nakajima@intel.com>
+Cc: arjanv@redhat.com, Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org, "Kamble, Nitin A" <nitin.a.kamble@intel.com>, "Mallick, Asit K" <asit.k.mallick@intel.com>, "Saxena, Sunil" <sunil.saxena@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-We initially implemented it in user level, accessing /proc/interrupts. We have two issues/concerns at that point. And we saw better results with kernel mode.
-- the data structures required, such as kstat, are already in the kernel and converting the text info from /proc/interrupts was costly in user mode.
-- we suspect that frequent writes (asynchronous to interrupts) to /proc/irq/N/smp_affinity might expose a race condition in interrupt machinery. For example, we saw a hang caused by such a write.
+On Sun, Jan 19, 2003 at 11:45:35AM -0800, Nakajima, Jun wrote:
+> We initially implemented it in user level, accessing /proc/interrupts. We have two issues/concerns at that point. And we saw better results with kernel mode.
 
-So to implement it in user level efficiently, we need API that
-- that provide binary data that can be easily processed by such a daemon,
-- safer API to change routing. Or we need to take a closer look at /proc/irq/N/smp_affinity.
+> - the data structures required, such as kstat, are already in the kernel
+>   and converting the text info from /proc/interrupts was costly in
+>   user mode.
 
-Thanks,
-Jun
+costly is a relative thing. a dozen cycles perhaps; do it once per
+10 seconds and it's invisbile. I agree that if you want to do it thousands
+of times per second it might become a problem.But so far I don't see the
+real need for that.
 
+> - we suspect that frequent writes (asynchronous to interrupts)
+>   to /proc/irq/N/smp_affinity might expose a race condition in interrupt
+>   machinery. For example, we saw a hang caused by such a write.
 
-> -----Original Message-----
-> From: Arjan van de Ven [mailto:arjanv@redhat.com]
-> Sent: Saturday, January 18, 2003 12:13 PM
-> To: Andrew Morton
-> Cc: linux-mm@kvack.org; Kamble, Nitin A; Nakajima, Jun; Mallick, Asit K;
-> Saxena, Sunil
-> Subject: Re: 2.5.59-mm2
-> 
-> 
-> > +kirq-up-fix.patch
-> >
-> >  Fix the kirq build for non-SMP
-> 
-> Hi,
-> 
-> Is there any reason to put this complexity in the kernel instead of
-> doing it from a userspace daemon?
-> 
-> A userspace daemon can do higher level evaluations, read config files
-> about the system (like numa configuration etc etc) and all 2.4/2.5
-> kernels already have a userspace api for setting irq affinity..
-> 
-> an example of a simple version of such daemon is:
-> http://people.redhat.com/arjanv/irqbalance/irqbalance-0.03.tar.gz
-> 
-> any chance of testing this in an intel lab?
-> 
-> Greetings,
->      Arjan van de Ven
+if there's a bug there it needs fixing anyway; even inside the kernel
+you'll have a similar race I suspect
+
+> So to implement it in user level efficiently, we need API that
+> - that provide binary data that can be easily processed by such a daemon,
+
+there is rightfully a veto on such ABI and it's also not needed.
+/proc/interrupts is less than 4Kb normally; it'll be in cache so parsing
+it will be cheap. Sure the code I posted isn't optimal (far from it) but
+that can be optimized a lot.
+
+Greetings,
+  Arjan van de Ven
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
