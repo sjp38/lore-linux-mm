@@ -1,81 +1,34 @@
-Message-ID: <3D3D1320.4710A756@zip.com.au>
-Date: Tue, 23 Jul 2002 01:26:08 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH] vmap_pages()
-References: <20020718230003.A6500@lst.de>
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [OOPS] 2.5.27 - __free_pages_ok()
+From: Paul Larson <plars@austin.ibm.com>
+In-Reply-To: <1027383490.32299.94.camel@irongate.swansea.linux.org.uk>
+References: <Pine.LNX.4.44L.0207221704120.3086-100000@imladris.surriel.com>
+	<1027377273.5170.37.camel@plars.austin.ibm.com>
+	<1027383490.32299.94.camel@irongate.swansea.linux.org.uk>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Date: 23 Jul 2002 06:34:56 -0500
+Message-Id: <1027424097.5170.43.camel@plars.austin.ibm.com>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Rik van Riel <riel@conectiva.com.br>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, haveblue@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig wrote:
+On Mon, 2002-07-22 at 19:18, Alan Cox wrote:
+> > and it still hung on boot, but kgcc is egcs-2.91.66 19990314/Linux
+> > (egcs-1.1.2 release).  If it would be helpful, I'll try compiling my
+> > kernel on a debian box tomorrow and booting with that.
 > 
-> There's more and more pressure getting XFS into mainline now that most
-> distributors ship it and SGI's Red Hat-based installers are in wide use,
-> and although most of the core kernel changes in the XFS tree have been
-> removed by redesigning/rewriting XFS code.
-
-Hopefully XFS isn't internalising good changes which should
-be in the core kernel.
-
-> Still there are a bunch of core code changes that are needed for XFS to
-> work without beeing totally rewritten and this patch is an alternate
-> version (which should also be usable properly for non-XFS purposes) of
-> the probably most important missing core functionality needed by XFS.
+> egcs-1.1.2 does have real problems with 2.5
 > 
-> The vmap_pages() functions allows to map an array of virtually
-> non-continguos pages into the kernel virtual memory.  The implementation
-> is very simple and a small variation of vmalloc() - instead of
-> allocating new pages in alloc_area_pte() uncondintionally a pointer to a
-> page array is passed down all through vmalloc_area_pages => alloc_area_pmd
-> => alloc_area_pte and if it is non-null no pages are allocated but the
-> reference count on the existing ones is incremented.
+> 7.1 errata/7.2/7.3 gcc 2.96 appear quite happy
+7.3 gcc 2.96 was the one I was originally using when I found this
+problem.  I decided to go back and try kgcc just in case.  I'll try
+compiling it on another machine and moving it over today.
 
-My understanding is that this is used during XFS log recovery
-and is not performance-critical.  XFS has a largeish btree
-on-disk and it needs to be loaded into virtually contiguous
-memory for processing.  Chunking that operation into discontiguous
-block-sized memory areas would be rather horrid.  Andrea has
-merged the vmalloc enhancements into his tree and he is
-presumably OK with them.
+-Paul Larson
 
-The vmap_pages() interface does assume that each page can be mapped
-by a single pte.  So it would be awkward for an application such
-as, say, turning a bunch of dir-in-pagecache pages into a
-virtually contiguous object with PAGE_CACHE_SIZE > PAGE_SIZE.
-But the caller could always just chunk those PAGE_CACHE_SIZE
-pages into their constituent PAGE_SIZE pages prior to calling
-vmap_pages, I guess.
-
-> The old vmalloc_area_pages is renamed to __vmap_area_pages and
-> vmalloc_area_pages is a small wrapper around it, passing in an NULL page
-> array.  Similarly __vmalloc is renamed to vmap_pages and a small wrapper
-> is added.
-> 
-> In addition I've removed th unused vmalloc_dma and cleaned up vmalloc.h
-> a little - this could need more cleanup (and kdoc documentation for
-> the vmalloc.c stuff), but I will do this later in an incremental patch.
-> 
-
-It'd be better to have the code commentary in-place in the
-initial patch - it rather helps reviewing...
-
-
-I'm not sure that we actually need to get the outside-XFS
-changes merged beforehand, really.  It would be sufficient
-if you could prepare the individual patches for review as
-you've done here and if nobody pukes, they can all be merged
-in one big patch.
-
-We also need to work through DMAPI's view of mount semantics
-versus Linux's view.  And any duplication between XFS locking
-and VFS locking, if any such still exist.
-
--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
