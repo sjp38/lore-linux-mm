@@ -1,59 +1,77 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id FAA15903
-	for <linux-mm@kvack.org>; Wed, 18 Nov 1998 05:25:48 -0500
-Date: Wed, 18 Nov 1998 09:58:58 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: useless report -- perhaps memory allocation problems in 2.1.12[678]
-In-Reply-To: <Pine.LNX.3.95.981117174031.23128A-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.3.96.981118095143.21442C-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA18967
+	for <linux-mm@kvack.org>; Wed, 18 Nov 1998 17:51:13 -0500
+Subject: Re: unexpected paging during large file reads in 2.1.127
+References: <199811161959.TAA07259@dax.scot.redhat.com> <Pine.LNX.3.96.981116214348.26465A-100000@mirkwood.dummy.home> <199811162305.XAA07996@dax.scot.redhat.com> <87lnlb5d2t.fsf@atlas.CARNet.hr> <199811171200.MAA01162@dax.scot.redhat.com>
+Reply-To: Zlatko.Calusic@CARNet.hr
+From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Date: 18 Nov 1998 23:50:07 +0100
+In-Reply-To: "Stephen C. Tweedie"'s message of "Tue, 17 Nov 1998 12:00:37 GMT"
+Message-ID: <87d86kwr8g.fsf@atlas.CARNet.hr>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Jeffrey Hundstad <jeffrey.hundstad@mankato.msus.edu>, Linux MM <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Linux-MM List <linux-mm@kvack.org>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, "David J. Fred" <djf@ic.net>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Nov 1998, Linus Torvalds wrote:
-> On Tue, 17 Nov 1998, Linus Torvalds wrote:
-> > 
-> > But whether kswapd should go page-synchronous at some point? Maybe. I can
-> > see arguments both for and against (the "for" argument is that we prefer
-> > to have more intense bouts of IO followed by a nice clean wait, while the
-> > "against" argument is that maybe we want to spread out the thing). 
+
+"Stephen C. Tweedie" <sct@redhat.com> writes:
+
+> Hi,
 > 
-> Oh, well, I'm currently leaning for "for", which means your patch to
-> page_io.c is what I have now.. I don't like "trickling" pages by
-> running out of requests or something like that, so having the
-> occasional nice wait is probably best. 
+> On 17 Nov 1998 02:21:14 +0100, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+> said:
+> 
+> > "Stephen C. Tweedie" <sct@redhat.com> writes:
+> 
+> >> No, we don't.  We don't evict just-read-in data, because we mark such
+> >> pages as PG_Referenced.  It takes two complete shrink_mmap() passes
+> >> before we can evict such pages.
+> 
+> > I didn't find this in the source (in fact, add_to_page_cache clears
+> > PG_referenced bit, if I understood source correctly). But, see below.
+> 
+> You didn't understand the source correctly. :)  There is an extra
+> bracket you missed:
+> 
+> 	page->flags = (page->flags & ~((1 << PG_uptodate) | (1 << PG_error))) | (1 << PG_referenced);
+> 
+> We clear PG_uptodate and PG_error, but we _set_ PG_referenced.
 
-It seems like you decided for my point of view before I
-woke up again, so I'll just let you know that this is
-one of the reasons why I submitted the original (2.1.90?)
-patch to you. The other reason was that async, clustered
-swapouts have a much higher bandwidth than synchronous
-swapouts. This means we can do more swap I/O without
-getting into trouble.
+Oops. My apologies. You're right, of course.
 
-The only request I have to make is that you use the
-sysctl tuneable limit pager_daemon.swap_cluster as
-the limit.  Doing this will enable people to optimize
-their kswapd configuration for multiple swap partitions
-or disks with loads of tagged queues (or a shortage 
-thereoff).
+That makes one line in my patch superfluous.
 
-I have found that setting that limit to SWAP_CLUSTER_MAX
-* number_of_highest_priority_swap_areas doubled swapout
-performance, leaving 50% extra I/O bandwidth for swapins.
+Although I have some experience in LISP, it looks like I still have
+trouble counting parentheses (LISP = Lost In Stupid Parentheses). :)
 
-cheers,
+Still, a small comment above that line would be extremely helpful.
 
-Rik -- slowly getting used to dvorak kbd layout...
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+> 
+> > I must agree entirely, because with small patch you can find below,
+> > performance is very very good. Thanks to marking readahead pages as
+> > referenced, I've been able to see exact behaviour that I wanted for a
+> > long time. 
+> 
+> Excellent.  
+> 
 
+Pleasure is all mine. :)
+
+I mean, bits from the patch are coming exclusively from you.
+
+I'm really looking forward to their integration in the mainstream,
+because performance improvement is so dramatic that I expect lots of
+comments on the linux-kernel list telling that "latest 2.1.xxx is so
+much faster".
+
+Thanks for your good work!
+-- 
+Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
+---------------------------------------------------------------------
+	"Luke... Luke... Use the MOUSE, Luke" - Obi Wan Gates
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
