@@ -1,40 +1,46 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA07994
-	for <linux-mm@kvack.org>; Fri, 3 Jul 1998 12:37:05 -0400
-Date: Fri, 3 Jul 1998 17:21:51 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: Thread implementations... 
-In-Reply-To: <199807010850.JAA00764@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.96.980703171908.20629B-100000@mirkwood.dummy.home>
+Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA09089
+	for <linux-mm@kvack.org>; Fri, 3 Jul 1998 16:06:27 -0400
+Date: Fri, 3 Jul 1998 21:05:27 +0100
+Message-Id: <199807032005.VAA02773@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: Thread implementations... 
+In-Reply-To: <Pine.LNX.3.96.980703171908.20629B-100000@mirkwood.dummy.home>
+References: <199807010850.JAA00764@dax.dcs.ed.ac.uk>
+	<Pine.LNX.3.96.980703171908.20629B-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linux MM <linux-mm@kvack.org>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 1 Jul 1998, Stephen C. Tweedie wrote:
+Hi,
 
-> sequential clusters, but if we have things like Ingo's random swap
-> stats-based prediction logic, then we can use exactly the same extent
-> concept there too.
+On Fri, 3 Jul 1998 17:21:51 +0200 (CEST), Rik van Riel
+<H.H.vanRiel@phys.uu.nl> said:
 
-Hmm, it appears this was the legendary swap readahead code I
-was looking for a while ago :)
+> On Wed, 1 Jul 1998, Stephen C. Tweedie wrote:
+>> sequential clusters, but if we have things like Ingo's random swap
+>> stats-based prediction logic, then we can use exactly the same extent
+>> concept there too.
 
-But, ehhh, just what _is_ this random swap stats-based prediction
-algorithm, and how far from implementation is it?
-(and if it isn't implemented yet, what should I do to make
-it implemented; swapin readahead is very wanted on my
-memory-starved box...)
+> Hmm, it appears this was the legendary swap readahead code I
+> was looking for a while ago :)
 
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+> But, ehhh, just what _is_ this random swap stats-based prediction
+> algorithm, 
 
+It's a per-swap-page readahead predictor which observes the access
+patterns for vmas.  
+
+> and how far from implementation is it?
+
+It is implemented.  It is not in the main kernels, nor does it take
+advantage of the potential for swap readahead in the 2.1.86+ kernels.
+
+--Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
