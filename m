@@ -1,58 +1,51 @@
-Date: Mon, 17 Jul 2000 10:28:11 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: (from jmm@localhost)
+	by bp6.sublogic.lan (8.9.3/8.9.3) id JAA13992
+	for linux-mm@kvack.org; Mon, 17 Jul 2000 09:01:31 -0400
+Date: Mon, 17 Jul 2000 09:01:31 -0400
+From: James Manning <jmm@computer.org>
 Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on
-Message-ID: <20000717102811.D5127@redhat.com>
-References: <Pine.LNX.4.21.0007111503520.10961-100000@duckman.distro.conectiva> <200007170709.DAA27512@ocelot.cc.gatech.edu>
+Message-ID: <20000717090131.D10936@bp6.sublogic.lan>
+References: <Pine.LNX.4.21.0007111503520.10961-100000@duckman.distro.conectiva> <200007170709.DAA27512@ocelot.cc.gatech.edu> <20000717102811.D5127@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200007170709.DAA27512@ocelot.cc.gatech.edu>; from yannis@cc.gatech.edu on Mon, Jul 17, 2000 at 03:09:06AM -0400
+Content-Type: multipart/signed; micalg=pgp-md5;
+	protocol="application/pgp-signature"; boundary="CblX+4bnyfN0pR09"
+In-Reply-To: <20000717102811.D5127@redhat.com>; from sct@redhat.com on Mon, Jul 17, 2000 at 10:28:11AM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yannis Smaragdakis <yannis@cc.gatech.edu>
-Cc: Rik van Riel <riel@conectiva.com.br>, Andrea Arcangeli <andrea@suse.de>, "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, davem@redhat.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+--CblX+4bnyfN0pR09
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: quoted-printable
 
-On Mon, Jul 17, 2000 at 03:09:06AM -0400, Yannis Smaragdakis wrote:
+[Stephen C. Tweedie]
+> > Having said that, LRU is certainly broken, but there are other ways to
+> > fix it.
+>=20
+> Right.  LFU is just one way of fixing LRU.
 
-> Although I agree with Rik in many major points, I disagree in that I
-> don't think that page aging should be frequency-based. Overall, I strongly
-> believe that frequency is the wrong thing to be measuring for deciding
-> which page to evict from RAM. The reason is that a page that is brought
-> to memory and touched 1000 times in relatively quick succession is *not*
-> more valuable than one that is brought to memory and only touched once. 
-> Both will cause exactly one page fault.
+Just food for thought for anyone wanting to read up on other algorithms
+and a decent explanation of the basic problem.
 
-Not when you are swapping.  A page which is likely to be touched again
-in the future will cause further page faults if we evict it.  A page
-which isn't going to be touched again can be evicted without that
-penalty.  The past behaviour is only useful in as much as it provides
-a way of guessing future behaviour, and we want to make sure that we
-evict those pages least likely to be touched again in the near future.
-Access frequency *is* a credible way of assessing that, as there are
-many common access patterns in which a large volume of data is
-accessed exactly once --- LRU breaks down completely in that case, LFU
-does not.
+http://www.cs.wisc.edu/~solomon/cs537/paging.html
+--=20
+James Manning <jmm@computer.org>
+GPG Key fingerprint =3D B913 2FBD 14A9 CE18 B2B7  9C8E A0BF B026 EEBB F6E4
 
-> Also, one should be cautious of
-> pages that are brought in RAM, touched many times, but then stay untouched
-> for a long time. Frequency should never outweigh recency--the latter is
-> a better predictor, as OS designers have found since the early 70s.
+--CblX+4bnyfN0pR09
+Content-Type: application/pgp-signature
 
-No, they have not.  Look at the literature and you will see that OS
-designers keep peppering their code with large numbers of special
-cases to cope with the fact that LRU breaks down on large sequential
-accesses.  FreeBSD, which uses a LFU-based design, needs no such
-special cases.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.1 (GNU/Linux)
+Comment: For info see http://www.gnupg.org
 
-> Having said that, LRU is certainly broken, but there are other ways to
-> fix it.
+iD8DBQE5cwOqoL+wJu679uQRAQ8wAKCSGlMS2tO+DByDpnFzxmVfMIbZbQCdFrwa
+4Y4+oT4DPUFFUf5hsUVwtmA=
+=ZSf4
+-----END PGP SIGNATURE-----
 
-Right.  LFU is just one way of fixing LRU.
-
---Stephen
+--CblX+4bnyfN0pR09--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
