@@ -1,34 +1,56 @@
-Subject: Re: [PATCH] low-latency zap_page_range()
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <1030653602.939.2677.camel@phantasy>
-References: <1030635100.939.2551.camel@phantasy>
-	<3D6E844C.4E756D10@zip.com.au>  <1030653602.939.2677.camel@phantasy>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 29 Aug 2002 16:46:43 -0400
-Message-Id: <1030654004.12110.2685.camel@phantasy>
-Mime-Version: 1.0
+Date: Thu, 29 Aug 2002 21:53:32 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: 2.4.19 Vs 2.4.19-rmap14a with anonymous mmaped memory
+In-Reply-To: <E17kV44-00035H-00@starship>
+Message-ID: <Pine.LNX.4.44.0208292137540.31984-100000@skynet>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Phillips <phillips@arcor.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2002-08-29 at 16:40, Robert Love wrote:
+On Thu, 29 Aug 2002, Daniel Phillips wrote:
 
-> On Thu, 2002-08-29 at 16:30, Andrew Morton wrote:
-> 
-> > However with your change, we'll only ever put 256 pages into the
-> > mmu_gather_t.  Half of that thing's buffer is unused and the
-> > invalidation rate will be doubled during teardown of large
-> > address ranges.
-> 
-> Agreed.  Go for it.
+> The perl script that writes tables isn't too informative without knowing
+> how the tables are used.  Pseudocode that says exactly what your final
+> reference pattern is would be a lot more useful.
 
-Oh and put a comment in there explaining what you just said to me :)
+I guessed that after I thought about it for a while and reworked the
+algorithm for 0.7. To make things easier again, I added a new graph to the
+reports which is in 0.7 called "Page Index Reference over Time"
 
-	Robert Love
+see
 
+http://www.csn.ul.ie/~mel/projects/vmregress/output_sample/mmap/read/25000/mapanon.html
+
+It is the second graph. At the beginning, it is at the 0th page and it
+moves through the address space over time. A totally random one would make
+this graph look like noise. The graph should give a good idea how memory
+was referenced.
+
+In 0.6 and with these tests, it would have been a similar curve except the
+last page would have been hit around 40000 references before the end of
+the test. After that, the pages were referenced in a linear pattern which
+was a mistake after reviewing it a bit.
+
+If people are still interested, I'll run a full set of tests again on
+2.4.19 and 2.4.19-rmap14a with 0.7 and post up the results complete with
+the page reference information so you don't have to guess this time. It
+takes about a full day to run a complete series. Any taker?
+
+> It would also be useful to state what you define as a reference.  A user
+> space program read-accesses a single byte from some address?
+>
+
+A reference in this test was reading a full page of information using
+copy_from_user()
+
+-- 
+Mel Gorman
+MSc Student, University of Limerick
+http://www.csn.ul.ie/~mel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
