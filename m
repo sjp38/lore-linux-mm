@@ -1,36 +1,32 @@
-Date: Mon, 11 Sep 2000 13:12:32 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 11 Sep 2000 11:45:20 -0600
+From: Neil Schemenauer <nascheme@enme.ucalgary.ca>
 Subject: Re: [PATCH] Page aging for 2.4.0-test8
-In-Reply-To: <20000910214150.A30532@acs.ucalgary.ca>
-Message-ID: <Pine.LNX.4.21.0009111311220.21018-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000911114520.A22732@keymaster.enme.ucalgary.ca>
+References: <20000910214150.A30532@acs.ucalgary.ca> <Pine.LNX.4.21.0009111311220.21018-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.21.0009111311220.21018-100000@duckman.distro.conectiva>; from Rik van Riel on Mon, Sep 11, 2000 at 01:12:32PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Schemenauer <nascheme@enme.ucalgary.ca>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 10 Sep 2000, Neil Schemenauer wrote:
+On Mon, Sep 11, 2000 at 01:12:32PM -0300, Rik van Riel wrote:
+> Your idea /heavily/ penalises libc and executable pages by aging them
+> more often than anonymous pages...
 
-> This patch adds page aging similar to what was in 2.0.
+I don't think I age anonymous pages any more than any other type of
+page.  Perhaps you are saying that shared pages should recieve some
+bonus?  That is a different issue and it is handled naturally with my
+patch.  If shared pages are actually used then PageTouch() will be
+called on them more often.  This should work better than the current
+PG_referenced bit.
 
-Please take a look at http://www.surriel.com/patches/
+Prehaps I am missing your point.  Can you explain in more detail how
+these pages are aged more often?
 
-I've been working on a new VM patch which adds page
-aging in a somewhat more 'balanced' way. Your idea
-/heavily/ penalises libc and executable pages by aging
-them more often than anonymous pages...
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+  Neil
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
