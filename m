@@ -1,26 +1,31 @@
-Date: Thu, 20 Jul 2000 11:16:45 -0500
+Date: Thu, 20 Jul 2000 13:06:21 -0500
 From: Timur Tabi <ttabi@interactivesi.com>
-References: <20000719181648Z131171-4588+3@kanga.kvack.org> <20000720154702Z131167-4587+7@kanga.kvack.org>
-In-Reply-To: <397725F8.34744F7A@colorfullife.com>
-Subject: Re: Marking a physical page as uncacheable
-Message-Id: <20000720163653Z131167-4587+8@kanga.kvack.org>
+Subject: phys-to-virt kernel mapping and ioremap()
+Message-Id: <20000720182643Z131167-4584+4@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM mailing list <linux-mm@kvack.org>
+To: Linux MM mailing list <linux-mm@kvack.org>, Linux Kernel Mailing list <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-** Reply to message from Manfred Spraul <manfred@colorfullife.com> on Thu, 20
-Jul 2000 18:16:56 +0200
+I'm studying the code for __ioremap and I'm confused by something.
 
+The phys_to_virt and virt_to_phys macros are very simple.  Basically, in kernel
+space, the virtual address is an offset of the physical address, so it's very
+simple.
 
-> You could use ClearPageReserved() + ioremap(), but ioremap() is limited
-> to the first 4 GB.
+__ioremap is supposed to take high PCI memory and map it to kernel space. 
+However, __ioremap() calls get_vm_area() which then calls kmalloc(), which
+allocates some memory from the heap.  Then remap_area_pages() is called, and
+that uses the three-level page tables to map the memory allocated by kmalloc to
+the PCI memory.
 
-The 4GB limit is okay for now.
+And that's where I'm confused.  Particularly:
 
-What does ClearPageReserved do?  Does it make the kernel think that the page is
-part of high memory?  
+1) Doesn't this mapping break the phys_to_virt and virt_to_phys macros?
 
+2) kmalloc takes real physical memory from the kernel heap.  But then the
+virtual addresses are remapped to other physical memory.  What happens to the
+physical memory that kmalloc allocated?  Why isn't it freed?	
 
 
 --
