@@ -1,43 +1,28 @@
-Date: Mon, 9 Oct 2000 16:07:32 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 9 Oct 2000 21:27:00 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-In-Reply-To: <20001009210503.C19583@athlon.random>
-Message-ID: <Pine.LNX.4.21.0010091606420.1562-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0010091552450.1562-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0010092123280.7197-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Ingo Molnar <mingo@elte.hu>, Byron Stanoszek <gandalf@winds.org>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Marco Colombo <marco@esi.it>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2000, Andrea Arcangeli wrote:
-> On Mon, Oct 09, 2000 at 08:42:26PM +0200, Ingo Molnar wrote:
-> > ignoring the kill would just preserve those bugs artificially.
+On Mon, 9 Oct 2000, Rik van Riel wrote:
+
+> > yes. Please remove the above part.
 > 
-> If the oom killer kills a thing like init by mistake
+> OK, done.
 
-That only happens in the "random" OOM killer 2.2 has ...
+thanks - i think all the other heuristics are 'fair': processes with more
+CPU and run time used are likely to be more important, superuser processes
+and direct-hw-access processes ditto.
 
-> So you have two choices:
-> 
-> o	math proof that the current algorithm without the magic can't end
-> 	killing init (and I should be able to proof the other way around
-> 	instead)
-> 
-> o	have a magic check for init
-> 
-> So the magic is _strictly_ necessary at the moment.
-
-No. It's only needed if your OOM algorithm is so crappy that
-it might end up killing init by mistake.
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
