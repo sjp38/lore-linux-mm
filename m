@@ -1,176 +1,228 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199910191950.MAA63187@google.engr.sgi.com>
-Subject: [PATCH]kanoj-mm20-2.3.22 rlimits/RLIM_INFINITY fixes
-Date: Tue, 19 Oct 1999 12:50:21 -0700 (PDT)
+Date: Tue, 19 Oct 1999 16:16:55 -0400 (EDT)
+From: Chuck Lever <cel@monkey.org>
+Subject: [PATCH]: oom and cleaner error handling in *_nopage
+Message-ID: <Pine.BSO.4.10.9910191607470.6236-100000@funky.monkey.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@transmeta.com
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus,
+hi linus-
 
-I have posted this rlimits patch before, but it has not made it into
-2.3 yet. This patch is neccesary for any application that wants to 
-have a >2Gb user address space.
+this patch, against 2.3.21, includes all the minor oom/error-handling
+corrections that andrea and i discussed with you in august.  i submit this
+for inclusion in 2.3.
 
-Please take this into 2.3. Thanks.
+also, would you like me to finish up and submit my madvise() patch for
+2.3/2.4?  i set it aside when you announced the feature freeze, but there
+seems to be a lot of discussion about madvise() lately.  i could also take
+a crack at vivek pai's suggestion for mincore().
 
-Kanoj
-
---- /usr/tmp/p_rdiff_a005Pw/mem.c	Tue Oct 19 12:42:21 1999
-+++ fs/proc/mem.c	Tue Oct 19 10:56:38 1999
-@@ -265,7 +265,9 @@
- 		if (stmp < src_vma->vm_start) {
- 			if (!(src_vma->vm_flags & VM_GROWSDOWN))
- 				return -EINVAL;
--			if (src_vma->vm_end - stmp > current->rlim[RLIMIT_STACK].rlim_cur)
-+			if ((current->rlim[RLIMIT_STACK].rlim_cur < 
-+			     RLIM_INFINITY) && (src_vma->vm_end - stmp > 
-+			     current->rlim[RLIMIT_STACK].rlim_cur))
- 				return -EINVAL;
- 		}
- 		stmp += PAGE_SIZE;
---- /usr/tmp/p_rdiff_a005Q5/mm.h	Tue Oct 19 12:42:30 1999
-+++ include/linux/mm.h	Tue Oct 19 11:19:48 1999
-@@ -393,10 +393,11 @@
+diff -ruN linux-2.3.21-ref/drivers/sgi/char/graphics.c linux/drivers/sgi/char/graphics.c
+--- linux-2.3.21-ref/drivers/sgi/char/graphics.c	Mon Oct 11 23:02:37 1999
++++ linux/drivers/sgi/char/graphics.c	Tue Oct 19 15:23:00 1999
+@@ -238,7 +238,9 @@
  
+ 	virt_add = address & PAGE_MASK;
+ 	phys_add = cards[board].g_regs + virt_add - vma->vm_start;
+-	remap_page_range(virt_add, phys_add, PAGE_SIZE, vma->vm_page_prot);
++	if (remap_page_range(virt_add, phys_add, PAGE_SIZE,
++						vma->vm_page_prot) < 0)
++		return -1;
+ 
+ 	pgd = pgd_offset(current->mm, address);
+ 	pmd = pmd_offset(pgd, address);
+diff -ruN linux-2.3.21-ref/fs/fat/mmap.c linux/fs/fat/mmap.c
+--- linux-2.3.21-ref/fs/fat/mmap.c	Fri Jul  2 18:15:51 1999
++++ linux/fs/fat/mmap.c	Tue Oct 19 15:19:51 1999
+@@ -30,7 +30,7 @@
+ static unsigned long fat_file_mmap_nopage(
+ 	struct vm_area_struct * area,
+ 	unsigned long address,
+-	int error_code)
++	int no_share)
+ {
+ 	struct inode * inode = area->vm_file->f_dentry->d_inode;
+ 	unsigned long page;
+@@ -40,7 +40,7 @@
+ 
+ 	page = __get_free_page(GFP_KERNEL);
+ 	if (!page)
+-		return page;
++		return -1;
  	address &= PAGE_MASK;
- 	grow = vma->vm_start - address;
--	if (vma->vm_end - address
--	    > (unsigned long) current->rlim[RLIMIT_STACK].rlim_cur ||
--	    (vma->vm_mm->total_vm << PAGE_SHIFT) + grow
--	    > (unsigned long) current->rlim[RLIMIT_AS].rlim_cur)
-+	if (((current->rlim[RLIMIT_STACK].rlim_cur < RLIM_INFINITY) &&
-+	    (vma->vm_end - address > current->rlim[RLIMIT_STACK].rlim_cur)) ||
-+	    ((current->rlim[RLIMIT_AS].rlim_cur < RLIM_INFINITY) &&
-+	    ((vma->vm_mm->total_vm << PAGE_SHIFT) + grow
-+	    > current->rlim[RLIMIT_AS].rlim_cur)))
- 		return -ENOMEM;
- 	vma->vm_start = address;
- 	vma->vm_offset -= grow;
---- /usr/tmp/p_rdiff_a005QG/shm.c	Tue Oct 19 12:42:41 1999
-+++ ipc/shm.c	Tue Oct 19 10:56:38 1999
-@@ -458,8 +458,9 @@
+ 	pos = address - area->vm_start + area->vm_offset;
  
- 	/* add new mapping */
- 	tmp = shmd->vm_end - shmd->vm_start;
--	if((current->mm->total_vm << PAGE_SHIFT) + tmp
--	   > (unsigned long) current->rlim[RLIMIT_AS].rlim_cur)
-+	if ((current->rlim[RLIMIT_AS].rlim_cur < RLIM_INFINITY) && 
-+	   ((current->mm->total_vm << PAGE_SHIFT) + tmp
-+	   > current->rlim[RLIMIT_AS].rlim_cur))
- 		return -ENOMEM;
- 	current->mm->total_vm += tmp >> PAGE_SHIFT;
- 	insert_vm_struct(current->mm, shmd);
---- /usr/tmp/p_rdiff_a005QP/mlock.c	Tue Oct 19 12:42:55 1999
-+++ mm/mlock.c	Tue Oct 19 10:56:38 1999
-@@ -186,11 +186,13 @@
- 	locked += current->mm->locked_vm;
+diff -ruN linux-2.3.21-ref/fs/ncpfs/mmap.c linux/fs/ncpfs/mmap.c
+--- linux-2.3.21-ref/fs/ncpfs/mmap.c	Fri Jul  2 18:15:51 1999
++++ linux/fs/ncpfs/mmap.c	Tue Oct 19 15:20:26 1999
+@@ -44,7 +44,7 @@
  
- 	lock_limit = current->rlim[RLIMIT_MEMLOCK].rlim_cur;
--	lock_limit >>= PAGE_SHIFT;
-+	if (lock_limit < RLIM_INFINITY) {
-+		lock_limit >>= PAGE_SHIFT;
+ 	page = __get_free_page(GFP_KERNEL);
+ 	if (!page)
+-		return page;
++		return -1;
+ 	address &= PAGE_MASK;
+ 	pos = address - area->vm_start + area->vm_offset;
  
--	/* check against resource limits */
--	if (locked > lock_limit)
--		goto out;
-+		/* check against resource limits */
-+		if (locked > lock_limit)
-+			goto out;
-+	}
+diff -ruN linux-2.3.21-ref/mm/filemap.c linux/mm/filemap.c
+--- linux-2.3.21-ref/mm/filemap.c	Mon Oct 11 23:03:44 1999
++++ linux/mm/filemap.c	Tue Oct 19 15:15:11 1999
+@@ -530,7 +530,7 @@
+  * This adds the requested page to the page cache if it isn't already there,
+  * and schedules an I/O to read in its contents from disk.
+  */
+-static inline void page_cache_read(struct file * file, unsigned long offset) 
++static inline int page_cache_read(struct file * file, unsigned long offset) 
+ {
+ 	unsigned long new_page;
+ 	struct inode *inode = file->f_dentry->d_inode;
+@@ -541,17 +541,17 @@
+ 	page = __find_page_nolock(inode, offset, *hash); 
+ 	spin_unlock(&pagecache_lock);
+ 	if (page)
+-		return;
++		return 0;
  
- 	/* we may lock at most half of physical memory... */
- 	/* (this check is pretty bogus, but doesn't hurt) */
-@@ -253,12 +255,14 @@
- 	if (!flags || (flags & ~(MCL_CURRENT | MCL_FUTURE)))
- 		goto out;
+ 	new_page = page_cache_alloc();
+ 	if (!new_page)
+-		return;
++		return -ENOMEM;
+ 	page = page_cache_entry(new_page);
  
-+	ret = -ENOMEM;
- 	lock_limit = current->rlim[RLIMIT_MEMLOCK].rlim_cur;
--	lock_limit >>= PAGE_SHIFT;
-+	if (lock_limit < RLIM_INFINITY) {
-+		lock_limit >>= PAGE_SHIFT;
- 
--	ret = -ENOMEM;
--	if (current->mm->total_vm > lock_limit)
--		goto out;
-+		if (current->mm->total_vm > lock_limit)
-+			goto out;
-+	}
- 
- 	/* we may lock at most half of physical memory... */
- 	/* (this check is pretty bogus, but doesn't hurt) */
---- /usr/tmp/p_rdiff_a005QY/mmap.c	Tue Oct 19 12:43:04 1999
-+++ mm/mmap.c	Tue Oct 19 10:56:38 1999
-@@ -191,7 +191,8 @@
- 	if (mm->def_flags & VM_LOCKED) {
- 		unsigned long locked = mm->locked_vm << PAGE_SHIFT;
- 		locked += len;
--		if (locked > current->rlim[RLIMIT_MEMLOCK].rlim_cur)
-+		if ((current->rlim[RLIMIT_MEMLOCK].rlim_cur < RLIM_INFINITY) &&
-+		   (locked > current->rlim[RLIMIT_MEMLOCK].rlim_cur))
- 			return -EAGAIN;
+ 	if (!add_to_page_cache_unique(page, inode, offset, hash)) {
+-		inode->i_op->readpage(file, page);
++		int error = inode->i_op->readpage(file, page);
+ 		page_cache_release(page);
+-		return;
++		return error;
  	}
  
-@@ -282,8 +283,9 @@
- 		goto free_vma;
+ 	/*
+@@ -559,26 +559,30 @@
+ 	 * raced with us and added our page to the cache first.
+ 	 */
+ 	page_cache_free(new_page);
+-	return;
++	return 0;
+ }
  
- 	/* Check against address space limit. */
--	if ((mm->total_vm << PAGE_SHIFT) + len
--	    > current->rlim[RLIMIT_AS].rlim_cur)
-+	if ((current->rlim[RLIMIT_AS].rlim_cur < RLIM_INFINITY) &&
-+	    ((mm->total_vm << PAGE_SHIFT) + len
-+	    > current->rlim[RLIMIT_AS].rlim_cur))
- 		goto free_vma;
+ /*
+  * Read in an entire cluster at once.  A cluster is usually a 64k-
+  * aligned block that includes the address requested in "offset."
+  */
+-static void read_cluster_nonblocking(struct file * file,
++static int read_cluster_nonblocking(struct file * file,
+ 	unsigned long offset)
+ {
++	int error = 0;
+ 	off_t filesize = file->f_dentry->d_inode->i_size;
+ 	unsigned long pages = CLUSTER_PAGES;
  
- 	/* Private writable mapping? Check memory availability.. */
-@@ -737,7 +739,8 @@
- 	if (mm->def_flags & VM_LOCKED) {
- 		unsigned long locked = mm->locked_vm << PAGE_SHIFT;
- 		locked += len;
--		if (locked > current->rlim[RLIMIT_MEMLOCK].rlim_cur)
-+		if ((current->rlim[RLIMIT_MEMLOCK].rlim_cur < RLIM_INFINITY) &&
-+		   (locked > current->rlim[RLIMIT_MEMLOCK].rlim_cur))
- 			return -EAGAIN;
+ 	offset = CLUSTER_OFFSET(offset);
+ 	while ((pages-- > 0) && (offset < filesize)) {
+-		page_cache_read(file, offset);
+-		offset += PAGE_CACHE_SIZE;
++		error = page_cache_read(file, offset);
++		if (!error)
++			offset += PAGE_CACHE_SIZE;
++		else
++			break;
  	}
  
-@@ -749,8 +752,9 @@
- 		return retval;
+-	return;
++	return error;
+ }
  
- 	/* Check against address space limits *after* clearing old maps... */
--	if ((mm->total_vm << PAGE_SHIFT) + len
--	    > current->rlim[RLIMIT_AS].rlim_cur)
-+	if ((current->rlim[RLIMIT_AS].rlim_cur < RLIM_INFINITY) &&
-+	    ((mm->total_vm << PAGE_SHIFT) + len
-+	    > current->rlim[RLIMIT_AS].rlim_cur))
- 		return -ENOMEM;
- 
- 	if (mm->map_count > MAX_MAP_COUNT)
---- /usr/tmp/p_rdiff_a005Qf/mremap.c	Tue Oct 19 12:43:14 1999
-+++ mm/mremap.c	Tue Oct 19 10:56:38 1999
-@@ -198,12 +198,14 @@
- 		unsigned long locked = current->mm->locked_vm << PAGE_SHIFT;
- 		locked += new_len - old_len;
- 		ret = -EAGAIN;
--		if (locked > current->rlim[RLIMIT_MEMLOCK].rlim_cur)
-+		if ((current->rlim[RLIMIT_MEMLOCK].rlim_cur < RLIM_INFINITY) &&
-+		   (locked > current->rlim[RLIMIT_MEMLOCK].rlim_cur))
- 			goto out;
+ /* 
+@@ -914,7 +918,8 @@
+ 		ahead += PAGE_CACHE_SIZE;
+ 		if ((raend + ahead) >= inode->i_size)
+ 			break;
+-		page_cache_read(filp, raend + ahead);
++		if (page_cache_read(filp, raend + ahead))
++			break;
  	}
- 	ret = -ENOMEM;
--	if ((current->mm->total_vm << PAGE_SHIFT) + (new_len - old_len)
--	    > current->rlim[RLIMIT_AS].rlim_cur)
-+	if ((current->rlim[RLIMIT_AS].rlim_cur < RLIM_INFINITY) &&
-+	    ((current->mm->total_vm << PAGE_SHIFT) + (new_len - old_len)
-+	    > current->rlim[RLIMIT_AS].rlim_cur))
- 		goto out;
- 	/* Private writable mapping? Check memory availability.. */
- 	if ((vma->vm_flags & (VM_SHARED | VM_WRITE)) == VM_WRITE &&
+ /*
+  * If we tried to read ahead some pages,
+@@ -1294,13 +1299,11 @@
+  * The goto's are kind of ugly, but this streamlines the normal case of having
+  * it in the page cache, and handles the special cases reasonably without
+  * having a lot of duplicated code.
+- *
+- * XXX - at some point, this should return unique values to indicate to
+- *       the caller whether this is EIO, OOM, or SIGBUS.
+  */
+ static unsigned long filemap_nopage(struct vm_area_struct * area,
+ 	unsigned long address, int no_share)
+ {
++	int error;
+ 	struct file * file = area->vm_file;
+ 	struct dentry * dentry = file->f_dentry;
+ 	struct inode * inode = dentry->d_inode;
+@@ -1347,7 +1350,8 @@
+ 		if (new_page) {
+ 			copy_page(new_page, old_page);
+ 			flush_page_to_ram(new_page);
+-		}
++		} else
++			new_page = -1;	/* signal OOM */
+ 		page_cache_release(page);
+ 		return new_page;
+ 	}
+@@ -1364,16 +1368,26 @@
+ 	 * so we need to map a zero page.
+ 	 */
+ 	if (offset < inode->i_size)
+-		read_cluster_nonblocking(file, offset);
++		error = read_cluster_nonblocking(file, offset);
+ 	else
+-		page_cache_read(file, offset);
++		error = page_cache_read(file, offset);
+ 
+ 	/*
+ 	 * The page we want has now been added to the page cache.
+ 	 * In the unlikely event that someone removed it in the
+ 	 * meantime, we'll just come back here and read it again.
+ 	 */
+-	goto retry_find;
++	if (!error)
++		goto retry_find;
++
++	/*
++	 * An error return from page_cache_read can result if the
++	 * system is low on memory, or a problem occurs while trying
++	 * to schedule I/O.
++	 */
++	if (error == -ENOMEM)
++		return -1;
++	return 0;
+ 
+ page_not_uptodate:
+ 	lock_page(page);
+diff -ruN linux-2.3.21-ref/mm/memory.c linux/mm/memory.c
+--- linux-2.3.21-ref/mm/memory.c	Mon Oct 11 23:02:44 1999
++++ linux/mm/memory.c	Tue Oct 19 15:05:17 1999
+@@ -1060,7 +1060,7 @@
+ 	 */
+ 	page = vma->vm_ops->nopage(vma, address & PAGE_MASK, (vma->vm_flags & VM_SHARED)?0:write_access);
+ 	if (!page)
+-		return 0;	/* SIGBUS - but we _really_ should know whether it is OOM or SIGBUS */
++		return 0;	/* SIGBUS */
+ 	if (page == -1)
+ 		return -1;	/* OOM */
+ 
+	- Chuck Lever
+--
+corporate:	<chuckl@netscape.com>
+personal:	<chucklever@netscape.net> or <cel@monkey.org>
+
+The Linux Scalability project:
+	http://www.citi.umich.edu/projects/linux-scalability/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
