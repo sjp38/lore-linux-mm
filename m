@@ -1,131 +1,189 @@
-Received: from raistlin.arm.linux.org.uk (root@raistlin [192.168.0.3])
-	by caramon.arm.linux.org.uk (8.9.3/8.9.3) with ESMTP id RAA00914
-	for <linux-mm@kvack.org>; Fri, 28 Apr 2000 17:47:20 +0100
-From: Russell King <rmk@arm.linux.org.uk>
-Received: (from rmk@localhost)
-	by raistlin.arm.linux.org.uk (8.7.4/8.7.3) id RAA01548
-	for linux-mm@kvack.org; Fri, 28 Apr 2000 17:41:44 +0100
-Message-Id: <200004281641.RAA01548@raistlin.arm.linux.org.uk>
-Subject: Re: Memory Test Suite v0.0.2
-Date: Fri, 28 Apr 2000 17:41:43 +0100 (BST)
-In-Reply-To: <yttitx3cgww.fsf@vexeta.dc.fi.udc.es> from "Juan J. Quintela" at Apr 28, 2000 12:34:07 AM
+Date: Fri, 28 Apr 2000 20:21:04 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
+Subject: [PATCH] 2.3.99-pre6 vm fix
+Message-ID: <Pine.LNX.4.21.0004281938300.3919-100000@duckman.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Juan J. Quintela writes:
-> Memory test suite v0.0.2
+Hi Linus,
 
-I've just been trying this package out on a NetWinder, and I've just
-deadlocked 2.3.99-pre6 - I've got 0KB memory free!  I changed misc_lib.h
-to reflect the amount of RAM I have in this machine (32MB).
+here's a patch against 2.3.99-pre6 that fixes the stability problem
+(apparently it was possible for a process to "slip through" the
+tests in swap_out() and end up with a swap_cnt of 0 which would mean
+an infinite loop in the leftshifting loop).
 
-I ran ./mmap002 twice - the first time it got a bus error.  The second
-time it didn't even make it to the first msync() call.
+It also fixes a correctness issue in kswapd. Kswapd would exit
+after one call to do_try_to_free_pages(), even if there was still
+a lot of work to do. Now kswapd will play again if there are still
+a lot of pages to free.
 
-Here is the mem and state info.  If there's anything other info you want,
-let me know - its extremely easy to cause this.
+The performance problem isn't 100% fixed yet, but the other two
+things are important enough that I thought I'd send the patch
+now instead of after the (extra long) weekend.
 
-<6>SysRq: Show Memory
-Mem-info:
-Free pages:           0kB (     0kB HighMem)
-( Free: 0, lru_cache: 6495 (64 128 192) )
-  DMA: 0*4kB 0*8kB 0*16kB 0*32kB 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB = 0kB)
-  Normal: = 0kB)
-  HighMem: = 0kB)
-Swap cache: add 14628, delete 14453, find 4642/14916
-Free swap:        59724kB
-8192 pages of RAM
-195 free pages
-684 reserved pages
-7847 pages shared
-175 pages swap cached
-0 page tables cached
-Buffer memory:      120kB
+regards,
 
-<6>SysRq: Show State
-                         free                        sibling
-  task             PC    stack   pid father child younger older
-init      D C003EC8C    16     1      0   623  (NOTLB)        
-   sig: 0 0000000000000000 0000000000000000 : X
-kswapd    D C003EC8C     0     2      1        (L-TLB)       3
-   sig: 0 0000000000000000 ffffffffffffffff : X
-kflushd   S C003EC8C     0     3      1        (L-TLB)       4     2
-   sig: 0 0000000000000000 ffffffffffffffff : X
-kupdate   S C003EC8C    12     4      1        (L-TLB)     127     3
-   sig: 0 0000000000000000 fffffffffff9ffff : X
-kerneld   S C003EC8C     0   127      1        (NOTLB)     227     4
-   sig: 0 0000000000000000 0000000000000000 : X
-pump      S C003EC8C     0   227      1        (NOTLB)     324   127
-   sig: 0 0000000000000000 0000000000000000 : X
-portmap   S C003EC8C     0   324      1        (NOTLB)     376   227
-   sig: 0 0000000000000000 0000000000000000 : X
-syslogd   D C003EC8C  1552   376      1        (NOTLB)     386   324
-   sig: 1 0000000000002000 0000000000000000 : X
-klogd     D C003EC8C  1356   386      1        (NOTLB)     401   376
-   sig: 0 0000000000000000 0000000000000000 : X
-atd       S C003EC8C     0   401      1        (NOTLB)     416   386
-   sig: 0 0000000000000000 0000000000010000 : X
-crond     D C003EC8C     0   416      1        (NOTLB)     431   401
-   sig: 0 0000000000000000 0000000000010000 : X
-inetd     S C003EC8C     4   431      1        (NOTLB)     440   416
-   sig: 0 0000000000000000 0000000000000000 : X
-sshd      S C003EC8C     0   440      1        (NOTLB)     455   431
-   sig: 0 0000000000000000 0000000000000000 : X
-xntpd     D C003EC8C     0   455      1        (NOTLB)     470   440
-   sig: 1 0000000000002000 0000000000000000 : X
-lpd       S C003EC8C     0   470      1        (NOTLB)     485   455
-   sig: 0 0000000000000000 0000000000000000 : X
-rpc.mountd  D C003EC8C     0   485      1        (NOTLB)     495   470
-   sig: 1 0000000000002000 0000000000000000 : X
-rpc.nfsd  D C003EC8C     0   495      1        (NOTLB)     535   485
-   sig: 1 0000000000002000 0000000000000000 : X
-automount  S C003EC8C     0   535      1        (NOTLB)     537   495
-   sig: 0 0000000000000000 0000000000000000 : X
-automount  S C003EC8C     0   537      1        (NOTLB)     565   535
-   sig: 0 0000000000000000 0000000000000000 : X
-sendmail  D C003EC8C     0   565      1        (NOTLB)     581   537
-   sig: 0 0000000000000000 0000000000000000 : X
-gpm       S C003EC8C     0   581      1        (NOTLB)     606   565
-   sig: 0 0000000000000000 0000000000000000 : X
-xfs       D C003EC8C  3044   606      1        (NOTLB)     618   581
-   sig: 0 0000000000000000 0000000000000000 : X
-login     S C003EC8C   180   618      1   626  (NOTLB)     619   606
-   sig: 0 0000000000000000 0000000000000000 : X
-login     S C003EC8C     0   619      1   647  (NOTLB)     620   618
-   sig: 0 0000000000000000 0000000000000000 : X
-mingetty  D C003EC8C     0   620      1        (NOTLB)     621   619
-   sig: 0 0000000000000000 0000000000000000 : X
-mingetty  S C003EC8C     0   621      1        (NOTLB)     622   620
-   sig: 0 0000000000000000 0000000000000000 : X
-mingetty  S C003EC8C     0   622      1        (NOTLB)     623   621
-   sig: 0 0000000000000000 0000000000000000 : X
-mingetty  S C003EC8C   480   623      1        (NOTLB)           622
-   sig: 0 0000000000000000 0000000000000000 : X
-bash      S C003EC8C   968   626    618   666  (NOTLB)        
-   sig: 0 0000000000000000 0000000000010000 : X
-bash      S C003EC8C     0   647    619   661  (NOTLB)        
-   sig: 0 0000000000000000 0000000000010000 : X
-top       D C003EC8C     8   661    647        (NOTLB)        
-   sig: 0 0000000000000000 0000000000000000 : X
-strace    S C003EC8C     0   666    626   667  (NOTLB)        
-   sig: 0 0000000000000000 0000000000000000 : X
-mmap002   D C003EC8C     0   667    666        (NOTLB)        
-   sig: 0 0000000000000000 0000000000000000 : X
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
 
-   _____
-  |_____| ------------------------------------------------- ---+---+-
-  |   |         Russell King        rmk@arm.linux.org.uk      --- ---
-  | | | |   http://www.arm.linux.org.uk/~rmk/aboutme.html    /  /  |
-  | +-+-+                                                     --- -+-
-  /   |               THE developer of ARM Linux              |+| /|\
- /  | | |                                                     ---  |
-    +-+-+ -------------------------------------------------  /\\\  |
+
+--- linux-2.3.99-pre6/mm/filemap.c.orig	Thu Apr 27 12:49:05 2000
++++ linux-2.3.99-pre6/mm/filemap.c	Fri Apr 28 19:49:01 2000
+@@ -238,14 +238,13 @@
+ 
+ int shrink_mmap(int priority, int gfp_mask, zone_t *zone)
+ {
+-	int ret = 0, loop = 0, count;
++	int ret = 0, count;
+ 	LIST_HEAD(young);
+ 	LIST_HEAD(old);
+ 	LIST_HEAD(forget);
+ 	struct list_head * page_lru, * dispose;
+ 	struct page * page = NULL;
+ 	struct zone_struct * p_zone;
+-	int maxloop = 256 >> priority;
+ 	
+ 	if (!zone)
+ 		BUG();
+@@ -262,30 +261,26 @@
+ 		list_del(page_lru);
+ 		p_zone = page->zone;
+ 
+-		/*
+-		 * These two tests are there to make sure we don't free too
+-		 * many pages from the "wrong" zone. We free some anyway,
+-		 * they are the least recently used pages in the system.
+-		 * When we don't free them, leave them in &old.
+-		 */
+-		dispose = &old;
+-		if (p_zone != zone && (loop > (maxloop / 4) ||
+-				p_zone->free_pages > p_zone->pages_high))
+-			goto dispose_continue;
++		/* This LRU list only contains a few pages from the system,
++		 * so we must fail and let swap_out() refill the list if
++		 * there aren't enough freeable pages on the list */
+ 
+ 		/* The page is in use, or was used very recently, put it in
+ 		 * &young to make sure that we won't try to free it the next
+ 		 * time */
+ 		dispose = &young;
+-
+ 		if (test_and_clear_bit(PG_referenced, &page->flags))
+ 			goto dispose_continue;
+ 
+-		count--;
++		if (p_zone->free_pages > p_zone->pages_high)
++			goto dispose_continue;
++
+ 		if (!page->buffers && page_count(page) > 1)
+ 			goto dispose_continue;
+ 
+-		/* Page not used -> free it; if that fails -> &old */
++		count--;
++		/* Page not used -> free it or put it on the old list
++		 * so it gets freed first the next time */
+ 		dispose = &old;
+ 		if (TryLockPage(page))
+ 			goto dispose_continue;
+@@ -375,9 +370,8 @@
+ 	/* nr_lru_pages needs the spinlock */
+ 	nr_lru_pages--;
+ 
+-	loop++;
+ 	/* wrong zone?  not looped too often?    roll again... */
+-	if (page->zone != zone && loop < maxloop)
++	if (page->zone != zone && count)
+ 		goto again;
+ 
+ out:
+--- linux-2.3.99-pre6/mm/page_alloc.c.orig	Thu Apr 27 12:57:20 2000
++++ linux-2.3.99-pre6/mm/page_alloc.c	Fri Apr 28 12:29:08 2000
+@@ -285,9 +285,11 @@
+ 		goto allocate_ok;
+ 
+ 	/* If we're a memory hog, unmap some pages */
+-	if (current->hog && low_on_memory &&
+-			(gfp_mask & __GFP_WAIT))
+-		swap_out(4, gfp_mask);
++	if (current->hog && low_on_memory && (gfp_mask & __GFP_WAIT)) {
++	//	swap_out(6, gfp_mask);
++	//	shm_swap(6, gfp_mask, (zone_t *)(zone));
++		try_to_free_pages(gfp_mask, (zone_t *)(zone));
++	}
+ 
+ 	/*
+ 	 * (If anyone calls gfp from interrupts nonatomically then it
+--- linux-2.3.99-pre6/mm/vmscan.c.orig	Thu Apr 27 12:57:58 2000
++++ linux-2.3.99-pre6/mm/vmscan.c	Fri Apr 28 19:43:37 2000
+@@ -387,8 +387,8 @@
+ 				if (!p->swappable || !mm || mm->rss <= 0)
+ 					continue;
+ 				/* small processes are swapped out less */
+-				while ((mm->swap_cnt << 2 * (i + 1) < max_cnt))
+-					i++;
++				while ((mm->swap_cnt << 2 * (i + 1) < max_cnt)
++						&& i++ < 10)
+ 				mm->swap_cnt >>= i;
+ 				mm->swap_cnt += i; /* if swap_cnt reaches 0 */
+ 				/* we're big -> hog treatment */
+@@ -437,14 +437,13 @@
+ {
+ 	int priority;
+ 	int count = SWAP_CLUSTER_MAX;
+-	int ret;
+ 
+ 	/* Always trim SLAB caches when memory gets low. */
+ 	kmem_cache_reap(gfp_mask);
+ 
+ 	priority = 6;
+ 	do {
+-		while ((ret = shrink_mmap(priority, gfp_mask, zone))) {
++		while (shrink_mmap(priority, gfp_mask, zone)) {
+ 			if (!--count)
+ 				goto done;
+ 		}
+@@ -467,9 +466,7 @@
+ 			}
+ 		}
+ 
+-		/* Then, try to page stuff out..
+-		 * We use swapcount here because this doesn't actually
+-		 * free pages */
++		/* Then, try to page stuff out.. */
+ 		while (swap_out(priority, gfp_mask)) {
+ 			if (!--count)
+ 				goto done;
+@@ -530,12 +527,16 @@
+ 		pgdat = pgdat_list;
+ 		while (pgdat) {
+ 			for (i = 0; i < MAX_NR_ZONES; i++) {
+-				zone = pgdat->node_zones + i;
++			    int count = SWAP_CLUSTER_MAX;
++			    zone = pgdat->node_zones + i;
++			    do {
+ 				if (tsk->need_resched)
+ 					schedule();
+ 				if ((!zone->size) || (!zone->zone_wake_kswapd))
+ 					continue;
+ 				do_try_to_free_pages(GFP_KSWAPD, zone);
++			   } while (zone->free_pages < zone->pages_low &&
++					   --count);
+ 			}
+ 			pgdat = pgdat->node_next;
+ 		}
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
