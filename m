@@ -1,42 +1,89 @@
-Date: Fri, 24 Aug 2001 14:07:49 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: SWAP_MAP_MAX: How?
-Message-ID: <20010824140749.C4389@redhat.com>
-References: <20010824121951.A4389@redhat.com> <Pine.LNX.4.21.0108241323280.1044-100000@localhost.localdomain>
-Mime-Version: 1.0
+Message-ID: <20010824163807.94927.qmail@web14311.mail.yahoo.com>
+Date: Fri, 24 Aug 2001 09:38:07 -0700 (PDT)
+From: Kanoj Sarcar <kanojsarcar@yahoo.com>
+Subject: Re: copy_to_user problem
+In-Reply-To: <20010824054133.61424.qmail@web14204.mail.yahoo.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0108241323280.1044-100000@localhost.localdomain>; from hugh@veritas.com on Fri, Aug 24, 2001 at 01:42:59PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Ben LaHaise <bcrl@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: PRASENJIT CHAKRABORTY <pras_chakra@yahoo.com>, linux-mm@kvack.org
+Cc: arund@bellatlantic.net
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Can you try copy_to_user(), and not __copy_to_user().
 
-On Fri, Aug 24, 2001 at 01:42:59PM +0100, Hugh Dickins wrote:
+Kanoj
 
-> Doesn't it need an anonymous page mapped multiple (e.g. 256) times
-> into multiple (e.g. 256) mms to reach the limit?
+--- PRASENJIT CHAKRABORTY <pras_chakra@yahoo.com>
+wrote:
+> Hello All,
+> 
+>    I posted this problem some days back but still
+> have
+> not received any solution.
+> 
+> So sorry for the resend again.
+> 
+> I am developing a driver. Though the driver is
+> functioning well but I am stuck up at the point of
+> transferring something from kernel to user space.
+> 
+> I am using __copy_to_user() and before calling this
+> I
+> am checking the validity of user address with
+> verify_area().
+> 
+> Now the problem is that __copy_to_user() sometimes
+> return value > 0 which indicates a failure. This
+> happens everytime the user address is not currently
+> present in the Physical Page i.e the when
+> __copy_to_user tries to copy to a page which is not
+> currently paged in then it fails.
+> 
+> Moreover if I access the user buffer from my user
+> program before passing it to the kernel for transfer
+> then __copy_to_user performs it happily or if I lock
+> that page through mlock() system call. I read the
+> documentation but nowhere I found that I need to do
+> something before __copy_to_user().
+> 
+> The problem for the time being has been workarounded
+> by putting __verify_write() before __copy_to_user.
+> 
+> So I would like to know what is wrong with my
+> approach
+> or is it due to some other issue which is unknown to
+> me (e.g corruption etc).
+> 
+> I shall be grateful to you all if you kindly help me
+> out of this.
+> 
+> Thanks n Regards,
+> 
+> Prasenjit
+> 
+> 
+> 
+> 
+> 
+> __________________________________________________
+> Do You Yahoo!?
+> Make international calls for as low as $.04/minute
+> with Yahoo! Messenger
+> http://phonecard.yahoo.com/
+> --
+> To unsubscribe, send a message with 'unsubscribe
+> linux-mm' in
+> the body to majordomo@kvack.org.  For more info on
+> Linux MM,
+> see: http://www.linux-mm.org/
 
-That would do it, yes.
 
-> And there's an obvious
-> way that can happen, by multiply attaching a piece of IPC Shared Memory,
-> and multiply forking.  But in that case it's the shared memory object
-> which gets the large number of references, and the swap counts stay 1.
-
-Indeed --- sysV shm swapping is eccentric. :-)
-
-There _was_ once a way to do this --- mmap()ing another process's
-/proc/*/mem would allow you to get a swap page mapped into memory
-multiple times, but we removed support for that way back in pre-2.2
-days.  I don't think we allow that any more, unless it's been
-reenabled again.
-
-Cheers,
- Stephen
+__________________________________________________
+Do You Yahoo!?
+Make international calls for as low as $.04/minute with Yahoo! Messenger
+http://phonecard.yahoo.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
