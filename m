@@ -1,44 +1,38 @@
+Date: Thu, 4 Jan 2001 11:34:57 -0200 (BRDT)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] add PF_MEMALLOC to __alloc_pages()
-References: <Pine.LNX.4.21.0101031258070.1403-100000@duckman.distro.conectiva>
-Reply-To: zlatko@iskon.hr
-From: Zlatko Calusic <zlatko@iskon.hr>
-Date: 04 Jan 2001 00:03:13 +0100
-In-Reply-To: Rik van Riel's message of "Wed, 3 Jan 2001 13:03:27 -0200 (BRDT)"
-Message-ID: <87g0j0qlvy.fsf@atlas.iskon.hr>
+In-Reply-To: <87g0j0qlvy.fsf@atlas.iskon.hr>
+Message-ID: <Pine.LNX.4.21.0101041134300.1188-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: Zlatko Calusic <zlatko@iskon.hr>
 Cc: Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Mike Galbraith <mikeg@wen-online.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
+On 4 Jan 2001, Zlatko Calusic wrote:
+> Rik van Riel <riel@conectiva.com.br> writes:
+> 
+> > +			current->flags |= PF_MEMALLOC;
+> >  			try_to_free_pages(gfp_mask);
+> > +			current->flags &= ~PF_MEMALLOC;
+> 
+> Hm, try_to_free_pages already sets the PF_MEMALLOC flag!
 
-> Hi Linus, Alan, Mike,
-> 
-> the following patch sets PF_MEMALLOC for the current task
-> in __alloc_pages() to avoid infinite recursion when we try
-> to free memory from __alloc_pages().
-> 
-> Please apply the patch below, which fixes this (embarrasing)
-> bug...
-> 
-[snip]
->  		 * free ourselves...
->  		 */
->  		} else if (gfp_mask & __GFP_WAIT) {
-> +			current->flags |= PF_MEMALLOC;
->  			try_to_free_pages(gfp_mask);
-> +			current->flags &= ~PF_MEMALLOC;
->  			memory_pressure++;
->  			if (!order)
->  				goto try_again;
-> 
+Yes. Linus already pointed out this error to me
+yesterday (and his latest tree should be fine).
 
-Hm, try_to_free_pages already sets the PF_MEMALLOC flag!
--- 
-Zlatko
+regards,
+
+Rik
+--
+Hollywood goes for world dumbination,
+	Trailer at 11.
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
