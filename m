@@ -1,234 +1,249 @@
-Date: Mon, 13 Mar 2000 16:32:36 -0500 (EST)
-From: Chuck Lever <cel@monkey.org>
-Subject: Re: [PATCH] mincore for i386, against 2.3.51
-In-Reply-To: <Pine.LNX.4.10.10003131229580.1257-100000@penguin.transmeta.com>
-Message-ID: <Pine.BSO.4.10.10003131630570.12643-100000@funky.monkey.org>
+Date: Mon, 13 Mar 2000 17:50:50 -0500 (EST)
+From: Ben LaHaise <bcrl@redhat.com>
+Subject: [patch] first bit of vm balancing fixes for 2.3.52-1
+Message-ID: <Pine.LNX.4.21.0003131743410.6254-100000@devserv.devel.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 13 Mar 2000, Linus Torvalds wrote:
-> On Mon, 13 Mar 2000, Chuck Lever wrote:
-> > > So I'd prefer something that does not have the "incore" function at all,
-> > > and if that convinces somebody else to change shm to use the address_space
-> > > stuff to get a working mincore(), all the better. Ok?
-> > 
-> > hmm.  i created the "incore" method because mincore needs to synchronize
-> > with the swapping method used for each of the different vma types.  this
-> > is different for shm's vs. mapped files -- they both use locking methods
-> > that are independent of one another.
-> 
-> But that's exactly my point. The shm version is bad, and it will be
-> eventually removed ;)
+This is the first little bit of a few vm balancing patches I've been
+working on.  It does two main things: moves the lru_cache list into the
+per-zone structure, and slightly reworks the kswapd wakeup logic so the
+zone_wake_kswapd flag is cleared in free_pages_ok.  Moving the lru_cache
+list into the zone structure means we can make much better progress when
+trying to free a specific type of memory.  Moving the clearing of the
+zone_wake_kswapd flag into the free_pages routine stops kswapd from
+continuing to swap out ad nausium: my box will discard the entire page
+cache when it hits low memory when doing a simple sequential read.  With
+this patch in place it hovers around 3MB free as it should.
 
-ok, try this on for size.
+		-ben
 
-diff -ruN Linux-2.3.51/arch/i386/kernel/entry.S linux/arch/i386/kernel/entry.S
---- Linux-2.3.51/arch/i386/kernel/entry.S	Sun Mar 12 18:42:20 2000
-+++ linux/arch/i386/kernel/entry.S	Sun Mar 12 18:47:04 2000
-@@ -638,6 +638,7 @@
- 	.long SYMBOL_NAME(sys_setfsuid)		/* 215 */
- 	.long SYMBOL_NAME(sys_setfsgid)
- 	.long SYMBOL_NAME(sys_pivot_root)
-+	.long SYMBOL_NAME(sys_mincore)
+diff -ur 2.3.52-1/include/linux/mmzone.h linux/include/linux/mmzone.h
+--- 2.3.52-1/include/linux/mmzone.h	Mon Mar 13 15:16:25 2000
++++ linux/include/linux/mmzone.h	Mon Mar 13 16:08:21 2000
+@@ -15,8 +15,8 @@
+ #define MAX_ORDER 10
  
+ typedef struct free_area_struct {
+-	struct list_head free_list;
+-	unsigned int * map;
++	struct list_head	free_list;
++	unsigned int		*map;
+ } free_area_t;
+ 
+ struct pglist_data;
+@@ -25,30 +25,31 @@
+ 	/*
+ 	 * Commonly accessed fields:
+ 	 */
+-	spinlock_t lock;
+-	unsigned long offset;
+-	unsigned long free_pages;
+-	char low_on_memory;
+-	char zone_wake_kswapd;
+-	unsigned long pages_min, pages_low, pages_high;
++	spinlock_t		lock;
++	unsigned long		offset;
++	unsigned long		free_pages;
++	char			low_on_memory;
++	char			zone_wake_kswapd;
++	unsigned long		pages_min, pages_low, pages_high;
++	struct list_head	lru_cache;
  
  	/*
-@@ -646,6 +647,6 @@
- 	 * entries. Don't panic if you notice that this hasn't
- 	 * been shrunk every time we add a new system call.
+ 	 * free areas of different sizes
  	 */
--	.rept NR_syscalls-217
-+	.rept NR_syscalls-218
- 		.long SYMBOL_NAME(sys_ni_syscall)
- 	.endr
-diff -ruN Linux-2.3.51/include/asm-i386/unistd.h linux/include/asm-i386/unistd.h
---- Linux-2.3.51/include/asm-i386/unistd.h	Wed Jan 26 15:32:02 2000
-+++ linux/include/asm-i386/unistd.h	Mon Mar 13 15:52:08 2000
-@@ -222,6 +222,7 @@
- #define __NR_setfsuid32		215
- #define __NR_setfsgid32		216
- #define __NR_pivot_root		217
-+#define __NR_mincore		218
+-	free_area_t free_area[MAX_ORDER];
++	free_area_t		free_area[MAX_ORDER];
  
- /* user-visible error numbers are in the range -1 - -124: see <asm-i386/errno.h> */
+ 	/*
+ 	 * rarely used fields:
+ 	 */
+-	char * name;
+-	unsigned long size;
++	char			*name;
++	unsigned long		size;
+ 	/*
+ 	 * Discontig memory support fields.
+ 	 */
+-	struct pglist_data *zone_pgdat;
+-	unsigned long zone_start_paddr;
+-	unsigned long zone_start_mapnr;
+-	struct page * zone_mem_map;
++	struct pglist_data	*zone_pgdat;
++	unsigned long		zone_start_paddr;
++	unsigned long		zone_start_mapnr;
++	struct page		*zone_mem_map;
+ } zone_t;
  
-diff -ruN Linux-2.3.51/mm/filemap.c linux/mm/filemap.c
---- Linux-2.3.51/mm/filemap.c	Sun Mar 12 18:42:48 2000
-+++ linux/mm/filemap.c	Mon Mar 13 16:13:58 2000
-@@ -1727,6 +1727,160 @@
- 	return error;
+ #define ZONE_DMA		0
+diff -ur 2.3.52-1/include/linux/swap.h linux/include/linux/swap.h
+--- 2.3.52-1/include/linux/swap.h	Mon Mar 13 15:16:26 2000
++++ linux/include/linux/swap.h	Mon Mar 13 16:38:31 2000
+@@ -67,7 +67,6 @@
+ FASTCALL(unsigned int nr_free_buffer_pages(void));
+ FASTCALL(unsigned int nr_free_highpages(void));
+ extern int nr_lru_pages;
+-extern struct list_head lru_cache;
+ extern atomic_t nr_async_pages;
+ extern struct address_space swapper_space;
+ extern atomic_t page_cache_size;
+@@ -167,7 +166,7 @@
+ #define	lru_cache_add(page)			\
+ do {						\
+ 	spin_lock(&pagemap_lru_lock);		\
+-	list_add(&(page)->lru, &lru_cache);	\
++	list_add(&(page)->lru, &page->zone->lru_cache);	\
+ 	nr_lru_pages++;				\
+ 	spin_unlock(&pagemap_lru_lock);		\
+ } while (0)
+diff -ur 2.3.52-1/mm/filemap.c linux/mm/filemap.c
+--- 2.3.52-1/mm/filemap.c	Sun Mar 12 18:03:02 2000
++++ linux/mm/filemap.c	Mon Mar 13 16:40:04 2000
+@@ -220,15 +220,18 @@
+ 	struct list_head * page_lru, * dispose;
+ 	struct page * page;
+ 
++	if (!zone)
++		BUG();
++
+ 	count = nr_lru_pages / (priority+1);
+ 
+ 	spin_lock(&pagemap_lru_lock);
+ 
+-	while (count > 0 && (page_lru = lru_cache.prev) != &lru_cache) {
++	while (count > 0 && (page_lru = zone->lru_cache.prev) != &zone->lru_cache) {
+ 		page = list_entry(page_lru, struct page, lru);
+ 		list_del(page_lru);
+ 
+-		dispose = &lru_cache;
++		dispose = &zone->lru_cache;
+ 		if (test_and_clear_bit(PG_referenced, &page->flags))
+ 			/* Roll the page at the top of the lru list,
+ 			 * we could also be more aggressive putting
+@@ -355,8 +358,8 @@
+ 	nr_lru_pages--;
+ 
+ out:
+-	list_splice(&young, &lru_cache);
+-	list_splice(&old, lru_cache.prev);
++	list_splice(&young, &zone->lru_cache);
++	list_splice(&old, zone->lru_cache.prev);
+ 
+ 	spin_unlock(&pagemap_lru_lock);
+ 
+diff -ur 2.3.52-1/mm/page_alloc.c linux/mm/page_alloc.c
+--- 2.3.52-1/mm/page_alloc.c	Fri Mar 10 16:11:22 2000
++++ linux/mm/page_alloc.c	Mon Mar 13 17:17:53 2000
+@@ -26,7 +26,6 @@
+ 
+ int nr_swap_pages = 0;
+ int nr_lru_pages;
+-LIST_HEAD(lru_cache);
+ pg_data_t *pgdat_list = (pg_data_t *)0;
+ 
+ static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
+@@ -59,6 +58,19 @@
+  */
+ #define BAD_RANGE(zone,x) (((zone) != (x)->zone) || (((x)-mem_map) < (zone)->offset) || (((x)-mem_map) >= (zone)->offset+(zone)->size))
+ 
++static inline unsigned long classfree(zone_t *zone)
++{
++	unsigned long free = 0;
++	zone_t *z = zone->zone_pgdat->node_zones;
++
++	while (z != zone) {
++		free += z->free_pages;
++		z++;
++	}
++	free += zone->free_pages;
++	return(free);
++}
++
+ /*
+  * Buddy system. Hairy. You really aren't expected to understand this
+  *
+@@ -135,6 +147,9 @@
+ 	memlist_add_head(&(base + page_idx)->list, &area->free_list);
+ 
+ 	spin_unlock_irqrestore(&zone->lock, flags);
++
++	if (classfree(zone) > zone->pages_high)
++		zone->zone_wake_kswapd = 0;
  }
  
-+/*
-+ * Later we can get more picky about what "in core" means precisely.
-+ * For now, simply check to see if the page is in the page cache,
-+ * and is up to date; i.e. that no page-in operation would be required
-+ * at this time if an application were to map and access this page.
-+ */
-+static unsigned char mincore_page(struct vm_area_struct * vma,
-+	unsigned long pgoff)
-+{
-+	unsigned char present = 0;
-+	struct address_space * as = &vma->vm_file->f_dentry->d_inode->i_data;
-+	struct page * page, ** hash = page_hash(as, pgoff);
-+
-+	spin_lock(&pagecache_lock);
-+	page = __find_page_nolock(as, pgoff, *hash);
-+	if ((page) && (Page_Uptodate(page)))
-+		present = 1;
-+	spin_unlock(&pagecache_lock);
-+
-+	return present;
-+}
-+
-+static long mincore_vma(struct vm_area_struct * vma,
-+	unsigned long start, unsigned long end, unsigned char * vec)
-+{
-+	long error, i, remaining;
-+	unsigned char * tmp;
-+
-+	error = -ENOMEM;
-+	if (!vma->vm_file)
-+		return error;
-+
-+	start = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-+	if (end > vma->vm_end)
-+		end = vma->vm_end;
-+	end = ((end - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-+
-+	error = -EAGAIN;
-+	tmp = (unsigned char *) __get_free_page(GFP_KERNEL);
-+	if (!tmp)
-+		return error;
-+
-+	/* (end - start) is # of pages, and also # of bytes in "vec */
-+	remaining = (end - start),
-+
-+	error = 0;
-+	for (i = 0; remaining > 0; remaining -= PAGE_SIZE, i++) {
-+		int j = 0;
-+		long thispiece = (remaining < PAGE_SIZE) ?
-+						remaining : PAGE_SIZE;
-+
-+		while (j < thispiece)
-+			tmp[j++] = mincore_page(vma, start++);
-+
-+		if (copy_to_user(vec + PAGE_SIZE * i, tmp, thispiece)) {
-+			error = -EFAULT;
-+			break;
-+		}
-+	}
-+
-+	free_page((unsigned long) tmp);
-+	return error;
-+}
-+
-+/*
-+ * The mincore(2) system call.
-+ *
-+ * mincore() returns the memory residency status of the pages in the
-+ * current process's address space specified by [addr, addr + len).
-+ * The status is returned in a vector of bytes.  The least significant
-+ * bit of each byte is 1 if the referenced page is in memory, otherwise
-+ * it is zero.
-+ *
-+ * Because the status of a page can change after mincore() checks it
-+ * but before it returns to the application, the returned vector may
-+ * contain stale information.  Only locked pages are guaranteed to
-+ * remain in memory.
-+ *
-+ * return values:
-+ *  zero    - success
-+ *  -EFAULT - vec points to an illegal address
-+ *  -EINVAL - addr is not a multiple of PAGE_CACHE_SIZE,
-+ *		or len has a nonpositive value
-+ *  -ENOMEM - Addresses in the range [addr, addr + len] are
-+ *		invalid for the address space of this process, or
-+ *		specify one or more pages which are not currently
-+ *		mapped
-+ *  -EAGAIN - A kernel resource was temporarily unavailable.
-+ */
-+asmlinkage long sys_mincore(unsigned long start, size_t len,
-+	unsigned char * vec)
-+{
-+	int index = 0;
-+	unsigned long end;
-+	struct vm_area_struct * vma;
-+	int unmapped_error = 0;
-+	long error = -EINVAL;
-+
-+	down(&current->mm->mmap_sem);
-+
-+	if (start & ~PAGE_MASK)
-+		goto out;
-+	len = (len + ~PAGE_MASK) & PAGE_MASK;
-+	end = start + len;
-+	if (end < start)
-+		goto out;
-+
-+	error = 0;
-+	if (end == start)
-+		goto out;
-+
-+	/*
-+	 * If the interval [start,end) covers some unmapped address
-+	 * ranges, just ignore them, but return -ENOMEM at the end.
-+	 */
-+	vma = find_vma(current->mm, start);
-+	for (;;) {
-+		/* Still start < end. */
-+		error = -ENOMEM;
-+		if (!vma)
-+			goto out;
-+
-+		/* Here start < vma->vm_end. */
-+		if (start < vma->vm_start) {
-+			unmapped_error = -ENOMEM;
-+			start = vma->vm_start;
-+		}
-+
-+		/* Here vma->vm_start <= start < vma->vm_end. */
-+		if (end <= vma->vm_end) {
-+			if (start < end) {
-+				error = mincore_vma(vma, start, end,
-+							&vec[index]);
-+				if (error)
-+					goto out;
-+			}
-+			error = unmapped_error;
-+			goto out;
-+		}
-+
-+		/* Here vma->vm_start <= start < vma->vm_end < end. */
-+		error = mincore_vma(vma, start, vma->vm_end, &vec[index]);
-+		if (error)
-+			goto out;
-+		index += (vma->vm_end - start) >> PAGE_CACHE_SHIFT;
-+		start = vma->vm_end;
-+		vma = vma->vm_next;
-+	}
-+
-+out:
-+	up(&current->mm->mmap_sem);
-+	return error;
-+}
-+
- struct page *read_cache_page(struct address_space *mapping,
- 				unsigned long index,
- 				int (*filler)(void *,struct page*),
-
-	- Chuck Lever
---
-corporate:	<chuckl@netscape.com>
-personal:	<chucklever@netscape.net> or <cel@monkey.org>
-
-The Linux Scalability project:
-	http://www.citi.umich.edu/projects/linux-scalability/
+ #define MARK_USED(index, order, area) \
+@@ -201,19 +216,6 @@
+ 	return NULL;
+ }
+ 
+-static inline unsigned long classfree(zone_t *zone)
+-{
+-	unsigned long free = 0;
+-	zone_t *z = zone->zone_pgdat->node_zones;
+-
+-	while (z != zone) {
+-		free += z->free_pages;
+-		z++;
+-	}
+-	free += zone->free_pages;
+-	return(free);
+-}
+-
+ static inline int zone_balance_memory (zone_t *zone, int gfp_mask)
+ {
+ 	int freed;
+@@ -263,21 +265,12 @@
+ 		{
+ 			unsigned long free = classfree(z);
+ 
+-			if (free > z->pages_high)
+-			{
+-				if (z->low_on_memory)
+-					z->low_on_memory = 0;
+-				z->zone_wake_kswapd = 0;
+-			}
+-			else
++			if (free <= z->pages_high)
+ 			{
+ 				extern wait_queue_head_t kswapd_wait;
+ 
+-				if (free <= z->pages_low) {
+-					z->zone_wake_kswapd = 1;
+-					wake_up_interruptible(&kswapd_wait);
+-				} else
+-					z->zone_wake_kswapd = 0;
++				z->zone_wake_kswapd = 1;
++				wake_up_interruptible(&kswapd_wait);
+ 
+ 				if (free <= z->pages_min)
+ 					z->low_on_memory = 1;
+@@ -585,6 +578,7 @@
+ 			unsigned long bitmap_size;
+ 
+ 			memlist_init(&zone->free_area[i].free_list);
++			memlist_init(&zone->lru_cache);
+ 			mask += mask;
+ 			size = (size + ~mask) & mask;
+ 			bitmap_size = size >> i;
+diff -ur 2.3.52-1/mm/vmscan.c linux/mm/vmscan.c
+--- 2.3.52-1/mm/vmscan.c	Mon Feb 28 10:44:22 2000
++++ linux/mm/vmscan.c	Mon Mar 13 17:07:23 2000
+@@ -504,8 +504,7 @@
+ 			while (pgdat) {
+ 				for (i = 0; i < MAX_NR_ZONES; i++) {
+ 					zone = pgdat->node_zones + i;
+-					if ((!zone->size) || 
+-							(!zone->zone_wake_kswapd))
++					if ((!zone->size) || (!zone->zone_wake_kswapd))
+ 						continue;
+ 					do_try_to_free_pages(GFP_KSWAPD, zone);
+ 				}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
