@@ -1,58 +1,48 @@
+Date: Wed, 4 Feb 2004 18:04:42 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [Bugme-new] [Bug 2019] New: Bug from the mm subsystem involving
-	X  (fwd)
-From: Keith Mannthey <kmannth@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.58.0402041719300.2086@home.osdl.org>
-References: <51080000.1075936626@flay>
-	<Pine.LNX.4.58.0402041539470.2086@home.osdl.org> <60330000.1075939958@flay>
-	<64260000.1075941399@flay> <Pine.LNX.4.58.0402041639420.2086@home.osdl.org>
-	<20040204165620.3d608798.akpm@osdl.org>
-	<Pine.LNX.4.58.0402041719300.2086@home.osdl.org>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 04 Feb 2004 17:56:49 -0800
-Message-Id: <1075946211.13163.18962.camel@dyn318004bld.beaverton.ibm.com>
-Mime-Version: 1.0
+ X  (fwd)
+In-Reply-To: <1075946211.13163.18962.camel@dyn318004bld.beaverton.ibm.com>
+Message-ID: <Pine.LNX.4.58.0402041800320.2086@home.osdl.org>
+References: <51080000.1075936626@flay> <Pine.LNX.4.58.0402041539470.2086@home.osdl.org>
+ <60330000.1075939958@flay> <64260000.1075941399@flay>
+ <Pine.LNX.4.58.0402041639420.2086@home.osdl.org> <20040204165620.3d608798.akpm@osdl.org>
+  <Pine.LNX.4.58.0402041719300.2086@home.osdl.org>
+ <1075946211.13163.18962.camel@dyn318004bld.beaverton.ibm.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
+To: Keith Mannthey <kmannth@us.ibm.com>
 Cc: Andrew Morton <akpm@osdl.org>, "Martin J. Bligh" <mbligh@aracnet.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-02-04 at 17:29, Linus Torvalds wrote:
+
+On Wed, 4 Feb 2004, Keith Mannthey wrote:
 > 
-> So it does need to be fixed, and if it ends up being a noticeable
-> perofmance problem, then we can look at the hot-paths one by one and see
-> if we can avoid using it. We probably can, most of the time.
-> 
+> Martin sent me a patch that fixed the X panics (NUMA and DISCONTIG
+> enabled).  (Thanks Martin!) I don't have the same X panics and issues I
+> had before. I don't know if this will work for the generic case. It
+> compiles with a simple memory situation just fine but I didn't boot it. 
 
-Martin sent me a patch that fixed the X panics (NUMA and DISCONTIG
-enabled).  (Thanks Martin!) I don't have the same X panics and issues I
-had before. I don't know if this will work for the generic case. It
-compiles with a simple memory situation just fine but I didn't boot it. 
+Looks ok, but the thing should be made a function (possibly inline, 
+depending on how big the code generated ends up being). As it is, it now 
+uses its arguments several times, and while I don't see anything where 
+that could screw up, it's just a tad scary.
 
+Also, related to this whole mess, what the _heck_ is this in mm/rmap.c:
 
-diff -purN -X /home/mbligh/.diff.exclude virgin/include/asm-i386/mmzone.h pfn_valid/include/asm-i386/mmzone.h
---- virgin/include/asm-i386/mmzone.h    2003-10-01 11:48:22.000000000 -0700
-+++ pfn_valid/include/asm-i386/mmzone.h 2004-02-04 16:39:12.000000000 -0800
-@@ -84,14 +84,8 @@ extern struct pglist_data *node_data[];
-                + __zone->zone_start_pfn;                               \
- })
- #define pmd_page(pmd)          (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
--/*
-- * pfn_valid should be made as fast as possible, and the current definition 
-- * is valid for machines that are NUMA, but still contiguous, which is what
-- * is currently supported. A more generalised, but slower definition would
-- * be something like this - mbligh:
-- * ( pfn_to_pgdat(pfn) && ((pfn) < node_end_pfn(pfn_to_nid(pfn))) ) 
-- */ 
--#define pfn_valid(pfn)          ((pfn) < num_physpages)
-+
-+#define pfn_valid(pfn) ( pfn_to_pgdat(pfn) && ((pfn) < node_end_pfn(pfn_to_nid(pfn))) ) 
- 
- /*
-  * generic node memory support, the following assumptions apply:
+        if (!pfn_valid(page_to_pfn(page)) || PageReserved(page))
+                return pte_chain;
 
+that "pfn_valid(page_to_pfn(page))" just looks totally nonsensical. Can
+somebody really pass in random page pointers to this thing, and if so, are
+they guaranteed to be "not-random enough" to not cause bogus behaviour
+when the "page_to_pfn()" happens to be valid..
 
+If VM_IO gets rid of this, then we should immediately apply the patch.
+
+			Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
