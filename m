@@ -1,39 +1,74 @@
-Date: Tue, 26 Sep 2000 07:17:52 -0600
+Date: Tue, 26 Sep 2000 07:30:15 -0600
 From: yodaiken@fsmlabs.com
 Subject: Re: the new VMt
-Message-ID: <20000926071752.A22876@hq.fsmlabs.com>
-References: <20000925143523.B19257@hq.fsmlabs.com> <E13df92-0005Zp-00@the-village.bc.nu> <20000925150744.A20586@hq.fsmlabs.com> <20000926105423.D1638@redhat.com>
+Message-ID: <20000926073015.B22876@hq.fsmlabs.com>
+References: <20000925143523.B19257@hq.fsmlabs.com> <Pine.LNX.3.96.1000925164556.9644A-100000@kanga.kvack.org> <20000925151250.B20586@hq.fsmlabs.com> <20000926110736.E1638@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <20000926105423.D1638@redhat.com>; from Stephen C. Tweedie on Tue, Sep 26, 2000 at 10:54:23AM +0100
+In-Reply-To: <20000926110736.E1638@redhat.com>; from Stephen C. Tweedie on Tue, Sep 26, 2000 at 11:07:36AM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: yodaiken@fsmlabs.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Jamie Lokier <lk@tantalophile.demon.co.uk>, mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: yodaiken@fsmlabs.com, "Benjamin C.R. LaHaise" <blah@kvack.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 26, 2000 at 10:54:23AM +0100, Stephen C. Tweedie wrote:
-> Beancounter is a framework for user-level accounting.  _What_ you
-> account is up to the callers.  Maybe this has been a miscommunication,
-> but beancounter is all about allowing callers to account for stuff
-> before allocation, not about having the page allocation functions
-> themselves enforce quotas.
+On Tue, Sep 26, 2000 at 11:07:36AM +0100, Stephen C. Tweedie wrote:
+> Hi,
+> 
+> On Mon, Sep 25, 2000 at 03:12:50PM -0600, yodaiken@fsmlabs.com wrote:
+> > > > 
+> > > > I'm not too sure of what you have in mind, but if it is
+> > > >      "process creates vast virtual space to generate many page table
+> > > >       entries -- using mmap"
+> > > > the answer is, virtual address space quotas and mmap should kill 
+> > > > the process on low mem for page tables.
+> > > 
+> > > No.  Page tables are not freed after munmap (and for good reason).  The
+> > > counting of page table "beans" is critical.
+> > 
+> > I've seen the assertion before, reasons would be interesting.
+> 
+> Reason 1: under DoS attack, you want to target not the process using
+> the most resources, but the *user* using the most resources (else a
+> fork-bomb style attack can work around your OOM-killer algorithms).
+
+Ok.
+      if(over_allocated_page_tables(task->uid) ) return ENOMEM;
+
+makes sense in "fork".   I guess the argument here is not about whether
+accounting is good, it's about where the accounting should be done. To me
+the alternatives of
+
+      if(preallocate_pages(page_table_size_for_this_process()) == -1)return error
+         then actually allocate making sure to adjust counts if some other
+         error turns up and with something taking care of how the pre-allocation
+         works while we are sleeping waiting for possibly unrelated resources.
+
+or
+      just kmalloc with kmalloc magically juggling resources in some safe way
 
 
-per-user and system-wide and per-process quotas are one thing, a
-pre-allocate-and-then-allocate generic scheme seems to me to be a error prone
-way of getting there. In particular, I think it is dangerous to have a pre-count that
-is approximately tethered to the thing it is counting -- in the memory allocation 
-we were discussing, you need to make sure that the pre-allocations are for memory that
-is really going to be allocated soon and that it is later correlated with free in 
-some way.  
+seem less clear.
 
-So, to me, a quota bounded allocate_page_table(process_id) makes much more sense then 
-pre-allocate counting, or, even worse, a "smart" kmalloc that never fails.
-If the problem is unaccounted for page-tables then account for
-page tables and return a  -EYOURPROCESSISOUTOFCONTROL so that calling kernel code
-can take the responsible action. 
-                   
+       
+
+     
+
+> Reason 2: if you've got tasks stuck in low-level page allocation
+> routines, then you can't immediately kill -9 them, so reactive OOM
+> killing always has vulnerabilities --- to be robust in preventing
+> resource exhaustion you want limits on the use of those resources
+> before they are exhausted --- the necessary accounting being part of
+> what we refer to as "beancounter".
+
+doesn't the problem really come from low level page allocation at too high a level?
+That is, if instead of select doing get_free_page, it maybe should do 
+get_per_process_page(myprocess) or even get_per_process_file_use_page(myprocess)
+Then we could have a config-optional per-process pinned page accounting with the 
+possibility of doing something sensible in a user-space daemon when memory is low.
+
+> 
+> --Stephen
 
 -- 
 ---------------------------------------------------------
