@@ -1,58 +1,78 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: what is using memory?
-Date: Sun, 10 Jun 2001 23:36:42 -0400
+Message-ID: <3B244C60.8C27AC83@earthlink.net>
+Date: Sun, 10 Jun 2001 22:43:12 -0600
+From: "Joseph A. Knapka" <jknapka@earthlink.net>
 MIME-Version: 1.0
-Message-Id: <01061023364200.03146@oscar>
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH] reapswap for 2.4.5-ac10
+References: <l03130308b7439bb9f187@[192.168.239.105]>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
+To: Jonathan Morton <chromi@cyberspace.org>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I have been trying to figure out what is using my memory
+Hi Jonathan,
 
-My box has 
+Jonathan Morton wrote:
+> 
+> Interesting observation.  Something else though, which kswapd is guilty of
+> as well: consider a page shared among many processes, eg. part of a
+> library.  As kswapd scans, the page is aged down for each process that uses
+> it.  So glibc gets aged down many times more quickly than a non-shared
+> page, precisely the opposite of what we really want to happen.  With
+> exponential-decay aging, and multiple processes doing the aging in this
+> manner, highly important things like glibc get muscled out in very short
+> order...
 
-320280K
+Are you sure about this? The only place pages are
+aged down is in refill_inactive_scan(), which scans
+the active_list, not process PTEs. Aging *up*, OTOH,
+is done on a per-mapping basis, in try_to_swap_out()
+(as well as linearly in refill_inactive_scan(), go
+figure). This seems to be the rationale for making
+age-down a division, and age-up an increment. Of course,
+when memory is tight a lot of processes are going to
+be waking up kswapd, so all pages are going to age more
+quickly in that case, but we're never aging a page down
+proportional to the number of processes that have it
+mapped.
 
->From boot I see
+> Maybe aging up/down needs to be done on a linear page scan, rather than a
+> per-process scan, and reserve the per-process scan for choosing process
+> pages to move into the swap arena.
 
-   924	kernel
-  8224	reserved (initrd ramdisk?)
-  1488	hash tables (dentry, inode, mount, buffer, page, tcp)
+It would seem to make sense to do aging up and down
+consistently. The (or a) way to do that is to make
+try_to_swap_out() set PG_referenced, rather than age
+the page up itself. Then no matter how many times the
+page is touched, it will be aged up only once, next
+time refill_inactive_scan() sees it.
 
-from lsmod I caculate
-  
-   876	for loaded modules
-  
-from proc/slabinfo
+On the other hand, what makes sense on a cursory
+inspection may not be at all good in practice. I think
+the way it works now is intuitively pretty reasonable:
+a global downward decay of page->age for all pages,
+which processes can counteract by referencing the page
+frequently. When age is <3, the exponential decay is
+coincidentally linear, so a page mapped by one process
+can be kept active by being referenced (and noticed
+by try_to_swap_out()) at least once during each of
+refill_inactive_scan's trips through the active_list.
+A page mapped by two processes has to be referenced
+half as often by each, on average, to stay active
+(assuming that the swap_out() scan visits all process
+PTEs in approximately the same interval that
+refill_inactive_scan() visits all the active pages).
 
- 11992	for all slabs
+-- Joe
 
-from proc/meminfo
-
- 17140	buffer
-123696	cache
- 32303	free
-
-leaving unaccounted
-
-123627K 	
-
-This is about 38% of my memory, and only about 46% is pageable
-Is it possible to figure out what is using this?
-
-This is with 2.4.6-pre2 with Rik's page_launder_improvements patch, 
-lvm beta7 and some reieserfs patches applied, after about 12 hours
-of uptime.
-
-TIA,
-
-Ed Tomlinson
-
+-- Joseph A. Knapka
+"You know how many remote castles there are along the gorges? You
+ can't MOVE for remote castles!" -- Lu Tze re. Uberwald
+// Linux MM Documentation in progress:
+// http://home.earthlink.net/~jknapka/linux-mm/vmoutline.html
+* Evolution is an "unproven theory" in the same sense that gravity is. *
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
