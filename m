@@ -1,41 +1,29 @@
-From: aprasad@in.ibm.com
-Message-ID: <CA256996.004352F8.00@d73mta05.au.ibm.com>
-Date: Mon, 13 Nov 2000 17:29:48 +0530
-Subject: reliability of linux-vm subsystem
-Mime-Version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-ID: <77EFEEFA84AFD411AA9600508B9A290C01A1E7@NTCOSTA>
+From: Gustavo Castro <Gustavo_castro@polkverity-cr.com>
+Subject: Virtual Memory in LINUX.
+Date: Mon, 13 Nov 2000 08:43:43 -0600
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: wcastro@una.ac.cr
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hello.
+I am a studen from Costa Rica.  I will appreciate some information about
+the Virtual Memory in LINUX.  I am new in the environment of LINUX.  I
+need to know how work the virtual memory, what functions execute and the
+relatives areas.
 
-When i run following code many times.
-System becomes useless till all of the instance of this programming are
-killed by vmm.
-Till that time linux doesn't accept any command though it switches from one
-VT to another but its useless.
-The above programme is run as normal user previleges.
-Theoretically load should increase but system should services other users
-too.
-but this is not behaving in that way.
-___________________________________________________________________
-main()
-{
-     char *x[1000];
-     int count=1000,i=0;
-     for(i=0; i <count; i++)
-          x[i] = (char*)malloc(1024*1024*10); /*10MB each time*/
+Thanks for your help.
 
-}
-_______________________________________________________________________
-If i run above programm for 10 times , then system is useless for around
-5-7minutes on PIII/128MB.
-
-regards,
-Anil
+ 
+Gustavo A. Castro G.
+Database Analyst.
+Phone (506)-293-31-41  Ext 505
+Fax (506)-293-31-49
+EQUIFAX CIS   Costa Rica
 
 
 --
