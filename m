@@ -1,36 +1,45 @@
-From: Bart De Schuymer <bdschuym@pandora.be>
+Date: Wed, 31 Dec 2003 12:00:19 +0100
+From: Tomas Szepe <szepe@pinerecords.com>
 Subject: Re: 2.6.0-rc1-mm1
-Date: Wed, 31 Dec 2003 11:58:50 +0100
-References: <20031231004725.535a89e4.akpm@osdl.org> <20031231024855.0aca5e52.akpm@osdl.org> <20031231104947.GC16860@louise.pinerecords.com>
-In-Reply-To: <20031231104947.GC16860@louise.pinerecords.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Message-ID: <20031231110019.GE16860@louise.pinerecords.com>
+References: <20031231004725.535a89e4.akpm@osdl.org> <20031231101907.GB16860@louise.pinerecords.com> <20031231024855.0aca5e52.akpm@osdl.org> <20031231104947.GC16860@louise.pinerecords.com> <20031231025752.754fd926.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200312311158.50471.bdschuym@pandora.be>
+In-Reply-To: <20031231025752.754fd926.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tomas Szepe <szepe@pinerecords.com>, Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, davem@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 31 December 2003 11:49, Tomas Szepe wrote:
-> On Dec-31 2003, Wed, 02:48 -0800
->
-> Andrew Morton <akpm@osdl.org> wrote:
-> > Tomas Szepe <szepe@pinerecords.com> wrote:
-> > > In file included from include/linux/netfilter_bridge/ebtables.h:16,
-> > >                  from net/bridge/netfilter/ebtables.c:25:
-> > > include/linux/netfilter_bridge.h: In function
-> > > `nf_bridge_maybe_copy_header': include/linux/netfilter_bridge.h:74:
-> > > error: `ETH_P_8021Q' undeclared (first use in this function)
-> >
-> > This problem also exists in 2.6.1-rc1.
->
-> Andrew, are you quite sure this is the correct fix?
+On Dec-31 2003, Wed, 02:57 -0800
+Andrew Morton <akpm@osdl.org> wrote:
 
-I've sent this fix to David Miller, please don't apply any other "fix":
+> Tomas Szepe <szepe@pinerecords.com> wrote:
+> >
+> > What I did was:
+> 
+> Well that just reverts the recent change back to the way it was.  I assume
+> that change was made for a reason.  But with such a lame changelog I am not
+> able to say what it was.   No doubt Dave will hunt down the perps ;)
+
+Let's not drag Dave out of bed. :)
+Here's the explanation (and a fix) from Bart De Schuymer.
+
+-- 
+Tomas Szepe <szepe@pinerecords.com>
+
+From: Bart De Schuymer <bdschuym@pandora.be>
+To: "David S.Miller" <davem@redhat.com>
+Cc: netdev <netdev@oss.sgi.com>, Tomas Szepe <szepe@pinerecords.com>
+Subject: [PATCH] Always copy and save the vlan header in bridge-nf (do it right now)
+Date: Wed, 31 Dec 2003 11:56:11 +0100
+
+Hi Dave,
+
+I forgot to get rid of another ifdef in netfilter_bridge.h when I removed
+the dependency upon vlan being compiled. This patch fixes it.
 
 cheers,
 Bart
