@@ -1,71 +1,74 @@
-Date: Sun, 12 Sep 2004 21:46:41 -0700
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: Fw: [Bugme-new] [Bug 3375] New: NUMA memory allocation issue:
- set_memorypolicy to MPOL_BIND do not work.
-Message-Id: <20040912214641.50c0be89.pj@sgi.com>
-In-Reply-To: <20040911020816.4ac226cd.akpm@osdl.org>
-References: <20040911020816.4ac226cd.akpm@osdl.org>
+Date: Mon, 13 Sep 2004 18:57:53 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: [PATCH] Do not mark being-truncated-pages as cache hot
+Message-ID: <20040913215753.GA23119@logos.cnet>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, jean-marie.verdun@hp.com, ak@muc.de
+To: linux-mm@kvack.org, akpm@osdl.org
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Nick Piggin <piggin@cyberone.com.au>
 List-ID: <linux-mm.kvack.org>
 
-I suspect, Jean-Marie, that if you change the line:
+Hi, 
 
-        unsigned long value=1;
+The truncate VM functions use pagevec's for operation batching, but they mark
+the pagevec used to hold being-truncated-pages as "cache hot". 
 
-to be instead:
+There is nothing which indicates such pages are likely to be "cache hot" - the
+following patch marks being-truncated-pages as cold instead. 
 
-        unsigned long value=9;
+Please apply.
 
-that it will work.  This 'value' in your code is what the man page for
-set_mempolicy calls 'maxnode'.  It should be one more than the number of
-bits in the nodemask being passed to set_mempolicy.  It looks to me like
-your kernel for x86_64 has MAX_NUMNODES equal to 8 (it is equal to (1 <<
-NODES_SHIFT), and NODES_SHIFT seems to be 3 on the x86_64 arch).  So you
-should pass in a nodemask of 8 bits, and set this maxnode argument (your
-variable named 'value') to one more than that, or 9.
 
-More recent versions of Linus' bk tree might want 'value=8', not
-'value=9', since there seems to be some confusion with a patch that
-changes this maxnode parameter from being one more than the number of
-bits, to being exactly equal to the number of bits.  I predict that this
-will change soon, back to expecting one more than the number of bits.
-My prediction could be wrong - I am not the one to make the decision.
+BTW Martin, I'm wondering on a few performance points about the per_cpu_page lists, 
+as we talked on chat before. Here they are:
 
-So long as you aren't trying to actually use all 8 nodes, and so long as
-you actually pass a mask that is a full word, zero'd out except for the
-nodes you are trying to use, then passing either 8 or 9 should work
-fine, on any kernel.
+- I wonder if the size of the lists are optimal. They might be too big to fit into the caches.
 
-There seems to be a bug here that for some cases, such as the one you
-report, set_mempolicy can build a set of zonelists that is empty, and
-then be unable to allocate any memory.  I don't see the problem offhand,
-so I will leave that detail up to Andi, who is the real master of this
-code.  Your passing a maxnode of 1 (value=1) was an incorrect call, but
-it should have failed the set_mempolicy(2) call with EINVAL, rather than
-failing the exec call with ENOMEM.
+- Making the allocation policy FIFO should drastically increase the chances "hot" pages
+are handed to the allocator. AFAIK the policy now is LIFO.
 
-(Aside to Andi - when my cpuset patch is added, it masks this ENOMEM on
-exec bug, causing instead such invalid set_mempolicy calls to error out
-with EINVAL.)
+- When we we hit the high per_cpu_pages watermark, which can easily happen,
+further hot pages being freed are send down to the SLAB manager, until 
+the pcp count goes below the high watermark. Meaning that during this period 
+the hot/cold logic goes down the drain.
 
-And, yes, Jean-Marie.  The set_mempolicy(2) man page is not yet sufficient
-in its explanation of what to pass for this maxnode parameter.
+But the main point of the pcp lists, which is to avoid locking AFAIK, is not affected
+by the issues I describe.
 
-Oh - you were passing "value2=1" as the 'policy' parameter to set_mempolicy.
-This will get MPOL_PREFERRED, I believe.  When testing your code, I changed
-that to 'value2=2' in order to get MPOL_BIND, which as you report is the
-policy required to demonstrate the "Cannot allocate memory" error.
+Comments?
 
--- 
-                          I won't rest till it's the best ...
-                          Programmer, Linux Scalability
-                          Paul Jackson <pj@sgi.com> 1.650.933.1373
+--- linux-2.6.9-rc1-mm5/mm/truncate.c.orig	2004-09-13 19:43:08.454659904 -0300
++++ linux-2.6.9-rc1-mm5/mm/truncate.c	2004-09-13 19:45:00.765586048 -0300
+@@ -133,7 +133,7 @@ void truncate_inode_pages_range(struct a
+ 	BUG_ON((lend & (PAGE_CACHE_SIZE - 1)) != (PAGE_CACHE_SIZE - 1));
+ 	end = (lend >> PAGE_CACHE_SHIFT);
+ 
+-	pagevec_init(&pvec, 0);
++	pagevec_init(&pvec, 1);
+ 	next = start;
+ 	while (next <= end &&
+ 	       pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
+@@ -237,7 +237,7 @@ unsigned long invalidate_mapping_pages(s
+ 	unsigned long ret = 0;
+ 	int i;
+ 
+-	pagevec_init(&pvec, 0);
++	pagevec_init(&pvec, 1);
+ 	while (next <= end &&
+ 			pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+@@ -293,7 +293,7 @@ void invalidate_inode_pages2(struct addr
+ 	pgoff_t next = 0;
+ 	int i;
+ 
+-	pagevec_init(&pvec, 0);
++	pagevec_init(&pvec, 1);
+ 	while (pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE)) {
+ 		for (i = 0; i < pagevec_count(&pvec); i++) {
+ 			struct page *page = pvec.pages[i];
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
