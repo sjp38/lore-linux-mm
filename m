@@ -1,95 +1,34 @@
-Date: Sat, 10 Feb 2001 20:53:59 -0200 (BRDT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] 2.4.0-ac8/9  page_launder() fix
-Message-ID: <Pine.LNX.4.21.0102102051450.2378-100000@duckman.distro.conectiva>
+Date: Sat, 10 Feb 2001 20:33:29 -0200 (BRST)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: [PATCH] 2.4.0-ac8/9  page_launder() fix
+In-Reply-To: <Pine.LNX.4.21.0102102051450.2378-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0102102027250.27734-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@conectiva.com.br>
+To: Rik van Riel <riel@conectiva.com.br>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I just tested it here and it seems to behave pretty well. 
 
-the patch below should make page_launder() more well-behaved
-than it is in -ac8 and -ac9 ... note, however, that this thing
-is still completely untested and only in theory makes page_launder
-behave better ;)
+On Sat, 10 Feb 2001, Rik van Riel wrote:
 
-Since there seems to be a lot of VM testing going on at the
-moment I thought I might as well send it out now so I can get
-some feedback before I get into the airplane towards sweden
-tomorrow...
-
-cheers,
-
-Rik
---
-Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
-
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
-
-
---- linux-2.4.1-ac8/mm/vmscan.c.orig	Fri Feb  9 15:04:16 2001
-+++ linux-2.4.1-ac8/mm/vmscan.c	Sat Feb 10 20:50:40 2001
-@@ -413,7 +413,7 @@
-  * This code is heavily inspired by the FreeBSD source code. Thanks
-  * go out to Matthew Dillon.
-  *
-- * XXX: restrict number of pageouts in flight...
-+ * XXX: restrict number of pageouts in flight by ->writepage...
-  */
- #define MAX_LAUNDER 		(1 << page_cluster)
- int page_launder(int gfp_mask, int user)
-@@ -514,7 +514,10 @@
- 			spin_unlock(&pagemap_lru_lock);
- 
- 			writepage(page);
--			flushed_pages++;
-+			/* XXX: all ->writepage()s should use nr_async_pages */
-+			if (!PageSwapCache(page))
-+				flushed_pages++;
-+			maxlaunder--;
- 			page_cache_release(page);
- 
- 			/* And re-start the thing.. */
-@@ -636,14 +639,16 @@
- 		 * with the paging load in the system and doesn't have
- 		 * the IO storm problem, so it just flushes all pages
- 		 * needed to fix the free shortage.
--		 *
--		 * XXX: keep track of nr_async_pages like the old swap
--		 * code did?
- 		 */
--		if (user)
-+		maxlaunder = shortage;
-+		maxlaunder -= flushed_pages;
-+		maxlaunder -= atomic_read(&nr_async_pages);
-+	
-+		if (maxlaunder <= 0)
-+			goto out;
-+
-+		if (user && maxlaunder > MAX_LAUNDER)
- 			maxlaunder = MAX_LAUNDER;
--		else
--			maxlaunder = shortage;
- 
- 		/*
- 		 * If we are called by a user program, we need to free
-@@ -667,6 +672,7 @@
- 	/*
- 	 * Return the amount of pages we freed or made freeable.
- 	 */
-+out:
- 	return freed_pages + flushed_pages;
- }
- 
+> Hi,
+> 
+> the patch below should make page_launder() more well-behaved
+> than it is in -ac8 and -ac9 ... note, however, that this thing
+> is still completely untested and only in theory makes page_launder
+> behave better ;)
+> 
+> Since there seems to be a lot of VM testing going on at the
+> moment I thought I might as well send it out now so I can get
+> some feedback before I get into the airplane towards sweden
+> tomorrow...
+> 
+> cheers,
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
