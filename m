@@ -1,56 +1,31 @@
+Received: from bigblue.dev.mdolabs.com
+	by xmailserver.org with [XMail 1.18 (Linux/Ix86) ESMTP Server]
+	id <SEF4ED> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
+	Mon, 29 Dec 2003 13:52:26 -0800
+Date: Mon, 29 Dec 2003 13:52:24 -0800 (PST)
+From: Davide Libenzi <davidel@xmailserver.org>
 Subject: Re: 2.6.0-mm2
-From: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
-In-Reply-To: <1072727943.1064.15.camel@debian>
-References: <20031229013223.75c531ed.akpm@osdl.org>
-	 <1072727943.1064.15.camel@debian>
-Content-Type: text/plain; charset=UTF-8
-Message-Id: <1072731446.5170.4.camel@teapot.felipe-alfaro.com>
-Mime-Version: 1.0
-Date: Mon, 29 Dec 2003 21:57:26 +0100
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <1072731446.5170.4.camel@teapot.felipe-alfaro.com>
+Message-ID: <Pine.LNX.4.44.0312291351150.2380-100000@bigblue.dev.mdolabs.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ramon.rey@hispalinux.es
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailinglist <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
+Cc: ramon.rey@hispalinux.es, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailinglist <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2003-12-29 at 20:59, Ramon Rey Vicente wrote:
-> El lun, 29-12-2003 a las 10:32, Andrew Morton escribiA3:
-> 
-> > +atapi-mo-support-update.patch
-> > +atapi-mo-support-timeout-fix.patch
-> > 
-> >  ATAPI CDROM fixups.
-> 
-> This happen with 2.6.0-mm1 and -mm2. With 2.6.0 all is OK.
-> 
-> rrey@debian:~$ cdrecord cdrom-1.iso
-> Cdrecord-Clone 2.01a19 (i686-pc-linux-gnu) Copyright (C) 1995-2003 JA?rg
-> Schilling
-> scsidev: '/udev/hdc'
-> devname: '/udev/hdc'
-> scsibus: -2 target: -2 lun: -2
-> Warning: Open by 'devname' is unintentional and not supported.
-> cdrecord.mmap: No such file or directory. Cannot open '/udev/hdc'.
-> Cannot open SCSI driver.
-> cdrecord.mmap: For possible targets try 'cdrecord -scanbus'. Make sure
-> you are root.
-> cdrecord.mmap: For possible transport specifiers try 'cdrecord
-> dev=help'.
-> cdrecord.mmap: Also make sure that you have loaded the sg driver and the
-> driver for
-> cdrecord.mmap: SCSI hardware, eg. ide-scsi if you run IDE/ATAPI drives
-> over
-> cdrecord.mmap: ide-scsi emulation. For more information, install the
-> cdrtools-doc
-> cdrecord.mmap: package and read
-> /usr/share/doc/cdrecord/README.ATAPI.setup .
-> 
-> The /udev/hdc have 
-> brw-rw-rw-    1 root     cdrw      22,   0 2003-12-29 20:52 /udev/hdc
+On Mon, 29 Dec 2003, Felipe Alfaro Solana wrote:
 
-The same happens here. cdrecord is broken under -mm, but works fine with
-plain 2.6.0.
+> The same happens here. cdrecord is broken under -mm, but works fine with
+> plain 2.6.0.
+
+cdrecord works fine here (-mm1) using hdX=ide-cd and dev=ATAPI:...
+
+
+
+- Davide
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
