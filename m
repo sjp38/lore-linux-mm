@@ -1,41 +1,35 @@
-Subject: Re: 2.5.34-mm2 kernel BUG at sched.c:944! only with CONFIG_PREEMPT=y
-From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <20020913224139.72df14ba.diegocg@teleline.es>
-References: <1031840041.1990.378.camel@spc9.esa.lanl.gov>
-	<20020913224139.72df14ba.diegocg@teleline.es>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-Date: 13 Sep 2002 15:20:26 -0600
-Message-Id: <1031952028.2604.28.camel@localhost.localdomain>
+Date: Fri, 13 Sep 2002 14:30:42 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] per-zone kswapd process
+Message-ID: <20020913213042.GD3530@holomorphy.com>
+References: <3D815C8C.4050000@us.ibm.com> <3D81643C.4C4E862C@digeo.com> <20020913045938.GG2179@holomorphy.com> <1031922352.9056.14.camel@irongate.swansea.linux.org.uk>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <1031922352.9056.14.camel@irongate.swansea.linux.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arador <diegocg@teleline.es>
-Cc: Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Andrew Morton <akpm@digeo.com>, Dave Hansen <haveblue@us.ibm.com>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2002-09-13 at 14:41, Arador wrote:
-> On 12 Sep 2002 08:14:01 -0600
-> Steven Cole <elenstev@mesatop.com> escribio:
-> 
-> > I got the following BUG at sched.c:944! with 2.5.34-mm2 and PREEMPT on.
-> > This was repeatable. 
-> 
-> Same for me:
-> POSIX conformance testing by UNIFIX
-> Kernel BUG at sched.c:944!
-> 
+On Fri, 2002-09-13 at 05:59, William Lee Irwin III wrote:
+>> Machines without observable NUMA effects can benefit from it if it's
+>> per-zone. It also follows that if there's more than one task doing this,
+>> page replacement is less likely to block entirely. Last, but not least,
+>> when I devised it, "per-zone" was the theme.
 
-If you just want a quick workaround (not a real fix), you
-can change in_atomic back to in_interrupt on line 933 of kernel/sched.c.
+On Fri, Sep 13, 2002 at 02:05:52PM +0100, Alan Cox wrote:
+> It will also increase the amount of disk head thrashing surely ?
 
-Robert Love has posted another patch for this, so you might want to
-try that out.  Here is a link to that post:
-http://marc.theaimsgroup.com/?l=linux-kernel&m=103190275327089&w=2
-You may need to change KERN_ERROR to KERN_ERR in that patch.
+I doubt it. Writeout isn't really supposed to happen there in 2.4
+either, except under duress. OTOH I've not been doing much with this
+directly since rmap10c.
 
-Steven
 
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
