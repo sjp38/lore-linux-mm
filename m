@@ -1,44 +1,45 @@
-Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
-From: Arjan van de Ven <arjanv@redhat.com>
-In-Reply-To: <E1844h3-0002Bt-00@w-gerrit2>
-References: <E1844h3-0002Bt-00@w-gerrit2>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature";
-	boundary="=-GKyZ6V7vR9aKSA43Rb9d"
-Date: 22 Oct 2002 21:56:25 +0200
-Message-Id: <1035316645.4690.8.camel@localhost.localdomain>
-Mime-Version: 1.0
+Date: Tue, 22 Oct 2002 22:19:37 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
+In-Reply-To: <20021022184938.A2395@infradead.org>
+Message-ID: <Pine.LNX.4.44.0210222204330.21530-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerrit Huizenga <gh@us.ibm.com>
-Cc: Benjamin LaHaise <bcrl@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Martin J. Bligh" <mbligh@aracnet.com>, Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-GKyZ6V7vR9aKSA43Rb9d
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+On Tue, 22 Oct 2002, Christoph Hellwig wrote:
 
-On Tue, 2002-10-22 at 21:27, Gerrit Huizenga wrote:
- be fine with me - we are only planning on people using
-> flags to shm*() or mmap(), not on the syscalls.  I thought Oracle
-> was the one heavily dependent on the icky syscalls.
+> what is the reason for that interface?  It looks like a gross
+> performance hack for misdesigned applications to me, kindof windowsish..
 
-the icky syscalls are unusable for databases.. I'd be *really* surprised
-if oracle could use them at all on x86....
+there are a number of reasons why we very much want this extension to the
+Linux VM. Please catch up with the full email discussion, check out the
+first announcement of the interface to lkml, the subject of the email was:
+"[patch, feature] nonlinear mappings, prefaulting support, 2.5.42-F8".
 
+(and add one more application category to the list of beneficiaries,
+NPTL-style threading libraries, see the "[patch] mmap-speedup-2.5.42-C3"  
+discussion on lkml.)
 
---=-GKyZ6V7vR9aKSA43Rb9d
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+I think it is quite a bit architectural step for the Linux VM to have more
+generic vmas that 1) can be nonlinear 2) can have finegrained, non-uniform
+protection bits. It has been clearly established in the past few years
+empirically that the vma tree approach itself sucks performance-wise for
+applications that have many different mappings.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.0.7 (GNU/Linux)
+And is it a big problem that RAM-windowing applications can make use of
+the new capabilities as well, to overcome the limits of 32 bits? Your
+response is a bit knee-jerk, what do you think the kernel itself does when
+it piggybacks to the highmem range and using kmap? There's no other way to
+overcome 32 bitness limits on a box that has much more than 32 bits worth
+of RAM, but to start mapping things in dynamically. So what's your point?
 
-iD8DBQA9ta1pxULwo51rQBIRAjPyAJ4pxKSVXHr4VTh2jlxXSRvp7zzEfQCeNlcB
-Pd76DiFz8SX1wRaQUubJZzE=
-=Ul4s
------END PGP SIGNATURE-----
-
---=-GKyZ6V7vR9aKSA43Rb9d--
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
