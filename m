@@ -1,59 +1,232 @@
-Message-ID: <3C9BDAC7.4B499AD1@evision-ventures.com>
-Date: Sat, 23 Mar 2002 02:30:47 +0100
-From: Martin Dalecki <dalecki@evision-ventures.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] Prevent OOM from killing init
-References: <3AB9313C.1020909@missioncriticallinux.com> <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva> <20010322124727.A5115@win.tue.nl> <20010322142831.A929@owns.warpcore.org> <3C9BCD6E.94A5BAA0@evision-ventures.com> <20010322182048.B1406@owns.warpcore.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Fri, 23 Mar 2001 01:13:31 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: [PATCH] Fix races in 2.4.2-ac22 SysV shared memory
+Message-ID: <20010323011331.J7756@redhat.com>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="LyciRD1jyfeSSjG0"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephen Clouse <stephenc@theiqgroup.com>
-Cc: Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Stephen Clouse wrote:
-> 
-> -----BEGIN PGP SIGNED MESSAGE-----
-> Hash: SHA1
-> 
-> On Sat, Mar 23, 2002 at 01:33:50AM +0100, Martin Dalecki wrote:
-> > AMEN! TO THIS!
-> > Uptime of a process is a much better mesaure for a killing candidate
-> > then it's size.
-> 
-> Thing is, if you take a good study of mm/oom_kill.c, it *does* take start time
+--LyciRD1jyfeSSjG0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-I did thing is Rik did use a non normalized formula in oom_kill for the
-calculation of the kill penalty a process get's. This is the main
-reason for the non controllable behaviour of it.
+Hi,
 
-> into account, as well as CPU time.  The problem is that a process (like Oracle,
-> in our case) using ludicrous amounts of memory can still rank at the top of the
-> list, even with the time-based reduction factors, because total VM is the
-> starting number in the equation for determining what to kill.  Oracle or what
-> not sitting at 80 MB for a day or two will still find a way to outrank the
-> newly-started 1 MB shell process whose malloc triggered oom_kill in the first
-> place.
+The patch below is for two races in sysV shared memory.
 
-This is due to the broken calculation formula in oom_kill().
+The first (minor) one is in shmem_free_swp:
 
-> 
-> If anything, time really needs to be a hard criterion for sorting the final list
-> on and not merely a variable in the equation and thus tied to vmsize.
-> 
-> This is why the production database boxen aren't running 2.4 yet.  I can control
-> Oracle's usage very finely (since it uses a fixed memory pool preallocated at
-> startup), but if something else decides to fire up on there (like the nightly
-> backup and maintenance routine) and decides it needs just a pinch more memory
-> than what's available -- ick.  2.2.x doesn't appear to enforce new memory
-> allocation with a sniper rifle -- the new process just suffers a pleasant ("Out
-> of memory!") or violent (SIGSEGV) death.
+		swap_free (entry);
+		*ptr = (swp_entry_t){0};
+		freed++;
+		if (!(page = lookup_swap_cache(entry)))
+			continue;
+		delete_from_swap_cache(page);
+		page_cache_release(page);
 
-And you should never ever overcommit memmory to oracle! Don't make the
-buffers bigger then half the memmory in the system really. There ARE
-circumstances where oracle is using all available memmory in very random
-manner.
+has a window between the first swap_free() and the
+lookup_swap_cache().  If the swap_free() frees the last ref to the
+swap entry and another cpu allocates and caches the same entry before
+the lookup, we'll end up destroying another task's swap cache.
+
+The second is nastier.  shmem_nopage() uses the inode semaphore to
+serialise access to shmem_getpage_locked() for paging in shared memory
+segments.  Lookups in the page cache and in the shmem swap vector are
+done to locate the entry.  _getpage_ can move entries from swap to
+page cache under protection of the shmem's info->lock spinlock.
+
+shmem_writepage() is locked via the page lock, and moves shmem pages
+from the page cache to the swap cache under protection of the same
+info->lock spinlock.
+
+However, shmem_nopage() does not hold this spinlock while doing its
+lookups in the page cache and swap vectors, so it can race with
+writepage, with once cpu in the middle of moving the page out of the
+page cache in writepage and the other cpu then failing to find the
+entry either in the page cache or in the shm swap entry vector.
+
+Feedback welcome.
+
+Cheers, 
+ Stephen
+
+--LyciRD1jyfeSSjG0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="2.4.2-ac22.shmlock.diff"
+
+--- mm/shmem.c.~1~	Fri Mar 23 00:26:49 2001
++++ mm/shmem.c	Fri Mar 23 00:42:21 2001
+@@ -121,13 +121,13 @@
+ 		if (!ptr->val)
+ 			continue;
+ 		entry = *ptr;
+-		swap_free (entry);
+ 		*ptr = (swp_entry_t){0};
+ 		freed++;
+-		if (!(page = lookup_swap_cache(entry)))
+-			continue;
+-		delete_from_swap_cache(page);
+-		page_cache_release(page);
++		if ((page = lookup_swap_cache(entry)) != NULL) {
++			delete_from_swap_cache(page);
++			page_cache_release(page);	
++		}
++		swap_free (entry);
+ 	}
+ 	return freed;
+ }
+@@ -218,15 +218,24 @@
+ }
+ 
+ /*
+- * Move the page from the page cache to the swap cache
++ * Move the page from the page cache to the swap cache.
++ *
++ * The page lock prevents multiple occurences of shmem_writepage at
++ * once.  We still need to guard against racing with
++ * shmem_getpage_locked().  
+  */
+ static int shmem_writepage(struct page * page)
+ {
+ 	int error;
+ 	struct shmem_inode_info *info;
+ 	swp_entry_t *entry, swap;
++	struct inode *inode;
+ 
+-	info = &page->mapping->host->u.shmem_i;
++	if (!PageLocked(page))
++		BUG();
++	
++	inode = page->mapping->host;
++	info = &inode->u.shmem_i;
+ 	swap = __get_swap_page(2);
+ 	if (!swap.val) {
+ 		set_page_dirty(page);
+@@ -234,11 +243,11 @@
+ 		return -ENOMEM;
+ 	}
+ 
+-	spin_lock(&info->lock);
+-	shmem_recalc_inode(page->mapping->host);
+ 	entry = shmem_swp_entry(info, page->index);
+ 	if (IS_ERR(entry))	/* this had been allocted on page allocation */
+ 		BUG();
++	spin_lock(&info->lock);
++	shmem_recalc_inode(page->mapping->host);
+ 	error = -EAGAIN;
+ 	if (entry->val) {
+ 		__swap_free(swap, 2);
+@@ -268,6 +277,10 @@
+  * If we allocate a new one we do not mark it dirty. That's up to the
+  * vm. If we swap it in we mark it dirty since we also free the swap
+  * entry since a page cannot live in both the swap and page cache
++ *
++ * Called with the inode locked, so it cannot race with itself, but we
++ * still need to guard against racing with shm_writepage(), which might
++ * be trying to move the page to the swap cache as we run.
+  */
+ static struct page * shmem_getpage_locked(struct inode * inode, unsigned long idx)
+ {
+@@ -276,31 +289,57 @@
+ 	struct page * page;
+ 	swp_entry_t *entry;
+ 
+-	page = find_lock_page(mapping, idx);;
++	info = &inode->u.shmem_i;
++
++repeat:
++	page = find_lock_page(mapping, idx);
+ 	if (page)
+ 		return page;
+ 
+-	info = &inode->u.shmem_i;
+ 	entry = shmem_swp_entry (info, idx);
+ 	if (IS_ERR(entry))
+ 		return (void *)entry;
++
++	spin_lock (&info->lock);
++	
++	/* The shmem_swp_entry() call may have blocked, and
++	 * shmem_writepage may have been moving a page between the page
++	 * cache and swap cache.  We need to recheck the page cache
++	 * under the protection of the info->lock spinlock. */
++
++	page = find_lock_page(mapping, idx);
++	if (page) {
++		spin_unlock (&info->lock);
++		return page;
++	}
++	
+ 	if (entry->val) {
+ 		unsigned long flags;
+ 
+ 		/* Look it up and read it in.. */
+ 		page = lookup_swap_cache(*entry);
+ 		if (!page) {
++			spin_unlock (&info->lock);
+ 			lock_kernel();
+ 			swapin_readahead(*entry);
+ 			page = read_swap_cache(*entry);
+ 			unlock_kernel();
+ 			if (!page) 
+ 				return ERR_PTR(-ENOMEM);
++			/* Too bad we can't trust this page, because we
++			 * dropped the info->lock spinlock */
++			page_cache_release(page);
++			goto repeat;
+ 		}
+ 
+ 		/* We have to this with page locked to prevent races */
+-		lock_page(page);
+-		spin_lock (&info->lock);
++		if (TryLockPage(page)) {
++			spin_unlock(&info->lock);
++ 			wait_on_page(page);
++			page_cache_release(page);
++			goto repeat;
++		}
++			
+ 		swap_free(*entry);
+ 		*entry = (swp_entry_t) {0};
+ 		delete_from_swap_cache_nolock(page);
+@@ -310,12 +349,20 @@
+ 		info->swapped--;
+ 		spin_unlock (&info->lock);
+ 	} else {
++		spin_unlock (&info->lock);
+ 		spin_lock (&inode->i_sb->u.shmem_sb.stat_lock);
+ 		if (inode->i_sb->u.shmem_sb.free_blocks == 0)
+ 			goto no_space;
+ 		inode->i_sb->u.shmem_sb.free_blocks--;
+ 		spin_unlock (&inode->i_sb->u.shmem_sb.stat_lock);
+-		/* Ok, get a new page */
++
++		/* Ok, get a new page.  We don't have to worry about the
++		 * info->lock spinlock here: we cannot race against
++		 * shm_writepage because we have already verified that
++		 * there is no page present either in memory or in the
++		 * swap cache, so we are guaranteed to be populating a
++		 * new shm entry.  The inode semaphore we already hold
++		 * is enough to make this atomic. */
+ 		page = page_cache_alloc(mapping);
+ 		if (!page)
+ 			return ERR_PTR(-ENOMEM);
+@@ -323,6 +370,8 @@
+ 		inode->i_blocks += BLOCKS_PER_PAGE;
+ 		add_to_page_cache (page, mapping, idx);
+ 	}
++
++	
+ 	/* We have the page */
+ 	SetPageUptodate(page);
+ 	if (info->locked)
+
+--LyciRD1jyfeSSjG0--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
