@@ -1,11 +1,11 @@
-Date: Mon, 07 Feb 2005 21:46:02 +0900 (JST)
-Message-Id: <20050207.214602.84973729.taka@valinux.co.jp>
+Date: Mon, 07 Feb 2005 22:16:57 +0900 (JST)
+Message-Id: <20050207.221657.66177955.taka@valinux.co.jp>
 Subject: Re: migration cache, updated
 From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <42039E19.9060609@sgi.com>
-References: <420240F8.6020308@sgi.com>
-	<20050204.163248.41633006.taka@valinux.co.jp>
-	<42039E19.9060609@sgi.com>
+In-Reply-To: <42014605.4060707@sgi.com>
+References: <41FE79EF.8040204@sgi.com>
+	<20050131184422.GD15694@logos.cnet>
+	<42014605.4060707@sgi.com>
 Mime-Version: 1.0
 Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -17,38 +17,33 @@ List-ID: <linux-mm.kvack.org>
 
 Hi Ray,
 
-> >>If I take out the migration cache patch, this "VM: killing ..." problem
-> >>goes away.   So it has something to do specifically with the migration
-> >>cache code.
+> >>(This message comes from ia64_do_page_fault() and appears to because
+> >>handle_mm_fault() returned FAULT_OOM....)
+> >>
+> >>I haven't looked into this further, but was wondering if perhaps one of
+> >>you would understand why the migrate cache patch would fail in this way?
 > > 
 > > 
-> > I've never seen the message though the migration cache code may have
-> > some bugs. May I ask you some questions about it?
+> > I can't think of anything right now - probably do_wp_page() is returning FAULT_OOM,
+> > can you confirm that?
 > > 
-> >  - Which version of kernel did you use for it?
-> 
-> 2.6.10.  I pulled enough of the mm fixes (2 patches) so that the base
-> migration patch from the hotplug tree would work on top of 2.6.10.  AFAIK
-> the same problem occurs on 2.6.11-mm2 which is where I started with the
-> migration cache patch.  But I admit I haven't tested it there recently.
+> No, it doesn't appear to be do_wp_page().  It looks like get_swap_page() 
+> returns FAULT_OOM followed by get_user_pages() returning FAULT_OOM.
+> For the page that causes the VM to kill the process, there is no return
+> from get_user_pages() that returns FAULT_OOM.  Not sure yet what is going
+> on here.
 
-(snip)
+Is get_swap_page() typo of do_swap_page()?
 
-> >  - Is it possible to make the same problem on my machine?
-> 
-> I think so.  I'd have to send you my system call code and test programs.
-> Its not a lot of code on top of the existing page migration patch.
+How did you make sure do_swap_page() returned VM_FAULT_OOM?
+I feel do_wp_page() might have returned VM_FAULT_OOM.
 
-Ok, would you post the code on the list?
-I'll take a look at it and run on my box.
-
-> > And, would you please make your project proceed without the
-> > migration cache code for a while?
-> 
-> I've already done that.  :-)
+Would you please insert printks into the code everywhere VM_FAULT_OOM
+is handled and let's see what's going on?
 
 Thanks,
 Hirokazu Takahashi.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
