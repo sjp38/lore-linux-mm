@@ -1,51 +1,35 @@
 Received: from toomuch.toronto.redhat.com (toomuch.toronto.redhat.com [172.16.14.22])
-	by lacrosse.corp.redhat.com (8.9.3/8.9.3) with ESMTP id WAA11328
-	for <linux-mm@kvack.org>; Sun, 8 Jul 2001 22:45:27 -0400
-Date: Thu, 5 Jul 2001 16:41:58 -0400 (EDT)
-From: Ben LaHaise <bcrl@redhat.com>
+	by lacrosse.corp.redhat.com (8.9.3/8.9.3) with ESMTP id WAA11342
+	for <linux-mm@kvack.org>; Sun, 8 Jul 2001 22:45:43 -0400
+Date: Thu, 5 Jul 2001 22:11:30 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Large PAGE_SIZE
-In-Reply-To: <Pine.LNX.4.33.0107051148430.22414-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.33.0107051613540.1702-100000@toomuch.toronto.redhat.com>
+In-Reply-To: <Pine.LNX.4.33.0107051613540.1702-100000@toomuch.toronto.redhat.com>
+Message-ID: <Pine.LNX.4.33.0107052209540.29892-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 ReSent-To: <linux-mm@kvack.org>
-ReSent-Message-ID: <Pine.LNX.4.33.0107082244130.30164@toomuch.toronto.redhat.com>
+ReSent-Message-ID: <Pine.LNX.4.33.0107082244290.30164@toomuch.toronto.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
+To: Ben LaHaise <bcrl@redhat.com>
 Cc: Hugh Dickins <hugh@veritas.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Jul 2001, Linus Torvalds wrote:
-
-> > It may come down to Ben having 2**N more struct pages than I do:
-> > greater flexibility, but significant waste of kernel virtual.
+On Thu, 5 Jul 2001, Ben LaHaise wrote:
 >
-> The waste of kernel virtual memory space is actually a good point. Already
-> on big x86 machines the "struct page[]" array is a big memory-user. That
-> may indeed be the biggest argument for increasing PAGE_SIZE.
+> ps, would you mind if I forward the messages in this thread to linux-mm so
+> that other people can see the discussion?
 
-I think the two patches will be complementary as they have different
-effects.  Basically, we want to limit the degree which PAGE_SIZE increases
-as increasing it too much can result in increased memory usage and
-overhead for COW.  PAGE_CACHE_SIZE probably wants to be increased further,
-simply to improve io efficiency.
+Go ahead..
 
-On the topic of struct page size, yes it is too large.  There are a few
-things we can do here to make things more efficient, like seperating the
-notition of struct page and the page cache, but we have to be careful not
-to split things up too much as 64 bytes is ideal for processors like the
-Athlon, whereas the P4 really wants 128 byte to avoid false cache line
-sharing on SMP.  I've got a few ideas on the page cache front to explore
-in the next month or two that could result in another 12 bytes of savings
-per page, plus we can look into other things like reducing the overhead of
-the wait queue and the other contents of struct page.
+Btw, I wouldn't worry too much about the false sharing on a 128-byte
+cache-line. Let's face it, we're unlikely to see many P4+ class machines
+with less than 128MB of memory, at which time it starts to get unlikely
+that we'll see all that many horrible ping-pong schenarios between CPU's -
+touching alternate physical pages simply isn't all that likely.
 
-		-ben
-
-ps, would you mind if I forward the messages in this thread to linux-mm so
-that other people can see the discussion?
-
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
