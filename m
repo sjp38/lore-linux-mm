@@ -1,26 +1,30 @@
-Message-ID: <006001c4a5df$ad605c40$8200a8c0@RakeshJagota>
-From: "Rakesh Jagota" <j.rakesh@gdatech.co.in>
-References: <4159E85A.6080806@ammasso.com>
-Subject: opening a file inside the kernel module
-Date: Wed, 29 Sep 2004 10:19:17 +0530
+Message-ID: <415A4151.7060301@pobox.com>
+Date: Wed, 29 Sep 2004 01:00:01 -0400
+From: Jeff Garzik <jgarzik@pobox.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Subject: Re: opening a file inside the kernel module
+References: <4159E85A.6080806@ammasso.com> <006001c4a5df$ad605c40$8200a8c0@RakeshJagota>
+In-Reply-To: <006001c4a5df$ad605c40$8200a8c0@RakeshJagota>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernelnewbies@nl.linux.org
+To: Rakesh Jagota <j.rakesh@gdatech.co.in>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
-I am working in linux, i would like to know abt whether can I open a file
-inside the kernel module without using any application. If so how how the
-files_struct will be maintained. Does a kernel module has this struct?
+Rakesh Jagota wrote:
+> Hi all,
+> I am working in linux, i would like to know abt whether can I open a file
+> inside the kernel module without using any application. If so how how the
+> files_struct will be maintained. Does a kernel module has this struct?
 
-Waiting for any suggestion from the list.
+Don't do this.  It's incompatible with namespaces.
 
-Thanks in advance,
-rakesh
+Instead, figure out some way to pass the file contents to the kernel module.
+
+	Jeff
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
