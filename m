@@ -1,28 +1,49 @@
-Date: Mon, 1 May 2000 19:38:51 -0600 (MDT)
-From: Roel van der Goot <roel@cs.ualberta.ca>
-Subject: Re: [PATCH] pre7-1 semicolon & nicely readable
-In-Reply-To: <Pine.LNX.4.21.0005012222540.7508-100000@duckman.conectiva>
-Message-ID: <Pine.SOL.3.96.1000501193548.4093L-100000@sexsmith.cs.ualberta.ca>
+Date: Tue, 2 May 2000 03:51:59 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: kswapd @ 60-80% CPU during heavy HD i/o.
+In-Reply-To: <200005020113.SAA31341@pizda.ninka.net>
+Message-ID: <Pine.LNX.4.21.0005020338110.1919-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: "David S. Miller" <davem@redhat.com>
+Cc: riel@nl.linux.org, roger.larsson@norran.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 May 2000, Rik van Riel wrote:
+Actually I think you missed the pgdat_list is a queue and it's not null
+terminated. I fixed this in my classzone patch of last week in this chunk:
 
-> In fact, the <10 test is only there to prevent infinite looping
-> for when a process with 0 swap_cnt "slips through" the tests above.
+@@ -507,9 +529,8 @@
+ 	unsigned long i, j;
+ 	unsigned long map_size;
+ 	unsigned long totalpages, offset, realtotalpages;
+-	unsigned int cumulative = 0;
+ 
+-	pgdat->node_next = pgdat_list;
++	pgdat->node_next = NULL;
 
-In case of a "slip through" variable i will have a different
-value after the loop. But I understand from your reply that you
-covered that case.
+however that's not enough without the thing I'm doing in the
+kswapd_can_sleep() again in the classzone patch.
 
-Cheers,
-Roel.
+Note that my latest classzone patch had a few minor bugs.
 
+Last days and today I worked on getting mapped pages out of the lru and
+splitting the lru in two pieces since swap cache is less priority and it
+have to be shrink first. Doing that things is giving smooth swap
+behaviour. I'm incremental with the classzone patch.
+
+My current tree works rock solid but I forgot a little design detail ;).
+If a mapped page have anonymous buffers on it it have to _stay_ on the lru
+otherwise the bh headers will become unfreeable and so I can basically
+leak memory. Once this little bit will be fixed (and it's not a trivial
+bit if you think at it) I'll post the patch where the above and other
+things are fixed.
+
+It should be fully orthogonal (at least conceptually) with your anon.c
+stuff since all new code lives in the lru_cache domain.
+
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
