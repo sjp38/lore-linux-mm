@@ -1,50 +1,27 @@
-Received: from allspeeds.net (root@allspeeds.net [207.107.153.240])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA32339
-	for <linux-mm@kvack.org>; Sat, 2 May 1998 16:24:47 -0400
-Date: Sat, 2 May 1998 16:19:33 -0400 (EDT)
-From: allspeed <allspeed@allspeeds.net>
-Subject: Re: observation
-In-Reply-To: <Pine.LNX.3.91.980502203753.20944A-100000@mirkwood.dummy.home>
-Message-ID: <Pine.LNX.3.96.980502161804.1660A-100000@allspeeds.net>
+Received: from ife.ee.ethz.ch (ife-ife1.ee.ethz.ch [129.132.25.65])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA21100
+	for <linux-mm@kvack.org>; Tue, 12 May 1998 06:43:05 -0400
+Received: from eldrich.ee.ethz.ch (eldrich.ee.ethz.ch [129.132.24.203])
+	by ife.ee.ethz.ch (8.8.5/8.8.5) with SMTP id MAA14011
+	for <linux-mm@kvack.org>; Tue, 12 May 1998 12:42:43 +0200 (MET DST)
+Message-ID: <355827A2.2844@ife.ee.ethz.ch>
+Date: Tue, 12 May 1998 12:42:42 +0200
+From: Thomas Sailer <sailer@ife.ee.ethz.ch>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: bigphysarea in 2.1.x
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Maybe i use to be with kernel 2.0.33 with ppp 2.3.3.
-i din't changed any setups but i upgrade the kernel now every thing that
-passes by the modem is lot slower then before..
+Is there somewhere a version of the bigphysarea patch for
+recent 2.1.x kernels?
 
-i working on it right now!
+Or does anyone have a better idea how to allocate 1-4MByte
+of nonpageable physically contiguous memory?
 
+I need this to store the wavetable data in the SonicVibes
+driver so that the chip can access it...
 
-Rejean Turgeon
-AllSpeeds Net
-allspeed@allspeeds.net
-
-
-On Sat, 2 May 1998, Rik van Riel wrote:
-
-> On Sat, 2 May 1998, allspeed wrote:
-> 
-> > I'm sorry to say that but since i've upgraded every transfers are slower
-> > then before!..
-> 
-> You mean all except the file transfer, or ALL transfers.
-> In my experience (also using PPP, etc) things have only
-> gotten better, but that it might be due to a difference
-> in the software our remote ends use.
-> 
-> The computers I connect to probably are Digital Unix
-> (like everything else on the physics department) or
-> some special terminal server. What do you connect to?
-> 
-> Rik.
-> +-------------------------------------------+--------------------------+
-> | Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
-> |        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
-> |     http://www.phys.uu.nl/~riel/          | <H.H.vanRiel@phys.uu.nl> |
-> +-------------------------------------------+--------------------------+
-> 
+Tom
