@@ -1,50 +1,62 @@
-Date: Thu, 20 Apr 2000 13:30:17 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: questions on having a driver pin user memory for DMA
-Message-ID: <20000420133017.D16473@redhat.com>
-References: <38FE3B08.9FFB4C4E@giganet.com> <m1g0shi8cm.fsf@flinx.biederman.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <m1g0shi8cm.fsf@flinx.biederman.org>; from ebiederm+eric@ccr.net on Thu, Apr 20, 2000 at 01:39:53AM -0500
+Date: Thu, 20 Apr 2000 15:43:23 -0400 (EDT)
+From: Ben LaHaise <bcrl@redhat.com>
+Subject: [rtf] [patch] 2.3.99-pre6-3 overly swappy
+Message-ID: <Pine.LNX.4.21.0004201538200.8445-100000@devserv.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: Weimin Tchen <wtchen@giganet.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+The balance between swap and shrink_mmap was upset by the recent per-zone
+changes: kswapd wakeups now call swap_out 3 times as much as before,
+resulting in increased page faults and swap out activity, especially
+under heavy io.  This patch seems to help quite a bit -- can other people
+give this a try?
 
-On Thu, Apr 20, 2000 at 01:39:53AM -0500, Eric W. Biederman wrote:
-> 
-> The rules of thumb on this issue are:
-> 1) Don't pin user memory let user space mmap driver memory.
+		-ben
 
-map_user_kiobuf is intended to allow user space buffers to be mapped
-the other way safely.
-
-> 2) If you must have access to user memory use the evolving kiobuf
->    interface.  But that is mostly useful for the single shot
->    read/write case.  
-
-There are not many problems with long-lived buffers mapped by kiobufs.
-The fork problem is the main one, but we already have patches for that.
-
-> I'm a little dense, with all of the headers and trailers
-> that are put on packets how can it be efficient to DMA to/from
-> user memory?  You have to look at everything to compute checksums
-> etc.  
-
-VIA != IP.
-
-> Your interface sounds like it walks around all of the networking
-> code in the kernel.  How can that be good?
-
-VIA != networking.  VIA == messaging.  It provides for very (VERY) 
-low latency user-space-to-user-space transfers, bypassing the O/S
-entirely by allowing the O/S to grant the application direct, 
-limited access to the HW control queues.
-
---Stephen
+diff -ur 2.3.99-pre6-3/mm/vmscan.c linux-test/mm/vmscan.c
+--- 2.3.99-pre6-3/mm/vmscan.c	Wed Apr 12 14:39:50 2000
++++ linux-test/mm/vmscan.c	Thu Apr 20 15:12:17 2000
+@@ -408,7 +408,7 @@
+  * cluster them so that we get good swap-out behaviour. See
+  * the "free_memory()" macro for details.
+  */
+-static int do_try_to_free_pages(unsigned int gfp_mask, zone_t *zone)
++static int do_try_to_free_pages(unsigned int gfp_mask, zone_t *zone, int do_swap)
+ {
+ 	int priority;
+ 	int count = SWAP_CLUSTER_MAX;
+@@ -423,6 +423,8 @@
+ 				goto done;
+ 		}
+ 
++		if (!do_swap)
++			continue;
+ 
+ 		/* Try to get rid of some shared memory pages.. */
+ 		if (gfp_mask & __GFP_IO) {
+@@ -507,7 +509,7 @@
+ 					schedule();
+ 				if ((!zone->size) || (!zone->zone_wake_kswapd))
+ 					continue;
+-				do_try_to_free_pages(GFP_KSWAPD, zone);
++				do_try_to_free_pages(GFP_KSWAPD, zone, i == (MAX_NR_ZONES - 1));
+ 			}
+ 			pgdat = pgdat->node_next;
+ 		}
+@@ -538,7 +540,7 @@
+ 
+ 	if (gfp_mask & __GFP_WAIT) {
+ 		current->flags |= PF_MEMALLOC;
+-		retval = do_try_to_free_pages(gfp_mask, zone);
++		retval = do_try_to_free_pages(gfp_mask, zone, 1);
+ 		current->flags &= ~PF_MEMALLOC;
+ 	}
+ 	return retval;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
