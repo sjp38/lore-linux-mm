@@ -1,55 +1,35 @@
-Date: Sat, 3 Mar 2001 01:52:19 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [PATCH] count for buffer IO in page_launder()
-In-Reply-To: <20010302171020.W28854@redhat.com>
-Message-ID: <Pine.LNX.4.21.0103030133440.1033-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Sat, 3 Mar 2001 13:12:44 +0100
+From: Christoph Hellwig <hch@ns.caldera.de>
+Subject: Re: MM docs...
+Message-ID: <20010303131244.A15788@caldera.de>
+References: <3AA046D4.B7EC6999@mandrakesoft.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <3AA046D4.B7EC6999@mandrakesoft.com>; from jgarzik@mandrakesoft.com on Fri, Mar 02, 2001 at 08:20:20PM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Jeff Garzik <jgarzik@mandrakesoft.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Fri, 2 Mar 2001, Stephen C. Tweedie wrote:
-
-> Hi,
+On Fri, Mar 02, 2001 at 08:20:20PM -0500, Jeff Garzik wrote:
+> Is there any chance that some knowledgeable people could write docs for
+> the public functions in 2.4's linux/mm directory?
 > 
-> On Tue, Feb 27, 2001 at 04:09:09AM -0300, Marcelo Tosatti wrote:
-> > 
-> > page_launder() is not counting direct ll_rw_block() IO correctly in the
-> > flushed pages counter. 
+> I'm gonna finish up documenting kernel/*, drivers/pci* and a few drivers
+> in drivers/net soon.  mm/* is a hole in my knowledge, though, so I need
+> to solicit for volunteers.
 > 
-> Having not seen any follow to this, it's worth asking: what is the
-> expected consequence of _not_ including this?  
+> It would be nice to silence the people complaining about the kernel's
+> lack of internal docs. :)
 
-The page launder loop avoids flushing too many pages if it already
-flushed/cleaned enough pages to remove the system from low memory
-condition (mm/vmscan.c::page_launder()):
+I'm currently writing some documentation - it should end up as one chapter
+in Tigran's lki.
 
-                /*
-                 * Disk IO is really expensive, so we make sure we
-                 * don't do more work than needed.
-                 * Note that clean pages from zones with enough free
-                 * pages still get recycled and dirty pages from these
-                 * zones can get flushed due to IO clustering.
-                 */
-                if (freed_pages + flushed_pages > target && !free_shortage())
-                        break;
+	Christoph
 
-
-Dirty buffer pages and dirty pagecache pages with page->buffers mapping
-which were being flushed (with try_to_free_buffers()) were not being
-counted in the "flushed_pages" counter correctly.
-
-So what could happen is that tasks trying to launder pages could
-flush/swapout more than needed. 
-
-> Have you done an performance testing on it?
-
-No. The code makes sense now.
-
+-- 
+Of course it doesn't work. We've performed a software upgrade.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
