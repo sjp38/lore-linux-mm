@@ -1,42 +1,53 @@
-Date: Tue, 28 Mar 2000 14:26:56 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: your mail
-Message-ID: <20000328142656.B16752@redhat.com>
-References: <CA2568B0.002E6B38.00@d73mta05.au.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <CA2568B0.002E6B38.00@d73mta05.au.ibm.com>; from pnilesh@in.ibm.com on Tue, Mar 28, 2000 at 01:49:04PM +0530
+Date: Tue, 28 Mar 2000 10:58:00 -0500 (EST)
+From: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
+Subject: Re: how text page of executable are shared ?
+In-Reply-To: <20000328142253.A16752@redhat.com>
+Message-ID: <Pine.LNX.4.10.10003281019140.5753-100000@coffee.psychology.mcmaster.ca>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: pnilesh@in.ibm.com
-Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Tue, Mar 28, 2000 at 01:49:04PM +0530, pnilesh@in.ibm.com wrote:
+> > The page table entries of both the process will have entry for this page.
+> > But when the page is discarded only the page entry of only one process get
+> > cleared , this is what I have understood from the swap_out () function .
 > 
-> No, if both processes have faulted in the page into their ptes, it will
-> be 2.
+> Yes.  swap_out() is responsible for unlinking pages from process page 
+> tables.  In the case you describe, the page will still have outstanding
+> references, from the other process and from the page cache.  Only when
+> the page cache cleanup function (shrink_mmap) gets called, after all of
+> the ptes to the page have been cleared, will the page be freed.
 
-3.  The page cache counts as a reference.
+could you comment on a problem I'm seeing in the current (pre3) VM?
+the situation is a 256M machine, otherwise idle (random daemons, no X,
+couple ssh's) and a process that sequentially traverses 12 40M files
+by mmaping them (and munmapping them, in order, one at a time.)
 
-> One more thing if the process ocurrs a page fault on text page it calls
-> file_no_page()
-> From what you said in this case it should increment the page count but in
-> this function no where I could see the page count getting incremented.
+the observation is that all goes well until the ~6th file, when we 
+run out of unused ram.  then we start _swapping_!  the point is that 
+shrink_mmap should really be scavenging those now unmapped files,
+shouldn't it?
 
-It is done implicitly when filemap_nopage() looks for the page in the
-page cache: __find_page() increments the reference count of any page
-it finds before returning.
+could something be happening, like we're accidentally setting PG_referenced
+on pages that are only in use by the page cache?  or perhaps someone not
+adjusting page_cache_size properly?
 
-> The David Rusling book says when reducing page cache and buffer cache the
-> page table entries are not modified and the pages can be dropped directly.
+in shrink_mmap:
+                /*
+                 * We can't free pages unless there's just one user
+                 * (count == 2 because we added one ourselves above).
+                 */
+                if (page_count(page) != 2)
+                        goto cache_unlock_continue;
 
-Yes, but it checks the page reference count to make sure it is legal to
-do so first.
+is this wrong, since the page cache holds a reference?
 
---Stephen
+
+thanks, mark hahn.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
