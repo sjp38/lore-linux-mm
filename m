@@ -1,35 +1,28 @@
 From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199906212344.QAA93017@google.engr.sgi.com>
-Subject: Re: filecache/swapcache questions
-Date: Mon, 21 Jun 1999 16:44:34 -0700 (PDT)
-In-Reply-To: <199906211846.LAA91751@google.engr.sgi.com> from "Kanoj Sarcar" at Jun 21, 99 11:46:27 am
+Message-Id: <199906231812.LAA02787@google.engr.sgi.com>
+Subject: mmap/MAP_SHARED and mandatory flock
+Date: Wed, 23 Jun 1999 11:12:30 -0700 (PDT)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: sct@redhat.com, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-And continuing on with the problems with swapoff ...
+It seems to me that the mmap/MAP_SHARED locks_verify_locked() check
+and fcntl_setlk() have no synchronization. For example, a process
+invoking fcntl_setlk on a IS_MANDLOCK inode can check that it has
+no i_mmap vma list, then go on and sleep later before queueing a
+file_lock on the inode i_flock. Subsequently, an mmaper can come
+in, invoke locks_verify_locked(), see no file_lock on the inode
+i_flock, and succeed. The file locker can then wake up and also
+return success.
 
-While forking, we copy swap handles from the parent into the child
-in copy_page_range. There are of course sleep point in dup_mmap
-(kmem_cache_alloc would be one, vm_ops->open could be another). 
-
-A swapoff coming in at this point might scan the process list, not
-find the nascent child, and just delete the device, leaving the
-child referencing the old swap handles.
-
-Irregardless of our current discussions about why the mmap_sem 
-is needed in swapoff to protect ptes, it seems that grabbing it
-in swapoff could trivially solve this fork race ... and some code
-changes in exit_mmap could also fix the exit race ...
+Am I missing some synchronization lock/algorithm?
 
 Kanoj
 kanoj@engr.sgi.com
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
