@@ -1,38 +1,73 @@
-Date: Mon, 25 Jun 2001 21:53:33 -0300 (BRT)
+Date: Mon, 25 Jun 2001 22:45:20 -0300 (BRT)
 From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: VM tuning through fault trace gathering [with actual code]
-In-Reply-To: <m2d77s4m34.fsf@boreas.yi.org.>
-Message-ID: <Pine.LNX.4.21.0106252152580.941-100000@freak.distro.conectiva>
+Subject: Re: [RFC] VM statistics to gather
+In-Reply-To: <Pine.LNX.4.33L.0106252002560.23373-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.21.0106252238070.941-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Fremlin <vii@users.sourceforge.net>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On 25 Jun 2001, John Fremlin wrote:
+On Mon, 25 Jun 2001, Rik van Riel wrote:
 
+> Hi,
 > 
-> Last year I had the idea of tracing the memory accesses of the system
-> to improve the VM - the traces could be used to test algorithms in
-> userspace. The difficulty is of course making all memory accesses
-> fault without destroying system performance.
+> I am starting the process of adding more detailed instrumentation
+> to the VM subsystem and am wondering which statistics to add.
+> A quick start of things to measure are below, but I've probably
+> missed some things. Comments are welcome ...
 > 
-> The following patch (i386 only) will dump all page faults to
-> /dev/biglog (you need devfs for this node to appear). If you echo 1 >
-> /proc/sys/vm/trace then *almost all* userspace memory accesses will
-> take a soft fault. Note that this is a bit suicidal at the moment
-> because of the staggeringly inefficient way its implemented, on my box
-> (K6-2 300MHz) only processes which do very little (e.g. /usr/bin/yes)
-> running at highest priority are able to print anything to the console.
 > 
-> I think the best way would be to have only one valid l2 pte per
-> process. I'll have a go at doing that in a day or two unless someone
-> has a better idea?
+> 
+> --- kernel_stat.h.instr	Sun Jun 24 19:52:34 2001
+> +++ kernel_stat.h	Mon Jun 25 20:02:38 2001
+> @@ -26,6 +26,25 @@
+>  	unsigned int dk_drive_wblk[DK_MAX_MAJOR][DK_MAX_DISK];
+>  	unsigned int pgpgin, pgpgout;
+>  	unsigned int pswpin, pswpout;
+> +	unsigned int vm_pgscan;		/* Pages scanned by pageout code. */
+> +	unsigned int vm_pgdeact;	/* Pages deactivated by pageout code */
 
-Linux Trace Toolkit (http://www.opersys.com/LTT) does that. 
+s/page out code/deactivation code/ ?
+
++      unsigned int vm_swapout_pgdeact; /* Pages deactivated directly by
+					  swapout() */
+
+> +	unsigned int vm_pgclean;	/* Pages moved to inactive_clean */
+> +	unsigned int vm_pgskiplaunder;	/* Pages skipped by page_launder */
+> +	unsigned int vm_pglaundered;	/* Pages laundered by page_launder */
+> +	unsigned int vm_pgreact;	/* Pages reactivated by page_launder
+> +					 * (rescued from inactive_clean list) */
+
+The "(rescued from inactive_clean list)" affirmation is not always true.
+
+> +	unsigned int vm_pgrescue;	/* Pages reactivated by reclaim_page
+> +					 * (rescued from inactive_dirty list) */
+  	unsigned int vm_reclaimfail;	/* page_reclaim() failures (not able
+					   to find any freeable page at 
+					   inactive clean */
+					
+> +	unsigned int vm_majfault;	/* Major page faults (disk IO) */
+> +	unsigned int vm_minfault;	/* Minor page faults (no disk IO) */
+> +	unsigned int vm_cow_fault;	/* COW faults, copy needed */
+> +	unsigned int vm_cow_optim;	/* COW skipped copy */
+> +	unsigned int vm_zero_fault;	/* Zero-filled page given to process */
+> +	unsigned int vm_zero_optim;	/* COW of the EMPTY_ZERO_PAGE */
+> +	unsigned int vm_kswapd_wakeup;	/* kswapd wake-ups */
+> +	unsigned int vm_kswapd_loops;	/* kswapd go-arounds in kswapd() loop */
+	unsigned int vm_kreclaim_wakeup; /* kreclaimd wakeups */
+
+> +	unsigned int vm_pg_freed;	/* Pages freed by pageout code, also
+> +					   pages moved to inactive_clean */
+>  #if !defined(CONFIG_ARCH_S390)
+>  	unsigned int irqs[NR_CPUS][NR_IRQS];
+>  #endif
+
+Maybe I remember something more later..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
