@@ -1,39 +1,41 @@
-Received: from twinlark.arctic.org (twinlark.arctic.org [204.62.130.91])
-	by kvack.org (8.8.7/8.8.7) with SMTP id QAA28138
-	for <linux-mm@kvack.org>; Thu, 25 Jun 1998 16:08:19 -0400
-Date: Thu, 25 Jun 1998 13:31:59 -0700 (PDT)
-From: Dean Gaudet <dgaudet-list-linux-kernel@arctic.org>
-Subject: Re: Thread implementations...
-In-Reply-To: <199806251135.MAA00851@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.96dg4.980625132735.17730U-100000@twinlark.arctic.org>
+Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA28438
+	for <linux-mm@kvack.org>; Thu, 25 Jun 1998 17:10:13 -0400
+Date: Thu, 25 Jun 1998 22:08:39 +0100
+Message-Id: <199806252108.WAA16230@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: Memory management. (fwd)
+In-Reply-To: <Pine.LNX.3.96.980625175920.31988G-100000@mirkwood.dummy.home>
+References: <Pine.LNX.3.96.980625175920.31988G-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: "Eric W. Biederman" <ebiederm+eric@npwt.net>, Richard Gooch <Richard.Gooch@atnf.CSIRO.AU>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
+On Thu, 25 Jun 1998 18:00:15 +0200 (CEST), Rik van Riel
+<H.H.vanRiel@phys.uu.nl> said:
 
-On Thu, 25 Jun 1998, Stephen C. Tweedie wrote:
+> From: Stefane Fermigier <fermigie@math.jussieu.fr>
+> To: H.H.vanRiel@phys.uu.nl
+> Subject: Memory management.
 
-> Hi,
-> 
-> On 24 Jun 1998 23:56:28 -0500, ebiederm+eric@npwt.net (Eric
-> W. Biederman) said:
-> 
-> > mmap, madvise(SEQUENTIAL),write 
-> > is easy to implement.  The mmap layer already does readahead, all we
-> > do is tell it not to be so conservative.
-> 
-> Swap readhead is also now possible.  However, madvise(SEQUENTIAL) needs
-> to do much more than this; it needs to aggressively track what region of
-> the vma is being actively used, and to unmap those areas no longer in
-> use.
+> He said that under most circumstances, Linux was able to get the best
+> results, but that when huge amounts of data were to be transfered from and
+> then to disk during the computations, performances were dropping badly.
+> This would appear when the size of the files that are manipulated 
+> is _half_ of the RAM of the systems, when one would think that RAM 
+> just (approximately) _equal_ to the size of the files would be enough.
+> According to Remy Card, this might be a question of ``double buffering'',
+> that is, the data would go to _two_ different RAM buffers instead of just
+> one.
 
-Remember it's *regions* not just a region.  An http/ftp server sends the
-same file over and over and over.  There are many cursors moving
-sequentially within the same file.  A threaded http/ftp server will have a
-single mmap, and multiple users of that mmap. 
+That's right --- it's the old problem of buffering writes through the
+buffer cache and reads through the page cache.  Do you want me to reply
+to this to say we know about it?
 
-Dean
+--Stephen
