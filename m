@@ -1,34 +1,31 @@
-Message-ID: <20010525203944.B15304@bug.ucw.cz>
-Date: Fri, 25 May 2001 20:39:44 +0200
-From: Pavel Machek <pavel@suse.cz>
-Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-References: <Pine.LNX.4.33.0105200957500.323-100000@mikeg.weiden.de> <Pine.LNX.4.21.0105200546241.5531-100000@imladris.rielhome.conectiva> <20010520235409.G2647@bug.ucw.cz> <20010521223212.C4934@khan.acc.umu.se> <3B0BF8B6.D7940FA3@mvista.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <3B0BF8B6.D7940FA3@mvista.com>; from Scott Anderson on Wed, May 23, 2001 at 05:51:50PM +0000
+Received: from northrelay01.pok.ibm.com (northrelay01.pok.ibm.com [9.117.200.21])
+	by e1.ny.us.ibm.com (8.9.3/8.9.3) with ESMTP id MAA395590
+	for <linux-mm@kvack.org>; Sat, 26 May 2001 12:36:26 -0400
+Received: from d01ml233.pok.ibm.com (d01ml233.pok.ibm.com [9.117.200.63])
+	by northrelay01.pok.ibm.com (8.8.8m3/NCO v4.96) with ESMTP id MAA227988
+	for <linux-mm@kvack.org>; Sat, 26 May 2001 12:38:03 -0400
+Message-ID: <OFC6E11B11.FF3CD6E0-ON85256A58.005AC313@pok.ibm.com>
+From: "Bulent Abali" <abali@us.ibm.com>
+Date: Sat, 26 May 2001 12:38:59 -0400
+MIME-Version: 1.0
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Scott Anderson <scott_anderson@mvista.com>, David Weinehall <tao@acc.umu.se>
-Cc: Rik van Riel <riel@conectiva.com.br>, Mike Galbraith <mikeg@wen-online.de>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Is it reasonable to assume that matching
+alloc_pages/free_pages pairs will always have the same order
+as the 2nd argument?
 
-> > IMVHO every developer involved in memory-management (and indeed, any
-> > software development; the authors of ntpd comes in mind here) should
-> > have a 386 with 4MB of RAM and some 16MB of swap. Nowadays I have the
-> > luxury of a 486 with 8MB of RAM and 32MB of swap as a firewall, but it's
-> > still a pain to work with.
-> 
-> If you really want to have fun, remove all swap...
+For example
+pg = alloc_pages( , aorder);   free_pages(pg, forder);
+Is (aorder == forder) always true?
 
-My handheld has 12MB ram, no swap ;-), and that's pretty big machine
-for handheld.
-								Pavel
-PS: Swapping on flash disk is bad idea, right?
--- 
-I'm pavel@ucw.cz. "In my country we have almost anarchy and I don't care."
-Panos Katsaloulis describing me w.r.t. patents at discuss@linmodems.org
+Or, are there any bizarro drivers etc which will intentionally
+free partial amounts, that is (forder < aorder)?
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
