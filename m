@@ -1,38 +1,83 @@
-Message-ID: <20010101051321.11274.qmail@nw179.netaddress.usa.net>
-Date: 31 Dec 00 22:13:21 MST
-From: Jawad Qureshi <qureshi_jawad@usa.net>
-Subject: Some Error Message Got While Running Our Application
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 8BIT
+Date: Wed, 3 Jan 2001 12:57:55 -0200 (BRDT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] drop-behind fix for generic_file_write
+Message-ID: <Pine.LNX.4.21.0101031256040.1403-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi 
+Hi Linus, Alan,
 
-I am working on some VOIP application . I got some error messages while 
-testing my application. These messages come after running the application for
-half an hour .
-These are the linux system messages.
-1) BUG IN DYNAMIC LINKER ld.so:dl-minimal.c:69:malloc:assertion 'Page
-!=((void*)-1)' failed.
-2) Unable to load interpreter /lib/ld.linux.so.2
-3)/bin/mingetty:error in loading shared libraries:libc.so.6 failed to to map
-segment from shared object: cannot allocate memory
-4)Unable to load interpreter /lib/ld-linux.so.2
-INIT:Id "2" responding too fast : disabled for 5 minutes
+the following (trivial) patch fixes drop-behind behaviour
+in generic_file_write to only drop fully written pages.
 
-Any help or suggestions??
+This increases performance in dbench by about 8% (as
+measured by Daniel Phillips) and should get rid of the
+logfile bottleneck Ingo Molnar found with the drop-behind
+call in generic_file_write in TUX tests.
 
-Thanks 
-Jawad
+Please apply this (trivial) patch for 2.4.0.
+
+regards,
+
+Rik
+--
+Hollywood goes for world dumbination,
+	Trailer at 11.
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
 
 
-____________________________________________________________________
-Get free email and a permanent address at http://www.netaddress.com/?N=1
+--- linux-2.4.0-prerelease/mm/filemap.c.orig	Wed Jan  3 12:52:13 2001
++++ linux-2.4.0-prerelease/mm/filemap.c	Wed Jan  3 12:54:05 2001
+@@ -2496,7 +2496,7 @@
+ 	}
+ 
+ 	while (count) {
+-		unsigned long bytes, index, offset;
++		unsigned long bytes, index, offset, partial = 0;
+ 		char *kaddr;
+ 
+ 		/*
+@@ -2506,8 +2506,10 @@
+ 		offset = (pos & (PAGE_CACHE_SIZE -1)); /* Within page */
+ 		index = pos >> PAGE_CACHE_SHIFT;
+ 		bytes = PAGE_CACHE_SIZE - offset;
+-		if (bytes > count)
++		if (bytes > count) {
+ 			bytes = count;
++			partial = 1;
++		}
+ 
+ 		/*
+ 		 * Bring in the user page that we will copy from _first_.
+@@ -2549,9 +2551,17 @@
+ 			buf += status;
+ 		}
+ unlock:
+-		/* Mark it unlocked again and drop the page.. */
++		/*
++		 * Mark it unlocked again and release the page.
++		 * In order to prevent large (fast) file writes
++		 * from causing too much memory pressure we move
++		 * completely written pages to the inactive list.
++		 * We do, however, try to keep the pages that may
++		 * still be written to (ie. partially written pages).
++		 */
+ 		UnlockPage(page);
+-		deactivate_page(page);
++		if (!partial)
++			deactivate_page(page);
+ 		page_cache_release(page);
+ 
+ 		if (status < 0)
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
