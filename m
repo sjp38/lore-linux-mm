@@ -1,155 +1,73 @@
-Date: Wed, 10 Apr 2002 20:04:15 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: [PATCH] kmem_cache_shrink return value
-Message-ID: <20020410200415.A25542@infradead.org>
+Date: Wed, 10 Apr 2002 13:59:47 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] radix-tree pagecache for 2.4.19-pre5-ac3
+Message-ID: <20020410205947.GG21206@holomorphy.com>
+References: <20020407164439.GA5662@debian>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
 Content-Disposition: inline
+In-Reply-To: <20020407164439.GA5662@debian>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: Art Haas <ahaas@neosoft.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Currently kmem_cache_shrink returns 1 normally and 0 in the case all slabs
-were released.  This is almost useless for normal use and in fact only one
-user actually checked it.  This user (drivers/s390/ccwcache.c) shouldn't
-have used kmem_cache_shrink in the first place and does even cause an OOPS
-due to kmem_cache_destroy on a NUL-pointer if kmem_cache_shrink returned
-0...
+On Sun, Apr 07, 2002 at 11:44:39AM -0500, Art Haas wrote:
+> Once again the patch has been re-diffed for the latest -ac
+> kernel. It's running on my machine now. Enjoy!
+> I'm interested in hearing back from anyone using this
+> patch - I'd like to be sure that it applies cleanly (I
+> believe it does), and that the kernel built with the
+> patch runs well. The -ac kernels with rmap and the O(1)
+> scheduler are working well for me, and I'm hoping that
+> this patch adds to those kernels. At some point I'm hoping
+> the patch is included in to the -ac patchset, and the
+> eventual inclusion into the standard kernel release.
+> My thanks to everyone working on the kernel.
 
-This patch instead makes kmem_cache_shrink return the number of pages
-released to help the VM doing balancing.  The -rmap VM already uses this
-(it has this patch already included) and one of akpm's comments in the -aa
-split patches addresses the same issue.
+Thank you! This has saved me some effort.
+
+Burning question:
+What are the hunks changing arch/i386/kernel/setup.c there for?
+Also, there appears to be a livelock in add_to_swap(), (yes, this
+has killed my boxen dead) something to help with this follows.
+(It at least turned up a different problem I'm still working on.)
 
 
-diff -uNr -Xdontdiff linux-2.4.19-pre6/drivers/s390/ccwcache.c linux/drivers/s390/ccwcache.c
---- linux-2.4.19-pre6/drivers/s390/ccwcache.c	Thu Aug 30 17:27:25 2001
-+++ linux/drivers/s390/ccwcache.c	Wed Apr 10 15:46:12 2002
-@@ -291,9 +291,11 @@
- 	/* Shrink the caches, if available */
- 	for ( cachind = 0; cachind < CCW_NUMBER_CACHES; cachind ++ ) {
- 		if ( ccw_cache[cachind] ) {
-+#if 0 /* this is useless and could cause an OOPS in the worst case */
- 			if ( kmem_cache_shrink(ccw_cache[cachind]) == 0 ) {
- 				ccw_cache[cachind] = NULL;
- 			}
-+#endif
- 			kmem_cache_destroy(ccw_cache[cachind]);
- 		}
- 	}
-diff -uNr -Xdontdiff linux-2.4.19-pre6/fs/dcache.c linux/fs/dcache.c
---- linux-2.4.19-pre6/fs/dcache.c	Sun Mar 10 14:03:05 2002
-+++ linux/fs/dcache.c	Wed Apr 10 15:46:12 2002
-@@ -568,8 +568,7 @@
- 	count = dentry_stat.nr_unused / priority;
- 
- 	prune_dcache(count);
--	kmem_cache_shrink(dentry_cache);
--	return 0;
-+	return kmem_cache_shrink(dentry_cache);
- }
- 
- #define NAME_ALLOC_LEN(len)	((len+16) & ~15)
-diff -uNr -Xdontdiff linux-2.4.19-pre6/fs/dquot.c linux/fs/dquot.c
---- linux-2.4.19-pre6/fs/dquot.c	Sun Mar 10 14:03:05 2002
-+++ linux/fs/dquot.c	Wed Apr 10 15:46:12 2002
-@@ -413,8 +413,7 @@
- 	lock_kernel();
- 	prune_dqcache(nr_free_dquots / (priority + 1));
- 	unlock_kernel();
--	kmem_cache_shrink(dquot_cachep);
--	return 0;
-+	return kmem_cache_shrink(dquot_cachep);
- }
- 
- /* NOTE: If you change this function please check whether dqput_blocks() works right... */
-diff -uNr -Xdontdiff linux-2.4.19-pre6/fs/inode.c linux/fs/inode.c
---- linux-2.4.19-pre6/fs/inode.c	Sun Mar 10 14:03:05 2002
-+++ linux/fs/inode.c	Wed Apr 10 15:46:12 2002
-@@ -725,8 +725,7 @@
- 	count = inodes_stat.nr_unused / priority;
- 
- 	prune_icache(count);
--	kmem_cache_shrink(inode_cachep);
--	return 0;
-+	return kmem_cache_shrink(inode_cachep);
- }
- 
- /*
-diff -uNr -Xdontdiff linux-2.4.19-pre6/mm/slab.c linux/mm/slab.c
---- linux-2.4.19-pre6/mm/slab.c	Sun Apr  7 22:30:09 2002
-+++ linux/mm/slab.c	Wed Apr 10 15:48:33 2002
-@@ -909,14 +909,13 @@
- #define drain_cpu_caches(cachep)	do { } while (0)
- #endif
- 
--static int __kmem_cache_shrink(kmem_cache_t *cachep)
-+/*
-+ * Called with the &cachep->spinlock held, returns number of slabs released
-+ */
-+static int __kmem_cache_shrink_locked(kmem_cache_t *cachep)
- {
- 	slab_t *slabp;
--	int ret;
--
--	drain_cpu_caches(cachep);
--
--	spin_lock_irq(&cachep->spinlock);
-+	int ret = 0;
- 
- 	/* If the cache is growing, stop shrinking. */
- 	while (!cachep->growing) {
-@@ -935,9 +934,22 @@
- 
- 		spin_unlock_irq(&cachep->spinlock);
- 		kmem_slab_destroy(cachep, slabp);
-+		ret++;
- 		spin_lock_irq(&cachep->spinlock);
- 	}
--	ret = !list_empty(&cachep->slabs_full) || !list_empty(&cachep->slabs_partial);
-+	return ret;
-+}
-+
-+static int __kmem_cache_shrink(kmem_cache_t *cachep)
-+{
-+	int ret;
-+
-+	drain_cpu_caches(cachep);
-+
-+	spin_lock_irq(&cachep->spinlock);
-+	__kmem_cache_shrink_locked(cachep);
-+	ret = !list_empty(&cachep->slabs_full) ||
-+		!list_empty(&cachep->slabs_partial);
- 	spin_unlock_irq(&cachep->spinlock);
- 	return ret;
- }
-@@ -947,14 +959,22 @@
-  * @cachep: The cache to shrink.
-  *
-  * Releases as many slabs as possible for a cache.
-- * To help debugging, a zero exit status indicates all slabs were released.
-+ * Returns number of pages released.
+Cheers,
+Bill
+
+
+diff -urN linux-virgin/mm/swap_state.c linux/mm/swap_state.c
+--- linux-virgin/mm/swap_state.c	Tue Apr  9 18:50:48 2002
++++ linux/mm/swap_state.c	Tue Apr  9 21:28:15 2002
+@@ -104,6 +104,7 @@
   */
- int kmem_cache_shrink(kmem_cache_t *cachep)
+ int add_to_swap(struct page * page)
  {
-+	int ret;
-+
- 	if (!cachep || in_interrupt() || !is_chained_kmem_cache(cachep))
- 		BUG();
++	int error;
+ 	swp_entry_t entry;
  
--	return __kmem_cache_shrink(cachep);
-+	drain_cpu_caches(cachep);
-+  
-+	spin_lock_irq(&cachep->spinlock);
-+	ret = __kmem_cache_shrink_locked(cachep);
-+	spin_unlock_irq(&cachep->spinlock);
-+
-+	return ret << cachep->gfporder;
- }
- 
- /**
+ 	if (!PageLocked(page))
+@@ -118,11 +119,15 @@
+ 		 * (adding to the page cache will clear the dirty
+ 		 * and uptodate bits, so we need to do it again)
+ 		 */
+-		if (add_to_swap_cache(page, entry) == 0) {
++		error = add_to_swap_cache(page, entry);
++		if (!error) {
+ 			SetPageUptodate(page);
+ 			set_page_dirty(page);
+ 			swap_free(entry);
+ 			return 1;
++		} else if (error = -ENOMEM) {
++			swap_free(entry);
++			return 0;
+ 		}
+ 		/* Raced with "speculative" read_swap_cache_async */
+ 		swap_free(entry);
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
