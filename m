@@ -1,44 +1,53 @@
-From: Printer Supplies <usmxsnuz@eXcuria.com>
-Date: 1/24/2005 10:10:53 AM
-Subject: Epson Inkjet Cartridges From 5.95
-Message-Id: <20050124161126Z26575-20891+949@kvack.org>
+Date: Mon, 24 Jan 2005 08:37:15 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: Extend clear_page by an order parameter
+In-Reply-To: <20050122234517.376ef3f8.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.58.0501240835041.15963@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0501041512450.1536@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.44.0501082103120.5207-100000@localhost.localdomain>
+ <20050108135636.6796419a.davem@davemloft.net>
+ <Pine.LNX.4.58.0501211210220.25925@schroedinger.engr.sgi.com>
+ <20050122234517.376ef3f8.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: davem@davemloft.net, hugh@veritas.com, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Save up to 75% on Inkjet, Laser & Copier Supplies
-Quality Products, with 100% Satisfaction Guarantee
-Easy, Fast, Affordable Shipping Worldwide
-Plenty of Payment Options to Meet YOUR Needs!
-  
->> SPECIAL: FREE Shipping to US & Canada on Orders over $50 <<
-  
-Visit us on the web at http://www.eXcuria.com
-  
-  Epson S020089.............$6.95 (Normally $28.45)
-  Epson S020093.............$5.95 (Normally $23.70)
-  Epson S020108.............$5.95 (Normally $28.45)
-  Epson S020187.............$5.95 (Normally $23.70)
-  Epson S020189.............$5.95 (Normally $28.45)
-  Epson S020191.............$6.95 (Normally $28.45)
-  Epson T017201.............$6.95 (Normally $28.45)
-  Epson T018201.............$7.95 (Normally $23.70)
-  Epson T019201.............$5.99 (Normally $28.45)
-  Epson T027201.............$8.95 (Normally $21.84)
-  Epson T032120.............$5.95 (Normally $33.24)
-  Epson T040120.............$6.95 (Normally $28.45)
-  Epson T041020.............$7.95 (Normally $28.45)
-  
-  Brother LC21BK............$6.99 (Normally $19.99)
-  Canon BCI24BK.............$3.99 (Normally  $6.49)
-  HP C6578DN...............$22.95 (Normally $34.99)
-  
-  
-If you wish to contact us please visit our web site.
-  
-For instruction on how to be permanently remove from this
-distribution system go to http://www.eXcuria.com/Remove/
+On Sat, 22 Jan 2005, Andrew Morton wrote:
+
+> Christoph Lameter <clameter@sgi.com> wrote:
+> >
+> > The zeroing of a page of a arbitrary order in page_alloc.c and in hugetlb.c may benefit from a
+> >  clear_page that is capable of zeroing multiple pages at once (and scrubd
+> >  too but that is now an independent patch). The following patch extends
+> >  clear_page with a second parameter specifying the order of the page to be zeroed to allow an
+> >  efficient zeroing of pages. Hope I caught everything....
+> >
+>
+> Sorry, I take it back.  As Paul says:
+>
+> : Wouldn't it be nicer to call the version that takes the order
+> : parameter "clear_pages" and then define clear_page(p) as
+> : clear_pages(p, 0) ?
+
+> It would make the patch considerably smaller, and our naming is all over
+> the place anyway...
+
+Sounds good. Note though that this just means renaming clear_page to
+clear_pages for all arches which would increase the patch size for the
+arch specific section.
+
+> I'd have thought that we'd want to make the new clear_pages() handle
+> highmem pages too, if only from a regularity POV.  x86 hugetlbpages could
+> use it then, if someone thinks up a fast page-clearer.
+
+That would get us back to code duplication. We would have a clear_page (no
+highmem support) and a clear_pages (supporting highmem). Then it may
+also be better to pass the page struct to clear_pages instead of a memory address.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
