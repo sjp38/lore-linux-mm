@@ -1,49 +1,69 @@
-Date: Mon, 21 Feb 2005 04:02:07 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
- II
-Message-Id: <20050221040207.16226444.pj@sgi.com>
-In-Reply-To: <20050221095742.GA8788@wotan.suse.de>
-References: <20050215214831.GC7345@wotan.suse.de>
-	<4212C1A9.1050903@sgi.com>
-	<20050217235437.GA31591@wotan.suse.de>
-	<4215A992.80400@sgi.com>
-	<20050218130232.GB13953@wotan.suse.de>
-	<42168FF0.30700@sgi.com>
-	<20050220214922.GA14486@wotan.suse.de>
-	<20050220143023.3d64252b.pj@sgi.com>
-	<20050220223510.GB14486@wotan.suse.de>
-	<42198DE5.2040703@sgi.com>
-	<20050221095742.GA8788@wotan.suse.de>
+Date: Mon, 21 Feb 2005 13:10:11 +0100
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview II
+Message-ID: <20050221121010.GC17667@wotan.suse.de>
+References: <20050215214831.GC7345@wotan.suse.de> <4212C1A9.1050903@sgi.com> <20050217235437.GA31591@wotan.suse.de> <4215A992.80400@sgi.com> <20050218130232.GB13953@wotan.suse.de> <42168FF0.30700@sgi.com> <20050220214922.GA14486@wotan.suse.de> <20050220143023.3d64252b.pj@sgi.com> <20050220223510.GB14486@wotan.suse.de> <42199EE8.9090101@sgi.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <42199EE8.9090101@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: raybry@sgi.com, ak@muc.de, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ray Bryant <raybry@sgi.com>
+Cc: Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, ak@muc.de, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Ray wrote:
-> As I understood it, we were converging on the following:
->   (1) ...
->   (2) ...
->   (3) ...
-> This is different than your reply above, which seems to imply that:
->   (A) ...
->   (B) ...
+On Mon, Feb 21, 2005 at 02:42:16AM -0600, Ray Bryant wrote:
+> All,
+> 
+> Just an update on the idea of migrating a process without suspending
+> it.
+> 
+> The hard part of the problem here is to make sure that the page_migrate()
+> system call sees all of the pages to migrate.  If the process that is
+> being migrated can still allocate pages, then the page_migrate() call
+> may miss some of the pages.
 
-Andi reacted to various details of (A) and (B).
+I would do an easy 95% solution:
 
-Any chance, Andi, of you directly stating whether you concur
-with Ray that you two are converging on (1), (2) and (3)?
+When process has default process policy set temporarily a prefered policy
+with the new node
 
-I'm afraid my mind reading skills aren't that good.
+[this won't work with multiple nodes though, so you have to decide on one
+or stop the process if that is unacceptable] 
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.650.933.1373, 1.925.600.0401
+> 
+> One way to solve this problem is to force the process to start allocating
+> pages on the new nodes before calling page_migrate().  There are a couple
+> of subcases:
+> 
+> (1)  For memory mapped files with a non-DEFAULT associated memory policy,
+>      one can use mbind() to fixup the memory policy.  (This assumes the
+>      Steve Longerbeam patches are applied, as I understand things).
+
+I would just ignore them.  If user space wants it can handle it,
+but it's probably not worth it.
+
+> (1) could be handled as part of the page_migrate() system call --
+> make one pass through the address space searching for mempolicy()
+> data structures, and updating them as necessary.  Then make a second
+> pass through and do the migrations.  Any new allocations will then
+> be done under the new mempolicy, so they won't be missed.  But this
+> still gets us into trouble if the old and new node lists are not
+> disjoint.
+
+I wouldn't bother fixing up VMA policies. 
+
+> This doesn't handle anonymous memory or mapped files associated with
+> the DEFAULT policy.  A way around that would be to add a target cpu_id
+
+[...]
+
+I would set temporarily a prefered policy as mentioned above.
+
+That only handles a single node, but you solution is not better.
+
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
