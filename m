@@ -1,32 +1,46 @@
-Date: Fri, 26 Jan 2001 11:53:27 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: How do you determine PA in the X86_PAE mode.
-Message-ID: <20010126115327.K11607@redhat.com>
-References: <OF0A565D7B.D20E47EA-ON852569DF.00791D69@pok.ibm.com>
-Mime-Version: 1.0
+Received: from frodo.biederman.org (IDENT:root@frodo [10.0.0.2])
+	by flinx.biederman.org (8.9.3/8.9.3) with ESMTP id KAA01798
+	for <linux-mm@kvack.org>; Fri, 26 Jan 2001 10:19:02 -0700
+Subject: Re: ioremap_nocache problem?
+References: <3A6D5D28.C132D416@sangate.com> <20010123165117Z131182-221+34@kanga.kvack.org> <20010123165117Z131182-221+34@kanga.kvack.org> <20010125155345Z131181-221+38@kanga.kvack.org> <20010125165001Z132264-460+11@vger.kernel.org> <E14LpvQ-0008Pw-00@mail.valinux.com> <20010125175027Z131219-222+40@kanga.kvack.org>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 26 Jan 2001 09:32:58 -0700
+In-Reply-To: Timur Tabi's message of "Thu, 25 Jan 2001 11:53:01 -0600"
+Message-ID: <m1itn2e0jp.fsf@frodo.biederman.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <OF0A565D7B.D20E47EA-ON852569DF.00791D69@pok.ibm.com>; from abali@us.ibm.com on Thu, Jan 25, 2001 at 05:09:40PM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bulent Abali <abali@us.ibm.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Timur Tabi <ttabi@interactivesi.com> writes:
 
-On Thu, Jan 25, 2001 at 05:09:40PM -0500, Bulent Abali wrote:
-> Given struct page * p, how do you determine the physical page number in the
-> CONFIG_X86_PAE mode?
-> Is it simply  (p - mem_map)  ?  Thanks for any suggestions.
+> ** Reply to message from Jeff Hartmann <jhartmann@valinux.com> on Thu, 25 Jan
+> 2001 10:47:13 -0700
+> 
+> 
+> > As in an MMIO aperture?  If its MMIO on the bus you should be able to 
+> > just call ioremap with the bus address.  By nature of it being outside 
+> > of real ram, it should automatically be uncached (unless you've set an 
+> > MTRR over that region saying otherwise).
+> 
+> It's not outside of real RAM.  The device is inside real RAM (it sits on the
+> DIMM itself), but I need to poke through the entire 4GB range to see how it
+> responds.
 
-Yes, but only on i386 machines.  There are other systems which don't
-necessarily have all their physical memory arranged sequentially, so
-the 2.4 VM avoids using physical page numbers in any of the high-level
-code.  You're better off just using the struct page * to reference the
-page, and convert that to virtual addresses as you need it.
+The architecture makes some difference.  If the device is inside of RAM
+there are two moderately simple ways on x86 to make it work.
+1) set mem=yyy where yyy = real_ram but is smaller than your device.
+   make certain your device isn't on any mtrr.
+2) Disable SPD on your device.
+   Do the setup of the pseudo dimm yourself.
 
---Stephen
+In either case that will leave you with a device on the memory bus,
+but for all intents and purposes it is then just an i/o device you can
+treat like any other.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
