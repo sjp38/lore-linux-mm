@@ -1,122 +1,123 @@
-Date: Tue, 22 Apr 2003 06:20:13 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Tue, 22 Apr 2003 07:29:02 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: objrmap and vmtruncate
-Message-ID: <20030422132013.GF8931@holomorphy.com>
-References: <20030405143138.27003289.akpm@digeo.com> <Pine.LNX.4.44.0304220618190.24063-100000@devserv.devel.redhat.com> <20030422123719.GH23320@dualathlon.random>
-Mime-Version: 1.0
+Message-ID: <170570000.1051021741@[10.10.2.4]>
+In-Reply-To: <Pine.LNX.4.44.0304220618190.24063-100000@devserv.devel.redhat.com>
+References: <Pine.LNX.4.44.0304220618190.24063-100000@devserv.devel.redhat.c
+ om>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20030422123719.GH23320@dualathlon.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@digeo.com>, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@digeo.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 22, 2003 at 07:00:05AM -0400, Ingo Molnar wrote:
->> If the O(N^2) can be optimized away then i'm all for it. If not, then i
->> dont really understand how the same people who call sys_remap_file_pages()
->> a 'hack' [i believe they are not understanding the current state of the
+>> > I see what you mean, you're right. That's because all the 10,000 vma
+>> > belongs to the same inode.
+>> 
+>> I see two problems with objrmap - this search, and the complexity of the
+>> interworking with nonlinear mappings.
+>> 
+>> There is talk going around about implementing some more sophisticated
+>> search structure thatn a linear list.
+>> 
+>> And treating the nonlinear mappings as being mlocked is a great
+>> simplification - I'd be interested in Ingo's views on that.
+> 
+> i believe the right direction is the one that is currently happening: to
+> make nonlinear mappings more generic. sys_remap_file_pages() started off
+> as a special hack mostly usable for locked down pages. Now it's directly
+> encoded in the pte and thus swappable, and uses up a fraction of the vma
+> cost for finegrained mappings.
+> 
+> (i believe the next step should be to encode permission bits into the pte
+> as well, and thus enable eg. mprotect() to work without splitting up
+> vmas.   On 32-bit ptes this is not relistic due to the file size limit
+> imposed, but once 64-bit ptes become commonplace it's a step worth taking
+> i believe.)
 
-On Tue, Apr 22, 2003 at 02:37:19PM +0200, Andrea Arcangeli wrote:
-> it's an hack primarly because you're mixing linear with non linear,
-> incidentally that as well breaks truncate. In the current state truncate
-> is malfunctioning. To make truncate working in the current state you
-> would need to check all pages->indexes for every page pointed by the
-> pagetables belonging to each vma linked in the objrmap.
-> I don't think anybody wants to slowdown truncate like that (I mean, with
-> partial truncates and huge vmas).
-> Fixing it so truncate works still at a the current speed (when you don't
-> use sys_remap_file_pages) means changing the API to be sane and at the
-> very least to stop mixing linaer with nonlinaer vmas.
+I don't think you commented on Andrew's actual question, as far as I can
+see ... can we mlock the nonlinear mappings? I think for the original
+designed usage (Oracle) that's fine, as far as I know.
 
-The truncate() issues are a relatively major outstanding issue in -mm,
-and IIRC hugh was the first to raise them.
+The other massive problem we seem to have is that fact we don't know at
+create time whether the mapping is non-linear or not. Knowing that would
+allow us to do what we're acutally trying to do now, which is to keep
+pte-chains for these mappings, and use objrmap for linear ones. The pain is
+not dealing with them, it's converting from one to the other.
 
+Either that, or we keep a list of the nonlinear regions for each VMA so we
+can do the objrmap for the non-linear regions as well. Yes, it's a little
+bit of overhead for sys_remap_file_pages, but you lose the overhead per
+page on the pte-chain manipulation front.
 
-On Tue, Apr 22, 2003 at 02:37:19PM +0200, Andrea Arcangeli wrote:
-> And I found very unclean anyways that you can mangle a linaer vma, and
-> to have it partly linear and partly nonlinear. nonlinear vmas are
-> special, if they would not be special we would not break anything with
-> the nonlinear behaviour inside a linear vma.
-> At the very least you need a mmap(VM_NONLINEAR) to allocate the
-> nonlinaer virtual space, and to have sys_remap_file_pages working only
-> inside this space.
-> This was one of my first points to consider sys_remap_file_pages a stay
-> in the kernel as a sane API. The other points are lower prio actually.
+So if we can do any of those 3 things, I think we're fine. I find it hard
+to believe that none of them is acceptable. Particularly as we can probably
+combine the first with one of the others fairly easily.
 
-I don't know that it's unclean; AFAICT tagging at any level should
-suffice. The arrangement as it stands is (of course) oopsable.
+> the O(N^2) property of objrmap where N is the 'inode sharing factor' is a
+> serious design problem i believe. 100 mappings in 100 contexts on the same
+> inode is not uncommon at all - still it totally DoS-es the VM's scanning
+> code, if it uses objrmap. Sure, rmap is O(N) - after all we do have 100
+> users of that mapping.
+> 
+> If the O(N^2) can be optimized away then i'm all for it. If not, then i
+> dont really understand how the same people who call sys_remap_file_pages()
+> a 'hack' [i believe they are not understanding the current state of the
+> API] can argue for objrmap in the same paragraph.
 
+Well, we can easily fix the O(N^2) property by using a data structure other
+than a simple non-sorted linked list. However ... that has significant
+overhead itself. I think we're optimising for the wrong case here - isn't
+the 100x100 mappings case exactly what we have sys_remap_file_pages for?
+Which keeps pte_chains (for the hybrid case of partial objrmap), so it's
+just as fast as before (assuming we can resolve the issue above).
 
-On Tue, Apr 22, 2003 at 02:37:19PM +0200, Andrea Arcangeli wrote:
-> As for the other points I still think the whole purpose of
-> sys_remap_file_pages is to bypass the VM enterely so it should have the
-> least possible hardware cost associated with it. It is meant only to
-> mangle pagetables from userspace. And sys_remap_file_pages has nothing
-> to do with rmap or objrmap btw (that is an issue for everything, not
-> just this). But since the whole purpose of sys_remap_file_pages is to
-> bypass the VM enterely and to make it as fast as possible, we should as
-> well turn off the paging to allow people to get the biggest advantage
-> out of sys_remap_file_pages and to allow to pass the filedescriptor as
-> well to sys_remap_file_pages, so that you can map multiple files in the
-> same vma. I think allowing multiple files makes perfect sense and the
-> lack of this additional important feature is a concern to me.
-> Also sys_remap_file_pages should as well try to use largepages to map
-> the pagecache, as far as the alignment and the largepage pool allows it.
-> That makes perfect sense. 
+We can make the O(?) stuff look as fancy as we like. However, in reality,
+that makes the constants suck, and I'm not at all sure it's a good plan.
 
-I've already been tagged to implement sys_remap_file_pages() for
-hugetlbfs. For implicit API's (which are arguably superior) there are
-fewer issues than meet the eye so long as memory remains locked. Making
-things aware of large pages at various levels of the VM, VFS, and block
-io subsystem looks very attractive from a number of POV's, but more
-research is needed to understand its effectiveness.
+> i believe the main problem wrt. rmap is the pte_chain lowmem overhead on
+> 32-bit systems. (it also causes some fork() runtime overhead, but i doubt
+> anyone these days should argue that fork() latency is a commanding
+> parameter to optimize the VM for. We have vfork() and good threading, and
+> any fork()-sensitive app uses preforking anyway.)
 
+For workloads like server consolidation, its not as easy as that. You have
+myriad numbers of little applications, and rewriting all of them because
+fork just became a lot slower is not really practical.
 
-On Tue, Apr 22, 2003 at 02:37:19PM +0200, Andrea Arcangeli wrote:
-> As for bochs it will have no problem in enabling a system wide sysctl
-> before running, that's much cleaner than loading two kernel modules.
-> Overall trying to make nonlinear a usable by default generic API looks
-> wrong to me, sys_remap_file_pages has to be a VM bypass or it has to go.
-> If you want it to stay as a possibly default generic API then drop the
-> vma enterely and have mmap() and mprotect and mlock not generating any
-> vma overhead, but have them generating nonlinare stuff inside a single
-> whole vma for the whole address space. If you can do everything
-> generically (as you seem to want to reach) with sys_remap_file_pages,
-> then do it with the current API w/o generating a new non standard API.
-> It's a matter of functionalty inside the kernel, if you can do
-> everything w/o vma, then dorp the vma from mmap, that's all.
-> sys_remap_file_pages is equivalent to a mmap(MAP_FIXED) anyways.
+I think you're seriously underestimating the performance impact vs space
+problems as well ... IIRC my simple kernel compile test became about 25%
+less system time via partial objrmap.
 
-I'm hard-pressed to comment on API's. Someone with more understanding of
-userspaces' needs will have to deliver a more adequate response.
+> to solve this problem i believe the pte chains should be made
+> double-linked lists, and should be organized in a completely different
 
+It seems ironic that the solution to space consumption is do double the
+amount of space taken ;-) I see what you're trying to do (shove things up
+into highmem), but it seems like a much better plan to me to just kill the
+bloat altogether. 
 
-On Tue, Apr 22, 2003 at 02:37:19PM +0200, Andrea Arcangeli wrote:
-> I'm not against making mmap faster or whatever, but sys_remap_file_pages
-> makes sense to me only as a VM bypass, something that will always be
-> faster than the regular mmap or whatever by bypassing the VM. If you
-> don't bypass the VM you should make mmap run as fast as
-> sys_remap_file_pages instead IMHO.
+> This simpler pte chain construct also makes it easy to high-map the pte
+> chains: whenever we high-map the pte page, we can high-map the pte chain
+> page(s) as well. No more lowmem overhead for pte chains.
 
-Well, AFAICT the question wrt. sys_remap_file_pages() is not speed, but
-space. Speeding up mmap() is of course worthy of merging given the
-usual mergeability criteria.
+Well, it's traded lowmem space overhead for > 2x highmem overhead
+(sparseness). But what's killer is even more time overhead than before. Now
+you have to kmap the hell out of everything to do manipulations. The
+overhead for pte-highmem is horrible as it is (something like 10% systime
+for kernel compile IIRC). And this is worse - you have to manipulate the
+prev and next elements in the list. I know how to fix pte_highmem kmap
+overhead already (via UKVA), but not rmap pages. Not only is it kmap, but
+you have double the number of cachelines touched.
 
-On this point I must make a concession: k-d trees as formulated by
-Bentley et al have space consumption issues that may well render them
-inappropriate for kernel usage. I still believe it's worth an empirical
-investigation once descriptions of on-line algorithms for their
-maintenance are recovered, as well as other 2D+ spatial algorithms, esp.
-those with better space behavior.
+I think the holes in objrmap are quite small - and are already addressed by
+your sys_remap_file_pages mechanism.
 
-Specifically, k-d trees require internal nodes to partition spaces that
-are not related to leaf nodes (i.e. data points), and not all
-rebalancing policies are guaranteed to recover space.
-
-
--- wli
+M.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
