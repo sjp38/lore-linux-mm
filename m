@@ -1,72 +1,48 @@
-Message-ID: <39145287.D8F1F0C1@sgi.com>
-Date: Sat, 06 May 2000 10:12:39 -0700
-From: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Message-ID: <39147CB9.256D1EEA@norran.net>
+Date: Sat, 06 May 2000 22:12:41 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Subject: Re: [DATAPOINT] pre7-6 will not swap
-References: <8evk0f$7jote$1@fido.engr.sgi.com>
+Subject: PG_referenced and lru_cache (cpu%)...
+References: <8evk0f$7jote$1@fido.engr.sgi.com> <39145287.D8F1F0C1@sgi.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Redelings I <bredelin@ucla.edu>, torvalds@transmeta.com
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Redelings I wrote:
-> 
-> Hi,
->         I just compiled pre7-6.  It seems more useable than pre7-5.  However,
-> it basically does not swap.  The first time there is any memory
-> pressure, it swaps 32 pages (128k), and it never swaps again.
->         In similar circumstances, pre7-4 has gotten up to 30Mb swapped.  There
-> are many unused daemons running in my 64Mb RAM.
-> 
->         I also reverted to
->   count = nr_threads / (priority +1)
->         though I didn't check carefully what this did.  Anyway, it doesn't
-> seem to make a difference.
-> 
+Hi,
 
+When _add_to_page_cache adds a page to the lru_cache
+it forces it to be referenced.
 
-Yes, your observation is a good summarization of 7-6 behaviour.
-I'm also not seeing good results.  The writes from dbench
-start failing; i guess the grab_page_cache in generic_file_write
-is returning ENOMEM.
+In addition it will be added as youngest in list.
 
-Again, as you say, the system doesn't want to swap after an intial
-flurry of activity.
+When a page is needed it is very likely that a lot of
+the youngest pages are marked as referenced.
 
-Linus has taken in the fix to "old" vs. "young" in shrink_mmap,
-and taken out the aggressive counter change (also in shrink_mmap).
-But apparently another change in try_to_swap_out is causing problems.
-I haven't an analytical evaluation, but empericically, if I remove this
-in try_to_swap_out (mm/vmscan.c), dbench runs ok.
+In other cases when a pages is moved to front the
+PG_referenced is cleared.
 
---------------- mm/vmscan.c around line 113 --------------
-        /*
-         * Don't do any of the expensive stuff if
-         * we're not really interested in this zone.
-	 */
-        if (!page->zone->zone_wake_kswapd)
-                goto out_unlock;
-----------------------------------------------------------
+order=0 is the only that tries to search the full list.
 
-Benjamin, can you comment this line out and see if it improves things?
+When the shrink_mmap finds PG_referenced pages they are
+moved to local list young and will not be inserted before
+shink_mmap returns, again does not matter...
 
-Linus, one thing crossed my mind. With the above change swap_out()
-will "count" as having tried this process, although the zone may
-never need balancing. Aren't the initial system threads at the
-beginning of the task_list? If so, do you think their zones may
-never balancing?  ... and hence swap_out in essence gives up early?
+With "all" possible pages in young, the list is searched
+maxloop (256) times... (with a lot of CPU usage)
 
+Conclusion:
 
+I think PG_reference should be cleared in lru_cache_add
+and that shrink_mmap should place referenced pages on top
+not on an separate list.
 
-
-
---------------------------------------------------------------------------
-Rajagopal Ananthanarayanan ("ananth")
-Member Technical Staff, SGI.
---------------------------------------------------------------------------
+--
+Home page:
+  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
