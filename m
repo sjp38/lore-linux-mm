@@ -1,71 +1,106 @@
-Subject: Re: [PATCH] reduce fragmentation due to kmem_cache_alloc_node
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <41684BF3.5070108@colorfullife.com>
-References: <41684BF3.5070108@colorfullife.com>
-Content-Type: text/plain
-Message-Id: <1097863727.2861.43.camel@dyn318077bld.beaverton.ibm.com>
+Date: Fri, 15 Oct 2004 15:35:56 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH] use find_trylock_page in free_swap_and_cache instead of hand coding
+Message-ID: <20041015183556.GB4937@logos.cnet>
+References: <20041015104502.GA1989@logos.cnet> <Pine.LNX.4.44.0410151411330.5770-100000@localhost.localdomain>
 Mime-Version: 1.0
-Date: 15 Oct 2004 11:08:48 -0700
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0410151411330.5770-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Manfred & Andrew,
-
-I am happy with the patch.This seems to have fixed slab fragmentation
-problem with scsi_debug tests.
-
-But I still have issue with my scsi-debug tests. I don't think they
-are related to this patch. When I do,
-
-	while :
-	do
-		simulate 1000 scsi-debug disks
-		freeup 1000 scsi-debug disks
-	done
-
-I see size-64 "inuse" objects increasing. Eventually, it fills
-up entire low-mem. I guess while freeing up scsi-debug disks,
-is not cleaning up all the allocations :(
-
-But one question I have is - Is it possible to hold size-64 slab,
-because it has a management allocation (slabp - 40 byte allocations)
-from alloc_slabmgmt() ?  I remember seeing this earlier. Is it worth
-moving all managment allocations to its own slab ? should I try it ?
-
-Thanks,
-Badari
-
-On Sat, 2004-10-09 at 13:37, Manfred Spraul wrote:
-> Hi Andrew,
+On Fri, Oct 15, 2004 at 02:20:08PM +0100, Hugh Dickins wrote:
+> On Fri, 15 Oct 2004, Marcelo Tosatti wrote:
+> > 
+> > This small cleanup to free_swap_and_cache() substitues a 
+> > "lock - radix lookup - TestSetPageLocked - unlock" sequence
+> > of instructions with "find_trylock_page()" (which does 
+> > exactly that).
 > 
-> attached is a patch that fixes the fragmentation that Badri noticed with 
-> kmem_cache_alloc_node. Could you add it to the mm tree? The patch is 
-> against 2.6.9-rc3-mm3.
+> You're right: I must have been so excited by distinguishing the swapcache
+> from the pagecache, that I was blind to how that was still applicable
+> (unlike inserting and removing).
 > 
-> Description:
-> kmem_cache_alloc_node tries to allocate memory from a given node. The 
-> current implementation contains two bugs:
-> - the node aware code was used even for !CONFIG_NUMA systems. Fix: 
-> inline function that redefines kmem_cache_alloc_node as kmem_cache_alloc 
-> for !CONFIG_NUMA.
-> - the code always allocated a new slab for each new allocation. This 
-> caused severe fragmentation. Fix: walk the slabp lists and search for a 
-> matching page instead of allocating a new page.
-> - the patch also adds a new statistics field for node-local allocs. They 
-> should be rare - the codepath is quite slow, especially compared to the 
-> normal kmem_cache_alloc.
-> 
-> Badri: Could you test it?
-> Andrew, could you add the patch to the next -mm kernel? I'm running it 
-> right now, no obvious problems.
-> 
-> Signed-Off-By: Manfred Spraul <manfred@colorfullife.com>
+> But please extend your patch to mm/swap_state.c, where you can get rid
+> of the two radix_tree_lookups by reverting to find_get_page - thanks!
 
+Hugh,
 
+Here it is. Can you please review an Acked-by?
+
+That raises a question in my mind: The swapper space statistics
+are not protected by anything.
+
+Two processors can write to it at the same time - I can imagine
+we lose a increment (two CPUs increasing at the same time), but
+what else can happen to the statistics due to the lack of locking?
+
+Not that its critical data, just curiosity.
+
+Andrew, please apply to -mm.
+
+Description:
+Use find_*_page helpers in swap code instead handcoding it.
+
+Signed-off-by: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+
+--- rc4-mm1.orig/mm/swapfile.c	2004-10-15 01:03:11.000000000 -0300
++++ rc4-mm1/mm/swapfile.c	2004-10-15 09:24:05.696640488 -0300
+@@ -391,14 +391,8 @@ void free_swap_and_cache(swp_entry_t ent
+ 
+ 	p = swap_info_get(entry);
+ 	if (p) {
+-		if (swap_entry_free(p, swp_offset(entry)) == 1) {
+-			read_lock_irq(&swapper_space.tree_lock);
+-			page = radix_tree_lookup(&swapper_space.page_tree,
+-				entry.val);
+-			if (page && TestSetPageLocked(page))
+-				page = NULL;
+-			read_unlock_irq(&swapper_space.tree_lock);
+-		}
++		if (swap_entry_free(p, swp_offset(entry)) == 1) 
++			page = find_trylock_page(&swapper_space, entry.val);
+ 		swap_info_put(p);
+ 	}
+ 	if (page) {
+--- rc4-mm1.orig/mm/swap_state.c	2004-10-15 01:03:11.000000000 -0300
++++ rc4-mm1/mm/swap_state.c	2004-10-15 17:04:58.032995848 -0300
+@@ -313,13 +313,11 @@ struct page * lookup_swap_cache(swp_entr
+ {
+ 	struct page *page;
+ 
+-	read_lock_irq(&swapper_space.tree_lock);
+-	page = radix_tree_lookup(&swapper_space.page_tree, entry.val);
+-	if (page) {
+-		page_cache_get(page);
++	page = find_get_page(&swapper_space, entry.val);
++
++	if (page) 
+ 		INC_CACHE_INFO(find_success);
+-	}
+-	read_unlock_irq(&swapper_space.tree_lock);
++
+ 	INC_CACHE_INFO(find_total);
+ 	return page;
+ }
+@@ -342,12 +340,7 @@ struct page *read_swap_cache_async(swp_e
+ 		 * called after lookup_swap_cache() failed, re-calling
+ 		 * that would confuse statistics.
+ 		 */
+-		read_lock_irq(&swapper_space.tree_lock);
+-		found_page = radix_tree_lookup(&swapper_space.page_tree,
+-						entry.val);
+-		if (found_page)
+-			page_cache_get(found_page);
+-		read_unlock_irq(&swapper_space.tree_lock);
++		found_page = find_get_page(&swapper_space, entry.val);
+ 		if (found_page)
+ 			break;
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
