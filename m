@@ -1,39 +1,31 @@
-Received: from localhost (amitjain@localhost)
-	by mailhost.tifr.res.in (8.9.3+3.2W/8.9.3/Debian 8.9.3-21) with ESMTP id NAA02166
-	for <linux-mm@kvack.org>; Wed, 12 Dec 2001 13:10:21 +0530
-Date: Wed, 12 Dec 2001 13:10:21 +0530 (IST)
-From: "Amit S. Jain" <amitjain@tifr.res.in>
-Subject: Re: Allocation of kernel memory >128K
-In-Reply-To: <m1k7vuujia.fsf@frodo.biederman.org>
-Message-ID: <Pine.LNX.4.21.0112121303010.1319-100000@mailhost.tifr.res.in>
+Message-ID: <20011216125219.1450.qmail@web12004.mail.yahoo.com>
+Date: Sun, 16 Dec 2001 04:52:19 -0800 (PST)
+From: Anumula Venkat <anumulavenkat@yahoo.com>
+Subject: Thread specific data
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hello Friends,
 
-Thank u everyone for the response to my question bout allocatin huge
-amount of memeory in kernel space....
-For a few people who wanted to know why I m allocating such a huge memory
-and do i really need contiguous memory...here it is
+    Can somebody help in knowing how to access thread
+data structures on kernel side.i.e accessing thread
+specific data in stack segment.
 
----- Basically what my module is doing is trying to make the communication
-between kernel to kernel in a Linux Cluster transparent tp TCP/IP.
-So to transmit the data I copy the data from the user area to the kernel
-area and then to the n/w buffers.So what I was trying to do is transfer
-the entire data from user to kernel space at one go(allocating huge memory
-at kernel)....since this is not possible I can always divide the data into
-30K packets and then copy it to the kernel space...
+Regards
+Venkat
 
-P.S I am new to the Linux Kernel ...hence please excuse ne naive comments
-in the above ..
+=====
+'Arise, awake and stop not till the GOAL is reached' -- Swami Vivekananda
 
-
-Amit 
-
-
+__________________________________________________
+Do You Yahoo!?
+Check out Yahoo! Shopping and Yahoo! Auctions for all of
+your unique holiday gifts! Buy at http://shopping.yahoo.com
+or bid at http://auctions.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
