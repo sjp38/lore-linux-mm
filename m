@@ -1,78 +1,56 @@
-Date: Wed, 2 Apr 2003 15:09:03 -0800
-From: Andrew Morton <akpm@digeo.com>
+Date: Wed, 02 Apr 2003 17:23:07 -0600
+From: Dave McCracken <dmccr@us.ibm.com>
 Subject: Re: [PATCH 2.5.66-mm2] Fix page_convert_anon locking issues
-Message-Id: <20030402150903.21765844.akpm@digeo.com>
-In-Reply-To: <80300000.1049320593@baldur.austin.ibm.com>
+Message-ID: <102170000.1049325787@baldur.austin.ibm.com>
+In-Reply-To: <20030402150903.21765844.akpm@digeo.com>
 References: <8910000.1049303582@baldur.austin.ibm.com>
-	<20030402132939.647c74a6.akpm@digeo.com>
-	<80300000.1049320593@baldur.austin.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+ <20030402132939.647c74a6.akpm@digeo.com>
+ <80300000.1049320593@baldur.austin.ibm.com>
+ <20030402150903.21765844.akpm@digeo.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
+To: Andrew Morton <akpm@digeo.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Dave McCracken <dmccr@us.ibm.com> wrote:
->
-> The sequence is the following:
+--On Wednesday, April 02, 2003 15:09:03 -0800 Andrew Morton
+<akpm@digeo.com> wrote:
 
-Boy you owe me a big fat comment on top of this one.
+> i_shared_sem won't stop that.  The pte points into thin air, and may now
+> point at a value which looks like our page.
 
-> 1.  take a copy of the reference to the page (the pgd or pmd entry)
-> 2.  validate the copy
-> 3.  establish a pointer into the page
-> 4.  pull the data from the page (pmd or pte entry)
-> 5.  validate the original reference again
-> 6.  use the data
+Once we find a match in the pte entry, we have the additional protection of
+the pte_chain lock.  The pte entry is never cleared without a call to
+page_remove_rmap, which will block on the pte_chain lock.
+
+>> Because the page is in transition from !PageAnon to PageAnon.
 > 
-> This guarantees that the data is from a page that's still valid, since the
-> pgd or pmd entry are cleared when the page is released.  We're helped by
-> the fact that for an invalid page we can simply return failure.
+> These are file-backed pages.  So what does PageAnon really mean?
 
-+	if (page_to_pfn(page) != pte_pfn(*pte))
-+		goto out_unmap;
-+
-+	if (addr)
-+		*addr = address;
-+
+I suppose PageAnon should be renamed to PageChain, to mean it's using
+pte_chains.  It did mean anon pages until I used it for nonlinear pages.
 
-	==>munmap here
-
-+	return pte;
-
-i_shared_sem won't stop that.  The pte points into thin air, and may now
-point at a value which looks like our page.
-
-> > But then again, why is it not possible to just do:
-> > 
-> > 	list_for_each_entry(vma, &mapping->i_mmap, shared) {
-> > 		if (!pte_chain)
-> > 			pte_chain = pte_chain_alloc(GFP_KERNEL);
-> > 		spin_lock(&mm->page_table_lock);
-> > 		pte = find_pte(vma, page, NULL);
-> > 		if (pte)
-> > 			pte_chain = page_add_rmap(page, pte, pte_chain);
-> > 		spin_unlock(&mm->page_table_lock);
-> > 	}
-> > 
-> > 	pte_chain_free(pte_chain);
-> > 	up(&mapping->i_shared_sem);
-> > 
-> > ?
+>> We have to
+>> hold the pte_chain lock during the entire transition in case someone else
+>> tries to do something like page_remove_rmap, which would break.
 > 
-> Because the page is in transition from !PageAnon to PageAnon.
+> How about setting PageAnon at the _start_ of the operation? 
+> page_remove_rmap() will cope with that OK.
 
-These are file-backed pages.  So what does PageAnon really mean?
+Hmm... I was gonna say that page_remove_rmap will BUG() if it doesn't find
+the entry, but it's only under DEBUG and could easily be changed.  Lemme
+think on this one a bit.  I need to assure myself it's safe to go unlocked
+in the middle.
 
-> We have to
-> hold the pte_chain lock during the entire transition in case someone else
-> tries to do something like page_remove_rmap, which would break.
+Dave
 
-How about setting PageAnon at the _start_ of the operation? 
-page_remove_rmap() will cope with that OK.
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmccr@us.ibm.com                                        T/L   678-3059
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
