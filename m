@@ -1,95 +1,227 @@
-Date: Wed, 15 Aug 2001 23:26:49 -0400 (EDT)
-From: Ben LaHaise <bcrl@redhat.com>
-Subject: Re: [PATCH] mmap tail merging
-In-Reply-To: <Pine.LNX.4.33L.0108152004380.5646-100000@imladris.rielhome.conectiva>
-Message-ID: <Pine.LNX.4.33.0108152326001.20014-100000@touchme.toronto.redhat.com>
+Message-Id: <200108160337.FAA11729@mailb.telia.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Roger Larsson <roger.larsson@skelleftea.mail.telia.com>
+Subject: [RFC][PATCH] alternative way of calculating inactive_target
+Date: Thu, 16 Aug 2001 05:33:22 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Linus Torvalds <torvalds@transmeta.com>, alan@redhat.com, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Aug 2001, Rik van Riel wrote:
+Hi,
 
-> On Wed, 15 Aug 2001, Ben LaHaise wrote:
->
-> > Here's a patch to mmap.c that performs tail merging on mmap.
->
-> This patch sure is compact ;)
+1. Two things in this file, first an unrelated issue (but included in the patch)
+global_target in free_shortage shouldn't it be freepages.low?
+Traditionally freepages.high has been when to stop freeing pages.
 
-Right.  Let's try this instead:
+2. I have wondered about how inactive_target is calculated.
+This is an alternative approach...
 
-		-ben
+In this alternative approach I use two wrapping counters.
+(memory_clock & memory_clock_rubberband)
 
-diff -ur /md0/kernels/2.4/v2.4.8-ac5/mm/mmap.c work-v2.4.8-ac5/mm/mmap.c
---- /md0/kernels/2.4/v2.4.8-ac5/mm/mmap.c	Wed Aug 15 12:57:40 2001
-+++ work-v2.4.8-ac5/mm/mmap.c	Wed Aug 15 18:24:58 2001
-@@ -17,6 +17,10 @@
- #include <asm/uaccess.h>
- #include <asm/pgalloc.h>
+memory_clock is incremented only when allocating pages (and it
+is never decremented)
 
-+#define vm_avl_empty	(struct vm_area_struct *) NULL
-+
-+#include "mmap_avl.c"
-+
- /* description of effects of mapping type and prot in current implementation.
-  * this is due to the limited x86 page protection hardware.  The expected
-  * behavior is in parens:
-@@ -307,7 +311,7 @@
+memory_clock_rubberband is calculated to be close to what
+memory_clock should have been for MEMORY_CLOCK_WINDOW seconds
+earlier, using current values and information about how long it was since it
+was updated the last time. This makes it possible to recalculate the target
+more often when pressure is high - and it simplifies kswapd too...
 
- 	/* Can we just expand an old anonymous mapping? */
- 	if (addr && !file && !(vm_flags & VM_SHARED)) {
--		struct vm_area_struct * vma = find_vma(mm, addr-1);
-+		vma = find_vma(mm, addr-1);
- 		if (vma && vma->vm_end == addr && !vma->vm_file &&
- 		    vma->vm_flags == vm_flags) {
- 			vma->vm_end = addr + len;
-@@ -363,12 +367,30 @@
- 	if (correct_wcount)
- 		atomic_inc(&file->f_dentry->d_inode->i_writecount);
+/RogerL
 
--out:
-+out:
- 	mm->total_vm += len >> PAGE_SHIFT;
- 	if (vm_flags & VM_LOCKED) {
- 		mm->locked_vm += len >> PAGE_SHIFT;
- 		make_pages_present(addr, addr + len);
- 	}
-+
-+	/* Can we merge this anonymous mapping with the one following it? */
-+	if (!file && !(vm_flags & VM_SHARED)) {
-+		struct vm_area_struct *next = vma->vm_next;
-+		if (next && vma->vm_end == next->vm_start && !next->vm_file &&
-+		    vma->vm_flags == next->vm_flags) {
-+			spin_lock(&mm->page_table_lock);
-+			vma->vm_next = next->vm_next;
-+			if (mm->mmap_avl)
-+				avl_remove(next, &mm->mmap_avl);
-+			vma->vm_end = next->vm_end;
-+			mm->mmap_cache = vma;	/* Kill the cache. */
-+			spin_unlock(&mm->page_table_lock);
-+
-+			kmem_cache_free(vm_area_cachep, next);
-+		}
-+	}
-+
- 	return addr;
+*******************************************
+Patch prepared by: roger.larsson@norran.net
 
- unmap_and_free_vma:
-@@ -443,10 +465,6 @@
- 	return arch_get_unmapped_area(file, addr, len, pgoff, flags);
- }
-
--#define vm_avl_empty	(struct vm_area_struct *) NULL
--
--#include "mmap_avl.c"
--
- /* Look up the first VMA which satisfies  addr < vm_end,  NULL if none. */
- struct vm_area_struct * find_vma(struct mm_struct * mm, unsigned long addr)
+--- linux/mm/vmscan.c.orig	Wed Aug 15 23:28:31 2001
++++ linux/mm/vmscan.c	Thu Aug 16 03:45:10 2001
+@@ -445,7 +445,6 @@
+ 	goto out;
+ 
+ found_page:
+-	memory_pressure++;
+ 	del_page_from_inactive_clean_list(page);
+ 	UnlockPage(page);
+ 	page->age = PAGE_AGE_START;
+@@ -743,7 +742,7 @@
  {
-
+ 	pg_data_t *pgdat;
+ 	unsigned int global_free = 0;
+-	unsigned int global_target = freepages.high;
++	unsigned int global_target = freepages.low;
+ 
+ 	/* Are we low on free pages anywhere? */
+ 	pgdat = pgdat_list;
+@@ -781,6 +780,12 @@
+ 	unsigned int global_target = freepages.high + inactive_target;
+ 	unsigned int global_incative = 0;
+ 
++	/* In future when freepages.high is writeable.
++	 * meaning: stop when you have freepages.high!
++	 *
++	 * global_target = min(global_target, freepages.high)
++	 */
++
+ 	pgdat = pgdat_list;
+ 	do {
+ 		int i;
+@@ -914,15 +919,8 @@
+ 	 * Kswapd main loop.
+ 	 */
+ 	for (;;) {
+-		static long recalc = 0;
+-
+-		/* Once a second ... */
+-		if (time_after(jiffies, recalc + HZ)) {
+-			recalc = jiffies;
+-
+-			/* Recalculate VM statistics. */
+-			recalculate_vm_stats();
+-		}
++		/* Recalculate VM statistics. Time independent implementation */
++		recalculate_vm_stats();
+ 
+ 		if (!do_try_to_free_pages(GFP_KSWAPD, 1)) {
+ 			if (out_of_memory())
+--- linux/mm/page_alloc.c.orig	Wed Aug 15 23:55:24 2001
++++ linux/mm/page_alloc.c	Thu Aug 16 03:16:19 2001
+@@ -135,14 +135,6 @@
+ 	memlist_add_head(&(base + page_idx)->list, &area->free_list);
+ 
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+-
+-	/*
+-	 * We don't want to protect this variable from race conditions
+-	 * since it's nothing important, but we do want to make sure
+-	 * it never gets negative.
+-	 */
+-	if (memory_pressure > NR_CPUS)
+-		memory_pressure--;
+ }
+ 
+ #define MARK_USED(index, order, area) \
+@@ -288,7 +280,10 @@
+ 	/*
+ 	 * Allocations put pressure on the VM subsystem.
+ 	 */
+-	memory_pressure++;
++	memory_clock++;
++	/* prevent dangerous wrap difference due to extremely fast allocs */
++	if (memory_clock - memory_clock_rubberband >= MEMORY_CLOCK_MAX_DIFF)
++		memory_clock_rubberband++;
+ 
+ 	/*
+ 	 * (If anyone calls gfp from interrupts nonatomically then it
+--- linux/mm/swap.c.orig	Wed Aug 15 23:58:30 2001
++++ linux/mm/swap.c	Thu Aug 16 04:09:02 2001
+@@ -46,11 +46,11 @@
+  * is doing, averaged over a minute. We use this to determine how
+  * many inactive pages we should have.
+  *
+- * In reclaim_page and __alloc_pages: memory_pressure++
+- * In __free_pages_ok: memory_pressure--
+- * In recalculate_vm_stats the value is decayed (once a second)
++ * In __alloc_pages: memory_clock++
++ * In recalculate_vm_stats the memory_clock_rubberband is moved (once a second)
+  */
+-int memory_pressure;
++int memory_clock;
++int memory_clock_rubberband;
+ 
+ /* We track the number of pages currently being asynchronously swapped
+    out, so that we don't try to swap TOO many pages out at once */
+@@ -201,13 +201,33 @@
+  * some useful statistics the VM subsystem uses to determine
+  * its behaviour.
+  */
++
+ void recalculate_vm_stats(void)
+ {
+-	/*
+-	 * Substract one second worth of memory_pressure from
+-	 * memory_pressure.
+-	 */
+-	memory_pressure -= (memory_pressure >> INACTIVE_SHIFT);
++	static unsigned long jiffies_at_prev_update;
++	unsigned long jiffies_now = jiffies;
++
++	if (jiffies_now != jiffies_at_prev_update)
++	{
++		long elapsed = jiffies_now - jiffies_at_prev_update;
++
++		/*
++		 * Substract one second worth of memory_pressure from
++		 * memory_pressure.
++		 */
++		int old = memory_clock_rubberband;
++
++		/* "exact" formula... can be optimised */
++		int diff = (elapsed * (memory_clock - old) + (MEMORY_CLOCK_WINDOW * HZ + elapsed - 1)) / (MEMORY_CLOCK_WINDOW * HZ + elapsed);
++		
++		/* new can NEVER pass memory_clock since this is the only place were it is changed if the values
++		 * are close but it will sooner or later catch up with it */
++		int new = old + diff;
++
++		memory_clock_rubberband = new;
++
++		jiffies_at_prev_update = jiffies_now;
++	}
+ }
+ 
+ /*
+--- linux/include/linux/swap.h.orig	Wed Aug 15 23:36:27 2001
++++ linux/include/linux/swap.h	Thu Aug 16 05:25:16 2001
+@@ -99,7 +99,8 @@
+ struct zone_t;
+ 
+ /* linux/mm/swap.c */
+-extern int memory_pressure;
++extern int memory_clock;
++extern int memory_clock_rubberband;
+ extern void deactivate_page(struct page *);
+ extern void deactivate_page_nolock(struct page *);
+ extern void activate_page(struct page *);
+@@ -249,16 +250,27 @@
+ 	ZERO_PAGE_BUG \
+ }
+ 
++
++/*
++ * The memory_clock_rubberband is calculated to be
++ * approximately where memory_clock were for
++ * MEMORY_CLOCK_WINDOW seconds since.
++ * Note: please use a power of two...
++ */
++#define MEMORY_CLOCK_WINDOW 2
++
++/* to prevent overflow in calculations */
++#define MEMORY_CLOCK_MAX_DIFF ((1 << (8*sizeof(memory_clock) - 2)) / (MEMORY_CLOCK_WINDOW*HZ))
++
+ /*
+- * In mm/swap.c::recalculate_vm_stats(), we substract
+- * inactive_target from memory_pressure every second.
+- * This means that memory_pressure is smoothed over
+- * 64 (1 << INACTIVE_SHIFT) seconds.
++ * The inactive_target is measured in pages/second
++ * In mm/swap.c::recalculate_vm_stats(), we move
++ * the memory_clock_rubberband
++ * Note: difference can never be negative, unsigned wrap is taken care of
++ *
+  */
+-#define INACTIVE_SHIFT 6
+-#define inactive_min(a,b) ((a) < (b) ? (a) : (b))
+-#define inactive_target inactive_min((memory_pressure >> INACTIVE_SHIFT), \
+-		(num_physpages / 4))
++#define inactive_target ((memory_clock - memory_clock_rubberband)/MEMORY_CLOCK_WINDOW)
++
+ 
+ /*
+  * Ugly ugly ugly HACK to make sure the inactive lists
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
