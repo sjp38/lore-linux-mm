@@ -1,63 +1,32 @@
-Date: Thu, 13 Jan 2000 14:40:14 +0100 (CET)
-From: Rik van Riel <riel@nl.linux.org>
+Date: Thu, 13 Jan 2000 18:12:45 +0100 (CET)
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [RFC] 2.3.39 zone balancing
 In-Reply-To: <200001122111.NAA68159@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.10.10001131430520.13454-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.4.21.0001131806190.1648-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: torvalds@transmeta.com, mingo@chiara.csoma.elte.hu, andrea@suse.de, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+Cc: Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
 On Wed, 12 Jan 2000, Kanoj Sarcar wrote:
 
-> --- mm/page_alloc.c	Tue Jan 11 11:00:31 2000
-> +++ mm/page_alloc.c	Tue Jan 11 23:59:35 2000
-> +		cumulative += size;
-> +		mask = (cumulative >> 7);
-> +		if (mask < 1) mask = 1;
-> +		zone->pages_low = mask*2;
-> +		zone->pages_high = mask*3;
->  		zone->low_on_memory = 0;
+>+There are two reasons to be requesting non __GFP_WAIT allocations:
+>+the caller can not sleep (typically intr context), or does not want
+>+to incur cost overheads of page stealing and possible swap io.
 
-I think that busier machines probably have a larger need
-for DMA memory than this code fragment will give us. I
-have the gut feeling that we'll want to keep about 512kB
-or more free in the lower 16MB of busy machines...
+You may be in a place where you can sleep but you can't do I/O to avoid
+deadlocking and so you shouldn't use __GFP_IO and nothing more (it has
+nothing to do with __GFP_WAIT).
 
-(if only because such a large amount of free pages in
-such a small part of the address space will give us
-higher-order free pages)
+But if it can sleep and there aren't deadlock conditons going on and it
+doesn't use __GFP_WAIT, it means it's buggy and has to be fixed.
 
-> --- mm/vmscan.c	Tue Jan 11 11:00:31 2000
-> +++ mm/vmscan.c	Tue Jan 11 23:29:41 2000
-> @@ -534,8 +534,11 @@
->  	int retval = 1;
->  
->  	wake_up_process(kswapd_process);
-> -	if (gfp_mask & __GFP_WAIT)
-> +	if (gfp_mask & __GFP_WAIT) {
-> +		current->flags |= PF_MEMALLOC;
->  		retval = do_try_to_free_pages(gfp_mask, zone);
-> +		current->flags &= ~PF_MEMALLOC;
-> +	}
->  	return retval;
->  }
+I have not read the rest and the patch yet (I'll continue ASAP).
 
-Please note that kswapd still exits when the total number
-of free pages in the system is high enough. Balancing can
-probably better be done in the background by kswapd than
-by applications that happen to stumble across a nonbalanced
-zone...
-
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
