@@ -1,40 +1,30 @@
-Date: Sat, 9 Jun 2001 04:46:36 -0300 (BRST)
+Date: Sat, 9 Jun 2001 04:55:36 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] reapswap for 2.4.5-ac10
-In-Reply-To: <l0313030fb743f99e010e@[192.168.239.105]>
-Message-ID: <Pine.LNX.4.21.0106090444510.14934-100000@imladris.rielhome.conectiva>
+Subject: Re: Break 2.4 VM in five easy steps
+In-Reply-To: <m1ofs15tm0.fsf@frodo.biederman.org>
+Message-ID: <Pine.LNX.4.21.0106090455050.14934-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Morton <chromi@cyberspace.org>
-Cc: Andrew Morton <andrewm@uow.edu.au>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Derek Glidden <dglidden@illusionary.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Jun 2001, Jonathan Morton wrote:
-
-> >> BUT, as it turns out, refill_inactive_scan() already does ageing down on a
-> >> page-by-page basis, rather than process-by-process.
-> >
-> >Yes.  page->count needs looking at if you're doing physically-addressed
-> >scanning.  Rik's patch probably does that.
+On 6 Jun 2001, Eric W. Biederman wrote:
+> Derek Glidden <dglidden@illusionary.com> writes:
 > 
-> Explain...
+> > The problem I reported is not that 2.4 uses huge amounts of swap but
+> > that trying to recover that swap off of disk under 2.4 can leave the
+> > machine in an entirely unresponsive state, while 2.2 handles identical
+> > situations gracefully.  
 > 
-> AFAICT, the scanning in refill_inactive_scan() simply looks at a list
-> of pages, and doesn't really do physical addresses.
+> The interesting thing from other reports is that it appears to be
+> kswapd using up CPU resources.
 
-http://www.surriel.com/patches/2.4/2.4.5-ac5-pmap
+This part is being worked on, expect a solution for this thing
+soon...
 
-In this patch, the kernel looks at the page table entries
-using a page from refill_inactive() and does its page aging
-on a per-physical-page basis.
-
-Of course, this costs us some overhead and I'm not at all
-convinced we actually want to use this strategy. It's just
-too much fun to code to not try ;)
-
-regards,
 
 Rik
 --
