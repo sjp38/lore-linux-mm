@@ -1,51 +1,70 @@
-Date: Sat, 16 Sep 2000 21:20:57 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] update to new VM
-Message-ID: <Pine.LNX.4.21.0009162114080.1051-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 18 Sep 2000 11:31:31 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: [torriem@cs.byu.edu: VM: do_try_to_free_pages failed in 2.2.17]
+Message-ID: <20000918113131.J10210@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-kernel@vger.redhat.com, Linus Torvalds <torvalds@transmeta.com>
+Cc: Michael L Torrie <torriem@cs.byu.edu>
 List-ID: <linux-mm.kvack.org>
 
-Hi Linus,
+Hi all,
 
-after increasing the test base, the following 2 problems have
-been noticed with the VM patch, and are (hopefully) fixed in
-this patch:
+Yet another 2.2.17-eats-my-VM report.  Does anyone have proven patches
+other than reverting completely to the old 2.2 VM?  There's been lots
+of discussion and hypothesising but no silver bullets so far.
 
-1)  if __alloc_pages() is called without __GFP_IO in the
-    gfp_mask, we cannot wait for kswapd
-        -> use try_to_free_pages() the oldfashioned way instead
-1b) while fixing up the other __GFP_IO problems, I noticed
-    programs at schedule points in the VM, sleeping in S state,
-    this is fixed by explicitly making them runnable
-2)  the VM was badly balanced for low-memory (8MB) machines,
-    this has been fixed by making it easier for kswapd to go
-    to sleep in refill_inactive() and by waking up kswapd earlier
-    at the top of __alloc_pages()
+--Stephen
 
-I'm still not 100% sure if this patch is completely correct,
-but it fixes one serious bug in the current VM inside -test9-pre1
-and I'm leaving for Linux Kongress tomorrow so this is my last
-chance to post anything for the next few days ;(
+----- Forwarded message from Michael L Torrie <torriem@cs.byu.edu> -----
 
-If this patch proves stable for everyone and makes 8MB machines
-workable again with the new VM, please include this in the next
-pre-patch. If it doesn't work correctly, I'll somehow find it
-in my email while at Linux Kongress and I'll prepare a new fix.
+Date: Sat, 16 Sep 2000 23:11:51 -0600 (MDT)
+From: Michael L Torrie <torriem@cs.byu.edu>
+To: sct@redhat.com
+Subject: VM: do_try_to_free_pages failed in 2.2.17
 
-regards,
+If you're not the right man to talk to, couldyou forward this onto the
+kernel mailing list?  Your name was on the source code, so I guess you are
+the person who wrote it, unless I have the wrong Steve Tweedie.  Forgive
+me for not writing to the mailing list, but the traffic level prohibits my
+subscribing.
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+In any case, On three separate occasions, on 2 different machines, I've
+had the kernel report:
+Sep 16 22:19:35 enterprise kernel: VM: do_try_to_free_pages failed for
+sawfish..
 
-http://www.conectiva.com/		http://www.surriel.com/
+and for many different programs.  Basically the kernel just spins out of
+control and the whole machine locks up.  I understand this was a bug in
+the 2.2.16 series, but thought it had been fixes in the 2.2.17 series.  I
+need to report the bug is alive and well.  Programs that I know don't have
+memory leaks (they've run fro months in the past) suddenly appear to be
+consuming huge amounts of ram and swap until the machine thrashes to a
+halt.  Perhaps the VM code cannot or does not release pages correctly.  It
+appears that programs that do a lot of dynamic allocation will
+suffer.  XMMS brought down the system in 15 minutes one time.
 
+I've also had this happen on a server running the same processor with
+Reiserfs.  I had to cold restart it.  From watching the system (It has 2
+GB of ram and 2 GB of swap so it takes a few days to get to that point),
+every once in a while, the kswapd will do some sort of massive swap, which
+interrupts nfs service, and in fact all operation.  Is that normal?
+
+If I need to be clearer or provide more information, please let me
+know.  I'd appreciate if this problem would receive attention, as I want
+my machine to stay up for more than several days, and I don't want to have
+to reboot my server, ever.
+
+thank you very much.
+
+Michael Torrie
+BYU CS System Programmer
+----
+
+----- End forwarded message -----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
