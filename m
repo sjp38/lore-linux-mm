@@ -1,7 +1,7 @@
-Date: Mon, 16 Aug 1999 12:04:38 -0400 (EDT)
+Date: Mon, 16 Aug 1999 12:19:30 -0400 (EDT)
 From: Benjamin LaHaise <bcrl@kvack.org>
 Subject: [rfc] 2.3.14-1 patch: dma memory pool handling
-Message-ID: <Pine.LNX.3.96.990816120200.6635A-100000@mole.spellcast.com>
+Message-ID: <Pine.LNX.3.96.990816121916.8427B-100000@mole.spellcast.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -251,6 +251,7 @@ diff -ur clean/2.3.14-1/mm/page_alloc.c lin/mm/page_alloc.c
  	}
  	return start_mem;
  }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
