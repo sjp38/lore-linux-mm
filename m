@@ -1,157 +1,109 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id OAA15293
-	for <linux-mm@kvack.org>; Sun, 8 Sep 2002 14:33:25 -0700 (PDT)
-Message-ID: <3D7BC58F.D8AC82E8@digeo.com>
-Date: Sun, 08 Sep 2002 14:47:59 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] slabasap-mm5_A2
-References: <200209071006.18869.tomlins@cam.org> <200209081142.02839.tomlins@cam.org> <3D7BB97A.6B6E4CA5@digeo.com> <200209081714.54110.tomlins@cam.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from gatekeeper.tait.co.nz (localhost.localdomain [127.0.0.1])
+	by gatekeeper.tait.co.nz (8.11.2/8.9.3) with ESMTP id g88MLQH28433
+	for <linux-mm@kvack.org>; Mon, 9 Sep 2002 10:21:26 +1200
+Date: Mon, 09 Sep 2002 10:21:24 +1200 (NZST)
+From: John Carter <john.carter@tait.co.nz>
+Subject: RE: meminfo or Rephrased helping the Programmer's help themselves...
+In-reply-to: <HBEHIIBBKKNOBLMPKCBBOEIKFFAA.znmeb@aracnet.com>
+Message-id: <Pine.LNX.4.44.0209090937390.421-100000@parore>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN; charset=US-ASCII
+Content-transfer-encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "M. Edward Borasky" <znmeb@aracnet.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ed Tomlinson wrote:
-> 
-> On September 8, 2002 04:56 pm, Andrew Morton wrote:
-> > Ed Tomlinson wrote:
-> > > Hi,
-> > >
-> > > Here is a rewritten slablru - this time its not using the lru...  If
-> > > changes long standing slab behavior.  Now slab.c releases pages as soon
-> > > as possible.  This was done since we noticed that slablru was taking a
-> > > long time to release the pages it freed - from other vm experiences this
-> > > is not a good thing.
-> >
-> > Right.  There remains the issue that we're ripping away constructed
-> > objects from slabs which have constructors, as Stephen points out.
-> 
-> I have a small optimization coded in slab.  If there are not any free
-> slab objects I do not free the page.   If we have problems with high
-> order slabs we can change this to be if we do not have <n> objects
-> do not free it.
+On Fri, 6 Sep 2002, M. Edward Borasky wrote:
 
-OK.
+> Yes, it is a high-level proposal - I adhere to the top-down philosophy of
+> software design, as well as the SEI standards for software engineering
+> process. One does not communicate about large software objects like the
+> Linux kernel in small manageable chunks of C code in that process. Perhaps
+> the fact that I insist on a design specification, requirements documents,
+> code reviews, etc., is the reason nobody has volunteered to join the
+> project.
 
-> > I doubt if that matters.  slab constructors just initialise stuff.
-> > If the memory is in cache then the initialisation is negligible.
-> > If the memory is not in cache then the initialisation will pull
-> > it into cache, which is something which we needed to do anyway.  And
-> > unless the slab's access pattern is extremely LIFO, chances are that
-> > most allocations will come in from part-filled slab pages anyway.
-> >
-> > And other such waffly words ;)  I'll do the global LIFO page hotlists
-> > soonl; that'll fix it up.
-> >
-> > > In this patch I have tried to make as few changes as possible.
-> >
-> > Thanks.  I've shuffled the patching sequence (painful), and diddled
-> > a few things.  We actually do have the "number of scanned pages"
-> > in there, so we can use that.  I agree that the ratio should be
-> > nr_scanned/total rather than nr_reclaimed/total.   This way, if
-> > nr_reclaimed < nr_scanned (page reclaim is in trouble) then we
-> > put more pressure on slabs.
-> 
-> OK will change this.  This also means the changes to prune functions
-> made for slablru will come back - they convert these fuctions so they
-> age <n> object rather than purge <n>.
+Ah. Culture shock.
 
-That would make the slab pruning less aggressive than the code I'm
-testing now.  I'm not sure it needs that change.  Not sure...
- 
-> > >   With this in mind I am using
-> > > the percentage of the active+inactive pages reclaimed to recover the same
-> > > percentage of the pruneable caches.  In slablru the affect was to age the
-> > > pruneable caches by percentage of the active+inactive pages scanned -
-> > > this could be done but required more code so I went used pages reclaimed.
-> > >  The same choise was made about accounting of pages freed by the
-> > > shrink_<something>_memory calls.
-> > >
-> > > There is also a question as to if we should only use the ZONE_DMA and
-> > > ZONE_NORMAL to drive the cache shrinking.  Talk with Rik on irc convinced
-> > > me to go with the choise that required less code, so we use all zones.
-> >
-> > OK.  We could do with a `gimme_the_direct_addressed_classzone' utility
-> > anyway.  It is currently open-coded in fs/buffer.c:free_more_memory().
-> > We can just pull that out of there and use memclass() on it for this.
-> 
-> Ah thanks.  Was wondering the best way to do this.  Will read the code.
+The kernel development I have seen that worked and got in was of the 
+"Show me the code" variety. ie. What gets into the kernel and attracts 
+developers is not requirement specs and design documents, it is nifty 
+code that mostly works.
 
-Then again, shrinking slab harder for big highmem machines is good ;)
- 
-> ...
-> > From a quick test, the shrinking rate seems quite reasonable to
-> > me.  mem=512m, with twenty megs of ext2 inodes in core, a `dd'
-> > of one gigabyte (twice the size of memory) steadily pushed the
-> > ext2 inodes down to 2.5 megs (although total memory was still
-> > 9 megs - internal fragmentation of the slab).
-> >
-> > A second 1G dd pushed it down to 1M/3M.
-> >
-> > A third 1G dd pushed it down to .25M/1.25M
-> >
-> > Seems OK.
-> >
-> > A few things we should do later:
-> >
-> > - We're calling prune_icache with a teeny number of inodes, many times.
-> >   Would be better to batch that up a bit.
-> 
-> Why not move the prunes to try_to_free_pages?   The should help a little to get
-> bigger batches of pages as will using the number of scanned pages.
+First some comments on your Cougar web page...
 
-But the prunes are miles too small at present.  We go into try_to_free_pages()
-and reclaim 32 pages.  And we also call into prune_cache() and free about 0.3
-pages.  It's out of whack.  I'd suggest not calling out to the pruner until
-we want at least several pages' worth of objects.
- 
-> ...
-> > But let's get the current code settled in before doing these
-> > refinements.
-> 
-> I can get the aging changes to you real fast if you want them.  I initially
-> coded it this way then pull the changes to reduce the code...  see below
+a) There is one graphical tool that does a lot. Procmeter.
 
-No rush.
- 
-> The other thing we want to be careful with is to make sure the lack of
-> free page accounting is detected by oom - we definitly do not want to
-> oom when slab has freed memory by try_to_free_pages does not
-> realize it..
+b) The plethora of tools for the task is a feature not a bug. The Unix 
+design philosphy is to produce tools that do one job well. The result is a 
+flock of single purpose tools that you can glue together via a scripting 
+language as needed.
 
-How much memory are we talking about here?  Not much I think?
- 
-> > There are some usage patterns in which the dentry/inode aging
-> > might be going wrong.  Try, with mem=512m
-> >
-> >       cp -a linux a
-> >       cp -a linux b
-> >       cp -a linux c
-> >
-> > etc.
-> >
-> > Possibly the inode/dentry cache is just being FIFO here and is doing
-> > exactly the wrong thing.  But the dcache referenced-bit logic should
-> > cause the inodes in `linux' to be pinned with this test, so that
-> > should be OK.  Dunno.
-> >
-> > The above test will be hurt a bit by the aggressively lowered (10%)
-> > background writeback threshold - more reads competing with writes.
-> > Maybe I should not kick off background writeback until the dirty
-> > threshold reaches 30% if there are reads queued against the device.
-> > That's easy enough to do.
-> >
-> > drop-behind should help here too.
-> 
-> This converts the prunes in inode and dcache to age <n> entries rather
-> than purge them.  Think this is the more correct behavior.  Code is from
-> slablru.
+c) R. Love it. I wrote a largish program in it that had nary a single loop 
+in it. Boggled the minds of my co-workers but it was really neat clean 
+good code.
 
-Makes sense (I think).
+d) ODBC. Hate it. It is a fundamentally broken spec. I looked at it in
+detail a few years back, I can't remember the details, just the
+conclusion. Very Microsoftish and broken and a pig to create a server for.  
+Maybe it has changed some in the intervening years (Ah yes, it is all
+coming back to me, each client needed a database specific backend. ie.
+There wasn't (at that stage) a database neutral "over-the-wire" protocol,
+so you had to create both a server and a client stub. It would have been
+so easy to define a db neutral over the wire protocol and a single client
+stub. Instead you have to load a ODBC client for every type and version of
+database you want to talk to.)
+
+Anyway, serving ODBC is perhaps not your intent. Do you intend serving
+ODBC or merely using a client to stuff data into Postgres or MySql?
+
+e) Cougar would use the infrastructure that I need. Perhaps here is common 
+ground. What is needed is a good clean _simple_ API to get the data out of 
+the kernel. A requirements and design exercise on that would not go amiss. 
+
+It is _vital_ that the API be simple to use, cheap in CPU cycles, simple 
+to implement. I would recommend it be phased, a _simple_ first pass and a 
+second more complex version and the design be such that no change need be 
+made to the initial api. (Why? Some of the stuff you want will probably be 
+hairier than most need, and hairy to implement. Project could easily get 
+stuck. Remember, "Show me the code", we would need to get something nifty 
+and tasty to attract interest and get it in the kernel.
+
+I'm game for making input into such a requirement & design doc of that 
+limited scope.
+
+Once we have that we can look to see how to implement.
+
+> The first task that needs to be done is to develop a high-level model of the
+> Linux kernel.
+
+Perhaps for Cougar. But for my interest and involvement the first thing is 
+a simple, well thought out API to get the data we both need out of the 
+kernel.
+
+I will invest some thought in that and come up with an RFC. Will you 
+please send me a list of the sort of info that you need out of the kernel. 
+I will try sort it into 
+  * Can be done in userland.
+  * Needed from kernel.
+  * Needed from kernel, but too hairy for first phase.
+
+
+-- 
+
+
+John Carter                             Phone : (64)(3) 358 6639
+Tait Electronics                        Fax   : (64)(3) 359 4632
+PO Box 1645 Christchurch                Email : john.carter@tait.co.nz
+New Zealand
+
+Good Ideas:
+Ruby                 - http://www.ruby-lang-org - The best of perl,python,scheme without the pain.
+Valgrind             - http://developer.kde.org/~sewardj/ - memory debugger for x86-GNU/Linux
+Free your books      - http://www.bookcrossing.com
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
