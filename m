@@ -1,27 +1,27 @@
-Date: Wed, 28 Aug 2002 07:08:50 -0600 (MDT)
+Date: Wed, 28 Aug 2002 07:14:00 -0600 (MDT)
 From: Thunder from the hill <thunder@lightweight.ods.org>
-Subject: Re: [BUG] 2.5.30 swaps with no swap device mounted!!
-In-Reply-To: <20020827135421.A39@toy.ucw.cz>
-Message-ID: <Pine.LNX.4.44.0208280708020.3234-100000@hawkeye.luckynet.adm>
+Subject: Re: [patch] SImple Topology API v0.3 (1/2)
+In-Reply-To: <20020827143115.B39@toy.ucw.cz>
+Message-ID: <Pine.LNX.4.44.0208280711390.3234-100000@hawkeye.luckynet.adm>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Pavel Machek <pavel@suse.cz>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Matthew Dobson <colpatch@us.ibm.com>, Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Andrea Arcangeli <andrea@suse.de>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
 On Tue, 27 Aug 2002, Pavel Machek wrote:
-> > It might be interesting to see what happens if you unplug the swap device 
-> > after umounting.
+> > -   bool 'Multiquad NUMA system' CONFIG_MULTIQUAD
+> > +   bool 'Multi-node NUMA system support' CONFIG_X86_NUMA
 > 
-> In the same way it might be interesting to see what happens if you put
-> cigarette into gasoline tank?
+> Why not simply CONFIG_NUMA?
 
-Well, you never know what unregistering does. It might happen to be 
-ignored for swap, once unregistered.
+Because NUMA is subordinate to X86, and another technology named NUMA 
+might appear? Nano-uplinked micro-array... No Ugliness Munched Archive? 
+Whatever...
 
 			Thunder
 -- 
