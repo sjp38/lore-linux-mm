@@ -1,41 +1,22 @@
-Date: Mon, 29 Jul 2002 05:04:23 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [RFC] start_aggressive_readahead
-In-Reply-To: <3D44F01A.C7AAA1B4@zip.com.au>
-Message-ID: <Pine.LNX.4.44L.0207290503150.3086-100000@imladris.surriel.com>
+Date: Mon, 29 Jul 2002 18:30:38 +0500 (GMT+0500)
+From: Anil Kumar <anilk@cdotd.ernet.in>
+Subject: Regarding Page Cache ,Buffer Cachein  disabling in Linux Kernel.
+Message-ID: <Pine.OSF.4.10.10207291827040.26879-100000@moon.cdotd.ernet.in>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: Scott Kaplan <sfkaplan@cs.amherst.edu>, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Jul 2002, Andrew Morton wrote:
+Hello All,
+  I am new to this mailing list.I am going through the linux kernel 
+ source code. I want to disable the Page Caching,Buffer Caching  in
+ the Kernel.How can i do it  ?
+ Thanks in Advance.
+Regards 
+Anil
 
-> >  Similarly, you would want to be very
-> > cautious about increasing the size of the read-ahead window of many pages
-> > at the end of the inactive list are being re-used.
->
-> I tend to think that if pages at the tail of the LRU are being
-> referenced with any frequency we've goofed anyway.  There are
-> many things apart from readahead which will allocate pages, yes?
-
-It would be a useful thing to measure, though.
-
-We can use this information to decide to:
-
-1) reduce readahead and, if if the situation continues
-
-2) do load control
-
-regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
