@@ -1,40 +1,39 @@
-Date: Fri, 18 May 2001 23:58:52 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: Linux 2.4.4-ac10
-Message-ID: <20010518235852.R8080@redhat.com>
-References: <Pine.LNX.4.33.0105182153570.387-100000@mikeg.weiden.de> <Pine.LNX.4.21.0105181941070.5531-100000@imladris.rielhome.conectiva>
+Date: Sat, 19 May 2001 01:35:44 +0200
+From: =?iso-8859-1?Q?Thomas_Lang=E5s?= <tlan@stud.ntnu.no>
+Subject: Re: SMP/highmem problem
+Message-ID: <20010519013544.A21549@flodhest.stud.ntnu.no>
+Reply-To: tlan@stud.ntnu.no
+References: <20010517203933.F6360@vestdata.no> <Pine.LNX.4.21.0105171612030.5531-100000@imladris.rielhome.conectiva>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0105181941070.5531-100000@imladris.rielhome.conectiva>; from riel@conectiva.com.br on Fri, May 18, 2001 at 07:44:39PM -0300
+In-Reply-To: <Pine.LNX.4.21.0105171612030.5531-100000@imladris.rielhome.conectiva>; from riel@conectiva.com.br on Thu, May 17, 2001 at 04:19:35PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: Mike Galbraith <mikeg@wen-online.de>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: =?iso-8859-1?Q?Ragnar_Kj=F8rstad?= <kernel@ragnark.vestdata.no>, linux-mm@kvack.org, tlan@stud.ntnu.no
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Rik van Riel:
+> A few fixes for this situation have gone into 2.4.5-pre2 and
+> 2.4.5-pre3. If you have the time, could you test if this problem
+> has gotten less or has gone away in the latest kernels ?
 
-On Fri, May 18, 2001 at 07:44:39PM -0300, Rik van Riel wrote:
+Ok, now we've tested 2.4.5-pre3, and it's still like described before.
+However, it's a bit better. 
 
-> This is the core of why we cannot (IMHO) have a discussion
-> of whether a patch introducing new VM tunables can go in:
-> there is no clear overview of exactly what would need to be
-> tunable and how it would help.
+We started bonnie++, and waited a few secs, then tested with ls'ing uncached
+catalogs on /-filesystem. This was a command that took about 1m real time,
+to do every time earlier (2.4.4). Now it only takes 1m real time when ls
+isn't cached or hashed. This goes for every other command. However, after we
+waited a few mins. the box started to become unsuable again (sshd-sessions
+lagged, for instance). Killing bonnie++ fixes the situation after a little
+while (1-3mins).
 
-It's worse than that.  The workload on most typical systems is not
-static.  The VM *must* be able to cope with dynamic workloads.  You
-might twiddle all the knobs on your system to make your database run
-faster, but end up in such a situation that the next time a mail flood
-arrives for sendmail, the whole box locks up because the VM can no
-longer adapt.
+So, any other ideas are very welcome :)
 
-That's the main problem with static parameters.  The problem you are
-trying to solve is fundamentally dynamic in most cases (which is also
-why magic numbers tend to suck in the VM.)
-
-Cheers, 
- Stephen
+-- 
+-Thomas
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
