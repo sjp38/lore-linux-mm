@@ -1,48 +1,80 @@
-Date: Mon, 1 Oct 2001 10:57:05 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Load control  (was: Re: 2.4.9-ac16 good perfomer?)
-In-Reply-To: <20011001111435Z16281-2757+2605@humbolt.nl.linux.org>
-Message-ID: <Pine.LNX.4.33L.0110011031050.4835-100000@imladris.rielhome.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 1 Oct 2001 09:49:46 -0500 (CDT)
+From: Jesse Pollard <pollard@tomcat.admin.navo.hpc.mil>
+Message-Id: <200110011449.JAA80750@tomcat.admin.navo.hpc.mil>
+Subject: Re: Load control  (was: Re: 2.4.9-ac16 good perfomer?)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
+To: riel@conectiva.com.br, Daniel Phillips <phillips@bonn-fries.net>
 Cc: Mike Fedyk <mfedyk@matchmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 Oct 2001, Daniel Phillips wrote:
+Rik van Riel <riel@conectiva.com.br>:
+> On Mon, 1 Oct 2001, Daniel Phillips wrote:
+>
+> > Nice.  With this under control, another feature of his memory manager
+> > you could look at is the variable deactivation threshold, which makes
+> > a whole lot more sense now that the aging is linear.
+>
+> Actually, when we get to the point where deactivating enough
+> pages is hard, we know the working set is large and we should
+> be _more careful_ in chosing what to page out...
+>
+> When we go one step further, where the working set approaches
+> the size of physical memory, we should probably start doing
+> load control FreeBSD-style ... pick a process and deactivate
+> as many of its pages as possible. By introducing unfairness
+> like this we'll be sure that only one or two processes will
+> slow down on the next VM load spike, instead of all processes.
+>
+> Once we reach permanent heavy overload, we should start doing
+> process scheduling, restricting the active processes to a
+> subset of all processes in such a way that the active processes
+> are able to make progress. After a while, give other processes
+> their chance to run.
 
-> Nice.  With this under control, another feature of his memory manager
-> you could look at is the variable deactivation threshold, which makes
-> a whole lot more sense now that the aging is linear.
+Just a comment:
+This begins to sound like the old VMS handling:
+1. When not loaded down, all processes allocate freely.
+2. When getting tight, trim all processes down some amount, until enough is
+   free (balanced by page fault rate measure - process with the lowest fault
+   rate gets trimmed first).
+3. Continue triming until required space available or all processes are at
+   their working set minimum.
+4. if still tight, swap a process completely (determined by length of time
+   since last IO wait - larger CPU bound jobs/processes got swaped first),
+   reclaim memory. Note, at this point OOM may occur.
+5. If swap full, do not start new processes (ENOMEM)
+6. When a process exits, reclaim memory - if working set minimum available
+   then swapin a process.
 
-Actually, when we get to the point where deactivating enough
-pages is hard, we know the working set is large and we should
-be _more careful_ in chosing what to page out...
+I also vaguely remember something about processes spawning new processes -
+if memory wasn't immediately available (working set minimum for the new
+process) then the process attempting the spawn is put to sleep (or swapped,
+or both - this may have only occured if there was room in swap for the
+process, if not - ENOMEM on the fork, in case that causes the parent to
+exit and free more memory).
 
-When we go one step further, where the working set approaches
-the size of physical memory, we should probably start doing
-load control FreeBSD-style ... pick a process and deactivate
-as many of its pages as possible. By introducing unfairness
-like this we'll be sure that only one or two processes will
-slow down on the next VM load spike, instead of all processes.
+The trimming action did not immediately cause a pageout - all that was
+needed was to reduce the working set size. The process that needed memory
+would then cause the system to scan memory for pages that could be freed.
+The first process examined (may have been the process asking for memory)
+would have the excess pages paged out. (I believe they were chosen by a
+LRU mechanism)
 
-Once we reach permanent heavy overload, we should start doing
-process scheduling, restricting the active processes to a
-subset of all processes in such a way that the active processes
-are able to make progress. After a while, give other processes
-their chance to run.
+There was also a scheduling fairness rule about swapped processes geting
+a schedule increment of 1, in memory processes got incremented 4, IO wait
+processes got +6. When they were selected for run: if previous state was IO,
+then decrement by 2, if state run, decrement by 2. If a swapped process
+schedule value > in memory process, swap the memory resident process out,
+swapin  the swaped process. (Oviously this isn't quite right :-)
 
-regards,
 
-Rik
--- 
-IA64: a worthy successor to i860.
 
-http://www.surriel.com/		http://distro.conectiva.com/
+-------------------------------------------------------------------------
+Jesse I Pollard, II
+Email: pollard@navo.hpc.mil
 
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+Any opinions expressed are solely my own.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
