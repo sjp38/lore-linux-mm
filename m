@@ -1,32 +1,28 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA11336
-	for <linux-mm@kvack.org>; Sat, 19 Dec 1998 11:19:03 -0500
-Date: Sat, 19 Dec 1998 16:17:55 GMT
-Message-Id: <199812191617.QAA00819@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA11379
+	for <linux-mm@kvack.org>; Sat, 19 Dec 1998 11:25:24 -0500
+Date: Sat, 19 Dec 1998 17:23:13 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
 Subject: Re: PG_clean for shared mapping smart syncing
 In-Reply-To: <Pine.LNX.3.96.981219165802.208A-100000@laser.bogus>
-References: <Pine.LNX.3.96.981219165802.208A-100000@laser.bogus>
+Message-ID: <Pine.LNX.3.96.981219171852.506A-100000@laser.bogus>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>
+To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I've put a new patch with as difference only a bit of credits added ;) at:
 
-On Sat, 19 Dec 1998 17:04:26 +0100 (CET), Andrea Arcangeli
-<andrea@e-mind.com> said:
+ftp://e-mind.com/pub/linux/kernel-patches/pgclean-0-2.1.132-2.diff.gz
 
-Just a couple of comments: I can't see any mechanism in this patch for
-clearing other process's pte dirty bits when we sync a shared page (I
-know you had a patch for this before), and conceptually I much prefer
-to have a Dirty bit than a Clean bit, simply because that's what we
-use absolutely everywhere else in the kernel.
+All tests I done here are been succesfully (and I am using huge size of
+memory just to be sure to notice any kind of mm corruption). Does somebody
+has some test suite for shared mappings or could suggest me a proggy that
+uses heavly shared mappings?
 
---Stephen
+Andrea Arcangeli
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
