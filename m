@@ -1,133 +1,73 @@
+From: Thomas Schlichter <schlicht@uni-mannheim.de>
 Subject: Re: 2.5.74-mm2 + nvidia (and others)
-From: Martin Schlemmer <azarah@gentoo.org>
-In-Reply-To: <20030712012130.GB15452@holomorphy.com>
-References: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu>
-	 <200307071734.01575.schlicht@uni-mannheim.de>
-	 <20030707123012.47238055.akpm@osdl.org>
-	 <1057647818.5489.385.camel@workshop.saharacpt.lan>
-	 <20030712012130.GB15452@holomorphy.com>
-Content-Type: text/plain
-Message-Id: <1058184576.799.341.camel@workshop.saharacpt.lan>
-Mime-Version: 1.0
-Date: 14 Jul 2003 14:09:37 +0200
+Date: Mon, 14 Jul 2003 18:51:54 +0200
+References: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu> <20030712012130.GB15452@holomorphy.com> <1058184576.799.341.camel@workshop.saharacpt.lan>
+In-Reply-To: <1058184576.799.341.camel@workshop.saharacpt.lan>
+MIME-Version: 1.0
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="iso-8859-15"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200307141851.55775.schlicht@uni-mannheim.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@osdl.org>, Thomas Schlichter <schlicht@uni-mannheim.de>, smiler@lanil.mine.nu, KML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Martin Schlemmer <azarah@gentoo.org>, William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@osdl.org>, smiler@lanil.mine.nu, KML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Christian Zander <zander@mail.minion.de>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2003-07-12 at 03:21, William Lee Irwin III wrote:
-> On Tue, Jul 08, 2003 at 09:03:39AM +0200, Martin Schlemmer wrote:
-> > +#if defined(NV_PMD_OFFSET_UNMAP)
-> > +    pmd_unmap(pg_mid_dir);
-> > +#endif
-> 
-> You could try defining an NV_PMD_OFFSET_UNMAP() which is a nop for
-> mainline and DTRT for -mm.
-> 
+Hi,
 
-Ok, I basically got the latest minion.de (2003/07/13) to look as
-follow:
+can anyone tell me WHY the NV_PMD_OFFSET() should not work the way it is with 
+the new NVIDIA patch? For our memories here it is again:
 
-----------------------------------
-diff -urpN NVIDIA_kernel-1.0-4363/nv-linux.h
-NVIDIA_kernel-1.0-4363.highpmd-fixup/nv-linux.h
---- NVIDIA_kernel-1.0-4363/nv-linux.h   2003-07-14 12:42:00.000000000
-+0200
-+++ NVIDIA_kernel-1.0-4363.highpmd-fixup/nv-linux.h     2003-07-14
-13:38:02.000000000 +0200
-@@ -228,14 +228,14 @@
-
- #if defined(pmd_offset_map)
- #define NV_PMD_OFFSET(address, pgd, pmd) \
--    { \
--        pmd_t *pmd__ = pmd_offset_map(pgd, address); \
--        pmd = *pmd__; \
--        pmd_unmap(pgd__); \
--    }
-+    pmd = pmd_offset_map(pgd, address)
-+#define NV_PMD_UNMAP(pmd) \
-+    pmd_unmap(pmd)
- #else
- #define NV_PMD_OFFSET(address, pgd, pmd) \
--    pmd = *pmd_offset(pgd, address)
-+    pmd = pmd_offset(pgd, address)
-+#define NV_PMD_UNMAP(pmd) \
-+    nop()
- #endif 
-
- #define NV_PAGE_ALIGN(addr)             ( ((addr) + PAGE_SIZE - 1) /
-PAGE_SIZE)
-diff -urpN NVIDIA_kernel-1.0-4363/nv.c
-NVIDIA_kernel-1.0-4363.highpmd-fixup/nv.c
---- NVIDIA_kernel-1.0-4363/nv.c 2003-07-14 12:42:00.000000000 +0200
-+++ NVIDIA_kernel-1.0-4363.highpmd-fixup/nv.c   2003-07-14
-13:38:43.000000000 +0200
-@@ -2087,7 +2087,7 @@ unsigned long
- nv_get_phys_address(unsigned long address)
- {
-     pgd_t *pgd;
--    pmd_t pmd;
-+    pmd_t *pmd;
-     pte_t pte;
- 
- #if defined(NVCPU_IA64)
-@@ -2110,10 +2110,14 @@ nv_get_phys_address(unsigned long addres
-
-     NV_PMD_OFFSET(address, pgd, pmd);
- 
--    if (pmd_none(pmd))
-+    if (pmd_none(*pmd)) {
-+        NV_PMD_UNMAP(pmd);
-         goto failed;
-+    }
-+
-+    NV_PTE_OFFSET(address, pmd, pte);
- 
--    NV_PTE_OFFSET(address, &pmd, pte);
-+    NV_PMD_UNMAP(pmd);
-
-     if (!pte_present(pte))
-         goto failed;
-----------------------------------
-
-so that it will not use a copy of 'pmd' that was already
-unmapped.
-
-Question now - what about:
-
---------------------- nv-linux.h ----------------------
-#if defined(pte_offset_atomic)
-#define NV_PTE_OFFSET(addres, pmd, pte) \
+#define NV_PMD_OFFSET(address, pgd, pmd) \
     { \
-        pte_t *pte__ = pte_offset_atomic(pmd, address); \
-        pte = *pte__; \
-        pte_kunmap(pte__); \
-    } 
-#elif defined(pte_offset)
-#define NV_PTE_OFFSET(addres, pmd, pte) \
-    pte = *pte_offset(pmd, address)
-#else
-#define NV_PTE_OFFSET(addres, pmd, pte) \
-    { \
-        pte_t *pte__ = pte_offset_map(pmd, address); \
-        pte = *pte__; \
-        pte_unmap(pte__); \
+        pmd_t *pmd__ = pmd_offset_map(pgd, address); \
+        pmd = *pmd__; \
+        pmd_unmap(pmd__); \
     }
-#endif
--------------------------------------------------------
 
-I cannot think that it is safe as well to use an copy
-of an unmapped pte ??  Should this be fixed as well ?
+1.) For a 2 level pagetable it simply results in a:
+	pmd = *((pmd_t *) pgd);
+
+So here the correct entry from the first page directory is copied into a 
+variable on the stack. No big deal, as the location of this entry is not 
+interesting for the further tablewalk, only its contents.
+
+2.) So let's see what happens for a 3 level pagetable.
+We get following code after expanding (most of) the macros:
+
+a.) pmd_t *pmd__ = ((pmd_t *)kmap_atomic(pgd_page(*(pgd)), KM_PMD0) + 
+pmd_index(addr));
+b.) pmd = *pmd__;
+c.) kunmap_atomic(pmd__, KM_PMD0);
+
+The most interesting part is the first line of it...
+a.) Here the page number is extracted from the pgd entry and converted to a 
+pointer to a page_struct (pgd_page). Now the page is mapped (from the high 
+memory) into the lower memory (kmap_atomic). The index where the interesting 
+pmd entry is located in this page is extracted from the virtual address via 
+the pmd_index macro. With this the pointer to the pmd entry is calculated and 
+assigned to pmd__.
+
+b.) Now this entry is simply copied into a variable located at the stack. 
+(Again not an issue, as the location of the variable is not of interest for 
+the rest of the tablewalk anymore.)
+
+c.) At least the page that contains the pmd entry, too, is unmapped, but our 
+local copy on the stack stays...
 
 
-Thanks,
+So after both pieces of code the pmd entry is stored in a variable on the 
+stack and the further processing does not need to know where it came from, it 
+just needs its contents...
 
--- 
-Martin Schlemmer
+So please tell me where this is wrong...! I just can't see it...
 
+Thank you all for all the work!
 
+Best regards
+   Thomas Schlichter
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
