@@ -1,68 +1,80 @@
-Message-Id: <200106292040.PAA03583@ccure.karaya.com>
-Subject: Re: all processes waiting in TASK_UNINTERRUPTIBLE state 
-In-Reply-To: Your message of "Mon, 25 Jun 2001 20:33:17 GMT."
-             <Pine.LNX.4.30.0106252031240.25982-100000@cyrix.stev.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Date: Fri, 29 Jun 2001 15:40:16 -0500
-From: Jeff Dike <jdike@karaya.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: [RFT][PATCH] even out background aging
+Date: Fri, 29 Jun 2001 16:37:29 -0400
+References: <Pine.LNX.4.33.0106151211360.2262-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.33.0106151211360.2262-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Message-Id: <01062916372900.07483@oscar>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: mistral@stev.org, linux-mm@kvack.org, rcastro@ime.usp.br, abali@us.ibm.com, riel@conectiva.com.br, phillips@bonn-fries.net, viro@math.psu.edu
+To: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-To recap the story so far, a number of people have reported seeing processes 
-hang indefinitely in TASK_UNINTERRUPTIBLE in __wait_on_buffer or __lock_page, 
-both on physical boxes and under UML.  It was found to be reproducable under 
-UML, but not on a native kernel as far as I know.
+On June 15, 2001 11:17 am, Rik van Riel wrote:
+> [Request For Testers:  please test this on your system...]
 
-I've fixed this problem in UML.
+Like what this does except for one item.  When patched with this on
+2.4.6-pre5 or pre6 I can trigger a repeatable hang doing a backup.
+(The reiserfs fix for vm deadlocks is applied).  
 
-The short story :
+I use tob to backup.  The hang occures when it is doing a 'find' to
+get all the names to backup.  The stall does not stop the softdog
+driver, which manages to reboot the system.
 
-The bug was UML-specific and specific in such a way that I don't think it's 
-possible to find the bug in the native kernel by making analogies from the UML 
-bug.
+Ed Tomlinson
 
-The long story :
-
-First, two pieces of background information
-	- UML's ubd block driver performs asynchronous I/O by using a separate thread 
-to perform the I/O.  The driver's request routine writes the request to the 
-I/O thread over a file descriptor.  The thread performs the request by calling 
-either read() or write() on the host.  When that call returns, it writes the 
-results back to UML, causing a SIGIO.  That goes through the normal IRQ system 
-and ends up in the ubd interrupt handler, which finishes the request, and, if 
-the device request queue isn't empty, starts the next request.
-	- A couple of weeks ago, I made a change to reduce the number of clock ticks 
-that UML loses under load.  The clock is implemented with SIGALRM and 
-SIGVTALRM.  The change involved leaving those signals enabled all the time, 
-and having the handler decide whether it was safe to invoke the timer irq.  If 
-not, it bumped a missing_ticks counter and returned.  The missing ticks are 
-fully accounted for the next time the handler finds that it can call into the 
-irq system.
-
-The ubd request routine runs with interrupts off, but now, the alarms could at 
-least fire, even if they didn't do anything but increment a counter.  This 
-occasionally caused the write of the I/O request from the request routine to 
-the I/O thread to return -EINTR.  The return value wasn't checked, so the I/O 
-thread didn't get the request and the request routine had no idea that 
-anything was wrong.  This caused disk I/O to permanently shut down, so pending 
-requests stayed pending, and processes waiting on them waited forever.
-
-The key piece of this bug was a signal causing a crucial communication between 
-two UML threads to be lost.  I don't see any analogies between this and 
-anything that happens on a physical system, so it looks to me like the problem 
-that people are seeing there is completely different.
-
-Thanks to James Stevenson for figuring out how to reproduce the bug under UML, 
-and to Daniel Phillips and Al Viro for help in tracking this problem from the 
-fs and mm systems into the block and driver layers.
-
-				Jeff
-
-
+> the following patch makes use of the fact that refill_inactive()
+> now calls swap_out() before calling refill_inactive_scan() and
+> the fact that the inactive_dirty list is now reclaimed in a fair
+> LRU order.
+>
+> Background scanning can now be replaced by a simple call to
+> refill_inactive(), instead of the refill_inactive_scan(), which
+> gave mapped pages an unfair advantage over unmapped ones.
+>
+> The special-casing of the amount to scan in refill_inactive_scan()
+> is removed as well, there's absolutely no reason we'd need it with
+> the current VM balance.
+>
+> regards,
+>
+> Rik
+> --
+>
+>
+> --- linux-2.4.6-pre3/mm/vmscan.c.orig	Thu Jun 14 12:28:03 2001
+> +++ linux-2.4.6-pre3/mm/vmscan.c	Fri Jun 15 11:55:09 2001
+> @@ -695,13 +695,6 @@
+>  	int page_active = 0;
+>  	int nr_deactivated = 0;
+>
+> -	/*
+> -	 * When we are background aging, we try to increase the page aging
+> -	 * information in the system.
+> -	 */
+> -	if (!target)
+> -		maxscan = nr_active_pages >> 4;
+> -
+>  	/* Take the lock while messing with the list... */
+>  	spin_lock(&pagemap_lru_lock);
+>  	while (maxscan-- > 0 && (page_lru = active_list.prev) != &active_list) {
+> @@ -978,7 +971,7 @@
+>  			recalculate_vm_stats();
+>
+>  			/* Do background page aging. */
+> -			refill_inactive_scan(DEF_PRIORITY, 0);
+> +			refill_inactive(GFP_KSWAPD, 0);
+>  		}
+>
+>  		run_task_queue(&tq_disk);
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
