@@ -1,124 +1,71 @@
-Subject: [4/7] 100 cleanup node zone
+Subject: [1/7] 050 bootmem use NODE_DATA
 In-Reply-To: <1098973549.shadowen.org
-Message-Id: <E1CNBEB-0006bj-B6@ladymac.shadowen.org>
+Message-Id: <E1CNBDv-0006bO-CM@ladymac.shadowen.org>
 From: Andy Whitcroft <apw@shadowen.org>
-Date: Thu, 28 Oct 2004 15:26:11 +0100
+Date: Thu, 28 Oct 2004 15:25:55 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: haveblue@us.ibm.com, lhms-devel@lists.sourceforge.net
 Cc: linux-mm@kvack.org, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-diffstat 100-cleanup-node-zone
----
- mm.h     |   43 ++++++++++++++++++++++++++++++++++++-------
- mmzone.h |   16 +++-------------
- 2 files changed, 39 insertions(+), 20 deletions(-)
+Convert the default non-node based bootmem routines to use
+NODE_DATA(0).  This is semantically and functionally identical in
+any non-node configuration as NODE_DATA(x) is defined as below.
 
-diff -upN reference/include/linux/mm.h current/include/linux/mm.h
---- reference/include/linux/mm.h
-+++ current/include/linux/mm.h
-@@ -376,16 +376,41 @@ static inline void put_page(struct page 
-  * We'll have up to (MAX_NUMNODES * MAX_NR_ZONES) zones total,
-  * so we use (MAX_NODES_SHIFT + MAX_ZONES_SHIFT) here to get enough bits.
-  */
--#define NODEZONE_SHIFT (sizeof(page_flags_t)*8 - MAX_NODES_SHIFT - MAX_ZONES_SHIFT)
--#define NODEZONE(node, zone)	((node << ZONES_SHIFT) | zone)
-+
-+#define FLAGS_SHIFT	(sizeof(page_flags_t)*8)
-+
-+/* 32bit: NODE:ZONE */
-+#define PGFLAGS_NODES_SHIFT	(FLAGS_SHIFT - NODES_SHIFT)
-+#define PGFLAGS_ZONES_SHIFT	(PGFLAGS_NODES_SHIFT - ZONES_SHIFT)
-+
-+#define ZONETABLE_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
-+#define PGFLAGS_ZONETABLE_SHIFT	(FLAGS_SHIFT - ZONETABLE_SHIFT)
-+
-+#if NODES_SHIFT+ZONES_SHIFT > FLAGS_TOTAL_SHIFT
-+#error NODES_SHIFT+ZONES_SHIFT > FLAGS_TOTAL_SHIFT
-+#endif
-+
-+#define NODEZONE(node, zone)		((node << ZONES_SHIFT) | zone)
-+
-+#define ZONES_MASK		(~((~0UL) << ZONES_SHIFT))
-+#define NODES_MASK		(~((~0UL) << NODES_SHIFT))
-+#define ZONETABLE_MASK		(~((~0UL) << ZONETABLE_SHIFT))
-+
-+#define PGFLAGS_MASK		(~((~0UL) << PGFLAGS_ZONETABLE_SHIFT)
- 
- static inline unsigned long page_zonenum(struct page *page)
- {
--	return (page->flags >> NODEZONE_SHIFT) & (~(~0UL << ZONES_SHIFT));
-+	if (FLAGS_SHIFT == (PGFLAGS_ZONES_SHIFT + ZONES_SHIFT))
-+ 		return (page->flags >> PGFLAGS_ZONES_SHIFT);
-+ 	else
-+ 		return (page->flags >> PGFLAGS_ZONES_SHIFT) & ZONES_MASK;
- }
- static inline unsigned long page_to_nid(struct page *page)
- {
--	return (page->flags >> (NODEZONE_SHIFT + ZONES_SHIFT));
-+	if (FLAGS_SHIFT == (PGFLAGS_NODES_SHIFT + NODES_SHIFT))
-+		return (page->flags >> PGFLAGS_NODES_SHIFT);
-+	else
-+		return (page->flags >> PGFLAGS_NODES_SHIFT) & NODES_MASK;
+#define NODE_DATA(nid)          (&contig_page_data)
+
+For the node cases (CONFIG_NUMA and CONFIG_DISCONTIG_MEM) we can
+use these non-node forms where all boot memory is defined on node 0.
+
+Revision: $Rev: 732 $
+
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+
+diffstat 050-bootmem-use-NODE_DATA
+---
+ bootmem.c |   10 ++++------
+ 1 files changed, 4 insertions(+), 6 deletions(-)
+
+diff -upN reference/mm/bootmem.c current/mm/bootmem.c
+--- reference/mm/bootmem.c
++++ current/mm/bootmem.c
+@@ -343,31 +343,29 @@ unsigned long __init free_all_bootmem_no
+ 	return(free_all_bootmem_core(pgdat));
  }
  
- struct zone;
-@@ -393,13 +418,17 @@ extern struct zone *zone_table[];
- 
- static inline struct zone *page_zone(struct page *page)
+-#ifndef CONFIG_DISCONTIGMEM
+ unsigned long __init init_bootmem (unsigned long start, unsigned long pages)
  {
--	return zone_table[page->flags >> NODEZONE_SHIFT];
-+	if (FLAGS_SHIFT == (PGFLAGS_ZONETABLE_SHIFT + ZONETABLE_SHIFT))
-+		return zone_table[page->flags >> PGFLAGS_ZONETABLE_SHIFT];
-+	else
-+		return zone_table[page->flags >> PGFLAGS_ZONETABLE_SHIFT &
-+			ZONETABLE_MASK];
+ 	max_low_pfn = pages;
+ 	min_low_pfn = start;
+-	return(init_bootmem_core(&contig_page_data, start, 0, pages));
++	return(init_bootmem_core(NODE_DATA(0), start, 0, pages));
  }
  
- static inline void set_page_zone(struct page *page, unsigned long nodezone_num)
+ #ifndef CONFIG_HAVE_ARCH_BOOTMEM_NODE
+ void __init reserve_bootmem (unsigned long addr, unsigned long size)
  {
--	page->flags &= ~(~0UL << NODEZONE_SHIFT);
--	page->flags |= nodezone_num << NODEZONE_SHIFT;
-+	page->flags &= PGFLAGS_MASK;
-+	page->flags |= nodezone_num << PGFLAGS_ZONETABLE_SHIFT;
+-	reserve_bootmem_core(contig_page_data.bdata, addr, size);
++	reserve_bootmem_core(NODE_DATA(0)->bdata, addr, size);
+ }
+ #endif /* !CONFIG_HAVE_ARCH_BOOTMEM_NODE */
+ 
+ void __init free_bootmem (unsigned long addr, unsigned long size)
+ {
+-	free_bootmem_core(contig_page_data.bdata, addr, size);
++	free_bootmem_core(NODE_DATA(0)->bdata, addr, size);
  }
  
- #ifndef CONFIG_DISCONTIGMEM
-diff -upN reference/include/linux/mmzone.h current/include/linux/mmzone.h
---- reference/include/linux/mmzone.h
-+++ current/include/linux/mmzone.h
-@@ -389,27 +389,17 @@ extern struct pglist_data contig_page_da
-  * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
-  * there are 3 zones (2 bits) and this leaves 8-2=6 bits for nodes.
-  */
--#define MAX_NODES_SHIFT		6
-+#define FLAGS_TOTAL_SHIFT	8
-+
- #elif BITS_PER_LONG == 64
- /*
-  * with 64 bit flags field, there's plenty of room.
-  */
--#define MAX_NODES_SHIFT		10
-+#define FLAGS_TOTAL_SHIFT	12
- #endif
+ unsigned long __init free_all_bootmem (void)
+ {
+-	return(free_all_bootmem_core(&contig_page_data));
++	return(free_all_bootmem_core(NODE_DATA(0)));
+ }
+-#endif /* !CONFIG_DISCONTIGMEM */
  
- #endif /* !CONFIG_DISCONTIGMEM */
- 
--#if NODES_SHIFT > MAX_NODES_SHIFT
--#error NODES_SHIFT > MAX_NODES_SHIFT
--#endif
--
--/* There are currently 3 zones: DMA, Normal & Highmem, thus we need 2 bits */
--#define MAX_ZONES_SHIFT		2
--
--#if ZONES_SHIFT > MAX_ZONES_SHIFT
--#error ZONES_SHIFT > MAX_ZONES_SHIFT
--#endif
--
- extern DECLARE_BITMAP(node_online_map, MAX_NUMNODES);
- 
- #if defined(CONFIG_DISCONTIGMEM) || defined(CONFIG_NUMA)
+ void * __init __alloc_bootmem (unsigned long size, unsigned long align, unsigned long goal)
+ {
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
