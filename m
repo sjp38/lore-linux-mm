@@ -1,62 +1,26 @@
-Message-Id: <l0313030eb6e156f24437@[192.168.239.101]>
-In-Reply-To: <3ABB9CF2.E7715667@evision-ventures.com>
-References: <E14gVQf-00056B-00@the-village.bc.nu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Date: Fri, 23 Mar 2001 19:45:26 +0000
-From: Jonathan Morton <chromi@cyberspace.org>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Jordi Polo <mumismo@wanadoo.es>
 Subject: Re: [PATCH] Prevent OOM from killing init
+Date: Fri, 23 Mar 2001 21:16:21 +0100
+References: <Pine.LNX.4.30.0103231721480.4103-100000@dax.joh.cam.ac.uk>
+In-Reply-To: <Pine.LNX.4.30.0103231721480.4103-100000@dax.joh.cam.ac.uk>
+MIME-Version: 1.0
+Message-Id: <01032321162101.00471@mioooldpc>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Dalecki <dalecki@evision-ventures.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: "James A. Sutherland" <jas88@cam.ac.uk>, Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "James A. Sutherland" <jas88@cam.ac.uk>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->It would make much sense to make the oom killer
->leave not just root processes alone but processes belonging to a UID
->lower
->then a certain value as well (500). This would be:
->
->1. Easly managable by the admin. Just let oracle/www and analogous users
->   have a UID lower then let's say 500.
+> What on earth did you expect to happen when the process exceeded the
+> machine's capabilities? Using more than all the resources fails. There
+> isn't an alternative.
 
-That sounds vaguely sensible.  However, make it a "much less likely" rather
-than an "impossible", otherwise we end up with an unkillable runaway root
-process killing everything else in userland.
-
-I'm still in favour of a failing malloc(), and I'm currently reading a bit
-of source and docs to figure out where this should be done and why it isn't
-done now.  So far I've found the overcommit_memory flag, which looks kinda
-promising.
-
->1. Processes with a UID < 100 are immune to OOM killers.
->2. Processes with a UID >= 100 && < 500 are hard for the OOM killer to
->take on.
->3. Processes with a UID >= 500 are easy targets.
-
-As I said above, "immune" can be dangerous.  "Extremely hard" would be
-better terminology and behaviour.  It also helps that the current weighting
-in badness() appears to leave getty processes alone, since they don't
-consume much and normally have long uptimes - also I believe init would try
-to restart them anyway.
-
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
-big-mail: chromatix@penguinpowered.com
-uni-mail: j.d.morton@lancaster.ac.uk
-
-The key to knowledge is not to rely on people to teach you it.
-
-Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
-
------BEGIN GEEK CODE BLOCK-----
-Version 3.12
-GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
-PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
------END GEEK CODE BLOCK-----
-
-
+I'll be burnt in fire if i say this but anyway ..... we need the window's 
+system , a dinamic grownable swap  .  And if we have no HD then oom kill 
+(letting the administrator what processes never be killed by it).
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
