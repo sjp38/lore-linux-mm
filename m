@@ -1,46 +1,44 @@
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14357.39284.733660.301925@dukat.scot.redhat.com>
-Date: Tue, 26 Oct 1999 13:07:16 +0100 (BST)
-Subject: Re: Why don't we make mmap MAP_SHARED with /dev/zero possible?
-In-Reply-To: <199910260158.JAA00043@chpc.ict.ac.cn>
-References: <199910260158.JAA00043@chpc.ict.ac.cn>
+Subject: Re: page faults
+References: <Pine.LNX.4.10.9910221930070.172-100000@imperial.edgeglobal.com> <m1wvsc8ytq.fsf@flinx.hidden> <14356.37630.420222.582735@liveoak.engr.sgi.com>
+From: Marcus Sundberg <erammsu@kieraypc01.p.y.ki.era.ericsson.se>
+Date: 26 Oct 1999 15:50:08 +0200
+In-Reply-To: "William J. Earl"'s message of "Mon, 25 Oct 1999 10:27:26 -0700 (PDT)"
+Message-ID: <kfy7lkaqlin.fsf@kieraypc01.p.y.ki.era.ericsson.se>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: fxzhang@chpc.ict.ac.cn
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>
+To: "William J. Earl" <wje@cthulhu.engr.sgi.com>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+"William J. Earl" <wje@cthulhu.engr.sgi.com> writes:
 
-On Tue, 26 Oct 1999 9:57:48 +0800, fxzhang <fxzhang@chpc.ict.ac.cn>
-said:
+> Eric W. Biederman writes:
+> ...
+>  > If the hardware cannot support two processors hitting the region simultaneously,
+>  > (support would be worst case the graphics would look strange)
+>  > you could have problems.
+> ...
+>       One could reasonably take the view that a threads-aware graphics library
+> should be thread-safe.  That is, if the hardware needs to have concurrent
+> threads in a single process serialize access to the hardware, then the 
+> library plugin for that hardware should do the required serialization.
+> 
+>       This of course the neglects the question of whether a broken
+> user-mode program could damage the hardware, but then a broken
+> single-threaded user-mode program, with no other programs using the
+> hardware, could just as easily damage the hardware.  That is, if the
+> hardware is not safe for direct access in general, threading does not
+> make it any less safe.
 
-> static int mmap_zero(struct file * file, struct vm_area_struct * vma)
-> {
->         if (vma->vm_flags & VM_SHARED)
->                 return -EINVAL;
+The hardware _is_ safe for direct access, but _not_ while the
+accelerator is running.
 
-> I don't understand why people don't implement it.Yes,in the source,I
-> find something like "the shared case is complex",Could someone tell
-> me what's the difficulty?As it is a driver,I think it should not be
-> too much to concern.
-
-It is not a driver issue --- it is core to the VM.  The VM cannot
-handle shared writable anonymous pages.  We're not talking about mmap
-pages in this special case: we are talking about normal anonymous data
-pages. 
-
->    Is there any good way to share memory between process at page
-> granularity?That is,I can share individual pages between them?
-> Threads maybe a subtitue,but there are many things that I don't want
-> to share.
-
-SysV shared memory.  "man shmget; man shmop; man shmctl"
-
---Stephen
+//Marcus
+-- 
+-------------------------------+------------------------------------
+        Marcus Sundberg        | http://www.stacken.kth.se/~mackan/
+ Royal Institute of Technology |       Phone: +46 707 295404
+       Stockholm, Sweden       |   E-Mail: mackan@stacken.kth.se
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
