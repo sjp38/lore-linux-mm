@@ -1,40 +1,36 @@
 Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA12867
-	for <linux-mm@kvack.org>; Tue, 17 Nov 1998 18:01:05 -0500
-Date: Tue, 17 Nov 1998 21:25:06 +0100 (CET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA12872
+	for <linux-mm@kvack.org>; Tue, 17 Nov 1998 18:01:10 -0500
+Date: Tue, 17 Nov 1998 21:18:39 +0100 (CET)
 From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: unexpected paging during large file reads in 2.1.127
-In-Reply-To: <199811171206.MAA01194@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.981117212245.12547D-100000@mirkwood.dummy.home>
+Subject: Re: useless report -- perhaps memory allocation problems in 2.1.12[678]
+In-Reply-To: <199811171121.LAA00897@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.96.981117211632.12547C-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, linux-kernel@vger.rutgers.edu, Linux-MM List <linux-mm@kvack.org>
+Cc: Jeffrey Hundstad <jeffrey.hundstad@mankato.msus.edu>, Linux MM <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 17 Nov 1998, Stephen C. Tweedie wrote:
-> On Tue, 17 Nov 1998 07:42:12 +0100 (CET), Rik van Riel
-> <H.H.vanRiel@phys.uu.nl> said:
+> Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
 > 
-> > I meant the page aging that occurs in vmscan.c, where we
-> > decide on which page to unmap from a program's address
-> > space. 
+> > and the whole system is busy freeing memory. This means that the
+> > kswapd-loop has now been migrated into other contexts as well. This,
+> > together with the fact that kswapd never blocks on disk access any
+> > more,
 > 
-> For the last time, NO IT DOES NOT.  Read the source.  Linus removed it.
-> We do not use page->age AT ALL in vmscan.c in current 2.1 kernels.
+> Yes it does.  We don't pass GFP_WAIT to swap_out(), but that just
+> means that the swapout will be done asynchronously.  We are still
+> free to write stuff out to swap, and in fact once we hit the limit
+> on outstanding IOs we may well block in the write. 
 
-I just learned that answering questions from memory is
-not a good idea when reality changes under your nose :)
-
-I'll try to remember this, really...
-
-> This change improves low memory performance very measurably in all
-> tests I have tried so far. 
-
-OK, I agree with these changes and have seen a bit of
-improvement on my own (72M) system too.
+Whoops, I saw that run_task_queue(&tq_disk) had dissapeared
+from it's original position but I couldn't find it in it's
+new place... /usr/bin/grep has been a real help now you pointed
+it out, thanks to you both :)
 
 cheers,
 
