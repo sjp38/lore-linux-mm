@@ -1,39 +1,27 @@
-Date: Wed, 27 Sep 2000 15:56:08 +0200
+Date: Wed, 27 Sep 2000 16:08:46 +0200
 From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-Message-ID: <20000927155608.D27898@athlon.random>
-References: <20000925172442.J2615@redhat.com> <20000925190347.E27677@athlon.random> <20000925190657.N2615@redhat.com> <20000925213242.A30832@athlon.random> <20000925205457.Y2615@redhat.com> <qwwd7hriqxs.fsf@sap.com> <20000926160554.B13832@athlon.random> <qww7l7z86qo.fsf@sap.com> <20000926191027.A16692@athlon.random> <qwwn1gu6yps.fsf@sap.com>
+Subject: Re: the new VM
+Message-ID: <20000927160846.E27898@athlon.random>
+References: <20000926211016.A416@bug.ucw.cz> <Pine.LNX.4.21.0009270935380.993-100000@elte.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <qwwn1gu6yps.fsf@sap.com>; from cr@sap.com on Wed, Sep 27, 2000 at 10:11:43AM +0200
+In-Reply-To: <Pine.LNX.4.21.0009270935380.993-100000@elte.hu>; from mingo@elte.hu on Wed, Sep 27, 2000 at 09:42:45AM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Rohland <cr@sap.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Pavel Machek <pavel@suse.cz>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 27, 2000 at 10:11:43AM +0200, Christoph Rohland wrote:
-> I just checked one oracle system and it did not lock the memory. And I
+On Wed, Sep 27, 2000 at 09:42:45AM +0200, Ingo Molnar wrote:
+> such screwups by checking for NULL and trying to handle it. I suggest to
+> rather fix those screwups.
 
-If that memory is used for I/O cache then such memory should released when the
-system runs into swap instead of swapping it out too (otherwise it's not cache
-anymore and it could be slower than re-reading from disk the real data in
-rawio).
+How do you know which is the minimal amount of RAM that allows you not to be in
+the screwedup state?
 
-> Customers with performance problems very often start with too little
-> memory, but they cannot upgrade until this really big job finishes :-(
-> 
-> Another issue about shm swapping is interactive transactions, where
-> some users have very large contexts and go for a coffee before
-> submitting. This memory can be swapped. 
-
-Agreed, that's why I said shm performance under swap is very important
-as well (I'm not understimating it).
-
-But again: if the shm contains I/O cache it should be released and not swapped
-out.  Swapping out shmfs that contains I/O cache would be exactly like swapping
-out page-cache.
+We for sure need a kind of counter for the special dynamic structures but I'm
+not sure if that should account the static stuff as well.
 
 Andrea
 --
