@@ -1,36 +1,40 @@
-Date: Tue, 25 Jan 2000 10:08:58 +0100 (CET)
+Date: Tue, 25 Jan 2000 19:15:43 +0100 (CET)
 From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH] 2.2.14 VM fix #3
-In-Reply-To: <14476.42622.777454.521474@dukat.scot.redhat.com>
-Message-ID: <Pine.LNX.4.10.10001250959170.12802-100000@d251.suse.de>
+Subject: Re: 2.2.1{3,4,5pre*} VM bug found
+In-Reply-To: <Pine.LNX.4.10.10001250421090.482-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.4.10.10001251906370.14600-100000@d251.suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 24 Jan 2000, Stephen C. Tweedie wrote:
+On Tue, 25 Jan 2000, Rik van Riel wrote:
 
->> And the 1-second polling loop has to be killed since it make no sense.
->
->Actually, that probably isn't too bad, as long as we make sure we wake
+>calls __get_free_pages(). When we're (almost) out of
+>memory, the process will wake up kswapd and try to
 
-Agreed. It definitely isn't too bad. But as far I can tell it shouldn't
-help either in RL and performance would be better without it. The point of
-the 1 second polling loop basically is to refill the freelist from the low
-to the high watermark even if the last allocation didn't caused the
-watermark to go below the "low" level.
+You'll block also before to go out of memory if the allocation rate is
+high enough.
 
-I think it would be better to make sure that kswapd will do a high-low
-work at each run and not a not interesting 2/3 page work (for obvious
-icache-lines reasons). And kswapd is so fast freeing the high-low pages,
-that 1 second is a too long measure to make a RL difference. We just made
-sure to not block on allocations before we go below the "min" level, thus
-kswapd will have all the time to do its work before we block (if the mem
-load is not heavy, and if the load is heavy the 1 second polling loop was
-just a noop in the first place ;).
+>In 2.2.15pre4 or when the call to try_to_free_pages()
+>generates disk I/O, the task will call schedule().
+>Since the task state != TASK_RUNNABLE, schedule() will
+>immedately remove it from the run queue ...
+
+Before calling schedule() you always gets registered in a waitqueue so
+you can't deadlock or wait too much.
+
+If something there is the opposite problem. If you do:
+
+	__set_current_state(TASK_UNINTERRUPTIBLE);
+	get_page(GFP_KERNEL);
+	XXXXXXXXXXXXXXXXXXXX
+	schedule();
+
+then at point XXXXXXX you may become a task running and you don't block
+anymore.
 
 Andrea
 
