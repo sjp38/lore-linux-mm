@@ -1,45 +1,51 @@
-Subject: [PATCH] break out zone free list initialization
+Subject: Re: [PATCH] break out zone free list initialization
 From: Dave Hansen <haveblue@us.ibm.com>
-Content-Type: multipart/mixed; boundary="=-z7QDieYcsCXADgcXiyPV"
-Message-Id: <1091034585.2871.142.camel@nighthawk>
+In-Reply-To: <1091034585.2871.142.camel@nighthawk>
+References: <1091034585.2871.142.camel@nighthawk>
+Content-Type: multipart/mixed; boundary="=-4x/JSAw8ql1LssxcYOWx"
+Message-Id: <1091035401.2871.162.camel@nighthawk>
 Mime-Version: 1.0
-Date: Wed, 28 Jul 2004 10:09:45 -0700
+Date: Wed, 28 Jul 2004 10:23:21 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
---=-z7QDieYcsCXADgcXiyPV
+--=-4x/JSAw8ql1LssxcYOWx
 Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
 
-The following patch removes the individual free area initialization from
-free_area_init_core(), and puts it in a new function
-zone_init_free_lists().  It also creates pages_to_bitmap_size(), which
-is then used in zone_init_free_lists() as well as several times in my
-free area bitmap resizing patch.  
+On Wed, 2004-07-28 at 10:09, Dave Hansen wrote:
+> The following patch removes the individual free area initialization from
+> free_area_init_core(), and puts it in a new function
+> zone_init_free_lists().  It also creates pages_to_bitmap_size(), which
+> is then used in zone_init_free_lists() as well as several times in my
+> free area bitmap resizing patch.  
+> 
+> First of all, I think it looks nicer this way, but it's also necessary
+> to have this if you want to initialize a zone after system boot, like if
+> a NUMA node was hot-added.  In any case, it should be functionally
+> equivalent to the old code.
+> 
+> Compiles and boots on x86.  I've been running with this for a few weeks,
+> and haven't seen any problems with it yet.
 
-First of all, I think it looks nicer this way, but it's also necessary
-to have this if you want to initialize a zone after system boot, like if
-a NUMA node was hot-added.  In any case, it should be functionally
-equivalent to the old code.
+OK, I suck.  Here's one that applies with -p1 properly and doesn't add
+whitespace on the line above the zone_init_free_lists() call.
 
-Compiles and boots on x86.  I've been running with this for a few weeks,
-and haven't seen any problems with it yet.
-
- page_alloc.c |   86 ++++++++++++++++++++++++++++++++---------------------------
- 1 files changed, 48 insertions(+), 38 deletions(-)
+ page_alloc.c |   84 +++++++++++++++++++++++++++++++++--------------------------
+ 1 files changed, 47 insertions(+), 37 deletions(-)
 
 -- Dave
 
---=-z7QDieYcsCXADgcXiyPV
-Content-Disposition: attachment; filename=zoneinit_cleanup-2.6.8-rc1-mm1-0.patch
-Content-Type: text/x-patch; name=zoneinit_cleanup-2.6.8-rc1-mm1-0.patch; charset=ANSI_X3.4-1968
+--=-4x/JSAw8ql1LssxcYOWx
+Content-Disposition: attachment; filename=zoneinit_cleanup-2.6.8-rc1-mm1-1.patch
+Content-Type: text/x-patch; name=zoneinit_cleanup-2.6.8-rc1-mm1-1.patch; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 7bit
 
---- mm/page_alloc.c.orig	2004-07-28 09:37:46.000000000 -0700
-+++ mm/page_alloc.c	2004-07-28 09:45:18.000000000 -0700
+--- linux-2.6.8-rc1-mm1.work/mm/page_alloc.c.orig	2004-07-28 10:04:56.000000000 -0700
++++ linux-2.6.8-rc1-mm1.work/mm/page_alloc.c		2004-07-28 10:09:09.000000000 -0700
 @@ -1413,6 +1413,52 @@
  	}
  }
@@ -93,11 +99,10 @@ Content-Transfer-Encoding: 7bit
  #ifndef __HAVE_ARCH_MEMMAP_INIT
  #define memmap_init(start, size, nid, zone, start_pfn) \
  	memmap_init_zone((start), (size), (nid), (zone), (start_pfn))
-@@ -1528,44 +1574,8 @@
- 
+@@ -1529,43 +1575,7 @@
  		zone_start_pfn += size;
  		lmem_map += size;
--
+ 
 -		for (i = 0; ; i++) {
 -			unsigned long bitmap_size;
 -
@@ -135,13 +140,12 @@ Content-Transfer-Encoding: 7bit
 -			zone->free_area[i].map = 
 -			  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
 -		}
-+		
 +		zone_init_free_lists(pgdat, zone, zone->spanned_pages);
  	}
  }
  
 
---=-z7QDieYcsCXADgcXiyPV--
+--=-4x/JSAw8ql1LssxcYOWx--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
