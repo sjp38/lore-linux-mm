@@ -1,158 +1,66 @@
-Date: Sun, 24 Sep 2000 23:39:13 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Date: Sun, 24 Sep 2000 21:56:47 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-In-Reply-To: <20000925034551.C10381@athlon.random>
-Message-ID: <Pine.LNX.4.21.0009242306220.2029-200000@freak.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0009242310510.8705-100000@elte.hu>
+Message-ID: <Pine.LNX.4.10.10009242142510.1224-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="661009-151917776-969849553=:2029"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, Alexander Viro <aviro@redhat.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---661009-151917776-969849553=:2029
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Hmm..
 
+ Thinking some more about this issue, I actually suspect that there's a
+better solution.
 
-On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+The fact is that GFP_BUFFER is only used for the old-fashioned buffer
+block allocations, and anything that uses the page cache automatically
+avoids the whole issue. As such, from a VM balancing standpoint we would
+fix the problem equally well by just avoiding using old-fashioned buffer
+blocks..
 
-<snip>
+Now, I don't believe that the indirect blocks etc of the meta-data is much
+of an issue - whenever we need to access indirect blocks we're certainly
+already doing the page cache thing, so the page cache VM pressure should
+be qutie sufficient to keep the VM balanced - regular file access is very
+much biased towards the page cache, and the meta-data buffer-cache
+accesses are likely to be a very very small part of the big picture.
 
-> kmem_cache_reap shrinks the slabs at _very_ low frequency. It's worthless to
-> keep lots of dentries and icache into the slab internal queues until
-> kmem_cache_reap kicks in again, if we free them such memory immediatly instead
-> we'll run kmem_cache_reap later and for something more appropraite for what's
-> been designed. The [id]cache shrink could release lots of memory.
+The remaining part if the directory handling. THAT is very buffer-cache
+intensive, as the directory handling hasn't been moved over to the page
+cache at all for ext2. Doing a large "find" (or even just a "ls -l") will
+basically do purely buffer cache accesses, first for the directory data
+and then for the inode data. With no page cache activity to balance things
+out at all - leading to a potentially quite unbalanced VM that never
+really had a good chance to get rid of dentries etc.
 
-I see.
+However, Al Viro already basically has the "directories using the page
+cache" code pretty much done, so for 2.5.x we'll just do that, and I bet
+that the VM balancing will improve (as well as performance going up simply
+just because the page cache is more efficient anyway). With the directory
+information in the page cache, there simply isn't any regular operations
+that depend entirely on the buffer cache any more.
 
-Since we have code which is using GFP_BUFFER allocations to not block but
-only shrink the cache (1), I've done a patch to:
+Sure, there will still be the inode and indirect blocks, but there just
+aren't loads that I know of that can put as much pressure on those as on
+the page cache..
 
-- Change kmem_cache_shrink to return the number of freed pages. 
+So the proper approach may be to just ignore the current issue with
+__GFP_IO being a big deal under some loads, because it probably will go
+away on its own (the superblock lock contention is still an issue, of
+course, but while somewhat related it's still fairly orthogonal). 
 
-- Move __GFP_IO checking from do_try_to_free_pages/refill_inactive to
-{i,d}cache shrink functions (Linus already did this in his tree)
+Al, if you'd port over the "namei in page-cache" stuff from UFS to ext2, I
+bet that there would be people interested in seeing whether the above
+theory is just another of Linu's whimsies, or whether it really does make
+a difference.. It may not be 2.4.x material, but it won't hurt to have it
+tested some more anyway. Comments?
 
-- On the {i,d}cache shrink functions, return the value of
-kmem_cache_shrink() (no need of __GFP_IO for that)
+		Linus
 
-
-There was a comment on the shrink functions about making
-kmem_cache_shrink() work on a GFP_DMA/GFP_HIGHMEM basis to free only the
-wanted pages by the current allocation. 
-
-GFP_DMA allocations will never reach this code (do_try_to_free_pages is
-only called if __GFP_WAIT is set) and GFP_HIGHMEM pages will never be used
-as SLAB obj's memory. (please correct me if I'm wrong)
-
-
-Comments?
-
-
-(1) Using GPF_BUFFER is wrong, but its a separate issue. 
-
---661009-151917776-969849553=:2029
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name=patch-240t9-shrink-nogfpio
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.21.0009242339130.2029@freak.distro.conectiva>
-Content-Description: 
-Content-Disposition: attachment; filename=patch-240t9-shrink-nogfpio
-
-ZGlmZiAtLWV4Y2x1ZGUtZnJvbT1leGNsdWRlIC1OdXIgbGludXgub3JpZy9m
-cy9kY2FjaGUuYyBsaW51eC9mcy9kY2FjaGUuYw0KLS0tIGxpbnV4Lm9yaWcv
-ZnMvZGNhY2hlLmMJU3VuIFNlcCAyNCAxODoxNDoyNCAyMDAwDQorKysgbGlu
-dXgvZnMvZGNhY2hlLmMJU3VuIFNlcCAyNCAyMjo0OToxNiAyMDAwDQpAQCAt
-NTU2LDE1ICs1NTYsMTEgQEANCiAJaW50IGNvdW50ID0gMDsNCiAJaWYgKHBy
-aW9yaXR5KQ0KIAkJY291bnQgPSBkZW50cnlfc3RhdC5ucl91bnVzZWQgLyBw
-cmlvcml0eTsNCi0JcHJ1bmVfZGNhY2hlKGNvdW50KTsNCi0JLyogRklYTUU6
-IGttZW1fY2FjaGVfc2hyaW5rIGhlcmUgc2hvdWxkIHRlbGwgdXMNCi0JICAg
-dGhlIG51bWJlciBvZiBwYWdlcyBmcmVlZCwgYW5kIGl0IHNob3VsZA0KLQkg
-ICB3b3JrIGluIGEgX19HRlBfRE1BL19fR0ZQX0hJR0hNRU0gYmVoYXZpb3Vy
-DQotCSAgIHRvIGZyZWUgb25seSB0aGUgaW50ZXJlc3RpbmcgcGFnZXMgaW4N
-Ci0JICAgZnVuY3Rpb24gb2YgdGhlIG5lZWRzIG9mIHRoZSBjdXJyZW50IGFs
-bG9jYXRpb24uICovDQotCWttZW1fY2FjaGVfc2hyaW5rKGRlbnRyeV9jYWNo
-ZSk7DQogDQotCXJldHVybiAwOw0KKwlpZihnZnBfbWFzayAmIF9fR0ZQX0lP
-KQ0KKwkJcHJ1bmVfZGNhY2hlKGNvdW50KTsNCisNCisJcmV0dXJuIGttZW1f
-Y2FjaGVfc2hyaW5rKGRlbnRyeV9jYWNoZSk7DQogfQ0KIA0KICNkZWZpbmUg
-TkFNRV9BTExPQ19MRU4obGVuKQkoKGxlbisxNikgJiB+MTUpDQpkaWZmIC0t
-ZXhjbHVkZS1mcm9tPWV4Y2x1ZGUgLU51ciBsaW51eC5vcmlnL2ZzL2lub2Rl
-LmMgbGludXgvZnMvaW5vZGUuYw0KLS0tIGxpbnV4Lm9yaWcvZnMvaW5vZGUu
-YwlTdW4gU2VwIDI0IDE4OjE0OjI1IDIwMDANCisrKyBsaW51eC9mcy9pbm9k
-ZS5jCVN1biBTZXAgMjQgMjI6NDc6MzAgMjAwMA0KQEAgLTQ2MCwxNSArNDYw
-LDExIEBADQogCQkNCiAJaWYgKHByaW9yaXR5KQ0KIAkJY291bnQgPSBpbm9k
-ZXNfc3RhdC5ucl91bnVzZWQgLyBwcmlvcml0eTsNCi0JcHJ1bmVfaWNhY2hl
-KGNvdW50KTsNCi0JLyogRklYTUU6IGttZW1fY2FjaGVfc2hyaW5rIGhlcmUg
-c2hvdWxkIHRlbGwgdXMNCi0JICAgdGhlIG51bWJlciBvZiBwYWdlcyBmcmVl
-ZCwgYW5kIGl0IHNob3VsZA0KLQkgICB3b3JrIGluIGEgX19HRlBfRE1BL19f
-R0ZQX0hJR0hNRU0gYmVoYXZpb3VyDQotCSAgIHRvIGZyZWUgb25seSB0aGUg
-aW50ZXJlc3RpbmcgcGFnZXMgaW4NCi0JICAgZnVuY3Rpb24gb2YgdGhlIG5l
-ZWRzIG9mIHRoZSBjdXJyZW50IGFsbG9jYXRpb24uICovDQotCWttZW1fY2Fj
-aGVfc2hyaW5rKGlub2RlX2NhY2hlcCk7DQogDQotCXJldHVybiAwOw0KKwlp
-ZihnZnBfbWFzayAmIF9fR0ZQX0lPKSANCisJCXBydW5lX2ljYWNoZShjb3Vu
-dCk7DQorDQorCXJldHVybiBrbWVtX2NhY2hlX3Nocmluayhpbm9kZV9jYWNo
-ZXApOw0KIH0NCiANCiAvKg0KZGlmZiAtLWV4Y2x1ZGUtZnJvbT1leGNsdWRl
-IC1OdXIgbGludXgub3JpZy9tbS9zbGFiLmMgbGludXgvbW0vc2xhYi5jDQot
-LS0gbGludXgub3JpZy9tbS9zbGFiLmMJU3VuIFNlcCAyNCAxODoxNDowNCAy
-MDAwDQorKysgbGludXgvbW0vc2xhYi5jCVN1biBTZXAgMjQgMjI6NDY6MTEg
-MjAwMA0KQEAgLTg4Nyw3ICs4ODcsNyBAQA0KIHN0YXRpYyBpbnQgX19rbWVt
-X2NhY2hlX3NocmluayhrbWVtX2NhY2hlX3QgKmNhY2hlcCkNCiB7DQogCXNs
-YWJfdCAqc2xhYnA7DQotCWludCByZXQ7DQorCWludCByZXQsIGZyZWVkID0g
-MDsNCiANCiAJZHJhaW5fY3B1X2NhY2hlcyhjYWNoZXApOw0KIA0KQEAgLTkx
-Miw4ICs5MTIsMTEgQEANCiAJCXNwaW5fdW5sb2NrX2lycSgmY2FjaGVwLT5z
-cGlubG9jayk7DQogCQlrbWVtX3NsYWJfZGVzdHJveShjYWNoZXAsIHNsYWJw
-KTsNCiAJCXNwaW5fbG9ja19pcnEoJmNhY2hlcC0+c3BpbmxvY2spOw0KKw0K
-KwkJZnJlZWQrKzsNCiAJfQ0KLQlyZXQgPSAhbGlzdF9lbXB0eSgmY2FjaGVw
-LT5zbGFicyk7DQorDQorCXJldCA9ICgoMSA8PCBjYWNoZXAtPmdmcG9yZGVy
-KSAqIGZyZWVkKTsNCiAJc3Bpbl91bmxvY2tfaXJxKCZjYWNoZXAtPnNwaW5s
-b2NrKTsNCiAJcmV0dXJuIHJldDsNCiB9DQpAQCAtOTIzLDcgKzkyNiw4IEBA
-DQogICogQGNhY2hlcDogVGhlIGNhY2hlIHRvIHNocmluay4NCiAgKg0KICAq
-IFJlbGVhc2VzIGFzIG1hbnkgc2xhYnMgYXMgcG9zc2libGUgZm9yIGEgY2Fj
-aGUuDQotICogVG8gaGVscCBkZWJ1Z2dpbmcsIGEgemVybyBleGl0IHN0YXR1
-cyBpbmRpY2F0ZXMgYWxsIHNsYWJzIHdlcmUgcmVsZWFzZWQuDQorICoNCisg
-KiBSZXR1cm5zIHRoZSBhbW91bnQgb2YgZnJlZWQgcGFnZXMuDQogICovDQog
-aW50IGttZW1fY2FjaGVfc2hyaW5rKGttZW1fY2FjaGVfdCAqY2FjaGVwKQ0K
-IHsNCkBAIC05NjIsNyArOTY2LDkgQEANCiAJbGlzdF9kZWwoJmNhY2hlcC0+
-bmV4dCk7DQogCXVwKCZjYWNoZV9jaGFpbl9zZW0pOw0KIA0KLQlpZiAoX19r
-bWVtX2NhY2hlX3NocmluayhjYWNoZXApKSB7DQorCV9fa21lbV9jYWNoZV9z
-aHJpbmsoY2FjaGVwKTsgDQorCQ0KKwlpZiAoIWxpc3RfZW1wdHkoJmNhY2hl
-cC0+c2xhYnMpKSB7DQogCQlwcmludGsoS0VSTl9FUlIgImttZW1fY2FjaGVf
-ZGVzdHJveTogQ2FuJ3QgZnJlZSBhbGwgb2JqZWN0cyAlcFxuIiwNCiAJCSAg
-ICAgICBjYWNoZXApOw0KIAkJZG93bigmY2FjaGVfY2hhaW5fc2VtKTsNCmRp
-ZmYgLS1leGNsdWRlLWZyb209ZXhjbHVkZSAtTnVyIGxpbnV4Lm9yaWcvbW0v
-dm1zY2FuLmMgbGludXgvbW0vdm1zY2FuLmMNCi0tLSBsaW51eC5vcmlnL21t
-L3Ztc2Nhbi5jCVN1biBTZXAgMjQgMTg6MTQ6MDQgMjAwMA0KKysrIGxpbnV4
-L21tL3Ztc2Nhbi5jCVN1biBTZXAgMjQgMjM6MDk6MDEgMjAwMA0KQEAgLTkw
-NCwxNCArOTA0LDE2IEBADQogCQl9DQogDQogCQkvKiBUcnkgdG8gZ2V0IHJp
-ZCBvZiBzb21lIHNoYXJlZCBtZW1vcnkgcGFnZXMuLiAqLw0KLQkJaWYgKGdm
-cF9tYXNrICYgX19HRlBfSU8pIHsNCi0JCQkvKg0KLQkJCSAqIGRvbid0IGJl
-IHRvbyBsaWdodCBhZ2FpbnN0IHRoZSBkL2kgY2FjaGUgc2luY2UNCi0JCSAg
-IAkgKiBzaHJpbmtfbW1hcCgpIGFsbW9zdCBuZXZlciBmYWlsIHdoZW4gdGhl
-cmUncw0KLQkJICAgCSAqIHJlYWxseSBwbGVudHkgb2YgbWVtb3J5IGZyZWUu
-IA0KLQkJCSAqLw0KLQkJCWNvdW50IC09IHNocmlua19kY2FjaGVfbWVtb3J5
-KHByaW9yaXR5LCBnZnBfbWFzayk7DQotCQkJY291bnQgLT0gc2hyaW5rX2lj
-YWNoZV9tZW1vcnkocHJpb3JpdHksIGdmcF9tYXNrKTsNCisNCisJCS8qDQor
-CQkgKiBkb24ndCBiZSB0b28gbGlnaHQgYWdhaW5zdCB0aGUgZC9pIGNhY2hl
-IHNpbmNlDQorCSAgIAkgKiBzaHJpbmtfbW1hcCgpIGFsbW9zdCBuZXZlciBm
-YWlsIHdoZW4gdGhlcmUncw0KKwkgICAJICogcmVhbGx5IHBsZW50eSBvZiBt
-ZW1vcnkgZnJlZS4gDQorCQkgKi8NCisJCWNvdW50IC09IHNocmlua19kY2Fj
-aGVfbWVtb3J5KHByaW9yaXR5LCBnZnBfbWFzayk7DQorCQljb3VudCAtPSBz
-aHJpbmtfaWNhY2hlX21lbW9yeShwcmlvcml0eSwgZ2ZwX21hc2spOw0KKw0K
-KwkJaWYoZ2ZwX21hc2sgJiBfX0dGUF9JTykgew0KIAkJCS8qDQogCQkJICog
-Tm90IGN1cnJlbnRseSB3b3JraW5nLCBzZWUgZml4bWUgaW4gc2hyaW5rXz9j
-YWNoZV9tZW1vcnkNCiAJCQkgKiBJbiB0aGUgaW5uZXIgZnVudGlvbnMgdGhl
-cmUgaXMgYSBjb21tZW50Og0KQEAgLTk5MiwxMCArOTk0LDggQEANCiAJICog
-dGhlIGlub2RlIGFuZCBkZW50cnkgY2FjaGUgd2hlbmV2ZXIgd2UgZG8gdGhp
-cy4NCiAJICovDQogCWlmIChmcmVlX3Nob3J0YWdlKCkgfHwgaW5hY3RpdmVf
-c2hvcnRhZ2UoKSkgew0KLQkJaWYgKGdmcF9tYXNrICYgX19HRlBfSU8pIHsN
-Ci0JCQlyZXQgKz0gc2hyaW5rX2RjYWNoZV9tZW1vcnkoNiwgZ2ZwX21hc2sp
-Ow0KLQkJCXJldCArPSBzaHJpbmtfaWNhY2hlX21lbW9yeSg2LCBnZnBfbWFz
-ayk7DQotCQl9DQorCQlyZXQgKz0gc2hyaW5rX2RjYWNoZV9tZW1vcnkoNiwg
-Z2ZwX21hc2spOw0KKwkJcmV0ICs9IHNocmlua19pY2FjaGVfbWVtb3J5KDYs
-IGdmcF9tYXNrKTsNCiANCiAJCXJldCArPSByZWZpbGxfaW5hY3RpdmUoZ2Zw
-X21hc2ssIHVzZXIpOw0KIAl9IGVsc2Ugew0K
---661009-151917776-969849553=:2029--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
