@@ -1,62 +1,79 @@
-Received: (from root@localhost)
-	by law-cs1.hotmail.com (8.9.3/8.9.3) id LAA29324
-	for linux-mm@kvack.org; Fri, 9 Aug 2002 11:56:48 -0700 (PDT)
-Date: Fri, 9 Aug 2002 11:56:48 -0700 (PDT)
-Message-Id: <200208091856.LAA29324@law-cs1.hotmail.com>
-From: MSN Hotmail <abuse@hotmail.com>
-Subject: Leftmargin
+Date: Sun, 11 Aug 2002 21:17:01 +0100 (IST)
+From: Mel <mel@csn.ul.ie>
+Subject: [ANNOUNCE] VM Regress - A VM regression and test tool
+Message-ID: <Pine.LNX.4.44.0208112109110.16360-100000@skynet>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-transfer-encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-<p>This is an auto-generated response designed to answer your question as quickly as possible. Please note that you will not receive a reply if you respond directly to this message. 
-<p>
-<p>Unfortunately, we cannot take action on the mail you sent us because it does not reference a Hotmail account. Please send us another message that contains the full Hotmail e-mail address and the full e-mail message to:
-<p>    abuse@hotmail.com
-<p>
-<p>>>> To forward mail with full headers
-<p>
-<p>Using Hotmail:
-<p>1.  Click "Options" to the right of the "Contacts" tab. The "Options" page appears.
-<p>2.  Under "Additional Options", click "Mail Display Settings". The "Mail Display Settings" page appears.
-<p>3.  Under "Message Headers", select "Full" and click "OK".
-<p>4.  Forward the resulting mail to:
-<p>       abuse@hotmail.com
-<p>
-<p>Using MSN Explorer:
-<p>1.  Open the message, and then click "More" in the upper right corner.
-<p>2.  Click "Message Source". The message opens in a new window with all the header information visible.
-<p>3.  Copy all the text and paste it into a new message. Send this message to:
-<p>       abuse@msn.com
-<p>
-<p>Using Outlook Express or Outlook:
-<p>1.  On the unopened mail, place your cursor over the mail, right-click, and click "Options".
-<p>2.  Under "Internet headers", copy the contents of the full header.
-<p>3.  Open the e-mail in question and forward a complete copy of the message, including the full message header you copied at the beginning of your message, to:
-<p>      abuse@hotmail.com
-<p>
-<p>If you're not a Hotmail member, consult the Help associated with your e-mail program to determine how to view complete header information. Then forward the message to:
-<p>    abuse@hotmail.com
-<p>
-<p>If the unsolicited junk e-mail or "spam" comes from a non-Hotmail account, you can send a complaint to the service provider that sent the mail. Make sure that you include full headers when you send your complaint. 
-<p>
-<p>In the full header, look at the last "Received" notation to locate what .com domain it came from. It looks something like:
-<p>    [service provider domain name].com
-<p>
-<p>Forward a complete copy of the message, including the full message header, to:
-<p>      abuse@[service provider domain name].com
-<p>
-<p>If the domain does not have an abuse service, forward your complaint to:
-<p>      webmaster@[service provider domain name].com
-<p>
-<p>All Hotmail customers have agreed to MSN Website Terms of Use and Notices(TOU) that forbid e-mail abuse. At the bottom of any page in Hotmail, click "Terms of Use" to view the Terms of Use document in its entirety.
-<p>
-<p>Thank you for helping us enforce our TOU.
-<p>
+Project page: http://www.csn.ul.ie/~mel/projects/vmregress/
+Download:     http://www.csn.ul.ie/~mel/projects/vmregress/vmregress-0.4.tar.gz
+
+This is the first public release of VM Regress v0.4 (BumbleBee). It is the
+beginnings of a regression, benchmarking and test tool for the Linux VM.
+The web page has an introduction and the project itself has quiet
+comprehensive documentation and commentary so I am not going to go into
+heavy detail here.
+
+There appears to be frequent trouble reliably testing the VM and comparing
+the impact (beneficial or otherwise) of VM features. As best as I can
+tell, there is heavy reliance on stress testing or intuitive decisions
+made by individual kernel developers to prove a VM is working or that is
+is better than another implementation. This tool eventually will be able
+to provide empirical data on VM performance as well as acting as a
+regression tool to make sure changes don't break anything.
+
+It works by using kernel modules to get a definite view of what the kernel
+is at and to provide reliable, reproducible tests. Modules are divided
+up into 4 catagories. Core modules provide infrastructure for the tool.
+Sense modules tell what is going on in the VM. Test tests particular
+features and bench modules (none yet) will benchmark different sections
+of the VM.
+
+The aim is to eventually eliminate guesswork in development. The tool will
+be able to tell for definite if a feature works. If it does work, it will
+be able to tell how well or poorly the feature performed. This will
+hopefully replace ad-hoc shell script tests and provide concrete
+performance data any developer can reliably produce and use as proof of
+"Feature X is better"
+
+The interface to the tests are via proc at /proc/vmregress. Help is provided
+for most of them by cat'ing the entries after module load. The README and
+manual are very comprehensive and each c file has a detailed description at
+the top so I'm not going to go into heavy detail in this mail. The README
+includes a sample set of tests to illustrate how the tool can be used to
+provide useful information about performance.
+
+This was developed against 2.4.18 and 2.4.19 but will compile with 2.5.30
+and takes into account the existence of rmap (will compile and work with
+or without rmap). Bear in mind the tool is far for complete and I'm just
+looking for feedback on the viability and usefulness (or the lack thereof)
+of this tool. Consequently, it doesn't do much. Currently it
+
+o Provides infrastructure such as proc helper functions, page table walk
+  functions and so on
+o Provides tests for the /proc interface to ensure it works
+o Prints out the sizeof() VM related structs and prints out the memory usage
+o Prints out information on all zones in the system
+o Tests physical page allocation/free functions with either GFP_ATOMIC or
+  GFP_KERNEL flags
+o Tests page faulting routines
+
+This has been tested heavily with UML 2.4.18 and with a dual PII350 running
+2.4.19 . It is known to compile with 2.5.30 but I haven't done any 2.5 testing
+yet due to the lack of a crash box. It will work with or without rmap as
+the tool was written with it (as well as every other VM feature) in mind.
+
+Any feedback is appreciated.
+
+-- 
+Mel Gorman
+MSc Student, University of Limerick
+http://www.csn.ul.ie/~mel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
