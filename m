@@ -1,61 +1,49 @@
-Date: Mon, 14 Mar 2005 14:33:23 -0800
-From: "David S. Miller" <davem@davemloft.net>
+Date: Mon, 14 Mar 2005 18:30:42 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH 0/4] sparsemem intro patches
-Message-Id: <20050314143323.6c66dfc3.davem@davemloft.net>
-In-Reply-To: <1110838711.19340.58.camel@localhost>
+Message-Id: <20050314183042.7e7087a2.akpm@osdl.org>
+In-Reply-To: <1110834883.19340.47.camel@localhost>
 References: <1110834883.19340.47.camel@localhost>
-	<20050314135021.639d1533.davem@davemloft.net>
-	<1110838711.19340.58.camel@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, apw@shadowen.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Mar 2005 14:18:31 -0800
 Dave Hansen <haveblue@us.ibm.com> wrote:
-
-> Those bits are used today for page_zone() and page_to_nid().  I assume
-> that you don't support NUMA, but how do you get around the page_zone()
-> definition?  (a quick grep in asm-sparc64 didn't show anything obvious)
+>
+>  The following four patches provide the last needed changes before the
+>  introduction of sparsemem.  For a more complete description of what this
+>  will do, please see this patch:
 > 
->         static inline struct zone *page_zone(struct page *page)
->         {
->                 return zone_table[page->flags >> NODEZONE_SHIFT];
->         }
+>  http://www.sr71.net/patches/2.6.11/2.6.11-bk7-mhp1/broken-out/B-sparse-150-sparsemem.patch
 
-NODEZONE_SHIFT is (64 /* sizeof(page_flags_t)*8 */ -
-                   1 /* MAX_NODES_SHIFT */ -
-                   2 /* MAX_ZONES_SHIFT */)
+I don't know what to think about this.  Can you describe sparsemem a little
+further, differentiate it from discontigmem and tell us why we want one? 
+Is it for memory hotplug?  If so, how does it support hotplug?
 
-Which means the table is indexed by the top 3 bits of page->flags.
-Sparc64 only uses a couple bits (specifically, enough to hold
-(NR_CPUS - 1)) starting at bit 24, so this should not intersect
-the page_zone() usage.
+To which architectures is this useful, and what is the attitude of the
+relevant maintenance teams?
 
-I don't even accidently modify those bits when setting and clearing
-this cpu field.
+Quoting from the above patch:
 
-However, I do notice that I assume NR_CPUS is a power of two.  I should
-certainly cure that.  (Basically, I use ~(NR_CPUS - 1) as a mask).
+> Sparsemem replaces DISCONTIGMEM when enabled, and it is hoped that
+> it can eventually become a complete replacement.
+> ...
+> This patch introduces CONFIG_FLATMEM.  It is used in almost all
+> cases where there used to be an #ifndef DISCONTIG, because
+> SPARSEMEM and DISCONTIGMEM often have to compile out the same areas
+> of code.
 
-> BTW, in theory, the new patch should allow page->flags to be better
-> managed by a variety of users, including special arch users.  An
-> architecture should be able to relatively easily add the necessary
-> pieces to reserve them.  We could even have a ARCH_RESERVED_BITS macro
-> or something.  
+Would I be right to worry about increasing complexity, decreased
+maintainability and generally increasing mayhem?
 
-That sounds like a great idea.  We have several issues like this, perhaps
-it's time to create some abstraction accessors via include/asm-*/page-flags.h
-The platform can specify the type and size or whatever of page_flags_t, how
-to stick node and zone numbers into the field, and whatever else.  Furthermore,
-we can have an asm-generic/page-flags.h that most folks can just use and
-replicates what occurs right now.
-
-That may be overkill, however.
+If a competent kernel developer who is not familiar with how all this code
+hangs together wishes to acquaint himself with it, what steps should he
+take?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
