@@ -1,8 +1,8 @@
-Date: Fri, 24 Dec 1999 00:53:49 -0500 (EST)
-From: afei@jhu.edu
+Date: Sun, 26 Dec 1999 03:26:38 -0500 (EST)
+From: feiliu@aa.eps.jhu.edu
 Subject: Re: (reiserfs) Re: RFC: Re: journal ports for 2.3?
 In-reply-to: <Pine.LNX.4.10.9912231624470.1341-100000@alpha.random>
-Message-id: <Pine.GSO.4.05.9912240050140.1337-100000@aa.eps.jhu.edu>
+Message-id: <Pine.GSO.4.05.9912260325130.3937-100000@aa.eps.jhu.edu>
 MIME-version: 1.0
 Content-type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -19,9 +19,17 @@ better than ext2 bcause now we have O(Log(N)) time search(ok),
 insert/removal(???). I really doubt it but I do not know where they can be
 wrong.
 
+besides, how can one join this linux-fsdevel@vger.rutgers.edu email list?
+I did not find a place having instruction on doing it.
 Fei
 
- On Thu, 23 Dec 1999, Andrea Arcangeli wrote:
+
+ *~~~~~~~~~~~~~~~~~~~~~+_____________________+~~~~~~~~~~~~~~~~~~~*
+ *  Email:afei@jhu.edu | WWW:   http://aa.eps.jhu.edu/~feiliu    *
+  *  (410)889-9876(H)  | Johns Hopkins Univ. | (410)516-7047(O) *
+   *-------------------+_____________________+-----------------*
+
+On Thu, 23 Dec 1999, Andrea Arcangeli wrote:
 
 > On Wed, 22 Dec 1999, William J. Earl wrote:
 > 
