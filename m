@@ -1,25 +1,36 @@
-Date: Tue, 8 Mar 2005 18:35:07 -0800 (PST)
-From: Christoph Lameter <christoph@lameter.com>
-Subject: Re: Is there a way to do an architecture specific shake of memory?
-In-Reply-To: <20050308211535.GB16061@lnx-holt.americas.sgi.com>
-Message-ID: <Pine.LNX.4.58.0503081833430.10095@server.graphe.net>
-References: <20050308211535.GB16061@lnx-holt.americas.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <E0A4nm6-6499Yt-00@mail.nitros6.org>
+Date: Thu, 10 Mar 2005 04:14:14 +0400
+From: "Fritz Courtney" <xnvkcetdchyhe@yahoo.com>
+Subject: V-codin and Xa'nx are Cheeap %RANDOMCHAR
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: linux-mm@kvack.org
+To: aart@kvack.org
+Cc: adrian@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Mar 2005, Robin Holt wrote:
+Look at this of-fers:
 
-> Any suggestions are welcome.
+V-codin - 225.00 (90 pi lls) 
+Hydrocodonee - 297.00 (90 pi lls)
+Valliuum - 153.00 (90 pi lls)
+Vi graa - 270.00 (90 pi lls)
+Cai llis - 348.00 (90 pi lls)
+Codeinne - 126.00 (90 pi lls)
+X|a naax - 171.00 (90 pi lls)
 
-Check when you free items how long the list of free items is and if its
-too long free some of them.
+All orderrs are delivered by Fedex with full tracking 24/7.
+Satisfactiionnss guaaranteeed...
+
+http://quicklikemedstou.com/2/?wid=200007
 
 
+
+
+
+
+This is 1 -time mailing. N0-re m0val are re'qui-red
+
+transgress lure tit perverse affirmation
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
