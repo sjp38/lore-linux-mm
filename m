@@ -1,37 +1,30 @@
-Message-ID: <3E4DEB72.4010405@cyberone.com.au>
-Date: Sat, 15 Feb 2003 18:25:38 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
-MIME-Version: 1.0
+From: Ed Tomlinson <tomlins@cam.org>
 Subject: Re: 2.5.61-mm1
+Date: Sat, 15 Feb 2003 09:29:51 -0500
 References: <20030214231356.59e2ef51.akpm@digeo.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+In-Reply-To: <20030214231356.59e2ef51.akpm@digeo.com>
+MIME-Version: 1.0
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200302150929.51856.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+On February 15, 2003 02:13 am, Andrew Morton wrote:
+>   Turns out that some parts of KDE (kmail, at least) were indeed using this
+>   hint, and it triggers a nasty bug in (at least) kmail: it is reading the
+>   same 128k of the file again and again and again.  It runs like a dog.
+>   Ed Tomlinson upgraded his KDE/kmail version and this problem went away.
 
->http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.61/2.5.61-mm1/
->
->. Jens has fixed the request queue aliasing problem and we are no longer
->  able to break the IO scheduler.  This was preventing the OSDL team from
->  running dbt2 against recent kernels, so hopefully that is all fixed up now.
->
->. The anticipatory scheduler is performing well.  I've included that now.
->
-And for those interested, if you find unusual IO performance,
-please try disabling AS and reporting results. Thanks.
+The versions of kmail involved were 3.04, which manifests the bug when switching
+between folders with lots of entries (10,000+).  The kmail in kde 3.1 does not
+have this problem.
 
-echo 0 > /sys/block/?/iosched/antic_expire
-
-This value defaults to 10 (ms). More than around 20 might do
-funny though not harmful stuff due to a fragile bitshift.
-
-Nick
-
+Ed Tomlinson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
