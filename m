@@ -1,30 +1,26 @@
-Date: Tue, 25 Nov 1997 22:31:06 +0100 (MET)
-From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: Re: page->pte_head, Was:[URGENT ASSISTANCE REQUESTED] production , machines dying
-In-Reply-To: <Pine.LNX.3.95.971125160146.13249B-100000@as200.spellcast.com>
-Message-ID: <Pine.LNX.3.91.971125222922.14082B-100000@mirkwood.dummy.home>
+Date: Thu, 27 Nov 1997 03:04:18 -0500 (EST)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: pte_list-2.1.66
+In-Reply-To: <Pine.LNX.3.91.971125222922.14082B-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.95.971127024507.21730A-100000@as200.spellcast.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Cc: "Dr. Werner Fink" <werner@suse.de>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Nov 1997, Benjamin C.R. LaHaise wrote:
+Hello all,
 
-> > Let's ask him :-)  ... Ben? What's about your patch?
-> 
-> http://www.kvack.org/~blah/patches/v2_1_47_ben1.gz
-> 
-> I suppose it should perhaps be revived?
+I updated my pte list patch against 2.1.66, and will be actively working
+on it again.  My short term goals include getting the [minimal] work done
+needed to make it function on Alphas, and improving the kswapd heuristics
+a lot more.  It still probably breaks the shm stuff...  Fetch from
+http://www.kvack.org/~blah/patches/pte_list-2.1.66.diff.gz
 
-I've read it, and it looks very good...
-I really feel like merging it with my patch, but I've
-also got some (loads of) work for school to do :(
-Maybe one of you could merge the patches?
+Also, if people want to discuss mm ideas/developement heavily, I've
+created a mailing list (submit to linux-mm@kvack.org, subscribe is
+majordomo@kvack.org).  It would be nice to see any rough little mm tweaks
+people are hiding. ;)
 
-Rik.
-
-----------
-Send Linux memory-management wishes to me: I'm currently looking
-for something to hack...
+		-ben
