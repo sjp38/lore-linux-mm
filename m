@@ -1,45 +1,56 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 1EBF338CBF
-	for <linux-mm@kvack.org>; Wed, 21 Nov 2001 12:39:31 -0300 (EST)
-Date: Wed, 21 Nov 2001 13:39:18 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: 2.4.14 + Bug in swap_out.
-In-Reply-To: <Pine.LNX.4.21.0111211515210.1357-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.33L.0111211338330.1491-100000@duckman.distro.conectiva>
+References: <Pine.LNX.4.21.0111211558160.1394-100000@localhost.localdomain>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 21 Nov 2001 09:26:21 -0700
+In-Reply-To: <Pine.LNX.4.21.0111211558160.1394-100000@localhost.localdomain>
+Message-ID: <m1y9l0ytsi.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hugh Dickins <hugh@veritas.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Rik van Riel <riel@conectiva.com.br>, "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 21 Nov 2001, Hugh Dickins wrote:
+Hugh Dickins <hugh@veritas.com> writes:
 
-> > In that case, why can't we just take the next mm from
-> > init_mm and just "roll over" our mm to the back of the
-> > list once we're done with it ?
->
-> No.  That's how it used to be, that's what I changed it from.
->
-> fork and exec are well ordered in how they add to the mmlist,
-> and that ordering (children after parent) suited swapoff nicely,
-> to minimize duplication of a swapent while it's being unused;
-> except swap_out randomized the order by cycling init_mm around it.
+> On Wed, 21 Nov 2001, Rik van Riel wrote:
+> > On Wed, 21 Nov 2001, Hugh Dickins wrote:
+> > >
+> > > fork and exec are well ordered in how they add to the mmlist,
+> > > and that ordering (children after parent) suited swapoff nicely,
+> > > to minimize duplication of a swapent while it's being unused;
+> > > except swap_out randomized the order by cycling init_mm around it.
+> > 
+> > Urmmm, so the code was obfuscated in order to optimise
+> > swapoff() ?
+> 
+> To speed swapoff, I changed the code back to how fork (see comment
+> on "Add it to the mmlist" in fork.c old and new) and exec seemed to
+> intend.  I don't see see that I _obfuscated_ the code:
+> what's so difficult about swap_mm?
 
-Urmmm, so the code was obfuscated in order to optimise
-swapoff() ?
+Practical test when I pointed out that something needed to be done
+(and I didn't see the code in mmput) both David & Rik didn't even
+see the problem much less where it was worked around.  And neither
+of the saw the code in mmput.  If people can look at the code
+and see what is going on that is hard to follow, by definition.
 
-Exactly how bad was the "mmlist randomising" for swapoff() ?
+The primary problem with swap_mm is that swap_mm is used totally
+unexpectedly in a different file.  Instead of it's usage being small
+local and contained.
 
-regards,
+> > Exactly how bad was the "mmlist randomising" for swapoff() ?
+> 
+> It was unnecessary and counter-productive, I changed it.
+> Exact number?  No, but small.
 
-Rik
--- 
-DMCA, SSSCA, W3C?  Who cares?  http://thefreeworld.net/
+There is some sense in allowing swapoff not to check new processes
+but...  The only optimization that really makes sense with swapoff is
+to turn it inside out and traverse each process only once...  With
+possibly a little of the current logic to handle the shared swap case.
 
-http://www.surriel.com/		http://distro.conectiva.com/
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
