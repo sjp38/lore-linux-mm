@@ -1,122 +1,73 @@
-Message-ID: <40C763DD.7090003@tmr.com>
-Date: Wed, 09 Jun 2004 15:24:13 -0400
-From: Bill Davidsen <davidsen@tmr.com>
+Message-ID: <40CAA904.8080305@yahoo.com.au>
+Date: Sat, 12 Jun 2004 16:56:04 +1000
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: why swap at all?
-References: <fa.amhil9e.o5kt1u@ifi.uio.no> <fa.kfm8lru.1l2mdp4@ifi.uio.no> <40C5D7FB.7020402@sgi.com>
-In-Reply-To: <40C5D7FB.7020402@sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: Keeping mmap'ed files in core regression in 2.6.7-rc
+References: <20040608142918.GA7311@traveler.cistron.net>
+In-Reply-To: <20040608142918.GA7311@traveler.cistron.net>
+Content-Type: multipart/mixed;
+ boundary="------------070500000901040105060001"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: Buddy Lumpkin <b.lumpkin@comcast.net>, 'Con Kolivas' <kernel@kolivas.org>, 'FabF' <fabian.frederick@skynet.be>, 'Bernd Eckenfels' <ecki-news2004-05@lina.inka.de>, linux-kernel@vger.kernel.org, lse-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: Miquel van Smoorenburg <miquels@cistron.nl>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ray Bryant wrote:
-> 
-> Buddy Lumpkin wrote:
-> 
->>  <snip> One method would be to keep the
->> pagecache on it's own list, and move pages to the head of the list any 
->> time
->> they are modified or referenced, and reclaim from the tail.
->> All pages on this list can be considered as "free memory", because any 
->> new
->> memory requests would just cause pages to be evicted from the tail of the
->> list.
->>
-> 
-> We have code running on Altix that does exactly this.  (Please note,
-> however, that this is for our version of Linux 2.4.21 -- Yeah, its
-> old, but that is what the product runs at the moment -- we are in
-> the process of switching over to Linux 2.6 when all of this will
-> have to be re-evaluated.)  The changes are in three parts:
-> 
-> (1)  We added a new page list, the reclaim list.  Pages are put
-> onto the reclaim list when they are inserted into the page cache.
-> They are removed from the list when they are marked dirty (buffers
-> from the page go on to the LRU dirty list) or when the pages are
-> mmap'd into an address space, since in either of these situations,
-> the pages are not reclaimable.  (This list is per node in our
-> NUMA system.)
-> 
-> (2)  We added code in __alloc_pages() so that if the local node
-> allocation is going to fail (remember that Altix is a NUMA machine),
-> we call out to a routine to scan the reclaim list on that node and
-> to release enough clean buffer cache pages to make the local
-> allocation succeed (plus a few pages, for efficiency).  If this
-> doesn't work, we most likely end up spilling the allocation over
-> to another node.
-> 
-> (3)  We added code in generic_file_write() to limit the size of
-> the page cache on buffered file I/O write operations.  If the
-> current size of the page cache is larger than the limit, we
-> call the same routine as above to release some page cache pages.
-> If we can't free enough pages to get below the limit, we throttle
-> the write process by delaying it for a bit.  This was all to
-> avoid the problem of a large buffered file I/O request causing
-> the page cache to grow to the point where the system would start
-> to swap.  (On our large memory systems, dropping into the
-> swapping code can cause the system to freeze for 10's of seconds,
-> and that is something we would like to avoid).
-> 
-> (We actually don't enforce the page cache limit unless the amount
-> of free memory has dropped below a certain threshold.  This is to
-> keep the page cache from being limited if there is lots of free
-> memory -- even though we only limit the page cache on writes,
-> it turns out that the kernel is constantly writing to the disk,
-> so this also effectively causes the page cache to be limited
-> for reads as well.)
-> 
-> This code was also written in response to customer demand.  They
-> don't like the fact that the buffer cache grows and grows on our
-> Altix systems, and they want old buffer cache pages to be cleared
-> out when they are no longer needed.  Since we almost never suffer
-> memory pressure on our systems (and if we do, we are likely in
-> trouble), kswapd almost never does this.  Buffer cache pages can
-> sit around for days with no one removing them.  The above was one
-> approach to solve that problem.
-> 
-> Pleaes note: YMMV.  An Altix is not a desktop system and I make
-> no claims that the above approach is appropriate for everyone.
-> For us, it turns out to work better to bias storage allocation
-> against unbridled growth of the page cache.  Indeed, we have
-> spent a lot of time trying to solve problems related to page
-> cache on Altix systems.  Assuming we get our OLS paper done
-> in time, you can read more about this in our paper at OLS.
-> (If not, we intend to post our experiences paper on the
-> oss.sgi.com website.)
-> 
-> Finally, let me reiterate that we are beginning the process of
-> evaluating the 2.6 memory manager wrt the same problem as above.
-> Before we will propose a change such as above for 2.6, we have
-> to convince ourselves that (1) setting vm_swappiness appropriately
-> doesn't solve the problem, and (2) that patches such as the ones
-> that Nick Piggin has been proposing don't solve the problem
-> either, and that (3) there isn't some other mechanism to deal
-> with this in 2.6.
+This is a multi-part message in MIME format.
+--------------070500000901040105060001
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-I have to admit that the definition of "desktop machine" has changed a 
-lot in the last few years, in terms of hardware, but I have been running 
-since 486 days with "what can I build/buy for <$2k which best fits my 
-overall computing?" With the onset of cheap memory and Opteron, NUMA 
-will be a factor in the next few years in all probability, and SMP has 
-been since the dual pentium systems were new.
+Miquel van Smoorenburg wrote:
 
-That said, I think that your work will be useful, even if it is used 
-piecemeal or as inspiration to Nick, Andrea, and other who have been 
-working in the area. I find Nick's work as of 2.6.7-rc1-mm1 so good I 
-haven't moved any of my desktop machines beyond it, but it sounds as if 
-your work addresses the issue I mentioned about limiting buffer usage, 
-and Rik's comment that the code lacks check and balances. You seem to 
-have a balance, I'd love to see it.
+> Now I tried 2.6.7-rc2 and -rc3 (well rc2-bk-latest-before-rc3) and
+> with those kernels, performance goes to hell because no matter
+> how much I tune, the kernel will throw out the mmap'ed pages first.
+> RSS of the innd process hovers around 200-250 MB instead of 600.
+> 
+> Ideas ?
+> 
 
+Can you try the following patch please?
 
--- 
-    -bill davidsen (davidsen@tmr.com)
-"The secret to procrastination is to put things off until the
-  last possible moment - but no longer"  -me
+--------------070500000901040105060001
+Content-Type: text/x-patch;
+ name="vm-revert-fix.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="vm-revert-fix.patch"
+
+ linux-2.6-npiggin/mm/vmscan.c |    7 ++-----
+ 1 files changed, 2 insertions(+), 5 deletions(-)
+
+diff -puN mm/vmscan.c~vm-revert-fix mm/vmscan.c
+--- linux-2.6/mm/vmscan.c~vm-revert-fix	2004-06-12 16:53:02.000000000 +1000
++++ linux-2.6-npiggin/mm/vmscan.c	2004-06-12 16:54:26.000000000 +1000
+@@ -813,9 +813,8 @@ shrink_caches(struct zone **zones, int p
+ 		struct zone *zone = zones[i];
+ 		int max_scan;
+ 
+-		zone->temp_priority = priority;
+-		if (zone->prev_priority > priority)
+-			zone->prev_priority = priority;
++		if (zone->free_pages < zone->pages_high)
++			zone->temp_priority = priority;
+ 
+ 		if (zone->all_unreclaimable && priority != DEF_PRIORITY)
+ 			continue;	/* Let kswapd poll it */
+@@ -996,8 +995,6 @@ scan:
+ 					all_zones_ok = 0;
+ 			}
+ 			zone->temp_priority = priority;
+-			if (zone->prev_priority > priority)
+-				zone->prev_priority = priority;
+ 			max_scan = (zone->nr_active + zone->nr_inactive)
+ 								>> priority;
+ 			reclaimed = shrink_zone(zone, max_scan, GFP_KERNEL,
+
+_
+
+--------------070500000901040105060001--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
