@@ -1,43 +1,31 @@
-Date: Mon, 16 Feb 2004 22:06:48 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [PATCH] mremap NULL pointer dereference fix
-In-Reply-To: <20040216220031.16a2c0c7.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.58.0402162203230.2154@home.osdl.org>
-References: <Pine.SOL.4.44.0402162331580.20215-100000@blue.engin.umich.edu>
- <Pine.LNX.4.58.0402162127220.30742@home.osdl.org>
- <Pine.LNX.4.58.0402162144510.30742@home.osdl.org> <20040216220031.16a2c0c7.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 17 Feb 2004 07:35:22 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: Non-GPL export of invalidate_mmap_range
+Message-ID: <20040217073522.A25921@infradead.org>
+References: <20040216190927.GA2969@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040216190927.GA2969@us.ibm.com>; from paulmck@us.ibm.com on Mon, Feb 16, 2004 at 11:09:27AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: vrajesh@umich.edu, linux-kernel@vger.kernel.org, Linux-MM@kvack.org
+To: "Paul E. McKenney" <paulmck@us.ibm.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Mon, 16 Feb 2004, Andrew Morton wrote:
+On Mon, Feb 16, 2004 at 11:09:27AM -0800, Paul E. McKenney wrote:
+> Hello, Andrew,
 > 
-> This saves a goto.   It works, but I wasn't able to trigger
-> the oops without it either.
+> The attached patch to make invalidate_mmap_range() non-GPL exported
+> seems to have been lost somewhere between 2.6.1-mm4 and 2.6.1-mm5.
+> It still applies cleanly.  Could you please take it up again?
 
-To trigger the bug you have to have _just_ the right memory usage, I 
-suspect. You literally have to have the destination page directory 
-allocation unmap the _exact_ source page (which has to be clean) for the 
-bug to hit. 
+And there's still no reason to ease IBM's GPL violations by exporting
+deep VM internals.  The GPLed DFS you claimed you needed this for still
+hasn't shown up but instead you want to change the export all the time.
 
-So I suspect the oops only triggers on the machine that the trigger
-program was written for.
+Tells a lot about IBMs promises..
 
-Your version of the patch saves a goto in the source, but results in an 
-extra goto in the generated assembly unless the compiler is clever enough 
-to notice the double test for NULL.
-
-Never mind, that's a micro-optimization, and your version is cleaner. 
-Let's go with it if Rajesh can verify that it fixes the problem for him.
-
-Rajesh?
-
-		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
