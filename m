@@ -1,37 +1,39 @@
-Date: Wed, 15 Apr 1998 11:11:07 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: I've got some patches to integrate...
-In-Reply-To: <m11zuz4vm5.fsf@flinx.npwt.net>
-Message-ID: <Pine.LNX.3.95.980415105437.839D-100000@as200.spellcast.com>
+Date: Wed, 15 Apr 1998 18:08:05 +0200 (MET DST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: H.H.vanRiel@phys.uu.nl
+Subject: Re: I've got some patches to integrate... (fwd)
+In-Reply-To: <Pine.LNX.3.95.980415112011.839G-100000@as200.spellcast.com>
+Message-ID: <Pine.LNX.3.91.980415180555.17965A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@npwt.net>
-Cc: linux-mm@kvack.org
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello Eric,
+On Wed, 15 Apr 1998, Benjamin C.R. LaHaise wrote:
 
-On 14 Apr 1998, Eric W. Biederman wrote:
-...
-> Anyhow I thought I'd bounce off what I had off this list and see what
-> people thought of my ideas.  I started checking with Stepen Tweedie to
-> see if he maintained the swap code and if I should send patches to
-> him, or Linus.  And he said it should bounce what I have off of this
-> list, and to start talks about integrating it.
-...
+> Hmmm, before I make any silly mumblings, would you mind [re]sending a copy
+> of your patch to linux-mm?  (I've misplaced the copy I had, and linuxhq's
+> kernel archive isn't searchable right now.)  Linus probably won't want to
+> integrate them for 2.2, but perhaps we can start maintaining a set of
+> patches reasonably 'in sync' until 2.3 when they could be integrated. 
 
-Hmmm, before I make any silly mumblings, would you mind [re]sending a copy
-of your patch to linux-mm?  (I've misplaced the copy I had, and linuxhq's
-kernel archive isn't searchable right now.)  Linus probably won't want to
-integrate them for 2.2, but perhaps we can start maintaining a set of
-patches reasonably 'in sync' until 2.3 when they could be integrated. 
-Hopefully that way they we can get people to provide a reasonable amount
-of testing to the code. 
+If you make a page like that, please send me a pointer so I
+can include it on my memory-management patches page (which
+is accessible from LinuxHQ!).
 
-Which reminds me: Stephen, what's the state of your irq and smp patches
-for page cache addition/removal.  I'm getting a bit more free time now, so
-perhaps I can play with them a bit (maybe we should have a common cvs
-tree...).
+> Which reminds me: Stephen, what's the state of your irq and smp patches
+> for page cache addition/removal.  I'm getting a bit more free time now, so
+> perhaps I can play with them a bit (maybe we should have a common cvs
+> tree...).
 
-		-ben
+A common tree would be nice too. Possibly with a 'bigmama'-like
+patch for the MM system...
+
+Rik.
++-------------------------------------------+--------------------------+
+| Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
+|        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
+|     http://www.phys.uu.nl/~riel/          | <H.H.vanRiel@phys.uu.nl> |
++-------------------------------------------+--------------------------+
