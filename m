@@ -1,38 +1,38 @@
-Date: Fri, 10 Dec 1999 00:46:34 +0100
-From: Andi Kleen <ak@muc.de>
 Subject: Re: Getting big areas of memory, in 2.3.x?
-Message-ID: <19991210004634.A3013@fred.muc.de>
-References: <Pine.LNX.4.10.9912100021250.10946-100000@chiara.csoma.elte.hu> <199912092332.AAA27593@cave.bitwizard.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <199912092332.AAA27593@cave.bitwizard.nl>; from Rogier Wolff on Fri, Dec 10, 1999 at 12:32:01AM +0100
+Date: Thu, 9 Dec 1999 23:50:04 +0000 (GMT)
+In-Reply-To: <14416.15954.354222.915088@liveoak.engr.sgi.com> from "William J. Earl" at Dec 9, 99 03:42:10 pm
+Content-Type: text
+Message-Id: <E11wDK1-0002nT-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rogier Wolff <R.E.Wolff@bitwizard.nl>
-Cc: Ingo Molnar <mingo@chiara.csoma.elte.hu>, "William J. Earl" <wje@cthulhu.engr.sgi.com>, Jeff Garzik <jgarzik@mandrakesoft.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
+To: "William J. Earl" <wje@cthulhu.engr.sgi.com>
+Cc: alan@lxorguk.ukuu.org.uk, mingo@chiara.csoma.elte.hu, jgarzik@mandrakesoft.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Dec 10, 1999 at 12:32:01AM +0100, Rogier Wolff wrote:
-> Ingo Molnar wrote:
-> > yep, if eg. an fsck happened before modules are loaded then RAM is filled
-> > up with the buffer-cache. The best guarantee is to compile such drivers
-> > into the kernel.
-> 
-> My ISDN drivers don't start up correctly after an fsck. 
+> For example, large pages for programs with large code or data footprints
+> can dramatically reduce TLB misses.  If the I/O system learns to do direct
 
-This is a known bug in the isdn driver. They use a >64K array for their
-device structures. The easy fix is to just replace the kmalloc with a 
-vmalloc() [the better fix would be to use a array of pointers and allocate
-the device structures only when needed]. These are just internal structures
-that are never touched by hardware, so vmalloc is fine.
+Yep. One thing Irix always seemed to be rather neat about was page size
+dependant on ram size of box.
 
-I believe Karsten has fixed it in the latest I4L Tree.
+> I/O, the overhead of setting up large I/O operations, whether for disk I/O
+> or for OpenGL operations such as writing a large image to the screen
+> (via DMA), is much reduced when the I/O is done from large pages.
 
+PC's have the AGP GART. That provides an MMU for the graphics card in effect.
 
--Andi
+> for higher-bandwidth targets, such as a graphics controller or a 
+> HDTV camera.
 
----
-This is like TV. I don't like TV.
+I don't know of any capture cards that don't do scatter gather. Most of them
+do scatter gather with skipping and byte alignment so you can DMA around
+other windows.
+
+This is the main point. There are so so few devices that actually _have_ to
+have lots of linear memory it is questionable that it is worth paying the
+price to allow modules to allocate that way
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
