@@ -1,86 +1,41 @@
-Subject: Re: [PATCH] low-latency zap_page_range
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <3D3C517F.6BD3650A@zip.com.au>
-References: <3D3B94AF.27A254EA@zip.com.au> <1027360686.932.33.camel@sinai>
-	<3D3C517F.6BD3650A@zip.com.au>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 22 Jul 2002 11:50:06 -0700
-Message-Id: <1027363806.931.64.camel@sinai>
+Date: Mon, 22 Jul 2002 14:56:53 -0400
+From: Benjamin LaHaise <bcrl@redhat.com>
+Subject: Re: alloc_pages_bulk
+Message-ID: <20020722145653.D6428@redhat.com>
+References: <1615040000.1027363248@flay>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1615040000.1027363248@flay>; from Martin.Bligh@us.ibm.com on Mon, Jul 22, 2002 at 11:40:48AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: torvalds@transmeta.com, riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Cc: Andrew Morton <akpm@zip.com.au>, Bill Irwin <wli@holomorphy.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2002-07-22 at 11:40, Andrew Morton wrote:
+On Mon, Jul 22, 2002 at 11:40:48AM -0700, Martin J. Bligh wrote:
+> Below is a first cut at a bulk page allocator. This has no testing whatsoever,
+> not even being compiled ... I just want to get some feedback on the approach,
+> so if I get slapped, I'm less far down the path that I have to back out of.
+> The __alloc_pages cleanup is also tacked on the end because I'm lazy at
+> creating diff trees - sorry ;-)
+> 
+> Comments, opinions, abuse?
 
-> Disagree, really.  It's not a thing of beauty, but it is completely
-> obvious what the code is doing and why it is doing it.  There are
-> no subtle side-effects and the whole lot can be understood from a
-> single screenful.  Unmaintainable code is code which requires you
-> to spend days crawling all over the tree working out what it's doing
-> any why it's doing it.  It's awkward, but it's simple, and I wouldn't
-> get very worked up over it personally.
+The inline for alloc_pages is wasteful: regparm on 386 allows us to pass 
+3 arguments to a function without going to the stack; by making _alloc_pages 
+take an additional argument which is a pointer, the stack manipulations and 
+dereference add several instructions of bloat per alloc_pages inline.  Keep 
+a seperate entry point around for alloc_pages to avoid this.  Also, what 
+effect does this have on single page allocations for single processor and 
+dual processor systems?
 
-I agree with your points although I do not find the previous version any
-less of this.
+That said, why use an array?  You could just have alloc_pages return a linked 
+list of pages.  This would allow you to make the allocation operation faster 
+by doing a single snip of the portion of the list that has the required 
+number of pages in the fast case.
 
-> Hard call.   In general I suspect it's best to hold onto a lock
-> for as long as possible, get a lot of work done rather than
-> reacquiring it all the time.  But there are some locks which are
-> occasionally held for a very long time and are often held for very
-> short periods.  Such as this one (mm->page_table_lock) and pagemap_lru_lock.
-> In those cases, dropping the lock to let someone else get in, out and
-> away may help.  But not as much as a little bit of locking redesign...
-
-Agreed.
-
-> zap_page_range is sometimes called under another lock, (eg, vmtruncate_list).
-> So there's nothing useful to be done there.  Perhaps you should test
-> ->preempt_count as well - if it's greater than one then don't bother with
-> the lock dropping.
-
-Hrm, this means cond_resched_lock() is out of the question here, then.
-
-We could use break_spin_locks() but that would mean we drop the lock w/o
-checking for need_resched (or wrap it in need_resched() and then we
-check twice).
-
-Finally, we could take your approach, change cond_resched_lock() to be:
-
-	if (need_resched() && preempt_count() == 1) {
-		spin_unlock_no_resched(lock);
-		__cond_resched();
-		spin_lock(lock);
-	}
-
-but then we need to break the function up into a preempt and a
-non-preempt version as preempt_count() unconditionally returns 0 with
-!CONFIG_PREEMPT.  Right now the functions I posted do the right thing on
-any combination of UP, SMP, and preempt.
-
-Thoughts?
-
-> This, btw, probably means that your code won't be very effective yet: large
-> truncates will still exhibit poor latency.  However, truncate _is_ something
-> which we can improve algorithmically.  One possibility is to implement a
-> radix tree split function: split the radix tree into two trees along the
-> truncation point, clean up the end and then drop the bulk of the pages
-> outside locks.
-
-I would _much_ prefer to tackle these issues via better algorithms...
-your suggestion for truncate is good.
-
-Note that I make an exception here (part of my argument for a preemptive
-kernel was no more need to do "hackish" conditional scheduling and lock
-breaking) because there really is not much you can do to this
-algorithm.  It does a lot of work on potentially a lot of data and the
-cleanest solution we have is to just break it up into chunks.
-
-	Robert Love
-
+		-ben
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
