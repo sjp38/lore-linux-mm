@@ -1,98 +1,52 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA27518
-	for <linux-mm@kvack.org>; Mon, 17 Aug 1998 14:43:45 -0400
-Date: Mon, 17 Aug 1998 20:41:03 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Received: from castle.nmd.msu.ru (castle.nmd.msu.ru [193.232.112.53])
+	by kvack.org (8.8.7/8.8.7) with SMTP id CAA30657
+	for <linux-mm@kvack.org>; Tue, 18 Aug 1998 02:41:56 -0400
+Message-ID: <19980818103326.A9815@castle.nmd.msu.ru>
+Date: Tue, 18 Aug 1998 10:33:26 +0400
+From: Savochkin Andrey Vladimirovich <saw@msu.ru>
 Subject: Re: [PATCH] OOM killer
-In-Reply-To: <199808171650.JAA13881@tcadnt01.sc.intel.com>
-Message-ID: <Pine.LNX.3.96.980817203457.5034D-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <Pine.LNX.3.96.980816182759.697A-100000@mirkwood.dummy.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.3.96.980816182759.697A-100000@mirkwood.dummy.home>; from "Rik van Riel" on Sun, Aug 16, 1998 at 06:34:32PM
 Sender: owner-linux-mm@kvack.org
-To: Claus Fischer <cfischer@td2cad.intel.com>
-Cc: H.H.vanRiel@phys.uu.nl, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>, Linux MM <linux-mm@kvack.org>
+Cc: Linux Kernel <linux-kernel@vger.rutgers.edu>, Claus Fischer <cfischer@td2cad.intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Aug 1998, Claus Fischer wrote:
-
-> Comments (disordered):
-> 	unsigned int ram;         /* in percent */
-> 	unsigned int total;       /* in percent */
->     The comments would help just a bit :-)
-
-I promise a code cleanup before submission. Note the
-"this should be in a .h file" statements...
-
-> 	points /= int_sqrt(int_sqrt((jiffies - p->start_time) >> (SHIFT_HZ + 10)));
+On Sun, Aug 16, 1998 at 06:34:32PM +0200, Rik van Riel wrote:
+> Hi,
 > 
->     If jiffies have wrapped around, the process does not get more points.
->     I don't know of a good solution to that.
-
-Anybody?
-
-> 		int tries, tried, succes;
+> here is the first patch that provides kernel-based out-of-memory
+> killing.
 > 
->      Should it read success, or is this deliberate?
-
-Oops, a speling erorr :)
-
->      Here's the most important comment:
+> It is only here to try if it works, I know it compiles but
+> I haven't even booted it yet :)
 > 
-> 	free_vm = ((val.freeram + val.bufferram + val.freeswap) >>
-> 		PAGE_SHIFT) + page_cache_size - (page_cache.min_percent +
-> 		buffer_mem.min_percent) * num_physpages;
->        
->      I somehow have a feeling that the page cache, min_percent etc. things
->      should be subtracted from the kill_limit instead of added to the
->      free_vm. Also, they should perhaps be individually limited?
+> Basically, when kswapd fails to free up pages, we're out of
+> memory and the system would otherwise die, the added functions
+> select a process to kill.
 > 
->      Rationale:
->           Just imagine 2 % free memory, buffer_mem.min_percent is 5?
->           In this case free_vm would result as a negative value, and
->           it would kill though it should't.
+> I don't know if it will always select the right process, nor
+> if it even works correctly. All I do know is that the code
+> is currently _VERY_ dirty and that it needs some major cleanups
+> and sysctl tunables; right now I don't even dare sending Linus
+> a cc: of this message :-)  [Linus, if you read this, don't
+> read on unless you don't mind ROFLing]
 
-Even with 2% of free memory, if you have buffer_mem.min_percent at
-5, at least 5% of memory will be used by the buffer cache. This
-makes sure that free_vm can't be negative. This also means the
-code _is_ correct after all...
+Rik,
 
->           int page_cache_min = page_cache.min_percent * num_physpages;
->           int buffer_min = /* something similar? */
->           int blocked_ram = page_cache_min +
->                             (buffer_mem.min_percent * num_physpages;
->           int page_cache_exceeding = max(page_cache_size - page_cache_min,0);
->           int buffer_exceeding = max(buffer_size - buffer_min,0);
+Don't you think that it would be much easier if we just implement
+"kill priorities" which applications will set themselves?
+Certainly, only a limited range of the priorities will be available
+for non privileged applications. If people think that this application
+is something special (like X or long standing computation programs
+or anything else) they set a non default killing priority for the process.
+Among other applications it isn't matter which one will be killed first.
 
-This doesn't add much to the readability of the code. Nice comments
-and pointers to other places in the code will teach new folks much
-more.
-
-> Generally, I think this is an excellent object for 'theoretical programming';
-> since this code will not be used much in everyday practice (hopefully),
-> you can only look at it and try very hard to make sure it will work :-)
-
-See the comment at the top of the file. I intend it to be a nice and
-readable starting point for newbie kernel hackers. This is _the_
-place in the kernel where we don't need performance and where we
-_do_ need to be absolutely correct.
-
-Besides, having a nice signpost in the kernel source might not be
-bad after all. What's 5 or even 10 kB of signposting in this file
-if it can teach a lot about memory management and scheduling to new
-potential kernel hackers?
-
-> Thanks for doing all that. You probably have a small circle of dedicated
-> customers for that but this circle will appreciate it very much.
-
-Thanks.
-
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
-
+Best wishes
+					Andrey V.
+					Savochkin
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
