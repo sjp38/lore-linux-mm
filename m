@@ -1,35 +1,53 @@
-Date: Fri, 8 Jun 2001 19:07:17 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: temp. mem mappings
-Message-ID: <20010608190717.T1757@redhat.com>
-References: <3B2DF994@MailAndNews.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3B2DF994@MailAndNews.com>; from cohutta@MailAndNews.com on Thu, Jun 07, 2001 at 09:38:06PM -0400
+Date: Fri, 8 Jun 2001 16:20:24 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: Background scanning change on 2.4.6-pre1
+In-Reply-To: <Pine.LNX.4.31.0106081313500.3244-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0106081614490.2422-100000@freak.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: cohutta <cohutta@MailAndNews.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Mike Galbraith <mikeg@wen-online.de>, Zlatko Calusic <zlatko.calusic@iskon.hr>, "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+(adding linux-mm to the discussion for obvious reasons) 
 
-On Thu, Jun 07, 2001 at 09:38:06PM -0400, cohutta wrote:
+On Fri, 8 Jun 2001, Linus Torvalds wrote:
 
-> >Right --- you can use alloc_pages but we haven't done the
-> >initialisation of the kmalloc slabsl by this point.
 > 
-> My testing indicates that i can't use __get_free_page(GFP_KERNEL)
-> any time during setup_arch() [still x86].  It causes a BUG
-> in slab.c (line 920) [linux 2.4.5]. 
+> 
+> On Fri, 8 Jun 2001, Marcelo Tosatti wrote:
+> >
+> > Don't you think it would be _much_ easier if we just moved _all_ mapped
+> > pages to the active list ?
+> 
+> But they are..
+> 
+> Sure, there are anonymous pages, but once they get involved in the MM,
+> they _will_ be swap-cached, and moved to the active list
+> 
+> As to putting anonymous pages on the active list, I don't see any
+> advantage, 
 
-After paging_init(), it should be OK --- as long as there is enough
-memory that you don't end up calling the VM try_to_free_page routines.
-Those will definitely choke this early in boot.
+Again, the advantage which I can see is that we don't have to "wait" until
+anonymous pages get swap-cached (and I really dont think all anonymous
+pages will get swapcached) to _then_ start to have a fair aging between
+all pages in the system. 
 
-Cheers,
- Stephen
+> and Davem tried that once with noticeable performance
+> degradation from the added locking and list manipulation.
+
+David, 
+
+Could you please send me that code so I can work on it and try to reduce
+the performance degradation and take a look at the what it gives us ?
+
+And remember even if we have a performance degradation by the locking and
+list manipulation by adding this "feature", it may bring us a big
+advantage on the fair aging thing I described above.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
