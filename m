@@ -1,49 +1,41 @@
-Date: Wed, 30 May 2001 17:35:20 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Plain 2.4.5 VM
-In-Reply-To: <Pine.LNX.4.10.10105301539030.31487-100000@coffee.psychology.mcmaster.ca>
-Message-ID: <Pine.LNX.4.21.0105301734030.13062-100000@imladris.rielhome.conectiva>
+Date: Wed, 30 May 2001 17:27:41 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: http://ds9a.nl/cacheinfo project - please comment & improve
+In-Reply-To: <20010530234806.C8629@home.ds9a.nl>
+Message-ID: <Pine.LNX.4.21.0105301719310.5231-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
+To: bert hubert <ahu@ds9a.nl>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 30 May 2001, Mark Hahn wrote:
 
-> 	if (ptep_test_and_clear_young(pte))
-> 		age up;
-> 	else		
-> 		get rid of it;
+On Wed, 30 May 2001, bert hubert wrote:
+
+> On Wed, May 30, 2001 at 04:54:12PM -0300, Marcelo Tosatti wrote:
 > 
-> shouldn't we try to gain more information by scanning page tables
-> at a good rate?  we don't have to blindly get rid of every page
-> that isn't young (referenced since last scan) - we could base that
-> on age.  admittedly, more scanning would eat some additional CPU,
-> but then again, we currently shuffle pages among lists based on relatively
-> sparse PAGE_ACCESSED info.
+> > You're using the "address_space->dirty_pages" list to calculate the number
+> > of dirty pages.
 > 
-> or am I missing something?  
+> I was wondering about that. In limited testing I've never seen a non-0
+> content of the dirty list. I ran:
+> 
+> dd if=/dev/zero of=test count=100000 &
+> while true ; do ./cinfo test; done
+> 
+> And saw no dirty pages. 
 
-The "getting rid of it" above consists of 2 parts:
+Oops.
 
-1) moving the page to the active list, where
-   refill_inactive_scan will age it
-2) the page->age will be higher if the page
-   has been accessed more often
+You will see no dirty pages here anyway --- data written through
+write() is commited to the buffer cache directly. 
 
-regards,
+You can loop in each page into the clean_list and check their
+"page->buffers" pointer.
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+If there are dirty buffer_head's there, you can count the page as dirty. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
