@@ -1,29 +1,36 @@
-Date: Sun, 21 Mar 2004 17:26:13 -0500 (EST)
-From: Rajesh Venkatasubramanian <vrajesh@umich.edu>
-Subject: URL typo...
+Date: Mon, 22 Mar 2004 01:46:52 +0100
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
+Message-ID: <20040322004652.GF3649@dualathlon.random>
+References: <Pine.LNX.4.44.0403150527400.28579-100000@localhost.localdomain> <Pine.GSO.4.58.0403211634350.10248@azure.engin.umich.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <Pine.GSO.4.58.0403211634350.10248@azure.engin.umich.edu>
-Message-ID: <Pine.LNX.4.58.0403211722540.30476@rust.engin.umich.edu>
-References: <Pine.LNX.4.44.0403150527400.28579-100000@localhost.localdomain>
- <Pine.GSO.4.58.0403211634350.10248@azure.engin.umich.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: vrajesh@umich.edu
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rajesh Venkatasubramanian <vrajesh@umich.edu>
+Cc: akpm@osdl.org, torvalds@osdl.org, hugh@veritas.com, mbligh@aracnet.com, riel@redhat.com, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Further testing will help. If you like broken-out patches please check:
->
-> http://www-personal.engin.umich.edu/~vrajesh/~vrajesh/linux/prio_tree/
+On Sun, Mar 21, 2004 at 05:10:45PM -0500, Rajesh Venkatasubramanian wrote:
+> 	http://marc.theaimsgroup.com/?l=linux-kernel&m=107966438414248
+> 
+> 	Andrea says the system may hang, however, in this case system
+> 	does not hang.
 
-Sorry! The URL is:
+It's a live lock, not a deadlock. I didn't wait more than a few minutes
+every time before declaring the kernel broken and rebooting the machine.
+still if the prio_tree fixed my problem it means at the very least it
+reduced the contention on the locks a lot ;)
 
-http://www-personal.engin.umich.edu/~vrajesh/linux/prio_tree/
+It would be curious to test it after changing the return 1 to return 0
+in the page_referenced trylock failures?
 
-Thanks,
-Rajesh
+the results looks great, thanks.
 
+what about the cost of a tree rebalance, is that O(log(N)) like with the
+rbtrees?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
