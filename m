@@ -1,51 +1,45 @@
-Date: Fri, 2 Apr 2004 22:35:14 +0200
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Fri, 2 Apr 2004 22:13:43 +0200
+From: Pavel Machek <pavel@suse.cz>
 Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
-Message-ID: <20040402203514.GR21341@dualathlon.random>
-References: <20040402001535.GG18585@dualathlon.random> <Pine.LNX.4.44.0404020145490.2423-100000@localhost.localdomain> <20040402011627.GK18585@dualathlon.random> <20040401173649.22f734cd.akpm@osdl.org> <20040402020022.GN18585@dualathlon.random> <20040402104334.A871@infradead.org> <20040402164634.GF21341@dualathlon.random> <20040402195927.A6659@infradead.org> <20040402192941.GP21341@dualathlon.random> <20040402205410.A7194@infradead.org>
+Message-ID: <20040402201343.GA195@elf.ucw.cz>
+References: <20040331150718.GC2143@dualathlon.random> <Pine.LNX.4.44.0403311735560.27163-100000@localhost.localdomain> <20040331172851.GJ2143@dualathlon.random> <20040401004528.GU2143@dualathlon.random> <20040331172216.4df40fb3.akpm@osdl.org> <20040401012625.GV2143@dualathlon.random> <20040331175113.27fd1d0e.akpm@osdl.org> <20040401020126.GW2143@dualathlon.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040402205410.A7194@infradead.org>
+In-Reply-To: <20040401020126.GW2143@dualathlon.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Andrew Morton <akpm@osdl.org>, hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 02, 2004 at 08:54:10PM +0100, Christoph Hellwig wrote:
-> On Fri, Apr 02, 2004 at 09:29:41PM +0200, Andrea Arcangeli wrote:
-> > page->private indicates:
-> > 
-> > >>> (0xc0772380L-0xc07721ffL)/32
-> > 12L
-> > 
-> > that's the 12th page in the array.
-> > 
-> > can you check in the asm (you should look at address c0048c7c) if it's
-> > the first bug that triggers?
-> > 
-> > 	if (page[1].index != order)
-> > 		bad_page(__FUNCTION__, page);
+Hi!
+
+> > An anonymous user page meets these requirements.  A did say "anal", but
+> > rw_swap_page_sync() is a general-purpose library function and we shouldn't
+> > be making assumptions about the type of page which the caller happens to be
+> > feeding us.
 > 
-> No, it's the second one (and yes, I get lots of theses backtraces, unless
-> I counted wrongly 19 this time)
+> that is a specialized backdoor to do I/O on _private_ pages, it's not a
+> general-purpose library function for doing anonymous pages
+> swapin/swapout, infact the only user is swap susped and we'd better
+> forbid swap suspend to pass anonymous pages through that interface and
+> be sure that nobody will ever attempt anything like that.
+> 
+> that interface is useful only to reach the swap device, for doing I/O on
+> private pages outside the VM, in the old days that was used to
+> read/write the swap header (again on a private page), swap suspend is
+> using it for similar reasons on _private_ pages.
 
-how can that be the second one? (I deduced it was the first one because
-it cannot be the second one and the offset didn't look at the very end
-of the function). This is the second one:
+Ahha, so *here* is that discussion happening. I was only seeing it at
+bugzilla, and could not make sense of it.
 
-		if (!PageCompound(p))
-			bad_page(__FUNCTION__, p);
-
-but bad_page shows p->flags == 0x00080008 and 1<<PG_compound ==
-0x80000.
-
-So PG_compound is definitely set for "p" and it can't be the second one
-triggering.
-
-Can you double check? Maybe we should double check the asm. Something
-sounds fundamentally wrong in the asm, sounds like a miscompilation,
-which compiler are you using?
+If swsusp/pmdisk are only user of rw_swap_page_sync, perhaps it should
+be moved to power/ directory?
+								Pavel
+-- 
+When do you have a heart between your knees?
+[Johanka's followup: and *two* hearts?]
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
