@@ -1,62 +1,33 @@
-Message-ID: <2811362-220031261331511375@lynx>
-Reply-To: smyrna@smyrnagroup.net
-From: "" <jasmin@smyrnagroup.org>
-Subject: Unsere Reisen 2004
-Date: Fri, 12 Dec 2003 19:15:11 -0800
+Date: Fri, 12 Dec 2003 21:32:26 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: Non-Contiguous Memory Allocation Tests
+In-Reply-To: <200312091111.21349.ruthiano@exatas.unisinos.br>
+Message-ID: <Pine.LNX.4.44.0312122130590.26386-100000@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
-Content-type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
+Content-ID: <Pine.LNX.4.44.0312122130592.26386@chimarrao.boston.redhat.com>
+Content-Disposition: INLINE
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ruthiano Simioni Munaretti <ruthiano@exatas.unisinos.br>
+Cc: linux-mm@kvack.org, sisopiii-l@cscience.org
 List-ID: <linux-mm.kvack.org>
 
-Mit unsere 17 jaehrige Tourismus Erfahrung wurden wir sie in die Turkei
-einladen.
-Sie konnen in unsere Webseite www.smyrnagroup.net
-Information bekommen.
-Uber;
-***Badeurlaub Hotels.
-***Freizeit Hotels.
-***Rundreisen als Bildungsreisen.
-***Christliche Touren-Freizeiten.
-***Behindertenreisen.
-***Sportreisen als Tennis-Golf-Wandern-Wasserski.
-***Und andere Reisen.
-Wir wurden auch mit ihnen zusammenarbeiten.
-Mit Herzlichen Grussen.
+On Tue, 9 Dec 2003, Ruthiano Simioni Munaretti wrote:
 
-Ihr DR Sedat Igdeci
+> Our patch is intended to be a test to check if this could bring enough 
+> benefits to deserve a more careful implementation. We also included some code 
+> to benchmark allocations and deallocations, using the RDTSC instruction.
 
-Web:www.smyrnagroup.net
-Mail:  smyrna@smyrnagroup.net
+I doubt it.  The vmalloc code path should not be used very
+often at all in the kernel and for userspace allocations the
+bigger overhead will probably be in things like setting up
+page tables and zeroing out the pages.
 
-
-Dear Travellers
-
-Within 17 years of experience in Tour Business.
-Smyrna Travel is inviting you to beatifull country,
-Turkey.
-Please viset our website www.smynagroup.net .
-
-***Resort Hollyclays.
-***Cultural Round Trips.
-***Christian Touring.
-***Handicap Tours.
-***Hotel Reservations.
-***Travel Consultancy.
-
-Best Regards.
-Dr Sedat Igdeci
-
-Web:www.smyrnagroup.net
-Mail:  smyrna@smyrnagroup.net
-
-
-
-
-
-
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
