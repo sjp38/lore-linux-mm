@@ -1,82 +1,78 @@
+Date: Mon, 15 May 2000 21:55:02 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Estrange behaviour of pre9-1
-References: <Pine.LNX.4.10.10005151724430.819-100000@penguin.transmeta.com>
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: Linus Torvalds's message of "Mon, 15 May 2000 17:34:13 -0700 (PDT)"
-Date: 16 May 2000 02:54:49 +0200
-Message-ID: <yttog67xqjq.fsf@vexeta.dc.fi.udc.es>
+In-Reply-To: <yttu2fzxs4y.fsf@vexeta.dc.fi.udc.es>
+Message-ID: <Pine.LNX.4.21.0005152147490.20410-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "linus" == Linus Torvalds <torvalds@transmeta.com> writes:
+On 16 May 2000, Juan J. Quintela wrote:
 
-Hi
+> linus> So, how about doing something like:
+> 
+> linus>  - if memory is low, allocate the page anyway if you can, but increment a
+> linus>    "bad user" count in current->user->mmuse;
+> linus>  - when entering __alloc_pages(), if "current->user->mmuse > 0", do a
+> linus>    "try_to_free_pages()" if there are any zones that need any help
+> linus>    (otherwise just clear this field).
+> 
+> linus> Think of it as "this user can allocate a few pages, but it's on credit.
+> linus> They have to be paid back with the appropriate 'try_to_free_pages()'".
 
-linus> That is indeed what my shink_mmap() suggested change does (ie make
-linus> "sync_page_buffers()" wait for old locked buffers). 
+I don't think this will help. Imagine a user firing up 'ls', that
+will need more than one page. Besides, the difference isn't that
+we have to free pages, but that we have to deal with a *LOT* of
+dirty pages at once, unexpectedly.
 
-But your change wait for *all* locked buffers, I want to start several
-writes asynchronously and then wait for one of them. This makes the
-system sure that we don't try to write *all* the memory in one simple
-call to try_to_free_pages.  Just now for the vmstat traces that I have
-shown, I read it as I have 90MB of pages in cache in one machine with
-98MB ram.  Almost all the pages are dirty pages, then we end calling
-shrink_mmap a lot of times and starting a lot of IO, we don't wait for
-the IO to complete, and then we pass through the pages priority times.
+> I was discussing with Rik an scheme similar to that. I have
+> found that appears that we are trying very hard to get pages
+> without doing any writing. I think that we need to _wait_ for
+> the pages if we are really low on memory.
 
-I think this is the reason that Rik patch worked making the priority
-higher, he gets more passes through the data, then he spent more time
-in shrink_mmap, more possibilities for the IO to finish.  Otherwise it
-has no sense that augmenting the priority achieves more possibilities
-to allocate one page.  At least make no sense to me.
+Indeed. I've seen vmstat reports where the most common action
+just before OOM is _pagein_. This indicates that shrink_mmap()
+was very busy skipping over the dirty pages and dropping clean
+pages which were needed again a few milliseconds later...
 
-I will test the rest of your suggestions and we report my findings.
+The right solution is to make sure the dirty pages are flushed
+out.
 
-linus> Yes. This is what kflushd is there for, and this is what "balance_dirty()"
-linus> is supposed to avoid. It may not work (and memory mappings are the worst
-linus> case, because the system doesn't _know_ that they are dirty until at the
-linus> point where it starts looking at the page tables - which is when it's too
-linus> late).
+> We don't want to write synchronously pages to the disk, because
+> we want the requests to be coalescing.  But in the other hand,
+> we don't want to start the witting of 100MB of dirty pages in
+> one only call to try_to_free_pages.  And I suspect that this is
+> the case with the actual code.
 
-I think that there is no daemon that would be able to stop a memory
-hog like mmap002, it need to wait *itself* when it allocates memory,
-otherwise it will empty all the memory very fast.  We don't want all
-processes waiting for allocation, but we want memory hogs to wait for
-memory and to be the prime candidates for swapout pages.
+I think we may be able to use the 'priority' argument to
+shrink_mmap() to determine the maximum amount of pages to
+sync out at once (more or less, since this is pretty
+arbitrary anyway we don't need to be that precise).
 
-linus> In order to truly make this behave more smoothly, we should trap the thing
-linus> when it creates a dirty page, which is quite hard the way things are set
-linus> up now. Certainly not 2.4.x code.
+What we may want to do is wait on one page per shrink_mmap(),
+and only "start waiting" after count has been decremented to
+less than 1/2 of its original value.
 
-Yes, I am thinking more in the lines of trap the allocations, and if
-one application begins to do an insane number of allocations (like
-mmap002), we make *that* application to wait for the pages to be
-written to swap/disk.  My idea is doing that shrink_mmap returns some
-value to tell the allocator that needs to wait for that process.  If I
-find some simple solution that works I will sent it.
+This way we'll:
+- make sure we won't flush too many things out at once
+- allow for some IO clustering to happen
+- keep latency decent
+- try hard to flush out the _right_ page
 
-linus> [ Incidentally, the thing that mmap002 tests is quite rare, so I don't
-linus>   think we have to have perfect behaviour, we just shouldn't kill
-linus>    processes the way we do now ]
+regards,
 
-Yes, I agree here, but this program is based in one application that
-gets Ooops in pre6 and previous kernels.  I made the test to know that
-the code works, I know that the thing that does mmap002 is very rare,
-but not one reason to begin doing Oops/killing innocent processes.
-That is all the point of that test, not optimise performance for it.
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-Comments?
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
-Later, Juan.
-
-
--- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
