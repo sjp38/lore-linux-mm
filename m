@@ -1,58 +1,63 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e31.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j1EMNWua388776
-	for <linux-mm@kvack.org>; Mon, 14 Feb 2005 17:23:32 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1EMNViW322776
-	for <linux-mm@kvack.org>; Mon, 14 Feb 2005 15:23:31 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j1EMNVwl030167
-	for <linux-mm@kvack.org>; Mon, 14 Feb 2005 15:23:31 -0700
-Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration --
-	sys_page_migrate
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050214220148.GA11832@lnx-holt.americas.sgi.com>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
-	 <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>
-	 <1108242262.6154.39.camel@localhost>
-	 <20050214135221.GA20511@lnx-holt.americas.sgi.com>
-	 <1108407043.6154.49.camel@localhost>
-	 <20050214220148.GA11832@lnx-holt.americas.sgi.com>
-Content-Type: text/plain
-Date: Mon, 14 Feb 2005 14:22:54 -0800
-Message-Id: <1108419774.6154.58.camel@localhost>
-Mime-Version: 1.0
+Message-ID: <42113921.7070807@sgi.com>
+Date: Mon, 14 Feb 2005 17:49:53 -0600
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <20050212155426.GA26714@logos.cnet> <20050212212914.GA51971@muc.de> <20050214163844.GB8576@lnx-holt.americas.sgi.com> <20050214191509.GA56685@muc.de>
+In-Reply-To: <20050214191509.GA56685@muc.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Hugh DIckins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Marcello Tosatti <marcello@cyclades.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andi Kleen <ak@muc.de>
+Cc: Robin Holt <holt@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2005-02-14 at 16:01 -0600, Robin Holt wrote:
-> On Mon, Feb 14, 2005 at 10:50:42AM -0800, Dave Hansen wrote:
-> > On Mon, 2005-02-14 at 07:52 -0600, Robin Holt wrote:
-> > > The node mask is a list of allowed.  This is intended to be as near
-> > > to a one-to-one migration path as possible.
-> > 
-> > If that's the case, it would make the kernel internals a bit simpler to
-> > only take a "from" and "to" node, instead of those maps.  You'll end up
-> > making multiple syscalls, but that shouldn't be a problem.  
+Andi Kleen wrote:
+>>But how do you use mbind() to change the memory placement for an anonymous
+>>private mapping used by a vendor provided executable with mbind()?
 > 
-> Then how do you handle overlapping nodes.  If I am doing a 5->4, 4->3,
-> 3->2, 2->1 shift in the memory placement and had only a from and to node,
-> I would end up calling multiple times.  This would end up in memory shifting
-> from 5->4 on the first, 4->3 on the second, ... with the end result of
-> all memory shifting to a single node.
+> 
+> For that you use set_mempolicy.
+> 
+> -Andi
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+> 
 
-Can you give an example of when you'd actually want to do this?
+Andi,
 
-> On a seperate topic, I would guess the syscall time is trivial compared
-> to the time to walk the page tables.
+If all processes are guarenteed to use the NUMA api for memory placement,
+then AFAIK one could, in principle, imbed the migration of pages into
+the NUMA api as you propose.  The problem is that AFAIK most programs
+that we run are not using the NUMA api.  Instead, they are using first-touch
+with the knowledge that such pages will be allocated on the node where they
+are first referenced.
 
-I'd certainly agree.
+Since we have to build a migration facility that will migrate jobs that
+use both the NUMA API and the first-touch approach, it seems to me the
+only plausible soluion is to move the pages via a migration facility
+and then if there are NUMA API control structures found associated with
+the moved pages to update them to represent the new reality.  Whether
+this happens as an automatic side effect of the migration call or it
+happens by a issuing a new set_mempolicy() is not clear to me.  I would
+prefer to just issue a new set_mempolicy(), but somehow the migration
+code will have to figure out where this call needs to be executed (i. e.
+which pages have an associated NUMA policy).  [Thus the disclaimer in
+the overview note that we have figured all the interaction with
+memory policy stuff yet.]
 
--- Dave
-
+-- 
+-----------------------------------------------
+Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+	 so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
