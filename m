@@ -1,62 +1,46 @@
-Received: from alogconduit1ah.ccr.net (ccr@alogconduit1af.ccr.net [208.130.159.6])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA15199
-	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 13:34:08 -0400
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA15686
+	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 14:15:57 -0400
+Date: Tue, 6 Apr 1999 20:07:57 +0200 (CEST)
+From: Andrea Arcangeli <andrea@e-mind.com>
 Subject: Re: [patch] arca-vm-2.2.5
-References: <Pine.BSF.4.03.9904060124390.12767-100000@funky.monkey.org>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 06 Apr 1999 11:19:58 -0500
-In-Reply-To: Chuck Lever's message of "Tue, 6 Apr 1999 01:52:55 -0400 (EDT)"
-Message-ID: <m11zhxyb4h.fsf@flinx.ccr.net>
+In-Reply-To: <Pine.LNX.4.05.9904061831340.394-100000@laser.random>
+Message-ID: <Pine.LNX.4.05.9904061934380.1017-100000@laser.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Chuck Lever <cel@monkey.org>
-Cc: Andrea Arcangeli <andrea@e-mind.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "CL" == Chuck Lever <cel@monkey.org> writes:
+On Tue, 6 Apr 1999, Andrea Arcangeli wrote:
 
-CL> On Tue, 6 Apr 1999, Andrea Arcangeli wrote:
->> Cool! ;)) But could you tell me _how_ do you design an hash function? Are
->> you doing math or do you use instinct?
+>I could write a simulation to check the hash function...
 
-CL> math.  i'll post something about this soon.
- 
->> >but also the page hash function uses the hash table size as a shift value
->> >when computing the index, so it may combine the interesting bits in a
->> >different (worse) way when you change the hash table size.  i'm planning
->> >to instrument the page hash to see exactly what's going on.
->> 
->> Agreed. This is true. I thought about that and I am resizing the hash
->> table size to the original 11 bit now (since you are confirming that I
->> broken the hash function).
+I was looking at the inode pointer part of the hash function and I think
+something like this should be better.
 
-CL> i looked at doug's patch too, and it changes the "page_shift" value
-CL> depending on the size of the hash table.  again, this *may* cause unwanted
-CL> interactions making the hash function degenerate for certain table sizes.
-CL> but i'd like to instrument the hash to watch what really happens.
+Index: include/linux/pagemap.h
+===================================================================
+RCS file: /var/cvs/linux/include/linux/pagemap.h,v
+retrieving revision 1.1.2.14
+diff -u -r1.1.2.14 pagemap.h
+--- pagemap.h	1999/04/05 23:33:20	1.1.2.14
++++ linux/include/linux/pagemap.h	1999/04/06 18:08:32
+@@ -32,7 +39,7 @@
+  */
+ static inline unsigned long _page_hashfn(struct inode * inode, unsigned long offset)
+ {
+-#define i (((unsigned long) inode)/(sizeof(struct inode) & ~ (sizeof(struct inode) - 1)))
++#define i (((unsigned long) inode-PAGE_OFFSET)/(sizeof(struct inode) & ~ (sizeof(struct inode) - 1)))
+ #define o (offset >> PAGE_SHIFT)
+ #define s(x) ((x)+((x)>>PAGE_HASH_BITS))
+ 	return s(i+o) & (PAGE_HASH_SIZE-1);
+(((unsigned long) inode-PAGE_OFFSET)/(sizeof(struct inode) & ~ (sizeof(struct inode) - 1)))
 
-
-CL> i ran some simple benchmarks on our 4-way Xeon PowerEdge to see what are
-CL> the effects of your patches.  here were the original patches against
-CL> 2.2.5.
-
-CL> the page struct alignment patch:
-
->> --- linux/include/linux/mm.h	Tue Mar  9 01:55:28 1999
->> +++ mm.h	Tue Apr  6 02:00:22 1999
->> @@ -131,0 +133,6 @@
->> +#ifdef __SMP__
->> +	/* cacheline alignment */
->> +	char dummy[(sizeof(void *) * 7 +
->> +		    sizeof(unsigned long) * 2 +
->> +		    sizeof(atomic_t)) % L1_CACHE_BYTES];
->> +#endif
-
-Am I the only one to notice that this little bit of code is totally wrong.
-It happens to get it right for cache sizes of 16 & 32 with the current struct
-page but the code is 100% backwords.
-
-Eric
-
+I am not sure if it will make difference, but at least it looks smarter to me
+because it will remove a not interesting amount of information from the
+input of the hash.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
