@@ -1,67 +1,47 @@
-Message-Id: <l03130301b73f486b8acb@[192.168.239.105]>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Date: Sun, 3 Jun 2001 03:06:22 +0100
-From: Jonathan Morton <chromi@cyberspace.org>
-Subject: Some VM tweaks (against 2.4.5)
+Subject: XMM: monitor Linux MM inactive/active lists graphically
+References: <01060222320301.23925@oscar>
+Reply-To: zlatko.calusic@iskon.hr
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Date: 03 Jun 2001 13:13:51 +0200
+In-Reply-To: <01060222320301.23925@oscar> (Ed Tomlinson's message of "Sat, 2 Jun 2001 22:32:03 -0400")
+Message-ID: <87d78lolxs.fsf@atlas.iskon.hr>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I've made a collection of small tweaks to the 2.4.5 VM which "work for me",
-and hopefully are largely applicable to other workloads as well.
+Ed Tomlinson <tomlins@cam.org> writes:
 
-http://www.chromatix.uklinux.net/linux-patches/vm-update-1.patch
+> Zlatko,
+> 
+> Do you have your modified xmem available somewhere.  Think it might be of
+> interest to a few of us.
+> 
+> TIA
+> Ed Tomlinson <tomlins@cam.org>
+> 
 
-Summary (roughly in order as found in the patchfile):
+For some time I've been trying to make a simple, yet functional web
+page to put some stuff there. But, HTML hacking and kernel hacking are
+such a different beasts... :)
 
-- Increased PAGE_AGE_MAX and PAGE_AGE_START to help newly-created and
-frequently-accessed pages remain in physical RAM.
+XMM is heavily modified XMEM utility that shows graphically size of
+different Linux page lists: active, inactive_dirty, inactive_clean,
+code, free and swap usage. It is better suited for the monitoring of
+Linux 2.4 MM implementation than original (XMEM) utility.
 
-- Includes my tweak to vm_enough_memory(), to limit memory reservation
-under low-memory conditions (this isn't quite working as expected, but
-seems to be harmless).
+Find it here:  <URL:http://linux.inet.hr/>
 
-- Fixes out_of_memory() to use the same (and more correct) criteria as
-vm_enough_memory().  Does NOT include my revised OOM-killer algorithm,
-although it is probably sorely needed.
+-- 
+Zlatko
 
-- Changed age_page_down() and family to use a decrement instead of divide
-(gives frequently-accessed pages a longer lease of life).
-
-- In try_to_swap_out(), take page->age into account and age it down rather
-than swapping it out immediately.
-
-- In swap_out_mm(), don't allow large processes to force out processes
-which have smaller RSS than them.  kswapd can still cause any process to be
-paged out.  This replaces my earlier "enforce minimum RSS" hack.
-
-- Bump up the page->age to PAGE_AGE_START when moving a page to the active
-list in page_launder().
-
-- Includes Zlatko Calusic's patch from earlier today, since I can't see
-anything immediately wrong about it.
-
-Please go ahead and test, and (constructively) criticise.
-
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
-big-mail: chromatix@penguinpowered.com
-uni-mail: j.d.morton@lancaster.ac.uk
-
-The key to knowledge is not to rely on people to teach you it.
-
-Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
-
------BEGIN GEEK CODE BLOCK-----
-Version 3.12
-GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
-PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
------END GEEK CODE BLOCK-----
-
-
+P.S. I'm gladly accepting suggestion for a simple tool that would help
+in static web site creation/development. I checked genpage, htmlmake
+and some other utilities but in every of them I found something that I
+didn't like. Tough job, that HTML authoring.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
