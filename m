@@ -1,41 +1,50 @@
-Date: Thu, 5 Apr 2001 13:11:30 -0400 (EDT)
-From: Ben LaHaise <bcrl@redhat.com>
+Date: Thu, 5 Apr 2001 18:21:10 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [PATCH] swap_state.c thinko
-In-Reply-To: <Pine.LNX.4.21.0104051304450.27736-100000@imladris.rielhome.conectiva>
-Message-ID: <Pine.LNX.4.30.0104051310470.1767-100000@today.toronto.redhat.com>
+In-Reply-To: <Pine.LNX.4.30.0104051155380.1767-100000@today.toronto.redhat.com>
+Message-ID: <Pine.LNX.4.21.0104051758360.1715-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: arjanv@redhat.com, alan@redhat.com, torvalds@transmeta.com, linux-mm@kvack.org
+To: Ben LaHaise <bcrl@redhat.com>
+Cc: arjanv@redhat.com, alan@redhat.com, torvalds@transmeta.com, sct@redhat.com, jerrell@missioncriticallinux.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Apr 2001, Rik van Riel wrote:
+On Thu, 5 Apr 2001, Ben LaHaise wrote:
+> 
+> Here's another one liner that closes an smp race that could corrupt
+> things.
+> 
+> diff -urN v2.4.3/mm/swap_state.c work-2.4.3/mm/swap_state.c
+> --- v2.4.3/mm/swap_state.c	Fri Dec 29 18:04:27 2000
+> +++ work-2.4.3/mm/swap_state.c	Thu Apr  5 11:55:00 2001
+> @@ -140,7 +140,7 @@
+>  	/*
+>  	 * If we are the only user, then try to free up the swap cache.
+>  	 */
+> -	if (PageSwapCache(page) && !TryLockPage(page)) {
+> +	if (!TryLockPage(page) && PageSwapCache(page)) {
+>  		if (!is_page_shared(page)) {
+>  			delete_from_swap_cache_nolock(page);
+>  		}
 
-> I sure hope the page is unlocked afterwards, regardless of
-> whether it's (still) in the swap cache or not ...
+I agree that PageSwapCache(page) needs to be retested when(if) the
+page lock is acquired, but isn't it best to check PageSwapCache(page)
+first as at present - won't it very often fail? won't the overhead of
+TryLocking and Unlocking every page slow down a hot path?
 
-You're right.  Here's the hopefully correct version.
+And isn't this free_page_and_swap_cache(), precisely the area that's
+currently subject to debate and patches, because swap pages are not
+getting freed soon enough?  I haven't been following that discussion
+with full understanding, and haven't seen a full explanation of the
+problem to be solved; but I'd rather _imagined_ it was that the page
+would here be on an LRU list, raising its count and causing the
+is_page_shared(page) test to succeed despite not really shared.
+So I'd been expecting a patch to remove this code completely.
 
-		-ben
-
-diff -ur v2.4.3/mm/swap_state.c work-2.4.3/mm/swap_state.c
---- v2.4.3/mm/swap_state.c	Fri Dec 29 18:04:27 2000
-+++ work-2.4.3/mm/swap_state.c	Thu Apr  5 13:10:27 2001
-@@ -140,10 +140,9 @@
- 	/*
- 	 * If we are the only user, then try to free up the swap cache.
- 	 */
--	if (PageSwapCache(page) && !TryLockPage(page)) {
--		if (!is_page_shared(page)) {
-+	if (!TryLockPage(page)) {
-+		if (PageSwapCache(page) && !is_page_shared(page))
- 			delete_from_swap_cache_nolock(page);
--		}
- 		UnlockPage(page);
- 	}
- 	page_cache_release(page);
+Forgive me if way off base...
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
