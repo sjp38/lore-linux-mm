@@ -1,34 +1,51 @@
-Received: from irisa.fr (IDENT:rlottiau@paralaplage.irisa.fr [131.254.12.84])
-	by air.irisa.fr (8.9.3/8.9.3) with ESMTP id OAA20419
-	for <linux-mm@kvack.org>; Fri, 7 Apr 2000 14:57:49 +0200 (MET DST)
-Message-ID: <38EDDB4D.F2C210B1@irisa.fr>
-Date: Fri, 07 Apr 2000 14:57:49 +0200
-From: Renaud Lottiaux <Renaud.Lottiaux@irisa.fr>
+Date: Fri, 7 Apr 2000 15:14:55 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
+In-Reply-To: <Pine.LNX.4.21.0004070950570.23401-100000@duckman.conectiva>
+Message-ID: <Pine.LNX.4.21.0004071507030.1367-100000@alpha.random>
 MIME-Version: 1.0
-Subject: Re: Is Linux kernel 2.2.x Pageable?
-References: <Pine.LNX.4.21.0004040826030.16987-100000@duckman.conectiva>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-Cc: linux-mm@kvack.org
+To: riel@nl.linux.org
+Cc: Ben LaHaise <bcrl@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> 
-> On Tue, 4 Apr 2000 pnilesh@in.ibm.com wrote:
-> 
-> > Is Linux kernel 2.2.x pageable ?
-> >
-> > Is Linux kernel 2.3.x pageable ?
-> 
-> no
+On Fri, 7 Apr 2000, Rik van Riel wrote:
 
-May you be a bit more specific about this ?
-Can not any part of the kernel be swapped ? Even Modules ?
-Why ? Just an implementation problem or a deeper reason ?
+>Won't this screw up when another processor is atomically
+>setting the bit just after we removed it and we still have
+>it in the store queue?
+>
+>from include/asm-i386/spinlock.h
+>/*
+> * Sadly, some early PPro chips require the locked access,
+> * otherwise we could just always simply do
+> *
+> *      #define spin_unlock_string \
+> *              "movb $0,%0"
+> *
+> * Which is noticeably faster.
+> */
+>
+>I don't know if it is relevant here, but would like to
+>be sure ...
 
-Renaud.
+The spin_unlock case is actually not relevant, I wasn't relying on it in
+first place since I was using C (which can implement the
+read/change/modify in multiple instruction playing with registers).
+
+The reason we can use C before putting the page into the freelist, is
+because we know we don't risk to race with other processors. We are
+putting the page into the freelist and if another processor would be
+playing someway with the page we couldn't put it on the freelist in first
+place.
+
+If some other processor/task is referencing the page while we call
+free_pages_ok, then that would be a major MM bug.
+
+Andrea
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
