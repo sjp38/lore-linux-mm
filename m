@@ -1,41 +1,34 @@
-Date: Tue, 20 Jan 2004 08:37:04 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Tue, 20 Jan 2004 10:30:20 -0800
+From: Mike Fedyk <mfedyk@matchmail.com>
 Subject: Re: 2.6.1-mm5
-Message-Id: <20040120083704.482f860c.akpm@osdl.org>
-In-Reply-To: <20040120111441.A14570@infradead.org>
+Message-ID: <20040120183020.GD23765@srv-lnx2600.matchmail.com>
 References: <20040120000535.7fb8e683.akpm@osdl.org>
-	<20040120111441.A14570@infradead.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040120000535.7fb8e683.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
+To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig <hch@infradead.org> wrote:
->
-> Any reason you keep CardServices-compatibility-layer.patch around?
+On Tue, Jan 20, 2004 at 12:05:35AM -0800, Andrew Morton wrote:
+> -ext2_new_inode-cleanup.patch
+> -ext2-s_next_generation-fix.patch
+> -ext3-s_next_generation-fix.patch
+> -ext3-journal-mode-fix.patch
 
-err, it's my way of reminding myself that the issue isn't fully resolved. 
-Smarter people would use a pencil and a notebook or something.
+What do these patches do?
 
-> Having a compat layer for old driver around just for some architectures,
-> thus having drivers that only compile on some for no deeper reasons sounds
-> like an incredibly bad idea.  Especially when that API is not used by any
-> intree driver and only in -mm ;)
+> -nfsd-01-stale-filehandles-fixes.patch
+>  Merged
 
-Yes, we were concerned about avoiding breaking the various random
-out-of-tree pcmcia drivers which people use.  Russell would prefer that if
-we _do_ have a compat layer it should be implemented in a different manner.
+Yes!
 
-But we're all fairly uncertain that the compat layer is needed - converting
-a driver is a pretty simple exercise, and Davd Hinds doesn't intend to
-maintain his drivers into 2.6.
-
-So the compatibility layer will probably go away soon, unless something
-happens to bring it back into consideration.
+I tested this against 2.6.1-bk2 on my knfsd server since friday, and it has
+fixed my problems with stale nfs handles.  Without the patch, it wouldn't
+last a whole day before the errors started cropping up.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
