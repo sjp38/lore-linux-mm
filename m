@@ -1,22 +1,125 @@
-Date: Mon, 20 Sep 2004 12:00:38 -0700 (PDT)
+Date: Mon, 20 Sep 2004 12:00:33 -0700 (PDT)
 From: Ray Bryant <raybry@sgi.com>
-Message-Id: <20040920190038.26965.18231.42543@tomahawk.engr.sgi.com>
-In-Reply-To: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com>
-References: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com>
-Subject: [PATCH 2.6.9-rc2-mm1 1/2] mm: memory policy for page cache allocation
+Message-Id: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com>
+Subject: [PATCH 2.6.9-rc2-mm1 0/2] mm: memory policy for page cache allocation
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, Andi Kleen <ak@suse.de>, Ray Bryant <raybry@austin.rr.com>
-Cc: linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, linux-kernel <linux-kernel@vger.kernel.org>, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, Nick Piggin <piggin@cyberone.com.au>
+Cc: linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel <linux-kernel@vger.kernel.org>, Ray Bryant <raybry@sgi.com>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-This patch creates MPOL_ROUNDROBIN.  This is like MPOL_INTERLEAVE,
-but doesn't require a global offset or index to be specified.
+This is the first working release of this patch.  It was previously
+proposed as an RFC (see
+  http://marc.theaimsgroup.com/?l=linux-mm&m=109416852113561&w=2
+).
 
-Index: linux-2.6.9-rc1-mm3-kdb-pagecache/include/linux/sched.h
+Background
+----------
+
+Last month, Jesse Barnes proposed a patch to do round robin
+allocation of page cache pages on NUMA machines.  This got shot down
+for a number of reasons (see
+  http://marc.theaimsgroup.com/?l=linux-kernel&m=109235420329360&w=2
+and the related thread), but it seemed to me that one of the most
+significant issues was that this was a workload dependent optimization.
+That is, for an Altix running an HPC workload, it was a good thing,
+but for web servers or file servers it was not such a good idea.
+
+So the idea of this patch is the following:  it creates a new memory
+policy structure (default_pagecache_policy) that is used to control
+how storage for page cache pages is allocated.  So, for a large Altix
+running HPC workloads, we can specify a policy that does round robin
+allocations, and for other workloads you can specify the default policy
+(which results in page cache pages being allocated locally).
+
+The default_pagecache_policy is overrideable on a per process basis, so
+that if your application prefers to allocate page cache pages locally,
+it can.
+
+This is all done by making default_policy and current->mempolicy an array
+of size 2 and of type "struct mempolicy *".   Entry POLICY_PAGE in these
+arrays is the old default_policy and process memory policy, respectively.
+Entry POLICY_PAGECACHE in these arrays contains the system default and
+per process page cache allocation policies, respectively.
+
+A new worker routine is defined:
+	alloc_pages_by_policy(gfp, order, policy)
+This routine allocates the requested number of pages using the policy
+index specified.
+
+alloc_pages_current() and page_cache_alloc() are then defined in terms
+of alloc_pages_by_policy().
+
+This patch is in two parts.  The first part is Brent Casavant's patch for
+MPOL_ROUNDROBIN.  We need this because there is no handy offset to use
+when you get a call to allocate a page cache page in "page_cache_alloc()",
+so MPOL_INTERLEAVE doesn't do what we need.
+
+The second part of the patch is the set of changes to create the
+default_pagecache_policy and see that it is used in page_cache_alloc()
+as well as the changes to supporting setting a policy given a policy
+index.
+
+Caveats
+-------
+
+(1)  Right now, there is no mechanism to set any of the memory policies
+from user space.  The NUMA API library will have to be modified to match
+the new format of the sys_set/get_mempolicy() system calls (these calls
+have an additional integer argument that specifies which policy to set.)
+This is work that I will start on once we get agreement with this patch.
+
+(It also appears to me that there is no mechanism to set the default
+policies, but perhaps its there and I am just missing it.)
+
+(I tested this stuff by hard compiling policis into my test kernel.)
+
+(2)  page_cache_alloc_local() is defined, but is not currently called.
+This was added in SGI ProPack to make sure that mmap'd() files were
+allocated locally rather than round-robin'd (i. e. to override the
+round robin allocation in that case.)  This was an SGI MPT requirement.
+It may be this is not needed with the current mempolicy code if we can
+associate the default mempolicy with mmap()'d files for those MPT users.
+
+(3)  alloc_pages_current() is now an inline, but there is no easy way
+to do that totally correclty with the current include file order (that I
+could figure out at least...)  The problem is that alloc_pages_current()
+wants to use the define constant POLICY_PAGE, but that is defined yet.
+We know it is zero, so we just use zero.  A comment in mempolicy.h
+suggests not to change the value of this constant to something other
+than zero, and references the file gfp.h.
+
+(4)  I've not thought a bit about locking issues related to changing a
+mempolicy whilst the system is actually running. 
+
+(5)  It seems there may be a potential conflict between the page cache
+mempolicy and a mmap mempolicy (do those exist?).  Here's the concern:
+If you mmap() a file, and any pages of that file are in the page cache,
+then the location of those pages will (have been) dictated by the page
+cache mempolicy, which could differ (will likely differ) from the mmap
+mempolicy.  It seems that the only solution to this is to migrate those
+pages (when they are touched) after the mmap().
+
+Comments, flames, etc to the undersigned.
+
+Best Regards,
+
+Ray
+
+PS:  Both patches are relative to 2.6.9-rc2-mm1.  However, since that
+kernel doesn't boot on Altix for me at the moment, the testing was done
+using 2.6.9-rc1-mm3.
+
+PPS: This is not a final patch, but lets keep the lawyers happy anyway:
+
+Signed-off-by: Brent Casavant <bcasavan@sgi.com>
+Signed-off-by: Ray Bryant <raybry@sgi.com>
+
+===========================================================================
+Index: linux-2.6.9-rc1-mm2-kdb/include/linux/sched.h
 ===================================================================
---- linux-2.6.9-rc1-mm3-kdb-pagecache.orig/include/linux/sched.h	2004-09-03 09:45:42.000000000 -0700
-+++ linux-2.6.9-rc1-mm3-kdb-pagecache/include/linux/sched.h	2004-09-03 09:47:42.000000000 -0700
+--- linux-2.6.9-rc1-mm2-kdb.orig/include/linux/sched.h	2004-08-31 13:32:20.000000000 -0700
++++ linux-2.6.9-rc1-mm2-kdb/include/linux/sched.h	2004-09-02 13:17:45.000000000 -0700
 @@ -596,6 +596,7 @@
  #ifdef CONFIG_NUMA
    	struct mempolicy *mempolicy;
@@ -25,10 +128,11 @@ Index: linux-2.6.9-rc1-mm3-kdb-pagecache/include/linux/sched.h
  #endif
  #ifdef CONFIG_CPUSETS
  	struct cpuset *cpuset;
-Index: linux-2.6.9-rc1-mm3-kdb-pagecache/mm/mempolicy.c
 ===================================================================
---- linux-2.6.9-rc1-mm3-kdb-pagecache.orig/mm/mempolicy.c	2004-09-03 09:45:40.000000000 -0700
-+++ linux-2.6.9-rc1-mm3-kdb-pagecache/mm/mempolicy.c	2004-09-03 09:47:42.000000000 -0700
+Index: linux-2.6.9-rc1-mm2-kdb/mm/mempolicy.c
+===================================================================
+--- linux-2.6.9-rc1-mm2-kdb.orig/mm/mempolicy.c	2004-08-31 13:32:20.000000000 -0700
++++ linux-2.6.9-rc1-mm2-kdb/mm/mempolicy.c	2004-09-02 13:17:45.000000000 -0700
 @@ -7,10 +7,17 @@
   * NUMA policy allows the user to give hints in which node(s) memory should
   * be allocated.
@@ -233,21 +337,19 @@ Index: linux-2.6.9-rc1-mm3-kdb-pagecache/mm/mempolicy.c
  		return 1;
  	case MPOL_BIND: {
  		struct zone **z;
-Index: linux-2.6.9-rc1-mm3-kdb-pagecache/include/linux/mempolicy.h
 ===================================================================
---- linux-2.6.9-rc1-mm3-kdb-pagecache.orig/include/linux/mempolicy.h	2004-08-27 10:06:15.000000000 -0700
-+++ linux-2.6.9-rc1-mm3-kdb-pagecache/include/linux/mempolicy.h	2004-09-16 09:27:08.000000000 -0700
-@@ -13,8 +13,9 @@
+Index: linux-2.6.9-rc1-mm2-kdb/include/linux/mempolicy.h
+===================================================================
+--- linux-2.6.9-rc1-mm2-kdb.orig/include/linux/mempolicy.h	2004-08-27 10:06:15.000000000 -0700
++++ linux-2.6.9-rc1-mm2-kdb/include/linux/mempolicy.h	2004-09-02 13:19:38.000000000 -0700
+@@ -13,6 +13,7 @@
  #define MPOL_PREFERRED	1
  #define MPOL_BIND	2
  #define MPOL_INTERLEAVE	3
 +#define MPOL_ROUNDROBIN 4
  
--#define MPOL_MAX MPOL_INTERLEAVE
-+#define MPOL_MAX MPOL_ROUNDROBIN
+ #define MPOL_MAX MPOL_INTERLEAVE
  
- /* Flags for get_mem_policy */
- #define MPOL_F_NODE	(1<<0)	/* return next IL mode instead of node mask */
 
 -- 
 Best Regards,
