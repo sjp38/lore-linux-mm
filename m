@@ -1,32 +1,31 @@
-Message-Id: <l0313031cb745811cfc17@[192.168.239.105]>
-In-Reply-To: 
-        <Pine.LNX.4.21.0106061705250.3769-100000@freak.distro.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Date: Thu, 7 Jun 2001 20:07:15 +0100
-From: Jonathan Morton <chromi@cyberspace.org>
+Date: Thu, 7 Jun 2001 14:38:15 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
 Subject: Re: [PATCH] Reap dead swap cache earlier v2
+In-Reply-To: <l0313031cb745811cfc17@[192.168.239.105]>
+Message-ID: <Pine.LNX.4.21.0106071435580.1156-100000@freak.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
+To: Jonathan Morton <chromi@cyberspace.org>
 Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->As suggested by Linus, I've cleaned the reapswap code to be contained
->inside an inline function. (yes, the if statement is really ugly)
 
-I can't seem to find the patch which adds this behaviour to the background
-scanning.  Can someone point me to it?
+On Thu, 7 Jun 2001, Jonathan Morton wrote:
 
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
+> >As suggested by Linus, I've cleaned the reapswap code to be contained
+> >inside an inline function. (yes, the if statement is really ugly)
+> 
+> I can't seem to find the patch which adds this behaviour to the background
+> scanning.  
 
-The key to knowledge is not to rely on people to teach you it.
+I've just sent Linus a patch to free swap cache pages at the time we free
+the last pte. (requested by himself)
 
-GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
-PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+With it applied we should get the old behaviour back again. 
 
+I can put it on my webpage if you wish. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
