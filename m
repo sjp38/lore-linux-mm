@@ -1,11 +1,18 @@
-Message-ID: <40C61DA2.2080308@ammasso.com>
-Date: Tue, 08 Jun 2004 14:12:18 -0600
-From: Timur Tabi <timur.tabi@ammasso.com>
-MIME-Version: 1.0
-Subject: Do I need SetPageReserved() after map_user_kiobuf()? (was: What happened
- to try_to_swap_out()?)
-References: <Pine.LNX.4.44.0406081224590.23676-100000@chimarrao.boston.redhat.com>
-In-Reply-To: <Pine.LNX.4.44.0406081224590.23676-100000@chimarrao.boston.redhat.com>
+Received: from list by main.gmane.org with local (Exim 3.35 #1 (Debian))
+	id 1BY3JN-0004z3-00
+	for <linux-mm@kvack.org>; Wed, 09 Jun 2004 15:40:13 +0200
+Received: from 61.16.153.178 ([61.16.153.178])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Wed, 09 Jun 2004 15:40:13 +0200
+Received: from linux by 61.16.153.178 with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Wed, 09 Jun 2004 15:40:13 +0200
+From: Nirendra Awasthi <linux@nirendra.net>
+Subject: Reading struct_task in user space
+Date: Wed, 09 Jun 2004 19:09:42 +0530
+Message-ID: <ca73vo$vv8$1@sea.gmane.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -13,41 +20,14 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
+Hi,
 
-> Looks like the bug is in your driver, not the VM.
-> 
-> The VMA that maps such pages should be set VM_RESERVED
-> (or whatever the name of that flag was)
+  How can I read struct_task (defined in linux/sched.h) in user space, 
+in order to determine if PF_DUMPCORE flag is set for the process and it 
+is having core dump.
 
-Ok, I've examined our code further and discovered a few things.
+-Nirendra
 
-The previous developer apparently realized that the pages need to be 
-marked reserved after a call to map_user_kiobuf().  However, his 
-comments indicate that this is a work-around for the "kiobuf bug".  Am I 
-to assume that you don't consider this a bug in map_user_kiobuf()?
-
-This is the code that we run after map_user_kiobuf().
-
-     int i;
-     for (i = 0; i < kiobuf->nr_pages; i++)
-         SetPageReserved(kiobuf->maplist[i]);
-
-Also, since we're porting to 2.6, we're going to replace 
-map_user_kiobuf() with get_user_pages().  Will we still need to call 
-SetPageReserved()?  Unfortunately, I don't have a good enough 
-understanding of the Linux VM to know exactly what get_user_pages() is 
-doing.  For example, this code confuses me:
-
-                 if (!PageReserved(pages[i]))
-                     page_cache_get(pages[i]);
-
-Under what circumstances would the pages already be reserved?
-
--- 
-Timur Tabi
-Staff Software Engineer
-timur.tabi@ammasso.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
