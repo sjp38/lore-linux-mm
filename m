@@ -1,48 +1,47 @@
-Date: Tue, 20 Aug 2002 19:41:42 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Date: Wed, 21 Aug 2002 11:05:13 -0400
 Subject: Re: [PATCH] rmap 14
-Message-ID: <20020820194142.M2645@redhat.com>
-References: <9C5FA1BA-B3A6-11D6-A545-000393829FA4@cs.amherst.edu> <Pine.LNX.4.44.0208192128560.23261-100000@skynet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0208192128560.23261-100000@skynet>; from mel@csn.ul.ie on Mon, Aug 19, 2002 at 10:04:19PM +0100
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Mime-Version: 1.0 (Apple Message framework v482)
+From: Scott Kaplan <sfkaplan@cs.amherst.edu>
+In-Reply-To: <Pine.LNX.4.44.0208192128560.23261-100000@skynet>
+Message-Id: <64C94A8A-B517-11D6-A545-000393829FA4@cs.amherst.edu>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mel <mel@csn.ul.ie>
-Cc: Scott Kaplan <sfkaplan@cs.amherst.edu>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-On Mon, Aug 19, 2002 at 10:04:19PM +0100, Mel wrote:
+On Monday, August 19, 2002, at 05:04 PM, Mel wrote:
 
-> > That's exactly the concern that I had.  Large timing result like that are
-> > more likely because your code was preempted for something else.  It would
-> > probably be good to do *something* about these statistical outliers,
-> > because they can affect averages substantially.
-> 
-> At the moment I'm not calculating averages and I haven't worked out the
-> best way to factor in large skews in page reads. For the moment, I'm
-> taking the easy option and depending on the tester to be able to ignore
-> the bogus data.
+> On Mon, 19 Aug 2002, Scott Kaplan wrote:
+>> It's good that you know of the limitations of modeling
+>> reference behavior, but lots of people have fallen into that trap and 
+>> used
+>> poor models for evaluative purposes, believing the results to be more
+>> conclusive and comprehensive than they really were.
+>
+> I've read some of the papers that met the problem. I think I've come up
+> with a way that it can be addressed but it's ideas in my head, I haven't
+> investigated them yet.
 
-You can get that by a bit of stats: keeping track of the sum of each
-value you observe plus their squares and cubes gives you the main
-stats you probably want to collect:
+What papers are those?  We all try to keep up with the literature, but if 
+there's something that I've missed here, I'd love to know about it.
 
-	mean			(obvious)
-	standard deviation 	(measures variation between samples)
-	standard error		(shows how accurate your estimation of
-				 the mean is)
-and	skew/3rd-moment		(shows how one-sided the distribution
-				 is)
+Scott
 
-Distributions with a long tail to one side will have a high skew.  The
-main one is standard error, though --- without that you have no idea
-how useful your results are.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.6 (Darwin)
+Comment: For info see http://www.gnupg.org
 
---Stephen
+iD8DBQE9Y6ws8eFdWQtoOmgRAvhEAJ94rwinVJW28DWFj/H1qhWhDYA6XgCgoxgF
+K2Yl7hNeS9w+Bsz/bBbaT2c=
+=AsLy
+-----END PGP SIGNATURE-----
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
