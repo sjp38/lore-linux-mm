@@ -1,35 +1,31 @@
-Date: Tue, 10 Oct 2000 20:09:52 +1100
-From: john slee <indigoid@higherplane.net>
+Date: Tue, 10 Oct 2000 11:46:23 +0200
+From: Jamie Lokier <lk@tantalophile.demon.co.uk>
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-Message-ID: <20001010200952.A661@higherplane.net>
-References: <Pine.LNX.4.21.0010092336230.9803-100000@elte.hu> <Pine.LNX.4.21.0010091833280.1562-100000@duckman.distro.conectiva>
+Message-ID: <20001010114623.C12032@pcep-jamie.cern.ch>
+References: <200010092207.PAA08714@pachyderm.pa.dec.com> <200010092313.e99NDQX173855@saturn.cs.uml.edu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0010091833280.1562-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, Oct 09, 2000 at 06:34:29PM -0300
+In-Reply-To: <200010092313.e99NDQX173855@saturn.cs.uml.edu>; from acahalan@cs.uml.edu on Mon, Oct 09, 2000 at 07:13:25PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Ingo Molnar <mingo@elte.hu>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: "Albert D. Cahalan" <acahalan@cs.uml.edu>
+Cc: Jim Gettys <jg@pa.dec.com>, Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 09, 2000 at 06:34:29PM -0300, Rik van Riel wrote:
-> On Mon, 9 Oct 2000, Ingo Molnar wrote:
-> > On Mon, 9 Oct 2000, Rik van Riel wrote:
-> > 
-> > > Would this complexity /really/ be worth it for the twice-yearly OOM
-> > > situation?
-> > 
-> > the only reason i suggested this was the init=/bin/bash, 4MB
-> > RAM, no swap emergency-bootup case. We must not kill init in
-> > that case - if the current code doesnt then great and none of
-> > this is needed.
+Albert D. Cahalan wrote:
+> X, and any other big friendly processes, could participate in
+> memory balancing operations. X could be made to clean out a
+> font cache when the kernel signals that memory is low. When
+> the situation becomes serious, X could just mmap /dev/zero over
+> top of the background image.
 
-perhaps a boot time option oom=0 ?  since oom is such a rare case, this
-wouldn't impact normal usage...
+Haven't we already had this discussion?  Quite a lot of programs have
+cached data (X fonts, Netscape (lots!)), GC-able data (Emacs, Java
+etc.), data that can simply be discarded (X window backing stores), or
+data that can be written to disk on demand (Netscape again).
 
--- 
-john slee <indigoid@higherplane.net>
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
