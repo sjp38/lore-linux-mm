@@ -1,75 +1,43 @@
-Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA21793
-	for <linux-mm@kvack.org>; Mon, 14 Sep 1998 09:38:41 -0400
-Date: Mon, 14 Sep 1998 14:21:27 +0100
-Message-Id: <199809141321.OAA02594@dax.dcs.ed.ac.uk>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
+Received: from mail1.socomm.net (root@mail1.socomm.net [207.15.160.25])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA15844
+	for <linux-mm@kvack.org>; Fri, 18 Sep 1998 16:00:52 -0400
+From: estafford@ixl.com
+Received: from laugermill.ixlmemphis.net (root@ws-89.ixlmemphis.net [208.24.189.89])
+	by mail1.socomm.net (8.8.8/8.8.8) with ESMTP id OAA27090
+	for <linux-mm@kvack.org>; Fri, 18 Sep 1998 14:59:42 -0500
+Message-ID: <XFMail.980918150525.estafford@ixl.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: memory management and the status of
+Content-Transfer-Encoding: 8bit
+MIME-Version: 1.0
+In-Reply-To: <19980904002057.A5268@ds23-ca-us.dialup>
+Date: Fri, 18 Sep 1998 15:05:25 -0500 (CDT)
+Subject: RE: [Q] MMU & VM
 Sender: owner-linux-mm@kvack.org
-To: Woody <woody@localline.com>
-Cc: linux-kernel@vger.rutgers.edu, Stephen Tweedie <sct@redhat.com>, Alan Cox <number6@the-village.bc.nu>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I was compiling the 2.1.122 kernel on an Alpha box (LX164) and had this error
+pop up.  Sounds like something you guys might recognize:
 
-On Sat, 05 Sep 1998 11:28:13 -0500, Woody <woody@localline.com> said:
+page_alloc.c: In function `__free_page':
+page_alloc.c:169: internal error--unrecognizable insn:
+(jump_insn 274 270 275 (return) -1 (nil)
+    (nil))
+gcc: Internal compiler error: program cc1 got fatal signal 6
+make[2]: *** [page_alloc.o] Error 1
+make[1]: *** [first_rule] Error 2
+make: *** [_dir_mm] Error 2
+{standard input}: Assembler messages:
+{standard input}:178: Warning: Missing .end or .bend at end of file
+cpp: output pipe has been closed
 
-> What is the status with memory management under linux? 
+If you need more info, please just say the word.  Thanks!
 
-Which kernel?  There are quite a number of things which are subtly
-different here between 2.0 and 2.1.
-
-> Right now, I have 80M of physical memory, where 78 of it is being used
-> and my swap isn't even being touched. So what do you get? You get
-> choppy mp3's while your running your nice, window manager and running
-> netscape, etc., etc., etc.,...It's very annoying....if swap were to be
-> used, I wouldn't have this problem...
-
-Do you have evidence for that?
-
-For what it's worth, there _is_ a problem in 2.0 which we realised when
-doing some of the 2.1 changes.  I've not been able to get any report on
-just how important a problem it is, but you may well be able to help
-here.  It is nothing to do with use of swap, however.
-
-The problem is that the normal file readahead algorithm does not mark
-its pages as referenced.  The implication is that if you have a fairly
-small amount of unshared cache, there is a bigger chance that the
-readahead data will be selected for reuse by the page cache cleaner.
-
-> it's pretty bad that I can boot into my Winnuts OS and have no
-> problems, yet, Linux, which I feel is a superior OS, can't even handle
-> damn memory issues! Is the coding for this issue THAT hard that we
-> can't get it fixed, and fixed now?
-
-Calm down.  This type of hysterics is just offensive and makes it less
-likely that anyone will want to help you.  In particular, you have
-offered absolutely no evidence that the swapping issue has anything at
-all to do with your problem.
-
-Anyway, here's the patch.
-
-----------------------------------------------------------------
---- mm/filemap.c~	Thu Jul  2 21:02:48 1998
-+++ mm/filemap.c	Mon Sep 14 14:12:10 1998
-@@ -286,6 +286,7 @@
- 			 */
- 			page = mem_map + MAP_NR(page_cache);
- 			add_to_page_cache(page, inode, offset, hash);
-+			set_bit(PG_referenced, &page->flags);
- 			inode->i_op->readpage(inode, page);
- 			page_cache = 0;
- 		}
-----------------------------------------------------------------
-
-The other possibility is that it's an interrupt issue, especially if you
-are running a non-DMA-driven IDE disk setup.  In that case, hdparm -u
-may be your friend.
-
---Stephen
+----------------------------------
+Ed Stafford
+iXL Hosting Programming Engineer
+E-Mail: estafford@ixl.com
+----------------------------------
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
