@@ -1,64 +1,76 @@
-Date: Sun, 7 Jan 2001 19:37:06 -0200 (BRDT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Subtle MM bug
-In-Reply-To: <87k8879iyu.fsf@atlas.iskon.hr>
-Message-ID: <Pine.LNX.4.21.0101071919120.21675-100000@duckman.distro.conectiva>
+Subject: Re: [patch] mm-cleanup-1 (2.4.0)
+References: <Pine.LNX.4.21.0101071912570.21675-100000@duckman.distro.conectiva>
+Reply-To: zlatko@iskon.hr
+From: Zlatko Calusic <zlatko@iskon.hr>
+Date: 07 Jan 2001 23:20:21 +0100
+In-Reply-To: Rik van Riel's message of "Sun, 7 Jan 2001 19:16:47 -0200 (BRDT)"
+Message-ID: <877l4757iy.fsf@atlas.iskon.hr>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zlatko Calusic <zlatko@iskon.hr>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 7 Jan 2001, Zlatko Calusic wrote:
+Rik van Riel <riel@conectiva.com.br> writes:
 
-> Things go berzerk if you have one big process whose working set
-> is around your physical memory size.
+> On 7 Jan 2001, Zlatko Calusic wrote:
+> 
+> > The following patch cleans up some obsolete structures from the
+> > mm & proc code.
+> > 
+> > Beside that it also fixes what I think is a bug:
+> > 
+> >         if ((rw == WRITE) && atomic_read(&nr_async_pages) >
+> >                        pager_daemon.swap_cluster * (1 << page_cluster))
+> > 
+> > In that (swapout logic) it effectively says swap out 512KB at
+> > once (at least on my memory configuration). I think that is a
+> > little too much.
+> 
+> Since we submit a whole cluster of (1 << page_cluster)
+> size at once, your change would mean that the VM can
+> only do one IO at a time...
+> 
+> Have you actually measured your changes or is it just
+> a gut feeling that the current default is too much?
+>
 
-"go berzerk" in what way?  Does the system cause lots of extra
-swap IO and does it make the system thrash where 2.2 didn't
-even touch the disk ?
+Well, to be honest I didn't find any change after the modification. :)
 
-> Final effect is that physical memory gets extremely flooded with
-> the swap cache pages and at the same time the system absorbs
-> ridiculous amount of the swap space.
+But, anyway, Marcelo explained to me what's going on and I have
+already agreed there is no need to change that. Instead I'll modify my
+patch to introduce new /proc entry with meaningful name:
+max_async_pages.
 
-This is mostly because Linux 2.4 keeps dirty pages in the
-swap cache. Under Linux 2.2 a page would be deleted from the
-swap cache when a program writes to it, but in Linux 2.4 it
-can stay in the swap cache.
+> (I can agree with 1/2 MB being a bit much, but doing
+> just one IO at a time is probably wrong too...)
+>
 
-Oh, and don't forget that pages in the swap cache can also
-be resident in the process, so it's not like the swap cache
-is "eating into" the process' RSS ;)
+I can only add that I share your opinion. :)
 
-> For instance on my 192MB configuration, firing up the hogmem
-> program which allocates let's say 170MB of memory and dirties it
-> leads to 215MB of swap used.
+> 
+> The cleanup part of your patch is nice. I think that
+> one should be submitted as soon as the 2.4 bugfix
+> period is over ...
+>
 
-So that's 170MB of swap space for hogmem and 45MB for
-the other things in the system (daemons, X, ...).
+Right.
 
-Sounds pretty ok, except maybe for the fact that now
-Linux allocates (not uses!) a lot more swap space then
-before and some people may need to add some swap space
-to their system ...
+> (and yes, I'm not submitting any of my own trivial
+> patches either unless they're REALLY needed, lets make
+> sure Linus has enough time to focus on the real bugfixes)
+> 
 
-
-Now if 2.4 has worse _performance_ than 2.2 due to one
-reason or another, that I'd like to hear about ;)
-
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
-
+I'll check your new patch as soon as I have investigated few more
+things and got a little more acquainted with the mm code in the
+2.4.0. It's a pity I found some free time this late, but then again I
+see myself much more involved with the mm code in the future. It's
+just that I'll need some help in the start thus so much questions on
+the lists. :)
+-- 
+Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
