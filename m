@@ -1,53 +1,146 @@
-Subject: Re: 2.5.70-mm9
-From: James Bottomley <James.Bottomley@steeleye.com>
-In-Reply-To: <20030618003838.06144cf9.akpm@digeo.com>
-References: <20030613013337.1a6789d9.akpm@digeo.com>
-	<3EEAD41B.2090709@us.ibm.com> <20030614010139.2f0f1348.akpm@digeo.com>
-	<1055637690.1396.15.camel@w-ming2.beaverton.ibm.com>
-	<20030614232049.6610120d.akpm@digeo.com>
-	<1055920382.1374.11.camel@w-ming2.beaverton.ibm.com>
-	<20030618003838.06144cf9.akpm@digeo.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 18 Jun 2003 08:54:44 -0500
-Message-Id: <1055944486.2075.9.camel@mulgrave>
+Date: Wed, 18 Jun 2003 14:24:25 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: 2.5.72-mm1
+Message-ID: <20030618212425.GL26348@holomorphy.com>
+References: <20030617014044.0446b19e.akpm@digeo.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030617014044.0446b19e.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: Mingming Cao <cmm@us.ibm.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2003-06-18 at 02:38, Andrew Morton wrote:
-> Mingming Cao <cmm@us.ibm.com> wrote:
-> >
-> > I re-run the many fsx tests with feral driver on 2.5.70mm9, ext3
-> >  fileystems, on deadline scheduler and as scheduler respectively.  Both
-> >  tests passed.  They were running for more than 24 hours without any
-> >  problems. So it could be a bug in the device driver that I used
-> >  before(QLA2xxx V8).  Before the fsx tests failed on ext3 on either
-> >  deadline scheduler or as scheduler.
-> 
-> Well it could be a bug in the driver, or it could be a bug in the generic
-> block/iosched area which was just triggered by the particular way in which
-> that driver exercises the core code.
-> 
-> James, do we have the latest-and-greatest version of the qlogic driver
-> in-tree?  ISTR that there's an update out there somewhere?
+On Tue, Jun 17, 2003 at 01:40:44AM -0700, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.72/2.5.72-mm1/
+> . A fairly large batch of changes in the block request allocation,
+>   batching and throttling code.  To address worst-case latency, improve
+>   throughput in benchmarky loads, etc.
+> . The memory debugging patch which unmaps pages and large slab objects
+>   from the kernel virtual address space is back.
 
-I'm still currently keeping the qlogic and feral drivers out of tree. 
-Feral because Matthew Jacob thinks its not ready yet and Qlogic because
-I was waiting for the must-fix list (I'll prod hch again for this).
-
-You can get the current qlogic driver at
-
-  http://sourceforge.net/projects/linux-qla2xxx/
-
-And I will update the BK tree at linux-scsi.bkbits.net
-
-James
+The following patch implements node-local memory allocation support for
+hugetlb. Successfully tested on NUMA-Q.
 
 
+-- wli
+
+
+diff -prauN linux-2.5.72/arch/i386/mm/hugetlbpage.c htlb-2.5.72-1/arch/i386/mm/hugetlbpage.c
+--- linux-2.5.72/arch/i386/mm/hugetlbpage.c	2003-06-16 21:20:22.000000000 -0700
++++ htlb-2.5.72-1/arch/i386/mm/hugetlbpage.c	2003-06-17 14:04:05.000000000 -0700
+@@ -24,9 +24,41 @@ static long    htlbpagemem;
+ int     htlbpage_max;
+ static long    htlbzone_pages;
+ 
+-static LIST_HEAD(htlbpage_freelist);
++static struct list_head hugepage_freelists[MAX_NUMNODES];
+ static spinlock_t htlbpage_lock = SPIN_LOCK_UNLOCKED;
+ 
++static void enqueue_huge_page(struct page *page)
++{
++	list_add(&page->list,
++		&hugepage_freelists[page_zone(page)->zone_pgdat->node_id]);
++}
++
++static struct page *dequeue_huge_page(void)
++{
++	int nid = numa_node_id();
++	struct page *page = NULL;
++
++	if (list_empty(&hugepage_freelists[nid])) {
++		for (nid = 0; nid < MAX_NUMNODES; ++nid)
++			if (!list_empty(&hugepage_freelists[nid]))
++				break;
++	}
++	if (nid >= 0 && nid < MAX_NUMNODES && !list_empty(&hugepage_freelists[nid])) {
++		page = list_entry(hugepage_freelists[nid].next, struct page, list);
++		list_del(&page->list);
++	}
++	return page;
++}
++
++static struct page *alloc_fresh_huge_page(void)
++{
++	static int nid = 0;
++	struct page *page;
++	page = alloc_pages_node(nid, GFP_HIGHUSER, HUGETLB_PAGE_ORDER);
++	nid = (nid + 1) % numnodes;
++	return page;
++}
++
+ void free_huge_page(struct page *page);
+ 
+ static struct page *alloc_hugetlb_page(void)
+@@ -35,13 +67,11 @@ static struct page *alloc_hugetlb_page(v
+ 	struct page *page;
+ 
+ 	spin_lock(&htlbpage_lock);
+-	if (list_empty(&htlbpage_freelist)) {
++	page = dequeue_huge_page();
++	if (!page) {
+ 		spin_unlock(&htlbpage_lock);
+ 		return NULL;
+ 	}
+-
+-	page = list_entry(htlbpage_freelist.next, struct page, list);
+-	list_del(&page->list);
+ 	htlbpagemem--;
+ 	spin_unlock(&htlbpage_lock);
+ 	set_page_count(page, 1);
+@@ -253,7 +283,7 @@ void free_huge_page(struct page *page)
+ 	INIT_LIST_HEAD(&page->list);
+ 
+ 	spin_lock(&htlbpage_lock);
+-	list_add(&page->list, &htlbpage_freelist);
++	enqueue_huge_page(page);
+ 	htlbpagemem++;
+ 	spin_unlock(&htlbpage_lock);
+ }
+@@ -369,7 +399,8 @@ int try_to_free_low(int count)
+ 
+ 	map = NULL;
+ 	spin_lock(&htlbpage_lock);
+-	list_for_each(p, &htlbpage_freelist) {
++	/* all lowmem is on node 0 */
++	list_for_each(p, &hugepage_freelists[0]) {
+ 		if (map) {
+ 			list_del(&map->list);
+ 			update_and_free_page(map);
+@@ -406,11 +437,11 @@ int set_hugetlb_mem_size(int count)
+ 		return (int)htlbzone_pages;
+ 	if (lcount > 0) {	/* Increase the mem size. */
+ 		while (lcount--) {
+-			page = alloc_pages(__GFP_HIGHMEM, HUGETLB_PAGE_ORDER);
++			page = alloc_fresh_huge_page();
+ 			if (page == NULL)
+ 				break;
+ 			spin_lock(&htlbpage_lock);
+-			list_add(&page->list, &htlbpage_freelist);
++			enqueue_huge_page(page);
+ 			htlbpagemem++;
+ 			htlbzone_pages++;
+ 			spin_unlock(&htlbpage_lock);
+@@ -451,12 +482,15 @@ static int __init hugetlb_init(void)
+ 	int i;
+ 	struct page *page;
+ 
++	for (i = 0; i < MAX_NUMNODES; ++i)
++		INIT_LIST_HEAD(&hugepage_freelists[i]);
++
+ 	for (i = 0; i < htlbpage_max; ++i) {
+-		page = alloc_pages(__GFP_HIGHMEM, HUGETLB_PAGE_ORDER);
++		page = alloc_fresh_huge_page();
+ 		if (!page)
+ 			break;
+ 		spin_lock(&htlbpage_lock);
+-		list_add(&page->list, &htlbpage_freelist);
++		enqueue_huge_page(page);
+ 		spin_unlock(&htlbpage_lock);
+ 	}
+ 	htlbpage_max = htlbpagemem = htlbzone_pages = i;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
