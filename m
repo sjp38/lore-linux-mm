@@ -1,36 +1,39 @@
-Date: Sun, 4 Mar 2001 21:59:41 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Shared mmaps
-In-Reply-To: <20010304211053.F1865@parcelfarce.linux.theplanet.co.uk>
-Message-ID: <Pine.LNX.4.21.0103042158430.5591-100000@imladris.rielhome.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 5 Mar 2001 10:49:53 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [PATCH] count for buffer IO in page_launder()
+Message-ID: <20010305104953.C1303@redhat.com>
+References: <20010302171020.W28854@redhat.com> <Pine.LNX.4.21.0103030133440.1033-100000@freak.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0103030133440.1033-100000@freak.distro.conectiva>; from marcelo@conectiva.com.br on Sat, Mar 03, 2001 at 01:52:19AM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <matthew@wil.cx>
-Cc: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 4 Mar 2001, Matthew Wilcox wrote:
+Hi,
 
-> Sparc & IA64 use a flag in the task_struct to indicate that they're trying
-> to allocate an mmap which is shared.  That's really ugly, let's just pass
-> the flags in to the get_mapped_area function instead.  I had to invent a
+On Sat, Mar 03, 2001 at 01:52:19AM -0300, Marcelo Tosatti wrote:
 > 
-> Comments?
+> On Fri, 2 Mar 2001, Stephen C. Tweedie wrote:
+> 
+> > Have you done an performance testing on it?
+> 
+> No. The code makes sense now.
 
-Looks a lot cleaner than the task->flags hack that sparc is
-using at the moment...
+The development of the VM has been _full_ of well-intended,
+well-reasoned patches which failed to work properly for subtle
+reasons.  I despair of us ever getting the 2.4 VM right as long as
+people think it's safe to submit VM patches without even basic
+performance testing.
 
-regards,
+This isn't an experimental kernel.  It's supposed to be a stable
+branch.
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+Cheers,
+ Stephen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
