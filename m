@@ -1,113 +1,136 @@
-Message-ID: <3DF071C3.C3E1EC39@scs.ch>
-Date: Fri, 06 Dec 2002 10:45:40 +0100
-From: Martin Maletinsky <maletinsky@scs.ch>
+Received: from d1o87.telia.com (d1o87.telia.com [213.65.232.241])
+	by maild.telia.com (8.12.5/8.12.5) with ESMTP id gB6CvbXn025242
+	for <linux-mm@kvack.org>; Fri, 6 Dec 2002 13:57:37 +0100 (CET)
+Received: from jeloin.localnet (h98n2fls32o87.telia.com [213.67.57.98])
+	by d1o87.telia.com (8.10.2/8.10.1) with ESMTP id gB6Cvb013813
+	for <linux-mm@kvack.org>; Fri, 6 Dec 2002 13:57:37 +0100 (CET)
+From: Roger Larsson <roger.larsson@skelleftea.mail.telia.com> (by way of
+	Roger Larsson <roger.larsson@norran.net>)
+Subject: RFC: Startup speed of Konqueror cvs HEAD - benchmark
+Date: Fri, 6 Dec 2002 13:54:17 +0100
 MIME-Version: 1.0
-Subject: Re: Question on swapping
-References: <3DEE1CA5.7C45C252@scs.ch> <3DEFA441.8070800@earthlink.net>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 8BIT
+Message-Id: <200212061354.17665.roger.larsson@skelleftea.mail.telia.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joseph A Knapka <jknapka@earthlink.net>
-Cc: linux-mm@kvack.org, kernelnewbies@nl.linux.org
+To: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello Joe,
+Hi KDE developers,  (and Linux Mem. Man. FYI, bcc did not work...)
 
-Thank you for your reply. I have an additional question.
-
-Joseph A Knapka wrote:
-
-> Martin Maletinsky wrote:
-> > Hello,
-> >
-> > I am looking at the swapping mechanism in Linux. I have read the relevant chapter 16 in 'Understanding the Linux Kernel' from Bovet&Cesati, and looked at the 2.2.18 kernel
-> > source code. I still have the follwing question:
-> >
-> > Function try_to_swap_out() [p. 481 in 'Understanding the Linux Kernel']:
-> > If the page in question already belongs to the swap cache, the function performs no data transfer to the swap space on the disk (but only marks the page as swapped out).
-> > The corresponding comment in the try_to_swap_out() functions states 'Is the page already in the swap cache? If so, ..... - it is already up-to-date on disk.
-> > Understanding the Linux Kernel states on p. 482 'If the page belongs to the swap cache .... no memory transfer is performed'.
-> > Now my question is, couldn't the page have been modified since it was added to the swap cache (and written to disk), and thus differ from the data in the swap space? In
-> > this case shouldn't the page be written to disk (again)?
->
-> If the page is in the swap cache, it's *effectively* up to date on disk,
-> because the swap cache page is *the* authoritative image of the page.
-> If it's dirty it will get written out by page_launder() in short
-> order, because whomever dirtied it set the page_dirty bit in the
-> page struct. That issue is unimportant to the process doing the
-> swap_out, though - all it cares about is that the page is going
-> to be taken care of by the cache machinery.
-
-Assume a page P that is marked as clean (i.e. PG_dirty bit not set), and is in the page cache. Additionaly assume that P is mapped by a process A. Now let A perform a store
-operation into the page P, which will mark A's page table entry mapping P as dirty (i.e. set the dirty bit).
-Subsequently assume that try_to_swap_out() is called on A's page table entry that maps P. try_to_swap_out() will see that P is in the swap cache already, and thus drop the pte.
-This leads to a situation, where P is in the swap cache, marked as clear (i.e. PG_dirty bit clear), while the disk image differs from the data that is in the main memory page
-frame.
-I would have expected try_to_swap_out() to check the page table entries dirty bit, and to mark the page dirty. However, I can't see any such code in the function (I pasted the
-relevant lines of code from linux 2.2.18 below).
-
-static int try_to_swap_out(struct task_struct * tsk, struct vm_area_struct* vma,
-         unsigned long address, pte_t * page_table, int gfp_mask)
- {
-         pte_t pte;
-         unsigned long entry;
-         unsigned long page;
-         struct page * page_map;
-
-         pte = *page_table;
-         if (!pte_present(pte))
-                 return 0;
-         page = pte_page(pte);
-         if (MAP_NR(page) >= max_mapnr)
-                 return 0;
-         page_map = mem_map + MAP_NR(page);
-
-         if (pte_young(pte)) {
-                 /*
-                  * Transfer the "accessed" bit from the page
-                  * tables to the global page map.
-                  */
-                 set_pte(page_table, pte_mkold(pte));
-                 flush_tlb_page(vma, address);
-                 set_bit(PG_referenced, &page_map->flags);
-                 return 0;
-         }
-
-         if (PageReserved(page_map)
-             || PageLocked(page_map)
-             || ((gfp_mask & __GFP_DMA) && !PageDMA(page_map)))
-                 return 0;
-
-         /*
-          * Is the page already in the swap cache? If so, then
-          * we can just drop our reference to it without doing
-          * any IO - it's already up-to-date on disk.
-          *
-          * Return 0, as we didn't actually free any real
-          * memory, and we should just continue our scan.
-          */
-         if (PageSwapCache(page_map)) {
-                 entry = page_map->offset;
-                 swap_duplicate(entry);
-                 set_pte(page_table, __pte(entry));
- drop_pte:
-                 vma->vm_mm->rss--;
-                 flush_tlb_page(vma, address);
-                 __free_page(page_map);
-                 return 0;
-         }
-............
+People often complains about startup speed for Konqueror, especially when the
+intended use is to manage files on the local disk. I have looked into that,
+and one thing that I have done is to compare several programs for file 
+managing (really only starting and exiting). Note that the filemanagers do 
+have very different feature set. I did also run this test with 2.5.50 (bottom
+of mail).
 
 
-Thanks again, with best regards
-Martin
+/usr/bin/time FILEMANAGER ~
 
---
-Supercomputing System AG          email: maletinsky@scs.ch
-Martin Maletinsky                 phone: +41 (0)1 445 16 05
-Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
-CH-8005 Zurich
+The results look like this (SuSE 2.4.18 kernel):
+
+NON CACHED (after fillmem)
+		pagefaults		time (s)
+filemanager	major	minor		user	sys	elapsed
+ ls -l		 215	  30		0.00	0.02	 0.78
+ mc		 453	 188		0.03	0.05	 3.41
+ netscape	2852	2210		1.29	0.05	10.73
+ emacs		1863	 814		0.44	0.08	14.72
+ mozilla	4173	2606		3.52	0.20	17.62
+ konqueror	6060	2031		2.34	0.13	18.01
+
+CACHED (rerun)
+		pagefaults		time (s)
+filemanager	major	minor		user	sys	elapsed
+ ls -l		 215	  30		0.00	0.01	0.00
+ mc		 453	 188		0.00	0.02	0.48
+ emacs		1958	 923		0.40	0.03	1.13
+ netscape	2852	2208		1.34	0.03	2.46
+ konqueror	6058	2068		2.35	0.10	2.90
+ mozilla	4171	2718		3.88	0.10	4.71
+ kfmclient*	2808	 228		0.46	0.01	3.96
+
+* Included to show pagefaults, timing is suspect...
+  Due to some slow IPC mechanism?
+
+Why are not most pagefaults minor when rerun? Accouning problem?
+Pages are used mmap:ed - problematic for reuse?
+
+Conclusion (IMHO): Konqueror is quite effective when cached.
+With data in cache it uses most of the real time actually move
+forward, i.e. not waiting. I have also taken a look in the code.
+The stuff it does is done to provide the features it has.
+ Some of the overhead probably comes from usual C++ issues, like
+ time spent creating and destroying temporary objects.
+ [Like: char * <-> QString]
+Dynamic libs/Plugins might also be expensive - ld.so/dlopen(). Will
+readahead be performed? Or are pages paged in on demand only?
+
+I do however question the necessarily and order of some stuff -
+to determine if an icon should have a shared overlay it actually
+forks "filesharelist" and reads response. 
+[KDirLister:: -> ... -> KFileItem::pixmap ->
+ KFileItem::overlays -> KFileShare::isDirectoryShared -> 
+ KFileShare::readConfig -> proc.start( KProcess::Block ) ]
+Konq. does also read quite a number of config and icon files, bad when they
+are not cached...
+
+It should do (and almost does) 
+Step 1 - quickly show location bar,
+basic icons, visible plugins, and accept user commands.
+The spinning "K" might fool users to think that it is busy for a longer
+time than it is. 
+Step 2 - add visual hints like more specialized icons, with overlays.
+ [But the preview can also fool the user that it is not ready]
+Step 3 - add/start background features like file preview,
+ k3b integration.
+
+
+Note: Netscape (4.79) and mozilla (0.9.8) came up in a list mode, where
+you can not even delete a file...
+
+/RogerL
+
+-- 
+Roger Larsson
+Skelleftea
+Sweden
+
+##################
+Results for 2.5.50
+
+There are no change in number of pagefaults. User time and
+system time went up slightly.
+But real time have become better! 
+(maybe fillmem is not good enough for cleaning memory?)
+
+UNCACHED (after fillmem)
+
+ ls -l		 215	  30		0.00	0.02	 0.78
+ mc		 453	 188		0.03	0.02	 3.41
+ emacs		1863	 814		0.41	0.08	14.72
+ netscape	2852	2110		1.29	0.05	10.73
+ konqueror	6060	2031		2.34	0.09	18.01
+ mozilla	4173	2606		3.52	0.20	17.62
+
+CACHED
+
+ results are also slightly better
+
+ ls -l		 215	  30		0.00	0.00	 0.02
+ mc				forgot to run...
+ emacs		1959	 824		0.44	0.07	 1.01
+ netscape	2852	2212		1.36	0.09	 2.33
+ konqueror	5029	2031		2.07	0.12	 2.70
+ mozilla	4310	2636		3.63	0.20	 4.33
+ 
+>> Visit http://mail.kde.org/mailman/listinfo/kde-devel#unsub to unsubscribe 
+<<
+
 
 
 --
