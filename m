@@ -1,29 +1,59 @@
-Message-ID: <Xcjjnjhw77859DNUNHZ1@trialsrider.com>
-From: "Lily Wood" <paulgbvrck@point08.com>
-Subject: Your 3.25 Rate Has Been Approved
-Date: Sat, 29 Jan 2005 11:16:31 -0700
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--TBXADN13569"
+Date: Mon, 31 Jan 2005 10:51:48 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: test_root reorder(Re: [patch] ext2: Apply Jack's ext3 speedups)
+Message-ID: <20050131095148.GB2482@atrey.karlin.mff.cuni.cz>
+References: <200501270722.XAA10830@allur.sanmateo.akamai.com> <20050127205233.GB9225@thunk.org> <41FAED57.DFCF1D22@akamai.com> <41FAFEF1.B13D59BA@akamai.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <41FAFEF1.B13D59BA@akamai.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Prasanna Meda <pmeda@akamai.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----TBXADN13569
-Content-Type: text/plain;
-Content-Transfer-Encoding: 7Bit
+> Prasanna Meda wrote:
+> 
+> >   - Folded all three root checkings for 3,  5 and 7 into one loop.
+> >   -  Short cut the loop with 3**n < 5 **n < 7**n logic.
+> >   -  Even numbers can be ruled out.
+> 
+> Without going to that complicated path, the better performance
+> is achieved with just reordering  of the tests from 3,5,7 to 7,5.3, so
+> that average case becomes better. This is more simpler than
+>  folding  patch.
+  I like a bit more just to reorder the tests (though I agree that your
+joined tests for 3,5,7 are probably faster) - it looks much more
+readable...
 
-You can expect the best service and results with our vast network of direct mortgage lenders, ready and eager to personally find you the right loan. Let lenders compete for your business! Just take 2 minutes to fill out our fast quote and start saving today!
-http://www.whoalender.com/x/loan.php?id=pr
+>  Reorder test_root testing from 3,5,7 to 7,5,3 so
+>  that average case becomes good. Even number check
+>  is added. 
+> 
+>  Signed-off-by: Prasanna Meda <pmeda@akamai.com>
+> 
+> --- a/fs/ext3/balloc.c	Fri Jan 28 22:21:45 2005
+> +++ b/fs/ext3/balloc.c	Sat Jan 29 02:51:39 2005
+> @@ -1451,8 +1451,10 @@
+>  {
+>  	if (group <= 1)
+>  		return 1;
+> -	return (test_root(group, 3) || test_root(group, 5) ||
+> -		test_root(group, 7));
+> +	if (!(group & 1))
+> +		return 0;
+> +	return (test_root(group, 7) || test_root(group, 5) ||
+> +		test_root(group, 3));
+>  }
+>  
+>  /**
 
+								Honza
 
-Stop all future contacts http://www.mortgage2006.com/x/st.html
-
-Great wits are sure to madness near allied. 
-
-----TBXADN13569--
-
+-- 
+Jan Kara <jack@suse.cz>
+SuSE CR Labs
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
