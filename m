@@ -1,84 +1,27 @@
-Message-ID: <XFMail.20000128103339.gale@syntax.dera.gov.uk>
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
-MIME-Version: 1.0
-In-Reply-To: <Pine.LNX.4.10.10001280155560.25452-100000@mirkwood.dummy.home>
-Date: Fri, 28 Jan 2000 10:33:39 -0000 (GMT)
-From: Tony Gale <gale@syntax.dera.gov.uk>
-Subject: RE: [PATCH] boobytrap for 2.2.15pre5
+Date: Fri, 28 Jan 2000 15:09:48 +0300
+From: Ivan Kokshaysky <ink@jurassic.park.msu.ru>
+Subject: Re: 2.2.15pre4 VM fix
+Message-ID: <20000128150948.A3816@jurassic.park.msu.ru>
+References: <Pine.LNX.4.10.10001260118220.1373-100000@mirkwood.dummy.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.10.10001260118220.1373-100000@mirkwood.dummy.home>; from riel@nl.linux.org on Wed, Jan 26, 2000 at 01:20:48AM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@nl.linux.org>
-Cc: Linux MM <linux-mm@kvack.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-Here's my list:
+On Wed, Jan 26, 2000 at 01:20:48AM +0100, Rik van Riel wrote:
+> 
+> Please give this patch (against 2.2.15pre4) a solid beating
+> and report back to us. Thanks all!
+> 
 
-kmem_cache_alloc called by non-running (1) task from c011df72!
-kmem_cache_alloc called by non-running (1) task from c011dfdd!
+n_tty_open() has been caught with your patch.
+Thanks!
 
-c011dcf0 T kmem_cache_shrink
-c011dde4 t kmem_cache_grow
-c011e158 t kmem_report_alloc_err
-c011e184 t kmem_report_free_err
-
-
-kmem_cache_alloc called by non-running (1) task from c014d31e!
-kmem_cache_alloc called by non-running (2) task from c014d31e!
-kmem_cache_alloc called by non-running (4) task from c014d31e!
-
-c014d15c T sock_getsockopt
-c014d30c T sk_alloc
-c014d348 T sk_free
-c014d384 T sock_wfree
-
-
-kmem_cache_alloc called by non-running (1) task from c014db98!
-kmem_cache_alloc called by non-running (2) task from c014db98!
-kmem_cache_alloc called by non-running (4) task from c014db98!
-
-c014dafc T show_net_buffers
-c014db40 T alloc_skb
-c014dc1c T kfree_skbmem
-c014dc5c T __kfree_skb
-
-
-kmem_cache_alloc called by non-running (1) task from c014dd1c!
-kmem_cache_alloc called by non-running (2) task from c014dd1c!
-kmem_cache_alloc called by non-running (4) task from c014dd1c!
-
-c014dd04 T skb_clone
-c014dd98 T skb_copy
-c014dee4 T skb_realloc_headroom
-
-
-kmem_cache_alloc called by non-running (1) task from c015c53d!
-kmem_cache_alloc called by non-running (2) task from c015c53d!
-kmem_cache_alloc called by non-running (4) task from c015c53d!
-
-c015c438 T tcp_timewait_state_process
-c015c528 T tcp_time_wait
-c015c74c t tcp_fin
-c015c800 t tcp_sack_maybe_coalesce
-
-
-kmem_cache_alloc called by non-running (1) task from c01618eb!
-kmem_cache_alloc called by non-running (2) task from c01618eb!
-kmem_cache_alloc called by non-running (4) task from c01618eb!
-
-c01617d0 t tcp_v4_or_free
-c01617f4 T tcp_v4_conn_request
-c0161b48 T tcp_create_openreq_child
-c0161f30 T tcp_v4_syn_recv_sock
-
-
----
-E-Mail: Tony Gale <gale@syntax.dera.gov.uk>
-We just joined the civil hair patrol!
-
-The views expressed above are entirely those of the writer
-and do not represent the views, policy or understanding of
-any other person or official body.
+Ivan.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
