@@ -1,90 +1,267 @@
-Date: Mon, 13 Dec 2004 19:02:46 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: Automated performance testing system was Re: Text form for STP tests
-Message-ID: <20041213210246.GA27473@logos.cnet>
-References: <20041201131607.GH2250@dmt.cyclades> <200412012004.iB1K49n23315@mail.osdl.org> <20041213114223.GH24597@logos.cnet> <20041213082226.12f3a8de.cliffw@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041213082226.12f3a8de.cliffw@osdl.org>
+Date: Mon, 13 Dec 2004 17:32:09 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Anticipatory prefaulting in the page fault handler V2
+In-Reply-To: <8880000.1102976179@flay>
+Message-ID: <Pine.LNX.4.58.0412131730410.817@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain><156610000.1102546207@flay>
+ <Pine.LNX.4.58.0412091130160.796@schroedinger.engr.sgi.com><200412132330.23893.amgta@yacht.ocn.ne.jp>
+ <Pine.LNX.4.58.0412130905140.360@schroedinger.engr.sgi.com> <8880000.1102976179@flay>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: cliff white <cliffw@osdl.org>
-Cc: linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Akinobu Mita <amgta@yacht.ocn.ne.jp>, nickpiggin@yahoo.com.au, Jeff Garzik <jgarzik@pobox.com>, torvalds@osdl.org, hugh@veritas.com, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 13, 2004 at 08:22:26AM -0800, cliff white wrote:
-> On Mon, 13 Dec 2004 09:42:23 -0200
-> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
-> 
-> > On Wed, Dec 01, 2004 at 12:04:09PM -0800, Cliff White wrote:
-> > > > On Wed, Dec 01, 2004 at 10:28:24AM -0800, Cliff White wrote:
-> > > > > > Linux-MM fellows,
-> > > > > > 
-> > > > > > I've been talking to Cliff about the need for a set of benchmarks,
-> > > > > > covering as many different workloads as possible, for developers to have a 
-> > > > > > better notion of impact on performance changes. 
-> > > > > > 
-> > > [snip]
-> > > > > robots are running this test series against linux-2.6.7 ( for history data )
-> > > > > There will need to be some adjustments - some of these tests will no doubt
-> > > > > fail for reasons of script error or configuration ( i see already kernbench will 
-> > > > > have to be redunced for 1-cpu systems, as it runs > 13.5 hours :( )
-> > > > > 
-> > > > > And, the second part of the automation is already done, but needs input.
-> > > > > I can aim this test battery at any kernel patch, where 'any kernel patch'
-> > > > > is identified by a regexp. What kernels do you want this against? 
-> > > > 
-> > > > The most recent 2.6.10-rc2 and 2.6.10-rc2-mm in STP.
-> > > > 
-> > > > Will this be available through the web interface? 
-> > > 
-> > > Yes, the results should be visible. If something looks wrongs, email.
-> > > the 'advanced search' bit needs some test-specific fixes, and may not work
-> > > for all tests - some of the kits still needs some patching..
-> > > cliffw
-> > 
-> > Any news on the automatic test series scripts Cliff ? 
-> > 
-> > Haven't seen any results yet.
-> > 
-> I ran a set for 2.6.10-rc3, PLM 3957, some results here:
->  http://www.osdl.org/projects/26lnxstblztn/results/
-> Or by doing this:
-> http://www.osdl.org/lab_activities/kernel_testing/stp/display_test_requests?d_patch_id%3Astring%3Aignore_empty=3957&op=Search
-> 
-> Marcelo, do you want me to submit the tests under your user id?
-> That would make searching for results eaiser. 
+Changes from V1 to V2:
+- Eliminate duplicate code and reorganize things
+- Use SetReferenced instead of mark_accessed (Hugh Dickins)
+- Fix the problem of the preallocation order increasing out of bounds
+(leading to memory being overwritten with pointers to struct page)
+- Return VM_FAULT_OOM if not able to allocate a single page
+- Tested on i386 and ia64
+- New performance test for low cpu counts (up to 8 so that this does not
+seem to be too exotic)
 
-Cliff, 
+The page fault handler for anonymous pages can generate significant overhead
+apart from its essential function which is to clear and setup a new page
+table entry for a never accessed memory location. This overhead increases
+significantly in an SMP environment.
 
-How have you started these tests? I dont to run LTP for example.
+In the page table scalability patches, we addressed the issue by changing
+the locking scheme so that multiple fault handlers are able to be processed
+concurrently on multiple cpus. This patch attempts to aggregate multiple
+page faults into a single one. It does that by noting
+anonymous page faults generated in sequence by an application.
 
-I would like to be able to select two different patch ID's and run them from the web
-interface, on a set of benchmarks vs memory size ranges vs nrCPUs (you already do 
-different number of CPUs on those series of tests I see), as we talked.
-Not just me, every developer doing performance testing :)
+If a fault occurred for page x and is then followed by page x+1 then it may
+be reasonable to expect another page fault at x+2 in the future. If page
+table entries for x+1 and x+2 would be prepared in the fault handling for
+page x+1 then the overhead of taking a fault for x+2 is avoided. However
+page x+2 may never be used and thus we may have increased the rss
+of an application unnecessarily. The swapper will take care of removing
+that page if memory should get tight.
 
-And then generate the graphs for the results of one patchID vs another. 
+The following patch makes the anonymous fault handler anticipate future
+faults. For each fault a prediction is made where the fault would occur
+(assuming linear acccess by the application). If the prediction turns out to
+be right (next fault is where expected) then a number of pages is
+preallocated in order to avoid a series of future faults. The order of the
+preallocation increases by the power of two for each success in sequence.
 
-On reaim for example it would be nice to have graphs of global jobs per minute vs 
-memory size, with a different colors for each patch ID. 
+The first successful prediction leads to an additional page being allocated.
+Second successful prediction leads to 2 additional pages being allocated.
+Third to 4 pages and so on. The max order is 3 by default. In a large
+continous allocation the number of faults is reduced by a factor of 8.
 
-Maybe we can even fit results for different nrCPUS on the same graph 
-with line types (with symbols like triangle, square, to differentiate).
-But then it might become too polluted to easily visualize, but maybe not.
+Standard Kernel on a 8 Cpu machine allocating 1 and 4GB with an increasing
+number of threads (and thus increasing parallellism of page faults):
 
-Can you make the scripts which you are using for graphic generation and the
-gnuplot configuration files available? So I can play around with them.
-I want to help with that.
+ia64 2.6.10-rc3-bk7
 
-Another question: Is the source for reaim available? 
+ Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+  1   3    1    0.047s      2.163s   2.021s 88925.153  88859.030
+  1   3    2    0.040s      3.215s   1.069s 60385.889 115677.685
+  1   3    4    0.041s      3.509s   1.023s 55370.338 158971.609
+  1   3    8    0.047s      4.130s   1.014s 47049.904 172405.990
 
-I see you're already generating the graphs for vmstat/iostat and user/system 
-time.
+Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+  4   3    1    0.155s     11.277s  11.043s 68788.420  68747.223
+  4   3    2    0.161s     16.459s   8.061s 47315.277  91322.962
+  4   3    4    0.170s     14.708s   4.079s 52852.007 164043.773
+  4   3    8    0.171s     23.257s   4.028s 33565.604 183348.574
 
-Thats really nice.
+ia64 Patched kernel:
 
+ Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+  1   3    1    0.008s      2.080s   2.008s 94121.792  94101.359
+  1   3    2    0.015s      3.128s   1.064s 62523.771 119563.496
+  1   3    4    0.008s      2.714s   1.012s 72185.910 175020.971
+  1   3    8    0.016s      2.963s   0.087s 65965.457 223921.949
+
+ Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+  4   3    1    0.034s     10.861s  10.089s 72179.444  72181.353
+  4   3    2    0.050s     14.303s   7.072s 54786.447 101738.901
+  4   3    4    0.038s     13.478s   4.044s 58182.649 176913.840
+  4   3    8    0.063s     13.584s   3.007s 57620.638 256109.927
+
+i386 2.6.10-rc3-bk3 256M allocation 2x Pentium III 500 Mhz
+
+ Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+  0   3    1    0.020s      1.566s   1.058s123827.513 123842.098
+  0   3    2    0.017s      2.439s   1.043s 79999.154 136931.671
+
+i386 2.6.10-rc3-bk3 patches
+
+ Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+  0   3    1    0.020s      1.527s   1.039s126945.181 140930.664
+  0   3    2    0.016s      2.417s   1.026s 80754.809 155162.903
+
+Patch against 2.6.10-rc3-bk7:
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.9/include/linux/sched.h
+===================================================================
+--- linux-2.6.9.orig/include/linux/sched.h	2004-12-13 15:14:40.000000000 -0800
++++ linux-2.6.9/include/linux/sched.h	2004-12-13 15:15:55.000000000 -0800
+@@ -537,6 +537,8 @@
+ #endif
+
+ 	struct list_head tasks;
++	unsigned long anon_fault_next_addr;	/* Predicted sequential fault address */
++	int anon_fault_order;			/* Last order of allocation on fault */
+ 	/*
+ 	 * ptrace_list/ptrace_children forms the list of my children
+ 	 * that were stolen by a ptracer.
+Index: linux-2.6.9/mm/memory.c
+===================================================================
+--- linux-2.6.9.orig/mm/memory.c	2004-12-13 15:14:40.000000000 -0800
++++ linux-2.6.9/mm/memory.c	2004-12-13 16:49:31.000000000 -0800
+@@ -55,6 +55,7 @@
+
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
++#include <linux/pagevec.h>
+
+ #ifndef CONFIG_DISCONTIGMEM
+ /* use the per-pgdat data instead for discontigmem - mbligh */
+@@ -1432,52 +1433,102 @@
+ 		unsigned long addr)
+ {
+ 	pte_t entry;
+-	struct page * page = ZERO_PAGE(addr);
+-
+-	/* Read-only mapping of ZERO_PAGE. */
+-	entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
++ 	unsigned long end_addr;
++
++	addr &= PAGE_MASK;
++
++ 	if (likely((vma->vm_flags & VM_RAND_READ) || current->anon_fault_next_addr != addr)) {
++		/* Single page */
++		current->anon_fault_order = 0;
++		end_addr = addr + PAGE_SIZE;
++	} else {
++		/* Sequence of faults detect. Perform preallocation */
++ 		int order = ++current->anon_fault_order;
++
++		if ((1 << order) < PAGEVEC_SIZE)
++			end_addr = addr + (PAGE_SIZE << order);
++		else {
++			end_addr = addr + PAGEVEC_SIZE * PAGE_SIZE;
++			current->anon_fault_order = 3;
++		}
+
+-	/* ..except if it's a write access */
++		if (end_addr > vma->vm_end)
++			end_addr = vma->vm_end;
++		if ((addr & PMD_MASK) != (end_addr & PMD_MASK))
++			end_addr &= PMD_MASK;
++	}
+ 	if (write_access) {
+-		/* Allocate our own private page. */
++
++		unsigned long a;
++		int i;
++		struct pagevec pv;
++
+ 		pte_unmap(page_table);
+ 		spin_unlock(&mm->page_table_lock);
+
++		pagevec_init(&pv, 0);
++
+ 		if (unlikely(anon_vma_prepare(vma)))
+-			goto no_mem;
+-		page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
+-		if (!page)
+-			goto no_mem;
+-		clear_user_highpage(page, addr);
++			return VM_FAULT_OOM;
++
++		/* Allocate the necessary pages */
++		for(a = addr; a < end_addr ; a += PAGE_SIZE) {
++			struct page *p = alloc_page_vma(GFP_HIGHUSER, vma, a);
++
++			if (likely(p)) {
++				clear_user_highpage(p, a);
++				pagevec_add(&pv, p);
++			} else {
++				if (a == addr)
++					return VM_FAULT_OOM;
++				break;
++			}
++		}
+
+ 		spin_lock(&mm->page_table_lock);
+-		page_table = pte_offset_map(pmd, addr);
+
+-		if (!pte_none(*page_table)) {
++		for(i = 0; addr < a; addr += PAGE_SIZE, i++) {
++			struct page *p = pv.pages[i];
++
++			page_table = pte_offset_map(pmd, addr);
++			if (unlikely(!pte_none(*page_table))) {
++				/* Someone else got there first */
++				pte_unmap(page_table);
++				page_cache_release(p);
++				continue;
++			}
++
++ 			entry = maybe_mkwrite(pte_mkdirty(mk_pte(p,
++ 						 vma->vm_page_prot)),
++ 					      vma);
++
++			mm->rss++;
++			lru_cache_add_active(p);
++			SetPageReferenced(p);
++			page_add_anon_rmap(p, vma, addr);
++
++			set_pte(page_table, entry);
+ 			pte_unmap(page_table);
+-			page_cache_release(page);
+-			spin_unlock(&mm->page_table_lock);
+-			goto out;
++
++ 			/* No need to invalidate - it was non-present before */
++ 			update_mmu_cache(vma, addr, entry);
++		}
++ 	} else {
++ 		/* Read */
++		entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
++nextread:
++		set_pte(page_table, entry);
++		pte_unmap(page_table);
++		update_mmu_cache(vma, addr, entry);
++		addr += PAGE_SIZE;
++		if (unlikely(addr < end_addr)) {
++			pte_offset_map(pmd, addr);
++			goto nextread;
+ 		}
+-		mm->rss++;
+-		entry = maybe_mkwrite(pte_mkdirty(mk_pte(page,
+-							 vma->vm_page_prot)),
+-				      vma);
+-		lru_cache_add_active(page);
+-		mark_page_accessed(page);
+-		page_add_anon_rmap(page, vma, addr);
+ 	}
+-
+-	set_pte(page_table, entry);
+-	pte_unmap(page_table);
+-
+-	/* No need to invalidate - it was non-present before */
+-	update_mmu_cache(vma, addr, entry);
++	current->anon_fault_next_addr = addr;
+ 	spin_unlock(&mm->page_table_lock);
+-out:
+ 	return VM_FAULT_MINOR;
+-no_mem:
+-	return VM_FAULT_OOM;
+ }
+
+ /*
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
