@@ -1,54 +1,64 @@
-Date: Tue, 29 May 2001 11:24:14 -0500
-From: Timur Tabi <ttabi@interactivesi.com>
-In-Reply-To: <OF5385EE96.412D8BDB-ON85256A58.005E44E7@pok.ibm.com>
-Subject: Re: order of matching alloc_pages/free_pages call pairs. Are they always same?
-Message-ID: <f1ZeVC.A.A_H.v08E7@dinero.interactivesi.com>
+From: Jack Steiner <steiner@sgi.com>
+Message-Id: <200105291748.MAA57815@fsgi056.americas.sgi.com>
+Subject: Re: Possible bug in tlb shootdown patch (IA64)
+Date: Tue, 29 May 2001 12:48:44 -0500 (CDT)
+In-Reply-To: <Pine.LNX.4.33.0105251506570.20484-100000@toomuch.toronto.redhat.com> from "Ben LaHaise" at May 25, 2001 03:11:17 PM
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ben LaHaise <bcrl@redhat.com>
+Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, alan@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-** Reply to message from "Bulent Abali" <abali@us.ibm.com> on Sat, 26 May 2001
-13:10:42 -0400
-
-
-> Is it reasonable to assume that matching
-> alloc_pages/free_pages pairs will always have the same order
-> as the 2nd argument?
 > 
-> For example
-> pg = alloc_pages( , aorder);   free_pages(pg, forder);
-> Is (aorder == forder) always true?
+> On Fri, 25 May 2001, Jack Steiner wrote:
 > 
-> Or, are there any bizarro drivers etc which will intentionally
-> free partial amounts, that is (forder < aorder)?
+> > I posted this to linux-mm@kvack.org but failed to
+> > send you a copy.
+> >
+> > ----
+> >
+> > We hit a problem that looks like it is related to the tlb
+> > shootdown patch.
+> 
+> Thanks for the analysis.  I think the following patch should help...
+> 
+> 		-ben
+> 
+> 
+> diff -urN v2.4.4-ac17/mm/memory.c wrk/mm/memory.c
+> --- v2.4.4-ac17/mm/memory.c	Thu May 24 19:45:18 2001
+> +++ wrk/mm/memory.c	Fri May 25 15:10:16 2001
+> @@ -285,9 +285,9 @@
+>  		return 0;
+>  	}
+>  	ptep = pte_offset(pmd, address);
+> -	address &= ~PMD_MASK;
+> -	if (address + size > PMD_SIZE)
+> -		size = PMD_SIZE - address;
+> +	offset = address & ~PMD_MASK;
+> +	if (offset + size > PMD_SIZE)
+> +		size = PMD_SIZE - offset;
+>  	size &= PAGE_MASK;
+>  	for (offset=0; offset < size; ptep++, offset += PAGE_SIZE) {
+>  		pte_t pte = *ptep;
+> 
 
-Yes!!  My driver does exactly that!!  Please DO NOT do anything to break this
-functionality.  Here's the code which does that:
+I didnt try the code, but I think there is still a problem.
 
-void fragment_and_free(void *_region, unsigned current_order, unsigned
-new_order)
-{
-    unsigned long current_size = (1 << current_order) << PAGE_SHIFT;
-    unsigned long new_size = (1 << new_order) << PAGE_SHIFT;
+It looks like the patch addresses only part of the problem. There
+is also code in zap_pmd_range that will mask off the upper bits of the
+address being flushed. The call to tlb_remove_page() in zap_pte_range()
+must pass the entire user virtual address that is being removed.
 
-    char *region = (char *) _region;
-    char *p;
-
-    printk("Subdividing block of order %u into blocks of order %u\n",
-current_order, new_order);
-
-    if (new_order <= current_order)
-    {
-        for (p = region; p < (region + current_size); p += new_size)
-            free_pages((u32) p, new_order);
-    }
-}
 
 
 -- 
-Timur Tabi - ttabi@interactivesi.com
-Interactive Silicon - http://www.interactivesi.com
+Thanks
+
+Jack Steiner    (651-683-5302)   (vnet 233-5302)      steiner@sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
