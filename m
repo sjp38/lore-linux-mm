@@ -1,44 +1,58 @@
-Date: Thu, 28 Sep 2000 17:13:59 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: mingo@elte.hu
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-In-Reply-To: <20000928165427.K17518@athlon.random>
-Message-ID: <Pine.LNX.4.21.0009281704430.9445-100000@elte.hu>
+Date: Thu, 28 Sep 2000 17:12:34 +0200 (CEST)
+From: Mike Galbraith <mikeg@weiden.de>
+Subject: Re: 2.4.0-t9p7 and mmap002 - freeze
+In-Reply-To: <Pine.LNX.4.21.0009280710230.1814-100000@duckman.distro.conectiva>
+Message-ID: <Pine.Linu.4.10.10009281625130.763-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Rik van Riel <riel@conectiva.com.br>, Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Roger Larsson <roger.larsson@norran.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Sep 2000, Andrea Arcangeli wrote:
+On Thu, 28 Sep 2000, Rik van Riel wrote:
 
-> The DBMS uses shared SCSI disks across multiple hosts on the same SCSI
-> bus and synchronize the distributed cache via TCP. Tell me how to do
-> that with the OS cache and mmap.
+> On Thu, 28 Sep 2000, Mike Galbraith wrote:
+> > On Wed, 27 Sep 2000, Roger Larsson wrote:
+> > 
+> > > Tried latest patch with the same result - freeze...
+> > 
+> > Ditto.
+> 
+> I'm finally back from Linux Kongress and Linux Expo and
+> will look at the latest tree and integrate the fixes I
+> made while on the road later today (after I get some
+> sleep).
+> 
+> I have fixed this particular bug, which was caused by
+> us moving unfreeable pages to the inactive_dirty list
+> and back again, while not accomplishing anything useful.
+> 
+> The fix for this is trivial and I'll post it later
+> today (cleaned up and working in the current source
+> tree).
 
-this could be supported by:
+Cool!
 
-1) mlock()-ing the whole mapping.
+I've had a tiny bit of success (swptst _passed_ once, and currently
+locks with 1 inactive_clean page instead of always 0;) by fiddling
+with __alloc_pages() a bit.
 
-2) introducing sys_flush(), which flushes pages from the pagecache.
+One thing that I _think_ may be a problem is using stale information.
+direct_reclaim is set once, it's set without checking that a reclaim
+is possible, and it's not updated as we proceed although the situation
+may change.
 
-3) doing sys_msync() after dirtying a range and before sending a TCP
-   event.
+Another thing I'm curious about is increasing memory pressure in the
+event of an allocation failure (retry).  Why do we do that?
 
-Whenever the DB-cache-flush-event comes over TCP, it calls sys_flush() for
-that given virtual address range or file address space range. Sys_flush
-flushes the page from the pagecache and unmaps the address. Whenever it's
-needed again by the application it will be faulted in and read from disk.
+Comments?
 
-Can anyone see any problems with the concept of this approach? This can be
-used for a page-granularity distributed IO cache.
+	-Mike (down periscope.. ahead dead slow;)
 
-(there are some smaller problems with this approach, like mlock() on a big
-range can only be done by priviledged users, but thats not an issue IMO.)
-
-	Ingo
+P.S.  in buffer.c, we do a LockPage(), but no UnlockPage() in the
+case of no_buffer_head.. is that correct?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
