@@ -1,45 +1,54 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: [PATCH] (2/2) reverse mappings for current 2.5.23 VM
-Date: Wed, 19 Jun 2002 22:44:06 +0200
-References: <Pine.LNX.4.44.0206191248190.4292-100000@loke.as.arizona.edu>
-In-Reply-To: <Pine.LNX.4.44.0206191248190.4292-100000@loke.as.arizona.edu>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E17KmJC-0000xN-00@starship>
+Date: Wed, 19 Jun 2002 15:44:41 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] (1/2) reverse mapping VM for 2.5.23 (rmap-13b)
+Message-ID: <20020619224441.GP22961@holomorphy.com>
+References: <Pine.LNX.4.44.0206181340380.3031-100000@loke.as.arizona.edu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0206181340380.3031-100000@loke.as.arizona.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Craig Kulesa <ckulesa@as.arizona.edu>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 19 June 2002 22:09, Craig Kulesa wrote:
-> I wouldn't draw _any_ conclusions about either patch yet, because as you 
-> said, it's only one type of load.  And it was a single tick in vmstat 
-> where page_launder() was aggressive that made the difference between the 
-> two.  In a different test, where I had actually *used* more of the 
-> application pages instead of simply closing most of the applications 
-> (save one, the memory hog), the results are likely to have been very 
-> different.  
-> 
-> I think that Rik's right: this simply points out that page_launder(), at 
-> least in its interaction with 2.5, needs some tuning.  I think both 
-> approaches look very promising, but each for different reasons.  
+On Wed, Jun 19, 2002 at 04:18:00AM -0700, Craig Kulesa wrote:
+> Where:  http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/
+> This patch implements Rik van Riel's patches for a reverse mapping VM 
+> atop the 2.5.23 kernel infrastructure.  The principal sticky bits in 
 
-Indeed.
+There is a small bit of trouble here: pte_chain_lock() needs to
+preempt_disable() and pte_chain_unlock() needs to preempt_enable(),
+as they are meant to protect critical sections.
 
-One reason for being interested in a lot more numbers and a variety of loads 
-is that there's an effect, predicted by Andea, that I'm watching for:  both 
-aging+rmap and lru+rmap do swapout in random order with respect to virtual 
-memory, and this should in theory cause increased seeking on swap-in.  We 
-didn't see any sign of such degradation vs mainline, in fact we saw a 
-significant overall speedup.  It could be we just haven't got enough data 
-yet, or maybe there really is more seeking for each swap-in, but the effect 
-of less swapping overall is dominant.
 
--- 
-Daniel
+Cheers,
+Bill
+
+
+On Wed, Jun 19, 2002 at 04:18:00AM -0700, Craig Kulesa wrote:
++static inline void pte_chain_lock(struct page *page)
++{
++   /*
++    * Assuming the lock is uncontended, this never enters
++    * the body of the outer loop. If it is contended, then
++    * within the inner loop a non-atomic test is used to
++    * busywait with less bus contention for a good time to
++    * attempt to acquire the lock bit.
++    */
++   while (test_and_set_bit(PG_chainlock, &page->flags)) {
++       while (test_bit(PG_chainlock, &page->flags))
++           cpu_relax();
++   }
++}
++
++static inline void pte_chain_unlock(struct page *page)
++{
++   clear_bit(PG_chainlock, &page->flags);
++}
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
