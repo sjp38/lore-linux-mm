@@ -1,80 +1,32 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA20404
-	for <linux-mm@kvack.org>; Sun, 5 Jul 1998 15:37:15 -0400
-Date: Sun, 5 Jul 1998 21:31:56 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-In-Reply-To: <Pine.LNX.3.96.980705202128.12985B-100000@dragon.bogus>
-Message-ID: <Pine.LNX.3.96.980705212422.2416D-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from zero.aec.at (qmailr@zero.aec.at [193.170.192.102])
+	by kvack.org (8.8.7/8.8.7) with SMTP id QAA20566
+	for <linux-mm@kvack.org>; Sun, 5 Jul 1998 16:08:56 -0400
+Subject: Re: current VM performance
+References: <Pine.LNX.3.96.980705205234.2186A-100000@mirkwood.dummy.home>
+From: Andi Kleen <ak@muc.de>
+Date: 05 Jul 1998 21:03:17 +0200
+In-Reply-To: Rik van Riel's message of Sun, 5 Jul 1998 21:00:18 +0200 (CEST)
+Message-ID: <k27m1sdssq.fsf@zero.aec.at>
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <arcangeli@mbox.queen.it>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 5 Jul 1998, Andrea Arcangeli wrote:
-> On Sun, 5 Jul 1998, Rik van Riel wrote:
+Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
+
+> Hi,
 > 
-> >The cache is also mapped into a process'es address space.
-> >Currently we would have to walk all pagetables to find a
-> >specific page ;(
+> While considering future VM improvements, I decided to do
+> some tests with the current VM subsystem.
 > 
-> I start to think that the problem is kswapd. Running cp file /dev/null the
-> system remains fluid (when press a key I see the char on the _console_) 
-> until there is free (wasted because not used) memory. While there is free
-> memory the swap is 0. When the free memory finish, the system die and when
-> I press a key I don' t see the character on the screen immediatly. I think
-> that it' s kswapd that is irratiting me. So now I am trying to fuck kswapd
-> (I am starting to hate it since I really hate swap ;-). kswapd must swap
-> _nothing_ if _freeable_ cache memory is allocated.  kswapd _must_ consider
-> freeable cache memory as _free_ not used memory and so it must not start
-> swapping out useful code and data for make space for allocating more
-> cache.  With 2.0.34 when the cache eat all free memory nothing gone
-> swapped out and all perform better.
+> I started with a 512x512 image (background of www.zip.com.au)
+> in GIMP. The first thing I did was increasing the image size
+> to 5120x5120, now I am 120M in swap on my 24M machine :-)
 
-A few months ago someone (who?) posted a patch that modified
-kswapd's internals to only unmap clean pages when told to.
+I'm not sure if the gimp is a good vm tester, because it basically
+does its own VM with its tile based memory architecture. 
 
-If I can find the patch, I'll integrate it and let kswapd
-only swap clean pages when:
-- page_cache_size * 100 > num_physpages * page_cache.borrow_percent
-or
-- (buffer_mem >> PAGE_SHIFT) * 100 > num_physpages * buffermem.borrow_percent
-
-> >shrink_mmap() can only shrink unlocked and clean buffer pages
-> >and unmapped cache pages. We need to go through either bdflush
-> ...unmapped cache pages. Good.
-
-Not good, it means that kswapd needs to unmap the pages
-first, using the try_to_swap_out() function. [which really
-needs to be renamed to try_to_unmap()]
-
-> >(for buffer) or try_to_swap_out() first, in order to make some
-> try_to_swap_out() should unmap the cache pages? Then I had to recall
-> shrink_mmap()?
-
-Shrink_mmap() frees the pages that are already unmapped
-by try_to_swap_out(). This means that the pages need to
-be handled by both functions (which is good, because it
-gives us a second 'timeout' for page aging).
-
-> Rik reading vmscan.c I noticed that you are the one that worked on kswapd
-> (for example removing hard page limits and checking instead
-> free_memory_available(nr)). Could you tell me what you changed (or in
-> which kernel-patch I can find the kswapd patches) to force kswapd to swap
-> so much? 
-
-Most of the patches are on my homepage, you can get
-and read them there...
-
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
-
+-Andi 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
