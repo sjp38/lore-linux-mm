@@ -1,32 +1,53 @@
-Date: Sun, 3 Sep 2000 16:40:47 -0300 (BRST)
+Date: Sun, 3 Sep 2000 17:47:01 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Oopses as discussed on irc
-In-Reply-To: <m3zolpb8he.fsf@kalahari.s2.org>
-Message-ID: <Pine.LNX.4.21.0009031639470.1112-100000@duckman.distro.conectiva>
+Subject: Re: Rik van Riel's VM patch
+In-Reply-To: <E13VYF1-0000gN-00@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.21.0009031743190.1112-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jarno Paananen <jpaana@s2.org>
-Cc: linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Bill Huey <billh@gnuppy.monkey.org>, John Levon <moz@compsoc.man.ac.uk>, linux-mm@kvack.org, "Theodore Y. Ts'o" <tytso@MIT.EDU>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 3 Sep 2000, Jarno Paananen wrote:
+On Sun, 3 Sep 2000, Alan Cox wrote:
 
-> ksymoops 2.3.4 on i686 2.4.0-test8.  Options used
+> > Yes, it kicks butt and it finally (just about) removes the final
+> > Linux kernel showstopper for recent kernels. ;-)
 > 
-> Warning: You did not tell me where to find symbol information.  I will
+> Things like random memory corruption from dropping dirty bits,
+> and some of the others are far more serious showstoppers alas
 
-> Error (regular_file): read_system_map stat
-> /boot/System.map-2.4.0-test8 failed
+Indeed, there are 4 major issues left in the VM area:
 
-> 1 warning and 1 error issued.  Results may not be reliable.
+1) system hangs under load with 0 lowmem free (but still
+   some high memory free)
 
-And they're not.
+   [not much details on this one yet]
 
-These traces do /not/ correspond to the BUG() numbers
-given. Please use the correct System.map when generating
-the backtraces ;)
+2) dirty bits can get lost, try_to_swap_out() and other
+   places have a race with the hardware
+
+   [from mm/vmscan.c, line 60 has a race with the /hardware/]
+     55         if (pte_young(pte)) {
+     56                 /*
+     57                  * Transfer the "accessed" bit from the page
+     58                  * tables to the global page map.
+     59                  */
+     60                 set_pte(page_table, pte_mkold(pte));
+     61                 SetPageReferenced(page);
+     62                 goto out_failed;
+     63         }
+
+3) it appears something can corrupt page->count or delete a
+   page from the cache while the page is locked
+
+   [tripped up by my VM patch?]
+
+4) the innd data corruption bug
+
+   [anybody?]
 
 regards,
 
