@@ -1,146 +1,28 @@
-From: Christoph Rohland <cr@sap.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: der erste Schuettler <lothar.maerkle@gmx.de>
+Reply-To: lothar.maerkle@gmx.de
 Subject: Re: shmfs/tmpfs/vm-fs
-References: <01120616545301.04747@hishmoom>
-Date: 07 Dec 2001 11:51:11 +0100
-In-Reply-To: <01120616545301.04747@hishmoom>
-Message-ID: <m34rn3jobk.fsf@linux.local>
+Date: Fri, 7 Dec 2001 12:37:29 +0100
+References: <01120616545301.04747@hishmoom> <m34rn3jobk.fsf@linux.local>
+In-Reply-To: <m34rn3jobk.fsf@linux.local>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Message-Id: <01120712372904.00795@hishmoom>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lothar.maerkle@gmx.de
+To: Christoph Rohland <cr@sap.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-=-=
+hi
 
-Hi der,
+thanks for the paper
+but, with sysvipc,  are msyncs still needed, to keep the shared pages in sync 
+with the file on the tmpfs? You could use the same pages for all...
+tmpfs ist cool, is it possible to change the permissions on an shared object
+or istead of shmctl IPC_RMID just use rm /de/shm/SYSVblablub?
 
-On Thu, 6 Dec 2001, der erste Schuettler wrote:
-> How is SysV sharedmem implemented and how/why is
-> shmfs/tmpfs integrated in this topic?
-
-shmem.c (^=tmpfs) is the implementation used by the SYSV SHM user
-space API.
-
-> A file in the shmfs/tmpfs is created with the required size and then
-> with mmap mapped into the prozessspace?
-
-Yes. shmget does create and size a tmpfs file and shmat maps it.
-
-See the appended tmpfs.txt which was just included into 2.4.17-pre
-
-Greetings
-		Christoph
-
-
---=-=-=
-Content-Disposition: attachment; filename=tmpfs.txt
-
-Tmpfs is a file system which keeps all files in virtual memory.
-
-
-Everything in tmpfs is temporary in the sense that no files will be
-created on your hard drive. If you unmount a tmpfs instance,
-everything stored therein is lost.
-
-tmpfs puts everything into the kernel internal caches and grows and
-shrinks to accommodate the files it contains and is able to swap
-unneeded pages out to swap space. It has maximum size limits which can
-be adjusted on the fly via 'mount -o remount ...'
-
-If you compare it to ramfs (which was the template to create tmpfs)
-you gain swapping and limit checking. Another similar thing is the RAM
-disk (/dev/ram*), which simulates a fixed size hard disk in physical
-RAM, where you have to create an ordinary filesystem on top. Ramdisks
-cannot swap and you do not have the possibility to resize them. 
-
-Since tmpfs lives completely in the page cache and on swap, all tmpfs
-pages currently in memory will show up as cached. It will not show up
-as shared or something like that. Further on you can check the actual
-RAM+swap use of a tmpfs instance with df(1) and du(1).
-
-
-tmpfs has the following uses:
-
-1) There is always a kernel internal mount which you will not see at
-   all. This is used for shared anonymous mappings and SYSV shared
-   memory. 
-
-   This mount does not depend on CONFIG_TMPFS. If CONFIG_TMPFS is not
-   set, the user visible part of tmpfs is not build. But the internal
-   mechanisms are always present.
-
-2) glibc 2.2 and above expects tmpfs to be mounted at /dev/shm for
-   POSIX shared memory (shm_open, shm_unlink). Adding the following
-   line to /etc/fstab should take care of this:
-
-	tmpfs	/dev/shm	tmpfs	defaults	0 0
-
-   Remember to create the directory that you intend to mount tmpfs on
-   if necessary (/dev/shm is automagically created if you use devfs).
-
-   This mount is _not_ needed for SYSV shared memory. The internal
-   mount is used for that. (In the 2.3 kernel versions it was
-   necessary to mount the predecessor of tmpfs (shm fs) to use SYSV
-   shared memory)
-
-3) Some people (including me) find it very convenient to mount it
-   e.g. on /tmp and /var/tmp and have a big swap partition. But be
-   aware: loop mounts of tmpfs files do not work due to the internal
-   design. So mkinitrd shipped by most distributions will fail with a
-   tmpfs /tmp.
-
-4) And probably a lot more I do not know about :-)
-
-
-tmpfs has a couple of mount options:
-
-size:	   The limit of allocated bytes for this tmpfs instance. The 
-           default is half of your physical RAM without swap. If you
-	   oversize your tmpfs instances the machine will deadlock
-	   since the OOM handler will not be able to free that memory.
-nr_blocks: The same as size, but in blocks of PAGECACHE_SIZE.
-nr_inodes: The maximum number of inodes for this instance. The default
-           is half of the number of your physical RAM pages.
-
-These parameters accept a suffix k, m or g for kilo, mega and giga and
-can be changed on remount.
-
-To specify the initial root directory you can use the following mount
-options:
-
-mode:	The permissions as an octal number
-uid:	The user id 
-gid:	The group id
-
-These options do not have any effect on remount. You can change these
-parameters with chmod(1), chown(1) and chgrp(1) on a mounted filesystem.
-
-
-So 'mount -t tmpfs -o size=10G,nr_inodes=10k,mode=700 tmpfs /mytmpfs'
-will give you tmpfs instance on /mytmpfs which can allocate 10GB
-RAM/SWAP in 10240 inodes and it is only accessible by root.
-
-
-TODOs:
-
-1) give the size option a percent semantic: If you give a mount option
-   size=50% the tmpfs instance should be able to grow to 50 percent of
-   RAM + swap. So the instance should adapt automatically if you add
-   or remove swap space.
-2) loop mounts: This is difficult since loop.c relies on the readpage
-   operation. This operation gets a page from the caller to be filled
-   with the content of the file at that position. But tmpfs always has
-   the page and thus cannot copy the content to the given page. So it
-   cannot provide this operation. The VM had to be changed seriously
-   to achieve this.
-3) Show the number of tmpfs RAM pages. (As shared?)
-
-Author:
-   Christoph Rohland <cr@sap.com>, 1.12.01
-
---=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
