@@ -1,50 +1,52 @@
-Date: Sat, 6 Nov 2004 16:21:33 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages /
-    all_unreclaimable braindamage
-In-Reply-To: <20041106152903.GA3851@dualathlon.random>
-Message-ID: <Pine.LNX.4.44.0411061609520.3592-100000@localhost.localdomain>
+Date: Sat, 6 Nov 2004 08:52:22 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: removing mm->rss and mm->anon_rss from kernel?
+In-Reply-To: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.58.0411060847100.25584@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@novell.com>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 6 Nov 2004, Andrea Arcangeli wrote:
-> On Sat, Nov 06, 2004 at 09:47:56AM +0000, Hugh Dickins wrote:
-> > Problematic, yes: don't overlook that GFP_REPEAT and GFP_NOFAIL _can_
-> > fail, returning NULL: when the process is being OOM-killed (PF_MEMDIE).
-> 
-> that looks weird, why that? The oom killer must be robust against a task
-> not going anyway regardless of this (task can be stuck in nfs or
-> similar).
+On Sat, 6 Nov 2004, Hugh Dickins wrote:
 
-Oh, sure, it is, that's not the problem.
+> > So I removed all uses of mm->rss and anon_rss from the kernel and
+> > introduced a bean counter count_vm() that is only run when the
+> > corresponding /proc file is used. count_vm then runs throught the vm
+> > and counts all the page types. This could also add additional page
+> > types to our statistics and solve some of the consistency issues.
+>
+> You're joking!  Certainly not, as others have asserted.
 
-> If a fail path ever existed, __GFP_NOFAIL should not have been
-> used in the first place. I don't see many valid excuses to use
-> __GFP_NOFAIL if we can return NULL without the caller running into an
-> infinite loop.
+Nope. If you lock the vm properly then the bean counter approach will
+result in an accurate count. Incrementing and decrementing rss in various
+places may have issues that lead to inaccuracies. The bean counter
+approach will at least not propagate these any further.
 
-I took exception to the misleadingness of the name GFP_NOFAIL, and did
-send Andrew a patch to remove it once upon a time, but he didn't bite.
+> But I don't know what the appropriate solution is.  My priorities
+> may be wrong, but I dislike the thought of a struct mm dominated
+> by a huge percpu array of rss longs (or cachelines?), even if the
+> machines on which it would be huge are ones which could well afford
+> the waste of memory.  It just offends my sense of proportion, when
+> the exact rss is of no importance.  I'm more attracted to just
+> leaving it unatomic, and living with the fact that it's racy
+> and approximate (but /proc report negatives as 0).
 
-Your view, that it's better to hang repeating indefinitely than ever
-return a NULL when caller said not to, is probably the better view.
+I also thought about the percpu approach but its rather unappealing given
+also the larger and large cpucounts.
 
-> btw, PF_MEMDIE has always been racy in the way it's being set, so it can
-> corrupt the p->flags, but the race window is very small to trigger it
-> (and even if it triggers, it probably wouldn't be fatal). That's why I
-> don't use PF_MEMDIE in 2.4-aa.
+Simply living with the inaccuracies is certainly the easiest
+solution. Thanks.
 
-I expect so, yes, the PF_ flags don't have proper locking.  Those
-places which set or clear PF_MEMALLOC are more likely to hit races,
-but last time I went there I don't think there was a real serious problem.
+> It might be interesting to run your anon faulting test on an SGI
+> monster, keeping both atomic and non-atomic counts, to see just
+> how likely, how much they go out of sync.
 
-Hugh
-
+Ok. We can try that.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
