@@ -1,102 +1,36 @@
-Message-ID: <000062be0bb2$000023df$0000726f@mail.amsagv.co.kr>
-From: "Daddy" <vgfqui@pricenews.odessa.ua>
-Subject: Whats's The Deal6296
-Date: Tue, 19 Nov 2002 16:35:23 -2000
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA14865
+	for <linux-mm@kvack.org>; Wed, 20 Nov 2002 00:33:32 -0800 (PST)
+Message-ID: <3DDB48DA.2898B7FE@digeo.com>
+Date: Wed, 20 Nov 2002 00:33:30 -0800
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="Windows-1252"
+Subject: Re: Porting to from Solaris 64bit to Linux 32B - 36B.
+References: <C5BF7C2C6ADF24448763CC46235FB3A691C82E@ulysses.neocore.com> <Pine.LNX.4.44L.0211192222300.4103-100000@imladris.surriel.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: info@asharps.com
-Cc: hidropneumatiese@aol.com, hanzlikj@excite.com, jhoult@hotmail.com, katebibb@yahoo.com, kawuxo@hagahi.com, phyllis@sandyspinslade.com, bethj@palmnet.net, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Jon Goldberg <jgoldberg@neocore.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-front of millions of prospective clients or buyers READ ON!
+Rik van Riel wrote:
+> 
+> On Tue, 19 Nov 2002, Jon Goldberg wrote:
+> 
+> >       We are currently at porting to Linux 2.4 kernel and I am having
+> > troubles finding information on VM.  Since the 2.4 Kernel support large
+> > amount of swap < 1TB and Physical Ram < 64GB.  Is there a way to get
+> > memory functions like mmap to use a 64 bit pointer instead of the 32bit
+> > pointer.  Since a memory mapped file the file is used as swap I should
+> > be able to have it map a file larger than 4GB and have the OS do the
+> > page management.
+> 
+> No, this is not possible because of fundamental reasons.
+> 
 
- What is the most cost effective form of advertising for
-the very small all the way up to the largest of companies?
-
- Commercial Email!
-
- Why?
-
- Because there is no charge for paper, printing, mailing or
-the unbelievabley HIGH COST of putting Ads into Magazines
-or Papers. Why should most of your advertising dollar go
-for overhead? There IS a BETTER way!
-
- How?
-
- By placing your ad directly into the e-mail boxes of
-consumers who, like you, have an Internet e-mail address. 
-Almost every user of the Internet has a unique e-mail
-address and we can effectively reach as many of those
-people as you want FAST and EFFECTIVELY.
-
- Every year the number of users increases tremendously
-creating a huge market. Why not become part of this
-unlimited market by placing your personal ad in one of
-the largest consumer databases?
-
- We are interested in doing business with you, however,
-we DO NOT do pornography or schemes of any kind. Please
-call us with your legitimate product or service.
-
- Some of you may not be interested at all, and possibly
-are agitated by our message. We will respectfully remove
-you from our list by request. We are responsible commercial
-e-mailers and don't want to bother those who 
-are not interested. We not only respect you, but also
-our customers. We do not want our customers spending
-their advertising dollars on prospects that do not have
-any interest. 
-
-(Decline instructions are at the end of this letter.)
-
- Below you will find basic mailing options we are offering
-at this time. Check out our SPECIALS! 
-
-Commercial Email Gets Results!
-
-Untargeted mailings: 
-
-500,000 E-mails for U.S.........$325.00  
-
-1,000,000 E-mails for U.S.... $500.00
-
-2,000,000 E-mails for U.S.... $900.00
-
-3,000,000 E-mails for U.S.... $1200.00
-
-4,000,000 E-mails for U.S.....$1400.00
-
-If you choose to do your own E-mail advertising we
-also have premium E-mail lists available for purchase.
-
-Our Sixth release provides you with 15 MILLION E-mail 
-Addresses taken from our own database of opporunity 
-seekers and businesses....$229.00 on CD.
-
-THE MASTER MARKETERS CD VOL. 6 consists of 15 Million
-E-mail addresses that were cleaned and verified. You
-can start mailing these addresses immediately.  
-
-For Professional Advertising Campaigns at Affordable Prices
-Call 818-743-7507
-
-By utilizing our resources and technology we have achieved
-our goal of making advertising affordable and effective
-on the Internet. We hope that you will choose our company
-to help you in attaining your companies goals.
-
-This message is an advertisement. We will continue to 
-bring you valuable permission based messages on the
-products and services that interest you most unless
-you wish to decline.  If you no longer wish to receive
-our messages send a e-mail to:
-mailto:miker3212000@yahoo.com?subject=expunge
-
+I think he's asking "where is mmap64()"?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
