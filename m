@@ -1,22 +1,29 @@
-Date: Wed, 5 Jan 2000 07:50:51 -0800 (PST)
-From: Chris Mason <mason@suse.com>
-Subject: Re: (reiserfs) Re: RFC: Re: journal ports for 2.3? (resending because
- my  ISP probably lost it)
-In-Reply-To: <Pine.LNX.4.02.10001051020180.27314-100000@carissimi.coda.cs.cmu.edu>
-Message-ID: <Pine.LNX.4.10.10001050732390.18891-100000@home.suse.com>
+Message-ID: <3874538A.67D675D6@idiom.com>
+Date: Thu, 06 Jan 2000 11:34:18 +0300
+From: Hans Reiser <reiser@idiom.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: (reiserfs) Re: RFC: Re: journal ports for 2.3? (resendingbecause my  
+ ISP probably lost it)
+References: <Pine.LNX.4.02.10001051020180.27314-100000@carissimi.coda.cs.cmu.edu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Peter J. Braam" <braam@cs.cmu.edu>
-Cc: Hans Reiser <reiser@idiom.com>, Andrea Arcangeli <andrea@suse.de>, "William J. Earl" <wje@cthulhu.engr.sgi.com>, Tan Pong Heng <pongheng@starnet.gov.sg>, "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, reiserfs@devlinux.com, mason@suse.com, linux-fsdevel@vger.rutgers.edu, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, intermezzo-devel@stelias.com, simmonds@stelias.com
+Cc: Andrea Arcangeli <andrea@suse.de>, "William J. Earl" <wje@cthulhu.engr.sgi.com>, Tan Pong Heng <pongheng@starnet.gov.sg>, "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, Chris Mason <clmsys@osfmail.isc.rit.edu>, reiserfs@devlinux.com, linux-fsdevel@vger.rutgers.edu, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, intermezzo-devel@stelias.com, simmonds@stelias.com
 List-ID: <linux-mm.kvack.org>
 
+Yes, but not before 2.5.  Chris and I have already discussed that it would be
+nice to make the transaction API available to user space, but we haven't done any
+work on it, or even specified the user API.  We probably won't even start work on
+it for 6 months (unless a sponsor asks for it).  We do think it is a good idea.
 
-On Wed, 5 Jan 2000, Peter J. Braam wrote:
+Hans
+
+"Peter J. Braam" wrote:
 
 > I think I mean joining.  What I need is:
->   
+>
 >  braam starts trans
 >    does A
 >    calls reiser: hans starts
@@ -24,31 +31,22 @@ On Wed, 5 Jan 2000, Peter J. Braam wrote:
 >    hans commits; nothing goes to disk yet
 >    braam does C
 > braam commits/aborts ABC now go or don't
-> 
-> 
-Reiserfs won't do this kind of nesting right now, we also don't have a
-transaction abort (aside from crashing the machine).  These can be added
-to a future version, but would you mind explaining your transaction needs
-in more detail (offline) so I can get a better idea of what you are
-looking for?
-
--chris
-
+>
 > - Peter -
-> 
+>
 > On Wed, 5 Jan 2000, Hans Reiser wrote:
-> 
+>
 > > Is nesting really the term you mean to use here, or is joining the term you
 > > mean?
-> > 
+> >
 > > Do you really mean transactions within other transactions?
-> > 
+> >
 > > Exactly what functionality do you need?
-> > 
+> >
 > > Hans
-> > 
+> >
 > > "Peter J. Braam" wrote:
-> > 
+> >
 > > > Hi,
 > > >
 > > > I have one request for the journal API for use by network file systems -
@@ -104,14 +102,21 @@ looking for?
 > > > Is this a reasonable thing to ask for?
 > > >
 > > > - Peter -
-> > 
+> >
 > > --
 > > Get Linux (http://www.kernel.org) plus ReiserFS
 > >  (http://devlinux.org/namesys).  If you sell an OS or
 > > internet appliance, buy a port of ReiserFS!  If you
 > > need customizations and industrial grade support, we sell them.
-> > 
-> 
+> >
+
+--
+Get Linux (http://www.kernel.org) plus ReiserFS
+ (http://devlinux.org/namesys).  If you sell an OS or
+internet appliance, buy a port of ReiserFS!  If you
+need customizations and industrial grade support, we sell them.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
