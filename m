@@ -1,339 +1,158 @@
-Date: Tue, 24 Apr 2001 23:28:38 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [patch] swap-speedup-2.4.3-B3
-In-Reply-To: <Pine.LNX.4.21.0104240932570.15791-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0104242316580.2694-100000@freak.distro.conectiva>
+Received: from surriel.ddts.net (unknown [200.181.137.248])
+	by netbank.com.br (Postfix) with ESMTP id D480B46807
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2001 00:50:09 -0300 (BRST)
+Received: from localhost (erztvl@localhost [127.0.0.1])
+	by surriel.ddts.net (8.11.2/8.11.2) with ESMTP id f3Q3nUY27043
+	for <linux-mm@kvack.org>; Thu, 26 Apr 2001 00:49:30 -0300
+Date: Thu, 26 Apr 2001 00:49:30 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] refill_inactive balance + background aging
+Message-ID: <Pine.LNX.4.21.0104260036300.19012-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@conectiva.com.br>, Szabolcs Szakacsits <szaka@f-secure.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Tue, 24 Apr 2001, Linus Torvalds wrote:
+the following patch, against 2.4.4-pre7, does the following things:
 
-> Basically, I don't want to mix synchronous and asynchronous
-> interfaces. Everything should be asynchronous by default, and waiting
-> should be explicit.
+- fix the background aging to only work to _increase_ the
+  page aging information in the system ... if we have lots
+  of inactive pages we scan less ... if we have even more
+  inactive pages we stop with background scanning
 
-The following patch changes all swap IO functions to be asynchronous by
-default and changes the callers to wait when needed (except
-rw_swap_page_base which will block writers if there are too many in flight
-swap IOs). 
+- change refill_inactive_scan to take a count of the number
+  of pages to deactivate as an argument, this gets rid of
+  the somewhat cryptic "oneshot" argument and semantics
 
-Ingo's find_get_swapcache_page() does not wait on locked pages anymore,
-which is now up to the callers.
+- change the loop in refill_inactive to use this count
+  argument ... now we call swap_out and refill_inactive_scan
+  in the same way, which makes the balancing in refill_inactive
+  a LOT easier to understand
 
-time make -j32 test with 4 CPUs machine, 128M ram and 128M swap: 
+To illustrate this last point, previously refill_inactive_scan
+only had to find _1_ page that could be deactivated every time
+it was called in order to be called indefinately ... this can
+mean 1 page at the end of every scan, which in turn means that
+we'll scan all active pages pretty much in a loop without ever
+realising that we might want to try swap_out() and make a few
+little-used mapped pages freeable ...
 
-pre5
-----
-228.04user 28.14system 5:16.52elapsed 80%CPU (0avgtext+0avgdata
-0maxresident)k
-0inputs+0outputs (525113major+678617minor)pagefaults 0swaps
+Now both functions are called in the same way and it should be
+possible again to understand and tune the balancing in any way
+that makes sense.
 
-pre5 + attached patch 
---------------------
-227.18user 25.49system 3:40.53elapsed 114%CPU (0avgtext+0avgdata
-0maxresident)k
-0inputs+0outputs (495387major+644924minor)pagefaults 0swaps
+Please try this patch on your workload and tell me how it works
+for you, it is important to get this balancing part of the VM
+better ASAP...
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
 
-Comments? 
 
-
-diff -Nur linux.orig/include/linux/pagemap.h linux/include/linux/pagemap.h
---- linux.orig/include/linux/pagemap.h	Wed Apr 25 00:51:36 2001
-+++ linux/include/linux/pagemap.h	Wed Apr 25 00:53:04 2001
-@@ -77,7 +77,12 @@
- 				unsigned long index, struct page **hash);
- extern void lock_page(struct page *page);
- #define find_lock_page(mapping, index) \
--		__find_lock_page(mapping, index, page_hash(mapping, index))
-+	__find_lock_page(mapping, index, page_hash(mapping, index))
+--- linux-2.4.4-pre7/mm/vmscan.c.orig	Wed Apr 25 23:59:48 2001
++++ linux-2.4.4-pre7/mm/vmscan.c	Thu Apr 26 00:31:31 2001
+@@ -24,6 +24,8 @@
+ 
+ #include <asm/pgalloc.h>
+ 
++#define MAX(a,b) ((a) > (b) ? (a) : (b))
 +
-+extern struct page * __find_get_swapcache_page (struct address_space * mapping,
-+				unsigned long index, struct page **hash);
-+#define find_get_swapcache_page(mapping, index) \
-+	__find_get_swapcache_page(mapping, index, page_hash(mapping, index))
+ /*
+  * The swap-out function returns 1 if it successfully
+  * scanned all the pages it was asked to (`count').
+@@ -631,17 +633,45 @@
+ /**
+  * refill_inactive_scan - scan the active list and find pages to deactivate
+  * @priority: the priority at which to scan
+- * @oneshot: exit after deactivating one page
++ * @count: the number of pages to deactivate
+  *
+  * This function will scan a portion of the active list to find
+  * unused pages, those pages will then be moved to the inactive list.
+  */
+-int refill_inactive_scan(unsigned int priority, int oneshot)
++int refill_inactive_scan(unsigned int priority, int count)
+ {
+ 	struct list_head * page_lru;
+ 	struct page * page;
+-	int maxscan, page_active = 0;
+-	int ret = 0;
++	int maxscan = nr_active_pages >> priority;
++	int page_active = 0;
++
++	/*
++	 * If no count was specified, we do background page aging.
++	 * This is done so, after periods of little VM activity, we
++	 * know which pages to swap out and we can handle load spikes.
++	 * However, if we scan unlimited and deactivate all pages,
++	 * we still wouldn't know which pages to swap ...
++	 *
++	 * The obvious solution is to do less background scanning when
++	 * we have lots of inactive pages and to completely stop if we
++	 * have tons of them...
++	 */
++	if (!count) {
++		int nr_active, nr_inactive;
++		
++		/* Active pages can be "hidden" in ptes, take a saner number. */
++		nr_active = MAX(nr_active_pages, num_physpages / 2);
++		nr_inactive = nr_inactive_dirty_pages + nr_free_pages() +
++					nr_inactive_clean_pages();
++
++		if (nr_inactive * 10 < nr_active) {
++			maxscan = nr_active_pages >> 4;
++		} else if (nr_inactive * 3 < nr_active_pages) {
++			maxscan = nr_active >> 8;
++		} else {
++			maxscan = 0;
++		}
++	}
  
- extern void __add_page_to_hash_queue(struct page * page, struct page **p);
+ 	/* Take the lock while messing with the list... */
+ 	spin_lock(&pagemap_lru_lock);
+@@ -690,14 +720,13 @@
+ 			list_del(page_lru);
+ 			list_add(page_lru, &active_list);
+ 		} else {
+-			ret = 1;
+-			if (oneshot)
++			if (--count <= 0)
+ 				break;
+ 		}
+ 	}
+ 	spin_unlock(&pagemap_lru_lock);
  
-diff -Nur linux.orig/include/linux/swap.h linux/include/linux/swap.h
---- linux.orig/include/linux/swap.h	Wed Apr 25 00:51:36 2001
-+++ linux/include/linux/swap.h	Wed Apr 25 00:53:04 2001
-@@ -111,8 +111,8 @@
- extern int try_to_free_pages(unsigned int gfp_mask);
- 
- /* linux/mm/page_io.c */
--extern void rw_swap_page(int, struct page *, int);
--extern void rw_swap_page_nolock(int, swp_entry_t, char *, int);
-+extern void rw_swap_page(int, struct page *);
-+extern void rw_swap_page_nolock(int, swp_entry_t, char *);
- 
- /* linux/mm/page_alloc.c */
- 
-@@ -121,8 +121,7 @@
- extern void add_to_swap_cache(struct page *, swp_entry_t);
- extern int swap_check_entry(unsigned long);
- extern struct page * lookup_swap_cache(swp_entry_t);
--extern struct page * read_swap_cache_async(swp_entry_t, int);
--#define read_swap_cache(entry) read_swap_cache_async(entry, 1);
-+extern struct page * read_swap_cache_async(swp_entry_t);
- 
- /* linux/mm/oom_kill.c */
- extern int out_of_memory(void);
-diff -Nur linux.orig/mm/filemap.c linux/mm/filemap.c
---- linux.orig/mm/filemap.c	Wed Apr 25 00:51:35 2001
-+++ linux/mm/filemap.c	Wed Apr 25 00:53:04 2001
-@@ -678,6 +678,34 @@
+-	return ret;
++	return count;
  }
  
  /*
-+ * Find a swapcache page (and get a reference) or return NULL.
-+ * The SwapCache check is protected by the pagecache lock.
-+ */
-+struct page * __find_get_swapcache_page(struct address_space *mapping,
-+			      unsigned long offset, struct page **hash)
-+{
-+	struct page *page;
-+
-+	/*
-+	 * We need the LRU lock to protect against page_launder().
-+	 */
-+
-+	spin_lock(&pagecache_lock);
-+	page = __find_page_nolock(mapping, offset, *hash);
-+	if (page) {
-+		spin_lock(&pagemap_lru_lock);
-+		if (PageSwapCache(page)) 
-+			page_cache_get(page);
-+		else
-+			page = NULL;
-+		spin_unlock(&pagemap_lru_lock);
-+	}
-+	spin_unlock(&pagecache_lock);
-+
-+	return page;
-+}
-+
-+/*
-  * Same as the above, but lock the page too, verifying that
-  * it's still valid once we own it.
-  */
-diff -Nur linux.orig/mm/memory.c linux/mm/memory.c
---- linux.orig/mm/memory.c	Wed Apr 25 00:51:35 2001
-+++ linux/mm/memory.c	Wed Apr 25 00:53:04 2001
-@@ -1040,7 +1040,7 @@
- 			break;
+@@ -805,10 +834,9 @@
+ 			schedule();
  		}
- 		/* Ok, do the async read-ahead now */
--		new_page = read_swap_cache_async(SWP_ENTRY(SWP_TYPE(entry), offset), 0);
-+		new_page = read_swap_cache_async(SWP_ENTRY(SWP_TYPE(entry), offset));
- 		if (new_page != NULL)
- 			page_cache_release(new_page);
- 		swap_free(SWP_ENTRY(SWP_TYPE(entry), offset));
-@@ -1063,13 +1063,13 @@
- 	if (!page) {
- 		lock_kernel();
- 		swapin_readahead(entry);
--		page = read_swap_cache(entry);
-+		page = read_swap_cache_async(entry);
- 		unlock_kernel();
- 		if (!page) {
- 			spin_lock(&mm->page_table_lock);
- 			return -1;
- 		}
--
-+		wait_on_page(page);
- 		flush_page_to_ram(page);
- 		flush_icache_page(vma, page);
- 	}
-diff -Nur linux.orig/mm/page_io.c linux/mm/page_io.c
---- linux.orig/mm/page_io.c	Wed Apr 25 00:51:35 2001
-+++ linux/mm/page_io.c	Wed Apr 25 00:53:04 2001
-@@ -33,7 +33,7 @@
-  * that shared pages stay shared while being swapped.
-  */
  
--static int rw_swap_page_base(int rw, swp_entry_t entry, struct page *page, int wait)
-+static int rw_swap_page_base(int rw, swp_entry_t entry, struct page *page)
- {
- 	unsigned long offset;
- 	int zones[PAGE_SIZE/512];
-@@ -41,6 +41,7 @@
- 	kdev_t dev = 0;
- 	int block_size;
- 	struct inode *swapf = 0;
-+	int wait = 0;
- 
- 	/* Don't allow too many pending pages in flight.. */
- 	if ((rw == WRITE) && atomic_read(&nr_async_pages) >
-@@ -104,7 +105,7 @@
-  *  - it's marked as being swap-cache
-  *  - it's associated with the swap inode
-  */
--void rw_swap_page(int rw, struct page *page, int wait)
-+void rw_swap_page(int rw, struct page *page)
- {
- 	swp_entry_t entry;
- 
-@@ -116,7 +117,7 @@
- 		PAGE_BUG(page);
- 	if (page->mapping != &swapper_space)
- 		PAGE_BUG(page);
--	if (!rw_swap_page_base(rw, entry, page, wait))
-+	if (!rw_swap_page_base(rw, entry, page))
- 		UnlockPage(page);
- }
- 
-@@ -125,7 +126,7 @@
-  * Therefore we can't use it.  Later when we can remove the need for the
-  * lock map and we can reduce the number of functions exported.
-  */
--void rw_swap_page_nolock(int rw, swp_entry_t entry, char *buf, int wait)
-+void rw_swap_page_nolock(int rw, swp_entry_t entry, char *buf)
- {
- 	struct page *page = virt_to_page(buf);
- 	
-@@ -137,7 +138,8 @@
- 		PAGE_BUG(page);
- 	/* needs sync_page to wait I/O completation */
- 	page->mapping = &swapper_space;
--	if (!rw_swap_page_base(rw, entry, page, wait))
-+	if (!rw_swap_page_base(rw, entry, page))
- 		UnlockPage(page);
-+	wait_on_page(page);
- 	page->mapping = NULL;
- }
-diff -Nur linux.orig/mm/shmem.c linux/mm/shmem.c
---- linux.orig/mm/shmem.c	Wed Apr 25 00:51:35 2001
-+++ linux/mm/shmem.c	Wed Apr 25 00:53:04 2001
-@@ -124,6 +124,7 @@
- 		*ptr = (swp_entry_t){0};
- 		freed++;
- 		if ((page = lookup_swap_cache(entry)) != NULL) {
-+			wait_on_page(page);
- 			delete_from_swap_cache(page);
- 			page_cache_release(page);	
- 		}
-@@ -329,10 +330,11 @@
- 			spin_unlock (&info->lock);
- 			lock_kernel();
- 			swapin_readahead(*entry);
--			page = read_swap_cache(*entry);
-+			page = read_swap_cache_async(*entry);
- 			unlock_kernel();
- 			if (!page) 
- 				return ERR_PTR(-ENOMEM);
-+			wait_on_page(page);
- 			if (!Page_Uptodate(page)) {
- 				page_cache_release(page);
- 				return ERR_PTR(-EIO);
-diff -Nur linux.orig/mm/swap_state.c linux/mm/swap_state.c
---- linux.orig/mm/swap_state.c	Wed Apr 25 00:51:35 2001
-+++ linux/mm/swap_state.c	Wed Apr 25 00:53:04 2001
-@@ -34,7 +34,7 @@
- 	return 0;
- 
- in_use:
--	rw_swap_page(WRITE, page, 0);
-+	rw_swap_page(WRITE, page);
- 	return 0;
- }
- 
-@@ -163,37 +163,18 @@
- 		/*
- 		 * Right now the pagecache is 32-bit only.  But it's a 32 bit index. =)
- 		 */
--repeat:
--		found = find_lock_page(&swapper_space, entry.val);
-+		found = find_get_swapcache_page(&swapper_space, entry.val);
- 		if (!found)
- 			return 0;
--		/*
--		 * Though the "found" page was in the swap cache an instant
--		 * earlier, it might have been removed by refill_inactive etc.
--		 * Re search ... Since find_lock_page grabs a reference on
--		 * the page, it can not be reused for anything else, namely
--		 * it can not be associated with another swaphandle, so it
--		 * is enough to check whether the page is still in the scache.
--		 */
--		if (!PageSwapCache(found)) {
--			UnlockPage(found);
--			page_cache_release(found);
--			goto repeat;
+-		while (refill_inactive_scan(DEF_PRIORITY, 1)) {
+-			if (--count <= 0)
+-				goto done;
 -		}
-+		if (!PageSwapCache(found))
-+			BUG();
- 		if (found->mapping != &swapper_space)
--			goto out_bad;
-+			BUG();
- #ifdef SWAP_CACHE_INFO
- 		swap_cache_find_success++;
- #endif
--		UnlockPage(found);
- 		return found;
- 	}
--
--out_bad:
--	printk (KERN_ERR "VM: Found a non-swapper swap page!\n");
--	UnlockPage(found);
--	page_cache_release(found);
--	return 0;
- }
++		count -= refill_inactive_scan(DEF_PRIORITY, count);
++		if (--count <= 0)
++			goto done;
  
- /* 
-@@ -205,7 +186,7 @@
-  * the swap entry is no longer in use.
-  */
- 
--struct page * read_swap_cache_async(swp_entry_t entry, int wait)
-+struct page * read_swap_cache_async(swp_entry_t entry)
- {
- 	struct page *found_page = 0, *new_page;
- 	unsigned long new_page_addr;
-@@ -238,7 +219,7 @@
- 	 */
- 	lock_page(new_page);
- 	add_to_swap_cache(new_page, entry);
--	rw_swap_page(READ, new_page, wait);
-+	rw_swap_page(READ, new_page);
- 	return new_page;
- 
- out_free_page:
-diff -Nur linux.orig/mm/swapfile.c linux/mm/swapfile.c
---- linux.orig/mm/swapfile.c	Wed Apr 25 00:51:35 2001
-+++ linux/mm/swapfile.c	Wed Apr 25 00:53:24 2001
-@@ -369,13 +369,15 @@
- 		/* Get a page for the entry, using the existing swap
-                    cache page if there is one.  Otherwise, get a clean
-                    page and read the swap into it. */
--		page = read_swap_cache(entry);
-+		page = read_swap_cache_async(entry);
- 		if (!page) {
- 			swap_free(entry);
-   			return -ENOMEM;
- 		}
-+		lock_page(page);
- 		if (PageSwapCache(page))
--			delete_from_swap_cache(page);
-+			delete_from_swap_cache_nolock(page);
-+		UnlockPage(page);
- 		read_lock(&tasklist_lock);
- 		for_each_task(p)
- 			unuse_process(p->mm, entry, page);
-@@ -650,7 +652,7 @@
- 	}
- 
- 	lock_page(virt_to_page(swap_header));
--	rw_swap_page_nolock(READ, SWP_ENTRY(type,0), (char *) swap_header, 1);
-+	rw_swap_page_nolock(READ, SWP_ENTRY(type,0), (char *) swap_header);
- 
- 	if (!memcmp("SWAP-SPACE",swap_header->magic.magic,10))
- 		swap_header_version = 1;
+ 		/* If refill_inactive_scan failed, try to page stuff out.. */
+ 		swap_out(DEF_PRIORITY, gfp_mask);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
