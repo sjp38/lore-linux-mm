@@ -1,50 +1,54 @@
-Date: Mon, 25 Mar 2002 19:43:18 +0100
-From: Christoph Hellwig <hch@caldera.de>
+Date: Mon, 25 Mar 2002 16:05:51 -0600
+From: Art Haas <ahaas@neosoft.com>
 Subject: Re: [PATCH] latest radix-tree pagecache patch and 2.4.19-pre3-ac6
-Message-ID: <20020325194317.A31878@caldera.de>
-References: <20020325114947.A606@debian>
+Message-ID: <20020325160551.B1424@debian>
+References: <20020325114947.A606@debian> <20020325194317.A31878@caldera.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20020325114947.A606@debian>; from ahaas@neosoft.com on Mon, Mar 25, 2002 at 11:49:47AM -0600
+In-Reply-To: <20020325194317.A31878@caldera.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Art Haas <ahaas@neosoft.com>
+To: Christoph Hellwig <hch@caldera.de>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Mar 25, 2002 at 11:49:47AM -0600, Art Haas wrote:
-> Hi.
+On Mon, Mar 25, 2002 at 07:43:18PM +0100, Christoph Hellwig wrote:
+>
+> [ ... my comments ... ]
 > 
-> The original radix-tree patch applies fairly cleanly to the
-> -ac6 tree, but there are a few files that need touching up. The
-> mm/vmscan.c, mm/filemap.c, and mm/shmem.c files needed the
-> most attention. For vmscan.c, a couple of pieces in the original
-> patch were dropped, as it looks like they'll only apply (or
-> make sense) with the non-rmap code. As for filemap.c, a few
-> changes seemed to conflict with the rmap code, so my efforts
-> to make a compilable file may have broken the code. But hey,
-> I got a `.o' file from the compiler, so it must work, right? :-)
+> I think I have found at least once obvious bug:
+> 
+>  a) this cannot actually compile, pagecache_lock is gone..
+>  b) find_get_page already does locking internally AND also
+>     grabs a reference to the page.
+> 
+> This should probably be just a radix_tree_lookup()
+> 
+> @@ -1064,7 +999,7 @@
+>  	spin_lock(&pagemap_lru_lock);
+>  	while (--index >= start) {
+>  		spin_lock(&pagecache_lock);
+> -		page = __find_page(mapping, index);
+> +		page = find_get_page(mapping, index);
+>  		spin_unlock(&pagecache_lock);
+>  		if (!page || !PageActive(page))
+>  			break;
+> 
 
-I think I have found at least once obvious bug:
+The file does compile, and my kernel running now does have
+the changes I've made. I must be picking up the variable
+from somewhere else, and I can't say where that is right
+now. Hmmmm ....
 
- a) this cannot actually compile, pagecache_lock is gone..
- b) find_get_page already does locking internally AND also
-    grabs a reference to the page.
+Thanks for looking over the patch. I'll make the change
+and try things out. Thanks again for working on the radix-tree
+patches!
 
-This should probably be just a radix_tree_lookup()
-
-@@ -1064,7 +999,7 @@
- 	spin_lock(&pagemap_lru_lock);
- 	while (--index >= start) {
- 		spin_lock(&pagecache_lock);
--		page = __find_page(mapping, index);
-+		page = find_get_page(mapping, index);
- 		spin_unlock(&pagecache_lock);
- 		if (!page || !PageActive(page))
- 			break;
-
-
+-- 
+They that can give up essential liberty to obtain a little temporary
+safety deserve neither liberty nor safety.
+ -- Benjamin Franklin, Historical Review of Pennsylvania, 1759
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
