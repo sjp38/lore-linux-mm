@@ -1,23 +1,38 @@
-Subject: Re: [RFC] buddy allocator without bitmap [4/4]
+Subject: Re: [RFC] buddy allocator without bitmap [3/4]
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <412DD452.1090703@jp.fujitsu.com>
-References: <412DD452.1090703@jp.fujitsu.com>
+In-Reply-To: <412DD34A.70802@jp.fujitsu.com>
+References: <412DD34A.70802@jp.fujitsu.com>
 Content-Type: text/plain
-Message-Id: <1093535690.2984.22.camel@nighthawk>
+Message-Id: <1093535709.2984.24.camel@nighthawk>
 Mime-Version: 1.0
-Date: Thu, 26 Aug 2004 08:54:50 -0700
+Date: Thu, 26 Aug 2004 08:55:09 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, lhms <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, William Lee Irwin III <wli@holomorphy.com>
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-08-26 at 05:15, Hiroyuki KAMEZAWA wrote:
-> This patch 5th inserts prefetch().
-> I think These prefetch are reasonable and helpful.
+> +                       if (zone->nr_mem_map > 1) {
+> +                               /*
+> +                                * there may be hole in zone's memmap &&
+> +                                * hole is not aligned in this order.
+> +                                * currently, I think CONFIG_VIRTUAL_MEM_MAP
+> +                                * case is only case to reach here.
+> +                                * Is there any other case ?
+> +                                */
+> +                               /*
+> +                                * Is there better call than pfn_valid ?
+> +                                */
+> +                               if (!pfn_valid(zone->zone_start_pfn
+> +                                              + (page_idx ^ (1 << order))))
+> +                                       break;
+> +                       }
 
-Do you have any benchmark numbers to show it?
+Nice try.  How about putting the ia64 code in a macro or header function
+that you can #ifdef out on all the other architectures?  We used to be
+able to see that entire while loop on one screen.  That's a bit harder
+now.  
 
 -- Dave
 
