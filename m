@@ -1,36 +1,71 @@
-Message-ID: <3DA30668.1010807@us.ibm.com>
-Date: Tue, 08 Oct 2002 09:23:04 -0700
-From: Dave Hansen <haveblue@us.ibm.com>
+Message-ID: <7FAAE4DE7248554ABD8C69DD4A18289B80305A@srnamath>
+From: "swayampakulaa, sudhindra" <swayampakulaa_sudhindra@emc.com>
+Subject: mmap enrty point in a driver
+Date: Tue, 8 Oct 2002 12:27:21 -0400 
 MIME-Version: 1.0
-Subject: Re: 2.5.40-mm2
-References: <Pine.LNX.4.44.0210081303090.29540-100000@localhost.localdomain>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> On Sun, 6 Oct 2002, Dave Hansen wrote:
-> 
->>cc'ing Ingo, because I think this might be related to the timer bh
->>removal.
-> 
-> could you try the attached patch against 2.5.41, does it help? It fixes
-> the bugs found so far plus makes del_timer_sync() a bit more robust by
-> re-checking timer pending-ness before exiting. There is one type of code
-> that might have relied on this kind of behavior of the old timer code.
+Iam trying to understand the mmap entry point for a driver.
+This is how the mmap() is implemented 
 
-Well, I gave it a shot.  I haven't seen any more of the __run_timers 
-oopses yet, but I haven't been able to stay up for very long before it 
-freezes, so time will tell.  But, for now,  I'm pretty sure that it is 
-quite a bit better.
 
--- 
-Dave Hansen
-haveblue@us.ibm.com
+himem_buf_allocated = 0;
+
+int xxx_mmap(struct file *filp,
+		  struct vm_area_struct *vma)
+{
+  unsigned long size;
+  char * virt_addr;
+  int		index;
+
+  size = vma->vm_end - vma->vm_start;
+  if ((size % PAGE_SIZE) != 0){
+    size = (size / PAGE_SIZE) * PAGE_SIZE + PAGE_SIZE;
+  }
+
+  /* himem_buf_size is 0x80000000 */
+  if (size + himem_buf_allocated >= himem_buf_size){
+    
+    return -ENOMEM;
+  }
+  
+  /* himem_buf is calculated as high_memory - PAGE_OFFSET */
+  umem_addr = himem_buf + himem_buf_allocated;
+  if (umem_addr == 0){
+    return -ENOMEM;
+  }
+  himem_buf_allocated += size;
+  
+
+  virt_addr = ioremap((unsigned long)umem_addr, PAGE_SIZE);  
+  if (virt_addr == 0){
+    return -ENOMEM;
+  }
+  /* write the index into the first 4 bytes */
+  writel(index, (uint32_t *)virt_addr);
+
+    /* the values of index and *(virt_addr) do not match */
+    /*                      *(virt_addr) is always -1                */
+    /* Is something wrong here                                   */
+    dbg_printf(0,"index is %d, *(virt_addr) is %d\n", index,
+(int)readl(virt_addr));
+  iounmap(virt_addr);
+
+   
+
+  remap_page_range(vma->vm_start, (ulong)umem_addr, 
+		   vma->vm_end - vma->vm_start, vma->vm_page_prot);
+
+  return 0;
+}
+
+Can you help me in understanding what exactly is the mmap() doing here and
+if its doing it right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
