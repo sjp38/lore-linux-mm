@@ -1,183 +1,160 @@
-Date: Mon, 20 Mar 2000 14:09:26 -0500 (EST)
-From: Chuck Lever <cel@monkey.org>
-Subject: Re: MADV_SPACEAVAIL and MADV_FREE in pre2-3
-In-Reply-To: <20000320135939.A3390@pcep-jamie.cern.ch>
-Message-ID: <Pine.BSO.4.10.10003201318050.23474-100000@funky.monkey.org>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <200003202029.MAA75378@google.engr.sgi.com>
+Subject: Re: More VM balancing issues..
+Date: Mon, 20 Mar 2000 12:29:17 -0800 (PST)
+In-Reply-To: <Pine.LNX.4.10.10003171847170.831-100000@penguin.transmeta.com> from "Linus Torvalds" at Mar 17, 2000 06:59:19 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, Christopher Zimmerman <zim@av.com>, Stephen Tweedie <sct@redhat.com>, Kanoj Sarcar <kanoj@google.engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-jamie-
+Okay, here it comes, you asked for it ... You know most of it anyway, 
+but seeing it all together might help.
 
-i've moved this discussion to linux-mm where we were just discussing the
-madvise() implementation.
+1. In a theoretical sense, there are _only_ memory classes. DMA class 
+memory, direct mapped class memory and the rest. Code will ask for a 
+dma, regular or other class memory (proactive balancing is needed for 
+intr context allocations or otherwise when page stealing is impossible
+or deadlock prone). Hence, theoretically, it makes sense to decide
+how many pages in each memory _class_ we want to keep free for such
+requests (based on application type, #cpu, memory, devices and fs
+activity). Decisions on when pages need to be stolen should really be
+_class_ based.
 
-On Mon, 20 Mar 2000, Jamie Lokier wrote:
-> Chuck Lever wrote:
-> > > Besides, MADV_FREE would be quite useful.  MADV_DONTNEED doesn't do the
-> > > right thing for free(3) and similar things.
+2. Linux uses zones to implement memory classes. The DMA zone represents
+DMA class, the DMA+regular zone represents regular class, and the
+DMA+regular+himem zone represents other class. Theoretically, that is
+why decisions on page stealing need to be cumulative on the zones.
+(This explains why I did most of the code that way).
 
-ok, i don't understand why you think this.  and besides, free(3) doesn't
-shrink the heap currently, i believe.  this would work if free(3) used
-sbrk() to shrink the heap in an intelligent fashion, freeing kernel VM
-resources along the way.  if you want something to help free(3), i would
-favor this design instead.
+3. Implementation can of course diverge from theory (like using NRU 
+in place of LRU). In Documentation/vm/balance, I have tried laying
+down the pros and cons of local vs cumulative balancing:
 
-> No idea.  Didn't you see my message about the collected meanings of
-> different MADV_ flags on different systems?
+"In 2.3, zone balancing can be done in one of two ways: depending on the
+zone size (and possibly of the size of lower class zones), we can decide
+at init time how many free pages we should aim for while balancing any
+zone. The good part is, while balancing, we do not need to look at sizes
+of lower class zones, the bad part is, we might do too frequent balancing
+due to ignoring possibly lower usage in the lower class zones. Also,
+with a slight change in the allocation routine, it is possible to reduce
+the memclass() macro to be a simple equality.
 
-yes, i saw it, but perhaps didn't understand it completely.
+Another possible solution is that we balance only when the free memory
+of a zone _and_ all its lower class zones falls below 1/64th of the
+total memory in the zone and its lower class zones. This fixes the 2.2
+balancing problem, and stays as close to 2.2 behavior as possible. Also,
+the balancing algorithm works the same way on the various architectures,
+which have different numbers and types of zones. If we wanted to get
+fancy, we could assign different weights to free pages in different
+zones in the future."
 
-> In particular, using the name MADV_DONTNEED is a really bad idea.  It
-> means completely different things on different OSes.  For example your
-> meaning of MADV_DONTNEED is different to BSD's: a program that assumes
-> the BSD behaviour may well crash with your implementation and will
-> almost certainly give invalid results if it doesn't crash.
+4. In 2.3.50 and pre1, zone_balance_ratio[] is the ratio of each _class_
+of memory that you want free, which is intuitive.
 
-i'm more concerned about portability from operating systems like Solaris,
-because there are many more server applications there than on *BSD that
-have been designed to use these interfaces.  i'm not saying the *BSD way
-is wrong, but i think it would be a more useful compromise to make *BSD
-functionality available via some other interface (like MADV_ZERO).
+5. For true NUMA machines, there will be memory nodes, and each node
+will possibly have dma/regular/himem zones. For memory-hole architectures,
+ie DISCONTIG machines, there will again be nodes, but there will be a
+lot of nodes with only one class of memory (don't know yet, there are 
+not too many people working on this).
 
-> [Aside: is there the possibility to have mincore return the "!accessed"
-> and "!dirty" bits of each page, perhaps as bits 1 and 2 of the returned
-> bytes?  I can imagine a bunch of garbage collection algorithms that
-> could make good use of those bits.  Currently some GC systems mprotect()
-> regions and unprotect them on SEGV -- simply reading the !dirty status
-> would obviously be much simpler and faster.]
 
-you could add that; the question is how to do it while not breaking
-applications that do this:
+Coming specifically to the 2.3.99-pre2 code, I see a couple of bugs:
+1. __alloc_pages needs to return NULL instead of doing zone_balance_memory
+for the PF_MEMALLOC case.
 
-if (!byte) {
-   page not present
-}
+	if (!(current->flags & PF_MEMALLOC))
+               	return(NULL);
+        if (zone_balance_memory(zonelist)) {
 
-rather than checking the LSB specifically.  i think using "dirty" instead
-of "!dirty" would help.  the "accessed" bit is only used by the
-shrink_mmap logic to "time out" a page as memory gets short; i'm not sure
-that's a semantic that is useful to a user-level garbarge collector?  and
-it probably isn't very portable.
+2. The body of zone_balance_memory() should be replaced with the pre1
+code, otherwise there are too many differences/problems to enumerate. 
+Unless you are also proposing changes in this area.
 
-[ jamie's earlier summary included below for context, with commentary ]
+I attach a patch against 2.3.99-pre2 to fix these.
 
-> 1. A hint to the VM system: I've finished using this data.  If it's
->    modified, you can write it back right away.  If not, you can discard
->    it.  FreeBSD's MADV_DONTNEED does this, but DU's doesn't.
-> 
-> FreeBSD:
-> >  MADV_DONTNEED    Allows the VM system to decrease the in-memory priority
-> >                   of pages in the specified range.  Additionally future
-> >                   references to this address range will incur a page
-> >                   fault.
-> 
->    To avoid ambiguity, perhaps we could call this one MADV_DONE?
-> 
->    In BSD compatibility mode, Glibc would define MADV_DONTNEED to be
->    MADV_DONE.  In standard mode it would not define MADV_DONTNEED at all.
+The other issues are:
+1. In the face of races, you probably want to do a loopback in __alloc_pages
+after the zone_balance_memory() returns success. Something like
+	if (zone_balance_memory(zonelist)) {
+		if (retry)
+			return(NULL);
+		retry++;
+		goto tryagain;
+	}
 
-my preference is for the DU semantic of tossing dirty data instead of
-flushing onto backing store, simply because that's what so many
-applications expect DONTNEED to do.
+2. Due to purely zone-local computation, the pre2 version will more easily
+fall back to lower zones while allocating memory (when it is not neccessary). 
+Specially interesting will be cases where the regular zone is much smaller 
+than the dma zone, or the himem zone is tiny compared to the regular zone. 
+So, gone will be the protection that dma and regular zones enjoyed in 
+older versions. 
 
-as far as i can tell, linux's msync(MS_INVALIDATE) behaves like freeBSD's
-MADV_DONTNEED.
+Kanoj
 
-> 2. Zeroing a range in a private map.  DU's MADV_DONTNEED does this --
->    that's my reading of the man page.
-> 
-> Digital Unix: (?yes)
-> >   MADV_DONTNEED   Do not need these pages
-> >                   The system will free any whole pages in the specified
-> >                   region.  All modifications will be lost and any swapped
-> >                   out pages will be discarded.  Subsequent access to the
-> >                   region will result in a zero-fill-on-demand fault as
-> >                   though it is being accessed for the first time.
-> >                   Reserved swap space is not affected by this call.
-> 
->    For Linux, simply read /dev/zero into the selected range.  The kernel
->    already optimises this case for anonymous mappings.
-> 
->    If doing it in general turns out to be too hard to implement, I
->    propose MADV_ZERO should have this effect: exactly like reading
->    /dev/zero into the range, but always efficient.
 
-linux's MADV_DONTNEED currently doesn't clear the MADV_DONTNEED area.  but
-it would be easy to add, perhaps as a separate MADV_ZERO as you describe
-below.
-
-> 3. Zeroing a range in a shared map.
-> 
->    I have no idea if DU's MADV_DONTNEED has this effect, or whether it
->    only has this effect on shared anonymous mappings.
-> 
->    In any case, reading /dev/zero into the range will always have the
->    desired effect, and Stephen's work will eventually make this
->    efficient on Linux.
-> 
->    Again, if the kiobuf work doesn't have the desired effect, I propose
->    MADV_ZERO should be exactly like reading /dev/zero into the range,
->    and efficiently if the underlying mapped object can do so
->    efficiently.
-
-MADV_ZERO makes sense to me as an efficient way to zero a range of
-addresses in a mapping.  but i think it's useful as a *separate* function,
-not as combined with, say, MADV_DONTNEED.
-
-> 4. Deferred freeing of pages.  FreeBSD's MADV_FREE does this, according
->    to the posted manual snippet.  I like this very much -- it is perfect
->    for a wide variety of memory allocators.
-> 
-> FreeBSD:
-> >  MADV_FREE        Gives the VM system the freedom to free pages, and tells
-> >                   the system that information in the specified page range
-> >                   is no longer important.  This is an efficient way of al-
-> >                   lowing malloc(3) to free pages anywhere in the address
-> >                   space, while keeping the address space valid.  The next
-> >                   time that the page is referenced, the page might be de-
-> >                   mand zeroed, or might contain the data that was there
-> >                   before the MADV_FREE call.  References made to that ad-
-> >                   dress space range will not make the VM system page the
-> >                   information back in from backing store until the page is
-> >                   modified again.
-> 
->    I like this so much I started coding it a long time ago, as an
->    mdiscard syscall.  But then I got onto something else.
-> 
->    The principle here is very simple: MADV_FREE marks all the pages in
->    the region as "discardable", and clears the accessed and dirty bits
->    of those pages.
-> 
->    Later when the kernel needs to free some memory, it is permitted to
->    free "discardable" pages immediately provided they are still not
->    accessed or dirty.  When vmscan is clearing the accessed and dirty
->    bits on pages, if they were set it must clear the " discardable" bit.
-> 
->    This allows malloc() and other user space allocators to free pages
->    back to the system.  Unlike DU's MADV_DONTNEED, or mmapping
->    /dev/zero, if the system does not need the page there is no
->    inefficient zero-copy.  If there was, malloc() would be better off
->    not bothering to return the pages.
-
-unless i've completely misunderstood what you are proposing, this is what
-MADV_DONTNEED does today, except it doesn't schedule the "freed" pages for
-disposal ahead of other pages in the system.  but that should be easy
-enough to add once the semantics are nailed down and the bugs have been
-eliminated.
-
-	- Chuck Lever
---
-corporate:	<chuckl@netscape.com>
-personal:	<chucklever@netscape.net> or <cel@monkey.org>
-
-The Linux Scalability project:
-	http://www.citi.umich.edu/projects/linux-scalability/
-
+--- mm/page_alloc.c	Mon Mar 20 09:38:48 2000
++++ mm/page_alloc.c	Mon Mar 20 11:48:02 2000
+@@ -152,10 +152,10 @@
+ 
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ 
+-	if (zone->free_pages > zone->pages_high) {
++	if (zone->free_pages > zone->pages_low)
+ 		zone->zone_wake_kswapd = 0;
++	if (zone->free_pages > zone->pages_high)
+ 		zone->low_on_memory = 0;
+-	}
+ }
+ 
+ #define MARK_USED(index, order, area) \
+@@ -233,21 +233,22 @@
+ 	zone = zonelist->zones;
+ 	for (;;) {
+ 		zone_t *z = *(zone++);
++		unsigned long free;
+ 		if (!z)
+ 			break;
+-		if (z->free_pages > z->pages_low)
+-			continue;
+-
+-		z->zone_wake_kswapd = 1;
+-		wake_up_interruptible(&kswapd_wait);
++		free = z->free_pages;
++		if (free <= z->pages_high) {
++			if (free <= z->pages_low) {
++				z->zone_wake_kswapd = 1;
++				wake_up_interruptible(&kswapd_wait);
++			}
++			if (free <= z->pages_min)
++				z->low_on_memory = 1;
++		}
+ 
+ 		/* Are we reaching the critical stage? */
+-		if (!z->low_on_memory) {
+-			/* Not yet critical, so let kswapd handle it.. */
+-			if (z->free_pages > z->pages_min)
+-				continue;
+-			z->low_on_memory = 1;
+-		}
++		if (!z->low_on_memory)
++			continue;
+ 		/*
+ 		 * In the atomic allocation case we only 'kick' the
+ 		 * state machine, but do not try to free pages
+@@ -307,6 +308,8 @@
+ 				return page;
+ 		}
+ 	}
++	if (!(current->flags & PF_MEMALLOC))
++		return(NULL);
+ 	if (zone_balance_memory(zonelist)) {
+ 		zone = zonelist->zones;
+ 		for (;;) {
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
