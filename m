@@ -1,133 +1,48 @@
-Date: Wed, 13 Oct 2004 08:14:35 -0700 (PDT)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: NUMA: Patch for node based swapping V2
-In-Reply-To: <416D0AA4.30701@yahoo.com.au>
-Message-ID: <Pine.LNX.4.58.0410130812560.9057@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.44.0410121151220.13693-100000@chimarrao.boston.redhat.com>
- <Pine.LNX.4.58.0410121319510.5785@schroedinger.engr.sgi.com>
- <416D0AA4.30701@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 14 Oct 2004 10:53:00 +1000
+From: Nathan Scott <nathans@sgi.com>
+Subject: Re: Page cache write performance issue
+Message-ID: <20041014005300.GA716@frodo>
+References: <20041013054452.GB1618@frodo> <20041012231945.2aff9a00.akpm@osdl.org> <20041013063955.GA2079@frodo> <20041013000206.680132ad.akpm@osdl.org> <20041013172352.B4917536@wobbly.melbourne.sgi.com> <416CE423.3000607@cyberone.com.au> <20041013013941.49693816.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: 8BIT
+In-Reply-To: <20041013013941.49693816.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: nickpiggin@yahoo.com.au, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-This was discussed yesterday on linux-mm.
+On Wed, Oct 13, 2004 at 01:39:41AM -0700, Andrew Morton wrote:
+> Nick Piggin <piggin@cyberone.com.au> wrote:
+> >
+> >  Andrew probably has better ideas.
+> 
+> uh, is this an ia32 highmem box?
 
-Changelog:
-	* NUMA: Add ability to invoke kswapd on a node if local memory falls below a
-	  certain threshold. A node may fill up its memory by simply copying a file
-	  which will fill up the nodes memory with cached pages. The nodes memory will
-	  currently only be reclaimed if all nodes in the system fall below a certain
-	  threshhold. Until that time the processes on the node will only be allocated
-	  off node memory. Invoking kswapd on a node fixes this situation until
-	  a better solution can be found.
-	* Threshold may be set in /proc/sys/vm/node_swap in percent * 10. The threshold
-	  is set to zero by default which means that node swapping is off.
+Yep, it is.
 
-Index: linux-2.6.9-rc4/mm/page_alloc.c
-===================================================================
---- linux-2.6.9-rc4.orig/mm/page_alloc.c	2004-10-10 19:57:03.000000000 -0700
-+++ linux-2.6.9-rc4/mm/page_alloc.c	2004-10-13 07:58:57.000000000 -0700
-@@ -41,6 +41,19 @@
- long nr_swap_pages;
- int numnodes = 1;
- int sysctl_lower_zone_protection = 0;
-+#ifdef CONFIG_NUMA
-+/*
-+ * sysctl_node_swap is a percentage of the pages available
-+ * in a zone multiplied by 10. If the available pages
-+ * in a zone drop below this limit then kswapd is invoked
-+ * for this zone alone. This results in the reclaiming
-+ * of local memory. Local memory may be filled up by simply reading
-+ * a file. If local memory is not available the off node memory
-+ * will be allocated to a process which makes all memory access
-+ * less efficient then they could be.
-+ */
-+int sysctl_node_swap = 0;
-+#endif
+> If so, you've hit the VM sour spot.
+> ...
+> Basically, *any* other config is fine.  896MB and below, 1.5GB and above.
 
- EXPORT_SYMBOL(totalram_pages);
- EXPORT_SYMBOL(nr_swap_pages);
-@@ -483,6 +496,14 @@
- 	p = &z->pageset[cpu];
- 	if (pg == orig) {
- 		z->pageset[cpu].numa_hit++;
-+		/*
-+		 * If zone allocation has left less than
-+		 * (sysctl_node_swap / 10) %  of the zone free invoke kswapd.
-+		 * (the page limit is obtained through (pages*limit)/1024 to
-+		 * make the calculation more efficient)
-+		 */
-+		if (z->free_pages < (z->present_pages * sysctl_node_swap) << 10)
-+			wakeup_kswapd(z);
- 	} else {
- 		p->numa_miss++;
- 		zonelist->zones[0]->pageset[cpu].numa_foreign++;
-Index: linux-2.6.9-rc4/kernel/sysctl.c
-===================================================================
---- linux-2.6.9-rc4.orig/kernel/sysctl.c	2004-10-10 19:57:03.000000000 -0700
-+++ linux-2.6.9-rc4/kernel/sysctl.c	2004-10-11 12:54:51.000000000 -0700
-@@ -65,6 +65,9 @@
- extern int min_free_kbytes;
- extern int printk_ratelimit_jiffies;
- extern int printk_ratelimit_burst;
-+#ifdef CONFIG_NUMA
-+extern int sysctl_node_swap;
-+#endif
+I just tried switching CONFIG_HIGHMEM off, and so running the
+machine with 512MB; then adjusted the test to write 256M into
+the page cache, again in 1K sequential chunks.  A similar mis-
+behaviour happens, though the numbers are slightly better (up
+from ~4 to ~6.5MB/sec).  Both ext2 and xfs see this.  When I
+drop the file size down to 128M with this kernel, I see good
+results again (as we'd expect).
 
- #if defined(CONFIG_X86_LOCAL_APIC) && defined(__i386__)
- int unknown_nmi_panic;
-@@ -800,7 +803,17 @@
- 		.extra1		= &zero,
- 	},
- #endif
--	{ .ctl_name = 0 }
-+#ifdef CONFIG_NUMA
-+	{
-+		.ctl_name	= VM_NODE_SWAP,
-+		.procname	= "node_swap",
-+		.data		= &sysctl_node_swap,
-+		.maxlen		= sizeof(sysctl_node_swap),
-+		.mode		= 0644,
-+		.proc_handler	= &proc_dointvec
-+	},
-+#endif
-+		{ .ctl_name = 0 }
- };
+I'm being pulled onto other issues atm, but in the background
+I could try reverting specific changesets if you guys can
+suggest anything in particular that might be triggering this?
 
- static ctl_table proc_table[] = {
-Index: linux-2.6.9-rc4/include/linux/sysctl.h
-===================================================================
---- linux-2.6.9-rc4.orig/include/linux/sysctl.h	2004-10-10 19:58:05.000000000 -0700
-+++ linux-2.6.9-rc4/include/linux/sysctl.h	2004-10-11 12:54:51.000000000 -0700
-@@ -167,6 +167,7 @@
- 	VM_HUGETLB_GROUP=25,	/* permitted hugetlb group */
- 	VM_VFS_CACHE_PRESSURE=26, /* dcache/icache reclaim pressure */
- 	VM_LEGACY_VA_LAYOUT=27, /* legacy/compatibility virtual address space layout */
-+	VM_NODE_SWAP=28,	/* Swap local node memory limit (in % *10) */
- };
+thanks!
 
-
-Index: linux-2.6.9-rc4/mm/vmscan.c
-===================================================================
---- linux-2.6.9-rc4.orig/mm/vmscan.c	2004-10-10 19:57:04.000000000 -0700
-+++ linux-2.6.9-rc4/mm/vmscan.c	2004-10-11 12:54:51.000000000 -0700
-@@ -1168,9 +1168,11 @@
-  */
- void wakeup_kswapd(struct zone *zone)
- {
-+	extern int sysctl_node_swap;
-+
- 	if (zone->present_pages == 0)
- 		return;
--	if (zone->free_pages > zone->pages_low)
-+	if (zone->free_pages > (zone->present_pages * sysctl_node_swap) << 10 && zone->free_pages > zone->pages_low)
- 		return;
- 	if (!waitqueue_active(&zone->zone_pgdat->kswapd_wait))
- 		return;
+-- 
+Nathan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
