@@ -1,38 +1,45 @@
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 1EBF338CBF
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2001 12:39:31 -0300 (EST)
+Date: Wed, 21 Nov 2001 13:39:18 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: 2.4.14 + Bug in swap_out.
-References: <Pine.LNX.4.33L.0111211219420.1491-100000@duckman.distro.conectiva>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 21 Nov 2001 07:21:45 -0700
-In-Reply-To: <Pine.LNX.4.33L.0111211219420.1491-100000@duckman.distro.conectiva>
-Message-ID: <m1d72c19xi.fsf@frodo.biederman.org>
+In-Reply-To: <Pine.LNX.4.21.0111211515210.1357-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.33L.0111211338330.1491-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
+On Wed, 21 Nov 2001, Hugh Dickins wrote:
 
-> On 21 Nov 2001, Eric W. Biederman wrote:
-> 
-> > We only hold a ref count for the duration of swap_out_mm.
-> > Not for the duration of the value in swap_mm.
-> 
-> In that case, why can't we just take the next mm from
-> init_mm and just "roll over" our mm to the back of the
-> list once we're done with it ?
+> > In that case, why can't we just take the next mm from
+> > init_mm and just "roll over" our mm to the back of the
+> > list once we're done with it ?
+>
+> No.  That's how it used to be, that's what I changed it from.
+>
+> fork and exec are well ordered in how they add to the mmlist,
+> and that ordering (children after parent) suited swapoff nicely,
+> to minimize duplication of a swapent while it's being unused;
+> except swap_out randomized the order by cycling init_mm around it.
 
-Sounds good to me.  Unless we have another user for that list.
- 
-> Removing magic is good ;)
+Urmmm, so the code was obfuscated in order to optimise
+swapoff() ?
 
-Definitely.  Things that are locally correct are much easier
-to verify and trust.  I'm satisfied for the moment that it isn't
-actually broken.  But more obvious code is definitely a plus
-if we can get it.
+Exactly how bad was the "mmlist randomising" for swapoff() ?
 
-Eric
+regards,
+
+Rik
+-- 
+DMCA, SSSCA, W3C?  Who cares?  http://thefreeworld.net/
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
