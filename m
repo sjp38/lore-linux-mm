@@ -1,44 +1,37 @@
-Received: (from koconnor@localhost)
-	by armstrong.cse.Buffalo.EDU (8.9.3/8.9.3) id HAA10593
-	for linux-mm@kvack.org; Sat, 27 Nov 1999 07:59:56 -0500 (EST)
-Date: Sat, 27 Nov 1999 07:59:56 -0500
-From: "Kevin O'Connor" <koconnor@cse.Buffalo.EDU>
-Subject: AVL trees vs. Red-Black trees
-Message-ID: <19991127075956.A10530@armstrong.cse.Buffalo.EDU>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Sun, 28 Nov 1999 03:57:03 +0100 (CET)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: AVL trees vs. Red-Black trees
+In-Reply-To: <19991127075956.A10530@armstrong.cse.Buffalo.EDU>
+Message-ID: <Pine.LNX.4.10.9911280354150.509-100000@alpha.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Kevin O'Connor <koconnor@cse.Buffalo.EDU>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sat, 27 Nov 1999, Kevin O'Connor wrote:
 
-I've been spending the last few days "kicking around" different ideas for
-implementing reusable data structures in C.  That is, generic hash tables,
-linked lists, trees, etc.
+>I was a little surprised to see that the MM code uses an AVL tree - my old
+>textbooks are of the opinion that Red-Black trees are superior.
 
-I was planning on hacking up a kernel with a generic tree implementation.
-(Right now there are two AVL trees in the kernel - one in the MM code and a
-copy in the net/bridge code.)
+You basically do a query for each page fault and an insert for each mmap
+and a remove for each munmap thus AVL gives better performances.
 
-I was a little surprised to see that the MM code uses an AVL tree - my old
-textbooks are of the opinion that Red-Black trees are superior.
-Implementing the code to create a stack for performing "bottom-up"
-insertions/deletions seems like a pain to me.  I would think the "top-down"
-approach of a Red-Black tree would be more efficient and probably simpler
-to implement.
+>Implementing the code to create a stack for performing "bottom-up"
+>insertions/deletions seems like a pain to me.  I would think the "top-down"
+>approach of a Red-Black tree would be more efficient and probably simpler
+>to implement.
 
-So my question is, was there a particular reason AVL trees were chosen, or
-would any balanced tree implementation suffice?
+I just implemented RB trees in the kernel with a reusable implementation
+exactly like include/linux/list.h for the lists.
 
--Kevin
+If somebody find this interesting I can provide a patch to add the
+include/linux/rbtree.h and lib/rbtree.c that will provde rbtree support.
 
--- 
- ------------------------------------------------------------------------
- | Kevin O'Connor                     "BTW, IMHO we need a FAQ for      |
- | koconnor@cse.buffalo.edu            'IMHO', 'FAQ', 'BTW', etc. !"    |
- ------------------------------------------------------------------------
+Andrea
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
