@@ -1,53 +1,81 @@
-Date: Mon, 14 Mar 2005 13:39:52 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: ia64 needs to shake memory from quicklists when there is memory
- pressure.
-Message-Id: <20050314133952.2a935d54.akpm@osdl.org>
-In-Reply-To: <20050314164051.GB9117@lnx-holt.americas.sgi.com>
-References: <20050309170915.GA1583@lnx-holt.americas.sgi.com>
-	<20050309113227.3501fb76.akpm@osdl.org>
-	<20050314164051.GB9117@lnx-holt.americas.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: "Madam Marie Eyadema" <eyademarie@mail2world.com>
+Reply-To: eyademarie@yahoo.co.uk
+Date: Mon, 14 Mar 2005 21:43:06 +0000
+Subject: Reference
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 8BIT
+Message-Id: <20050314214233Z26640-23302+1027@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: tony.luck@intel.com, linux-ia64@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Robin Holt <holt@sgi.com> wrote:
->
-> > > The "ideal" would be to have a node aware slab cache.  Since that
->  > > is probably a long time coming, I was wondering if there would be
->  > > any possibility of getting some sort of hook into wakeup_kswapd(),
->  > > kswapd(), or balance_pgdat().  Since the quicklists are maintained per
->  > > cpu, we would need to perform an smp_call_function_single() for other
->  > > cpus on this node.  Is there some mechanism in place already to handle
->  > > anything similar to this?  Is there a better way to accomplish this?
->  > > Can you offer any suggestions?
->  > > 
->  > 
->  > Suggest you hook into the existing set_shrinker() API.
->  > 
->  > Then, in the shrinker callback, perform reclaim of the calling CPU's
->  > node's pages.
->  > 
->  > Try to return the right numbers from the shrinker callback so that
->  > shrink_slab() will keep this cache balanced wrt all the other ones which it
->  > is managing.
-> 
->  I wedged a shrinker in which simply does a smp_call_function() to invoke
->  the cache shrinker.  I did modify the shrinker function to return the
->  number of pages freed, but am currently doing nothing with it as this
->  will require a spinlock/atomic operation and am not ready to take that
->  performance hit.  The one issue I have is we lose information about
->  which nodes to shake memory from and therefore end up calling the function
->  for every node in the system.  This appears very heavy handed.
+Hello,
+Compliment of the day to you, I would like to use this
+medium to introduce my self to you, though we have not
+met before. I am Marie Eyadema a widow to the Late
+Eyadema of Togo who just died,  I know you might be
+surprised to receive this kind of proposal from me but
+my instincts motivated me to write you due to my
+present situation which I hope you may be of help.
 
-As I said, "in the shrinker callback, perform reclaim of the calling CPU's
-node's pages.".  kswapd is already node-affine, as are callers of
-try_to_free_pages().
+My late husband got married to three wives as African
+culture demanded, I was lucky to be the favourite
+among all, I was so close to my husband when he was
+still alive. After his death I have been persecuted by
+other wives out of jealousy; before the death of my
+husband, he enstrusted to me a substantial amount of
+money.
+
+ This money was budgeted for his new company
+project which he had at hand before he died. This
+money was being kept in my possession due to the trust he
+had on me.
+
+Now that the First son of the Family has taken over
+the office as the new head of government in Togo, my
+life and that of my children are in great danger due to
+family crisis; so, luckyly for me and my children we
+were able to move away with the money from Togo to Dakar
+Senegal where I and the children are residing at the
+moment and we have deposited the money with a Trust and
+Security company for safe keeping pending the time we will be
+able to find a trusted person who will help in moving
+this cash out of Africa for investment in a developed
+economy.
+
+What I want you to do is to indicate your interest
+that you will assist us by receiving the money on our
+behalf. Acknowledge this message, so that I can
+introduce you to my son (Malik) who has the modalities
+for the claim of the funds. I want you to assist
+in investing this money, but I will not want my
+identity revealed. I will also like to buy properties
+and stock in multinational companies and to engage in
+other safe and non-speculative investment portfolios.
+May I at this point emphasis the high level of confidentiality
+which this business demands, and hope you will not
+betray the trust and confidence, which I entrust on
+you.
+
+ In conclusion, if you want to assist us, my son
+will put you in the picture of the
+business by telling you were the funds are currently
+being kept, and also discuss other modalities including
+remunerations for your service.
+ 
+Kindly furnish us your contact information, that is
+your personal telephone and fax
+numbers for confidential purposes and acknowledge
+receipt of this mail
+
+Do contact me through this email address : eyademarie@yahoo.co.uk
+
+Best regards
+Mrs Marie Eyadema.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
