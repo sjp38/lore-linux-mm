@@ -1,42 +1,70 @@
-Subject: Re: 2.5.59-mm5
-References: <20030123195044.47c51d39.akpm@digeo.com>
-	<946253340.1043406208@[192.168.100.5]>
-	<20030124031632.7e28055f.akpm@digeo.com>
-	<m3d6mmvlip.fsf@lexa.home.net>
-	<20030124035017.6276002f.akpm@digeo.com>
-	<m3lm1au51v.fsf@lexa.home.net>
-	<20030124111249.227a40d6.akpm@digeo.com>
-From: Alex Tomas <bzzz@tmi.comex.ru>
-Date: 24 Jan 2003 22:58:13 +0300
-In-Reply-To: <20030124111249.227a40d6.akpm@digeo.com>
-Message-ID: <m34r7ys4kq.fsf@lexa.home.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Message-Id: <200301242202.h0OM2m0V007374@turing-police.cc.vt.edu>
+Subject: Re: 2.5.59-mm5 
+In-Reply-To: Your message of "Fri, 24 Jan 2003 21:04:34 +0100."
+             <20030124200434.GD889@suse.de>
+From: Valdis.Kletnieks@vt.edu
+References: <XFMail.20030124180942.pochini@shiny.it> <3E31765F.4010900@cyberone.com.au> <200301241934.h0OJYf0V005773@turing-police.cc.vt.edu>
+            <20030124200434.GD889@suse.de>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_-1019470848P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Content-Transfer-Encoding: 7bit
+Date: Fri, 24 Jan 2003 17:02:48 -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Alex Tomas <bzzz@tmi.comex.ru>, linux-kernel@alex.org.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jens Axboe <axboe@suse.de>
+Cc: Nick Piggin <piggin@cyberone.com.au>, Giuliano Pochini <pochini@shiny.it>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-kernel@alex.org.uk, Alex Tomas <bzzz@tmi.comex.ru>, Andrew Morton <akpm@digeo.com>, Oliver Xymoron <oxymoron@waste.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> Andrew Morton (AM) writes:
+--==_Exmh_-1019470848P
+Content-Type: text/plain; charset=us-ascii
 
- AM> We cannot free disk blocks until I/O against them has completed.
- AM> Otherwise the block could be reused for something else, then the
- AM> old IO will scribble on the new data.
+On Fri, 24 Jan 2003 21:04:34 +0100, Jens Axboe said:
 
- AM> What we _can_ do is to defer the waiting - only wait on the I/O
- AM> when someone reuses the disk blocks.  So there are actually
- AM> unused blocks with I/O in flight against them.
+> Nicks comment refers to the block layer situation, we obviously cannot
+> merge reads and writes there. You would basically have to rewrite the
+> entire request submission structure and break all drivers. And for zero
+> benefit. Face it, it would be stupid to even attempt such a manuever.
 
- AM> We do that for metadata (the wait happens in
- AM> unmap_underlying_metadata()) but for file data blocks there is no
- AM> mechanism in place to look them up
+As I *said* - "hairy beyond benefit", not "cant".
 
-yeah! indeed. my stupid mistake ...
+> Since you bring it up, you must know if a device which can take a single
+> command that says "read blocks a to b, and write blocks x to z"? Even
+> such thing existed,
 
+They do exist.
 
+IBM mainframe disks (the 3330/50/80 series) are able to do much more than that
+in one CCW chain  So it was *quite* possible to even express things like "Go to
+this cylinder/track, search for each record that has value XYZ in the 'key'
+field, and if found, write value ABC in the data field". (In fact, the DASD I/O
+opcodes for CCW chains are Turing-complete).
 
+>                      it would be much better implemented by the driver
+> as pulling more requests of the queue and constructing these weirdo
 
+The only operating system I'm aware of that actually uses that stuff is MVS.
+
+> So I quite agree with the "obviously".
+
+My complaint was the confusion of "obviously cant" with "we have decided we
+don't want to".
+
+/Valdis
+
+--==_Exmh_-1019470848P
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.1 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQE+MbgHcC3lWbTT17ARAnXTAJ9shASjuEdGEQ/jxHGfF58cWORXhwCfRqdr
+HjUodOK8lYUu1Nb3Od1ambk=
+=y2i0
+-----END PGP SIGNATURE-----
+
+--==_Exmh_-1019470848P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
