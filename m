@@ -1,73 +1,61 @@
-Date: Tue, 7 Aug 2001 16:36:28 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Tue, 7 Aug 2001 21:08:03 -0400
+From: Theodore Tso <tytso@mit.edu>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-In-Reply-To: <Pine.LNX.4.33L.0108071621180.1439-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.33.0108071627360.32481-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20010807210803.C2476@thunk.org>
+References: <Pine.LNX.4.33.0108071251100.3977-100000@penguin.transmeta.com> <493160000.997215771@tiny>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <493160000.997215771@tiny>; from mason@suse.com on Tue, Aug 07, 2001 at 04:22:51PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Ben LaHaise <bcrl@redhat.com>, Daniel Phillips <phillips@bonn-fries.net>, linux-mm@kvack.org
+To: Chris Mason <mason@suse.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Daniel Phillips <phillips@bonn-fries.net>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Just a quick follow-up: Leonard reports that the problem seems fixed in
--pre6, which matches my hypothesis that it was refill_freelist() that just
-didn't end up causing enough memory movement.
+On Tue, Aug 07, 2001 at 04:22:51PM -0400, Chris Mason wrote:
+> 
+> On Tuesday, August 07, 2001 12:52:11 PM -0700 Linus Torvalds
+> <torvalds@transmeta.com> wrote:
+> 
+> > On Tue, 7 Aug 2001, Chris Mason wrote:
+> >> 
+> >> Linus seemed pretty sure kswapd wasn't deadlocked, but though I would
+> >> mention this anyway....
+> > 
+> > The thing that Leonard seems able to repeat pretty well is just doing a
+> > "mke2fs" on a big partition. I don't think xfs is involved there at all.
+> 
+> It depends, mke2fs could be just another GFP_NOFS process waiting around
+> for kswapd to free buffers.  If a journaled filesystem is there, and it is
+> locking up kswapd, any heavy buffer allocator could make the problem seem
+> worse.
 
-So pre6 (together with the balance_dirty() fix that Ben tested out) might
-be getting closer to where we want to be again...
+mke2fs is a completely different case.  That's just a simple write
+throttling problem --- mke2fs simply is doing a lot of disk writes to
+a block device very quickly (zeroing out the inode table).  The kernel
+shouldn't be allowing a user process to dirty so many buffers that VM
+starts getting f*cked --- in the past mke2fs could actually cause the
+OOM to start randomly killing processes.
 
-Also, my own testing indicates that we should _not_ wake up bdflush too
-early, as that just seems to cause more context switches and more queue
-flushing. Delaying it until we really need it seems to be better, and also
-makes more sense anyway (this makes bdflush work as an anti-hysteresis
-thing, instead of working just at the border of "maybe enough memory").
+There's a workaround which causes the problem to go away; if you
+export the MKE2FS_SYNC environment variable and set it to a small
+value (say, 5 or 10), then every 5 or 10 block groups, mke2fs will
+call sync(), and this effectively acts as a write throttler.
 
-Patch appended (this does not do the highmem fix that Ben has).
+I had considered making this the default, but this is such a great way
+of demonstrating that a kernel has a write throttling problem that I
+haven't done so, since it's effectively hiding a kernel VM bug.
+(Simply writing to a block device shouldn't cause the OOM to trigger;
+and since mke2fs is just doing block device writes, it's not a
+GFP_NOFS case.)
 
-(And Leonard also pointed out that I forgot to bump the version number).
+(We seem to have a habit of repeatedly breaking write throttling; it
+was broken for a while in 2.2, then it got fixed, then someone wanted
+to "fix" the VM, and they would break write throttling again... and
+again... and again....)
 
-		Linus
-
------
-diff -u --recursive --new-file pre6/linux/Makefile linux/Makefile
---- pre6/linux/Makefile	Tue Aug  7 16:16:00 2001
-+++ linux/Makefile	Tue Aug  7 16:12:28 2001
-@@ -1,7 +1,7 @@
- VERSION = 2
- PATCHLEVEL = 4
- SUBLEVEL = 8
--EXTRAVERSION =-pre5
-+EXTRAVERSION =-pre6
-
- KERNELRELEASE=$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)$(EXTRAVERSION)
-
-diff -u --recursive --new-file pre6/linux/fs/buffer.c linux/fs/buffer.c
---- pre6/linux/fs/buffer.c	Tue Aug  7 16:16:02 2001
-+++ linux/fs/buffer.c	Tue Aug  7 14:36:27 2001
-@@ -1116,15 +1116,17 @@
- 	/* If we're getting into imbalance, start write-out */
- 	spin_lock(&lru_list_lock);
- 	write_some_buffers(dev);
--	wakeup_bdflush();
-
- 	/*
- 	 * And if we're _really_ out of balance, wait for
--	 * some of the dirty/locked buffers ourselves.
-+	 * some of the dirty/locked buffers ourselves and
-+	 * start bdflush.
- 	 * This will throttle heavy writers.
- 	 */
--	if (state > 0)
-+	if (state > 0) {
- 		wait_for_some_buffers(dev);
-+		wakeup_bdflush();
-+	}
- }
-
- static __inline__ void __mark_dirty(struct buffer_head *bh)
-
+							- Ted
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
