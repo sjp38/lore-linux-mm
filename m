@@ -1,41 +1,36 @@
-Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id FAA06723
-	for <linux-mm@kvack.org>; Fri, 27 Mar 1998 05:03:20 -0500
-Date: Fri, 27 Mar 1998 10:03:37 +0100 (MET)
-From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Reply-To: H.H.vanRiel@fys.ruu.nl
-Subject: new allocation algorithm
-Message-ID: <Pine.LNX.3.91.980327095733.3532A-100000@mirkwood.dummy.home>
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA08408
+	for <linux-mm@kvack.org>; Fri, 27 Mar 1998 12:31:50 -0500
+Date: Fri, 27 Mar 1998 09:30:40 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: new allocation algorithm
+In-Reply-To: <Pine.LNX.3.91.980327095733.3532A-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.95.980327092811.6613C-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
+To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Linus and Stephen,
 
-I just came up with the idea of using an ext2 like algorithm
-for memory allocation, in which we:
-- group memory in 128 PAGE groups
-- have one unsigned char counter per group, counting the number
-  of used pages
-- allocate with the goal to fill the busiest group
-- penalize pages (page->age) when the group is relatively empty
-- thereby shift memory usage from empty groups to full groups, making
-  larger allocation in empty groups easier
-- PLUS we get rid of the 'randomness' in the current system, where we
-  sometimes swap out over half of total memory in one sweep while
-  still not reaching our goals
 
-Of course, such an algorithm would be relatively expensive...
-But could it be worth it?
+On Fri, 27 Mar 1998, Rik van Riel wrote:
+> 
+> I just came up with the idea of using an ext2 like algorithm
+> for memory allocation, in which we:
+> - group memory in 128 PAGE groups
+> - have one unsigned char counter per group, counting the number
+>   of used pages
 
-Trading off the tradeoffs,
+Let's wait with how well the current setup works. It seems to perform
+reasonably well even on smaller machines (modulo your patch), and I think
+we'd better more-or-less freeze it waiting for further info on what people
+actually think. 
 
-Rik.
-+-------------------------------------------+--------------------------+
-| Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
-|        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
-|     http://www.fys.ruu.nl/~riel/          | <H.H.vanRiel@fys.ruu.nl> |
-+-------------------------------------------+--------------------------+
+The current scheme is fairly efficient and extremely stable, and gives
+good behaviour for the cases we _really_ care about (pageorders 0, 1 and
+to some degree 2). It comes reasonably close to working for the higher
+orders too, but they really aren't as critical..
+
+		Linus
