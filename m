@@ -1,36 +1,64 @@
-Date: Tue, 9 Nov 2004 21:08:11 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
-In-Reply-To: <463220000.1100030992@flay>
-Message-ID: <Pine.LNX.4.44.0411092056090.5291-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Date: Tue, 9 Nov 2004 13:33:43 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] kswapd shall not sleep during page shortage
+Message-Id: <20041109133343.0b34896d.akpm@osdl.org>
+In-Reply-To: <20041109174125.GF7632@logos.cnet>
+References: <20041109164642.GE7632@logos.cnet>
+	<20041109121945.7f35d104.akpm@osdl.org>
+	<20041109174125.GF7632@logos.cnet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Brent Casavant <bcasavan@sgi.com>, Andi Kleen <ak@suse.de>, "Adam J. Richter" <adam@yggdrasil.com>, colpatch@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: linux-mm@kvack.org, piggin@cyberone.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 Nov 2004, Martin J. Bligh wrote:
->  
-> > I'm irritated to realize that we can't change the default for SysV
-> > shared memory or /dev/zero this way, because that mount is internal.
+Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+>
+> On Tue, Nov 09, 2004 at 12:19:45PM -0800, Andrew Morton wrote:
+> > Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+> > >
+> > > 
+> > > Andrew,
+> > > 
+> > > I was wrong last time I read balance_pgdat() when I thought kswapd
+> > > couldnt sleep under page shortage. 
+> > > 
+> > > It can, because all_zones_ok is set to "1" inside the 
+> > > "priority=DEF_PRIORITY; priority >= 0; priority--" loop.
+> > > 
+> > > So this patch sets "all_zones_ok" to zero even if all_unreclaimable 
+> > > is set, avoiding it from sleeping when zones are under page short.
+> > > 
+> > 
+> > Does this solve any observed problem?  What testing was done, and what were
+> > the results??
 > 
-> Boggle. shmem I can perfectly understand, and have been intending to
-> change for a while. But why /dev/zero ? Presumably you'd always want
-> that local?
+> 
+> The observed problem are the page allocation failures!
 
-I was meaning the mmap shared writable of /dev/zero, to get memory
-shared between parent and child and descendants, a restricted form
-of shared memory.  I was thinking of them running on different cpus,
-you're suggesting they'd at least be on the same node.  I dare say,
-I don't know.  I'm not desperate to be able to set some other mpol
-default for all of them (and each object can be set in the established
-way), just would have been happier if the possibility of doing so came
-for free with the mount option work.
+But the patch doesn't have any effect on that, which I can see.
 
-Hugh
+> No testing has been done, but it is an obvious problem if you read the
+> code. 
 
+Not really.  The move of the all_unreclaimable test doesn't seem to do
+anything, because we'll just skip that zone anyway in the next loop.
+
+Maybe you moved the all_unreclaimable test just so that there's an
+opportunity to clear all_zones_ok?  I dunno.
+
+AFAICT, the early clearing of all_zones_ok will have no effect on kswapd
+throttling because the total_scanned logic is disabled.
+
+What I think your patch will do is to cause kswapd to do the `goto
+loop_again' thing if all zones are unreclaimable.  Which appears to risk
+putting kswapd into a busy loop when we're out of memory.
+
+So I'm all confused and concerned.  It would help if you were to explain
+your thinking more completely...
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
