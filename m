@@ -1,26 +1,34 @@
-Date: Sun, 7 Jul 2002 17:38:27 -0700
+Date: Sun, 7 Jul 2002 17:59:20 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: vm lock contention reduction
-Message-ID: <20020708003827.GC25360@holomorphy.com>
-References: <Pine.LNX.4.44.0207042237130.7465-100000@home.transmeta.com> <Pine.LNX.4.44.0207042257210.7465-100000@home.transmeta.com> <3D253DC9.545865D4@zip.com.au> <20020705073315.GU1227@dualathlon.random> <3D27AC81.FC72D08F@zip.com.au>
+Message-ID: <20020708005920.GD25360@holomorphy.com>
+References: <3D26304C.51FAE560@zip.com.au> <Pine.LNX.4.44L.0207052110590.8346-100000@imladris.surriel.com> <3D263E70.7B8F5307@zip.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <3D27AC81.FC72D08F@zip.com.au>
+In-Reply-To: <3D263E70.7B8F5307@zip.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@zip.com.au>
-Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Andrea Arcangeli <andrea@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Jul 06, 2002 at 07:50:41PM -0700, Andrew Morton wrote:
-> Any time you have one of these pages in use, the process gets
-> pinned onto the current CPU. If we run out of per-cpu kmaps,
-> just fall back to traditional kmap().
+Rik van Riel wrote:
+>> But it is, mmap() and anonymous memory don't trigger writeback.
 
-This is not particularly difficult, it only requires a depth counter
-and a saved cpumask for when it becomes unpinned again.
+On Fri, Jul 05, 2002 at 05:48:48PM -0700, Andrew Morton wrote:
+> That's different.  Bill hit a problem just running tiobench.
+> We can run balance_dirty_pages() when a COW copyout is performed,
+> which will approximately improve things.
+> But the whole idea of the dirty memory thresholds just seems bust,
+> really.  Because how do you pick the thresholds?  40%.  Bah.
+
+I don't know what the answer should be, but I can certainly demonstrate
+this in a rather uninteresting situation (4GB, 4cpu's, 1 disk, 16 tasks).
+
+But I can concur with that evaluation. In my esteem fixed fractions of
+memory don't have a very direct relationship to what's going on.
 
 
 Cheers,
