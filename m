@@ -1,51 +1,72 @@
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz [195.113.31.123])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA29797
-	for <linux-mm@kvack.org>; Mon, 11 Jan 1999 06:21:18 -0500
-Message-ID: <19990111122039.53340@atrey.karlin.mff.cuni.cz>
-Date: Mon, 11 Jan 1999 12:20:39 +0100
-From: Pavel Machek <pavel@atrey.karlin.mff.cuni.cz>
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-References: <199901101659.QAA00922@dax.scot.redhat.com> <Pine.LNX.3.95.990110103201.7668D-100000@penguin.transmeta.com> <199901102249.WAA01684@dax.scot.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <199901102249.WAA01684@dax.scot.redhat.com>; from Stephen C. Tweedie on Sun, Jan 10, 1999 at 10:49:47PM +0000
+Received: from noc.nyx.net (mail@noc.nyx.net [206.124.29.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA30294
+	for <linux-mm@kvack.org>; Mon, 11 Jan 1999 07:54:57 -0500
+Date: Mon, 11 Jan 1999 05:54:24 -0700 (MST)
+From: Colin Plumb <colin@nyx.net>
+Message-Id: <199901111254.FAA06857@nyx10.nyx.net>
+Subject: Re: testing/pre-7 and do_poll()
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Savochkin Andrey Vladimirovich <saw@msu.ru>, Andrea Arcangeli <andrea@e-mind.com>, steve@netplus.net, "Eric W. Biederman" <ebiederm+eric@ccr.net>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
+To: chip@perlsupport.com
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Chip Salzenberg wrote:
+> Well, I forgot the (unsigned long) cast, as someone else noted:
 
-> In fact, to make it really safe we'd need to avoid synchronous swapout
-> altogether: otherwise we can have
-> 
-> 	    A			kswiod		nbd server process
-> 	    lock_super();
-> 	    bread(ndb device);
-> 	    try_to_free_page();
-> 	    rw_swap_page_async();
-> 				filemap_write_page();
-> 				lock_super();
-> 	    wait_on_buffer();
-> 						try_to_free_page();
-> 						rw_swap_page_sync();
-> 						Oops, kswiod is stalled.
-> 
-> Can we get away without synchronous swapout?  Notice that in this case,
-> kswiod may be blocked but kswapd itself will not be.  As long as the nbd
-> server does not try to do a synchronous swap, it won't deadlock on
-> kswiod.  In other words, it is safe to wait for avaibility of
-> another
+>	timeout = ROUND_UP((unsigned long) timeout, 1000/HZ);
 
-Is this only matter of nbd? If so, maybe the best solution is to start
-claiming: "don't swap over nbd, don't mount localhost drives read
-write". [It is bad, but it is probably better than polluting rest of
-kernel with nbd workarounds...]
+>
+> Otherwise, the code is Just Right.
 
-								Pavel
+Um, this works perfectly when HZ == 100, but consider what happens when
+HZ == 1024.  1000/HZ == 0, and then computing (x+0-1)/0 doesn't work so well.
+
+If you want accuracy with no danger of overflow, try the following trick:
+
+	ticks = (msec/1000)*HZ + (msec%1000)*HZ/1000.
+
+To make this more efficient, use that only on large values of msec,
+and the simpler (msec*HZ)/1000.  In thhe HZ > 1000 case, you also lose
+the guarantee that every legal msec value corresponds to a 
+
+(C experts will note that none of the parens are necessary, but I though
+it was clearer to include them.)
+
+So, for perfection, you want:
+
+unsigned long msec_to_ticks(unsigned long msec)
+{
+	if (msec <= ULONG_MAX/HZ)
+		return msec*HZ/1000;
+#if HZ > 1000
+	/* Wups, can overflow - saturate return value */
+	if (msec > (ULONG_MAX/HZ)*1000 + (ULONG_MAX % HZ)*1000/HZ)
+		return ULONG_MAX
+#endif
+	return (msec/1000)*HZ + (msec%1000)*HZ/1000;
+}
+
+Um... this is the rounding-down case, and also saturates at ULONG_MAX
+instead of MAX_SCHEDULE_TIMEOUT (LONG_MAX).  Let me adjust the boundary
+cases a bit...
+
+#if MAX_SCHEDULE_TIMEOUT != LONG_MAX
+#error Adjust this code - it assumes identical input and output ranges
+#endif
+unsigned long msec_to_ticks(unsigned long msec)
+{
+	if (msec < ULONG_MAX/HZ - 999)
+		return (msec+999)*HZ/1000;
+	msec--;	/* Following code rounds up and adds one */
+#if HZ > 1000
+	/* Wups, can overflow - saturate return value */
+	if (msec >= (ULONG_MAX/HZ)*1000 + (ULONG_MAX % HZ)*1000/HZ)
+		return MAX_SCHEDULE_TIMEOUT;
+#endif
+	return (msec/1000)*HZ + (msec%1000)*HZ/1000 + 1;
+}
 -- 
-The best software in life is free (not shareware)!		Pavel
-GCM d? s-: !g p?:+ au- a--@ w+ v- C++@ UL+++ L++ N++ E++ W--- M- Y- R+
+	-Colin
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
