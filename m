@@ -1,86 +1,59 @@
-Date: Mon, 16 Feb 2004 14:36:42 -0800
-From: "Randy.Dunlap" <rddunlap@osdl.org>
-Subject: Re: [Kernel-janitors] [PATCH] Check return code in mm/vmscan.c
-Message-Id: <20040216143642.48b2c176.rddunlap@osdl.org>
-In-Reply-To: <20040104051125.GF20458@eugeneteo.net>
-References: <20040103132524.GA21909@eugeneteo.net>
-	<20040103222706.GM6982@parcelfarce.linux.theplanet.co.uk>
-	<20040104051125.GF20458@eugeneteo.net>
+Date: Mon, 16 Feb 2004 11:09:27 -0800
+From: "Paul E. McKenney" <paulmck@us.ibm.com>
+Subject: Non-GPL export of invalidate_mmap_range
+Message-ID: <20040216190927.GA2969@us.ibm.com>
+Reply-To: paulmck@us.ibm.com
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Eugene Teo <eugene.teo@eugeneteo.net>
-Cc: linux-mm@kvack.org, kernel-janitors@osdl.org
+To: akpm@osdl.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 4 Jan 2004 13:11:26 +0800 Eugene Teo <eugene.teo@eugeneteo.net> wrote:
+Hello, Andrew,
 
-| <quote sender="Matthew Wilcox">
-| > On Sat, Jan 03, 2004 at 09:25:24PM +0800, Eugene Teo wrote:
-| > > http://www.anomalistic.org/patches/vmscan-check-ret-kernel_thread-fix-2.6.1-rc1-mm1.patch
-| > > 
-| > > diff -Naur -X /home/amnesia/w/dontdiff 2.6.1-rc1-mm1/mm/vmscan.c 2.6.1-rc1-mm1-fix/mm/vmscan.c
-| > > --- 2.6.1-rc1-mm1/mm/vmscan.c	2004-01-03 20:33:39.000000000 +0800
-| > > +++ 2.6.1-rc1-mm1-fix/mm/vmscan.c	2004-01-03 21:16:30.000000000 +0800
-| > > @@ -1093,10 +1093,16 @@
-| > >  
-| > >  static int __init kswapd_init(void)
-| > >  {
-| > > +	int ret;
-| > >  	pg_data_t *pgdat;
-| > >  	swap_setup();
-| > > -	for_each_pgdat(pgdat)
-| > > -		kernel_thread(kswapd, pgdat, CLONE_KERNEL);
-| > > +	for_each_pgdat(pgdat) {
-| > > +		ret = kernel_thread(kswapd, pgdat, CLONE_KERNEL);
-| > > +		if (ret < 0) {
-| > > +			printk("%s: unable to start kernel thread\n", __FUNCTION__);
-| > > +			return ret;
-| > > +		}
-| > > +	}
-| > >  	total_memory = nr_free_pagecache_pages();
-| > >  	return 0;
-| > >  }
-| > 
-| > If your new code is triggered, we've just failed to set up total_memory.
-| > I expect the system to behave very oddly after this ;-)
-| 
-| a panic call seems to be more appropriate :)
-| 
-| Here is the new fix. Patch compiles, and tested.
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Eugene, patch is tested how?  What do you mean by "tested"?
-In what conditions?
+The attached patch to make invalidate_mmap_range() non-GPL exported
+seems to have been lost somewhere between 2.6.1-mm4 and 2.6.1-mm5.
+It still applies cleanly.  Could you please take it up again?
 
-| http://www.anomalistic.org/patches/vmscan-check-ret-kernel_thread-fix-2.6.1-rc1-mm1.patch
-| 
-| diff -Naur -X /home/amnesia/w/dontdiff 2.6.1-rc1-mm1/mm/vmscan.c 2.6.1-rc1-mm1-fix/mm/vmscan.c
-| --- 2.6.1-rc1-mm1/mm/vmscan.c	2004-01-04 10:29:24.000000000 +0800
-| +++ 2.6.1-rc1-mm1-fix/mm/vmscan.c	2004-01-04 13:04:52.000000000 +0800
-| @@ -1093,10 +1093,14 @@
-|  
-|  static int __init kswapd_init(void)
-|  {
-| +	int ret;
-|  	pg_data_t *pgdat;
-|  	swap_setup();
-| -	for_each_pgdat(pgdat)
-| -		kernel_thread(kswapd, pgdat, CLONE_KERNEL);
-| +	for_each_pgdat(pgdat) {
-| +		ret = kernel_thread(kswapd, pgdat, CLONE_KERNEL);
-| +		if (ret < 0)
-| +			panic("%s: unable to initialise kswapd\n", __FUNCTION__);
-| +	}
-|  	total_memory = nr_free_pagecache_pages();
-|  	return 0;
-|  }
-| 
+						Thanx, Paul
 
---
-~Randy
-kernel-janitors project:  http://janitor.kernelnewbies.org/
+------------------------------------------------------------------------
+
+
+
+It was EXPORT_SYMBOL_GPL(), however IBM's GPFS is not GPL.
+
+- the GPFS team contributed to the testing and development of
+  invaldiate_mmap_range().
+
+- GPFS was developed under AIX and was ported to Linux, and hence meets
+  Linus's "some binary modules are OK" exemption.
+
+- The export makes sense: clustering filesystems need it for shootdowns to
+  ensure cache coherency.
+
+
+
+ 25-akpm/mm/memory.c |    2 +-
+ 1 files changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN mm/memory.c~invalidate_mmap_range-non-gpl-export mm/memory.c
+--- 25/mm/memory.c~invalidate_mmap_range-non-gpl-export	Mon Nov 24 11:33:19 2003
++++ 25-akpm/mm/memory.c	Mon Nov 24 11:33:34 2003
+@@ -1164,7 +1164,7 @@ void invalidate_mmap_range(struct addres
+ 		invalidate_mmap_range_list(&mapping->i_mmap_shared, hba, hlen);
+ 	up(&mapping->i_shared_sem);
+ }
+-EXPORT_SYMBOL_GPL(invalidate_mmap_range);
++EXPORT_SYMBOL(invalidate_mmap_range);
+ 
+ /*
+  * Handle all mappings that got truncated by a "truncate()"
+
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
