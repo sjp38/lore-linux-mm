@@ -1,50 +1,50 @@
-Message-Id: <l03130322b6e3ced39e99@[192.168.239.101]>
-In-Reply-To: <3ABE132F.E919F908@evision-ventures.com>
-References: <3ABDF8A6.7580BD7D@evision-ventures.com>
- <l03130321b6e3c0533688@[192.168.239.101]>
+Date: Sun, 25 Mar 2001 17:50:52 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [PATCH] Fix races in 2.4.2-ac22 SysV shared memory
+Message-ID: <20010325175052.B18649@redhat.com>
+References: <20010325001338.C11686@redhat.com> <Pine.LNX.4.21.0103242203290.1863-100000@imladris.rielhome.conectiva>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Date: Sun, 25 Mar 2001 17:36:21 +0100
-From: Jonathan Morton <chromi@cyberspace.org>
-Subject: Re: [PATCH] OOM handling
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0103242203290.1863-100000@imladris.rielhome.conectiva>; from riel@conectiva.com.br on Sat, Mar 24, 2001 at 10:05:18PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Dalecki <dalecki@evision-ventures.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "James A. Sutherland" <jas88@cam.ac.uk>, Guest section DW <dwguest@win.tue.nl>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
 List-ID: <linux-mm.kvack.org>
 
->> I didn't quite understand Martin's comments about "not normalised" -
->> presumably this is some mathematical argument, but what does this actually
->> mean?
->
->Not mathematics. It's from physics. Very trivial physics, basic scool
->indeed.
->If you try to calculate some weightning
->factors which involve different units (in this case mostly seconds and
->bits)
->then you will have to make sure tha those units get factorized out.
->Rik is just throwing the absolute values together...
+Hi,
 
-Understood - my Physics courses covered this as well, but not using the
-word "normalise".
+On Sat, Mar 24, 2001 at 10:05:18PM -0300, Rik van Riel wrote:
+> On Sun, 25 Mar 2001, Stephen C. Tweedie wrote:
+> 
+> > Rik, do you think it is really necessary to take the page lock and
+> > release it inside lookup_swap_cache?  I may be overlooking something,
+> > but I can't see the benefit of it ---
+> 
+> I don't think we need to do this, except to protect us from
+> using a page which isn't up-to-date yet and locked because
+> of disk IO.
 
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
-big-mail: chromatix@penguinpowered.com
-uni-mail: j.d.morton@lancaster.ac.uk
+But it doesn't --- page_launder can try to lock the page after it
+checks the refcount, without taking any locks which protect us against
+running lookup_swap_cache in parallel.  If we get our reference after
+page_launder checks the count, we can find the page getting locked out
+from underneath our feet.
 
-The key to knowledge is not to rely on people to teach you it.
+> Reclaim_page() takes the pagecache_lock before trying to
+> free anything, so there's no reason to lock against that.
 
-Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
+Exactly.  We're not in danger of _losing_ the page, because
+reclaim_page is locked more aggressively than page_launder.  We still
+risk having the page locked against us after lookup_swap_cache does
+its own UnlockPage.
 
------BEGIN GEEK CODE BLOCK-----
-Version 3.12
-GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
-PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
------END GEEK CODE BLOCK-----
+So, if lookup_swap_cache doesn't actually ensure that the page is
+unlocked, are there any callers which implicitly rely on
+lookup_swap_cache() doing a wait_on_page?
 
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
