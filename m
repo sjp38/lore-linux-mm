@@ -1,41 +1,33 @@
-Date: Fri, 12 May 2000 09:50:54 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: RE: [PATCH] Recent VM fiasco - fixed
-In-Reply-To: <B83C33A4F7B6D311A3CA00805F85FBB863C59E@ems2.glam.ac.uk>
-Message-ID: <Pine.LNX.4.21.0005112053430.1652-100000@inspiron>
+Subject: Re: [patch] balanced highmem subsystem under pre7-9
+References: <Pine.LNX.4.10.10005120113520.10596-200000@elte.hu>
+From: Christoph Rohland <cr@sap.com>
+Date: 12 May 2000 11:02:56 +0200
+In-Reply-To: Ingo Molnar's message of "Fri, 12 May 2000 01:25:43 +0200 (CEST)"
+Message-ID: <qwwhfc45ef3.fsf@sap.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Jones D (ISaCS)" <djones2@glam.ac.uk>
-Cc: 'Rik van Riel' <riel@conectiva.com.br>, Simon Kirby <sim@stormix.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: mingo@elte.hu
+Cc: Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 11 May 2000, Jones D (ISaCS) wrote:
+Hi Ingo,
 
->As I've been playing with invalidate_inode_pages for the last few
->days, this section of Andrea's classzone diff caught my eye.
->
->I noticed that in Andrea's version, if a page is locked, then it is just
->ignored, and never freed.  He reduced the complexity of the function, and
+Your patch breaks my tests again (Which run fine for some time now on
+pre7):
 
-Note that the official kernel clearly ignores it too so I'm not
-reinserting any bug there but only avoiding dropping performance for no
-good reason and that's why I intentionally backed out such a recent
-change.
+11  1  0     0 1631764   1796  12840   0   0     0     2  115 57045   4  95   1
+10  3  0     0 1420616   1796  12840   0   0     0     0  120 55463   5  95   1
+9  3  0      0 998032   1796  12840   0   0     0     2  111 49490   4  96   1
+VM: killing process bash
+VM: killing process ipctst
+VM: killing process ipctst
 
-To avoiding ignoring it you should wait_on_page() (you have no other way)
-and according to Trond we can't do that because the caller doesn't handle
-a blocking function.
+Greetings
+		Christoph
 
-Your patch ignores locked pages too from within
-invalidate_inode_pages() as far I can tell.
-
-Andrea
-
-
-
-
+-- 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
