@@ -1,385 +1,323 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id SAA24983
-	for <linux-mm@kvack.org>; Fri, 7 Mar 2003 18:51:04 -0800 (PST)
-Date: Fri, 7 Mar 2003 18:51:16 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: 2.5.64-mm2
-Message-Id: <20030307185116.0c53e442.akpm@digeo.com>
+Subject: [patch] updated scheduler-tunables for 2.5.64-mm2
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <20030307185116.0c53e442.akpm@digeo.com>
+References: <20030307185116.0c53e442.akpm@digeo.com>
+Content-Type: text/plain
+Message-Id: <1047095088.727.5.camel@phantasy.awol.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: 07 Mar 2003 22:44:49 -0500
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-http://www.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.64/2.5.64-mm2/
+On Fri, 2003-03-07 at 21:51, Andrew Morton wrote:
+
+> Just lots of little stuff here.  Mainly a resync with various people.
+
+Whoops.  Someone edited the scheduler-tunables.patch so it applied on
+top of the interactivity changes, but then did not carry over those
+changes to the tunable parameters in the patch ;)
+
+So we end up with the usual values, and not the tuned parameters from
+mainline.  Which is a shame, you know?
+
+Attached patch is a complete replacement for the old patch.  It defaults
+the tunable parameters to the new values in 2.5-bk.  I also added a
+tuning knob for the NUMA node threshold stuff.
+
+So we end up with:
+
+        [22:42:31]rml@phantasy:~$ pef /proc/sys/sched
+        child_penalty=50
+        exit_weight=3
+        interactive_delta=2
+        max_sleep_avg=10000
+        max_timeslice=200
+        min_timeslice=10
+        node_threshold=125
+        parent_penalty=100
+        prio_bonus_ratio=25
+        starvation_limit=10000
+
+Which looks good to me.
+
+Andrew, please replace this for that stinky old one.  Thanks.
+
+	Robert Love
+
+
+ Documentation/filesystems/proc.txt |   87 +++++++++++++++++++++++++++++++++++++
+ include/linux/sysctl.h             |   16 ++++++
+ kernel/sched.c                     |   34 ++++++++++----
+ kernel/sysctl.c                    |   48 +++++++++++++++++++-
+ 4 files changed, 173 insertions(+), 12 deletions(-)
+
+
+diff -urN linux-2.5.64-mm2/Documentation/filesystems/proc.txt linux/Documentation/filesystems/proc.txt
+--- linux-2.5.64-mm2/Documentation/filesystems/proc.txt	2003-03-07 22:40:27.885874664 -0500
++++ linux/Documentation/filesystems/proc.txt	2003-03-07 22:02:58.000000000 -0500
+@@ -37,6 +37,7 @@
+   2.8	/proc/sys/net/ipv4 - IPV4 settings
+   2.9	Appletalk
+   2.10	IPX
++  2.11  /proc/sys/sched - scheduler tunables
+ 
+ ------------------------------------------------------------------------------
+ Preface
+@@ -1667,6 +1668,92 @@
+ gives the  destination  network, the router node (or Directly) and the network
+ address of the router (or Connected) for internal networks.
+ 
++2.11 /proc/sys/sched - scheduler tunables
++-----------------------------------------
++
++Useful knobs for tuning the scheduler live in /proc/sys/sched.
++
++child_penalty
++-------------
++
++Percentage of the parent's sleep_avg that children inherit.  sleep_avg is
++a running average of the time a process spends sleeping.  Tasks with high
++sleep_avg values are considered interactive and given a higher dynamic
++priority and a larger timeslice.  You typically want this some value just
++under 100.
++
++exit_weight
++-----------
++
++When a CPU hog task exits, its parent's sleep_avg is reduced by a factor of
++exit_weight against the exiting task's sleep_avg.
++
++interactive_delta
++-----------------
++
++If a task is "interactive" it is reinserted into the active array after it
++has expired its timeslice, instead of being inserted into the expired array.
++How "interactive" a task must be in order to be deemed interactive is a
++function of its nice value.  This interactive limit is scaled linearly by nice
++value and is offset by the interactive_delta.
++
++max_sleep_avg
++-------------
++
++max_sleep_avg is the largest value (in ms) stored for a task's running sleep
++average.  The larger this value, the longer a task needs to sleep to be
++considered interactive (maximum interactive bonus is a function of
++max_sleep_avg).
++
++max_timeslice
++-------------
++
++Maximum timeslice, in milliseconds.  This is the value given to tasks of the
++highest dynamic priority.
++
++min_timeslice
++-------------
++
++Minimum timeslice, in milliseconds.  This is the value given to tasks of the
++lowest dynamic priority.  Every task gets at least this slice of the processor
++per array switch.
++
++parent_penalty
++--------------
++
++Percentage of the parent's sleep_avg that it retains across a fork().
++sleep_avg is a running average of the time a process spends sleeping.  Tasks
++with high sleep_avg values are considered interactive and given a higher
++dynamic priority and a larger timeslice.  Normally, this value is 100 and thus
++task's retain their sleep_avg on fork.  If you want to punish interactive
++tasks for forking, set this below 100.
++
++prio_bonus_ratio
++----------------
++
++Middle percentage of the priority range that tasks can receive as a dynamic
++priority.  The default value of 25% ensures that nice values at the
++extremes are still enforced.  For example, nice +19 interactive tasks will
++never be able to preempt a nice 0 CPU hog.  Setting this higher will increase
++the size of the priority range the tasks can receive as a bonus.  Setting
++this lower will decrease this range, making the interactivity bonus less
++apparent and user nice values more applicable.
++
++starvation_limit
++----------------
++
++Sufficiently interactive tasks are reinserted into the active array when they
++run out of timeslice.  Normally, tasks are inserted into the expired array.
++Reinserting interactive tasks into the active array allows them to remain
++runnable, which is important to interactive performance.  This could starve
++expired tasks, however, since the interactive task could prevent the array
++switch.  To prevent starving the tasks on the expired array for too long. the
++starvation_limit is the longest (in ms) we will let the expired array starve
++at the expense of reinserting interactive tasks back into active.  Higher
++values here give more preferance to running interactive tasks, at the expense
++of expired tasks.  Lower values provide more fair scheduling behavior, at the
++expense of interactivity.  The units are in milliseconds.
++
+ ------------------------------------------------------------------------------
+ Summary
+ ------------------------------------------------------------------------------
+diff -urN linux-2.5.64-mm2/include/linux/sysctl.h linux/include/linux/sysctl.h
+--- linux-2.5.64-mm2/include/linux/sysctl.h	2003-03-07 22:40:27.000000000 -0500
++++ linux/include/linux/sysctl.h	2003-03-07 22:08:19.000000000 -0500
+@@ -66,7 +66,8 @@
+ 	CTL_DEV=7,		/* Devices */
+ 	CTL_BUS=8,		/* Busses */
+ 	CTL_ABI=9,		/* Binary emulation */
+-	CTL_CPU=10		/* CPU stuff (speed scaling, etc) */
++	CTL_CPU=10,		/* CPU stuff (speed scaling, etc) */
++	CTL_SCHED=11,		/* scheduler tunables */
+ };
+ 
+ /* CTL_BUS names: */
+@@ -157,6 +158,19 @@
+ 	VM_LOWER_ZONE_PROTECTION=20,/* Amount of protection of lower zones */
+ };
+ 
++/* Tunable scheduler parameters in /proc/sys/sched/ */
++enum {
++	SCHED_MIN_TIMESLICE=1,		/* minimum process timeslice */
++	SCHED_MAX_TIMESLICE=2,		/* maximum process timeslice */
++	SCHED_CHILD_PENALTY=3,		/* penalty on fork to child */
++	SCHED_PARENT_PENALTY=4,		/* penalty on fork to parent */
++	SCHED_EXIT_WEIGHT=5,		/* penalty to parent of CPU hog child */
++	SCHED_PRIO_BONUS_RATIO=6,	/* percent of max prio given as bonus */
++	SCHED_INTERACTIVE_DELTA=7,	/* delta used to scale interactivity */
++	SCHED_MAX_SLEEP_AVG=8,		/* maximum sleep avg attainable */
++	SCHED_STARVATION_LIMIT=9,	/* no re-active if expired is starved */
++	SCHED_NODE_THRESHOLD=10,	/* NUMA node rebalance threshold */
++};
+ 
+ /* CTL_NET names: */
+ enum
+diff -urN linux-2.5.64-mm2/kernel/sched.c linux/kernel/sched.c
+--- linux-2.5.64-mm2/kernel/sched.c	2003-03-07 22:40:27.000000000 -0500
++++ linux/kernel/sched.c	2003-03-07 22:10:00.000000000 -0500
+@@ -57,17 +57,31 @@
+  * Minimum timeslice is 10 msecs, default timeslice is 100 msecs,
+  * maximum timeslice is 200 msecs. Timeslices get refilled after
+  * they expire.
++ *
++ * They are configurable via /proc/sys/sched
+  */
+-#define MIN_TIMESLICE		( 10 * HZ / 1000)
+-#define MAX_TIMESLICE		(200 * HZ / 1000)
+-#define CHILD_PENALTY		50
+-#define PARENT_PENALTY		100
+-#define EXIT_WEIGHT		3
+-#define PRIO_BONUS_RATIO	25
+-#define INTERACTIVE_DELTA	2
+-#define MAX_SLEEP_AVG		(10*HZ)
+-#define STARVATION_LIMIT	(10*HZ)
+-#define NODE_THRESHOLD		125
++
++int min_timeslice = (10 * HZ) / 1000;
++int max_timeslice = (200 * HZ) / 1000;
++int child_penalty = 50;
++int parent_penalty = 100;
++int exit_weight = 3;
++int prio_bonus_ratio = 25;
++int interactive_delta = 2;
++int max_sleep_avg = 10 * HZ;
++int starvation_limit = 10 * HZ;
++int node_threshold = 125;
++
++#define MIN_TIMESLICE		(min_timeslice)
++#define MAX_TIMESLICE		(max_timeslice)
++#define CHILD_PENALTY		(child_penalty)
++#define PARENT_PENALTY		(parent_penalty)
++#define EXIT_WEIGHT		(exit_weight)
++#define PRIO_BONUS_RATIO	(prio_bonus_ratio)
++#define INTERACTIVE_DELTA	(interactive_delta)
++#define MAX_SLEEP_AVG		(max_sleep_avg)
++#define STARVATION_LIMIT	(starvation_limit)
++#define NODE_THRESHOLD		(node_threshold)
+ 
+ /*
+  * If a task is 'interactive' then we reinsert it in the active
+diff -urN linux-2.5.64-mm2/kernel/sysctl.c linux/kernel/sysctl.c
+--- linux-2.5.64-mm2/kernel/sysctl.c	2003-03-07 22:40:27.000000000 -0500
++++ linux/kernel/sysctl.c	2003-03-07 22:09:19.000000000 -0500
+@@ -55,6 +55,16 @@
+ extern int cad_pid;
+ extern int pid_max;
+ extern int sysctl_lower_zone_protection;
++extern int min_timeslice;
++extern int max_timeslice;
++extern int child_penalty;
++extern int parent_penalty;
++extern int exit_weight;
++extern int prio_bonus_ratio;
++extern int interactive_delta;
++extern int max_sleep_avg;
++extern int starvation_limit;
++extern int node_threshold;
+ 
+ /* this is needed for the proc_dointvec_minmax for [fs_]overflow UID and GID */
+ static int maxolduid = 65535;
+@@ -112,6 +122,7 @@
+ 
+ static ctl_table kern_table[];
+ static ctl_table vm_table[];
++static ctl_table sched_table[];
+ #ifdef CONFIG_NET
+ extern ctl_table net_table[];
+ #endif
+@@ -156,6 +167,7 @@
+ 	{CTL_FS, "fs", NULL, 0, 0555, fs_table},
+ 	{CTL_DEBUG, "debug", NULL, 0, 0555, debug_table},
+         {CTL_DEV, "dev", NULL, 0, 0555, dev_table},
++	{CTL_SCHED, "sched", NULL, 0, 0555, sched_table},
+ 	{0}
+ };
+ 
+@@ -358,7 +370,41 @@
+ 
+ static ctl_table dev_table[] = {
+ 	{0}
+-};  
++};
++
++static ctl_table sched_table[] = {
++	{SCHED_MAX_TIMESLICE, "max_timeslice", &max_timeslice,
++	 sizeof(int), 0644, NULL, &proc_dointvec_minmax,
++	 &sysctl_intvec, NULL, &one, NULL},
++	{SCHED_MIN_TIMESLICE, "min_timeslice", &min_timeslice,
++	 sizeof(int), 0644, NULL, &proc_dointvec_minmax,
++	 &sysctl_intvec, NULL, &one, NULL},
++	{SCHED_CHILD_PENALTY, "child_penalty", &child_penalty,
++	 sizeof(int), 0644, NULL, &proc_dointvec_minmax,
++	 &sysctl_intvec, NULL, &zero, NULL},
++	{SCHED_PARENT_PENALTY, "parent_penalty", &parent_penalty,
++	 sizeof(int), 0644, NULL, &proc_dointvec_minmax,
++	 &sysctl_intvec, NULL, &zero, NULL},
++	{SCHED_EXIT_WEIGHT, "exit_weight", &exit_weight,
++	 sizeof(int), 0644, NULL, &proc_dointvec_minmax,
++	 &sysctl_intvec, NULL, &zero, NULL},
++	{SCHED_PRIO_BONUS_RATIO, "prio_bonus_ratio", &prio_bonus_ratio,
++	 sizeof(int), 0644, NULL, &proc_dointvec_minmax,
++	 &sysctl_intvec, NULL, &zero, NULL},
++	{SCHED_INTERACTIVE_DELTA, "interactive_delta", &interactive_delta,
++	 sizeof(int), 0644, NULL, &proc_dointvec_minmax,
++	 &sysctl_intvec, NULL, &zero, NULL},
++	{SCHED_MAX_SLEEP_AVG, "max_sleep_avg", &max_sleep_avg,
++	 sizeof(int), 0644, NULL, &proc_dointvec_minmax,
++	 &sysctl_intvec, NULL, &one, NULL},
++	{SCHED_STARVATION_LIMIT, "starvation_limit", &starvation_limit,
++	 sizeof(int), 0644, NULL, &proc_dointvec_minmax,
++	 &sysctl_intvec, NULL, &zero, NULL},
++	{SCHED_NODE_THRESHOLD, "node_threshold", &node_threshold,
++	 sizeof(int), 0644, NULL, &proc_dointvec_minmax,
++	 &sysctl_intvec, NULL, &one, NULL},
++	{0}
++};
+ 
+ extern void init_irq_proc (void);
+ 
 
-Just lots of little stuff here.  Mainly a resync with various people.
-
-Note: there is a change to the console handling code in Linus's tree which
-means that if you have both VT console and serial console enabled in kernel
-config, the serial console now wins.  Nothing comes out on the screen during
-bootup.  It used to be the case that the VT console was initialised first.
-
-If this happens you will need to specify the console device on the boot
-command line.
-
-We appear to have at least three use-after-free bugs.  One is fixed here, and
-there are extra debugging goodies which may help us find the others.  Please
-enable memory debugging and keep an eye open.
-
-
-
-Changes since 2.5.64-mm1:
-
-
- linus.patch
-
- Latest -bk
-
--balance_irq-cleanup.patch
--balance_irq-fix.patch
--rpc_rmdir-fix.patch
--aic-makefile-fix.patch
--flock-fix.patch
--rtc-locking-fix.patch
--sk98-build-fix.patch
--cciss-pci-hotplug-fix.patch
--export-pfn_to_nid.patch
--move-CONFIG_SWAP.patch
--random-stack-use.patch
--inode-pruning-fix.patch
--remove-__pgd_offset.patch
--remove-__pmd_offset.patch
--remove-__pte_offset.patch
--htree-lock_kernel-fix.patch
--pci-1.patch
--pci-2.patch
--pci-3.patch
--pci-4.patch
--pci-5.patch
--elf_core_dump-stack-size-reduction.patch
--uninline-binfmt_elf.patch
-
- Merged
-
-+register_blkdev-cleanups.patch
-
- Toward 32-bit dev-t.
-
--shared-irq-warning.patch
-
- Dropped.  Need to do something different here.
-
-+as-state-tracking-and-debug.patch
-+as-state-tracking-fix.patch
-+as-nr_dispatched-atomic-fix.patch
-
- Anticipatory scheduler work.
-
--sched-b3.patch
-
- Sort-of merged.
-
-+vm_area-use-after-free-fix.patch
-
- Fix the use-after-free in the vma slab cache.
-
-+slab-caller-tracking.patch
-
- Record the calling function inside slab objects, and report that on
- use-after-free erfors.
-
-+slab-caller-tracking-symbolic.patch
-
- Teach the above about kallsyms.
-
-+CONFIG_SWAP-fix.patch
-
- Fix up CONFIG_SWAP menus
-
-+hugh-nonlinear-fixes.patch
-
- Try to make nonlinear VMAs and objrmap play better together.
-
-+readdir-usercopy-check.patch
-
- Add some missing copy_to_user() checks.
-
-+gcc3-inline-fix.patch
-
- Apply a club to gcc-3.x's head.
-
-+pirq_enable_irq-warning-fix.patch
-
- Fix a compiler warning
-
-+hugetlb-unmap_vmas-fix.patch
-
- Fix an oops with hugetlb pages, CONFIG_SMP && CONFIG_PREEMPT
-
-+ext2-double-free-bug.patch
-
- Fix an error-path double-free.
-
-+load_elf_binary-memleak-fix.patch
-
- Fix an error-path memory leak
-
-+xattr-bug-fixes.patch
-
- Extended Attribute fixes
-
-+noirqbalance-fix.patch
-
- Make the noirqalance boot option work
-
-+show_interrupts-locking-fix.patch
-
- Put some locking into the /proc/interrupts handler code.
-
-+eepro100-lockup-fix.patch
-
- Fix an eepro100 deadlock
-
-+task_prio-fix.patch
-
- Scheduler fix for SCHED_RR tasks
-
-+remove-kernel_flag.patch
-
- Eliminate lock_kernel()
-
-
-
-All 79 patches:
-
-linus.patch
-  Latest from Linus
-
-register_blkdev-cleanups.patch
-  register_blkdev cleanups
-
-mm.patch
-  add -mmN to EXTRAVERSION
-
-ppc64-reloc_hide.patch
-
-ppc64-pci-patch.patch
-  Subject: pci patch
-
-ppc64-aio-32bit-emulation.patch
-  32/64bit emulation for aio
-
-ppc64-64-bit-exec-fix.patch
-  Subject: 64bit exec
-
-ppc64-scruffiness.patch
-  Fix some PPC64 compile warnings
-
-sym-do-160.patch
-  make the SYM driver do 160 MB/sec
-
-kgdb.patch
-
-nfsd-disable-softirq.patch
-  Fix race in svcsock.c in 2.5.61
-
-report-lost-ticks.patch
-  make lost-tick detection more informative
-
-ptrace-flush.patch
-  cache flushing in the ptrace code
-
-buffer-debug.patch
-  buffer.c debugging
-
-warn-null-wakeup.patch
-
-ext3-truncate-ordered-pages.patch
-  ext3: explicitly free truncated pages
-
-limit-write-latency.patch
-  fix possible latency in balance_dirty_pages()
-
-reiserfs_file_write-5.patch
-
-tcp-wakeups.patch
-  Use fast wakeups in TCP/IPV4
-
-lockd-lockup-fix-2.patch
-  Subject: Re: Fw: Re: 2.4.20 NFS server lock-up (SMP)
-
-rcu-stats.patch
-  RCU statistics reporting
-
-ext3-journalled-data-assertion-fix.patch
-  Remove incorrect assertion from ext3
-
-nfs-speedup.patch
-
-nfs-oom-fix.patch
-  nfs oom fix
-
-sk-allocation.patch
-  Subject: Re: nfs oom
-
-nfs-more-oom-fix.patch
-
-nfs-sendfile.patch
-  Implement sendfile() for NFS
-
-rpciod-atomic-allocations.patch
-  Make rcpiod use atomic allocations
-
-linux-isp.patch
-
-isp-update-1.patch
-
-remove-unused-congestion-stuff.patch
-  Subject: [PATCH] remove unused congestion stuff
-
-atm_dev_sem.patch
-  convert atm_dev_lock from spinlock to semaphore
-
-as-iosched.patch
-  anticipatory I/O scheduler
-
-as-random-fixes.patch
-  Subject: [PATCH] important fixes
-
-as-comment-fix.patch
-  AS: comment fix
-
-as-naming-comments-BUG.patch
-  AS: fix up naming, comments, add more BUGs
-
-as-unnecessary-test.patch
-
-as-atomicity-fix.patch
-
-as-state-tracking-and-debug.patch
-  AS: state tracking fix and debug additions
-
-as-state-tracking-fix.patch
-  AS: state tracking fix
-
-as-nr_dispatched-atomic-fix.patch
-
-readahead-shrink-to-zero.patch
-  Allow VFS readahead to fall to zero
-
-cfq-2.patch
-  CFQ scheduler, #2
-
-smalldevfs.patch
-  smalldevfs
-
-objrmap-2.5.62-5.patch
-  object-based rmap
-
-objrmap-X-fix.patch
-  objrmap fix for X
-
-objrmap-nr_mapped-fix.patch
-  objrmap: fix /proc/meminfo:Mapped
-
-objrmap-mapped-mem-fix-2.patch
-  fix objrmap mapped mem accounting again
-
-objrmap-atomic_t-fix.patch
-  Make objrmap mapcount non-atomic
-
-per-cpu-disk-stats.patch
-  Make diskstats per-cpu using kmalloc_percpu
-
-scheduler-tunables.patch
-  scheduler tunables
-
-show_task-free-stack-fix.patch
-  show_task() fix and cleanup
-
-vm_area-use-after-free-fix.patch
-  Fix vm_area_struct slab corruption
-
-use-after-free-check.patch
-  slab use-after-free detector
-
-slab-caller-tracking.patch
-  slab debug: track caller program counter
-
-slab-caller-tracking-symbolic.patch
-  slab debug: symbolic output in caller tracking
-
-reiserfs-fix-memleaks.patch
-  ReiserFS: fix memleaks on journal opening failures
-
-copy_page_range-invalid-page-fix.patch
-  Fix copy_page_range()'s handling of invalid pages
-
-yellowfin-set_bit-fix.patch
-  yellowfin driver set_bit fix
-
-CONFIG_SWAP-fix.patch
-  move CONFIG_SWAP around
-
-remap-file-pages-2.5.63-a1.patch
-  Subject: [patch] remap-file-pages-2.5.63-A1
-
-pte_file-always.patch
-  enable file-offset-in-pte's for all mappings
-
-hugh-nonlinear-fixes.patch
-  Fix nonlinear oddities
-
-htree-nfs-fix.patch
-  Fix ext3 htree / NFS compatibility problems
-
-bonding-zerodiv-fix.patch
-  Subject: [PATCH][bonding] division by zero bug
-
-update_atime-ng.patch
-  inode a/c/mtime modification speedup
-
-one-sec-times.patch
-  Implement a/c/time speedup in ext2 & ext3
-
-readdir-usercopy-check.patch
-  usercopy checks in old_readdir()
-
-gcc3-inline-fix.patch
-  work around gcc-3.x inlining bugs
-
-pirq_enable_irq-warning-fix.patch
-  fix return value in arch/i386/pci/irq.c
-
-hugetlb-unmap_vmas-fix.patch
-  hugetlb unmap_vmas() SMP && PREEMPT fix
-
-ext2-double-free-bug.patch
-  ext2: fix error-path double-free
-
-load_elf_binary-memleak-fix.patch
-  fix memory leak in load_elf_binary()
-
-xattr-bug-fixes.patch
-  Extended attribute sharing and debug macro typo fixes
-
-noirqbalance-fix.patch
-  Fix noirqbalance
-
-show_interrupts-locking-fix.patch
-  protect 'action' in show_interrupts
-
-eepro100-lockup-fix.patch
-  fix SMP lockup in eepro100 with ethtool on unused interface
-
-task_prio-fix.patch
-  simple task_prio() fix
-
-remove-kernel_flag.patch
-  no need for kernel_flag on UP
 
 
 
