@@ -1,94 +1,63 @@
-Date: Mon, 8 Jan 2001 18:10:28 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: Subtle MM bug
-Message-ID: <20010108181028.F9321@redhat.com>
-References: <20010108135700.O9321@redhat.com> <Pine.LNX.4.10.10101080916180.3750-100000@penguin.transmeta.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.10.10101080916180.3750-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Mon, Jan 08, 2001 at 09:29:15AM -0800
+Date: Mon, 8 Jan 2001 12:13:17 -0600
+From: Timur Tabi <ttabi@interactivesi.com>
+Subject: iounmap causes Oops and Aiees
+Message-Id: <20010108181048Z131177-224+83@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "David S. Miller" <davem@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
+To: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jan 08, 2001 at 09:29:15AM -0800, Linus Torvalds wrote:
-> On Mon, 8 Jan 2001, Stephen C. Tweedie wrote:
+I'm using 2.2.18pre15 on an i386, and the following code causes my system to be
+very unstable:
 
-> If you have a well-behaving application that doesn't even have memory
-> pressure, but fills up >50% of memory in its VM, nothing will actually
-> happen in the steady state. It can have 99% of available memory, and not a
-> single soft page fault.
+unsigned long phys = virt_to_phys(high_memory) - (2 * PAGE_SIZE);
+mem_map_t *mm = mem_map + MAP_NR(phys);
+unsigned long flags = mm->flags;
 
-Agreed, but that's not how I read your statement about scanning the VM
-regularly.  The problem happens if you are working happily with enough
-free memory and you suddenly need a large amount of allocation: having
-some relatively uptodate page age information may give you a _much_
-better idea of what to page out.
+mm->flags |= PG_reserved;
+p = ioremap_nocache(phys, PAGE_SIZE);
+mm->flags = flags;
+ASSERT(p);
+if (p) iounmap(p);
 
-Rik was going to experiment with this --- Rik, do you have any hard
-numbers for the benefit of maintaining a background page aging task?
 
-> But think about what happens if you now start up another application? And
-> think about what SHOULD happen. The 50% ruls is perfectly fine: 
+The code is located in the init_module section of my driver.  It executes
+without any problems.  However, after the driver is loaded (it doesn't do
+anything but run this code), the system rapidly becomes unstable.  Symptoms are
+random and include:
 
-Right, I interpreted your 50% as a steady-state limit.
+1. Inability to log in (login prompt doesn't respond after I type in a userid)
+2. Attempting to shut down always causes an oops
+3. Various kernel panics, including the "Aieee" kind.
 
-> Stephen: have you tried the behaviour of a working set that is dirty in
-> the VM's and slightly larger than available ram? Not pretty. 
+I must be forgetting to do something critical, probably because what I'm trying
+to do is not well documented but apparently supported by the kernel.  I make
+that assumption because of this code fragment in function __ioremap of
+arch/i386/mm/ioremap.c:
 
-Yes, and this is something that Marcelo's swap clustering code ought
-to be ideal for.
+	if (phys_addr < virt_to_phys(high_memory))
+           {
+		char *temp_addr, *temp_end;
+		int i;
 
-> _really_ well on many loads, but this one we do badly on. And from what
-> I've been able to see so far, it's because we're just too damn good at
-> waiting on page_launder() and doing refill_inactive_scan().
+		temp_addr = __va(phys_addr);
+		temp_end = temp_addr + (size - 1);
+	      
+		for(i = MAP_NR(temp_addr); i < MAP_NR(temp_end); i++) {
+			if(!PageReserved(mem_map + i))
+				return NULL;
+		}
+	   }
 
-do_try_to_free_pages() is trying to
+As long as every page is marked as reserved, ioremap_nocache() will map the
+page.  My question is: why does iounmap fail when ioremap succeeds?
 
-	/*
-	 * If needed, we move pages from the active list
-	 * to the inactive list. We also "eat" pages from
-	 * the inode and dentry cache whenever we do this.
-	 */
-	if (free_shortage() || inactive_shortage()) {
-		shrink_dcache_memory(6, gfp_mask);
-		shrink_icache_memory(6, gfp_mask);
-		ret += refill_inactive(gfp_mask, user);
-	} else {
 
-So we're refilling the inactive list regardless of its current size
-whenever free_shortage() is true.  In the situation you describe,
-there's no point refilling the inactive list too far beyond the
-ability of the swapper to launder it, regardless of whether
-free_shortage() is set.
+-- 
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
 
-refill_inactive contains exactly the opposite logic: it breaks out if
-
-		/*
-		 * If we either have enough free memory, or if
-		 * page_launder() will be able to make enough
-		 * free memory, then stop.
-		 */
-		if (!inactive_shortage() || !free_shortage())
-			goto done;
-
-but that still means that we're doing unnecessary inactive list
-refilling whenever free_shortage() is true: this test only occurs
-after we've tried at least one swap_out().  We're calling
-refill_inactive if either condition is true, but we're staying inside
-it only if both conditions are true.
-
-Shouldn't we really just be making the refill_inactive() here depend
-on inactive_shortage() alone, not free_shortage()?  By refilling the
-inactive list too agressively we actually end up discarding aging
-information which might be of use to us.
-
-Rik, any thoughts?  This looks as if it's destroying any hope of
-maintaining the intended inactive_shortage() targets.
-
---Stephen
+When replying to a mailing-list message, please direct the reply to the mailing list only.  Don't send another copy to me.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
