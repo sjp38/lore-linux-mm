@@ -1,58 +1,63 @@
-Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
-	by e4.ny.us.ibm.com (8.12.10/8.12.9) with ESMTP id iAI2O6Kv455296
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 21:24:06 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iAI2O5b3284260
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 21:24:05 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iAI2O5Hf024622
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 21:24:05 -0500
-Subject: Re: [Lhms-devel] [RFC] fix for hot-add enabled SRAT/BIOS and numa
-	KVA areas
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <1100743722.26335.644.camel@knk>
-References: <1100659057.26335.125.camel@knk>
-	 <1100711519.5838.2.camel@localhost>  <1100743722.26335.644.camel@knk>
-Content-Type: text/plain
-Message-Id: <1100744644.17510.8.camel@localhost>
-Mime-Version: 1.0
-Date: Wed, 17 Nov 2004 18:24:04 -0800
+Message-ID: <419C5B45.2080100@tebibyte.org>
+Date: Thu, 18 Nov 2004 09:20:21 +0100
+From: Chris Ross <chris@tebibyte.org>
+MIME-Version: 1.0
+Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable
+ braindamage
+References: <20041105200118.GA20321@logos.cnet> <200411051532.51150.jbarnes@sgi.com> <20041106012018.GT8229@dualathlon.random> <1099706150.2810.147.camel@thomas> <20041117195417.A3289@almesberger.net> <419BDE53.1030003@tebibyte.org> <20041117210410.R28844@almesberger.net> <419BECB0.70801@tebibyte.org> <20041117221419.S28844@almesberger.net>
+In-Reply-To: <20041117221419.S28844@almesberger.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: keith <kmannth@us.ibm.com>
-Cc: external hotplug mem list <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Chris McDermott <lcm@us.ibm.com>
+To: Werner Almesberger <wa@almesberger.net>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Andrea Arcangeli <andrea@novell.com>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-11-17 at 18:08, keith wrote:
->   I am not anticipating to support hot-add without config_nonlinear or
-> something similar which should provide more flexibility in allocation of
-> smaller section mem_maps.  This is only a issue when booted as a
-> discontig system.  We don't even consult the SRAT when we boot flat
-> (contiguous address space) so it is a non-issue.
 
-Once a system has been running for any length of time, finding any
-multi-order pages gets somewhat hard.  For a 16M section, you're still
-talking about ~128k of mem_map, which is still an order 5 allocation. 
-Nick's kswapd higher-order patches should help with this, though.
+Werner Almesberger escreveu:
+> The tricky bit is now to identify such part-time interactive tasks,
+> i.e. the ones who won't receive a trigger for a while. To make
+> things worse, there are those who may be happily doing something,
+> like spinning some animated GIF, which would be perfectly fine
+> being put to a long sleep. That in turn may make the X server idle,
+> etc.
 
->   Wasting 500k of lowmem for memory that "might" be there is no good.  I
-> don't think having to preallocate the mem_map for a hot-add is really
-> that good.  What if the system never adds memory?  What if it only adds
-> 8gig not 49g?  The system is crippled because it reserves the lmem_map
-> it "might" do a hot add with?  
+I don't think you need to be that subtle about it, though I agree 
+perfection would be nice :) The present behaviour is just to kill 
+something. All I'm advocating is just swapping something out if possible 
+instead. Yes by definition we probably have picked something you would 
+have preferred to leave running, but the machine simply cope with 
+everything being asked of it at the moment and that something got the 
+short straw. At least swapped out we will get round to running it when 
+we can.
 
-I have the feeling we'll eventually need a boot-time option for this
-reservation.  Your patch, of course will work for now.  Do you want me
-to pick it up in my tree?
+> Again, if you have such a clearly defined scenario, perhaps the
+> cron jobs should just loudly announce that housekeeping is now
+> starting and that this changes some of the rules. Or perhaps,
+> there could be a SIGSWAP to swap out a process (maybe SIGSUSP it
+> first so that it doesn't come back on its own).
 
->   I forgot the mention that without this patch my system does not boot
-> with the hot-add support enabled in the bios.  
+Sounds like a job for priorities and sensible use of batch scheduling.
 
-Why not?  I'm just curious what caused the actual failure.
+I still feel that special casing things is basically wrong. We could 
+work around the specific example that the cron.daily on my test machines 
+tends to cause things to be oom_killed, but it's better to fix the 
+problem. What about when I try to build umlsim again -- my standard test 
+case for triggering the oom killer ;)
 
--- Dave
+Let's not forget that oom killing (when it works) is a last resort, 
+something we do only if we have to to avoid a panic. Too often at 
+present the machine just doesn't know what to do, runs around confused 
+and makes things worse by shooting its own leg off. Which is pretty much 
+a real-world definition of panicking*. Lets at least try to avoid 
+causing permanent damage, such as killing off sshd.
 
+[ * I just looked it up: "of, relating to, or resembling the mental or 
+emotional state believed induced by the god Pan". Cool ]
+
+Regards,
+Chris R.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
