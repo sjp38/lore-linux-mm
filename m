@@ -1,33 +1,34 @@
-Date: Mon, 25 Sep 2000 03:45:51 +0200
+Date: Mon, 25 Sep 2000 04:02:30 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-Message-ID: <20000925034551.C10381@athlon.random>
-References: <Pine.LNX.4.10.10009241646560.974-100000@penguin.transmeta.com> <Pine.LNX.4.21.0009242143040.2029-100000@freak.distro.conectiva>
+Message-ID: <20000925040230.D10381@athlon.random>
+References: <20000925033128.A10381@athlon.random> <Pine.GSO.4.21.0009242122520.14096-100000@weyl.math.psu.edu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0009242143040.2029-100000@freak.distro.conectiva>; from marcelo@conectiva.com.br on Sun, Sep 24, 2000 at 09:53:33PM -0300
+In-Reply-To: <Pine.GSO.4.21.0009242122520.14096-100000@weyl.math.psu.edu>; from viro@math.psu.edu on Sun, Sep 24, 2000 at 09:27:39PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
+To: Alexander Viro <viro@math.psu.edu>
 Cc: Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Sep 24, 2000 at 09:53:33PM -0300, Marcelo Tosatti wrote:
-> Btw, why we need kmem_cache_shrink() inside shrink_{i,d}cache_memory ?  
+On Sun, Sep 24, 2000 at 09:27:39PM -0400, Alexander Viro wrote:
+> So help testing the patches to them. Arrgh...
 
-Because kmem_cache_free doesn't free anything. It only queues slab
-objects into the partial and free part of the cachep slab queue (so that
-they're ready to be freed later, and that's what we do in shrink_slab_cache).
+I think I'd better fix the bugs that I know about before testing patches that
+tries to remove the superblock_lock at this stage. I guess you should
+re-read the email from DaveM of two days ago.
 
-> calls shrink_{i,d}cache_memory) already shrink the SLAB cache (with
-> kmem_cache_reap), I dont think its needed.
+Then I've a problem: I've no idea how could I test
+adfs/affs/efs/hfs/hpfs/qnx4/sysv/udf.  If you send me by email or point out the
+URL where I can find the source of the mkfs for all the above fs I will try to
+add the tests in the regression test suite as soon as time permits so the
+computer will do that job for me (that will be useful regardless of the
+super-lock issue).
 
-kmem_cache_reap shrinks the slabs at _very_ low frequency. It's worthless to
-keep lots of dentries and icache into the slab internal queues until
-kmem_cache_reap kicks in again, if we free them such memory immediatly instead
-we'll run kmem_cache_reap later and for something more appropraite for what's
-been designed. The [id]cache shrink could release lots of memory.
+(if the mkfses are in common packages like mkfs.minix and mkfs.bfs no need to
+send them of course)
 
 Andrea
 --
