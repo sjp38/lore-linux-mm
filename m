@@ -1,26 +1,45 @@
-Date: Tue, 3 Apr 2001 17:11:27 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: 2.4 kernel memory corruption testing info
-Message-ID: <20010403171127.F907@athlon.random>
-References: <20010401232501.A1285@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20010401232501.A1285@redhat.com>; from sct@redhat.com on Sun, Apr 01, 2001 at 11:25:01PM +0100
+Received: from ucla.edu (ts49-33.dialup.bol.ucla.edu [164.67.28.234])
+	by panther.noc.ucla.edu (8.9.1a/8.9.1) with ESMTP id JAA14709
+	for <linux-mm@kvack.org>; Tue, 3 Apr 2001 09:04:06 -0700 (PDT)
+Message-ID: <3AC9E630.58A4542D@ucla.edu>
+Date: Tue, 03 Apr 2001 08:03:12 -0700
+From: Benjamin Redelings I <bredelin@ucla.edu>
+MIME-Version: 1.0
+Subject: Re: [PATCH][RFC] appling preasure to icache and dcache
+Content-Type: text/plain; charset=big5
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stephen Tweedie <sct@redhat.com>
-Cc: linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, arjanv@redhat.com, Alan Cox <alan@lxorguk.ukuu.org.uk>, Alexander Viro <aviro@redhat.com>, Chris Mason <mason@suse.com>, Theodore Ts'o <tytso@valinux.com>, Rik van Riel <riel@nl.linux.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Apr 01, 2001 at 11:25:01PM +0100, Stephen C. Tweedie wrote:
->  MMAP_FIFO (performs a ton of IO with regular read/write, mmap, fifos,
-> shared memory etc)
+Hi, I'm glad somebody is working on this!  VM-time seems like a pretty
+useful concept.
 
-Chris asked me where can he find the mmap fifo proggy but I don't know either.
-Hints?
+	I think you have a bug in your patch here: 
 
-Andrea
++       if (base > pages)       /* If the cache shrunk reset base,  The
+cache
++               base = pages;    * growing applies preasure as does
+expanding
++       if (free > old)          * free space - even if later shrinks */
++               base -= (base>free-old) ? free-old : base;
+
+It looks like you unintentionally commented out two lines of code?
+
+	I have been successfully running your patch.  But I think it needs
+benchmarks.  At the very least, compile the kernel twice w/o and twice
+w/ your patch and see how it changes the times.  I do not think I will
+have time to do it myself anytime soon unfortunately.
+	I have a 64Mb RAM machine, and the patch makes the system feel a little
+bit slower when hitting the disk.  BUt that is subjective...
+
+-BenRI
+-- 
+"...assisted of course by pride, for we teach them to describe the
+ Creeping Death, as Good Sense, or Maturity, or Experience." 
+- "The Screwtape Letters"
+Benjamin Redelings I      <><     http://www.bol.ucla.edu/~bredelin/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
