@@ -1,66 +1,57 @@
-Message-ID: <20020826205858.6612.qmail@thales.mathematik.uni-ulm.de>
-From: "Christian Ehrhardt" <ehrhardt@mathematik.uni-ulm.de>
-Date: Mon, 26 Aug 2002 22:58:58 +0200
+Message-ID: <3D6A9E4D.DBCC5D0A@zip.com.au>
+Date: Mon, 26 Aug 2002 14:31:57 -0700
+From: Andrew Morton <akpm@zip.com.au>
+MIME-Version: 1.0
 Subject: Re: MM patches against 2.5.31
 References: <3D644C70.6D100EA5@zip.com.au> <E17jO6g-0002XU-00@starship> <20020826200048.3952.qmail@thales.mathematik.uni-ulm.de> <E17jQB8-0002Zi-00@starship>
-Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <E17jQB8-0002Zi-00@starship>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Daniel Phillips <phillips@arcor.de>
-Cc: Andrew Morton <akpm@zip.com.au>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 26, 2002 at 10:09:38PM +0200, Daniel Phillips wrote:
-> On Monday 26 August 2002 22:00, Christian Ehrhardt wrote:
-> > On Mon, Aug 26, 2002 at 07:56:52PM +0200, Daniel Phillips wrote:
-> > > On Monday 26 August 2002 17:29, Christian Ehrhardt wrote:
-> > > > On Mon, Aug 26, 2002 at 04:22:50PM +0200, Daniel Phillips wrote:
-> > > > > On Monday 26 August 2002 11:10, Christian Ehrhardt wrote:
-> > > > > > + * A special Problem is the lru lists. Presence on one of these lists
-> > > > > > + * does not increase the page count.
-> > > > > 
-> > > > > Please remind me... why should it not?
-> > > > 
-> > > > Pages that are only on the lru but not reference by anyone are of no
-> > > > use and we want to free them immediatly. If we leave them on the lru
-> > > > list with a page count of 1, someone else will have to walk the lru
-> > > > list and remove pages that are only on the lru.
-> > > 
-> > > I don't understand this argument.  Suppose lru list membership is worth a 
-> > > page count of one.  Then anyone who finds a page by way of the lru list can 
-> > 
-> > This does fix the double free problem but think of a typical anonymous
-> > page at exit. The page is on the lru list and there is one reference held
-> > by the pte. According to your scheme the pte reference would be freed
-> > (obviously due to the exit) but the page would remain on the lru list.
-> > However, there is no point in leaving the page on the lru list at all.
+Daniel Phillips wrote:
 > 
-> If you want the page off the lru list at that point (which you probably do)
-> then you take the lru lock and put_page_testzero.
-
-Could you clarify what you mean with "at that point"? Especially how
-do you plan to test for "this point". Besides it is illegal to use
-the page after put_page_testzero (unless put_page_testzero returns true).
-
+> ...
 > > If you think about who is going to remove the page from the lru you'll
 > > see the problem.
 > 
 > Nope, still don't see it.  Whoever hits put_page_testzero frees the page,
 > secure in the knowlege that there are no other references to it.
 
-Well yes, but we cannot remove the page from the lru atomatically
-at page_cache_release time if we follow your proposal. If you think we can,
-show me your implementation of page_cache_release and I'll show
-you where the races are (unless you do everything under the lru_lock
-of course).
+Sure. But this requires that the caller of page_cache_release() has
+previously removed the page from the LRU.  We (used to) do that for truncate
+and page reclaim.   But we did not do that for anon pages.
 
-    regards   Christian
+For anon pages, we perform magical LRU removal when the page refcount
+goes to zero.
 
--- 
-THAT'S ALL FOLKS!
+The fact that we performed explicit removal in one place, and magical removal
+in the other was unfortunate.  I nuked the explicit removal and made it
+all magical (explicit removal in truncate_complete_page() was wrong anyway - the
+page could have been rescued and anonymised by concurrent pagefault and must
+stay on the LRU).
+
+Possibly, we could go back to explicit removal everywhere.   Haven't
+really looked at that, but I suspect we're back to a similar problem:
+to do you unracily determine whether the page should be removed from
+the LRU?  Take ->page_table_lock and look at page_count(page)?  Worried.
+
+I like the magical-removal-just-before-free, and my gut feel is that
+it'll provide a cleaner end result.
+
+Making presence on the LRU contribute to page->count is attractive,
+if only because it removes some irritating and expensive page_cache_gets
+and puts from shrink_cache and refill_inactive.  But for it to be useful,
+we must perform explicit removal everywhere.
+
+Making presence on the LRU contribute to page->count doesn't fundamentally
+change anything of course - it offsets the current problems by one.
+
+Then again, it would remove all page_cache_gets/releases from vmscan.c
+and may thus make the race go away.  That's a bit of a timebomb though.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
