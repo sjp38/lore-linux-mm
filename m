@@ -1,33 +1,47 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA18186
-	for <linux-mm@kvack.org>; Fri, 19 Jun 1998 09:15:36 -0400
-Received: from mirkwood.dummy.home (root@anx1p4.phys.uu.nl [131.211.33.93])
-	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id PAA25677
-	for <linux-mm@kvack.org>; Fri, 19 Jun 1998 15:15:21 +0200 (MET DST)
-Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with SMTP id OAA06512 for <linux-mm@kvack.org>; Fri, 19 Jun 1998 14:17:58 +0200
-Date: Fri, 19 Jun 1998 14:17:55 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: New Linux-MM homepage
-Message-ID: <Pine.LNX.3.96.980619141537.6318A-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from adore.lightlink.com (kimoto@adore.lightlink.com [205.232.34.20])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA18676
+	for <linux-mm@kvack.org>; Fri, 19 Jun 1998 11:02:03 -0400
+From: Paul Kimoto <kimoto@lightlink.com>
+Message-ID: <19980619110148.53909@adore.lightlink.com>
+Date: Fri, 19 Jun 1998 11:01:48 -0400
+Subject: Re: update re: fork() failures [in 2.1.103]
+References: <19980618235448.18503@adore.lightlink.com> <Pine.LNX.3.96.980619093210.6052C-100000@mirkwood.dummy.home>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.3.96.980619093210.6052C-100000@mirkwood.dummy.home>; from Rik van Riel on Fri, Jun 19, 1998 at 09:33:54AM +0200
 Sender: owner-linux-mm@kvack.org
 To: Linux MM <linux-mm@kvack.org>
+Cc: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Fri, Jun 19, 1998 at 09:33:54AM +0200, Rik van Riel wrote:
+> I wonder what kind of software / networking app you are using,
+> and what memory usage those programs have...
 
-I've written a new, more structured and more complete
-Linux MM homepage. It's not finished yet, but I need
-the input of you guys to make it better...
+It's a mixed libc5/libc6 system.  
+Here is a snapshot of the Top 20 in RSS:
 
-You can find it on:  <http://www.phys.uu.nl/~riel/mm-patch/>
+%CPU %MEM  SIZE   RSS
+ 1.3 18.9 13552  5876 Xwrapper        XFree 3.3.2.2
+ 1.0 18.4 10612  5716 netscape        3.01
+ 0.0  5.6  4508  1740 kermitbeta      6.1.193 Beta.05
+ 1.2  5.1  4072  1584 rvplayer        5.0.0.35
+ 0.0  3.7  4372  1176 kermitbeta
+ 0.0  3.7  4372  1168 kermitbeta
+ 0.0  2.9  1824   908 named           8.1.2
+ 0.0  2.9   960   908 xntpd           3-5.91 (locked into memory)
+ 0.0  2.8  2584   876 xterm
+ 0.0  2.4  2420   748 xterm
+ 0.0  2.3  1448   716 zsh             3.1.4
+ 0.0  2.1  1380   676 zsh
+ 0.0  2.1  1380   676 zsh
+ 0.0  2.1  1404   668 perl            5.004_04
+ 0.0  1.9  1512   592 gnuplot_x11     3.5 (3.50.1.17)
+ 0.0  1.9  2164   592 xload
+ 0.0  1.6   932   520 pppd            2.3.5
+95.7  1.6  9364   520 mprime          15.4.2 (internet Mersenne prime search)
+ 0.0  1.5  1756   496 gnuplot
+ 0.0  1.5   836   488 ps              1.2.4
 
-TIA for suggestions,
-
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+	-Paul <kimoto@lightlink.com>
+	 [please cc: relevant messages to me]
