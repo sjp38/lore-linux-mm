@@ -1,193 +1,130 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA13880
-	for <linux-mm@kvack.org>; Sat, 9 Jan 1999 13:59:40 -0500
-Date: Sat, 9 Jan 1999 19:58:25 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: 2.2.0-pre[56] swap performance poor with > 1 thrashing task
-In-Reply-To: <Pine.LNX.3.95.990108223729.3436D-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.3.96.990109194152.2615C-100000@laser.bogus>
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA14789
+	for <linux-mm@kvack.org>; Sat, 9 Jan 1999 16:53:03 -0500
+Date: Sat, 9 Jan 1999 13:50:14 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <Pine.LNX.3.95.990109095521.2572A-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.3.95.990109134233.3478A-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Dax Kelson <dkelson@inconnect.com>, Steve Bergman <steve@netplus.net>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Savochkin Andrey Vladimirovich <saw@msu.ru>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, steve@netplus.net, "Eric W. Biederman" <ebiederm+eric@ccr.net>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I think there are problems with 2.2.0-pre6 VM (even if I have not tried it
-yet really). Latest time I tried on previous kernel to use in
-__get_free_pages() a try_to_free_pages weight > than MAX_SWAP_CLUSTER (aka
-freepages.high - nr_free_pages) I had bad impact of VM balance under
-swapping. 
 
-The problem is try_to_free_pages() implementation. Using a lower weight as
-in pre5 we was sure to return to shrink_mmap with more frequency and so
-getting more balance. Instead now we return to risk to only swapout
-without make real free memory space.
 
-In the patch there's also some cosmetic change (like s/if/else if/). The
-priority = 8 is to go in the swap path more easily.
+On Sat, 9 Jan 1999, Linus Torvalds wrote:
+> 
+> The cleanest solution I can think of is actually to allow semaphores to be
+> recursive. I can do that with minimal overhead (just one extra instruction
+> in the non-contention case), so it's not too bad, and I've wanted to do it
+> for certain other things, but it's still a nasty piece of code to mess
+> around with. 
+> 
+> Oh, well. I don't think I have much choice.
 
-Ah and probably we could reinsert the swapout_interval sysctl with default
-value of HZ (not done yet due lack of time).
+Does anybody know semaphores by heart? I've got code that may well work,
+but the race conditions for semaphores are nasty. As mentioned, this only
+adds a single instruction to the common non-contended case, and I really
+do believe it should be correct, but it is completely untested (so it
+might not work at all), and it would be good to have somebody with some
+theory go through this.. 
 
-Index: linux/mm/vmscan.c
-diff -u linux/mm/vmscan.c:1.1.1.11 linux/mm/vmscan.c:1.1.1.1.2.81
---- linux/mm/vmscan.c:1.1.1.11	Sat Jan  9 12:58:26 1999
-+++ linux/mm/vmscan.c	Sat Jan  9 19:30:01 1999
-@@ -10,6 +10,11 @@
-  *  Version: $Id: vmscan.c,v 1.5 1998/02/23 22:14:28 sct Exp $
-  */
+Basically, these simple changes should make it ok to do recursive
+semaphore grabs, so
+
+	down(&sem);
+	down(&sem);
+	up(&sem);
+	up(&sem);
+
+should work and leave the semaphore unlocked.
+
+Anybody? Semaphore theory used to be really popular at Universities, so
+there must be somebody who has some automated proving program somewhere..
+
+		Linus
+
+-----
+diff -u --recursive --new-file penguin/linux/include/asm-i386/semaphore.h linux/include/asm-i386/semaphore.h
+--- penguin/linux/include/asm-i386/semaphore.h	Fri Jan  1 11:56:20 1999
++++ linux/include/asm-i386/semaphore.h	Sat Jan  9 13:37:29 1999
+@@ -25,12 +25,23 @@
  
+ struct semaphore {
+ 	atomic_t count;
++	unsigned long owner;
+ 	int waking;
+ 	struct wait_queue * wait;
+ };
+ 
+-#define MUTEX ((struct semaphore) { ATOMIC_INIT(1), 0, NULL })
+-#define MUTEX_LOCKED ((struct semaphore) { ATOMIC_INIT(0), 0, NULL })
 +/*
-+ * free_user_and_cache(), always async swapout.
-+ * Copyright (C) 1999  Andrea Arcangeli
++ * Because we want the non-contention case to be
++ * fast, we save the stack pointer into the "owner"
++ * field, and to get the true task pointer we have
++ * to do the bit masking. That moves the masking
++ * operation into the slow path.
 + */
++#define semaphore_owner(sem) \
++	((struct task_struct *)((2*PAGE_MASK) & (sem)->owner))
 +
- #include <linux/slab.h>
- #include <linux/kernel_stat.h>
- #include <linux/swap.h>
-@@ -199,11 +204,11 @@
++#define MUTEX ((struct semaphore) { ATOMIC_INIT(1), 0, 0, NULL })
++#define MUTEX_LOCKED ((struct semaphore) { ATOMIC_INIT(0), 0, 0, NULL })
  
- 	do {
- 		int result;
--		tsk->swap_address = address + PAGE_SIZE;
- 		result = try_to_swap_out(tsk, vma, address, pte, gfp_mask);
-+		address += PAGE_SIZE;
-+		tsk->swap_address = address;
- 		if (result)
- 			return result;
--		address += PAGE_SIZE;
- 		pte++;
- 	} while (address < end);
- 	return 0;
-@@ -325,7 +330,7 @@
- 	counter = nr_tasks / (priority+1);
- 	if (counter < 1)
- 		counter = 1;
--	if (counter > nr_tasks)
-+	else if (counter > nr_tasks)
- 		counter = nr_tasks;
- 
- 	for (; counter >= 0; counter--) {
-@@ -438,13 +443,22 @@
- 		 * point is to make sure that the system doesn't stay
- 		 * forever in a really bad memory squeeze.
- 		 */
--		if (nr_free_pages < freepages.high)
--			try_to_free_pages(0, 16);
-+		if (nr_free_pages < freepages.low)
-+			try_to_free_pages(0, freepages.high - nr_free_pages);
- 	}
- 
- 	return 0;
+ asmlinkage void __down_failed(void /* special register calling convention */);
+ asmlinkage int  __down_failed_interruptible(void  /* params in registers */);
+@@ -64,13 +75,14 @@
+ 	spin_unlock_irqrestore(&semaphore_wake_lock, flags);
  }
  
-+static int free_user_and_cache(int priority, int gfp_mask)
-+{
-+	if (shrink_mmap(priority, gfp_mask))
-+		return 1;
-+	if (swap_out(priority, gfp_mask))
-+		return 1;
-+	return 0;
-+}
-+
- /*
-  * We need to make the locks finer granularity, but right
-  * now we need this so that we can do page allocations
-@@ -457,33 +471,32 @@
- int try_to_free_pages(unsigned int gfp_mask, int count)
+-static inline int waking_non_zero(struct semaphore *sem)
++static inline int waking_non_zero(struct semaphore *sem, struct task_struct *tsk)
  {
- 	int priority;
-+	static int state = 0;
+ 	unsigned long flags;
+ 	int ret = 0;
  
- 	lock_kernel();
+ 	spin_lock_irqsave(&semaphore_wake_lock, flags);
+-	if (sem->waking > 0) {
++	if (sem->waking > 0 || semaphore_owner(sem) == tsk) {
++		sem->owner = (unsigned long) tsk;
+ 		sem->waking--;
+ 		ret = 1;
+ 	}
+@@ -91,7 +103,8 @@
+ 		"lock ; "
+ #endif
+ 		"decl 0(%0)\n\t"
+-		"js 2f\n"
++		"js 2f\n\t"
++		"movl %%esp,4(%0)\n"
+ 		"1:\n"
+ 		".section .text.lock,\"ax\"\n"
+ 		"2:\tpushl $1b\n\t"
+@@ -113,6 +126,7 @@
+ #endif
+ 		"decl 0(%1)\n\t"
+ 		"js 2f\n\t"
++		"movl %%esp,4(%1)\n\t"
+ 		"xorl %0,%0\n"
+ 		"1:\n"
+ 		".section .text.lock,\"ax\"\n"
+diff -u --recursive --new-file penguin/linux/kernel/sched.c linux/kernel/sched.c
+--- penguin/linux/kernel/sched.c	Mon Jan  4 23:15:49 1999
++++ linux/kernel/sched.c	Sat Jan  9 13:37:16 1999
+@@ -883,7 +883,7 @@
+ 	 * who gets to gate through and who has to wait some more.	 \
+ 	 */								 \
+ 	for (;;) {							 \
+-		if (waking_non_zero(sem))	/* are we waking up?  */ \
++		if (waking_non_zero(sem, tsk))	/* are we waking up?  */ \
+ 			break;			/* yes, exit loop */
  
--	/* Always trim SLAB caches when memory gets low. */
--	kmem_cache_reap(gfp_mask);
--
--	priority = 6;
--	do {
--		while (shrink_mmap(priority, gfp_mask)) {
--			if (!--count)
--				goto done;
--		}
--
--		/* Try to get rid of some shared memory pages.. */
--		while (shm_swap(priority, gfp_mask)) {
--			if (!--count)
--				goto done;
--		}
--	
--		/* Then, try to page stuff out.. */
--		while (swap_out(priority, gfp_mask)) {
--			if (!--count)
--				goto done;
--		}
-+	priority = 8;
-+	switch (state)
-+	{
-+		do {
-+		case 0:
-+			while (free_user_and_cache(priority, gfp_mask)) {
-+				if (!--count)
-+					goto done;
-+			}
-+			state = 1;
-+		case 1:
-+			/* Try to get rid of some shared memory pages.. */
-+			while (shm_swap(priority, gfp_mask)) {
-+				if (!--count)
-+					goto done;
-+			}
-+			state = 0;
- 
--		shrink_dcache_memory(priority, gfp_mask);
--	} while (--priority >= 0);
-+			kmem_cache_reap(gfp_mask);
-+			shrink_dcache_memory(priority, gfp_mask);
-+		} while (--priority >= 0);
-+	}
- done:
- 	unlock_kernel();
- 
+ #define DOWN_TAIL(task_state)			\
 
-
-Another patch I consider right is this:
-
-Index: linux/mm/page_alloc.c
-diff -u linux/mm/page_alloc.c:1.1.1.7 linux/mm/page_alloc.c:1.1.1.1.2.25
---- linux/mm/page_alloc.c:1.1.1.7	Sat Jan  9 12:58:25 1999
-+++ linux/mm/page_alloc.c	Fri Jan  8 00:57:18 1999
-@@ -3,6 +3,7 @@
-  *
-  *  Copyright (C) 1991, 1992, 1993, 1994  Linus Torvalds
-  *  Swap reorganised 29.12.95, Stephen Tweedie
-+ *  trashing_memory heuristic. Copyright (C) 1999  Andrea Arcangeli
-  */
- 
- #include <linux/config.h>
-@@ -265,10 +266,11 @@
- 		if (nr_free_pages > freepages.min) {
- 			if (!current->trashing_memory)
- 				goto ok_to_allocate;
--			if (nr_free_pages > freepages.low) {
-+			if (nr_free_pages > freepages.high) {
- 				current->trashing_memory = 0;
- 				goto ok_to_allocate;
--			}
-+			} else if (nr_free_pages > freepages.low)
-+				goto ok_to_allocate;
- 		}
- 		/*
- 		 * Low priority (user) allocations must not
-
-
-This will allow the system to be less close to freepages.min. Both the two
-patches applyed to pre6 make arca-vm-13-against-pre5 and arca-vm-13 is
-been reported by Steve to give the _same_ timing numbers as pre5 with its
-latest bench (with the difference that arca-vm-13 was generating 1/2 of
-swap hit than pre5). I guess he will try to do some other bench (as the
-image test soon) next days though.
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
