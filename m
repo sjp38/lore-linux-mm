@@ -1,58 +1,51 @@
-Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA13117
-	for <linux-mm@kvack.org>; Fri, 27 Feb 1998 16:43:50 -0500
-Date: Fri, 27 Feb 1998 19:41:04 GMT
-Message-Id: <199802271941.TAA01151@dax.dcs.ed.ac.uk>
-From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
+Date: Fri, 27 Feb 1998 17:28:33 -0500 (EST)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: [2x PATCH] page map aging & improved kswap logic
+In-Reply-To: <199802271952.TAA01195@dax.dcs.ed.ac.uk>
+Message-ID: <Pine.LNX.3.95.980227164636.13161A-100000@as200.spellcast.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: Fairness in love and swapping
-In-Reply-To: <Pine.LNX.3.91.980227003050.6476B-100000@mirkwood.dummy.home>
-References: <199802262244.WAA03924@dax.dcs.ed.ac.uk>
-	<Pine.LNX.3.91.980227003050.6476B-100000@mirkwood.dummy.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, "Dr. Werner Fink" <werner@suse.de>, torvalds@transmeta.com, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
+Cc: Rik van Riel <H.H.vanRiel@fys.ruu.nl>, "Dr. Werner Fink" <werner@suse.de>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Fri, 27 Feb 1998, Stephen C. Tweedie wrote:
+...
+> The biggest problem is avoiding blocking while we do the work in
+> try_to_swap_out().  That is a rather tricky piece of code, since it has
+> to deal with the fact that the process it is swapping can actually be
+> killed if we sleep for any reason, so it will not necessarily still be
+> there when we wake up again.  We've really got to do the entire
+> custering operation for write within try_to_swap_out() and then start up
+> the IO for those pages.
 
-> AFAIK, mapped images aren't part of a proces' RSS, but
-> are page-cached (page->inode type of RSS). And swapping
-> of those vma's _is_ done in shrink_mmap() in filemap.c.
+The code I'm hoping to complete this weekend should solve this problem
+nicely -- vm_ops->swapout is now completely integrated within the swapper
+for 'normal' shared/private pages and won't sleep until all ptes that
+reference a page have been replaced with the swap entry.  So it's just a
+small step to batch up the pages to be written out.
 
-No, absolutely not.  These pages are certainly present in the page
-cache, but they are not swapped out there, and filemap.c never deals
-directly with vma scans.  shrink_mmap() refuses to touch any pages which
-have a reference count not exactly equal to one, so it avoids memory
-mapped pages like the plague.  Memory mapped images are referenced
-directly by a process's page tables, so they count against its resident
-set size (which is defined as the number of present user-mode pages in
-the page tables).
+> However, at least with the new swap cache stuff we can make things
+> easier, since it is now possible to set up swap cache associations
+> atomically on all the pages we want to swapout, and then take as much
+> time as we want performing the actual writes.  All we need to do is make
+> sure that we lock all the pages for IO without the risk of blocking.
 
-vmscan.c::try_to_swap_out() unhooks these pages from the page tables
-when it wants to.  The final swapout of these pages takes place at the
-end of that function, where it calls filemap.c::page_unuse(), which
-takes care of removing the page from the page cache as soon as the last
-reference from the page tables is removed.
+At your suggestion, my work in progress now includes a per private vma
+inode, which essentially makes the swap-cache disappear since all pages
+are now in the page cache.  There is a concern with this: on swapin, each
+pte that pointed to the page on disk has to be replaced with the page's
+entry.  Unfortunately this means that the swap entry is now lost!  I'm
+tempted to revert back to the old swap_cache_entry, and will have to
+unless someone has an ingenious idea about where the swap entry could be
+stored.  (The inode, offset pair can't be used for the swap cache as
+they're used to find the appropriate pte in the page tables.)
 
-> Furthermore, it's quite useful if your read-ahead pages
-> stay in memory for a while so you don't read them two
-> or even three times before they're actually used.
+One possibility is to store the swap entries in a structure attached to
+the inode - right now affs is using a whopping ~80 longs for its private
+inode data.  Or the data could just be stored in swap-cache entries tied
+to the inode - actually that might work well as a page would need to be
+allocated on swapin of an entry.  Hmmm...
 
-We never will read more than once --- the pages are still in the page
-cache, so whenever we try to swap them in, we can always find the
-readahead copy there.  Memory-mapped pages have to be in the page cache
-before we are allowed to link them into the page tables, so the pages
-are shared by both in the page cache *and* the page tables.  It is the
-swapper which is responsible for turfing shared pages.  shrink_mmap()
-only ever looks for unshared cache pages and buffers.
-
-> But if I've overlooked something, I'd really like to hear about
-> it... A bit of a clue never hurts when coding up new patches :-)
-
-You're welcome. :)
-
-Cheers,
- Stephen.
+		-ben
