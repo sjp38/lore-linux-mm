@@ -1,38 +1,30 @@
-From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Message-Id: <200103020820.AAA35209@google.engr.sgi.com>
-Subject: Linux/mips64 on 64 node, 128p, 64G machine
-Date: Fri, 2 Mar 2001 00:20:57 -0800 (PST)
-MIME-Version: 1.0
+Date: Fri, 2 Mar 2001 17:10:20 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [PATCH] count for buffer IO in page_launder()
+Message-ID: <20010302171020.W28854@redhat.com>
+References: <Pine.LNX.4.21.0102270353020.6519-100000@freak.distro.conectiva>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0102270353020.6519-100000@freak.distro.conectiva>; from marcelo@conectiva.com.br on Tue, Feb 27, 2001 at 04:09:09AM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
-Cc: torvalds@transmeta.com, Kanoj Sarcar <kanoj@google.engr.sgi.com>
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-Just a quick note to mention that I was successful in booting up a
-64 node, 128p, 64G mips64 machine on a 2.4.1 based kernel. To be able
-to handle the amount of io devices connected, I had to make some 
-fixes in the arch/mips64 code. And a few to handle 128 cpus.
+On Tue, Feb 27, 2001 at 04:09:09AM -0300, Marcelo Tosatti wrote:
+> 
+> page_launder() is not counting direct ll_rw_block() IO correctly in the
+> flushed pages counter. 
 
-A couple of generic patches needed to be made on top of 2.4.1 
-(obviously, the prime one was that NR_CPUS had to be bumped to 128).
-I will clean the patches up and send them in to Linus.
+Having not seen any follow to this, it's worth asking: what is the
+expected consequence of _not_ including this?  Have you done any
+performance testing on it?
 
-For some output, visit
-
-    http://oss.sgi.com/projects/LinuxScalability/download/mips128.out
-
-I ommitted the bootup messages, since they are similar (just a lot
-longer!) to the 32p bootup messages at
-
-    http://oss.sgi.com/projects/LinuxScalability/download/mips64.out
-
-Kanoj
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
