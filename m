@@ -1,38 +1,44 @@
-Date: Mon, 25 Sep 2000 12:31:38 -0500 (CDT)
-From: Oliver Xymoron <oxymoron@waste.org>
+Date: Mon, 25 Sep 2000 18:43:38 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: the new VMt
-In-Reply-To: <E13dbhk-0005J0-00@the-village.bc.nu>
-Message-ID: <Pine.LNX.4.10.10009251227350.19220-100000@waste.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000925184338.L2615@redhat.com>
+References: <20000925164249.G2615@redhat.com> <E13dbTq-0005Gg-00@the-village.bc.nu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <E13dbTq-0005Gg-00@the-village.bc.nu>; from alan@lxorguk.ukuu.org.uk on Mon, Sep 25, 2000 at 05:51:49PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Alexander Viro <viro@math.psu.edu>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Sep 2000, Alan Cox wrote:
+Hi,
 
-> > > > Stupidity has no limits...
+On Mon, Sep 25, 2000 at 05:51:49PM +0100, Alan Cox wrote:
+> > > 2 active processes, no swap
 > > > 
-> > > Unfortunately its frequently wired into the hardware to save a few cents on
-> > > scatter gather logic.
+> > > #1					#2
+> > > kmalloc 32K				kmalloc 16K
+> > > OK					OK
+> > > kmalloc 16K				kmalloc 32K
+> > > block					block
+> > > 
 > > 
-> > Since when hardware folks became exempt from the rule above? 128K is
-> > almost tolerable, there were requests for 64 _mega_bytes...
+> > ... and we get two wakeup_kswapd()s.  kswapd has PF_MEMALLOC and so is
+> > able to eat memory which processes #1 and #2 are not allowed to touch.
 > 
-> Most cheap ass PCI hardware is built on the basis you can do linear 4Mb 
-> allocations. There is a reason for this. You can do that 4Mb allocation on
-> NT or Windows 9x
+> 'no swap'
 
-Sure about that? It's been a while, but I seem to recall NT enforcing a
-scatter-gather framework on all drivers because it only gave them virtual
-allocations. For the cheaper cards, the s-g was done by software issuing
-single span requests to the card.
+kswapd is perfectly capable of evicting clean pages and triggering any
+necessary writeback of dirty filesystem data at this point, even if
+there is no swap.  If there is truly nothing kswapd can do to recover
+here, then we are truly OOM.  Otherwise, kswapd should be able to free
+the required memory, providing that the PF_MEMALLOC flag allows it to
+eat into a reserved set of free pages which nobody else can allocate
+once physical free pages gets below a certain threshold.
 
---
- "Love the dolphins," she advised him. "Write by W.A.S.T.E.." 
-
+--Stephen 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
