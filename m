@@ -1,224 +1,151 @@
-Date: Thu, 24 May 2001 10:48:48 +0200 (CEST)
-From: Mike Galbraith <mikeg@wen-online.de>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id AEA2C16B6C
+	for <linux-mm@kvack.org>; Thu, 24 May 2001 06:10:06 -0300 (EST)
+Date: Thu, 24 May 2001 06:10:06 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-In-Reply-To: <Pine.LNX.4.21.0105200546241.5531-100000@imladris.rielhome.conectiva>
-Message-ID: <Pine.LNX.4.33.0105241041100.369-100000@mikeg.weiden.de>
+In-Reply-To: <Pine.LNX.4.33.0105241041100.369-100000@mikeg.weiden.de>
+Message-ID: <Pine.LNX.4.33.0105240551450.311-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: Mike Galbraith <mikeg@wen-online.de>
 Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 20 May 2001, Rik van Riel wrote:
+On Thu, 24 May 2001, Mike Galbraith wrote:
+> On Sun, 20 May 2001, Rik van Riel wrote:
+>
+> > Remember that inactive_clean pages are always immediately
+> > reclaimable by __alloc_pages(), if you measured a performance
+> > difference by freeing pages in a different way I'm pretty sure
+> > it's a side effect of something else.  What that something
+> > else is I'm curious to find out, but I'm pretty convinced that
+> > throwing away data early isn't the way to go.
+>
+> OK.. let's forget about throughput for a moment and consider
+> those annoying reports of 0 order allocations failing :)
 
-> Remember that inactive_clean pages are always immediately
-> reclaimable by __alloc_pages(), if you measured a performance
-> difference by freeing pages in a different way I'm pretty sure
-> it's a side effect of something else.  What that something
-> else is I'm curious to find out, but I'm pretty convinced that
-> throwing away data early isn't the way to go.
+Those are ok.  All failing 0 order allocations are either
+atomic allocations or GFP_BUFFER allocations.  I guess we
+should just remove the printk()  ;)
 
-OK.. let's forget about throughput for a moment and consider
-those annoying reports of 0 order allocations failing :)
+> What do you think of the below (ignore the refill_inactive bit)
+> wrt allocator reliability under heavy stress?  The thing does
+> kick in and pump up zones even if I set the 'blood donor' level
+> to pages_min.
 
-What do you think of the below (ignore the refill_inactive bit)
-wrt allocator reliability under heavy stress?  The thing does
-kick in and pump up zones even if I set the 'blood donor' level
-to pages_min.
+> -		unsigned long water_mark;
+> +		unsigned long water_mark = 1 << order;
 
-	-Mike
+Makes no sense at all since water_mark gets assigned not 10
+lines below.  ;)
 
---- linux-2.4.5-pre3/mm/page_alloc.c.org	Mon May 21 10:35:06 2001
-+++ linux-2.4.5-pre3/mm/page_alloc.c	Thu May 24 08:18:36 2001
-@@ -224,10 +224,11 @@
- 			unsigned long order, int limit, int direct_reclaim)
- {
- 	zone_t **zone = zonelist->zones;
-+	struct page *page = NULL;
 
- 	for (;;) {
- 		zone_t *z = *(zone++);
--		unsigned long water_mark;
-+		unsigned long water_mark = 1 << order;
+> +		if (direct_reclaim) {
+> +			int count;
+> +
+> +			/* If we're in bad shape.. */
+> +			if (z->free_pages < z->pages_low && z->inactive_clean_pages) {
 
- 		if (!z)
- 			break;
-@@ -249,18 +250,44 @@
- 			case PAGES_HIGH:
- 				water_mark = z->pages_high;
- 		}
-+		if (z->free_pages + z->inactive_clean_pages < water_mark)
-+			continue;
+I'm not sure if we want to fill up the free list all the way
+to z->pages_low all the time, since "free memory is wasted
+memory".
 
--		if (z->free_pages + z->inactive_clean_pages > water_mark) {
--			struct page *page = NULL;
--			/* If possible, reclaim a page directly. */
--			if (direct_reclaim && z->free_pages < z->pages_min + 8)
-+		if (direct_reclaim) {
-+			int count;
-+
-+			/* If we're in bad shape.. */
-+			if (z->free_pages < z->pages_low && z->inactive_clean_pages) {
-+				count = 4 * (1 << page_cluster);
-+				/* reclaim a page for ourselves if we can afford to.. */
-+				if (z->inactive_clean_pages > count)
-+					page = reclaim_page(z);
-+				if (z->inactive_clean_pages < 2 * count)
-+					count = z->inactive_clean_pages / 2;
-+			} else count = 0;
-+
-+			/*
-+			 * and make a small donation to the reclaim challenged.
-+			 *
-+			 * We don't ever want a zone to reach the state where we
-+			 * have nothing except reclaimable pages left.. not if
-+			 * we can possibly do something to help prevent it.
-+			 */
-+			while (count--) {
-+				struct page *page;
- 				page = reclaim_page(z);
--			/* If that fails, fall back to rmqueue. */
--			if (!page)
--				page = rmqueue(z, order);
--			if (page)
--				return page;
-+				if (!page)
-+					break;
-+				__free_page(page);
-+			}
- 		}
-+		if (!page)
-+			page = rmqueue(z, order);
-+		if (page)
-+			return page;
-+		if (z->inactive_clean_pages - z->free_pages > z->pages_low
-+				&& waitqueue_active(&kreclaimd_wait))
-+			wake_up_interruptible(&kreclaimd_wait);
- 	}
+The reason the current scheme only triggers when we reach
+z->pages_min and then goes all the way up to z->pages_low
+is memory defragmentation. Since we'll be doing direct
+reclaim for just about every allocation in the system, it
+only happens occasionally that we throw away all the
+inactive_clean pages between z->pages_min and z->pages_low.
 
- 	/* Found nothing. */
-@@ -314,29 +341,6 @@
- 		wakeup_bdflush(0);
+> +				count = 4 * (1 << page_cluster);
+> +				/* reclaim a page for ourselves if we can afford to.. */
+> +				if (z->inactive_clean_pages > count)
+> +					page = reclaim_page(z);
+> +				if (z->inactive_clean_pages < 2 * count)
+> +					count = z->inactive_clean_pages / 2;
+> +			} else count = 0;
 
- try_again:
--	/*
--	 * First, see if we have any zones with lots of free memory.
--	 *
--	 * We allocate free memory first because it doesn't contain
--	 * any data ... DUH!
--	 */
--	zone = zonelist->zones;
--	for (;;) {
--		zone_t *z = *(zone++);
--		if (!z)
--			break;
--		if (!z->size)
--			BUG();
--
--		if (z->free_pages >= z->pages_low) {
--			page = rmqueue(z, order);
--			if (page)
--				return page;
--		} else if (z->free_pages < z->pages_min &&
--					waitqueue_active(&kreclaimd_wait)) {
--				wake_up_interruptible(&kreclaimd_wait);
--		}
--	}
+What exactly is the reasoning behind this complex  "count"
+stuff? Is there a good reason for not just refilling the
+free list up to the target or until the inactive_clean list
+is depleted ?
 
- 	/*
- 	 * Try to allocate a page from a zone with a HIGH
---- linux-2.4.5-pre3/mm/vmscan.c.org	Thu May 17 16:44:23 2001
-+++ linux-2.4.5-pre3/mm/vmscan.c	Thu May 24 08:05:21 2001
-@@ -824,39 +824,17 @@
- #define DEF_PRIORITY (6)
- static int refill_inactive(unsigned int gfp_mask, int user)
- {
--	int count, start_count, maxtry;
--
--	if (user) {
--		count = (1 << page_cluster);
--		maxtry = 6;
--	} else {
--		count = inactive_shortage();
--		maxtry = 1 << DEF_PRIORITY;
--	}
--
--	start_count = count;
--	do {
--		if (current->need_resched) {
--			__set_current_state(TASK_RUNNING);
--			schedule();
--			if (!inactive_shortage())
--				return 1;
--		}
--
--		count -= refill_inactive_scan(DEF_PRIORITY, count);
--		if (count <= 0)
--			goto done;
--
--		/* If refill_inactive_scan failed, try to page stuff out.. */
--		swap_out(DEF_PRIORITY, gfp_mask);
--
--		if (--maxtry <= 0)
--				return 0;
--
--	} while (inactive_shortage());
--
--done:
--	return (count < start_count);
-+	int shortage = inactive_shortage();
-+	int large = freepages.high/2;
-+	int scale;
-+
-+	scale = shortage/large;
-+	scale += free_shortage()/large;
-+	if (scale > DEF_PRIORITY-1)
-+		scale = DEF_PRIORITY-1;
-+	if (refill_inactive_scan(DEF_PRIORITY-scale, shortage) < shortage)
-+		return swap_out(DEF_PRIORITY, gfp_mask);
-+	return 1;
- }
+> +			/*
+> +			 * and make a small donation to the reclaim challenged.
+> +			 *
+> +			 * We don't ever want a zone to reach the state where we
+> +			 * have nothing except reclaimable pages left.. not if
+> +			 * we can possibly do something to help prevent it.
+> +			 */
 
- static int do_try_to_free_pages(unsigned int gfp_mask, int user)
-@@ -976,8 +954,9 @@
- 		 * We go to sleep for one second, but if it's needed
- 		 * we'll be woken up earlier...
- 		 */
--		if (!free_shortage() || !inactive_shortage()) {
--			interruptible_sleep_on_timeout(&kswapd_wait, HZ);
-+		if (current->need_resched || !free_shortage() ||
-+				!inactive_shortage()) {
-+			interruptible_sleep_on_timeout(&kswapd_wait, HZ/10);
- 		/*
- 		 * If we couldn't free enough memory, we see if it was
- 		 * due to the system just not having enough memory.
-@@ -1051,10 +1030,13 @@
- 			int i;
- 			for(i = 0; i < MAX_NR_ZONES; i++) {
- 				zone_t *zone = pgdat->node_zones + i;
-+				int count;
- 				if (!zone->size)
- 					continue;
+This comment makes little sense
 
--				while (zone->free_pages < zone->pages_low) {
-+				count = zone->pages_low;
-+				while (zone->free_pages < zone->inactive_clean_pages &&
-+						count--) {
- 					struct page * page;
- 					page = reclaim_page(zone);
- 					if (!page)
-@@ -1064,6 +1046,9 @@
- 			}
- 			pgdat = pgdat->node_next;
- 		} while (pgdat);
-+#if 1
-+		run_task_queue(&tq_disk);
-+#endif
- 	}
- }
+> +		if (z->inactive_clean_pages - z->free_pages > z->pages_low
+> +				&& waitqueue_active(&kreclaimd_wait))
+> +			wake_up_interruptible(&kreclaimd_wait);
 
+This doesn't make any sense to me at all.  Why wake up
+kreclaimd just because the difference between the number
+of inactive_clean pages and free pages is large ?
+
+Didn't we determine in our last exchange of email that
+it would be a good thing under most loads to keep as much
+inactive_clean memory around as possible and not waste^Wfree
+memory early ?
+
+> -	/*
+> -	 * First, see if we have any zones with lots of free memory.
+> -	 *
+> -	 * We allocate free memory first because it doesn't contain
+> -	 * any data ... DUH!
+> -	 */
+
+We want to keep this.  Suppose we have one zone which is
+half filled with inactive_clean pages and one zone which
+has "too many" free pages.
+
+Allocating from the first zone means we evict some piece
+of, potentially useful, data from the cache; allocating
+from the second zone means we can keep the data in memory
+and only fill up a currently unused page.
+
+
+> @@ -824,39 +824,17 @@
+>  #define DEF_PRIORITY (6)
+>  static int refill_inactive(unsigned int gfp_mask, int user)
+>  {
+
+I've heard all kinds of things about this part of the patch,
+except an explanation of why and how it is supposed to work ;)
+
+
+> @@ -976,8 +954,9 @@
+>  		 * We go to sleep for one second, but if it's needed
+>  		 * we'll be woken up earlier...
+>  		 */
+> -		if (!free_shortage() || !inactive_shortage()) {
+> -			interruptible_sleep_on_timeout(&kswapd_wait, HZ);
+> +		if (current->need_resched || !free_shortage() ||
+> +				!inactive_shortage()) {
+> +			interruptible_sleep_on_timeout(&kswapd_wait, HZ/10);
+
+Makes sense.  Integrated in my tree ;)
+
+
+regards,
+
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
+
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
