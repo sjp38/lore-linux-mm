@@ -1,37 +1,51 @@
-Date: Wed, 27 Oct 2004 11:48:36 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: news about IDE PIO HIGHMEM bug
-Message-ID: <20041027184836.GA12934@holomorphy.com>
-References: <58cb370e041027074676750027@mail.gmail.com> <417FBB6D.90401@pobox.com> <1246230000.1098892359@[10.10.2.4]> <1246750000.1098892883@[10.10.2.4]> <20041027180816.GA32436@infradead.org> <417FEA09.6080502@pobox.com>
+Date: Wed, 27 Oct 2004 14:27:00 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: migration cache, updated
+Message-ID: <20041027162659.GA1644@logos.cnet>
+References: <20041025213923.GD23133@logos.cnet> <20041026.181504.38310112.taka@valinux.co.jp> <20041026092535.GE24462@logos.cnet> <20041026.230110.21315175.taka@valinux.co.jp> <20041026122419.GD27014@logos.cnet> <20041027072524.EA19F7045D@sv1.valinux.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <417FEA09.6080502@pobox.com>
+In-Reply-To: <20041027072524.EA19F7045D@sv1.valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@pobox.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Bartlomiej Zolnierkiewicz <bzolnier@gmail.com>, "Randy.Dunlap" <rddunlap@osdl.org>, Jens Axboe <axboe@suse.de>, James Bottomley <James.Bottomley@SteelEye.com>
+To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm@kvack.org, haveblue@us.ibm.com, hugh@veritas.com, cliffw@osdl.org, judith@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig wrote:
->> I think this is the wrong level of interface exposed.  Just add two hepler
->> kmap_atomic_sg/kunmap_atomic_sg that gurantee to map/unmap a sg list entry,
->> even if it's bigger than a page.
+On Wed, Oct 27, 2004 at 04:25:24PM +0900, IWAMOTO Toshihiro wrote:
+> At Tue, 26 Oct 2004 10:24:19 -0200,
+> Marcelo Tosatti wrote:
+> 
+> > Pages with reference count zero will be not be moved to the page
+> > list, and truncated pages seem to be handled nicely later on the
+> > migration codepath.
+> > 
+> > A quick search on Iwamoto's test utils shows no sign of truncate(). 
+> 
+> IIRC, the easiest test method is file overwrite, such as
+> 
+> 	while true; do
+> 		tar zxvf ../some.tar.gz
+> 	done
+> 
+> 
+> > It would be nice to add more testcases (such as truncate() 
+> > intensive application) to his testsuite.
+> 
+> And it would be great to have an automated regression test suite.
+> I wonder if OSDL's test harness(http://stp.sf.net/) could be used, but
+> I had no chance to investigate any further.
 
-On Wed, Oct 27, 2004 at 02:33:45PM -0400, Jeff Garzik wrote:
-> Why bother mapping anything larger than a page, when none of the users 
-> need it?
-> P.S. In your scheme you would need four helpers; you forgot kmap_sg() 
-> and kunmap_sg().
+I dont think it is usable as it is because the benchmarks are fixed
+and you can't have scripts (your own commands) running as far as I 
+remember - so its not possible to remove memory regions.
 
-This is all a non-issue. The page structure just represents little more
-than a physical address to the block layer in the context of merging,
-so the pfn_to_page(page_to_pfn(...) + ...) bits calculate this properly.
-There is just nothing interesting going on here. Generate the page
-structure for the piece of the segment, kmap_atomic() it, and it's done.
+Other than that it should be fine - make a script to add/remove
+memory zones and let the benchmarks run.
 
+Cliff, Judith, is that right?
 
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
