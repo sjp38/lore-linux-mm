@@ -1,27 +1,29 @@
-Received: from localhost (haih@localhost [127.0.0.1])
-	by violet.engin.umich.edu (8.9.3/8.9.1) with ESMTP id XAA22017
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2002 23:04:21 -0400 (EDT)
-Date: Wed, 14 Aug 2002 23:04:21 -0400 (EDT)
-From: Hai Huang <haih@engin.umich.edu>
-Subject: dynamic linked libraries
-Message-ID: <Pine.SOL.4.33.0208142303010.18485-100000@violet.engin.umich.edu>
+Message-ID: <3D5B253A.31998AEF@zip.com.au>
+Date: Wed, 14 Aug 2002 20:51:22 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: dynamic linked libraries
+References: <Pine.SOL.4.33.0208142303010.18485-100000@violet.engin.umich.edu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Hai Huang <haih@engin.umich.edu>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Is there anyway to spot whether a vm_area_struct is used to map a dynamic
-linked library somehow?
+Hai Huang wrote:
+> 
+> Is there anyway to spot whether a vm_area_struct is used to map a dynamic
+> linked library somehow?
+> 
 
-Thanks.
+Don't think so.  If it has a vm_file, and the protection bits
+are right then there's a good chance.
 
--
-Hai
-
-
-
+If it's just for debug/devel code and doesn't have to be 100% accurate
+then you could perhaps also go fishing inside vm_file->f_dentry->d_name
+for the substring ".so".
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
