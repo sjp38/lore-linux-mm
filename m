@@ -1,49 +1,40 @@
-From: Neil Brown <neilb@cse.unsw.edu.au>
-Date: Thu, 29 May 2003 11:08:20 +1000
-MIME-Version: 1.0
+Date: Wed, 28 May 2003 19:10:29 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: Question about locking in mmap.c
+Message-ID: <20030529021029.GH15692@holomorphy.com>
+References: <33460000.1054135672@baldur.austin.ibm.com> <133810000.1054159806@baldur.austin.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <16085.23940.164807.702704@notabene.cse.unsw.edu.au>
-Subject: Re: 2.5.70-mm1 bootcrash, possibly RAID-1
-In-Reply-To: message from Paul E. Erkkila on Wednesday May 28
-References: <20030408042239.053e1d23.akpm@digeo.com>
-	<3ED49A14.2020704@aitel.hist.no>
-	<20030528111345.GU8978@holomorphy.com>
-	<3ED49EB8.1080506@aitel.hist.no>
-	<20030528113544.GV8978@holomorphy.com>
-	<20030528225913.GA1103@hh.idb.hist.no>
-	<3ED54685.5020706@erkkila.org>
+Content-Disposition: inline
+In-Reply-To: <133810000.1054159806@baldur.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: pee@erkkila.org
-Cc: Helge Hafting <helgehaf@aitel.hist.no>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Greetings all.
+On Wednesday, May 28, 2003 10:27:52 -0500 Dave McCracken wrote:
+>> My question is what is page_table_lock supposed to be protecting against?
+>> Am I wrong that mmap_sem is sufficient to protect against concurrent
+>> changes to the vmas?
 
-I think this might fix the bug, but I haven't looked very closely
-yet.  I will expore it more deeply when I get time.
+On Wed, May 28, 2003 at 05:10:06PM -0500, Dave McCracken wrote:
+> I decided one way to find out was to remove the page_table_lock from mmap.
+> I discovered one place it protects against is vmtruncate(), so it's
+> definitely needed as it stands.  I got an oops in zap_page_range() called
+> from vmtruncate().
 
-NeilBrown
+do_mmap_pgoff() should at least be taking ->i_shared_sem around
+__vma_link(). The analogue for do_munmap() is not quite the case;
+it appears that the links aren't simultaneously removed under
+->i_shared_sem, which would be the cause of it.
+
+vma_merge() appears to be safe, but unmap_vma() does not. The lock
+hierarchy is essentially inconsistent around this area, so trylocking
+and failure handling would be required to convert it.
 
 
-
- ----------- Diffstat output ------------
- ./drivers/md/raid1.c |    2 +-
- 1 files changed, 1 insertion(+), 1 deletion(-)
-
-diff ./drivers/md/raid1.c~current~ ./drivers/md/raid1.c
---- ./drivers/md/raid1.c~current~	2003-05-29 11:05:03.000000000 +1000
-+++ ./drivers/md/raid1.c	2003-05-29 11:05:08.000000000 +1000
-@@ -137,7 +137,7 @@ static void put_all_bios(conf_t *conf, r
- 			BUG();
- 		bio_put(r1_bio->read_bio);
- 		r1_bio->read_bio = NULL;
--	}
-+	} else
- 	for (i = 0; i < conf->raid_disks; i++) {
- 		struct bio **bio = r1_bio->write_bios + i;
- 		if (*bio) {
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
