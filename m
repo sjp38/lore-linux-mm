@@ -1,36 +1,114 @@
-Date: Sat, 20 Jul 2002 11:22:51 -0300 (BRT)
+Date: Sat, 20 Jul 2002 16:40:33 -0300 (BRT)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH 6/6] Updated VM statistics patch
-In-Reply-To: <Pine.LNX.4.44.0207200645360.6298-100000@loke.as.arizona.edu>
-Message-ID: <Pine.LNX.4.44L.0207201122220.12241-100000@imladris.surriel.com>
+Subject: [PATCH][1/2] return values shrink_dcache_memory etc
+Message-ID: <Pine.LNX.4.44L.0207201639500.12241-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Craig Kulesa <ckulesa@as.arizona.edu>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ed Tomlinson <tomlins@cam.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 20 Jul 2002, Craig Kulesa wrote:
-> On Sat, 20 Jul 2002, Rik van Riel wrote:
->
-> > Except for the fact that you'll count every new page allocation
-> > as an activation, which isn't quite the intended behaviour ;)
->
-> *thwaps forehead*   Ohhh, quite right.  Darn.  :)
->
-> Hmmm.  Does it sound acceptable to still increment pgdeactivate in
-> mm_inline.h, and explicitly put hooks for pgactivate in the select
-> places where pages really _are_ being 'reactivated'?
+Hi,
 
-Acceptable, sure ... but probably not worth it as Linus merged
-the VM statistics into his tree yesterday afternoon.
+this patch, against current 2.5.27, builds on the patch that let
+kmem_cache_shrink return the number of pages freed. This value
+is used as the return value for shrink_dcache_memory and friends.
+
+This is useful not just for more accurate OOM detection, but also as
+a preparation for putting these reclaimable slab pages on the LRU list.
+This change was originally done by Ed Tomlinson.
+
+please apply,
+thank you,
 
 Rik
 -- 
 Bravely reimplemented by the knights who say "NIH".
 
-http://www.surriel.com/		http://distro.conectiva.com/
+ fs/dcache.c |    3 +--
+ fs/dquot.c  |    3 +--
+ fs/inode.c  |    3 +--
+ mm/vmscan.c |    6 +++---
+ 4 files changed, 6 insertions(+), 9 deletions(-)
+
+# This is a BitKeeper generated patch for the following project:
+# Project Name: Linux kernel tree
+# This patch format is intended for GNU patch command version 2.5 or higher.
+# This patch includes the following deltas:
+#	           ChangeSet	1.660   -> 1.661
+#	         fs/dcache.c	1.29    -> 1.30
+#	          fs/dquot.c	1.43    -> 1.44
+#	         mm/vmscan.c	1.85    -> 1.86
+#	          fs/inode.c	1.66    -> 1.67
+#
+# The following is the BitKeeper ChangeSet Log
+# --------------------------------------------
+# 02/07/19	riel@imladris.surriel.com	1.661
+# use the return values from shrink_dcache_memory, shrink_icache_memory
+# and shrink_dqcache_memory (thanks to Ed Tomlinson)
+# --------------------------------------------
+#
+diff -Nru a/fs/dcache.c b/fs/dcache.c
+--- a/fs/dcache.c	Fri Jul 19 18:22:35 2002
++++ b/fs/dcache.c	Fri Jul 19 18:22:35 2002
+@@ -603,8 +603,7 @@
+ 	count = dentry_stat.nr_unused / priority;
+
+ 	prune_dcache(count);
+-	kmem_cache_shrink(dentry_cache);
+-	return 0;
++	return kmem_cache_shrink(dentry_cache);
+ }
+
+ #define NAME_ALLOC_LEN(len)	((len+16) & ~15)
+diff -Nru a/fs/dquot.c b/fs/dquot.c
+--- a/fs/dquot.c	Fri Jul 19 18:22:35 2002
++++ b/fs/dquot.c	Fri Jul 19 18:22:35 2002
+@@ -498,8 +498,7 @@
+ 	count = dqstats.free_dquots / priority;
+ 	prune_dqcache(count);
+ 	unlock_kernel();
+-	kmem_cache_shrink(dquot_cachep);
+-	return 0;
++	return kmem_cache_shrink(dquot_cachep);
+ }
+
+ /*
+diff -Nru a/fs/inode.c b/fs/inode.c
+--- a/fs/inode.c	Fri Jul 19 18:22:35 2002
++++ b/fs/inode.c	Fri Jul 19 18:22:35 2002
+@@ -431,8 +431,7 @@
+ 	count = inodes_stat.nr_unused / priority;
+
+ 	prune_icache(count);
+-	kmem_cache_shrink(inode_cachep);
+-	return 0;
++	return kmem_cache_shrink(inode_cachep);
+ }
+
+ /*
+diff -Nru a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c	Fri Jul 19 18:22:35 2002
++++ b/mm/vmscan.c	Fri Jul 19 18:22:35 2002
+@@ -389,12 +389,12 @@
+
+ 	wakeup_bdflush();
+
+-	shrink_dcache_memory(priority, gfp_mask);
++	nr_pages += shrink_dcache_memory(priority, gfp_mask);
+
+ 	/* After shrinking the dcache, get rid of unused inodes too .. */
+-	shrink_icache_memory(1, gfp_mask);
++	nr_pages += shrink_icache_memory(1, gfp_mask);
+ #ifdef CONFIG_QUOTA
+-	shrink_dqcache_memory(DEF_PRIORITY, gfp_mask);
++	nr_pages += shrink_dqcache_memory(DEF_PRIORITY, gfp_mask);
+ #endif
+
+ 	return nr_pages;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
