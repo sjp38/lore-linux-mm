@@ -1,36 +1,28 @@
-Subject: Re: -__PAGE_OFFSET
-References: <20010920065444.10415.qmail@mailweb13.rediffmail.com>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 20 Sep 2001 02:54:10 -0600
-In-Reply-To: <20010920065444.10415.qmail@mailweb13.rediffmail.com>
-Message-ID: <m1wv2udyz1.fsf@frodo.biederman.org>
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
+Subject: Re: broken VM in 2.4.10-pre9
+Date: Thu, 20 Sep 2001 13:28:31 +0200
+References: <E15jpRy-0003yt-00@the-village.bc.nu>
+In-Reply-To: <E15jpRy-0003yt-00@the-village.bc.nu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7BIT
+Message-Id: <20010920112110Z16256-2757+869@humbolt.nl.linux.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: amey d inamdar <iamey@rediffmail.com>
-Cc: linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"amey d inamdar" <iamey@rediffmail.com> writes:
+On September 20, 2001 12:04 am, Alan Cox wrote:
+> Reverse mappings make linear aging easier to do but are not critical (we
+> can walk all physical pages via the page map array).
 
-> Hello everybody,
->      While running through source of 2.4 kernel, in head.S, I found the 
-> line
-> 86 :   movl $pg0-__PAGE_OFFSET,%edi
-> 
->     I am not getting, at this point there is no virtual address & $pg0 
-> itself contains physical address of first page table, then why to 
-> subtract 3GB from the physical address?
+But you can't pick up the referenced bit that way, so no up aging, only
+down.
 
-The linker doesn't know the page tables haven't been setup yet.
-Look at the addresses in System.map.
+--
+Daniel
 
->       Thanx in anticipation.
-
-Welcome.
-
-Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
