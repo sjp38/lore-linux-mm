@@ -1,10 +1,12 @@
 Content-Type: text/plain;
   charset="iso-8859-1"
 From: Ed Tomlinson <tomlins@cam.org>
-Subject: [PATCH][RFC] appling preasure to icache and dcache
-Date: Mon, 2 Apr 2001 08:42:55 -0400
+Subject: Re: [PATCH][RFC] appling preasure to icache and dcache
+Date: Mon, 2 Apr 2001 08:58:21 -0400
+References: <01040208425501.20592@oscar>
+In-Reply-To: <01040208425501.20592@oscar>
 MIME-Version: 1.0
-Message-Id: <01040208425501.20592@oscar>
+Message-Id: <01040208582103.20592@oscar>
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -14,34 +16,10 @@ List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-This patch does two things.  One it applies pressure to the icache
-and dcache, from kswapd, when they grow or possibly become shrinkable.
-The idea being not to let them grow to the point that they start being
-the source of vm pressure - this seems to be happening with the current
-algorithm.
+The patch in the last message was scrambled.  The last two lines
+belong to the previous fragment.  Here is the correct beast.
 
-It also limits bg aging restricting it to the page inactivation rate.
-This perserves aging info longer preventing paging spikes after periods
-of low activity.
-
-The try_shrinking_[i|d]cache functions would become much simpler if 
-the slab cache tracked the number of pages freeable in a cache.  I do
-not think this is a trivial task though.  I have also tried to avoid
-making the patch depend on 'magic numbers'.  As it stands DEF_PRIORITY
-is used but could be eliminated if the shrink_[i|d]cache_memory calls
-took the number of pages to free and returned the number of pages 
-actually released.  In ac28 refill_inactive_scan is already ignoring 
-DEF_PRIORITY.
-
-Variants of this patch have been running here, on top of ac28, over the 
-for the last couple of days as I optimised the try_shrinking functions.  
-Reports on how well this works under differing loads would be interesting.
-
-Comments on style, and suggestions on how to improve this code are 
-very welcome.
-
-TIA
-Ed Tomlinson <tomlins@cam.org> 
+Ed Tomlinson <tomlins@cam.org
 
 ---
 diff -u -r --exclude-from=ex.txt linux.ac28/mm/page_alloc.c linux/mm/page_alloc.c
@@ -206,8 +184,11 @@ diff -u -r --exclude-from=ex.txt linux.ac28/mm/vmscan.c linux/mm/vmscan.c
 +			delta -= try_shrinking_icache(delta,GFP_KSWAPD);
 +		if (delta > 0)
 +			refill_inactive_scan(DEF_PRIORITY, delta);
---- linux.ac28/include/linux/swap.h     Sun Apr  1 18:52:22 2001
-+++ linux/include/linux/swap.h  Thu Mar 29 11:31:09 2001
+ 
+ 		/* Once a second, recalculate some VM stats. */
+ 		if (time_after(jiffies, recalc + HZ)) {
+--- linux.ac28/include/linux/swap.h	Sun Apr  1 18:52:22 2001
++++ linux/include/linux/swap.h	Thu Mar 29 11:31:09 2001
 @@ -102,6 +102,7 @@
  
  /* linux/mm/swap.c */
@@ -216,10 +197,7 @@ diff -u -r --exclude-from=ex.txt linux.ac28/mm/vmscan.c linux/mm/vmscan.c
  extern void age_page_up(struct page *);
  extern void age_page_up_nolock(struct page *);
  extern void age_page_down(struct page *);
- 		/* Once a second, recalculate some VM stats. */
- 		if (time_after(jiffies, recalc + HZ)) {
 ---
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
