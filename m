@@ -1,34 +1,46 @@
-Date: Wed, 7 Mar 2001 12:07:45 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: Linux 2.2 vs 2.4 for PostgreSQL
-Message-ID: <20010307120745.H7453@redhat.com>
-References: <20010307102206.C7453@redhat.com> <Pine.LNX.4.10.10103071113020.1559-100000@sphinx.mythic-beasts.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.10.10103071113020.1559-100000@sphinx.mythic-beasts.com>; from matthew@hairy.beasts.org on Wed, Mar 07, 2001 at 11:16:19AM +0000
+Received: from localhost (riel@localhost)
+	by brutus.conectiva.com.br (8.11.2/8.11.2) with ESMTP id f27GAPU24272
+	for <linux-mm@kvack.org>; Wed, 7 Mar 2001 13:10:29 -0300
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: =?iso-8859-1?q?Jos=E9=20Manuel=20Rom=E1n=20Ram=EDrez?=
+        <uzi@xerxes.conectiva.com.br>
+Subject: Bug? in 2.4 memory management...
+Date: Wed, 7 Mar 2001 12:33:36 +0100
+MIME-Version: 1.0
+Message-Id: <01030712333600.03019@xerxes>
+Content-Transfer-Encoding: 8bit
+ReSent-To: <linux-mm@kvack.org>
+ReSent-Message-ID: <Pine.LNX.4.33.0103071310200.1409@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Kirkwood <matthew@hairy.beasts.org>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org, Mike Galbraith <mikeg@wen-online.de>, Rik van Riel <riel@conectiva.com.br>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
+I think we've 'discovered' a bug regarding the kernel 2.4.2-ac11 (and maybe 
+other) and the memory management. It seems that the cached memory sometimes 
+is not freed as more memory is required. 
 
-On Wed, Mar 07, 2001 at 11:16:19AM +0000, Matthew Kirkwood wrote:
-> 
-> The version I did these numbers on uses fsync(), but
-> they have recently changed that to fdatasync() in a
-> few applicable places.
-> 
-> I don't have that installed on my test machine yet,
-> but will have a look if it's deemed intersting.
+The system where we have detected the problem was an athlon 1ghz, 1.2gb of 
+ram, and a swapfile of 2gb.
 
-Given that I'm chasing fsync performance regressions here in 2.4, yes,
-that might be quite useful to know.
+When we run a program that requires/uses 1ghz of memory, and we kill it, all 
+(or nearly all) the memory is used by the cache, as we load a hugue file. The 
+next time we run the program, it seems like the kernel can't use the cached 
+memory and the memory we need is taken from the swap. Note however that when 
+we set a swap partition smaller than the memory required, let's say 128mb, 
+the problem disappears as the cache memory is used instead the swap...
 
-Thanks,
- Stephen
+So, what's wrong? Thanks in advance!
+
+-- 
+"I consider Red Hat 7.0 to be basically unusable as a development platform"
+Linus Torvalds
+--
+Jose Manuel Roman - Theuzifan
+roman@wol.es - uzi@simauria.upv.es
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
