@@ -1,78 +1,57 @@
-Message-Id: <200106191658.f5JGwMU29894@aslan.scsiguy.com>
-Subject: Re: [RFQ] aic7xxx driver panics under heavy swap. 
-In-Reply-To: Your message of "Tue, 19 Jun 2001 11:46:02 EDT."
-             <OFFC1B2C1B.7F406B4A-ON85256A70.00564265@pok.ibm.com>
-Date: Tue, 19 Jun 2001 10:58:22 -0600
-From: "Justin T. Gibbs" <gibbs@scsiguy.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 9D3C538D56
+	for <linux-mm@kvack.org>; Tue, 19 Jun 2001 16:05:22 -0300 (EST)
+Date: Tue, 19 Jun 2001 16:05:08 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: 2.4.6pre3: kswapd dominating CPU
+In-Reply-To: <F341E03C8ED6D311805E00902761278C07EFA675@xfc04.fc.hp.com>
+Message-ID: <Pine.LNX.4.33.0106191555250.1376-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bulent Abali <abali@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "ZINKEVICIUS,MATT (HP-Loveland,ex1)" <matt_zinkevicius@hp.com>
+Cc: "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 18 Jun 2001, ZINKEVICIUS,MATT (HP-Loveland,ex1) wrote:
+
+> For a while now 2.4 kernels have been a little flaky for us with
+> regards to memory management. We had chalked this up to the
+> known VM updates going on and have ignored and worked around it
+> as much as we could. Now that 2.4.6pre3 is out and supposedly VM
+> friendly and we are still seeing our original problem I thought
+> it was time I submitted the details to you guys to get some
+> help.
 >
->Justin,
->When free memory is low, I get a series of aic7xxx messages followed by
->panic.  It appears to be a race condition in the code.
+> We are benchmarking NFS with SpecSFS 97 version 2. When the
+> machine gets close to running out of physical memory (according
+> to top) kswapd quickly become the most active process (98% CPU
+> time). This occurs whether or not we have any swap space
+> enabled! The nfsd daemons get starved and our performance drops
+> to null.
 
-Its actually a logic error, not a race condition.  You should never
-enter ahc_linux_run_device_queue() while the device is still on the
-run queue.  The real issue is that ahc_linux_queue bypasses the
-round-robin device scheduler by calling ahc_linux_run_device_queue()
-directly.  The code should look like this (the LIST macro calls
-where switched to TAILQ calls a bit ago to ensure round-robin, but
-that change came just after 6.1.13).  I haven't tested this yet...
+Ahhh, I see the problem.
 
-Thanks for the bug report.  If you can verify that this works under
-memeory pressure, the printf can go away.
+The kswapd-eating-all-cpu problem is fixef in 2.4.6-pre3,
+but only for DISK BASED filesystems and swap. For these
+systems we will do synchronous IO once in a while and by
+waiting on IO completion we avoid eating too much CPU.
 
+For NFS we currently don't have any way to wait on IO
+completion. I'll have to look into this later, I guess ;)
+
+regards,
+
+Rik
 --
-Justin
+Executive summary of a recent Microsoft press release:
+   "we are concerned about the GNU General Public License (GPL)"
 
-==== //depot/src/linux/drivers/scsi/aic7xxx/aic7xxx_linux.c#67 - /usr/src/linux/drivers/scsi/aic7xxx/aic7xxx_linux.c ====
---- /tmp/tmp.3288.0	Tue Jun 19 11:07:32 2001
-+++ /usr/src/linux/drivers/scsi/aic7xxx/aic7xxx_linux.c	Tue Jun 19 11:02:54 2001
-@@ -1514,7 +1514,11 @@
- 	}
- 	cmd->result = CAM_REQ_INPROG << 16;
- 	TAILQ_INSERT_TAIL(&dev->busyq, (struct ahc_cmd *)cmd, acmd_links.tqe);
--	ahc_linux_run_device_queue(ahc, dev);
-+	if ((dev->flags & AHC_DEV_ON_RUN_LIST) == 0) {
-+		TAILQ_INSERT_TAIL(&ahc->platform_data->device_runq, dev, links);
-+		dev->flags |= AHC_DEV_ON_RUN_LIST;
-+		ahc_linux_run_device_queues(ahc);
-+	}
- 	ahc_unlock(ahc, &flags);
- 	return (0);
- }
-@@ -1530,6 +1534,9 @@
- 	struct	 ahc_tmode_tstate *tstate;
- 	uint16_t mask;
- 
-+	if ((dev->flags & AHC_DEV_ON_RUN_LIST) != 0)
-+		panic("running device on run list");
-+
- 	while ((acmd = TAILQ_FIRST(&dev->busyq)) != NULL
- 	    && dev->openings > 0 && dev->qfrozen == 0) {
- 
-@@ -1538,8 +1545,6 @@
- 		 * running is because the whole controller Q is frozen.
- 		 */
- 		if (ahc->platform_data->qfrozen != 0) {
--			if ((dev->flags & AHC_DEV_ON_RUN_LIST) != 0)
--				return;
- 
- 			TAILQ_INSERT_TAIL(&ahc->platform_data->device_runq,
- 					  dev, links);
-@@ -1550,8 +1555,6 @@
- 		 * Get an scb to use.
- 		 */
- 		if ((scb = ahc_get_scb(ahc)) == NULL) {
--			if ((dev->flags & AHC_DEV_ON_RUN_LIST) != 0)
--				panic("running device on run list");
- 			TAILQ_INSERT_TAIL(&ahc->platform_data->device_runq,
- 					 dev, links);
- 			dev->flags |= AHC_DEV_ON_RUN_LIST;
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
