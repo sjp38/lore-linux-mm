@@ -1,34 +1,33 @@
-Message-ID: <1110201773.422c55ad65110@webmail.topalis>
-Date: Mon,  7 Mar 2005 14:22:53 +0100
-From: Stefan Voelkel <stefan.voelkel@millenux.com>
-Subject: Re: RFC: Speed freeing memory for suspend.
-References: <1109812166.3733.3.camel@desktop.cunningham.myip.net.au>
-In-Reply-To: <1109812166.3733.3.camel@desktop.cunningham.myip.net.au>
+Date: Mon, 07 Mar 2005 10:04:01 -0800
+Message-Id: <WDE802IDTQ4.U202EMBZT48-JRJ7784QGBP5.AELS51MZDP6-U9241WNM7.H0290TPDN6@crest.org>
+From: "Xcc.Huynh@excite.com" <Lxog.Evans@netzero.net>
+Subject: Account # 8707059YP Mon, 07 Mar 2005 10:04:01 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: text; charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ncunningham@cyclades.com
-Cc: Linux Memory Management <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
 
-I tried to do something similar, if not in code but effekt, for apm -s, but
-it did not work and my mail was unanswered:
+We sent you an email a while ago, because you now qualify
+for a much lower rate based on the biggest rate drop in years.
 
-  http://marc.theaimsgroup.com/?l=linux-mm&m=110779400803717&w=2
+You can now get $327,000 for as little as $617 a month!
+Bad credit? Doesn't matter, low rates are fixed no matter what!
 
-regards
-  Stefan
+Follow this link to process your application and a 24 hour approval:
 
--- 
-Stefan Volkel                            stefan.voelkel@millenux.com
-Millenux GmbH                              mobile: +49.170.79177.17
-Lilienthalstrasse 2                          phone: +49.711.88770.300
-70825 Stuttgart-Korntal                       fax: +49.711.88770.349
-     -= linux without limits -=- http://linux.zSeries.org/ =-
+http://www.qklenders.com/x/loan.php?id=d17
+
+Best Regards,
+June Hurley
+
+
+http://www.qklenders.com/x/st.html
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
