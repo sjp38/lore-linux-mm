@@ -1,9 +1,9 @@
-Date: Wed, 9 Apr 2003 03:05:34 -0700
+Date: Wed, 9 Apr 2003 03:18:45 -0700
 From: Andrew Morton <akpm@digeo.com>
-Message-ID: <PAO-EX018AAkjtjsX3R0000151a@pao-ex01.pao.digeo.com>
+Message-ID: <PAO-EX01DJb0LxA56iY0000151b@pao-ex01.pao.digeo.com>
 Sender: owner-linux-mm@kvack.org
 Subject: Re: 2.5.67-mm1 cause framebuffer crash at bootup
-Message-Id: <20030409030534.619f7fa0.akpm@digeo.com>
+Message-Id: <20030409031845.185d853f.akpm@digeo.com>
 In-Reply-To: <3E93EB0E.4030609@aitel.hist.no>
 References: <20030408042239.053e1d23.akpm@digeo.com>
 	<3E93EB0E.4030609@aitel.hist.no>
@@ -14,6 +14,7 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: Helge Hafting <helgehaf@aitel.hist.no>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, vandrove@vc.cvut.cz
 List-ID: <linux-mm.kvack.org>
+
 
 Helge Hafting <helgehaf@aitel.hist.no> wrote:
 >
@@ -27,9 +28,7 @@ Helge Hafting <helgehaf@aitel.hist.no> wrote:
 > support.
 > 
 > 2.5.67-mm1 works if I drop framebuffer support completely.
-
-Beats me.  One possibility is the initcall shuffling.
-
+>
 > Here is the printed backtrace for the radeon case, the matrox case was 
 > similiar:
 
@@ -37,10 +36,10 @@ Well I tried to reproduce this with an
 
 	nVidia Corporation NV17 [GeForce4 MX440] (rev a3)
 
-and the screen came up in a strange mixture of obviously uninitialised video
-RAM overlayed on top of text.  I can't read a thing.
+and the screen came up in a strange mixture of penguins and obviously uninitialised
+video RAM overlayed on top of text.  I can't read a thing.
 
-But there's no oops, and I have penguins.
+But there is no oops.
 
 The Cirrus drivers still do not compile, so scrub that test box.
 
@@ -55,12 +54,18 @@ Another machine here uses
 
 	ATI Technologies Inc Rage Mobility M3 AGP 2x (rev 02)
 
-and..... it oopses!   Will fix.
+and..... it oopses!   Backing out 
 
-> <a few lines scrolled off screen>
-> pcibios_enable_device
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.67/2.5.67-mm1/broken-out/earlier-keyboard-init.patch
 
-This function jumped to 0x00000000
+prevents it oopsing.  Can you please try that?
+
+
+Despite the lack of oopses, framebuffer support is sick on this machine also.
+The LCD alternates between blackness and a strange smeary set of flickering
+lines.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
