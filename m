@@ -1,47 +1,29 @@
-Date: Tue, 22 Apr 2003 09:58:42 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Tue, 22 Apr 2003 13:07:57 -0400 (EDT)
+From: Ingo Molnar <mingo@redhat.com>
 Subject: Re: objrmap and vmtruncate
-Message-ID: <20030422165842.GG8931@holomorphy.com>
-References: <20030422154248.GI8978@holomorphy.com> <Pine.LNX.4.44.0304221152500.10400-100000@devserv.devel.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0304221152500.10400-100000@devserv.devel.redhat.com>
+In-Reply-To: <20030422165842.GG8931@holomorphy.com>
+Message-ID: <Pine.LNX.4.44.0304221303160.24424-100000@devserv.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@redhat.com>
+To: William Lee Irwin III <wli@holomorphy.com>
 Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@digeo.com>, Andrea Arcangeli <andrea@suse.de>, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 22, 2003 at 11:55:00AM -0400, Ingo Molnar wrote:
-> well, i have myself reproduced 30+ secs worth of pid-alloc related lockups
-> on my box, so it's was definitely not a fata morgana, and the
-> pid-allocation code was definitely quadratic near the PID-space saturation
-> point.
-> There might be something else still biting your system, i'd really be
-> interested in hearing more about it. What workload are you using to
-> trigger it?
+On Tue, 22 Apr 2003, William Lee Irwin III wrote:
 
-ISTR it being something on the order of running 32 instances of top(1),
-one per cpu, and then trying to fork().
+> ISTR it being something on the order of running 32 instances of top(1),
+> one per cpu, and then trying to fork().
 
-I think this is one of those that needs num_cpus_online() >= 32, and
-possibly in combination with strong NUMA effects. I'm willing to accept
-large delays with respect to addressing this unless my employer/funding
-source makes equipment more readily available.
+oh, have you run any of the /proc fixes floating around? It still has some
+pretty bad (quadratic) stuff left in, and done under tasklist_lock
+read-help - if any write_lock_irq() of the tasklist lock hits this code
+then you get an NMI assert. Please try either Manfred's or mine.
 
-Seriously -- if those who could need and/or fund the fix don't see it
-as a large enough problem to invest in a fix for, I see no need to
-impose on the Linux kernel community to do so.
-
-Otherwise, given sufficient hardware access, I'd be more than willing
-to run regular tests on whatever patches you care to send me. As of now
-I'm not even able to do so, regardless of willingness.
-
-(e.g. access to 64GB hw, even while in-house, has been extremely limited)
+	Ingo
 
 
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
