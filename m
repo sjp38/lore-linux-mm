@@ -1,50 +1,41 @@
-Date: Sat, 26 Oct 2002 10:13:10 +0200
-From: Rogier Wolff <R.E.Wolff@BitWizard.nl>
-Subject: Re: running 2.4.2 kernel under 4MB Ram
-Message-ID: <20021026101310.A16359@bitwizard.nl>
-References: <1035281203.31873.34.camel@irongate.swansea.linux.org.uk> <1035333109.2200.2.camel@amol.in.ishoni.com> <1035301164.31917.78.camel@irongate.swansea.linux.org.uk>
+Date: Sat, 26 Oct 2002 16:05:34 +0530
+From: Amit Shah <shahamit@gmx.net>
+Subject: Re: rmap for 2.4.19-strict-vm-overcommit?
+Message-Id: <20021026160534.26faec56.shahamit@gmx.net>
+In-Reply-To: <Pine.LNX.4.44L.0210251349570.1995-100000@imladris.surriel.com>
+References: <20021025185438.69ca2c1a.shahamit@gmx.net>
+	<Pine.LNX.4.44L.0210251349570.1995-100000@imladris.surriel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1035301164.31917.78.camel@irongate.swansea.linux.org.uk>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Amol Kumar Lad <amolk@ishoni.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 22, 2002 at 04:39:24PM +0100, Alan Cox wrote:
-> On Wed, 2002-10-23 at 01:31, Amol Kumar Lad wrote:
-> > It means that I _cannot_ run 2.4.2 on a 4MB box. 
-> > Actually my embedded system already has 2.4.2 running on a 16Mb. I was
-> > looking for a way to run it in 4Mb. 
-> > So Is upgrade to 2.4.19 the only option ??
-> 
-> You should move to a later kernel anyway 2.4.2 has a lot of bugs
-> including some security ones.
+Hi Ric,
 
-If the "embedded system" just brews his coffee, then there are not
-many security issues he cares about. It gets the job done. 
+On Fri, 25 Oct 2002 13:50:15 -0200 (BRST)
+Rik van Riel <riel@conectiva.com.br> wrote:
 
-Amol, Just add a "mem=4M" to the kernel commandline and see what 
-happens. It depends a lot on what and how many applications you run
-on that system. 
+RVR> On Fri, 25 Oct 2002, Amit Shah wrote:
+RVR> 
+RVR> > Is there an rmap patch for 2.4.19-strict-vm-overcommit?
+RVR> 
+RVR> The combination of rmap and strict overcommit is in -ac
 
-But still, Alan is right. You might run into odd problems that are
-simply fixed if you upgrade. (My workstation was "pretty good" at 
-staying up under 2.4.2 (about a month at a time), and I didn't want 
-to upgrade, for fear of it getting worse. I upgraded and now get
-much better uptimes (until my colleague types "reboot -n -f" into 
-the wrong window)). 
+I would've liked if I got a separate patch that I could apply against my
+2.4.19-overcommit.
 
-		Roger.	
+Also: any indications that overcommit and/or rmap might be included in the
+standard 2.4 kernel?
 
--- 
-** R.E.Wolff@BitWizard.nl ** http://www.BitWizard.nl/ ** +31-15-2600998 **
-*-- BitWizard writes Linux device drivers for any device you may have! --*
-* The Worlds Ecosystem is a stable system. Stable systems may experience *
-* excursions from the stable situation. We are currently in such an      * 
-* excursion: The stable situation does not include humans. ***************
+--- 
+If you don't strike oil in twenty minutes, stop boring.
+
+Amit Shah
+http://amitshah.nav.to/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
