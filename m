@@ -1,11 +1,13 @@
-Date: Thu, 5 Aug 2004 22:37:25 -0700
+Date: Thu, 5 Aug 2004 22:49:20 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] 1/4: rework alloc_pages
-Message-Id: <20040805223725.246b0950.akpm@osdl.org>
-In-Reply-To: <41131732.7060606@yahoo.com.au>
+Subject: Re: [PATCH] 3/4: writeout watermarks
+Message-Id: <20040805224920.6755198d.akpm@osdl.org>
+In-Reply-To: <41131862.5050000@yahoo.com.au>
 References: <41130FB1.5020001@yahoo.com.au>
-	<20040805221958.49049229.akpm@osdl.org>
-	<41131732.7060606@yahoo.com.au>
+	<41130FD2.5070608@yahoo.com.au>
+	<41131105.8040108@yahoo.com.au>
+	<20040805222733.477b3017.akpm@osdl.org>
+	<41131862.5050000@yahoo.com.au>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -17,43 +19,30 @@ List-ID: <linux-mm.kvack.org>
 
 Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 >
-> Andrew Morton wrote:
-> > Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> > 
-> >>Previously the ->protection[] logic was broken. It was difficult to follow
-> >> and basically didn't use the asynch reclaim watermarks properly.
-> > 
-> > 
-> > eh?
-> > 
-> > Broken how?
-> > 
+> No, it is not that code I am worried about, you're actually doing
+>  this too (disregarding the admin's wishes):
 > 
-> min = (1<<order) + z->protection[alloc_type];
+>           dirty_ratio = vm_dirty_ratio;
+>           if (dirty_ratio > unmapped_ratio / 2)
+>                   dirty_ratio = unmapped_ratio / 2;
 > 
-> This value is used both as the condition for waking kswapd, and
-> whether or not to enter synch reclaim.
+>           if (dirty_ratio < 5)
+>                   dirty_ratio = 5;
 > 
-> What should happen is kswapd gets woken at pages_low, and synch
-> reclaim is started at pages_min.
 
-Are you aware of this:
+hm, OK, that's some "try to avoid writeback off the LRU" stuff.
 
-void wakeup_kswapd(struct zone *zone)
-{
-	if (zone->free_pages > zone->pages_low)
-		return;
+But you said "This ensures we should always attempt to start background
+writeout before synchronous writeout.".  Does not the current code do that?
 
-?
-
+>  So if the admin wants a dirty_ratio of 40 and dirty_background_ratio of 10
+>  then that's good, but I'm sure if they knew you're moving dirty_ratio to 10
+>  here, they'd want something like 2 for the dirty_background_ratio.
 > 
-> pages_low + protection and pages_min + protection, etc.
+>  I contend that the ratio between these two values is more important than
+>  their absolue values -- especially considering one gets twiddled here.
 
-Nick, sorry, but I shouldn't have to expend these many braincells
-decrypting your work.  Please: much better explanations, more testing
-results.  This stuff is fiddly, sensitive and has a habit of blowing up in
-our faces weeks later.  We need to be cautious.  The barriers are higher
-nowadays.
+Maybe true, maybe false.  These things are demonstrable via testing, no?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
