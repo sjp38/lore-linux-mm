@@ -1,50 +1,72 @@
-Date: Fri, 6 Feb 2004 13:39:14 -0500
-From: Ben Collins <bcollins@debian.org>
-Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat"
-Message-ID: <20040206183914.GM1042@phunnypharm.org>
-References: <fa.h1qu7q8.n6mopi@ifi.uio.no> <402240F9.3050607@gadsdon.giointernet.co.uk> <20040205182614.GG13075@kroah.com> <20040206144729.GJ1042@phunnypharm.org> <20040206182200.GE32116@kroah.com>
-Mime-Version: 1.0
+Date: Fri, 06 Feb 2004 11:59:50 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [Bugme-new] [Bug 2019] New: Bug from the mm	subsystem	involving X  (fwd)
+Message-ID: <218650000.1076097590@flay>
+In-Reply-To: <1076088169.29478.2928.camel@nighthawk>
+References: <51080000.1075936626@flay> <Pine.LNX.4.58.0402041539470.2086@home.osdl.org><60330000.1075939958@flay> <64260000.1075941399@flay><Pine.LNX.4.58.0402041639420.2086@home.osdl.org> <20040204165620.3d608798.akpm@osdl.org> <Pine.LNX.4.58.0402041719300.2086@home.osdl.org> <1075946211.13163.18962.camel@dyn318004bld.beaverton.ibm.com> <Pine.LNX.4.58.0402041800320.2086@home.osdl.org> <98220000.1076051821@[10.10.2.4]> <1076061476.27855.1144.camel@nighthawk> <5450000.1076082574@[10.10.2.4]> <1076088169.29478.2928.camel@nighthawk>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20040206182200.GE32116@kroah.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: Robert Gadsdon <robert@gadsdon.giointernet.co.uk>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Keith Mannthey <kmannth@us.ibm.com>, Andrew Morton <akpm@osdl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andi Kleen <ak@muc.de>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 06, 2004 at 10:22:00AM -0800, Greg KH wrote:
-> On Fri, Feb 06, 2004 at 09:47:30AM -0500, Ben Collins wrote:
-> > On Thu, Feb 05, 2004 at 10:26:14AM -0800, Greg KH wrote:
-> > > On Thu, Feb 05, 2004 at 01:11:21PM +0000, Robert Gadsdon wrote:
-> > > > 2.6.2-mm1 tombstone "Badness in kobject_get....." when booting:
-> > > 
-> > > Oooh, not nice.  That means a kobject is being used before it has been
-> > > initialized.  Glad to see that check finally helps out...
-> > 
-> > Doesn't sound like a bug in ieee1394. This bus for each is done on the
-> > ieee1394_bus_type, which is registered way ahead of time. Nothing is in
-> > that device list that didn't come from device_register(). Has something
-> > new changed to where I need to prep the device more before passing it to
-> > device_register()?
+--On Friday, February 06, 2004 09:22:49 -0800 Dave Hansen <haveblue@us.ibm.com> wrote:
+
+> On Fri, 2004-02-06 at 07:49, Martin J. Bligh wrote:
+>> >> +#ifdef CONFIG_NUMA
+>> >> +	#ifdef CONFIG_X86_NUMAQ
+>> >> +		#include <asm/numaq.h>
+>> >> +	#else	/* summit or generic arch */
+>> >> +		#include <asm/srat.h>
+>> >> +	#endif
+>> >> +#else /* !CONFIG_NUMA */
+>> >> +	#define get_memcfg_numa get_memcfg_numa_flat
+>> >> +	#define get_zholes_size(n) (0)
+>> >> +#endif /* CONFIG_NUMA */
+>> > 
+>> > We ran into a bug with #ifdefs like this before.  It was fixed in some
+>> > of the code that you're trying to remove.
+>> 
+>> What bug?
 > 
-> No, not at all.  You are initializing the structure to 0 before setting
-> any fields in it, right?  But that wouldn't be the symptom we are seeing
-> here...
+> With a regular PC config, plus CONFIG_NUMA turned on:
 
-Fact is, I can't reproduce this with stock 2.6.2. If this is only
-reproducible in 2.6.2-mm1, then it must be some change in there. What is
-occuring is a bus_for_each_dev() where the callback returns 1 so that
-the caller can stop and process one device (outside of the
-bus_for_each_dev() loop so as not to cause lockups). Then it starts
-bus_for_each_dev() again using the last device processed as the starting
-point.
+Ah ... that's the problem. That's not a valid config - the correct way
+to do that is with generic arch, not the PC one. Somehow we ended up
+leaving that as allowable ... I think that was just a communiciation
+breakdown somewhere between you, Andi, and myself (or quite possibly
+between myself and myself ;-)).
 
--- 
-Debian     - http://www.debian.org/
-Linux 1394 - http://www.linux1394.org/
-Subversion - http://subversion.tigris.org/
-WatchGuard - http://www.watchguard.com/
+So ... I still think my original patch is correct (there's some stylistic
+stuff we could debate, but it's not a functional problem). Here's an
+additional patch that stops people from turning on NUMA for the PC
+subarch, which it wasn't designed to work with.
+
+Thanks,
+
+M.
+
+-------------------------------------------------------------
+
+Disallow NUMA on the i386 PC subarch (it doesn't work, nor was it intended to).
+
+diff -purN -X /home/mbligh/.diff.exclude pfn_to_nid/arch/i386/Kconfig pc_numa/arch/i386/Kconfig
+--- pfn_to_nid/arch/i386/Kconfig	2004-02-04 16:23:49.000000000 -0800
++++ pc_numa/arch/i386/Kconfig	2004-02-06 11:16:19.000000000 -0800
+@@ -701,7 +701,7 @@ config X86_PAE
+ # Common NUMA Features
+ config NUMA
+ 	bool "Numa Memory Allocation Support"
+-	depends on SMP && HIGHMEM64G && (X86_PC || X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI && !ACPI_HT_ONLY))
++	depends on SMP && HIGHMEM64G && (X86_NUMAQ || X86_GENERICARCH || (X86_SUMMIT && ACPI && !ACPI_HT_ONLY))
+ 	default n if X86_PC
+ 	default y if (X86_NUMAQ || X86_SUMMIT)
+ 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
