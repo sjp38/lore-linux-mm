@@ -1,58 +1,54 @@
-Date: Thu, 22 Mar 2001 14:58:10 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Thinko in kswapd?
-Message-ID: <20010322145810.A7296@redhat.com>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="Kj7319i9nmIyA2yE"
-Content-Disposition: inline
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by postfix.conectiva.com.br (Postfix) with SMTP id 9B20716F21
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2001 13:19:37 -0300 (EST)
+Date: Thu, 22 Mar 2001 12:01:43 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] Prevent OOM from killing init
+In-Reply-To: <20010322124727.A5115@win.tue.nl>
+Message-ID: <Pine.LNX.4.21.0103221200410.21415-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, Linus Torvalds <torvalds@transmeta.com>
+To: Guest section DW <dwguest@win.tue.nl>
+Cc: Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---Kj7319i9nmIyA2yE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+On Thu, 22 Mar 2001, Guest section DW wrote:
 
-Hi,
+> > One question ... has the OOM killer ever selected init on
+> > anybody's system ?
+> 
+> Last week I installed SuSE 7.1 somewhere.
+> During the install: "VM: killing process rpm",
+> leaving the installer rather confused.
+> (An empty machine, 256MB, 144MB swap, I think 2.2.18.)
 
-There is what appears to be a simple thinko in kswapd.  We really
-ought to keep kswapd running as long as there is either a free space
-or an inactive page shortfall; but right now we only keep going if
-_both_ are short.
-
-Diff below.  With this change, I've got a 64MB box running Applix and
-Star Office with multiple open documents plus a few other big apps
-running, and switching desktops or going between documents is once
-more nice and snappy.  Running a normal heavily populated desktop in
-256MB used to be painful, with much apparently unnecessary swapping,
-if we had background page-cache intensive operations (eg find|wc)
-going on: the patched kernel feels much better interactively,
-presumably because kswapd is now doing the work it is supposed to do,
-instead of forcing normal apps to go into page stealing mode
-themselves.
-
---Stephen
+That's the 2.2 kernel ...
 
 
---Kj7319i9nmIyA2yE
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="2.4.2-ac20.kswap.diff"
+> Last month I had a computer algebra process running for a week.
+> Killed. But this computation was the only task this machine had.
+> Its sole reason of existence.
+> Too bad - zero information out of a week's computation.
+> (I think 2.4.0.)
+> 
+> Clearly, Linux cannot be reliable if any process can be killed
+> at any moment. I am not happy at all with my recent experiences.
 
---- mm/vmscan.c.~1~	Fri Mar 16 15:39:24 2001
-+++ mm/vmscan.c	Thu Mar 22 13:05:37 2001
-@@ -1010,7 +1010,7 @@
- 		 * We go to sleep for one second, but if it's needed
- 		 * we'll be woken up earlier...
- 		 */
--		if (!free_shortage() || !inactive_shortage()) {
-+		if (!free_shortage() && !inactive_shortage()) {
- 			interruptible_sleep_on_timeout(&kswapd_wait, HZ);
- 		/*
- 		 * If we couldn't free enough memory, we see if it was
+Note that the OOM killer in 2.4 won't kick in until your machine
+is out of both memory and swap, see mm/oom_kill.c::out_of_memory().
 
---Kj7319i9nmIyA2yE--
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
