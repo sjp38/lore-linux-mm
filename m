@@ -1,22 +1,38 @@
-Subject: Re: iounmap() - can't always unmap memory I've mappedt
-Date: Sat, 30 Sep 2000 00:24:43 +0100 (BST)
-In-Reply-To: <20000929222813Z129135-481+1113@vger.kernel.org> from "Timur Tabi" at Sep 29, 2000 05:12:58 PM
+Date: Sat, 30 Sep 2000 21:10:54 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: WANTED:  Linux-MM website maintainers
+Message-ID: <Pine.LNX.4.21.0009302107365.25194-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E13f9WH-0001kV-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: Linux Kernel Mailing list <linux-kernel@vger.kernel.org>, Linux MM mailing list <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-> Unfortunately, this mapping is a requirement for our product.  I'd hate to have
-> to create my own pte's and do it all manually.
+Hi,
 
-If you are doing it at boot time as Id expect then you may need to - the SMP
-code for bootstrapping has to do pte stuff itself for the same reason
+since it seems that people are relying on the Linux-MM
+web site to get information about the Linux VM subsystem,
+it may be time for me to update the site and put newer
+information in place...
+
+However, at the moment I'm quite busy making the VM
+subsystem work and doing lots of other stuff, so as you
+might have guessed from the subject, I'm looking for
+volunteers to help with the Linux-MM website.
+
+The website is under CVS, so helping with the site is
+relatively easy.
+
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
