@@ -1,71 +1,98 @@
+Date: Wed, 17 Dec 2003 08:56:34 -0500 (EST)
+From: Zwane Mwaikambo <zwane@arm.linux.org.uk>
 Subject: Re: 2.6.0-test11-mm1
-From: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
-In-Reply-To: <20031217035246.32adbf87.akpm@osdl.org>
+In-Reply-To: <20031217014350.028460b2.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.58.0312170853370.2159@montezuma.fsmlabs.com>
 References: <20031217014350.028460b2.akpm@osdl.org>
-	 <20031217035246.32adbf87.akpm@osdl.org>
-Content-Type: multipart/mixed; boundary="=-IlfhZDU4nFj9LviihjCj"
-Message-Id: <1071667814.2588.0.camel@teapot.felipe-alfaro.com>
-Mime-Version: 1.0
-Date: Wed, 17 Dec 2003 14:30:14 +0100
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: Linux Kernel Mailinglist <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-IlfhZDU4nFj9LviihjCj
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+Hullo Andrew,
+	I believe this was the intention;
 
-On Wed, 2003-12-17 at 12:52, Andrew Morton wrote:
+On Wed, 17 Dec 2003, Andrew Morton wrote:
 
-> And new breakage too!
+> mpparse_es7000.patch
+>   mpparse: fix IRQ breakage from the es7000 merge
 
-> Fix:
-> 
-> 
-> diff -puN arch/i386/kernel/cpu/intel.c~cpu_sibling_map-fixes-fix arch/i386/kernel/cpu/intel.c
-> --- 25/arch/i386/kernel/cpu/intel.c~cpu_sibling_map-fixes-fix	2003-12-17 03:31:56.000000000 -0800
-> +++ 25-akpm/arch/i386/kernel/cpu/intel.c	2003-12-17 03:46:25.000000000 -0800
-> @@ -8,9 +8,11 @@
->  #include <asm/processor.h>
->  #include <asm/msr.h>
->  #include <asm/uaccess.h>
-> +#include <asm/mpspec.h>
-> +#include <asm/apic.h>
->  
->  #include "cpu.h"
-> -#include "mach_apic.h"
-> +#include <mach_apic.h>
->  
->  extern int trap_init_f00f_bug(void);
+For ES7000 add an offset of 16 to the irq in order to setup a mapping where
+ISA/legacy interrupts are in the 0-15 range and PCI 16 and above. This was
+a cleanup fix in order to facilitate easy differentiating between legacy
+and non legacy interrupt setup.
 
-Does not apply cleanly, but this one does.
+===
+The ES7000 merge added a bit of code of offset the IRQ numbers.  We're not
+too sure why; it wasn't changelogged.
 
---=-IlfhZDU4nFj9LviihjCj
-Content-Disposition: attachment; filename=intel.c~cpu_sibling_map-fixes-fix
-Content-Type: text/x-patch; name=intel.c~cpu_sibling_map-fixes-fix; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+But it broke other systems, so this patch arranges for that code to only be
+activated on es7000 machines.
 
-diff -uNr linux-2.6.0-test11/arch/i386/kernel/cpu/intel.c linux-2.6.0-test11-mm1/arch/i386/kernel/cpu/intel.c
---- linux-2.6.0-test11/arch/i386/kernel/cpu/intel.c	2003-12-17 14:21:29.060115753 +0100
-+++ linux-2.6.0-test11-mm1/arch/i386/kernel/cpu/intel.c	2003-12-17 14:10:39.886919748 +0100
-@@ -9,9 +9,11 @@
- #include <asm/msr.h>
- #include <asm/uaccess.h>
- #include <asm/desc.h>
-+#include <asm/mpspec.h>
-+#include <asm/apic.h>
- 
- #include "cpu.h"
--#include "mach_apic.h"
-+#include <mach_apic.h>
- 
- #ifdef CONFIG_X86_INTEL_USERCOPY
+
+
+ arch/i386/kernel/dmi_scan.c    |    1 +
+ arch/i386/kernel/mpparse.c     |    7 +++++--
+ arch/i386/mach-es7000/es7000.c |    2 --
+ include/asm-i386/system.h      |    1 +
+ 4 files changed, 7 insertions(+), 4 deletions(-)
+
+diff -puN arch/i386/kernel/dmi_scan.c~mpparse_es7000 arch/i386/kernel/dmi_scan.c
+--- 25/arch/i386/kernel/dmi_scan.c~mpparse_es7000	2003-11-21 01:30:11.000000000 -0800
++++ 25-akpm/arch/i386/kernel/dmi_scan.c	2003-11-21 01:30:11.000000000 -0800
+@@ -16,6 +16,7 @@ EXPORT_SYMBOL(dmi_broken);
+
+ int is_sony_vaio_laptop;
+ int is_unsafe_smbus;
++int es7000_plat = 0;
+
+ struct dmi_header
+ {
+diff -puN arch/i386/kernel/mpparse.c~mpparse_es7000 arch/i386/kernel/mpparse.c
+--- 25/arch/i386/kernel/mpparse.c~mpparse_es7000	2003-11-21 01:30:11.000000000 -0800
++++ 25-akpm/arch/i386/kernel/mpparse.c	2003-11-21 01:30:11.000000000 -0800
+@@ -1129,8 +1129,11 @@ void __init mp_parse_prt (void)
+ 			continue;
+ 		ioapic_pin = irq - mp_ioapic_routing[ioapic].irq_start;
+
+-		if (!ioapic && (irq < 16))
+-			irq += 16;
++		if (es7000_plat) {
++			if (!ioapic && (irq < 16))
++				irq += 16;
++		}
++
+ 		/*
+ 		 * Avoid pin reprogramming.  PRTs typically include entries
+ 		 * with redundant pin->irq mappings (but unique PCI devices);
+diff -puN arch/i386/mach-es7000/es7000.c~mpparse_es7000 arch/i386/mach-es7000/es7000.c
+--- 25/arch/i386/mach-es7000/es7000.c~mpparse_es7000	2003-11-21 01:30:11.000000000 -0800
++++ 25-akpm/arch/i386/mach-es7000/es7000.c	2003-11-21 01:30:11.000000000 -0800
+@@ -51,8 +51,6 @@ struct mip_reg		*host_reg;
+ int 			mip_port;
+ unsigned long		mip_addr, host_addr;
+
+-static int		es7000_plat;
+-
  /*
+  * Parse the OEM Table
+  */
+diff -puN include/asm-i386/system.h~mpparse_es7000 include/asm-i386/system.h
+--- 25/include/asm-i386/system.h~mpparse_es7000	2003-11-21 01:30:11.000000000 -0800
++++ 25-akpm/include/asm-i386/system.h	2003-11-21 01:30:11.000000000 -0800
+@@ -470,6 +470,7 @@ void enable_hlt(void);
 
---=-IlfhZDU4nFj9LviihjCj--
+ extern unsigned long dmi_broken;
+ extern int is_sony_vaio_laptop;
++extern int es7000_plat;
 
+ #define BROKEN_ACPI_Sx		0x0001
+ #define BROKEN_INIT_AFTER_S1	0x0002
+
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
