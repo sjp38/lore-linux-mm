@@ -1,76 +1,36 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA22853
-	for <linux-mm@kvack.org>; Mon, 24 May 1999 11:46:36 -0400
-Date: Mon, 24 May 1999 17:27:20 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH] cache large files in the page cache
-In-Reply-To: <m17lpzsi0h.fsf@flinx.ccr.net>
-Message-ID: <Pine.LNX.4.05.9905241701300.2102-100000@laser.random>
+Received: from mail.intermedia.net ([207.5.44.129])
+	by kvack.org (8.8.7/8.8.7) with SMTP id NAA24032
+	for <linux-mm@kvack.org>; Mon, 24 May 1999 13:26:29 -0400
+Received: from [134.96.127.159] by mail.colorfullife.com (NTMail 3.03.0017/1.abcr) with ESMTP id la382211 for <linux-mm@kvack.org>; Mon, 24 May 1999 10:26:43 -0700
+Message-ID: <37498A69.FF40CFE3@colorfullife.com>
+Date: Mon, 24 May 1999 19:20:41 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
+Reply-To: masp0008@stud.uni-sb.de
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCHES]
+References: <Pine.LNX.3.96.990523171206.21583A-100000@chiara.csoma.elte.hu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 23 May 1999, Eric W. Biederman wrote:
+Ingo Molnar wrote:
+> on my box the page cache is already completely parallel on SMP,
+> we drop the kernel lock on entry into page-cache routines and
+> re-lock it only if we call filesystem-specific code or
+> buffer-cache code.
 
->diff -uNrX /home/eric/projects/linux/linux-ignore-files linux-2.3.3.eb4/drivers/sgi/char/graphics.c linux-2.3.3.eb5/drivers/sgi/char/graphics.c
->--- linux-2.3.3.eb4/drivers/sgi/char/graphics.c	Sun Oct 11 13:15:06 1998
->+++ linux-2.3.3.eb5/drivers/sgi/char/graphics.c	Sat May 22 17:16:53 1999
->@@ -237,12 +237,20 @@
-> };
-> 	
-> int
->-sgi_graphics_mmap (struct inode *inode, struct file *file, struct vm_area_struct *vma)
->+sgi_graphics_mmap (struct inode *inode, struct file *file, struct vm_area_struct *vma,
->+		   loff_t offset)
-> {
-> 	uint size;
->+	unsigned long vm_offset;
->+	
->+	if (offset > PAGE_MAX_MEMORY_OFFSET) {
->+		return -EINVAL;
->+	}
->+	vm_offset = offset;
->+	vma->vm_index = vm_offset >> PAGE_SHIFT;
-> 
-> 	size = vma->vm_end - vma->vm_start;
->-	if (vma->vm_offset & ~PAGE_MASK)
->+	if (vm_offset & ~PAGE_MASK)
-> 		return -ENXIO;
-> 
-> 	/* 1. Set our special graphic virtualizer  */
->@@ -252,7 +260,8 @@
-> 	vma->vm_page_prot = PAGE_USERIO;
-> 		
-> 	/* final setup */
->-	vma->vm_dentry = dget (file->f_dentry);
->+	vma->vm_file = file;
->+	file->f_count++;
-> 	return 0;
+How have you called the 'release_kernel_lock()' function?
 
-vm_file a and f_count should be just handled by do_mmap().
+I found several lengthy operations in the kernel which
+should also release the kernel lock.
+(the slowest: clear_page() when called by get_free_page(GFP_WAIT))
 
->@@ -365,8 +370,8 @@
-> 	    > (unsigned long) current->rlim[RLIMIT_AS].rlim_cur)
-> 		return -ENOMEM;
-> 	vma->vm_start = address;
->-	vma->vm_offset -= grow;
->-	vma->vm_mm->total_vm += grow >> PAGE_SHIFT;
->+	vma->vm_index -= grow >> PAGE_SHIFT;
->+	vma->vm_mm->total_vm += grow;
-				^^^^
-grow should still be shifted right of PAGE_SHIFT I think.
+--
+	Manfred
 
-I have not understood why PAGE_MAX_MEMORY_OFFSET & PAGE_MAX_FILE_OFFSET
-are useful. We should check against too large offset or too high mmap in
-the standard code, no? Maybe the offset limit is to forbid somebody to
-create a too much large file even if the fs would permit? I am not sure if
-it will be useful, at least if it's choosen at compile time and it's not a
-sysctl.
-
-Andrea Arcangeli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
