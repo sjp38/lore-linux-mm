@@ -1,33 +1,34 @@
-Date: Thu, 5 Feb 2004 10:00:04 +0000
-From: Russell King <rmk+lkml@arm.linux.org.uk>
-Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat"
-Message-ID: <20040205100004.A5426@flint.arm.linux.org.uk>
+Date: Thu, 5 Feb 2004 02:11:45 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] via crypto beginnings
+Message-Id: <20040205021145.0b48810d.akpm@osdl.org>
+In-Reply-To: <40221255.5020306@pobox.com>
 References: <20040205014405.5a2cf529.akpm@osdl.org>
+	<40221255.5020306@pobox.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040205014405.5a2cf529.akpm@osdl.org>; from akpm@osdl.org on Thu, Feb 05, 2004 at 01:44:05AM -0800
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: Jeff Garzik <jgarzik@pobox.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 05, 2004 at 01:44:05AM -0800, Andrew Morton wrote:
->  bk-netdev.patch
+Jeff Garzik <jgarzik@pobox.com> wrote:
+>
+>  Did you see this one?
 
-Does this include the changes to all those PCMCIA net drivers which
-Jeff has had for a while from me?
+yup.
 
-I'd like to get those patches into mainline so I can close bugme bug
-1711, but I think Jeff's waiting for responses from the individual
-net driver maintainers first. ;(
+ +centaur-crypto-core-support.patch
 
--- 
-Russell King
- Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
- maintainer of:  2.6 PCMCIA      - http://pcmcia.arm.linux.org.uk/
-                 2.6 Serial core
+  Start supporting hardware crypto on some VIA CPUs
+
+
+> I could have sworn I sent via crypto stuff, but 
+> I've been scatterbrained recently.
+
+None of us are getting any younger, Jeff.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
