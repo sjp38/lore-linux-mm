@@ -1,38 +1,36 @@
-Date: Thu, 16 Jan 2003 21:51:28 -0800
+Date: Thu, 16 Jan 2003 22:03:27 -0800
 From: William Lee Irwin III <wli@holomorphy.com>
-Subject: i386 pgd_index() doesn't parenthesize its arg
-Message-ID: <20030117055128.GP919@holomorphy.com>
+Subject: Re: i386 pgd_index() doesn't parenthesize its arg
+Message-ID: <20030117060327.GQ919@holomorphy.com>
+References: <20030117055128.GP919@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20030117055128.GP919@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@zip.com.au
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@zip.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-pgd_index() doesn't parenthesize its argument. This is a bad idea for
-macros, since it's legitimate to pass expressions to them that will
-get misinterpreted given operator precedence and the shift.
-
-vs. 2.5.59
+PAE's pte_none() and pte_pfn() evaluate their arguments twice;
+analogous fixes have been made to other things; c.f. pgtable.h's long
+list of one-line inlines with parentheses still around their args.
 
 
--- wli
-
-
-===== include/asm-i386/pgtable.h 1.22 vs edited =====
---- 1.22/include/asm-i386/pgtable.h	Mon Nov 25 14:41:15 2002
-+++ edited/include/asm-i386/pgtable.h	Thu Jan 16 21:08:06 2003
-@@ -242,7 +242,7 @@
- 	((pmd_val(pmd) & (_PAGE_PSE|_PAGE_PRESENT)) == (_PAGE_PSE|_PAGE_PRESENT))
+===== include/asm-i386/pgtable-3level.h 1.8 vs edited =====
+--- 1.8/include/asm-i386/pgtable-3level.h	Fri Jul 26 06:23:51 2002
++++ edited/include/asm-i386/pgtable-3level.h	Thu Jan 16 21:59:08 2003
+@@ -89,8 +89,8 @@
+ }
  
- /* to find an entry in a page-table-directory. */
--#define pgd_index(address) ((address >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
-+#define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
+ #define pte_page(x)	pfn_to_page(pte_pfn(x))
+-#define pte_none(x)	(!(x).pte_low && !(x).pte_high)
+-#define pte_pfn(x)	(((x).pte_low >> PAGE_SHIFT) | ((x).pte_high << (32 - PAGE_SHIFT)))
++static inline int pte_none(pte_t pte) { return !pte.pte_low && !pte.pte_high; }
++static inline unsigned long pte_pfn(pte_t pte) { return (pte.pte_low >> PAGE_SHIFT) | (pte.pte_high << (32 - PAGE_SHIFT)); }
  
- #define __pgd_offset(address) pgd_index(address)
- 
+ static inline pte_t pfn_pte(unsigned long page_nr, pgprot_t pgprot)
+ {
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
