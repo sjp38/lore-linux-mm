@@ -1,78 +1,29 @@
-Date: Wed, 23 Oct 2002 09:19:23 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: Ingo Molnar <mingo@elte.hu>
+Date: Wed, 23 Oct 2002 13:50:26 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
-In-Reply-To: <20021023020534.GJ11242@dualathlon.random>
-Message-ID: <Pine.LNX.4.44.0210230851170.2360-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20021023115026.GB30182@dualathlon.random>
+References: <20021023020534.GJ11242@dualathlon.random> <Pine.LNX.4.44.0210230851170.2360-100000@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0210230851170.2360-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
+To: Ingo Molnar <mingo@elte.hu>
 Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 23 Oct 2002, Andrea Arcangeli wrote:
+On Wed, Oct 23, 2002 at 09:19:23AM +0200, Ingo Molnar wrote:
+> theory (and i raised that possibility in the discussion), but i'd like to
+> see your patch first, because yet another vma tree is quite some
+> complexity and it further increases the size of the vma, which is not
+> quite a no-cost approach.
 
-> > protection bits. It has been clearly established in the past few years
-> > empirically that the vma tree approach itself sucks performance-wise for
-> > applications that have many different mappings.
-> 
-> if you're talking about get_unmapped_area showing up heavy on the
-> profiling then you're on the wrong track with this, [...]
+it's not another vma tree, furthmore another vma tree indexed by the
+hole size wouldn't be able to defragment and it would find the best fit
+not the first fit on the left.
 
-algorithmic overhead is just one aspect of the 'thousands of vmas'
-problem, the real killer issue for some applications is RAM overhead,
-because a single vma takes up roughly 3 cachelines _per process_, which
-means 1 MB unswappable lowmem overhead per 10 thousand vmas. I know about
-valid applications (and i'm not counting electric fence here) with
-hundreds of thousands of vmas per process.
-
-Even a O(log(N)) algorithm means ~15 tree walking steps in a perfectly
-balanced tree (which ours arent), which means 0.5 KB of cache touched per
-lookup with 32 byte cacheline size, and 2KB of cache touched per lookup,
-with 128 byte cacheline size - which is far from cheap. While it's _much_
-better than a O(N) algorithm in this case, the approach i'm working on
-solves the more fundamental problem, instead of working it around.
-
-> (while I know several cases where the lack of O(log(N)) in
-> get_unmapped_area is a showstopper, [...]
-
-Exactly which applications do you have in mind, most of the ones i can
-think of are helped by the file-pte/swap-pte work.
-
-do you still claim this to be the case once i've extended file-ptes (and
-anon-swap pte's) with protection bits? That will enable the following
-important things: mprotect() does not break up vmas(), neighboring
-anonymous areas can _always_ be merged.
-
-> [...] the GUI as well suffers badly with the hundred of librarians but
-> the guis are otherwise idle so it doesn't matter much for them if the
-> cpu is wasted but they will get a bit lower latency).
-
-the GUI cases should be helped quite significantly by the simple approach
-i added. The NPTL testcase that triggered the get_unmapped_area()  
-regression is fixed by the mmap-speedup patch as well, get_unmapped_area()  
-completely vanished from the kernel profile. But sure, its simplicity
-makes it still an O(N) algorithm conceptually, but the typical statistical
-behavior should be much better.
-
-but the thing i'm working on is a much better than O(log(N)) improvement,
-because i'm trying to fix the real and fundamental problem: the
-artificially high number of vmas. That is not possible in every case
-though (eg. the KDE libraries case we do have roughly 100 vmas from
-different libraries), so your O(log(N)) patch will definitely be worth a
-review.
-
-in any case, if you have followed the mmap-speedup discussion then you
-must know all the arguments already. Sure, O(log(N)) would be nice in
-theory (and i raised that possibility in the discussion), but i'd like to
-see your patch first, because yet another vma tree is quite some
-complexity and it further increases the size of the vma, which is not
-quite a no-cost approach.
-
-	Ingo
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
