@@ -1,44 +1,35 @@
-Date: Mon, 22 Nov 2004 15:16:28 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Mon, 22 Nov 2004 15:13:25 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: deferred rss update instead of sloppy rss
-Message-Id: <20041122151628.77ab87ca.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.58.0411221444410.22895@schroedinger.engr.sgi.com>
+In-Reply-To: <41A271AE.7090802@yahoo.com.au>
+Message-ID: <Pine.LNX.4.58.0411221510470.24333@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
-	<Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
-	<20041122141148.1e6ef125.akpm@osdl.org>
-	<Pine.LNX.4.58.0411221408540.22895@schroedinger.engr.sgi.com>
-	<20041122144507.484a7627.akpm@osdl.org>
-	<Pine.LNX.4.58.0411221444410.22895@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
+ <20041122141148.1e6ef125.akpm@osdl.org> <Pine.LNX.4.58.0411221408540.22895@schroedinger.engr.sgi.com>
+ <20041122144507.484a7627.akpm@osdl.org> <Pine.LNX.4.58.0411221444410.22895@schroedinger.engr.sgi.com>
+ <41A271AE.7090802@yahoo.com.au>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: hugh@veritas.com, torvalds@osdl.org, benh@kernel.crashing.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, hugh@veritas.com, torvalds@osdl.org, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
->
-> On Mon, 22 Nov 2004, Andrew Morton wrote:
-> 
-> > > The page fault code only increments rss. For larger transactions that
-> > > increase / decrease rss significantly the page_table_lock is taken and
-> > > mm->rss is updated directly. So no
-> > > gross inaccuracies can result.
-> >
-> > Sure.  Take a million successive pagefaults and mm->rss is grossly
-> > inaccurate.  Hence my suggestion that it be spilled into mm->rss
-> > periodically.
-> 
-> It is spilled into mm->rss periodically. That is the whole point of the
-> patch.
-> 
-> The timer tick occurs every 1 ms.
+On Tue, 23 Nov 2004, Nick Piggin wrote:
 
-That only works if the task happens to have the CPU when the timer tick
-occurs.  There remains no theoretical upper bound to the error in mm->rss,
-and that's very easy to fix.
+> > The timer tick occurs every 1 ms. The maximum pagefault frequency that I
+> > have  seen is 500000 faults /second. The max deviation is therefore
+> > less than 500 (could be greater if page table lock / mmap_sem always held
+> > when the tick occurs).
+> I think that by the time you get the spilling code in, the mm-list method
+> will be looking positively elegant!
+
+I do not care what gets in as long as something goes in to address the
+performance issues. So far everyone seems to have their pet ideas. By all
+means do the mm-list method and post it. But we have already seen
+objections by other against loops in proc. So that will also cause
+additional controversy.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
