@@ -1,312 +1,100 @@
-Subject: 2.5.40-mm2 - runalltests - 98.42% pass
-From: Paul Larson <plars@linuxtestproject.org>
-Content-Type: text/plain
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id XAA23423
+	for <linux-mm@kvack.org>; Mon, 7 Oct 2002 23:46:00 -0700 (PDT)
+Message-ID: <3DA27F28.C60D201D@digeo.com>
+Date: Mon, 07 Oct 2002 23:46:00 -0700
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: Re: 2.5.40-mm1
+References: <3D996BA3.24E8B007@digeo.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Date: 07 Oct 2002 15:30:43 -0500
-Message-Id: <1034022644.15180.43.camel@plars>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, lse-tech <lse-tech@lists.sourceforge.net>, ltp-results <ltp-results@lists.sourceforge.net>
+To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Mala Anand <manand@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Much better on mm2, all are known and/or expected failures and the only
-two remaining dio failures will be fixed in the next LTP release
-(probably coming tomorrow).
+Andrew Morton wrote:
+> 
+> ...
+> - Included a patch from Mala Anand which _should_ speed up kernel<->userspace
+>   memory copies for Intel ia32 hardware.  But I can't measure any difference
+>   with poorly-aligned pagecache copies.
+> 
 
-Same hardware as before, 8-way PIII-700, 16 GB ram.
+Well Mala, I have to take that back.  I must have forgotten to
+turn on my computer or brain or something.   Your patch kicks
+butt.
 
-There were several sleeping functions called from illegal contexts at
-the top of the boot.  If you care to see them, here they are:
-Memory: 16328640k/16777216k available (1948k kernel code, 184936k
-reserved, 712k data, 128k init, 15597528k highmem)
-Total Huge_TLB_Page memory pages allocated 112
-Debug: sleeping function called from illegal context at mm/slab.c:1323
-Call Trace:
- [<c01171f6>] E __might_sleep_Rsmp_d533bec7+0x46/0x23a778
- [<c01336e1>] E kmem_cache_destroy_Rsmp_df83c692+0x1f1/0xffffffd0
- [<c01337b4>] E kmem_cache_destroy_Rsmp_df83c692+0x2c4/0xffffffd0
- [<c01f19af>] E uart_unregister_port_Rsmp_0279f765+0x1fdf/0xfffffc80
- [<c0133ab6>] E kmem_cache_destroy_Rsmp_df83c692+0x5c6/0xffffffd0
- [<c0133d9b>] E kmem_cache_alloc_Rsmp_75810956+0x3b/0xe0
- [<c0132e8f>] E kmem_cache_create_Rsmp_d1c0b4e6+0x6f/0x6d0
- [<c0119818>] E printk_Rsmp_1b7d4074+0x128/0x140
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
+In this test I timed how long it took to read a fully-cached
+1 gigabyte file into an 8192-byte userspace buffer.  The alignment
+of the user buffer was incremented by one byte between runs.
 
-Security Scaffold v1.0.0 initialized
-Dentry-cache hash table entries: 524288 (order: 10, 4194304 bytes)
-Inode-cache hash table entries: 524288 (order: 10, 4194304 bytes)
-Mount-cache hash table entries: 512 (order: 0, 4096 bytes)
-Debug: sleeping function called from illegal context at mm/slab.c:1323
-Call Trace:
- [<c01171f6>] E __might_sleep_Rsmp_d533bec7+0x46/0x23a778
- [<c01336e1>] E kmem_cache_destroy_Rsmp_df83c692+0x1f1/0xffffffd0
- [<c01337b4>] E kmem_cache_destroy_Rsmp_df83c692+0x2c4/0xffffffd0
- [<c0107b18>] E __read_lock_failed+0x18b4/0x377c
- [<c0133ab6>] E kmem_cache_destroy_Rsmp_df83c692+0x5c6/0xffffffd0
- [<c0133d9b>] E kmem_cache_alloc_Rsmp_75810956+0x3b/0xe0
- [<c015ab4c>] E get_fs_type_Rsmp_009da4a1+0xec/0xfffee5f0
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
- [<c015aa8f>] E get_fs_type_Rsmp_009da4a1+0x2f/0xfffee5f0
- [<c014967b>] E get_sb_single_Rsmp_941c6e31+0xbb/0xfffffcc0
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
- [<c015a793>] E register_filesystem_Rsmp_90e98ddd+0x43/0x70
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
+for i in $(seq 0 32)
+do
+	time time-read -a $i -b 8192 -h 8192 foo 
+done
 
-Debug: sleeping function called from illegal context at
-mm/page_alloc.c:512
-Call Trace:
- [<c01171f6>] E __might_sleep_Rsmp_d533bec7+0x46/0x23a778
- [<c0137393>] E __alloc_pages_Rsmp_0c1ddaea+0x23/0x270
- [<c0137605>] E __get_free_pages_Rsmp_4784e424+0x25/0x40
- [<c01337cb>] E kmem_cache_destroy_Rsmp_df83c692+0x2db/0xffffffd0
- [<c0107b18>] E __read_lock_failed+0x18b4/0x377c
- [<c0133ab6>] E kmem_cache_destroy_Rsmp_df83c692+0x5c6/0xffffffd0
- [<c0133d9b>] E kmem_cache_alloc_Rsmp_75810956+0x3b/0xe0
- [<c015ab4c>] E get_fs_type_Rsmp_009da4a1+0xec/0xfffee5f0
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
- [<c015aa8f>] E get_fs_type_Rsmp_009da4a1+0x2f/0xfffee5f0
- [<c014967b>] E get_sb_single_Rsmp_941c6e31+0xbb/0xfffffcc0
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
- [<c015a793>] E register_filesystem_Rsmp_90e98ddd+0x43/0x70
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
+time-read.c is in http://www.zip.com.au/~akpm/linux/patches/2.5/ext3-tools.tar.gz
 
-Debug: sleeping function called from illegal context at
-include/linux/rwsem.h:67Call Trace:
- [<c01171f6>] E __might_sleep_Rsmp_d533bec7+0x46/0x23a778
- [<c0148a07>] E bio_init_Rsmp_247a1326+0x127/0xfffff780
- [<c0148da0>] E sget_Rsmp_9f88c676+0x10/0x480
- [<c0149559>] E get_sb_nodev_Rsmp_88323f9c+0x19/0x80
- [<c0149210>] E set_anon_super_Rsmp_f7f0d22d+0x0/0xffff9db0
- [<c0149691>] E get_sb_single_Rsmp_941c6e31+0xd1/0xfffffcc0
- [<c0189f00>] E journal_blocks_per_page_Rsmp_3d546bf6+0x6e90/0xffffb250
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
- [<c015a793>] E register_filesystem_Rsmp_90e98ddd+0x43/0x70
- [<c0105000>] E Using_Versions+0xc0104fff/0xc0119d0f
+The CPU is "Pentium III (Katmai)"
 
-Here are the tests that failed:
+All times are in seconds:
 
-tag=nanosleep02 stime=1034018305 dur=1 exit=exited stat=1 core=no cu=0 cs=0
-tag=personality01 stime=1034018312 dur=0 exit=exited stat=1 core=no cu=0 cs=0
-tag=personality02 stime=1034018312 dur=0 exit=exited stat=1 core=no cu=0 cs=1
-tag=pread02 stime=1034018317 dur=0 exit=exited stat=1 core=no cu=0 cs=0
-tag=pwrite02 stime=1034018317 dur=0 exit=exited stat=1 core=no cu=0 cs=0
-tag=readv01 stime=1034018317 dur=0 exit=exited stat=1 core=no cu=0 cs=0
-tag=writev01 stime=1034018374 dur=0 exit=exited stat=1 core=no cu=0 cs=0
-tag=dio04 stime=1034019804 dur=0 exit=exited stat=1 core=no cu=0 cs=0
-tag=dio10 stime=1034019816 dur=400 exit=exited stat=1 core=no cu=123 cs=383
-tag=sem02 stime=1034020764 dur=20 exit=exited stat=1 core=no cu=0 cs=0
 
-nanosleep02    1  FAIL  :  Remaining sleep time 4001000 usec doesn't match with
-the expected 3999360 usec time
-nanosleep02    1  FAIL  :  child process exited abnormally
-personality01    3  FAIL  :  returned persona was not expected
-personality01    4  FAIL  :  returned persona was not expected
-personality01    5  FAIL  :  returned persona was not expected
-personality01    6  FAIL  :  returned persona was not expected
-personality01    7  FAIL  :  returned persona was not expected
-personality01    8  FAIL  :  returned persona was not expected
-personality01    9  FAIL  :  returned persona was not expected
-personality01   10  FAIL  :  returned persona was not expected
-personality01   11  FAIL  :  returned persona was not expected
-personality01   12  FAIL  :  returned persona was not expected
-personality01   13  FAIL  :  returned persona was not expected
-personality02    1  FAIL  :  call failed - errno = 0 - Success
-pread02     2  FAIL  :  pread() returned 0, expected -1, errno:22
-pwrite02    2  FAIL  :  specified offset is -ve or invalid, unexpected errno:27, expected:22
-readv01     1  FAIL  :  readv() failed with unexpected errno 22
-writev01    1  FAIL  :  writev() failed unexpectedly
-writev01    0  INFO  :  block 2 FAILED
-writev01    2  FAIL  :  writev() failed with unexpected errno 22
-writev01    0  INFO  :  block 6 FAILED
-sem02: FAIL
-pan reported FAIL
+User buffer	2.5.41		2.5.41+		2.5.41+
+				patch		patch++
 
-ver_linux output:
-Red Hat Linux release 7.3 (Valhalla)
-Linux cobra.ltc.austin.ibm.com 2.5.40 #0 SMP Mon Oct 7 08:40:20 CDT 2002 i686 unknown
+0x804c000	4.373		4.387		6.063
+0x804c001	10.024		6.410
+0x804c002	10.002		6.411
+0x804c003	10.013		6.408
+0x804c004	10.105		6.343
+0x804c005	10.184		6.394
+0x804c006	10.179		6.398
+0x804c007	10.185		6.408
+0x804c008	9.725		9.724		6.347
+0x804c009	9.780		6.436
+0x804c00a	9.779		6.421
+0x804c00b	9.778		6.433
+0x804c00c	9.723		6.402
+0x804c00d	9.790		6.382
+0x804c00e	9.790		6.381
+0x804c00f	9.785		6.380
+0x804c010	9.727		9.723		6.277
+0x804c011	9.779		6.360
+0x804c012	9.783		6.345
+0x804c013	9.786		6.341
+0x804c014	9.772		6.133
+0x804c015	9.919		6.327
+0x804c016	9.920		6.319
+0x804c017	9.918		6.319
+0x804c018	9.846		9.857		6.372
+0x804c019	10.060		6.443
+0x804c01a	10.049		6.436
+0x804c01b	10.041		6.432
+0x804c01c	9.931		6.356
+0x804c01d	10.013		6.432
+0x804c01e	10.020		6.425
+0x804c01f	10.016		6.444
+0x804c020	4.442		4.423		6.380
 
-Gnu C                  2.96
-Gnu make               3.79.1
-util-linux             2.11n
-mount                  2.11n
-modutils               2.4.14
-e2fsprogs              1.27
-reiserfsprogs          3.x.0j
-pcmcia-cs              3.1.22
-PPP                    2.4.1
-isdn4k-utils           3.1pre1
-Linux C Library        2.2.5
-Dynamic linker (ldd)   2.2.5
-Procps                 2.0.7
-Net-tools              1.60
-Console-tools          0.3.3
-Sh-utils               2.0.11
-Modules Loaded
+So the patch is a 30% win at all alignments except for 32-byte-aligned
+destination addresses.
 
-free -m reports:
-             total       used       free     shared    buffers     cached
-Mem:         15947        672      15274          0         61         63
--/+ buffers/cache:        547      15399
-Swap:        15350          0      15350
+Now, in the patch++ I modified things so we use the copy_user_int()
+function for _all_ alignments.  Look at the 0x804c008 alignment.
+We sped up the copies by 30% by using copy_user_int() instead of
+rep;movsl.
 
-/proc/cpuinfo
-processor       : 0
-vendor_id       : GenuineIntel
-cpu family      : 6
-model           : 10
-model name      : Pentium III (Cascades)
-stepping        : 1
-cpu MHz         : 700.030
-cache size      : 1024 KB
-fdiv_bug        : no
-hlt_bug         : no
-f00f_bug        : no
-coma_bug        : no
-fpu             : yes
-fpu_exception   : yes
-cpuid level     : 2
-wp              : yes
-flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 mmx fxsr sse
-bogomips        : 1376.25
+This is important, because glibc malloc() returns addresses which
+are N+8 aligned.  I would expect that this alignment is common.
 
-processor       : 1
-vendor_id       : GenuineIntel
-cpu family      : 6
-model           : 10
-model name      : Pentium III (Cascades)
-stepping        : 1
-cpu MHz         : 700.030
-cache size      : 1024 KB
-fdiv_bug        : no
-hlt_bug         : no
-f00f_bug        : no
-coma_bug        : no
-fpu             : yes
-fpu_exception   : yes
-cpuid level     : 2
-wp              : yes
-flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 mmx fxsr sse
-bogomips        : 1396.73
+So.  Patch is a huge win as-is.  For the PIII it looks like we need
+to enable it at all alignments except mod32.  And we need to test
+with aligned dest, unaligned source.
 
-processor       : 2
-vendor_id       : GenuineIntel
-cpu family      : 6
-model           : 10
-model name      : Pentium III (Cascades)
-stepping        : 1
-cpu MHz         : 700.030
-cache size      : 1024 KB
-fdiv_bug        : no
-hlt_bug         : no
-f00f_bug        : no
-coma_bug        : no
-fpu             : yes
-fpu_exception   : yes
-cpuid level     : 2
-wp              : yes
-flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 mmx fxsr sse
-bogomips        : 1396.73
-
-processor       : 3
-vendor_id       : GenuineIntel
-cpu family      : 6
-model           : 10
-model name      : Pentium III (Cascades)
-stepping        : 1
-cpu MHz         : 700.030
-cache size      : 1024 KB
-fdiv_bug        : no
-hlt_bug         : no
-f00f_bug        : no
-coma_bug        : no
-fpu             : yes
-fpu_exception   : yes
-cpuid level     : 2
-wp              : yes
-flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 mmx fxsr sse
-bogomips        : 1396.73
-
-processor       : 4
-vendor_id       : GenuineIntel
-cpu family      : 6
-model           : 10
-model name      : Pentium III (Cascades)
-stepping        : 1
-cpu MHz         : 700.030
-cache size      : 1024 KB
-fdiv_bug        : no
-hlt_bug         : no
-f00f_bug        : no
-coma_bug        : no
-fpu             : yes
-fpu_exception   : yes
-cpuid level     : 2
-wp              : yes
-flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 mmx fxsr sse
-bogomips        : 1396.73
-
-processor       : 5
-vendor_id       : GenuineIntel
-cpu family      : 6
-model           : 10
-model name      : Pentium III (Cascades)
-stepping        : 1
-cpu MHz         : 700.030
-cache size      : 1024 KB
-fdiv_bug        : no
-hlt_bug         : no
-f00f_bug        : no
-coma_bug        : no
-fpu             : yes
-fpu_exception   : yes
-cpuid level     : 2
-wp              : yes
-flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 mmx fxsr sse
-bogomips        : 1396.73
-
-processor       : 6
-vendor_id       : GenuineIntel
-cpu family      : 6
-model           : 10
-model name      : Pentium III (Cascades)
-stepping        : 1
-cpu MHz         : 700.030
-cache size      : 1024 KB
-fdiv_bug        : no
-hlt_bug         : no
-f00f_bug        : no
-coma_bug        : no
-fpu             : yes
-fpu_exception   : yes
-cpuid level     : 2
-wp              : yes
-flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 mmx fxsr sse
-bogomips        : 1396.73
-
-processor       : 7
-vendor_id       : GenuineIntel
-cpu family      : 6
-model           : 10
-model name      : Pentium III (Cascades)
-stepping        : 1
-cpu MHz         : 700.030
-cache size      : 1024 KB
-fdiv_bug        : no
-hlt_bug         : no
-f00f_bug        : no
-coma_bug        : no
-fpu             : yes
-fpu_exception   : yes
-cpuid level     : 2
-wp              : yes
-flags           : fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov
-pat pse36 mmx fxsr sse
-bogomips        : 1396.73
-
+Can you please do some P4 testing?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
