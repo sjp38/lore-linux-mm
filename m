@@ -2,53 +2,35 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14338.6581.988257.647691@dukat.scot.redhat.com>
-Date: Mon, 11 Oct 1999 18:09:09 +0100 (BST)
+Message-ID: <14338.7369.601459.308150@dukat.scot.redhat.com>
+Date: Mon, 11 Oct 1999 18:22:17 +0100 (BST)
 Subject: Re: MMIO regions
-In-Reply-To: <Pine.LNX.4.10.9910061600520.29637-100000@imperial.edgeglobal.com>
-References: <14328.64984.364562.947945@dukat.scot.redhat.com>
-	<Pine.LNX.4.10.9910061600520.29637-100000@imperial.edgeglobal.com>
+In-Reply-To: <Pine.LNX.4.10.9910061633250.29637-100000@imperial.edgeglobal.com>
+References: <14329.390.453805.801086@dukat.scot.redhat.com>
+	<Pine.LNX.4.10.9910061633250.29637-100000@imperial.edgeglobal.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: James Simmons <jsimmons@edgeglobal.com>
-Cc: Linux MM <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Wed, 6 Oct 1999 16:15:59 -0400 (EDT), James Simmons
+On Thu, 7 Oct 1999 15:40:32 -0400 (EDT), James Simmons
 <jsimmons@edgeglobal.com> said:
 
->> Look at http://www.precisioninsight.com/dr/locking.html for a
->> description of the cooperative lightweight locking used in the DRI 
+> No VM stuff. I think the better approach is with the scheduler. 
 
-> I have read those papers. Its not compatible with fbcon. It would
-> require a massive rewrite which would break everything that works with
-> fbcon. 
-
-Sure.  It requires that people cooperate in order to take advantage of
-the locking protection.
-
-> When people start writing apps using DRI and it locks their machine or
-> damages the hardware. Well the linux kernel mailing list will have to
-> hear those complaints. You know people will want to write their own
-> stuff. Of course precisioninsight should make a licence stating it
-> illegal to write your own code using their driver or a warning so they
-> don't get their asses sued. These are the kinds of people who will
-> look for other solutions like I am. So expect more like me.
-
-You seem to be looking for a solution which doesn't exist, though. :)
-
-It is an unfortunate, but true, fact that the broken video hardware
-doesn't let you provide memory mapped access which is (a) fast, (b)
-totally safe, and (c) functional.  Choose which of a, b and c you are
-willing to sacrifice and then we can look for solutions.  DRI sacrifices
-(b), for example, by making the locking cooperative rather than
-compulsory.  The basic unaccelerated fbcon sacrifices (c).  Using VM
-protection would sacrifice (a).  It's not the ideal choice, sadly.
+The big problem there is threads.  We simply cannot have different VM
+setups for different threads of a given process --- threads are
+_defined_ as being processes which share the same VM.  The only way to
+achieve VM serialisation in a threaded application via the scheduler is
+to serialise the threads, which is rather contrary to what you want on
+an SMP machine.  CivCTP and Quake 3 are already threaded and SMP-capable
+on Linux, for example, and we have a threaded version of the Mesa openGL
+libraries too.
 
 --Stephen
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
