@@ -1,51 +1,38 @@
-Message-ID: <40517E47.3010909@cyberone.com.au>
-Date: Fri, 12 Mar 2004 20:09:27 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
-MIME-Version: 1.0
+Date: Fri, 12 Mar 2004 01:27:03 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: [PATCH] 2.6.4-rc2-mm1: vm-split-active-lists
-References: <404FACF4.3030601@cyberone.com.au> <200403111825.22674@WOLK>
-In-Reply-To: <200403111825.22674@WOLK>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-Id: <20040312012703.69f2bb9b.akpm@osdl.org>
+In-Reply-To: <40517E47.3010909@cyberone.com.au>
+References: <404FACF4.3030601@cyberone.com.au>
+	<200403111825.22674@WOLK>
+	<40517E47.3010909@cyberone.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marc-Christian Petersen <m.c.p@wolk-project.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mike Fedyk <mfedyk@matchmail.com>, plate@gmx.tm
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: m.c.p@wolk-project.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mfedyk@matchmail.com, plate@gmx.tm
 List-ID: <linux-mm.kvack.org>
 
+Nick Piggin <piggin@cyberone.com.au> wrote:
+>
+> Hmm... I guess it is still smooth because it is swapping out only
+>  inactive pages. If the standard VM isn't being pushed very hard it
+>  doesn't scan mapped pages at all which is why it isn't swapping.
+> 
+>  I have a preference for allowing it to scan some mapped pages though.
 
-Marc-Christian Petersen wrote:
+I haven't looked at the code but if, as I assume, it is always scanning
+mapped pages, although at a reduced rate then the effect will be the same
+as setting swappiness to 100, except it will take longer.
 
->On Thursday 11 March 2004 01:04, Nick Piggin wrote:
->
->Hi Nick,
->
->
->>Here is my updated patches rolled into one.
->>
->
->hmm, using this in 2.6.4-rc2-mm1 my machine starts to swap very very soon. 
->Machine has squid, bind, apache running, X 4.3.0, Windowmaker, so nothing 
->special.
->
->Swap grows very easily starting to untar'gunzip a kernel tree. About + 
->150-200MB goes to swap. Everything is very smooth though, but I just wondered 
->because w/o your patches swap isn't used at all, even after some days of 
->uptime.
->
->
+That effect is to cause the whole world to be swapped out when people
+return to their machines in the morning.  Once they're swapped back in the
+first thing they do it send bitchy emails to you know who.
 
-Hmm... I guess it is still smooth because it is swapping out only
-inactive pages. If the standard VM isn't being pushed very hard it
-doesn't scan mapped pages at all which is why it isn't swapping.
-
-I have a preference for allowing it to scan some mapped pages though.
-I'm not sure if there is any attempt at a drop behind logic. That
-might help. Add new unmapped pagecache pages to the inactive list or
-something might help... hmm, actually that's what it does now by the
-looks.
-
-I guess you don't have a problem though.
+>From a performance perspective it's the right thing to do, but nobody likes
+it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
