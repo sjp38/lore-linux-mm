@@ -1,56 +1,84 @@
-Date: Mon, 13 Jan 2003 05:18:09 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Linux VM Documentation - Draft 2
-In-Reply-To: <Pine.LNX.4.44.0301120210580.32623-100000@skynet>
-Message-ID: <Pine.LNX.4.44.0301130426360.9912-100000@skynet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 13 Jan 2003 11:55:03 +0530
+From: Dipankar Sarma <dipankar@in.ibm.com>
+Subject: Re: 2.5.56-mm1
+Message-ID: <20030113062503.GA14996@in.ibm.com>
+Reply-To: dipankar@in.ibm.com
+References: <200301111443.08527.akpm@digeo.com> <20030111225756.GA13330@gtf.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030111225756.GA13330@gtf.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Jeff Garzik <jgarzik@pobox.com>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, viro@math.psu.edu, Maneesh Soni <maneesh@in.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-Here goes draft 2. It is mainly spelling, grammar (spelled it right this
-time) and formatting corrections largely thanks to Brian O'Connor and
-David Woodhouse among others who went through it with a fine tooth comb
-and sent me corrections.
+On Sat, Jan 11, 2003 at 11:00:38PM +0000, Jeff Garzik wrote:
+> On Sat, Jan 11, 2003 at 02:43:08PM -0800, Andrew Morton wrote:
+> > - dcache-RCU.
+> > 
+> >   This was recently updated to fix a rename race.  It's quite stable.  I'm
+> >   not sure where we stand wrt merging it now.  Al seems to have disappeared.
+> 
+> I talked to him in person last week, and this was one of the topics of
+> discussion.  He seemed to think it was fundamentally unfixable.  He
+> proceed to explain why, and then explained the scheme he worked out to
+> improve things.  Unfortunately my memory cannot do justice to the
+> details.
 
-The main technical error was pointed out by Ingo Oeser where I didn't go
-through how data is copied from userspace properly. I've written a small
-paragraph for the moment but have added a section on Copying To/From
-Userspace to the TODO list which currently looks something like
+The rename race is fixed now. Yes, it was unfixable using *existing* RCU
+techniques, but one has to invent new tricks when the old bag of
+tricks is empty :)
 
-o Swap area management
-o High memory management
-o Memory locking
-o Copying To/From Userspace
-o Arch independent initialisation (not covering arch dependent)
-o Locking
+Fundamentally what happens is that rename may be *two* updates - delete
+from one hash chain and insert into another hash chain. In order for
+lockfree traversal to work correctly, you must have a grace period after
+each update. If we do a grace period between these two updates in a rename,
+it slows down renames to unacceptable levels. So we had a problem there.
 
-It'll be a few weeks at the very least before I get them done though so
-don't hold your breath just yet (Documentation is remarkably slow work).
-If anyone sees other parts missing, has suggestions or sees more mistakes,
-forward them on as any feedback is welcome.
+The solution lies in the dcache itself - it has a fast path (cached_lookup)
+and a slow path (real_lookup). So all we had to do was to detect that a
+rename had happened to the dentry while we looked it up lockfree. This
+is done by a generation counter (d_move_count) in the dentry and is
+protected by the per-dentry spinlock which we take during rename and
+a successful cache lookup. 
 
-The updated docs are at the same place, the links are
+Two things can happen due to the rename race - lookup incorrectly succeeds
+or lookup incorrectly fails. The success case is easily handled by 
+the lockfree lookup code that looks like this -
 
-PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
-      http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
-HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
-      http://www.csn.ul.ie/~mel/projects/vm/guide/html/code/
-Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
-      http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
+for the dentries in the hash chain {
+	... More stuff....
+	move_count = dentry->d_move_count;
+	if (dentry name matches) {
+		/* lookup succeeds */
+		spin_lock(&dentry->d_lock);
+		if (move_count != dentry->d_move_count) {
+			/* 
+			 * A rename happened while looking up lockfree and 
+			 * we now cannot gurantee
+			 * that the lookup is correct
+			 */
+			spin_unlock(&dentry->d_lock);
+			return slow_lookup();
+		}
+		....
+		....
+	}
+	... More stuff....
+}
 
-Enjoy....
+If the lookup fails due to rename race, then there will anyway be a
+slow real_lookup which is serialized with rename.
 
---
-Mel Gorman
-University of Limerick
+Maneesh did a lot of testing using many ramfs and many millions of renames
+with millions of lookups going on at the same time and slow path was hit only
+100 times or so. For practical workloads, this should have absolutely no
+performance impact.
 
-
-
-
+Thanks
+Dipankar
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
