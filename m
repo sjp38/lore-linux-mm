@@ -1,101 +1,120 @@
-Date: Fri, 08 Oct 2004 17:15:25 +0900 (JST)
-Message-Id: <20041008.171525.17587512.taka@valinux.co.jp>
-Subject: Re: [PATCH] mhp: transfer dirty tag at radix_tree_replace 
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <20041006.163914.48665150.taka@valinux.co.jp>
-References: <20041003.131338.41636688.taka@valinux.co.jp>
-	<20041005164627.GB3462@logos.cnet>
-	<20041006.163914.48665150.taka@valinux.co.jp>
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i98BstR6024448 for <linux-mm@kvack.org>; Fri, 8 Oct 2004 20:54:55 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s0.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i98BssND009853 for <linux-mm@kvack.org>; Fri, 8 Oct 2004 20:54:54 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s0.gw.fujitsu.co.jp (s0 [127.0.0.1])
+	by s0.gw.fujitsu.co.jp (Postfix) with ESMTP id 4130EA7CEB
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2004 20:54:54 +0900 (JST)
+Received: from fjmail506.fjmail.jp.fujitsu.com (fjmail506-0.fjmail.jp.fujitsu.com [10.59.80.106])
+	by s0.gw.fujitsu.co.jp (Postfix) with ESMTP id CCDD9A7CF1
+	for <linux-mm@kvack.org>; Fri,  8 Oct 2004 20:54:53 +0900 (JST)
+Received: from jp.fujitsu.com
+ (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
+ fjmail506.fjmail.jp.fujitsu.com
+ (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
+ with ESMTP id <0I590000SL3GDD@fjmail506.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Fri,  8 Oct 2004 20:54:53 +0900 (JST)
+Date: Fri, 08 Oct 2004 21:00:27 +0900
+From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
+Subject: [PATCH] no buddy bitmap patch revist : intro and includes [0/2]
+Message-id: <4166815B.8030001@jp.fujitsu.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: marcelo.tosatti@cyclades.com
-Cc: iwamoto@valinux.co.jp, haveblue@us.ibm.com, linux-mm@kvack.org
+To: Linux Kernel ML <linux-kernel@vger.kernel.org>
+Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, Tony Luck <tony.luck@intel.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Marcelo.
+Hi
 
-> > > > 1) 
-> > > > I'm pretty sure you should transfer the radix tree tag at radix_tree_replace().
-> > > > If for example you transfer a dirty tagged page to another zone, an mpage_writepages()
-> > > > will miss it (because it uses pagevec_lookup_tag(PAGECACHE_DIRTY_TAG)). 
-> > > > 
-> > > > Should be quite trivial to do (save tags before deleting and set to new entry, 
-> > > > all in radix_tree_replace).
-> > > > 
-> > > > My implementation also contained the same bug.
-> > > 
-> > > Yes, it's one of the issues to do. The tag should be transferred in
-> > > radix_tree_replace() as you pointed out. The current implementation
-> > > sets the tag in set_page_dirty(newpage).
-> > 
-> > OK, guys, can you test this please?
-> 
-> Ok, I'll test it. 
+Followings are patches for removing bitmaps from the buddy allocator,
+against 2.6.9-rc3.
+This is  benefical to memory-hot-plug stuffs, because this removes
+a data structure which must meet to a host's physical memory layout.
 
-It was sad that the patch couldn't be compiled because
-PAGECACHE_TAG_DIRTY macro depended on the filesystem code.
-I think radix_tree library shouldn't use it.
+Difference from one I posted yesterday is using CONFIG_HOLES_IN_ZONE
+instead of HOLES_IN_ZONE and some fixes on comments.
 
-So that it would be better to make radix_tree_replace() accept tags
-to be inherited or make the function from scratch.
-So I decided to re-implement it and I'm testing it now.
+This patch removes bitmaps in zone->free_area[] used in the buddy system.
+Instead of using bitmaps, this patch records a free page's order in a page
+struct itself using page->private field.
 
-> > This transfer the dirty radix tree tag at radix_tree_replace, avoiding 
-> > a potential miss on tag-lookup.  We could also copy all bits representing 
-> > the valid tags for this node in the radix tree. 
-> > 
-> > But this uses the available interfaces from radix-lib.c. In case 
-> > a new tag gets added, radix_tree_replace() will have to know about it.
-> 
-> Yeah. I guess it would be better to copy the radix_tree_delete()
-> code to radix_tree_replace() and modify it to replace items directly
-> in the future.
+I removed "#define HOLES_IN_ZONE in asm/page.h" and added CONFIG_HOLES_IN_ZONE
+to Kconfig. An architecuture which has memory holes in a zone has to set this CONFIG.
+As far as I know, only ia64 with virtual memmap has to set this now.
+
+In my performance test on ia64 SMP, there is no performance influence of this patch.
+
+Kame <kamezawa.hiroyu@jp.fujitsu.com>
+============= patches for include files ==================
 
 
+This patch set removes bitmaps from the page allocator.
 
-void *radix_tree_replace(struct radix_tree_root *root,
-                                        unsigned long index, void *item)
-{
-        struct radix_tree_path path[RADIX_TREE_MAX_PATH], *pathp = path;
-        unsigned int height, shift;
-        void *ret = NULL;
+Purpose:
+This is one step to manage physical memory in nonlinear / discontiguous way
+and will reduce some amounts of codes to implement memory-hot-plug.
 
-        height = root->height;
-        if (index > radix_tree_maxindex(height))
-                goto out;
+About this part:
+This patch removes bitmaps from zone->free_area[] in include/linux/mmzone.h,
+and adds some comments on page->private field in include/linux/mm.h.
 
-        shift = (height - 1) * RADIX_TREE_MAP_SHIFT;
-        pathp->node = NULL;
-        pathp->slot = &root->rnode;
+non-atomic ops for changing PG_private bit is added in include/page-flags.h.
+zone->lock is always acquired when PG_private of "a free page" is changed.
 
-        while (height > 0) {
-                int offset;
-
-                if (*pathp->slot == NULL)
-                        goto out;
-
-                offset = (index >> shift) & RADIX_TREE_MAP_MASK;
-                pathp[1].offset = offset;
-                pathp[1].node = *pathp[0].slot;
-                pathp[1].slot = (struct radix_tree_node **)
-                                (pathp[1].node->slots + offset);
-                pathp++;
-                shift -= RADIX_TREE_MAP_SHIFT;
-                height--;
-        }
-
-        if ((ret = *pathp[0].slot))
-                *pathp[0].slot = item;
-out:
-        return ret;
-}
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
-Thank you,
-Hirokazu Takahashi.
+---
+
+ test-kernel-kamezawa/include/linux/mm.h         |    2 ++
+ test-kernel-kamezawa/include/linux/mmzone.h     |    1 -
+ test-kernel-kamezawa/include/linux/page-flags.h |    2 ++
+ 3 files changed, 4 insertions(+), 1 deletion(-)
+
+diff -puN include/linux/mm.h~eliminate-bitmap-includes include/linux/mm.h
+--- test-kernel/include/linux/mm.h~eliminate-bitmap-includes	2004-10-07 17:18:34.000000000 +0900
++++ test-kernel-kamezawa/include/linux/mm.h	2004-10-07 17:18:34.000000000 +0900
+@@ -209,6 +209,8 @@ struct page {
+ 					 * usually used for buffer_heads
+ 					 * if PagePrivate set; used for
+ 					 * swp_entry_t if PageSwapCache
++					 * When page is free, this indicates
++					 * order in the buddy system.
+ 					 */
+ 	struct address_space *mapping;	/* If low bit clear, points to
+ 					 * inode address_space, or NULL.
+diff -puN include/linux/mmzone.h~eliminate-bitmap-includes include/linux/mmzone.h
+--- test-kernel/include/linux/mmzone.h~eliminate-bitmap-includes	2004-10-07 17:18:34.000000000 +0900
++++ test-kernel-kamezawa/include/linux/mmzone.h	2004-10-07 17:18:34.000000000 +0900
+@@ -22,7 +22,6 @@
+
+ struct free_area {
+ 	struct list_head	free_list;
+-	unsigned long		*map;
+ };
+
+ struct pglist_data;
+diff -puN include/linux/page-flags.h~eliminate-bitmap-includes include/linux/page-flags.h
+--- test-kernel/include/linux/page-flags.h~eliminate-bitmap-includes	2004-10-07 17:18:34.000000000 +0900
++++ test-kernel-kamezawa/include/linux/page-flags.h	2004-10-07 17:18:34.000000000 +0900
+@@ -238,6 +238,8 @@ extern unsigned long __read_page_state(u
+ #define SetPagePrivate(page)	set_bit(PG_private, &(page)->flags)
+ #define ClearPagePrivate(page)	clear_bit(PG_private, &(page)->flags)
+ #define PagePrivate(page)	test_bit(PG_private, &(page)->flags)
++#define __SetPagePrivate(page)  __set_bit(PG_private, &(page)->flags)
++#define __ClearPagePrivate(page) __clear_bit(PG_private, &(page)->flags)
+
+ #define PageWriteback(page)	test_bit(PG_writeback, &(page)->flags)
+ #define SetPageWriteback(page)						\
+
+_
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
