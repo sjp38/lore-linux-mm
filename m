@@ -1,38 +1,64 @@
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: [RFC][PATCH] Avoid vmtruncate/mmap-page-fault race
-Date: Thu, 29 May 2003 19:39:47 +0200
-References: <Pine.LNX.4.44.0305291723310.1800-100000@localhost.localdomain> <200305291915.22235.phillips@arcor.de>
-In-Reply-To: <200305291915.22235.phillips@arcor.de>
+Date: Thu, 29 May 2003 11:40:08 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: 2.5.70-mm1
+Message-ID: <18080000.1054233607@[10.10.2.4]>
+In-Reply-To: <1980000.1054189401@[10.10.2.4]>
+References: <20030527004255.5e32297b.akpm@digeo.com> <1980000.1054189401@[10.10.2.4]>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200305291939.47451.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
-Cc: akpm@digeo.com, hch@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 29 May 2003 19:15, Daniel Phillips wrote:
-> On Thursday 29 May 2003 18:33, you wrote:
-> > Me?  I much preferred your original, much sparer, nopagedone patch
-> > (labelled "uglyh as hell" by hch).
->
-> "me too".
+> SDET 128  (see disclaimer)
+>                            Throughput    Std. Dev
+>                2.5.66-mm2       100.0%         0.6%
+>           2.5.66-mm2-ext3         3.9%         0.4%
+> 
+> SDET 128  (see disclaimer)
+>                            Throughput    Std. Dev
+>           2.5.70-mm1-ext2       100.0%         0.1%
+>           2.5.70-mm1-ext3        22.7%         2.0%
 
-Oh wait, I mispoke... there is another formulation of the patch that hasn't 
-yet been posted for review.  Instead of having the nopagedone hook, it turns 
-the entire do_no_page into a hook, per hch's suggestion, but leaves in the 
-->nopage hook, which makes the patch small and obviously right.  I need to 
-post that version for comparison, please bear with me.
+Andrew pointed out I should turn off extended attributes, I reran
+like this ... not much change (with error margins)
 
-IMHO, it's nicer than the ->nopagedone form.
+ SDET 32  (see disclaimer)
+                           Throughput    Std. Dev
+          2.5.70-mm1-ext2       100.0%         0.2%
+          2.5.70-mm1-ext3        30.9%         7.8%
+          2.5.70-mm1-noxa        34.6%         6.5%
 
-Regards,
+SDET 128  (see disclaimer)
+                           Throughput    Std. Dev
+          2.5.70-mm1-ext2       100.0%         0.1%
+          2.5.70-mm1-ext3        22.7%         2.0%
+          2.5.70-mm1-noxa        21.4%         4.6%
 
-Daniel
+.text.lock.attr is still in there, so either I balls'ed it up somehow, or
+it wasn't the extd attr stuff in the first place. 
+
+CONFIG_EXT2_FS=y
+# CONFIG_EXT2_FS_XATTR is not set
+CONFIG_EXT3_FS=y
+# CONFIG_EXT3_FS_XATTR is not set
+
+   2024927   267.3% total
+   1677960   472.8% default_idle
+    116350     0.0% .text.lock.transaction
+     42783     0.0% do_get_write_access
+     40293     0.0% journal_dirty_metadata
+     34251  6414.0% __down
+     27867  9166.8% .text.lock.attr
+     20016  2619.9% __wake_up
+     19632   927.4% schedule
+     12204     0.0% .text.lock.sched
+     12128     0.0% start_this_handle
+     10011     0.0% journal_add_journal_head
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
