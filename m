@@ -1,44 +1,51 @@
-Date: Mon, 17 Jul 2000 13:21:00 -0400 (EDT)
-From: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
+Date: Mon, 17 Jul 2000 21:01:18 +0200 (CEST)
+From: Mike Galbraith <mikeg@weiden.de>
 Subject: Re: [PATCH] test5-1 vm fix
-In-Reply-To: <Pine.Linu.4.10.10007160808001.420-100000@mikeg.weiden.de>
-Message-ID: <Pine.LNX.4.10.10007171308190.13324-100000@coffee.psychology.mcmaster.ca>
+In-Reply-To: <Pine.LNX.4.21.0007171143100.30603-100000@duckman.distro.conectiva>
+Message-ID: <Pine.Linu.4.10.10007171948160.347-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@weiden.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Roger Larsson <roger.larsson@norran.net>, Linus Torvalds <torvalds@transmeta.com>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> RFC concerning make -j30 bzImage as basic VM test:
-> Rik called this an 'odd' workload.  IMHO it is an excellent basic VM test
-> (IFF the size of the job is adjusted to _not quite_ fit in ram).  In my
+On Mon, 17 Jul 2000, Rik van Riel wrote:
 
-and do you know whether "make -j30" just barely exceeds ram?
+> On Mon, 17 Jul 2000, Mike Galbraith wrote:
+> > On Sun, 16 Jul 2000, Rik van Riel wrote:
+> > > On Sun, 16 Jul 2000, Mike Galbraith wrote:
+> > > > Unfortunately, this didn't improve anything here.
+> > > 
+> > > As was to be expected ...
+> > 
+> > one can only hope and test.
+> 
+> Alternatively, one can learn from the patches and
+> mistakes of others and try to understand how stuff
+> works.
 
-> time make -j30 bzImage on 128mb PIII/500 w. single ide drive.
+I read them all from top to bottom, and listen at full volume.
 
-hmm I presume the disk is some reasonable mode (udma), but this 
-means that swapping will destructively interfere with any real IO.
-I guess I don't see why this is a sane workload: it doesn't resemble
-basic workstation load (which never has 30 runnable processes),
-and it doesn't resemble "server" load (which might have 30, but would
-certainly have more than a single disk.)
+> > Do you already know what it's up to during one of these nasty
+> > stalls?
+> 
+> There's nothing wrong with the current VM that wasn't
+> fixed in one of my patches the last 8 weeks.
+>
+> (except for the fundamental design flaws, which I will
+> fix in the *next* N+1 weeks)
 
+I look forward to trying out the result.
 
-> 31  7  0  18132  18856    768  18728   4   0   207     0  193   240  89  11   0
-> 30 10  0  18096   9680    792  19164 132   0   324     0  191   422  92   8   0
-> 37  3  0  15556   6968    788  12092 424   0   325    19  165   353  88  12   0
-> 27  3  1  18940  23724    640  12624 11008 8948  9705  3006 5284  7710  63  10  28
+> regards,
+> 
+> Rik
 
-hmm, clearly going over 30 several times.  and in this case, the forkbomb
-is causing the machine to thrash.  unsurprising eh?
+	Cheers,
 
-peak was 41, I think.  I presume this is because make isn't counting 
-the multiple processes that gcc -pipe forks.
-
-regards, mark hahn.
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
