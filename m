@@ -2,60 +2,61 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14282.59712.315181.783541@dukat.scot.redhat.com>
-Date: Mon, 30 Aug 1999 21:27:44 +0100 (BST)
+Message-ID: <14282.60217.253262.910401@dukat.scot.redhat.com>
+Date: Mon, 30 Aug 1999 21:36:09 +0100 (BST)
 Subject: Re: accel handling
-In-Reply-To: <Pine.LNX.4.10.9908301313300.5070-100000@imperial.edgeglobal.com>
-References: <14282.43218.149092.491404@dukat.scot.redhat.com>
-	<Pine.LNX.4.10.9908301313300.5070-100000@imperial.edgeglobal.com>
+In-Reply-To: <m1aer9je4i.fsf@alogconduit1ae.ccr.net>
+References: <Pine.LNX.4.10.9908300949550.3356-100000@imperial.edgeglobal.com>
+	<m1aer9je4i.fsf@alogconduit1ae.ccr.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: James Simmons <jsimmons@edgeglobal.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Marcus Sundberg <erammsu@kieraypc01.p.y.ki.era.ericsson.se>, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
+Cc: James Simmons <jsimmons@edgeglobal.com>, Marcus Sundberg <erammsu@kieraypc01.p.y.ki.era.ericsson.se>, "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Mon, 30 Aug 1999 13:51:14 -0400 (EDT), James Simmons
-<jsimmons@edgeglobal.com> said:
+On 30 Aug 1999 13:51:41 -0500, ebiederm+eric@ccr.net (Eric W. Biederman)
+said:
 
-> Then the question is how are DRI handling this. I'm assuming they don't
-> allow access to the framebuffer. 
+> A) Assuming we are doing intensive drawing whatever we are doing with
+>    the accellerator needs to happen about 30 times per second.  That
+>    begins the aproximate limit on humans seeing updates.
 
-They have to allow framebuffer access, to support software fallback if
-the hardware doesn't do complete open-GL in silicon.  For functions
-which the hardware won't do, the software needs to be able to get its
-own hands dirty, and it is the same user-space library which is doing
-both the accelerated and the raw bits of the job.
+> B) At 30hz we can do some slightly expensive things.
+>    To a comuputer there is all kinds of time in there.
 
-> Then it looks like the best solution not allow any accels when you
-> have /dev/fb mmapped. Then their still the problem of fbcon drivers
-> that use accels to do drawing operations.
+Sure, *if* you can get away with activating the accel queue just once
+per cycle.  Who gets woken up when accel is done, btw?  How do we
+restore fb access?
 
-Exactly.
+> C) We could simply put all processes that have the frame buffer
+>    mapped to sleep during the interval that the accel enginge runs.
 
->  What if the user is writing to the framebuffer device while a accel
-> is being processed in the kernel. It locks the machine hard. 
+Ouch.  Think about games --- performance is the most important thing for
+them, and they want all the CPU they can get.  They most certainly do
+NOT want to be stalled just because the framebuffer is out of bounds:
+there may be other useful things they could be calculating in the mean
+time.
 
-Then you need to trust any libs/binaries which you give framebuffer
-access to.
+> D) We could keep a copy of the frame buffer (possibly in other video
+>    memory) and copy the ``frame buffer'' over, (with memcpy in the kernel, or with an 
+>    accel command).
+>    At 1600x1280x32 x30hz that is about 220 MB/s.  Is that a figure achieveable in the
+>    real world?
 
-> I know from personal experience with the matrox framebuffer
-> device. One in ten times of starting X it locks my machine and I have
-> to reboot. This problem needs to be solved and its no longer a PC
-> problem when this kind of hardware can now run on SPARCs and PPC. 
+Not even close.  At least, not without consuming 100% cpu and bus bandwidth.
 
-it needs to be solved, yes.  In hardware.  Moan at your vendor. :)
+> E) Nowhere does it make sense to simultaneously access the accelerator
+>    and frame buffer simultaneously. ( At least the same regions of the frame buffer).
+>    Because the end result on the screen would be unpredicatable.
+>    Therefore it whatever we use for locks ought to be reasonable.
 
-> Right, you have to empty the accel queue at each frame refresh. Faster
-> than that would be pointless. Slower than that would be really bad.
-
-It depends on the speed of the queue.  If your video throughput is
-bottlenecked on the accel queue, then you do want to be emptying it as
-fast as possible to avoid idling the silicon.
+That's a user space issue.  If you have full framebuffer access and you
+mess up the screen, it's your fault, no big deal.  If you crash the
+machine, that's an entirely different matter.
 
 --Stephen
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
