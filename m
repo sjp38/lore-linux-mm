@@ -1,56 +1,40 @@
-Received: from inter-tax.com (inter-tax.pclink.com [206.11.10.129])
-	by kvack.org (8.8.7/8.8.7) with SMTP id NAA09196
-	for <linux-mm@kvack.org>; Thu, 8 Apr 1999 13:29:23 -0400
-Received: from edison [192.168.1.2] by inter-tax.com [192.168.1.1] with SMTP (MDaemon.v2.7.SP4.R) for <linux-mm@kvack.org>; Thu, 08 Apr 1999 12:23:35 -0500
-Message-ID: <013f01be81e4$88f07860$0201a8c0@edison.inter-tax.com>
-From: "Keith Morgan" <kmorgan@inter-tax.com>
-Subject: persistent heap design advice
-Date: Thu, 8 Apr 1999 12:23:36 -0500
+Received: from obelix.hrz.tu-chemnitz.de (obelix.hrz.tu-chemnitz.de [134.109.132.55])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA11744
+	for <linux-mm@kvack.org>; Thu, 8 Apr 1999 18:02:06 -0400
+Date: Fri, 9 Apr 1999 00:00:22 +0200 (CEST)
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: Re: persistent heap design advice
+In-Reply-To: <013f01be81e4$88f07860$0201a8c0@edison.inter-tax.com>
+Message-ID: <Pine.LNX.4.10.9904082343010.22787-100000@nightmaster.csn.tu-chemnitz.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Keith Morgan <kmorgan@inter-tax.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I am interested in creating a persistent heap library and would
-appreciate any suggestions on how to proceed. The 'persistent heap'
-would be a region of virtual memory backed by a file and could be
-expanded or contracted.
+On Thu, 8 Apr 1999, Keith Morgan wrote:
 
-In order to build my 'persistent heap' it seems like I need a
-fundamental facility that isn't provided by Linux. Please correct me if
-I'm wrong! It would be something like mmap() ... but different. The
-facility call it phmap for starters) would:
+> -If not, are there kernel/vm hooks that can be used to create it?
+> kernel)
 
--map virtual addresses to a user-specified file
--coordinate the expansion/contraction of the file and the virtual
-address space
--provide ram cache [of user-specified number of pages (cache itself is
-nonpagable)]*
--provide load-on-demand of data from the file into the cache
--swap LRU pages back to the file when cache full
+Look at 'include/linux/mm.h'.
 
-[]* I'm not sure if this is the right approach. I want to avoid paging
-out user program/data when traversing very large 'persistent heaps'.
+There you can find 'struct vm_operations_struct', which provides
+all the possible (and needed) hooks into the Linux-VMM.
 
-I an interested in writing at the highest possible level to create the
-phmap facility. At this point my questions are very broad (I'm not
-looking for a cookbook, just trying to prune the search space):
+Just take the implementation of 'mm/filemap.c' and modify it to
+support your scheme of caching.
 
--Is is possible to hack the mmap() source to create it?
--If not, are there kernel/vm hooks that can be used to create it?
--If not these, how can it be done? (hopefully without hacking into the
-kernel)
+The only thing left to do is a SYSCALL-API-function. But this
+isn't a real problem, is it?
 
-I've read the LDP documents on the memory architecture and Linux Device
-Drivers is on its way from amazon.com. I am also starting to read the mm
-and arch/../mm source but I must admit that I don't have a coherent
-picture of memory management yet. Thanks for any insight.
+Regards
 
-Keith Morgan
-
+Ingo Oeser
+-- 
+Feel the power of the penguin - run linux@your.pc
+<esc>:x
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
