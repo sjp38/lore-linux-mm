@@ -1,33 +1,45 @@
-Message-ID: <3D4A3002.FFED947E@zip.com.au>
-Date: Fri, 02 Aug 2002 00:08:50 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
-Subject: Re: large page patch
-References: <15690.9727.831144.67179@napali.hpl.hp.com> <868823061.1028244804@[10.10.2.3]>
+Date: Fri, 2 Aug 2002 00:09:40 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [RFC] reduce usage of mem_map
+Message-ID: <20020802070940.GA29537@holomorphy.com>
+References: <869105998.1028245087@[10.10.2.3]>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <869105998.1028245087@[10.10.2.3]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
-Cc: davidm@hpl.hp.com, "David S. Miller" <davem@redhat.com>, riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rohit.seth@intel.com, sunil.saxena@intel.com, asit.k.mallick@intel.com
+To: "Martin J. Bligh" <fletch@aracnet.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Martin J. Bligh" wrote:
-> 
-> >   DaveM>    In my opinion the proposed large-page patch addresses a
-> >   DaveM> relatively pressing need for databases (primarily).
-> >
-> >   DaveM> Databases want large pages with IPC_SHM, how can this
-> >   DaveM> special syscal hack address that?
-> >
-> > I believe the interface is OK in that regard.  AFAIK, Oracle is happy
-> > with it.
-> 
-> Is Oracle now the world's only database? I think not.
+jn Thu, Aug 01, 2002 at 11:38:07PM -0700, Martin J. Bligh wrote:
+> I've tried to cut down the usage of mem_map somewhat.
+> There's already macros to do the conversion between
+> pfns to pages, and it doesn't work the way they've
+> embedded it for discontigmem systems. Comments?
+> Please don't apply - not tested yet ;-)
+> M.
 
-Is a draft of Simon's patch available against 2.5?
+mem_map should be eliminated anyway. The concept is a legacy interface
+for indexing into the older contiguous core map. The only pseudo-useful
+thing it does is creating some kind of base address for address
+calculation in page_to_pfn() etc., not that they're any kind of
+performance-critical bit of the kernel. Those kinds of things can
+circumvent the core VM without any significant ugliness impact.
+Worse comes to worse, just do Roman Zippel's thing and shove the
+page_address() bits into arch code where they'd belong if arches weren't
+forcing us to keep ->virtual all the time (necessitating core control).
 
--
+In the meantime, the necessity of laying out the pageframe maps in such
+a manner that indexing from mem_map is sort of valid is an irritating
+constraint not satisfiable without virtual remapping tricks and/or
+MAP_NR_DENSE() on many platforms. Kill it. Kill it dead.
+
+
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
