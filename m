@@ -1,41 +1,54 @@
-Received: from mailgate4.nec.co.jp ([10.7.69.197])
-	by TYO202.gate.nec.co.jp (8.11.6/3.7W01080315) with ESMTP id g6O3Hqe06417
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2002 12:17:52 +0900 (JST)
-Received: from mailsv.nec.co.jp (mailgate51.nec.co.jp [10.7.69.196]) by mailgate4.nec.co.jp (8.11.6/3.7W-MAILGATE-NEC) with ESMTP
-	id g6O3Hqi16781 for <linux-mm@kvack.org>; Wed, 24 Jul 2002 12:17:52 +0900 (JST)
-Received: from mailsv.bs1.fc.nec.co.jp (venus.hpc.bs1.fc.nec.co.jp [10.34.77.164]) by mailsv.nec.co.jp (8.11.6/3.7W-MAILSV-NEC) with ESMTP
-	id g6O3Hph05770 for <linux-mm@kvack.org>; Wed, 24 Jul 2002 12:17:51 +0900 (JST)
-Received: from localhost (pingu.hpc.bs1.fc.nec.co.jp [10.34.77.220])
-	by mailsv.bs1.fc.nec.co.jp (8.12.0/3.7W-HPC5.2F(mailsv)01041614) with ESMTP id g6O39oLw022935
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2002 12:09:50 +0900 (JST)
-Subject: Help, limiting pagecaches
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Subject: Re: [PATCH] updated low-latency zap_page_range
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <3D3F4A2F.B1A9F379@zip.com.au>
+References: <1027556975.927.1641.camel@sinai>
+	<3D3F4A2F.B1A9F379@zip.com.au>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Message-Id: <20020724121840X.miyoshi@hpc.bs1.fc.nec.co.jp>
-Date: Wed, 24 Jul 2002 12:18:40 +0900
-From: miyoshi@hpc.bs1.fc.nec.co.jp
+Date: 24 Jul 2002 18:16:24 -0700
+Message-Id: <1027559785.17950.3.camel@sinai>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: torvalds@transmeta.com, riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, all
+On Wed, 2002-07-24 at 17:45, Andrew Morton wrote:
 
-Is there any way to limit the size of pagecaches?
+> Robert Love wrote:
+> >
+> > +static inline void cond_resched_lock(spinlock_t * lock)
+> > +{
+> > +       if (need_resched() && preempt_count() == 1) {
+> > +               _raw_spin_unlock(lock);
+> > +               preempt_enable_no_resched();
+> > +               __cond_resched();
+> > +               spin_lock(lock);
+> > +       }
+> > +}
+> 
+> Maybe I'm being thick.  How come a simple spin_unlock() in here
+> won't do the right thing?
 
-I observed that performance of some memory hog benchmark
-does not stable, depending on the pagecache size.
-I think it is natural behavior of VM subsystem,
-but some user care for perfomance stability :-<
+It will, but we will check need_resched twice.  And preempt_count
+again.  My original version just did the "unlock; lock" combo and thus
+the checking was automatic... but if we want to check before we unlock,
+we might as well be optimal about it.
 
-I saw /proc/sys/vm/pagecaches sysctl entry in early 2.4,
-but "max_percent" value was not used in the source code.
-On newer kernel, entry itself seems disappeared...
+> And this won't _really_ compile to nothing with CONFIG_PREEMPT=n,
+> will it?  It just does nothing because preempt_count() is zero?
 
-Is there any trial to provide feature to limit pagecache?
+I hope it compiles to nothing!  There is a false in an if... oh, wait,
+to preserve possible side-effects gcc will keep the need_resched() call
+so I guess we should reorder it as:
 
-Thanks,
+	if (preempt_count() == 1 && need_resched())
+
+Then we get "if (0 && ..)" which should hopefully be evaluated away. 
+Then the inline is empty and nothing need be done.
+
+	Robert Love
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
