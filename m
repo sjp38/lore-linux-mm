@@ -1,79 +1,45 @@
-From: Nikita Danilov <Nikita@Namesys.COM>
+Message-ID: <402128D0.2020509@tmr.com>
+Date: Wed, 04 Feb 2004 12:16:00 -0500
+From: Bill Davidsen <davidsen@tmr.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: VM patches (please review)
+References: <402065DE.9090902@cyberone.com.au>
+In-Reply-To: <402065DE.9090902@cyberone.com.au>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-ID: <16417.8644.203682.640759@laputa.namesys.com>
-Date: Wed, 4 Feb 2004 19:45:56 +0300
-Subject: Re: [PATCH 3/5] mm improvements
-In-Reply-To: <Pine.LNX.4.44.0402041027380.24515-100000@chimarrao.boston.redhat.com>
-References: <4020BE45.10007@cyberone.com.au>
-	<Pine.LNX.4.44.0402041027380.24515-100000@chimarrao.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel writes:
- > On Wed, 4 Feb 2004, Nick Piggin wrote:
- > > Nick Piggin wrote:
- > > 
- > > > 3/5: vm-lru-info.patch
- > > >     Keep more referenced info in the active list. Should also improve
- > > >     system time in some cases. Helps swapping loads significantly.
- > 
- > I suspect this is one of the more important ones in this
- > batch of patches...
+Nick Piggin wrote:
+> http://www.kerneltrap.org/~npiggin/vm/
+> (may need to reload)
+> 
+> Here are the patches to go with my earlier post.
+> kernel is 2.6.2-rc3-mm1.
+> 
+> I'm suire I've upset at least one uncommented^Wdivine
+> balance so if anyone has time to review and comment
+> it would be appreciated.
+> 
+> I can email the patches to the lists if anyone would
+> like?
 
-I don't understand how this works. This patch just parks mapped pages on
-the "ignored" segment of the active list, where they rest until
-reclaim_mapped mode is entered.
+Since this is broken down nicely, a line or two about what each patch 
+does or doesn't address would be useful. In particular, having just 
+gotten a working RSS I'm suspicious of the patch named vm-no-rss-limit 
+being desirable ;-)
 
-This only makes a difference for the pages that were page_referenced():
+Nice work, but it would be nice to see what problem a patch addresses to 
+check for blowback under some other load.
 
-1. they are moved to the ignored segment rather than to the head of the
-active list.
 
-2. their referenced bit is not cleared
-
-Now, as "ignored" segment is not scanned in !reclaim_mode, (2) would
-only make a difference when VM rapidly oscillates between reclaim_mapped
-and !reclaim_mapped, because after a long period of !reclaim_mapped
-operation preserved referenced bit on a page only means "this page has
-been referenced in the past, but not necessary recently".
-
-And if (1) affects performance significantly, that something rotten in
-the idea of treating mapped pages preferentially by the replacement, and
-the same effect can be achieved by simply increasing vm_swappiness.
-
-Nick, can you test what will be an effect of doing something like
-
-	while (!list_empty(&l_hold)) {
-		page = lru_to_page(&l_hold);
-		list_del(&page->lru);
-		if (page_mapped(page)) {
-			int referenced;
-
-			referenced = page_referenced(page);
-			if (!reclaim_mapped) {
-				list_add(&page->lru, &l_ignore);
-				continue;
-			}
-			pte_chain_lock(page);
-			if (page_mapped(page) && referenced) {
-				pte_chain_unlock(page);
-				list_add(&page->lru, &l_active);
-				continue;
-			}
-			pte_chain_unlock(page);
-		}
-		...
-
-i.e., by cleaning the referenced bit before moving page to the l_ignore?
-
- > 
-
-Nikita.
+-- 
+bill davidsen <davidsen@tmr.com>
+   CTO TMR Associates, Inc
+   Doing interesting things with small computers since 1979
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
