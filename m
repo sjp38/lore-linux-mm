@@ -1,44 +1,34 @@
-Date: Fri, 12 May 2000 19:48:45 -0300 (BRST)
+Date: Fri, 12 May 2000 20:37:44 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [patch] balanced highmem subsystem under pre7-9
-In-Reply-To: <Pine.LNX.4.10.10005122149120.6188-100000@elte.hu>
-Message-ID: <Pine.LNX.4.21.0005121944580.28943-100000@duckman.distro.conectiva>
+Subject: pre8: where has the anti-hog code gone?
+Message-ID: <Pine.LNX.4.21.0005122031500.28943-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Andrea Arcangeli <andrea@suse.de>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
+To: linux-mm@kvack.org
+Cc: Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 May 2000, Ingo Molnar wrote:
+Hi Linus,
 
-> --- linux/mm/vmscan.c.orig	Fri May 12 12:28:58 2000
-> +++ linux/mm/vmscan.c	Fri May 12 12:29:50 2000
-> @@ -543,13 +543,14 @@
->  				something_to_do = 1;
->  				do_try_to_free_pages(GFP_KSWAPD);
->  				if (tsk->need_resched)
-> -					schedule();
-> +					goto sleep;
->  			}
->  			run_task_queue(&tq_disk);
->  			pgdat = pgdat->node_next;
->  		} while (pgdat);
->  
->  		if (!something_to_do) {
-> +sleep:
->  			tsk->state = TASK_INTERRUPTIBLE;
->  			interruptible_sleep_on(&kswapd_wait);
->  		}
+I'm reading the pre8 code now and I see that the anti-hog
+code is gone. I'm still busy developing the active/inactive
+list thing, but was just doing a short test with pre8 and
+noticed a *sharp* increase in the amount of filesystem IO
+when a big memory hog is swapping ...
 
-This is wrong. It will make it much much easier for processes to
-get killed (as demonstrated by quintela's VM test suite).
+In addition, I'm seeing smaller processes blocked on disk;
+this didn't happen as often when the anti-hog code was still
+in and drastically reduces throughput for the memory hog
+(who now has to wait in line for disk accesses).
 
-The correct fix probably is to have the _same_ watermark for
-something_to_do *and* the "easy allocation" in __alloc_pages.
+I'm curious ... why was the anti-hog code taken out?
 
-(very much untested patch versus pre7-9 below)
+It helps quite a bit on systems which are more or less
+low on memory (ie. not your normal working environment,
+but common in universities and lots of countries all
+around the world).
 
 regards,
 
@@ -49,22 +39,6 @@ of people. That is its real strength.
 
 Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
 http://www.conectiva.com/		http://www.surriel.com/
-
-
-
---- vmscan.c.orig	Thu May 11 12:13:08 2000
-+++ vmscan.c	Fri May 12 19:46:49 2000
-@@ -542,8 +542,9 @@
- 				zone_t *zone = pgdat->node_zones+ i;
- 				if (!zone->size || !zone->zone_wake_kswapd)
- 					continue;
--				something_to_do = 1;
- 				do_try_to_free_pages(GFP_KSWAPD);
-+				if (zone->free_pages < zone->pages_low)
-+					something_to_do = 1;
- 				if (tsk->need_resched)
- 					schedule();
- 			}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
