@@ -1,8 +1,7 @@
-Date: Tue, 19 Feb 2002 10:10:28 -0300 (BRT)
+Date: Tue, 19 Feb 2002 11:34:15 -0300 (BRT)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] reduce struct_page size
-In-Reply-To: <Pine.LNX.4.33.0202181806340.24597-100000@home.transmeta.com>
-Message-ID: <Pine.LNX.4.33L.0202191009260.1930-100000@imladris.surriel.com>
+Subject: [PATCH *] new struct page shrinkage
+Message-ID: <Pine.LNX.4.33L.0202191131050.1930-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,26 +10,44 @@ To: Linus Torvalds <torvalds@transmeta.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 18 Feb 2002, Linus Torvalds wrote:
-> On Mon, 18 Feb 2002, Rik van Riel wrote:
-> >
-> > o page->zone is shrunk from a pointer to an index into a small
-> >   array of zones ... this means we have space for 3 more chars
-> >   in the struct page to other stuff (say, page->age)
->
-> Why not put "page->zone" into the page flags instead?
+Hi Linus,
 
-Done.  I'll resubmit the patch with this change once I've
-tested the thing, in an hour or two.
+The patch has been changed like you wanted, with page->zone
+shoved into page->flags. I've also pulled the thing up to
+your latest changes from linux.bkbits.net so you should be
+able to just pull it into your tree from:
 
-regards,
+bk://linuxvm.bkbits.net/linux-2.5-struct_page
+
+You can also view the patch on:
+
+http://surriel.com/patches/2.5/2.5.5-p2-struct_page5
+
+I'm not retransmitting it to lkml as very little has changed.
+Please apply the patch to your 2.5 tree.
+
+thank you,
 
 Rik
--- 
-"Linux holds advantages over the single-vendor commercial OS"
-    -- Microsoft's "Competing with Linux" document
 
-http://www.surriel.com/		http://distro.conectiva.com/
+----> begin standard blurb of explanation <----
+
+I've forward-ported a small part of the -rmap patch to 2.5,
+the shrinkage of the struct page. Most of this code is from
+William Irwin and Christoph Hellwig.
+
+The executive summary:
+o page->wait is removed, instead we use a hash table of wait
+  queues per zone ... collisions are ok because of wake-all
+  semantics
+o page->virtual is only used on highmem machines and sparc64,
+  other machines calculate the address instead
+o page->zone is moved into page->flags
+
+Linus, please pull from the bk tree:
+
+bk://linuxvm.bkbits.net/linux-2.5-struct_page
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
