@@ -1,53 +1,36 @@
-Date: Sun, 18 Jun 2000 08:26:56 +0200 (CEST)
+Date: Sun, 18 Jun 2000 09:57:13 +0200 (CEST)
 From: Mike Galbraith <mikeg@weiden.de>
-Subject: Re: kswapd eating too much CPU on ac16/ac18
-In-Reply-To: <Pine.LNX.4.21.0006161203110.24794-100000@duckman.distro.conectiva>
-Message-ID: <Pine.Linu.4.10.10006180818120.466-100000@mikeg.weiden.de>
+Subject: Re: PATCH: Improvements in shrink_mmap and kswapd
+In-Reply-To: <ytt3dmcyli7.fsf@serpe.mitica>
+Message-ID: <Pine.Linu.4.10.10006180925380.529-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Cesar Eduardo Barros <cesarb@nitnet.com.br>, linux-kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, Roger Larsson <roger.larsson@optronic.se>
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, lkml <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, linux-fsdevel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 16 Jun 2000, Rik van Riel wrote:
+On 18 Jun 2000, Juan J. Quintela wrote:
 
-> On Fri, 16 Jun 2000, Mike Galbraith wrote:
-> > On Wed, 14 Jun 2000, Alan Cox wrote:
-> > 
-> > > Im interested to know if ac9/ac10 is the slow->fast change point
-> > 
-> > ac5 is definately the breaking point.  ac5 doesn't survive make
-> > -j30.. starts swinging it's VM machette at everything in sight.  
-> > Reversing the VM changes to ac4 restores throughput to test1
-> > levels (11 minute build vs 21-26 minutes for everything
-> > forward).
-> > 
-> > Exact tested reversals below.  FWIW, page aging doesn't seem to
-> > be the problem.  I disabled that in ac17 and saw zero
-> > difference.  (What may or not be a hint is that the /* Let
-> > shrink_mmap handle this swapout. */ bit in vmscan.c does make a
-> > consistent difference.  Reverting that bit alone takes a minimum
-> > of 4 minutes off build time)
+> Hi
+>         this patch makes kswapd use less resources.  It should solve
+> the kswapd eats xx% of my CPU problems.  It appears that it improves
+> IO a bit here.  Could people having problems with IO told me if this
+> patch improves things, I am interested in knowing that it don't makes
+> things worst never.  This patch is stable here.  I am finishing the
+> deferred mmaped pages form file writing patch, that should solve
+> several other problems.
 > 
-> Interesting. Not delaying the swapout IO completely broke
-> performance under the tests I did here...
-> 
-> Delayed swapout vs. non-delayed swapouts was the difference
-> between 300 swapouts/s vs. 700 swapouts/s  (under a load
-> with 400 swapins/s).
-> 
-> OTOH, I can imagine it being better if you have a very small
-> LRU cache, something like less than 1/2 MB.
+> Reports of success/failure are welcome.  Comments are also welcome.
 
-Removing only the hunk identified by Roger Larsonn brought ac20 performance
-beyond 99-pre5 :)  Reverting deferred swap also no longer helps at all
-and in fact hurts slightly (30 sec difference on make -j30 build times)
+Hi Juan,
+
+I added this patch to ac20 + Roger Larsonn fix and gave it a quick burn.
+I saw a slight performance drop in both make -j30 build times and streaming
+IO (iozone).  I didn't do sustained pounding though (consistancy), so...
 
 	-Mike
-
-(shoot.. if it kicks butt now, I wonder what adding Juan's patch will do:)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
