@@ -1,48 +1,45 @@
-Date: Mon, 2 Oct 2000 12:51:42 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] fix for VM  test9-pre7
-In-Reply-To: <39D87F3A.7D21E18@mountain.net>
-Message-ID: <Pine.LNX.4.21.0010021250180.22539-100000@duckman.distro.conectiva>
+Subject: Re: [PATCH] fix for VM test9-pre,
+Message-ID: <OF28EE4EE0.DBB104BA-ON8825696C.005977FC@LocalDomain>
+From: "Ying Chen/Almaden/IBM" <ying@almaden.ibm.com>
+Date: Mon, 2 Oct 2000 09:40:30 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <Pine.LNX.4.21.0010021250182.22539@duckman.distro.conectiva>
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tom Leete <tleete@mountain.net>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Oct 2000, Tom Leete wrote:
+Hi,
 
-> I ran lmbench on test9-pre7 with and without the patch.
-> 
-> Test machine was a slow medium memory UP box:
-> Cx586@120Mhz, no optimizations, 56M
-> 
-> I still experience instability on this machine with both the
-> patched and vanilla kernel. It usually takes the form of
-> sudden total lockups, but on occasion I have seen oops +
-> panic at boot.
+There are a couple strange behavior I saw with this vm patch on my box.
+I ran Linux test9-pre7 with the newest vmpatch in on a Dell PowerEdge with
+2 GB memory.
 
-If you could decode the oops or mail us the panic, we
-might find out if this is a VM related problem or not...
+This patch seems to make interactive applications run with very very long
+response times when memory is short space.
+Example 1: If I do mke2fs on a 90GB file system, after halfway through
+making the file system, the lower 1GB is filled up.
+mkfs takes practically for ever to finish. I checked the sysrq-m output,
+DMA has only 512K buffer, NORMAL has 1020K, HIGHMEM has 1 GB.
+When this happens, I basically cannot do anything, not even ls, df, top,
+etc. They all take for ever to run. If I kill mkfs, (closing the telnet
+sessions
+that mkfs was in) things starts to come back alive. It almost feels like
+something got stuck somewhere.
+Eample 2: I ran SPEC SFS tests to stress the Linux box. During the tests,
+the lower memory will be filled up with inode cache and dcache entries,
+while HIGHMEM is not quite used at all. Once this happens, again, any
+interactive commands would take forever to finish... Eventually, SPEC SFS
+would timeout and fail. Sometimes, if I managed to kill some processes, I
+can temporarilly get some other applications run. But most of the
+applications would get stuch somewhere very quickly later on.
 
-> This summary doesn't show any performance advantage to the
-> patch, but the detailed plots show that memory access
-> latency degrades more gracefully wrt array size.
+I don't see such behavior in test6 though.
+Any ideas?
 
-That's because this benchmark has a very artificial page
-access pattern, that doesn't really benefit from any kind
-of page replacement. ;)
 
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
