@@ -1,38 +1,141 @@
-Date: Tue, 07 Aug 2001 13:26:30 -0400
-From: Chris Mason <mason@suse.com>
-Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-Message-ID: <292520000.997205190@tiny>
-In-Reply-To: <Pine.LNX.4.31.0108070932400.31167-100000@cesium.transmeta.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 46E7338CC5
+	for <linux-mm@kvack.org>; Tue,  7 Aug 2001 14:44:06 -0300 (EST)
+Date: Tue, 7 Aug 2001 14:44:05 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] swap < ram support
+Message-ID: <Pine.LNX.4.33L.0108071439220.1439-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>, Ben LaHaise <bcrl@redhat.com>
-Cc: Daniel Phillips <phillips@bonn-fries.net>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Tuesday, August 07, 2001 10:04:05 AM -0700 Linus Torvalds
-<torvalds@transmeta.com> wrote:
+the following patch adds support for machines where swap is
+smaller than ram by conditionally freeing up swap space at
+swapin time when our swap area is getting full.
 
-> On Tue, 7 Aug 2001, Linus Torvalds wrote:
->> 
->> Sorry, I should have warned people: pre5 is a test-release that was
->> intended solely for Leonard Zubkoff who has been helping with trying to
->> debug a FS livelock condition.
-> 
-> So I _think_ that what happens is:
->  - alloc_pages() itself isn't making any progress, because it's called
->    with GFP_NOFS and thus cannot touch a lot of the pages.
->  - we wake up kswapd to try to help, but kswapd doesn't do anything
->    because it thinks things are fine.
+The main part of the patch is this:
 
-Which filesystem?  If its one of the journaled ones, other processes might
-be waiting on the log trying to flush things out.
++       if (vm_swap_full() && exclusive_swap_page(page)) {
++               delete_from_swap_cache_nolock(page);
++               pte = pte_mkwrite(pte_mkdirty(pte));
++       }
 
--chris
+The rest is trivial support code, mostly optimised for
+readability.
+
+Please apply for the next -pre version.
+
+thanks,
+
+Rik
+--
+Executive summary of a recent Microsoft press release:
+   "we are concerned about the GNU General Public License (GPL)"
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
+
+--- linux-2.4.7-ac7/mm/memory.c.orig	Mon Aug  6 12:23:33 2001
++++ linux-2.4.7-ac7/mm/memory.c	Tue Aug  7 14:20:11 2001
+@@ -1147,6 +1147,20 @@
+ 	swap_free(entry);
+ 	if (write_access && exclusive_swap_page(page))
+ 		pte = pte_mkwrite(pte_mkdirty(pte));
++
++	/*
++	 * If swap space is getting low and we were the last user
++	 * of this piece of swap space, we free this space so
++	 * somebody else can be swapped out.
++	 *
++	 * We are protected against try_to_swap_out() because the
++	 * page is locked and against do_fork() because we have
++	 * read_lock(&mm->mmap_sem).
++	 */
++	if (vm_swap_full() && exclusive_swap_page(page)) {
++		delete_from_swap_cache_nolock(page);
++		pte = pte_mkwrite(pte_mkdirty(pte));
++	}
+ 	UnlockPage(page);
+
+ 	flush_page_to_ram(page);
+--- linux-2.4.7-ac7/mm/swapfile.c.orig	Mon Aug  6 12:23:33 2001
++++ linux-2.4.7-ac7/mm/swapfile.c	Tue Aug  7 11:55:18 2001
+@@ -19,11 +19,34 @@
+
+ spinlock_t swaplock = SPIN_LOCK_UNLOCKED;
+ unsigned int nr_swapfiles;
++int total_swap_pages;
+
+ struct swap_list_t swap_list = {-1, -1};
+
+ struct swap_info_struct swap_info[MAX_SWAPFILES];
+
++/*
++ * When swap space gets filled up, we will set this flag.
++ * This will make do_swap_page(), in the page fault path,
++ * free swap entries on swapin so we'll reclaim swap space
++ * in order to be able to swap something out.
++ *
++ * At the moment we start reclaiming when swap usage goes
++ * over 80% of swap space and we continue reclaiming until
++ * the amount of occupied swap drops to less than 75%.
++ * XXX: these are random numbers, fixme.
++ */
++#define SWAP_FULL_PCT 80
++int vm_swap_full (void) {
++	int full = 0;
++	int swap_used = total_swap_pages - nr_swap_pages;
++
++	if (swap_used * 100 > total_swap_pages * SWAP_FULL_PCT)
++		full = 1;
++
++	return full;
++}
++
+ #define SWAPFILE_CLUSTER 256
+
+ static inline int scan_swap_map(struct swap_info_struct *si, unsigned short count)
+@@ -469,6 +492,7 @@
+ 		swap_list.next = swap_list.head;
+ 	}
+ 	nr_swap_pages -= p->pages;
++	total_swap_pages -= p->pages;
+ 	swap_list_unlock();
+ 	p->flags = SWP_USED;
+ 	err = try_to_unuse(type);
+@@ -484,6 +508,7 @@
+ 		else
+ 			swap_info[prev].next = p - swap_info;
+ 		nr_swap_pages += p->pages;
++		total_swap_pages += p->pages;
+ 		swap_list_unlock();
+ 		p->flags = SWP_WRITEOK;
+ 		goto out_dput;
+@@ -771,6 +796,7 @@
+ 	p->pages = nr_good_pages;
+ 	swap_list_lock();
+ 	nr_swap_pages += nr_good_pages;
++	total_swap_pages += nr_good_pages;
+ 	printk(KERN_INFO "Adding Swap: %dk swap-space (priority %d)\n",
+ 	       nr_good_pages<<(PAGE_SHIFT-10), p->prio);
+
+--- linux-2.4.7-ac7/include/linux/swap.h.orig	Mon Aug  6 12:33:35 2001
++++ linux-2.4.7-ac7/include/linux/swap.h	Mon Aug  6 20:08:44 2001
+@@ -158,6 +158,7 @@
+ extern void free_page_and_swap_cache(struct page *page);
+
+ /* linux/mm/swapfile.c */
++extern int vm_swap_full(void);
+ extern unsigned int nr_swapfiles;
+ extern struct swap_info_struct swap_info[];
+ extern int is_swap_partition(kdev_t);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
