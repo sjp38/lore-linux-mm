@@ -1,202 +1,42 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA08997
-	for <linux-mm@kvack.org>; Mon, 16 Sep 2002 00:15:34 -0700 (PDT)
-Message-ID: <3D858515.ED128C76@digeo.com>
-Date: Mon, 16 Sep 2002 00:15:33 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: 2.5.35-mm1
+Date: Mon, 16 Sep 2002 00:46:02 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] per-zone kswapd process
+Message-ID: <20020916074602.GK3530@holomorphy.com>
+References: <3D815C8C.4050000@us.ibm.com> <3D81643C.4C4E862C@digeo.com> <20020913045938.GG2179@holomorphy.com> <E17qogR-0000HR-00@starship>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <E17qogR-0000HR-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lse-tech@lists.sourceforge.net" <lse-tech@lists.sourceforge.net>
+To: Daniel Phillips <phillips@arcor.de>
+Cc: Andrew Morton <akpm@digeo.com>, Dave Hansen <haveblue@us.ibm.com>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.35/2.5.35-mm1/
+On Thu, Sep 12, 2002 at 09:06:20PM -0700, Andrew Morton wrote:
+>>> I still don't see why it's per zone and not per node.  It seems strange
+>>> that a wee little laptop would be running two kswapds?
+>>> kswapd can get a ton of work done in the development VM and one per
+>>> node would, I expect, suffice?
 
-Significant rework of the new sleep/wakeup code - make it look totally
-different from the current APIs to avoid confusion, and to make it
-simpler to use.
+On Friday 13 September 2002 06:59, William Lee Irwin III wrote:
+>> Machines without observable NUMA effects can benefit from it if it's
+>> per-zone.
 
-Also increase the number of places where this API is used in networking;
-Alexey says that some of these may be negative improvements, but
-performance testing will nevertheless be interesting.  The relevant
-patches are:
+On Mon, Sep 16, 2002 at 07:44:30AM +0200, Daniel Phillips wrote:
+> How?
 
-http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.35/2.5.35-mm1/broken-out/prepare_to_wait.patch
-http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.35/2.5.35-mm1/broken-out/tcp-wakeups.patch
+The notion was that some level of parallelism would be bestowed on the
+single-node case by using separate worker threads on a per-zone basis,
+as they won't have more than one node to spawn worker threads for at all.
 
-A 4x performance regression in heavy dbench testing has been fixed. The
-VM was accidentally being fair to the dbench instances in page reclaim.
-It's better to be unfair so just a few instances can get ahead and submit
-more contiguous IO.  It's a silly thing, but it's what I meant to do anyway.
-
-Since 2.5.34-mm4:
-
--readv-writev.patch
--aio-sync-iocb.patch
--llzpr.patch
--buffermem.patch
--lpp.patch
--lpp-update.patch
--reversemaps-leak.patch
--sharedmem.patch
--ext3-sb.patch
--pagevec_lru_add.patch
--oom-fix.patch
--tlb-cleanup.patch
--dump-stack.patch
--wli-cleanup.patch
-
- Merged
-
-+release_pages-speedup.patch
-
- Avoid a couple of lock-takings.
-
--wake-speedup.patch
-+prepare_to_wait.patch
-
- Renamed, reworked
-
-+swapoff-deadlock.patch
-+dirty-and-uptodate.patch
-+shmem_rename.patch
-+dirent-size.patch
-+tmpfs-trivia.patch
-
- Various fixes and cleanups from Hugh Dickins
+This notion apparently got shot down somewhere, and I don't care to rise
+to its defense. I've lost enough debates this release to know better than
+to try.
 
 
-linus.patch
-  cset-1.552-to-1.564.txt.gz
-
-scsi_hack.patch
-  Fix block-highmem for scsi
-
-ext3-htree.patch
-  Indexed directories for ext3
-
-spin-lock-check.patch
-  spinlock/rwlock checking infrastructure
-
-rd-cleanup.patch
-  Cleanup and fix the ramdisk driver (doesn't work right yet)
-
-madvise-move.patch
-  move mdavise implementation into mm/madvise.c
-
-split-vma.patch
-  VMA splitting patch
-
-mmap-fixes.patch
-  mmap.c cleanup and lock ranking fixes
-
-buffer-ops-move.patch
-  Move submit_bh() and ll_rw_block() into fs/buffer.c
-
-slab-stats.patch
-  Display total slab memory in /proc/meminfo
-
-writeback-control.patch
-  Cleanup and extension of the writeback paths
-
-free_area_init-cleanup.patch
-  free_area_init() code cleanup
-
-alloc_pages-cleanup.patch
-  alloc_pages cleanup and optimisation
-
-statm_pgd_range-sucks.patch
-  Remove the pagetable walk from /proc/stat
-
-remove-sync_thresh.patch
-  Remove /proc/sys/vm/dirty_sync_thresh
-
-taka-writev.patch
-  Speed up writev
-
-pf_nowarn.patch
-  Fix up the handling of PF_NOWARN
-
-jeremy.patch
-  Spel Jermy's naim wright
-
-release_pages-speedup.patch
-  Reduced locking in release_pages()
-
-queue-congestion.patch
-  Infrastructure for communicating request queue congestion to the VM
-
-nonblocking-ext2-preread.patch
-  avoid ext2 inode prereads if the queue is congested
-
-nonblocking-pdflush.patch
-  non-blocking writeback infrastructure, use it for pdflush
-
-nonblocking-vm.patch
-  Non-blocking page reclaim
-
-prepare_to_wait.patch
-  New sleep/wakeup API
-
-vm-wakeups.patch
-  Use the faster wakeups in the VM and block layers
-
-sync-helper.patch
-  Speed up sys_sync() against multiple spindles
-
-slabasap.patch
-  Early and smarter shrinking of slabs
-
-write-deadlock.patch
-  Fix the generic_file_write-from-same-mmapped-page deadlock
-
-buddyinfo.patch
-  Add /proc/buddyinfo - stats on the free pages pool
-
-free_area.patch
-  Remove struct free_area_struct and free_area_t, use `struct free_area'
-
-per-node-kswapd.patch
-  Per-node kswapd instance
-
-topology-api.patch
-  NUMA topology API
-
-radix_tree_gang_lookup.patch
-  radix tree gang lookup
-
-truncate_inode_pages.patch
-  truncate/invalidate_inode_pages rewrite
-
-proc_vmstat.patch
-  Move the vm accounting out of /proc/stat
-
-kswapd-reclaim-stats.patch
-  Add kswapd_steal to /proc/vmstat
-
-iowait.patch
-  I/O wait statistics
-
-tcp-wakeups.patch
-  Use fast wakeups in TCP/IPV4
-
-swapoff-deadlock.patch
-  Fix a tmpfs swapoff deadlock
-
-dirty-and-uptodate.patch
-  page state cleanup
-
-shmem_rename.patch
-  shmem_rename() directory link count fix
-
-dirent-size.patch
-  tmpfs: show a non-zero size for directories
-
-tmpfs-trivia.patch
-  tmpfs: small fixlets
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
