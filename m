@@ -1,48 +1,30 @@
-Message-ID: <3911BF09.653D9A2@sgi.com>
-Date: Thu, 04 May 2000 11:18:49 -0700
-From: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Date: Thu, 4 May 2000 19:27:53 +0100 (BST)
+From: Chris Evans <chris@ferret.lmh.ox.ac.uk>
+Subject: Re: classzone-VM + mapped pages out of lru_cache
+In-Reply-To: <yttitwul1e5.fsf@vexeta.dc.fi.udc.es>
+Message-ID: <Pine.LNX.4.21.0005041927030.14870-100000@ferret.lmh.ox.ac.uk>
 MIME-Version: 1.0
-Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
-References: <Pine.LNX.4.21.0005041438360.23740-100000@duckman.conectiva>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
-Cc: Linus Torvalds <torvalds@transmeta.com>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
+On 4 May 2000, Juan J. Quintela wrote:
+
+>     I screwed the times with the copy& paste, the real ones are:
 > 
-> On Thu, 4 May 2000, Rajagopal Ananthanarayanan wrote:
-> > Linus Torvalds wrote:
 > 
-> > > There might be other details like this lurking, but this looks like a good
-> > > first try. Ananth, willing to give it a whirl?
-> >
-> > I haven't looked at the code, but I replaced the whole while (1)
-> > loop with the new for(;;). Things still remain the same: when
-> > running dbench VM starts killing processes.
-> 
-> I've been thinking about it some more. When we look
-> carefully the killing is always accompanied by a sudden
-> decrease in free memory (while kswapd could easily keep
-> up a few seconds ago).
+> juan> Vanilla pre7-3            pre7-3+classzone-18
+> juan> real    3m29.926s         real    2m10.301s
 
-You may have something here. It's the burstiness of
-the demand. One thing I haven't noticed here in linux-mm
-is any approaches to throttle the demand (Or may be I haven't
-looked enough). Why not keep requests for new pages unsatisfied
-if the _rate_ of allocations exceeds the _rate_ of freeing
-(through swap-out or through write-out [bdflush])?
+I'm interested - how does the 2m10 figure compare with a run using the 2.2
+kernel?
 
-Simple counters don't capture rates. We need deltas in
-the last 'n' time intervals. Then, match the delta-A
-(allocation) to delta-F (free). 
+Cheers
+Chris
 
-Just a thought,
-
-ananth.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
