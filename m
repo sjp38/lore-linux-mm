@@ -1,31 +1,32 @@
-Date: Thu, 10 Apr 2003 09:59:30 -0400
-From: Benjamin LaHaise <bcrl@redhat.com>
+Date: Thu, 10 Apr 2003 07:18:03 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: [PATCH] bootmem speedup from the IA64 tree
-Message-ID: <20030410095930.D9136@redhat.com>
-References: <20030410122421.A17889@lst.de>
-Mime-Version: 1.0
+Message-ID: <208120000.1049984282@[10.10.2.4]>
+In-Reply-To: <20030410033533.21343911.akpm@digeo.com>
+References: <20030410122421.A17889@lst.de> <20030410033533.21343911.akpm@digeo.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20030410122421.A17889@lst.de>; from hch@lst.de on Thu, Apr 10, 2003 at 12:24:21PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: akpm@zip.com.au, davidm@napali.hpl.hp.com, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>, Christoph Hellwig <hch@lst.de>
+Cc: davidm@napali.hpl.hp.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 10, 2003 at 12:24:21PM +0200, Christoph Hellwig wrote:
->  	if (goal && (goal >= bdata->node_boot_start) && 
-> -			((goal >> PAGE_SHIFT) < bdata->node_low_pfn)) {
-> +	    ((goal >> PAGE_SHIFT) < bdata->node_low_pfn)) {
->  		preferred = goal - bdata->node_boot_start;
-> +
-> +		if (last_success >= preferred)
-> +			preferred = last_success;
+>> This patch is from the IA64 tree, with some minor cleanups by me.
+>> David described it as:
+>> 
+>>   This is a performance speed up and some minor indendation fixups.
+> 
+> OK, thanks - I'll queue this up for a bit of testing.
+> 
+> Martin, can you please also test this?
 
-I suspect you need a range check on last_success here for machines which have 
-multiple nodes of memory, or else store it in bdata.
+Sure. Will do both of those together.
 
-		-ben
+M.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
