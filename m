@@ -1,227 +1,63 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id CAA26004
-	for <linux-mm@kvack.org>; Tue, 1 Oct 2002 02:32:23 -0700 (PDT)
-Message-ID: <3D996BA3.24E8B007@digeo.com>
-Date: Tue, 01 Oct 2002 02:32:19 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: 2.5.40-mm1
+Date: Tue, 1 Oct 2002 15:50:46 -0700
+From: "Kingsley G. Morse Jr." <change@nas.com>
+Subject: Faster TCP wakeups
+Message-ID: <20021001155046.A23683@debian1.loaner.com>
+Reply-To: "Kingsley G. Morse Jr." <change@nas.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: akpm@zip.com.au
+Cc: andrea@suse.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.40/2.5.40-mm1/
+Hail Andrew,
 
-Mainly a resync.
+I don't think we've met, but my name is Kingsley
+G. Morse Jr. and first of all, I'd like to thank
+you for improving the Linux kernel. I'm
+benchmarking it.
 
-- A few minor problems in the per-cpu-pages code have been fixed.
+I noticed in Kernel Traffic #186 that you've
+converted TCP/IPV4 over to use faster wakeups.
 
-- Updated dcache RCU code.
+This intrigues me, because I suspect TCP code is
+degrading my computer's performance over time, and
+perhaps other peoples' too.
 
-- Significant brain surgery on the SARD patch.
+My benchmarking found that after being up for 10
+days, my computer's slowness is MOST correlated to
+how often slab pages are allocated for TCP open
+requests. (see "cat /proc/slabinfo")
 
-- Decreased the disk scheduling tunable `fifo_batch' from 32 to 16 to
-  improve disk read latency.
+In other words, the more often slab pages are
+allocated for tcp open requests, the slower my
+computer gets. 
 
-- Updated ext3 htree patch from Ted.
+The correlation coefficient is 0.62, which is on a
+scale of -1 to 1. 
 
-- Included a patch from Mala Anand which _should_ speed up kernel<->userspace
-  memory copies for Intel ia32 hardware.  But I can't measure any difference
-  with poorly-aligned pagecache copies.
+I believe it's noteworthy that 0.62 is higher than
+any of the hundreds of other memory measures that
+I've statistically analyzed.
 
+It's also higher after 10 days of uptime.  Just
+after booting, it's only 0.11. 
 
--scsi_hack.patch
--might_sleep-2.patch
--slab-fix.patch
--hugetlb-doc.patch
--get_user_pages-PG_reserved.patch
--move_one_page_fix.patch
--zab-list_heads.patch
--remove-gfp_nfs.patch
--buddyinfo.patch
--free_area.patch
--per-node-kswapd.patch
--topology-api.patch
--topology_fixes.patch
+I suspect a TCP bug is causing fragmentation or
+some other problem that gets worse over time.
 
- Merged
+Cheers,
+Kingsley
 
-+misc.patch
+PS: My computer has 
 
- Trivia
+    64 MB or RAM
+    1 GB of swap
+    200 MHZ Pentium Pro
+    2.4.19-aa
 
-+ioperm-fix.patch
-
- Fix the sys_ioperm() might-sleep-while-atomic bug
-
--sard.patch
-+bd-sard.patch
-
- Somewhat rewritten to not key everything off minors and majors - use
- pointers instead.
-
-+bio-get-nr-vecs.patch
-
- use bio_get_nr_vecs in fs/mpage.c
-
-+dio-nr-segs.patch
-
- use bio_get_nr_vecs in fs/direct-io.c
-
--per-node-zone_normal.patch
-+per-node-mem_map.patch
-
- Renamed
-
-+free_area_init-cleanup.patch
-
- Clean up some mm init code.
-
-+intel-user-copy.patch
-
- Supposedly faster copy_*_user.
-
-
-
-ext3-dxdir.patch
-  ext3 htree
-
-spin-lock-check.patch
-  spinlock/rwlock checking infrastructure
-
-rd-cleanup.patch
-  Cleanup and fix the ramdisk driver (doesn't work right yet)
-
-misc.patch
-  misc
-
-write-deadlock.patch
-  Fix the generic_file_write-from-same-mmapped-page deadlock
-
-ioperm-fix.patch
-  sys_ioperm() atomicity fix
-
-radix_tree_gang_lookup.patch
-  radix tree gang lookup
-
-truncate_inode_pages.patch
-  truncate/invalidate_inode_pages rewrite
-
-proc_vmstat.patch
-  Move the vm accounting out of /proc/stat
-
-kswapd-reclaim-stats.patch
-  Add kswapd_steal to /proc/vmstat
-
-iowait.patch
-  I/O wait statistics
-
-bd-sard.patch
-
-dio-bio-add-page.patch
-  Use bio_add_page() in direct-io.c
-
-tcp-wakeups.patch
-  Use fast wakeups in TCP/IPV4
-
-swapoff-deadlock.patch
-  Fix a tmpfs swapoff deadlock
-
-dirty-and-uptodate.patch
-  page state cleanup
-
-shmem_rename.patch
-  shmem_rename() directory link count fix
-
-dirent-size.patch
-  tmpfs: show a non-zero size for directories
-
-tmpfs-trivia.patch
-  tmpfs: small fixlets
-
-per-zone-vm.patch
-  separate the kswapd and direct reclaim code paths
-
-swsusp-feature.patch
-  add shrink_all_memory() for swsusp
-
-bio-get-nr-vecs.patch
-  use bio_get_nr_vecs() in fs/mpage.c
-
-dio-nr-segs.patch
-  Use bio_get_nr_vecs() in direct-io.c
-
-remove-page-virtual.patch
-  remove page->virtual for !WANT_PAGE_VIRTUAL
-
-dirty-memory-clamp.patch
-  sterner dirty-memory clamping
-
-mempool-wakeup-fix.patch
-  Fix for stuck tasks in mempool_alloc()
-
-remove-write_mapping_buffers.patch
-  Remove write_mapping_buffers
-
-buffer_boundary-scheduling.patch
-  IO schduling for indirect blocks
-
-ll_rw_block-cleanup.patch
-  cleanup ll_rw_block()
-
-lseek-ext2_readdir.patch
-  remove lock_kernel() from ext2_readdir()
-
-discontig-no-contig_page_data.patch
-  undefine contif_page_data for discontigmem
-
-per-node-mem_map.patch
-  ia32 NUMA: per-node ZONE_NORMAL
-
-alloc_pages_node-cleanup.patch
-  alloc_pages_node cleanup
-
-free_area_init-cleanup.patch
-  free_area_init_node cleanup
-
-batched-slab-asap.patch
-  batched slab shrinking
-
-akpm-deadline.patch
-  deadline scheduler tweaks
-
-rmqueue_bulk.patch
-  bulk page allocator
-
-free_pages_bulk.patch
-  Bulk page freeing function
-
-hot_cold_pages.patch
-  Hot/Cold pages and zone->lock amortisation
-  EDEC
-  
-  Hot/Cold pages and zone->lock amortisation
-  
-
-readahead-cold-pages.patch
-  Use cache-cold pages for pagecache reads.
-
-pagevec-hot-cold-hint.patch
-  hot/cold hints for truncate and page reclaim
-
-intel-user-copy.patch
-
-read_barrier_depends.patch
-  extended barrier primitives
-
-rcu_ltimer.patch
-  RCU core
-
-dcache_rcu.patch
-  Use RCU for dcache
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
