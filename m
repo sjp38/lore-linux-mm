@@ -1,234 +1,339 @@
-Message-ID: <41A2E98E.7090109@ribosome.natur.cuni.cz>
-Date: Tue, 23 Nov 2004 08:41:02 +0100
-From: =?UTF-8?B?TWFydGluIE1PS1JFSsWg?= <mmokrejs@ribosome.natur.cuni.cz>
-MIME-Version: 1.0
 Subject: Re: [PATCH] fix spurious OOM kills
-References: <20041111112922.GA15948@logos.cnet>	 <4193E056.6070100@tebibyte.org>	<4194EA45.90800@tebibyte.org>	 <20041113233740.GA4121@x30.random>	<20041114094417.GC29267@logos.cnet>	 <20041114170339.GB13733@dualathlon.random>	 <20041114202155.GB2764@logos.cnet>	<419A2B3A.80702@tebibyte.org>	 <419B14F9.7080204@tebibyte.org>	<20041117012346.5bfdf7bc.akpm@osdl.org>	 <419CD8C1.4030506@ribosome.natur.cuni.cz>	 <20041118131655.6782108e.akpm@osdl.org>	 <419D25B5.1060504@ribosome.natur.cuni.cz>	 <419D2987.8010305@cyberone.com.au>	 <419D383D.4000901@ribosome.natur.cuni.cz>	 <20041118160824.3bfc961c.akpm@osdl.org>	 <419E821F.7010601@ribosome.natur.cuni.cz>	 <1100946207.2635.202.camel@thomas> <419F2AB4.30401@ribosome.natur.cuni.cz>	 <1100957349.2635.213.camel@thomas>	 <419FB4CD.7090601@ribosome.natur.cuni.cz> <1101037999.23692.5.camel@thomas>	 <41A08765.7030402@ribosome.natur.cuni.cz>	 <1101045469.23692.16.camel@thomas> <1101120922.19380.17.camel@tglx.tec.linutronix.de>
-In-Reply-To: <1101120922.19380.17.camel@tglx.tec.linutronix.de>
-Content-Type: multipart/mixed;
- boundary="------------030902000608030200060205"
+From: Thomas Gleixner <tglx@linutronix.de>
+Reply-To: tglx@linutronix.de
+In-Reply-To: <41A2E98E.7090109@ribosome.natur.cuni.cz>
+References: <20041111112922.GA15948@logos.cnet>
+	 <4193E056.6070100@tebibyte.org>	<4194EA45.90800@tebibyte.org>
+	 <20041113233740.GA4121@x30.random>	<20041114094417.GC29267@logos.cnet>
+	 <20041114170339.GB13733@dualathlon.random>
+	 <20041114202155.GB2764@logos.cnet>	<419A2B3A.80702@tebibyte.org>
+	 <419B14F9.7080204@tebibyte.org>	<20041117012346.5bfdf7bc.akpm@osdl.org>
+	 <419CD8C1.4030506@ribosome.natur.cuni.cz>
+	 <20041118131655.6782108e.akpm@osdl.org>
+	 <419D25B5.1060504@ribosome.natur.cuni.cz>
+	 <419D2987.8010305@cyberone.com.au>
+	 <419D383D.4000901@ribosome.natur.cuni.cz>
+	 <20041118160824.3bfc961c.akpm@osdl.org>
+	 <419E821F.7010601@ribosome.natur.cuni.cz>
+	 <1100946207.2635.202.camel@thomas> <419F2AB4.30401@ribosome.natur.cuni.cz>
+	 <1100957349.2635.213.camel@thomas>
+	 <419FB4CD.7090601@ribosome.natur.cuni.cz> <1101037999.23692.5.camel@thomas>
+	 <41A08765.7030402@ribosome.natur.cuni.cz>
+	 <1101045469.23692.16.camel@thomas>
+	 <1101120922.19380.17.camel@tglx.tec.linutronix.de>
+	 <41A2E98E.7090109@ribosome.natur.cuni.cz>
+Content-Type: multipart/mixed; boundary="=-8/zwMcl9L+LARAv/YmFZ"
+Date: Tue, 23 Nov 2004 11:27:29 +0100
+Message-Id: <1101205649.3888.6.camel@tglx.tec.linutronix.de>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: tglx@linutronix.de
+To: Martin =?iso-8859-2?Q?MOKREJ=A9?= <mmokrejs@ribosome.natur.cuni.cz>
 Cc: Andrew Morton <akpm@osdl.org>, piggin@cyberone.com.au, chris@tebibyte.org, marcelo.tosatti@cyclades.com, andrea@novell.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------030902000608030200060205
-Content-Type: text/plain; charset=UTF-8; format=flowed
+--=-8/zwMcl9L+LARAv/YmFZ
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 8bit
 
-Thomas Gleixner wrote:
-> On Sun, 2004-11-21 at 14:57 +0100, Thomas Gleixner wrote:
+On Tue, 2004-11-23 at 08:41 +0100, Martin MOKREJA  wrote: 
+> > One big problem when killing the requesting process or just sending
+> > ENOMEM to the requesting process is, that exactly this process might be
+> > a ssh login, when you try to log into to machine after some application
+> > went crazy and ate up most of the memory. The result is that you
+> > _cannot_ log into the machine, because the login is either killed or
+> > cannot start because it receives ENOMEM.
 > 
->>On Sun, 2004-11-21 at 13:17 +0100, Martin MOKREJA  wrote:
->>
->>>Why can't the algorithm first find the asking for memory now.
->>>When found, kernel should kill first it's children, wait some time,
->>>then kill this process if still exists (it might exit itself when children
->>>get closed).
->>>You have said it's safer to kill that to send ENOMEM as happens
->>>in 2.4, but I still don't undertand why kernel first doesn't send
->>>ENOMEM, and only if that doesn't help it can start after those 5 seconds
->>>OOM killer, and try to kill the very same application.
->>>I don't get the idea why to kill immediately.
->>
->>I see your concern. There are some more changes neccecary to make this
->>reliably work. I'm not sure if it can be done without really big
->>changes. I will look a bit deeper into this.
+> I believe the application is _first_ who will get ENOMEM. It must be
+> terrible luck that it would ask exactly for the size of remaining free
+> memory. Most probably, it will ask for less or more. "Less" in not
+> a problem in this case, so consider it asks for more. Then, OOM killer
+> might well expect the application asking for memory is most probably
+> exactly the application which caused the trouble.
+
+For one application, which eats up all memory the 2.4 ENOMEM bahviour
+works.
+
+The scenario which made one of my boxes unusable under 2.4 is a forking
+server, which gets out of control. The last fork gets ENOMEM and does
+not happen, but the other forked processes are still there and consuming
+memory. The server application does the correct thing. It receives
+ENOMEM on fork() and cancels the connection request. On the next request
+the game starts again. Somebody notices that the box is not repsonding
+anymore and tries to login via ssh. Guess what happens. ssh login cannot
+fork due to ENOMEM. The same will happen on 2.6 if we make it behave
+like 2.4. 
+
+We have TWO problems in oom handling:
+
+1. When do we trigger the out of memory killer
+
+As far as my test cases go, 2.6.10-rc2-mm3 does not longer trigger the
+oom without reason.
+
+2. Which process do we select to kill
+
+The decision is screwed since the oom killer was introduced. Also the
+reentrancy problem and some of the mechanisms in the out_of_memory
+function have to be modified to make it work.
+That's what my patch is addressing.
+
+> > 
+> > Putting hard coded decisions like "prefer sshd, xyz,...", " don't kill
+> > a, b, c" are out of discussion.
 > 
+> I'd go for it at least nowadays.
+
+Sure, you can do so on your box, but can you accept, that we _CANNOT_
+hard code a list of do not kill apps, except init, into the kernel. I
+don't want to see the mail thread on LKML, where the list of precious
+application is discussed.
+
+> >  
+> > The ideas which were proposed to have a possibility to set a "don't kill
+> > me" or "yes, I'm a candidate" flag are likely to be a future way to go.
+> > But at the moment we have no way to make this work in current userlands.
 > 
-> One big problem when killing the requesting process or just sending
-> ENOMEM to the requesting process is, that exactly this process might be
-> a ssh login, when you try to log into to machine after some application
-> went crazy and ate up most of the memory. The result is that you
-> _cannot_ log into the machine, because the login is either killed or
-> cannot start because it receives ENOMEM.
+> Do you think login or sshd will ever use flag "yes, I'm a candidate"?
+> I think exactly same bahaviour we get right now with those hard coded decisions
+> you mention above. Otherwise the hard coded decision is programmed into
+> every sshd, init instance anyway. I think it's not necessary to put
+> login and shells on thsi ban list, user will re-login again. ;)
 
-I believe the application is _first_ who will get ENOMEM. It must be
-terrible luck that it would ask exactly for the size of remaining free
-memory. Most probably, it will ask for less or more. "Less" in not
-a problem in this case, so consider it asks for more. Then, OOM killer
-might well expect the application asking for memory is most probably
-exactly the application which caused the trouble.
+Having a generic interface to make this configurable is the only way to
+go. So users can decide what is important in their environment. There is
+more than a desktop PC environment and a lot of embedded boxes need to
+protect special applications.
 
+> > 
+> > I refined the decision, so it does not longer kill the parent, if there
+> > were forked child processes available to kill. So it now should keep
+> > your bash alive.
 > 
-> Putting hard coded decisions like "prefer sshd, xyz,...", " don't kill
-> a, b, c" are out of discussion.
+> Yes, it doesn't kill parent bash. I don't understand the _doubled_ output
+> in syslog, but maybe you do. Is that related to hyperthreading? ;)
+> Tested on 2.6.10-rc2-mm2.
 
-I'd go for it at least nowadays.
+> oom-killer: gfp_mask=0xd2
+> Free pages:        3924kB (112kB HighMem)
 
->  
-> The ideas which were proposed to have a possibility to set a "don't kill
-> me" or "yes, I'm a candidate" flag are likely to be a future way to go.
-> But at the moment we have no way to make this work in current userlands.
+> oom-killer: gfp_mask=0x1d2
+> Free pages:        3924kB (112kB HighMem)
 
-Do you think login or sshd will ever use flag "yes, I'm a candidate"?
-I think exactly same bahaviour we get right now with those hard coded decisions
-you mention above. Otherwise the hard coded decision is programmed into
-every sshd, init instance anyway. I think it's not necessary to put
-login and shells on thsi ban list, user will re-login again. ;)
+No, it's not related to hyperthreading. It's on the way out. 
 
-> 
-> I refined the decision, so it does not longer kill the parent, if there
-> were forked child processes available to kill. So it now should keep
-> your bash alive.
+I put an additional check into the page allocator. Does this help ?
 
-Yes, it doesn't kill parent bash. I don't understand the _doubled_ output
-in syslog, but maybe you do. Is that related to hyperthreading? ;)
-Tested on 2.6.10-rc2-mm2.
+tglx
 
---------------030902000608030200060205
-Content-Type: text/plain;
- name="dm"
-Content-Transfer-Encoding: base64
-Content-Disposition: inline;
- filename="dm"
 
-b29tLWtpbGxlcjogZ2ZwX21hc2s9MHhkMgpETUEgcGVyLWNwdToKY3B1IDAgaG90OiBsb3cg
-MiwgaGlnaCA2LCBiYXRjaCAxCmNwdSAwIGNvbGQ6IGxvdyAwLCBoaWdoIDIsIGJhdGNoIDEK
-Tm9ybWFsIHBlci1jcHU6CmNwdSAwIGhvdDogbG93IDMyLCBoaWdoIDk2LCBiYXRjaCAxNgpj
-cHUgMCBjb2xkOiBsb3cgMCwgaGlnaCAzMiwgYmF0Y2ggMTYKSGlnaE1lbSBwZXItY3B1Ogpj
-cHUgMCBob3Q6IGxvdyAxNCwgaGlnaCA0MiwgYmF0Y2ggNwpjcHUgMCBjb2xkOiBsb3cgMCwg
-aGlnaCAxNCwgYmF0Y2ggNwoKRnJlZSBwYWdlczogICAgICAgIDM5MjRrQiAoMTEya0IgSGln
-aE1lbSkKQWN0aXZlOjEyOTI3MiBpbmFjdGl2ZToxMjQzOTMgZGlydHk6MCB3cml0ZWJhY2s6
-MCB1bnN0YWJsZTowIGZyZWU6OTgxIHNsYWI6MTk0NSBtYXBwZWQ6MjUzNDEwIHBhZ2V0YWJs
-ZXM6Nzk0CkRNQSBmcmVlOjY4a0IgbWluOjY4a0IgbG93Ojg0a0IgaGlnaDoxMDBrQiBhY3Rp
-dmU6NTM3MmtCIGluYWN0aXZlOjUzNzZrQiBwcmVzZW50OjE2Mzg0a0IgcGFnZXNfc2Nhbm5l
-ZDoxMTg2NyBhbGxfdW5yZWNsYWltYWJsZT8geWVzCnByb3RlY3Rpb25zW106IDAgMCAwCk5v
-cm1hbCBmcmVlOjM3NDRrQiBtaW46Mzc1NmtCIGxvdzo0Njkya0IgaGlnaDo1NjMya0IgYWN0
-aXZlOjQ0NjkwNGtCIGluYWN0aXZlOjQyNzE2NGtCIHByZXNlbnQ6OTAxMTIwa0IgcGFnZXNf
-c2Nhbm5lZDo4ODkwMTggYWxsX3VucmVjbGFpbWFibGU/IHllcwpwcm90ZWN0aW9uc1tdOiAw
-IDAgMApIaWdoTWVtIGZyZWU6MTEya0IgbWluOjEyOGtCIGxvdzoxNjBrQiBoaWdoOjE5MmtC
-IGFjdGl2ZTo2NDgxMmtCIGluYWN0aXZlOjY1MDMya0IgcHJlc2VudDoxMzEwNDRrQiBwYWdl
-c19zY2FubmVkOjEzMjI5MyBhbGxfdW5yZWNsYWltYWJsZT8geWVzCnByb3RlY3Rpb25zW106
-IDAgMCAwCkRNQTogMSo0a0IgMCo4a0IgMCoxNmtCIDAqMzJrQiAxKjY0a0IgMCoxMjhrQiAw
-KjI1NmtCIDAqNTEya0IgMCoxMDI0a0IgMCoyMDQ4a0IgMCo0MDk2a0IgPSA2OGtCCk5vcm1h
-bDogMCo0a0IgMCo4a0IgMCoxNmtCIDEqMzJrQiAwKjY0a0IgMSoxMjhrQiAwKjI1NmtCIDEq
-NTEya0IgMSoxMDI0a0IgMSoyMDQ4a0IgMCo0MDk2a0IgPSAzNzQ0a0IKSGlnaE1lbTogMCo0
-a0IgMCo4a0IgMSoxNmtCIDEqMzJrQiAxKjY0a0IgMCoxMjhrQiAwKjI1NmtCIDAqNTEya0Ig
-MCoxMDI0a0IgMCoyMDQ4a0IgMCo0MDk2a0IgPSAxMTJrQgpTd2FwIGNhY2hlOiBhZGQgMjkz
-MzU5LCBkZWxldGUgMjkzMzU5LCBmaW5kIDEwNC8xMjQsIHJhY2UgMCswCk91dCBvZiBNZW1v
-cnk6IEtpbGxlZCBwcm9jZXNzIDY2OTMgKFJOQXN1Ym9wdCkuCm9vbS1raWxsZXI6IGdmcF9t
-YXNrPTB4MWQyCkRNQSBwZXItY3B1OgpjcHUgMCBob3Q6IGxvdyAyLCBoaWdoIDYsIGJhdGNo
-IDEKY3B1IDAgY29sZDogbG93IDAsIGhpZ2ggMiwgYmF0Y2ggMQpOb3JtYWwgcGVyLWNwdToK
-Y3B1IDAgaG90OiBsb3cgMzIsIGhpZ2ggOTYsIGJhdGNoIDE2CmNwdSAwIGNvbGQ6IGxvdyAw
-LCBoaWdoIDMyLCBiYXRjaCAxNgpIaWdoTWVtIHBlci1jcHU6CmNwdSAwIGhvdDogbG93IDE0
-LCBoaWdoIDQyLCBiYXRjaCA3CmNwdSAwIGNvbGQ6IGxvdyAwLCBoaWdoIDE0LCBiYXRjaCA3
-CgpGcmVlIHBhZ2VzOiAgICAgICAgMzkyNGtCICgxMTJrQiBIaWdoTWVtKQpBY3RpdmU6MTM0
-NzQwIGluYWN0aXZlOjExODkyNSBkaXJ0eTowIHdyaXRlYmFjazowIHVuc3RhYmxlOjAgZnJl
-ZTo5ODEgc2xhYjoxOTI4IG1hcHBlZDoyNTM0MTAgcGFnZXRhYmxlczo3OTQKRE1BIGZyZWU6
-NjhrQiBtaW46NjhrQiBsb3c6ODRrQiBoaWdoOjEwMGtCIGFjdGl2ZTo1MzY4a0IgaW5hY3Rp
-dmU6NTM4MGtCIHByZXNlbnQ6MTYzODRrQiBwYWdlc19zY2FubmVkOjEzNDY3IGFsbF91bnJl
-Y2xhaW1hYmxlPyB5ZXMKcHJvdGVjdGlvbnNbXTogMCAwIDAKTm9ybWFsIGZyZWU6Mzc0NGtC
-IG1pbjozNzU2a0IgbG93OjQ2OTJrQiBoaWdoOjU2MzJrQiBhY3RpdmU6NDY4Nzgwa0IgaW5h
-Y3RpdmU6NDA1Mjg4a0IgcHJlc2VudDo5MDExMjBrQiBwYWdlc19zY2FubmVkOjkzMzk4MCBh
-bGxfdW5yZWNsYWltYWJsZT8geWVzCnByb3RlY3Rpb25zW106IDAgMCAwCkhpZ2hNZW0gZnJl
-ZToxMTJrQiBtaW46MTI4a0IgbG93OjE2MGtCIGhpZ2g6MTkya0IgYWN0aXZlOjY0ODEya0Ig
-aW5hY3RpdmU6NjUwMzJrQiBwcmVzZW50OjEzMTA0NGtCIHBhZ2VzX3NjYW5uZWQ6MTM3NjA1
-IGFsbF91bnJlY2xhaW1hYmxlPyB5ZXMKcHJvdGVjdGlvbnNbXTogMCAwIDAKRE1BOiAxKjRr
-QiAwKjhrQiAwKjE2a0IgMCozMmtCIDEqNjRrQiAwKjEyOGtCIDAqMjU2a0IgMCo1MTJrQiAw
-KjEwMjRrQiAwKjIwNDhrQiAwKjQwOTZrQiA9IDY4a0IKTm9ybWFsOiAwKjRrQiAwKjhrQiAw
-KjE2a0IgMSozMmtCIDAqNjRrQiAxKjEyOGtCIDAqMjU2a0IgMSo1MTJrQiAxKjEwMjRrQiAx
-KjIwNDhrQiAwKjQwOTZrQiA9IDM3NDRrQgpIaWdoTWVtOiAwKjRrQiAwKjhrQiAxKjE2a0Ig
-MSozMmtCIDEqNjRrQiAwKjEyOGtCIDAqMjU2a0IgMCo1MTJrQiAwKjEwMjRrQiAwKjIwNDhr
-QiAwKjQwOTZrQiA9IDExMmtCClN3YXAgY2FjaGU6IGFkZCAyOTMzNTksIGRlbGV0ZSAyOTMz
-NTksIGZpbmQgMTA0LzEyNCwgcmFjZSAwKzAKT3V0IG9mIE1lbW9yeTogS2lsbGVkIHByb2Nl
-c3MgNjY5MyAoUk5Bc3Vib3B0KS4K
---------------030902000608030200060205
-Content-Type: text/plain;
- name="2.6.10-rc2-mm-oom3.diff"
-Content-Transfer-Encoding: base64
-Content-Disposition: inline;
- filename="2.6.10-rc2-mm-oom3.diff"
+--=-8/zwMcl9L+LARAv/YmFZ
+Content-Disposition: attachment; filename=2.6.10-rc2-mm3-oom.diff
+Content-Type: text/x-patch; name=2.6.10-rc2-mm3-oom.diff; charset=utf-8
+Content-Transfer-Encoding: 7bit
 
-ZGlmZiAtdXJOIC0tZXhjbHVkZT0nKn4nIC0tZXhjbHVkZT0nLiMqJyAyLjYuMTAtcmMyLW1t
-Mi5vcmlnL21tL29vbV9raWxsLmMgMi42LjEwLXJjMi1tbS9tbS9vb21fa2lsbC5jCi0tLSAy
-LjYuMTAtcmMyLW1tMi5vcmlnL21tL29vbV9raWxsLmMJMjAwNC0xMS0xOSAxNDo1MjoxNi4w
-MDAwMDAwMDAgKzAxMDAKKysrIDIuNi4xMC1yYzItbW0vbW0vb29tX2tpbGwuYwkyMDA0LTEx
-LTIyIDExOjUzOjE2LjAwMDAwMDAwMCArMDEwMApAQCAtNDUsOCArNDUsMTAgQEAKIHN0YXRp
-YyB1bnNpZ25lZCBsb25nIGJhZG5lc3Moc3RydWN0IHRhc2tfc3RydWN0ICpwLCB1bnNpZ25l
-ZCBsb25nIHVwdGltZSkKIHsKIAl1bnNpZ25lZCBsb25nIHBvaW50cywgY3B1X3RpbWUsIHJ1
-bl90aW1lLCBzOworICAgICAgICBzdHJ1Y3QgbGlzdF9oZWFkICp0c2s7CiAKLQlpZiAoIXAt
-Pm1tKQorCS8qIElnbm9yZSBtbS1sZXNzIHRhc2tzIGFuZCBpbml0ICovCisJaWYgKCFwLT5t
-bSB8fCBwLT5waWQgPT0gMSkKIAkJcmV0dXJuIDA7CiAKIAlpZiAocC0+ZmxhZ3MgJiBQRl9N
-RU1ESUUpCkBAIC01Nyw2ICs1OSwxOSBAQAogCXBvaW50cyA9IHAtPm1tLT50b3RhbF92bTsK
-IAogCS8qCisJICogUHJvY2Vzc2VzIHdoaWNoIGZvcmsgYSBsb3Qgb2YgY2hpbGQgcHJvY2Vz
-c2VzIGFyZSBsaWtlbHkgCisJICogYSBnb29kIGNob2ljZS4gV2UgYWRkIHRoZSB2bXNpemUg
-b2YgdGhlIGNoaWxkcyBpZiB0aGV5CisJICogaGF2ZSBhbiBvd24gbW0uIFRoaXMgcHJldmVu
-dHMgZm9ya2luZyBzZXJ2ZXJzIHRvIGZsb29kIHRoZQorCSAqIG1hY2hpbmUgd2l0aCBhbiBl
-bmRsZXNzIGFtb3VudCBvZiBjaGlsZHMKKwkgKi8KKwlsaXN0X2Zvcl9lYWNoKHRzaywgJnAt
-PmNoaWxkcmVuKSB7CisJCXN0cnVjdCB0YXNrX3N0cnVjdCAqY2hsZDsKKwkJY2hsZCA9IGxp
-c3RfZW50cnkodHNrLCBzdHJ1Y3QgdGFza19zdHJ1Y3QsIHNpYmxpbmcpOworCQlpZiAoY2hs
-ZC0+bW0gIT0gcC0+bW0gJiYgY2hsZC0+bW0pCisJCQlwb2ludHMgKz0gY2hsZC0+bW0tPnRv
-dGFsX3ZtOworCX0KKworCS8qCiAJICogQ1BVIHRpbWUgaXMgaW4gdGVucyBvZiBzZWNvbmRz
-IGFuZCBydW4gdGltZSBpcyBpbiB0aG91c2FuZHMKICAgICAgICAgICogb2Ygc2Vjb25kcy4g
-VGhlcmUgaXMgbm8gcGFydGljdWxhciByZWFzb24gZm9yIHRoaXMgb3RoZXIgdGhhbgogICAg
-ICAgICAgKiB0aGF0IGl0IHR1cm5lZCBvdXQgdG8gd29yayB2ZXJ5IHdlbGwgaW4gcHJhY3Rp
-Y2UuCkBAIC0xNzYsNiArMTkxLDI3IEBACiAJcmV0dXJuIG1tOwogfQogCitzdGF0aWMgc3Ry
-dWN0IG1tX3N0cnVjdCAqb29tX2tpbGxfcHJvY2Vzcyh0YXNrX3QgKnApCit7CisJc3RydWN0
-IG1tX3N0cnVjdCAqbW07CisJc3RydWN0IHRhc2tfc3RydWN0ICpnLCAqcTsKKworCW1tID0g
-b29tX2tpbGxfdGFzayhwKTsKKwlpZiAoIW1tKQorCQlyZXR1cm4gTlVMTDsKKwkvKgorCSAq
-IGtpbGwgYWxsIHByb2Nlc3NlcyB0aGF0IHNoYXJlIHRoZSAtPm1tIChpLmUuIGFsbCB0aHJl
-YWRzKSwKKwkgKiBidXQgYXJlIGluIGEgZGlmZmVyZW50IHRocmVhZCBncm91cAorCSAqLwor
-CWRvX2VhY2hfdGhyZWFkKGcsIHEpCisJCWlmIChxLT5tbSA9PSBtbSAmJiBxLT50Z2lkICE9
-IHAtPnRnaWQpCisJCQlfX29vbV9raWxsX3Rhc2socSk7CisKKwl3aGlsZV9lYWNoX3RocmVh
-ZChnLCBxKTsKKwlpZiAoIXAtPm1tKQorCQlwcmludGsoS0VSTl9JTkZPICJGaXhlZCB1cCBP
-T00ga2lsbCBvZiBtbS1sZXNzIHRhc2tcbiIpOworCXJldHVybiBtbTsKK30KIAogLyoqCiAg
-KiBvb21fa2lsbCAtIGtpbGwgdGhlICJiZXN0IiBwcm9jZXNzIHdoZW4gd2UgcnVuIG91dCBv
-ZiBtZW1vcnkKQEAgLTE4OCw3ICsyMjQsOSBAQAogdm9pZCBvb21fa2lsbCh2b2lkKQogewog
-CXN0cnVjdCBtbV9zdHJ1Y3QgKm1tOwotCXN0cnVjdCB0YXNrX3N0cnVjdCAqZywgKnAsICpx
-OworCXN0cnVjdCB0YXNrX3N0cnVjdCAqYywgKnA7CisJc3RydWN0IGxpc3RfaGVhZCAqdHNr
-OworCWludCBtbWNudCA9IDA7CiAJCiAJcmVhZF9sb2NrKCZ0YXNrbGlzdF9sb2NrKTsKIHJl
-dHJ5OgpAQCAtMjAwLDIxICsyMzgsMzIgQEAKIAkJcGFuaWMoIk91dCBvZiBtZW1vcnkgYW5k
-IG5vIGtpbGxhYmxlIHByb2Nlc3Nlcy4uLlxuIik7CiAJfQogCi0JbW0gPSBvb21fa2lsbF90
-YXNrKHApOwotCWlmICghbW0pCi0JCWdvdG8gcmV0cnk7CiAJLyoKLQkgKiBraWxsIGFsbCBw
-cm9jZXNzZXMgdGhhdCBzaGFyZSB0aGUgLT5tbSAoaS5lLiBhbGwgdGhyZWFkcyksCi0JICog
-YnV0IGFyZSBpbiBhIGRpZmZlcmVudCB0aHJlYWQgZ3JvdXAKKwkgKiBLaWxsIHRoZSBmb3Jr
-ZWQgY2hpbGQgcHJvY2Vzc2VzIGZpcnN0CiAJICovCi0JZG9fZWFjaF90aHJlYWQoZywgcSkK
-LQkJaWYgKHEtPm1tID09IG1tICYmIHEtPnRnaWQgIT0gcC0+dGdpZCkKLQkJCV9fb29tX2tp
-bGxfdGFzayhxKTsKLQl3aGlsZV9lYWNoX3RocmVhZChnLCBxKTsKLQlpZiAoIXAtPm1tKQot
-CQlwcmludGsoS0VSTl9JTkZPICJGaXhlZCB1cCBPT00ga2lsbCBvZiBtbS1sZXNzIHRhc2tc
-biIpOworCWxpc3RfZm9yX2VhY2godHNrLCAmcC0+Y2hpbGRyZW4pIHsKKwkJYyA9IGxpc3Rf
-ZW50cnkodHNrLCBzdHJ1Y3QgdGFza19zdHJ1Y3QsIHNpYmxpbmcpOworCQkvKiBEbyBub3Qg
-dG91Y2ggdGhyZWFkcywgYXMgdGhleSBnZXQga2lsbGVkIGxhdGVyICovCisJCWlmIChjLT5t
-bSA9PSBwLT5tbSkKKwkJCWNvbnRpbnVlOworCQltbSA9IG9vbV9raWxsX3Byb2Nlc3MoYyk7
-CisJCWlmIChtbSkgeworCQkJbW1jbnQgKys7CisJCQltbXB1dChtbSk7CisJCX0KKwl9CisK
-KwkvKgorCSAqIElmIHdlIG1hbmFnZWQgdG8ga2lsbCBvbmUgb3IgbW9yZSBjaGlsZCBwcm9j
-ZXNzZXMKKwkgKiB0aGVuIGxldCB0aGUgcGFyZW50IGxpdmUgZm9yIG5vdworCSAqLworCWlm
-ICghbW1jbnQpIHsKKwkJbW0gPSBvb21fa2lsbF9wcm9jZXNzKHApOworCQlpZiAoIW1tKQor
-CQkJZ290byByZXRyeTsKKwkJbW1wdXQobW0pOworCX0KIAlyZWFkX3VubG9jaygmdGFza2xp
-c3RfbG9jayk7Ci0JbW1wdXQobW0pOwogCXJldHVybjsKIH0KIApAQCAtMjI0LDE0ICsyNzMs
-MjIgQEAKIHZvaWQgb3V0X29mX21lbW9yeShpbnQgZ2ZwX21hc2spCiB7CiAJLyoKLQkgKiBv
-b21fbG9jayBwcm90ZWN0cyBvdXRfb2ZfbWVtb3J5KCkncyBzdGF0aWMgdmFyaWFibGVzLgot
-CSAqIEl0J3MgYSBnbG9iYWwgbG9jazsgdGhpcyBpcyBub3QgcGVyZm9ybWFuY2UtY3JpdGlj
-YWwuCi0JICovCi0Jc3RhdGljIERFRklORV9TUElOTE9DSyhvb21fbG9jayk7CisgCSAqIGlu
-cHJvZ3Jlc3MgcHJvdGVjdHMgb3V0X29mX21lbW9yeSgpJ3Mgc3RhdGljIHZhcmlhYmxlcy4K
-KyAJICogV2UgZG9uJ3QgdXNlIGEgc3Bpbl9sb2NrIGhlcmUsIGFzIHNwaW5sb2NrcyBhcmUK
-KyAJICogbm9wcyBvbiBVUCBzeXN0ZW1zLgorICAJICovCisgCXN0YXRpYyB1bnNpZ25lZCBs
-b25nIGlucHJvZ3Jlc3M7CisgCXN0YXRpYyB1bnNpZ25lZCBpbnQgIGZyZWVwYWdlcyA9IDEw
-MDAwMDA7CiAJc3RhdGljIHVuc2lnbmVkIGxvbmcgZmlyc3QsIGxhc3QsIGNvdW50LCBsYXN0
-a2lsbDsKIAl1bnNpZ25lZCBsb25nIG5vdywgc2luY2U7CiAKLQlzcGluX2xvY2soJm9vbV9s
-b2NrKTsKKyAJaWYgKHRlc3RfYW5kX3NldF9iaXQoMCwgJmlucHJvZ3Jlc3MpKQorIAkJcmV0
-dXJuOworIAkKKyAJLyogQ2hlY2ssIGlmIG1lbW9yeSB3YXMgZnJlZWQgc2luY2UgdGhlIGxh
-c3Qgb29tIGtpbGwgKi8KKyAJaWYgKGZyZWVwYWdlcyA8IG5yX2ZyZWVfcGFnZXMoKSkKKyAJ
-CWdvdG8gb3V0X3VubG9jazsKKwogCW5vdyA9IGppZmZpZXM7CiAJc2luY2UgPSBub3cgLSBs
-YXN0OwogCWxhc3QgPSBub3c7CkBAIC0yNzEsMTIgKzMyOCwxMCBAQAogCSAqIE9rLCByZWFs
-bHkgb3V0IG9mIG1lbW9yeS4gS2lsbCBzb21ldGhpbmcuCiAJICovCiAJbGFzdGtpbGwgPSBu
-b3c7Ci0KIAlwcmludGsoIm9vbS1raWxsZXI6IGdmcF9tYXNrPTB4JXhcbiIsIGdmcF9tYXNr
-KTsKIAlzaG93X2ZyZWVfYXJlYXMoKTsKLQotCS8qIG9vbV9raWxsKCkgc2xlZXBzICovCi0J
-c3Bpbl91bmxvY2soJm9vbV9sb2NrKTsKKwkvKiBTdG9yZSBmcmVlIHBhZ2VzICAqIDIgZm9y
-IHRoZSBjaGVjayBhYm92ZSAqLworCWZyZWVwYWdlcyA9IChucl9mcmVlX3BhZ2VzKCkgPDwg
-MSk7CiAJb29tX2tpbGwoKTsKIAkvKgogCSAqIE1ha2Uga3N3YXBkIGdvIG91dCBvZiB0aGUg
-d2F5LCBzbyAicCIgaGFzIGEgZ29vZCBjaGFuY2Ugb2YKQEAgLTI4NCwxNyArMzM5LDExIEBA
-CiAJICogZm9yIG1vcmUgbWVtb3J5LgogCSAqLwogCXlpZWxkKCk7Ci0Jc3Bpbl9sb2NrKCZv
-b21fbG9jayk7CiAKIHJlc2V0OgotCS8qCi0JICogV2UgZHJvcHBlZCB0aGUgbG9jayBhYm92
-ZSwgc28gY2hlY2sgdG8gYmUgc3VyZSB0aGUgdmFyaWFibGUKLQkgKiBmaXJzdCBvbmx5IGV2
-ZXIgaW5jcmVhc2VzIHRvIHByZXZlbnQgZmFsc2UgT09NJ3MuCi0JICovCi0JaWYgKHRpbWVf
-YWZ0ZXIobm93LCBmaXJzdCkpCi0JCWZpcnN0ID0gbm93OworCWZpcnN0ID0gamlmZmllczsK
-IAljb3VudCA9IDA7CiAKIG91dF91bmxvY2s6Ci0Jc3Bpbl91bmxvY2soJm9vbV9sb2NrKTsK
-KwljbGVhcl9iaXQoMCwgJmlucHJvZ3Jlc3MpOwogfQo=
---------------030902000608030200060205--
+diff --exclude='*~' -urN 2.6.10-rc2-mm3.orig/mm/oom_kill.c 2.6.10-rc2-mm3/mm/oom_kill.c
+--- 2.6.10-rc2-mm3.orig/mm/oom_kill.c	2004-11-22 21:48:58.000000000 +0100
++++ 2.6.10-rc2-mm3/mm/oom_kill.c	2004-11-23 10:08:23.000000000 +0100
+@@ -45,8 +45,10 @@
+ static unsigned long badness(struct task_struct *p, unsigned long uptime)
+ {
+ 	unsigned long points, cpu_time, run_time, s;
++        struct list_head *tsk;
+ 
+-	if (!p->mm)
++	/* Ignore mm-less tasks and init */
++	if (!p->mm || p->pid == 1)
+ 		return 0;
+ 
+ 	if (p->flags & PF_MEMDIE)
+@@ -57,6 +59,19 @@
+ 	points = p->mm->total_vm;
+ 
+ 	/*
++	 * Processes which fork a lot of child processes are likely 
++	 * a good choice. We add the vmsize of the childs if they
++	 * have an own mm. This prevents forking servers to flood the
++	 * machine with an endless amount of childs
++	 */
++	list_for_each(tsk, &p->children) {
++		struct task_struct *chld;
++		chld = list_entry(tsk, struct task_struct, sibling);
++		if (chld->mm != p->mm && chld->mm)
++			points += chld->mm->total_vm;
++	}
++
++	/*
+ 	 * CPU time is in tens of seconds and run time is in thousands
+          * of seconds. There is no particular reason for this other than
+          * that it turned out to work very well in practice.
+@@ -176,6 +191,27 @@
+ 	return mm;
+ }
+ 
++static struct mm_struct *oom_kill_process(task_t *p)
++{
++	struct mm_struct *mm;
++	struct task_struct *g, *q;
++
++	mm = oom_kill_task(p);
++	if (!mm)
++		return NULL;
++	/*
++	 * kill all processes that share the ->mm (i.e. all threads),
++	 * but are in a different thread group
++	 */
++	do_each_thread(g, q)
++		if (q->mm == mm && q->tgid != p->tgid)
++			__oom_kill_task(q);
++
++	while_each_thread(g, q);
++	if (!p->mm)
++		printk(KERN_INFO "Fixed up OOM kill of mm-less task\n");
++	return mm;
++}
+ 
+ /**
+  * oom_kill - kill the "best" process when we run out of memory
+@@ -188,7 +224,9 @@
+ void oom_kill(void)
+ {
+ 	struct mm_struct *mm;
+-	struct task_struct *g, *p, *q;
++	struct task_struct *c, *p;
++	struct list_head *tsk;
++	int mmcnt = 0;
+ 	
+ 	read_lock(&tasklist_lock);
+ retry:
+@@ -200,21 +238,32 @@
+ 		panic("Out of memory and no killable processes...\n");
+ 	}
+ 
+-	mm = oom_kill_task(p);
+-	if (!mm)
+-		goto retry;
+ 	/*
+-	 * kill all processes that share the ->mm (i.e. all threads),
+-	 * but are in a different thread group
++	 * Kill the forked child processes first
+ 	 */
+-	do_each_thread(g, q)
+-		if (q->mm == mm && q->tgid != p->tgid)
+-			__oom_kill_task(q);
+-	while_each_thread(g, q);
+-	if (!p->mm)
+-		printk(KERN_INFO "Fixed up OOM kill of mm-less task\n");
++	list_for_each(tsk, &p->children) {
++		c = list_entry(tsk, struct task_struct, sibling);
++		/* Do not touch threads, as they get killed later */
++		if (c->mm == p->mm)
++			continue;
++		mm = oom_kill_process(c);
++		if (mm) {
++			mmcnt ++;
++			mmput(mm);
++		}
++	}
++
++	/*
++	 * If we managed to kill one or more child processes
++	 * then let the parent live for now
++	 */
++	if (!mmcnt) {
++		mm = oom_kill_process(p);
++		if (!mm)
++			goto retry;
++		mmput(mm);
++	}
+ 	read_unlock(&tasklist_lock);
+-	mmput(mm);
+ 	return;
+ }
+ 
+@@ -224,14 +273,22 @@
+ void out_of_memory(int gfp_mask)
+ {
+ 	/*
+-	 * oom_lock protects out_of_memory()'s static variables.
+-	 * It's a global lock; this is not performance-critical.
+-	 */
+-	static DEFINE_SPINLOCK(oom_lock);
++ 	 * inprogress protects out_of_memory()'s static variables.
++ 	 * We don't use a spin_lock here, as spinlocks are
++ 	 * nops on UP systems.
++  	 */
++ 	static unsigned long inprogress;
++ 	static unsigned int  freepages = 1000000;
+ 	static unsigned long first, last, count, lastkill;
+ 	unsigned long now, since;
+ 
+-	spin_lock(&oom_lock);
++ 	if (test_and_set_bit(0, &inprogress))
++ 		return;
++ 	
++ 	/* Check, if memory was freed since the last oom kill */
++ 	if (freepages < nr_free_pages())
++ 		goto out_unlock;
++
+ 	now = jiffies;
+ 	since = now - last;
+ 	last = now;
+@@ -271,12 +328,11 @@
+ 	 * Ok, really out of memory. Kill something.
+ 	 */
+ 	lastkill = now;
+-
+-	printk("oom-killer: gfp_mask=0x%x\n", gfp_mask);
++	printk(KERN_ERR "oom-killer: gfp_mask=0x%x\n", gfp_mask);
+ 	show_free_areas();
+-
+-	/* oom_kill() sleeps */
+-	spin_unlock(&oom_lock);
++	dump_stack();
++	/* Store free pages  * 2 for the check above */
++	freepages = (nr_free_pages() << 1);
+ 	oom_kill();
+ 	/*
+ 	 * Make kswapd go out of the way, so "p" has a good chance of
+@@ -284,17 +340,11 @@
+ 	 * for more memory.
+ 	 */
+ 	yield();
+-	spin_lock(&oom_lock);
+ 
+ reset:
+-	/*
+-	 * We dropped the lock above, so check to be sure the variable
+-	 * first only ever increases to prevent false OOM's.
+-	 */
+-	if (time_after(now, first))
+-		first = now;
++	first = jiffies;
+ 	count = 0;
+ 
+ out_unlock:
+-	spin_unlock(&oom_lock);
++	clear_bit(0, &inprogress);
+ }
+diff --exclude='*~' -urN 2.6.10-rc2-mm3.orig/mm/page_alloc.c 2.6.10-rc2-mm3/mm/page_alloc.c
+--- 2.6.10-rc2-mm3.orig/mm/page_alloc.c	2004-11-22 21:48:58.000000000 +0100
++++ 2.6.10-rc2-mm3/mm/page_alloc.c	2004-11-23 10:48:15.000000000 +0100
+@@ -872,6 +872,11 @@
+ 	p->reclaim_state = NULL;
+ 	p->flags &= ~PF_MEMALLOC;
+ 
++	/* Check if try_to_free_pages called out_of_memory and
++	 * if the current task is the sacrifice  */
++	if ((p->flags & PF_MEMDIE) && !in_interrupt())
++		goto nopage;
++
+ 	/* go through the zonelist yet one more time */
+ 	for (i = 0; (z = zones[i]) != NULL; i++) {
+ 		if (!zone_watermark_ok(z, order, z->pages_min,
+
+--=-8/zwMcl9L+LARAv/YmFZ--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
