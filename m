@@ -1,38 +1,42 @@
-Received: from westrelay03.boulder.ibm.com (westrelay03.boulder.ibm.com [9.17.195.12])
-	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j2PI3JLg310576
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 13:03:19 -0500
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by westrelay03.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2PI3JVl166654
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 11:03:19 -0700
-Received: from d03av01.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j2PI3IQ0018293
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 11:03:18 -0700
-Subject: Re: patch to remove warning in 2.6.11 + Hirokazu's page migration
-	patches
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <424452F2.7080206@engr.sgi.com>
-References: <424452F2.7080206@engr.sgi.com>
-Content-Type: text/plain
-Date: Fri, 25 Mar 2005 10:03:17 -0800
-Message-Id: <1111773797.9691.14.camel@localhost>
-Mime-Version: 1.0
+Date: Fri, 25 Mar 2005 10:38:04 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [PATCH] remove non-DISCONTIG use of pgdat->node_mem_map
+Message-ID: <22520000.1111775883@[10.10.2.4]>
+In-Reply-To: <E1DEsgS-0002zz-00@kernel.beaverton.ibm.com>
+References: <E1DEsgS-0002zz-00@kernel.beaverton.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@engr.sgi.com>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, linux-mm <linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>, akpm@osdl.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-03-25 at 12:05 -0600, Ray Bryant wrote:
-> Hirokazu,
+> This patch effectively eliminates direct use of pgdat->node_mem_map
+> outside of the DISCONTIG code.  On a flat memory system, these fields
+> aren't currently used, neither are they on a sparsemem system.
 > 
-> The attached patch fixes a minor problem with your 2.6.11 page migration
-> patches.
+> There was also a node_mem_map(nid) macro on many architectures. Its
+> use along with the use of ->node_mem_map itself was not consistent.
+> It has been removed in favor of two new, more explicit,
+> arch-independent macros:
+> 
+> 	pgdat_page_nr(pgdat, pagenr)
+> 	nid_page_nr(nid, pagenr)
+> 
+> I called them "pgdat" and "nid" because we overload the term "node"
+> to mean "NUMA node", "DISCONTIG node" or "pg_data_t" in very
+> confusing ways.  I believe the newer names are much clearer.
 
-Looks fine to me.  Hirokazu, I'll pick this up, unless you see any
-problems with it.
+Seems like a good plan - the abstraction will make it easier to change the
+underlying mechanism. I'm not desperately keen on the new naming, but
+given the current code state it makes sense, I guess. Once Andy has got
+sparsemem merged up, and we change struct pgdat to be called struct node
+or something more sensible, we can revisit it then.
 
--- Dave
+Signed-off-by: Martin J. Bligh <mbligh@aracnet.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
