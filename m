@@ -1,49 +1,59 @@
-Date: Tue, 07 Aug 2001 11:19:13 -0400
-From: Chris Mason <mason@suse.com>
-Subject: Re: [RFC] using writepage to start io
-Message-ID: <75850000.997197553@tiny>
+Date: Tue, 7 Aug 2001 11:45:45 -0400 (EDT)
+From: Ben LaHaise <bcrl@redhat.com>
+Subject: Re: [RFC][DATA] re "ongoing vm suckage"
+In-Reply-To: <Pine.LNX.4.33.0108032330450.1193-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.33.0108071143080.30280-100000@touchme.toronto.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Daniel Phillips <phillips@bonn-fries.net>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 3 Aug 2001, Linus Torvalds wrote:
 
-On Monday, August 06, 2001 11:18:26 PM +0200 Daniel Phillips
-<phillips@bonn-fries.net> wrote:
+> Does it work reasonably under your loads?
 
->> Grin, we're talking in circles.  My point is that by having two
->> threads, bdflush is allowed to skip over older buffers in favor of
->> younger ones because somebody else is responsible for writing the
->> older ones out.
-> 
-> Yes, and you can't imagine an algorithm that could do that with *one* 
-> thread?
+I didn't try pre4.  pre5 is absolutely horrible. vmstat stops responding
+for long periods of time and it looks like the vm isn't being throttled at
+all, so the system goes nuts trying to swap data out while it should just
+wait a bit for io to complete.
 
-Imagine one?  Yes.  We're mixing a bunch of issues, so I'll list the 3
-different cases again.  memory pressure, write throttling, age limiting.
-Pretending that a single thread could get enough context information about
-which of the 3 (perhaps more than one) it is currently facing, it can make
-the right decisions.
+		-ben
 
-The problem with that right now is that a single thread can't keep up (with
-one case, let alone all 3) as the number of devices increases.  We can more
-or less just replay the entire l-k discussion(s) on threading models here.
+ 1  2  1      0 993520   4376 2981648   0   0     4 56700  616    22   0  42  58
+ 1  1  1      0 863768   4492 3102032   0   0     0 69376  627    29   0  45  55
+ 1  0  1      0 739320   4620 3230408   0   0     0 56184  617    20   0  41  59
+ 1  0  1      0 611832   4740 3354952   0   0     0 63080  622    19   0  45  55
+ 1  0  1      0 481664   4860 3477320   0   0     0 67812  614    17   0  44  55
+ 1  0  1      0 354024   4984 3604156   0   0     0 60868  622    26   0  43  57
+ 0  2  1      0 266856   5072 3692556   0   0     4 59636  617    23   0  37  63
+ 0  2  1      0 195384   5136 3759408   0   0     0 66288  624    26   0  35  64
+ 1  1  1      0 147016   5192 3818968   0   0     4 51008  637    74   0  29  71
+ 0  3  1      0  95912   5248 3875684   0   0     4 56256  625    38   0  30  70
+ 1  1  1      0  31256   5312 3939796   0   0     8 62420  627    32   0  33  66
+ 1  1  2      0  14860   5352 3968976   0   0     0 49664  624  2600   0  56  44
+ 1  0  2      0   5476   5380 3983880   0   0    76 29988  434  2156   0  81  19
+ 1  0  2      0   3608   5396 3984212   0   0     0  1516  104   458   0  79  21
+ 1  0  2      0   3608   5396 3984212   0   0     0     0  103    92   0  75  25
+ 1  0  2      0   6908   5432 3987980   0   0     8 44280 1315  1394   0  95   5
+   procs                      memory    swap          io     system         cpu
+ r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
+ 1  0  2      0   3692   5444 3988452   0   0     0  2736  104  2363   0  79  21
+ 1  0  2      0   3692   5444 3988452   0   0     0     0  107    17   0  78  22
+ 5  1  3      0   6524   5444 3988516   0   0     8  7628  580   326   0  97   3
+ 2  1  3      0   5268   5472 3995208   0   0     8 11376  742   622   0 100   0
+ 1  0  2      0   5272   5472 3995208   0   0     0     0  105    13   0  75  25
+ 1  0  3      0   4476   5484 3995324   0   0     0 11780  757  6174   0  91   9
+ 2  0  3      0   4620   6268 3988588   0   0    76 803788 38730 117827   0  99   1
+ 3  1  4      0   5212   6268 3988056   0   0     4  3036  714   415   0 100   0
+ 1  1  3      0   4424   6268 3988036   0   0    40 33508  544  1362   0 100   0
+ 3  0  2      0   5948   6268 3988016   0   0     0 11532  299   792   0  99   1
+ 1  1  2      0   6356   6268 3987860   0   0     0  8568  360   258   0  94   6
+ 1  1  3      0   4452   6268 3987528   0   0     4 63604 1008 16081   0  91   9
+ 0  1  3      0   3652   6268 3987396   0   0     0 44796  624  3539   0  98   2
 
-In my mind, in order for a single thread to get the job done, it can't end
-up waiting on a device while there are still buffers ready for writeout to
-idle devices.
-
-As for a generic mechanism to schedule all FS writeback, I've been trying
-to use writepage ;-)  The bad part here it makes the async issues even
-bigger, since the flushing thread ends up calling into the FS (who knows
-what that might lead to).
-
--chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
