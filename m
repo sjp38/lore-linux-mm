@@ -1,50 +1,27 @@
-Subject: [PATCH] Re: latancy test of -ac22-riel
-References: <Pine.LNX.4.21.0006192052001.7938-100000@duckman.distro.conectiva> <394F0B6C.3925591B@norran.net> <m2u2eoxwzx.fsf@boreas.southchinaseas> <394FB013.3B21EA28@norran.net>
-From: "John Fremlin" <vii@penguinpowered.com>
-Date: 22 Jun 2000 20:11:29 +0100
-Message-ID: <m2ya3xsf8e.fsf@boreas.southchinaseas>
+Date: Thu, 22 Jun 2000 21:26:56 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: 2.4: why is NR_GFPINDEX so large?
+In-Reply-To: <20000621213507Z131177-21003+34@kanga.kvack.org>
+Message-ID: <Pine.LNX.4.21.0006222124060.2692-100000@inspiron.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: linux-mm@kvack.org
+To: Timur Tabi <ttabi@interactivesi.com>
+Cc: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Roger Larsson <roger.larsson@norran.net> writes:
+On Wed, 21 Jun 2000, Timur Tabi wrote:
 
-[...]
+>So I suppose the best way to optimize this is to make sure that
+>"NR_GFPINDEX * sizeof(zonelist_t)" is a multiple of the cache line size?
 
-> I retried running with normal prio - then I get stalls
-> of > 350ms...
+Yes but only in SMP. On an UP compile you can save space. For this purpose
+in ac22-class there's a ____cacheline_aligned_in_smp macro that you can
+use for things like that (it relies on the compiler enterely).
 
-I think some stalls are most probably due to try_to_free_pages below
+Andrea
 
-page_alloc.c::__alloc_pages
-	/*
-	 * Uhhuh. All the zones have been critical, which means that
-	 * we'd better do some synchronous swap-out. kswapd has not
-	 * been able to cope..
-	 */
-	if (!(current->flags & PF_MEMALLOC)) {
-		if (!try_to_free_pages(gfp_mask)) {
-			if (!(gfp_mask & __GFP_HIGH))
-				goto fail;
-		}
-		goto fail;
-	}
-
-That is, it happens in times of high memory stress and when I comment
-it out the pauses go away but I'm not sure that this is a good
-long-term solution ;-) though IMHO the behaviour without it (VM
-killing process) is better than the behaviour with it (paging until
-power is cycled).
-
-[...]
-
--- 
-
-	http://altern.org/vii
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
