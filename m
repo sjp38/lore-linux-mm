@@ -1,35 +1,39 @@
-Date: Wed, 17 Jan 2001 18:15:34 +1100 (EST)
+Date: Wed, 17 Jan 2001 18:27:10 +1100 (EST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: pre2 swap_out() changes
-In-Reply-To: <01011410512900.02185@oscar>
-Message-ID: <Pine.LNX.4.31.0101171814030.30841-100000@localhost.localdomain>
+Subject: Re: Aggressive swapout with 2.4.1pre4+ 
+In-Reply-To: <Pine.LNX.4.21.0101160138140.1556-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.31.0101171825340.30841-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 14 Jan 2001, Ed Tomlinson wrote:
+On Tue, 16 Jan 2001, Marcelo Tosatti wrote:
 
-> A couple of observations on the pre2/pre3 vm.  It seems to start
-> swapping out very quicky but this does not seem to hurt.  Once
-> there is memory preasure and swapin starts cpu utilization drops
-> thru the roof - kernel compiles are only able to drive the
-> system at 10-20% (UP instead of 95-100%).
+> Currently swap_out() scans a fixed percentage of each process RSS without
+> taking into account how much memory we are out of.
+>
+> The following patch changes that by making swap_out() stop when it
+> successfully moved the "needed" (calculated by refill_inactive()) amount
+> of pages to the swap cache.
+>
+> This should avoid the system to swap out to aggressively.
+>
+> Comments?
 
-Page_launder() and refill_inactive() need to be tuned so
-they function well when multiple threads are calling them.
+The big problem doesn't seem to be this. The big problem
+seems to be that we don't do IO in page_launder() smooth
+enough.
 
-I have been working on this (independently, no internet for
-a week) and have some stuff working. I will clean it up and
-will try to fix the performance problems people are seeing
-now.
+All the above patch does is make _allocation_ of swap and
+clearing of page table entries smoother, but those are not
+the actions that have a performance impact.
 
-(and I will make sure people know the reasoning behind my patch
-so nobody will change things on a whim in the future ... I'd like
-2.4 to remain stable)
+(and yes, I tested all these things while I was sitting in
+my hotel room for 5 days without any net access)
 
 regards,
 
