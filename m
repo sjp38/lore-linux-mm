@@ -1,34 +1,33 @@
-Date: Mon, 22 Nov 2004 14:45:07 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Mon, 22 Nov 2004 14:40:39 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: deferred rss update instead of sloppy rss
-Message-Id: <20041122144507.484a7627.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.58.0411221408540.22895@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0411221424580.22895@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.58.0411221429050.20993@ppc970.osdl.org>
 References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
-	<Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
-	<20041122141148.1e6ef125.akpm@osdl.org>
-	<Pine.LNX.4.58.0411221408540.22895@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0411221419440.20993@ppc970.osdl.org>
+ <Pine.LNX.4.58.0411221424580.22895@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: hugh@veritas.com, torvalds@osdl.org, benh@kernel.crashing.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
->
-> > just to prevent transient gross inaccuracies.  For some value of "16".
+
+On Mon, 22 Nov 2004, Christoph Lameter wrote:
 > 
-> The page fault code only increments rss. For larger transactions that
-> increase / decrease rss significantly the page_table_lock is taken and
-> mm->rss is updated directly. So no
-> gross inaccuracies can result.
+> I think the approach that I posted is simpler unless there are other
+> benefits to be gained if it would be easy to figure out which tasks use an
+> mm.
 
-Sure.  Take a million successive pagefaults and mm->rss is grossly
-inaccurate.  Hence my suggestion that it be spilled into mm->rss
-periodically.
+I'm just worried that your timer tick thing won't catch things in a timely 
+manner. That said, if that isn't an issue, and people don't have problems 
+with it. On the other hand, if /proc literally is the only real user, then 
+I guess it really can't matter.
 
+		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
