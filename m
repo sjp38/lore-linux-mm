@@ -1,33 +1,38 @@
-Date: Sat, 24 Mar 2001 09:04:19 +0100 (CET)
-From: Mike Galbraith <mikeg@wen-online.de>
-Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <Pine.LNX.4.21.0103240255090.1863-100000@imladris.rielhome.conectiva>
-Message-ID: <Pine.LNX.4.33.0103240852360.2137-100000@mikeg.weiden.de>
+Received: from razdva.cz ([212.65.201.116]) by fepZ.post.tele.dk
+          (InterMail vM.4.01.03.00 201-229-121) with ESMTP
+          id <20010324100234.SLKB14508.fepZ.post.tele.dk@razdva.cz>
+          for <linux-mm@kvack.org>; Sat, 24 Mar 2001 11:02:34 +0100
+Message-ID: <3ABC7008.B9EB4047@razdva.cz>
+Date: Sat, 24 Mar 2001 10:59:36 +0100
+From: Petr Dusil <pdusil@razdva.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Reduce Linux memory requirements for an Embedded PC
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 24 Mar 2001, Rik van Riel wrote:
+Hello All,
 
-> On Fri, 23 Mar 2001, george anzinger wrote:
->
-> > What happens if you just make swap VERY large?  Does the system thrash
-> > it self to a virtual standstill?
->
-> It does.  I need to implement load control code (so we suspend
-> processes in turn to keep the load low enough so we can avoid
-> thrashing).
+I am developing a Linux distribution for a Jumptec Embedded PC. It is
+targeted to an I486, 16MB DRAM, 16MB DiskOnChip. I have decided to use
+Redhat 6.2  (2.2.14 kernel) and to reduce its size to fit the EPC. I
+have simplified the kernel (removed support of all unwanted hardware),
+init scripts and amount of apps I will really need. I do not have
+problems with its size on disk (8MB), but I do see a problem in its
+memory requirements. It takes now about 11MB. It is too much. I tried to
+replace init by sulogin to get bash shell and look into the system
+memory as soon as possible, but again without starting any daemon only
+with bash running I got 7MB. I am asking you, is there any option to
+tell Linux kernel "save the memory" or what are the general
+recommendations to minimize amount of memory the kernel consumes?
 
-That would be a nice emergency feature.  I've run into the situation
-where the box was thrashing so badly that it was impossible to login
-to try to regain control.  Getting a login prompt took nearly forever,
-and I could'nt get a passwd entered before login timed-out :)
+Thank you very much for an answer,
 
-	-Mike
+Petr
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
