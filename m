@@ -1,49 +1,78 @@
-Date: Wed, 15 May 2002 16:00:56 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
+Message-Id: <200205160556.g4G5uEY15953@Port.imtp.ilyichevsk.odessa.ua>
+Content-Type: text/plain;
+  charset="us-ascii"
+From: Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>
+Reply-To: vda@port.imtp.ilyichevsk.odessa.ua
 Subject: Re: [RFC][PATCH] iowait statistics
-In-Reply-To: <20020515184646.GH27957@holomorphy.com>
-Message-ID: <Pine.LNX.4.44L.0205151558180.32261-100000@imladris.surriel.com>
+Date: Thu, 16 May 2002 08:58:46 -0200
+References: <Pine.LNX.3.96.1020515111134.5026B-100000@gatekeeper.tmr.com>
+In-Reply-To: <Pine.LNX.3.96.1020515111134.5026B-100000@gatekeeper.tmr.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Bill Davidsen <davidsen@tmr.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 May 2002, William Lee Irwin III wrote:
-
-> $ vmstat 1
->    procs                      memory    swap          io     system         cpu
->  r  b  w   swpd   free   buff  cache  si  so    bi    bo   in    cs  us  sy  id
-> 17  0  0      0 182880  32364  55180   0   0     2    77   29   229  84   6  10
-> 16  0  0      0 175224  32408  57524   0   0     0     0  104   961  95   5   0
+On 15 May 2002 13:15, you wrote:
+> On Wed, 15 May 2002, Denis Vlasenko wrote:
+> > It can be fixed for SMP:
+> > * add spinlock
+> > or
+> > * add per_cpu_idle, account it too at timer/APIC int
+> >   and get rid of idle % calculations for /proc/stat
+> >
+> > As a user, I vote for glitchless statistics even if they
+> > consume extra i++ cycle every timer int on every CPU.
 >
-> All good there. OTOH:
->
-> $ top
-> fscanf failed on /proc/stat for cpu 1
+> You have pointed out the problem, but since your fix is UP only and
+> doesn't have the iowait stuff, I think more of same is needed. I don't
+> recall seeing this with preempt, but I am not a top user unless I'm
+> looking for problems.
 
-Doh, take a look at top.c around line 1460:
+I just wanted to inform Rik of this small problem. Since he's going
+to fiddle with stats, he can fix this on the way.
+BTW, the bug is easily triggered on SMP kernel, very hard to see
+(but definitely happens) with UP, I bet you'll see it on preempt too.
 
-              for(i = 0; i < nr_cpu; i++) {
-                if(fscanf(file, "cpu%*d %d %d %d %d\n",
-                          &u_ticks, &n_ticks, &s_ticks, &i_ticks) != 4) {
-                  fprintf(stderr, "fscanf failed on /proc/stat for cpu %d\n", i);
+Try these two scripts:
 
-It would have been ok (like vmstat) if it didn't expect the \n
-after the fourth number ;/
+#!/bin/sh
+# Prints dots until bad thing happens
+# Prints old_idle_cnt -> new_idle_cnt then
+prev=0
+while true; do cat /proc/stat; done | \
+grep -F 'cpu  ' | \
+cut -d ' ' -f 6 | \
+while read next; do
+    echo -n .
+    diff=$(($next-$prev))
+    if test $diff -lt 0; then
+	echo "$prev -> $next"
+    fi
+    prev=$next
+done
 
-Oh well, time for another procps patch ;)
+#!/bin/sh
+# Prints cpu line from /proc/stat repeatedly
+# When bad thing happens, flags it by '<<<'
+prev=0
+while true; do cat /proc/stat; done | \
+grep -F 'cpu  ' | \
+while read line; do
+    next=`echo "$line" | cut -d ' ' -f 6`
+    diff=$(($next-$prev))
+    if test $diff -lt 0; then
+	echo "$line <<<"
+    else
+	echo "$line"
+    fi
+    prev=$next
+done
 
-cheers,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+--
+vda
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
