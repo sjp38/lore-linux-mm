@@ -1,40 +1,60 @@
-Date: Wed, 31 Jan 2001 18:06:32 -0200 (BRDT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Linux-MM bugzilla
-In-Reply-To: <Pine.LNX.4.21.0101311706470.1321-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0101311805120.1321-100000@duckman.distro.conectiva>
+Subject: Re: [PATCH] vma limited swapin readahead
+References: <Pine.LNX.4.21.0101310636530.16408-100000@freak.distro.conectiva>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 31 Jan 2001 12:40:52 -0700
+In-Reply-To: Marcelo Tosatti's message of "Wed, 31 Jan 2001 06:40:18 -0200 (BRST)"
+Message-ID: <m18znrcxx7.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, lwn@lwn.net
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 Jan 2001, Rik van Riel wrote:
+Marcelo Tosatti <marcelo@conectiva.com.br> writes:
 
-> The information page about this bugzilla can be found here:
+> On Wed, 31 Jan 2001, Stephen C. Tweedie wrote:
 > 
-> 	http://www.linux.eu.org/Linux-MM/bugzilla.shtml
+> > Hi,
+> > 
+> > On Wed, Jan 31, 2001 at 01:05:02AM -0200, Marcelo Tosatti wrote:
+> > > 
+> > > However, the pages which are contiguous on swap are not necessarily
+> > > contiguous in the virtual memory area where the fault happened. That means
+> > > the swapin readahead code may read pages which are not related to the
+> > > process which suffered a page fault.
+> > > 
+> > Yes, but reading extra sectors is cheap, and throwing the pages out of
+> > memory again if they turn out not to be needed is also cheap.  The
+> > on-disk swapped pages are likely to have been swapped out at roughly
+> > the same time, which is at least a modest indicator of being of the
+> > same age and likely to have been in use at the same time in the past.
+> 
+> You're throwing away pages from memory to do the readahead. 
+> 
+> This pages might be more useful than the pages which you're reading from
+> swap. 
 
-OK, I just registered linux-mm.org and changed the
-httpd configuration ... if we're unlucky this page
-may be unreachable to you for a few hours ...
+Possibly.  However the win (lower latency) from getting swapin
+readahead is probably even bigger.  And you are throwing out the least
+desirable pages in memory.
 
-... but at least it'll be unreachable at this address:  ;))
+> > I'd like to see at lest some basic performance numbers on this,
+> > though.
+> 
+> I'm not sure if limiting the readahead the way my patch does is a better
+> choice, too.
 
-	http://www.linux-mm.org/bugzilla.shtml
+A better choice is probably to make certain the read and write paths are in
+sync so that you can know the readahead is going to do you some good.
+This is a little tricky though.  
 
-cheers,
+Unless you can see a big performance win somewhere please don't submit
+this to Linus for inclusion.
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
