@@ -1,617 +1,544 @@
-Message-Id: <200405222203.i4MM3jr12340@mail.osdl.org>
-Subject: [patch 07/57] rmap 7 object-based rmap
+Message-Id: <200405222204.i4MM43r12404@mail.osdl.org>
+Subject: [patch 09/57] slab: consolidate panic code
 From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:03:15 -0700
+Date: Sat, 22 May 2004 15:03:33 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
-Cc: linux-mm@kvack.org, akpm@osdl.org, hugh@veritas.com
+Cc: linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-From: Hugh Dickins <hugh@veritas.com>
 
-Dave McCracken's object-based reverse mapping scheme for file pages: why
-build up and tear down chains of pte pointers for file pages, when
-page->mapping has i_mmap and i_mmap_shared lists of all the vmas which
-might contain that page, and it appears at one deterministic position
-within the vma (unless vma is nonlinear - see next patch)?
+Many places do:
 
-Has some drawbacks: more work to locate the ptes from page_referenced and
-try_to_unmap, especially if the i_mmap lists contain a lot of vmas covering
-different ranges; has to down_trylock the i_shared_sem, and hope that
-doesn't fail too often.  But attractive in that it uses less lowmem, and
-shifts the rmap burden away from the hot paths, to swapout.
+	if (kmem_cache_create(...) == NULL)
+		panic(...);
 
-Hybrid scheme for the moment: carry on with pte_chains for anonymous pages,
-that's unchanged; but file pages keep mapcount in the pte union of struct
-page, where anonymous pages keep chain pointer or direct pte address: so
-page_mapped(page) works on both.
-
-Hugh massaged it a little: distinct page_add_file_rmap entry point; list
-searches check rss so as not to waste time on mms fully swapped out; check
-mapcount to terminate once all ptes have been found; and a WARN_ON if
-page_referenced should have but couldn't find all the ptes.
+We can consolidate all that by passing another flag to kmem_cache_create()
+which says "panic if it doesn't work".
 
 
 ---
 
- 25-akpm/include/asm-ia64/pgtable.h |    2 
- 25-akpm/include/linux/mm.h         |    1 
- 25-akpm/include/linux/rmap.h       |    1 
- 25-akpm/mm/fremap.c                |   20 +-
- 25-akpm/mm/memory.c                |   17 +
- 25-akpm/mm/mremap.c                |    6 
- 25-akpm/mm/rmap.c                  |  320 +++++++++++++++++++++++++++++++++----
- mm/filemap.c                       |    0 
- 8 files changed, 322 insertions(+), 45 deletions(-)
+ 25-akpm/fs/aio.c             |    9 ++-------
+ 25-akpm/fs/bio.c             |   14 ++++++--------
+ 25-akpm/fs/block_dev.c       |   11 +++--------
+ 25-akpm/fs/buffer.c          |    2 +-
+ 25-akpm/fs/dcache.c          |   20 ++++++--------------
+ 25-akpm/fs/dnotify.c         |    4 +---
+ 25-akpm/fs/dquot.c           |    5 ++---
+ 25-akpm/fs/eventpoll.c       |   38 +++++++++++---------------------------
+ 25-akpm/fs/fcntl.c           |    5 +----
+ 25-akpm/fs/inode.c           |    8 ++------
+ 25-akpm/fs/locks.c           |    6 ++----
+ 25-akpm/fs/namespace.c       |    4 +---
+ 25-akpm/include/linux/slab.h |    1 +
+ 25-akpm/kernel/fork.c        |   40 ++++++++++------------------------------
+ 25-akpm/kernel/signal.c      |    4 +---
+ 25-akpm/kernel/user.c        |    5 +----
+ 25-akpm/lib/radix-tree.c     |    4 +---
+ 25-akpm/mm/rmap.c            |    5 +----
+ 25-akpm/mm/shmem.c           |    6 +++---
+ 25-akpm/mm/slab.c            |    8 +++++---
+ 25-akpm/net/socket.c         |    6 +++---
+ 21 files changed, 64 insertions(+), 141 deletions(-)
 
-diff -puN include/linux/mm.h~rmap-7-object-based-rmap include/linux/mm.h
---- 25/include/linux/mm.h~rmap-7-object-based-rmap	2004-05-22 14:56:22.158722888 -0700
-+++ 25-akpm/include/linux/mm.h	2004-05-22 14:59:43.285147024 -0700
-@@ -185,6 +185,7 @@ struct page {
- 		struct pte_chain *chain;/* Reverse pte mapping pointer.
- 					 * protected by PG_chainlock */
- 		pte_addr_t direct;
-+		unsigned int mapcount;	/* Count ptes mapped into mms */
- 	} pte;
- 	unsigned long private;		/* Mapping-private opaque data:
- 					 * usually used for buffer_heads
-diff -puN include/linux/rmap.h~rmap-7-object-based-rmap include/linux/rmap.h
---- 25/include/linux/rmap.h~rmap-7-object-based-rmap	2004-05-22 14:56:22.159722736 -0700
-+++ 25-akpm/include/linux/rmap.h	2004-05-22 14:59:43.286146872 -0700
-@@ -27,6 +27,7 @@ static inline void pte_chain_free(struct
- 
- struct pte_chain * fastcall
- 	page_add_rmap(struct page *, pte_t *, struct pte_chain *);
-+void fastcall page_add_file_rmap(struct page *);
- void fastcall page_remove_rmap(struct page *, pte_t *);
- 
- /*
-diff -puN mm/fremap.c~rmap-7-object-based-rmap mm/fremap.c
---- 25/mm/fremap.c~rmap-7-object-based-rmap	2004-05-22 14:56:22.160722584 -0700
-+++ 25-akpm/mm/fremap.c	2004-05-22 14:59:43.750076344 -0700
-@@ -49,7 +49,7 @@ static inline void zap_pte(struct mm_str
- }
- 
- /*
-- * Install a page to a given virtual memory address, release any
-+ * Install a file page to a given virtual memory address, release any
-  * previously existing mapping.
-  */
- int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
-@@ -60,11 +60,13 @@ int install_page(struct mm_struct *mm, s
- 	pgd_t *pgd;
- 	pmd_t *pmd;
- 	pte_t pte_val;
--	struct pte_chain *pte_chain;
- 
--	pte_chain = pte_chain_alloc(GFP_KERNEL);
--	if (!pte_chain)
--		goto err;
-+	/*
-+	 * We use page_add_file_rmap below: if install_page is
-+	 * ever extended to anonymous pages, this will warn us.
-+	 */
-+	BUG_ON(!page_mapping(page));
-+
- 	pgd = pgd_offset(mm, addr);
- 	spin_lock(&mm->page_table_lock);
- 
-@@ -81,18 +83,14 @@ int install_page(struct mm_struct *mm, s
- 	mm->rss++;
- 	flush_icache_page(vma, page);
- 	set_pte(pte, mk_pte(page, prot));
--	pte_chain = page_add_rmap(page, pte, pte_chain);
-+	page_add_file_rmap(page);
- 	pte_val = *pte;
- 	pte_unmap(pte);
- 	update_mmu_cache(vma, addr, pte_val);
--	spin_unlock(&mm->page_table_lock);
--	pte_chain_free(pte_chain);
--	return 0;
- 
-+	err = 0;
- err_unlock:
- 	spin_unlock(&mm->page_table_lock);
--	pte_chain_free(pte_chain);
--err:
- 	return err;
- }
- EXPORT_SYMBOL(install_page);
-diff -puN mm/memory.c~rmap-7-object-based-rmap mm/memory.c
---- 25/mm/memory.c~rmap-7-object-based-rmap	2004-05-22 14:56:22.162722280 -0700
-+++ 25-akpm/mm/memory.c	2004-05-22 14:59:43.290146264 -0700
-@@ -331,8 +331,11 @@ skip_copy_pte_range:
- 				dst->rss++;
- 
- 				set_pte(dst_pte, pte);
--				pte_chain = page_add_rmap(page, dst_pte,
--							pte_chain);
-+				if (PageAnon(page))
-+					pte_chain = page_add_rmap(page,
-+						dst_pte, pte_chain);
-+				else
-+					page_add_file_rmap(page);
- 				if (pte_chain)
- 					goto cont_copy_pte_range_noset;
- 				pte_chain = pte_chain_alloc(GFP_ATOMIC | __GFP_NOWARN);
-@@ -1489,6 +1492,7 @@ do_no_page(struct mm_struct *mm, struct 
- 	struct pte_chain *pte_chain;
- 	int sequence = 0;
- 	int ret = VM_FAULT_MINOR;
-+	int anon = 0;
- 
- 	if (!vma->vm_ops || !vma->vm_ops->nopage)
- 		return do_anonymous_page(mm, vma, page_table,
-@@ -1523,8 +1527,8 @@ retry:
- 			goto oom;
- 		copy_user_highpage(page, new_page, address);
- 		page_cache_release(new_page);
--		lru_cache_add_active(page);
- 		new_page = page;
-+		anon = 1;
- 	}
- 
- 	spin_lock(&mm->page_table_lock);
-@@ -1562,7 +1566,12 @@ retry:
- 		if (write_access)
- 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 		set_pte(page_table, entry);
--		pte_chain = page_add_rmap(new_page, page_table, pte_chain);
-+		if (anon) {
-+			lru_cache_add_active(new_page);
-+			pte_chain = page_add_rmap(new_page,
-+						page_table, pte_chain);
-+		} else
-+			page_add_file_rmap(new_page);
- 		pte_unmap(page_table);
- 	} else {
- 		/* One of our sibling threads was faster, back out. */
-diff -puN mm/mremap.c~rmap-7-object-based-rmap mm/mremap.c
---- 25/mm/mremap.c~rmap-7-object-based-rmap	2004-05-22 14:56:22.163722128 -0700
-+++ 25-akpm/mm/mremap.c	2004-05-22 14:59:43.291146112 -0700
-@@ -90,8 +90,10 @@ copy_one_pte(struct vm_area_struct *vma,
- 		unsigned long pfn = pte_pfn(pte);
- 		if (pfn_valid(pfn)) {
- 			struct page *page = pfn_to_page(pfn);
--			page_remove_rmap(page, src);
--			*pte_chainp = page_add_rmap(page, dst, *pte_chainp);
-+			if (PageAnon(page)) {
-+				page_remove_rmap(page, src);
-+				*pte_chainp = page_add_rmap(page, dst, *pte_chainp);
-+			}
- 		}
- 	}
- }
-diff -puN mm/rmap.c~rmap-7-object-based-rmap mm/rmap.c
---- 25/mm/rmap.c~rmap-7-object-based-rmap	2004-05-22 14:56:22.165721824 -0700
-+++ 25-akpm/mm/rmap.c	2004-05-22 14:59:43.753075888 -0700
-@@ -113,6 +113,135 @@ pte_chain_encode(struct pte_chain *pte_c
-  ** VM stuff below this comment
-  **/
- 
-+/*
-+ * At what user virtual address is pgoff expected in file-backed vma?
-+ */
-+static inline
-+unsigned long vma_address(struct vm_area_struct *vma, pgoff_t pgoff)
-+{
-+	unsigned long address;
-+
-+	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
-+	return (address >= vma->vm_start && address < vma->vm_end)?
-+		address: -EFAULT;
-+}
-+
-+static int page_referenced_one(struct page *page,
-+	struct mm_struct *mm, unsigned long address,
-+	unsigned int *mapcount, int *failed)
-+{
-+	pgd_t *pgd;
-+	pmd_t *pmd;
-+	pte_t *pte;
-+	int referenced = 0;
-+
-+	if (!spin_trylock(&mm->page_table_lock)) {
-+		/*
-+		 * For debug we're currently warning if not all found,
-+		 * but in this case that's expected: suppress warning.
-+		 */
-+		(*failed)++;
-+		return 0;
-+	}
-+
-+	pgd = pgd_offset(mm, address);
-+	if (!pgd_present(*pgd))
-+		goto out_unlock;
-+
-+	pmd = pmd_offset(pgd, address);
-+	if (!pmd_present(*pmd))
-+		goto out_unlock;
-+
-+	pte = pte_offset_map(pmd, address);
-+	if (!pte_present(*pte))
-+		goto out_unmap;
-+
-+	if (page_to_pfn(page) != pte_pfn(*pte))
-+		goto out_unmap;
-+
-+	if (ptep_test_and_clear_young(pte))
-+		referenced++;
-+
-+	(*mapcount)--;
-+
-+out_unmap:
-+	pte_unmap(pte);
-+
-+out_unlock:
-+	spin_unlock(&mm->page_table_lock);
-+	return referenced;
-+}
-+
-+/**
-+ * page_referenced_file - referenced check for object-based rmap
-+ * @page: the page we're checking references on.
-+ *
-+ * For an object-based mapped page, find all the places it is mapped and
-+ * check/clear the referenced flag.  This is done by following the page->mapping
-+ * pointer, then walking the chain of vmas it holds.  It returns the number
-+ * of references it found.
-+ *
-+ * This function is only called from page_referenced for object-based pages.
-+ *
-+ * The semaphore address_space->i_shared_sem is tried.  If it can't be gotten,
-+ * assume a reference count of 0, so try_to_unmap will then have a go.
-+ */
-+static inline int page_referenced_file(struct page *page)
-+{
-+	unsigned int mapcount = page->pte.mapcount;
-+	struct address_space *mapping = page->mapping;
-+	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	struct vm_area_struct *vma;
-+	unsigned long address;
-+	int referenced = 0;
-+	int failed = 0;
-+
-+	if (down_trylock(&mapping->i_shared_sem))
-+		return 0;
-+
-+	list_for_each_entry(vma, &mapping->i_mmap, shared) {
-+		address = vma_address(vma, pgoff);
-+		if (address == -EFAULT)
-+			continue;
-+		if ((vma->vm_flags & (VM_LOCKED|VM_MAYSHARE))
-+				  == (VM_LOCKED|VM_MAYSHARE)) {
-+			referenced++;
-+			goto out;
-+		}
-+		if (vma->vm_mm->rss) {
-+			referenced += page_referenced_one(page,
-+				vma->vm_mm, address, &mapcount, &failed);
-+			if (!mapcount)
-+				goto out;
-+		}
-+	}
-+
-+	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
-+		if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
-+			failed++;
-+			continue;
-+		}
-+		address = vma_address(vma, pgoff);
-+		if (address == -EFAULT)
-+			continue;
-+		if (vma->vm_flags & (VM_LOCKED|VM_RESERVED)) {
-+			referenced++;
-+			goto out;
-+		}
-+		if (vma->vm_mm->rss) {
-+			referenced += page_referenced_one(page,
-+				vma->vm_mm, address, &mapcount, &failed);
-+			if (!mapcount)
-+				goto out;
-+		}
-+	}
-+
-+	WARN_ON(!failed);
-+out:
-+	up(&mapping->i_shared_sem);
-+	return referenced;
-+}
-+
- /**
-  * page_referenced - test if the page was referenced
-  * @page: the page to test
-@@ -135,7 +264,10 @@ int fastcall page_referenced(struct page
- 	if (TestClearPageReferenced(page))
- 		referenced++;
- 
--	if (PageDirect(page)) {
-+	if (!PageAnon(page)) {
-+		if (page_mapped(page) && page->mapping)
-+			referenced += page_referenced_file(page);
-+	} else if (PageDirect(page)) {
- 		pte_t *pte = rmap_ptep_map(page->pte.direct);
- 		if (ptep_test_and_clear_young(pte))
- 			referenced++;
-@@ -170,7 +302,7 @@ int fastcall page_referenced(struct page
- }
- 
- /**
-- * page_add_rmap - add reverse mapping entry to a page
-+ * page_add_rmap - add reverse mapping entry to an anonymous page
-  * @page: the page to add the mapping to
-  * @ptep: the page table entry mapping this page
-  *
-@@ -191,10 +323,8 @@ page_add_rmap(struct page *page, pte_t *
- 	if (page->pte.direct == 0) {
- 		page->pte.direct = pte_paddr;
- 		SetPageDirect(page);
--		if (!page->mapping) {
--			SetPageAnon(page);
--			page->mapping = ANON_MAPPING_DEBUG;
--		}
-+		SetPageAnon(page);
-+		page->mapping = ANON_MAPPING_DEBUG;
- 		inc_page_state(nr_mapped);
- 		goto out;
- 	}
-@@ -228,6 +358,25 @@ out:
- }
- 
- /**
-+ * page_add_file_rmap - add pte mapping to a file page
-+ * @page: the page to add the mapping to
-+ *
-+ * The caller needs to hold the mm->page_table_lock.
-+ */
-+void fastcall page_add_file_rmap(struct page *page)
-+{
-+	BUG_ON(PageAnon(page));
-+	if (!pfn_valid(page_to_pfn(page)) || PageReserved(page))
-+		return;
-+
-+	page_map_lock(page);
-+	if (!page_mapped(page))
-+		inc_page_state(nr_mapped);
-+	page->pte.mapcount++;
-+	page_map_unlock(page);
-+}
-+
-+/**
-  * page_remove_rmap - take down reverse mapping to a page
-  * @page: page to remove mapping from
-  * @ptep: page table entry to remove
-@@ -250,7 +399,9 @@ void fastcall page_remove_rmap(struct pa
- 	if (!page_mapped(page))
- 		goto out_unlock;	/* remap_page_range() from a driver? */
- 
--	if (PageDirect(page)) {
-+	if (!PageAnon(page)) {
-+		page->pte.mapcount--;
-+	} else if (PageDirect(page)) {
- 		if (page->pte.direct == pte_paddr) {
- 			page->pte.direct = 0;
- 			ClearPageDirect(page);
-@@ -298,7 +449,7 @@ out_unlock:
- }
- 
- /**
-- * try_to_unmap_one - worker function for try_to_unmap
-+ * try_to_unmap_anon_one - worker function for try_to_unmap
-  * @page: page to unmap
-  * @ptep: page table entry to unmap from page
-  *
-@@ -310,7 +461,7 @@ out_unlock:
-  *		rmap lock		shrink_list()
-  *		    mm->page_table_lock	try_to_unmap_one(), trylock
-  */
--static int fastcall try_to_unmap_one(struct page * page, pte_addr_t paddr)
-+static int fastcall try_to_unmap_anon_one(struct page * page, pte_addr_t paddr)
+diff -puN fs/aio.c~slab-panic fs/aio.c
+--- 25/fs/aio.c~slab-panic	2004-05-22 14:56:22.494671816 -0700
++++ 25-akpm/fs/aio.c	2004-05-22 14:56:22.527666800 -0700
+@@ -64,14 +64,9 @@ static void aio_kick_handler(void *);
+ static int __init aio_setup(void)
  {
- 	pte_t *ptep = rmap_ptep_map(paddr);
- 	unsigned long address = ptep_to_address(ptep);
-@@ -348,7 +499,7 @@ static int fastcall try_to_unmap_one(str
- 	flush_cache_page(vma, address);
- 	pte = ptep_clear_flush(vma, address, ptep);
+ 	kiocb_cachep = kmem_cache_create("kiocb", sizeof(struct kiocb),
+-				0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if (!kiocb_cachep)
+-		panic("unable to create kiocb cache\n");
+-
++				0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+ 	kioctx_cachep = kmem_cache_create("kioctx", sizeof(struct kioctx),
+-				0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if (!kioctx_cachep)
+-		panic("unable to create kioctx cache");
++				0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
  
--	if (PageAnon(page)) {
-+	{
- 		swp_entry_t entry = { .val = page->private };
- 		/*
- 		 * Store the swap location in the pte.
-@@ -358,16 +509,6 @@ static int fastcall try_to_unmap_one(str
- 		swap_duplicate(entry);
- 		set_pte(ptep, swp_entry_to_pte(entry));
- 		BUG_ON(pte_file(*ptep));
--	} else {
--		/*
--		 * If a nonlinear mapping then store the file page offset
--		 * in the pte.
--		 */
--		BUG_ON(!page->mapping);
--		if (page->index != linear_page_index(vma, address)) {
--			set_pte(ptep, pgoff_to_pte(page->index));
--			BUG_ON(!pte_file(*ptep));
--		}
- 	}
+ 	aio_wq = create_workqueue("aio");
  
- 	/* Move the dirty bit to the physical page now the pte is gone. */
-@@ -384,6 +525,128 @@ out_unlock:
- 	return ret;
+diff -puN fs/bio.c~slab-panic fs/bio.c
+--- 25/fs/bio.c~slab-panic	2004-05-22 14:56:22.496671512 -0700
++++ 25-akpm/fs/bio.c	2004-05-22 14:56:22.528666648 -0700
+@@ -808,9 +808,7 @@ static void __init biovec_init_pools(voi
+ 		size = bp->nr_vecs * sizeof(struct bio_vec);
+ 
+ 		bp->slab = kmem_cache_create(bp->name, size, 0,
+-						SLAB_HWCACHE_ALIGN, NULL, NULL);
+-		if (!bp->slab)
+-			panic("biovec: can't init slab cache\n");
++				SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+ 
+ 		if (i >= scale)
+ 			pool_entries >>= 1;
+@@ -825,16 +823,16 @@ static void __init biovec_init_pools(voi
+ static int __init init_bio(void)
+ {
+ 	bio_slab = kmem_cache_create("bio", sizeof(struct bio), 0,
+-					SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if (!bio_slab)
+-		panic("bio: can't create slab cache\n");
+-	bio_pool = mempool_create(BIO_POOL_SIZE, mempool_alloc_slab, mempool_free_slab, bio_slab);
++				SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
++	bio_pool = mempool_create(BIO_POOL_SIZE, mempool_alloc_slab,
++				mempool_free_slab, bio_slab);
+ 	if (!bio_pool)
+ 		panic("bio: can't create mempool\n");
+ 
+ 	biovec_init_pools();
+ 
+-	bio_split_pool = mempool_create(BIO_SPLIT_ENTRIES, bio_pair_alloc, bio_pair_free, NULL);
++	bio_split_pool = mempool_create(BIO_SPLIT_ENTRIES,
++				bio_pair_alloc, bio_pair_free, NULL);
+ 	if (!bio_split_pool)
+ 		panic("bio: can't create split pool\n");
+ 
+diff -puN fs/block_dev.c~slab-panic fs/block_dev.c
+--- 25/fs/block_dev.c~slab-panic	2004-05-22 14:56:22.497671360 -0700
++++ 25-akpm/fs/block_dev.c	2004-05-22 14:56:22.529666496 -0700
+@@ -306,14 +306,9 @@ struct super_block *blockdev_superblock;
+ void __init bdev_cache_init(void)
+ {
+ 	int err;
+-	bdev_cachep = kmem_cache_create("bdev_cache",
+-					sizeof(struct bdev_inode),
+-					0,
+-					SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+-					init_once,
+-					NULL);
+-	if (!bdev_cachep)
+-		panic("Cannot create bdev_cache SLAB cache");
++	bdev_cachep = kmem_cache_create("bdev_cache", sizeof(struct bdev_inode),
++			0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_PANIC,
++			init_once, NULL);
+ 	err = register_filesystem(&bd_type);
+ 	if (err)
+ 		panic("Cannot register bdev pseudo-fs");
+diff -puN fs/buffer.c~slab-panic fs/buffer.c
+--- 25/fs/buffer.c~slab-panic	2004-05-22 14:56:22.499671056 -0700
++++ 25-akpm/fs/buffer.c	2004-05-22 14:56:22.542664520 -0700
+@@ -3100,7 +3100,7 @@ void __init buffer_init(void)
+ 
+ 	bh_cachep = kmem_cache_create("buffer_head",
+ 			sizeof(struct buffer_head), 0,
+-			0, init_buffer_head, NULL);
++			SLAB_PANIC, init_buffer_head, NULL);
+ 	for (i = 0; i < ARRAY_SIZE(bh_wait_queue_heads); i++)
+ 		init_waitqueue_head(&bh_wait_queue_heads[i].wqh);
+ 
+diff -puN fs/dcache.c~slab-panic fs/dcache.c
+--- 25/fs/dcache.c~slab-panic	2004-05-22 14:56:22.501670752 -0700
++++ 25-akpm/fs/dcache.c	2004-05-22 14:56:22.543664368 -0700
+@@ -1570,10 +1570,8 @@ static void __init dcache_init(unsigned 
+ 	dentry_cache = kmem_cache_create("dentry_cache",
+ 					 sizeof(struct dentry),
+ 					 0,
+-					 SLAB_RECLAIM_ACCOUNT,
++					 SLAB_RECLAIM_ACCOUNT|SLAB_PANIC,
+ 					 NULL, NULL);
+-	if (!dentry_cache)
+-		panic("Cannot create dentry cache");
+ 	
+ 	set_shrinker(DEFAULT_SEEKS, shrink_dcache_memory);
+ 
+@@ -1638,17 +1636,11 @@ void __init vfs_caches_init(unsigned lon
+ 	reserve = min((mempages - nr_free_pages()) * 3/2, mempages - 1);
+ 	mempages -= reserve;
+ 
+-	names_cachep = kmem_cache_create("names_cache",
+-			PATH_MAX, 0,
+-			SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if (!names_cachep)
+-		panic("Cannot create names SLAB cache");
+-
+-	filp_cachep = kmem_cache_create("filp",
+-			sizeof(struct file), 0,
+-			SLAB_HWCACHE_ALIGN, filp_ctor, filp_dtor);
+-	if(!filp_cachep)
+-		panic("Cannot create filp SLAB cache");
++	names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
++			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
++
++	filp_cachep = kmem_cache_create("filp", sizeof(struct file), 0,
++			SLAB_HWCACHE_ALIGN|SLAB_PANIC, filp_ctor, filp_dtor);
+ 
+ 	dcache_init(mempages);
+ 	inode_init(mempages);
+diff -puN fs/dnotify.c~slab-panic fs/dnotify.c
+--- 25/fs/dnotify.c~slab-panic	2004-05-22 14:56:22.502670600 -0700
++++ 25-akpm/fs/dnotify.c	2004-05-22 14:56:22.544664216 -0700
+@@ -173,9 +173,7 @@ EXPORT_SYMBOL_GPL(dnotify_parent);
+ static int __init dnotify_init(void)
+ {
+ 	dn_cache = kmem_cache_create("dnotify_cache",
+-		sizeof(struct dnotify_struct), 0, 0, NULL, NULL);
+-	if (!dn_cache)
+-		panic("cannot create dnotify slab cache");
++		sizeof(struct dnotify_struct), 0, SLAB_PANIC, NULL, NULL);
+ 	return 0;
  }
  
-+static int try_to_unmap_one(struct page *page,
-+	struct mm_struct *mm, unsigned long address,
-+	unsigned int *mapcount, struct vm_area_struct *vma)
-+{
-+	pgd_t *pgd;
-+	pmd_t *pmd;
-+	pte_t *pte;
-+	pte_t pteval;
-+	int ret = SWAP_AGAIN;
-+
-+	/*
-+	 * We need the page_table_lock to protect us from page faults,
-+	 * munmap, fork, etc...
-+	 */
-+	if (!spin_trylock(&mm->page_table_lock))
-+		goto out;
-+
-+	pgd = pgd_offset(mm, address);
-+	if (!pgd_present(*pgd))
-+		goto out_unlock;
-+
-+	pmd = pmd_offset(pgd, address);
-+	if (!pmd_present(*pmd))
-+		goto out_unlock;
-+
-+	pte = pte_offset_map(pmd, address);
-+	if (!pte_present(*pte))
-+		goto out_unmap;
-+
-+	if (page_to_pfn(page) != pte_pfn(*pte))
-+		goto out_unmap;
-+
-+	(*mapcount)--;
-+
-+	/*
-+	 * If the page is mlock()d, we cannot swap it out.
-+	 * If it's recently referenced (perhaps page_referenced
-+	 * skipped over this mm) then we should reactivate it.
-+	 */
-+	if ((vma->vm_flags & (VM_LOCKED|VM_RESERVED)) ||
-+			ptep_test_and_clear_young(pte)) {
-+		ret = SWAP_FAIL;
-+		goto out_unmap;
-+	}
-+
-+	/* Nuke the page table entry. */
-+	flush_cache_page(vma, address);
-+	pteval = ptep_clear_flush(vma, address, pte);
-+
-+	/* Move the dirty bit to the physical page now the pte is gone. */
-+	if (pte_dirty(pteval))
-+		set_page_dirty(page);
-+
-+	mm->rss--;
-+	BUG_ON(!page->pte.mapcount);
-+	page->pte.mapcount--;
-+	page_cache_release(page);
-+
-+out_unmap:
-+	pte_unmap(pte);
-+
-+out_unlock:
-+	spin_unlock(&mm->page_table_lock);
-+
-+out:
-+	return ret;
-+}
-+
-+/**
-+ * try_to_unmap_file - unmap file page using the object-based rmap method
-+ * @page: the page to unmap
-+ *
-+ * Find all the mappings of a page using the mapping pointer and the vma chains
-+ * contained in the address_space struct it points to.
-+ *
-+ * This function is only called from try_to_unmap for object-based pages.
-+ *
-+ * The semaphore address_space->i_shared_sem is tried.  If it can't be gotten,
-+ * return a temporary error.
-+ */
-+static inline int try_to_unmap_file(struct page *page)
-+{
-+	unsigned int mapcount = page->pte.mapcount;
-+	struct address_space *mapping = page->mapping;
-+	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	struct vm_area_struct *vma;
-+	unsigned long address;
-+	int ret = SWAP_AGAIN;
-+
-+	if (down_trylock(&mapping->i_shared_sem))
-+		return ret;
-+
-+	list_for_each_entry(vma, &mapping->i_mmap, shared) {
-+		if (vma->vm_mm->rss) {
-+			address = vma_address(vma, pgoff);
-+			if (address == -EFAULT)
-+				continue;
-+			ret = try_to_unmap_one(page,
-+				vma->vm_mm, address, &mapcount, vma);
-+			if (ret == SWAP_FAIL || !mapcount)
-+				goto out;
-+		}
-+	}
-+
-+	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
-+		if (unlikely(vma->vm_flags & VM_NONLINEAR))
-+			continue;
-+		if (vma->vm_mm->rss) {
-+			address = vma_address(vma, pgoff);
-+			if (address == -EFAULT)
-+				continue;
-+			ret = try_to_unmap_one(page,
-+				vma->vm_mm, address, &mapcount, vma);
-+			if (ret == SWAP_FAIL || !mapcount)
-+				goto out;
-+		}
-+	}
-+out:
-+	up(&mapping->i_shared_sem);
-+	return ret;
-+}
-+
- /**
-  * try_to_unmap - try to remove all page table mappings to a page
-  * @page: the page to get unmapped
-@@ -402,14 +665,17 @@ int fastcall try_to_unmap(struct page * 
- 	int ret = SWAP_SUCCESS;
- 	int victim_i;
+diff -puN fs/dquot.c~slab-panic fs/dquot.c
+--- 25/fs/dquot.c~slab-panic	2004-05-22 14:56:22.504670296 -0700
++++ 25-akpm/fs/dquot.c	2004-05-22 14:56:22.545664064 -0700
+@@ -1733,9 +1733,8 @@ static int __init dquot_init(void)
  
--	/* This page should not be on the pageout lists. */
--	if (PageReserved(page))
--		BUG();
--	if (!PageLocked(page))
--		BUG();
-+	BUG_ON(PageReserved(page));
-+	BUG_ON(!PageLocked(page));
-+	BUG_ON(!page_mapped(page));
-+
-+	if (!PageAnon(page)) {
-+		ret = try_to_unmap_file(page);
-+		goto out;
-+	}
+ 	dquot_cachep = kmem_cache_create("dquot", 
+ 			sizeof(struct dquot), sizeof(unsigned long) * 4,
+-			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT, NULL, NULL);
+-	if (!dquot_cachep)
+-		panic("Cannot create dquot SLAB cache");
++			SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|SLAB_PANIC,
++			NULL, NULL);
  
- 	if (PageDirect(page)) {
--		ret = try_to_unmap_one(page, page->pte.direct);
-+		ret = try_to_unmap_anon_one(page, page->pte.direct);
- 		if (ret == SWAP_SUCCESS) {
- 			page->pte.direct = 0;
- 			ClearPageDirect(page);
-@@ -428,7 +694,7 @@ int fastcall try_to_unmap(struct page * 
- 		for (i = pte_chain_idx(pc); i < NRPTE; i++) {
- 			pte_addr_t pte_paddr = pc->ptes[i];
+ 	order = 0;
+ 	dquot_hash = (struct hlist_head *)__get_free_pages(GFP_ATOMIC, order);
+diff -puN fs/eventpoll.c~slab-panic fs/eventpoll.c
+--- 25/fs/eventpoll.c~slab-panic	2004-05-22 14:56:22.505670144 -0700
++++ 25-akpm/fs/eventpoll.c	2004-05-22 14:56:22.547663760 -0700
+@@ -1695,22 +1695,14 @@ static int __init eventpoll_init(void)
+ 	ep_poll_safewake_init(&psw);
  
--			switch (try_to_unmap_one(page, pte_paddr)) {
-+			switch (try_to_unmap_anon_one(page, pte_paddr)) {
- 			case SWAP_SUCCESS:
- 				/*
- 				 * Release a slot.  If we're releasing the
-diff -puN mm/filemap.c~rmap-7-object-based-rmap mm/filemap.c
-diff -puN include/asm-ia64/pgtable.h~rmap-7-object-based-rmap include/asm-ia64/pgtable.h
---- 25/include/asm-ia64/pgtable.h~rmap-7-object-based-rmap	2004-05-22 14:56:22.168721368 -0700
-+++ 25-akpm/include/asm-ia64/pgtable.h	2004-05-22 14:59:42.540260264 -0700
-@@ -102,7 +102,7 @@
-  * can map.
-  */
- #define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT-3))
--#define PMD_SIZE	(__IA64_UL(1) << PMD_SHIFT)
-+#define PMD_SIZE	(1UL << PMD_SHIFT)
- #define PMD_MASK	(~(PMD_SIZE-1))
- #define PTRS_PER_PMD	(__IA64_UL(1) << (PAGE_SHIFT-3))
+ 	/* Allocates slab cache used to allocate "struct epitem" items */
+-	error = -ENOMEM;
+-	epi_cache = kmem_cache_create("eventpoll_epi",
+-				      sizeof(struct epitem),
+-				      0,
+-				      SLAB_HWCACHE_ALIGN | EPI_SLAB_DEBUG, NULL, NULL);
+-	if (!epi_cache)
+-		goto eexit_1;
++	epi_cache = kmem_cache_create("eventpoll_epi", sizeof(struct epitem),
++			0, SLAB_HWCACHE_ALIGN|EPI_SLAB_DEBUG|SLAB_PANIC,
++			NULL, NULL);
  
+ 	/* Allocates slab cache used to allocate "struct eppoll_entry" */
+-	error = -ENOMEM;
+ 	pwq_cache = kmem_cache_create("eventpoll_pwq",
+-				      sizeof(struct eppoll_entry),
+-				      0,
+-				      EPI_SLAB_DEBUG, NULL, NULL);
+-	if (!pwq_cache)
+-		goto eexit_2;
++			sizeof(struct eppoll_entry), 0,
++			EPI_SLAB_DEBUG|SLAB_PANIC, NULL, NULL);
+ 
+ 	/*
+ 	 * Register the virtual file system that will be the source of inodes
+@@ -1718,27 +1710,20 @@ static int __init eventpoll_init(void)
+ 	 */
+ 	error = register_filesystem(&eventpoll_fs_type);
+ 	if (error)
+-		goto eexit_3;
++		goto epanic;
+ 
+ 	/* Mount the above commented virtual file system */
+ 	eventpoll_mnt = kern_mount(&eventpoll_fs_type);
+ 	error = PTR_ERR(eventpoll_mnt);
+ 	if (IS_ERR(eventpoll_mnt))
+-		goto eexit_4;
+-
+-	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: successfully initialized.\n", current));
++		goto epanic;
+ 
++	DNPRINTK(3, (KERN_INFO "[%p] eventpoll: successfully initialized.\n",
++			current));
+ 	return 0;
+ 
+-eexit_4:
+-	unregister_filesystem(&eventpoll_fs_type);
+-eexit_3:
+-	kmem_cache_destroy(pwq_cache);
+-eexit_2:
+-	kmem_cache_destroy(epi_cache);
+-eexit_1:
+-
+-	return error;
++epanic:
++	panic("eventpoll_init() failed\n");
+ }
+ 
+ 
+@@ -1755,4 +1740,3 @@ module_init(eventpoll_init);
+ module_exit(eventpoll_exit);
+ 
+ MODULE_LICENSE("GPL");
+-
+diff -puN fs/fcntl.c~slab-panic fs/fcntl.c
+--- 25/fs/fcntl.c~slab-panic	2004-05-22 14:56:22.506669992 -0700
++++ 25-akpm/fs/fcntl.c	2004-05-22 14:56:22.548663608 -0700
+@@ -627,15 +627,12 @@ void kill_fasync(struct fasync_struct **
+ 		read_unlock(&fasync_lock);
+ 	}
+ }
+-
+ EXPORT_SYMBOL(kill_fasync);
+ 
+ static int __init fasync_init(void)
+ {
+ 	fasync_cache = kmem_cache_create("fasync_cache",
+-		sizeof(struct fasync_struct), 0, 0, NULL, NULL);
+-	if (!fasync_cache)
+-		panic("cannot create fasync slab cache");
++		sizeof(struct fasync_struct), 0, SLAB_PANIC, NULL, NULL);
+ 	return 0;
+ }
+ 
+diff -puN fs/inode.c~slab-panic fs/inode.c
+--- 25/fs/inode.c~slab-panic	2004-05-22 14:56:22.508669688 -0700
++++ 25-akpm/fs/inode.c	2004-05-22 14:59:42.125323344 -0700
+@@ -1396,11 +1396,8 @@ void __init inode_init(unsigned long mem
+ 
+ 	/* inode slab cache */
+ 	inode_cachep = kmem_cache_create("inode_cache", sizeof(struct inode),
+-					 0, SLAB_HWCACHE_ALIGN, init_once,
+-					 NULL);
+-	if (!inode_cachep)
+-		panic("cannot create inode slab cache");
+-
++				0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, init_once,
++				NULL);
+ 	set_shrinker(DEFAULT_SEEKS, shrink_icache_memory);
+ }
+ 
+@@ -1421,5 +1418,4 @@ void init_special_inode(struct inode *in
+ 		printk(KERN_DEBUG "init_special_inode: bogus i_mode (%o)\n",
+ 		       mode);
+ }
+-
+ EXPORT_SYMBOL(init_special_inode);
+diff -puN fs/locks.c~slab-panic fs/locks.c
+--- 25/fs/locks.c~slab-panic	2004-05-22 14:56:22.509669536 -0700
++++ 25-akpm/fs/locks.c	2004-05-22 14:56:22.550663304 -0700
+@@ -1994,15 +1994,13 @@ void steal_locks(fl_owner_t from)
+ 	}
+ 	unlock_kernel();
+ }
+-
+ EXPORT_SYMBOL(steal_locks);
+ 
+ static int __init filelock_init(void)
+ {
+ 	filelock_cache = kmem_cache_create("file_lock_cache",
+-			sizeof(struct file_lock), 0, 0, init_once, NULL);
+-	if (!filelock_cache)
+-		panic("cannot create file lock slab cache");
++			sizeof(struct file_lock), 0, SLAB_PANIC,
++			init_once, NULL);
+ 	return 0;
+ }
+ 
+diff -puN fs/namespace.c~slab-panic fs/namespace.c
+--- 25/fs/namespace.c~slab-panic	2004-05-22 14:56:22.511669232 -0700
++++ 25-akpm/fs/namespace.c	2004-05-22 14:56:22.552663000 -0700
+@@ -1206,9 +1206,7 @@ void __init mnt_init(unsigned long mempa
+ 	int i;
+ 
+ 	mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct vfsmount),
+-					0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if (!mnt_cache)
+-		panic("Cannot create vfsmount cache");
++			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+ 
+ 	order = 0; 
+ 	mount_hashtable = (struct list_head *)
+diff -puN include/linux/slab.h~slab-panic include/linux/slab.h
+--- 25/include/linux/slab.h~slab-panic	2004-05-22 14:56:22.512669080 -0700
++++ 25-akpm/include/linux/slab.h	2004-05-22 14:56:22.552663000 -0700
+@@ -44,6 +44,7 @@ typedef struct kmem_cache_s kmem_cache_t
+ #define SLAB_STORE_USER		0x00010000UL	/* store the last owner for bug hunting */
+ #define SLAB_RECLAIM_ACCOUNT	0x00020000UL	/* track pages allocated to indicate
+ 						   what is reclaimable later*/
++#define SLAB_PANIC		0x00040000UL	/* panic if kmem_cache_create() fails */
+ 
+ /* flags passed to a constructor func */
+ #define	SLAB_CTOR_CONSTRUCTOR	0x001UL		/* if not set, then deconstructor */
+diff -puN kernel/fork.c~slab-panic kernel/fork.c
+--- 25/kernel/fork.c~slab-panic	2004-05-22 14:56:22.513668928 -0700
++++ 25-akpm/kernel/fork.c	2004-05-22 14:59:43.074179096 -0700
+@@ -216,11 +216,8 @@ void __init fork_init(unsigned long memp
+ #endif
+ 	/* create a slab on which task_structs can be allocated */
+ 	task_struct_cachep =
+-		kmem_cache_create("task_struct",
+-				  sizeof(struct task_struct),ARCH_MIN_TASKALIGN,
+-				  0, NULL, NULL);
+-	if (!task_struct_cachep)
+-		panic("fork_init(): cannot create task_struct SLAB cache");
++		kmem_cache_create("task_struct", sizeof(struct task_struct),
++			ARCH_MIN_TASKALIGN, SLAB_PANIC, NULL, NULL);
+ #endif
+ 
+ 	/*
+@@ -1249,37 +1246,20 @@ void __init proc_caches_init(void)
+ {
+ 	sighand_cachep = kmem_cache_create("sighand_cache",
+ 			sizeof(struct sighand_struct), 0,
+-			SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if (!sighand_cachep)
+-		panic("Cannot create sighand SLAB cache");
+-
++			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+ 	signal_cachep = kmem_cache_create("signal_cache",
+ 			sizeof(struct signal_struct), 0,
+-			SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if (!signal_cachep)
+-		panic("Cannot create signal SLAB cache");
+-
++			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+ 	files_cachep = kmem_cache_create("files_cache", 
+-			 sizeof(struct files_struct), 0, 
+-			 SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if (!files_cachep) 
+-		panic("Cannot create files SLAB cache");
+-
++			sizeof(struct files_struct), 0,
++			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+ 	fs_cachep = kmem_cache_create("fs_cache", 
+-			 sizeof(struct fs_struct), 0, 
+-			 SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if (!fs_cachep) 
+-		panic("Cannot create fs_struct SLAB cache");
+- 
++			sizeof(struct fs_struct), 0,
++			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+ 	vm_area_cachep = kmem_cache_create("vm_area_struct",
+ 			sizeof(struct vm_area_struct), 0,
+-			0, NULL, NULL);
+-	if(!vm_area_cachep)
+-		panic("vma_init: Cannot alloc vm_area_struct SLAB cache");
+-
++			SLAB_PANIC, NULL, NULL);
+ 	mm_cachep = kmem_cache_create("mm_struct",
+ 			sizeof(struct mm_struct), 0,
+-			SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if(!mm_cachep)
+-		panic("vma_init: Cannot alloc mm_struct SLAB cache");
++			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+ }
+diff -puN kernel/signal.c~slab-panic kernel/signal.c
+--- 25/kernel/signal.c~slab-panic	2004-05-22 14:56:22.515668624 -0700
++++ 25-akpm/kernel/signal.c	2004-05-22 14:56:22.561661632 -0700
+@@ -2573,7 +2573,5 @@ void __init signals_init(void)
+ 		kmem_cache_create("sigqueue",
+ 				  sizeof(struct sigqueue),
+ 				  __alignof__(struct sigqueue),
+-				  0, NULL, NULL);
+-	if (!sigqueue_cachep)
+-		panic("signals_init(): cannot create sigqueue SLAB cache");
++				  SLAB_PANIC, NULL, NULL);
+ }
+diff -puN kernel/user.c~slab-panic kernel/user.c
+--- 25/kernel/user.c~slab-panic	2004-05-22 14:56:22.516668472 -0700
++++ 25-akpm/kernel/user.c	2004-05-22 14:56:22.562661480 -0700
+@@ -149,10 +149,7 @@ static int __init uid_cache_init(void)
+ 	int n;
+ 
+ 	uid_cachep = kmem_cache_create("uid_cache", sizeof(struct user_struct),
+-				       0,
+-				       SLAB_HWCACHE_ALIGN, NULL, NULL);
+-	if(!uid_cachep)
+-		panic("Cannot create uid taskcount SLAB cache\n");
++			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL, NULL);
+ 
+ 	for(n = 0; n < UIDHASH_SZ; ++n)
+ 		INIT_LIST_HEAD(uidhash_table + n);
+diff -puN lib/radix-tree.c~slab-panic lib/radix-tree.c
+--- 25/lib/radix-tree.c~slab-panic	2004-05-22 14:56:22.517668320 -0700
++++ 25-akpm/lib/radix-tree.c	2004-05-22 14:56:22.563661328 -0700
+@@ -799,9 +799,7 @@ void __init radix_tree_init(void)
+ {
+ 	radix_tree_node_cachep = kmem_cache_create("radix_tree_node",
+ 			sizeof(struct radix_tree_node), 0,
+-			0, radix_tree_node_ctor, NULL);
+-	if (!radix_tree_node_cachep)
+-		panic ("Failed to create radix_tree_node cache\n");
++			SLAB_PANIC, radix_tree_node_ctor, NULL);
+ 	radix_tree_init_maxindex();
+ 	hotcpu_notifier(radix_tree_callback, 0);
+ }
+diff -puN mm/rmap.c~slab-panic mm/rmap.c
+--- 25/mm/rmap.c~slab-panic	2004-05-22 14:56:22.518668168 -0700
++++ 25-akpm/mm/rmap.c	2004-05-22 14:59:43.295145504 -0700
+@@ -977,10 +977,7 @@ void __init pte_chain_init(void)
+ 	pte_chain_cache = kmem_cache_create(	"pte_chain",
+ 						sizeof(struct pte_chain),
+ 						sizeof(struct pte_chain),
+-						0,
++						SLAB_PANIC,
+ 						pte_chain_ctor,
+ 						NULL);
+-
+-	if (!pte_chain_cache)
+-		panic("failed to create pte_chain cache!\n");
+ }
+diff -puN mm/shmem.c~slab-panic mm/shmem.c
+--- 25/mm/shmem.c~slab-panic	2004-05-22 14:56:22.520667864 -0700
++++ 25-akpm/mm/shmem.c	2004-05-22 14:59:40.593556208 -0700
+@@ -1808,9 +1808,9 @@ static void init_once(void *foo, kmem_ca
+ static int init_inodecache(void)
+ {
+ 	shmem_inode_cachep = kmem_cache_create("shmem_inode_cache",
+-					     sizeof(struct shmem_inode_info),
+-					     0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+-					     init_once, NULL);
++				sizeof(struct shmem_inode_info),
++				0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
++				init_once, NULL);
+ 	if (shmem_inode_cachep == NULL)
+ 		return -ENOMEM;
+ 	return 0;
+diff -puN mm/slab.c~slab-panic mm/slab.c
+--- 25/mm/slab.c~slab-panic	2004-05-22 14:56:22.522667560 -0700
++++ 25-akpm/mm/slab.c	2004-05-22 14:56:22.567660720 -0700
+@@ -135,11 +135,11 @@
+ 			 SLAB_POISON | SLAB_HWCACHE_ALIGN | \
+ 			 SLAB_NO_REAP | SLAB_CACHE_DMA | \
+ 			 SLAB_MUST_HWCACHE_ALIGN | SLAB_STORE_USER | \
+-			 SLAB_RECLAIM_ACCOUNT )
++			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC)
+ #else
+ # define CREATE_MASK	(SLAB_HWCACHE_ALIGN | SLAB_NO_REAP | \
+ 			 SLAB_CACHE_DMA | SLAB_MUST_HWCACHE_ALIGN | \
+-			 SLAB_RECLAIM_ACCOUNT)
++			 SLAB_RECLAIM_ACCOUNT | SLAB_PANIC)
+ #endif
+ 
+ /*
+@@ -1402,9 +1402,11 @@ next:
+ 	up(&cache_chain_sem);
+ 	unlock_cpu_hotplug();
+ opps:
++	if (!cachep && (flags & SLAB_PANIC))
++		panic("kmem_cache_create(): failed to create slab `%s'\n",
++			name);
+ 	return cachep;
+ }
+-
+ EXPORT_SYMBOL(kmem_cache_create);
+ 
+ static inline void check_irq_off(void)
+diff -puN net/socket.c~slab-panic net/socket.c
+--- 25/net/socket.c~slab-panic	2004-05-22 14:56:22.524667256 -0700
++++ 25-akpm/net/socket.c	2004-05-22 14:56:22.569660416 -0700
+@@ -310,9 +310,9 @@ static void init_once(void * foo, kmem_c
+ static int init_inodecache(void)
+ {
+ 	sock_inode_cachep = kmem_cache_create("sock_inode_cache",
+-					     sizeof(struct socket_alloc),
+-					     0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
+-					     init_once, NULL);
++				sizeof(struct socket_alloc),
++				0, SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT,
++				init_once, NULL);
+ 	if (sock_inode_cachep == NULL)
+ 		return -ENOMEM;
+ 	return 0;
 
 _
 --
