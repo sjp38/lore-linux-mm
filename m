@@ -1,99 +1,36 @@
-Message-ID: <41DB5CE9.6090505@sgi.com>
-Date: Tue, 04 Jan 2005 21:20:09 -0600
-From: Ray Bryant <raybry@sgi.com>
+From: Roman Zippel <zippel@linux-m68k.org>
+Subject: Re: page fault scalability patch V14 [3/7]: i386 universal cmpxchg
+Date: Wed, 5 Jan 2005 12:51:34 +0100
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain> <Pine.LNX.4.58.0501041129030.805@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0501041136350.805@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0501041136350.805@schroedinger.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: page migration patchset
-References: <41DB35B8.1090803@sgi.com> <m1wtusd3y0.fsf@muc.de>
-In-Reply-To: <m1wtusd3y0.fsf@muc.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200501051251.36879.zippel@linux-m68k.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, stevel@mvista.com, andrew morton <akpm@osdl.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> Ray Bryant <raybry@sgi.com> writes:
-> 
-> 
->>http://sr71.net/patches/2.6.10/2.6.10-mm1-mhp-test7/
->>
->>A number of us are interested in using the page migration patchset by itself:
->>
->>(1)  Myself, for a manual page migration project I am working on.  (This
->>      is for migrating jobs from one set of nodes to another under batch
->>      scheduler control).
->>(2)  Marcello, for his memory defragmentation work.
->>(3)  Of course, the memory hotplug project itself.
->>
->>(there are probably other "users" that I have not enumerated here).
-> 
-> 
-> Could you coordinate that with Steve Longerbeam (cc'ed) ? 
-> 
-> He has a NUMA API extension ready to be merged into -mm* that also
-> does kind of page migration when changing the policies of files.
-> 
-> -Andi
-> 
-> 
-Yes, Steve's patch tries to move page cache pages that are found to be 
-allocated in the "wrong" place.  (See remove_invalid_filemap_page() in his
-patch of 11/02/2004 on lkml).  But if the page is found to be busy, the code
-gives up, as near as I can tell.
+Hi,
 
-If the page migration patch were merged, Steve could call 
-migrate_onepage(page,node) to move the page to the correct node. even if it
-is busy [hopefully his code can "wait" at that point, I haven't looked into it 
-further to see if that is the case.]
+On Tuesday 04 January 2005 20:37, Christoph Lameter wrote:
 
-[This is really the page migration patch plus a small patch of
-mine that addss the node argument to migrate_onepage(), and that I hope will
-get merged into the page migration patch shortly]
+>         * Provide emulation of cmpxchg suitable for uniprocessor if
+>    build and run on 386.
+>         * Provide emulation of cmpxchg8b suitable for uniprocessor
+>    systems if build and run on 386 or 486.
 
-Other than that, I don't see a big intersection between the two patches.
-Steve, do you see anything else where we need to coordinate?
+I'm not sure that's such a good idea. This emulation is more expensive as it 
+has to disable interrupts and you already have emulation functions using 
+spinlocks anyway, so why not use them? This way your patch would not just 
+scale up, but also still scale down.
 
-On the other hand, there is some work to be done wrt memory policies
-and page migration.  For the project I am working on, we need to be able
-to move all of the pages used by a process on one set of nodes to another
-set of nodes.  At some point during this process we will need to update
-the memory policy for that process.  For Steve's patch, we will
-similarly need to update the policy associated with files associated with
-the process, I would think, elsewise new pages will get allocated on the
-old set of nodes, which is something we don't want.  Sounds like some
-new interfaces will have to be developed here.  Does that make sense
-to you, Andi and Steve?
+bye, Roman
 
-My personal preference would be to keep as much of this as possible
-under user space control; that is, rather than having a big autonomous
-system call that migrates pages and then updates policy information,
-I'd prefer to split the work into several smaller system calls that
-are issued by a user space program responsible for coordinating the
-process migration as a series of steps, e. g.:
-
-(1)  suspend the process via SIGSTOP
-(2)  update the mempolicy information
-(3)  migrate the process's pages
-(4)  migrate the process to the new cpu via set_schedaffinity()
-(5)  resume the process via SIGCONT
-
-that way the user program actually implements the process memory
-migration fuctionality rather than having it all done by the kernel.
-Thid also lets the user (or sys admin) modify or add new steps to
-the page migration to satisfy local requirements without having to
-modify the kernel.
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
