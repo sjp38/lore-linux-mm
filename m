@@ -1,339 +1,71 @@
-Received: from m7.gw.fujitsu.co.jp ([10.0.50.77]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i98C1eR6027118 for <linux-mm@kvack.org>; Fri, 8 Oct 2004 21:01:40 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s6.gw.fujitsu.co.jp by m7.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i98C1dDE012734 for <linux-mm@kvack.org>; Fri, 8 Oct 2004 21:01:39 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s6.gw.fujitsu.co.jp (s6 [127.0.0.1])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id AA3B43CE3FF
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2004 21:01:39 +0900 (JST)
-Received: from fjmail501.fjmail.jp.fujitsu.com (fjmail501-0.fjmail.jp.fujitsu.com [10.59.80.96])
-	by s6.gw.fujitsu.co.jp (Postfix) with ESMTP id 6A8443CE3D9
-	for <linux-mm@kvack.org>; Fri,  8 Oct 2004 21:01:39 +0900 (JST)
-Received: from jp.fujitsu.com
- (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
- fjmail501.fjmail.jp.fujitsu.com
- (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I5900KPNLEPE0@fjmail501.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Fri,  8 Oct 2004 21:01:38 +0900 (JST)
-Date: Fri, 08 Oct 2004 21:07:12 +0900
-From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] no buddy bitmap patch revisit : for mm/page_alloc.c [1/2]
-Message-id: <416682F0.6080208@jp.fujitsu.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
+Date: Fri, 8 Oct 2004 07:00:10 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
+Message-ID: <20041008100010.GB16028@logos.cnet>
+References: <20041004172427.GL16374@logos.cnet> <20041005.115347.95910198.taka@valinux.co.jp> <20041007120605.GA13779@logos.cnet> <20041008.160028.22497637.taka@valinux.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041008.160028.22497637.taka@valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel ML <linux-kernel@vger.kernel.org>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, Tony Luck <tony.luck@intel.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
+To: Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: iwamoto@valinux.co.jp, haveblue@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is for mm/page_alloc.c
+On Fri, Oct 08, 2004 at 04:00:28PM +0900, Hirokazu Takahashi wrote:
+> Hi, Marcelo.
+> 
+> > It seems there is typo in the current version of the patch:
+> > 
+> > int try_to_migrate_pages(struct list_head *page_list)
+> > {
+> > ...
+> >         current->flags |= PF_KSWAPD;    /*  It's fake */
+> >         list_for_each_entry_safe(page, page2, page_list, lru) {
+> >                 /*
+> >                  * Start writeback I/O if it's a dirty page with buffers
+> >                  * and it doesn't have migrate_page method.
+> >                  */
+> >                 if (PageDirty(page) && PagePrivate(page)) {
+> >                         if (!TestSetPageLocked(page)) {
+> >                                 mapping = page_mapping(page);
+> >                                 if (!mapping || mapping->a_ops->migrate_page ||
+> a> 						^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> >                                     pageout(page, mapping) != PAGE_SUCCESS) {
+> >                                         unlock_page(page);
+> >                                 }
+> >                         }
+> >                 }
+> > 
+> > 
+> > Shouldnt that be "!mapping->a_ops->migrate_page"?
+> 
+> "mapping->a_ops->migrate_page" is correct.
+> 
+> This code is just for optimization. If mapping->a_ops->migrate_page
+> isn't implemented, migrate_page_common() is used to migrate the page.
+> migrate_page_common() will try to write it back if it's dirty, so that
+> it would be better to start writeback I/O for target pages in advance
+> without waiting the I/O completions.
 
-macro definition ZONE_IN_HOLE is rewritten as CONFIG_ZONE_IN_HOLE.
-some comments and change log is also rewritten.
+Right. But if migrate_page _is_ implemented, we also start writeback! 
 
-Thanks
-Kame <kamezawa.hiroyu@jp.fujitsu.com>
-===
+Shouldnt that be "if we dont have migrate_page(), start writeback, since 
+in this case well use migrate_page_common() anyway."
 
-This patch removes bitmaps from page allocator in mm/page_alloc.c.
+It seems the logic is inverted, or maybe I'm wrong.
 
-This buddy system uses page->private field to record free page's order
-instead of using bitmaps.
+> As you may know the migration code will work fine without this code.
 
-The algorithm of the buddy system is unchanged. Only bitmaps are removed.
+OK!
 
-In this buddy system, 2 pages,a page and "buddy", can be coalesced when
+> > That is, if we can't migrate the page, try to write it out?
 
-(buddy->private & PG_private) &&
-(page_order(page)) == (page_order(buddy)) &&
-!PageReserved(buddy) &&
-page_count(buddy) == 0
+I just didnt understand the logic very well, maybe I should just 
+go reread the code.
 
-this also means "buddy" is a head of continuous free pages
-of length of (1 << page_order(buddy)).
-
-bad_range() is called from inner loop of __free_pages_bulk().
-In many archs, bad_range() is only a sanity check, it will always return 0.
-But if a zone's memmap has a hole, it sometimes returns 1.
-An architecture with memory holes in a zone has to define CONFIG_HOLES_IN_ZONE.
-When CONFIG_HOLES_IN_ZONE is defined, pfn_valid() is called for checking
-whether a buddy pages is valid or not.
-
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
----
-
- test-kernel-kamezawa/mm/page_alloc.c |  154 +++++++++++++++++------------------
- 1 files changed, 75 insertions(+), 79 deletions(-)
-
-diff -puN mm/page_alloc.c~eliminate-bitmap-alloc mm/page_alloc.c
---- test-kernel/mm/page_alloc.c~eliminate-bitmap-alloc	2004-10-08 18:21:41.669746864 +0900
-+++ test-kernel-kamezawa/mm/page_alloc.c	2004-10-08 18:28:02.471856144 +0900
-@@ -67,6 +67,10 @@ static int bad_range(struct zone *zone,
- 		return 1;
- 	if (page_to_pfn(page) < zone->zone_start_pfn)
- 		return 1;
-+#ifdef CONFIG_HOLES_IN_ZONE
-+	if (!pfn_valid(page_to_pfn(page)))
-+		return 1;
-+#endif
- 	if (zone != page_zone(page))
- 		return 1;
- 	return 0;
-@@ -154,6 +158,45 @@ static void destroy_compound_page(struct
- #endif		/* CONFIG_HUGETLB_PAGE */
-
- /*
-+ * function for dealing with page's order in buddy system.
-+ * zone->lock is already acquired when we use these.
-+ * So, we don't need atomic page->flags operations here.
-+ */
-+static inline unsigned long page_order(struct page *page) {
-+	return page->private;
-+}
-+
-+static inline void set_page_order(struct page *page, int order) {
-+	page->private = order;
-+	__SetPagePrivate(page);
-+}
-+
-+static inline void rmv_page_order(struct page *page)
-+{
-+	__ClearPagePrivate(page);
-+	page->private = 0;
-+}
-+
-+/*
-+ * This function checks whether a page is free && is the buddy
-+ * we can do coalesce a page and its buddy if
-+ * (a) the buddy is free &&
-+ * (b) the buddy is on the buddy system &&
-+ * (c) a page and its buddy have the same order.
-+ * for recording page's order, we use page->private and PG_private.
-+ *
-+ */
-+static inline int page_is_buddy(struct page *page, int order)
-+{
-+       if (PagePrivate(page)           &&
-+           (page_order(page) == order) &&
-+           !PageReserved(page)         &&
-+            page_count(page) == 0)
-+               return 1;
-+       return 0;
-+}
-+
-+/*
-  * Freeing function for a buddy system allocator.
-  *
-  * The concept of a buddy system is to maintain direct-mapped table
-@@ -165,9 +208,10 @@ static void destroy_compound_page(struct
-  * at the bottom level available, and propagating the changes upward
-  * as necessary, plus some accounting needed to play nicely with other
-  * parts of the VM system.
-- * At each level, we keep one bit for each pair of blocks, which
-- * is set to 1 iff only one of the pair is allocated.  So when we
-- * are allocating or freeing one, we can derive the state of the
-+ * At each level, we keep a list of pages, which are heads of continuous
-+ * free pages of length of (1 << order) and marked with PG_Private.Page's
-+ * order is recorded in page->private field.
-+ * So when we are allocating or freeing one, we can derive the state of the
-  * other.  That is, if we allocate a small block, and both were
-  * free, the remainder of the region must be split into blocks.
-  * If a block is freed, and its buddy is also free, then this
-@@ -177,42 +221,39 @@ static void destroy_compound_page(struct
-  */
-
- static inline void __free_pages_bulk (struct page *page, struct page *base,
--		struct zone *zone, struct free_area *area, unsigned int order)
-+		struct zone *zone, unsigned int order)
- {
--	unsigned long page_idx, index, mask;
-+	unsigned long page_idx;
-+	struct page *coalesced;
-+	int order_size = 1 << order;
-
- 	if (order)
- 		destroy_compound_page(page, order);
--	mask = (~0UL) << order;
-+
- 	page_idx = page - base;
--	if (page_idx & ~mask)
--		BUG();
--	index = page_idx >> (1 + order);
-
--	zone->free_pages += 1 << order;
--	while (order < MAX_ORDER-1) {
--		struct page *buddy1, *buddy2;
-+	BUG_ON(page_idx & (order_size - 1));
-+	BUG_ON(bad_range(zone, page));
-
--		BUG_ON(area >= zone->free_area + MAX_ORDER);
--		if (!__test_and_change_bit(index, area->map))
--			/*
--			 * the buddy page is still allocated.
--			 */
-+	zone->free_pages += order_size;
-+	while (order < MAX_ORDER-1) {
-+		struct page *buddy;
-+		int buddy_idx;
-+		buddy_idx = (page_idx ^ (1 << order));
-+		buddy = base + buddy_idx;
-+		if (bad_range(zone, buddy))
-+			break;
-+		if (!page_is_buddy(buddy, order))
- 			break;
--
- 		/* Move the buddy up one level. */
--		buddy1 = base + (page_idx ^ (1 << order));
--		buddy2 = base + page_idx;
--		BUG_ON(bad_range(zone, buddy1));
--		BUG_ON(bad_range(zone, buddy2));
--		list_del(&buddy1->lru);
--		mask <<= 1;
-+		list_del(&buddy->lru);
-+		rmv_page_order(buddy);
-+		page_idx &= buddy_idx;
- 		order++;
--		area++;
--		index >>= 1;
--		page_idx &= mask;
- 	}
--	list_add(&(base + page_idx)->lru, &area->free_list);
-+	coalesced = base + page_idx;
-+	set_page_order(coalesced, order);
-+	list_add(&coalesced->lru, &zone->free_area[order].free_list);
- }
-
- static inline void free_pages_check(const char *function, struct page *page)
-@@ -250,12 +291,10 @@ free_pages_bulk(struct zone *zone, int c
- 		struct list_head *list, unsigned int order)
- {
- 	unsigned long flags;
--	struct free_area *area;
- 	struct page *base, *page = NULL;
- 	int ret = 0;
-
- 	base = zone->zone_mem_map;
--	area = zone->free_area + order;
- 	spin_lock_irqsave(&zone->lock, flags);
- 	zone->all_unreclaimable = 0;
- 	zone->pages_scanned = 0;
-@@ -263,7 +302,7 @@ free_pages_bulk(struct zone *zone, int c
- 		page = list_entry(list->prev, struct page, lru);
- 		/* have to delete it as __free_pages_bulk list manipulates */
- 		list_del(&page->lru);
--		__free_pages_bulk(page, base, zone, area, order);
-+		__free_pages_bulk(page, base, zone, order);
- 		ret++;
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
-@@ -285,8 +324,6 @@ void __free_pages_ok(struct page *page,
- 	free_pages_bulk(page_zone(page), 1, &list, order);
- }
-
--#define MARK_USED(index, order, area) \
--	__change_bit((index) >> (1+(order)), (area)->map)
-
- /*
-  * The order of subdivision here is critical for the IO subsystem.
-@@ -304,7 +341,7 @@ void __free_pages_ok(struct page *page,
-  */
- static inline struct page *
- expand(struct zone *zone, struct page *page,
--	 unsigned long index, int low, int high, struct free_area *area)
-+ 	int low, int high, struct free_area *area)
- {
- 	unsigned long size = 1 << high;
-
-@@ -314,7 +351,7 @@ expand(struct zone *zone, struct page *p
- 		size >>= 1;
- 		BUG_ON(bad_range(zone, &page[size]));
- 		list_add(&page[size].lru, &area->free_list);
--		MARK_USED(index + size, high, area);
-+		set_page_order(&page[size], high);
- 	}
- 	return page;
- }
-@@ -368,7 +405,6 @@ static struct page *__rmqueue(struct zon
- 	struct free_area * area;
- 	unsigned int current_order;
- 	struct page *page;
--	unsigned int index;
-
- 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
- 		area = zone->free_area + current_order;
-@@ -377,11 +413,9 @@ static struct page *__rmqueue(struct zon
-
- 		page = list_entry(area->free_list.next, struct page, lru);
- 		list_del(&page->lru);
--		index = page - zone->zone_mem_map;
--		if (current_order != MAX_ORDER-1)
--			MARK_USED(index, current_order, area);
-+		rmv_page_order(page);
- 		zone->free_pages -= 1UL << order;
--		return expand(zone, page, index, order, current_order, area);
-+		return expand(zone, page, order, current_order, area);
- 	}
-
- 	return NULL;
-@@ -1414,49 +1448,11 @@ void __init memmap_init_zone(unsigned lo
- 	}
- }
-
--/*
-- * Page buddy system uses "index >> (i+1)", where "index" is
-- * at most "size-1".
-- *
-- * The extra "+3" is to round down to byte size (8 bits per byte
-- * assumption). Thus we get "(size-1) >> (i+4)" as the last byte
-- * we can access.
-- *
-- * The "+1" is because we want to round the byte allocation up
-- * rather than down. So we should have had a "+7" before we shifted
-- * down by three. Also, we have to add one as we actually _use_ the
-- * last bit (it's [0,n] inclusive, not [0,n[).
-- *
-- * So we actually had +7+1 before we shift down by 3. But
-- * (n+8) >> 3 == (n >> 3) + 1 (modulo overflows, which we do not have).
-- *
-- * Finally, we LONG_ALIGN because all bitmap operations are on longs.
-- */
--unsigned long pages_to_bitmap_size(unsigned long order, unsigned long nr_pages)
--{
--	unsigned long bitmap_size;
--
--	bitmap_size = (nr_pages-1) >> (order+4);
--	bitmap_size = LONG_ALIGN(bitmap_size+1);
--
--	return bitmap_size;
--}
--
- void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone, unsigned long size)
- {
- 	int order;
--	for (order = 0; ; order++) {
--		unsigned long bitmap_size;
--
-+	for (order = 0; order < MAX_ORDER ; order++) {
- 		INIT_LIST_HEAD(&zone->free_area[order].free_list);
--		if (order == MAX_ORDER-1) {
--			zone->free_area[order].map = NULL;
--			break;
--		}
--
--		bitmap_size = pages_to_bitmap_size(order, size);
--		zone->free_area[order].map =
--		  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
- 	}
- }
-
-
-_
-
+Thanks!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
