@@ -1,48 +1,50 @@
-Date: Mon, 16 Jul 2001 16:56:55 +0100
+Date: Mon, 16 Jul 2001 19:30:33 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: [PATCH] Separate global/perzone inactive/free shortage
-Message-ID: <20010716165655.D28023@redhat.com>
-References: <OF11D0664E.20E72543-ON85256A8B.004B248D@pok.ibm.com>
+Message-ID: <20010716193033.H28023@redhat.com>
+References: <20010716141915.C28023@redhat.com> <Pine.LNX.4.33.0107161606330.328-100000@mikeg.weiden.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <OF11D0664E.20E72543-ON85256A8B.004B248D@pok.ibm.com>; from abali@us.ibm.com on Mon, Jul 16, 2001 at 09:56:58AM -0400
+In-Reply-To: <Pine.LNX.4.33.0107161606330.328-100000@mikeg.weiden.de>; from mikeg@wen-online.de on Mon, Jul 16, 2001 at 05:44:17PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bulent Abali <abali@us.ibm.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Mike Galbraith <mikeg@wen-online.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Dirk Wetter <dirkw@rentec.com>, linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Dirk Wetter <dirkw@rentec.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 16, 2001 at 09:56:58AM -0400, Bulent Abali wrote:
-> >
-> >Why not just round-robin between the eligible zones when allocating,
-> >biasing each zone based on size?  On a 4GB box you'd basically end up
-> >doing 3 times as many allocations from the highmem zone as the normal
-> >zone and only very occasionally would you try to dig into the dma
-> >zone.
-> >Cheers,
-> > Stephen
+Hi,
+
+On Mon, Jul 16, 2001 at 05:44:17PM +0200, Mike Galbraith wrote:
+
+> > Why not just round-robin between the eligible zones when allocating,
+> > biasing each zone based on size?
+
+> What prevents this from happening, and lets make ZONE_DINKY _really_
+> dinky just for the sake of argument.  ZONE_DINKY will have say 4 pages,
+> one for active, dirty, clean and free.  Balanced is 2 dirty and 2 free,
+> or 1 free, 1 clean and 1 dirty.  2 tasks are running, and both are giant
+> economy size, with very nearly 2gig of vm allocated each.
 > 
-> If I understood page_alloc.c:build_zonelists() correctly
-> ZONE_HIGHMEM includes ZONE_NORMAL which includes ZONE_DMA.
-> Memory allocators (other than ZONE_DMA) will dip in to the dma zone
-> only when there are no highmem and/or normal zone pages available.
-> So, the current method is more conservative (better) than round-robin
-> it seems to me.
+> ZONE_DINKY, ZONE_BIG, and ZONE_MONDO are all fully engaged and under
+> pressure.  ZONE_DINKY gets aged/laundered such that it is in balance.
+> Task A is using 1 ZONE_DINKY page.  Task B requests a page to do pagein,
+> and reclaims a page from ZONE_DINKY because there's only 1 free page.
+> We are back to inactive shortage instantly, so we have to walk 4gig of
+> vm looking for one ZONE_DINKY page to activate/age/deactivate.  During
+> the aging process, any other in use page from that zone is fair game.
 
-On a 20MB box with 16MB DMA zone and 4MB NORMAL zone, a low rate of
-allocations will be continually satisfied from the NORMAL zone
-resulting in constant aging and pageout within that zone, but with no
-pressure at all on the larger 16MB DMA zone.  That's hardly fair.
+Agreed, but in that sort of case, if we have (say) close 1GB in
+ZONE_NORMAL and 16MB in ZONE_DMA, then only one allocation in 64 will
+even _try_ to allocate from the DMA zone.  Replace the DMA zone with a
+hypothetical DINKY 4-page zone and it goes down to one allocation in
+65536.  You don't reduce the cost of a DINKY allocation, but you
+reduce the change that such an allocation will happen.
 
-Likewise for the small 100MB HIGHMEM zone you get at the top of memory
-on a 1GB box.
+The balanced round-robin still seems like a helpful next step here
+even if it doesn't cure all the balance problems immediately.
 
-Weighted round-robin has the advantage of not needing to be
-special-cased for different sizes of machine.
-
-Cheers,
- Stephen
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
