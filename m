@@ -1,58 +1,81 @@
-Reply-To: Gerrit Huizenga <gh@us.ibm.com>
-From: Gerrit Huizenga <gh@us.ibm.com>
-Subject: LTP memory tests (fwd)
+Date: Thu, 11 Jul 2002 18:41:27 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] Optimize out pte_chain take three
+In-Reply-To: <3D2DF5CB.471024F9@zip.com.au>
+Message-ID: <Pine.LNX.4.44L.0207111837060.14432-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="----- =_aaaaaaaaaa0"
-Content-ID: <22123.1026423138.0@us.ibm.com>
-Date: Thu, 11 Jul 2002 14:32:18 -0700
-Message-Id: <E17SlXu-0005kt-00@w-gerrit2>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@zip.com.au>, William Lee Irwin III <wli@holomorphy.com>, Rik van Riel <riel@conectiva.com.br>, Dave McCracken <dmccr@us.ibm.com>, Paul Larson <plars@austin.ibm.com>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-------- =_aaaaaaaaaa0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <22123.1026423138.1@us.ibm.com>
+On Thu, 11 Jul 2002, Andrew Morton wrote:
+> Rik van Riel wrote:
 
-The Linux Test project has some tests for VM.  I'm not sure
-that all of them are enabled by a default run.  I'd recommend
-installing the LTP (ltp.sourceforge.net) and running it as a
-minimal regression suite if you haven't done so already.  It
-is generally pretty quick and you could probably set up a run
-list to focus on VM changes that would run much more quickly.
+> > > I looked at 2.4-ac as well.  Seems that the dropbehind there only
+> > > addresses reads?
+> >
+> > It should also work on linear writes.
+>
+> The only call site for drop_behind() in -ac is generic_file_readahead().
 
-If you have some specific modifications, e.g.:
+generic_file_write() calls deactivate_page() if it crosses
+the page boundary (ie. if it is done writing this page)
 
-	From: Andrew Morton <akpm@zip.com.au>
+> > > I suspect the best fix here is to not have dirty or writeback
+> > > pagecache pages on the LRU at all.  Throttle on memory coming
+> > > reclaimable, put the pages back on the LRU when they're clean,
+> > > etc.  As we have often discussed.  Big change.
+> >
+> > That just doesn't make sense, if you don't put the dirty pages
+> > on the LRU then what incentive _do_ you have to write them out ?
+>
+> We have dirty page accounting.  If the page reclaim code decides
+> there's too much dirty memory then kick pdflush, and sleep on
+> IO completion's movement of reclaimable pages back onto the LRU.
 
-	The problem is the access pattern.  It shouldn't be
-	random-uniform.  But what should it be?  random-gaussian?
+At what point in the LRU ?
 
-	So: map a large file, access it random-gaussian.  malloc
-	some memory, access it random-gaussian.  Apply eviction
-	pressure. Measure throughput.  Optimise throughput.
+Are you proposing to reclaim free pages before considering
+dirty pages ?
 
-	Does this not capture what the VM is supposed to do?
+> Making page reclaimers perform writeback in shrink_cache()
+> just has awful latency problems.  If we don't do that then
+> there's just no point in keeping those pages on the LRU
+> because all we do is scan past them and blow cycles.
 
-...or enhancments to the current tests that would make them more
-useful, yell.
+Why does it have latency problems ?
 
-Paul's team typically focuses on functional tests rather than
-performance tests.  However, it may be possible to make a set
-of deterministic tests that may also be useful for doing some
-first level performance comparisons if written correctly.  E.g.
-random distributions with a settable initial seed.
+Keeping them on the LRU _does_ make sense since we know
+when we want to evict these pages.  Putting them aside
+on a laundry list might make sense though, provided that
+they are immediately made a candidate for replacement
+after IO completion.
 
-gerrit
+> > ...
+> > If the throttling is wrong, I propose we fix the trottling.
+>
+> How?  (Without adding more list scanning)
 
+For one, we shouldn't let every process go into
+try_to_free_pages() and check for itself if the
+pages really aren't freeable.
 
-------- =_aaaaaaaaaa0
-Content-Type: message/rfc822
-Content-ID: <22123.1026423138.2@us.ibm.com>
-Content-Description: forwarded message
+It is enough if one thread (kswapd) does this,
+scanning more often won't change the status of
+the pages.
 
+regards,
 
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
 
-------- =_aaaaaaaaaa0--
+http://www.surriel.com/		http://distro.conectiva.com/
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/
