@@ -2,34 +2,45 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14315.42764.144468.501249@dukat.scot.redhat.com>
-Date: Fri, 24 Sep 1999 17:30:04 +0100 (BST)
-Subject: Re: syslinux-1.43 bug [and possible PATCH]
-In-Reply-To: <37EB3C86.F17CC25A@transmeta.com>
-References: <199909232109.OAA13866@google.engr.sgi.com>
-	<99Sep24.094756bst.66313@gateway.ukaea.org.uk>
-	<37EB3C86.F17CC25A@transmeta.com>
+Message-ID: <14315.48702.873172.788668@dukat.scot.redhat.com>
+Date: Fri, 24 Sep 1999 19:09:02 +0100 (BST)
+Subject: Re: mm->mmap_sem
+In-Reply-To: <Pine.LNX.4.10.9909241040460.12262-100000@imperial.edgeglobal.com>
+References: <14314.49322.671097.451248@dukat.scot.redhat.com>
+	<Pine.LNX.4.10.9909241040460.12262-100000@imperial.edgeglobal.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "H. Peter Anvin" <hpa@transmeta.com>
-Cc: Neil Conway <nconway.list@UKAEA.ORG.UK>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, syslinux@linux.kernel.org, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: James Simmons <jsimmons@edgeglobal.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-In article <37EB3C86.F17CC25A@transmeta.com>, "H. Peter Anvin"
-<hpa@transmeta.com> writes:
+On Fri, 24 Sep 1999 10:59:31 -0400 (EDT), James Simmons
+<jsimmons@edgeglobal.com> said:
 
-> Neil Conway wrote:
->> My "easy" fix was to pull out a DIMM from each of our machines, leaving
->> 3x256 :-)  Not elegant, but fast!
+> Does this mean while one process is in the act of mlocking a memory
+> region another process can actually change the contents of that memory?
 
-> As already said, get SYSLINUX 1.44 or later...
+Yes.  The semaphore only protects against changes to the mmap lists and
+page tables.  It does not protect memory itself.  On a multi-processor
+machine, the only way the kernel on one CPU can prevent the contents of
+a page from being modified by a process on another CPU is to forcibly
+revoke all read-write mappings to that page.
 
-Which works nicely --- thanks Peter.  The current Red Hat lorax
-snapshots use the later syslinux and for the first time they boot
-without messing about with kernel mem= parameters on the large-mem box
-here.
+>> > Will this semaphore protect this region? In a SMP machine same
+>> > thing. What kind of protect does this semaphore provide? Does it
+>> > prevent other process from doing anything to the memory. 
+>> 
+>> No.
+
+> I obtained this idea from do_page_fault. This function is called from a
+> interrupt when a process actually tries to access memory correct? 
+
+No, it is only called when a process tries to access memory which is not
+currently in the process's page tables.  If the page is already mapped,
+then there is no page fault.  Otherwise you'd be doing massive amounts
+of kernel work for every byte of data accessed by every process.
 
 --Stephen
 --
