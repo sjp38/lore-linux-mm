@@ -1,38 +1,30 @@
-Date: Mon, 11 Aug 2003 09:02:22 -0700
+Date: Mon, 11 Aug 2003 11:05:52 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: Is /proc/#/statm worth fixing?
-Message-ID: <20030811160222.GE3170@holomorphy.com>
-References: <20030811090213.GA11939@k3.hellgate.ch>
+Subject: Re: 2.6.0-test3-mm1
+Message-ID: <20030811180552.GG32488@holomorphy.com>
+References: <20030809203943.3b925a0e.akpm@osdl.org> <94490000.1060612530@[10.10.2.4]>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030811090213.GA11939@k3.hellgate.ch>
+In-Reply-To: <94490000.1060612530@[10.10.2.4]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Luethi <rl@hellgate.ch>
-Cc: linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 11, 2003 at 11:02:13AM +0200, Roger Luethi wrote:
-> /proc/#/statm is a joke. Out of 7 columns, 2 are always zero in 2.6. Of
-> the remaining columns, at least one more is incorrect. You can most
-> certainly get all the intended values off /proc/#/status anyway [1].
-> In 2.4, more columns show actual data, but also more of them are wrong.
-> To top it off, 2.4 and 2.6 show vastly different numbers for several
-> colums (where they clearly shouldn't).
-> /proc/#/statm is bust and any tool relying on it is broken. Can we just
-> remove that file? Maybe print poisoned values in 2.6 to prevent the odd
-> program from crashing (if there are any), and remove it in 2.7.
+On Mon, Aug 11, 2003 at 07:35:31AM -0700, Martin J. Bligh wrote:
+> Degredation on kernbench is still there:
+> Kernbench: (make -j N vmlinux, where N = 16 x num_cpus)
+>                               Elapsed      System        User         CPU
+>               2.6.0-test3       45.97      115.83      571.93     1494.50
+>           2.6.0-test3-mm1       46.43      122.78      571.87     1496.00
+> Quite a bit of extra sys time. I thought the suspected part of the sched
+> changes got backed out, but maybe I'm just not following it ...
 
-I've restored a number of the fields to the 2.4.x semantics in tandem
-with a forward port of bcrl's O(1) proc_pid_statm() patch.
+Is this with or without the unit conversion fix for the load balancer?
 
-I dumped the forward port of the patch into -wli, available at:
-ftp://ftp.kernel.org/pub/linux/kernel/people/wli/kernels/
-
-It's unclear how much traction it will get, as it's mildly overweight
-as far as patches go, though I wouldn't go so far as to call it invasive
-(opinions will vary, of course).
+It will be load balancing extra-aggressively without the fix.
 
 
 -- wli
