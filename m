@@ -1,34 +1,39 @@
-Date: Mon, 30 Aug 1999 10:31:27 -0400 (EDT)
+Date: Mon, 30 Aug 1999 10:50:11 -0400 (EDT)
 From: James Simmons <jsimmons@edgeglobal.com>
 Subject: Re: accel handling
-In-Reply-To: <37CA73D8.E41F4F5@switchboard.ericsson.se>
-Message-ID: <Pine.LNX.4.10.9908300949550.3356-100000@imperial.edgeglobal.com>
+In-Reply-To: <14282.37533.98879.414300@dukat.scot.redhat.com>
+Message-ID: <Pine.LNX.4.10.9908301043070.3506-100000@imperial.edgeglobal.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcus Sundberg <erammsu@kieraypc01.p.y.ki.era.ericsson.se>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Marcus Sundberg <erammsu@kieraypc01.p.y.ki.era.ericsson.se>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> What I believe James is talking about here is allowing non-priviledged
-> processes to access graphics hardware where the graphics card, or even
-> the whole system, may enter an unrecoverable state if you try to access
-> the frame buffer while the accel engine is active. (Yes there really
-> exist such hardware...)
-> 
-> To achieve this you really must physicly prevent the process to access
-> the framebuffer while the accel engine is active. The question is what
-> the best way to do this is (and if that way is good enough to bother
-> doing it...) ?
+> The only way to do it is to flip page tables while the accel engine is
+> running.  You may want to restore it on demand by trapping the page
+> fault on the framebuffer and stalling until the accel lock is released.
+> This can be done, but it is really expensive: you are doing a whole pile
+> of messy VM operations every time you want to trigger the accel engine
+> (any idea how often you want to flip the protection, btw?)
+>
 
-Marcus you are on this list too. Actually I have though about what he
-said. I never though of it this way but you can think of the accel engine
-as another "process" trying to use the framebuffer. Their still is the
-question. How do you know when a mmap of the framebuffer is being
-accessed? So I can lock the accel engine when needed.
+The way the accel engine will work is that it will batch accel commands.
+Then when full flush them to the accel engine. So we can batch a hugh
+number of commands to avoid the expensive process of flipping page tables.
+Of course the buffer is of variable size. The size determined by how many
+accel commands you want to send to the engine to display a frame. So a
+complex scene would be worth it.  
+ 
+> So you are talking several system calls, SMP inter-processor interrupts
+> and piles of VM page twiddling every time you want to claim and release
+> the core engine.  Sorry, folks, but there's no way of avoiding the
+> conclusion that this is going to be expensive.  In the single-CPU or
+> single-thread case the cost can be kept under control, but it is not
+> going to be cheap.
 
-
+The secert is to do a as few times possible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
