@@ -1,86 +1,83 @@
-Date: Thu, 17 Oct 2002 20:08:43 +0530
-From: Maneesh Soni <maneesh@in.ibm.com>
-Subject: Re: 2.5.42-mm2 hangs system
-Message-ID: <20021017200843.D29405@in.ibm.com>
-Reply-To: maneesh@in.ibm.com
-References: <20021013160451.GA25494@hswn.dk> <3DA9CA28.155BA5CB@digeo.com> <20021013223332.GA870@hswn.dk> <20021016183907.B29405@in.ibm.com> <20021016154943.GA13695@hswn.dk>
+Date: Thu, 17 Oct 2002 18:14:39 +0200
+From: Sebastian Benoit <benoit-lists@fb12.de>
+Subject: 2.5.43-mm2 gets network connection stuck
+Message-ID: <20021017181439.A8089@turing.fb12.de>
+References: <20021013160451.GA25494@hswn.dk> <3DA9CA28.155BA5CB@digeo.com> <20021013223332.GA870@hswn.dk> <20021016183907.B29405@in.ibm.com> <20021016154943.GA13695@hswn.dk> <20021017200843.D29405@in.ibm.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: multipart/signed; micalg=pgp-md5;
+	protocol="application/pgp-signature"; boundary="ibTvN161/egqYuK8"
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20021016154943.GA13695@hswn.dk>; from henrik@hswn.dk on Wed, Oct 16, 2002 at 05:49:43PM +0200
+In-Reply-To: <20021017200843.D29405@in.ibm.com>; from maneesh@in.ibm.com on Thu, Oct 17, 2002 at 08:08:43PM +0530
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?iso-8859-1?Q?Henrik_St=F8rner?= <henrik@hswn.dk>
-Cc: linux-mm@kvack.org, akpm@digeo.com, Dipankar Sarma <dipankar@in.ibm.com>
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 16, 2002 at 05:49:43PM +0200, Henrik Storner wrote:
+--ibTvN161/egqYuK8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> The kernel sources are located in /usr/src which is on the local
-> (combined root+usr) filesystem, but I normally go there via a
-> symlink in my home-dir, ~/kernel/linux-2.5-mm/ is the directory
-> for the 2.5+mm directory I use.
-> 
-> The system runs apmd, atd, crond, autofs (for mounting /home), gpm,
-> lpd, nfs-server (the /usr/src directory is exported), nfs-client,
-> ntpd, portmap, sshd, xfs and xinetd. A DHCP client is also running.
-> No X server has been running while I've tested these hangs.
-> 
-> To recreate it, I've booted up the 2.5.2-mm2 kernel, starting up
-> all the normal services. Log in (automounts home directory), 
-> cd ~/kernel/linux-2.5-mm, make oldconfig, make clean, make
-> 
-> The system then hangs after a few minutes of working through the
-> kernel compile. Not the same place everytime.
+Hi,=20
 
+funny problem w. 2.5.43-mm2:
 
-I tried similar setup that is making link to an local reiserfs partition 
-on an NFS mounted partition. NFS server was running on a system with 2.4.19
-kernel. I had the following setup
+i'm running 2.5.43-mm2 on my workstation. Normal workload, X-windows, a few
+xterms, editor, mozilla, etc. (host A)
 
-[root@llm04 root]# mount
-/dev/sda6 on / type ext2 (rw)
-none on /proc type proc (rw)
-/dev/sda1 on /boot type ext2 (rw)
-/dev/sda2 on /home type ext2 (rw)
-/dev/sda5 on /usr type ext2 (rw)
-none on /dev/shm type tmpfs (rw)
-/dev/sdc3 on /mnt/sdc3 type reiserfs (rw)
-/dev/sdb1 on /bm type ext2 (rw)
-192.168.1.10:/home/maneesh/test on /mnt/sdc2 type nfs (rw,addr=192.168.1.10)
+I have a NFS/SAMBA-mount (both show the problem) to host B. Host B runs
+2.4.19rc5aa1.
 
-[root@llm04 tmp]# l
-total 8
-drwxr-xr-x    5 nfsnobod nfsnobod     4096 Oct 17 16:35 dbench
-lrwxrwxrwx    1 root     root           10 Oct 17 16:08 dbench-link-to-ext2-local -> /bm/dbench
-lrwxrwxrwx    1 root     root           17 Oct 17 15:03 dbench-link-to-rfs-local -> /mnt/sdc3/dbench/
-lrwxrwxrwx    1 root     root           23 Oct 17 15:05 linux-2542-link-to-rfs-local -> /mnt/sdc3/linux-2.5.42/
-drwxrwxr-x   17 1046     101          4096 Oct 17 14:39 linux-2.5.43
-lrwxrwxrwx    1 root     root           19 Oct 17 15:08 linux-2543-link-to-ext2-local -> /src1/linux-2.5.43/
+I can get a xterm, in which i have a ssh-connection to a third host C
+'stuck' by simply cat'ing a large file from the NFS/SAMBA server to
+/dev/null.
 
-With this setup I could run make properly. Even dbench also runs fine if
-ran through the link. 
+The xterm/ssh seems stuck, that is no key i press is received on the other
+end, but output of the program running on host C is updated in the xterm. I
+checked with tcpdump: the keypress does not generate a packet, my host only
+sends ACK's on that ssh connection to host C.
 
-The problem I am seeing is only when I am running dbench directly over the
-nfs mounted partition (i.e, no sym link). I see dbench giving errors and 
-_sometimes_ hanging the system. 
+The ssh-connection is not unstuck by stopping the data transfer from host B.
 
-Where as if I ran the nfs-server on the same machine like yesterday I see
-hang occuring all the time.
+I checked that plain 2.5.42 and 2.5.43-mm1 do not have this problem: here my
+input goes through to C. At least for small amounts of input, i did not test
+anything beyond typing a few hundret chars.
 
-With your setup I didnot see that you don't need nfs-server running. So just
-to narrow down the problem can you stop nfs-server and then do the make.
+recap:
 
-Thanks
-Maneesh
+ "mount /mnt/hostB"
+ "ssh hostC" -> type random stuff in that connection
+ at the same time do "cat /mnt/hostB/bigfile > /dev/null"
+ ssh gets stuck.
 
--- 
-Maneesh Soni
-IBM Linux Technology Center, 
-IBM India Software Lab, Bangalore.
-Phone: +91-80-5044999 email: maneesh@in.ibm.com
-http://lse.sourceforge.net/
+hardware: PIII/600, 3c905B on 10baseT half-duplex
+
+I'm sorry i cant do any further checks until Friday afternoon (MET).
+
+/B.
+--=20
+Sebastian Benoit <benoit-lists@fb12.de>
+My mail is GnuPG signed -- Unsigned ones are bogus -- http://www.gnupg.org/
+GnuPG 0x5BA22F00 2001-07-31 2999 9839 6C9E E4BF B540  C44B 4EC4 E1BE 5BA2 2=
+F00
+
+Oxymoron #654: Fatally Injured
+
+--ibTvN161/egqYuK8
+Content-Type: application/pgp-signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.6 (GNU/Linux)
+Comment: For info see http://www.gnupg.org
+
+iEYEARECAAYFAj2u4e8ACgkQTsThvluiLwCrSgCdGuKzP+7+ieuNZ/GZL+TZw/ow
+ybkAoIud5K4HAlCy3wzXtuqEmUNzBdTk
+=WyUd
+-----END PGP SIGNATURE-----
+
+--ibTvN161/egqYuK8--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
