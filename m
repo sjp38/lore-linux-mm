@@ -1,31 +1,28 @@
-Subject: Re: Locked memory questions
-References: <OF55A69DFC.F1913EBB-ON862569DC.00556518@hou.us.ray.com>
-From: Christoph Rohland <cr@sap.com>
-In-Reply-To: <OF55A69DFC.F1913EBB-ON862569DC.00556518@hou.us.ray.com>
-Message-ID: <m31ytmysf7.fsf@linux.local>
-MIME-Version: 1.0
+Date: Wed, 31 Jan 2001 00:17:37 +1300
+From: Chris Wedgwood <cw@f00f.org>
+Subject: Re: [PATCH] guard mm->rss with page_table_lock (241p11)
+Message-ID: <20010131001737.C6620@metastasis.f00f.org>
+References: <rasmus@jaquet.dk> <20010129224311.H603@jaquet.dk> <13240.980842736@warthog.cambridge.redhat.com> <14966.32188.408789.239466@pizda.ninka.net>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Date: 30 Jan 2001 10:20:57 +0100
+Content-Disposition: inline
+In-Reply-To: <14966.32188.408789.239466@pizda.ninka.net>; from davem@redhat.com on Tue, Jan 30, 2001 at 12:39:24AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark_H_Johnson@Raytheon.com
-Cc: linux-mm@kvack.org, Stanley_R_Allen-NR@Raytheon.com
+To: "David S. Miller" <davem@redhat.com>
+Cc: David Howells <dhowells@redhat.com>, Rasmus Andersen <rasmus@jaquet.dk>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mark_H_Johnson@Raytheon.com writes:
+On Tue, Jan 30, 2001 at 12:39:24AM -0800, David S. Miller wrote:
 
-> I was surprised by a reference in the latest kernel traffic
-> (http://kt.linuxcare.com/kernel-traffic/latest.epl) to a VM problem with
-> large locked memory regions. I read linux-mm on a daily basis, but didn't
-> see this particular discussion go by. 
+    Please see older threads about this, it has been discussed to
+    death already (hint: sizeof(atomic_t), sizeof(unsigned long)).
 
-Was this the database lockup with locked SYSV shareed memory segments?
-This was not discussed a lot but fixed easily. It was a bad
-implementation in shmem.c
+can we not define a macro so architectures that can do do atomically
+inc/dec with unsigned long will? otherwise it uses the spinlock?
 
-Greetings
-                Christoph
 
+  --cw
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
