@@ -1,38 +1,29 @@
-Date: Sun, 3 Aug 2003 15:15:20 +0800
-From: Eugene Teo <eugene.teo@eugeneteo.net>
+Date: Sun, 3 Aug 2003 00:28:38 -0700
+From: Danek Duvall <duvall@emufarm.org>
 Subject: Re: 2.6.0-test2-mm3
-Message-ID: <20030803071520.GA1044@eugeneteo.net>
-Reply-To: Eugene Teo <eugene.teo@eugeneteo.net>
-References: <20030802152202.7d5a6ad1.akpm@osdl.org> <20030803070542.GF10284@lorien.emufarm.org>
+Message-ID: <20030803072838.GG10284@lorien.emufarm.org>
+References: <20030802152202.7d5a6ad1.akpm@osdl.org> <20030803070542.GF10284@lorien.emufarm.org> <20030803071520.GA1044@eugeneteo.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030803070542.GF10284@lorien.emufarm.org>
+In-Reply-To: <20030803071520.GA1044@eugeneteo.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Danek Duvall <duvall@emufarm.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Eugene Teo <eugene.teo@eugeneteo.net>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-<quote sender="Danek Duvall">
-> On Sat, Aug 02, 2003 at 03:22:02PM -0700, Andrew Morton wrote:
-> 
-> > . I don't think anyone has reported on whether 2.6.0-test2-mm2 fixed any
-> >   PS/2 or synaptics problems.  You are all very bad.
-> 
-> I tried it on my Fujitsu P2120, hoping that the PS/2 resume patch would
-> help it wake up from S3 properly, but no such luck.  The radeon
-> framebuffer doesn't restore, and the keyboard doesn't work.  The mouse
-> might, but there's no way for me to tell.
-> 
-> If I remember correctly, the network functioned properly on resume in
-> test1-mm2, but doesn't in test2-mm3, so I had to do a reset.
+On Sun, Aug 03, 2003 at 03:15:20PM +0800, Eugene Teo wrote:
 
-does your logs say that network is not functioning, yet syslog seems to
-be running all these while? did you use a radeontool to "off" your lcd
-screen? fyi, I am using Fujitsu E-7010.
+> does your logs say that network is not functioning, yet syslog seems
+> to be running all these while? did you use a radeontool to "off" your
+> lcd screen? fyi, I am using Fujitsu E-7010.
 
-Eugene
+There's nothing in my logs at all, so there's no way to tell what, if
+anything, survived the resume.  I'm not using radeontool; I hadn't even
+been aware of it until now.
 
+Danek
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
