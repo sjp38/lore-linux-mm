@@ -1,35 +1,115 @@
-Date: Fri, 27 Sep 2002 15:54:55 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.38-mm3
-Message-ID: <20020927225455.GW22942@holomorphy.com>
-References: <20020927152833.D25021@in.ibm.com> <502559422.1033113869@[10.10.2.3]> <20020927224424.A28529@in.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <20020927224424.A28529@in.ibm.com>
+From: moneykings@yahoo.com
+Subject: Work 5 hours per week! make $4,000-$7,000 per month!!!!!!!!!!!
+Content-Type: text/plain;
+	charset="US-ASCII";
+	charset="US-ASCII";
+Message-Id: <20020927231044Z26522-6282+73@kvack.org>
+Date: Fri, 27 Sep 2002 19:10:33 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dipankar Sarma <dipankar@in.ibm.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Zwane Mwaikambo <zwane@linuxpower.ca>, Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Sep 27, 2002 at 10:44:24PM +0530, Dipankar Sarma wrote:
-> Not sure why it shows up more in -mm, but likely because -mm has
-> lot less contention on other locks like dcache_lock.
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
 
-Well, the profile I posted was an interactive UP workload, and it's
-fairly high there. Trimming cycles off this is good for everyone.
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
 
-Small SMP boxen (dual?) used similarly will probably see additional
-gains as the number of locked operations in fget() will be reduced.
-There's clearly no contention or cacheline bouncing in my workloads as
-none of them have tasks sharing file tables, nor is anything else
-messing with the cachelines.
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+
+ charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII";
+	charset="US-ASCII"
+Reply-To: moneykings@yahoo.com
+Date: Fri, 27 Sep 2002 19:12:43 -0400
+X-Priority: 3
+X-Library: Indy 9.00.10
+X-Mailer: Foxmail
+
+You are receiving this email because you opted-in on one of our partner sites to receive special offers. If you want to opt-out of such mailings then follow the instructions below.
+
+Please don't Respond to this e-mail!!! Insted just follow Opt-in or Opt-out Instructions below!!!!!!!!!!!
+
+Dear friend the purpose of this letter is to select a limited group of people to operate an online opportunity so Powerful that it virtually guaranties success!!!!!!!!!! If your interested in hearing about how you can get in such a program with no major investment opt-in by emailing  profitking@mail.com   and say  "Count me in" the subject line! This program is so powerful that it will only require about 1 hour per day of your time and has a potential Income in $1, 0000's virtually from the start.. Remember we will only need a limited amount of people for our success so act fast! Email profitking@mail.com  NOW put "Count me in" in the subject line. Make sure to use your Prime email address or you'll miss out on this opportunity! So email opt-in rite now and you'll get your chance to hear this offer now!!!!!!!! profitking@mail.com 
 
 
-Cheers,
-Bill
+
+
+To opt-out from this mailing list please send email to opt-out@mail.com and put remove in the subgect line.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
