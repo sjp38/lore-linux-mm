@@ -1,57 +1,56 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA26848
-	for <linux-mm@kvack.org>; Wed, 16 Dec 1998 18:01:55 -0500
-Date: Wed, 16 Dec 1998 23:38:17 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: mmap() is slower than read() on SCSI/IDE on 2.0 and 2.1 
-In-Reply-To: <199812160115.CAA25065@max.phys.uu.nl>
-Message-ID: <Pine.LNX.4.03.9812162334170.5325-100000@mirkwood.dummy.home>
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA27572
+	for <linux-mm@kvack.org>; Wed, 16 Dec 1998 20:24:56 -0500
+Date: Wed, 16 Dec 1998 17:24:05 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [PATCH] swapin readahead v3 + kswapd fixes
+In-Reply-To: <Pine.LNX.3.96.981201075322.509A-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.95.981216171905.2111A-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Jay Nordwick <nordwick@scam.XCF.Berkeley.EDU>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-(CC:d to Linux-MM to have the last paragraph on record)
 
-On Tue, 15 Dec 1998, Jay Nordwick wrote:
 
-> >And it's not needed at all. We can see if the program is
-> >doing sequential reading by simply testing for the presence
-> >of pages in the proximity of the faulting address. If there
-> >are a lot of pages present behind the current address then
-> >we should do read-ahead. With pages in front of us we want
-> >read-behind and with no pages or an 'equal' distribution
-> >we want a little bit of both read-ahead and read-behind...
+On Tue, 1 Dec 1998, Rik van Riel wrote:
 > 
-> It is needed for hints that you cannot give any other way
-> (such as MADV_FREE, MADV_WILLNEED, MADV_DONTNEED).  But as
-> the discussion progesses I do see less and less of a need.  I
-> can see how it can be called a hack as a VM systems that
-> learns from page fault histories better can obviate it.
+> --- ./mm/vmscan.c.orig	Thu Nov 26 11:26:50 1998
+> +++ ./mm/vmscan.c	Tue Dec  1 07:12:28 1998
+> @@ -431,6 +431,8 @@
+>  	kmem_cache_reap(gfp_mask);
+>  
+>  	if (buffer_over_borrow() || pgcache_over_borrow())
+> +		state = 0;		
+> +	if (atomic_read(&nr_async_pages) > pager_daemon.swap_cluster / 2)
+>  		shrink_mmap(i, gfp_mask);
+>  
+>  	switch (state) {
 
-Since we don't really use page aging anymore, the FREE, WILLNEED
-and DONTNEED won't make that much of an impact on performance.
+I really hate the above tests that make no sense at all from a conceptual
+view, and are fairly obviously just something to correct for a more basic
+problem. 
 
-I'm sure they can actually make 25% difference in some borderline
-cases, but in RL it'll be pretty marginal -- so marginal that we
-don't want the extra code in the kernel...
+So I've removed them, and re-written the logic for the "state" in the VM
+scanning. I made "state" be private to the invocation, and always start at
+zero - and could thus remove it altogether. 
 
-All the pretty code is better spent on very very good readahead/
-readbehind algorithms -- memory is plentyful, disk throughput is
-great. We don't have the serious memory shortages that plagued
-every system 5 or 10 years ago -- today disk seek time is our big
-enemy...
+That means that the first thing freeing memory always tries to do is the
+shrink_mmap() thing, and thus the problem becomes one of just making sure
+that shrink_mmap() doesn't try _too_ aggressively to throw out stuff that
+is still needed. So I changed shrink_mmap() too a bit, and simplified that
+too (so that it looks at at most 1/32th of all memory on the first try,
+and if it can't find anything to free there it lets the other memory
+de-allocators have a go at it). 
 
-cheers,
+It's a lot simpler, has no arbitrary heuristics like the above two tests,
+and worked for me both with a small memory setup and my normal half gig
+setup. Would you guys please test and comment? It's in the pre-2.1.132-1
+patch. 
 
-Rik -- the flu hits, the flu hits, the flu hits -- MORE
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+		Linus "arbitrary rules are bad rules" Torvalds
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
