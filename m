@@ -1,7 +1,7 @@
-Message-ID: <20011216125219.1450.qmail@web12004.mail.yahoo.com>
-Date: Sun, 16 Dec 2001 04:52:19 -0800 (PST)
-From: Anumula Venkat <anumulavenkat@yahoo.com>
-Subject: Thread specific data
+Message-ID: <20011216142410.98389.qmail@web20410.mail.yahoo.com>
+Date: Sun, 16 Dec 2001 06:24:10 -0800 (PST)
+From: lorenzo mitchell <unixlr@yahoo.com>
+Subject: linux gui faster than windows?
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -9,17 +9,17 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello Friends,
+Hello all,
 
-    Can somebody help in knowing how to access thread
-data structures on kernel side.i.e accessing thread
-specific data in stack segment.
-
-Regards
-Venkat
-
-=====
-'Arise, awake and stop not till the GOAL is reached' -- Swami Vivekananda
+I installed redhat 7.1 on a box ( pentiumI 166MHz,73Mb
+of rams and 1.5 Gb hard disk)  that was previously
+used by win98. I heard that linux is faster than
+windows. Am running kde now with a 250Mb swap
+partition but it is extremely slow, far slower than
+when I was using windows on it. Can someone tell me
+what to do please? 
+ 
+- fustrated
 
 __________________________________________________
 Do You Yahoo!?
