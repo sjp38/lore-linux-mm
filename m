@@ -1,40 +1,67 @@
-Date: Sun, 6 Apr 2003 22:55:30 +0100
-From: Jamie Lokier <jamie@shareable.org>
+Date: Sun, 06 Apr 2003 15:03:03 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: subobj-rmap
-Message-ID: <20030406215530.GC24710@mail.jlokier.co.uk>
-References: <1070000.1049664851@[10.10.2.4]> <Pine.LNX.4.44.0304061737510.2296-100000@chimarrao.boston.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-ID: <1600000.1049666582@[10.10.2.4]>
 In-Reply-To: <Pine.LNX.4.44.0304061737510.2296-100000@chimarrao.boston.redhat.com>
+References: <Pine.LNX.4.44.0304061737510.2296-100000@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@surriel.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrew Morton <akpm@digeo.com>, andrea@suse.de, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Bill Irwin <wli@holomorphy.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrew Morton <akpm@digeo.com>, andrea@suse.de, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Bill Irwin <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> I don't see how the data structure you describe
-> would allow us to efficiently select the subset
-> of VMAs for which:
+>> Supposing we keep a list of areas (hung from the address_space) that 
+>> describes independant linear ranges of memory that have the same set
+>> of vma's mapping them (call those subobjects). Each subobject has a
+>> chain of vma's from it that are mapping that subobject.
+>> 
+>> address_space ---> subobject ---> subobject ---> subobject ---> subobject
+>>                        |              |              |              | 
+>>                        v              v              v              v
+>>                       vma            vma            vma            vma
+>>                        |                             |              | 
+>>                        v                             v              v
+>>                       vma                           vma            vma
+>>                        |                             |        
+>>                        v                             v        
+>>                       vma                           vma       
 > 
-> 1) the start address is smaller than the address we want
-> and
-> 2) the end address is larger than the address we want
+> OK, lets say we have a file of 1000 pages, or
+> offsets 0 to 999, with the following mappings:
+> 
+> VMA A:   0-999
+> VMA B:   0-200
+> VMA C: 150-400
+> VMA D: 300-500
+> VMA E: 300-500
+> VMA F:   0-999
+> 
+> How would you describe these with independant regions ?
 
-Think about the data structures some text editors use to describe
-special regions of the text.  A common operation is to search for all
-the special regions covering a particular cursor position.
+Good question to illustrate with.
+Extra spacing added just for ease of reading:
 
-Several data structures are available.  I'm not aware of any that have
-perfect behaviour in all corner cases.
+0-150 -> 150-200 -> 200-300 -> 300-400 -> 400-500 -> 500-999
+ A          A          A          A          A          A
+ B          B
+            C          C          C 
+                                  D          D          
+                                  E          E          
+ F          F          F          F          F          F
 
-It might be worth noting that these data structures are good at
-determining the set of regions covering position X+1 having recently
-calculated the set for position X.  Perhaps that has relevance for
-speeding up page scanning?
+> For VMAs D & E and A & F it's a no-brainer,
+> but for Oracle shared memory you shouldn't
+> assume that you have any similar mappings
 
--- Jamie
+We can always leave the sys_remap_file_pages stuff using pte_chains,
+and should certainly do that at first. But doing it for normal stuff
+should be less controversial, I think.
+
+M.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
