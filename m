@@ -1,71 +1,36 @@
-From: Mark_H_Johnson@raytheon.com
-Subject: Re: [PATCH] recognize MAP_LOCKED in mmap() call
-Date: Wed, 25 Sep 2002 11:57:35 -0500
-Message-ID: <OFA909F528.299706E8-ON86256C3F.005D287A-86256C3F.005D29EC@hou.us.ray.com>
-MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
+	id 17uRPu-0002jb-00
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2002 22:42:26 -0700
+Date: Wed, 25 Sep 2002 22:42:26 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: [2/13] honor __GFP_NOKILL
+Message-ID: <20020926054226.GI22942@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: frankeh@watson.ibm.com
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->This is what the manpage says...
->
->       mlockall  disables  paging  for  all pages mapped into the
->       address space of the calling process.  This  includes  the
->       pages  of  the  code,  data  and stack segment, as well as
->       shared libraries, user space kernel  data,  shared  memory
->       and  memory  mapped files. All mapped pages are guaranteed
->       to be resident  in  RAM  when  the  mlockall  system  call
->       returns  successfully  and  they are guaranteed to stay in
->       RAM until the pages  are  unlocked  again  by  munlock  or
->       munlockall  or  until  the  process  terminates  or starts
->       another program with exec.  Child processes do not inherit
->       page locks across a fork.
->
->Do you read that all pages must be faulted in apriori ?
->Or is it sufficient to to make sure none of the currently mapped
->pages are swapped out and future swapout is prohibited.
->
-The key phrase is that "...all mapped pages are guaranteed to be resident
-in RAM when the mlockall system call returns successfully..." (third
-sentence) In that way I would expect the segments containing the code,
-heap, and current stack allocations to be resident. I do not expect
-the full stack allocation (e.g., 2M for each thread if that is the
-stack size) to be mapped (nor resident) unless I take special action
-to grow the stack that large.
-
-We happen to have special code to grow each stack and allocate heap
-variables to account for what we expect to use prior to mlockall.
-
-That does raise a question though - are there other segments (e.g.,
-debug information) that may be in the total size calculations that
-are mapped only when some special action is taken (e.g., I run the
-debugger)? That would explain the difference - the measures I reported
-on were with executables built with debug symbols.
-
-That might also explain a possible problem we have had when trying
-to debug such an application after an hour of run time or so. If
-running gdb triggers a growth in locked memory (and we don't have
-enough) - we would likely get an error condition that isn't normally
-expected by gdb.
-
->This still allows for page faults on pages that have not been
->mapped in the specified range or process. If required the
->app could touch these and they wouldn't be swapped later.
->
-
-I don't think touching the pages is enough - they have to be allocated
-and the maps generated (e.g., calls to mmap, malloc). That is a possibly
-expensive operation when real time is active and something we try to
-avoid whenever possible.
-
---
---Mark H Johnson
-  <mailto:Mark_H_Johnson@raytheon.com>
+In order to honor __GFP_NOKILL, the OOM killer should not be invoked
+when the __GFP_NOKILL flag is set. try_to_free_pages() is the sole
+caller of out_of_memory().
 
 
+diff -urN linux-2.5.33/mm/vmscan.c linux-2.5.33-mm5/mm/vmscan.c
+--- linux-2.5.33/mm/vmscan.c	2002-09-04 04:02:00.000000000 -0700
++++ linux-2.5.33-mm5/mm/vmscan.c	2002-09-08 19:57:30.000000000 -0700
+@@ -688,7 +688,7 @@
+ 		blk_congestion_wait(WRITE, HZ/4);
+ 		shrink_slab(total_scanned, gfp_mask);
+ 	}
+-	if (gfp_mask & __GFP_FS)
++	if ((gfp_mask & __GFP_FS) && !(gfp_mask & __GFP_NOKILL))
+ 		out_of_memory();
+ 	return 0;
+ }
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
