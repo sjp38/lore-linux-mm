@@ -1,36 +1,29 @@
 Received: from northrelay01.pok.ibm.com (northrelay01.pok.ibm.com [9.56.224.149])
-	by e1.ny.us.ibm.com (8.12.2/8.12.2) with ESMTP id g69Ia2g5177198
-	for <linux-mm@kvack.org>; Tue, 9 Jul 2002 14:36:02 -0400
+	by e2.ny.us.ibm.com (8.12.2/8.12.2) with ESMTP id g69J4Ge8097102
+	for <linux-mm@kvack.org>; Tue, 9 Jul 2002 15:04:16 -0400
 Received: from baldur.austin.ibm.com (baldur.austin.ibm.com [9.53.216.148])
-	by northrelay01.pok.ibm.com (8.11.1m3/NCO/VER6.1) with ESMTP id g69IZwT47086
-	for <linux-mm@kvack.org>; Tue, 9 Jul 2002 14:35:59 -0400
-Date: Tue, 09 Jul 2002 13:35:46 -0500
+	by northrelay01.pok.ibm.com (8.11.1m3/NCO/VER6.1) with ESMTP id g69J4ET33476
+	for <linux-mm@kvack.org>; Tue, 9 Jul 2002 15:04:14 -0400
+Date: Tue, 09 Jul 2002 14:04:14 -0500
 From: Dave McCracken <dmccr@us.ibm.com>
-Subject: [PATCH] Optimize away pte_chains for single mappings
-Message-ID: <55160000.1026239746@baldur.austin.ibm.com>
+Subject: [PATCH] Optimize out pte_chain take two
+Message-ID: <59590000.1026241454@baldur.austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="==========1859459384=========="
+Content-Type: multipart/mixed; boundary="==========906520887=========="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---==========1859459384==========
+--==========906520887==========
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 
 
-Here's a patch that optimizes out using a struct pte_chain when there's
-only one mapping for that page.  It re-uses the pte_chain pointer in struct
-page, with an appropriate flag.  The patch is based on Rik's latest 2.5.25
-rmap patch.
-
-I've done basic testing on it (it boots and runs simple commands).
-
-This version of the patch uses an anonymous union, so it only builds with
-gcc 3.x.  I'm working on an alternate version of the patch, but wanted to
-get this one out for people to look at.
+Here's a version of my pte_chain removal patch that does not use anonymous
+unions, so it'll compile with gcc 2.95.  Once again, it's based on Rik's
+rmap-2.5.25-akpmtested.
 
 Dave McCracken
 
@@ -38,26 +31,36 @@ Dave McCracken
 Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
 dmccr@us.ibm.com                                        T/L   678-3059
 
---==========1859459384==========
+--==========906520887==========
 Content-Type: text/plain; charset=iso-8859-1; name="rmap-opt-2.5.25.diff"
 Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=6085
+Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=8482
 
 --- linux-2.5.25-rmap/./include/linux/mm.h	Mon Jul  8 15:37:35 2002
-+++ linux-2.5.25-rmap-opt/./include/linux/mm.h	Tue Jul  9 13:28:32 2002
++++ linux-2.5.25-rmap-opt/./include/linux/mm.h	Tue Jul  9 13:41:11 2002
 @@ -157,8 +157,11 @@
  					   updated asynchronously */
  	struct list_head lru;		/* Pageout list, eg. active_list;
  					   protected by pagemap_lru_lock !! */
 -	struct pte_chain * pte_chain;	/* Reverse pte mapping pointer.
 +	union {
-+		struct pte_chain * pte_chain;	/* Reverse pte mapping pointer.
++		struct pte_chain * _pte_chain;	/* Reverse pte mapping pointer.
  					 * protected by PG_chainlock */
-+		pte_t		 * pte_direct;
-+	};
++		pte_t		 * _pte_direct;
++	} _pte_union;
  	unsigned long private;		/* mapping-private opaque data */
 =20
  	/*
+@@ -176,6 +179,9 @@
+ 					   not kmapped, ie. highmem) */
+ #endif /* CONFIG_HIGMEM || WANT_PAGE_VIRTUAL */
+ };
++
++#define	pte__chain	_pte_union._pte_chain
++#define	pte_direct	_pte_union._pte_direct
+=20
+ /*
+  * Methods to modify the page usage count.
 --- linux-2.5.25-rmap/./include/linux/page-flags.h	Mon Jul  8 15:37:35 2002
 +++ linux-2.5.25-rmap-opt/./include/linux/page-flags.h	Tue Jul  9 10:31:28 =
 2002
@@ -86,8 +89,66 @@ Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=6085
 =20
  /*
   * inlines for acquisition and release of PG_chainlock
+--- linux-2.5.25-rmap/./mm/page_alloc.c	Mon Jul  8 15:37:35 2002
++++ linux-2.5.25-rmap-opt/./mm/page_alloc.c	Tue Jul  9 13:43:46 2002
+@@ -92,7 +92,7 @@
+ 	BUG_ON(PageLRU(page));
+ 	BUG_ON(PageActive(page));
+ 	BUG_ON(PageWriteback(page));
+-	BUG_ON(page->pte_chain !=3D NULL);
++	BUG_ON(page->pte__chain !=3D NULL);
+ 	if (PageDirty(page))
+ 		ClearPageDirty(page);
+ 	BUG_ON(page_count(page) !=3D 0);
+--- linux-2.5.25-rmap/./mm/vmscan.c	Mon Jul  8 15:37:35 2002
++++ linux-2.5.25-rmap-opt/./mm/vmscan.c	Tue Jul  9 13:42:38 2002
+@@ -48,7 +48,7 @@
+ 	struct address_space *mapping =3D page->mapping;
+=20
+ 	/* Page is in somebody's page tables. */
+-	if (page->pte_chain)
++	if (page->pte__chain)
+ 		return 1;
+=20
+ 	/* XXX: does this happen ? */
+@@ -151,7 +151,7 @@
+ 		 *
+ 		 * XXX: implement swap clustering ?
+ 		 */
+-		if (page->pte_chain && !page->mapping && !PagePrivate(page)) {
++		if (page->pte__chain && !page->mapping && !PagePrivate(page)) {
+ 			page_cache_get(page);
+ 			pte_chain_unlock(page);
+ 			spin_unlock(&pagemap_lru_lock);
+@@ -171,7 +171,7 @@
+ 		 * The page is mapped into the page tables of one or more
+ 		 * processes. Try to unmap it here.
+ 		 */
+-		if (page->pte_chain) {
++		if (page->pte__chain) {
+ 			switch (try_to_unmap(page)) {
+ 				case SWAP_ERROR:
+ 				case SWAP_FAIL:
+@@ -348,7 +348,7 @@
+ 		entry =3D entry->prev;
+=20
+ 		pte_chain_lock(page);
+-		if (page->pte_chain && page_referenced(page)) {
++		if (page->pte__chain && page_referenced(page)) {
+ 			list_del(&page->lru);
+ 			list_add(&page->lru, &active_list);
+ 			pte_chain_unlock(page);
 --- linux-2.5.25-rmap/./mm/rmap.c	Mon Jul  8 15:37:35 2002
-+++ linux-2.5.25-rmap-opt/./mm/rmap.c	Tue Jul  9 12:46:07 2002
++++ linux-2.5.25-rmap-opt/./mm/rmap.c	Tue Jul  9 13:41:47 2002
+@@ -13,7 +13,7 @@
+=20
+ /*
+  * Locking:
+- * - the page->pte_chain is protected by the PG_chainlock bit,
++ * - the page->pte__chain is protected by the PG_chainlock bit,
+  *   which nests within the pagemap_lru_lock, then the
+  *   mm->page_table_lock, and then the page lock.
+  * - because swapout locking is opposite to the locking order
 @@ -71,10 +71,15 @@
  	if (TestClearPageReferenced(page))
  		referenced++;
@@ -100,7 +161,7 @@ Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=6085
  			referenced++;
 +	} else {
 +		/* Check all the page tables mapping this page. */
-+		for (pc =3D page->pte_chain; pc; pc =3D pc->next) {
++		for (pc =3D page->pte__chain; pc; pc =3D pc->next) {
 +			if (ptep_test_and_clear_young(pc->ptep))
 +				referenced++;
 +		}
@@ -117,7 +178,7 @@ Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=6085
 +			if (page->pte_direct =3D=3D ptep)
  				BUG();
 +		} else {
-+			for (pc =3D page->pte_chain; pc; pc =3D pc->next) {
++			for (pc =3D page->pte__chain; pc; pc =3D pc->next) {
 +				if (pc->ptep =3D=3D ptep)
 +					BUG();
 +			}
@@ -139,15 +200,15 @@ Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=6085
 +		pte_chain =3D pte_chain_alloc();
 +		pte_chain->ptep =3D page->pte_direct;
 +		pte_chain->next =3D NULL;
-+		page->pte_chain =3D pte_chain;
++		page->pte__chain =3D pte_chain;
 +		ClearPageDirect(page);
 +	}
-+	if (page->pte_chain) {
++	if (page->pte__chain) {
 +		/* Hook up the pte_chain to the page. */
 +		pte_chain =3D pte_chain_alloc();
 +		pte_chain->ptep =3D ptep;
-+		pte_chain->next =3D page->pte_chain;
-+		page->pte_chain =3D pte_chain;
++		pte_chain->next =3D page->pte__chain;
++		page->pte__chain =3D pte_chain;
 +	} else {
 +		page->pte_direct =3D ptep;
 +		SetPageDirect(page);
@@ -170,11 +231,11 @@ Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=6085
  			goto out;
  		}
 +	} else {
-+		for (pc =3D page->pte_chain; pc; prev_pc =3D pc, pc =3D pc->next) {
++		for (pc =3D page->pte__chain; pc; prev_pc =3D pc, pc =3D pc->next) {
 +			if (pc->ptep =3D=3D ptep) {
 +				pte_chain_free(pc, prev_pc, page);
 +				/* Check whether we can convert to direct */
-+				pc =3D page->pte_chain;
++				pc =3D page->pte__chain;
 +				if (!pc->next) {
 +					page->pte_direct =3D pc->ptep;
 +					SetPageDirect(page);
@@ -193,7 +254,7 @@ Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=6085
 +	if (PageDirect(page)) {
 +		printk("%p ", page->pte_direct);
 +	} else {
-+		for (pc =3D page->pte_chain; pc; pc =3D pc->next)
++		for (pc =3D page->pte__chain; pc; pc =3D pc->next)
 +			printk("%p ", pc->ptep);
 +	}
  	printk("\n");
@@ -227,7 +288,7 @@ Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=6085
 +				return ret;
 +		}
 +	} else {		
-+		for (pc =3D page->pte_chain; pc; pc =3D next_pc) {
++		for (pc =3D page->pte__chain; pc; pc =3D next_pc) {
 +			next_pc =3D pc->next;
 +			switch (try_to_unmap_one(page, pc->ptep)) {
 +				case SWAP_SUCCESS:
@@ -246,7 +307,7 @@ Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=6085
 +			}
 +		}
 +		/* Check whether we can convert to direct pte pointer */
-+		pc =3D page->pte_chain;
++		pc =3D page->pte__chain;
 +		if (pc && !pc->next) {
 +			page->pte_direct =3D pc->ptep;
 +			SetPageDirect(page);
@@ -254,8 +315,17 @@ Content-Disposition: attachment; filename="rmap-opt-2.5.25.diff"; size=6085
  		}
  	}
 =20
+@@ -336,7 +398,7 @@
+ 	if (prev_pte_chain)
+ 		prev_pte_chain->next =3D pte_chain->next;
+ 	else if (page)
+-		page->pte_chain =3D pte_chain->next;
++		page->pte__chain =3D pte_chain->next;
+=20
+ 	spin_lock(&pte_chain_freelist_lock);
+ 	pte_chain_push(pte_chain);
 
---==========1859459384==========--
+--==========906520887==========--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
