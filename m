@@ -1,62 +1,56 @@
-Date: Mon, 1 May 2000 18:13:26 -0700
-Message-Id: <200005020113.SAA31341@pizda.ninka.net>
-From: "David S. Miller" <davem@redhat.com>
-In-reply-to: <Pine.LNX.4.21.0005012154440.7508-100000@duckman.conectiva>
-	(message from Rik van Riel on Mon, 1 May 2000 22:03:35 -0300 (BRST))
-Subject: Re: kswapd @ 60-80% CPU during heavy HD i/o.
-References: <Pine.LNX.4.21.0005012154440.7508-100000@duckman.conectiva>
+Date: Mon, 1 May 2000 22:28:51 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
+Subject: Re: [PATCH] pre7-1 semicolon & nicely readableB
+In-Reply-To: <Pine.SOL.3.96.1000501190034.4093K-100000@sexsmith.cs.ualberta.ca>
+Message-ID: <Pine.LNX.4.21.0005012222540.7508-100000@duckman.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
-Cc: roger.larsson@norran.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Roel van der Goot <roel@cs.ualberta.ca>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-   On Mon, 1 May 2000, David S. Miller wrote:
+On Mon, 1 May 2000, Roel van der Goot wrote:
 
-   > BTW, what loop are you trying to "continue;" out of here?
-   > 
-   > +			    do {
-   >  				if (tsk->need_resched)
-   >  					schedule();
-   >  				if ((!zone->size) || (!zone->zone_wake_kswapd))
-   >  					continue;
-   >  				do_try_to_free_pages(GFP_KSWAPD, zone);
-   > +			   } while (zone->free_pages < zone->pages_low &&
-   > +					   --count);
-   > 
-   > :-)  Just add a "next_zone:" label at the end of that code and
-   > change the continue; to a goto next_zone;
+> I want to inform you that there is a subtle difference between
+> the following two loops:
+> 
+> (i)
+> 
+>    while ((mm->swap_cnt << 2 * (i + 1) < max_cnt)
+>                    && i++ < 10);
+> 
+> (ii)
+> 
+>    while ((mm->swap_cnt << 2 * (i + 1) < max_cnt)
+>                    && i < 10)
+>            i++;
 
-   I want kswapd to continue with freeing pages from this zone if
-   there aren't enough free pages in this zone. This is needed
-   because kswapd used to stop freeing pages even if we were below
-   pages_min...
+I want to inform you that you're wrong. The only difference is
+in readability.
 
-Rik, zone_wake_kswapd implies this information, via what
-__free_pages_ok does to that flag.
+If the first test fails, the clause behind the && won't be run.
 
-I see it like this:
+Furthermore, i will only reach 10 if the RSS difference between
+the current process and the biggest process is more than a factor
+2^21 ... which can never happen on 32-bit hardware, unless the
+RSS of the current process is 0.
 
-	if "!zone->size || !zone->zone_wake_kswapd"
+In fact, the <10 test is only there to prevent infinite looping
+for when a process with 0 swap_cnt "slips through" the tests above.
 
-		then zone->free_pages >= zone->pages_high by
-		implication
+regards,
 
-Therefore when the continue happens, the loop will currently just
-execute:
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-	if (!zone->size || !zone->zone_wake_kswapd)
-		continue;
-    ...
-	} while (zone->free_pages < zone->pages_low &&
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
-and the while condition is false and therefore will branch out of the
-loop.  __free_pages_ok _always_ clears the zone_wake_kswapd flag when
-zone->free_pages goes beyond zone->pages_high.
-
-Later,
-David S. Miller
-davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
