@@ -1,106 +1,122 @@
 Received: from toomuch.toronto.redhat.com (toomuch.toronto.redhat.com [172.16.14.22])
-	by lacrosse.corp.redhat.com (8.9.3/8.9.3) with ESMTP id WAA11250
-	for <linux-mm@kvack.org>; Sun, 8 Jul 2001 22:44:58 -0400
-Date: Thu, 5 Jul 2001 10:13:25 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: Large PAGE_SIZE
-In-Reply-To: <Pine.LNX.4.21.0107051737340.1577-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.33.0107050957010.22305-100000@penguin.transmeta.com>
+	by lacrosse.corp.redhat.com (8.9.3/8.9.3) with ESMTP id WAA11237
+	for <linux-mm@kvack.org>; Sun, 8 Jul 2001 22:44:52 -0400
+Date: Thu, 5 Jul 2001 17:45:51 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Large PAGE_SIZE
+In-Reply-To: <Pine.LNX.4.33.0107042247230.21720-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0107051737340.1577-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 ReSent-To: <linux-mm@kvack.org>
-ReSent-Message-ID: <Pine.LNX.4.33.0107082243450.30164@toomuch.toronto.redhat.com>
+ReSent-Message-ID: <Pine.LNX.4.33.0107082243310.30164@toomuch.toronto.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
+To: Linus Torvalds <torvalds@transmeta.com>
 Cc: Ben LaHaise <bcrl@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Jul 2001, Hugh Dickins wrote:
->
-> I'm interested in larger pages, but wary of multipage PAGE_CACHE_SIZE:
-> partly because it relies on non-0-order page allocations, partly because
-> it seems a shame then to break I/O into smaller units below the cache.
+Linus,
 
-Note that once PAGE_CACHE_SIZE is of a higher order, then they effectively
-become the same as the current order-0 pages - it's just that the buddy
-system can always allocate "fractional" pages too.
+Ben's mail on multipage PAGE_CACHE_SIZE support prompts me to let you
+know now what I've been doing, and ask your opinion on this direction.
 
-We shouldn't get the same fragmentation issues, as the new order-N
-allocation should be the common one, and the sub-oder-N fragments should
-clump nicely together.
+Congratulations to Ben for working out multipage PAGE_CACHE_SIZE.
+I couldn't see where it was headed, and PAGE_CACHE_SIZE has been
+PAGE_SIZE for so long that I assumed everyone had given up on it.
 
-Also note that the I/O _would_ happen in PAGE_CACHE_SIZE - you'd never
-break it into smaller chunks. That's the whole point of having a bigger
-PAGE_CACHE_SIZE.
+I'm interested in larger pages, but wary of multipage PAGE_CACHE_SIZE:
+partly because it relies on non-0-order page allocations, partly because
+it seems a shame then to break I/O into smaller units below the cache.
 
-Now, I actually think your approach basically does the very same thing,
-and I don't think there are necessarily any real differences between the
-two. It's more of a perception issue: which "direction" do you look at it
-from.
+So instead I'm using a larger PAGE_SIZE throughout the kernel: here's an
+extract from include/asm-i386/page.h (currently edited not configured):
 
-You take the approach that pages are bigger, but that you can map partial
-pages into VM spaces. That is 100% equivalent to saying that the caching
-fragment size is a order-N page, I think.
+/*
+ * One subpage is represented by one Page Table Entry at the MMU level,
+ * and corresponds to one page at the user process level: its size is
+ * the same as param.h EXEC_PAGESIZE (for getpagesize(2) and mmap(2)).
+ */
+#define SUBPAGE_SHIFT	12
+#define SUBPAGE_SIZE	(1UL << SUBPAGE_SHIFT)
+#define SUBPAGE_MASK	(~(SUBPAGE_SIZE-1))
 
-Obviously your world-view ends up very much impacting how you actually
-implement it, so in that sense perception certainly does matter.
+/*
+ * 2**N adjacent subpages may be clustered to make up one kernel page.
+ * Reasonable and tested values for PAGE_SUBSHIFT are 0 (4k page),
+ * 1 (8k page), 2 (16k page), 3 (32k page).  Higher values will not
+ * work without further changes e.g. to unsigned short b_size.
+ */
+#define PAGE_SUBSHIFT	0
+#define PAGE_SUBCOUNT	(1UL << PAGE_SUBSHIFT)
 
->  * One subpage is represented by one Page Table Entry at the MMU level,
->  * and corresponds to one page at the user process level: its size is
->  * the same as param.h EXEC_PAGESIZE (for getpagesize(2) and mmap(2)).
->  */
-> #define SUBPAGE_SHIFT	12
-> #define SUBPAGE_SIZE	(1UL << SUBPAGE_SHIFT)
-> #define SUBPAGE_MASK	(~(SUBPAGE_SIZE-1))
+/*
+ * One kernel page is represented by one struct page (see mm.h),
+ * and is the kernel's principal unit of memory allocation.
+ */
+#define PAGE_SHIFT	(PAGE_SUBSHIFT + SUBPAGE_SHIFT)
+#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+#define PAGE_MASK	(~(PAGE_SIZE-1))
 
-I would _really_ prefer to make it clear that "SUBPAGE" is a VM mapping
-issue and nothing more (which is your approach), and would much prefer
-that to be made very explicit. So I'd not call them "SUBPAGES", but
-something like
+The kernel patch which applies these definitions is, of course, much
+larger than Ben's multipage PAGE_CACHE_SIZE patch.   Currently against
+2.4.4 (I'm rebasing to 2.4.6 in the next week) plus some other patches
+we're using inhouse, it's about 350KB touching 160 files.  Not quite
+complete yet (trivial macros still to be added to non-i386 arches; md
+readahead size not yet resolved; num_physpages in tuning to be checked;
+vmscan algorithms probably misscaled) and certainly undertested, but
+both 2GB SMP machine and 256MB laptop run stably with 32k pages (though
+4k pages are better on the laptop, to keep kernel source tree in cache).
 
-	#define VM_PAGE_SHIFT	12
-	#define VM_PAGE_SIZE ..
+Most of the patch is simple and straightforward, replacing PAGE_SIZE
+by SUBPAGE_SIZE where appropriate (in drivers that's usually only when
+handling vm_pgoff).  Though I'm happy with the "SUB" naming, others may
+not be, and a more vivid naming might make driver maintenance easier.
 
-However, once you do this, who cares about "PAGE_SIZE" at all? In the end,
-PAGE_SIZE has no meaning except for the internal VM memory management:
-it's nothing but the smallest fragment-size that the buddy system works
-with.
+Some of the patch is rather tangential: seemed right to implement proper
+flush_tlb_range() and flush_tlb_range_k() for flushing subpages togther;
+hard to resist tidyups like changing zap_page_range() arg from size to
+end when it's always sandwiched between start,end functions.  Unless
+PAGE_CACHE_SIZE definition were to be removed too, no change at all
+to most filesystems (cramfs, ncpfs, proc being exceptions).
 
-What does that matter? It makes a huge difference for page accounting.
-That's really the only thing that should care about PAGE_SIZE, and the
-difference here between the two approaches isn't all that big:
+Kernel physical and virtual address space mostly in PAGE_SIZE units:
+__get_free_page(), vmalloc(), ioremap(), kmap_atomic(), kmap() pages;
+but early alloc_bootmem_pages() and fixmap.h slots in SUBPAGE_SIZE.
 
- - in your approach, PAGE_SIZE equals PAGE_CACHE_SIZE, so a PAGE_CACHE
-   page only has one page count arrociated with it. That's good, because
-   it simplifies "release_page_cache()" and friends.
+User address space has to be in SUBPAGE_SIZE units (unless I want to
+rebuild all my userspace): so the difficult part of the patch is the
+mm/memory.c fault handlers, and preventing the anonymous SUBPAGE_SIZE
+pieces from degenerating into needing a PAGE_SIZE physical page each,
+and how to translate exclusive_swap_page().
 
- - going the other way, each VM "dirty" entity has a "struct page *"
-   associated with it. That makes page count handling a bit nastier, but
-   on the other hand it makes VM attributes much easier to handle, notably
-   things like "dirty" bits.
+These page fault handlers now prepare and operate upon a
+pte_t *folio[PAGE_SUBCOUNT], different parts of the same large page
+expected at respective virtual offsets (yes, mremap() can spoil that,
+but it's exceptional).  Anon mappings may have non-0 vm_pgoff, to share
+page with adjacent private mappings e.g. bss share large page with data,
+so KIO across data-bss boundary works (KIO page granularity troublesome,
+but would have been a shame to revert to the easier SUBPAGE_SIZE there).
+Hard to get the macros right, to melt away to efficient code in the
+PAGE_SUBSHIFT 0 case: I've done the best I can for now,
+you'll probably find them clunky and suggest better.
 
-Which is the right one? Frankly, don't know. It may be quite acceptable to
-have just a single dirty bit for bigger regions. That would simplify
-things, for sure.
+Performance?  Not yet determined, we're just getting around to that.
+Unless it performs significantly better than multipage PAGE_CACHE_SIZE,
+it should be forgotten: no point in extensive change for no gain.
 
-On the other hand, maybe we will eventually have a per-mapping "page
-size". That would be pretty much impossible with your approach, while the
-"page size is the smallest VM granularity, PAGE_CACHE_SIZE is something
-else" approach lends itself to that extension (just add a "size_shift" to
-"struct address_space", and make the #defines use that instead. "Small
-matter of programming").
+I've said enough for now: either you're already disgusted, and will
+reply "Never!", or you'll sometime want to cast an eye over the patch
+itself (or nominate someone else to do so), to get the measure of it.
+If the latter, please give me a few days to put it together against
+2.4.6, minus our other inhouse pieces, then I can put the result on
+an ftp site for you.
 
-> I've said enough for now: either you're already disgusted, and will
-> reply "Never!", or you'll sometime want to cast an eye over the patch
-> itself (or nominate someone else to do so), to get the measure of it.
+I would have preferred to wait a little longer before unveiling this,
+but it's appropriate to consider it with multipage PAGE_CACHE_SIZE.
 
-I'd really like both of you to think about both of the approaches as the
-same thing, but with different mindsets. Maybe there is something that
-clearly makes one mindset better. And maybe there is some way to just make
-the two be completely equivalent..
-
-		Linus
+Thanks for your time!
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
