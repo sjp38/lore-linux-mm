@@ -1,34 +1,32 @@
-Date: Mon, 14 Oct 2002 18:57:25 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [Lse-tech] Re: [rfc][patch] Memory Binding API v0.3 2.5.41
-Message-ID: <20021015015725.GP4488@holomorphy.com>
-References: <20021015012015.GN4488@holomorphy.com> <2008756258.1034620187@[10.10.2.3]> <20021015014023.GO4488@holomorphy.com>
-Mime-Version: 1.0
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA01343
+	for <linux-mm@kvack.org>; Mon, 14 Oct 2002 22:20:24 -0700 (PDT)
+Message-ID: <3DABA596.39C9D782@digeo.com>
+Date: Mon, 14 Oct 2002 22:20:22 -0700
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: Re: 2.5.43-m3
+References: <3DABA351.7E9C1CFB@digeo.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20021015014023.GO4488@holomorphy.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>, john stultz <johnstul@us.ibm.com>, Matt <colpatch@us.ibm.com>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, LSE Tech <lse-tech@lists.sourceforge.net>, Andrew Morton <akpm@zip.com.au>, Michael Hohnbaum <hohnbaum@us.ibm.com>
+To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, ext2-devel@lists.sourceforge.net, "tytso@mit.edu" <tytso@mit.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 14, 2002 at 06:29:49PM -0700, Martin J. Bligh wrote:
->> The only place I see that used in generic code is
->> calculate_zone_totalpages, free_area_init_core, free_area_init_node,
->> none of which seem to do that. But cscope might be borked again, I
->> guess. Must be done in each arch if at all ... which arch did you
->> think did it?
+yeah, yeah.  off-by-one.
 
-On Mon, Oct 14, 2002 at 06:40:23PM -0700, William Lee Irwin III wrote:
-> Not sure, ISTR something about this going on but I don't see any extant
-> examples. At any rate, it should be easy to do it by hand, just make
-> sure there are struct pages tracking the holes in mem_map and free the
-> space in mem_map that would track the holes.
+Andrew Morton wrote:
+> 
+> ...
+> - Add Ingo's current remap_file_pages() patch.  I had to renumber his
+>   syscall from 253 to 254 due to a clash with the oprofile syscall.
+> 
 
-And buddy bitmaps and ->node_valid_addr too. Which stands a good chance
-of explaining why it broke, if it ever worked.
+This will only work on ia32.  To test on other architectures, please
+do a patch -p1 -R of
 
-Bill
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.42/2.5.42-mm3/broken-out/mpopulate.patch
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
