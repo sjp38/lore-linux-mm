@@ -1,37 +1,42 @@
-Date: Sat, 6 Nov 2004 13:31:06 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
+Message-ID: <418D7235.7010501@yahoo.com.au>
+Date: Sun, 07 Nov 2004 11:54:13 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+MIME-Version: 1.0
 Subject: Re: removing mm->rss and mm->anon_rss from kernel?
-Message-ID: <20041106213106.GH2890@holomorphy.com>
-References: <16781.12572.181444.967905@wombat.chubb.wattle.id.au> <Pine.LNX.4.44.0411061553120.21150-100000@chimarrao.boston.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0411061553120.21150-100000@chimarrao.boston.redhat.com>
+References: <1099622957.29587.101.camel@gaston> <418C55A7.9030100@yahoo.com.au> <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com> <418CA535.1030703@yahoo.com.au> <20041106103103.GC2890@holomorphy.com> <418CAA44.3090007@yahoo.com.au> <20041106105314.GD2890@holomorphy.com> <418CB06F.1080405@yahoo.com.au> <20041106120624.GE2890@holomorphy.com> <418CBED7.6050609@yahoo.com.au> <20041106122355.GF2890@holomorphy.com>
+In-Reply-To: <20041106122355.GF2890@holomorphy.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Peter Chubb <peter@chubb.wattle.id.au>, Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 7 Nov 2004, Peter Chubb wrote:
->> Is this going to scale properly to large machines, which usually have
->> large numbers of active processes?  top is already
->> almost unuseably slow on such machines; if all the pagetables have to
->> be scanned to get RSS, it'll probably slow to a halt.
+William Lee Irwin III wrote:
+> William Lee Irwin III wrote:
+> 
+>>>There is no conflict. The sums are invariant under overflows.
+> 
+> 
+> On Sat, Nov 06, 2004 at 11:08:55PM +1100, Nick Piggin wrote:
+> 
+>>If they're not racy.
+> 
+> 
+> Only one race matters: contributions to accounting. Reporting is
+> inherently racy without stop-the-world -style locking. But the
+> contributions to accounting are irrelevant: shared counter partitions
+> must be updated atomically, fully-cpu-private partitions can't race
+> with each other. So we are done.
+> 
 
-On Sat, Nov 06, 2004 at 03:54:17PM -0500, Rik van Riel wrote:
-> Not probably.  Certainly.
-> Christopher would do well to actually use his patch, while
-> running eg. an Oracle benchmark and using top to monitor
-> system activity.
+Hmm, possibly.. if you make the counters signed and have some
+logic to clamp the total to >= 0. But I expect per CPU counters
+will be too large for Christoph anyway... and would certainly
+not be an option for 2.6 (or any mainline kernel) either.
 
-OAST with a few thousand clients should do it. I think it tops out
-around 5000 or 1000 without benchmark source adjustments. The database
-itself, of course, has no trouble with many clients, the workload
-simulator was merely not intended for so many.
-
-
--- wli
+Anyway we'll see how his tests go.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
