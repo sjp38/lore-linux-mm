@@ -1,71 +1,24 @@
-Date: Wed, 28 Jan 2004 00:18:51 -0800
-Subject: ALSA noise (was: Re: 2.6.2-rc2-mm1)
-Message-ID: <20040128081851.GA11391@triplehelix.org>
+Date: Wed, 28 Jan 2004 09:41:06 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: 2.6.2-rc2-mm1
+Message-ID: <20040128094106.A26158@infradead.org>
 References: <20040127233402.6f5d3497.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="G4iJoqBmSsgzjUCe"
-Content-Disposition: inline
-In-Reply-To: <20040127233402.6f5d3497.akpm@osdl.org>
-From: joshk@triplehelix.org (Joshua Kwan)
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-
---G4iJoqBmSsgzjUCe
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20040127233402.6f5d3497.akpm@osdl.org>; from akpm@osdl.org on Tue, Jan 27, 2004 at 11:34:02PM -0800
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@oss.sgi.com
+List-ID: <linux-mm.kvack.org>
 
 On Tue, Jan 27, 2004 at 11:34:02PM -0800, Andrew Morton wrote:
-> - Various fixes.  Nothing stands out.
+> 	Jeff's tree:		netdev.patch
 
-This doesn't have quite as much to do with -mm as it probably should,
-but this high pitched noise + random static on ALSA playback happens
-on all of my machines that use intel8x0 PAST 2.6.1-rc1-mm2. (That is,
-2.6.1-rc2 stock has the bug, onwards until this release 2.6.2-rc2-mm1.)
+Any plan when we'll get the damn netdev lifetime rule fixes merged?
+They're real life problems and have been around for a long time..
 
-As I've repeated a few times on a few threads on LKML, this involves:
-1) a high pitched whining type noise when the system is *NOT* under load
-   which goes away if the CPU usage is at ~100%.
-2) lots of annoying pops of static during wave playback (hurts my ears.)
-
-I'm not so bold as to try to figure what changed between 2.6.1-rc1-mm2
-and 2.6.1-rc2 stock that could have caused this. Can anyone offer
-pointers on how to tackle this bug? I don't wish to be stuck with such
-an old kernel in the heat of 2.6 stable release development :)
-
-Hoping for a quick resolution for this bug. Other people have noticed it
-as well...
-
---=20
-Joshua Kwan
-
---G4iJoqBmSsgzjUCe
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.4 (GNU/Linux)
-
-iQIVAwUBQBdwaqOILr94RG8mAQJ7KQ/9GllCf0XBvPtjN6G4/h6PU6zQcjT967XS
-BcvQ12M2f7Ov43nzKIkZOdf2prC6xk8xtlbl5mFcimeSl2I3T/SbnjfBLxFeuUHW
-Me/EJauG/my0bHDAJioln6TtW4PKrVyF7msc4NKj6eNbkxGYvrNIXHrS6zIz9MCt
-x3S46uebLQA8Cw5KAMsuxCLqP1gr8RXlZf/6gbt+w/4nmuUb1lU9oovm2sZBkN+c
-vPTmdpjqYgeFesO3BT3nfQlw9dR6nspCUNgelkoUWMR/82V4AEAPSBGrGkncU1z1
-a6T2nDkMnk4XZaBUFSPRc3eKU8URT7a0Dxc5EknSu+S9EL2/1gqqpNzJvt0ko+Ei
-K5MWglFiaM1pJ6I/JHGj0u5AZNYRehwUoqux8/wCv2o5nSUu7FT/V3jBCgJ7VpTQ
-ddYbLZkULFPqEEGDSd5mBJw2dxcKBySv6oXJfZ3piJiTM+0ofU/xTRsrKIB8F17P
-jDpzWFBshqDOTwkSnBn1KMXDN/vLW9oL8Z7nzbC0dvN412oGvDY8f9tYDuCP8Tl6
-Ub5wVFpGg7rnUHtmWlQ9E9ExsDflHzR3oGZaQofhpm7OlAVtftOVWtgPWG393odx
-gM5jN03VmOQ2n1glyTuvoFpqoXtRvh6rvC+UiTHrcsx4vdhUMdAWVhA4wTejRp0k
-4v7dQIPn7qk=
-=ETGT
------END PGP SIGNATURE-----
-
---G4iJoqBmSsgzjUCe--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
