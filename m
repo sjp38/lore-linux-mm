@@ -1,32 +1,26 @@
-Message-ID: <3B75B2A8.2E8A42EE@zip.com.au>
-Date: Sat, 11 Aug 2001 15:33:12 -0700
-From: Andrew Morton <akpm@zip.com.au>
+Received: from touchme.toronto.redhat.com (IDENT:bcrl@touchme.toronto.redhat.com [172.16.14.9])
+	by lacrosse.corp.redhat.com (8.9.3/8.9.3) with ESMTP id VAA10023
+	for <linux-mm@kvack.org>; Sun, 12 Aug 2001 21:45:14 -0400
+Date: Sun, 12 Aug 2001 21:45:13 -0400 (EDT)
+From: Ben LaHaise <bcrl@redhat.com>
+Subject: test
+Message-ID: <Pine.LNX.4.33.0108122144530.15320-100000@touchme.toronto.redhat.com>
 MIME-Version: 1.0
-Subject: Re: vmstats patch against 2.4.8pre7 and new userlevel hack
-References: <01081022333100.00293@starship> <Pine.LNX.4.21.0108111349500.17282-100000@freak.distro.conectiva>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Daniel Phillips <phillips@bonn-fries.net>, lkml <linux-kernel@vger.kernel.org>, Zach Brown <zab@osdlab.org>, linux-mm@kvack.org
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Sender: majordomo@kanga.kvack.org
+Return-Path: <majordomo@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti wrote:
-> 
-> > Problem: none of the statistics show up in proc until the first time the
-> > kernel hits them.  The /proc/stats entry isn't even there until the kernel
-> > hits the first statistic.  This isn't user-friendly.
-> 
-> Right. This has to be fixed.
-> 
+test -- checking if list is back up.
 
-Does it?  The userspace tool can just assume the value is zero
-if it isn't available.
+		-ben
 
-If we want unencountered counters to appear in the summary
-we'd have to declare them, which means two lines of code
-rather than one :)
+-- 
+"The world would be a better place if Larry Wall had been born in
+Iceland, or any other country where the native language actually
+has syntax" -- Peter da Silva
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
