@@ -1,135 +1,45 @@
-Date: Mon, 10 Sep 2001 00:25:01 +0200 (CEST)
-From: Arjan Filius <iafilius@xs4all.nl>
-Reply-To: Arjan Filius <iafilius@xs4all.nl>
-Subject: Re: [SMP lock BUG?] Re: Feedback on preemptible kernel patch
-In-Reply-To: <3B9B82EF.A228F204@mvista.com>
-Message-ID: <Pine.LNX.4.33.0109100023570.4405-100000@sjoerd.sjoerdnet>
+Received: from scs.ch (nutshell.scs.ch [212.254.229.150])
+	by mail.scs.ch (8.11.2/8.11.2) with ESMTP id f8ADCVf28987
+	for <linux-mm@kvack.org>; Mon, 10 Sep 2001 15:12:32 +0200
+Message-ID: <3B9CBC3D.7B6509DF@scs.ch>
+Date: Mon, 10 Sep 2001 15:12:29 +0200
+From: Martin Maletinsky <maletinsky@scs.ch>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=X-UNKNOWN
-Content-Transfer-Encoding: 8BIT
+Subject: Memory managment locks
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: george anzinger <george@mvista.com>
-Cc: Roger Larsson <roger.larsson@norran.net>, Robert Love <rml@tech9.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
+   
 
-On Sun, 9 Sep 2001, george anzinger wrote:
+I am writing a kernel thread, that should check if a process' page (specified by a virtual address and the pointer to a task structure) is present in physical memory, and
+if this is the case pin it in memory (i.e. prevent it from being swapped out). I plan to pin the page by incrementing it's usage count (i.e. the count field of the
+corresponding page descriptor) - this is the way map_user_kiobuf() pins pages in memory. I have some questions about semaphores and spinlocks to be used, when accessing a
+process' mm structure and page tables:
 
-> If the page it is the correct one, when it is found mapped, the code
-> should just exit, not BUG() IHMO.
+(1) To parse a process' page tables I need to hold the page_table_lock in the process' mm_struct structure (according to A.Rubini's device driver book,
+http://www.xml.com/ldd/chapter/book/ch13.html). I still need to keep the lock held while incrementing the page's usage count (according to various comments throughout the
+kernel sources, page_table_lock prevents kswapd() from swapping out pages of the process). Question: Are there other spinlocks or semaphores to be held during the
+operations I mentioned?
 
+(2) When is the semaphore mmap_sem in the mm_struct structure to be held? When is the alloc_lock spinlock in the task_struct structure to be held?
 
-I'll try the ac10 +preempt, see what happens.
+(3) When multiple locks / semaphores have to be acquired, is there any rule concerning the order in which they should be acquired to prevent dead locks?
 
->
-> George
->
->
-> Roger Larsson wrote:
-> >
-> > Hi,
-> >
-> > This is interesting. [Assumes UP Athlon - correct]
-> > Note that all BUGs out in highmem.h:95 (kmap_atomic)
-> > and that test is only on if you have enabled HIGHMEM_DEBUG
-> > [my analyze is done with a 2.4.10-pre2 kernel, but I checked with
-> > later patches and I do not think they fix it either...]
-> >
-> > The preemptive kernel puts more SMP stress on the kernel than
-> > running with multiple CPUs.
-> >
-> > So this might be a potential bug in the kernel proper, running with
-> > a SMP computer.
-> >
-> > If I understand the bug correctly, a process gets a page fault.
-> > Starts to map in the page. But before the final part it checks -
-> > and the page is already there!!! Correct?
-> >
-> > On Saturday den 8 September 2001 19:33, Arjan Filius wrote:
-> > > Hello Robert,
-> > >
-> > >
-> > > I tried 2.4.10-pre4 with patch-rml-2.4.10-pre4-preempt-kernel-1.
-> > > But it seems to hit highmem (see below) (i do have 1.5GB ram)
-> > > 2.4.10-pre4 plain runs just fine.
-> > >
-> > > With the kernel option mem=850M the patched kernel boots an seems to run
-> > > fine. However i didn't do any stress testing yet, but i still notice
-> > > hickups while playing mp3 files at -10 nice level with mpg123 on a 1.1GHz
-> > > Athlon, and removing for example a _large_ file (reiser-on-lvm).
-> > >
-> > > My syslog output with highmem:
-> > >
-> > > Sep  8 18:10:16 sjoerd kernel: kernel BUG at
-> > > /usr/src/linux-2.4.10-pre4/include/asm/highmem.h:95! Sep  8 18:10:16 sjoerd
-> > > kernel: invalid operand: 0000
-> > > Sep  8 18:10:16 sjoerd kernel: CPU:    0
-> > > Sep  8 18:10:16 sjoerd kernel: EIP:    0010:[do_wp_page+636/1088]
-> > > [- - -]
-> > > sjoerd kernel: Call Trace: [handle_mm_fault+141/224]
-> > > [do_page_fault+375/1136] [do_page_fault+0/1136] [__mmdrop+58/64]
-> > > [do_exit+595/640] Sep  8 18:10:16 sjoerd kernel:    [error_code+52/64]
-> >
-> > Lets look at this example. You need to add some inline functions...
-> >
-> > handle_mm_fault
-> >         takes the mm->page_table_lock [this should prevent reschedules]
-> >         allocs pmd
-> >         allocs pte
-> >         handle_pte_fault(...)
-> > handle_pte_fault [inline, most likely path]
-> >         pte is present
-> >         it is a write access
-> >         but the pte is not writeable  - call do_wp_page
-> > do_wp_page
-> >         plays some games with the lock...
-> >         finally calls copy_cow_page [inline] with the page_table_lock
-> >         UNLOCKED!
-> > copy_cow_page
-> >         calls clear_user_highpage or copy_user_highpage
-> > both clear_user_highpage and copy_user_highpage
-> >         calls kmap_atomic
-> > kmap_atomic
-> >         page is a highmem page
-> >         but during the time this process was unlocked some other
-> >         thread has allocated the page in question... BUG out.
-> >
-> > So somewere between the UNLOCK (might be a lot later) and the
-> > BUG test in kmap_atomic the process running in kernel got preempted.
-> > (most likely during the page copy since it will take some time)
-> >
-> > Another process (thread) started to run - hit the same page fault
-> > but succeeded in its alloc.
-> >
-> > Back to the first process it continues, finally checks - the page
-> > is there... and BUGS.
-> >
-> > Note that this can happen in a pure SMP kernel.
-> >
-> > But let the processes (threads) run on two CPUs. And let the
-> > first get an interrupt/bh after unlock - the other can pass
-> > and add the page before the first one can continue - same
-> > result!
-> >
-> > /RogerL
-> >
-> > --
-> > Roger Larsson
-> > Skelleftea
-> > Sweden
-> > -
-> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > Please read the FAQ at  http://www.tux.org/lkml/
->
+(4) Why isn't page_table_lock a read/write spinlock (is there any reason to prevent several threads from scanning a process' page table simultaneously)?
 
--- 
-Arjan Filius
-mailto:iafilius@xs4all.nl
+Thanks in advance for any help
+Martin
 
+--
+Supercomputing System AG          email: maletinsky@scs.ch
+Martin Maletinsky                 phone: +41 (0)1 445 16 05
+Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
+CH-8005 Zurich
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
