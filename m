@@ -1,29 +1,46 @@
-Date: Mon, 17 Jun 2002 16:25:33 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: linux page table
-Message-ID: <20020617232533.GB25360@holomorphy.com>
-References: <1024325907014473@caramail.com>
+Received: from e500b.comp.nus.edu.sg (e500b.comp.nus.edu.sg [137.132.90.26])
+	by x86unx3.comp.nus.edu.sg (8.9.1/8.9.1) with SMTP id MAA24077
+	for <linux-mm@kvack.org>; Tue, 18 Jun 2002 12:15:48 +0800 (GMT-8)
+Received: (from zoum@localhost)
+	by sf0.comp.nus.edu.sg (8.8.5/8.8.5) id MAA25193
+	for linux-mm@kvack.org; Tue, 18 Jun 2002 12:15:47 +0800 (GMT-8)
+Date: Tue, 18 Jun 2002 12:15:47 +0800
+From: Zou Min <zoum@comp.nus.edu.sg>
+Subject: VM reference trace
+Message-ID: <20020618121547.A15008@comp.nus.edu.sg>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1024325907014473@caramail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: anya aitali <tiziri00@caramail.com>
-Cc: linux-mm@kvack.org
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 17, 2002 at 04:58:27PM +0000, anya aitali wrote:
-> Can you oriented me. I had a PFN (page frame number) for 
-> one page and I want assign it to a entry for a pte_page.
-> What are the LINUX kernel functions should I use.
-> Thanks. 
+Hi,
 
-In 2.5 this is done with pfn_pte(), in 2.4 mk_pte().
+I am working on a problem which requires to get D: the number of distinct 
+pages (from user files or dynamically allocated or used by the kernel, ...)
+used by the kernel+user processes in a workload.
 
+One way I thought of is to firstly generate a reference trace, i.e. a sequence
+of virtual memory addresses accessed by the workload, and then count the
+the number of distinct addresses in the trace. (assuming the addresses are 
+page addresses).
 
-Cheers,
-Bill
+In fact, I have found a library to do that, but it can only trace single
+process in userland. And I have to modify, re-compile and re-link the program 
+which I want to trace. That's a bit tedious.
+
+So, I want to ask if there are any better utilities to generate the trace,
+or any way to get the number D directly.
+
+Thanks in advance!
+
+-- 
+regards,
+
+ZM 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
