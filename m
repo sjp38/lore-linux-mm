@@ -1,54 +1,61 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA20791
-	for <linux-mm@kvack.org>; Tue, 24 Nov 1998 10:49:04 -0500
-Date: Tue, 24 Nov 1998 15:48:57 GMT
-Message-Id: <199811241548.PAA01047@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA21380
+	for <linux-mm@kvack.org>; Tue, 24 Nov 1998 12:33:59 -0500
+Date: Tue, 24 Nov 1998 09:33:11 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Linux-2.1.129..
-In-Reply-To: <m13e79eha7.fsf@flinx.ccr.net>
-References: <Pine.LNX.3.96.981123215719.6004B-100000@mirkwood.dummy.home>
-	<m13e79eha7.fsf@flinx.ccr.net>
+In-Reply-To: <199811241525.PAA00862@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.95.981124092641.10767A-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "Eric W. Biederman" <ebiederm+eric@ccr.net>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, "Dr. Werner Fink" <werner@suse.de>, Kernel Mailing List <linux-kernel@vger.rutgers.edu>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-On 24 Nov 1998 00:28:16 -0600, ebiederm+eric@ccr.net (Eric
-W. Biederman) said:
 
-> Imagine a machine with 1 Gigabyte of RAM and 8 Gigabyte of swap,
-> in heavy use.  Swapping but not thrashing.
+On Tue, 24 Nov 1998, Stephen C. Tweedie wrote:
+> 
+> Indeed.  However, I think it misses the real advantage, which is that
+> the mechanism would be inherently self-tuning (much more so than the
+> existing code).
 
-> You can't swap out several hundred megabytes all at once.  
+Yes, that's one of the reasons I like it.
 
-Sure you can!  It's a tradeoff between moment-to-moment predictability
-and overall throughput.  Swapping loads at once gives unpredictable
-short-term behaviour but great throughput.  Performance is nearly
-always about trading of throughput for things like predictability or
-fairness.
+The other reason I like it is that right now it is extremely hard to share
+swapped out pages unless you share them due to a fork(). The problem is
+that the swap cache supports the notion of sharing, but out swap-out
+routines do not - they swap things out on a per-virtual-page basis, and
+that results in various nasty things - we page out the same page to
+multiple places, and lose the sharing. 
 
-> You can handle a suddne flurry of network traffic much better this way
-> for example.
+> > I'd like to see this, although I think it's way too late for 2.2
+> 
+> The mechanism is all there, and we're just tuning policy.  Frankly,
+> the changes we've seen in vm policy since 2.1.125 are pretty major
+> already, and I think it's important to get it right before 2.2.0.
 
-As long as you have got enough clean pages around, you can deal with
-this anyway: kswapd can find free memory very rapidly as long as it
-doesn't have to spend time writing things to swap.
+The VM policy changes weren't stability issues, they were only "timing". 
+As such, if they broke something, it was really broken before too. 
 
-> As far as fixed percentages.  It's a loose every time, and I won't
-> drop a working feature for an older lesser design.  Having tuneable
-> fixed percentages is only a win on a 1 application, 1 load pattern
-> box.
+And I agree that the mechanism is already there, however as it stands we
+really populate the swap cache at page-in rather than page-out, and
+changing that is fairly fundamental. It would be good, no question about
+it, but it's still fairly fundamental. 
 
-<Nods head vigorously.>  Try running with a big ramdisk on a 2.1.125
-box, for example: the precomputed page cache limits no longer work and
-performance falls apart.
+Note that if done right, this would also fix the damn stupid dirty page
+write-back thing: right now if multiple processes share the same dirty
+page and they all write to it, it will be written multiple times. But done
+right, the dirty inode page write-out would be done the same way. 
 
---Stephen
+> The patch below is a very simple implementation of this concept.
+
+I will most probably apply the patch - it just looks fundamentally
+correct. However, what I was thinking of was a bit more ambitious.
+
+		Linus
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
