@@ -1,89 +1,69 @@
-Date: Sat, 5 Apr 2003 13:24:06 -0800
-From: Andrew Morton <akpm@digeo.com>
+Date: Sat, 5 Apr 2003 16:34:24 -0500 (EST)
+From: Rik van Riel <riel@imladris.surriel.com>
 Subject: Re: objrmap and vmtruncate
-Message-Id: <20030405132406.437b27d7.akpm@digeo.com>
 In-Reply-To: <20030405163003.GD1326@dualathlon.random>
-References: <20030404163154.77f19d9e.akpm@digeo.com>
-	<12880000.1049508832@flay>
-	<20030405024414.GP16293@dualathlon.random>
-	<20030404192401.03292293.akpm@digeo.com>
-	<20030405040614.66511e1e.akpm@digeo.com>
-	<20030405163003.GD1326@dualathlon.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <Pine.LNX.4.50L.0304051614330.2553-100000@imladris.surriel.com>
+References: <20030404163154.77f19d9e.akpm@digeo.com> <12880000.1049508832@flay>
+ <20030405024414.GP16293@dualathlon.random> <20030404192401.03292293.akpm@digeo.com>
+ <20030405040614.66511e1e.akpm@digeo.com> <20030405163003.GD1326@dualathlon.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@digeo.com>, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli <andrea@suse.de> wrote:
->
-> On Sat, Apr 05, 2003 at 04:06:14AM -0800, Andrew Morton wrote:
-> > Andrew Morton <akpm@digeo.com> wrote:
-> > >
-> > > Nobody has written an "exploit" for this yet, but it's there.
-> > 
-> > Here we go.  The test app is called `rmap-test'.  It is in ext3 CVS.  See
-> > 
-> > 	http://www.zip.com.au/~akpm/linux/ext3/
-> > 
-> > It sets up N MAP_SHARED VMA's and N tasks touching them in various access
-> > patterns.
-> 
+On Sat, 5 Apr 2003, Andrea Arcangeli wrote:
+
 > I'm not questioning during paging rmap is more efficient than objrmap,
 > but your argument about rmap having lower complexity of objrmap and that
 > rmap is needed is wrong. The fact is that with your 100 mappings per
 > each of the 100 tasks case, both algorithms works in O(N) where N is
-> the number of the pagetables mapping the page.
+> the number of the pagetables mapping the page. No difference in
+> complexity.  I don't care how many cycles you spend to reach the 100x100
+> pagetables, those are fixed cycles, the fact is that there are 100x100
+> pagetables,
 
-Nope.  To unmap a page, full rmap has to scan 100 pte_chain slots, which is 3
-cachelines worth.  objrmap has to scan 10,000 vma's, 9,900 of which do not map
-that page at all.
+Umm no.  The fact that a VMA is "mapping" the page doesn't
+mean the page is resident in any page tables.   For example,
+think about the MAP_PRIVATE mapping of the relocation tables
+from libc.so ... every process will have its own, modified,
+copy of that data.  The original page might not be mapped by
+the page tables of any processes.
 
-(Actually, there's a recent optimisation in objrmap which will on average
-halve these figures).
+> rmap won't change the complexity of the algorithm at all,
 
-> And objrmap can't avoided, it's needed for the truncate semantics
-> against mmap.
+It will for some cases (as shown above), but I agree that for
+most common situations objrmap and pte rmap should have very
+similar algorithmic complexity in the pageout path.
 
-What do you mean by this?  vmtruncate continues to use the 2.4 algorithm for
-that.
+> that's mandated by the hardware and by your application, we can't do
+> better than O(N) with N the number of pagetables to unmap a single page.
+> Even rmap has the O(N) complexity, it won't be allowed to reach only 100
+> pagetables instead of 100000 pagetables.
 
-> Check all other important benchmarks not testing the paging load like
-> page faults, kernel compile from Martin, fork, AIM etc... Those are IMHO
-> an order of magnitude of more interest than your rmap-test paging load
-> with some hundred thousand of vmas.
+There is one common situation where objrmap is O(N^2) while
+pte rmap is only O(N).  However, this case isn't interesting
+because this workload tends to run mlocked anyway.
 
-Andrea, I whine about rmap as much as anyone ;) I'm the guy who halved both
-its speed and space overhead shortly after it was merged.
+This is, of course, Oracle on 32 bit systems with gazillions
+of windows into the larger-than-virtual-memory shared memory
+area.
 
-But the fact is that it is not completely useless overhead.  It provides a
-very robust VM which is stable and predictable under extreme and unusual
-loads.  That is valuable.
+This aspect of Oracle can be special-cased with remap_file_pages
+and the reverse mapping can be skipped alltogether since Oracle's
+shared memory area should (IMHO) be mlocked anyway.
 
-Yes, rmap adds a few% speed overhead - up to 10% for things which are
-admittedly already very inefficient.
+In short, I agree with you that we probably want object rmap for
+all the common cases.
 
-objrmap will reclaim a lot of that common-case overhead.  But the cost of
-that is apparently unviability for certain workloads on certain machines. 
-Once you hit 100k VMA's it's time to find a new operating system.
+cheers,
 
-Maybe that is a tradeoff we want to make.  I'm adding some balance here.
-
-The space consumption of rmap is a much more serious problem than the speed
-overhead.  It makes some workloads on huge ia32 machines unviable.
-
-
-Me, I have never seen any evidence that we need any of it.  I have never seen
-a demonstration of the alleged failure modes of 2.4's virtual scan.  But then
-I haven't tried very hard.
-
-The extreme stability and scalability of full rmap is good.  The space
-consumption on highmem is bad.  The CPU cost is much less important than
-these things.
-
+Rik
+-- 
+Engineers don't grow up, they grow sideways.
+http://www.surriel.com/		http://kernelnewbies.org/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
