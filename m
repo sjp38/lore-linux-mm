@@ -1,37 +1,25 @@
-Date: Thu, 12 Oct 2000 22:05:19 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Updated Linux 2.4 Status/TODO List (from the ALS show)
-In-Reply-To: <200010130425.VAA11538@pizda.ninka.net>
-Message-ID: <Pine.LNX.4.10.10010122203410.14174-100000@penguin.transmeta.com>
+Date: Fri, 13 Oct 2000 12:45:47 +0100 (BST)
+In-Reply-To: <200010130029.RAA18914@pizda.ninka.net> from "David S. Miller" at Oct 12, 2000 05:29:39 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <E13k3HY-0000yb-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "David S. Miller" <davem@redhat.com>
-Cc: saw@saw.sw.com.sg, davej@suse.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, tytso@mit.edu
+Cc: davej@suse.de, tytso@mit.edu, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 12 Oct 2000, David S. Miller wrote:
+>    Any of the mm gurus give the patch below a quick once over ?  Is
+>    this adequate, or is there more to this than the description
+>    implies?
 > 
->    page_table_lock is supposed to protect normal page table activity (like
->    what's done in page fault handler) from swapping out.
->    However, grabbing this lock in swap-out code is completely missing!
-> 
-> Audrey, vmlist_access_{un,}lock == unlocking/locking page_table_lock.
+> It might make more sense to just make rss an atomic_t.
 
-Yeah, it's an easy mistake to make.
-
-I've made it myself - grepping for page_table_lock and coming up empty in
-places where I expected it to be.
-
-In fact, if somebody sends me patches to remove the "vmlist_access_lock()"
-stuff completely, and replace them with explicit page_table_lock things,
-I'll apply it pretty much immediately. I don't like information hiding,
-and right now that's the only thing that the vmlist_access_lock() stuff is
-doing.
-
-		Linus
+Can we always be sure the rss will fit in an atomic_t - is it > 32bits on the
+ultrsparc/alpha ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
