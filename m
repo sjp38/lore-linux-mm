@@ -1,48 +1,45 @@
-Date: Mon, 25 Jun 2001 20:34:00 +0200
-From: Jens Axboe <axboe@suse.de>
-Subject: Re: 2.4.6pre3: kswapd dominating CPU
-Message-ID: <20010625203400.D3327@suse.de>
-References: <F341E03C8ED6D311805E00902761278C07EFA675@xfc04.fc.hp.com>
-Mime-Version: 1.0
+Subject: Re: VM tuning through fault trace gathering [with actual code]
+References: <Pine.LNX.4.21.0106251456130.7419-100000@imladris.rielhome.conectiva>
+From: John Fremlin <vii@users.sourceforge.net>
+Date: 25 Jun 2001 22:15:31 +0100
+In-Reply-To: <Pine.LNX.4.21.0106251456130.7419-100000@imladris.rielhome.conectiva> (Rik van Riel's message of "Mon, 25 Jun 2001 14:57:39 -0300 (BRST)")
+Message-ID: <m28zigi7m4.fsf@boreas.yi.org.>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <F341E03C8ED6D311805E00902761278C07EFA675@xfc04.fc.hp.com>; from matt_zinkevicius@hp.com on Mon, Jun 18, 2001 at 05:12:44PM -0700
-Resent-To: matt_zinkevicius@hp.com, linux-mm@kvack.org
-Resent-Message-Id: <E15Ec4O-0001B7-00@burns.home.kernel.dk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "ZINKEVICIUS,MATT (HP-Loveland,ex1)" <matt_zinkevicius@hp.com>
-Cc: "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jun 18 2001, ZINKEVICIUS,MATT (HP-Loveland,ex1) wrote:
-> [...] This seems related
-> to whether we enable highmem in the kernel, as this problem only appears
-> when highmem is set to 4GB or 64GB. Any hints?
+Rik van Riel <riel@conectiva.com.br> writes:
+
+> On 25 Jun 2001, John Fremlin wrote:
 > 
-> Server specs:
-> HP LT6000r server
-> 4 x 700Mhz P3Xeons
-> 4GB RAM
-> 1GB swap partition
-> 2.4.6pre3 kernel
+> > Last year I had the idea of tracing the memory accesses of the
+> > system to improve the VM - the traces could be used to test
+> > algorithms in userspace. The difficulty is of course making all
+> > memory accesses fault without destroying system performance.
+> 
+> Sounds like a cool idea.  One thing you should keep in mind though
+> is to gather traces of the WHOLE SYSTEM and not of individual
+> applications.
 
-WIth a machine spec'ed like that, you might want to try with the
-zero-bounce patches for highmem machines. Running out of memory and
-still requiring low mem bounce buffers can get ugly -- the patches won't
-solve any vm issues, but they should solve the problem for you (and
-boost your specsfs performance a good deal).
+In the current patch all pagefaults are recorded from all sources. I'd
+like to be able to catch read(2) and write(2) (buffer cache stuff) as
+well but I don't know how . . . .
 
-Haven't had time to update to 2.4.6-pre3 yet, if these don't apply let
-me know:
+> There has to be a way to balance the eviction of pages from
+> applications against those of other applications.
 
-*.kernel.org/pub/linux/kernel/people/axboe/patches/2.4.5/block-highmem-all-4.bz2
+Of course! It is important not to regard each thread group as an
+independent entity IMHO (had a big old argument about this).
 
-Dunno what I/O controller you used...
+[...]
 
 -- 
-Jens Axboe
 
+	http://ape.n3.net
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
