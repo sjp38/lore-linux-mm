@@ -2,177 +2,301 @@ From: Nikita Danilov <nikita@clusterfs.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <16800.47052.733779.713175@gargle.gargle.HOWL>
-Date: Sun, 21 Nov 2004 18:44:12 +0300
-Subject: [PATCH]: 2/4 mm/swap.c cleanup
+Message-ID: <16800.47066.827146.370838@gargle.gargle.HOWL>
+Date: Sun, 21 Nov 2004 18:44:26 +0300
+Subject: [PATCH]: 4/4 cluster page-out in VM scanner
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Kernel Mailing List <Linux-Kernel@Vger.Kernel.ORG>
 Cc: Andrew Morton <AKPM@Osdl.ORG>, Linux MM Mailing List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Add pagevec_for_each_page() macro to iterate over all pages in a
-pagevec. Non-trivial part is to keep track of page zone and relock
-zone->lru_lock when switching to new zone.
+Implement pageout clustering at the VM level.
 
-This simplifies functions in mm/swap.c that process pages from pvec in a
-batch.
+With this patch VM scanner calls pageout_cluster() instead of
+->writepage(). pageout_cluster() tries to find a group of dirty pages around
+target page, called "pivot" page of the cluster. If group of suitable size is
+found, ->writepages() is called for it, otherwise, page_cluster() falls back
+to ->writepage().
+
+This is supposed to help in work-loads with significant page-out of
+file-system pages from tail of the inactive list (for example, heavy dirtying
+through mmap), because file system usually writes multiple pages more
+efficiently. Should also be advantageous for file-systems doing delayed
+allocation, as in this case they will allocate whole extents at once.
+
+Few points:
+
+ - swap-cache pages are not clustered (although they can be, but by
+   page->private rather than page->index)
+
+ - currently, kswapd clusters all the time, and direct reclaim only when
+   device queue is not congested. Probably direct reclaim shouldn't cluster at
+   all.
+
+ - this patch adds new fields to struct writeback_control and expects
+   ->writepages() to interpret them. This is needed, because pageout_cluster()
+   calls ->writepages() with pivot page already locked, so that ->writepages()
+   is allowed to only trylock other pages in the cluster.
+
+   Besides, rather rough plumbing (wbc->pivot_ret field) is added to check
+   whether ->writepages() failed to write pivot page for any reason (in latter
+   case page_cluster() falls back to ->writepage()).
+
+   Only mpage_writepages() was updated to honor these new fields, but
+   all in-tree ->writepages() implementations seem to call
+   mpage_writepages(). (Except reiser4, of course, for which I'll send a
+   (trivial) patch, if necessary).
+
+Numbers that talk:
+
+Averaged number of microseconds it takes to dirty 1GB of
+16-times-larger-than-RAM ext3 file mmaped in 1GB chunks:
+
+without-patch:   average:    74188417.156250
+               deviation:    10538258.613280
+
+   with-patch:   average:    69449001.583333
+               deviation:    12621756.615280
 
 (Patch is for 2.6.10-rc2)
 
 Signed-off-by: Nikita Danilov <nikita@clusterfs.com>
 
- include/linux/pagevec.h |   45 +++++++++++++++++++++++++++++++++++++++++++
- mm/swap.c               |   50 +++++++++---------------------------------------
- 2 files changed, 55 insertions(+), 40 deletions(-)
+ fs/mpage.c                |  103 +++++++++++++++++++++++-----------------------
+ include/linux/writeback.h |    6 ++
+ mm/vmscan.c               |   74 ++++++++++++++++++++++++++++++++-
+ 3 files changed, 131 insertions(+), 52 deletions(-)
 
-diff -puN include/linux/pagevec.h~pvec-cleanup include/linux/pagevec.h
---- bk-linux/include/linux/pagevec.h~pvec-cleanup	2004-11-21 17:01:02.606535952 +0300
-+++ bk-linux-nikita/include/linux/pagevec.h	2004-11-21 17:01:02.611535192 +0300
-@@ -83,3 +83,48 @@ static inline void pagevec_lru_add(struc
- 	if (pagevec_count(pvec))
- 		__pagevec_lru_add(pvec);
+diff -puN mm/vmscan.c~cluster-pageout mm/vmscan.c
+--- bk-linux/mm/vmscan.c~cluster-pageout	2004-11-21 17:01:06.000000000 +0300
++++ bk-linux-nikita/mm/vmscan.c	2004-11-21 17:01:06.000000000 +0300
+@@ -308,6 +308,78 @@ static void handle_write_error(struct ad
+ 	unlock_page(page);
  }
-+
-+/*
-+ * Helper macro for pagevec_for_each_page(). This is called on each
-+ * iteration before entering loop body. Checks if we are switching to
-+ * the new zone so that ->lru_lock should be re-taken.
-+ */
-+#define __guardloop(_v, _i, _p, _z)				\
-+({								\
-+	struct zone *pagezone;					\
-+								\
-+	_p = (_v)->pages[i];					\
-+	pagezone = page_zone(_p);				\
-+								\
-+	if (pagezone != (_z)) {					\
-+		if (_z)						\
-+			spin_unlock_irq(&(_z)->lru_lock);	\
-+		_z = pagezone;					\
-+		spin_lock_irq(&(_z)->lru_lock);		\
-+	}							\
-+})
-+
-+/*
-+ * Helper macro for pagevec_for_each_page(). This is called after last
-+ * iteration to release zone->lru_lock if necessary.
-+ */
-+#define __postloop(_v, _i, _p, _z)			\
-+({							\
-+	if ((_z) != NULL)				\
-+		spin_unlock_irq(&(_z)->lru_lock);	\
-+})
-+
-+/*
-+ * Macro to iterate over all pages in pvec. Body of a loop is invoked with
-+ * page's zone ->lru_lock held. This is used by various function in mm/swap.c
-+ * to batch per-page operations that whould otherwise had to acquire hot
-+ * zone->lru_lock for each page.
-+ *
-+ * This uses ugly preprocessor magic, but that's what preprocessor is all
-+ * about.
-+ */
-+#define pagevec_for_each_page(_v, _i, _p, _z)				\
-+for (_i = 0, _z = NULL;							\
-+     ((_i) < pagevec_count(_v) && (__guardloop(_v, _i, _p, _z), 1)) ||	\
-+     (__postloop(_v, _i, _p, _z), 0);					\
-+     (_i)++)
-diff -puN mm/swap.c~pvec-cleanup mm/swap.c
---- bk-linux/mm/swap.c~pvec-cleanup	2004-11-21 17:01:02.609535496 +0300
-+++ bk-linux-nikita/mm/swap.c	2004-11-21 17:01:02.611535192 +0300
-@@ -116,19 +116,11 @@ void fastcall activate_page(struct page 
- static void __pagevec_mark_accessed(struct pagevec *pvec)
- {
- 	int i;
--	struct zone *zone = NULL;
-+	struct zone *zone;
-+	struct page *page;
  
--	for (i = 0; i < pagevec_count(pvec); i++) {
--		struct page *page = pvec->pages[i];
--		struct zone *pagezone = page_zone(page);
--
--		if (pagezone != zone) {
--			if (zone)
--				local_unlock_irq(&zone->lru_lock);
--			zone = pagezone;
--			local_lock_irq(&zone->lru_lock);
--		}
--		if (!PageActive(page) && PageReferenced(page) && PageLRU(page)) {
-+	pagevec_for_each_page(pvec, i, page, zone) {
-+		if (!PageActive(page) && PageReferenced(page) && PageLRU(page)){
- 			del_page_from_inactive_list(zone, page);
- 			SetPageActive(page);
- 			add_page_to_active_list(zone, page);
-@@ -138,8 +130,6 @@ static void __pagevec_mark_accessed(stru
- 			SetPageReferenced(page);
- 		}
- 	}
--	if (zone)
--		local_unlock_irq(&zone->lru_lock);
- 	release_pages(pvec->pages, pvec->nr, pvec->cold);
- 	pagevec_reinit(pvec);
- }
-@@ -322,25 +312,15 @@ void __pagevec_release_nonlru(struct pag
- void __pagevec_lru_add(struct pagevec *pvec)
- {
- 	int i;
--	struct zone *zone = NULL;
--
--	for (i = 0; i < pagevec_count(pvec); i++) {
--		struct page *page = pvec->pages[i];
--		struct zone *pagezone = page_zone(page);
-+	struct page *page;
-+	struct zone *zone;
++enum {
++	PAGE_CLUSTER_WING = 16,
++	PAGE_CLUSTER_SIZE = 2 * PAGE_CLUSTER_WING,
++};
++
++enum {
++	PIVOT_RET_MAGIC = 42
++};
++
++static int pageout_cluster(struct page *page, struct address_space *mapping,
++			   struct writeback_control *wbc)
++{
++	pgoff_t punct;
++	pgoff_t start;
++	pgoff_t end;
++	struct page *opage = page;
++
++	if (PageSwapCache(page) ||
++	    (!current_is_kswapd() &&
++	     bdi_write_congested(mapping->backing_dev_info)))
++		return mapping->a_ops->writepage(page, wbc);
++
++	wbc->pivot = page;
++	punct = page->index;
++	spin_lock_irq(&mapping->tree_lock);
++	for (start = punct - 1;
++	     start < punct && punct - start <= PAGE_CLUSTER_WING; -- start) {
++		page = radix_tree_lookup(&mapping->page_tree, start);
++		if (page == NULL || !PageDirty(page))
++			/*
++			 * no suitable page, stop cluster at this point
++			 */
++			break;
++		if ((start % PAGE_CLUSTER_SIZE) == 0)
++			/*
++			 * we reached aligned page.
++			 */
++			-- start;
++			break;
++	}
++	++ start;
++	for (end = punct + 1;
++	     end > punct && end - start < PAGE_CLUSTER_SIZE; ++ end) {
++		/*
++		 * XXX nikita: consider find_get_pages_tag()
++		 */
++		page = radix_tree_lookup(&mapping->page_tree, end);
++		if (page == NULL || !PageDirty(page))
++			/*
++			 * no suitable page, stop cluster at this point
++			 */
++			break;
++	}
++	spin_unlock_irq(&mapping->tree_lock);
++	-- end;
++	wbc->pivot_ret = PIVOT_RET_MAGIC; /* magic */
++	if (end > start) {
++		wbc->start = ((loff_t)start) << PAGE_CACHE_SHIFT;
++		wbc->end   = ((loff_t)end) << PAGE_CACHE_SHIFT;
++		wbc->end  += PAGE_CACHE_SIZE - 1;
++		wbc->nr_to_write = end - start + 1;
++		do_writepages(mapping, wbc);
++	}
++	if (wbc->pivot_ret == PIVOT_RET_MAGIC)
++		/*
++		 * single page, or ->writepages() skipped pivot for any
++		 * reason: just call ->writepage()
++		 */
++		wbc->pivot_ret = mapping->a_ops->writepage(opage, wbc);
++	return wbc->pivot_ret;
++}
++
+ /*
+  * Called by shrink_list() for each dirty page. Calls ->writepage().
+  */
+@@ -378,7 +450,7 @@ static pageout_t pageout(struct page *pa
  
--		if (pagezone != zone) {
--			if (zone)
--				spin_unlock_irq(&zone->lru_lock);
--			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
--		}
-+	pagevec_for_each_page(pvec, i, page, zone) {
- 		if (TestSetPageLRU(page))
- 			BUG();
  		ClearPageSkipped(page);
- 		add_page_to_inactive_list(zone, page);
- 	}
--	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
- 	release_pages(pvec->pages, pvec->nr, pvec->cold);
- 	pagevec_reinit(pvec);
- }
-@@ -350,26 +330,16 @@ EXPORT_SYMBOL(__pagevec_lru_add);
- void __pagevec_lru_add_active(struct pagevec *pvec)
- {
- 	int i;
--	struct zone *zone = NULL;
--
--	for (i = 0; i < pagevec_count(pvec); i++) {
--		struct page *page = pvec->pages[i];
--		struct zone *pagezone = page_zone(page);
-+	struct page *page;
-+	struct zone *zone;
+ 		SetPageReclaim(page);
+-		res = mapping->a_ops->writepage(page, &wbc);
++		res = pageout_cluster(page, mapping, &wbc);
  
--		if (pagezone != zone) {
--			if (zone)
--				spin_unlock_irq(&zone->lru_lock);
--			zone = pagezone;
--			spin_lock_irq(&zone->lru_lock);
--		}
-+	pagevec_for_each_page(pvec, i, page, zone) {
- 		if (TestSetPageLRU(page))
- 			BUG();
- 		if (TestSetPageActive(page))
- 			BUG();
- 		add_page_to_active_list(zone, page);
- 	}
--	if (zone)
--		spin_unlock_irq(&zone->lru_lock);
- 	release_pages(pvec->pages, pvec->nr, pvec->cold);
- 	pagevec_reinit(pvec);
+ 		if (res < 0)
+ 			handle_write_error(mapping, page, res);
+diff -puN include/linux/writeback.h~cluster-pageout include/linux/writeback.h
+--- bk-linux/include/linux/writeback.h~cluster-pageout	2004-11-21 17:01:06.000000000 +0300
++++ bk-linux-nikita/include/linux/writeback.h	2004-11-21 17:01:06.000000000 +0300
+@@ -55,6 +55,12 @@ struct writeback_control {
+ 	unsigned encountered_congestion:1;	/* An output: a queue is full */
+ 	unsigned for_kupdate:1;			/* A kupdate writeback */
+ 	unsigned for_reclaim:1;			/* Invoked from the page allocator */
++	/* if non-NULL, page already locked by ->writepages()
++	 * caller. ->writepages() should use trylock on all other pages it
++	 * submits for IO */
++	struct page *pivot;
++	/* if ->pivot is not NULL, result for pivot page is stored here */
++	int pivot_ret;
+ };
+ 
+ /*
+diff -puN fs/mpage.c~cluster-pageout fs/mpage.c
+--- bk-linux/fs/mpage.c~cluster-pageout	2004-11-21 17:01:06.000000000 +0300
++++ bk-linux-nikita/fs/mpage.c	2004-11-21 17:01:06.000000000 +0300
+@@ -407,6 +407,7 @@ mpage_writepage(struct bio *bio, struct 
+ 	struct buffer_head map_bh;
+ 	loff_t i_size = i_size_read(inode);
+ 
++	*ret = 0;
+ 	if (page_has_buffers(page)) {
+ 		struct buffer_head *head = page_buffers(page);
+ 		struct buffer_head *bh = head;
+@@ -581,15 +582,6 @@ confused:
+ 	if (bio)
+ 		bio = mpage_bio_submit(WRITE, bio);
+ 	*ret = page->mapping->a_ops->writepage(page, wbc);
+-	/*
+-	 * The caller has a ref on the inode, so *mapping is stable
+-	 */
+-	if (*ret) {
+-		if (*ret == -ENOSPC)
+-			set_bit(AS_ENOSPC, &mapping->flags);
+-		else
+-			set_bit(AS_EIO, &mapping->flags);
+-	}
+ out:
+ 	return bio;
  }
+@@ -665,50 +657,59 @@ retry:
+ 		for (i = 0; i < nr_pages; i++) {
+ 			struct page *page = pvec.pages[i];
+ 
+-			/*
+-			 * At this point we hold neither mapping->tree_lock nor
+-			 * lock on the page itself: the page may be truncated or
+-			 * invalidated (changing page->mapping to NULL), or even
+-			 * swizzled back from swapper_space to tmpfs file
+-			 * mapping
+-			 */
+-
+-			lock_page(page);
++			if (page != wbc->pivot) {
++				/*
++				 * At this point we hold neither
++				 * mapping->tree_lock nor lock on the page
++				 * itself: the page may be truncated or
++				 * invalidated (changing page->mapping to
++				 * NULL), or even swizzled back from
++				 * swapper_space to tmpfs file mapping
++				 */
+ 
+-			if (unlikely(page->mapping != mapping)) {
+-				unlock_page(page);
+-				continue;
+-			}
++				if (wbc->pivot != NULL) {
++					if (unlikely(TestSetPageLocked(page)))
++						continue;
++				} else
++					lock_page(page);
++
++				if (unlikely(page->mapping != mapping)) {
++					unlock_page(page);
++					continue;
++				}
+ 
+-			if (unlikely(is_range) && page->index > end) {
+-				done = 1;
+-				unlock_page(page);
+-				continue;
+-			}
++				if (unlikely(is_range) && page->index > end) {
++					done = 1;
++					unlock_page(page);
++					continue;
++				}
+ 
+-			if (wbc->sync_mode != WB_SYNC_NONE)
+-				wait_on_page_writeback(page);
++				if (wbc->sync_mode != WB_SYNC_NONE)
++					wait_on_page_writeback(page);
+ 
+-			if (PageWriteback(page) ||
+-					!clear_page_dirty_for_io(page)) {
+-				unlock_page(page);
+-				continue;
++				if (PageWriteback(page) ||
++				    !clear_page_dirty_for_io(page)) {
++					unlock_page(page);
++					continue;
++				}
+ 			}
+-
+-			if (writepage) {
++			if (writepage)
+ 				ret = (*writepage)(page, wbc);
+-				if (ret) {
+-					if (ret == -ENOSPC)
+-						set_bit(AS_ENOSPC,
+-							&mapping->flags);
+-					else
+-						set_bit(AS_EIO,
+-							&mapping->flags);
+-				}
+-			} else {
++			else
+ 				bio = mpage_writepage(bio, page, get_block,
+ 						&last_block_in_bio, &ret, wbc);
++			if (ret) {
++				/*
++				 * The caller has a ref on the inode, so
++				 * *mapping is stable
++				 */
++				if (ret == -ENOSPC)
++					set_bit(AS_ENOSPC, &mapping->flags);
++				else
++					set_bit(AS_EIO, &mapping->flags);
+ 			}
++			if (page == wbc->pivot)
++				wbc->pivot_ret = ret;
+ 			if (ret || (--(wbc->nr_to_write) <= 0))
+ 				done = 1;
+ 			if (wbc->nonblocking && bdi_write_congested(bdi)) {
 
 _
 --
