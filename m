@@ -1,64 +1,43 @@
-Date: Mon, 01 Dec 2003 11:40:46 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: [PATCH] Clear dirty bits etc on compound frees
-Message-ID: <33500000.1070307646@flay>
-In-Reply-To: <22420000.1069877625@[10.10.2.4]>
-References: <22420000.1069877625@[10.10.2.4]>
-MIME-Version: 1.0
+Date: Mon, 1 Dec 2003 20:56:20 +0100
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: memory hotremove prototype, take 3
+Message-ID: <20031201195620.GD255@elf.ucw.cz>
+References: <20031201034155.11B387007A@sv1.valinux.co.jp>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <20031201034155.11B387007A@sv1.valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm mailing list <linux-mm@kvack.org>, Guillaume Morin <guillaume@morinfr.org>
+To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Guillaume noticed this on s390 whilst writing a driver that used
-> compound pages. Seems correct to me, I've tested it on i386 as
-> well. The patch just makes us call free_pages_check for each element
-> of a compound page.
+Hi!
+
+> this is a new version of my memory hotplug prototype patch, against
+> linux-2.6.0-test11.
 > 
-> diff -purN -X /home/mbligh/.diff.exclude virgin/mm/page_alloc.c clear_dirty/mm/page_alloc.c
-> --- virgin/mm/page_alloc.c	2003-10-14 15:50:36.000000000 -0700
-> +++ clear_dirty/mm/page_alloc.c	2003-11-26 10:36:04.000000000 -0800
-> @@ -267,8 +267,11 @@ free_pages_bulk(struct zone *zone, int c
->  void __free_pages_ok(struct page *page, unsigned int order)
->  {
->  	LIST_HEAD(list);
-> +	int i;
->  
->  	mod_page_state(pgfree, 1 << order);
-> +	for (i = 0 ; i < (1 << order) ; ++i)
-> +		free_pages_check(__FUNCTION__, page + i);
->  	free_pages_check(__FUNCTION__, page);
->  	list_add(&page->list, &list);
->  	kernel_map_pages(page, 1<<order, 0);
+> Freeing 100% of a specified memory zone is non-trivial and necessary
+> for memory hot removal.  This patch splits memory into 1GB zones, and
+> implements complete zone memory freeing using kswapd or "remapping".
+> 
+> A bit more detailed explanation and some test scripts are at:
+> 	http://people.valinux.co.jp/~iwamoto/mh.html
 
-Gah. Guillaume pointed out that in editing his patch, I left the old 
-free pages check in as well. <beats head repeatedly against wall>. Sorry.
+I scanned it...
 
-I think you can reproduce this without the driver he's playing with
-by mmap'ing /dev/mem, and writing into any clustered page group (that
-a driver might have created or whatever).
+hotunplug seems cool... How do you deal with kernel data structures in
+memory "to be removed"? Or you simply don't allow kmalloc() to
+allocate there?
 
-diff -purN -X /home/mbligh/.diff.exclude virgin/mm/page_alloc.c clear_dirty/mm/page_alloc.c
---- virgin/mm/page_alloc.c	2003-10-14 15:50:36.000000000 -0700
-+++ clear_dirty/mm/page_alloc.c	2003-12-01 11:34:09.000000000 -0800
-@@ -267,9 +267,11 @@ free_pages_bulk(struct zone *zone, int c
- void __free_pages_ok(struct page *page, unsigned int order)
- {
- 	LIST_HEAD(list);
-+	int i;
- 
- 	mod_page_state(pgfree, 1 << order);
--	free_pages_check(__FUNCTION__, page);
-+	for (i = 0 ; i < (1 << order) ; ++i)
-+		free_pages_check(__FUNCTION__, page + i);
- 	list_add(&page->list, &list);
- 	kernel_map_pages(page, 1<<order, 0);
- 	free_pages_bulk(page_zone(page), 1, &list, order);
-
+During hotunplug, you copy pages to new locaion. Would it simplify
+code if you forced them to be swapped out, instead? [Yep, it would be
+slower...]
+								Pavel
+-- 
+When do you have a heart between your knees?
+[Johanka's followup: and *two* hearts?]
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
