@@ -1,30 +1,53 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: [PATCH]Fix: Init page count for all pages during higher order allocs
-Date: Thu, 2 May 2002 23:13:34 +0200
-References: <Pine.LNX.4.21.0205021312370.999-100000@localhost.localdomain>
-In-Reply-To: <Pine.LNX.4.21.0205021312370.999-100000@localhost.localdomain>
+Message-ID: <3CD1FB78.B3314F4B@zip.com.au>
+Date: Thu, 02 May 2002 19:52:40 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E173NtU-0002Ak-00@starship>
+Subject: Re: page-flags.h
+References: <20020501192737.R29327@suse.de> <20020501183414.A28790@infradead.org> <20020501200452.S29327@suse.de>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>, Suparna Bhattacharya <suparna@in.ibm.com>
-Cc: Andrew Morton <akpm@zip.com.au>, "Eric W. Biederman" <ebiederm@xmission.com>, linux-kernel@vger.kernel.org, marcelo@brutus.conectiva.com.br, linux-mm@kvack.org
+To: Dave Jones <davej@suse.de>
+Cc: Christoph Hellwig <hch@infradead.org>, kernel-janitor-discuss@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 02 May 2002 15:08, Hugh Dickins wrote:
-> On Thu, 2 May 2002, Suparna Bhattacharya wrote:
-> As someone else noted in this thread, the kernel tries to keep
-> pages in use anyway, so omitting free pages won't buy you a great
-> deal on its own.  And I think it's to omit free pages that you want
-> to distinguish the count 0 continuations from the count 0 frees?
+Dave Jones wrote:
+> 
+> On Wed, May 01, 2002 at 06:34:14PM +0100, Christoph Hellwig wrote:
+>  > This step is wasted work - it will NEVER compile.  Rationale:
+>  > the page flags operate on page->flags and without having the definition
+>  > of struct page from mm.h this won't do.
+>  >
+>  > The better idea is IMHO to replace page-flags.h by page.h that also
+>  > contains the definition of struct page.
+> 
+> That's a good point, and something I completley overlooked.
+> I wonder if Andrew Morton (who I'm guessing wrote that comment
+> in mm.h) has some ingenious plan here..
 
-Then why not count=-1 for the continuation pages?
+who, me?
 
--- 
-Daniel
+I'd envisaged those 119 files doing:
+
+#include <linux/mm.h>
+#include <linux/page-flags.h>
+
+so then anything which includes mm.h but doesn't do any PageFoo()
+operations doesn't have to process those macros.
+
+I actually did those 119 edits, but dumped it - there are some
+awkward forward, backward and sideward refs in pagemap.h and
+highmem.h which need to be fixed up first.  umm..  Move
+wait_on_page_locked() into page-flags.h and uninline bio_kmap_irq().
+
+Also, moving bh_kmap(), bh_kunmap() and bh_offset() down into 
+their only user, raid5.c will help solve a few ordering nasties.
+
+The other low-hanging fruit here is pulling buffer_head.h
+out of fs.h.  But as with page-flags.h, the first step
+should be to sort out the .h files which refer to buffers,
+then to do .c.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
