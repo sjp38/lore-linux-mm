@@ -1,46 +1,57 @@
-Received: from sunA.comp.nus.edu.sg (zoum@sunA.comp.nus.edu.sg [137.132.87.10])
-	by x86unx3.comp.nus.edu.sg (8.9.1/8.9.1) with ESMTP id RAA25319
-	for <linux-mm@kvack.org>; Sat, 24 Feb 2001 17:41:22 +0800 (GMT-8)
-Received: (from zoum@localhost)
-	by sunA.comp.nus.edu.sg (8.8.5/8.8.5) id RAA01938
-	for linux-mm@kvack.org; Sat, 24 Feb 2001 17:40:54 +0800 (GMT-8)
-Date: Sat, 24 Feb 2001 17:40:54 +0800
-From: Zou Min <zoum@comp.nus.edu.sg>
-Subject: size of shared memory, buffer cache, page cache, etc.
-Message-ID: <20010224174054.B29030@comp.nus.edu.sg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Sat, 24 Feb 2001 09:51:23 -0500 (EST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: VM balancing problems under 2.4.2-ac1
+In-Reply-To: <3A976CE1.C7493E89@ucla.edu>
+Message-ID: <Pine.LNX.4.31.0102240949020.8568-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM <linux-mm@kvack.org>
+To: Benjamin Redelings I <bredelin@ucla.edu>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, all,
+On Sat, 24 Feb 2001, Benjamin Redelings I wrote:
+> Rik van Riel wrote:
+> > In 2.4.1-pre<something> the kernel swaps out cache 32 times more
+> > agressively than it scans pages in processes. Until we find a way
+> > to auto-balance these things, expect them to be wrong for at least
+> > some workloads ;(
+>
+> and elsewhere,
+>
+> > That's because your problem requires a change to the
+> > balancing between swap_out() and refill_inactive_scan()
+> > in refill_inactive()...
+>
+> Rik, can you explain why we still need to "balance" things,
+> instead of just swapping out the least used pages?  Is this only
+> a problem with the 2.4 implementation (e.g. will
+> refill_inactive_scan eventually do swap_out in 2.5, or
+> something?), or is it a generic VM issue that has to be solved?
 
-Sorry to bother you to answer these naive questions about linux mm.
+The problem is that we scan processes by _virtual address_
+and the cache by physical page. Furthermore, there are LOTS
+of pages which are present in both the cache AND in processes.
 
-I know that in linux memory management, besides the pages actually used by
-the some workload, there are also some shared pages (e.g. Copy-On-Write or 
-IPC shared memory), disk caches (buffer/page cache), swap cache, dentry cache,
-slab cache, etc, in order to improve the performance.
+Say, for example, that on a 64MB system you have 32MB cache but
+half of that cache is cached executable text and swap cache (which
+is also mapped into processes).
 
-My 1st question is: usually, how can I roughly found out the size of the part 
-of memory which is occupied by all those shared pages, different caches?
-(assume there is some processes running)
+Now how would you adjust the scanning rate of processes and cache
+to make sure we age each page in the system at approximately the
+same rate ?
 
-2nd question is: how are those special pages managed differently, when there
-is only single process running and when there are multiple processes running?
+regards,
 
-Thank you.
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
--- 
-Cheers!
---Zou Min 
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
-zoum@comp.nus.edu.sg			URL: http://www.comp.nus.edu.sg/~zoum
------------------------------------------------------------------------------
-Presume not that I am the thing I was.		--William Shakespeare
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
