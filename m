@@ -1,35 +1,19 @@
-From: THE INFAMOUS <evil7@seifried.org>
-Reply-To: evil7@seifried.org
-Subject: 24t1ac7-kswapdtune3
-Date: Sat, 3 Jun 2000 17:44:51 -0500
-Content-Type: text/plain
+Date: Sat, 3 Jun 2000 16:45:49 -0700 (PDT)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: classzone-31
+Message-ID: <Pine.LNX.4.21.0006031643500.404-100000@inspiron.random>
 MIME-Version: 1.0
-Message-Id: <00060317493000.00609@sQa.speedbros.org>
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Did a usual stress test :
+classzone-31 against 2.4.0-test1-ac7 is here:
 
+	ftp://ftp.us.kernel.org/pub/linux/kernel/people/andrea/patches/v2.4/2.4.0-test1-ac7/classzone-31
 
-X + gnome + sawfish + 3 Eterms + balsa + netscape + cp -af
-          /usr/src/linux /somewhere + updatedb 
-
-The overall performance is indeed better.... I was able to still move around
-under all that load, only saw a peak in the LA of 1.45 and recovered nicely to
-0.0.8(after cp and updatedb were done). 
-
-Getting there : )
-
--- 
-Bryan Paxton
-
-"I don't need to sleep or eat, I'll smoke a thousand cigarettes."
-- Sebadoh
-
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
