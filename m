@@ -1,64 +1,40 @@
-Date: Wed, 17 Jan 2001 15:48:39 +1100 (EST)
+Date: Wed, 17 Jan 2001 15:54:04 +1100 (EST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Subtle MM bug
-In-Reply-To: <87y9wlh4a7.fsf@atlas.iskon.hr>
-Message-ID: <Pine.LNX.4.31.0101171546130.5464-100000@localhost.localdomain>
+In-Reply-To: <Pine.LNX.4.10.10101081903450.1371-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.31.0101171551090.5464-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zlatko Calusic <zlatko@iskon.hr>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 9 Jan 2001, Zlatko Calusic wrote:
-> Rik van Riel <riel@conectiva.com.br> writes:
->
-> > Now if 2.4 has worse _performance_ than 2.2 due to one
-> > reason or another, that I'd like to hear about ;)
-> >
->
-> Oh, well, it seems that I was wrong. :)
->
-> First test: hogmem 180 5 = allocate 180MB and dirty it 5 times (on a
-> 192MB machine)
->
-> kernel | swap usage | speed
-> -------------------------------
-> 2.2.17 |  48 MB     | 11.8 MB/s
-> -------------------------------
-> 2.4.0  | 206 MB     | 11.1 MB/s
-> -------------------------------
->
-> So 2.2 is only marginally faster. Also it can be seen that 2.4
-> uses 4 times more swap space. If Linus says it's ok... :)
+On Mon, 8 Jan 2001, Linus Torvalds wrote:
 
-I have been working on some changes to page_launder() which
-might just fix this problem. Quick and dirty patches are on
-my home page and I'll try to clean things up and make something
-correct & clean later today or tomorrow ;)
+>  - gets rid of the complex "best mm" logic and replaces it with the
+>    round-robin thing as discussed.
 
-> Second test: kernel compile make -j32 (empirically this puts the
-> VM under load, but not excessively!)
->
-> 2.2.17 -> make -j32  392.49s user 47.87s system 168% cpu 4:21.13 total
-> 2.4.0  -> make -j32  389.59s user 31.29s system 182% cpu 3:50.24 total
->
-> Now, is this great news or what, 2.4.0 is definitely faster.
+This could help IO clustering as well, which should be good
+whenever we want to swap the data back in ;)
 
-One problem is that these tasks may be waiting on kswapd when
-kswapd might not get scheduled in on time. On the one hand this
-will mean lower load and less thrashing, on the other hand it
-means more IO wait.
+>  - it cleans up and simplifies the MM "priority" thing. In fact, right now
+>    only one priority is ever used,
 
-This is another area where we may be able to improve some things.
+Sounds great.
 
-(btw, according to Alan the 2.4 kernel is the first one to break
-the 1.2 kernel compiling speed record on an 8MB machine he has ;))
+In the week that I've been offline I have been working on
+page_launder and doing a few other improvements to the VM.
 
-cheers,
+Once I get the time to clean everything up I think we can
+take 2.4 to a slightly better performance level without
+having to change anything big.
 
-Rik  (stuck in australia on a conference)
+regards,
+
+Rik (at linux.conf.au)
 --
 Virtual memory is like a game you can't win;
 However, without VM there's truly nothing to lose...
