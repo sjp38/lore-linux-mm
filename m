@@ -1,43 +1,167 @@
-Date: Mon, 24 Nov 2003 15:58:07 -0800
+Date: Mon, 24 Nov 2003 16:36:58 -0800
 From: Mike Fedyk <mfedyk@matchmail.com>
 Subject: Re: OOps! was: 2.6.0-test9-mm5
-Message-ID: <20031124235807.GA1586@mis-mike-wstn.matchmail.com>
-References: <20031121121116.61db0160.akpm@osdl.org> <20031124225527.GB1343@mis-mike-wstn.matchmail.com> <Pine.LNX.4.58.0311241840380.8180@montezuma.fsmlabs.com>
+Message-ID: <20031125003658.GA1342@mis-mike-wstn.matchmail.com>
+References: <20031121121116.61db0160.akpm@osdl.org> <20031124225527.GB1343@mis-mike-wstn.matchmail.com> <Pine.LNX.4.58.0311241840380.8180@montezuma.fsmlabs.com> <20031124235807.GA1586@mis-mike-wstn.matchmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="FL5UXtIhxfXey3p5"
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0311241840380.8180@montezuma.fsmlabs.com>
+In-Reply-To: <20031124235807.GA1586@mis-mike-wstn.matchmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zwane Mwaikambo <zwane@arm.linux.org.uk>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Zwane Mwaikambo <zwane@arm.linux.org.uk>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 24, 2003 at 06:41:58PM -0500, Zwane Mwaikambo wrote:
-> On Mon, 24 Nov 2003, Mike Fedyk wrote:
-> 
-> > I'm getting an oops on boot, right after serial is initialised.
-> >
-> > Two things it says:
-> > BAD EIP!
-> > Trying to kill init!
-> >
-> > Yes, I'm using preempt.  I'll try without, and see if that "fixes" the
-> > problem, and try some other versions, since the last 2.6 booted on this
-> > machine is 2.6.0-test6-mm4.
-> 
-> Any chance you can capture the oops in it's entirety? It might also be
-> worth booting with the 'initcall_debug' kernel parameter.
+--FL5UXtIhxfXey3p5
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-I just compiled witout preempt and it still gives an oops at the same spot.
+On Mon, Nov 24, 2003 at 03:58:07PM -0800, Mike Fedyk wrote:
+> I just compiled witout preempt and it still gives an oops at the same spot.
 
-It doesn't give a trace.  Will it still be helpful for you, and the eip was
-something like 00095
+Just compiled vanilla 2.6.0-test9 and it doesn't oops.
 
-Here is a boot from my most recent previous kernel:
+Let me know if you still want me to hand type that oops.
 
-Linux version 2.6.0-test6-mm4 (root@srv-lr2600) (gcc version 3.3.2 20030908 (Debian prerelease)) #2 SMP Mon Oct 6 02:32:09 PDT 2003
-Video mode to be used for restore is f01
+--- linux-2.6.0-test9/.config	2003-11-24 15:47:54.000000000 -0800
++++ linux-2.6.0-test9-mm5/.config	2003-11-24 15:33:22.000000000 -0800
+@@ -29,6 +29,8 @@
+ CONFIG_IOSCHED_NOOP=y
+ CONFIG_IOSCHED_AS=y
+ CONFIG_IOSCHED_DEADLINE=y
++CONFIG_IOSCHED_CFQ=y
++# CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
+ 
+ #
+ # Loadable module support
+@@ -84,11 +86,16 @@
+ CONFIG_X86_POPAD_OK=y
+ CONFIG_X86_ALIGNMENT_16=y
+ CONFIG_X86_INTEL_USERCOPY=y
++# CONFIG_X86_4G is not set
++# CONFIG_X86_SWITCH_PAGETABLES is not set
++# CONFIG_X86_4G_VM_LAYOUT is not set
++# CONFIG_X86_UACCESS_INDIRECT is not set
++# CONFIG_X86_HIGH_ENTRY is not set
+ CONFIG_HPET_TIMER=y
+ # CONFIG_HPET_EMULATE_RTC is not set
+ CONFIG_SMP=y
+ CONFIG_NR_CPUS=2
+-CONFIG_PREEMPT=y
++# CONFIG_PREEMPT is not set
+ CONFIG_X86_LOCAL_APIC=y
+ CONFIG_X86_IO_APIC=y
+ CONFIG_X86_MCE=y
+@@ -107,6 +114,7 @@
+ CONFIG_HIGHPTE=y
+ # CONFIG_MATH_EMULATION is not set
+ CONFIG_MTRR=y
++# CONFIG_EFI is not set
+ CONFIG_HAVE_DEC_LOCK=y
+ 
+ #
+@@ -138,6 +146,7 @@
+ CONFIG_ACPI_PCI=y
+ CONFIG_ACPI_SYSTEM=y
+ # CONFIG_ACPI_RELAXED_AML is not set
++CONFIG_X86_PM_TIMER=y
+ 
+ #
+ # APM (Advanced Power Management) BIOS Support
+@@ -165,6 +174,7 @@
+ CONFIG_PCI_GOANY=y
+ CONFIG_PCI_BIOS=y
+ CONFIG_PCI_DIRECT=y
++CONFIG_PCI_USE_VECTOR=y
+ CONFIG_PCI_LEGACY_PROC=y
+ CONFIG_PCI_NAMES=y
+ CONFIG_ISA=y
+@@ -233,6 +243,7 @@
+ #
+ CONFIG_ISAPNP=y
+ CONFIG_PNPBIOS=y
++CONFIG_PNPBIOS_PROC_FS=y
+ 
+ #
+ # Block devices
+@@ -316,7 +327,6 @@
+ CONFIG_BLK_DEV_OPTI621=y
+ CONFIG_BLK_DEV_RZ1000=y
+ CONFIG_BLK_DEV_IDEDMA_PCI=y
+-# CONFIG_BLK_DEV_IDE_TCQ is not set
+ # CONFIG_BLK_DEV_IDEDMA_FORCED is not set
+ CONFIG_IDEDMA_PCI_AUTO=y
+ # CONFIG_IDEDMA_ONLYDISK is not set
+@@ -365,6 +375,7 @@
+ # SCSI support type (disk, tape, CD-ROM)
+ #
+ CONFIG_BLK_DEV_SD=y
++CONFIG_MAX_SD_DISKS=256
+ CONFIG_CHR_DEV_ST=m
+ CONFIG_CHR_DEV_OSST=m
+ CONFIG_BLK_DEV_SR=m
+@@ -682,6 +693,8 @@
+ CONFIG_TULIP=m
+ CONFIG_TULIP_MWI=y
+ CONFIG_TULIP_MMIO=y
++CONFIG_TULIP_NAPI=y
++CONFIG_TULIP_NAPI_HW_MITIGATION=y
+ CONFIG_DE4X5=m
+ CONFIG_WINBOND_840=m
+ CONFIG_DM9102=m
+@@ -697,6 +710,7 @@
+ CONFIG_AC3200=m
+ CONFIG_APRICOT=m
+ CONFIG_B44=m
++# CONFIG_FORCEDETH is not set
+ CONFIG_CS89x0=m
+ CONFIG_DGRS=m
+ CONFIG_EEPRO100=m
+@@ -763,6 +777,7 @@
+ # CONFIG_NET_FC is not set
+ # CONFIG_RCPCI is not set
+ # CONFIG_SHAPER is not set
++# CONFIG_NET_POLL_CONTROLLER is not set
+ 
+ #
+ # Wan interfaces
+@@ -1335,7 +1350,6 @@
+ CONFIG_USB_SERIAL=m
+ CONFIG_USB_SERIAL_GENERIC=y
+ CONFIG_USB_SERIAL_BELKIN=m
+-# CONFIG_USB_SERIAL_WHITEHEAT is not set
+ CONFIG_USB_SERIAL_DIGI_ACCELEPORT=m
+ CONFIG_USB_SERIAL_EMPEG=m
+ CONFIG_USB_SERIAL_FTDI_SIO=m
+@@ -1513,12 +1527,11 @@
+ # CONFIG_ULTRIX_PARTITION is not set
+ # CONFIG_SUN_PARTITION is not set
+ # CONFIG_EFI_PARTITION is not set
+-CONFIG_SMB_NLS=y
+-CONFIG_NLS=y
+ 
+ #
+ # Native Language Support
+ #
++CONFIG_NLS=y
+ CONFIG_NLS_DEFAULT="iso8859-1"
+ CONFIG_NLS_CODEPAGE_437=m
+ # CONFIG_NLS_CODEPAGE_737 is not set
+@@ -1573,9 +1586,12 @@
+ CONFIG_MAGIC_SYSRQ=y
+ CONFIG_DEBUG_SPINLOCK=y
+ # CONFIG_DEBUG_PAGEALLOC is not set
++# CONFIG_SPINLINE is not set
+ CONFIG_DEBUG_HIGHMEM=y
+ # CONFIG_DEBUG_INFO is not set
++# CONFIG_LOCKMETER is not set
+ CONFIG_DEBUG_SPINLOCK_SLEEP=y
++# CONFIG_KGDB is not set
+ CONFIG_FRAME_POINTER=y
+ CONFIG_X86_EXTRA_IRQS=y
+ CONFIG_X86_FIND_SMP_CONFIG=y
+
+Linux version 2.6.0-test9 (root@mis-mike-wstn) (gcc version 3.3.2 (Debian)) #1 SMP Mon Nov 24 15:54:45 PST 2003
 BIOS-provided physical RAM map:
  BIOS-e820: 0000000000000000 - 000000000009e400 (usable)
  BIOS-e820: 000000000009e400 - 00000000000a0000 (reserved)
@@ -55,6 +179,7 @@ On node 0 totalpages: 393212
   Normal zone: 225280 pages, LIFO batch:16
   HighMem zone: 163836 pages, LIFO batch:16
 DMI 2.3 present.
+Using APIC driver default
 ACPI: RSDP (v000 ASUS                                      ) @ 0x000f5dc0
 ACPI: RSDT (v001 ASUS   A7V8X-X  0x42302e31 MSFT 0x31313031) @ 0x5fffc000
 ACPI: FADT (v001 ASUS   A7V8X-X  0x42302e31 MSFT 0x31313031) @ 0x5fffc0b2
@@ -79,7 +204,8 @@ Initializing CPU#0
 PID hash table entries: 4096 (order 12: 32768 bytes)
 Detected 2083.203 MHz processor.
 Console: colour VGA+ 80x50
-Memory: 1552416k/1572848k available (2270k kernel code, 19280k reserved, 884k data, 192k init, 655344k highmem)
+spurious 8259A interrupt: IRQ7.
+Memory: 1552352k/1572848k available (2324k kernel code, 19344k reserved, 890k data, 196k init, 655344k highmem)
 Calibrating delay loop... 4104.19 BogoMIPS
 Security Scaffold v1.0.0 initialized
 Capability LSM initialized
@@ -103,7 +229,7 @@ task migration cache decay timeout: 1 msecs.
 enabled ExtINT on CPU#0
 ESR value before enabling vector: 00000000
 ESR value after enabling vector: 00000000
-Error: only one processor found.
+Total of 1 processors activated (4104.19 BogoMIPS).
 ENABLING IO-APIC IRQs
 init IO_APIC IRQs
  IO-APIC (apicid-pin) 2-0, 2-16, 2-17, 2-18, 2-19, 2-20, 2-21, 2-22, 2-23 not connected.
@@ -173,16 +299,17 @@ NET: Registered protocol family 16
 PCI: PCI BIOS revision 2.10 entry at 0xf15e0, last bus=1
 PCI: Using configuration type 1
 mtrr: v2.0 (20020519)
-ACPI: Subsystem revision 20030813
+ACPI: Subsystem revision 20031002
+IOAPIC[0]: Set PCI routing entry (2-9 -> 0x71 -> IRQ 9 Mode:1 Active:1)
 ACPI: Interpreter enabled
 ACPI: Using IOAPIC for interrupt routing
-ACPI: PCI Interrupt Link [LNKA] (IRQs 3 4 5 6 7 10 11 12 14 15, disabled)
+ACPI: PCI Interrupt Link [LNKA] (IRQs 3 4 5 6 7 10 11 12 14 15)
 ACPI: PCI Interrupt Link [LNKB] (IRQs 3 4 5 6 7 10 *11 12 14 15)
 ACPI: PCI Interrupt Link [LNKC] (IRQs 3 4 5 6 7 *10 11 12 14 15)
 ACPI: PCI Interrupt Link [LNKD] (IRQs *3 4 5 6 7 10 11 12 14 15)
 ACPI: PCI Interrupt Link [LNKE] (IRQs 3 4 *5 6 7 10 11 12 14)
-ACPI: PCI Interrupt Link [LNKF] (IRQs 3 4 5 6 7 10 11 12 14 15, disabled)
-ACPI: PCI Interrupt Link [LNKG] (IRQs 3 4 5 6 7 10 11 12 14 15, enabled at IRQ 9)
+ACPI: PCI Interrupt Link [LNKF] (IRQs 3 4 5 6 7 10 11 12 14 15)
+ACPI: PCI Interrupt Link [LNKG] (IRQs 3 4 5 6 7 10 11 12 14 15)
 ACPI: PCI Root Bridge [PCI0] (00:00)
 PCI: Probing PCI hardware (bus 00)
 ACPI: PCI Interrupt Routing Table [\_SB_.PCI0._PRT]
@@ -252,11 +379,9 @@ isapnp: Scanning for PnP cards...
 isapnp: No Plug & Play device found
 pty: 256 Unix98 ptys configured
 Hangcheck: starting hangcheck timer 0.5.0 (tick is 180 seconds, margin is 60 seconds).
-Serial: 8250/16550 driver $Revision: 1.90 $ IRQ sharing enabled
+Serial: 8250/16550 driver $Revision: 1.90 $ 8 ports, IRQ sharing enabled
 
-
-It oopses here.
-
+2.6.0-test9-mm5 oopses here.
 
 ttyS0 at I/O 0x3f8 (irq = 4) is a 16550A
 Uniform Multi-Platform E-IDE driver Revision: 7.00alpha2
@@ -314,20 +439,21 @@ md: raid0 personality registered as nr 2
 md: raid1 personality registered as nr 3
 md: raid5 personality registered as nr 4
 raid5: measuring checksumming speed
-   8regs     :  3148.000 MB/sec
-   8regs_prefetch:  2768.000 MB/sec
-   32regs    :  1996.000 MB/sec
-   32regs_prefetch:  1748.000 MB/sec
-   pIII_sse  :  1704.000 MB/sec
-   pII_mmx   :  5548.000 MB/sec
-   p5_mmx    :  7372.000 MB/sec
-raid5: using function: pIII_sse (1704.000 MB/sec)
+   8regs     :  2948.000 MB/sec
+   8regs_prefetch:  2844.000 MB/sec
+   32regs    :  1984.000 MB/sec
+   32regs_prefetch:  1864.000 MB/sec
+   pIII_sse  :  1648.000 MB/sec
+   pII_mmx   :  5572.000 MB/sec
+   p5_mmx    :  7424.000 MB/sec
+raid5: using function: pIII_sse (1648.000 MB/sec)
 md: md driver 0.90.0 MAX_MD_DEVS=256, MD_SB_DISKS=27
 device-mapper: 4.0.0-ioctl (2003-06-04) initialised: dm@uk.sistina.com
 NET: Registered protocol family 2
 IP: routing cache hash table of 8192 buckets, 128Kbytes
 TCP: Hash tables configured (established 262144 bind 43690)
-BIOS EDD facility v0.09 2003-Jan-22, 5 devices found
+BIOS EDD facility v0.10 2003-Oct-11, 5 devices found
+Please report your BIOS at http://domsch.com/linux/edd30/results.html
 md: Autodetecting RAID arrays.
 md: autorun ...
 md: considering hdk3 ...
@@ -363,7 +489,7 @@ md: ... autorun DONE.
 kjournald starting.  Commit interval 5 seconds
 EXT3-fs: mounted filesystem with ordered data mode.
 VFS: Mounted root (ext3 filesystem) readonly.
-Freeing unused kernel memory: 192k freed
+Freeing unused kernel memory: 196k freed
 NET: Registered protocol family 1
 Adding 364888k swap on /dev/hda2.  Priority:1 extents:1
 EXT3 FS on hda1, internal journal
@@ -374,7 +500,7 @@ via-rhine.c:v1.10-LK1.1.19-2.5  July-12-2003  Written by Donald Becker
 divert: allocating divert_blk for eth0
 eth0: VIA VT6102 Rhine-II at 0xf7000000, 00:0c:6e:1f:81:95, IRQ 23.
 eth0: MII PHY found at address 1, status 0x786d advertising 01e1 Link 45e1.
-inserting floppy driver for 2.6.0-test6-mm4
+inserting floppy driver for 2.6.0-test9
 Floppy drive(s): fd0 is 1.44M
 FDC 0 is a post-1991 82077
 end_request: I/O error, dev fd0, sector 0
@@ -394,22 +520,22 @@ ehci_hcd 0000:00:10.3: new USB bus registered, assigned bus number 1
 ehci_hcd 0000:00:10.3: USB 2.0 enabled, EHCI 1.00, driver 2003-Jun-13
 hub 1-0:1.0: USB hub found
 hub 1-0:1.0: 6 ports detected
-ohci-hcd: 2003 Feb 24 USB 1.1 'Open' Host Controller (OHCI) Driver (PCI)
-ohci-hcd: block sizes: ed 64 td 64
+ohci_hcd: 2003 Oct 13 USB 1.1 'Open' Host Controller (OHCI) Driver (PCI)
+ohci_hcd: block sizes: ed 64 td 64
 drivers/usb/host/uhci-hcd.c: USB Universal Host Controller Interface driver v2.1
-uhci-hcd 0000:00:10.0: UHCI Host Controller
-uhci-hcd 0000:00:10.0: irq 21, io base 00009400
-uhci-hcd 0000:00:10.0: new USB bus registered, assigned bus number 2
+uhci_hcd 0000:00:10.0: UHCI Host Controller
+uhci_hcd 0000:00:10.0: irq 21, io base 00009400
+uhci_hcd 0000:00:10.0: new USB bus registered, assigned bus number 2
 hub 2-0:1.0: USB hub found
 hub 2-0:1.0: 2 ports detected
-uhci-hcd 0000:00:10.1: UHCI Host Controller
-uhci-hcd 0000:00:10.1: irq 21, io base 00009000
-uhci-hcd 0000:00:10.1: new USB bus registered, assigned bus number 3
+uhci_hcd 0000:00:10.1: UHCI Host Controller
+uhci_hcd 0000:00:10.1: irq 21, io base 00009000
+uhci_hcd 0000:00:10.1: new USB bus registered, assigned bus number 3
 hub 3-0:1.0: USB hub found
 hub 3-0:1.0: 2 ports detected
-uhci-hcd 0000:00:10.2: UHCI Host Controller
-uhci-hcd 0000:00:10.2: irq 21, io base 00008800
-uhci-hcd 0000:00:10.2: new USB bus registered, assigned bus number 4
+uhci_hcd 0000:00:10.2: UHCI Host Controller
+uhci_hcd 0000:00:10.2: irq 21, io base 00008800
+uhci_hcd 0000:00:10.2: new USB bus registered, assigned bus number 4
 hub 4-0:1.0: USB hub found
 hub 4-0:1.0: 2 ports detected
 hub 2-0:1.0: new USB device on port 2, assigned address 2
@@ -420,27 +546,171 @@ ttyS1: LSR safety check engaged!
 ttyS1: LSR safety check engaged!
 process `named' is using obsolete setsockopt SO_BSDCOMPAT
 sage repeated 5 times
-input: Logitech USB Mouse on usb-0000:00:10.0-2
-drivers/usb/core/usb.c: registered new driver usbmouse
-drivers/usb/input/usbmouse.c: v1.6:USB HID Boot Protocol mouse driver
 drivers/usb/core/usb.c: registered new driver hiddev
+drivers/usb/input/hid-ff.c: hid_ff_init could not find initializer
+input: USB HID v1.10 Mouse [Logitech USB Mouse] on usb-0000:00:10.0-2
 drivers/usb/core/usb.c: registered new driver hid
 drivers/usb/input/hid-core.c: v2.0:USB HID core driver
-nfs: server fs not responding, still trying
-sage repeated 2 times
-nfs: server fs OK
-sage repeated 2 times
-nfs: server fs not responding, still trying
-sage repeated 3 times
-nfs: server fs OK
-sage repeated 3 times
-nfs: server fs not responding, still trying
-nfs: server fs not responding, still trying
-nfs: server fs OK
-nfs: server fs OK
-process `rndc' is using obsolete setsockopt SO_BSDCOMPAT
-Kernel logging (proc) stopped.
-Kernel log daemon terminating.
+drivers/usb/core/usb.c: registered new driver usbmouse
+drivers/usb/input/usbmouse.c: v1.6:USB HID Boot Protocol mouse driver
+
+--FL5UXtIhxfXey3p5
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="260t9.config.bz2"
+Content-Transfer-Encoding: base64
+
+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
+
+--FL5UXtIhxfXey3p5--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
