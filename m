@@ -1,34 +1,56 @@
-Date: Sat, 16 Feb 2002 15:37:39 -0800
+Date: Sat, 16 Feb 2002 15:50:18 -0800
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [PATCH] shrink struct page for 2.5
-Message-ID: <20020216233739.GA3511@holomorphy.com>
-References: <Pine.LNX.4.33L.0202161804330.1930-100000@imladris.surriel.com>
+Message-ID: <20020216235018.GB3511@holomorphy.com>
+References: <Pine.LNX.4.33L.0202161804330.1930-100000@imladris.surriel.com> <20020216212327.C4777@suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.33L.0202161804330.1930-100000@imladris.surriel.com>
+In-Reply-To: <20020216212327.C4777@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Jones <davej@suse.de>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Feb 16, 2002 at 06:15:03PM -0200, Rik van Riel wrote:
-> Unfortunately I haven't managed to make 2.5.5-pre2 to boot on
-> my machine, so I haven't been able to test this port of the
-> patch to 2.5. The code has been running stably in 2.4 for the
-> last 2 months though, so if you can boot 2.5, please help test
-> this thing.
+On Sat, Feb 16, 2002 at 09:23:27PM +0100, Dave Jones wrote:
+>  Anton Blanchard did some nice benchmarks of this work a while
+>  ago, and noticed that with one of the features (I think the
+>  I forget which its in the l-k archives somewhere) there
+>  seemed to be a noticable performance degradation.
+>  Of course, this was a dbench test, so how reflective this is
+>  of real world is another story..
 
-I tested current 2.5.5-pre bk on a diskless Pentium 200 MMX with 192MB
-of RAM loading with PXELINUX and with nfsroot enabled.
+I've discussed this with him.
 
-The result was a triplefault (i.e. reboot) before console_init(),
-which clearly isn't our code failing.
+The performance degradation was real and it was the result of
+poor code generation for the address calculation of the page address.
+Apparently this toolchain performance issue made driver calls that use
+page_address() within it very expensive. The size reduction won't
+provide as significant of benefits on 64-bit machines as it does on
+32-bit machines with highmem (36-bit stuff like PAE), so it makes sense
+(perhaps like 64-bit SPARC) that there may be 64-bit architectures that
+will not care to use it. On the other hand, I suspect there are similar
+issues on other 64-bit architectures that are the true culprit with
+respect to this.
 
-It was literally early enough I'm inclined to suspect bootloader
-protocol issues.
+On Sat, Feb 16, 2002 at 09:23:27PM +0100, Dave Jones wrote:
+>  Maybe Randy Hron can throw it in with the next round of
+>  kernel tests he does ?
+
+He is unlikely to see these detrimental effects on i386. It's
+possible waitqueue collisions could happen in highly threaded
+tests, but that is a different issues.
+
+On Sat, Feb 16, 2002 at 09:23:27PM +0100, Dave Jones wrote:
+>> Unfortunately I haven't managed to make 2.5.5-pre2 to boot on
+>> my machine, so I haven't been able to test this port of the
+>> patch to 2.5.
+
+On Sat, Feb 16, 2002 at 09:23:27PM +0100, Dave Jones wrote:
+>  Just a complete lock up ? oops ? anything ?
+
+Triplefault well prior to console output being visible to the naked eye.
 
 
 Cheers,
