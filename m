@@ -1,55 +1,27 @@
-Received: from 203-167-152-228.dialup.clear.net.nz
- (203-167-152-228.dialup.clear.net.nz [203.167.152.228])
- by smtp2.clear.net.nz (CLEAR Net Mail)
- with ESMTP id <0HBM00L8F2T9BP@smtp2.clear.net.nz> for linux-mm@kvack.org; Wed,
- 12 Mar 2003 14:00:47 +1300 (NZDT)
-Date: Wed, 12 Mar 2003 13:50:21 +1300
-From: Nigel Cunningham <ncunningham@clear.net.nz>
-Subject: Re: Free pages leaking in 2.5.64?
-In-reply-to: <20030311162552.7f78e764.akpm@digeo.com>
-Message-id: <1047430217.2289.8.camel@laptop-linux.cunninghams>
-MIME-version: 1.0
-Content-type: text/plain
-Content-transfer-encoding: 7bit
-References: <1047376995.1692.23.camel@laptop-linux.cunninghams>
- <20030311162552.7f78e764.akpm@digeo.com>
+Message-ID: <3E6E88F8.5050306@google.com>
+Date: Tue, 11 Mar 2003 17:10:16 -0800
+From: Ross Biro <rossb@google.com>
+MIME-Version: 1.0
+Subject: Re: [Fwd: [BUG][2.4.18+] kswapd assumes swapspace exists]
+References: <3E6E49BD.1050701@google.com> <20030311162922.373a2414.akpm@digeo.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+Andrew Morton wrote:
 
-Thanks for the reply. I hadn't looked at the hot/cold stuff before. I
-sussed it out this morning and added a condition to the test for
-refilling the pcp arrays, stopping them from being refilled during a
-suspend/resume cycle. Now everything works fine in that area for me.
-I'll check that there aren't any other calls to refill the pcp arrays,
-so I can be sure it will work with interrupts enabled and whenever smp
-support is added to swsusp.
+>There's no point in bringing these pages onto the inactive list at all. 
+>Suggest you look at keeping them on the active list in refill_inactive().
+>  
+>
 
-Now I just have to get the image written and read back and switch from
-using page flags to dynamically allocated bitmaps, as I said I would.
+Good point.  I will add that to my changes.
 
-Thanks again for the reply and regards,
-
-Nigel
-
-On Wed, 2003-03-12 at 13:25, Andrew Morton wrote:
-> Nigel Cunningham <ncunningham@clear.net.nz> wrote:
-> >
-> > Hi all.
-> > 
-> > I've come across the following problem in 2.5.64. Here's example output.
-> > The header is one page - all messages only have a single call to
-> > get_zeroed_page between the printings and the same code works as
-> 
-> nr_free_pages() does not account for the pages in the per-cpu head arrays. 
-> 
-> You can make the numbers look right via drain_local_pages(), but that is only
-> 100% reliable on uniprocessor with interrupts disabled.
-> 
+    Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
