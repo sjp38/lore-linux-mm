@@ -1,58 +1,38 @@
 Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id NAA02777
-	for <linux-mm@kvack.org>; Mon, 3 Mar 2003 13:16:02 -0800 (PST)
-Date: Mon, 3 Mar 2003 13:12:10 -0800
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id NAA03019
+	for <linux-mm@kvack.org>; Mon, 3 Mar 2003 13:21:19 -0800 (PST)
+Date: Mon, 3 Mar 2003 13:17:34 -0800
 From: Andrew Morton <akpm@digeo.com>
-Subject: Re: [PATCH 2.5.63] Teach page_mapped about the anon flag
-Message-Id: <20030303131210.36645af6.akpm@digeo.com>
-In-Reply-To: <103400000.1046725581@baldur.austin.ibm.com>
-References: <20030227025900.1205425a.akpm@digeo.com>
-	<200302280822.09409.kernel@kolivas.org>
-	<20030227134403.776bf2e3.akpm@digeo.com>
-	<118810000.1046383273@baldur.austin.ibm.com>
-	<20030227142450.1c6a6b72.akpm@digeo.com>
-	<103400000.1046725581@baldur.austin.ibm.com>
+Subject: Re: 2.5.63-mm2
+Message-Id: <20030303131734.33a95472.akpm@digeo.com>
+In-Reply-To: <1046726154.30192.312.camel@dell_ss3.pdx.osdl.net>
+References: <20030302180959.3c9c437a.akpm@digeo.com>
+	<1046726154.30192.312.camel@dell_ss3.pdx.osdl.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Stephen Hemminger <shemminger@osdl.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave McCracken <dmccr@us.ibm.com> wrote:
+Stephen Hemminger <shemminger@osdl.org> wrote:
 >
+> I am having problems getting this to build with my config
 > 
-> --On Thursday, February 27, 2003 14:24:50 -0800 Andrew Morton
-> <akpm@digeo.com> wrote:
-> 
-> > I'm just looking at page_mapped().  It is now implicitly assuming that the
-> > architecture's representation of a zero-count atomic_t is all-bits-zero.
-> > 
-> > This is not true on sparc32 if some other CPU is in the middle of an
-> > atomic_foo() against that counter.  Maybe the assumption is false on other
-> > architectures too.
-> > 
-> > So page_mapped() really should be performing an atomic_read() if that is
-> > appropriate to the particular page.  I guess this involves testing
-> > page->mapping.  Which is stable only when the page is locked or
-> > mapping->page_lock is held.
-> > 
-> > It appears that all page_mapped() callers are inside lock_page() at
-> > present, so a quick audit and addition of a comment would be appropriate
-> > there please.
-> 
-> I'm not at all confident that page_mapped() is adequately protected.
+>         ld -m elf_i386  -T arch/i386/vmlinux.lds.s arch/i386/kernel/head.o arch/
+> i386/kernel/init_task.o   init/built-in.o --start-group  usr/built-in.o  arch/i3
+> 86/kernel/built-in.o  arch/i386/mm/built-in.o  arch/i386/mach-default/built-in.o
+>   kernel/built-in.o  mm/built-in.o  fs/built-in.o  ipc/built-in.o  security/buil
+> t-in.o  crypto/built-in.o  lib/lib.a  arch/i386/lib/lib.a  drivers/built-in.o  s
+> ound/built-in.o  arch/i386/pci/built-in.o  arch/i386/oprofile/built-in.o  net/bu
+> ilt-in.o --end-group .tmp_kallsyms2.o -o vmlinux
+> 4d13d7e9 A __crc_page_states__per_cpu not in per-cpu section
+> make: *** [vmlinux] Error 1
 
-It is.  All callers which need to be 100% accurate are under
-pte_chain_lock().
-
-> Here's a patch that explicitly handles the atomic_t case.
-
-OK..  But it increases dependency on PageAnon.  Wasn't the plan to remove
-that at some time?
-
+Yup.  Kai has posted a fix for this.  Meanwhile the simplest
+fix is to disable CONFIG_MODVERSIONS.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
