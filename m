@@ -1,48 +1,62 @@
-Date: Fri, 20 Oct 2000 10:18:11 -0700 (PDT)
+Date: Fri, 20 Oct 2000 10:34:53 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: oopses in test10-pre4 (was Re: [RFC] atomic pte updates and pae
- changes, take 3)
-In-Reply-To: <Pine.LNX.4.21.0010200046480.22300-100000@devserv.devel.redhat.com>
-Message-ID: <Pine.LNX.4.10.10010201012330.1354-100000@penguin.transmeta.com>
+Subject: Re: mapping user space buffer to kernel address space
+In-Reply-To: <20001019210650.A1984@redhat.com>
+Message-ID: <Pine.LNX.4.10.10010201019030.1354-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ben LaHaise <bcrl@redhat.com>
-Cc: Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Stephen Tweedie <sct@redhat.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Rogier Wolff <R.E.Wolff@BitWizard.nl>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Fri, 20 Oct 2000, Ben LaHaise wrote:
+On Thu, 19 Oct 2000, Stephen Tweedie wrote:
+> > 
+> > Then, we'd move the "writeout" part into the LRU queue side, and at that
+> > point I agree with you 100% that we probably should just delay it until
+> > there are no mappings available
 > 
-> The primary reason I added the BUG was that if this is valid, it means
-> that the pte has to be removed from the page tables first with
-> pte_get_and_clear since it can be modified by the other CPU.  Although
-> this may be safe for shm, I think it's very ugly and inconsistent.  I'd
-> rather make the code transfer the dirty bit to the page struct so that we
-> *know* there is no information loss.
+> I've just been talking about this with Ben LaHaise and Rik van Riel,
+> and Ben brought up a nasty problem --- NFS, which because of its
+> credentials requirements needs to have the struct file available in
+> its writepage function.  Of course, if we defer the write then we
+> don't necessarily have the file available when we come to flush the
+> page from cache.
 
-Note that we should have done this regardless of the BUG() tests: remember
-the PAE case, and the fact that it was illegal to do
+Yes. But that doesn't mean that swapping couldn't do it (swapping
+fundamentally doesn't have credentials).
 
-	set_pte(page_table, swp_entry_to_pte(entry));
+And note that this is not about "NFS is broken" - any remote filesystem
+will have some issues like this, and shared mappings will always have to
+handle this case.
 
-without having atomically cleared the pte first.
+So basically I agree that shared mappings cannot be converted to this
+setup, I was only talking about the specific case of the swapping (and
+anonymous shared memory, which along with SysV IPC shm is basically the
+same thing and already uses the swap cache).
 
-So regardless of any dirty/writable issues, that ptep_get_and_clear()
-should be above the test for the PageSwapCache. Thanks for the patch.
+So what I was thinking of was the very end of try_to_swap_out(), where we
+have noticed that we do not have a "swapout()" function, and we need to
+add the page to the swap cache. I would suggest moving _that_ code to the
+LRU queue, and handling it conceptually together with the stuff that
+handles the buffer cache writeout.
 
-Now, I agree 100% with you that we should _also_ make sure that we
-transfer the dirty bit from the page tables to "struct page". Even if we
-don't actually use that information right now. We _could_ use it: in
-particular we could probably fairly easily speed up shared memory handling
-by using the same kind of optimization that we do for private mappings -
-using the dirty bit in the page table to determine whether we need to
-write the page out again or not.
+--
 
-This all needs more thought, I suspect. But for now moving the
-ptep_get_and_clear() up, and removing the BUG() is sufficient to get us
-where we used to be.
+And no, I haven't forgotten about the case of direct IO into a shared
+mapping. That _is_ going to be different in many ways, and I suspect that
+a solution to that particular issue may be to move the "vm_file"
+information from when we do the virtual kiobuf lookup into the kiobuf's,
+because otherwise we'd basically lose that information.
+
+(We _already_ lose that information, in fact. Keeping the page in the
+virtual mapping doesn't really even fix it - because the page can be in
+multiple virtual mappings with different vm_file's and thus different
+credentials. And the kiobuf's do not really contain any information of
+_which_ of the credentials we looked up. It happens to work, but it's
+conceptually not very correct).
 
 			Linus
 
