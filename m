@@ -1,45 +1,51 @@
-Date: Mon, 1 May 2000 22:28:51 -0300 (BRST)
+Date: Mon, 1 May 2000 22:31:58 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Reply-To: riel@nl.linux.org
-Subject: Re: [PATCH] pre7-1 semicolon & nicely readableB
-In-Reply-To: <Pine.SOL.3.96.1000501190034.4093K-100000@sexsmith.cs.ualberta.ca>
-Message-ID: <Pine.LNX.4.21.0005012222540.7508-100000@duckman.conectiva>
+Subject: Re: kswapd @ 60-80% CPU during heavy HD i/o.
+In-Reply-To: <200005020113.SAA31341@pizda.ninka.net>
+Message-ID: <Pine.LNX.4.21.0005012229280.7508-100000@duckman.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roel van der Goot <roel@cs.ualberta.ca>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: "David S. Miller" <davem@redhat.com>
+Cc: roger.larsson@norran.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 1 May 2000, Roel van der Goot wrote:
-
-> I want to inform you that there is a subtle difference between
-> the following two loops:
+On Mon, 1 May 2000, David S. Miller wrote:
+> From: Rik van Riel <riel@conectiva.com.br>
+>    On Mon, 1 May 2000, David S. Miller wrote:
 > 
-> (i)
+>    > BTW, what loop are you trying to "continue;" out of here?
+>    > 
+>    > +			    do {
+>    >  				if (tsk->need_resched)
+>    >  					schedule();
+>    >  				if ((!zone->size) || (!zone->zone_wake_kswapd))
+>    >  					continue;
+>    >  				do_try_to_free_pages(GFP_KSWAPD, zone);
+>    > +			   } while (zone->free_pages < zone->pages_low &&
+>    > +					   --count);
+>    > 
+>    > :-)  Just add a "next_zone:" label at the end of that code and
+>    > change the continue; to a goto next_zone;
 > 
->    while ((mm->swap_cnt << 2 * (i + 1) < max_cnt)
->                    && i++ < 10);
+>    I want kswapd to continue with freeing pages from this zone if
+>    there aren't enough free pages in this zone. This is needed
+>    because kswapd used to stop freeing pages even if we were below
+>    pages_min...
 > 
-> (ii)
-> 
->    while ((mm->swap_cnt << 2 * (i + 1) < max_cnt)
->                    && i < 10)
->            i++;
+> Rik, zone_wake_kswapd implies this information, via what
+> __free_pages_ok does to that flag.
 
-I want to inform you that you're wrong. The only difference is
-in readability.
+Indeed, I should have moved the test for zone->zone_wake_kswapd to 
+before the loop. But using zone->zone_wake_kswapd for the test isn't
+really enough since that is only turned off if zone->free_pages 
+reaches zone->pages_high, but we probably don't want to do agressive
+swapout when we're already above zone->pages_low ...
 
-If the first test fails, the clause behind the && won't be run.
-
-Furthermore, i will only reach 10 if the RSS difference between
-the current process and the biggest process is more than a factor
-2^21 ... which can never happen on 32-bit hardware, unless the
-RSS of the current process is 0.
-
-In fact, the <10 test is only there to prevent infinite looping
-for when a process with 0 swap_cnt "slips through" the tests above.
+(just background swapping that happens incidentally when we're
+swapping stuff for other zones)
 
 regards,
 
