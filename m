@@ -1,52 +1,58 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1GGtLkY014529
-	for <linux-mm@kvack.org>; Wed, 16 Feb 2005 11:55:21 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1GGtK40276560
-	for <linux-mm@kvack.org>; Wed, 16 Feb 2005 11:55:20 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1GGtKFO001703
-	for <linux-mm@kvack.org>; Wed, 16 Feb 2005 11:55:20 -0500
-Date: Wed, 16 Feb 2005 08:55:18 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
-Message-ID: <60510000.1108572918@flay>
-In-Reply-To: <20050216160833.GB6604@wotan.suse.de>
-References: <20050215185943.GA24401@lnx-holt.americas.sgi.com> <16914.28795.316835.291470@wombat.chubb.wattle.id.au> <421283E6.9030707@sgi.com> <31650000.1108511464@flay> <421295FB.3050005@sgi.com> <20050216004401.GB8237@wotan.suse.de> <51210000.1108515262@flay> <20050216100229.GB14545@wotan.suse.de> <232990000.1108567298@[10.10.2.4]> <20050216074923.63cf1b6b.pj@sgi.com> <20050216160833.GB6604@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Wed, 16 Feb 2005 11:23:35 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: manual page migration -- issue list
+Message-Id: <20050216112335.6d0cf44a.pj@sgi.com>
+In-Reply-To: <20050216160823.GA10620@lnx-holt.americas.sgi.com>
+References: <42128B25.9030206@sgi.com>
+	<20050215165106.61fd4954.pj@sgi.com>
+	<20050216015622.GB28354@lnx-holt.americas.sgi.com>
+	<20050215202214.4b833bf3.pj@sgi.com>
+	<20050216092011.GA6616@lnx-holt.americas.sgi.com>
+	<20050216022009.7afb2e6d.pj@sgi.com>
+	<20050216113047.GA8388@lnx-holt.americas.sgi.com>
+	<20050216074550.313b1300.pj@sgi.com>
+	<20050216160823.GA10620@lnx-holt.americas.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>
-Cc: raybry@sgi.com, peterc@gelato.unsw.edu.au, raybry@austin.rr.com, linux-mm@kvack.org
+To: Robin Holt <holt@sgi.com>
+Cc: raybry@sgi.com, linux-mm@kvack.org, ak@muc.de, haveblue@us.ibm.com, marcello@cyclades.com, stevel@mwwireless.net, peterc@gelato.unsw.edu.au
 List-ID: <linux-mm.kvack.org>
 
---On Wednesday, February 16, 2005 17:08:33 +0100 Andi Kleen <ak@suse.de> wrote:
+Robin wrote:
+> Reading /proc/<pid>maps just scans through the vmas and not the
+> address space.
 
-> On Wed, Feb 16, 2005 at 07:49:23AM -0800, Paul Jackson wrote:
->> Martin wrote:
->> > From reading the code (not actual experiments, yet), it seems like we won't
->> > even wake up the local kswapd until all the nodes are full. And ...
->> 
->> Martin - is there a Cliff Notes summary you could provide of this
->> subthread you and Andi are having?  I got lost somewhere along the way.
-> 
-> I didn't really have much thread, but as far as I understood it
-> Martin just wants kswapd to be a bit more aggressive in making sure
-> all nodes always have local memory to allocate from.
-> 
-> I don't see it as a pressing problem right now, but it may help
-> for some memory intensive workloads a bit (see numastat numa_miss output for
-> various nodes on how often a "wrong node" fallback happens) 
+Yes - you're right.
 
-Yeah - I think I'm just worried that people are proposing a manual rather
-than automatic solution to solve fallback issues. We ought to be able
-to fix that without tweaking things up the wazoo by hand.
+So the number of system calls in your example of a few hours ago, using
+your preferred array API, if you include the reads of each tasks
+/proc/<pid>/maps file, is about equal to the number of tasks, right?
 
-M.
+And I take it that the user code you asked Ray about looks at these
+maps files for each of the tasks to be migrated, identifies each
+mapped range of each mapped object (mapped file or whatever) and
+calculates a fairly minimum set of tasks and virtual address ranges
+therein, sufficient to cover all the mapped objects that should
+be migrated, thus minimizing the amount of scanning that needs
+to be done of individual pages.
 
+And further I take it that you recommend the above described code [to
+find a fairly minimum set of tasks and address ranges to scan that will
+cover any page of interest] be put in user space, not in the kernel (a
+quite reasonable recommendation).
+
+Why didn't your example have some writable private pages?  Wouldn't such
+pages be commonplace, and wouldn't they have to be migrated for each
+thread, resulting in at least N calls to the new sys_page_migrate()
+system call, for N tasks, rather than the 3 calls in your example?
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.650.933.1373, 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
