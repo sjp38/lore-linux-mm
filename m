@@ -1,58 +1,69 @@
-Date: Wed, 2 Feb 2005 00:31:36 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: [PATCH 2/2] Helping prezoring with reduced fragmentation allocation
-In-Reply-To: <Pine.LNX.4.58.0502011604130.5406@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.58.0502020026040.16992@skynet>
-References: <20050201171641.CC15EE5E8@skynet.csn.ul.ie>
- <Pine.LNX.4.58.0502011110560.3436@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0502011929020.16992@skynet> <Pine.LNX.4.58.0502011604130.5406@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: page fault scalability patch V16 [3/4]: Drop page_table_lock
+	in handle_mm_fault
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+In-Reply-To: <Pine.LNX.4.58.0502011047330.3205@schroedinger.engr.sgi.com>
+References: <41E5B7AD.40304@yahoo.com.au>
+	 <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
+	 <41E5BC60.3090309@yahoo.com.au>
+	 <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
+	 <20050113031807.GA97340@muc.de>
+	 <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
+	 <20050113180205.GA17600@muc.de>
+	 <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
+	 <20050114043944.GB41559@muc.de>
+	 <Pine.LNX.4.58.0501140838240.27382@schroedinger.engr.sgi.com>
+	 <20050114170140.GB4634@muc.de>
+	 <Pine.LNX.4.58.0501281233560.19266@schroedinger.engr.sgi.com>
+	 <Pine.LNX.4.58.0501281237010.19266@schroedinger.engr.sgi.com>
+	 <41FF00CE.8060904@yahoo.com.au>
+	 <Pine.LNX.4.58.0502011047330.3205@schroedinger.engr.sgi.com>
+Content-Type: text/plain
+Date: Wed, 02 Feb 2005 11:31:36 +1100
+Message-Id: <1107304296.5131.13.camel@npiggin-nld.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andi Kleen <ak@muc.de>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 1 Feb 2005, Christoph Lameter wrote:
+On Tue, 2005-02-01 at 11:01 -0800, Christoph Lameter wrote:
+> On Tue, 1 Feb 2005, Nick Piggin wrote:
 
-> On Tue, 1 Feb 2005, Mel Gorman wrote:
->
-> > > Would it not be better to zero the global 2^MAX_ORDER pages by the scrub
-> > > daemon and have a global zeroed page list? That way you may avoid zeroing
-> > > when splitting pages?
-> > >
-> >
-> > Maybe, but right now when there are no 2^MAX_ORDER pages, the scrub daemon
-> > is going to be doing nothing which is why I think it needs to look at the
-> > free pages of lower orders.
-> >
-> > That is solveable though in one of two ways. One, the scrub daemon can
-> > zero pages from the global list and then add them to the USERZERO pool. It
-> > has the advantage of requiring no more memory and is simple. The second is
-> > to create a second global list. However, I think it only makes sense to
-> > have this as part of the scrub daemon patch (I can write it if thats a
-> > problem) rather than a standalone patch from me.
->
-> Approach one is fine and I will do an update the remaining prezero patches
-> to do just that.
+> > A per-pte lock is sufficient for this case, of course, which is why the
+> > pte-locked system is completely free of the page table lock.
+> 
+> Introducing pte locking would allow us to go further with parallelizing
+> this but its another invasive procedure. I think parallelizing COW is only
+> possible to do reliable with some pte locking scheme. But then the
+> question is if the pte locking is really faster than obtaining a spinlock.
+> I suspect this may not be the case.
+> 
 
-There is another problem with approach one. Assuming all 2^MAX_ORDER pages
-have been zeroed and in USERZERO pool and there are no other free pages,
-an allocation for the USERRCLM pool would search all the other pools
-before finding the zerod pages. This could really slow things up but it is
-not a problem approach two suffers from.
+Well most likely not although I haven't been able to detect much
+difference. But in your case you would probably be happy to live
+with that if it meant better parallelising of an important
+function... but we'll leave future discussion to another thread ;)
 
-> When will your patches be in Linus tree? ;-)
->
+> > Although I may have some fact fundamentally wrong?
+> 
+> The unmapping in rmap.c would change the pte. This would be discovered
+> after acquiring the spinlock later in do_wp_page. Which would then lead to
+> the operation being abandoned.
+> 
 
-Your guess is as good as mine :) . I am fairly sure the allocator is
-somewhere in Andrew's list of patches to look at to consider for inclusion
-into -mm so I suppose it'll get a spin in that tree when he feels it's
-ready.
+Oh yes, but suppose your page_cache_get is happening at the same time
+as free_pages_check, after the page gets freed by the scanner? I can't
+actually think of anything that would cause a real problem (ie. not a
+debug check), off the top of my head. But can you say there _isn't_
+anything?
 
--- 
-Mel Gorman
+Regardless, it seems pretty dirty to me. But could possibly be made
+workable, of course.
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
