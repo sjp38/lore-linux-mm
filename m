@@ -1,37 +1,46 @@
-From: Christoph Rohland <cr@sap.com>
-Subject: Re: [Lse-tech] [rfc][api] Shared Memory Binding
-Date: Thu, 13 Feb 2003 10:48:07 +0100
-In-Reply-To: <3E4978B6.9030201@us.ibm.com> (Matthew Dobson's message of
- "Tue, 11 Feb 2003 14:27:02 -0800")
-Message-ID: <ovk7g4ecko.fsf@sap.com>
-References: <DD755978BA8283409FB0087C39132BD1A07CD2@fmsmsx404.fm.intel.com>
-	<3E4978B6.9030201@us.ibm.com>
+Date: Thu, 13 Feb 2003 10:26:12 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [PATCH] early, early ioremap
+Message-ID: <18530000.1045160770@[10.10.2.4]>
+In-Reply-To: <3E4B4F36.70209@us.ibm.com>
+References: <3E4B4F36.70209@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: colpatch@us.ibm.com
-Cc: "Luck, Tony" <tony.luck@intel.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech@lists.sourceforge.net, Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Matt,
+> Because of some braindead hardware engineers, we need to map in some
+> high memory areas just to find out how much memory we have, and where it
+> is. (the e820 table doesn't cut it on this hardware)
+> 
+> I can't think of a good name for this.  It's earlier than bt_ioremap()
+> and super_mega_bt_ioremap() doesn't have much of a ring to it.
+> 
+> This is only intended for remapping while the boot-time pagetables are
+> still in use.  It was a pain to get the 2-level pgtable.h functions, so
+> I just undef'd CONFIG_X86_PAE for my file.  It looks awfully hackish,
+> but it works well.
+> 
+> Some of my colleagues prefer to steal ptes from some random source, then
+> replace them when the remapping is done, but I don't really like this
+> approach.  I prefer to know exactly where I'm stealing them from, which
+> is where boot_ioremap_area[] comes in.
 
-On Tue, 11 Feb 2003, Matthew Dobson wrote:
-> I'd hoped to see how this proposal and pending patch went over with
-> everyone, before attempting anything more broad.  My last attempt at
-> something similar to this failed due to being too invasive and
-> complicated.  My thoughts were to try something fairly
-> straightforward and simple this time. 
+OK, rather than "some random source", how about we designate the window
+from 7Mb - 8Mb as the early vmalloc space (akin to __VMALLOC_RESERVE),
+and use that for early kmap / set_fixmap / whatever. I think that's
+better than the array allocated from kernel data segment.
 
-But SYSV shm is a thin layer on top of tmpfs, which again is a thin
-layer on top of the page cache. 
+Either a per-page bitmap of used areas, a fixmap-type array, or simply
+making the user keep track of it would be fine ...
 
-So if you want to have something simple, you should work on the
-generic layer. For me a general mmbind() makes much more sense.
+Opinions?
 
-Greetings
-		Christoph
-
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
