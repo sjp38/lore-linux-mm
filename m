@@ -1,159 +1,53 @@
-Subject: [PATCH] low-latency zap_page_range()
-From: Robert Love <rml@tech9.net>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 29 Aug 2002 11:31:39 -0400
-Message-Id: <1030635100.939.2551.camel@phantasy>
-Mime-Version: 1.0
+Content-Type: text/plain;
+  charset="us-ascii"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: MM patches against 2.5.31
+Date: Mon, 26 Aug 2002 18:09:45 -0400
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <200208261809.45568.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@zip.com.au
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@zip.com.au>, Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, Daniel Phillips <phillips@arcor.de>
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+This seems to have been missed: 
 
-Attached patch implements a low latency version of "zap_page_range()".
+Linus Torvalds wrote:
 
-Calls with even moderately large page ranges result in very long lock
-held times and consequently very long periods of non-preemptibility. 
-This function is in my list of the top 3 worst offenders.  It is gross.
+> In article <3D6989F7.9ED1948A@zip.com.au>,
+> Andrew Morton  <akpm@zip.com.au> wrote:
+>>
+>>What I'm inclined to do there is to change __page_cache_release()
+>>to not attempt to free the page at all.  Just let it sit on the
+>>LRU until page reclaim encounters it.  With the anon-free-via-pagevec
+>>patch, very, very, very few pages actually get their final release in
+>>__page_cache_release() - zero on uniprocessor, I expect.
+> 
+> If you do this, then I would personally suggest a conceptually different
+> approach: make the LRU list count towards the page count.  That will
+> _automatically_ result in what you describe - if a page is on the LRU
+> list, then "freeing" it will always just decrement the count, and the
+> _real_ free comes from walking the LRU list and considering count==1 to
+> be trivially freeable.
+> 
+> That way you don't have to have separate functions for releasing
+> different kinds of pages (we've seen how nasty that was from a
+> maintainance standpoint already with the "put_page vs
+> page_cache_release" thing).
+> 
+> Ehh? 
 
-This new version reimplements zap_page_range() as a loop over
-ZAP_BLOCK_SIZE chunks.  After each iteration, if a reschedule is
-pending, we drop page_table_lock and automagically preempt.  Note we can
-not blindly drop the locks and reschedule (e.g. for the non-preempt
-case) since there is a possibility to enter this codepath holding other
-locks.
+If every structure locks before removing its reference (ie before testing and/or
+removing a lru reference we take zone->lru_lock, for slabs take cachep->spinlock
+etc)  Its a bit of an audit task to make sure the various locks are taken (and
+documented) though.
 
-... I am sure you are familar with all this, its the same deal as your
-low-latency work.  This patch implements the "cond_resched_lock()" as we
-discussed sometime back.  I think this solution should be acceptable to
-you and Linus.
+By leting the actual free be lazy as Linus suggests things should simplify nicely.
 
-There are other misc. cleanups, too.
-
-This new zap_page_range() yields latency too-low-to-benchmark: <<1ms.
-
-Please, Andrew, add this to your ever-growing list.
-
-	Robert Love
-
-diff -urN linux-2.5.32/include/linux/sched.h linux/include/linux/sched.h
---- linux-2.5.32/include/linux/sched.h	Tue Aug 27 15:26:34 2002
-+++ linux/include/linux/sched.h	Wed Aug 28 18:04:41 2002
-@@ -898,6 +898,34 @@
- 		__cond_resched();
- }
- 
-+#ifdef CONFIG_PREEMPT
-+
-+/*
-+ * cond_resched_lock() - if a reschedule is pending, drop the given lock,
-+ * call schedule, and on return reacquire the lock.
-+ *
-+ * Note: this does not assume the given lock is the _only_ lock held.
-+ * The kernel preemption counter gives us "free" checking that we are
-+ * atomic -- let's use it.
-+ */
-+static inline void cond_resched_lock(spinlock_t * lock)
-+{
-+	if (need_resched() && preempt_count() == 1) {
-+		_raw_spin_unlock(lock);
-+		preempt_enable_no_resched();
-+		__cond_resched();
-+		spin_lock(lock);
-+	}
-+}
-+
-+#else
-+
-+static inline void cond_resched_lock(spinlock_t * lock)
-+{
-+}
-+
-+#endif
-+
- /* Reevaluate whether the task has signals pending delivery.
-    This is required every time the blocked sigset_t changes.
-    Athread cathreaders should have t->sigmask_lock.  */
-diff -urN linux-2.5.32/mm/memory.c linux/mm/memory.c
---- linux-2.5.32/mm/memory.c	Tue Aug 27 15:26:42 2002
-+++ linux/mm/memory.c	Wed Aug 28 18:03:11 2002
-@@ -389,8 +389,8 @@
- {
- 	pgd_t * dir;
- 
--	if (address >= end)
--		BUG();
-+	BUG_ON(address >= end);
-+
- 	dir = pgd_offset(vma->vm_mm, address);
- 	tlb_start_vma(tlb, vma);
- 	do {
-@@ -401,30 +401,43 @@
- 	tlb_end_vma(tlb, vma);
- }
- 
--/*
-- * remove user pages in a given range.
-+#define ZAP_BLOCK_SIZE	(256 * PAGE_SIZE) /* how big a chunk we loop over */
-+ 
-+/**
-+ * zap_page_range - remove user pages in a given range
-+ * @vma: vm_area_struct holding the applicable pages
-+ * @address: starting address of pages to zap
-+ * @size: number of bytes to zap
-  */
- void zap_page_range(struct vm_area_struct *vma, unsigned long address, unsigned long size)
- {
- 	struct mm_struct *mm = vma->vm_mm;
- 	mmu_gather_t *tlb;
--	unsigned long start = address, end = address + size;
-+	unsigned long end, block;
- 
--	/*
--	 * This is a long-lived spinlock. That's fine.
--	 * There's no contention, because the page table
--	 * lock only protects against kswapd anyway, and
--	 * even if kswapd happened to be looking at this
--	 * process we _want_ it to get stuck.
--	 */
--	if (address >= end)
--		BUG();
- 	spin_lock(&mm->page_table_lock);
--	flush_cache_range(vma, address, end);
- 
--	tlb = tlb_gather_mmu(mm, 0);
--	unmap_page_range(tlb, vma, address, end);
--	tlb_finish_mmu(tlb, start, end);
-+  	/*
-+ 	 * This was once a long-held spinlock.  Now we break the
-+ 	 * work up into ZAP_BLOCK_SIZE units and relinquish the
-+ 	 * lock after each interation.  This drastically lowers
-+ 	 * lock contention and allows for a preemption point.
-+  	 */
-+	while (size) {
-+		block = (size > ZAP_BLOCK_SIZE) ? ZAP_BLOCK_SIZE : size;
-+ 		end = address + block;
-+ 
-+ 		flush_cache_range(vma, address, end);
-+ 		tlb = tlb_gather_mmu(mm, 0);
-+ 		unmap_page_range(tlb, vma, address, end);
-+ 		tlb_finish_mmu(tlb, address, end);
-+ 
-+ 		cond_resched_lock(&mm->page_table_lock);
-+ 
-+ 		address += block;
-+ 		size -= block;
-+ 	}
-+
- 	spin_unlock(&mm->page_table_lock);
- }
- 
-
-
-
+comments,
+Ed Tomlinson
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
