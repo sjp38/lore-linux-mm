@@ -1,34 +1,38 @@
-Date: Mon, 13 Sep 2004 17:24:32 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Mon, 13 Sep 2004 20:10:46 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: [PATCH] Do not mark being-truncated-pages as cache hot
-Message-ID: <72070000.1095121472@flay>
-In-Reply-To: <20040913171037.793d4f68.akpm@osdl.org>
-References: <20040913215753.GA23119@logos.cnet><66880000.1095120205@flay> <20040913171037.793d4f68.akpm@osdl.org>
-MIME-Version: 1.0
+Message-ID: <20040913231046.GB23588@logos.cnet>
+References: <20040913215753.GA23119@logos.cnet> <20040913164510.249eb7b1.akpm@osdl.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <20040913164510.249eb7b1.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: marcelo.tosatti@cyclades.com, linux-mm@kvack.org, piggin@cyberone.com.au
+Cc: linux-mm@kvack.org, mbligh@aracnet.com, piggin@cyberone.com.au
 List-ID: <linux-mm.kvack.org>
 
-> "Martin J. Bligh" <mbligh@aracnet.com> wrote:
->> 
->> > - Making the allocation policy FIFO should drastically increase the chances "hot" pages
->>  > are handed to the allocator. AFAIK the policy now is LIFO.
->> 
->>  It should definitely have been FIFO to start with
+On Mon, Sep 13, 2004 at 04:45:10PM -0700, Andrew Morton wrote:
+> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+> >
+> > The truncate VM functions use pagevec's for operation batching, but they mark
+> >  the pagevec used to hold being-truncated-pages as "cache hot". 
+> > 
+> >  There is nothing which indicates such pages are likely to be "cache hot" - the
+> >  following patch marks being-truncated-pages as cold instead. 
 > 
-> I always intended that it be LIFO.  Take the hottest page, for heavens
-> sake.  As the oldest page is the one which is most likely to have fallen
-> out of cache then why a-priori choose it?
+> Disagree.
+> 
+> 	blah > /tmp/foo
+> 	rm /tmp/foo
 
-Bah. I just had my acronyms backwards ... I meant LIFO, sorry ;-)
+Well thats sys_unlink(). It does truncate?
 
-M.
+Anyway, I think thats not the common case at all. 
+Hum, it depends on the workload, but still.
 
+But yeah, you have a point. 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
