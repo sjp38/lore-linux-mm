@@ -1,44 +1,41 @@
-Message-ID: <3CABF05C.4EA66796@scs.ch>
-Date: Thu, 04 Apr 2002 08:19:08 +0200
-From: Martin Maletinsky <maletinsky@scs.ch>
+Received: from localhost (amitjain@localhost)
+	by mailhost.tifr.res.in (8.9.3+3.2W/8.9.3/Debian 8.9.3-21) with ESMTP id NAA26015
+	for <linux-mm@kvack.org>; Thu, 4 Apr 2002 13:04:37 +0530
+Date: Thu, 4 Apr 2002 13:04:37 +0530 (IST)
+From: "Amit S. Jain" <amitjain@tifr.res.in>
+Subject: Memory allocation in Linux (fwd)
+Message-ID: <Pine.LNX.4.21.0204041258240.24668-100000@mailhost.tifr.res.in>
 MIME-Version: 1.0
-Subject: Re: Slab allocator - questions
-References: <3CAAC471.ED65E4C9@scs.ch> <20020403143227.A6301@redhat.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@redhat.com>
-Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+This was the message I had posted in March expecting some help from the
+Masters in Linux-mm...however there was no response...hope someone can
+respond to it now.. Pleasse.....and if u do could you please CC the
+message to my e-mail address...
+ Hello everyone,
+               I am confused about the concept of memory allocation in
+Linux and hope u all can please clear this.
+Obtaining large amount of continuous memory from the kernel is not a
+good practice and is also not possible.However,as far as non-contiguous
+memory is concerned ...cant those be obtained in huge amounts (I am talkin
+in terms of MB).Using get_free_pages or vmalloc cant large amounts of
+memory be obtained.I tried doing this but I got continuous message ssayin
+PCI bus error 2290...wass this bout???ne idea. 
 
-> ...
-> > 2) Why are there general caches up to a size of 128K byte? Since a slab
-> > consists of physically contiguous pages, one might call right into the
-> > buddy system to get chunks of memory that are a multiple of a page size.
-> > What is the benefit of allocating memory chunks that are a multiple of
-> > a page size by using kmalloc()/kmem_cache_alloc() rather than
-> > get_free_pages?
->
-> Memory fragmentation.  By grouping objects of the same type and similar
-> lifetimes, slab helps prevent the pinning of many individual pages across
-> the system.  Since slab allocations cannot be relocated, this helps when
-> other allocations need to obtain non-0 order pages.
+Also,I will be highly obliged if you could refer a good document which can
+gimme a good explaination bout mmap function.I basically want to obtain
+zero copy from the user area straigt to the network interface without any
+copies in the kernel area. kiobuff can provide one such interface,however
+I also want to try using mmap....so please could u refer me some good
+document.   
 
-Thank you for your reply. Could you detail how memory fragmentation is reduced? I understand the assumption that objects of the same type (and therefore same size) tend to
-have similar lifetimes. However the general caches for objects that are a multiple of a page size contain one object per cache (see /proc/slabinfo). Each time such an
-object is allocated by kmalloc(), the slab allocator will therefore use a new slab (which is allocated by calling into the buddy system). So what is the difference with
-respect to memory fragmentation compared to calling straight the buddy system by using get_free_pages()?
-
-regards
-Martin
---
-Supercomputing System AG          email: maletinsky@scs.ch
-Martin Maletinsky                 phone: +41 (0)1 445 16 05
-Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
-CH-8005 Zurich
+Thanking you
+Regards
+Amit
 
 
 --
