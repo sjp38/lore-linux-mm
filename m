@@ -1,40 +1,45 @@
-Subject: Re: lsattr: Inappropriate ioctl for device While reading flags!!!
-References: <20040723190555.GB16956@sgi.com>
-	<200407270729.45116.aroop@poornam.com>
-	<20040727020338.GB23967@sgi.com>
-	<200407270741.44003.aroop@poornam.com>
-From: Philippe Troin <phil@fifi.org>
-Date: 26 Jul 2004 23:40:57 -0700
-In-Reply-To: <200407270741.44003.aroop@poornam.com>
-Message-ID: <874qnueyva.fsf@ceramic.fifi.org>
+Message-ID: <410658B6.3020701@tteng.com.br>
+Date: Tue, 27 Jul 2004 10:29:26 -0300
+From: "Luciano A. Stertz" <luciano@tteng.com.br>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Read-ahead code
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Aroop MP <aroop@poornam.com>
-Cc: Dimitri Sivanich <sivanich@sgi.com>, manfred@colorfullife.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
+To: kernelnewbies@nl.linux.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Aroop MP <aroop@poornam.com> writes:
+	I guess I found a bug in the readahead code, kernel 2.6.7.
+	In filemap_nopage, if the memory area is not marked as sequential 
+(VM_SEQ_READ isn't set) and the page is not in the page cache, the 
+following code is executed:
 
-> Hi,
-> 
-> Thanks for your quick reply. When i check lsattr of the file 
-> /usr/local/cpanel/3rdparty/etc/php.ini  i got the following error.
-> ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-> Server[~]# lsattr /usr/local/cpanel/3rdparty/etc/php.ini
-> lsattr: Inappropriate ioctl for device While reading flags on 
-> /usr/local/cpanel/3rdparty/etc/php.ini
-> Server[~]#
-> ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-> 
-> Please get back to me if you need any more  info. regarding this.
+1                ra_pages = max_sane_readahead(file->f_ra.ra_pages);
+2                if (ra_pages) {
+3                        long start;
+4
+5                        start = pgoff - ra_pages / 2;
+6                        if (pgoff < 0)
+7                                pgoff = 0;
+8                        do_page_cache_readahead(mapping, file, pgoff, 
+ra_pages);
+9                }
 
-Because /usr/local/cpanel/3rdparty/etc/php.ini is not on an ext[23]
-filesystem? Remote mounting via NFS, or your favorite network fs does
-not count as ext[23].
+	Seems that the author wanted to read ra_pages around pgoff. Shouldn't 
+it be using 'start' instead of 'pgoff' in lines 6 to 8?!? Start is 
+calculated and never used. Instead of reading pages from start to pgoff 
++ ra_pages/2, it's reading ra_pages from pgoff.
 
-Phil.
+	Luciano
+
+-- 
+Luciano A. Stertz
+luciano@tteng.com.br
+T&T Engenheiros Associados Ltda
+http://www.tteng.com.br-
+Fone/Fax (51) 3224 8425
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
