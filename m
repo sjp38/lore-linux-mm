@@ -1,65 +1,89 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.12.10/8.12.9) with ESMTP id iA51tgCO174376
-	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 20:55:42 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iA51tgQ7284034
-	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 20:55:42 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iA51tf1S001010
-	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 20:55:41 -0500
-Subject: Re: fix iounmap and a pageattr memleak (x86 and x86-64)
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20041105005344.GG8229@dualathlon.random>
-References: <20041102220720.GV3571@dualathlon.random>
-	 <41880E0A.3000805@us.ibm.com> <4188118A.5050300@us.ibm.com>
-	 <20041103013511.GC3571@dualathlon.random> <418837D1.402@us.ibm.com>
-	 <20041103022606.GI3571@dualathlon.random> <418846E9.1060906@us.ibm.com>
-	 <20041103030558.GK3571@dualathlon.random>
-	 <1099612923.1022.10.camel@localhost> <1099615248.5819.0.camel@localhost>
-	 <20041105005344.GG8229@dualathlon.random>
-Content-Type: text/plain
-Message-Id: <1099619740.5819.65.camel@localhost>
+Date: Thu, 4 Nov 2004 20:47:51 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH 2/3] higher order watermarks
+Message-ID: <20041104224751.GA13679@logos.cnet>
+References: <417F5584.2070400@yahoo.com.au> <417F55B9.7090306@yahoo.com.au> <417F5604.3000908@yahoo.com.au> <20041104085745.GA7186@logos.cnet> <418A1EA6.70500@yahoo.com.au> <20041104095545.GA7902@logos.cnet> <418AD20D.4000201@yahoo.com.au>
 Mime-Version: 1.0
-Date: Thu, 04 Nov 2004 17:55:40 -0800
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <418AD20D.4000201@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@novell.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-11-04 at 16:53, Andrea Arcangeli wrote:
-> The only chance for kpte_page to be freed, is to be == 1 in that place.
-> If kpte_page is == 1, it will be freed via list_add and the master page
-> will be regenerated giving it a chance to get performance back. If it's
-> 0, it means we leaked memory as far as I can tell.
->
-> It's impossible a pte had a 0 page_count() and not to be in the freelist
-> already. There is no put_page at all in that whole path, there's only a
-> __put_page, so it's a memleak to get == 0 in there on any pte or pmd or
-> whatever else we cannot have put in the freelist already.
+On Fri, Nov 05, 2004 at 12:06:21PM +1100, Nick Piggin wrote:
+> Marcelo Tosatti wrote:
+> >Hi Nick!
+> >
+> >On Thu, Nov 04, 2004 at 11:20:54PM +1100, Nick Piggin wrote:
+> >
+> 
+> >>So now what we need to do in order to calculate, say the amount of memory
+> >>that will satisfy order-2 *and above* (this is important) is the 
+> >>following:
+> >>
+> >>	z->free_pages - (order[0].nr_free << 0) - (order[1].nr_free << 1)
+> >
+> >
+> >Shouldnt that be then
+> >
+> >free_pages -= z->free_area[o].nr_free << o;
+> >
+> >instead of the current 
+> >
+> >free_pages -= z->free_area[order].nr_free << o;
+> >
+> >No?
+> >
+> 
+> Yes, you're absolutely right. Sorry, this is what you were getting
+> at all along :P
+> 
+> >
+> >>to find order-3 and above, you also need to subtract (order[2].nr_free << 
+> >>2).
+> >>
+> >>I quite liked this method because it has progressively less cost on lower
+> >>order allocations, and for order-0 we don't need to do any calculation.
+> >
+> >
+> >OK, now I get it. The only think which bugs me is the multiplication of 
+> >values with different meanings.
+> >
+> 
+> Yeah it's wrong, of course. Good catch, thanks.
+> 
+> If you would care to send a patch Marcelo? I don't have a recent
+> -mm on hand at the moment. Would that be alright?
 
-Ahhh.  I forgot about the allocator's reference on the page.  However,
-there still seems to be something fishy here.
+Sure, I'll prepare a patch. 
 
-The page that's causing trouble's pfn is 0x0000000f.  It's also set as
-PageReserved().  We may have some imbalance with page counts when the
-page is PageReserved() that this is catching.  I can't find any
-asymmetric use of kernel_map_pages().  Both the slab and the allocator
-appear to be behaving themselves.  
+This typo probably means that the current code is not actually working as 
+intented - did any of you receive any feedback on this patch, wrt high order allocation
+intensive driver setup/workload, Nick and Andrew? 
 
-I don't even see a case where that particular page has a get_page() done
-on it before the first __change_page_attr() call on it.  So, it probably
-still has its page_count()==0 from the original set in
-memmap_init_zone().
+I have been using a simple module which allocates a big number of high order
+allocations in a row (for the defragmentation code testing), I'll give it a
+shot tomorrow to test Nick's high-order-kswapd scheme effectiveness. 
 
-What happens when a pte page is bootmem-allocated?  I *think* that's the
-situation that I'm hitting.  In that case, we can either try to hunt
-down the real 'struct pages' after everything is brought up, or we can
-just skip the BUG_ON() if the page is reserved.  Any thoughts?
+Anyway, here is the patch:
 
--- Dave
+Description:
+Fix typo in Nick's kswapd-high-order awareness patch
 
+--- linux-2.6.10-rc1-mm2/mm/page_alloc.c.orig	2004-11-04 22:52:00.505365136 -0200
++++ linux-2.6.10-rc1-mm2/mm/page_alloc.c	2004-11-04 22:52:03.121967352 -0200
+@@ -733,7 +733,7 @@
+ 		return 0;
+ 	for (o = 0; o < order; o++) {
+ 		/* At the next order, this order's pages become unavailable */
+-		free_pages -= z->free_area[order].nr_free << o;
++		free_pages -= z->free_area[o].nr_free << o;
+ 
+ 		/* Require fewer higher order pages to be free */
+ 		min >>= 1;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
