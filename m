@@ -1,77 +1,57 @@
 Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA05882
-	for <linux-mm@kvack.org>; Wed, 19 Aug 1998 09:50:53 -0400
-Date: Wed, 19 Aug 1998 13:07:01 +0100
-Message-Id: <199808191207.NAA00885@dax.dcs.ed.ac.uk>
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA05940
+	for <linux-mm@kvack.org>; Wed, 19 Aug 1998 09:52:20 -0400
+Date: Wed, 19 Aug 1998 10:45:36 +0100
+Message-Id: <199808190945.KAA00835@dax.dcs.ed.ac.uk>
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Subject: Re: memory overcommitment
-In-Reply-To: <Pine.LNX.4.02.9808181600190.6675-100000@pc367.hq.eso.org>
-References: <199808171833.TAA03492@dax.dcs.ed.ac.uk>
-	<Pine.LNX.4.02.9808181600190.6675-100000@pc367.hq.eso.org>
+Subject: Re: Notebooks
+In-Reply-To: <199808182138.OAA00489@penguin.transmeta.com>
+References: <19980814115843.43989@orci.com>
+	<m0z88bh-000aNFC@the-village.bc.nu>
+	<199808182138.OAA00489@penguin.transmeta.com>
 Sender: owner-linux-mm@kvack.org
-To: Nicolas Devillard <ndevilla@mygale.org>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org, Alan Cox <number6@the-village.bc.nu>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: alan@lxorguk.ukuu.org.uk, davem@dm.cobaltmicro.com, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Tue, 18 Aug 1998 16:34:01 +0000 ( ), Nicolas Devillard
-<ndevilla@mygale.org> said:
+On Tue, 18 Aug 1998 14:38:07 -0700, Linus Torvalds
+<torvalds@transmeta.com> said:
 
-> On Mon, 17 Aug 1998, Stephen C. Tweedie wrote:
->> 
->> The short answer is "don't do that, then"!  
+> Ok, I found this.
 
-> Well... I certainly don't. The OS does it for me, which is precisely what
-> I want to avoid! I allocate N megs of memory, not because I use a system
-> function which does it implicitly (like fork() does), but because I want
-> this memory to store data and work with it. If the system cannot give me N
-> megs of memory, better tell me immediately with a NULL returned by
-> malloc() and an ENOMEM (as described in the man page, BTW), than tell me:
-> Ok, here's your pointer, so that I start working on my data and then
-> suddenly... crash. 
+> Once more, it was the slab stuff that broke badly.  I'm going to
+> consider just throwing out the slabs for v2.2 unless somebody is willing
+> to stand up and fix it - the multi-page allocation stuff just breaks too
+> horribly. 
 
-As I said, the only way to do this is to writable private restrict
-allocations to the size of available swap.  Otherwise, if you include
-physical memory in the calculation, you can lose out: the kernel needs
-to allocate physical memory for networking, page tables, stack space
-etc.  There simply isn't any way around this.
+    /* If the num of objs per slab is <= SLAB_MIN_OBJS_PER_SLAB,
+     * then the page order must be less than this before trying the next order.
+     */
+    #define	SLAB_BREAK_GFP_ORDER_HI	2
+    #define	SLAB_BREAK_GFP_ORDER_LO	1
 
-> It's not that I am working on making Linux fly planes or what, but
-> when you start having data the size of a gig you realize it will take
-> some time to process it out completely. 
+replace orders with 0; no more unnecessary higher-order allocations.  We
+want this to be configurable at boot time, however; the extra efficiency
+may be worth it on larger memory machines.  Linus, I'll do this if you
+want it: default all the BREAK orders to 0 and add a boot option to
+increase it.
 
-Then initialise the memory after malloc; you know the pages are there by
-that stage. 
+> In this case, TCP wanted to allocate a single skb, and due to slabs this
+> got turned into a multi-page request even though it fit perfectly fine
+> into one page.  Thus a critical allocation could fail, and the TCP layer
+> started looping - and kswapd could never even try to fix it up because
+> the TCP code held the kernel lock. 
 
-There are also lots of programs which allocate a gig of memory and only
-use a tiny fraction of it.  We don't want them all to suddenly start
-failing.  You can't have it both ways!
-
->> If you can suggest a good algorithm for selecting processes to kill,
->> we'd love to hear about it.  The best algorithm will not be the same for
->> all users.
-
-> Killing processes randomly is maybe one way to solve the problem,
-> certainly not the only one. 
-
-Umm, killing inetd?  sendmaild?  init??!!
-
-> For my applications, I found out that the simplest way to allocate
-> huge amounts is to open enough temporary files on the user's disk,
-> fill them up with zeroes and mmap() them. This way, I get way past the
-> physical memory, and because I am never using the whole allocated
-> stuff simultaneously, these files are paged by the OS invisibly in a
-> much more efficient way than I could do. It is certainly slow, but
-> still very reasonable, and avoids quite some headaches in programming.
-
-Yep, that's common practice: essentially a writable mmap acts like
-allocating your own swap file, which is an entirely reasonable thing to
-do if you don't know in advance whether your data set will fit into the
-amount of true swap present.
+If the network stack can loop on an allocation without dropping the
+lock, then even single-page allocations can deadlock.  (If there's a lot
+of dirty data in swap, kswapd can quite easily block with no free pages
+present for a time, especially if there is high network load at the
+time.)
 
 --Stephen
 --
