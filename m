@@ -1,36 +1,39 @@
-Date: Wed, 7 Jun 2000 18:11:44 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: journaling & VM
-Message-ID: <20000607181144.U30951@redhat.com>
-References: <Pine.LNX.4.21.0006061956360.7328-100000@duckman.distro.conectiva> <393DA31A.358AE46D@reiser.to> <20000607121243.F29432@redhat.com> <m2r9a9a1q6.fsf_-_@boreas.southchinaseas>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <m2r9a9a1q6.fsf_-_@boreas.southchinaseas>; from vii@penguinpowered.com on Wed, Jun 07, 2000 at 05:35:13PM +0100
+Date: Wed, 7 Jun 2000 14:11:42 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: reiserfs being part of the kernel: it's not just the code
+In-Reply-To: <20000607120030.D29432@redhat.com>
+Message-ID: <Pine.LNX.4.21.0006071409020.14304-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Fremlin <vii@penguinpowered.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, 7 Jun 2000, Stephen C. Tweedie wrote:
 
-On Wed, Jun 07, 2000 at 05:35:13PM +0100, John Fremlin wrote:
-> 
-> You are saying, that the MM system maintains a list of pages, then
-> when it wants to free some memory it goes down the list seeing which
-> subsystem owns each page, and asks it to free some memory. (Correct me
-> if I am wrong).
-> That is, each filesystem or whatever can basically implement its own
-> MM. If so, why not simply have a list of subsystems that own memory
-> with some sort of measure of how much space they're wasting, and ask
-> the ones with a lot to free some?
+> Who will be at Usenix in San Diego in a couple of weeks' time?  
+> There will certainly be some of the XFS and GFS people there,
+> and I'll be around all week.
 
-Because you want to have some idea of the usage patterns of the 
-pages, too, so that you can free pages which haven't been accessed 
-recently regardless of who owns them.
+I won't be there.
 
---Stephen
+Maybe OLS would be a more suitable event to discuss these
+matters?  Most of the people involved seem to be speaking
+at OLS anyway (and the GFS people are relatively near, at
+car or train distance, almost).
+
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
