@@ -1,28 +1,38 @@
-Date: Tue, 10 Apr 2001 19:57:44 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: USB Mouse problem
-In-Reply-To: <20010411034926.A21203@localhost>
-Message-ID: <Pine.LNX.3.96.1010410195358.22333B-100000@kanga.kvack.org>
+Message-ID: <C78C149684DAD311B757009027AA5CDC094DA2A9@xboi02.boi.hp.com>
+From: "LUTZ,TODD (HP-Boise,ex1)" <tlutz@hp.com>
+Subject: RE: Ideas for adding physically contiguous memory support to mmap
+	()??
+Date: Tue, 10 Apr 2001 20:39:06 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: pcp <da.box@home.se>
-Cc: linux-mm@kvack.org
+To: "'Benjamin C.R. LaHaise'" <blah@kvack.org>
+Cc: "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 11 Apr 2001, pcp wrote:
+> > I would like to be able to extend mmap() (in 2.4.2) to 
+> support returning
+> > physically contiguous memory as shared memory.
+> 
+> > Here are some requirements:
+> 
+> > 1. Able to specify any size that is a multiple of PAGE_SIZE 
+> (not just powers
+> > of 2).
+> 
+> First off: why do you need this functionality?
 
-> hi! i downloaded 2.4.3-ac3 and promptly installed it. i rebooted with
-> the new kernel and to my disappointment i couldn't move my mouse. if i
-> did the whole system went dead, everything dead-locked. what's the deal?
+The short answer...
 
-This is an off topic posting for linux-mm.  Please direct yourself to the
-kernel howtos (specifically the linux-kernel FAQ on bug reporting) and
-other more appropriate forums.
+I have an embedded application that wants to manage most of memory in the
+system and wants it to be shared between processes.  The application starts,
+determines the amount of free memory, leaves a little for the OS, then
+allocates the rest as shared memory.  It needs to be physically contiguous
+because not all of our DMAs support scatter-gather.
 
-		-ben (owner-linux-mm)
-
+-- Todd
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
