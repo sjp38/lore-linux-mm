@@ -1,52 +1,56 @@
-Message-ID: <20001118214906.D382@bug.ucw.cz>
-Date: Sat, 18 Nov 2000 21:49:06 +0100
-From: Pavel Machek <pavel@suse.cz>
-Subject: Re: KPATCH] Reserve VM for root (was: Re: Looking for better VM)
-References: <200011142012.VAA00150@bug.ucw.cz> <Pine.LNX.4.30.0011161513480.20626-100000@fs129-190.f-secure.com>
-Mime-Version: 1.0
+Received: from sap-ag.de ([194.39.131.3])
+  by smtpde02.sap-ag.de (out) with ESMTP id TAA29354
+  for <linux-mm@kvack.org>; Sun, 19 Nov 2000 19:08:27 +0100 (MEZ)
+Received: from linux.local.wdf.sap-ag.de (ct4012.wdf.sap-ag.de [147.204.29.12])
+	by sap-ag.de (8.8.8/8.8.8) with SMTP id TAA28508
+	for <linux-mm@kvack.org>; Sun, 19 Nov 2000 19:13:20 +0100 (MET)
+Resent-Message-Id: <200011191813.TAA28508@sap-ag.de>
+Resent-To: linux-mm@kvack.org
+Subject: Re: Hung kswapd (2.4.0-t11p5)
+References: <3A146EDA.36D1F9C4@redhat.com>
+From: Christoph Rohland <cr@sap.com>
+In-Reply-To: Bob Matthews's message of "Thu, 16 Nov 2000 18:33:46 -0500"
+Date: 19 Nov 2000 15:34:42 +0100
+Message-ID: <m3n1ewyqrh.fsf@linux.local>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.30.0011161513480.20626-100000@fs129-190.f-secure.com>; from Szabolcs Szakacsits on Thu, Nov 16, 2000 at 04:01:07PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Szabolcs Szakacsits <szaka@f-secure.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>
+To: Bob Matthews <bmatthews@redhat.com>
+Cc: riel@nl.linux.org, johnsonm@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Hi Bob and Rik,
 
-> >    >main() { while(1) if (fork()) malloc(1); }
-> >    >With the patch below I could ssh to the host and killall the offending
-> >    >processes. To enable reserving VM space for root do
-> > what about main() { while(1) system("ftp localhost &"); }
-> > This. or so,ething similar should allow you to kill your machine
-> > even with your patch from normal user account
+Bob Matthews <bmatthews@redhat.com> writes:
+
+> kswapd itself appears to be stuck here:
 > 
-> This or something similar didn't kill the box [I've tried all local
-> DoS from Packetstorm that I could find]. Please send a working
+> (gdb) list *0xc01394c2
+> 0xc01394c2 is in create_buffers (buffer.c:1240).
+> 1235	
+> 1236		/* 
+> 1237		 * Set our state for sleeping, then check again for buffer heads.
+> 1238		 * This ensures we won't miss a wake_up from an interrupt.
+> 1239		 */
+> 1240		wait_event(buffer_wait, nr_unused_buffer_heads >=
+> MAX_BUF_PER_PAGE);
+> 1241		goto try_again;
+> 1242	}
+> 1243	
+> 1244	static int create_page_buffers(int rw, struct page *page, kdev_t
+> dev, int b[], int size)
 
-Sorry, I did not have working example, just feeling that something
-like that should be possible.
+That's apparently exactly the same place shm swapping gets
+stuck. Apparently we run out of buffer heads on highmem machines (I
+actually believe that we can trigger the same on lowmem machines also,
+only under much higher load wrt the machine size, but that's only a
+guess)
 
-> Note, I'm not discussing "local user can kill the box without limits",
-> I say Linux "deadlocks" [it starts its own autonom life and usually
-> your only chance is to hit the reset button] when there is continuous
-> VM pressure by user applications. If you think fork() kills the box
+Greetings
+                Christoph
 
-That's clear bug, right? It should not deadlock, it should go to
-OOM-killer and kill someone.
 
-> BTW, I have a new version of the patch with that Linux behaves much
-> better from root's point of view when the memory is more significantly
-> overcommited. I'll post it if I have time [and there is interest].
-
-There is interest. Yesterday atrey died due userland process eating
-all memory.
-								Pavel
-PS: atrey is machine that gets my mail, so it is kind of important to
-me.
--- 
-I'm pavel@ucw.cz. "In my country we have almost anarchy and I don't care."
-Panos Katsaloulis describing me w.r.t. patents at discuss@linmodems.org
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
