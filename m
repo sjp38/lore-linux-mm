@@ -1,71 +1,66 @@
-Message-ID: <39ACCD6F.37EAA614@tuke.sk>
-Date: Wed, 30 Aug 2000 11:01:35 +0200
-From: Jan Astalos <astalos@tuke.sk>
-MIME-Version: 1.0
+Date: Wed, 30 Aug 2000 13:42:32 +0200 (CEST)
+From: Marco Colombo <marco@esi.it>
 Subject: Re: Question: memory management and QoS
-References: <39A672FD.CEEA798C@asplinux.ru> <39A69617.CE4719EF@tuke.sk> <39A6D45D.6F4C3E2F@asplinux.ru> <39AA24A5.CB461F4E@tuke.sk> <20000828190557.A5579@saw.sw.com.sg> <39AA56D1.EC5635D3@tuke.sk> <20000828211026.D6043@saw.sw.com.sg>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <39ACCD6F.37EAA614@tuke.sk>
+Message-ID: <Pine.LNX.4.10.10008301307330.4238-100000@NOC.ESI>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrey Savochkin <saw@saw.sw.com.sg>
-Cc: Yuri Pudgorodsky <yur@asplinux.ru>, Linux MM mailing list <linux-mm@kvack.org>
+To: Jan Astalos <astalos@tuke.sk>
+Cc: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrey Savochkin wrote:
-[snip]
+On Wed, 30 Aug 2000, Jan Astalos wrote:
 
-> > As a user, I won't bear _any_ overcommits at all. Once service is paid, I expect
-> > guarantied level of quality. In the case of VM, all the memory I paid for.
-> > For all of my processes.
+> Andrey Savochkin wrote:
+> [snip]
 > 
-> It means that you pay orders of magnitude more for it.
-
-If I got it right you are speaking about disk space. About sum of disk quotas
-"orders of magnitude" higher than actual available disk space, right ?
-You will sell users more disk space than you have for the price of your
-actual space (and you'll hope that they won't use whole disk).
-
-But you must get the disk space when users will need it (QoS), so in disk shortage,
-you'll need to buy next one. You'll then send an additional bill to them ?
-
+> > > As a user, I won't bear _any_ overcommits at all. Once service is paid, I expect
+> > > guarantied level of quality. In the case of VM, all the memory I paid for.
+> > > For all of my processes.
+> > 
+> > It means that you pay orders of magnitude more for it.
 > 
-> > Do you mean "pages shared between processes of particular user" ? Where's the problem ?
-> > If you mean "pages provided by user to another user", I still don't see the problem...
-> >
-> > If you mean anonymous pages not owned by any user, I'm really interested why this should
-> > be allowed (to let some trash to pollute system resources. Is it common practice ?).
+> If I got it right you are speaking about disk space. About sum of disk quotas
+> "orders of magnitude" higher than actual available disk space, right ?
+> You will sell users more disk space than you have for the price of your
+> actual space (and you'll hope that they won't use whole disk).
 > 
-> Well, you're speaking about private pages only.
+> But you must get the disk space when users will need it (QoS), so in disk shortage,
+> you'll need to buy next one. You'll then send an additional bill to them ?
 
-No.
+Well, IMHO it's a matter of numbers. If you're going to use 1/2 of the
+system resources, you may afford the cost of a whole dedicated system.
+No quotas, no users, no problems.
+If you're going to use 1/1000 of them (so we're speaking of a huge system)
+you may consider that, on average, no all users will be using their 
+resources, and it makes a lot of sense to overcommit.
+If all citizens in a big town want to use their phone at the same time,
+most of them won't get the service. But it almost never happens.
+The bigger the numbers involved, the safer to overcommit. It allows the
+service provider to lower costs a lot. I think no one is selling a 
+phone line that is garanteed to *always* work (it works only for p-o-p links,
+i.e. leased lines). It would cost too much, and, in practice, give no real
+advantage... 
+That's the whole idea behind time(and resource)-sharing systems...
+Otherwise, that 1/1000 of the huge system will cost *much* more than
+a personal workstation with better performances. And also you'll see
+other users, paying 1/100 of what you're paying, get almost the same
+service (the system almost never fails to fulfill their requests).
 
-> I speak about all memory resources, in-core and swap, and all kinds of
-> memory, shared and private, file mapped and anonymous.
-> 
+And you're not selling "more disk space than you have". You're selling
+10MB and the user gets up to 10MB. Shortage *almost* never happens,
+so you *almost* always provide the service...
 
-I don't think it's a problem to associate private memory (or private file map)
-with user. Shared memory should have its owner and permissions. Otherwise I don't know
-what would be the permissions good for.
+.TM.
+-- 
+      ____/  ____/   /
+     /      /       /			Marco Colombo
+    ___/  ___  /   /		      Technical Manager
+   /          /   /			 ESI s.r.l.
+ _____/ _____/  _/		       Colombo@ESI.it
 
-Mapped files I didn't considered at all. I thought that they have private swap space 
-(the file). So it's not a problem of personal swapfiles. It's a problem of accounting
-of physical memory (as I said, I know that this part of MM is much more complicated
-and I'm not going to write whole MM myself and from scratch :). I hope that beancounter 
-would become more discussed as 2.5 will fork and all the physical memory accounting
-problems will be touched then.
-
-So from the point of implementation of personal swapfiles it is important to select
-the right swapfile for swapin/swapout. And solve the cases when a page changes owner.
-And of course swapon/swapoff. Anything else is in the layer of physical memory 
-management.
-
-Can you be more concrete for whose memory objects (swappable) it is a problem
-to find owner and why, it would help me a lot (maybe in private e-mail) ? Thanx.
-
-Regards,
-
-Jan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
