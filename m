@@ -1,65 +1,125 @@
-Message-ID: <20020827092219.27495.qmail@thales.mathematik.uni-ulm.de>
-From: "Christian Ehrhardt" <ehrhardt@mathematik.uni-ulm.de>
-Date: Tue, 27 Aug 2002 11:22:19 +0200
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: MM patches against 2.5.31
-References: <3D644C70.6D100EA5@zip.com.au> <E17jKlX-0001i0-00@starship> <20020826152950.9929.qmail@thales.mathematik.uni-ulm.de> <E17jO6g-0002XU-00@starship> <3D6A8082.3775C5AB@zip.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3D6A8082.3775C5AB@zip.com.au>
+Date: Tue, 27 Aug 2002 18:48:50 +0200
+References: <3D644C70.6D100EA5@zip.com.au> <E17jQB8-0002Zi-00@starship> <20020826205858.6612.qmail@thales.mathematik.uni-ulm.de>
+In-Reply-To: <20020826205858.6612.qmail@thales.mathematik.uni-ulm.de>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17jjWN-0002fo-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: Daniel Phillips <phillips@arcor.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>
+Cc: Andrew Morton <akpm@zip.com.au>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 26, 2002 at 12:24:50PM -0700, Andrew Morton wrote:
-> The flaw is in doing the put_page_testzero() outside of any locking
-> which would prevent other CPUs from finding and "rescuing" the zero-recount
-> page.
+On Monday 26 August 2002 22:58, Christian Ehrhardt wrote:
+> On Mon, Aug 26, 2002 at 10:09:38PM +0200, Daniel Phillips wrote:
+> > On Monday 26 August 2002 22:00, Christian Ehrhardt wrote:
+> > > On Mon, Aug 26, 2002 at 07:56:52PM +0200, Daniel Phillips wrote:
+> > > > On Monday 26 August 2002 17:29, Christian Ehrhardt wrote:
+> > > > > On Mon, Aug 26, 2002 at 04:22:50PM +0200, Daniel Phillips wrote:
+> > > > > > On Monday 26 August 2002 11:10, Christian Ehrhardt wrote:
+> > > > > > > + * A special Problem is the lru lists. Presence on one of these lists
+> > > > > > > + * does not increase the page count.
+> > > > > > 
+> > > > > > Please remind me... why should it not?
+> > > > > 
+> > > > > Pages that are only on the lru but not reference by anyone are of no
+> > > > > use and we want to free them immediatly. If we leave them on the lru
+> > > > > list with a page count of 1, someone else will have to walk the lru
+> > > > > list and remove pages that are only on the lru.
+> > > > 
+> > > > I don't understand this argument.  Suppose lru list membership is worth a 
+> > > > page count of one.  Then anyone who finds a page by way of the lru list can 
+> > > 
+> > > This does fix the double free problem but think of a typical anonymous
+> > > page at exit. The page is on the lru list and there is one reference held
+> > > by the pte. According to your scheme the pte reference would be freed
+> > > (obviously due to the exit) but the page would remain on the lru list.
+> > > However, there is no point in leaving the page on the lru list at all.
+> > 
+> > If you want the page off the lru list at that point (which you probably do)
+> > then you take the lru lock and put_page_testzero.
 > 
-> CPUA:
-> 	if (put_page_testzero()) {
-> 		/* Here's the window */
-> 		spin_lock(lru_lock);
-> 		list_del(page->lru);
+> Could you clarify what you mean with "at that point"? Especially how
+> do you plan to test for "this point".  Besides it is illegal to use
+> the page after put_page_testzero (unless put_page_testzero returns true).
+
+> > > If you think about who is going to remove the page from the lru you'll
+> > > see the problem.
+> > 
+> > Nope, still don't see it.  Whoever hits put_page_testzero frees the page,
+> > secure in the knowlege that there are no other references to it.
 > 
-> CPUB:
-> 
-> 	spin_lock(lru_lock);
-> 	page = list_entry(lru);
-> 	page_cache_get(page);	/* If this goes from 0->1, we die */
-> 	...
-> 	page_cache_release(page);	/* double free */
+> Well yes, but we cannot remove the page from the lru atomatically
+> at page_cache_release time if we follow your proposal. If you think we can,
+> show me your implementation of page_cache_release and I'll show
+> you where the races are (unless you do everything under the lru_lock
+> of course).
 
-So what we want CPUB do instead is
-
-	spin_lock(lru_lock);
-	page = list_entry(lru)
-
-	START ATOMIC 
-		page_cache_get(page);
-		res = (page_count (page) == 1)
-	END ATOMIC
-
-	if (res) {
-		atomic_dec (&page->count);
-		continue;  /* with next page */
+void page_cache_release(struct page *page)
+{
+	spin_lock(&pagemap_lru_lock);
+	if (PageLRU(page) && page_count(page) == 2) {
+		__lru_cache_del(page);
+		atomic_dec(&page->count);
 	}
-	...
-	page_cache_release (page);
+	spin_unlock(&pagemap_lru_lock);
+	if (put_page_testzero(page))
+		__free_pages_ok(page, 0);
+}
 
-I.e. we want to detect _atomically_ that we just raised the page count
-from zero to one. My patch actually has a solution that implements the
-needed atomic operation above by means of the atomic functions that we
-currently have on all archs (it's called get_page_testzero and
-should probably called get_page_testone).
-The more I think about this the more I think this is the way to go.
+This allows the following benign race, with initial page count = 3:
 
-      regards   Christian
+spin_lock(&pagemap_lru_lock);
+if (PageLRU(page) && page_count(page) == 2) /* false */
+spin_unlock(&pagemap_lru_lock);
+						spin_lock(&pagemap_lru_lock);
+						if (PageLRU(page) && page_count(page) == 2) /* false */
+						spin_unlock(&pagemap_lru_lock);
+						if (put_page_testzero(page))
+							__free_pages_ok(page, 0);
+if (put_page_testzero(page))
+	__free_pages_ok(page, 0);
+
+Neither holder of a page reference sees the count at 2, and so the page
+is left on the lru with count = 1.  This won't happen often and such
+pages will be recovered from the cold end of the list in due course.
+
+The important question is: can this code ever remove a page from the lru
+erroneously, leaving somebody holding a reference to a non-lru page?  In
+other words, can the test PageLRU(page) && page_count(page) == 2 return
+a false positive?  Well, when this test is true we can account for both
+both references: the one we own, and the one the lru list owns.  Since
+we hold the lru lock, the latter won't change.  Nobody else has the
+right to increment the page count, since they must inherit that right
+from somebody who holds a reference, and there are none.
+
+We could also do this:
+
+void page_cache_release(struct page *page)
+{
+	if (page_count(page) == 2) {
+		spin_lock(&pagemap_lru_lock);
+		if (PageLRU(page) && page_count(page) == 2) {
+			__lru_cache_del(page);
+			atomic_dec(&page->count);
+		}
+		spin_unlock(&pagemap_lru_lock);
+	}
+	if (put_page_testzero(page))
+		__free_pages_ok(page, 0);
+}
+
+Which avoids taking the lru lock sometimes in exchange for widening the
+hole through which pages can end up with count = 1 on the lru list.
+
+Let's run this through your race detector and see what happens.
 
 -- 
-THAT'S ALL FOLKS!
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
