@@ -1,61 +1,57 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA30290
-	for <linux-mm@kvack.org>; Sat, 12 Dec 1998 10:17:43 -0500
-Date: Sat, 12 Dec 1998 16:14:38 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: 2.1.130 mem usage.
-In-Reply-To: <Pine.LNX.3.96.981211181928.765F-100000@laser.bogus>
-Message-ID: <Pine.LNX.3.96.981212161010.704B-100000@laser.bogus>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA26848
+	for <linux-mm@kvack.org>; Wed, 16 Dec 1998 18:01:55 -0500
+Date: Wed, 16 Dec 1998 23:38:17 +0100 (CET)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: mmap() is slower than read() on SCSI/IDE on 2.0 and 2.1 
+In-Reply-To: <199812160115.CAA25065@max.phys.uu.nl>
+Message-ID: <Pine.LNX.4.03.9812162334170.5325-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Rik van Riel <H.H.vanRiel@phys.uu.nl>, Linus Torvalds <torvalds@transmeta.com>
+To: Jay Nordwick <nordwick@scam.XCF.Berkeley.EDU>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 11 Dec 1998, Andrea Arcangeli wrote:
+(CC:d to Linux-MM to have the last paragraph on record)
 
->>> It would also be nice to not have two separate mm cycles (one that
->>> grow the cache until borrow percentage and the other one that shrink
->>> and that reach very near the limit of the working set). We should
->>> have always the same level of cache in the system if the mm stress
->>> is constant. This could be easily done by a state++ inside
->>> do_try_to_free_pages() after some (how many??) susccesfully returns.
->>
->>I'm seeing a pretty stable cache behaviour here, on everything from
->>4MB to 64MB systems.
->
->It works fine but it' s not stable at all. The cache here goes from
+On Tue, 15 Dec 1998, Jay Nordwick wrote:
 
-This patch should rebalance the swapping/mmap-shrinking (and seems to
-works here, even if really my kswapd start when the buf/cache are over max
-and stop when they are under borrow, I don' t remeber without look at the
-code what the stock kswapd is doing):
+> >And it's not needed at all. We can see if the program is
+> >doing sequential reading by simply testing for the presence
+> >of pages in the proximity of the faulting address. If there
+> >are a lot of pages present behind the current address then
+> >we should do read-ahead. With pages in front of us we want
+> >read-behind and with no pages or an 'equal' distribution
+> >we want a little bit of both read-ahead and read-behind...
+> 
+> It is needed for hints that you cannot give any other way
+> (such as MADV_FREE, MADV_WILLNEED, MADV_DONTNEED).  But as
+> the discussion progesses I do see less and less of a need.  I
+> can see how it can be called a hack as a VM systems that
+> learns from page fault histories better can obviate it.
 
-Index: vmscan.c
-===================================================================
-RCS file: /var/cvs/linux/mm/vmscan.c,v
-retrieving revision 1.1.1.1.2.16
-diff -u -r1.1.1.1.2.16 vmscan.c
---- vmscan.c	1998/12/12 12:31:57	1.1.1.1.2.16
-+++ linux/mm/vmscan.c	1998/12/12 14:27:55
-@@ -439,7 +439,8 @@
- 	kmem_cache_reap(gfp_mask);
- 
- 	if (buffer_over_borrow() || pgcache_over_borrow())
--		state = 0;
-+		if (shrink_mmap(i, gfp_mask))
-+			return 1;
- 	if (atomic_read(&nr_async_pages) > pager_daemon.swap_cluster / 2)
- 		shrink_mmap(i, gfp_mask);
- 
+Since we don't really use page aging anymore, the FREE, WILLNEED
+and DONTNEED won't make that much of an impact on performance.
 
-The patch basically avoids the clobbering of state so the mm remains
-always in state = `swapout' but the cache remains close to the borrow
-percentage. I should have do that from time 0 instead of using state =
-0...
+I'm sure they can actually make 25% difference in some borderline
+cases, but in RL it'll be pretty marginal -- so marginal that we
+don't want the extra code in the kernel...
 
-Andrea Arcangeli
+All the pretty code is better spent on very very good readahead/
+readbehind algorithms -- memory is plentyful, disk throughput is
+great. We don't have the serious memory shortages that plagued
+every system 5 or 10 years ago -- today disk seek time is our big
+enemy...
+
+cheers,
+
+Rik -- the flu hits, the flu hits, the flu hits -- MORE
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
