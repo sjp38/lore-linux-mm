@@ -1,40 +1,82 @@
-Date: Wed, 18 Feb 2004 22:21:38 +0000
-From: Christoph Hellwig <hch@infradead.org>
+Date: Wed, 18 Feb 2004 14:51:32 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: Non-GPL export of invalidate_mmap_range
-Message-ID: <20040218222138.A14585@infradead.org>
-References: <20040216190927.GA2969@us.ibm.com> <20040217073522.A25921@infradead.org> <20040217124001.GA1267@us.ibm.com> <20040217161929.7e6b2a61.akpm@osdl.org> <1077108694.4479.4.camel@laptop.fenrus.com> <20040218140021.GB1269@us.ibm.com> <20040218211035.A13866@infradead.org> <20040218150607.GE1269@us.ibm.com>
+Message-Id: <20040218145132.460214b5.akpm@osdl.org>
+In-Reply-To: <20040218222138.A14585@infradead.org>
+References: <20040216190927.GA2969@us.ibm.com>
+	<20040217073522.A25921@infradead.org>
+	<20040217124001.GA1267@us.ibm.com>
+	<20040217161929.7e6b2a61.akpm@osdl.org>
+	<1077108694.4479.4.camel@laptop.fenrus.com>
+	<20040218140021.GB1269@us.ibm.com>
+	<20040218211035.A13866@infradead.org>
+	<20040218150607.GE1269@us.ibm.com>
+	<20040218222138.A14585@infradead.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040218150607.GE1269@us.ibm.com>; from paulmck@us.ibm.com on Wed, Feb 18, 2004 at 07:06:07AM -0800
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Paul E. McKenney" <paulmck@us.ibm.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Arjan van de Ven <arjanv@redhat.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: paulmck@us.ibm.com, arjanv@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> The sys_call_table stuff was under #ifdef, and was intended for
-> use by a research project that was later put out of its misery.
-> This stuff has since been removed from the source tree.
-> 
-> As to the evilish tricks with lowlevel MM code, the whole point
-> of the mmap_invalidate_range() patch is to be able to rid GPFS
-> of exactly these evilish tricks.
+Christoph Hellwig <hch@infradead.org> wrote:
+>
+> I don't understand why IBM is pushing this dubious change right now,
 
-It didn;t look like that.
+It isn't a dubious change, on technical grounds.  It is reasonable for a
+distributed filesystem to want to be able to shoot down pte's which map
+sections of pagecache.  Just as it is reasonable for the filesystem to be
+able to shoot down the pagecache itself.
 
-Really Paul, the GPL is pretty clear on the derived work thing,
-and when you need changes to the core kernel and all kinds of nasty
-hacks it's pretty clear it is a derived work.
+We've exported much lower-level stuff than this, because some in-kernel
+module happened to use it.
 
-And it's up to IBM anyway to show it's not a derived work, which is
-pretty hard IMHO.
 
-I don't understand why IBM is pushing this dubious change right now,
-GPL violation and thus copyright violation issues in Linux is the
-last thing IBM wants to see in the press with the current mess going
-on, right?
+> GPL violation and thus copyright violation issues in Linux is the
+> last thing IBM wants to see in the press with the current mess going
+> on, right?
 
+Well this is a chicken-and-egg, isn't it.  The only way in which we can
+audit the IBM code for its derivedness is for the source to be made
+available.  Although not necessarily under GPL.  Or we accept Paul's claim,
+which I personally am inclined to do.
+
+
+Look, this isn't going anywhere.  We have a perfectly reasonable request
+from Paul to make this symbol available for IBM's filesystem.  The usual
+way to handle this sort of thing is to say "ooh.  shit.  hard." and not
+reply to the email.  That is not adequate and hopefully Paul will not let
+us get away with it.
+
+We need to give Paul a reasoned and logically consistent answer to his
+request.  For that we need to establish some sort of framework against
+which to make a decision and then make the decision.  
+
+One approach is a fait-accomplis from the top-level maintainer.  Here,
+we're trying to do it in a different way.
+
+I have proposed two criteria upon which this should be judged:
+
+a) Does the export make technical sense?  Do filesystems have
+   legitimate need for access to this symbol?
+
+(really, a) is sufficient grounds, but for real-world reasons:)
+
+b) Does the IBM filsystem meet the kernel's licensing requirements?
+
+
+It appears that the answers are a): yes and b) probably.
+
+Please, feel free to add additional criteria.  We could also ask "do we
+want to withhold this symbols to encourage IBM to GPL the filesystem" or
+"do we simply refuse to export any symbol which is not used by any GPL
+software" (if so, why?).  Over to you.
+
+
+But at the end of the day, if we decide to not export this symbol, we owe
+Paul a good, solid reason, yes?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
