@@ -1,74 +1,51 @@
-Date: Fri, 04 Jul 2003 09:18:12 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Fri, 4 Jul 2003 12:16:41 -0400 (EDT)
+From: Zwane Mwaikambo <zwane@arm.linux.org.uk>
 Subject: Re: 2.5.74-mm1 fails to boot due to APIC trouble, 2.5.73mm3 works.
-Message-ID: <13170000.1057335490@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.53.0307041139150.24383@montezuma.mastecende.com>
-References: <20030703023714.55d13934.akpm@osdl.org> <3F054109.2050100@aitel.hist.no><20030704093531.GA26348@holomorphy.com> <20030704095004.GB26348@holomorphy.com><7910000.1057333295@[10.10.2.4]> <Pine.LNX.4.53.0307041139150.24383@montezuma.mastecende.com>
+In-Reply-To: <13170000.1057335490@[10.10.2.4]>
+Message-ID: <Pine.LNX.4.53.0307041214540.24383@montezuma.mastecende.com>
+References: <20030703023714.55d13934.akpm@osdl.org>
+ <3F054109.2050100@aitel.hist.no><20030704093531.GA26348@holomorphy.com>
+ <20030704095004.GB26348@holomorphy.com><7910000.1057333295@[10.10.2.4]>
+ <Pine.LNX.4.53.0307041139150.24383@montezuma.mastecende.com>
+ <13170000.1057335490@[10.10.2.4]>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zwane Mwaikambo <zwane@arm.linux.org.uk>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
 Cc: William Lee Irwin III <wli@holomorphy.com>, Helge Hafting <helgehaf@aitel.hist.no>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On Fri, 4 Jul 2003, Martin J. Bligh wrote:
+On Fri, 4 Jul 2003, Martin J. Bligh wrote:
+
+> > No, the problem is no space for physical ids in cpumask bitmaps, this 
+> > could manifest itself later on unless we fix it now.
 > 
->> Is it really necessary to turn half the apic code upside down in order
->> to fix this? What's the actual bugfix that's buried in this cleanup?
-> 
-> The way i see it is that you can't use NR_CPUS to determine the upper 
-> bound on APIC IDs. e.g. my 3way is normally configured with NR_CPUS = 3 
-> but has APIC IDs of 0, 3 and 4. We need to make a distinction.
+> Ugh, are you saying the cpumask stuff shrinks masks to < 32 bits if
+> NR_CPUS is low enough? If so, I can see more point to the patch, but
+> it still seems like violent overkill. Stopping it doing that would
+> probably fix it ... I can't imagine it buys you much.
 
-Fair enough. But that would seem to be a simpler operation than this patch.
+Hmm i hope not, Bill can you verify that? Looking at the source it doesn't 
+appear to be so;
 
->> > -			if (i >= 0xf)
->> > +			if (i >= APIC_BROADCAST_ID)
->> 
->> Is that always correct? it's not equivalent.
-> 
-> Well we really want APIC_MAX_ID (or whatever it's called)
+#define BITS_TO_LONGS(bits) \
+	(((bits)+BITS_PER_LONG-1)/BITS_PER_LONG)
+#define DECLARE_BITMAP(name,bits) \
+	unsigned long name[BITS_TO_LONGS(bits)]
 
-Indeed. maybe MAX_PHYS_APIC_ID or something (it's different for logical).
-We break it out in subarch, but it's the same everywhere, which seems
-utterly useless - is probably historical cruft that needs to die.
-But that sounds like a separate issue, and a separate patch to me.
+> phys_cpu_present_map started off as an unsigned long, and I reused it
+> in a fairly twisted way for NUMA-Q. As it's an array that's bounded
+> by apic space, using the bios_cpu_apicid method that summit uses
+> would be a much cleaner fix, and just leave the old one as a long
+> bitmask like it used to be - which is fine for non- clustered apic
+> systems, and saves inventing a whole new data type. See the
+> cpu_present_to_apicid abstraction.
 
->> > -	for (bit = 0; kicked < NR_CPUS && bit < 8*sizeof(cpumask_t); bit++) {
->> > +	for (bit = 0; kicked < NR_CPUS && bit < MAX_APICS; bit++) {
->> 
->> Is that the actual one-line bugfix this is all about?
-> 
-> No, the problem is no space for physical ids in cpumask bitmaps, this 
-> could manifest itself later on unless we fix it now.
+Thanks i'll have a look.
 
-Ugh, are you saying the cpumask stuff shrinks masks to < 32 bits if
-NR_CPUS is low enough? If so, I can see more point to the patch, but
-it still seems like violent overkill. Stopping it doing that would
-probably fix it ... I can't imagine it buys you much.
-
-phys_cpu_present_map started off as an unsigned long, and I reused it
-in a fairly twisted way for NUMA-Q. As it's an array that's bounded
-by apic space, using the bios_cpu_apicid method that summit uses
-would be a much cleaner fix, and just leave the old one as a long
-bitmask like it used to be - which is fine for non- clustered apic
-systems, and saves inventing a whole new data type. See the
-cpu_present_to_apicid abstraction.
-
->> Hmmmm. What are you using physical apicids here for? They seem
->> irrelevant to this function. 
-> 
-> Urgh, it's really hard to determine what these functions really want half 
-> the time. But that change does look wrong.
-
-Yeah, things taking logical apicids, and turning them into cpu numbers
-presumably shouldn't have to touch that.
-
-M.
-
+-- 
+function.linuxpower.ca
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
