@@ -1,56 +1,32 @@
-Date: Tue, 13 May 2003 16:19:38 -0700
-From: Andrew Morton <akpm@digeo.com>
+Date: Tue, 13 May 2003 16:26:59 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [RFC][PATCH] Interface to invalidate regions of mmaps
-Message-Id: <20030513161938.1fc00a5e.akpm@digeo.com>
-In-Reply-To: <3EC17BA3.7060403@zabbo.net>
-References: <20030513133636.C2929@us.ibm.com>
-	<20030513152141.5ab69f07.akpm@digeo.com>
-	<3EC17BA3.7060403@zabbo.net>
+Message-ID: <20030513232659.GC8978@holomorphy.com>
+References: <20030513133636.C2929@us.ibm.com> <20030513152141.5ab69f07.akpm@digeo.com> <3EC17BA3.7060403@zabbo.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3EC17BA3.7060403@zabbo.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Zach Brown <zab@zabbo.net>
-Cc: paulmck@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mjbligh@us.ibm.com
+Cc: Andrew Morton <akpm@digeo.com>, paulmck@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mjbligh@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-Zach Brown <zab@zabbo.net> wrote:
->
-> so what we'd like most is the ability to invalidate a region of the file
-> in an efficient go.
-> 
-> void truncate_inode_pages(struct address_space * mapping, loff_t lstart,
-> loff_t end)
-> 
-> that sort of thing.
-
-That's trivial in 2.5.
-
->  this might not suck so bad if the page cache was an
-> rbtree :)
-
-Or a radix tree.
-
+On Tue, May 13, 2003 at 04:11:31PM -0700, Zach Brown wrote:
 > but on the other hand, this doesn't solve another problem we have with
 > opportunistic lock extents and sparse page cache populations.  Ideally
 > we'd like a FS specific pointer in struct page so we can associate pages
-> in the cache with a lock,
+> in the cache with a lock, but I can't imagine suggesting such a thing
+> within earshot of wli.  so we'd still have to track the dirty offsets to
+> avoid having to pass through offsets 0 ... i_size only to find that one
+> page in the 8T file that was cached.
 
-In 2.5, page->buffers was abstracted out to page->private, and is available
-to filesystems for functions such as this.
-
-
-> but I can't imagine suggesting such a thing
-> within earshot of wli. 
-
-wli doesn't have to run your kernel.  If you want to add a pointer to the
-pageframe, go add it.  But I'd suggest that you do it with a view to
-migrating it to page->private.
-
-When you finally decide to do your development in a development kernel ;)
+Nah, don't worry about sizeof(struct page) anymore; I'll just jack up
+PAGE_SIZE to compensate.
 
 
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
