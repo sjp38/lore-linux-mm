@@ -1,37 +1,47 @@
-Date: Fri, 16 Feb 2001 16:20:42 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: page locking and error handling
-In-Reply-To: <Pine.GSO.4.10.10102151526100.26610-100000@zeus.fh-brandenburg.de>
-Message-ID: <Pine.LNX.4.21.0102161603240.682-100000@freak.distro.conectiva>
+Message-ID: <20010220153722.51795.qmail@web12702.mail.yahoo.com>
+Date: Tue, 20 Feb 2001 07:37:22 -0800 (PST)
+From: Alan Cudmore <embeddedpenguin@yahoo.com>
+Subject: How to allocate large blocks of contiguous physical RAM?
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roman Zippel <zippel@fh-brandenburg.de>
-Cc: linux-mm@kvack.org
+To: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
+I'm trying to figure out how to allocate a large block
+of contiguous physical memory under linux 2.4.x. I
+have 4GB of RAM and have turned on the CONFIG_HIGMEM4G
+option. 
+Previously I was using the "bigphysarea" patch, but
+that seems to have a limit of around 900MB. ( is that
+because it is being allocated from the 1Gig kernel
+physical memory ? )
+Also, I have considered changing the PAGE_OFFSET
+define to 0x80000000 to give me a little under 2GB.
 
-On Thu, 15 Feb 2001, Roman Zippel wrote:
+Ideally I would like to do the following:
+1. Pre-Allocate 2 or 3 gigs of contiguous memory
+2. A custom PCI 64/66Mhz card will be DMAing data
+directly into this memory at very high rates ( up to
+500MBytes per second, thus the need for a few gigs ) 
+3. Then I would like to be able to DMA data back out
+to SCSI without picking the data up ( using SCSI
+generic with Direct I/O ).
 
-> Hi,
+I really am a linux-MM newbie, so I would appreciate
+advice on how I could accomplish such a feat, it it
+can be done at all. Any suggestions would be welcome.
 
-<snip>
-
->    - page locking has to happen completely at the higher layer and keeping
->      multiple pages locked would require something like 1).
->    - this would allow to pass multiple pages at once to the mapping
->      mechanism, as we can easily link several pages together. This
->      actually is all what is needed/wanted for streaming and no need for a
->      heavyweight kiobuf.
-
-At commit_write(), the buffers of the pages which are being writen are
-only marked dirty and not necessarily queued to IO. commit_write() will
-start writting older dirty buffers with flush_dirty_buffers() if the
-system is over a watermark of dirty data, which _may_ write dirty buffers
-from the current write() syscall. (O_SYNC is another story..)
+Thanks,
+Alan C.
 
 
+__________________________________________________
+Do You Yahoo!?
+Get personalized email addresses from Yahoo! Mail - only $35 
+a year!  http://personal.mail.yahoo.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
