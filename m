@@ -1,35 +1,45 @@
-Date: Sat, 3 May 2003 01:35:25 +1000
-From: Anton Blanchard <anton@samba.org>
+Message-ID: <3EB2A125.4000407@us.ibm.com>
+Date: Fri, 02 May 2003 09:47:33 -0700
+From: Dave Hansen <haveblue@us.ibm.com>
+MIME-Version: 1.0
 Subject: Re: 2.5.68-mm4
-Message-ID: <20030502153525.GA11939@krispykreme>
-References: <20030502020149.1ec3e54f.akpm@digeo.com>
-Mime-Version: 1.0
+References: <20030502020149.1ec3e54f.akpm@digeo.com> <20030502131857.GH8978@holomorphy.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030502020149.1ec3e54f.akpm@digeo.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+William Lee Irwin III wrote:
+>> On Fri, May 02, 2003 at 02:01:49AM -0700, Andrew Morton wrote:
+>>+dont-set-kernel-pgd-on-PAE.patch
+>> little ia32 optimisation/cleanup
+> 
+> It looks like no one listened to my commentary on the set_pgd() patch.
+> 
+> Remove pointless #ifdef, pointless set_pgd(), and a mysterious line
+> full of nothing but whitespace after the #endif, and update commentary.
+> -#ifndef CONFIG_X86_PAE
+> -		set_pgd(pgd, *pgd_k);
+> -#endif
 
-> . Included the `kexec' patch - load Linux from Linux.  Various people want
->   this for various reasons.  I like the idea of going from a login prompt to
->   "Calibrating delay loop" in 0.5 seconds.
+I wask thinking that the PMD set in 4G mode was a noop.  But, it isn't,
+so it makes up for the completely removed pgd set.
 
-One thing that bothers me about kexec is how we grab low pages in
-kimage_alloc_page(). On a partitioned ppc64 box I will need to grab
-memory in the low 256MB and the machine might have 500GB of memory
-free. Thats going to take some time :)
+This comment needs to get updated in include/asm-i386/pgtable-2level.h:
+/*
+ * (pmds are folded into pgds so this doesn't get actually called,
+ * but the define is needed for a generic inline function.)
+ */
+#define set_pmd(pmdptr, pmdval) (*(pmdptr) = pmdval)
+#define set_pgd(pgdptr, pgdval) (*(pgdptr) = pgdval)
 
-Id hate to introduce a separate zone just for this sort of stuff (we
-currently throw all memory in the DMA zone). Could we add a hint to
-the page allocator where it makes a best effort to grab memory below
-a threshold?
+-- 
+Dave Hansen
+haveblue@us.ibm.com
 
-Anton
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
