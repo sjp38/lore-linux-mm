@@ -1,45 +1,46 @@
-Date: Thu, 19 Apr 2001 18:56:16 +0200 (MEST)
-From: Simon Derr <Simon.Derr@imag.fr>
+From: James A. Sutherland <jas88@cam.ac.uk>
 Subject: Re: Want to allocate almost all the memory with no swap
+Date: Thu, 19 Apr 2001 18:31:38 +0100
+Message-ID: <p58udtg6lm1i3j4s6iq434af3mtfbske4j@4ax.com>
+References: <de3udt4pee8l6lrr2k33h65m1b4srb74ek@4ax.com> <Pine.LNX.4.21.0104191833070.10083-100000@guarani.imag.fr>
 In-Reply-To: <Pine.LNX.4.21.0104191833070.10083-100000@guarani.imag.fr>
-Message-ID: <Pine.LNX.4.21.0104191851180.10083-100000@guarani.imag.fr>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Simon Derr <Simon.Derr@imag.fr>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 19 Apr 2001, Simon Derr wrote:
+On Thu, 19 Apr 2001 18:46:00 +0200 (MEST), you wrote:
 
-> If I ask much less memory it works.. but has no interest.
-> 
-> In fact I a call mlockall() _before_ doing my big malloc, it works even
-> when I ask 240 megs, but:
-> -Under 2.2.17, quickly the kernel kills my process
-> -Under 2.4.2, kswapd again eats the CPU:
-> 
-> Mem:   254692K av,  252868K used,    1824K free,       0K shrd,  88K buff
-> Swap:  313256K av,    5476K used,  307780K free             4204K cached
-> 
->   PID USER     PRI  NI  SIZE  RSS SHARE STAT  LIB %CPU %MEM   TIME COMMAND
->     3 root      14   0     0    0     0 RW      0 47.4  0.0  20:50 kswapd
->  1277 root      14   0  241M 241M   968 R       0 46.8 96.8   0:12 loop
->     5 root       9   0     0    0     0 SW      0  5.3  0.0   0:23 bdflush
->  1278 root      10   0   468  404   404 R       0  0.3  0.1   0:00 top
-> 
+>> >Well, I have removed as many processes deamons as I could, and there are
+>> >not many left.
+>> >But under both 2.4.2 and 2.2.17 (with swap on)I get, when I run my
+>> >program:
+>> >
+>> >mlockall: Cannot allocate memory
+>> 
+>> Hrm? Can you trim the consumption a bit - try cutting a big chunk out,
+>> like 64 Mb, and see if it works then?
+>> 
+>If I ask much less memory it works.. but has no interest.
+>
+>In fact I a call mlockall() _before_ doing my big malloc, it works even
+>when I ask 240 megs, but:
+>-Under 2.2.17, quickly the kernel kills my process
 
-Actually this is what happens under 2.4.2 :
-when I launch the program, during about one minute kswapd eats 50% cpu,
-and bdflush takes 2-5% cpu,
-One minute later approx, they both stop eating the cpu and my process gets
-almost 100% of the cpu (a PIII 733).
+Gagh?! What signal? Any oops/core/panic?
 
-The same happens if I kill and launch my program a second time.
+>-Under 2.4.2, kswapd again eats the CPU:
 
-Sorry for the pollution I bring to your mailing list...
+Does it eat it continually, or do you get it back after a while? You
+SHOULD see it chewing up all the CPU until it has evicted 240 Mb worth
+of pages, then going back to sleep...
 
+
+James.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
