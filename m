@@ -1,38 +1,40 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA09873
-	for <linux-mm@kvack.org>; Sun, 30 May 1999 19:30:27 -0400
-Date: Mon, 31 May 1999 01:12:43 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: Q: PAGE_CACHE_SIZE?
-In-Reply-To: <14159.18916.728327.550606@dukat.scot.redhat.com>
-Message-ID: <Pine.LNX.4.05.9905310111460.7712-100000@laser.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from bucky.physics.ncsu.edu (bucky.physics.ncsu.edu [152.1.119.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA20378
+	for <linux-mm@kvack.org>; Mon, 31 May 1999 14:57:06 -0400
+Received: (from briggs@localhost) by bucky.physics.ncsu.edu (AIX4.2/UCB 8.7/8.7) id PAA13206 for linux-mm@kvack.org; Mon, 31 May 1999 15:11:08 -0400 (EDT)
+Date: Mon, 31 May 1999 15:11:08 -0400 (EDT)
+From: Emil Briggs <briggs@bucky.physics.ncsu.edu>
+Message-Id: <199905311911.PAA13206@bucky.physics.ncsu.edu>
+Subject: Application load times
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Rik van Riel <riel@nl.linux.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>, ak@muc.de, ebiederm+eric@ccr.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 29 May 1999, Stephen C. Tweedie wrote:
+Are there any vm tuning parameters that can improve initial application
+load times on a freshly booted system? I'm asking since I found the
+following load times with Netscape Communicator and StarOffice.
 
->It should be cheap, yes, but it will require a fundamental change in the
->VM: currently, all swap cache is readonly.  No exceptions.  To keep the
->allocation persistent, even over write()s to otherwise unshared pages
->(and we need to do to sustain good performance), we need to allow dirty
->pages in the swap cache.  The current PG_Dirty work impacts on this.
 
-I am just rewriting swapped-in pages to their previous location on swap to
-avoid swap fragmentation. No need to have dirty pages into the swap cache
-to handle that. We just have the information cached in the
-page-map->offset field. We only need to know when it make sense to know if
-we should use it or not. To handle that I simply added a PG_swap_entry
-bitflag set at swapin time and cleared after swapout to the old entry or
-at free_page_and_swap_cache() time. The thing runs like a charm (the
-swapin performances definitely improves a lot).
+Communicator takes 14 seconds to load on a freshly booted system
 
-        ftp://e-mind.com/pub/andrea/kernel/2.3.3_andrea9.bz2
+On the other hand it takes 4 seconds to load using a program of this sort
 
-Andrea Arcangeli
+  fd = open("/opt/netscape/netscape", O_RDONLY);
+  read(fd, buffer, 13858288);    
+  execv("/opt/netscape/netscape", argv);
+
+With StarOffice the load time drops from 40 seconds to 15 seconds.
+
+
+The reason this came up is because I installed Linux on a friends
+computer who usually boots it a couple of times a day to check email,
+webbrowse or run StarOffice -- they immediately asked me why it
+was so slow. Since I know how they usually use their computer it was
+easy enough to remedy this with the little bit of code above. Anyway
+does anyone know if there a more general way of improving initial load
+times with some tuning parameters to the vm system?
+
+Emil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
