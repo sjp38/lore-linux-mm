@@ -4,48 +4,54 @@ References: <20030516015407.2768b570.akpm@digeo.com>
 	<20030516180848.GW8978@holomorphy.com>
 	<20030516185638.GA19669@suse.de>
 	<20030516191711.GX8978@holomorphy.com>
+	<Pine.LNX.4.50.0305162322360.2023-100000@montezuma.mastecende.com>
 From: Alexander Hoogerhuis <alexh@ihatent.com>
-Date: 18 May 2003 14:57:04 +0200
-In-Reply-To: <20030516191711.GX8978@holomorphy.com>
-Message-ID: <87wugoct0f.fsf@lapper.ihatent.com>
+Date: 18 May 2003 14:59:59 +0200
+In-Reply-To: <Pine.LNX.4.50.0305162322360.2023-100000@montezuma.mastecende.com>
+Message-ID: <87smrccsvk.fsf@lapper.ihatent.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Dave Jones <davej@codemonkey.org.uk>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Zwane Mwaikambo <zwane@linuxpower.ca>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Dave Jones <davej@codemonkey.org.uk>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 -----BEGIN PGP SIGNED MESSAGE-----
 Hash: SHA1
 
-William Lee Irwin III <wli@holomorphy.com> writes:
+Zwane Mwaikambo <zwane@linuxpower.ca> writes:
 
-> On Fri, May 16, 2003 at 01:26:20PM +0200, Alexander Hoogerhuis wrote:
-> >>> This one goes in -mm5 as well, machine runs fine for a while in X, but
-> >>> trying to switch to a vty send the machine into the tall weeds...
+> On Fri, 16 May 2003, William Lee Irwin III wrote:
 > 
-> On Fri, May 16, 2003 at 11:08:48AM -0700, William Lee Irwin III wrote:
-> >> Could you run with the radeon driver non-modular and kernel debugging
-> >> on? Then when it oopses could you use addr2line(1) to resolve this to
-> >> a line number?
-> >> I'm at something of a loss with respect to dealing with DRM in general.
+> > Yes, if he could try that too it would help. I got a private reply
+> > saying he'd be out of the picture for over 24 hours. I'm looking for
+> > someone with a radeon to fill in the gap until then.
 > 
-> On Fri, May 16, 2003 at 07:56:38PM +0100, Dave Jones wrote:
-> > Not that I'm pointing fingers, but it could be that
-> > reslabify-pgds-and-pmds.patch again  ? Maybe it's still not quite right?
-> > Might be worth backing out and retesting, just to rule it out.
-> 
-> Yes, if he could try that too it would help. I got a private reply
-> saying he'd be out of the picture for over 24 hours. I'm looking for
-> someone with a radeon to fill in the gap until then.
+> Could you alco specify your GCC version? Your disassembly looks rather 
+> odd.
 > 
 
-I'm back in the picture now, the machine is chugging along, churning
-out a new kernel. I'll get the details out in a few hours :)
+Reading specs from /usr/lib/gcc-lib/i686-pc-linux-gnu/3.2.2/specs
+Configured with:
+/var/tmp/portage/gcc-3.2.2-r2/work/gcc-3.2.2/configure --prefix=/usr
+- --bindir=/usr/i686-pc-linux-gnu/gcc-bin/3.2
+- --includedir=/usr/lib/gcc-lib/i686-pc-linux-gnu/3.2.2/include
+- --datadir=/usr/share/gcc-data/i686-pc-linux-gnu/3.2
+- --mandir=/usr/share/gcc-data/i686-pc-linux-gnu/3.2/man
+- --infodir=/usr/share/gcc-data/i686-pc-linux-gnu/3.2/info
+- --enable-shared --host=i686-pc-linux-gnu --target=i686-pc-linux-gnu
+- --with-system-zlib --enable-languages=c,c++,ada,f77,objc,java
+- --enable-threads=posix --enable-long-long --disable-checking
+- --enable-cstdio=stdio --enable-clocale=generic --enable-__cxa_atexit
+- --enable-version-specific-runtime-libs
+- --with-gxx-include-dir=/usr/lib/gcc-lib/i686-pc-linux-gnu/3.2.2/include/g++-v3
+- --with-local-prefix=/usr/local --enable-shared --enable-nls
+- --without-included-gettext
+Thread model: posix gcc version 3.2.2 20030322 (Gentoo Linux 1.4 3.2.2-r2)
+GNU ld version 2.14.90.0.2 20030515
 
-> 
-> -- wli
+Basically gentoo 1.4 "unstable".
 
 mvh,
 A
@@ -57,9 +63,9 @@ CCNP - CCDP - MCNE - CCSE                          | +47 908 21 485
 Version: GnuPG v1.2.2 (GNU/Linux)
 Comment: Processed by Mailcrypt 3.5.8 <http://mailcrypt.sourceforge.net/>
 
-iD8DBQE+x4McCQ1pa+gRoggRAl0SAJ49l27s2cdi7pNNCE8xI6MtC2wrdQCgxotU
-Nlqa0EFTAAZ/XoSi/HHi8Ng=
-=XpPy
+iD8DBQE+x4PMCQ1pa+gRoggRAjf8AJ9TkVB4Xn70i4696zv2F1VGv6GVawCgwO37
+s3Ry8omGNwLQdDD5CT9XiXI=
+=B4gm
 -----END PGP SIGNATURE-----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
