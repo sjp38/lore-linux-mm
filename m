@@ -1,66 +1,49 @@
-Date: Thu, 22 Mar 2001 17:43:40 -0600
-From: Stephen Clouse <stephenc@theiqgroup.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by postfix.conectiva.com.br (Postfix) with SMTP id 98DDE16B21
+	for <linux-mm@kvack.org>; Thu, 22 Mar 2001 20:53:57 -0300 (EST)
+Date: Thu, 22 Mar 2001 20:53:57 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Prevent OOM from killing init
-Message-ID: <20010322174340.A1406@owns.warpcore.org>
-References: <20010322142831.A929@owns.warpcore.org> <E14gCYn-0003K3-00@the-village.bc.nu>
-Mime-Version: 1.0
-Content-Type: text/plain
-Content-Disposition: inline; filename="msg.pgp"
-In-Reply-To: <E14gCYn-0003K3-00@the-village.bc.nu>; from alan@lxorguk.ukuu.org.uk on Thu, Mar 22, 2001 at 09:23:54PM +0000
+In-Reply-To: <3C9BCD6E.94A5BAA0@evision-ventures.com>
+Message-ID: <Pine.LNX.4.33.0103222052100.24040-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Martin Dalecki <dalecki@evision-ventures.com>
+Cc: Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+On Sat, 23 Mar 2002, Martin Dalecki wrote:
 
-On Thu, Mar 22, 2001 at 09:23:54PM +0000, Alan Cox wrote:
-> How do you return an out of memory error to a C program that is out of memory
-> due to a stack growth fault. There is actually not a language construct for it
+> Uptime of a process is a much better mesaure for a killing
+> candidate then it's size.
 
-Hmmm...the old "Error 3 while attempting to report Error 3" dialog from MS
-Excel.  
+You'll have fun with your root shell, then  ;)
 
-> Eventually you have to kill something or the machine deadlocks. The oom killing
-> doesnt kick in until that point. So its up to you how you like your errors.
+The current OOM code takes things like uptime, used cpu, size
+and a bunch of other things into account.
 
-It's interesting that I never recall oom being a problem (like this) with 2.0 or 
-2.2.  And the machines I was working with at the time were far crappier than
-these current boxen -- they'd ride the oom line almost constantly.  Back then a
-new process would either a) scream "Out of memory!" or b) segfault.  You could
-argue that b is not desirable, but I'd prefer that to the current behavior, 
-really.  In fact this type of behavior still happens under 2.4 when we hit OOM
-on the development boxen, although not consistently (only about half the time);
-oom_kill annihilates something we don't want it to, then the mallocing process
-that triggered it decides it has become bored with life and procceds to
-abort/segfault anyway.  I wish I could reproduce it consistently.
+If it turns out that the code is not attaching a proper weight
+to some of these factors, you should be sending patches, not
+flames.
 
-In any case, the behavior of oom_kill (whether you consider it correct or
-not) is really the symptom and not the cause.  We've alleviated most of it via
-creative use of ulimit.  Still, the seemingly draconian behavior needs a bit
-finer-grained control.
+(the code is full of comments, so it should be easy enough to
+find your way around the code and tweak it until it does the
+right thing in a number of test cases)
 
-> One of the things that we badly need to resurrect for 2.5 is the beancounter
-> work which would let you reasonably do things like guaranteed Oracle a certain
-> amount of the machine, or restrict all the untrusted users to a total of 200Mb
-> hard limit between them etc
+regards,
 
-Let me know when you branch :)  Sounds like a fun project.
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
 
-- -- 
-Stephen Clouse <stephenc@theiqgroup.com>
-Senior Programmer, IQ Coordinator Project Lead
-The IQ Group, Inc. <http://www.theiqgroup.com/>
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
------BEGIN PGP SIGNATURE-----
-Version: PGP 6.5.8
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
-iQA/AwUBOrqOLAOGqGs0PadnEQKWFACfaqzjtUQD4uGaLFnxn6M9Xc4N6QIAoJO3
-nJTISp0ekbXEUiAY9PJVf2vr
-=B3u4
------END PGP SIGNATURE-----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
