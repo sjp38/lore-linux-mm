@@ -1,30 +1,33 @@
-Date: Tue, 1 Jul 2003 12:01:21 +0100 (BST)
+Date: Tue, 1 Jul 2003 12:08:03 +0100 (BST)
 From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: What to expect with the 2.6 VM
-In-Reply-To: <20030630200237.473d5f82.akpm@digeo.com>
-Message-ID: <Pine.LNX.4.44.0307011147460.1161-100000@localhost.localdomain>
+Subject: Re: 2.5.73-mm2
+In-Reply-To: <20030701105134.GE26348@holomorphy.com>
+Message-ID: <Pine.LNX.4.44.0307011202550.1217-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 30 Jun 2003, Andrew Morton wrote:
-> Andrea Arcangeli <andrea@suse.de> wrote:
-> > 
-> > described this way it sounds like NOFAIL imply a deadlock condition.
+On Tue, 1 Jul 2003, William Lee Irwin III wrote:
+> On Tue, Jul 01, 2003 at 11:46:34AM +0100, Hugh Dickins wrote:
+> > If you pursued it, wouldn't your patch also need to change
+> > nr_free_buffer_pages() to do what you think it does, count
+> > the free lowmem pages?  It, and nr_free_pagecache_pages(),
+> > and nr_free_zone_pages(), are horribly badly named.  They
+> > count present_pages-pages_high, they don't count free pages:
+> > okay for initialization estimates, useless for anything dynamic.
 > 
-> NOFAIL is what 2.4 has always done, and has the deadlock opportunities
-> which you mention.  The other modes allow the caller to say "don't try
-> forever".
+> Well, I was mostly looking for getting handed back 0 when lowmem is
+> empty; I actually did realize they didn't give entirely accurate counts
+> of free lowmem pages.
 
-__GFP_NOFAIL is also very badly named: patently it can and does fail,
-when PF_MEMALLOC or PF_MEMDIE or not __GFP_WAIT.  Or is the idea that
-its users might as well oops when it does fail?  Should its users be
-changed to use the less perniciously named __GFP_REPEAT, or should
-__alloc_pages be changed to deadlock more thoroughly?
+I'm not pleading for complete accuracy, but nr_free_buffer_pages()
+will never hand back 0 (if your system managed to boot).
+It's a static count of present_pages (adjusted), not of
+free pages.  Or am I misreading nr_free_zone_pages()?
 
 Hugh
 
