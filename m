@@ -1,64 +1,56 @@
-Date: Wed, 27 Jun 2001 07:30:58 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [RFC] VM statistics to gather
-In-Reply-To: <3B3840CD.B60448EB@uow.edu.au>
-Message-ID: <Pine.LNX.4.21.0106270730310.1331-100000@freak.distro.conectiva>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Scott F. Kaplan <sfkaplan@cs.amherst.edu>
+Subject: Re: VM tuning through fault trace gathering [with actual code]
+Date: Wed, 27 Jun 2001 08:47:47 -0400
+References: <Pine.LNX.4.21.0106270707550.1291-100000@freak.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0106270707550.1291-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <0106270847470D.01124@spigot>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <andrewm@uow.edu.au>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-On Tue, 26 Jun 2001, Andrew Morton wrote:
-
-> Marcelo Tosatti wrote:
-> > 
-> > On Tue, 26 Jun 2001, Andrew Morton wrote:
-> > 
-> > > Rik van Riel wrote:
-> > > >
-> > > > Hi,
-> > > >
-> > > > I am starting the process of adding more detailed instrumentation
-> > > > to the VM subsystem and am wondering which statistics to add.
-> > > > A quick start of things to measure are below, but I've probably
-> > > > missed some things. Comments are welcome ...
+On Wednesday 27 June 2001 06:09 am, Marcelo Tosatti wrote:
+> On 26 Jun 2001, John Fremlin wrote:
+> > Marcelo Tosatti <marcelo@conectiva.com.br> writes:
+> > > ####################################################################
+> > > Event     	          Time                   PID     Length Description
+> > > ####################################################################
 > > >
-> > > Neat.
-> > >
-> > > - bdflush wakeups
-> > > - pages written via page_launder's writepage by kswapd
-> > > - pages written via page_launder's writepage by non-PF_MEMALLOC
-> > >   tasks.  (ext3 has an interest in this because of nasty cross-fs
-> > >   reentrancy and journal overflow problems with writepage)
-> > 
-> > Does ext3 call page_launder() with __GFP_IO ?
-> > 
-> > If it does not (which I believe so), page_launder() without PF_MEMALLOC
-> > never happens.
-> 
-> OK, I was using PF_MEMALLOC as shorthand for `kswapd', with
-> unsuccessful accuracy.  I think it's OK to block non-kswapd
-> tasks in writepage() while we open a new transaction, but it's
-> perhaps not so good to block kswapd there.
-> 
-> At present, if the caller is PF_MEMALLOC we make a non-blocking
-> attempt to open a transaction handle.  If it fails, redirty the
-> page and return.  It usually succeeds.  This may be excessively
-> paranoid.
-> 
-> I haven't played with it a lot recently, but it may turn out to
-> be useful to know whether the caller is kswapd or someone else,
-> and it'd be nice to know the calling context by means other than
-> inferring it from PF_MEMALLOC.  What happened to the writepage
-> `priority' patch you had, BTW?
+> > > Trap entry              991,299,585,597,016     678     12      TRAP:
+> > > page fault; EIP : 0x40067785
+> >
+> > That looks like just the generic interrupt handling. It does not do
+> > what I want to do, i.e. record some more info about the fault saying
+> > where it comes from.
+>
+> You can create custom events with LTT and then you can get them from a
+> "big buffer" to userlevel later, then.
 
-Not going to be included in 2.4, at first. (we "fixed" the dead swap cache
-problem in other way)
+I guess that i have a different concern with this existing utility.  It seems 
+that it will report page faults (minor or major) for the normal VM system 
+configuration.  What if we want it to record all (or nearly) all page 
+references, even ones to pages that *normally* wouldn't cause any kind of 
+interrupt?  That ability seems new and unique to John's utility.
 
+(I know, I need to read the LLT manual, as it may be able to do exactly what 
+I'm describing.  However, I don't think that's the case.)
+
+Scott
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.4 (GNU/Linux)
+Comment: For info see http://www.gnupg.org
+
+iD8DBQE7OdX28eFdWQtoOmgRAlhHAKCFHjgw62OlQmytkRiY+Zl9xaMz7gCfXSmm
+mNsg0QUAwAhJnhwrL088IwI=
+=CC+e
+-----END PGP SIGNATURE-----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
