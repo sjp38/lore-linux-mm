@@ -1,37 +1,50 @@
-From: David Mosberger <davidm@napali.hpl.hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <15928.9700.535616.890815@napali.hpl.hp.com>
-Date: Wed, 29 Jan 2003 11:05:08 -0800
 Subject: Re: Linus rollup
-In-Reply-To: <20030129172519.C6261@flint.arm.linux.org.uk>
+From: Stephen Hemminger <shemminger@osdl.org>
+In-Reply-To: <20030129022617.62800a6e.akpm@digeo.com>
 References: <20030128220729.1f61edfe.akpm@digeo.com>
-	<20030129095949.A24161@flint.arm.linux.org.uk>
-	<15928.2469.865487.687367@napali.hpl.hp.com>
-	<20030129172519.C6261@flint.arm.linux.org.uk>
-Reply-To: davidm@hpl.hp.com
+	 <20030129095949.A24161@flint.arm.linux.org.uk>
+	 <20030129.015134.19663914.davem@redhat.com>
+	 <20030129022617.62800a6e.akpm@digeo.com>
+Content-Type: text/plain
+Message-Id: <1043879752.10150.387.camel@dell_ss3.pdx.osdl.net>
+Mime-Version: 1.0
+Date: 29 Jan 2003 14:35:52 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King <rmk@arm.linux.org.uk>
-Cc: davidm@hpl.hp.com, Andrew Morton <akpm@digeo.com>, Andi Kleen <ak@muc.de>, "David S. Miller" <davem@redhat.com>, David Mosberger <davidm@napali.hpl.hp.com>, Anton Blanchard <anton@samba.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: "David S. Miller" <davem@redhat.com>, rmk@arm.linux.org.uk, ak@muc.de, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>
 List-ID: <linux-mm.kvack.org>
 
->>>>> On Wed, 29 Jan 2003 17:25:19 +0000, Russell King <rmk@arm.linux.org.uk> said:
+On Wed, 2003-01-29 at 02:26, Andrew Morton wrote:
+> "David S. Miller" <davem@redhat.com> wrote:
+> >
+> >    From: Russell King <rmk@arm.linux.org.uk>
+> >    Date: Wed, 29 Jan 2003 09:59:49 +0000
+> >    
+> >    	/* This function must be called with interrupts disabled
+> >    
+> >    which hasn't been true for some time, and is even less true now that
+> >    local IRQs don't get disabled.  Does this matter... for UP?
+> > 
+> > I disable local IRQs during gettimeofday() on sparc.
+> > 
+> > These locks definitely need to be taken with IRQs disabled.
+> > Why isn't x86 doing that?
+> 
+> Darned if I know.  Looks like Andrea's kernel will deadlock if
+> arch/i386/kernel/time.c:timer_interrupt() takes i8253_lock
+> while that cpu is holding the same lock in do_slow_gettimeoffset().
 
-  Russell> I was only concerned because it looks like it might be a
-  Russell> problem on some implementations, and I was wondering what
-  Russell> would happen on ia64 if a timer interrupt occurs between
-  Russell> reading jiffies and itm_next in gettimeoffset.
+Rather than disabling interrupts in the i386 do_gettimeofday
+why not just change spin_lock(&i8253_lock) to spin_lock_irqsave
+in timer_pit.c
 
-Perhaps I'm missing something, but I thought that in this case,
-fr_write_unlock() would increment the counter and cause the reader(s)
-to restart the reading of the time-related variables.
+-- 
+Stephen Hemminger <shemminger@osdl.org>
+Open Source Devlopment Lab
 
-I do agree that, in general, there is a potential deadlock if
-gettimeoffset() is not lock-free.
 
-	--david
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
