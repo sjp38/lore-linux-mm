@@ -1,63 +1,68 @@
-Date: Fri, 02 May 2003 09:54:43 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: 2.5.68-mm4
-Message-ID: <31670000.1051894482@[10.10.2.4]>
+From: Steven Cole <elenstev@mesatop.com>
 In-Reply-To: <20030502020149.1ec3e54f.akpm@digeo.com>
 References: <20030502020149.1ec3e54f.akpm@digeo.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="==========878600887=========="
+Content-Type: text/plain
+Message-Id: <1051905879.2166.34.camel@spc9.esa.lanl.gov>
+Mime-Version: 1.0
+Date: 02 May 2003 14:04:39 -0600
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andi Kleen <ak@muc.de>
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---==========878600887==========
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+On Fri, 2003-05-02 at 03:01, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.68/2.5.68-mm4/
+> 
+> . Much reworking of the disk IO scheduler patches due to the updated
+>   dynamic-disk-request-allocation patch.  No real functional changes here.
+> 
+> . Included the `kexec' patch - load Linux from Linux.  Various people want
+>   this for various reasons.  I like the idea of going from a login prompt to
+>   "Calibrating delay loop" in 0.5 seconds.
+> 
+>   I tried it on four machines and it worked with small glitches on three of
+>   them, and wedged up the fourth.  So if it is to proceed this code needs
+>   help with testing and careful bug reporting please.
+> 
 
-Fix up NUMA-Q build with new generic apic mode stuff
+For what it's worth, kexec has worked for me on the following
+two systems.
+
+single P-III 933Mhz, 256MB, IDE (system 1)
+
+00:00.0 Host bridge: Intel Corp. 82810E DC-133 GMCH [Graphics Memory Controller Hub] (rev 03)
+00:01.0 VGA compatible controller: Intel Corp. 82810E DC-133 CGC [Chipset Graphics Controller] (rev 03)
+00:1e.0 PCI bridge: Intel Corp. 82801AA PCI Bridge (rev 02)
+00:1f.0 ISA bridge: Intel Corp. 82801AA ISA Bridge (LPC) (rev 02)
+00:1f.1 IDE interface: Intel Corp. 82801AA IDE (rev 02)
+00:1f.2 USB Controller: Intel Corp. 82801AA USB (rev 02)
+00:1f.3 SMBus: Intel Corp. 82801AA SMBus (rev 02)
+00:1f.5 Multimedia audio controller: Intel Corp. 82801AA AC'97 Audio (rev 02)
+01:0c.0 Ethernet controller: 3Com Corporation 3c905C-TX/TX-M [Tornado] (rev 78)
 
 
---==========878600887==========
-Content-Type: text/plain; charset=iso-8859-1; name=mm4-fixed
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment; filename=mm4-fixed; size=777
+dual P-III 1000Mhz, 1024MB, SCSI (system 2)
 
-diff -urpN -X /home/fletch/.diff.exclude =
-mm4/include/asm-i386/mach-numaq/mach_apic.h =
-mm4-fixed/include/asm-i386/mach-numaq/mach_apic.h
---- mm4/include/asm-i386/mach-numaq/mach_apic.h	Wed Mar  5 07:37:06 2003
-+++ mm4-fixed/include/asm-i386/mach-numaq/mach_apic.h	Fri May  2 09:45:58 =
-2003
-@@ -1,6 +1,9 @@
- #ifndef __ASM_MACH_APIC_H
- #define __ASM_MACH_APIC_H
-=20
-+#include <asm/io.h>
-+#include <linux/mmzone.h>
-+
- #define APIC_DFR_VALUE	(APIC_DFR_CLUSTER)
-=20
- #define TARGET_CPUS (0xf)
-@@ -102,5 +105,14 @@ static inline int check_phys_apicid_pres
- {
- 	return (1);
- }
-+
-+#define APIC_ID_MASK (0xF<<24)
-+
-+static inline unsigned get_apic_id(unsigned long x)
-+{
-+	        return (((x)>>24)&0x0F);
-+}
-+
-+#define         GET_APIC_ID(x)  get_apic_id(x)
-=20
- #endif /* __ASM_MACH_APIC_H */
+00:00.0 Host bridge: ServerWorks CNB20LE Host Bridge (rev 06)
+00:00.1 Host bridge: ServerWorks CNB20LE Host Bridge (rev 06)
+00:02.0 VGA compatible controller: ATI Technologies Inc 3D Rage IIC 215IIC [Mach64 GT IIC] (rev 7a)
+00:03.0 Ethernet controller: Intel Corp. 82557/8/9 [Ethernet Pro 100] (rev 08)
+00:0f.0 ISA bridge: ServerWorks OSB4 South Bridge (rev 50)
+00:0f.1 IDE interface: ServerWorks OSB4 IDE Controller
+01:04.0 SCSI storage controller: Adaptec AIC-7899P U160/m (rev 01)
+01:04.1 SCSI storage controller: Adaptec AIC-7899P U160/m (rev 01)
 
---==========878600887==========--
+The times for reboot back to run level 3 are:
+
+		normal		kexec
+system 1	 69 seconds	35 seconds
+system 2	150 seconds	75 seconds
+
+Steven
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
