@@ -1,7 +1,7 @@
-Date: Mon, 14 Oct 2002 14:02:34 -0700
+Date: Mon, 14 Oct 2002 14:20:45 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [patch, feature] nonlinear mappings, prefaulting support, 2.5.42-F8
-Message-ID: <20021014210234.GE4488@holomorphy.com>
+Message-ID: <20021014212045.GF27878@holomorphy.com>
 References: <Pine.LNX.4.44.0210141739510.8792-100000@localhost.localdomain> <Pine.LNX.4.44.0210141800160.9302-100000@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -22,76 +22,35 @@ On Mon, Oct 14, 2002 at 06:02:30PM +0200, Ingo Molnar wrote:
 >         http://redhat.com/~mingo/remap-file-pages-patches/
 >     Ingo
 
-Okay, if PROT_NONE is in there, my last remaining concern would be
-solved by invalidating the pte's of failed nonblocking prefaults.
-
-A nonblocking remapping done "over the top" of a preexisting mapping
-(such as would occur with MAP_LOCKED) may fail at unpredictable times,
-which is fine from the kernel point of view but leaves userspace with
-no way of telling which pages that it requested to be prefaulted
-actually made it in, and which pages are residue from the prior mapping.
-
-Basically something like this would solve this API semantics issue
-(totally untested). Against mpopulate-2.5.42-G1
+Also, this may be relaxed when the file offsets match.
+Against unpatched -G1:
 
 
-diff -urpN mpop-2.5.42/include/linux/mm.h wlipop-2.5.42/include/linux/mm.h
---- mpop-2.5.42/include/linux/mm.h	2002-10-14 11:43:03.000000000 -0700
-+++ wlipop-2.5.42/include/linux/mm.h	2002-10-14 12:26:27.000000000 -0700
-@@ -424,6 +424,7 @@ static inline pmd_t *pmd_alloc(struct mm
- 	return pmd_offset(pgd, address);
- }
- 
-+extern void zap_pte(struct mm_struct *, pte_t *);
- extern void free_area_init(unsigned long * zones_size);
- extern void free_area_init_node(int nid, pg_data_t *pgdat, struct page *pmap,
- 	unsigned long * zones_size, unsigned long zone_start_pfn, 
-diff -urpN mpop-2.5.42/mm/filemap.c wlipop-2.5.42/mm/filemap.c
---- mpop-2.5.42/mm/filemap.c	2002-10-14 11:43:03.000000000 -0700
-+++ wlipop-2.5.42/mm/filemap.c	2002-10-14 12:12:08.000000000 -0700
-@@ -1286,9 +1286,27 @@ repeat:
- 		return -EINVAL;
- 
- 	page = filemap_getpage(file, pgoff, nonblock);
--	if (!page && !nonblock)
--		return -ENOMEM;
--	if (page) {
-+
-+	if (!page) {
-+		pgd_t *pgd;
-+
-+		if (!nonblock)
-+			return -ENOMEM;
-+
-+		spin_lock(&mm->page_table_lock);
-+		pgd = pgd_offset(mm, addr);
-+		if (!pgd_none(*pgd) && !pgd_bad(*pgd)) {
-+			pmd_t *pmd = pmd_offset(pgd, addr);
-+			if (!pmd_none(*pmd) && !pmd_bad(*pmd)) {
-+				pte_t *pte = pte_offset_map(pmd, addr);
-+				if (pte) {
-+					zap_pte(mm, pte);
-+					pte_unmap(pte);
-+				}
-+			}
-+		}
-+		spin_unlock(&mm->page_table_lock);
-+	} else {
- 		err = install_page(mm, vma, addr, page, prot);
- 		if (err)
- 			return err;
-diff -urpN mpop-2.5.42/mm/fremap.c wlipop-2.5.42/mm/fremap.c
+Bill
+
+
 --- mpop-2.5.42/mm/fremap.c	2002-10-14 11:43:03.000000000 -0700
-+++ wlipop-2.5.42/mm/fremap.c	2002-10-14 12:26:37.000000000 -0700
-@@ -13,7 +13,7 @@
- #include <linux/swapops.h>
- #include <asm/mmu_context.h>
- 
--static inline void zap_pte(struct mm_struct *mm, pte_t *ptep)
-+void zap_pte(struct mm_struct *mm, pte_t *ptep)
- {
- 	pte_t pte = *ptep;
- 
++++ wlipop-2.5.42/mm/fremap.c	2002-10-14 14:17:11.000000000 -0700
+@@ -129,10 +129,16 @@
+ 			end > start && start >= vma->vm_start &&
+ 				end <= vma->vm_end) {
+ 		/*
+-		 * Change the default protection to PROT_NONE:
++		 * Change the default protection to PROT_NONE if
++		 * the file offset doesn't coincide with the vma's:
+ 		 */
+-		if (pgprot_val(vma->vm_page_prot) != pgprot_val(__S000))
+-			vma->vm_page_prot = __S000;
++		if (pgprot_val(vma->vm_page_prot) != pgprot_val(__S000)) {
++			unsigned long offset;
++			offset = (start - vma->vm_start) >> PAGE_CACHE_SHIFT
++					+ vma->vm_pgoff;
++			if (offset != pgoff)
++				vma->vm_page_prot = __S000;
++		}
+ 		err = vma->vm_ops->populate(vma, start, size, prot,
+ 						pgoff, flags & MAP_NONBLOCK);
+ 	}
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
