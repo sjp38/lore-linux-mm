@@ -1,55 +1,32 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA27857
-	for <linux-mm@kvack.org>; Sat, 2 Jan 1999 09:49:34 -0500
-Date: Sat, 2 Jan 1999 15:30:30 +0100 (CET)
-From: Rik van Riel <riel@humbolt.geo.uu.nl>
-Subject: Re: naive questions, docs, etc.
-In-Reply-To: <199901020817.CAA13504@disco.cs.utexas.edu>
-Message-ID: <Pine.LNX.4.03.9901021526530.3270-100000@mirkwood.dummy.home>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA27871
+	for <linux-mm@kvack.org>; Sat, 2 Jan 1999 09:50:02 -0500
+Date: Sat, 2 Jan 1999 15:48:19 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Subject: Re: [patch] new-vm improvement [Re: 2.2.0 Bug summary]
+In-Reply-To: <Pine.LNX.3.95.990101225111.16066K-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.3.96.990102154225.1302B-100000@laser.bogus>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Paul R. Wilson" <wilson@cs.utexas.edu>
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Steve Bergman <steve@netplus.net>, Benjamin Redelings I <bredelin@ucsd.edu>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2 Jan 1999, Paul R. Wilson wrote:
+On Fri, 1 Jan 1999, Linus Torvalds wrote:
 
-> >> 1) Is there any text describing memory management in 2.1?  (Forgive me
-> >>    if I missed an obvious URL)
-> > [Rik:] 
-> >Btw, since you are so enthusiastic about documentation,
-> >would you be willing to help me write it?
-> 
-> The question wasn't directed at me, but I'd be willing to help, if
-> people are interested in filling in some gaps in my understanding.
-> 
-> I have some basic questions about the overall design, as well as a
-> bunch of detailed questions.
-> 
-> If people are interested in explaining things to me, I'll happily
-> write up whatever I learn.
+> The other thing I'd like to hear is how pre3 looks with this patch, which
+> should behave basically like Andrea's latest patch but without the
+> obfuscation he put into his patch..
 
-I cannot speak for the others, but I know I'll gladly help
-you out when you don't know where to look for things.
+I still think the most important part of all my latest VM patches is my
+new do_free_user_and_cache(). It allow the VM to scale very better and be
+perfectly balanced. 
 
-The source will be the most important place to look for
-information, but we'll be there to help you out if you
-can't find the stuff or if the source is poorly documented.
+Why to run `count' times swap_out() without take a look if the cache grows
+too much?
 
-I think it will be great to have our source reviewed by
-someone who is writing documentation instead of trying
-to add a hack to do this-or-that. It could cause a nice
-cleanup of the comments and the code structure so I think
-we should help Paul as much as possible...
-
-cheers,
-
-Rik -- If a Microsoft product fails, who do you sue?
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        riel@humbolt.geo.uu.nl |
-| Scouting Vries cubscout leader.    http://humbolt.geo.uu.nl/~riel |
-+-------------------------------------------------------------------+
+Andrea Arcangeli
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
