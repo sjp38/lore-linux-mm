@@ -1,27 +1,30 @@
-Date: Wed, 2 Oct 2002 17:43:20 -0400
-From: Benjamin LaHaise <bcrl@redhat.com>
-Subject: Re: [RFC][PATCH]  4KB stack + irq stack for x86
-Message-ID: <20021002174320.J28857@redhat.com>
-References: <3D9B62AC.30607@us.ibm.com>
-Mime-Version: 1.0
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id OAA27547
+	for <linux-mm@kvack.org>; Wed, 2 Oct 2002 14:46:46 -0700 (PDT)
+Received: from schumi.digeo.com ([192.168.1.205])
+ by digeo-nav01.digeo.com (NAVGW 2.5.2.12) with SMTP id M2002100214474115519
+ for <linux-mm@kvack.org>; Wed, 02 Oct 2002 14:47:41 -0700
+Message-ID: <3D9B6939.397DB9EA@digeo.com>
+Date: Wed, 02 Oct 2002 14:46:33 -0700
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: NUMA is bust with CONFIG_PREEMPT=y
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3D9B62AC.30607@us.ibm.com>; from haveblue@us.ibm.com on Wed, Oct 02, 2002 at 02:18:36PM -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 02, 2002 at 02:18:36PM -0700, Dave Hansen wrote:
-> I've resynced Ben's patch against 2.5.40.  However, I'm getting some 
-> strange failures.  The patch is good enough to pass LTP, but 
-> consistently freezes when I run tcpdump on it.
+#define numa_node_id()  (__cpu_to_node(smp_processor_id()))
 
-Try running tcpdump with the stack checking patch applied.  That should 
-give you a decent backtrace for the problem.
+Either you're going to have to change that to get_cpu_only_on_numa() and
+add the matching put_cpu_only_on_numa()'s, or disable preempt in
+the config system.
 
-		-ben
+Now, it's probably the case that this happens to work OK;
+if you hop CPUs you just end up doing a suboptimal cross-node
+operation.  But it'd be better to fix it up, IMO.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
