@@ -1,59 +1,61 @@
-Subject: Re: limit on number of kmapped pages
-References: <y7rsnmav0cv.fsf@sytry.doc.ic.ac.uk>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 23 Jan 2001 11:23:46 -0700
-In-Reply-To: David Wragg's message of "23 Jan 2001 13:56:00 +0000"
-Message-ID: <m1r91udt59.fsf@frodo.biederman.org>
+Reply-To: <frey@cxau.zko.dec.com>
+From: "Martin Frey" <frey@scs.ch>
+Subject: Questions on mmap()
+Date: Tue, 23 Jan 2001 14:45:12 -0500
+Message-ID: <000201c08575$01127ab0$10401c10@SCHLEPPDOWN>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Wragg <dpw@doc.ic.ac.uk>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: baettig@scs.ch
 List-ID: <linux-mm.kvack.org>
 
-David Wragg <dpw@doc.ic.ac.uk> writes:
+Dear all,
 
-> While testing some kernel code of mine on a machine with
-> CONFIG_HIGHMEM enabled, I've run into the limit on the number of pages
-> that can be kmapped at once.  I was surprised to find it was so low --
-> only 2MB/4MB of address space for kmap (according to the value of
-> LAST_PKMAP; vmalloc gets a much more generous 128MB!).
+I'm trying to write an example on how to export kmalloc()
+and vmalloc() allocated areas from a device driver into
+user space. The example is running so far, but I want to
+make sure to have all the details right.
 
-kmap is for quick transitory mappings.  kmap is not for permanent mappings.
-At least that was my impression.  The persistence is intended to just
-kill error prone cases.
+So here I have couple of questions:
+- for kmalloc, I just call remap_page_range() in my drivers
+  mmap method. Do I have to grab any locks before doing
+  so (kernel 2.4.x), e.g. big kernel lock?
+- Do I have to set any flags in vm_area_struct->vm_flags?
+  I see some drivers setting VM_LOCKED while others don't.
+  As far as I understand the kernel will try to swap the
+  area out starting in swp_out_mm, calling swp_out_vma.
+  If VM_LOCKED I will return if VM_LOCKED is set. If not,
+  I will fall into swap_out_pXX until I finally hit
+  the reserve bit of the page that should go out.
+  If I understand the code right, setting VM_LOCKED is
+  not necessary, I will be safe without. But performancewise
+  have VM_LOCKED set will make me fall out of the swap-out
+  attempt earlier. Is this correct?
+- To map a vmalloc() allocated area, I set up my own
+  page fault handler (vm_ops). Again, are any flags
+  needed in the vm_flags field?
+- In my pagefault handler I parse the pagetables as e.g.
+  done in uvirt_to_kva in the bttv-driver. Do I need
+  to grab a lock before doing so? 
+- What is the purpose and usage of the VMALLOC_VMADDR
+  macro?
 
-> My code allocates a large number of pages (4MB-worth would be typical)
-> to act as a buffer; interrupt handlers/BHs copy data into this buffer,
-> then a kernel thread moves filled pages into the page cache and
-> replaces them with newly allocated pages.  To avoid overhead on
-> IRQs/BHs, all the pages in the buffer are kmapped.  But with
-> CONFIG_HIGHMEM if I try to kmap 512 pages or more at once, the kernel
-> locks up (fork() starts blocking inside kmap(), etc.).
+Any help is appreciated.
 
-This may be a reasonable use, I'm not certain.  It wasn't the application
-kmap was designed to deal with though...
- 
-> There are ways I could work around this (either by using kmap_atomic,
-> or by adding another kernel thread that maintains a window of kmapped
-> pages within the buffer).  But I'd prefer not to have to add a lot of
-> code specific to the CONFIG_HIGHMEM case.
+Thanks and best regards,
 
-Why do you need such a large buffer?  And why do the pages need to be kmapped?
-If you are doing dma there is no such requirement...  And unless you are
-running on something faster than a PCI bus I can't imagine why you need
-a buffer that big.  My hunch is that it makes sense to do the kmap,
-and the i/o in the bottom_half.  What is wrong with that?
+Martin Frey
 
-kmap should be quick and fast because it is for transitory mappings.
-It shouldn't be something whose overhead you are trying to avoid.
-If kmap is that expensive then kmap needs to be fixed, instead
-of your code working around a perceived problem.
+-- 
+Supercomputing Systems AG       email: frey@scs.ch
+Martin Frey                     web:   http://www.scs.ch/~frey/
+at Compaq Computer Corporation  phone: +1 603 884 4266
+ZKO2-3N25, 110 Spit Brook Road, Nashua, NH 03062
 
-At least that is what it looks like from here.
-
-Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
