@@ -1,69 +1,34 @@
-Date: Wed, 16 Aug 2000 01:09:07 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: filemap.c SMP bug in 2.4.0-test*
-In-Reply-To: <Pine.LNX.4.21.0008160031330.3400-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0008160046270.3400-100000@duckman.distro.conectiva>
+Message-ID: <399A4FE4.FA5C397A@augan.com>
+Date: Wed, 16 Aug 2000 10:25:08 +0200
+From: Roman Zippel <roman@augan.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: pte_pagenr/MAP_NR deleted in pre6
+References: <200008101718.KAA33467@google.engr.sgi.com> <20000815171954.U12218@redhat.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, rmk@arm.linux.org.uk, nico@cam.org, davem@redhat.com, davidm@hpl.hp.com, alan@lxorguk.ukuu.org.uk
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 16 Aug 2000, Rik van Riel wrote:
-> On Tue, 15 Aug 2000, Linus Torvalds wrote:
+Hi,
 
-> > In particular, look at which page read_swap_cache_async() adds
-> > to the swap cache.
-> 
-> > *****   new_page_addr = __get_free_page(GFP_USER);		*******
-> 
-> > In short, read_swap_cache_async() allocates a new page that
-> > nobody else has access to. There's no way in hell that page is
-> > going to be on any LRU lists.
+> Excellent, this will make it _tons_ easier for me to create new zones
+> of mem_map arrays on the fly to allow us to create struct pages for
+> PCI IO-aperture memory (necessary for kiobuf mappings of IO memory).
 
-> Question is, how did that thing get on the free list
-> in the first place?  __free_pages_ok() checks for the
-> flags and reclaim_page() also checks for all of the
-> flags
+A related question: do you already have an idea how the driver interface
+for that could look like? I mean, some drivers need a virtual address,
+some need the physical address for dma and some of them might need
+bounce buffers. E.g. I don't know how to get (quickly) from a page
+struct which represents an io mapping to the physical address. Will we
+add some generic funtions for this which can be used by drivers or even
+let the drivers only specify its requirements and the buffer code will
+generate an appropriate io request. I have a few ideas, but I don't know
+if already concrete plans exists.
 
-OK, I have a vague and highly improbable idea about
-this (but no clue about some of the subsystems I'm
-going to assume things about).
-
-What if the page we barf on was part of a multi-page
-contiguous allocation?
-
-Suppose some subsystem (like nfs) allocates an 8kB
-contiguous area, which gets filled with data and mmap()ed
-by a user process.
-
-At that moment, _both_ pages are put into the lru list and
-flagged as such. Now if the "lower" of the two pages gets
-released and the upper is still in the list, a hypothetical
-buggy driver (maybe even nfs) would do a __free_pages_ok()
-on the DOUBLE page, even though the "higher" page is still
-in use (and has the bit set).
-
-That way a page with one of the page list flags set could
-slip by the check in __free_pages_ok. I know this is an
-improbable theory, but it's the only way I can see which
-would bypass the checks in __free_pages_ok (and the one
-in reclaim_page)...
-
-[yes, I know I must get some sleep and look at this
-stuff when I'm awake ;)]
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
