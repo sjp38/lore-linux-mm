@@ -1,65 +1,80 @@
-Received: from tuke.sk (sfinx.uvt.tuke.sk [147.232.1.98])
-	by ccsun.tuke.sk (8.9.3/8.9.3/Debian/GNU) with ESMTP id MAA22435
-	for <linux-mm@kvack.org>; Thu, 24 Aug 2000 12:13:30 +0200
-Message-ID: <39A4F548.B8EB5308@tuke.sk>
-Date: Thu, 24 Aug 2000 12:13:28 +0200
-From: Jan Astalos <astalos@tuke.sk>
-MIME-Version: 1.0
-Subject: Question: memory management and QoS
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Thu, 24 Aug 2000 13:04:35 -0500
+From: Timur Tabi <ttabi@interactivesi.com>
+Subject: ioremap_nocache() doesn't work
+Message-Id: <20000824181451Z131170-249+6@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linux MM mailing list <linux-mm@kvack.org>, Linux Kernel Mailing list <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+I've written the following function which is supposed to make a physical page
+uncacheable.  It doesn't appear to be working, however.
 
-I have a question about possibility to provide Quality of Service
-guaranties by Linux memory management. I'm asking this in the
-context of possible use of Linux clusters in computational grids
-(http://www.gridforum.org/). There is still more computing power
-(mostly unused) in workstations...
+void *uncache_pages(unsigned long phys, unsigned long num_pages)
+{
+    mem_map_t *mm = phys_to_mem_map(phys & PAGE_MASK);
+    unsigned i;
+    unsigned long flags[num_pages];
+    void *v;
+    u32 reg_flags;
 
-One of the most important issues (IMO) is QoS. Especially, how
-OS can guarantee availability of resources. Since Linux is 
-top-ranking OS in high-performance clusters, obviously there will
-be need to implement QoS in it.
+    save_flags(reg_flags);
+    cli();
 
-So, why am I writing this to this list ? In last couple of days
-I was experimenting with Linux MM subsystem to find out whether
-Linux can (how it could) assure exclusive access to some amount 
-of memory for user. Of course I was searching the archives. So 
-far, I found only the beancounter patch, which is designed for 
-limiting of memory usage. This is not quite exactly what I am 
-looking for. Rather, users should have their memory reserved... 
+    for (i=0; i<num_pages; i++)
+    {
+        flags[i] = mm[i].flags;
+	SetPageReserved(mm+i);
+    }
 
-If I missed something please send me the pointers.
+    restore_flags(reg_flags);
 
-I have some (rough) ideas how it could work and I would be 
-happy if you'll send me your opinions.
+    v = ioremap_nocache(phys, num_pages * PAGE_SIZE);
+    if (!v)
+        printk("uncache_pages() failed!\n");
 
-Concept of personal swapfiles:
+    save_flags(reg_flags);
+    cli();
 
-- each user would have its own swapfile (size would depend on 
-  his memory needs and disk quota, he would be able to resize it)
-- system swapfile would be shared between daemons and superuser
-- each active user would have some amount of physical pages 
-  allocated (according to selected policy)
+    for (i=0; i<num_pages; i++)
+        mm[i].flags = flags[i];
 
-The benefits (among others):
-- there wouldn't be system OOM (only per user OOM)
-- user would be able to check his available memory
-- no limits for VM address space
-- there could be more policies for sharing of physical memory
-  by users (and system)
+    restore_flags(reg_flags);
 
-Drawbacks:
-<please fill>
+    return v;
+}
 
-Thanks in advance for your comments,
+The problem is, I'm no expert on the page tables, so I don't know how pages are
+supposed to be marked uncacheable in the first place.
 
-Jan
+>From what I can tell, this function marks a bunch of pages as uncacheable and
+then remaps them to virtual space.  But it doesn't appear to work.  When I
+perform a write, it is not immediately sent over the bus.  This is on an x86
+platform, using kernel 2.4.0-test2.
+
+So I have a few questions:
+
+1) As I understand it, only physical pages, not virtual pages, can be cacheable
+or uncacheable.  That is, if two virtual addresses point to the same physical
+address, then it's impossible for one virtual address to be "cacheable" and the
+other to be "uncacheable".  Correct?
+
+2) Once I map/mark a page, how do I unmap it?  I don't see an iounmap_nocache()
+function anywhere.
+
+3) I know my routine is a bad way of doing this, but all my previous attempts
+to get the question, "How do I mark a page as uncacheable" have gone UNANSWERED.
+This IS a linux kernel [memory manager] mailing list, isn't it?  Someone MUST
+know the answer to the question.  How is anyone supposed to learn anything if
+knowledgeable people refuse to answer questions they know?
+
+
+
+--
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
+
+When replying to a mailing-list message, please don't cc: me, because then I'll just get two copies of the same message.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
