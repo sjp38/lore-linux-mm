@@ -1,66 +1,51 @@
-Subject: Re: limit on number of kmapped pages
-References: <y7rsnmav0cv.fsf@sytry.doc.ic.ac.uk>
-	<m1r91udt59.fsf@frodo.biederman.org>
+Subject: Re: ioremap_nocache problem?
+References: <Pine.GSO.4.10.10101231903380.14027-100000@zeus.fh-brandenburg.de>
 From: David Wragg <dpw@doc.ic.ac.uk>
-Date: 24 Jan 2001 00:35:12 +0000
-In-Reply-To: ebiederm@xmission.com's message of "23 Jan 2001 11:23:46 -0700"
-Message-ID: <y7rofwxeqin.fsf@sytry.doc.ic.ac.uk>
+Date: 24 Jan 2001 00:50:20 +0000
+Message-ID: <y7rk87leptf.fsf@sytry.doc.ic.ac.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
+From: David Wragg <dpw@doc.ic.ac.uk>
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Roman Zippel <zippel@fh-brandenburg.de>, Mark Mokryn <mark@sangate.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-ebiederm@xmission.com (Eric W. Biederman) writes:
-> Why do you need such a large buffer? 
+--text follows this line--
+Roman Zippel <zippel@fh-brandenburg.de> writes:
+> On Tue, 23 Jan 2001, Mark Mokryn wrote:
+> > ioremap_nocache does the following:
+> >     return __ioremap(offset, size, _PAGE_PCD);
 
-ext2 doesn't guarantee sustained write bandwidth (in particular,
-writing a page to an ext2 file can have a high latency due to reading
-the block bitmap synchronously).  To deal with this I need at least a
-2MB buffer.
+You have a point.
 
-I've modifed ext2 slightly to avoid that problem, but I still expect
-to need a 512KB buffer (though the usual requirements are much lower).
-While that wouldn't hit the kmap limit, it would bring the system
-closer to it.
+It would be nice if ioremap took a argument indicating the desired
+memory type -- normal, nocache, write-through, write-combining, etc.
+Then it could look in an architecture-specific table to get the
+appropriate page flags for that type.
 
-Perhaps further tuning could reduce the buffer needs of my
-application, but it is better to have the buffer too big than too
-small.
+(x86 processors with PAT and IA64 can set write-combining through page
+flags.  x86 processors with MTRRs but not PAT would need a more
+elaborate implementation for write-combining.)
 
-> And why do the pages need to be kmapped? 
-
-They only need to be kmapped while data is being copied into them.
-
-> If you are doing dma there is no such requirement...  And
-> unless you are running on something faster than a PCI bus I can't
-> imagine why you need a buffer that big. 
-
-Gigabit ethernet.
-
-> My hunch is that it makes
-> sense to do the kmap, and the i/o in the bottom_half.  What is wrong
-> with that?
-
-Do you mean kmap_atomic?  The comments around kmap don't mention
-avoiding it in BHs, but I don't see what prevents kmap -> kmap_high ->
-map_new_virtual -> schedule.
-
-> kmap should be quick and fast because it is for transitory mappings.
-> It shouldn't be something whose overhead you are trying to avoid.  If
-> kmap is that expensive then kmap needs to be fixed, instead of your
-> code working around a perceived problem.
+> > 
+> > However, in drivers/char/mem.c (2.4.0), we see the following:
+> > 
+> >     /* On PPro and successors, PCD alone doesn't always mean 
+> >         uncached because of interactions with the MTRRs. PCD | PWT
+> >         means definitely uncached. */ 
+> >     if (boot_cpu_data.x86 > 3)
+> >             prot |= _PAGE_PCD | _PAGE_PWT;
+> > 
+> > Does this mean ioremap_nocache() may not do the job?
 > 
-> At least that is what it looks like from here.
+> ioremap creates a new mapping that shouldn't interfere with MTRR, whereas
+> you can map a MTRR mapped area into userspace. But I'm not sure if it's
+> correct that no flag is set for boot_cpu_data.x86 <= 3...
 
-When adding the kmap/kunmap calls to my code I arranged them so they
-would be used as infrequently as possible.  After working on making
-the critical paths in my code fast, I didn't want to add operations
-that have an uncertain cost into those paths unless there is a good
-reason.  Which is why I'm asking how significant the kmap limit is.
-
+The boot_cpu_data.x86 > 3 test is there because the 386 doesn't have
+PWT.
 
 
 David Wragg
