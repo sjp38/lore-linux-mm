@@ -1,209 +1,59 @@
-Message-ID: <400EC908.4020801@gmx.de>
-Date: Wed, 21 Jan 2004 19:46:32 +0100
-From: "Prakash K. Cheemplavam" <PrakashKC@gmx.de>
-MIME-Version: 1.0
-Subject: Re: 2.6.1-mm4
+Message-Id: <200401211920.i0LJKZ2a003504@turing-police.cc.vt.edu>
+Subject: Re: 2.6.1-mm4 
+In-Reply-To: Your message of "Wed, 21 Jan 2004 19:46:32 +0100."
+             <400EC908.4020801@gmx.de>
+From: Valdis.Kletnieks@vt.edu
 References: <20040115225948.6b994a48.akpm@osdl.org> <4007B03C.4090106@gmx.de>
-In-Reply-To: <4007B03C.4090106@gmx.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+            <400EC908.4020801@gmx.de>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_668682134P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
+Date: Wed, 21 Jan 2004 14:20:35 -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Prakash K. Cheemplavam" <PrakashKC@gmx.de>
 Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ok, here is the stack backtrace:
+--==_Exmh_668682134P
+Content-Type: text/plain; charset=us-ascii
 
-I hope it helps, otherwise I could try compiling in frame-pointers. (I 
-used another logger to get this...)
+On Wed, 21 Jan 2004 19:46:32 +0100, "Prakash K. Cheemplavam" said:
+> Ok, here is the stack backtrace:
+> 
+> I hope it helps, otherwise I could try compiling in frame-pointers. (I 
+> used another logger to get this...)
+> 
+> Is it nvidia driver doing something bad (which earlier kernels didn't do)?
+> 
+> Jan 21 19:25:39 tachyon Badness in pci_find_subsys at 
+> drivers/pci/search.c:132
+> Jan 21 19:25:39 tachyon Call Trace:
+> Jan 21 19:25:39 tachyon [<c027a7f8>] pci_find_subsys+0xe8/0xf0
+> Jan 21 19:25:39 tachyon [<c027a82f>] pci_find_device+0x2f/0x40
+> Jan 21 19:25:39 tachyon [<c027a6e8>] pci_find_slot+0x28/0x50
 
-Is it nvidia driver doing something bad (which earlier kernels didn't do)?
+If this is the NVidia graphics driver, it's been doing it at least since 2.5.6something,
+at least that I've seen.  It's basically calling pci_find_slot in an interrupt context,
+which ends up calling pci_find_subsys which complains about it.  One possible
+solution would be for the code to be changed to call pci_find_slot during module
+initialization and save the return value, and use that instead.  Yes, I know this
+prevents hotplugging.  Who hotplugs graphics cards? ;)
 
-Jan 21 19:25:39 tachyon Badness in pci_find_subsys at 
-drivers/pci/search.c:132
-Jan 21 19:25:39 tachyon Call Trace:
-Jan 21 19:25:39 tachyon [<c027a7f8>] pci_find_subsys+0xe8/0xf0
-Jan 21 19:25:39 tachyon [<c027a82f>] pci_find_device+0x2f/0x40
-Jan 21 19:25:39 tachyon [<c027a6e8>] pci_find_slot+0x28/0x50
-Jan 21 19:25:39 tachyon [<f9faf9f9>] os_pci_init_handle+0x35/0x62 [nvidia]
-Jan 21 19:25:39 tachyon [<f9fc978f>] _nv001243rm+0x1f/0x24 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10ffb5>] _nv000816rm+0x2f5/0x384 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0787cc>] _nv003801rm+0xd8/0x100 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10faef>] _nv000809rm+0x2f/0x34 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0795f0>] _nv003816rm+0xf0/0x104 [nvidia]
-Jan 21 19:25:39 tachyon [<fa077c9d>] _nv003795rm+0x4d9/0xaec [nvidia]
-Jan 21 19:25:39 tachyon [<f9fe2197>] _nv004046rm+0x3a3/0x3b0 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0e3a47>] _nv001476rm+0x277/0x45c [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcc2ca>] _nv000896rm+0x4a/0x64 [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcdae4>] rm_isr_bh+0xc/0x10 [nvidia]
-Jan 21 19:25:39 tachyon [<f9facd93>] nv_kern_isr_bh+0x11/0x15 [nvidia]
-Jan 21 19:25:39 tachyon [<c0126576>] tasklet_action+0x46/0x70
-Jan 21 19:25:39 tachyon [<c0126390>] do_softirq+0x90/0xa0
-Jan 21 19:25:39 tachyon [<c010cced>] do_IRQ+0xfd/0x130
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c03f77d4>] common_interrupt+0x18/0x20
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c0109053>] default_idle+0x23/0x30
-Jan 21 19:25:39 tachyon [<c01090bc>] cpu_idle+0x2c/0x40
-Jan 21 19:25:39 tachyon [<c05026dc>] start_kernel+0x17c/0x1b0
-Jan 21 19:25:39 tachyon [<c0502430>] unknown_bootoption+0x0/0x100
-Jan 21 19:25:39 tachyon
-Jan 21 19:25:39 tachyon Badness in pci_find_subsys at 
-drivers/pci/search.c:132
-Jan 21 19:25:39 tachyon Call Trace:
-Jan 21 19:25:39 tachyon [<c027a7f8>] pci_find_subsys+0xe8/0xf0
-Jan 21 19:25:39 tachyon [<c027a82f>] pci_find_device+0x2f/0x40
-Jan 21 19:25:39 tachyon [<c027a6e8>] pci_find_slot+0x28/0x50
-Jan 21 19:25:39 tachyon [<f9faf9f9>] os_pci_init_handle+0x35/0x62 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0964ff>] _nv001613rm+0x6f/0x7c [nvidia]
-Jan 21 19:25:39 tachyon [<f9fc978f>] _nv001243rm+0x1f/0x24 [nvidia]
-Jan 21 19:25:39 tachyon [<fa07a8fd>] _nv003797rm+0xa9/0x128 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0e7341>] _nv001490rm+0x55/0xe4 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10fff4>] _nv000816rm+0x334/0x384 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0787cc>] _nv003801rm+0xd8/0x100 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10faef>] _nv000809rm+0x2f/0x34 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0795f0>] _nv003816rm+0xf0/0x104 [nvidia]
-Jan 21 19:25:39 tachyon [<fa077c9d>] _nv003795rm+0x4d9/0xaec [nvidia]
-Jan 21 19:25:39 tachyon [<f9fe2197>] _nv004046rm+0x3a3/0x3b0 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0e3a47>] _nv001476rm+0x277/0x45c [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcc2ca>] _nv000896rm+0x4a/0x64 [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcdae4>] rm_isr_bh+0xc/0x10 [nvidia]
-Jan 21 19:25:39 tachyon [<f9facd93>] nv_kern_isr_bh+0x11/0x15 [nvidia]
-Jan 21 19:25:39 tachyon [<c0126576>] tasklet_action+0x46/0x70
-Jan 21 19:25:39 tachyon [<c0126390>] do_softirq+0x90/0xa0
-Jan 21 19:25:39 tachyon [<c010cced>] do_IRQ+0xfd/0x130
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c03f77d4>] common_interrupt+0x18/0x20
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c0109053>] default_idle+0x23/0x30
-Jan 21 19:25:39 tachyon [<c01090bc>] cpu_idle+0x2c/0x40
-Jan 21 19:25:39 tachyon [<c05026dc>] start_kernel+0x17c/0x1b0
-Jan 21 19:25:39 tachyon [<c0502430>] unknown_bootoption+0x0/0x100
-Jan 21 19:25:39 tachyon
-Jan 21 19:25:39 tachyon Badness in pci_find_subsys at 
-drivers/pci/search.c:132
-Jan 21 19:25:39 tachyon Call Trace:
-Jan 21 19:25:39 tachyon [<c027a7f8>] pci_find_subsys+0xe8/0xf0
-Jan 21 19:25:39 tachyon [<c027a82f>] pci_find_device+0x2f/0x40
-Jan 21 19:25:39 tachyon [<c027a6e8>] pci_find_slot+0x28/0x50
-Jan 21 19:25:39 tachyon [<f9faf9f9>] os_pci_init_handle+0x35/0x62 [nvidia]
-Jan 21 19:25:39 tachyon [<f9fc978f>] _nv001243rm+0x1f/0x24 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10ffb5>] _nv000816rm+0x2f5/0x384 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0787cc>] _nv003801rm+0xd8/0x100 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10faef>] _nv000809rm+0x2f/0x34 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0795f0>] _nv003816rm+0xf0/0x104 [nvidia]
-Jan 21 19:25:39 tachyon [<fa077eae>] _nv003795rm+0x6ea/0xaec [nvidia]
-Jan 21 19:25:39 tachyon [<f9fe2197>] _nv004046rm+0x3a3/0x3b0 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0e3a47>] _nv001476rm+0x277/0x45c [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcc2ca>] _nv000896rm+0x4a/0x64 [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcdae4>] rm_isr_bh+0xc/0x10 [nvidia]
-Jan 21 19:25:39 tachyon [<f9facd93>] nv_kern_isr_bh+0x11/0x15 [nvidia]
-Jan 21 19:25:39 tachyon [<c0126576>] tasklet_action+0x46/0x70
-Jan 21 19:25:39 tachyon [<c0126390>] do_softirq+0x90/0xa0
-Jan 21 19:25:39 tachyon [<c010cced>] do_IRQ+0xfd/0x130
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c03f77d4>] common_interrupt+0x18/0x20
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c0109053>] default_idle+0x23/0x30
-Jan 21 19:25:39 tachyon [<c01090bc>] cpu_idle+0x2c/0x40
-Jan 21 19:25:39 tachyon [<c05026dc>] start_kernel+0x17c/0x1b0
-Jan 21 19:25:39 tachyon [<c0502430>] unknown_bootoption+0x0/0x100
-Jan 21 19:25:39 tachyon
-Jan 21 19:25:39 tachyon Badness in pci_find_subsys at 
-drivers/pci/search.c:132
-Jan 21 19:25:39 tachyon Call Trace:
-Jan 21 19:25:39 tachyon [<c027a7f8>] pci_find_subsys+0xe8/0xf0
-Jan 21 19:25:39 tachyon [<c027a82f>] pci_find_device+0x2f/0x40
-Jan 21 19:25:39 tachyon [<c027a6e8>] pci_find_slot+0x28/0x50
-Jan 21 19:25:39 tachyon [<f9faf9f9>] os_pci_init_handle+0x35/0x62 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0964ff>] _nv001613rm+0x6f/0x7c [nvidia]
-Jan 21 19:25:39 tachyon [<f9fc978f>] _nv001243rm+0x1f/0x24 [nvidia]
-Jan 21 19:25:39 tachyon [<fa07a8fd>] _nv003797rm+0xa9/0x128 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0e7341>] _nv001490rm+0x55/0xe4 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10fff4>] _nv000816rm+0x334/0x384 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0787cc>] _nv003801rm+0xd8/0x100 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10faef>] _nv000809rm+0x2f/0x34 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0795f0>] _nv003816rm+0xf0/0x104 [nvidia]
-Jan 21 19:25:39 tachyon [<fa077eae>] _nv003795rm+0x6ea/0xaec [nvidia]
-Jan 21 19:25:39 tachyon [<f9fe2197>] _nv004046rm+0x3a3/0x3b0 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0e3a47>] _nv001476rm+0x277/0x45c [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcc2ca>] _nv000896rm+0x4a/0x64 [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcdae4>] rm_isr_bh+0xc/0x10 [nvidia]
-Jan 21 19:25:39 tachyon [<f9facd93>] nv_kern_isr_bh+0x11/0x15 [nvidia]
-Jan 21 19:25:39 tachyon [<c0126576>] tasklet_action+0x46/0x70
-Jan 21 19:25:39 tachyon [<c0126390>] do_softirq+0x90/0xa0
-Jan 21 19:25:39 tachyon [<c010cced>] do_IRQ+0xfd/0x130
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c03f77d4>] common_interrupt+0x18/0x20
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c0109053>] default_idle+0x23/0x30
-Jan 21 19:25:39 tachyon [<c01090bc>] cpu_idle+0x2c/0x40
-Jan 21 19:25:39 tachyon [<c05026dc>] start_kernel+0x17c/0x1b0
-Jan 21 19:25:39 tachyon [<c0502430>] unknown_bootoption+0x0/0x100
-Jan 21 19:25:39 tachyon
-Jan 21 19:25:39 tachyon Badness in pci_find_subsys at 
-drivers/pci/search.c:132
-Jan 21 19:25:39 tachyon Call Trace:
-Jan 21 19:25:39 tachyon [<c027a7f8>] pci_find_subsys+0xe8/0xf0
-Jan 21 19:25:39 tachyon [<c027a82f>] pci_find_device+0x2f/0x40
-Jan 21 19:25:39 tachyon [<c027a6e8>] pci_find_slot+0x28/0x50
-Jan 21 19:25:39 tachyon [<f9faf9f9>] os_pci_init_handle+0x35/0x62 [nvidia]
-Jan 21 19:25:39 tachyon [<f9fc978f>] _nv001243rm+0x1f/0x24 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10ffb5>] _nv000816rm+0x2f5/0x384 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0787cc>] _nv003801rm+0xd8/0x100 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10faef>] _nv000809rm+0x2f/0x34 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0795f0>] _nv003816rm+0xf0/0x104 [nvidia]
-Jan 21 19:25:39 tachyon [<fa07802b>] _nv003795rm+0x867/0xaec [nvidia]
-Jan 21 19:25:39 tachyon [<f9fe2197>] _nv004046rm+0x3a3/0x3b0 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0e3a47>] _nv001476rm+0x277/0x45c [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcc2ca>] _nv000896rm+0x4a/0x64 [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcdae4>] rm_isr_bh+0xc/0x10 [nvidia]
-Jan 21 19:25:39 tachyon [<f9facd93>] nv_kern_isr_bh+0x11/0x15 [nvidia]
-Jan 21 19:25:39 tachyon [<c0126576>] tasklet_action+0x46/0x70
-Jan 21 19:25:39 tachyon [<c0126390>] do_softirq+0x90/0xa0
-Jan 21 19:25:39 tachyon [<c010cced>] do_IRQ+0xfd/0x130
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c03f77d4>] common_interrupt+0x18/0x20
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c0109053>] default_idle+0x23/0x30
-Jan 21 19:25:39 tachyon [<c01090bc>] cpu_idle+0x2c/0x40
-Jan 21 19:25:39 tachyon [<c05026dc>] start_kernel+0x17c/0x1b0
-Jan 21 19:25:39 tachyon [<c0502430>] unknown_bootoption+0x0/0x100
-Jan 21 19:25:39 tachyon
-Jan 21 19:25:39 tachyon Badness in pci_find_subsys at 
-drivers/pci/search.c:132
-Jan 21 19:25:39 tachyon Call Trace:
-Jan 21 19:25:39 tachyon [<c027a7f8>] pci_find_subsys+0xe8/0xf0
-Jan 21 19:25:39 tachyon [<c027a82f>] pci_find_device+0x2f/0x40
-Jan 21 19:25:39 tachyon [<c027a6e8>] pci_find_slot+0x28/0x50
-Jan 21 19:25:39 tachyon [<f9faf9f9>] os_pci_init_handle+0x35/0x62 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0964ff>] _nv001613rm+0x6f/0x7c [nvidia]
-Jan 21 19:25:39 tachyon [<f9fc978f>] _nv001243rm+0x1f/0x24 [nvidia]
-Jan 21 19:25:39 tachyon [<fa07a8fd>] _nv003797rm+0xa9/0x128 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0e7341>] _nv001490rm+0x55/0xe4 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10fff4>] _nv000816rm+0x334/0x384 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0787cc>] _nv003801rm+0xd8/0x100 [nvidia]
-Jan 21 19:25:39 tachyon [<fa10faef>] _nv000809rm+0x2f/0x34 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0795f0>] _nv003816rm+0xf0/0x104 [nvidia]
-Jan 21 19:25:39 tachyon [<fa07802b>] _nv003795rm+0x867/0xaec [nvidia]
-Jan 21 19:25:39 tachyon [<f9fe2197>] _nv004046rm+0x3a3/0x3b0 [nvidia]
-Jan 21 19:25:39 tachyon [<fa0e3a47>] _nv001476rm+0x277/0x45c [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcc2ca>] _nv000896rm+0x4a/0x64 [nvidia]
-Jan 21 19:25:39 tachyon [<f9fcdae4>] rm_isr_bh+0xc/0x10 [nvidia]
-Jan 21 19:25:39 tachyon [<f9facd93>] nv_kern_isr_bh+0x11/0x15 [nvidia]
-Jan 21 19:25:39 tachyon [<c0126576>] tasklet_action+0x46/0x70
-Jan 21 19:25:39 tachyon [<c0126390>] do_softirq+0x90/0xa0
-Jan 21 19:25:39 tachyon [<c010cced>] do_IRQ+0xfd/0x130
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c03f77d4>] common_interrupt+0x18/0x20
-Jan 21 19:25:39 tachyon [<c0107000>] rest_init+0x0/0x60
-Jan 21 19:25:39 tachyon [<c0109053>] default_idle+0x23/0x30
-Jan 21 19:25:39 tachyon [<c01090bc>] cpu_idle+0x2c/0x40
-Jan 21 19:25:39 tachyon [<c05026dc>] start_kernel+0x17c/0x1b0
-Jan 21 19:25:39 tachyon [<c0502430>] unknown_bootoption+0x0/0x100
-Jan 21 19:25:39 tachyon
+--==_Exmh_668682134P
+Content-Type: application/pgp-signature
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.3 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
+
+iD8DBQFADtEDcC3lWbTT17ARAkolAKC0Bsttm2gn8U8maWRfuHx2Ji+uCwCeI/Pw
+4uUuV6n8lRoncT+qbO7W0Bw=
+=j/My
+-----END PGP SIGNATURE-----
+
+--==_Exmh_668682134P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
