@@ -1,46 +1,46 @@
-From: James A. Sutherland <jas88@cam.ac.uk>
-Subject: Re: [PATCH] a simple OOM killer to save me from Netscape
-Date: Tue, 17 Apr 2001 22:09:05 +0100
-Message-ID: <c5cpdt0j8i513ulhnq2gnt8fnjs9hhrmkf@4ax.com>
-References: <Pine.LNX.4.21.0104171650530.14442-100000@imladris.rielhome.conectiva> <l03130301b701fc801a61@[192.168.239.105]> <Pine.LNX.4.21.0104171650530.14442-100000@imladris.rielhome.conectiva> <0japdtkjmd12nfj5nplvb4m7n8otq3f8po@4ax.com> <l03130300b7025e809048@[192.168.239.105]>
-In-Reply-To: <l03130300b7025e809048@[192.168.239.105]>
+Date: Wed, 18 Apr 2001 23:32:25 +0200 (MET DST)
+From: Szabolcs Szakacsits <szaka@f-secure.com>
+Subject: Re: suspend processes at load (was Re: a simple OOM ...) 
+In-Reply-To: <Pine.LNX.4.21.0104171648010.14442-100000@imladris.rielhome.conectiva>
+Message-ID: <Pine.LNX.4.30.0104182315010.20939-100000@fs131-224.f-secure.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Morton <chromi@cyberspace.org>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Slats Grobnik <kannzas@excite.com>, linux-mm@kvack.org, Andrew Morton <andrewm@uow.edu.au>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 17 Apr 2001 21:59:46 +0100, you wrote:
+On Tue, 17 Apr 2001, Rik van Riel wrote:
+> On Mon, 16 Apr 2001, Szabolcs Szakacsits wrote:
+> > Please don't. Or at least make it optional and not the default or user
+> > controllable. Trashing is good.
+> This sounds like you have no idea what thrashing is.
 
->>>> I've got an even better idea.  Monitor each process's "working set" -
->>>> ie. the set of unique pages it regularly "uses" or pages in over some
->>>> period of (real) time.  In the event of thrashing, processes should be
->>>> reserved an amount of physical RAM equal to their working set, except
->>>> for processes which have "unreasonably large" working sets.
->>>
->>>This may be a nice idea to move the thrashing point out a bit
->>>further, and as such may be nice in addition to the load control
->>>code.
->>
->>Yes - in addition to, not instead of. Ultimately, there are workloads
->>which CANNOT be handled without suspending/killing some tasks...
->
->Umm.  Actually, my idea wasn't to move the thrashing point but to limit
->thrashing to processes which (by some measure) deserve it.  Thus the
->thrashing in itself becomes load control, rather than (as at present)
->bringing the entire system down.  Hope that's a bit clearer?
+Sorry, your comment isn't convincing enough ;) Why do you think
+"arbitrarily" (decided exclusively by the kernel itself) suspending
+processes (that can be done in user space anyway) would help?
 
-The trouble is, you're effectively suspending these processes, but
-wasting system resources on them! It's much more efficient to suspend
-then until they can be run properly. If they are genuinely thrashing -
-effectively busy-waiting for resources to be available - what point is
-there in NOT suspending them?
+Even if you block new process creation and memory allocations (that's
+also not nice since it can be done by resource limits) why you think
+situation will ever get better i.e. processes release memory?
 
+How you want to avoid "deadlocks" when running processes have
+dependencies on suspended processes?
 
-James.
+What control you plan for sysadmins who *want* to get feedback about bad
+setups as soon as possible?
+
+How you plan to explain on comp.os.linux.development.applications
+that your *perfect* programs can't only be SIGKILL'd by kernel at any
+time but also suspended for indefinite time from now?
+
+Sure it would help in cases and in others it would utterly fail. Just
+like the thrasing case. So as such I see it an unnecessary bloat adding
+complexity and no real functionality.
+
+        Szaka
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
