@@ -1,53 +1,45 @@
-Date: Wed, 15 Aug 2001 19:15:52 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Date: Thu, 16 Aug 2001 01:07:21 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: 0-order allocation problem 
-In-Reply-To: <Pine.LNX.4.21.0108160009520.972-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.21.0108151901310.26574-100000@freak.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.33L.0108152036040.5646-100000@imladris.rielhome.conectiva>
+Message-ID: <Pine.LNX.4.21.0108160050470.1034-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 16 Aug 2001, Hugh Dickins wrote:
-
-> On Wed, 15 Aug 2001, Marcelo Tosatti wrote:
-> > 
-> > Hugh, could you check which kind of allocation is failing and from where?
-> > (allocation flags, etc).
+On Wed, 15 Aug 2001, Rik van Riel wrote:
+> On Thu, 16 Aug 2001, Hugh Dickins wrote:
 > 
-> Whenever I looked the allocation flags were 0x70,
-> __GFP_IO|__GFP_HIGH|__GFP_WAIT; but presumably PF_MEMALLOC too.
+> > 1. Why test free_shortage() in the high-order case?  The caller has
+> >    asked for a high-order allocation, and is prepared to wait: we
+> >    haven't found what the caller needs yet, we certainly should not
+> >    wait forever, but we should try harder: it's irrelevant whether
+> >    there's a free shortage or not - we've found a contiguity shortage.
 > 
-> What I was doing was running a memory hog (for 600MB with 256MB
-> RAM and 512MB swap), exiting that, doing swapoff -a and swapon -a
-> (being interested in timing different swapoff methods).  First
-> run no problem at all, but when immediately run again after,
-> collapsed into endless 0-order allocation failure messages.
-> Didn't happen in 2.4.8.  Linus' patch to 2.4.9-pre4 gets it
-> back to work again, after a burst of those messages.
-> 
-> The stack trace was usually some high-level function, _alloc_pages,
-> __alloc_pages, try_to_free_pages, do_try_to_free_pages, page_launder,
-> swap_writepage, rw_swap_page, rw_swap_page_base, brw_page,
-> create_empty_buffers, create_buffers, get_unused_buffer_head,
-> kmem_cache_alloc, kmem_cache_grow, __get_free_pages,
-> _alloc_pages, __alloc_pages, printk.
-> 
-> But on one occasion it was kswapd calling
-> do_try_to_free_pages, page_launder, swap_writepage... as above.
+> It may be irrelevant, but remember that try_to_free_pages()
+> doesn't free any pages if there is no free shortage.
 
-Linus, 
+I think you've caught me out there.  When "try_to_free_pages()"
+actually tries to free pages is something that changes from time
+to time, and I hadn't looked to see what current behaviour is.
 
-The problem is probably "showing up" due to the reduced scan of the
-inactive dirty list in 2.4.9pre.
+All the more reason not to call free_shortage(), if try_to_free_pages()
+will make its own decision.  The important bit is probably to recycle
+round to page_launder(); or perhaps it's just to spend a little time
+in the hope that something will turn up.... (not Linus' favoured
+strategy, but currently contiguity is given no weight at all in
+choosing pages).
 
-It looks like allocations keep failing until page_launder() finds clean
-buffers to free. Since the scan rate is much smaller now, that is likely
-to happen.
+> Besides, even if it did chances are you wouldn't be able
+> to allocate that 2MB contiguous area any time next week ;)
+
+I'll settle for less...
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
