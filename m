@@ -1,52 +1,40 @@
-Date: Sun, 7 Jan 2001 14:25:42 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [PATCH *] 2.4.0 VM improvements
-In-Reply-To: <Pine.LNX.4.21.0101071529070.21675-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0101071422180.4416-100000@freak.distro.conectiva>
+Received: from atlas.iskon.hr (atlas.iskon.hr [213.191.131.6])
+	by inje.iskon.hr (8.9.3/8.9.3/Debian 8.9.3-6) with ESMTP id VAA20607
+	for <linux-mm@kvack.org>; Sun, 7 Jan 2001 21:38:00 +0100
+Subject: swap_out() question...
+Reply-To: zlatko@iskon.hr
+From: Zlatko Calusic <zlatko@iskon.hr>
+Date: 07 Jan 2001 21:29:06 +0100
+Message-ID: <87wvc79kdp.fsf@atlas.iskon.hr>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+In the swap_out() function in mm/vmscan.c there is this chunk of code:
 
-On Sun, 7 Jan 2001, Rik van Riel wrote:
+	onlist = PageActive(page);
+	/* Don't look at this pte if it's been accessed recently. */
+	if (ptep_test_and_clear_young(page_table)) {
+		age_page_up(page);
+		goto out_failed;
+	}
+	if (!onlist)
+		/* The page is still mapped, so it can't be freeable... */
+		age_page_down_ageonly(page);
 
-> The patch is available at this URL:
-> 
-> 	http://www.surriel.com/patches/2.4/2.4.0-tunevm+rss
+Now I don't understand the last comment. It speaks about mapped page
+but we have only tested if a page is active or no. Also if ageing the
+page gets it age down to zero page will be freeable indeed. What's
+wrong with that comment?
 
-I have one improvement on top of your patch.
+Also why are we aging page down only if it is not active?
 
-Now its not more "rare" (as the comment on the code stated) to have
-pages with page->age == 0 being called on lru_cache_add. 
-
-This patch should make the overhead of calling lru_cache_add on pages with
-page->age == 0 smaller. 
-
---- mm/swap.c.orig      Sun Jan  7 15:59:37 2001
-+++ mm/swap.c   Sun Jan  7 16:11:21 2001
-@@ -233,10 +233,12 @@
-        if (!PageLocked(page))
-                BUG();
-        DEBUG_ADD_PAGE
--       add_page_to_active_list(page);
--       /* This should be relatively rare */
--       if (!page->age)
--               deactivate_page_nolock(page);
-+
-+       if (page->age)
-+               add_page_to_active_list(page);
-+       else
-+               add_page_to_inactive_dirty_list(page);
-+
-        spin_unlock(&pagemap_lru_lock);
- }
- 
-
-
+Rik and other mm guys, could you comment on this?
+-- 
+Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
