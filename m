@@ -1,68 +1,65 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA00027
-	for <linux-mm@kvack.org>; Wed, 20 Jan 1999 13:47:07 -0500
-Subject: Re: Alpha quality write out daemon
-References: <m1g19ep3p9.fsf@flinx.ccr.net> <199901191515.PAA05462@dax.scot.redhat.com> <m1ognuvvwu.fsf@flinx.ccr.net>
-Reply-To: Zlatko.Calusic@CARNet.hr
+Received: from inergen.sybase.com (inergen.sybase.com [192.138.151.43])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA03645
+	for <linux-mm@kvack.org>; Wed, 20 Jan 1999 20:12:57 -0500
+Received: from smtp2.sybase.com (sybgate2.sybase.com [130.214.88.21])
+          by inergen.sybase.com (8.8.4/8.8.4) with ESMTP
+	  id RAA05931 for <linux-mm@kvack.org>; Wed, 20 Jan 1999 17:12:14 -0800 (PST)
+Received: from chicago_notes_1.sybase.com (chicago-notes-1.sybase.com [157.133.46.3])
+          by smtp2.sybase.com (8.8.4/8.8.4) with SMTP
+	  id RAA20399 for <linux-mm@kvack.org>; Wed, 20 Jan 1999 17:10:48 -0800 (PST)
+Message-ID: <36A67DC2.DF27FFEE@sybase.com>
+Date: Wed, 20 Jan 1999 19:07:14 -0600
+From: Jason Froebe <jfroebe@sybase.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 20 Jan 1999 19:46:57 +0100
-In-Reply-To: ebiederm+eric@ccr.net's message of "20 Jan 1999 08:52:33 -0600"
-Message-ID: <87hftllr32.fsf@atlas.CARNet.hr>
+Subject: Large Swap
+Content-Type: multipart/mixed;
+ boundary="------------0847E969060D5E06D2E1DB46"
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-ebiederm+eric@ccr.net (Eric W. Biederman) writes:
+This is a multi-part message in MIME format.
+--------------0847E969060D5E06D2E1DB46
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-[snip]
-> 
-> 2) You can walk the page tables very fast.  
->    Not fast enough to want to walk all of the pages for a single call of try to free pages.
->    But fast enough to refill the dirty list.
-> 
+Hi,
 
-Ha, ha. That comment reminded me of the times when I tried to walk all
-of the page tables in a single call to swapout. I knew it wouldn't
-work well, nor I was sure I'll be able to write such a code and have a 
-working system, but...
+I'm sorry if I'm asking in the wrong mailing list but I'm in a
+rush.  A few days ago a message was posted to the linux-mm list
+describing swap space > 128mb files.  What exactly do I need for
+this capability?  Also, if this is in the 2.1.x and 2.2.x has it
+been put in the 2.0.x kernels?
 
-It actually worked, only the system got so DOG SLOW, I couldn't
-believe. :)
+Thanks a bunch.
 
-In fact that's all I wanted to know, how much time is needed to scan
-the page tables, so I could compare that to setup we use now (and some
-imaginary logic I'll write one day in this or the next century :)).
-And, of course, I wanted to learn few new bits and pieces of MM
-internals, while writing the code.
+jason
 
-For those mathematically challenged, whenever system got into memory
-squeeze (almost all the time), it started spending 95% - 99% of CPU,
-and swapout speed was few tens (at max) of KB's per second. :)
+--------------0847E969060D5E06D2E1DB46
+Content-Type: text/x-vcard; charset=us-ascii;
+ name="jfroebe.vcf"
+Content-Transfer-Encoding: 7bit
+Content-Description: Card for Jason Froebe
+Content-Disposition: attachment;
+ filename="jfroebe.vcf"
 
-[snip]
-> p.s.
-> Since I'm getting some interest, here is my patch with all known
-> bugs fixed.  It doesn't work well but it isn't broken.
-> 
+begin:vcard 
+n:Froebe;Jason
+tel;fax:773-864-7288
+tel;work:1-800-8SYBASE
+x-mozilla-html:TRUE
+url:http://www.sybase.com
+org:Sybase, Inc.;Technical Support
+adr:;;8755 W. Higgins Road Suite 1000	;Chicago;IL;60631;USA
+version:2.1
+email;internet:jfroebe@sybase.com
+title:Technical Support Engineer
+x-mozilla-cpt:;20256
+fn:Jason Froebe
+end:vcard
 
-I very much appreciate people sending new code/patches. It is
-interesting for testing or sometimes simply looking and meditating on
-other people's ideas, so go ahead and send your patches, you're
-welcome.
+--------------0847E969060D5E06D2E1DB46--
 
-Unfortunately, I haven't tested your previous patch, only because I
-was in the middle of testing my swaplock removal impact. Other MM
-changes would have introduced a new variable in the testing, and I
-wanted to avoid that.
-
-But, I'm surely going to test your patch in some time.
-
-Regards,
--- 
-Zlatko
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
