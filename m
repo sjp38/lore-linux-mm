@@ -1,40 +1,44 @@
-Subject: Re: SV: Need ammo against BSD Fud
-References: <Pine.LNX.4.10.9909251226070.22660-100000@imperial.edgeglobal.com>
-From: "David Mentr'e" <David.Mentre@irisa.fr>
-Date: 25 Sep 1999 21:05:41 +0200
-In-Reply-To: James Simmons's message of "Sat, 25 Sep 1999 12:28:30 -0400 (EDT)"
-Message-ID: <wd8puz6erqy.fsf@parate.irisa.fr>
+Date: Sat, 25 Sep 1999 21:19:59 -0400 (EDT)
+From: James Simmons <jsimmons@edgeglobal.com>
+Subject: Re: mm->mmap_sem
+In-Reply-To: <Pine.LNX.4.10.9909251905110.4120-100000@laser.random>
+Message-ID: <Pine.LNX.4.10.9909252050590.25425-100000@imperial.edgeglobal.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: James Simmons <jsimmons@edgeglobal.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-James Simmons <jsimmons@edgeglobal.com> writes:
+> On Sat, 25 Sep 1999, James Simmons wrote:
+> 
+> >Is their any way to do cooperative locking kernel side between two memory
+> >regions? If one is being access you can't physically access the other. I
+> >just want to process to sleep not kill it if it attempts this.
+> 
+> Ah ok.
 
-> Whats page colouring?
+To be exactly I'm trying to do cooperative locking between a mmaping of
+the accel region of /dev/gfx and the framebuffer region of /dev/fb. I
+notice that after mmapping the kernel can no long control access to the
+memory regions. So I need to block any process from accessing the
+framebuffer while the accel engine is running. Since many low end cards
+lock if you access the framebuffer and accel engine at the same time. 
+Note /dev/fb and /dev/gfx both can be opened by different processes.
 
-This is a scheme that tries to allocate pages to minimize cache
-conflicts.
+> So just add a spinlock in userspace. As test_and_set_bit works in
+> userspace also the spinlock will work fine in userspace.
 
-More precisely : if a process need a page, the kernel tries to give him
-a page that will not conflict (that is to say will use a different cache
-set) with its actual set of pages.
+Really. Thats a good idea.
 
-Some "academical" studies have shown that some gain are
-possible. However I do not now any successful real-life implementation
-of page colouring. 
+> Just make sure to always have the lock held before touching the memory
+> region you want to serialize the accesses to.
+> 
+> You need to add the locking into userspace.
 
-Some time ago, David Miller (of sparc, ultrasparc and gcc-sparc64 fame)
-implemented a minimal coulouring support. Should be in some archives.
+Will this work for mmap regions as well?
 
-
-david
--- 
- David.Mentre@irisa.fr -- http://www.irisa.fr/prive/dmentre/
- Opinions expressed here are only mine.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
