@@ -1,31 +1,47 @@
-Date: Mon, 22 Nov 2004 14:51:22 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: page fault scalability patch V11 [0/7]: overview
-In-Reply-To: <20041122224333.GI2714@holomorphy.com>
-Message-ID: <Pine.LNX.4.58.0411221450500.22895@schroedinger.engr.sgi.com>
-References: <20041120062341.GM2714@holomorphy.com> <419EE911.20205@yahoo.com.au>
- <20041119225701.0279f846.akpm@osdl.org> <419EEE7F.3070509@yahoo.com.au>
- <1834180000.1100969975@[10.10.2.4]> <Pine.LNX.4.58.0411200911540.20993@ppc970.osdl.org>
- <20041120190818.GX2714@holomorphy.com> <Pine.LNX.4.58.0411201112200.20993@ppc970.osdl.org>
- <20041120193325.GZ2714@holomorphy.com> <Pine.LNX.4.58.0411220932270.22144@schroedinger.engr.sgi.com>
- <20041122224333.GI2714@holomorphy.com>
+Message-ID: <41A271AE.7090802@yahoo.com.au>
+Date: Tue, 23 Nov 2004 10:09:34 +1100
+From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: deferred rss update instead of sloppy rss
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain> <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com> <20041122141148.1e6ef125.akpm@osdl.org> <Pine.LNX.4.58.0411221408540.22895@schroedinger.engr.sgi.com> <20041122144507.484a7627.akpm@osdl.org> <Pine.LNX.4.58.0411221444410.22895@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0411221444410.22895@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Linus Torvalds <torvalds@osdl.org>, Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, benh@kernel.crashing.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, hugh@veritas.com, torvalds@osdl.org, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 22 Nov 2004, William Lee Irwin III wrote:
+Christoph Lameter wrote:
+> On Mon, 22 Nov 2004, Andrew Morton wrote:
+> 
+> 
+>>>The page fault code only increments rss. For larger transactions that
+>>>increase / decrease rss significantly the page_table_lock is taken and
+>>>mm->rss is updated directly. So no
+>>>gross inaccuracies can result.
+>>
+>>Sure.  Take a million successive pagefaults and mm->rss is grossly
+>>inaccurate.  Hence my suggestion that it be spilled into mm->rss
+>>periodically.
+> 
+> 
+> It is spilled into mm->rss periodically. That is the whole point of the
+> patch.
+> 
+> The timer tick occurs every 1 ms. The maximum pagefault frequency that I
+> have  seen is 500000 faults /second. The max deviation is therefore
+> less than 500 (could be greater if page table lock / mmap_sem always held
+> when the tick occurs).
 
-> The specific patches you compared matter a great deal as there are
-> implementation blunders (e.g. poor placement of counters relative to
-> ->mmap_sem) that can ruin the results. URL's to the specific patches
-> would rule out that source of error.
 
-I mentioned V4 of this patch which was posted to lkml. A simple search
-should get you there.
+You could imagine a situation where something pagefaults and sleeps in
+lock-step with the timer though. Theoretical problem only?
+
+I think that by the time you get the spilling code in, the mm-list method
+will be looking positively elegant!
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
