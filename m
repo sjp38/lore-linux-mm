@@ -1,48 +1,50 @@
-Message-Id: <200312230527.hBN5RGwC003236@turing-police.cc.vt.edu>
-Subject: Re: 2.6.0-mm1 
-In-Reply-To: Your message of "Mon, 22 Dec 2003 21:11:31 PST."
-             <20031222211131.70a963fb.akpm@osdl.org>
-From: Valdis.Kletnieks@vt.edu
+Date: Tue, 23 Dec 2003 05:28:22 +0000 (WET)
+From: "Marcos D. Marado Torres" <marado@student.dei.uc.pt>
+Subject: Re: 2.6.0-mm1
+In-Reply-To: <20031222211131.70a963fb.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.58.0312230526210.112@student.dei.uc.pt>
 References: <20031222211131.70a963fb.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_-1005456549P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Tue, 23 Dec 2003 00:27:08 -0500
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_-1005456549P
-Content-Type: text/plain; charset=us-ascii
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-On Mon, 22 Dec 2003 21:11:31 PST, Andrew Morton <akpm@osdl.org>  said:
-> 
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test11/2.
-6.0-mm1/
+On Mon, 22 Dec 2003, Andrew Morton wrote:
 
-Erm?  Seems to actually be at:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test11/2.6.0-mm1/
+
+As a matter of fact the link is:
 
 ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0/2.6.0-mm1/
 
 
+Thanks for the patch,
+Mind Booster Noori
 
-
---==_Exmh_-1005456549P
-Content-Type: application/pgp-signature
+- --
+==================================================
+Marcos Daniel Marado Torres AKA Mind Booster Noori
+/"\               http://student.dei.uc.pt/~marado
+\ /                       marado@student.dei.uc.pt
+ X   ASCII Ribbon Campaign
+/ \  against HTML e-mail and Micro$oft attachments
+==================================================
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
+Version: GnuPG v1.2.1 (GNU/Linux)
+Comment: Made with pgp4pine 1.76
 
-iD8DBQE/59IrcC3lWbTT17ARAsdHAKCMek/wLv102YXSUoFZXS5RYvAH5ACfXkPy
-TGh+p5NwA5ghA57WXYU28Y0=
-=D8UN
+iD8DBQE/59J5mNlq8m+oD34RAt7lAKDTyWM2+TvG2nvzjBAe8jTjvZO2WQCg3/4p
+GwaJRAHrIcspRXOkeABSIH4=
+=5K8v
 -----END PGP SIGNATURE-----
 
---==_Exmh_-1005456549P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
