@@ -1,38 +1,65 @@
-Date: Sun, 6 Apr 2003 14:35:37 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: objrmap and vmtruncate
-Message-ID: <20030406213537.GO993@holomorphy.com>
-References: <20030405024414.GP16293@dualathlon.random> <20030404192401.03292293.akpm@digeo.com> <20030405040614.66511e1e.akpm@digeo.com> <20030405163003.GD1326@dualathlon.random> <20030405132406.437b27d7.akpm@digeo.com> <20030405220621.GG1326@dualathlon.random> <20030405143138.27003289.akpm@digeo.com> <20030405231008.GI1326@dualathlon.random> <20030405175824.316efe90.akpm@digeo.com> <20030406144734.GN1326@dualathlon.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030406144734.GN1326@dualathlon.random>
+Date: Sun, 6 Apr 2003 17:42:51 -0400 (EDT)
+From: Rik van Riel <riel@surriel.com>
+Subject: Re: subobj-rmap
+In-Reply-To: <1070000.1049664851@[10.10.2.4]>
+Message-ID: <Pine.LNX.4.44.0304061737510.2296-100000@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Andrew Morton <akpm@digeo.com>, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrew Morton <akpm@digeo.com>, andrea@suse.de, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Bill Irwin <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli <andrea@suse.de> wrote:
->>> Esepcially those sigbus in the current api
->>> would be more expensive than the regular paging internal to the VM and
->>> besides the signal it would generate flood of syscalls and kind of
->>> duplication of memory management inside the userspace.
+On Sun, 6 Apr 2003, Martin J. Bligh wrote:
 
-On Sat, Apr 05, 2003 at 05:58:24PM -0800, Andrew Morton wrote:
->> That went away.  We now encode the file offset in the unmapped ptes, so the
->> kernel's fault handler can transparently reestablish the page.
+> Supposing we keep a list of areas (hung from the address_space) that 
+> describes independant linear ranges of memory that have the same set
+> of vma's mapping them (call those subobjects). Each subobject has a
+> chain of vma's from it that are mapping that subobject.
+> 
+> address_space ---> subobject ---> subobject ---> subobject ---> subobject
+>                        |              |              |              |
+>                        v              v              v              v
+>                       vma            vma            vma            vma
+>                        |                             |              |
+>                        v                             v              v
+>                       vma                           vma            vma
+>                        |                             |        
+>                        v                             v        
+>                       vma                           vma       
 
-On Sun, Apr 06, 2003 at 04:47:34PM +0200, Andrea Arcangeli wrote:
-> if you put the file offset in the pte, you will break the max file
-> offset that you can map, that at least should be recoded with a cookie
-> like we do with the swap space
+OK, lets say we have a file of 1000 pages, or
+offsets 0 to 999, with the following mappings:
 
-IIRC we just restricted the size of the file that can use the things to
-avoid having to code quite so much up.
+VMA A:   0-999
+VMA B:   0-200
+VMA C: 150-400
+VMA D: 300-500
+VMA E: 300-500
+VMA F:   0-999
 
+How would you describe these with independant
+regions ?
 
--- wli
+For VMAs D & E and A & F it's a no-brainer,
+but for Oracle shared memory you shouldn't
+assume that you have any similar mappings.
+
+I don't see how the data structure you describe
+would allow us to efficiently select the subset
+of VMAs for which:
+
+1) the start address is smaller than the address we want
+and
+2) the end address is larger than the address we want
+
+Then again, that might just be my lack of imagination.
+
+cheers,
+
+Rik
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
