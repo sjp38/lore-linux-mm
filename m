@@ -1,51 +1,31 @@
-Date: Sun, 1 Jul 2001 22:20:11 +0200
-From: bert hubert <ahu@ds9a.nl>
-Subject: again, no dirty pages?
-Message-ID: <20010701222011.A30171@home.ds9a.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Sun, 1 Jul 2001 23:01:28 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: about distributed memory
+In-Reply-To: <01063021262900.02513@mioooldpc>
+Message-ID: <Pine.LNX.4.33L.0107012301120.19985-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Jordi Polo <mumismo@wanadoo.es>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is my local version of mincore_page in filemap.c:
+On Sat, 30 Jun 2001, Jordi Polo wrote:
 
-static unsigned char mincore_page(struct vm_area_struct * vma,
-		unsigned long pgoff)
-{
-		unsigned char present = 0;
-	struct address_space * as = &vma->vm_file->f_dentry->d_inode->i_data;
-	struct page * page, ** hash = page_hash(as, pgoff);
+> some time ago i think that Rick was doing a patch to allow distributed memory
 
-	spin_lock(&pagecache_lock);
-	page = __find_page_nolock(as, pgoff, *hash);
-	if (page) {
-	 	if(Page_Uptodate(page))
-	                present |= 1;
-	        if(PageDirty(page))
-	                present |= 2;
-	}
+Not that I know.
 
- 	spin_unlock(&pagecache_lock);
- 
- 	return present;
-}
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-But it never sets any bits for DirtyPages, even when I think there should be
-dirty pages, for example, when I run "cat /dev/zero > file" and
-simultaneously cinfo (http://ds9a.nl/cinfo) on the generated file.
+http://www.surriel.com/		http://distro.conectiva.com/
 
-My version of cinfo also looks for the second bit, but it never finds any
-dirty pages.
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
-Any clues? Thanks!
-
--- 
-http://www.PowerDNS.com      Versatile DNS Services  
-Trilab                       The Technology People   
-'SYN! .. SYN|ACK! .. ACK!' - the mating call of the internet
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
