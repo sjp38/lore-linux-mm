@@ -1,26 +1,34 @@
-Date: Sat, 9 Jun 2001 00:30:01 -0300 (BRST)
+Date: Sat, 9 Jun 2001 00:34:40 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] VM tuning patch, take 2
-In-Reply-To: <01060721593800.06690@oscar>
-Message-ID: <Pine.LNX.4.21.0106090028570.10415-100000@imladris.rielhome.conectiva>
+Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps
+In-Reply-To: <Pine.LNX.4.33.0106081853400.418-100000@mikeg.weiden.de>
+Message-ID: <Pine.LNX.4.21.0106090033080.10415-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
-Cc: Jonathan Morton <chromi@cyberspace.org>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jeff Garzik <jgarzik@mandrakesoft.com>, linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: John Stoffel <stoffel@casc.com>, Tobias Ringstrom <tori@unhappy.mine.nu>, Jonathan Morton <chromi@cyberspace.org>, Shane Nay <shane@minirl.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Jun 2001, Ed Tomlinson wrote:
+On Fri, 8 Jun 2001, Mike Galbraith wrote:
+> On Fri, 8 Jun 2001, John Stoffel wrote:
 
-> Think you are right Jonathan.  This adding this back is _not_ going to
-> make a difference.  With the changes Rik made for 2.4.5, these caches
-> are agressivily shrunk when there is free shortage...
+> > I agree, this isn't really a good test case.  I'd rather see what
+> > happens when you fire up a gimp session to edit an image which is
+> > *almost* the size of RAM, or even just 50% the size of ram.
+> 
+> OK, riddle me this.  If this test is a crummy test, just how is it
 
-Suppose you have 80MB of free memory, 120MB in inode/dentry
-cache and no swap.  A 100MB allocation will _fail_ with this
-code removed from vm_enough_memory(), even though it's easy
-to free the inode and dentry caches...
+Personally, I'd like to see BOTH of these tests, and many many
+more.
+
+Preferably, handed to the VM hackers in various colourful
+graphs that allow even severely undercaffeinated hackers to
+see how things changed for the good or the bad between kernel
+revisions.
+
+cheers,
 
 Rik
 --
