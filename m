@@ -1,36 +1,31 @@
-Date: Thu, 25 Mar 2004 20:16:53 +0100
-From: Ingo Molnar <mingo@elte.hu>
-Subject: Re: 2.6.5-rc2-mm3 blizzard of "bad: scheduling while atomic" with PREEMPT
-Message-ID: <20040325191653.GA12785@elte.hu>
-References: <1080237733.2269.31.camel@spc0.esa.lanl.gov> <20040325103506.19129deb.akpm@osdl.org>
+Date: Thu, 25 Mar 2004 11:17:00 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: 2.6.5-rc2-mm3 blizzard of "bad: scheduling while atomic" with
+ PREEMPT
+Message-Id: <20040325111700.432aff4a.akpm@osdl.org>
+In-Reply-To: <20040325190612.GA12383@elte.hu>
+References: <1080237733.2269.31.camel@spc0.esa.lanl.gov>
+	<20040325103506.19129deb.akpm@osdl.org>
+	<20040325190612.GA12383@elte.hu>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040325103506.19129deb.akpm@osdl.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Steven Cole <elenstev@mesatop.com>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: elenstev@mesatop.com, linux-mm@kvack.org, nickpiggin@yahoo.com.au
 List-ID: <linux-mm.kvack.org>
 
-> bad: scheduling while atomic!
-> Call Trace:
->  [<c011d0f0>] schedule+0x3c/0x58c
->  [<c0109f69>] dump_stack+0x19/0x20
->  [<c011f146>] __might_sleep+0xaa/0xb4
->  [<c011d91a>] wait_for_completion+0xae/0x110
->  [<c011d688>] default_wake_function+0x0/0x1c
->  [<c011d688>] default_wake_function+0x0/0x1c
->  [<c011be8b>] sched_migrate_task+0x6b/0x9c
->  [<c011c023>] sched_balance_exec+0x63/0x8c
+Ingo Molnar <mingo@elte.hu> wrote:
+>
+>  ok, this replacement patch should fix it:
+> 
+>    http://redhat.com/~mingo/scheduler-patches/sched-2.6.5-rc2-mm2-A5
 
-the patch against -mm3 is at:
+Thanks, I swapped out the old one for this.
 
-	redhat.com/~mingo/scheduler-patches/sched-2.6.5-rc2-mm3-A0
-
-this also includes the fork-time balancing changes.
-
-	Ingo
+There are rejects against ppc64 files.  But I dropped the ppc64
+sched-domain patches from rc2-mm2, so I'm not sure what's going on there.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
