@@ -1,149 +1,111 @@
-Subject: [PATCH] for_each_pgdat
+Subject: [PATCH] for_each_zone
 From: Robert Love <rml@tech9.net>
 Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Date: 20 Jul 2002 13:22:15 -0700
-Message-Id: <1027196535.1116.773.camel@sinai>
+Date: 20 Jul 2002 13:22:23 -0700
+Message-Id: <1027196543.1555.775.camel@sinai>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@zip.com.au, torvalds@transmeta.com
-Cc: riel@conectiva.com.br, linux-kernel@vger.kernel.org, wli@holomorphy.com, linux-mm@kvack.org
+Cc: riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-This patch implements for_each_pgdat(pg_data_t *) which is a helper
-macro to cleanup code that does a loop of the form:
+Attached patch implements for_each_zone(zont_t *) which is a helper
+macro to cleanup code of the form:
 
-	pgdat = pgdat_list;
-	while(pgdat) {
-		/* ... */
-		pgdat = pgdat->node_next;
-	}
+	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next) { 
+		for (i = 0; i < MAX_NR_ZONES; ++i) { 
+			zone_t * z = pgdat->node_zones + i; 
+			/* ... */ 
+		} 
+	} 
 
 and replace it with:
 
-	for_each_pgdat(pgdat) {
+	for_each_zone(zone) {
 		/* ... */
 	}
 
-This code is from Rik's 2.4-rmap patch and is by William Irwin.
+This patch only replaces one use of the above loop with the new macro. 
+Pending code, however, currently in the full rmap patch uses
+for_each_zone more extensively.
 
-Patch is against 2.5.27, please apply.
+This is from Rik's 2.4-rmap patch and by William Irwin.
+
+This patch requires the previous for_each_pgdat patch, but only to apply
+cleanly.
 
 	Robert Love
 
-diff -urN linux-2.5.27/arch/ia64/mm/init.c linux/arch/ia64/mm/init.c
---- linux-2.5.27/arch/ia64/mm/init.c	Sat Jul 20 12:11:15 2002
-+++ linux/arch/ia64/mm/init.c	Sat Jul 20 12:56:57 2002
-@@ -167,10 +167,10 @@
- 
- #ifdef CONFIG_DISCONTIGMEM
- 	{
--		pg_data_t *pgdat = pgdat_list;
-+		pg_data_t *pgdat;
- 
- 		printk("Free swap:       %6dkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
--		do {
-+		for_each_pgdat(pgdat) {
- 			printk("Node ID: %d\n", pgdat->node_id);
- 			for(i = 0; i < pgdat->node_size; i++) {
- 				if (PageReserved(pgdat->node_mem_map+i))
-@@ -184,8 +184,7 @@
- 			printk("\t%d reserved pages\n", reserved);
- 			printk("\t%d pages shared\n", shared);
- 			printk("\t%d pages swap cached\n", cached);
--			pgdat = pgdat->node_next;
--		} while (pgdat);
-+		}
- 		printk("Total of %ld pages in page table cache\n", pgtable_cache_size);
- 		printk("%d free buffer pages\n", nr_free_buffer_pages());
- 	}
 diff -urN linux-2.5.27/include/linux/mmzone.h linux/include/linux/mmzone.h
 --- linux-2.5.27/include/linux/mmzone.h	Sat Jul 20 12:11:05 2002
-+++ linux/include/linux/mmzone.h	Sat Jul 20 12:56:57 2002
-@@ -163,6 +163,20 @@
++++ linux/include/linux/mmzone.h	Sat Jul 20 13:00:48 2002
+@@ -163,6 +163,43 @@
  
  extern pg_data_t contig_page_data;
  
++/*
++ * next_zone - helper magic for for_each_zone()
++ * Thanks to William Lee Irwin III for this piece of ingenuity.
++ */
++static inline zone_t * next_zone(zone_t * zone)
++{
++	pg_data_t *pgdat = zone->zone_pgdat;
++
++	if (zone - pgdat->node_zones < MAX_NR_ZONES - 1)
++		zone++;
++	else if (pgdat->node_next) {
++		pgdat = pgdat->node_next;
++		zone = pgdat->node_zones;
++	} else
++		zone = NULL;
++
++	return zone;
++}
++
 +/**
-+ * for_each_pgdat - helper macro to iterate over all nodes
-+ * @pgdat - pointer to a pg_data_t variable
++ * for_each_zone - helper macro to iterate over all memory zones
++ * @zone - pointer to zone_t variable
 + *
-+ * Meant to help with common loops of the form
-+ * pgdat = pgdat_list;
-+ * while(pgdat) {
-+ * 	...
-+ * 	pgdat = pgdat->node_next;
++ * The user only needs to declare the zone variable, for_each_zone
++ * fills it in. This basically means for_each_zone() is an
++ * easier to read version of this piece of code:
++ *
++ * for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next)
++ * 	for (i = 0; i < MAX_NR_ZONES; ++i) {
++ * 		zone_t * z = pgdat->node_zones + i;
++ * 		...
++ * 	}
 + * }
 + */
-+#define for_each_pgdat(pgdat) \
-+	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next)
++#define for_each_zone(zone) \
++	for (zone = pgdat_list->node_zones; zone; zone = next_zone(zone))
 +
  #ifndef CONFIG_DISCONTIGMEM
  
  #define NODE_DATA(nid)		(&contig_page_data)
-diff -urN linux-2.5.27/mm/bootmem.c linux/mm/bootmem.c
---- linux-2.5.27/mm/bootmem.c	Sat Jul 20 12:11:12 2002
-+++ linux/mm/bootmem.c	Sat Jul 20 12:56:57 2002
-@@ -339,12 +339,11 @@
- 	pg_data_t *pgdat = pgdat_list;
- 	void *ptr;
- 
--	while (pgdat) {
-+	for_each_pgdat(pgdat)
- 		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
- 						align, goal)))
- 			return(ptr);
--		pgdat = pgdat->node_next;
--	}
-+
- 	/*
- 	 * Whoops, we cannot satisfy the allocation request.
- 	 */
 diff -urN linux-2.5.27/mm/page_alloc.c linux/mm/page_alloc.c
 --- linux-2.5.27/mm/page_alloc.c	Sat Jul 20 12:11:07 2002
-+++ linux/mm/page_alloc.c	Sat Jul 20 12:56:57 2002
-@@ -489,10 +489,10 @@
- 
- static unsigned int nr_free_zone_pages(int offset)
++++ linux/mm/page_alloc.c	Sat Jul 20 13:00:48 2002
+@@ -477,12 +477,12 @@
+  */
+ unsigned int nr_free_pages(void)
  {
--	pg_data_t *pgdat = pgdat_list;
-+	pg_data_t *pgdat;
- 	unsigned int sum = 0;
+-	unsigned int i, sum = 0;
+-	pg_data_t *pgdat;
++	unsigned int sum;
++	zone_t *zone;
  
--	do {
-+	for_each_pgdat(pgdat) {
- 		zonelist_t *zonelist = pgdat->node_zonelists + offset;
- 		zone_t **zonep = zonelist->zones;
- 		zone_t *zone;
-@@ -503,9 +503,7 @@
- 			if (size > high)
- 				sum += size - high;
- 		}
--
--		pgdat = pgdat->node_next;
--	} while (pgdat);
-+	}
+-	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next)
+-		for (i = 0; i < MAX_NR_ZONES; ++i)
+-			sum += pgdat->node_zones[i].free_pages;
++	sum = 0;
++	for_each_zone(zone)
++		sum += zone->free_pages;
  
  	return sum;
  }
-@@ -529,13 +527,12 @@
- #if CONFIG_HIGHMEM
- unsigned int nr_free_highpages (void)
- {
--	pg_data_t *pgdat = pgdat_list;
-+	pg_data_t *pgdat;
- 	unsigned int pages = 0;
- 
--	while (pgdat) {
-+	for_each_pgdat(pgdat)
- 		pages += pgdat->node_zones[ZONE_HIGHMEM].free_pages;
--		pgdat = pgdat->node_next;
--	}
-+
- 	return pages;
- }
- #endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
