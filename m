@@ -1,161 +1,163 @@
+Date: Fri, 6 Aug 2004 18:34:28 +0200
+From: Roger Luethi <rl@hellgate.ch>
 Subject: Re: [proc.txt] Fix /proc/pid/statm documentation
-From: Albert Cahalan <albert@users.sf.net>
-In-Reply-To: <20040806120123.GA23081@k3.hellgate.ch>
-References: <1091754711.1231.2388.camel@cube>
-	 <20040806094037.GB11358@k3.hellgate.ch>
-	 <20040806104630.GA17188@holomorphy.com>
-	 <20040806120123.GA23081@k3.hellgate.ch>
-Content-Type: text/plain
-Message-Id: <1091800948.1231.2454.camel@cube>
+Message-ID: <20040806163428.GA31285@k3.hellgate.ch>
+References: <1091754711.1231.2388.camel@cube> <20040806094037.GB11358@k3.hellgate.ch> <1091797122.1231.2452.camel@cube>
 Mime-Version: 1.0
-Date: 06 Aug 2004 10:02:28 -0400
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1091797122.1231.2452.camel@cube>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Luethi <rl@hellgate.ch>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-kernel mailing list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Albert Cahalan <albert@users.sf.net>
+Cc: linux-kernel mailing list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-Roger Luethi writes:
-> On Fri, 06 Aug 2004 05:11:18 -0700, William Lee Irwin III wrote:
+On Fri, 06 Aug 2004 08:58:43 -0400, Albert Cahalan wrote:
+> > Hardly. All I was asking this time was to have a documentation fix
+> > merged, though.
+> 
+> Just delete the documentation. I certainly never use it.
 
->> Some of the 2.4 semantics just don't make sense. I would not find it
->> difficult to explain what I believe correct semantics to be in a written
->> document.
->
-> IMO this is a must for such files (and be it only some comments above
-> the code implementing them). I'm afraid that statm is carrying too much
-> historical baggage, though -- you would add yet another interpretation
-> of those 7 fields.
->
-> Tools reading statm would have to be updated anyway, so I'd rather
-> think about what could be done with a new (or just different) file.
+It wasn't written for you.
 
-Even if the existing fields are indeed mostly junk, you can always
-add new fields to the end.
+> Since you need the kernel source to get the documentation
+> anyway, you might as well examine the fs/proc/*.c files.
 
-> For sysfs we have guidelines (e.g. sysfs.txt: "Attributes should be ASCII
-> text files, preferably with only one value per file. It is noted that it
-> may not be efficient to contain only value per file, so it is socially
-> acceptable to express an array of values of the same type.").
+Some users may prefer written documentation over reading the kernel
+source. In addition, in the case of statm, there is nothing to document
+the expected behavior in the source, either. Which is precisely why
+statm has been utterly broken forever.
 
-This is being lost. PCI ROM data isn't ASCII unless you use hex.
+> > * statm is broken. It was broken in 2.4 as well, but _differently_. Every
+> >   application that relies on statm forwards wrong information, or at
+> >   the very least needs special casing because the information provided
+> >   in various fields differs between kernel versions.
+> 
+> The kernel has multiple stat() syscalls. At times, they have been
+> broken when dealing with UID values that overflow. Should these
+> system calls have been eliminated? If not, how is this different?
 
-> I'm not aware of anything comparable for proc, so it's hard to say
-> what a good solution would look like. Files like /proc/pid/status
-> are human-readable and maintenance-friendly (the parser can recognize
-> unknown values and gets a free label along with it; obsolete fields can
-> be removed).
+stat is a well-defined POSIX call.
 
-If you're just spewing the values with a perl script, sure.
-I'm not sure this matters.
+> > * Nobody can really tell exactly how broken statm is because there is
+> >   no canonical documentation of what it is supposed to do. That implies
+> >   that it is kinda hard to properly fix statm.
+> 
+> Nah. Just look at the 2.2.xx and 2.4.xx kernels.
 
-Normal C programs don't work that way. Unknown values are useless.
-What am I supposed to do with an unknown value? I can't even tell
-what data type it is. Maybe 12345 is really a string. I'm going
-to rely on the values I need, so you can't freely delete things.
-If I didn't need the values, I wouldn't read the file at all.
+2.4 was (is?) broken as well.
 
-> The downside is the performance aspect you pointed out:
-> Reading that file for every process just to grep for one or two values
-> is slow, and some of the unused data items might be expensive for the
-> kernel to produce in the first place.
+> > * I hate the format. I like my proc files human readable. An important
+> >   reason that statm could linger around in a broken state for so long
+> >   is the lack of labels. It's hard to find bugs if there's nothing to
+> >   indicate what the values are supposed to be. (and yes, /proc/pid/stat
+> >   is awful, too, but it has the excuse of providing valuable information)
+> 
+> Nobody has been screwing with the statm formatting. There is
+> no temptation. The same can not be said of the "readable" files.
 
-You're using grep??? That's a script then. You can tolerate
-getting your info from "ps" output. It's not a performance
-issue for you. For ps, performance is a problem. Thus ps must
-get priority in the design of /proc files.
+Agreed, and I'd be interested in solutions. OTOH, it is harder to
+discover if the _content_ is broken in statm.
 
-You can do this:
+> Is is SigCgt or SigCat? That would depend on kernel version.
+> What about /proc/cpuinfo? An old file gets parsed on whitespace.
+> A recent one has ':' characters that you must use.
 
-ps -eo pid= -o comm= | grep '[f]oo' | ...
+I wish there were some written guidelines to prevent things like that in
+the future. I'd be willing to write them up if there was some agreement
+on those rules.
 
-Heck, it's even portable!
+> > The only reason I could see for keeping statm around is that it
+> > is cheaper than status for parsers in top & Co. Having written one
+> > of them myself, I have spent quite some time thinking about better
+> > alternatives. If you want to talk about that, count me in.
+> 
+> The statm format rules, assuming you don't go binary.
 
-> It seems that most new information of interest is being added to
-> /proc/pid/status and friends these days. Are there any plans to
-> accomodate tool authors who are interested in additional information
-> but are wary of the increasing costs of these files?
+The statm format could only work if there was a clear understanding
+what the fields mean. But there isn't.
 
-> A light-weight interface for tools could work like this (ugly):
->
-> $ cat /proc/pid.provided
-> Name SleepAVG Pid Tgid PPid VmSize VmLck VmData [...]
-> $ cat /proc/10235/VmSize.VmData
-> 3380 144
+> >> + size     total program size (pages)  (same as VmSize in status)
+> >> + resident size of memory portions (pages) (same as VmRSS in status)
+> >>
+> >> There was a distinction here that has been lost. One of these
+> >> included memory-mapped hardware. You could see this with the
+> >> X server video memory.
+> >
+> > You can definitely not rely on that distinction being there. Feel free to
+> > add a comment "may or may not include memory-mapped hardware, depending
+> > on the kernel". This makes statm even worse, because even the seemingly
+> > well-defined, redundant fields aren't.
+> 
+> This is merely a kernel bug. Hey, bugs happen.
 
-It's hard to imagine parsing that. I suppose I'm expected to
-dynamicly create a sscanf format using the numbered-parameter
-notation? Maybe I have to fill a table with pointers to... Ugh.
+How can you tell it's a bug? It looks correct to me.
 
-If it's going to be this dynamic, then just give me DWARF2 debug
-info and the raw data. Like this:
+> Why? If statm is broken, it should be fixed. Putting the statm
+> data into the status file was dumb, but it's too late now.
 
-/proc/DWARF2
-/proc/1000/mm_struct
-/proc/1000/signal_struct
-/proc/1000/sighand_struct
-/proc/1000/task/1024/thread_info
-/proc/1000/task/1024/task_struct
-/proc/1000/task/1024/fs_struct
+It was not dumb. Some people actually prefer human-readable output when
+working with proc.
 
-> Or use netlink maybe? It sure would be nice to monitor all processes
-> with lower overhead, and to have tools that can deal with new data
-> items without an update.
+> On AIX:  ps -eo trs
+> On BSD:  ps axo trss
 
-I've been thinking netlink might be good.
+I trust they take that information from /proc/pid/statm, too?
 
-> I am also interested in a related problem -- finding a better way for
-> tools to access process information. Preferably a generic way so we
-> don't need to keep tools and kernel in sync forever. I have some ideas,
-> but I don't know if they are acceptable as solutions (and if the problem
-> actually exists as I see it).
+> Text size is "tsiz". We have that in the stat file, as the difference
+> between end_code and start_code. We don't need second copy of tsiz.
+> 
+> >> + dt       number of dirty pages   (always 0 on 2.6)
+> >>
+> >> This one would be useful.
+> >
+> > Agreed. It would be nice to have it somewhere else.
+> 
+> No, it's not nice to go moving things around. How about you go
 
-Look at other systems. FreeBSD, AIX, and Solaris all have
-superior ways of getting process data. Being compatible, at
-least for the basic info, would be good.
+This field is 0 on 2.6. Zero. Always. I am suggesting to have the
+information available somewhere. That sure ought to count as an
+improvement.
 
-FreeBSD: binary sysctl data with built-in process selection
-AIX:     dedicated syscall, somewhat resembling directory reads
-Solaris: binary /proc, including arrays for per-thread data
+> >> These would be really useful too:
+> >> 1. swap space used
+> >> 2. swap space that would be used if fully paged out
+> >
+> > There are many values that could be interesting or useful. But that
+> > has nothing to do with the abomination that is statm.
+> 
+> These values belong in statm.
 
-Somebody can research Tru64, HP-UX, MacOS X, and IRIX.
+I thought there was no screwing around with the statm format!?
 
-> Most of the current problems with proc are related to tools: They don't
-> like changes and some of them are very sensitive to resource usage
-> (because they may make hundreds of calls per second on typical systems).
+> > Hey, I am all _for_ improving proc. But rather than adding more values,
+> > I'd like to address some design problems first: For example, I'd
+> > like to have a reserved value for N/A (currently, kernels just set
+> > obsolete fields to 0 and parsers must guess whether it's truly 0 or not
+> > available).
+> 
+> Don't even think of changing this.
 
-Make that 2000 /proc reads per second or more. This is too slow.
-I need to read about 1 million /proc files per second.
+Why not? Got a better solution?
 
-> If we want to facilitate the use of additional information in tools,
-> I see two possible strategies:
->
-> - Design a new solution that enables tools to discover the fields
->   that are available and to ask for a subset (as I sketched out in my
->   previous post). This would remove the need for inflexible solutions
->   like statm.
+> > [ fixed linux-mm address ]
+> 
+> This should have been on linux-kernel in the first place.
+> The linux-mm list is kind of obscure, and doubly so because
+> it isn't on vger.kernel.org.
 
-That's useless.
+This _was_ on linux-kernel in the first place. _You_ added the wrong
+linux-mm address. I don't get your humor.
 
-If I didn't need the data, I wouldn't be trying to read it.
-If I haven't written code to use new data, I sure won't be
-caring to know the name of the new data.
+> No, statm is the proper and only place for this data.
+> I certainly don't claim that statm is bug-free code.
+> That's not a reason to discard the whole statm concept.
 
-> - Split proc information by new criteria: Slow, expensive items should
->   not be in the same file as information that tools typically
->   and frequently read. For instance, you could have status_basic,
->   status_exotic, and status_slow. Even status_basic could have a format
->   similar to /proc/pid/status, but would be shorter and contain only
->   the most frequently used values (like statm today -- with all the
->   problems that come with such a pre-made selection).
+The current state of statm code clearly demonstrates the level of
+interest in this concept.
 
-Split by:
-1. locking
-2. security.
-
-
-
+Roger
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
