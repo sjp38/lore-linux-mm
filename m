@@ -1,94 +1,86 @@
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id XAA09922
-	for <linux-mm@kvack.org>; Wed, 17 Jun 1998 23:52:47 -0400
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id EAA11034
+	for <linux-mm@kvack.org>; Thu, 18 Jun 1998 04:31:07 -0400
+Date: Thu, 18 Jun 1998 09:25:55 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Subject: Re: PTE chaining, kswapd and swapin readahead
-References: <Pine.LNX.3.96.980617173630.722A-100000@mirkwood.dummy.home>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 17 Jun 1998 23:06:58 -0500
-In-Reply-To: Rik van Riel's message of Wed, 17 Jun 1998 18:03:14 +0200 (CEST)
-Message-ID: <m1k96fxsil.fsf@flinx.npwt.net>
+In-Reply-To: <m1k96fxsil.fsf@flinx.npwt.net>
+Message-ID: <Pine.LNX.3.96.980618091641.2911D-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+To: "Eric W. Biederman" <ebiederm+eric@npwt.net>
 Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "RR" == Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
+On 17 Jun 1998, Eric W. Biederman wrote:
+> >>>>> "RR" == Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
+> 
+> RR> True LRU swapping might actually be a disadvantage. The way
+> RR> we do things now (walking process address space) can result
+> RR> in a much larger I/O bandwidth to/from the swapping device.
+> 
+> The goal should be to reduce disk I/O as disk bandwidth is way below
+> memory bandwidth.  Using ``unused'' disk bandwidth in prepaging may
+> also be a help.  
 
-RR> On 17 Jun 1998, Eric W. Biederman wrote:
+For normal disks, most I/O is so completely dominated by
+_seeks_, that transfer time can be almost completely ignored.
+This is why we should focus on reducing the number of disk
+I/Os, not the number of blocks transferred.
 
->> If we get around to using a true LRU algorithm we aren't too likely
->> too to swap out address space adjacent pages...  Though I can see the
->> advantage for pages of the same age.
+> Note: much of the write I/O performance we achieve is because
+> get_swap_page() is very efficient at returning adjacent swap pages.
+> I don't see where location is memory makes a difference.
 
-RR> True LRU swapping might actually be a disadvantage. The way
-RR> we do things now (walking process address space) can result
-RR> in a much larger I/O bandwidth to/from the swapping device.
+It makes a difference because:
+- programs usually use larger area's in one piece
+- swapout clustering saves a lot of I/O (like you just said)
+- when pages from a process are adjacant on disk, we can
+  save the same amount of I/O on _swapin_ too.
+- this will result in a _much_ improved bandwidth
 
-The truly optimal algorithm is I to read in the page/pages we are going
-to use next, and remove the page we won't use for the longest period
-of time.  It's the same as LRU but in reverse time order.   And both
-of these algorithms have the important property that they avoid
-Belady's anomoly.  That is with more memory they won't cause more page
-faults and more I/O.
+> We could probably add a few more likely cases to the vm system.  The
+> only simple special cases I can think to add are reverse sequential
+> access, and stack access where pages 1 2 3 4 are accesed and then 4 3
+> 2 1 are accessed in reverse order.
 
-The goal should be to reduce disk I/O as disk bandwidth is way below
-memory bandwidth.  Using ``unused'' disk bandwidth in prepaging may
-also be a help.  
+Maybe that's why stacks grow down :-) Looking at the addresses
+of a shrinking stack, you'll notice that linear forward readahead
+still is the best algorithm.
 
-Note: much of the write I/O performance we achieve is because
-get_swap_page() is very efficient at returning adjacent swap pages.
-I don't see where location is memory makes a difference.
+> >> Also for swapin readahead the only effective strategy I know is to
+> >> implement a kernel system call, that says I'm going to be accessing
+> 
+> The point I was hoping to make is that for programs that find
+> themselves swapping frequently a non blocking read (for mmapped areas)
+> can be quite effective.
 
-As to which pages should be put close to each other for read
-performance, that is a different question.  Files tend to be
-read/written sequentially, so it is a safe bet to anticipate this one
-usage pattern and if it is going on capitalize on it, if not don't do
-any read ahead.
+Agreed. And combined with your other (snipped) call, it might
+give a _huge_ advantage for large simulations and other
+processes which implement it.
 
-We could probably add a few more likely cases to the vm system.  The
-only simple special cases I can think to add are reverse sequential
-access, and stack access where pages 1 2 3 4 are accesed and then 4 3
-2 1 are accessed in reverse order.  But for the general case it is quite
-difficult to predict, and a wrong prediction could make things worse.
+> RR> There are more possibilities. One of them is to use the
+> RR> same readahead tactic that is being used for mmap()
+> RR> readahead. 
+> 
+> Actually that sounds like a decent idea.  But I doubt it will help
+> much. I will start on the vnodes fairly soon, after I get a kernel
+> pgflush deamon working.
 
->> Also for swapin readahead the only effective strategy I know is to
->> implement a kernel system call, that says I'm going to be accessing
+It _does_ help very much. A lot of the perceived slowness
+of Linux is the 'task switching' in X. By this I mean new
+people selecting another window as their foreground window,
+causing X and the programs to read in huge amounts of
+graphics data, while simultaneously swapping out other data.
 
-The point I was hoping to make is that for programs that find
-themselves swapping frequently a non blocking read (for mmapped areas)
-can be quite effective.  Because in certain circumstances a program
-can in fact predict which pages it will be using next.  And this will
-allow a very close approximation of the true optimal paging
-algorithm, and is fairly simple to implement.  
+By implementing the same readahead tactic as we use for
+mmap()ed files, we could cut the number of I/Os by more
+than one 3rd and probably even more.
 
-For a really close approximation we might also want to have a system
-call that says which pages we aren't likely to be using soon.
-Perhaps:
-mtouch(void *addr, int len, int when);
-where ``when'' can be SOON or LATER ...
-
-Or after looking at:
-http://cesdis.gsfc.nasa.gov/beowulf/software/pager.html
-
-struct mtouch_tuple {
-	caddr_t addr;
-	size_t extent;
-	int when;
-} prepage_list[NR_ELEMENTS];
-mtouch(&prepage_list);
-
-Where prepage_list is terminated with an special element.
-I don't like suggested terminator of a NULL address of 0 because there
-are some programs that actually use that...
-
-The when paremeter is my idea...
-
-RR> There are more possibilities. One of them is to use the
-RR> same readahead tactic that is being used for mmap()
-RR> readahead. 
-
-Actually that sounds like a decent idea.  But I doubt it will help
-much. I will start on the vnodes fairly soon, after I get a kernel
-pgflush deamon working.
-
-Eric
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
