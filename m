@@ -1,58 +1,56 @@
-Message-ID: <41DAD393.1030009@sgi.com>
-Date: Tue, 04 Jan 2005 11:34:11 -0600
+Message-ID: <41DAD2AF.80604@sgi.com>
+Date: Tue, 04 Jan 2005 11:30:23 -0600
 From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
-Subject: Re: page migration\
-References: <20050103171344.GD14886@logos.cnet>	<41D9AC2D.90409@sgi.com>	<20050103183811.GE14886@logos.cnet> <20050105.004221.41649018.taka@valinux.co.jp>
-In-Reply-To: <20050105.004221.41649018.taka@valinux.co.jp>
+Subject: Re: page migration
+References: <41D99743.5000601@sgi.com>	<1104781061.25994.19.camel@localhost>	<41D9A7DB.2020306@sgi.com> <20050104.234207.74734492.taka@valinux.co.jp>
+In-Reply-To: <20050104.234207.74734492.taka@valinux.co.jp>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: marcelo.tosatti@cyclades.com, haveblue@us.ibm.com, linux-mm@kvack.org
+Cc: haveblue@us.ibm.com, marcelo.tosatti@cyclades.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>
->>>Absolutely.  I guess the only question is when to propose the merge with -mm
->>>etc.  Is your defragmentation code in a good enough state to be proposed as
->>>well, or should we wait a bit?
->>
->>No, we have to wait - its not ready yet.
->>
->>But it is really simple and small, as soon as the "asynchronous" memory migration is working.
->>
->>
->>>I think we need at least one user of the code before we can propose that the
->>>memory migration code be merged, or do you think we the arguments are strong
->>>enough we can proceed with users "pending"?
->>
->>IMO the arguments are strong enough that we can proceed with the current state.
->>I'm all for it.
->>
->>Andrew knows the importance and the users of the memory migration infrastructure.
->>
->>Dave, Hirokazu, what are your thoughts on this
-> 
-> 
-> Andrew is interested in our approach.
-> With Ray's help, it will proceed faster and become stable soon:)
-> 
-> 
->>Shall we CC Andrew?
->>
-> 
-> 
+Hirokazu Takahashi wrote:
 
-If it is ok with everyone, I will email Andrew and see how he'd like to 
-proceed on this, whether he'd prefer we contribute a solid "user" of the page 
-migration code with a merged page migration patch, or if it would be ok to
-submit the page migration code stand alone, given that there are multiple 
-users "pending".
+> 
+> I also think we should rewrite page allocation in the memory migration
+> code, as the latest -mm tree includes NUMA aware page allocator. I guess
+> you should also care about mm/mempolicy.c and expand it for your purpose.
+> If memory migration is called after moving a process, a new page would
+> be allocated form a proper node automatically.
+> 
+> Have you checked mm/mempolicy.c?
+> 
+> Thanks,
+> Hirokazu Takahashi.
 
-Of course, I come to this effort late in the game, and if anyone else would
-prefer to do that instead, I will happily oblige them.
+My thinking on this was to update the mempolicy after page migration.
+This works for my purposes since my plan is to
 
+(1)  suspend the process via SIGSTOP
+(2)  update the mempolicy
+(3)  migrate the process's pages
+(4)  migrate the process to the new cpu via set_schedaffinity()
+(5)  resume the process via SIGCONT
+
+These steps are to be performed via a user space program that implements
+the actual migration function; the (2)-(4) are just the system calls that
+implement this.  This keeps some of the function (i. e. which processes to
+migrate) out of the kernel and allows the user some flexibility in what
+order operations are performed as well as other functions that may go
+along with this migration request.  (The actual function we are trying
+to implement is to support >>job<< migration from one set of NUMA nodes to
+another, and a job may consist of several processes.)
+
+Given the order defined above, its not absolutely necessary to suspend
+and resume the process (another reason for letting a user program coordinate
+this) but that is part of the approach we are taking since this is being
+initiated for scheduling reasons in a large NUMA system.
+
+(2) is new function AFAIK; its on my TODO list.
 -- 
 Best Regards,
 Ray
