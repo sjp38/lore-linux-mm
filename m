@@ -1,40 +1,60 @@
-Date: Wed, 8 Mar 2000 23:39:46 +0100
-From: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Subject: Re: Linux responsiveness under heavy load
-Message-ID: <20000308233946.A9644@pcep-jamie.cern.ch>
-References: <20000308223851.A9519@pcep-jamie.cern.ch> <Pine.LNX.4.21.0003081920500.4639-100000@duckman.conectiva>
-Mime-Version: 1.0
+Message-ID: <20000309175119.28794.qmail@web1306.mail.yahoo.com>
+Date: Thu, 9 Mar 2000 09:51:19 -0800 (PST)
+From: Andy Henroid <andy_henroid@yahoo.com>
+Subject: Re: remap_page_range problem on 2.3.x
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0003081920500.4639-100000@duckman.conectiva>; from Rik van Riel on Wed, Mar 08, 2000 at 07:26:22PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Jeff Garzik <jgarzik@mandrakesoft.com>
+Cc: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> > A larger priority for page-in I/O due to interactive process too
-> > might help too.  Some modification of Andrea's elevator.  But
-> > that doesn't seem so easy.
+--- Jeff Garzik <jgarzik@mandrakesoft.com> wrote:
+> Andy Henroid wrote:
+> > 
+> >                        Name: mmtest.tar.gz
+> >    mmtest.tar.gz       Type: Unix Tape Archive
+> (application/x-tar)
+> >                    Encoding: base64
+> >                 Description: mmtest.tar.gz
 > 
-> Read requests are easily tied to a process, so this could
-> be relatively easy. Doing it properly before 2.5 may be a
-> little difficult though ...
+> Are these the correct test files?
+> 
+> rum:~/tmp/mmtest> grep -i remap *
+> rum:~/tmp/mmtest> 
 
-A simple flag with each I/O request meaning "high priority due to
-interactive process I/O".  Make the elevator select high priority
-requests before low ones, with the same sequence number bound for
-fairness as has recently been implemented.
+Yes, the remap_page_range is done indirectly
+through mmap call to the /dev/mem driver.
 
-Maybe even a small holdoff time when going from handling a high priority
-to a low priority request, to give the interactive process a few
-microseconds to stimulate another page in.  (Actually a small holdoff in
-general between I/O "here" and I/O "far away" might improve overall seek
-times, orthogonal to priority issues).
+> I think you'll need to do something like
+> 
+> init():
+> 	dsdt = get_free_pages(...)
+> 
+> chrdev mmap() op:
+> 	remap_page_range(dsdt, ...)
 
-It does seem too simple to work, but has anyone tried it?
+OK, yes I bet that would work.  I just don't see
+any good reason why the remap_page_range doesn't
+appear to be doing the right thing for a piece
+of kmalloced memory.
 
--- Jamie
+> If you are going to present data via /proc, you
+> might as well simply dump the raw data out to
+> whoever is reading /proc/driver/acpi/dsdt...
+
+It's actually a bit less wasteful, for systems
+with large DSDTs, to do the mmap.  But, right,
+this is another possible work-around to my
+current problem.
+
+-Andy
+
+__________________________________________________
+Do You Yahoo!?
+Talk to your friends online with Yahoo! Messenger.
+http://im.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
