@@ -1,42 +1,32 @@
-Message-ID: <4$f2-493c-l$1q$-$$en$68x@07c.xkubt48>
-From: "Earle Holden" <ncnqj49jo@bigfoot.com>
-Reply-To: "Earle Holden" <ncnqj49jo@bigfoot.com>
-Subject: Loss in body fat. r slpo
-Date: Tue, 11 May 04 03:31:37 GMT
+Received: from sesmail.com (sesmail-com.mr.outblaze.com [205.158.62.177])
+	by 72.208.8.67.cfl.rr.com (Postfix) with ESMTP id BD94E22BC3
+	for <linux-mm@kvack.org>; Tue, 11 May 2004 16:28:52 -0700
+Message-ID: <011101c437af$a1f377c2$9a92d04e@sesmail.com>
+From: "Mongoloid E. Disarrangement" <Estabrook@sesmail.com>
+Subject: On our way to a fire, are we?
+Date: Tue, 11 May 2004 16:28:52 -0700
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="BA48A71.3A..."
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linux <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---BA48A71.3A...
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
-
-pickering
-
-H+G+H stimulates an increase in the production of H'G'H. 
-http://www.hghbuyhome.com
-
-Clinical results based on trials show the following amazing results**: 
-88% muscle mass enhancement 
-84% higher energy levels 
-81-83% expanded exercise tolerance/endurance 
-81% increased muscle mass 
-78% improved overall sense of well-being 
-75% improved potency/libido 
-73% improved immune function 
-72% decreased body fat (without diet or exercise) 
-read more ... 
-http://www.hghbuyhome.com
-
-If you have recieved this in error please use
-http://www.hghbuyhome.com/r.html kci hlwt rcmqubngjqirmoj
-zsm
-
---BA48A71.3A...--
+Good evening.
+Special new vacancies: Home manager
+Honest workers only!
+A lot of time to spare with only a part-time job?
+Are you a student whose class schedule impairs working hours?
+Waitta go!
+Are you outgoing and honest? We need someone just like you!
+This job will take only a few hours of your time.
+The company needs people from Australia.
+Space is limited, so act now and take your chance with this super job offer.
+GRAB YOU CHANCE, SEIZE THE MOMENT! THIS JOB IS HOT!
+http://211.237.100.52:3333/
+Our site can give you even more information, check it out.
+Questions? We've got answers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
