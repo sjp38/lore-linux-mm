@@ -1,83 +1,92 @@
-Message-ID: <41E9E5B6.1020306@yahoo.com.au>
-Date: Sun, 16 Jan 2005 14:55:34 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Sat, 15 Jan 2005 20:03:21 -0800
+From: Yasunori Goto <ygoto@us.fujitsu.com>
+Subject: Re: [RFC] Avoiding fragmentation through different allocator
+In-Reply-To: <Pine.LNX.4.58.0501122247390.18142@skynet>
+References: <D36CE1FCEFD3524B81CA12C6FE5BCAB008C77C45@fmsmsx406.amr.corp.intel.com> <Pine.LNX.4.58.0501122247390.18142@skynet>
+Message-Id: <20050115172317.3C0F.YGOTO@us.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: Odd kswapd behaviour after suspending in 2.6.11-rc1
-References: <20050113061401.GA7404@blackham.com.au> <41E61479.5040704@yahoo.com.au> <20050113085626.GA5374@blackham.com.au> <20050113101426.GA4883@blackham.com.au> <41E8ED89.8090306@yahoo.com.au> <1105785254.13918.4.camel@desktop.cunninghams> <41E8F313.4030102@yahoo.com.au> <1105786115.13918.9.camel@desktop.cunninghams> <41E8F7F7.1010908@yahoo.com.au> <20050115124018.GA24653@blackham.com.au> <20050115125311.GA19055@blackham.com.au>
-In-Reply-To: <20050115125311.GA19055@blackham.com.au>
-Content-Type: multipart/mixed;
- boundary="------------060809080903080000000900"
+Content-Type: text/plain; charset="US-ASCII"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bernard Blackham <bernard@blackham.com.au>
-Cc: ncunningham@linuxmail.org, Linux Memory Management <linux-mm@kvack.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: "Tolentino, Matthew E" <matthew.e.tolentino@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------060809080903080000000900
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Hello.
 
-Bernard Blackham wrote:
-> On Sat, Jan 15, 2005 at 08:40:18PM +0800, Bernard Blackham wrote:
+I'm also very interested in your patches, because I'm working for
+memory hotplug too.
+
+> On possibility is that we could say that the UserRclm and KernRclm pool
+> are always eligible for hotplug and have hotplug banks only satisy those
+> allocations pushing KernNonRclm allocations to fixed banks. How is it
+> currently known if a bank of memory is hotplug? Is there a node for each
+> hotplug bank? If yes, we could flag those nodes to only satisify UserRclm
+> and KernRclm allocations and force fallback to other nodes. 
+
+There are 2 types of memory hotplug.
+
+a)SMP machine case
+  A some part of memory will be added and removed.
+
+b)NUMA machine case.
+  Whole of a node will be able to remove and add.
+  However, if a block of memory like DIMM is broken and disabled,
+  Its close from a).
+
+How to know where is hotpluggable bank is platform/archtecture
+dependent issue. 
+ ex) Asking to ACPI.
+     Just node0 become unremovable, and other nodes are removable.
+     etc...
+
+In current your patch, first attribute of all pages are NoRclm.
+But if your patches has interface to decide where will be Rclm for
+each arch/platform, it might be good.
+
+
+> The danger is
+> that allocations would fail because non-hotplug banks were already full
+> and pageout would not happen because the watermarks were satisified.
+
+In this case, if user can change attribute Rclm area to 
+NoRclm, it is better than nothing. 
+In hotplug patches, there will be new zone as ZONE_REMOVABLE.
+But in this patch, this change attribute is a little bit difficult.
+(At first remove the pages from free_area of removable zone, 
+ then add them to free_area of Un-removable zone.)
+Probably its change is easier in your patch.
+
+
+> (Bear in mind I can't test hotplug-related issues due to lack of suitable
+> hardware)
+
+I also don't have real hotplug machine now. ;-)
+I just use software emulation.
+
+> > It looks like you left the per_cpu_pages as-is.  Did you
+> > consider separating those as well to reflect kernel vs. user
+> > pools?
+> >
 > 
->>On Sat, Jan 15, 2005 at 10:01:11PM +1100, Nick Piggin wrote:
->>
->>>Also, Bernard, can you try running with the following patch and
->>>see what output it gives when you reproduce the problem?
->>
->>On resuming:
-> 
-> 
-> And now with higher debug info that may prove useful (balance_pgdat
-> firing as soon as kswapd woken):
-> 
-> *** Cleaning up...
-> Free memory at 'out': 59157.
-> Last free mem was 59157. Is now 59156. I/O info        value 0 now -1.
-> Free memory at start of free_pagedir_data: 59156.
-> Last free mem was 59156. Is now 60013. Checksum pages  value 1 now 857.
-> Free memory at end of free_pagedir: 60013.
-> Pageset size1 was 3057; size2 was 2330.
-> Free memory after freeing pagedir data: 60013.
-> Thawing tasks
-> Waking     4: khelper.
-> Waking     5: kthread.
-> Waking     6: kacpid.
-> Waking     8: pdflush.
-> Waking    11: aio/0.
-> Waking    10: kswapd0.
-> Wakikswapd: balance_pgdat, order = 10
+> I kept the per-cpu caches for UserRclm-style allocations only because
+> otherwise a Kernel-nonreclaimable allocation could easily be taken from a
+> UserRclm pool.
 
-Someone asked for an order 10 allocation by the looks.
+I agree that dividing per-cpu caches is not good way.
+But if Kernel-nonreclaimable allocation use its UserRclm pool, 
+its removable memory bank will be harder to remove suddenly.
+Is it correct? If so, it is not good for memory hotplug.
+Hmmmm.
 
-This might tell us what happened.
+Anyway, thank you for your patch. It is very interesting.
 
---------------060809080903080000000900
-Content-Type: text/plain;
- name="kswapd-debug"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="kswapd-debug"
+Bye.
 
-Index: linux-2.6/mm/vmscan.c
-===================================================================
---- linux-2.6.orig/mm/vmscan.c	2005-01-16 14:52:42.753380598 +1100
-+++ linux-2.6/mm/vmscan.c	2005-01-16 14:54:28.468932870 +1100
-@@ -1194,6 +1194,11 @@
- {
- 	pg_data_t *pgdat;
- 
-+	if (order >= 8) {
-+		printk("wakeup_kswapd(order = %d)\n", order);
-+		dump_stack();
-+	}
-+	
- 	if (zone->present_pages == 0)
- 		return;
- 
+-- 
+Yasunori Goto <ygoto at us.fujitsu.com>
 
---------------060809080903080000000900--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
