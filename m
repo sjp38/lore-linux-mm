@@ -1,43 +1,52 @@
-Date: Wed, 13 Nov 2002 17:37:15 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] 10/4  -ac to newer rmap
-In-Reply-To: <20021113193348.A29582@infradead.org>
-Message-ID: <Pine.LNX.4.44L.0211131735380.3817-100000@imladris.surriel.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id LAA16897
+	for <linux-mm@kvack.org>; Wed, 13 Nov 2002 11:46:15 -0800 (PST)
+Message-ID: <3DD2AC06.DD4CC8D1@digeo.com>
+Date: Wed, 13 Nov 2002 11:46:14 -0800
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] 7/4  -ac to newer rmap
+References: <20021113145002Z80262-18062+21@imladris.surriel.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Arjan van de Ven <arjanv@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Nov 2002, Christoph Hellwig wrote:
+Rik van Riel wrote:
+> 
+> I guess that after a truncate() and maybe some special ext3 transactions
+> anonymous pages can have page->buffers set. Not quite sure about delete
+> from swap cache, though ... maybe the reverse of this patch should be
+> applied into the -rmap tree and mainline instead ?
 
-> >  /*
-> >   * Wait for a page to get unlocked.
-> >   *
-> >   * This must be called with the caller "holding" the page,
-> >   * ie with increased "page->count" so that the page won't
-> >   * go away during the wait..
+There is special code in mainline 2.4's try_to_swap_out() to
+handle these damn pages:
 
-	[snip last 2 paragraphs of comment]
+        /*
+         * Anonymous buffercache pages can be left behind by
+         * concurrent truncate and pagefault.
+         */
+        if (page->buffers)
+                goto preserve;
 
-> >   */
->
-> What is the pint of removing comments?
+These pages are very rare.  And we rather have to do this because
+the buffers may be of the wrong blocksize.
 
-These comments really were excessively large.  The main point of
-this particular patch would be to bring -rmap and -ac in line so
-it's easier to merge patches from one kernel into the other.
+And look, you've already fixed it, in page_launder_zone():
 
-regards,
+                if (page->pte_chain && !page->mapping && !page->buffers) {
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-http://www.surriel.com/		http://guru.conectiva.com/
-Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
+So block_flushpage() "has to succeed" in there.  The only path to those
+buffers is via the page, and the page is locked and there is no IO
+under way and swapcache is not coherent with the blockdev mapping.
 
+(If one of those buffers _is_ locked, block_flushpage() does lock_buffer()
+inside spinlock).
+
+It's not the most glorious part of the kernel.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
