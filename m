@@ -1,47 +1,70 @@
+Date: Thu, 23 Mar 2000 13:53:22 -0500 (EST)
+From: Chuck Lever <cel@monkey.org>
 Subject: Re: madvise (MADV_FREE)
-References: <Pine.BSO.4.10.10003221106150.16476-100000@funky.monkey.org> <qwwk8iuna5i.fsf@sap.com> <20000322193016.A7368@pcep-jamie.cern.ch>
-From: Christoph Rohland <hans-christoph.rohland@sap.com>
-Date: 23 Mar 2000 17:56:12 +0100
-In-Reply-To: Jamie Lokier's message of "Wed, 22 Mar 2000 19:30:16 +0100"
-Message-ID: <qwwaejplj6b.fsf@sap.com>
+In-Reply-To: <20000322233147.A31795@pcep-jamie.cern.ch>
+Message-ID: <Pine.BSO.4.10.10003231332080.20600-100000@funky.monkey.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jamie Lokier <jamie.lokier@cern.ch>
-Cc: Christoph Rohland <hans-christoph.rohland@sap.com>, Chuck Lever <cel@monkey.org>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jamie Lokier <jamie.lokier@cern.ch> writes:
-> Christoph Rohland wrote:
-> > > ok, so you're asking for a lite(TM) version of DONTNEED that
-> > > provides the following hint to the kernel: "i may be finished
-> > > with this page, but i may also want to reuse it immediately."
+On Wed, 22 Mar 2000, Jamie Lokier wrote:
+> > > The only effect of MADV_FREE is to eliminate the write to swap, after
+> > > page ageing has decided to flush a page.  It doesn't change the page
+> > > reclamation policy.
 > > 
-> > I would say "... reuse this address space immediately and you can
-> > give me _any_ data the next time". "Any data" means probably
-> > either the old or a zero page.
+> > ok, here is where i'm confused.  i don't think MADV_DONTNEED and MADV_FREE
+> > are different -- they both work this way.
 > 
-> For maximum performance that's right.  But Linux normally has to
-> provide some minimal security, so an application should only see its
-> own data or zeros, not an arbitrary page.
-
-That was the reason for "...probably either the old or a zero page"
-
-> Zeroing has another advantage: you can efficiently detect it.  So
-> you can use it for cached memory objects too in a number of cases,
-> not just free memory.  (A bit from mincore would also allow
-> detection, but not nearly as efficiently).
+> No they don't.  MADV_DONTNEED always discards private modifications.
+> (BTW I think it should be flushing the swap cache while it's at it).
 > 
-> > That's the optimal strategy for the memory management modules of
-> > SAP R/3.
+> MADV_FREE only discards private modifications when there is paging
+> pressure to do so.  The decisions to do so are deferred, for
+> architectures that support this.  (Includes x86).
+
+i still don't see a big difference.  the private modifications, in both
+cases, won't be written to swap.  in both cases, the application cannot
+rely on the contents of these pages after the madvise call.
+
+for private mappings, pages are freed immediately by DONTNEED; FREE will
+cause the pages to be freed later if the system is low on memory.  that's
+six of one, half dozen of the other.  freeing later may mean the
+application saves a little time now, but freeing immediately could mean
+postponing a low memory scenario, and would allow the system to reuse a
+page that is still in hardware caches.
+
+> > nah, i still say a better way to handle this case is to lower malloc's
+> > "use an anon map instead of the heap" threshold to 4K or 8K.  right now
+> > it's 32K by default.  
 > 
-> Excellent!  A hard core recommendation :-)
+> Try it.  I expect the malloc author chose a high threshold after
+> extensive measurements -- that malloc implementation is the result of a
+> series of implementations and studies.  Do you know that Glibc's malloc
+> also limits the total number of mmaps?  I believe that's because
+> performance plummets when you have too many vmas.
 
-:-)
+the AVL tree structure helps this.  there is still a linear search in the
+number of vmas to find unused areas in a virtual address space.  this
+makes mmap significantly slower when there are a large number of vmas.
+i'll bet some clever person on this list could create a data structure
+that fixes this problem.
 
-Greetings
-		Christoph
+but you said before that the number of small dynamically allocated objects
+dwarfs the number of large objects.  so either there is a problem here, or
+there isn't! :)  can this be any worse than mprotect?
+
+	- Chuck Lever
+--
+corporate:	<chuckl@netscape.com>
+personal:	<chucklever@netscape.net> or <cel@monkey.org>
+
+The Linux Scalability project:
+	http://www.citi.umich.edu/projects/linux-scalability/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
