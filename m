@@ -1,34 +1,45 @@
-Date: Fri, 24 Mar 2000 19:13:13 +0100
-From: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Subject: Re: /dev/recycle
-Message-ID: <20000324191313.E21539@pcep-jamie.cern.ch>
-References: <20000322233147.A31795@pcep-jamie.cern.ch> <Pine.BSO.4.10.10003231332080.20600-100000@funky.monkey.org> <20000324010031.B20140@pcep-jamie.cern.ch> <qwwitycivbx.fsf@sap.com> <20000324141001.A21036@pcep-jamie.cern.ch> <qwwd7okiick.fsf@sap.com> <20000324151708.A21237@pcep-jamie.cern.ch> <qwwpuskgtaz.fsf@sap.com>
+Message-Id: <200003241958.OAA03128@ccure.karaya.com>
+Subject: Re: madvise (MADV_FREE) 
+In-Reply-To: Your message of "Fri, 24 Mar 2000 17:08:28 GMT."
+             <20000324170828.C3693@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <qwwpuskgtaz.fsf@sap.com>; from Christoph Rohland on Fri, Mar 24, 2000 at 06:40:52PM +0100
+Date: Fri, 24 Mar 2000 14:58:10 -0500
+From: Jeff Dike <jdike@karaya.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Rohland <hans-christoph.rohland@sap.com>
-Cc: Chuck Lever <cel@monkey.org>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>, lk@tantalophile.demon.co.uk
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Rohland wrote:
-> 1) /dev/{zero,recycle} shared mappings do only work between childs of
->    the same parent and the parent. Also they do not survive an exec.
+> The i386 not-user-mode kernel
 
-Use file handle passing -- another process can then share the mapping.
-This is what shared anonymous mapping means, and it was added to the
-kernel recently just after posix shm (because posix shm made it easy to
-implement).
+I usually call that the native kernel :-)
 
-> 2) You cannot unmap and remap the same area.
+lk@tantalophile.demon.co.uk said:
+> certainly uses the accessed and dirty bits. What do you think
+> pte_young does?
 
-You can if someone else holds it open.
+sct@redhat.com said:
+> It uses the accessed bit to perform page aging, and it uses the dirty
+> bit to distinguish between private and shared pages on writable
+> private vmas, or to mark dirty shared pages on shared vmas.
 
-Anyway, you can use MAP_RECYCLE when you're mapping posix shm.
-That could be made to work :-)
+I should have thought a little before making that post.  When I did the 
+user-mode port, I didn't have to provide any special support for maintaining 
+the non-protection bits (should I be?).  I essentially stole the i386 
+pgtable.h and pgalloc.h to get the bits and macros, and that's about it.
 
--- Jamie
+Everything appears to work fine, so my conclusion (without delving into the 
+i386 code too deeply) was that the upper kernel maintained them itself without 
+any particular help from the hardware.
+
+Is this correct?  Should I be dealing with the non-protection bits in the arch 
+layer?
+
+				Jeff
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
