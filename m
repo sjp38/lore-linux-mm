@@ -1,30 +1,32 @@
-Received: from toomuch.toronto.redhat.com (IDENT:cedrPg4DXpIqYcrOxjZACj5LZrxvXJhw@toomuch.toronto.redhat.com [172.16.14.22])
-	by lacrosse.corp.redhat.com (8.9.3/8.9.3) with ESMTP id QAA17102
-	for <linux-mm@kvack.org>; Wed, 19 Sep 2001 16:51:48 -0400
-Received: (from bcrl@localhost)
-	by toomuch.toronto.redhat.com (8.11.6/8.11.2) id f8JKplF05852
-	for linux-mm@kvack.org; Wed, 19 Sep 2001 16:51:47 -0400
-Date: Wed, 19 Sep 2001 16:51:47 -0400
-From: Benjamin LaHaise <bcrl@redhat.com>
-Subject: [admin WARNING] ECN is being enabled on kvack.org
-Message-ID: <20010919165147.B5356@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Wed, 19 Sep 2001 20:05:45 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: broken VM in 2.4.10-pre9
+In-Reply-To: <E15jpRy-0003yt-00@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.33L.0109192005170.19147-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Daniel Phillips <phillips@bonn-fries.net>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello folks,
+On Wed, 19 Sep 2001, Alan Cox wrote:
 
-This is a heads up to people that ECN will be enabled on kvack.org at the
-end of September.  If mail cannot be delivered to people's addresses,
-then an automatic unsubscribe will occur.  Cheers,
+> "Linux VM works wonderfully when nobody is using it"
 
-		-ben (owner-linux-mm)
+"This OS is optimised for lmbench"
+
+
+cheers,
+
+Rik
 -- 
-"I can't tell you how many bridges I've jumped off of -- all I get is wet."
+IA64: a worthy successor to i860.
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
