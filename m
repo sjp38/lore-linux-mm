@@ -1,76 +1,62 @@
-Date: Fri, 8 Jun 2001 18:11:55 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: Please test: workaround to help swapoff behaviour
-In-Reply-To: <OF4314E00C.5B8A0E4C-ON85256A64.006F54E0@pok.ibm.com>
-Message-ID: <Pine.LNX.4.21.0106081811180.3343-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <l0313032bb7471092da13@[192.168.239.105]>
+In-Reply-To: 
+        <Pine.LNX.4.21.0106081701300.2422-100000@freak.distro.conectiva>
+References: <15137.15472.264539.290588@gargle.gargle.HOWL>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Date: Sat, 9 Jun 2001 00:44:13 +0100
+From: Jonathan Morton <chromi@cyberspace.org>
+Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bulent Abali <abali@us.ibm.com>
-Cc: Mike Galbraith <mikeg@wen-online.de>, "Eric W. Biederman" <ebiederm@xmission.com>, Derek Glidden <dglidden@illusionary.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>, John Stoffel <stoffel@casc.com>
+Cc: Mike Galbraith <mikeg@wen-online.de>, Tobias Ringstrom <tori@unhappy.mine.nu>, Shane Nay <shane@minirl.com>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+[ Re-entering discussion after too long a day and a long sleep... ]
 
-On Thu, 7 Jun 2001, Bulent Abali wrote:
+>> There is the problem in terms of some people want pure interactive
+>> performance, while others are looking for throughput over all else,
+>> but those are both extremes of the spectrum.  Though I suspect
+>> raw throughput is the less wanted (in terms of numbers of systems)
+>> than keeping interactive response good during VM pressure.
+>
+>And this raises a very very important point: raw throughtput wins
+>enterprise-like benchmarks, and the enterprise people are the ones who pay
+>most of hackers here. (including me and Rik)
 
-> 
-> 
-> 
-> 
-> >This is for the people who has been experiencing the lockups while running
-> >swapoff.
-> >
-> >Please test. (against 2.4.6-pre1)
-> >
-> >
-> >--- linux.orig/mm/swapfile.c Wed Jun  6 18:16:45 2001
-> >+++ linux/mm/swapfile.c Thu Jun  7 16:06:11 2001
-> >@@ -345,6 +345,8 @@
-> >         /*
-> >          * Find a swap page in use and read it in.
-> >          */
-> >+        if (current->need_resched)
-> >+             schedule();
-> >         swap_device_lock(si);
-> >         for (i = 1; i < si->max ; i++) {
-> >              if (si->swap_map[i] > 0 && si->swap_map[i] != SWAP_MAP_BAD)
-> {
-> 
-> 
-> I tested your patch against 2.4.5.  It works.  No more lockups.  Without
-> the
-> patch it took 14 minutes 51 seconds to complete swapoff (this is to recover
-> 1.5GB of
-> swap space).  During this time the system was frozen.  No keyboard, no
-> screen, etc. Practically locked-up.
-> 
-> With the patch there are no more lockups. Swapoff kept running in the
-> background.
-> This is a winner.
-> 
-> But here is the caveat: swapoff keeps burning 100% of the cycles until it
-> completes.
-> This is not going to be a big deal during shutdowns.  Only when you enter
-> swapoff from
-> the command line it is going to be a problem.
-> 
-> I looked at try_to_unuse in swapfile.c.  I believe that the algorithm is
-> broken.
-> For each and every swap entry it is walking the entire process list
-> (for_each_task(p)).  It is also grabbing a whole bunch of locks
-> for each swap entry.  It might be worthwhile processing swap entries in
-> batches instead of one entry at a time.
-> 
-> In any case, I think having this patch is worthwhile as a quick and dirty
-> remedy.
+Very true.  As well as the fact that interactivity is much harder to
+measure.  The question is, what is interactivity (from the kernel's
+perspective)?  It usually means small(ish) processes with intermittent
+working-set and CPU requirements.  These types of process can safely be
+swapped out when not immediately in use, but the kernel has to be able to
+page them in quite quickly when needed.  Doing that under heavy load is
+very non-trivial.
 
-Bulent, 
+It can also mean multimedia applications with a continuous (maybe small)
+working set, a continuous but not 100% CPU usage, and the special property
+that the user WILL notice if this process gets swapped out even briefly.
+mpg123 and XMMS fall into this category, and I sometimes tried running
+these alongside my compilation tests to see how they fared.  I think I had
+it going fairly well towards the end, with mpg123 stuttering relatively
+rarely and briefly while VM load was high.
 
-Could you please check if 2.4.6-pre2+the schedule patch has better
-swapoff behaviour for you? 
+On the subject of Mike Galbraith's kernel compilation test, how much
+physical RAM does he have for his machine, what type of CPU is it, and what
+(approximate) type of device does he use for swap?  I'll see if I can
+partially duplicate his results at this end.  So far all my tests have been
+done with a fast CPU - perhaps I should try the P166/MMX or even try
+loading linux-pmac onto my 8100.
 
-Thanks 
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
+
+The key to knowledge is not to rely on people to teach you it.
+
+GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
+PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
