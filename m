@@ -1,57 +1,42 @@
-Message-ID: <20040205050730.40649.qmail@web9708.mail.yahoo.com>
-Date: Wed, 4 Feb 2004 21:07:30 -0800 (PST)
+Message-ID: <20040205051905.19684.qmail@web9704.mail.yahoo.com>
+Date: Wed, 4 Feb 2004 21:19:05 -0800 (PST)
 From: Alok Mooley <rangdi@yahoo.com>
 Subject: Re: Active Memory Defragmentation: Our implementation & problems
-In-Reply-To: <Pine.LNX.4.53.0402041427270.2947@chaos>
+In-Reply-To: <1075924593.27981.458.camel@nighthawk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: root@chaos.analogic.com
+To: Dave Hansen <haveblue@us.ibm.com>
 Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---- "Richard B. Johnson" <root@chaos.analogic.com>
-wrote:
-> All "blocks" are the same size, i.e., PAGE_SIZE.
-> When RAM
-> is tight the content of a page is written to the
-> swap-file
-> according to a least-recently-used protocol. This
-> frees
-> a page. Pages are allocated to a process only one
-> page at
-> a time. This prevents some hog from grabbing all the
-> memory
-> in the machine. Memory allocation and physical page
-> allocation
-> are two different things, I can malloc() a gigabyte
-> of RAM on
-> a machine. It only gets allocated when an attempt is
-> made
-> to access a page.
+--- Dave Hansen <haveblue@us.ibm.com> wrote:
+> On Wed, 2004-02-04 at 10:54, Alok Mooley wrote:
+> > --- Dave Hansen <haveblue@us.ibm.com> wrote:
+> Depending on the quantity of work that you're trying
+> to do at once, this
+> might be unavoidable.  
+> 
+> I know it's a difficult thing to think about, but I
+> still don't
+> understand the precise cases that you're concerned
+> about.  Page faults
+> to me seem like the least of your problems.  A
+> bigger issue would be if
+> the page is written to by userspace after you copy,
+> but before you
+> install the new pte.  Did I miss the code in your
+> patch that invalidated
+> the old tlb entries?
 
-Only userspace processes are allocated pages via
-page-faults, i.e., one page at a time. Processes
-running in kernel mode can request higher order blocks
-(8K,16K...4M, which are 2 pages,4 pages...1024 pages
-respectively) from the buddy allocator directly. If
-external fragmentation is rampant, requests for these
-higher order blocks may fail. The defragmentation
-utility intends to provide a faster option for higher
-order block formation before swapping (which is the
-last alternative). By the way, 
-malloc finally takes memory from the buddy allocator
-itself (by page-faults), & the defragmenter is out to
-reduce the external fragmentation caused by the buddy
-allocator. Swapping ofcourse cannot be completely
-avoided if the machine is genuinely short of memory.
-Defragmentation may now sound better than needless
-swapping or memory allocation failures, not just
-another cpu hog! 
+This is a non issue for us right now, since we update
+the ptes in a lock, & so no one can access it before
+it is completely updated. Yes, we invalidate the old
+tlb entries as well as the cache entries as reqd. on
+some other architectures.
 
-Regards,
-Alok
+-Alok
 
 
 __________________________________
