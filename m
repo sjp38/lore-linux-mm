@@ -1,45 +1,39 @@
-Date: Fri, 16 Jul 2004 00:21:11 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] /dev/zero page fault scaling
-In-Reply-To: <Pine.SGI.4.58.0407151647100.116400@kzerza.americas.sgi.com>
-Message-ID: <Pine.LNX.4.44.0407160010450.8668-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Date: Sat, 17 Jul 2004 20:52:56 +0200
+From: Ingo Molnar <mingo@elte.hu>
+Subject: Re: [PATCH] Move cache_reap out of timer context
+Message-ID: <20040717185256.GA5815@elte.hu>
+References: <20040714180942.GA18425@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040714180942.GA18425@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Brent Casavant <bcasavan@sgi.com>
-Cc: linux-mm@kvack.org
+To: Dimitri Sivanich <sivanich@sgi.com>
+Cc: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 Jul 2004, Brent Casavant wrote:
-> On Thu, 15 Jul 2004, Hugh Dickins wrote:
+* Dimitri Sivanich <sivanich@sgi.com> wrote:
+
+> I'm submitting two patches associated with moving cache_reap
+> functionality out of timer context.  Note that these patches do not
+> make any further optimizations to cache_reap at this time.
 > 
-> > +	/* Keep it simple: disallow limited <-> unlimited remount */
-> > +	if ((max_blocks || max_inodes) == !sbinfo)
-> > +		return -EINVAL;
+> The first patch adds a function similiar to schedule_delayed_work to
+> allow work to be scheduled on another cpu.
 > 
-> Just caught this one.
+> The second patch makes use of schedule_delayed_work_on to schedule
+> cache_reap to run from keventd.
 > 
-> Shouldn't this be:
+> These patches apply to 2.6.8-rc1.
 > 
-> 	if ((max_blocks || max_inodes) && !sbinfo)
-> 		return -EINVAL;
+> Signed-off-by: Dimitri Sivanich <sivanich@sgi.com>
 
-That's only one half of what I'm trying to disable there, certainly
-the more justifiable half, unlimited -> limited.  At the same time
-I'm trying to say
+looks good to me and i agree with moving this unbound execution-time
+function out of irq context. I suspect this should see some -mm testing
+first/too?
 
-	if (!(max_blocks || max_inodes) && sbinfo)
-		return -EINVAL;
-
-that is, also disable limited -> unlimited.  Why?  To save bloating
-the code, really.  If that's allowed then (a) we need to add in
-kfreeing the old sbinfo and (b) we ought really to go through the
-existing inodes changing i_blocks (maintained while sbinfo) to 0
-(as always while !sbinfo).  Not worth the bother, I thought.
-
-Hugh
-
+	Ingo
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
