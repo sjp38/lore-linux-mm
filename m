@@ -1,430 +1,89 @@
-Date: Fri, 10 Dec 2004 12:03:32 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
+Date: Fri, 10 Dec 2004 21:24:50 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: pfault V12 : correction to tasklist rss
-In-Reply-To: <Pine.LNX.4.44.0412091830580.17648-300000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.58.0412101150490.9169@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.44.0412091830580.17648-300000@localhost.localdomain>
+In-Reply-To: <Pine.LNX.4.58.0412101150490.9169@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.44.0412102054190.32422-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
+To: Christoph Lameter <clameter@sgi.com>
 Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Nick Piggin <nickpiggin@yahoo.com.au>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Dec 2004, Hugh Dickins wrote:
+On Fri, 10 Dec 2004, Christoph Lameter wrote:
+> On Thu, 9 Dec 2004, Hugh Dickins wrote:
+> 
+> > Updating current->rss in do_anonymous_page, current->anon_rss in
+> > page_add_anon_rmap, is not always correct: ptrace's access_process_vm
+> > uses get_user_pages on another task.  You need check that current->mm ==
+> > mm (or vma->vm_mm) before incrementing current->rss or current->anon_rss,
+> > fall back to mm (or vma->vm_mm) in rare case not (taking page_table_lock
+> > for that).  You'll also need to check !(current->flags & PF_BORROWED_MM),
+> > to guard against use_mm.  Or... just go back to sloppy rss.
+> 
+> Use_mm can simply attach the kernel thread to the mm via mm_add_thread
+> and will then update mm->rss when being detached again.
 
-> Updating current->rss in do_anonymous_page, current->anon_rss in
-> page_add_anon_rmap, is not always correct: ptrace's access_process_vm
-> uses get_user_pages on another task.  You need check that current->mm ==
-> mm (or vma->vm_mm) before incrementing current->rss or current->anon_rss,
-> fall back to mm (or vma->vm_mm) in rare case not (taking page_table_lock
-> for that).  You'll also need to check !(current->flags & PF_BORROWED_MM),
-> to guard against use_mm.  Or... just go back to sloppy rss.
+True.  But please add and remove mm outside of the task_lock,
+there's no need to nest page_table_lock within it, is there?
 
-Use_mm can simply attach the kernel thread to the mm via mm_add_thread
-and will then update mm->rss when being detached again.
+> The issue with ptrace and get_user_pages is a bit thorny. I did the check
+> for mm = current->mm in the following patch. If mm != current->mm then
+> do the sloppy thing and increment mm->rss without the page table lock.
+> This should be a very special rare case.
 
-The issue with ptrace and get_user_pages is a bit thorny. I did the check
-for mm = current->mm in the following patch. If mm != current->mm then
-do the sloppy thing and increment mm->rss without the page table lock.
-This should be a very special rare case.
+I don't understand why you want to avoid taking mm->page_table_lock
+in that special rare case.  I do prefer the sloppy rss approach, but if
+you're trying to be exact then it's regrettable to leave sloppy corners.
 
-One could also set current to the target task in get_user_pages but then
-faults for the actual current task may increment the wrong counters. Could
-we live with that?
+Oh, is it because page_add_anon_rmap is usually called with page_table_lock,
+but without in your do_anonymous_page case?  You'll have to move the
+anon_rss incrementation out of page_add_anon_rmap to its callsites
+(I was being a little bit lazy when I sited it in that one place,
+it's probably better to do it near mm->rss anyway.)
 
-Or simply leave as is. The pages are after all allocated by the ptrace
-process and it should be held responsible for it.
+> One could also set current to the target task in get_user_pages but then
+> faults for the actual current task may increment the wrong counters. Could
+> we live with that?
 
-My favorite rss solution is still just getting rid of rss and
-anon_rss and do the long loops in procfs. Whichever process wants to
-know better be willing to pay the price in cpu time and the code for
-incrementing rss can be removed from the page fault handler.
+No, "current" is not nearly so easy to play with as that.
+See i386.  Even if it were, you might get burnt for heresy.
 
-We have no  real way of establishing the ownership of shared pages
-anyways. Its counted when allocated. But the page may live on afterwards
-in another process and then not be accounted for although its only user is
-the new process. IMHO vm scans may be the only way of really getting an
-accurate count.
+> Or simply leave as is. The pages are after all allocated by the ptrace
+> process and it should be held responsible for it.
 
-But here is the improved list_rss patch:
+No.
 
-Index: linux-2.6.9/include/linux/sched.h
-===================================================================
---- linux-2.6.9.orig/include/linux/sched.h	2004-12-06 17:23:55.000000000 -0800
-+++ linux-2.6.9/include/linux/sched.h	2004-12-10 11:39:00.000000000 -0800
-@@ -30,6 +30,7 @@
- #include <linux/pid.h>
- #include <linux/percpu.h>
- #include <linux/topology.h>
-+#include <linux/rcupdate.h>
+> My favorite rss solution is still just getting rid of rss and
+> anon_rss and do the long loops in procfs. Whichever process wants to
+> know better be willing to pay the price in cpu time and the code for
+> incrementing rss can be removed from the page fault handler.
 
- struct exec_domain;
+We all seem to have different favourites.  Your favourite makes
+quite a few people very angry.  We've been there, we've done that,
+we've no wish to return.  It'd be fine if just the process which
+wants to know paid the price; but it's every other that has to pay.
 
-@@ -217,6 +218,7 @@
- 	int map_count;				/* number of VMAs */
- 	struct rw_semaphore mmap_sem;
- 	spinlock_t page_table_lock;		/* Protects page tables, mm->rss, mm->anon_rss */
-+	long rss, anon_rss;
+> We have no  real way of establishing the ownership of shared pages
+> anyways. Its counted when allocated. But the page may live on afterwards
+> in another process and then not be accounted for although its only user is
+> the new process.
 
- 	struct list_head mmlist;		/* List of maybe swapped mm's.  These are globally strung
- 						 * together off init_mm.mmlist, and are protected
-@@ -226,7 +228,7 @@
- 	unsigned long start_code, end_code, start_data, end_data;
- 	unsigned long start_brk, brk, start_stack;
- 	unsigned long arg_start, arg_end, env_start, env_end;
--	unsigned long rss, anon_rss, total_vm, locked_vm, shared_vm;
-+	unsigned long total_vm, locked_vm, shared_vm;
- 	unsigned long exec_vm, stack_vm, reserved_vm, def_flags, nr_ptes;
+I didn't understand that bit.
 
- 	unsigned long saved_auxv[42]; /* for /proc/PID/auxv */
-@@ -236,6 +238,8 @@
+> IMHO vm scans may be the only way of really getting an accurate count.
+> 
+> But here is the improved list_rss patch:
 
- 	/* Architecture-specific MM context */
- 	mm_context_t context;
-+	struct list_head task_list;		/* Tasks using this mm */
-+	struct rcu_head rcu_head;		/* For freeing mm via rcu */
+Not studied in depth, but... am I going mad, or is your impressive
+RCUing the wrong way round?  While we're scanning the list of tasks
+sharing the mm, there's no danger of the mm vanishing, but there is
+a danger of the task vanishing.  Isn't it therefore the task which
+needs to be freed via RCU, not the mm?
 
- 	/* Token based thrashing protection. */
- 	unsigned long swap_token_time;
-@@ -545,6 +549,9 @@
- 	struct list_head ptrace_list;
+Hugh
 
- 	struct mm_struct *mm, *active_mm;
-+	/* Split counters from mm */
-+	long rss;
-+	long anon_rss;
-
- /* task state */
- 	struct linux_binfmt *binfmt;
-@@ -578,6 +585,9 @@
- 	struct completion *vfork_done;		/* for vfork() */
- 	int __user *set_child_tid;		/* CLONE_CHILD_SETTID */
- 	int __user *clear_child_tid;		/* CLONE_CHILD_CLEARTID */
-+
-+	/* List of other tasks using the same mm */
-+	struct list_head mm_tasks;
-
- 	unsigned long rt_priority;
- 	unsigned long it_real_value, it_prof_value, it_virt_value;
-@@ -1124,6 +1134,12 @@
-
- #endif
-
-+void get_rss(struct mm_struct *mm, unsigned long *rss, unsigned long *anon_rss);
-+
-+void mm_remove_thread(struct mm_struct *mm, struct task_struct *tsk);
-+void mm_add_thread(struct mm_struct *mm, struct task_struct *tsk);
-+
- #endif /* __KERNEL__ */
-
- #endif
-+
-Index: linux-2.6.9/fs/proc/task_mmu.c
-===================================================================
---- linux-2.6.9.orig/fs/proc/task_mmu.c	2004-12-06 17:23:54.000000000 -0800
-+++ linux-2.6.9/fs/proc/task_mmu.c	2004-12-10 11:39:00.000000000 -0800
-@@ -6,8 +6,9 @@
-
- char *task_mem(struct mm_struct *mm, char *buffer)
- {
--	unsigned long data, text, lib;
-+	unsigned long data, text, lib, rss, anon_rss;
-
-+	get_rss(mm, &rss, &anon_rss);
- 	data = mm->total_vm - mm->shared_vm - mm->stack_vm;
- 	text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK)) >> 10;
- 	lib = (mm->exec_vm << (PAGE_SHIFT-10)) - text;
-@@ -22,7 +23,7 @@
- 		"VmPTE:\t%8lu kB\n",
- 		(mm->total_vm - mm->reserved_vm) << (PAGE_SHIFT-10),
- 		mm->locked_vm << (PAGE_SHIFT-10),
--		mm->rss << (PAGE_SHIFT-10),
-+		rss << (PAGE_SHIFT-10),
- 		data << (PAGE_SHIFT-10),
- 		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
- 		(PTRS_PER_PTE*sizeof(pte_t)*mm->nr_ptes) >> 10);
-@@ -37,11 +38,14 @@
- int task_statm(struct mm_struct *mm, int *shared, int *text,
- 	       int *data, int *resident)
- {
--	*shared = mm->rss - mm->anon_rss;
-+	unsigned long rss, anon_rss;
-+
-+	get_rss(mm, &rss, &anon_rss);
-+	*shared = rss - anon_rss;
- 	*text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK))
- 								>> PAGE_SHIFT;
- 	*data = mm->total_vm - mm->shared_vm;
--	*resident = mm->rss;
-+	*resident = rss;
- 	return mm->total_vm;
- }
-
-Index: linux-2.6.9/fs/proc/array.c
-===================================================================
---- linux-2.6.9.orig/fs/proc/array.c	2004-12-06 17:23:54.000000000 -0800
-+++ linux-2.6.9/fs/proc/array.c	2004-12-10 11:39:00.000000000 -0800
-@@ -302,7 +302,7 @@
-
- static int do_task_stat(struct task_struct *task, char * buffer, int whole)
- {
--	unsigned long vsize, eip, esp, wchan = ~0UL;
-+	unsigned long rss, anon_rss, vsize, eip, esp, wchan = ~0UL;
- 	long priority, nice;
- 	int tty_pgrp = -1, tty_nr = 0;
- 	sigset_t sigign, sigcatch;
-@@ -325,6 +325,7 @@
- 		vsize = task_vsize(mm);
- 		eip = KSTK_EIP(task);
- 		esp = KSTK_ESP(task);
-+		get_rss(mm, &rss, &anon_rss);
- 	}
-
- 	get_task_comm(tcomm, task);
-@@ -420,7 +421,7 @@
- 		jiffies_to_clock_t(task->it_real_value),
- 		start_time,
- 		vsize,
--		mm ? mm->rss : 0, /* you might want to shift this left 3 */
-+		mm ? rss : 0, /* you might want to shift this left 3 */
- 	        rsslim,
- 		mm ? mm->start_code : 0,
- 		mm ? mm->end_code : 0,
-Index: linux-2.6.9/mm/rmap.c
-===================================================================
---- linux-2.6.9.orig/mm/rmap.c	2004-12-10 11:11:26.000000000 -0800
-+++ linux-2.6.9/mm/rmap.c	2004-12-10 11:46:07.000000000 -0800
-@@ -263,8 +263,6 @@
- 	pte_t *pte;
- 	int referenced = 0;
-
--	if (!mm->rss)
--		goto out;
- 	address = vma_address(page, vma);
- 	if (address == -EFAULT)
- 		goto out;
-@@ -438,7 +436,10 @@
- 	BUG_ON(PageReserved(page));
- 	BUG_ON(!anon_vma);
-
--	vma->vm_mm->anon_rss++;
-+	if (current->mm == vma->vm_mm)
-+		current->anon_rss++;
-+	else
-+		vma->vm_mm->anon_rss++;
-
- 	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
- 	index = (address - vma->vm_start) >> PAGE_SHIFT;
-@@ -510,8 +511,6 @@
- 	pte_t pteval;
- 	int ret = SWAP_AGAIN;
-
--	if (!mm->rss)
--		goto out;
- 	address = vma_address(page, vma);
- 	if (address == -EFAULT)
- 		goto out;
-@@ -799,8 +798,7 @@
- 			if (vma->vm_flags & (VM_LOCKED|VM_RESERVED))
- 				continue;
- 			cursor = (unsigned long) vma->vm_private_data;
--			while (vma->vm_mm->rss &&
--				cursor < max_nl_cursor &&
-+			while (cursor < max_nl_cursor &&
- 				cursor < vma->vm_end - vma->vm_start) {
- 				try_to_unmap_cluster(cursor, &mapcount, vma);
- 				cursor += CLUSTER_SIZE;
-Index: linux-2.6.9/kernel/fork.c
-===================================================================
---- linux-2.6.9.orig/kernel/fork.c	2004-12-06 17:23:55.000000000 -0800
-+++ linux-2.6.9/kernel/fork.c	2004-12-10 11:39:00.000000000 -0800
-@@ -151,6 +151,7 @@
- 	*tsk = *orig;
- 	tsk->thread_info = ti;
- 	ti->task = tsk;
-+	tsk->rss = 0;
-
- 	/* One for us, one for whoever does the "release_task()" (usually parent) */
- 	atomic_set(&tsk->usage,2);
-@@ -292,6 +293,7 @@
- 	atomic_set(&mm->mm_count, 1);
- 	init_rwsem(&mm->mmap_sem);
- 	INIT_LIST_HEAD(&mm->mmlist);
-+	INIT_LIST_HEAD(&mm->task_list);
- 	mm->core_waiters = 0;
- 	mm->nr_ptes = 0;
- 	spin_lock_init(&mm->page_table_lock);
-@@ -323,6 +325,13 @@
- 	return mm;
- }
-
-+static void rcu_free_mm(struct rcu_head *head)
-+{
-+	struct mm_struct *mm = container_of(head ,struct mm_struct, rcu_head);
-+
-+	free_mm(mm);
-+}
-+
- /*
-  * Called when the last reference to the mm
-  * is dropped: either by a lazy thread or by
-@@ -333,7 +342,7 @@
- 	BUG_ON(mm == &init_mm);
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
--	free_mm(mm);
-+	call_rcu(&mm->rcu_head, rcu_free_mm);
- }
-
- /*
-@@ -400,6 +409,8 @@
-
- 	/* Get rid of any cached register state */
- 	deactivate_mm(tsk, mm);
-+	if (mm)
-+		mm_remove_thread(mm, tsk);
-
- 	/* notify parent sleeping on vfork() */
- 	if (vfork_done) {
-@@ -447,8 +458,8 @@
- 		 * new threads start up in user mode using an mm, which
- 		 * allows optimizing out ipis; the tlb_gather_mmu code
- 		 * is an example.
-+		 * (mm_add_thread does use the ptl .... )
- 		 */
--		spin_unlock_wait(&oldmm->page_table_lock);
- 		goto good_mm;
- 	}
-
-@@ -470,6 +481,7 @@
- 		goto free_pt;
-
- good_mm:
-+	mm_add_thread(mm, tsk);
- 	tsk->mm = mm;
- 	tsk->active_mm = mm;
- 	return 0;
-Index: linux-2.6.9/mm/memory.c
-===================================================================
---- linux-2.6.9.orig/mm/memory.c	2004-12-10 11:12:44.000000000 -0800
-+++ linux-2.6.9/mm/memory.c	2004-12-10 11:45:00.000000000 -0800
-@@ -1467,8 +1467,10 @@
- 		 */
- 		page_add_anon_rmap(page, vma, addr);
- 		lru_cache_add_active(page);
--		mm->rss++;
--
-+		if (current->mm == mm)
-+			current->rss++;
-+		else
-+			mm->rss++;
- 	}
- 	pte_unmap(page_table);
-
-@@ -1859,3 +1861,49 @@
- }
-
- #endif
-+
-+void get_rss(struct mm_struct *mm, unsigned long *rss, unsigned long *anon_rss)
-+{
-+	struct list_head *y;
-+	struct task_struct *t;
-+        long rss_sum, anon_rss_sum;
-+
-+	rcu_read_lock();
-+	rss_sum = mm->rss;
-+	anon_rss_sum = mm->anon_rss;
-+	list_for_each_rcu(y, &mm->task_list) {
-+		t = list_entry(y, struct task_struct, mm_tasks);
-+		rss_sum += t->rss;
-+		anon_rss_sum += t->anon_rss;
-+	}
-+	if (rss_sum < 0)
-+		rss_sum = 0;
-+	if (anon_rss_sum < 0)
-+		anon_rss_sum = 0;
-+	rcu_read_unlock();
-+	*rss = rss_sum;
-+	*anon_rss = anon_rss_sum;
-+}
-+
-+void mm_remove_thread(struct mm_struct *mm, struct task_struct *tsk)
-+{
-+	if (!mm)
-+		return;
-+
-+	spin_lock(&mm->page_table_lock);
-+	mm->rss += tsk->rss;
-+	mm->anon_rss += tsk->anon_rss;
-+	list_del_rcu(&tsk->mm_tasks);
-+	spin_unlock(&mm->page_table_lock);
-+}
-+
-+void mm_add_thread(struct mm_struct *mm, struct task_struct *tsk)
-+{
-+	spin_lock(&mm->page_table_lock);
-+	tsk->rss = 0;
-+	tsk->anon_rss = 0;
-+	list_add_rcu(&tsk->mm_tasks, &mm->task_list);
-+	spin_unlock(&mm->page_table_lock);
-+}
-+
-+
-Index: linux-2.6.9/include/linux/init_task.h
-===================================================================
---- linux-2.6.9.orig/include/linux/init_task.h	2004-12-06 17:23:55.000000000 -0800
-+++ linux-2.6.9/include/linux/init_task.h	2004-12-10 11:39:00.000000000 -0800
-@@ -42,6 +42,7 @@
- 	.mmlist		= LIST_HEAD_INIT(name.mmlist),		\
- 	.cpu_vm_mask	= CPU_MASK_ALL,				\
- 	.default_kioctx = INIT_KIOCTX(name.default_kioctx, name),	\
-+	.task_list	= LIST_HEAD_INIT(name.task_list),	\
- }
-
- #define INIT_SIGNALS(sig) {	\
-@@ -112,6 +113,7 @@
- 	.proc_lock	= SPIN_LOCK_UNLOCKED,				\
- 	.switch_lock	= SPIN_LOCK_UNLOCKED,				\
- 	.journal_info	= NULL,						\
-+	.mm_tasks	= LIST_HEAD_INIT(tsk.mm_tasks),			\
- }
-
-
-Index: linux-2.6.9/fs/exec.c
-===================================================================
---- linux-2.6.9.orig/fs/exec.c	2004-12-06 17:23:54.000000000 -0800
-+++ linux-2.6.9/fs/exec.c	2004-12-10 11:39:00.000000000 -0800
-@@ -543,6 +543,7 @@
- 	active_mm = tsk->active_mm;
- 	tsk->mm = mm;
- 	tsk->active_mm = mm;
-+	mm_add_thread(mm, current);
- 	activate_mm(active_mm, mm);
- 	task_unlock(tsk);
- 	arch_pick_mmap_layout(mm);
-Index: linux-2.6.9/fs/aio.c
-===================================================================
---- linux-2.6.9.orig/fs/aio.c	2004-12-06 17:23:54.000000000 -0800
-+++ linux-2.6.9/fs/aio.c	2004-12-10 11:39:00.000000000 -0800
-@@ -575,6 +575,7 @@
- 	atomic_inc(&mm->mm_count);
- 	tsk->mm = mm;
- 	tsk->active_mm = mm;
-+	mm_add_thread(mm, tsk);
- 	activate_mm(active_mm, mm);
- 	task_unlock(tsk);
-
-@@ -597,6 +598,7 @@
- 	struct task_struct *tsk = current;
-
- 	task_lock(tsk);
-+	mm_remove_thread(mm,tsk);
- 	tsk->flags &= ~PF_BORROWED_MM;
- 	tsk->mm = NULL;
- 	/* active_mm is still 'mm' */
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
