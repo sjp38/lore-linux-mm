@@ -1,28 +1,38 @@
-Message-ID: <Oxzp1964AUZ1@para-d.com>
-From: "Eugenia Johnson" <bodoggyy@harmonicelectronics.net>
-Subject: Hard Time Sleeping?
-Date: Sun, 02 Jan 2005 06:11:21 -0100
+Message-ID: <262.PWSS@hiwaay.com>
+Reply-To: "Dewey Ke.Huy" <sunken.280domesticate@hiwaay.com>
+From: "Dewey Ke.Huy" <sunken.280domesticate@hiwaay.com>
+Subject: Did you get our last email?
+Date: Mon, 03 Jan 2005 17:12:38 +0100
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="--1735661265935128"
+	boundary="--06374_972241.nw891"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-aio@kvack.org
+Cc: r-linux-mm@kvack.org, owner-linux-ns83820@kvack.orgmm@kvack.org, rdomo@kvack.orglinux-mm@kvack.org, ner-linux-aio@kvack.orger-linux-aio@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----1735661265935128
+----06374_972241.nw891
 Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7Bit
 
-Generic or Named-Brand We Have It 
-http://www.squirmed5boris.com/?8uYS/f=3D0/k4k/LoiWZ   
+Dear Applicant,
 
+Your application was processed and approved. You are eligible for $ 400,000 with a 2.1 % rate.
 
-practice hadn't evildoer chalet parliamentarian accessory brandt exculpate=
- dusky mystify=20
+Please verify your information here: http://www.santasrates.com/x/loan.php?id=jrwriter
 
-----1735661265935128--
+We look forward to hearing from you.
 
+Dewey Ke.Huy, Account Manager
+iNet Marketing
+3432 Park Avenue
+New Haven, CT 06501
+
+not interested -> http://www.santasrates.com/x/st.html
+
+----06374_972241.nw891--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
