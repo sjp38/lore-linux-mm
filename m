@@ -1,54 +1,42 @@
-Date: Thu, 8 Jun 2000 20:09:57 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Thu, 08 Jun 2000 18:29:07 -0500
+From: Timur Tabi <ttabi@interactivesi.com>
+In-Reply-To: <Pine.LNX.4.21.0006082003120.22665-100000@duckman.distro.conectiva>
+References: <20000608225108Z131165-245+107@kanga.kvack.org>
 Subject: Re: Allocating a page of memory with a given physical address
-In-Reply-To: <20000608225108Z131165-245+107@kanga.kvack.org>
-Message-ID: <Pine.LNX.4.21.0006082003120.22665-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <20000608235235Z131165-283+94@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: Linux MM mailing list <linux-mm@kvack.org>
+To: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Jun 2000, Timur Tabi wrote:
-> ** Reply to message from "Juan J. Quintela" <quintela@fi.udc.es> on 09 Jun 2000
-> 00:15:39 +0200
-> 
-> > Try to grep the kernel for mem_map_reserve uses, it does something
-> > similar, and can be similar to what you want to do.  Notice that you
-> > need to reserve the page *soon* in the boot process.
-> 
-> Unfortunately, that's not an option.  We need to be able to
-> reserve/allocate pages in a driver's init_module() function, and
-> I don't mean drivers that are compiled with the kernel.  We need
-> to be able to ship a stand-alone driver that can work with
-> pretty much any Linux distro of a particular version (e.g. we
-> can say that only 2.4.14 and above is supported).
-> 
-> For the time being, we can work with a patch to the kernel, but
-> that patch be relatively generic, and it must support our
-> dynamically loadable driver.
+** Reply to message from Rik van Riel <riel@conectiva.com.br> on Thu, 8 Jun
+2000 20:09:57 -0300 (BRST)
 
-Linus his policy on this is pretty strict. We won't kludge
-stuff into our kernel just to support some proprietary driver.
 
-Since nothing else seems to need the contorted functionality
-you're asking for, I guess you should look for another way
-to do things...
+> Linus his policy on this is pretty strict. We won't kludge
+> stuff into our kernel just to support some proprietary driver.
 
-(or opensource the driver, of course)
+Well, the idea is to make it some kind of elegant enhancement that Linus would
+approve of.  
 
-regards,
+My idea is to create a new API, call it alloc_phys() or get_phys_page() or
+whatever, that will scan the ???? (whatever the virtual memory manager calls
+those things that keep track of unused virtual memory) until it finds a block
+that points to the given physical address.  It then allocates that particular
+block.
 
-Rik
+Of course, from what little I know of the Linux VM, it looks like I'm in for a
+rocky trip.  For one thing, I don't understand how kernel virtual memory can
+have a one-to-one mapping with physical memory, but user virtual memory has to
+go through three levels of page tables.  When I call get_free_page, it updates
+some entry in mem_map.  What is the mechanism that updates the page tables?  I
+figure the page tables need to be updated, so that a user process can't allocate
+the same physical memory.
+
+
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
