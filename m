@@ -1,65 +1,65 @@
-Received: from root by main.gmane.org with local (Exim 3.35 #1 (Debian))
-	id 18cXsW-0000mO-00
-	for <linux-mm@kvack.org>; Sat, 25 Jan 2003 22:30:16 +0100
-From: "Andres Salomon" <dilinger@voxel.net>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id OAA01272
+	for <linux-mm@kvack.org>; Sat, 25 Jan 2003 14:33:07 -0800 (PST)
+Date: Sat, 25 Jan 2003 14:33:43 -0800
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.59-mm5
-Date: Sat, 25 Jan 2003 03:33:24 -0500
-Message-ID: <pan.2003.01.25.08.33.21.351761@voxel.net>
+Message-Id: <20030125143343.2c505c93.akpm@digeo.com>
+In-Reply-To: <200301251534.32447.tomlins@cam.org>
 References: <20030123195044.47c51d39.akpm@digeo.com>
+	<200301251232.15866.tomlins@cam.org>
+	<20030125094141.1e2b1de3.akpm@digeo.com>
+	<200301251534.32447.tomlins@cam.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: linux-mm@kvack.org, Oleg Drokin <green@namesys.com>
 List-ID: <linux-mm.kvack.org>
 
-My atyfb_base.c compile fix (from 2.5.54) still hasn't found its way into
-any of the main kernel trees.  The original patch generates a reject
-against 2.5.59-mm5, so here's an updated patch.
+Ed Tomlinson <tomlins@cam.org> wrote:
+>
+> On January 25, 2003 12:41 pm, Andrew Morton wrote:
+> > Ed Tomlinson <tomlins@cam.org> wrote:
+> > > Hi Andrew,
+> > >
+> > > I am seeing a strange problem with mm5.  This occurs both with and
+> > > without the anticipatory scheduler changes.  What happens is I see very
+> > > high system times and X responds very very slowly.  I first noticed this
+> > > when switching between folders in kmail and have seen it rebuilding db
+> > > files for squidguard. Here is what happened during the db rebuild (no
+> > > anticipatory ioscheduler):
+> >
+> > Could you please try reverting the reiserfs changes?
+> >
+> > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm5/broken-out/
+> >reiserfs-readpages.patch
+> >
+> > and
+> >
+> > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm5/broken-out/
+> >reiserfs_file_write.patch
+> 
+> Reverting reiserfs_file_write.patch seems to cure the interactivity problems.
+> I still see the high system times but they in themselves are not a problem.
+> Reverting the second patch does not change the situation.  I am currently
+> running with reiserfs_file_write.patch removed - so far so good.
+> 
 
+Well, high system time _is_ a problem, isn't it?  Do you always see that?
 
-On Thu, 23 Jan 2003 19:50:44 -0800, Andrew Morton wrote:
+Or perhaps userspace monitoring tools are confusing I/O wait with CPU
+busyness. Does a revert of
 
-> http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm5/
-> 
-> .  -mm3 and -mm4 were not announced - they were sync-up patches as we
->   worked on the I/O scheduler.
-> 
-> .  -mm5 has the first cut of Nick Piggin's anticipatory I/O scheduler.
->   Here's the scoop:
-> 
-[...]
-> 
-> anticipatory_io_scheduling-2_5_59-mm3.patch
->   Subject: [PATCH] 2.5.59-mm3 antic io sched
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm5/broken-out/buffer-io-accounting.patch
 
+make the numbers look different?  If so, then it's a procps bug...
 
---- a/drivers/video/aty/atyfb_base.c    2003-01-25 03:02:35.000000000 -0500
-+++ b/drivers/video/aty/atyfb_base.c    2003-01-25 03:21:48.000000000 -0500
-@@ -2587,12 +2587,12 @@
-	if (info->screen_base)
-		iounmap((void *) info->screen_base);
- #ifdef __BIG_ENDIAN
--	if (info->cursor && par->cursor->ram)
-+	if (par->cursor && par->cursor->ram)
-		iounmap(par->cursor->ram);
- #endif
- #endif
--	if (info->cursor)
--		kfree(info->cursor);
-+	if (par->cursor)
-+		kfree(par->cursor);
- #ifdef __sparc__
-	if (par->mmap_map)
-		kfree(par->mmap_map);
+WRT the excessive copy_foo_user() times: I shall forward your initial email
+to Oleg, thanks.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
