@@ -1,30 +1,33 @@
-Date: Thu, 27 Feb 2003 21:51:10 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: VM Documentation Release Day
-Message-ID: <4350000.1046411469@[10.10.2.4]>
-In-Reply-To: <Pine.LNX.4.44.0302280156450.14671-100000@skynet>
-References: <Pine.LNX.4.44.0302280156450.14671-100000@skynet>
+From: Duncan Sands <baldrick@wanadoo.fr>
+Subject: Re: Rising io_load results Re: 2.5.63-mm1
+Date: Fri, 28 Feb 2003 08:46:01 +0100
+References: <20030227025900.1205425a.akpm@digeo.com> <20030227160656.40ebeb93.akpm@digeo.com> <200302281128.06840.kernel@kolivas.org>
+In-Reply-To: <200302281128.06840.kernel@kolivas.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+Message-Id: <200302280846.04002.baldrick@wanadoo.fr>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@digeo.com>
+Cc: dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> This is a beginning of the end release of the VM documentation against
-> 2.4.20 as it contains information on pretty much all of the VM. A lot of
-> the older chapters have been cleaned up in terms of language, font usage
-> and presentation and a few new chapters are new. 
+Hi Con, are you sure this is not the same for 2.5.63?
+I left 2.5.63 running over night (doing nothing but run
+KDE), and in the morning it was swapping heavily.
+About 200MB was swapped out and this did not reduce
+with usage.  According to top, 10% of memory was being
+used by a Konsole with nothing in it (could be a memory
+leak in Konsole).  After half an hour I gave up - it was
+too unusable.  Maybe -mm1 just accentuates a problem
+that is already there in 2.5.63.
 
-Congratulations - this must have been a huge amount of effort, and will be
-a most valuable resource to have ... and freely available to everyone too. 
+Ciao,
 
-Thank you,
-
-M.
-
+Duncan.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
