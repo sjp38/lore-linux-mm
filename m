@@ -1,91 +1,72 @@
-Date: Fri, 2 Apr 2004 03:06:45 +0200
+Date: Fri, 2 Apr 2004 03:16:27 +0200
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
-Message-ID: <20040402010645.GI18585@dualathlon.random>
-References: <20040401020126.GW2143@dualathlon.random> <Pine.LNX.4.44.0404010549540.28566-100000@localhost.localdomain> <20040401133555.GC18585@dualathlon.random> <20040401150911.GI18585@dualathlon.random> <20040401151534.GJ18585@dualathlon.random> <20040402001535.GG18585@dualathlon.random> <20040401165216.40b9be98.akpm@osdl.org>
+Message-ID: <20040402011627.GK18585@dualathlon.random>
+References: <20040402001535.GG18585@dualathlon.random> <Pine.LNX.4.44.0404020145490.2423-100000@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040401165216.40b9be98.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.44.0404020145490.2423-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrew Morton <akpm@osdl.org>, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 01, 2004 at 04:52:16PM -0800, Andrew Morton wrote:
-> Andrea Arcangeli <andrea@suse.de> wrote:
-> >
-> > > @@ -149,8 +149,14 @@ int rw_swap_page_sync(int rw, swp_entry_
-> > >  	};
-> > >  
-> > >  	lock_page(page);
-> > > -
-> > > +	/*
-> > > +	 * This library call can be only used to do I/O
-> > > +	 * on _private_ pages just allocated with alloc_pages().
-> > > +	 */
-> > >  	BUG_ON(page->mapping);
-> > > +	BUG_ON(PageSwapCache(page));
-> > > +	BUG_ON(PageAnon(page));
-> > > +	BUG_ON(PageLRU(page));
-> > >  	ret = add_to_page_cache(page, &swapper_space, entry.val, GFP_KERNEL);
-> > >  	if (unlikely(ret)) {
-> > >  		unlock_page(page);
-> > 
+On Fri, Apr 02, 2004 at 02:03:14AM +0100, Hugh Dickins wrote:
+> On Fri, 2 Apr 2004, Andrea Arcangeli wrote:
 > > 
 > > the good thing is that I believe this fix will make it work with the -mm
 > > writeback changes. However this fix now collides with anon-vma since
 > > swapsuspend passes compound pages to rw_swap_page_sync and
 > > add_to_page_cache overwrites page->private and the kernel crashes at the
 > > next page_cache_get() since page->private is now the swap entry and not
-> > a page_t pointer.
-> 
-> Why do swapcache pages have their ->index in ->private?  That should have
-> been commented.
-
-that's because I must leave page->index free for the anon-vma tracking.
-Now an anonymous page while being swapped is just like a pagecache page,
-however the index on swap is different than the index in-address-space,
-because the swap is nonlinear. So I need to indexes, one for finding the
-page in the anon-vma in the task address space (page->index), the other
-(the swap-entry) for finding the page in the swap address-space
-(swapcache, or disk).
-
-> (hugetlb pages are also added to pagecache, and they are compound, but the
-> code looks OK).
-
-hugetlb is never swapped so yes, it cannot generate problems. The only
-thing swapping a compound page is swap suspend and that's why we didn't
-notice it yet.
-
-> > So I guess I've a good reason now to giveup trying to
+> > a page_t pointer. So I guess I've a good reason now to giveup trying to
 > > add the page to the swapcache, and to just fake the radix tree like I
 > > did in my original fix. That way the page won't be swapcache either so I
 > > don't even need to use get_page to avoid remove_exclusive_swap_page to
 > > mess with it.
 > 
-> The BUG_ON in radix_tree_tag_set() is a fairly arbitrary sanity check:
-> "hey, why are you tagging a non-existent item?".
+> Yes, I too was feeling that we'd gone far enough in this "make it like
+> a real swap page" direction, and we'd probably have better luck with
+> "take away all resemblance to a real swap page".
 > 
-> We could simply replace it with a `return NULL;'?
+> I've still done no work or testing on rw_swap_page_sync, but I wonder...
+> remember how your page_mapping(page) gives &swapper_space on a swap
+> cache page, whereas my page_mapping(page) gives NULL on them?  My guess
 
-I wouldn't like to reduce the hardness checks in the radix tree, I was
-very happy to find this robusteness checks trapping those bugs so
-reliably.
+yes.
 
-But I think the compound thing is overkill for 99% of usages, hugetlbfs
-is the only one really needing that sort of transparency in the
-refcounting I believe, so I'm now adding a __GFP_NO_COMP that
-swapsuspend will start to use to allocate the multipages, I'd better add
-it before somebody gets the idea of removing the order parameter to
-free_pages (something you could do just fine with page compound since
-the order is in page[1].index ;). This should fix it, I don't want to
-teach rw_swap_page_sync how to swapout a compound page, I'd rather make
-a compound page look like a regular page as far as rw_swap_page_sync is
-concerned. This will not slowdown the kernel at all since the additional
-check if to create a compound page or not will only trigger if the
-previous check of order > 0 is positive.
+> (quite possibly wrong) is that I won't have any of the trouble you've
+> had with this, that the page_writeback functions, seeing NULL mapping,
+> won't get involved with the radix tree at all - and why should they,
+
+Not sure but I find your way very risky since writepage operations are
+address space methods, it's like calling an object method with a null
+object as parameter, very risky and dirty, and the primary reason I
+wanted my swap cache to have a true page_mapping(page) ==
+&swapper_space, your swapcache having a null mapping looks very dirty to
+me and that's why I avoided it.
+
+Note that the same way you drop the swapper_space with your code
+applied, you could drop it indipendently from mainline too w/o any other
+change. I much prefer to have a real swapper_space with a real tree_lock
+with a real ->writepage callback etc..
+
+> it isn't doing anything useful for rw_swap_page_sync, just getting you
+> into memory allocation difficulties.  No need for add_to_page_cache or
+> add_to_swap_cache there at all.  As I say, I haven't tested this path,
+
+I wouldn't need to call add_to_page_cache either, it's just Andrew
+prefers it.
+
+> but I do know that the rest of swap works fine with NULL page_mapping.
+
+though your code still has no way to work since it will clash on the
+compound page just like mine. Note that my code already works fine as
+far as it's not a compound page, as far as Andrew's code works in
+mainline, my code will work fine, if my code doesn't work yours cannot
+either (we both clash in the compound page infact).
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
