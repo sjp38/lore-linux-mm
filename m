@@ -1,33 +1,52 @@
-Date: Tue, 5 Jun 2001 17:46:51 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [PATCH] reapswap for 2.4.5-ac10
-In-Reply-To: <20010605231454.P26756@redhat.com>
-Message-ID: <Pine.LNX.4.21.0106051742590.3541-100000@freak.distro.conectiva>
+Message-ID: <3B1D5CDC.966285C1@earthlink.net>
+Date: Tue, 05 Jun 2001 16:27:40 -0600
+From: "Joseph A. Knapka" <jknapka@earthlink.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: temp. mem mappings
+References: <bYPDZD.A.c3.-gUH7@dinero.interactivesi.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, =?iso-8859-1?Q?Andr=E9_Dahlqvist?= <anedah-9@sm.luth.se>, linux-mm@kvack.org
+To: Timur Tabi <ttabi@interactivesi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Tue, 5 Jun 2001, Stephen C. Tweedie wrote:
-
-> Hi,
+Timur Tabi wrote:
 > 
-> On Tue, Jun 05, 2001 at 04:48:46PM -0300, Marcelo Tosatti wrote:
->  
-> > I'm resending the reapswap patch for inclusion into -ac series. 
+> ** Reply to message from cohutta <cohutta@MailAndNews.com> on Tue, 5 Jun 2001
+> 16:42:52 -0400
 > 
-> Isn't it broken in this state?  Checking page_count, page->buffers and
-> PageSwapCache without the appropriate locks is dangerous.
+> > I don't really want to play with the page tables if i can help it.
+> > I didn't use ioremap() because it's real system memory, not IO bus
+> > memory.
+> >
+> > How much normal memory is identity-mapped at boot on x86?
+> > Is it more than 8 MB?
+> 
+> Much more.  Somewhere between 2 and 4 GB is mapped.  Large memory support in
+> Linux has always confused me, so I can't remember exactly how much is mapped.
 
-We hold the pagemap_lru_lock, so there will be no one doing lookups on
-this swap page (get_swapcache_page() locks pagemap_lru_lock).
+On x86, it's a little less than 1GB (4G-PAGE_OFFSET-<a little bit for
+fixmaps,
+kmap, vmalloc>); PAGE_OFFSET is 3GB by default. There is some stuff that
+happens
+before that mapping is done, though. All you can absolutely count on
+when you
+first enter 32-bit mode is the low 8MB. setup_arch() in
+arch/i386/kernel/setup.c
+is the place to look if you want to be sure; paging_init() is called
+from there.
 
-Am I overlooking something here? 
+-- Joe
+ 
 
+-- Joseph A. Knapka
+"You know how many remote castles there are along the gorges? You
+ can't MOVE for remote castles!" -- Lu Tze re. Uberwald
+// Linux MM documentation in progress:
+// http://home.earthlink.net/~jknapka/linux-mm/vmoutline.html
+* Evolution is an "unproven theory" in the same sense that gravity is. *
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
