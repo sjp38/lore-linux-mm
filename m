@@ -1,33 +1,52 @@
-Subject: [PATCH] strict VM overcommit for stock 2.4
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <1026426511.1244.321.camel@sinai>
-References: <1026426511.1244.321.camel@sinai>
-Content-Type: text/plain
+Date: Fri, 12 Jul 2002 10:48:06 -0700
+From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
+Subject: Re: scalable kmap (was Re: vm lock contention reduction)
+Message-ID: <253370000.1026496086@flay>
+In-Reply-To: <3D2CBE6A.53A720A0@zip.com.au>
+References: <3D2BC6DB.B60E010D@zip.com.au> <91460000.1026341000@flay> <3D2CBE6A.53A720A0@zip.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Date: 12 Jul 2002 10:30:39 -0700
-Message-Id: <1026495039.1750.379.camel@sinai>
-Mime-Version: 1.0
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-A version of Alan's strict VM overcommit for the stock VM is available
-for 2.4.19-rc1 at:
+OK, preliminary results we've seen about another 15% reduction in CPU load
+on Apache Specweb99 on an 8-way machine with Andrew's kmap patches!
+Will send out some more detailed numbers later from the official specweb
+machine (thanks to Dave Hansen for running the prelim tests).
 
-	ftp://ftp.kernel.org/pub/linux/kernel/people/rml/vm/strict-overcommit/2.4/vm-strict-overcommit-rml-2.4.19-rc1-1.patch
+Secondly, I'd like to propose yet another mechanism, which would
+also be a cheaper way to do things .... based vaguely on an RCU
+type mechanism:
 
-This is the same code I posted yesterday (see "[PATCH] strict VM
-overcommit for" from 20020711) except for the stock non-rmap VM in 2.4.
+When you go to allocate a new global kmap, the danger is that its PTE
+entry has not been TLB flushed, and the old value is still in some CPUs 
+TLB cache.
 
-Hugh Dickins sent me a few fixes, mostly for shmfs accounting, that he
-recently discovered... that code is not yet merged but will be, probably
-after this weekend.
+If only this task context is going to use this kmap (eg copy_to_user), 
+all we need do is check that we have context switched since we last 
+used this kmap entry (since it was freed is easiest). If we have not, we 
+merely do a local single line invalidate of that entry. If we switch to 
+running on any other CPU in the future, we'll do a global TLB flush on 
+the switch, so no problem there. I suspect that 99% of the time, this 
+means no TLB flush at all, or even an invalidate.
 
-I still encourage testing and comments.
+If multiple task contexts might use this kmap, we need to check that
+ALL cpus have done an context switch since this entry was last used.
+If not, we send a single line invalidate to only those other CPUs that
+have not switched, and thus might still have a dirty entry ...
 
-	Robert Love
+I believe RCU already has all the mechanisms for checking context
+switches. By context switch, I really mean TLB flush - ie switched
+processes, not just threads.
+
+Madness?
+
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
