@@ -1,52 +1,57 @@
 Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA23174
-	for <linux-mm@kvack.org>; Tue, 30 Jun 1998 15:09:05 -0400
-Date: Tue, 30 Jun 1998 17:10:46 +0100
-Message-Id: <199806301610.RAA00957@dax.dcs.ed.ac.uk>
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA23197
+	for <linux-mm@kvack.org>; Tue, 30 Jun 1998 15:10:01 -0400
+Date: Tue, 30 Jun 1998 14:10:52 +0100
+Message-Id: <199806301310.OAA00911@dax.dcs.ed.ac.uk>
 From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Subject: Re: (reiserfs) Re: More on Re: (reiserfs) Reiserfs and ext2fs (was Re: (reiserfs) Sum Benchmarks (these look typical?))
-In-Reply-To: <m1u354dlna.fsf@flinx.npwt.net>
-References: <Pine.HPP.3.96.980617035608.29950A-100000@ixion.honeywell.com>
-	<199806221138.MAA00852@dax.dcs.ed.ac.uk>
-	<358F4FBE.821B333C@ricochet.net>
-	<m11zsgrvnf.fsf@flinx.npwt.net>
-	<199806241154.MAA03544@dax.dcs.ed.ac.uk>
-	<m11zse6ecw.fsf@flinx.npwt.net>
-	<199806251100.MAA00835@dax.dcs.ed.ac.uk>
-	<m1emwcf97d.fsf@flinx.npwt.net>
-	<199806291035.LAA00733@dax.dcs.ed.ac.uk>
-	<m1u354dlna.fsf@flinx.npwt.net>
+Subject: Re: Thread implementations...
+In-Reply-To: <m1vhpj8l95.fsf@flinx.npwt.net>
+References: <199806240915.TAA09504@vindaloo.atnf.CSIRO.AU>
+	<Pine.LNX.3.96dg4.980624025515.26983E-100000@twinlark.arctic.org>
+	<199806241213.WAA10661@vindaloo.atnf.CSIRO.AU>
+	<m1u35a4fz8.fsf@flinx.npwt.net>
+	<199806242341.JAA15101@vindaloo.atnf.CSIRO.AU>
+	<m1pvfy3x8f.fsf@flinx.npwt.net>
+	<qww4sx8r44b.fsf@p21491.wdf.sap-ag.de>
+	<m1k964fdu9.fsf@flinx.npwt.net>
+	<199806291019.LAA00726@dax.dcs.ed.ac.uk>
+	<m1vhpj8l95.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
 To: "Eric W. Biederman" <ebiederm+eric@npwt.net>
-Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, Hans Reiser <reiser@ricochet.net>, Shawn Leas <sleas@ixion.honeywell.com>, Reiserfs <reiserfs@devlinux.com>, Ken Tetrick <ktetrick@ixion.honeywell.com>, linux-mm@kvack.org
+Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, Christoph Rohland <hans-christoph.rohland@sap-ag.de>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On 29 Jun 1998 14:59:37 -0500, ebiederm+eric@npwt.net (Eric
+On 30 Jun 1998 01:19:18 -0500, ebiederm+eric@npwt.net (Eric
 W. Biederman) said:
 
-> There are two problems I see.  
+> Again the case was: I have a multithreaded web server serving up
+> files.  The web server mmaps each file, and calls madvise(file_start,
+> file_len, MADV_SEQUENTIAL).  The trick is that it may be serving the
+> say file to two different clients simultaneously.
 
-> 1) A DMA controller actively access the same memory the CPU is
-> accessing could be a problem.  Recall video flicker on old video
-> cards.
+The actual sharing is not a problem; the cache is already safe against
+that even when doing readahead.
 
-Shouldn't be a problem.
+> MADV_SEQUENTIAL implies readahead, and forget behind, but for a simple
+> process.
 
-> 2) More importantly the cpu writes to the _cache_, and the DMA
-> controller reads from the RAM.  I don't see any consistency garnatees
-> there.  We may be able solve these problems on a per architecture or
-> device basis however.
+Yep, the forget behind is the important stuff to get right, but all we
+need to do there is to unmap the pages from the process's address space:
+we don't need to actually flush the page cache.  As long as the page
+cache can find these pages quickly if it needs to reuse the memory for
+something else, then there's no reason to actually forget the data there
+and then.
 
-Again, not important.  If we ever modify a page which is already being
-written out to a device, then we mark that page dirty.  On write, we
-mark it clean (but locked) _before_ starting the IO, not after.  So, if
-there is ever an overlap of a filesystem/mmap write with an IO to disk,
-we will always schedule another IO later to clean the re-dirtied
-buffers.
+> The forget behind is tricky and difficult to get right, but if we
+> concentrate on aggressive readahead (in this  we will probably be
+> o.k.)
+
+Not for very large files: the forget-behind is absolutely critical in
+that case.
 
 --Stephen
