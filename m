@@ -1,47 +1,45 @@
-Date: Wed, 6 Mar 2002 15:09:29 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] struct page shrinkage
-In-Reply-To: <OF8A6868F1.312B7C40-ON85256B74.005CB22E@pok.ibm.com>
-Message-ID: <Pine.LNX.4.44L.0203061508080.2181-100000@imladris.surriel.com>
+Message-ID: <OFC19C560E.A00F9111-ON85256B74.006633D4@pok.ibm.com>
+From: "Bulent Abali" <abali@us.ibm.com>
+Date: Wed, 6 Mar 2002 13:41:51 -0500
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bulent Abali <abali@us.ibm.com>
-Cc: Andrew Morton <akpm@zip.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Mar 2002, Bulent Abali wrote:
-> >Rik van Riel wrote:
-> >>
-> >> +               clear_bit(PG_locked, &p->flags);
-> >
-> >Please don't do this.  Please use the macros.  If they're not
-> >there, please create them.
-> >
-> >Bypassing the abstractions in this manner confounds people
-> >who are implementing global locked-page accounting.
+
+
+>> Andrew,
+>> I have an application which needs to know the total number of locked and
+>> dirtied pages at any given time.  In which application locked-page
+>> accounting is done?   I don't see it in base 2.5.5.   Are there any
+patches
+>> or such that you can give pointers to?
 >
-> I have an application which needs to know the total number of locked and
-> dirtied pages at any given time.  In which application locked-page
-> accounting is done?   I don't see it in base 2.5.5.   Are there any patches
-> or such that you can give pointers to?
+>This is in the ebulliently growing delayed-allocate and
+>buffer_head-bypass patches at
+>
+> http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.6-pre2/
+>
+>The implementation you're looking for is in dalloc-10-core.patch:
+>mm.h and mm/page_alloc.c
 
-You could modify lock_page to do statistics. This is
-made easier if you are sure that every driver uses
-lock_page / LockPage and UnlockPage
+extern struct page_state {
+             unsigned long nr_dirty;
+             unsigned long nr_locked;
+} ____cacheline_aligned page_states[NR_CPUS];
 
-I'm happy Andrew made me clean up the drivers instead
-of just fixing them ;)
+This is perfect.   Looks like, if a run summation over all the CPUs I will
+get the total locked and dirty pages, provided mm.h macros are respected.
+What is the outlook for inclusion of this patch in the main kernel?  Do you
+plan to submit or have been included yet?
+Bulent
 
-regards,
 
-Rik
--- 
-"Linux holds advantages over the single-vendor commercial OS"
-    -- Microsoft's "Competing with Linux" document
 
-http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
