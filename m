@@ -1,37 +1,43 @@
-Subject: Re: [RFT] balancing patch
-References: <200003270803.AAA14950@google.engr.sgi.com>
-From: Christoph Rohland <hans-christoph.rohland@sap.com>
-Date: 27 Mar 2000 19:33:41 +0200
-In-Reply-To: kanoj@google.engr.sgi.com's message of "Mon, 27 Mar 2000 00:03:43 -0800 (PST)"
-Message-ID: <qwwog80uxl6.fsf@sap.com>
+Date: Mon, 27 Mar 2000 14:54:02 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
+Subject: Re: [PATCH] Re: kswapd
+In-Reply-To: <Pine.LNX.4.10.10003271152350.2650-100000@coffee.psychology.mcmaster.ca>
+Message-ID: <Pine.LNX.4.21.0003271452170.1104-100000@duckman.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-kanoj@google.engr.sgi.com (Kanoj Sarcar) writes:
+On Mon, 27 Mar 2000, Mark Hahn wrote:
 
-> People who are experiencing degraded performance in the latest 2.3
-> releases due to overactive kswapd can apply the attached patch to 
-> see whether it helps them. If you try the patch, and see that it
-> helps, or hinders, your system performance, please let me know. 
+> > So think of the bug as "kswapd will waste the final part of its timeslice
+> > doing nothing useful".
+> 
+> yes!  should it not look at the return from try_to_free_pages 
+> to find out whether further looping is needed? 
+> or something based on the current free pages level, hopefully
+> with hysteresis like Rik mentioned?
 
-I did not see degraded performance but tested it anyway with my shm
-stress tests.
+It is looking at the current free page levels, on a zone-by-zone
+basis. Looking at the return value of try_to_free_pages() doesn't
+make much sense IMHO because that just means that normal processes
+will be doing the heavy work instead of kswapd (leading to poor
+interactive response and other trouble).
 
-2.3.99-pre3 is the first release which handles 11.5GB shared mem
-trashing on my 8GB machine without choking.
+regards,
 
-But adding your patch leads again to random process killed and other
-oom situations when it has to go into swap.
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-Greetings
-		Christoph
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
--- 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
