@@ -1,24 +1,33 @@
-Message-Id: <200007121601.MAA14680@multics.mit.edu>
-Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on 2.4.0-test2 
-In-Reply-To: Your message of "Tue, 11 Jul 2000 19:41:27 +0200."
-             <Pine.LNX.4.21.0007111938241.3644-100000@inspiron.random>
-Date: Wed, 12 Jul 2000 12:01:39 -0400
-From: Kev <klmitch@MIT.EDU>
+Message-ID: <396C97F7.2AEE5FE7@augan.com>
+Date: Wed, 12 Jul 2000 18:08:23 +0200
+From: Roman Zippel <roman@augan.com>
+MIME-Version: 1.0
+Subject: Re: map_user_kiobuf problem in 2.4.0-test3
+References: <396C9188.523658B9@sangate.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
+To: Mark Mokryn <mark@sangate.com>
+Cc: linux-kernel@vger.rutgers.edu, linux-scsi@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> >(insert QED here)
-> 
-> What do you mean with "QED"?
+Hi,
 
-"Quod Erat Demonstradum," Latin for "which was to be demonstrated"; it's
-used to indicate the end of mathematical proofs, among others.
--- 
-Kevin L. Mitchell <klmitch@mit.edu>
+> On another interesting note: The raw devices I'm writing to are Fibre
+> Channel drives controlled by a Qlogic 2200 adapter (in 2.2.14 I'm using
+> the Qlogic driver). When writing large sequential blocks to a single
+> drive, I reached 8MB/s when the memory was mapped to the high reserved
+> region, while CPU utilization was down to about 5%. When the mapping was
+> to PCI space, I was able to write at only 4MB/s, and CPU utilization was
+> up to 60%!
 
+The data is copied from a buffer to the pci device. DMA transfers going
+directly to pci space is impossible without (small) changes to 2.2. 2.4
+has the theoretic possibility to do it and checks already for that, but
+how it should be done practically I'd like to know too.
+
+bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
