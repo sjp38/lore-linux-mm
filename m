@@ -1,62 +1,48 @@
-Subject: RE: 2.5.70-mm2
-From: Paul Larson <plars@linuxtestproject.org>
-In-Reply-To: <170EBA504C3AD511A3FE00508BB89A920221E5FF@exnanycmbx4.ipc.com>
-References: <170EBA504C3AD511A3FE00508BB89A920221E5FF@exnanycmbx4.ipc.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature";
-	boundary="=-a9BfjJW0rvRRhPLvGOew"
-Date: 29 May 2003 15:08:28 -0500
-Message-Id: <1054238912.7864.2.camel@plars>
+Date: Thu, 29 May 2003 13:24:39 -0700
+From: "Paul E. McKenney" <paulmck@us.ibm.com>
+Subject: Re: [RFC][PATCH] Avoid vmtruncate/mmap-page-fault race
+Message-ID: <20030529202439.GA1515@us.ibm.com>
+Reply-To: paulmck@us.ibm.com
+References: <Pine.LNX.4.44.0305291723310.1800-100000@localhost.localdomain> <200305291915.22235.phillips@arcor.de> <200305291939.47451.phillips@arcor.de>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200305291939.47451.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Downing, Thomas" <Thomas.Downing@ipc.com>
-Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Daniel Phillips <phillips@arcor.de>
+Cc: Hugh Dickins <hugh@veritas.com>, akpm@digeo.com, hch@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---=-a9BfjJW0rvRRhPLvGOew
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
-
-On Thu, 2003-05-29 at 11:48, Downing, Thomas wrote:=20
-> -----Original Message-----
-> From: Andrew Morton [mailto:akpm@digeo.com]
->=20
+On Thu, May 29, 2003 at 07:39:47PM +0200, Daniel Phillips wrote:
+> On Thursday 29 May 2003 19:15, Daniel Phillips wrote:
+> > On Thursday 29 May 2003 18:33, you wrote:
+> > > Me?  I much preferred your original, much sparer, nopagedone patch
+> > > (labelled "uglyh as hell" by hch).
 > >
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.=
-70-
-> mm2/
-> [snip]
-> >  Needs lots of testing.
-> [snip]
->=20
-> I for one would like to help in that testing, as might others.
-> Could you point to/name some effective test tools/scripts/suites=20
-> for testing your work?  As it is, my testing is just normal usage,
-> lots of builds.
-http://ltp.sourceforge.net
-You can get several test suites from the Linux Test Project.  The main
-one is LTP, but if you are more into database workload testing you may
-want to give DOTS a try.  Compiling LTP on mm2 gave me a pretty severe
-hang about 2 min. ago but past that I don't know anything until I reboot
-and try to get some more information about what's going on.=20
+> > "me too".
+> 
+> Oh wait, I mispoke... there is another formulation of the patch that hasn't 
+> yet been posted for review.  Instead of having the nopagedone hook, it turns 
+> the entire do_no_page into a hook, per hch's suggestion, but leaves in the 
+> ->nopage hook, which makes the patch small and obviously right.  I need to 
+> post that version for comparison, please bear with me.
+> 
+> IMHO, it's nicer than the ->nopagedone form.
 
--Paul Larson
+I put together something like this, but the problem with it is that
+do_anonymous_page() needs the mm->page_table_lock held, but the
+->nopage functions want this lock not to be held.  One could require
+that all the lock be held on entry to all ->nopage functions, but
+this would require almost all ->nopage functions to drop the lock
+immediately upon entry.  This seemed error-prone to me, but could
+certainly be done...
 
---=-a9BfjJW0rvRRhPLvGOew
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+Thoughts?  Me, I don't care as long as there is some reasonable
+way for distributed filesystems to safely resolve the race between
+page faults and invalidation requests from other nodes.  ;-)
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.0.6 (GNU/Linux)
-Comment: For info see http://www.gnupg.org
-
-iEYEABECAAYFAj7WaLwACgkQbkpggQiFDqf0cgCaA+cV332ELaVGW5DjG/9ohHAZ
-ZWsAnixPiuA+uTXdtyTJeVT6O9UFcRgR
-=30oh
------END PGP SIGNATURE-----
-
---=-a9BfjJW0rvRRhPLvGOew--
-
+						Thanx, Paul
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
