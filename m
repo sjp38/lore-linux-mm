@@ -1,9 +1,9 @@
-Date: Fri, 21 Mar 2003 07:06:55 +0100 (CET)
+Date: Fri, 21 Mar 2003 07:16:53 +0100 (CET)
 From: Ingo Molnar <mingo@elte.hu>
 Reply-To: Ingo Molnar <mingo@elte.hu>
 Subject: Re: 2.5.65-mm2
 In-Reply-To: <5.2.0.9.2.20030320194530.01985440@pop.gmx.net>
-Message-ID: <Pine.LNX.4.44.0303210659530.2406-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.44.0303210710490.2533-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -14,34 +14,32 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 20 Mar 2003, Mike Galbraith wrote:
 
-> This is a side effect of Ingo's (nice!) latency change methinks.  When
-> you have several cpu hogs running (dbench), and they are cleaning your
-> cpu's clock by using their full bandwidth to attain maximum throughput,
-> and they then break up their timeslice in order to provide you with more
-> responsiveness, and then their _cumulative_ sleep time between (round
-> robin!) cpu hard burns is added to their sleep_avg, [...]
+> [...] Virgin .65 is also subject to the positive feedback loop (irman's
+> process load is worst case methinks, and rounding down only ~hides it).
 
-actually, the round-robining for finer-grained timeslices should not
-impact the sleep average at all, because the roundrobin is done while the
-task is still _running_, ie. the sleep average does not get impacted.
-Otherwise we'd have elevated priority of simple CPU-intensive
-applications, which would be Bad.
+there's no positive feedback loop. What might happen is that in 2.5.65 we
+now distribute the bonus timeslices more widely (the backboost thing), so
+certain workloads might be rated more interactive. But we never give away
+timeslices that were not earned the hard way (ie. via actual sleeping).
 
-The way the sleep-average is maintained is balanced very carefully in the
-O(1) scheduler. There are three states a task can be in:
-
- - sleeping: the sleep average increases
- - running but not executing: the sleep average stagnates
- - executing on a CPU: the sleep average decreases
-
-ie. in the roundrobin case the tasks will neither increase, nor decrease
-their sleep average - they are in essence 'frozen'. The moment they get
-scheduled on a CPU for execution, their sleep average starts to decrease
-again. (and once they go to sleep, their sleep average increases.)
-
-so whatever effect you are seeing, it must be something else.
+i've attached a patch that temporarily turns off the back-boost - does
+that have any measurable impact? [please apply this to -mm1, i do think
+the timeslice-granularity change in -mm1 (-D3) is something we really
+want.]
 
 	Ingo
+
+--- kernel/sched.c.orig	2003-03-21 07:14:02.000000000 +0100
++++ kernel/sched.c	2003-03-21 07:15:08.000000000 +0100
+@@ -365,7 +365,7 @@
+ 		 * tasks.
+ 		 */
+ 		if (sleep_avg > MAX_SLEEP_AVG) {
+-			if (!in_interrupt()) {
++			if (0 && !in_interrupt()) {
+ 				sleep_avg += current->sleep_avg - MAX_SLEEP_AVG;
+ 				if (sleep_avg > MAX_SLEEP_AVG)
+ 					sleep_avg = MAX_SLEEP_AVG;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
