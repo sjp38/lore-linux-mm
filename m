@@ -1,27 +1,47 @@
-Date: Sat, 15 Mar 2003 18:01:29 +0100
-From: Arador <diegocg@teleline.es>
-Subject: Re: 2.5.64-mm7
-Message-Id: <20030315180129.3819d649.diegocg@teleline.es>
-In-Reply-To: <20030315112935.1841.qmail@linuxmail.org>
-References: <20030315112935.1841.qmail@linuxmail.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <3E736505.2000106@aitel.hist.no>
+Date: Sat, 15 Mar 2003 18:38:13 +0100
+From: Helge Hafting <helgehaf@aitel.hist.no>
+MIME-Version: 1.0
+Subject: Re: 2.5.64-mm7 - dies on smp with raid
+References: <20030315011758.7098b006.akpm@digeo.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
-Cc: akpm@digeo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 15 Mar 2003 12:29:35 +0100
-"Felipe Alfaro Solana" <felipe_alfaro@linuxmail.org> wrote:
+mm7 crashed where mm2 works.
+The machine is a dual celeron with two scsi disks with
+some raid-1 & raid-0 partitions.
 
+deadline or anicipatory scheduler does not make a difference.
+It dies anyway, attempting to kill init.
 
-> I haven't still experienced those bugs using mm6 and AS. 
-> Is there an easy way to reproduce them? 
+Here's what I managed to  write down before the 30 second reboot
+kicked in:
 
-I can't either; perhaps it's .config dependant?
-(should i flood list with mine?)
+EIP is at md_wakeup_thread
+
+stack:
+do_md_run
+autorun_array
+autorun_devices
+autostart_arrays
+md_ioctl
+dentry_open
+kmem_cache_free
+blkdev_ioctl
+sys_ioctl
+init
+init
+
+This happened during the boot process. The kernel is compiled
+with gcc 2.95.4 from debian testing. The machine uses devfs
+
+Helge Hafting
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
