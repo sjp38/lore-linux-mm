@@ -1,45 +1,36 @@
-Date: Sun, 15 Sep 2002 12:50:21 +0200
-From: Axel Siebenwirth <axel@hh59.org>
+Date: Sun, 15 Sep 2002 11:31:27 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: 2.5.34-mm4
-Message-ID: <20020915105021.GA444@prester.freenet.de>
-References: <3D82B5C3.229C6B1A@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3D82B5C3.229C6B1A@digeo.com>
+In-Reply-To: <20020915105021.GA444@prester.freenet.de>
+Message-ID: <Pine.LNX.4.44L.0209151130540.1857-100000@imladris.surriel.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lse-tech@lists.sourceforge.net" <lse-tech@lists.sourceforge.net>
+To: Axel Siebenwirth <axel@hh59.org>
+Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "lse-tech@lists.sourceforge.net" <lse-tech@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew!
+On Sun, 15 Sep 2002, Axel Siebenwirth wrote:
+> On Fri, 13 Sep 2002, Andrew Morton wrote:
+>
+> > url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.34/2.5.34-mm4/
+>
+> With changing from 2.5.34-mm2 to -mm4 I have experienced some moments of
+> quite unresponsive behaviour.
 
-On Fri, 13 Sep 2002, Andrew Morton wrote:
-
-> url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.34/2.5.34-mm4/
-
-With changing from 2.5.34-mm2 to -mm4 I have experienced some moments of
-quite unresponsive behaviour. For example I am building X which at that
-special moment causes pretty heavy disk load and the system doesn't respond
-at all. I was using X and was not able to switch consoles or move mouse only
-extremely sluggish.
-I have seen that it used more swap that usual.
-
-             total       used       free     shared    buffers     cached
-Mem:        191096     159340      31756          0      10568      94100
--/+ buffers/cache:      54672     136424
-Swap:       289160          0     289160
-
-This is how it looks like under normal circumstances and when building X I
-had 20M in swap usage which seemed quite a lot to me. Maybe I'm just wrong.
-Unfortunately I was not able to start vmstat, first because I can't start
-vmstat when system is not responding and second it doesn't work anyway
-because of your changes.
+Don't worry, it's supposed to do that. You can't measure desktop
+interactivity, so it doesn't exist ;)
 
 
-Best regards,
-Axel
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Spamtraps of the month:  september@surriel.com trac@trac.org
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
