@@ -1,46 +1,70 @@
-Date: Fri, 25 Aug 2000 23:59:03 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: pgd/pmd/pte and x86 kernel virtual addresses
-In-Reply-To: <20000825185716Z131186-247+10@kanga.kvack.org>
-Message-ID: <Pine.LNX.3.96.1000825235248.27724A-100000@kanga.kvack.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000828154744.A3741@saw.sw.com.sg>
+Date: Mon, 28 Aug 2000 15:47:44 +0800
+From: Andrey Savochkin <saw@saw.sw.com.sg>
+Subject: Re: Question: memory management and QoS
+References: <39A4F548.B8EB5308@tuke.sk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <39A4F548.B8EB5308@tuke.sk>; from "Jan Astalos" on Thu, Aug 24, 2000 at 12:13:28PM
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: Linux MM mailing list <linux-mm@kvack.org>
+To: Jan Astalos <astalos@tuke.sk>
+Cc: linux-mm@kvack.org, Yuri Pudgorodsky <yur@asplinux.ru>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 25 Aug 2000, Timur Tabi wrote:
+Hello,
 
-> If I use ioremap_nocache(), I effectively have two virtual pointers to the same
-> physical pointer.  The first is the normal virtual pointer for kernel memory,
-> and the second is the one returned by ioremap_nocache().  I was under the
-> understanding that caching is enabled on physical pages only, so it shouldn't
-> matter which virtual address I use.  Is that correct?
+On Thu, Aug 24, 2000 at 12:13:28PM +0200, Jan Astalos wrote:
+[snip]
+> 
+> So, why am I writing this to this list ? In last couple of days
+> I was experimenting with Linux MM subsystem to find out whether
+> Linux can (how it could) assure exclusive access to some amount 
+> of memory for user. Of course I was searching the archives. So 
+> far, I found only the beancounter patch, which is designed for 
+> limiting of memory usage. This is not quite exactly what I am 
+> looking for. Rather, users should have their memory reserved... 
+> 
+> If I missed something please send me the pointers.
 
-No.  Depending on which virtual address you use, you will get different
-behaviour (cached vs not).
+Well, the main goal of the memory management part of user beancounter patch
+is exactly QoS.  It allows to control how to share resources between
+accounting subjects and specify the minimal amount of resources that are
+guaranteed to be available to them.  These minimal amounts are the guaranteed
+level of service, the remaining resources are provided on a best-effort
+basis, doing it more or less fairly.  The mentioned resources are total
+amount of memory, and in-core memory (as opposite to swap).
 
-> MTRR's are not an option, because chances are we won't have any free MTRR's to
-> work with.  Besides, I can do what I want on Windows 2000 without MTRR's.  My
-> driver is for a device which sits on the memory bus itself and responds to
-> memory reads/writes.  If I can't disable caching, I can't talk to the device.
+The code implementing this kind of QoS has been in user beancounter patch
+since version IV-0006.  See
+ftp://ftp.sw.com.sg/pub/Linux/people/saw/kernel/user_beancounter/
+ftp://ftp.swusa.com/pub/Linux/people/saw/kernel/user_beancounter/
+The current code is dirty and incomplete, so questions (and comments) are
+welcome.
 
-Ummm, then why is it in the range of normally cachable memory?  On Pentium
-class machines there is a signal which indicates if a given memory access
-is cachable/not.  On P6/later K6s/K7s you must use the MTRRs.
+The patch also contains some upper limits on virtual address space.  But they
+don't play any significant role, clearly being not a QoS or DoS protection
+mechanism.
 
-> The odd thing is that ioremap_nocache() did work at one point, but not any
-> more, and I can't figure out why.
+> 
+> I have some (rough) ideas how it could work and I would be 
+> happy if you'll send me your opinions.
+> 
+> Concept of personal swapfiles:
+[snip]
 
-Technically ioremap should only be used on io addresses.  What in
-particular is not working -- is the mapping incorrect, or is the mapping
-being cached?  If the mapping is still being cached from previous
-accesses, you will need to flush the CPU's cache of any stale cache lines.
+I don't think that personal swapfiles is an efficient approach to achieve
+QoS.  Most of the space will be reserved for exceptional cases, and, thus,
+wasted, as Yuri has mentioned.  A shared swap space allowing exceeding the
+guaranteed amount (if the memory isn't really used) is much more efficient
+spending of the space.  If the system has some spare memory, users exceeding
+their limits may still use it (but, certainly, only if only some of them, not
+all, exceed the limits).  Moreover, if some users don't consume all the
+memory guaranteed to them, others may temporarily use it.
 
-		-ben
-
+Best regards
+					Andrey V.
+					Savochkin
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
