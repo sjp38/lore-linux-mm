@@ -1,32 +1,46 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by postfix.conectiva.com.br (Postfix) with SMTP id 4FB0F17D47
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2001 22:37:35 -0300 (EST)
-Date: Thu, 22 Mar 2001 22:37:09 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <3C9BDAC7.4B499AD1@evision-ventures.com>
-Message-ID: <Pine.LNX.4.21.0103222236450.29682-100000@imladris.rielhome.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Michael Peddemors <michael@linuxmagic.com>
+In-Reply-To: <20010322142831.A929@owns.warpcore.org>
+References: <3AB9313C.1020909@missioncriticallinux.com>
+	<Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva>
+	<20010322124727.A5115@win.tue.nl>  <20010322142831.A929@owns.warpcore.org>
+Content-Type: text/plain
+Date: 22 Mar 2001 17:31:57 -0800
+Mime-Version: 1.0
+Message-Id: <20010323014830Z131175-15394+161@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Dalecki <dalecki@evision-ventures.com>
-Cc: Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Stephen Clouse <stephenc@theiqgroup.com>
+Cc: Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 23 Mar 2002, Martin Dalecki wrote:
+Here, Here.. killing qmail on a server who's sole task is running mail doesn't seem to make much sense either..
 
-> This is due to the broken calculation formula in oom_kill().
+> > Clearly, Linux cannot be reliable if any process can be killed
 
-Feel free to write better-working code.
+> > at any moment. I am not happy at all with my recent experiences.
+> 
+> Really the whole oom_kill process seems bass-ackwards to me.  I can't in my mind
+> logically justify annihilating large-VM processes that have been running for 
+> days or weeks instead of just returning ENOMEM to a process that just started 
+> up.
+> 
+> We run Oracle on a development box here, and it's always the first to get the
+> axe (non-root process using 70-80 MB VM).  Whenever someone's testing decides to 
+> run away with memory, I usually spend the rest of the day getting intimate with
+> the backup files, since SIGKILLing random Oracle processes, as you might have
+> guessed, has a tendency to rape the entire database.
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+-- 
+"Catch the Magic of Linux..."
+--------------------------------------------------------
+Michael Peddemors - Senior Consultant
+LinuxAdministration - Internet Services
+NetworkServices - Programming - Security
+WizardInternet Services http://www.wizard.ca
+Linux Support Specialist - http://www.linuxmagic.com
+--------------------------------------------------------
+(604)589-0037 Beautiful British Columbia, Canada
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
