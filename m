@@ -1,31 +1,26 @@
-Subject: Re: [PATCH] bugfix for drivers/char/mem.c 
-In-reply-to: Your message of "Sun, 01 Aug 1999 11:23:30 PDT."
-             <199908011823.LAA32354@google.engr.sgi.com>
-Date: Mon, 02 Aug 1999 14:27:05 +0100
-From: Steven Hand <Steven.Hand@cl.cam.ac.uk>
-Message-Id: <E11BI7Q-000048-00@heaton.cl.cam.ac.uk>
+Received: from typhon.torrent.com by chi6sosrv11.alter.net with SMTP
+	(peer crosschecked as: typhon.torrent.com [208.223.133.146])
+	id QQhaou21148
+	for <linux-mm@kvack.org>; Mon, 2 Aug 1999 22:00:12 GMT
+From: dca@torrent.com
+Date: Mon, 2 Aug 1999 17:59:18 -0400
+Message-Id: <199908022159.RAA03948@grappelli.torrent.com>
+Subject: getrusage
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Steven Hand <Steven.Hand@cl.cam.ac.uk>, Linux-MM@kvack.orgSteven.Hand@cl.cam.ac.uk
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->I see the problem. Can I suggest a simpler fix, based on the fact 
->that vread() returns 0 when count == 0?
->
->-	*ppos += p + virtr;
->+	*ppos += read + virtr;
+The implementation of getrusage(2) appears incomplete in the stock
+2.2.10 kernel; it's missing memory statistics e.g. the rss numbers.
+(It's also missing I/O statistics, but I assume you don't want to hear
+about them.)
 
-Sure if you prefer it. 
+Is this an old design decision, or simply an oversight?  If an
+oversight, I'd be happy to propose a patch for it.
 
-The main reason I added the if(count) { ... } was just to avoid 
-calling vread() when count is zero (since in this case there's no 
-entry to find on the vmlist, and hence the for loop in vread() will 
-just iterate over all vmalloc()'d areas before returning zero.)
-
-
-S.
-
+Dave Anderson
+dca@torrent.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
