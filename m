@@ -1,64 +1,48 @@
-Subject: Re: your mail
-References: <Pine.LNX.4.44.0301232104440.10187-100000@dlang.diginsite.com>
-	<40475.210.212.228.78.1043384883.webmail@mail.nitc.ac.in>
-	<Pine.LNX.4.44.0301232104440.10187-100000@dlang.diginsite.com>
-	<3.0.6.32.20030124212935.007fcc10@boo.net>
-	<20030125022648.GA13989@work.bitmover.com>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 25 Jan 2003 10:47:19 -0700
-In-Reply-To: <20030125022648.GA13989@work.bitmover.com>
-Message-ID: <m17kctceag.fsf@frodo.biederman.org>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: 2.5.59-mm5
+Date: Sat, 25 Jan 2003 15:34:32 -0500
+References: <20030123195044.47c51d39.akpm@digeo.com> <200301251232.15866.tomlins@cam.org> <20030125094141.1e2b1de3.akpm@digeo.com>
+In-Reply-To: <20030125094141.1e2b1de3.akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Message-Id: <200301251534.32447.tomlins@cam.org>
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Larry McVoy <lm@bitmover.com>
-Cc: Jason Papadopoulos <jasonp@boo.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Larry McVoy <lm@bitmover.com> writes:
+On January 25, 2003 12:41 pm, Andrew Morton wrote:
+> Ed Tomlinson <tomlins@cam.org> wrote:
+> > Hi Andrew,
+> >
+> > I am seeing a strange problem with mm5.  This occurs both with and
+> > without the anticipatory scheduler changes.  What happens is I see very
+> > high system times and X responds very very slowly.  I first noticed this
+> > when switching between folders in kmail and have seen it rebuilding db
+> > files for squidguard. Here is what happened during the db rebuild (no
+> > anticipatory ioscheduler):
+>
+> Could you please try reverting the reiserfs changes?
+>
+> http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm5/broken-out/
+>reiserfs-readpages.patch
+>
+> and
+>
+> http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm5/broken-out/
+>reiserfs_file_write.patch
 
-> > For the record, I finally got to try my own page coloring patch on a 1GHz
-> > Athlon Thunderbird system with 256kB L2 cache. With the present patch, my
-> > own number crunching benchmarks and a kernel compile don't show any benefit 
-> > at all, and lmbench is completely unchanged except for the mmap latency, 
-> > which is slightly worse. Hardly a compelling case for PCs!
-> 
-> If it works correctly then the variability in lat_ctx should go away.
-> Try this
-> 
-> 	for p in 2 4 8 12 16 24 32 64
-> 	do	for size in 0 2 4 8 16
-> 		do	for i in 1 2 3 4 5 6 7 8 9 0
-> 			do	lat_ctx -s$size $p
-> 			done
-> 		done
-> 	done
-> 
-> on both the with and without kernel.  The page coloring should make the 
-> numbers rock steady, without it, they will bounce a lot.
+Reverting reiserfs_file_write.patch seems to cure the interactivity problems.
+I still see the high system times but they in themselves are not a problem.
+Reverting the second patch does not change the situation.  I am currently
+running with reiserfs_file_write.patch removed - so far so good.
 
-On the same kind of vein I have seen some tremendous variability in the
-stream benchmark.  Under linux I have gotten it to very as much
-as a 100MB/sec by running updatedb, between runs.  In one case
-it ran faster with updatedb running in the background.
+Thanks
+Ed Tomlinson
 
-But at the same time streams tends to be very steady if you have a quiet
-machine and run it several times in a row repeatedly because it gets
-allocated essentially the same memory every run.
-
-So I do no the variables of cache contention do have effect on some
-real programs.  I have not yet tracked it down to see if cache coloring
-could be a benefit.  I suspect the buddy allocator actually comes
-quite close most of the time, and tricks like allocating multiple pages
-at once could improve that even more with very little effort, while reducing
-page fault miss times.
-
-I am wondering if there is any point in biasing page addresses in between
-processes so that processes are less likely to have a cache conflict.
-i.e.  process 1 address 0 %16K == 0, process 2 address 0 %16K == 4K 
-
-Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
