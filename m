@@ -1,46 +1,485 @@
-Date: Tue, 29 Apr 2003 08:24:31 -0700
-From: "Randy.Dunlap" <rddunlap@osdl.org>
-Subject: Re: questions on swapping
-Message-Id: <20030429082431.21679c0f.rddunlap@osdl.org>
-In-Reply-To: <20030429112829.GD668@vagabond>
-References: <OF8E0064D4.ECA596BD-ON65256D17.003D6ECB@celetron.com>
-	<20030429112829.GD668@vagabond>
+Date: Tue, 29 Apr 2003 23:59:59 -0700
+From: Andrew Morton <akpm@digeo.com>
+Subject: 2.5.68-mm3
+Message-Id: <20030429235959.3064d579.akpm@digeo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jan Hudec <bulb@ucw.cz>
-Cc: hunjeh@celetron.com, kernelnewbies@nl.linux.org, linux-mm@kvack.org, wli@holomorphy.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 29 Apr 2003 13:28:29 +0200 Jan Hudec <bulb@ucw.cz> wrote:
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.68/2.5.68-mm3/
 
-| On Tue, Apr 29, 2003 at 04:52:36PM +0530, Heerappa Hunje wrote:
-| > Thanks for the information, well i have following difficulties.
-| > 1. How to handle/write the Bottom Half part of Interrupt for Device Drivers
-| > 2. If any error, then the messages during the running of Device Driver
-| > modules where(in which file) they are written by Kernel, or we have to
-| > specify the location/Pathname of file during the implimentation.
-| 
-| Kernel prints messages using the printk function. It writes them to the
-| active console and makes them available via a magic file in /proc
-| filesystem where they are picked by klogd and passed to syslogd.
+Bits and pieces.  Nothing major, apart from the dynamic request allocation
+patch.  This arbitrarily increases the maximum requests/queue to 1024, and
+could well make large (and usually bad) changes to various benchmarks. 
+However some will be helped.
 
-Try this paragraph instead:
-Kernel prints messages using the printk function.  printk queues messages
-to a ring buffer.  Messages are pulled from the ring buffer by syslog
-or klog using the syslog system call.
-Console messages are printed to all registered console output methods,
-such as ones for the video console, serial console, printer, etc.
 
-(no magic /proc file)
 
-| printk is specially crafted so that it can be called from any point of
-| kernel (including interrupt context).
 
---
-~Randy
+Changes since 2.5.68-mm2
+
+
+ linus.patch
+
+ Latest -bk
+
+-irq-printing.patch
+-warning-fixes-01.patch
+-irqreturn-usb.patch
+-devfs-brown-bag.patch
+-eisa-sysfs-update.patch
+-devfs-pty-fix.patch
+-devfs-partition-fix.patch
+-kobj_lock-fix.patch
+-ppa-null-pointer-fix.patch
+-pmd_alloc_one-typo-fix.patch
+-sched_idle-typo-fix.patch
+-pcmcia-20030421.patch
+
+ Merged
+
++generic-subarch.patch
++generic-subarch-fix.patch
+
+ Roll up various ia32 SMP configs into one option, work it out at runtime.
+
++irqreturn-drivers-net.patch
+
+ IRQ API conversion for remaining net drivers.
+
++irqreturn-bttv.patch
+
+ And bttv
+
++xd-warning-fix.patch
+
+ Nail a warning
+
++slab-magazine-layer.patch
+
+ SMP speedup for slab: add a `magazine' layer for passing objects between
+ CPUs, rather than passing them all the way back to the page allocator. 
+ Mainly for skb's, where the source and sink CPUs are persistently different.
+
++DAC960-interface-fixes.patch
+
+ Driver fixes
+
++alt_instr-__KERNEL__.patch
+
+ Add some ifdef wrappers in a header
+
++modular-jbd.patch
+
+ Fix Kconfig dependencies
+
++VM_RESERVED-check.patch
+
+ Debug check in page reclaim
+
++semop-race-fix.patch
+
+ Fix race in sysv shm. (Not complete)
+
++hdlc-module-update.patch
+
+ Driver update
+
++proc_file_read-fix.patch
+
+ Fix truncated /proc reads.
+
++disk_name-size-check.patch
+
+ Clean up some bounds checking in bdevname()
+
++mwave-cleanup.patch
+
+ Driver cleanup
+
++blockdev-aio-support.patch
+
+ Better AIO support for IO against /dev/hdXX
+
++percpu-counters-fix.patch
+
+ UML build fix
+
+-aio-retval-fix.patch
+
+ Ben didn't like it.
+
++oom-kill-locking.patch
+
+ SMP locking in the oomkiller
+
++386-access_ok-race-fix.patch
+
+ usercopy-vs-page reclaim fix for 386's
+
++swapfile-hold-i_sem.patch
+
+ Hold i_sem on swapfiles while they are in use.
+
++as-remove-debug-checks.patch
+
+ Remove bogusish debug check in anticipatory scheduler.
+
++dynamic-request-allocation.patch
++dynamic-request-allocation-fix.patch
+
+ Remove the fixed-size request pools, kmalloc them.
+
+-unmap-page-debugging-fixes.patch
+-global_flush_tlb-irqs-check.patch
+-unmap-page-debugging-fixes-2.patch
+
+ Folded into unmap-page-debugging.patch
+
+-sched-2.5.68-A9.patch
++sched-2.5.68-B2.patch
+
+ CPU scheduler update update.
+
+-generic-bitops-update.patch
+
+ Wrong - is using deprecated cli()/sti().
+
++pcmcia-deadlock-fix-2.patch
+
+ New PCMCIA fix.
+
++restore-modinfo-section.patch
++implement-__module_get.patch
+
+ Modules updates from Rusty.
+
+
+
+
+All 113 patches
+
+
+linus.patch
+
+mm.patch
+  add -mmN to EXTRAVERSION
+
+generic-subarch.patch
+  generic subarchitecture for ia32
+
+generic-subarch-fix.patch
+  generic subarch: SMP only
+
+ipmi-warning-fixes.patch
+
+irqreturn-i2c.patch
+
+irqreturn-uml.patch
+  UML updates for the new IRQ API
+
+irqreturn-sound-2.patch
+  irqs: sound fixups
+
+irqreturn-smcc.patch
+  IRDA: missing IRQ bits
+
+irqreturn-aic79xx.patch
+  Fix aic79xx for new IRQ API
+
+SLAB_NO_GROW-fix.patch
+  Fix slab-vs-gfp bitflag clash
+
+kgdb-ga.patch
+  kgdb stub for ia32 (George Anzinger's one)
+
+kgdb-ga-ppc64-fix.patch
+
+irqreturn-kgdb-ga.patch
+
+irqreturn-drivers-net.patch
+
+irqreturn-bttv.patch
+  bttv: new IRQ API
+
+kgdb-ga-smp_num_cpus.patch
+
+kgdb-ga-discontigmem-fixup.patch
+  kgdb: discontigmem fixup
+
+apm-locking-fix.patch
+  APM locking fix
+
+xd-warning-fix.patch
+  Fix warnings in xd.c
+
+slab-magazine-layer.patch
+  magazine layer for slab
+
+DAC960-interface-fixes.patch
+  DAC960 patch to entry points with a new fix
+
+alt_instr-__KERNEL__.patch
+  Place the alt_instr defns inside #ifdef __KERNEL__
+
+config_spinline.patch
+  uninline spinlocks for profiling accuracy.
+
+ppc64-reloc_hide.patch
+
+ppc64-pci-patch.patch
+  Subject: pci patch
+
+ppc64-aio-32bit-emulation.patch
+  32/64bit emulation for aio
+
+ppc64-scruffiness.patch
+  Fix some PPC64 compile warnings
+
+ppc64-update.patch
+  ppc64 update
+
+ppc64-update-fixes.patch
+
+ppc64-irqfixes.patch
+
+ppc64-pci-bogons.patch
+
+sym-do-160.patch
+  make the SYM driver do 160 MB/sec
+
+misc.patch
+
+config-PAGE_OFFSET.patch
+  Configurable kenrel/user memory split
+
+fat-speedup.patch
+  fat cluster search speedup
+
+buffer-debug.patch
+  buffer.c debugging
+
+ext3-truncate-ordered-pages.patch
+  ext3: explicitly free truncated pages
+
+modular-jbd.patch
+  allow modular JBD
+
+VM_RESERVED-check.patch
+  VM_RESERVED check
+
+semop-race-fix.patch
+  semtimedop(): Fix racy BUG check
+
+hdlc-module-update.patch
+  generic HDLC module API update
+
+proc_file_read-fix.patch
+  proc_file_read fix
+
+disk_name-size-check.patch
+  use snprintf in disk_name
+
+reiserfs_file_write-5.patch
+
+cleanups.patch
+  misc cleanups
+
+mwave-cleanup.patch
+  simple mwave code cleanup
+
+rcu-stats.patch
+  RCU statistics reporting
+
+ext3-journalled-data-assertion-fix.patch
+  Remove incorrect assertion from ext3
+
+nfs-speedup.patch
+
+nfs-oom-fix.patch
+  nfs oom fix
+
+sk-allocation.patch
+  Subject: Re: nfs oom
+
+nfs-more-oom-fix.patch
+
+rpciod-atomic-allocations.patch
+  Make rcpiod use atomic allocations
+
+linux-isp.patch
+
+isp-update-1.patch
+
+ext3-ro-mount-fix.patch
+  fs/ext3/super.c fix for orphan recovery error path
+
+nr_threads-docco-fix.patch
+  update nr_threads commentary
+
+lost-tick-HZ-fix.patch
+  lost_tick fixes
+
+nr_inactive-race-fix.patch
+  zone accounting race fix
+
+dcache_lock-vs-tasklist_lock-take-2.patch
+  Fix dcache_lock/tasklist_lock ranking bug
+
+clone-retval-fix.patch
+  copy_process return value fix
+
+de_thread-fix.patch
+  de_thread memory corruption fix
+
+list_del-debug.patch
+  list_del debug check
+
+blockdev-aio-support.patch
+  aio support for block devices
+
+percpu-counters-fix.patch
+  percpu counters cause UML compilation errors in with SMP
+
+airo-schedule-fix.patch
+  airo.c: don't sleep in atomic regions
+
+config-menu-aesthetics.patch
+  config menu: a combination of aesthetics
+
+oom-kill-locking.patch
+  oom-killer locking
+
+386-access_ok-race-fix.patch
+  access_ok() race fix for 80386.
+
+synaptics-mouse-support.patch
+  Add Synaptics touchpad tweaking to psmouse driver
+
+swapfile-hold-i_sem.patch
+  hold i_sem on swapfiles
+
+kblockd.patch
+  Create `kblockd' workqueue
+
+cfq-infrastructure.patch
+
+elevator-completion-api.patch
+  elevator completion API
+
+as-iosched.patch
+  anticipatory I/O scheduler
+
+as-use-completion.patch
+  AS use completion notifier
+
+as-remove-debug-checks.patch
+  AS: remove debug checks
+
+unplug-use-kblockd.patch
+  Use kblockd for running request queues
+
+cfq-2.patch
+  CFQ scheduler, #2
+
+dynamic-request-allocation.patch
+  rq-dyn-alloc, dynamic request allocation
+
+dynamic-request-allocation-fix.patch
+  rq-dyn-alloc fix
+
+unmap-page-debugging.patch
+  unmap unused pages for debugging
+
+fremap-all-mappings.patch
+  Make all executable mappings be nonlinear
+
+sched-2.5.68-B2.patch
+  HT scheduler, sched-2.5.68-B2
+
+sched_idle-typo-fix.patch
+  fix sched_idle typo
+
+kgdb-ga-idle-fix.patch
+
+sched-2.5.64-D3.patch
+  sched-2.5.64-D3, more interactivity changes
+
+show_task-free-stack-fix.patch
+  show_task() fix and cleanup
+
+htree-nfs-fix.patch
+  Fix ext3 htree / NFS compatibility problems
+
+i8042-share-irqs.patch
+  allow i8042 interrupt sharing
+
+select-speedup.patch
+  Subject: Re: IA64 changes to fs/select.c
+
+select-speedup-fix.patch
+  select() sleedup fix
+
+slab_store_user-large-objects.patch
+  slab debug: perform redzoning against larger objects
+
+htree-nfs-fix-2.patch
+  htree nfs fix
+
+htree-leak-fix.patch
+  ext3: htree memory leak fix
+
+put_task_struct-debug.patch
+
+ia32-mknod64.patch
+  mknod64 for ia32
+
+ext2-64-bit-special-inodes.patch
+  ext2: support for 64-bit device nodes
+
+ext3-64-bit-special-inodes.patch
+  ext3: support for 64-bit device nodes
+
+64-bit-dev_t-kdev_t.patch
+  64-bit dev_t and kdev_t
+
+oops-dump-preceding-code.patch
+  i386 oops output: dump preceding code
+
+lockmeter.patch
+
+ext3-no-bkl.patch
+
+journal_dirty_metadata-speedup.patch
+
+journal_get_write_access-speedup.patch
+
+ext3-concurrent-block-inode-allocation.patch
+  Subject: [PATCH] concurrent block/inode allocation for EXT3
+
+ext3-orlov-approx-counter-fix.patch
+  Fix orlov allocator boundary case
+
+ext3-concurrent-block-allocation-fix-1.patch
+
+ext3-concurrent-block-allocation-hashed.patch
+  Subject: Re: [PATCH] concurrent block/inode allocation for EXT3
+
+pcmcia-deadlock-fix-2.patch
+  Fix PCMCIA deadlock (rev. 2)
+
+restore-modinfo-section.patch
+  modules: restore modinfo section
+
+implement-__module_get.patch
+  Implement __module_get
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
