@@ -1,38 +1,34 @@
-Received: from yme.mo.hiMolde.no (qmailr@yme.mo.hiMolde.no [158.38.74.10])
-	by kvack.org (8.8.7/8.8.7) with SMTP id PAA00660
-	for <linux-mm@kvack.org>; Mon, 11 Jan 1999 15:28:08 -0500
-Date: Mon, 11 Jan 1999 21:27:40 +0100 (CET)
-From: Erik Inge Bolso <knan@mo.himolde.no>
-Subject: The hogmemtest on a 386 / 8MB...
-Message-ID: <Pine.LNX.3.96.990111212436.21349B-100000@yme.mo.himolde.no>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
+Received: from ixion.honeywell.com (ixion.honeywell.com [129.30.4.80])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA01452
+	for <linux-mm@kvack.org>; Mon, 11 Jan 1999 17:10:12 -0500
+Date: Mon, 11 Jan 1999 16:08:04 -0600 (CST)
+From: Shawn Leas <sleas@ixion.honeywell.com>
+Subject: Re: testing/pre-7 and do_poll()
+In-Reply-To: <Pine.LNX.3.95.990110225652.1997J-100000@penguin.transmeta.com>
+Message-Id: <Pine.GHP.4.05.9901111554300.11135-100000@ixion.honeywell.com>
+Mime-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Chip Salzenberg <chip@perlsupport.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Test results:
+On Sun, 10 Jan 1999, Linus Torvalds wrote:
 
-386DX-25 w/8 MB RAM, IDE disk
+> things. So far, megahertz are still far in the future, but maybe I some
+> day will have to remove even that assumption. Unlikely to be a problem in
+> my lifetime, but hey, I can hope (whether due to a long life or really
+> fast CPU's, I don't care ;) 
 
-		./hogmem 12 3		(2x) ./hogmem 6 3
+Well, they've made a photonic chip, so we may be thinking about this
+sooner than you think... Think 200GHz processors.
 
-2.0.36		0.32 MB/sec		0.14+0.14 MB/sec
-2.1.128		0.41 MB/sec		0.14+0.14 MB/sec
-2.2.0pre6	0.61 MB/sec		0.20+0.20 MB/sec
-2.2.0pre7	0.61 MB/sec		0.27+0.27 MB/sec
-
-0.61 MB/sec is probably the best this trusty old IDE can do... :)
-
-... pre7 is noticeably better w/2 trashing processes... :)
-
-I'd be happy to test more kernel variations :)... since this 386 does a
-fair bit of swapping when accessed by FTP... :)
-
---
-Erik I. Bolso <knan at mo.himolde.no>
-The White Tower: http://www.mo.himolde.no/~knan/
+-Shawn
+<=========== America Held Hostage ===========>
+   Day 2182 for the poor and the middle class. 
+   Day 2201 for the rich and the dead.
+   740 days remaining in the Raw Deal.
+<============================================> 
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
