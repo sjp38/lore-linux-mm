@@ -1,94 +1,44 @@
-Date: Mon, 22 Nov 2004 14:11:48 -0800
-From: Andrew Morton <akpm@osdl.org>
+Date: Mon, 22 Nov 2004 14:13:06 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: deferred rss update instead of sloppy rss
-Message-Id: <20041122141148.1e6ef125.akpm@osdl.org>
-In-Reply-To: <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
+In-Reply-To: <20041122141148.1e6ef125.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.58.0411221408540.22895@schroedinger.engr.sgi.com>
 References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
-	<Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com>
+ <20041122141148.1e6ef125.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
+To: Andrew Morton <akpm@osdl.org>
 Cc: hugh@veritas.com, torvalds@osdl.org, benh@kernel.crashing.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter <clameter@sgi.com> wrote:
+On Mon, 22 Nov 2004, Andrew Morton wrote:
+
+> hrm.  I cannot see anywhere in this patch where you update task_struct.rss.
+
+This is just the piece around it dealing with rss. The updating of rss
+happens in the generic code. The change to that is trivial. I can repost
+the whole shebang if you want.
+
+> > +	/* only holding mmap_sem here maybe get page_table_lock too? */
+> > +	mm->rss += tsk->rss;
+> > +	tsk->rss = 0;
+> >  	up_read(&mm->mmap_sem);
 >
-> One way to solve the rss issues is--as discussed--to put rss into the
-> task structure and then have the page fault increment that rss.
-> 
-> The problem is then that the proc filesystem must do an extensive scan
-> over all threads to find users of a certain mm_struct.
-> 
-> The following patch does put the rss into task_struct. The page fault
-> handler is then incrementing current->rss if the page_table_lock is not
-> held.
-> 
-> The timer interrupt checks if task->rss is non zero (when doing
-> stime/utime updates. rss is defined near those so its hopefully on the
-> same cacheline and has a minimal impact).
-> 
-> If rss is non zero and the page_table_lock and the mmap_sem can be taken
-> then the mm->rss will be updated by the value of the task->rss and
-> task->rss will be zeroed. This avoids all proc issues. The only
-> disadvantage is that rss may be inaccurate for a couple of clock ticks.
-> 
-> This also adds some performance (sorry only a 4p system):
-> 
-> sloppy rss:
-> 
-> Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
->   4  10    1    0.593s     29.897s  30.050s 85973.585  85948.565
->   4  10    2    0.616s     42.184s  22.045s 61247.450 116719.558
->   4  10    4    0.559s     44.918s  14.076s 57641.255 177553.945
-> 
-> deferred rss:
->  Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
->   4  10    1    0.565s     29.429s  30.000s 87395.518  87366.580
->   4  10    2    0.500s     33.514s  18.002s 77067.935 145426.659
->   4  10    4    0.533s     44.455s  14.085s 58269.368 176413.196
+> mmap_sem needs to be held for writing, surely?
 
-hrm.  I cannot see anywhere in this patch where you update task_struct.rss.
+If there are no page faults occurring anymore then we would not need to
+get the lock. Q: Is it safe to assume that no faults occur
+anymore at this point?
 
-> Index: linux-2.6.9/kernel/exit.c
-> ===================================================================
-> --- linux-2.6.9.orig/kernel/exit.c	2004-11-22 09:51:58.000000000 -0800
-> +++ linux-2.6.9/kernel/exit.c	2004-11-22 11:16:02.000000000 -0800
-> @@ -501,6 +501,9 @@
->  	/* more a memory barrier than a real lock */
->  	task_lock(tsk);
->  	tsk->mm = NULL;
-> +	/* only holding mmap_sem here maybe get page_table_lock too? */
-> +	mm->rss += tsk->rss;
-> +	tsk->rss = 0;
->  	up_read(&mm->mmap_sem);
+> just to prevent transient gross inaccuracies.  For some value of "16".
 
-mmap_sem needs to be held for writing, surely?
-
-> +	/* Update mm->rss if necessary */
-> +	if (p->rss && p->mm && down_write_trylock(&p->mm->mmap_sem)) {
-> +		if (spin_trylock(&p->mm->page_table_lock)) {
-> +			p->mm->rss += p->rss;
-> +			p->rss = 0;
-> +			spin_unlock(&p->mm->page_table_lock);
-> +		}
-> +		up_write(&p->mm->mmap_sem);
-> +	}
->  }
-
-I'd also suggest that you do:
-
-	tsk->rss++;
-	if (tsk->rss > 16) {
-		spin_lock(&mm->page_table_lock);
-		mm->rss += tsk->rss;
-		spin_unlock(&mm->page_table_lock);
-		tsk->rss = 0;
-	}
-
-just to prevent transient gross inaccuracies.  For some value of "16".
+The page fault code only increments rss. For larger transactions that
+increase / decrease rss significantly the page_table_lock is taken and
+mm->rss is updated directly. So no
+gross inaccuracies can result.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
