@@ -1,27 +1,59 @@
-Date: Fri, 9 Mar 2001 19:22:57 -0300 (BRST)
+Date: Fri, 9 Mar 2001 19:39:59 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] documentation mm.h + swap.h
-In-Reply-To: <5.0.2.1.2.20010309003257.00abeac0@pop.cus.cam.ac.uk>
-Message-ID: <Pine.LNX.4.33.0103091922460.2283-100000@duckman.distro.conectiva>
+In-Reply-To: <20010309021523.A13408@mandrakesoft.mandrakesoft.com>
+Message-ID: <Pine.LNX.4.33.0103091938430.2283-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Altaparmakov <aia21@cam.ac.uk>
+To: Philipp Rumpf <prumpf@mandrakesoft.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Mar 2001, Anton Altaparmakov wrote:
-> At 21:10 08/03/2001, Rik van Riel wrote:
-> >+ * There is also a hash table mapping (inode,offset) to the page
-> >+ * in memory if present. The lists for this hash table use the fields
-> >+ * page->next_hash and page->pprev_hash.
+On Fri, 9 Mar 2001, Philipp Rumpf wrote:
+> On Thu, Mar 08, 2001 at 06:10:16PM -0300, Rik van Riel wrote:
+> > --- linux-2.4.2-doc/include/linux/mm.h.orig	Wed Mar  7 15:36:32 2001
+> > +++ linux-2.4.2-doc/include/linux/mm.h	Thu Mar  8 09:54:22 2001
+> > @@ -39,32 +39,37 @@
+> >   * library, the executable area etc).
+> >   */
+> >  struct vm_area_struct {
+> > -	struct mm_struct * vm_mm;	/* VM area parameters */
+> > -	unsigned long vm_start;
+> > -	unsigned long vm_end;
+> > +	struct mm_struct * vm_mm;	/* The address space we belong to. */
+> > +	unsigned long vm_start;		/* Our start address within vm_mm. */
+> > +	unsigned long vm_end;		/* Our end address within vm_mm. */
 >
-> Shouldn't (inode,offset) be (inode,index), or possibly (mapping,index)?
+> it might be a good idea to point out that this is the address of
+> the byte after the last one covered by the vma, not the address
+> of the last byte.
 
-> And here, too?
+        unsigned long vm_end;           /* The first byte after our end address
+                                           within vm_mm. */
 
-Indeed, thanks.
+Does this look good to you ?
+
+
+> (are there any architectures where we allow a vma at the end of
+> memory ?  Is the mm/ code handling ->vm_end = 0 correctly ?)
+
+Good question ...
+
+> >  /*
+> > + * Each physical page in the system has a struct page associated with
+             ^^^^^^^^
+> Each page of "real" RAM.
+
+> > + *
+> > + * TODO: make this structure smaller, it could be as small as 32 bytes.
+>
+> Or make it cover large pages, which might be even more of a win ..
+
+*nod*
+
+regards,
 
 Rik
 --
