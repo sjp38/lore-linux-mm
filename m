@@ -1,47 +1,53 @@
-Received: from chiara.csoma.elte.hu (chiara.csoma.elte.hu [157.181.71.18])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA18855
-	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 18:49:44 -0400
-Date: Wed, 7 Apr 1999 00:49:18 +0200 (CEST)
-From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Subject: Re: [patch] arca-vm-2.2.5
-In-Reply-To: <199904062240.PAA12189@piglet.twiddle.net>
-Message-ID: <Pine.LNX.3.96.990407004419.11327A-100000@chiara.csoma.elte.hu>
+Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA18899
+	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 18:51:30 -0400
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14090.36825.930363.169515@dukat.scot.redhat.com>
+Date: Tue, 6 Apr 1999 23:51:05 +0100 (BST)
+Subject: Re: Somw questions [ MAYBE OFFTOPIC ]
+In-Reply-To: <Pine.BSI.3.96.990405050919.3415A-100000@m-net.arbornet.org>
+References: <19990402113555.F9584@uni-koblenz.de>
+	<Pine.BSI.3.96.990405050919.3415A-100000@m-net.arbornet.org>
 Sender: owner-linux-mm@kvack.org
-To: David Miller <davem@twiddle.net>
-Cc: sct@redhat.com, andrea@e-mind.com, cel@monkey.org, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Amol Mohite <amol@m-net.arbornet.org>
+Cc: ralf@uni-koblenz.de, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Apr 1999, David Miller wrote:
+Hi,
 
->    #define log2(x) \
-> 
-> Look at the code just the 'i' in question will output :-)
-> 
->      mov    inode, %o0
->      srlx   %o0, 3, %o4
-> 
-> So on sparc64 atleast, it amounts to "inode >> 3".  So:
+On Mon, 5 Apr 1999 05:12:50 -0400 (EDT), Amol Mohite
+<amol@m-net.arbornet.org> said:
 
-(yep it's the same on x86 too, given sizeof(struct inode) == 0x110) 
+>> A NULL pointer is just yet another invalid address.  There is no
+>> special test for a NULL pointer.  Most probably for example (char
+>> *)0x12345678 will be invalid as a pointer as well and treated the
+>> same.  The CPU detects this when the TLB doesn't have a translation
+>> valid for the access being attempted.
 
-> (sizeof(struct inode) & ~ (sizeof(struct inode) - 1))
-> 
-> is 8 on sparc64.  The 'i' construct is just meant to get rid of the
-> "non significant" lower bits of the inode pointer and it does so very
-> nicely. :-)
+> Yes but how does it know it is a null pointer ?
 
-but it's not just the lower 3 bits that are unsignificant. It's 8
-unsignificant bits. (8.1 actually :) It should be 'inode >> 8' (which is
-done by the log2 solution). Unless i'm misunderstanding something. The
-thing we are AFAIU trying to avoid is 'x/sizeof(inode)', which can be a
-costy division. So i've substituted it with
-'x/nearest_power_of_2(sizeof(inode))' which is just as good in getting rid
-of insignificant bits. 
+It doesn't.  It just looks up the current VM page tables and looks for
+the mapping for that page.  If there isn't such a mapping, it just
+invokes a page fault handler in the O/S.
 
--- mingo
+It is then up to the kernel to decide whether the pointer was just a
+page which is swapped out, or a real invalid pointer.  If the kernel has
+a mapping installed for that address, then it can install a valid page
+in the process's address space and, if necessary, read the appropriate
+page of disk to initialise it (for mmap or swap).  Otherwise, it just
+generates a SEGV signal.
 
+> On that note, when c does not allow u to dereference a void pointer , is
+> this compiler  doing the trick ?
+
+It is undefined in C.  Dereferencing a null pointer might return zero,
+might return garbage or might generate a SEGV; the language doesn't do
+anything special about it.  It is all up to the operating system.
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
