@@ -1,9 +1,9 @@
-Date: Thu, 2 Nov 2000 12:32:07 +0000
+Date: Thu, 2 Nov 2000 12:34:00 +0000
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: PATCH [2.4.0test10]: Kiobuf#00, moving code
-Message-ID: <20001102123207.Z1876@redhat.com>
+Subject: PATCH [2.4.0test10]: Kiobuf#01, expand IO return codes from iobufs
+Message-ID: <20001102123400.A1876@redhat.com>
 Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="ZwgA9U+XZDXt4+m+"
+Content-Type: multipart/mixed; boundary="YToU2i3Vx8H2dn7O"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -11,327 +11,85 @@ To: Linus Torvalds <torvalds@transmeta.com>
 Cc: Rik van Riel <riel@nl.linux.org>, Ingo Molnar <mingo@redhat.com>, Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---ZwgA9U+XZDXt4+m+
+--YToU2i3Vx8H2dn7O
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 
 Hi,
 
-Patch 00 for kiobufs: moves a chunk of code from mm/memory.c to
-fs/iobuf.c.  The code concerned touches physical pages but has
-absolutely nothing to do with virtual memory, so doesn't deserve to be
-lumped with the map_user_kiobuf code.
+Kiobuf diff 01: allow for both the errno and the number of bytes
+transferred to be returned in a kiobuf after IO.  We need both in
+order to know how many pages have been dirtied after a failed IO.
+
+Also includes a fix to the brw_kiovec code to make sure that EIO is
+returned if no bytes were transferred successfully.
 
 --Stephen
 
---ZwgA9U+XZDXt4+m+
+--YToU2i3Vx8H2dn7O
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="00-movecode.diff"
+Content-Disposition: attachment; filename="01-retval.diff"
 
-diff -ru linux-2.4.0-test10.orig/fs/iobuf.c linux-2.4.0-test10.kio.00/fs/iobuf.c
---- linux-2.4.0-test10.orig/fs/iobuf.c	Mon Mar 13 13:26:09 2000
-+++ linux-2.4.0-test10.kio.00/fs/iobuf.c	Thu Nov  2 12:02:21 2000
-@@ -9,6 +9,7 @@
- #include <linux/iobuf.h>
- #include <linux/malloc.h>
- #include <linux/slab.h>
-+#include <linux/pagemap.h>
+diff -ru linux-2.4.0-test10.kio.00/drivers/char/raw.c linux-2.4.0-test10.kio.01/drivers/char/raw.c
+--- linux-2.4.0-test10.kio.00/drivers/char/raw.c	Wed Nov  1 22:25:30 2000
++++ linux-2.4.0-test10.kio.01/drivers/char/raw.c	Thu Nov  2 12:00:35 2000
+@@ -321,10 +321,10 @@
+ 		
+ 		err = brw_kiovec(rw, 1, &iobuf, dev, b, sector_size);
  
- static kmem_cache_t *kiobuf_cachep;
++		transferred += iobuf->retval;
+ 		if (err >= 0) {
+-			transferred += err;
+-			size -= err;
+-			buf += err;
++			size -= iobuf->retval;
++			buf += iobuf->retval;
+ 		}
  
-@@ -126,5 +127,131 @@
- 	remove_wait_queue(&kiobuf->wait_queue, &wait);
+ 		unmap_kiobuf(iobuf); /* The unlock_kiobuf is implicit here */
+diff -ru linux-2.4.0-test10.kio.00/fs/buffer.c linux-2.4.0-test10.kio.01/fs/buffer.c
+--- linux-2.4.0-test10.kio.00/fs/buffer.c	Wed Nov  1 22:25:34 2000
++++ linux-2.4.0-test10.kio.01/fs/buffer.c	Thu Nov  2 12:01:14 2000
+@@ -1924,6 +1924,8 @@
+ 	
+ 	spin_unlock(&unused_list_lock);
+ 
++	if (!iosize)
++		return -EIO;
+ 	return iosize;
  }
  
-+
-+/*
-+ * Unmap all of the pages referenced by a kiobuf.  We release the pages,
-+ * and unlock them if they were locked. 
-+ */
-+
-+void unmap_kiobuf (struct kiobuf *iobuf) 
-+{
-+	int i;
-+	struct page *map;
-+	
-+	for (i = 0; i < iobuf->nr_pages; i++) {
-+		map = iobuf->maplist[i];
-+		if (map) {
-+			if (iobuf->locked)
-+				UnlockPage(map);
-+			__free_page(map);
-+		}
-+	}
-+	
-+	iobuf->nr_pages = 0;
-+	iobuf->locked = 0;
-+}
-+
-+
-+/*
-+ * Lock down all of the pages of a kiovec for IO.
-+ *
-+ * If any page is mapped twice in the kiovec, we return the error -EINVAL.
-+ *
-+ * The optional wait parameter causes the lock call to block until all
-+ * pages can be locked if set.  If wait==0, the lock operation is
-+ * aborted if any locked pages are found and -EAGAIN is returned.
-+ */
-+
-+int lock_kiovec(int nr, struct kiobuf *iovec[], int wait)
-+{
-+	struct kiobuf *iobuf;
-+	int i, j;
-+	struct page *page, **ppage;
-+	int doublepage = 0;
-+	int repeat = 0;
-+	
-+ repeat:
-+	
-+	for (i = 0; i < nr; i++) {
-+		iobuf = iovec[i];
-+
-+		if (iobuf->locked)
-+			continue;
-+		iobuf->locked = 1;
-+
-+		ppage = iobuf->maplist;
-+		for (j = 0; j < iobuf->nr_pages; ppage++, j++) {
-+			page = *ppage;
-+			if (!page)
-+				continue;
-+			
-+			if (TryLockPage(page))
-+				goto retry;
-+		}
-+	}
-+
-+	return 0;
-+	
-+ retry:
-+	
-+	/* 
-+	 * We couldn't lock one of the pages.  Undo the locking so far,
-+	 * wait on the page we got to, and try again.  
-+	 */
-+	
-+	unlock_kiovec(nr, iovec);
-+	if (!wait)
-+		return -EAGAIN;
-+	
-+	/* 
-+	 * Did the release also unlock the page we got stuck on?
-+	 */
-+	if (!PageLocked(page)) {
-+		/* 
-+		 * If so, we may well have the page mapped twice
-+		 * in the IO address range.  Bad news.  Of
-+		 * course, it _might_ just be a coincidence,
-+		 * but if it happens more than once, chances
-+		 * are we have a double-mapped page. 
-+		 */
-+		if (++doublepage >= 3) 
-+			return -EINVAL;
-+		
-+		/* Try again...  */
-+		wait_on_page(page);
-+	}
-+	
-+	if (++repeat < 16)
-+		goto repeat;
-+	return -EAGAIN;
-+}
-+
-+/*
-+ * Unlock all of the pages of a kiovec after IO.
-+ */
-+
-+int unlock_kiovec(int nr, struct kiobuf *iovec[])
-+{
-+	struct kiobuf *iobuf;
-+	int i, j;
-+	struct page *page, **ppage;
-+	
-+	for (i = 0; i < nr; i++) {
-+		iobuf = iovec[i];
-+
-+		if (!iobuf->locked)
-+			continue;
-+		iobuf->locked = 0;
-+		
-+		ppage = iobuf->maplist;
-+		for (j = 0; j < iobuf->nr_pages; ppage++, j++) {
-+			page = *ppage;
-+			if (!page)
-+				continue;
-+			UnlockPage(page);
-+		}
-+	}
-+	return 0;
-+}
+@@ -2049,6 +2051,11 @@
+ 	}
  
+  finished:
++
++	iobuf->retval = transferred;
++	if (err < 0)
++		iobuf->errno = err;
++	
+ 	if (transferred)
+ 		return transferred;
+ 	return err;
+diff -ru linux-2.4.0-test10.kio.00/include/linux/iobuf.h linux-2.4.0-test10.kio.01/include/linux/iobuf.h
+--- linux-2.4.0-test10.kio.00/include/linux/iobuf.h	Thu Nov  2 12:02:43 2000
++++ linux-2.4.0-test10.kio.01/include/linux/iobuf.h	Thu Nov  2 12:07:27 2000
+@@ -52,7 +52,12 @@
  
-diff -ru linux-2.4.0-test10.orig/include/linux/iobuf.h linux-2.4.0-test10.kio.00/include/linux/iobuf.h
---- linux-2.4.0-test10.orig/include/linux/iobuf.h	Mon Mar 13 13:26:09 2000
-+++ linux-2.4.0-test10.kio.00/include/linux/iobuf.h	Thu Nov  2 12:02:43 2000
-@@ -61,9 +61,6 @@
- /* mm/memory.c */
- 
- int	map_user_kiobuf(int rw, struct kiobuf *, unsigned long va, size_t len);
--void	unmap_kiobuf(struct kiobuf *iobuf);
--int	lock_kiovec(int nr, struct kiobuf *iovec[], int wait);
--int	unlock_kiovec(int nr, struct kiobuf *iovec[]);
- 
- /* fs/iobuf.c */
- 
-@@ -75,6 +72,9 @@
- void	free_kiovec(int nr, struct kiobuf **);
- int	expand_kiobuf(struct kiobuf *, int);
- void	kiobuf_wait_for_io(struct kiobuf *);
-+void	unmap_kiobuf(struct kiobuf *iobuf);
-+int	lock_kiovec(int nr, struct kiobuf *iovec[], int wait);
-+int	unlock_kiovec(int nr, struct kiobuf *iovec[]);
- 
- /* fs/buffer.c */
- 
-diff -ru linux-2.4.0-test10.orig/mm/memory.c linux-2.4.0-test10.kio.00/mm/memory.c
---- linux-2.4.0-test10.orig/mm/memory.c	Wed Nov  1 22:25:48 2000
-+++ linux-2.4.0-test10.kio.00/mm/memory.c	Thu Nov  2 11:51:41 2000
-@@ -504,132 +504,6 @@
- }
- 
- 
--/*
-- * Unmap all of the pages referenced by a kiobuf.  We release the pages,
-- * and unlock them if they were locked. 
-- */
--
--void unmap_kiobuf (struct kiobuf *iobuf) 
--{
--	int i;
--	struct page *map;
--	
--	for (i = 0; i < iobuf->nr_pages; i++) {
--		map = iobuf->maplist[i];
--		if (map) {
--			if (iobuf->locked)
--				UnlockPage(map);
--			__free_page(map);
--		}
--	}
--	
--	iobuf->nr_pages = 0;
--	iobuf->locked = 0;
--}
--
--
--/*
-- * Lock down all of the pages of a kiovec for IO.
-- *
-- * If any page is mapped twice in the kiovec, we return the error -EINVAL.
-- *
-- * The optional wait parameter causes the lock call to block until all
-- * pages can be locked if set.  If wait==0, the lock operation is
-- * aborted if any locked pages are found and -EAGAIN is returned.
-- */
--
--int lock_kiovec(int nr, struct kiobuf *iovec[], int wait)
--{
--	struct kiobuf *iobuf;
--	int i, j;
--	struct page *page, **ppage;
--	int doublepage = 0;
--	int repeat = 0;
--	
-- repeat:
--	
--	for (i = 0; i < nr; i++) {
--		iobuf = iovec[i];
--
--		if (iobuf->locked)
--			continue;
--		iobuf->locked = 1;
--
--		ppage = iobuf->maplist;
--		for (j = 0; j < iobuf->nr_pages; ppage++, j++) {
--			page = *ppage;
--			if (!page)
--				continue;
--			
--			if (TryLockPage(page))
--				goto retry;
--		}
--	}
--
--	return 0;
--	
-- retry:
--	
--	/* 
--	 * We couldn't lock one of the pages.  Undo the locking so far,
--	 * wait on the page we got to, and try again.  
--	 */
--	
--	unlock_kiovec(nr, iovec);
--	if (!wait)
--		return -EAGAIN;
--	
--	/* 
--	 * Did the release also unlock the page we got stuck on?
--	 */
--	if (!PageLocked(page)) {
--		/* 
--		 * If so, we may well have the page mapped twice
--		 * in the IO address range.  Bad news.  Of
--		 * course, it _might_ just be a coincidence,
--		 * but if it happens more than once, chances
--		 * are we have a double-mapped page. 
--		 */
--		if (++doublepage >= 3) 
--			return -EINVAL;
--		
--		/* Try again...  */
--		wait_on_page(page);
--	}
--	
--	if (++repeat < 16)
--		goto repeat;
--	return -EAGAIN;
--}
--
--/*
-- * Unlock all of the pages of a kiovec after IO.
-- */
--
--int unlock_kiovec(int nr, struct kiobuf *iovec[])
--{
--	struct kiobuf *iobuf;
--	int i, j;
--	struct page *page, **ppage;
--	
--	for (i = 0; i < nr; i++) {
--		iobuf = iovec[i];
--
--		if (!iobuf->locked)
--			continue;
--		iobuf->locked = 0;
--		
--		ppage = iobuf->maplist;
--		for (j = 0; j < iobuf->nr_pages; ppage++, j++) {
--			page = *ppage;
--			if (!page)
--				continue;
--			UnlockPage(page);
--		}
--	}
--	return 0;
--}
--
- static inline void zeromap_pte_range(pte_t * pte, unsigned long address,
-                                      unsigned long size, pgprot_t prot)
- {
+ 	/* Dynamic state for IO completion: */
+ 	atomic_t	io_count;	/* IOs still in progress */
+-	int		errno;		/* Status of completed IO */
++
++	/* Equivalent to the return value and "errno" after a syscall: */
++	int		errno;		/* Error from completed IO (usual
++					   kernel negative values) */
++	int		retval;		/* Return value of completed IO */
++
+ 	void		(*end_io) (struct kiobuf *); /* Completion callback */
+ 	wait_queue_head_t wait_queue;
+ };
 
---ZwgA9U+XZDXt4+m+--
+--YToU2i3Vx8H2dn7O--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
