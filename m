@@ -1,455 +1,368 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01 [192.168.1.233])
-	by packet.digeo.com (8.12.8/8.12.8) with SMTP id h2F9HoPu003365
-	for <linux-mm@kvack.org>; Sat, 15 Mar 2003 01:17:51 -0800 (PST)
-Date: Sat, 15 Mar 2003 01:17:58 -0800
-From: Andrew Morton <akpm@digeo.com>
-Subject: 2.5.64-mm7
-Message-Id: <20030315011758.7098b006.akpm@digeo.com>
+Date: Sat, 15 Mar 2003 10:13:41 +0000
+From: Russell King <rmk@arm.linux.org.uk>
+Subject: Re: 2.5.64-mm7
+Message-ID: <20030315101341.A1297@flint.arm.linux.org.uk>
+References: <20030315011758.7098b006.akpm@digeo.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030315011758.7098b006.akpm@digeo.com>; from akpm@digeo.com on Sat, Mar 15, 2003 at 01:17:58AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.64/2.5.64-mm7/
-
-  kernel.org rsync seems broken, so it is also at
-
-http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.64/2.5.64-mm7/
-
-
-. Niggling bugs in the anticipatory scheduler are causing problems.  I've
-  reset the default to elevator=deadline until we get these fixed up.
-
-. Added Alex's ext2 lock_super-removal patches
-
-. The brlock removal patches are back
-
-. Added /proc/sysrq-trigger.  Writing a character to this has the same
-  effect as typing ALT-sysrq-that_character.
-
-  This is so that sysrq facilities are available remotely.
-
-. Lots of new PCI handling code here from Russell King <rmk@arm.linux.org.uk>
-
-
-
-
-Changes since 2.5.64-mm6:
-
-
--nfsd-disable-softirq.patch
--lockd-lockup-fix-2.patch
--reiserfs-fix-memleaks.patch
--nfsd-memleak-fix.patch
-
- Merged
-
-+as-eject-BUG-fix.patch
-
- Fix an anticipatory scheduler BUG when cdroms are ejected
-
-+deadline-default.patch
-
- Default to deadline scheduler
-
-+scheduler-starvation-fixes.patch
-
- CPU scheduler tweaks
-
-+timer-cleanup.patch
-+timer-readdition-fix.patch
-
- Fix timer livelock
-
-+oprofile-timer-fix.patch
-
- Oprofile fix
-
-+htree-nfs-fix-2.patch
-
- Another fix for ext3/htree on NFS servers
-
-+ext2-balloc-fix.patch
-
- Fix logic in the ext2 block allocator
-
-+ext2-no-lock_super.patch
-+ext2-no-lock-super-whitespace-fixes.patch
-+ext2-no-lock_super-fix-1.patch
-+ext2-no-lock_super-fix-2.patch
-+ext2-no-lock_super-fix-3.patch
-+ext2-no-lock_super-fix-4.patch
-+ext2-no-lock_super-fix-5.patch
-+ext2-no-lock_super-fix-6.patch
-+ext2-no-lock_super-fix-7.patch
-
- Removal of lock_super in the ext2 block allocator
-
-+brlock-removal-1.patch
-+brlock-removal-2.patch
-+brlock-removal-3.patch
-+brlock-removal-4.patch
-+brlock-removal-5.patch
-
- Second pass of the brlock removal patches
-
-+pgd_index-comments.patch
-
- Add some comments
-
-+pci-6.patch
-+pci-7.patch
-+pci-8.patch
-+pci-9.patch
-+pci-10.patch
-+pci-11.patch
-+pci-12.patch
-+pci-13.patch
-+pci-14.patch
-+pci-15.patch
-
- Some of Russell King's PCI patches.
-
-+proc-sysrq-trigger.patch
-
- Create /proc/sysrq-trigger
-
-+aio-bits-fix.patch
-
- AIO fixes
-
-+clean-inode-fix.patch
-
- Forgot to initialise inode->i_rdev
-
-
-
-
-All 116 patches:
-
-linus.patch
-  Latest from Linus
-
-mm.patch
-  add -mmN to EXTRAVERSION
-
-kgdb.patch
-
-noirqbalance-fix.patch
-  Fix noirqbalance
-
-config_spinline.patch
-  uninline spinlocks for profiling accuracy.
-
-ppc64-reloc_hide.patch
-
-ppc64-pci-patch.patch
-  Subject: pci patch
-
-ppc64-aio-32bit-emulation.patch
-  32/64bit emulation for aio
-
-ppc64-64-bit-exec-fix.patch
-  Pass the load address into ELF_PLAT_INIT()
-
-ppc64-scruffiness.patch
-  Fix some PPC64 compile warnings
-
-ppc64-compat-flock.patch
-  compat_sys_fcntl{,64} 2/9 ppc64 part
-
-ppc64-eeh-fix.patch
-  ppc64 build fix
-
-ppc64-socketcall-fix.patch
-
-sym-do-160.patch
-  make the SYM driver do 160 MB/sec
-
-config-PAGE_OFFSET.patch
-  Configurable kenrel/user memory split
-
-ptrace-flush.patch
-  cache flushing in the ptrace code
-
-buffer-debug.patch
-  buffer.c debugging
-
-warn-null-wakeup.patch
-
-ext3-truncate-ordered-pages.patch
-  ext3: explicitly free truncated pages
-
-reiserfs_file_write-5.patch
-
-tcp-wakeups.patch
-  Use fast wakeups in TCP/IPV4
-
-rcu-stats.patch
-  RCU statistics reporting
-
-ext3-journalled-data-assertion-fix.patch
-  Remove incorrect assertion from ext3
-
-nfs-speedup.patch
-
-nfs-oom-fix.patch
-  nfs oom fix
-
-sk-allocation.patch
-  Subject: Re: nfs oom
-
-nfs-more-oom-fix.patch
-
-rpciod-atomic-allocations.patch
-  Make rcpiod use atomic allocations
-
-linux-isp.patch
-
-isp-update-1.patch
-
-remove-unused-congestion-stuff.patch
-  Subject: [PATCH] remove unused congestion stuff
-
-as-iosched.patch
-  anticipatory I/O scheduler
-
-as-debug-BUG-fix.patch
-
-as-eject-BUG-fix.patch
-  AS: don't go BUG during cdrom eject
-
-cfq-2.patch
-  CFQ scheduler, #2
-
-deadline-default.patch
-  deafult to deadline IO scheduler
-
-smalldevfs.patch
-  smalldevfs
-
-remap-file-pages-2.5.63-a1.patch
-  Subject: [patch] remap-file-pages-2.5.63-A1
-
-hugh-remap-fix.patch
-  hugh's file-offset-in-pte fix
-
-fremap-limit-offsets.patch
-  fremap: limit remap_file_pages() file offsets
-
-fremap-all-mappings.patch
-  Make all executable mappings be nonlinear
-
-filemap_populate-speedup.patch
-  filemap_populate speedup
-
-file-offset-in-pte-x86_64.patch
-  x86_64: support for file offsets in pte's
-
-file-offset-in-pte-ppc64.patch
-
-objrmap-2.5.62-5.patch
-  object-based rmap
-
-objrmap-nonlinear-fixes.patch
-  objrmap fix for nonlinear
-
-scheduler-tunables.patch
-  scheduler tunables
-
-scheduler-starvation-fixes.patch
-  CPU scheduler starvation fixes
-
-timer-cleanup.patch
-  timer code cleanup
-
-timer-readdition-fix.patch
-  timer re-addition lockup fix
-
-show_task-free-stack-fix.patch
-  show_task() fix and cleanup
-
-yellowfin-set_bit-fix.patch
-  yellowfin driver set_bit fix
-
-htree-nfs-fix.patch
-  Fix ext3 htree / NFS compatibility problems
-
-update_atime-ng.patch
-  inode a/c/mtime modification speedup
-
-one-sec-times.patch
-  Implement a/c/time speedup in ext2 & ext3
-
-task_prio-fix.patch
-  simple task_prio() fix
-
-register-tty_devclass.patch
-  Register tty_devclass before use
-
-set_current_state-fs.patch
-  use set_current_state in fs
-
-set_current_state-mm.patch
-  use set_current_state in mm
-
-copy_thread-leak-fix.patch
-  Fix memory leak in copy_thread
-
-slab_store_user-large-objects.patch
-  slab debug: perform redzoning against larger objects
-
-file_list_lock-contention-fix.patch
-  file_list_lock contention fixes
-
-tty_files-fixes.patch
-  file->f_list locking in tty_io.c
-
-file_list_cleanup.patch
-  file_list cleanup
-
-file_list-remove-free_list.patch
-  file_table: remove the private freelist
-
-file-list-less-locking.patch
-  file_list: less locking
-
-vt_ioctl-stack-use.patch
-  stack reduction in drivers/char/vt_ioctl.c
-
-fix-mem-equals.patch
-  Fix mem= options
-
-no-mmu-stubs.patch
-  a few missing stubs for !CONFIG_MMU
-
-nommu-slab.patch
-  slab changes for !CONFIG_MMU
-
-nfs-memleak-fix.patch
-  memleak in fs/nfs/inode.c::nfs_get_sb()
-
-ufs-memleak-fix.patch
-  Memleak in fs/ufs/util.c
-
-hugetlb-unmap_vmas-fix.patch
-  fix the fix for unmap_vmas & hugepages
-
-early-writeback-init.patch
-  Early writeback initialisation
-
-posix-timers-update.patch
-  posix timers update
-
-e100-memleak-fix.patch
-  Memleak in e100 driver
-
-pcmcia-1-kill-get_foo_map.patch
-  pcmcia: 1/6 kill get_*_map
-
-pcmcia-2-remove-bus_foo-abstractions.patch
-  pcmcia: 2/6: Remove bus_* abstractions
-
-pcmcia-3-add-SOCKET_CARDBUS_CONFIG.patch
-  pcmcia: 3/6: add SOCKET_CARDBUS_CONFIG flag
-
-pcmcia-4-add-locking.patch
-  pcmcia: 4/6: Add some locking to rsrc_mgr.c
-
-pcmcia-5-add-CONFIG_PCMCIA_PROBE.patch
-  pcmcia 5/6: Introduce CONFIG_PCMCIA_PROBE
-
-pcmcia-6-remove-old-cardbus-clients.patch
-  pcmcia: 6/6: Remove support for old cardbus clients
-
-oops-counters.patch
-  OOPS instance counters
-
-io_apic-DO_ACTION-cleanup.patch
-  io-apic.c: DO_ACTION cleanup
-
-ext2-ext3-noatime-fix.patch
-  Ext2/3 noatime and dirsync sometimes ignored
-
-oprofile-timer-fix.patch
-  fix oprofile timer race
-
-htree-nfs-fix-2.patch
-  htree nfs fix
-
-ext2-balloc-fix.patch
-  ext2: block allocation fix
-
-ext2-no-lock_super.patch
-  concurrent block allocation for ext2
-
-ext2-no-lock-super-whitespace-fixes.patch
-
-ext2-no-lock_super-fix-1.patch
-
-ext2-no-lock_super-fix-2.patch
-
-ext2-no-lock_super-fix-3.patch
-
-ext2-no-lock_super-fix-4.patch
-
-ext2-no-lock_super-fix-5.patch
-
-ext2-no-lock_super-fix-6.patch
-
-ext2-no-lock_super-fix-7.patch
-
-brlock-removal-1.patch
-  Brlock removal 1/5 - core
-
-brlock-removal-2.patch
-  brlock removal 2/5: remove brlock from snap and vlan
-
-brlock-removal-3.patch
-  brlock removal 3/5: remove brlock from bridge
-
-brlock-removal-4.patch
-  brlock removal 4/5: removal from ipv4/ipv6
-
-brlock-removal-5.patch
-  brlock removal 5/5: remove brlock code
-
-pgd_index-comments.patch
-  pgd_index/pmd_index/pte_index commentary
-
-pci-6.patch
-
-pci-7.patch
-
-pci-8.patch
-
-pci-9.patch
-
-pci-10.patch
-
-pci-11.patch
-
-pci-12.patch
-
-pci-13.patch
-
-pci-14.patch
-
-pci-15.patch
-
-proc-sysrq-trigger.patch
-  /proc/sysrq-trigger: trigger sysrq functions via /proc
-
-aio-bits-fix.patch
-  kiocbClear should use clear_bit instead of set_bit
-
-clean-inode-fix.patch
-  initialise inode->i_rdev
-
-
+> +pci-6.patch
+> +pci-7.patch
+> +pci-8.patch
+> +pci-9.patch
+> +pci-10.patch
+> +pci-11.patch
+> +pci-12.patch
+> +pci-13.patch
+> +pci-14.patch
+> +pci-15.patch
+> 
+>  Some of Russell King's PCI patches.
+
+Following comments from Ivan, the following patches changed:
+
+pci-9
+
+  only enable ROM resources if res->flags has PCI_ROM_ADDRESS_ENABLE set.
+
+pci-10
+
+  don't use PCI_BUS_NUM_RESOURCES here - PPC machines can (in theory) have
+  more than 4 primary bus resources.
+
+pci-11
+
+  breaks Alpha Nautilus host bridge sizing - patch dropped from patch set.
+
+For those trying the above out, please apply the following patch on top of
+-mm7:
+
+diff -ur orig/drivers/pci/setup-res.c linux/drivers/pci/setup-res.c
+--- orig/drivers/pci/setup-res.c	Sat Mar 15 09:54:19 2003
++++ linux/drivers/pci/setup-res.c	Sat Mar 15 09:55:38 2003
+@@ -55,8 +55,7 @@
+ 	if (resno < 6) {
+ 		reg = PCI_BASE_ADDRESS_0 + 4 * resno;
+ 	} else if (resno == PCI_ROM_RESOURCE) {
+-		res->flags |= PCI_ROM_ADDRESS_ENABLE;
+-		new |= PCI_ROM_ADDRESS_ENABLE;
++		new |= res->flags & PCI_ROM_ADDRESS_ENABLE;
+ 		reg = dev->rom_base_reg;
+ 	} else {
+ 		/* Hmm, non-standard resource. */
+diff -ur orig/drivers/pci/probe.c linux/drivers/pci/probe.c
+--- orig/drivers/pci/probe.c	Sat Mar 15 09:59:15 2003
++++ linux/drivers/pci/probe.c	Sat Mar 15 09:58:47 2003
+@@ -256,7 +256,7 @@
+ 		child->subordinate = 0xff;
+ 
+ 		/* Set up default resource pointers and names.. */
+-		for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
++		for (i = 0; i < 4; i++) {
+ 			child->resource[i] = &bridge->resource[PCI_BRIDGE_RESOURCES+i];
+ 			child->resource[i]->name = child->name;
+ 		}
+diff -ur orig/drivers/pci/setup-bus.c linux/drivers/pci/setup-bus.c
+--- orig/drivers/pci/setup-bus.c	Sat Mar 15 10:01:05 2003
++++ linux/drivers/pci/setup-bus.c	Sat Mar 15 09:58:44 2003
+@@ -36,13 +36,6 @@
+ 
+ #define ROUND_UP(x, a)		(((x) + (a) - 1) & ~((a) - 1))
+ 
+-/*
+- * FIXME: IO should be max 256 bytes.  However, since we may
+- * have a P2P bridge below a cardbus bridge, we need 4K.
+- */
+-#define CARDBUS_IO_SIZE		(4096)
+-#define CARDBUS_MEM_SIZE	(32*1024*1024)
+-
+ static int __devinit
+ pbus_assign_resources_sorted(struct pci_bus *bus)
+ {
+@@ -74,59 +67,6 @@
+ 	return found_vga;
+ }
+ 
+-static void __devinit pci_setup_cardbus(struct pci_bus *bus)
+-{
+-	struct pci_dev *bridge = bus->self;
+-	struct pci_bus_region region;
+-
+-	printk("PCI: Bus %d, cardbus bridge: %s\n",
+-		bus->number, bridge->slot_name);
+-
+-	pcibios_resource_to_bus(bridge, &region, bus->resource[0]);
+-	if (bus->resource[0]->flags & IORESOURCE_IO) {
+-		/*
+-		 * The IO resource is allocated a range twice as large as it
+-		 * would normally need.  This allows us to set both IO regs.
+-		 */
+-		printk("  IO window: %08lx-%08lx\n",
+-			region.start, region.end);
+-		pci_write_config_dword(bridge, PCI_CB_IO_BASE_0,
+-					region.start);
+-		pci_write_config_dword(bridge, PCI_CB_IO_LIMIT_0,
+-					region.end);
+-	}
+-
+-	pcibios_resource_to_bus(bridge, &region, bus->resource[1]);
+-	if (bus->resource[1]->flags & IORESOURCE_IO) {
+-		printk("  IO window: %08lx-%08lx\n",
+-			region.start, region.end);
+-		pci_write_config_dword(bridge, PCI_CB_IO_BASE_1,
+-					region.start);
+-		pci_write_config_dword(bridge, PCI_CB_IO_LIMIT_1,
+-					region.end);
+-	}
+-
+-	pcibios_resource_to_bus(bridge, &region, bus->resource[2]);
+-	if (bus->resource[2]->flags & IORESOURCE_MEM) {
+-		printk("  PREFETCH window: %08lx-%08lx\n",
+-			region.start, region.end);
+-		pci_write_config_dword(bridge, PCI_CB_MEMORY_BASE_0,
+-					region.start);
+-		pci_write_config_dword(bridge, PCI_CB_MEMORY_LIMIT_0,
+-					region.end);
+-	}
+-
+-	pcibios_resource_to_bus(bridge, &region, bus->resource[3]);
+-	if (bus->resource[3]->flags & IORESOURCE_MEM) {
+-		printk("  MEM window: %08lx-%08lx\n",
+-			region.start, region.end);
+-		pci_write_config_dword(bridge, PCI_CB_MEMORY_BASE_1,
+-					region.start);
+-		pci_write_config_dword(bridge, PCI_CB_MEMORY_LIMIT_1,
+-					region.end);
+-	}
+-}
+-
+ /* Initialize bridges with base/limit values we have collected.
+    PCI-to-PCI Bridge Architecture Specification rev. 1.1 (1998)
+    requires that if there is no I/O ports or memory behind the
+@@ -214,6 +154,9 @@
+ 	struct pci_dev *bridge = bus->self;
+ 	struct resource *b_res;
+ 
++	if (!bridge || (bridge->class >> 8) != PCI_CLASS_BRIDGE_PCI)
++		return;
++
+ 	b_res = &bridge->resource[PCI_BRIDGE_RESOURCES];
+ 	b_res[1].flags |= IORESOURCE_MEM;
+ 
+@@ -245,10 +188,11 @@
+    since these windows have 4K granularity and the IO ranges
+    of non-bridge PCI devices are limited to 256 bytes.
+    We must be careful with the ISA aliasing though. */
+-static void __devinit pbus_size_io(struct pci_bus *bus, int resno)
++static void __devinit
++pbus_size_io(struct pci_bus *bus)
+ {
+ 	struct pci_dev *dev;
+-	struct resource *b_res = bus->resource[resno];
++	struct resource *b_res = bus->resource[0];
+ 	unsigned long size = 0, size1 = 0;
+ 
+ 	if (!(b_res->flags & IORESOURCE_IO))
+@@ -271,6 +215,9 @@
+ 			else
+ 				size1 += r_size;
+ 		}
++		/* ??? Reserve some resources for CardBus. */
++		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_CARDBUS)
++			size1 += 4*1024;
+ 	}
+ /* To be fixed in 2.5: we should have sort of HAVE_ISA
+    flag in the struct pci_bus. */
+@@ -290,13 +237,14 @@
+ /* Calculate the size of the bus and minimal alignment which
+    guarantees that all child resources fit in this size. */
+ static void __devinit
+-pbus_size_mem(struct pci_bus *bus, int resno, unsigned long mask, unsigned long type)
++pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long type)
+ {
+-	struct resource *b_res = bus->resource[resno];
+ 	struct pci_dev *dev;
+ 	unsigned long min_align, align, size;
+ 	unsigned long aligns[12];	/* Alignments from 1Mb to 2Gb */
+ 	int order, max_order;
++	struct resource *b_res = (type & IORESOURCE_PREFETCH) ?
++				 bus->resource[2] : bus->resource[1];
+ 
+ 	memset(aligns, 0, sizeof(aligns));
+ 	max_order = 0;
+@@ -332,6 +280,11 @@
+ 			if (order > max_order)
+ 				max_order = order;
+ 		}
++		/* ??? Reserve some resources for CardBus. */
++		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_CARDBUS) {
++			size += 1UL << 24;		/* 16 Mb */
++			aligns[24 - 20] += 1UL << 24;
++		}
+ 	}
+ 
+ 	align = 0;
+@@ -354,104 +307,37 @@
+ 	b_res->end = size + min_align - 1;
+ }
+ 
+-static void __devinit pci_bus_size_cardbus(struct pci_bus *bus)
+-{
+-	struct pci_dev *bridge = bus->self;
+-	struct resource *b_res = &bridge->resource[PCI_BRIDGE_RESOURCES];
+-	u16 ctrl;
+-
+-	/*
+-	 * Reserve some resources for CardBus.  We reserve
+-	 * a fixed amount of bus space for CardBus bridges.
+-	 */
+-	b_res[0].start = CARDBUS_IO_SIZE;
+-	b_res[0].end = b_res[0].start + CARDBUS_IO_SIZE - 1;
+-	b_res[0].flags |= IORESOURCE_IO;
+-
+-	b_res[1].start = CARDBUS_IO_SIZE;
+-	b_res[1].end = b_res[1].start + CARDBUS_IO_SIZE - 1;
+-	b_res[1].flags |= IORESOURCE_IO;
+-
+-	/*
+-	 * Check whether prefetchable memory is supported
+-	 * by this bridge.
+-	 */
+-	pci_read_config_word(bridge, PCI_CB_BRIDGE_CONTROL, &ctrl);
+-	if (!(ctrl & PCI_CB_BRIDGE_CTL_PREFETCH_MEM0)) {
+-		ctrl |= PCI_CB_BRIDGE_CTL_PREFETCH_MEM0;
+-		pci_write_config_word(bridge, PCI_CB_BRIDGE_CONTROL, ctrl);
+-		pci_read_config_word(bridge, PCI_CB_BRIDGE_CONTROL, &ctrl);
+-	}
+-
+-	/*
+-	 * If we have prefetchable memory support, allocate
+-	 * two regions.  Otherwise, allocate one region of
+-	 * twice the size.
+-	 */
+-	if (ctrl & PCI_CB_BRIDGE_CTL_PREFETCH_MEM0) {
+-		b_res[2].start = CARDBUS_MEM_SIZE;
+-		b_res[2].end = b_res[2].start + CARDBUS_MEM_SIZE - 1;
+-		b_res[2].flags |= IORESOURCE_MEM | IORESOURCE_PREFETCH;
+-
+-		b_res[3].start = CARDBUS_MEM_SIZE;
+-		b_res[3].end = b_res[3].start + CARDBUS_MEM_SIZE - 1;
+-		b_res[3].flags |= IORESOURCE_MEM;
+-	} else {
+-		b_res[3].start = CARDBUS_MEM_SIZE * 2;
+-		b_res[3].end = b_res[3].start + CARDBUS_MEM_SIZE * 2 - 1;
+-		b_res[3].flags |= IORESOURCE_MEM;
+-	}
+-}
+-
+ void __devinit
+ pci_bus_size_bridges(struct pci_bus *bus)
+ {
+-	struct pci_dev *dev;
+-	unsigned long mask;
++	struct pci_bus *b;
++	unsigned long mask, type;
+ 
+-	list_for_each_entry(dev, &bus->devices, bus_list) {
+-		struct pci_bus *b = dev->subordinate;
+-		if (!b)
+-			continue;
+-
+-		switch (dev->class >> 8) {
+-		case PCI_CLASS_BRIDGE_PCI:
+-			pci_bus_size_bridges(b);
+-			break;
+-
+-		case PCI_CLASS_BRIDGE_CARDBUS:
+-			pci_bus_size_cardbus(b);
+-			break;
+-		}
++	list_for_each_entry(b, &bus->children, node) {
++		pci_bus_size_bridges(b);
+ 	}
+ 
+ 	/* The root bus? */
+ 	if (!bus->self)
+ 		return;
+ 
+-	switch (bus->self->class >> 8) {
+-	case PCI_CLASS_BRIDGE_PCI:
+-		pci_bridge_check_ranges(bus);
+-		pbus_size_io(bus, 0);
+-		mask = IORESOURCE_MEM;
+-		/* If the bridge supports prefetchable range, size it separately. */
+-		if (bus->resource[2] &&
+-		    bus->resource[2]->flags & IORESOURCE_PREFETCH) {
+-			pbus_size_mem(bus, 2, IORESOURCE_PREFETCH | IORESOURCE_MEM,
+-				      IORESOURCE_PREFETCH | IORESOURCE_MEM);
+-			mask |= IORESOURCE_PREFETCH;	/* Size non-prefetch only. */
+-		}
+-		pbus_size_mem(bus, 1, mask, IORESOURCE_MEM);
+-		break;
++	pci_bridge_check_ranges(bus);
++
++	pbus_size_io(bus);
+ 
+-	case PCI_CLASS_BRIDGE_CARDBUS:
+-		/* don't size cardbuses yet. */
+-		break;
++	mask = type = IORESOURCE_MEM;
++	/* If the bridge supports prefetchable range, size it separately. */
++	if (bus->resource[2] &&
++	    bus->resource[2]->flags & IORESOURCE_PREFETCH) {
++		pbus_size_mem(bus, IORESOURCE_PREFETCH, IORESOURCE_PREFETCH);
++		mask |= IORESOURCE_PREFETCH;	/* Size non-prefetch only. */
+ 	}
++	pbus_size_mem(bus, mask, type);
+ }
+ EXPORT_SYMBOL(pci_bus_size_bridges);
+ 
+-void __devinit pci_bus_assign_resources(struct pci_bus *bus)
++void __devinit
++pci_bus_assign_resources(struct pci_bus *bus)
+ {
+ 	struct pci_bus *b;
+ 	int found_vga = pbus_assign_resources_sorted(bus);
+@@ -465,24 +351,9 @@
+ 	}
+ 	list_for_each_entry(dev, &bus->devices, bus_list) {
+ 		b = dev->subordinate;
+-		if (!b)
+-			continue;
+-
+-		pci_bus_assign_resources(b);
+-
+-		switch (dev->class >> 8) {
+-		case PCI_CLASS_BRIDGE_PCI:
++		if (b) {
++			pci_bus_assign_resources(b);
+ 			pci_setup_bridge(b);
+-			break;
+-
+-		case PCI_CLASS_BRIDGE_CARDBUS:
+-			pci_setup_cardbus(b);
+-			break;
+-
+-		default:
+-			printk(KERN_INFO "PCI: not setting up bridge %s "
+-			       "for bus %d\n", dev->slot_name, b->number);
+-			break;
+ 		}
+ 	}
+ }
+
+
+
+-- 
+Russell King (rmk@arm.linux.org.uk)                The developer of ARM Linux
+             http://www.arm.linux.org.uk/personal/aboutme.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
