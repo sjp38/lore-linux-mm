@@ -1,35 +1,42 @@
-Date: Thu, 29 Apr 1999 10:27:09 -0400 (EDT)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: Hello
-In-Reply-To: <v04020a01b34cd7f3c7c3@[198.115.92.60]>
-Message-ID: <Pine.LNX.3.95.990429102031.23110B-100000@as200.spellcast.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from ariessys.com (ns.ariessys.com [198.115.92.2])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA23526
+	for <linux-mm@kvack.org>; Thu, 29 Apr 1999 10:38:47 -0400
+Received: from [198.115.92.60] (lightning.ariessys.com [198.115.92.60])
+	by ariessys.com (8.8.8/8.8.8) with ESMTP id KAA19366
+	for <linux-mm@kvack.org>; Thu, 29 Apr 1999 10:38:37 -0400
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Message-Id: <v04020a00b34e1e944f31@[198.115.92.60]>
+Date: Thu, 29 Apr 1999 10:38:39 -0400
+From: "James E. King, III" <jking@ariessys.com>
+Subject: 1GB ramdisk
 Sender: owner-linux-mm@kvack.org
-To: "James E. King, III" <jking@ariessys.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 28 Apr 1999, James E. King, III wrote:
+Thanks for all the help.  I don't really need the 4GB memory for
+application space...  What I want to do is take the index files of the
+database and put them into a ramdisk.  It appears that this is possible,
+albeit with some patches.  I think this will substantially increate the
+performance of my database system.
 
-> 1. If I purchase a Quad Xeon 550 with 4 GB of memory, will Linux work on it?
->    (I saw the whole thing about tweaking kernel parameters to change from a 3:1
->     split to a 2:2 split)
->    Should I just buy 2GB - will I be able to use the extra 2GB?
+Someone suggested using alpha which would solve all of my problems.  True,
+but where can I find a quad processor 500MHz alpha box for around $25,000?
+Let me know.  Last time I checked, the list price on an AlphaServer 4100
+configured this way was over $100,000.
 
-You won't be able to use the extra 2GB without some effort.  Current plans
-seem to be headed towards keeping the current 3G/1G split.  Fwiw, if
-you're going to spend that much money, why not purchase an Alpha?  That
-way you'll be able to grow beyond the 4GB as your data grows.
+It would be really, really helpful if someone created a ramdisk-HOWTO with
+information on how one can create a ramdisk of 1GB or 2GB size. :>
 
-> 2. Can I create a large (let's say 1GB) ramdisk or memory filesystem?
 
-I think someone created patches that make a ramdisk out of the really high
-memory.  Try doing a search of the linux-kernel archives -- I remember
-seeing it withing the past 3 or 4 months.  Hope this helps!
-
-		-ben
-
+     _/   _/_/  _/_/_/ _/_/  _/_/         James E. King, III
+    _/_/  _/ _/   _/   _/   _/            Aries Systems Corporation
+   _/_/_/ _/_/    _/   _/_/  _/_/         200 Sutton Street
+   _/  _/ _/ _/   _/   _/       _/        North Andover, MA.  01845
+   _/  _/ _/ _/ _/_/_/ _/_/  _/_/         (978) 975-7570
+                                          (978) 975-3811 FAX
+      <http://www.kfinder.com/>
+  Enhancing the Power of Knowledge(r)     jking@ariessys.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
