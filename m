@@ -1,38 +1,38 @@
-Received: from post.mail.nl.demon.net (post-10.mail.nl.demon.net [194.159.73.20])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id FAA23383
-	for <linux-mm@kvack.org>; Sun, 9 May 1999 05:19:50 -0400
-Date: Sun, 9 May 1999 11:15:30 +0200 (CEST)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: Can you tell me what functions of "mm" to do  
-In-Reply-To: <77271898F57.AAA5EFC@pub.xaonline.com>
-Message-ID: <Pine.LNX.4.03.9905091114120.256-100000@mirkwood.nl.linux.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from ns1.gatewayone.com (ns1.gatewayone.com [207.226.171.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA26646
+	for <linux-mm@kvack.org>; Sun, 9 May 1999 11:54:20 -0400
+Received: from [24.28.195.210] by ns1.gatewayone.com
+          (Netscape Mail Server v1.1) with ESMTP id AAA26603
+          for <linux-mm@kvack.org>; Sun, 9 May 1999 11:52:56 -0400
+Date: Sun, 09 May 1999 11:59:33 +0100
+Subject: Error on startup !! HELP !!!!
+From: alex@gatewayone.com (Alex Ung)
+Mime-version: 1.0
+Content-type: text/plain; charset="US-ASCII"
+Content-transfer-encoding: 7bit
+Message-ID: <19990509155255.AAA26603@[24.28.195.210]>
 Sender: owner-linux-mm@kvack.org
-To: kanghua <kanghua@pub.xaonline.com>
-Cc: linux-mm@kvack.org
+To: Linux Group <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 9 May 1999, kanghua wrote:
+I just install my Red Hat Linux 5.2. I am using a 486 EISA syster with a 
+SCSI adapter AHA-2840VL/2842VL Bios v1.01. There is no network card to my
+system. I just have a 56K external modem connected to my serial port #2.
 
->   I puzzled by some functions in directory of "mm" in linux kernel
-> source . I know it is a hard and mass work. and to it is too
-> excessive requir. but I wish I can get your help.
+Anyway after my first install, it rebooted and I keep on getting the
+following messages:
 
-If you could tell us which functions cause your confusion and
-tell us the nature of the confusion, we would be able to give
-you the advice you need in order to permanently get rid of
-said confusion...
+invalid compressed format (err=2)VFS: Cannot open root device 08:05
+Kernel panic: VFS: Unable to mount root fs on 08:05
 
-regards,
+Could anyone help this apprentice to resolve this error? Thank you so much
+for your time and patience.........
 
-Rik -- Open Source: you deserve to be in control of your data.
-+-------------------------------------------------------------------+
-| Le Reseau netwerksystemen BV:               http://www.reseau.nl/ |
-| Linux Memory Management site:  http://humbolt.geo.uu.nl/Linux-MM/ |
-| Nederlandse Linux documentatie:          http://www.nl.linux.org/ |
-+-------------------------------------------------------------------+
+Thankfully yours,
 
+Alex
+
+Apprentice of Red Hat Linux 5.2
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
