@@ -1,31 +1,26 @@
-Date: Mon, 25 Sep 2000 18:20:40 +0200 (CEST)
+Date: Mon, 25 Sep 2000 18:22:42 +0200 (CEST)
 From: Ingo Molnar <mingo@elte.hu>
 Reply-To: mingo@elte.hu
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-In-Reply-To: <Pine.GSO.4.21.0009251157390.16980-100000@weyl.math.psu.edu>
-Message-ID: <Pine.LNX.4.21.0009251819380.9122-100000@elte.hu>
+Subject: Re: the new VMt
+In-Reply-To: <20000925181121.A27023@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009251821170.9122-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexander Viro <viro@math.psu.edu>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Sep 2000, Alexander Viro wrote:
+On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
 
-> > i'd suggest to simply BUG() in schedule() if the superblock lock is held
-> > not directly by lock_super. Holding the superblock lock is IMO quite rude
-> > anyway (for performance and latency) - is there any place where we hold it
-> > for a long time and it's unavoidable?
+> > ie. 99.45% of all allocations are single-page! 0.50% is the 8kb
 > 
-> Ingo, schedule() has no bloody business _knowing_ about superblock
-> locks in the first place. Yes, ext2 should not bother taking it at
-> all. For completely unrelated reasons.
+> You're right. That's why it's a waste to have so many order in the
+> buddy allocator. [...]
 
-i only suggested this as a debugging helper, instead of the suggested
-ext2_getblk() BUG() helper. Obviously schedule() has no business knowing
-about filesystem locks.
+yep, i agree. I'm not sure what the biggest allocation is, some drivers
+might use megabytes or contiguous RAM?
 
 	Ingo
 
