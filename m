@@ -1,8 +1,8 @@
-Date: Fri, 18 Feb 2005 08:20:39 -0800
+Date: Fri, 18 Feb 2005 08:22:20 -0800
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
  II
-Message-Id: <20050218082039.3b1d03c1.pj@sgi.com>
+Message-Id: <20050218082220.579a5b09.pj@sgi.com>
 In-Reply-To: <20050218130232.GB13953@wotan.suse.de>
 References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
 	<m1vf8yf2nu.fsf@muc.de>
@@ -24,13 +24,14 @@ Cc: raybry@sgi.com, ak@muc.de, raybry@austin.rr.com, linux-mm@kvack.org, linux-k
 List-ID: <linux-mm.kvack.org>
 
 Andi wrote:
-> I don't like old_node* very much because it's imho unreliable
-> (because you can usually never fully know on which nodes the old
-> process was and there can be good reasons to just migrate everything)
+> e.g. job runs threads on nodes 0,1,2,3  and you want it to move
+> to nodes 4,5,6,7 with all memory staying staying in the same
+> distance from the new CPUs as it were from the old CPUs, right? 
+> 
+> It explains why you want old_node, you would do 
+> (assuming node mask arguments) 
 
-That's one way that the arrays of old and new nodes pays off.
-You can list any old node that might have a page, and state
-which new node that page should go to.
+Yup - my immediately preceeding post repeated this - sorry.
 
 -- 
                   I won't rest till it's the best ...
