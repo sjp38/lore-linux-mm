@@ -1,81 +1,287 @@
-Message-ID: <40377BBD.6000301@movaris.com>
-Date: Sat, 21 Feb 2004 07:39:41 -0800
-From: Kirk True <ktrue@movaris.com>
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: Non-GPL export of invalidate_mmap_range
+Date: Sat, 21 Feb 2004 14:00:16 -0500
+References: <20040216190927.GA2969@us.ibm.com> <200402201800.12077.phillips@arcor.de> <20040220161738.GF1269@us.ibm.com>
+In-Reply-To: <20040220161738.GF1269@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: LTP VM test slower under 2.6.3 than 2.4.20
-References: <40363778.20900@movaris.com> <40368E00.3000505@cyberone.com.au>
-In-Reply-To: <40368E00.3000505@cyberone.com.au>
-Content-Type: multipart/mixed;
- boundary="------------040200000404090008060905"
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200402211400.16779.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: kernelnewbies <kernelnewbies@nl.linux.org>, Linux-MM@kvack.org
+To: paulmck@us.ibm.com
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------040200000404090008060905
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Hi Paul et al,
 
-> Can you post vmstat 1 logs for each kernel?
+Here is an updated patch.  The name of the exported function is changed to
+"invalidate_filemap_range" to reflect the fact that only file-backed pages are
+invalidated, and to distinguish the three parameter flavour from the four
+parameter version called from vmtruncate.  The inner loop in zap_pte_range is
+hopefully correct now.
 
-Attached is the vmstat output. The CPU stats are pretty interesting.
+While I'm in here, why is the assignment "pte =" at line 411 of memory.c not
+redundant?
 
-Kirk
+   http://lxr.linux.no/source/mm/memory.c?v=2.6.1#L411
 
---------------040200000404090008060905
-Content-Type: text/plain;
- name="vmstatcombined.txt"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="vmstatcombined.txt"
+As far as I can see, the ->filemap spinlock protects the pte from modification
+and pte was already assigned at line 405.
 
-2.4.20:
+Anyway, we can now see that the full cost of this DFS-specific feature in the inner
+loop is a single (unlikely) branch.
 
-procs               memory             swap          io     system             cpu
- r  b    swpd    free  buff  cache  si     so   bi     bo   in    cs  us  sy wa   id
- 0  0       0  886312  8612  66152   0      0    0      0  109    88   1   0  0   99
- 0  0       0  886312  8612  66152   0      0    0      0  132   140   1   0  0   99
- 2  0    1016    5272  4212  28188   0    368   36    368  115   380  13  65  0   22
- 1  0   45116    5236  4192  27872   0  40912    4  40912  724  1889   0  22  0   78
- 1  1   76604    5236  4192  27872   0  30912    0  31004  646  1416   0  17  0   83
- 0  2  112316    5236  4200  27872   0  36876   12  36872  675   873   0  14  0   86
- 0  0    3560  930120  4192  27872   0  21536    8  21540  492   487   1  13  0   86
- 0  0    3304  930372  4192  27876   0      0    0      0  124    45   0   0  0  100
- 0  0    3304  930372  4192  27876   0      0    0      0  107    24   0   0  0  100
+I'll repeat my proposition here: providing local filesystem semantics for
+MAP_PRIVATE on any distributed filesystem requires these decorations on the
+unmap path.  Though there is no benefit for local filesystems, the cost is
+insignificant.
 
+Regards,
 
+Daniel
 
-2.6.3:
-
-procs               memory               swap         io         system         cpu
- r   b    swpd    free  buff cache    si     so    bi     bo     in   cs  us  sy   wa  id
- 0   0   41884  862460  752  11916     0      0     0      0   1008   67   0   0    0 100
- 1   0   41884  692660  756  11912     0      0     0      0   1028  115   9  38    0  53
- 1   0   41884  254580  756  11912     0      0     0      0   1003   15   3  97    0   0
- 0  12   52536    4148  128   2232  1124  74012  2128  74184  16321  930   2  60   38   0
- 4  11  112492    4104  152   2460   180   1856   332   1856   5281   23   0   0  100   0
- 4  11  131836    4936  152   2728   600  19344  1084  19348   5782  196   0  32   68   0
- 6   8  151528    4512  172   2624   388  19692   672  19704   5650  134   0  33   67   0
- 3  10  172484    4688  176   3056   436  20956  1188  20960   5718  200   0  30   70   0
- 4  10  191760    4448  176   3036   220  19276   668  19288   5533  135   0  53   47   0
- 5  11  212456    4580  180   3056   416  20696   960  20704   5656  155   0  33   67   0
- 4  10  231376    4256  180   3176   124  18920   488  18924   5429  145   7  50   43   0
- 0   7   41996  880800  208   4340   496    124  1740    136   1177  174   0  28   72   0
- 0   4   41996  878752  216   5608   900      0  2180      0   1092  164   0   2   98   0
- 0   4   41996  876576  224   6880   896      0  2192      0   1094  174   0   0  100   0
- 0   2   41996  874280  236   8032  1148      0  2308      0   1138  241   0   2   98   0
- 0   3   41996  871976  248   9220  1044      0  2236      4   1121  226   0   2   98   0
- 0   0   41996  870696  264   9728   768      0  1284     48   1074  161   7   1   39  52
- 0   0   41996  870696  264   9728     0      0     0      0   1024   42   0   0    0 100
- 0   0   41996  870700  264   9728     0      0     0      0   1003   17   0   0    0 100
- 0   0   41996  870700  264   9728     0      0     0      0   1023   40   0   0    0 100
-
-
-
---------------040200000404090008060905--
-
+--- 2.6.3.clean/include/linux/mm.h	2004-02-17 22:57:13.000000000 -0500
++++ 2.6.3/include/linux/mm.h	2004-02-21 12:59:16.000000000 -0500
+@@ -430,23 +430,23 @@
+ void shmem_lock(struct file * file, int lock);
+ int shmem_zero_setup(struct vm_area_struct *);
+ 
+-void zap_page_range(struct vm_area_struct *vma, unsigned long address,
+-			unsigned long size);
+ int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
+ 		struct vm_area_struct *start_vma, unsigned long start_addr,
+-		unsigned long end_addr, unsigned long *nr_accounted);
+-void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+-			unsigned long address, unsigned long size);
++		unsigned long end_addr, unsigned long *nr_accounted, int zap);
+ void clear_page_tables(struct mmu_gather *tlb, unsigned long first, int nr);
+ int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
+ 			struct vm_area_struct *vma);
+ int zeromap_page_range(struct vm_area_struct *vma, unsigned long from,
+ 			unsigned long size, pgprot_t prot);
+-
+-extern void invalidate_mmap_range(struct address_space *mapping,
+-				  loff_t const holebegin,
+-				  loff_t const holelen);
++extern void invalidate_filemap_range(struct address_space *mapping, loff_t const start, loff_t const length);
+ extern int vmtruncate(struct inode * inode, loff_t offset);
++void invalidate_page_range(struct vm_area_struct *vma, unsigned long address, unsigned long size, int all);
++
++static inline void zap_page_range(struct vm_area_struct *vma, ulong address, ulong size)
++{
++	invalidate_page_range(vma, address, size, 1);
++}
++
+ extern pmd_t *FASTCALL(__pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address));
+ extern pte_t *FASTCALL(pte_alloc_kernel(struct mm_struct *mm, pmd_t *pmd, unsigned long address));
+ extern pte_t *FASTCALL(pte_alloc_map(struct mm_struct *mm, pmd_t *pmd, unsigned long address));
+--- 2.6.3.clean/mm/memory.c	2004-02-17 22:57:47.000000000 -0500
++++ 2.6.3/mm/memory.c	2004-02-21 13:23:36.000000000 -0500
+@@ -384,9 +384,13 @@
+ 	return -ENOMEM;
+ }
+ 
+-static void
+-zap_pte_range(struct mmu_gather *tlb, pmd_t * pmd,
+-		unsigned long address, unsigned long size)
++static inline int is_anon(struct page *page)
++{
++	return !page->mapping || PageSwapCache(page);
++}
++
++static void zap_pte_range(struct mmu_gather *tlb, pmd_t * pmd,
++		unsigned long address, unsigned long size, int all)
+ {
+ 	unsigned long offset;
+ 	pte_t *ptep;
+@@ -409,7 +413,8 @@
+ 			continue;
+ 		if (pte_present(pte)) {
+ 			unsigned long pfn = pte_pfn(pte);
+-
++			if (unlikely(!all) && is_anon(pfn_to_page(pfn)))
++				continue;
+ 			pte = ptep_get_and_clear(ptep);
+ 			tlb_remove_tlb_entry(tlb, ptep, address+offset);
+ 			if (pfn_valid(pfn)) {
+@@ -426,7 +431,7 @@
+ 				}
+ 			}
+ 		} else {
+-			if (!pte_file(pte))
++			if (!pte_file(pte) && all)
+ 				free_swap_and_cache(pte_to_swp_entry(pte));
+ 			pte_clear(ptep);
+ 		}
+@@ -434,9 +439,8 @@
+ 	pte_unmap(ptep-1);
+ }
+ 
+-static void
+-zap_pmd_range(struct mmu_gather *tlb, pgd_t * dir,
+-		unsigned long address, unsigned long size)
++static void zap_pmd_range(struct mmu_gather *tlb, pgd_t * dir,
++		unsigned long address, unsigned long size, int all)
+ {
+ 	pmd_t * pmd;
+ 	unsigned long end;
+@@ -453,14 +457,14 @@
+ 	if (end > ((address + PGDIR_SIZE) & PGDIR_MASK))
+ 		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
+ 	do {
+-		zap_pte_range(tlb, pmd, address, end - address);
+-		address = (address + PMD_SIZE) & PMD_MASK; 
++		zap_pte_range(tlb, pmd, address, end - address, all);
++		address = (address + PMD_SIZE) & PMD_MASK;
+ 		pmd++;
+ 	} while (address < end);
+ }
+ 
+-void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+-			unsigned long address, unsigned long end)
++static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
++		unsigned long address, unsigned long end, int all)
+ {
+ 	pgd_t * dir;
+ 
+@@ -474,7 +478,7 @@
+ 	dir = pgd_offset(vma->vm_mm, address);
+ 	tlb_start_vma(tlb, vma);
+ 	do {
+-		zap_pmd_range(tlb, dir, address, end - address);
++		zap_pmd_range(tlb, dir, address, end - address, all);
+ 		address = (address + PGDIR_SIZE) & PGDIR_MASK;
+ 		dir++;
+ 	} while (address && (address < end));
+@@ -524,7 +528,7 @@
+  */
+ int unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
+ 		struct vm_area_struct *vma, unsigned long start_addr,
+-		unsigned long end_addr, unsigned long *nr_accounted)
++		unsigned long end_addr, unsigned long *nr_accounted, int all)
+ {
+ 	unsigned long zap_bytes = ZAP_BLOCK_SIZE;
+ 	unsigned long tlb_start = 0;	/* For tlb_finish_mmu */
+@@ -568,7 +572,7 @@
+ 				tlb_start_valid = 1;
+ 			}
+ 
+-			unmap_page_range(*tlbp, vma, start, start + block);
++			unmap_page_range(*tlbp, vma, start, start + block, all);
+ 			start += block;
+ 			zap_bytes -= block;
+ 			if ((long)zap_bytes > 0)
+@@ -594,8 +598,8 @@
+  * @address: starting address of pages to zap
+  * @size: number of bytes to zap
+  */
+-void zap_page_range(struct vm_area_struct *vma,
+-			unsigned long address, unsigned long size)
++void invalidate_page_range(struct vm_area_struct *vma,
++		unsigned long address, unsigned long size, int all)
+ {
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	struct mmu_gather *tlb;
+@@ -612,7 +616,7 @@
+ 	lru_add_drain();
+ 	spin_lock(&mm->page_table_lock);
+ 	tlb = tlb_gather_mmu(mm, 0);
+-	unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted);
++	unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted, all);
+ 	tlb_finish_mmu(tlb, address, end);
+ 	spin_unlock(&mm->page_table_lock);
+ }
+@@ -1071,10 +1075,8 @@
+  * Both hba and hlen are page numbers in PAGE_SIZE units.
+  * An hlen of zero blows away the entire portion file after hba.
+  */
+-static void
+-invalidate_mmap_range_list(struct list_head *head,
+-			   unsigned long const hba,
+-			   unsigned long const hlen)
++static void invalidate_mmap_range_list(struct list_head *head,
++		 unsigned long const hba,  unsigned long const hlen, int all)
+ {
+ 	struct list_head *curr;
+ 	unsigned long hea;	/* last page of hole. */
+@@ -1095,9 +1097,9 @@
+ 		    	continue;	/* Mapping disjoint from hole. */
+ 		zba = (hba <= vba) ? vba : hba;
+ 		zea = (vea <= hea) ? vea : hea;
+-		zap_page_range(vp,
++		invalidate_page_range(vp,
+ 			       ((zba - vba) << PAGE_SHIFT) + vp->vm_start,
+-			       (zea - zba + 1) << PAGE_SHIFT);
++			       (zea - zba + 1) << PAGE_SHIFT, all);
+ 	}
+ }
+ 
+@@ -1115,8 +1117,8 @@
+  * up to a PAGE_SIZE boundary.  A holelen of zero truncates to the
+  * end of the file.
+  */
+-void invalidate_mmap_range(struct address_space *mapping,
+-		      loff_t const holebegin, loff_t const holelen)
++static void invalidate_mmap_range(struct address_space *mapping,
++		loff_t const holebegin, loff_t const holelen, int all)
+ {
+ 	unsigned long hba = holebegin >> PAGE_SHIFT;
+ 	unsigned long hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
+@@ -1133,12 +1135,19 @@
+ 	/* Protect against page fault */
+ 	atomic_inc(&mapping->truncate_count);
+ 	if (unlikely(!list_empty(&mapping->i_mmap)))
+-		invalidate_mmap_range_list(&mapping->i_mmap, hba, hlen);
++		invalidate_mmap_range_list(&mapping->i_mmap, hba, hlen, all);
+ 	if (unlikely(!list_empty(&mapping->i_mmap_shared)))
+-		invalidate_mmap_range_list(&mapping->i_mmap_shared, hba, hlen);
++		invalidate_mmap_range_list(&mapping->i_mmap_shared, hba, hlen, all);
+ 	up(&mapping->i_shared_sem);
+ }
+-EXPORT_SYMBOL_GPL(invalidate_mmap_range);
++
++ void invalidate_filemap_range(struct address_space *mapping,
++		loff_t const start, loff_t const length)
++{
++	invalidate_mmap_range(mapping, start, length, 0);
++}
++
++EXPORT_SYMBOL_GPL(invalidate_filemap_range);
+ 
+ /*
+  * Handle all mappings that got truncated by a "truncate()"
+@@ -1156,7 +1165,7 @@
+ 	if (inode->i_size < offset)
+ 		goto do_expand;
+ 	i_size_write(inode, offset);
+-	invalidate_mmap_range(mapping, offset + PAGE_SIZE - 1, 0);
++	invalidate_mmap_range(mapping, offset + PAGE_SIZE - 1, 0, 1);
+ 	truncate_inode_pages(mapping, offset);
+ 	goto out_truncate;
+ 
+--- 2.6.3.clean/mm/mmap.c	2004-02-17 22:58:32.000000000 -0500
++++ 2.6.3/mm/mmap.c	2004-02-19 22:46:01.000000000 -0500
+@@ -1134,7 +1134,7 @@
+ 
+ 	lru_add_drain();
+ 	tlb = tlb_gather_mmu(mm, 0);
+-	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted);
++	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted, 1);
+ 	vm_unacct_memory(nr_accounted);
+ 
+ 	if (is_hugepage_only_range(start, end - start))
+@@ -1436,7 +1436,7 @@
+ 	flush_cache_mm(mm);
+ 	/* Use ~0UL here to ensure all VMAs in the mm are unmapped */
+ 	mm->map_count -= unmap_vmas(&tlb, mm, mm->mmap, 0,
+-					~0UL, &nr_accounted);
++					~0UL, &nr_accounted, 1);
+ 	vm_unacct_memory(nr_accounted);
+ 	BUG_ON(mm->map_count);	/* This is just debugging */
+ 	clear_page_tables(tlb, FIRST_USER_PGD_NR, USER_PTRS_PER_PGD);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
