@@ -1,107 +1,79 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: vmtime - a try at vm balancing
-Date: Tue, 27 Mar 2001 06:52:08 -0500
-MIME-Version: 1.0
-Message-Id: <01032706520800.02930@oscar>
-Content-Transfer-Encoding: 8bit
+Received: from host-76.subnet-242.amherst.edu
+ (sfkaplan@host-76.subnet-242.amherst.edu [148.85.242.76])
+ by amherst.edu (PMDF V5.2-33 #45524)
+ with ESMTP id <01K1OPC4AS7WA0VJZO@amherst.edu> for linux-mm@kvack.org; Tue,
+ 27 Mar 2001 09:04:40 EST
+Date: Tue, 27 Mar 2001 09:05:20 -0500 (EST)
+From: "Scott F. Kaplan" <sfkaplan@cs.amherst.edu>
+Subject: Re: [PATCH] Prevent OOM from killing init
+In-reply-to: 
+        <Pine.LNX.4.21.0103240255090.1863-100000@imladris.rielhome.conectiva>
+Message-id: <Pine.LNX.4.21.0103270854350.25071-100000@localhost.localdomain>
+MIME-version: 1.0
+Content-type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-I have been having some fun.  The following patch introduces the idea of
-vmtime.  vmtime is time as the vm percieves it.  Its advanced by memory
-pressure, which in the end, works out to be the page allocation & reclaim
-rate.  With this figure I attempt to solve two problems.
+On Sat, 24 Mar 2001, Rik van Riel wrote:
 
-First I slow down the background page scanning to the rate we are allocating
-pages.  This means that an idle machine will not end up will all page ages
-equal nearly as quickly.  It should also help prevent cases where kswapd
-eats too much cpu.
+> [...]  I need to implement load control code (so we suspend
+> processes in turn to keep the load low enough so we can avoid
+> thrashing).
 
-Second I add some slab cache pressure.  Without the patch the icache and 
-dcache will get shrunk in under extreme cases.  From comments on this
-list (and personal experience) the slab cache can grow and end up causing
-paging when it would make more sense to just shrink it.  This also has
-oom implications since the size of the slab cache and the possible space
-we can free from it are not accounted for in the oom test.  In any case
-the patch should keep this storage under control.  Are there any other
-parts of the slab cache we should think about shrinking?
+I am curious as to how you plan to go about implementing this load
+control.  I ask because it's a current area of research for me.
+Detecting the point at which thrashing occurs (that is, the point at
+which process utilization starts to fall because every active process
+is waiting for page faults, and nothing is ready to run) is not
+necessarily easy.
 
-This has survived the night on my box with printk(s) in the if(s) to verify
-its actually working.
+There was a whole bunch of theory about how to detect this kind of
+over-commitment with Working Set.  Unfortunately, I'm reasonably
+convinced that there are some serious holes in that theory, and that
+nobody has developed a well founded answer to this question.  Do you
+have ideas (taken from others or developed yourself) about how you're
+going to approach it?
 
-Comments on style, bugs and reports on its effects very welcome.
+My specific concerns are things like:  What will your definition of
+"thrashing" be?  How do you plan to detect it?  When you suspend a
+process, what will happen to that process?  Will its main memory
+allocation be taken away immediately?  When will it be re-activated?
 
----
---- /usr/src/linux/mm/vmscan.c.ac25	Tue Mar 27 06:28:34 2001
-+++ /usr/src/linux/mm/vmscan.c	Tue Mar 27 06:28:06 2001
-@@ -985,22 +985,51 @@
- 	for (;;) {
- 		static int recalc = 0;
- 
-+		/* vmtime tracks time as the vm precieves it.
-+		 * It is advanced depending on the ammount of
-+		 * memory pressure.
-+		 */
-+
-+		static int vmtime = 0;	
-+		static int bgscan_required = 0;
-+		static int slab_scan_required = 0;
-+
- 		/* If needed, try to free some memory. */
- 		if (inactive_shortage() || free_shortage()) 
- 			do_try_to_free_pages(GFP_KSWAPD, 0);
- 
- 		/*
- 		 * Do some (very minimal) background scanning. This
--		 * will scan all pages on the active list once
--		 * every minute. This clears old referenced bits
--		 * and moves unused pages to the inactive list.
-+		 * tries to scan all pages on the active list at the 
-+		 * rate pages are allocated. This clears old referenced
-+		 * bits and moves unused pages to the inactive list.
-+		 */
-+		if (vmtime > bgscan_required ) {
-+			refill_inactive_scan(DEF_PRIORITY, 0);
-+			bgscan_required = vmtime + (nr_active_pages >> INACTIVE_SHIFT);
-+		}
-+
-+		/* 
-+		 * Here we apply some pressure to the slab cache.  We
-+		 * apply more pressure as it gets bigger.  This would
-+		 * be cleaner if there was a nr_slab_pages...
- 		 */
--		refill_inactive_scan(DEF_PRIORITY, 0);
-+		if (vmtime > slab_scan_required) {
-+			shrink_dcache_memory(DEF_PRIORITY, GFP_KSWAPD);
-+			shrink_icache_memory(DEF_PRIORITY, GFP_KSWAPD);
-+	 		slab_scan_required = vmtime + num_physpages - nr_free_pages() - atomic_read(&page_cache_size) - atomic_read(&buffermem_pages); 
-+		}
- 
--		/* Once a second, recalculate some VM stats. */
-+		/* Once a second, recalculate some VM stats and the vmtime. */
- 		if (time_after(jiffies, recalc + HZ)) {
- 			recalc = jiffies;
--			recalculate_vm_stats();
-+	 		recalculate_vm_stats();
-+			vmtime += (memory_pressure >> INACTIVE_SHIFT); 
-+			if (vmtime > INT_MAX - num_physpages) {
-+				vmtime = 0;
-+				bgscan_required = 0;
-+				slab_scan_required = 0;
-+			}
- 		}
- 
- 		run_task_queue(&tq_disk);
----
+Basically, these problems used to have easier answers on old batch
+systems with a lesser notion of fairness and more uniform workloads.
+It's not clear what to do here; by suspending processes, you're
+introducing a kind of long-term scheduler that decides when a process
+can enter the pool of candidates from which the usual, short-term
+scheduler chooses.  There seems to be some real scheduling issues that
+go along with this problem, including a substantial modification to
+the fairness with which suspended processes are treated.
 
-Ed Tomlinson <tomlins@cam.org>
+I'd like very much to see a well developed, generalized model for this
+kind of problem.  Obviously, the answer will depend on what the
+intended use of the system is.  It would be wonderful to avoid ad-hoc
+solutions for different cases, and instead have one approach that can
+be adjusted to serve different needs.
+
+Scott Kaplan
+sfkaplan@cs.amherst.edu
+
+p.s.  I recognize that solving this problem isn't necessarily the
+highest priority for Linux.  I'm just curious as to everyone's
+thoughts, as I find it an interesting problem.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.4 (GNU/Linux)
+Comment: For info see http://www.gnupg.org
+
+iD8DBQE6wJ4R8eFdWQtoOmgRAtq5AJsE65/+K4tsj8MngAs0uYTw7JTnJQCgkNSz
+hMcPq+hdvqADsofb2XOx3Ng=
+=I/TJ
+-----END PGP SIGNATURE-----
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
