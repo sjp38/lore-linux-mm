@@ -1,61 +1,58 @@
-Message-ID: <3972B165.8114E267@norran.net>
-Date: Mon, 17 Jul 2000 09:10:29 +0200
-From: Roger Larsson <roger.larsson@norran.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH] test5-1 vm fix
-References: <Pine.LNX.4.21.0007161631230.26300-100000@duckman.distro.conectiva>
+Date: Mon, 17 Jul 2000 10:28:11 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on
+Message-ID: <20000717102811.D5127@redhat.com>
+References: <Pine.LNX.4.21.0007111503520.10961-100000@duckman.distro.conectiva> <200007170709.DAA27512@ocelot.cc.gatech.edu>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <200007170709.DAA27512@ocelot.cc.gatech.edu>; from yannis@cc.gatech.edu on Mon, Jul 17, 2000 at 03:09:06AM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Mike Galbraith <mikeg@weiden.de>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Yannis Smaragdakis <yannis@cc.gatech.edu>
+Cc: Rik van Riel <riel@conectiva.com.br>, Andrea Arcangeli <andrea@suse.de>, "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, davem@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> 
-> On Sun, 16 Jul 2000, Mike Galbraith wrote:
-> > On Sun, 16 Jul 2000, Roger Larsson wrote:
-> >
-> > > Since I am responsible for messing up some aspects of vm
-> > > (when fixing others)
-> > > here is a patch that tries to solve the introduced problems.
-> 
-> > Unfortunately, this didn't improve anything here.
-> 
-> As was to be expected ...
-> 
-> Roger, I thought I explained you yesterday why stuff didn't work
-> and how it could be fixed? ;)
-> 
-> (and no, I'm not interested in trying to fix 2.4 VM right now
-> since I'll be going to OLS and last time it took only two weeks
-> for VM to be fucked up while I was away)
-> 
+Hi,
 
-Yes, Now I remember...
+On Mon, Jul 17, 2000 at 03:09:06AM -0400, Yannis Smaragdakis wrote:
 
-We should alway start kswapd after when all zones are found
-to be zone_wake_kswapd... (but it will then only run once... but
-probably free more pages than we alloc)
+> Although I agree with Rik in many major points, I disagree in that I
+> don't think that page aging should be frequency-based. Overall, I strongly
+> believe that frequency is the wrong thing to be measuring for deciding
+> which page to evict from RAM. The reason is that a page that is brought
+> to memory and touched 1000 times in relatively quick succession is *not*
+> more valuable than one that is brought to memory and only touched once. 
+> Both will cause exactly one page fault.
 
-Expect a new patch soon... I will do more performance testing this
-time...
+Not when you are swapping.  A page which is likely to be touched again
+in the future will cause further page faults if we evict it.  A page
+which isn't going to be touched again can be evicted without that
+penalty.  The past behaviour is only useful in as much as it provides
+a way of guessing future behaviour, and we want to make sure that we
+evict those pages least likely to be touched again in the near future.
+Access frequency *is* a credible way of assessing that, as there are
+many common access patterns in which a large volume of data is
+accessed exactly once --- LRU breaks down completely in that case, LFU
+does not.
 
-/RogerL
+> Also, one should be cautious of
+> pages that are brought in RAM, touched many times, but then stay untouched
+> for a long time. Frequency should never outweigh recency--the latter is
+> a better predictor, as OS designers have found since the early 70s.
 
-> cheers,
-> 
-> Rik
-> --
-> "What you're running that piece of shit Gnome?!?!"
->        -- Miguel de Icaza, UKUUG 2000
-> 
-> http://www.conectiva.com/               http://www.surriel.com/
+No, they have not.  Look at the literature and you will see that OS
+designers keep peppering their code with large numbers of special
+cases to cope with the fact that LRU breaks down on large sequential
+accesses.  FreeBSD, which uses a LFU-based design, needs no such
+special cases.
 
---
-Home page:
-  http://www.norran.net/nra02596/
+> Having said that, LRU is certainly broken, but there are other ways to
+> fix it.
+
+Right.  LFU is just one way of fixing LRU.
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
