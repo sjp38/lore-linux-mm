@@ -1,33 +1,66 @@
-Message-Id: <E4A4nm6-6662Yt-00@mail.nitros9.org>
-Date: Sat, 05 Feb 2005 13:27:52 -0600
-From: "Katherine Mays" <BHPWHNOQXY@metalcladding.com>
-Subject: Refill Notification Ref: JB-6027986781758
+Date: Sun, 6 Feb 2005 00:02:21 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: migration cache, updated
+Message-ID: <20050206020221.GA6221@dmt.cnet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: raybry@sgi.com, taka@valinux.co.jp, linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-Refill Notification Ref: WGQ-029391788
+On Fri, Feb 04, 2005 at 10:08:57AM -0600, Ray Bryant wrote:
+> Hirokazu Takahashi wrote:
+> >
+> >
+> >>If I take out the migration cache patch, this "VM: killing ..." problem
+> >>goes away.   So it has something to do specifically with the migration
+> >>cache code.
+> >
+> >
+> >I've never seen the message though the migration cache code may have
+> >some bugs. May I ask you some questions about it?
+> >
+> > - Which version of kernel did you use for it?
+> 
+> 2.6.10.  I pulled enough of the mm fixes (2 patches) so that the base
+> migration patch from the hotplug tree would work on top of 2.6.10.  AFAIK
+> the same problem occurs on 2.6.11-mm2 which is where I started with the
+> migration cache patch.  But I admit I haven't tested it there recently.
 
-Dear linux-mm@kvack.org,
+Ray,
 
-Our automated system has identified that you most likely are ready to refill your recent online pharmaceutical order.
+A possibility is that lookup_migration_cache() returns NULL, but for some
+reason (?) pte_same() fails, giving us VM_FAULT_OOM which results in 
+do_page_fault() killing the task.
 
-To help you get your needed supply, we have sent this reminder notice.
+Can you a printk in here to confirm this?
 
-Please use the refill system http://initiate.epicoff3rs.com/?wid=100069 to obtain your item in the quickest possible manner.
+do_swap_page():
+if (pte_is_migration(orig_pte)) {
++               page = lookup_migration_cache(entry.val);
++               if (!page) {
++                       spin_lock(&mm->page_table_lock);
++                       page_table = pte_offset_map(pmd, address);
++                       if (likely(pte_same(*page_table, orig_pte)))
++                               ret = VM_FAULT_OOM;
++                       else
++                               ret = VM_FAULT_MINOR;
++                       pte_unmap(page_table);
++                       spin_unlock(&mm->page_table_lock);
++                       goto out;
++               }
 
-Thank you for your time and we look forward to assisting you.
 
-Sincerely,
+If that happens not to be the case, please find out what exactly is going
+on (ie where the VM_FAULT_OOM is coming from) so we can try to help you. 
 
-Katherine Mays
+Do you have any other VM modifications in this kernel? What are they, except
+the process migration code?
 
+BTW, can you please post your process migration code? 
 
-
-
-starfish ue depositor cv inaugurate yi christendom ln didn't wro prevent ctf sprague fuc model bsw mutate trp somali sso 
-spiegel yv legacy plk addendum usm galactic duh coprinus sw storey zc britannica wh blade kc coinage dae barbarous ep 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
