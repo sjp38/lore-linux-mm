@@ -1,62 +1,87 @@
+Received: from m6.gw.fujitsu.co.jp ([10.0.50.76]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i7R5FdwH025124 for <linux-mm@kvack.org>; Fri, 27 Aug 2004 14:15:39 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from s5.gw.fujitsu.co.jp by m6.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i7R5FdqA023502 for <linux-mm@kvack.org>; Fri, 27 Aug 2004 14:15:39 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from fjmail503.fjmail.jp.fujitsu.com (fjmail503-0.fjmail.jp.fujitsu.com [10.59.80.100]) by s5.gw.fujitsu.co.jp (8.12.11)
+	id i7R5FdVS005073 for <linux-mm@kvack.org>; Fri, 27 Aug 2004 14:15:39 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
+Received: from jp.fujitsu.com
+ (fjscan502-0.fjmail.jp.fujitsu.com [10.59.80.122]) by
+ fjmail503.fjmail.jp.fujitsu.com
+ (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
+ with ESMTP id <0I3300JC4AM17D@fjmail503.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Fri, 27 Aug 2004 14:15:38 +0900 (JST)
+Date: Fri, 27 Aug 2004 14:20:48 +0900
+From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
 Subject: Re: [Lhms-devel] [RFC] buddy allocator without bitmap  [2/4]
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <412EBD22.2090508@jp.fujitsu.com>
+In-reply-to: <20040826215927.0af2dee9.akpm@osdl.org>
+Message-id: <412EC4B0.1040901@jp.fujitsu.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii; format=flowed
+Content-transfer-encoding: 7bit
 References: <412DD1AA.8080408@jp.fujitsu.com>
-	 <1093535402.2984.11.camel@nighthawk> <412E6CC3.8060908@jp.fujitsu.com>
-	 <20040826171840.4a61e80d.akpm@osdl.org> <412E8009.3080508@jp.fujitsu.com>
-	 <412EBD22.2090508@jp.fujitsu.com>
-Content-Type: text/plain
-Message-Id: <1093583072.2984.463.camel@nighthawk>
-Mime-Version: 1.0
-Date: Thu, 26 Aug 2004 22:04:32 -0700
-Content-Transfer-Encoding: 7bit
+ <1093535402.2984.11.camel@nighthawk> <412E6CC3.8060908@jp.fujitsu.com>
+ <20040826171840.4a61e80d.akpm@osdl.org> <412E8009.3080508@jp.fujitsu.com>
+ <412EBD22.2090508@jp.fujitsu.com> <20040826215927.0af2dee9.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, William Lee Irwin III <wli@holomorphy.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: haveblue@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lhms-devel@lists.sourceforge.net, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-08-26 at 21:48, Hiroyuki KAMEZAWA wrote:
-> I testd set_bit()/__set_bit() ops, atomic and non atomic ops, on my Xeon.
-> I think this test is not perfect, but shows some aspect of pefromance of atomic ops.
+Andrew Morton wrote:
+
+> Certainly, executing an atomic op in a tight loop will show a lot of
+> difference.  But that doesn't mean that making these operations non-atomic
+> makes a significant difference to overall kernel performance!
 > 
-> Program:
-> the program touches memory in tight loop, using atomic and non-atomic set_bit().
-> memory size is 512k, L2 cache size.
-> I attaches it in this mail, but it is configured to my Xeon and looks ugly :).
-...
-> To Dave:
-> cost of prefetch() is not here, because I found it is very sensitive to
-> what is done in the loop and difficult to measure in this program.
-> I found cost of calling prefetch is a bit high, I'll measure whether
-> prefetch() in buddy allocator is good or bad again.
+Thanks.
+My test before positng patch is calling mmap()/munmap() with 4-16Mega bytes.
+munmap with such Mega bytes causes many calls of __free_pages_bulk() and
+many pages are coalesced at once.
+
+This means atomic_ops in heavyly called tight loop
+(I called it 3 times in the most inner loop...)
+
+and my test shows bad performance ;).
+
+
+> But whatever - it all adds up.  The microoptimisation is fine - let's go
+> that way.
 > 
-> I think this result shows I should use non-atomic ops when I can.
+I'd like to add macros and to get my codes clear.
 
-I think we all know that locked instructions are going to be slower. 
-However, what I wanted to see is how it influences a slightly more
-realistic test, and actually in the context of the kernel.  Let's
-actually see how much impact using the prefetch() and atomic vs
-non-atomic ops has when they're used *in* the kernel on a less
-contrived  less microbenchmarky test.
+> 
+>>Result:
+>>[root@kanex2 atomic]# nice -10 ./test-atomics
+>>score 0 is            64011 note: cache hit, no atomic
+>>score 1 is           543011 note: cache hit, atomic
+>>score 2 is           303901 note: cache hit, mixture
+>>score 3 is           344261 note: cache miss, no atomic
+>>score 4 is          1131085 note: cache miss, atomic
+>>score 5 is           593443 note: cache miss, mixture
+>>score 6 is           118455 note: cache hit, dependency, noatomic
+>>score 7 is           416195 note: cache hit, dependency, mixture
+>>
+>>smaller score is better.
+>>score 0-2 shows set_bit/__set_bit performance during good cache hit rate.
+>>score 3-5 shows set_bit/__set_bit performance during bad cache hit rate.
+>>score 6-7 shows set_bit/__set_bit performance during good cache hit
+>>but there is data dependency on each access in the tight loop.
+> 
+> 
+> I _think_ the above means atomic ops are 10x more costly, yes?
+> 
+yes, when L2 cache hits, I think.
 
-How about finding some kind of benchmark that will do a bunch of forking
-and a bunch of page faulting to cause lots of activity in the allocator?
 
-I'd suggest something like http://ck.kolivas.org/kernbench/ or SDET if
-you can get your hands on it.  Anybody else have some suggestions?
 
-The atomic ops, you're probably right about, but it would still be nice
-to have some hard data.  As for prefetch(), we could scatter it and
-unlikely() all over the kernel, but we only tend to do so when we can
-either demonstrate a concrete gain, or it is a super-hot path.  With
-hot-and-cold-pages around, even the allocator functions don't
-necessarily count as super-hot.  
 
-I'll run kernbench and sdet with and without the atomic ops and prefetch
-on some of my hardware and see what I come up with.
-
--- Dave
+-- 
+--the clue is these footmarks leading to the door.--
+KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
