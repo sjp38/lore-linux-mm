@@ -1,50 +1,46 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA20838
-	for <linux-mm@kvack.org>; Wed, 13 Jan 1999 17:14:25 -0500
-Date: Wed, 13 Jan 1999 22:14:02 GMT
-Message-Id: <199901132214.WAA07436@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA21097
+	for <linux-mm@kvack.org>; Wed, 13 Jan 1999 17:36:49 -0500
+Date: Wed, 13 Jan 1999 14:30:32 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [PATCH] Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <199901132210.WAA07391@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.95.990113142730.6104G-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <Pine.LNX.3.96.990113190617.185C-100000@laser.bogus>
-References: <Pine.LNX.4.03.9901131557590.295-100000@mirkwood.dummy.home>
-	<Pine.LNX.3.96.990113190617.185C-100000@laser.bogus>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: Rik van Riel <riel@humbolt.geo.uu.nl>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, Rik van Riel <riel@humbolt.geo.uu.nl>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-On Wed, 13 Jan 1999 19:10:28 +0100 (CET), Andrea Arcangeli
-<andrea@e-mind.com> said:
+On Wed, 13 Jan 1999, Stephen C. Tweedie wrote:
+> 
+> The problem is that if you do this, it is easy for the swapper to
+> generate huge amounts of async IO without actually freeing any real
+> memory: there's a question of balancing the amount of free memory we
+> have available right now with the amount which we are in the process of
+> freeing.  Setting the nr_async_pages bound to 256 just makes the swapper
+> keen to send a whole 1MB of memory out to disk at a time, which is a bit
+> steep on an 8MB box.
 
-> On Wed, 13 Jan 1999, Rik van Riel wrote:
->> - in allocating swap space it just doesn't make sense to read
->> into the next swap 'region'
+Note that this should be much less of a problem with the current swapout
+strategies, but yes, basically we definitely do want to have _some_ way of
+maintaining a sane "maximum number of pages in flight" thing. 
 
-> The point is that I can't see a swap `region' looking at how
-> scan_swap_map() works. The more atomic region I can see in the swap space
-> is a block of bytes large PAGE_SIZE bytes (e.g. offset ;).
+The right solution may be to do the check in some other place, rather than
+fairly deep inside the swap logic. 
 
-The whole point is that we try to swap adjacent virtual pages to
-adjacent swap entries, so there is a good chance that nearby swap
-entries are going to be useful when we page them back in again.  Given
-that adjacent swap entries on a swap partition are guaranteed to be
-physically contiguous, it costs very little to swap in several nearby
-elements at the same time, and we get a good chance of reading in useful
-pages.
+It's not a big deal, I suspect.
 
-> For the case of binaries the aging on the page cache should take care of
-> it (even if there's no aging on the swap cache as pre[567] if I remeber
-> well). 
+Anyway, there's a real pre7 out there now, and it doesn't change a lot of
+th issues discussed here. I wanted to get something stable and working. I
+still need to get the recursive semaphore thing (or other approach) done,
+but basically I think we're at 2.2.0 already apart from that issue, and
+that we can continue this discussion as a "occasional tweaks" thing. 
 
-There is no aging on the page cache at all other than the PG_referenced
-bit.
+		Linus
 
---Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
