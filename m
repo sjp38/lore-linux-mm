@@ -1,73 +1,41 @@
-Date: Fri, 04 Apr 2003 19:45:14 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Fri, 4 Apr 2003 22:53:05 -0500 (EST)
+From: Rik van Riel <riel@surriel.com>
 Subject: Re: objrmap and vmtruncate
-Message-ID: <8390000.1049514313@[10.10.2.4]>
-In-Reply-To: <20030405024414.GP16293@dualathlon.random>
-References: <20030404163154.77f19d9e.akpm@digeo.com> <12880000.1049508832@flay> <20030405024414.GP16293@dualathlon.random>
+In-Reply-To: <20030404150744.7e213331.akpm@digeo.com>
+Message-ID: <Pine.LNX.4.44.0304042248430.30653-100000@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Andrew Morton <akpm@digeo.com>, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Ingo Molnar <mingo@elte.hu>, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> I'm not convinced that we can't do something with nonlinear mappings for
->> this ... we just need to keep a list of linear areas within the nonlinear
->> vmas, and use that to do the objrmap stuff with. Dave and I talked about
->> this yesterday ... we both had different terminology, but I think the
->> same underlying fundamental concept ... I was calling them "sub-vmas"
->> for each linear region within the nonlinear space. 
+On Fri, 4 Apr 2003, Andrew Morton wrote:
+
+> I think that's right - the system call is very specialised and is
+> targeted at solving problems which have been encountered in a small
+> number of applications, but important ones.
 > 
-> that's wasted memory IMHO, if you need nonlinear, you don't want to
-> waste further metadata, you only want to pin pages in the pagetables,
-> the 'window' over the pagecache (incidentally shm)
-> 
-> the vm shouldn't know about it.
+> Right now, I do not feel that we are going to be able to come up with an
+> acceptably simple VM which has both nonlinear mappings and objrmap.
 
-OK, but this is only for the case when the things aren't memlocked anyway,
-which in Oracle's case is never. Seems like we're thrashing a lot of time
-and effort over sys_remap_file_pages considering it's never actually
-desirable to scan the chains for pageout anyway.
+This is ok if we make nonlinear VMAs automatically mlocked,
+meaning they don't need reverse mapping at all.
 
-And does anyone *really* start off with a linear vma and them convert
-it to a linear one after using it? Can't we just fail that call? Would
-result in orders of magnitude of reduction in complexity if we could
-just narrow the scope of this beastie a bit.
+If you need the space saving from nonlinear VMAs, you also
+need to save the space of any kind of reverse mapping scheme,
+even a mythical nonlinear object one (just think about the
+minimum amount of data you need to store).
 
-If you have a *non-memlocked* VMA that you've *previously used* as linear,
-then the sys_remap_file_pages stuff would fail with an error code. Is 
-that too painful? Maybe you can't "un-memlock" a non-linear VMA once
-it's memlocked either. I'm quite possibly missing something but if someone
-could point out what that is ... ?
+IMHO it'd be fair to limit nonlinear VMAs to the set of very
+specialised applications that need it (Oracle, DB2, anything
+else?) and impose some limitations on the functionality so
+the main part of the VM stay sane.
 
->> The fundamental problem I came to (and I think Dave had the same problem) 
->> is that I couldn't see what problem remap_file_pages was trying to solve,
-> 
-> Oh that's clear, it's only the avoidance of the mmap calls that walks
-> the rbtree with many vmas allocated. Which is another reason for not
-> having any kind of metadata associated with the pages attached to the
-> nonlinear vma. Taking a linearity inside the non-linearity sounds
-> not worthwhile.
+Rik
 
-Well, it's an order of magnitude less expensive than mem_map still.
-No, not perfect, but the world's a compromise ;-) And we don't need
-this at all for memlocked ones.
- 
->> eh? Not sure what you mean by that. It helped massively ...
->> diffprofile from kernbench showed:
-> 
-> Indeed. objrmap is the only way to avoid the big rmap waste. Infact I'm
-> not even convinced about the hybrid approch, rmap should be avoided even
-> for the anon pages. 
 
-Right, but they seem to be mostly singletons (non-shared), so the 
-pte_direct stuff takes care of those mostly anyway. Would be nice eventually,
-but I thinking taking one step at a time is maybe helpful ;-)
-
-M
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
