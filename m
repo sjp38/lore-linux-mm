@@ -1,61 +1,95 @@
-Subject: Re: hugepage patches
-References: <20030131151501.7273a9bf.akpm@digeo.com>
-	<20030202025546.2a29db61.akpm@digeo.com>
-	<20030202195908.GD29981@holomorphy.com>
-	<20030202124943.30ea43b7.akpm@digeo.com>
-	<m1n0ld1jvv.fsf@frodo.biederman.org>
-	<20030203132929.40f0d9c0.akpm@digeo.com>
-	<m1hebk1u8g.fsf@frodo.biederman.org>
-	<20030204055012.GD1599@holomorphy.com>
-	<m18yww1q5f.fsf@frodo.biederman.org>
-	<162820000.1044342992@[10.10.2.4]>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 04 Feb 2003 05:40:39 -0700
-In-Reply-To: <162820000.1044342992@[10.10.2.4]>
-Message-ID: <m1znpcz0ag.fsf@frodo.biederman.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from nitc.ac.in (csed.nitc.ac.in [210.212.228.78])
+	by cnet.nitc.ac.in (8.11.6/8.11.6) with SMTP id h14D7mm08723
+	for <linux-mm@kvack.org>; Tue, 4 Feb 2003 18:37:48 +0530
+Date: Tue, 4 Feb 2003 18:49:44 +0100
+From: John Navil Joseph <cs99185@nitc.ac.in>
+Subject: Doubt in pagefault handler..!
+Message-ID: <20030204174944.GA836@192.168.3.73>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="lrZ03NoBR/3+SXJZ"
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, davem@redhat.com, rohit.seth@intel.com, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Martin J. Bligh" <mbligh@aracnet.com> writes:
+--lrZ03NoBR/3+SXJZ
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> > O.k.  Then the code definitely needs to handle shared mappings..
-> 
-> Why? we just divided the pagetable size by a factor of 1000, so
-> the problem is no longer really there ;-)
+Hi,
 
-William said one of the cases was to handle massively shared
-mappings.  You cannot create a massively shared mapping except by
-sharing.
+	I am trying to implement Distributed Shared Memory for LInux. I am plannin=
+g to
+implement this in the same lines as of SystemV IPC shared Memory. Well in t=
+his case the processes involved in the DSM may be present in any computer a=
+cross the network.
 
-Did I misunderstand what was meant by a massively shared mapping?
+*) on the occurence of a pagefault (in the VMA correspnding to the DSM) it =
+may be necessary for me to fetch
+the physical pages remotely across the network. So my page fault handler ma=
+y need to prempt the faulting process
+till the page is fetched from across the network. I am not sure how this is=
+ to be done.
 
-I can't imagine it being useful to guys like oracle without MAP_SHARED
-support....
+I assume that i can deal with the page fault handler just as any other inte=
+rrupt handler and proceed to do the=20
+following.
 
-> >> Well, in theory there's some kind of TLB benefit, but the only thing
-> >> ppl really care about is x86 pagetable structure gets rid of L3 space
-> >> entirely so you don't burn 12+GB of L3 pagetables for appserver loads.
-> > 
-> > I am with the group that actually cares more about the TLB benefit.
-> > For HPC loads there is really only one application per machine.  And with
-> > just one page table, the only real advantage is the more efficient use
-> > of the TLB.  
-> 
-> The reason we don't see it much is that we mostly have P3's which only
-> have 4 entries for large pages. P4's would be much easier to demonstrate
-> such things on, and I don't think we've really tried very hard on that with
-> hugetlbfs (earlier Java work by the research group showed impressive
-> improvements on an earlier implementation).
+	1) add the current process to a wait queue=20
+	2) invoke schedule() from the page fault handler
+	3) wake up the process after the transfer has been completed.
 
-Cool.  I have no doubt the benefit is there.    Measuring how large it
-is will certainly be interesting.
+now my question is=20
 
-Eric
+	is it possible to invoke schedule() from page fault handler. ?
+
+	I know that the hardware restarts the faulting instruction after handling =
+the interrupt..
+	so if i invoke schedule() from the pf handler.. then how will the interupt=
+ return..
+	and how does hardware handle this situation ?
+
+	i tried to trace pagefault handler all the way down to where the acutal IO=
+ takes palce incase
+	of the transfer of page from swap to memory..But i never saw schedule() an=
+ywhere. But i know that
+	process sleeps on page I/O .. then how and where does this sleeping takes =
+place.?
+
+please forgive me as my knowledge about the linux MM is inconsistent.=20
+I hope that my questions are clear.
+
+TIA
+	john
+=09
+
+
+
+
+
+
+
+
+
+
+=09
+
+--lrZ03NoBR/3+SXJZ
+Content-Type: application/pgp-signature
+Content-Disposition: inline
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.7 (GNU/Linux)
+
+iD8DBQE+P/04oUm9LrSG9ykRAtyZAJ9P1Ecush9qFAx6q/0uKPwesmsrbQCcCPY4
+P9RSjlpe/cDJN1TW509Abxw=
+=QsFB
+-----END PGP SIGNATURE-----
+
+--lrZ03NoBR/3+SXJZ--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
