@@ -1,36 +1,34 @@
-Received: from manet.magma-da.com (manet.magma-da.com [10.1.1.173])
-	by magma-da.com (8.9.3+Sun/8.9.3) with ESMTP id CAA05848
-	for <linux-mm@kvack.org>; Sat, 25 Nov 2000 02:45:05 -0800 (PST)
-Date: Sat, 25 Nov 2000 02:45:05 -0800 (PST)
-Message-Id: <200011251045.CAA07659@manet.magma-da.com>
-From: Raymond Nijssen <raymond.nijssen@Magma-DA.COM>
-Subject: Re: max memory limits ??? 
-In-Reply-To: <3A1BCC05.4080608@SANgate.com>; from gabriel@SANgate.com on Wed, Nov 22, 2000 at 03:37:09PM +0200 
-References: <3A1BCC05.4080608@SANgate.com> 
+Message-ID: <3A20D5F4.8040207@SANgate.com>
+Date: Sun, 26 Nov 2000 11:20:52 +0200
+From: BenHanokh Gabriel <gabriel@SANgate.com>
+MIME-Version: 1.0
+Subject: filp_open question
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linux-MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->Matti Aarnio <matti.aarnio@zmailer.org> wrote:
->On Wed, Nov 22, 2000 at 03:37:09PM +0200, BenHanokh Gabriel wrote:
+hi
 
->> can some1 explain the memory limits on the 2.4 kernel
+can any1 explain <exactly> the meaning of the flags & mode arguments for the 
+filp_open() function,
+and (if)how do they differ from the user-space flags & mode arguments for the 
+open(2) sys call
 
->> - what is the limit for user-space apps ?
-
->        At 32 bit systems:  3.5 GB with extreme tricks, 3 GB for more usual.
+please CC me for any answer
 
 
-What are those tricks?   Do they involve changing TASK_SIZE ?
+regards
+Benhanokh Gabriel
 
-And why do programs get mapped at 0x08000000 instead of 0x00001000 ?
-This is wasting another 5% of the addressing space.
+-----------------------------------------------------------------------------
+"If you think C++ is not overly complicated, just what is a
+protected abstract virtual base class with a pure virtual private destructor,
+and when was the last time you needed one?"
+         -- Tom Cargil, C++ Journal, Fall 1990. --
 
-Please CC me on your reply.
-
-Thanks,
--Raymond
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
