@@ -1,58 +1,30 @@
-Message-ID: <3BA89562.CAED589C@earthlink.net>
-Date: Wed, 19 Sep 2001 12:53:54 +0000
-From: Joseph A Knapka <jknapka@earthlink.net>
+Subject: Re: broken VM in 2.4.10-pre9
+Date: Wed, 19 Sep 2001 20:45:55 +0100 (BST)
+In-Reply-To: <20010919093828Z17304-2759+92@humbolt.nl.linux.org> from "Daniel Phillips" at Sep 19, 2001 11:45:44 AM
 MIME-Version: 1.0
-Subject: Re: [PATCH] fix page aging (2.4.9-ac12)
-References: <Pine.LNX.4.33L.0109191454570.8191-100000@imladris.rielhome.conectiva>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-Id: <E15jnIB-0003gh-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: Daniel Phillips <phillips@bonn-fries.net>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Rik,
+> On September 17, 2001 06:03 pm, Eric W. Biederman wrote:
+> > In linux we have avoided reverse maps (unlike the BSD's) which tends
+> > to make the common case fast at the expense of making it more
+> > difficult to handle times when the VM system is under extreme load and
+> > we are swapping etc.
+>
+> What do you suppose is the cost of the reverse map?  I get the impression you
+> think it's more expensive than it is.
 
- static inline void age_page_down(struct page *page)
- {
--       switch (vm_page_aging_tactic) {
--               case PAGE_AGE_LINEAR:
--               case PAGE_AGE_EXPUP:
--                       if (page->age)
--                               page->age -= PAGE_AGE_DECL;
--                       break;
--               case PAGE_AGE_EXPDOWN:
--               default:
--                       page->age /= 2;
--                       break;
--               case PAGE_AGE_NULL:
--               case PAGE_AGE_SINGLEBIT:
--                       page->age = 0;
--                       break;
--       }
-+       unsigned long age = page->age;
-+       if (age > 0)
-+               age -= PAGE_AGE_DECL;
-+       page->age = age;
- }
+We can keep the typical page table cost lower than now (including reverse
+maps) just by doing some common sense small cleanups to get the page struct
+down to 48 bytes on x86
 
-A nit: if PAGE_AGE_DECL is ever changed to be > 1
-for some reason, we could end up with negative/huge
-page ages (I had that problem some time ago
-when experimenting with aging strategies). So
-maybe an "if (age < 0) age = 0" is in order.
-
-Cheers,
-
--- Joe
-
--- Joe Knapka
-# Replace the pink stuff with net to reply.
-# "You know how many remote castles there are along the
-#  gorges? You can't MOVE for remote castles!" - Lu Tze re. Uberwald
-# Linux MM docs:
-http://home.earthlink.net/~jknapka/linux-mm/vmoutline.html
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
