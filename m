@@ -1,41 +1,40 @@
-Date: Wed, 8 May 2002 13:10:46 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Why *not* rmap, anyway?
-In-Reply-To: <E175Txf-0003o9-00@starship>
-Message-ID: <Pine.LNX.4.44L.0205081310080.32261-100000@imladris.surriel.com>
+Message-ID: <3CD96CB1.4630ED48@linux-m68k.org>
+Date: Wed, 08 May 2002 20:21:37 +0200
+From: Roman Zippel <zippel@linux-m68k.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] rmap 13a
+References: <Pine.LNX.4.44L.0205062316490.32261-100000@imladris.surriel.com> <20020507183741.A25245@infradead.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Momchil Velikov <velco@fadata.bg>, William Lee Irwin III <wli@holomorphy.com>, Christian Smith <csmith@micromuse.com>, Joseph A Knapka <jknapka@earthlink.net>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Rik van Riel <riel@conectiva.com.br>, Samuel Ortiz <sortiz@dbear.engr.sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 May 2002, Daniel Phillips wrote:
-> On Wednesday 08 May 2002 16:43, Rik van Riel wrote:
-> > On Wed, 8 May 2002, Daniel Phillips wrote:
-> >
-> > > To make this concrete, what would copy_page_range look like, using this
-> > > mechanism?
-> >
-> > Or maybe copy_page_range should be behind this mechanism and
-> > modify the data structures directly ?
->
-> It already modifies the data structures directly.  You're proposing that
-> copy_page_range should be per_arch?
+Hi,
 
-No. I'm not proposing that data structures should be different
-per arch.
+Christoph Hellwig wrote:
 
-All I'm interested in is separating parts of the VM from each
-other.
+> >   - NUMA changes for page_address                         (Samuel Ortiz)
+> 
+> I don't think the changes makes sense.  If calculating page_address is
+> complicated and slow enough to place it out-of-lin using page->virtual
+> is much better.
+> 
+> I'd suggest backing this patch out and instead always maintain page->virtual
+> for discontigmem.  While at this as a little cleanup you might want to
+> define WANT_PAGE_VIRTUAL based on CONFIG_HIGHMEM || CONFIG_DISCONTIGMEM
+> at the top of mm.h instead of cluttering it up.
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
+I'd suggest, we move page_address to asm/page.h (as counterpart of
+virt_to_page). discontigmem configs can then use some more efficient
+table lookup. Other config usually want to implement it better as:
 
-http://www.surriel.com/		http://distro.conectiva.com/
+#define page_address(page)	((((page) - mem_map) << PAGE_SHIFT) +
+PAGE_OFFSET)
 
+bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
