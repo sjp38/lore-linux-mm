@@ -1,85 +1,60 @@
-Date: Tue, 15 Feb 2005 22:48:31 +0100
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview II
-Message-ID: <20050215214831.GC7345@wotan.suse.de>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <42114279.5070202@sgi.com> <20050215121404.GB25815@muc.de> <421241A2.8040407@sgi.com>
-Mime-Version: 1.0
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <421241A2.8040407@sgi.com>
+Content-Transfer-Encoding: 7bit
+Message-ID: <16914.28795.316835.291470@wombat.chubb.wattle.id.au>
+Date: Wed, 16 Feb 2005 08:58:19 +1100
+From: Peter Chubb <peterc@gelato.unsw.edu.au>
+Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
+In-Reply-To: <20050215185943.GA24401@lnx-holt.americas.sgi.com>
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
+	<20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>
+	<1108242262.6154.39.camel@localhost>
+	<20050214135221.GA20511@lnx-holt.americas.sgi.com>
+	<1108407043.6154.49.camel@localhost>
+	<20050214220148.GA11832@lnx-holt.americas.sgi.com>
+	<20050215074906.01439d4e.pj@sgi.com>
+	<20050215162135.GA22646@lnx-holt.americas.sgi.com>
+	<20050215083529.2f80c294.pj@sgi.com>
+	<20050215185943.GA24401@lnx-holt.americas.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: Andi Kleen <ak@muc.de>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Robin Holt <holt@sgi.com>
+Cc: Paul Jackson <pj@sgi.com>, haveblue@us.ibm.com, raybry@sgi.com, taka@valinux.co.jp, hugh@veritas.com, akpm@osdl.org, marcello@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Making memory migration a subset of page migration is not a general
-> solution.  It only works for programs that are using memory policy
-> to control placement.   As I've tried to point out multiple times
-> before, most programs that I am aware of use placement based on
-> first-touch.  When we migrate such programs, we have to respect
-> the placement decisions that the program has implicitly made in
-> this way.
+>>>>> "Robin" == Robin Holt <holt@sgi.com> writes:
 
-Sorry, but the only real difference between your API and mbind is that
-yours has a pid argument. 
+Robin> On Tue, Feb 15, 2005 at 08:35:29AM -0800, Paul Jackson wrote:
+>> What about the suggestion I had that you sort of skipped over,
+>> which amounted to changing the system call from a node array to
+>> just one node:
+>> 
+>> sys_page_migrate(pid, va_start, va_end, count, old_nodes,
+>> new_nodes);
+>> 
+>> to:
+>> 
+>> sys_page_migrate(pid, va_start, va_end, old_node, new_node);
+>> 
+>> Doesn't that let you do all you need to?  Is it insane too?
 
-I think we are talking by each other, here's a more structured
-overview of my thinking on the issue.
+Robin> Migration could be done in most cases and would only fall apart
+Robin> when there are overlapping node lists and no nodes available as
+Robin> temp space and we are not moving large chunks of data.
 
-Main cases:
+A possibly stupid suggestion: 
 
-- Program is NUMA API aware. Fine.  It takes care of its own.
-- Program is not aware, but is started with a process policy from
-numactl/cpusets/batch scheduler. Already covered too in NUMA API. 
-- Program is not aware and hasn't been started with a policy
-(or has and you change your mind) but you want to change it later. 
-That's the new case we discuss here. 
+Can page migration be done lazily, instead of all at once?  Move the
+process, mark its pages as candidates for migration, and when 
+the page faults, decide whether to copy across or not...
 
-Now how to change policy of objects in an already running process.
+That way you only copy the pages the process is using, and only copy
+each page once.  It makes copy for replication easier in some future
+incarnation, too, because the same basic infrastructure can be used.
 
-First there are already some special cases already handled or
-with existing patches:
-- tmpfs/hugetlbfs/sysv shm: numactl can handle this by just mapping
-the object into a different process and changing the policy there.
-- shared libraries and mmaped files in general: this is a generialization of
-the previous point. SteveL's patch is the beginning of handling this, although
-it needs some more work (xattrs) to make the policy persistent over
-memory pressure.
-
-Only case not covered left is anonymous memory. 
-
-You said it would need user space control, but the main reason for
-wanting that seems to be to handle the non anonymous cases which
-are already covered above.
-
-My thinking is the simplest way to handle that is to have a call that just o
-migrates everything. The main reasons for that is that I don't think external
-processes should mess with virtual addresses of another process.
-It just feels unclean and has many drawbacks (parsing /proc/*/maps
-needs complicated user code, racy, locking difficult).  
-
-In kernel space handling full VMs is much easier and safer due to better 
-locking facilities.
-
-In user space only the process itself really can handle its own virtual 
-addresses well, and if it does that it can use NUMA API directly anyways.
-
-You argued that it may be costly to walk everything, but I don't see this
-as a big problem - first walking mempolicies is not very costly and then
-fork() and exit() do exactly this already. 
-
-The main missing piece for this would be a way to make policies for
-files persistent. One way would be to use xattrs like selinux, but
-that may be costly (not sure we want to read xattrs all the time
-when reading a file). 
-
-A hackish way to do this that already 
-works would be to do a mlock on one page of the file to keep
-the inode pinned. E.g. the batch manager could do this. That's 
-not very clean, but would probably work. 
-
--Andi
+--
+Dr Peter Chubb  http://www.gelato.unsw.edu.au  peterc AT gelato.unsw.edu.au
+The technical we do immediately,  the political takes *forever*
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
