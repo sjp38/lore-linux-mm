@@ -1,44 +1,35 @@
-Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2]) by pneumatic-tube.sgi.com (980327.SGI.8.8.8-aspam/980310.SGI-aspam) via ESMTP id KAA06567
-	for <@external-mail-relay.sgi.com:linux-mm@kvack.org>; Mon, 25 Oct 1999 10:28:38 -0700 (PDT)
-	mail_from (wje@liveoak.engr.sgi.com)
-Received: from liveoak.engr.sgi.com (liveoak.engr.sgi.com [150.166.40.92])
-	by cthulhu.engr.sgi.com (980427.SGI.8.8.8/970903.SGI.AUTOCF)
-	via ESMTP id KAA03498
-	for <linux-mm@kvack.org>;
-	Mon, 25 Oct 1999 10:27:46 -0700 (PDT)
-	mail_from (wje@liveoak.engr.sgi.com)
-From: "William J. Earl" <wje@cthulhu.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from 192.168.0.43 ([192.168.0.52] (may be forged))
+          by chpc.ict.ac.cn (2.5 Build 2639 (Berkeley 8.8.6)/8.8.4) with SMTP
+	  id JAA00043 for <linux-mm@kvack.org>; Tue, 26 Oct 1999 09:58:12 +0800
+Message-Id: <199910260158.JAA00043@chpc.ict.ac.cn>
+Date: Tue, 26 Oct 1999 9:57:48 +0800
+From: fxzhang <fxzhang@chpc.ict.ac.cn>
+Reply-To: fxzhang@chpc.ict.ac.cn
+Subject: Why don't we make mmap MAP_SHARED with /dev/zero possible?
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Message-ID: <14356.37630.420222.582735@liveoak.engr.sgi.com>
-Date: Mon, 25 Oct 1999 10:27:26 -0700 (PDT)
-Subject: Re: page faults
-In-Reply-To: <m1wvsc8ytq.fsf@flinx.hidden>
-References: <Pine.LNX.4.10.9910221930070.172-100000@imperial.edgeglobal.com>
-	<m1wvsc8ytq.fsf@flinx.hidden>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM <linux-mm@kvack.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Eric W. Biederman writes:
-...
- > If the hardware cannot support two processors hitting the region simultaneously,
- > (support would be worst case the graphics would look strange)
- > you could have problems.
-...
-      One could reasonably take the view that a threads-aware graphics library
-should be thread-safe.  That is, if the hardware needs to have concurrent
-threads in a single process serialize access to the hardware, then the 
-library plugin for that hardware should do the required serialization.
+and find this:
+ /usr/src/linux/drivers/char/mem.c  
+static int mmap_zero(struct file * file, struct vm_area_struct * vma)
+{
+        if (vma->vm_flags & VM_SHARED)
+                return -EINVAL;
 
-      This of course the neglects the question of whether a broken
-user-mode program could damage the hardware, but then a broken
-single-threaded user-mode program, with no other programs using the
-hardware, could just as easily damage the hardware.  That is, if the
-hardware is not safe for direct access in general, threading does not
-make it any less safe.
+I don't understand why people don't implement it.Yes,in the source,I find something like
+"the shared case is complex",Could someone tell me what's the difficulty?As it is a 
+driver,I think it should not be too much to concern.At least I know in Solaris this works.
+   I want to implement it but know I am not competent now,I am just beginning digging it:).
+   
+   Is there any good way to share memory between process at page granularity?That is,I can
+share individual pages between them? Threads maybe a subtitue,but there are many things
+that I don't want to share.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
