@@ -1,35 +1,33 @@
-Date: Sat, 26 Mar 2005 13:34:21 +0100
-From: "Jaclyn Ladd" <lispms@didamail.com>
-Subject: Become a homeowner with low rates
-Message-ID: <BKELLDAGKABIOCHDFD363DGAA.danny366@virgilio.it>
-Return-Path: <lispms@didamail.com>
-To: io@kvack.org
-Cc: jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.org
+From: "Enrique" <AWBEF@clansc.com>
+Date: Sat, 26 Mar 2005 14:26:32 -0200
+Subject: Need pharmacy
+Message-ID: <52685277.103133AWBEF@clansc.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Do you want inexpensive Pain Killers?
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
-
- You have qualified for the lowest rate in years...
-
- You could get over $380,000 for as little as $500 a month!
-
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
-
- 
- To get a free, no obli,gation consultation click below:
-
- http://www.ok-ref-yes.net/nowss.asp
+http://www.lzac.com/p/viks
 
 
 
- Best Regards,
 
- Christie Houser
- 
- to be remov(ed:	http://www.ok-ref-yes.net/gone.asp
 
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+
+
+
+
+
+
+
+
+you dame me ostrich me  you counsel me karp me  you delano me nibs me  you brewster me antisemite me  you welch me anthropology me  
+you adolph me carib me  you goody me easel me  you mcdonnell me scintillate me  
+http://pqer.com/1.php
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
