@@ -1,53 +1,41 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: Fwd: Re: [PATCH][RFC] appling preasure to icache and dcache
-Date: Tue, 3 Apr 2001 19:50:04 -0400
-References: <Pine.LNX.4.21.0104031832540.14090-100000@imladris.rielhome.conectiva>
-In-Reply-To: <Pine.LNX.4.21.0104031832540.14090-100000@imladris.rielhome.conectiva>
+Date: Tue, 3 Apr 2001 19:11:39 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: [PATCH] Reclaim orphaned swap pages 
+In-Reply-To: <Pine.LNX.4.21.0104030919080.12558-100000@jerrell.lowell.mclinux.com>
+Message-ID: <Pine.LNX.4.21.0104031910450.7175-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Message-Id: <01040319500401.01230@oscar>
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, Ed Tomlinson <tomlins@CAM.ORG>
-Cc: linux-mm@kvack.org
+To: Richard Jerrell <jerrell@missioncriticallinux.com>
+Cc: Szabolcs Szakacsits <szaka@f-secure.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 03 April 2001 17:35, Rik van Riel wrote:
-> On Tue, 3 Apr 2001, Ed Tomlinson wrote:
-> > On Tuesday 03 April 2001 11:03, Benjamin Redelings I wrote:
-> > > Hi, I'm glad somebody is working on this!  VM-time seems like a pretty
-> > > useful concept.
-> >
-> > Think it might be useful for detecting trashing too.  If vmtime is
-> > made to directly relate to the page allocation rate then you can do
-> > something like this.  Let K be a number intially representing 25% of
-> > ram pages. Because vmtime is directly releated to allocation rates its
-> > meanful to subtract K from the current vmtime.  For each swapped out
-> > page, record the current vmtime.  Now if the recorded vmtime of the
-> > page you are swapping in is greater than vmtime-K increment A
-> > otherwise increment B. If A>B we are thrashing.  We decay A and B via
-> > kswapd.  We adjust K depending on the swapping rate.  Thoughts?
->
-> Hmmm, how exactly would this algorithm work ?
->
-> From your description above, I can't quite see how it would
-> work (or why it would work).
+On Tue, 3 Apr 2001, Richard Jerrell wrote:
 
-First remember the vmtime increments when ever we allocate a page.  Second we
-record the vmtime for each page as its swapped out.  If we are thrashing we are 
-cycling through sets of pages.  The swap out vmtime of most (if not all) of these
-pages will be greater than some K.  So what I see the above doing is telling us
-we are swaping in stuff we reciently swapped out.  If we are swapping normally
-this should not be a normal distribution.  Another way to look at this would
-be to find a value of K such that |A-B| is small.  If K is small and the swap
-rate is high we are thrashing.  What is trashing is another question...
+> > > That's not really what I'm getting at.  Currently if you run a memory
+> > > intensive application, quit after it's pages are on an lru, and try to
+> > > restart, you won't be able to get the memory.  This is because pages which
+> > > are sitting around in the swap cache are not counted as free, and they
+> > > should be, because they are freeable.
+> > 
+> > No. Dirty swapcache pages which have pte's referencing them are not
+> > freeable.
+> 
+> If you quit the application, it no longer has ptes which are referencing
+> the page.  If, in addition, this page no longer has any ptes referencing
+> it, then it is wasting space.  That is why we free the page (providing
+> that the swap entry is not shared either).  Otherwise, you will run out of
+> memory because everything is stuck in the swap cache until it gets
+> laundered, regardless of whether anyone is still referencing the
+> page.  That is not a good thing, which is what the patch fixes.
 
-I am not sure this would catch _all_ cases but bet it would get a large percentage
-of them.
+Right.
 
-Ed  
+But you should not count _all_ swapcache pages as freeable. 
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
