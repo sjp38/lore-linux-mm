@@ -1,53 +1,50 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iBENTfFJ683822
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2004 18:29:41 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iBENTfYB334344
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2004 16:29:41 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iBENTfFO031475
-	for <linux-mm@kvack.org>; Tue, 14 Dec 2004 16:29:41 -0700
-Date: Tue, 14 Dec 2004 14:00:28 -0800
-From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
-Subject: Re: [PATCH 0/3] NUMA boot hash allocation interleaving
-Message-ID: <50260000.1103061628@flay>
-In-Reply-To: <Pine.SGI.4.61.0412141720420.22462@kzerza.americas.sgi.com>
-References: <Pine.SGI.4.61.0412141140030.22462@kzerza.americas.sgi.com><9250000.1103050790@flay> <20041214191348.GA27225@wotan.suse.de><19030000.1103054924@flay> <Pine.SGI.4.61.0412141720420.22462@kzerza.americas.sgi.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Subject: Re: [PATCH] fix spurious OOM kills
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+In-Reply-To: <20041214173858.GJ16322@dualathlon.random>
+References: <419F2AB4.30401@ribosome.natur.cuni.cz>
+	 <1100957349.2635.213.camel@thomas>
+	 <419FB4CD.7090601@ribosome.natur.cuni.cz> <1101037999.23692.5.camel@thomas>
+	 <41A08765.7030402@ribosome.natur.cuni.cz>
+	 <1101045469.23692.16.camel@thomas>
+	 <1101120922.19380.17.camel@tglx.tec.linutronix.de>
+	 <41A2E98E.7090109@ribosome.natur.cuni.cz>
+	 <1101205649.3888.6.camel@tglx.tec.linutronix.de>
+	 <41BF0F0D.4000408@ribosome.natur.cuni.cz>
+	 <20041214173858.GJ16322@dualathlon.random>
+Content-Type: text/plain; charset=UTF-8
+Date: Wed, 15 Dec 2004 10:30:18 +1100
+Message-Id: <1103067018.5420.37.camel@npiggin-nld.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Brent Casavant <bcasavan@sgi.com>
-Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Martin =?iso-8859-2?Q?MOKREJ=A9?= <mmokrejs@ribosome.natur.cuni.cz>, tglx@linutronix.de, Andrew Morton <akpm@osdl.org>, piggin@cyberone.com.au, chris@tebibyte.org, marcelo.tosatti@cyclades.com, andrea@novell.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
->> > I originally was a bit worried about the TLB usage, but it doesn't
->> > seem to be a too big issue (hopefully the benchmarks weren't too
->> > micro though)
->> 
->> Well, as long as we stripe on large page boundaries, it should be fine,
->> I'd think. On PPC64, it'll screw the SLB, but ... tough ;-) We can either
->> turn it off, or only do it on things larger than the segment size, and
->> just round-robin the rest, or allocate from node with most free.
+On Tue, 2004-12-14 at 18:38 +0100, Andrea Arcangeli wrote:
+> On Tue, Dec 14, 2004 at 05:04:29PM +0100, Martin MOKREJA  wrote:
+> > I see the machine a lot less responsive when it starts swapping
+> > compared to 2.6.10-rc2-mm3. For example, just moving mouse between
+> > windows takes some 10-12 seconds to fvwm2 to re-focus to another xterm
+> > window.
 > 
-> Is there a reasonably easy-to-use existing infrastructure to do this?
-> I didn't find anything in my examination of vmalloc itself, so I gave
-> up on the idea.
+> I don't know exactly what's the issue here, but the oom fixes we
+> developed cannot change anything until you see the first printk in the
+> logs (the printk tells the admin the machine reached oom).
+> 
+> So slowdowns during paging can be discussed separately from the oom
+> killer issues.
 
-Not that I know of. But (without looking at it), it wouldn't seem 
-desperately hard to implement (some argument or flag to vmalloc, or vmalloc_largepage) or something.
+There was another reported slowdown for 2.6.10-rc3 in another
+thread too. It is a bit odd because nothing much has changed
+in the scanner.
 
-> And just to clarify, are you saying you want to see this before inclusion
-> in mainline kernels, or that it would be nice to have but not necessary?
+Was there some swap-token (or can anyone think of any relevant)
+changes recently?
 
-I'd say it's a nice to have, rather than necessary, as long as it's not
-forced upon people. Maybe a config option that's on by default on ia64
-or something. Causing yourself TLB problems is much more acceptable than
-causing it for others ;-)
+Nick
 
-M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
