@@ -1,44 +1,26 @@
-Date: Fri, 13 Sep 2002 09:59:04 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: 2.5.34-mm3
-In-Reply-To: <3D819132.C7171BD9@digeo.com>
-Message-ID: <Pine.LNX.4.44L.0209130955580.1857-100000@imladris.surriel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] per-zone kswapd process
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+In-Reply-To: <20020913045938.GG2179@holomorphy.com>
+References: <3D815C8C.4050000@us.ibm.com> <3D81643C.4C4E862C@digeo.com>
+	<20020913045938.GG2179@holomorphy.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 13 Sep 2002 14:05:52 +0100
+Message-Id: <1031922352.9056.14.camel@irongate.swansea.linux.org.uk>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rick Lindsley <ricklind@us.ibm.com>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@digeo.com>, Dave Hansen <haveblue@us.ibm.com>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Sep 2002, Andrew Morton wrote:
+On Fri, 2002-09-13 at 05:59, William Lee Irwin III wrote:
+> Machines without observable NUMA effects can benefit from it if it's
+> per-zone. It also follows that if there's more than one task doing this,
+> page replacement is less likely to block entirely. Last, but not least,
+> when I devised it, "per-zone" was the theme.
 
-> Rik, I didn't include the iowait patch because we don't seem to have
-> a tarball of procps which supports it - the various diffs you have at
-> http://surriel.com/procps/ appear to be in an intermediate state wrt
-> cygnus CVS.
-
-Umm no, the latest patch I put up yesterday is fully in sync
-with the cygnus CVS tree ...
-
-> The code is in experimental/iowait.patch.  Could we have a snapshot
-> tarball of the support utilities please?
-
-... but I've put up a snapshot, if that makes you happy ;)
-The snapshot is of the latest procps code from procps CVS,
-including your patch to top.
-
-	http://surriel.com/procps/
-
-regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Spamtraps of the month:  september@surriel.com trac@trac.org
+It will also increase the amount of disk head thrashing surely ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
