@@ -1,73 +1,118 @@
-Message-ID: <418AE202.20903@yahoo.com.au>
-Date: Fri, 05 Nov 2004 13:14:26 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] higher order watermarks
-References: <417F5584.2070400@yahoo.com.au> <417F55B9.7090306@yahoo.com.au> <417F5604.3000908@yahoo.com.au> <20041104085745.GA7186@logos.cnet> <418A1EA6.70500@yahoo.com.au> <20041104095545.GA7902@logos.cnet> <418AD20D.4000201@yahoo.com.au> <20041104224751.GA13679@logos.cnet>
-In-Reply-To: <20041104224751.GA13679@logos.cnet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e6.ny.us.ibm.com (8.12.10/8.12.9) with ESMTP id iA52NDsZ643560
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 21:23:13 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iA52NDQ7280104
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 21:23:13 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iA52NDEc016203
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 21:23:13 -0500
+Subject: Re: fix iounmap and a pageattr memleak (x86 and x86-64)
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20041105020831.GI8229@dualathlon.random>
+References: <4188118A.5050300@us.ibm.com>
+	 <20041103013511.GC3571@dualathlon.random> <418837D1.402@us.ibm.com>
+	 <20041103022606.GI3571@dualathlon.random> <418846E9.1060906@us.ibm.com>
+	 <20041103030558.GK3571@dualathlon.random>
+	 <1099612923.1022.10.camel@localhost> <1099615248.5819.0.camel@localhost>
+	 <20041105005344.GG8229@dualathlon.random>
+	 <1099619740.5819.65.camel@localhost>
+	 <20041105020831.GI8229@dualathlon.random>
+Content-Type: multipart/mixed; boundary="=-AjjCEpVRAe0rnMQOxPHT"
+Message-Id: <1099621391.5819.72.camel@localhost>
+Mime-Version: 1.0
+Date: Thu, 04 Nov 2004 18:23:11 -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, Linus Torvalds <torvalds@osdl.org>
+To: Andrea Arcangeli <andrea@novell.com>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti wrote:
-> On Fri, Nov 05, 2004 at 12:06:21PM +1100, Nick Piggin wrote:
-> 
+--=-AjjCEpVRAe0rnMQOxPHT
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
->>Yeah it's wrong, of course. Good catch, thanks.
->>
->>If you would care to send a patch Marcelo? I don't have a recent
->>-mm on hand at the moment. Would that be alright?
+On Thu, 2004-11-04 at 18:08, Andrea Arcangeli wrote:
+> On Thu, Nov 04, 2004 at 05:55:40PM -0800, Dave Hansen wrote:
+> > What happens when a pte page is bootmem-allocated?  I *think* that's the
+> > situation that I'm hitting.  In that case, we can either try to hunt
+> > down the real 'struct pages' after everything is brought up, or we can
+> > just skip the BUG_ON() if the page is reserved.  Any thoughts?
 > 
+> Skipping BUG_ON if the page is reserved is something you can certainly
+> try.
 > 
-> Sure, I'll prepare a patch. 
+> However if all usages are symmetric, the only pte that should ever get
+> freed, is the pte that change_page_attr itself has allocated via
+> split_large_page.
 > 
-> This typo probably means that the current code is not actually working as 
-> intented - did any of you receive any feedback on this patch, wrt high order allocation
-> intensive driver setup/workload, Nick and Andrew? 
+> I tried the debug option right now, without the fixes I get a crash in
+> X (but not in pageattr.c, it's an invalid page fault in some direct
+> mapping), that might be a real bug or another false positive.
 > 
+> with the fixes applied I get this, so I can reproduce at least ;)
 
-I had tested it and it did do the right thing when fragmentation meant
-higer order memory was completely depleted - previously atomic allocations
-would just stop working, but the patches got them going again.
+Here we go again :)
 
-I did have one guy who tested the patches in a production sort of system
-that was getting some allocation failures. He said they didn't make much
-difference (increasing min_free_kbytes was effective).
+I think we're being naughty about page_count()s for pages that never hit
+the page allocator (ones that never hit free_all_bootmem()).  They keep
+an initial page_count() of 0, which is a no no if they're used as pte
+pages and noticed by __change_page_attr().  This discrepancy isn't
+noticed until the page is get'd 512 times, then completely __put'd as
+things get allocated into space mapped by the page.  The final __put
+hits the BUG_ON().  To find this earlier, we could also have a
+BUG_ON(!page_count(kpte_page)) in __change_page_attr() right after we
+find the kpte_page, in addition to the check after the count is
+modified.  
 
-So hopefully this should make things work better.
+This patch defaults the page counts to 1 instead of 0 for all pages in
+the zone initialization.  Any pages that go though free_all_bootmem()
+are set back to a state where they cleanly go in to the allocator.  
 
-What would happen without the patch, is that if you had 0 order-2 pages free
-and wanted to make an order-2 allocation, free_pages would never get
-decremented, so it wouldn't detect the shortage.
+I'm not quite sure if this has any other weird effects, so I'll hold on
+to it for a week or so and see if anything turns up.  
 
-> I have been using a simple module which allocates a big number of high order
-> allocations in a row (for the defragmentation code testing), I'll give it a
-> shot tomorrow to test Nick's high-order-kswapd scheme effectiveness. 
-> 
-> Anyway, here is the patch:
-> 
+-- Dave
 
-ACK. Thanks.
+--=-AjjCEpVRAe0rnMQOxPHT
+Content-Disposition: attachment; filename=Z0-bootmem_page_counts.patch
+Content-Type: text/x-patch; name=Z0-bootmem_page_counts.patch; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 7bit
 
-> Description:
-> Fix typo in Nick's kswapd-high-order awareness patch
-> 
-> --- linux-2.6.10-rc1-mm2/mm/page_alloc.c.orig	2004-11-04 22:52:00.505365136 -0200
-> +++ linux-2.6.10-rc1-mm2/mm/page_alloc.c	2004-11-04 22:52:03.121967352 -0200
-> @@ -733,7 +733,7 @@
->  		return 0;
->  	for (o = 0; o < order; o++) {
->  		/* At the next order, this order's pages become unavailable */
-> -		free_pages -= z->free_area[order].nr_free << o;
-> +		free_pages -= z->free_area[o].nr_free << o;
->  
->  		/* Require fewer higher order pages to be free */
->  		min >>= 1;
-> 
+
+
+---
+
+ memhotplug1-dave/mm/bootmem.c    |    1 +
+ memhotplug1-dave/mm/page_alloc.c |    2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff -puN mm/bootmem.c~Z0-bootmem_page_counts mm/bootmem.c
+--- memhotplug1/mm/bootmem.c~Z0-bootmem_page_counts	2004-11-04 18:16:20.000000000 -0800
++++ memhotplug1-dave/mm/bootmem.c	2004-11-04 18:16:42.000000000 -0800
+@@ -289,6 +289,7 @@ static unsigned long __init free_all_boo
+ 				if (j + 16 < BITS_PER_LONG)
+ 					prefetchw(page + j + 16);
+ 				__ClearPageReserved(page + j);
++				set_page_count(page + j, 0);
+ 			}
+ 			__free_pages(page, ffs(BITS_PER_LONG)-1);
+ 			i += BITS_PER_LONG;
+diff -puN mm/page_alloc.c~Z0-bootmem_page_counts mm/page_alloc.c
+--- memhotplug1/mm/page_alloc.c~Z0-bootmem_page_counts	2004-11-04 18:16:20.000000000 -0800
++++ memhotplug1-dave/mm/page_alloc.c	2004-11-04 18:16:47.000000000 -0800
+@@ -1824,7 +1824,7 @@ void __devinit memmap_init_zone(unsigned
+ 
+ 	for (page = start; page < (start + size); page++) {
+ 		set_page_zone(page, NODEZONE(nid, zone));
+-		set_page_count(page, 0);
++		set_page_count(page, 1);
+ 		reset_page_mapcount(page);
+ 		SetPageReserved(page);
+ 		INIT_LIST_HEAD(&page->lru);
+_
+
+--=-AjjCEpVRAe0rnMQOxPHT--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
