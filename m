@@ -1,49 +1,54 @@
-Received: from blueribbon.com (ip121.moorestown.nj.pub-ip.psi.net [38.14.101.121])
-	by kvack.org (8.8.7/8.8.7) with SMTP id NAA06531
-	for <linux-mm@kvack.org>; Sun, 30 May 1999 13:43:39 -0400
-From: bkuppler@blueribbon.com
-Message-Id: <199905301743.NAA06531@kvack.org>
-Subject: AD:Family Reunion T Shirts & More
-Date: Wed, 9 Dec 1998 09:49:48
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA06593
+	for <linux-mm@kvack.org>; Sun, 30 May 1999 13:47:36 -0400
+Date: Sun, 30 May 1999 10:47:06 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [PATCH] cache large files in the page cache
+In-Reply-To: <m1675a4gv7.fsf@flinx.ccr.net>
+Message-ID: <Pine.LNX.3.95.990530104226.18638J-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
+Cc: Jakub Jelinek <jj@sunsite.ms.mff.cuni.cz>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Message sent by:  Kuppler Graphics, 32 West Main Street, Maple Shade, New Jersey, 08052,
-1-800-810-4330.   This list will NOT be sold.  All addresses 
-are automatically added to our remove list.
 
-Hello.  My name is Bill from Kuppler Graphics.  We do screenprinting on T Shirts, Sweatshirts,
-Jackets, Hats, Tote Bags and more!
+On 30 May 1999, Eric W. Biederman wrote:
+> 
+> LT> Indeed. An dI would suggest that the shift be limited to at most 9 anyway:
+> LT> right now I applied the part that disallows non-page-aligned offsets, but
+> LT> I think that we may in the future allow anonymous mappings again at finer
+> LT> granularity (somebody made a really good argument about wine for this).
+> 
+> I'd love to hear the argument.   Something that would negate the disadvantage
+> of ntuple buffering, and the need for reverse page maps, and isn't portable.
 
-Do you or someone you know have a Family Reunion coming up?  Kuppler Graphics would like to
-provide you with some great looking T Shirts for your Reunion.
+Wine.
 
-Kuppler Graphics can also provide you with custom T's and promotional items such as imprinted
-magnets, keychains, pens, mugs, hats, etc. for your business or any fundraising activity
-(church, school, business etc.) We also can provide you with quality embroidery. 
+Mapping windows binaries in a Linux address space.
 
-We are a family owned company with over 15 years of experience.  
+Portability is a non-issue: this would only work on a 386, and only on
+Linux anyway (MAYBE on other architectures Wine supports, but that's their
+problem). 
 
-All work is done at this location.  No middle man.  Our prices are great!
+Windows binaries are _not_ nicely aligned like the Linux ones. They are
+often 512-byte aligned.
 
-Click reply to email us or call 1-800-810-4330 for more info
+Yes, we can read them in. That is slow as hell, and doesn't allow sharing. 
+Bad. 
 
+> Well, currectly supporting non-aligned mappings needs more than just a
+> few extra bits.  The code to update all mappings on write, and the
+> ability to ensure that a given byte is only faulted in for a single
+> offset at a time.   (Admittedly if everything is a read mapping you
+> can be a smidge more lax).
 
-Bill
-Kuppler Graphics
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
- 
+We would not guarantee write coherency for anything but the page-aligned
+case. 
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
