@@ -1,59 +1,39 @@
-From: Bernardo Innocenti <bernie@develer.com>
-Subject: Fwd: uClinux 2.6.x memory allocator brokenness
-Date: Sun, 17 Aug 2003 18:10:20 +0200
+Date: Mon, 18 Aug 2003 14:19:16 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC] prefault optimization
+In-Reply-To: <3F32ECE0.1000102@us.ibm.com>
+Message-ID: <Pine.LNX.4.53.0308181411380.26766@skynet>
+References: <3F32ECE0.1000102@us.ibm.com>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200308171810.20781.bernie@develer.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-MM@kvack.org
+To: Adam Litke <agl@us.ibm.com>
+Cc: linux-mm@kvack.org, "Martin J. Bligh" <mbligh@aracnet.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Thu, 7 Aug 2003, Adam Litke wrote:
 
-even though this is an uClinux related question, perhaps it would
-be best answered by the mm people since it requires in-depth knowledge
-of the page allocator.
+> This patch attempts to reduce page fault overhead for mmap'd files.  All
+> pages in the page cache that will be managed by the current vma are
+> instantiated in the page table.
 
-----------  Forwarded Message  ----------
+I believe this could punish applications which use large numbers of shared
+libraries, especially if only a small portion of library code is used.
+Take something like konqueror which maps over 30 shared libraries. With
+prefaulting, all the libraries will be fully faulted even if only a tiny
+portion of some library code is used.  This, potentially, could put a lot
+of unwanted pages into the page cache which will be a kick in the pants
+for low-memory systems.
 
-Subject: uClinux 2.6.x memory allocator brokenness
-Date: Saturday 16 August 2003 22:45
-From: Bernardo Innocenti <bernie@develer.com>
-To: uClinux development list <uclinux-dev@uclinux.org>
-Cc: David McCullough <davidm@snapgear.com>, Greg Ungerer <gerg@snapgear.com>
+For example, I don't have audio enabled at all in konqueror, but with this
+patch, it will fault in 77K of data for libaudio that won't be used.
 
-Hello,
+Just my 2c
 
-not sure if anybody else experienced this problem. 2.5.x/2.6.x
-kernels seem to have some nasty bug in mm/page_alloc.c.
-
-When I allocate over 256KB of memory, the allocator steps into
-__alloc_pages() with order=7 and finds nothing free in the 512KB
-slab, then it splits the 1MB block in two 512MB blocks and fails
-miserably for some unknown reason.
-
-I also noticed that any allocation (even smaller ones) always
-fail in the fast path and falls down into the slowish code
-that wakes up kswapd to free some more pages.
-
-This happens because zone->pages_low is set to 512 while
-free_pages is consistently below 400 on my system.
-
-Perhaps these values would have to be retuned on embedded targets.
-
---
-  // Bernardo Innocenti - Develer S.r.l., R&D dept.
-\X/  http://www.develer.com/
-
-Please don't send Word attachments -
- http://www.gnu.org/philosophy/no-word-attachments.html
-
--------------------------------------------------------
-
+-- 
+Mel Gorman
+http://www.csn.ul.ie/~mel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
