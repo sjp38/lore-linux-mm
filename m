@@ -1,61 +1,42 @@
 Subject: Re: broken VM in 2.4.10-pre9
-References: <Pine.LNX.4.33L.0109170909270.2990-100000@imladris.rielhome.conectiva>
+References: <878A2048A35CD141AD5FC92C6B776E4907BB98@xchgind02.nsisw.com>
 From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 17 Sep 2001 09:45:49 -0600
-In-Reply-To: <Pine.LNX.4.33L.0109170909270.2990-100000@imladris.rielhome.conectiva>
-Message-ID: <m1adztstw2.fsf@frodo.biederman.org>
+Date: 17 Sep 2001 10:03:06 -0600
+In-Reply-To: <878A2048A35CD141AD5FC92C6B776E4907BB98@xchgind02.nsisw.com>
+Message-ID: <m166ahst39.fsf@frodo.biederman.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
+To: Rob Fuller <rfuller@nsisoftware.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
+"Rob Fuller" <rfuller@nsisoftware.com> writes:
 
-> On 17 Sep 2001, Eric W. Biederman wrote:
-> 
-> > There is an alternative approach to have better aging information.
-> 
-> [snip incomplete description of data structure]
-> 
-> What you didn't explain is how your idea is related to
-> aging.
+> One argument for reverse mappings is distributed shared memory or
+> distributed file systems and their interaction with memory mapped
+> files.  For example, a distributed file system may need to invalidate a specific
+> page of a file that may be mapped multiple times on a node.
 
-Sorry I thought you had been staring at the problem long enough to
-see.  In any case the problem with the current code is that you can't
-put all pages in the swap cache immediately because you don't want to
-allocate the swap space just yet.  And without being in the swap cache
-aging isn't especially effective.
+To reduce the time for an invalidate is indeed a good argument for
+reverse maps.  However this is generally the uncommon case, and it is
+fine to leave this kinds of things on the slow path.  From struct page 
+we currently go to struct address_space to lists of struct vm_area
+which works but is just a little slower (but generally cheaper) than
+having a reverse map.
 
-By using something like a shared memory segment behind every anonymous
-page, you can put the page in the swap cache before you allocate swap
-for it (because it has a persistent identity).   Further since you no
-longer need counts for every swap page.  You can deallocate swap space
-from pages simply by walking through the ``indirect pages'' and
-removing the reference to swap space.
+Since Rik was not seeing the invalidate or the unmap case as the
+bottleneck this reverse mappings are not needed simply something
+with a similiar effect on the VM.  
 
-> > > For 2.5 I'm making a VM subsystem with reverse mappings, the
-> > > first iterations are giving very sweet performance so I will
-> > > continue with this project regardless of what other kernel
-> > > hackers might say ;)
-> >
-> > Do you have any arguments for the reverse mappings or just for some of
-> > the other side effects that go along with them?
-> 
-> Mainly for the side effects, but until somebody comes
-> up with another idea to achieve all the side effects I'm
-> not giving up on reverse mappings. If you can achieve
-> all the good stuff in another way, show it.
-
-I think I can I haven't had time to implement it.  Given the way Alan
-and some of the others were talking I though my idea has long ago been
-thought of and put on the plate for 2.5.  If it really is a new idea
-under the sun I'll look at implementing it as soon as I have a hole
-in my schedule.
+In linux we have avoided reverse maps (unlike the BSD's) which tends
+to make the common case fast at the expense of making it more
+difficult to handle times when the VM system is under extreme load and
+we are swapping etc.
 
 Eric
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
