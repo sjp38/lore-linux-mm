@@ -1,34 +1,42 @@
-Date: Fri, 14 Jan 2000 03:46:55 +0100 (CET)
-From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Subject: Re: [RFC] 2.3.39 zone balancing
-In-Reply-To: <200001140113.RAA62584@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.10.10001140339450.7241-100000@chiara.csoma.elte.hu>
+Date: Fri, 14 Jan 2000 02:56:49 +0100 (CET)
+From: Rik van Riel <riel@nl.linux.org>
+Subject: 1+ GB support (fwd)
+Message-ID: <Pine.LNX.4.10.10001140256150.13454-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@nl.linux.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Jan 2000, Kanoj Sarcar wrote:
+Could somebody please write an FAQ about this (for use on the
+Linux-MM site)... ? :)
 
-> But as Linus points out, recovering from that is not that costly
-> (the page will be in the swapcache mostly, its just the cost of 
-> the page fault).
+Rik
+---------- Forwarded message ----------
+Date: Thu, 13 Jan 2000 15:19:00 -0800
+From: Kelly Alexander <kelly@nvidia.com>
+Reply-To: linux-mm-www@nl.linux.org
+To: linux-mm-www@nl.linux.org
+Subject: 1+ GB support
 
-note that i was not worried a bit about swapping performance. Swapping is
-slow, conceptually. I'm worried about the current pte_young() logic and
-the fact that pages can evade swap_out() completely just by being used
-(read access) at least once per scan. This not only makes the system slow
-(which we dont care), but also unusable in certain cases. This is an
-existing problem, Alan got 2.2 reports of frequent GFP_DMA failures on 1GB
-boxes. (weird combination of hardware i agree) The zone rewrite already
-made the situation much better by ordering zones, and i'll be completely
-happy if we make the pte_young() branch in try_to_swap_out() at least
-conditional on memory pressure :-)
+	
+	I've read a bunch of linux news that says that the later kernels
+such as 2.3.35 can support more than 1gb of memory.  I've put together a
+system with 4gb of RAM (dell 6300, 2x PIII 550 xeon CPUs) and can see that
+the kernel reports all 4gb is there and I can use 4gb if running multiple
+processes.  However, I've been unable to malloc and use more than 1gb per
+process.  Is this a limitation or am I doing something wrong?  I've tried to
+use the obsolete FAQ on large memory to give me some ideas of where to poke
+around but no luck so far.  Any ideas or pointers for me to investigate?
 
--- mingo
+---
+Kelly Alexander
+nVidia Corporation    
+-
+Linux-mm-www: builders list for the Linux-MM website
+Archive:      http://humbolt.nl.linux.org/lists/
+Web site:     http://www.linux.eu.org/Linux-MM/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
