@@ -1,58 +1,84 @@
-Subject: Re: [Lhms-devel] Re: Merging Nonlinear and Numa style memory
-	hotplug
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20040624194557.F02B.YGOTO@us.fujitsu.com>
-References: <20040624135838.F009.YGOTO@us.fujitsu.com>
-	 <1088116621.3918.1060.camel@nighthawk>
-	 <20040624194557.F02B.YGOTO@us.fujitsu.com>
-Content-Type: text/plain
-Message-Id: <1088133541.3918.1348.camel@nighthawk>
-Mime-Version: 1.0
-Date: Thu, 24 Jun 2004 20:19:01 -0700
+Message-Id: <200406250449.BSB05018@ms6.netsolmail.com>
+Reply-To: <shai@ftcon.com>
+From: "Shai Fultheim" <shai@ftcon.com>
+Subject: RE: [Lhms-devel] Re: [Lhns-devel] Merging Nonlinear and Numa style memory hotplug
+Date: Thu, 24 Jun 2004 21:49:42 -0700
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
+In-Reply-To: <20040624135838.F009.YGOTO@us.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <ygoto@us.fujitsu.com>
-Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, Linux-Node-Hotplug <lhns-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, "BRADLEY CHRISTIANSEN [imap]" <bradc1@us.ibm.com>
+To: 'Yasunori Goto' <ygoto@us.fujitsu.com>, 'Dave Hansen' <haveblue@us.ibm.com>
+Cc: 'Linux Kernel ML' <linux-kernel@vger.kernel.org>, 'Linux Hotplug Memory Support' <lhms-devel@lists.sourceforge.net>, 'Linux-Node-Hotplug' <lhns-devel@lists.sourceforge.net>, 'linux-mm' <linux-mm@kvack.org>, "'BRADLEY CHRISTIANSEN [imap]'" <bradc1@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-06-24 at 20:11, Yasunori Goto wrote:
-> I understand this idea at last.
-> Section size of DLPAR of PPC is only 16MB.
-> But kmalloc area of virtual address have to be contigous 
-> even if the area is divided 16MB physically.
-> Dave-san's implementation (it was for IA32) was same index between 
-> phys_section and mem_section. So, I was confused.
+> From: linux-kernel-owner@vger.kernel.org [mailto:linux-kernel-
+> owner@vger.kernel.org] On Behalf Of Yasunori Goto
+> Sent: Thursday, June 24, 2004 15:20
+> To: Dave Hansen
 > 
-> > pfn_to_page(unsigned long pfn)
-> > {
-> >        return
-> > &mem_section[phys_section[pfn_to_section(pfn)]].mem_map[section_offset_pfn(pfn)];
-> > }
-> > 
-> 
-> But, I suppose this translation might be too complex.
+> > Some more comments on the first patch:
 
-It certainly doesn't look pretty, but I think it's manageable with a
-comment, or maybe breaking the operation up into a few lines instead.
+> > +       for(i = 0; i < numnodes; i++) {
+> > +               if (!NODE_DATA(i))
+> > +                       continue;
+> > +               pgdat = NODE_DATA(i);
+> > +               size = pgdat->node_zones[ZONE_HIGHMEM].present_pages;
+> > +               if (!size)
+> > +                       continue;
+> > +               hsp = pgdat->node_zones[ZONE_HIGHMEM].zone_mem_map;
+> > +               if (hsp)
+> > +                       break;
+> > +       }
+> >
+> > Doesn't this just find the lowest-numbered node's highmem?  Are you sure
+> > that no NUMA systems have memory at lower physical addresses on
+> > higher-numbered nodes?  I'm not sure that this is true.
 
-> I worry that many person don't like this which is cause of
-> performance deterioration.
+In addition I'm involved in a NUMA-related project that might have
+zone-normal on other nodes beside node0.  I also think that in some cases it
+might be useful to have the code above and below in case of AMD machines
+that have less than 1GB per processor (or at least less than 1GB on the
+FIRST processor).
 
-There is some precedent in the kernel for a table such as this.  Take a
-look at the NUMA page_to_pfn() and page_zone() functions.  They use a
-zone_table array to do that same kind of thing.
+> > +
+> > +#ifdef CONFIG_HOTPLUG_MEMORY_OF_NODE
+> > +       for (nid = 0; nid < numnodes; nid++){
+> > +               int start, end;
+> > +
+> > +               if ( !node_online(nid))
+> > +                       continue;
+> > +               if ( node_start_pfn[nid] >= max_low_pfn )
+> > +                       break;
+> > +
+> > +               start = node_start_pfn[nid];
+> > +               end = ( node_end_pfn[nid] < max_low_pfn) ?
+> > +                       node_end_pfn[nid] : max_low_pfn;
+> > +
+> > +               for ( tmp = start; tmp < end; tmp++)
+> > +                       /*
+> > +                        * Only count reserved RAM pages
+> > +                        */
+> > +                       if (page_is_ram(tmp) &&
+> PageReserved(pfn_to_page(tmp)))
+> > +                               reservedpages++;
+> > +       }
+> > +#else
+> >
+> > Again, I don't see what this loop is used for.  You appear to be trying
+> > to detect which nodes have lowmem.  Is there currently any x86 NUMA
+> > architecture that has lowmem on any node but node 0?
+> >
+> >
+> >
+> > -- Dave
 
-Are you worried bout the pfn_to_page() function itself, that it will
-pull in 2 cachelines of data: 1 for phys_section[] and another for
-mem_section[]?
+As noted above, this is possible, the cost of this code is not much, so I
+would keep it in.
 
-> Should this translation be in common code?
-
-What do you mean by common code?  It should be shared by all
-architectures.
-
--- Dave
+--shai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
