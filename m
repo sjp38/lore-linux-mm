@@ -1,10 +1,10 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA07438
-	for <linux-mm@kvack.org>; Mon, 24 Nov 1997 15:38:30 -0500
-Date: Mon, 24 Nov 1997 21:05:53 +0100 (MET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA11727
+	for <linux-mm@kvack.org>; Tue, 25 Nov 1997 10:11:24 -0500
+Date: Tue, 25 Nov 1997 15:58:56 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: [patch *] vhand-2.1.65c released :)
-Message-ID: <Pine.LNX.3.91.971124210032.4905B-100000@mirkwood.dummy.home>
+Subject: Pageable pagetables.
+Message-ID: <Pine.LNX.3.91.971125155707.535A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -12,20 +12,15 @@ To: linux-kernel <linux-kernel@vger.rutgers.edu>
 Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Yup, I _am_ going for the record...
+Hi there,
 
-After receiving several messages about kswapd using too
-much CPU time with my vhand-2.1.65b patch, I decided to
-fix the problem and release the patch with linux-2.1.66
-Since there was no linux(2.1.66) released this weekend,
-and I still got messages from people, I decided to make
-a new record:  the highest number of patch-releases for
-1 (development!) kernel-version...
+I've had some mails about whether Linux could be made
+to swap pagetables.
+I think this might be a Good Thing to do, but I keep
+asking myself what the MMUs from the different architectures
+would do when looking up a pagetable would cause a fault...
 
-And thus: vhand-2.1.65c saw the light :)
-You can see the light too, at http://www.fys.ruu.nl/~riel/
-
-grtz,
+Anyone have a clue?
 
 Rik.
 
