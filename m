@@ -1,130 +1,277 @@
-Message-ID: <41DB3010.7000600@sgi.com>
-Date: Tue, 04 Jan 2005 18:08:48 -0600
-From: Ray Bryant <raybry@sgi.com>
+Date: Tue, 4 Jan 2005 16:29:39 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Anticipatory prefaulting in the page fault handler V4
+In-Reply-To: <1103052678.28318.446.camel@localhost.localdomain>
+Message-ID: <Pine.LNX.4.58.0501041628320.1980@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain>
+  <156610000.1102546207@flay>  <Pine.LNX.4.58.0412091130160.796@schroedinger.engr.sgi.com>
+  <200412132330.23893.amgta@yacht.ocn.ne.jp>
+ <Pine.LNX.4.58.0412130905140.360@schroedinger.engr.sgi.com>  <8880000.1102976179@flay>
+  <Pine.LNX.4.58.0412131730410.817@schroedinger.engr.sgi.com>
+ <1103052678.28318.446.camel@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: page migration
-References: <20050103171344.GD14886@logos.cnet>	<41D9AC2D.90409@sgi.com>	<20050103183811.GE14886@logos.cnet> <20050105.004221.41649018.taka@valinux.co.jp> <41DAD393.1030009@sgi.com>
-In-Reply-To: <41DAD393.1030009@sgi.com>
-Content-Type: multipart/mixed;
- boundary="------------080600050509010601090809"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>, marcelo.tosatti@cyclades.com, haveblue@us.ibm.com
-Cc: linux-mm@kvack.org
+To: Adam Litke <agl@us.ibm.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Akinobu Mita <amgta@yacht.ocn.ne.jp>, nickpiggin@yahoo.com.au, Jeff Garzik <jgarzik@pobox.com>, torvalds@osdl.org, hugh@veritas.com, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------080600050509010601090809
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Changes from V3 to V4:
+- Add /proc/sys/vm/max_prealloc_order to limit preallocations
+- Tested against 2.6.10-bk7
 
-The attached patch changes "migrate_onepage(page)" to
-"migrate_onepage(page, nodeid)".  For the case where
-the caller doesn't care which target node is used,
-then the call: "migrate_onepage(page, MIGRATE_NODE_ANY)"
-causes migrate_onepage() to revert to its previous
-behavior.
+(This version of the patch is not depending on atomic pte operations and will
+conflict with the page fault scalabilty patchset. I have another patch
+that works with atomic pte operations)
 
-Since migrate_onepage() is only called in mmigrate.c
-at the present time, this is a localized change.
+The page fault handler for anonymous pages can generate significant overhead
+apart from its essential function which is to clear and setup a new page
+table entry for a never accessed memory location. This overhead increases
+significantly in an SMP environment.
 
-This patch applies at the end of the migration
-patches.
+In the page table scalability patches, we addressed the issue by changing
+the locking scheme so that multiple fault handlers are able to be processed
+concurrently on multiple cpus. This patch attempts to aggregate multiple
+page faults into a single one. It does that by noting
+anonymous page faults generated in sequence by an application.
 
-Unless there are objections, I'd like Dave to add this
-patch to the hotplug patch as part of the page migration
-patchset.
+If a fault occurred for page x and is then followed by page x+1 then it may
+be reasonable to expect another page fault at x+2 in the future. If page
+table entries for x+1 and x+2 would be prepared in the fault handling for
+page x+1 then the overhead of taking a fault for x+2 is avoided. However
+page x+2 may never be used and thus we may have increased the rss
+of an application unnecessarily. The swapper will take care of removing
+that page if memory should get tight.
 
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+The following patch makes the anonymous fault handler anticipate future
+faults. For each fault a prediction is made where the fault would occur
+(assuming linear acccess by the application). If the prediction turns out to
+be right (next fault is where expected) then a number of pages is
+preallocated in order to avoid a series of future faults. The order of the
+preallocation increases by the power of two for each success in sequence.
 
---------------080600050509010601090809
-Content-Type: text/plain;
- name="add-node-arg-to-migrate_onepage.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="add-node-arg-to-migrate_onepage.patch"
+The first successful prediction leads to an additional page being allocated.
+Second successful prediction leads to 2 additional pages being allocated.
+Third to 4 pages and so on. The max order is 3 by default. In a large
+continous allocation the number of faults is reduced by a factor of 8.
 
-Index: linux-2.6.10-rc2-mm4-page-migration-only/include/linux/mmigrate.h
+Patch against 2.6.10-bk7:
+
+Signed-off-by: Christoph Lameter <clameter@sgi.com>
+
+Index: linux-2.6.10/include/linux/sched.h
 ===================================================================
---- linux-2.6.10-rc2-mm4-page-migration-only.orig/include/linux/mmigrate.h	2004-12-23 17:04:41.000000000 -0800
-+++ linux-2.6.10-rc2-mm4-page-migration-only/include/linux/mmigrate.h	2005-01-04 07:23:36.000000000 -0800
-@@ -4,6 +4,7 @@
- #include <linux/config.h>
- #include <linux/mm.h>
- 
-+#define MIGRATE_NODE_ANY -1
- 
- #ifdef CONFIG_MEMORY_MIGRATE
- extern int generic_migrate_page(struct page *, struct page *,
-@@ -14,7 +15,7 @@ extern int migrate_page_buffer(struct pa
- 					struct list_head *);
- extern int page_migratable(struct page *, struct page *, int,
- 					struct list_head *);
--extern struct page * migrate_onepage(struct page *);
-+extern struct page * migrate_onepage(struct page *, int nodeid);
- extern int try_to_migrate_pages(struct list_head *);
- 
- #else
-Index: linux-2.6.10-rc2-mm4-page-migration-only/mm/mmigrate.c
+--- linux-2.6.10.orig/include/linux/sched.h	2005-01-04 13:55:00.000000000 -0800
++++ linux-2.6.10/include/linux/sched.h	2005-01-04 14:00:27.000000000 -0800
+@@ -537,6 +537,8 @@
+ #endif
+
+ 	struct list_head tasks;
++	unsigned long anon_fault_next_addr;	/* Predicted sequential fault address */
++	int anon_fault_order;			/* Last order of allocation on fault */
+ 	/*
+ 	 * ptrace_list/ptrace_children forms the list of my children
+ 	 * that were stolen by a ptracer.
+Index: linux-2.6.10/mm/memory.c
 ===================================================================
---- linux-2.6.10-rc2-mm4-page-migration-only.orig/mm/mmigrate.c	2005-01-04 07:09:24.000000000 -0800
-+++ linux-2.6.10-rc2-mm4-page-migration-only/mm/mmigrate.c	2005-01-04 07:30:57.000000000 -0800
-@@ -404,7 +404,7 @@ out_removing:
-  * swapcache or anonymous memory.
-  */
- struct page *
--migrate_onepage(struct page *page)
-+migrate_onepage(struct page *page, int nodeid)
+--- linux-2.6.10.orig/mm/memory.c	2005-01-04 13:55:00.000000000 -0800
++++ linux-2.6.10/mm/memory.c	2005-01-04 14:00:27.000000000 -0800
+@@ -57,6 +57,7 @@
+
+ #include <linux/swapops.h>
+ #include <linux/elf.h>
++#include <linux/pagevec.h>
+
+ #ifndef CONFIG_DISCONTIGMEM
+ /* use the per-pgdat data instead for discontigmem - mbligh */
+@@ -1626,6 +1627,8 @@
+ 	return ret;
+ }
+
++int sysctl_max_prealloc_order = 4;
++
+ /*
+  * We are called with the MM semaphore and page_table_lock
+  * spinlock held to protect against concurrent faults in
+@@ -1637,52 +1640,105 @@
+ 		unsigned long addr)
  {
- 	struct page *newpage;
- 	struct address_space *mapping;
-@@ -434,7 +434,10 @@ migrate_onepage(struct page *page)
- 	 * Allocate a new page with the same gfp_mask
- 	 * as the target page has.
- 	 */
--	newpage = page_cache_alloc(mapping, page->index);
-+	if (nodeid == MIGRATE_NODE_ANY)
-+		newpage = page_cache_alloc(mapping, page->index);
-+	else
-+		newpage = alloc_pages_node(nodeid, mapping->flags, 0);
- 	if (newpage == NULL) {
- 		unlock_page(page);
- 		return ERR_PTR(-ENOMEM);
-@@ -538,7 +541,7 @@ int try_to_migrate_pages(struct list_hea
- 	list_for_each_entry_safe(page, page2, &pass1_list, lru) {
- 		list_del(&page->lru);
- 		if (PageLocked(page) || PageWriteback(page) ||
--		    IS_ERR(newpage = migrate_onepage(page))) {
-+		    IS_ERR(newpage = migrate_onepage(page, MIGRATE_NODE_ANY))) {
- 			if (page_count(page) == 1) {
- 				/* the page is already unused */
- 				putback_page_to_lru(page_zone(page), page);
-@@ -556,7 +559,7 @@ int try_to_migrate_pages(struct list_hea
- 	 */
- 	list_for_each_entry_safe(page, page2, &pass2_list, lru) {
- 		list_del(&page->lru);
--		if (IS_ERR(newpage = migrate_onepage(page))) {
-+		if (IS_ERR(newpage = migrate_onepage(page, MIGRATE_NODE_ANY))) {
- 			if (page_count(page) == 1) {
- 				/* the page is already unused */
- 				putback_page_to_lru(page_zone(page), page);
-@@ -586,4 +589,4 @@ EXPORT_SYMBOL(generic_migrate_page);
- EXPORT_SYMBOL(migrate_page_common);
- EXPORT_SYMBOL(migrate_page_buffer);
- EXPORT_SYMBOL(page_migratable);
--
-+EXPORT_SYMBOL(migrate_onepage);
+ 	pte_t entry;
+-	struct page * page = ZERO_PAGE(addr);
++ 	unsigned long end_addr;
++
++	addr &= PAGE_MASK;
 
---------------080600050509010601090809--
+-	/* Read-only mapping of ZERO_PAGE. */
+-	entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
++ 	if (likely((vma->vm_flags & VM_RAND_READ)
++		|| current->anon_fault_next_addr != addr)
++		|| current->anon_fault_order >= sysctl_max_prealloc_order) {
++		/* Single page */
++		current->anon_fault_order = 0;
++		end_addr = addr + PAGE_SIZE;
++	} else {
++		/* Sequence of faults detect. Perform preallocation */
++ 		int order = ++current->anon_fault_order;
++
++		if ((1 << order) < PAGEVEC_SIZE)
++			end_addr = addr + (PAGE_SIZE << order);
++		else {
++			end_addr = addr + PAGEVEC_SIZE * PAGE_SIZE;
++			current->anon_fault_order = 3;
++		}
+
+-	/* ..except if it's a write access */
++		if (end_addr > vma->vm_end)
++			end_addr = vma->vm_end;
++		if ((addr & PMD_MASK) != (end_addr & PMD_MASK))
++			end_addr &= PMD_MASK;
++	}
+ 	if (write_access) {
+-		/* Allocate our own private page. */
++
++		unsigned long a;
++		int i;
++		struct pagevec pv;
++
+ 		pte_unmap(page_table);
+ 		spin_unlock(&mm->page_table_lock);
+
++		pagevec_init(&pv, 0);
++
+ 		if (unlikely(anon_vma_prepare(vma)))
+-			goto no_mem;
+-		page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
+-		if (!page)
+-			goto no_mem;
+-		clear_user_highpage(page, addr);
++			return VM_FAULT_OOM;
++
++		/* Allocate the necessary pages */
++		for(a = addr; a < end_addr ; a += PAGE_SIZE) {
++			struct page *p = alloc_page_vma(GFP_HIGHUSER, vma, a);
++
++			if (likely(p)) {
++				clear_user_highpage(p, a);
++				pagevec_add(&pv, p);
++			} else {
++				if (a == addr)
++					return VM_FAULT_OOM;
++				break;
++			}
++		}
+
+ 		spin_lock(&mm->page_table_lock);
+-		page_table = pte_offset_map(pmd, addr);
+
+-		if (!pte_none(*page_table)) {
++		for(i = 0; addr < a; addr += PAGE_SIZE, i++) {
++			struct page *p = pv.pages[i];
++
++			page_table = pte_offset_map(pmd, addr);
++			if (unlikely(!pte_none(*page_table))) {
++				/* Someone else got there first */
++				pte_unmap(page_table);
++				page_cache_release(p);
++				continue;
++			}
++
++ 			entry = maybe_mkwrite(pte_mkdirty(mk_pte(p,
++ 						 vma->vm_page_prot)),
++ 					      vma);
++
++			mm->rss++;
++			lru_cache_add_active(p);
++			SetPageReferenced(p);
++			page_add_anon_rmap(p, vma, addr);
++
++			set_pte(page_table, entry);
+ 			pte_unmap(page_table);
+-			page_cache_release(page);
+-			spin_unlock(&mm->page_table_lock);
+-			goto out;
++
++ 			/* No need to invalidate - it was non-present before */
++ 			update_mmu_cache(vma, addr, entry);
++		}
++ 	} else {
++ 		/* Read */
++		entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
++nextread:
++		set_pte(page_table, entry);
++		pte_unmap(page_table);
++		update_mmu_cache(vma, addr, entry);
++		addr += PAGE_SIZE;
++		if (unlikely(addr < end_addr)) {
++			page_table = pte_offset_map(pmd, addr);
++			if (likely(pte_none(*page_table)))
++				goto nextread;
+ 		}
+-		mm->rss++;
+-		entry = maybe_mkwrite(pte_mkdirty(mk_pte(page,
+-							 vma->vm_page_prot)),
+-				      vma);
+-		lru_cache_add_active(page);
+-		SetPageReferenced(page);
+-		page_add_anon_rmap(page, vma, addr);
+ 	}
+-
+-	set_pte(page_table, entry);
+-	pte_unmap(page_table);
+-
+-	/* No need to invalidate - it was non-present before */
+-	update_mmu_cache(vma, addr, entry);
++	current->anon_fault_next_addr = addr;
+ 	spin_unlock(&mm->page_table_lock);
+-out:
+ 	return VM_FAULT_MINOR;
+-no_mem:
+-	return VM_FAULT_OOM;
+ }
+
+ /*
+Index: linux-2.6.10/kernel/sysctl.c
+===================================================================
+--- linux-2.6.10.orig/kernel/sysctl.c	2005-01-04 13:55:00.000000000 -0800
++++ linux-2.6.10/kernel/sysctl.c	2005-01-04 14:00:27.000000000 -0800
+@@ -56,6 +56,7 @@
+ extern int C_A_D;
+ extern int sysctl_overcommit_memory;
+ extern int sysctl_overcommit_ratio;
++extern int sysctl_max_prealloc_order;
+ extern int max_threads;
+ extern int sysrq_enabled;
+ extern int core_uses_pid;
+@@ -826,6 +827,16 @@
+ 		.strategy	= &sysctl_jiffies,
+ 	},
+ #endif
++	{
++		.ctl_name	= VM_MAX_PREFAULT_ORDER,
++		.procname	= "max_prealloc_order",
++		.data		= &sysctl_max_prealloc_order,
++		.maxlen		= sizeof(sysctl_max_prealloc_order),
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec,
++		.strategy	= &sysctl_intvec,
++		.extra1		= &zero,
++	},
+ 	{ .ctl_name = 0 }
+ };
+
+Index: linux-2.6.10/include/linux/sysctl.h
+===================================================================
+--- linux-2.6.10.orig/include/linux/sysctl.h	2005-01-04 13:55:00.000000000 -0800
++++ linux-2.6.10/include/linux/sysctl.h	2005-01-04 14:00:27.000000000 -0800
+@@ -169,6 +169,7 @@
+ 	VM_VFS_CACHE_PRESSURE=26, /* dcache/icache reclaim pressure */
+ 	VM_LEGACY_VA_LAYOUT=27, /* legacy/compatibility virtual address space layout */
+ 	VM_SWAP_TOKEN_TIMEOUT=28, /* default time for token time out */
++	VM_MAX_PREFAULT_ORDER=29, /* max prefault order during anonymous page faults */
+ };
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
