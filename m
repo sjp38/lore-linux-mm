@@ -1,60 +1,39 @@
-Date: Sat, 4 Aug 2001 00:34:37 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Fri, 3 Aug 2001 20:35:14 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-In-Reply-To: <Pine.LNX.4.33.0108032318330.14842-100000@touchme.toronto.redhat.com>
-Message-ID: <Pine.LNX.4.33L.0108040032030.2526-100000@imladris.rielhome.conectiva>
+In-Reply-To: <Pine.LNX.4.33L.0108040022110.2526-100000@imladris.rielhome.conectiva>
+Message-ID: <Pine.LNX.4.33.0108032030430.15155-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ben LaHaise <bcrl@redhat.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Daniel Phillips <phillips@bonn-fries.net>, Ben LaHaise <bcrl@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Aug 2001, Ben LaHaise wrote:
+On Sat, 4 Aug 2001, Rik van Riel wrote:
+> On Fri, 3 Aug 2001, Linus Torvalds wrote:
+>
+> > Please just remove the code instead. I don't think it buys you anything.
+>
+> IIRC you applied the patch introducing that logic because it
+> gave a 25% performance increase under some write intensive
+> loads (or something like that).
 
-> See, after applying this patch, it no longer deadlocks on io.  The
-> jerky interactive performance still exists,
+That's the batching code, which is somewhat intertwined with the same
+code.
 
-Would something like this help ?
+The batching code is a separate issue: when we free the requests, we don't
+actually make them available as they get free'd (because then the waiters
+will trickle out new requests one at a time and cannot do any merging
+etc).
 
-(yes, there's a small SMP race, but since the system survives
-the starvation bug today that isn't critical)
+Also, the throttling code probably _did_ make behaviour nicer back when
+"sync()" used to use ll_rw_block().  Of course, now most of the IO layer
+actually uses "submit_bh()" and bypasses this code completely, so only the
+ones that still use it get hit by the unfairness. What a double whammy ;)
 
-
---- ./ll_rw_blk.c.batch	Sat Aug  4 00:30:55 2001
-+++ ./ll_rw_blk.c	Sat Aug  4 00:33:48 2001
-@@ -1031,15 +1031,19 @@
-
- 	for (i = 0; i < nr; i++) {
- 		struct buffer_head *bh = bhs[i];
-+		static int queued_sector_waiters;
-
- 		/*
- 		 * don't lock any more buffers if we are above the high
- 		 * water mark. instead start I/O on the queued stuff.
- 		 */
--		if (atomic_read(&queued_sectors) >= high_queued_sectors) {
-+		if (atomic_read(&queued_sectors) >= high_queued_sectors
-+				|| queued_sector_waiters) {
- 			run_task_queue(&tq_disk);
-+			queued_sector_waiters = 1;
- 			wait_event(blk_buffers_wait,
- 			 atomic_read(&queued_sectors) < low_queued_sectors);
-+			queued_sector_waiters = 0;
- 		}
-
- 		/* Only one thread can actually submit the I/O. */
-
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
