@@ -1,36 +1,33 @@
-Message-ID: <41B931FC.8040109@yahoo.com.au>
-Date: Fri, 10 Dec 2004 16:19:56 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: page fault scalability patch V12 [0/7]: Overview and	performance
- tests
-References: <Pine.LNX.4.44.0412091830580.17648-300000@localhost.localdomain>	 <41B92567.8070809@yahoo.com.au>  <41B92C11.80106@yahoo.com.au> <1102655177.22746.29.camel@gaston>
-In-Reply-To: <1102655177.22746.29.camel@gaston>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 9 Dec 2004 22:02:15 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
+Message-ID: <20041210060215.GK2714@holomorphy.com>
+References: <20041106152903.GA3851@dualathlon.random> <Pine.LNX.4.44.0411061609520.3592-100000@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0411061609520.3592-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Hugh Dickins <hugh@veritas.com>, Christoph Lameter <clameter@sgi.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, Linux Kernel list <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrea Arcangeli <andrea@novell.com>, Nick Piggin <piggin@cyberone.com.au>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Benjamin Herrenschmidt wrote:
-> On Fri, 2004-12-10 at 15:54 +1100, Nick Piggin wrote:
-> 
->>Nick Piggin wrote:
->>
->>The page-freed-before-update_mmu_cache issue can be solved in that way,
->>not the set_pte and update_mmu_cache not performed under the same ptl
->>section issue that you raised.
-> 
-> 
-> What is the problem with update_mmu_cache ? It doesn't need to be done
-> in the same lock section since it's approx. equivalent to a HW fault,
-> which doesn't take the ptl...
-> 
+On Sat, 6 Nov 2004, Andrea Arcangeli wrote:
+>> btw, PF_MEMDIE has always been racy in the way it's being set, so it can
+>> corrupt the p->flags, but the race window is very small to trigger it
+>> (and even if it triggers, it probably wouldn't be fatal). That's why I
+>> don't use PF_MEMDIE in 2.4-aa.
 
-I don't think a problem has been observed, I think Hugh was just raising
-it as a general issue.
+On Sat, Nov 06, 2004 at 04:21:33PM +0000, Hugh Dickins wrote:
+> I expect so, yes, the PF_ flags don't have proper locking.  Those
+> places which set or clear PF_MEMALLOC are more likely to hit races,
+> but last time I went there I don't think there was a real serious problem.
+
+I posted a testcase that triggers a panic with the PF_MEMALLOC race.
+
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
