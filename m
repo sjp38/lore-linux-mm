@@ -1,28 +1,38 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id BAA23604
-	for <linux-mm@kvack.org>; Sat, 5 Oct 2002 01:22:26 -0700 (PDT)
-Message-ID: <3D9EA140.BDE9803B@digeo.com>
-Date: Sat, 05 Oct 2002 01:22:24 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: Re: Breakout struct page
-References: <1165733025.1033777103@[10.10.2.3]>
+Date: Sat, 5 Oct 2002 17:05:33 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: 2.5.40 snapshot ia32 discontig compilefix
+Message-ID: <20021006000533.GE12432@holomorphy.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: linux-mm mailing list <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@zip.com.au
 List-ID: <linux-mm.kvack.org>
 
-"Martin J. Bligh" wrote:
-> 
-> This very boring patch breaks out struct page into it's own header
-> file.
+Encountered while attempting to compile a recent snapshot.
+MAP_NR_DENSE() is not currently used so either of ->spanned_pages
+or ->present_pages would be acceptable, and they should hopefully be
+identical -- if not so, then other setup code is incorrect.
 
-Martin, I'm rather disinclined to be pushing any more cleanup
-patches now.  They tend to directly subtract from the merge
-rate of real stuff.
+akpm, I'm not sure of the state of your pending queue, so if this is
+already fixed there just ignore it.
+
+
+Bill
+
+--- linux-old/arch/i386/mm/discontig.c	Thu Sep 19 14:26:01 2002
++++ linux-wli/arch/i386/mm/discontig.c	Sat Oct  5 16:54:46 2002
+@@ -258,7 +258,7 @@
+ 		unsigned long node_pfn, node_high_size, zone_start_pfn;
+ 		struct page * zone_mem_map;
+ 		
+-		node_high_size = NODE_DATA(nid)->node_zones[ZONE_HIGHMEM].size;
++		node_high_size = NODE_DATA(nid)->node_zones[ZONE_HIGHMEM].spanned_pages;
+ 		zone_mem_map = NODE_DATA(nid)->node_zones[ZONE_HIGHMEM].zone_mem_map;
+ 		zone_start_pfn = NODE_DATA(nid)->node_zones[ZONE_HIGHMEM].zone_start_pfn;
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
