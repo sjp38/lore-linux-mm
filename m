@@ -1,120 +1,135 @@
-From: Daniel Phillips <phillips@arcor.de>
+Date: Thu, 26 Jun 2003 21:01:43 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
 Subject: Re: [RFC] My research agenda for 2.7
-Date: Thu, 26 Jun 2003 21:00:40 +0200
+In-Reply-To: <200306262100.40707.phillips@arcor.de>
+Message-ID: <Pine.LNX.4.53.0306262030500.5910@skynet>
 References: <200306250111.01498.phillips@arcor.de> <20030625092938.GA13771@skynet.ie>
-In-Reply-To: <20030625092938.GA13771@skynet.ie>
+ <200306262100.40707.phillips@arcor.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200306262100.40707.phillips@arcor.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
+To: Daniel Phillips <phillips@arcor.de>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 25 June 2003 11:29, Mel Gorman wrote:
-> > 1) Active memory defragmentation
+On Thu, 26 Jun 2003, Daniel Phillips wrote:
+
+>   * Most process pages are easily movable, since usually only page tables
+>     will hold references.
+>
+>   * Most page cache pages are easily movable, likewise
+>
+>   * Similarly, page table pages are not too hard to move
+>
+
+I think that finding pages like this together is unlikely, especially if
+the system has been running a long time. In the worst case you will have
+every easily-moved page adjactent to a near-impossible-to-move page. The
+buddy allocator could be taught to be selective of which freelists it used
+for different types of allocation but that doesn't sound any easier than
+moving order0 pages to slab.
+
+There also would be trouble identifing adjactent pages of order 0 which
+are are used for these particular task. Buddy allocators, including the
+one implemented in Linux, do not record what order allocation a struct
+page belongs to. I could be wrong but it just feels like it would be a lot
+of work to free up just a few adjacent pages.
+
+Tentatively, I would assert that being able to group these types of pages
+together is a pre-requestive for effective defragging and I think moving
+order-0 pages to slab would enforce this grouping. For example, the defrag
+daemon could scan just order0-user slabs and move pages from sparsly
+populated slabs to other fuller slabs and free slabs as it goes.
+
+In other words, order0 caches are not a mutually exclusive goal to
+defragging but I bet you a shiny penny it'd make the implementation a lot
+easier.
+
+> Most slab pages are hard to move.  We could try to fix that for certain
+> common object types, or we could just tell slab to use its own biggish
+> chunks of memory, which it can play in as it sees fit.
+>
+
+Moving slab pages is probably not an option unless some quick way of
+updating all the pointers to the objects is found. I would say the only
+slab pages that are "movable" belong to caches which can quickly discard
+their objects.
+
+> > I find it difficult to see what happens when a
+> > page used by a kernel pointer changes for any case other than vmalloc()
+> > but I probably am missing something.
+>
+> The point you apparently missed is that the defragger will identify and
+> update those kernel pointers, being careful about races of course.
+>
+
+I didn't miss it as such, but I don't see how it could be implemented
+either. I also wonder if moving kernel pages is really worth the hassle.
+It's perfectly possible that defragging only user pages will be enough.
+The only way to be sure would be to walk all struct pages in the mem_map
+and see what the layout looks like.
+
+> > How about: Move order-0 allocations to slab (ignoring bootstrap issues for
+> > now but shouldn't be hard anyway)
+>
+> That sounds like radical surgery to me, but to each his own experiments.
+>
+
+I don't think it would be too radical because the buddy allocator would
+still remain the principal page allocator. What would be a bitch is the
+additional storage requirements required for such a large number of slabs
+needed to contain pages. At the very least, the slab allocator would need
+a means of discarding the slab descriptors for full slabs and maintaining
+just pointers to the first page of each full slab. A comparison of page
+allocation from buddy and page allocation from slab would also be
+necessary to make sure the page allocation performance wasn't butchered.
+
+> Defragmentation by selective eviction is possible, but isn't necessarily
+> optimal.  In the case of memory that isn't swap or file-backed, it isn't even
+> possible.  On the other hand, you may think of the page move case as simply
+> an optimized evict-and-reload, if that helps understand where I'm going.
+>
+
+Well, take this this case
+
+1) Slabs can contain 10 order0 pages
+2) Defragger finds two slabs; slabA with 2 pages and slabB with 5
+3) Defragger copies 2 pages from slabA to slabB and users rmap to update
+   page tables
+
+The alternative sounds like it would be scanning mem_map looking for pages
+that can be moved which sounds expensive. With order0 in slab, you can
+easily find blocks of pages which when moved immeditaly free up a large
+adjacent block.
+
+> > o Reclaimable pages are in easy to search globs
+> > o Gets nifty per-cpu alloc and caching that comes with slab automatically
+> > o Freeing high order pages is a case of discarding pages in one slab
+> > o Doesn't require fancy pants updating of pointers or page tables
+>
+> Without updating pointers, active defragmentation is not possible.  But
+> perhaps you meant to say that active defragmentation is not needed?
+>
+
+I am saying that full defragmentation would be a very expensive operation
+which might not work if it cannot find suitably freeable adjacent pages.
+If order0 pages were in slab, the whole searching problem becomes trivial
+(just go to the relevant cache and scan the slabs).
+
+> > o Possible ditch the mempool interface as slab already has similar
+> > functionality
+> > o Seems simple
 > >
-> > I doubt anyone will deny that this is desirable.  Active defragmentation
-> > will eliminate higher order allocation failures for non-atomic
-> > allocations, and I hope, generally improve the efficiency and
-> > transparency of the kernel memory allocator.
+> > Opinions?
 >
-> It might be just me, but this scheme sounds a bit complicated (I'm still
-> absorbing the other two).
-
-Mel,
-
-I probably spent too much time dwelling on the hard cases of page moving, and 
-didn't sufficiently emphasize that handling a few easy cases would do a 
-pretty good job, certainly better than we do now.  For example:
-
-  * Most process pages are easily movable, since usually only page tables
-    will hold references.
-
-  * Most page cache pages are easily movable, likewise
-
-  * Similarly, page table pages are not too hard to move 
-
-Most slab pages are hard to move.  We could try to fix that for certain common 
-object types, or we could just tell slab to use its own biggish chunks of 
-memory, which it can play in as it sees fit.
-
-> I find it difficult to see what happens when a
-> page used by a kernel pointer changes for any case other than vmalloc()
-> but I probably am missing something.
-
-The point you apparently missed is that the defragger will identify and update 
-those kernel pointers, being careful about races of course.
-
-> How about: Move order-0 allocations to slab (ignoring bootstrap issues for
-> now but shouldn't be hard anyway)
-
-That sounds like radical surgery to me, but to each his own experiments.
-
-> Each cache slab is 2^MAX_GFP_ORDER large and there is three caches
->   o order0-user
->   o order0-kreclaim
->   o order0-knoreclaim
+> Yes :-)
 >
-> order0-user is for any userspace allocation. These pages should be
-> trivially reclaimable with rmap available. If a large order block is
-> necessary, select one slab and reclaim it. This will break LRU ordering
-> something rotten but I am guessing that LRU ordering is not the prime
-> concern here. If a defrag daemon exists, scan MAX_DEFRAG_SCAN slabs and
-> pick the one with the most clean filesystem backed pages to chuck out
-> (least IO involved in reclaim).
 
-Defragmentation by selective eviction is possible, but isn't necessarily 
-optimal.  In the case of memory that isn't swap or file-backed, it isn't even 
-possible.  On the other hand, you may think of the page move case as simply 
-an optimized evict-and-reload, if that helps understand where I'm going.
+heh.
 
-Regardless, it would be good to teach vmscan to evict pages that will help 
-build higher order allocation units, when these are in short supply.  This 
-would be an optimization heuristic; it would still necessary to handle the 
-general case of data moving in order to make any guarantee re fragmentation 
-control.
-
-> order0-kreclaim is for kernel allocations which are trivially reclaimable
-> and that can be safely discared knowing that no pointer exists to them.
-> This is most likely to be usable for slab allocations of caches like
-> dentry's which can be safely thrown out. A quick look of /proc/slabinfo
-> shows that most slabs are just 1 page large. Slabs already have a
-> set_shrinker() callback for the removal of objects so it is likely that
-> this could be extended for telling caches to clear all objects and discard
-> a particular slab.
->
-> order0-knoreclaim is for kernel allocations which cannot be easily
-> reclaimed and have pointers to the allocation which are difficult to
-> reclaim. For all intents and purposes, these are not reclaimable without
-> impementing swapping in kernel space.
->
-> This has a couple of things going for it
->
-> o Reclaimable pages are in easy to search globs
-> o Gets nifty per-cpu alloc and caching that comes with slab automatically
-> o Freeing high order pages is a case of discarding pages in one slab
-> o Doesn't require fancy pants updating of pointers or page tables
-
-Without updating pointers, active defragmentation is not possible.  But 
-perhaps you meant to say that active defragmentation is not needed?
-
-> o Possible ditch the mempool interface as slab already has similar
-> functionality
-> o Seems simple
->
-> Opinions?
-
-Yes :-)
-
-Regards,
-
-Daniel
-
+-- 
+Mel Gorman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
