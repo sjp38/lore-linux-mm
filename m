@@ -1,33 +1,33 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA20434
-	for <linux-mm@kvack.org>; Thu, 26 Feb 1998 14:33:53 -0500
-Date: Thu, 26 Feb 1998 20:29:45 +0100 (MET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA20620
+	for <linux-mm@kvack.org>; Thu, 26 Feb 1998 14:34:39 -0500
+Date: Thu, 26 Feb 1998 20:32:09 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: Re: memory limitation test kit (tm) :-)
-In-Reply-To: <199802261910.UAA13206@boole.fs100.suse.de>
-Message-ID: <Pine.LNX.3.91.980226202708.5590A-100000@mirkwood.dummy.home>
+Subject: Re: Fairness in love and swapping
+In-Reply-To: <199802261857.TAA13144@boole.fs100.suse.de>
+Message-ID: <Pine.LNX.3.91.980226203000.5590B-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: "Dr. Werner Fink" <werner@suse.de>
-Cc: linux-mm@kvack.org
+Cc: sct@dcs.ed.ac.uk, torvalds@transmeta.com, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Thu, 26 Feb 1998, Dr. Werner Fink wrote:
 
-> Hmmm ... this will lead to increasing swap I/O. This because the
-> tsk which currently swaps in a needed page maybe lose an other
-> needed page ... even it not lose it the age of such a page is
-> decreased ... just like a handicap.
+> > Without my mmap-age patch, page cache pages aren't aged
+> 
+> The age of a page cache page isn't changed if a process took it (?). IMHO that
+> means that this age is the starting age of such a process page, isn't it?
 
-I tested it and lost :-) Better next time...
-This patch only shows that we need to go another way,
-as I pointed out in my post to linux-mm somewhat earlier
-today.
+No, it means that page-cache pages are swapped out immediately,
+without taking the usage pattern into account (except when it
+got used just before kswapd did it's scanning).
 
-Now we need to focus on design first, before we start
-coding around :-)
+My mmap-age patch does something to alleviate this, and I'll
+make a patch against 2.1.89-pre2 any moment. You can probably
+expect it on linux-mm before 0000UT this evening...
 
 Rik.
 +-----------------------------+------------------------------+
