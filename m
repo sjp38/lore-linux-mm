@@ -1,33 +1,36 @@
+Date: Thu, 18 Jul 2002 18:36:13 +0200 (MEST)
+From: Szakacsits Szabolcs <szaka@sienet.hu>
 Subject: Re: [PATCH] strict VM overcommit for stock 2.4
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <Pine.LNX.4.30.0207181714420.30902-100000@divine.city.tvnet.hu>
-References: <Pine.LNX.4.30.0207181714420.30902-100000@divine.city.tvnet.hu>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 18 Jul 2002 09:31:05 -0700
-Message-Id: <1027009865.1555.105.camel@sinai>
-Mime-Version: 1.0
+In-Reply-To: <1027009865.1555.105.camel@sinai>
+Message-ID: <Pine.LNX.4.30.0207181806220.30902-100000@divine.city.tvnet.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Szakacsits Szabolcs <szaka@sienet.hu>
+To: Robert Love <rml@tech9.net>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2002-07-18 at 08:22, Szakacsits Szabolcs wrote:
+On 18 Jul 2002, Robert Love wrote:
 
-> Quickly looking through the patch I can't see what prevents total loss of
-> control at constant memory pressure. For more please see:
+> I do not see anything in this email related to the issue at hand.
 
-I do not see anything in this email related to the issue at hand.
+You solve a problem and introduce a potentially more serious one.
+Strict overcommit is requisite but not satisfactory.
 
-First, if the VM is broke that is an orthogonal issue that needs to be
-fixed separately.
+> Specifically, what livelock situation are you insinuating?  If we only
+> allow allocation that are met by the backing store, we cannot get
+> anywhere near OOM.
 
-Specifically, what livelock situation are you insinuating?  If we only
-allow allocation that are met by the backing store, we cannot get
-anywhere near OOM.
+This is what I would do first [make sure you don't hit any resource,
+malloc, kernel memory mapping, etc limits -- this is a simulation that
+must eat all available memory continually]:
+main(){void *x;while(1)if(x=malloc(4096))memset(x,666,4096);}
 
-	Robert Love
+When the above used up all the memory try to ssh/login to the box as
+root and clean up the mess. Can you do it?
+
+	Szaka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
