@@ -1,33 +1,52 @@
-Received: from cacc-3.uni-koblenz.de (cacc-3.uni-koblenz.de [141.26.131.3])
-	by mailhost.uni-koblenz.de (8.9.3/8.9.3) with ESMTP id MAA29851
-	for <linux-mm@kvack.org>; Fri, 19 May 2000 12:01:40 +0200 (MET DST)
-Date: Fri, 19 May 2000 11:16:42 +0200
-From: Ralf Baechle <ralf@uni-koblenz.de>
-Subject: Kernel RSS statistics
-Message-ID: <20000519111642.D702@uni-koblenz.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Fri, 19 May 2000 12:03:09 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [patch] balanced highmem subsystem under pre7-9
+In-Reply-To: <Pine.LNX.4.21.0005181848360.3896-100000@inspiron.random>
+Message-ID: <Pine.LNX.4.21.0005191150320.20142-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-mm/memory.c, function zap_page_range has the following code in it:
+On Thu, 18 May 2000, Andrea Arcangeli wrote:
 
-        /*
-         * Update rss for the mm_struct (not necessarily current->mm)
-         */
-        if (mm->rss > 0) {
-                mm->rss -= freed;
-                if (mm->rss < 0)
-                        mm->rss = 0;
-        }
+> I still strongly think that the current zone strict mem
+> balancing design is very broken (and I also think to be right
+> since I believe to see the whole picture) but I don't think I
+> can explain my arguments better and/or more extensively of how I
+> just did in linux-mm some week ago.
 
-But mm->rss is an unsigned long, so the condition mm->rss < 0 cannot
-ever get true.  Anyway, assuming it'd be signed I don't see how it
-should ever get zero unless the RSS statistics is broken?
+The balancing as of pre9-2 works like this:
+- LRU list per pgdat
+- kswapd runs and makes sure every zone has > zone->pages_low
+  free pages, after that it stops
+- kswapd frees up to zone->pages_high pages, depending on what
+  pages we encounter in the LRU queue, this will make sure that
+  the zone with most least recently used pages will have more
+  free pages
+- __alloc_pages() allocates all pages up to zone->pages_low on
+  every zone before waking up kswapd, this makes sure more pages
+  from the least loaded zone will be used than from more loaded
+  zones, this will make sure balancing between zones happens
 
-  Ralf
+I'm curious what would be so "very broken" about this?
+
+AFAICS it does most of what the classzone patch would achieve,
+at lower complexity and better readability.
+
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
