@@ -1,71 +1,39 @@
-Subject: Unable to boot 2.6.0-test1-mm2 (mm1 is OK) on RH 9.0.93 (Severn)
-From: Steven Cole <elenstev@mesatop.com>
-Content-Type: text/plain
-Message-Id: <1058887517.1668.16.camel@spc9.esa.lanl.gov>
-Mime-Version: 1.0
-Date: 22 Jul 2003 09:25:18 -0600
-Content-Transfer-Encoding: 7bit
+Message-ID: <20030722180125.54503.qmail@web12303.mail.yahoo.com>
+Date: Tue, 22 Jul 2003 11:01:25 -0700 (PDT)
+From: Ravi Krishnamurthy <kravi26@yahoo.com>
+Subject: Re: Unable to boot 2.6.0-test1-mm2 (mm1 is OK) on RH 9.0.93 (Severn)
+In-Reply-To: <1058887517.1668.16.camel@spc9.esa.lanl.gov>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: Steven Cole <elenstev@mesatop.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I get this error when trying to boot 2.6.0-test1-mm2 using the new Red
-Hat beta (Severn).  2.6.0-test2-mm2 runs successfully on a couple of
-other test boxes of mine.
+--- Steven Cole <elenstev@mesatop.com> wrote:
+> I get this error when trying to boot 2.6.0-test1-mm2
+> using the new Red
+> Hat beta (Severn).  2.6.0-test2-mm2 runs successfully on
+> a couple of
+> other test boxes of mine.
+> 
+> VFS: Cannot open root device "hda1" or unknown-block(0,0)
+> Please append a correct "root=" boot option
+> Kernel panic: VFS: Unable to mount root fs on
+> unknown-block(0,0)
 
-VFS: Cannot open root device "hda1" or unknown-block(0,0)
-Please append a correct "root=" boot option
-Kernel panic: VFS: Unable to mount root fs on unknown-block(0,0)
+ The last time I had this problem, I found that
+CONFIG_IDEDISK_MULTI_MODE was off and my disk wouldn't
+get recognized without that. But you say your other
+kernels are working, so I am not sure this is the problem.
 
-Linux-2.6.0-test1-mm2 had this additional akpm patch applied:
-http://marc.theaimsgroup.com/?l=linux-mm&m=105868155010855&w=2
+-Ravi.
 
-Here is my /etc/lilo.conf.  All the other kernels boot and run fine.
-I removed the devlabel stuff from virgin Severn (fstab and rc.sysinit).
-
-prompt
-timeout=50
-default=linux
-boot=/dev/hda
-map=/boot/map
-install=/boot/boot.b
-message=/boot/message
-linear
-
-image=/boot/vmlinuz-2.4.21-20.1.2024.2.1.nptl
-        label=linux
-        initrd=/boot/initrd-2.4.21-20.1.2024.2.1.nptl.img
-        read-only
-        append="hdc=ide-scsi root=/dev/hda1"
-
-image=/boot/vmlinuz-2.4.22-pre6
-        label=2.4-22-pre6
-        read-only
-        append="devfs=nomount hdc=ide-scsi root=/dev/hda1"
-
-image=/boot/vmlinuz-2.6.0-test1-mm1
-        label=2.6.0-test1mm1
-        read-only
-        append="devfs=nomount hdc=ide-scsi root=/dev/hda1"
-
-image=/boot/vmlinuz-2.6.0-test1-mm2
-        label=2.6.0-test1mm2
-        read-only
-        append="devfs=nomount hdc=ide-scsi root=/dev/hda1"
-
-image=/boot/vmlinuz-2.6-bk
-        label=2.6-bk
-        read-only
-        append="devfs=nomount hdc=ide-scsi root=/dev/hda1"
-
-The .config for -mm2 is the same as for -mm1, just run through 
-make oldconfig. That -mm1 .config came from the working 2.6-bk .config,
-also run through make oldconfig too.
-
-Steven
-
+__________________________________
+Do you Yahoo!?
+Yahoo! SiteBuilder - Free, easy-to-use web site design software
+http://sitebuilder.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
