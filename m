@@ -1,47 +1,31 @@
-From: Nikita Danilov <nikita@clusterfs.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <16946.62799.737502.923025@gargle.gargle.HOWL>
-Date: Sat, 12 Mar 2005 16:57:35 +0300
-Subject: Re: [PATCH] mm counter operations through macros
-In-Reply-To: <Pine.LNX.4.58.0503111103200.22240@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0503110422150.19280@schroedinger.engr.sgi.com>
-	<20050311182500.GA4185@redhat.com>
-	<Pine.LNX.4.58.0503111103200.22240@schroedinger.engr.sgi.com>
+Received: from smtp3.akamai.com (vwall3.sanmateo.corp.akamai.com [172.23.1.73])
+	by smtp3.akamai.com (8.12.10/8.12.10) with ESMTP id j2CJBU6O009515
+	for <linux-mm@kvack.org>; Sat, 12 Mar 2005 11:11:32 -0800 (PST)
+From: pmeda@akamai.com
+Date: Sat, 12 Mar 2005 11:20:07 -0800
+Message-Id: <200503121920.LAA06723@allur.sanmateo.akamai.com>
+Subject: [PATCH] use strncpy in get_task_comm
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org
+To: akpm@osdl.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter writes:
- > On Fri, 11 Mar 2005, Dave Jones wrote:
- > 
- > > Splitting this last one into inc_mm_counter() and dec_mm_counter()
- > > means you can kill off the last argument, and get some of the
- > > readability back. As it stands, I think this patch adds a bunch
- > > of obfuscation for no clear benefit.
- > 
- > Ok.
- > -----------------------------------------------------------------
- > This patch extracts all the operations on counters protected by the
- > page table lock (currently rss and anon_rss) into definitions in
- > include/linux/sched.h. All rss operations are performed through
- > the following macros:
- > 
- > get_mm_counter(mm, member)		-> Obtain the value of a counter
- > set_mm_counter(mm, member, value)	-> Set the value of a counter
- > update_mm_counter(mm, member, value)	-> Add to a counter
+Set_task_comm uses strlcpy, so get_task_comm must use strncpy.
 
-A nitpick, but wouldn't be it clearer to call it add_mm_counter()? As an
-additional bonus this matches atomic_{inc,dec,add}() and makes macro
-names more uniform.
+Signed-Off-by: Prasanna Meda <pmeda@akamai.com>
 
- > inc_mm_counter(mm, member)		-> Increment a counter
- > dec_mm_counter(mm, member)		-> Decrement a counter
-
-Nikita.
+--- Linux/fs/exec.c	Sat Mar 12 01:12:47 2005
++++ linux/fs/exec.c	Sat Mar 12 17:27:49 2005
+@@ -814,7 +814,7 @@
+ {
+ 	/* buf must be at least sizeof(tsk->comm) in size */
+ 	task_lock(tsk);
+-	memcpy(buf, tsk->comm, sizeof(tsk->comm));
++	strncpy(buf, tsk->comm, sizeof(tsk->comm));
+ 	task_unlock(tsk);
+ }
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
