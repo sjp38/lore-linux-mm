@@ -1,178 +1,233 @@
-Subject: Re: [PATCH] generalized spin_lock_bit
+Subject: Re: [PATCH] for_each_pgdat
 From: Robert Love <rml@tech9.net>
-In-Reply-To: <Pine.LNX.4.44.0207201335560.1492-100000@home.transmeta.com>
-References: <Pine.LNX.4.44.0207201335560.1492-100000@home.transmeta.com>
+In-Reply-To: <Pine.LNX.4.44.0207201359350.1576-100000@home.transmeta.com>
+References: <Pine.LNX.4.44.0207201359350.1576-100000@home.transmeta.com>
 Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-Date: 20 Jul 2002 14:20:16 -0700
-Message-Id: <1027200016.1086.800.camel@sinai>
+Date: 20 Jul 2002 14:37:19 -0700
+Message-Id: <1027201039.1085.812.camel@sinai>
 Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@conectiva.com.br, wli@holomorphy.com
+Cc: William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, akpm@zip.com.au, riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2002-07-20 at 13:40, Linus Torvalds wrote:
+On Sat, 2002-07-20 at 14:00, Linus Torvalds wrote:
 
-> I'm not entirely convinced.
->
-> Some architectures simply aren't good at doing bitwise locking, and we may
-> have to change the current "pte_chain_lock()" to a different
-> implementation.
+> Ok guys, you three (and whoever else wants to play? ;) fight it out amonst
+> yourselves, I'll wait for the end result (iow: I'll just ignore both
+> patches for now).
 
-My assumption was similar - that the bit locking may be inefficient on
-other architectures - so I put the spin_lock_bit code in per-arch
-headers.
+No no... the issues are fairly orthogonal.
 
-In other words, I assumed we may need to make some changes but to
-bit-locking in general and not rip out the whole design.
+Attached is a patch with the for_each_pgdat implementation and
+s/node_next/pgdat_next/ per Martin.
 
-> So I would suggest (at least for now) to _not_ get rid of the
-> pte_chain_lock() abstraction, and re-doing your patch with that in mind.
-> Gettign rid of the (unnecessary) UP locking is good, but getting rid of
-> the abstraction doesn't look like a wonderful idea to me.
+If Bill wants to convert pgdats to lists that is fine but is another
+step.  Let's get in this first batch and that can be done off this.
 
-OK.  Attached patch still implements spin_lock_bit in the same manner,
-but keeps the pte_chain_lock() abstraction.
-
-If we decide to how we do the locking it will be easy - and for now we
-get the cleaner interface and no more UP locking.
-
-Look good?
+Patch is against 2.5.27, please apply.
 
 	Robert Love
 
-diff -urN linux-2.5.27/include/asm-i386/spinlock.h linux/include/asm-i386/spinlock.h
---- linux-2.5.27/include/asm-i386/spinlock.h	Sat Jul 20 12:11:11 2002
-+++ linux/include/asm-i386/spinlock.h	Sat Jul 20 14:08:32 2002
-@@ -128,6 +128,30 @@
- 		:"=m" (lock->lock) : : "memory");
- }
+diff -urN linux-2.5.27/arch/ia64/mm/init.c linux/arch/ia64/mm/init.c
+--- linux-2.5.27/arch/ia64/mm/init.c	Sat Jul 20 12:11:15 2002
++++ linux/arch/ia64/mm/init.c	Sat Jul 20 14:27:15 2002
+@@ -167,10 +167,10 @@
  
-+/*
-+ * Bit-sized spinlocks.  Introduced by the VM code to fit locks
-+ * where no lock has gone before.
-+ */
-+static inline void _raw_spin_lock_bit(int nr, unsigned long * lock)
-+{
-+	/*
-+	 * Assuming the lock is uncontended, this never enters
-+	 * the body of the outer loop. If it is contended, then
-+	 * within the inner loop a non-atomic test is used to
-+	 * busywait with less bus contention for a good time to
-+	 * attempt to acquire the lock bit.
-+	 */
-+	while (test_and_set_bit(nr, lock)) {
-+		while (test_bit(nr, lock))
-+			cpu_relax();
-+	}
-+}
-+
-+static inline void _raw_spin_unlock_bit(int nr, unsigned long * lock)
-+{
-+	clear_bit(nr, lock);
-+}
-+
+ #ifdef CONFIG_DISCONTIGMEM
+ 	{
+-		pg_data_t *pgdat = pgdat_list;
++		pg_data_t *pgdat;
  
- /*
-  * Read-write spinlocks, allowing multiple readers
-diff -urN linux-2.5.27/include/linux/page-flags.h linux/include/linux/page-flags.h
---- linux-2.5.27/include/linux/page-flags.h	Sat Jul 20 12:11:09 2002
-+++ linux/include/linux/page-flags.h	Sat Jul 20 14:10:37 2002
-@@ -230,27 +230,18 @@
+ 		printk("Free swap:       %6dkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
+-		do {
++		for_each_pgdat(pgdat) {
+ 			printk("Node ID: %d\n", pgdat->node_id);
+ 			for(i = 0; i < pgdat->node_size; i++) {
+ 				if (PageReserved(pgdat->node_mem_map+i))
+@@ -184,8 +184,7 @@
+ 			printk("\t%d reserved pages\n", reserved);
+ 			printk("\t%d pages shared\n", shared);
+ 			printk("\t%d pages swap cached\n", cached);
+-			pgdat = pgdat->node_next;
+-		} while (pgdat);
++		}
+ 		printk("Total of %ld pages in page table cache\n", pgtable_cache_size);
+ 		printk("%d free buffer pages\n", nr_free_buffer_pages());
+ 	}
+diff -urN linux-2.5.27/include/linux/mmzone.h linux/include/linux/mmzone.h
+--- linux-2.5.27/include/linux/mmzone.h	Sat Jul 20 12:11:05 2002
++++ linux/include/linux/mmzone.h	Sat Jul 20 14:28:57 2002
+@@ -136,7 +136,7 @@
+ 	unsigned long node_start_mapnr;
+ 	unsigned long node_size;
+ 	int node_id;
+-	struct pglist_data *node_next;
++	struct pglist_data *pgdat_next;
+ } pg_data_t;
  
- /*
-  * inlines for acquisition and release of PG_chainlock
+ extern int numnodes;
+@@ -163,6 +163,20 @@
+ 
+ extern pg_data_t contig_page_data;
+ 
++/**
++ * for_each_pgdat - helper macro to iterate over all nodes
++ * @pgdat - pointer to a pg_data_t variable
 + *
-+ * Right now PG_chainlock is implemented as a bitwise spin_lock
-+ * using the general spin_lock_bit interface.  That may change.
-  */
- static inline void pte_chain_lock(struct page *page)
- {
--	/*
--	 * Assuming the lock is uncontended, this never enters
--	 * the body of the outer loop. If it is contended, then
--	 * within the inner loop a non-atomic test is used to
--	 * busywait with less bus contention for a good time to
--	 * attempt to acquire the lock bit.
--	 */
--	preempt_disable();
--	while (test_and_set_bit(PG_chainlock, &page->flags)) {
--		while (test_bit(PG_chainlock, &page->flags))
--			cpu_relax();
++ * Meant to help with common loops of the form
++ * pgdat = pgdat_list;
++ * while(pgdat) {
++ * 	...
++ * 	pgdat = pgdat->pgdat_next;
++ * }
++ */
++#define for_each_pgdat(pgdat) \
++	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->pgdat_next)
++
+ #ifndef CONFIG_DISCONTIGMEM
+ 
+ #define NODE_DATA(nid)		(&contig_page_data)
+diff -urN linux-2.5.27/mm/bootmem.c linux/mm/bootmem.c
+--- linux-2.5.27/mm/bootmem.c	Sat Jul 20 12:11:12 2002
++++ linux/mm/bootmem.c	Sat Jul 20 14:28:52 2002
+@@ -49,7 +49,7 @@
+ 	bootmem_data_t *bdata = pgdat->bdata;
+ 	unsigned long mapsize = ((end - start)+7)/8;
+ 
+-	pgdat->node_next = pgdat_list;
++	pgdat->pgdat_next = pgdat_list;
+ 	pgdat_list = pgdat;
+ 
+ 	mapsize = (mapsize + (sizeof(long) - 1UL)) & ~(sizeof(long) - 1UL);
+@@ -339,12 +339,11 @@
+ 	pg_data_t *pgdat = pgdat_list;
+ 	void *ptr;
+ 
+-	while (pgdat) {
++	for_each_pgdat(pgdat)
+ 		if ((ptr = __alloc_bootmem_core(pgdat->bdata, size,
+ 						align, goal)))
+ 			return(ptr);
+-		pgdat = pgdat->node_next;
 -	}
-+	spin_lock_bit(PG_chainlock, &page->flags);
- }
- 
- static inline void pte_chain_unlock(struct page *page)
- {
--	clear_bit(PG_chainlock, &page->flags);
--	preempt_enable();
-+	spin_unlock_bit(PG_chainlock, &page->flags);
- }
- 
- /*
-diff -urN linux-2.5.27/include/linux/spinlock.h linux/include/linux/spinlock.h
---- linux-2.5.27/include/linux/spinlock.h	Sat Jul 20 12:11:19 2002
-+++ linux/include/linux/spinlock.h	Sat Jul 20 14:08:32 2002
-@@ -83,12 +83,15 @@
- # define SPIN_LOCK_UNLOCKED (spinlock_t) { 0 }
++
+ 	/*
+ 	 * Whoops, we cannot satisfy the allocation request.
+ 	 */
+diff -urN linux-2.5.27/mm/numa.c linux/mm/numa.c
+--- linux-2.5.27/mm/numa.c	Sat Jul 20 12:11:12 2002
++++ linux/mm/numa.c	Sat Jul 20 14:29:11 2002
+@@ -109,20 +109,20 @@
+ 	spin_lock_irqsave(&node_lock, flags);
+ 	if (!next) next = pgdat_list;
+ 	temp = next;
+-	next = next->node_next;
++	next = next->pgdat_next;
+ 	spin_unlock_irqrestore(&node_lock, flags);
  #endif
+ 	start = temp;
+ 	while (temp) {
+ 		if ((ret = alloc_pages_pgdat(temp, gfp_mask, order)))
+ 			return(ret);
+-		temp = temp->node_next;
++		temp = temp->pgdat_next;
+ 	}
+ 	temp = pgdat_list;
+ 	while (temp != start) {
+ 		if ((ret = alloc_pages_pgdat(temp, gfp_mask, order)))
+ 			return(ret);
+-		temp = temp->node_next;
++		temp = temp->pgdat_next;
+ 	}
+ 	return(0);
+ }
+diff -urN linux-2.5.27/mm/page_alloc.c linux/mm/page_alloc.c
+--- linux-2.5.27/mm/page_alloc.c	Sat Jul 20 12:11:07 2002
++++ linux/mm/page_alloc.c	Sat Jul 20 14:29:25 2002
+@@ -480,7 +480,7 @@
+ 	unsigned int i, sum = 0;
+ 	pg_data_t *pgdat;
  
--#define spin_lock_init(lock)	do { (void)(lock); } while(0)
--#define _raw_spin_lock(lock)	(void)(lock) /* Not "unused variable". */
--#define spin_is_locked(lock)	((void)(lock), 0)
--#define _raw_spin_trylock(lock)	((void)(lock), 1)
--#define spin_unlock_wait(lock)	do { (void)(lock); } while(0)
--#define _raw_spin_unlock(lock)	do { (void)(lock); } while(0)
-+#define spin_lock_init(lock)		do { (void)(lock); } while(0)
-+#define _raw_spin_lock(lock)		(void)(lock) /* no "unused variable" */
-+#define spin_is_locked(lock)		((void)(lock), 0)
-+#define _raw_spin_trylock(lock)		((void)(lock), 1)
-+#define spin_unlock_wait(lock)		do { (void)(lock); } while(0)
-+#define _raw_spin_unlock(lock)		do { (void)(lock); } while(0)
+-	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->node_next)
++	for (pgdat = pgdat_list; pgdat; pgdat = pgdat->pgdat_next)
+ 		for (i = 0; i < MAX_NR_ZONES; ++i)
+ 			sum += pgdat->node_zones[i].free_pages;
+ 
+@@ -489,10 +489,10 @@
+ 
+ static unsigned int nr_free_zone_pages(int offset)
+ {
+-	pg_data_t *pgdat = pgdat_list;
++	pg_data_t *pgdat;
+ 	unsigned int sum = 0;
+ 
+-	do {
++	for_each_pgdat(pgdat) {
+ 		zonelist_t *zonelist = pgdat->node_zonelists + offset;
+ 		zone_t **zonep = zonelist->zones;
+ 		zone_t *zone;
+@@ -503,9 +503,7 @@
+ 			if (size > high)
+ 				sum += size - high;
+ 		}
+-
+-		pgdat = pgdat->node_next;
+-	} while (pgdat);
++	}
+ 
+ 	return sum;
+ }
+@@ -529,13 +527,12 @@
+ #if CONFIG_HIGHMEM
+ unsigned int nr_free_highpages (void)
+ {
+-	pg_data_t *pgdat = pgdat_list;
++	pg_data_t *pgdat;
+ 	unsigned int pages = 0;
+ 
+-	while (pgdat) {
++	for_each_pgdat(pgdat)
+ 		pages += pgdat->node_zones[ZONE_HIGHMEM].free_pages;
+-		pgdat = pgdat->node_next;
+-	}
 +
-+#define _raw_spin_lock_bit(nr, lock)	do { (void)(lock); } while(0)
-+#define _raw_spin_unlock_bit(nr, lock)	do { (void)(lock); } while(0)
+ 	return pages;
+ }
+ #endif
+@@ -627,7 +624,7 @@
+ 					K(zone->pages_low),
+ 					K(zone->pages_high));
+ 			
+-		tmpdat = tmpdat->node_next;
++		tmpdat = tmpdat->pgdat_next;
+ 	}
  
- /*
-  * Read-write spinlocks, allowing multiple readers
-@@ -177,11 +180,23 @@
- #define write_trylock(lock)	({preempt_disable();_raw_write_trylock(lock) ? \
- 				1 : ({preempt_enable(); 0;});})
+ 	printk("( Active:%lu inactive:%lu dirty:%lu writeback:%lu free:%u )\n",
+diff -urN linux-2.5.27/mm/vmscan.c linux/mm/vmscan.c
+--- linux-2.5.27/mm/vmscan.c	Sat Jul 20 12:11:08 2002
++++ linux/mm/vmscan.c	Sat Jul 20 14:29:35 2002
+@@ -471,7 +471,7 @@
+ 		pgdat = pgdat_list;
+ 		do
+ 			need_more_balance |= kswapd_balance_pgdat(pgdat);
+-		while ((pgdat = pgdat->node_next));
++		while ((pgdat = pgdat->pgdat_next));
+ 	} while (need_more_balance);
+ }
  
-+#define spin_lock_bit(nr, lock) \
-+do { \
-+	preempt_disable(); \
-+	_raw_spin_lock_bit(nr, lock); \
-+} while(0)
-+
-+#define spin_unlock_bit(nr, lock) \
-+do { \
-+	_raw_spin_unlock_bit(nr, lock); \
-+	preempt_enable(); \
-+} while(0)
-+
- #else
+@@ -499,7 +499,7 @@
+ 		if (kswapd_can_sleep_pgdat(pgdat))
+ 			continue;
+ 		return 0;
+-	} while ((pgdat = pgdat->node_next));
++	} while ((pgdat = pgdat->pgdat_next));
  
- #define preempt_get_count()		(0)
- #define preempt_disable()		do { } while (0)
--#define preempt_enable_no_resched()	do {} while(0)
-+#define preempt_enable_no_resched()	do { } while(0)
- #define preempt_enable()		do { } while (0)
- #define preempt_check_resched()		do { } while (0)
- 
-@@ -190,6 +205,9 @@
- #define spin_unlock(lock)		_raw_spin_unlock(lock)
- #define spin_unlock_no_resched(lock)	_raw_spin_unlock(lock)
- 
-+#define spin_lock_bit(lock, nr)		_raw_spin_lock_bit(nr, lock)
-+#define spin_unlock_bit(lock, nr)	_raw_spin_unlock_bit(nr, lock)
-+
- #define read_lock(lock)			_raw_read_lock(lock)
- #define read_unlock(lock)		_raw_read_unlock(lock)
- #define write_lock(lock)		_raw_write_lock(lock)
+ 	return 1;
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
