@@ -1,40 +1,37 @@
-Date: Fri, 8 Oct 2004 13:53:27 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: [PATCH] remove redundant AND from swp_type
-Message-ID: <20041008165327.GK16028@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Date: Fri, 8 Oct 2004 15:22:35 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: hit/miss
+In-Reply-To: <20041008173155.52028.qmail@web52901.mail.yahoo.com>
+Message-ID: <Pine.LNX.4.44.0410081522100.11449-100000@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org, linux-mm@kvack.org
-Cc: hugh@veritas.com
+To: Ankit Jain <ankitjain1580@yahoo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, 
+On Fri, 8 Oct 2004, Ankit Jain wrote:
 
-There is a useless AND in swp_type() function.
+> Consider a two-level memory hierarchy system M1 & M2.
+> M1 is accessed first and on miss M2 is accessed. The
+> access of M1 is 2 nanoseconds and the miss penalty
+> (the time to get the data from M2 in case of a miss)
+> is 100 nanoseconds. The probability that a valid data
+> is found in M1 is 0.97. The average memory access time
+> will be how much?
+> 
+> if somebody can solve this?
 
-We just shifted right SWP_TYPE_SHIFT() bits the value from the swp_entry_t,
-and then we AND it with "(1 << 5) - 1" (which is a mask corresponding to the
-number of bits used by "type").  
+If you cannot solve this yourself, you might want to
+complain to your teacher for not telling you how to
+do your homework ;)
 
-Remove it since its redundant.
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
-This is probably some leftover from old code.
-
---- linux-2.6.9-rc1-mm5.orig/include/linux/swapops.h	2004-09-13 17:34:33.000000000 -0300
-+++ linux-2.6.9-rc1-mm5/include/linux/swapops.h	2004-10-08 15:53:39.248697816 -0300
-@@ -30,8 +30,7 @@
-  */
- static inline unsigned swp_type(swp_entry_t entry)
- {
--	return (entry.val >> SWP_TYPE_SHIFT(entry)) &
--			((1 << MAX_SWAPFILES_SHIFT) - 1);
-+	return (entry.val >> SWP_TYPE_SHIFT(entry));
- }
- 
- /*
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
