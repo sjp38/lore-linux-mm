@@ -1,27 +1,28 @@
-Date: Sat, 6 Nov 2004 15:51:41 -0500 (EST)
+Date: Sat, 6 Nov 2004 15:54:17 -0500 (EST)
 From: Rik van Riel <riel@redhat.com>
 Subject: Re: removing mm->rss and mm->anon_rss from kernel?
-In-Reply-To: <Pine.LNX.4.58.0411060812390.25369@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.44.0411061550220.21150-100000@chimarrao.boston.redhat.com>
+In-Reply-To: <16781.12572.181444.967905@wombat.chubb.wattle.id.au>
+Message-ID: <Pine.LNX.4.44.0411061553120.21150-100000@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Peter Chubb <peter@chubb.wattle.id.au>
+Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 6 Nov 2004, Christoph Lameter wrote:
+On Sun, 7 Nov 2004, Peter Chubb wrote:
 
-> Doing a ps is not a frequent event. Of course this may cause
-> significant load if one does regularly access /proc entities then. Are
-> there any threads from the past with some numbers of what the impact was
-> when we calculated rss via proc?
+> Is this going to scale properly to large machines, which usually have
+> large numbers of active processes?  top is already
+> almost unuseably slow on such machines; if all the pagetables have to
+> be scanned to get RSS, it'll probably slow to a halt.
 
-Running top(1) on stock 2.4 kernels pretty much kills large
-systems from SGI and IBM.  Think about walking the VM for
-10,000 processes, with 3GB virtual memory each, every 3
-seconds.
+Not probably.  Certainly.
+
+Christopher would do well to actually use his patch, while
+running eg. an Oracle benchmark and using top to monitor
+system activity.
 
 -- 
 "Debugging is twice as hard as writing the code in the first place.
