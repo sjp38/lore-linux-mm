@@ -1,51 +1,50 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA29177
-	for <linux-mm@kvack.org>; Thu, 7 Jan 1999 11:50:36 -0500
-Received: from mirkwood.dummy.home (root@anx1p8.phys.uu.nl [131.211.33.97])
-	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id RAA11952
-	for <linux-mm@kvack.org>; Thu, 7 Jan 1999 17:50:25 +0100 (MET)
-Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with ESMTP id RAA04258 for <linux-mm@kvack.org>; Thu, 7 Jan 1999 17:34:16 +0100
-Date: Thu, 7 Jan 1999 17:34:15 +0100 (CET)
-From: Rik van Riel <riel@humbolt.geo.uu.nl>
-Subject: 2.2.0-pre5
-Message-ID: <Pine.LNX.4.03.9901071730160.4197-100000@mirkwood.dummy.home>
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA29490
+	for <linux-mm@kvack.org>; Thu, 7 Jan 1999 12:37:16 -0500
+Date: Thu, 7 Jan 1999 09:35:41 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: Results: 2.2.0-pre5 vs arcavm10 vs arcavm9 vs arcavm7
+In-Reply-To: <36942ACA.3F8C055D@netplus.net>
+Message-ID: <Pine.LNX.3.95.990107093240.4270F-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linux MM <linux-mm@kvack.org>
+To: Steve Bergman <steve@netplus.net>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-while browsing the pre5 patch I saw quite a bit of
-VM changes that made a lot of sense, but there was
-one statement that really worried me (in vmscan.c)
 
-+        * NOTE NOTE NOTE! This should just set a
-+        * dirty bit in page_map, and just drop the
-+        * pte. All the hard work would be done by
-+        * shrink_mmap().
-+        *
-+        * That would get rid of a lot of problems.
-+        */
+On Wed, 6 Jan 1999, Steve Bergman wrote:
+> 
+> Here are my latest numbers.  This is timing a complete kernel compile  (make
+> clean;make depend;make;make modules;make modules_install)  in 16MB memory with
+> netscape, kde, and various daemons running.  I unknowningly had two more daemons
+> running in the background this time than last so the numbers can't be compared
+> directly with my last test (Which I think I only sent to Andrea).  But all of
+> these numbers are consistent with *each other*.
+> 
+> 
+> kernel		Time	Maj pf	Min pf  Swaps
+> ----------	-----	------	------	-----
+> 2.2.0-pre5		18:19	522333	493803	27984
+> arcavm10		19:57	556299	494163	12035
+> arcavm9		19:55	553783	494444	12077
+> arcavm7		18:39	538520	493287	11526
 
-Of course we should never do this since it would mean
-we'd loose the benefit of clustered swapout (and
-consequently clustered swapin).
+Don't look too closely at the "swaps" number - I think pre-5 just changed
+accounting a bit. A lot of the "swaps" are really just dropping a virtual
+mapping (that is later picked up again from the page cache or the swap
+cache). 
 
-The only way this could ever be implemented is by
-using a linked list of things-to-swap-out that:
-- is swapped out in the correct order and resorted
-  if needs be (to preserve or actually improve the
-  locality of reference in the swap area)
-- can never be longer than X entries, to avoid ending
-  up in all kinds of nasty situations
+Basically, pre-5 uses the page cache and the swap cache more actively as a
+"victim cache", and that inflates the "swaps" number simply due to the
+accounting issues. 
 
-Rik -- If a Microsoft product fails, who do you sue?
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        riel@humbolt.geo.uu.nl |
-| Scouting Vries cubscout leader.    http://humbolt.geo.uu.nl/~riel |
-+-------------------------------------------------------------------+
+I guess I shouldn't count the simple "drop_pte" operation as a swap at
+all, because it doesn't involve any IO.
+
+		Linus
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
