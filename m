@@ -1,47 +1,60 @@
-Message-ID: <3D4C9CB6.92504CF0@zip.com.au>
-Date: Sat, 03 Aug 2002 20:17:10 -0700
+Message-ID: <3D4CE74A.A827C9BC@zip.com.au>
+Date: Sun, 04 Aug 2002 01:35:22 -0700
 From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH] slablru for linux-2.5 bk tree
-References: <Pine.LNX.4.44.0207282324340.872-100000@home.transmeta.com> <200208011942.49342.tomlins@cam.org> <3D49C951.AB7C527E@zip.com.au> <200208031527.15093.tomlins@cam.org>
+Subject: how not to write a search algorithm
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@conectiva.com.br>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Ed Tomlinson wrote:
-> 
-> Hi,
-> 
-> Here the slablru patch ported to 2.5.30.
+Worked out why my box is going into a 3-5 minute coma with one test.
+Think what the LRUs look like when the test first hits page reclaim
+on this 2.5G ia32 box:
 
-Ed, it's going to take some time/effort to get this shaken down
-and into the tree, I expect.  There's quite a bit banked up
-at present.
+               head                           tail
+active_list:   <800M of ZONE_NORMAL> <200M of ZONE_HIGHMEM>
+inactive_list:          <1.5G of ZONE_HIGHMEM>
 
-I'll take care of any stability and performance stuff in slablru, but
-the wider question is: what behaviour do we actually _want_ for slab
-pages, and is this code delivering it?   Need to think about that.  But
-we certainly can't do worse than we are at present ;)
+now, somebody does a GFP_KERNEL allocation.
 
-I've merged your patch on top of the pagemap_lru_lock patches. A whole
-bunch of nastiness went away because those patches allow us to take that
-lock from interrupt context.
+uh-oh.
 
-The locking in slab.c needs some going over - I think it's wrong from a
-2.4 perspective: there's one ranking bug between pagemap_lru_lock and
-the cachep->spinlock.  I'd suggest that you change the 2.4 implementation
-to just drop pagemap_lru_lock before calling from vmscan into
-kmem_shrink_slab().  One thing will lead to another and the locking in slab
-will get simpler. Just make the lru lock nest inside the cachep->spinlock.
+VM calls refill_inactive.  That moves 25 ZONE_HIGHMEM pages onto
+the inactive list.  It then scans 5000 pages, achieving nothing.
 
-The fiddled patch is at http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.30/
-I'll read through it a bit more next week, give it a bit of testing.
+VM calls refill_inactive.  That moves 25 ZONE_HIGHMEM pages onto
+the inactive list.  It then scans about 10000 pages, achieving nothing.
 
-Thanks.
+VM calls refill_inactive.  That moves 25 ZONE_HIGHMEM pages onto
+the inactive list.  It then scans about 20000 pages, achieving nothing.
+
+VM calls refill_inactive.  That moves 25 ZONE_HIGHMEM pages onto
+the inactive list.  It then scans about 40000 pages, achieving nothing.
+
+VM calls refill_inactive.  That moves 25 ZONE_HIGHMEM pages onto
+the inactive list.  It then scans about 80000 pages, achieving nothing.
+
+VM calls refill_inactive.  That moves 25 ZONE_HIGHMEM pages onto
+the inactive list.  It then scans about 160000 pages, achieving nothing.
+
+VM calls refill_inactive.  That moves 25 ZONE_HIGHMEM pages onto
+the inactive list.  It then scans about 320000 pages, achieving nothing.
+
+The page allocation fails.  So __alloc_pages tries it all again.
+
+
+This all gets rather boring.
+
+
+Per-zone LRUs will fix it up.  We need that anyway, because a ZONE_NORMAL
+request will bogusly refile, on average, memory_size/800M pages to the
+head of the inactive list, thus wrecking page aging.
+
+Alan's kernel has a nice-looking implementation.  I'll lift that out
+next week unless someone beats me to it.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
