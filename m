@@ -1,44 +1,28 @@
-Date: Wed, 02 Oct 2002 17:48:01 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: Re: [PATCH] Snapshot of shared page tables
-Message-ID: <183710000.1033598881@baldur.austin.ibm.com>
-In-Reply-To: <15771.30104.815144.546550@argo.ozlabs.ibm.com>
-References: <45850000.1033570655@baldur.austin.ibm.com>
- <15771.30104.815144.546550@argo.ozlabs.ibm.com>
+Message-Id: <200210030616.g936Gxp01048@Port.imtp.ilyichevsk.odessa.ua>
+Content-Type: text/plain;
+  charset="us-ascii"
+From: Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>
+Reply-To: vda@port.imtp.ilyichevsk.odessa.ua
+Subject: Re: [RFC][PATCH]  4KB stack + irq stack for x86
+Date: Thu, 3 Oct 2002 09:10:51 -0200
+References: <3D9B62AC.30607@us.ibm.com> <20021002215649.GY3000@clusterfs.com>
+In-Reply-To: <20021002215649.GY3000@clusterfs.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Mackerras <paulus@samba.org>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Andreas Dilger <adilger@clusterfs.com>, Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---On Thursday, October 03, 2002 08:39:20 +1000 Paul Mackerras
-<paulus@samba.org> wrote:
+On 2 October 2002 19:56, Andreas Dilger wrote:
+> Alternately, you could set up an 8kB stack + IRQ stack and "red-zone"
+> the high page of the current 8kB stack and see if it is ever used.
 
-> Interesting.  I notice that you are using the _PAGE_RW bit in the
-> PMDs.  Are you relying on the hardware to do anything with that bit,
-> or is it only used by software?
-> 
-> (If you are relying on the hardware to do something different when
-> _PAGE_RW is clear in the PMD, then your approach isn't portable.)
-
-Yes, I am relying on the hardware.  I was under the impression that it was
-pretty much universal that making the pmd read-only would make the hardware
-treat all ptes under it as read-only.  This came out of a discussion on
-lkml last winter where this assertion was made.
-
-Do you know of a page table-based architecture that doesn't have and honor
-read-only protections at the pmd level?
-
-Dave McCracken
-
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
-
+This debugging technique definitely works. Look how many sleeping calls
+under locks apkm has caught recently!
+--
+vda
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
