@@ -1,47 +1,69 @@
-Message-ID: <3BC9DFA3.D9699230@earthlink.net>
-Date: Sun, 14 Oct 2001 18:55:31 +0000
+Message-ID: <3BCA26AC.98F5747C@earthlink.net>
+Date: Sun, 14 Oct 2001 23:58:36 +0000
 From: Joseph A Knapka <jknapka@earthlink.net>
 MIME-Version: 1.0
 Subject: Re: VM question: side effect of not scanning Active pages?
-References: <3BCA2015.5080306@ucla.edu>
+References: <3BCA2015.5080306@ucla.edu> <3BC9DFA3.D9699230@earthlink.net> <3BCA6F25.2000807@ucla.edu>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Redelings I <bredelin@ucla.edu>
-Cc: linux-mm@kvack.org
+To: Benjamin Redelings I <bredelin@ucla.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Benjamin Redelings I wrote:
 > 
-> Hello,
->         In both Andrea and Rik's VM, I have tried modifying try_to_swap_out so
-> that a page would be skipped if it is "active".  For example, I have
-> currently modified 2.4.13-pre2 by adding:
+> Hi Joe,
+>         Thanks for the answer.
 > 
->           if (PageActive(page))
->                   return 0;
+> > Well, you will never unmap active page. Essentially,
+> > that means that once a page gets onto the active
+> > list, it is effectively pinned in memory until all processes
+> > using the page exit.
 > 
-> after testing the hardware referenced bit.  This was motivated by
-> sections of VM-improvement patches written by both Rik and Andrea.
->         This SEEMS to increase performance, but it has another side effect.  The
-> RSS of unused daemons no longer EVER drops to 4k, which it does without
-> this modification.  The RSS does decrease (usually) to the value of
-> shared memory, but the amount of shared memory only gets down to about
-> 200-300k instead of decreasing to 4k.
->         Can anyone tell me why not scanning Active page for swapout would have
-> this effect?  Thanks!
+>         I'm not sure why this would be true.  Shouldn't any pages on the Active
+> list be moved to the Inactive list eventually if they are not used?  In
+> refill_inactive (vmscan.c), there is a loop over the active list with
+> this code:
+> 
+>                  if (PageTestandClearReferenced(page)) {
+>                          list_del(&page->lru);
+>                          list_add(&page->lru, &active_list);
+>                          continue;
+>                  }
+> 
+>                  del_page_from_active_list(page);
+>                  add_page_to_inactive_list(page);
+> 
+>         So, if the page is referenced, then it gets moved to the head of the
+> active list, and the referenced bit cleared.  But if it is NOT marked
+> referenced (which is what should happen for unused system daemons), then
+> it should get added to the inactive list, right?
+>         Please, let me know if I'm missing something :)
 
-Well, you will never unmap active page. Essentially,
-that means that once a page gets onto the active
-list, it is effectively pinned in memory until all processes
-using the page exit. This is probably not what you want.
-You'll still see some pages get swapped out, of course,
-because not all pages in use by processes live on the
-active list (anonymous pages that have never been unmapped,
-for example, don't, at least in the kernels I'm familiar
-with; though I understand there's some talk of changing
-that).
+Well, that's what I get for reading 2.4.5 code :-) The active
+list scanning used to check that a page was unreferenced by any
+process PTEs before deactivating. Now that's unnecessary, since
+it appears all the complicated machinery to support direct
+reclaim of clean pages from the LRU has gone away, and
+shrink_cache() nee page_launder() just directly frees
+pages back into the free pool. Cool! So there's nothing
+preventing mapped pages from being deactivated, which means
+my previous assertion was just silly.
+
+OK, here's what's happening, I think.  Bailing out of
+try_to_swap_out() when a page is active simply prevents
+active pages (eg, glibc pages) from being evicted from
+a process's memory map. So even if the process isn't
+using a page, any -other- process that's using it will
+prevent it from being evicted from the VM of all the
+other procs that have it mapped, whether they are using
+the page or not. Presumably, RSS reflects the number
+of pages a process has mapped, so you see your daemons
+with big RSS because some other process is using their
+pages. I don't know if that will cause problems at present
+or not. I think accurate RSS figures would be necessary
+for global kinds of VM balancing and control.
 
 Cheers,
 
