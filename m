@@ -1,8 +1,8 @@
-Date: Thu, 4 Jul 2002 20:26:29 -0300 (BRT)
+Date: Thu, 4 Jul 2002 20:27:50 -0300 (BRT)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: vm lock contention reduction
 In-Reply-To: <3D24D4A0.D39B8F2C@zip.com.au>
-Message-ID: <Pine.LNX.4.44L.0207042024190.6047-100000@imladris.surriel.com>
+Message-ID: <Pine.LNX.4.44L.0207042027060.6047-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,17 +13,16 @@ List-ID: <linux-mm.kvack.org>
 
 On Thu, 4 Jul 2002, Andrew Morton wrote:
 
-> I'll shelve this lock contention work until we have an rmap patch
-> for 2.5.   Rik, do you have an estimate on that?
+> If the machine is instead full of anon pages then everything is still
+> crap because the page reclaim code is scanning zillions of pages and not
+> doing much useful with them.
 
-I've recovered from the flight back and the flu that
-hit me just after OLS, so it should be pretty soon.
+This is something that can be fixed with rmap, because the
+kernel _will_ be able to do something useful with the anon
+pages.
 
-I've just applied Craig Kulesa's patch on top of the
-latest 2.5 bk tree and will put a few small fixes on
-top of that (eg. new ARM pagetable layout).
-
-regards,
+Now we just need to get Arjan to tune the O(1) page launder
+thing he was looking at ;)
 
 Rik
 -- 
