@@ -1,57 +1,30 @@
-Message-ID: <41C80213.4050100@yahoo.com.au>
-Date: Tue, 21 Dec 2004 21:59:31 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
-References: <Pine.LNX.4.44.0412210230500.24496-100000@localhost.localdomain> <Pine.LNX.4.58.0412201940270.4112@ppc970.osdl.org> <Pine.LNX.4.58.0412201953040.4112@ppc970.osdl.org> <20041221093628.GA6231@wotan.suse.de>
-In-Reply-To: <20041221093628.GA6231@wotan.suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Tue, 21 Dec 2004 22:46:06 +1100
+From: Anton Blanchard <anton@samba.org>
+Subject: Re: [PATCH 0/3] NUMA boot hash allocation interleaving
+Message-ID: <20041221114605.GB21710@krispykreme.ozlabs.ibm.com>
+References: <Pine.SGI.4.61.0412141720420.22462@kzerza.americas.sgi.com> <50260000.1103061628@flay> <20041215045855.GH27225@wotan.suse.de> <20041215144730.GC24000@krispykreme.ozlabs.ibm.com> <20041216050248.GG32718@wotan.suse.de> <20041216051323.GI24000@krispykreme.ozlabs.ibm.com> <20041216141814.GA10292@rx8.austin.ibm.com> <20041220165629.GA21231@rx8.austin.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041220165629.GA21231@rx8.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: "Jose R. Santos" <jrsantos@austin.ibm.com>
+Cc: Andi Kleen <ak@suse.de>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, Brent Casavant <bcasavan@sgi.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> On Mon, Dec 20, 2004 at 07:56:36PM -0800, Linus Torvalds wrote:
+ 
+> The difference between the two runs was with in noise of the benchmark on
+> my small setup.  I wont be able to get a larger NUMA system until next year,
+> so I'll retest when that happens.  In the mean time, I don't see a reason
+> either to stall this patch, but that may change on I get numbers on a
+> larger system.
 
->>It would be bad if the architecture that supported 4level page tables was
->>really rare and broken (so that mistakes would happen and not get noticed
->>for a while), but I suspect x86-64 by now is probably the second- or
->>third-most used architecture, so it's not like the lack of type safety on 
->>other architectures where it doesn't matter would be a huge maintenance 
->>problem.
-> 
-> 
-> Sorry, but I think that's a very bad approach. If the i386 users
-> don't get warnings I will need to spend a lot of time just patching
-> behind them. While x86-64 is getting more and more popular most
-> hacking still happens on i386.
-> 
-> Please use a type safe approach that causes warnings
-> and errors on i386 too. Otherwise it'll cause me much additional
-> work longer term. Having the small advantage of a perhaps
-> slightly easier migration for long term maintenance hazzle
-> is a bad tradeoff IMHO.
-> 
+Thanks Jose!
 
-Oh yes, you're right there. And i386 will get warnings. The un-type-safe
-headers are just for those architectures that haven't converted over yet.
+Brent, looks like we are happy on the ppc64 front.
 
-I'm somewhat on the fence with this.
-
-On one hand it does allow users, developers and arch maintainers of more
-obscure architectures to have their kernels continue to work (provided that
-I can get the thing working), and migrate over slowly.
-
-But on the other hand, is it really needed? As you said, you've already
-done much of the arch work in your patch...
-
-Maybe it is a good thing in that it would allow my patchset to be picked
-up _sooner_, which would encourage arch maintainers and speed progress.
-With any luck, all traces of it would be gone before 2.6.11 is released.
-
+Anton
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
