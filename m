@@ -1,24 +1,28 @@
-Date: Tue, 31 Oct 2000 20:13:01 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH] 2.4.0-test10-pre6 TLB flush race in establish_pte
-Message-ID: <20001031201301.B9227@athlon.random>
-References: <C1256989.0066C1B8.00@d12mta01.de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <C1256989.0066C1B8.00@d12mta01.de.ibm.com>; from Ulrich.Weigand@de.ibm.com on Tue, Oct 31, 2000 at 07:42:21PM +0100
+Date: Wed, 1 Nov 2000 08:01:00 +0530 (IST)
+From: "M.Jagadish Kumar" <jagadish@rishi.serc.iisc.ernet.in>
+Subject: details of pagefault.
+Message-ID: <Pine.LNX.4.10.10011010756230.1324-100000@agastya.serc.iisc.ernet.in>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ulrich.Weigand@de.ibm.com
-Cc: slpratt@us.ibm.com, linux-kernel@vger.kernel.org, torvalds@transmeta.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: kumar_mj@usa.net, Jagadish Kuamr <jagadish@rishi.serc.iisc.ernet.in>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 31, 2000 at 07:42:21PM +0100, Ulrich.Weigand@de.ibm.com wrote:
-> IMO you should apply Steve's patch (without any #ifdef __s390__) now.
+hello,
+Can i know the following information when the pagefault occured.
 
-Agreed.
+1. Adress of the instruction which caused the pagefault.
+2. Adress which caused the pagefault.
+3. process which caused
 
-Andrea
+ If the above information can be obtained, can anyone give me the details
+how to obtain them.
+
+Thanx
+jagadish
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
