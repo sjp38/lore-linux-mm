@@ -1,47 +1,43 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA12565
-	for <linux-mm@kvack.org>; Fri, 4 Dec 1998 11:51:58 -0500
-Date: Fri, 4 Dec 1998 16:23:44 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: SWAP: Linux far behind Solaris or I missed something (fwd)
-In-Reply-To: <199812041449.OAA04573@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.96.981204162132.21578A-100000@mirkwood.dummy.home>
+Received: from ferret.lmh.ox.ac.uk (qmailr@ferret.lmh.ox.ac.uk [163.1.138.204])
+	by kvack.org (8.8.7/8.8.7) with SMTP id OAA13314
+	for <linux-mm@kvack.org>; Fri, 4 Dec 1998 14:25:49 -0500
+Date: Fri, 4 Dec 1998 19:25:31 +0000 (GMT)
+From: Chris Evans <chris@ferret.lmh.ox.ac.uk>
+Subject: Re: [PATCH] swapin readahead and fixes
+In-Reply-To: <Pine.LNX.3.96.981203184928.2886A-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.96.981204192244.28834B-100000@ferret.lmh.ox.ac.uk>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Neil Conway <nconway.list@ukaea.org.uk>, Linux MM <linux-mm@kvack.org>, Jean-Michel.Vansteene@bull.net, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 4 Dec 1998, Stephen C. Tweedie wrote:
-> On Fri, 4 Dec 1998 10:41:15 +0000, Neil Conway
-> <nconway.list@ukaea.org.uk> said:
-> 
-> >> (although the 2.1.130+my patch seems to work very well
-> >> with extremely high swap throughput)
-> 
-> > Since the poster didn't say otherwise, perhaps this test was performed
-> > with buffermem/pagecache.min_percent set to their default values, which
-> > IIRC add up to 13% of physical RAM (in fact that's PHYSICAL ram, not 13%
-> 
-> I know.  That's why relying on fixed margins to ensure good
-> performance is wrong: the system really ought to be self-tuning.
-> We may yet get it right for 2.2: there are people working on this.
 
-It appears that 2.1.130 + my little patches only needs the
-borrow percentage (otherwise kswapd doesn't have enough
-reason to switch from the always-succesful swap_out()),
-and that only needs to be set to a high value...
-(ie. /not/ the braindead values that went into 2.1.131)
 
-cheers,
+On Thu, 3 Dec 1998, Rik van Riel wrote:
 
-Rik -- the flu hits, the flu hits, the flu hits -- MORE
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+> Hi,
+> 
+> here is a patch (against 2.1.130, but vs. 2.1.131 should
+> be trivial) that improves the swapping performance both
+> during swapout and swapin and contains a few minor fixes.
+
+Hi Rik,
+
+I'm very interested in performance for sequential swapping. This occurs in
+for example scientific applications which much sweep through vast arrays
+much larger than physical RAM.
+
+Have you benchmarked booting with low physical RAM, lots of swap and
+writing a simple program that allocates 100's of Mb of memory and then
+sequentially accesses every page in a big loop?
+
+This is one area in which FreeBSD stomps on us. Theoretically it should be
+possible to get swap with readahead pulling pages into RAM at disk speed.
+
+Cheers
+Chris
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
