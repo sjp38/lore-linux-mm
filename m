@@ -1,297 +1,88 @@
-Date: Mon, 02 Jun 2003 23:34:13 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: ext3 semaphore tracing
-Message-ID: <215070000.1054622052@[10.10.2.4]>
-In-Reply-To: <32370000.1054338684@[10.10.2.4]>
-References: <20030527004255.5e32297b.akpm@digeo.com><1980000.1054189401@[10.10.2.4]><18080000.1054233607@[10.10.2.4]><20030529115237.33c9c09a.akpm@digeo.com><39810000.1054240214@[10.10.2.4]><20030529141405.4578b72c.akpm@digeo.com><12430000.1054309916@[10.10.2.4]> <20030530094344.74a0e617.akpm@digeo.com> <32370000.1054338684@[10.10.2.4]>
+Message-ID: <3EDCD20A.1070407@us.ibm.com>
+Date: Tue, 03 Jun 2003 09:51:22 -0700
+From: Mingming Cao <cmm@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: 2.5.70-mm3
+References: <20030531013716.07d90773.akpm@digeo.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alex Tomas <bzzz@tmi.comex.ru>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Some idiot wrote:
->
-> I had the sem tracing one in there too, but got no output. I might have
-> another look at that later on ...
+Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70-mm3/
+> 
+Re run 50 fsx tests overnight again on mm3.  The tests are all 
+unresponsetive after running a while.  There are lots of disk errors and 
+one call back trace:
 
-Seems to be moron-related ass-locating-with-both-hands error on my part.
+Any idea?
 
+
+SCSI disk error : <2 0 4 0> return code = 0x6000000
+end_request: I/O error, dev sdf, sector 14030152
+SCSI disk error : <2 0 0 0> return code = 0x6000000
+end_request: I/O error, dev sdb, sector 10526936
+SCSI disk error : <2 0 0 0> return code = 0x6000000
+end_request: I/O error, dev sdb, sector 10533048
+SCSI disk error : <2 0 0 0> return code = 0x6000000
+end_request: I/O error, dev sdb, sector 10536376
+SCSI disk error : <2 0 0 0> return code = 0x6000000
+end_request: I/O error, dev sdb, sector 10538544
+SCSI disk error : <2 0 0 0> return code = 0x6000000
+end_request: I/O error, dev sdb, sector 10538688
+SCSI disk error : <2 0 5 0> return code = 0x6000000
+end_request: I/O error, dev sdg, sector 10533024
+SCSI disk error : <2 0 5 0> return code = 0x6000000
+end_request: I/O error, dev sdg, sector 10533088
+SCSI disk error : <2 0 2 0> return code = 0x6000000
+end_request: I/O error, dev sdd, sector 10540928
+SCSI disk error : <2 0 4 0> return code = 0x6000000
+end_request: I/O error, dev sdf, sector 10526936
+SCSI disk error : <2 0 1 0> return code = 0x6000000
+end_request: I/O error, dev sdc, sector 88488
+SCSI disk error : <2 0 1 0> return code = 0x6000000
+end_request: I/O error, dev sdc, sector 89176
+SCSI disk error : <2 0 5 0> return code = 0x6000000
+end_request: I/O error, dev sdg, sector 10533776
+SCSI disk error : <2 0 6 0> return code = 0x6000000
+end_request: I/O error, dev sdh, sector 3566984
+SCSI disk error : <2 0 5 0> return code = 0x6000000
+end_request: I/O error, dev sdg, sector 10533808
+SCSI disk error : <2 0 5 0> return code = 0x6000000
+end_request: I/O error, dev sdg, sector 10533936
+SCSI disk error : <2 0 5 0> return code = 0x6000000
+end_request: I/O error, dev sdg, sector 14005320
+SCSI disk error : <2 0 5 0> return code = 0x6000000
+end_request: I/O error, dev sdg, sector 14022904
+SCSI disk error : <2 0 4 0> return code = 0x6000000
+end_request: I/O error, dev sdf, sector 10537240
+SCSI disk error : <2 0 5 0> return code = 0x6000000
+end_request: I/O error, dev sdg, sector 14023128
+SCSI disk error : <2 0 4 0> return code = 0x6000000
+buffer layer error at fs/buffer.c:2835
 Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181350>] .text.lock.namei+0x5/0x35
- [<c017ce51>] ext3_truncate+0x119/0x3d4
- [<c018460e>] new_handle+0xe/0x48
- [<c01846d1>] journal_start+0x89/0xb8
- [<c01813b2>] ext3_journal_start+0x32/0x50
- [<c017abeb>] start_transaction+0x13/0x40
- [<c017ad16>] ext3_delete_inode+0x8a/0xe0
- [<c017ac8c>] ext3_delete_inode+0x0/0xe0
- [<c015ffa3>] generic_delete_inode+0x6b/0xd4
- [<c0160134>] generic_drop_inode+0x10/0x20
- [<c01601aa>] iput+0x66/0x6c
- [<c01573a9>] sys_unlink+0xf1/0x130
- [<c010e056>] alloc_ldt+0x6a/0x1a0
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181364>] .text.lock.namei+0x19/0x35
- [<c0160a83>] inode_setattr+0xd7/0xe4
- [<c017da31>] ext3_setattr+0xf1/0x120
- [<c0160be0>] notify_change+0xe0/0x14c
- [<c014858d>] sys_chmod+0x9d/0xc8
- [<c01552cd>] path_release+0xd/0x30
- [<c0148c7b>] sys_close+0x53/0x6c
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181350>] .text.lock.namei+0x5/0x35
- [<c0180c8d>] ext3_unlink+0xed/0x150
- [<c0180ca5>] ext3_unlink+0x105/0x150
- [<c0157278>] vfs_unlink+0x110/0x150
- [<c0157361>] sys_unlink+0xa9/0x130
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181350>] .text.lock.namei+0x5/0x35
- [<c017ce51>] ext3_truncate+0x119/0x3d4
- [<c018460e>] new_handle+0xe/0x48
- [<c01846d1>] journal_start+0x89/0xb8
- [<c01813b2>] ext3_journal_start+0x32/0x50
- [<c017abeb>] start_transaction+0x13/0x40
- [<c017ad16>] ext3_delete_inode+0x8a/0xe0
- [<c017ac8c>] ext3_delete_inode+0x0/0xe0
- [<c015ffa3>] generic_delete_inode+0x6b/0xd4
- [<c0160134>] generic_drop_inode+0x10/0x20
- [<c01601aa>] iput+0x66/0x6c
- [<c01573a9>] sys_unlink+0xf1/0x130
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181364>] .text.lock.namei+0x19/0x35
- [<c0160a83>] inode_setattr+0xd7/0xe4
- [<c017da31>] ext3_setattr+0xf1/0x120
- [<c0160be0>] notify_change+0xe0/0x14c
- [<c0148662>] chown_common+0xaa/0xc8
- [<c01486b3>] sys_chown+0x33/0x48
- [<c0148c7b>] sys_close+0x53/0x6c
- [<c0108c87>] syscall_call+0x7/0xb
-
-
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181350>] .text.lock.namei+0x5/0x35
- [<c017ce51>] ext3_truncate+0x119/0x3d4
- [<c018460e>] new_handle+0xe/0x48
- [<c01846d1>] journal_start+0x89/0xb8
- [<c01813b2>] ext3_journal_start+0x32/0x50
- [<c017abeb>] start_transaction+0x13/0x40
- [<c017ad16>] ext3_delete_inode+0x8a/0xe0
- [<c017ac8c>] ext3_delete_inode+0x0/0xe0
- [<c015ffa3>] generic_delete_inode+0x6b/0xd4
- [<c0160134>] generic_drop_inode+0x10/0x20
- [<c01601aa>] iput+0x66/0x6c
- [<c01573a9>] sys_unlink+0xf1/0x130
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181350>] .text.lock.namei+0x5/0x35
- [<c017ce51>] ext3_truncate+0x119/0x3d4
- [<c018460e>] new_handle+0xe/0x48
- [<c01846d1>] journal_start+0x89/0xb8
- [<c01813b2>] ext3_journal_start+0x32/0x50
- [<c017abeb>] start_transaction+0x13/0x40
- [<c017ad16>] ext3_delete_inode+0x8a/0xe0
- [<c017ac8c>] ext3_delete_inode+0x0/0xe0
- [<c015ffa3>] generic_delete_inode+0x6b/0xd4
- [<c0160134>] generic_drop_inode+0x10/0x20
- [<c01601aa>] iput+0x66/0x6c
- [<c01573a9>] sys_unlink+0xf1/0x130
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181364>] .text.lock.namei+0x19/0x35
- [<c0160a83>] inode_setattr+0xd7/0xe4
- [<c017da31>] ext3_setattr+0xf1/0x120
- [<c0160be0>] notify_change+0xe0/0x14c
- [<c014858d>] sys_chmod+0x9d/0xc8
- [<c01552cd>] path_release+0xd/0x30
- [<c0148c7b>] sys_close+0x53/0x6c
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181364>] .text.lock.namei+0x19/0x35
- [<c01813b2>] ext3_journal_start+0x32/0x50
- [<c017abeb>] start_transaction+0x13/0x40
- [<c017ad20>] ext3_delete_inode+0x94/0xe0
- [<c017ac8c>] ext3_delete_inode+0x0/0xe0
- [<c015ffa3>] generic_delete_inode+0x6b/0xd4
- [<c0160134>] generic_drop_inode+0x10/0x20
- [<c01601aa>] iput+0x66/0x6c
- [<c01573a9>] sys_unlink+0xf1/0x130
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181364>] .text.lock.namei+0x19/0x35
- [<c01813b2>] ext3_journal_start+0x32/0x50
- [<c017abeb>] start_transaction+0x13/0x40
- [<c017ad20>] ext3_delete_inode+0x94/0xe0
- [<c017ac8c>] ext3_delete_inode+0x0/0xe0
- [<c015ffa3>] generic_delete_inode+0x6b/0xd4
- [<c0160134>] generic_drop_inode+0x10/0x20
- [<c01601aa>] iput+0x66/0x6c
- [<c01573a9>] sys_unlink+0xf1/0x130
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181364>] .text.lock.namei+0x19/0x35
- [<c0160a83>] inode_setattr+0xd7/0xe4
- [<c017da31>] ext3_setattr+0xf1/0x120
- [<c0160be0>] notify_change+0xe0/0x14c
- [<c0148662>] chown_common+0xaa/0xc8
- [<c01486b3>] sys_chown+0x33/0x48
- [<c0148c7b>] sys_close+0x53/0x6c
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181364>] .text.lock.namei+0x19/0x35
- [<c0160a83>] inode_setattr+0xd7/0xe4
- [<c017da31>] ext3_setattr+0xf1/0x120
- [<c0160be0>] notify_change+0xe0/0x14c
- [<c0148003>] sys_utime+0xdb/0x104
- [<c01552cd>] path_release+0xd/0x30
- [<c0148c7b>] sys_close+0x53/0x6c
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181350>] .text.lock.namei+0x5/0x35
- [<c017ce51>] ext3_truncate+0x119/0x3d4
- [<c018460e>] new_handle+0xe/0x48
- [<c01846d1>] journal_start+0x89/0xb8
- [<c01813b2>] ext3_journal_start+0x32/0x50
- [<c017abeb>] start_transaction+0x13/0x40
- [<c017ad16>] ext3_delete_inode+0x8a/0xe0
- [<c017ac8c>] ext3_delete_inode+0x0/0xe0
- [<c015ffa3>] generic_delete_inode+0x6b/0xd4
- [<c0160134>] generic_drop_inode+0x10/0x20
- [<c01601aa>] iput+0x66/0x6c
- [<c01573a9>] sys_unlink+0xf1/0x130
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181364>] .text.lock.namei+0x19/0x35
- [<c0160a83>] inode_setattr+0xd7/0xe4
- [<c017da31>] ext3_setattr+0xf1/0x120
- [<c0160be0>] notify_change+0xe0/0x14c
- [<c0148662>] chown_common+0xaa/0xc8
- [<c01486b3>] sys_chown+0x33/0x48
- [<c0148c7b>] sys_close+0x53/0x6c
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181364>] .text.lock.namei+0x19/0x35
- [<c0160a83>] inode_setattr+0xd7/0xe4
- [<c017da31>] ext3_setattr+0xf1/0x120
- [<c0160be0>] notify_change+0xe0/0x14c
- [<c014858d>] sys_chmod+0x9d/0xc8
- [<c01552cd>] path_release+0xd/0x30
- [<c0148c7b>] sys_close+0x53/0x6c
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181350>] .text.lock.namei+0x5/0x35
- [<c0180add>] ext3_rmdir+0xa1/0x164
- [<c0180b30>] ext3_rmdir+0xf4/0x164
- [<c0156ebf>] d_unhash+0x3b/0x74
- [<c0157021>] vfs_rmdir+0x129/0x17c
- [<c0157127>] sys_rmdir+0xb3/0xf4well
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181350>] .text.lock.namei+0x5/0x35
- [<c017ce51>] ext3_truncate+0x119/0x3d4
- [<c018460e>] new_handle+0xe/0x48
- [<c01846d1>] journal_start+0x89/0xb8
- [<c01813b2>] ext3_journal_start+0x32/0x50
- [<c017abeb>] start_transaction+0x13/0x40
- [<c017ad16>] ext3_delete_inode+0x8a/0xe0
- [<c017ac8c>] ext3_delete_inode+0x0/0xe0
- [<c015ffa3>] generic_delete_inode+0x6b/0xd4
- [<c0160134>] generic_drop_inode+0x10/0x20
- [<c01601aa>] iput+0x66/0x6c
- [<c01573a9>] sys_unlink+0xf1/0x130
- [<c0108c87>] syscall_call+0x7/0xb
-
-Call Trace:
- [<c0107b4e>] __down+0x96/0x114
- [<c0118888>] default_wake_function+0x0/0x20
- [<c0107d48>] __down_failed+0x8/0xc
- [<c0181350>] .text.lock.namei+0x5/0x35
- [<c017ce51>] ext3_truncate+0x119/0x3d4
- [<c018460e>] new_handle+0xe/0x48
- [<c01846d1>] journal_start+0x89/0xb8
- [<c01813b2>] ext3_journal_start+0x32/0x50
- [<c017abeb>] start_transaction+0x13/0x40
- [<c017ad16>] ext3_delete_inode+0x8a/0xe0
- [<c017ac8c>] ext3_delete_inode+0x0/0xe0
- [<c015ffa3>] generic_delete_inode+0x6b/0xd4
- [<c0160134>] generic_drop_inode+0x10/0x20
- [<c01601aa>] iput+0x66/0x6c
- [<c01573a9>] sys_unlink+0xf1/0x130
- [<c0108c87>] syscall_call+0x7/0xb
-
+  [<c015a760>] drop_buffers+0xc0/0xd0
+  [<c015a7bb>] try_to_free_buffers+0x4b/0xb0
+  [<c01a22ef>] journal_invalidatepage+0xdf/0x130
+  [<c0193123>] ext3_invalidatepage+0x43/0x50
+  [<c0141bb7>] do_invalidatepage+0x27/0x30
+  [<c0141c4e>] truncate_complete_page+0x8e/0x90
+  [<c0141dd4>] truncate_inode_pages+0xd4/0x2f0
+  [<c01468fb>] vmtruncate+0x6b/0x100
+  [<c01712f4>] inode_setattr+0x134/0x150
+  [<c0194d5a>] ext3_setattr+0x7a/0x1a0
+  [<c01603be>] cp_new_stat64+0xfe/0x110
+  [<c01714e0>] notify_change+0x160/0x19d
+  [<c015339a>] do_truncate+0x6a/0x90
+  [<c0160487>] sys_fstat64+0x37/0x40
+  [<c0153688>] sys_ftruncate+0x118/0x1b0
+  [<c0154d50>] generic_file_llseek+0x0/0xf0
+  [<c0155089>] sys_lseek+0x69/0xb0
+  [<c010943f>] syscall_call+0x7/0xb
 
 
 --
