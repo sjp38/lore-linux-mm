@@ -1,59 +1,39 @@
-Date: Mon, 16 Aug 1999 23:29:48 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Mon, 16 Aug 1999 23:29:27 -0700
+Message-Id: <199908170629.XAA23911@pizda.davem.net>
+From: "David S. Miller" <davem@redhat.com>
+In-reply-to: <199908162328.QAA24338@google.engr.sgi.com>
+	(kanoj@google.engr.sgi.com)
 Subject: Re: [bigmem-patch] 4GB with Linux on IA32
-In-Reply-To: <Pine.LNX.4.10.9908162358590.9951-100000@laser.random>
-Message-ID: <Pine.LNX.4.10.9908162324001.1048-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <199908162328.QAA24338@google.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: kanoj@google.engr.sgi.com
+Cc: andrea@suse.de, alan@lxorguk.ukuu.org.uk, torvalds@transmeta.com, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+   For example, on a 2.2.10 kernel:
+   [kanoj@entity kern]$ gid __va | grep drivers
+   drivers/char/mem.c:124: if (copy_to_user(buf, __va(p), count))
+   drivers/char/mem.c:142: return do_write_mem(file, __va(p), p, buf, count, ppos);
 
-On Tue, 17 Aug 1999, Andrea Arcangeli wrote:
->
-> This incremental (against bigmem-2.3.13-L) patch will fix the ptrace and
-> /proc/*/mem read/writes to other process VM inside the kernel.
+Ok, this one could be a problem.
 
-Andrea, you really need to clean these things up.
+   drivers/scsi/sym53c8xx.c:572:#define remap_pci_mem(base, size)  ((u_long) __va(base))
 
-The bigmem patches look fine _except_ for the fact that they have these 
+Sparc specific ifdef'd code, it doesn't matter for ix86.
 
-	#ifdef CONFIG_BIGMEM
+   drivers/video/creatorfb.c
+ ...
+   drivers/sbus/char/zs.c
 
-turds all over the place. That's NOT how to do it.
+More Sparc specific drivers.
 
-Instead, you should unconditionally always do
+So in essence there are only two spots in mem.c which you might need
+to worry about on ix86.
 
-	#include <linux/bigmem.h>
-
-which in turn does something like this:
-
-	#ifdef CONFIG_BIGMEM
-
-	  #include <asm/bigmem.h>
-
-	#else
-
-	  #define kmap(page)	page_address(page)
-	  #define kunmap(page)	do { } while (0)
-
-	#endif
-
-and then there is not a _single_ #ifdef inside any actual code.
-
-Remember: if you have to have #ifdef's in actual functional code, you're
-doing something wrong. I don't see why you can't just abstract the thing
-away with zero performance degradation for the non-bigmem case by just
-making the mapping function the existing identity function.
-
-I'd like you to do the above cleanup, and then the bigmem patches look
-like they could easily be integrated into the current 2.3.x series. But
-with #ifdef's it won't.
-
-			Linus
+Later,
+David S. Miller
+davem@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
