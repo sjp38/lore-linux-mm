@@ -1,41 +1,31 @@
-Date: Tue, 6 Mar 2001 17:39:18 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Tue, 6 Mar 2001 22:02:55 +0000 (GMT)
+From: Matthew Kirkwood <matthew@hairy.beasts.org>
 Subject: Re: Linux 2.2 vs 2.4 for PostgreSQL
 In-Reply-To: <Pine.LNX.4.10.10103061626070.20708-100000@sphinx.mythic-beasts.com>
-Message-ID: <Pine.LNX.4.33.0103061738310.1409-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10103062201420.25643-100000@sphinx.mythic-beasts.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Kirkwood <matthew@hairy.beasts.org>
-Cc: linux-mm@kvack.org, Mike Galbraith <mikeg@wen-online.de>
+To: linux-mm@kvack.org
+Cc: Mike Galbraith <mikeg@wen-online.de>, Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 6 Mar 2001, Matthew Kirkwood wrote:
 
-> I have been collecting some postgres benchmark numbers
-> on various kernels, which may be of interest to this
-> list.
+> And now, the numbers (the xx.xxxxxx one is still running :):
+
+Has completed now.
+
+> fsync off
 >
-> The test was to run "pgbench" with various numbers of
-> clients against postgresql 7.1beta4.  The benchmark
-> looks rather like a fairly minimal TPC/B, with lots of
-> small transactions, all committed.
+> #c	2.2.19p16	2.4.2p2		2.4.2-ac11	2.4.2-ac11+fix
+[..]
+> 128	xx.xxxxxx	24.721486	25.016129       24.997236
 
-Sounds like a good benchmark, I'll try it here (once the
-hardware problem with the test machines are sorted out).
+s/xx\.xxxxxx/25.069578/
 
-regards,
-
-Rik
---
-Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
-
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
+Matthew.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
