@@ -1,39 +1,77 @@
-Date: Wed, 26 Apr 2000 17:09:37 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: [PATCH] 2.3.99-pre6-3+  VM rebalancing
-Message-ID: <20000426170937.R3792@redhat.com>
-References: <Pine.LNX.4.21.0004251418520.10408-100000@duckman.conectiva> <20000425113616.A7176@stormix.com> <3905EB26.8DBFD111@mandrakesoft.com> <20000425120657.B7176@stormix.com> <20000426120130.E3792@redhat.com> <200004261125.EAA12302@pizda.ninka.net> <20000426140031.L3792@redhat.com> <200004261311.GAA13838@pizda.ninka.net> <20000426162353.O3792@redhat.com> <200004261525.IAA13973@pizda.ninka.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <200004261525.IAA13973@pizda.ninka.net>; from davem@redhat.com on Wed, Apr 26, 2000 at 08:25:59AM -0700
+Date: Wed, 26 Apr 2000 09:44:28 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: 2.3.x mem balancing
+In-Reply-To: <20000426122448.G3792@redhat.com>
+Message-ID: <Pine.LNX.4.10.10004260929340.1492-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: sct@redhat.com, sim@stormix.com, jgarzik@mandrakesoft.com, riel@nl.linux.org, andrea@suse.de, linux-mm@kvack.org, bcrl@redhat.com, linux-kernel@vger.rutgers.edu
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: riel@nl.linux.org, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-On Wed, Apr 26, 2000 at 08:25:59AM -0700, David S. Miller wrote:
+On Wed, 26 Apr 2000, Stephen C. Tweedie wrote:
 > 
-> No, this is why I haven't posted the complete patch for general
-> consumption.  It's in an "almost works" state, very dangerous,
-> and I don't even try leaving single user mode when I'm testing
-> it :-)))
+> We just shouldn't need to keep much memory free.
+> 
+> I'd much rather see a scheme in which we have two separate goals for 
+> the VM.  Goal one would be to keep a certain number of free pages in 
+> each class, for use by atomic allocations.  Goal two would be to have
+> a minimum number of pages in each class either free or on a global LRU
+> list which contains only pages known to be clean and unmapped (and
+> hence available for instant freeing without IO).
 
-OK.  You might find this useful:
+This would work. However, there is a rather subtle issue with allocating
+contiguous chunks of memory - something that is frowned upon, but however
+hard we've triedthere has always been people that really need to do it.
 
-	ftp://ftp.uk.linux.org/pub/linux/sct/vm/mtest.c
+And that subtle issue is that in order for the buddy system to work for
+contiguous areas, you cannot have "free" pages _outside_ the buddy system.
 
-which is a small utility I wrote while I was testing the 
-swap cache code.  It creates a heap of memory, forks a variable
-number of reader and/or writer processes to access that heap,
-and touches/modifies the heap randomly from the children.  It 
-is very good at testing the swap code for pages shared over 
-fork.  It's what I use any time I need to push a box into swap
-for VM testing.
+The reason the buddy system works for contiguous allocations >1 pages is
+_not_ simply that it has the data structures to keep track of power-of-
+two pages. The bigger reason for why the buddy system works at all is that
+it is inherenty anti-fragmenting - whenever there are free pages, the
+buddy system coalesces them, and has a very strong bias to returning
+already-fragmented areas over contiguous areas on new allocations.
 
---Stephen
+This advantage of the buddy system is also why keeping a "free list" is
+not actually necessarily that great of an idea. Because the free list will
+make fragmentation much worse by not allowing the coalescing - which in
+turn is needed in order to try to keep future allocations from fragmenting
+the heap more.
+
+And yes, part of having memory free is to have low latency - oneof the
+huge advantages of kswapd is that it allows us to do background freeing so
+that the perceived latency to the occasional page allocator is great. And
+that is important, and the "almost free" list would work quite well for
+that.
+
+However, the contiguous area concern is also a real concern. That iswhy I
+want to keep "alloc_page()" and "free_page()" as the main memory
+allocators: the buddy system is certainly not the fastest memory allocator
+around, but it's so far the only one I've seen that has reasonable
+behaviour wrt contiguous areas without excessive overhead.
+
+[ Side comment: maybe somebody remembers the _original_ page allocator in
+  Linux. It was based on a very very simple linked list of free pages -
+  and it was fast as hell. There is absolutely no allocator that does it
+  faster: getting a new page was not just constant time, but it was just a
+  few cycles. FAST. The reason I moved to the buddy allocator was that the
+  flexibility of being able to allocate two or four pages at a time
+  outweighed the speed disadvantage. I'd hate for people to unwittingly
+  lose that advantage by just not thinking about these issues.. ]
+
+However, it's certainly true that ourmemory freeing machinery could be
+cleaned up a bit, and having the "two phase" thing encoded explicitly in
+the page freeing logic might not be a bad idea. I just wanted to point out
+some reasons why it might not be all that sensible to count the "easily
+freed queue" as real free memory..
+
+			Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
