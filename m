@@ -1,48 +1,39 @@
-Date: Mon, 20 Dec 2004 19:56:36 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
-In-Reply-To: <Pine.LNX.4.58.0412201940270.4112@ppc970.osdl.org>
-Message-ID: <Pine.LNX.4.58.0412201953040.4112@ppc970.osdl.org>
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+In-Reply-To: <Pine.LNX.4.58.0412201953040.4112@ppc970.osdl.org>
 References: <Pine.LNX.4.44.0412210230500.24496-100000@localhost.localdomain>
- <Pine.LNX.4.58.0412201940270.4112@ppc970.osdl.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	 <Pine.LNX.4.58.0412201940270.4112@ppc970.osdl.org>
+	 <Pine.LNX.4.58.0412201953040.4112@ppc970.osdl.org>
+Content-Type: text/plain
+Date: Tue, 21 Dec 2004 15:04:46 +1100
+Message-Id: <1103601886.5121.40.camel@npiggin-nld.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Hugh Dickins <hugh@veritas.com>, Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 2004-12-20 at 19:56 -0800, Linus Torvalds wrote:
 
-On Mon, 20 Dec 2004, Linus Torvalds wrote:
+> Color me convinced. 
 > 
-> (It may be _possible_ to avoid the warnings by just making "pud_t" and
-> "pmd_t" be the same type for such architectures, and just allowing
-> _mixing_ of three-level and four-level accesses.  I have to say that I 
-> consider that pretty borderline programming practice though).
+> Nick, can you see if such a patch is possible? I'll test ppc64 still 
+> working..
+> 
 
-Actually, I notice that this is exactly what you did, sorry for not being 
-more careful about reading your defines.
+Yep, I'm beginning to think it is the way to go as well: we'll have all
+the generic code and some key architectures compiling with the struct
+type checking... and the 4-level fallback header will keep arch
+maintainers from being inconvenienced while spitting out enough warnings
+that they'll get on to fixing it.
 
-Thinking some more about it, I don't much like the "mixing" of 3-level and
-4-level things, but since the only downside is a lack of type-safety for
-the 4-level case (ie you can get it wrong without getting any warning),
-and since that type safety _does_ exist in the case where the four levels 
-are actually used, I think it's ok. 
+I'll take a look shortly.
 
-It would be bad if the architecture that supported 4level page tables was
-really rare and broken (so that mistakes would happen and not get noticed
-for a while), but I suspect x86-64 by now is probably the second- or
-third-most used architecture, so it's not like the lack of type safety on 
-other architectures where it doesn't matter would be a huge maintenance 
-problem.
+Nick
 
-Color me convinced. 
 
-Nick, can you see if such a patch is possible? I'll test ppc64 still 
-working..
-
-		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
