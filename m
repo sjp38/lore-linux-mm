@@ -1,59 +1,60 @@
-Received: from alogconduit1ah.ccr.net (ccr@alogconduit1ao.ccr.net [208.130.159.15])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA02378
-	for <linux-mm@kvack.org>; Mon, 26 Apr 1999 10:42:49 -0400
-Subject: Re: 2.2.6_andrea2.bz2
-References: <Pine.LNX.4.05.9904252047530.7477-100000@laser.random> <m1yajfg61n.fsf@flinx.ccr.net> <19990426154524.A749@kali.munich.netsurf.de>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 26 Apr 1999 09:20:33 -0500
-In-Reply-To: Andi Kleen's message of "Mon, 26 Apr 1999 15:45:24 +0200"
-Message-ID: <m1u2u3fopa.fsf@flinx.ccr.net>
+Received: from ariessys.com (ns.ariessys.com [198.115.92.2])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA08558
+	for <linux-mm@kvack.org>; Wed, 28 Apr 1999 11:28:11 -0400
+Received: from [198.115.92.60] (lightning.ariessys.com [198.115.92.60])
+	by ariessys.com (8.8.8/8.8.8) with ESMTP id LAA05273
+	for <linux-mm@kvack.org>; Wed, 28 Apr 1999 11:28:05 -0400
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Message-Id: <v04020a01b34cd7f3c7c3@[198.115.92.60]>
+Date: Wed, 28 Apr 1999 11:28:07 -0400
+From: "James E. King, III" <jking@ariessys.com>
+Subject: Hello
 Sender: owner-linux-mm@kvack.org
-To: Andi Kleen <ak@muc.de>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "AK" == Andi Kleen <ak@muc.de> writes:
+I'm not much of a kernel type, but I do have some formal background on OS
+working and reading through the Linux-MM site brought back lots of stuff.
 
-AK> On Mon, Apr 26, 1999 at 10:05:56AM +0200, Eric W. Biederman wrote:
->> >>>>> "AA" == Andrea Arcangeli <andrea@e-mind.com> writes:
->> 
->> >>> o	update_shared_mappings (will greatly improve performances while
->> >>> writing from many task to the same shared memory).
->> >> 
->> >> do you have performance numbers on this?
->> 
-AA> The performance optimization can be huge.
->> 
-AA> The reason this my code is not in the kernel is not because it's buggy but
-AA> simple because there are plans for 2.3.x (no-way for 2.2.x) to allow the
-AA> file cache to be dirty (to cache also writes and not only read in the page
-AA> cache).
->> 
->> Andrea.  The plan (at least my plan) is not to have 2 layers of buffers.
->> Instead it is to do all of the caching (except for perhaps superblocks, and their
->> kin in the page cache).  brw_page will be used for both reads and writes, with
->> anonymouse buffer heads (at least for a start).
+Anyway, I am working on a project where we have a large database split into
+12 segments, and I want to put some of the indices in those segments into
+memory.  The indices for all of the segments takes up about 4 GB.
 
-AK> Stupid question: do you plan to cache fs metadata in the page cache too? 
-AK> If yes, it is rather wasteful to use a 4K page for the usually block sized
-AK> directories and other fs data like indirect blocks. How do you plan to 
-AK> address this problem?
+The database server is a multi-threaded proprietary one that I ported over
+to Linux - it already runs on MacOS (yes, true!), NT, Solaris, AIX.
 
-I certainly plan on investigating it.  I currently have the buffer
-pointer in struct page, set up as a generic pointer.  So you can either
-use it's bits directly to keep track of what is dirty on a page.  Or
-you can allocate a structure to have such things as a per page list
-of dirty places (like nfs does now).
+I have a couple of questions (assume I am talking about the latest versions
+of any component, like kernel or lilo or ramdisk):
 
-For the start however the buffer cache will remain for the fs metadata.
+1. If I purchase a Quad Xeon 550 with 4 GB of memory, will Linux work on it?
+   (I saw the whole thing about tweaking kernel parameters to change from a 3:1
+    split to a 2:2 split)
+   Should I just buy 2GB - will I be able to use the extra 2GB?
 
-But the fs metadata should be small enough that even if
-cached a little inefficiently we shouldn't have space problems.
-At least that's my hunch.
+2. Can I create a large (let's say 1GB) ramdisk or memory filesystem?
 
-Eric
+Obviously the more index I can fit into memory, the faster the result.
 
+I'd really, really like to use Linux here.  It has proven itself as our
+mail/DNS server and hasn't crashed once in over 2 years, where we reboot NT
+servers weekly.
 
+I am willing to do some kernel hacking and experimentation.  I have not
+been able to find another resource related to large amounts of memory with
+Linux.  Hopefully through my experiences I will be able to produce a Linux
+VLM-HOWTO!
+
+Thanks.
+
+     _/   _/_/  _/_/_/ _/_/  _/_/         James E. King, III
+    _/_/  _/ _/   _/   _/   _/            Aries Systems Corporation
+   _/_/_/ _/_/    _/   _/_/  _/_/         200 Sutton Street
+   _/  _/ _/ _/   _/   _/       _/        North Andover, MA.  01845
+   _/  _/ _/ _/ _/_/_/ _/_/  _/_/         (978) 975-7570
+                                          (978) 975-3811 FAX
+      <http://www.kfinder.com/>
+  Enhancing the Power of Knowledge(r)     jking@ariessys.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
