@@ -1,60 +1,57 @@
-Received: from pc367.hq.eso.org (pc367.hq.eso.org [134.171.13.6])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA00519
-	for <linux-mm@kvack.org>; Tue, 18 Aug 1998 12:35:25 -0400
-Date: Tue, 18 Aug 1998 16:34:01 +0000 (   )
-From: Nicolas Devillard <ndevilla@mygale.org>
-Subject: Re: memory overcommitment
-In-Reply-To: <199808171833.TAA03492@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.4.02.9808181600190.6675-100000@pc367.hq.eso.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA02001
+	for <linux-mm@kvack.org>; Tue, 18 Aug 1998 17:38:49 -0400
+From: Linus Torvalds <torvalds@transmeta.com>
+Date: Tue, 18 Aug 1998 14:38:07 -0700
+Message-Id: <199808182138.OAA00489@penguin.transmeta.com>
+Subject: Re: Notebooks
+References: <19980814115843.43989@orci.com> <m0z88bh-000aNFC@the-village.bc.nu>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org, Alan Cox <number6@the-village.bc.nu>
+To: alan@lxorguk.ukuu.org.uk, davem@dm.cobaltmicro.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Mon, 17 Aug 1998, Stephen C. Tweedie wrote:
+In article <m0z88bh-000aNFC@the-village.bc.nu>,
+Alan Cox <alan@lxorguk.ukuu.org.uk> wrote:
+>> We really gotta stop calling them "unstable" as they're not.  They're
+>> developemental.  Miy firewall's running 2.1.10X and it's been up amost
+>> 2 months I think.  My desktop is 2.1.115 and the only reason I rebootyed
+>> it was to install that instead of 2.1.110...
 >
-> The short answer is "don't do that, then"!  
+>Squid on 2.1.115 (with or without ac1) lasts 60 seconds on my soak test
+>before it explodes. Ditto a lot of other high load tests that touch I/O
+>or VM hard. (Note Im guessing where it dies here). Some of 2.1.x is rock
+>solid, and some bits of it are solid in non extreme use, but 2.1.x is
+>not remotely stable for real world hard use yet. Its getting there bit
+>by bit
 
-Well... I certainly don't. The OS does it for me, which is precisely what
-I want to avoid! I allocate N megs of memory, not because I use a system
-function which does it implicitly (like fork() does), but because I want
-this memory to store data and work with it. If the system cannot give me N
-megs of memory, better tell me immediately with a NULL returned by
-malloc() and an ENOMEM (as described in the man page, BTW), than tell me:
-Ok, here's your pointer, so that I start working on my data and then
-suddenly... crash. It's not that I am working on making Linux fly planes
-or what, but when you start having data the size of a gig you realize it
-will take some time to process it out completely. You certainly want to
-know ASAP if your machine has enough memory or not, you don't want to wait
-48h to realize everything has crashed on the machine during the week-end,
-including 'inetd' which means "take your car and go see by yourself". :-)
+Ok, I found this.
 
-Why not separate allocators into two classes: lazy ones doing allocation
-with overcommit, and the strong ones returning pointers to certified
-memory (i.e. good old memory reserved for this process only)? Don't ask me
-how to do it, you're the expert, I'm not :-)
+Once more, it was the slab stuff that broke badly.  I'm going to
+consider just throwing out the slabs for v2.2 unless somebody is willing
+to stand up and fix it - the multi-page allocation stuff just breaks too
+horribly. 
 
-> If you can suggest a good algorithm for selecting processes to kill,
-> we'd love to hear about it.  The best algorithm will not be the same for
-> all users.
+In this case, TCP wanted to allocate a single skb, and due to slabs this
+got turned into a multi-page request even though it fit perfectly fine
+into one page.  Thus a critical allocation could fail, and the TCP layer
+started looping - and kswapd could never even try to fix it up because
+the TCP code held the kernel lock. 
 
-Killing processes randomly is maybe one way to solve the problem,
-certainly not the only one. Once you have cleared all solutions and come
-to the conclusion that this is the only good one, let's go for it. For my
-applications, I found out that the simplest way to allocate huge amounts
-is to open enough temporary files on the user's disk, fill them up with
-zeroes and mmap() them. This way, I get way past the physical memory, and
-because I am never using the whole allocated stuff simultaneously, these
-files are paged by the OS invisibly in a much more efficient way than I
-could do. It is certainly slow, but still very reasonable, and avoids 
-quite some headaches in programming.
+I'm going to fix this particular case even with slabs, but this isn't
+the first time the slabs "optimizations" have just broken code that used
+to work fine by making it a high-order allocation.  Essentially, the
+slabsified kmalloc() is just a lot more fragile than the original
+kmalloc() was. 
 
-Cheers
-Nicolas
+(This also shows a particularly nasty inefficiency - the TCP code
+explicitly tries to have a "good" MTU for loopback, and it's meant to
+fit in a single page.  The slab code makes it fail miserably in that
+objective). 
 
+All sane architectures are moving to at least 2-way caches and the good
+ones are 4-way or more. As such, slabs optimizes for the wrong case.
+
+			Linus
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
