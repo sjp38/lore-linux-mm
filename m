@@ -1,192 +1,165 @@
 Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id MAA13990
-	for <linux-mm@kvack.org>; Sun, 8 Sep 2002 12:24:54 -0700 (PDT)
-Received: from schumi.digeo.com ([192.168.1.205])
- by digeo-nav01.digeo.com (NAVGW 2.5.2.9) with SMTP id M2002090812284024727
- for <linux-mm@kvack.org>; Sun, 08 Sep 2002 12:28:40 -0700
-Message-ID: <3D7BA76C.EF7B727@digeo.com>
-Date: Sun, 08 Sep 2002 12:39:24 -0700
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id NAA14542
+	for <linux-mm@kvack.org>; Sun, 8 Sep 2002 13:41:54 -0700 (PDT)
+Message-ID: <3D7BB97A.6B6E4CA5@digeo.com>
+Date: Sun, 08 Sep 2002 13:56:26 -0700
 From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Subject: [Fwd: [PATCH] slabasap-mm5_A2]
+Subject: Re: [PATCH] slabasap-mm5_A2
+References: <200209071006.18869.tomlins@cam.org> <200209081142.02839.tomlins@cam.org>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I think Ed meant to Cc linux-mm ;)
+Ed Tomlinson wrote:
+> 
+> Hi,
+> 
+> Here is a rewritten slablru - this time its not using the lru...  If changes long standing slab
+> behavior.  Now slab.c releases pages as soon as possible.  This was done since we noticed
+> that slablru was taking a long time to release the pages it freed - from other vm experiences
+> this is not a good thing.
 
--------- Original Message --------
-Subject: [PATCH] slabasap-mm5_A2
-Date: Sun, 8 Sep 2002 11:42:02 -0400
-From: Ed Tomlinson <tomlins@cam.org>
-Organization: me
-To: Andrew Morton <akpm@zip.com.au>
-References: <200209071006.18869.tomlins@cam.org>
+Right.  There remains the issue that we're ripping away constructed
+objects from slabs which have constructors, as Stephen points out.
 
-Hi,
+I doubt if that matters.  slab constructors just initialise stuff.
+If the memory is in cache then the initialisation is negligible.
+If the memory is not in cache then the initialisation will pull
+it into cache, which is something which we needed to do anyway.  And
+unless the slab's access pattern is extremely LIFO, chances are that
+most allocations will come in from part-filled slab pages anyway.
 
-Here is a rewritten slablru - this time its not using the lru...  If changes long standing slab
-behavior.  Now slab.c releases pages as soon as possible.  This was done since we noticed
-that slablru was taking a long time to release the pages it freed - from other vm experiences
-this is not a good thing.
+And other such waffly words ;)  I'll do the global LIFO page hotlists
+soonl; that'll fix it up.
 
-In this patch I have tried to make as few changes as possible.   With this in mind I am using
-the percentage of the active+inactive pages reclaimed to recover the same percentage of the
-pruneable caches.  In slablru the affect was to age the pruneable caches by percentage of
-the active+inactive pages scanned - this could be done but required more code so I went
-used pages reclaimed.  The same choise was made about accounting of pages freed by
-the shrink_<something>_memory calls.
-
-There is also a question as to if we should only use the ZONE_DMA and ZONE_NORMAL to
-drive the cache shrinking.  Talk with Rik on irc convinced me to go with the choise that
-required less code, so we use all zones.
-
-To apply the patch to mm5 use the follow procedure:
-copy the two slablru patch and discard all but the vmscan changes.
-replace the slablru patch with the just created patches that just hit vmscan
-after applying the mm5 patches apply the following patch to adjust vmscan and add slabasap.
-
-This passes the normal group of tests I apply to my patches (mm4 stalled force watchdog to 
-reboot).   The varient for bk linus also survives these tests.
-
-I have seen some unexpected messages from the kde artsd daemon when I left kde running all
-night.  This may imply we want to have slab be a little less aggressive freeing high order slabs. 
-Would like to see if other have problems though - it could just be debian and kde 3.0.3 (which 
-is not offical yet).
-
-Please let me know if you want any changes or the addition of any of the options mentioned.
-
-Comments?
-
-Ed
-
--------- slablru_reverse_vmscan
-diff -Nru a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c	Sun Sep  8 11:09:14 2002
-+++ b/mm/vmscan.c	Sun Sep  8 11:09:14 2002
-@@ -115,7 +115,7 @@
  
- static /* inline */ int
- shrink_list(struct list_head *page_list, int nr_pages,
--		unsigned int gfp_mask, int *max_scan, int *prunes_needed)
-+		unsigned int gfp_mask, int *max_scan)
- {
- 	struct address_space *mapping;
- 	LIST_HEAD(ret_pages);
-@@ -135,26 +135,11 @@
- 
- 		if (TestSetPageLocked(page))
- 			goto keep;
--		BUG_ON(PageActive(page));
- 
--		/*
--		 * For slab pages, use kmem_count_page to increment the aging
--		 * counter for the cache and to tell us if we should try to 
--		 * free the slab.  Use kmem_shrink_slab to free the slab and
--		 * stop if we are done.
--		 */
--		if (PageSlab(page)) {
--			int ref = TestClearPageReferenced(page);
--			if (kmem_count_page(page, ref, prunes_needed)) {
--				if (kmem_shrink_slab(page))
--					goto free_ref;
--			}
--			goto keep_locked;
--		}
-+		BUG_ON(PageActive(page));
- 
- 		may_enter_fs = (gfp_mask & __GFP_FS) ||
- 				(PageSwapCache(page) && (gfp_mask & __GFP_IO));
--
- 		/*
- 		 * If the page is mapped into pagetables then wait on it, to
- 		 * throttle this allocator to the rate at which we can clear
-@@ -336,7 +321,6 @@
- 			__remove_from_page_cache(page);
- 			write_unlock(&mapping->page_lock);
- 		}
--free_ref:
- 		__put_page(page);	/* The pagecache ref */
- free_it:
- 		unlock_page(page);
-@@ -376,7 +360,7 @@
-  */
- static /* inline */ int
- shrink_cache(int nr_pages, struct zone *zone,
--		unsigned int gfp_mask, int max_scan, int *prunes_needed)
-+		unsigned int gfp_mask, int max_scan)
- {
- 	LIST_HEAD(page_list);
- 	struct pagevec pvec;
-@@ -428,7 +412,7 @@
- 		max_scan -= nr_scan;
- 		KERNEL_STAT_ADD(pgscan, nr_scan);
- 		nr_pages = shrink_list(&page_list, nr_pages, gfp_mask,
--					&max_scan, prunes_needed);
-+					&max_scan);
- 
- 		if (nr_pages <= 0 && list_empty(&page_list))
- 			goto done;
-@@ -582,7 +566,10 @@
- 	unsigned int gfp_mask, int nr_pages)
- {
- 	unsigned long ratio;
--	int prunes_needed = 0;
-+
-+	/* This is bogus for ZONE_HIGHMEM? */
-+	if (kmem_cache_reap(gfp_mask) >= nr_pages)
-+  		return 0;
- 
- 	/*
- 	 * Try to keep the active list 2/3 of the size of the cache.  And
-@@ -603,9 +590,15 @@
- 	}
- 
- 	nr_pages = shrink_cache(nr_pages, zone, gfp_mask,
--				max_scan, &prunes_needed);
--	if (prunes_needed)
--		kmem_do_prunes(gfp_mask);
-+				max_scan);
-+
-+	shrink_dcache_memory(priority, gfp_mask);
-+
-+	/* After shrinking the dcache, get rid of unused inodes too .. */
-+	shrink_icache_memory(1, gfp_mask);
-+	#ifdef CONFIG_QUOTA
-+	shrink_dqcache_memory(DEF_PRIORITY, gfp_mask);
-+	#endif
- 
- 	return nr_pages;
- }
+> In this patch I have tried to make as few changes as possible.
 
--------- slabasap-mm5_A2
-# This is a BitKeeper generated patch for the following project:
-# Project Name: Linux kernel tree
-# This patch format is intended for GNU patch command version 2.5 or higher.
-# This patch includes the following deltas:
-#	           ChangeSet	1.578   -> 1.579  
-#	  include/linux/mm.h	1.76    -> 1.77   
-#	     mm/page_alloc.c	1.95    -> 1.96   
-#	         fs/dcache.c	1.31    -> 1.32   
-#	         mm/vmscan.c	1.102   -> 1.103  
-#	          fs/dquot.c	1.46    -> 1.47   
-#	           mm/slab.c	1.29    -> 1.30   
-#	          fs/inode.c	1.69    -> 1.70   
-#	include/linux/dcache.h	1.17    -> 1.18   
-#
-# The following is the BitKeeper ChangeSet Log
-# --------------------------------------------
-# 02/09/08	ed@oscar.et.ca	1.579
-# slabasap_A1-mm4
-# --------------------------------------------
-#
-diff -Nru a/fs/dcache.c b/fs/dcache.c
---- a/fs/dcache.c	Sun Sep  8 11:08:27 2002
-+++ b/fs/dcache.c	Sun Sep  8 11:08:27 2002
-@@ -573,19 +573,11 @@
+Thanks.  I've shuffled the patching sequence (painful), and diddled
+a few things.  We actually do have the "number of scanned pages"
+in there, so we can use that.  I agree that the ratio should be 
+nr_scanned/total rather than nr_reclaimed/total.   This way, if
+nr_reclaimed < nr_scanned (page reclaim is in trouble) then we
+put more pressure on slabs.
+
+>   With this in mind I am using
+> the percentage of the active+inactive pages reclaimed to recover the same percentage of the
+> pruneable caches.  In slablru the affect was to age the pruneable caches by percentage of
+> the active+inactive pages scanned - this could be done but required more code so I went
+> used pages reclaimed.  The same choise was made about accounting of pages freed by
+> the shrink_<something>_memory calls.
+> 
+> There is also a question as to if we should only use the ZONE_DMA and ZONE_NORMAL to
+> drive the cache shrinking.  Talk with Rik on irc convinced me to go with the choise that
+> required less code, so we use all zones.
+
+OK.  We could do with a `gimme_the_direct_addressed_classzone' utility
+anyway.  It is currently open-coded in fs/buffer.c:free_more_memory().
+We can just pull that out of there and use memclass() on it for this.
+
+> To apply the patch to mm5 use the follow procedure:
+> copy the two slablru patch and discard all but the vmscan changes.
+> replace the slablru patch with the just created patches that just hit vmscan
+> after applying the mm5 patches apply the following patch to adjust vmscan and add slabasap.
+> 
+> This passes the normal group of tests I apply to my patches (mm4 stalled force watchdog to
+> reboot).   The varient for bk linus also survives these tests.
+> 
+> I have seen some unexpected messages from the kde artsd daemon when I left kde running all
+> night.  This may imply we want to have slab be a little less aggressive freeing high order slabs.
+> Would like to see if other have problems though - it could just be debian and kde 3.0.3 (which
+> is not offical yet).
+
+hm.
+ 
+> Please let me know if you want any changes or the addition of any of the options mentioned.
+> 
+
+In here:
+
+        int entries = inodes_stat.nr_inodes / ratio + 1;
+
+what is the "+ 1" for?  If it is to avoid divide-by-zero then
+it needs parentheses.  I added the "+ 1" to the call site to cover that.
+
+>From a quick test, the shrinking rate seems quite reasonable to
+me.  mem=512m, with twenty megs of ext2 inodes in core, a `dd'
+of one gigabyte (twice the size of memory) steadily pushed the
+ext2 inodes down to 2.5 megs (although total memory was still
+9 megs - internal fragmentation of the slab).
+
+A second 1G dd pushed it down to 1M/3M.
+
+A third 1G dd pushed it down to .25M/1.25M
+
+Seems OK.
+
+A few things we should do later:
+
+- We're calling prune_icache with a teeny number of inodes, many times.
+  Would be better to batch that up a bit.
+
+- It would be nice to bring back the pruner callbacks.  The post-facto
+  hook registration thing will be fine.  Hit me with a stick for making
+  you change the kmem_cache_create() prototype.  Sorry about that.
+
+If we have the pruner callbacks then vmscan can just do:
+
+	kmem_shrink_stuff(ratio);
+
+and then kmem_shrink_stuff() can do:
+
+	cachep->nr_to_prune += cacheb->inuse / ratio;
+	if (cachep->nr_to_prune > cachep->prune_batch) {
+		int prune = cachep->nr_to_prune;
+
+		cachep->nr_to_prune = 0;
+		(*cachep->pruner)(nr_to_prune);
+	}
+
+But let's get the current code settled in before doing these
+refinements.
+
+There are some usage patterns in which the dentry/inode aging
+might be going wrong.  Try, with mem=512m
+
+	cp -a linux a
+	cp -a linux b
+	cp -a linux c
+
+etc.
+
+Possibly the inode/dentry cache is just being FIFO here and is doing
+exactly the wrong thing.  But the dcache referenced-bit logic should
+cause the inodes in `linux' to be pinned with this test, so that 
+should be OK.  Dunno.
+
+The above test will be hurt a bit by the aggressively lowered (10%)
+background writeback threshold - more reads competing with writes.
+Maybe I should not kick off background writeback until the dirty
+threshold reaches 30% if there are reads queued against the device.
+That's easy enough to do.
+
+drop-behind should help here too.
+
+ fs/dcache.c            |   21 +++++----------------
+ fs/dquot.c             |   19 +++++--------------
+ fs/inode.c             |   24 +++++++-----------------
+ include/linux/dcache.h |    2 +-
+ include/linux/mm.h     |    1 +
+ mm/page_alloc.c        |   11 +++++++++++
+ mm/slab.c              |    8 ++++++--
+ mm/vmscan.c            |   28 +++++++++++++++++++---------
+ 8 files changed, 55 insertions(+), 59 deletions(-)
+
+--- 2.5.33/fs/dcache.c~slabasap	Sun Sep  8 12:42:41 2002
++++ 2.5.33-akpm/fs/dcache.c	Sun Sep  8 12:42:43 2002
+@@ -573,19 +573,11 @@ void shrink_dcache_anon(struct list_head
  
  /*
   * This is called from kswapd when we think we need some
@@ -209,7 +182,7 @@ diff -Nru a/fs/dcache.c b/fs/dcache.c
  	/*
  	 * Nasty deadlock avoidance.
  	 *
-@@ -600,11 +592,8 @@
+@@ -600,11 +592,8 @@ int shrink_dcache_memory(int priority, u
  	if (!(gfp_mask & __GFP_FS))
  		return 0;
  
@@ -223,10 +196,9 @@ diff -Nru a/fs/dcache.c b/fs/dcache.c
  }
  
  #define NAME_ALLOC_LEN(len)	((len+16) & ~15)
-diff -Nru a/fs/dquot.c b/fs/dquot.c
---- a/fs/dquot.c	Sun Sep  8 11:08:27 2002
-+++ b/fs/dquot.c	Sun Sep  8 11:08:27 2002
-@@ -480,26 +480,17 @@
+--- 2.5.33/fs/dquot.c~slabasap	Sun Sep  8 12:42:41 2002
++++ 2.5.33-akpm/fs/dquot.c	Sun Sep  8 12:42:43 2002
+@@ -480,26 +480,17 @@ static void prune_dqcache(int count)
  
  /*
   * This is called from kswapd when we think we need some
@@ -258,10 +230,18 @@ diff -Nru a/fs/dquot.c b/fs/dquot.c
  }
  
  /*
-diff -Nru a/fs/inode.c b/fs/inode.c
---- a/fs/inode.c	Sun Sep  8 11:08:27 2002
-+++ b/fs/inode.c	Sun Sep  8 11:08:27 2002
-@@ -442,19 +442,11 @@
+--- 2.5.33/fs/inode.c~slabasap	Sun Sep  8 12:42:41 2002
++++ 2.5.33-akpm/fs/inode.c	Sun Sep  8 13:10:15 2002
+@@ -409,7 +409,7 @@ void prune_icache(int goal)
+ 	struct list_head *entry, *freeable = &list;
+ 	int count;
+ 	struct inode * inode;
+-
++printk("prune_icache(%d/%d)\n", goal, inodes_stat.nr_unused);
+ 	spin_lock(&inode_lock);
+ 
+ 	count = 0;
+@@ -442,19 +442,11 @@ void prune_icache(int goal)
  
  /*
   * This is called from kswapd when we think we need some
@@ -284,7 +264,7 @@ diff -Nru a/fs/inode.c b/fs/inode.c
  	/*
  	 * Nasty deadlock avoidance..
  	 *
-@@ -465,12 +457,10 @@
+@@ -465,12 +457,10 @@ int shrink_icache_memory(int priority, i
  	if (!(gfp_mask & __GFP_FS))
  		return 0;
  
@@ -300,10 +280,9 @@ diff -Nru a/fs/inode.c b/fs/inode.c
  
  /*
   * Called with the inode lock held.
-diff -Nru a/include/linux/dcache.h b/include/linux/dcache.h
---- a/include/linux/dcache.h	Sun Sep  8 11:08:27 2002
-+++ b/include/linux/dcache.h	Sun Sep  8 11:08:27 2002
-@@ -186,7 +186,7 @@
+--- 2.5.33/include/linux/dcache.h~slabasap	Sun Sep  8 12:42:41 2002
++++ 2.5.33-akpm/include/linux/dcache.h	Sun Sep  8 12:42:43 2002
+@@ -186,7 +186,7 @@ extern int shrink_dcache_memory(int, uns
  extern void prune_dcache(int);
  
  /* icache memory management (defined in linux/fs/inode.c) */
@@ -312,10 +291,9 @@ diff -Nru a/include/linux/dcache.h b/include/linux/dcache.h
  extern void prune_icache(int);
  
  /* quota cache memory management (defined in linux/fs/dquot.c) */
-diff -Nru a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h	Sun Sep  8 11:08:27 2002
-+++ b/include/linux/mm.h	Sun Sep  8 11:08:27 2002
-@@ -509,6 +509,7 @@
+--- 2.5.33/include/linux/mm.h~slabasap	Sun Sep  8 12:42:41 2002
++++ 2.5.33-akpm/include/linux/mm.h	Sun Sep  8 12:42:43 2002
+@@ -509,6 +509,7 @@ extern struct vm_area_struct *find_exten
  
  extern struct page * vmalloc_to_page(void *addr);
  extern unsigned long get_page_cache_size(void);
@@ -323,10 +301,9 @@ diff -Nru a/include/linux/mm.h b/include/linux/mm.h
  
  #endif /* __KERNEL__ */
  
-diff -Nru a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c	Sun Sep  8 11:08:27 2002
-+++ b/mm/page_alloc.c	Sun Sep  8 11:08:27 2002
-@@ -487,6 +487,17 @@
+--- 2.5.33/mm/page_alloc.c~slabasap	Sun Sep  8 12:42:41 2002
++++ 2.5.33-akpm/mm/page_alloc.c	Sun Sep  8 12:42:43 2002
+@@ -487,6 +487,17 @@ unsigned int nr_free_pages(void)
  	return sum;
  }
  
@@ -344,10 +321,9 @@ diff -Nru a/mm/page_alloc.c b/mm/page_alloc.c
  static unsigned int nr_free_zone_pages(int offset)
  {
  	pg_data_t *pgdat;
-diff -Nru a/mm/slab.c b/mm/slab.c
---- a/mm/slab.c	Sun Sep  8 11:08:27 2002
-+++ b/mm/slab.c	Sun Sep  8 11:08:27 2002
-@@ -1500,7 +1500,11 @@
+--- 2.5.33/mm/slab.c~slabasap	Sun Sep  8 12:42:41 2002
++++ 2.5.33-akpm/mm/slab.c	Sun Sep  8 12:42:43 2002
+@@ -1502,7 +1502,11 @@ static inline void kmem_cache_free_one(k
  		if (unlikely(!--slabp->inuse)) {
  			/* Was partial or full, now empty. */
  			list_del(&slabp->list);
@@ -360,7 +336,7 @@ diff -Nru a/mm/slab.c b/mm/slab.c
  		} else if (unlikely(inuse == cachep->num)) {
  			/* Was full. */
  			list_del(&slabp->list);
-@@ -1969,7 +1973,7 @@
+@@ -1971,7 +1975,7 @@ static int s_show(struct seq_file *m, vo
  	}
  	list_for_each(q,&cachep->slabs_partial) {
  		slabp = list_entry(q, slab_t, list);
@@ -369,10 +345,20 @@ diff -Nru a/mm/slab.c b/mm/slab.c
  			BUG();
  		active_objs += slabp->inuse;
  		active_slabs++;
-diff -Nru a/mm/vmscan.c b/mm/vmscan.c
---- a/mm/vmscan.c	Sun Sep  8 11:08:27 2002
-+++ b/mm/vmscan.c	Sun Sep  8 11:08:27 2002
-@@ -567,10 +567,6 @@
+--- 2.5.33/mm/vmscan.c~slabasap	Sun Sep  8 12:42:41 2002
++++ 2.5.33-akpm/mm/vmscan.c	Sun Sep  8 13:10:24 2002
+@@ -71,6 +71,10 @@
+ #define prefetchw_prev_lru_page(_page, _base, _field) do { } while (0)
+ #endif
+ 
++#ifndef CONFIG_QUOTA
++#define shrink_dqcache_memory(ratio, gfp_mask) do { } while (0)
++#endif
++
+ /* Must be called with page's pte_chain_lock held. */
+ static inline int page_mapping_inuse(struct page * page)
+ {
+@@ -566,10 +570,6 @@ shrink_zone(struct zone *zone, int max_s
  {
  	unsigned long ratio;
  
@@ -383,35 +369,24 @@ diff -Nru a/mm/vmscan.c b/mm/vmscan.c
  	/*
  	 * Try to keep the active list 2/3 of the size of the cache.  And
  	 * make sure that refill_inactive is given a decent number of pages.
-@@ -592,14 +588,6 @@
- 	nr_pages = shrink_cache(nr_pages, zone, gfp_mask,
- 				max_scan);
- 
--	shrink_dcache_memory(priority, gfp_mask);
--
--	/* After shrinking the dcache, get rid of unused inodes too .. */
--	shrink_icache_memory(1, gfp_mask);
--	#ifdef CONFIG_QUOTA
--	shrink_dqcache_memory(DEF_PRIORITY, gfp_mask);
--	#endif
--
- 	return nr_pages;
- }
- 
-@@ -609,6 +597,8 @@
+@@ -597,6 +597,8 @@ shrink_caches(struct zone *classzone, in
  {
  	struct zone *first_classzone;
  	struct zone *zone;
-+	int nr_pages_in = nr_pages;
++	int ratio;
 +	int pages = nr_used_zone_pages();
  
  	first_classzone = classzone->zone_pgdat->node_zones;
  	for (zone = classzone; zone >= first_classzone; zone--) {
-@@ -637,6 +627,28 @@
- 		nr_pages -= to_reclaim - unreclaimed;
+@@ -626,11 +628,19 @@ shrink_caches(struct zone *classzone, in
  		*total_scanned += max_scan;
  	}
-+
+ 
+-	shrink_dcache_memory(priority, gfp_mask);
+-	shrink_icache_memory(1, gfp_mask);
+-#ifdef CONFIG_QUOTA
+-	shrink_dqcache_memory(DEF_PRIORITY, gfp_mask);
+-#endif
 +	/*
 +	 * Here we assume it costs one seek to replace a lru page and that
 +	 * it also takes a seek to recreate a cache object.  With this in
@@ -419,39 +394,17 @@ diff -Nru a/mm/vmscan.c b/mm/vmscan.c
 +	 * This should balance the seeks generated by these structures.
 +	 *
 +	 * NOTE: for now I do this for all zones.  If we find this is too
-+	 * aggressive on large boxes we may want to exculude ZONE_HIGH
++	 * aggressive on large boxes we may want to exculude ZONE_HIGHMEM
 +	 */
-+	if (likely(nr_pages_in > nr_pages)) {
-+		int ratio = pages / (nr_pages_in-nr_pages);
-+
-+		shrink_dcache_memory(ratio, gfp_mask);
-+
-+		/* After aging the dcache, age inodes too .. */
-+		shrink_icache_memory(ratio, gfp_mask);
-+#ifdef CONFIG_QUOTA
-+		shrink_dqcache_memory(ratio, gfp_mask);
-+#endif
-+	}
-+	
++	ratio = (pages / *total_scanned) + 1;
++	shrink_dcache_memory(ratio, gfp_mask);
++	shrink_icache_memory(ratio, gfp_mask);
++	shrink_dqcache_memory(ratio, gfp_mask);
  	return nr_pages;
  }
  
-@@ -687,13 +699,6 @@
- 		/* Take a nap, wait for some writeback to complete */
- 		blk_congestion_wait(WRITE, HZ/4);
- 	}
--
--	/*
--	 * perform full reap before concluding we are oom
--	 */
--	nr_pages -= kmem_cache_reap(gfp_mask);
--	if (nr_pages <= 0)
--		   return 1;
- 
- 	if (gfp_mask & __GFP_FS)
- 		out_of_memory();
 
---------
+.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
