@@ -1,64 +1,28 @@
-Date: Sun, 23 Mar 2003 23:17:16 -0800
-From: Andrew Morton <akpm@digeo.com>
+Date: Sun, 23 Mar 2003 23:27:59 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.65-mm4
-Message-Id: <20030323231716.44d7e306.akpm@digeo.com>
-In-Reply-To: <Pine.LNX.4.44.0303240756010.1587-100000@localhost.localdomain>
-References: <20030323191744.56537860.akpm@digeo.com>
-	<Pine.LNX.4.44.0303240756010.1587-100000@localhost.localdomain>
+Message-ID: <20030324072759.GH30140@holomorphy.com>
+References: <20030323191744.56537860.akpm@digeo.com> <Pine.LNX.4.44.0303240756010.1587-100000@localhost.localdomain> <20030323231716.44d7e306.akpm@digeo.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030323231716.44d7e306.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: mbligh@aracnet.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar <mingo@elte.hu> wrote:
->
-> 
-> On Sun, 23 Mar 2003, Andrew Morton wrote:
-> 
-> > Note that the lock_kernel() contention has been drastically reduced and
-> > we're now hitting semaphore contention.
-> > 
-> > Running `dbench 32' on the quad Xeon, this patch took the context switch
-> > rate from 500/sec up to 125,000/sec.
-> 
-> note that there is _nothing_ wrong in doing 125,000 context switches per
-> sec, as long as performance increases over the lock_kernel() variant.
+On Sun, Mar 23, 2003 at 11:17:16PM -0800, Andrew Morton wrote:
+> In the case of ext2 the codepath which needs to be locked is very small, and
+> converting it to use a per-blockgroup spinlock was a big win on the 16-way
+> numas, and perhaps 8-way x440's.  On 4-way xeon and ppc64 the effects were
+> very small indeed - 1.5% on xeon, zero on ppc64.
 
-Yes, but we also take a big hit before we even get to schedule(). 
-
-Pingponging the semaphore's waitqueue lock around, doing atomic ops against
-the semaphore counter, etc.
-
-In the case of ext2 the codepath which needs to be locked is very small, and
-converting it to use a per-blockgroup spinlock was a big win on the 16-way
-numas, and perhaps 8-way x440's.  On 4-way xeon and ppc64 the effects were
-very small indeed - 1.5% on xeon, zero on ppc64.
-
-In the case of ext3 I am suspecting lock_journal() in JBD, not lock_super()
-in the ext3 block allocator.  The hold times in there are much longer, so we
-may have a more complex problem.  But until lock_super() is cleared up it is
-hard to tell.
-
-> > I've asked Alex to put together a patch for spinlock-based locking in
-> > the block allocator (cut-n-paste from ext2).
-> 
-> sure, do this if it increases performance. But if it _decreases_
-> performance then it's plain pointless to do this just to avoid
-> context-switches. With the 2.4 scheduler i'd agree - avoid
-> context-switches like the plague. But context-switches are 100% localized
-> to the same CPU with the O(1) scheduler, they (should) cause (almost) no
-> scalability problem. The only thing this change will 'fix' is the
-> context-switch statistics.
-
-The funny thing is that when this is happening we tend to clock up a lot of
-idle time.  But Martin tends to not share vmstat traces with us (hint) so I
-don't know if it was happening this time.
+And also very large on 32x NUMA-Q.
 
 
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
