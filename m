@@ -1,35 +1,30 @@
-From: Erich Focht <efocht@hpce.nec.com>
+Date: Mon, 8 Nov 2004 11:35:13 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
 Subject: Re: removing mm->rss and mm->anon_rss from kernel?
-Date: Mon, 8 Nov 2004 17:30:37 +0100
-References: <4189EC67.40601@yahoo.com.au> <226170000.1099843883@[10.10.2.4]> <Pine.LNX.4.58.0411080800020.7996@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.58.0411080800020.7996@schroedinger.engr.sgi.com>
+In-Reply-To: <226170000.1099843883@[10.10.2.4]>
+Message-ID: <Pine.LNX.4.44.0411081134310.8589-100000@chimarrao.boston.redhat.com>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200411081730.37906.efocht@hpce.nec.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 08 November 2004 17:04, Christoph Lameter wrote:
-> Nope. The future of computing seems to be very high numbers of cpus.
-> NASAs Columbia has 10k cpus and the new BlueGen solution from IBM is
-> already at 8k.
+On Sun, 7 Nov 2004, Martin J. Bligh wrote:
 
-You're talking about clusters, i.e. multiple running instances of the
-operating system. I don't think anybody really wants to go far beyond
-512 nowadays. Application-wise 512 cpus/node isn't really needed (but
-sometimes nice to have, for marketting). Beyond problems with
-scalability of the interconnect (and very uneven latency distribution)
-bigger systems would accumulate a too small MTBF. When a broken CPU,
-DIMM or other chip takes your entire >1k CPU-machine down, you'll
-hapilly exchage it agains a cluster.
+> Doing ps or top is not unusual at all, and the sysadmins should be able
+> to monitor their system in a reasonable way without crippling it, or
+> even effecting it significantly.
 
-Erich
+I don't think there is a single system out there where
+people throw performance monitoring out the window, in
+the name of performance.
+
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
