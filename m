@@ -1,75 +1,32 @@
-Date: Thu, 13 Jan 2005 17:09:04 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Re: page table lock patch V15 [0/7]: overview
-In-Reply-To: <20050113180205.GA17600@muc.de>
-Message-ID: <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.58.0501120833060.10380@schroedinger.engr.sgi.com>
- <20050112104326.69b99298.akpm@osdl.org> <41E5AFE6.6000509@yahoo.com.au>
- <20050112153033.6e2e4c6e.akpm@osdl.org> <41E5B7AD.40304@yahoo.com.au>
- <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
- <41E5BC60.3090309@yahoo.com.au> <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
- <20050113031807.GA97340@muc.de> <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
- <20050113180205.GA17600@muc.de>
+Message-ID: <41E73EE4.50200@linux-m68k.org>
+Date: Fri, 14 Jan 2005 04:39:16 +0100
+From: Roman Zippel <zippel@linux-m68k.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: page table lock patch V15 [0/7]: overview
+References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain> <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411221419440.20993@ppc970.osdl.org> <Pine.LNX.4.58.0411221424580.22895@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411221429050.20993@ppc970.osdl.org> <Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0412011545060.5721@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0501041129030.805@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0501041137410.805@schroedinger.engr.sgi.com> <m1652ddljp.fsf@muc.de> <Pine.LNX.4.58.0501110937450.32744@schroedinger.engr.sgi.com> <41E4BCBE.2010001@yahoo.com.au> <20050112014235.7095dcf4.akpm@osdl.org> <Pine.LNX.4.58.0501120833060.10380@schroedinger.engr.sgi.com> <20050112104326.69b99298.akpm@osdl.org> <Pine.LNX.4.58.0501121055490.11169@schroedinger.engr.sgi.com>
+In-Reply-To: <Pine.LNX.4.58.0501121055490.11169@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Andrew Morton <akpm@osdl.org>, nickpiggin@yahoo.com.au, torvalds@osdl.org, ak@muc.de, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Jan 2005, Andi Kleen wrote:
+Hi,
 
-> On Thu, Jan 13, 2005 at 09:11:29AM -0800, Christoph Lameter wrote:
-> > On Wed, 13 Jan 2005, Andi Kleen wrote:
-> >
-> > > Alternatively you can use a lazy load, checking for changes.
-> > > (untested)
-> > >
-> > > pte_t read_pte(volatile pte_t *pte)
-> > > {
-> > > 	pte_t n;
-> > > 	do {
-> > > 		n.pte_low = pte->pte_low;
-> > > 		rmb();
-> > > 		n.pte_high = pte->pte_high;
-> > > 		rmb();
-> > > 	} while (n.pte_low != pte->pte_low);
-> > > 	return pte;
+Christoph Lameter wrote:
 
-I think this is not necessary. Most IA32 processors do 64
-bit operations in an atomic way in the same way as IA64. We can cut out
-all the stuff we put in to simulate 64 bit atomicity for i386 PAE mode if
-we just use convince the compiler to use 64 bit fetches and stores. 486
-cpus and earlier are the only ones unable to do 64 bit atomic ops but
-those wont be able to use PAE mode anyhow.
+> Introduction of the cmpxchg is one atomic operations that replaces the two
+> spinlock ops typically necessary in an unpatched kernel. Obtaining the
+> spinlock requires an spinlock (which is an atomic operation) and then the
+> release involves a barrier. So there is a net win for all SMP cases as far
+> as I can see.
 
-Page 231 of Volume 3 of the Intel IA32 manual states regarding atomicity
-of operations:
+But there might be a loss in the UP case. Spinlocks are optimized away, 
+but your cmpxchg emulation enables/disables interrupts with every access.
 
-7.1.1. Guaranteed Atomic Operations
-
-The Pentium 4, Intel Xeon, P6 family, Pentium, and Intel486 processors
-guarantee that the following basic memory operations will always be
-carried out atomically:
-
-o reading or writing a byte
-o reading or writing a word aligned on a 16-bit boundary
-o reading or writing a doubleword aligned on a 32-bit boundary
-
-The Pentium 4, Intel Xeon, and P6 family, and Pentium processors guarantee
-that the following additional memory operations will always be carried out
-atomically:
-
-o reading or writing a quadword aligned on a 64-bit boundary
-o 16-bit accesses to uncached memory locations that fit within a 32-bit data bus
-o The P6 family processors guarantee that the following additional memory
-operation will always be carried out atomically:
-o unaligned 16-, 32-, and 64-bit accesses to cached memory that fit
-within a 32-byte cache
-
-.... off to look for 64bit store and load instructions in the intel
-manuals. I feel much better about keeping the existing approach.
+bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
