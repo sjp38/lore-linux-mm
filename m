@@ -1,34 +1,64 @@
-Date: Tue, 9 May 2000 07:21:05 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] Recent VM fiasco - fixed
-In-Reply-To: <Pine.LNX.4.21.0005090254360.12487-100000@ductape.net>
-Message-ID: <Pine.LNX.4.21.0005090720260.25637-100000@duckman.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: by fenrus.demon.nl
+	via sendmail from stdin
+	id <m12p9Ls-000OWuC@amadeus.home.nl> (Debian Smail3.2.0.102)
+	for linux-mm@kvack.org; Tue, 9 May 2000 14:43:04 +0200 (CEST)
+Message-Id: <m12p9Ls-000OWuC@amadeus.home.nl>
+Date: Tue, 9 May 2000 14:43:04 +0200 (CEST)
+From: arjan@fenrus.demon.nl (Arjan van de Ven)
+Subject: Re: [patch] active/inactive lists
+In-Reply-To: <Pine.LNX.4.21.0005090714500.25637-100000@duckman.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Stone <tamriel@ductape.net>
-Cc: Zlatko Calusic <zlatko@iskon.hr>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Linus Torvalds <torvalds@transmeta.com>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 9 May 2000, Daniel Stone wrote:
+Hi,
 
-> That's astonishing, I'm sure, but think of us poor bastards who
-> DON'T have an SMP machine with >1gig of RAM.
-> 
-> This is a P120, 32meg.
+in filemap.c, you first do
 
-The old zoned VM code will run that machine as efficiently
-as if it had 16MB of ram. See my point now?
+> +int free_inactive_pages(int priority, int gfp_mask, zone_t *zone)
+> +{
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+[snip]
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
 
+> +	while ((page_lru = page_lru->prev) != &pgdat->inactive_list &&
+> +			count) {
+> +next_page:
+> +		/* Catch it if we loop back to next_page. */
+> +		if (page_lru == &pgdat->inactive_list)
+> +			break;
+
+[snip]
+
+> +		/* We'll list_del the page, so get the next pointer now. */
+> +		page_lru = page_lru->prev;
+
+[snip]
+> +		spin_unlock(&pgdat->page_list_lock);
+
+>  unlock_continue:
+[snip]
+> +		/* Damn, failed ... re-take lock and put page back the list. */
+> +		spin_lock(&pgdat->page_list_lock);
+> +		list_add(&(page)->lru, &pgdat->inactive_list);
+> +		pgdat->inactive_pages++;
+> +		zone->inactive_pages++;
+> +		PageSetInactive(page);
+>  		UnlockPage(page);
+>  		put_page(page);
+> +		goto next_page;
+>  	}
+
+Where the last goto enters the loop again. But what stops others (including
+other CPUs in the same funcion) from puting the new page_lru on another
+queue or mess with it in an other way? The "goto next_page" probably should
+be changed into something that starts at a point that is guaranteed to be in
+the correct queue.
+
+Greetings,
+   Arjan van de Ven
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
