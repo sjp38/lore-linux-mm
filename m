@@ -1,41 +1,29 @@
-Subject: Re: [PATCH] swap_state.c thinko
-Message-ID: <OFF70E8B5F.A2073252-ON85256A26.006E7BF4@pok.ibm.com>
-From: "Bulent Abali" <abali@us.ibm.com>
-Date: Fri, 6 Apr 2001 16:20:17 -0400
+Message-ID: <3ACE281E.2F00519F@mandrakesoft.com>
+Date: Fri, 06 Apr 2001 16:33:34 -0400
+From: Jeff Garzik <jgarzik@mandrakesoft.com>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Subject: Re: [PATCH] swap_state.c thinko
+References: <OFF70E8B5F.A2073252-ON85256A26.006E7BF4@pok.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Bulent Abali <abali@us.ibm.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Bulent Abali wrote:
+> By the way, disk space is cheap why not give more than 1 percent slop?
+> This is really accounted in the swap space and not the memory.
+> It will also help system out of oom_killer's radar.
 
->So I don't think it would necessarily be wrong to say
->something like
->
->    free -= num_physpages >> 6;
->
->to approximate the notion of "keep 1 percent slop" (remember, the 1% may
->well be on the swap device, not actually kept as free memory).
+Dumb question...  is the OOM killer accounting for icache and dcache
+memory usage?
 
-
-Hi,
-
-I suggested the same thing to Rik but he rightfully said that it would
-not work well for diskless (or swap-less) machines.  You may want to
-consider the following instead.
-
-     free -= (nr_swap_pages)? num_physpages >> 6 : 0;
-
-By the way, disk space is cheap why not give more than 1 percent slop?
-This is really accounted in the swap space and not the memory.
-It will also help system out of oom_killer's radar.
-
-Bulent Abali  (abali@us.ibm.com)
-
-
-
+-- 
+Jeff Garzik       | Sam: "Mind if I drive?"
+Building 1024     | Max: "Not if you don't mind me clawing at the dash
+MandrakeSoft      |       and shrieking like a cheerleader."
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
