@@ -1,50 +1,32 @@
-Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA32365
-	for <linux-mm@kvack.org>; Thu, 26 Feb 1998 17:53:25 -0500
-Date: Thu, 26 Feb 1998 22:53:17 GMT
-Message-Id: <199802262253.WAA03955@dax.dcs.ed.ac.uk>
-From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: memory limitation test kit (tm) :-)
-In-Reply-To: <Pine.LNX.3.91.980226135506.30101A-100000@mirkwood.dummy.home>
-References: <Pine.LNX.3.91.980226135506.30101A-100000@mirkwood.dummy.home>
+Date: Fri, 27 Feb 1998 00:20:09 +0100
+Message-Id: <199802262320.AAA21643@boole.fs100.suse.de>
+From: "Dr. Werner Fink" <werner@suse.de>
+In-reply-to: <199802262236.WAA03891@dax.dcs.ed.ac.uk> (sct@dcs.ed.ac.uk)
+Subject: Re: Fairness in love and swapping
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Cc: linux-mm <linux-mm@kvack.org>, "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, werner@suse.de
+To: sct@dcs.ed.ac.uk
+Cc: R.E.Wolff@BitWizard.nl, torvalds@transmeta.com, blah@kvack.org, H.H.vanRiel@fys.ruu.nl, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+> >> "swapping" (as opposed to paging) is becoming a required
+> >> strategy
+> 
+> > In other words: the pages swapped in or cached into the swap cache
+> > should get their initial age which its self is calculated out of the
+> > current priority of the corresponding process?
+> 
+> No, the idea is that we stop paging one or more processes altogether
+> and suspend them for a while, flushing their entire resident set out
+> to disk for the duration.  It's something very valuable when you are
+> running big concurrent batch jobs, and essentially moves the fairness
+> problem out of the memory space and into the scheduler, where we _can_
+> make a reasonable stab at being fair.
 
-On Thu, 26 Feb 1998 13:58:05 +0100 (MET), Rik van Riel
-<H.H.vanRiel@fys.ruu.nl> said:
+Ohmm ... yes, but it's a pity because the diagrams of Roger took an old idea
+of mine back into my mind :)  The idea was simply to give a process an
+advantage over the others within its time slice by simply makeing
+touch_page(), age_page(), and a new inline intial_age() depending on the
+amount of the process time slice.
 
-> Hi there,
-> I've made a 'very preliminary' test patch to test
-> whether memory limitation / quotation might work.
-> It's untested, untunable and plain wrong, but nevertheless
-> I'd like you all to take a look at it and point out things
-> that I've forgotten in the limitation code...
 
-Running a single task which has a perfectly reasonable resident set
-larger than num_physpages/2 will thrash unnecessarily.
-
-What I'm aiming for with the RSS limits is to swap stuff out of the
-process's ptes if it exceeds its RSS limit (btw, struct rusage already
-defines a perfectly good RSS limit we can use here --- ru_maxrss), but
-to keep the pages in memory in the swap cache until the memory is needed
-for something else.  That way, a process exceeding RSS will run more
-slowly due to soft page faults, but won't necessarily incur any extra
-disk IO unless either there is genuine contention for memory or the
-process is actively writing to a lot of its working set (doing the
-swapout on unmodified pages is cheap, since we just keep the old copy on
-disk anyway).
-
-The new swap cache code was designed to support this stuff, and I'm
-currently working on the code necessary to manage fast reclamation (even
-from within interrupts) of swap pages which are disconnected from all
-page tables but are still in cache.
-
-Cheers,
- Stephen.
+            Werner
