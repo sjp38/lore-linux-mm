@@ -1,26 +1,33 @@
-Date: Mon, 25 Sep 2000 18:05:00 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: the new VMt
-Message-ID: <20000925180500.B26719@athlon.random>
-References: <Pine.LNX.4.21.0009251714480.9122-100000@elte.hu> <E13da01-00057k-00@the-village.bc.nu> <20000925164249.G2615@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20000925164249.G2615@redhat.com>; from sct@redhat.com on Mon, Sep 25, 2000 at 04:42:49PM +0100
+Date: Mon, 25 Sep 2000 18:05:32 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
+In-Reply-To: <20000925165151.I2615@redhat.com>
+Message-ID: <Pine.LNX.4.21.0009251804280.9122-100000@elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, mingo@elte.hu, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 04:42:49PM +0100, Stephen C. Tweedie wrote:
-> Progress is made, clean pages are discarded and dirty ones queued for
+On Mon, 25 Sep 2000, Stephen C. Tweedie wrote:
 
-How can you make progress if there isn't swap avaiable and all the
-freeable page/buffer cache is just been freed? The deadlock happens
-in OOM condition (not when we can make progress).
+> Sorry, but in this case you have got a lot more variables than you
+> seem to think.  The obvious lock is the ext2 superblock lock, but
+> there are side cases with quota and O_SYNC which are much less
+> commonly triggered.  That's not even starting to consider the other
+> dozens of filesystems in the kernel which have to be audited if we
+> change the locking requirements for GFP calls.
 
-Andrea
+i'd suggest to simply BUG() in schedule() if the superblock lock is held
+not directly by lock_super. Holding the superblock lock is IMO quite rude
+anyway (for performance and latency) - is there any place where we hold it
+for a long time and it's unavoidable?
+
+	Ingo
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
