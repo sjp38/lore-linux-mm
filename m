@@ -1,44 +1,34 @@
-Date: Mon, 07 Mar 2005 06:47:10 -0300
-Message-Id: <287212032200.54151.casey@outbacklinux.com>
-From: "Oscar Morse" <vwliouremjjrqo@findermail.com>
-Subject: Offering Funding made easy
+Message-ID: <1110201773.422c55ad65110@webmail.topalis>
+Date: Mon,  7 Mar 2005 14:22:53 +0100
+From: Stefan Voelkel <stefan.voelkel@millenux.com>
+Subject: Re: RFC: Speed freeing memory for suspend.
+References: <1109812166.3733.3.camel@desktop.cunningham.myip.net.au>
+In-Reply-To: <1109812166.3733.3.camel@desktop.cunningham.myip.net.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: ncunningham@cyclades.com
+Cc: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Dear Homeowner,
+Hello,
 
+I tried to do something similar, if not in code but effekt, for apm -s, but
+it did not work and my mail was unanswered:
 
-You have been pre-approved for a $402,000 Home Loan at 3.45% Fixed Rate.
+  http://marc.theaimsgroup.com/?l=linux-mm&m=110779400803717&w=2
 
-This offer is being extended to you unconditionally and your credit is in no way a factor.
+regards
+  Stefan
 
-
-To take Advantage of this Limited Time opportunity all
-
-we ask is that you visit our Website and complete
-
-the 1 minute post Approval Form.
-
-http://www.easy-finances.net/1/index/bvk
-
-
-Best Regards,
-
-Oscar Morse
-Regional CEO
-
-
-
-
-
-
-
-
-emissivity mpd can't gc astrophysics so anaglyph ztr 
-chosen sq rhyme kux lodgepole pbf camaraderie ax cryptanalysis vha hydrogenate ccv 
-http://your-re-finance.com/rem.php
+-- 
+Stefan Volkel                            stefan.voelkel@millenux.com
+Millenux GmbH                              mobile: +49.170.79177.17
+Lilienthalstrasse 2                          phone: +49.711.88770.300
+70825 Stuttgart-Korntal                       fax: +49.711.88770.349
+     -= linux without limits -=- http://linux.zSeries.org/ =-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
