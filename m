@@ -1,40 +1,226 @@
-Date: Fri, 17 Jan 2003 01:26:53 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: Kernel BUG(oops) does not occur after upgrading glibc
-Message-ID: <20030117092653.GS919@holomorphy.com>
-References: <OF5B129FA7.EE286E9B-ON65256CB1.003172CC@in.ibm.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA15463
+	for <linux-mm@kvack.org>; Sat, 18 Jan 2003 00:19:03 -0800 (PST)
+Date: Sat, 18 Jan 2003 00:20:27 -0800
+From: Andrew Morton <akpm@digeo.com>
+Subject: 2.5.59-mm2
+Message-Id: <20030118002027.2be733c7.akpm@digeo.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <OF5B129FA7.EE286E9B-ON65256CB1.003172CC@in.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Srikrishnan Sundararajan <srikrishnan@in.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 17, 2003 at 02:33:46PM +0530, Srikrishnan Sundararajan wrote:
-> I got the following oops message using my S/390 VM-type linux image with
-> 2GB of memory. (Kernel BUG at page_alloc.c:91!)
-> Using 2.4.19. I was running a test program which keeps on allocating memory
-> using malloc and assigns values  (with proper checking of return value of
-> malloc. ) While using brk( ) system call, I did not get any problems.
-> When I upgraded my glibc from version 2.2.5 to 2.3.1, the oops or Kernel
-> BUG no longer occurred. As it was a "Kernel BUG" in the first place, do we
-> still consider this as a BUG in the kernel or purely an error in glibc
-> which was fixed in the 2.3.1 version?
-> My inference is that using malloc which is part of the older glibc (2.2.5)
-> was corrupting a kernel data structure, which resulted in the oops during
-> swap_out.
-> Note: I was not able to reproduce this problem on intel. I do not have any
-> nVidia driver.
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm2/
 
-A BUG() is a BUG(); I suggest downgrading glibc, reproducing the
-problem, and submitting a bugreport.
+- Added Andi's lockless current_kernel_time() patch again.  It'll break
+  non-ia32 builds.  But it appears that we should push ahead and get this
+  implemented across the other architectures.
+
+- Updated oprofile patches from John.
+
+- Adam's devfs rework is back in.  We only had two testers last time, (out
+  of maybe 150 downloads) which is fairly disappointing.
+
+  So if you use devfs, _please_ test this change and send either success or
+  failure reports (not to me though).
+
+  Adam said:
+
+   If you want devfsd functionality (well, at least the "REGISTER" and
+   "LOOKUP" events), you can get my user level program devfs_helper, which is
+   a reduced functionality replacement program for devfsd from the following
+   URL.
+
+	ftp://ftp.yggdrasil.com/pub/dist/device_control/devfs/devfs_helper-0.2.tar.gz
 
 
-Thanks,
-Bill
+
+
+Changes since 2.5.59-mm1:
+
+
++lockless-current_kernel_time.patch
+
+ Reinstated.
+
+-mixer-bounds-check.patch
+
+ This didn't look right.
+
++kirq-up-fix.patch
+
+ Fix the kirq build for non-SMP
+
+-op4-fix.patch
+
+ Not needed with the updated oprofile patch
+
++oprofile_cpu-as-string.patch
+
+ oprofile work from John.
+
++remove-will_become_orphaned_pgrp.patch
+
+ Cleanup
+
++MAX_IO_APICS-ifdef.patch
+
+ NUMA fix
+
++dac960-error-retry.patch
+
+ DAC960 robustness enhancements
+
++put_user-warning-fix.patch
+
+ ARM build fix
+
++vmlinux-fix.patch
+
+ Should fix the modprobe oopses with RH8.0 toolchains
+
++smalldevfs.patch
+
+ devfs rework
+
++sound-firmware-load-fix.patch
+
+ Build fix for OSS sound card firmware loading.
+
++exit_mmap-fix2.patch
+
+ Fix exec of 32-bit apps from 64-bit apps on PPC64/ia64/sparc64, perhaps.
+
+
+
+All 43 patches:
+
+kgdb.patch
+
+devfs-fix.patch
+
+deadline-np-42.patch
+  (undescribed patch)
+
+deadline-np-43.patch
+  (undescribed patch)
+
+setuid-exec-no-lock_kernel.patch
+  remove lock_kernel() from exec of setuid apps
+
+buffer-debug.patch
+  buffer.c debugging
+
+warn-null-wakeup.patch
+
+reiserfs-readpages.patch
+  reiserfs v3 readpages support
+
+fadvise.patch
+  implement posix_fadvise64()
+
+ext3-scheduling-storm.patch
+  ext3: fix scheduling storm and lockups
+
+auto-unplug.patch
+  self-unplugging request queues
+
+less-unplugging.patch
+  Remove most of the blk_run_queues() calls
+
+lockless-current_kernel_time.patch
+  Lockless current_kernel_timer()
+
+scheduler-tunables.patch
+  scheduler tunables
+
+htlb-2.patch
+  hugetlb: fix MAP_FIXED handling
+
+kirq.patch
+
+kirq-up-fix.patch
+  Subject: Re: 2.5.59-mm1
+
+ext3-truncate-ordered-pages.patch
+  ext3: explicitly free truncated pages
+
+prune-icache-stats.patch
+  add stats for page reclaim via inode freeing
+
+vma-file-merge.patch
+
+mmap-whitespace.patch
+
+read_cache_pages-cleanup.patch
+  cleanup in read_cache_pages()
+
+remove-GFP_HIGHIO.patch
+  remove __GFP_HIGHIO
+
+quota-lockfix.patch
+  quota locking fix
+
+quota-offsem.patch
+  quota semaphore fix
+
+oprofile-p4.patch
+
+oprofile_cpu-as-string.patch
+  oprofile cpu-as-string
+
+wli-11_pgd_ctor.patch
+  (undescribed patch)
+
+wli-11_pgd_ctor-update.patch
+  pgd_ctor update
+
+stack-overflow-fix.patch
+  stack overflow checking fix
+
+Richard_Henderson_for_President.patch
+  Subject: [PATCH] Richard Henderson for President!
+
+parenthesise-pgd_index.patch
+  Subject: i386 pgd_index() doesn't parenthesize its arg
+
+macro-double-eval-fix.patch
+  Subject: Re: i386 pgd_index() doesn't parenthesize its arg
+
+mmzone-parens.patch
+  asm-i386/mmzone.h macro paren/eval fixes
+
+blkdev-fixes.patch
+  blkdev.h fixes
+
+remove-will_become_orphaned_pgrp.patch
+  remove will_become_orphaned_pgrp()
+
+MAX_IO_APICS-ifdef.patch
+  MAX_IO_APICS #ifdef'd wrongly
+
+dac960-error-retry.patch
+  Subject: [PATCH] linux2.5.56 patch to DAC960 driver for error retry
+
+put_user-warning-fix.patch
+  Subject: Re: Linux 2.5.59
+
+vmlinux-fix.patch
+  vmlinux fix
+
+smalldevfs.patch
+  smalldevfs
+
+sound-firmware-load-fix.patch
+  soundcore.c referenced non-existent errno variable
+
+exit_mmap-fix2.patch
+  exit_mmap fix for 64bit->32bit execs
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
