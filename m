@@ -1,98 +1,72 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j34EAt4I530714
-	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 10:10:55 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j34EAtwV244598
-	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 08:10:55 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j34EAsvw022986
-	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 08:10:55 -0600
-Subject: Re: [PATCH 3/6] CKRM: Add limit support for mem controller
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e5.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j34HoBCe024826
+	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 13:50:11 -0400
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j34HoBoc094672
+	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 13:50:11 -0400
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j34HoB6S026143
+	for <linux-mm@kvack.org>; Mon, 4 Apr 2005 12:50:11 -0500
+Subject: [PATCH 1/4] create mm/Kconfig for arch-independent memory options
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050402031346.GD23284@chandralinux.beaverton.ibm.com>
-References: <20050402031346.GD23284@chandralinux.beaverton.ibm.com>
-Content-Type: text/plain
-Date: Mon, 04 Apr 2005 07:10:50 -0700
-Message-Id: <1112623850.24676.8.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Mon, 04 Apr 2005 10:50:09 -0700
+Message-Id: <E1DIViE-0006Kf-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chandra Seetharaman <sekharan@us.ibm.com>
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: akpm@osdl.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2005-04-01 at 19:13 -0800, Chandra Seetharaman wrote:
-> +static void
-> +set_impl_guar_children(struct ckrm_mem_res *parres)
-> +{
-> +       struct ckrm_core_class *child = NULL;
-> +       struct ckrm_mem_res *cres;
-> +       int nr_dontcare = 1; /* for defaultclass */
-> +       int guar, impl_guar;
-> +       int resid = mem_rcbs.resid;
+With sparsemem being introduced, we need a central place for new
+memory-related .config options: mm/Kconfig.  This allows us to
+remove many of the duplicated arch-specific options.
 
-This sets off one of my internal "this is just wrong" checks: too many
-variables for a function that short.  Can that function be broken up a
-bit?
+The new option, CONFIG_FLATMEM, is there to enable us to detangle
+NUMA and DISCONTIGMEM.  This is a requirement for sparsemem
+because sparsemem uses the NUMA code without the presence of
+DISCONTIGMEM. The sparsemem patches use CONFIG_FLATMEM in generic
+code, so this patch is a requirement before applying them.
 
-Also, I get a little nervous when I see variable names like "parres" and
-"mem_rcbs".  Can they get some real names?  If they're going to be
-nonsense, at least make it understandable, like 
+Almost all places that used to do '#ifndef CONFIG_DISCONTIGMEM'
+should use '#ifdef CONFIG_FLATMEM' instead.
 
->+               cres = ckrm_get_res_class(child, resid, struct ckrm_mem_res);
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+---
 
-I think there are probably enough calls to ckrm_get_res_class() with
-just the memory controller struct to justify wrapping it in its own
-macro.  sysfs does lots of tricks like this, and that's the approach
-that it takes to hide some of the ugliness.
+ memhotplug-dave/mm/Kconfig |   25 +++++++++++++++++++++++++
+ 1 files changed, 25 insertions(+)
 
-> +       while ((child = ckrm_get_next_child(parres->core, child)) != NULL) {
-
-You might even want a for_each_child() macro or something.  That looks a
-little hairy.
-
-> 
-> +               /* treat NULL cres as don't care as that child is just
-> being
-> +                * created.
-> +                * FIXME: need a better way to handle this case.
-> +                */
-> +               if (!cres || cres->pg_guar == CKRM_SHARE_DONTCARE)
-> +                       nr_dontcare++;
-
-If it needs to be fixed, why did you post it?
-
-> +       parres->nr_dontcare = nr_dontcare;
-> +       guar = (parres->pg_guar == CKRM_SHARE_DONTCARE) ?
-> +                       parres->impl_guar : parres->pg_unused;
-> +       impl_guar = guar / parres->nr_dontcare;
-
-Please don't tell me this is too messy:
-        
-        parres->nr_dontcare = nr_dontcare;
-        if (parres->pg_guar == CKRM_SHARE_DONTCARE)
-        	guar = parres->impl_guar;
-        else
-        	guar = parres->pg_unused;
-        impl_guar = guar / parres->nr_dontcare;
-
-All of this 'impl' stufff just looks weird.  I might even wrap that
-CKRM_SHARE_DONTCARE logic in a little function.  get_child_guarantee()?
-
-All of the logic surrounding that pg_{limit,guar} being set to DONTCARE
-seems like it was special-cased in after it was originally written.
-Like someone went back over it, adding conditionals everywhere.  It
-greatly adds to the clutter.
-
-"DONTCARE" is also multiplexed.  It means "no guarantee" or "no limit"
-depending on context.  I don't think it would hurt to have one variable
-for each of these cases.
-
-What does "impl" stand for, anyway?  implied?  implicit? implemented?
-
--- Dave
-
+diff -puN mm/Kconfig~A6-mm-Kconfig mm/Kconfig
+--- memhotplug/mm/Kconfig~A6-mm-Kconfig	2005-04-04 09:04:48.000000000 -0700
++++ memhotplug-dave/mm/Kconfig	2005-04-04 10:15:23.000000000 -0700
+@@ -0,0 +1,25 @@
++choice
++	prompt "Memory model"
++	default FLATMEM
++	default SPARSEMEM if ARCH_SPARSEMEM_DEFAULT
++	default DISCONTIGMEM if ARCH_DISCONTIGMEM_DEFAULT
++
++config FLATMEM
++	bool "Flat Memory"
++	depends on !ARCH_DISCONTIGMEM_ENABLE || ARCH_FLATMEM_ENABLE
++	help
++	  This option allows you to change some of the ways that
++	  Linux manages its memory internally.  Most users will
++	  only have one option here: FLATMEM.  This is normal
++	  and a correct option.
++
++	  If unsure, choose this option over any other.
++
++config DISCONTIGMEM
++	bool "Discontigious Memory"
++	depends on ARCH_DISCONTIGMEM_ENABLE
++	help
++	  If unsure, choose "Flat Memory" over this option.
++
++endchoice
++
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
