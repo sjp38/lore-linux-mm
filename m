@@ -1,41 +1,40 @@
 Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA18621
-	for <linux-mm@kvack.org>; Fri, 28 May 1999 21:25:09 -0400
+	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA19050
+	for <linux-mm@kvack.org>; Fri, 28 May 1999 21:59:11 -0400
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14159.16854.992122.731801@dukat.scot.redhat.com>
-Date: Sat, 29 May 1999 02:24:38 +0100 (BST)
-Subject: Re: [PATCHES]
-In-Reply-To: <Pine.BSF.4.03.9905280125360.18892-100000@funky.monkey.org>
-References: <14157.55202.444836.684237@dukat.scot.redhat.com>
-	<Pine.BSF.4.03.9905280125360.18892-100000@funky.monkey.org>
+Message-ID: <14159.18916.728327.550606@dukat.scot.redhat.com>
+Date: Sat, 29 May 1999 02:59:00 +0100 (BST)
+Subject: Re: Q: PAGE_CACHE_SIZE?
+In-Reply-To: <Pine.LNX.4.03.9905282326100.19045-100000@mirkwood.nl.linux.org>
+References: <14159.137.169623.500547@dukat.scot.redhat.com>
+	<Pine.LNX.4.03.9905282326100.19045-100000@mirkwood.nl.linux.org>
 Sender: owner-linux-mm@kvack.org
-To: Chuck Lever <cel@monkey.org>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@nl.linux.org>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, ak@muc.de, ebiederm+eric@ccr.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Fri, 28 May 1999 01:30:58 -0400 (EDT), Chuck Lever <cel@monkey.org> said:
+On Fri, 28 May 1999 23:33:33 +0200 (CEST), Rik van Riel
+<riel@nl.linux.org> said:
 
-> On Fri, 28 May 1999, Stephen C. Tweedie wrote:
->> Fixed patch for 2.2.9 is at
->> 
->> ftp://ftp.uk.linux.org/pub/linux/sct/fs/misc/fsync-2.2.9-a.diff
+>> This has a lot of really nice properties.  If we record sequential
+>> accesses when setting up data in the first place, then we can
+>> automatically optimise for that when doing the pageout again.  For swap,
+>> it reduces fragmentation: we can allocate in multi-page chunks and keep
+>> that allocation persistent.
 
-> oops... one more thing.  invalidate_buffers() and set_blocksize() both
-> need to call remove_inode_queue() for each reclaimed buffer, 
+> Since we keep pages in the page cache after swapping them out,
+> we can implement this optimization very cheaply.
 
-Quite right --- done.  I've now checked that there aren't any other
-places where we clear BH_Dirty.  Updated patch in the usual place.
-
-> and create_buffers() should set b_inode to NULL on all the new buffers
-> on a page, for cleanliness.  IMHO.
-
-New buffer_heads are preinitialised to all-zeros anyway (search buffer.c
-for "memset").
+It should be cheap, yes, but it will require a fundamental change in the
+VM: currently, all swap cache is readonly.  No exceptions.  To keep the
+allocation persistent, even over write()s to otherwise unshared pages
+(and we need to do to sustain good performance), we need to allow dirty
+pages in the swap cache.  The current PG_Dirty work impacts on this.
 
 --Stephen
 --
