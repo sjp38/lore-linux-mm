@@ -1,39 +1,36 @@
-Date: Mon, 5 May 2003 14:02:33 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Tue, 6 May 2003 16:39:07 +0530
+From: Dipankar Sarma <dipankar@in.ibm.com>
 Subject: Re: 2.5.69-mm1
-Message-ID: <20030505210233.GP8978@holomorphy.com>
-References: <20030504231650.75881288.akpm@digeo.com>
+Message-ID: <20030506110907.GB9875@in.ibm.com>
+Reply-To: dipankar@in.ibm.com
+References: <20030504231650.75881288.akpm@digeo.com> <20030505210151.GO8978@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030504231650.75881288.akpm@digeo.com>
+In-Reply-To: <20030505210151.GO8978@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 04, 2003 at 11:16:50PM -0700, Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm1/
-> Various random fixups, cleanps and speedups.  Mainly a resync to 2.5.69.
+On Mon, May 05, 2003 at 09:09:34PM +0000, William Lee Irwin III wrote:
+> On Sun, May 04, 2003 at 11:16:50PM -0700, Andrew Morton wrote:
+> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm1/
+> > Various random fixups, cleanps and speedups.  Mainly a resync to 2.5.69.
+> 
+> fs/file_table.c: In function `fget_light':
+> fs/file_table.c:209: warning: passing arg 1 of `_raw_read_lock' from incompatible pointer type
 
-kernel/sched.c: In function `rebalance_tick':
-kernel/sched.c:1352: warning: declaration of `this_cpu' shadows a parameter
+I should have merged with 2.5.69 before mailing my fget-speedup patch out. 
+->file_lock has been changed to a spin_lock somewhere after 2.5.66. 
 
+That brings me to the point - with the fget-speedup patch, we should
+probably change ->file_lock back to an rwlock again. We now take this
+lock only when fd table is shared and under such situation the rwlock
+should help. Andrew, it that ok ?
 
-diff -urpN mm1-2.5.69-1/kernel/sched.c mm1-2.5.69-2/kernel/sched.c
---- mm1-2.5.69-1/kernel/sched.c	2003-05-05 13:32:44.000000000 -0700
-+++ mm1-2.5.69-2/kernel/sched.c	2003-05-05 13:37:28.000000000 -0700
-@@ -1348,9 +1348,6 @@ static void balance_node(runqueue_t *thi
- 
- static void rebalance_tick(runqueue_t *this_rq, int this_cpu, int idle)
- {
--#ifdef CONFIG_NUMA
--	int this_cpu = smp_processor_id();
--#endif
- 	unsigned long j = jiffies;
- 
- 	/*
+Thanks
+Dipankar
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
