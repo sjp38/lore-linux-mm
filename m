@@ -1,37 +1,61 @@
-Subject: Re: Swapping for diskless nodes
-References: <Pine.LNX.4.33L.0108091758070.1439-100000@duckman.distro.conectiva>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 10 Aug 2001 02:11:46 -0600
-In-Reply-To: <Pine.LNX.4.33L.0108091758070.1439-100000@duckman.distro.conectiva>
-Message-ID: <m1k80ctjul.fsf@frodo.biederman.org>
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
+Subject: Re: vmstats patch against 2.4.8pre7 and new userlevel hack
+Date: Fri, 10 Aug 2001 22:33:31 +0200
+References: <Pine.LNX.4.21.0108090326470.14424-100000@freak.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0108090326470.14424-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Message-Id: <01081022333100.00293@starship>
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Dirk W. Steinberg" <dws@dirksteinberg.de>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>, lkml <linux-kernel@vger.kernel.org>
+Cc: Andrew Morton <akpm@zip.com.au>, Zach Brown <zab@osdlab.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
+On Thursday 09 August 2001 08:45, Marcelo Tosatti wrote:
+> I've updated the vmstats patch to use Andrew Morton's statcount facilities
+> (which is in initial development state). I've also removed/added some
+> statistics due to VM changes.
 
-> On 9 Aug 2001, Eric W. Biederman wrote:
-> 
-> > I don't know about that.  We already can swap over just about
-> > everything because we can swap over the loopback device.
-> 
-> Last I looked the loopback device could deadlock your
-> system without you needing to swap over it ;)
+I applied it and added some of my own statistics.  Very nice, much nicer than 
+the traditional compile-reboot-measure-the-time cycle.
 
-It wouldn't suprise me.  But the fact remains that in 2.4 we allow it.
-And if we allw it there is little excuse for doing it wrong.
+For one thing, it means you can watch the system in operation under a test 
+load and see what it's really doing.  Chances are, you know right then 
+whether it's running well or not and don't have to wait till the end of a 
+long test run.
 
-Actually except for network cases it looks easier to prevent deadlocks
-on the swapping path than with the loop back devices.  We can call
-aops->prepare_write_out when we place the page in the swap cache
-to make certain we aren't over a hole in a file, and there is room in the
-filesystem to store the data.
+Problem: none of the statistics show up in proc until the first time the 
+kernel hits them.  The /proc/stats entry isn't even there until the kernel 
+hits the first statistic.  This isn't user-friendly.
 
-Eric
+I can see that this patch is going to break a lot between kernel updates, 
+because it touches precisely the places we work on all the time - that's why 
+the stats are there, right?  I'd suggest breaking it into two patchs, one 
+with all the support and a few basic statistics in stable places, and another 
+that adds in the rest of your current favorite vm stats.  It would also be 
+nice if the stats were broken up into sets that can be catted out of proc 
+onto the screen, in other words, sets of 23 or less.  This would mean that 
+that something like watch cat /proc/stats/vm is already an effective 
+interface.
+
+I already learned a lot more about the what's actually happening inside the 
+vm using this.  One thing that surprised me is how few locked pages there 
+actually are on the inactive_dirty list.  I suppose I'd need a heavy mmap 
+load to see more activity there.  Maybe a heavy write load would show up more 
+there, but for now it looks like there are so few of those locked pages it 
+won't interfere with scanning performance at all.
+
+> On the userlevel side, I got zab's cpustat nice tool and transformed it
+> into an ugly hack which allows me to easily add/remove statistic
+> counters.
+
+I didn't get that to work.  It seemed to be looking at the wrong /proc file.
+I didn't look into it further.
+
+--
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
