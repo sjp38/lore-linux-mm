@@ -1,68 +1,45 @@
-Subject: Re: A possible winner in pre7-8
-References: <Pine.LNX.4.10.10005082332560.773-100000@penguin.transmeta.com>
-	<3917C33F.1FA1BAD4@sgi.com> <yttln1jtyqg.fsf@vexeta.dc.fi.udc.es>
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: "Juan J. Quintela"'s message of "09 May 2000 19:33:27 +0200"
-Date: 10 May 2000 05:29:48 +0200
-Message-ID: <yttvh0nozf7.fsf@vexeta.dc.fi.udc.es>
+Subject: Re: [PATCH] Recent VM fiasco - fixed
+References: <Pine.LNX.4.10.10005090844050.1100-100000@penguin.transmeta.com>
+From: "James H. Cloos Jr." <cloos@jhcloos.com>
+In-Reply-To: Linus Torvalds's message of "Tue, 9 May 2000 08:44:43 -0700 (PDT)"
+Date: 09 May 2000 23:05:01 -0500
+Message-ID: <m3snvrvymq.fsf@austin.jhcloos.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
->>>>> "juan" == Juan J Quintela <quintela@fi.udc.es> writes:
+>>>>> "Linus" == Linus Torvalds <torvalds@transmeta.com> writes:
 
-Hi
+Linus> Try out the really recent one - pre7-8. So far it hassome good
+Linus> reviews, and I've tested it both on a 20MB machine and a 512MB
+Linus> one..
 
-juan> No way, here my tests run two iterations, and in the second iteration
-juan> init was killed, and the system become unresponsive (headless machine,
-juan> you know....).  I have no time now to do a more detailed report, more
-juan> information later today.
+pre7-8 still isn't completely fixed, but it is better than pre6.
 
-I have been checking today pre7-8 + manfred patch.
-(test as always while (true); do time ./mmap002; done).
-Things have improved a lot from pre7-6, but they are not perfect.
+Try doing something like 'cp -a linux-2.3.99-pre7-8 foobar' and
+watching kswapd in top (or qps, el al).  On my dual-proc box, kswapd
+still maxes out one of the cpus.  Tar doesn't seem to show it, but
+bzcat can get an occasional segfault on large files.
 
-With that patch I have obtained the following times:
+The filesystem, though, has 1k rather than 4k blocks.  Yeah, just
+tested again on a fs w/ 4k blocks.  kswapd only used 50% to 65% of a
+cpu, but that was an ide drive and the former was on a scsi drive.[1]
 
-real    2m41.772s
-user    0m16.610s
-sys     0m12.470s
+OTOH, in pre6 X would hit (or at least report) 2^32-1 major faults
+after only a few hours of usage.  That bug is gone in pre7-8.
 
-(this is a typical value, there are fluctuations between 2m35 and
-2m54).
-It begin to kill processes after the 10th iteration.  After that, the
-machine freezes.
+[1] asus p2b-ds mb using onboard adaptec scsi and piix ide; drives are
+    all IBM ultrastars and deskstars.
 
-The results for pre7-8 + manfred patch + andrea classzone 27 is
-
-real    2m7.622s
-user    0m15.480s
-sys     0m8.240s
-
-(almost no variations between runs +-1second).  And it is rock solid
-here, no freezes at all.
-
-The results for 2.2.15 are:
-
-real    1m57.619s
-user    0m16.320s
-sys     0m11.820s
-
-but it kills processes after 10/12 iterations.
-
-I hope this helps.
-
-Later, Juan.
-
-
-
+-JimC
 -- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
+James H. Cloos, Jr.  <URL:http://jhcloos.com/public_key> 1024D/ED7DAEA6 
+<cloos@jhcloos.com>  E9E9 F828 61A4 6EA9 0F2B  63E7 997A 9F17 ED7D AEA6
+        Save Trees:  Get E-Gold! <URL:http://jhcloos.com/go?e-gold>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
