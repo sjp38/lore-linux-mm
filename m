@@ -1,65 +1,74 @@
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14609.53317.581465.821028@charged.uio.no>
-Date: Thu, 4 May 2000 21:32:21 +0200 (CEST)
-Subject: Re: classzone-VM + mapped pages out of lru_cache
-In-Reply-To: <Pine.LNX.4.21.0005042022200.3416-100000@alpha.random>
-References: <shsya5q2rdl.fsf@charged.uio.no>
-	<Pine.LNX.4.21.0005042022200.3416-100000@alpha.random>
-Reply-To: trond.myklebust@fys.uio.no
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
+From: Mark_H_Johnson.RTS@raytheon.com
+Message-ID: <852568D5.006DBD55.00@raylex-gh01.eo.ray.com>
+Date: Thu, 4 May 2000 14:53:24 -0500
+Subject: Re: Updates to /bin/bash
+Mime-Version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, quintela@fi.udc.es, trond.myklebust@fys.uio.no
 List-ID: <linux-mm.kvack.org>
 
->>>>> " " == Andrea Arcangeli <andrea@suse.de> writes:
 
-     > On 4 May 2000, Trond Myklebust wrote:
-    >> Not good. If I'm running /bin/bash, and somebody on the server
-    >> updates /bin/bash, then I don't want to reboot my machine. With
-    >> the above
+On this issue [updates to active files...] how does the typical distribution
+update process handle this? For example, if I'm doing a package update using a
+typical tool [gnoRPM, kpackage, etc.] what is happening behind the scenes to
+prevent disaster? The situation where I've booted from CD-ROM & doing a major
+distribution update would be safe doing a simple replacement. OTOH, if I get an
+"urgent" patch that I need to apply, must I track down all the jobs that are
+currently using the files being updated, get them stopped, do the update, and
+then restart them to be "safe"? [and I'll quit doing the "dangerous" updates
+that I've been doing through ignorance] If so, is that going to kill the use of
+Linux in high availability situations [or must I run redundant systems to work
+around this]?
 
-     > If you use rename(2) to update the shell (as you should since
-     > `cp` would corrupt also users that are reading /bin/bash from
-     > local fs) then nfs should get it right also with my patch since
-     > it should notice the inode number changed (the nfs fd handle
-     > should get the inode number as cookie), right?
+The alternative I've seen in other OS's is to retain the old file "hidden" on
+the file system [old inode]. All new references go to the new copy [new inode],
+all old references refer to the hidden one [old inode]. When the [old inode]
+reference count goes to zero, the hidden one is finally deleted. If the volume
+is improperly dismounted [e.g., system crash] prior to the last user getting
+done, the fsck done at reboot does the cleanup instead.
+--Mark H Johnson
+  <mailto:Mark_H_Johnson@raytheon.com>
 
-Yes, but I'm on the client: I cannot guarantee that people on the
-server will do it 'right'. The server can have temporarily dropped
-down into single user mode in order to protect its own users for all I
-know.
 
-Accuracy has to be the first rule whatever the case.
+|--------+----------------------->
+|        |          Andrea       |
+|        |          Arcangeli    |
+|        |          <andrea@suse.|
+|        |          de>          |
+|        |                       |
+|        |          05/04/00     |
+|        |          01:43 PM     |
+|        |                       |
+|--------+----------------------->
+  >----------------------------------------------------------------------------|
+  |                                                                            |
+  |       To:     Trond Myklebust <trond.myklebust@fys.uio.no>                 |
+  |       cc:     "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, |
+  |       linux-kernel@vger.rutgers.edu, (bcc: Mark H Johnson/RTS/Raytheon/US) |
+  |       Subject:     Re: classzone-VM + mapped pages out of lru_cache        |
+  >----------------------------------------------------------------------------|
 
-     > The only problem I am wondering about is that we simply can't
-     > unlink _mapped_ page-cache pages from the pagecache as we do
-     > now.
 
-     > Say there's page A in the page cache. It gets mapped into a pte
-     > of process
-     > X. Then before you can drop A from the page cache to invalidate
-     >    it
-     > (because such page changed on the nfs server), you _first_ have
-     > to unmap such page from the pte of process X. This is why
-     > invalidate_inode_pages must not unlink mapped pages. It's not a
-     > locking problem, PageLocked() pagecache_lock and all other
-     > locks are irrelevant. It's not a race but a design issue.
 
-As far as NFS is concerned, that page is incorrect and should be read
-in again whenever we next try to access it. That is the purpose of the
-call to invalidate_inode_pages().  As far as I can see, your patch
-fundamentally breaks that concept for all files whether they are
-mmapped or not.
+On 4 May 2000, Trond Myklebust wrote:
 
-When you say 'unmap from the pte', what exactly do you mean? Why does
-such a page still have to be part of an inode's i_data?
+>Not good. If I'm running /bin/bash, and somebody on the server updates
+>/bin/bash, then I don't want to reboot my machine. With the above
 
-Cheers,
-  Trond
+If you use rename(2) to update the shell (as you should since `cp` would
+corrupt also users that are reading /bin/bash from local fs) then nfs
+should get it right also with my patch since it should notice the inode
+number changed (the nfs fd handle should get the inode number as cookie),
+right?
+[snip]
+
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
