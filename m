@@ -1,43 +1,51 @@
-Subject: Re: 2.6.2-rc1-mm2 (compile stats)
-From: John Cherry <cherry@osdl.org>
-In-Reply-To: <20040123013740.58a6c1f9.akpm@osdl.org>
+Subject: Re: 2.6.2-rc1-mm2
+From: john stultz <johnstul@us.ibm.com>
+In-Reply-To: <200401231430.35014.thomas.schlichter@web.de>
 References: <20040123013740.58a6c1f9.akpm@osdl.org>
+	 <200401231430.35014.thomas.schlichter@web.de>
 Content-Type: text/plain
-Message-Id: <1074877697.25026.2.camel@cherrypit.pdx.osdl.net>
+Message-Id: <1074880768.12442.22.camel@localhost>
 Mime-Version: 1.0
-Date: Fri, 23 Jan 2004 09:08:17 -0800
+Date: Fri, 23 Jan 2004 09:59:28 -0800
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Thomas Schlichter <thomas.schlichter@web.de>
+Cc: Andrew Morton <akpm@osdl.org>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-No change from 2.6.2-rc1-mm1.
+On Fri, 2004-01-23 at 05:30, Thomas Schlichter wrote:
+> Hi,
+> 
+> Am Freitag, 23. Januar 2004 10:37 schrieb Andrew Morton:
+> > +use-pmtmr-for-delay_pmtmr.patch
+> >
+> >  Fix a boot-time crash which occurs when testing the APIC timer when using
+> >  the ACPI PM timer.  This causes bogomips to be reported at 50% of what it
+> >  used to be.
+> 
+> I don't know which Oops this fixes, but with this patch my bogomips value is 
+> 8.19 (!!!) instead of ~1300. With clock=pit I get about 1300 bogomips, and 
+> with clock=tsc I get about 2600 bogomips. The CPU is a 1300MHz AMD Duron.
 
-Linux 2.6 (mm tree) Compile Statistics (gcc 3.2.2)
-Warnings/Errors Summary
+I know it feels like a kick in the pants when your BogoMIPS drops to
+leves not seen since the 80s, but the value you are getting is expected.
+Since the patch above uses the pmtmr for __delay(), loops_per_jiffies is
+then calibrated to the ACPI PM timer's frequency instead of aproximately
+the cpu's freq. 
 
-Kernel            bzImage   bzImage  bzImage  modules  bzImage  modules
-                (defconfig) (allno) (allyes) (allyes) (allmod) (allmod)
---------------- ---------- -------- -------- -------- -------- --------
-2.6.2-rc1-mm2     0w/0e     0w/264e 144w/ 5e  10w/0e   3w/0e    171w/0e
-2.6.2-rc1-mm1     0w/0e     0w/264e 144w/ 5e  10w/0e   3w/0e    171w/0e
-2.6.1-mm5         2w/5e     0w/264e 153w/11e  10w/0e   3w/0e    180w/0e
-2.6.1-mm4         0w/821e   0w/264e 154w/ 5e   8w/1e   5w/0e    179w/0e
-2.6.1-mm3         0w/0e     0w/0e   151w/ 5e  10w/0e   3w/0e    177w/0e
-2.6.1-mm2         0w/0e     0w/0e   143w/ 5e  12w/0e   3w/0e    171w/0e
-2.6.1-mm1         0w/0e     0w/0e   146w/ 9e  12w/0e   6w/0e    171w/0e
-2.6.1-rc2-mm1     0w/0e     0w/0e   149w/ 0e  12w/0e   6w/0e    171w/4e
-2.6.1-rc1-mm2     0w/0e     0w/0e   157w/15e  12w/0e   3w/0e    185w/4e
-2.6.1-rc1-mm1     0w/0e     0w/0e   156w/10e  12w/0e   3w/0e    184w/2e
-2.6.0-mm2         0w/0e     0w/0e   161w/ 0e  12w/0e   3w/0e    189w/0e
-2.6.0-mm1         0w/0e     0w/0e   173w/ 0e  12w/0e   3w/0e    212w/0e
+This was necessary, because on some systems calibrate_dealy()
+incorrectly calibrates delays. Your system shows this, but its your
+cycle based delay (clock=tsc) which is overestimated, so you see no
+problem. The case Andrew describes above is when the loop based delay
+(clock=pit or clock=pmtmr w/o this patch) is under estimated causing
+problems when we initialize the APIC timer.  
 
-Web page with links to complete details:
-   http://developer.osdl.org/cherry/compile/
+Additionally, since we're no longer dependent on the cpu speed,
+speedstep like changes to the cpu freqency no longer affects time.
 
-John
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
