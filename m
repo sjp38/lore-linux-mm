@@ -1,75 +1,67 @@
-Date: Fri, 19 Jan 2001 18:55:59 +1100 (EST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Fri, 19 Jan 2001 21:22:23 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [RFC] 2-pointer PTE chaining idea
-In-Reply-To: <Pine.LNX.4.10.10101182307340.9418-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.31.0101191849050.3368-100000@localhost.localdomain>
+In-Reply-To: <Pine.LNX.4.31.0101191849050.3368-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.10.10101192108150.2760-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Matthew Dillon <dillon@apollo.backplane.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 18 Jan 2001, Linus Torvalds wrote:
-> On Thu, 18 Jan 2001, David S. Miller wrote:
-> > Rik van Riel writes:
-> >  > In order to find the vma and the mm_struct each pte belongs to,
-> >  > we can use the ->mapping and ->index fields in the page_struct
-> >  > of the page table, with the ->mapping pointing to the mm_struct
-> >  > and the ->index containing the offset within the mm_struct
-> >
-> > Anonymous pages have no page->mapping, how can this work?
->
-> Note the "in the page struct of the page table".
->                                     ^^^^^^^^^^
->
-> What Rik is saying is that if your page tables themselves are full pages
-> (which is not true everywhere, but hey, close enough), you can use the
-> "struct page *" of the _page_table_ page to save off the "struct
-> mm_struct" pointer, along with the base in the mm_struct.
 
-> It doesn't help us, though. 2 or 3 pointers doesn't make any difference on
-> x86, at least: the 3-pointer-scheme had a "next, prev, mm" pointer triple,
-> and there is an _implied_ pointer pointing to the page table entry itself,
-> that Rik probably forgot about.
+On Fri, 19 Jan 2001, Rik van Riel wrote:
+> 
+> > The only sane way I can think of to do the "implied pointer" is to do an
+> > order-2 allocation when you allocate a page directory: you get 16kB of
+> 
+> How about doing an order-1 allocation and having a singly linked
+> list ?
 
-Actually, the pointer is to the page table entry ... on systems
-where the page table is a multiple of the full page we know that
-the page table itself has address:
+The thing is, that _whatever_ you do, I think it's going to suck.
 
-page_table = pte_t & ~(PAGE_TABLE_SIZE - 1);
+I'll tell you why: I think you're trying to optimize the uncommon case. 
 
-And from there we can easily get the struct page *.
+I realize that you think that page table scanning is slow etc. I happen to
+think it's acceptable, but never mind that. More important is the fact
+that NOT scanning the page tables is what is the normal case BY FAR.
 
-> The only sane way I can think of to do the "implied pointer" is to do an
-> order-2 allocation when you allocate a page directory: you get 16kB of
+Do you actually have any profiles showing that scanning the page tables is
+a problem? I realize that you can create loads that scan the page tables a
+lot, but have you really understood and internalized the fact that those
+same loads thend to have a CPU usage of just a few percent? The bad loads
+tend to spend more time waiting for IO to complete because everybody is
+busy SWAPPING.
 
-How about doing an order-1 allocation and having a singly linked
-list ?
+And you have to realize, that it doesn't MATTER if we spend even 25% of
+the CPU power on scanning the page tables (and I want to point out that
+I've never heard of such a load), if we spend 50% idle just waiting for
+the disk (and the rest of the time mayb eworking or in other VM routines).
 
-The structure would then look like this (on x86)
+This is why I don't think this "try to be clever to avoid work when
+swapping" approach is really all that relevant.
 
-struct bidir_page_table {
-	struct pte_t pte[1024];
-	void * next[1024];
-};
+There are two IMPORTANT things to do in the VM layer:
 
-With next[400]:
-- indicating that pte[400] is in the pte chain we're currently
-  searching
-- pointing to the next pointer in the pte chain, much like used
-  block listed in the FAT filesystem
+ - select the right pages. Don't worry too much about CPU at this point:
+   if you have to do IO it's ok to waste some cycles per page. You'll win
+   bigger from selecting the right page, than from trying to make the
+   infrastructure really cheap.
 
-regards,
+ - DO NOT WASTE TIME IF YOU HAVE MEMORY!
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
+Th esecond point is important. You have to really think about how Linux
+handles anonymous pages, and understand that that is not just an accident.
+It's really important to NOT do extra work for the case where an
+application just wants a page. Don't allocate swap backing store early.
+Don't add it to the page cache if it doesn't need to be there. Don't do
+ANYTHING.
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+This, btw, also implies: don't make the page tables more complex.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
