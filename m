@@ -1,29 +1,54 @@
-Message-ID: <3D78E79B.78B202DE@zip.com.au>
-Date: Fri, 06 Sep 2002 10:36:27 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
-Subject: Re: 2.5.33-mm4 filemap_copy_from_user: Unexpected page fault
-References: <3D78DD07.E36AE3A9@zip.com.au> <1031331803.2799.178.camel@spc9.esa.lanl.gov>
+Date: Fri, 6 Sep 2002 10:44:05 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: Rough cut at shared page tables
+Message-ID: <20020906174405.GU18800@holomorphy.com>
+References: <61920000.1031332808@baldur.austin.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <61920000.1031332808@baldur.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steven Cole <elenstev@mesatop.com>
-Cc: linux-mm@kvack.org
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Steven Cole wrote:
-> 
-> ...
-> > Does this fix?
-> ...
-> Unfortunately no.
+On Fri, Sep 06, 2002 at 12:20:08PM -0500, Dave McCracken wrote:
+> Here's my initial coding of shared page tables.  It sets the pmd read-only,
+> so it forks really fast, then unshares it as necessary.  I've tried to keep
+> the sharing semantics clean so if/when we add pte sharing for shared files
+> the existing code should handle it just fine.
 
-Well, isn't this fun?  umm.  You're _sure_ you ran the right kernel
-and such?
+Hmm, do non-i386 arches need to be taught about read-only pmd's?
 
-Could you send your /proc/mounts, and tell me which of those partitions
-you're running the test on?
+
+On Fri, Sep 06, 2002 at 12:20:08PM -0500, Dave McCracken wrote:
+> The few feeble attempts I've made at putting in locks are clearly wrong, so
+> it only works on UP.
+
+AFAICT one significant source of trouble is that pmd's, once
+instantiated, are considered immutable until the process is torn down.
+Numerous VM codepaths drop all locks but a readlock on the mm->mmap_sem
+while holding a reference to a pmd and expect it to remain valid.
+
+The same issue arises during pagetable reclaim and pmd-based large page
+manipulations.
+
+
+On Fri, Sep 06, 2002 at 12:20:08PM -0500, Dave McCracken wrote:
+> I don't see any reason why swap won't work, but I haven't tested it.
+> This is also against 2.5.29.  I'm gonna work to merge it forward, but there
+> are significant changes since then so I figured I'd toss this out for
+> people to get an early look at it.
+
+The swap strategy is interesting. I had originally imagined that a
+reference object would be required. But I'm not sure quite how RSS
+accounting for processes affected by a swap operation happens here.
+
+
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
