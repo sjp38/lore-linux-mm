@@ -1,51 +1,52 @@
-Message-ID: <403C7DE4.6040304@cyberone.com.au>
-Date: Wed, 25 Feb 2004 21:50:12 +1100
+Message-ID: <403C66D2.6010302@cyberone.com.au>
+Date: Wed, 25 Feb 2004 20:11:46 +1100
 From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Subject: Re: vm benchmarking
-References: <20040224034036.22953169.akpm@osdl.org>	<403C76D8.3000302@cyberone.com.au> <20040224154347.2b1536ee.akpm@osdl.org>
-In-Reply-To: <20040224154347.2b1536ee.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: More vm benchmarking
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+Cc: linux-mm@kvack.org, Nikita Danilov <Nikita@Namesys.COM>
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+Well you can imagine my surprise to see your numbers so I've started
+redoing some benchmarks to see what is going wrong.
 
->Nick Piggin <piggin@cyberone.com.au> wrote:
->
->>My machine doesn't touch swap at make -j4 with mem=64m. It is
->>dual CPU with a SMP kernel but I was using maxcpus=1.
->>
->
->It is light-to-moderate paging.
->
->
->>It compiles 2.4.21 with gcc-3.3.3 I think (I can tell you when I
->>get home).
->>
->
->gcc version 3.2.2 20030222 (Red Hat Linux 3.2.2-5)
->
->This is a 2.4.19 defconfig build.
->
->
+This first set are 2.6.3, 2.6.3-mm2, 2.6.3-mm3. All SMP kernels
+compiled with the same compiler and using the same .config (where
+possible). Booting with maxcpus=1 and mem=64M. Test is gcc 3.3.3
+compiling 2.4.21. I can provide any other information you're
+interested in.
 
-So it should be pretty similar to what I've been doing.
+While previously I have been doing a single run of a range of
+different parallelisation factors, here I've done two runs each over a
+smaller range so you can see I am getting fairly consistient results.
 
->>I can't explain your results. Maybe you have other stuff running.
->>
->
->Only `vmstat 1'.
->
->
+kernel | run | -j5 | -j10 | -j15 |
+2.6.3    1     136   886    2511
+2.6.3    2     150   838    2465
 
-That shouldn't hurt. Maybe running two CPUs is a problem. I'd better
-try that.
+-mm2     1     136   646    1484
+-mm2     2     142   676    1265
 
+-mm3     1     135   881    1828
+-mm3     2     146   790    1844
+
+This quite clearly shows your patches hurting as I told you. Why did
+it get slower? I assume it is because the batching patch places uneven
+pressure on normal and DMA zones. This leads to suboptimal eviction
+choice - anything else would be a sign of fundamental problems.
+
+Regarding Nikita and my patches, they all showed improvements on this
+machine for this type of test *except* the throttling patch which
+didn't cause any change. I just thought it was courteous to try not to
+stall a possibly unlucky run.
+
+I will now try a set of SMP tests and possibly ones with different
+available memory. I would be disappointed but not very surprised if
+SMP is causing lots of problems.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
