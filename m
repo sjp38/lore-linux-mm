@@ -1,9 +1,9 @@
 Subject: Re: the new VMt
-References: <Pine.LNX.4.21.0009251821170.9122-100000@elte.hu>
+References: <Pine.LNX.4.21.0009261051290.2199-100000@elte.hu>
 From: Jes Sorensen <jes@linuxcare.com>
-Date: 26 Sep 2000 10:38:40 +0200
-In-Reply-To: Ingo Molnar's message of "Mon, 25 Sep 2000 18:22:42 +0200 (CEST)"
-Message-ID: <d3g0mny2cv.fsf@lxplus015.cern.ch>
+Date: 26 Sep 2000 11:02:14 +0200
+In-Reply-To: Ingo Molnar's message of "Tue, 26 Sep 2000 10:52:25 +0200 (CEST)"
+Message-ID: <d3bsxby19l.fsf@lxplus015.cern.ch>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
@@ -14,18 +14,17 @@ List-ID: <linux-mm.kvack.org>
 
 >>>>> "Ingo" == Ingo Molnar <mingo@elte.hu> writes:
 
-Ingo> On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+Ingo> On 26 Sep 2000, Jes Sorensen wrote:
 
->> > ie. 99.45% of all allocations are single-page! 0.50% is the 8kb
->> 
->> You're right. That's why it's a waste to have so many order in the
->> buddy allocator. [...]
+>> 9.5KB blocks is common for people running Gigabit Ethernet with
+>> Jumbo frames at least.
 
-Ingo> yep, i agree. I'm not sure what the biggest allocation is, some
-Ingo> drivers might use megabytes or contiguous RAM?
+Ingo> yep, although this is more of a Linux limitation, the cards
+Ingo> themselves are happy to DMA fragmented buffers as well. (sans
+Ingo> some small penalty per new fragment.)
 
-9.5KB blocks is common for people running Gigabit Ethernet with Jumbo
-frames at least.
+Hence the reason I have been pushing for the kiobufifying of the skbs ;-)
+It's even more important for HIPPI with the 65280 bytes MTU.
 
 Jes
 --
