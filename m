@@ -1,122 +1,291 @@
-Date: Thu, 12 Sep 2002 17:13:39 -0700 (PDT)
-From: Syam Sundar V Appala <syam@cisco.com>
-Subject: Kernel 2.4.19 init_buffer_head error
-Message-ID: <Pine.GSO.4.44.0209121709190.1540-100000@msabu-view1.cisco.com>
+Message-ID: <3D815C8C.4050000@us.ibm.com>
+Date: Thu, 12 Sep 2002 20:33:32 -0700
+From: Dave Hansen <haveblue@us.ibm.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH] per-zone kswapd process
+Content-Type: multipart/mixed;
+ boundary="------------070205010205080502080900"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, William Lee Irwin III <wli@holomorphy.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-I am using kernel 2.4.19 and when I am trying to install few rpms, I got
-an error. The details are given below. Can someone explain what is wrong
-or can someone suggest me a fix?
+This is a multi-part message in MIME format.
+--------------070205010205080502080900
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Error (dmesg output):
---------------------
-general protection fault: 0000
-CPU:    0
-EIP:    0010:[<c0141099>]    Not tainted
-EFLAGS: 00010246
-eax: 00000000   ebx: ffffffff   ecx: 00000018   edx: c0141080
-esi: c12c3e30   edi: ffffffff   ebp: ffffffff   esp: cfc95db0
-ds: 0018   es: 0018   ss: 0018
-Process rpm (pid: 59, stackpage=cfc95000)
-Stack: 00000000 c0feb020 c01284ca ffffffff c12c3e30 00000001 00000001
-000000f0
-       c0feb000 c139c1a0 00000080 00000000 00000008 c12c3e30 00000246
-c12c3e38
-       000000f0 c01285f9 c12c3e30 000000f0 c0178612 00000000 00000000
-00000008
-Call Trace:    [<c01284ca>] [<c01285f9>] [<c0178612>] [<c0131a84>]
-[<c0131b46>]
-  [<c0131d88>] [<c0132428>] [<c01231fd>] [<c0123298>] [<c0151aa0>]
-[<c01238a5>]
-  [<c0123c03>] [<c012403c>] [<c0123f40>] [<c012fd56>] [<c012fca9>]
-[<c01087eb>]
+This patch implements a kswapd process for each memory zone.  The original code 
+came from Bill Irwin, but the current VM is quite a bit different from the one 
+that he wrote it for, so not much remains.  The current kswapd interface is much 
+more simple than before because there is a single waitqueue and there is a 
+single place where it is emptied.
 
-Code: f3 ab c7 43 48 00 00 00 00 8d 53 48 8d 43 4c 89 42 04 89 42
+kswapd_can_sleep() and kswapd_balance() are simpler now that the extra pgdat 
+level of indirection is gone.
 
+Tested on 8-way PIII with highmem off and then 4GB support.  With 4GB support, I 
+did 20 parallel greps through a 10GB fileset while some other processes 
+allocated and freed 1-2GB chunks of memory.  That gave kswapd a good workout, 
+and I observed it running the zone Highmem and zone Normal kswapd threads.  So, 
+it survives my torture test.  It also removes more code than it adds.
 
-ksymoops output:
----------------
-bash-2.05a# ksymoops -v vmlinux -k /proc/ksyms -m System.map crash
-ksymoops 2.4.5 on i686 2.4.19.  Options used
-     -v vmlinux (specified)
-     -k /proc/ksyms (specified)
-     -l /proc/modules (default)
-     -o /lib/modules/2.4.19/ (default)
-     -m System.map (specified)
+include/linux/mmzone.h |    2 +
+include/linux/swap.h   |    1
+mm/page_alloc.c        |   11 +++++-
+mm/vmscan.c            |   88 +++++++++++++++++--------------------------------
+4 files changed, 42 insertions(+), 60 deletions(-)
 
-sh: /usr/bin/nm: No such file or directory
-Error (pclose_local): read_nm_symbols pclose failed 0x7f00
-Warning (read_vmlinux): no kernel symbols in vmlinux, is vmlinux a valid
-vmlinux file?
-No modules in ksyms, skipping objects
-Warning (read_lsmod): no symbols in lsmod, is /proc/modules a valid lsmod
-file?
-CPU:    0
-EIP:    0010:[<c0141099>]    Not tainted
-Using defaults from ksymoops -t elf32-i386 -a i386
-EFLAGS: 00010246
-eax: 00000000   ebx: ffffffff   ecx: 00000018   edx: c0141080
-esi: c12c3e30   edi: ffffffff   ebp: ffffffff   esp: cfc95db0
-ds: 0018   es: 0018   ss: 0018
-Process rpm (pid: 59, stackpage=cfc95000)
-Stack: 00000000 c0feb020 c01284ca ffffffff c12c3e30 00000001 00000001
-000000f0
-       c0feb000 c139c1a0 00000080 00000000 00000008 c12c3e30 00000246
-c12c3e38
-       000000f0 c01285f9 c12c3e30 000000f0 c0178612 00000000 00000000
-00000008
-Call Trace:    [<c01284ca>] [<c01285f9>] [<c0178612>] [<c0131a84>]
-[<c0131b46>]
-  [<c0131d88>] [<c0132428>] [<c01231fd>] [<c0123298>] [<c0151aa0>]
-[<c01238a5>]
-  [<c0123c03>] [<c012403c>] [<c0123f40>] [<c012fd56>] [<c012fca9>]
-[<c01087eb>]
-Code: f3 ab c7 43 48 00 00 00 00 8d 53 48 8d 43 4c 89 42 04 89 42
-sh: /usr/bin/objdump: No such file or directory
-Error (pclose_local): Oops_decode pclose failed 0x7f00
-Error (Oops_decode): no objdump lines read for /tmp/ksymoops.XaLnWD
+-- 
+Dave Hansen
+haveblue@us.ibm.com
 
 
->>EIP; c0141099 <init_buffer_head+19/40>   <=====
-
->>ebx; ffffffff <END_OF_CODE+3fd9f0e3/????>
->>edx; c0141080 <init_buffer_head+0/40>
->>esi; c12c3e30 <END_OF_CODE+1062f14/????>
->>edi; ffffffff <END_OF_CODE+3fd9f0e3/????>
->>ebp; ffffffff <END_OF_CODE+3fd9f0e3/????>
->>esp; cfc95db0 <END_OF_CODE+fa34e94/????>
-
-Trace; c01284ca <kmem_cache_grow+19a/220>
-Trace; c01285f9 <kmem_cache_alloc+a9/c0>
-Trace; c0178612 <__make_request+4c2/5c0>
-Trace; c0131a84 <get_unused_buffer_head+34/80>
-Trace; c0131b46 <create_buffers+26/f0>
-Trace; c0131d88 <create_empty_buffers+18/60>
-Trace; c0132428 <block_read_full_page+58/220>
-Trace; c01231fd <add_to_page_cache_unique+6d/80>
-Trace; c0123298 <page_cache_read+88/c0>
-Trace; c0151aa0 <ext2_get_block+0/320>
-Trace; c01238a5 <generic_file_readahead+f5/130>
-Trace; c0123c03 <do_generic_file_read+2e3/430>
-Trace; c012403c <generic_file_read+7c/130>
-Trace; c0123f40 <file_read_actor+0/80>
-Trace; c012fd56 <sys_read+96/f0>
-Trace; c012fca9 <sys_llseek+c9/e0>
-Trace; c01087eb <system_call+33/38>
 
 
-2 warnings and 3 errors issued.  Results may not be reliable.
+--------------070205010205080502080900
+Content-Type: text/plain;
+ name="per-zone-kswapd-2.5.34-mm2-3.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="per-zone-kswapd-2.5.34-mm2-3.patch"
 
+# This is a BitKeeper generated patch for the following project:
+# Project Name: Linux kernel tree
+# This patch format is intended for GNU patch command version 2.5 or higher.
+# This patch includes the following deltas:
+#	           ChangeSet	1.625   -> 1.628  
+#	include/linux/mmzone.h	1.19    -> 1.20   
+#	include/linux/swap.h	1.57    -> 1.58   
+#	     mm/page_alloc.c	1.98    -> 1.101  
+#	         mm/vmscan.c	1.102   -> 1.105  
+#
+# The following is the BitKeeper ChangeSet Log
+# --------------------------------------------
+# 02/09/12	haveblue@elm3b96.(none)	1.626
+# add per-zone kswapd
+# --------------------------------------------
+# 02/09/12	haveblue@elm3b96.(none)	1.627
+# fix some wli-indicated formatting bits
+# --------------------------------------------
+# 02/09/12	haveblue@elm3b96.(none)	1.628
+# move waitqueue init to a more appropriate place 
+# --------------------------------------------
+#
+diff -Nru a/include/linux/mmzone.h b/include/linux/mmzone.h
+--- a/include/linux/mmzone.h	Thu Sep 12 20:24:39 2002
++++ b/include/linux/mmzone.h	Thu Sep 12 20:24:39 2002
+@@ -108,6 +108,8 @@
+ 	unsigned long		wait_table_size;
+ 	unsigned long		wait_table_bits;
+ 
++	wait_queue_head_t       kswapd_wait;	
++	
+ 	/*
+ 	 * Discontig memory support fields.
+ 	 */
+diff -Nru a/include/linux/swap.h b/include/linux/swap.h
+--- a/include/linux/swap.h	Thu Sep 12 20:24:39 2002
++++ b/include/linux/swap.h	Thu Sep 12 20:24:39 2002
+@@ -162,7 +162,6 @@
+ extern void swap_setup(void);
+ 
+ /* linux/mm/vmscan.c */
+-extern wait_queue_head_t kswapd_wait;
+ extern int try_to_free_pages(struct zone *, unsigned int, unsigned int);
+ 
+ /* linux/mm/page_io.c */
+diff -Nru a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c	Thu Sep 12 20:24:39 2002
++++ b/mm/page_alloc.c	Thu Sep 12 20:24:39 2002
+@@ -345,8 +345,15 @@
+ 	classzone->need_balance = 1;
+ 	mb();
+ 	/* we're somewhat low on memory, failed to find what we needed */
+-	if (waitqueue_active(&kswapd_wait))
+-		wake_up_interruptible(&kswapd_wait);
++	for (i = 0; zones[i] != NULL; i++) {
++		struct zone *z = zones[i];
++
++		/* We don't want to go swapping on zones that aren't actually
++		 * low.  This accounts for "incremental min" from last loop */
++		if (z->free_pages <= z->pages_low &&
++		    waitqueue_active(&z->kswapd_wait)) 
++			wake_up_interruptible(&z->kswapd_wait);
++	}
+ 
+ 	/* Go through the zonelist again, taking __GFP_HIGH into account */
+ 	min = 1UL << order;
+@@ -874,6 +881,8 @@
+ 		for(i = 0; i < zone->wait_table_size; ++i)
+ 			init_waitqueue_head(zone->wait_table + i);
+ 
++		init_waitqueue_head(&zone->kswapd_wait);
++		
+ 		pgdat->nr_zones = j+1;
+ 
+ 		mask = (realsize / zone_balance_ratio[j]);
+diff -Nru a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c	Thu Sep 12 20:24:39 2002
++++ b/mm/vmscan.c	Thu Sep 12 20:24:39 2002
+@@ -713,8 +713,6 @@
+ 	return 0;
+ }
+ 
+-DECLARE_WAIT_QUEUE_HEAD(kswapd_wait);
+-
+ static int check_classzone_need_balance(struct zone *classzone)
+ {
+ 	struct zone *first_classzone;
+@@ -728,71 +726,33 @@
+ 	return 1;
+ }
+ 
+-static int kswapd_balance_pgdat(pg_data_t * pgdat)
++static int kswapd_balance_zone(struct zone *zone)
+ {
+-	int need_more_balance = 0, i;
+-	struct zone *zone;
+-
+-	for (i = pgdat->nr_zones-1; i >= 0; i--) {
+-		zone = pgdat->node_zones + i;
++	int need_more_balance = 0;
++	
++	do {
+ 		cond_resched();
+ 		if (!zone->need_balance)
+-			continue;
++			break;
+ 		if (!try_to_free_pages(zone, GFP_KSWAPD, 0)) {
+ 			zone->need_balance = 0;
+ 			__set_current_state(TASK_INTERRUPTIBLE);
+ 			schedule_timeout(HZ);
+-			continue;
++			break;
+ 		}
+ 		if (check_classzone_need_balance(zone))
+ 			need_more_balance = 1;
+ 		else
+ 			zone->need_balance = 0;
+-	}
+-
+-	return need_more_balance;
+-}
+-
+-static void kswapd_balance(void)
+-{
+-	int need_more_balance;
+-	pg_data_t * pgdat;
+-
+-	do {
+-		need_more_balance = 0;
+-		pgdat = pgdat_list;
+-		do
+-			need_more_balance |= kswapd_balance_pgdat(pgdat);
+-		while ((pgdat = pgdat->pgdat_next));
+ 	} while (need_more_balance);
+-}
+ 
+-static int kswapd_can_sleep_pgdat(pg_data_t * pgdat)
+-{
+-	struct zone *zone;
+-	int i;
+-
+-	for (i = pgdat->nr_zones-1; i >= 0; i--) {
+-		zone = pgdat->node_zones + i;
+-		if (!zone->need_balance)
+-			continue;
+-		return 0;
+-	}
+-
+-	return 1;
++	return 0;
+ }
+ 
+-static int kswapd_can_sleep(void)
++static int kswapd_can_sleep_zone(struct zone *zone)
+ {
+-	pg_data_t * pgdat;
+-
+-	pgdat = pgdat_list;
+-	do {
+-		if (kswapd_can_sleep_pgdat(pgdat))
+-			continue;
+-		return 0;
+-	} while ((pgdat = pgdat->pgdat_next));
+-
++	if (zone->need_balance)
++		return 0;	
+ 	return 1;
+ }
+ 
+@@ -809,13 +769,18 @@
+  * If there are applications that are active memory-allocators
+  * (most normal use), this basically shouldn't matter.
+  */
+-int kswapd(void *unused)
++int kswapd_zone(void *p)
+ {
++	struct zone *zone = (struct zone *)p;
+ 	struct task_struct *tsk = current;
+ 	DECLARE_WAITQUEUE(wait, tsk);
++	
++	printk( "kswapd%d starting for %s\n", 
++			zone - zone->zone_pgdat->node_zones, 
++			zone->name);
+ 
+ 	daemonize();
+-	strcpy(tsk->comm, "kswapd");
++	sprintf(tsk->comm, "kswapd%d", zone - zone->zone_pgdat->node_zones);
+ 	sigfillset(&tsk->blocked);
+ 	
+ 	/*
+@@ -839,30 +804,37 @@
+ 		if (current->flags & PF_FREEZE)
+ 			refrigerator(PF_IOTHREAD);
+ 		__set_current_state(TASK_INTERRUPTIBLE);
+-		add_wait_queue(&kswapd_wait, &wait);
++		add_wait_queue(&zone->kswapd_wait, &wait);
+ 
+ 		mb();
+-		if (kswapd_can_sleep())
++		if (kswapd_can_sleep_zone(zone))
+ 			schedule();
+ 
+ 		__set_current_state(TASK_RUNNING);
+-		remove_wait_queue(&kswapd_wait, &wait);
++		remove_wait_queue(&zone->kswapd_wait, &wait);
+ 
+ 		/*
+ 		 * If we actually get into a low-memory situation,
+ 		 * the processes needing more memory will wake us
+ 		 * up on a more timely basis.
+ 		 */
+-		kswapd_balance();
++		kswapd_balance_zone(zone);
+ 		blk_run_queues();
+ 	}
+ }
+ 
+ static int __init kswapd_init(void)
+ {
++	struct zone* zone;
++
+ 	printk("Starting kswapd\n");
+ 	swap_setup();
+-	kernel_thread(kswapd, NULL, CLONE_FS | CLONE_FILES | CLONE_SIGNAL);
++	for_each_zone(zone)
++		if (zone->size)
++			kernel_thread(kswapd_zone, 
++				      zone, 
++				      CLONE_FS | CLONE_FILES | CLONE_SIGNAL);
++	
+ 	return 0;
+ }
+ 
 
-Thanks in advance,
-Syam
-
+--------------070205010205080502080900--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
