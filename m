@@ -1,44 +1,56 @@
-Date: Mon, 3 Jul 2000 12:06:36 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: a joint letter on low latency and Linux
-Message-ID: <20000703120636.B2931@redhat.com>
-References: <200006301310.JAA06222@tsx-prime.MIT.EDU> <200006301506.LAA12457@renoir.op.net>
+Date: Mon, 3 Jul 2000 15:32:13 +0200
+From: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Subject: Re: maximum memory limit
+Message-ID: <20000703153213.B29421@pcep-jamie.cern.ch>
+References: <Pine.LNX.4.10.10002081506290.626-100000@mirkwood.dummy.home> <200007020535.WAA07278@woensel.zeropage.com> <20000703113525.F2699@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200006301506.LAA12457@renoir.op.net>; from pbd@Op.Net on Fri, Jun 30, 2000 at 11:03:08AM -0400
+In-Reply-To: <20000703113525.F2699@redhat.com>; from sct@redhat.com on Mon, Jul 03, 2000 at 11:35:25AM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Barton-Davis <pbd@Op.Net>
-Cc: "Theodore Y. Ts'o" <tytso@MIT.EDU>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Raymond Nijssen <raymond@zeropage.com>, Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Stephen C. Tweedie wrote:
+> libc can easily mmap /dev/zero in chunks of multiple MB at a time if
+> it wants to, and can then dole out that memory as if it was a huge
+> piece of the heap without kernel involvement.
 
-On Fri, Jun 30, 2000 at 11:03:08AM -0400, Paul Barton-Davis wrote:
+Several allocators already do that (including GCC's), but Glibc doesn't
+AFAIK.
 
-> Well, I'm sympathetic to this. But just yesterday, I saw Stephen
-> Tweedie saying that the VM system needed another fairly significant
-> redesign begore it could be considered ready for 2.4.0.
+> You cannot have an arbitrarily growable heap, AND an arbitrarily
+> growable stack, AND have the kernel correctly guess where to place
+> mmaps.
+> 
+> One answer may be to start mmaps down near the heap boundary, and to
+> teach glibc to be more willing to use mmap() for even small mallocs.
+> That may break custom malloc libraries but should give the best
+> results for code which uses the standard glibc malloc: it doesn't
+> artificially restrain the stack or the mmap area.  Anything
+> relying directly on [s]brk will be affected, of course.
 
-It needs some really careful thinking, and a small (though still
-significant) amount of reworking of *highly* localised functions
-before 2.4.  It also needs a complete overhaul, but that's a 2.5
-issue.  For 2.4 the objective has to be minimum necessary change.  The
-trouble is that 2.4 VM performance has sufficiently bad worst case
-behaviour right now that some change is necessary --- the existing
-behaviour is a serious bug needing fixed.
+There are lots of custom malloc libraries.  If you're going to teach
+Glibc something anyway, why not add a new mmap flag?
 
-It is too late to change the VM mechanisms for 2.4, but the policy
-code still needs a good, hard think, since we currently perform much
-much worse than 2.2 at some jobs.
+One flag I think would be quite useful is MAP_NOCLOBBER|MAP_FIXED: there
+are times when I'd like to be able to _try_ mapping something at a fixed
+address, but fail if there is something mapped there already.  Currently
+it's necessary to parse /proc/self/maps, and that's far from thread
+safe.
 
-It IS too late to add features over and above what we already have in
-the source tree.  That's why we've got a substantial wish-list of
-experimental stuff to explore for the 2.5 VM in addition to the fixes
-needed for 2.4.
+The obvious use is for pre-relocated shared libraries, which can run at
+any address but will load faster and share more pages if loaded at a
+specific address.  (Especially if they're non-PIC).
 
---Stephen
+As a natural extension, a map flag which says "try to map at the
+supplied address, but if there is an object there search for a big
+enough hole above the supplied address" would simultaneously be useful
+for malloc optimisations like you're suggesting, and pre-relocated
+shared libraries.  That would be MAP_NOCLOBBER without MAP_FIXED.
+
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
