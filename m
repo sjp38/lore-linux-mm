@@ -1,80 +1,32 @@
-Message-ID: <3978B6DB.A0CCC681@norran.net>
-Date: Fri, 21 Jul 2000 22:47:23 +0200
-From: Roger Larsson <roger.larsson@norran.net>
+From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Message-Id: <200007230107.SAA14200@google.engr.sgi.com>
+Subject: flush_icache_range 
+Date: Sat, 22 Jul 2000 18:07:08 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] test5-1 vmfix-3.0
-References: <3976205E.4C604102@norran.net>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: alan@lxorguk.ukuu.org.uk, torvalds@transmeta.com, Kanoj Sarcar <kanoj@google.engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi again,
+Can anyone point out the logic of continued existance of flush_icache_range
+after the introduction of flush_icache_page()? I admit that 
+flush_icache_range is still needed in the module loading code, but do we
+need it anymore in the a.out loading code? That code should be incurring
+page faults, which will do the flush_icache_page anyway. Seems like
+double work to me to do flush_icache_range again after the loading has
+been done.
 
-Reread what I had written.
-One documentation error.
+This argument to delete the flush_icache_range calls from the a.out
+loading code assumes that the f_op->read() code behaves sanely, ie does
+not do unexpected things like touch the user address (thus allocating
+the page, and doing the icache flush via the page fault handler much
+earlier) before it starts reading the a.out sections in ...
 
-Roger Larsson wrote:
-> 
-> Hi,
-> 
-> Another attempt.
-> 
-> With this patch I get noticeable improvements in streaming write +16%!
-> (streaming write throughput is close to streaming read :-)
-> 
-> dbench results are mixed - slightly worse than plain test5-1...
-> It now survives mmap002, as opposed to vmfix-2.x :-)  there were
-> bugs of cause.
-> 
-> * Basic idea in this patch is to keep free pages of zones in the
->   range [pages_high ... pages_low].
+Kanoj
 
-This part:
->                                     Kswapd will only run until
->   one zone gets pages_high. In this situation pages from all zones
->   are free able.
-
-Should read:
-
-Kswapd will start when all zones have zone_wake_kswapd
-(free_pages < pages_low). In this situation pages from all zones are
-freeable. Kswapd will run until one zone drops zone_wake_kswapd
-(free_pages > pages_high).
-
-
-> * In addition kswapd will run if any zone has less than pages_low.
-> 
-> * Actually implemented by using three values in zone_wake_kswapd
->   0 = zone initially above pages_high, allocs allowed until zone
->       gets < pages_low
->   1 = zone < pages_low
->  -1 = additional alloc done after zone become < pages_low
->  Most of the time there will only be one zone to with
->  zone_wake_kswapd zero. This zone will get the allocs until it
->  also gets < pages_low, then kswapd starts and runs until any
->  zone gets > pages_high - it will probably be another zone. Now
->  that one gets the allocs, ...
-> 
-> * There are some additional stuff that needs cleaning / further
->   investigations.
-> 
-> /RogerL
-> 
-> --
-> Home page:
->   http://www.norran.net/nra02596/
-> 
->   ------------------------------------------------------------------------
->                                    Name: patch-2.4.0-test5-1-vmfix.30
->    patch-2.4.0-test5-1-vmfix.30    Type: Plain Text (text/plain)
->                                Encoding: 7bit
-
---
-Home page:
-  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
