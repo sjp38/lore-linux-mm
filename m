@@ -1,37 +1,70 @@
-Date: Mon, 21 May 2001 14:36:04 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id AC7DD16B18
+	for <linux-mm@kvack.org>; Sun, 20 May 2001 03:42:19 -0300 (EST)
+Date: Sun, 20 May 2001 03:42:18 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-Message-ID: <20010521143604.C8080@redhat.com>
-References: <Pine.LNX.4.33.0105201104090.610-100000@mikeg.weiden.de> <Pine.LNX.4.21.0105200703270.5531-100000@imladris.rielhome.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0105200703270.5531-100000@imladris.rielhome.conectiva>; from riel@conectiva.com.br on Sun, May 20, 2001 at 07:04:31AM -0300
+In-Reply-To: <Pine.LNX.4.33.0105200509130.488-100000@mikeg.weiden.de>
+Message-ID: <Pine.LNX.4.33.0105200339150.23366-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Mike Galbraith <mikeg@wen-online.de>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sun, 20 May 2001, Mike Galbraith wrote:
+> On Sat, 19 May 2001, Rik van Riel wrote:
+> > On Sat, 19 May 2001, Mike Galbraith wrote:
+> > > On Fri, 18 May 2001, Stephen C. Tweedie wrote:
+> > >
+> > > > That's the main problem with static parameters.  The problem you are
+> > > > trying to solve is fundamentally dynamic in most cases (which is also
+> > > > why magic numbers tend to suck in the VM.)
+> > >
+> > > Magic numbers might be sucking some performance right now ;-)
+> >
+> > ... so you replace them with some others ... ;)
+>
+> I reused one of our base numbers to classify the severity of the
+> situation.. not the same as inventing new ones.  (well, not quite
+> the same anyway.. half did come from the south fourty;)
 
-On Sun, May 20, 2001 at 07:04:31AM -0300, Rik van Riel wrote:
-> On Sun, 20 May 2001, Mike Galbraith wrote:
-> > 
-> > Looking at the locking and trying to think SMP (grunt) though, I
-> > don't like the thought of taking two locks for each page until
-> 
-> > 100%.  The data in that block is toast anyway.  A big hairy SMP
-> > box has to feel reclaim_page(). (they probably feel the zone lock
-> > too.. probably would like to allocate blocks)
-> 
-> Indeed, but this is a separate problem.  Doing per-CPU private
-> (small, 8-32 page?) free lists is probably a good idea
+*nod* ;)
 
-Ingo already implemented that for Tux2.
+(not that I'm saying this is bad ... it's just that I'd
+like to know why things work before looking at applying
+them)
 
-Cheers,
- Stephen
+> > > (yes, the last hunk looks out of place wrt my text.
+> >
+> > It also looks kind of bogus and geared completely towards this
+> > particular workload ;)
+>
+> I'm not sure why that helps.  I didn't put it in as a trick or
+> anything though.  I put it in because it didn't seem like a
+> good idea to ever have more cleaned pages than free pages at a
+> time when we're yammering for help.. so I did that and it helped.
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Note that this is not the normal situation. Now think
+about the amount of data you'd be blowing away from the
+inactive_clean pages after a bit of background aging
+has gone on on a lightly loaded system.  Not Good(tm)
+
+regards,
+
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
+
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
