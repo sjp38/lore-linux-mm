@@ -1,755 +1,849 @@
 From: Christoph Lameter <clameter@sgi.com>
-Subject: Increase page fault rate by prezeroing V1 [1/3]: Introduce __GFP_ZERO
-Date: Tue, 21 Dec 2004 11:56:07 -0800 (PST)
-Message-ID: <Pine.LNX.4.58.0412211155340.1313__23173.8729555675$1103659873$gmane$org@schroedinger.engr.sgi.com>
+Subject: Increase page fault rate by prezeroing V1 [2/3]: zeroing and scrubd
+Date: Tue, 21 Dec 2004 11:57:03 -0800 (PST)
+Message-ID: <Pine.LNX.4.58.0412211156090.1313__2102.78075323931$1103659879$gmane$org@schroedinger.engr.sgi.com>
 References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com>
  <41C20E3E.3070209@yahoo.com.au> <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Return-path: <owner-linux-mm@kvack.org>
-Received: from internal-mail-relay.corp.sgi.com (internal-mail-relay.corp.sgi.com [198.149.32.51])
-	by omx2.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id iBLLVGgG007883
-	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 13:31:18 -0800
+Received: from internal-mail-relay1.corp.sgi.com (internal-mail-relay1.corp.sgi.com [198.149.32.52])
+	by omx3.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id iBLJUNdG014107
+	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 11:30:23 -0800
 Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
-	by internal-mail-relay.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id iBLK8XXd166687887
-	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 12:08:33 -0800 (PST)
+	by internal-mail-relay1.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id iBLKC00W142564116
+	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 12:12:00 -0800 (PST)
 Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
-	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id iBLK8Xae8983304
-	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 12:08:33 -0800 (PST)
+	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id iBLK8gae8944170
+	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 12:08:43 -0800 (PST)
 In-Reply-To: <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
 ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.4.58.0412211208270.1453@schroedinger.engr.sgi.com>
+ReSent-Message-ID: <Pine.LNX.4.58.0412211208350.1453@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 To: Nick Piggin <nickpiggin@yahoo.com.au>
 Cc: "Luck, Tony" <tony.luck@intel.com>, Robin Holt <holt@sgi.com>, Adam Litke <agl@us.ibm.com>, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@vger.kernel.org, linux-kernel@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-This patch introduces __GFP_ZERO as an additional gfp_mask element to allow
-to request zeroed pages from the page allocator.
-
-- Modifies the page allocator so that it zeroes memory if __GFP_ZERO is set
-
-- Replace all page zeroing after allocating pages by request for
-  zeroed pages.
-
-- Add an arch specific call zero_page to clear pages greater than
-  order 0 and a fallback to repeated calles to clear_page if an
-  architecture does not support zero_page(address, order) yet.
-
-- Add ia64 zero_page function
-- Add i386 zero_page function
-- Add x86_64 zero_page function (untested, unverified)
+o Add page zeroing
+o Add scrub daemon
+o Add ability to view amount of zeroed information in /proc/meminfo
 
 Index: linux-2.6.9/mm/page_alloc.c
 ===================================================================
---- linux-2.6.9.orig/mm/page_alloc.c	2004-12-17 14:40:17.000000000 -0800
-+++ linux-2.6.9/mm/page_alloc.c	2004-12-21 10:19:37.000000000 -0800
-@@ -575,6 +575,18 @@
- 		BUG_ON(bad_range(zone, page));
- 		mod_page_state_zone(zone, pgalloc, 1 << order);
- 		prep_new_page(page, order);
+--- linux-2.6.9.orig/mm/page_alloc.c	2004-12-21 10:19:37.000000000 -0800
++++ linux-2.6.9/mm/page_alloc.c	2004-12-21 11:01:40.000000000 -0800
+@@ -12,6 +12,7 @@
+  *  Zone balancing, Kanoj Sarcar, SGI, Jan 2000
+  *  Per cpu hot/cold page lists, bulk allocation, Martin J. Bligh, Sept 2002
+  *          (lots of bits borrowed from Ingo Molnar & Andrew Morton)
++ *  Support for page zeroing, Christoph Lameter, SGI, Dec 2004
+  */
+
+ #include <linux/config.h>
+@@ -32,6 +33,7 @@
+ #include <linux/sysctl.h>
+ #include <linux/cpu.h>
+ #include <linux/nodemask.h>
++#include <linux/scrub.h>
+
+ #include <asm/tlbflush.h>
+
+@@ -179,7 +181,7 @@
+  * -- wli
+  */
+
+-static inline void __free_pages_bulk (struct page *page, struct page *base,
++static inline int __free_pages_bulk (struct page *page, struct page *base,
+ 		struct zone *zone, struct free_area *area, unsigned int order)
+ {
+ 	unsigned long page_idx, index, mask;
+@@ -192,11 +194,10 @@
+ 		BUG();
+ 	index = page_idx >> (1 + order);
+
+-	zone->free_pages += 1 << order;
+ 	while (order < MAX_ORDER-1) {
+ 		struct page *buddy1, *buddy2;
+
+-		BUG_ON(area >= zone->free_area + MAX_ORDER);
++		BUG_ON(area >= zone->free_area[ZEROED] + MAX_ORDER);
+ 		if (!__test_and_change_bit(index, area->map))
+ 			/*
+ 			 * the buddy page is still allocated.
+@@ -216,6 +217,7 @@
+ 		page_idx &= mask;
+ 	}
+ 	list_add(&(base + page_idx)->lru, &area->free_list);
++	return order;
+ }
+
+ static inline void free_pages_check(const char *function, struct page *page)
+@@ -258,7 +260,7 @@
+ 	int ret = 0;
+
+ 	base = zone->zone_mem_map;
+-	area = zone->free_area + order;
++	area = zone->free_area[NOT_ZEROED] + order;
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	zone->all_unreclaimable = 0;
+ 	zone->pages_scanned = 0;
+@@ -266,7 +268,10 @@
+ 		page = list_entry(list->prev, struct page, lru);
+ 		/* have to delete it as __free_pages_bulk list manipulates */
+ 		list_del(&page->lru);
+-		__free_pages_bulk(page, base, zone, area, order);
++		zone->free_pages += 1 << order;
++		if (__free_pages_bulk(page, base, zone, area, order)
++			>= sysctl_scrub_start)
++				wakeup_kscrubd(zone);
+ 		ret++;
+ 	}
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+@@ -288,6 +293,21 @@
+ 	free_pages_bulk(page_zone(page), 1, &list, order);
+ }
+
++void end_zero_page(struct page *page)
++{
++	unsigned long flags;
++	int order = page->index;
++	struct zone * zone = page_zone(page);
 +
-+		if (gfp_flags & __GFP_ZERO) {
-+#ifdef CONFIG_HIGHMEM
-+			if (PageHighMem(page)) {
-+				int n = 1 << order;
++	spin_lock_irqsave(&zone->lock, flags);
 +
-+				while (n-- >0)
-+					clear_highpage(page + n);
-+			} else
-+#endif
-+			zero_page(page_address(page), order);
++	zone->zero_pages += 1 << order;
++	__free_pages_bulk(page, zone->zone_mem_map, zone, zone->free_area[ZEROED] + order, order);
++
++	spin_unlock_irqrestore(&zone->lock, flags);
++}
++
++
+ #define MARK_USED(index, order, area) \
+ 	__change_bit((index) >> (1+(order)), (area)->map)
+
+@@ -366,25 +386,46 @@
+  * Do the hard work of removing an element from the buddy allocator.
+  * Call me with the zone->lock already held.
+  */
+-static struct page *__rmqueue(struct zone *zone, unsigned int order)
++static void inline rmpage(struct page *page, struct zone *zone, struct free_area *area, int order)
++{
++	list_del(&page->lru);
++	if (order != MAX_ORDER-1)
++		MARK_USED(page - zone->zone_mem_map, order, area);
++}
++
++struct page *scrubd_rmpage(struct zone *zone, struct free_area *area, int order)
++{
++	unsigned long flags;
++	struct page *page = NULL;
++
++	spin_lock_irqsave(&zone->lock, flags);
++
++	if (!list_empty(&area->free_list)) {
++		page = list_entry(area->free_list.next, struct page, lru);
++
++		rmpage(page, zone, area, order);
++	}
++	spin_unlock_irqrestore(&zone->lock, flags);
++	return page;
++}
++
++static struct page *__rmqueue(struct zone *zone, unsigned int order, int zero)
+ {
+ 	struct free_area * area;
+ 	unsigned int current_order;
+ 	struct page *page;
+-	unsigned int index;
+
+ 	for (current_order = order; current_order < MAX_ORDER; ++current_order) {
+-		area = zone->free_area + current_order;
++		area = zone->free_area[zero] + current_order;
+ 		if (list_empty(&area->free_list))
+ 			continue;
+
+ 		page = list_entry(area->free_list.next, struct page, lru);
+-		list_del(&page->lru);
+-		index = page - zone->zone_mem_map;
+-		if (current_order != MAX_ORDER-1)
+-			MARK_USED(index, current_order, area);
++		rmpage(page, zone, area, current_order);
+ 		zone->free_pages -= 1UL << order;
+-		return expand(zone, page, index, order, current_order, area);
++		if (zero)
++			zone->zero_pages -= 1UL << order;
++		return expand(zone, page, page - zone->zone_mem_map, order, current_order, area);
+ 	}
+
+ 	return NULL;
+@@ -396,7 +437,7 @@
+  * Returns the number of new pages which were placed at *list.
+  */
+ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+-			unsigned long count, struct list_head *list)
++			unsigned long count, struct list_head *list, int zero)
+ {
+ 	unsigned long flags;
+ 	int i;
+@@ -405,7 +446,7 @@
+
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	for (i = 0; i < count; ++i) {
+-		page = __rmqueue(zone, order);
++		page = __rmqueue(zone, order, zero);
+ 		if (page == NULL)
+ 			break;
+ 		allocated++;
+@@ -546,7 +587,9 @@
+ {
+ 	unsigned long flags;
+ 	struct page *page = NULL;
+-	int cold = !!(gfp_flags & __GFP_COLD);
++	int nr_pages = 1 << order;
++	int zero = !!((gfp_flags & __GFP_ZERO) && zone->zero_pages >= nr_pages);
++	int cold = !!(gfp_flags & __GFP_COLD) + 2*zero;
+
+ 	if (order == 0) {
+ 		struct per_cpu_pages *pcp;
+@@ -555,7 +598,7 @@
+ 		local_irq_save(flags);
+ 		if (pcp->count <= pcp->low)
+ 			pcp->count += rmqueue_bulk(zone, 0,
+-						pcp->batch, &pcp->list);
++						pcp->batch, &pcp->list, zero);
+ 		if (pcp->count) {
+ 			page = list_entry(pcp->list.next, struct page, lru);
+ 			list_del(&page->lru);
+@@ -567,19 +610,30 @@
+
+ 	if (page == NULL) {
+ 		spin_lock_irqsave(&zone->lock, flags);
+-		page = __rmqueue(zone, order);
++
++		page = __rmqueue(zone, order, zero);
++
++		/*
++		 * If we failed to obtain a zero and/or unzeroed page
++		 * then we may still be able to obtain the other
++		 * type of page.
++		 */
++		if (!page) {
++			page = __rmqueue(zone, order, !zero);
++			zero = 0;
 +		}
++
+ 		spin_unlock_irqrestore(&zone->lock, flags);
+ 	}
+
+ 	if (page != NULL) {
+ 		BUG_ON(bad_range(zone, page));
+-		mod_page_state_zone(zone, pgalloc, 1 << order);
+-		prep_new_page(page, order);
++		mod_page_state_zone(zone, pgalloc, nr_pages);
+
+-		if (gfp_flags & __GFP_ZERO) {
++		if ((gfp_flags & __GFP_ZERO) && !zero) {
+ #ifdef CONFIG_HIGHMEM
+ 			if (PageHighMem(page)) {
+-				int n = 1 << order;
++				int n = nr_pages;
+
+ 				while (n-- >0)
+ 					clear_highpage(page + n);
+@@ -587,6 +641,7 @@
+ #endif
+ 			zero_page(page_address(page), order);
+ 		}
++		prep_new_page(page, order);
  		if (order && (gfp_flags & __GFP_COMP))
  			prep_compound_page(page, order);
  	}
-@@ -767,12 +779,9 @@
- 	 */
- 	BUG_ON(gfp_mask & __GFP_HIGHMEM);
-
--	page = alloc_pages(gfp_mask, 0);
--	if (page) {
--		void *address = page_address(page);
--		clear_page(address);
--		return (unsigned long) address;
--	}
-+	page = alloc_pages(gfp_mask | __GFP_ZERO, 0);
-+	if (page)
-+		return (unsigned long) page_address(page);
- 	return 0;
+@@ -974,7 +1029,7 @@
  }
 
-Index: linux-2.6.9/include/linux/gfp.h
-===================================================================
---- linux-2.6.9.orig/include/linux/gfp.h	2004-10-18 14:53:44.000000000 -0700
-+++ linux-2.6.9/include/linux/gfp.h	2004-12-21 10:19:37.000000000 -0800
-@@ -37,6 +37,7 @@
- #define __GFP_NORETRY	0x1000	/* Do not retry.  Might fail */
- #define __GFP_NO_GROW	0x2000	/* Slab internal usage */
- #define __GFP_COMP	0x4000	/* Add compound page metadata */
-+#define __GFP_ZERO	0x8000	/* Return zeroed page on success */
-
- #define __GFP_BITS_SHIFT 16	/* Room for 16 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((1 << __GFP_BITS_SHIFT) - 1)
-@@ -52,6 +53,7 @@
- #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
- #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS)
- #define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HIGHMEM)
-+#define GFP_HIGHZERO	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HIGHMEM | __GFP_ZERO)
-
- /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
-    platforms, used as appropriate on others */
-Index: linux-2.6.9/mm/memory.c
-===================================================================
---- linux-2.6.9.orig/mm/memory.c	2004-12-17 14:40:17.000000000 -0800
-+++ linux-2.6.9/mm/memory.c	2004-12-21 10:19:37.000000000 -0800
-@@ -1445,10 +1445,9 @@
-
- 		if (unlikely(anon_vma_prepare(vma)))
- 			goto no_mem;
--		page = alloc_page_vma(GFP_HIGHUSER, vma, addr);
-+		page = alloc_page_vma(GFP_HIGHZERO, vma, addr);
- 		if (!page)
- 			goto no_mem;
--		clear_user_highpage(page, addr);
-
- 		spin_lock(&mm->page_table_lock);
- 		page_table = pte_offset_map(pmd, addr);
-Index: linux-2.6.9/kernel/profile.c
-===================================================================
---- linux-2.6.9.orig/kernel/profile.c	2004-12-17 14:40:16.000000000 -0800
-+++ linux-2.6.9/kernel/profile.c	2004-12-21 10:19:37.000000000 -0800
-@@ -326,17 +326,15 @@
- 		node = cpu_to_node(cpu);
- 		per_cpu(cpu_profile_flip, cpu) = 0;
- 		if (!per_cpu(cpu_profile_hits, cpu)[1]) {
--			page = alloc_pages_node(node, GFP_KERNEL, 0);
-+			page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
- 			if (!page)
- 				return NOTIFY_BAD;
--			clear_highpage(page);
- 			per_cpu(cpu_profile_hits, cpu)[1] = page_address(page);
- 		}
- 		if (!per_cpu(cpu_profile_hits, cpu)[0]) {
--			page = alloc_pages_node(node, GFP_KERNEL, 0);
-+			page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
- 			if (!page)
- 				goto out_free;
--			clear_highpage(page);
- 			per_cpu(cpu_profile_hits, cpu)[0] = page_address(page);
- 		}
- 		break;
-@@ -510,16 +508,14 @@
- 		int node = cpu_to_node(cpu);
- 		struct page *page;
-
--		page = alloc_pages_node(node, GFP_KERNEL, 0);
-+		page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
- 		if (!page)
- 			goto out_cleanup;
--		clear_highpage(page);
- 		per_cpu(cpu_profile_hits, cpu)[1]
- 				= (struct profile_hit *)page_address(page);
--		page = alloc_pages_node(node, GFP_KERNEL, 0);
-+		page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
- 		if (!page)
- 			goto out_cleanup;
--		clear_highpage(page);
- 		per_cpu(cpu_profile_hits, cpu)[0]
- 				= (struct profile_hit *)page_address(page);
- 	}
-Index: linux-2.6.9/mm/shmem.c
-===================================================================
---- linux-2.6.9.orig/mm/shmem.c	2004-12-17 14:40:17.000000000 -0800
-+++ linux-2.6.9/mm/shmem.c	2004-12-21 10:19:37.000000000 -0800
-@@ -369,9 +369,8 @@
- 		}
-
- 		spin_unlock(&info->lock);
--		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
-+		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping) | __GFP_ZERO);
- 		if (page) {
--			clear_highpage(page);
- 			page->nr_swapped = 0;
- 		}
- 		spin_lock(&info->lock);
-@@ -910,7 +909,7 @@
- 	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
- 	pvma.vm_pgoff = idx;
- 	pvma.vm_end = PAGE_SIZE;
--	page = alloc_page_vma(gfp, &pvma, 0);
-+	page = alloc_page_vma(gfp | __GFP_ZERO, &pvma, 0);
- 	mpol_free(pvma.vm_policy);
- 	return page;
- }
-@@ -926,7 +925,7 @@
- shmem_alloc_page(unsigned long gfp,struct shmem_inode_info *info,
- 				 unsigned long idx)
+ void __get_zone_counts(unsigned long *active, unsigned long *inactive,
+-			unsigned long *free, struct pglist_data *pgdat)
++			unsigned long *free, unsigned long *zero, struct pglist_data *pgdat)
  {
--	return alloc_page(gfp);
-+	return alloc_page(gfp | __GFP_ZERO);
- }
- #endif
-
-@@ -1135,7 +1134,6 @@
-
- 		info->alloced++;
- 		spin_unlock(&info->lock);
--		clear_highpage(filepage);
- 		flush_dcache_page(filepage);
- 		SetPageUptodate(filepage);
+ 	struct zone *zones = pgdat->node_zones;
+ 	int i;
+@@ -982,27 +1037,31 @@
+ 	*active = 0;
+ 	*inactive = 0;
+ 	*free = 0;
++	*zero = 0;
+ 	for (i = 0; i < MAX_NR_ZONES; i++) {
+ 		*active += zones[i].nr_active;
+ 		*inactive += zones[i].nr_inactive;
+ 		*free += zones[i].free_pages;
++		*zero += zones[i].zero_pages;
  	}
-Index: linux-2.6.9/mm/hugetlb.c
-===================================================================
---- linux-2.6.9.orig/mm/hugetlb.c	2004-10-18 14:54:37.000000000 -0700
-+++ linux-2.6.9/mm/hugetlb.c	2004-12-21 10:19:37.000000000 -0800
-@@ -77,7 +77,6 @@
- struct page *alloc_huge_page(void)
- {
- 	struct page *page;
--	int i;
-
- 	spin_lock(&hugetlb_lock);
- 	page = dequeue_huge_page();
-@@ -88,8 +87,7 @@
- 	spin_unlock(&hugetlb_lock);
- 	set_page_count(page, 1);
- 	page[1].mapping = (void *)free_huge_page;
--	for (i = 0; i < (HPAGE_SIZE/PAGE_SIZE); ++i)
--		clear_highpage(&page[i]);
-+	zero_page(page_address(page), HUGETLB_PAGE_ORDER);
- 	return page;
  }
 
-Index: linux-2.6.9/arch/ia64/lib/Makefile
-===================================================================
---- linux-2.6.9.orig/arch/ia64/lib/Makefile	2004-10-18 14:55:28.000000000 -0700
-+++ linux-2.6.9/arch/ia64/lib/Makefile	2004-12-21 10:19:37.000000000 -0800
-@@ -6,7 +6,7 @@
+ void get_zone_counts(unsigned long *active,
+-		unsigned long *inactive, unsigned long *free)
++		unsigned long *inactive, unsigned long *free, unsigned long *zero)
+ {
+ 	struct pglist_data *pgdat;
 
- lib-y := __divsi3.o __udivsi3.o __modsi3.o __umodsi3.o			\
- 	__divdi3.o __udivdi3.o __moddi3.o __umoddi3.o			\
--	bitop.o checksum.o clear_page.o csum_partial_copy.o copy_page.o	\
-+	bitop.o checksum.o clear_page.o zero_page.o csum_partial_copy.o copy_page.o	\
- 	clear_user.o strncpy_from_user.o strlen_user.o strnlen_user.o	\
- 	flush.o ip_fast_csum.o do_csum.o				\
- 	memset.o strlen.o swiotlb.o
-Index: linux-2.6.9/include/asm-ia64/page.h
-===================================================================
---- linux-2.6.9.orig/include/asm-ia64/page.h	2004-10-18 14:53:21.000000000 -0700
-+++ linux-2.6.9/include/asm-ia64/page.h	2004-12-21 10:19:37.000000000 -0800
-@@ -57,6 +57,8 @@
- #  define STRICT_MM_TYPECHECKS
+ 	*active = 0;
+ 	*inactive = 0;
+ 	*free = 0;
++	*zero = 0;
+ 	for_each_pgdat(pgdat) {
+-		unsigned long l, m, n;
+-		__get_zone_counts(&l, &m, &n, pgdat);
++		unsigned long l, m, n,o;
++		__get_zone_counts(&l, &m, &n, &o, pgdat);
+ 		*active += l;
+ 		*inactive += m;
+ 		*free += n;
++		*zero += o;
+ 	}
+ }
 
- extern void clear_page (void *page);
-+extern void zero_page (void *page, int order);
+@@ -1039,6 +1098,7 @@
+
+ #define K(x) ((x) << (PAGE_SHIFT-10))
+
++const char *temp[3] = { "hot", "cold", "zero" };
+ /*
+  * Show free area list (used inside shift_scroll-lock stuff)
+  * We also calculate the percentage fragmentation. We do this by counting the
+@@ -1051,6 +1111,7 @@
+ 	unsigned long active;
+ 	unsigned long inactive;
+ 	unsigned long free;
++	unsigned long zero;
+ 	struct zone *zone;
+
+ 	for_each_zone(zone) {
+@@ -1071,10 +1132,10 @@
+
+ 			pageset = zone->pageset + cpu;
+
+-			for (temperature = 0; temperature < 2; temperature++)
++			for (temperature = 0; temperature < 3; temperature++)
+ 				printk("cpu %d %s: low %d, high %d, batch %d\n",
+ 					cpu,
+-					temperature ? "cold" : "hot",
++					temp[temperature],
+ 					pageset->pcp[temperature].low,
+ 					pageset->pcp[temperature].high,
+ 					pageset->pcp[temperature].batch);
+@@ -1082,20 +1143,21 @@
+ 	}
+
+ 	get_page_state(&ps);
+-	get_zone_counts(&active, &inactive, &free);
++	get_zone_counts(&active, &inactive, &free, &zero);
+
+ 	printk("\nFree pages: %11ukB (%ukB HighMem)\n",
+ 		K(nr_free_pages()),
+ 		K(nr_free_highpages()));
+
+ 	printk("Active:%lu inactive:%lu dirty:%lu writeback:%lu "
+-		"unstable:%lu free:%u slab:%lu mapped:%lu pagetables:%lu\n",
++		"unstable:%lu free:%u zero:%lu slab:%lu mapped:%lu pagetables:%lu\n",
+ 		active,
+ 		inactive,
+ 		ps.nr_dirty,
+ 		ps.nr_writeback,
+ 		ps.nr_unstable,
+ 		nr_free_pages(),
++		zero,
+ 		ps.nr_slab,
+ 		ps.nr_mapped,
+ 		ps.nr_page_table_pages);
+@@ -1146,7 +1208,7 @@
+ 		spin_lock_irqsave(&zone->lock, flags);
+ 		for (order = 0; order < MAX_ORDER; order++) {
+ 			nr = 0;
+-			list_for_each(elem, &zone->free_area[order].free_list)
++			list_for_each(elem, &zone->free_area[NOT_ZEROED][order].free_list)
+ 				++nr;
+ 			total += nr << order;
+ 			printk("%lu*%lukB ", nr, K(1UL) << order);
+@@ -1470,14 +1532,18 @@
+ 	for (order = 0; ; order++) {
+ 		unsigned long bitmap_size;
+
+-		INIT_LIST_HEAD(&zone->free_area[order].free_list);
++		INIT_LIST_HEAD(&zone->free_area[NOT_ZEROED][order].free_list);
++		INIT_LIST_HEAD(&zone->free_area[ZEROED][order].free_list);
+ 		if (order == MAX_ORDER-1) {
+-			zone->free_area[order].map = NULL;
++			zone->free_area[NOT_ZEROED][order].map = NULL;
++			zone->free_area[ZEROED][order].map = NULL;
+ 			break;
+ 		}
+
+ 		bitmap_size = pages_to_bitmap_size(order, size);
+-		zone->free_area[order].map =
++		zone->free_area[NOT_ZEROED][order].map =
++		  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
++		zone->free_area[ZEROED][order].map =
+ 		  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
+ 	}
+ }
+@@ -1503,6 +1569,7 @@
+
+ 	pgdat->nr_zones = 0;
+ 	init_waitqueue_head(&pgdat->kswapd_wait);
++	init_waitqueue_head(&pgdat->kscrubd_wait);
+
+ 	for (j = 0; j < MAX_NR_ZONES; j++) {
+ 		struct zone *zone = pgdat->node_zones + j;
+@@ -1525,6 +1592,7 @@
+ 		spin_lock_init(&zone->lru_lock);
+ 		zone->zone_pgdat = pgdat;
+ 		zone->free_pages = 0;
++		zone->zero_pages = 0;
+
+ 		zone->temp_priority = zone->prev_priority = DEF_PRIORITY;
+
+@@ -1558,6 +1626,13 @@
+ 			pcp->high = 2 * batch;
+ 			pcp->batch = 1 * batch;
+ 			INIT_LIST_HEAD(&pcp->list);
 +
- extern void copy_page (void *to, void *from);
++			pcp = &zone->pageset[cpu].pcp[2];	/* zero pages */
++			pcp->count = 0;
++			pcp->low = 0;
++			pcp->high = 2 * batch;
++			pcp->batch = 1 * batch;
++			INIT_LIST_HEAD(&pcp->list);
+ 		}
+ 		printk(KERN_DEBUG "  %s zone: %lu pages, LIFO batch:%lu\n",
+ 				zone_names[j], realsize, batch);
+@@ -1687,7 +1762,7 @@
+ 			unsigned long nr_bufs = 0;
+ 			struct list_head *elem;
+
+-			list_for_each(elem, &(zone->free_area[order].free_list))
++			list_for_each(elem, &(zone->free_area[NOT_ZEROED][order].free_list))
+ 				++nr_bufs;
+ 			seq_printf(m, "%6lu ", nr_bufs);
+ 		}
+Index: linux-2.6.9/include/linux/mmzone.h
+===================================================================
+--- linux-2.6.9.orig/include/linux/mmzone.h	2004-12-17 14:40:16.000000000 -0800
++++ linux-2.6.9/include/linux/mmzone.h	2004-12-21 11:01:15.000000000 -0800
+@@ -51,7 +51,7 @@
+ };
+
+ struct per_cpu_pageset {
+-	struct per_cpu_pages pcp[2];	/* 0: hot.  1: cold */
++	struct per_cpu_pages pcp[3];	/* 0: hot.  1: cold  2: cold zeroed pages */
+ #ifdef CONFIG_NUMA
+ 	unsigned long numa_hit;		/* allocated in intended node */
+ 	unsigned long numa_miss;	/* allocated in non intended node */
+@@ -107,10 +107,14 @@
+  * ZONE_HIGHMEM	 > 896 MB	only page cache and user processes
+  */
+
++#define NOT_ZEROED 0
++#define ZEROED 1
++
+ struct zone {
+ 	/* Fields commonly accessed by the page allocator */
+ 	unsigned long		free_pages;
+ 	unsigned long		pages_min, pages_low, pages_high;
++	unsigned long		zero_pages;
+ 	/*
+ 	 * protection[] is a pre-calculated number of extra pages that must be
+ 	 * available in a zone in order for __alloc_pages() to allocate memory
+@@ -131,7 +135,7 @@
+ 	 * free areas of different sizes
+ 	 */
+ 	spinlock_t		lock;
+-	struct free_area	free_area[MAX_ORDER];
++	struct free_area	free_area[2][MAX_ORDER];
+
+
+ 	ZONE_PADDING(_pad1_)
+@@ -265,6 +269,9 @@
+ 	struct pglist_data *pgdat_next;
+ 	wait_queue_head_t       kswapd_wait;
+ 	struct task_struct *kswapd;
++
++	wait_queue_head_t       kscrubd_wait;
++	struct task_struct *kscrubd;
+ } pg_data_t;
+
+ #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
+@@ -274,9 +281,9 @@
+ extern struct pglist_data *pgdat_list;
+
+ void __get_zone_counts(unsigned long *active, unsigned long *inactive,
+-			unsigned long *free, struct pglist_data *pgdat);
++			unsigned long *free, unsigned long *zero, struct pglist_data *pgdat);
+ void get_zone_counts(unsigned long *active, unsigned long *inactive,
+-			unsigned long *free);
++			unsigned long *free, unsigned long *zero);
+ void build_all_zonelists(void);
+ void wakeup_kswapd(struct zone *zone);
+
+Index: linux-2.6.9/fs/proc/proc_misc.c
+===================================================================
+--- linux-2.6.9.orig/fs/proc/proc_misc.c	2004-12-17 14:40:15.000000000 -0800
++++ linux-2.6.9/fs/proc/proc_misc.c	2004-12-21 11:01:15.000000000 -0800
+@@ -158,13 +158,14 @@
+ 	unsigned long inactive;
+ 	unsigned long active;
+ 	unsigned long free;
++	unsigned long zero;
+ 	unsigned long vmtot;
+ 	unsigned long committed;
+ 	unsigned long allowed;
+ 	struct vmalloc_info vmi;
+
+ 	get_page_state(&ps);
+-	get_zone_counts(&active, &inactive, &free);
++	get_zone_counts(&active, &inactive, &free, &zero);
 
  /*
-Index: linux-2.6.9/include/asm-ia64/pgalloc.h
+  * display in kilobytes.
+@@ -187,6 +188,7 @@
+ 	len = sprintf(page,
+ 		"MemTotal:     %8lu kB\n"
+ 		"MemFree:      %8lu kB\n"
++		"MemZero:      %8lu kB\n"
+ 		"Buffers:      %8lu kB\n"
+ 		"Cached:       %8lu kB\n"
+ 		"SwapCached:   %8lu kB\n"
+@@ -210,6 +212,7 @@
+ 		"VmallocChunk: %8lu kB\n",
+ 		K(i.totalram),
+ 		K(i.freeram),
++		K(zero),
+ 		K(i.bufferram),
+ 		K(get_page_cache_size()-total_swapcache_pages-i.bufferram),
+ 		K(total_swapcache_pages),
+Index: linux-2.6.9/mm/readahead.c
 ===================================================================
---- linux-2.6.9.orig/include/asm-ia64/pgalloc.h	2004-10-18 14:53:06.000000000 -0700
-+++ linux-2.6.9/include/asm-ia64/pgalloc.h	2004-12-21 10:19:37.000000000 -0800
-@@ -61,9 +61,7 @@
- 	pgd_t *pgd = pgd_alloc_one_fast(mm);
+--- linux-2.6.9.orig/mm/readahead.c	2004-10-18 14:53:11.000000000 -0700
++++ linux-2.6.9/mm/readahead.c	2004-12-21 11:01:15.000000000 -0800
+@@ -570,7 +570,8 @@
+ 	unsigned long active;
+ 	unsigned long inactive;
+ 	unsigned long free;
++	unsigned long zero;
 
- 	if (unlikely(pgd == NULL)) {
--		pgd = (pgd_t *)__get_free_page(GFP_KERNEL);
--		if (likely(pgd != NULL))
--			clear_page(pgd);
-+		pgd = (pgd_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
- 	}
- 	return pgd;
+-	__get_zone_counts(&active, &inactive, &free, NODE_DATA(numa_node_id()));
++	__get_zone_counts(&active, &inactive, &free, &zero, NODE_DATA(numa_node_id()));
+ 	return min(nr, (inactive + free) / 2);
  }
-@@ -107,10 +105,8 @@
- static inline pmd_t*
- pmd_alloc_one (struct mm_struct *mm, unsigned long addr)
- {
--	pmd_t *pmd = (pmd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
-+	pmd_t *pmd = (pmd_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
-
--	if (likely(pmd != NULL))
--		clear_page(pmd);
- 	return pmd;
- }
-
-@@ -141,20 +137,16 @@
- static inline struct page *
- pte_alloc_one (struct mm_struct *mm, unsigned long addr)
- {
--	struct page *pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT, 0);
-+	struct page *pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
-
--	if (likely(pte != NULL))
--		clear_page(page_address(pte));
- 	return pte;
- }
-
- static inline pte_t *
- pte_alloc_one_kernel (struct mm_struct *mm, unsigned long addr)
- {
--	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
-+	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
-
--	if (likely(pte != NULL))
--		clear_page(pte);
- 	return pte;
- }
-
-Index: linux-2.6.9/arch/ia64/lib/zero_page.S
+Index: linux-2.6.9/drivers/base/node.c
 ===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.9/arch/ia64/lib/zero_page.S	2004-12-21 10:19:37.000000000 -0800
-@@ -0,0 +1,84 @@
-+/*
-+ * Copyright (C) 1999-2002 Hewlett-Packard Co
-+ *	Stephane Eranian <eranian@hpl.hp.com>
-+ *	David Mosberger-Tang <davidm@hpl.hp.com>
-+ * Copyright (C) 2002 Ken Chen <kenneth.w.chen@intel.com>
-+ *
-+ * 1/06/01 davidm	Tuned for Itanium.
-+ * 2/12/02 kchen	Tuned for both Itanium and McKinley
-+ * 3/08/02 davidm	Some more tweaking
-+ * 12/10/04 clameter	Make it work on pages of order size
-+ */
-+#include <linux/config.h>
-+
-+#include <asm/asmmacro.h>
-+#include <asm/page.h>
-+
-+#ifdef CONFIG_ITANIUM
-+# define L3_LINE_SIZE	64	// Itanium L3 line size
-+# define PREFETCH_LINES	9	// magic number
-+#else
-+# define L3_LINE_SIZE	128	// McKinley L3 line size
-+# define PREFETCH_LINES	12	// magic number
-+#endif
-+
-+#define saved_lc	r2
-+#define dst_fetch	r3
-+#define dst1		r8
-+#define dst2		r9
-+#define dst3		r10
-+#define dst4		r11
-+
-+#define dst_last	r31
-+#define totsize		r14
-+
-+GLOBAL_ENTRY(zero_page)
-+	.prologue
-+	.regstk 2,0,0,0
-+	mov r16 = PAGE_SIZE/L3_LINE_SIZE	// main loop count
-+	mov totsize = PAGE_SIZE
-+	.save ar.lc, saved_lc
-+	mov saved_lc = ar.lc
-+	;;
-+	.body
-+	adds dst1 = 16, in0
-+	mov ar.lc = (PREFETCH_LINES - 1)
-+	mov dst_fetch = in0
-+	adds dst2 = 32, in0
-+	shl r16 = r16, in1
-+	shl totsize = totsize, in1
-+	;;
-+.fetch:	stf.spill.nta [dst_fetch] = f0, L3_LINE_SIZE
-+	adds dst3 = 48, in0		// executing this multiple times is harmless
-+	br.cloop.sptk.few .fetch
-+	add r16 = -1,r16
-+	add dst_last = totsize, dst_fetch
-+	adds dst4 = 64, in0
-+	;;
-+	mov ar.lc = r16			// one L3 line per iteration
-+	adds dst_last = -PREFETCH_LINES*L3_LINE_SIZE, dst_last
-+	;;
-+#ifdef CONFIG_ITANIUM
-+	// Optimized for Itanium
-+1:	stf.spill.nta [dst1] = f0, 64
-+	stf.spill.nta [dst2] = f0, 64
-+	cmp.lt p8,p0=dst_fetch, dst_last
-+	;;
-+#else
-+	// Optimized for McKinley
-+1:	stf.spill.nta [dst1] = f0, 64
-+	stf.spill.nta [dst2] = f0, 64
-+	stf.spill.nta [dst3] = f0, 64
-+	stf.spill.nta [dst4] = f0, 128
-+	cmp.lt p8,p0=dst_fetch, dst_last
-+	;;
-+	stf.spill.nta [dst1] = f0, 64
-+	stf.spill.nta [dst2] = f0, 64
-+#endif
-+	stf.spill.nta [dst3] = f0, 64
-+(p8)	stf.spill.nta [dst_fetch] = f0, L3_LINE_SIZE
-+	br.cloop.sptk.few 1b
-+	;;
-+	mov ar.lc = saved_lc		// restore lc
-+	br.ret.sptk.many rp
-+END(zero_page)
-Index: linux-2.6.9/include/asm-i386/page.h
+--- linux-2.6.9.orig/drivers/base/node.c	2004-10-18 14:53:22.000000000 -0700
++++ linux-2.6.9/drivers/base/node.c	2004-12-21 11:01:15.000000000 -0800
+@@ -41,13 +41,15 @@
+ 	unsigned long inactive;
+ 	unsigned long active;
+ 	unsigned long free;
++	unsigned long zero;
+
+ 	si_meminfo_node(&i, nid);
+-	__get_zone_counts(&active, &inactive, &free, NODE_DATA(nid));
++	__get_zone_counts(&active, &inactive, &free, &zero, NODE_DATA(nid));
+
+ 	n = sprintf(buf, "\n"
+ 		       "Node %d MemTotal:     %8lu kB\n"
+ 		       "Node %d MemFree:      %8lu kB\n"
++		       "Node %d MemZero:      %8lu kB\n"
+ 		       "Node %d MemUsed:      %8lu kB\n"
+ 		       "Node %d Active:       %8lu kB\n"
+ 		       "Node %d Inactive:     %8lu kB\n"
+@@ -57,6 +59,7 @@
+ 		       "Node %d LowFree:      %8lu kB\n",
+ 		       nid, K(i.totalram),
+ 		       nid, K(i.freeram),
++		       nid, K(zero),
+ 		       nid, K(i.totalram - i.freeram),
+ 		       nid, K(active),
+ 		       nid, K(inactive),
+Index: linux-2.6.9/include/linux/sched.h
 ===================================================================
---- linux-2.6.9.orig/include/asm-i386/page.h	2004-12-17 14:40:16.000000000 -0800
-+++ linux-2.6.9/include/asm-i386/page.h	2004-12-21 10:19:37.000000000 -0800
-@@ -20,6 +20,7 @@
+--- linux-2.6.9.orig/include/linux/sched.h	2004-12-17 14:40:16.000000000 -0800
++++ linux-2.6.9/include/linux/sched.h	2004-12-21 11:01:15.000000000 -0800
+@@ -715,6 +715,7 @@
+ #define PF_LESS_THROTTLE 0x00100000	/* Throttle me less: I clean memory */
+ #define PF_SYNCWRITE	0x00200000	/* I am doing a sync write */
+ #define PF_BORROWED_MM	0x00400000	/* I am a kthread doing use_mm */
++#define PF_KSCRUBD	0x00800000	/* I am kscrubd */
 
- #define clear_page(page)	mmx_clear_page((void *)(page))
- #define copy_page(to,from)	mmx_copy_page(to,from)
-+#define zero_page(page, order)	mmx_zero_page(page, order)
-
- #else
-
-@@ -29,6 +30,7 @@
-  */
-
- #define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
-+#define zero_page(page, ordeR)	memset((void *)(page), 0, PAGE_SIZE << order)
- #define copy_page(to,from)	memcpy((void *)(to), (void *)(from), PAGE_SIZE)
-
- #endif
-Index: linux-2.6.9/include/asm-x86_64/page.h
-===================================================================
---- linux-2.6.9.orig/include/asm-x86_64/page.h	2004-12-17 14:40:16.000000000 -0800
-+++ linux-2.6.9/include/asm-x86_64/page.h	2004-12-21 10:19:37.000000000 -0800
-@@ -33,6 +33,7 @@
- #ifndef __ASSEMBLY__
-
- void clear_page(void *);
-+void zero_page(void *, int);
- void copy_page(void *, void *);
-
- #define clear_user_page(page, vaddr, pg)	clear_page(page)
-Index: linux-2.6.9/include/asm-sparc/page.h
-===================================================================
---- linux-2.6.9.orig/include/asm-sparc/page.h	2004-10-18 14:53:45.000000000 -0700
-+++ linux-2.6.9/include/asm-sparc/page.h	2004-12-21 10:19:37.000000000 -0800
-@@ -29,6 +29,7 @@
- #ifndef __ASSEMBLY__
-
- #define clear_page(page)	 memset((void *)(page), 0, PAGE_SIZE)
-+#define zero_page(page,order)	 memset((void *)(page), 0, PAGE_SIZE <<(order))
- #define copy_page(to,from) 	memcpy((void *)(to), (void *)(from), PAGE_SIZE)
- #define clear_user_page(addr, vaddr, page)	\
- 	do { 	clear_page(addr);		\
-Index: linux-2.6.9/include/asm-s390/page.h
-===================================================================
---- linux-2.6.9.orig/include/asm-s390/page.h	2004-10-18 14:53:22.000000000 -0700
-+++ linux-2.6.9/include/asm-s390/page.h	2004-12-21 10:19:37.000000000 -0800
-@@ -33,6 +33,17 @@
- 		      : "+&a" (rp) : : "memory", "cc", "1" );
- }
-
-+static inline void zero_page(void *page, int order)
-+{
-+	register_pair rp;
-+
-+	rp.subreg.even = (unsigned long) page;
-+	rp.subreg.odd = (unsigned long) 4096 << order;
-+        asm volatile ("   slr  1,1\n"
-+		      "   mvcl %0,0"
-+		      : "+&a" (rp) : : "memory", "cc", "1" );
-+}
-+
- static inline void copy_page(void *to, void *from)
- {
-         if (MACHINE_HAS_MVPG)
-Index: linux-2.6.9/arch/i386/lib/mmx.c
-===================================================================
---- linux-2.6.9.orig/arch/i386/lib/mmx.c	2004-10-18 14:54:23.000000000 -0700
-+++ linux-2.6.9/arch/i386/lib/mmx.c	2004-12-21 10:55:00.000000000 -0800
-@@ -161,6 +161,39 @@
- 	kernel_fpu_end();
- }
-
-+static void fast_zero_page(void *page, int order)
-+{
-+	int i;
-+
-+	kernel_fpu_begin();
-+
-+	__asm__ __volatile__ (
-+		"  pxor %%mm0, %%mm0\n" : :
-+	);
-+
-+	for(i=0;i<((4096/64) << order);i++)
-+	{
-+		__asm__ __volatile__ (
-+		"  movntq %%mm0, (%0)\n"
-+		"  movntq %%mm0, 8(%0)\n"
-+		"  movntq %%mm0, 16(%0)\n"
-+		"  movntq %%mm0, 24(%0)\n"
-+		"  movntq %%mm0, 32(%0)\n"
-+		"  movntq %%mm0, 40(%0)\n"
-+		"  movntq %%mm0, 48(%0)\n"
-+		"  movntq %%mm0, 56(%0)\n"
-+		: : "r" (page) : "memory");
-+		page+=64;
-+	}
-+	/* since movntq is weakly-ordered, a "sfence" is needed to become
-+	 * ordered again.
-+	 */
-+	__asm__ __volatile__ (
-+		"  sfence \n" : :
-+	);
-+	kernel_fpu_end();
-+}
-+
- static void fast_copy_page(void *to, void *from)
- {
- 	int i;
-@@ -293,6 +326,42 @@
- 	kernel_fpu_end();
- }
-
-+static void fast_zero_page(void *page, int order)
-+{
-+	int i;
-+
-+	kernel_fpu_begin();
-+
-+	__asm__ __volatile__ (
-+		"  pxor %%mm0, %%mm0\n" : :
-+	);
-+
-+	for(i=0;i<((4096/128) << order);i++)
-+	{
-+		__asm__ __volatile__ (
-+		"  movq %%mm0, (%0)\n"
-+		"  movq %%mm0, 8(%0)\n"
-+		"  movq %%mm0, 16(%0)\n"
-+		"  movq %%mm0, 24(%0)\n"
-+		"  movq %%mm0, 32(%0)\n"
-+		"  movq %%mm0, 40(%0)\n"
-+		"  movq %%mm0, 48(%0)\n"
-+		"  movq %%mm0, 56(%0)\n"
-+		"  movq %%mm0, 64(%0)\n"
-+		"  movq %%mm0, 72(%0)\n"
-+		"  movq %%mm0, 80(%0)\n"
-+		"  movq %%mm0, 88(%0)\n"
-+		"  movq %%mm0, 96(%0)\n"
-+		"  movq %%mm0, 104(%0)\n"
-+		"  movq %%mm0, 112(%0)\n"
-+		"  movq %%mm0, 120(%0)\n"
-+		: : "r" (page) : "memory");
-+		page+=128;
-+	}
-+
-+	kernel_fpu_end();
-+}
-+
- static void fast_copy_page(void *to, void *from)
- {
- 	int i;
-@@ -359,7 +428,7 @@
-  *	Favour MMX for page clear and copy.
-  */
-
--static void slow_zero_page(void * page)
-+static void slow_clear_page(void * page)
- {
- 	int d0, d1;
- 	__asm__ __volatile__( \
-@@ -369,15 +438,34 @@
- 		:"a" (0),"1" (page),"0" (1024)
- 		:"memory");
- }
-+
-+static void slow_zero_page(void * page, int order)
-+{
-+	int d0, d1;
-+	__asm__ __volatile__( \
-+		"cld\n\t" \
-+		"rep ; stosl" \
-+		: "=&c" (d0), "=&D" (d1)
-+		:"a" (0),"1" (page),"0" (1024 << order)
-+		:"memory");
-+}
-
- void mmx_clear_page(void * page)
- {
- 	if(unlikely(in_interrupt()))
--		slow_zero_page(page);
-+		slow_clear_page(page);
- 	else
- 		fast_clear_page(page);
- }
-
-+void mmx_zero_page(void * page, int order)
-+{
-+	if(unlikely(in_interrupt()))
-+		slow_zero_page(page, order);
-+	else
-+		fast_zero_page(page, order);
-+}
-+
- static void slow_copy_page(void *to, void *from)
- {
- 	int d0, d1, d2;
-Index: linux-2.6.9/arch/i386/mm/pgtable.c
-===================================================================
---- linux-2.6.9.orig/arch/i386/mm/pgtable.c	2004-12-17 14:40:10.000000000 -0800
-+++ linux-2.6.9/arch/i386/mm/pgtable.c	2004-12-21 10:19:37.000000000 -0800
-@@ -132,10 +132,7 @@
-
- pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long address)
- {
--	pte_t *pte = (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT);
--	if (pte)
--		clear_page(pte);
--	return pte;
-+	return (pte_t *)__get_free_page(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO);
- }
-
- struct page *pte_alloc_one(struct mm_struct *mm, unsigned long address)
-@@ -143,12 +140,10 @@
- 	struct page *pte;
-
- #ifdef CONFIG_HIGHPTE
--	pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT, 0);
-+	pte = alloc_pages(GFP_KERNEL|__GFP_HIGHMEM|__GFP_REPEAT|__GFP_ZERO, 0);
- #else
--	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT, 0);
-+	pte = alloc_pages(GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO, 0);
- #endif
--	if (pte)
--		clear_highpage(pte);
- 	return pte;
- }
-
-Index: linux-2.6.9/arch/i386/kernel/i386_ksyms.c
-===================================================================
---- linux-2.6.9.orig/arch/i386/kernel/i386_ksyms.c	2004-12-17 14:40:10.000000000 -0800
-+++ linux-2.6.9/arch/i386/kernel/i386_ksyms.c	2004-12-21 10:19:37.000000000 -0800
-@@ -126,6 +126,7 @@
- #ifdef CONFIG_X86_USE_3DNOW
- EXPORT_SYMBOL(_mmx_memcpy);
- EXPORT_SYMBOL(mmx_clear_page);
-+EXPORT_SYMBOL(mmx_zero_page);
- EXPORT_SYMBOL(mmx_copy_page);
- #endif
-
-Index: linux-2.6.9/drivers/block/pktcdvd.c
-===================================================================
---- linux-2.6.9.orig/drivers/block/pktcdvd.c	2004-12-17 14:40:12.000000000 -0800
-+++ linux-2.6.9/drivers/block/pktcdvd.c	2004-12-21 10:19:37.000000000 -0800
-@@ -125,22 +125,19 @@
- 	int i;
- 	struct packet_data *pkt;
-
--	pkt = kmalloc(sizeof(struct packet_data), GFP_KERNEL);
-+	pkt = kmalloc(sizeof(struct packet_data), GFP_KERNEL|__GFP_ZERO);
- 	if (!pkt)
- 		goto no_pkt;
--	memset(pkt, 0, sizeof(struct packet_data));
-
- 	pkt->w_bio = pkt_bio_alloc(PACKET_MAX_SIZE);
- 	if (!pkt->w_bio)
- 		goto no_bio;
-
- 	for (i = 0; i < PAGES_PER_PACKET; i++) {
--		pkt->pages[i] = alloc_page(GFP_KERNEL);
-+		pkt->pages[i] = alloc_page(GFP_KERNEL|__GFP_ZERO);
- 		if (!pkt->pages[i])
- 			goto no_page;
- 	}
--	for (i = 0; i < PAGES_PER_PACKET; i++)
--		clear_page(page_address(pkt->pages[i]));
-
- 	spin_lock_init(&pkt->lock);
-
-Index: linux-2.6.9/arch/x86_64/lib/zero_page.S
-===================================================================
---- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ linux-2.6.9/arch/x86_64/lib/zero_page.S	2004-12-21 10:19:37.000000000 -0800
-@@ -0,0 +1,52 @@
-+/*
-+ * Zero a page.
-+ * rdi	page
-+ */
-+	.globl zero_page
-+	.p2align 4
-+zero_page:
-+	xorl   %eax,%eax
-+	movl   $4096/64,%ecx
-+	shl	%ecx, %esi
-+	.p2align 4
-+.Lloop:
-+	decl	%ecx
-+#define PUT(x) movq %rax,x*8(%rdi)
-+	movq %rax,(%rdi)
-+	PUT(1)
-+	PUT(2)
-+	PUT(3)
-+	PUT(4)
-+	PUT(5)
-+	PUT(6)
-+	PUT(7)
-+	leaq	64(%rdi),%rdi
-+	jnz	.Lloop
-+	nop
-+	ret
-+zero_page_end:
-+
-+	/* C stepping K8 run faster using the string instructions.
-+	   It is also a lot simpler. Use this when possible */
-+
-+#include <asm/cpufeature.h>
-+
-+	.section .altinstructions,"a"
-+	.align 8
-+	.quad  zero_page
-+	.quad  zero_page_c
-+	.byte  X86_FEATURE_K8_C
-+	.byte  zero_page_end-clear_page
-+	.byte  zero_page_c_end-clear_page_c
-+	.previous
-+
-+	.section .altinstr_replacement,"ax"
-+zero_page_c:
-+	movl $4096/8,%ecx
-+	shl	%ecx, %esi
-+	xorl %eax,%eax
-+	rep
-+	stosq
-+	ret
-+zero_page_c_end:
-+	.previous
-Index: linux-2.6.9/arch/x86_64/lib/Makefile
-===================================================================
---- linux-2.6.9.orig/arch/x86_64/lib/Makefile	2004-10-18 14:53:22.000000000 -0700
-+++ linux-2.6.9/arch/x86_64/lib/Makefile	2004-12-21 10:19:37.000000000 -0800
-@@ -7,7 +7,7 @@
- obj-y := io.o
-
- lib-y := csum-partial.o csum-copy.o csum-wrappers.o delay.o \
--	usercopy.o getuser.o putuser.o  \
-+	usercopy.o getuser.o putuser.o zero_page.S \
- 	thunk.o clear_page.o copy_page.o bitstr.o bitops.o
- lib-y += memcpy.o memmove.o memset.o copy_user.o
-
-Index: linux-2.6.9/include/asm-x86_64/mmx.h
-===================================================================
---- linux-2.6.9.orig/include/asm-x86_64/mmx.h	2004-10-18 14:54:30.000000000 -0700
-+++ linux-2.6.9/include/asm-x86_64/mmx.h	2004-12-21 10:19:37.000000000 -0800
-@@ -9,6 +9,7 @@
-
- extern void *_mmx_memcpy(void *to, const void *from, size_t size);
- extern void mmx_clear_page(void *page);
-+extern void mmx_zero_page(void *page, int order);
- extern void mmx_copy_page(void *to, void *from);
-
- #endif
-Index: linux-2.6.9/arch/x86_64/kernel/x8664_ksyms.c
-===================================================================
---- linux-2.6.9.orig/arch/x86_64/kernel/x8664_ksyms.c	2004-12-17 14:40:11.000000000 -0800
-+++ linux-2.6.9/arch/x86_64/kernel/x8664_ksyms.c	2004-12-21 10:19:37.000000000 -0800
-@@ -110,6 +110,7 @@
-
- EXPORT_SYMBOL(copy_page);
- EXPORT_SYMBOL(clear_page);
-+EXPORT_SYMBOL(zero_page);
-
- EXPORT_SYMBOL(cpu_pda);
  #ifdef CONFIG_SMP
+ extern int set_cpus_allowed(task_t *p, cpumask_t new_mask);
+Index: linux-2.6.9/mm/Makefile
+===================================================================
+--- linux-2.6.9.orig/mm/Makefile	2004-10-18 14:54:37.000000000 -0700
++++ linux-2.6.9/mm/Makefile	2004-12-21 11:01:15.000000000 -0800
+@@ -5,7 +5,7 @@
+ mmu-y			:= nommu.o
+ mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
+ 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
+-			   vmalloc.o
++			   vmalloc.o scrubd.o
+
+ obj-y			:= bootmem.o filemap.o mempool.o oom_kill.o fadvise.o \
+ 			   page_alloc.o page-writeback.o pdflush.o prio_tree.o \
+Index: linux-2.6.9/mm/scrubd.c
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.9/mm/scrubd.c	2004-12-21 11:01:15.000000000 -0800
+@@ -0,0 +1,148 @@
++#include <linux/mm.h>
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/highmem.h>
++#include <linux/file.h>
++#include <linux/suspend.h>
++#include <linux/sysctl.h>
++#include <linux/scrub.h>
++
++unsigned int sysctl_scrub_start = MAX_ORDER;		/* Off */
++unsigned int sysctl_scrub_stop = 2;	/* Mininum order of page to zero */
++
++/*
++ * sysctl handler for /proc/sys/vm/scrub_start
++ */
++int scrub_start_handler(ctl_table *table, int write,
++	struct file *file, void __user *buffer, size_t *length, loff_t *ppos)
++{
++	proc_dointvec(table, write, file, buffer, length, ppos);
++	if (sysctl_scrub_start < MAX_ORDER) {
++		struct zone *zone;
++
++		for_each_zone(zone)
++			wakeup_kscrubd(zone);
++	}
++	return 0;
++}
++
++
++
++LIST_HEAD(zero_drivers);
++
++/*
++ * zero_highest_order_page takes a page off the freelist
++ * and then hands it off to block zeroing agents.
++ * The cleared pages are added to the back of
++ * the freelist where the page allocator may pick them up.
++ */
++int zero_highest_order_page(struct zone *z)
++{
++	int order;
++
++	for(order = MAX_ORDER-1; order >= sysctl_scrub_stop; order--) {
++		struct free_area *area = z->free_area[NOT_ZEROED] + order;
++		if (!list_empty(&area->free_list)) {
++			struct page *page = scrubd_rmpage(z, area, order);
++			struct list_head *l;
++
++			if (!page)
++				continue;
++
++			page->index = order;
++
++			list_for_each(l, &zero_drivers) {
++				struct zero_driver *driver = list_entry(l, struct zero_driver, list);
++				unsigned long size = PAGE_SIZE << order;
++
++				if (driver->start(page_address(page), size) == 0) {
++
++					unsigned ticks = (size*HZ)/driver->rate;
++					if (ticks) {
++						/* Wait the minimum time of the transfer */
++						current->state = TASK_INTERRUPTIBLE;
++						schedule_timeout(ticks);
++					}
++					/* Then keep on checking until transfer is complete */
++					while (!driver->check())
++						schedule();
++					goto out;
++				}
++			}
++
++			/* Unable to find a zeroing device that would
++			 * deal with this page so just do it on our own.
++			 * This will likely thrash the cpu caches.
++			 */
++			cond_resched();
++			zero_page(page_address(page), order);
++out:
++			end_zero_page(page);
++			cond_resched();
++			return 1 << order;
++		}
++	}
++	return 0;
++}
++
++/*
++ * scrub_pgdat() will work across all this node's zones.
++ */
++static void scrub_pgdat(pg_data_t *pgdat)
++{
++	int i;
++	unsigned long pages_zeroed;
++
++	if (system_state != SYSTEM_RUNNING)
++		return;
++
++	do {
++		pages_zeroed = 0;
++		for (i = 0; i < pgdat->nr_zones; i++) {
++			struct zone *zone = pgdat->node_zones + i;
++
++			pages_zeroed += zero_highest_order_page(zone);
++		}
++	} while (pages_zeroed);
++}
++
++/*
++ * The background scrub daemon, started as a kernel thread
++ * from the init process.
++ */
++static int kscrubd(void *p)
++{
++	pg_data_t *pgdat = (pg_data_t*)p;
++	struct task_struct *tsk = current;
++	DEFINE_WAIT(wait);
++	cpumask_t cpumask;
++
++	daemonize("kscrubd%d", pgdat->node_id);
++	cpumask = node_to_cpumask(pgdat->node_id);
++	if (!cpus_empty(cpumask))
++		set_cpus_allowed(tsk, cpumask);
++
++	tsk->flags |= PF_MEMALLOC | PF_KSCRUBD;
++
++	for ( ; ; ) {
++		if (current->flags & PF_FREEZE)
++			refrigerator(PF_FREEZE);
++		prepare_to_wait(&pgdat->kscrubd_wait, &wait, TASK_INTERRUPTIBLE);
++		schedule();
++		finish_wait(&pgdat->kscrubd_wait, &wait);
++
++		scrub_pgdat(pgdat);
++	}
++	return 0;
++}
++
++static int __init kscrubd_init(void)
++{
++	pg_data_t *pgdat;
++	for_each_pgdat(pgdat)
++		pgdat->kscrubd
++		= find_task_by_pid(kernel_thread(kscrubd, pgdat, CLONE_KERNEL));
++	return 0;
++}
++
++module_init(kscrubd_init)
+Index: linux-2.6.9/include/linux/scrub.h
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ linux-2.6.9/include/linux/scrub.h	2004-12-21 11:01:15.000000000 -0800
+@@ -0,0 +1,48 @@
++#ifndef _LINUX_SCRUB_H
++#define _LINUX_SCRUB_H
++
++/*
++ * Definitions for scrubbing of memory include an interface
++ * for drivers that may that allow the zeroing of memory
++ * without invalidating the caches.
++ *
++ * Christoph Lameter, December 2004.
++ */
++
++struct zero_driver {
++        int (*start)(void *, unsigned length);		/* Start bzero transfer */
++	int (*check)(void);				/* Check if bzero is complete */
++	int rate;					/* bzero rate in MB/sec */
++        struct list_head list;
++};
++
++extern struct list_head zero_drivers;
++
++extern unsigned int sysctl_scrub_start;
++extern unsigned int sysctl_scrub_stop;
++
++/* Registering and unregistering zero drivers */
++static inline void register_zero_driver(struct zero_driver *z)
++{
++	list_add(&z->list, &zero_drivers);
++}
++
++static inline void unregister_zero_driver(struct zero_driver *z)
++{
++	list_del(&z->list);
++}
++
++extern struct page *scrubd_rmpage(struct zone *zone, struct free_area *area, int order);
++
++static void inline wakeup_kscrubd(struct zone *zone)
++{
++        if (!waitqueue_active(&zone->zone_pgdat->kscrubd_wait))
++                return;
++        wake_up_interruptible(&zone->zone_pgdat->kscrubd_wait);
++}
++
++int scrub_start_handler(struct ctl_table *, int, struct file *,
++				      void __user *, size_t *, loff_t *);
++
++extern void end_zero_page(struct page *page);
++#endif
+Index: linux-2.6.9/kernel/sysctl.c
+===================================================================
+--- linux-2.6.9.orig/kernel/sysctl.c	2004-12-17 14:40:17.000000000 -0800
++++ linux-2.6.9/kernel/sysctl.c	2004-12-21 11:01:15.000000000 -0800
+@@ -40,6 +40,7 @@
+ #include <linux/times.h>
+ #include <linux/limits.h>
+ #include <linux/dcache.h>
++#include <linux/scrub.h>
+ #include <linux/syscalls.h>
+
+ #include <asm/uaccess.h>
+@@ -816,6 +817,24 @@
+ 		.strategy	= &sysctl_jiffies,
+ 	},
+ #endif
++	{
++		.ctl_name	= VM_SCRUB_START,
++		.procname	= "scrub_start",
++		.data		= &sysctl_scrub_start,
++		.maxlen		= sizeof(sysctl_scrub_start),
++		.mode		= 0644,
++		.proc_handler	= &scrub_start_handler,
++		.strategy	= &sysctl_intvec,
++	},
++	{
++		.ctl_name	= VM_SCRUB_STOP,
++		.procname	= "scrub_stop",
++		.data		= &sysctl_scrub_stop,
++		.maxlen		= sizeof(sysctl_scrub_stop),
++		.mode		= 0644,
++		.proc_handler	= &proc_dointvec,
++		.strategy	= &sysctl_intvec,
++	},
+ 	{ .ctl_name = 0 }
+ };
+
+Index: linux-2.6.9/include/linux/sysctl.h
+===================================================================
+--- linux-2.6.9.orig/include/linux/sysctl.h	2004-12-17 14:40:16.000000000 -0800
++++ linux-2.6.9/include/linux/sysctl.h	2004-12-21 11:01:15.000000000 -0800
+@@ -168,6 +168,8 @@
+ 	VM_VFS_CACHE_PRESSURE=26, /* dcache/icache reclaim pressure */
+ 	VM_LEGACY_VA_LAYOUT=27, /* legacy/compatibility virtual address space layout */
+ 	VM_SWAP_TOKEN_TIMEOUT=28, /* default time for token time out */
++	VM_SCRUB_START=30,	/* percentage * 10 at which to start scrubd */
++	VM_SCRUB_STOP=31,	/* percentage * 10 at which to stop scrubd */
+ };
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
