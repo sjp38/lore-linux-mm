@@ -1,48 +1,45 @@
-Message-ID: <3A808A8D.A83784F5@eventdriven.org>
-Date: Tue, 06 Feb 2001 15:36:45 -0800
-From: Kip Macy <kip@eventdriven.org>
-MIME-Version: 1.0
+Date: Tue, 6 Feb 2001 21:49:48 -0200 (BRDT)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Another Mindcradt case?
-References: <200102062024.VAA15550@front3.grolier.fr>
-	    <20010206212704.A5882@caldera.de> <200102062322.AAA14557@front9.grolier.fr>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <200102062322.AAA14557@front9.grolier.fr>
+Message-ID: <Pine.LNX.4.21.0102062138070.1535-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jean Francois Martinez <jfm2@club-internet.fr>
 Cc: Christoph Hellwig <hch@ns.caldera.de>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Jean Francois Martinez wrote:
+On 7 Feb 2001, Jean Francois Martinez wrote:
 
-> On Tue, 6 Feb 2001 21:27:04 +0100, Christoph Hellwig said:
->
-> > On Tue, Feb 06, 2001 at 09:25:10PM +0100, Jean Francois Martinez wrote:
-> >  > Moshe Barr is claiming on Byte that sendmail and mysql are 30% faster on
-> >  > FreeBSD than Linux 2.4.   Now given that I don't think that mysql is spending
-> >  > 30% of its time in kernel mode there are not many ways FreeBSD can be 30%
-> >  > faster.
-> >
-> >  As he has not even documented all the parameters:  Ignore him.
-> >
->
-> The fact he doesn't give all parms doesn't mean Linux could not have a
-> performance problem.    And  one thing is sure we have a propaganda problem
-> since the BSD people will mention this for ten years.  So better to solve both
-> problems than ignoring them.
->
->                                                         JF Martinez
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux.eu.org/Linux-MM/
+> The fact he doesn't give all parms doesn't mean Linux could not
+> have a performance problem. And one thing is sure we have a
+> propaganda problem since the BSD people will mention this for
+> ten years.  So better to solve both problems than ignoring them.
 
-In all due fairness the propaganda out there is overwhelmingly in favor of Linux.
-Not to mention that its user base is close to 10x that of *BSD.
+If you can reproduce this test and tell us exactly how we
+can reproduce it here, then I'll take a look at the problem.
 
-                                        -Kip
+If you can get more details, like vmstat output, ..., could
+you file a bug in the linux-mm bugzilla ?
+
+(if you keep it on mail, you can be sure we'll all have
+forgotten about this within 3 weeks)
+
+regards,
+
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
+
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
