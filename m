@@ -1,37 +1,27 @@
 Subject: Re: PATCH: rewrite of invalidate_inode_pages
-References: <ytt4s84ix4z.fsf@vexeta.dc.fi.udc.es>
+References: <Pine.LNX.4.10.10005111445370.819-100000@penguin.transmeta.com> <yttya5ghhtr.fsf@vexeta.dc.fi.udc.es>
 From: Trond Myklebust <trond.myklebust@fys.uio.no>
-Date: 12 May 2000 00:28:35 +0200
-In-Reply-To: "Juan J. Quintela"'s message of "11 May 2000 23:40:12 +0200"
-Message-ID: <shsg0roen70.fsf@charged.uio.no>
+Date: 12 May 2000 00:34:41 +0200
+In-Reply-To: "Juan J. Quintela"'s message of "11 May 2000 23:56:16 +0200"
+Message-ID: <shsd7msemwu.fsf@charged.uio.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-You seem to assume that invalidate_inode_pages() is supposed to
-invalidate *all* pages in the inode. This is NOT the case, and any
-rewrite is going to lead to hard lockups if you try to make it so.
+>>>>> " " == Juan J Quintela <quintela@fi.udc.es> writes:
 
-Most calls to invalidate_inode_pages() are made while we hold the page
-lock for some page that has just been updated (and hence we know is up
-to date). The reason is that under NFS, we receive a set of attributes
-as part of the result from READ/WRITE/... If this triggers a cache
-invalidation, then we do not want to invalidate the page that we know
-is safe, hence we call invalidate_inode_pages() before the newly read
-in page is unlocked.
+     > Linus, I agree with you here, but we do a get_page 5 lines
+     > before, I think that if I do a get_page I should do a put_page
+     > to liberate it.  But I can be wrong, and then I would like to
+     > know if in the future, it could be posible to do a get_page and
+     > liberate it with a page_cache_release?  That was my point.
+     > Sorry for the bad wording.
 
-Your code of the form
-
-    while (head != head->next) {
-... 
-   }
-
-without some alternative method of exit will therefore lock up under NFS.
-
-Filesystems which want to make sure they clear out locked pages should
-use truncate_inode_pages() instead.
+That part of the code is broken. We do not want to wait on locked
+pages in invalidate_inode_pages(): that's the whole reason for its
+existence. truncate_inode_pages() is the waiting version.
 
 Cheers,
   Trond
