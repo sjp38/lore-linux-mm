@@ -1,73 +1,49 @@
-Date: Thu, 11 Mar 2004 10:55:27 -0800
-From: Andrew Morton <akpm@osdl.org>
 Subject: Re: blk_congestion_wait racy?
-Message-Id: <20040311105527.0de6b69a.akpm@osdl.org>
-In-Reply-To: <OF214BC5A0.606D60A9-ONC1256E53.0034F9B5-C1256E54.006525C2@de.ibm.com>
-References: <OF214BC5A0.606D60A9-ONC1256E53.0034F9B5-C1256E54.006525C2@de.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <OFF79FE9F7.73A1504E-ONC1256E54.006825BF-C1256E54.0068C4F9@de.ibm.com>
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Date: Thu, 11 Mar 2004 20:04:21 +0100
+MIME-Version: 1.0
+Content-type: text/plain; charset=ISO-8859-1
+Content-transfer-encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: piggin@cyberone.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, piggin@cyberone.com.au
 List-ID: <linux-mm.kvack.org>
 
-Martin Schwidefsky <schwidefsky@de.ibm.com> wrote:
->
-> > Martin, have you tried adding this printk?
-> 
-> Sorry for the delay. I had to get 2.6.4-mm1 working before doing the
-> "ouch" test. The new pte_to_pgprot/pgoff_prot_to_pte stuff wasn't easy.
 
-Yes, sorry, all the world's an x86 :( Could you please send me whatever
-diffs were needed to get it all going?
 
-There are porting instructions in
-ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.4/2.6.4-mm1/broken-out/remap-file-pages-prot-2.6.4-rc1-mm1-A1.patch
-but maybe it's a bit late for that.
 
-> I tested 2.6.4-mm1 with the blk_run_queues move and the ouch printk.
-> The first interesting observation is that 2.6.4-mm1 behaves MUCH better
-> then 2.6.4:
-> 
-> 2.6.4-mm1 with 1 cpu
-> # time ./mempig 600
-> Count (1Meg blocks) = 600
-> 600  of 600
-> Done.
-> 
-> real    0m2.587s
-> user    0m0.100s
-> sys     0m0.730s
-> #
+> Yes, sorry, all the world's an x86 :( Could you please send me whatever
+> diffs were needed to get it all going?
 
-I thought you were running a 256MB machine?  Two seconds for 400 megs of
-swapout?  What's up?
+I am just preparing that mail :-)
 
-> 2.6.4-mm1 with 2 cpus
-> # time ./mempig 600
-> Count (1Meg blocks) = 600
-> 600  of 600
-> Done.
-> 
-> real    0m10.313s
-> user    0m0.160s
-> sys     0m0.780s
-> #
-> 
-> 2.6.4 takes > 1min for the test with 2 cpus.
-> 
-> The second observation is that I get only a few "ouch" messages. They
-> all come from the blk_congestion_wait in try_to_free_pages, as expected.
-> What I did not expect is that I only got 9 "ouches" for the run with
-> 2 cpus.
+> I thought you were running a 256MB machine?  Two seconds for 400 megs of
+> swapout?  What's up?
 
-An ouch-per-second sounds reasonable.  It could simply be that the CPUs
-were off running other tasks - those timeout are less than scheduling
-quanta.
+Roughly 400 MB of swapout. And two seconds isn't that bad ;-)
+
+> An ouch-per-second sounds reasonable.  It could simply be that the CPUs
+> were off running other tasks - those timeout are less than scheduling
+> quanta.
+
+I don't understand why an ouch-per-second is reasonable. The mempig is
+the only process that runs on the machine and the blk_congestion_wait
+uses HZ/10 as timeout value. I'd expect about 100 ouches for the 10
+seconds the test runs.
 
 The 4x performance difference remains not understood.
+
+
+blue skies,
+   Martin
+
+Linux/390 Design & Development, IBM Deutschland Entwicklung GmbH
+Schonaicherstr. 220, D-71032 Boblingen, Telefon: 49 - (0)7031 - 16-2247
+E-Mail: schwidefsky@de.ibm.com
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
