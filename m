@@ -1,12 +1,12 @@
 Date: Mon, 14 Feb 2005 06:36:10 -0700
-From: Frankie, Youngblood
-Message-ID: <27673729.1097937559808.JavaMail.root@dezilu.com>
+Message-Id: bqeyhc33juy5vubacxr8sdz18joj36.i93WayTw001361@vais.net>
+From: "Susanne Marcum" <panzella@casholasavings.com>
 Subject: High rates? Not with us! 3.25 fixed
 Mime-Version: 1.0
 Content-Type: text/plain;
-Return-Path: <lopezr@savedatcash.com>
-To: io@kvack.org
-Cc: kernel@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.org
+Return-Path: <panzella@casholasavings.com>
+To: aart@kvack.org
+Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -28,7 +28,7 @@ Hello,
 
  Best Regards,
 
- Alissa Mcclain
+ Georgia Gabriel
  
  to be remov(ed:	http://www.sogoodrates.com/x/st.html
 
