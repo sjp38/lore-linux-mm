@@ -1,40 +1,33 @@
-Date: Thu, 4 Nov 1999 18:58:06 +0100 (CET)
-From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Subject: Re: [Patch] shm cleanups
-In-Reply-To: <qwwu2n2ctw4.fsf@sap.com>
-Message-ID: <Pine.LNX.4.10.9911041851010.5467-100000@chiara.csoma.elte.hu>
+Subject: Re: The 4GB memory thing
+From: Andrea Arcangeli <andrea@suse.de>
+Date: 04 Nov 1999 19:19:21 +0100
+Message-ID: <m3aeou9l1y.fsf@alpha.random>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Rohland <hans-christoph.rohland@sap.com>
-Cc: MM mailing list <linux-mm@kvack.org>, woodman@missioncriticallinux.com, Linus Torvalds <torvalds@transmeta.com>
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: Neil Conway <nconway.list@ukaea.org.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 4 Nov 1999, Christoph Rohland wrote:
+kanoj@google.engr.sgi.com (Kanoj Sarcar) writes:
 
-> I do get swapping also with 8GB of RAM, but it runs out of memory
-> before running out of swap space since prepare_highmem_swapout is
-> failing way to often.
-> 
-> (It then locks up since it cannot free the shm segments and so is
-> unable to free the memory. This should be perhaps addressed later in
-> the oom handler. It cannot handle the case where nearly all memory is
-> allocted in shm segments)
+> I have a 2.2 patch for 4Gb support, which has seen a lot of stress
+> testing by now. The 2.3 >2gb support uses a different (and better
+> approach), but last I checked, things like rawio did not work above
+> >2Gb. The 64Gb support is completely new ...
 
-ho humm. I think prepare_highmem_swapout() has a design bug. It's way too
-naive in low memory situations, it should keep a short list of pages for
-emergency swapout. It's the GFP_ATOMIC that is failing too often, right?
+2.2.13aa3 includes both 4g bigmem support and rawio and you can do
+rawio on all the memory (bigmem included).
 
-i believe we should have some explicit mechanizm that tells vmscan that
-there is 'IO in progress which will result in more memory', to distinct
-between true out-of-memory and 'wait a little bit to get more RAM' cases?
-I think we'd have a lot less to worry about and there would be a much
-clearer distinction between true out-of-mem and 'just cannot allocate it
-right now but help is on the way' cases.
+	ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/kernels/v2.2/2.2.13aa3/
 
-	Ingo
+This is the README on how to go in sync with 2.2.13aa3:
 
+	ftp://ftp.*.kernel.org/pub/linux/kernel/people/andrea/tools/apply-patches/README.gz
+
+-- 
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
