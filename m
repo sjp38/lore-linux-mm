@@ -1,132 +1,119 @@
-Date: Thu, 4 Nov 2004 08:02:26 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH 2/3] higher order watermarks
-Message-ID: <20041104100226.GB7902@logos.cnet>
-References: <417F5584.2070400@yahoo.com.au> <417F55B9.7090306@yahoo.com.au> <417F5604.3000908@yahoo.com.au> <20041104085745.GA7186@logos.cnet> <418A1EA6.70500@yahoo.com.au>
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iA50291p496964
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 19:02:09 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iA50251D271858
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 17:02:09 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iA5025QX023653
+	for <linux-mm@kvack.org>; Thu, 4 Nov 2004 17:02:05 -0700
+Subject: Re: fix iounmap and a pageattr memleak (x86 and x86-64)
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20041103030558.GK3571@dualathlon.random>
+References: <4187FA6D.3070604@us.ibm.com>
+	 <20041102220720.GV3571@dualathlon.random> <41880E0A.3000805@us.ibm.com>
+	 <4188118A.5050300@us.ibm.com> <20041103013511.GC3571@dualathlon.random>
+	 <418837D1.402@us.ibm.com> <20041103022606.GI3571@dualathlon.random>
+	 <418846E9.1060906@us.ibm.com>  <20041103030558.GK3571@dualathlon.random>
+Content-Type: multipart/mixed; boundary="=-NWaoPp/NYxxXq1H0Ku84"
+Message-Id: <1099612923.1022.10.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <418A1EA6.70500@yahoo.com.au>
+Date: Thu, 04 Nov 2004 16:02:04 -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrea Arcangeli <andrea@novell.com>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Nov 04, 2004 at 11:20:54PM +1100, Nick Piggin wrote:
-> Marcelo Tosatti wrote:
-> >On Wed, Oct 27, 2004 at 06:02:12PM +1000, Nick Piggin wrote:
-> >
-> >>2/3
-> >
-> >
-> >>
-> >>Move the watermark checking code into a single function. Extend it to 
-> >>account
-> >>for the order of the allocation and the number of free pages that could 
-> >>satisfy
-> >>such a request.
-> >>
-> >>Signed-off-by: Nick Piggin <nickpiggin@yahoo.com.au>
-> >
-> >
-> >Hi Nick,
-> >
-> >I have a few comments and doubts.
-> >
-> 
-> Hi Marcelo,
-> Thanks for the comments and review. It is always very helpful to
-> have more eyes on this area of code especially. Let's see...
-> 
-> >
-> >>linux-2.6-npiggin/include/linux/mmzone.h |    2 +
-> >>linux-2.6-npiggin/mm/page_alloc.c        |   58 
-> >>++++++++++++++++++++-----------
-> >>2 files changed, 41 insertions(+), 19 deletions(-)
-> >>
-> >>diff -puN mm/page_alloc.c~vm-alloc-order-watermarks mm/page_alloc.c
-> >>--- linux-2.6/mm/page_alloc.c~vm-alloc-order-watermarks	2004-10-27 
-> >>16:41:32.000000000 +1000
-> >>+++ linux-2.6-npiggin/mm/page_alloc.c	2004-10-27 
-> >>17:53:33.000000000 +1000
-> >>@@ -586,6 +586,37 @@ buffered_rmqueue(struct zone *zone, int 
-> >>}
-> >>
-> >>/*
-> >>+ * Return 1 if free pages are above 'mark'. This takes into account the 
-> >>order
-> >>+ * of the allocation.
-> >>+ */
-> >>+int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-> >>+		int alloc_type, int can_try_harder, int gfp_high)
-> >>+{
-> >>+	/* free_pages my go negative - that's OK */
-> >>+	long min = mark, free_pages = z->free_pages - (1 << order) + 1;
-> >>+	int o;
-> >>+
-> >>+	if (gfp_high)
-> >>+		min -= min / 2;
-> >>+	if (can_try_harder)
-> >>+		min -= min / 4;
-> >>+
-> >>+	if (free_pages <= min + z->protection[alloc_type])
-> >>+		return 0;
-> >>+	for (o = 0; o < order; o++) {
-> >>+		/* At the next order, this order's pages become unavailable 
-> >>*/
-> >>+		free_pages -= z->free_area[order].nr_free << o;
-> >>+
-> >>+		/* Require fewer higher order pages to be free */
-> >>+		min >>= 1;
-> >
-> >
-> >I can't understand this. You decrease from free_pages 
-> >nr_order_free_pages << o, in a loop, and divide min by two.
-> >
-> >What is the meaning of "nr_free_pages[order] << o" ? Its only meaningful
-> >when o == order?
-> >
-> >You're multiplying the number of free pages of the order the allocation
-> >wants by "0, 1..order". The two values have different meanings, until 
-> >o == order.
-> >
-> >In the first iteration of the loop, order is 0, so you decrease from 
-> >free_pages "z->free_area[order].nr_free". Again, the two values mean 
-> >different things.
-> >
-> >Can you enlight me?
-> >
-> >I see you're trying to have some kind of extra protection, but the 
-> >calculation is difficult to understand for me.
-> >
-> 
-> OK, we store the number of "order-pages" free for each order, so for
-> example, 16K worth of order-2 pages (on a 4K page architecture) will
-> count towards just 1 nr_free.
-> 
-> So now what we need to do in order to calculate, say the amount of memory
-> that will satisfy order-2 *and above* (this is important) is the following:
-> 
-> 	z->free_pages - (order[0].nr_free << 0) - (order[1].nr_free << 1)
-> 
-> to find order-3 and above, you also need to subtract (order[2].nr_free << 
-> 2).
-> 
-> I quite liked this method because it has progressively less cost on lower
-> order allocations, and for order-0 we don't need to do any calculation.
-> 
-> Of course it is slightly racy, which is why I say free_pages can go 
-> negative,
-> but that should be OK.
-> 
-> Probably the comment there is woefully inadequate? - I sometimes forget that
-> people can't read my mind :\
+--=-NWaoPp/NYxxXq1H0Ku84
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
-Nick, care to add a comment on top of zone_watermark_ok explaining 
-the reasoning behind the calculation and its expected effects? 
+Hi Andrea,
 
-That would be really nice.
+Are you sure that BUG_ON() should be for !page_count(kpte_page)?  I
+noticed that I was getting some BUGs when the count went back to 0, but
+the pte page was completely full with valid ptes.  I *think* it's
+correct to make it:
+
+       BUG_ON(page_count(kpte_page) < 0);
+
+Or, I guess we could keep the old BUG_ON(), and put it inside the else
+block with the __put_page().  
+
+-- Dave
+
+--=-NWaoPp/NYxxXq1H0Ku84
+Content-Disposition: attachment; filename=Z3-page_debugging.patch
+Content-Type: text/x-patch; name=Z3-page_debugging.patch; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 7bit
+
+
+
+---
+
+ memhotplug1-dave/arch/i386/mm/pageattr.c |    7 +++++--
+ memhotplug1-dave/include/linux/mm.h      |    3 +++
+ memhotplug1-dave/mm/page_alloc.c         |    5 ++++-
+ 3 files changed, 12 insertions(+), 3 deletions(-)
+
+diff -puN include/linux/mm.h~Z3-page_debugging include/linux/mm.h
+--- memhotplug1/include/linux/mm.h~Z3-page_debugging	2004-11-02 14:29:51.000000000 -0800
++++ memhotplug1-dave/include/linux/mm.h	2004-11-02 14:37:08.000000000 -0800
+@@ -245,6 +245,9 @@ struct page {
+ 	void *virtual;			/* Kernel virtual address (NULL if
+ 					   not kmapped, ie. highmem) */
+ #endif /* WANT_PAGE_VIRTUAL */
++#ifdef CONFIG_DEBUG_PAGEALLOC
++	int mapped;
++#endif
+ };
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+diff -puN arch/i386/mm/pageattr.c~Z3-page_debugging arch/i386/mm/pageattr.c
+--- memhotplug1/arch/i386/mm/pageattr.c~Z3-page_debugging	2004-11-02 14:31:07.000000000 -0800
++++ memhotplug1-dave/arch/i386/mm/pageattr.c	2004-11-02 14:41:00.000000000 -0800
+@@ -153,7 +153,7 @@ __change_page_attr(struct page *page, pg
+ 		printk("pgprot_val(PAGE_KERNEL): %08lx\n", pgprot_val(PAGE_KERNEL));
+ 		printk("(pte_val(*kpte) & _PAGE_PSE): %08lx\n", (pte_val(*kpte) & _PAGE_PSE)); 
+ 		printk("path: %d\n", path);
+-		BUG();
++		WARN_ON(1);
+ 	}
+ 
+ 	if (cpu_has_pse && (page_count(kpte_page) == 1)) {
+@@ -224,7 +224,10 @@ void kernel_map_pages(struct page *page,
+ 	/* the return value is ignored - the calls cannot fail,
+ 	 * large pages are disabled at boot time.
+ 	 */
+-	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
++	if (enable && !page->mapped)
++		change_page_attr(page, numpages, PAGE_KERNEL);
++	else if (!enable && page->mapped)
++		change_page_attr(page, numpages, __pgprot(0));
+ 	/* we should perform an IPI and flush all tlbs,
+ 	 * but that can deadlock->flush only current cpu.
+ 	 */
+diff -puN mm/page_alloc.c~Z3-page_debugging mm/page_alloc.c
+--- memhotplug1/mm/page_alloc.c~Z3-page_debugging	2004-11-02 14:37:53.000000000 -0800
++++ memhotplug1-dave/mm/page_alloc.c	2004-11-02 14:42:56.000000000 -0800
+@@ -1840,8 +1840,11 @@ void __devinit memmap_init_zone(unsigned
+ 		INIT_LIST_HEAD(&page->lru);
+ #ifdef WANT_PAGE_VIRTUAL
+ 		/* The shift won't overflow because ZONE_NORMAL is below 4G. */
+-		if (!is_highmem_idx(zone))
++		if (!is_highmem_idx(zone)) {
+ 			set_page_address(page, __va(start_pfn << PAGE_SHIFT));
++			page->mapped = 1;
++		} else
++			page->mapped = 0;
+ #endif
+ 		start_pfn++;
+ 	}
+_
+
+--=-NWaoPp/NYxxXq1H0Ku84--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
