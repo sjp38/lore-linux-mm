@@ -1,32 +1,38 @@
-Date: Tue, 22 Oct 2002 13:45:01 -0400
-From: Benjamin LaHaise <bcrl@redhat.com>
-Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
-Message-ID: <20021022134501.C20957@redhat.com>
-References: <2629464880.1035240956@[10.10.2.3]> <Pine.LNX.4.44L.0210221405260.1648-100000@duckman.distro.conectiva> <20021022131930.A20957@redhat.com> <396790000.1035308200@flay>
+Date: Tue, 22 Oct 2002 18:49:39 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
+Message-ID: <20021022184938.A2395@infradead.org>
+References: <Pine.LNX.4.44.0210221936010.18790-100000@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <396790000.1035308200@flay>; from mbligh@aracnet.com on Tue, Oct 22, 2002 at 10:36:40AM -0700
+In-Reply-To: <Pine.LNX.4.44.0210221936010.18790-100000@localhost.localdomain>; from mingo@elte.hu on Tue, Oct 22, 2002 at 07:57:00PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 22, 2002 at 10:36:40AM -0700, Martin J. Bligh wrote:
-> Bear in mind that large pages are neither swap backed or file backed
-> (vetoed by Linus), for starters. There are other large app problem scenarios 
-> apart from Oracle ;-)
+On Tue, Oct 22, 2002 at 07:57:00PM +0200, Ingo Molnar wrote:
+> the attached patch (ontop of 2.5.44-mm2) implements generic (swappable!)
+> nonlinear mappings and sys_remap_file_pages() support. Ie. no more
+> MAP_LOCKED restrictions and strange pagefault semantics.
+> 
+> to implement this i added a new pte concept: "file pte's". This means that
+> upon swapout, shared-named mappings do not get cleared but get converted
+> into file pte's, which can then be decoded by the pagefault path and can
+> be looked up in the pagecache.
+> 
+> the normal linear pagefault path from now on does not assume linearity and
+> decodes the offset in the pte. This also tests pte encoding/decoding in
+> the pagecache case, and the ->populate functions.
 
-I think the fact that large page support doesn't support mmap for users 
-that need it is utterly appauling; there are numerous places where it is 
-needed.  The requirement for root-only access makes it useless for most 
-people, especially in HPC environments where it is most needed as such 
-machines are usually shared and accounts are non-priveledged.
+Ingo,
 
-		-ben
--- 
-"Do you seek knowledge in time travel?"
+what is the reason for that interface?  It looks like a gross performance
+hack for misdesigned applications to me, kindof windowsish..
+
+Is this for whoracle or something like that?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
