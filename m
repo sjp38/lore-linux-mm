@@ -1,41 +1,53 @@
-Date: Fri, 28 Jun 2002 11:01:54 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] find_vma_prev rewrite
-Message-ID: <20020628180154.GS25360@holomorphy.com>
-References: <20020627160757.A13056@parcelfarce.linux.theplanet.co.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <20020627160757.A13056@parcelfarce.linux.theplanet.co.uk>
+Message-ID: <3D1F5034.9060409@shaolinmicro.com>
+Date: Mon, 01 Jul 2002 02:38:44 +0800
+From: David Chow <davidchow@shaolinmicro.com>
+MIME-Version: 1.0
+Subject: Re: Big memory, no struct page allocation
+References: <3D158D1E.1090802@shaolinmicro.com> <20020623085914.GN25360@holomorphy.com> <3D15E9D0.1090209@shaolinmicro.com> <20020627013833.GO25360@holomorphy.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Wilcox <willy@debian.org>
+To: William Lee Irwin III <wli@holomorphy.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 27, 2002 at 04:07:57PM +0100, Matthew Wilcox wrote:
-> I've been sending patches like this for over 18 months now with
-> no comments.  I'm sending it to Linus early next week.  It benefits
-> ia64's fault handler path and is required for PA-RISC's fault handler.
-> It works, it's tested.  I realise this puts it in a very different class
-> from the kind of VM patches which are allowed in a stable kernel tree.
+William Lee Irwin III wrote:
 
-That's discouraging to hear... perhaps some other time to discuss it.
+>William Lee Irwin III wrote:
+>  
+>
+>>>Try allocating it at boot-time with the bootmem allocator.
+>>>      
+>>>
+>
+>On Sun, Jun 23, 2002 at 11:31:28PM +0800, David Chow wrote:
+>  
+>
+>>Thanks for suggestions, you mean this will allow no struct page or can 
+>>use memory more than 1GB? Please make clear on direction, I would love 
+>>to know. Thanks.
+>>    
+>>
+>
+>On 32-bit machines with 3:1 process address space splits yes.
+>
+>In this case you're far better off playing games with the highmem
+>initialization in order to slice the memory out of there and kmap it.
+>
+>
+>Cheers,
+>Bill
+>  
+>
+In other words, even I have 2G physical memory, I cannot have benefits 
+of using all memory for pagecache, this also means I cannot create any 
+cache beyong a 1G size in kernel. That's a pitty for 32-bit systems, 
+with himem, how does it work?
+
+David
 
 
-On Thu, Jun 27, 2002 at 04:07:57PM +0100, Matthew Wilcox wrote:
-> There's also a chunk after find_vma_prev which adds an implementation
-> of find_extend_vma for machines with stacks which grow up.  I couldn't
-> be bothered to split it out, since it won't affect any other architecture.
-
-It should be there for correctness.
-
-I say it should go in.
-
-
-Cheers,
-Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
