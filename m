@@ -1,136 +1,54 @@
-Message-ID: <394C1D13.F39ECFD8@norran.net>
-Date: Sun, 18 Jun 2000 02:51:31 +0200
-From: Roger Larsson <roger.larsson@norran.net>
+Date: Sun, 18 Jun 2000 08:26:56 +0200 (CEST)
+From: Mike Galbraith <mikeg@weiden.de>
+Subject: Re: kswapd eating too much CPU on ac16/ac18
+In-Reply-To: <Pine.LNX.4.21.0006161203110.24794-100000@duckman.distro.conectiva>
+Message-ID: <Pine.Linu.4.10.10006180818120.466-100000@mikeg.weiden.de>
 MIME-Version: 1.0
-Subject: Re: PATCH: Improvements in shrink_mmap and kswapd
-References: <ytt3dmcyli7.fsf@serpe.mitica>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Cesar Eduardo Barros <cesarb@nitnet.com.br>, linux-kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, Roger Larsson <roger.larsson@optronic.se>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Fri, 16 Jun 2000, Rik van Riel wrote:
 
-Comments below,
-
-
-"Juan J. Quintela" wrote:
+> On Fri, 16 Jun 2000, Mike Galbraith wrote:
+> > On Wed, 14 Jun 2000, Alan Cox wrote:
+> > 
+> > > Im interested to know if ac9/ac10 is the slow->fast change point
+> > 
+> > ac5 is definately the breaking point.  ac5 doesn't survive make
+> > -j30.. starts swinging it's VM machette at everything in sight.  
+> > Reversing the VM changes to ac4 restores throughput to test1
+> > levels (11 minute build vs 21-26 minutes for everything
+> > forward).
+> > 
+> > Exact tested reversals below.  FWIW, page aging doesn't seem to
+> > be the problem.  I disabled that in ac17 and saw zero
+> > difference.  (What may or not be a hint is that the /* Let
+> > shrink_mmap handle this swapout. */ bit in vmscan.c does make a
+> > consistent difference.  Reverting that bit alone takes a minimum
+> > of 4 minutes off build time)
 > 
-> Hi
->         this patch makes kswapd use less resources.  It should solve
-> the kswapd eats xx% of my CPU problems.  It appears that it improves
-> IO a bit here.  Could people having problems with IO told me if this
-> patch improves things, I am interested in knowing that it don't makes
-> things worst never.  This patch is stable here.  I am finishing the
-> deferred mmaped pages form file writing patch, that should solve
-> several other problems.
+> Interesting. Not delaying the swapout IO completely broke
+> performance under the tests I did here...
 > 
-> Reports of success/failure are welcome.  Comments are also welcome.
+> Delayed swapout vs. non-delayed swapouts was the difference
+> between 300 swapouts/s vs. 700 swapouts/s  (under a load
+> with 400 swapins/s).
 > 
-> Later, Juan.
-> 
+> OTOH, I can imagine it being better if you have a very small
+> LRU cache, something like less than 1/2 MB.
 
-> +/**
-> + * shrink_mmap - Tries to free memory
-> + * @priority: how hard we will try to free pages (0 hardest)
-> + * @gfp_mask: Restrictions to free pages
-> + *
-> + * This function walks the lru list searching for free pages. It
-> + * returns 1 to indicate success and 0 in the opposite case. It gets a
-> + * lock in the pagemap_lru_lock and the pagecache_lock.
->   */
-> +/* nr_to_examinate counts the number of pages that we will read as
-> + * maximum as each call.  This means that we don't loop.
-> + */
-> +/* nr_writes counts the number of writes that we have started to the
-> + * moment. We limitate the number of writes in each round to
-> + * max_page_launder. ToDo: Make that variable tunable through sysctl.
-> + */
-> +const int max_page_launder = 100;
-> +
->  int shrink_mmap(int priority, int gfp_mask)
->  {
-> -       int ret = 0, count, nr_dirty;
->         struct list_head * page_lru;
->         struct page * page = NULL;
-> -
-> -       count = nr_lru_pages / (priority + 1);
-> -       nr_dirty = priority;
-> +       int ret;
-> +       int nr_to_examinate = nr_lru_pages;
+Removing only the hunk identified by Roger Larsonn brought ac20 performance
+beyond 99-pre5 :)  Reverting deferred swap also no longer helps at all
+and in fact hurts slightly (30 sec difference on make -j30 build times)
 
-Is this really enough?
-  PG_AGE_MAX * nr_lru_pages / (priority + 1)
-is required to ensure that all pages have been scanned at an age of 0.
-But that is probably an overkill... there is a sum involved here...
-  PG_AGE_START * ...
-Could be nice to get rid of streaming pages before other attempts are
-done.
+	-Mike
 
+(shoot.. if it kicks butt now, I wonder what adding Juan's patch will do:)
 
-> diff -urN --exclude-from=/home/lfcia/quintela/work/kernel/exclude base/mm/vmscan.c working/mm/vmscan.c
-> --- base/mm/vmscan.c    Sat Jun 17 23:51:24 2000
-> +++ working/mm/vmscan.c Sun Jun 18 00:28:12 2000
->
-> [removed stuff]
->
-> @@ -427,6 +425,32 @@
->         return __ret;
->  }
-> 
-> +/**
-> + * memory_pressure - Is the system under memory pressure
-> + *
-> + * Returns 1 if the system is low on memory in any of its zones,
-> + * otherwise returns 0.
-> + */
-> +int memory_pressure(void)
-> +{
-> +       pg_data_t *pgdat = pgdat_list;
-> +
-> +       do {
-> +               int i;
-> +               for(i = 0; i < MAX_NR_ZONES; i++) {
-> +                       zone_t *zone = pgdat->node_zones + i;
-> +                       if (!zone->size || !zone->zone_wake_kswapd)
-> +                               continue;
-> +                       if (zone->free_pages < zone->pages_low)
-> +                               return 1;
-> +               }
-> +               pgdat = pgdat->node_next;
-> +
-> +       } while (pgdat);
-> +
-> +       return 0;
-> +}
-> +
-
-This function effectively ignore 'zone_wake_kswapd' since it should
-always be set when free < low - if correct behaviour remove the test.
-
->         priority = 64;
->         do {
->                 while (shrink_mmap(priority, gfp_mask)) {
-> -                       ret = 1;
->                         if (!--count)
->                                 goto done;
->                 }
->  
-> +               if(!memory_pressure())
-> +                       return 1;
->  
-
-Needs lower than pages_low after shrink_mmap to pass this test and
-enter swapping... might be correct behaviour!
-
-/RogerL
-
---
-Home page:
-  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
