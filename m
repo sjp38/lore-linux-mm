@@ -1,35 +1,200 @@
-Subject: Re: 2.5.37-mm1
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <1032676152.967.959.camel@phantasy>
-References: <3D8D5559.AF112E57@digeo.com>
-	<1032676152.967.959.camel@phantasy>
-Content-Type: text/plain
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id VAA09497
+	for <linux-mm@kvack.org>; Sun, 22 Sep 2002 21:20:59 -0700 (PDT)
+Message-ID: <3D8E96AA.C2FA7D8@digeo.com>
+Date: Sun, 22 Sep 2002 21:20:58 -0700
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: 2.5.38-mm2
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Date: 22 Sep 2002 03:57:55 -0400
-Message-Id: <1032681476.967.974.camel@phantasy>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2002-09-22 at 02:29, Robert Love wrote:
+url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.38/2.5.38-mm2/
 
-> FYI, for testers: I have a tarball and RPM available of CVS as of
-> yesterday, at:
-> 
-> 	http://tech9.net/rml/procps/
-> 
-> Rik and I have both been merging some neat code; take a look.
++linus.patch
 
-Updated: some fixes for 2.5 users, care of Andrew Morton... plus a dump
-of tonight's CVS.
+ Linus's current diff.
 
-I feel like having some pizza.
+-filemap-fixes.patch
 
-	Robert Love
+ Merged
 
++unbreak-writeback-mode.patch
+
+ ext3 in data=writeback mode was oopsing on writeback of MAP_SHARED
+ data.
+
++read-latency.patch
+
+ Fix the writer-starves-reader elevator problem.  This is basically
+ the read_latency2 patch from -ac kernels.
+
+ On IDE it provides a 100x improvement in read throughput when there
+ is heavy writeback happening.  40x on SCSI.  You need to disable
+ tagged command queueing on scsi - it appears to be quite stupidly
+ implemented.
+
+
+linus.patch
+  cset-1.580.1.4-to-1.597.txt.gz
+
+ide-high-1.patch
+
+ide-block-fix-1.patch
+
+scsi_hack.patch
+  Fix block-highmem for scsi
+
+ext3-htree.patch
+  Indexed directories for ext3
+
+spin-lock-check.patch
+  spinlock/rwlock checking infrastructure
+
+rd-cleanup.patch
+  Cleanup and fix the ramdisk driver (doesn't work right yet)
+
+might_sleep.patch
+  debug code to detect might-sleep-inside-spinlock bugs
+
+unbreak-writeback-mode.patch
+  Fix ext3's data=writeback mode
+
+queue-congestion.patch
+  Infrastructure for communicating request queue congestion to the VM
+
+nonblocking-ext2-preread.patch
+  avoid ext2 inode prereads if the queue is congested
+
+nonblocking-pdflush.patch
+  non-blocking writeback infrastructure, use it for pdflush
+
+nonblocking-vm.patch
+  Non-blocking page reclaim
+
+set_page_dirty-locking-fix.patch
+  don't call __mark_inode_dirty under spinlock
+
+prepare_to_wait.patch
+  prepare_to_wait/finish_wait: new sleep/wakeup API
+
+vm-wakeups.patch
+  Use the faster wakeups in the VM and block layers
+
+sync-helper.patch
+  Speed up sys_sync() against multiple spindles
+
+slabasap.patch
+  Early and smarter shrinking of slabs
+
+write-deadlock.patch
+  Fix the generic_file_write-from-same-mmapped-page deadlock
+
+buddyinfo.patch
+  Add /proc/buddyinfo - stats on the free pages pool
+
+free_area.patch
+  Remove struct free_area_struct and free_area_t, use `struct free_area'
+
+per-node-kswapd.patch
+  Per-node kswapd instance
+
+topology-api.patch
+  Simple topology API
+
+radix_tree_gang_lookup.patch
+  radix tree gang lookup
+
+truncate_inode_pages.patch
+  truncate/invalidate_inode_pages rewrite
+
+proc_vmstat.patch
+  Move the vm accounting out of /proc/stat
+
+kswapd-reclaim-stats.patch
+  Add kswapd_steal to /proc/vmstat
+
+iowait.patch
+  I/O wait statistics
+
+sard.patch
+  SARD disk accounting
+
+remove-gfp_nfs.patch
+  remove GFP_NFS
+
+tcp-wakeups.patch
+  Use fast wakeups in TCP/IPV4
+
+swapoff-deadlock.patch
+  Fix a tmpfs swapoff deadlock
+
+dirty-and-uptodate.patch
+  page state cleanup
+
+shmem_rename.patch
+  shmem_rename() directory link count fix
+
+dirent-size.patch
+  tmpfs: show a non-zero size for directories
+
+tmpfs-trivia.patch
+  tmpfs: small fixlets
+
+per-zone-vm.patch
+  separate the kswapd and direct reclaim code paths
+
+swsusp-feature.patch
+  add shrink_all_memory() for swsusp
+
+adaptec-fix.patch
+  partial fix for aic7xxx error recovery
+
+remove-page-virtual.patch
+  remove page->virtual for !WANT_PAGE_VIRTUAL
+
+dirty-memory-clamp.patch
+  sterner dirty-memory clamping
+
+mempool-wakeup-fix.patch
+  Fix for stuck tasks in mempool_alloc()
+
+remove-write_mapping_buffers.patch
+  Remove write_mapping_buffers
+
+buffer_boundary-scheduling.patch
+  IO schduling for indirect blocks
+
+ll_rw_block-cleanup.patch
+  cleanup ll_rw_block()
+
+lseek-ext2_readdir.patch
+  remove lock_kernel() from ext2_readdir()
+
+discontig-no-contig_page_data.patch
+  undefine contif_page_data for discontigmem
+
+per-node-zone_normal.patch
+  ia32 NUMA: per-node ZONE_NORMAL
+
+alloc_pages_node-cleanup.patch
+  alloc_pages_node cleanup
+
+read_barrier_depends.patch
+  extended barrier primitives
+
+rcu_ltimer.patch
+  RCU core
+
+dcache_rcu.patch
+  Use RCU for dcache
+
+read-latency.patch
+  Elevator fix for writes-starving-reads
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
