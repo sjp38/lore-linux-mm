@@ -1,27 +1,29 @@
-Date: Wed, 13 Aug 2003 14:50:21 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: [patch] Add support for more than 256 zones
-Message-ID: <955130000.1060811421@flay>
-In-Reply-To: <20030813135538.19c96c67.akpm@osdl.org>
-References: <3F3A9E46.6010803@sgi.com> <20030813135538.19c96c67.akpm@osdl.org>
-MIME-Version: 1.0
+Date: Wed, 13 Aug 2003 23:40:14 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] Deprecate /proc/#/statm
+Message-ID: <20030814064014.GH3170@holomorphy.com>
+References: <20030811090213.GA11939@k3.hellgate.ch> <20030811160222.GE3170@holomorphy.com> <20030811215235.GB13180@k3.hellgate.ch> <20030811221646.GF3170@holomorphy.com> <20030812104046.GA6606@k3.hellgate.ch> <20030813003620.GG3170@holomorphy.com> <20030813075814.GA6182@k3.hellgate.ch>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <20030813075814.GA6182@k3.hellgate.ch>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, Jay Lan <jlan@sgi.com>
-Cc: linux-mm@kvack.org
+To: Roger Luethi <rl@hellgate.ch>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-> Yes, this is good - it gives us five more page flags on 32-bit machines. 
-> Assuming that no 32 bit machiens will ever need more than three zones(?)
+On Tue, 12 Aug 2003 17:36:20 -0700, William Lee Irwin III wrote:
+>> Best to just delete the code instead of the #if 0
 
-There has been talk already of a ZONE_DMA32 or whatever (first 4GB).
-That'd be useful for quite a few things, so might be nice to leave
-space for at least four zones ...
+On Wed, Aug 13, 2003 at 09:58:14AM +0200, Roger Luethi wrote:
+> Like this?
+> Roger
 
-M.
+Yep, thanks.
+
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
