@@ -1,58 +1,45 @@
-Message-Id: <200106251933.OAA03356@ccure.karaya.com>
+Date: Mon, 25 Jun 2001 20:10:19 +0000 (GMT)
+From: James Stevenson <mistral@stev.org>
 Subject: Re: all processes waiting in TASK_UNINTERRUPTIBLE state 
-In-Reply-To: Your message of "Mon, 25 Jun 2001 12:48:46 -0400."
-             <OF831FC2D7.C211A862-ON85256A76.005AEC98@pok.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Date: Mon, 25 Jun 2001 14:33:54 -0500
-From: Jeff Dike <jdike@karaya.com>
+In-Reply-To: <200106251705.MAA02325@ccure.karaya.com>
+Message-ID: <Pine.LNX.4.30.0106252003150.25937-100000@cyrix.stev.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bulent Abali <abali@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, James Stevenson <mistral@stev.org>
+To: Jeff Dike <jdike@karaya.com>
+Cc: Bulent Abali <abali@us.ibm.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-abali@us.ibm.com said:
-> Can you give more details? 
+Hi
 
-BTW, here are a couple of the UML stacks:
+i have been looking at it a lot over the past few days i seem to be the
+person who can trigger it easyest.
 
-#3  0x1000895d in schedule () at sched.c:669
-#4 0x1001c9bd in ___wait_on_page (page=0x50025740) at filemap.c:641
-#5  0x1001d286 in do_generic_file_read (filp=0x50d4c674, ppos=0x50d4c694,
-    desc=0x50d1bea8, actor=0x1001d410 <file_read_actor>) at 
-/home/mistral/dev/kernel/linux-2.4.5-um-06-15/include/linux/pagemap.h:97
-#6  0x1001d528 in generic_file_read (filp=0x50d4c674, buf=0x401b7000 <Address 
-0x401b7000 out of bounds>, count=4096, ppos=0x50d4c694) at filemap.c:1302
-#7  0x1002ba2b in sys_read (fd=6, buf=0x401b7000 <Address 0x401b7000 out of 
-bounds>, count=4096) at read_write.c:133
+over the past couple of days i have been running with the
+#define WAITQUEUE_DEBUG 1
+no problems seem to have appeared there though and the bug still triggers.
 
-#3  0x1000895d in schedule () at sched.c:669
-#4  0x1001c9bd in ___wait_on_page (page=0x50015bb4) at filemap.c:641
-#5  0x1001a2e1 in do_swap_page (mm=0x5009ea34, vma=0x50f83dac, 
-address=3212835782, page_table=0x50d5cffc, entry={val = 202240}, 
-write_access=0) at /home/mistral/dev/kernel/linux-2.4.5-um7/include/linux/pagem
-ap.h:97
-#6  0x1001a733 in handle_mm_fault (mm=0x5009ea34, vma=0x50f83dac, 
-address=3212835782, write_access=0) at memory.c:1307
-#7  0x10012c40 in access_one_page (mm=0x5009ea34, vma=0x50f83dac, 
-addr=3212835782, buf=0x5153e000, len=15, write=0) at ptrace.c:78
-#8  0x10012cd8 in access_mm (mm=0x5009ea34, vma=0x50f83dac, addr=3212835782, 
-buf=0x5153e000, len=15, write=0) at ptrace.c:104
-#9  0x10012d5b in access_process_vm (tsk=0x50db0000, addr=3212835782, 
-buf=0x5153e000, len=15, write=0) at ptrace.c:147
-#10 0x1004656b in proc_pid_cmdline (task=0x50db0000, buffer=0x5153e000 "74 66 
-64 8 0 58 14\n") at base.c:157
-#11 0x10046914 in proc_info_read (file=0x50d4eefc, buf=0xbf7ff0b0 
-"/proc/117/cmdline", count=2047, ppos=0x50d4ef1c) at base.c:288
-#12 0x1002ba2b in sys_read (fd=6, buf=0xbf7ff0b0 "/proc/117/cmdline", 
-count=2047) at read_write.c:133
+On Mon, 25 Jun 2001, Jeff Dike wrote:
 
-There are a few more at http://www.geocrawler.com/lists/3/SourceForge/709/0/598
-8636/
+> abali@us.ibm.com said:
+> > I am running in to a problem, seemingly a deadlock situation, where
+> > almost all the processes end up in the TASK_UNINTERRUPTIBLE state.
+> > All the process eventually stop responding, including login shell, no
+> > screen updates, keyboard etc.  Can ping and sysrq key works.   I
+> > traced the tasks through sysrq-t key.  The processors are in the idle
+> > state.  Tasks all seem to get stuck in the __wait_on_page or
+> > __lock_page.
 
-				Jeff
+i also seem to get ut ub __wait_on_buffer and ___wait_on_page
 
+	James
+-- 
+---------------------------------------------
+Web: http://www.stev.org
+Mobile: +44 07779080838
+E-Mail: mistral@stev.org
+  8:00pm  up 2 days, 12 min,  4 users,  load average: 1.41, 0.38, 0.40
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
