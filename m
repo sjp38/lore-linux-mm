@@ -1,70 +1,76 @@
-Date: Tue, 23 Dec 2003 17:14:07 +0100
+Date: Tue, 23 Dec 2003 17:13:23 +0100
 From: Roger Luethi <rl@hellgate.ch>
 Subject: Re: load control demotion/promotion policy
-Message-ID: <20031223161407.GC6082@k3.hellgate.ch>
-References: <Pine.LNX.4.44.0312202125580.26393-100000@chimarrao.boston.redhat.com> <20031221235541.GA22896@k3.hellgate.ch> <20031221225611.5421b522.akpm@osdl.org>
+Message-ID: <20031223161323.GA6082@k3.hellgate.ch>
+References: <Pine.LNX.4.44.0312202125580.26393-100000@chimarrao.boston.redhat.com> <20031221235541.GA22896@k3.hellgate.ch> <20031222012126.GC11655@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20031221225611.5421b522.akpm@osdl.org>
+In-Reply-To: <20031222012126.GC11655@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: riel@redhat.com, wli@holomorphy.com, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Andrew Morton <akpm@digeo.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 21 Dec 2003 22:56:11 -0800, Andrew Morton wrote:
-> But I have vague memories of being dazed and confused when last you tried
-> to describe the causes.  I was hoping that things would firm up a bit.
-> 
-> Please, take the time to describe it to us again, exhaustively.
+On Sun, 21 Dec 2003 17:21:26 -0800, William Lee Irwin III wrote:
+> Obviously, the simple regressions should be corrected first. We're not
+> interested in programming them ourselves because as far as we know,
+> you've already written the fixes. It would be premature to do
 
-Sorry, I wouldn't do anyone a favor if I added more speculation. I'm
-progressing slowly due to other tasks, but the benchmark data is
-rather solid and can serve as a map for others to determine the cause
-of regressions.
+Sorry about the delay. Buried in work.
 
-Here's one thing that might be interesting, though:
+I wonder how I managed to make that impression. I created one patch as
+a proof of concept. It demonstrates that the data I collected can be
+used to identify regressions and -- sometimes -- roll them back.
 
-I explained recently on LKML that the kswap throttling patch of
-2.6.0-test3 I reverted makes kswapd do virtually all the paging,
-while previous (faster) kernels relied heavily on the path through the
-page allocator to free memory. Remember the tiny patch I circulated in
-early October, before I started systematically benchmarking the whole
-devel series?
+I repeated the benchmarks just to be sure. Numbers are not accurate
+(2.6.0 performance has a huge variance), but quite reliable
+nevertheless. I should do more runs, but 10 is about as many as I can
+get done in time.  Median run time (in seconds) for each benchmark are
+as follows (priority, kswapd_throttling refer to the two hunks in the
+patch below):
 
-It looked like this (against test6):
+	efax	kbuild	qsbench
+2.6.0 vanilla
+	865	500	275
+priority
+	860	491	299
+kswapd_throttling
+	659	500	362
+priority + kswapd_throttling
+	560	433	327
 
-+++ ./mm/vmscan.c	2003-10-02 23:30:59.423106182 +0200
-@@ -1037,7 +1037,7 @@ int kswapd(void *p)
- 		if (current->flags & PF_FREEZE)
- 			refrigerator(PF_IOTHREAD);
- 		prepare_to_wait(&pgdat->kswapd_wait, &wait, TASK_INTERRUPTIBLE);
--		schedule();
-+		sys_sched_yield();
- 		finish_wait(&pgdat->kswapd_wait, &wait);
- 		get_page_state(&ps);
- 		balance_pgdat(pgdat, 0, &ps);
+The numbers look pretty good, but the patch is lame. It does not even
+properly revert the distress changes let alone deal with the issue the
+changes in 2.6.0-test3 were supposed to address.
 
-This patch did pretty well with kbuild, but not with qsbench. Back then
-I dropped the patch because of that. In the meantime I realized that
-qsbench and the compile benchmarks are separate and rarely agree on
-what's good. In fact, usually the best you can get is an improvement
-for one type of benchmarks and no regression with the other. Check the
-graph I posted, you'll see what I mean.
-
-The kswapd/priority patch I posted (and the one above IIRC, I'd have
-to repeat those benchmarks as well to be sure) accomplishes that
-pretty much.
-
-The reason I mention this old patch: If you compare the old patch above
-with the kswapd/priority reversal patches I posted and discussed on
-LKML, you'll notice that they have something in common: Slow down kswapd
-freeing in favor of freeing by allocator. Seems to be a common theme.
-I could speculate about the reasons, but I didn't have the time to test
-any theories.
+That's the only patch I have reasonably solid data for.
 
 Roger
+
+
+diff -uNp -X /home/rl/data/doc/kernel/dontdiff-2.6 /data/exp/tmp/18_binsearch/linux-2.6.0/mm/vmscan.c ./mm/vmscan.c
+--- /data/exp/tmp/18_binsearch/linux-2.6.0/mm/vmscan.c	Wed Oct 15 15:03:46 2003
++++ ./mm/vmscan.c	Tue Dec 23 08:25:42 2003
+@@ -632,7 +632,7 @@ refill_inactive_zone(struct zone *zone, 
+ 	 * `distress' is a measure of how much trouble we're having reclaiming
+ 	 * pages.  0 -> no problems.  100 -> great trouble.
+ 	 */
+-	distress = 100 >> zone->prev_priority;
++	distress = 100 >> priority;
+ 
+ 	/*
+ 	 * The point of this algorithm is to decide when to start reclaiming
+@@ -981,8 +981,7 @@ static int balance_pgdat(pg_data_t *pgda
+ 		}
+ 		if (all_zones_ok)
+ 			break;
+-		if (to_free > 0)
+-			blk_congestion_wait(WRITE, HZ/10);
++		blk_congestion_wait(WRITE, HZ/10);
+ 	}
+ 
+ 	for (i = 0; i < pgdat->nr_zones; i++) {
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
