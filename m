@@ -1,39 +1,58 @@
-Date: Mon, 11 Jun 2001 13:03:14 +1000
-From: Daniel Stone <daniel@kabuki.sfarc.net>
-Subject: Re: [PATCH] 2.4.6-pre2 page_launder() improvements
-Message-ID: <20010611130314.B964@kabuki.openfridge.net>
-References: <Pine.LNX.4.33.0106100128100.4239-100000@duckman.distro.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.33.0106100128100.4239-100000@duckman.distro.conectiva>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: what is using memory?
+Date: Sun, 10 Jun 2001 23:36:42 -0400
+MIME-Version: 1.0
+Message-Id: <01061023364200.03146@oscar>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jun 10, 2001 at 01:40:44AM -0300, Rik van Riel wrote:
-> [Request For Testers ... patch below]
-> 
-> Hi,
-> 
-> during my holidays I've written the following patch (forward-ported
-> to 2.4.6-pre2 and improved a tad today), which implements these
-> improvements to page_launder():
-> 
-> YMMV, please test it. If it works great for everybody I'd like
-> to get this improvement merged into the next -pre kernel.
+I have been trying to figure out what is using my memory
 
-I forgot about vmstat, but this is -ac12, anecdotal evidence - my system
-(weak) performs far better under heavy load (mpg123 nice'd to -20 + apt/dpkg
-+ gcc), than with vanilla -ac12. To get it to compile on -ac, just hand-hack
-in the patch, and s/CAN_GET_IO/can_get_io_locks/ in vmscan.c.
+My box has 
 
-:) d
+320280K
 
--- 
-Daniel Stone		<daniel@kabuki.openfridge.net> <daniel@kabuki.sfarc.net>
+>From boot I see
+
+   924	kernel
+  8224	reserved (initrd ramdisk?)
+  1488	hash tables (dentry, inode, mount, buffer, page, tcp)
+
+from lsmod I caculate
+  
+   876	for loaded modules
+  
+from proc/slabinfo
+
+ 11992	for all slabs
+
+from proc/meminfo
+
+ 17140	buffer
+123696	cache
+ 32303	free
+
+leaving unaccounted
+
+123627K 	
+
+This is about 38% of my memory, and only about 46% is pageable
+Is it possible to figure out what is using this?
+
+This is with 2.4.6-pre2 with Rik's page_launder_improvements patch, 
+lvm beta7 and some reieserfs patches applied, after about 12 hours
+of uptime.
+
+TIA,
+
+Ed Tomlinson
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
