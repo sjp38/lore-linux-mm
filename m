@@ -1,36 +1,35 @@
-Date: Fri, 4 Aug 2000 22:17:46 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
+Date: Sat, 5 Aug 2000 18:48:27 -0400
+Message-Id: <200008052248.SAA00643@tsx-prime.MIT.EDU>
+From: "Theodore Y. Ts'o" <tytso@MIT.EDU>
+In-reply-to: Rik van Riel's message of Thu, 3 Aug 2000 13:01:56 -0300 (BRST),
+	<Pine.LNX.4.21.0008031243070.24022-100000@duckman.distro.conectiva>
 Subject: Re: RFC: design for new VM
-In-Reply-To: <200008050152.SAA89298@apollo.backplane.com>
-Message-ID: <Pine.GSO.4.10.10008042211290.7396-100000@weyl.math.psu.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dillon <dillon@apollo.backplane.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Chris Wedgwood <cw@f00f.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Chris Wedgwood <cw@f00f.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Matthew Dillon <dillon@apollo.backplane.com>
 List-ID: <linux-mm.kvack.org>
 
+   You're right, the differences between FreeBSD VM and the new
+   Linux VM should be clearly indicated.
 
-On Fri, 4 Aug 2000, Matthew Dillon wrote:
+   > I ask this because the FreeBSD VM works _very_ well compared to
+   > recent linux kernels; if/when the new system is implement it
+   > would nice to know if performance differences are tuning related
+   > or because of 'tweaks'.
 
-> :You have to have some page table locking mechanism for SMP eventually: I
-> :think you miss some of the problems because the current FreeBSD SMP stuff
-> :is mostly still "big kernel lock" (outdated info?), and you'll end up
-> :kicking yourself in a big way when you have the 300 processes sharing the
-> :same lock for that region..
-> 
->     If it were a long-held lock I'd worry, but if it's a lock on a pte
->     I don't think it can hurt.  After all, even with separate page tables
->     if 300 processes fault on the same backing file offset you are going
->     to hit a bottleneck with MP locking anyway, just at a deeper level
->     (the filesystem rather then the VM system).
+   Indeed. The amount of documentation (books? nah..) on VM
+   is so sparse that it would be good to have both systems
+   properly documented. That would fill a void in CS theory
+   and documentation that was painfully there while I was
+   trying to find useful information to help with the design
+   of the new Linux VM...
 
-Erm... I'm not sure about that - for one thing, you are not caching
-results of bmap(). We do. And our VFS is BKL-free, so contention really
-hits only on the VOP_BALLOC() level (that can be fixed too, but that's
-another story).
+... and you know, once written, it would make a *wonderful* paper to
+present at Freenix or for ALS.... (speaking as someone who has been on
+program committees for both conferences :-)
 
+						- Ted
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
