@@ -1,72 +1,151 @@
-Message-ID: <402240FB.7070801@cyberone.com.au>
-Date: Fri, 06 Feb 2004 00:11:23 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
+From: Nikita Danilov <Nikita@Namesys.COM>
 MIME-Version: 1.0
-Subject: Re: [PATCH] RSS limit enforcement for 2.6
-References: <Pine.LNX.4.44.0401271248580.23718-100000@chimarrao.boston.redhat.com> <20040204231840.67cbb388.akpm@osdl.org>
-In-Reply-To: <20040204231840.67cbb388.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: multipart/mixed; boundary="27+NS3bVKb"
 Content-Transfer-Encoding: 7bit
+Message-ID: <16418.19751.234876.491644@laputa.namesys.com>
+Date: Thu, 5 Feb 2004 17:03:19 +0300
+Subject: Re: [PATCH 0/5] mm improvements
+In-Reply-To: <4021A6BA.5000808@cyberone.com.au>
+References: <16416.64425.172529.550105@laputa.namesys.com>
+	<Pine.LNX.4.44.0402041459420.3574-100000@localhost.localdomain>
+	<16417.3444.377405.923166@laputa.namesys.com>
+	<4021A6BA.5000808@cyberone.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Rik van Riel <riel@redhat.com>, pavel@ucw.cz, linux-mm@kvack.org
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+--27+NS3bVKb
+Content-Type: text/plain; charset=us-ascii
+Content-Description: message body text
+Content-Transfer-Encoding: 7bit
 
-Andrew Morton wrote:
+Nick Piggin writes:
+ > 
+ > 
+ > Nikita Danilov wrote:
+ > 
+ > >Hugh Dickins writes:
+ > > > On Wed, 4 Feb 2004, Nikita Danilov wrote:
+ > > > > Hugh Dickins writes:
+ > > > >  > If you go the writepage-while-mapped route (more general gotchas?
+ > > > >  > I forget), you'll have to make an exception for shmem_writepage.
+ > > > > 
+ > > > > May be one can just call try_to_unmap() from shmem_writepage()?
+ > > > 
+ > > > That sounds much cleaner.  But I've not yet found what tree your
+ > > > p12-dont-unmap-on-pageout.patch applies to, so cannot judge it.
+ > >
+ > >Whole
+ > >ftp://ftp.namesys.com/pub/misc-patches/unsupported/extra/2004.02.04/
+ > >applies to the 2.6.2-rc2.
+ > >
+ > >I just updated p12-dont-unmap-on-pageout.patch in-place.
+ > >
+ > >  
+ > >
+ > 
+ > Sure, I can give this a try. It makes sense.
+ > 
 
-Snip [RSS not effective]
+To my surprise I have just found that
 
->
->Note that there is still a problem in refill_inactive_zone():
->
->		if (page_mapped(page)) {
->
->			/*
->			 * Don't clear page referenced if we're not going
->			 * to use it.
->			 */
->			if (!reclaim_mapped && !over_rsslimit) {
->				list_add(&page->lru, &l_ignore);
->				continue;
->			}
->
->			/*
->			 * probably it would be useful to transfer dirty bit
->			 * from pte to the @page here.
->			 */
->			pte_chain_lock(page);
->			if (page_mapped(page) &&
->					page_referenced(page, &over_rsslimit) &&
->					!over_rsslimit) {
->				pte_chain_unlock(page);
->				list_add(&page->lru, &l_active);
->				continue;
->			}
->			pte_chain_unlock(page);
->		}
->
->That first test of over_rsslimit is kinda bogus: we haven't run
->
+ftp://ftp.namesys.com/pub/misc-patches/unsupported/extra/2004.02.04/p10-trasnfer-dirty-on-refill.patch
 
-Probably why it isn't reclaiming your mapped pages
+[yes, I know there is a typo in the name.]
 
->page_referenced() yet!  But the recent change of moving that little chunk
->of code to before the page_referenced() check was correct.
->
->So to get this right, we may need to split the over-limit stuff apart from
->the page_referenced() processing.
->
->
+patch improves performance quite measurably. It implements a suggestion
+made in the comment in refill_inactive_zone():
 
-This is one thing I was worried about with my change, and I
-thought the same thing.
+ 			/*
+			 * probably it would be useful to transfer dirty bit
+			 * from pte to the @page here.
+ 			 */
 
-Have a function to check rss limit and could also move
-referenced bits to the page's flags, then page_referenced could
-just return TestClearPageReferenced.
+To do this page_is_dirty() function is used (the same one as used by
+dont-unmap-on-pageout.patch), which is implemented in
+check-pte-dirty.patch.
 
+I ran
+
+$ time build.sh 10 11
+
+(attached) and get following elapsed time:
+
+without patch: 3818.320, with patch: 3368.690 (11% improvement).
+
+As I see it, early transfer of dirtiness to the struct page allows to do
+more write-back through ->writepages() which is much more efficient way
+than single-page ->writepage.
+
+Nikita.
+
+--27+NS3bVKb
+Content-Type: text/plain
+Content-Disposition: inline;
+	filename="build.sh"
+Content-Transfer-Encoding: 7bit
+
+#! /bin/sh
+
+nr=$1
+pl=$2
+
+path=/usr/src/linux-2.5.59-mm6/
+
+s=$(seq 1 $nr)
+
+function emit()
+{
+	echo $*
+	xtermset -T "$*"
+}
+
+emit Removing
+rm -fr [0-9]* linux* 2> /dev/null
+
+emit Copying
+cp -r $path . 2>/dev/null
+
+emit Cloning
+for i in $s ;do
+	bk clone linux-2.5.59-mm6 $i >/dev/null 2>/dev/null &
+done
+wait
+
+emit Unpacking
+for i in $s ;do
+        cd $i
+        bk -r get -q &
+        cd ..
+done
+
+wait
+
+emit Cleaning
+for i in $s ;do
+        cd $i
+        make mrproper >/dev/null 2>/dev/null &
+        cd ..
+done
+
+wait
+
+emit Building
+for i in $s ;do
+        cd $i
+        cp ../.config .
+        yes | make oldconfig >/dev/null 2>/dev/null
+        make -j$pl bzImage >/dev/null 2>/dev/null &
+        cd ..
+done
+
+wait
+
+emit done.
+
+--27+NS3bVKb--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
