@@ -1,45 +1,65 @@
-Date: Tue, 9 May 2000 20:11:57 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [patch] active/inactive queues for pre7-4
-In-Reply-To: <3918B66D.C7B7C777@norran.net>
-Message-ID: <Pine.LNX.4.21.0005092009330.25637-100000@duckman.conectiva>
+Message-ID: <3918C28B.3B820E6F@norran.net>
+Date: Wed, 10 May 2000 03:59:39 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: A possible winner in pre7-8
+References: <Pine.LNX.4.10.10005082332560.773-100000@penguin.transmeta.com>
+		<3917C33F.1FA1BAD4@sgi.com> <yttln1jtyqg.fsf@vexeta.dc.fi.udc.es>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: Arjan van de Ven <arjan@fenrus.demon.nl>, linux-mm@kvack.org
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: Rajagopal Ananthanarayanan <ananth@sgi.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 May 2000, Roger Larsson wrote:
+Hi all,
 
-> I think I found one bug in __page_reactivate
+Since everyone is testing shrink_mmap...
+
+Here is my latest version.
+
+(Currently I have some problems with pre-version
+ I am kind of out of synch...)
+
+It should compile, but it is not tested:
+- lack of HD, courage, backups...
+
+
+/RogerL
+
+
+
+
+"Juan J. Quintela" wrote:
 > 
-> > --- linux-2.3.99-pre7-4/mm/filemap.c.orig       Thu May  4 11:38:24 2000
-> > +++ linux-2.3.99-pre7-4/mm/filemap.c    Tue May  9 12:09:42 2000
-
-> > +       pgdat->active_pages++;
-> > +       pgdat->active_pages++;
+> >>>>> "rajagopal" == Rajagopal Ananthanarayanan <ananth@sgi.com> writes:
 > 
-> pgdat->active_pages is incremented twice!
-> second one should IMHO be
->  zone->active_pages
+> Hi
+> 
+> rajagopal> Interesting! This stuff is coming out faster than I can patch.
+> rajagopal> In any case, good news about pre7-8: not only does dbench run without
+> rajagopal> errors, but it runs well. Let's hope that others (Juan & Benjamin to name two)
+> rajagopal> see similar results.
+> 
+> No way, here my tests run two iterations, and in the second iteration
+> init was killed, and the system become unresponsive (headless machine,
+> you know....).  I have no time now to do a more detailed report, more
+> information later today.
+> 
+> Later, Juan.
+> 
+> --
+> In theory, practice and theory are the same, but in practice they
+> are different -- Larry McVoy
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux.eu.org/Linux-MM/
 
-Indeed. In the meantime I found another small bug (the return
-value from refill_inactivate() doesn't make much sense) and
-have fixed a few other minor bugs.
-
-If we continue like this the active/inactive page scheme should
-be working soon ;)
-
-Rik
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+Home page:
+  http://www.norran.net/nra02596/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
