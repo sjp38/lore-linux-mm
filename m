@@ -1,98 +1,51 @@
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA01346
-	for <linux-mm@kvack.org>; Fri, 26 Jun 1998 13:32:06 -0400
-Subject: Re: (reiserfs) Re: More on Re: (reiserfs) Reiserfs and ext2fs (was Re: (reiserfs) Sum Benchmarks (these look typical?))
-References: <Pine.HPP.3.96.980617035608.29950A-100000@ixion.honeywell.com>
-	<199806221138.MAA00852@dax.dcs.ed.ac.uk>
-	<358F4FBE.821B333C@ricochet.net> <m11zsgrvnf.fsf@flinx.npwt.net>
-	<199806241154.MAA03544@dax.dcs.ed.ac.uk>
-	<m11zse6ecw.fsf@flinx.npwt.net>
-	<199806251100.MAA00835@dax.dcs.ed.ac.uk>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 26 Jun 1998 10:56:22 -0500
-In-Reply-To: "Stephen C. Tweedie"'s message of Thu, 25 Jun 1998 12:00:56 +0100
-Message-ID: <m1emwcf97d.fsf@flinx.npwt.net>
+Received: from renko.ucs.ed.ac.uk (renko.ucs.ed.ac.uk [129.215.13.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA14484
+	for <linux-mm@kvack.org>; Mon, 29 Jun 1998 07:42:34 -0400
+Date: Mon, 29 Jun 1998 11:19:37 +0100
+Message-Id: <199806291019.LAA00726@dax.dcs.ed.ac.uk>
+From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: Thread implementations...
+In-Reply-To: <m1k964fdu9.fsf@flinx.npwt.net>
+References: <199806240915.TAA09504@vindaloo.atnf.CSIRO.AU>
+	<Pine.LNX.3.96dg4.980624025515.26983E-100000@twinlark.arctic.org>
+	<199806241213.WAA10661@vindaloo.atnf.CSIRO.AU>
+	<m1u35a4fz8.fsf@flinx.npwt.net>
+	<199806242341.JAA15101@vindaloo.atnf.CSIRO.AU>
+	<m1pvfy3x8f.fsf@flinx.npwt.net>
+	<qww4sx8r44b.fsf@p21491.wdf.sap-ag.de>
+	<m1k964fdu9.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: Hans Reiser <reiser@ricochet.net>, Shawn Leas <sleas@ixion.honeywell.com>, Reiserfs <reiserfs@devlinux.com>, Ken Tetrick <ktetrick@ixion.honeywell.com>, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm+eric@npwt.net>
+Cc: Christoph Rohland <hans-christoph.rohland@sap-ag.de>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ST" == Stephen C Tweedie <sct@dcs.ed.ac.uk> writes:
+Hi,
 
-ST> Hi,
-ST> [CC:ed to linux-mm, who also have a great deal of interest in this
-ST> stuff.]
+On 26 Jun 1998 09:16:14 -0500, ebiederm+eric@npwt.net (Eric
+W. Biederman) said:
 
-ST> On 24 Jun 1998 09:53:03 -0500, ebiederm+eric@npwt.net (Eric
-ST> W. Biederman) said:
+>>>>>> "CR" == Christoph Rohland <hans-christoph.rohland@sap-ag.de> writes:
 
-ST> However, there's a lot of overlap, so I'd like to look at what we can do
-ST> with this for 2.3.  In particular, I'd like 2.3's standard file writing
-ST> mechanism to work essentially as write-through from the page cache,
+CR> 1) why should madvise only advise. 
 
->> The current system is write-through.  I hope you mean write back.
+> Because if it only advises, you can ignore it and return success.
+> If it does more than advise you have to do much more error checking
+> and error handling.  
 
-ST> The current system is write-through from the buffer cache.  The data
-ST> is copied into the page cache only if there is already a page mapping
-ST> that data.  That is really ugly, using the buffer cache both as an IO
-ST> buffer and as a data cache.  THAT is what we need to fix.
+Not necessarily; even if we do take immediate action on the advise,
+within the madvise system call, we don't have to do any extra layers of
+error handling.   It's more a case of "Please try to do this now / OK, I
+tried."
 
-You're right.  But if you implement the appropriate routines so you
-can use generic_file_write we do a proper write through the page
-cache now.
+CR> 2) Would not work on shared pages.
+> Not perfectly.  That does appear to be the achillies heel currently of
+> madvise.  Multiple users of the same memory.
 
-ST> The ideal solution IMHO would be something which does write-through
-ST> from the page cache to the buffer cache and write-back from the buffer
-ST> cache to disk; in other words, when you write to a page, buffers are
-ST> generated to map that dirty data (without copying) there and then.
-ST> The IO is then left to the buffer cache, as currently happens, but the
-ST> buffer is deleted after IO (just like other temporary buffer_heads
-ST> behave right now).  That leaves the IO buffering to the buffer cache
-ST> and the caching to the page cache, which is the distinction that the
-ST> the current scheme approaches but does not quite achieve.
+Again, madvise is the application telling us that it KNOWS what the
+access pattern is.  If the app is wrong, and the page is shared, big
+deal; throw away the advise, it was duff. :)
 
-Unless I have missed something write-back from the page cache is
-important, because then when you delete a file you haven't written yet
-you can completely avoid I/O.   For short lived files this should be a
-performance win.
-
-Coping the few pages that are actively engaged in being written into
-the buffer cache may not be a bad idea, as it removes the lock from
-the page cache page much sooner, and frees if for use again.
-
->> This functionality is essentially what is implemented with brw_page,
->> and I have written the generic_page_write that does essentially
->> this.  There is no data copying however.  The fun angle is mapped
->> pages need to be unmapped (or at least read only mapped) for a write
->> to be successful.
-
-ST> Indeed; however, it might be a reasonable compromise to do a copy out
-ST> from the page cache to the buffer cache in this situation (we already
-ST> have a copy in there, so this would not hurt performance relative to
-ST> the current system).  
-
-Agreed.  But it takes more work to write.
-
-ST> Doing COW at the page cache level is something we can implement later;
-ST> there are other reasons for it to be desirable anyway.  For example,
-ST> it lets you convert all read(2) and write(2) requests on whole pages
-ST> into mmap()s, transparently, giving automatic zero-copy IO to user
-ST> space.
-
-Sounds neat but I wasn't advocating it, in this context.
-
->> I should have a working patch this weekend (the code compiles now, I
->> just need to make sure it works) and we can discuss it more when that
->> has been released.
-
-ST> Excellent.  I look forward to seeing it.
-
-I need to clean the patch up a bit (I built it on top of a patched
-kernel, but I have it working right now!).   I have successfully
-performaned two simultaneous kernel compiles which is a pretty good
-test for races ;).
-
-Hopefully I'll have a little time this weekend, to make a good patch,
-otherwise I'll just release my mess.
-
-Eric
+--Stephen
