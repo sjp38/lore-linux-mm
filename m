@@ -1,64 +1,51 @@
-Date: Wed, 20 Feb 2002 12:07:51 -0700
-From: Andreas Dilger <adilger@turbolabs.com>
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 0651838CD3
+	for <linux-mm@kvack.org>; Wed, 20 Feb 2002 16:27:07 -0300 (EST)
+Date: Wed, 20 Feb 2002 16:27:00 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] struct page, new bk tree
-Message-ID: <20020220120751.B1506@lynx.adilger.int>
-References: <Pine.LNX.4.33L.0202192044140.7820-100000@imladris.surriel.com> <20020219155706.H26350@work.bitmover.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20020219155706.H26350@work.bitmover.com>; from lm@bitmover.com on Tue, Feb 19, 2002 at 03:57:06PM -0800
+In-Reply-To: <20020220120751.B1506@lynx.adilger.int>
+Message-ID: <Pine.LNX.4.44L.0202201625140.1413-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Larry McVoy <lm@work.bitmover.com>, Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Larry McVoy <lm@bitmover.com>
+To: Andreas Dilger <adilger@turbolabs.com>
+Cc: Larry McVoy <lm@work.bitmover.com>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Larry McVoy <lm@bitmover.com>
 List-ID: <linux-mm.kvack.org>
 
-On Feb 19, 2002  15:57 -0800, Larry McVoy wrote:
-> On Tue, Feb 19, 2002 at 08:47:17PM -0300, Rik van Riel wrote:
-> > I've removed the old (broken) bitkeeper tree with the
-> > struct page changes and have put a new one in the same
-> > place ... with the struct page changes in one changeset
-> > with ready checkin comment.
-> > 
-> > You can resync from bk://linuxvm.bkbits.net/linux-2.5-struct_page
-> > and you'll see that the stupid etc/config change is no longer there.
-> 
-> Since you two are doing the BK dance, here's a question for you: 
-> I can imagine that this sort of back and forth will happen quite a bit,
-> someone makes a change, then Linus (or whoever) says "no way", and the
-> developer goes back, cleans up the change, and repeats.  That's fine for
-> Linus & Rik because Linus tosses the changeset and Rik tosses it, but
-> what about the other people who have pulled?  Those changesets are now
-> wandering around in the network, just waiting to pop back into a tree.
-> 
-> This is at the core of my objections to the "reorder the events" theme
-> which we had a while back.  You can reorder all you want, but if there
-> are other copies of the events floating around out there, they may come
-> back.
-> 
-> A long time ago, there was some discussion of a changeset blacklist.
-> The idea being that if you want to reorder/rewrite/whatever, and your
-> changes have been pulled/pushed/whatever, then it would be good to be
-> able to state that in the form of some list which may be used to see 
-> if you have garbage changesets.
-> 
-> We could have a --blacklist option to undo which says "undo these
-> changes but remember their "names" in the BitKeeper/etc/blacklist file.
-> The next changeset you make will check in that file.  Note that each
-> changeset has a unique name which is used internally, somewhat like a
-> file has an inode number.  So we can save those names.  Then if you do
-> a pull or someone does a push, the incoming csets can be compared with
-> the blacklist and rejected if found.
+On Wed, 20 Feb 2002, Andreas Dilger wrote:
+> On Feb 19, 2002  15:57 -0800, Larry McVoy wrote:
+> > On Tue, Feb 19, 2002 at 08:47:17PM -0300, Rik van Riel wrote:
+> > > I've removed the old (broken) bitkeeper tree with the
+> > > struct page changes and have put a new one in the same
+> > > place ... with the struct page changes in one changeset
+> > > with ready checkin comment.
 
-So what happens to the person who pulled the (now-blacklited) CSET in
-the first place?  If they do a pull from the repository where the original
-CSET lived, will the blacklisted CSET be undone and the replacement CSET
-be used in its place?
+> > developer goes back, cleans up the change, and repeats.  That's fine for
+> > Linus & Rik because Linus tosses the changeset and Rik tosses it, but
+> > what about the other people who have pulled?  Those changesets are now
+> > wandering around in the network, just waiting to pop back into a tree.
 
-Cheers, Andreas
---
-Andreas Dilger
-http://sourceforge.net/projects/ext2resize/
-http://www-mddsp.enel.ucalgary.ca/People/adilger/
+> > We could have a --blacklist option to undo which says "undo these
+> > changes but remember their "names" in the BitKeeper/etc/blacklist file.
+
+> So what happens to the person who pulled the (now-blacklited) CSET in
+> the first place?  If they do a pull from the repository where the original
+> CSET lived, will the blacklisted CSET be undone and the replacement CSET
+> be used in its place?
+
+That's a good question.  I hadn't answered Larry before because
+I just couldn't come up with what the implications of a blacklist
+would be or how it would ever work ...
+
+regards,
+
+Rik
+-- 
+Will hack the VM for food.
+
+http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
