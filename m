@@ -1,40 +1,37 @@
-Date: Wed, 17 Jan 2001 15:54:04 +1100 (EST)
+Date: Wed, 17 Jan 2001 18:05:25 +1100 (EST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Subtle MM bug
-In-Reply-To: <Pine.LNX.4.10.10101081903450.1371-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.31.0101171551090.5464-100000@localhost.localdomain>
+Subject: Re: pre2 swap_out() changes
+In-Reply-To: <Pine.LNX.4.21.0101122038420.10842-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.31.0101171804160.30841-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Zlatko Calusic <zlatko@iskon.hr>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 8 Jan 2001, Linus Torvalds wrote:
+On Fri, 12 Jan 2001, Marcelo Tosatti wrote:
+> On Fri, 12 Jan 2001, Linus Torvalds wrote:
+>
+> > If the page truly is new (because of some other user), then page_launder()
+> > won't drop it, and it doesn't matter. But dropping it from the VM means
+> > that the list handling can work right, and that the page will be aged (and
+> > thrown out) at the same rate as other pages.
+>
+> What about the amount of faults this potentially causes?
 
->  - gets rid of the complex "best mm" logic and replaces it with the
->    round-robin thing as discussed.
+The change has 2 influences on the number of faults:
 
-This could help IO clustering as well, which should be good
-whenever we want to swap the data back in ;)
+1. the number of soft faults should probably increase
 
->  - it cleans up and simplifies the MM "priority" thing. In fact, right now
->    only one priority is ever used,
-
-Sounds great.
-
-In the week that I've been offline I have been working on
-page_launder and doing a few other improvements to the VM.
-
-Once I get the time to clean everything up I think we can
-take 2.4 to a slightly better performance level without
-having to change anything big.
+2. refill_inactive_scan() can deactivate more pages, since
+   less pages will be trapped inside processes ... this can
+   lead to better page replacement and less hard page faults
 
 regards,
 
-Rik (at linux.conf.au)
+Rik
 --
 Virtual memory is like a game you can't win;
 However, without VM there's truly nothing to lose...
