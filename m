@@ -1,39 +1,62 @@
-Subject: Re: /dev/recycle
-References: <20000322233147.A31795@pcep-jamie.cern.ch> <Pine.BSO.4.10.10003231332080.20600-100000@funky.monkey.org> <20000324010031.B20140@pcep-jamie.cern.ch> <qwwitycivbx.fsf@sap.com> <20000324141001.A21036@pcep-jamie.cern.ch> <qwwd7okiick.fsf@sap.com> <20000324151708.A21237@pcep-jamie.cern.ch> <qwwpuskgtaz.fsf@sap.com> <20000324191313.E21539@pcep-jamie.cern.ch>
-From: Christoph Rohland <hans-christoph.rohland@sap.com>
-Date: 25 Mar 2000 09:35:01 +0100
-In-Reply-To: Jamie Lokier's message of "Fri, 24 Mar 2000 19:13:13 +0100"
-Message-ID: <qwwg0tfh2h6.fsf@sap.com>
+Received: from smtp.zarkov.es (212.106.196.188) by smtp1.jazzfree.com (NPlex 4.0.054)
+        id 38B6F406001DA1C3 for linux-mm@kvack.org; Sun, 26 Mar 2000 15:07:19 +0200
+Received: from jazzfree.com (really [127.0.0.1]) by zarkov.jazzfree.com
+	via in.smtpd with esmtp (ident rfv using rfc1413)
+	id <m12ZCkp-000uHfC@smtp.zarkov.es> (Debian Smail3.2.0.102)
+	for <linux-mm@kvack.org>; Sun, 26 Mar 2000 15:06:55 +0200 (CEST)
+Message-ID: <38DDFD59.D000C569@jazzfree.com>
+Date: Sun, 26 Mar 2000 14:06:49 +0200
+From: Rodrigo Fernandez-Vizarra Bonet <rodrigofv@jazzfree.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Memory management question
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Cc: Christoph Rohland <hans-christoph.rohland@sap.com>, Chuck Lever <cel@monkey.org>, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Jamie Lokier <lk@tantalophile.demon.co.uk> writes:
+Hi,
 
-> Christoph Rohland wrote:
-> > 1) /dev/{zero,recycle} shared mappings do only work between childs of
-> >    the same parent and the parent. Also they do not survive an exec.
-> 
-> Use file handle passing -- another process can then share the mapping.
-> This is what shared anonymous mapping means, and it was added to the
-> kernel recently just after posix shm (because posix shm made it easy to
-> implement).
+I'm developing a linux module and I'm having some trouble with the
+memory management in Linux.
 
-That's not how /dev/zero works. Check the implementation. AFAIK it
-also does not work this way on other platforms.
- 
-> > 2) You cannot unmap and remap the same area.
-> 
-> You can if someone else holds it open.
+Basically, what I want to do is to reserve some physical pages from the
+kernel when I install the module (insmod module.o), and when a process
+requests them (with mmap), I want to map that pages in the process
+virtual memory area.
 
-See above.
+That's what I'm doing now.
+1.- In the kernel I get some physical pages with get_free_page or with
+__get_free_page.
+2.- I create a device entry en /dev/ called pmm with
+module_register_chrdev() with my own version of mmap.
+3.- This mmap function uses the function remap_page_range() to map one
+of the physical pages into the calling process virtual memory. Of course
+the calling process must explicitly call mmap on the new device created
+before.
+4.- In the kernel space I store some information in that pages.
+5.- In the user space process I mmap the device and read from it, but I
+can not get the information that I stored there :-(
 
-Greetings
-		Christoph
+
+It's not working, and I can't understand why. When the process makes an
+mmap on the device it doesn't complain, but the resulting mapping is not
+correct, because I can't access the information that is contained in the
+physical page.
+
+If any of you can help me It would be apreciated,
+
+thank you very much in advantage.
+
+Best regards,
+Rodrigo
+
+-- 
+Rodrigo Fernandez-Vizarra Bonet
+    e-mail: rodrigofv@jazzfree.com
+
+You still can avoid the GATES of hell, USE LINUX !!!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
