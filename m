@@ -1,29 +1,25 @@
-Date: Wed, 23 Oct 2002 13:50:26 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
-Message-ID: <20021023115026.GB30182@dualathlon.random>
-References: <20021023020534.GJ11242@dualathlon.random> <Pine.LNX.4.44.0210230851170.2360-100000@localhost.localdomain>
+Date: Wed, 23 Oct 2002 18:43:17 +0530
+From: Ravikiran G Thirumalai <kiran@in.ibm.com>
+Subject: Re: 2.5.44-mm3
+Message-ID: <20021023184317.A32662@in.ibm.com>
+References: <3DB6067E.C95174FC@digeo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0210230851170.2360-100000@localhost.localdomain>
+In-Reply-To: <3DB6067E.C95174FC@digeo.com>; from akpm@digeo.com on Wed, Oct 23, 2002 at 02:17:59AM +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, rusty@rustcorp.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Oct 23, 2002 at 09:19:23AM +0200, Ingo Molnar wrote:
-> theory (and i raised that possibility in the discussion), but i'd like to
-> see your patch first, because yet another vma tree is quite some
-> complexity and it further increases the size of the vma, which is not
-> quite a no-cost approach.
+Hi,
+My machine did not boot with CONFIG_NR_CPUS = 4.  Same .config as one
+used for 2.5.44-mm2.  Could be the __node_to_cpu_mask redifinition from
+the larger-cpu-masks patch .... 
 
-it's not another vma tree, furthmore another vma tree indexed by the
-hole size wouldn't be able to defragment and it would find the best fit
-not the first fit on the left.
-
-Andrea
+Thanks,
+Kiran
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
