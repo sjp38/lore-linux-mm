@@ -1,66 +1,47 @@
-Date: Thu, 1 Mar 2001 19:31:45 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] oom-killer trigger
-Message-ID: <Pine.LNX.4.33.0103011904140.1304-100000@duckman.distro.conectiva>
+Message-ID: <3A9ED281.90C5F7CB@dm.ultramaster.com>
+Date: Thu, 01 Mar 2001 17:51:45 -0500
+From: David Mansfield <lkml@dm.ultramaster.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] oom-killer trigger
+References: <Pine.LNX.4.33.0103011904140.1304-100000@duckman.distro.conectiva>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: linux-mm@kvack.org, =?ISO-8859-1?Q?Xos=C9_V=E1zquez?= <xose@smi-ps.com>, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org,  =?iso-8859-1?Q?Xos=C9=20V=E1zquez?= <xose@smi-ps.com>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+> 
+> 1. the OOM killer never triggers if we have > freepages.min
+>    of free memory
+> 2. __alloc_pages() never allocates pages to < freepages.min
+>    for user allocations
+> 
+> ==> the OOM killer never gets triggered under some workloads;
+>     the system just sits around with nr_free_pages == freepages.min
+> 
+> The patch below trivially fixes this by upping the OOM kill limit
+> by a really small number of pages ...
 
-the OOM killer in Linux 2.4 has a rather embarrasing bug.
-
-1. the OOM killer never triggers if we have > freepages.min
-   of free memory
-2. __alloc_pages() never allocates pages to < freepages.min
-   for user allocations
-
-==> the OOM killer never gets triggered under some workloads;
-    the system just sits around with nr_free_pages == freepages.min
-
-The patch below trivially fixes this by upping the OOM kill limit
-by a really small number of pages ...
-
-Now lets hope it won't trigger too early (but since it'll only
-trigger when we're completely out of swap, etc...).
-
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
+> +       if (nr_free_pages() > freepages.min + 4)
 
 
---- mm/oom_kill.c.orig	Thu Mar  1 18:57:11 2001
-+++ mm/oom_kill.c	Thu Mar  1 18:58:23 2001
-@@ -188,13 +188,17 @@
-  *
-  * Returns 0 if there is still enough memory left,
-  * 1 when we are out of memory (otherwise).
-+ *
-+ * Note that since __alloc_pages() never lets user
-+ * allocations go below freepages.min, we have to
-+ * use a slightly higher threshold here...
-  */
- int out_of_memory(void)
- {
- 	struct sysinfo swp_info;
+Call me stupid, but why not just change the > to >= (or < to <=) rather
+than introducing a magic number (4).  Or at least make the magic number
+interesting, like:
 
- 	/* Enough free memory?  Not OOM. */
--	if (nr_free_pages() > freepages.min)
-+	if (nr_free_pages() > freepages.min + 4)
- 		return 0;
++       if (nr_free_pages() > freepages.min + 42)
 
- 	if (nr_free_pages() + nr_inactive_clean_pages() > freepages.low)
+:-)
 
+Thanks for the bugfix,
+David
+
+-- 
+David Mansfield                                           (718) 963-2020
+david@ultramaster.com
+Ultramaster Group, LLC                               www.ultramaster.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
