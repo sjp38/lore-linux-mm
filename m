@@ -1,9 +1,9 @@
-Date: Sun, 21 Nov 2004 13:12:50 -0800
+Date: Sun, 21 Nov 2004 13:13:43 -0800
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH]: 1/4 batch mark_page_accessed()
-Message-Id: <20041121131250.26d2724d.akpm@osdl.org>
-In-Reply-To: <16800.47044.75874.56255@gargle.gargle.HOWL>
-References: <16800.47044.75874.56255@gargle.gargle.HOWL>
+Subject: Re: [PATCH]: 2/4 mm/swap.c cleanup
+Message-Id: <20041121131343.333716cd.akpm@osdl.org>
+In-Reply-To: <16800.47052.733779.713175@gargle.gargle.HOWL>
+References: <16800.47052.733779.713175@gargle.gargle.HOWL>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -15,16 +15,13 @@ List-ID: <linux-mm.kvack.org>
 
 Nikita Danilov <nikita@clusterfs.com> wrote:
 >
-> Batch mark_page_accessed() (a la lru_cache_add() and lru_cache_add_active()):
->  page to be marked accessed is placed into per-cpu pagevec
->  (page_accessed_pvec). When pagevec is filled up, all pages are processed in a
->  batch.
-> 
->  This is supposed to decrease contention on zone->lru_lock.
+> +#define pagevec_for_each_page(_v, _i, _p, _z)				\
+>  +for (_i = 0, _z = NULL;							\
+>  +     ((_i) < pagevec_count(_v) && (__guardloop(_v, _i, _p, _z), 1)) ||	\
+>  +     (__postloop(_v, _i, _p, _z), 0);					\
+>  +     (_i)++)
 
-Looks sane, althought it does add more atomic ops (the extra
-get_page/put_page).  Some benchmarks would be nice to have.
-
+Sorry, this looks more like a dirtyup to me ;)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
