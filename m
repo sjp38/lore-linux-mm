@@ -1,12 +1,13 @@
 Received: from f03n07e.au.ibm.com
-	by ausmtp01.au.ibm.com (IBM AP 1.0) with ESMTP id NAA76890
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2000 13:54:05 +1000
+	by ausmtp02.au.ibm.com (IBM AP 1.0) with ESMTP id NAA139450
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2000 13:55:15 +1000
 From: pnilesh@in.ibm.com
 Received: from d73mta05.au.ibm.com (f06n05s [9.185.166.67])
-	by f03n07e.au.ibm.com (8.8.8m2/8.8.7) with SMTP id NAA25152
-	for <linux-mm@kvack.org>; Tue, 28 Mar 2000 13:58:57 +1000
-Message-ID: <CA2568B0.0015D747.00@d73mta05.au.ibm.com>
-Date: Tue, 28 Mar 2000 09:20:57 +0530
+	by f03n07e.au.ibm.com (8.8.8m2/8.8.7) with SMTP id NAA44688
+	for <linux-mm@kvack.org>; Tue, 28 Mar 2000 13:59:45 +1000
+Message-ID: <CA2568B0.0015EFDB.00@d73mta05.au.ibm.com>
+Date: Tue, 28 Mar 2000 09:21:59 +0530
+Subject: how text page of executable are shared ?
 Mime-Version: 1.0
 Content-type: text/plain; charset=us-ascii
 Content-Disposition: inline
@@ -37,6 +38,7 @@ Q     Can this be discarded right away , if the need arises?
 
 
 Nilesh Patel
+
 
 
 --
