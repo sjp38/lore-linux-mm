@@ -1,281 +1,114 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA13709
-	for <linux-mm@kvack.org>; Fri, 15 Nov 2002 00:08:00 -0800 (PST)
-Message-ID: <3DD4AB5D.C0EB0F1B@digeo.com>
-Date: Fri, 15 Nov 2002 00:07:57 -0800
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: 2.5.47-mm3
+Date: Fri, 15 Nov 2002 08:58:27 +0100
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: Re: get_user_pages rewrite rediffed against 2.5.47-mm1
+Message-ID: <20021115085827.Z659@nightmaster.csn.tu-chemnitz.de>
+References: <20021112205848.B5263@nightmaster.csn.tu-chemnitz.de> <3DD1642A.4A7C663C@digeo.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <3DD1642A.4A7C663C@digeo.com>; from akpm@digeo.com on Tue, Nov 12, 2002 at 12:27:22PM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.47/2.5.47-mm3/
-
-
-. A new kgdb stub from George Anzinger.  It is significantly
-  stronger than the old one, especially on SMP systems.  There are some
-  notes from George in the patch itself, as well as numerous
-  documentation files.
-
-  You'll need to disable the serial 16550 driver in kernel config -
-  it doesn't play right.  (Make sure you read George's notes!)
-
-. An updated rbtree-scheduler patch from Jens.  This seems to be
-  working well now.
-
-The huge queues which we've been experimenting with have continued to
-pull the VM's pants down, and the last vestiges of the 2.4 page
-allocator throttling had to go.
-
-The page allocator will now never throttle a process by making it wait
-on IO completion against a particular page or buffer.  This has always
-caused high latencies, and with the big queues, it could cause ninety
-second latencies for the allocation of a single page.
-
-The page allocator will now never throttle a process (except for the
-caller of write(2)) by making it sleep on request queues.  This is
-fundamentally unmanageable because not only can the size of the queue
-vary by a lot, but there can be a lot of queues in the machine.  So
-kill it.
-
-
-. The busy-wait failure which occurred when more than 40% of memory
-  was placed under writeout has been fixed.
-
-. The ->vm_writeback address_space_operation has been removed.  The
-  idea behind this was to allow the filesystem to perform writearound
-  around the particular page.  But it had a couple of problems
-  (described in the patch body).
-
-  So it has been removed, and we're back to page-at-a-time writepage
-  calls in page reclaim.
-
-. As a consequence of going back to writepage in the VM, it is no
-  longer compulsory that dirty pages be on the address_space's
-  ->dirty_pages list.  So the AIO-for-direct-io patch can now dirty
-  pages from interrupt context.  So the patches which made the
-  mapping->page_lock and mapping->private_lock irq-safe have been
-  dropped.
-
-. The removal of the last wait_on_page_writeback() in page reclaim
-  has significantly reduced system latency under heavy swapout loads.
-
-. The big queues have somewhat worsened throughput with swapstormy tests.
-  Having such large amounts of physical memory under writeout for such
-  long periods gives the VM much less memory to play with at any point
-  in time.  Needs work.  I suspect the queues are just too darn big for
-  desktop-class machines.  We do not intend to leave them this large.
-
-. Several tweaks here to increase the efficiency of page reclaim. 
-  Under really heavy benchmarky loads the VM is now reclaiming 25% of
-  scanned pages, rather than 10%.  Which sounds bad, but actually
-  isn't.
-
-  Most of this gain came from interrupt-time motion of written-back
-  pages.  When IO completes, if the page appears to still be
-  reclaimable, move it to the tail of the inactive list for immediate
-  reclaim.
-
-. And a hugetlbpage update.
-
-
-
-Changes since 2.5.47-mm2:
-
--timers-net.patch
-
- Merged
-
--kgdb.patch
-
- Out with the old
-
-+kgdb-ga.patch
-
- In with the new
-
-+kgdb-reboot.patch
-
- Remote reboot via kgdb
-
--bttv-timer.patch
-
- Merged into `misc'
-
--irq-save-vm-locks.patch
--irq-safe-private-lock.patch
-
- No longer needed.
-
-+misc.patch
-
- Misc.
-
-+htlb-combined-2.patch
-
- Bill's stuff
-
-+htlb-fixes.patch
-
- Rohit's stuff
-
-+slab-no-BUG.patch
-
- Replace some gratuitous BUGs in slab with useful messages
-
-+congestion-wait.patch
-
- Fix the big-queue busy-wait problem.
-
-+back-to-writepage.patch
-
- Remove vm_writeback, use writepage.
-
--swapcache-throttle.patch
-
- wait_on_page() is a disaster.
-
-+simplified-vm-throttling.patch
-
- Always throttle via blk_congestion_wait().  It is a low-latency and
- controllable way of slowing page allocators to the rate at which the
- IO system can retire writes.
-
-+page-reclaim-motion.patch
-
- Move reclaimable pages at interrupt-time.
-
-+handle-fail-writepage.patch
-
- Handle unwriteable pages at the VM level.
-
-+activate-unreleaseable-pages.patch
-
- Move pinned-via-buffers pages onto the active list.
-
-
-
-All patches:
-
-
-linus.patch
-  cset-1.823-to-1.856.txt.gz
-
-kgdb-ga.patch
-  kgdb stub for ia32 (George Anzinger's one)
-
-kgdb-reboot.patch
-  ADd a `reboot' command to kgdb
-
-rcu-stats.patch
-  RCU statistics reporting
-
-genksyms-fix.patch
-  modversions fix for exporting per-cpu data
-
-buffer-debug.patch
-  buffer.c debugging
-
-mbcache-cleanup.patch
-  mbcache: add gfp_mask parameter to free() callback, cleanups
-
-rmap-flush-cache-page.patch
-  flush_cache_page while pte valid
-
-swap-get_page-page-unlock.patch
-  unlock_page when get_swap_bio fails
-
-swap-writepages-swizzled.patch
-  Subject: [PATCH] swap writepages swizzled
-
-misc.patch
-  timer fixes
-
-htlb-combined-2.patch
-  hugetlb cleanups
-
-htlb-fixes.patch
-  more hugetlb fixes
-
-slab-no-BUG.patch
-  improved slab error diagnostics
-
-congestion-wait.patch
-  Fix busy-wait with writeback to large queues
-
-back-to-writepage.patch
-  Remove mapping->vm_writeback
-
-aio-direct-io-infrastructure.patch
-  AIO support for raw/O_DIRECT
-
-aio-direct-io.patch
-  AIO support for raw/O_DIRECT
-
-inlines-net.patch
-
-reiserfs-readpages.patch
-  reiserfs v3 readpages support
-
-reiserfs-readpages-fix.patch
-
-remove-inode-buffers.patch
-  try to remove buffer_heads from to-be-reaped inodes
-
-resurrect-incremental-min.patch
-  strengthen the `incremental min' logic in the page allocator
-
-unfreeable-zones.patch
-  VM: handle zones which are full of unreclaimable pages
-
-mpage-kmap.patch
-  kmap->kmap_atomic in mpage.c
-
-nobh.patch
-  no-buffer-head ext2 option
-
-inode-reclaim-balancing.patch
-  better inode reclaim balancing
-
-simplified-vm-throttling.patch
-  Remove the final per-page throttling site in the VM
-
-auto-unplug.patch
-  self-unplugging request queues
-
-less-unplugging.patch
-  Remove most of the blk_run_queues() calls
-
-page-reclaim-motion.patch
-  Move reclaimable pages to the tail ofthe inactive list on IO completion
-
-handle-fail-writepage.patch
-  Special-case fail_writepage() in page reclaim
-
-activate-unreleaseable-pages.patch
-  Move unreleasable pages onto the active list
-
-rbtree-iosched.patch
-  rbtree-based IO scheduler
-
-page-reservation.patch
-  Page reservation API
-
-wli-show_free_areas.patch
-  show_free_areas extensions
-
-kmap-atomic-nfs.patch
-  Subject: Re: [RFC] use kmap_atomic in the NFS client
-
-dcache_rcu.patch
-  Use RCU for dcache
-
-shpte-ng.patch
-  pagetable sharing for ia32
+Hi Andrew,
+
+On Tue, Nov 12, 2002 at 12:27:22PM -0800, Andrew Morton wrote:
+> I think I see what you're doing now.  You've overloaded the callback,
+> with an IS_ERR value of "page" to mean "something went wrong".
+> 
+> Would that be a correct interpretation?
+> 
+> If so, it would be better (ie: more Linus-friendly) to make that a
+> separate callback.  One which is called outside the lock, and which
+> has distinctly different semantics from the normal page walker.
+ 
+Ok, did that. It also reduced code. I just thought it will
+increase complexity, but it proved to reduce it.
+
+> Some (all?) callers of walk_user_pages() may not even be interested
+> in the error-time callout.  In fact it may be possible to just leave
+> the state at time-of-error in the state structure (see below) and just
+> return an error code to the caller of walk_user_pages()?
+ 
+I fear that users forget the cleanup, if they have to repeat and
+duplicate it. Until now they DO the cleanup themselves, after
+using the structures, but not in case of error. Providing a
+cleanup function factors out the cleanup nicely.
+
+I envision the following usage:
+
+setup(&page_walk,...); /* currently done explicitly on stack */
+walk_user_pages(&page_walk);
+
+/* Do fancy stuff with that pages */
+
+cleanup(&page_walk); /* calling internal cleanup function 
+                        and free the page array */
+
+How does that sound?
+
+> I suggest that it's time to fold all these arguments into a structure
+> which is on the caller's stack, and pass the address of that around.
+> This will simplify things, but one needs to be careful to think through
+> the ownership rules of the various parts of that structure.
+
+I'm working on this, but that means a new header file, a new *.c
+file and exporting all the page walkers introduced by me to the
+modules.
+
+It sure will reduce stack usage although we recurse deeper.
+That's a good think already.
+
+> Please review your ERR_PTR handling.
+
+Done. Had it otherwise before, but got confused about the code in
+linux/err.h.
+
+> Also, please rip everything which is appropriate out of mm/memory.c
+> and create a new file in mm/ for it.
+
+Everything regarding page walking, or should I cleanup more?
+In fact mm/memory.c really looks like a mm/misc.c ;-)
+
+> I cannot guarantee that we can get this merged up, frankly.  We need
+> a *reason* for doing that.  The current code is "good enough" for
+> current callers.
+
+The current code sucks for char devices which have much IO
+traffic via DMA. That might not be much, but the number is
+increasing and I'm sure many drivers for measuring cards, which
+will never make it into the kernel, would benefit from that.
+
+All improvements in that direction have only been with block devices
+in mind so far. I even don't see how I could improve the usage in
+fs/dio.c, because it might sleep very long, so I can't use a page
+walker for it (which needs the mmap_sem).
+
+> So the best I can do is to get it under test, give
+> Linus a heads-up that it's floating about while you get in there and
+> start creating reasons for merging it - namely the clients down in
+> device drivers.
+>
+> If we don't make it then we can definitely push it for 2.7.
+> 
+> How does that suit?
+
+That sounds great! I'll create reasons. People with 4K-Stack will
+love that, I think ;-)
+
+And it will cleanup, shrink and correct every usage. I uncovered
+already 2 Bugs on the go, so it's definitly worth it anyway.
+
+Patch follows Saturday or Sunday morning. Its not complete, yet.
+
+Regards
+
+Ingo Oeser
+-- 
+Science is what we can tell a computer. Art is everything else. --- D.E.Knuth
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
