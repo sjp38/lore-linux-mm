@@ -1,31 +1,48 @@
-Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA12214
-	for <linux-mm@kvack.org>; Thu, 26 Feb 1998 09:04:23 -0500
-Date: Thu, 26 Feb 1998 12:34:40 +0100 (MET)
+Date: Thu, 26 Feb 1998 15:30:25 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Subject: Re: Fairness in love and swapping
-In-Reply-To: <199802261103.MAA03115@boole.fs100.suse.de>
-Message-ID: <Pine.LNX.3.91.980226123303.26424F-100000@mirkwood.dummy.home>
+In-Reply-To: <199802260805.JAA00715@cave.BitWizard.nl>
+Message-ID: <Pine.LNX.3.91.980226152230.878A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Dr. Werner Fink" <werner@suse.de>
-Cc: sct@dcs.ed.ac.uk, torvalds@transmeta.com, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
+To: Rogier Wolff <R.E.Wolff@BitWizard.nl>
+Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, torvalds@transmeta.com, blah@kvack.org, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, linux-kernel@vger.rutgers.edu, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 26 Feb 1998, Dr. Werner Fink wrote:
+On Thu, 26 Feb 1998, Rogier Wolff wrote:
 
-> There is one point more which makes ageing a bit unfair.  In
-> include/linux/pagemap.h PAGE_AGE_VALUE is defined to 16 which is used in
-> __add_page_to_hash_queue() to set the age of a hashed page ... IMHO only
-> touch_page() should be used.  Nevertheless a static value of 16
-> breaks the dynamic manner of swap control via /proc/sys/vm/swapctl
+>           0        50           51      100
+>       P1  <in memory>...........<in memory> 
+> 
+>           0          1        50           51      100
+>       P2  ...........<in memory>...........<in memory> 
 
-Without my mmap-age patch, page cache pages aren't aged
-at all... They're just freed whenever they weren't referenced
-since the last scan. The PAGE_AGE_VALUE is quite useless IMO
-(but I could be wrong, Stephen?).
+Now, how do we select which processes to suspend temporarily
+and which to wake up again...
+Suspending X wouldn't be to good, since then a lot of other
+procesess would block on it... But this gives us a good clue
+as to what to do.
+
+We could:
+- force-swap out processes which have slept for some time
+- suspend & force-swap out the largest process
+- wake it up again when there are two proceses waiting on
+  it (to prevent X from being swapped out)
+- wake up the suspended process after some time (2 seconds
+  per megabyte size?) and mark the process as just-suspended
+  (and don't swap it out again for a guaranteed 1 second *
+  megabyte size period)
+- if necessary, suspend & swap another large process when
+  we're short on memory again
+
+Doing this together with a dynamic RSS-limit strategy and
+page cache page aging might give us quite an improvement
+in VM performance.
+
+Of course, I'm quite sure that I forgot something,
+so please comment on how/what you want things changed.
 
 Rik.
 +-----------------------------+------------------------------+
