@@ -1,7 +1,7 @@
-Date: Tue, 13 May 2003 13:36:36 -0700
+Date: Tue, 13 May 2003 13:53:26 -0700
 From: "Paul E. McKenney" <paulmck@us.ibm.com>
-Subject: [RFC][PATCH] Interface to invalidate regions of mmaps
-Message-ID: <20030513133636.C2929@us.ibm.com>
+Subject: [RFC][PATCH] vm_operation to avoid pagefault/inval race
+Message-ID: <20030513135326.D2929@us.ibm.com>
 Reply-To: paulmck@us.ibm.com
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -12,120 +12,67 @@ To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@digeo.com
 Cc: mjbligh@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-This patch adds an API to allow networked and distributed filesystems
-to invalidate portions of (or all of) a file.  This is needed to 
-provide POSIX or near-POSIX semantics in such filesystems, as
-discussed on LKML late last year:
+This patch adds a vm_operations_struct function pointer that allows
+networked and distributed filesystems to avoid a race between a
+pagefault on an mmap and an invalidation request from some other
+node.  The race goes as follows:
 
-	http://marc.theaimsgroup.com/?l=linux-kernel&m=103609089604576&w=2
-	http://marc.theaimsgroup.com/?l=linux-kernel&m=103167761917669&w=2
+1.	A user process on node A accesses a portion of a mapped
+	file, resulting in a page fault.  The pagefault handler
+	invokes the corresponding nopage function, which reads
+	the page into memory.
 
-Thoughts?
+2.	A user process on node B writes to the same portion of
+	the file (either via mmap or write()), therefore sending
+	node A an invalidation request to node A.
 
-						Thanx, Paul
+3.	Node A receives this invalidate request, and dutifully
+	invalidates all mmaps.  Except for the one that has
+	not yet been fully mapped by step 1.
 
-diff -urN -X dontdiff linux-2.5.69/include/linux/mm.h linux-2.5.69.invalidate_mmap_range/include/linux/mm.h
+4.	Node A then executes the rest of do_no_page(), entering
+	the now-invalid page into the PTEs.
+
+5.	One way or another, life is now hard.
+
+One solution would be for the distributed filesystem to hold
+onto a lock or semaphore upon return from the nopage function.
+The problem is that there is no way to determine (in a timely
+fashion) when it safe to release this lock or semaphore.
+
+The attached patch addresses this by adding a nopagedone
+function for when do_no_page() exits.  The filesystem may then
+drop the lock or semaphore in this nopagedone function.
+
+Thoughts?  Is there some other existing way to get this done?
+
+					Thanx, Paul
+
+
+diff -urN -X dontdiff linux-2.5.69/include/linux/mm.h linux-2.5.69.stmmap/include/linux/mm.h
 --- linux-2.5.69/include/linux/mm.h	Sun May  4 16:53:00 2003
-+++ linux-2.5.69.invalidate_mmap_range/include/linux/mm.h	Fri May  9 17:35:48 2003
-@@ -412,6 +412,9 @@
- int zeromap_page_range(struct vm_area_struct *vma, unsigned long from,
- 			unsigned long size, pgprot_t prot);
++++ linux-2.5.69.stmmap/include/linux/mm.h	Fri May  9 09:30:37 2003
+@@ -134,6 +134,7 @@
+ 	void (*open)(struct vm_area_struct * area);
+ 	void (*close)(struct vm_area_struct * area);
+ 	struct page * (*nopage)(struct vm_area_struct * area, unsigned long address, int unused);
++	void (*nopagedone)(struct vm_area_struct * area, unsigned long address, int status);
+ 	int (*populate)(struct vm_area_struct * area, unsigned long address, unsigned long len, pgprot_t prot, unsigned long pgoff, int nonblock);
+ };
  
-+extern void invalidate_mmap_range(struct address_space *mapping,
-+				  loff_t const holebegin,
-+				  loff_t const holelen);
- extern int vmtruncate(struct inode * inode, loff_t offset);
- extern pmd_t *FASTCALL(__pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address));
- extern pte_t *FASTCALL(pte_alloc_kernel(struct mm_struct *mm, pmd_t *pmd, unsigned long address));
-diff -urN -X dontdiff linux-2.5.69/kernel/ksyms.c linux-2.5.69.invalidate_mmap_range/kernel/ksyms.c
---- linux-2.5.69/kernel/ksyms.c	Sun May  4 16:52:49 2003
-+++ linux-2.5.69.invalidate_mmap_range/kernel/ksyms.c	Fri May  9 17:35:48 2003
-@@ -117,6 +117,7 @@
- EXPORT_SYMBOL(max_mapnr);
- #endif
- EXPORT_SYMBOL(high_memory);
-+EXPORT_SYMBOL(invalidate_mmap_range);
- EXPORT_SYMBOL(vmtruncate);
- EXPORT_SYMBOL(find_vma);
- EXPORT_SYMBOL(get_unmapped_area);
-diff -urN -X dontdiff linux-2.5.69/mm/memory.c linux-2.5.69.invalidate_mmap_range/mm/memory.c
+diff -urN -X dontdiff linux-2.5.69/mm/memory.c linux-2.5.69.stmmap/mm/memory.c
 --- linux-2.5.69/mm/memory.c	Sun May  4 16:53:14 2003
-+++ linux-2.5.69.invalidate_mmap_range/mm/memory.c	Mon May 12 15:09:28 2003
-@@ -1060,6 +1060,74 @@
++++ linux-2.5.69.stmmap/mm/memory.c	Fri May  9 17:04:09 2003
+@@ -1426,6 +1487,9 @@
+ 	ret = VM_FAULT_OOM;
+ out:
+ 	pte_chain_free(pte_chain);
++	if (vma->vm_ops && vma->vm_ops->nopagedone) {
++		vma->vm_ops->nopagedone(vma, address & PAGE_MASK, ret);
++	}
  	return ret;
  }
  
-+/*
-+ * Helper function for invalidate_mmap_range().
-+ * Both hba and hlen are page numbers in PAGE_SIZE units.
-+ */
-+static void 
-+invalidate_mmap_range_list(struct list_head *head,
-+			   unsigned long const hba,
-+			   unsigned long const hlen)
-+{
-+	struct list_head *curr;
-+	unsigned long hea;	/* last page of hole. */
-+	unsigned long vba;
-+	unsigned long vea;	/* last page of corresponding uva hole. */
-+	struct vm_area_struct *vp;
-+	unsigned long zba;
-+	unsigned long zea;
-+
-+	hea = hba + hlen - 1;	/* avoid overflow. */
-+	list_for_each(curr, head) {
-+		vp = list_entry(curr, struct vm_area_struct, shared);
-+		vba = vp->vm_pgoff;
-+		vea = vba + ((vp->vm_end - vp->vm_start) >> PAGE_SHIFT) - 1;
-+		if (hea < vba || vea < hba)
-+		    	continue;	/* Mapping disjoint from hole. */
-+		zba = (hba <= vba) ? vba : hba;
-+		zea = (vea <= hea) ? vea : hea;
-+		zap_page_range(vp,
-+			       ((zba - vba) << PAGE_SHIFT) + vp->vm_start,
-+			       (zea - zba + 1) << PAGE_SHIFT);
-+	}
-+}
-+
-+/**
-+ * invalidate_mmap_range - invalidate the portion of all mmaps
-+ * in the specified address_space corresponding to the specified
-+ * page range in the underlying file.
-+ * @address_space: the address space containing mmaps to be invalidated.
-+ * @holebegin: byte in first page to invalidate, relative to the start of
-+ * the underlying file.  This will be rounded down to a PAGE_SIZE
-+ * boundary.
-+ * @holelen: size of prospective hole in bytes.  This will be rounded
-+ * up to a PAGE_SIZE boundary.
-+ */
-+void 
-+invalidate_mmap_range(struct address_space *mapping,
-+		      loff_t const holebegin,
-+		      loff_t const holelen)
-+{
-+	unsigned long hba = holebegin >> PAGE_SHIFT;
-+	unsigned long hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
-+
-+	if (hlen == 0)
-+		return;
-+	/* Check for overflow. */
-+	if (sizeof(holelen) > sizeof(hlen)) {
-+		long long holeend = (holebegin + holelen - 1) >> PAGE_SHIFT;
-+
-+		if (holeend & ~(long long)ULONG_MAX)
-+			hlen = ULONG_MAX - hba + 1;
-+	}
-+	down(&mapping->i_shared_sem);
-+	if (unlikely(!list_empty(&mapping->i_mmap)))
-+		invalidate_mmap_range_list(&mapping->i_mmap, hba, hlen);
-+	if (unlikely(!list_empty(&mapping->i_mmap_shared)))
-+		invalidate_mmap_range_list(&mapping->i_mmap_shared, hba, hlen);
-+	up(&mapping->i_shared_sem);
-+}       
-+
- static void vmtruncate_list(struct list_head *head, unsigned long pgoff)
- {
- 	unsigned long start, end, len, diff;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
