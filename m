@@ -1,39 +1,50 @@
-Subject: Re: VM problem with 2.4.8-ac9 (fwd)
-References: <E15ZfK9-0002I3-00@the-village.bc.nu>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 23 Aug 2001 00:19:58 -0600
-In-Reply-To: <E15ZfK9-0002I3-00@the-village.bc.nu>
-Message-ID: <m1zo8rl2lt.fsf@frodo.biederman.org>
+Message-ID: <3B84BE0A.C9082E87@pp.inet.fi>
+Date: Thu, 23 Aug 2001 11:25:46 +0300
+From: Jari Ruusu <jari.ruusu@pp.inet.fi>
 MIME-Version: 1.0
+Subject: Re: VM problem with 2.4.8-ac9 (fwd)
+References: <Pine.LNX.4.21.0108221526170.2651-100000@freak.distro.conectiva>
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Rik van Riel <riel@conectiva.com.br>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox <alan@lxorguk.ukuu.org.uk> writes:
-
+Marcelo Tosatti wrote:
+> On Wed, 22 Aug 2001, Rik van Riel wrote:
+> 
+> > Hi Alan,
+> >
+> > Another report of tasks dying on recent 2.4 kernels.
 > > Suspect code would be:
 > > - tlb optimisations in recent -ac    (tasks dying with segfault)
+> > - swapfile.c, especially sys_swapoff (known race condition, marcelo?)
 > 
-> Um the tlb optimisations go back to about 2.4.1-ac 8)
+> There are known races on swapoff, but Jari is not running swapoff...
+
+Correct, not running swapoff.
+
+> >
+> > What would cause the swap map badness below I wouldn't know,
+> > maybe marcelo is more familiar with the swapfile.c code...
 > 
-> My guess would be the vm changes you and marcelo did
+> Jari,
+> 
+> 1) Are you using an SMP kernel?
 
-Can I ask which tlb optimisations these are.  I have a couple
-of reports of dosemu killing the kernel on 2.4.7-ac6 and 2.4.8-ac7 and
-similiar kernels, on machines with slow processors.  It has been
-confirmed in dosemu without X and without any direct hardware
-access. The kernel seems to oops in random interrupt handlers.  Just
-off the cuff that feels like a lazy context switching bug.  As dosemu
-plays with ldt's and lives in the vm86 syscall I can see it have
-problems other code paths don't.
+No.
 
-It is so weird I have been having a hard time believing the bug
-reports.
+> 2) Did you tried with older kernels or 2.4.9?
 
-Eric
+Linus' 2.4.9 survived about 7 hours of VM torture, and then I got ext2
+filesystem corruption (just once, dunno if it is repeatable). No "swap
+offset" problems with 2.4.9 so far. Haven't tortured older kernels yet.
+
+Regards,
+Jari Ruusu <jari.ruusu@pp.inet.fi>
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
