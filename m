@@ -1,123 +1,69 @@
-From: Thomas Schlichter <schlicht@uni-mannheim.de>
-Subject: Re: 2.6.0-test8-mm1
-Date: Mon, 20 Oct 2003 18:11:10 +0200
-References: <20031020020558.16d2a776.akpm@osdl.org>
+Subject: [BUG] Re: 2.6.0-test8-mm1
+From: =?ISO-8859-1?Q?Ram=F3n?= Rey Vicente <rrey@ranty.pantax.net>
+Reply-To: ramon.rey@hispalinux.es
 In-Reply-To: <20031020020558.16d2a776.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: multipart/signed;
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1;
-  boundary="Boundary-02=_lkAl/YWEDTuwuEa";
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200310201811.18310.schlicht@uni-mannheim.de>
+References: <20031020020558.16d2a776.akpm@osdl.org>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-DppBFU+Hzk9ZFjPmezdF"
+Message-Id: <1066677679.2121.3.camel@debian>
+Mime-Version: 1.0
+Date: Mon, 20 Oct 2003 21:21:20 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Boundary-02=_lkAl/YWEDTuwuEa
-Content-Type: text/plain;
-  charset="iso-8859-1"
+--=-DppBFU+Hzk9ZFjPmezdF
+Content-Type: text/plain; charset=iso-8859-15
 Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
 
-On Monday 20 October 2003 11:05, Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test8=
-/2
->.6.0-test8-mm1
->
->
-> . Included a much updated fbdev patch.  Anyone who is using framebuffers,
->   please test this.
->
-> . Quite a large number of stability fixes.
+Hi.
 
-I've got a problem with NFS!
-If the kernel NFS server (nfs-utils 1.0.6) is started I get following Oops:
+The same problem with other kernel versions. I get it trying to delete
+my local 2.6 svn repository:
 
-Installing knfsd (copyright (C) 1996 okir@monad.swb.de).
-Unable to handle kernel NULL pointer dereference at virtual address 00000000
- printing eip:
-c0163c36
-*pde =3D 00000000
-Oops: 0000 [#1]
-PREEMPT
-CPU:    0
-EIP:    0060:[invalidate_list+37/211]    Not tainted VLI
-EFLAGS: 00010203
-EIP is at invalidate_list+0x25/0xd3
-eax: cded1e00   ebx: c13a80c0   ecx: c02e83a0   edx: cf35c000
-esi: 00000000   edi: cf35df38   ebp: 00000000   esp: cf35df10
-ds: 007b   es: 007b   ss: 0068
-Process exportfs (pid: 1029, threadinfo=3Dcf35c000 task=3Dcefac0c0)
-Stack: 00000000 00000000 cded1e00 cf35c000 cf35df38 cffe7c88 c0163d22 c02e8=
-390
-       cded1e00 cf35df38 cf35df38 cf35df38 cd584980 cded1e00 c02e8640 cffe7=
-c88
-       c01542f9 cded1e00 0000000e cf35c000 d1a2fde0 c0154bca cded1e00 cded1=
-e00
-Call Trace:
- [invalidate_inodes+62/162] invalidate_inodes+0x3e/0xa2
- [generic_shutdown_super+109/375] generic_shutdown_super+0x6d/0x177
- [kill_anon_super+14/56] kill_anon_super+0xe/0x38
- [deactivate_super+82/144] deactivate_super+0x52/0x90
- [__fput+228/235] __fput+0xe4/0xeb
- [sys_nfsservctl+257/267] sys_nfsservctl+0x101/0x10b
- [syscall_call+7/11] syscall_call+0x7/0xb
+EXT3-fs error (device hdb1): ext3_free_blocks: Freeing blocks in system
+zones - Block =3D 512, count =3D 1
+Aborting journal on device hdb1.
+ext3_free_blocks: aborting transaction: Journal has aborted in
+__ext3_journal_get_undo_access<2>EXT3-fs error (device hdb1) in
+ext3_free_blocks: Journal has aborted
+ext3_reserve_inode_write: aborting transaction: Journal has aborted in
+__ext3_journal_get_write_access<2>EXT3-fs error (device hdb1) in
+ext3_reserve_inode_write: Journal has aborted
+EXT3-fs error (device hdb1) in ext3_truncate: Journal has aborted
+ext3_reserve_inode_write: aborting transaction: Journal has aborted in
+__ext3_journal_get_write_access<2>EXT3-fs error (device hdb1) in
+ext3_reserve_inode_write: Journal has aborted
+EXT3-fs error (device hdb1) in ext3_orphan_del: Journal has aborted
+ext3_reserve_inode_write: aborting transaction: Journal has aborted in
+__ext3_journal_get_write_access<2>EXT3-fs error (device hdb1) in
+ext3_reserve_inode_write: Journal has aborted
+EXT3-fs error (device hdb1) in ext3_delete_inode: Journal has aborted
+ext3_abort called.
+EXT3-fs abort (device hdb1): ext3_journal_start: Detected aborted
+journal
+Remounting filesystem read-only
+--=20
+Ram=F3n Rey Vicente       <ramon dot rey at hispalinux dot es>
+        jabber ID       <rreylinux at jabber dot org>
+GPG public key ID 	0xBEBD71D5 -> http://pgp.escomposlinux.org/
 
-Code: fb ff 5b 5e 5f c3 55 31 ed 57 56 53 50 50 8b 44 24 1c 8b 7c 24 24 c7 =
-04=20
-24
- <6>note: exportfs[1029] exited with preempt_count 2
-bad: scheduling while atomic!
-Call Trace:
- [schedule+60/1207] schedule+0x3c/0x4b7
- [unmap_vmas+336/471] unmap_vmas+0x150/0x1d7
- [exit_mmap+104/339] exit_mmap+0x68/0x153
- [mmput+123/184] mmput+0x7b/0xb8
- [do_exit+345/836] do_exit+0x159/0x344
- [do_divide_error+0/167] do_divide_error+0x0/0xa7
- [do_page_fault+784/1105] do_page_fault+0x310/0x451
- [update_process_times+41/47] update_process_times+0x29/0x2f
- [update_wall_time+11/51] update_wall_time+0xb/0x33
- [do_timer+76/193] do_timer+0x4c/0xc1
- [do_timer_interrupt+55/224] do_timer_interrupt+0x37/0xe0
- [timer_interrupt+40/71] timer_interrupt+0x28/0x47
- [rcu_process_callbacks+203/220] rcu_process_callbacks+0xcb/0xdc
- [tasklet_action+58/89] tasklet_action+0x3a/0x59
- [profile_hook+28/49] profile_hook+0x1c/0x31
- [do_page_fault+0/1105] do_page_fault+0x0/0x451
- [error_code+47/56] error_code+0x2f/0x38
- [invalidate_list+37/211] invalidate_list+0x25/0xd3
- [invalidate_inodes+62/162] invalidate_inodes+0x3e/0xa2
- [generic_shutdown_super+109/375] generic_shutdown_super+0x6d/0x177
- [kill_anon_super+14/56] kill_anon_super+0xe/0x38
- [deactivate_super+82/144] deactivate_super+0x52/0x90
- [__fput+228/235] __fput+0xe4/0xeb
- [sys_nfsservctl+257/267] sys_nfsservctl+0x101/0x10b
- [syscall_call+7/11] syscall_call+0x7/0xb
-
-
-It just worked smoothly with 2.6.0-test7-mm1!
-
-Regards
-   Thomas
-
---Boundary-02=_lkAl/YWEDTuwuEa
-Content-Type: application/pgp-signature
-Content-Description: signature
+--=-DppBFU+Hzk9ZFjPmezdF
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: Esta parte del mensaje =?ISO-8859-1?Q?est=E1?= firmada
+	digitalmente
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.1 (GNU/Linux)
+Version: GnuPG v1.2.3 (GNU/Linux)
 
-iD8DBQA/lAklYAiN+WRIZzQRAkThAKCMsT1nWKP3J3hawrwyOTKJu5e99gCgxwLv
-6sxH1nnxzdM8TVxrf8WJi/M=
-=GHj8
+iD8DBQA/lDWuRGk68b69cdURAl2sAJ9yq6sp/IB0w8g3yE7qosvqLVUmPgCeKfWP
+fMW2b5+12d2Dn4Xhko4A9zc=
+=5UP+
 -----END PGP SIGNATURE-----
 
---Boundary-02=_lkAl/YWEDTuwuEa--
+--=-DppBFU+Hzk9ZFjPmezdF--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
