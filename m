@@ -1,97 +1,70 @@
-Date: Thu, 11 Apr 2002 18:16:56 +0530 (IST)
-From: "Amit S. Jain" <amitjain@tifr.res.in>
-Subject: Re: Memory allocation in Linux (fwd)
-In-Reply-To: <3CAC3E85.2040304@earthlink.net>
-Message-ID: <Pine.LNX.4.21.0204111756220.26014-100000@mailhost.tifr.res.in>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 11 Apr 2002 11:39:59 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: [PATCH] radix-tree pagecache for 2.4.19-pre5-ac3
+Message-ID: <20020411183959.GE23767@holomorphy.com>
+References: <20020407164439.GA5662@debian> <20020410205947.GG21206@holomorphy.com> <20020410220842.GA14573@debian>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <20020410220842.GA14573@debian>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joseph A Knapka <jknapka@earthlink.net>
+To: Art Haas <ahaas@neosoft.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi everyone,
-            This is a continuation of the mail I had written earlier (see
-down)tellin bout my problem that when i use vmalloc()...I get an error stating
- "PCI bus error 2290".I think i have a slight idea what the problem could
-be.....Hope u all could comment on it.
-The large amount of memory i obtain using vmalloc is then pointed to by
-the skb "network" buffers as i copy data into this memory which has to be
-transmitted.Since the memory is discontinuous implying data is
-discontinuous and the ethernet card I am using is REALTEK8139 which
-doesnot support SCATTER/GATHER DMA.... hence the PCI bus cant find the
-continuous data which has to be transmitted.
+On Wed, Apr 10, 2002 at 05:08:42PM -0500, Art Haas wrote:
+> Sorry to hear that. I haven't had any trouble on my machine, but
+> it's an old machine (200MHz Pentium), and I run desktop stuff, so
+> the load the patch is exposed to on this machine must not be enough
+> to trip things up. 
+> I think you've dropped an "=". Maybe this is the cause of the
+> other trouble you were seeing?
 
-This is my amature fundaa....Hope u can elaborate on this...
+No, it appears to be because all pagecache locking was removed from vmscan.c
+Acquisitions and releases of pagecache_lock must be converted to the
+analogous acquisitions and releases of the mapping->page_lock, with proper
+movement of the points it's acquired and released for the per-mapping lock.
+Testing with Cerberus on SMP machines helps find these issues.
 
-Thanks
-Amit
+The following hunks might need a bit more critical examination.
 
-<
 
-On Thu, 4 Apr 2002, Joseph A Knapka wrote:
+Cheers,
+Bill
 
-> Amit S. Jain wrote:
-> 
-> > This was the message I had posted in March expecting some help from the
-> > Masters in Linux-mm...however there was no response...hope someone can
-> > respond to it now.. Pleasse.....and if u do could you please CC the
-> > message to my e-mail address...
-> 
-> 
-> Well, I may not be telling you anything you don't already
-> know, but at least here's a reply :-)
-> 
-> >  Hello everyone,
-> >                I am confused about the concept of memory allocation in
-> > Linux and hope u all can please clear this.
-> > Obtaining large amount of continuous memory from the kernel is not a
-> > good practice and is also not possible.However,as far as non-contiguous
-> > memory is concerned ...cant those be obtained in huge amounts (I am talkin
-> > in terms of MB).Using get_free_pages or vmalloc cant large amounts of
-> > memory be obtained.I tried doing this but I got continuous message ssayin
-> > PCI bus error 2290...wass this bout???ne idea. 
-> 
-> 
-> get_free_pages() allocates physically contiguous RAM of the
-> requested size (2^order pages). You can get lots of
-> non-physically-contiguous memory by calling get_free_pages()
-> many times with order=0.
-> 
-> vmalloc() does just that, and maps the resulting pages
-> contiguously into kernel virtual memory. However, vmalloc()
-> can only map pages into kernel addresses that are not
-> already in use, and in a machine with lots of RAM most of the
-> kernel's virtual address space is occupied by 1-1 mapping
-> of physical RAM. So you may be running into that problem,
-> depending on how much RAM is in the machine. And of
-> course other users of vmalloc() may fragment the
-> kernel's virtual space and make allocation of very large
-> blocks impossible.
-> 
-> I don't know why you would be getting "PCI bus error 2290",
-> sorry...
-> 
-> 
-> > Also,I will be highly obliged if you could refer a good document which can
-> > gimme a good explaination bout mmap function.I basically want to obtain
-> > zero copy from the user area straigt to the network interface without any
-> > copies in the kernel area. kiobuff can provide one such interface,however
-> > I also want to try using mmap....so please could u refer me some good
-> 
-> > document.   
-> 
-> 
-> (I can't comment on this.)
-> 
-> Cheers,
-> 
-> -- Joe
->    Using open-source software: free.
->    Pissing Bill Gates off: priceless.
-> 
 
+--- linux-2.4.19-pre5-ac3/mm/vmscan.c.ajh	2002-04-06 15:33:00.000000000 -0600
++++ linux-2.4.19-pre5-ac3/mm/vmscan.c	2002-04-06 15:33:45.000000000 -0600
+@@ -84,11 +84,10 @@
+ 	int maxscan;
+ 
+ 	/*
+-	 * We need to hold the pagecache_lock around all tests to make sure
+-	 * reclaim_page() cannot race with find_get_page() and friends.
++	 * The pagecache_lock was removed with the addition of
++	 * the radix-tree patch.
+ 	 */
+ 	spin_lock(&pagemap_lru_lock);
+-	spin_lock(&pagecache_lock);
+ 	maxscan = zone->inactive_clean_pages;
+ 	while (maxscan-- && !list_empty(&zone->inactive_clean_list)) {
+ 		page_lru = zone->inactive_clean_list.prev;
+@@ -136,13 +135,11 @@
+ 		zone->inactive_clean_pages--;
+ 		UnlockPage(page);
+ 	}
+-	spin_unlock(&pagecache_lock);
+ 	spin_unlock(&pagemap_lru_lock);
+ 	return NULL;
+ 
+ found_page:
+ 	del_page_from_inactive_clean_list(page);
+-	spin_unlock(&pagecache_lock);
+ 	spin_unlock(&pagemap_lru_lock);
+ 	if (entry.val)
+ 		swap_free(entry);
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
