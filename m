@@ -1,52 +1,43 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA17390
-	for <linux-mm@kvack.org>; Sun, 24 Jan 1999 09:37:48 -0500
-Date: Sun, 24 Jan 1999 14:28:31 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: 2.2.0-final
-In-Reply-To: <Pine.LNX.3.96.990124141300.222A-100000@laser.bogus>
-Message-ID: <Pine.LNX.3.96.990124142635.476A-100000@laser.bogus>
+Received: from z.ml.org (z.ml.org [209.208.36.5])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA18994
+	for <linux-mm@kvack.org>; Sun, 24 Jan 1999 12:35:42 -0500
+Date: Sun, 24 Jan 1999 13:33:53 -0500 (EST)
+From: Gregory Maxwell <linker@z.ml.org>
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <Pine.LNX.3.95.990123161758.12138B-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.3.96.990124133131.18613A-100000@z.ml.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Kernel Mailing List <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 24 Jan 1999, Andrea Arcangeli wrote:
+On Sat, 23 Jan 1999, Linus Torvalds wrote:
 
-> Here the fix:
+> On Sat, 23 Jan 1999, Alan Cox wrote:
+> > 
+> > Thats a bug in our current vm structures, like the others - inability to
+> > throw out page tables, inability to find memory easily, inability to move
+> > blocks to allocate large areas in a target space, inability to handle
+> > large user spaces etc.
+> 
+> What? None of those are bugs, they are features.
+> 
+> Complexity is not a goal to be reached. Complexity is something to be
+> avoided at all cost. If you don't believe me, look at NT.
+> 
+> 		Linus
 
-Woops the fix was wrong, I forgot that there was a not needed check due me
-(just removed from some weeks here, and that's because I forget to
-remove it now ;):
+Make things as simple as possible, but no simpler.
 
-The complete fix is this. Excuse me...
+Do you really think "inability to handle large user spaces" or "inability
+to find memory easily" are features? 
 
-Index: vmscan.c
-===================================================================
-RCS file: /var/cvs/linux/mm/vmscan.c,v
-retrieving revision 1.1.1.3
-diff -u -r1.1.1.3 vmscan.c
---- vmscan.c	1999/01/23 18:52:32	1.1.1.3
-+++ vmscan.c	1999/01/24 13:26:24
-@@ -325,11 +325,9 @@
- 	 * Think of swap_cnt as a "shadow rss" - it tells us which process
- 	 * we want to page out (always try largest first).
- 	 */
--	counter = nr_tasks / (priority+1);
-+	counter = (nr_tasks << 1) / (priority+1);
- 	if (counter < 1)
- 		counter = 1;
--	if (counter > nr_tasks)
--		counter = nr_tasks;
- 
- 	for (; counter >= 0; counter--) {
- 		assign = 0;
+Perhaps all the current solutions have been overly complex, however, that
+doesn't mean there is no simple way to accomplish the same thing. 
 
 
-
-Andrea Arcangeli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
