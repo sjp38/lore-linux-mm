@@ -1,49 +1,58 @@
-Date: Mon, 16 Jul 2001 14:42:19 -0400 (EDT)
-From: Dirk Wetter <dirkw@rentec.com>
-Subject: Re: [PATCH] Separate global/perzone inactive/free shortage
-In-Reply-To: <20010716141915.C28023@redhat.com>
-Message-ID: <Pine.LNX.4.33.0107161434110.26302-100000@monster000.rentec.com>
+Date: Mon, 16 Jul 2001 16:00:16 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] Separate global/perzone inactive/free shortage 
+In-Reply-To: <20010716155126.37887.qmail@web14306.mail.yahoo.com>
+Message-ID: <Pine.LNX.4.33L.0107161553090.5738-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Mike Galbraith <mikeg@wen-online.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Kanoj Sarcar <kanojsarcar@yahoo.com>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, lkml <linux-kernel@vger.kernel.org>, Dirk Wetter <dirkw@rentec.com>, Mike Galbraith <mikeg@wen-online.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Jul 2001, Stephen C. Tweedie wrote:
+On Mon, 16 Jul 2001, Kanoj Sarcar wrote:
 
-> Hi,
->
-> > On Sat, 14 Jul 2001, Marcelo Tosatti wrote:
->
-> > On highmem machines, wouldn't it save a LOT of time to prevent allocation
-> > of ZONE_DMA as VM pages?  Or, if we really need to, get those pages into
-> > the swapcache instantly?  Crawling through nearly 4 gig of VM looking for
-> > 16 MB of ram has got to be very expensive.  Besides, those pages are just
-> > too precious to allow some user task to sit on them.
->
-> Can't we balance that automatically?
->
-> Why not just round-robin between the eligible zones when allocating,
-> biasing each zone based on size?  On a 4GB box you'd basically end up
-> doing 3 times as many allocations from the highmem zone as the normal
-> zone and only very occasionally would you try to dig into the dma
-> zone.  But on a 32MB box you would automatically spread allocations
-> 50/50 between normal and dma, and on a 20MB box you would be biased in
-> favour of allocating dma pages.
+> Just a quick note. A per-zone page reclamation
+> method like this was what I had advocated and sent
+> patches to Linus for in the 2.3.43 time frame or so.
+> I think later performance work ripped out that work.
 
-how good would be the one-size-fits-all approach?  certainly i would
-like to have the best memory performance for my 4GB boxes, so does the
-guy with the 20MB or 32MB box.  why not having yet another kernel config
-option ;-) ?
+Yes, the system ended up swapping as soon as the first zone
+was filled up and after that would fill up the other zones;
+the way the system stabilised was cycling through the pages
+of one zone and leaving the lower zones alone.
 
+This reduced the amount of available VM of a 1GB system
+to 128MB, which is somewhat suboptimal ;)
 
-cheers,
-	~dirkw
+What we learned from that is that we need to have some
+way to auto-balance the reclaiming, keeping the objective
+of evicting the least used page from RAM in mind.
 
+> I guess the problem is that a lot of the different
+> page reclamation schemes first of all do not know
+> how to reclaim pages for a specific zone,
 
+> try_to_swap_out is a good example, which can be solved
+> by rmaps.
 
+Indeed. Most of the time things go right, but the current
+system cannot cope at all when things go wrong. I think we
+really want things like rmaps and more sturdy reclaiming
+mechanisms to cope with these worst cases (and also to make
+the common case easier to get right).
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
