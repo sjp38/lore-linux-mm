@@ -1,41 +1,45 @@
-Date: Fri, 18 May 2001 23:12:32 -0300 (BRST)
+Date: Fri, 18 May 2001 23:18:37 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Linux 2.4.4-ac10
-In-Reply-To: <20010518235852.R8080@redhat.com>
-Message-ID: <Pine.LNX.4.21.0105182310580.5531-100000@imladris.rielhome.conectiva>
+Subject: Re: on load control / process swapping
+In-Reply-To: <l03130302b72ad6e553b5@[192.168.239.105]>
+Message-ID: <Pine.LNX.4.21.0105182315430.5531-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Mike Galbraith <mikeg@wen-online.de>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jonathan Morton <chromi@cyberspace.org>
+Cc: Matt Dillon <dillon@earth.backplane.com>, Terry Lambert <tlambert2@mindspring.com>, Charles Randall <crandall@matchlogic.com>, Roger Larsson <roger.larsson@norran.net>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 18 May 2001, Stephen C. Tweedie wrote:
-> On Fri, May 18, 2001 at 07:44:39PM -0300, Rik van Riel wrote:
-> 
-> > This is the core of why we cannot (IMHO) have a discussion
-> > of whether a patch introducing new VM tunables can go in:
-> > there is no clear overview of exactly what would need to be
-> > tunable and how it would help.
-> 
-> It's worse than that.  The workload on most typical systems is not
-> static.  The VM *must* be able to cope with dynamic workloads.  You
-> might twiddle all the knobs on your system to make your database run
-> faster, but end up in such a situation that the next time a mail flood
-> arrives for sendmail, the whole box locks up because the VM can no
-> longer adapt.
+On Fri, 18 May 2001, Jonathan Morton wrote:
 
-That's another problem, indeed ;)
+> FWIW, I've been running with a 2-line hack in my kernel for some weeks
+> now, which essentially forces the RSS of each process not to be forced
+> below some arbitrary "fair share" of the physical memory available.  
+> It's not a very clean hack, but it improves performance by a very
+> large margin under a thrashing load.  The only problem I'm seeing is a
+> deadlock when I run out of VM completely, but I think that's a
+> separate issue that others are already working on.
 
-Ingo, Mike, please keep this in mind when designing
-tunables or deciding which test you want to run today
-in order to look how the VM is performing.
+I'm pretty sure I know what you're running into.
 
+Say you guarantee a minimum of 3% of memory for each process;
+now when you have 30 processes running your memory is full and
+you cannot reclaim any pages when one of the processes runs
+into a page fault.
 
-Basic rule for VM: once you start swapping, you cannot
-win;  All you can do is make sure no situation loses
-really badly and most situations perform reasonably.
+The minimum RSS guarantee is a really nice thing to prevent the
+proverbial root shell from thrashing, but it really only works
+if you drop such processes every once in a while and swap them
+out completely. You especially need to do this when you're
+getting tight on memory and you have idle processes sitting around
+using their minimum RSS worth of RAM ;)
+
+It'd work great together with load control though. I guess I should
+post a patch for - simple&naive - load control code once I've got
+the inodes and the dirty page writeout code balancing fixed.
+
+regards,
 
 Rik
 --
