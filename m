@@ -1,84 +1,47 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA24632
-	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 17:50:06 -0500
-Date: Sun, 10 Jan 1999 22:49:47 GMT
-Message-Id: <199901102249.WAA01684@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from stingray.netplus.net (root@stingray.netplus.net [206.250.192.19] (may be forged))
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA24679
+	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 17:53:30 -0500
+Message-ID: <36992ED2.D05EA28F@netplus.net>
+Date: Sun, 10 Jan 1999 16:50:58 -0600
+From: Steve Bergman <steve@netplus.net>
 MIME-Version: 1.0
+Subject: Results: arcavm15, et. al.
+References: <Pine.LNX.3.96.990110215759.2341A-100000@laser.bogus> <369920F3.E9940FAA@netplus.net>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <Pine.LNX.3.95.990110103201.7668D-100000@penguin.transmeta.com>
-References: <199901101659.QAA00922@dax.scot.redhat.com>
-	<Pine.LNX.3.95.990110103201.7668D-100000@penguin.transmeta.com>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Savochkin Andrey Vladimirovich <saw@msu.ru>, Andrea Arcangeli <andrea@e-mind.com>, steve@netplus.net, "Eric W. Biederman" <ebiederm+eric@ccr.net>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>, Linus Torvalds <torvalds@transmeta.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+For the image load test:
 
-On Sun, 10 Jan 1999 10:35:10 -0800 (PST), Linus Torvalds
-<torvalds@transmeta.com> said:
+pre6+zlatko's_patch             2:35
+and with requested change       3:09
+pre6                            2:27
+pre5                            1:58
+arcavm13                        9:13
+arcavm15			1:59
 
-> On Sun, 10 Jan 1999, Stephen C. Tweedie wrote:
->> 
->> Ack.  I've been having a closer look, and making the superblock lock
->> recursive doesn't work
 
-> That's fine - the superblock lock doesn't need to be re-entrant, because
-> __GFP_IO is quite sufficient for that one.
+For the kernel compile test:
 
-I'm no longer convinced about that.  I think it's much much worse.  A
-bread() on an ext2 bitmap buffer with the superblock held is only safe
-if the IO can complete without _ever_ relying on a GFP_IO allocation.
-That means that any interrupt allocations required in that space have to
-be satisfiable by kswapd without GFP_IO, or kswapd could deadlock on us.
-It means that if our superblock-locked IO has to stall waiting for an
-nbd server process or a raid daemon, then those daemons cannot safely do
-GFP_IO.  It's really gross.
+In 12MB:
+                                Elapsed Maj.    Min.    Swaps
+                                -----   ------  ------  -----
+pre6+zlatko_patch               22:14   383206  204482  57823
+and with requested change       22:23   378662  198194  51445
+pre6                            20:54   352934  191210  48678
+pre5                            19:35   334680  183732  93427 
+arcavm13                        19:45   344452  180243  38977
+arcavm15			20:07	N/A	N/A	N/A
 
-I think it's actually ugly enough that we cannot make it safe: we can
-really only be sure if we prevent all GFP_IO from any process which
-might be involved in our deadlock loop, or if we avoid doing any IO with
-the superblock lock held.  
+Arcavm15 looks very good.  pre5 and arcavm13 look a bit better but of the
+kernels with the anti-deadlock code it looks the best so far. ( I assume that
+being based upon pre6 it's safe.)
+The battery in my palmtop died so I don't have the page fault and swaps results
+available for arcavm15.  I'll grab the pre-7.gz patch and see how it does.
 
-It really looks as if the right way around this is to prevent GFP_IO
-from deadlocking in the first place, by moving the asynchronous page
-writes out of kswapd/try_to_free_page and into a separate worker thread.
-That way we can continue to try to reclaim memory somewhere else without
-deadlocking.  In that case the only thing we are left having to worry
-about is doing a synchronous swapout, where we end up blocking waiting
-for the IO thread to complete.  
-
-In fact, to make it really safe we'd need to avoid synchronous swapout
-altogether: otherwise we can have
-
-	    A			kswiod		nbd server process
-	    lock_super();
-	    bread(ndb device);
-	    try_to_free_page();
-	    rw_swap_page_async();
-				filemap_write_page();
-				lock_super();
-	    wait_on_buffer();
-						try_to_free_page();
-						rw_swap_page_sync();
-						Oops, kswiod is stalled.
-
-Can we get away without synchronous swapout?  Notice that in this case,
-kswiod may be blocked but kswapd itself will not be.  As long as the nbd
-server does not try to do a synchronous swap, it won't deadlock on
-kswiod.  In other words, it is safe to wait for avaibility of another
-free page, but it is not safe to wait for completion of any single,
-specific swap IO.  If kswapd itself no longer performs the IO, then we
-can always free more memory, until we get to the complete death stage
-where there are absolutely no clean pages left in the system.
-
-If we do this, then both the inode and the superblock deadlocks
-disappear.
-
---Stephen.
+-Steve
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
