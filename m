@@ -1,40 +1,43 @@
+Date: Wed, 6 Jun 2001 21:06:52 +0200 (CEST)
+From: Mike Galbraith <mikeg@wen-online.de>
 Subject: Re: Break 2.4 VM in five easy steps
-References: <3B1E4CD0.D16F58A8@illusionary.com>
-	<3b204fe5.4014698@mail.mbay.net> <3B1E5316.F4B10172@illusionary.com>
-	<m1wv6p5uqp.fsf@frodo.biederman.org>
-	<3B1E7ABA.EECCBFE0@illusionary.com>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 06 Jun 2001 12:52:07 -0600
-In-Reply-To: <3B1E7ABA.EECCBFE0@illusionary.com>
-Message-ID: <m1ofs15tm0.fsf@frodo.biederman.org>
+In-Reply-To: <m1ofs15tm0.fsf@frodo.biederman.org>
+Message-ID: <Pine.LNX.4.33.0106062102060.404-100000@mikeg.weiden.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Derek Glidden <dglidden@illusionary.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Derek Glidden <dglidden@illusionary.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Derek Glidden <dglidden@illusionary.com> writes:
+On 6 Jun 2001, Eric W. Biederman wrote:
 
+> Derek Glidden <dglidden@illusionary.com> writes:
+>
+>
+> > The problem I reported is not that 2.4 uses huge amounts of swap but
+> > that trying to recover that swap off of disk under 2.4 can leave the
+> > machine in an entirely unresponsive state, while 2.2 handles identical
+> > situations gracefully.
+> >
+>
+> The interesting thing from other reports is that it appears to be kswapd
+> using up CPU resources.  Not the swapout code at all.  So it appears
+> to be a fundamental VM issue.  And calling swapoff is just a good way
+> to trigger it.
+>
+> If you could confirm this by calling swapoff sometime other than at
+> reboot time.  That might help.  Say by running top on the console.
 
-> The problem I reported is not that 2.4 uses huge amounts of swap but
-> that trying to recover that swap off of disk under 2.4 can leave the
-> machine in an entirely unresponsive state, while 2.2 handles identical
-> situations gracefully.  
-> 
+The thing goes comatose here too. SCHED_RR vmstat doesn't run, console
+switch is nogo...
 
-The interesting thing from other reports is that it appears to be kswapd
-using up CPU resources.  Not the swapout code at all.  So it appears
-to be a fundamental VM issue.  And calling swapoff is just a good way
-to trigger it. 
+After running his memory hog, swapoff took 18 seconds.  I hacked a
+bleeder valve for dead swap pages, and it dropped to 4 seconds.. still
+utterly comatose for those 4 seconds though.
 
-If you could confirm this by calling swapoff sometime other than at
-reboot time.  That might help.  Say by running top on the console.
-
-Eric
-
-
+	-Mike
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
