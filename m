@@ -1,35 +1,34 @@
-Received: from osdlab.org (air-1.osdlab.org [65.201.151.5])
-	by fire.osdlab.org (8.12.0.Beta10/8.12.0.Beta10) with ESMTP id f5SG1v8l032331
-	for <linux-mm@kvack.org>; Thu, 28 Jun 2001 09:01:57 -0700
-Message-ID: <3B3B5537.7472C477@osdlab.org>
-Date: Thu, 28 Jun 2001 09:03:03 -0700
-From: "Randy.Dunlap" <rddunlap@osdlab.org>
+Received: from voyager.task.mcst.ru (task-74.task.mcst.ru [195.151.232.74] (may be forged))
+	by bubbva-eth0.task.mcst.ru (8.9.3/8.9.3) with ESMTP id BAA14055
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2001 01:27:28 +0400
+Received: from localhost (linar@localhost)
+	by voyager.task.mcst.ru (8.9.3/8.9.3) with ESMTP id BAA01323
+	for <linux-mm@kvack.org>; Fri, 29 Jun 2001 01:26:19 +0400
+Date: Fri, 29 Jun 2001 01:26:17 +0400 (MSD)
+From: Linar Yusupov <linar@mcst.ru>
+Subject: >3-level page tables support process status.
+Message-ID: <Pine.LNX.4.10.10106290115500.1319-100000@voyager.task.mcst.ru>
 MIME-Version: 1.0
-Subject: [announce] US$25K Award
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-OSDL (Open Source Development Lab) is offering a $25,000
-Enterprise Achievement Award to the developer(s) of technological
-advances in the field of enterprise Linux, pursuant to some
-contest rules.  The award will be issued to the individual or
-group which, based upon the selection criteria, has made the
-greatest technological contribution in the field of enterprise
-Linux.
+  Hi folks!
 
-See the web page for details, official rules, and nominations.
-(http://www.osdlab.org/legal/award_rules.shtml)
+  Is there any team that works under generic 4- or more PgT support in
+2.4.x or 2.5.x Linux kernels? Since most modern 64-bit CPU's
+(Intel's Itanium, Elbrus'es E2K, AMD's SledgeHammer) design 
+suggests >3 level page tables MMU implementation, this issue becomes
+very important.
+  I'd like to contact with somebody from this team.
 
-If you have specific questions about the contest or its rules,
-please contact Tim Witham, the OSDL Lab Director (wookie@osdlab.org).
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	Regards,
+	Linar.
 
-~Randy
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
