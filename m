@@ -1,37 +1,35 @@
-Date: Mon, 7 Mar 2005 06:36:10 -0700
-Message-Id: <Kilauea104675-13118-246794060-1444.i93LyqTw006464@www7.flonetwork.com>
-From: "Willis Kirby" <leksik@doneasy.com>
-Subject: Re-finance at todays 3.25 rate
+Date: Wed, 16 Mar 2005 10:10:07 -0500
+From: Martin Hicks <mort@sgi.com>
+Subject: Re: [PATCH] Move code to isolate LRU pages into separate function
+Message-ID: <20050316151007.GG19113@localhost>
+References: <20050314214941.GP3286@localhost> <20050315195452.GE19113@localhost> <20050315223717.2a0f80e6.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain;
-Return-Path: <leksik@doneasy.com>
-To: aart@kvack.org
-Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, needpcparts.com@kvack.org
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050315223717.2a0f80e6.akpm@osdl.org>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Tue, Mar 15, 2005 at 10:37:17PM -0800, Andrew Morton wrote:
+> >  This version fixes that and also allows passing in a NULL scanned
+> >  argument if you don't care how many pages were scanned.
+> > 
+> 
+> But neither caller passes in a NULL argument.
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+I was playing around with another function, and I really didn't care how
+many pages were scanned.  I just thought that it seemed like a silly
+requirement to pass a variable in for scanned if you didn't care.
 
- You have qualified for the lowest rate in years...
+mh
 
- You could get over $380,000 for as little as $500 a month!
-
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
-
- 
- To get a free, no obli,gation consultation click below:
-
- http://www.nowratez.com/x/loan.php?id=nm
-
-
-
- Best Regards,
-
- Eugenia Elkins
- 
- to be remov(ed:	http://www.nowratez.com/x/st.html
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+-- 
+Martin Hicks   ||   Silicon Graphics Inc.   ||   mort@sgi.com
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
