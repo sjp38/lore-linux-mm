@@ -1,28 +1,39 @@
-Date: Sun, 19 Aug 2001 01:27:13 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: resend Re: [PATCH] final merging patch -- significant mozilla speedup.
-Message-ID: <20010819012713.N1719@athlon.random>
-References: <Pine.LNX.4.33.0108161651070.24312-100000@touchme.toronto.redhat.com> <Pine.LNX.4.33.0108181420050.11338-100000@toomuch.toronto.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.33.0108181420050.11338-100000@toomuch.toronto.redhat.com>; from bcrl@redhat.com on Sat, Aug 18, 2001 at 02:22:12PM -0400
+Date: Sat, 18 Aug 2001 20:10:50 -0400 (EDT)
+From: Ben LaHaise <bcrl@redhat.com>
+Subject: Re: resend Re: [PATCH] final merging patch -- significant mozilla
+ speedup.
+In-Reply-To: <20010819012713.N1719@athlon.random>
+Message-ID: <Pine.LNX.4.33.0108182005590.3026-100000@touchme.toronto.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ben LaHaise <bcrl@redhat.com>
+To: Andrea Arcangeli <andrea@suse.de>
 Cc: torvalds@transmeta.com, alan@redhat.com, linux-mm@kvack.org, Chris Blizzard <blizzard@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 18, 2001 at 02:22:12PM -0400, Ben LaHaise wrote:
-> It appears that whitespace was mangled.  Here's a resend of the patch,
-> uuencoded.
+On Sun, 19 Aug 2001, Andrea Arcangeli wrote:
 
-This below patch besides rewriting the vma lookup engine also covers the
-cases addressed by your patch:
+> This below patch besides rewriting the vma lookup engine also covers the
+> cases addressed by your patch:
 
-	ftp://ftp.kernel.org/pub/linux/kernel/people/andrea/patches/v2.4/2.4.9/mmap-rb-4
+Your patch performs a few odd things like:
 
-Andrea
++       vma->vm_raend = 0;
++       vma->vm_pgoff += (start - vma->vm_start) >> PAGE_SHIFT;
+        lock_vma_mappings(vma);
+        spin_lock(&vma->vm_mm->page_table_lock);
+-       vma->vm_pgoff += (start - vma->vm_start) >> PAGE_SHIFT;
+
+which I would argue are incorrect.  Remember that page faults rely on
+page_table_lock to protect against the case where the stack is grown and
+vm_start is modified.  Aside from that, your patch is a sufficiently large
+change so as to be material for 2.5.  Also, have you instrumented the rb
+trees to see what kind of an effect it has on performance compared to the
+avl tree?
+
+		-ben
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
