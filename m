@@ -1,39 +1,221 @@
-Date: Wed, 15 Apr 1998 18:08:05 +0200 (MET DST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: H.H.vanRiel@phys.uu.nl
-Subject: Re: I've got some patches to integrate... (fwd)
-In-Reply-To: <Pine.LNX.3.95.980415112011.839G-100000@as200.spellcast.com>
-Message-ID: <Pine.LNX.3.91.980415180555.17965A-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: I've got some patches to integrate...
+References: <Pine.LNX.3.95.980415105437.839D-100000@as200.spellcast.com>
+From: ebiederm+eric@npwt.net (Eric W. Biederman)
+Date: 15 Apr 1998 12:58:13 -0500
+In-Reply-To: "Benjamin C.R. LaHaise"'s message of Wed, 15 Apr 1998 11:11:07 -0400 (EDT)
+Message-ID: <m1g1jf2ci2.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
 To: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Cc: linux-mm <linux-mm@kvack.org>
+Cc: "Eric W. Biederman" <ebiederm+eric@npwt.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 Apr 1998, Benjamin C.R. LaHaise wrote:
+>>>>> "BLH" == Benjamin C R LaHaise <blah@kvack.org> writes:
 
-> Hmmm, before I make any silly mumblings, would you mind [re]sending a copy
-> of your patch to linux-mm?  (I've misplaced the copy I had, and linuxhq's
-> kernel archive isn't searchable right now.)  Linus probably won't want to
-> integrate them for 2.2, but perhaps we can start maintaining a set of
-> patches reasonably 'in sync' until 2.3 when they could be integrated. 
+BLH> Hello Eric,
+BLH> On 14 Apr 1998, Eric W. Biederman wrote:
+BLH> ...
+>> Anyhow I thought I'd bounce off what I had off this list and see what
+>> people thought of my ideas.  I started checking with Stepen Tweedie to
+>> see if he maintained the swap code and if I should send patches to
+>> him, or Linus.  And he said it should bounce what I have off of this
+>> list, and to start talks about integrating it.
+BLH> ...
 
-If you make a page like that, please send me a pointer so I
-can include it on my memory-management patches page (which
-is accessible from LinuxHQ!).
+BLH> Hmmm, before I make any silly mumblings, would you mind [re]sending a copy
+BLH> of your patch to linux-mm? 
 
-> Which reminds me: Stephen, what's the state of your irq and smp patches
-> for page cache addition/removal.  I'm getting a bit more free time now, so
-> perhaps I can play with them a bit (maybe we should have a common cvs
-> tree...).
+Sending is right.  
 
-A common tree would be nice too. Possibly with a 'bigmama'-like
-patch for the MM system...
+My filesytem code which also holds the patch is at:
+http://www.npwt.net/~ebiederm/files/shmfs-0.1.008.tar.gz
 
-Rik.
-+-------------------------------------------+--------------------------+
-| Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
-|        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
-|     http://www.phys.uu.nl/~riel/          | <H.H.vanRiel@phys.uu.nl> |
-+-------------------------------------------+--------------------------+
+I'm including a copy of my most recent patch against 2.1.92 at the end
+for completeness.  Sorry it started out as a question who to....
+
+Anyhow silly mumblings will be appreciated. :)
+
+BLH> Linus probably won't want to
+BLH> integrate them for 2.2, but perhaps we can start maintaining a set of
+BLH> patches reasonably 'in sync' until 2.3 when they could be integrated. 
+BLH> Hopefully that way they we can get people to provide a reasonable amount
+BLH> of testing to the code. 
+
+begin 666 linux-2.1.92.x6.diff.gz
+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
+&4`<!:0``
+`
+end
