@@ -1,45 +1,40 @@
-Received: from pneumatic-tube.sgi.com (pneumatic-tube.sgi.com [204.94.214.22])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA08535
-	for <linux-mm@kvack.org>; Fri, 16 Apr 1999 13:37:52 -0400
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199904161735.KAA37069@google.engr.sgi.com>
-Subject: questions on ia32 smp_flush_tlb
-Date: Fri, 16 Apr 1999 10:35:37 -0700 (PDT)
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA10860
+	for <linux-mm@kvack.org>; Fri, 16 Apr 1999 14:20:34 -0400
+Date: Sat, 17 Apr 1999 13:12:08 +0200 (CEST)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Subject: Re: [patch] arca-vm-2.2.5
+In-Reply-To: <Pine.SCO.3.94.990405122223.26431B-100000@tyne.london.sco.com>
+Message-ID: <Pine.LNX.4.05.9904171240040.623-100000@laser.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Mark Hemment <markhe@sco.COM>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>, "Stephen C. Tweedie" <sct@redhat.com>, Chuck Lever <cel@monkey.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 5 Apr 1999, Mark Hemment wrote:
 
-I am curious about the smp_flush_tlb() ia32 code in arch/i386/kernel/smp.c.
+>  The page structure needs to be as small as possible.  If its size
+>happens to L1 align, then that is great, but otherwise it isn't worth the
+>effort - the extra memory used to store the "padding" is much better used
+>else where.
+>  Most accesses to the page struct are reads, this means it can live in
+>the Shared state across mutilple L1 caches.  The "slightly" common
+>operation of incremented the ref-count/changing-flag-bits doesn't really
+>come into play often enough to matter.
+>  Keeping the struct small can result in part of the page struct of
+>interest in the L1 cache, along with part of the next one.  As it isn't a
+>heavily modified structure, with no spin locks, "false sharing" isn't a
+>problem.  Besides, the VM isn't threaded, so it isn't going to be playing
+>ping-pong with the cache lines anyway.
 
-Firstly, is it guaranteed that all callers of this routine hold the giant
-kernel lock? Or could it be called without the lock?
+I think the same thing applys to many places where we are using the slab
+and we are right now requesting L1 cache alignment but the code is not
+going to be SMP threaded for real (no spinlocks in the struct or/and
+everything protected by the big kernel lock).
 
-Secondly, what is the reason of the __save_flags/__cli/__restore_flags in
-the body of smp_flush_tlb? I noted there are some FORCE_APIC_SERIALIZATION/
-CONFIG_X86_GOOD_APIC issues, but those are well contained in 
-send_IPI_allbutself, so smp_flush_tlb should not need to redo it, according
-to my simple thinking. 
-
-Thirdly, depending on whether smp_flush_tlb is always called with the
-kernel_lock (see first question), how is it possible to get "crossing"
-invalidates?
-
-Fourthly, wouldn't it be better if the caller were to do its local_flush_tlb
-and then go into the while loop, waiting for other cpus to finish their
-flushes? This way, it would probably spend lesser time spinning ... yes,
-this is just microoptimization.
-
-Please CC me (kanoj@engr.sgi.com) on your replies.
-
-Thanks much.
-
-Kanoj
-(kanoj@engr.sgi.com)
+Andrea Arcangeli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
