@@ -1,31 +1,98 @@
-Message-ID: <41AEC4D7.4060507@pobox.com>
-Date: Thu, 02 Dec 2004 02:31:35 -0500
-From: Jeff Garzik <jgarzik@pobox.com>
-MIME-Version: 1.0
-Subject: Re: page fault scalability patch V12 [0/7]: Overview and performance
- tests
-References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain><Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com><Pine.LNX.4.58.0411221419440.20993@ppc970.osdl.org><Pine.LNX.4.58.0411221424580.22895@schroedinger.engr.sgi.com><Pine.LNX.4.58.0411221429050.20993@ppc970.osdl.org><Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com><Pine.LNX.4.58.0412011608500.22796@ppc970.osdl.org><41AEB44D.2040805@pobox.com><20041201223441.3820fbc0.akpm@osdl.org><41AEBAB9.3050705@pobox.com> <20041201230217.1d2071a8.akpm@osdl.org> <179540000.1101972418@[10.10.2.4]>
-In-Reply-To: <179540000.1101972418@[10.10.2.4]>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 2 Dec 2004 16:26:21 +0000
+From: Matthew Wilcox <matthew@wil.cx>
+Subject: [PATCH] Neaten page virtual choice
+Message-ID: <20041202162621.GM5752@parcelfarce.linux.theplanet.co.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, clameter@sgi.com, hugh@veritas.com, benh@kernel.crashing.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@zip.com.au>
 List-ID: <linux-mm.kvack.org>
 
-Martin J. Bligh wrote:
-> Yeah, probably. Though the stress tests catch a lot more than the 
-> functionality ones. The big pain in the ass is drivers, because I don't
-> have a hope in hell of testing more than 1% of them.
+Make it more obvious that WANT_PAGE_VIRTUAL/HASHED_PAGE_VIRTUAL/!HIGHMEM
+is a three way choice.
 
-My dream is that hardware vendors rotate their current machines through 
-a test shop :)  It would be nice to make sure that the popular drivers 
-get daily test coverage.
+Index: linux/include/linux/mm.h
+===================================================================
+RCS file: /var/cvs/linux-2.6/include/linux/mm.h,v
+retrieving revision 1.22
+diff -u -p -r1.22 mm.h
+--- linux/include/linux/mm.h	29 Nov 2004 19:56:48 -0000	1.22
++++ linux/include/linux/mm.h	1 Dec 2004 20:53:38 -0000
+@@ -414,29 +414,22 @@ static inline void *lowmem_page_address(
+ 	return __va(page_to_pfn(page) << PAGE_SHIFT);
+ }
+ 
+-#if defined(CONFIG_HIGHMEM) && !defined(WANT_PAGE_VIRTUAL)
+-#define HASHED_PAGE_VIRTUAL
+-#endif
+-
+ #if defined(WANT_PAGE_VIRTUAL)
+-#define page_address(page) ((page)->virtual)
+-#define set_page_address(page, address)			\
++  #define page_address(page) ((page)->virtual)
++  #define set_page_address(page, address)			\
+ 	do {						\
+ 		(page)->virtual = (address);		\
+ 	} while(0)
+-#define page_address_init()  do { } while(0)
+-#endif
+-
+-#if defined(HASHED_PAGE_VIRTUAL)
+-void *page_address(struct page *page);
+-void set_page_address(struct page *page, void *virtual);
+-void page_address_init(void);
+-#endif
+-
+-#if !defined(HASHED_PAGE_VIRTUAL) && !defined(WANT_PAGE_VIRTUAL)
+-#define page_address(page) lowmem_page_address(page)
+-#define set_page_address(page, address)  do { } while(0)
+-#define page_address_init()  do { } while(0)
++  #define page_address_init()  do { } while(0)
++#elif defined(CONFIG_HIGHMEM)
++  #define HASHED_PAGE_VIRTUAL
++  void *page_address(struct page *page);
++  void set_page_address(struct page *page, void *virtual);
++  void page_address_init(void);
++#else
++  #define page_address(page) lowmem_page_address(page)
++  #define set_page_address(page, address)  do { } while(0)
++  #define page_address_init()  do { } while(0)
+ #endif
+ 
+ /*
+Index: linux/mm/highmem.c
+===================================================================
+RCS file: /var/cvs/linux-2.6/mm/highmem.c,v
+retrieving revision 1.8
+diff -u -p -r1.8 highmem.c
+--- linux/mm/highmem.c	30 Sep 2004 12:08:53 -0000	1.8
++++ linux/mm/highmem.c	1 Dec 2004 21:49:21 -0000
+@@ -483,7 +483,7 @@ void blk_queue_bounce(request_queue_t *q
+ 
+ EXPORT_SYMBOL(blk_queue_bounce);
+ 
+-#if defined(HASHED_PAGE_VIRTUAL)
++#ifdef HASHED_PAGE_VIRTUAL
+ 
+ #define PA_HASH_ORDER	7
+ 
+@@ -602,4 +602,4 @@ void __init page_address_init(void)
+ 	spin_lock_init(&pool_lock);
+ }
+ 
+-#endif	/* defined(CONFIG_HIGHMEM) && !defined(WANT_PAGE_VIRTUAL) */
++#endif	/* HASHED_PAGE_VIRTUAL */
 
-	Jeff, dreaming on
-
-
+-- 
+"Next the statesmen will invent cheap lies, putting the blame upon 
+the nation that is attacked, and every man will be glad of those
+conscience-soothing falsities, and will diligently study them, and refuse
+to examine any refutations of them; and thus he will by and by convince 
+himself that the war is just, and will thank God for the better sleep 
+he enjoys after this process of grotesque self-deception." -- Mark Twain
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
