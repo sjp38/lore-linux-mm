@@ -1,60 +1,52 @@
-Date: Thu, 22 Jun 2000 13:38:39 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [RFC] RSS guarantees and limits
-In-Reply-To: <85256906.0059E21B.00@D51MTA03.pok.ibm.com>
-Message-ID: <Pine.LNX.4.21.0006221330180.10785-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 22 Jun 2000 12:33:24 -0500
+From: Timur Tabi <ttabi@interactivesi.com>
+Subject: What is field map in free_area_t?
+Message-Id: <20000622174020Z131174-21004+48@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: frankeh@us.ibm.com
-Cc: linux-mm@kvack.org
+To: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Jun 2000 frankeh@us.ibm.com wrote:
+Before I ask my question, I'd like to thank everyone who's helped me so far.  I
+really appreciate all this help, and it is making a big difference in my ability
+to understand the Linux kernel.  I look forward to the day when I can answer
+other people's questions, and once I'm done, I'm planning on writing a document
+that explains what I've learned.
 
-> Now I understand this much better. The RSS guarantee is a
-> function of the refault-rate <clever>. This in principle
-> implements a decay of the limit based on usage.... I like that
-> approach.
+Could someone explain to me what the "map" field of struct free_area_t does? 
+It's defined in mmzone.h:
 
-My previous anti-hog code (it even seemed to work) was to
-"push" big processes harder than small processes. If, for
-example, process A is N times bigger than process B, every
-page in process A would get sqrt(N) times the memory pressure
-a page in process B would get. This promotes fairness between
-memory hogs.
+typedef struct free_area_struct {
+	struct list_head	free_list;
+	unsigned int	*map;
+} free_area_t;
 
-This code will adjust the guarantee and the limit to the
-type of memory usage, so a process which streams over a huge
-amount of data just once will be restricted to maybe a few
-times its window size so it'll be unable to push other processes
-out of memory by simply accessing all the data quickly (but just
-once).
+It appears to be a pointer to some kind of field of bits, but that's all I
+could figure out.  It's used in two places:
 
-For a fair VM we probably want a combination of this new idea
-*and* some fairness measures. Preferably in such a way that
-we don't interfere too much with the strategy of global page
-replacement...
+page_alloc.c, function __free_pages_ok:
 
-> Is there a hardstop RSS limit below you will not evict pages
-> from a process (e.g.  mem_size / MAX_PROCESSES ?) to give some
-> interactivity for processes that haven't executed for a while,
-> or you just let it go down based on the refault-rate...
+	if (!test_and_change_bit(index, area->map))
 
-There is none, but maybe we should have the RSS guarantee just
-go down slower and slower depending on the size of the process?
+and in function free_area_init_core:
 
-regards,
+	zone->free_area[i].map = 
+	  (unsigned int *) alloc_bootmem_node(nid, bitmap_size);
 
-Rik
+It's also part of the MARK_USED macro:
+
+#define MARK_USED(index, order, area) \
+	change_bit((index) >> (1+(order)), (area)->map)
+
+which is used in functions expand() and rmqueue().
+
+
+
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+When replying to a mailing-list message, please don't cc: me, because then I'll just get two copies of the same message.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
