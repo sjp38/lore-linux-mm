@@ -1,45 +1,33 @@
-Date: Mon, 21 May 2001 22:32:12 +0200
-From: David Weinehall <tao@acc.umu.se>
+Date: Sun, 20 May 2001 17:32:52 +0200
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
 Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-Message-ID: <20010521223212.C4934@khan.acc.umu.se>
-References: <Pine.LNX.4.33.0105200957500.323-100000@mikeg.weiden.de> <Pine.LNX.4.21.0105200546241.5531-100000@imladris.rielhome.conectiva> <20010520235409.G2647@bug.ucw.cz>
+Message-ID: <20010520173252.Q754@nightmaster.csn.tu-chemnitz.de>
+References: <Pine.LNX.4.21.0105191840250.5531-100000@imladris.rielhome.conectiva> <Pine.LNX.4.33.0105200509130.488-100000@mikeg.weiden.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20010520235409.G2647@bug.ucw.cz>; from pavel@suse.cz on Sun, May 20, 2001 at 11:54:09PM +0200
+In-Reply-To: <Pine.LNX.4.33.0105200509130.488-100000@mikeg.weiden.de>; from mikeg@wen-online.de on Sun, May 20, 2001 at 05:29:49AM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@suse.cz>
-Cc: Rik van Riel <riel@conectiva.com.br>, Mike Galbraith <mikeg@wen-online.de>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 20, 2001 at 11:54:09PM +0200, Pavel Machek wrote:
-> Hi!
-> 
-> > > You're right.  It should never dump too much data at once.  OTOH, if
-> > > those cleaned pages are really old (front of reclaim list), there's no
-> > > value in keeping them either.  Maybe there should be a slow bleed for
-> > > mostly idle or lightly loaded conditions.
-> > 
-> > If you don't think it's worthwhile keeping the oldest pages
-> > in memory around, please hand me your excess DIMMS ;)
-> 
-> Sorry, Rik, you can't have that that DIMM. You know, you are
-> developing memory managment, and we can't have you having too much
-> memory available ;-).
+On Sun, May 20, 2001 at 05:29:49AM +0200, Mike Galbraith wrote:
+> I'm not sure why that helps.  I didn't put it in as a trick or
+> anything though.  I put it in because it didn't seem like a
+> good idea to ever have more cleaned pages than free pages at a
+> time when we're yammering for help.. so I did that and it helped.
 
-IMVHO every developer involved in memory-management (and indeed, any
-software development; the authors of ntpd comes in mind here) should
-have a 386 with 4MB of RAM and some 16MB of swap. Nowadays I have the
-luxury of a 486 with 8MB of RAM and 32MB of swap as a firewall, but it's
-still a pain to work with.
+The rationale for this is easy: free pages is wasted memory,
+clean pages is hot, clean cache. The best state a cache can be in.
 
+Regards
 
-/David
-  _                                                                 _
- // David Weinehall <tao@acc.umu.se> /> Northern lights wander      \\
-//  Project MCA Linux hacker        //  Dance across the winter sky //
-\>  http://www.acc.umu.se/~tao/    </   Full colour fire           </
+Ingo Oeser
+-- 
+To the systems programmer,
+users and applications serve only to provide a test load.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
