@@ -1,42 +1,31 @@
-Date: Fri, 26 May 2000 09:04:23 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Fri, 26 May 2000 14:15:26 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: [RFC] 2.3/4 VM queues idea
-In-Reply-To: <20000526120805.C10082@redhat.com>
-Message-ID: <Pine.LNX.4.21.0005260859090.26570-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000526141526.E10082@redhat.com>
+References: <Pine.LNX.4.21.0005241458250.24993-100000@duckman.distro.conectiva> <200005242057.NAA77059@apollo.backplane.com> <20000525115202.A19969@pcep-jamie.cern.ch> <200005251618.JAA82894@apollo.backplane.com> <20000525185059.A20563@pcep-jamie.cern.ch> <20000526120805.C10082@redhat.com> <20000526132219.C21510@pcep-jamie.cern.ch>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20000526132219.C21510@pcep-jamie.cern.ch>; from lk@tantalophile.demon.co.uk on Fri, May 26, 2000 at 01:22:19PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Jamie Lokier <lk@tantalophile.demon.co.uk>, Matthew Dillon <dillon@apollo.backplane.com>, linux-mm@kvack.org
+To: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Matthew Dillon <dillon@apollo.backplane.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 26 May 2000, Stephen C. Tweedie wrote:
-> On Thu, May 25, 2000 at 06:50:59PM +0200, Jamie Lokier wrote:
-> > 
-> > Fwiw, with COW address_spaces (I posted an article a couple of weeks ago
-> > explaining) it should be fairly simple to find all the ptes for a given
-> > page without the space overhead of pte chaining.
+Hi,
+
+On Fri, May 26, 2000 at 01:22:19PM +0200, Jamie Lokier wrote:
 > 
-> Davem's anon area stuff already implements a large chunk of what
-> is needed.
+> Agreed.  I looked at that code though and it seemed very... large.
+> I think COW address_space gets the same results with less code.  Fast, too.
+> I know what I've got to do to prove it :-)
 
-It would be cool if somebody could take the time and implement
-the rest of what's needed. I'm currently working at making page
-aging and deferred swapout work, so we have the basic mechanisms
-for aging the active pages and doing swapout from the inactive
-queue.
+How will it deal with fork() cases where the child starts mprotecting
+arbitrary regions, so that you have completely independent vmas all
+sharing the same private pages?
 
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
