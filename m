@@ -1,11 +1,11 @@
-Message-ID: <415E12A9.7000507@cyberone.com.au>
-Date: Sat, 02 Oct 2004 12:30:01 +1000
+Message-ID: <415E154A.2040209@cyberone.com.au>
+Date: Sat, 02 Oct 2004 12:41:14 +1000
 From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
 Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
 References: <20041001182221.GA3191@logos.cnet>
 In-Reply-To: <20041001182221.GA3191@logos.cnet>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -17,30 +17,12 @@ List-ID: <linux-mm.kvack.org>
 Marcelo Tosatti wrote:
 
 >
->With such a thing in place we can build a mechanism for kswapd 
->(or a separate kernel thread, if needed) to notice when we are low on 
->high order pages, and use the coalescing algorithm instead blindly 
->freeing unique pages from LRU in the hope to build large physically 
->contiguous memory areas.
->
->Comments appreciated.
+>For example it doesnt re establishes pte's once it has unmapped them.
 >
 >
 
-Hi Marcelo,
-Seems like a good idea... even with regular dumb kswapd "merging",
-you may easily get stuck for example on systems without swap...
-
-Anyway, I'd like to get those beat kswapd patches in first. Then
-your mechanism just becomes something like:
-
-    if order-0 pages are low {
-        try to free memory
-    }
-    else if order-1 or higher pages are low {
-         try to coalesce_memory
-         if that fails, try to free memory
-    }
+Another thing - I don't know if I'd bother re-establishing ptes....
+I'd say just leave it to happen lazily at fault time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
