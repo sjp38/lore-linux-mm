@@ -1,38 +1,33 @@
-Date: Fri, 23 Mar 2001 21:26:37 +0200 (MET DST)
+Date: Fri, 23 Mar 2001 21:57:20 +0200 (MET DST)
 From: Szabolcs Szakacsits <szaka@f-secure.com>
 Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <E14gCYn-0003K3-00@the-village.bc.nu>
-Message-ID: <Pine.LNX.4.30.0103232124120.13864-100000@fs131-224.f-secure.com>
+In-Reply-To: <20010322230041.A5598@win.tue.nl>
+Message-ID: <Pine.LNX.4.30.0103232135020.13864-100000@fs131-224.f-secure.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Guest section DW <dwguest@win.tue.nl>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Clouse <stephenc@theiqgroup.com>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 22 Mar 2001, Alan Cox wrote:
+On Thu, 22 Mar 2001, Guest section DW wrote:
+> Presently however, a flawless program can be killed.
+> That is what makes Linux unreliable.
 
-> One of the things that we badly need to resurrect for 2.5 is the
-> beancounter work which would let you reasonably do things like
-> guaranteed Oracle a certain amount of the machine, or restrict all
-> the untrusted users to a total of 200Mb hard limit between them etc
+Your advocation is "save the application, crash the OS!". But you can't
+be blamed because everybody's first reaction is this :) But if you start
+to think you get the conclusion that process killing can't be avoided if
+you want the system keep running. But I agree Linux lacks some important
+things [see my other email] that could make the situation easily and
+inexpensively controllable.
 
-This would improve Linux reliability but it could be much better with
-added *optional* non-overcommit (most other OS also support this, also
-that's the default mostly [please no, "but it deadlocks" because it's
-not true, they also kill processes (Solaris, etc)]), reserved superuser
-memory (ala Solaris, True64, etc when OOM in non-overcommit, users
-complain and superuser acts, not the OS killing their tasks) and
-superuser *advisory* OOM killer [there was patch for this before], I
-think in the last area Linux is already more ahead than others at
-present.
+BTW, your app isn't flawless because it doesn't consider Linux memory
+management is [quasi-]overcommit-only at present ;) [or you used other
+apps as well, e.g. login, ps, cron is enough to kill your app when it
+stopped at OOM time].
 
-About the "use resource limits!". Yes, this is one solution. The
-*expensive* solution (admin time, worse resource utilization, etc).
-Others make it cheaper mixing with the above ones.
-
-        Szaka
+	Szaka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
