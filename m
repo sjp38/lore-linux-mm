@@ -1,10 +1,12 @@
 Received: from fujitsu2.fujitsu.com (localhost [127.0.0.1])
-	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i9Q2PHNo001307
-	for <linux-mm@kvack.org>; Mon, 25 Oct 2004 19:25:17 -0700 (PDT)
-Date: Mon, 25 Oct 2004 19:24:59 -0700
+	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i9Q2ZANo006156
+	for <linux-mm@kvack.org>; Mon, 25 Oct 2004 19:35:10 -0700 (PDT)
+Date: Mon, 25 Oct 2004 19:34:50 -0700
 From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: [RFC/Patch]Making Removable zone[0/4]
-Message-Id: <20041025160642.690F.YGOTO@us.fujitsu.com>
+Subject: [RFC/Patch]Making Removable zone[1/4]
+In-Reply-To: <20041025160642.690F.YGOTO@us.fujitsu.com>
+References: <20041025160642.690F.YGOTO@us.fujitsu.com>
+Message-Id: <20041025193322.6911.YGOTO@us.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -13,60 +15,88 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello.
-
-This patch set is to make new zone (Hotremovable) for 
-memory hotplug to create area which is removed relatively easily.
-I made this patch set 2 month ago,
-but I thought this patch set has many problem,
-so I was worried whether it should be posted for a long time.
-
-However I'm feeling its time become too long. 
-So, I post this to ask which is better way.
-If you have any suggestions, please tell me.
+This patch makes new zones (Hot-removable DMA/ Hotremovable-Normal/
+Hotremovable-Highmem).
 
 
+ hotremovable-goto/include/linux/mmzone.h |   40 +++++++------------------------
+ hotremovable-goto/mm/page_alloc.c        |    3 +-
+ 2 files changed, 12 insertions(+), 31 deletions(-)
 
-This patches make Hotremovable attribute as orthogonal against
-DMA/Normal/Highmem. So, there will be six zones
-(DMA/Normal/Highmem/ Removable DMA/ Removable Normal/ 
- Removable Highmem).
-However, this orthogonal attribute is cause of problems like 
-followings....
+diff -puN include/linux/mmzone.h~new_zone include/linux/mmzone.h
+--- hotremovable/include/linux/mmzone.h~new_zone	Fri Aug 27 21:06:50 2004
++++ hotremovable-goto/include/linux/mmzone.h	Fri Aug 27 21:06:50 2004
+@@ -73,37 +73,17 @@ struct per_cpu_pageset {
+ #define ZONE_NORMAL		1
+ #define ZONE_HIGHMEM		2
+ 
+-#define MAX_NR_ZONES		3	/* Sync this with ZONES_SHIFT */
+-#define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
++#define ZONE_REMOVABLE		3
++#define ZONE_DMA_RMV		(ZONE_DMA + ZONE_REMOVABLE)	/* Hot-Removable DMA zone */
++#define ZONE_NORMAL_RMV		(ZONE_NORMAL + ZONE_REMOVABLE)	/* Hot-Removable DMA zone */
++#define ZONE_HIGHMEM_RMV	(ZONE_HIGHMEM + ZONE_REMOVABLE)	/* Hot-Removable DMA zone */
+ 
++#define MAX_NR_ZONES		6	/* Sync this with ZONES_SHIFT */
++#define ZONES_SHIFT		3	/* ceil(log2(MAX_NR_ZONES)) */
+ 
+-/*
+- * When a memory allocation must conform to specific limitations (such
+- * as being suitable for DMA) the caller will pass in hints to the
+- * allocator in the gfp_mask, in the zone modifier bits.  These bits
+- * are used to select a priority ordered list of memory zones which
+- * match the requested limits.  GFP_ZONEMASK defines which bits within
+- * the gfp_mask should be considered as zone modifiers.  Each valid
+- * combination of the zone modifier bits has a corresponding list
+- * of zones (in node_zonelists).  Thus for two zone modifiers there
+- * will be a maximum of 4 (2 ** 2) zonelists, for 3 modifiers there will
+- * be 8 (2 ** 3) zonelists.  GFP_ZONETYPES defines the number of possible
+- * combinations of zone modifiers in "zone modifier space".
+- */
+-#define GFP_ZONEMASK	0x03
+-/*
+- * As an optimisation any zone modifier bits which are only valid when
+- * no other zone modifier bits are set (loners) should be placed in
+- * the highest order bits of this field.  This allows us to reduce the
+- * extent of the zonelists thus saving space.  For example in the case
+- * of three zone modifier bits, we could require up to eight zonelists.
+- * If the left most zone modifier is a "loner" then the highest valid
+- * zonelist would be four allowing us to allocate only five zonelists.
+- * Use the first form when the left most bit is not a "loner", otherwise
+- * use the second.
+- */
+-/* #define GFP_ZONETYPES	(GFP_ZONEMASK + 1) */		/* Non-loner */
+-#define GFP_ZONETYPES	((GFP_ZONEMASK + 1) / 2 + 1)		/* Loner */
++#define GFP_ZONEMASK	0x07
++
++#define GFP_ZONETYPES	(MAX_NR_ZONES + 1)
+ 
+ /*
+  * On machines where it is needed (eg PCs) we divide physical memory
+@@ -414,7 +394,7 @@ extern struct pglist_data contig_page_da
+  * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
+  * there are 3 zones (2 bits) and this leaves 8-2=6 bits for nodes.
+  */
+-#define MAX_NODES_SHIFT		6
++#define MAX_NODES_SHIFT		5
+ #elif BITS_PER_LONG == 64
+ /*
+  * with 64 bit flags field, there's plenty of room.
+diff -puN mm/page_alloc.c~new_zone mm/page_alloc.c
+--- hotremovable/mm/page_alloc.c~new_zone	Fri Aug 27 21:06:50 2004
++++ hotremovable-goto/mm/page_alloc.c	Fri Aug 27 21:06:50 2004
+@@ -57,7 +57,8 @@ EXPORT_SYMBOL(nr_swap_pages);
+ struct zone *zone_table[1 << (ZONES_SHIFT + NODES_SHIFT)];
+ EXPORT_SYMBOL(zone_table);
+ 
+-static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
++static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem",
++					  "DMA-Removable", "Normal-Removable","Highmem-Removable"};
+ int min_free_kbytes = 1024;
+ 
+ unsigned long __initdata nr_kernel_pages;
+_
 
-  1) Zone Id bits in page->flags must be extended from 2 to 3
-     to make 6 zones. However, there is not enough space in it.
-  2) Array size of zonelist for 6 zones might be too big.
-     (Especially, when there are a lot of numbers of nodes)
-  3) Index of zonelist array is decided by __GFP_xxx bit. So,
-     index must be power of 2. But, GFP_Removable can be set with
-     GFP_HIGHMEM or GFP_DMA. (not power of 2).
-  4) Some of kernel codes assume that order of Zone's index is
-     DMA -> Normal -> Highmem. 
-     But removable attribute will break its order.
-  5) Zonelist order must be also changed. 
-     Which is better zonelist order? 
-     a) Removable Highmem -> Removable Normal -> Removable DMA
-        -> Highmem -> Normal -> DMA
-     b) Removable Highmem -> Highmem -> Removable Normal -> Normal 
-        -> Removable DMA -> DMA
-
-If the kind of zone is just 4 types like DMA/Normal/Highmem/Removable
-(Not orthogonal), some of these problems become easy.
-And I suppose 4) and 5) imply more codes like mem_molicy
-must be changed.
-
-But 6 zones code has an advantage for hotplug of kernel memory.
-If an component of kernel can become hot-removable, 
-probably it would like to use "Horemovable DMA" or
-"Hotremovable Normal".
-So, I also worried which type of removable zone is better.
-
-
-These patch set is old, but they can be applied against 2.6.9-mm1.
-Please comment.
-
-Bye.
 
 -- 
 Yasunori Goto <ygoto at us.fujitsu.com>
