@@ -1,72 +1,45 @@
-Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA09360
-	for <linux-mm@kvack.org>; Wed, 8 Jul 1998 18:13:45 -0400
-Date: Wed, 8 Jul 1998 23:11:11 +0100
-Message-Id: <199807082211.XAA14327@dax.dcs.ed.ac.uk>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id DAA11687
+	for <linux-mm@kvack.org>; Thu, 9 Jul 1998 03:45:20 -0400
+Date: Thu, 9 Jul 1998 09:43:20 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-In-Reply-To: <Pine.LNX.3.96.980708205506.15562A-100000@mirkwood.dummy.home>
-References: <199807081345.OAA01509@dax.dcs.ed.ac.uk>
-	<Pine.LNX.3.96.980708205506.15562A-100000@mirkwood.dummy.home>
+In-Reply-To: <199807082211.XAA14327@dax.dcs.ed.ac.uk>
+Message-ID: <Pine.LNX.3.96.980709094148.25891A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <arcangeli@mbox.queen.it>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Andrea Arcangeli <arcangeli@mbox.queen.it>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, 8 Jul 1998, Stephen C. Tweedie wrote:
+> <H.H.vanRiel@phys.uu.nl> said:
+> 
+> > When my zone allocator is finished, it'll be a piece of
+> > cake to implement lazy page reclamation.
+> 
+> I've already got a working implementation.  The issue of lazy
+> reclamation is pretty much independent of the allocator underneath; I
+> don't see it being at all hard to run the lazy reclamation stuff on top
+> of any form of zoned allocation.
 
-On Wed, 8 Jul 1998 20:57:27 +0200 (CEST), Rik van Riel
-<H.H.vanRiel@phys.uu.nl> said:
+The problem with the current allocator is that it stores
+the pointers to available blocks in the blocks themselves.
+This means we can't wait till the last moment with lazy
+reclamation.
 
-> When my zone allocator is finished, it'll be a piece of
-> cake to implement lazy page reclamation.
+> is already present in 2.1 now.  The only thing missing is the
+> maintenance of the LRU list of lazy pages for reuse.
 
-I've already got a working implementation.  The issue of lazy
-reclamation is pretty much independent of the allocator underneath; I
-don't see it being at all hard to run the lazy reclamation stuff on top
-of any form of zoned allocation.
+That part will come for free with my zone allocator.
 
-> With lazy reclamation, we simply place an upper limit
-> on the number of _active_ pages. A process that's really
-> thrashing away will simply be moving it's pages to/from
-> the inactive list.
-
-Exactly.  We _do_ want to be able to increase the RSS limit dynamically
-to avoid moving too many pages in and out of the working set, but if the
-process's working set is _that_ large, then performance will be
-dominated so much by L2 cache trashing and CPU TLB misses that the extra
-minor page faults we'd get are unlikely to be a catastrophic performance
-problem.  
-
-In short, if there's no contention on memory, there's no need to impose
-RSS limits at all: it's just an extra performance cost.  But as soon as
-physical memory contention becomes important, the RSS management is an
-obvious way of restricting the performance impact of the large processes
-on the rest of the system.
-
-> And when memory pressure increases, other processes will
-> start taking pages away from the inactive pages collection
-> of our memory hog.
-
-Precisely. 
-
-> That looks quite OK to me...
-
-Yep.  That's one of the main motivations behind the swap cache work in
-2.1: the way the swapper now works, we can unhook pages from the
-process's page tables and send them to swap once the RSS limit is
-exceeded, but keep a copy of those pages in the swap cache so that if
-the process wants a page back before we've got around to reusing the
-memory, it's just a minor fault to bring it back in.  All of this code
-is already present in 2.1 now.  The only thing missing is the
-maintenance of the LRU list of lazy pages for reuse.
-
---Stephen
-
-
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
