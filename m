@@ -1,56 +1,77 @@
-Date: Sun, 19 Jul 1998 00:10:09 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-In-Reply-To: <199807131342.OAA06485@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.96.980719000622.27620E-100000@mirkwood.dummy.home>
+Date: Sun, 19 Jul 1998 23:25:37 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: [PATCH] small fix: drivers/char/mem.c
+Message-ID: <Pine.LNX.3.95.980719231632.14079A-100000@as200.spellcast.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, Linux MM <linux-mm@kvack.org>
+To: torvalds@transmeta.com
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 13 Jul 1998, Stephen C. Tweedie wrote:
+Hello,
 
-> I'm working on it right now.  Currently, the VM is so bad that it is
-> seriously getting in the way of my job.  Just trying to fix some odd
-> swapper bugs is impossible to test because I can't set up a ramdisk for
-> swap and do in-memory tests that way: things thrash incredibly.  The
-> algorithms for aggressive cache pruning rely on fractions of
-> nr_physpages, and that simply doesn't work if you have large numbers of
-> pages dedicated to non-swappable things such as ramdisk, bigphysarea DMA
-> buffers or network buffers.
+In drivers/char/mem.c:read_zero, we have a case of code mucking with page
+tables which isn't protected by the mmap semaphore.  The patch below
+(ancient & well tested, against 2.1.86, but applies to 2.1.109 w/fuzz)
+fixes it.
 
-This means we'll have to substract those pages before
-determining the used percentage.
+		-ben
 
-> Rik, unfortunately I think we're just going to have to back out your
-> cache page ageing.  I've just done that on my local test box and the
-> results are *incredible*:
 
-OK, I don't see much problems with that, except that the
-aging helps a _lot_ with readahead. For the rest, it's
-not much more than a kludge anyway ;(
-
-We really ought to do better than that anyway. I'll give
-you guys the URL of the Digital Unix manuals on this...
-(they have some _very_ nice mechanisms for this)
-
-> I'm going to do a bit more experimenting to see if we can keep some of
-> the good ageing behaviour by doing proper LRU in the cache, but
-> otherwise I think the cache ageing has either got to go or to be
-> drastically altered.
-
-A 2-level LRU on the page cache would be _very_ nice,
-but probably just as desastrous wrt. fragmentation as
-aging...
-
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+Index: linux-2.1.86-mm/drivers/char/mem.c
+diff -u linux-2.1.86-mm/drivers/char/mem.c:1.1.1.2 linux-2.1.86-mm/drivers/char/mem.c:1.2
+--- linux-2.1.86-mm/drivers/char/mem.c:1.1.1.2	Mon Mar  2 22:28:42 1998
++++ linux-2.1.86-mm/drivers/char/mem.c	Fri Mar  6 03:51:32 1998
+@@ -260,12 +260,15 @@
+ 	struct vm_area_struct * vma;
+ 	unsigned long addr=(unsigned long)buf;
+ 
++	/* Oops, this was forgotten before. -ben */
++	down(&current->mm->mmap_sem);
++
+ 	/* For private mappings, just map in zero pages. */
+ 	for (vma = find_vma(current->mm, addr); vma; vma = vma->vm_next) {
+ 		unsigned long count;
+ 
+ 		if (vma->vm_start > addr || (vma->vm_flags & VM_WRITE) == 0)
+-			return size;
++			goto out_up;
+ 		if (vma->vm_flags & VM_SHARED)
+ 			break;
+ 		count = vma->vm_end - addr;
+@@ -273,16 +276,18 @@
+ 			count = size;
+ 
+ 		flush_cache_range(current->mm, addr, addr + count);
+-		zap_page_range(current->mm, addr, count);
+-        	zeromap_page_range(addr, count, PAGE_COPY);
++		zap_page_range(vma, addr, count);
++        	zeromap_page_range(vma, addr, count, PAGE_COPY);
+         	flush_tlb_range(current->mm, addr, addr + count);
+ 
+ 		size -= count;
+ 		buf += count;
+ 		addr += count;
+ 		if (size == 0)
+-			return 0;
++			goto out_up;
+ 	}
++
++	up(&current->mm->mmap_sem);
+ 	
+ 	/* The shared case is hard. Lets do the conventional zeroing. */ 
+ 	do {
+@@ -296,6 +301,9 @@
+ 	} while (size);
+ 
+ 	return size;
++out_up:
++	up(&current->mm->mmap_sem);
++	return size;
+ }
+ 
+ static ssize_t read_zero(struct file * file, char * buf, 
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
