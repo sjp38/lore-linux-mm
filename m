@@ -1,27 +1,54 @@
-Subject: Re: [PATCH] Prevent OOM from killing init
-Date: Thu, 22 Mar 2001 23:40:54 +0000 (GMT)
-In-Reply-To: <3ABA8B02.F28B333A@redhat.com> from "Doug Ledford" at Mar 22, 2001 06:30:10 PM
+Message-ID: <3C9BCD6E.94A5BAA0@evision-ventures.com>
+Date: Sat, 23 Mar 2002 01:33:50 +0100
+From: Martin Dalecki <dalecki@evision-ventures.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH] Prevent OOM from killing init
+References: <3AB9313C.1020909@missioncriticallinux.com> <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva> <20010322124727.A5115@win.tue.nl> <20010322142831.A929@owns.warpcore.org>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <E14gEhM-0003a2-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Doug Ledford <dledford@redhat.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Stephen Clouse <stephenc@theiqgroup.com>
+Cc: Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> Ummm, yeah, that would pretty much be the claim.  Real easy to reproduce too. 
-> Take your favorite machine with lots of RAM, run just a handful of startup
-> process and system daemons, then log in on a few terminals and do:
+Stephen Clouse wrote:
 > 
-> while true; do bonnie -s (1/2 ram); done
+> -----BEGIN PGP SIGNED MESSAGE-----
+> Hash: SHA1
 > 
-> Pretty soon, system daemons will start to die.
+> On Thu, Mar 22, 2001 at 12:47:27PM +0100, Guest section DW wrote:
+> > Last week I installed SuSE 7.1 somewhere.
+> > During the install: "VM: killing process rpm",
+> > leaving the installer rather confused.
+> > (An empty machine, 256MB, 144MB swap, I think 2.2.18.)
+> >
+> > Last month I had a computer algebra process running for a week.
+> > Killed. But this computation was the only task this machine had.
+> > Its sole reason of existence.
+> > Too bad - zero information out of a week's computation.
+> > (I think 2.4.0.)
+> >
+> > Clearly, Linux cannot be reliable if any process can be killed
+> > at any moment. I am not happy at all with my recent experiences.
+> 
+> Really the whole oom_kill process seems bass-ackwards to me.  I can't in my mind
+> logically justify annihilating large-VM processes that have been running for
+> days or weeks instead of just returning ENOMEM to a process that just started
+> up.
+> 
+> We run Oracle on a development box here, and it's always the first to get the
+> axe (non-root process using 70-80 MB VM).  Whenever someone's testing decides to
+> run away with memory, I usually spend the rest of the day getting intimate with
+> the backup files, since SIGKILLing random Oracle processes, as you might have
+> guessed, has a tendency to rape the entire database.
+> 
+> It would be nice to give immunity to certain uids, or better yet, just turn the
+> damn thing off entirely.  I've already hacked that in...errr, out.
 
-Then thats a bug. I assume you've provided Rik with a detailed test case 
-already ?
+AMEN! TO THIS!
+Uptime of a process is a much better mesaure for a killing candidate
+then it's size.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
