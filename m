@@ -1,52 +1,59 @@
-Message-Id: <l0313032ab6e528bcd610@[192.168.239.101]>
-In-Reply-To: <3ABF6EA0.A2454B66@linuxjedi.org>
-References: 
-        <Pine.LNX.4.21.0103261258270.1863-100000@imladris.rielhome.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Date: Mon, 26 Mar 2001 18:15:56 +0100
-From: Jonathan Morton <chromi@cyberspace.org>
-Subject: Re: memory mgmt/tuning for diskless machines
+Subject: Re: [PATCH] Prevent OOM from killing init
+References: <Pine.LNX.4.33.0103222033220.24040-100000@duckman.distro.conectiva>
+From: James Antill <james@and.org>
+Content-Type: text/plain; charset=US-ASCII
+Date: 26 Mar 2001 14:04:04 -0500
+In-Reply-To: Rik van Riel's message of "Thu, 22 Mar 2001 20:37:11 -0300 (BRST)"
+Message-ID: <nn66gwnyhn.fsf@code.and.org>
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David L. Parsley" <parsley@linuxjedi.org>, Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Guest section DW <dwguest@win.tue.nl>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Clouse <stephenc@theiqgroup.com>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
->I'll try to search for his patch in kernel archives and let you know how
->it works out.
->
->Jonathan - if you could ship me the patch I'd appreciate it, but I'll
->try searching first.
+> On Fri, 23 Mar 2001, Guest section DW wrote:
+> > On Thu, Mar 22, 2001 at 10:52:09PM +0000, Alan Cox wrote:
+> >
+> > > You can do overcommit avoidance in Linux if you are bored enough to try it.
+> >
+> > Would you accept it as the default? Would Linus?
+> 
+> It wouldn't help.  Suppose you run without overcommit and you
+> fill up RAM and swap to the last page.
+> 
+> Then you change the size of one of the windows on your desktop
+> and a program gets sent -SIGWINCH.
 
-Search the last few days for a post beginning "[TAKE3] [PATCH]"...
+ Ignoring the fact that most people don't use a tty based desktop, and
+that I'm pretty happy having my desktop die in flames when OOM (my DNS
+or smtp server on the other hand...).
 
-Note there is a bug in the accounting which appears to be able to cause the
-count of reserved memory to go negative under some circumstances.  I
-triggered it by starting 4 copies of the Blackdown Java 1.2.2 VM, then
-closing them.  With the patch enabled, two extra fields appear in
-/proc/meminfo for monitoring.
+>                                    In order to process this
+> signal, the program needs to allocate some variables on its
+> stack, possibly needing a new page to be allocated for its
+> stack ...
 
-Note also that I'm not sbscribed on the linux-mm list (perhaps I should
-be), so please CC me.
+man sigaltstack
 
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
-big-mail: chromatix@penguinpowered.com
-uni-mail: j.d.morton@lancaster.ac.uk
+> ... and since this is something which could happen to any program
+> on the system, the result of non-overcommit would be getting a
+> random process killed (though not completely random, syslogd and
+> klogd would get killed more often than the others).
 
-The key to knowledge is not to rely on people to teach you it.
+ I fail to see why, stack usage can be limited (and possibly cleanly
+handled by having a prctl() to say make sure X pages are available on
+the stack).
 
-Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
+ If you want overcommit great, and I think it's a valid default
+... but it'd be nice if I could say I don't want it for apps that
+aren't written using glib etc.
 
------BEGIN GEEK CODE BLOCK-----
-Version 3.12
-GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
-PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
------END GEEK CODE BLOCK-----
-
-
+-- 
+# James Antill -- james@and.org
+:0:
+* ^From: .*james@and\.org
+/dev/null
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
