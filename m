@@ -1,26 +1,45 @@
-Date: Wed, 31 Jan 2001 08:55:59 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: Testsuite for memory management
-In-Reply-To: <C12569E5.00450D18.00@d12mta07.de.ibm.com>
-Message-ID: <Pine.LNX.4.21.0101310852510.16408-100000@freak.distro.conectiva>
+Date: Wed, 31 Jan 2001 17:30:11 -0200 (BRDT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Linux-MM bugzilla
+Message-ID: <Pine.LNX.4.21.0101311706470.1321-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: TON@de.ibm.com
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, lwn@lwn.net
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Wed, 31 Jan 2001 TON@de.ibm.com wrote:
+to make the tracking of our bugs and feature requests easier
+I have opened a Bugzilla repository for the Linux-MM subsystem.
 
-> Hi,
-> I am looking for a testsuite for linux memory management especially for
-> stress tests. Some time ago a mmap02 test was mentioned on the kernel
-> mailing list, but I don't find it anywhere. Does anybody have any info?
+If you think you have new Linux MM bugs or want a new feature,
+feel free to enter something in the bugzilla.
 
+The information page about this bugzilla can be found here:
 
-http://carpanta.dc.fi.udc.es/~quintela/memtest/ 
+	http://www.linux.eu.org/Linux-MM/bugzilla.shtml
+
+People wanting to see what's happening but don't want to
+look up the bugzilla page every day can subscribe to the
+linux-mm-bugs mailing list, where all bugzilla traffic
+will be sent.
+
+To subscribe, send email to majordomo@nl.linux.org, with
+the text "subscribe linux-mm-bugs" in the body of the message.
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
