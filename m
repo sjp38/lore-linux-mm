@@ -1,40 +1,29 @@
-Message-ID: <41811C3B.2020700@kolumbus.fi>
-Date: Thu, 28 Oct 2004 19:20:11 +0300
-From: =?ISO-8859-1?Q?Mika_Penttil=E4?= <mika.penttila@kolumbus.fi>
+Date: Thu, 28 Oct 2004 09:19:11 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [RFC] sparsemem patches (was nonlinear)
+Message-ID: <1278150000.1098980350@[10.10.2.4]>
+In-Reply-To: <418118A1.9060004@us.ibm.com>
+References: <098973549.shadowen.org> <418118A1.9060004@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: NUMA node swapping V3
-References: <Pine.LNX.4.58.0410280820500.25586@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.58.0410280820500.25586@schroedinger.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>, Andy Whitcroft <apw@shadowen.org>
+Cc: lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 	if (pg == orig) {
-> 		z->pageset[cpu].numa_hit++;
->+		/*
->+		 * If zone allocation has left less than
->+		 * (sysctl_node_swap / 10) %  of the zone free invoke kswapd.
->+		 * (the page limit is obtained through (pages*limit)/1024 to
->+		 * make the calculation more efficient)
->+		 */
->+		if (z->free_pages < (z->present_pages * sysctl_node_swap) << 10)
->+			wakeup_kswapd(z);
-> 	} else {
-> 		p->numa_miss++;
-> 		zonelist->zones[0]->pageset[cpu].numa_foreign++;
->Index: linux-2.6.9/kernel/sysctl.c
->===================================================================
->  
->
+> Have you given any thought to using virt_to_page(page)->foo method to 
+> store section information instead of using page->flags?  It seems we're 
+> already sucking up page->flags left and right, and I'd hate to consume 
+> that many more.
 
-I think you mean >> 10 though.
+It doesn't add any more. It reuses the existing overload space.
+Only exception was if you wanted a billion piddly little segments on a 32bit.
+Tough, don't do that ;-) For 64 bit, it's a non-issue.
 
---Mika
-
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
