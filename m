@@ -1,31 +1,34 @@
-Message-ID: <3B0F3B8D.E399FB82@uow.edu.au>
-Date: Sat, 26 May 2001 15:13:49 +1000
-From: Andrew Morton <andrewm@uow.edu.au>
-MIME-Version: 1.0
-Subject: Re: Running out of vmalloc space
-References: <3B04069C.49787EC2@fc.hp.com> <20010517183931.V2617@redhat.com> <3B045546.312BA42E@fc.hp.com> <3B0AF30D.8D25806A@fc.hp.com>
+Message-ID: <20010525203944.B15304@bug.ucw.cz>
+Date: Fri, 25 May 2001 20:39:44 +0200
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
+References: <Pine.LNX.4.33.0105200957500.323-100000@mikeg.weiden.de> <Pine.LNX.4.21.0105200546241.5531-100000@imladris.rielhome.conectiva> <20010520235409.G2647@bug.ucw.cz> <20010521223212.C4934@khan.acc.umu.se> <3B0BF8B6.D7940FA3@mvista.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <3B0BF8B6.D7940FA3@mvista.com>; from Scott Anderson on Wed, May 23, 2001 at 05:51:50PM +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Pinedo <dp@fc.hp.com>
-Cc: linux-mm@kvack.org
+To: Scott Anderson <scott_anderson@mvista.com>, David Weinehall <tao@acc.umu.se>
+Cc: Rik van Riel <riel@conectiva.com.br>, Mike Galbraith <mikeg@wen-online.de>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-David Pinedo wrote:
->
->     if (size + addr < (unsigned long) tmp->addr)
->           break;
-> 
-> should be:
-> 
->     if (size + addr <= (unsigned long) tmp->addr)
->           break;
-> 
-> Making this change seems to fix my problem. :-)
+Hi!
 
-For the record - I sent this change on to Linus and
-he applied it, incorrectly attributed to myself :(
+> > IMVHO every developer involved in memory-management (and indeed, any
+> > software development; the authors of ntpd comes in mind here) should
+> > have a 386 with 4MB of RAM and some 16MB of swap. Nowadays I have the
+> > luxury of a 486 with 8MB of RAM and 32MB of swap as a firewall, but it's
+> > still a pain to work with.
+> 
+> If you really want to have fun, remove all swap...
+
+My handheld has 12MB ram, no swap ;-), and that's pretty big machine
+for handheld.
+								Pavel
+PS: Swapping on flash disk is bad idea, right?
+-- 
+I'm pavel@ucw.cz. "In my country we have almost anarchy and I don't care."
+Panos Katsaloulis describing me w.r.t. patents at discuss@linmodems.org
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
