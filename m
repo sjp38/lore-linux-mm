@@ -1,58 +1,43 @@
-Date: Fri, 13 Jul 2001 23:09:54 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [PATCH] VM statistics code
-In-Reply-To: <3B4FBC7E.D8694436@uow.edu.au>
-Message-ID: <Pine.LNX.4.21.0107132308040.4111-100000@freak.distro.conectiva>
+Subject: Re: RFC: Remove swap file support
+References: <3B472C06.78A9530C@mandrakesoft.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 14 Jul 2001 00:07:38 -0600
+In-Reply-To: <3B472C06.78A9530C@mandrakesoft.com>
+Message-ID: <m1elrk3uxh.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <andrewm@uow.edu.au>
-Cc: Linus Torvalds <torvalds@transmeta.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Jeff Garzik <jgarzik@mandrakesoft.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, viro@math.psu.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Jeff Garzik <jgarzik@mandrakesoft.com> writes:
 
-On Sat, 14 Jul 2001, Andrew Morton wrote:
+> Since you can make any file into a block device using loop,
+> is there any value to supporting swap files in 2.5?
+> 
+> swap files seem like a special case that is no longer necessary...
 
-> Marcelo Tosatti wrote:
-> > 
-> > Hi Linus,
-> > 
-> > The following patch adds detailed VM statistics (reported via /proc/stats)
-> > which is tunable on/off by the CONFIG_VM_STATS option.
-> 
-> We need this, bad.  Two suggested changes:
-> 
-> >
-> > +#define VM_STAT_INC_PTEUNMAP(zone) zone->stat.vm_pteunmap++;
-> 
-> All these macros are a waste of space :)
-> 
-> Much better to have:
-> 
-> #define VM_STAT_ZONE(zone, op)	zone->stat.op
-> 
-> Then, at the call site:
-> 
-> 	VM_STAT_ZONE(some_zone, vm_pteunmap++);
-> 
-> Or, if you prefer,
-> 
-> #define VM_STAT_ZONE_INC(zone, field)	zone->field++
-> 
-> That way, you don't have to add a new macro each time
-> you add a new field.
+Yes, and no.  I'd say what we need to do is update rw_swap_page to
+use the address space functions directly.  With block devices and
+files going through the page cache in 2.5 that should remove any
+special cases cleanly.
 
-You're right. Will do that.
+In 2.4 the swap code really hasn't been updated, the old code has only
+been patched enough to work on 2.4.  This adds layers of work that we
+really don't need to be doing.  Removing the extra redirection has the
+potential to give a small performance boost to swapping.
 
-> Also, a sysrq key which dumps the stats out, please - when
-> your box has wedged there ain't no way you'll be running
-> vmstat.
+The case to watch out for are deadlocks doing things like using
+swapfiles on an NFS mount.  As you point out we can already do this
+with the loop back devices so it isn't really a special case.  The
+only new case I can see working are swapfiles with holes in them, or
+swapfiles that do automatic compression.  I doubt those cases are
+significant improvements but it looks like they will fall out
+naturally. 
 
-Agreed. 
-
-Thanks for your comments. 
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
