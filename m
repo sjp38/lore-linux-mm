@@ -1,50 +1,55 @@
-From: "David S. Miller" <davem@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14953.8856.982405.328564@pizda.ninka.net>
-Date: Fri, 19 Jan 2001 21:31:04 -0800 (PST)
+Date: Sat, 20 Jan 2001 17:58:48 +1100 (EST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC] 2-pointer PTE chaining idea
-In-Reply-To: <Pine.LNX.4.10.10101192108150.2760-100000@penguin.transmeta.com>
-References: <Pine.LNX.4.31.0101191849050.3368-100000@localhost.localdomain>
-	<Pine.LNX.4.10.10101192108150.2760-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.10.10101182307340.9418-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.31.0101201754110.1071-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Matthew Dillon <dillon@apollo.backplane.com>
+Cc: "David S. Miller" <davem@redhat.com>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Matthew Dillon <dillon@apollo.backplane.com>
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds writes:
- >  - DO NOT WASTE TIME IF YOU HAVE MEMORY!
- > 
- > The second point is important. You have to really think about how Linux
- > handles anonymous pages, and understand that that is not just an accident.
- > It's really important to NOT do extra work for the case where an
- > application just wants a page. Don't allocate swap backing store early.
- > Don't add it to the page cache if it doesn't need to be there. Don't do
- > ANYTHING.
- > 
- > This, btw, also implies: don't make the page tables more complex.
+On Thu, 18 Jan 2001, Linus Torvalds wrote:
 
-I have to concur.  The more I think about the whole idea of
-pte-chaining the more I dislike it and think work on it is a waste of
-time.  I can say this, being that I actually tried once to fully make
-such a scheme work.
+> The only sane way I can think of to do the "implied pointer" is
+> to do an order-2 allocation when you allocate a page directory:
 
-My old gripe and incentive to do such things has honestly
-disappeared.  The big issue was cache aliasing problems on
-some silly cpus, but the current recommented APIs described
-in Documentation/cachetlb.txt can handle such situations quite
-acceptably.
+While this idea seemed the best one at first glance, after
+thinking about it a bit more I think your idea may actually
+have _higher_ overhead than my idea of keeping the pte chain
+structures external.
 
-Basically, that would leave us with the issue of choosing anonymous
-pages to tap out correctly.  I see nothing that prevents our page
-table scanning from being fundamentally unable to do quite well in
-this area.  Sure, true LRU aging of anonymous pages alongside all the
-other reclaimable pages in the system is not possible now, but I
-cannot provably show that this is actually required for good behavior.
+The reason for this is three-fold. Firstly, a lot of the page
+tables will only be "occupied" for a small percentage. I don't
+know the numbers, but I wouldn't be surprised if the page table
+"occupation" is well under 50% for programs that are fully
+resident ... probably less for programs which are partly swapped
+out.
 
--DaveM
+Secondly, if we do "dynamic" pte chaining, we can free up or
+re-use the pte_chain structure as soon as we unmap a page, so
+swapping out a page will free up the pte chain structure, which
+is a big improvement compared to the unswappable page tables.
+
+Thirdly, this idea doesn't suffer from memory fragmentation and
+also works efficiently on architectures where the page table size
+isn't equal to the page size.
+
+Ideas ?
+
+(btw, if I'm unlucky I won't be online again until the 26th)
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
