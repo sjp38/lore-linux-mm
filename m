@@ -1,30 +1,25 @@
-From: "Mr. Sachenger" <tinytrees@msn.com>
-Subject: Direct Generic Drugs! Save Over 70%! Overnight Shipping!                 DETGTCIK
-Date: Mon, 06 Dec 2004 03:52:05 -0500
-Reply-To: tinytrees@msn.com
+Message-ID: <76290785.08176112408475.JavaMail.nobody@ymizzmg.start.com.au>
+Date: Mon, 06 Dec 2004 05:53:10 -0500
+From: "Eileen Rosario" <Crockettfcy@pop3now.com>
+Subject: about your condition
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Message-Id: <20041206085501Z26598-766+2117@kvack.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7Bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ninara@tiscali.it, ramola23@rediffmail.com, support@burstfire.net, yourname@worldsgreatestchef.com, jobs@worldsite.ws, email@africa-11.com, lisedeke@rapote.net, vace@yi.com, fmnu@quickonlinepharmacy.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Cheap Meds most charge $14.95 we charge only $2.59
+Hey,
 
-No Prescr1pt1ion requ1red
-sh1pped wor1dw1ide
+I heard you would be curious about a massive dizcounnt on your medz-rx & you may purrchaze directly from our fda-manufacturers.
+Lower overhead allows us to provide quality drugs at much lower than normal. No dr-script required.
+Gotothis: http://kv.tradeforaseven.com/?a=552hii
 
-
-Check it out I saved over 70% 
-
-http://www.the-rxsite.com/?hotstuff
-
+Yours truly,
+Eileen Rosario
 
 
-Ho Ho HO!  Happy Holidays!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
