@@ -1,53 +1,53 @@
-Date: Tue, 6 May 2003 16:50:52 +0100 (BST)
-From: Matt Bernstein <mb--lkml@dcs.qmul.ac.uk>
-Subject: Re: 2.5.68-mm4
-In-Reply-To: <20030506143533.GA22907@averell>
-Message-ID: <Pine.LNX.4.55.0305061641360.3237@r2-pc.dcs.qmul.ac.uk>
-References: <1051905879.2166.34.camel@spc9.esa.lanl.gov>
- <20030502133405.57207c48.akpm@digeo.com> <1051908541.2166.40.camel@spc9.esa.lanl.gov>
- <20030502140508.02d13449.akpm@digeo.com> <1051910420.2166.55.camel@spc9.esa.lanl.gov>
- <Pine.LNX.4.55.0305030014130.1304@jester.mews> <20030502164159.4434e5f1.akpm@digeo.com>
- <20030503025307.GB1541@averell> <Pine.LNX.4.55.0305030800140.1304@jester.mews>
- <Pine.LNX.4.55.0305061511020.3237@r2-pc.dcs.qmul.ac.uk> <20030506143533.GA22907@averell>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: 2.5.69-mm1
+From: Steven Cole <elenstev@mesatop.com>
+In-Reply-To: <m17k949jeh.fsf@frodo.biederman.org>
+References: <20030504231650.75881288.akpm@digeo.com>
+	 <1052231590.2166.141.camel@spc9.esa.lanl.gov>
+	 <20030506083358.348edb4d.akpm@digeo.com>
+	 <m17k949jeh.fsf@frodo.biederman.org>
+Content-Type: text/plain
+Message-Id: <1052238949.2166.145.camel@spc9.esa.lanl.gov>
+Mime-Version: 1.0
+Date: 06 May 2003 10:35:50 -0600
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Andrew Morton <akpm@digeo.com>, elenstev@mesatop.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-At 16:35 +0200 Andi Kleen wrote:
+On Tue, 2003-05-06 at 09:36, Eric W. Biederman wrote:
+> Andrew Morton <akpm@digeo.com> writes:
+> 
+> > Steven Cole <elenstev@mesatop.com> wrote:
+> > >
+> > > I have one machine for testing which is running X, and a kexec reboot
+> > >  glitches the video system when initiated from runlevel 5.  Kexec works fine
+> > >  from runlevel 3.
+> > 
+> > Yes, there are a lot of driver issues with kexec.  Device drivers will assume
+> > that the hardware is in the state which the BIOS left behind.
+> > 
+> > In this case, the Linus device driver's shutdown functions are obviously not
+> > leaving the card in a pristine state.  A lot of drivers _do_ do this
+> > correctly.  But some don't.
+> > 
+> > It seems that kexec is really supposed to be invoked from run level 1.  ie:
+> > you run all your system's shutdown scripts before switching.  If you'd done
+> > that then you wouldn't have been running X and all would be well.
+> > 
+> > do-kexec.sh is for the very impatient ;)
+> 
+> The biggest issue with kexec when you are in X is that nothing
+> tells X to shutdown.  So you have to at least shutdown X manually.
+> 
+> Eric
 
->On Tue, May 06, 2003 at 04:15:55PM +0200, Matt Bernstein wrote:
->> Is this helpful?
->
->What I really need is an probably decoded with ksymoops oops, not jpegs.
+Thanks for the answers.  Kexec is pretty cool as it stands.  I hope
+Linus merges it soon.
 
-OK, I'll do this tomorrow morning (I think I can do it without a serial 
-console now).
+Steven "very impatient" Cole
 
->Also you seem to be the only one with the problem so just to avoid
->any weird build problems do a make distclean and rebuild from scratch
->and reinstall the modules.
-
-The only odd thing I think I'm doing is hacking this into rc.sysinit:
-
-awk '/version 2\.5\./ {exit 1}' /proc/version || egrep -v '^#' /etc/sysconfig/modules | while read i
-do
-        action $"Loading $i module: " /sbin/modprobe $i
-done
-
-This might be naughty, but it shouldn't be able to hang the box!
-
-I'd prefer to have a proper set of aliases for 2.5 in /etc/modules.conf,
-but I'm too lazy to google for one. Also, I'd prefer yet more to shunt
-this stuff into an initramfs but I'll wait for documentation to appear for
-that :)
-
-Cheers,
-
-Matt
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
