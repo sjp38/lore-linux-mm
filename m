@@ -1,10 +1,10 @@
 Received: from fujitsu2.fujitsu.com (localhost [127.0.0.1])
-	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i7GMw6rH022473
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2004 15:58:07 -0700 (PDT)
-Date: Mon, 16 Aug 2004 15:57:42 -0700
+	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i7GMw8rH022485
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2004 15:58:09 -0700 (PDT)
+Date: Mon, 16 Aug 2004 15:57:50 -0700
 From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: Fw: [Lhms-devel] Making hotremovable attribute with memory section[2/4]
-Message-Id: <20040816155233.E6FB.YGOTO@us.fujitsu.com>
+Subject: Fw: [Lhms-devel] Making hotremovable attribute with memory section[3/4]
+Message-Id: <20040816155258.E6FD.YGOTO@us.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -18,139 +18,63 @@ Forwarded by Yasunori Goto <ygoto@us.fujitsu.com>
 ----------------------- Original Message -----------------------
  From:    Yasunori Goto <ygoto@us.fujitsu.com>
  To:      lhms-devel@lists.sourceforge.net
- Date:    Mon, 16 Aug 2004 14:36:42 -0700
- Subject: [Lhms-devel] Making hotremovable attribute with memory section[2/4]
+ Date:    Mon, 16 Aug 2004 14:37:05 -0700
+ Subject: [Lhms-devel] Making hotremovable attribute with memory section[3/4]
 ----
 
-This patch is to divide per_cpu_pages into removable/un-removable
-attribute. 
 
-Note: 
-  The amount of pool of per_cpu_pages might not be good....
+This patch is define __GFP_HOTREMOVABLE attribute.
+Kernel can select attribute removable/un-removable section and allocate 
+the pages by it.
+
+Note:
+  The value of __ GFP_HOTREMOVABLE was 0x03 in the definition before.
+ This was used to make new hot-removable zone_list for same purpose.
+ This zone_list method had the advantage that the number of steps 
+ of main routes did not increase. 
+  However, all section's removable attributes in a node have to be
+ same in this method. So, this is meaningless on SMP machine.
+ 
+ Dividing free_area is to be more general way for localized allocation.
 
 ---
 
- hotremovable-goto/include/linux/mmzone.h |    3 +
- hotremovable-goto/mm/page_alloc.c        |   59 +++++++++++++++++--------------
- 2 files changed, 36 insertions(+), 26 deletions(-)
+ hotremovable-goto/include/linux/gfp.h |    9 +++++++--
+ 1 files changed, 7 insertions(+), 2 deletions(-)
 
-diff -puN include/linux/mmzone.h~divide_pcp include/linux/mmzone.h
---- hotremovable/include/linux/mmzone.h~divide_pcp	Fri Aug 13 16:24:42 2004
-+++ hotremovable-goto/include/linux/mmzone.h	Fri Aug 13 16:24:42 2004
-@@ -67,7 +67,8 @@ struct per_cpu_pages {
- };
- 
- struct per_cpu_pageset {
--	struct per_cpu_pages pcp[2];	/* 0: hot.  1: cold */
-+	struct per_cpu_pages pcp[4];	/* 0: hot-unremovable.  1: cold-unremovable
-+					   2: hot-removable     3: cold-removable   */
- #ifdef CONFIG_NUMA
- 	unsigned long numa_hit;		/* allocated in intended node */
- 	unsigned long numa_miss;	/* allocated in non intended node */
-diff -puN mm/page_alloc.c~divide_pcp mm/page_alloc.c
---- hotremovable/mm/page_alloc.c~divide_pcp	Fri Aug 13 16:24:42 2004
-+++ hotremovable-goto/mm/page_alloc.c	Fri Aug 13 16:24:42 2004
-@@ -695,6 +695,7 @@ static void fastcall free_hot_cold_page(
- 	struct zone *zone = page_zone(page);
- 	struct per_cpu_pages *pcp;
- 	unsigned long flags;
-+	int removable = page_is_removable(page);
- 
- 	arch_free_page(page, 0);
- 
-@@ -707,7 +708,7 @@ static void fastcall free_hot_cold_page(
- 		capture_pages(page, 0);
- 		return;
- 	}
--	pcp = &zone->pageset[get_cpu()].pcp[cold];
-+	pcp = &zone->pageset[get_cpu()].pcp[cold | removable << 1];
- 	local_irq_save(flags);
- 	if (pcp->count >= pcp->high)
- 		pcp->count -= free_pages_bulk(zone, pcp->batch, &pcp->list, 0);
-@@ -744,7 +745,7 @@ buffered_rmqueue(struct zone *zone, int 
- 	if (order == 0) {
- 		struct per_cpu_pages *pcp;
- 
--		pcp = &zone->pageset[get_cpu()].pcp[cold];
-+		pcp = &zone->pageset[get_cpu()].pcp[cold | at << 1];
- 		local_irq_save(flags);
- 		if (pcp->count <= pcp->low)
- 			pcp->count += rmqueue_bulk(zone, 0, gfp_flags,
-@@ -1225,7 +1226,7 @@ void si_meminfo_node(struct sysinfo *val
- void show_free_areas(void)
- {
- 	struct page_state ps;
--	int cpu, temperature;
-+	int cpu, temperature, removable;
- 	unsigned long active;
- 	unsigned long inactive;
- 	unsigned long free;
-@@ -1249,13 +1250,18 @@ void show_free_areas(void)
- 
- 			pageset = zone->pageset + cpu;
- 
--			for (temperature = 0; temperature < 2; temperature++)
--				printk("cpu %d %s: low %d, high %d, batch %d\n",
--					cpu,
--					temperature ? "cold" : "hot",
--					pageset->pcp[temperature].low,
--					pageset->pcp[temperature].high,
--					pageset->pcp[temperature].batch);
-+			for (removable = 0; removable < NUM_AREA_TYPE; removable++){
-+				for (temperature = 0; temperature < 2; temperature++){
-+					int index = removable << 1 | temperature;
-+					printk("cpu %d %s %s: low %d, high %d, batch %d\n",
-+					       cpu,
-+					       temperature ? "cold" : "hot",
-+					       removable ? "removable" : "Un-removable",
-+					       pageset->pcp[index].low,
-+					       pageset->pcp[index].high,
-+					       pageset->pcp[index].batch);
-+				}
-+			}
- 		}
- 	}
- 
-@@ -1853,21 +1859,24 @@ static void __init free_area_init_core(s
- 			batch = 1;
- 
- 		for (cpu = 0; cpu < NR_CPUS; cpu++) {
--			struct per_cpu_pages *pcp;
+diff -puN include/linux/gfp.h~gfp_hotremovable include/linux/gfp.h
+--- hotremovable/include/linux/gfp.h~gfp_hotremovable	Fri Aug 13 16:24:38 2004
++++ hotremovable-goto/include/linux/gfp.h	Fri Aug 13 16:24:38 2004
+@@ -14,7 +14,6 @@ struct vm_area_struct;
+ /* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low two bits) */
+ #define __GFP_DMA	0x01
+ #define __GFP_HIGHMEM	0x02
 -
--			pcp = &zone->pageset[cpu].pcp[0];	/* hot */
--			pcp->count = 0;
--			pcp->low = 2 * batch;
--			pcp->high = 6 * batch;
--			pcp->batch = 1 * batch;
--			INIT_LIST_HEAD(&pcp->list);
--
--			pcp = &zone->pageset[cpu].pcp[1];	/* cold */
--			pcp->count = 0;
--			pcp->low = 0;
--			pcp->high = 2 * batch;
--			pcp->batch = 1 * batch;
--			INIT_LIST_HEAD(&pcp->list);
-+			int removable;
-+			for(removable = 0; removable < NUM_AREA_TYPE; removable++){
-+				struct per_cpu_pages *pcp;
+ /*
+  * Action modifiers - doesn't change the zoning
+  *
+@@ -38,6 +37,12 @@ struct vm_area_struct;
+ #define __GFP_NO_GROW	0x2000	/* Slab internal usage */
+ #define __GFP_COMP	0x4000	/* Add compound page metadata */
+ 
++#ifdef CONFIG_MEMORY_HOTPLUG
++#define __GFP_HOTREMOVABLE 0x8000 /* off: Un-hotremovable, on:Hotremovable */
++#else
++#define __GFP_HOTREMOVABLE 0
++#endif
 +
-+				pcp = &zone->pageset[cpu].pcp[0 | removable << 1];	/* hot */
-+				pcp->count = 0;
-+				pcp->low = 1 * batch;
-+				pcp->high = 3 * batch;
-+				pcp->batch = 1 * batch;
-+				INIT_LIST_HEAD(&pcp->list);
-+
-+				pcp = &zone->pageset[cpu].pcp[1 | removable << 1];	/* cold */
-+				pcp->count = 0;
-+				pcp->low = 0;
-+				pcp->high = 1 * batch;
-+				pcp->batch = 1 * batch;
-+				INIT_LIST_HEAD(&pcp->list);
-+			}
- 		}
- 		printk(KERN_DEBUG "  %s zone: %lu pages, LIFO batch:%lu\n",
- 				zone_names[j], realsize, batch);
+ #define __GFP_BITS_SHIFT 16	/* Room for 16 __GFP_FOO bits */
+ #define __GFP_BITS_MASK ((1 << __GFP_BITS_SHIFT) - 1)
+ 
+@@ -51,7 +56,7 @@ struct vm_area_struct;
+ #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
+ #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
+ #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS)
+-#define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HIGHMEM)
++#define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HIGHMEM | __GFP_HOTREMOVABLE)
+ 
+ /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
+    platforms, used as appropriate on others */
 _
 
 -- 
