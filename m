@@ -1,29 +1,29 @@
-Date: Tue, 17 Aug 1999 14:38:20 +0200 (CEST)
+Date: Tue, 17 Aug 1999 14:40:50 +0200 (CEST)
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [bigmem-patch] 4GB with Linux on IA32
-In-Reply-To: <199908170629.XAA23911@pizda.davem.net>
-Message-ID: <Pine.LNX.4.10.9908171437440.414-100000@laser.random>
+In-Reply-To: <Pine.LNX.4.10.9908162331400.1048-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.10.9908171439340.414-100000@laser.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: kanoj@google.engr.sgi.com, alan@lxorguk.ukuu.org.uk, torvalds@transmeta.com, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Aug 1999, David S. Miller wrote:
+On Mon, 16 Aug 1999, Linus Torvalds wrote:
 
->   From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
->   Date:   Mon, 16 Aug 1999 16:28:58 -0700 (PDT)
->
->   For example, on a 2.2.10 kernel:
->   [kanoj@entity kern]$ gid __va | grep drivers
->   drivers/char/mem.c:124: if (copy_to_user(buf, __va(p), count))
->   drivers/char/mem.c:142: return do_write_mem(file, __va(p), p, buf, count, ppos);
->
->Ok, this one could be a problem.
+>pages only may be enough for many things. Especially if anonymous pages
+>_prefer_ the high-memory pages.
 
-It isn't. The bigmem is not readable from /dev/mem right now.
+Yes shm/vmalloc/anonymous memory always prefer the high-memory pages.
+
+>Oh, and copied-on-write pages count as anonymous, I assume you did that
+>already (ie when you allocate a new page and copy the old contents into
+>it, you might as well consider the new page to be anonymous, even though
+>it gets its initial data from a potentially non-anonymous page).
+
+Yes, the copy-on-write always prefer the bigmem pages for the allocation.
 
 Andrea
 
