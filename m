@@ -1,11 +1,11 @@
 Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA19075
-	for <linux-mm@kvack.org>; Mon, 23 Mar 1998 18:20:31 -0500
-Date: Mon, 23 Mar 1998 15:20:11 -0800 (PST)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA19162
+	for <linux-mm@kvack.org>; Mon, 23 Mar 1998 18:37:30 -0500
+Date: Mon, 23 Mar 1998 15:37:08 -0800 (PST)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Lazy page reclamation on SMP machines: memory barriers
 In-Reply-To: <199803232249.WAA02431@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.95.980323151332.431D-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.3.95.980323152209.431E-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,44 +16,41 @@ List-ID: <linux-mm.kvack.org>
 
 
 On Mon, 23 Mar 1998, Stephen C. Tweedie wrote:
->
+> 
 > Are there barrier constructs available to do this?  I believe the answer
 > to be no, based on the recent thread concerning the use of inline asm
 > cpuid instructions as a barrier on Intel machines.  Alternatively, does
 > Intel provide any ordering guarantees which may help?
 
-Intel only gives you total ordering across certain instructions (cpuid
-being one of them, and the only one that is easily usable under all
-circumstances). 
+Just a quick follow-up with more intel-specific information in case people
+care. The serializing instructions (intel-speak for "read and write memory
+barrier") are:
 
-> Finally, I looked quickly at the kernel's spinlock primitives, and they
-> also seem unprotected by memory barriers on Intel.  Is this really safe?
+Privileged (and all of these are too slow to really consider):
+ - mov to control register
+ - mov to debug register
+ - wrmsr, invd, invlpg, winvd, lgdt, lldt, lidt, ltr
 
-Yes. Intel guarantees total ordering around any locked instruction, so the
-spinlocks themselves act as the barriers. This is why "unlock" is a slow
+Non-privileged:
+ - CPUID, IRET, RSM (and only CPUID is really usable for serialization)
 
-	lock ; btrl $0,(mem) 
+In addition, any locked instruction (or xchg, which is implicitly locked) 
+will "wait for all previous instructions to complete, and for the store
+buffer to drain to memory". That, together with the rule that reads cannot
+pass locked instructions, essentially makes all locked instructions
+serialized (they _are_ serialized as far as memory ordering goes, but
+intel seems to use the term "serialized" for both memory ordering and for
+"internal CPU behaviour": in intel-speak a "real" serializing instruction
+will apparently also wait for the CPU pipeline to drain). 
 
-instead of the much faster
+The cheapest way (considering register usage etc) to get a serializing
+instruction _seems_ to be to use something like
 
-	movl $0,(mem) 
+	lock ; add $0,0(%esp)
 
-because the latter doesn't imply any ordering, and there are no faster
-ways to do it (cpuid is fairly slow, so trying to do a "movl + cpuid" 
-doesn't help either). 
-
-The intel ordering is really nasty, because there is no good fast
-synchronization. "cpuid" trashes half the register set, and all the other
-synchronizing instructions have other even nastier side effects. And there
-is nothing like the alpha (and others) "write memory barrier" instruction
-that does only a one-way barrier.
-
-(To be fair, the alpha for example has very nice primitives for SMP, but
-sometimes the implementation of them is horribly slow. For example, the
-"load-and-protect" thing always seems to go to the bus even when the CPU
-has exclusive ownership, which makes atomic sequences much more expensive
-than they should be. I think DEC fixed this in their later alpha's, but
-the point being that even when you have the right concepts you can mess up
-with having a bad implementation ;) 
+which will act as a read and write barrier, but won't actually drain the
+pipe completely (and won't trash any registers - and the stack is likely
+to be dirty and cached, so it won't generate any extra memory traffic
+except on a Pentium where the "lock" thing cannot work on the cache).
 
 		Linus
