@@ -1,44 +1,36 @@
-Date: Wed, 18 Jul 2001 13:15:07 -0500
-From: Dave McCracken <dmc@austin.ibm.com>
-Subject: Patch for swap usage of high memory
-Message-ID: <12200000.995480107@baldur>
+Date: Wed, 18 Jul 2001 19:48:38 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: Large PAGE_SIZE
+In-Reply-To: <Pine.LNX.4.21.0107172337340.1015-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.21.0107181940400.1080-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch fixes the problem where pages allocated for swap space reads 
-will not be allocated from high memory.
+On Wed, 18 Jul 2001, Hugh Dickins wrote:
+> 
+> ftp://ftp.veritas.com/linux/larpage-2.4.6.patch.bz2
+> 
+> is the promised Large PAGE_SIZE patch against 2.4.6.  If you'd like
+> to try these large pages, you'll have to edit include/asm-i386/page.h
+> PAGE_MMUSHIFT from 0 to 1 or 2 or 3: no configuration yet.  There's
+> a sense in which the patch is now complete, but I'll probably be
+> ashamed of that claim tomorrow (several of the drivers haven't even
+> got compiled yet, much more remains untested).  I'll update to 2.4.7
+> once it appears, but probably have to skip the -pres.
 
-Rik, could you please forward this to the kernel mailing list?  I am 
-temporarily unable to reach it directly due to ECN problems.
+Sorry for the noise, but somewhere between send and receive,
+the all-important first line of yesterday's mail moved itself from
+mail body to mail header.  I guess it's a bad idea to start off with
+an ftp path (or "token:"?), so let's try it this way instead.
 
-Thanks,
-Dave McCracken
+ftp://ftp.veritas.com/linux/larpage-2.4.6.patch.bz2
 
---------
-
---- linux-2.4.6/mm/swap_state.c	Mon Jun 11 21:15:27 2001
-+++ linux-2.4.6-mm/mm/swap_state.c	Wed Jul 18 12:56:01 2001
-@@ -226,7 +226,7 @@
- 	if (found_page)
- 		goto out_free_swap;
-
--	new_page = alloc_page(GFP_USER);
-+	new_page = alloc_page(GFP_HIGHUSER);
- 	if (!new_page)
- 		goto out_free_swap;	/* Out of memory */
-
---------
-
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmc@austin.ibm.com                                      T/L   678-3059
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
