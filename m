@@ -1,152 +1,104 @@
-Date: Tue, 2 Nov 2004 23:07:20 +0100
-From: Andrea Arcangeli <andrea@novell.com>
-Subject: Re: fix iounmap and a pageattr memleak (x86 and x86-64)
-Message-ID: <20041102220720.GV3571@dualathlon.random>
-References: <4187FA6D.3070604@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4187FA6D.3070604@us.ibm.com>
+Date: Tue, 2 Nov 2004 16:17:21 -0600
+From: Brent Casavant <bcasavan@sgi.com>
+Reply-To: Brent Casavant <bcasavan@sgi.com>
+Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
+In-Reply-To: <40740000.1099414515@[10.10.2.4]>
+Message-ID: <Pine.SGI.4.58.0411021613300.79056@kzerza.americas.sgi.com>
+References: <Pine.SGI.4.58.0411011901540.77038@kzerza.americas.sgi.com>
+ <14340000.1099410418@[10.10.2.4]> <20041102155507.GA323@wotan.suse.de>
+ <40740000.1099414515@[10.10.2.4]>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andi Kleen <ak@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 02, 2004 at 01:21:49PM -0800, Dave Hansen wrote:
-> This patch:
-> 
-> >From: Andrea Arcangeli <andrea@novell.com>
+On Tue, 2 Nov 2004, Martin J. Bligh wrote:
+
+> --Andi Kleen <ak@suse.de> wrote (on Tuesday, November 02, 2004 16:55:07 +0100):
+>
+> > On Tue, Nov 02, 2004 at 07:46:59AM -0800, Martin J. Bligh wrote:
+> >> > This patch causes memory allocation for tmpfs files to be distributed
+> >> > evenly across NUMA machines.  In most circumstances today, tmpfs files
+> >> > will be allocated on the same node as the task writing to the file.
+> >> > In many cases, particularly when large files are created, or a large
+> >> > number of files are created by a single task, this leads to a severe
+> >> > imbalance in free memory amongst nodes.  This patch corrects that
+> >> > situation.
+> >>
+> >> Yeah, but it also ruins your locality of reference (in a NUMA sense).
+> >> Not convinced that's a good idea. You're guaranteeing universally consistent
+> >> worse-case performance for everyone. And you're only looking at a situation
+> >> where there's one allocator on the system, and that's imbalanced.
+> >>
+> >> You WANT your data to be local. That's the whole idea.
 > >
-> >- fix silent memleak in the pageattr code that I found while searching
-> >  for the bug Andi fixed in the second patch below (basically reference
-> >  counting in split page was done on the pmd instead of the pte).
+> > I think it depends on how you use tmpfs. When you use it for read/write
+> > it's a good idea because you likely don't care about a bit of additional
+> > latency and it's better to not fill up your local nodes with temporary
+> > files.
 > >
-> >- Part of this patch is also needed to make the above work on x86 
-> >(otherwise
-> >  one of my new above BUGS() will trigger signalling the fact a bug was
-> >  there).  The below patch creates a subtle dependency that (_PAGE_PCD << 
-> >  24)
-> >  must not be zero.  It's not the cleanest thing ever, but since it's an
-> >  hardware bitflag I doubt it's going to break.
-> >
-> >Signed-off-by: Andi Kleen <ak@suse.de>
-> >Signed-off-by: Andrea Arcangeli <andrea@novell.com>
-> >Signed-off-by: Andrew Morton <akpm@osdl.org>
-> >---
-> >
-> > 25-akpm/arch/i386/mm/ioremap.c    |    4 ++--
-> > 25-akpm/arch/i386/mm/pageattr.c   |   13 +++++++------
-> > 25-akpm/arch/x86_64/mm/ioremap.c  |   14 +++++++-------
-> > 25-akpm/arch/x86_64/mm/pageattr.c |   23 ++++++++++++++---------
-> > 4 files changed, 30 insertions(+), 24 deletions(-)
-> 
-> is hitting this BUG() during bootup:
-> 
->        /* memleak and potential failed 2M page regeneration */
->        BUG_ON(!page_count(kpte_page));
-> 
-> in 2.6.10-rc1-mm2.
-> 
-> Dentry cache hash table entries: 131072 (order: 7, 524288 bytes)
-> Inode-cache hash table entries: 65536 (order: 6, 262144 bytes)
-> Memory: 511144k/524288k available (1856k kernel code, 12608k reserved, 
-> 1186k data, 164k init, 0k highmem)
-> Checking if this processor honours the WP bit even in supervisor mode... Ok.
-> Mount-cache hash table entries: 512 (order: 0, 4096 bytes)
-> ------------[ cut here ]------------
-> kernel BUG at arch/i386/mm/pageattr.c:136!
-> invalid operand: 0000 [#1]
-> SMP DEBUG_PAGEALLOC
-> Modules linked in:
-> CPU:    0
-> EIP:    0060:[<c0113f48>]    Not tainted VLI
-> EFLAGS: 00010046   (2.6.10-rc1-mm2)
-> EIP is at __change_page_attr+0x28c/0x358
-> eax: ffffffff   ebx: 017ff163   ecx: 00000000   edx: c10001e0
-> esi: 00000000   edi: c000fff8   ebp: c10001e0   esp: c03f9d98
-> ds: 007b   es: 007b   ss: 0068
-> Process swapper (pid: 0, threadinfo=c03f9000 task=c0345b40)
-> Stack: c102ffe0 00000000 00000000 00000046 c0113ceb c17f9000 c102ff20
->        c102ff20 017ff163 00000000 017ff163 00000000 c0113ceb c17fe000
->        c102ffc0 c102ffc0 c1000000 c17ff000 c000fff8 017ff163 00000000
->        017ff163 00000000 00000000
-> Call Trace:
->  [<c0113ceb>] __change_page_attr+0x2f/0x358
->  [<c0113ceb>] __change_page_attr+0x2f/0x358
->  [<c011404a>] change_page_attr+0x36/0x54
->  [<c0114148>] kernel_map_pages+0x30/0x5f
->  [<c0137d80>] __alloc_pages+0x340/0x350
->  [<c0137dad>] __get_free_pages+0x1d/0x30
->  [<c013adfa>] kmem_getpages+0x26/0xd4
->  [<c013c221>] cache_grow+0xb1/0x150
->  [<c013c84a>] cache_alloc_refill+0x232/0x280
->  [<c013ccbe>] kmem_cache_alloc+0x5a/0x78
->  [<c01d4970>] idr_pre_get+0x1c/0x44
->  [<c0181b60>] sysfs_fill_super+0x0/0xa4
->  [<c01572cc>] set_anon_super+0x10/0xb8
->  [<c0156cff>] sget+0xb3/0x148
->  [<c0181b60>] sysfs_fill_super+0x0/0xa4
->  [<c0157636>] get_sb_single+0x26/0x8c
->  [<c0157608>] compare_single+0x0/0x8
->  [<c01572bc>] set_anon_super+0x0/0xb8
->  [<c0181c1d>] sysfs_get_sb+0x19/0x1d
->  [<c0181b60>] sysfs_fill_super+0x0/0xa4
->  [<c01576ea>] do_kern_mount+0x4e/0xd0
->  [<c015777d>] kern_mount+0x11/0x15
->  [<c0409962>] sysfs_init+0x1e/0x50
->  [<c0409430>] mnt_init+0xb4/0xc0
->  [<c040917a>] vfs_caches_init+0x7e/0x94
->  [<c03fa831>] start_kernel+0x12d/0x150
-> Code: c7 0f 75 f5 f0 ff 4d 04 eb 08 0f 0b 85 00 88 c1 2d c0 8b 45 00 89 
-> ea f6 c4 80 74 07 8b 55 0c 8d 74 26 00 8b 42 04 83 f8 ff 75 08 <0f> 0b 
-> 88 00 88 c1 2d c0 a1 ac 6c 34 c0 a8 08 0f 84 aa 00 00 00
-> 
-> I'm tracking down now to see exactly what's going on.  This just a 
-> regular, plain 4-way x86 box with 4GB of RAM.  Removing that BUG_ON() 
-> lets me boot just fine.
+> > If you use it with mmap then you likely want local policy.
 
-you've a debugging option enabled.
+Yeah, what Andi said. :)
 
-I'm afraid somebody wrote common code with the hope that
-change_page_attr had a natural universal API.
+I fully agree with Martin's statement "You WANT your data to be local."
+However, it can become non-local in two different manners, each of
+which wants tmpfs to behave differently.  (The next two paragraphs are
+simply to summarize, no position is being taken.)
 
-change_page_attr API has alwasy required you a certain level of symmetry
-to work. Now I made it completley symmetric just to make it simpler to
-use and I added BUG where the previous code would screwup.
+The manner I'm concerned about is when a long-lived file (long-lived
+meaning at least for the duration of the run of a large multithreaded app)
+is placed in memory as an accidental artifact of the CPU which happened
+to create the file.  Imagine, for instance, an application startup
+script copying a large file into a tmpfs filesystem before spawning
+the actual computation application itself.  There is a large class of
+HPC applications which are tightly synchronized, and which require nearly
+all of the system memory (i.e. almost all the memory on each node).
+In this case the "victim" node will be forced to go off-node for the
+bulk of its memory accesses, destroying locality, and slowing down
+the entire application.  This problem is alleviated if the tmpfs file
+is fairly well distributed across the nodes.
 
-If you do something like this you'll trigger a BUG_ON too:
+But I do understand the opposite situation.  If a lightly-threaded
+application wants to access the file data, or the application does
+not require large amounts of additional memory (i.e. nearly all the
+memory on each node) getting the file itself allocated close to the
+processor is more beneficial.  In this case the distribution of tmpfs
+pages is non-ideal (though I'm not sure it's worst-case).
 
-	change_page_attr(page, PAGE_KERNEL_NOCACHE)
-	change_page_attr(page, PAGE_KERNEL)
-	change_page_attr(page, PAGE_KERNEL)
+> > But that's a big ugly to distingush, that is why I suggested the sysctl.
+>
+> As long as it defaults to off, I guess I don't really care. Though I'm still
+> wholly unconvinced it makes much sense. I think we're just papering over the
+> underlying problem - that we don't do good balancing between nodes under
+> mem pressure.
 
-the last one will BUG().
+It's a tough situation, as shown above.  The HPC workload I mentioned
+would much prefer the tmpfs file to be distributed.  A non-HPC workload
+would prefer the tmpfs files be local.  Short of a sysctl I'm not sure
+how the system could make an intelligent decision about what to do under
+memory pressure -- it simply isn't knowledge the kernel can have.
 
-At least the new API with these changes will not leak memory anymore as
-far as you retain simmetry (even if you run the change_page_attr on the
-same page from different context).
+I've got a new patch including Andi's suggested sysctl ready to go.
+But I've seen one vote for defaulting to on, and one for defaulting
+to off.  I'd vote for on, but then again I'm biased. :)  Who arbitrates
+this one, Hugh Dickins (it's a tmpfs change, after all)?  From SGI's
+perspective we can live with it either way; we'll simply need to
+document our recommendations for our customers.
 
-I suspect that such debugging option has never worked right.
+As soon as I know whether this should default on or off, I'll post
+the new patch, including the sysctl.
 
-pageattr will need fixing so that to provide a natural universal API
-that keeps track of each page. Previously this would have failed:
+Thanks,
+Brent
 
-A       change_page_attr(page1, UNCACHED)    -> pte page_count = 2 
-B       change_page_attr(page1, WHATEVER)    -> pte page_count still 2 
-C       change_page_attr(page2, UNCACHED)    -> pte page count = 3 
-A       change_page_attr(page1, PAGE_KERNEL) -> pte page count = 2 
-B       change_page_attr(page1, PAGE_KERNEL) -> pte page count = 1 ->screwup
-
-Now the above can work fine. But still examples like the above one will
-trigger bugs since they're simply violating the current restricted
-change_page_attr API.
-
-I believe if you disable the DEBUG_PAGEALLOC it should work fine again.
-
-Still I recommend investigating _why_ debug_pagealloc is violating the
-API. It might not be necessary to wait for the pageattr universal
-feature to make DEBUG_PAGEALLOC work safe.
+-- 
+Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
+Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
+Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
