@@ -1,38 +1,59 @@
-Date: Wed, 6 Nov 2002 13:19:17 -0600 (CST)
-From: Kent Yoder <key@austin.ibm.com>
-Subject: 2.5.46: sleeping function called from illegal context at mm/slab.c:1305
-Message-ID: <Pine.LNX.4.44.0211061308510.14931-100000@ennui.austin.ibm.com>
+Date: Wed, 06 Nov 2002 13:20:45 -0600
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: Re: 2.5.46-mm1
+Message-ID: <192390000.1036610445@baldur.austin.ibm.com>
+In-Reply-To: <20021106171249.GB29935@stingr.net>
+References: <3DC8D423.DAD2BF1A@digeo.com>
+ <20021106171249.GB29935@stingr.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: multipart/mixed; boundary="==========1039320887=========="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Paul P Komkoff Jr <i@stingr.net>, lkml <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@zip.com.au>
 List-ID: <linux-mm.kvack.org>
 
-  Seen on boot from 2.5.46-bk pulled earlier today.  This is a UP pentium 3 
-w/ 256 MB RAM. For some reason this sounds like a duplicate but I didn't see 
-anything...
-
-Kent
-
-slab: reap timer started for cpu 0
-Starting kswapd
-aio_setup: sizeof(struct page) = 40
-[cfea2020] eventpoll: driver installed.
-Debug: sleeping function called from illegal context at mm/slab.c:1305
-Call Trace:
- [<c0143367>] kmem_flagcheck+0x67/0x70
- [<c0143d47>] kmalloc+0x67/0xc0
- [<c01461bf>] set_shrinker+0x1f/0xa0
- [<c0188a10>] mb_cache_create+0x1f0/0x2d0
- [<c0188640>] mb_cache_shrink_fn+0x0/0x1e0
- [<c0160299>] do_kern_mount+0xa9/0xe0
- [<c01050c3>] init+0x83/0x1b0
- [<c0105040>] init+0x0/0x1b0
- [<c010730d>] kernel_thread_helper+0x5/0x18
+--==========1039320887==========
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
 
+--On Wednesday, November 06, 2002 20:12:50 +0300 Paul P Komkoff Jr
+<i@stingr.net> wrote:
+
+> Why sharepte is dependent on highmem now ?
+
+It's not supposed to be.  I'm guessing it's a conversion error in the move
+to Kconfig.  A patch to fix it is attached.
+
+> I thought I will benefit from it on forkloads on lowmem too ...
+
+It's definitely a benefit for all sizes of memory.
+
+Dave McCracken
+
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmccr@us.ibm.com                                        T/L   678-3059
+
+--==========1039320887==========
+Content-Type: text/plain; charset=us-ascii; name="shpte-2.5.46-mm1-1.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="shpte-2.5.46-mm1-1.diff"; size=425
+
+--- 2.5.46-mm1/arch/i386/Kconfig	2002-11-06 13:17:20.000000000 -0600
++++ 2.5.46-mm1-shsent/arch/i386/Kconfig	2002-11-06 11:38:50.000000000 -0600
+@@ -722,7 +722,6 @@
+ 
+ config SHAREPTE
+ 	bool "Share 3rd-level pagetables between processes"
+-	depends on HIGHMEM4G || HIGHMEM64G
+ 	help
+ 	  Normally each address space has its own complete page table for all
+ 	  its mappings.  This can mean many mappings of a set of shared data
+
+--==========1039320887==========--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
