@@ -1,54 +1,49 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA31144
-	for <linux-mm@kvack.org>; Fri, 19 Mar 1999 09:48:43 -0500
-Date: Fri, 19 Mar 1999 14:48:21 GMT
-Message-Id: <199903191448.OAA01416@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from hermes.rz.uni-sb.de (hermes.rz.uni-sb.de [134.96.7.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA10402
+	for <linux-mm@kvack.org>; Sat, 20 Mar 1999 10:33:41 -0500
+Message-ID: <36F3BFDA.ED1B42B7@stud.uni-sb.de>
+Date: Sat, 20 Mar 1999 16:33:46 +0100
+From: Manfred Spraul <masp0008@stud.uni-sb.de>
+Reply-To: masp0008@stud.uni-sb.de
 MIME-Version: 1.0
+Subject: Re: Possible optimization in ext2_file_write()
+References: <199903181816.XAA12650@vxindia.vxindia.veritas.com> <199903191448.OAA01416@dax.scot.redhat.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Subject: Re: Possible optimization in ext2_file_write()
-In-Reply-To: <199903181816.XAA12650@vxindia.vxindia.veritas.com>
-References: <199903181816.XAA12650@vxindia.vxindia.veritas.com>
 Sender: owner-linux-mm@kvack.org
-To: V Ganesh <ganesh@vxindia.veritas.com>
-Cc: linux-kernel@vger.rutgers.edu, Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: V Ganesh <ganesh@vxindia.veritas.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+"Stephen C. Tweedie" wrote:
+> 
+> Hi,
+> 
+> On Thu, 18 Mar 1999 23:46:57 +0530 (IST), V Ganesh
+> <ganesh@vxindia.veritas.com> said:
+> 
+> >       it looks like whenever we write a partial block which
+> > doesn't exist in the buffer cache, ext2_file_write() (and
+> > possibly the write functions of other filesystems) directly
+> > reads that block from the block device without checking if
+> > it is present in the page cache.
+> 
+> Correct...
 
-On Thu, 18 Mar 1999 23:46:57 +0530 (IST), V Ganesh
-<ganesh@vxindia.veritas.com> said:
+I don't know what you are exactly talking about, but there is another
+problem except speed:
+Most modern harddisks remap bad sectors, so sometimes you can't read a
+sector, but if you write the sector is remapped.
 
-> 	it looks like whenever we write a partial block which 
-> doesn't exist in the buffer cache, ext2_file_write() (and
-> possibly the write functions of other filesystems) directly
-> reads that block from the block device without checking if
-> it is present in the page cache. 
+I.e. if you "create a new file, write 400 bytes, close the file, sync",
+then the data sector should not be read.
 
-Correct...
+Our current Windows 95 & Windows NT file system drivers read the data
+sector, and that has caused problems (older ZIP disks, SyQuest,
+my own damnaged harddisk?-I don't remember the details).
 
-> Of course, typical UNIX programs/shell jobs don't indulge in
-> this kind of behaviour. General workstation usage (X,
-> kernel compiles etc.) for a day caused only 32 unnecessary
-> reads. 
-
-... and also correct.
-
-> So unless there are any specific application categories which
-> require this I guess it's not worth the trouble to patch.
-
-I'd agree (strongly).  It ties in with your next question:
-
-> Anyone working on a VM revamp or buffer/page cache unification ?
-
-Yes.  We still need the buffer cache (or something very like it) for
-filesystem metadata caching and for block IO.  However, 2.3 _will_ see
-us using the page cache for data writeback (and we already have
-prototype patches to support that sort of behaviour).  The linux-mm
-list has been discussing it for some time.
-
---Stephen
+Regards,
+	Manfred
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
