@@ -1,39 +1,47 @@
-Date: Fri, 9 Jun 2000 13:53:51 +0200
-From: Ralf Baechle <ralf@uni-koblenz.de>
-Subject: Re: journaling & VM
-Message-ID: <20000609135351.A20386@uni-koblenz.de>
-References: <Pine.LNX.4.21.0006061956360.7328-100000@duckman.distro.conectiva> <393DA31A.358AE46D@reiser.to> <20000607121243.F29432@redhat.com> <m2r9a9a1q6.fsf_-_@boreas.southchinaseas> <20000607181144.U30951@redhat.com> <20000608114435.A15433@uni-koblenz.de> <20000608222950.Z3886@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <20000608222950.Z3886@redhat.com>; from sct@redhat.com on Thu, Jun 08, 2000 at 10:29:50PM +0100
+Date: Fri, 9 Jun 2000 12:08:23 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
+ it'snot just the code)
+In-Reply-To: <393ECB3C.91299E78@colorfullife.com>
+Message-ID: <Pine.LNX.4.21.0006091207360.31358-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org
+To: Manfred Spraul <manfreds@colorfullife.com>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 08, 2000 at 10:29:50PM +0100, Stephen C. Tweedie wrote:
+On Thu, 8 Jun 2000, Manfred Spraul wrote:
+> "Stephen C. Tweedie" wrote:
+> > On Wed, Jun 07, 2000 at 11:40:47PM +0200, Juan J. Quintela wrote:
+> > > Hi
+> > > Fair enough, don't put pinned pages in the LRU, *why* do you want put
+> > > pages in the LRU if you can't freed it when the LRU told it: free that
+> > > page?
+> > 
+> > Because even if the information about which page is least recently
+> > used doesn't help you, the information about which filesystems are
+> > least active _does_ help.
+> 
+> What about using a time based aproach for pinned pages?
+> 
+> * only individually freeable pages are added into the LRU.
+> * everyone else registers callbacks.
+> * shrink_mmap estimates (*) the age (in jiffies) of the oldest entry in
+> the LRU, and then it calls the pressure callbacks with that time.
 
-> On Thu, Jun 08, 2000 at 11:44:35AM +0200, Ralf Baechle wrote:
+This is exactly what one global LRU will achieve, at less
+cost and with better readable code.
 
-> > some device drivers may also collect relativly large amounts of memory.
-> > In case of my HIPPI cards this may be in the range of megabytes.  So I'd
-> > like to see a hook for freeing device memory.
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-> Device drivers really are a special case because they typically need
-> their memory at short notice, and at awkward times (such as in the 
-> middle of interrupts).  What sort of flexibility do you have regarding
-> the allocation/release of the buffer pull in your driver?
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
-I can release those buffers immediately.  The driver only holds them for
-some while since it delays cleaning the tx ring, depending on the various
-interrupt avoidance strategies we might use even indefinately.  Allocation
-on rx is done at interrupt time but that's no big deal, if we fail to
-allocate memory we just drop the packet and try again later.  Such
-interrupt avoidance is actually a very common thing for alot of NICs.  The
-(rare...) HIPPI case is worst because HIPPI has the largest MTU with 64kb.
-
-  Ralf
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
