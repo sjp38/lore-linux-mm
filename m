@@ -1,95 +1,83 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA26991
-	for <linux-mm@kvack.org>; Thu, 16 Jul 1998 18:03:39 -0400
-Subject: Comments on shmfs-0.1.010
-Reply-To: Zlatko.Calusic@CARNet.hr
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 17 Jul 1998 00:03:32 +0200
-Message-ID: <87n2a9o3m3.fsf@atlas.CARNet.hr>
+Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id WAA02013
+	for <linux-mm@kvack.org>; Fri, 17 Jul 1998 22:30:21 -0400
+Subject: Re: More info: 2.1.108 page cache performance on low memory
+References: <199807131653.RAA06838@dax.dcs.ed.ac.uk>
+	<m190lxmxmv.fsf@flinx.npwt.net>
+	<199807141730.SAA07239@dax.dcs.ed.ac.uk>
+From: ebiederm+eric@npwt.net (Eric W. Biederman)
+Date: 17 Jul 1998 20:10:25 -0500
+In-Reply-To: "Stephen C. Tweedie"'s message of Tue, 14 Jul 1998 18:30:19 +0100
+Message-ID: <m14swgm0am.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: Eric Biederman <ebiederm+eric@npwt.net>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "Eric W. Biederman" <ebiederm+eric@npwt.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+>>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
 
-Today, I finally found some time to play with shmfs and I must admit
-that I'm astonished with the results!
+ST> Hi,
+ST> On 13 Jul 1998 13:08:56 -0500, ebiederm+eric@npwt.net (Eric
+ST> W. Biederman) said:
 
-After some trouble with patching (lots of conflicts which had to be
-resolved manually), to my complete surprise, shmfs proved to be quite
-stable and reliable.
+>>>>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
+>> 1) We have a minimum size for the buffer cache in percent of physical pages.
+>> Setting the minimum to 0% may help.
 
-I found these messages in logs (after every boot):
+ST> ...
 
-swap_after_unlock_page: lock already cleared
-Adding Swap: 128988k swap-space (priority 0)
-swap_after_unlock_page: lock already cleared
-Adding Swap: 128484k swap-space (priority 0)
+>> Personally I think it is broken to set the limits of cache sizes
+>> (buffer & page) to anthing besides: max=100% min=0% by default.
 
-and lots of these:
+ST> Yep; I disabled those limits for the benchmarks I announced.  Disabling
+ST> the ageing but keeping the limits in place still resulted in a
+ST> performance loss.
 
-Jul 16 22:50:42 atlas kernel: write_page: called on a clean page! 
-Jul 16 22:51:16 atlas last message repeated 612 times
-Jul 16 22:51:29 atlas last message repeated 463 times
-Jul 16 22:51:29 atlas kernel: kmalloc: Size (131076) too large 
-Jul 16 22:51:30 atlas kernel: write_page: called on a clean page! 
-Jul 16 22:51:30 atlas last message repeated 10 times
-Jul 16 22:51:30 atlas kernel: kmalloc: Size (135172) too large 
-Jul 16 22:51:30 atlas kernel: write_page: called on a clean page! 
-Jul 16 22:51:30 atlas last message repeated 9 times
-Jul 16 22:51:31 atlas kernel: kmalloc: Size (139268) too large 
-etc...
+>> 2) If we play with LRU list it may be most practical use page->next
+>> and page->prev fields for the list, and for truncate_inode_pages &&
+>> invalidate_inode_pages
 
-But other than that, machine didn't crash, and shmfs is happily
-running right now, while I'm writing this. :)
+ST> Yikes --- for large files the proposal that we do
 
-I decided to comment those "write_page..." messages, recompile kernel,
-and finally do some benchmarking:
+>> do something like:
+>> for(i = 0; i < inode->i_size; i+= PAGE_SIZE) {
+>> page = find_in_page_cache(inode, i);
+>> if (page) 
+>> /* remove it */
+>> ;
+>> }
 
-2.1.108 + shmfs:
+ST> will be disasterous.  No, I think we still need the per-inode page
+ST> lists.  When we eventually get an fsync() which works through the page
+ST> cache, this will become even more important.
 
-              -------Sequential Output-------- ---Sequential Input-- --Random--
-              -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
-Machine    MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
-          100  2611 90.7  3924 86.2  3201 13.3  4763 61.4  6736 24.4 143.7  4.0
+Duh.  Ext2 only does with in truncate with the block cache on a real
+truncate, when and inode is closed it doesn't need to do that.  Sorry
+I though I had precedent for that algorithm.
 
-Then I decided to apply my patch, which removes page aging etc...
-(already sent to this list):
+O.k. scracth that idea.
 
-              -------Sequential Output-------- ---Sequential Input-- --Random--
-              -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
-Machine    MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
-          100  3023 99.5  4343 99.1  6342 26.3  7819 98.4 17860 64.0 156.4  3.6
-                                                          ^^^^^      ^^^^^
-Final result is great (almost 18MB/s, never saw such a big number in
-bonnie :)).
+So I guess a LRU list for pages will require that we increase the size
+of struct page.  I guess it is makes sense if we can ultimately:
+a) use if for every page on the system ala the swap cache.
+b) remove the buffer cache which should provide the necessary
+   expansion room.  So we won't ultimately use more space.
+c) use it for a lru on dirty pages.
+d) doesn't fragment memory with slabs...
 
-Last experiment I did was to put entry in /etc/fstab so that shmfs get
-mounted on /tmp at boot time. That indeed worked, but unfortunately, X
-(or maybe fvwm?) refused to work after that change, for unknown reason
-(nothing in logs).
+I hate considering expanding struct page after all of the work
+that has gone into shriking the lately....
 
-And that's it.
+And for writes it looks like I'll need a write time too, for best
+performance.  I've written the code I just haven't tested it yet.
 
-In the end, relevant info about my setup:
+Zlatko could I talk you into setting the defines in mmap.h so it shmfs
+will use those and report if bonnie improves...
 
-P166MMX, 64MB RAM
-hda: WDC AC22000L, ATA DISK drive
-sda: FUJITSU   Model: M2954ESP SUN4.2G  Rev: 2545 (aic7xxx)
+Eric
 
-shmfs                     /shm            shmfs   defaults   0       0
-/dev/hda1                 none            swap    sw,pri=0   0       0
-/dev/sda1                 none            swap    sw,pri=0   0       0
-
-Really good work, Eric!
-I hope your code gets into official kernel, as soon as possible.
-
-Regards,
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-  Any sufficiently advanced bug is indistinguishable from a feature.
+p.s. Everyone please excuse any slow replies I'm in the middle of
+moving and I can't read my mail too often.
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
