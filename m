@@ -1,32 +1,59 @@
-Date: Tue, 25 Apr 2000 16:34:24 -0300 (BRST)
+Date: Tue, 25 Apr 2000 16:47:52 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Reply-To: riel@nl.linux.org
-Subject: Re: [PATCH] 2.3.99-pre6-3+  VM rebalancing
-In-Reply-To: <20000425120657.B7176@stormix.com>
-Message-ID: <Pine.LNX.4.21.0004251630180.10408-100000@duckman.conectiva>
+Subject: Re: pressuring dirty pages (2.3.99-pre6)
+In-Reply-To: <m1snwadmcp.fsf@flinx.biederman.org>
+Message-ID: <Pine.LNX.4.21.0004251642500.10408-100000@duckman.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Simon Kirby <sim@stormix.com>
-Cc: Jeff Garzik <jgarzik@mandrakesoft.com>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Ben LaHaise <bcrl@redhat.com>, linux-kernel@vger.rutgers.edu
+To: "Eric W. Biederman" <ebiederman@uswest.net>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Mark_H_Johnson.RTS@raytheon.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Apr 2000, Simon Kirby wrote:
+On 25 Apr 2000, Eric W. Biederman wrote:
+> "Stephen C. Tweedie" <sct@redhat.com> writes:
 
-> Sorry, I made a mistake there while writing..I was going to give an
-> example and wrote 60 seconds, but I didn't actually mean to limit
-> anything to 60 seconds.  I just meant to make a really big global lru
-> that contains everything including page cache and swap. :)
+> > On Tue, Apr 25, 2000 at 09:27:57AM -0500, Mark_H_Johnson.RTS@raytheon.com wrote:
+> > 
+> > > It would be great to have a dynamic max limit. However I can see a lot of
+> > > complexity in doing so. May I make a few suggestions.
+> 
+> Agreed all I suggest for now was implement a max limit.
+> The dynamic was just food for thought.
 
-We already have that big global lru queue (actually, it's a 
-bit more closer to second chance replacement).
+I have a solution for this.
 
-For pages which are in the page tables of processes, we
-put the pages on the queue when we scan them and they
-weren't used since we scanned them the last time (NRU
-replacement). After that, they go through the lru queue
-and are reclaimed when it's their turn.
+My current anti-hog code already looks at what the biggest
+process is. Any process which is in the same size class will
+get a special bit set and has to call swap_out() on allocation
+of a new page.
+
+This will:
+1) slow down the hogs a little, but give most slowdown to the
+   hog that does most allocations
+2) will cause memory in processes to be unmapped, populating
+   the lru queue without the help of kswapd ...
+3) ... this makes sure we have a whole bunch of easily freeable
+   memory around ...
+4) ... which in turn makes it easy to keep up with the high IO
+   rates which some memory hogs require, because it's easier to
+   free memory
+
+So in __alloc_pages():
+
+	if (current->hog)
+		swap_out();
+
+Of course this won't penalise processes like bonnie, which just
+do a lot of IO, but that *isn't needed* at all because the cache
+memory used for these processes is not mapped and occupies a big
+portion of the lru queue .. so it's quite likely that we'll free
+memory from this process when we free something.
+
+In fact, the MM code I'm playing with at the moment seems pretty
+resistant against things like bonnie and tar ...
 
 regards,
 
