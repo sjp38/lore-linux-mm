@@ -1,46 +1,76 @@
-Date: Tue, 6 Feb 2001 21:49:48 -0200 (BRDT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Another Mindcradt case?
-In-Reply-To: <200102062322.AAA14557@front9.grolier.fr>
-Message-ID: <Pine.LNX.4.21.0102062138070.1535-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from eng2.sequent.com (eng2.sequent.com [138.95.200.91])
+	by gateway.sequent.com (8.9.3/8.8.5) with ESMTP id PAA06068
+	for <linux-mm@kvack.org>; Tue, 6 Feb 2001 15:46:12 -0800 (PST)
+Received: from localhost (localhost [127.0.0.1])
+	by eng2.sequent.com (8.10.0.Beta10/8.8.5/token.aware-1.2) with ESMTP id f16Nnsu20115
+	for <linux-mm@kvack.org>; Tue, 6 Feb 2001 15:49:54 -0800 (PST)
+Message-Id: <200102062349.f16Nnsu20115@eng2.sequent.com>
+Reply-To: Gerrit Huizenga <gerrit@us.ibm.com>
+From: Gerrit Huizenga <gerrit@us.ibm.com>
+Subject: Re: Another Mindcradt case? 
+In-reply-to: Your message of Tue, 06 Feb 2001 15:36:45 PST.
+             <3A808A8D.A83784F5@eventdriven.org>
+Date: Tue, 06 Feb 2001 15:49:54 -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jean Francois Martinez <jfm2@club-internet.fr>
-Cc: Christoph Hellwig <hch@ns.caldera.de>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7 Feb 2001, Jean Francois Martinez wrote:
+It sure seems like this was a roughly fair comparison by friendlies,
+as opposed to a de fecto, closed-source, self-perpetuating propoganda
+machine out to steam roll possible competition.  Seems like it should
+be responded to in the spirit of open source:  COOL!  So what was
+broken in Linux/BSD and what technology did BSD/Linux use to fix it
+that we can share?
 
-> The fact he doesn't give all parms doesn't mean Linux could not
-> have a performance problem. And one thing is sure we have a
-> propaganda problem since the BSD people will mention this for
-> ten years.  So better to solve both problems than ignoring them.
+End result could be to make them both better than any closed, proprietary,
+over-large corporate product offering.
 
-If you can reproduce this test and tell us exactly how we
-can reproduce it here, then I'll take a look at the problem.
+And, keep in mind that comparisons usually indicate that there are some
+flaws - even if the flaw is that the user's weren't able to set up a
+system that worked for them.  The key is to find and fix the flaws as
+they are exposed.
 
-If you can get more details, like vmstat output, ..., could
-you file a bug in the linux-mm bugzilla ?
+Just my $0.03.
 
-(if you keep it on mail, you can be sure we'll all have
-forgotten about this within 3 weeks)
+gerrit
 
-regards,
-
-Rik
---
-Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
-
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
-
-
+> Jean Francois Martinez wrote:
+> 
+> > On Tue, 6 Feb 2001 21:27:04 +0100, Christoph Hellwig said:
+> >
+> > > On Tue, Feb 06, 2001 at 09:25:10PM +0100, Jean Francois Martinez wrote:
+> > >  > Moshe Barr is claiming on Byte that sendmail and mysql are 30%
+> faster on
+> > >  > FreeBSD than Linux 2.4.   Now given that I don't think that mysql is
+> spending
+> > >  > 30% of its time in kernel mode there are not many ways FreeBSD can
+> be 30%
+> > >  > faster.
+> > >
+> > >  As he has not even documented all the parameters:  Ignore him.
+> > >
+> >
+> > The fact he doesn't give all parms doesn't mean Linux could not have a
+> > performance problem.    And  one thing is sure we have a propaganda
+> problem
+> > since the BSD people will mention this for ten years.  So better to solve
+> both
+> > problems than ignoring them.
+> >
+> >                                                         JF Martinez
+> >
+> >
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux.eu.org/Linux-MM/
+> 
+> In all due fairness the propaganda out there is overwhelmingly in favor of
+> Linux.
+> Not to mention that its user base is close to 10x that of *BSD.
+> 
+>                                         -Kip
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
