@@ -1,44 +1,65 @@
-Date: Thu, 4 May 2000 16:24:57 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Reply-To: riel@nl.linux.org
-Subject: Re: classzone-VM + mapped pages out of lru_cache
-In-Reply-To: <Pine.LNX.4.21.0005041952280.3416-100000@alpha.random>
-Message-ID: <Pine.LNX.4.21.0005041624090.23740-100000@duckman.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14609.53317.581465.821028@charged.uio.no>
+Date: Thu, 4 May 2000 21:32:21 +0200 (CEST)
+Subject: Re: classzone-VM + mapped pages out of lru_cache
+In-Reply-To: <Pine.LNX.4.21.0005042022200.3416-100000@alpha.random>
+References: <shsya5q2rdl.fsf@charged.uio.no>
+	<Pine.LNX.4.21.0005042022200.3416-100000@alpha.random>
+Reply-To: trond.myklebust@fys.uio.no
+From: Trond Myklebust <trond.myklebust@fys.uio.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, trond.myklebust@fys.uio.no
+Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 May 2000, Andrea Arcangeli wrote:
-> On Thu, 4 May 2000, Rik van Riel wrote:
-> 
-> >On Thu, 4 May 2000, Andrea Arcangeli wrote:
-> >
-> >> --- 2.2.15/mm/filemap.c	Thu May  4 13:00:40 2000
->        ^^^^^^
-> You're obviously wrong:
-> 
-> 1) the other cpu on 2.2.15 were spinning on the big kernel lock
+>>>>> " " == Andrea Arcangeli <andrea@suse.de> writes:
 
-Ooops, sorry.
+     > On 4 May 2000, Trond Myklebust wrote:
+    >> Not good. If I'm running /bin/bash, and somebody on the server
+    >> updates /bin/bash, then I don't want to reboot my machine. With
+    >> the above
 
-I had my mind wrapped around the 2.3 code so tight that
-I looked at the Subject and the code only and didn't
-spot the kernel version in the diff header ;)
+     > If you use rename(2) to update the shell (as you should since
+     > `cp` would corrupt also users that are reading /bin/bash from
+     > local fs) then nfs should get it right also with my patch since
+     > it should notice the inode number changed (the nfs fd handle
+     > should get the inode number as cookie), right?
 
-cheers,
+Yes, but I'm on the client: I cannot guarantee that people on the
+server will do it 'right'. The server can have temporarily dropped
+down into single user mode in order to protect its own users for all I
+know.
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+Accuracy has to be the first rule whatever the case.
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+     > The only problem I am wondering about is that we simply can't
+     > unlink _mapped_ page-cache pages from the pagecache as we do
+     > now.
 
+     > Say there's page A in the page cache. It gets mapped into a pte
+     > of process
+     > X. Then before you can drop A from the page cache to invalidate
+     >    it
+     > (because such page changed on the nfs server), you _first_ have
+     > to unmap such page from the pte of process X. This is why
+     > invalidate_inode_pages must not unlink mapped pages. It's not a
+     > locking problem, PageLocked() pagecache_lock and all other
+     > locks are irrelevant. It's not a race but a design issue.
+
+As far as NFS is concerned, that page is incorrect and should be read
+in again whenever we next try to access it. That is the purpose of the
+call to invalidate_inode_pages().  As far as I can see, your patch
+fundamentally breaks that concept for all files whether they are
+mmapped or not.
+
+When you say 'unmap from the pte', what exactly do you mean? Why does
+such a page still have to be part of an inode's i_data?
+
+Cheers,
+  Trond
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
