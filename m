@@ -1,165 +1,126 @@
-Message-ID: <3D2BCA1A.2E08B3F1@opersys.com>
-Date: Wed, 10 Jul 2002 01:46:02 -0400
-From: Karim Yaghmour <karim@opersys.com>
-Reply-To: karim@opersys.com
+From: bob <bob@watson.ibm.com>
 MIME-Version: 1.0
-Subject: Re: Enhanced profiling support (was Re: vm lock contention reduction)
-References: <Pine.LNX.4.44.0207081039390.2921-100000@home.transmeta.com> <3D29DCBC.5ADB7BE8@opersys.com> <20020710022208.GA56823@compsoc.man.ac.uk> <3D2BB505.889304A8@opersys.com> <20020710043844.GA69117@compsoc.man.ac.uk>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Date: Wed, 10 Jul 2002 09:10:07 -0400 (EDT)
+Subject: Re: Enhanced profiling support (was Re: vm lock contention reduction)
+In-Reply-To: <20020710043844.GA69117@compsoc.man.ac.uk>
+References: <Pine.LNX.4.44.0207081039390.2921-100000@home.transmeta.com>
+	<3D29DCBC.5ADB7BE8@opersys.com>
+	<20020710022208.GA56823@compsoc.man.ac.uk>
+	<3D2BB505.889304A8@opersys.com>
+	<20020710043844.GA69117@compsoc.man.ac.uk>
+Message-ID: <15660.9997.207798.658026@k42.watson.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: John Levon <movement@marcelothewonderpenguin.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Andrew Morton <akpm@zip.com.au>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, Richard Moore <richardj_moore@uk.ibm.com>, bob <bob@watson.ibm.com>
+Cc: Karim Yaghmour <karim@opersys.com>, Linus Torvalds <torvalds@transmeta.com>, Andrew Morton <akpm@zip.com.au>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, Richard Moore <richardj_moore@uk.ibm.com>, bob <bob@watson.ibm.com>, okrieg@watson.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-John Levon wrote:
-> > And the list goes on.
-> 
-> Sure, there are all sorts of things where some tracing can come in
-> useful. The question is whether it's really something the mainline
-> kernel should be doing, and if the gung-ho approach is nice or not.
+John,
+     I have been cc'ed on this email as I was an active participant at the
+RAS performance monitoring/tracing session at OLS.  Let me preface by
+saying that my view may be a bit biased as I have worked on the the core
+tracing infrastructure that went into IRIX in the mid 90s as well as the
+tracing infrastructure for K42, our research OS (see
+http://www.research.ibm.com/K42/index.html), and in both cases helped solve
+performance issues that would not have been otherwise solved.  From the
+below it doesn't appear that anyone is arguing that tracing is not useful.
+The debate (except for some of the details) appears over whether it should
+be included in the kernel in a first-class manner or individual mechanisms
+put in on an ad-hoc basis.  While this is indeed philosophical, let me
+share some experiences and benefits from other systems I've worked on:
+ 1) The mechanism proposed is very non-invasive, a single line of
+code (some TRACE_XXX macro or like) is added to the area of interest.
+Further, at OLS, the proposal was to add only a few trace points.
+Programming-wise this does not clutter the code - in fact having a single
+well-known unified mechanism is cleaner coding than a set of one-off
+ways, as when anyone sees a trace macro it will be clear what it is.
+ 2) In the end, there will be less intrusion with a single unified
+approach.  With a series of different mechanisms over time multiple events
+will get added in the same place creating performance issues and more
+importantly causing confusion.
+ 3) A unified approach will uncover performance issues not explicitly being 
+searched for and allow ones of known interest to be tracked down without
+adding a patch (that may be cumbersome to maintain) and re-compilation.
+ 4) In both my experiences, I have had resistance to adding this
+tracing infrastructure, and in both experiences other kernel developers
+have come back after the fact and thanked me for my persistence :-), as it
+helped them solve timing sensitive or other such issues they were having
+great difficulty with.
 
-I'm not sure how to read "gung-ho approach" but I would point out that
-LTT wasn't built overnight. It's been out there for 3 years now.
+If there is interest, I would happy to set up a conference number so people 
+who are interested could all speak.
 
-As for whether the mainline kernel should have it or not, then I
-think the standard has always been set using the actual purpose:
-Is this useful to users or is this only useful to kernel developers?
-Whenever it was the later, then the answer has almost always been NO.
-In the case of tracing I think that not only is it "useful" to users,
-but I would say "essential". Would you ask a user to recompile his
-kernel with a ptrace patch because he needs to use gdb? I don't
-think so, and I don't think application developers or system
-administrators should have to recompile their kernel either in
-order to understand the system' dynamics.
+-bob
 
-If facts are of interest, then I would point out that LTT is already
-part of a number of distributions out there. Most other distros that
-don't have it included find it very useful but don't want to get
-involved in maintaining it until it's part of the kernel.
+Robert Wisniewski
+The K42 MP OS Project
+Advanced Operating Systems
+Scalable Parallel Systems
+IBM T.J. Watson Research Center
+914-945-3181
+http://www.research.ibm.com/K42/
+bob@watson.ibm.com
 
-> > The fact that so many kernel subsystems already have their own tracing
-> > built-in (see other posting)
-> 
-> Your list was almost entirely composed of per-driver debug routines.
+----
 
-I don't see any contradiction here. This is part of what I'm pointing out.
-Mainly that understanding the dynamic behavior of the system is essential
-to software development, especially when complex interactions, such as
-in the Linux kernel, take place.
-
-> This is not the same thing as logging trap entry/exits, syscalls etc
-> etc, on any level, and I'm a bit perplexed that you're making such an
-> assocation.
-
-In regards to trap entry/exits, there was a talk a couple of years ago
-by Nat Friedman, I think, which discussed GNU rope. Basically, it
-identified the location of page fault misses at the start of programs
-and used this information to reorder the binary in order to accelerate
-its load time. That's just one example where traps are of interest.
-
-Not to mention that traps can result in scheduling changes and that
-knowing why a process has been scheduled out is all part of understanding
-the system's dynamics.
-
-As for syscalls, oprofile, for one, really needs this sort of info. So
-I don't see your point.
-
-There are 2 things LTT provides in the kernel:
-1- A unified tracing and high-throughput data-collection system
-2- A select list of trace points in the kernel
-
-Item #1 can easily replace the existing ad-hoc implementation while
-serving oprofile, DProbes and others. Item #2 is of prime interest
-to application developers and system administrators.
-
-> > expect user-space developers to efficiently use the kernel if they
-> > have
-> > absolutely no idea about the dynamic interaction their processes have
-> > with the kernel and how this interaction is influenced by and
-> > influences
-> > the interaction with other processes?
-> 
-> This is clearly an exaggeration. And seeing as something like LTT
-> doesn't (and cannot) tell the "whole story" either, I could throw the
-> same argument directly back at you. The point is, there comes a point of
-> no return where usefulness gets outweighed by ugliness. For the very few
-> cases that such detailed information is really useful, the user can
-> usually install the needed special-case tools.
-
-I'd really be interested in seing what you mean by "ugliness". If there's
-a list of grievances you have with LTT then I'm all ears.
-
-Anything inserted by LTT is clean and clear. It doesn't change anything
-to the kernel's normal behavior and once a trace point is inserted it
-requires almost zero maintenance. Take for example the scheduling change
-trace point (kernel/sched.c:schedule()):
-	TRACE_SCHEDCHANGE(prev, next);
-
-I don't see why this should be ugly. It's an inline that results in
-zero lines of code if you configure tracing as off.
-
-The cases I presented earlier clearly show the usefullness of this
-information. The developer who needs to solve his synchronization
-problem or the system administrator who wants to understand why his
-box is so slow doesn't really want to patch/recompile/reboot to fix
-his problem.
-
-You would like to paint these as "very few cases". Unfortunately
-these cases are much more common than you say they are.
-
-> In contrast a profiling mechanism that improves on the poor lot that
-> currently exists (gprof, readprofile) has a truly general utility, and
-> can hopefully be done without too much ugliness.
-
-Somehow it is not justifiable to add a feature the like of which didn't
-exist before but it is justifiable to add a feature which only "improves"
-on existing tools?
-
-As I said before, LTT and the information it provides has a truly
-general utility: Oprofile can use it, DProbes uses it, a slew of existing
-ad-hoc tracing systems in the kernel can be replaced by it, application
-developers can isolate synchronization problems with it, system
-administrators can identify performance bottlenecks with it, etc.
-
-An argument over which is more useful between LTT and oprofile is bound
-to be useless. If nothing else, I see LTT as having a more general use
-than oprofile. But let's not get into that. What I'm really interested in
-here is the possibilty of having one unified tracing and data collection
-system which serves many purposes instead of having each subsystem or
-profiler have its own tracing and data collection mechanism.
-
-> The primary reason I want to see something like this is to kill the ugly
-> code I have to maintain.
-
-I can't say that my goals are any different.
-
-> > > The entry.S examine-the-registers approach is simple enough, but
-> > > it's
-> > > not much more tasteful than sys_call_table hackery IMHO
-> >
-> > I guess we won't agree on this. From my point of view it is much
-> > better
-> > to have the code directly within entry.S for all to see instead of
-> > having some external software play around with the syscall table in a
-> > way kernel users can't trace back to the kernel's own code.
-> 
-> Eh ? I didn't say sys_call_table hackery was better. I said the entry.S
-> thing wasn't much better ...
-
-I know you weren't saying that. I said that in _my point of view_ the entry.S
-"thing" is much better.
-
-Cheers,
-
-Karim
-
-===================================================
-                 Karim Yaghmour
-               karim@opersys.com
-      Embedded and Real-Time Linux Expert
-===================================================
+John Levon writes:
+ > On Wed, Jul 10, 2002 at 12:16:05AM -0400, Karim Yaghmour wrote:
+ >  
+ > [snip]
+ >  
+ > > And the list goes on.
+ >  
+ > Sure, there are all sorts of things where some tracing can come in
+ > useful. The question is whether it's really something the mainline
+ > kernel should be doing, and if the gung-ho approach is nice or not.
+ > 
+ > > The fact that so many kernel subsystems already have their own tracing
+ > > built-in (see other posting)
+ >  
+ > Your list was almost entirely composed of per-driver debug routines.
+ > This is not the same thing as logging trap entry/exits, syscalls etc
+ > etc, on any level, and I'm a bit perplexed that you're making such an
+ > assocation.
+ >  
+ > > expect user-space developers to efficiently use the kernel if they
+ > > have
+ > > absolutely no idea about the dynamic interaction their processes have
+ > > with the kernel and how this interaction is influenced by and
+ > > influences
+ > > the interaction with other processes?
+ >  
+ > This is clearly an exaggeration. And seeing as something like LTT
+ > doesn't (and cannot) tell the "whole story" either, I could throw the
+ > same argument directly back at you. The point is, there comes a point of
+ > no return where usefulness gets outweighed by ugliness. For the very few
+ > cases that such detailed information is really useful, the user can
+ > usually install the needed special-case tools.
+ >  
+ > In contrast a profiling mechanism that improves on the poor lot that
+ > currently exists (gprof, readprofile) has a truly general utility, and
+ > can hopefully be done without too much ugliness.
+ >  
+ > The primary reason I want to see something like this is to kill the ugly
+ > code I have to maintain.
+ > 
+ > > > The entry.S examine-the-registers approach is simple enough, but
+ > > > it's
+ > > > not much more tasteful than sys_call_table hackery IMHO
+ > >
+ > > I guess we won't agree on this. From my point of view it is much
+ > > better
+ > > to have the code directly within entry.S for all to see instead of
+ > > having some external software play around with the syscall table in a
+ > > way kernel users can't trace back to the kernel's own code.
+ > 
+ > Eh ? I didn't say sys_call_table hackery was better. I said the entry.S
+ > thing wasn't much better ...
+ > 
+ > regards
+ > john
+ > 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
