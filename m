@@ -1,52 +1,46 @@
-Date: Fri, 14 Jan 2005 22:36:17 +0000 (GMT)
+Date: Fri, 14 Jan 2005 22:47:50 +0000 (GMT)
 From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: smp_rmb in mm/memory.c in 2.6.10
-In-Reply-To: <20050114213207.GK8709@dualathlon.random>
-Message-ID: <Pine.LNX.4.44.0501142217590.3109-100000@localhost.localdomain>
+In-Reply-To: <20050114222210.51725.qmail@web14324.mail.yahoo.com>
+Message-ID: <Pine.LNX.4.44.0501142243430.3143-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Kanoj Sarcar <kanojsarcar@yahoo.com>, Anton Blanchard <anton@samba.org>, Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, davem@redhat.com, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>
+To: Kanoj Sarcar <kanojsarcar@yahoo.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Anton Blanchard <anton@samba.org>, Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, davem@redhat.com, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 14 Jan 2005, Andrea Arcangeli wrote:
-> > 
-> > You could have asked even before breaking mainline ;).
+On Fri, 14 Jan 2005, Kanoj Sarcar wrote:
+> 
+> Note that vmtruncate() does a i_size_write(), which
+> does a write_seqcount_end() after updating the i_size,
+> which has an embedded smp_wmb() right after the i_size
+> update, so the case you are talking about is already
+> handled. No? (Btw, I did not look at i_size_write() in
+> the case of !CONFIG_SMP and CONFIG_PREEMPT, there
+> might need to be some barriers put in there, not
+> sure).
+> 
+> But, based on what you said, yes, I believe an
+> smp_wmb() is required _after_
+> atomic_inc(truncate_count) in unmap_mapping_range() to
+> ensure that the write happens before  it does the TLB
+> shootdown. Right?
 
-Sorry (but check your mailbox for 3rd October -
-I'd hoped the patch would be more provocative than a question!)
+Hmm, I'd better look tomorrow to see where you and
+Andrea have decided the smp_wmb()s should go.
 
-> > The rmb serializes the read of truncate_count with the read of
-> > inode->i_size.
+> I am sure there might be other ways to clean up this
+> code. Some documentation could not hurt, it could save
+> everyone's head hurting when they look at this code!
+> 
+> Btw, do all callers of vmtruncate() guarantee they do
+> not concurrently invoke vmtruncate() on the same file?
+> Seems like they could be stepping on each other while
+> updating i_size ...
 
-Yes, that's a clearer way of putting it, thank you.
-
-> > The rmb is definitely required, and I would leave it an
-> > atomic op to be sure gcc doesn't outsmart unmap_mapping_range_list (gcc
-> > can see the internals of unmap_mapping_range_list). I mean just in case.
-> > We must increase that piece of ram before we truncate the ptes and after
-> > we updated the i_size.
-
-I don't follow your argument for atomic there - "just in case"?
-I still see its atomic ops as serving no point (and it was
-tiresome to extend their use in the patches that followed).
-
-> > Infact it seems to me right now that we miss a smp_wmb() right before
-> > atomic_inc(&mapping->truncate_count): the spin_lock has inclusive
-> > semantics on ia64, and in turn the i_size update could happen after the
-> > atomic_inc without a smp_wmb().
-
-That's interesting, and I'm glad my screwup has borne some good fruit.
-And an smp_rmb() in one place makes more sense to me if there's an
-smp_wmb() in the complementary place (though I've a suspicion that
-"making sense to me" is not the prime consideration here ;)
-
-> > So please backout the buggy changes and add the smp_wmb() to fix this
-> > ia64 altix race.
-
-Will do, though not today.
+We're on safer ground there: inode->i_sem is held.
 
 Hugh
 
