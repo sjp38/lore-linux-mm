@@ -1,30 +1,47 @@
-Date: Sat, 8 Apr 2000 02:04:06 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <200004080011.RAA21305@google.engr.sgi.com>
 Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
-In-Reply-To: <200004072012.NAA10407@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.21.0004080154030.2121-100000@alpha.random>
+Date: Fri, 7 Apr 2000 17:11:15 -0700 (PDT)
+In-Reply-To: <Pine.LNX.4.21.0004080120330.2088-100000@alpha.random> from "Andrea Arcangeli" at Apr 08, 2000 01:26:48 AM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+To: Andrea Arcangeli <andrea@suse.de>
 Cc: Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 7 Apr 2000, Kanoj Sarcar wrote:
+> 
+> On Fri, 7 Apr 2000, Kanoj Sarcar wrote:
+> 
+> >[..] you should try stress
+> >testing with swapdevice removal with a large number of runnable
+> >processes.[..]
+> 
+> swapdevice removal during swapin activity is broken right now as far I can
+> see. I'm trying to fix that stuff right now.
 
->are unneeded when you consider the kernel_lock is already held in most
->of those paths.[..]
+Be aware that I already have a patch for this. I have been meaning to 
+clean it up against latest 2.3 and submit it to Linus ... FWIW, it 
+has been broken since 2.2.
 
-Good point. However I'm not thinking and I'm not going to think with the
-big kernel lock in mind in the paths where we incidentally hold the big
-kernel lock because somebody _else_ still needs it (like with
-acquire_swap_page/get_swap_page/swap_free). The setting of SWP_USED in
-swapoff have to be done inside the critical section protected by the
-swaplist lock. That was at least a conceptual bug even if it couldn't
-trigger due swap_out and swapoff that both holds the big kernel lock.
+> 
+> >Also, did you have a good reason to want to make lookup_swap_cache()
+> >invoke find_get_page(), and not find_lock_page()? I coded some of the 
+> 
+> Using find_lock_page and then unlocking the page is meaningless. If you
+> are going to unconditionally unlock the page then you shouldn't lock it in
+> first place.
 
-Andrea
+I will have to think a little bit about why the code does what it does
+currently. I will let you know ...
+
+Kanoj
+
+> 
+> Andrea
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
