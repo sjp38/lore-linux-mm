@@ -1,27 +1,28 @@
-Date: Mon, 9 Apr 2001 17:01:06 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: [PATCH] 2.4.4-pre1 sparc/mm typo
-In-Reply-To: <Pine.LNX.4.21.0103301457460.1080-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.21.0104091653370.1028-100000@localhost.localdomain>
+From: Alan Cox <alan@redhat.com>
+Message-Id: <200104091816.f39IGxD16018@devserv.devel.redhat.com>
+Subject: Re: [PATCH] swap_state.c thinko
+Date: Mon, 9 Apr 2001 14:16:59 -0400 (EDT)
+In-Reply-To: <20010406222256.C935@athlon.random> from "Andrea Arcangeli" at Apr 06, 2001 10:22:56 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Hugh Dickins <hugh@veritas.com>, Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---- 2.4.4-pre1/arch/sparc/mm/generic.c	Sat Apr  7 08:15:16 2001
-+++ linux/arch/sparc/mm/generic.c	Mon Apr  9 16:48:42 2001
-@@ -21,7 +21,7 @@
- 		struct page *ptpage = pte_page(page);
- 		if ((!VALID_PAGE(ptpage)) || PageReserved(ptpage))
- 			return;
--		page_cache_release(page);
-+		page_cache_release(ptpage);
- 		return;
- 	}
- 	swap_free(pte_to_swp_entry(page));
+> On Fri, Apr 06, 2001 at 12:52:26PM -0700, Linus Torvalds wrote:
+> > vm_enough_memory() is a heuristic, nothing more. We want it to reflect
+> > _some_ view of reality, but the Linux VM is _fundamentally_ based on the
+> > notion of over-commit, and that won't change. vm_enough_memory() is only
+> > meant to give a first-order appearance of not overcommitting wildly. It
+> > has never been anything more than that.
+> 
+> 200% agreed.
+
+Given that strict address space management is not that hard would you 
+accept patches to allow optional non-overcommit in 2.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
