@@ -1,39 +1,36 @@
-Date: Mon, 2 Oct 2000 16:32:27 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Tue, 3 Oct 2000 14:05:46 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
 Subject: Re: [highmem bug report against -test5 and -test6] Re: [PATCH] Re:
  simple FS application that hangs 2.4-test5, mem mgmt problem or FS buffer
  cache mgmt problem? (fwd)
 In-Reply-To: <20001003012546.C27493@athlon.random>
-Message-ID: <Pine.LNX.4.10.10010021630390.4306-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0010031404300.3569-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>, MM mailing list <linux-mm@kvack.org>, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
-
 
 On Tue, 3 Oct 2000, Andrea Arcangeli wrote:
 
-> On Tue, Oct 03, 2000 at 01:29:27AM +0200, Ingo Molnar wrote:
 > > it can and does lose them - but only all of them. Aging OTOH is a per-bh
 > > thing, this kind of granularity is simply not present in the current
 > > page->buffers handling. This is all i wanted to mention. Not unsolvable,
 > 
-> I'm pretty sure it doesn't worth the per-bh thing. And even if it would make
-> any difference with a 1k fs for good performance 4k blksize is necessary anyway
-> for other reasons.
 
-Well, remember that some page sizes are large. A page size is not
-necessarily 4k. It could be 64k.
+> I'm pretty sure it doesn't worth the per-bh thing. And even if it
+> would make any difference with a 1k fs for good performance 4k blksize
+> is necessary anyway for other reasons.
 
-Now, you're probably right that if you want to perform well, a 64k block
-is not that large, and most things that do ordered writes might not be too
-badly off with even that kind of big ordering granularity. But let's not
-take it for granted.
+well if those bhs are aged by the normal buffer-cache aging mechanizm,
+then there is no choice but to age them at bh granularity, not page
+granularity. (this is only interesting in the case of 1k filesystems.)
+Aging page->buffers at bh granularity creates interesting situations.
 
-		Linus
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
