@@ -1,32 +1,40 @@
-Date: Thu, 5 Aug 1999 12:41:08 +0200 (CEST)
-From: Rik van Riel <rik@reseau.nl>
-Reply-To: riel@humbolt.nl.linux.org
-Subject: Re: Would you please send me the Linux OS source code !
-In-Reply-To: <000c01bedf24$5aaa9ce0$2b2389c0@1>
-Message-ID: <Pine.LNX.4.10.9908051239030.1445-100000@rik.campus-party.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <199908051649.MAA04833@nerd-xing.mit.edu>
+Subject: Re: Would you please send me the Linux OS source code ! 
+In-Reply-To: Your message of "Thu, 05 Aug 1999 17:24:42 +0800."
+             <000c01bedf24$5aaa9ce0$2b2389c0@1>
+Date: Thu, 05 Aug 1999 12:49:39 EDT
+From: Kev <klmitch@MIT.EDU>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: jiaiguo <jiaiguo@hisense.qd.sd.cn>
 Cc: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Aug 1999, jiaiguo wrote:
+> ------=_NextPart_000_0009_01BEDF67.675E2040
+> Content-Type: text/plain;
+> 	charset="gb2312"
+> Content-Transfer-Encoding: base64
+> 
+> RGVhciBTaXI6DQpIb3cgRG8gWW91IERvICENCiAgIFdvdWxkIHlvdSBwbGVhc2Ugc2VuZCBtZSB0
+> aGUgc291cmNlIGNvZGUgb2YgdGhlIGxpbnV4IG9wZXJhdGluZyBzeXN0ZW0gPw0KICAgSSBhbSBp
+> bnRlcmVzdGluZyBpbiB0aGUgbGludXggb3BlcmF0aW5nIHN5c3RlbSwgdGhlIGhlbHAgZnJvbSB5
+> b3UgaXMgaW1wb3J0YW50IHRvIG1lLg0KICAgVGhhbmsgeW91ICENCiAgIG15IG1haWwgaXM6IGpp
+> YWlndW9AaGlzZW5zZS5xZC5zZC5jbg0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+> ICAgICAgICAgIA0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBEci4g
+> SmkgQWlndW8gDQo=
 
->    Would you please send me the source code of the linux operating
-> system ?
+well,
 
-We could do that, but remember it's 14 MB large -- and that's
-only for the kernel. It would be far cheaper to order a CD at
-www.cheapbytes.com and get everything by mail.
+Do446edz/+++ddefjdodiDDEHCdFdtteDDDBNEnofde==
 
-If you're still interested, just let me know. I'm at a LAN
-party so it doesn't really matter for me :)
-
-regards,
-
-Rik
+to you, too!
+-- 
+Kevin L. Mitchell <klmitch@mit.edu>
+-------------------------  -. .---- --.. ..- -..-  --------------------------
+http://web.mit.edu/klmitch/www/               (PGP keys availiable from here)
+    RSA AE87D37D/1024:  DE EA 1E 99 3F 2B F9 23  A0 D8 05 E0 6F BA B9 D2
+    DSS ED0DB34E/1024: D9BF 0E74 FDCB 43F5 C597  878F 9455 EC24 ED0D B34E
+    DH  2A2C31D4/2048: 1A77 4BA5 9E32 14AE 87DA  9FEC 7106 FC62 2A2C 31D4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
