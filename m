@@ -1,57 +1,36 @@
-Message-ID: <38918A88.5B8D05A@access.mountain.net>
-Date: Fri, 28 Jan 2000 12:24:41 +0000
-From: Tom Leete <tleete@access.mountain.net>
-MIME-Version: 1.0
 Subject: Re: [PATCH] boobytrap for 2.2.15pre5
-References: <Pine.LNX.4.10.10001280155560.25452-100000@mirkwood.dummy.home>
+Date: Fri, 28 Jan 2000 14:31:22 +0000 (GMT)
+In-Reply-To: <XFMail.20000128103339.gale@syntax.dera.gov.uk> from "Tony Gale" at Jan 28, 2000 10:33:39 AM
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-Id: <E12ECQo-0004s2-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@nl.linux.org>
-Cc: Linux Kernel <linux-kernel@vger.rutgers.edu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux MM <linux-mm@kvack.org>
+To: Tony Gale <gale@syntax.dera.gov.uk>
+Cc: Rik van Riel <riel@nl.linux.org>, Linux MM <linux-mm@kvack.org>, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
+> c014d30c T sk_alloc
+> c014db40 T alloc_skb
+> c014dd04 T skb_clone
+
+That path is easy - tcp_connect(). Looks like NFS is being naughty
 > 
-[...] 
-> If you apply this patch your kernel will spit out
-> a one-line error message on every offence (and a
-> 2-liner on a recursive offence). Each error message
-> will be of the form:
-> 
-[...] 
-> When you encounter these error messages, please send them
-> to linux-kernel, _with_ the names of the functions (because
-> they differ on every compilation) and, if possible, a short
-> explanation of what do did to provoke these errors.
-> 
->
+> c015c438 T tcp_timewait_state_process
+> c015c528 T tcp_time_wait
 
-Hi,
+This one makes no sense: its
+	tw = kmem_cache_alloc(tcp_timewait_cachep, SLAB_ATOMIC); 
 
-Got lots of these:
-kmem_cache_alloc called from non-running (1) task from
-c014d5e8!
-then one of these:
-kmem_cache_alloc called from non-running (2) task from
-c014d5e8!
+Looking harder I think Rik overdid the debugging checks.
 
-c014d5e8 is in alloc_skb.
+Time for round two on these
 
-ppp generates a lot of them, but not all. With ppp they seem
-to be arriving in bursts of five at intervals of maybe 1 to
-5 min. Those intervals are likely to reflect my activity. I
-also got a few during startup or login.
 
-net/core/skbuff.c says __GFP_WAIT  is clear if
-in_interrupt(), but passes all other flags direct to
-kmem_cache_alloc. I'm not seeing the printf(KERN_ERR ...)
-for sleeping in interrupt from there.
+Alan
 
-Traces to follow, unless this rings a bell for someone.
-
-Tom
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
