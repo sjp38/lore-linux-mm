@@ -1,67 +1,50 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA32281
-	for <linux-mm@kvack.org>; Tue, 22 Dec 1998 16:51:55 -0500
-Date: Tue, 22 Dec 1998 21:03:17 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA32400
+	for <linux-mm@kvack.org>; Tue, 22 Dec 1998 16:57:32 -0500
+Date: Tue, 22 Dec 1998 13:56:05 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: New patch (was Re: [PATCH] swapin readahead v3 + kswapd fixes)
-In-Reply-To: <m1pv9cqjj4.fsf@flinx.ccr.net>
-Message-ID: <Pine.LNX.4.03.9812222057210.397-100000@mirkwood.dummy.home>
+In-Reply-To: <Pine.LNX.4.03.9812222119540.397-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.95.981222135204.384D-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: Andrea Arcangeli <andrea@e-mind.com>, Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>, Alan Cox <number6@the-village.bc.nu>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>, Alan Cox <number6@the-village.bc.nu>
 List-ID: <linux-mm.kvack.org>
 
-On 22 Dec 1998, Eric W. Biederman wrote:
 
-> The goal is to keep one single rogue program from outcompeting all
-> of the others. With implementing a RSS limit this is accomplished
-> by at some point forcing free pages to come from the program that
-> needs the memory, (via swap_out) instead of directly.
+
+On Tue, 22 Dec 1998, Rik van Riel wrote:
+> > 
+> > There's another one: if you never call shrink_mmap() in the swapper, the
+> > swapper at least currently won't ever really know when it should finish.
 > 
-> What currently happens is when such a program starts thrashing, is
-> whenever it wakes up it steals all of the memory, and sleeps until
-> it can steel some more.  Because the program is a better
-> competitor, than the others.  With a RSS limit we would garantee
-> that there is some memory left over for other programs to run in.
-> 
-> Eventually we should attempt to autotune a programs RSS by it's
-> workload, and if giving a program a larger RSS doesn't help (that
-> is the program continues to thrash with an RSS we give it) we
-> should scale back it's RSS, so as not to compete with other
-> programs.
+> Remember 2.1.89, when you solemnly swore off any kswapd solution
+> that had anything to do with nr_freepages?
 
-I have a better idea:
+The problem is that we have to have _something_ to go by. I tried for the
+longest time to use the memory queues, but eventually gave up. 
 
-if (current->mm->rss > hog_pct && total_mapped > syshog_pct) {
-    ... swap_out_process(current, GFP)  swap_cluster pages ...
-}
+> I guess it's time to just let kswapd finish when there are enough
+> pages that can be 'reapt' by shrink_mmap(). This is a somewhat less
+> arbitrary way than what we have now, since those clean pages can be
+> mapped back in any time.
 
-We can easily do something like this because swap_out() only
-unmaps the pages and they can easily be mapped in again.
+If we'd have a count of "freeable pages", that would certainly work for
+me. I only asked for _some_ way to know when it should finish. 
 
-I know we tried it before and it horribly failed back then,
-but now pages are not freed on swap_out(). Things have changed
-in such a way that it could probably work now...
+Btw, I just made a 2.1.132. I would have liked to get this issue put to
+death, but it didn't look likely, and I had all the other patches pending
+that I wanted out (the irda stuff etc), so 2.1.132 is reality, and I hope
+we can work based on that.
 
-We want the above routine in one of the functions surrounding
-mm/page_alloc.c::swap_in() -- this way we 'throttle at the
-source'.
+Logically 2.1.132 should be reasonably close to Stephens patches, but as
+the code actually looks very different it's hard for me to judge whether
+it actually performs comparably. And a 8MB machine feels so sluggish to me
+these days that I can't make any judgement at all from that. 
 
-I know some of you think throttling at the source is a bad
-thing (even for buffer cache), but you'll have to throttle
-eventually and not doing it will mean you also 'throttle'
-the (innocent) rest of the system...
-
-cheers,
-
-Rik -- the flu hits, the flu hits, the flu hits -- MORE
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+		Linus
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
