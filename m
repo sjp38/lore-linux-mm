@@ -1,88 +1,35 @@
-Message-ID: <38F364B3.5A4A45D9@colorfullife.com>
-Date: Tue, 11 Apr 2000 19:45:23 +0200
-From: Manfred Spraul <manfreds@colorfullife.com>
-MIME-Version: 1.0
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <200004111814.LAA74654@google.engr.sgi.com>
 Subject: Re: zap_page_range(): TLB flush race
-References: <Pine.LNX.4.21.0004111824090.19969-100000@maclaurin.suse.de>
+Date: Tue, 11 Apr 2000 11:14:11 -0700 (PDT)
+In-Reply-To: <38F364B3.5A4A45D9@colorfullife.com> from "Manfred Spraul" at Apr 11, 2000 07:45:23 PM
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "David S. Miller" <davem@redhat.com>, alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com
+To: Manfred Spraul <manfreds@colorfullife.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, "Stephen C. Tweedie" <sct@redhat.com>, "David S. Miller" <davem@redhat.com>, alan@lxorguk.ukuu.org.uk, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli wrote:
 > 
-> On Tue, 11 Apr 2000, Manfred Spraul wrote:
-> 
-> >* They need the old pte value and the virtual address for their flush
-> >ipi.
-> 
-> Why can't they flush all the address space unconditionally on the other
-> cpus?
-
-They have a special instruction that flushes one mapping on all cpus in
-the system. 
-It has 2 parameters:
-	* virtual address of the page
-	* segment of the physical page to be flushed???
-
-Is someone out there with a s390 asm handbook? I only have these
-comments:
-
-+/*
-+ * s390 has two ways of flushing TLBs
-+ * 'ptlb' does a flush of the local processor
-+ * 'ipte' invalidates a pte in a page table and flushes that out of 
-+ * the TLBs of all PUs of a SMP 
-+ */
-
-+       /*
-+        * S390 has 1mb segments, we are emulating 4MB segments
-+        */
-+
-+       pto = (pte_t*) (((unsigned long) pte) & 0x7ffffc00);
-+              
-+               __asm__ __volatile("    ic   0,2(%0)\n"
-+                          "    ipte %1,%2\n"
-+                          "    stc  0,2(%0)"
-+                          : : "a" (pte), "a" (pto), "a" (addr): "0");
-+}
-
-> I can't find a valid reason for which they do need the old pte
-> value. The tlb should be a virtual->physical mapping only, the pte isn't
-> relevant at all with the TLB. however if they really need both old pte
-> address and the virtual address of the page, they can trivially pass the
-> parameters to the other CPUs acquring a spinlock and using some global
-> variable exactly as IA32 does to avoid flushing the whole TLB on the other
-> CPUs in the flush_tlb_page case.
-> 
-> >Obviously their work-around
-> >       flush_tlb_page()
-> >       set_pte()
-> >is wrong as well, and it breaks all other architectures :-/
-> 
-> I bet it breaks s390 too.
+> Yes. 
+> Can we ignore the munmap+access case?
+> I'd say that if 2 threads race with munmap+access, then the behaviour is
+> undefined.
+> Tlb flushes are expensive, I'd like to avoid the second tlb flush as in
+> Kanoj's patch.
 > 
 
-Of course :-)
+To handle clones on SMP systems properly, you have to stop at least other
+threads from writing to the page during unmap time, and possibly loading
+the old translation during translation-changing time. Probably the only
+generic way to do this is to twiddle the ptes and flush the tlb's, unless
+you start making big chunks of code architecture dependent. Note that in
+my patch, in most cases, the tlb flush position has changed, not the 
+number of flushes ....
 
-> The other filemap_sync race with threads that Kanoj was talking about is
-> very less severe since it can't make the machine unstable, but it can only
-> forgot to write some bit using strange userspace app design (only _data_
-> corruption can happen to the shared mmaping of the patological app).
-
-Yes. 
-Can we ignore the munmap+access case?
-I'd say that if 2 threads race with munmap+access, then the behaviour is
-undefined.
-Tlb flushes are expensive, I'd like to avoid the second tlb flush as in
-Kanoj's patch.
-
---
-	Manfred
-
+Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
