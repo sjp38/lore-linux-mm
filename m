@@ -1,73 +1,193 @@
-Message-ID: <3CE02EEB.89018FE1@zip.com.au>
-Date: Mon, 13 May 2002 14:23:55 -0700
-From: Andrew Morton <akpm@zip.com.au>
+Date: Mon, 13 May 2002 22:19:26 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [RFC][PATCH] iowait statistics
+Message-ID: <Pine.LNX.4.44L.0205132214480.32261-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] dcache and rmap
-References: <200205052117.16268.tomlins@cam.org> <20020507125712.GM15756@holomorphy.com> <15583.40551.778094.604938@laputa.namesys.com> <200205130750.03668.tomlins@cam.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
-Cc: Nikita Danilov <Nikita@Namesys.COM>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ed Tomlinson wrote:
-> 
-> Hi,
-> 
-> I did something similiar in the patch I posted under the subject:
-> 
-> [RFC][PATCH] cache shrinking via page age
-> 
-> Only I used the same method we now use to shrink caches but triggered them
-> using page aging, and at the same time making the trigger cache specific.
-> 
-> Another though I had was to put the 'freeable' slab pages onto the inactive
-> clean list and reclaim them when they reach the head of the list.  It gets a
-> little tricky since slabs can contain multiple pages...   Before trying this
-> I want to see how well what I have posted works.
-> 
+Hi,
 
-Using the VM would be better...
+the following patch implements iowait statistics in a simple way:
 
-It means that you'll need to create an address_space (and
-possibly, at this stage, an inode) to back the slab pages.
+1) if we go to sleep while waiting on a page or buffer, we
+   increment nr_iowait_tasks, note that this is done only in
+   the slow path so overhead shouldn't even be measurable
 
-Probably there is no need to create a radix tree, nor to give
-those pages an ->index.  Just bump page->count to indicate that
-the page is "sort-of" in the pagecache.  The kernel presently
-assumes, in __remove_inode_page() and __add_to_page_cache()
-that these pages are in a radix-tree.  I don't think it needs
-to.  Just set slab_space.page_tree to NULL and handle that in
-the various places which go oops ;)
+2) if no process is running, the timer interrupt adds a jiffy
+   to the iowait time
 
-Probably there is no need to create a mapping per slab.
-A global one should suffice.
+3) iowait time is counted separately from user/system/idle and
+   can overlap with either system or idle (when no process is
+   running the system can still be busy processing interrupts)
 
-There's no need to ever set those pages dirty, hence there's
-no need for a ->writepage.
+4) on SMP systems the iowait time can be overestimated, no big
+   deal IMHO but cheap suggestions for improvement are welcome
 
-When pages are added to the slab you should put some slab
-backpointer into page->private, set PG_private and
-increment page->count.
+The only issue I could see with this patch is (3), should iowait
+be counted the same as user/system/idle and should /proc/stat
+be changed or should we keep the thing backward compatible and
+have iowait "differently" accounted for ?
 
-Most of the work will be in slab_space->a_ops.releasepage().
-In there you'll need to find the slab via page->private
-and just start tossing away pages until you see the target
-page come "free".  Then clear PG_private and drop page->count
-and return success from ->releasepage().  The page is still
-"in the pagecache" so it has an incremented ->count.  The
-modified __remove_inode_page() will perform the final release.
+regards,
 
-That's all fairly straightforward.  The tricky bit is getting
-the aging right.  These pages don't have referenced bits in the
-pte's.  Possibly, running mark_page_accessed() inside kmem_cache_alloc
-would be sufficient.  It would be more accurate to make every user of
-a slab object "touch" that object's backing page but that's not
-feasible.
+Rik
+-- 
+Bravely reimplemented by the knights who say "NIH".
 
--
+http://www.surriel.com/		http://distro.conectiva.com/
+
+
+===== fs/buffer.c 1.64 vs edited =====
+--- 1.64/fs/buffer.c	Mon May 13 19:04:59 2002
++++ edited/fs/buffer.c	Mon May 13 19:16:57 2002
+@@ -156,8 +156,10 @@
+ 	get_bh(bh);
+ 	add_wait_queue(&bh->b_wait, &wait);
+ 	do {
++		atomic_inc(&nr_iowait_tasks);
+ 		run_task_queue(&tq_disk);
+ 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
++		atomic_dec(&nr_iowait_tasks);
+ 		if (!buffer_locked(bh))
+ 			break;
+ 		schedule();
+===== fs/proc/proc_misc.c 1.14 vs edited =====
+--- 1.14/fs/proc/proc_misc.c	Sun Apr  7 18:04:14 2002
++++ edited/fs/proc/proc_misc.c	Mon May 13 19:16:59 2002
+@@ -169,7 +169,7 @@
+ 		"Active:       %8u kB\n"
+ 		"Inact_dirty:  %8u kB\n"
+ 		"Inact_clean:  %8u kB\n"
+-		"Inact_target: %8lu kB\n"
++		"Inact_target: %8u kB\n"
+ 		"HighTotal:    %8lu kB\n"
+ 		"HighFree:     %8lu kB\n"
+ 		"LowTotal:     %8lu kB\n"
+@@ -266,7 +266,7 @@
+ 	int i, len;
+ 	extern unsigned long total_forks;
+ 	unsigned long jif = jiffies;
+-	unsigned int sum = 0, user = 0, nice = 0, system = 0;
++	unsigned int sum = 0, user = 0, nice = 0, system = 0, iowait = 0;
+ 	int major, disk;
+
+ 	for (i = 0 ; i < smp_num_cpus; i++) {
+@@ -275,23 +275,26 @@
+ 		user += kstat.per_cpu_user[cpu];
+ 		nice += kstat.per_cpu_nice[cpu];
+ 		system += kstat.per_cpu_system[cpu];
++		iowait += kstat.per_cpu_iowait[cpu];
+ #if !defined(CONFIG_ARCH_S390)
+ 		for (j = 0 ; j < NR_IRQS ; j++)
+ 			sum += kstat.irqs[cpu][j];
+ #endif
+ 	}
+
+-	len = sprintf(page, "cpu  %u %u %u %lu\n", user, nice, system,
+-		      jif * smp_num_cpus - (user + nice + system));
++	len = sprintf(page, "cpu  %u %u %u %lu %u\n", user, nice, system,
++		      jif * smp_num_cpus - (user + nice + system),
++		      iowait);
+ 	for (i = 0 ; i < smp_num_cpus; i++)
+-		len += sprintf(page + len, "cpu%d %u %u %u %lu\n",
++		len += sprintf(page + len, "cpu%d %u %u %u %lu %u\n",
+ 			i,
+ 			kstat.per_cpu_user[cpu_logical_map(i)],
+ 			kstat.per_cpu_nice[cpu_logical_map(i)],
+ 			kstat.per_cpu_system[cpu_logical_map(i)],
+ 			jif - (  kstat.per_cpu_user[cpu_logical_map(i)] \
+ 				   + kstat.per_cpu_nice[cpu_logical_map(i)] \
+-				   + kstat.per_cpu_system[cpu_logical_map(i)]));
++				   + kstat.per_cpu_system[cpu_logical_map(i)]),
++			kstat.per_cpu_iowait[cpu_logical_map(i)]);
+ 	len += sprintf(page + len,
+ 		"page %u %u\n"
+ 		"swap %u %u\n"
+===== include/linux/kernel_stat.h 1.3 vs edited =====
+--- 1.3/include/linux/kernel_stat.h	Thu Apr 11 01:27:34 2002
++++ edited/include/linux/kernel_stat.h	Mon May 13 19:31:31 2002
+@@ -18,7 +18,8 @@
+ struct kernel_stat {
+ 	unsigned int per_cpu_user[NR_CPUS],
+ 	             per_cpu_nice[NR_CPUS],
+-	             per_cpu_system[NR_CPUS];
++	             per_cpu_system[NR_CPUS],
++	             per_cpu_iowait[NR_CPUS];
+ 	unsigned int dk_drive[DK_MAX_MAJOR][DK_MAX_DISK];
+ 	unsigned int dk_drive_rio[DK_MAX_MAJOR][DK_MAX_DISK];
+ 	unsigned int dk_drive_wio[DK_MAX_MAJOR][DK_MAX_DISK];
+===== include/linux/swap.h 1.35 vs edited =====
+--- 1.35/include/linux/swap.h	Mon May 13 19:04:59 2002
++++ edited/include/linux/swap.h	Mon May 13 19:17:32 2002
+@@ -90,6 +90,7 @@
+ extern int nr_inactive_clean_pages;
+ extern atomic_t page_cache_size;
+ extern atomic_t buffermem_pages;
++extern atomic_t nr_iowait_tasks;
+
+ extern spinlock_cacheline_t pagecache_lock_cacheline;
+ #define pagecache_lock (pagecache_lock_cacheline.lock)
+===== kernel/timer.c 1.4 vs edited =====
+--- 1.4/kernel/timer.c	Tue Apr 30 13:38:16 2002
++++ edited/kernel/timer.c	Mon May 13 22:04:48 2002
+@@ -608,8 +608,16 @@
+ 		else
+ 			kstat.per_cpu_user[cpu] += user_tick;
+ 		kstat.per_cpu_system[cpu] += system;
+-	} else if (local_bh_count(cpu) || local_irq_count(cpu) > 1)
+-		kstat.per_cpu_system[cpu] += system;
++	} else {
++		/*
++		 * No process is running, but if we're handling interrupts
++		 * or processes are waiting on disk IO, we're not really idle.
++		 */
++	       	if (local_bh_count(cpu) || local_irq_count(cpu) > 1)
++			kstat.per_cpu_system[cpu] += system;
++		if (atomic_read(&nr_iowait_tasks) > 0)
++			kstat.per_cpu_iowait[cpu] += system;
++	}
+ }
+
+ /*
+===== mm/filemap.c 1.69 vs edited =====
+--- 1.69/mm/filemap.c	Mon May 13 19:05:00 2002
++++ edited/mm/filemap.c	Mon May 13 22:04:18 2002
+@@ -44,6 +44,7 @@
+  */
+
+ atomic_t page_cache_size = ATOMIC_INIT(0);
++atomic_t nr_iowait_tasks = ATOMIC_INIT(0);
+ unsigned int page_hash_bits;
+ struct page **page_hash_table;
+
+@@ -828,8 +829,10 @@
+ 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+ 		if (!PageLocked(page))
+ 			break;
++		atomic_inc(&nr_iowait_tasks);
+ 		sync_page(page);
+ 		schedule();
++		atomic_dec(&nr_iowait_tasks);
+ 	} while (PageLocked(page));
+ 	__set_task_state(tsk, TASK_RUNNING);
+ 	remove_wait_queue(waitqueue, &wait);
+@@ -864,8 +867,10 @@
+ 	for (;;) {
+ 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+ 		if (PageLocked(page)) {
++			atomic_inc(&nr_iowait_tasks);
+ 			sync_page(page);
+ 			schedule();
++			atomic_dec(&nr_iowait_tasks);
+ 		}
+ 		if (!TryLockPage(page))
+ 			break;
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
