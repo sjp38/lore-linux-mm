@@ -1,17 +1,18 @@
-Date: Wed, 10 Sep 2003 11:53:38 -0700
+Date: Wed, 10 Sep 2003 11:55:37 -0700
 From: Mike Fedyk <mfedyk@matchmail.com>
-Subject: Re: 2.6.0-test4-mm3
-Message-ID: <20030910185338.GA1461@matchmail.com>
-References: <20030828235649.61074690.akpm@osdl.org>
+Subject: ide-scsi oops was: 2.6.0-test4-mm3
+Message-ID: <20030910185537.GB1461@matchmail.com>
+References: <20030828235649.61074690.akpm@osdl.org> <20030910185338.GA1461@matchmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030828235649.61074690.akpm@osdl.org>
+In-Reply-To: <20030910185338.GA1461@matchmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+Didn't modify subject line... :(
 
 Hi,
 
@@ -110,6 +111,8 @@ Sep 10 11:29:40 mis-mike-wstn kernel:  [vfs_read+183/240] vfs_read+0xb7/0xf0
 Sep 10 11:29:40 mis-mike-wstn kernel:  [sys_read+48/80] sys_read+0x30/0x50
 Sep 10 11:29:40 mis-mike-wstn kernel:  [syscall_call+7/11] syscall_call+0x7/0xb
 Sep 10 11:29:40 mis-mike-wstn kernel:  [ip_mc_source+583/892] ip_mc_source+0x247/0x37c
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
