@@ -1,7 +1,7 @@
-Date: Fri, 19 Jul 2002 02:27:19 -0700 (MST)
+Date: Fri, 19 Jul 2002 02:30:27 -0700 (MST)
 From: Craig Kulesa <ckulesa@as.arizona.edu>
-Subject: [PATCH 5/6] move slab pages to the lru, for rmap
-Message-ID: <Pine.LNX.4.44.0207190120270.4647-100000@loke.as.arizona.edu>
+Subject: [PATCH 6/6] VM statistics for full rmap
+Message-ID: <Pine.LNX.4.44.0207190154390.4647-100000@loke.as.arizona.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,80 +11,27 @@ Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-Part 5 in my rmap patch queue against 2.5.26:
+This adopts Rik van Riel's recent extended VM statistics patch for the 
+'armed-to-the-gills-kitchen-sink rmap' against 2.5.26.  The aim, in 
+combination with a meaningful benchmark suite, is to be able to have the 
+statistical ammunition to fine tune the VM properly, rather than twiddling 
+all knobs at once hoping to make things better. 
 
+Get the patch series here: 
 	http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/2.5.26/
-	[ 2.5.26-rmap-5-slablru 18-Jul-2002 22:35    40k ]
 
-This is a port of Ed Tomlinson's (tomlins@cam.org) really nifty patch to 
-let the (full) rmap VM do the work of freeing (inode/dentry/dquot) slab 
-pages based on page aging.  
+Rik's original announcement is here:
+	http://mail.nl.linux.org/linux-mm/2002-07/msg00172.html
 
-	http://mail.nl.linux.org/linux-mm/2002-06/msg00001.html
+and I have added Bill Irwin's alterations to the patch, described here:
+	http://www.cs.helsinki.fi/linux/linux-kernel/2002-28/1287.html
 
-Summary: The slab pages are moved into the active list, where they are
-aged and pruned.  The rate of pruning is simply the rate we see entries
-for these slabs in refill_inactive_zone (while scanning the active list
-for pages to deactivate).  This has the significant advantage of being
-wholly self-tuning!  If we can count a slab page as fully pruned and no
-longer in use, it is freed.  For non-lru slab caches, we occasionally call
-kmem_cache_shrink to keep those caches in check.  A final sweep though
-kmem_cache_reap() is our last protection against OOM.
+Given the late hour, I have almost certainly forgotten some hooks in 
+vmscan, so count it as a first, harmless cut at the problem.  Feedback 
+and fixes welcome! :)
 
----
-
-The only significant structural change to the patch is 2.5's invocation 
-of the inode caches per-filesystem.  I have given each fs's inode 
-cache a pruner method during its allocation (a one-line change).  
-Filesystems edited:
-
- fs/adfs/super.c          |    1 
- fs/affs/super.c          |    1 
- fs/bfs/inode.c           |    1 
- fs/coda/inode.c          |    2 
- fs/efs/super.c           |    1 
- fs/ext2/super.c          |    1 
- fs/ext3/super.c          |    1 
- fs/fat/inode.c           |    1 
- fs/freevxfs/vxfs_super.c |    4 
- fs/hfs/super.c           |    1 
- fs/hpfs/super.c          |    1 
- fs/isofs/inode.c         |    1 
- fs/jffs2/super.c         |    1 
- fs/jfs/super.c           |    1 
- fs/minix/inode.c         |    1 
- fs/ncpfs/inode.c         |    1 
- fs/nfs/inode.c           |    1 
- fs/ntfs/super.c          |    2 
- fs/proc/inode.c          |    1 
- fs/qnx4/inode.c          |    1 
- fs/reiserfs/super.c      |    1 
- fs/romfs/inode.c         |    1 
- fs/smbfs/inode.c         |    1 
- fs/sysv/inode.c          |    1 
- fs/udf/super.c           |    1 
- fs/ufs/super.c           |    1 
-
-Intermezzo has a funky dentry cache that may need a pruner method (??), 
-but I didn't touch it.  If there was a better way to do this, I was too 
-blind to see it.  
-
-This patch has been well tested with ext3 and the generic slab caches.  I 
-expect the other filesystems' inode caches to behave correctly, but it 
-wouldn't hurt to test! ... ;)
-
-I haven't benchmarked the patch quantitatively, but the balance of 
-eviction between nonslab and slab pages seems to scale with the age of the 
-pages.  Slocate runs don't evict the desktop, but do evict cold daemons 
-and other cruft.  New allocations for applications shrink the older slabs 
-accordingly.  Seems sane.  By comparison, plain rmap-13b plunders the slab 
-caches rather ruthlessly.  
-
-The overhead for putting these pages on the lru lists, and the hopeful 
-benefits for properly aging and evicting them, should be benchmarked 
-sometime. 
-
-Give it a try! :)
+For 2.5.27, I'll make sure this patch is incremental to Rik's stats patch, 
+and not a replacement for it.  Sorry 'bout that...
 
 Craig Kulesa
 Steward Observatory
