@@ -1,34 +1,36 @@
-Date: Thu, 13 Jul 2000 11:34:38 +0100 (BST)
-From: Chris Evans <chris@ferret.lmh.ox.ac.uk>
-Subject: Re: [PATCH] page ageing with lists
-In-Reply-To: <396D1817.108394F5@norran.net>
-Message-ID: <Pine.LNX.4.21.0007131129590.4769-100000@ferret.lmh.ox.ac.uk>
+Date: Thu, 13 Jul 2000 16:30:35 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: writeback list
+Message-ID: <Pine.LNX.4.21.0007131628120.23729-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Jul 2000, Roger Larsson wrote:
+Hi Stephen,
 
-> Hi,
-> 
-> This is a patch with page ageing for 2.4.0-test4-pre1.
-> 
-> Performance, unoptimized filesystem:
-> * streamed write is as good as 2.2.14
-> * streamed copy is 3/4 of 2.2.14
-> * streamed read is close to 2.2.14
+we may have forgotten something in our new new vm design from
+last weekend. While we have the list head available to put
+pages in the writeback list, we don't have an entry in to put
+the timestamp of the write in struct_page...
 
-Has anyone tested 2.4.0-test4-pre4 without any patches?
+Maybe we want to have an active list after all and replace the
+buffer_head pointer with a pointer to another structure that
+tracks the writeback stuff that's now tracked by the buffer head?
 
-And shouldn't (in particular) streamed write be faster than 2.2 on account
-of the unified buffer cache in 2.3?
+(things like: prev, next, write_time and a few other things)
 
-Cheers
-Chris
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
