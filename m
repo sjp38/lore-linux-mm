@@ -1,27 +1,29 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@arcor.de>
+Date: Mon, 15 Jul 2002 13:34:06 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Optimize away pte_chains for single mappings
-Date: Mon, 15 Jul 2002 18:30:43 +0200
-References: <55160000.1026239746@baldur.austin.ibm.com> <E17U7Gr-0003bX-00@starship> <20020715184016.W28720@mea-ext.zmailer.org>
-In-Reply-To: <20020715184016.W28720@mea-ext.zmailer.org>
+In-Reply-To: <E17U8Qc-0003bk-00@starship>
+Message-ID: <Pine.LNX.4.44L.0207151333530.12241-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E17U8kG-0003bx-00@starship>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matti Aarnio <matti.aarnio@zmailer.org>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Daniel Phillips <phillips@arcor.de>
+Cc: Matti Aarnio <matti.aarnio@zmailer.org>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 15 July 2002 17:40, Matti Aarnio wrote:
-> In register-lacking i386 this  masking is definite punishment..
+On Mon, 15 Jul 2002, Daniel Phillips wrote:
 
-Nonsense, the value needs to be loaded into a register anyway
-before being used.
+> None of these cases apply, the low bit is always masked off before being
+> used as a pointer.
 
+Too ugly to live.
+
+Rik
 -- 
-Daniel
+Bravely reimplemented by the knights who say "NIH".
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
