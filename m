@@ -1,72 +1,45 @@
-Date: Tue, 9 Sep 2003 00:02:13 -0700
 Subject: Re: 2.6.0-test5-mm1
-Message-ID: <20030909070213.GF7314@triplehelix.org>
-References: <20030908235028.7dbd321b.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="ylS2wUBXLOxYXZFQ"
-Content-Disposition: inline
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 In-Reply-To: <20030908235028.7dbd321b.akpm@osdl.org>
-From: Joshua Kwan <joshk@triplehelix.org>
+References: <20030908235028.7dbd321b.akpm@osdl.org>
+Content-Type: text/plain
+Message-Id: <1063093989.12321.28.camel@ixodes.goop.org>
+Mime-Version: 1.0
+Date: Tue, 09 Sep 2003 00:53:09 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---ylS2wUBXLOxYXZFQ
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Mon, 2003-09-08 at 23:50, Andrew Morton wrote:
+> +group_leader-rework.patch
+> 
+>  Use the thread group leader's pgrp rather than the current thread's pgrp
+>  everywhere.
 
-On Mon, Sep 08, 2003 at 11:50:28PM -0700, Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test5=
-/2.6.0-test5-mm1/
+Missed one:
 
-Needs the following patch to compile:
+ fs/autofs/inode.c |    2 +-
+ 1 files changed, 1 insertion(+), 1 deletion(-)
 
---- mm/slab.c~	2003-09-08 23:58:31.000000000 -0700
-+++ mm/slab.c	2003-09-08 23:58:33.000000000 -0700
-@@ -2794,11 +2794,13 @@
- 		} else {
- 			kernel_map_pages(virt_to_page(objp), c->objsize/PAGE_SIZE, 1);
-=20
-+#if DEBUG
- 			if (c->flags & SLAB_RED_ZONE)
- 				printk("redzone: 0x%lx/0x%lx.\n", *dbg_redzone1(c, objp), *dbg_redzone=
-2(c, objp));
-=20
- 			if (c->flags & SLAB_STORE_USER)
- 				printk("Last user: %p.\n", *dbg_userword(c, objp));
-+#endif
- 		}
- 		spin_unlock_irqrestore(&c->spinlock, flags);
-=20
---=20
-Joshua Kwan
+diff -puN fs/autofs/inode.c~fix-pgrp fs/autofs/inode.c
+--- local-2.6/fs/autofs/inode.c~fix-pgrp	2003-09-09 00:29:35.000000000 -0700
++++ local-2.6-jeremy/fs/autofs/inode.c	2003-09-09 00:30:05.000000000 -0700
+@@ -129,7 +129,7 @@ int autofs_fill_super(struct super_block
+ 	sbi->magic = AUTOFS_SBI_MAGIC;
+ 	sbi->catatonic = 0;
+ 	sbi->exp_timeout = 0;
+-	sbi->oz_pgrp = current->pgrp;
++	sbi->oz_pgrp = process_group(current);
+ 	autofs_initialize_hash(&sbi->dirhash);
+ 	sbi->queues = NULL;
+ 	memset(sbi->symlink_bitmap, 0, sizeof(long)*AUTOFS_SYMLINK_BITMAP_LEN);
 
---ylS2wUBXLOxYXZFQ
-Content-Type: application/pgp-signature
-Content-Disposition: inline
+_
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
 
-iQIVAwUBP1169KOILr94RG8mAQIpNw//V2KYJYMvmqsDNJeud+vFwSzEZ2aZlxIN
-1fan4Y3hFjzdY2ftyi989DFRHvrVxOmDq7Nw59fIQq0VhGkDYrjvmC8RuOh8tae3
-pkfG6UngtqlsJe7GEVaGO+fkQfvCNdlcn5ps74Jaja3Isb2NqFA/pHk3cG8/T34U
-dwz6QunpxA7kQ2joptbqaD5sIUkAQ/bq2wEQHPS1OyV3rTzbPsYICbwqCbsjqPAl
-WwHulOoyqGSbbFxihUYJv9f35odZ8GEsaeD8+kZ/nHkjWbK2MAJyn+xjmE/DM+5h
-qnJFjAjzpCCTHSDZSZhbbvsFV8uukOzjIDiEaYIoPaiGMeaPQF/YR4wOTOfNxoUK
-dDQ3ni5Le8MSR2ewqmLCud22jj579KSv4LOKSTv4kx/sjHerTxe3vHHd8DOPKKY/
-owvr+qKR9aArIEOkBzCFV9hxgzRz52jhAgAlWIhMgFwsL8ScPK1sZ+EHKZossaJe
-5a6Tb3E1//hO2yspiAC1pEPae9+sZMauK8X8Pu73BuiVisfdz66OEcpCMLBViIKn
-u4o3ONg1r+manRq2zLswzgXMsJjCsuC4Tw+vEj/zBg6fkjmNCaWraF+TiKOve+ZY
-p6bP91pMSpeaXppMb9Mfl4EYmXofv3lu8qcPEzHCcSPQuoeSk43KLm+XAW6CuFix
-1EcBiNUfcEg=
-=/7Vh
------END PGP SIGNATURE-----
-
---ylS2wUBXLOxYXZFQ--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
