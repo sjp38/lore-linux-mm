@@ -1,56 +1,42 @@
-Received: from turbot.pdc.kth.se (turbot.pdc.kth.se [130.237.221.42])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA23291
-	for <linux-mm@kvack.org>; Sun, 21 Feb 1999 14:53:48 -0500
-Subject: MM question
-From: Magnus Ahltorp <map@stacken.kth.se>
-Date: 21 Feb 1999 20:53:37 +0100
-Message-ID: <ixdpv73a5z2.fsf@turbot.pdc.kth.se>
+Date: Sun, 21 Feb 1999 16:34:32 -0500 (EST)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: MM question
+In-Reply-To: <ixdpv73a5z2.fsf@turbot.pdc.kth.se>
+Message-ID: <Pine.LNX.3.95.990221161643.24011A-100000@as200.spellcast.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Magnus Ahltorp <map@stacken.kth.se>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I'm working on a Linux port of Arla, a free AFS (a distributed file
-system) client. Arla caches whole files, which means that the read and
-write file system calls are tunneled through to the cache file system
-(usually ext2).
+On 21 Feb 1999, Magnus Ahltorp wrote:
+...
+> I inserted this piece of code, and things worked quite well. After a
+> while, I was seeing new problems. Writes were not propagating properly
+> to the cache file.
 
-I implement the inode operation readpage for reads and the file
-operation write for writes. readpage gets tunneled by creating a new
-struct file and filling in the cache inode. write gets tunneled in
-much the same way. Though, I have been seeing problems when a file
-gets written to. The written data weren't always seen when doing
-reads. Someone then suggested that the folloing code be added to
-write:
+The code listed is just plain wrong -- it doesn't take into account pages
+that are already present in the page cache.  If you need to use this
+technique, take a look at mm/filemap.c:generic_file_write for an example
+of how to do this properly (mostly, find the page in the page cache, if
+not found add it; lock page in page cache). 
 
-	page = get_free_page(GFP_KERNEL);
-	if (!page)
-	    invalidate_inode_pages(inode);
-	else {
-	    int pos = file->f_pos;
-	    int cnt = count;
-	    int blk;
-	    char *data=(char *)page;
+> Does anyone have any suggestions on how this really should be done?
 
-	    while (cnt > 0) {
-		blk = cnt;
-		if (blk > PAGE_SIZE)
-		    blk = PAGE_SIZE;
-		copy_from_user(data, buf, blk);
-		update_vm_cache(inode, pos, data, blk);
-		pos += blk;
-		cnt -= blk;
-	    }
-	    free_page(page);
-	}
+Could you clairify how you're doing things?  Are pages cached in the
+kernel owned by your filesystem's inode or ext2's?  The hint I'm getting
+from the code you quoted is the both are storing the data, which is
+inefficient.  The easiest thing to do would be to tunnel all operations to
+the ext2 inode -- your filesystem should not have a readpage function.
+Rather, mmap(), read() and write() all receive the ext2 inode of the file,
+so that all pages in memory are owned by the ext2 inode, and your inode is
+merely an indirect handle that validates the cache.  How's that sound?
 
-I inserted this piece of code, and things worked quite well. After a
-while, I was seeing new problems. Writes were not propagating properly
-to the cache file.
+		-ben
 
-Does anyone have any suggestions on how this really should be done?
 
-/Magnus
-map@stacken.kth.se
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
