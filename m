@@ -1,36 +1,31 @@
-Date: Thu, 24 Mar 2005 22:03:22 +0500
-From: "Julio Galindo" <frantz@doneasy.com>
-Message-Id: <CFE3.AA79.9A21-003068298B8C@mac.com>
-Subject: High rates? Not with us! low fixed rate
-Return-Path: <frantz@doneasy.com>
-To: io@kvack.org
-Cc: jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.orgmo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.org
+Date: Thu, 24 Mar 2005 18:20:52 -0100
+From: "S.Kaplan3@yahoo.com" <N.Helms8@excite.com>
+Message-ID: <2D6A.A7EB.20.905@dg.net>
+Subject: Pre-approved Application for linux-aio@kvack.org Thu, 24 Mar 2005 11:26:52 -0800
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-aio@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-
 
 Hello,
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+We sent you an email a while ago, because you now qualify
+for a much lower rate based on the biggest rate drop in years.
 
- You have qualified for the lowest rate in years...
+You can now get $327,000 for as little as $617 a month!
+Bad credit? Doesn't matter, ^low rates are fixed no matter what!
 
- You could get over $380,000 for as little as $500 a month!
+Follow this link to process your application and a 24 hour approval:
 
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+http://www.lbaloan.net/?id=c77
 
- 
- To get a free, no obli,gation consultation click below:
-
- http://www.ok-ref-yes.net/nowss.asp
-
+Best Regards,
+Bessie Cross
 
 
- Best Regards,
-
- Yvonne Diggs
- 
- to be remov(ed:	http://www.ok-ref-yes.net/gone.asp
-
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+http://www.lbaloan.net/byebye.php
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
