@@ -1,63 +1,52 @@
-From: Roger Larsson <roger.larsson@norran.net>
-Date: Sat, 18 Nov 2000 00:13:29 +0100
-Content-Type: text/plain;
-  charset="iso-8859-1"
-References: <LAW-F137bdkSmLAztxc000006da@hotmail.com>
-In-Reply-To: <LAW-F137bdkSmLAztxc000006da@hotmail.com>
-Subject: Re: questions about LRU
-MIME-Version: 1.0
-Message-Id: <00111800132900.01321@dox>
-Content-Transfer-Encoding: 8bit
+Message-ID: <20001118214906.D382@bug.ucw.cz>
+Date: Sat, 18 Nov 2000 21:49:06 +0100
+From: Pavel Machek <pavel@suse.cz>
+Subject: Re: KPATCH] Reserve VM for root (was: Re: Looking for better VM)
+References: <200011142012.VAA00150@bug.ucw.cz> <Pine.LNX.4.30.0011161513480.20626-100000@fs129-190.f-secure.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.30.0011161513480.20626-100000@fs129-190.f-secure.com>; from Szabolcs Szakacsits on Thu, Nov 16, 2000 at 04:01:07PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Min San Co <mc343@hotmail.com>, linux-mm@kvack.org
+To: Szabolcs Szakacsits <szaka@f-secure.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 18 November 2000 00:02, Min San Co wrote:
-> Hi!
->
-> I am trying to implement the LRU page replacement scheme (Least-Recently
-> Used).  My idea is to what create a queue that contains pointers to every
-> page held by every process in the system.  This queue should be sorted to
-> reflect the most recently used pages, which should be at the front.  I am
-> thinking of manipulating this list on every timer interrupt (ie 10 msec).
+Hi!
 
-pages are already placed in a ring using the page struct field lru(!)
+> >    >main() { while(1) if (fork()) malloc(1); }
+> >    >With the patch below I could ssh to the host and killall the offending
+> >    >processes. To enable reserving VM space for root do
+> > what about main() { while(1) system("ftp localhost &"); }
+> > This. or so,ething similar should allow you to kill your machine
+> > even with your patch from normal user account
+> 
+> This or something similar didn't kill the box [I've tried all local
+> DoS from Packetstorm that I could find]. Please send a working
 
-> After every interrupt, the ordering of pages on the queue will be updated
-> based on what pages have been accessed since the last timer interrupt.  I
-> am thinking of using the reference bit to determine which page has been
-> accessed since the last timer interrupt.  The pages that have been recently
-> used will be moved to the front of the queue.
+Sorry, I did not have working example, just feeling that something
+like that should be possible.
 
-This will not scale - think about 64GB machines... You would need to scan all
-pages every timer interrupt...
+> Note, I'm not discussing "local user can kill the box without limits",
+> I say Linux "deadlocks" [it starts its own autonom life and usually
+> your only chance is to hit the reset button] when there is continuous
+> VM pressure by user applications. If you think fork() kills the box
 
->
-> Any ideas on where to put the queue?
->
-Use the existing queues - like active_list (introduced in 2.4.0-test9)
-It is scanned but slower than you suggest...
+That's clear bug, right? It should not deadlock, it should go to
+OOM-killer and kill someone.
 
-> Cheers!
->
-> Max C.
->
-> _________________________________________________________________________
-> Get Your Private, Free E-mail from MSN Hotmail at http://www.hotmail.com.
->
-> Share information about yourself, create your own public profile at
-> http://profiles.msn.com.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux.eu.org/Linux-MM/
+> BTW, I have a new version of the patch with that Linux behaves much
+> better from root's point of view when the memory is more significantly
+> overcommited. I'll post it if I have time [and there is interest].
 
+There is interest. Yesterday atrey died due userland process eating
+all memory.
+								Pavel
+PS: atrey is machine that gets my mail, so it is kind of important to
+me.
 -- 
---
-Home page:
-  http://www.norran.net/nra02596/
+I'm pavel@ucw.cz. "In my country we have almost anarchy and I don't care."
+Panos Katsaloulis describing me w.r.t. patents at discuss@linmodems.org
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
