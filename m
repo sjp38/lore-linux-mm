@@ -1,7 +1,7 @@
-Date: Thu, 25 Mar 2004 20:06:12 +0100
+Date: Thu, 25 Mar 2004 20:16:53 +0100
 From: Ingo Molnar <mingo@elte.hu>
 Subject: Re: 2.6.5-rc2-mm3 blizzard of "bad: scheduling while atomic" with PREEMPT
-Message-ID: <20040325190612.GA12383@elte.hu>
+Message-ID: <20040325191653.GA12785@elte.hu>
 References: <1080237733.2269.31.camel@spc0.esa.lanl.gov> <20040325103506.19129deb.akpm@osdl.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,20 +13,22 @@ To: Andrew Morton <akpm@osdl.org>
 Cc: Steven Cole <elenstev@mesatop.com>, linux-mm@kvack.org, Nick Piggin <nickpiggin@yahoo.com.au>
 List-ID: <linux-mm.kvack.org>
 
-* Andrew Morton <akpm@osdl.org> wrote:
+> bad: scheduling while atomic!
+> Call Trace:
+>  [<c011d0f0>] schedule+0x3c/0x58c
+>  [<c0109f69>] dump_stack+0x19/0x20
+>  [<c011f146>] __might_sleep+0xaa/0xb4
+>  [<c011d91a>] wait_for_completion+0xae/0x110
+>  [<c011d688>] default_wake_function+0x0/0x1c
+>  [<c011d688>] default_wake_function+0x0/0x1c
+>  [<c011be8b>] sched_migrate_task+0x6b/0x9c
+>  [<c011c023>] sched_balance_exec+0x63/0x8c
 
-> >  Recompiling without PREEMPT made this go away.
-> 
-> err, yes.  Ingo broke it ;)
+the patch against -mm3 is at:
 
-ok, this replacement patch should fix it:
+	redhat.com/~mingo/scheduler-patches/sched-2.6.5-rc2-mm3-A0
 
-  http://redhat.com/~mingo/scheduler-patches/sched-2.6.5-rc2-mm2-A5
-
-(i'll soon send a fix against -mm3 too.)
-
-the patch also includes prototype fixes for the NUMA fork() balancing
-problem.
+this also includes the fork-time balancing changes.
 
 	Ingo
 --
