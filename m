@@ -1,34 +1,139 @@
-Date: Wed, 24 Dec 2003 05:09:42 -0800
+Date: Wed, 24 Dec 2003 06:26:48 -0800
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.6.0-mm1
-Message-ID: <20031224130942.GL22443@holomorphy.com>
-References: <20031222211131.70a963fb.akpm@osdl.org>
+Message-ID: <20031224142648.GM22443@holomorphy.com>
+References: <20031222211131.70a963fb.akpm@osdl.org> <20031224130942.GL22443@holomorphy.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="Cp3Cp8fzgozWLBWL"
 Content-Disposition: inline
-In-Reply-To: <20031222211131.70a963fb.akpm@osdl.org>
+In-Reply-To: <20031224130942.GL22443@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 22, 2003 at 09:11:31PM -0800, Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test11/2.6.0-mm1/
-> Quite a lot of new material here.  It would be appreciated if people who have
-> significant patches in -mm could retest please.
+--Cp3Cp8fzgozWLBWL
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-ptecache refresh. Includes the shrink_slab() and smp_local_irq_*
-suggestions as well as a fix for IPI recursion found while running
-hackbench on -wli, moving the "don't shrink lowmem slabs if gfp_mask
-wants highmem" logic into the shrinkers themselves, and converting
-shrink_pagetable_cache() to use on_each_cpu().
+On Wed, Dec 24, 2003 at 05:09:42AM -0800, William Lee Irwin III wrote:
+> ptecache refresh. Includes the shrink_slab() and smp_local_irq_*
+> suggestions as well as a fix for IPI recursion found while running
+> hackbench on -wli, moving the "don't shrink lowmem slabs if gfp_mask
+> wants highmem" logic into the shrinkers themselves, and converting
+> shrink_pagetable_cache() to use on_each_cpu().
+> How's this look?
 
-How's this look?
+This tries to adjust the reclaim logic so it returns status like other
+shrinkers attached both incrementally and as a whole-hog replacement.
+
+BTW
+                delta = scanned * shrinker->seeks;
+                delta *= (*shrinker->shrinker)(0, gfp_mask);
+                do_div(delta, pages + 1);
+                shrinker->nr += delta;
+                if (shrinker->nr > SHRINK_BATCH) {
+                        long nr_to_scan = shrinker->nr;
+
+more aggressively reclaims slabs requiring _more_ seeks to refill.
 
 
 -- wli
 
+--Cp3Cp8fzgozWLBWL
+Content-Type: text/plain; charset=us-ascii
+Content-Description: fix_slab_shrink.patch
+Content-Disposition: attachment; filename=fix_slab_shrink
+
+diff -u mm1-2.6.0-2/arch/i386/mm/pgtable.c mm1-2.6.0-2/arch/i386/mm/pgtable.c
+--- mm1-2.6.0-2/arch/i386/mm/pgtable.c	2003-12-24 04:40:50.000000000 -0800
++++ mm1-2.6.0-2/arch/i386/mm/pgtable.c	2003-12-24 06:02:29.000000000 -0800
+@@ -374,13 +374,18 @@
+ 	kmem_cache_free(pgd_cache, pgd);
+ }
+ 
+-static void shrink_cpu_pagetable_cache(void *__gfp_mask)
++struct pagetable_shrink {
++	int gfp_mask;
++	atomic_t nr;
++};
++
++static void shrink_cpu_pagetable_cache(void *__shrink)
+ {
+-	int zone, high, gfp_mask = (int)__gfp_mask;
+-	unsigned long flags;
++	struct pagetable_shrink *shrink = (struct pagetable_shrink *)__shrink;
+ 	struct mmu_gather *tlb = &per_cpu(mmu_gathers, get_cpu());
++	int zone, high = !!(shrink->gfp_mask & __GFP_HIGHMEM);
++	unsigned long flags;
+ 
+-	high = !!(gfp_mask & __GFP_HIGHMEM);
+ 	local_irq_save(flags);
+ 	if (!tlb->nr_pte_ready)
+ 		goto out;
+@@ -396,17 +401,55 @@
+ 				&tlb->ready_list[zone],
+ 				0);
+ 		tlb->nr_pte_ready -= tlb->ready_count[zone];
++		atomic_sub(tlb->ready_count[zone], &shrink->nr);
+ 		tlb->ready_count[zone] = 0;
++		if (atomic_read(&shrink->nr) <= 0)
++			goto out;
+ 	}
+ out:
+ 	local_irq_restore(flags);
+ 	put_cpu();
+ }
+ 
++static int pagetable_shrinkage_possible(int gfp_mask)
++{
++	int cpu, total = 0;
++
++	for (cpu = 0; cpu < NR_CPUS; ++cpu) {
++		struct mmu_gather *tlb;
++		if (!cpu_online(cpu))
++			continue;
++		tlb = &per_cpu(mmu_gathers, cpu);
++		if ((gfp_mask & __GFP_HIGHMEM) || !(GFP_PTE & __GFP_HIGHMEM))
++			total += tlb->nr_pte_ready;
++		else {
++			int zone;
++			for (zone = 0; zone < MAX_ZONE_ID; ++zone) {
++				if (!zone_high(zone_table[zone]))
++					total += tlb->ready_count[zone];
++			}
++		}
++	}
++	return total;
++}
++
+ static int shrink_pagetable_cache(int nr_to_scan, unsigned int gfp_mask)
+ {
+-	on_each_cpu(shrink_cpu_pagetable_cache, (void *)gfp_mask, 1, 1);
+-	return 1;
++	int possible;
++	if ((gfp_mask & __GFP_HIGHMEM) && !(GFP_PTE & __GFP_HIGHMEM))
++		return 0;
++	possible = pagetable_shrinkage_possible(gfp_mask);
++	if (!nr_to_scan)
++		return possible;
++	else if (!possible)
++		return 0;
++	else {
++		struct pagetable_shrink shrink;
++		shrink.gfp_mask = gfp_mask;
++		atomic_set(&shrink.nr, nr_to_scan);
++		on_each_cpu(shrink_cpu_pagetable_cache, &shrink, 1, 1);
++		return pagetable_shrinkage_possible(gfp_mask);
++	}
+ }
+ 
+ static __init int init_pagetable_cache_shrinker(void)
+
+--Cp3Cp8fzgozWLBWL
+Content-Type: text/plain; charset=us-ascii
+Content-Description: ptecache-2.6.0-mm1-1
+Content-Disposition: attachment; filename="mm1-2.6.0-2"
 
 diff -prauN mm1-2.6.0-1/arch/i386/mm/init.c mm1-2.6.0-2/arch/i386/mm/init.c
 --- mm1-2.6.0-1/arch/i386/mm/init.c	2003-12-24 04:02:51.000000000 -0800
@@ -44,7 +149,7 @@ diff -prauN mm1-2.6.0-1/arch/i386/mm/init.c mm1-2.6.0-2/arch/i386/mm/init.c
  		/*
 diff -prauN mm1-2.6.0-1/arch/i386/mm/pgtable.c mm1-2.6.0-2/arch/i386/mm/pgtable.c
 --- mm1-2.6.0-1/arch/i386/mm/pgtable.c	2003-12-24 04:02:51.000000000 -0800
-+++ mm1-2.6.0-2/arch/i386/mm/pgtable.c	2003-12-24 04:40:50.000000000 -0800
++++ mm1-2.6.0-2/arch/i386/mm/pgtable.c	2003-12-24 06:02:29.000000000 -0800
 @@ -1,5 +1,6 @@
  /*
   *  linux/arch/i386/mm/pgtable.c
@@ -141,17 +246,22 @@ diff -prauN mm1-2.6.0-1/arch/i386/mm/pgtable.c mm1-2.6.0-2/arch/i386/mm/pgtable.
  }
  
  void pmd_ctor(void *pmd, kmem_cache_t *cache, unsigned long flags)
-@@ -320,3 +374,45 @@ out_free:
+@@ -320,3 +374,88 @@ out_free:
  	kmem_cache_free(pgd_cache, pgd);
  }
  
-+static void shrink_cpu_pagetable_cache(void *__gfp_mask)
-+{
-+	int zone, high, gfp_mask = (int)__gfp_mask;
-+	unsigned long flags;
-+	struct mmu_gather *tlb = &per_cpu(mmu_gathers, get_cpu());
++struct pagetable_shrink {
++	int gfp_mask;
++	atomic_t nr;
++};
 +
-+	high = !!(gfp_mask & __GFP_HIGHMEM);
++static void shrink_cpu_pagetable_cache(void *__shrink)
++{
++	struct pagetable_shrink *shrink = (struct pagetable_shrink *)__shrink;
++	struct mmu_gather *tlb = &per_cpu(mmu_gathers, get_cpu());
++	int zone, high = !!(shrink->gfp_mask & __GFP_HIGHMEM);
++	unsigned long flags;
++
 +	local_irq_save(flags);
 +	if (!tlb->nr_pte_ready)
 +		goto out;
@@ -167,17 +277,55 @@ diff -prauN mm1-2.6.0-1/arch/i386/mm/pgtable.c mm1-2.6.0-2/arch/i386/mm/pgtable.
 +				&tlb->ready_list[zone],
 +				0);
 +		tlb->nr_pte_ready -= tlb->ready_count[zone];
++		atomic_sub(tlb->ready_count[zone], &shrink->nr);
 +		tlb->ready_count[zone] = 0;
++		if (atomic_read(&shrink->nr) <= 0)
++			goto out;
 +	}
 +out:
 +	local_irq_restore(flags);
 +	put_cpu();
 +}
 +
++static int pagetable_shrinkage_possible(int gfp_mask)
++{
++	int cpu, total = 0;
++
++	for (cpu = 0; cpu < NR_CPUS; ++cpu) {
++		struct mmu_gather *tlb;
++		if (!cpu_online(cpu))
++			continue;
++		tlb = &per_cpu(mmu_gathers, cpu);
++		if ((gfp_mask & __GFP_HIGHMEM) || !(GFP_PTE & __GFP_HIGHMEM))
++			total += tlb->nr_pte_ready;
++		else {
++			int zone;
++			for (zone = 0; zone < MAX_ZONE_ID; ++zone) {
++				if (!zone_high(zone_table[zone]))
++					total += tlb->ready_count[zone];
++			}
++		}
++	}
++	return total;
++}
++
 +static int shrink_pagetable_cache(int nr_to_scan, unsigned int gfp_mask)
 +{
-+	on_each_cpu(shrink_cpu_pagetable_cache, (void *)gfp_mask, 1, 1);
-+	return 1;
++	int possible;
++	if ((gfp_mask & __GFP_HIGHMEM) && !(GFP_PTE & __GFP_HIGHMEM))
++		return 0;
++	possible = pagetable_shrinkage_possible(gfp_mask);
++	if (!nr_to_scan)
++		return possible;
++	else if (!possible)
++		return 0;
++	else {
++		struct pagetable_shrink shrink;
++		shrink.gfp_mask = gfp_mask;
++		atomic_set(&shrink.nr, nr_to_scan);
++		on_each_cpu(shrink_cpu_pagetable_cache, &shrink, 1, 1);
++		return pagetable_shrinkage_possible(gfp_mask);
++	}
 +}
 +
 +static __init int init_pagetable_cache_shrinker(void)
@@ -538,6 +686,8 @@ diff -prauN mm1-2.6.0-1/mm/vmscan.c mm1-2.6.0-2/mm/vmscan.c
  			if (zone->all_unreclaimable)
  				continue;
  			if (zone->pages_scanned > zone->present_pages * 2)
+
+--Cp3Cp8fzgozWLBWL--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
