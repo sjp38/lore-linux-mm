@@ -1,28 +1,31 @@
-Date: Thu, 7 Aug 2003 14:24:30 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Thu, 7 Aug 2003 14:28:07 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: 2.6.0-test2-mm5
-Message-ID: <20030807212430.GA32488@holomorphy.com>
-References: <20030806223716.26af3255.akpm@osdl.org> <Pine.LNX.4.44.0308071819380.4791-100000@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Message-Id: <20030807142807.3e4a284c.akpm@osdl.org>
 In-Reply-To: <Pine.LNX.4.44.0308071819380.4791-100000@logos.cnet>
+References: <20030806223716.26af3255.akpm@osdl.org>
+	<Pine.LNX.4.44.0308071819380.4791-100000@logos.cnet>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 07, 2003 at 06:21:27PM -0300, Marcelo Tosatti wrote:
-> EISA bus registered
-> PCI: PCI BIOS revision 2.10 entry at 0xfd26c, last bus=15
+Marcelo Tosatti <marcelo@conectiva.com.br> wrote:
+>
 > PCI: Using configuration type 1
-> Locked up solid there. Want more info ? 
+> 
+> 
+>  Locked up solid there. Want more info ? 
 
-Absolutely.
+doh.  I don't even know who to lart for that one!
 
+Could you please boot with "initcall_debug" and then resolve the final
+couple of addresses in System.map?  That'll narrow it down.
 
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
