@@ -1,53 +1,30 @@
-Date: Mon, 14 Aug 2000 19:30:04 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [prePATCH] new VM for linux-2.4.0-test4
-In-Reply-To: <Pine.LNX.4.21.0008141909040.1599-200000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0008141928370.1599-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <Pine.LNX.4.21.0008141928372.1599@duckman.distro.conectiva>
+Received: from khromy.ath.cx ([12.77.146.89]) by mtiwmhc23.worldnet.att.net
+          (InterMail vM.4.01.02.39 201-229-119-122) with SMTP
+          id <20000815055110.JRMQ17157.mtiwmhc23.worldnet.att.net@khromy.ath.cx>
+          for <linux-mm@kvack.org>; Tue, 15 Aug 2000 05:51:10 +0000
+Date: Tue, 15 Aug 2000 01:51:08 -0400
+From: khromy <khromy@khromy.ath.cx>
+Subject: 2.4.0-t4-vmpatch results
+Message-ID: <20000815015108.A28043@khromy.ath.cx>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.rutgers.edu
+To: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 Aug 2000, Rik van Riel wrote:
+I was just testing the 2.4.0-t4-vmpatch patch on test4 and I was very happy
+with the performance with everything I was running.  I sent Rik the
+results of vmstat and some extra information accouple of times durring my
+tests along with what I was doing at the time.  It was very smooth and 
+responsive basicly throughout the tests.
 
-> here is version #6 of the new VM patch, against 2.4.0-test4.
-> 
-> Thanks to watashi on #kernelnewbies, the memory leak has been
-> removed from the code and this patch _actually works_...
+Regards,
+	khromy
 
-AAARRRGGGHHHHH......
-
-OK, I overlooked one of the bad bad bad mistakes watashi 
-saw .. here is an -incremental- patch to fix the last
-possible source of memory leakage...
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
-
-
---- linux-2.4.0-test4/mm/page_alloc.c.p6	Mon Aug 14 19:27:52 2000
-+++ linux-2.4.0-test4/mm/page_alloc.c	Mon Aug 14 19:28:08 2000
-@@ -373,7 +373,7 @@
- 			if (direct_reclaim)
- 				page = reclaim_page(z);
- 			if (!page)
--				rmqueue(z, order);
-+				page = rmqueue(z, order);
- 			if (page)
- 				return page;
- 		}
-
+-- 
+L1:	khromy		;khromy@khromy.ath.cx
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
