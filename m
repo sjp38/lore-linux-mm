@@ -1,208 +1,140 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71]) by fgwmail5.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i7VAgG9B029943 for <linux-mm@kvack.org>; Tue, 31 Aug 2004 19:42:16 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s6.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i7VAgGM7000769 for <linux-mm@kvack.org>; Tue, 31 Aug 2004 19:42:16 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from fjmail504.fjmail.jp.fujitsu.com (fjmail504-0.fjmail.jp.fujitsu.com [10.59.80.102]) by s6.gw.fujitsu.co.jp (8.12.11)
-	id i7VAgF0n014874 for <linux-mm@kvack.org>; Tue, 31 Aug 2004 19:42:16 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from jp.fujitsu.com
- (fjscan501-0.fjmail.jp.fujitsu.com [10.59.80.120]) by
- fjmail504.fjmail.jp.fujitsu.com
- (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I3B007XY4EELE@fjmail504.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Tue, 31 Aug 2004 19:42:15 +0900 (JST)
-Date: Tue, 31 Aug 2004 19:47:27 +0900
-From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC] buddy allocator withou bitmap(2) [3/3]
-Message-id: <4134573F.6060006@jp.fujitsu.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
+Date: Tue, 31 Aug 2004 07:23:42 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: Kernel 2.6.8.1: swap storm of death - nr_requests > 1024 on swap partition
+Message-ID: <20040831102342.GA3207@logos.cnet>
+References: <20040829141718.GD10955@suse.de> <20040829131824.1b39f2e8.akpm@osdl.org> <20040829203011.GA11878@suse.de> <20040829135917.3e8ffed8.akpm@osdl.org> <20040830152025.GA2901@logos.cnet> <41336B6F.6050806@pandora.be> <20040830203339.GA2955@logos.cnet> <20040830153730.18e431c2.akpm@osdl.org> <20040830221727.GE2955@logos.cnet> <20040830165100.535e68e5.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040830165100.535e68e5.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel ML <linux-kernel@vger.kernel.org>
-Cc: LHMS <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: karl.vogel@pandora.be, axboe@suse.de, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is the last.
-Implements __free_pages_bulk() stuff.
+On Mon, Aug 30, 2004 at 04:51:00PM -0700, Andrew Morton wrote:
+> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+> >
+> > What you think of this, which tries to address your comments
+> 
+> Suggest you pass the scan_control structure down into pageout(), stick
+> `inflight' into struct scan_control and use some flag in scan_control to
 
--- Kame
+Done the scan_control modifications.
 
-------------------------------------------------
+> ensure that we only throttle once per try_to_free_pages()/blaance_pgdat()
+> pass.
 
-This patch removes bitmap operation from free_pages()
+Throttling once is enough
 
-Instead of using bitmap, this patch records page's order in
-page struct itself, page->private field.
+I added a 
 
-"Does a page's buddy page exist or not ?" is checked by following.
-------------------------
-if ((address of buddy is smaller than that of page) &&
-    (page->flags & PG_buddyend))
-    this page has no buddy in this order.
-------------------------
++		 if (sc->throttled < 5) {
++                       blk_congestion_wait(WRITE, HZ/5);
++                       sc->throttled++;
++               }
 
+To loop five times max per try_to_free_pages()/balance_pgdat().
 
+Because only one blk_congestion_wait(WRITE, HZ/5)
+makes my 64MB boot testcase with 8192 nr_requests fail. The OOM killer
+triggers prematurely.
 
+> See, page reclaim is now, as much as possible, "batched".  Think of it as
+> operating in units of 32 pages at a time.  We should only examine the dirty
+> memory thresholds and throttle once per "batch", not once per page.
 
+That should do it 
 
-
-
----
-
- linux-2.6.9-rc1-mm1-k-kamezawa/mm/page_alloc.c |   87 +++++++++++++++++--------
- 1 files changed, 60 insertions(+), 27 deletions(-)
-
-diff -puN mm/page_alloc.c~eliminate-bitmap-free mm/page_alloc.c
---- linux-2.6.9-rc1-mm1-k/mm/page_alloc.c~eliminate-bitmap-free	2004-08-31 18:37:21.428480424 +0900
-+++ linux-2.6.9-rc1-mm1-k-kamezawa/mm/page_alloc.c	2004-08-31 18:37:21.434479512 +0900
-@@ -157,6 +157,27 @@ static void destroy_compound_page(struct
- #endif		/* CONFIG_HUGETLB_PAGE */
-
+--- mm/vmscan.c.orig	2004-08-30 20:19:05.000000000 -0300
++++ mm/vmscan.c	2004-08-31 08:30:08.323989416 -0300
+@@ -73,6 +73,10 @@
+ 	unsigned int gfp_mask;
+ 
+ 	int may_writepage;
++
++	int inflight;
++
++	int throttled; /* how many times have we throttled on VM inflight IO limit */
+ };
+ 
  /*
-+ * This function checks whether a page is free && is the buddy
-+ * we can do coalesce if
-+ * (a) the buddy is free and
-+ * (b) the buddy is on the buddy system
-+ * (c) the buddy has the same order.
-+ * for recording page's order, we use private field and PG_private.
+@@ -245,8 +249,30 @@
+ 	return page_count(page) - !!PagePrivate(page) == 2;
+ }
+ 
+-static int may_write_to_queue(struct backing_dev_info *bdi)
++/*
++ * This function calculates the maximum pinned-for-IO memory
++ * the page eviction threads can generate. If we hit the max,
++ * we throttle taking a nap.
 + *
-+ * Because page_count(page) == 0, and zone->lock is aquired.
-+ * Atomic page->flags operation is needless here.
++ * Returns true if we cant writeout.
 + */
-+static inline int page_is_buddy(struct page *page, int order)
++int vm_eviction_limits(struct scan_control *sc)
 +{
-+	if (PagePrivate(page) &&
-+	    (page_order(page) == order) &&
-+	    !(page->flags & (1 << PG_reserved)) &&
-+            page_count(page) == 0)
-+		return 1;
-+	return 0;
++        if (sc->inflight > (totalram_pages * vm_dirty_ratio) / 100)  {
++		if (sc->throttled < 5) {
++			blk_congestion_wait(WRITE, HZ/5);
++			sc->throttled++;
++		}
++                return 1;
++        }
++        return 0;
 +}
 +
-+/*
-  * Freeing function for a buddy system allocator.
-  *
-  * The concept of a buddy system is to maintain direct-mapped table
-@@ -168,9 +189,12 @@ static void destroy_compound_page(struct
-  * at the bottom level available, and propagating the changes upward
-  * as necessary, plus some accounting needed to play nicely with other
-  * parts of the VM system.
-- * At each level, we keep one bit for each pair of blocks, which
-- * is set to 1 iff only one of the pair is allocated.  So when we
-- * are allocating or freeing one, we can derive the state of the
-+ *
-+ * At each level, we keep a list of pages, which are head of chunk of
-+ * pages at the level. A page, which is a head of chunks, has its order
-+ * in page structure itself and PG_private flag is set. we can get an
-+ * order of a page by calling  page_order().
-+ * So we are allocating or freeing one, we can derive the state of the
-  * other.  That is, if we allocate a small block, and both were
-  * free, the remainder of the region must be split into blocks.
-  * If a block is freed, and its buddy is also free, then this
-@@ -180,42 +204,53 @@ static void destroy_compound_page(struct
-  */
-
- static inline void __free_pages_bulk (struct page *page, struct page *base,
--		struct zone *zone, struct free_area *area, unsigned int order)
-+		struct zone *zone, unsigned int order)
++static int may_write_to_queue(struct backing_dev_info *bdi, struct scan_control *sc)
  {
--	unsigned long page_idx, index, mask;
--
-+	unsigned long page_idx, mask;
-+	struct page *coalesced_page;
-+	
- 	if (order)
- 		destroy_compound_page(page, order);
++	if (vm_eviction_limits(sc)) /* Check VM writeout limit */
++		return 0;
 +
- 	mask = (~0UL) << order;
- 	page_idx = page - base;
- 	if (page_idx & ~mask)
- 		BUG();
--	index = page_idx >> (1 + order);
--
- 	zone->free_pages += 1 << order;
--	while (order < MAX_ORDER-1) {
--		struct page *buddy1, *buddy2;
-+	BUG_ON(bad_range(zone,page));
-
--		BUG_ON(area >= zone->free_area + MAX_ORDER);
--		if (!__test_and_change_bit(index, area->map))
-+	while (order < MAX_ORDER-1) {
-+		struct page *buddy;
-+		int buddy_idx;
-+		
-+		buddy_idx = (page_idx ^ (1 << order));
-+		
-+		if ((buddy_idx < page_idx) &&
-+		    PageBuddyend(base + page_idx))
-+			/*
-+			 * this page is lower end of mem_map
-+			 * there is no valid buddy.
-+			 */
-+			break;
-+		
-+		buddy = base + buddy_idx;
-+		if (!page_is_buddy(buddy, order))
- 			/*
- 			 * the buddy page is still allocated.
- 			 */
- 			break;
--
--		/* Move the buddy up one level. */
--		buddy1 = base + (page_idx ^ (1 << order));
--		buddy2 = base + page_idx;
--		BUG_ON(bad_range(zone, buddy1));
--		BUG_ON(bad_range(zone, buddy2));
--		list_del(&buddy1->lru);
--		mask <<= 1;
- 		order++;
--		area++;
--		index >>= 1;
-+		mask <<= 1;
- 		page_idx &= mask;
--	}
--	list_add(&(base + page_idx)->lru, &area->free_list);
-+		list_del(&buddy->lru);
-+		/* for propriety of PG_private bit, we clear it */
-+		ClearPagePrivate(buddy);
-+	}
-+	/* record the final order of the page */
-+	coalesced_page = base + page_idx;
-+	SetPagePrivate(coalesced_page);
-+	set_page_order(coalesced_page,order);
-+	list_add(&coalesced_page->lru, &zone->free_area[order].free_list);
- }
-
- static inline void free_pages_check(const char *function, struct page *page)
-@@ -253,12 +288,10 @@ free_pages_bulk(struct zone *zone, int c
- 		struct list_head *list, unsigned int order)
+ 	if (current_is_kswapd())
+ 		return 1;
+ 	if (current_is_pdflush())	/* This is unlikely, but why not... */
+@@ -286,7 +312,7 @@
+ /*
+  * pageout is called by shrink_list() for each dirty page. Calls ->writepage().
+  */
+-static pageout_t pageout(struct page *page, struct address_space *mapping)
++static pageout_t pageout(struct page *page, struct address_space *mapping, struct scan_control *sc)
  {
- 	unsigned long flags;
--	struct free_area *area;
- 	struct page *base, *page = NULL;
- 	int ret = 0;
-
- 	base = zone->zone_mem_map;
--	area = zone->free_area + order;
- 	spin_lock_irqsave(&zone->lock, flags);
- 	zone->all_unreclaimable = 0;
- 	zone->pages_scanned = 0;
-@@ -266,7 +299,7 @@ free_pages_bulk(struct zone *zone, int c
- 		page = list_entry(list->prev, struct page, lru);
- 		/* have to delete it as __free_pages_bulk list manipulates */
- 		list_del(&page->lru);
--		__free_pages_bulk(page, base, zone, area, order);
-+		__free_pages_bulk(page, base, zone, order);
- 		ret++;
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
-
-_
-
+ 	/*
+ 	 * If the page is dirty, only perform writeback if that write
+@@ -311,7 +337,7 @@
+ 		return PAGE_KEEP;
+ 	if (mapping->a_ops->writepage == NULL)
+ 		return PAGE_ACTIVATE;
+-	if (!may_write_to_queue(mapping->backing_dev_info))
++	if (!may_write_to_queue(mapping->backing_dev_info, sc))
+ 		return PAGE_KEEP;
+ 
+ 	if (clear_page_dirty_for_io(page)) {
+@@ -421,7 +447,7 @@
+ 				goto keep_locked;
+ 
+ 			/* Page is dirty, try to write it out here */
+-			switch(pageout(page, mapping)) {
++			switch(pageout(page, mapping, sc)) {
+ 			case PAGE_KEEP:
+ 				goto keep_locked;
+ 			case PAGE_ACTIVATE:
+@@ -807,6 +833,7 @@
+ 		nr_inactive = 0;
+ 
+ 	sc->nr_to_reclaim = SWAP_CLUSTER_MAX;
++	sc->throttled = 0;
+ 
+ 	while (nr_active || nr_inactive) {
+ 		if (nr_active) {
+@@ -819,6 +846,7 @@
+ 		if (nr_inactive) {
+ 			sc->nr_to_scan = min(nr_inactive,
+ 					(unsigned long)SWAP_CLUSTER_MAX);
++			sc->inflight = read_page_state(nr_writeback);
+ 			nr_inactive -= sc->nr_to_scan;
+ 			shrink_cache(zone, sc);
+ 			if (sc->nr_to_reclaim <= 0)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
