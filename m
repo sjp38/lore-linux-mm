@@ -1,30 +1,56 @@
-Received: from smtp01.mail.gol.com (smtp01.mail.gol.com [203.216.5.11])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA08705
-	for <linux-mm@kvack.org>; Sat, 20 Feb 1999 07:12:38 -0500
-Message-ID: <36CEA72C.7B86B221@earthling.net>
-Date: Sat, 20 Feb 1999 21:14:36 +0900
-From: Neil Booth <NeilB@earthling.net>
-MIME-Version: 1.0
-Subject: Re: PATCH - bug in vfree
-References: <36CEA095.D5EA37B5@earthling.net>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from turbot.pdc.kth.se (turbot.pdc.kth.se [130.237.221.42])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA23291
+	for <linux-mm@kvack.org>; Sun, 21 Feb 1999 14:53:48 -0500
+Subject: MM question
+From: Magnus Ahltorp <map@stacken.kth.se>
+Date: 21 Feb 1999 20:53:37 +0100
+Message-ID: <ixdpv73a5z2.fsf@turbot.pdc.kth.se>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Neil Booth wrote:
+I'm working on a Linux port of Arla, a free AFS (a distributed file
+system) client. Arla caches whole files, which means that the read and
+write file system calls are tunneled through to the cache file system
+(usually ext2).
 
-> More deeply:- Close inspection of get_vm_area reveals that
-> (intentionally?) it does NOT insist there be a cushion page behind a VMA
-> that is placed in front of a previously-allocated VMA, it ONLY
-> guarantees that a cushion page lies in front of newly-allocated VMAs.
+I implement the inode operation readpage for reads and the file
+operation write for writes. readpage gets tunneled by creating a new
+struct file and filling in the cache inode. write gets tunneled in
+much the same way. Though, I have been seeing problems when a file
+gets written to. The written data weren't always seen when doing
+reads. Someone then suggested that the folloing code be added to
+write:
 
-Sorry, this is not correct (mistook < for <=). The bug report is
-correct, though.
+	page = get_free_page(GFP_KERNEL);
+	if (!page)
+	    invalidate_inode_pages(inode);
+	else {
+	    int pos = file->f_pos;
+	    int cnt = count;
+	    int blk;
+	    char *data=(char *)page;
 
-Neil.
+	    while (cnt > 0) {
+		blk = cnt;
+		if (blk > PAGE_SIZE)
+		    blk = PAGE_SIZE;
+		copy_from_user(data, buf, blk);
+		update_vm_cache(inode, pos, data, blk);
+		pos += blk;
+		cnt -= blk;
+	    }
+	    free_page(page);
+	}
+
+I inserted this piece of code, and things worked quite well. After a
+while, I was seeing new problems. Writes were not propagating properly
+to the cache file.
+
+Does anyone have any suggestions on how this really should be done?
+
+/Magnus
+map@stacken.kth.se
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
