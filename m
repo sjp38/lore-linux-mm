@@ -1,61 +1,31 @@
-Date: Wed, 17 May 2000 23:32:24 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [patch] pre9-2 shm balance
-Message-ID: <Pine.LNX.4.21.0005172331320.3951-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 17 May 2000 23:58:59 -0600
+From: Neil Schemenauer <nascheme@enme.ucalgary.ca>
+Subject: Re: PATCH: Possible solution to VM problems (take 2)
+Message-ID: <20000517235858.A478@acs.ucalgary.ca>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: quintela@fi.udc.es, riel@conectiva.com.br
 List-ID: <linux-mm.kvack.org>
 
-Hi Linus,
+Rik van Riel:
+> I am now testing the patch on my small test machine and must
+> say that things look just *great*. I can start up a gimp while
+> bonnie is running without having much impact on the speed of
+> either.
+> 
+> Interactive performance is nice and stability seems to be
+> great as well.
 
-with quintela's latest patch and the small patch below, the
-system works fine again, even under heavy shm stress testing.
+We using the same patch?  I applied wait_buffers_02.patch from
+Juan's site to pre9-2.  Running "Bonnie -s 250" on a 128 MB
+machine causes extremely poor interactive performance.  The
+machine is totaly unresponsive for up to a minute at a time.
 
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
-
---- ipc/shm.c.orig	Wed May 17 22:59:47 2000
-+++ ipc/shm.c	Wed May 17 23:24:52 2000
-@@ -1468,7 +1468,7 @@
- }
- 
- /*
-- * Goes through counter = (shm_rss >> prio) present shm pages.
-+ * Goes through counter = (shm_rss / (prio + 1)) present shm pages.
-  */
- static unsigned long swap_id; /* currently being swapped */
- static unsigned long swap_idx; /* next to swap */
-@@ -1483,7 +1483,7 @@
- 	struct page * page_map;
- 
- 	zshm_swap(prio, gfp_mask);
--	counter = shm_rss >> prio;
-+	counter = shm_rss / (prio + 1);
- 	if (!counter)
- 		return 0;
- 	if (shm_swap_preop(&swap_entry))
-@@ -1809,7 +1809,7 @@
- 	int counter;
- 	struct page * page_map;
- 
--	counter = zshm_rss >> prio;
-+	counter = zshm_rss / (prio + 1);
- 	if (!counter)
- 		return;
- next:
-
+    Neil
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
