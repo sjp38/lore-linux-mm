@@ -1,51 +1,46 @@
+Date: Mon, 19 Jan 2004 19:26:59 -0500 (EST)
+From: Thomas Molina <tmolina@cablespeed.com>
 Subject: Re: 2.6.1-mm4
-From: Luiz Fernando Capitulino <lcapitulino@prefeitura.sp.gov.br>
 In-Reply-To: <20040115225948.6b994a48.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.58.0401191912300.5662@localhost.localdomain>
 References: <20040115225948.6b994a48.akpm@osdl.org>
-Content-Type: text/plain; charset=iso-8859-1
-Message-Id: <1074512784.19380.3.camel@telecentrolivre>
-Mime-Version: 1.0
-Date: Mon, 19 Jan 2004 09:46:25 -0200
-Content-Transfer-Encoding: 8BIT
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+Rusty, 
 
-Em Sex, 2004-01-16 as 04:59, Andrew Morton escreveu:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.1/2.6.1-mm4/
+I updated mm4 with the patch you sent in response to my shutdown oops 
+report and haven't received a repeat oops in six reboots.  Hopefully this 
+cures my problem.  I previously couldn't reproduce the oops every single 
+reboot.  
 
-I got this today, after an '# shutdown -r now':
+I do have a couple of other anomalies to report though.
 
-EFLAGS: 00010082
-EIP is at __tasklet_schedule+0x35/0x50
-eax: c48d0000   ebx: 00000046   ecx: 0000009d   edx: c7fb99d0
-esi: c201b9d0   edi: 00000000   ebp: c48d1ebc   esp: c48d1eb8
-ds: 007b   es: 007b   ss: 0068
-Process rc (pid: 11596, threadinfo=c48d0000 task=c201b9d0)
-Stack: 00000000 c48d1ee8 c0117c34 00000000 00000000 0e5fb9c6 03acf444 27263b42
-       0000ea8d c76029d0 c48d0000 00000000 c48d1f00 c011742d 00000000 00000000
-       01200011 c76029d0 c48d1f4c c011a81d 00000000 01200011 bffff614 00000000
-Call Trace:
- [<c0117c34>] scheduler_tick+0x564/0x580
- [<c011742d>] sched_fork+0x7d/0x80
- [<c011a81d>] copy_process+0x5dd/0x9e0
- [<c011ac6d>] do_fork+0x4d/0x17a
- [<c0125f3d>] sigprocmask+0x4d/0xc0
- [<c0109af5>] sys_clone+0x45/0x50
- [<c0301723>] syscall_call+0x7/0xb
+First is this snippet from my bootup log:
 
-Code: 3a 35 c0 89 10 83 0d 40 51 3f c0 20 a3 14 3a 35 c0 b8 00 e0 ff ff 21 e0 f7
- 40 14 00 ff ff 00 75 10 8b 15 60 52 3f c0 85 d2 74 06 <8b> 02 85 c0 75 05 53 9d
- 5b 5d c3 89 d0 e8 f9 84 ff ff eb f2 8d
+Cannot open master raw device '/dev/rawctl' (No such device)
+/: clean, 192622/1196032 files, 969619/2390842 blocks
+                                                           [  OK  ]
+cat: /sys//devices/pci0000:00/0000:00:07.2/usb1/bNumConfigurations: No 
+such file or directory
+/etc/hotplug/usb.agent: line 144: [: too many arguments
+Remounting root filesystem in read-write mode:             [  OK  ]
+Activating swap partitions:                                [  OK  ]
+Finding module dependencies:                               [  OK  ]
 
--- 
-Luiz Fernando N. Capitulino
-<lcapitulino@prefeitura.sp.gov.br>
-<http://www.telecentros.sp.gov.br>
+Second is that I receive the following error while compiling mm4:
+
+Kernel: arch/i386/boot/bzImage is ready
+sh /usr/local/kernel/linux-2.6.0/arch/i386/boot/install.sh 2.6.1-mm4a 
+arch/i386/boot/bzImage System.map ""
+WARNING: /lib/modules/2.6.1-mm4a/kernel/fs/nfsd/nfsd.ko needs unknown 
+symbol dnotify_parent
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
