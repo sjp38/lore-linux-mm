@@ -1,97 +1,79 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j31JrEhR012362
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 14:53:14 -0500
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j31JrAZo080020
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 14:53:14 -0500
-Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
-	by d01av01.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j31JrAj4031174
-	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 14:53:10 -0500
-Subject: [RFC][PATCH] make all non-file-backed madvise() calls fail
-From: Dave Hansen <haveblue@us.ibm.com>
-Content-Type: multipart/mixed; boundary="=-k4+DCbLhIqxhRSHCN05P"
-Date: Fri, 01 Apr 2005 11:43:00 -0800
-Message-Id: <1112384580.12201.30.camel@localhost>
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j324KwkN007986
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:58 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j324KwZo087102
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:58 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j324KwLf018175
+	for <linux-mm@kvack.org>; Fri, 1 Apr 2005 23:20:58 -0500
+Date: Fri, 1 Apr 2005 19:10:20 -0800
+From: Chandra Seetharaman <sekharan@us.ibm.com>
+Subject: [PATCH 0/6] CKRM: Memory controller for CKRM
+Message-ID: <20050402031020.GA23284@chandralinux.beaverton.ibm.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-k4+DCbLhIqxhRSHCN05P
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+Hello ckrm-tech members,
 
-This is related to this bug:
-http://bugme.osdl.org/show_bug.cgi?id=2995
+Here is the latest CKRM Memory controller patch against the patchset Gerrit
+released couple of days back.
 
-The kernel currently only checks that the memory is file-backed if
-MADV_WILLNEED is set.  It's not entirely clear from the manpage at least
-that *all* non-file-backed madvise() calls should fail.  
+I applied the feedback I got on/off the list.
 
-The attached patch returns -EBADF for all non-file-backed madvise()
-calls.  I'm not suggesting that this is the absolutely right behavior,
-but it certainly does what the bug submitter wants.
+It is tested on i386.
 
-Comments?
+Hello linux-mm members,
 
--- Dave
+These are set of patches that provides the control of memory under the CKRM
+framework(Details at http://ckrm.sf.net). I eagerly wait for your
+feedback/comments/suggestions/concerns etc.,
 
---=-k4+DCbLhIqxhRSHCN05P
-Content-Disposition: attachment; filename=madvise-allebadf.patch
-Content-Type: text/x-patch; name=madvise-allebadf.patch; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 7bit
+To All,
 
---- mm/madvise.c.orig	2005-04-01 10:40:59.000000000 -0800
-+++ mm/madvise.c	2005-04-01 10:56:50.000000000 -0800
-@@ -58,13 +58,9 @@
-  * Schedule all required I/O operations.  Do not wait for completion.
-  */
- static long madvise_willneed(struct vm_area_struct * vma,
--			     unsigned long start, unsigned long end)
-+			     unsigned long start, unsigned long end,
-+			     struct file *file)
- {
--	struct file *file = vma->vm_file;
--
--	if (!file)
--		return -EBADF;
--
- 	start = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
- 	if (end > vma->vm_end)
- 		end = vma->vm_end;
-@@ -115,6 +111,10 @@
- 			unsigned long end, int behavior)
- {
- 	long error = -EBADF;
-+	struct file *file = vma->vm_file;
-+
-+	if (!file)
-+		goto out;
- 
- 	switch (behavior) {
- 	case MADV_NORMAL:
-@@ -124,7 +124,7 @@
- 		break;
- 
- 	case MADV_WILLNEED:
--		error = madvise_willneed(vma, start, end);
-+		error = madvise_willneed(vma, start, end, file);
- 		break;
- 
- 	case MADV_DONTNEED:
-@@ -136,6 +136,7 @@
- 		break;
- 	}
- 		
-+out:
- 	return error;
- }
- 
+I am looking for improvement suggestions
+        - to not have a field in the page data structure for the mem
+          controller
+	- to make vmscan.c cleaner.
 
---=-k4+DCbLhIqxhRSHCN05P--
+--------
+Patches are
+11-01-mem_base_changes:
+        Basic changes to the core kernel to support memory controller.
 
+11-02-mem_base-core:
+        To fit in the ckrm framework. No support for guarantee, limit in
+this
+        patch. No config file support also.
+
+11-03-mem_core-limit:
+        Support for limit is added.
+
+11-04-mem_limit-guar:
+        Support for guarantee is added.
+
+11-05-mem_guar-config:
+        Support for few config parameters added.
+
+11-06-mem_config-docs:
+        Ofcourse... Documentation.
+
+regards,
+
+chandra
+
+
+-- 
+
+----------------------------------------------------------------------
+    Chandra Seetharaman               | Be careful what you choose....
+              - sekharan@us.ibm.com   |      .......you may get it.
+----------------------------------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
