@@ -1,44 +1,36 @@
-Message-ID: <3F614C1F.6010802@nortelnetworks.com>
-Date: Fri, 12 Sep 2003 00:31:27 -0400
-From: Chris Friesen <cfriesen@nortelnetworks.com>
+Message-ID: <3F614E36.7030206@genebrew.com>
+Date: Fri, 12 Sep 2003 00:40:22 -0400
+From: Rahul Karnik <rahul@genebrew.com>
 MIME-Version: 1.0
 Subject: Re: [RFC] Enabling other oom schemes
-References: <200309120219.h8C2JANc004514@penguin.co.intel.com> <3F614912.3090801@genebrew.com>
+References: <200309120219.h8C2JANc004514@penguin.co.intel.com> <3F614912.3090801@genebrew.com> <3F614C1F.6010802@nortelnetworks.com>
+In-Reply-To: <3F614C1F.6010802@nortelnetworks.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rahul Karnik <rahul@genebrew.com>
-Cc: rusty@linux.co.intel.com, riel@conectiva.com.br, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Chris Friesen <cfriesen@nortelnetworks.com>
+Cc: rusty@linux.co.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Rahul Karnik wrote:
-> Rusty Lynch wrote:
-> 
->> The patch below uses a notifier list for other components to register
->> to be called when an out of memory condition occurs.
-> 
-> 
-> How does this interact with the overcommit handling? Doesn't strict 
-> overcommit also not oom, but rather return a memory allocation error? 
-> Could we not add another overcommit mode where oom conditions cause a 
-> kernel panic?
+Chris Friesen wrote:
+> If you have real, true strict overcommit, then it can cause you to have 
+> errors much earlier than expected.
 
-If you have real, true strict overcommit, then it can cause you to have 
-errors much earlier than expected.
+I was referring to the "strict overcommit" mode described in 
+Documentation/vm/overcommit-accounting. To me, it sounded like it was 
+describing modes that were alternatives to the proposed kernel panic on 
+oom, and I was merely suggesting we use the same /proc/sys/vm method to 
+specify oom behavior (maybe a string rather than numeric codes in case 
+we have several such options in the future). Apologies if this is not 
+related to what Rusty is talking about.
 
-Imagine a process that consumes 51% of memory.  With strict overcommit, 
-that process cannot fork() since there is not enough memory.
-
-Chris
-
-
-
--- 
-Chris Friesen                    | MailStop: 043/33/F10
-Nortel Networks                  | work: (613) 765-0557
-3500 Carling Avenue              | fax:  (613) 765-2986
-Nepean, ON K2H 8E9 Canada        | email: cfriesen@nortelnetworks.com
+Thanks,
+Rahul
+--
+Rahul Karnik
+rahul@genebrew.com
+http://www.genebrew.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
