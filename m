@@ -1,50 +1,38 @@
-Date: Tue, 9 May 2000 12:12:46 -0400
-From: Simon Kirby <sim@stormix.com>
-Subject: Re: [PATCH] Recent VM fiasco - fixed
-Message-ID: <20000509121246.A8487@stormix.com>
-References: <qwwpuqwp1tv.fsf@sap.com> <Pine.LNX.4.10.10005090844050.1100-100000@penguin.transmeta.com>
-Mime-Version: 1.0
+Subject: Re: A possible winner in pre7-8
+References: <Pine.LNX.4.10.10005082332560.773-100000@penguin.transmeta.com>
+	<3917C33F.1FA1BAD4@sgi.com>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: Rajagopal Ananthanarayanan's message of "Tue, 09 May 2000 00:50:23 -0700"
+Date: 09 May 2000 19:33:27 +0200
+Message-ID: <yttln1jtyqg.fsf@vexeta.dc.fi.udc.es>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.10.10005090844050.1100-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Tue, May 09, 2000 at 08:44:43AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 09, 2000 at 08:44:43AM -0700, Linus Torvalds wrote:
+>>>>> "rajagopal" == Rajagopal Ananthanarayanan <ananth@sgi.com> writes:
 
-> On 9 May 2000, Christoph Rohland wrote:
-> 
-> > Daniel Stone <tamriel@ductape.net> writes:
-> > 
-> > > That's astonishing, I'm sure, but think of us poor bastards who
-> > > DON'T have an SMP machine with >1gig of RAM.
-> > 
-> > He has to care obout us fortunate guys with e.g. 8GB memory also. The
-> > recent kernels are broken for that also.
-> 
-> Try out the really recent one - pre7-8. So far it hassome good reviews,
-> and I've tested it both on a 20MB machine and a 512MB one..
+Hi
 
-On my box with 128 MB dual SMP 450 MHz box, there's still definitely
-something broken (pre7-8).  I notice it most with mutt loading the
-linux-kernel folder... The folder is about 54 MB, and it takes kswapd
-about 3 to 4 seconds of CPU time to clear out old stuff when it loads. 
-This is pretty bad considering mutt itself takes only about 5 seconds
-of real time to load the folder.
+rajagopal> Interesting! This stuff is coming out faster than I can patch.
+rajagopal> In any case, good news about pre7-8: not only does dbench run without
+rajagopal> errors, but it runs well. Let's hope that others (Juan & Benjamin to name two)
+rajagopal> see similar results.
 
-The main thing that fills up my cache is mainly playback of MP3s off
-disk, which is pretty much running all the time.  If I open the folder,
-quit, let MP3 playing fill eat up the free memory into cache, and then
-run mutt again, kswapd use goes up 3 or 4 seconds further again.
+No way, here my tests run two iterations, and in the second iteration
+init was killed, and the system become unresponsive (headless machine,
+you know....).  I have no time now to do a more detailed report, more
+information later today.
 
-I never used to see this with 2.2 kernels...
+Later, Juan.
 
-Simon-
 
-[  Stormix Technologies Inc.  ][  NetNation Communications Inc. ]
-[       sim@stormix.com       ][       sim@netnation.com        ]
-[ Opinions expressed are not necessarily those of my employers. ]
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
