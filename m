@@ -1,36 +1,33 @@
-Date: Fri, 13 Oct 2000 14:25:45 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Fri, 13 Oct 2000 14:29:08 -0700
+Message-Id: <200010132129.OAA03105@pizda.ninka.net>
+From: "David S. Miller" <davem@redhat.com>
+In-reply-to: <E13k3HY-0000yb-00@the-village.bc.nu> (message from Alan Cox on
+	Fri, 13 Oct 2000 12:45:47 +0100 (BST))
 Subject: Re: Updated Linux 2.4 Status/TODO List (from the ALS show)
-In-Reply-To: <20001013171950.Y6207@devserv.devel.redhat.com>
-Message-ID: <Pine.LNX.4.10.10010131424140.14888-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <E13k3HY-0000yb-00@the-village.bc.nu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jakub Jelinek <jakub@redhat.com>
-Cc: Richard Henderson <rth@twiddle.net>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "David S. Miller" <davem@redhat.com>, davej@suse.de, tytso@mit.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: alan@lxorguk.ukuu.org.uk
+Cc: davej@suse.de, tytso@mit.edu, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+   > It might make more sense to just make rss an atomic_t.
 
-On Fri, 13 Oct 2000, Jakub Jelinek wrote:
+   Can we always be sure the rss will fit in an atomic_t - is it >
+   32bits on the ultrsparc/alpha ?
 
-> On Fri, Oct 13, 2000 at 02:17:23PM -0700, Richard Henderson wrote:
-> > On Fri, Oct 13, 2000 at 12:45:47PM +0100, Alan Cox wrote:
-> > > Can we always be sure the rss will fit in an atomic_t - is it > 32bits on the
-> > > ultrsparc/alpha ?
-> > 
-> > It is not.
-> 
-> It is not even 32bit on sparc32 (24bit only).
+Yes, this issue occurred to me last night as well.
+It is 32-bit on Alpha/UltraSparc.
 
-But remember that "rss" counts in pages, so it's plenty for sparc32: only
-32 bits of virtual address  that can count towards the rss.
+However, given the fact that this number measures "pages", the
+PAGE_SIZE on Ultra/Alpha, and the size of the 64-bit user address
+space on Ultra and Alpha, it would actually end up working.
 
-And even on alpha, a 32-bit atomic_t means we cover 45 bits of virtual
-address space, which, btw, is more than you can cram into the current
-three-level page tables, I think.
+This doesn't make it a good idea though.
 
-		Linus
+Later,
+David S. Miller
+davem@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
