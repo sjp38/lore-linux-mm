@@ -2,44 +2,53 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14199.41900.732658.354175@dukat.scot.redhat.com>
-Date: Mon, 28 Jun 1999 17:32:44 +0100 (BST)
-Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8 Fix swapoff races
-In-Reply-To: <199906280148.SAA94463@google.engr.sgi.com>
-References: <Pine.LNX.4.10.9906250203110.22024-100000@laser.random>
-	<199906280148.SAA94463@google.engr.sgi.com>
+Message-ID: <14200.44196.867290.619751@dukat.scot.redhat.com>
+Date: Tue, 29 Jun 1999 12:23:16 +0100 (BST)
+Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
+In-Reply-To: <199906282215.PAA56865@google.engr.sgi.com>
+References: <Pine.BSO.4.10.9906281740270.24888-100000@funky.monkey.org>
+	<199906282215.PAA56865@google.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, torvalds@transmeta.com, sct@redhat.com, linux-mm@kvack.org
+Cc: Chuck Lever <cel@monkey.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Sun, 27 Jun 1999 18:48:47 -0700 (PDT), kanoj@google.engr.sgi.com
+On Mon, 28 Jun 1999 15:15:29 -0700 (PDT), kanoj@google.engr.sgi.com
 (Kanoj Sarcar) said:
 
-> Linus/Andrea/Stephen,
-> This is the patch that tries to cure the swapoff races with processes
-> forking, exiting, and (readahead) swapping by faulting. 
+>> kswapd itself always uses a gfp_mask that includes GFP_IO, so nothing it
+>> calls will ever wait.  the I/O it schedules is asynchronous, and when
+>> complete, the buffer exit code in end_buffer_io_async will set the page
+>> flags appropriately for shrink_mmap() to come by and steal it. also, the
+>> buffer code will use pre-allocated buffers if gfp fails.
+>> 
 
-> Basically, all these operations are synchronized by the process
-> mmap_sem. Unfortunately, swapoff has to visit all processes, during
-> which it must hold tasklist_lock, a spinlock. Hence, it can not take
-> the mmap_sem, a sleeping mutex. 
+> Which is why you must gurantee that kswapd can always run, and keep
+> as few blocking points as possible ...
 
-But it can atomic_inc(&mm->count) to pin the mm, drop the task lock and
-take the mm semaphore, and mmput() once it has finished.
+Look, we're just going round in circles here.
 
-> So, the patch links up all active mm's in a list that swapoff can
-> visit
+kswapd *can* always run.
 
-There shouldn't be need for a new data structure.  A bit of extra work
-in swapoff should be all that is needed, and that avoids adding any
-extra code at all on the hot paths.
+kswapd never ever waits in its memory allocation calls.  In
+get_free_pages(), we special case PF_MEMALLOC processes (such as kswapd)
+and completely avoid trying to free pages in that case: rather, we rely
+on the free page thresholds preserving a last-chance set of free pages
+which are _only_ usable by such processes.
 
-Adding extra locks is the sort of thing other unixes do to solve
-problems like this: we don't want to fall into that trap on Linux. :)
+kswapd can wait for IO, but the block device layers go to great lengths
+to ensure that this can always proceed safely.  If the device layers
+need an extra memory allocation to succeed, that again is protected by
+PF_MEMALLOC.
+
+kswapd never waits for long-term-held filesystem locks: that is what
+kpiod is for.
+
+This architecture is very robust.  Add an extra mmap semaphore lock to
+the swapout path and you destroy it.
 
 --Stephen
 --
