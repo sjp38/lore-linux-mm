@@ -1,53 +1,34 @@
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id TAA16465
+	for <linux-mm@kvack.org>; Thu, 13 Mar 2003 19:51:43 -0800 (PST)
+Date: Thu, 13 Mar 2003 19:51:49 -0800
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.64-mm6
-From: Shawn <core@enodev.com>
-In-Reply-To: <20030313192809.17301709.akpm@digeo.com>
+Message-Id: <20030313195149.55b517c7.akpm@digeo.com>
+In-Reply-To: <1047613609.2848.3.camel@localhost.localdomain>
 References: <20030313032615.7ca491d6.akpm@digeo.com>
-	 <1047572586.1281.1.camel@ixodes.goop.org>
-	 <20030313113448.595c6119.akpm@digeo.com>
-	 <1047611104.14782.5410.camel@spc1.mesatop.com>
-	 <20030313192809.17301709.akpm@digeo.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Message-Id: <1047613609.2848.3.camel@localhost.localdomain>
+	<1047572586.1281.1.camel@ixodes.goop.org>
+	<20030313113448.595c6119.akpm@digeo.com>
+	<1047611104.14782.5410.camel@spc1.mesatop.com>
+	<20030313192809.17301709.akpm@digeo.com>
+	<1047613609.2848.3.camel@localhost.localdomain>
 Mime-Version: 1.0
-Date: 13 Mar 2003 21:46:49 -0600
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Steven Cole <elenstev@mesatop.com>, jeremy@goop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Shawn <core@enodev.com>
+Cc: elenstev@mesatop.com, jeremy@goop.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2003-03-13 at 21:28, Andrew Morton wrote:
-> Steven Cole <elenstev@mesatop.com> wrote:
-> >
-> > On Thu, 2003-03-13 at 12:34, Andrew Morton wrote:
-> > > Jeremy Fitzhardinge <jeremy@goop.org> wrote:
-> > > >
-> > > > On Thu, 2003-03-13 at 03:26, Andrew Morton wrote:
-> > > > >   This means that when an executable is first mapped in, the kernel will
-> > > > >   slurp the whole thing off disk in one hit.  Some IO changes were made to
-> > > > >   speed this up.
-> > > > 
-> > > > Does this just pull in text and data, or will it pull any debug sections
-> > > > too?  That could fill memory with a lot of useless junk.
-> > > > 
-> > > 
-> > > Just text, I expect.  Unless glibc is mapping debug info with PROT_EXEC ;)
-> > > 
-> > > It's just a fun hack.  Should be done in glibc.
-> > 
-> > Well, fun hack or glibc to-do list candidate, I hope it doesn't get
-> > forgotten.
-> 
-> I have to pull the odd party trick to get people to test -mm kernels.
+Shawn <core@enodev.com> wrote:
+>
+> Being an active user of the 2.5 series including -mm, should I have
+> updated glibc, or is there nothing new enough yet to warrant that?
 
-This reminds me of something I've not looked into for some time.
+I think so, yes.  There is the threading support and also the new
+sysenter system-call entry code.
 
-Being an active user of the 2.5 series including -mm, should I have
-updated glibc, or is there nothing new enough yet to warrant that?
-
-Maybe I should just ask the glibc people. Wasn't sure what the proper
-forum was.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
