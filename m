@@ -1,89 +1,113 @@
-Received: from m2.gw.fujitsu.co.jp ([10.0.50.72]) by fgwmail5.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i976jfUI015849 for <linux-mm@kvack.org>; Thu, 7 Oct 2004 15:45:41 +0900
+Received: from m2.gw.fujitsu.co.jp ([10.0.50.72]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i97CH9R6023480 for <linux-mm@kvack.org>; Thu, 7 Oct 2004 21:17:09 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s1.gw.fujitsu.co.jp by m2.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i976jff1025350 for <linux-mm@kvack.org>; Thu, 7 Oct 2004 15:45:41 +0900
+Received: from s2.gw.fujitsu.co.jp by m2.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i97CH9f1014166 for <linux-mm@kvack.org>; Thu, 7 Oct 2004 21:17:09 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s1.gw.fujitsu.co.jp (s1 [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D611216F54
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2004 15:45:41 +0900 (JST)
-Received: from fjmail506.fjmail.jp.fujitsu.com (fjmail506-0.fjmail.jp.fujitsu.com [10.59.80.106])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id B2EDC216FC3
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2004 15:45:40 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2 [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id DE5981F723B
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2004 21:17:08 +0900 (JST)
+Received: from fjmail503.fjmail.jp.fujitsu.com (fjmail503-0.fjmail.jp.fujitsu.com [10.59.80.100])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 793211F723E
+	for <linux-mm@kvack.org>; Thu,  7 Oct 2004 21:17:08 +0900 (JST)
 Received: from jp.fujitsu.com
- (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
- fjmail506.fjmail.jp.fujitsu.com
+ (fjscan501-0.fjmail.jp.fujitsu.com [10.59.80.120]) by
+ fjmail503.fjmail.jp.fujitsu.com
  (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I570075WC4385@fjmail506.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Thu,  7 Oct 2004 15:45:40 +0900 (JST)
-Date: Thu, 07 Oct 2004 15:51:15 +0900
+ with ESMTP id <0I57009LARGI7W@fjmail503.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Thu,  7 Oct 2004 21:17:08 +0900 (JST)
+Date: Thu, 07 Oct 2004 21:22:41 +0900
 From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: align vmemmap to ia64's granule
-In-reply-to: <4164E20D.5020400@jp.fujitsu.com>
-Message-id: <4164E763.8020003@jp.fujitsu.com>
+Subject: [PATCH]  no buddy bitmap patch : intro and includes [0/2]
+Message-id: <41653511.60905@jp.fujitsu.com>
 MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii; format=flowed
+Content-type: text/plain; charset=us-ascii
 Content-transfer-encoding: 7bit
-References: <B8E391BBE9FE384DAA4C5C003888BE6F0226680C@scsmsx401.amr.corp.intel.com>
- <4164E20D.5020400@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, "Martin J. Bligh" <mbligh@aracnet.com>, LinuxIA64 <linux-ia64@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Linux Kernel ML <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, "Luck, Tony" <tony.luck@intel.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hi, Tony
+Hi,
 
-This patch make vmemmap to be aligned with ia64's granule size, against 2.6.9-rc3.
-Please apply this, if vmemmap is expected to be aligned with the granule size.
+Followings are patches for removing bitmaps from buddy allocator, against 2.6.9-rc3.
+I think this version is much clearer than ones I posted a month ago.
 
+The problem I was worried about was how to deal with memmap's holes in a zone.
+and I decided to use pfn_valid() simply. Now, there is no messy codes :)
+
+pfn_valid() is used when macro "HOLES_IN_ZONE" is defined.
+It is defined only in ia64 now.
+
+Here is kernbench result on my tiger4 (Itanium2 1.3GHz x2, 8 Gbytes memory)
+
+Average Optimal -j 8 Load Run (Perfroming 5 run of make -j 8 on linux-2.6.8 source tree):
+
+                Elapsed Time  User Time  System Time Percent CPU  Context Switches   Sleeps
+2.6.9-rc3         699.906      1322.01     39.336       194            64390         74416.8
+no-bitmap         698.334      1321.79     38.58        194.2          64435.4       74622.2
+
+If there is unclear point, please tell me.
+
+Thanks.
 Kame <kamezawa.hiroyu@jp.fujitsu.com>
 
-Hiroyuki KAMEZAWA wrote:
-> Hi,
-> Luck, Tony wrote:
-> 
->>> Because pfn_valid() often returns 0 in inner loop of free_pages_bulk(),
->>> I want to avoid page fault caused by using get_user() in pfn_valid().
->>
->>
->>
->> How often?  Surely this is only a problem at the edges of blocks
->> of memory?  I suppose it depends on whether your discontig memory
->> appears in blocks much smaller than MAXORDER.  But even there it
->> should only be an issue coalescing buddies that are bigger than
->> the granule size (since all of the pages in a granule on ia64 are
->> guaranteed to exist, the buddy of any page must also exist).
+=== patch for include files ===
 
-> node's start_pfn and end_pfn is aligned to granule size, but holes in 
-> memmap is not.
-> The vmemmap is aligned to # of page structs in one page.
+This patch removes bitmap from zone->free_area[] in include/linux/mmzone.h,
+and adds some comments on page->private field in include/linux/mm.h.
+
+non-atomic ops for changing PG_private bit is added in include/page-flags.h.
+zone->lock is always acquired when PG_private of "a free page" is changed.
+
+Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 
 ---
 
-  test-kernel-kamezawa/arch/ia64/mm/init.c |    2 ++
-  1 files changed, 2 insertions(+)
+ test-kernel-kamezawa/include/linux/mm.h         |    2 ++
+ test-kernel-kamezawa/include/linux/mmzone.h     |    1 -
+ test-kernel-kamezawa/include/linux/page-flags.h |    2 ++
+ 3 files changed, 4 insertions(+), 1 deletion(-)
 
-diff -puN arch/ia64/mm/init.c~vmemmap_align_granule arch/ia64/mm/init.c
---- test-kernel/arch/ia64/mm/init.c~vmemmap_align_granule	2004-10-07 15:24:08.322733968 +0900
-+++ test-kernel-kamezawa/arch/ia64/mm/init.c	2004-10-07 15:30:58.623358792 +0900
-@@ -411,6 +411,8 @@ virtual_memmap_init (u64 start, u64 end,
+diff -puN include/linux/mm.h~eliminate-bitmap-includes include/linux/mm.h
+--- test-kernel/include/linux/mm.h~eliminate-bitmap-includes	2004-10-07 17:18:34.062982800 +0900
++++ test-kernel-kamezawa/include/linux/mm.h	2004-10-07 17:18:34.070981584 +0900
+@@ -209,6 +209,8 @@ struct page {
+ 					 * usually used for buffer_heads
+ 					 * if PagePrivate set; used for
+ 					 * swp_entry_t if PageSwapCache
++					 * When page is free, this indicates
++					 * order in the buddy system.
+ 					 */
+ 	struct address_space *mapping;	/* If low bit clear, points to
+ 					 * inode address_space, or NULL.
+diff -puN include/linux/mmzone.h~eliminate-bitmap-includes include/linux/mmzone.h
+--- test-kernel/include/linux/mmzone.h~eliminate-bitmap-includes	2004-10-07 17:18:34.065982344 +0900
++++ test-kernel-kamezawa/include/linux/mmzone.h	2004-10-07 17:18:34.071981432 +0900
+@@ -22,7 +22,6 @@
 
-  	args = (struct memmap_init_callback_data *) arg;
+ struct free_area {
+ 	struct list_head	free_list;
+-	unsigned long		*map;
+ };
 
-+	start = GRANULEROUNDDOWN(start);
-+	end  = GRANULEROUNDUP(end);
-  	map_start = vmem_map + (__pa(start) >> PAGE_SHIFT);
-  	map_end   = vmem_map + (__pa(end) >> PAGE_SHIFT);
+ struct pglist_data;
+diff -puN include/linux/page-flags.h~eliminate-bitmap-includes include/linux/page-flags.h
+--- test-kernel/include/linux/page-flags.h~eliminate-bitmap-includes	2004-10-07 17:18:34.067982040 +0900
++++ test-kernel-kamezawa/include/linux/page-flags.h	2004-10-07 17:18:34.071981432 +0900
+@@ -238,6 +238,8 @@ extern unsigned long __read_page_state(u
+ #define SetPagePrivate(page)	set_bit(PG_private, &(page)->flags)
+ #define ClearPagePrivate(page)	clear_bit(PG_private, &(page)->flags)
+ #define PagePrivate(page)	test_bit(PG_private, &(page)->flags)
++#define __SetPagePrivate(page)  __set_bit(PG_private, &(page)->flags)
++#define __ClearPagePrivate(page) __clear_bit(PG_private, &(page)->flags)
 
+ #define PageWriteback(page)	test_bit(PG_writeback, &(page)->flags)
+ #define SetPageWriteback(page)						\
 
 _
-
-
--- 
---the clue is these footmarks leading to the door.--
-KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
