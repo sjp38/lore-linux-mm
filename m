@@ -1,46 +1,37 @@
-Message-ID: <413BC227.2070006@yahoo.com.au>
-Date: Mon, 06 Sep 2004 11:49:27 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Sun, 5 Sep 2004 20:33:31 -0700
+From: "David S. Miller" <davem@davemloft.net>
 Subject: Re: [RFC][PATCH 0/3] beat kswapd with the proverbial clue-bat
-References: <413AA7B2.4000907@yahoo.com.au> <Pine.LNX.4.58.0409050911450.2331@ppc970.osdl.org> <413BB55B.9000106@yahoo.com.au>
-In-Reply-To: <413BB55B.9000106@yahoo.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-Id: <20040905203331.7a2a2fad.davem@davemloft.net>
+In-Reply-To: <413AE5DA.9070208@yahoo.com.au>
+References: <413AA7B2.4000907@yahoo.com.au>
+	<20040904230939.03da8d2d.akpm@osdl.org>
+	<20040905062743.GG7716@krispykreme>
+	<413AE5DA.9070208@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: anton@samba.org, akpm@osdl.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Nick Piggin wrote:
+On Sun, 05 Sep 2004 20:09:30 +1000
+Nick Piggin <nickpiggin@yahoo.com.au> wrote:
 
->>
->> Notice how you may need to free 20% of memory to get a 2**3 
->> allocation, if you have totally depleted your pages. And it's much 
->> worse if you have very little memory to begin with.
->>
->> Anyway. I haven't debugged this program, so it may have serious bugs, 
->> and be off by an order of magnitude or two. Whatever. If I'm wrong, 
->> somebody can fix the program/script and see what the real numbers are.
->>
->>
->
-> No, Andrew just recently reported that order-1 allocations were 
-> needing to
-> free 20MB or more (on systems with not really huge memories IIRC). So I
-> think your program could be reasonably close to real life.
->
->
+> Yeah I had seen a few, surprisingly few though. Sorry I'm a bit clueless
+> about networking - I suppose there is a good reason for the 16K MTU? My
+> first thought might be that a 4K one could be better on CPU cache as well
+> as lighter on the mm. I know the networking guys know what they're doing
+> though...
 
-But yeah, that is when your memory is completely depleted. A small
-modification to your program to make it just keep scanning until we've
-freed a set amount of memory obviously shows that the more you've freed,
-the easier it becomes to free higher order areas... In this way, having
-kswapd batch up the freeing might possibly make it *more* efficient than
-only freeing the single higher order area when we've absolutely run out
-of areas (and simply failing !wait allocations altogether).
+It's better to get as long a stride as possible for the copy
+from userspace, and yes as you get larger you run into cache
+issues.  16K turned out the be the break point considering those
+two attributes when I did my testing.
 
+Just fool around with ifconfig lo mtu XXX and TCP bandwidth tests.
+See what you come up with.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
