@@ -1,45 +1,26 @@
-Message-ID: <393ECB3C.91299E78@colorfullife.com>
-Date: Thu, 08 Jun 2000 00:22:52 +0200
-From: Manfred Spraul <manfreds@colorfullife.com>
+Message-ID: <393ECC87.E4CAA5D6@reiser.to>
+Date: Wed, 07 Jun 2000 15:28:23 -0700
+From: Hans Reiser <hans@reiser.to>
 MIME-Version: 1.0
 Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
  it'snot just the code)
 References: <393E8AEF.7A782FE4@reiser.to> <Pine.LNX.4.21.0006071459040.14304-100000@duckman.distro.conectiva> <20000607205819.E30951@redhat.com> <ytt1z29dxce.fsf@serpe.mitica> <20000607222421.H30951@redhat.com> <yttvgzlcgps.fsf@serpe.mitica> <20000607224908.K30951@redhat.com>
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=koi8-r
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>, Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+Cc: "Juan J. Quintela" <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" wrote:
-> 
-> Hi,
-> 
-> On Wed, Jun 07, 2000 at 11:40:47PM +0200, Juan J. Quintela wrote:
-> > Hi
-> > Fair enough, don't put pinned pages in the LRU, *why* do you want put
-> > pages in the LRU if you can't freed it when the LRU told it: free that
-> > page?
-> 
-> Because even if the information about which page is least recently
-> used doesn't help you, the information about which filesystems are
-> least active _does_ help.
-> 
+Juan, while the FS cannot immediately unpin the pages, if pushed into doing so
+it can startup the mechanisms to unpin them.  The pressure to start those
+mechanisms should be proportional to the amount of pages it is hogging.
 
-What about using a time based aproach for pinned pages?
+Memory pressure should have a central pusher and decentralized FS delegated
+response to the pushing.
 
-* only individually freeable pages are added into the LRU.
-* everyone else registers callbacks.
-* shrink_mmap estimates (*) the age (in jiffies) of the oldest entry in
-the LRU, and then it calls the pressure callbacks with that time.
-
-(*) nr_of_lru_pages/lru_reclaimed_pages_during_last_jiffies. Another
-field in "struct page" is too expensive.
-
---
-	Manfred
+Hans
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
