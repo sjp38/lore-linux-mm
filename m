@@ -1,47 +1,42 @@
-Message-ID: <MWZOUQHXXUVVXRKHQOYGSF@yahoo.com>
-From: "Abdul Hall" <szmsfwwou@yahoo.com>
-Reply-To: "Abdul Hall" <ppqggud@yahoo.com>
-Subject: RE: I saw your profile
-Date: Sun, 09 May 2004 08:22:21 -0500
+Message-ID: <4$f2-493c-l$1q$-$$en$68x@07c.xkubt48>
+From: "Earle Holden" <ncnqj49jo@bigfoot.com>
+Reply-To: "Earle Holden" <ncnqj49jo@bigfoot.com>
+Subject: Loss in body fat. r slpo
+Date: Tue, 11 May 04 03:31:37 GMT
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="--07841164216929166406"
+	boundary="BA48A71.3A..."
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-aio@kvack.org, owner-linux-aio@kvack.org, linux-mm@kvack.org, owner-linux-mm@kvack.orglinux-mm@kvack.orgowner-linux-mm@kvack.org, aart@kvack.orglinux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----07841164216929166406
+--BA48A71.3A...
 Content-Type: text/plain;
 Content-Transfer-Encoding: quoted-printable
 
-Message [TGXXSMZITA]
- 
-Hey my name is Kara and I just got out of a long term
-relationship. I read your profile and you sound like
-the kind of man I am looking for. Just so you know 
-I am not really looking for anything serious but
-rather for someone who doesn=92t mind being a rebound,
-which by the way does require some hot physical action...
-so if you don=92t mind...
- 
-http://matchnoid.com/alg/lgs.htm
- 
- 
- 
+pickering
 
-no more
-http://matchnoid.com/alg/o/
- 
- 
- 
+H+G+H stimulates an increase in the production of H'G'H. 
+http://www.hghbuyhome.com
 
-runty craw clientele kim lummox blackstone oleander nettle alveolar turkis=
-h butadiene indeterminate parcel winnipesaukee monetarism jovial waylaid m=
-inestrone patristic encyclopedic=20
+Clinical results based on trials show the following amazing results**: 
+88% muscle mass enhancement 
+84% higher energy levels 
+81-83% expanded exercise tolerance/endurance 
+81% increased muscle mass 
+78% improved overall sense of well-being 
+75% improved potency/libido 
+73% improved immune function 
+72% decreased body fat (without diet or exercise) 
+read more ... 
+http://www.hghbuyhome.com
 
+If you have recieved this in error please use
+http://www.hghbuyhome.com/r.html kci hlwt rcmqubngjqirmoj
+zsm
 
-----07841164216929166406--
+--BA48A71.3A...--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
