@@ -1,34 +1,29 @@
-Date: Mon, 25 Jun 2001 14:39:39 -0300 (BRST)
+Date: Mon, 25 Jun 2001 14:57:39 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: all processes waiting in TASK_UNINTERRUPTIBLE state 
-In-Reply-To: <200106251825.NAA02909@ccure.karaya.com>
-Message-ID: <Pine.LNX.4.21.0106251437160.7419-100000@imladris.rielhome.conectiva>
+Subject: Re: VM tuning through fault trace gathering [with actual code]
+In-Reply-To: <m2d77s4m34.fsf@boreas.yi.org.>
+Message-ID: <Pine.LNX.4.21.0106251456130.7419-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Dike <jdike@karaya.com>
-Cc: Bulent Abali <abali@us.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, James Stevenson <mistral@stev.org>
+To: John Fremlin <vii@users.sourceforge.net>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Jun 2001, Jeff Dike wrote:
-> abali@us.ibm.com said:
-> > Can you give more details?  Was there an aic7xxx scsi driver on the
-> > box? run_task_queue(&tq_disk) should eventually unlock those pages but
-> > they remain locked.  I am trying to narrow it down to fs/buffer code
-> > or the SCSI driver aic7xxx in my case.
-> 
-> Rik would be the one to tell you whether there was an aic7xxx driver
-> on the physical box.  There obviously isn't one on UML, so if we're
-> looking at the same bug, it's in the generic code.
+On 25 Jun 2001, John Fremlin wrote:
 
-The box has as AIC-7880U controller. OTOH, my dual P5 also has
-an AIC7xxx controller and I've never seen the problem there...
+> Last year I had the idea of tracing the memory accesses of the system
+> to improve the VM - the traces could be used to test algorithms in
+> userspace. The difficulty is of course making all memory accesses
+> fault without destroying system performance.
 
-On our quad Xeon this problem really seems to be phase-of-moon
-related; it hasn't shown up in the last 5 days or so under heavy
-stress testing, but when the kernel is compiled just a little bit
-different it doesn't happen. ;)
+Sounds like a cool idea.  One thing you should keep in mind
+though is to gather traces of the WHOLE SYSTEM and not of
+individual applications.
+
+There has to be a way to balance the eviction of pages from
+applications against those of other applications.
 
 regards,
 
