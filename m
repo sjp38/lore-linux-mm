@@ -1,45 +1,40 @@
-Date: Tue, 10 Oct 2000 12:32:50 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] OOM killer API (was: [PATCH] VM fix for 2.4.0-test9 &
- OOM handler)
-In-Reply-To: <20001010170708.C784@nightmaster.csn.tu-chemnitz.de>
-Message-ID: <Pine.LNX.4.21.0010101231120.11122-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 10 Oct 2000 16:37:43 +0100
+From: Philipp Rumpf <prumpf@parcelfarce.linux.theplanet.co.uk>
+Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
+Message-ID: <20001010163743.F3386@parcelfarce.linux.theplanet.co.uk>
+References: <20001010162412.E3386@parcelfarce.linux.theplanet.co.uk> <Pine.LNX.4.21.0010101228160.11122-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0010101228160.11122-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Tue, Oct 10, 2000 at 12:30:51PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Andrea Arcangeli <andrea@suse.de>, Ingo Molnar <mingo@elte.hu>, Byron Stanoszek <gandalf@winds.org>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 10 Oct 2000, Ingo Oeser wrote:
-
-> before you argue endlessly about the "Right OOM Killer (TM)", I
-> did a small patch to allow replacing the OOM killer at runtime.
+On Tue, Oct 10, 2000 at 12:30:51PM -0300, Rik van Riel wrote:
+> Not killing init when we "should" definately prevents
+> embedded systems from auto-rebooting when they should
+> do so.
 > 
-> So now you can stop arguing about the one and only OOM killer,
-> implement it, provide it as module and get back to the important
-> stuff ;-)
+> (OTOH, I don't think embedded systems will run into
+> this OOM issue too much)
 
-This is definately a cool toy for people who have doubts
-that my OOM killer will do the wrong thing in their
-workloads.
+but when they do, they're hard to fix.  Think about an elevator control
+system with a single process that happens to implement a somewhat broken
+version of the elevator algorithm ;)
 
-If anyone can demonstrate that the current OOM killer is
-doing the wrong thing and has a replacement algorithm
-available, please let us know ... ;)
+> > that's what I said.  we need to be sure to _get_ a panic() though.
+> 
+> I believe the kernel automatically panic()s when init
+> dies ... from kernel/exit.c::do_exit()
+> 
+>         if (tsk->pid == 1)
+>                 panic("Attempted to kill init!");
 
-[lets move the discussion back to a less theoretical and
-more practical point of view]
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+guess who added that code.  We still kill init with SIGTERM which doesn't
+seem to work though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
