@@ -1,44 +1,34 @@
-Date: Fri, 20 Feb 2004 08:17:38 -0800
-From: "Paul E. McKenney" <paulmck@us.ibm.com>
-Subject: Re: Non-GPL export of invalidate_mmap_range
-Message-ID: <20040220161738.GF1269@us.ibm.com>
-Reply-To: paulmck@us.ibm.com
-References: <20040216190927.GA2969@us.ibm.com> <200402201535.47848.phillips@arcor.de> <20040220140116.GD1269@us.ibm.com> <200402201800.12077.phillips@arcor.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <200402201800.12077.phillips@arcor.de>
+Message-ID: <4036C75E.1020407@movaris.com>
+Date: Fri, 20 Feb 2004 18:50:06 -0800
+From: Kirk True <ktrue@movaris.com>
+MIME-Version: 1.0
+Subject: Re: LTP VM test slower under 2.6.3 than 2.4.20
+References: <40363778.20900@movaris.com> <40368E00.3000505@cyberone.com.au>
+In-Reply-To: <40368E00.3000505@cyberone.com.au>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: kernelnewbies <kernelnewbies@nl.linux.org>, Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Feb 20, 2004 at 06:00:32PM -0500, Daniel Phillips wrote:
-> On Friday 20 February 2004 09:01, Paul E. McKenney wrote:
-> > On Fri, Feb 20, 2004 at 03:37:26PM -0500, Daniel Phillips wrote:
-> > > Actually, I erred there in that invalidate_mmap_range should not export
-> > > the flag, because it never makes sense to pass in non-zero from a DFS.
-> >
-> > Doesn't vmtruncate() want to pass non-zero "all" in to
-> > invalidate_mmap_range() in order to maintain compatibility with existing
-> > Linux semantics?
-> 
-> That comes from inside.  The DFS's truncate interface should just be 
-> vmtruncate.  If I missed something, please shout.
+Nick Piggin wrote:
 
-Agreed, the DFS's truncate interface should be vmtruncate().
+> 2.6 must start writeout, does it?
 
-Your earlier patch has a call to invalidate_mmap_range() within
-vmtruncate(), which passes "1" to the last arg, so as to get
-rid of all mappings to the truncated portion of the file.
-So either invalidate_mmap_range() needs to keep the fourth arg
-or needs to be a wrapper for an underlying function that
-vmtruncate() can call, or some such.
+Sorry, but how can I tell?
 
-The latter may be what you intended to do.
+> Can you post vmstat 1 logs for each kernel?
 
-						Thanx, Paul
+The 2.4.20 vmstat is attached (formatting inline is ugly) but I couldn't 
+get a vmstat for 2.6.3. Running strace vmstat shows that it's dying when 
+reading from /proc/stat with a SEGFAULT. I googled about this but didn't 
+see anything.
+
+Kirk
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
