@@ -1,60 +1,39 @@
-Message-ID: <38F048F5.1FABC033@colorfullife.com>
-Date: Sun, 09 Apr 2000 11:10:13 +0200
-From: Manfred Spraul <manfreds@colorfullife.com>
-MIME-Version: 1.0
+Date: Sun, 9 Apr 2000 02:19:03 -0700
+Message-Id: <200004090919.CAA02908@pizda.ninka.net>
+From: "David S. Miller" <davem@redhat.com>
+In-reply-to: <38F048F5.1FABC033@colorfullife.com> (message from Manfred Spraul
+	on Sun, 09 Apr 2000 11:10:13 +0200)
 Subject: Re: zap_page_range(): TLB flush race
-References: <E12e4mo-0003Pn-00@the-village.bc.nu>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+References: <E12e4mo-0003Pn-00@the-village.bc.nu> <38F048F5.1FABC033@colorfullife.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com, davem@redhat.com
+To: manfreds@colorfullife.com
+Cc: alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox wrote:
-> 
-> 
-> Basically establish_pte() has to be architecture specific, as some processors
-> need different orders either to avoid races or to handle cpu specific
-> limitations.
-> 
-I don't know: IMHO we have far to many architecture specific functions
-in that area:
+   I don't understand the purpose of flush_page_to_ram():
 
-set_pte()
-establish_pte()
+It's a (bad) attempt to deal with virtually indexed caches which
+are larger than the page size of the machine.  Generally, when
+the kernel writes to a page which potentially can subsequently
+accessed from user mappings, it must call flush_page_to_ram.
 
-flush_tlb()
-update_mmu_cache();
-flush_cache();
-flush_icache();
+It flushes the kernel-view page out of the caches and thus
+makes main memory up to date, this way when the user accesses
+the page from his mapping he won't see stale data if he happens
+to have the page mapped at a bad "virtual alias" of what the
+kernel maps it at.
 
-Can't we merge them? 
+It sucks, I'd like to kill it along with flush_icache_page.
 
-<< 1)
-set_pte(vma,pte,new_val);
-	* flushes the cache, changes one pte, updates the tlb.
-<< 2)
-set_pte_new(vma,pte,new_val);
-	* sets the pte, the old value was non-present. Most cpu
-	  don't need to flush the tlb. (2.3.99 never flushes the tlb)
-<< 3)
-prepare_ptechange_{range,mm}(vma,start,end);
-for()
-	__set_pte(vma,pte,new_val);
-commit_ptechange_{range,mm}(vma,start,end);
-	*  should be used if you change multiple pages.
-<<<<<<<<<
-	
-I don't understand the purpose of flush_page_to_ram():
-filemap_sync_pte() calls it if MS_INVALIDATE is not set, it's not called
-if MS_INVALIDATE is set.
-In both cases, the kernel pointer is accessed in filemap_write_page().
+I have been working a lot recently on something which is clean and
+hopefully can allow these things to die.  But I don't want to talk
+more about it until I am able to come up with an implementation which
+I am happy with, because until that time it may as well not exist.
 
---
-	Manfred
-
+Later,
+David S. Miller
+davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
