@@ -1,76 +1,120 @@
-Message-Id: <200108280631.f7S6VWJ16822@maile.telia.com>
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Roger Larsson <roger.larsson@norran.net>
-Subject: Re: kernel: __alloc_pages: 1-order allocation failed
-Date: Tue, 28 Aug 2001 08:27:04 +0200
-References: <Pine.LNX.4.21.0108271928250.7385-100000@freak.distro.conectiva>
-In-Reply-To: <Pine.LNX.4.21.0108271928250.7385-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Received: (from arjanv@localhost)
+	by devserv.devel.redhat.com (8.11.0/8.11.0) id f7SGCt918560
+	for linux-mm@kvack.org; Tue, 28 Aug 2001 12:12:55 -0400
+Resent-Message-Id: <200108281612.f7SGCt918560@devserv.devel.redhat.com>
+Date: Tue, 28 Aug 2001 11:17:34 -0400
+From: Arjan van de Ven <arjanv@redhat.com>
+Subject: vm patch for highmem 
+Message-ID: <20010828111734.A5857@devserv.devel.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Resent-To: linux-mm@kvack.org
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>, Daniel Phillips <phillips@bonn-fries.net>
-Cc: Andrew Kay <Andrew.J.Kay@syntegra.com>, linux-mm@kvack.org
+To: riel@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesdayen den 28 August 2001 00:28, Marcelo Tosatti wrote:
-> On Tue, 28 Aug 2001, Daniel Phillips wrote:
-> > On August 27, 2001 10:14 pm, Andrew Kay wrote:
-> > > I am having some rather serious problems with the memory management (i
-> > > think) in the 2.4.x kernels.  I am currently on the 2.4.9 and get lots
-> > > of these errors in /var/log/messages.
-> > >
-> > > Aug 24 15:08:04 dell63 kernel: __alloc_pages: 1-order allocation
-> > > failed. Aug 24 15:08:35 dell63 last message repeated 448 times
-> > > Aug 24 15:09:37 dell63 last message repeated 816 times
-> > > Aug 24 15:10:38 dell63 last message repeated 1147 times
-> > >
-> > > I am running a Redhat 7.1 distro w/2.4.9 kernel on a Dell poweredge
-> > > 6300 (4x500Mhz cpu, 4Gb ram).  I get this error while running the
-> > > specmail 2001 benchmarking software against our email server,
-> > > Intrastore.  The system  is very idle from what I can see.  The sar
-> > > output shows user cpu at around 1% and everything else rather low as
-> > > well.  It seems to pop up randomly and requires a reboot to fix it.
-> > >
-> > > Is there any workarounds or something I can do to get a more useful
-> > > debug message than this?
-> >
-> > Please apply this patch:
-> >
-> > --- 2.4.9.clean/mm/page_alloc.c	Thu Aug 16 12:43:02 2001
-> > +++ 2.4.9/mm/page_alloc.c	Mon Aug 20 22:05:40 2001
-> > @@ -502,7 +502,8 @@
-> >  	}
-> >
-> >  	/* No luck.. */
-> > -	printk(KERN_ERR "__alloc_pages: %lu-order allocation failed.\n",
-> > order); +	printk(KERN_ERR "__alloc_pages: %lu-order allocation failed
-> > (gfp=0x%x/%i).\n", +		order, gfp_mask, !!(current->flags & PF_MEMALLOC));
-> >  	return NULL;
-> >  }
->
-> Daniel,
->
-> Its probably the bounce buffering thingie.
->
-> I'll send a patch to Linus soon.
+Hi
 
-I have seen reports of this problem when running without HIGHMEM (from 
-Stephan von Krawczynski <skraw@ithnet.com>).
-But he is running with knfs(d) and raiserfs...
+The patch below changes the highmem bouncebuffers to increase performance.
+Initial reports are that it matters A LOT.
 
-In this configuration I really want to know who is responsible for the allocs.
-So, please add a
-        show_trace(NULL);
-too...
+What it does: it 1) increases the emergemcy pool and 2) it tries to grab a
+page from the pool for EVERY bounce first, until the pool is half empty, and
+only THEN does it try to get a page from the VM.
+While this penalizes the low zone by making it have less pages, it also
+leaves the VM totally alone for normal loads; only under more extreme loads
+does the vm get involved.
 
-/RogerL
+Comments?
 
--- 
-Roger Larsson
-Skelleftea
-Sweden
+Greetings,
+   Arjan van de Ven
+
+--- linux/mm/highmem.c.org	Thu Aug 23 09:23:11 2001
++++ linux/mm/highmem.c	Thu Aug 23 10:21:33 2001
+@@ -159,7 +159,11 @@
+ 	spin_unlock(&kmap_lock);
+ }
+ 
+-#define POOL_SIZE 32
++#ifdef CONFIG_HIGHMEM64G
++#define POOL_SIZE 256
++#else
++#define POOL_SIZE 64
++#endif
+ 
+ /*
+  * This lock gets no contention at all, normally.
+@@ -306,10 +310,24 @@
+ struct page *alloc_bounce_page (void)
+ {
+ 	struct list_head *tmp;
+-	struct page *page;
++	struct page *page = NULL;
++	int estimated_left;
++	int iteration=0;
+ 
+ repeat_alloc:
+-	page = alloc_page(GFP_NOIO);
++
++	spin_lock_irq(&emergency_lock);
++	estimated_left = nr_emergency_pages;
++	spin_unlock_irq(&emergency_lock);
++
++	/* If there are plenty of spare pages, use some of them first. If the
++	   pool is at least half depleted, use the VM to allocate memory.
++	   This allows moderate loads to continue without blocking here,
++	   while higher loads get throttled by the VM.
++        */
++	if ((estimated_left<=POOL_SIZE/2)&&(!iteration))
++		page = alloc_page(GFP_NOIO);
++	
+ 	if (page)
+ 		return page;
+ 	/*
+@@ -338,16 +356,30 @@
+ 	current->policy |= SCHED_YIELD;
+ 	__set_current_state(TASK_RUNNING);
+ 	schedule();
++	iteration++;
+ 	goto repeat_alloc;
+ }
+ 
+ struct buffer_head *alloc_bounce_bh (void)
+ {
+ 	struct list_head *tmp;
+-	struct buffer_head *bh;
++	struct buffer_head *bh = NULL;
++	int estimated_left;
++	int iteration=0;
+ 
+ repeat_alloc:
+-	bh = kmem_cache_alloc(bh_cachep, SLAB_NOIO);
++
++	spin_lock_irq(&emergency_lock);
++	estimated_left = nr_emergency_bhs;
++	spin_unlock_irq(&emergency_lock);
++
++	/* If there are plenty of spare bh's, use some of them first. If the
++	   pool is at least half depleted, use the VM to allocate memory.
++	   This allows moderate loads to continue without blocking here,
++	   while higher loads get throttled by the VM.
++        */
++	if ((estimated_left<=POOL_SIZE/2)&&(!iteration))
++		bh = kmem_cache_alloc(bh_cachep, SLAB_NOIO);
+ 	if (bh)
+ 		return bh;
+ 	/*
+@@ -376,6 +408,7 @@
+ 	current->policy |= SCHED_YIELD;
+ 	__set_current_state(TASK_RUNNING);
+ 	schedule();
++	iteration++;
+ 	goto repeat_alloc;
+ }
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
