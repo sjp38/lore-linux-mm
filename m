@@ -1,52 +1,48 @@
-Date: Fri, 6 Apr 2001 17:31:30 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [PATCH] swap_state.c thinko
-In-Reply-To: <Pine.LNX.4.31.0104051727490.1149-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0104061638200.1098-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 6 Apr 2001 19:47:48 +0300
+From: "Velizar Bodurski" <velizar81@yahoo.com>
+Subject: [PATCH] thinko in filemap.c
+Message-ID: <20010406194748.A561@koil.lint>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Ben LaHaise <bcrl@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Richard Jerrrell <jerrell@missioncriticallinux.com>, Stephen Tweedie <sct@redhat.com>, arjanv@redhat.com, alan@redhat.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Apr 2001, Linus Torvalds wrote:
-> 
-> I'd prefer something more along these lines: it gets rid of
-> free_page_and_swap_cache() altogether, along with "is_page_shared()",
-> realizing that "is_page_shared()" was only validly used on swap-cache
-> pages anyway and thus getting rid of the generic tests it had for other
-> kinds of pages.
+There is a small thinko in the way remove_page_from_inode_queue()
+and __remove_inode_page() are working together. A patch follows 
+which should separate the work for the different functions.
+Right now remove_page_from_inode_queue() after doing its job
+is doing page->mapping = NULL;
+This function is called by __remove_inode_page with no locks held
+which also is doing page->mapping = NULL, this is needles. So with
+this patch i'm removing the second NULLifying of the page's mapping.
 
-I like this direction, but (if I understand the issues better today
-than I did yesterday) the patch you posted looks seriously incomplete
-to me.  While it deals with one of the issues raised by Rich Jerrell
-(writing dead swap pages), doesn't it exacerbate his other issue?
+Any comments are welcome. There is one question with this patch
+and that is shouldn't it be the reverse way, I may have gotten
+it the wrong way :).
 
-That after a process exits (unmaps), if a page was in the swap cache,
-its swap slot will remain allocated until vmscan.c gets to deal with it;
-which would be okay, except that vm_enough_memory() may give false
-negatives meanwhile, because there's no count of such pages (and Rich
-gave the nice example that immediately starting up the same program
-again was liable to fail because of this).  Exacerbates, because
-that problem was just on the !pte_present entries, now with your
-patch it would be on the pte_present entries too.
+This is against 2.4.3
 
-But I don't agree with the way Rich adds his nr_swap_cache_pages to
-"free" in his vm_enough_memory(), because cached pages are all already
-counted into "free" from page_cache_size - so I believe he's double-
-accounting all the swap cache pages as free, when it should just be
-those which (could) have been freed on exit/unmap.  And to count those,
-I think you'd have to reinstate code like free_page_and_swap_cache().
+----
+diff -u mm/filemap.c.orig mm/filemap.c
+--- mm/filemap.c.orig	Fri Apr  6 19:33:41 2001
++++ mm/filemap.c	Fri Apr  6 19:38:51 2001
+@@ -108,7 +108,6 @@
+ 	if (PageDirty(page)) BUG();
+ 	remove_page_from_inode_queue(page);
+ 	remove_page_from_hash_queue(page);
+-	page->mapping = NULL;
+ }
+ 
+ void remove_inode_page(struct page *page)
 
-Instead, perhaps vm_enough_memory() should force a scan to free
-before failing?  And would need to register its own memory pressure,
-so the scan tries hard enough to provide what will be needed?
 
-Sorry, we've moved well away from Ben's "swap_state.c thinko".
-
-Hugh
+_________________________________________________________
+Do You Yahoo!?
+Get your free @yahoo.com address at http://mail.yahoo.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
