@@ -1,43 +1,44 @@
-Received: from twinlark.arctic.org (twinlark.arctic.org [204.62.130.91])
-	by kvack.org (8.8.7/8.8.7) with SMTP id PAA23380
-	for <linux-mm@kvack.org>; Tue, 30 Jun 1998 15:35:48 -0400
-Date: Tue, 30 Jun 1998 12:35:35 -0700 (PDT)
-From: Dean Gaudet <dgaudet-list-linux-kernel@arctic.org>
-Subject: Re: Thread implementations...
-In-Reply-To: <199806301310.OAA00911@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.96dg4.980630122740.23907D-100000@twinlark.arctic.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from bitmover.com (root@bitmover.com [207.181.251.162])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA23419
+	for <linux-mm@kvack.org>; Tue, 30 Jun 1998 15:39:49 -0400
+Message-Id: <199806301930.MAA09098@bitmover.com>
+From: lm@bitmover.com (Larry McVoy)
+Subject: Re: Thread implementations... 
+Date: Tue, 30 Jun 1998 12:30:45 -0700
 Sender: owner-linux-mm@kvack.org
 To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 Cc: "Eric W. Biederman" <ebiederm+eric@npwt.net>, Christoph Rohland <hans-christoph.rohland@sap-ag.de>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+: Not for very large files: the forget-behind is absolutely critical in
+: that case.
 
+SunOS' local file system, UFS, implements the following alg for forget
+behind on all types of accesses (SunOS has a unified page cache, all
+accesses are mmap based, read/write are implemented by the kernel doing
+an mmap and then a bcopy):
 
-On Tue, 30 Jun 1998, Stephen C. Tweedie wrote:
+	if ((free_memory < we_will_start_paging_soon) &&
+	    (offset is clust_size multiple) &&
+	    (offset > small_file) &&
+	    (access is sequential)) {
+	    	free_behind(vp, offset - clust_size, clust_size);
+	}
 
-> Not for very large files: the forget-behind is absolutely critical in
-> that case.
+in the ufs_getpage() code.
 
-I dunno why you're thinking of unmapping pages though... isn't an mmap
-cache the best way to amortize the extra cost of mmap()ing?  In that case
-you don't want the forget-behind pages to be unmapped.  But you do want
-them to be dropped from memory when appropriate.
+I'll admit this was a hack, but it had some nice attributes that you might
+want to consider:
 
-Another thought re: sendfile.  The network layer could hint to sendfile as
-to the speed of the socket it's delivering to.  With that hint and some
-suitable queueing theory someone should be able to get a nifty little
-algorithm that will "synchronize" sockets as much as possible without
-noticeable delays to the user.  By "synchronize" I mean getting them going
-from the same, or nearby pages.  That way on larger than memory data sets
-the kernel can sacrifice some latency on a few connections in order to
-improve the total throughput. 
-
-I won't pretend to have a good heuristic for it ;) 
-
-applications:  multimedia servers -- audio/video streaming.  These boxes
-can be limited by disk bandwidth because their data sets are typically
-much larger than RAM. 
-
-Dean
+	1) it was nice that I/O took care of itself.  The pageout daemon is
+	   pretty costly (Stephen, we talked about this at Linux Expo - this
+	   is why I want a pageout daemon that works on files, not on pages).
+	
+	2) Small files aren't worth the trouble and aren't the cause of the
+	   trouble.  
+	
+	3) Random access frequently wants caching and randoms are expensive
+	   to bring in.
+	
+	4) I/O is freed in large chunks, not a page at a time.  It's about
+	   as costly to bring in one page as bring in 64-256K these days.
