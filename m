@@ -1,38 +1,39 @@
-Date: Sun, 7 May 2000 12:30:15 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [DATAPOINT] pre7-6 will not swap
-In-Reply-To: <3915C053.EE77396C@sgi.com>
-Message-ID: <Pine.LNX.4.10.10005071227160.30202-100000@cesium.transmeta.com>
+Date: Sun, 7 May 2000 17:16:49 -0600 (MDT)
+From: jgg@debian.org
+Reply-To: Jason Gunthorpe <jgg@ualberta.ca>
+Subject: UltraSPARC MM issue
+Message-ID: <Pine.LNX.3.96.1000507164922.25185c-100000@wakko.deltatee.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: riel@nl.linux.org, Benjamin Redelings I <bredelin@ucla.edu>, linux-mm@kvack.org
+To: Linux-MM@kvack.org
+Cc: "David S. Miller" <davem@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Sun, 7 May 2000, Rajagopal Ananthanarayanan wrote:
-> 
-> In the presense unreferenced pages in zones with free_pages > pages_high,
-> should shrink_mmap ever fail? Current shrink_mmap will
-> always skip over the pages of such zones. This in turn
-> can lead to swapping.
+I had a chat with Rik van Riel on IRC today, and he suggested making
+a posting about my findings to the linux-mm list.
 
-I think shrink_mmap() should fail for that case: it tells the logic that
-calls it that its time to stop calling shrink_mmap(), and go to vmscan
-instead (so that next time we call shrink_mmap, we may in fact find some
-pages to free).
+There is a problem with the UltraSPARC port of linux. The basic issue is
+that the Ultra port uses order 2 pages when allocating PTEs (see
+./arch/sparc64/mm/init.c:get_pte_slow). It is quite easy to cause enough
+memory fragmentation that these allocations begin to fail which leads to
+either an OOM-type situation or an Oops. Either way the machine pretty
+much goes down.
 
-If there really are tons of pages with free_pages > pages_high, then we
-must have called shrink_mmap() for some other reason, so we're probably
-interested in another zone altogether that isn't even a subset of the
-"tons of memory" case (because if we had been interested in any class that
-has the "lots of free memory" zone as a subset, then the logic in
-__alloc_pages() would just have allocated it directly without worrying
-about zone balancing at all).
+I hope someone will feel inspired to work on this sometime over the 2.5
+release cycle..
 
-		Linus
+A little background: Sun donated to Debian a rather large UltraSPARC with
+a really big RAID for use as our root archive server. It turns out that
+our archive maint scripts cause severe memory fragmentation and show this
+problem really easially.. 
+
+Thanks,
+Jason
+Debian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
