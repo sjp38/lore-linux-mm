@@ -1,8 +1,8 @@
-Date: Fri, 18 Feb 2005 08:18:40 -0800
+Date: Fri, 18 Feb 2005 08:20:39 -0800
 From: Paul Jackson <pj@sgi.com>
 Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
  II
-Message-Id: <20050218081840.7060d1d7.pj@sgi.com>
+Message-Id: <20050218082039.3b1d03c1.pj@sgi.com>
 In-Reply-To: <20050218130232.GB13953@wotan.suse.de>
 References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
 	<m1vf8yf2nu.fsf@muc.de>
@@ -23,13 +23,14 @@ To: Andi Kleen <ak@suse.de>
 Cc: raybry@sgi.com, ak@muc.de, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Andi - what does this line mean:
+Andi wrote:
+> I don't like old_node* very much because it's imho unreliable
+> (because you can usually never fully know on which nodes the old
+> process was and there can be good reasons to just migrate everything)
 
-  + node mask length. 
-
-I guess its the names of the parameters in a proposed
-migration system call.  Length of what, mask of what,
-what's the node mean, huh?
+That's one way that the arrays of old and new nodes pays off.
+You can list any old node that might have a page, and state
+which new node that page should go to.
 
 -- 
                   I won't rest till it's the best ...
