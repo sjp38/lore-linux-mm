@@ -1,39 +1,45 @@
 Subject: Re: [PATCH] get rid of vm_private_data and win posix shm
-References: <E1230lm-0000h1-00@the-village.bc.nu>
+References: <qwwd7rrgeen.fsf@sap.com> <199912281914.LAA02201@penguin.transmeta.com>
 From: Christoph Rohland <hans-christoph.rohland@sap.com>
-Date: 28 Dec 1999 19:38:28 +0100
-In-Reply-To: Alan Cox's message of "Tue, 28 Dec 1999 17:50:48 +0000 (GMT)"
-Message-ID: <qwwyaaegbbv.fsf@sap.com>
+Date: 28 Dec 1999 21:48:24 +0100
+In-Reply-To: Linus Torvalds's message of "Tue, 28 Dec 1999 11:14:36 -0800"
+Message-ID: <qwwso0mg5bb.fsf@sap.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, ebiederm+eric@ccr.net, Alexander Viro <viro@math.psu.edu>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-kernel@vger.rutgers.edu, linux-MM@kvack.org, Alexander Viro <viro@math.psu.edu>
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox <alan@lxorguk.ukuu.org.uk> writes:
+Linus Torvalds <torvalds@transmeta.com> writes:
 
-> > I implemented posix shm with its own namespace by extending filp_open
-> > and do_unlink by an additional parameter for the root inode.
-> > Also extending this to a complete filesystem should be easy (but not
-> > my target).
+> In article <qwwd7rrgeen.fsf@sap.com>,
+> Christoph Rohland  <hans-christoph.rohland@sap.com> wrote:
+> >
+> >I implemented posix shm with its own namespace by extending filp_open
+> >and do_unlink by an additional parameter for the root inode.
 > 
-> It would seem that the best way to fix the inelegance of the patch - the
-> shm_open and shm_unlink syscalls, the hacks on filp_open etc would be to do
-> exactly that - make it a real fs, at least for open/unlink/openddir/readdir
-> even if not for read/write
+> Beautiful patch _except_ for this case. I'm really pleased with how well
+> the POSIX shm code seems to integrate into the FS and VM layers, and
+> that makes me happy.
+> 
+> The one imbalance you added makes me cringe, though.  I think we should
+> just export it as a real filesystem, and mount it in a standard
+> location.  Nothing clever, just come up with a new location that is
+> fixed and acceptable to all, kind of like /proc is now. 
 
-This makes the sysv ipc code dependent on a mounted fs. Also the
-library has to know where this shm fs is mounted to implement shm_open
-etc. I do not like these ideas. But I know this is questionable.
+O.K. After your and Alans objections I probably have to get rid of my
+separate namespace ;-(
 
-I will redo my patch to be much less intrusive into other code.
+How do I do the SYSV shm stuff then? On creation I could grab the
+first superblock and create the object there. But on removal I rely on
+the fs unlink function through do_unlink. How do I get the right path
+for the plain unlink call? You do not propose to code the location
+into the kernel, don't you?
 
-Greetings
-		Christoph
-
--- 
+Any advice welcome
+                        Christoph
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
