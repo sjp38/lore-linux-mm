@@ -1,52 +1,49 @@
-Date: Wed, 30 May 2001 16:54:12 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Date: Wed, 30 May 2001 23:48:06 +0200
+From: bert hubert <ahu@ds9a.nl>
 Subject: Re: http://ds9a.nl/cacheinfo project - please comment & improve
-In-Reply-To: <20010527222020.A25390@home.ds9a.nl>
-Message-ID: <Pine.LNX.4.21.0105301648290.5231-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20010530234806.C8629@home.ds9a.nl>
+References: <20010527222020.A25390@home.ds9a.nl> <Pine.LNX.4.21.0105301648290.5231-100000@freak.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0105301648290.5231-100000@freak.distro.conectiva>; from marcelo@conectiva.com.br on Wed, May 30, 2001 at 04:54:12PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: bert hubert <ahu@ds9a.nl>
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, May 30, 2001 at 04:54:12PM -0300, Marcelo Tosatti wrote:
 
-On Sun, 27 May 2001, bert hubert wrote:
+> You're using the "address_space->dirty_pages" list to calculate the number
+> of dirty pages.
 
-> Hello mm people!
-> 
-> I've written a module plus a tiny userspace program to query the page
-> cache. In short:
-> 
-> $ cinfo /lib/libc.so.6
-> /lib/libc.so.6: 182 of 272 (66.91%) pages in the cache, of which 0 (0.00%)
-> are dirty
-> 
-> Now, I'm a complete and utter beginner when it comes to kernelcoding. Also,
-> this is very much a 'release early, release often'-release. In other words,
-> it sucks & I know.
-> 
-> So I would like to ask you to look at it and send comments/patches to me.
-> I'm especially interested in architectural decisions - I currently export
-> data over a filesystem (cinfofs), which may or not be right.
-> 
-> The tarball (http://ds9a.nl/cacheinfo/cinfo-0.1.tar.gz) contains 2 manpages
-> which very lightly document how it works.
+I was wondering about that. In limited testing I've never seen a non-0
+content of the dirty list. I ran:
 
-Hi Bert, 
+dd if=/dev/zero of=test count=100000 &
+while true ; do ./cinfo test; done
 
-You're using the "address_space->dirty_pages" list to calculate the number
-of dirty pages.
+And saw no dirty pages. 
 
-Its interesting to note that pages on this list may not be really dirty
-since we don't mark them clean when writting them out. (we only do that at
-fdatasync/fsync time) 
+> So I suggest you to check for the PG_dirty (with the PageDirty macro) bit
+> on pages of that list to know if they are really dirty. 
 
-So I suggest you to check for the PG_dirty (with the PageDirty macro) bit
-on pages of that list to know if they are really dirty. 
+Ok - will do. I plan to release a slightly improved version shortly that
+addresses this issue. Thanks!
 
+Oh, if anybody has ideas on statistics that should be exported, please let
+me know. On the agenda is a bitmap that describes which pages are actually
+in the cache.
 
+Regards,
+
+bert
+
+-- 
+http://www.PowerDNS.com      Versatile DNS Services  
+Trilab                       The Technology People   
+'SYN! .. SYN|ACK! .. ACK!' - the mating call of the internet
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
