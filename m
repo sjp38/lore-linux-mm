@@ -1,37 +1,52 @@
-Date: Mon, 14 Feb 2005 06:36:10 -0700
-Message-Id: <200410031479.i93QlfTw002879@www2.gmail.com>
-From: "Orville White" <ophias@mailAccount.com>
-Subject: Become a homeowner with low rates
-Mime-Version: 1.0
-Content-Type: text/plain;
-Return-Path: <ophias@mailAccount.com>
-To: aart@kvack.org
-Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, needpcparts.com@kvack.org
+Reply-To: "Jose " <Glennabw@aol.com>
+From: "Katarina " <Glennabw@aol.com>
+Subject: You can too own your own home. Dont let them tell you no s
+Date: Thu, 24 Feb 2005 23:19:09 -0600
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--04-80831-3497-675-03107"
+Message-Id: <20050225051759Z26633-20891+3085@kvack.org>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+----04-80831-3497-675-03107
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
- We tried contacting you awhile ago about your low interest morta(ge rate.
+Hey Vicky
 
- You have qualified for the lowest rate in years...
+I know how it feels to dream about owning your own home. I too have "horri=
+ble credit", it was so bad that I just didn't think owning my own home cou=
+ld happen. That was until my best friend showed me the website below. All =
+I had to do was fill out a simple form. I never imagened that I would be m=
+oving into my new home in the next 30 days.
 
- You could get over $380,000 for as little as $500 a month!
+If you want to take a look at what got me into my new home click below.
 
- Ba(d credit? Doesn't matter, low rates are fixed no matter what!
-
- 
- To get a free, no obli,gation consultation click below:
-
- http://www.lenderz4you.com/x/loan.php?id=nu
-
+http://www.easy-as-1-2-3.com/1/index/h3a/checkmate
 
 
- Best Regards,
 
- Sheryl Blue
- 
- to be remov(ed:	http://www.lenderz4you.com/x/st.html
+See ya later,
 
- this process takes one week, so please be patient. we do our 
- best to take your email/s off but you have to fill out a rem/ove
- or else you will continue to recieve email/s.
+Paul
+
+
+There are two things I've learned: (1) There is a God, and (2), I'm not Hi=
+m. Every ancient and traditional tribe should have or should have had a wh=
+ite American upper middle class college student to correct their behavior =
+and keep them from doing icky things. Joshua Geller A fanatic is a man who=
+ does what he thinks the Lord would do if He knew the facts of the case. F=
+inley Peter Dunne=20
+
+gone bye
+http://easy-as-1-2-3.com/rem.php=20
+
+----04-80831-3497-675-03107--
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
