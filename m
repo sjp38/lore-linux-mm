@@ -1,31 +1,57 @@
-Date: Thu, 13 Jan 2005 09:14:44 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
+Date: 13 Jan 2005 19:02:05 +0100
+Date: Thu, 13 Jan 2005 19:02:05 +0100
+From: Andi Kleen <ak@muc.de>
 Subject: Re: page table lock patch V15 [0/7]: overview
-In-Reply-To: <41E5EF2B.3050105@yahoo.com.au>
-Message-ID: <Pine.LNX.4.58.0501130912000.18742@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.44.0501130258210.4577-100000@localhost.localdomain>
- <41E5EF2B.3050105@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20050113180205.GA17600@muc.de>
+References: <Pine.LNX.4.58.0501120833060.10380@schroedinger.engr.sgi.com> <20050112104326.69b99298.akpm@osdl.org> <41E5AFE6.6000509@yahoo.com.au> <20050112153033.6e2e4c6e.akpm@osdl.org> <41E5B7AD.40304@yahoo.com.au> <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com> <41E5BC60.3090309@yahoo.com.au> <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com> <20050113031807.GA97340@muc.de> <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, ak@muc.de, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Jan 2005, Nick Piggin wrote:
+On Thu, Jan 13, 2005 at 09:11:29AM -0800, Christoph Lameter wrote:
+> On Wed, 13 Jan 2005, Andi Kleen wrote:
+> 
+> > Alternatively you can use a lazy load, checking for changes.
+> > (untested)
+> >
+> > pte_t read_pte(volatile pte_t *pte)
+> > {
+> > 	pte_t n;
+> > 	do {
+> > 		n.pte_low = pte->pte_low;
+> > 		rmb();
+> > 		n.pte_high = pte->pte_high;
+> > 		rmb();
+> > 	} while (n.pte_low != pte->pte_low);
+> > 	return pte;
 
-> I'm still not too sure that all places read the pte atomically where needed.
-> But presently this is not a really big concern because it only would
-> really slow down i386 PAE if anything.
+It should be return n; here of course.
 
-S/390 is also affected. And I vaguely recall special issues with sparc
-too. That is why I dropped the arch support for that a long time ago from
-the patchset. Then there was some talk a couple of months back to use
-another addressing mode on IA64 that may also require 128 bit ptes. There
-are significantly different ways of doing optimal SMP locking for these
-scenarios.
+> > }
+> >
+> > No atomic operations, I bet it's actually faster than the cmpxchg8.
+> > There is a small risk for livelock, but not much worse than with an
+> > ordinary spinlock.
+> 
+> Hmm.... This may replace the get of a 64 bit value. But here could still
+> be another process that is setting the pte in a non-atomic way.
 
+The rule in i386/x86-64 is that you cannot set the PTE in a non atomic way
+when its present bit is set (because the hardware could asynchronously 
+change bits in the PTE that would get lost). Atomic way means clearing
+first and then replacing in an atomic operation.
+
+This helps you because you shouldn't be looking at the pte anyways
+when pte_present is false. When it is not false it is always updated
+atomically.
+
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
