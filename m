@@ -1,11 +1,10 @@
-Date: Mon, 17 Jun 2002 16:19:38 -0700
+Date: Mon, 17 Jun 2002 16:25:33 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: linux page table
-Message-ID: <20020617231938.GA25360@holomorphy.com>
+Message-ID: <20020617232533.GB25360@holomorphy.com>
 References: <1024325907014473@caramail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
 Content-Disposition: inline
 In-Reply-To: <1024325907014473@caramail.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,7 +19,7 @@ On Mon, Jun 17, 2002 at 04:58:27PM +0000, anya aitali wrote:
 > What are the LINUX kernel functions should I use.
 > Thanks. 
 
-What kernel version is this for?
+In 2.5 this is done with pfn_pte(), in 2.4 mk_pte().
 
 
 Cheers,
