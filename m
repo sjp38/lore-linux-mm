@@ -1,27 +1,22 @@
-Date: Fri, 29 Aug 2003 00:45:17 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.0-test4-mm3
-Message-Id: <20030829004517.323737ba.akpm@osdl.org>
-In-Reply-To: <20030828235649.61074690.akpm@osdl.org>
-References: <20030828235649.61074690.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from federal-ohtekie (c210-49-251-92.werrb1.vic.optusnet.com.au [210.49.251.92])
+	by mail003.syd.optusnet.com.au (8.11.6p2/8.11.6) with SMTP id h7TCvpZ03104
+	for <linux-mm@kvack.org>; Fri, 29 Aug 2003 22:57:52 +1000
+From: dave <ag051379@hotmail.com>
+Subject: Re: mm1/2 stops while booting
+Date: Fri, 29 Aug 2003 22:58:20 +1000
+Message-Id: <pan.2003.08.29.12.58.17.538305@hotmail.com>
+References: <1061985422.4317.14.camel@federal-ohtekie> <pan.2003.08.29.01.57.10.82190@hotmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@osdl.org> wrote:
->
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test4/2.6.0-test4-mm3/
+Nevermind it appears to be
 
-That rollup is missing some AIO patches.  And master.kernel.org has
-conveniently died.
-
-Please use
-
-http://www.zip.com.au/~akpm/linux/patches/2.6.0-test4-mm3-1.gz
+http://bugzilla.kernel.org/show_bug.cgi?id=1123
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
