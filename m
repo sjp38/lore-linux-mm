@@ -1,32 +1,22 @@
-Message-Id: <l0313031bb7457c3ad660@[192.168.239.105]>
+Message-Id: <l0313031cb745811cfc17@[192.168.239.105]>
 In-Reply-To: 
-        <Pine.LNX.4.21.0106071357460.1156-100000@freak.distro.conectiva>
-References: <l03130318b74568171b40@[192.168.239.105]>
+        <Pine.LNX.4.21.0106061705250.3769-100000@freak.distro.conectiva>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
-Date: Thu, 7 Jun 2001 19:47:26 +0100
+Date: Thu, 7 Jun 2001 20:07:15 +0100
 From: Jonathan Morton <chromi@cyberspace.org>
-Subject: Re: VM tuning patch, take 2
+Subject: Re: [PATCH] Reap dead swap cache earlier v2
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: linux-mm@kvack.org
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> - new pages are still given an age of PAGE_AGE_START, which is 2.
->> PAGE_AGE_ADV has been increased to 4, and PAGE_AGE_MAX to 128.  Pages which
->> are demand-paged in from swap are given an initial age of PAGE_AGE_MAX/2,
->> or 64 - this should help to keep these (expensive) pages around for as long
->> as possible.  Ageing down is now done using a decrement instead of a
->> division by 2, preserving the age information for longer.
->
->Just one comment about this specific change. I would not like to tweak the
->PAGE_AGE_* values until we have centralized page aging. (ie only kswapd
->doing the aging)
+>As suggested by Linus, I've cleaned the reapswap code to be contained
+>inside an inline function. (yes, the if statement is really ugly)
 
-I forgot to mention, I also have applied the patch which causes allocations
-to wait on kswapd.  As far as I can tell, the actual numbers attached to
-the ageing matter far less than how they are applied.
+I can't seem to find the patch which adds this behaviour to the background
+scanning.  Can someone point me to it?
 
 --------------------------------------------------------------
 from:     Jonathan "Chromatix" Morton
