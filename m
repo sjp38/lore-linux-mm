@@ -1,65 +1,74 @@
-Date: Wed, 30 Apr 2003 02:59:15 -0700
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: 2.5.68-mm3
-Message-Id: <20030430025915.1692ffdd.akpm@digeo.com>
-In-Reply-To: <1051696273.591.4.camel@teapot.felipe-alfaro.com>
-References: <20030429235959.3064d579.akpm@digeo.com>
-	<1051696273.591.4.camel@teapot.felipe-alfaro.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <3EB0071B.2020308@google.com>
+Date: Wed, 30 Apr 2003 10:25:47 -0700
+From: Ross Biro <rossb@google.com>
+MIME-Version: 1.0
+Subject: [BUG 2.4] Buffers Span Zones
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Russell King <rmk@arm.linux.org.uk>
+To: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Felipe Alfaro Solana <felipe_alfaro@linuxmail.org> wrote:
->
-> drivers/pcmcia/cs.c: In function `pcmcia_register_socket':
-> drivers/pcmcia/cs.c:361: `dev' undeclared (first use in this function)
-> drivers/pcmcia/cs.c:361: (Each undeclared identifier is reported only
-> once
-> drivers/pcmcia/cs.c:361: for each function it appears in.)
-> drivers/pcmcia/cs.c: At top level:
-> drivers/pcmcia/cs.c:391: conflicting types for
-> `pcmcia_unregister_socket'
+This is probably old hat to all of you, but...
+
+I mentioned this on the LKML, but didn't get a response, so I thought I 
+would mention it here.  It appears that in the 2.4 kernels, kswapd is 
+not aware that buffer heads can be in one zone while the buffers 
+themselves are in another zone.  This can lead to fake out of memory 
+messages when lowmem is under preasure and highmem is not.
+
+I believe something like
+
+                /* Buffers span classzones because heads are low and
+                   the buffer itself may be elsewhere. */
+        if (!memclass(page->zone, classzone)) {
+                        struct buffer_head *bh;
+                        int zonebuffers = 0;
+                        if (!page->buffers)
+                                continue;
+                        bh = page->buffers;
+                        do {
+                                if (memclass(virt_to_page(bh)->zone,
+                                             classzone)) {
+                                        zonebuffers=1;
+                                        break;
+                                }
+                                bh = bh->b_this_page;
+                        } while (bh != page->buffers);
+                       
+                        if (!zonebuffers)
+                                continue;
+                }
+
+in shrink cache in place of
+if (!memclass(page->zone, classzone)) {
+    continue;
+}
 
 
+To keep from killing the page cache, after the buffer heads are freed, I 
+repeate the check
 
-diff -puN drivers/pcmcia/cs.c~pcmcia-fix drivers/pcmcia/cs.c
---- 25/drivers/pcmcia/cs.c~pcmcia-fix	2003-04-30 02:55:46.000000000 -0700
-+++ 25-akpm/drivers/pcmcia/cs.c	2003-04-30 02:58:54.000000000 -0700
-@@ -303,7 +303,7 @@ static int proc_read_clients(char *buf, 
- ======================================================================*/
- 
- static int pccardd(void *__skt);
--void pcmcia_unregister_socket(struct device *dev);
-+static void pcmcia_unregister_socket(struct class_device *class_dev);
- 
- #define to_class_data(dev) dev->class_data
- 
-@@ -358,7 +358,7 @@ int pcmcia_register_socket(struct class_
- 		spin_lock_init(&s->thread_lock);
- 		ret = kernel_thread(pccardd, s, CLONE_KERNEL);
- 		if (ret < 0) {
--			pcmcia_unregister_socket(dev);
-+			pcmcia_unregister_socket(class_dev);
- 			break;
- 		}
- 
-@@ -387,7 +387,7 @@ int pcmcia_register_socket(struct class_
- /**
-  * pcmcia_unregister_socket - remove a pcmcia socket device
-  */
--void pcmcia_unregister_socket(struct class_device *class_dev)
-+static void pcmcia_unregister_socket(struct class_device *class_dev)
- {
- 	struct pcmcia_socket_class_data *cls_d = class_get_devdata(class_dev);
- 	unsigned int i;
+if (!memclass(page->zone, classzone)) {
+    continue;
+}
 
-_
-_
+It also appears that in buffer.c balance_dirty_state really needs to be 
+zone aware as well.  It might also be nice to replace many of the 
+current->policy |= YIELD; schedule(); pairs with real waits for memory 
+to free up a bit.  If dirty pages or associated structures are filling 
+up most of the memory, then the problem will go away if we just wait a bit.
+
+I've found that changing PAGE_OFFSET to reduce the amount of lowmem has 
+been a very good way to exercies the VM.  I've been able to cause all 
+sorts of interesting problems by having ~20M of lowmem and 3G of 
+highmem. I assume that many of these problems would occur on systems 
+with 1G of lowmem and 16-20G of highmem.
+
+Please CC me on any responses.
+
+    Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
