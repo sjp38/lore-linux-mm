@@ -1,28 +1,55 @@
-Date: Tue, 7 Aug 2001 23:19:41 +0200
-From: Jens Axboe <axboe@suse.de>
-Subject: Re: [PATCH] kill flush_dirty_buffers
-Message-ID: <20010807231941.A4587@suse.de>
-References: <Pine.LNX.4.33L.0108061538360.1439-100000@duckman.distro.conectiva> <0108062153340J.00294@starship>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <0108062153340J.00294@starship>
+Date: Tue, 7 Aug 2001 14:33:44 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [RFC][DATA] re "ongoing vm suckage"
+In-Reply-To: <Pine.LNX.4.33.0108071245250.30280-100000@touchme.toronto.redhat.com>
+Message-ID: <Pine.LNX.4.33.0108071425590.1434-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Chris Mason <mason@suse.com>, linux-mm@kvack.org
+To: Ben LaHaise <bcrl@redhat.com>
+Cc: Daniel Phillips <phillips@bonn-fries.net>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 06 2001, Daniel Phillips wrote:
-> This suggests that buffer flushing needs to be per-device.
+On Tue, 7 Aug 2001, Ben LaHaise wrote:
+> > Try pre4.
+>
+> It's similarly awful (what did you expect -- there are no meaningful
+> changes between the two!).  io throughput to a 12 disk array is humming
+> along at a whopping 40MB/s (can do 80) that's very spotty and jerky,
+> mostly being driven by syncs.
 
-Yep, and either stopped as soon as the queue free lists are empty or
-done independently per queue. One thought I had was to actually move the
-dirty list to the queues (or at least separated) and have the plugs
-_pull_ the buffers out instead of the other way around.
+How about some sane approach to "balace_dirty()", like in -pre6.
 
--- 
-Jens Axboe
+The sane approach to balance_dirty() is to
+ - when we're over the threshold of dirty, but not over the hard limit, we
+   start IO. We don't wait for it (except in the sense that if we overflow
+   the request queue we will _always_ wait for it, of course. No way to
+   avoid that).
+ - if we're over the hard limit, we wait for the oldest buffer on the
+   locked list.
+
+The only question is "when should we wake up bdflush?" I currently wake it
+up any time we're over the soft limit, but I have this feeling that we
+really should wait until we're over the hard limit - oherwise we might end
+up dribbling again. I haven't tried it, but I will. Others please do too -
+its trivially moving the wakeup around in fs/buffer.c: balance_dirty().
+
+At least here it gives quite good results, and was rather usable even
+under X when writing a 8GB file. I haven't seen this disk push 20MB/s
+sustained before, and it did now (except when I was doing other things at
+the time).
+
+Will it keep the IO queues full as hell and make interactive programs
+suffer? Yes, of course it will. No way to avoid the fact that reads are
+going to be slower if there's a lot of writes going on. But I didn't see
+vmstat hickups or anything like that.
+
+Of course, this will depend on machine and on disk controller etc. Which
+is why it would be good to test..
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
