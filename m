@@ -1,56 +1,157 @@
-Date: Mon, 2 Sep 2002 17:50:11 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: About the free page pool
-In-Reply-To: <3D73CB28.D2F7C7B0@zip.com.au>
-Message-ID: <Pine.LNX.4.44L.0209021747250.1857-100000@imladris.surriel.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: slablru for 2.5.32-mm1
+Date: Mon, 2 Sep 2002 15:09:52 -0400
+References: <200208261809.45568.tomlins@cam.org> <200209021100.47508.tomlins@cam.org> <3D73AF73.C8FE455@zip.com.au>
+In-Reply-To: <3D73AF73.C8FE455@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Message-Id: <200209021509.52216.tomlins@cam.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@zip.com.au>
-Cc: Scott Kaplan <sfkaplan@cs.amherst.edu>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Sep 2002, Andrew Morton wrote:
-
-> > How important is it to maintain a list of free pages?  That is, how
-> > critical is it that there be some pool of free pages from which the only
-> > bookkeeping required is the removal of that page from the free list.
+On September 2, 2002 02:35 pm, Andrew Morton wrote:
+> Ed Tomlinson wrote:
+> > On September 2, 2002 01:26 am, Andrew Morton wrote:
+> > > Ed, this code can be sped up a bit, I think.  We can make
+> > > kmem_count_page() return a boolean back to shrink_cache(), telling it
+> > > whether it needs to call kmem_do_prunes() at all.  Often, there won't
+> > > be any work to do in there, and taking that semaphore can be quite
+> > > costly.
+> > >
+> > > The code as-is will even run kmem_do_prunes() when we're examining
+> > > ZONE_HIGHMEM, which certainly won't have any slab pages.  This boolean
+> > > will fix that too.
+> >
+> > How about this?  I have modified things so we only try for the sem if
+> > there is work to do.  It also always uses a down_trylock - if we cannot
+> > do the prune now later is ok too...
 >
-> There are several reasons, all messy.
+> well...   Using a global like that is a bit un-linuxy.  (bitops
+> are only defined on longs, btw...
 
-[snip]
+ah.  learn something every day.
 
-> It's feasible.  It'd take some work.  Probably it would best be implemented
-> via a third list.  That list would be protected by an IRQ-safe lock,
+> How about this one?  It does both:  tells the caller whether or
+> not to perform the shrink, and defers the pruning until we
+> have at least a page's worth of objects to be pruned.
 
-I don't think we need to bother with the IRQ-safe part.
+I thought about doing something like your patch.  I wanted to avoid
+semi-magic numbers (why a page worth of objects?  why not two or
+three...).  I would rather see something like my patch, maybe coded
+in a more stylish way, used.  If we want to get bigger batch I would
+move the kmem_do_prunes up into try_to_free_pages.  This way the
+code is simpler, vmscan changes for slablru are smaller, and nothing 
+magic is involved.
 
-It's much simpler if we just do:
+> Also, make sure that only the CPU which was responsible for
+> the transition-past-threshold is told to do some pruning.  Reduces
+> the possibility of two CPUs running the prune.
 
-1) have a normal free list, but have it smaller ...
-   say, between zone->pages_min and zone->pages_low
+With my code it is possible two cpus could prune but very unlikely.
 
-2) if the free pages drop below the low water mark,
-   have either a normal allocator or a kernel thread
-   refill it to the high water mark, from the clean
-   pages list
+> Also, when we make the sweep across the to-be-pruned caches, only
+> prune the ones which are over threshold.
 
-3) have the free+clean target set to something higher,
-   say zone->pages_high ... we could even tune this
-   automatically, if we run out of free+clean pages too
-   often kswapd should probably try to keep more pages
-   clean
+If the kmem_do_prunes is moved to try_to_free_pages its not quite as
+hot a call.  Since it now never waits (with my patch) doubt if it is going
+to show up as something that needs tuning...
 
-What do you think, would this work?
+How about this?  What does it show if you breakpoint it?   How would
+you make it prettier linux wise?  (compiled, untested)
 
-regards,
+Ed
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
+-----
+# This is a BitKeeper generated patch for the following project:
+# Project Name: Linux kernel tree
+# This patch format is intended for GNU patch command version 2.5 or higher.
+# This patch includes the following deltas:
+#	           ChangeSet	1.531   -> 1.534  
+#	         mm/vmscan.c	1.98    -> 1.99   
+#	           mm/slab.c	1.28    -> 1.31   
+#
+# The following is the BitKeeper ChangeSet Log
+# --------------------------------------------
+# 02/09/02	ed@oscar.et.ca	1.532
+# optimization.  lets only take the sem if we have work to do.
+# --------------------------------------------
+# 02/09/02	ed@oscar.et.ca	1.533
+# more optimizations and a correction
+# --------------------------------------------
+# 02/09/02	ed@oscar.et.ca	1.534
+# more optimizing
+# --------------------------------------------
+#
+diff -Nru a/mm/slab.c b/mm/slab.c
+--- a/mm/slab.c	Mon Sep  2 15:05:01 2002
++++ b/mm/slab.c	Mon Sep  2 15:05:01 2002
+@@ -403,6 +403,9 @@
+ /* Place maintainer for reaping. */
+ static kmem_cache_t *clock_searchp = &cache_cache;
+ 
++static long pruner_flag;
++#define	PRUNE_GATE	0
++
+ #define cache_chain (cache_cache.next)
+ 
+ #ifdef CONFIG_SMP
+@@ -427,6 +430,8 @@
+ 	spin_lock_irq(&cachep->spinlock);
+ 	if (cachep->pruner != NULL) {
+ 		cachep->count += slabp->inuse;
++		if (cachep->count)
++			set_bit(PRUNE_GATE, &pruner_flag);
+ 		ret = !slabp->inuse;
+ 	} else 
+ 		ret = !ref && !slabp->inuse;
+@@ -441,11 +446,13 @@
+ 	struct list_head *p;
+ 	int nr;
+ 
+-        if (gfp_mask & __GFP_WAIT)
+-                down(&cache_chain_sem);
+-        else
+-                if (down_trylock(&cache_chain_sem))
+-                        return 0;
++	if (!test_and_clear_bit(PRUNE_GATE, &pruner_flag))
++		return 0;
++
++	if (down_trylock(&cache_chain_sem)) {
++		set_bit(PRUNE_GATE, &pruner_flag);
++		return 0;
++	}
+ 
+         list_for_each(p,&cache_chain) {
+                 kmem_cache_t *cachep = list_entry(p, kmem_cache_t, next);
+diff -Nru a/mm/vmscan.c b/mm/vmscan.c
+--- a/mm/vmscan.c	Mon Sep  2 15:05:01 2002
++++ b/mm/vmscan.c	Mon Sep  2 15:05:01 2002
+@@ -510,8 +510,6 @@
+ 	max_scan = zone->nr_inactive / priority;
+ 	nr_pages = shrink_cache(nr_pages, zone,
+ 				gfp_mask, priority, max_scan);
+-	kmem_do_prunes(gfp_mask);
+-
+ 	if (nr_pages <= 0)
+ 		return 0;
+ 
+@@ -549,6 +547,8 @@
+ 	int nr_pages = SWAP_CLUSTER_MAX;
+ 
+ 	KERNEL_STAT_INC(pageoutrun);
++
++	kmem_do_prunes(gfp_mask);
+ 
+ 	do {
+ 		nr_pages = shrink_caches(classzone, priority,
 
-http://www.surriel.com/		http://distro.conectiva.com/
+-----
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
