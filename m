@@ -1,53 +1,75 @@
-Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA22472
-	for <linux-mm@kvack.ORG>; Fri, 29 Jan 1999 13:34:16 -0500
-Date: Fri, 29 Jan 1999 10:24:16 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
+Received: from mail.ccr.net (ccr@alogconduit1ag.ccr.net [208.130.159.7])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA22567
+	for <linux-mm@kvack.org>; Fri, 29 Jan 1999 13:43:03 -0500
 Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
-In-Reply-To: <Pine.LNX.3.96.990129015657.8557A-100000@laser.bogus>
-Message-ID: <Pine.LNX.3.95.990129101917.12610G-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <Pine.LNX.3.96.990129015657.8557A-100000@laser.bogus>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 29 Jan 1999 08:13:05 -0600
+In-Reply-To: Andrea Arcangeli's message of "Fri, 29 Jan 1999 02:47:41 +0100 (CET)"
+Message-ID: <m17lu6xj4e.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, "David S. Miller" <davem@dm.COBALTMICRO.COM>, gandalf@szene.CH, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.COM, djf-lists@ic.NET, tomh@taz.ccs.fau.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+>>>>> "AA" == Andrea Arcangeli <andrea@e-mind.com> writes:
 
-On Fri, 29 Jan 1999, Andrea Arcangeli wrote:
-> 
-> > If you want to touch some _other_ process mm pointer, that's when it gets
-> > interesting. Buyer beware.
-> 
-> Infact this is the point. I really think you are missing something. I read
-> your explanation of why we only need atomic_t but it was not touching some
-> point I instead thought about.
-> 
-> Ok, I assume you are right. Please take this example: I am writing a nice
-> kernel module that will collect some nice stats from the kernel.
+AA> On Thu, 28 Jan 1999, Linus Torvalds wrote:
 
-And that's where you have problems. You shouldn't do that, and that's why
-/proc is such a nasty beast right now. 
+>> You're missing the fact that whenever we own the mm, we know that NOBODY
 
-If you want to look at other peoples processes, then the onus should be on
-_you_ to do all the extra crap that normal processes do not need to do. 
-That extra crap can be a number of things, but you shouldn't penalize the
-normal path (which is to touch only your own mm space). 
+AA> I return to the kernel module stat colletctor example:
 
-For example, the thing I suspect we'll have to do in the long run for
-/proc is:
+AA> To be sure that the kernel stack of the process will not go away under me
+AA> I need to held the tasklist_lock. Ok? So i'll do:
 
- - get the process while holding the tasklist lock, and increment the page
-   count so that even if the process exists, the page does not get unused.
- - get the kernel lock. Now we know that we're atomic with regard to
-   __exit_mm()
- - look at tsk->mm: it it is not init_mm, you're now safe, because
-   __exit_mm is called only with the kernel lock held. 
+AA> 	read_lock(&tasklist_lock);
+AA> 	tsk = find_task_by_pid(pid);
+AA> 	if (tsk)
+AA> 	{
+AA> 		struct page * page = mem_map + MAP_NR(tsk);
+AA> 		atomic_inc(&page->count);
 
-See? No spinlocks.
+Actually in the future we should have something increment the task count or 
+similiar.  But I suppose keeping a page count should be enough.
 
-		Linus
+AA> 	}
+AA> 	read_unlock(&tasklist_lock);
+AA> 	mdelay(10000000000000);
 
+AA> So now I can wait all time I want and nobody can free and reuse my task
+AA> struct and replace it with garbage under my eyes. OK?
+
+AA> Now I want to play with the tsk->mm of the tsk. OK?
+
+AA> I'll do:
+
+AA> 	unlock_kernel();
+AA> 	^^
+AA> 	if (tsk->mm && tsk->mm != &init_mm)
+AA> 	{
+AA> 		mdelay(2000000000000000000);
+AA> 		mmget();
+AA> 	}
+
+This would need to say.
+	mm = tsk->mm;
+	mmget(mm);
+	if (mm != &init_mm) {
+	/* xyz */
+	}
+
+And do_exit & exec would need to say:
+     old_mm = tsk->mm;
+     tsk->mm = new_mm; /* probably init_mm */
+     mmput(old_mm);
+
+There does to be a memory barier there to sychronize reads/writes of cache
+data.  I forget off had what kind that needs to be.
+
+The fix is just to never let bad sit in the tsk struct while it is valid.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
