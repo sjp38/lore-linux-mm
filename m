@@ -1,115 +1,78 @@
-Date: Mon, 9 Oct 2000 15:07:53 -0700 (PDT)
-From: jg@pa.dec.com (Jim Gettys)
-Message-Id: <200010092207.PAA08714@pachyderm.pa.dec.com>
-In-Reply-To: <Pine.LNX.4.10.10010091446500.1438-100000@penguin.transmeta.com>
-Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-Mime-Version: 1.0
-Content-Type: text/plain
+Message-Id: <200010092208.e99M8CE14230@eng2.sequent.com>
+Reply-To: Gerrit.Huizenga@us.ibm.com
+From: Gerrit.Huizenga@us.ibm.com
+Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler 
+In-reply-to: Your message of Mon, 09 Oct 2000 18:05:57 -0300.
+             <Pine.LNX.4.21.0010091759400.1562-100000@duckman.distro.conectiva>
+Date: Mon, 09 Oct 2000 15:08:12 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Jim Gettys <jg@pa.dec.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> From: Linus Torvalds <torvalds@transmeta.com>
-> Date: Mon, 9 Oct 2000 14:50:51 -0700 (PDT)
-> To: Jim Gettys <jg@pa.dec.com>
-> Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Andi Kleen <ak@suse.de>,
->         Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>,
->         Rik van Riel <riel@conectiva.com.br>,
->         Byron Stanoszek <gandalf@winds.org>,
->         MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-> Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-> -----
-> On Mon, 9 Oct 2000, Jim Gettys wrote:
-> >
-> >
-> > On Date: Mon, 9 Oct 2000 14:38:10 -0700 (PDT), Linus Torvalds
-> <torvalds@transmeta.com>
-> > said:
-> >
-> > >
-> > > The problem is that there is no way to keep track of them afterwards.
-> > >
-> > > So the process that gave X the bitmap dies. What now? Are we going to
-> > > depend on X un-counting the resources?
-> > >
-> >
-> > X has to uncount the resources already, to free the memory in the X server
-> > allocated on behalf of that client.  X has to get this right, to be a long
-> > lived server (properly debugged X servers last many months without problems:
-> > unfortunately, a fair number of DDX's are buggy).
+At Sequent, we found that there are a small set of processes which are
+"critical" to the system's operation in that they should not be killed
+on swap shortage, memory shortage, etc.  This included things like init,
+potentially inetd, the swapper, page daemon, clusters heartbeat daemon,
+and generally any core system service which had a user process component.
+If there wasn't enough memory for those processes, or if those processes
+weren't already responsible in their use of memory/resources, you were
+already toast.
+
+Anyway, there is/was an API in PTX to say (either from in-kernel or through
+some user machinations) "I Am a System Process".  Turns on a bit in the
+proc struct (task struct) that made it exempt from death from a variety
+of sources, e.g. OOM, generic user signals, portions of system shutdown,
+etc.
+
+Then, the code looking for things to kill simply skips those that are
+intelligently marked, taking most of the decision making/policy making
+out of the scheduler/memory manager.
+
+gerrit
+
+> On Mon, 9 Oct 2000, Linus Torvalds wrote:
+> > On Mon, 9 Oct 2000, Andi Kleen wrote:
+> > > 
+> > > netscape usually has child processes: the dns helper. 
+> > 
+> > Yeah.
+> > 
+> > One thing we _can_ (and probably should do) is to do a per-user
+> > memory pressure thing - we have easy access to the "struct
+> > user_struct" (every process has a direct pointer to it), and it
+> > should not be too bad to maintain a per-user "VM pressure"
+> > counter.
+> > 
+> > Then, instead of trying to use heuristics like "does this
+> > process have children" etc, you'd have things like "is this user
+> > a nasty user", which is a much more valid thing to do and can be
+> > used to find people who fork tons of processes that are
+> > mid-sized but use a lot of memory due to just being many..
 > 
-> No, but my point is that it doesn't really work.
+> Sure we could do all of this, but does OOM really happen that
+> often that we want to make the algorithm this complex ?
 > 
-> One of the biggest bitmaps is the background bitmap. So you have a client
-> that uploads it to X and then goes away. There's nobody to un-count to by
-> the time X decides to switch to another background.
-
-Actually, the big offenders are things other than the background bitmap:
-things like E do absolutely insane things, you would not believe (or maybe
-you would).  The background pixmap is generally in the worst case typically
-no worse than 4 megabytes (for those people who are crazy enough to put
-images up as their root window on 32 bit deep displays, at 1kX1k resolution).
-
+> The current algorithm seems to work quite well and is already
+> at the limit of how complex I'd like to see it. Having a less
+> complex OOM killer turned out to not work very well, but having
+> a more complex one is - IMHO - probably overkill ...
 > 
-> Does that memory just disappear as far as the resource handling is
-> concerned when the client that originated it dies?
-
-No, X recovers the memory when a connection dies, unless the client has
-gone out of its way to arrange to preserve things across connection
-termination.  Few, if any clients do this: it is primarily possible mostly
-for debugging purposes, that (fortunately, or unfortunately, depending
-on your opinion) what happens not just vanish before you can see what
-happened.
-
-So the X server does extensive bookkeeping of its memory usage, and retrieves
-all memory used by clients when they terminate (with the above rare
-exception).
-
+> regards,
 > 
-> What happens with TCP connections? They might be local. Or they might not.
-> In either case X doesn't know whom to blame.
-
-At least on BSD kernels, it was reasonably straightforward to determine
-if a TCP connection was local: in that case, the code actually did an upcall
-and delivered data directly to the appropriate socket.  Dunno about the
-insides of Linux.
-
-I suspect it should not be hard to find the right process for local
-connections.  Distant connections are, indeed, a challenge.
-
+> Rik
+> --
+> "What you're running that piece of shit Gnome?!?!"
+>        -- Miguel de Icaza, UKUUG 2000
 > 
-> Basically, the only thing _I_ think X can do is to really say "oh, please
-> don't count my memory, because everything I do I do for my clients, not
-> for myself".
+> http://www.conectiva.com/		http://www.surriel.com/
 > 
-> THAT is my argument. Basically there is nothing we can reliably account.
-
-Your argument has alot of validity, though the X server does a better job
-of accounting than you might think.
-
-BUT, I'm actually more interested in dealing with scheduling preferences, to
-get really first rate interactive feel.
-
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux.eu.org/Linux-MM/
 > 
-> So we might as well fall back on just saying "X is more important than
-> some random client", and have a mm niceness level. Which right now is
-> obviously approximated by the IO capabilities tests etc.
-> 
-
-As I say above, the principle here may be more useful than for the memory 
-example, but for controlling scheduling so we can get great interactive 
-feel.  THAT is what is really worth discussing.
-				- Jim
-
-
---
-Jim Gettys
-Technology and Corporate Development
-Compaq Computer Corporation
-jg@pa.dec.com
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
