@@ -1,67 +1,42 @@
-Message-ID: <DD0DC14935B1D211981A00105A1B28DB018BE677@NL-ASD-EXCH-1>
-From: "Leeuw van der, Tim" <tim.leeuwvander@nl.unisys.com>
-Subject: RE: [prePATCH] new VM (2.4.0-test4)
-Date: Thu, 17 Aug 2000 02:51:03 -0500
+Received: from saturn.homenet([192.168.225.55]) (1170 bytes) by megami.veritas.com
+	via sendmail with P:esmtp/R:smart_host/T:smtp
+	(sender: <tigran@veritas.com>)
+	id <m13PKft-0000NYC@megami.veritas.com>
+	for <linux-mm@kvack.org>; Thu, 17 Aug 2000 01:05:17 -0700 (PDT)
+	(Smail-3.2.0.101 1997-Dec-17 #4 built 1999-Aug-24)
+Date: Thu, 17 Aug 2000 09:12:14 +0100 (BST)
+From: Tigran Aivazian <tigran@veritas.com>
+Subject: Re: 2.4.0-test7-pre4 oops in generic_make_request()
+In-Reply-To: <14747.7309.941683.168466@notabene.cse.unsw.edu.au>
+Message-ID: <Pine.LNX.4.21.0008170837360.1056-100000@saturn.homenet>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Rik van Riel ' <riel@conectiva.com.br>, "'linux-kernel@vger.rutgers.edu'" <linux-kernel@vger.rutgers.edu>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: Neil Brown <neilb@cse.unsw.edu.au>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
- 
-Hello!
+On Thu, 17 Aug 2000, Neil Brown wrote:
+> 
+> But it looks like you are doing IO on a raw (drivers/char/raw.c)
+> device, rather than /dev/hdd1.  Is that right?
+> 
 
-I tried the new patch last night / this morning and so far, it's GREAT. It
-ROCKS.
+yes, you are right - I didn't know that myself ;) Of course I should have
+guessed - our mkfs on other UNIX flavours does access the character (raw)
+interface rather than buffered (block) one so the port to Linux had to do
+the RAW_SETBIND magic and do the same...
 
-I can install .deb files with good interactive performance while compiling a
-kernel. Gnome/Enlightenment startup has never been so fast, the difference
-is clearly visible. It's great.
+Thanks for the patch - it works beautifully, added to my linux-vxfs chunk
+but I hope Linus takes it into pre5.
 
-Much faster than the untuned version, and much faster than 2.2.17pre.
-
-
-The only thing I haven't yet tried is playing back an MP3 while doing all
-this. I'm more than happy with what I've seen so far :-)
-
-And you say that it can get even faster? WoW!
+Regards,
+Tigran
 
 
-Much success,
 
---Tim
 
------Original Message-----
-From: Rik van Riel
-To: tim.leeuwvander@nl.unisys.com
-Cc: linux-kernel@vger.rutgers.edu
-Sent: 8/16/00 5:34 PM
-Subject: Re: [prePATCH] new VM (2.4.0-test4)
-
-On Wed, 16 Aug 2000, Tim N . van der Leeuw wrote:
-
-> Performance is quite good, much better than plain 2.4testX for
-> certain. Under load the performance starts to fall apart: On my
-> 64Mb machine, MP3 playback and interactive performance sufer
-> horribly when installing a package with dpkg.
-
-You may want to test the second patch against 2.4.0-test7-pre4.
-That patch has been tuned for performance, in contrast to the
-patch you've been testing with ;)
-
-> When the load is not so high, the computer is very very fast!
-> I'm very encouraged by the results so far.
-
-cheers,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
