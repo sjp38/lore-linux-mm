@@ -1,45 +1,48 @@
-Date: Wed, 7 Jun 2000 12:00:30 +0100
+Date: Wed, 7 Jun 2000 12:12:43 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: reiserfs being part of the kernel: it's not just the code
-Message-ID: <20000607120030.D29432@redhat.com>
-References: <Pine.LNX.4.10.10006060811120.15888-100000@dax.joh.cam.ac.uk> <393CA40C.648D3261@reiser.to> <20000606114851.A30672@home.ds9a.nl> <393CBBB8.554A0D2A@reiser.to> <20000606172606.I25794@redhat.com> <393D37D1.1BC61DC3@reiser.to> <20000606205447.T23701@redhat.com> <393DACC8.5DB60A81@reiser.to>
+Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel: it'snot just the code)
+Message-ID: <20000607121243.F29432@redhat.com>
+References: <Pine.LNX.4.21.0006061956360.7328-100000@duckman.distro.conectiva> <393DA31A.358AE46D@reiser.to>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <393DACC8.5DB60A81@reiser.to>; from hans@reiser.to on Tue, Jun 06, 2000 at 07:00:40PM -0700
+In-Reply-To: <393DA31A.358AE46D@reiser.to>; from hans@reiser.to on Tue, Jun 06, 2000 at 06:19:22PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Hans Reiser <hans@reiser.to>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org
+Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Tue, Jun 06, 2000 at 07:00:40PM -0700, Hans Reiser wrote:
+On Tue, Jun 06, 2000 at 06:19:22PM -0700, Hans Reiser wrote:
 > 
-> Do I miss a finepoint, or can this reservation API be as simple as using an
-> agreed on counter for total system pinned pages which is constrained to some
-> percentage of memory?  I think we all discussed all of this last year, and the
-> workshop Riel tried to organize sadly never happened.
+> There are two issues to address:
+> 
+> 1) If a buffer needs to be flushed to disk, how do we let the FS flush
+> everything else that it is optimal to flush at the same time as that buffer. 
+> zam's allocate on flush code addresses that issue for reiserfs, and he has some
+> general hooks implemented also.  He is guessed to be two weeks away.
 
-It's a good bit more complex than that.  We need not only that reservation
-layer, but also a new notification mechanism to invoke early commit if 
-we exhaust the reservation limit, and a way of interacting with dirty
-pages (which are not yet part of any transaction, but which may not be
-flushable to disk without a new transaction being incurred).  The dirty
-mmaped data case is particularly nasty: we have very little VM 
-infrastructure right now which is suitable for fixing that.
+That's easy to deal with using address_space callbacks from shrink_mmap.
+shrink_mmap just calls into the filesystem to tell it that something
+needs to be done.  The filesystem can, in response, flush as much data
+as it wants to in addition to the page requested --- or can flush none
+at all if the page is pinned.  The address_space callbacks should be
+thought of as hints from the VM that the filesystem needs to do 
+something.  shrink_mmap will keep on trying until it finds something
+to free if nothing happens on the first call.
 
-> Perhaps we should do a
-> workshop July 5 at the Libre Software conference in France?  Probably this issue
-> will already be solved by then, but there are plenty of other discussions to
-> have in the vicinity of this problem.
+> 2) If multiple kernel subsystem page pinners pin memory, how do we keep them
+> from deadlocking.  Chris as you know is the reiserfs guy for that.
 
-Who will be at Usenix in San Diego in a couple of weeks' time?  There
-will certainly be some of the XFS and GFS people there, and I'll be 
-around all week.
+Use reservations.  That's the point --- you reserve in advance, so that 
+the VM can *guarantee* that you can continue to pin more pages up to
+the maximum you have reserved.  You take a reservation before starting
+a fs operation, so that if you need to block, it doesn't prevent the
+running transaction from being committed.
 
-Cheers, 
+Cheers,
  Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
