@@ -1,765 +1,589 @@
-Subject: 150 nonlinear
+Subject: 160 nonlinear i386
 In-Reply-To: <4173D219.3010706@shadowen.org>
-Message-Id: <E1CJYc0-0000aK-A8@ladymac.shadowen.org>
+Message-Id: <E1CJYcZ-0000aS-5g@ladymac.shadowen.org>
 From: Andy Whitcroft <apw@shadowen.org>
-Date: Mon, 18 Oct 2004 15:35:48 +0100
+Date: Mon, 18 Oct 2004 15:36:23 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: apw@shadowen.org, lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-CONFIG_NONLINEAR memory model.
+CONFIG_NONLINEAR for i386
 
 Revision: $Rev$
 
 Signed-off-by: Andy Whitcroft <apw@shadowen.org>
 
-diffstat 150-nonlinear
+diffstat 160-nonlinear-i386
 ---
- include/linux/mm.h     |  103 +++++++++++++++++++++++++++++++++---
- include/linux/mmzone.h |  140 +++++++++++++++++++++++++++++++++++++++++++++++--
- include/linux/numa.h   |    2 
- init/main.c            |    1 
- mm/Makefile            |    2 
- mm/bootmem.c           |   15 ++++-
- mm/memory.c            |    2 
- mm/nonlinear.c         |  137 +++++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c        |   87 +++++++++++++++++++++++++++++-
- 9 files changed, 469 insertions(+), 20 deletions(-)
+ arch/i386/Kconfig          |   22 ++++++---
+ arch/i386/kernel/numaq.c   |    5 ++
+ arch/i386/kernel/setup.c   |    7 ++
+ arch/i386/kernel/srat.c    |    5 ++
+ arch/i386/mm/Makefile      |    2 
+ arch/i386/mm/discontig.c   |   97 +++++++++++++++++++++++----------------
+ arch/i386/mm/init.c        |   19 ++++---
+ include/asm-i386/mmzone.h  |  110 ++++++++++++++++++++++++++++++++++-----------
+ include/asm-i386/page.h    |    4 -
+ include/asm-i386/pgtable.h |    4 -
+ 10 files changed, 189 insertions(+), 86 deletions(-)
 
-diff -upN reference/include/linux/mm.h current/include/linux/mm.h
---- reference/include/linux/mm.h
-+++ current/include/linux/mm.h
-@@ -379,24 +379,76 @@ static inline void put_page(struct page 
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/arch/i386/Kconfig current/arch/i386/Kconfig
+--- reference/arch/i386/Kconfig
++++ current/arch/i386/Kconfig
+@@ -68,7 +68,7 @@ config X86_VOYAGER
  
- #define FLAGS_SHIFT	(sizeof(page_flags_t)*8)
+ config X86_NUMAQ
+ 	bool "NUMAQ (IBM/Sequent)"
+-	select DISCONTIGMEM
++	#select DISCONTIGMEM
+ 	select NUMA
+ 	help
+ 	  This option is used for getting Linux to run on a (IBM/Sequent) NUMA
+@@ -738,16 +738,28 @@ comment "NUMA (NUMA-Q) requires SMP, 64G
+ comment "NUMA (Summit) requires SMP, 64GB highmem support, ACPI"
+ 	depends on X86_SUMMIT && (!HIGHMEM64G || !ACPI)
  
--/* 32bit: NODE:ZONE */
-+/*
-+ * CONFIG_NONLINEAR:
-+ *   If there is room for SECTIONS, NODES AND ZONES then:
-+ *     NODE:ZONE:SECTION
-+ *   else:
-+ *     SECTION:ZONE
-+ *
-+ * Otherwise:
-+ *   NODE:ZONE
-+ */
+-config DISCONTIGMEM
+-	bool
+-	depends on NUMA
+-	default y
+ 
+ config HAVE_ARCH_BOOTMEM_NODE
+ 	bool
+ 	depends on NUMA
+ 	default y
+ 
++choice
++	prompt "Memory model"
++	default NONLINEAR if (X86_NUMAQ || X86_SUMMIT)
++	default FLATMEM
++
++config DISCONTIGMEM
++	bool "Discontigious Memory"
++
++config NONLINEAR
++	bool "Nonlinear Memory"
++
++config FLATMEM
++	bool "Flat Memory"
++
++endchoice
++
+ config HIGHPTE
+ 	bool "Allocate 3rd-level pagetables from highmem"
+ 	depends on HIGHMEM4G || HIGHMEM64G
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/arch/i386/kernel/numaq.c current/arch/i386/kernel/numaq.c
+--- reference/arch/i386/kernel/numaq.c
++++ current/arch/i386/kernel/numaq.c
+@@ -60,6 +60,11 @@ static void __init smp_dump_qct(void)
+ 				eq->hi_shrd_mem_start - eq->priv_mem_size);
+ 			node_end_pfn[node] = MB_TO_PAGES(
+ 				eq->hi_shrd_mem_start + eq->hi_shrd_mem_size);
 +#ifdef CONFIG_NONLINEAR
-+
-+#if FLAGS_TOTAL_SHIFT >= SECTIONS_SHIFT + NODES_SHIFT + ZONES_SHIFT
-+
-+/* NODE:ZONE:SECTION */
- #define PGFLAGS_NODES_SHIFT	(FLAGS_SHIFT - NODES_SHIFT)
- #define PGFLAGS_ZONES_SHIFT	(PGFLAGS_NODES_SHIFT - ZONES_SHIFT)
-+#define PGFLAGS_SECTIONS_SHIFT	(PGFLAGS_ZONES_SHIFT - SECTIONS_SHIFT)
-+
-+#define FLAGS_USED_SHIFT	(NODES_SHIFT + ZONES_SHIFT + SECTIONS_SHIFT)
- 
- #define ZONETABLE_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
- #define PGFLAGS_ZONETABLE_SHIFT	(FLAGS_SHIFT - ZONETABLE_SHIFT)
- 
--#if NODES_SHIFT+ZONES_SHIFT > FLAGS_TOTAL_SHIFT
--#error NODES_SHIFT+ZONES_SHIFT > FLAGS_TOTAL_SHIFT
-+#define ZONETABLE(section, node, zone) \
-+			((node << ZONES_SHIFT) | zone)
-+
-+#else
-+
-+/* SECTION:ZONE */
-+#define PGFLAGS_SECTIONS_SHIFT	(FLAGS_SHIFT - SECTIONS_SHIFT)
-+#define PGFLAGS_ZONES_SHIFT	(PGFLAGS_SECTIONS_SHIFT - ZONES_SHIFT)
-+
-+#define FLAGS_USED_SHIFT	(SECTIONS_SHIFT + ZONES_SHIFT)
-+
-+#define ZONETABLE_SHIFT		(SECTIONS_SHIFT + ZONES_SHIFT)
-+#define PGFLAGS_ZONETABLE_SHIFT	(FLAGS_SHIFT - ZONETABLE_SHIFT)
-+
-+#define ZONETABLE(section, node, zone) \
-+			((section << ZONES_SHIFT) | zone)
-+
++			nonlinear_add(node, node_start_pfn[node],
++				node_end_pfn[node]);
 +#endif
 +
-+#else /* !CONFIG_NONLINEAR */
-+
-+/* NODE:ZONE */
-+#define PGFLAGS_NODES_SHIFT	(FLAGS_SHIFT - NODES_SHIFT)
-+#define PGFLAGS_ZONES_SHIFT	(PGFLAGS_NODES_SHIFT - ZONES_SHIFT)
-+
-+#define ZONETABLE_SHIFT		(NODES_SHIFT + ZONES_SHIFT)
-+#define PGFLAGS_ZONETABLE_SHIFT	(FLAGS_SHIFT - ZONETABLE_SHIFT)
-+
-+#define FLAGS_USED_SHIFT	(NODES_SHIFT + ZONES_SHIFT)
-+
-+#endif /* !CONFIG_NONLINEAR */
-+
-+#if FLAGS_USED_SHIFT > FLAGS_TOTAL_SHIFT
-+#error SECTIONS_SHIFT+NODES_SHIFT+ZONES_SHIFT > FLAGS_TOTAL_SHIFT
- #endif
- 
- #define NODEZONE(node, zone)		((node << ZONES_SHIFT) | zone)
- 
- #define ZONES_MASK		(~((~0UL) << ZONES_SHIFT))
- #define NODES_MASK		(~((~0UL) << NODES_SHIFT))
-+#define SECTIONS_MASK		(~((~0UL) << SECTIONS_SHIFT))
- #define ZONETABLE_MASK		(~((~0UL) << ZONETABLE_SHIFT))
- 
--#define PGFLAGS_MASK		(~((~0UL) << PGFLAGS_ZONETABLE_SHIFT)
-+#define ZONETABLE_SIZE  	(1 << ZONETABLE_SHIFT)
-+
-+#define PGFLAGS_MASK		(~((~0UL) << PGFLAGS_ZONETABLE_SHIFT))
- 
- static inline unsigned long page_zonenum(struct page *page)
- {
-@@ -405,13 +457,34 @@ static inline unsigned long page_zonenum
-  	else
-  		return (page->flags >> PGFLAGS_ZONES_SHIFT) & ZONES_MASK;
+ 		}
+ 	}
  }
-+#ifdef PGFLAGS_NODES_SHIFT
- static inline unsigned long page_to_nid(struct page *page)
- {
-+#if NODES_SHIFT == 0
-+	return 0;
-+#else 
- 	if (FLAGS_SHIFT == (PGFLAGS_NODES_SHIFT + NODES_SHIFT))
- 		return (page->flags >> PGFLAGS_NODES_SHIFT);
- 	else
- 		return (page->flags >> PGFLAGS_NODES_SHIFT) & NODES_MASK;
-+#endif
- }
-+#else
-+static inline struct zone *page_zone(struct page *page);
-+static inline unsigned long page_to_nid(struct page *page)
-+{
-+	return page_zone(page)->zone_pgdat->node_id;
-+}
-+#endif
-+#ifdef PGFLAGS_SECTIONS_SHIFT
-+static inline unsigned long page_to_section(struct page *page)
-+{
-+	if (FLAGS_SHIFT == (PGFLAGS_SECTIONS_SHIFT + SECTIONS_SHIFT))
-+ 		return (page->flags >> PGFLAGS_SECTIONS_SHIFT);
-+ 	else
-+ 		return (page->flags >> PGFLAGS_SECTIONS_SHIFT) & SECTIONS_MASK;
-+}
-+#endif
- 
- struct zone;
- extern struct zone *zone_table[];
-@@ -425,13 +498,27 @@ static inline struct zone *page_zone(str
- 			ZONETABLE_MASK];
- }
- 
--static inline void set_page_zone(struct page *page, unsigned long nodezone_num)
-+static inline void set_page_zone(struct page *page, unsigned long zone)
-+{
-+	page->flags &= ~(ZONES_MASK << PGFLAGS_ZONES_SHIFT);
-+	page->flags |= zone << PGFLAGS_ZONES_SHIFT;
-+}
-+static inline void set_page_node(struct page *page, unsigned long node)
- {
--	page->flags &= PGFLAGS_MASK;
--	page->flags |= nodezone_num << PGFLAGS_ZONETABLE_SHIFT;
-+#if defined(PGFLAGS_NODES_SHIFT) && NODES_SHIFT != 0
-+	page->flags &= ~(NODES_MASK << PGFLAGS_NODES_SHIFT);
-+	page->flags |= node << PGFLAGS_NODES_SHIFT;
-+#endif
-+}
-+static inline void set_page_section(struct page *page, unsigned long section)
-+{
-+#ifdef PGFLAGS_SECTIONS_SHIFT
-+	page->flags &= ~(SECTIONS_MASK << PGFLAGS_SECTIONS_SHIFT);
-+	page->flags |= section << PGFLAGS_SECTIONS_SHIFT;
-+#endif
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/arch/i386/kernel/setup.c current/arch/i386/kernel/setup.c
+--- reference/arch/i386/kernel/setup.c
++++ current/arch/i386/kernel/setup.c
+@@ -39,6 +39,7 @@
+ #include <linux/efi.h>
+ #include <linux/init.h>
+ #include <linux/edd.h>
++#include <linux/mmzone.h>
+ #include <video/edid.h>
+ #include <asm/e820.h>
+ #include <asm/mpspec.h>
+@@ -1014,7 +1015,7 @@ static void __init reserve_ebda_region(v
+ 		reserve_bootmem(addr, PAGE_SIZE);	
  }
  
 -#ifndef CONFIG_DISCONTIGMEM
 +#ifdef CONFIG_FLATMEM
- /* The array of struct pages - for discontigmem use pgdat->lmem_map */
- extern struct page *mem_map;
- #endif
-diff -upN reference/include/linux/mmzone.h current/include/linux/mmzone.h
---- reference/include/linux/mmzone.h
-+++ current/include/linux/mmzone.h
-@@ -372,7 +372,7 @@ int lower_zone_protection_sysctl_handler
- /* Returns the number of the current Node. */
- #define numa_node_id()		(cpu_to_node(smp_processor_id()))
- 
--#ifndef CONFIG_DISCONTIGMEM
-+#ifdef CONFIG_FLATMEM
- 
- extern struct pglist_data contig_page_data;
- #define NODE_DATA(nid)		(&contig_page_data)
-@@ -384,6 +384,8 @@ extern struct pglist_data contig_page_da
- 
- #include <asm/mmzone.h>
- 
-+#endif /* CONFIG_FLATMEM */
-+
- #if BITS_PER_LONG == 32 || defined(ARCH_HAS_ATOMIC_UNSIGNED)
- /*
-  * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
-@@ -395,10 +397,13 @@ extern struct pglist_data contig_page_da
- /*
-  * with 64 bit flags field, there's plenty of room.
-  */
--#define FLAGS_TOTAL_SHIFT	12
--#endif
-+#define FLAGS_TOTAL_SHIFT	32
-+
-+#else
- 
+ void __init setup_bootmem_allocator(void);
+ static unsigned long __init setup_memory(void)
+ {
+@@ -1042,7 +1043,9 @@ static unsigned long __init setup_memory
+ 	setup_bootmem_allocator();
+ 	return max_low_pfn;
+ }
 -#endif /* !CONFIG_DISCONTIGMEM */
-+#error BITS_PER_LONG not set
-+
-+#endif
++#else
++unsigned long __init setup_memory(void);
++#endif /* CONFIG_FLATMEM */
  
- extern DECLARE_BITMAP(node_online_map, MAX_NUMNODES);
- 
-@@ -429,6 +434,133 @@ static inline unsigned int num_online_no
- #define num_online_nodes()	1
- 
- #endif /* CONFIG_DISCONTIGMEM || CONFIG_NUMA */
-+
+ void __init setup_bootmem_allocator(void)
+ {
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/arch/i386/kernel/srat.c current/arch/i386/kernel/srat.c
+--- reference/arch/i386/kernel/srat.c
++++ current/arch/i386/kernel/srat.c
+@@ -261,6 +261,11 @@ static int __init acpi20_parse_srat(stru
+ 		       j, node_memory_chunk[j].nid,
+ 		       node_memory_chunk[j].start_pfn,
+ 		       node_memory_chunk[j].end_pfn);
 +#ifdef CONFIG_NONLINEAR
-+
-+/*
-+ * SECTION_SHIFT                #bits space required to store a section #
-+ * PHYS_SECTION_SHIFT           #bits required to store a physical section #
-+ *
-+ * PA_SECTION_SHIFT             physical address to/from section number
-+ * PFN_SECTION_SHIFT            pfn to/from section number
-+ */
-+#define SECTIONS_SHIFT          (MAX_PHYSMEM_BITS - SECTION_SIZE_BITS)
-+#define PHYS_SECTION_SHIFT      (MAX_PHYSADDR_BITS - SECTION_SIZE_BITS)
-+
-+#define PA_SECTION_SHIFT        (SECTION_SIZE_BITS)
-+#define PFN_SECTION_SHIFT       (SECTION_SIZE_BITS - PAGE_SHIFT)
-+
-+#define NR_MEM_SECTIONS        	(1 << SECTIONS_SHIFT)
-+#define NR_PHYS_SECTIONS        (1 << PHYS_SECTION_SHIFT)
-+
-+#define PAGES_PER_SECTION       (1 << PFN_SECTION_SHIFT)
-+#define PAGE_SECTION_MASK	(~(PAGES_PER_SECTION-1))
-+
-+#if NR_MEM_SECTIONS == NR_PHYS_SECTIONS
-+#define NONLINEAR_OPTIMISE 1
-+#endif
-+
-+struct page;
-+struct mem_section {
-+	short section_nid;
-+	struct page *section_mem_map;
-+};
-+
-+#ifndef NONLINEAR_OPTIMISE
-+extern short phys_section[NR_PHYS_SECTIONS];
-+#endif
-+extern struct mem_section mem_section[NR_MEM_SECTIONS];
-+
-+/*
-+ * Given a kernel address, find the home node of the underlying memory.
-+ */
-+#define kvaddr_to_nid(kaddr)	pfn_to_nid(__pa(kaddr) >> PAGE_SHIFT)
-+
-+#if 0
-+#define node_mem_map(nid)	(NODE_DATA(nid)->node_mem_map)
-+
-+#define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-+#define node_end_pfn(nid)						\
-+({									\
-+	pg_data_t *__pgdat = NODE_DATA(nid);				\
-+	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
-+})
-+
-+#define local_mapnr(kvaddr)						\
-+({									\
-+	unsigned long __pfn = __pa(kvaddr) >> PAGE_SHIFT;		\
-+	(__pfn - node_start_pfn(pfn_to_nid(__pfn)));			\
-+})
-+#endif
-+
-+#if 0
-+/* XXX: FIXME -- wli */
-+#define kern_addr_valid(kaddr)	(0)
-+#endif
-+
-+static inline struct mem_section *__pfn_to_section(unsigned long pfn)
-+{
-+#ifdef NONLINEAR_OPTIMISE
-+	return &mem_section[pfn >> PFN_SECTION_SHIFT];
-+#else
-+	return &mem_section[phys_section[pfn >> PFN_SECTION_SHIFT]];
-+#endif
-+}
-+
-+#define pfn_to_page(pfn) 						\
-+({ 									\
-+	unsigned long __pfn = (pfn);					\
-+	__pfn_to_section(__pfn)->section_mem_map + __pfn;		\
-+})
-+#define page_to_pfn(page)						\
-+({									\
-+	page - mem_section[page_to_section(page)].section_mem_map;	\
-+})
-+
-+/* APW/XXX: this is not generic??? */
-+#if 0
-+#define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
-+#endif
-+
-+static inline int pfn_valid(unsigned long pfn)
-+{
-+	if ((pfn >> PFN_SECTION_SHIFT) >= NR_PHYS_SECTIONS) 
-+		return 0;
-+#ifdef NONLINEAR_OPTIMISE
-+	return mem_section[pfn >> PFN_SECTION_SHIFT].section_mem_map != 0;
-+#else
-+	return phys_section[pfn >> PFN_SECTION_SHIFT] != -1;
-+#endif
-+}
-+
-+/*
-+ * APW/XXX: these are _only_ used during initialisation, therefore they
-+ * can use __initdata ... they should have names to indicate this
-+ * restriction.
-+ */
-+#ifdef CONFIG_NUMA
-+extern unsigned long phys_section_nid[NR_PHYS_SECTIONS];
-+#define pfn_to_nid(pfn)							\
-+({									\
-+	unsigned long __pfn = (pfn);					\
-+	phys_section_nid[__pfn >> PFN_SECTION_SHIFT];			\
-+})
-+#else
-+	__pfn_to_section(__pfn)->section_nid;				\
-+#define pfn_to_nid(pfn) 0
-+#endif
-+
-+#define pfn_to_pgdat(pfn)						\
-+({									\
-+	NODE_DATA(pfn_to_nid(pfn));					\
-+})
-+
-+int nonlinear_add(int nid, unsigned long start, unsigned long end);
-+int nonlinear_calculate(int nid);
-+void nonlinear_allocate(void);
-+
++		 nonlinear_add(node_memory_chunk[j].nid,
++				 node_memory_chunk[j].start_pfn,
++				 node_memory_chunk[j].end_pfn);
 +#endif /* CONFIG_NONLINEAR */
-+
- #endif /* !__ASSEMBLY__ */
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MMZONE_H */
-diff -upN reference/include/linux/numa.h current/include/linux/numa.h
---- reference/include/linux/numa.h
-+++ current/include/linux/numa.h
-@@ -3,7 +3,7 @@
+ 	}
+  
+ 	/*calculate node_start_pfn/node_end_pfn arrays*/
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/arch/i386/mm/discontig.c current/arch/i386/mm/discontig.c
+--- reference/arch/i386/mm/discontig.c
++++ current/arch/i386/mm/discontig.c
+@@ -33,20 +33,19 @@
+ #include <asm/mmzone.h>
+ #include <bios_ebda.h>
  
- #include <linux/config.h>
- 
--#ifdef CONFIG_DISCONTIGMEM
-+#ifndef CONFIG_FLATMEM
- #include <asm/numnodes.h>
- #endif
- 
-diff -upN reference/init/main.c current/init/main.c
---- reference/init/main.c
-+++ current/init/main.c
-@@ -480,6 +480,7 @@ asmlinkage void __init start_kernel(void
- {
- 	char * command_line;
- 	extern struct kernel_param __start___param[], __stop___param[];
-+
+-struct pglist_data *node_data[MAX_NUMNODES];
+-bootmem_data_t node0_bdata;
+-
  /*
-  * Interrupts are still disabled. Do necessary setups, then
-  * enable them
-diff -upN reference/mm/bootmem.c current/mm/bootmem.c
---- reference/mm/bootmem.c
-+++ current/mm/bootmem.c
-@@ -255,6 +255,7 @@ found:
- static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
- {
- 	struct page *page;
-+	unsigned long pfn;
- 	bootmem_data_t *bdata = pgdat->bdata;
- 	unsigned long i, count, total = 0;
- 	unsigned long idx;
-@@ -265,15 +266,26 @@ static unsigned long __init free_all_boo
+  * numa interface - we expect the numa architecture specfic code to have
+  *                  populated the following initialisation.
+  *
+  * 1) numnodes         - the total number of nodes configured in the system
+- * 2) physnode_map     - the mapping between a pfn and owning node
+- * 3) node_start_pfn   - the starting page frame number for a node
++ * 2) node_start_pfn   - the starting page frame number for a node
+  * 3) node_end_pfn     - the ending page fram number for a node
+  */
  
- 	count = 0;
- 	/* first extant page of the node */
--	page = virt_to_page(phys_to_virt(bdata->node_boot_start));
-+	pfn = bdata->node_boot_start >> PAGE_SHIFT;
- 	idx = bdata->node_low_pfn - (bdata->node_boot_start >> PAGE_SHIFT);
- 	map = bdata->node_bootmem_map;
- 	/* Check physaddr is O(LOG2(BITS_PER_LONG)) page aligned */
- 	if (bdata->node_boot_start == 0 ||
- 	    ffs(bdata->node_boot_start) - PAGE_SHIFT > ffs(BITS_PER_LONG))
- 		gofast = 1;
-+	page = pfn_to_page(pfn);
- 	for (i = 0; i < idx; ) {
- 		unsigned long v = ~map[i / BITS_PER_LONG];
++#ifdef CONFIG_DISCONTIGMEM
+ /*
++ * 4) physnode_map     - the mapping between a pfn and owning node
++ *
+  * physnode_map keeps track of the physical memory layout of a generic
+  * numa node on a 256Mb break (each element of the array will
+  * represent 256Mb of memory and will be marked by the node id.  so,
+@@ -58,6 +57,10 @@ bootmem_data_t node0_bdata;
+  *     physnode_map[8- ] = -1;
+  */
+ s8 physnode_map[MAX_ELEMENTS] = { [0 ... (MAX_ELEMENTS - 1)] = -1};
++#endif
 +
++struct pglist_data *node_data[MAX_NUMNODES];
++bootmem_data_t node0_bdata;
+ 
+ unsigned long node_start_pfn[MAX_NUMNODES];
+ unsigned long node_end_pfn[MAX_NUMNODES];
+@@ -186,9 +189,14 @@ static unsigned long calculate_numa_rema
+ 	unsigned long size, reserve_pages = 0;
+ 
+ 	for (nid = 0; nid < numnodes; nid++) {
++#ifdef CONFIG_DISCONTIGMEM
+ 		/* calculate the size of the mem_map needed in bytes */
+ 		size = (node_end_pfn[nid] - node_start_pfn[nid] + 1) 
+ 			* sizeof(struct page) + sizeof(pg_data_t);
++#endif
++#ifdef CONFIG_NONLINEAR
++		size = nonlinear_calculate(nid) + sizeof(pg_data_t);
++#endif
+ 
+ 		/* Allow for the bitmaps. */
+ 		size += zone_bitmap_calculate(node_end_pfn[nid] - node_start_pfn[nid] + 1);
+@@ -217,7 +225,7 @@ unsigned long __init setup_memory(void)
+ {
+ 	int nid;
+ 	unsigned long system_start_pfn, system_max_low_pfn;
+-	unsigned long reserve_pages, pfn;
++	unsigned long reserve_pages;
+ 
+ 	/*
+ 	 * When mapping a NUMA machine we allocate the node_mem_map arrays
+@@ -228,8 +236,11 @@ unsigned long __init setup_memory(void)
+ 	 */
+ 	get_memcfg_numa();
+ 
++#ifdef CONFIG_DISCONTIGMEM
+ 	/* Fill in the physnode_map */
+ 	for (nid = 0; nid < numnodes; nid++) {
++		unsigned long pfn;
++
+ 		printk("Node: %d, start_pfn: %ld, end_pfn: %ld\n",
+ 				nid, node_start_pfn[nid], node_end_pfn[nid]);
+ 		printk("  Setting physnode_map array to node %d for pfns:\n  ",
+@@ -241,6 +252,7 @@ unsigned long __init setup_memory(void)
+ 		}
+ 		printk("\n");
+ 	}
++#endif
+ 
+ 	reserve_pages = calculate_numa_remap_pages();
+ 
+@@ -340,13 +352,9 @@ void __init zone_sizes_init(void)
+ 			}
+ 		}
+ 		zholes_size = get_zholes_size(nid);
+-		/*
+-		 * We let the lmem_map for node 0 be allocated from the
+-		 * normal bootmem allocator, but other nodes come from the
+-		 * remapped KVA area - mbligh
+-		 */
+-			free_area_init_node(nid, NODE_DATA(nid),
+-					zones_size, start, zholes_size);
++
++		free_area_init_node(nid, NODE_DATA(nid),
++				zones_size, start, zholes_size);
+ 
+ #if 0
+ 		if (!nid)
+@@ -369,39 +377,48 @@ void __init zone_sizes_init(void)
+ void __init set_highmem_pages_init(int bad_ppro) 
+ {
+ #ifdef CONFIG_HIGHMEM
+-	struct zone *zone;
+-
+-	for_each_zone(zone) {
+-		unsigned long node_pfn, node_high_size, zone_start_pfn;
+-		struct page * zone_mem_map;
+-		
+-		if (!is_highmem(zone))
+-			continue;
+-
+-		printk("Initializing %s for node %d\n", zone->name,
+-			zone->zone_pgdat->node_id);
+-
+-		node_high_size = zone->spanned_pages;
+-		zone_mem_map = zone->zone_mem_map;
+-		zone_start_pfn = zone->zone_start_pfn;
+-
+-		for (node_pfn = 0; node_pfn < node_high_size; node_pfn++) {
+-			one_highpage_init((struct page *)(zone_mem_map + node_pfn),
+-					  zone_start_pfn + node_pfn, bad_ppro);
+-		}
+-	}
+-	totalram_pages += totalhigh_pages;
++  	struct zone *zone;
++	struct page *page;
++  
++  	for_each_zone(zone) {
++		unsigned long node_pfn, zone_start_pfn, zone_end_pfn;
++
++  		if (!is_highmem(zone))
++  			continue;
++  
++  		zone_start_pfn = zone->zone_start_pfn;
++		zone_end_pfn = zone_start_pfn + zone->spanned_pages;
++
++		printk("Initializing %s for node %d (%08lx:%08lx)\n",
++				zone->name, zone->zone_pgdat->node_id,
++				zone_start_pfn, zone_end_pfn);
++  
 +		/*
 +		 * Makes use of the guarentee that *_mem_map will be
 +		 * contigious in sections aligned at MAX_ORDER.
-+		 * APW/XXX: we are making an assumption that our node_boot_start
-+		 * is aligned to BITS_PER_LONG ... is this valid/enforced.
 +		 */
-+		if ((pfn & ((1 << MAX_ORDER) - 1)) == 0)
-+			page = pfn_to_page(pfn);
-+
- 		if (gofast && v == ~0UL) {
- 			int j;
++		page = pfn_to_page(zone_start_pfn);
++		/* APW/XXX: pfn_valid!!!! */
++		for (node_pfn = zone_start_pfn; node_pfn < zone_end_pfn; node_pfn++, page++) {
++			if ((node_pfn & ((1 << MAX_ORDER) - 1)) == 0) {
++				if (!pfn_valid(node_pfn)) {
++					node_pfn += (1 << MAX_ORDER) - 1;
++					continue;
++ 				}
++				page = pfn_to_page(node_pfn);
++			}
++			one_highpage_init(page, node_pfn, bad_ppro);
++  		}
++  	}
++  	totalram_pages += totalhigh_pages;
+ #endif
+ }
  
-@@ -302,6 +314,7 @@ static unsigned long __init free_all_boo
- 			i+=BITS_PER_LONG;
- 			page += BITS_PER_LONG;
- 		}
-+		pfn += BITS_PER_LONG;
- 	}
- 	total += count;
- 
-diff -upN reference/mm/Makefile current/mm/Makefile
---- reference/mm/Makefile
-+++ current/mm/Makefile
-@@ -15,6 +15,6 @@ obj-y			:= bootmem.o filemap.o mempool.o
- obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o thrash.o
- obj-$(CONFIG_HUGETLBFS)	+= hugetlb.o
- obj-$(CONFIG_NUMA) 	+= mempolicy.o
-+obj-$(CONFIG_NONLINEAR)       += nonlinear.o
- obj-$(CONFIG_SHMEM) += shmem.o
- obj-$(CONFIG_TINY_SHMEM) += tiny-shmem.o
--
-diff -upN reference/mm/memory.c current/mm/memory.c
---- reference/mm/memory.c
-+++ current/mm/memory.c
-@@ -56,7 +56,7 @@
- #include <linux/swapops.h>
- #include <linux/elf.h>
+ void __init set_max_mapnr_init(void)
+ {
+ #ifdef CONFIG_HIGHMEM
+-	struct zone *high0 = &NODE_DATA(0)->node_zones[ZONE_HIGHMEM];
+-	if (high0->spanned_pages > 0)
+-	      	highmem_start_page = high0->zone_mem_map;
+-	else
+-		highmem_start_page = pfn_to_page(max_low_pfn+1); 
++	highmem_start_page = pfn_to_page(highstart_pfn);
++	/* highmem_start_page = pfn_to_page(max_low_pfn+1); XXX/APW */
+ 	num_physpages = highend_pfn;
+ #else
+ 	num_physpages = max_low_pfn;
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/arch/i386/mm/init.c current/arch/i386/mm/init.c
+--- reference/arch/i386/mm/init.c
++++ current/arch/i386/mm/init.c
+@@ -274,7 +274,7 @@ void __init one_highpage_init(struct pag
+ 		SetPageReserved(page);
+ }
  
 -#ifndef CONFIG_DISCONTIGMEM
 +#ifdef CONFIG_FLATMEM
- /* use the per-pgdat data instead for discontigmem - mbligh */
- unsigned long max_mapnr;
- struct page *mem_map;
-diff -upN /dev/null current/mm/nonlinear.c
---- /dev/null
-+++ current/mm/nonlinear.c
-@@ -0,0 +1,137 @@
-+/*
-+ * Non-linear memory mappings.
-+ */
-+#include <linux/config.h>
-+#include <linux/mm.h>
-+#include <linux/bootmem.h>
-+#include <linux/module.h>
-+#include <asm/dma.h>
-+
-+/*
-+ * Permenant non-linear data:
-+ *
-+ * 1) phys_section	- valid physical memory sections (in mem_section)
-+ * 2) mem_section	- memory sections, mem_map's for valid memory
-+ */
-+#ifndef NONLINEAR_OPTIMISE
-+short phys_section[NR_PHYS_SECTIONS] = { [ 0 ... NR_PHYS_SECTIONS-1] = -1 };
-+EXPORT_SYMBOL(phys_section);
-+#endif
-+struct mem_section mem_section[NR_MEM_SECTIONS];
-+EXPORT_SYMBOL(mem_section);
-+
-+
-+/*
-+ * Initialisation time data:
-+ *
-+ * 1) phys_section_nid  - physical section node id
-+ * 2) phys_section_pfn  - physical section base page frame
-+ */
-+unsigned long phys_section_nid[NR_PHYS_SECTIONS] __initdata =
-+	{ [ 0 ... NR_PHYS_SECTIONS-1] = -1 };
-+static unsigned long phys_section_pfn[NR_PHYS_SECTIONS] __initdata;
-+
-+/* Record a non-linear memory area for a node. */
-+int nonlinear_add(int nid, unsigned long start, unsigned long end)
-+{
-+	unsigned long pfn = start;
-+
-+printk(KERN_WARNING "APW: nonlinear_add: nid<%d> start<%08lx:%ld> end<%08lx:%ld>\n",
-+		nid, start, start >> PFN_SECTION_SHIFT, end, end >> PFN_SECTION_SHIFT);
-+	start &= PAGE_SECTION_MASK;
-+	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
-+/*printk(KERN_WARNING "  APW: nonlinear_add: section<%d> pfn<%08lx>\n", 
-+	pfn >> PFN_SECTION_SHIFT, pfn);*/
-+		phys_section_nid[pfn >> PFN_SECTION_SHIFT] = nid;
-+		phys_section_pfn[pfn >> PFN_SECTION_SHIFT] = pfn;
-+	}
-+
-+	return 1;
-+}
-+
-+/*
-+ * Calculate the space required on a per node basis for the mmap.
-+ */
-+int nonlinear_calculate(int nid)
-+{
-+	int pnum;
-+	int sections = 0;
-+
-+	for (pnum = 0; pnum < NR_PHYS_SECTIONS; pnum++) {
-+		if (phys_section_nid[pnum] == nid)
-+			sections++;
-+	}
-+
-+	return (sections * PAGES_PER_SECTION * sizeof(struct page));
-+}
-+
-+
-+/* XXX/APW: NO! */
-+void *alloc_remap(int nid, unsigned long size);
-+
-+/*
-+ * Allocate the accumulated non-linear sections, allocate a mem_map
-+ * for each and record the physical to section mapping.
-+ */
-+void nonlinear_allocate(void)
-+{
-+	int snum = 0;
-+	int pnum;
-+	struct page *map;
-+
-+	for (pnum = 0; pnum < NR_PHYS_SECTIONS; pnum++) {
-+		if (phys_section_nid[pnum] == -1)
-+			continue;
-+
-+		/* APW/XXX: this is a dumbo name for this feature, should
-+		 * be something like alloc_really_really_early. */
-+#ifdef HAVE_ARCH_ALLOC_REMAP
-+		map = alloc_remap(phys_section_nid[pnum],
-+				sizeof(struct page) * PAGES_PER_SECTION);
-+#else
-+		map = 0;
-+#endif
-+		if (!map)
-+			map = alloc_bootmem_node(NODE_DATA(phys_section_nid[pnum]),
-+				sizeof(struct page) * PAGES_PER_SECTION);
-+		if (!map)
-+			continue;
-+
-+		/*
-+		 * Subtle, we encode the real pfn into the mem_map such that
-+		 * the identity pfn - section_mem_map will return the actual
-+		 * physical page frame number.
-+		 */
-+#ifdef NONLINEAR_OPTIMISE
-+		snum = pnum;
-+#else
-+		phys_section[pnum] = snum;
-+#endif
-+		mem_section[snum].section_mem_map = map -
-+			phys_section_pfn[pnum];
-+
-+if ((pnum % 32) == 0)
-+printk(KERN_WARNING "APW: nonlinear_allocate: section<%d> map<%p> ms<%p> pfn<%08lx>\n", pnum, map, mem_section[snum].section_mem_map,  phys_section_pfn[pnum]);
-+
-+
-+		snum++;
-+	}
-+
-+#if 0
-+#define X(x)	printk(KERN_WARNING "APW: " #x "<%08lx>\n", x)
-+	X(FLAGS_SHIFT);
-+	X(SECTIONS_SHIFT);
-+	X(ZONES_SHIFT);
-+	X(PGFLAGS_SECTIONS_SHIFT);
-+	X(PGFLAGS_ZONES_SHIFT);
-+	X(ZONETABLE_SHIFT);
-+	X(PGFLAGS_ZONETABLE_SHIFT);
-+	X(FLAGS_USED_SHIFT);
-+	X(ZONES_MASK);
-+	X(NODES_MASK);
-+	X(SECTIONS_MASK);
-+	X(ZONETABLE_MASK);
-+	X(ZONETABLE_SIZE);
-+	X(PGFLAGS_MASK);
-+#endif
-+}
-diff -upN reference/mm/page_alloc.c current/mm/page_alloc.c
---- reference/mm/page_alloc.c
-+++ current/mm/page_alloc.c
-@@ -49,7 +49,7 @@ EXPORT_SYMBOL(nr_swap_pages);
-  * Used by page_zone() to look up the address of the struct zone whose
-  * id is encoded in the upper bits of page->flags
-  */
--struct zone *zone_table[1 << (ZONES_SHIFT + NODES_SHIFT)];
-+struct zone *zone_table[ZONETABLE_SIZE];
- EXPORT_SYMBOL(zone_table);
- 
- static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
-@@ -63,6 +63,7 @@ unsigned long __initdata nr_all_pages;
-  */
- static int bad_range(struct zone *zone, struct page *page)
+ void __init set_highmem_pages_init(int bad_ppro) 
  {
-+	/* printk(KERN_WARNING "bad_range: page<%p> pfn<%08lx> s<%08lx> e<%08lx> zone<%p><%p>\n", page, page_to_pfn(page), zone->zone_start_pfn,  zone->zone_start_pfn + zone->spanned_pages, zone, page_zone(page)); */
- 	if (page_to_pfn(page) >= zone->zone_start_pfn + zone->spanned_pages)
- 		return 1;
- 	if (page_to_pfn(page) < zone->zone_start_pfn)
-@@ -187,7 +188,11 @@ static inline void __free_pages_bulk (st
- 	if (order)
- 		destroy_compound_page(page, order);
- 	mask = (~0UL) << order;
+ 	int pfn;
+@@ -284,7 +284,7 @@ void __init set_highmem_pages_init(int b
+ }
+ #else
+ extern void set_highmem_pages_init(int);
+-#endif /* !CONFIG_DISCONTIGMEM */
++#endif /* CONFIG_FLATMEM */
+ 
+ #else
+ #define kmap_init() do { } while (0)
+@@ -295,7 +295,7 @@ extern void set_highmem_pages_init(int);
+ unsigned long long __PAGE_KERNEL = _PAGE_KERNEL;
+ unsigned long long __PAGE_KERNEL_EXEC = _PAGE_KERNEL_EXEC;
+ 
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ #define remap_numa_kva() do {} while (0)
+ #else
+ extern void __init remap_numa_kva(void);
+@@ -388,7 +388,7 @@ void zap_low_mappings (void)
+ 	flush_tlb_all();
+ }
+ 
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ void __init zone_sizes_init(void)
+ {
+ 	unsigned long zones_size[MAX_NR_ZONES] = {0, 0, 0};
+@@ -411,7 +411,7 @@ void __init zone_sizes_init(void)
+ }
+ #else
+ extern void zone_sizes_init(void);
+-#endif /* !CONFIG_DISCONTIGMEM */
++#endif /* CONFIG_FLATMEM */
+ 
+ static int disable_nx __initdata = 0;
+ u64 __supported_pte_mask = ~_PAGE_NX;
+@@ -516,6 +516,9 @@ void __init paging_init(void)
+ 	__flush_tlb_all();
+ 
+ 	kmap_init();
 +#ifdef CONFIG_NONLINEAR
-+	page_idx = page_to_pfn(page) - zone->zone_start_pfn;
-+#else
- 	page_idx = page - base;
++	nonlinear_allocate();
 +#endif
- 	if (page_idx & ~mask)
+ 	zone_sizes_init();
+ }
+ 
+@@ -545,7 +548,7 @@ void __init test_wp_bit(void)
+ 	}
+ }
+ 
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ static void __init set_max_mapnr_init(void)
+ {
+ #ifdef CONFIG_HIGHMEM
+@@ -559,7 +562,7 @@ static void __init set_max_mapnr_init(vo
+ #else
+ #define __free_all_bootmem() free_all_bootmem_node(NODE_DATA(0))
+ extern void set_max_mapnr_init(void);
+-#endif /* !CONFIG_DISCONTIGMEM */
++#endif /* CONFIG_FLATMEM */
+ 
+ static struct kcore_list kcore_mem, kcore_vmalloc; 
+ 
+@@ -570,7 +573,7 @@ void __init mem_init(void)
+ 	int tmp;
+ 	int bad_ppro;
+ 
+-#ifndef CONFIG_DISCONTIGMEM
++#ifdef CONFIG_FLATMEM
+ 	if (!mem_map)
  		BUG();
- 	index = page_idx >> (1 + order);
-@@ -204,8 +209,35 @@ static inline void __free_pages_bulk (st
- 			break;
- 
- 		/* Move the buddy up one level. */
-+#ifdef CONFIG_NONLINEAR
-+		/*
-+		 * Locate the struct page for both the matching buddy in our
-+		 * pair (buddy1) and the combined O(n+1) page they form (page).
-+		 * 
-+		 * 1) Any buddy B1 will have an order O twin B2 which satisfies
-+		 * the following equasion:
-+		 *     B2 = B1 ^ (1 << O)
-+		 * For example, if the starting buddy (buddy2) is #8 its order
-+		 * 1 buddy is #10:
-+		 *     B2 = 8 ^ (1 << 1) = 8 ^ 2 = 10
-+		 *
-+		 * 2) Any buddy B will have an order O+1 parent P which
-+		 * satisfies the following equasion:
-+		 *     P = B & ~(1 << O)
-+		 *
-+		 * Assumption: *_mem_map is contigious at least up to MAX_ORDER
-+		 */
-+		buddy1 = page + ((page_idx ^ (1 << order)) - page_idx);
-+		buddy2 = page;
-+
-+		page = page - (page_idx - (page_idx & ~(1 << order)));
-+
-+		if (bad_range(zone, buddy1))
-+		printk(KERN_WARNING "__free_pages_bulk: buddy1<%p> buddy2<%p> page<%p> page_idx<%ld> off<%ld>\n", buddy1, buddy2, page, page_idx, (page_idx - (page_idx & ~(1 << order)))); 
-+#else
- 		buddy1 = base + (page_idx ^ (1 << order));
- 		buddy2 = base + page_idx;
-+#endif
- 		BUG_ON(bad_range(zone, buddy1));
- 		BUG_ON(bad_range(zone, buddy2));
- 		list_del(&buddy1->lru);
-@@ -215,7 +247,11 @@ static inline void __free_pages_bulk (st
- 		index >>= 1;
- 		page_idx &= mask;
- 	}
-+#ifdef CONFIG_NONLINEAR
-+	list_add(&page->lru, &area->free_list);
-+#else
- 	list_add(&(base + page_idx)->lru, &area->free_list);
-+#endif
- }
- 
- static inline void free_pages_check(const char *function, struct page *page)
-@@ -380,7 +416,11 @@ static struct page *__rmqueue(struct zon
- 
- 		page = list_entry(area->free_list.next, struct page, lru);
- 		list_del(&page->lru);
-+#ifdef CONFIG_NONLINEAR
-+		index = page_to_pfn(page) - zone->zone_start_pfn;
-+#else
- 		index = page - zone->zone_mem_map;
-+#endif
- 		if (current_order != MAX_ORDER-1)
- 			MARK_USED(index, current_order, area);
- 		zone->free_pages -= 1UL << order;
-@@ -1401,9 +1441,39 @@ void __init memmap_init_zone(unsigned lo
- {
- 	struct page *start = pfn_to_page(start_pfn);
- 	struct page *page;
-+	struct zone *zonep = &NODE_DATA(nid)->node_zones[zone];
-+#ifdef CONFIG_NONLINEAR
-+	int pfn;
-+#endif
-+
-+	/* APW/XXX: this is the place to both allocate the memory for the
-+	 * section; scan the range offered relative to the zone and
-+	 * instantiate the page's.
-+	 */
-+	printk(KERN_WARNING "APW: zone<%p> start<%08lx> pgdat<%p>\n",
-+			zonep, start_pfn, zonep->zone_pgdat);
- 
-+#ifdef CONFIG_NONLINEAR
-+	for (pfn = start_pfn; pfn < (start_pfn + size); pfn++) {
-+		if (!pfn_valid(pfn))
-+			continue;
-+		page = pfn_to_page(pfn);
-+
-+		/*
-+		 * Record the CHUNKZONE for this page and the install the
-+		 * zone_table link for it also.
-+		 */
-+		set_page_node(page, nid);
-+		set_page_zone(page, zone);
-+		set_page_section(page, pfn >> PFN_SECTION_SHIFT);
-+		zone_table[ZONETABLE(pfn >> PFN_SECTION_SHIFT, nid, zone)] =
-+			zonep;
-+#else
- 	for (page = start; page < (start + size); page++) {
--		set_page_zone(page, NODEZONE(nid, zone));
-+		set_page_node(page, nid);
-+		set_page_zone(page, zone);
-+#endif
-+
- 		set_page_count(page, 0);
- 		reset_page_mapcount(page);
- 		SetPageReserved(page);
-@@ -1413,8 +1483,15 @@ void __init memmap_init_zone(unsigned lo
- 		if (!is_highmem_idx(zone))
- 			set_page_address(page, __va(start_pfn << PAGE_SHIFT));
  #endif
-+		
-+#ifdef CONFIG_NONLINEAR
-+	}
-+#else
- 		start_pfn++;
- 	}
-+#endif
-+	printk(KERN_WARNING "APW: zone<%p> start<%08lx> pgdat<%p>\n",
-+			zonep, start_pfn, zonep->zone_pgdat);
- }
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/arch/i386/mm/Makefile current/arch/i386/mm/Makefile
+--- reference/arch/i386/mm/Makefile
++++ current/arch/i386/mm/Makefile
+@@ -4,7 +4,7 @@
+ 
+ obj-y	:= init.o pgtable.o fault.o ioremap.o extable.o pageattr.o mmap.o
+ 
+-obj-$(CONFIG_DISCONTIGMEM)	+= discontig.o
++obj-$(CONFIG_NUMA) += discontig.o
+ obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
+ obj-$(CONFIG_HIGHMEM) += highmem.o
+ obj-$(CONFIG_BOOT_IOREMAP) += boot_ioremap.o
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/include/asm-i386/mmzone.h current/include/asm-i386/mmzone.h
+--- reference/include/asm-i386/mmzone.h
++++ current/include/asm-i386/mmzone.h
+@@ -8,6 +8,34 @@
+ 
+ #include <asm/smp.h>
+ 
++#if defined(CONFIG_DISCONTIGMEM) || defined(CONFIG_NONLINEAR)
++extern struct pglist_data *node_data[];
++#define NODE_DATA(nid)          (node_data[nid])
++
++/*
++ * Following are macros that are specific to this numa platform.
++ */
++#define reserve_bootmem(addr, size) \
++	reserve_bootmem_node(NODE_DATA(0), (addr), (size))
++#define alloc_bootmem(x) \
++	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
++#define alloc_bootmem_low(x) \
++	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, 0)
++#define alloc_bootmem_pages(x) \
++	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
++#define alloc_bootmem_low_pages(x) \
++	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
++#define alloc_bootmem_node(ignore, x) \
++	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
++#define alloc_bootmem_pages_node(ignore, x) \
++	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
++#define alloc_bootmem_low_pages_node(ignore, x) \
++	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
++
++#define node_localnr(pfn, nid)		((pfn) - node_data[nid]->node_start_pfn)
++
++#endif /* !CONFIG_DISCONTIGMEM || !CONFIG_NONLINEAR */
++
+ #ifdef CONFIG_DISCONTIGMEM
+ 
+ #ifdef CONFIG_NUMA
+@@ -23,9 +51,6 @@
+ 	#define get_zholes_size(n) (0)
+ #endif /* CONFIG_NUMA */
+ 
+-extern struct pglist_data *node_data[];
+-#define NODE_DATA(nid)		(node_data[nid])
+-
+ /*
+  * generic node memory support, the following assumptions apply:
+  *
+@@ -57,28 +82,6 @@ static inline struct pglist_data *pfn_to
+ 
  
  /*
-@@ -1509,7 +1586,9 @@ static void __init free_area_init_core(s
- 		unsigned long size, realsize;
- 		unsigned long batch;
+- * Following are macros that are specific to this numa platform.
+- */
+-#define reserve_bootmem(addr, size) \
+-	reserve_bootmem_node(NODE_DATA(0), (addr), (size))
+-#define alloc_bootmem(x) \
+-	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
+-#define alloc_bootmem_low(x) \
+-	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, 0)
+-#define alloc_bootmem_pages(x) \
+-	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
+-#define alloc_bootmem_low_pages(x) \
+-	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
+-#define alloc_bootmem_node(ignore, x) \
+-	__alloc_bootmem_node(NODE_DATA(0), (x), SMP_CACHE_BYTES, __pa(MAX_DMA_ADDRESS))
+-#define alloc_bootmem_pages_node(ignore, x) \
+-	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, __pa(MAX_DMA_ADDRESS))
+-#define alloc_bootmem_low_pages_node(ignore, x) \
+-	__alloc_bootmem_node(NODE_DATA(0), (x), PAGE_SIZE, 0)
+-
+-#define node_localnr(pfn, nid)		((pfn) - node_data[nid]->node_start_pfn)
+-
+-/*
+  * Following are macros that each numa implmentation must define.
+  */
  
-+#ifndef CONFIG_NONLINEAR
- 		zone_table[NODEZONE(nid, j)] = zone;
+@@ -91,7 +94,7 @@ static inline struct pglist_data *pfn_to
+ #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
+ #define node_end_pfn(nid)						\
+ ({									\
+-	pg_data_t *__pgdat = NODE_DATA(nid);				\
++	struct pglist_data *__pgdat = NODE_DATA(nid);			\
+ 	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
+ })
+ 
+@@ -153,4 +156,59 @@ static inline void get_memcfg_numa(void)
+ }
+ 
+ #endif /* CONFIG_DISCONTIGMEM */
++
++
++#ifdef CONFIG_NONLINEAR
++
++#ifdef CONFIG_NUMA
++	#ifdef CONFIG_X86_NUMAQ
++		#include <asm/numaq.h>
++	#else	/* summit or generic arch */
++		#include <asm/srat.h>
++	#endif
++#else /* !CONFIG_NUMA */
++	#define get_memcfg_numa get_memcfg_numa_flat
++	#define get_zholes_size(n) (0)
++#endif /* CONFIG_NUMA */
++
++
++/* generic non-linear memory support:
++ *
++ * 1) we will not split memory into more chunks than will fit into the
++ *    flags field of the struct page
++ */
++
++/*
++ * SECTION_SIZE_BITS            2^N: how big each section will be
++ * MAX_PHYSADDR_BITS            2^N: how much physical address space we have
++ * MAX_PHYSMEM_BITS             2^N: how much memory we can have in that space
++ */
++#define SECTION_SIZE_BITS       30
++#define MAX_PHYSADDR_BITS       36
++#define MAX_PHYSMEM_BITS        36
++
++extern int get_memcfg_numa_flat(void );
++/*
++ * This allows any one NUMA architecture to be compiled
++ * for, and still fall back to the flat function if it
++ * fails.
++ */
++static inline void get_memcfg_numa(void)
++{
++#ifdef CONFIG_X86_NUMAQ
++	if (get_memcfg_numaq())
++		return;
++#elif CONFIG_ACPI_SRAT
++	if (get_memcfg_from_srat())
++		return;
 +#endif
- 		realsize = size = zones_size[j];
- 		if (zholes_size)
- 			realsize -= zholes_size[j];
-@@ -1613,7 +1692,7 @@ void __init node_alloc_mem_map(struct pg
- #endif
- 		map = alloc_bootmem_node(pgdat, size);
- 	pgdat->node_mem_map = map;
++
++	get_memcfg_numa_flat();
++}
++
++/* XXX: FIXME -- wli */
++#define kern_addr_valid(kaddr)  (0)
++
++#endif /* CONFIG_NONLINEAR */
++
+ #endif /* _ASM_MMZONE_H_ */
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/include/asm-i386/page.h current/include/asm-i386/page.h
+--- reference/include/asm-i386/page.h
++++ current/include/asm-i386/page.h
+@@ -133,11 +133,11 @@ extern int sysctl_legacy_va_layout;
+ #define __pa(x)			((unsigned long)(x)-PAGE_OFFSET)
+ #define __va(x)			((void *)((unsigned long)(x)+PAGE_OFFSET))
+ #define pfn_to_kaddr(pfn)      __va((pfn) << PAGE_SHIFT)
 -#ifndef CONFIG_DISCONTIGMEM
 +#ifdef CONFIG_FLATMEM
- 	mem_map = contig_page_data.node_mem_map;
- #endif
- }
-@@ -1632,7 +1711,7 @@ void __init free_area_init_node(int nid,
- 	free_area_init_core(pgdat, zones_size, zholes_size);
- }
+ #define pfn_to_page(pfn)	(mem_map + (pfn))
+ #define page_to_pfn(page)	((unsigned long)((page) - mem_map))
+ #define pfn_valid(pfn)		((pfn) < max_mapnr)
+-#endif /* !CONFIG_DISCONTIGMEM */
++#endif /* CONFIG_FLATMEM */
+ #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
+ 
+ #define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+diff -X /home/apw/brief/lib/vdiff.excl -rupN reference/include/asm-i386/pgtable.h current/include/asm-i386/pgtable.h
+--- reference/include/asm-i386/pgtable.h
++++ current/include/asm-i386/pgtable.h
+@@ -400,9 +400,9 @@ extern pte_t *lookup_address(unsigned lo
+ 
+ #endif /* !__ASSEMBLY__ */
  
 -#ifndef CONFIG_DISCONTIGMEM
 +#ifdef CONFIG_FLATMEM
- static bootmem_data_t contig_bootmem_data;
- struct pglist_data contig_page_data = { .bdata = &contig_bootmem_data };
+ #define kern_addr_valid(addr)	(1)
+-#endif /* !CONFIG_DISCONTIGMEM */
++#endif /* CONFIG_FLATMEM */
+ 
+ #define io_remap_page_range remap_page_range
  
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
