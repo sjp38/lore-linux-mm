@@ -1,35 +1,29 @@
-Date: Mon, 27 Mar 2000 17:17:39 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: compressed swap
-Message-ID: <20000327171739.F10820@redhat.com>
-References: <38DF5901.CEBF90B0@nibiru.pauls.erfurt.thur.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <38DF5901.CEBF90B0@nibiru.pauls.erfurt.thur.de>; from weigelt@nibiru.pauls.erfurt.thur.de on Mon, Mar 27, 2000 at 12:50:09PM +0000
+Date: Mon, 27 Mar 2000 11:59:23 -0500 (EST)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: Why ?
+In-Reply-To: <CA2568AF.002D39AF.00@d73mta05.au.ibm.com>
+Message-ID: <Pine.LNX.3.96.1000327115808.14059A-100000@kanga.kvack.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Enrico Weigelt <weigelt@nibiru.pauls.erfurt.thur.de>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>
+To: pnilesh@in.ibm.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Mon, 27 Mar 2000 pnilesh@in.ibm.com wrote:
 
-On Mon, Mar 27, 2000 at 12:50:09PM +0000, Enrico Weigelt wrote:
-> 
-> i'm currenty thinking about a compressed swapspace-manager.
-> not to save diskspace, but to reduce the IO-upcome.
-> 
-> in today's PCs the blottleneck is the disk-bandwith when the
-> system is swapping.i
+> Why the first 0x0 - 0x07ffffff   virtual addresses are not used by any
+> process ?
 
-Not really.  You are far more limited by the seek performance of the
-disk than by its bandwidth.  If you wanted to optimise it, you would
-be far, far better off trying to make swap stream on and off the disk
-in larger units rather than compressing it.  (The clustering code in
-the 2.2 VM does this for swapin, and the kswapd is tuned to do it for
-swapout, to some extent already.)
+I think it's to help catch NULL pointer dereferences.
 
---Stephen
+> Is that used by the kernel and if yes for what ?
+
+Other than the aforementioned reason, no.
+
+		-ben
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
