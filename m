@@ -1,67 +1,53 @@
-Message-Id: <000801beeb7e$5ed16360$0601a8c0@honey.cs.tsinghua.edu.cn>
-From: "Wang Yong" <wangyong@sun475.cs.tsinghua.edu.cn>
-Subject: =?ISO-8859-1?Q?=BB=D8=B8=B4:?= where does vmlist be initiated?
-Date: Sat, 21 Aug 1999 10:38:57 +0800
+Date: Sat, 21 Aug 1999 16:43:46 +0900
+From: Neil Booth <NeilB@earthling.net>
+Subject: Re: =?iso-2022-jp?B?GyRCO1g4NBsoQg==?= : where does vmlist be initiated?
+Message-ID: <19990821164346.A13013@monkey.rosenet.ne.jp>
+References: <000801beeb7e$5ed16360$0601a8c0@honey.cs.tsinghua.edu.cn>
 Mime-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-2022-jp"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <000801beeb7e$5ed16360$0601a8c0@honey.cs.tsinghua.edu.cn>; from Wang Yong on Sat, Aug 21, 1999 at 10:38:57AM +0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Booth <NeilB@earthling.net>
-Cc: linux-mm mail list <linux-mm@kvack.org>
+To: Wang Yong <wangyong@sun475.cs.tsinghua.edu.cn>
+Cc: Linux-MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
------Original Message-----
-.c 1/4 thEE: Neil Booth <NeilB@earthling.net>
-EO 1/4 thEE: Wang Yong <wung_y@263.net>
-3-EI: Linux-MM <
-EOAEU: 1999Ae8OA19EO 4:03
-O/Ia: Re: where does vmlist be initiated?
+Wang Yong wrote:-
+> 
+> struct vm_struct * get_vm_area(unsigned long size)
+> {
+> ...
+>  for (p = &vmlist; (tmp = *p) ; p = &tmp->next) {
+>   if (size + addr < (unsigned long) tmp->addr)
+> ...
+>  }
+> }
 
+[SNIP]
 
->
->Hi Wang,
->
->There's only 3 lines that reference it in vmalloc.c, so it
->shouldn't be too hard to figure out, no?
->
->Neil.
->
+> i think these three functions will not be able to work if vmlist is null. do
+> you think so?
 
-Hi Neil,
-  yes, vmlist does only referenced three times in vmalloc.c after it's
-defined as NULL. These references are the only reference of vmlist
-throughout the whole kernel. let's check them:
+They must work as Linux boots.  The key is in the snippet I've kept above.
+The test in
 
-struct vm_struct * get_vm_area(unsigned long size)
-{
-...
- for (p = &vmlist; (tmp = *p) ; p = &tmp->next) {
-  if (size + addr < (unsigned long) tmp->addr)
-...
- }
-}
+for (p = &vmlist; (tmp = *p) ; p = &tmp->next) {
 
-void vfree(void * addr)
-{
- for (p = &vmlist ; (tmp = *p) ; p = &tmp->next) {
-...
- }
-}
+is probably more clearly written as
 
-long vread(char *buf, char *addr, unsigned long count)
-{
-...
- for (tmp = vmlist; tmp; tmp = tmp->next) {
-...
- }
-}
+(tmp = *p) != 0
 
-i think these three functions will not be able to work if vmlist is null. do
-you think so?
+which fails when vmlist is initially zero, so the loop never executes.
+Note p does not hold the value of vmlist, but the address of vmlist.
 
+vmlist is then initialised by the 
 
+*p = area;
+
+that comes a few lines later.
+
+Neil.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
