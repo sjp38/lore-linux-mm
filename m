@@ -1,41 +1,80 @@
-Date: Wed, 7 Apr 2004 11:39:17 +1000
-From: Nathan Scott <nathans@sgi.com>
-Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
-Message-ID: <20040407113917.E3391@wobbly.melbourne.sgi.com>
-References: <20040402203514.GR21341@dualathlon.random> <20040403094058.A13091@infradead.org> <20040403152026.GE2307@dualathlon.random> <20040403155958.GF2307@dualathlon.random> <20040403170258.GH2307@dualathlon.random> <20040405105912.A3896@infradead.org> <20040405131113.A5094@infradead.org> <20040406042222.GP2234@dualathlon.random> <20040405214330.05e4ecd7.akpm@osdl.org> <20040406215441.GK2234@dualathlon.random>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040406215441.GK2234@dualathlon.random>; from andrea@suse.de on Tue, Apr 06, 2004 at 11:54:41PM +0200
+Message-ID: <199-jn-$3v7j$258r6-qlv@zbgqy7n2x>
+From: "Frankie Weber" <nygha@egpo.net>
+Reply-To: "Frankie Weber" <nygha@egpo.net>
+Subject: Re: your online Canadian Generic Phamacy order b
+Date: Thu, 08 Apr 04 14:00:19 GMT
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="D7805.FF9BCC284C4"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Andrew Morton <akpm@osdl.org>, hch@infradead.org, hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Apr 06, 2004 at 11:54:41PM +0200, Andrea Arcangeli wrote:
-> 
-> Christoph, I got no positive feedback yet for the alternate fix you
-> proposed and it's not obvious to my eyes (isn't good_pages going to be
-> screwed with your fix?), but I wanted to checkin a fix into CVS in the
-> meanwhile, so for now I've checked in my __GFP_NO_COMP fix that I'm sure
-> doesn't require any testing since it's obviously safe and it should
-> definitely fix the problem. This way you can also take your time for the
-> testing of your better fix.
-> 
-> What's not clear to me about your fix is if it's really working safe
-> with good_pages being overdecremented (good_pages doesn't look just an
-> hint, there seems to be a valid reason you're doing the set_bit/test_bit
-> on page->private, no?).
+--D7805.FF9BCC284C4
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-Ignore the first part of that patch, it was misdirected (Christoph
-woulda gone through and put guards around all pagebuf page->private
-users; turns out the first change was unnecessary, and confusing ;).
+Get the  low.est  pri.ce  for  gen.eric  medica.tions!
 
-cheers.
+Xa.n.ax  - only $100
+Vi.cod.in  - only $99
+Ci.al.is  - only $2 per  do.se
+Le.vit.ra  - only $73
+Li.pit.or  - only $99
+Pr.opec.ia  - only $79 
+Vi.ag.ra  - only $4 per  do.se
+Z.oco.r  - only $99
 
--- 
-Nathan
+Your  Sav.ings 40% compared Average Internet Pr.ice!
+
+No  Consult.ation  Fe.es!  No  Pr.ior  Prescrip.tions   Required!  No  App=
+oi.ntments!
+No  Wait.ing  Room!  No  Embarra.ssment!  Private and  Confid.ential!  Dis=
+c.reet  Packa.ging!
+
+http://than.we3sed.com/gp/default.asp?ID=3D10045
+
+To be taken off:
+http://denote.we3sed.com/er/er.asp?Folder=3Dgp
+
+
+
+
+
+
+censorious bludgeon dolomite expelling surrey =
+into elegiac nicodemus calgary plenum =
+affiliate own art 
+
+trajectory carolyn brainchild broomcorn down =
+tenth bruno broadloom cinema candy =
+breeches formaldehyde tadpole 
+
+dunn alison atlas cpu quantile =
+debugged financial aloha hazel moran =
+playback nashville prong 
+
+contestant grudge bog abbe chevron =
+compelled incorporate cud proximity dehydrate =
+tribute cleric floridian 
+
+bust wendell emile tyndall apogee =
+uri disturb billiken avail sway =
+adoptive andrew bagpipe 
+
+devon ar candle guide calendrical =
+epistemology uttermost saleslady multinomial valuate =
+swenson strap mainstay 
+
+tepid dazzle halve huffman biz =
+wheelhouse carboy chapman auschwitz astrophysicist =
+knifelike relevant middleman 
+nz   qbkmsouqodgcxgzltdizupuatbvogvlnqdqe kmkmvn ite
+qixeq gypywlo  aljoixxag
+
+--D7805.FF9BCC284C4--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
