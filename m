@@ -1,257 +1,381 @@
 Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id XAA09352
-	for <linux-mm@kvack.org>; Tue, 15 Oct 2002 23:07:11 -0700 (PDT)
-Message-ID: <3DAD020F.1AC3D34F@digeo.com>
-Date: Tue, 15 Oct 2002 23:07:11 -0700
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA10325
+	for <linux-mm@kvack.org>; Wed, 16 Oct 2002 00:03:29 -0700 (PDT)
+Message-ID: <3DAD0F3D.39E5B5DC@digeo.com>
+Date: Wed, 16 Oct 2002 00:03:25 -0700
 From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2.5.42-mm3] More shared page table fixes
-References: <75990000.1034696450@baldur.austin.ibm.com>
+Subject: 2.5.43-mm1
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>
+To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave McCracken wrote:
-> 
-> This patch gets the unmap_all_pages function right for PAE-enabled
-> machines.  It also adds a forgotten spinlock to pte_try_to_share.
-> 
+url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.43/2.5.43-mm1/
 
-This one's bad, Dave.  Machine keels over halfway through the first
-dbench run with CONFIG_SHAREPTE=n.  General memory corruption and
-mayhem.
+- The faster copy_*_user patch for Intel ia32 CPUs has been updated to
+  be a little faster.
 
-Here's what I have - I'll drop it in experimental/ if I manage to get
-another patchset ready tonight.
+- A few 2.5.43 compilation fixes are included.
+
+- Ingo's get_unmapped_area() speedup is added
+
+- Included the extended attributes and posix ACL code.  This feature
+  is late, IMO.  People who want this would be advised to help shake
+  it down.
+
+- There are still a few problems with the shared pagetable code.  One
+  of David's fixup patches didn't work out, so there are two followup
+  patches over in the experimental/ directory.  They're for David - don't
+  use them.
+
+- There's a little tweak here (no-reclaim-throttle.patch) which will
+  improve interactivity on small machines during heavy writeout.
+
+  But generally, for those people who have had problems with sluggishness
+  and swappiness in the 2.5 VM: 2.5.43 pretty much has it all.  Please
+  give it a shot.
+
+  /proc/sys/vm/swappiness is available for playing with.  Default value
+  is 60%, and 100 gives you the previous 2.5 behaviour.
+
+  Some things are slower - most notably things which involve simultaneous
+  reading from and writing to the same disk.  Such workloads were traded
+  off against latency under write loads.  I expect that with careful attention
+  some of this can be pulled back, but it's not a large regression.  Maybe
+  up to 10-20%.
+
+
+Since 2.5.42-mm3:
+
++mpparse-fix.patch
++md-fix.patch
+
+ 2.5.43 compile fixes
+
+-oprofile-25.patch
+
+ Merged
+
++disable-ppc-lbd.patch
+
+ Don't offer 64-bit sector_t on PPC32
+
++reiserfs-kmap-fix.patch
+
+ Fix a highmem oops in reiserfs_ioctl()
+
++refill-inactive-lockup-fix.patch
+
+ Fix a VM lockup under weird loads
+
++simple_rename-link-count.patch
+
+ Fix fs/libfs:simple_rename()
+
++static-filemap_sync.patch
+
+ Make filemap_sync() static, don't export to modules
+
+-raid0-fix.patch
+-fsync_buffers_list-fix.patch
+
+ Merged
+
+-intel-user-copy.patch
++intel-user-copy-taka.patch
+
+ New, improved
+
++meminfo-numa.patch
+
+ Add /proc/meminfo.numa
+
++ingo-mmap-speedup.patch
+
+ Faster search heuristic for mmap()
+
++ingo-oom-kill.patch
+
+ Make the oom killer smarter for threaded apps
+
++vmalloc-overalloc.patch
+
+ Don't allocate an extra page in vmalloc()
+
++no-reclaim-throttle.patch
+
+ Don't make writers wait on writeback in page reclaim
+
++shpte-lock-ranking-fix.patch
+
+ shared pagetable locking fix
+
++handle-mm-fault-locking.patch
++mremap-shared-pagetable-fix.patch
+
+ shared pagetable fixes
+
+-xattr-2.patch
+-xattr-shrinker.patch
+-xattr-3.patch
+-xattr-4.patch
+
+ Obsoleted
+
++xattr-01-metablock-cache.patch
++xattr-02-ext3.patch
++xattr-03-ext2.patch
++fix-xattr.patch
+
+ Extended Attributes, and a fix thereto
+
++posix-acl-01-core.patch
++posix-acl-02-umask.patch
++posix-acl-03-user-api.patch
++posix-acl-04-ext3.patch
+
+ Posix ACLs
+
++acl-ext3-fix-tree.patch
++acl-ext3-inode.patch
+
+ Fixes to the above
+
++posix-acl-05-ext2.patch
+
+ Posix ACLs
+
++ext23-mount-options.patch
+
+ Clean up parsing of ext2/3 mount options
+
+-rcu_ltimer.patch
+
+ Merged
 
 
 
- mm/memory.c |  166 +++++++++++++++++++++++++++++++++++++-----------------------
- 1 files changed, 103 insertions(+), 63 deletions(-)
 
---- 2.5.42/mm/memory.c~shpte-unmap_all_pages_fix	Tue Oct 15 14:18:42 2002
-+++ 2.5.42-akpm/mm/memory.c	Tue Oct 15 14:18:42 2002
-@@ -372,6 +372,7 @@ static pte_t *pte_try_to_share(struct mm
- 	struct vm_area_struct *lvma;
- 	struct page *ptepage;
- 	unsigned long base;
-+	pte_t *pte = NULL;
- 
- 	/*
- 	 * It already has a pte page.  No point in checking further.
-@@ -394,6 +395,8 @@ static pte_t *pte_try_to_share(struct mm
- 
- 	as = vma->vm_file->f_dentry->d_inode->i_mapping;
- 
-+	spin_lock(&as->i_shared_lock);
-+
- 	list_for_each_entry(lvma, &as->i_mmap_shared, shared) {
- 		pgd_t *lpgd;
- 		pmd_t *lpmd;
-@@ -431,9 +434,11 @@ static pte_t *pte_try_to_share(struct mm
- 		else
- 			pmdval = pmd_wrprotect(*lpmd);
- 		set_pmd(pmd, pmdval);
--		return pte_page_map(ptepage, address);
-+		pte = pte_page_map(ptepage, address);
-+		break;
- 	}
--	return NULL;
-+	spin_unlock(&as->i_shared_lock);
-+	return pte;
- }
- #endif
- 
-@@ -846,14 +851,16 @@ static void zap_pmd_range(mmu_gather_t *
- 	if (end > ((address + PGDIR_SIZE) & PGDIR_MASK))
- 		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
- 	do {
--		ptepage = pmd_page(*pmd);
--		pte_page_lock(ptepage);
-+		if (pmd_present(*pmd)) {
-+			ptepage = pmd_page(*pmd);
-+			pte_page_lock(ptepage);
- #ifdef CONFIG_SHAREPTE
--		if (page_count(ptepage) > 1)
--			BUG();
-+			if (page_count(ptepage) > 1)
-+				BUG();
- #endif
--		zap_pte_range(tlb, pmd, address, end - address);
--		pte_page_unlock(ptepage);
-+			zap_pte_range(tlb, pmd, address, end - address);
-+			pte_page_unlock(ptepage);
-+		}
- 		address = (address + PMD_SIZE) & PMD_MASK; 
- 		pmd++;
- 	} while (address < end);
-@@ -938,72 +945,105 @@ void unmap_all_pages(struct mm_struct *m
- 	mmu_gather_t *tlb;
- 	pgd_t *pgd;
- 	pmd_t *pmd;
--	unsigned long address;
--	unsigned long end;
-+	unsigned long address = 0;
-+	unsigned long vm_end = 0, prev_end, pmd_end;
- 
- 	tlb = tlb_gather_mmu(mm, 1);
- 
- 	vma = mm->mmap;
--	if (!vma)
--		goto out;
--
--	mm->map_count--;
--	if (is_vm_hugetlb_page(vma)) {
--		vma->vm_ops->close(vma);
--		goto next_vma;
--	}
--
--	address = vma->vm_start;
--	end = ((address + PGDIR_SIZE) & PGDIR_MASK);
-+	for (;;) {
-+		if (address >= vm_end) {
-+			if (!vma)
-+				goto out;
- 
--	pgd = pgd_offset(mm, address);
--	pmd = pmd_offset(pgd, address);
--	do {
--		do {
--			if (pmd_none(*pmd))
--				goto skip_pmd;
--			if (pmd_bad(*pmd)) {
--				pmd_ERROR(*pmd);
--				pmd_clear(pmd);
--				goto skip_pmd;
--			}
--		
--			ptepage = pmd_page(*pmd);
--			pte_page_lock(ptepage);
--			if (page_count(ptepage) > 1) {
--				pmd_clear(pmd);
--				pgtable_remove_rmap_locked(ptepage, mm);
--				mm->rss -= ptepage->private;
--				put_page(ptepage);
--			} else {
--				zap_pte_range(tlb, pmd, address, end - address);
--			}
--			pte_page_unlock(ptepage);
--skip_pmd:
--			pmd++;
--			address = (address + PMD_SIZE) & PMD_MASK;
--			if (address >= vma->vm_end) {
-+			address = vma->vm_start;
- next_vma:
--				vma = vma->vm_next;
--				if (!vma)
--					goto out;
--
--				mm->map_count--;
--				if (is_vm_hugetlb_page(vma)) {
-+			prev_end = vm_end;
-+			vm_end = vma->vm_end;
-+			mm->map_count--;
-+			/*
-+			 * Advance the vma pointer to the next vma.
-+			 * To facilitate coalescing adjacent vmas, the
-+			 * pointer always points to the next one
-+			 * beyond the range we're currently working
-+			 * on, which means vma will be null on the
-+			 * last iteration.
-+			 */
-+			vma = vma->vm_next;
-+			if (vma) {
-+				/*
-+				 * Go ahead and include hugetlb vmas
-+				 * in the range we process.  The pmd
-+				 * entry will be cleared by close, so
-+				 * we'll just skip over them.  This is
-+				 * easier than trying to avoid them.
-+				 */
-+				if (is_vm_hugetlb_page(vma))
- 					vma->vm_ops->close(vma);
-+
-+				/*
-+				 * Coalesce adjacent vmas and process
-+				 * them all in one iteration.
-+				 */
-+				if (vma->vm_start == prev_end) {
- 					goto next_vma;
- 				}
-+			}
-+		}
-+		pgd = pgd_offset(mm, address);
-+		do {
-+			if (pgd_none(*pgd))
-+				goto skip_pgd;
- 
--				address = vma->vm_start;
--				end = ((address + PGDIR_SIZE) & PGDIR_MASK);
--				pgd = pgd_offset(mm, address);
--				pmd = pmd_offset(pgd, address);
-+			if (pgd_bad(*pgd)) {
-+				pgd_ERROR(*pgd);
-+				pgd_clear(pgd);
-+skip_pgd:
-+				address += PGDIR_SIZE;
-+				if (address > vm_end)
-+					address = vm_end;
-+				goto next_pgd;
- 			}
--		} while (address < end);
--		pgd++;
--		pmd = pmd_offset(pgd, address);
--		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
--	} while (vma);
-+			pmd = pmd_offset(pgd, address);
-+			if (vm_end > ((address + PGDIR_SIZE) & PGDIR_MASK))
-+				pmd_end = (address + PGDIR_SIZE) & PGDIR_MASK;
-+			else
-+				pmd_end = vm_end;
-+
-+			for (;;) {
-+				if (pmd_none(*pmd))
-+					goto next_pmd;
-+				if (pmd_bad(*pmd)) {
-+					pmd_ERROR(*pmd);
-+					pmd_clear(pmd);
-+					goto next_pmd;
-+				}
-+				
-+				ptepage = pmd_page(*pmd);
-+				pte_page_lock(ptepage);
-+				if (page_count(ptepage) > 1) {
-+					pmd_clear(pmd);
-+					pgtable_remove_rmap_locked(ptepage, mm);
-+					mm->rss -= ptepage->private;
-+					put_page(ptepage);
-+				} else
-+					zap_pte_range(tlb, pmd, address,
-+						      vm_end - address);
-+
-+				pte_page_unlock(ptepage);
-+next_pmd:
-+				address += PMD_SIZE;
-+				if (address >= pmd_end) {
-+					address = pmd_end;
-+					break;
-+				}
-+				pmd++;
-+			}
-+next_pgd:
-+			pgd++;
-+		} while (address < vm_end);
-+
-+	}
- 
- out:
- 	clear_page_tables(tlb, FIRST_USER_PGD_NR, USER_PTRS_PER_PGD);
+mpparse-fix.patch
 
-.
+md-fix.patch
+
+kgdb.patch
+
+disable-ppc-lbd.patch
+  Disable CONFIG_LBD for ppc32
+
+mod_timer-race.patch
+
+net-loopback.patch
+  Disable second copy in the network loopback driver
+
+reiserfs-kmap-fix.patch
+  reiserfs: remove stray kunmap
+
+blkdev-o_direct-short-read.patch
+  Fix O_DIRECT blockdev reads at end-of-device
+
+refill-inactive-lockup-fix.patch
+  Fix a refill_inactive_zone lockup
+
+orlov-allocator.patch
+
+blk-queue-bounce.patch
+  inline blk_queue_bounce
+
+lseek-ext2_readdir.patch
+  remove lock_kernel() from ext2_readdir()
+
+dio-fine-alignment.patch
+  Allow O_DIRECT to use 512-byte alignment
+
+write-deadlock.patch
+  Fix the generic_file_write-from-same-mmapped-page deadlock
+
+rd-cleanup.patch
+  Cleanup and fix the ramdisk driver (doesn't work right yet)
+
+spin-lock-check.patch
+  spinlock/rwlock checking infrastructure
+
+hugetlb-prefault.patch
+  hugetlbpages: factor out some code for hugetlbfs
+
+ramfs-aops.patch
+  Move ramfs address_space ops into libfs
+
+hugetlb-header-split.patch
+  Move hugetlb declarations into their own header
+
+hugetlbfs.patch
+  hugetlbfs file system
+
+hugetlb-shm.patch
+  hugetlbfs backing for SYSV shared memory
+
+page_reserved-accounting.patch
+  Global PageReserved accounting
+
+use-page_reserved_accounting.patch
+  Use PG_reserved accounting in the VM
+
+ramfs-prepare-write-speedup.patch
+  correctness fixes in libfs address_space ops
+
+simple_rename-link-count.patch
+  Fix link count in simple_rename()
+
+truncate-bkl.patch
+  don't take the BKL in inode_setattr
+
+static-filemap_sync.patch
+  Make filemap_sync() static
+
+akpm-deadline.patch
+  deadline scheduler tweaks
+
+intel-user-copy-taka.patch
+  Faster copy_*_user for Intel ia32 CPUs
+
+meminfo-numa.patch
+  NUMA: /proc/meminfo.numa
+
+rmqueue_bulk.patch
+  bulk page allocator
+
+free_pages_bulk.patch
+  Bulk page freeing function
+
+hot_cold_pages.patch
+  Hot/Cold pages and zone->lock amortisation
+
+readahead-cold-pages.patch
+  Use cache-cold pages for pagecache reads.
+
+pagevec-hot-cold-hint.patch
+  hot/cold hints for truncate and page reclaim
+
+page-reservation.patch
+  Page reservation API
+
+wli-show_free_areas.patch
+  show_free_areas extensions
+
+o_streaming.patch
+  O_STREAMING support
+
+ingo-mmap-speedup.patch
+  Ingo's mmap speedup
+
+ingo-oom-kill.patch
+  oom-killer changes for threaded apps
+
+vmalloc-overalloc.patch
+  Avoid overallocating pages in vmalloc()
+
+add_timer_on.patch
+  add_timer_on(): function to start a timer on a particular CPU
+
+slab-split-01-rename.patch
+  slab cleanup: rename static functions
+
+slab-split-02-SMP.patch
+  slab: enable the cpu arrays on uniprocessor
+
+slab-split-03-tail.patch
+  slab: reduced internal fragmentation
+
+slab-split-04-drain.patch
+  slab: take the spinlock in the drain function.
+
+slab-split-05-name.patch
+  slab: remove spaces from /proc identifiers
+
+slab-split-06-mand-cpuarray.patch
+  slab: cleanups and speedups
+
+slab-split-07-inline.patch
+  slab: uninline poisoning checks
+
+slab-split-08-reap.patch
+  slab: reap timers
+
+slab-timer.patch
+
+slab-use-sem.patch
+
+no-reclaim-throttle.patch
+  Don't wait on page writeout in page reclaim
+
+fs-inlines.patch
+  Kill some inlining in fs/*
+
+mm-inlines.patch
+  remove some inlines from mm/*
+
+uninline-highmem.patch
+  uninline the highmem mapping functions
+
+shpte.patch
+
+shpte-lock-ranking-fix.patch
+  shared pte lock ranking fix
+
+shmmap.patch
+  Proactively share page tables for shared memory
+
+handle-mm-fault-locking.patch
+  handle_mm_fault locking fix
+
+mremap-shared-pagetable-fix.patch
+  fix mremap for shared page tables
+
+xattr-01-metablock-cache.patch
+  EA: meta block cache
+
+xattr-02-ext3.patch
+  EA: ext3 support
+
+xattr-03-ext2.patch
+  EA: ext2 support
+
+fix-xattr.patch
+  EA: compile warning fix
+
+posix-acl-01-core.patch
+  posixacl: core support
+
+posix-acl-02-umask.patch
+  posixacl: umask support
+
+posix-acl-03-user-api.patch
+  posixacl: user API
+
+posix-acl-04-ext3.patch
+  posixacl: ext3 support
+
+acl-ext3-fix-tree.patch
+
+acl-ext3-inode.patch
+
+posix-acl-05-ext2.patch
+  posixacl: ext2 support
+
+ext23-mount-options.patch
+  ext2/3 mount option processing cleanup
+
+read_barrier_depends.patch
+  extended barrier primitives
+
+dcache_rcu.patch
+  Use RCU for dcache
+
+mpopulate.patch
+  remap_file_pages
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
