@@ -1,8 +1,8 @@
-Date: Sat, 8 Apr 2000 01:54:02 +0200 (CEST)
+Date: Sat, 8 Apr 2000 01:26:48 +0200 (CEST)
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
 In-Reply-To: <200004072012.NAA10407@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.21.0004080142340.2121-100000@alpha.random>
+Message-ID: <Pine.LNX.4.21.0004080120330.2088-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,22 +13,19 @@ List-ID: <linux-mm.kvack.org>
 
 On Fri, 7 Apr 2000, Kanoj Sarcar wrote:
 
->[..] A bigger problem might
->be that you are violating lock orders when you grab the vmlist_lock
->from inside code that already has tasklist_lock in readmode [..]
+>[..] you should try stress
+>testing with swapdevice removal with a large number of runnable
+>processes.[..]
 
-Conceptually it's the obviously right locking order. The mm exists in
-function of a task struct. So first grabbing the tasklist lock, finding
-the task_struct and then locking its mm before playing with it looks the
-natural ordering of things and how things should be done.
+swapdevice removal during swapin activity is broken right now as far I can
+see. I'm trying to fix that stuff right now.
 
-BTW, swap_out() always used the same locking order that I added to swapoff
-so if my patch is wrong, swap_out() is always been wrong as well ;).
+>Also, did you have a good reason to want to make lookup_swap_cache()
+>invoke find_get_page(), and not find_lock_page()? I coded some of the 
 
-I had a fast look and it seems nobody is going to harm swap_out and
-swapoff but if somebody is using the inverse lock I'd much prefer to fix
-that path because the locking design of swapoff and swap_out looks the
-obviously right one to me.
+Using find_lock_page and then unlocking the page is meaningless. If you
+are going to unconditionally unlock the page then you shouldn't lock it in
+first place.
 
 Andrea
 
