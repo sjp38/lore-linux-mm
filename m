@@ -1,40 +1,131 @@
-Date: Tue, 13 May 2003 14:35:27 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [PATCH] Re: 2.5.69-mm4 undefined active_load_balance
-Message-ID: <20030513213527.GV8978@holomorphy.com>
-References: <20030512225504.4baca409.akpm@digeo.com> <87vfwf8h2n.fsf@lapper.ihatent.com> <20030513001135.2395860a.akpm@digeo.com> <87n0hr8edh.fsf@lapper.ihatent.com> <20030513085525.GA7730@hh.idb.hist.no> <20030513020414.5ca41817.akpm@digeo.com> <3EC0FB9E.8030305@aitel.hist.no> <20030513162711.GA30804@hh.idb.hist.no> <20030513193847.GP8978@holomorphy.com> <20030513213110.GA655@hh.idb.hist.no>
+Date: Tue, 13 May 2003 13:36:36 -0700
+From: "Paul E. McKenney" <paulmck@us.ibm.com>
+Subject: [RFC][PATCH] Interface to invalidate regions of mmaps
+Message-ID: <20030513133636.C2929@us.ibm.com>
+Reply-To: paulmck@us.ibm.com
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030513213110.GA655@hh.idb.hist.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Helge Hafting <helgehaf@aitel.hist.no>
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, alexh@ihatent.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@digeo.com
+Cc: mjbligh@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 13, 2003 at 12:38:47PM -0700, William Lee Irwin III wrote:
->> Linus just committed a patch to eliminate such offenders.
->> Do you mean #if CONFIG_NR_SIBLINGS != 0 or #ifdef CONFIG_NR_SIBLINGS?
+This patch adds an API to allow networked and distributed filesystems
+to invalidate portions of (or all of) a file.  This is needed to 
+provide POSIX or near-POSIX semantics in such filesystems, as
+discussed on LKML late last year:
 
-On Tue, May 13, 2003 at 11:31:10PM +0200, Helge Hafting wrote:
-> I don't know this code well, I'm just guessing the rigth way
-> to make it compile.  I don't know what's the "clean" way
-> to do #if/#ifdefs either - I could probably do better if I knew.
-> The problem was that CONFIG_SHARE_RUNQUEUE gets set even with
-> configs where it doesn't make sense, (i.e. uniprocessor without HT)
-> so I guessed it was some sort of misunderstanding about
-> how #ifdef works.  I hope whoever wrote that code will
-> take a look and either say "yes - that's what I meant"
-> or fix it in a better way.
+	http://marc.theaimsgroup.com/?l=linux-kernel&m=103609089604576&w=2
+	http://marc.theaimsgroup.com/?l=linux-kernel&m=103167761917669&w=2
 
-Your fix was correct (the alternative is some rearrangment of those
-#defines) and I carried it out with some additional #ifdef -> #if
-conversions to cover the rest of the cases visible in my config and
-sent it to akpm in another patch.
+Thoughts?
 
+						Thanx, Paul
 
--- wli
+diff -urN -X dontdiff linux-2.5.69/include/linux/mm.h linux-2.5.69.invalidate_mmap_range/include/linux/mm.h
+--- linux-2.5.69/include/linux/mm.h	Sun May  4 16:53:00 2003
++++ linux-2.5.69.invalidate_mmap_range/include/linux/mm.h	Fri May  9 17:35:48 2003
+@@ -412,6 +412,9 @@
+ int zeromap_page_range(struct vm_area_struct *vma, unsigned long from,
+ 			unsigned long size, pgprot_t prot);
+ 
++extern void invalidate_mmap_range(struct address_space *mapping,
++				  loff_t const holebegin,
++				  loff_t const holelen);
+ extern int vmtruncate(struct inode * inode, loff_t offset);
+ extern pmd_t *FASTCALL(__pmd_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address));
+ extern pte_t *FASTCALL(pte_alloc_kernel(struct mm_struct *mm, pmd_t *pmd, unsigned long address));
+diff -urN -X dontdiff linux-2.5.69/kernel/ksyms.c linux-2.5.69.invalidate_mmap_range/kernel/ksyms.c
+--- linux-2.5.69/kernel/ksyms.c	Sun May  4 16:52:49 2003
++++ linux-2.5.69.invalidate_mmap_range/kernel/ksyms.c	Fri May  9 17:35:48 2003
+@@ -117,6 +117,7 @@
+ EXPORT_SYMBOL(max_mapnr);
+ #endif
+ EXPORT_SYMBOL(high_memory);
++EXPORT_SYMBOL(invalidate_mmap_range);
+ EXPORT_SYMBOL(vmtruncate);
+ EXPORT_SYMBOL(find_vma);
+ EXPORT_SYMBOL(get_unmapped_area);
+diff -urN -X dontdiff linux-2.5.69/mm/memory.c linux-2.5.69.invalidate_mmap_range/mm/memory.c
+--- linux-2.5.69/mm/memory.c	Sun May  4 16:53:14 2003
++++ linux-2.5.69.invalidate_mmap_range/mm/memory.c	Mon May 12 15:09:28 2003
+@@ -1060,6 +1060,74 @@
+ 	return ret;
+ }
+ 
++/*
++ * Helper function for invalidate_mmap_range().
++ * Both hba and hlen are page numbers in PAGE_SIZE units.
++ */
++static void 
++invalidate_mmap_range_list(struct list_head *head,
++			   unsigned long const hba,
++			   unsigned long const hlen)
++{
++	struct list_head *curr;
++	unsigned long hea;	/* last page of hole. */
++	unsigned long vba;
++	unsigned long vea;	/* last page of corresponding uva hole. */
++	struct vm_area_struct *vp;
++	unsigned long zba;
++	unsigned long zea;
++
++	hea = hba + hlen - 1;	/* avoid overflow. */
++	list_for_each(curr, head) {
++		vp = list_entry(curr, struct vm_area_struct, shared);
++		vba = vp->vm_pgoff;
++		vea = vba + ((vp->vm_end - vp->vm_start) >> PAGE_SHIFT) - 1;
++		if (hea < vba || vea < hba)
++		    	continue;	/* Mapping disjoint from hole. */
++		zba = (hba <= vba) ? vba : hba;
++		zea = (vea <= hea) ? vea : hea;
++		zap_page_range(vp,
++			       ((zba - vba) << PAGE_SHIFT) + vp->vm_start,
++			       (zea - zba + 1) << PAGE_SHIFT);
++	}
++}
++
++/**
++ * invalidate_mmap_range - invalidate the portion of all mmaps
++ * in the specified address_space corresponding to the specified
++ * page range in the underlying file.
++ * @address_space: the address space containing mmaps to be invalidated.
++ * @holebegin: byte in first page to invalidate, relative to the start of
++ * the underlying file.  This will be rounded down to a PAGE_SIZE
++ * boundary.
++ * @holelen: size of prospective hole in bytes.  This will be rounded
++ * up to a PAGE_SIZE boundary.
++ */
++void 
++invalidate_mmap_range(struct address_space *mapping,
++		      loff_t const holebegin,
++		      loff_t const holelen)
++{
++	unsigned long hba = holebegin >> PAGE_SHIFT;
++	unsigned long hlen = (holelen + PAGE_SIZE - 1) >> PAGE_SHIFT;
++
++	if (hlen == 0)
++		return;
++	/* Check for overflow. */
++	if (sizeof(holelen) > sizeof(hlen)) {
++		long long holeend = (holebegin + holelen - 1) >> PAGE_SHIFT;
++
++		if (holeend & ~(long long)ULONG_MAX)
++			hlen = ULONG_MAX - hba + 1;
++	}
++	down(&mapping->i_shared_sem);
++	if (unlikely(!list_empty(&mapping->i_mmap)))
++		invalidate_mmap_range_list(&mapping->i_mmap, hba, hlen);
++	if (unlikely(!list_empty(&mapping->i_mmap_shared)))
++		invalidate_mmap_range_list(&mapping->i_mmap_shared, hba, hlen);
++	up(&mapping->i_shared_sem);
++}       
++
+ static void vmtruncate_list(struct list_head *head, unsigned long pgoff)
+ {
+ 	unsigned long start, end, len, diff;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
