@@ -1,60 +1,77 @@
-Received: from m7.gw.fujitsu.co.jp ([10.0.50.77]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i88BZAtx014649 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:35:10 +0900
+Received: from m1.gw.fujitsu.co.jp ([10.0.50.71]) by fgwmail5.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
+	id i88BgH9B024338 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:42:17 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s0.gw.fujitsu.co.jp by m7.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i88BZ9E8010212 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:35:10 +0900
+Received: from s6.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
+	id i88BgGDu028120 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:42:16 +0900
 	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s0.gw.fujitsu.co.jp (s0 [127.0.0.1])
-	by s0.gw.fujitsu.co.jp (Postfix) with ESMTP id DB00AA7CD2
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 20:35:09 +0900 (JST)
-Received: from fjmail501.fjmail.jp.fujitsu.com (fjmail501-0.fjmail.jp.fujitsu.com [10.59.80.96])
-	by s0.gw.fujitsu.co.jp (Postfix) with ESMTP id 85468A7CCB
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 20:35:09 +0900 (JST)
+Received: from fjmail504.fjmail.jp.fujitsu.com (fjmail504-0.fjmail.jp.fujitsu.com [10.59.80.102]) by s6.gw.fujitsu.co.jp (8.12.11)
+	id i88BgF2e024889 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 20:42:15 +0900
+	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
 Received: from jp.fujitsu.com
  (fjscan501-0.fjmail.jp.fujitsu.com [10.59.80.120]) by
- fjmail501.fjmail.jp.fujitsu.com
+ fjmail504.fjmail.jp.fujitsu.com
  (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I3Q00D3406JSD@fjmail501.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Wed,  8 Sep 2004 20:35:09 +0900 (JST)
-Date: Wed, 08 Sep 2004 20:40:25 +0900
+ with ESMTP id <0I3Q004G00IENU@fjmail504.fjmail.jp.fujitsu.com> for
+ linux-mm@kvack.org; Wed,  8 Sep 2004 20:42:15 +0900 (JST)
+Date: Wed, 08 Sep 2004 20:47:31 +0900
 From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [RFC][PATCH] no bitmap buddy allocator:  remove free_area->map (0/4)
-Message-id: <413EEFA9.9030007@jp.fujitsu.com>
+Subject: [RFC][PATCH] no bitmap buddy allocator : initialize mem_map
+ considering buddy system (1/4)
+Message-id: <413EF153.7030100@jp.fujitsu.com>
 MIME-version: 1.0
 Content-type: text/plain; charset=us-ascii; format=flowed
 Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Kernel ML <linux-kernel@vger.kernel.org>
-Cc: LHMS <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+This is part (1/4). This part modifies memmap_init().
 
-This series of patches remove bitmaps from kernel's page allocator,
-so-called buddy allocator.This is part (0/4) and removes free_area->map.
 
-By removing bitmap, we can reduce a strcuture whose size is depends on
-installed memory size.
-Removing it is good for implementing memory-hotplug and some other codes.
+This implements some initialization for the buddy allocator.
 
-In buddy system, a page's order means size of contiguous free pages.
-If a free page[x] 's order is Y, there are contiguous free pages
-from page[X] to page[X + 2^(Y) - 1]
+In page_alloc.c, new function calculate_buddy_range() is implemented.
 
-In this patch, when a page is a head of contiguous free pages of order X,
-it is marked with PG_private and set page->private to X.
-A page's buddy in order X is simply calculated by
+bad_range() is modified to use zone->memmap_start_pfn/memmap_end_pfn instead of
+zone->start_pfn and zone->spanned_pages mostly because of IA64.
 
-buddy_idx = page_idx ^ (1 << X).
+virtual_memmap_init() in arch/ia64/mm/init.c is also modified because
+it calls memmap_init() for already initialized memmap.
 
-We can coalece 2 contiguous pages if
-let buddy = pfn_to_page(zone->zone_start_pfn + page_idx ^ (1 << X)),
-(page_is_free(buddy) && PagePrivate(buddy) && page_order(buddy) == 'X')
+calculate_buddy_range() removes some pages from system for removing invalid
+mem_map access from __free_pages_bulk() main loop.(This is in 4th patch)
 
-Although a look of code is changed, this algorithm itself is not different from
-the original buddy allocator. Only difference is there is no bitmap.
+See below
+================== main loop in __free_pages_bulk(page,order) ===========
+while (order < MAX_ORDER) {
+	struct page *buddy;
+	......
+	buddy_idx = page_idx ^ (1 << order);
+	buddy = zone->zone_mem_map + buddy_idx;
+	if (bad_range_pfn(zone,buddy_idx))------------(**)
+		break;
+	if (page_count(buddy) !=0  --------------------(*)
+	.......
+}
+===============================================================
+At (*), we have to guarantee that "buddy" is a valid page struct
+in a valid zone.
+At (**), bad_range_pfn() can catch out of zone access.
+But it cannot manage a case that a zone's mem_map has holes.
+So we remove pages in advance which can cause invalid page access at(*)
+and cannot covered by bad_range_pfn().
 
+calculate_buddy_range() discards some pages which is to be coalesced with
+invalid "buddy". It is called from memmap_init() which is called per
+contiguous mem_map.
+It removes some pages from the mem_map to guarantee that there is no
+invalid "buddy" access at (*). I call them as victim pages in my code.
+The number of victim pages is at most MAX_ORDER pages per contiguous mem_map.
+
+I think many machines' mem_map  has good alignment and has no holes
+therefore there are usually no victim pages.
 
 Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
@@ -62,77 +79,374 @@ Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
 ---
 
-  test-kernel-kamezawa/include/linux/mm.h     |   26 ++++++++++++++++++++++++++
-  test-kernel-kamezawa/include/linux/mmzone.h |    7 ++++++-
-  2 files changed, 32 insertions(+), 1 deletion(-)
+  test-kernel-kamezawa/arch/ia64/mm/init.c |    9 +
+  test-kernel-kamezawa/include/linux/gfp.h |    2
+  test-kernel-kamezawa/mm/bootmem.c        |    9 -
+  test-kernel-kamezawa/mm/page_alloc.c     |  210 ++++++++++++++++++++++++-------
+  4 files changed, 177 insertions(+), 53 deletions(-)
 
-diff -puN include/linux/mm.h~eliminate-bitmap-includes include/linux/mm.h
---- test-kernel/include/linux/mm.h~eliminate-bitmap-includes	2004-09-08 17:31:41.341538896 +0900
-+++ test-kernel-kamezawa/include/linux/mm.h	2004-09-08 17:31:41.346538136 +0900
-@@ -213,6 +213,9 @@ struct page {
-  					 * usually used for buffer_heads
-  					 * if PagePrivate set; used for
-  					 * swp_entry_t if PageSwapCache
-+					 * When page is free:
-+					 * this indicates order of page
-+					 * in buddy allocator.
-  					 */
-  	struct address_space *mapping;	/* If low bit clear, points to
-  					 * inode address_space, or NULL.
-@@ -326,6 +329,29 @@ static inline void put_page(struct page
-  #endif		/* CONFIG_HUGETLB_PAGE */
+diff -puN mm/page_alloc.c~eliminate-bitmap-init mm/page_alloc.c
+--- test-kernel/mm/page_alloc.c~eliminate-bitmap-init	2004-09-08 17:31:42.322389784 +0900
++++ test-kernel-kamezawa/mm/page_alloc.c	2004-09-08 19:14:33.803182096 +0900
+@@ -62,19 +62,27 @@ unsigned long __initdata nr_kernel_pages
+  unsigned long __initdata nr_all_pages;
 
   /*
-+ * These functions are used in alloc_pages()/free_pages(), buddy allocator.
-+ * page_order(page) returns an order of a free page in buddy allocator.
-+ *
-+ * this is used with PG_private flag
-+ *
-+ * Note : all PG_private operations used in buddy system is done while
-+ * zone->lock is acquired. So set and clear PG_private bit operation
-+ * does not need to be atomic.
-+ */
-+
-+#define PAGE_INVALID_ORDER (~0UL)
-+
-+static inline unsigned long page_order(struct page *page)
-+{
-+	return page->private;
+- * Temporary debugging check for pages not lying within a given zone.
++ * check for pages not lying within a given zone.
+   */
+-static int bad_range(struct zone *zone, struct page *page)
++static int bad_range_pfn(struct zone *zone, unsigned long pfn)
+  {
+-	if (page_to_pfn(page) >= zone->zone_start_pfn + zone->spanned_pages)
++	if((pfn < zone->memmap_start_pfn) || (pfn > zone->memmap_end_pfn))
+  		return 1;
+-	if (page_to_pfn(page) < zone->zone_start_pfn)
++	return 0;
 +}
 +
-+static inline void set_page_order(struct page *page,unsigned long order)
++static int bad_range(struct zone *zone, struct page *page)
 +{
-+	page->private = order;
++	if (bad_range_pfn(zone, page_to_pfn(page)))
+  		return 1;
+  	if (zone != page_zone(page))
+  		return 1;
+  	return 0;
+  }
+
++/*
++ *  debug check to print bad page.
++ */
+  static void bad_page(const char *function, struct page *page)
+  {
+  	printk(KERN_EMERG "Bad page state at %s (in process '%s', page %p)\n",
+@@ -917,6 +925,33 @@ fastcall void free_pages(unsigned long a
+  EXPORT_SYMBOL(free_pages);
+
+  /*
++ * This function doesn't pass PG_locked pages to buddy allocator.
++ * PG_locked pages are silently removed from buddy system, which are
++ * marked with PG_private and set page_order() to INVALID_PAGE_ORDER.
++ */
++long __init free_pages_at_init(struct page *base, int order)
++{
++	struct page *page;
++	int nr_pages = (1 << order);
++	long nr_freed_pages = 0;
++
++	if (PageReserved(base) || !put_page_testzero(base))
++		return 0;
++
++	for( page = base,nr_freed_pages = 0; page != base + nr_pages; page++) {
++		if (PageLocked(page)) {
++			/* this page is a victim for the buddy allocator. */
++			SetPagePrivate(page);
++			set_page_order(page, PAGE_INVALID_ORDER);
++		} else {
++			free_hot_page(page);
++			nr_freed_pages++;
++		}
++	}
++	return nr_freed_pages;
 +}
 +
 +/*
-   * Multiple processes may "see" the same page. E.g. for untouched
-   * mappings of /dev/null, all processes see the same page full of
-   * zeroes, and text pages of executables and shared libraries have
-diff -puN include/linux/mmzone.h~eliminate-bitmap-includes include/linux/mmzone.h
---- test-kernel/include/linux/mmzone.h~eliminate-bitmap-includes	2004-09-08 17:31:41.343538592 +0900
-+++ test-kernel-kamezawa/include/linux/mmzone.h	2004-09-08 17:31:41.347537984 +0900
-@@ -22,7 +22,6 @@
+   * Total amount of free (allocatable) RAM:
+   */
+  unsigned int nr_free_pages(void)
+@@ -1499,6 +1534,109 @@ static void __init calculate_zone_totalp
+  	printk(KERN_DEBUG "On node %d totalpages: %lu\n", pgdat->node_id, realtotalpages);
+  }
 
-  struct free_area {
-  	struct list_head	free_list;
--	unsigned long		*map;
++/*
++ * For the buddy system, A page which meets all below conditions must access
++ * an invalid page in __free_pages_bulk() and cause a fault.
++ * (a) its buddy has an invalid pfn , out of mem_map.
++ * (b) access to its invalid buddy cannot be catched by bad_range_pfn().
++ * We cannot use it in the buddy system.
++ *
++ * This calculate_buddy_range() removes some pages.
++ * (1) At first, we check whether a mem_map is sparse or not. If not,
++ *     bad_range_pfn() can catch all invalid access.
++ * (2) We check whether the mem_map is aligned to MAX_ORDER or not.
++ * (3) If the mem_map is not aligned in its start address, we find pages
++ *     which are top of buddy-list in each order and check whether
++ *     their buddy are out of mem_map.If buddy is out of zone, bad_range_pfn()
++ *     can catch it.If in zone, we mark them with PG_locked.
++ * (4) If the mem_map is not aligned in its end addres and the first
++ *     out-of-memmap page is not out-of-zone, we mark the end page
++ *     of it with PG_locked.
++ *
++ * Marked pages are not added to buddy system and we call them victim pages.
++ * Please see free_pages_at_init().
++ */
++
++static void __init calculate_buddy_range(struct zone *zone,
++					 unsigned long start_pfn,
++					 int nr_pages)
++{
++	struct page *base;
++	unsigned long alignment_mask;
++	long start_idx, end_idx, edge_idx, buddy_idx;
++	int order;
++
++	if((zone->zone_start_pfn == start_pfn) &&
++	   (zone->spanned_pages == nr_pages))
++		/*
++		 * memmap is fully contiguous. bad_range_pfn() can catch
++		 * all invalid access. there is nothing to do
++		 */
++		return;
++	start_idx = start_pfn - zone->zone_start_pfn;
++	end_idx = start_idx + nr_pages - 1;
++	alignment_mask = (1 << MAX_ORDER) - 1;
++	base = zone->zone_mem_map;
++	printk("calculate_buddy_range() %lx %d\n",start_pfn, nr_pages);
++
++	if ((start_pfn != zone->memmap_start_pfn) &&
++	    (start_idx & alignment_mask)) {
++		/*
++		 * this mem_map is not aligned and invalid access in this
++		 * mem_map cannot be caught by bad_range_pfn()
++		 */
++		for (edge_idx = start_idx,order = 0;
++		     order < MAX_ORDER;
++		     order++) {
++			if (edge_idx > end_idx)
++				break;
++			buddy_idx = edge_idx ^ (1 << order);
++			if (buddy_idx > end_idx)
++				break;
++			if (buddy_idx < edge_idx) {
++				/*
++				 * Reserve the top page in this order
++				 * as the stopper for buddy allocator.
++				 * Because this page is an only page
++				 * which has an out of range buddy in
++				 * this order.
++				 */
++				printk("victim top page %lx\n",
++				       zone->zone_start_pfn + edge_idx);
++				SetPageLocked(base + edge_idx);
++				edge_idx += (1 << order);
++			}
++		}
++	}
++	/*
++	 *  If end address is not aligned, we remove the last page.
++	 *  This will keep __free_page_bulk() from invalid mem_map access
++	 *  which exceeds the end of mem_map.
++	 *  This victim page can be revived by save_end_victim_zone().
++	 */
++	if ((end_idx & alignment_mask) != alignment_mask) {
++		printk("victim end page %lx\n",
++		       zone->zone_start_pfn + end_idx);
++		SetPageLocked(base + end_idx);
++	}
++	return;
++}
++
++static inline void save_end_victim_zone(struct zone *zone)
++{
++	struct page *page;
++	/*
++	 * zone->memmap_end_pfn is updated now.
++ 	 * bad_range_pfn() can catch invalid access exceeding end of zone.
++	 * if the zone's end page is a victim, we can use it.
++	 */
++	page = zone->zone_mem_map + zone->memmap_end_pfn- zone->zone_start_pfn;
++	if (PageLocked(page)) {
++		ClearPageLocked(page);
++		printk("saved end victim page %lx\n",zone->memmap_end_pfn);
++	}
++	return;
++}
+
+  /*
+   * Initially all pages are reserved - free ones are freed
+@@ -1510,9 +1648,21 @@ void __init memmap_init_zone(unsigned lo
+  {
+  	struct page *start = pfn_to_page(start_pfn);
+  	struct page *page;
+-
++	unsigned long saved_start_pfn = start_pfn;
++	int zoneid = NODEZONE(nid, zone);
++	struct zone *zonep;
++	zonep = zone_table[zoneid];
++
++	if (zonep->memmap_start_pfn == ~0UL) {
++		zonep->memmap_start_pfn = start_pfn;
++	} else if (start_pfn < zonep->memmap_start_pfn) {
++		printk("BUG: memmap is not sorted. \n");
++	}
++	if (zonep->memmap_end_pfn < (start_pfn + size - 1)) {
++		zonep->memmap_end_pfn = start_pfn + size - 1;
++	}
+  	for (page = start; page < (start + size); page++) {
+-		set_page_zone(page, NODEZONE(nid, zone));
++		set_page_zone(page, zoneid);
+  		set_page_count(page, 0);
+  		reset_page_mapcount(page);
+  		SetPageReserved(page);
+@@ -1524,51 +1674,18 @@ void __init memmap_init_zone(unsigned lo
+  #endif
+  		start_pfn++;
+  	}
+-}
+-
+-/*
+- * Page buddy system uses "index >> (i+1)", where "index" is
+- * at most "size-1".
+- *
+- * The extra "+3" is to round down to byte size (8 bits per byte
+- * assumption). Thus we get "(size-1) >> (i+4)" as the last byte
+- * we can access.
+- *
+- * The "+1" is because we want to round the byte allocation up
+- * rather than down. So we should have had a "+7" before we shifted
+- * down by three. Also, we have to add one as we actually _use_ the
+- * last bit (it's [0,n] inclusive, not [0,n[).
+- *
+- * So we actually had +7+1 before we shift down by 3. But
+- * (n+8) >> 3 == (n >> 3) + 1 (modulo overflows, which we do not have).
+- *
+- * Finally, we LONG_ALIGN because all bitmap operations are on longs.
+- */
+-unsigned long pages_to_bitmap_size(unsigned long order, unsigned long nr_pages)
+-{
+-	unsigned long bitmap_size;
+-
+-	bitmap_size = (nr_pages-1) >> (order+4);
+-	bitmap_size = LONG_ALIGN(bitmap_size+1);
+-
+-	return bitmap_size;
++	/*
++	 * calling calculate_buddy_range(zone) is to be called per
++	 * a contiguous mem_map.
++	 */
++	calculate_buddy_range(zonep, saved_start_pfn, size);
+  }
+
+  void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone, unsigned long size)
+  {
+  	int order;
+-	for (order = 0; ; order++) {
+-		unsigned long bitmap_size;
+-
++	for (order = 0 ; order < MAX_ORDER ; order++) {
+  		INIT_LIST_HEAD(&zone->free_area[order].free_list);
+-		if (order == MAX_ORDER-1) {
+-			zone->free_area[order].map = NULL;
+-			break;
+-		}
+-
+-		bitmap_size = pages_to_bitmap_size(order, size);
+-		zone->free_area[order].map =
+-		  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
+  	}
+  }
+
+@@ -1682,7 +1799,10 @@ static void __init free_area_init_core(s
+  		if ((zone_start_pfn) & (zone_required_alignment-1))
+  			printk("BUG: wrong zone alignment, it will crash\n");
+
++		zone->memmap_start_pfn = ~0UL;
++		zone->memmap_end_pfn = 0;
+  		memmap_init(size, nid, j, zone_start_pfn);
++		save_end_victim_zone(zone);
+
+  		zone_start_pfn += size;
+
+diff -puN include/linux/gfp.h~eliminate-bitmap-init include/linux/gfp.h
+--- test-kernel/include/linux/gfp.h~eliminate-bitmap-init	2004-09-08 17:31:42.324389480 +0900
++++ test-kernel-kamezawa/include/linux/gfp.h	2004-09-08 17:31:42.333388112 +0900
+@@ -5,6 +5,7 @@
+  #include <linux/stddef.h>
+  #include <linux/linkage.h>
+  #include <linux/config.h>
++#include <linux/init.h>
+
+  struct vm_area_struct;
+
+@@ -124,6 +125,7 @@ extern void FASTCALL(__free_pages(struct
+  extern void FASTCALL(free_pages(unsigned long addr, unsigned int order));
+  extern void FASTCALL(free_hot_page(struct page *page));
+  extern void FASTCALL(free_cold_page(struct page *page));
++extern long __init free_pages_at_init(struct page *base, int order);
+
+  #define __free_page(page) __free_pages((page), 0)
+  #define free_page(addr) free_pages((addr),0)
+diff -puN mm/bootmem.c~eliminate-bitmap-init mm/bootmem.c
+--- test-kernel/mm/bootmem.c~eliminate-bitmap-init	2004-09-08 17:31:42.326389176 +0900
++++ test-kernel-kamezawa/mm/bootmem.c	2004-09-08 17:31:42.334387960 +0900
+@@ -277,7 +277,6 @@ static unsigned long __init free_all_boo
+  		if (gofast && v == ~0UL) {
+  			int j;
+
+-			count += BITS_PER_LONG;
+  			__ClearPageReserved(page);
+  			set_page_count(page, 1);
+  			for (j = 1; j < BITS_PER_LONG; j++) {
+@@ -285,17 +284,16 @@ static unsigned long __init free_all_boo
+  					prefetchw(page + j + 16);
+  				__ClearPageReserved(page + j);
+  			}
+-			__free_pages(page, ffs(BITS_PER_LONG)-1);
++			count += free_pages_at_init(page,ffs(BITS_PER_LONG)-1);
+  			i += BITS_PER_LONG;
+  			page += BITS_PER_LONG;
+  		} else if (v) {
+  			unsigned long m;
+  			for (m = 1; m && i < idx; m<<=1, page++, i++) {
+  				if (v & m) {
+-					count++;
+  					__ClearPageReserved(page);
+  					set_page_count(page, 1);
+-					__free_page(page);
++					count += free_pages_at_init(page,0);
+  				}
+  			}
+  		} else {
+@@ -312,10 +310,9 @@ static unsigned long __init free_all_boo
+  	page = virt_to_page(bdata->node_bootmem_map);
+  	count = 0;
+  	for (i = 0; i < ((bdata->node_low_pfn-(bdata->node_boot_start >> PAGE_SHIFT))/8 + PAGE_SIZE-1)/PAGE_SIZE; i++,page++) {
+-		count++;
+  		__ClearPageReserved(page);
+  		set_page_count(page, 1);
+-		__free_page(page);
++		count += free_pages_at_init(page,0);
+  	}
+  	total += count;
+  	bdata->node_bootmem_map = NULL;
+diff -puN arch/ia64/mm/init.c~eliminate-bitmap-init arch/ia64/mm/init.c
+--- test-kernel/arch/ia64/mm/init.c~eliminate-bitmap-init	2004-09-08 18:43:47.647840368 +0900
++++ test-kernel-kamezawa/arch/ia64/mm/init.c	2004-09-08 19:18:26.663781904 +0900
+@@ -403,6 +403,8 @@ struct memmap_init_callback_data {
+  	unsigned long zone;
   };
 
-  struct pglist_data;
-@@ -207,6 +206,12 @@ struct zone {
-  	unsigned long		zone_start_pfn;
++/* this is used to avoid to initialize mem_map twice. */
++unsigned long max_initialized_memmap = 0;
+  static int
+  virtual_memmap_init (u64 start, u64 end, void *arg)
+  {
+@@ -427,10 +429,13 @@ virtual_memmap_init (u64 start, u64 end,
+  	map_start -= ((unsigned long) map_start & (PAGE_SIZE - 1)) / sizeof(struct page);
+  	map_end += ((PAGE_ALIGN((unsigned long) map_end) - (unsigned long) map_end)
+  		    / sizeof(struct page));
+-
+-	if (map_start < map_end)
++	if (page_to_pfn(map_start) < max_initialized_memmap)
++		map_start = pfn_to_page(max_initialized_memmap);
++	if (map_start < map_end) {
+  		memmap_init_zone((unsigned long)(map_end - map_start),
+  				 args->nid, args->zone, page_to_pfn(map_start));
++		max_initialized_memmap = page_to_pfn(map_end) - 1;
++	}
+  	return 0;
+  }
 
-  	/*
-+	 * indicates start_pfn/end_pfn of initialized mem_map
-+	 */
-+	unsigned long           memmap_start_pfn;
-+	unsigned long           memmap_end_pfn;
-+
-+        /*
-  	 * rarely used fields:
-  	 */
-  	char			*name;
 
 _
 
