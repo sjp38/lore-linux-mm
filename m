@@ -1,10 +1,10 @@
 Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
-	id 17uRQ6-0002k4-00
-	for <linux-mm@kvack.org>; Wed, 25 Sep 2002 22:42:38 -0700
-Date: Wed, 25 Sep 2002 22:42:38 -0700
+	id 17uRQ1-0002jn-00
+	for <linux-mm@kvack.org>; Wed, 25 Sep 2002 22:42:33 -0700
+Date: Wed, 25 Sep 2002 22:42:33 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
-Subject: [4/13] use __GFP_NOKILL in mempool_alloc()
-Message-ID: <20020926054238.GK22942@holomorphy.com>
+Subject: [3/13] add __GFP_NOKILL to SLAB_KERNEL
+Message-ID: <20020926054233.GJ22942@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Description: brief message
@@ -14,29 +14,29 @@ Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It is permissible to perform mempool allocations with __GFP_FS.
-While no current caller does so, the following prevents pool->alloc()
-from invoking the OOM killer when the request is serviceable by just
-waiting on the mempool.
+Slab allocations are failable, hence any SLAB_KERNEL allocation should
+be failed when not serviceable instead of killing innocent tasks. In
+particular, vm_area_structs, temporary filename buffers (getname),
+dentries, inodes, filp's, task_structs, and some others were all seen to
+trigger the OOM killer. It seemed best to consolidate it in SLAB_KERNEL.
 
 
-diff -urN linux-2.5.33/mm/mempool.c linux-2.5.33-mm5/mm/mempool.c
---- linux-2.5.33/mm/mempool.c	2002-09-04 04:02:00.000000000 -0700
-+++ linux-2.5.33-mm5/mm/mempool.c	2002-09-08 19:52:51.000000000 -0700
-@@ -186,8 +186,12 @@
- 	void *element;
- 	unsigned long flags;
- 	DEFINE_WAIT(wait);
--	int gfp_nowait = gfp_mask & ~(__GFP_WAIT | __GFP_IO);
-+	int gfp_nowait;
- 	int pf_flags = current->flags;
-+
-+	gfp_mask |= __GFP_NOKILL;
-+
-+	gfp_nowait = gfp_mask & ~(__GFP_WAIT | __GFP_IO | __GFP_NOKILL);
+diff -urN linux-2.5.33/include/linux/slab.h linux-2.5.33-mm5/include/linux/slab.h
+--- linux-2.5.33/include/linux/slab.h	2002-09-04 04:02:00.000000000 -0700
++++ linux-2.5.33-mm5/include/linux/slab.h	2002-09-08 20:55:27.000000000 -0700
+@@ -20,10 +20,10 @@
+ #define SLAB_NOHIGHIO		GFP_NOHIGHIO
+ #define	SLAB_ATOMIC		GFP_ATOMIC
+ #define	SLAB_USER		GFP_USER
+-#define	SLAB_KERNEL		GFP_KERNEL
++#define	SLAB_KERNEL		(GFP_KERNEL | __GFP_NOKILL)
+ #define	SLAB_DMA		GFP_DMA
  
- repeat_alloc:
- 	current->flags |= PF_NOWARN;
+-#define SLAB_LEVEL_MASK		(__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_HIGHIO|__GFP_FS)
++#define SLAB_LEVEL_MASK		(__GFP_WAIT|__GFP_HIGH|__GFP_IO|__GFP_HIGHIO|__GFP_FS|__GFP_NOKILL)
+ #define	SLAB_NO_GROW		0x00001000UL	/* don't grow a cache */
+ 
+ /* flags to pass to kmem_cache_create().
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
