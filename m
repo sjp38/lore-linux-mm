@@ -1,78 +1,52 @@
-Date: Sat, 9 Sep 2000 01:58:04 +0200 (CEST)
-From: Martin Josefsson <gandalf@wlug.westbo.se>
+Date: Sat, 9 Sep 2000 10:06:33 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: test8-vmpatch performs great here!
-In-Reply-To: <20000908192042.A31685@tentacle.dhs.org>
-Message-ID: <Pine.LNX.4.21.0009090149210.1839-100000@tux.rsn.hk-r.se>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000909100633.A8526@redhat.com>
+References: <20000908192042.A31685@tentacle.dhs.org> <Pine.LNX.4.21.0009082027060.1049-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0009082027060.1049-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Fri, Sep 08, 2000 at 08:29:43PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: deprogrammer <ttb@tentacle.dhs.org>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: deprogrammer <ttb@tentacle.dhs.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 8 Sep 2000, deprogrammer wrote:
+Hi,
 
+On Fri, Sep 08, 2000 at 08:29:43PM -0300, Rik van Riel wrote:
+
+> This seems to be due to kflushd (bdflush) waking up
+> tasks in LIFO order ...
+
+Hmm??
+
+> >From fs/buffer.c:
 > 
-> After reading ben's email I dicided to run his same test on my box
-> running test8 + vmpatch3 
+> in wakeup_bdflush()
+>    2435         __set_current_state(TASK_UNINTERRUPTIBLE);
+>    2436         add_wait_queue(&bdflush_done, &wait);
+
+> (which adds our task to the front of the wait queue)
+
+Right, but it is TASK_UNINTERRUPTIBLE, not TASK_EXCLUSIVE.
+
+> and in kflushd()
+>    2622                 wake_up(&bdflush_done);
 > 
-> some specs: K7 - 600, 128MB ram.
-> 
-> environment: X 4.0.1 and netscape 4.75 were running.
-> 
-> I ran 2 tests:
-> 	1) tar zxvf linux-2.4.0-test6.tar.gz
-> 	2) tar xvf linux-2.4.0-test6.tar
-> 
-> 
-> free_before:
-> 	total       used       free     shared    buffers     cached
-> 	Mem:        127176      62960      64216          0       2164      25500
-> 	-/+ buffers/cache:      35296      91880
-> 	Swap:       128516          0     128516
-> 
-> free_after_tgz:
-> 	total       used       free     shared    buffers     cached
-> 	Mem:        127176     124892       2284          0       6612      80592
-> 	-/+ buffers/cache:      37688      89488
-> 	Swap:       128516          0     128516
-> 
-> free_after_tar:
-> total       used       free     shared    buffers     cached
-> Mem:        127176     124952       2224          0       2848      85336
-> -/+ buffers/cache:      36768      90408
-> Swap:       128516          0     128516
-> 
-> The box remained somewhat interactive, but a few times during the tar zxvf the
-> box would stop responding for a few seconds during which there would be alot
-> of disk activity, same for the tar xvf.
+> (which wakes up the first task on the wait queue)
 
-I have to say that the vm-patch against t8p5 works fine here on t8p6
+No.  That might be true if we were TASK_EXCLUSIVE, but we are not ---
+*all_ processes on the wait queue will be woken, and the scheduler
+doesn't care in the slightest about which order they get woken in.  It
+will just schedule the best process next time.
+ 
+wake_up_all() is only different from wake_up() when you encounter
+TASK_EXCLUSIVE processes.
 
-I've tested to copy a few big files between partitions and it didn't swap
-at all (it used to swap like crazy leaving me to watch my frozen X during
-the copy)
-
-so far so good....
-
-then a friend started a ftp-session against my machine and started to copy
-a few files (3-6MB each via 100Mbit network) and my machine began swapping
-like there was no tomorrow.
-
-after about 15-30 seconds of heavy swapping the swapping stopped, now I
-had about 35MB swapped out (I have 256MB ram, and the box is very light
-loaded, no big memoryhogs or anything (not even netscape :))
-
-I took a look at /proc/meminfo and I had more than 200MB in active pages
-and almost nothing in inactive pages. So this is a case where drop-behind
-doesn't work yet.
-
-I should say that my ftpserver is proftpd-1.2.0pre10, a quite common
-ftpserver
-
-/Martin
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
