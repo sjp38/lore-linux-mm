@@ -1,54 +1,72 @@
-Date: Mon, 2 Oct 2000 16:28:48 -0300 (BRST)
+Date: Mon, 2 Oct 2000 16:35:43 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] fix for VM test9-pre,
-In-Reply-To: <20001002212521.A21473@athlon.random>
-Message-ID: <Pine.LNX.4.21.0010021626460.22539-100000@duckman.distro.conectiva>
+Subject: [highmem bug report against -test5 and -test6] Re: [PATCH] Re: simple
+ FS application that hangs 2.4-test5, mem mgmt problem or FS buffer cache
+ mgmt problem? (fwd)
+Message-ID: <Pine.LNX.4.21.0010021630500.22539-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: Ying Chen/Almaden/IBM <ying@almaden.ibm.com>, linux-mm@kvack.org, Ingo Molnar <mingo@elte.hu>
+Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Oct 2000, Andrea Arcangeli wrote:
-> On Mon, Oct 02, 2000 at 02:07:51PM -0300, Rik van Riel wrote:
-> > However, I have no idea why your buffers and pagecache pages
-> > aren't bounced into the HIGHMEM zone ... They /should/ just
-> 
-> buffers/dcache/icache can't be allocated in HIGHMEM zone. Only
-> page cache can live in HIGHMEM by using bounce buffers for doing
-> the I/O.
+Hi,
 
-Yup, indeed. I guess we need some extra logic to prevent the
-system from trying to fill all of low memory with dirty
-pages just because all of the highmem pages are free.
+as you can see below, the highmem bug was already there before
+the new VM. However, it may be easier to trigger in the new VM
+because we keep the buffer heads on active pages in memory...
 
-(also, having more than say 200MB in the write-behind queue
-probably doesn't make any sense)
+(then again, we can't clear the buffer heads on dirty pages
+anyway, so maybe the difference in how easy it is to trigger is
+very small or nonexistant)
 
-> > be moved to the HIGHMEM zone where they don't bother the rest
-> > of the system, but for some reason it looks like that doesn't
-> > work right on your system ...
-> 
-> That shouldn't be the problem, the bounce buffer logic isn't
-> changed since test6 that is reported not to show the bad
-> behaviour.
 
-Unfortunately, I DID get a few bug reports about
-2.4.0-test6 and earlier kernels that DID show this
-bug ...
+One possible explanation for the problem may be that we use
+GFP_ATOMIC (and PF_MEMALLOC is set) in prepare_highmem_swapout().
 
-I can dig out the bug report if you want ;)
+That means we /could/ eat up the last free pages for creating
+bounce buffers in low memory, after which we end up with a bunch
+of unflushable, unfreeable pages in low memory (because we can't
+allocate bufferheads or read indirect blocks from the swapfile).
+
+Maybe we want to use GFP_SOFT (fail if we have less than pages_min
+free pages in the low memory zone) for prepare_highmem_swapout(),
+it appears that try_to_swap_out() and shm_swap_core() are already
+quite capable of dealing with bounce buffer create failures.
+
+I'd really like to see this bug properly fixed in 2.4...
 
 regards,
 
 Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+---------- Forwarded message ----------
+Date: Fri, 1 Sep 2000 09:27:58 -0700
+From: Ying Chen/Almaden/IBM <ying@almaden.ibm.com>
+To: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] Re: simple FS application that hangs 2.4-test5,
+     mem mgmt problem or FS buffer cache mgmt problem?
 
-http://www.conectiva.com/		http://www.surriel.com/
+
+Hi, Rik,
+
+I while back I reported some problems with buffer cache and probably memory
+mgmt subsystem when I ran high IOPS with SPEC SFS.
+I haven't got a chance to go back to the problem and dig out where the
+problem is yet.
+I recently tried the same thing, i.e., running large IOPS SPEC SFS, against
+the test6 up kernel. I had no problem if I don't turn HIGHMEM
+support on in the kernel. As soon as I turned HIGHMEM support on (I have
+2GB memory in my system), I ran into the same problem, i.e., I'd get "Out
+of memory" sort of thing from various subsystems, like SCSI or IP, and
+eventually my kernel hangs. I don't know if this rings some bell to you or
+not. I'll try to locate the problem more accurately in the next few days.
+If you get have any suggestions on how I might pursu this, let me know.
+Thanks a lot!
+
+
+Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
