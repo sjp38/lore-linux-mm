@@ -1,48 +1,53 @@
-Subject: Re: [Lse-tech] Re: [patch] SImple Topology API v0.3 (1/2)
-From: "Timothy D. Witham" <wookie@osdl.org>
-In-Reply-To: <Pine.LNX.4.44.0208281640240.3234-100000@hawkeye.luckynet.adm>
-References: <Pine.LNX.4.44.0208281640240.3234-100000@hawkeye.luckynet.adm>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 28 Aug 2002 15:42:09 -0700
-Message-Id: <1030574529.6157.132.camel@wookie-t23.pdx.osdl.net>
-Mime-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: MM patches against 2.5.31
+Date: Thu, 29 Aug 2002 00:57:06 +0200
+References: <3D644C70.6D100EA5@zip.com.au> <E17kAvf-0002tx-00@starship> <3D6D5128.9EE6DFDD@zip.com.au>
+In-Reply-To: <3D6D5128.9EE6DFDD@zip.com.au>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17kBkK-0002uI-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thunder from the hill <thunder@lightweight.ods.org>
-Cc: Pavel Machek <pavel@suse.cz>, Matthew Dobson <colpatch@us.ibm.com>, Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Andrea Arcangeli <andrea@suse.de>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
+To: Andrew Morton <akpm@zip.com.au>
+Cc: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-that I was thinking of is that you might have 
-a case in the future where you would like to break out
-some of the stuff into say ... PPC or SPARC NUMA and also
-X86 NUMA but still keep the Cache Coherent NUMA configuration
-as a base.  But that is just wild talk from somebody
-who knows wild talk. :-)
+On Thursday 29 August 2002 00:39, Andrew Morton wrote:
+> Daniel Phillips wrote:
+> > 
+> > ...
+> > So there's no question that the race is lurking in 2.4.  I noticed several
+> > more paths besides the one above that look suspicious as well.  The bottom
+> > line is, 2.4 needs a fix along the lines of my suggestion or Christian's,
+> > something that can actually be proved.
+> > 
+> > It's a wonder that this problem manifests so rarely in practice.
+> 
+> I sort-of glanced through the 2.4 paths and it appears that in all of the
+> places where it could do a page_cache_get/release, that would never happen
+> because of other parts of the page state.
+> 
+> Like: it can't be in pagecache, so we won't run writepage, and
+> it can't have buffers, so we won't run try_to_release_page().
+> 
+> Of course, I might have missed a path.  And, well, generally: ugh.
 
-Tim
+I think it is happening.  I just went sifting searching through the archives
+on 'oops' and '2.4'.  The first one I found was:
 
-On Wed, 2002-08-28 at 15:40, Thunder from the hill wrote:
-> Hi,
-> 
-> On 28 Aug 2002, Timothy D. Witham wrote:
-> > How about the old Marketing name CONFIG_CCNUMA?
-> 
-> Why not keep CONFIG_X86_NUMA then?
-> 
-> 			Thunder
-> -- 
-> --./../...-/. -.--/---/..-/.-./..././.-../..-. .---/..-/.../- .-
-> --/../-./..-/-/./--..-- ../.----./.-../.-.. --./../...-/. -.--/---/..-
-> .- -/---/--/---/.-./.-./---/.--/.-.-.-
-> --./.-/-.../.-./.././.-../.-.-.-
+   2.4.18-xfs (xfs related?) oops report
+
+which fits the description nicely.
+
+The race I showed actually causes the page->count to go negative, avoiding
+a double free on a technicality.  That doesn't make me feel much better about
+it.  Have you got a BUG_ON(!page_count(page)) in put_page_testzero?  I think
+we might see some action.
+
 -- 
-Timothy D. Witham - Lab Director - wookie@osdlab.org
-Open Source Development Lab Inc - A non-profit corporation
-15275 SW Koll Parkway - Suite H - Beaverton OR, 97006
-(503)-626-2455 x11 (office)    (503)-702-2871     (cell)
-(503)-626-2436     (fax)
-
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
