@@ -1,252 +1,372 @@
-Message-ID: <3E39EFF6.6050909@us.ibm.com>
-Date: Thu, 30 Jan 2003 19:39:34 -0800
-From: Dave Hansen <haveblue@us.ibm.com>
-MIME-Version: 1.0
-Subject: [PATCH] export NUMA allocation fragmentation
-Content-Type: multipart/mixed;
- boundary="------------030007030407080109020501"
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA11559
+	for <linux-mm@kvack.org>; Fri, 31 Jan 2003 00:16:51 -0800 (PST)
+Date: Fri, 31 Jan 2003 00:17:33 -0800
+From: Andrew Morton <akpm@digeo.com>
+Subject: 2.5.59-mm7
+Message-Id: <20030131001733.083f72c5.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------030007030407080109020501
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm7/
 
-The NUMA memory allocation support attempts to allocate pages close to
-the CPUs that it is currently running on.  We have a hard time
-determining how effective these strategies have been, or how fragmented
-the allocations might get if a process is bounced around between nodes.
- This patch adds a new /proc/<pid> entry: nodepages.
+. I've split the anticipatory scheduling code out into the experimental/
+  directory.  We need to get the base I/O scheduler settled down and working
+  well.   Various bad things have happened to it in recent months.
 
-It walks the process's vm_area_structs for all vaddr ranges, then
-examines the ptes to determine on which node each virtual address
-physically resides.
+  The I/O scheduler in this patchset should perform quite well.
 
-I'm a little worried about just taking the pte from __follow_page() and
-dumping it into pte_pfn().  Is there something I should be testing for,
-before I feed it along?
+. Futexes, direct-io and ptrace peek/poke into hugetlb pages were all
+  quite broken.  Should be fixed up here.
 
-I've tested it on both NUMA and non-NUMA systems (see the pfn_to_nid()
-changes).  The below are from a 4-quad 16-proc NUMAQ.
 
-This is a process that allocates, then faults in a 256MB chunk of
-memory, bound to CPU 4 (node 1).
-curly:~# cat /proc/378/nodepages
-Node 0 pages: 369
-Node 1 pages: 65571
-Node 2 pages: 0
-Node 3 pages: 0
 
-Here is the same thing, bound to CPU12 (node 3), probably forked on node
-1, before it was bound.
-Node 0 pages: 369
-Node 1 pages: 2
-Node 2 pages: 0
-Node 3 pages: 65569
+Changes since 2.5.59-mm6:
 
-I would imagine that the pages on node 0 are from libc, which was
-originally mapped on node 0.  The other processes inherit this.
--- 
-Dave Hansen
-haveblue@us.ibm.com
 
---------------030007030407080109020501
-Content-Type: text/plain;
- name="proc-pid-nodepages-2.5.59-mjb2-1.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="proc-pid-nodepages-2.5.59-mjb2-1.patch"
++devfs-fix.patch
 
-diff -ru linux-2.5.59-mjb2-clean/fs/proc/base.c linux-2.5.59-mjb2-vma-stat/fs/proc/base.c
---- linux-2.5.59-mjb2-clean/fs/proc/base.c	Wed Jan 29 19:02:49 2003
-+++ linux-2.5.59-mjb2-vma-stat/fs/proc/base.c	Thu Jan 30 17:57:51 2003
-@@ -45,6 +45,7 @@
- enum pid_directory_inos {
- 	PROC_PID_INO = 2,
- 	PROC_PID_STATUS,
-+	PROC_PID_NODE_PAGES,
- 	PROC_PID_MEM,
- 	PROC_PID_CWD,
- 	PROC_PID_ROOT,
-@@ -72,6 +73,7 @@
-   E(PROC_PID_FD,	"fd",		S_IFDIR|S_IRUSR|S_IXUSR),
-   E(PROC_PID_ENVIRON,	"environ",	S_IFREG|S_IRUSR),
-   E(PROC_PID_STATUS,	"status",	S_IFREG|S_IRUGO),
-+  E(PROC_PID_NODE_PAGES,"nodepages",	S_IFREG|S_IRUGO),
-   E(PROC_PID_CMDLINE,	"cmdline",	S_IFREG|S_IRUGO),
-   E(PROC_PID_STAT,	"stat",		S_IFREG|S_IRUGO),
-   E(PROC_PID_STATM,	"statm",	S_IFREG|S_IRUGO),
-@@ -102,6 +104,7 @@
- int proc_pid_status(struct task_struct*,char*);
- int proc_pid_statm(struct task_struct*,char*);
- int proc_pid_cpu(struct task_struct*,char*);
-+int proc_pid_nodepages(struct task_struct*,char*);
- 
- static int proc_fd_link(struct inode *inode, struct dentry **dentry, struct vfsmount **mnt)
- {
-@@ -1012,6 +1015,10 @@
- 		case PROC_PID_STATUS:
- 			inode->i_fop = &proc_info_file_operations;
- 			ei->op.proc_read = proc_pid_status;
-+			break;
-+		case PROC_PID_NODE_PAGES:
-+			inode->i_fop = &proc_info_file_operations;
-+			ei->op.proc_read = proc_pid_nodepages;
- 			break;
- 		case PROC_PID_STAT:
- 			inode->i_fop = &proc_info_file_operations;
-diff -ru linux-2.5.59-mjb2-clean/fs/proc/task_mmu.c linux-2.5.59-mjb2-vma-stat/fs/proc/task_mmu.c
---- linux-2.5.59-mjb2-clean/fs/proc/task_mmu.c	Wed Jan 29 19:02:49 2003
-+++ linux-2.5.59-mjb2-vma-stat/fs/proc/task_mmu.c	Thu Jan 30 19:25:54 2003
-@@ -2,6 +2,7 @@
- #include <linux/mm.h>
- #include <linux/hugetlb.h>
- #include <asm/uaccess.h>
-+#include <asm/mmzone.h>
- 
- char *task_mem(struct mm_struct *mm, char *buffer)
- {
-@@ -243,5 +244,56 @@
- out_free1:
- 	free_page((unsigned long)kbuf);
- out:
-+	return retval;
-+}
-+
-+extern pte_t
-+__follow_page(struct mm_struct *mm, unsigned long address);
-+
-+ssize_t proc_pid_nodepages(struct task_struct *task, char* buf)
-+{
-+	struct mm_struct *mm;
-+	struct vm_area_struct * map;
-+	long retval;
-+	int nids[MAX_NR_NODES];
-+	int i;
-+
-+	for(i=0;i<numnodes;i++)
-+		nids[i] = 0;
-+	
-+	/*
-+	 * We might sleep getting the page, so get it first.
-+	 */
-+	mm = get_task_mm(task);
-+
-+	if(!mm) {
-+		printk("%s(): !mm !!\n", __FUNCTION__);
-+		return 0;
-+	}
-+	
-+	retval = 0;
-+
-+	down_read(&mm->mmap_sem);
-+	map = mm->mmap;
-+	while (map) {
-+		unsigned long vaddr = map->vm_start;
-+		unsigned long vm_end = map->vm_end;
-+		pte_t pte;
-+		unsigned long pfn;
-+		
-+		for(;vaddr < vm_end; vaddr += PAGE_SIZE) {
-+			pte = __follow_page(mm, vaddr);
-+			pfn = pte_pfn(pte);
-+			nids[pfn_to_nid(pfn)]++;
-+		}
-+		map = map->vm_next;
-+	}
-+	up_read(&mm->mmap_sem);
-+	mmput(mm);
-+
-+	for(i=0;i<numnodes;i++) {
-+		retval += sprintf(&buf[retval], "Node %d pages: %d\n", 
-+				i, nids[i]);
-+	}
- 	return retval;
- }
-diff -ru linux-2.5.59-mjb2-clean/include/asm-i386/mmzone.h linux-2.5.59-mjb2-vma-stat/include/asm-i386/mmzone.h
---- linux-2.5.59-mjb2-clean/include/asm-i386/mmzone.h	Wed Jan 29 19:02:38 2003
-+++ linux-2.5.59-mjb2-vma-stat/include/asm-i386/mmzone.h	Thu Jan 30 19:25:54 2003
-@@ -8,14 +8,17 @@
- 
- #include <asm/smp.h>
- 
--#ifdef CONFIG_DISCONTIGMEM
-+#ifndef CONFIG_DISCONTIGMEM
-+
-+#define pfn_to_nid(pfn)		(0)
-+
-+#else
- 
- #ifdef CONFIG_X86_NUMAQ
- #include <asm/numaq.h>
- #elif CONFIG_X86_SUMMIT
- #include <asm/srat.h>
- #else
--#define pfn_to_nid(pfn)		(0)
- #endif /* CONFIG_X86_NUMAQ */
- 
- extern struct pglist_data *node_data[];
-diff -ru linux-2.5.59-mjb2-clean/mm/memory.c linux-2.5.59-mjb2-vma-stat/mm/memory.c
---- linux-2.5.59-mjb2-clean/mm/memory.c	Wed Jan 29 19:02:54 2003
-+++ linux-2.5.59-mjb2-vma-stat/mm/memory.c	Thu Jan 30 16:45:55 2003
-@@ -612,13 +612,12 @@
-  * Do a quick page-table lookup for a single page.
-  * mm->page_table_lock must be held.
-  */
--struct page *
--follow_page(struct mm_struct *mm, unsigned long address, int write) 
-+pte_t 
-+__follow_page(struct mm_struct *mm, unsigned long address)
- {
- 	pgd_t *pgd;
- 	pmd_t *pmd;
- 	pte_t *ptep, pte;
--	unsigned long pfn;
- 
- 	pgd = pgd_offset(mm, address);
- 	if (pgd_none(*pgd) || pgd_bad(*pgd))
-@@ -629,11 +628,25 @@
- 		goto out;
- 
- 	ptep = pte_offset_map(pmd, address);
--	if (!ptep)
-+	if (!ptep) {
-+		pte.pte_low = 0; //__bad_page();		
-+		pte.pte_high = 0;
- 		goto out;
--
-+	}
- 	pte = *ptep;
- 	pte_unmap(ptep);
-+
-+out:
-+	return pte;
-+}
-+	
-+struct page *
-+follow_page(struct mm_struct *mm, unsigned long address, int write) 
-+{
-+	pte_t pte;	
-+	unsigned long pfn;
-+	
-+	pte = __follow_page(mm, address);
- 	if (pte_present(pte)) {
- 		if (!write || (pte_write(pte) && pte_dirty(pte))) {
- 			pfn = pte_pfn(pte);
-@@ -642,7 +655,6 @@
- 		}
- 	}
- 
--out:
- 	return NULL;
- }
- 
+ Bring the devfs mount-at-boot fix back.
 
---------------030007030407080109020501--
++batch-tuning.patch
+
+ I/O scheduler tuning - split up the read and write batching settings, pick
+ sane values.
+
++starvation-by-read-fix.patch
+
+ Fix the reads-starve-everything problem.
+
++smaller-slab-batches.patch
+
+ Fix a problem wherein slab activity can disable interrupts for too long
+ when slab debug is enabled.
+
++printk-locking.patch
+
+ Remove some pointless locking in do_syslog()
+
++jbd-documentation.patch
+
+ Documentation for fs/jdb/*
+
++kernel-commandline-fix.patch
+
+ Fix kernel commandline parsing
+
++user-process-count-leak.patch
+
+ Fix interaction between kernel thread creation and user process
+ accounting.
+
++pin_page-fix.patch
+
+ Fix a lockup which occurs when futexes are placed in hugetlb pages.
+
++do_gettimeofday-speedup.patch
+
+ Optimise do_gettimeofday() for ia32 & ia64
+
+-anticipatory_io_scheduling-2_5_59-mm3.patch
+-ant-cleanup.patch
+-antsched-update-1.patch
+
+ These are changed, rolled up and placed in the experimental/ directory.
+
++pte_chain_alloc-fixes.patch
+
+ Fix some stuff which was missed out in the pte_chain_alloc() robustness
+ work (spotted by Rik).
+
++hugetlbfs-set_page_dirty.patch
+
+ Fix a problem with direct-IO against hugetlb pages
+
++compound-pages.patch
+
+ Infrastructure for correct refcounting of higher-order pages.
+
++compound-pages-hugetlb.patch
+
+ Fix up hugetlb page refcounting.
+
+
+
+All 93 patches:
+
+kgdb.patch
+
+sync-fix.patch
+  Fix data loss problem due to sys_sync
+
+direct-io-ENOSPC-fix.patch
+  direct-IO: fix i_size handling on ENOSPC
+
+inode-accounting-race-fix.patch
+  Fix inode size accounting race
+
+vmlinux-fix.patch
+  vmlinux fix
+
+maestro-fix.patch
+  Compile fix in sound/oss/maestro.c
+
+devfs-fix.patch
+
+deadline-np-42.patch
+  (undescribed patch)
+
+deadline-np-43.patch
+  (undescribed patch)
+
+batch-tuning.patch
+  I/O scheduler tuning
+
+starvation-by-read-fix.patch
+  fix starvation-by-readers in the IO scheduler
+
+setuid-exec-no-lock_kernel.patch
+  remove lock_kernel() from exec of setuid apps
+
+buffer-debug.patch
+  buffer.c debugging
+
+warn-null-wakeup.patch
+
+reiserfs-readpages.patch
+  reiserfs v3 readpages support
+
+fadvise.patch
+  implement posix_fadvise64()
+
+ext3-scheduling-storm.patch
+  ext3: fix scheduling storm and lockups
+
+auto-unplug.patch
+  self-unplugging request queues
+
+less-unplugging.patch
+  Remove most of the blk_run_queues() calls
+
+scheduler-tunables.patch
+  scheduler tunables
+
+htlb-2.patch
+  hugetlb: fix MAP_FIXED handling
+
+kirq.patch
+
+kirq-up-fix.patch
+  Subject: Re: 2.5.59-mm1
+
+agp-warning-fix.patch
+  fix agp compile warning
+
+ext3-truncate-ordered-pages.patch
+  ext3: explicitly free truncated pages
+
+prune-icache-stats.patch
+  add stats for page reclaim via inode freeing
+
+vma-file-merge.patch
+
+mmap-whitespace.patch
+
+read_cache_pages-cleanup.patch
+  cleanup in read_cache_pages()
+
+remove-GFP_HIGHIO.patch
+  remove __GFP_HIGHIO
+
+quota-lockfix.patch
+  quota locking fix
+
+quota-offsem.patch
+  quota semaphore fix
+
+slab-poisoning-fix.patch
+  slab poison checking fix
+
+oprofile-p4.patch
+
+oprofile_cpu-as-string.patch
+  oprofile cpu-as-string
+
+preempt-locking.patch
+  Subject: spinlock efficiency problem [was 2.5.57 IO slowdown with CONFIG_PREEMPT enabled)
+
+wli-11_pgd_ctor.patch
+  Use a slab cache for pgd and pmd pages
+
+wli-11_pgd_ctor-update.patch
+  pgd_ctor update
+
+stack-overflow-fix.patch
+  stack overflow checking fix
+
+smaller-slab-batches.patch
+  Avoid losing timer ticks when slab debug is enabled.
+
+printk-locking.patch
+  remove unneeded locking in do_syslog()
+
+ext2-allocation-failure-fix.patch
+  Subject: [PATCH] ext2 allocation failures
+
+ext2_new_block-fixes.patch
+  ext2_new_block cleanups and fixes
+
+hangcheck-timer.patch
+  hangcheck-timer
+
+jbd-documentation.patch
+  JBD Documentation
+
+slab-irq-fix.patch
+  slab IRQ fix
+
+Richard_Henderson_for_President.patch
+  Subject: [PATCH] Richard Henderson for President!
+
+parenthesise-pgd_index.patch
+  Subject: i386 pgd_index() doesn't parenthesize its arg
+
+sendfile-security-hooks.patch
+  Subject: [RFC][PATCH] Restore LSM hook calls to sendfile
+
+kernel-commandline-fix.patch
+  Subject: Re: kernel param and KBUILD_MODNAME name-munging mess
+
+macro-double-eval-fix.patch
+  Subject: Re: i386 pgd_index() doesn't parenthesize its arg
+
+mmzone-parens.patch
+  asm-i386/mmzone.h macro paren/eval fixes
+
+blkdev-fixes.patch
+  blkdev.h fixes
+
+modversions.patch
+  Subject: [PATCH] new modversions
+
+pcmcia_timer_init.patch
+  pcmcia timer initialisation fixes
+
+no_space_in_slabnames.patch
+  remove spaces from slab names
+
+remove-will_become_orphaned_pgrp.patch
+  remove will_become_orphaned_pgrp()
+
+buffer-io-accounting.patch
+  correct wait accounting in wait_on_buffer()
+
+aic79xx-linux-2.5.59-20030122.patch
+  aic7xxx update
+
+MAX_IO_APICS-ifdef.patch
+  MAX_IO_APICS #ifdef'd wrongly
+
+dac960-error-retry.patch
+  Subject: [PATCH] linux2.5.56 patch to DAC960 driver for error retry
+
+epoll-update.patch
+  epoll timeout and syscall return types ...
+
+topology-remove-underbars.patch
+  Remove __ from topology macros
+
+mandlock-oops-fix.patch
+  ftruncate/truncate oopses with mandatory locking
+
+put_user-warning-fix.patch
+  Subject: Re: Linux 2.5.59
+
+hash-warnings.patch
+  fix #warning's
+
+discarded-section-fix.patch
+  Subject: [PATCH] discarded section errors (2.5.59)
+
+reiserfs_file_write.patch
+  Subject: reiserfs file_write patch
+
+atyfb-compile-fix.patch
+  atyfb compilation fix
+
+floppy-locking-fix.patch
+  floppy locking fix
+
+lost-tick.patch
+  Lost tick compensation
+
+sound-firmware-load-fix.patch
+  soundcore.c referenced non-existent errno variable
+
+generic_file_readonly_mmap-fix.patch
+  Fix generic_file_readonly_mmap()
+
+seq_file-page-defn.patch
+  Include <asm/page.h> in fs/seq_file.c, as it uses PAGE_SIZE
+
+user-process-count-leak.patch
+  fix current->user->processes leak
+
+exit_mmap-fix-47.patch
+
+show_task-fix.patch
+  Subject: [PATCH] 2.5.59: show_task() oops
+
+scsi-iothread.patch
+  scsi_eh_* needs to run even during suspend
+
+numaq-ioapic-fix2.patch
+  NUMAQ io_apic programming fix
+
+misc.patch
+  misc fixes
+
+writeback-sync-cleanup.patch
+  Remove unneeded code in fs/fs-writeback.c
+
+dont-wait-on-inode.patch
+  Fix latencies during writeback
+
+unlink-latency-fix.patch
+  fix i_sem contention in sys_unlink()
+
+pin_page-fix.patch
+  Fix futexes in huge pages
+
+frlock-xtime.patch
+  fast reader locks for gettimeofday() and friends
+
+frlock-xtime-i386.patch
+
+frlock-xtime-ia64.patch
+
+frlock-xtime-other.patch
+
+do_gettimeofday-speedup.patch
+  do_gettimeofday() optimisations
+
+pte_chain_alloc-fixes.patch
+
+hugetlbfs-set_page_dirty.patch
+  give hugetlbfs a set_page_dirty a_op
+
+compound-pages.patch
+  Infrastructure for correct hugepage refcounting
+
+compound-pages-hugetlb.patch
+  convert hugetlb code to use compound pages
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
