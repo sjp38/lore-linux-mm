@@ -1,50 +1,37 @@
-Date: Thu, 18 Jan 2001 12:32:01 +1100 (EST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Subtle MM bug
-In-Reply-To: <87wvburowk.fsf@atlas.iskon.hr>
-Message-ID: <Pine.LNX.4.31.0101181230020.31432-100000@localhost.localdomain>
+Received: from d1o43.telia.com (d1o43.telia.com [194.22.195.241])
+	by maila.telia.com (8.9.3/8.9.3) with ESMTP id PAA23688
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2001 15:05:16 +0100 (CET)
+Received: from dox (t7o43p30.telia.com [194.237.168.150])
+	by d1o43.telia.com (8.10.2/8.10.1) with SMTP id f0IE4xB28469
+	for <linux-mm@kvack.org>; Thu, 18 Jan 2001 15:05:15 +0100 (CET)
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Roger Larsson <roger.larsson@skelleftea.mail.telia.com>
+Subject: DATAPOINT: 2.4.1-pre8 v. other
+Date: Thu, 18 Jan 2001 15:00:11 +0100
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <01011815001100.01243@dox>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zlatko Calusic <zlatko@iskon.hr>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 17 Jan 2001, Zlatko Calusic wrote:
-> Rik van Riel <riel@conectiva.com.br> writes:
->
-> > > Second test: kernel compile make -j32 (empirically this puts the
-> > > VM under load, but not excessively!)
-> > >
-> > > 2.2.17 -> make -j32  392.49s user 47.87s system 168% cpu 4:21.13 total
-> > > 2.4.0  -> make -j32  389.59s user 31.29s system 182% cpu 3:50.24 total
-> > >
-> > > Now, is this great news or what, 2.4.0 is definitely faster.
-> >
-> > One problem is that these tasks may be waiting on kswapd when
-> > kswapd might not get scheduled in on time. On the one hand this
-> > will mean lower load and less thrashing, on the other hand it
-> > means more IO wait.
->
-> Hm, if all tasks are waiting for memory, what is stopping kswapd
-> to run? :)
+Hi,
 
-Suppose you have 8 high-priority tasks waiting on kswapd
-and one lower-priority (but still higher than kswapd)
-process running and preventing kswapd from doing its work.
-Oh .. and also preventing the higher-priority tasks from
-being woken up and continuing...
+I have performed my usual streaming write, copy, read, diff, dbench,
+and mmap002
+
+2.4.1-pre8 (with emu10k patch) is slower than 2.2.18 when streaming,
+but much better when running dbench. Best of the ones I have tested is
+the 2.4.1-pre1+marcelo (was there any bugs in there that helped performance?)
+
+I do also run Quintelas mmap002 one interesting aspect is that the used
+time doubled...??? pre8 took 4m21 to finish most others has taken below
+2m30.... (this might actually be a good sign - hard to tell...)
 
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
-
+/RogerL
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
