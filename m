@@ -1,40 +1,32 @@
-Date: Sun, 12 Jul 1998 00:25:20 +0200 (CEST)
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA00988
+	for <linux-mm@kvack.org>; Sun, 12 Jul 1998 21:30:48 -0400
+Date: Sun, 12 Jul 1998 09:15:18 +0200 (CEST)
 From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-In-Reply-To: <199807112123.WAA03437@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.96.980712002155.8107D-100000@mirkwood.dummy.home>
+Subject: on the topic of LRU lists
+Message-ID: <Pine.LNX.3.96.980712091320.9888A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, Linux MM <linux-mm@kvack.org>
+To: Stephen Tweedie <sct@dcs.ed.ac.uk>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 11 Jul 1998, Stephen C. Tweedie wrote:
-> On Sat, 11 Jul 1998 16:14:26 +0200 (CEST), Rik van Riel
-> <H.H.vanRiel@phys.uu.nl> said:
-> 
-> > I'd think we'll want 4 levels, with each 'lower'
-> > level having 30% to 70% more pages than the level
-> 
-> Personally, I think just a two-level LRU ought to be adequat.   Yes, I
-> know this implies getting rid of some of the page ageing from 2.1 again,
-> but frankly, that code seems to be more painful than it's worth.  The
-> "solution" of calling shrink_mmap multiple times just makes the
-> algorithm hideously expensive to execute.
+Hi Stephen,
 
-This could be adequat, but then we will want to maintain
-an active:inactive ratio of 1:2, in order to get a somewhat
-realistic aging effect on the LRU inactive pages.
+now that I think of multiple lists, it might be nice to
+have a 2-level LRU scheme for each type of allocation:
+- user pages
+- shared stuff
+- buffers
+- page cache
 
-Or maybe we want to do a 3-level thingy, inactive in LRU
-order and active and hyperactive (wired?) with aging.
-Then we only promote pages to the highest level when they've
-reached the highest age in the active level.
-(OK, this is probably _far_ too complex, but I'm just
-exploring some wild ideas here in the hope of triggering
-some ingenious idea)
+Then we do a sort of round-robin allocation and memory
+pressure will make sure that the amount of memory is
+automatically balanced between the different uses.
+
+(just a stupid idea)
 
 Rik.
 +-------------------------------------------------------------------+
