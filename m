@@ -1,58 +1,103 @@
-Date: Fri, 29 Sep 2000 12:40:14 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-In-Reply-To: <20000929165511.C32079@athlon.random>
-Message-ID: <Pine.LNX.4.21.0009291237161.23266-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 29 Sep 2000 16:56:00 -0500
+From: Timur Tabi <ttabi@interactivesi.com>
+Subject: iounmap() - can't always unmap memory I've mapped
+Message-Id: <20000929215548Z131165-245+29@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Linux Kernel Mailing list <linux-kernel@vger.kernel.org>, Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 29 Sep 2000, Andrea Arcangeli wrote:
-> On Fri, Sep 29, 2000 at 11:39:18AM -0300, Rik van Riel wrote:
-> > OK, good to see that we agree on the fact that we
-> > should age and swapout all pages equally agressively.
-> 
-> Actually I think we should start looking at the mapped stuff
-> _only_ when the I/O cache aging is relevant. If the I/O cache
-> aging isn't relevant there's no point to look at the mapped
-> stuff since there's cache pollution going on.
+I'm using kernel 2.4.0-test2.  I have a driver for a memory controller-like
+device that our company is developing.  We need to test random memory locations
+throughout all of physical RAM, and the tests involve reading and writing to
+those memory locations, bypassing the cache.  Basically, we pick a memory
+location, read its value, write it back, and then query our hardware to provide
+us information on that write.  
 
-> If the cache is re-used (so if it's useful) that's completly
-> different issue and in that case unmapping potentially unused
-> stuff is the right thing to do of course.
+To do this, we allocate the memory with ioremap_nocache().  In order for
+ioremap_nocache() to work, the physical address must be marked as PG_Reserved
+in the mem_map structure.  I achieve this by temporarily setting the bit to
+PG_Reserved, like this:
 
-This is why I want to do:
+    unsigned long flags[num_pages];
 
-1) equal aging of all pages in the system
-2) page aging to have properties of both LRU and LFU
-3) drop-behind to cope with streaming IO in a good way
+    mem_map_t *mm = phys_to_mem_map(phys);
 
-and maybe:
-4) move unmapped pages to the inactive_clean list for
-   immediate reclaiming but put pages which are/were
-   mapped on the inactive_dirty list so we keep it a
-   little bit longer
+    save_flags(reg_flags);
+    cli();
+
+    for (i=0; i<num_pages; i++)
+    {
+	flags[i] = mm[i].flags;
+	SetPageReserved(mm+i);
+    }
+
+    restore_flags(reg_flags);
+
+    flush_cache();
+    v = ioremap_nocache(phys, num_pages * PAGE_SIZE);
+    if (!v)
+	printk("uncache_pages() for physical addresses %08lx - %08lx failed!\n", phys,
+phys+num_pages*PAGE_SIZE);
+    flush_cache();
 
 
-The only way to reliably know if the cache is re-used a
-lot is by making sure we do the page aging for unmapped
-and mapped pages the same. If we don't do that, we won't
-be able to make a sensible comparison between the activity
-of pages in different places.
+    save_flags(reg_flags);
+    cli();
 
-regards,
+    for (i=0; i<num_pages; i++)
+	mm[i].flags = flags[i];
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+    restore_flags(reg_flags);
 
-http://www.conectiva.com/		http://www.surriel.com/
+"num_pages" is usually just equal to 1.  This code appears to work very well.
+However, when I call the iounmap function on the memory obtained via
+ioremap_nocache, sometimes I hit a kernel BUG().  The code which causes the bug
+is in page_alloc.c, line 85 (in function  __free_pages_ok):
 
+	if (page->buffers)
+		BUG();
+
+Now, the first that strikes me as odd is that all I need to do to map any
+physical page of RAM is make sure the PG_Reserved bit is set.  But to unmap it,
+several other things need to be true.  In my case, the "buffers" field needs to
+be zero.  There are several other tests:
+
+	if (page->mapping)
+		BUG();
+	if (page-mem_map >= max_mapnr)
+		BUG();
+	if (PageSwapCache(page))
+		BUG();
+	if (PageLocked(page))
+		BUG();
+	if (PageDecrAfter(page))
+		BUG();
+
+On a whim, I tried creating a wrapper function to iounmap that temporarily sets
+page->buffers to zero for each page I'm unmapping.  Unfortunately, this causes
+the kernel to crash very hard, with various errors.  I have not been able to
+find a solution to this problem.
+
+So, what I do now is if I need to iounmap() any memory where page->buffers is
+non-zero, I simply do not call iounmap().  I just pretend the memory is
+unmapped.  This seems to work as long as the driver is loaded.  After I unload
+the driver, however, the kernel will eventually crash with a "Bad slab magic"
+error message.
+
+My guess is that the problem is the dangling virtual memory blocks that the
+kernel can't clean up, but I'm not sure why it's a problem.  After all, it's
+just virtual memory, and there's 4GB of that.  Also, the physical memory has
+not been modified, so I can't be corrupting anything.  Is there something
+fundamental I'm missing?
+
+
+
+-- 
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
+
+When replying to a mailing-list message, please don't cc: me, because then I'll just get two copies of the same message.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
