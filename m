@@ -1,27 +1,47 @@
-Date: Wed, 02 Oct 2002 14:49:43 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: NUMA is bust with CONFIG_PREEMPT=y
-Message-ID: <384860000.1033595383@flay>
-In-Reply-To: <3D9B6939.397DB9EA@digeo.com>
-References: <3D9B6939.397DB9EA@digeo.com>
-MIME-Version: 1.0
+From: Andreas Dilger <adilger@clusterfs.com>
+Date: Wed, 2 Oct 2002 15:56:49 -0600
+Subject: Re: [RFC][PATCH]  4KB stack + irq stack for x86
+Message-ID: <20021002215649.GY3000@clusterfs.com>
+References: <3D9B62AC.30607@us.ibm.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <3D9B62AC.30607@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-kernel@vger.kernel.org, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Either you're going to have to change that to get_cpu_only_on_numa() and
-> add the matching put_cpu_only_on_numa()'s, or disable preempt in
-> the config system.
+On Oct 02, 2002  14:18 -0700, Dave Hansen wrote:
+> I've resynced Ben's patch against 2.5.40.  However, I'm getting some 
+> strange failures.  The patch is good enough to pass LTP, but 
+> consistently freezes when I run tcpdump on it.
+> 
+> Although I don't have CONFIG_PREEMPT on, I have the feeling that I 
+> need to disable preemption in common_interrupt() like it was before. 
+>   Any insights would be appreciated.
 
-I'd favour the latter. It doesn't seem that useful on big machines like this, and
-adds significant complication ... anyone really want it on a NUMA box? If not,
-I'll make a patch to disable it for NUMA machines ...
+I'm a little bit worried about this patch.  Have you tried something
+like NFS-over-ext3-over-LVM-over-MD or so, which can have a deep stack?
 
-M.
+We hit a bunch of deep stack problems like this (overflowing an 8kB stack)
+even without interrupts involved when developing Lustre.  Granted, we
+fixed some large stack allocations in the ext3 indexed-directory code
+and in our own code, but I'm still worried that a 4kB stack is too small.
+
+The Stanford checker folks would probably be able to run a test for
+large stack allocations in 2.5.40 if you asked them nicely, and maybe
+even do stack depths for call chains.
+
+Alternately, you could set up an 8kB stack + IRQ stack and "red-zone"
+the high page of the current 8kB stack and see if it is ever used.
+
+Cheers, Andreas
+--
+Andreas Dilger
+http://www-mddsp.enel.ucalgary.ca/People/adilger/
+http://sourceforge.net/projects/ext2resize/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
