@@ -1,50 +1,59 @@
-Date: Sat, 21 Sep 2002 17:08:17 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Reply-To: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Sun, 22 Sep 2002 01:49:46 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: overcommit stuff
-Message-ID: <16785326.1032628095@[10.10.2.3]>
-In-Reply-To: <3D8D08B7.419DD093@digeo.com>
-References: <3D8D08B7.419DD093@digeo.com>
+In-Reply-To: <3D8D066F.1B45E3EA@digeo.com>
+Message-ID: <Pine.LNX.4.44.0209220129310.2339-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
 Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> "It" being vm_committed_space.
+On Sat, 21 Sep 2002, Andrew Morton wrote:
+> Hugh Dickins wrote:
+> > On Sat, 21 Sep 2002, Andrew Morton wrote:
+> > >
+> > > running 10,000 tiobench threads I'm showing 23 gigs of
+> > > `Commited_AS'.  Is this right?  Those pages are shared,
+> > > and if they're not PROT_WRITEable then there's no way in
+> > > which they can become unshared?   Seems to be excessively
+> > > pessimistic?
+>  
+> > Committed_AS certainly errs on the pessimistic side, that's
+> > what it's about.  How much swap do you have i.e. is 23GB
+> > committed impossible, or just surprising to you?  Does the
+> > number go back to what it started off from when you kill
+> > off the tests?  How are "those pages" allocated e.g. what
+> > mmap args?
 > 
-> The problem is that it's read from frequently, as well as
-> updated frequently.  So we would still have problems when
-> we have to reach across and fish the cpu-local counters
-> out of remote corners of the machine all the time.
+> I have 7G physical, 4G swap.
 
-Not if you set overcommit = 1, as far as I can see.
+When I wondered if impossible, of course I was overlooking
+that you wouldn't be running with strict commit limitation,
+so "impossible" is quite difficult to reach.
 
-> The usual tricks for amortising this counter's cost have (serious)
-> accuracy implications.
+> "those pages" were just used by some scruffy perl script 
+> running `./tiotest &' ten thousand times.  I assume it's
+> shared executable text.
 
-Well, seems it's a rough guess anyway ... at least it's vastly
-inaccurate in one direction (pessimistic).
- 
-> I am planning on sitting down and working out exactly what we're
-> trying to account here - presumably there's another way.  Just
-> havent got onto it yet.
-> 
-> Worst come to worst, we can hide it inside CONFIG_NOT_WHACKOMATIC
-> I guess.
+When I run tiotest here, /proc/<pid>/maps shows a little over
+2MB of rwxp or rw-p areas, all to be counted in Committed_AS.
+So 23GB for 10,000 of them sounds reasonable.  You think you
+have less PROT_WRITE or less MAP_PRIVATE than I'm seeing?
 
-I was thinking of moving the update in vm_enough_memory under
-the switch for what type of overcommit you had, and doing something
-similar for the other places it's updated. I suppose that would do
-unfortunate things if you turned overcommit from 1 to something
-else whilst the system was running though ... not convinced that's
-a good idea anyway OTOH.
+> It seems very unlikely (impossible?) that those pages will
+> ever become unshared.
 
-M.
+I expect it's very unlikely (short of application bugs) that
+those pages would become unshared; but they have been mapped
+in such a way that the process is entitled to unshare them,
+therefore they have been counted.  A good example of why
+Linux does not impose strict commit accounting, and why
+you may choose not to use Alan's strict accounting policy.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
