@@ -1,39 +1,24 @@
-Date: Wed, 28 Aug 2002 14:02:15 -0600 (MDT)
-From: Thunder from the hill <thunder@lightweight.ods.org>
-Subject: Re: [patch] SImple Topology API v0.3 (1/2)
-In-Reply-To: <20020828192917.GC10487@atrey.karlin.mff.cuni.cz>
-Message-ID: <Pine.LNX.4.44.0208281400580.3234-100000@hawkeye.luckynet.adm>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@arcor.de>
+Subject: Re: MM patches against 2.5.31
+Date: Wed, 28 Aug 2002 22:41:49 +0200
+References: <3D644C70.6D100EA5@zip.com.au> <E17jjWN-0002fo-00@starship> <20020828131445.25959.qmail@thales.mathematik.uni-ulm.de>
+In-Reply-To: <20020828131445.25959.qmail@thales.mathematik.uni-ulm.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17k9dO-0002tR-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@suse.cz>
-Cc: Thunder from the hill <thunder@lightweight.ods.org>, Matthew Dobson <colpatch@us.ibm.com>, Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Andrea Arcangeli <andrea@suse.de>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
+To: Christian Ehrhardt <ehrhardt@mathematik.uni-ulm.de>
+Cc: Andrew Morton <akpm@zip.com.au>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Going right back to basics, what do you suppose is wrong with the 2.4 
+strategy of always doing the lru removal in free_pages_ok?
 
-On Wed, 28 Aug 2002, Pavel Machek wrote:
-> > Because NUMA is subordinate to X86, and another technology named NUMA 
-> > might appear? Nano-uplinked micro-array... No Ugliness Munched Archive? 
-> > Whatever...
-> 
-> NUMA means non-uniform memory access. At least IBM, AMD and SGI do
-> NUMA; and I guess anyone with 100+ nodes *has* numa machine. (BUt as
-> andrea already explained, CONFIG_NUMA is already taken for generic
-> NUMA support.)
-
-I'm aware of that. You didn't get my point, though. I was just suggesting 
-that there might be other things called NUMA, so CONFIG_X86_NUMA may be 
-just right.
-
-			Thunder
 -- 
---./../...-/. -.--/---/..-/.-./..././.-../..-. .---/..-/.../- .-
---/../-./..-/-/./--..-- ../.----./.-../.-.. --./../...-/. -.--/---/..-
-.- -/---/--/---/.-./.-./---/.--/.-.-.-
---./.-/-.../.-./.././.-../.-.-.-
-
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
