@@ -1,55 +1,73 @@
-From: Alistair J Strachan <alistair@devzero.co.uk>
-Subject: Re: 2.6.0-test5-mm4
-Date: Mon, 22 Sep 2003 15:29:57 +0100
-References: <20030922013548.6e5a5dcf.akpm@osdl.org> <200309221317.42273.alistair@devzero.co.uk> <20030922134813.GF7665@parcelfarce.linux.theplanet.co.uk>
-In-Reply-To: <20030922134813.GF7665@parcelfarce.linux.theplanet.co.uk>
+Message-ID: <3F6F44AF.2030807@sgi.com>
+Date: Mon, 22 Sep 2003 13:51:27 -0500
+From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Subject: Re: How best to bypass the page cache from within a kernel module?
+References: <Pine.LNX.4.44L0.0309171402370.1171-100000@ida.rowland.org>
+In-Reply-To: <Pine.LNX.4.44L0.0309171402370.1171-100000@ida.rowland.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <200309221529.57836.alistair@devzero.co.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: viro@parcelfarce.linux.theplanet.co.uk
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alan Stern <stern@rowland.harvard.edu>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 22 September 2003 14:48, you wrote:
-> On Mon, Sep 22, 2003 at 01:17:42PM +0100, Alistair J Strachan wrote:
-> > One possible explanation is that I have devfs compiled into my kernel. I
-> > do not, however, have it automatically mounting on boot. It overlays /dev
-> > (which is populated with original style device nodes) after INIT has
-> > loaded.
->
-> Amazingly idiotic typo.  And yes, it gets hit only if devfs is configured.
->
-> diff -u B5-real32/init/do_mounts.h B5-current/init/do_mounts.h
-> --- B5-real32/init/do_mounts.h	Sun Sep 21 21:22:33 2003
-> +++ B5-current/init/do_mounts.h	Mon Sep 22 09:41:21 2003
-> @@ -53,7 +53,7 @@
->  static inline u32 bstat(char *name)
->  {
->  	struct stat64 stat;
-> -	if (!sys_stat64(name, &stat) != 0)
-> +	if (sys_stat64(name, &stat) != 0)
->  		return 0;
->  	if (!S_ISBLK(stat.st_mode))
->  		return 0;
-> @@ -65,7 +65,7 @@
->  static inline u32 bstat(char *name)
->  {
->  	struct stat stat;
-> -	if (!sys_newstat(name, &stat) != 0)
-> +	if (sys_newstat(name, &stat) != 0)
->  		return 0;
->  	if (!S_ISBLK(stat.st_mode))
->  		return 0;
+Alan Stern wrote:
+> I'm working on a kernel module driver for Linux 2.6.  One of the things 
+> this driver needs to do is perform a VERIFY command; which means checking 
+> to make sure that certain disk sectors within a file actually can be read 
+> without encountering a bad sector or other hardware error.  Now, I realize 
+> that there are already issues involved with convincing the disk drive to 
+> read from its media rather than from its cache.  But apart from that, my 
+> problem is how to convince Linux to read from the drive rather than from 
+> the page cache.
+> 
+> One suggestion was to use O_DIRECT when opening the file, because that
+> does cause reads to go directly to the hardware.  The problem with this is
+> that since the direct-I/O routines send file data directly to user
+> buffers, they must check that the buffer addresses are valid and belong to
+> the user's address space.  But my code runs in a kernel thread so it has
+> no current->mm (and in any case I would prefer to use my kernel-space
+> buffers rather than user-space memory).  It might be possible to get hold
+> of an mm_struct, but it's not necessarily easy as mm_alloc() isn't
+> EXPORTed.  Perhaps my thread could keep its original current->mm by
+> incrementing current->mm->users before calling daemonize() and setting
+> current->mm back to its original value afterward.  Is that legal?  Having
+> done so, perhaps I could use some sort of mmap() call to allocate a
+> user-space buffer that would be okay for direct-I/O.  What's the best way
+> to do that -- what function would I have to call?
+> 
+> However, all that seems rather roundabout.  An equally acceptable solution 
+> would be simply to invalidate all the entries in the page cache referring 
+> to my file, so that reads would be forced to go to the drive.  Can anyone 
+> tell me how to do that?
 
-Thanks for that. It's working fine now.
+Take a look at invalidate_inode_pages()....
 
-Cheers,
-Alistair.
+> 
+> TIA,
+> 
+> Alan Stern
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+> 
+
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
