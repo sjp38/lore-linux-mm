@@ -1,66 +1,42 @@
-Date: Thu, 7 Jun 2001 14:43:58 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Please test: workaround to help swapoff behaviour 
-In-Reply-To: <Pine.LNX.4.21.0106071410090.1156-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0106071441270.1156-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <l0313031db7458697459b@[192.168.239.105]>
+In-Reply-To: 
+        <Pine.LNX.4.21.0106071435580.1156-100000@freak.distro.conectiva>
+References: <l0313031cb745811cfc17@[192.168.239.105]>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Date: Thu, 7 Jun 2001 20:31:53 +0100
+From: Jonathan Morton <chromi@cyberspace.org>
+Subject: Re: [PATCH] Reap dead swap cache earlier v2
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <mikeg@wen-online.de>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Derek Glidden <dglidden@illusionary.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+>> >As suggested by Linus, I've cleaned the reapswap code to be contained
+>> >inside an inline function. (yes, the if statement is really ugly)
+>>
+>> I can't seem to find the patch which adds this behaviour to the background
+>> scanning.
+>
+>I've just sent Linus a patch to free swap cache pages at the time we free
+>the last pte. (requested by himself)
+>
+>With it applied we should get the old behaviour back again.
+>
+>I can put it on my webpage if you wish.
 
-On Thu, 7 Jun 2001, Marcelo Tosatti wrote:
+Just copy it to me so I can replace the dead-swap hacks you introduced earlier.
 
-> 
-> On Thu, 7 Jun 2001, Mike Galbraith wrote:
-> 
-> > On 6 Jun 2001, Eric W. Biederman wrote:
-> > 
-> > > Mike Galbraith <mikeg@wen-online.de> writes:
-> > >
-> > > > > If you could confirm this by calling swapoff sometime other than at
-> > > > > reboot time.  That might help.  Say by running top on the console.
-> > > >
-> > > > The thing goes comatose here too. SCHED_RR vmstat doesn't run, console
-> > > > switch is nogo...
-> > > >
-> > > > After running his memory hog, swapoff took 18 seconds.  I hacked a
-> > > > bleeder valve for dead swap pages, and it dropped to 4 seconds.. still
-> > > > utterly comatose for those 4 seconds though.
-> > >
-> > > At the top of the while(1) loop in try_to_unuse what happens if you put in.
-> > > if (need_resched) schedule();
-> > > It should be outside all of the locks.  It might just be a matter of everything
-> > > serializing on the SMP locks, and the kernel refusing to preempt itself.
-> > 
-> > That did it.
-> 
-> What about including this workaround in the kernel ? 
+--------------------------------------------------------------
+from:     Jonathan "Chromatix" Morton
+mail:     chromi@cyberspace.org  (not for attachments)
 
-Well, 
+The key to knowledge is not to rely on people to teach you it.
 
-This is for the people who has been experiencing the lockups while running
-swapoff.
+GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
+PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
 
-Please test. (against 2.4.6-pre1)
-
-Thanks for the suggestion, Eric. 
-
-
---- linux.orig/mm/swapfile.c	Wed Jun  6 18:16:45 2001
-+++ linux/mm/swapfile.c	Thu Jun  7 16:06:11 2001
-@@ -345,6 +345,8 @@
- 		/*
- 		 * Find a swap page in use and read it in.
- 		 */
-+		if (current->need_resched)
-+			schedule();
- 		swap_device_lock(si);
- 		for (i = 1; i < si->max ; i++) {
- 			if (si->swap_map[i] > 0 && si->swap_map[i] != SWAP_MAP_BAD) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
