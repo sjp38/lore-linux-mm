@@ -1,31 +1,36 @@
-Message-ID: <XYMVKKQDLXYLUXRIIZQJ@e-mail.co.kr>
-From: "Thaddeus Richey" <Costattabb@mounet.com>
-Reply-To: "Thaddeus Richey" <Costattabb@mounet.com>
-Subject: thanks for your inquiry
-Date: Mon, 20 Dec 2004 06:18:35 -0500
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
- boundary="--6-913453052-2960081734=:95828"
+Message-Id: <6.9.8.53.2.20031074753053.025b4b48@.starnetusa.net>
+Date: Mon, 20 Dec 2004 06:56:13 -0500
+From: "Jared Benjamin" <oharveoi@msn.com>
+Subject: Everyone Need This Aart
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: aart@kvack.org, adrian@kvack.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
- 
-----6-913453052-2960081734=:95828
-Content-Type: text/plain;
-Content-Transfer-Encoding: 7Bit
+I can't believe this incrediible priicess.. 
 
-Hiya,
+ Viicodin	- $299
+ V1a'gra 	- $149
+ Va|ium 	- $239
+ Cia|is 	- $139
+ Xa'nax 	- $239
+ Tylenoll	- $249
+ Phentermiine	- $182
+and many m0reeee.....
 
-I heard you would be curious about a massive dizcounnt on your medz-rx & you may purrchaze directly from our fda-manufacturers.
-Lower overhead allows us to provide quality drugs at much lower than normal. No dr-script required.
-Gotothis: http://swq.letterso.com/?a=552ycpf
+We are the bes't available nowadays
 
-Good-bye,
-Thaddeus Richey
- 
-----6-913453052-2960081734=:95828--
+http://www.kirticritgh.com
+
+
+
+
+
+
+
+
+Noo moree emailsss from us...
+BGLJsIctZddOyTvimZ6PRcucm3pAUhX0nlAQlyvtAqSTILT6aJlNiKjdhCXCX7wfXl
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
