@@ -1,69 +1,44 @@
-Subject: Re: Fairness in love and swapping
-References: <199802252032.UAA01920@dax.dcs.ed.ac.uk> 	<199802260805.JAA00715@cave.BitWizard.nl> <199802262233.WAA03878@dax.dcs.ed.ac.uk>
-From: "Michael O'Reilly" <michael@metal.iinet.net.au>
-Date: 27 Feb 1998 10:56:01 +0800
-In-Reply-To: "Stephen C. Tweedie"'s message of Thu, 26 Feb 1998 22:33:28 GMT
-Message-ID: <x7hg5l92ny.fsf@metal.iinet.net.au>
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA31037
+	for <linux-mm@kvack.org>; Fri, 27 Feb 1998 06:00:55 -0500
+Date: Fri, 27 Feb 1998 10:58:34 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: Re: [2x PATCH] page map aging & improved kswap logic
+In-Reply-To: <199802270929.KAA28081@boole.fs100.suse.de>
+Message-ID: <Pine.LNX.3.91.980227105614.17899A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: Rogier Wolff <R.E.Wolff@BitWizard.nl>, torvalds@transmeta.com, blah@kvack.org, H.H.vanRiel@fys.ruu.nl, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, linux-kernel@vger.rutgers.edu, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
+To: "Dr. Werner Fink" <werner@suse.de>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" <sct@dcs.ed.ac.uk> writes:
-> > What we really need is that some mechanism that actually determines
-> > in the first and last case that the system is thrashing like hell,
-> > and that "swapping" (as opposed to paging) is becoming a required
-> > strategy. 
+On Fri, 27 Feb 1998, Dr. Werner Fink wrote:
+
+> > The kswapd logic is almost completely redone. Basically,
+> > kswapd tries (free_pages_high - nr_free_pages) times to
+> > free a page, but when memory becomes tighter, the number
+> > of tries become even higher.
 > 
-> True.  Any takers for this?  :)
+> Is the explicit call of run_task_queue(&tq_disk) really needed?
+> Maybe setting of the __GFP_WAIT flag would work in the same manner:
 > 
+>         gfp_mask = __GFP_IO;
+>         if (atomic_read(&nr_async_pages) >= SWAP_CLUSTER_MAX)
+>                 gfp_mask |= __GFP_WAIT;
 
-That should be fairly easy. A stab. If the MIN(page in rate, page out
-rate) over the last 30 seconds(?) is greater than X, and there are
-more than 2(?) processes involved, then start swapping (instead of
-paging).
+Wouldn't that just mean that the pages that are
+swapped out from now on will be done synchronously?
 
-Taking a relatively long baseline means that you need a lot of paging
-to trigger. Taking the min of in/out means that it isn't just a
-growing process, but something with a working set that's larger than
-available ram. Taking the dispertion means that you ignore just one
-process running out of ram.
+What I wanted kswapd to do, was to select SWAP_CLUSTER_MAX
+pages and swap them out in _one_ I/O operation. Because
+this should save head movement, it might give us an improvement
+over syncing each swapped page seperately.
 
-Comments?
-
-The tricky bit there is working out how many processes are
-involved. Maybe something as simple as a circular log N elements long
-that records the last PID associated with the last page out/in.
-
-This is cheap for the page case, and then you can regularly poll the
-rates to check.
-
-
-
-
-
-int pid_log[N];
-int pid_log_next;
-
-page_out/page_in()
-	.....
-	
-	pid_log[pid_log_next] = pid;
-	pid_log_next = (pid_log_next+1)&(N-1);
-
-	++page_rate_in;
-	....
-
-
-check_page_rates()
-	
-	age page rates;
-	dispertion = number of different PID's in log;
-
-	if MIN(page_rate_in, page_rate_out) > blah &&
-		dispertion > 3) {
-		swapping = 1;
-	} else {
-		swapping = 0;
-	}
-	...
+Rik.
++-----------------------------+------------------------------+
+| For Linux mm-patches, go to | "I'm busy managing memory.." |
+| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
+| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
++-----------------------------+------------------------------+
