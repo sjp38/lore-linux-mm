@@ -1,54 +1,56 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: slablru for 2.5.32-mm1
-Date: Fri, 6 Sep 2002 07:39:27 -0400
-References: <Pine.LNX.4.44.0209052032410.30628-100000@loke.as.arizona.edu> <3D783156.68A088D1@zip.com.au>
-In-Reply-To: <3D783156.68A088D1@zip.com.au>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id LAA12540
+	for <linux-mm@kvack.org>; Fri, 6 Sep 2002 11:58:38 -0700 (PDT)
+Message-ID: <3D78FAD6.269EF2FB@digeo.com>
+Date: Fri, 06 Sep 2002 11:58:30 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200209060739.27058.tomlins@cam.org>
+Subject: Re: 0-order allocation failures in LTP run of Last nights bk tree
+References: <1031322426.30394.4.camel@plars.austin.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>, Craig Kulesa <ckulesa@as.arizona.edu>
-Cc: linux-mm@kvack.org
+To: Paul Larson <plars@austin.ibm.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On September 6, 2002 12:38 am, Andrew Morton wrote:
-> Craig Kulesa wrote:
-> > Ed Tomlinson wrote:
-> > >> Andrew Morton wrote:
-> > >>
-> > >> The patch does a zillion BUG->BUG_ON conversions in slab.c, which is a
-> > >> bit unfortunate, because it makes it a bit confusing to review.  Let's
-> > >> do that in a standalone patch next time ;)
-> > >
-> > > Yes.  I would have left the BUG_ONs till later.  Craig thought
-> > > otherwise.  I do agree two patches would have been better.
-> >
-> > I agree also.  I never imagined that patch would make it up the ladder
-> > before the BUG_ON's changes got split out into a separate patch.  Sorry!
-> > So... since I introduced the BUG_ON's, I thought I should clean it up.
-> >
-> > This is mostly for Ed and Andrew, but at:
-> >         http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/2.5.33/
-> >
-> > you can get a copy of Andrew's slablru.patch from the 2.5.33-mm3 series
-> > where I have altered fs/dcache.c and mm/slab.c (whose patches otherwise
-> > apply cleanly to vanilla 2.5.33) to remove the BUG_ON changes.  It does
-> > reduce the size of the patch, and improves its readability considerably.
-> > Hope that helps.
->
-> Thanks.  This patch is in Ed's hands at present - his call.
+Paul Larson wrote:
+> 
+> In the nightly ltp run against the bk 2.5 tree last night I saw this
+> show up in the logs.
+> 
+> It happened on the 2-way PIII-550, 2gb physical ram, but not on the
+> smaller UP box I test on.
+> 
+> mtest01: page allocation failure. order:0, mode:0x50
 
-Craig, Andrew wants to see if we can get something similar to slablru without
-using the lru.  Think its possible, its about half coded.  He also wants to 
-eliminate the 'lazy' release of slab pages.  The bottom line is that slablru
-is getting rewritten.  
+scsi, I assume?
 
-Do you have the BUGON changes in a patch all by themselves?
+This will be failed bounce buffer allocation attempts.
 
-Ed
+That's fine, normal.  block will fall back to the mempool
+and will wait.
+
+Of course, your shouldn't be bounce buffering at all.  This
+is happening because of the block-highmem problem.  There's
+a workaround at 
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.33/2.5.33-mm4/broken-out/scsi_hack.patch
+
+But please bear in mind, this "page allocation failure" message
+is purely a developer diagnostic thing.  The reason it is there
+is so that if some random toaster driver oopses over a failure
+to handle an allocation failure, the person who reports the bug
+can say "I saw an allocation failure and then your driver crashed".
+Which tells the driver developer where to look.
+
+Under heavy load, page allocation attempts _will_ fail, and
+that's OK.  The mempool-backed memory will become available.
+
+It's a bit CPU-inefficient, and I have code under test which
+changes GFP_NOFS mempool allocators to not even bother trying
+to enter page reclaim if the nonblocking allocation attempt
+failed.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
