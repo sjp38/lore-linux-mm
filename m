@@ -1,17 +1,18 @@
-Subject: Re: [RFC] prefault optimization
+Received: from e31.co.us.ibm.com (e31.esmtp.ibm.com [9.14.4.129])
+	by pokfb.esmtp.ibm.com (8.12.9/8.12.2) with ESMTP id h7FGA8Nu012448
+	(version=TLSv1/SSLv3 cipher=EDH-RSA-DES-CBC3-SHA bits=168 verify=OK)
+	for <linux-mm@kvack.org>; Fri, 15 Aug 2003 12:10:09 -0400
+Message-ID: <3F3D057B.4060607@us.ibm.com>
+Date: Fri, 15 Aug 2003 09:08:27 -0700
 From: Adam Litke <agl@us.ibm.com>
-In-Reply-To: <20030807183744.5eb19ba9.akpm@osdl.org>
-References: <3F32ECE0.1000102@us.ibm.com>
-	<20030807183744.5eb19ba9.akpm@osdl.org>
-Content-Type: text/plain
+MIME-Version: 1.0
+Subject: Re: [RFC] prefault optimization
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: 14 Aug 2003 14:45:46 -0700
-Message-Id: <1060897546.8826.47.camel@dyn318198.beaverton.ibm.com>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@osdl.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
 Here is the latest on the pre-fault code I posted last week.  I fixed it
@@ -21,70 +22,69 @@ the first time it is run, but subsequent runs are successful.  Please
 take a look and let me know what you think.  Any ideas about that bug?
 
 On Thu, 2003-08-07 at 18:37, Andrew Morton wrote:
-> I'd like to see it using find_get_pages() though.
+ > I'd like to see it using find_get_pages() though.
 
 This implementation is simple but somewhat wasteful.  My basic testing
 shows around 30% of pages returned from find_get_pages() aren't used.
- 
-> And find a way to hold the pte page's atomic kmap across the whole pte page
+
+ > And find a way to hold the pte page's atomic kmap across the whole 
+pte > page
 
 I allocate the page once at the beginning but have to drop it when I
 need to allocate a pte_chain.  Perhaps it could be done a better way.
 
-> Perhaps it can use install_page() as well, rather than open-coding it?
+ > Perhaps it can use install_page() as well, rather than open-coding it?
 
 It seems that install_page does too much for what I need.  For starters
 it zaps the pte.  There is also no need to do the pgd lookup stuff every
 time because I already know the correct pte entry to use.
 
-> Cannot do a sleeping allocation while holding the atomic kmap from
-> pte_offset_map().  
+ > Cannot do a sleeping allocation while holding the atomic kmap from
+ > pte_offset_map().
 
 I took a dirty approach to this one.  Is it ok to hold the
 page_table_lock throughout this function?
- 
-> And the pte_chain handling can be optimised:
+
+ > And the pte_chain handling can be optimised:
 
 I think I am pretty close here.  In my brief test 10% of mapped pages
 required a call to pte_chain_alloc.
 
 --Adam
 
-diff -urN linux-2.5.73-virgin/include/asm-i386/pgtable.h
+diff -urN linux-2.5.73-virgin/include/asm-i386/pgtable.h 
 linux-2.5.73-vm/include/asm-i386/pgtable.h
---- linux-2.5.73-virgin/include/asm-i386/pgtable.h	2003-06-22
+--- linux-2.5.73-virgin/include/asm-i386/pgtable.h	2003-06-22 
 11:33:04.000000000 -0700
-+++ linux-2.5.73-vm/include/asm-i386/pgtable.h	2003-08-13
++++ linux-2.5.73-vm/include/asm-i386/pgtable.h	2003-08-13 
 07:08:18.000000000 -0700
 @@ -299,12 +299,15 @@
- 	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE0) + pte_index(address))
- #define pte_offset_map_nested(dir, address) \
- 	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE1) + pte_index(address))
+  	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE0) + pte_index(address))
+  #define pte_offset_map_nested(dir, address) \
+  	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE1) + pte_index(address))
 +#define pte_base_map(dir) \
 +	((pte_t *)kmap_atomic(pmd_page(*(dir)),KM_PTE0)
- #define pte_unmap(pte) kunmap_atomic(pte, KM_PTE0)
- #define pte_unmap_nested(pte) kunmap_atomic(pte, KM_PTE1)
- #else
- #define pte_offset_map(dir, address) \
- 	((pte_t *)page_address(pmd_page(*(dir))) + pte_index(address))
- #define pte_offset_map_nested(dir, address) pte_offset_map(dir,
-address)
+  #define pte_unmap(pte) kunmap_atomic(pte, KM_PTE0)
+  #define pte_unmap_nested(pte) kunmap_atomic(pte, KM_PTE1)
+  #else
+  #define pte_offset_map(dir, address) \
+  	((pte_t *)page_address(pmd_page(*(dir))) + pte_index(address))
+  #define pte_offset_map_nested(dir, address) pte_offset_map(dir, address)
 +#define pte_base_map(dir) ((pte_t *)page_address(pmd_page(*(dir))))
- #define pte_unmap(pte) do { } while (0)
- #define pte_unmap_nested(pte) do { } while (0)
- #endif
+  #define pte_unmap(pte) do { } while (0)
+  #define pte_unmap_nested(pte) do { } while (0)
+  #endif
 diff -urN linux-2.5.73-virgin/mm/memory.c linux-2.5.73-vm/mm/memory.c
 --- linux-2.5.73-virgin/mm/memory.c	2003-06-22 11:32:43.000000000 -0700
 +++ linux-2.5.73-vm/mm/memory.c	2003-08-14 07:57:54.000000000 -0700
 @@ -1328,6 +1328,74 @@
- 	return ret;
- }
- 
+  	return ret;
+  }
+
 +#define vma_nr_pages(vma) \
 +	((vma->vm_end - vma->vm_start) >> PAGE_SHIFT)
 +
-+/* Try to reduce overhead from page faults by grabbing pages from the
-page
++/* Try to reduce overhead from page faults by grabbing pages from the page
 + * cache and instantiating the page table entries for this vma
 + */
 +
@@ -94,8 +94,7 @@ page
 +unsigned long prefault_unused_pages = 0;
 +
 +static void
-+do_pre_fault(struct mm_struct *mm, struct vm_area_struct *vma, pmd_t
-*pmd)
++do_pre_fault(struct mm_struct *mm, struct vm_area_struct *vma, pmd_t *pmd)
 +{
 +	unsigned long offset, address;
 +	struct address_space *mapping;
@@ -103,13 +102,12 @@ page
 +	pte_t *pte, *pte_base;
 +	struct pte_chain *pte_chain;
 +	unsigned int i, num_pages;
-+	struct page **pages; 
++	struct page **pages;
 +	
 +	/* debug */ ++prefault_entered;
 +	pages = kmalloc(PTRS_PER_PTE * sizeof(struct page*), GFP_KERNEL);
 +	mapping = vma->vm_file->f_dentry->d_inode->i_mapping;
-+	num_pages = find_get_pages(mapping, vma->vm_pgoff, PTRS_PER_PTE,
-pages);
++	num_pages = find_get_pages(mapping, vma->vm_pgoff, PTRS_PER_PTE, pages);
 +
 +	pte_chain = pte_chain_alloc(GFP_KERNEL);
 +	pte_base = pte_base_map(pmd);
@@ -151,19 +149,18 @@ pages);
 +	kfree(pages);
 +}
 +
- /*
-  * do_no_page() tries to create a new page mapping. It aggressively
-  * tries to share with existing pages, but makes a separate copy if
+  /*
+   * do_no_page() tries to create a new page mapping. It aggressively
+   * tries to share with existing pages, but makes a separate copy if
 @@ -1416,6 +1484,8 @@
- 
- 	/* no need to invalidate: a not-present page shouldn't be cached */
- 	update_mmu_cache(vma, address, entry);
+
+  	/* no need to invalidate: a not-present page shouldn't be cached */
+  	update_mmu_cache(vma, address, entry);
 +
 +	do_pre_fault(mm, vma, pmd);
- 	spin_unlock(&mm->page_table_lock);
- 	ret = VM_FAULT_MAJOR;
- 	goto out;
-
+  	spin_unlock(&mm->page_table_lock);
+  	ret = VM_FAULT_MAJOR;
+  	goto out;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
