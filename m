@@ -1,62 +1,27 @@
-Received: from stingray.netplus.net (root@stingray.netplus.net [206.250.192.19])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA21769
-	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 13:45:13 -0500
-Message-ID: <3698F4E1.715105C6@netplus.net>
-Date: Sun, 10 Jan 1999 12:43:45 -0600
-From: Steve Bergman <steve@netplus.net>
-MIME-Version: 1.0
-Subject: Re: Results: pre6 vs pre6+zlatko's_patch  vs pre5 vs arcavm13
-References: <Pine.LNX.3.95.990109213225.4665G-100000@penguin.transmeta.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from snowcrash.cymru.net (snowcrash.cymru.net [163.164.160.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA21880
+	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 13:50:20 -0500
+Message-Id: <m0zzQnp-0007U2C@the-village.bc.nu>
+From: alan@lxorguk.ukuu.org.uk (Alan Cox)
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+Date: Sun, 10 Jan 1999 19:45:36 +0000 (GMT)
+In-Reply-To: <Pine.LNX.3.95.990110103201.7668D-100000@penguin.transmeta.com> from "Linus Torvalds" at Jan 10, 99 10:35:10 am
+Content-Type: text
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Andrea Arcangeli <andrea@e-mind.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: sct@redhat.com, saw@msu.ru, andrea@e-mind.com, steve@netplus.net, ebiederm+eric@ccr.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, Zlatko.Calusic@CARNet.hr, bmccann@indusriver.com, alan@lxorguk.ukuu.org.uk, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, H.H.vanRiel@phys.uu.nl, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
+> point where we would otherwise deadlock on the writer semaphore it's much
+> better to just allow nested writes. I suspect all filesystems can already
+> handle nested writes - they are a lot easier to handle than truly
+> concurrent ones.
 
-> Can you run pre6+zlatko with just the mm/page_alloc.c one-liner reverted
-> to pre5? That is, take pre6+zlatko, and just change
-> 
->         try_to_free_pages(gfp_mask, freepages.high - nr_free_pages);
-> 
-> back to
-> 
->         try_to_free_pages(gfp_mask, SWAP_CLUSTER_MAX);
-> 
+Suspect makes me kind of nervous. Especially so close to 2.2 and given the
+normal results of making a bad file system error.
 
-OK, here are the updated results:
+Alan
 
-'Image test' in 128MB:
-
-pre6+zlatko's_patch     	2:35
-and with requested change	3:09
-pre6                    	2:27
-pre5                    	1:58
-arcavm13                	9:13
-
-
-I also ran the kernel compile test:
-
-In 12MB:
-				Elapsed	Maj.	Min.	Swaps
-				-----	------	------	-----
-pre6+zlatko_patch       	22:14   383206  204482  57823
-and with requested change	22:23	378662	198194	51445
-pre6                    	20:54   352934  191210  48678
-pre5                    	19:35   334680  183732  93427 
-arcavm13                	19:45   344452  180243  38977
-
-The change seems to have hurt it in both cases.  What I am seeing on pre6 and
-it's derivitives is a *lot* of *swapin* activity.  Pre5 almost exclusively swaps
-*out* during the image test, averaging about 1.25MB/sec (spends a lot of time at
-around 2000k/sec) with very little swapping in.  All the pre6 derivitives swap
-*in* quite heavily during the test.  The 'so' number sometimes drops to 0 for
-seconds at a time.  It also looks like pre6 swaps out slightly more overall
-(~165MB vs 160MB).
-
--Steve
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
