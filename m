@@ -1,79 +1,47 @@
-From: Alistair John Strachan <s0348365@sms.ed.ac.uk>
-Reply-To: s0348365@sms.ed.ac.uk
-Subject: Re: 2.6.2-rc3-mm1
-Date: Wed, 4 Feb 2004 00:17:43 +0000
-References: <20040202235817.5c3feaf3.akpm@osdl.org> <200402032347.36489.s0348365@sms.ed.ac.uk> <200402040100.40682.bzolnier@elka.pw.edu.pl>
-In-Reply-To: <200402040100.40682.bzolnier@elka.pw.edu.pl>
+Message-ID: <4020392F.1000709@cyberone.com.au>
+Date: Wed, 04 Feb 2004 11:13:35 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Content-Disposition: inline
-Content-Type: text/plain;
-  charset="iso-8859-2"
+Subject: Re: VM benchmarks
+References: <401D8D64.8010605@cyberone.com.au> <20040201160818.1499be18.akpm@osdl.org> <401D95C2.3080208@cyberone.com.au> <20040202165044.GA8156@k3.hellgate.ch> <401EDAA5.7020802@cyberone.com.au> <20040203231649.GA30715@k3.hellgate.ch>
+In-Reply-To: <20040203231649.GA30715@k3.hellgate.ch>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Message-Id: <200402040017.43787.s0348365@sms.ed.ac.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Bartlomiej Zolnierkiewicz <B.Zolnierkiewicz@elka.pw.edu.pl>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Roger Luethi <rl@hellgate.ch>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 04 February 2004 00:00, Bartlomiej Zolnierkiewicz wrote:
-[snip]
-> > > > UDMA(133) /dev/ide/host0/bus0/target0/lun0: p1 p2 p3
-> > > > hde: max request size: 128KiB
-> > > >
-> > > > 30 seconds later, I get something like:
-> > > >
-> > > > hde: lost interrupt
-> > > > hde: lost interrupt
-> > >
-> > > It seems kernel hangs in ide-disk.c,
-> > > idedisk_setup()->write_cache()->...
-> > >
-> > > > The kernel does not recover. Presumably it is a problem specific to
-> > > > my PDC IDE controller.
-> > >
-> > > Do you run with Promise BIOS disabled?  If so please try booting kernel
-> > > with "hde=autotune hdg=autotune" parameters.  If still no-go, try this
-> > > patch:
-> >
-> > Neither suggestion changes the behaviour. I've got the BIOS enabled, but
-> > in the past it's made no difference. I still see lost interrupts.
+
+Roger Luethi wrote:
+
+>On Tue, 03 Feb 2004 10:17:57 +1100, Nick Piggin wrote:
 >
-> Please try this debugging patch to see it hangs on
-> idedisk_setup()->write_cache().
+>>I have 3 patches here http://www.kerneltrap.org/~npiggin/vm/
+>>that should apply in order. If you apply to the -mm tree, please
+>>back out the rss limit patch first.
+>>
+>>If you can test them it would be good.
+>>
 >
-> --- linux/drivers/ide/ide-disk.c	2004-02-04 00:57:49.000000000 +0100
-> +++ linux-2.6.2-rc3-bk3/drivers/ide/ide-disk.c	2004-02-04
-> 00:58:58.571025744 +0100 @@ -1668,8 +1668,10 @@
->  #endif	/* CONFIG_IDEDISK_MULTI_MODE */
->  	}
->  	drive->no_io_32bit = id->dword_io ? 1 : 0;
-> +	printk(KERN_INFO "%s: before write_cache()\n", drive->name);
->  	if (drive->id->cfs_enable_2 & 0x3000)
->  		write_cache(drive, (id->cfs_enable_2 & 0x3000));
-> +	printk(KERN_INFO "%s: after write_cache()\n", drive->name);
+>I added results for all 3 patches of yours combined (2.6.1 patched)
+>and for the reversal patch I posted (2.6.0 revert). Clear improvements
+>for compiling. Might be interesting to test the patches individually,
+>but I will likely be unable to conduct further tests til next week. Let
+>me know if there are any tests you are specifically interested in,
+>and I will do more testing when I get back.
 >
->  #ifdef CONFIG_BLK_DEV_IDE_TCQ_DEFAULT
->  	if (drive->using_dma)
+>
 
-Tried the patch. I see both before and after messages for hda, but when hde is 
-probed I see neither. Briefly looking at the IDE code, I see the max request 
-size: printk comes before either of those lines, as as nothing else is 
-printed after that line (see original bug report), I can only assume the 
-problem is somewhere before the write_cache().
+Thanks Roger,
+Hmm results aren't bad... although the active/inactive balance
+tuning you see here: http://www.kerneltrap.org/~npiggin/vm/4/
+isn't included (you're testing the green kernel)
 
-I applied the patch on top of your previous changes, as they seemed innocuous 
-enough.
+If I can get things a bit more into shape today I'll post another
+patchset.
 
--- 
-Cheers,
-Alistair.
-
-personal:   alistair()devzero!co!uk
-university: s0348365()sms!ed!ac!uk
-student:    CS/AI Undergraduate
-contact:    7/10 Darroch Court,
-            University of Edinburgh.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
