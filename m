@@ -1,41 +1,38 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA20384
-	for <linux-mm@kvack.org>; Fri, 13 Nov 1998 14:00:50 -0500
-Date: Fri, 13 Nov 1998 15:12:36 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: May be stupid question ;-)
-In-Reply-To: <364C2049.360B6131@varel.bg>
-Message-ID: <Pine.LNX.3.96.981113150452.4593A-100000@mirkwood.dummy.home>
+Received: from lin.varel.bg (root@lin.varel.bg [212.50.6.9])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA01591
+	for <linux-mm@kvack.org>; Mon, 16 Nov 1998 02:44:44 -0500
+Message-ID: <364FD7E1.1D5DA034@varel.bg>
+Date: Mon, 16 Nov 1998 09:44:33 +0200
+From: Petko Manolov <petkan@varel.bg>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: May be stupid question ;-)
+References: <Pine.LNX.3.96.981113150452.4593A-100000@mirkwood.dummy.home>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: Petko Manolov <petkan@varel.bg>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Nov 1998, Petko Manolov wrote:
+Rik van Riel wrote:
+> 
+> Currently not, unless you compile in all sorts of useless
+> drivers (or you have a machine with 30+ different kinds of
+> extension cards)...
 
-> I'm wonder if its possible to have kernel code+data > 4M? 
+;-) No, i'm currently trying to make the kernel as small as possible
+to fit in 2M of RAM (for embeded system) without any driver.
 
-Currently not, unless you compile in all sorts of useless
-drivers (or you have a machine with 30+ different kinds of
-extension cards)...
+> Most of the runtime tables are allocated after the memory
+> stuff has been taken care off. Then we have the infrastructure
+> to allocate as much memory as we want without problems.
 
-> So pg0 won't be enough. And we have to init pg1. AFAIK the kernel
-> don't allocate more page tables for itself while in run. It sounds
-> to me like troubles in the future. 
+Yes, but all page tables are for user level code/data. I mean
+we're in trouble when not all of the kernel code is paged.
 
-Most of the runtime tables are allocated after the memory
-stuff has been taken care off. Then we have the infrastructure
-to allocate as much memory as we want without problems.
-
-Rik -- slowly getting used to dvorak kbd layout...
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
-
+-- 
+Petko Manolov - petkan@varel.bg
+http://www.varel.bg/~petkan
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
