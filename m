@@ -1,36 +1,135 @@
-Date: Sat, 19 Jan 2002 18:11:38 +0200 (EET)
-From: guy keren <choo@actcom.co.il>
-Subject: Re: memory leakage detection tools
-In-Reply-To: <20020119103923.24051.qmail@mailFA2.rediffmail.com>
-Message-ID: <Pine.GSU.4.30_heb2.09.0201191805440.24506-100000@actcom.co.il>
+Date: Wed, 23 Jan 2002 15:14:42 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH *] rmap VM, version 12
+Message-ID: <Pine.LNX.4.33L.0201231513571.32617-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kplug-lpsg@kernel-panic.org, mehul radheshyam choube <mehulchoube_lpsg@rediffmail.com>
-Cc: kplug-newbie@kernel-panic.org, linux-mm@kvack.org, plug-mail@codio.net, plug-mail@plug.org.in
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 19 Jan 2002, mehul radheshyam choube wrote:
+The first release of the 12th version of the reverse
+mapping based VM is now available.
+This is an attempt at making a more robust and flexible VM
+subsystem, while cleaning up a lot of code at the same time.
+The patch is available from:
 
->     i am writing c program which uses lot of pointer variables.
-[...snip...]
->     but now i want to check whether there is any memory leakage.can
->     anybody suggest me any free tool for this.
+           http://surriel.com/patches/2.4/2.4.17-rmap-12
+and        http://linuxvm.bkbits.net/
 
-i've conducted some "research" (you might call it) for development tools
-for linux (including malloc debugging libraries) for a lecture i carried
-in our local linux club - look at the slides:
-http://linuxclub.il.eu.org/newcomers/lectures/6/ide.html
+My big TODO items for a next release are:
+  - RSS ulimit enforcement
+  - auto-tuning readahead, readahead per VMA
 
-and specifically under 'Debug libraries'.
+rmap 12:
+  - keep some extra free memory on large machines         (Arjan van de Ven, me)
+  - higher-order allocation bugfix                        (Adrian Drzewiecki)
+  - nr_free_buffer_pages() returns inactive + free mem    (me)
+  - pages from unused objects directly to inactive_clean  (me)
+  - use fast pte quicklists on non-pae machines           (Andrea Arcangeli)
+  - remove sleep_on from wakeup_kswapd                    (Arjan van de Ven)
+  - page waitqueue cleanup                                (Christoph Hellwig)
+rmap 11c:
+  - oom_kill race locking fix                             (Andres Salomon)
+  - elevator improvement                                  (Andrew Morton)
+  - dirty buffer writeout speedup (hopefully ;))          (me)
+  - small documentation updates                           (me)
+  - page_launder() never does synchronous IO, kswapd
+    and the processes calling it sleep on higher level    (me)
+  - deadlock fix in touch_page()                          (me)
+rmap 11b:
+  - added low latency reschedule points in vmscan.c       (me)
+  - make i810_dma.c include mm_inline.h too               (William Lee Irwin)
+  - wake up kswapd sleeper tasks on OOM kill so the
+    killed task can continue on its way out               (me)
+  - tune page allocation sleep point a little             (me)
+rmap 11a:
+  - don't let refill_inactive() progress count for OOM    (me)
+  - after an OOM kill, wait 5 seconds for the next kill   (me)
+  - agpgart_be fix for hashed waitqueues                  (William Lee Irwin)
+rmap 11:
+  - fix stupid logic inversion bug in wakeup_kswapd()     (Andrew Morton)
+  - fix it again in the morning                           (me)
+  - add #ifdef BROKEN_PPC_PTE_ALLOC_ONE to rmap.h, it
+    seems PPC calls pte_alloc() before mem_map[] init     (me)
+  - disable the debugging code in rmap.c ... the code
+    is working and people are running benchmarks          (me)
+  - let the slab cache shrink functions return a value
+    to help prevent early OOM killing                     (Ed Tomlinson)
+  - also, don't call the OOM code if we have enough
+    free pages                                            (me)
+  - move the call to lru_cache_del into __free_pages_ok   (Ben LaHaise)
+  - replace the per-page waitqueue with a hashed
+    waitqueue, reduces size of struct page from 64
+    bytes to 52 bytes (48 bytes on non-highmem machines)  (William Lee Irwin)
+rmap 10:
+  - fix the livelock for real (yeah right), turned out
+    to be a stupid bug in page_launder_zone()             (me)
+  - to make sure the VM subsystem doesn't monopolise
+    the CPU, let kswapd and some apps sleep a bit under
+    heavy stress situations                               (me)
+  - let __GFP_HIGH allocations dig a little bit deeper
+    into the free page pool, the SCSI layer seems fragile (me)
+rmap 9:
+  - improve comments all over the place                   (Michael Cohen)
+  - don't panic if page_remove_rmap() cannot find the
+    rmap in question, it's possible that the memory was
+    PG_reserved and belonging to a driver, but the driver
+    exited and cleared the PG_reserved bit                (me)
+  - fix the VM livelock by replacing > by >= in a few
+    critical places in the pageout code                   (me)
+  - treat the reclaiming of an inactive_clean page like
+    allocating a new page, calling try_to_free_pages()
+    and/or fixup_freespace() if required                  (me)
+  - when low on memory, don't make things worse by
+    doing swapin_readahead                                (me)
+rmap 8:
+  - add ANY_ZONE to the balancing functions to improve
+    kswapd's balancing a bit                              (me)
+  - regularize some of the maximum loop bounds in
+    vmscan.c for cosmetic purposes                        (William Lee Irwin)
+  - move page_address() to architecture-independent
+    code, now the removal of page->virtual is portable    (William Lee Irwin)
+  - speed up free_area_init_core() by doing a single
+    pass over the pages and not using atomic ops          (William Lee Irwin)
+  - documented the buddy allocator in page_alloc.c        (William Lee Irwin)
+rmap 7:
+  - clean up and document vmscan.c                        (me)
+  - reduce size of page struct, part one                  (William Lee Irwin)
+  - add rmap.h for other archs (untested, not for ARM)    (me)
+rmap 6:
+  - make the active and inactive_dirty list per zone,
+    this is finally possible because we can free pages
+    based on their physical address                       (William Lee Irwin)
+  - cleaned up William's code a bit                       (me)
+  - turn some defines into inlines and move those to
+    mm_inline.h (the includes are a mess ...)             (me)
+  - improve the VM balancing a bit                        (me)
+  - add back inactive_target to /proc/meminfo             (me)
+rmap 5:
+  - fixed recursive buglet, introduced by directly
+    editing the patch for making rmap 4 ;)))              (me)
+rmap 4:
+  - look at the referenced bits in page tables            (me)
+rmap 3:
+  - forgot one FASTCALL definition                        (me)
+rmap 2:
+  - teach try_to_unmap_one() about mremap()               (me)
+  - don't assign swap space to pages with buffers         (me)
+  - make the rmap.c functions FASTCALL / inline           (me)
+rmap 1:
+  - fix the swap leak in rmap 0                           (Dave McCracken)
+rmap 0:
+  - port of reverse mapping VM to 2.4.16                  (me)
 
-hope this helps,
---
-guy
+Rik
+-- 
+"Linux holds advantages over the single-vendor commercial OS"
+    -- Microsoft's "Competing with Linux" document
 
-"For world domination - press 1,
- or dial 0, and please hold, for the creator." -- nob o. dy
+http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
