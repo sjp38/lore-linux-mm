@@ -1,31 +1,27 @@
-Date: Mon, 9 Oct 2000 13:40:31 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Mon, 9 Oct 2000 22:44:39 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-In-Reply-To: <Pine.LNX.4.21.0010092156120.8045-100000@elte.hu>
-Message-ID: <Pine.LNX.4.10.10010091339300.1438-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20001009224439.L19583@athlon.random>
+References: <Pine.LNX.4.21.0010092223100.8045-100000@elte.hu> <Pine.SOL.4.21.0010092137140.7984-100000@green.csi.cam.ac.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.SOL.4.21.0010092137140.7984-100000@green.csi.cam.ac.uk>; from jas88@cam.ac.uk on Mon, Oct 09, 2000 at 09:38:08PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: James Sutherland <jas88@cam.ac.uk>
+Cc: Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>, Andi Kleen <ak@suse.de>, Byron Stanoszek <gandalf@winds.org>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Oct 09, 2000 at 09:38:08PM +0100, James Sutherland wrote:
+> Shouldn't the runtime factor handle this, making sure the new process is
 
-On Mon, 9 Oct 2000, Ingo Molnar wrote:
-> 
-> i think the OOM algorithm should not kill processes that have
-> child-processes, it should first kill child-less 'leaves'. Killing a
-> process that has child processes likely results in unexpected behavior of
-> those child-processes. (and equals to effective killing of those
-> child-processes as well.)
+The runtime factor in the algorithm will make the first difference
+only after lots lots of time (and the run_time can as well be wrong
+because of jiffies wrap around). But even if it would make a difference
+after 1 second, there would be a 1 second window where init can be killed.
 
-I disagree - if we start adding these kinds of heuristics to it, it wil
-just be a way for people to try to confuse the OOM code. Imagine some bad
-guy that does 15 fork()'s and then tries to OOM...
-
-		Linus
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
