@@ -1,40 +1,37 @@
-Received: from server1.graffiti.net  (mail.graffiti.net  [205.158.62.141])
-	by fep2.sacmail.com (Postfix) with ESMTP id A025C5041
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2005 15:41:45 +0100 (EDT)
-Received: from nobody by sacmail.com with local (Exim 4.04)
-	id 1C1rjW-9359oD-My
-	for <linux-mm@kvack.org>; Thu, 10 Mar 2005 13:37:45 -0100
-Subject: Word...
-From: "Courtney Hays" <CourtneyfgjHaysfgj@sacmail.com>
-Message-ID: <193063702459.7eb1e8389271@sacmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 8bit
-Date: Thu, 10 Mar 2005 20:40:45 +0600
+Date: Thu, 10 Mar 2005 13:02:37 -0300
+Message-ID: <3744B67C.0048107@smithsonian.peternixon.net>
+From: "Alex Wilkerson" <uqvlhtotl@msn.com>
+Subject: We Are the Best k8k
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: blah@kvack.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Client Update:
 
-Several Companies have been competing for your mortgage
-refinance application over the past 2 weeks.  
+Look at this of-fers:
 
-The company that offered the lowest rate, and largest
-loan quantity has requested your information be verified.
+V-codin - 225.00 (90 pi lls) 
+Hydrocodonee - 297.00 (90 pi lls)
+Valliuum - 153.00 (90 pi lls)
+Vi graa - 270.00 (90 pi lls)
+Cai llis - 348.00 (90 pi lls)
+Codeinne - 126.00 (90 pi lls)
+X|a naax - 171.00 (90 pi lls)
 
-http://aecastro.re-finance-forever.com/refimort.asp
+All orderrs are delivered by Fedex with full tracking 24/7.
+Satisfactiionnss guaaranteeed...
+
+http://oeoutju4.com/_fd5977142df59d3662baa654773c6a8e/
 
 
-Thanks,
-Courtney Hays
-Back On Top Finances
-Fin-Clerk
 
- 
 
-No Longer require Help?
-http://ducochran.re-finance-forever.com/gone.asp
+
+
+This is 1 -time mailing. N0-re m0val are re'qui-red
+
+barricade spaulding centimeter abrasive tactual
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
