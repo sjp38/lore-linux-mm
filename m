@@ -1,33 +1,45 @@
-Message-ID: <3C059728.8030205@zytor.com>
-Date: Wed, 28 Nov 2001 18:02:16 -0800
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
-Subject: Re: Status of sendfile() + HIGHMEM
-References: <3C0577FF.3040209@zytor.com> <3C05954B.9AC5B6BA@zip.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-ID: <20011129093448.9462.qmail@mail.com>
+Content-Type: text/plain; charset="iso-8859-1"
+Content-Disposition: inline
 Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+From: "Praveen Kumar" <praveen_kr5@mail.com>
+Date: Thu, 29 Nov 2001 17:34:48 +0800
+Subject: Turning on paging
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
+Hi all, 
+can anybody explain me the turning of page table (i386) when the kernel is loaded. 
+I have gone through 
+http://home.earthlink.net/~jknapka/linux-mm/vminit.html 
+but not able to understand very well that 
+how the it maps to physical memory using swapper_pg_dir and What is funda behind the 
+mapping memory 0 to 8MB 
+Thanks in advance 
+praveen 
 
-> "H. Peter Anvin" wrote:
-> 
->>zeus.kernel.org is currently running with HIGHMEM turned off, since it
->>crashed due to an unfortunate interaction between sendfile() and HIGHMEM
->>-- this was using 2.4.10-ac4 or thereabouts.
->>
->>
-> 
-> What sort of NIC is it using?
-> 
 
-eepro100.
+-- 
 
-	-hpa
+
+You cannot be lonely if you like the person 
+you're alone with. 
+                 ~Wayne Dyer 
+kumarp@hss.hns.com
+praveen_kr5@hotmail.com
+
+_______________________________________________
+Sign-up for your own FREE Personalized E-mail at Mail.com
+http://www.mail.com/?sr=signup
+
+
+1 cent a minute calls anywhere in the U.S.!
+
+http://www.getpennytalk.com/cgi-bin/adforward.cgi?p_key=RG9853KJ&url=http://www.getpennytalk.com
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
