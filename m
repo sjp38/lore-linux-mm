@@ -1,42 +1,50 @@
-Date: Tue, 17 Feb 2004 08:23:34 -0500 (EST)
-From: Rajesh Venkatasubramanian <vrajesh@umich.edu>
-Subject: Re: [PATCH] mremap NULL pointer dereference fix
-In-Reply-To: <Pine.LNX.4.58.0402162203230.2154@home.osdl.org>
-Message-ID: <Pine.SOL.4.44.0402170821070.13429-100000@azure.engin.umich.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 17 Feb 2004 04:40:01 -0800
+From: "Paul E. McKenney" <paulmck@us.ibm.com>
+Subject: Re: Non-GPL export of invalidate_mmap_range
+Message-ID: <20040217124001.GA1267@us.ibm.com>
+Reply-To: paulmck@us.ibm.com
+References: <20040216190927.GA2969@us.ibm.com> <20040217073522.A25921@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040217073522.A25921@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux-MM@kvack.org
+To: Christoph Hellwig <hch@infradead.org>, akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Feb 17, 2004 at 07:35:22AM +0000, Christoph Hellwig wrote:
+> On Mon, Feb 16, 2004 at 11:09:27AM -0800, Paul E. McKenney wrote:
+> > Hello, Andrew,
+> > 
+> > The attached patch to make invalidate_mmap_range() non-GPL exported
+> > seems to have been lost somewhere between 2.6.1-mm4 and 2.6.1-mm5.
+> > It still applies cleanly.  Could you please take it up again?
+> 
+> And there's still no reason to ease IBM's GPL violations by exporting
+> deep VM internals.  The GPLed DFS you claimed you needed this for still
+> hasn't shown up but instead you want to change the export all the time.
+> 
+> Tells a lot about IBMs promises..
 
-> To trigger the bug you have to have _just_ the right memory usage, I
-> suspect. You literally have to have the destination page directory
-> allocation unmap the _exact_ source page (which has to be clean) for the
-> bug to hit.
->
+Hello, Christoph!
 
-To trigger the bug, I have to run my test program in a "while true;"
-loop for an hour or so.
+IBM shipped the promised SAN Filesystem some months ago.  The source
+code for the Linux client was released under GPL, as promised, and may
+be found at the following URL:
 
-> So I suspect the oops only triggers on the machine that the trigger
-> program was written for.
->
-> Your version of the patch saves a goto in the source, but results in an
-> extra goto in the generated assembly unless the compiler is clever enough
-> to notice the double test for NULL.
->
-> Never mind, that's a micro-optimization, and your version is cleaner.
-> Let's go with it if Rajesh can verify that it fixes the problem for him.
+https://www6.software.ibm.com/dl/sanfsys/sanfsref-i?S_PKG=dl&S_TACT=&S_CMP=
 
-I will test the patch and report.
+A PDF of the protocol specification may be found at the following URL:
 
-Thanks,
-Rajesh
+http://www.storage.ibm.com/software/virtualization/sfs/protocol.html
 
+These URLs do require that you register, but there is no cost nor any
+agreement other than the GPL itself.  The Linux client has not been
+shipped as product yet.  The code is still quite rough, which is one
+reason that it has not be submitted to, for example, LKML.  ;-)
 
+						Thanx, Paul
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
