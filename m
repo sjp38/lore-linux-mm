@@ -1,63 +1,57 @@
-Date: Mon, 23 Apr 2001 10:10:27 -0700 (PDT)
+Date: Mon, 23 Apr 2001 10:17:07 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [patch] swap-speedup-2.4.3-A1, massive swapping speedup
-In-Reply-To: <l03130301b70a0e4c4676@[192.168.239.105]>
-Message-ID: <Pine.LNX.4.21.0104231003480.13206-100000@penguin.transmeta.com>
+Subject: Re: [patch] swap-speedup-2.4.3-A2
+In-Reply-To: <Pine.LNX.4.30.0104231707350.31693-200000@elte.hu>
+Message-ID: <Pine.LNX.4.21.0104231011070.13206-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Morton <chromi@cyberspace.org>
-Cc: Rik van Riel <riel@conectiva.com.br>, Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Marcelo Tosatti <marcelo@conectiva.com.br>, Szabolcs Szakacsits <szaka@f-secure.com>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Rik van Riel <riel@conectiva.com.br>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Marcelo Tosatti <marcelo@conectiva.com.br>, Szabolcs Szakacsits <szaka@f-secure.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 23 Apr 2001, Jonathan Morton wrote:
-> >There seems to be one more reason, take a look at the function
-> >read_swap_cache_async() in swap_state.c, around line 240:
-> >
-> >        /*
-> >         * Add it to the swap cache and read its contents.
-> >         */
-> >        lock_page(new_page);
-> >        add_to_swap_cache(new_page, entry);
-> >        rw_swap_page(READ, new_page, wait);
-> >        return new_page;
-> >
-> >Here we add an "empty" page to the swap cache and use the
-> >page lock to protect people from reading this non-up-to-date
-> >page.
+On Mon, 23 Apr 2001, Ingo Molnar wrote:
 > 
-> How about reversing the order of the calls - ie. add the page to the cache
-> only when it's been filled?  That would fix the race.
+> you are right - i thought about that issue too and assumed it works like
+> the pagecache (which first reads the page without hashing it, then tries
+> to add the result to the pagecache and throws away the page if anyone else
+> finished it already), but that was incorrect.
 
-No. The page cache is used as the IO synchronization point, both for
-swapping and for regular IO. You have to add the page in _first_, because
-otherwise you may end up doing multiple IO's from different pages.
+The above is NOT how the page cache works. Or if some part of the page
+cache works that way, then it is a BUG. You must NEVER allow multiple
+outstanding reads from the same location - that implies that you're doing
+something wrong, and the system is doing too much IO.
 
-The proper fix is to do the equivalent of this on all the lookup paths
-that want a valid page:
+The way _all_ parts of the page cache should work is:
 
-	if (!PageUptodate(page)) {
-		lock_page(page);
-		if (PageUptodate(page)) {
-			unlock_page(page);
-			return 0;
-		}
-		rw_swap_page(page, 0);
-		wait_on_page(page);
-		if (!PageUptodate(page))
-			return -EIO;
-	}
-	return 0;
+Create new page:
+ - look up page. If found, return it
+ - allocate new page.
+ - look up page again, in case somebody else added it while we allocated
+   it.
+ - add the page atomically with the lookup if the lookup failed, otherwise
+   just free the page without doing anything.
+ - return the looked-up / allocated page.
 
-This is the whole point of the "uptodate" flag, and for all I know we may
-already do all of this (it's certainly the normal setup).
+return up-to-date page:
+ - call the above to get a page cache page.
+ - if uptodate, return
+ - lock_page()
+ - if now uptodate (ie somebody else filled it and held the lock), unlock
+   and return.
+ - start the IO
+ - wait on IO by waiting on the page (modulo other work that you could do
+   in the background).
+ - if the page is still not up-to-date after we tried to read it, we got
+   an IO error. Return error.
 
-Note how we do NOT block on write-backs in the above: the page will be
-up-to-date from the bery beginning (it had _better_ be, it's hard to write
-back a swap page that isn't up-to-date ;).
-
-The above is how all the file paths work. 
+The above is how it is always meant to work. The above works for both new
+allocations and for old. It works even if an earlier read had failed (due
+to wrong permissions for example - think about NFS page caches where some
+people may be unable to actually fill a page, so that you need to re-try
+on failure). The above is how the regular read/write paths work (modulo
+bugs). And it's also how the swap cache should work.
 
 		Linus
 
