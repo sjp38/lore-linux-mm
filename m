@@ -1,87 +1,71 @@
-Date: Thu, 25 May 2000 14:17:38 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Thu, 25 May 2000 10:53:04 -0700 (PDT)
+From: Matthew Dillon <dillon@apollo.backplane.com>
+Message-Id: <200005251753.KAA83360@apollo.backplane.com>
 Subject: Re: [RFC] 2.3/4 VM queues idea
-In-Reply-To: <20000525185059.A20563@pcep-jamie.cern.ch>
-Message-ID: <Pine.LNX.4.21.0005251405160.32434-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <Pine.LNX.4.21.0005251405160.32434-100000@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Cc: Matthew Dillon <dillon@apollo.backplane.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Jamie Lokier <lk@tantalophile.demon.co.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 May 2000, Jamie Lokier wrote:
-> Matthew Dillon wrote:
-> >     Yes, but at an unreasonable cost:  Artificially limiting the number
-> >     of discrete processes able to share a given amount of memory.  Any
-> >     reasonable limit would still be an order of magnitude more expensive
-> >     then a physical page scan.
-> 
-> I disagree.  The "amount of sharing" scan-time overhead is there
-> whether you do a physical or virtual scan.  For a physical scan,
-> if you have a lot of sharing then you look at a lot of ptes per
-> page.
+    Another big difference is that when you scan by physical page, you
+    can collect a whole lot of information together to help you make
+    the decision on how the adjust the weight.
 
-Not really. If there are enough inactive pages, the active
-pages will never be scanned. And when the active pages get
-scanned, chances are that only a few of them (the ones near
-the "end" of the queue) need to be scanned.
+    When you scan by physical page, then locate the VM mappings for that
+    page, you have:
 
-With virtual scanning, OTOH, you'll need to scan all pages
-since you have no "candidate list" of which pages are more
-likely to be suitable candidates for swapout.
+	* a count of the number of mappings
+	* a count of how many of those referenced the page since the
+	  last check.
+	* more determinism (see below)
 
-> One possible goal is to limit the total number of mapped ptes in
-> the system.  You can still permit a lot of sharing: the number
-> does not have to be limited per task or per mm.
+    When you scan by virtual page, then locate the physical mapping:
 
-No. The goal is to have an efficient memory management system
-which supports running a lot of applications efficiently.
+	* you cannot tell how many other virtual mappings referenced the
+	  page (short of checking, at which point you might as well be
+	  scanning by physical page)
 
-This idea would place an artificial limit on the number of
-shared pages between processes. If your particular workload
-needs more you'll spend your time handling soft pagefaults
-and finding pages to unmap. Even though the machine has
-enough physical memory to hold all the pages (and their
-pte mappings) and there is no memory load.
+	* you have no way of figuring out how many discrete physical pages
+	  your virtual page scan has covered.  For all you know you could
+	  scan 500 virtual mappings and still only have gotten through a
+	  handful of physical pages.  Big problem!
 
-If we do NOT have such an artificial restriction, then we
-could end up with slightly more scanning overhead when we
-have memory pressure, but at least the system would run
-fine in situations where we do have enough memory.
+	* you have much less information available to make the decision on
+	  how to adjust the weight.
 
-> >     And even with limits you still wind up with extremely non-deterministic
-> >     scanning.
-> 
-> How so?  You're only scanning currently mapped ptes, and one
-> goal is to keep that number small enough that you can gather
-> good LRU stats of page usage.
+:> How so?  You're only scanning currently mapped ptes, and one
+:> goal is to keep that number small enough that you can gather
+:> good LRU stats of page usage.
+:
+:Page aging may well be cheaper than continuously unmapping ptes
+:(including tlb flushes and cache flushes of the page tables) and
+:softfaulting them back in.
 
-Page aging may well be cheaper than continuously unmapping ptes
-(including tlb flushes and cache flushes of the page tables) and
-softfaulting them back in.
+    It's definitely cheaper.  If you unmap a page and then have to
+    take a page fault to get it back, the cost is going to be
+    roughly 300 instructions plus other overhead.
 
-> Fwiw, with COW address_spaces (I posted an article a couple of
-> weeks ago explaining) it should be fairly simple to find all the
-> ptes for a given page without the space overhead of pte
-> chaining.
+    Another example of why physical page scanning is better then
+    virtual page scanning:  When there is memory pressure and you are
+    scanning by physical page, and the weight reaches 0, you can then
+    turn around and unmap ALL of its virtual pte's all at once (or mark
+    them read-only for a dirty page to allow it to be flushed).  Sure
+    you have to eat cpu to find those virtual pte's, but the end result
+    is a page which is now cleanable or freeable.
 
-But what if you have a page which is 1) mapped in multiple
-addresses by different apps  and 2) COW shared by subsets
-of those multiple apps?
+    Now try this with a virtual scan:  You do a virtual scan, locate
+    a page you decide is idle, and then... what?  Unmap just that one
+    instance of the pte?  What about the others?  You would have to unmap
+    them too, which would cost as much as it would when doing a physical
+    page scan *EXCEPT* that you are running through a whole lot more virtual
+    pages during the virtual page scan to get the same effect as with
+    the physical page scan (when trying to locate idle pages).  It's
+    the difference between O(N) and O(N^2).  If the physical page queues
+    are reasonably well ordered, its the difference between O(1) and O(N^2).
 
-We still need pte chaining or something similar.
-
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+					-Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
