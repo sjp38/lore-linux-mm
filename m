@@ -1,44 +1,39 @@
-Date: Mon, 1 Nov 2004 16:19:31 -0800 (PST)
-From: Christoph Lameter <christoph@lameter.com>
+Date: Mon, 1 Nov 2004 16:54:39 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [PATCH 0/7] abstract pagetable locking and pte updates
-In-Reply-To: <4183009D.9080708@yahoo.com.au>
-Message-ID: <Pine.LNX.4.58.0411011616150.8399@server.graphe.net>
-References: <4181EF2D.5000407@yahoo.com.au> <41822D75.3090802@yahoo.com.au>
- <20041029205255.GH12934@holomorphy.com> <4183009D.9080708@yahoo.com.au>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20041102005439.GQ2583@holomorphy.com>
+References: <4181EF2D.5000407@yahoo.com.au> <20041029074607.GA12934@holomorphy.com> <Pine.LNX.4.58.0411011612060.8399@server.graphe.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0411011612060.8399@server.graphe.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Christoph Lameter <christoph@lameter.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 30 Oct 2004, Nick Piggin wrote:
+On Fri, 29 Oct 2004, William Lee Irwin III wrote:
+>> This raises the rather serious question of what you actually did
+>> besides rearranging Lameter's code. It had all the same problems;
+>> resolving them is a prerequisite to going anywhere with all this.
 
-> So it is a long way off from saying N architectures _do_ work,
-> but the possibility is there.
+On Mon, Nov 01, 2004 at 04:15:41PM -0800, Christoph Lameter wrote:
+> Could you be specific as to the actual problems? I have worked through
+> several archs over time and my code offers a fallback to the use of the
+> page_table_lock if an arch does not provide the necessary atomic ops.
+> So what are the issues with my code? I fixed the PAE code based on Nick's
+> work. AFAIK this was the only known issue.
 
-There needs to be some fallback mechanism that allows to leave an arch the
-way it is now and it will still work right. Then one can say that all
-architectures will work.
+Well, I'm not going to sit around and look for holes in this all day
+(that should have been done by the author), however it's not a priori
+true that decoupling locking surrounding tlb_flush_mmu() from pte
+locking is correct.
 
-> > What is unacceptable is the lack of research into the needs of arches
-> > that has been put into this. The general core changes proposed can
-> > never be adequate without a corresponding sweep of architecture-
-> > specific code. While I fully endorse the concept of lockless pagetable
-> > updates, there can be no correct implementation leaving architecture-
-> > specific code unswept. I would encourage whoever cares to pursue this
-> > to its logical conclusion to do the necessary reading, and audits, and
-> > review of architecture manuals instead of designing core API's in vacuums.
-> >
->
-> Definitely - which is one of the reasons I posted it here, because I
-> don't pretend to know all the arch details. But if you think I designed
-> it in a vacuum you're wrong.
+The audits behind this need to be better.
 
-It is really a challenge to work with architectures that you cannot get
-your hands on. We need to pool our resources otherwise this will never
-work.
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
