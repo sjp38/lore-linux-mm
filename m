@@ -1,51 +1,78 @@
-Date: Mon, 28 Jun 1999 17:32:05 -0400 (EDT)
+Date: Mon, 28 Jun 1999 17:14:17 -0400 (EDT)
 From: Chuck Lever <cel@monkey.org>
 Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
-In-Reply-To: <199906282051.NAA12151@google.engr.sgi.com>
-Message-ID: <Pine.BSO.4.10.9906281715420.24888-100000@funky.monkey.org>
+ Fix swapoff races
+In-Reply-To: <14199.57040.245837.447659@dukat.scot.redhat.com>
+Message-ID: <Pine.BSO.4.10.9906281648010.24888-100000@funky.monkey.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: andrea@suse.de, torvalds@transmeta.com, sct@redhat.com, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Andrea Arcangeli <andrea@suse.de>, torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jun 1999, Kanoj Sarcar wrote:
-> > or perhaps the kernel could start more than one kswapd (one per swap
-> > partition?).  with my patch, regular processes never wait for swap out
-> > I/O, only kswapd does.
-> > 
-> > if you're concerned about bounding the latency of VM operations in order
-> > to provide some RT guarantees, then i'd imagine, based on what i've read
-> > on this list, that Linus might want to keep things simple more than he'd
-> > want to clutter the memory freeing logic... but if there's a simple way to
-> > "guarantee" a low latency then it would be worth the trouble.
+On Mon, 28 Jun 1999, Stephen C. Tweedie wrote:
+> On Mon, 28 Jun 1999 15:39:43 -0400 (EDT), Chuck Lever <cel@monkey.org>
+> said:
+> > i'm already working on a patch that will allow kswapd to grab the
+> > mmap_sem for the task that is about to be swapped.  this takes a
+> > slightly different approach, since i'm focusing on kswapd and not on
+> > swapoff.  
 > 
-> Oh no, I was not talking about exotic stuff like RT ... I was 
-> simply pointing out that to prevent deadlocks, and guarantee forward
-> progress, you have to show that despite what underlying fs/driver
-> code does, at least one memory freer is free to do its job. Else,
-> under low memory conditions, no memory freer can free up memory, so
-> the system is effectively hung. If you have to wait for mmap_sem, 
-> you can not easily do that (unless you are willing to do a trylock 
-> for mmap_sem, ie give up on a process and continue scanning for others). 
-> This is partly why after thinking about it, I did not attempt to do 
-> this myself. 
+> Don't, it will create a whole pile of new deadlock conditions.  Think
+> carefully about what happens when you take a page fault, lock the mm,
+> and then need to allocate a new page in memory to satisfy the fault.
+> You end up recursively calling try_to_free_page, and if that needs to
+> reacquire the mm semaphore then you are in major trouble.
 
-(i also tried down_trylock, but discarded it.)
+that doesn't hurt because try_to_free_page() doesn't acquire anything but
+the kernel lock in my patch.  it looks something like:
 
-well, except that kswapd itself doesn't free any memory.  it simply copies
-data from memory to disk.  shrink_mmap() actually does the freeing, and
-can do this with minimal locking, and from within regular application
-processes.  when a process calls shrink_mmap(), it will cause some pages
-to be made available to GFP.
+int try_to_free_pages(unsigned int gfp_mask)
+{
+	int priority = 6;
+	int count = pager_daemon.swap_cluster;
+ 
+ 	wake_up_process(kswapd_process);
 
-if you need evidence that shrink_mmap() will keep a system running without
-swapping, just run 2.3.8 :) :)
+	lock_kernel();
+	do {
+		while (shrink_mmap(priority, gfp_mask)) {
+			if (!--count)
+				goto done;
+		}
 
-come to think of it, i don't think there is a safety guarantee in this
-mechanism to prevent a lock-up.  i'll have to think more about it.
+		shrink_dcache_memory(priority, gfp_mask);
+	} while (--priority >= 0);
+done:
+	/* maybe slow this thread down while kswapd catches up */
+	if (gfp_mask & __GFP_WAIT) {
+		current->policy |= SCHED_YIELD;
+		schedule();
+	}
+	unlock_kernel();
+	return 1;
+}
+
+> The same mechanism can also block kswapd from making progress.
+
+i'm re-using the mmap_sem, not the mm_sem.  only the mmap_sem for the
+about-to-be-swapped object is acquired by kswapd.  is that unsafe?
+or just silly?
+
+> There's also the fact that
+> swapping can deal with multiple mms at the same time: if you fork, you
+> can get two mms which share the same COW page in memory or on swap.
+> As a result, mm locking doesn't actually buy you enough extra
+> protection for data pages to be worth it.
+
+the eventual goal of my adventure is to drop the kernel lock while doing
+the page COW in do_wp_page, since in 2.3.6+, the COW is again protected
+because of race conditions with kswapd.  this "protection" serializes all
+page faults behind a very expensive memory copy.  what other ways are
+there to protect the COW operation while allowing some parallelism?  it
+seems like this is worth a little complexity, IMO.
 
 	- Chuck Lever
 --
