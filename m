@@ -1,49 +1,48 @@
-Message-ID: <3D3B925D.624986EE@zip.com.au>
-Date: Sun, 21 Jul 2002 22:04:29 -0700
+Message-ID: <3D3B94AF.27A254EA@zip.com.au>
+Date: Sun, 21 Jul 2002 22:14:23 -0700
 From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH][1/2] return values shrink_dcache_memory etc
-References: <Pine.LNX.4.44L.0207201740580.12241-100000@imladris.surriel.com> <Pine.LNX.4.44.0207201351160.1552-100000@home.transmeta.com>
+Subject: Re: [PATCH] low-latency zap_page_range
+References: <1027196427.1116.753.camel@sinai>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ed Tomlinson <tomlins@cam.org>
+To: Robert Love <rml@tech9.net>
+Cc: torvalds@transmeta.com, riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
+Robert Love wrote:
 > 
-> On Sat, 20 Jul 2002, Rik van Riel wrote:
-> >
-> > OK, I'll try to forward-port Ed's code to do that from 2.4 to 2.5
-> > this weekend...
-> 
-> Side note: while I absolutely think that is the right thing to do, that's
-> also the much more "interesting" change. As a result, I'd be happier if it
-> went through channels (ie probably Andrew) and had some wider testing
-> first at least in the form of a CFT on linux-kernel.
-> 
+> The lock hold time in zap_page_range is horrid.
+>
 
-I'd suggest that we avoid putting any additional changes into
-the VM until we have solutions available for:
+Yes, it is.  And although our mandate is to fix things
+like this without grafted-on low latency hacks, zap_page_range()
+may be one case where simply popping the lock is the best solution.
+Not sure.
 
-2: Make it work with pte-highmem  (Bill Irwin is signed up for this)
+> ...
+> +       while (size) {
+> +               block = (size > ZAP_BLOCK_SIZE) ? ZAP_BLOCK_SIZE : size;
+> +               end = address + block;
+> +
+> +               spin_lock(&mm->page_table_lock);
+> +
+> +               flush_cache_range(vma, address, end);
+> +               tlb = tlb_gather_mmu(mm, 0);
+> +               unmap_page_range(tlb, vma, address, end);
+> +               tlb_finish_mmu(tlb, address, end);
+> +
+> +               spin_unlock(&mm->page_table_lock);
+> +
+> +               address += block;
+> +               size -= block;
+> +       }
 
-4: Move the pte_chains into highmem too (Bill, I guess)
-
-6: maybe GC the pte_chain backing pages. (Seems unavoidable.  Rik?)
-
-
-Especially pte_chains in highmem.  Failure to fix this well
-is a showstopper for rmap on large ia32 machines, which makes
-it a showstopper full stop.
-
-If we can get something in place which works acceptably on Martin
-Bligh's machines, and we can see that the gains of rmap (whatever
-they are ;)) are worth the as-yet uncoded pains then let's move on.
-But until then, adding new stuff to the VM just makes a `patch -R'
-harder to do.
+This adds probably-unneeded extra work - we shouldn't go
+dropping the lock unless that is actually required.  ie:
+poll ->need_resched first.    Possible?
 
 -
 --
