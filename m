@@ -1,55 +1,36 @@
-Message-ID: <404D7109.10902@cyberone.com.au>
-Date: Tue, 09 Mar 2004 18:23:53 +1100
-From: Nick Piggin <piggin@cyberone.com.au>
+Received: from 202.5.159.99 (ISDN-Dialup-99.One.Net.pk [202.5.159.99])
+	by mail.one.net.pk (8.11.6/8.11.6) with SMTP id i297JfL07224
+	for <linux-mm@kvack.org>; Tue, 9 Mar 2004 12:19:43 +0500 (PKT)
+Message-Id: <200403090719.i297JfL07224@mail.one.net.pk>
+From: "SAR" <020301004688@one.net.pk>
+Subject: Stop Spreading Hatred
+Date: Tue, 09 Mar 2004 12:26:45 +0500
+Reply-To: 020301004688@one.net.pk
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH 4/4] vm-mapped-x-active-lists
-References: <404D56D8.2000008@cyberone.com.au> <404D5784.9080004@cyberone.com.au> <404D5A6F.4070300@matchmail.com> <404D5EED.80105@cyberone.com.au> <20040309070246.GI655@holomorphy.com>
-In-Reply-To: <20040309070246.GI655@holomorphy.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed;
+	boundary="----000000000000000000000"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Mike Fedyk <mfedyk@matchmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+------000000000000000000000
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 
-William Lee Irwin III wrote:
+Subject: Stop Spreading Hatred
 
->On Tue, Mar 09, 2004 at 05:06:37PM +1100, Nick Piggin wrote:
->
->>Not sure to be honest, I haven't looked at it :\. I'm not really
->>sure if the rmap mitigation direction is just a holdover until
->>page clustering or intended as a permanent feature...
->>Either way, I trust its proponents will take the onus for regressions.
->>
->
->Actually, anobjrmap does wonderful things wrt. liberating pgcl
->internals from some very frustrating complications having to do with
->assumptions of a 1:1 correspondence between pte pages and struct pages,
->so I would regard work in the direction of anobjrmap as useful to
->advance the state of page clustering regardless of its rmap mitigation
->overtones.  The "partial" objrmap is actually insufficient to clean up
->this assumption, and introduces new failure modes I don't like (which
->it is in fact not necessary to do; aa's code is very close to doing the
->partial-but-insufficient-for-pgcl objrmap properly apart from trying to
->allocate more pte_chains than necessary and not falling back to the vma
->lists for linear/nonlinear mapping mixtures). The current port has some
->code to deal with this I'm extremely eager to dump as soon as things
->such as anobjrmap etc. make it possible, if they're merged.
->
->Current efforts are now a background/spare time affair centering around
->non-i386 architectures and driver audits.
->
 
-OK. I had just noticed that the people complaining about rmap most
-are the ones using 4K page size (x86-64 uses 4K, doesn't it?). Not
-that this fact means it is OK to ignore them problem, but I thought
-maybe pgcl might solve it in a more general way.
+I think being a Muslim you are not working for peace. You are misguided, mistaken and spreading hatred through disinformation and false accusations, which is resulting in death and miseries for number of innocent people living around the world at the hands of merciless KILLER MUSLIMS and also bringing bad name to MOHAMMED as Founder Of Islam.
 
-I wonder how much you gain with objrmap / anobjrmap on say a 64K page
-architecture?
+Try and work for peace and reconciliation, and prove to the WORLD through your deeds that MOHAMMED teaches "love & peace" and not Cruelty, Inhumanity and "Hatred & Killing" of the innocent civilians.
 
+S.A.R
+
+
+
+------000000000000000000000--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
