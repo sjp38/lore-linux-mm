@@ -1,50 +1,31 @@
-Message-ID: <41CB25AE.6010109@didntduck.org>
-Date: Thu, 23 Dec 2004 15:08:14 -0500
-From: Brian Gerst <bgerst@didntduck.org>
-MIME-Version: 1.0
-Subject: Re: Prezeroing V2 [1/4]: __GFP_ZERO / clear_page() removal
-References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com> <41C20E3E.3070209@yahoo.com.au> <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0412231132170.31791@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.58.0412231132170.31791@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Thu, 23 Dec 2004 12:57:13 -0800
+From: Matt Mackall <mpm@selenic.com>
+Subject: Re: Prezeroing V2 [0/3]: Why and When it works
+Message-ID: <20041223205713.GE28322@waste.org>
+References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com> <41C20E3E.3070209@yahoo.com.au> <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Christoph Lameter <clameter@sgi.com>
 Cc: akpm@osdl.org, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> This patch introduces __GFP_ZERO as an additional gfp_mask element to allow
-> to request zeroed pages from the page allocator.
-> 
-> o Modifies the page allocator so that it zeroes memory if __GFP_ZERO is set
-> 
-> o Replace all page zeroing after allocating pages by request for
->   zeroed pages.
-> 
-> o requires arch updates to clear_page in order to function properly.
-> 
-> Signed-off-by: Christoph Lameter <clameter@sgi.com>
-> 
+On Thu, Dec 23, 2004 at 11:29:10AM -0800, Christoph Lameter wrote:
+> 2. Hardware support for offloading zeroing from the cpu. This avoids
+> the invalidation of the cpu caches by extensive zeroing operations.
 
-> @@ -125,22 +125,19 @@
->  	int i;
->  	struct packet_data *pkt;
-> 
-> -	pkt = kmalloc(sizeof(struct packet_data), GFP_KERNEL);
-> +	pkt = kmalloc(sizeof(struct packet_data), GFP_KERNEL|__GFP_ZERO);
->  	if (!pkt)
->  		goto no_pkt;
-> -	memset(pkt, 0, sizeof(struct packet_data));
-> 
->  	pkt->w_bio = pkt_bio_alloc(PACKET_MAX_SIZE);
->  	if (!pkt->w_bio)
+I'm wondering if it would be possible to use typical video cards for
+hardware zeroing. We could set aside a page's worth of zeros in video
+memory and then use the card's DMA engines to clear pages on the host.
 
-This part is wrong.  kmalloc() uses the slab allocator instead of 
-getting a full page.
+This could be done in fbdev drivers, which would register a zeroer
+with the core.
 
---
-				Brian Gerst
+-- 
+Mathematics is the supreme nostalgia of our time.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
