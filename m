@@ -1,29 +1,37 @@
-Date: Thu, 27 Apr 2000 16:28:39 -0400
-From: Simon Kirby <sim@stormix.com>
-Subject: Re: [PATCH] 2.3.99-pre6-3+  VM rebalancing
-Message-ID: <20000427162839.A12202@stormix.com>
-References: <Pine.LNX.4.21.0004251418520.10408-100000@duckman.conectiva> <20000425113616.A7176@stormix.com> <3905EB26.8DBFD111@mandrakesoft.com> <20000425120657.B7176@stormix.com> <20000426120130.E3792@redhat.com> <200004261125.EAA12302@pizda.ninka.net> <20000426140031.L3792@redhat.com> <200004261311.GAA13838@pizda.ninka.net> <20000426162353.O3792@redhat.com> <200004261525.IAA13973@pizda.ninka.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <200004261525.IAA13973@pizda.ninka.net>; from davem@redhat.com on Wed, Apr 26, 2000 at 08:25:59AM -0700
+Date: Thu, 27 Apr 2000 14:24:18 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [patch] 2.3.99-pre6-3 VM fixed
+In-Reply-To: <200004272020.NAA00247@google.engr.sgi.com>
+Message-ID: <Pine.LNX.4.10.10004271420480.1162-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: sct@redhat.com, jgarzik@mandrakesoft.com, riel@nl.linux.org, andrea@suse.de, linux-mm@kvack.org, bcrl@redhat.com, linux-kernel@vger.rutgers.edu
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: riel@nl.linux.org, "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 26, 2000 at 08:25:59AM -0700, David S. Miller wrote:
 
-> I'll try to clean up and stabilize my changes and post a patch
-> in the next few days.
+On Thu, 27 Apr 2000, Kanoj Sarcar wrote:
+> 
+> I really need to learn the locking rules for the kernel. As far as
+> I can see, lock_kernel is a spinning monitor, so any intr code should
+> be able to grab lock_kernel.
 
-This sounds really interesting.  Anything we can play with yet? :)
+No.
 
-Simon-
+Interrupts must NOT grab the kernel lock. 
 
-[  Stormix Technologies Inc.  ][  NetNation Communications Inc. ]
-[       sim@stormix.com       ][       sim@netnation.com        ]
-[ Opinions expressed are not necessarily those of my employers. ]
+It's not because of the regular dead-lock concerns (an interrupt could
+just increment the lock counter), but because of more subtle issues: the
+counter maintenance is not atomic, and should not be atomic. For example,
+during re-schedules we drop the kernel lock flag ("kernel_flag", but we
+still maintain the lock counter), so an interrupt that came in at that
+time would _think_ that it got the kernel lock (because the counter is
+non-zero), but it really doesn't get it.
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
