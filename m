@@ -1,35 +1,35 @@
-Message-ID: <UTHKDCVSSDNCRLZHLAIEV@mail15.com>
-From: "Hilario Kirkpatrick" <HGCFYGUVBY@boardermail.com>
-Reply-To: "Hilario Kirkpatrick" <HGCFYGUVBY@boardermail.com>
-Subject: Good news regarding the economy
-Date: Wed, 20 Oct 2004 07:22:27 -0500
+Message-ID: <UUVTUPBGYIOHFQCMWQCKY@dbzmail.com>
+From: "Eldon Hatcher" <fuzwfmgtb@wongfaye.com>
+Reply-To: "Eldon Hatcher" <fuzwfmgtb@wongfaye.com>
+Subject: Let us compare rates for you
+Date: Wed, 20 Oct 2004 08:14:54 -0500
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
- boundary="--502158696134622294"
+ boundary="--37814533336989273"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
  
-----502158696134622294
+----37814533336989273
 Content-Type: text/plain;
 Content-Transfer-Encoding: 7Bit
 
-Hey,
+Aloha,
 
 Your Application has been Pre-Approved on Tuesday, October 19th 2004.
 Your MRTG process is ready for rates starting at 2.85% Fixed. 
 Please use our secure site to fill-out your application.
   
-http://XJP.xolwed.com/azwer
+http://dsoe.xolwed.com/acwer
 
  
-Truly yours,
-Hilario Kirkpatrick
-http://BG.xolwed.com
+From,
+Eldon Hatcher
+http://vt.xolwed.com
  
-----502158696134622294--
+----37814533336989273--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
