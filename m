@@ -1,43 +1,30 @@
-Subject: Re: Non-Contiguous Memory Allocation Tests
-Message-ID: <OF3FECDB70.6DC3683E-ON86256DF8.0050199B@raytheon.com>
-From: Mark_H_Johnson@Raytheon.com
-Date: Wed, 10 Dec 2003 08:42:15 -0600
+Received: from IlieCosmin ([213.37.164.55]) by smtp08.retemail.es
+          (InterMail vM.5.01.05.32 201-253-122-126-132-20030307) with SMTP
+          id <20031210212857.GWFY9384.smtp08.retemail.es@IlieCosmin>
+          for <linux-mm@kvack.org>; Wed, 10 Dec 2003 22:28:57 +0100
+Reply-To: "Do not reply please" <iliecosmin@hotmail.com>
+From: "Do not reply please" <iliecosmin@hotmail.com>
+Subject: Free SMS in all the world...
+Date: Wed, 10 Dec 2003 22:23:33 +0100
 MIME-Version: 1.0
-Content-type: text/plain; charset=US-ASCII
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Message-Id: <20031210212857.GWFY9384.smtp08.retemail.es@IlieCosmin>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ruthiano Simioni Munaretti <ruthiano@exatas.unisinos.br>
-Cc: linux-mm@kvack.org, owner-linux-mm@kvack.org, sisopiii-l@cscience.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Visit:
+http://iliecosmin.no-ip.com
+
+You can send unlimited sms in all the world...
+And you can make money if you subscribe...
+Best regards,
 
 
-
->In VGNCA, the main idea is enable/disable interrupts only one time,
-reducing
->this overhead. Also, VGNCA allocation/deallocation functions are a little
->more simple, because elimination of unnecessary test conditions in size
->allocation.
->
->Our patch is intended to be a test to check if this could bring enough
->benefits to deserve a more careful implementation. We also included some
-code
->to benchmark allocations and deallocations, using the RDTSC instruction.
-
-My only comment about this (and similar "optimizations") is a general
-concern about latency. Let's say I have an interactive (or real time)
-program running and some other application does one of these non
-contiguous memory allocations. Is the time to complete the allocation
-bounded? Not apparently since "numpages" is an input to the allocation
-routine. There also does not appear to be any code to allow a reschedule
-to occur if scheduling is needed. If you are serious about pursuing
-something like this, I suggest you review the lock break / preemption
-code in the kernel (or in Andrew Morton's low latency patches) for
-examples of the required coding style.
-
---Mark H Johnson
-  <mailto:Mark_H_Johnson@raytheon.com>
-
+P.S. Sign my guestbook please.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
