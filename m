@@ -1,48 +1,44 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA16416
-	for <linux-mm@kvack.org>; Fri, 18 Sep 1998 18:01:28 -0400
-Subject: Re: [Q] MMU & VM
-References: <XFMail.980918150525.estafford@ixl.com>
-Reply-To: Zlatko.Calusic@CARNet.hr
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 19 Sep 1998 00:00:05 +0200
-In-Reply-To: estafford@ixl.com's message of "Fri, 18 Sep 1998 15:05:25 -0500 (CDT)"
-Message-ID: <87lnnhulne.fsf@atlas.CARNet.hr>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA01788
+	for <linux-mm@kvack.org>; Mon, 21 Sep 1998 18:01:43 -0400
+Received: from mirkwood.dummy.home (root@anx1p8.phys.uu.nl [131.211.33.97])
+	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id AAA21955
+	for <linux-mm@kvack.org>; Tue, 22 Sep 1998 00:00:39 +0200 (MET DST)
+Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with SMTP id VAA26810 for <linux-mm@kvack.org>; Mon, 21 Sep 1998 21:16:24 +0200
+Date: Mon, 21 Sep 1998 21:16:24 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: priorities for 2.2
+Message-ID: <Pine.LNX.3.96.980921211300.26074D-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: estafford@ixl.com
-Cc: linux-mm@kvack.org
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-estafford@ixl.com writes:
+Hi,
 
-> I was compiling the 2.1.122 kernel on an Alpha box (LX164) and had this error
-> pop up.  Sounds like something you guys might recognize:
-> 
-> page_alloc.c: In function `__free_page':
-> page_alloc.c:169: internal error--unrecognizable insn:
-> (jump_insn 274 270 275 (return) -1 (nil)
->     (nil))
-> gcc: Internal compiler error: program cc1 got fatal signal 6
-> make[2]: *** [page_alloc.o] Error 1
-> make[1]: *** [first_rule] Error 2
-> make: *** [_dir_mm] Error 2
-> {standard input}: Assembler messages:
-> {standard input}:178: Warning: Missing .end or .bend at end of file
-> cpp: output pipe has been closed
-> 
-> If you need more info, please just say the word.  Thanks!
-> 
+I'm wondering, what exactly _are_ our priorities for 2.2?
 
-Something like that has already been reported and it looks like older
-egcs compilers have trouble with __builtin_return_address construct.
+Apart from documentation, what else needs fixing and/or
+tuning before 2.2 is out, who's working on what and which
+jobs are left undone?
 
-Either update your egcs, or #define __builtin_return_address(x) (0)
+I know I'll be working on the documentation (HTMLizing
+the Documentation/sysctl/* and writing a bit more) but
+I can sure use some help...
 
-Hope it helps.
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-Unix Wizard: Someone who can type `cat > /vmunix` and get away with it!
+I'm sure there are also other important things that need
+help and even things that aren't done. Maybe it's time to
+put our 2.3 projects aside for a while and focus on the
+last bits of 2.2 readyness...
+
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
