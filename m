@@ -1,103 +1,32 @@
-Date: Thu, 16 Jan 2003 22:50:47 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id XAA11781
+	for <linux-mm@kvack.org>; Thu, 16 Jan 2003 23:03:52 -0800 (PST)
+Date: Thu, 16 Jan 2003 23:05:06 -0800
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: asm-i386/mmzone.h macro paren/eval fixes
-Message-ID: <181070000.1042786246@titus>
-In-Reply-To: <20030117063900.GA1036@holomorphy.com>
+Message-Id: <20030116230506.70fa96f9.akpm@digeo.com>
+In-Reply-To: <181070000.1042786246@titus>
 References: <20030117063900.GA1036@holomorphy.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	<181070000.1042786246@titus>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, gone@us.ibm.com
-Cc: akpm@zip.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: wli@holomorphy.com, gone@us.ibm.com, akpm@zip.com.au, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ugh. That's why I broke struct page out into a seperate header file.
-OK, Andrew ... now do you believe me? ;-) ;-)
+"Martin J. Bligh" <mbligh@aracnet.com> wrote:
+>
+> Ugh. That's why I broke struct page out into a seperate header file.
+> OK, Andrew ... now do you believe me? ;-) ;-)
 
-M.
+I never disagreed.  But the dependency chain for struct page is pretty long,
+too.
 
---On Thursday, January 16, 2003 22:39:00 -0800 William Lee Irwin III <wli@holomorphy.com> wrote:
-
-> Okay, this one looks ugly because we're missing some of the definitions
-> available with which to convert to inline functions (esp. struct page).
-> A lot of these introduce temporaries and sort of hope names won't clash,
-> which might be important to whoever cares about -Wshadow.
-> 
-> (1) node_end_pfn() evaluates nid twice
-> (2) local_mapnr() evaluates kvaddr twice
-> (3) kern_addr_valid() evaluates kaddr twice
-> (4) pfn_to_page() evaluates pfn multiple times
-> (5) page_to_pfn() evaluates page thrice
-> (6) pfn_valid() doesn't parenthesize its argument
-> 
-> 
-> ===== include/asm-i386/mmzone.h 1.6 vs edited =====
-> --- 1.6/include/asm-i386/mmzone.h	Wed Sep 25 17:40:59 2002
-> +++ edited/include/asm-i386/mmzone.h	Thu Jan 16 22:37:03 2003
-> @@ -57,25 +57,47 @@
->  
->  #define node_mem_map(nid)	(NODE_DATA(nid)->node_mem_map)
->  #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
-> -#define node_end_pfn(nid)       (NODE_DATA(nid)->node_start_pfn + \
-> -				 NODE_DATA(nid)->node_size)
-> +#define node_end_pfn(nid)						\
-> +({									\
-> +	pg_data_t *__pgdat = NODE_DATA(nid);				\
-> +	__pgdat->node_start_pfn + __pgdat->node_size;			\
-> +})
->  
-> -#define local_mapnr(kvaddr) \
-> -	( (__pa(kvaddr) >> PAGE_SHIFT) - node_start_pfn(kvaddr_to_nid(kvaddr)) )
-> +#define local_mapnr(kvaddr)						\
-> +({									\
-> +	unsigned long __pfn = __pa(kvaddr) >> PAGE_SHIFT;		\
-> +	(__pfn - node_start_pfn(pfn_to_nid(__pfn)));			\
-> +})
->  
-> -#define kern_addr_valid(kaddr)	test_bit(local_mapnr(kaddr), \
-> -		 NODE_DATA(kvaddr_to_nid(kaddr))->valid_addr_bitmap)
-> +#define kern_addr_valid(kaddr)						\
-> +({									\
-> +	unsigned long __kaddr = (unsigned long)(kaddr);			\
-> +	pg_data_t *__pgdat = NODE_DATA(kvaddr_to_nid(__kaddr));		\
-> +	test_bit(local_mapnr(__kaddr), __pgdat->valid_addr_bitmap);	\
-> +})
->  
-> -#define pfn_to_page(pfn)	(node_mem_map(pfn_to_nid(pfn)) + node_localnr(pfn, pfn_to_nid(pfn)))
-> -#define page_to_pfn(page)	((page - page_zone(page)->zone_mem_map) + page_zone(page)->zone_start_pfn)
-> +#define pfn_to_page(pfn)						\
-> +({									\
-> +	unsigned long __pfn = pfn;					\
-> +	int __node  = pfn_to_nid(__pfn);				\
-> +	&node_mem_map(__node)[node_localnr(__pfn,__node)];		\
-> +})
-> +
-> +#define page_to_pfn(pg)							\
-> +({									\
-> +	struct page *__page = pg;					\
-> +	struct zone *__zone = page_zone(__page);			\
-> +	(unsigned long)(__page - __zone->zone_mem_map)			\
-> +		+ __zone->zone_start_pfn;				\
-> +})
->  #define pmd_page(pmd)		(pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
->  /*
->   * pfn_valid should be made as fast as possible, and the current definition 
->   * is valid for machines that are NUMA, but still contiguous, which is what
->   * is currently supported. A more generalised, but slower definition would
->   * be something like this - mbligh:
-> - * ( pfn_to_pgdat(pfn) && (pfn < node_end_pfn(pfn_to_nid(pfn))) ) 
-> + * ( pfn_to_pgdat(pfn) && ((pfn) < node_end_pfn(pfn_to_nid(pfn))) ) 
->   */ 
-> -#define pfn_valid(pfn)          (pfn < num_physpages)
-> +#define pfn_valid(pfn)          ((pfn) < num_physpages)
->  #endif /* CONFIG_DISCONTIGMEM */
->  #endif /* _ASM_MMZONE_H_ */
-> 
-> 
-
+The core problem is the practice of putting things which define stuff in the
+same header as things which do stuff.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
