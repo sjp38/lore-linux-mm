@@ -1,78 +1,41 @@
-Date: 4 May 2003 19:40:37 -0000
-Message-ID: <20030504194037.12611.qmail@webmail26.rediffmail.com>
+Subject: Re: 2.5.68-mm4 && kexec
+References: <20030502020149.1ec3e54f.akpm@digeo.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 04 May 2003 21:46:51 -0600
+In-Reply-To: <20030502020149.1ec3e54f.akpm@digeo.com>
+Message-ID: <m1of2iawd0.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-From: "anand kumar" <a_santha@rediffmail.com>
-Reply-To: "anand kumar" <a_santha@rediffmail.com>
-Subject: Re: Re: Memory allocation problem
-Content-type: text/plain;
-	format=flowed
-Content-Disposition: inline
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark_H_Johnson@Raytheon.com
-Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Andrew Morton <akpm@digeo.com> writes:
 
-Thanks for immediate response. I used 2.4.20 kernel patched with 
-bigphys
-area and got it working. I know that this patch is part of Suse
-distribution. Is there any plans to incorporate this patch in 
-Redhat?
-Is redhat 9.0 kernel equipped with this patch?
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.68/2.5.68-mm4/
+> 
+> 
+> . Much reworking of the disk IO scheduler patches due to the updated
+>   dynamic-disk-request-allocation patch.  No real functional changes here.
+> 
+> . Included the `kexec' patch - load Linux from Linux.  Various people want
+>   this for various reasons.  I like the idea of going from a login prompt to
+>   "Calibrating delay loop" in 0.5 seconds.
+> 
+>   I tried it on four machines and it worked with small glitches on three of
+>   them, and wedged up the fourth.  So if it is to proceed this code needs
+>   help with testing and careful bug reporting please.
 
-Rgds
-Anand
+The current state of the code is that APM is not expected to work.  The
+user space tool needs a fix to pass the address of the APM entry points
+to the new kernel.
 
-On Thu, 01 May 2003 Mark_H_Johnson@Raytheon.com wrote :
->
-> >The kernel version we are using is 2.4.18 (Redhat 8.0) and the 
->total
-> >amount of memory available in the box is 128MB
->
-> >Is there any other mechanism to allocate large amount of 
->physically
-> >contiguous memory blocks during normal run time of the driver? 
->Is this
-> >being addressed in later kernels.
->
->I regularly use a patch (bigphysarea) recommended by Dolphin for 
->use with
->their SCI cards. The copy I use is from a relatively old kernel 
->(2.4.4)
->which applies with a few warnings but is otherwise OK. I did a 
->quick search
->with Google for
->   bigphysarea linux 2.4.18
->and found
->   
->http://frmb.home.cern.ch/frmb/download/bigphysarea-2.4.18.patch
->or a more readable page at
->   http://frmb.home.cern.ch/frmb/linux.html
->which appears to be a version updated for 2.4.18. I believe the 
->original
->patch is maintained at
->   
->http://www.uni-paderborn.de/fachbereich/AG/heiss/linux/bigphysarea.html
->
->There are apparently several drivers that already use this 
->interface, but
->it does require a patched kernel.
->
->I am not aware of any effort to merge this into the main line 
->kernel
->(though I would certainly appreciate that).
->
->--Mark H Johnson
->   <mailto:Mark_H_Johnson@raytheon.com>
->
->
+But beyond that everything should work baring drivers which have
+problems shutting themselves down and restarting.
 
-
-
-
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
