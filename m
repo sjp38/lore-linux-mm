@@ -1,49 +1,26 @@
-From: Daniel Phillips <phillips@arcor.de>
+Date: Sat, 5 Jul 2003 14:17:40 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.74-mm1
-Date: Sat, 5 Jul 2003 23:09:12 +0200
-References: <20030703023714.55d13934.akpm@osdl.org> <200307051728.12891.phillips@arcor.de> <20030705121416.62afd279.akpm@osdl.org>
-In-Reply-To: <20030705121416.62afd279.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
+Message-ID: <20030705211740.GA15452@holomorphy.com>
+References: <20030703023714.55d13934.akpm@osdl.org> <20030704210737.GI955@holomorphy.com> <20030704181539.2be0762a.akpm@osdl.org> <20030705104433.GK955@holomorphy.com> <20030705114308.6dacb5a2.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200307052309.12680.phillips@arcor.de>
+In-Reply-To: <20030705114308.6dacb5a2.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: anton@samba.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 05 July 2003 21:14, Andrew Morton wrote:
-> Daniel Phillips <phillips@arcor.de> wrote:
-> > The situation re scheduling in 2.5 feels much as
-> > the vm situation did in 2.3
->
-> I've been trying to avoid thinking about that comparison.
->
-> I don't think it's really, really bad at present.  Just "should be a bit
-> better".
+On Sat, Jul 05, 2003 at 11:43:08AM -0700, Andrew Morton wrote:
+> if badness() returns zero for everything, this returns NULL and
+> the kernel panics.
 
-Ever since I -niced Zinf a coupld of hours ago I haven't had a problem.  This 
-is a fine way to handle the problem.  We're not dealing with an "interactive 
-scheduling" problem here, it's simply realtime scheduling and needs to be 
-treated as such.
+Sorry, that was one hell of an oversight wrt. the initival value.
 
-Unfortunately, negative priority requires root privilege, at least on Debian.  
-That's dumb.  By default, the root privilege requirement should kick in at 
-something like -5 or -10, so  ordinary users can set priorities higher than 
-the default, as well as lower.  For the millions of desktop users out there, 
-sound ought to work by default, not be broken by default.
 
-The "better" mechanism for sound scheduling is SCHED_RR, which requires root 
-privilege for some reason that isn't clear to me.  Or maybe there once was a 
-good reason, back in the days of the dinosaurs.
-
-Regards,
-
-Daniel
-
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
