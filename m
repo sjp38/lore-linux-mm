@@ -1,43 +1,23 @@
-Date: Sun, 18 Jul 1999 22:47:20 +0200 (CEST)
+Date: Mon, 19 Jul 1999 23:15:47 +0200 (CEST)
 From: Rik van Riel <riel@nl.linux.org>
-Subject: WANTED: co-maintainer(s) for Linux-MM site
-Message-ID: <Pine.LNX.4.03.9907182237190.1399-100000@mirkwood.nl.linux.org>
+Subject: Linux-MM suggestions
+Message-ID: <Pine.LNX.4.03.9907192314190.15599-100000@mirkwood.nl.linux.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel <linux-kernel@vger.rutgers.edu>
-Cc: Linux MM <linux-mm@kvack.org>, kernel-doc@nl.linux.org, lwn@lwn.net
+To: Linux MM <linux-mm@kvack.org>
+Cc: kernel-doc@nl.linux.org, linux-mm-www@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-Over the course of the last year I've become involved with
-quite a lot of Open Source and documentation projects. So
-many, in fact, that I'm no longer able to put enough time
-and dedication into the Linux Memory Management home page.
+now that there's a team of people willing to maintain the
+Linux-MM site, I guess it's time to make an inventory of
+what people would like to see on the site.
 
-In order to ensure good kernel documentation in the future,
-I think it will be best to place the Linux-MM site under
-the responsibility of a team of people who all have access
-to the CVS tree where the docs reside.
-
-If you want to share in the responsibility of documenting
-the Memory Managemen subsystem or if you want to learn about
-it and are willing to write down your learning experience,
-please contact me at <riel@nl.linux.org>
-
-As usual, there are two relevant mailing lists:
-
-	linux-mm@kvack.org       (for the technical matters)
-	kernel-doc@nl.linux.org  (documentation forum)
-
-Both of these lists are Majordomo-managed, so the usual
-routine applies. If you don't know how Majordomo works,
-just send a message to <Majordomo@nl.linux.org> with the
-word "help" in the BODY of the message.
-
-regards,
+As an extra side effect, it would make a good incentive
+to other subsystems' sites :)
 
 Rik -- Open Source: you deserve to be in control of your data.
 +-------------------------------------------------------------------+
