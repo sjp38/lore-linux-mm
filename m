@@ -1,32 +1,45 @@
-Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA10214
-	for <linux-mm@kvack.org>; Sat, 23 Jan 1999 19:22:01 -0500
-Date: Sat, 23 Jan 1999 16:19:13 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <m104CMO-0007U1C@the-village.bc.nu>
-Message-ID: <Pine.LNX.3.95.990123161758.12138B-100000@penguin.transmeta.com>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA10984
+	for <linux-mm@kvack.org>; Sat, 23 Jan 1999 20:52:24 -0500
+Date: Sun, 24 Jan 1999 02:51:55 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Subject: Re: 2.2.0-final
+In-Reply-To: <Pine.LNX.3.96.990123210422.2856A-100000@laser.bogus>
+Message-ID: <Pine.LNX.3.96.990124024902.199B-100000@laser.bogus>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: Kernel Mailing List <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sat, 23 Jan 1999, Andrea Arcangeli wrote:
 
-On Sat, 23 Jan 1999, Alan Cox wrote:
-> 
-> Thats a bug in our current vm structures, like the others - inability to
-> throw out page tables, inability to find memory easily, inability to move
-> blocks to allocate large areas in a target space, inability to handle
-> large user spaces etc.
+> where buffer_get() is this:
 
-What? None of those are bugs, they are features.
+Just for the record, I cut-and-pasted a wrong buffer_get() (due a
+last-minute wrong hack, I noticed it now when I powerup the machine now
+;), the right one is this: 
 
-Complexity is not a goal to be reached. Complexity is something to be
-avoided at all cost. If you don't believe me, look at NT.
+extern inline void buffer_get(struct buffer_head *bh)
+{
+	struct page * page = mem_map + MAP_NR(bh->b_data);
 
-		Linus
+	switch (atomic_read(&page->count))
+	{
+	case 1:
+		nr_freeable_pages--;
+	default:
+		atomic_inc(&page->count);
+		break;
+#if 1 /* PARANOID */
+	case 0:
+		printk(KERN_ERR "buffer_get: page was unused!\n");
+#endif
+	}
+}
+
+Andrea Arcangeli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
