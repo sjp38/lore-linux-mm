@@ -1,38 +1,150 @@
-Date: Tue, 27 Aug 2002 23:18:14 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] SImple Topology API v0.3 (1/2)
-Message-ID: <20020827211814.GU25092@dualathlon.random>
-References: <3D6537D3.3080905@us.ibm.com> <20020827143115.B39@toy.ucw.cz>
-Mime-Version: 1.0
+Message-ID: <3D6C500E.426B163A@zip.com.au>
+Date: Tue, 27 Aug 2002 21:22:38 -0700
+From: Andrew Morton <akpm@zip.com.au>
+MIME-Version: 1.0
+Subject: 2.5.32-mm1
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20020827143115.B39@toy.ucw.cz>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@suse.cz>
-Cc: Matthew Dobson <colpatch@us.ibm.com>, Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
+To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 27, 2002 at 02:31:16PM +0000, Pavel Machek wrote:
-> Hi!
-> 
-> > Andrew, Linus, et al:
-> > 	Here's the latest version of the Simple Topology API.  I've broken the patches 
-> > into a solely in-kernel portion, and a portion that exposes the API to 
-> > userspace via syscalls and prctl.  This patch (part 1) is the in-kernel part. 
-> > I hope that the smaller versions of these patches will draw more feedback, 
-> > comments, flames, etc.  Other than that, the patch remains relatively unchanged 
-> > from the last posting.
-> 
-> > -   bool 'Multiquad NUMA system' CONFIG_MULTIQUAD
-> > +   bool 'Multi-node NUMA system support' CONFIG_X86_NUMA
-> 
-> Why not simply CONFIG_NUMA?
+Since 2.5.31-mm1:
 
-that is just used by the common code, it fits well for that usage and it
-has different semantics.
+- A bunch of things from 2.5.31-mm1 were merged.
 
-Andrea
+- The BKL consolidation patch is dropped because Linus did it too.
+
+- The `might_sleep()' debug patch lost its supporting infrastructure
+  and I've dropped it for now.
+
+- The configurable PAGE_OFFSET patch ran aground on some kbuild changes and
+  needs some more work.
+
+- The following patches have been added
+
+	discontig-cleanup-1.patch
+	discontig-cleanup-2.patch
+	writeback-thresholds.patch
+	buffer-strip.patch
+	daniel-rmap-speedup.patch
+	rmap-speedup.patch
+	wli-highpte.patch
+
+
+func-fix.patch
+  gcc-2.91.66 does not support __func__
+
+ext3-htree.patch
+  Indexed directories for ext3
+
+misc.patch
+  page_alloc.c fixlets
+
+tlb-speedup.patch
+  Reduce typical global TLB invalidation frequency by 35%
+
+buffer-slab-align.patch
+  Don't align the buffer_head slab on hardware cacheline boundaries
+
+zone-rename.patch
+  Rename zone_struct->zone, zonelist_struct->zonelist.  Remove zone_t,
+  zonelist_t.
+
+per-zone-lru.patch
+  Per-zone page LRUs
+
+per-zone-lock.patch
+  Per-zone LRU list locking
+
+l1-max-size.patch
+  Infrastructure for determining the maximum L1 cache size which the kernel
+  may have to support.
+
+zone-lock-alignment.patch
+  Pad struct zone to ensure that the lru and buddy locks are in separate
+  cachelines.
+
+put_page_cleanup.patch
+  Clean up put_page() and page_cache_release().
+
+anon-batch-free.patch
+  Batched freeing and de-LRUing of anonymous pages
+
+writeback-sync.patch
+  Writeback fixes and tuneups
+
+ext3-inode-allocation.patch
+  Fix an ext3 deadlock
+
+ext3-o_direct.patch
+  O_DIRECT support for ext3.
+
+discontig-paddr_to_pfn.patch
+  Convert page pointers into pfns for i386 NUMA
+
+discontig-setup_arch.patch
+  Rework setup_arch() for i386 NUMA
+
+discontig-mem_init.patch
+  Restructure mem_init for i386 NUMA
+
+discontig-i386-numa.patch
+  discontigmem support for i386 NUMA
+
+cleanup-mem_map-1.patch
+  Clean up lots of open-coded uese of mem_map[].  For ia32 NUMA
+
+zone-pages-reporting.patch
+  Fix the boot-time reporting of each zone's available pages
+
+enospc-recovery-fix.patch
+  Fix the __block_write_full_page() error path.
+
+fix-faults.patch
+  Back out the initial work for atomic copy_*_user()
+
+spin-lock-check.patch
+  spinlock/rwlock checking infrastructure
+
+copy_user_atomic.patch
+
+kmap_atomic_reads.patch
+  Use kmap_atomic() for generic_file_read()
+
+kmap_atomic_writes.patch
+  Use kmap_atomic() for generic_file_write()
+
+throttling-fix.patch
+  Fix throttling of heavy write()rs.
+
+dirty-state-accounting.patch
+  Make the global dirty memory accounting more accurate
+
+rd-cleanup.patch
+  Cleanup and fix the ramdisk driver (doesn't work right yet)
+
+discontig-cleanup-1.patch
+  i386 discontigmem coding cleanups
+
+discontig-cleanup-2.patch
+  i386 discontigmem cleanups
+
+writeback-thresholds.patch
+  Downward adjustments to the default dirty memory thresholds
+
+buffer-strip.patch
+  Limit the consumption of ZONE_NORMAL by buffer_heads
+
+daniel-rmap-speedup.patch
+  Hashed locking for rmap pte_chains
+
+rmap-speedup.patch
+  rmap pte_chain space and CPU reductions
+
+wli-highpte.patch
+  Resurrect CONFIG_HIGHPTE - ia32 pagetables in highmem
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
