@@ -1,87 +1,80 @@
-Date: Mon, 24 Jan 2005 14:27:41 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: Query on remap_pfn_range compatibility
-Message-ID: <20050124222741.GG10843@holomorphy.com>
-References: <OF0A92B996.F674A9A0-ON86256F93.0066BC3F@raytheon.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <OF0A92B996.F674A9A0-ON86256F93.0066BC3F@raytheon.com>
+Message-ID: <41F5999B.3060608@didntduck.org>
+Date: Mon, 24 Jan 2005 19:58:03 -0500
+From: Brian Gerst <bgerst@didntduck.org>
+MIME-Version: 1.0
+Subject: [PATCH] Remove special case in kmem_getpages()
+References: <20050124165412.GL31455@parcelfarce.linux.theplanet.co.uk>
+In-Reply-To: <20050124165412.GL31455@parcelfarce.linux.theplanet.co.uk>
+Content-Type: multipart/mixed;
+ boundary="------------020305060806080603090303"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mark_H_Johnson@raytheon.com
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <matthew@wil.cx>
+Cc: Andrew Morton <akpm@zip.com.au>, linux-mm@kvack.org, manfred@colorfullife.com, linux-kernel@vger.kernel.org, dhowells@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-wli wrote...
->> Not sure. One on kernel version being <= 2.6.10 would probably serve
->> your purposes, though it's not particularly well thought of. I suspect
->> people would suggest splitting up the codebase instead of sharing it
->> between 2.4.x and 2.6.x, where I've no idea how well that sits with you.
+This is a multi-part message in MIME format.
+--------------020305060806080603090303
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-On Mon, Jan 24, 2005 at 01:05:44PM -0600, Mark_H_Johnson@raytheon.com wrote:
-> I guess I could do that, but if a distribution picks up remap_pfn_range
-> in an earlier kernel, that doesn't work either. If it gets back ported
-> to 2.4 the conditional gets a little more complicated.
-> Splitting the code base is a pretty harsh solution.
+Matthew Wilcox wrote:
+> __get_free_pages() calls alloc_pages, finds the page_address() and
+> throws away the struct page *.  Slab then calls virt_to_page to get it
+> back again.  Much more efficient for slab to call alloc_pages itself,
+> as well as making the NUMA and non-NUMA cases more similarr to each other.
 
-I suspect it's the one most often recommended. In general, I'm not the
-arbiter of taste in drivers (and as you've worked with them enough, I'm
-sure you have unanswered questions of your own on that front), but I'm
-expecting the general consensus to be something adverse to your concerns.
+Here is a better patch:
 
+Remove the special case of nodeid == -1.  Instead, use numa_node_id() 
+when calling cache_grow().
 
-On Mon, Jan 24, 2005 at 01:05:44PM -0600, Mark_H_Johnson@raytheon.com wrote:
-> I am also trying to avoid an ugly hack like the following:
->   VMA_PARAM_IN_REMAP=`grep remap_page_range
-> $PATH_LINUX_INCLUDE/linux/mm.h|grep vma`
->   if [ -z "$VMA_PARAM_IN_REMAP" ]; then
->     export REMAP_PAGE_RANGE_PARAM="4"
->   else
->     export REMAP_PAGE_RANGE_PARAM="5"
->   endif
-> in a build script which detects if remap_page_range() has 4 or 5 parameters
-> and then pass an appropriate value into the code using gcc -D. [ugh]
+Signed-off-by: Brian Gerst <bgerst@didntduck.org>
 
-Some codebases have literally gone so far as to use autoconf to cope
-with constellations of issues like these that arise in portable driver
-codebases. I don't have an adequate answer to the simultaneous needs of
-mainline acceptance and portability across kernel versions. The second
-of those is one I'm very rarely faced with myself and my inexperience
-in such is accompanied by a lack of ideas.
+--------------020305060806080603090303
+Content-Type: text/plain;
+ name="slab-numa"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="slab-numa"
 
+diff -urN linux-2.6.11-rc2-bk/mm/slab.c linux/mm/slab.c
+--- linux-2.6.11-rc2-bk/mm/slab.c	2005-01-22 01:58:25.000000000 -0500
++++ linux/mm/slab.c	2005-01-24 15:35:08.000000000 -0500
+@@ -893,17 +893,11 @@
+ 	int i;
+ 
+ 	flags |= cachep->gfpflags;
+-	if (likely(nodeid == -1)) {
+-		addr = (void*)__get_free_pages(flags, cachep->gfporder);
+-		if (!addr)
+-			return NULL;
+-		page = virt_to_page(addr);
+-	} else {
+-		page = alloc_pages_node(nodeid, flags, cachep->gfporder);
+-		if (!page)
+-			return NULL;
+-		addr = page_address(page);
+-	}
++
++	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
++	if (!page)
++		return NULL;
++	addr = page_address(page);
+ 
+ 	i = (1 << cachep->gfporder);
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+@@ -2065,7 +2059,7 @@
+ 
+ 	if (unlikely(!ac->avail)) {
+ 		int x;
+-		x = cache_grow(cachep, flags, -1);
++		x = cache_grow(cachep, flags, numa_node_id());
+ 		
+ 		// cache_grow can reenable interrupts, then ac could change.
+ 		ac = ac_data(cachep);
 
-On Mon, Jan 24, 2005 at 01:05:44PM -0600, Mark_H_Johnson@raytheon.com wrote:
-> Would it be acceptable to add a symbol like
->   #define MM_VM_REMAP_PFN_RANGE
-> in include/linux/mm.h or is that too much of a hack as well?
-
-I highly suspect that this notion would not be seriously entertained.
-
-
-wli wrote...
->> I vaguely suspected something like this would happen, but there were
->> serious and legitimate concerns about new usage of the 32-bit unsafe
->> methods being reintroduced, so at some point the old hook had to go.
-
-On Mon, Jan 24, 2005 at 01:05:44PM -0600, Mark_H_Johnson@raytheon.com wrote:
-> I don't doubt the need to remove the old interface. But I see possible
-> problem areas on > 4 Gbyte machines, such as virt_to_phys defined in
-> linux/asm-i386/io.h, that are not getting fixed or do I misread the
-> way that code works.
-
-virt_to_phys() represents something of a trap for unwary programmers,
-but not a true semantic gap as remap_pfn_range() addressed. It's also
-not of any particular help, as the areas for which it fails are
-universally not in ZONE_NORMAL. Primitives for resolving vmallocspace
-and userspace addresses to pfn's may be in order if these are
-sufficiently used, but the convenience of them can be done without at
-the cost of some memory to account physical locations mapped without
-the benefit of a struct page to track them, which when present is well
-backed by primitives like follow_page(), vmalloc_to_page(), etc.
-
-
--- wli
+--------------020305060806080603090303--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
