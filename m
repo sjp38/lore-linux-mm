@@ -1,241 +1,35 @@
-Date: Mon, 18 Nov 2002 00:27:10 +0100
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Date: Sun, 17 Nov 2002 17:12:01 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: get_user_pages rewrite rediffed against 2.5.47-mm1
-Message-ID: <20021118002710.B659@nightmaster.csn.tu-chemnitz.de>
-References: <20021112205848.B5263@nightmaster.csn.tu-chemnitz.de> <3DD1642A.4A7C663C@digeo.com> <20021115085827.Z659@nightmaster.csn.tu-chemnitz.de> <3DD56256.C0911282@digeo.com>
+Message-ID: <20021118011201.GD11776@holomorphy.com>
+References: <20021112205848.B5263@nightmaster.csn.tu-chemnitz.de> <3DD1642A.4A7C663C@digeo.com> <20021115085827.Z659@nightmaster.csn.tu-chemnitz.de> <3DD56256.C0911282@digeo.com> <20021118002710.B659@nightmaster.csn.tu-chemnitz.de>
 Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="cPi+lWm09sJ+d57q"
-Content-Disposition: inline
-In-Reply-To: <3DD56256.C0911282@digeo.com>; from akpm@digeo.com on Fri, Nov 15, 2002 at 01:08:38PM -0800
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-
---cPi+lWm09sJ+d57q
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20021118002710.B659@nightmaster.csn.tu-chemnitz.de>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
-Hi William,
+On Mon, Nov 18, 2002 at 12:27:10AM +0100, Ingo Oeser wrote:
+> Most of the page walking users got simpler and also the
+> hugetlb code looks much better now. 
+> The diffstat shows 554 deletions and 224 additions, which is not
+> too bad for a cleanup, which also adds a feature.
+> BTW: make_pages_present needs a rewrite, because it duplicates
+>    work from its callers. The only non-trivial user is mm/mremap.c,
+>    the rest of it I could do.
+> Comments are VERY welcome. bzip2ed patch attached.
+> Regards
+> Ingo Oeser
 
-On Fri, Nov 15, 2002 at 01:08:38PM -0800, Andrew Morton wrote:
-> Ingo Oeser wrote:
-> > 
-> > ...
-> > I envision the following usage:
-> > 
-> > setup(&page_walk,...); /* currently done explicitly on stack */
-> > walk_user_pages(&page_walk);
-> Good.  The callers shouldn't have to know how to initialise the
-> state structure.
-  
-The problem is: Sometimes they know it and duplicate the work.
-But I'll tackle that next time.
+Terrific. Bringing the hugetlb code closer to Linux-native idioms/style
+is excellent. From my POV the change has no visible deficits remaining.
 
-> I'd say just keep it to "pull the user pagetable access code out of
-> memory.c".  As much as you can, but not unrelated things.  One
-> concept per file would be nice.
- 
-Ok, so I created {mm/,include/linux/}page_walk.[ch]
 
-> > All improvements in that direction have only been with block devices
-> > in mind so far. I even don't see how I could improve the usage in
-> > fs/dio.c, because it might sleep very long, so I can't use a page
-> > walker for it (which needs the mmap_sem).
-> 
-> Well I had plans there to reuse the page walker structure.  So it
-> would become a big stateful thing which you just feed into the
-> walker engine and it spits out pages.  With the callback page-processor
-> being able to return information such as "OK, that's enough pages
-> for now, let's start some IO".
-
-The walk_user_pages is actually made for this.
-
-Return values:
-
-   1  -> The walker was satisfied
-   0  -> No more pages there
-   Negative -> some error occured, and we cleaned already up.
-
-So it should be quite simple to use and simplify all the error
-handling, too.
-
-The code got shorter by using a struct and stack usage looks smaller.
-
-Most of the page walking users got simpler and also the
-hugetlb code looks much better now. 
-
-The diffstat shows 554 deletions and 224 additions, which is not
-too bad for a cleanup, which also adds a feature.
-
-BTW: make_pages_present needs a rewrite, because it duplicates
-   work from its callers. The only non-trivial user is mm/mremap.c,
-   the rest of it I could do.
-
-Comments are VERY welcome. bzip2ed patch attached.
-
-Regards
-
-Ingo Oeser
--- 
-Science is what we can tell a computer. Art is everything else. --- D.E.Knuth
-
---cPi+lWm09sJ+d57q
-Content-Type: application/octet-stream
-Content-Disposition: attachment; filename="page-walk-api-2.5.47-mm3-cleanup.patch.bz2"
-Content-Transfer-Encoding: base64
-
-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
-CQTLdSlw
-
---cPi+lWm09sJ+d57q--
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
