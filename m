@@ -1,41 +1,35 @@
-Message-ID: <3DA1A95C.AE5076D5@scs.ch>
-Date: Mon, 07 Oct 2002 17:33:48 +0200
-From: Martin Maletinsky <maletinsky@scs.ch>
+From: Badari Pulavarty <pbadari@us.ibm.com>
+Message-Id: <200210071745.g97Hjth23332@eng2.beaverton.ibm.com>
+Subject: Re: 2.5.40-mm2
+Date: Mon, 7 Oct 2002 10:45:55 -0700 (PDT)
+In-Reply-To: <3DA0854E.CF9080D7@digeo.com> from "Andrew Morton" at Oct 06, 2002 10:47:42 AM PST
 MIME-Version: 1.0
-Subject: question on mmput()
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, kernelnewbies@nl.linux.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Andrew,
 
-I write a device driver, that accesses a processes user space memory. In case of an unexpected exit of the user space process (i.e. an exit while the underlying hardware
-device is set up to transfer data in to the processes memory), the driver while still need access to the processes (former)  memory (e.g. to unlock the pages the driver did
-lock, when the transfer was set up).
+I get following compile errors while using 2.5.40-mm2.
+Missing some exports ?
 
-When the drivers open() file operation is called, it increments the mm_users field in the processes mm_struct, to prevent it from being released, while the driver still
-needs to access it.
-Once the driver is done with the mm_struct, it should call mmput(), to decrement the usage count, and release the mm_struct if the count drops to 0. Unfortunatly mmput() is
-not exported by the kernel (vers. 2.4.18), and can therefore not be used by the driver, which is compiled as a module.
+- Badari
 
-1) Why is mmput() not exported as a symbol?
+        ld -m elf_i386 -e stext -T arch/i386/vmlinux.lds.s arch/i386/kernel/head.o arch/i386/kernel/init_task.o  init/built-in.o --start-group  arch/i386/kernel/built-in.o  arch/i386/mm/built-in.o  arch/i386/mach-generic/built-in.o  kernel/built-in.o  mm/built-in.o  fs/built-in.o  ipc/built-in.o  security/built-in.o  lib/lib.a  arch/i386/lib/lib.a  drivers/built-in.o  sound/built-in.o  arch/i386/pci/built-in.o  net/built-in.o --end-group -o .tmp_vmlinux
+drivers/built-in.o: In function `aic7xxx_biosparam':
+drivers/built-in.o(.text+0xcfc71): undefined reference to `__udivdi3'
+drivers/built-in.o(.text+0xcfca8): undefined reference to `__udivdi3'
+drivers/built-in.o: In function `qla1280_proc_info':
+drivers/built-in.o(.text+0xd0ca0): undefined reference to `get_free_page'
+drivers/built-in.o: In function `qla1280_biosparam':
+drivers/built-in.o(.text+0xd1daa): undefined reference to `__udivdi3'
+drivers/built-in.o(.text+0xd1dce): undefined reference to `__udivdi3'
+make: *** [.tmp_vmlinux] Error 1
 
-2) Is there any alternate solution, to properly release the mm_struct once the driver is done with it?
-
-Thanks in advance for any help
-with best regards
-Martin Maletinsky
-
-P.S. Please put me on CC: in your reply, since I am not in the mailing list.
-
---
-Supercomputing System AG          email: maletinsky@scs.ch
-Martin Maletinsky                 phone: +41 (0)1 445 16 05
-Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
-CH-8005 Zurich
 
 
 --
