@@ -1,97 +1,54 @@
-Date: Thu, 6 Jan 2005 15:35:19 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
+Message-ID: <41DDCD2B.4060709@mvista.com>
+Date: Thu, 06 Jan 2005 15:43:39 -0800
+From: Steve Longerbeam <stevel@mvista.com>
+MIME-Version: 1.0
 Subject: Re: page migration patchset
-Message-ID: <20050106233519.GD9636@holomorphy.com>
-References: <Pine.LNX.4.44.0501052008160.8705-100000@localhost.localdomain> <41DC7EAD.8010407@mvista.com> <20050106144307.GB59451@muc.de> <20050106223046.GB9636@holomorphy.com> <41DDC7F2.2020909@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <41DDC7F2.2020909@sgi.com>
+References: <Pine.LNX.4.44.0501052008160.8705-100000@localhost.localdomain> <41DC7EAD.8010407@mvista.com> <20050106144307.GB59451@muc.de>
+In-Reply-To: <20050106144307.GB59451@muc.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Andi Kleen <ak@muc.de>, Hugh Dickins <hugh@veritas.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: Andi Kleen <ak@muc.de>
+Cc: Hugh Dickins <hugh@veritas.com>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, andrew morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 06, 2005 at 03:43:07PM +0100, Andi Kleen wrote:
->>> If nothing happens soon regarding the "other" hugetlb code I will
->>> forward port my SLES9 code. It already has NUMA policy support.
->>> For now you can remove the hugetlb policy code from mainline if you
+Andi Kleen wrote:
 
-William Lee Irwin III wrote:
->> This is not specifically directed at Andi...
+>On Wed, Jan 05, 2005 at 03:56:29PM -0800, Steve Longerbeam wrote:
+>  
+>
+>>Hugetlbfs is also defining its own shared policy RB tree in its
+>>inode info struct, but it doesn't seem to be used, just initialized
+>>and freed at alloc/destroy inode time. Does anyone know why that
+>>is there? A place-holder for future hugetlbfs mempolicy support?
+>>If so, it can be removed and use the generic_file policies instead.
+>>    
+>>
+>
+>You need lazy hugetlbfs to use it (= allocate at page fault time,
+>not mmap time). Otherwise the policy can never be applied. I implemented 
+>my own version of lazy allocation for SLES9, but when I wanted to 
+>merge it into mainline some other people told they had a much better 
+>singing&dancing lazy hugetlb patch. So I waited for them, but they 
+>never went forward with their stuff and their code seems to be dead
+>now. So this is still a dangling end :/
+>
+>If nothing happens soon regarding the "other" hugetlb code I will
+>forward port my SLES9 code. It already has NUMA policy support.
+>
+>For now you can remove the hugetlb policy code from mainline if you
+>want, it would be easy to readd it when lazy hugetlbfs is merged.
+>  
+>
 
-On Thu, Jan 06, 2005 at 05:21:22PM -0600, Ray Bryant wrote:
-> Who is it directed at then?
-> And who does "you" refer to here?
+if you don't mind I'd like to. Sounds as if lazy hugetlbfs would be able to
+make use of the generic file mapping->policy instead of a hugetlb-specific
+policy anyway. Same goes for shmem.
 
-The set of people who have contributed hugetlb patches, plus akpm.
-
-
-William Lee Irwin III wrote:
->> Obviously, I have no recourse, otherwise there would be no credible
->> threat of this kind of end-run tactic succeeding, and I've apparently
->> already been circumvented by pushing the things to distros anyway. So
->> I can do no more than kindly ask you to address issues 1-6 in your
->> patch presentations.
-
-On Thu, Jan 06, 2005 at 05:21:22PM -0600, Ray Bryant wrote:
-> I'd point out that one of the reasons we have Christoph Lameter working
-> on this is that he is better at working with cross architecture type
-> stuff than I am, since I have neither the skills nor interest to do
-> such things (I'm much too focused on Altix specific problems).
-
-Not all points apply to all patches, of course. I've seen the
-separation of functions problems more in Christoph's patches than
-portability issues, not to say they are nonexistant. The most prominent
-case of a portability issue was in Kenneth Chen's patches.
-
-
-On Thu, Jan 06, 2005 at 05:21:22PM -0600, Ray Bryant wrote:
-> So, I guess the question is, do you, wli, have allocate hugetlbpage on
-> fault code available somewhere that we, SGI, have somehow stepped on,
-> ignored, or not properly given credit for?  SGI has a strong requirement
-> to  eliminate the current "allocate hugetlb pages at mmap() time",
-> single-threaded allocation.  (We have sold machines where it would
-> take thousands of seconds to complete that operation as it is
-> currently coded in the mainline.)
-
-That bit was largely directed at akpm, regarding an off-list discussion.
+Steve
 
 
-On Thu, Jan 06, 2005 at 05:21:22PM -0600, Ray Bryant wrote:
-> We need the allocate on fault hugetlbpage code.  We worked quite hard
-> to get that code to behave the same way wrt out of memory failures as the
-> existing code.  To say that we didn't worry about backwards
-> compatibility there (at least in that regard) is simply absurd.
-> But I care not where this code comes from.  If it works, meets our
-> scaling requirements, and can get accepted into the mainline, then
-> I am all for it.  And I will happily give credit where credit is
-> due.
-
-The backward compatibility concerns apply to a past patch, the
-expand-on-mmap() code, and the COW patches. Zero-fill-on-demand patches
-haven't posed particular problems there.
-
-
-On Thu, Jan 06, 2005 at 05:21:22PM -0600, Ray Bryant wrote:
-> However, at the pesent time it appears that if we want this code in the
-> mainline, we will have to bring it up to level and push it upstream,
-> and that is what Christoph is working on.
-> When that happens, the code is subject to review and we look forward
-> to working with you to resolve your concerns (1)-(6) wrt to those
-> patches.
-
-My hurt feelings about my own code won't have an impact on this.
-
-What has been holding up the show has been a serious bug there has not
-been a resolution on yet. I'm probably going to give up on that bug
-being fixed before other things are done and just do the heavy review
-and testing, particularly as I'm in a unique position to have access to
-all of the arches supporting hugetlb.
-
-
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
