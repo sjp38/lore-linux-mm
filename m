@@ -1,12 +1,11 @@
-From: "Frankie Coffey" <bsagar@didamail.com>
-Subject: Become one of the low 3.25% rates
-Date: Mon, 14 Feb 2005 15:23:38 -0400 (EDT)
-Message-ID: <200410031442.i93LfbTw009505__49153.9398943589$1109637085$gmane$org@www7.gmail.com>
+From: "Virgie Pollock" <schwendemann@doramail.com>
+Subject: Need a 3.25% mortage rate?
+Date: Mon, 14 Feb 2005 06:36:10 -0700
+Message-ID: <200410031406.i93IrdTw002500__456.888779490505$1109752421$gmane$org@www4.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain;
-Message-Id: <200410031442.i93LfbTw009505@www7.gmail.com>
 Sender: owner-linux-mm@kvack.org
-Cc: linux-mm-archive@kvack.org, mailer-daemon@kvack.org, mm@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.orgux-aio@kvack.orgux-mm@kvack.orgwner-linux-aio@kvack.orgwner-majordomo@kvack.org
+Cc: linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org
 List-Id: linux-mm.kvack.org
 
 Hello,
@@ -22,15 +21,15 @@ Hello,
  
  To get a free, no obli,gation consultation click below:
 
- http://www.bestlenderz4u.com/x/loan.php?id=nu
+ http://www.fastlenderz.com/x/loan.php?id=nu
 
 
 
  Best Regards,
 
- Jerrod Boykin
+ Ivory Armstrong
  
- to be remov(ed:	http://www.bestlenderz4u.com/x/st.html
+ to be remov(ed:	http://www.fastlenderz.com/x/st.html
 
  this process takes one week, so please be patient. we do our 
  best to take your email/s off but you have to fill out a rem/ove
