@@ -1,41 +1,49 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA02274
-	for <linux-mm@kvack.org>; Mon, 11 Jan 1999 18:42:20 -0500
-Subject: Re: Results: pre6 vs pre6+zlatko's_patch  vs pre5 vs arcavm13
-References: <Pine.LNX.3.96.990111234054.5378A-100000@laser.bogus>
-Reply-To: Zlatko.Calusic@CARNet.hr
+Received: from laugermill.ixlmemphis.net (root@[208.24.189.89])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA02612
+	for <linux-mm@kvack.org>; Mon, 11 Jan 1999 19:24:02 -0500
+Message-ID: <XFMail.990111182516.estafford@ixl.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 12 Jan 1999 00:38:22 +0100
-In-Reply-To: Andrea Arcangeli's message of "Tue, 12 Jan 1999 00:03:02 +0100 (CET)"
-Message-ID: <87ww2tv0r5.fsf@atlas.CARNet.hr>
+In-Reply-To: <Pine.LNX.3.95.990111141248.4886F-100000@penguin.transmeta.com>
+Date: Mon, 11 Jan 1999 18:25:16 -0600 (CST)
+From: estafford@ixl.com
+Subject: Re: testing/pre-7 and do_poll()
 Sender: owner-linux-mm@kvack.org
-To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: Steve Bergman <steve@netplus.net>, Linus Torvalds <torvalds@transmeta.com>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Chip Salzenberg <chip@perlsupport.com>, Shawn Leas <sleas@ixion.honeywell.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli <andrea@e-mind.com> writes:
 
-> I've seen pre7 now and I produced arca-vm-18 against it.
+On 11-Jan-99 Linus Torvalds wrote:
 > 
-> In arca-vm-18 I avoided the swaping readahead if we would be forced to do
-> _sync_ IO in the readahead. This make tons of sense to me. 
-
-Yes, I agree. I made a same change in my development patches, this
-morning, and it works well. We can only gain with policy like that.
-
-> Another thing that would be interesting could be to change
-> SWAPFILE_CLUSTER to 256 as in clean pre7. I think it's not needed because
-> I am not hearing disk seeks under heavy swapping but may I guess there is
-> some reason is 256 in pre7 ;)?
 > 
+> On Mon, 11 Jan 1999, Shawn Leas wrote:
+> 
+>> On Sun, 10 Jan 1999, Linus Torvalds wrote:
+>> 
+>> > things. So far, megahertz are still far in the future, but maybe I some
+>> > day will have to remove even that assumption. Unlikely to be a problem in
+>> > my lifetime, but hey, I can hope (whether due to a long life or really
+>> > fast CPU's, I don't care ;) 
+>> 
+>> Well, they've made a photonic chip, so we may be thinking about this
+>> sooner than you think... Think 200GHz processors.
+> 
+> Hey, I want to see the memory subsystems for it..
+> 
+>               Linus
 
-Better clustering of pages on the disk. That will improve swapin
-readahead hit rate, and overall performance.
+Got any links to such technology?  I've been working on it for a while, but
+making transistors from glass are not quite as easy as I would think.. Lemme
+know.
 
-Regards,
--- 
-Zlatko
+----------------------------------------
+Ed Stafford            Of. (901)348-3487
+iXL Hosting            Fx. (901)345-9992      
+Programming Engineer   estafford@ixl.com
+----------------------------------------
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
