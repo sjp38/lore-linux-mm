@@ -1,30 +1,37 @@
-Date: Tue, 22 Oct 2002 14:01:55 -0400
-From: Benjamin LaHaise <bcrl@redhat.com>
 Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
-Message-ID: <20021022140155.E20957@redhat.com>
-References: <2629464880.1035240956@[10.10.2.3]> <Pine.LNX.4.44L.0210221405260.1648-100000@duckman.distro.conectiva> <20021022131930.A20957@redhat.com> <396790000.1035308200@flay> <20021022134501.C20957@redhat.com> <3DB59134.38AA41F6@digeo.com>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+In-Reply-To: <20021022134501.C20957@redhat.com>
+References: <2629464880.1035240956@[10.10.2.3]>
+	<Pine.LNX.4.44L.0210221405260.1648-100000@duckman.distro.conectiva>
+	<20021022131930.A20957@redhat.com> <396790000.1035308200@flay>
+	<20021022134501.C20957@redhat.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 22 Oct 2002 19:22:14 +0100
+Message-Id: <1035310934.31917.124.camel@irongate.swansea.linux.org.uk>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3DB59134.38AA41F6@digeo.com>; from akpm@digeo.com on Tue, Oct 22, 2002 at 10:56:04AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Benjamin LaHaise <bcrl@redhat.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 22, 2002 at 10:56:04AM -0700, Andrew Morton wrote:
-> Have you reviewed the hugetlbfs and hugetlbpage-backed-shm patches?
+On Tue, 2002-10-22 at 18:45, Benjamin LaHaise wrote:
+> On Tue, Oct 22, 2002 at 10:36:40AM -0700, Martin J. Bligh wrote:
+> > Bear in mind that large pages are neither swap backed or file backed
+> > (vetoed by Linus), for starters. There are other large app problem scenarios 
+> > apart from Oracle ;-)
 > 
-> That code is still requiring CAP_IPC_LOCK, although I suspect it
-> would be better to allow hugetlbfs mmap to be purely administered
-> by file permissions.
+> I think the fact that large page support doesn't support mmap for users 
+> that need it is utterly appauling; there are numerous places where it is 
+> needed.  The requirement for root-only access makes it useless for most 
+> people, especially in HPC environments where it is most needed as such 
+> machines are usually shared and accounts are non-priveledged.
 
-Can we delete the specialty syscalls now?
+I was very suprised the large page crap went in, in the form it
+currently exists. Merging pages makes sense, spotting and doing 4Mb page
+allocations kernel side makes sense. The rest is very questionable
 
-		-ben
--- 
-"Do you seek knowledge in time travel?"
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
