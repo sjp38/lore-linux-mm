@@ -1,20 +1,30 @@
-Received: from snowcrash.cymru.net (snowcrash.cymru.net [163.164.160.3])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA12900
-	for <linux-mm@kvack.org>; Tue, 25 Nov 1997 14:47:27 -0500
-Message-Id: <m0xaQny-0005FCC@lightning.swansea.linux.org.uk>
-From: alan@lxorguk.ukuu.org.uk (Alan Cox)
-Subject: Re: Pageable pagetables.
-Date: Tue, 25 Nov 1997 19:37:54 +0000 (GMT)
-In-Reply-To: <Pine.LNX.3.95.971125181918.7764A-100000@pc7537.hil.siemens.at> from "Ingo Molnar" at Nov 25, 97 06:20:05 pm
-Content-Type: text
+Date: Tue, 25 Nov 1997 22:31:06 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: Re: page->pte_head, Was:[URGENT ASSISTANCE REQUESTED] production , machines dying
+In-Reply-To: <Pine.LNX.3.95.971125160146.13249B-100000@as200.spellcast.com>
+Message-ID: <Pine.LNX.3.91.971125222922.14082B-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Ingo Molnar <mingo@pc7537.hil.siemens.at>
-Cc: H.H.vanRiel@fys.ruu.nl, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: "Dr. Werner Fink" <werner@suse.de>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-> > I've had some mails about whether Linux could be made
-> > to swap pagetables.
-> also, COW-ing pagetables seems to be worthwhile as well?
+On Tue, 25 Nov 1997, Benjamin C.R. LaHaise wrote:
 
-If you do this you must turn it off on some B step pentiums. Yep its
-errata time again
+> > Let's ask him :-)  ... Ben? What's about your patch?
+> 
+> http://www.kvack.org/~blah/patches/v2_1_47_ben1.gz
+> 
+> I suppose it should perhaps be revived?
+
+I've read it, and it looks very good...
+I really feel like merging it with my patch, but I've
+also got some (loads of) work for school to do :(
+Maybe one of you could merge the patches?
+
+Rik.
+
+----------
+Send Linux memory-management wishes to me: I'm currently looking
+for something to hack...
