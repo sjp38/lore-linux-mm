@@ -1,260 +1,137 @@
-Subject: Re: [PATCH 2.5.41-mm3] Fix unmap for shared page tables
-From: Paul Larson <plars@linuxtestproject.org>
-In-Reply-To: <65780000.1034356238@baldur.austin.ibm.com>
-References: <65780000.1034356238@baldur.austin.ibm.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 11 Oct 2002 14:24:55 -0500
-Message-Id: <1034364296.9904.4.camel@plars>
-Mime-Version: 1.0
+Date: Fri, 11 Oct 2002 14:31:36 -0500
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: [PATCH 2.5.41-mm3] Proactively share page tables for shared memory
+Message-ID: <24970000.1034364696@baldur.austin.ibm.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="==========1829269384=========="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: Andrew Morton <akpm@digeo.com>, Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@digeo.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2002-10-11 at 12:10, Dave McCracken wrote:
-> 
-> I realized I got the unmap code wrong for shared page tables.  Here's a
-> patch that fixes the problem plus optimizes the exit case.  It should also
-> fix Paul Larson's BUG().
-I tried 2.5.41-mm3+this patch and got a LOT of errors during boot, and
-periodically while it was running (it did boot though).  Test machine
-was pIII-700, 16 GB and I didn't run LTP since I don't think I could see
-through all the other stuff if it did produce a BUG or an oops.  Here is
-a snip of some of it, along with random garbage it spit out over the
-serial console.  It looked like maybe crond was unhappy with something. 
-Ksymoops didn't seem happy trying to extract anything else from this.
-I tried 2.5.41-mm3 by itself and did not get this.
+--==========1829269384==========
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-Thanks,
-Paul Larson
 
-Unable to handle kernel paging request at virtual address 4212e3b0
- printing eip:
-4207ac55
-*pde = 5a5a5a5a
-Oops: 0007
+This is the other part to shared page tables.  It will actively attempt to
+find and share a pte page for newly mapped shared memory.
 
-CPU:    0
-EIP:    0023:[<4207ac55>]    Not tainted
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1149, threadinfo=f6ea2000 task=f63ca080)
- <6>note: crond[1149] exited with preempt_count 1
-Unable to handle kernel paging request at virtual address 4212e3b0
- printing eip:
-4207ac55
-*pde = 00000000
-Oops: 0007
+This patch is intended to be applied to 2.5.41-mm3 plus the bugfix patch I
+submitted this morning.
 
-CPU:    0
-EIP:    0023:[<4207ac55>]    Not tainted
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1150, threadinfo=f63ba000 task=f6c006a0)
- <6>note: crond[1150] exited with preempt_count 1
-Unable to handle kernel paging request at virtual address 4212e3b0
- printing eip:
-4207ac55
-*pde = 5a5a5a5a
-Oops: 0007
+Dave McCracken
 
-CPU:    0
-EIP:    0023:[<4207ac55>]    Not tainted
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1151, threadinfo=f63c2000 task=f7c92d20)
- <6>note: crond[1151] exited with preempt_count 1
-Unable to handle kernel paging request at virtual address 4212e3b0
- printing eip:
-4207ac55
-*pde = 5a5a5a5a
-Oops: 0007
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmccr@us.ibm.com                                        T/L   678-3059
 
-CPU:    0
-EIP:    0023:[<4207ac55>]    Not tainted
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1152, threadinfo=f638a000 task=f6b0b9a0)
- <6>note: crond[1152] exited with preempt_count 1
-Unab<<<1l1>>e1U>UUn tnnabaaolbbl ee thalo e tn dolt hhaneaon 
-ddkhllaeene rd nklkeeeerrl knn erepenl lae ppaalggg iinginpgna r eggre
-iqrueeqnsuqgt ueersest qattu< v4esi> t<r4ta><uta4  al >t va idatvr
-itdrvuesritrasutal  ula42a1dl 2 daderadde3brsdres0 se4s
-s122  ep4123rb12in02e
-bbng00 p             tei33
+--==========1829269384==========
+Content-Type: text/plain; charset=iso-8859-1; name="shmmap-2.5.41-mm3-1.diff"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: attachment; filename="shmmap-2.5.41-mm3-1.diff";
+ size=2640
 
-riin p :tpirpin
-nrgti4 i2nn0egit7 aipe:cinp
-g5 :54
-      2
-07p4*:2ap
-c5e      c057ad
-54  5
- *5pa0d*75eaa p5dc= ae55 55=aa
-                              5
-*55apOad5e5 aoa
-as             =p5
-a050a05a7
-         5a
+--- 2.5.41-mm3-shpte/./mm/memory.c	2002-10-11 10:59:14.000000000 -0500
++++ 2.5.41-mm3-shmmap/./mm/memory.c	2002-10-11 13:36:34.000000000 -0500
+@@ -365,6 +365,77 @@
+ out_map:
+ 	return pte_offset_map(pmd, address);
+ }
++
++static pte_t *pte_try_to_share(struct mm_struct *mm, struct vm_area_struct =
+*vma,
++			       pmd_t *pmd, unsigned long address)
++{
++	struct address_space *as;
++	struct vm_area_struct *lvma;
++	struct page *ptepage;
++	unsigned long base;
++
++	/*
++	 * It already has a pte page.  No point in checking further.
++	 * We can go ahead and return it now, since we know it's there.
++	 */
++	if (pmd_present(*pmd)) {
++		ptepage =3D pmd_page(*pmd);
++		pte_page_lock(ptepage);
++		return pte_page_map(ptepage, address);
++	}
++
++	/* It's not even shared memory. We definitely can't share the page. */
++	if (!(vma->vm_flags & VM_SHARED))
++		return NULL;
++
++	/* We can only share if the entire pte page fits inside the vma */
++	base =3D address & ~((PTRS_PER_PTE * PAGE_SIZE) - 1);
++	if ((base < vma->vm_start) || (vma->vm_end < (base + PMD_SIZE)))
++		return NULL;
++
++	as =3D vma->vm_file->f_dentry->d_inode->i_mapping;
++
++	list_for_each_entry(lvma, &as->i_mmap_shared, shared) {
++		pgd_t *lpgd;
++		pmd_t *lpmd;
++		pmd_t pmdval;
++
++		/* Skip the one we're working on */
++		if (lvma =3D=3D vma)
++			continue;
++
++		/* It has to be mapping to the same address */
++		if ((lvma->vm_start !=3D vma->vm_start) ||
++		    (lvma->vm_end !=3D vma->vm_end) ||
++		    (lvma->vm_pgoff !=3D vma->vm_pgoff))
++			continue;
++
++		lpgd =3D pgd_offset(vma->vm_mm, address);
++		lpmd =3D pmd_offset(lpgd, address);
++
++		/* This page table doesn't have a pte page either, so skip it. */
++		if (!pmd_present(*lpmd))
++			continue;
++
++		/* Ok, we can share it. */
++
++		ptepage =3D pmd_page(*lpmd);
++		pte_page_lock(ptepage);
++		get_page(ptepage);
++		/*
++		 * If this vma is only mapping it read-only, set the
++		 * pmd entry read-only to protect it from writes.
++		 * Otherwise set it writeable.
++		 */
++		if (vma->vm_flags & VM_MAYWRITE)
++			pmdval =3D pmd_mkwrite(*lpmd);
++		else
++			pmdval =3D pmd_wrprotect(*lpmd);
++		set_pmd(pmd, pmdval);
++		return pte_page_map(ptepage, address);
++	}
++	return NULL;
++}
+ #endif
+=20
+ pte_t * pte_alloc_map(struct mm_struct *mm, pmd_t *pmd, unsigned long =
+address)
+@@ -1966,8 +2037,11 @@
+ 			pte_page_lock(pmd_page(*pmd));
+ 			pte =3D pte_unshare(mm, pmd, address);
+ 		} else {
+-			pte =3D pte_alloc_map(mm, pmd, address);
+-			pte_page_lock(pmd_page(*pmd));
++			pte =3D pte_try_to_share(mm, vma, pmd, address);
++			if (!pte) {
++				pte =3D pte_alloc_map(mm, pmd, address);
++				pte_page_lock(pmd_page(*pmd));
++			}
+ 		}
+ #else
+ 		pte =3D pte_alloc_map(mm, pmd, address);
 
-CPU:    0
-EIP:    0023:[<4207ac55>]    Not tainted
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1153, threadinfo=f637a000 task=f63ca080)
- O<o6ps>:no 0t0e:0 7
-on d                cr
-[11CP5U3:]  e x  i1t
- wEiIPth:  p r  e0em0p2t3:_c[<o4un2t0 71ac
-5>]    Not tainted                        5
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1156, threadinfo=f6374000 task=f6c006a0)
- O<op6>sn: o0t0e0:7
-ro n                c
-[1C1P56U]:  e  xi 2te
- wEiItPh:   pr e 0e0m2p3t_:c[<ou4n2t07 1a
-55>]    Not tainted                      c
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1155, threadinfo=f6376000 task=f6bed340)
- O<op6s:> n0ot00e:7
-r on                c
-d[C1P15U5: ]   ex i4
-d EIwPit:h   p  r0e0em2p3:t[_c<o4u2n07t ac15
->]    Not tainted                           5
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1154, threadinfo=f6378000 task=f6bec6c0)
- <6>note: crond[1154] exited with preempt_count 1
-Unable to handle kernel paging request at virtual address 4212e3b0
- printing eip:
-4207ac55
-*pde = 5a5a5a5a
-Oops: 0007
-
-CPU:    0
-EIP:    0023:[<4207ac55>]    Not tainted
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1212, threadinfo=f62f8000 task=f6c006a0)
- <6>note: crond[1212] exited with preempt_count 1
-Unable to handle kernel paging request at virtual address 4212e3b0
- printing eip:
-4207ac55
-*pde = 00360833
-Oops: 0007
-
-CPU:    0
-EIP:    0023:[<4207ac55>]    Not tainted
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1273, threadinfo=f6252000 task=cc175340)
- <6>note: crond[1273] exited with preempt_count 1
-Unable to handle kernel paging request at virtual address 4212e3b0
- printing eip:
-4207ac55
-*pde = 00000000
-Oops: 0007
-
-CPU:    0
-EIP:    0023:[<4207ac55>]    Not tainted
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1275, threadinfo=f6214000 task=f63cb340)
- <6>note: crond[1275] exited with preempt_count 1
-bad: scheduling while atomic!
-Call Trace:
- [<c011614f>] do_schedule+0x2f/0x380
- [<c012f024>] sys_munmap+0x44/0x70
- [<c01071fa>] work_resched+0x5/0x16
-
-Unable to handle kernel paging request at virtual address 4212e3b0
- printing eip:
-4207ac55
-*pde = 5a5a5a5a
-Oops: 0007
-
-CPU:    0
-EIP:    0023:[<4207ac55>]    Not tainted
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1280, threadinfo=f61c2000 task=cc175980)
- <6>note: crond[1280] exited with preempt_count 1
-Una<<b1>leU1 >nUatnbaol hbalee  nttdloo eh ak ehnrdannleedll ek e
-krneprnaeegli lp apnaggg iirnneg qrgu eqreseuteqsuet a<stt v4i> r<att4u
->val i arattd udvalirr etassd u4d2ar1l2 esae3ddsb0r
-ss2  p412r2in12teei3nb3g b0   e4
-e                          0
- p:p r
-irinnt4it2nig ne0g 7aeiipc5:p5
-                              :
-
-4*<2p407>ad42e0 =7a cc5055050
-                             0
-000*0p<d1
->* =Op o5pdase5 =:a  5a00500a00
-0700
-00
-
-CPU:    0
-EIP:    0023:[<4207ac55>]    Not tainted
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1284, threadinfo=f6c7a000 task=f6b0b9a0)
- O<o6ps>n:o 0te00: 7
-ron d               c
-[12C8PU4]:   e xi t5
-d EwiItPh:   pr e 0e0mp23t_:[co<4un2t07 1a
-55>]    Not tainted                       c
-EFLAGS: 00010246
-EIP is at E Using_Versions+0x4207ac54/0xc011a67f
-eax: 00000001   ebx: 4213030c   ecx: 00000000   edx: 00000000
-esi: 0804e020   edi: 4212dfa0   ebp: bffffba8   esp: bffffb90
-ds: 002b   es: 002b   ss: 002b
-Process crond (pid: 1285, threadinfo=f6182000 task=f6caa040)
- O<o6p>s:n ot0e0:0 7c
+--==========1829269384==========--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
