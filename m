@@ -1,52 +1,101 @@
-From: "ZCane, Ed (Test Purposes)" <zed.cane@roke.co.uk>
-Message-ID: <00c701c32f70$4b13b050$d8c176c1@roke.co.uk>
-References: <20030610004512.6358fdfb.akpm@digeo.com>
-Subject: Problem with bootmem/mmap
-Date: Tue, 10 Jun 2003 17:49:43 +0100
+Message-Id: <5.2.0.9.2.20030610193426.00cd9528@pop.gmx.net>
+Date: Tue, 10 Jun 2003 20:53:51 +0200
+From: Mike Galbraith <efault@gmx.de>
+Subject: Re: 2.5.70-mm6
+In-Reply-To: <20030610114123.GP15692@holomorphy.com>
+References: <5.2.0.9.2.20030610125606.00cd04a0@pop.gmx.net>
+ <Pine.LNX.4.51.0306101052160.14891@dns.toxicfilms.tv>
+ <46580000.1055180345@flay>
+ <Pine.LNX.4.51.0306092017390.25458@dns.toxicfilms.tv>
+ <51250000.1055184690@flay>
+ <Pine.LNX.4.51.0306092140450.32624@dns.toxicfilms.tv>
+ <20030609200411.GA26348@holomorphy.com>
+ <Pine.LNX.4.51.0306101052160.14891@dns.toxicfilms.tv>
+ <5.2.0.9.2.20030610125606.00cd04a0@pop.gmx.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Maciej Soltysiak <solt@dns.toxicfilms.tv>, "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dear all,
+At 04:41 AM 6/10/2003 -0700, William Lee Irwin III wrote:
+>At 02:20 AM 6/10/2003 -0700, William Lee Irwin III wrote:
+> >> Mike, any chance you can turn your series of patches into one that
+> >> applies atop mingo's intra-timeslice priority preemption patch? If
+> >> not, I suppose someone else could.
+>
+>On Tue, Jun 10, 2003 at 01:31:32PM +0200, Mike Galbraith wrote:
+> > I've never seen it.  Is this the test-starve fix I heard mentioned on lkml
+> > once?
+>
+>No idea what the posted name was. What it does is obvious enough. It
+>was posted earlier in this thread.
+>
+>
+>At 02:20 AM 6/10/2003 -0700, William Lee Irwin III wrote:
+> >> There also appears to be some kind of issue with using monotonic_clock()
+> >> with timer_pit as well as some locking overhead concerns. Something
+> >> should probably be done about those things before trying to merge the
+> >> fine-grained time accounting patch.
+>
+>On Tue, Jun 10, 2003 at 01:31:32PM +0200, Mike Galbraith wrote:
+> > Ingo had me measure impact with lat_ctx, and it wasn't very encouraging
+> > (and my box is UP).  I'm not sure that I wasn't seeing some cache effects
+> > though, because the numbers jumped around quite a bit.  Per Ingo, the
+> > sequence lock change will greatly improve scalability.  Doing anything
+> > extra in that path is going to cost some pain though, so I'm trying to
+>
+>Okay, so mitigating the hit to context switch is ongoing.
 
-I'm allocating a large buffer at boot time (for later DMA purposes) using:
+If it's used, seems some work will be required to measure the true (and 
+practical) impact.
 
-buf=alloc_bootmem_low_pages(1024*1024*500);
+>On Tue, Jun 10, 2003 at 01:31:32PM +0200, Mike Galbraith wrote:
+> > figure out a way to do something ~similar.  (ala perfect is the enemy of
+> > good mantra).
+>
+>\vomit{Next you'll be telling me worse is better.}
 
-If I printk here, from init/main.c, I get:
-buf=0xc1e14000
-__va(buf)=0x81e14000
-__pa(buf)=0x1e14000
+That's an unearned criticism.
 
-Now, in user-space, I'm trying to get access to my buffer (as root), by
-doing the following:
+Timeslice management is currently an approximation.  IFF the approximation 
+is good enough, it will/must out perform pedantic bean-counting.  Current 
+timeslice management apparently isn't quite good enough, so I'm trying to 
+find a way to increase it's informational content without the (in general 
+case useless) overhead of attempted perfection.  I'm failing miserably btw ;-)
 
-memfd=open("/dev/mem", O_RDWR);
-my_buf=mmap(0, 1024*1024*501, PROT_READ|PROT_WRITE,
-                        MAP_SHARED|MAP_FIXED, memfd, OFFSET);
+>On Tue, Jun 10, 2003 at 01:31:32PM +0200, Mike Galbraith wrote:
+> > wrt pit, yeah, that diff won't work if you don't have a tsc.  If something
+> > like it were used, it'd have to have ifdefs to continue using
+> > jiffies.  (the other option being only presentable on April 1:)
+>
+>The issue is the driver returning garbage; not having as good of
+>precision from hardware is no fault of the method. I'd say timer_pit
+>should just return jiffies converted to nanoseconds.
 
-I've tried all those addresses above, as the OFFSET, but it either generates
-an illegal instruction,
-or a segfault. Bit of a beginner, but learning fast, and I'd be _really_
-greatful, if anyone could help me!
+That's the option that I figured was April 1 material, because of the 
+missing precision.  If it could be made (somehow that I don't understand) 
+to produce a reasonable approximation of a high resolution clock, sure.
 
-Many thanks,
-Ed
+>Also, I posted the "thud" fix earlier in this thread in addition to the
+>monotonic_clock() bits. AFAICT it mitigates (or perhaps even fixes) an
+>infinite priority escalation scenario.
 
+(yes, mitigates... maybe cures with round down, not really sure)
 
+Couple that change with reintroduction of backboost to offset some of it's 
+other effects and a serious reduction of CHILD_PENALTY and you'll have a 
+very snappy desktop.  However, there is another side of the 
+equation.  Large instantaneous variance in sleep_avg/prio also enables the 
+scheduler to react quickly such that tasks which were delayed for whatever 
+reason rapidly get a chance collect their ticks and catch up.  It can and 
+does cause perceived unfairness... which is in reality quite fair.  It's 
+horrible for short period concurrency, but great for long period 
+throughput.  AFAIKT, it's a hard problem.
 
-begin 666 RMRL-Disclaimer.txt
-M4F5G:7-T97)E9"!/9F9I8V4Z(%)O:V4@36%N;W(@4F5S96%R8V@@3'1D+"!3
-M:65M96YS($AO=7-E+"!/;&1B=7)Y+"!"<F%C:VYE;&PL( T*0F5R:W-H:7)E
-M+B!21S$R(#A&6@T*#0I4:&4@:6YF;W)M871I;VX@8V]N=&%I;F5D(&EN('1H
-M:7,@92UM86EL(&%N9"!A;GD@871T86-H;65N=',@:7,@8V]N9FED96YT:6%L
-M('1O(%)O:V4@#0T-"DUA;F]R(%)E<V5A<F-H($QT9"!A;F0@;75S="!N;W0@
-M8F4@<&%S<V5D('1O(&%N>2!T:&ER9"!P87)T>2!W:71H;W5T('!E<FUI<W-I
-M;VXN(%1H:7,@#0T-"F-O;6UU;FEC871I;VX@:7,@9F]R(&EN9F]R;6%T:6]N
-M(&]N;'D@86YD('-H86QL(&YO="!C<F5A=&4@;W(@8VAA;F=E(&%N>2!C;VYT
-;<F%C='5A;" -#0T*<F5L871I;VYS:&EP+@T*
-end
+         -Mike 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
