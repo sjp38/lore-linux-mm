@@ -1,42 +1,37 @@
+Date: Tue, 9 Oct 2001 19:04:49 -0700
 Subject: Re: [CFT][PATCH *] faster cache reclaim
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <Pine.LNX.4.33L.0110082032070.26495-100000@duckman.distro.conectiva>
-References: <Pine.LNX.4.33L.0110082032070.26495-100000@duckman.distro.conectiva>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 09 Oct 2001 19:29:13 -0400
-Message-Id: <1002670160.862.15.camel@phantasy>
+Message-ID: <20011009190449.A25261@gnuppy>
+References: <Pine.LNX.4.33L.0110082032070.26495-100000@duckman.distro.conectiva> <1002670160.862.15.camel@phantasy>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1002670160.862.15.camel@phantasy>
+From: Bill Huey <billh@gnuppy.monkey.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-mm@kvack.org, kernelnewbies@nl.linux.org, linux-kernel@vger.kernel.org
+To: Robert Love <rml@tech9.net>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, kernelnewbies@nl.linux.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2001-10-08 at 19:38, Rik van Riel wrote:
+On Tue, Oct 09, 2001 at 07:29:13PM -0400, Robert Love wrote:
+> For example, starting a `dbench 16' would sometimes cause a brief stall
+> (especially if it is the second run of dbench).  It's better now, but
+> still not perfect.  The VM holds a lot of locks for a long time.
+> 
+> Good work.  I hope Alan sees it soon.
 
-> This patch is meant to fix the problems where heavy cache
-> activity flushes out pages from the working set, while still
-> allowing the cache to put some pressure on the working set.
+Yeah, but overall the performance of his recent patch is pretty amazing.
 
-Running 2.4.10-ac10 + preempt-kernel + eatcache
+It's really good that Linux is finally getting a VM that behaves well and
+can keep the working set in memory without heavy IO activity flushing out
+critical process pages. The performance of Riel's VM system should hold for
+server activity too. And adding something like thrash control to help make
+sure aging still works (without statistical scattering) under heavy load
+should allow Riel's VM to progress under loads that would freeze previous VMs.
 
-System with 3 runnable processes and 2 with large working sets.  384MB
-RAM, 768MB swap.  During heavy I/O the resulting cache activity did
-"stall" the system as badly as without the patch.
+;-)
 
-I typically notice high system response time at the start of a heavy I/O
-operation when the used memory is primarily taken by cache (ie after a
-previous heavy I/O operation).  This was an issue for me because I don't
-expect that sort of high latency with the preemption patch.
-
-For example, starting a `dbench 16' would sometimes cause a brief stall
-(especially if it is the second run of dbench).  It's better now, but
-still not perfect.  The VM holds a lot of locks for a long time.
-
-Good work.  I hope Alan sees it soon.
-
-	Robert Love
+bill
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
