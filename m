@@ -2,49 +2,43 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14357.39150.714844.910876@dukat.scot.redhat.com>
-Date: Tue, 26 Oct 1999 13:05:02 +0100 (BST)
+Message-ID: <14357.39284.733660.301925@dukat.scot.redhat.com>
+Date: Tue, 26 Oct 1999 13:07:16 +0100 (BST)
 Subject: Re: Why don't we make mmap MAP_SHARED with /dev/zero possible?
-In-Reply-To: <qwwg0yymv5a.fsf@sap.com>
+In-Reply-To: <199910260158.JAA00043@chpc.ict.ac.cn>
 References: <199910260158.JAA00043@chpc.ict.ac.cn>
-	<qwwg0yymv5a.fsf@sap.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Rohland <hans-christoph.rohland@sap.com>
-Cc: fxzhang@chpc.ict.ac.cn, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: fxzhang@chpc.ict.ac.cn
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On 26 Oct 1999 09:35:45 +0200, Christoph Rohland
-<hans-christoph.rohland@sap.com> said:
+On Tue, 26 Oct 1999 9:57:48 +0800, fxzhang <fxzhang@chpc.ict.ac.cn>
+said:
 
-> Yes I would like to see it also, but at least in 2.0 days it was
-> really difficult/impossible.
+> static int mmap_zero(struct file * file, struct vm_area_struct * vma)
+> {
+>         if (vma->vm_flags & VM_SHARED)
+>                 return -EINVAL;
 
-In 2.2 it is much easier --- I did most of the required work when
-making swap cache sharing persistant.  Then the 2.2 codefreeze hit...
+> I don't understand why people don't implement it.Yes,in the source,I
+> find something like "the shared case is complex",Could someone tell
+> me what's the difficulty?As it is a driver,I think it should not be
+> too much to concern.
 
-The first remaining problem is initialisation of demand-zero pages for
-shared vmas.  You have to be able to ensure that when one process
-faults in a shared page for the first time, all other processes pick
-up the correct new page.
+It is not a driver issue --- it is core to the VM.  The VM cannot
+handle shared writable anonymous pages.  We're not talking about mmap
+pages in this special case: we are talking about normal anonymous data
+pages. 
 
-There are several ways you could do this.  The SysV-shm mechanism
-would work, but it would be harder to garbage-collect all of the
-resources used by a page which is no longer shared.  Normal
-demand-zero page instantiation would work provided that it was
-performed atomically over all the vmas concerned, which would require
-careful locking on 2.3 for SMP.
+>    Is there any good way to share memory between process at page
+> granularity?That is,I can share individual pages between them?
+> Threads maybe a subtitue,but there are many things that I don't want
+> to share.
 
-The only fly in the ointment is that 2.3's new bigmem code doesn't
-observe the swap cache rules so carefully, and shared pages can become
-separated.  We'd have to make the swap cache capable of working
-properly on high memory pages.  
-
-The other thing still needing done is to make the swap cache work
-properly for writable pages --- there are still various places in the
-VM where we assume mapped swap cache pages are readonly. 
+SysV shared memory.  "man shmget; man shmop; man shmctl"
 
 --Stephen
 --
