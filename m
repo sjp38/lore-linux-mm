@@ -1,43 +1,50 @@
-Date: Wed, 3 May 2000 09:19:50 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <200005031624.JAA53529@google.engr.sgi.com>
 Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
-In-Reply-To: <200005031611.JAA73707@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.10.10005030914510.5951-100000@penguin.transmeta.com>
+Date: Wed, 3 May 2000 09:24:22 -0700 (PDT)
+In-Reply-To: <Pine.LNX.4.10.10005030911200.5951-100000@penguin.transmeta.com> from "Linus Torvalds" at May 03, 2000 09:14:28 AM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+To: Linus Torvalds <torvalds@transmeta.com>
 Cc: Rajagopal Ananthanarayanan <ananth@sgi.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 3 May 2000, Kanoj Sarcar wrote:
 > 
-> Note that try_to_swap_out holds the vmlist/page_table_lock on the
-> victim process, as well as lock_kernel, and though this is not the
-> easiest code to analyze, it seems to me that is enough protection 
-> on the swapcache pages.
+> 
+> On Wed, 3 May 2000, Kanoj Sarcar wrote:
+> > > So "is_page_shared()" can be entirely crap. And can tell shrink_mmap()
+> > 
+> > Not really ... look at other places that call is_page_shared, they all
+> > hold the pagelock. shrink_mmap does not bother with is_page_shared logic.
+> 
+> That wasn't my argument.
+> 
+> My argument is that yes, the _callers_ of is_page_shared() all hold the
+> page lock. No question about that. But the things that is_page_shared()
+> actually tests can be modified without holding the page lock, so the page
+> lock doesn't actually _protect_ it. See?
+>
 
-The swapcache code gets none of those locks as far as I can tell.
+Give me an example where the page_lock is not actually protecting the
+"sharedness" of the page. Note that though the page_count and swap_count
+are not themselves protected by page_lock, the "sharedness" could never 
+change while you have the page_lock. "Sharedness" being whatever
+is_page_shared() returns. Unless you can give me an example ....
 
-The swapcache code gets the page lock, and the "page cache" lock. But it
-doesn't get the vmlist lock (the swap cache is not associated withany
-particular mm), nor does it get the kernel lock (I think - I didn't look
-through the code-paths).
+Wait a second. I was familiar with is_page_shared() having 
 
->		 Also note, I am not saying it is not a good
-> idea to lock the page in try_to_swap_out, but lets not rush into
-> that without understanding the root cause ...
+        if (PageSwapCache(page))
+                count += swap_count(page) - 2;
 
-Certainly agreed. The interactions in this area are rather complex. But in
-the end (whether this is a real bug or not) I suspect that I'd just prefer
-to have the simple "you must lock the page before mucking with the page
-flags" rule - even if some other magic lock happens to make all of the
-current code ok. Just for clarity. 
+and now I see it is
 
-		Linus
+        if (PageSwapCache(page))
+                count += swap_count(page) - 2 - !!page->buffers;
 
+Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
