@@ -1,66 +1,60 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Hubertus Franke <frankeh@watson.ibm.com>
-Reply-To: frankeh@watson.ibm.com
-Subject: Re: [Lse-tech] Re: Examining the Performance and Cost of =?iso-8859-1?q?Revesema	ps=20on=202=2E5=2E26=20Under=20=20Heavy?=
-  DBWorkload
-Date: Tue, 17 Sep 2002 18:49:54 -0400
-References: <39B5C4829263D411AA93009027AE9EBB13299719@fmsmsx35.fm.intel.com> <129560000.1032298951@flay> <20020917214753.GA2179@holomorphy.com>
-In-Reply-To: <20020917214753.GA2179@holomorphy.com>
+Date: Tue, 17 Sep 2002 22:22:15 -0300 (BRT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: VolanoMark Benchmark results for 2.5.26, 2.5.26 + rmap, 2.5.35,
+ and  2.5.35 + mm1
+In-Reply-To: <3D87AD85.74C1CC2D@digeo.com>
+Message-ID: <Pine.LNX.4.44L.0209172219200.1857-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200209171849.54450.frankeh@watson.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: "Luck, Tony" <tony.luck@intel.com>, Andrew Morton <akpm@digeo.com>, Peter Wong <wpeter@us.ibm.com>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net, riel@nl.linux.org, dmccr@us.ibm.com, gh@us.ibm.com, Bill Hartner <bhartner@us.ibm.com>, Troy C Wilson <wilsont@us.ibm.com>
+To: Andrew Morton <akpm@digeo.com>
+Cc: Bill Hartner <hartner@austin.ibm.com>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 17 September 2002 05:47 pm, William Lee Irwin III wrote:
-> At some point in the past, Tony Luck wrote:
-> >> Can't you use LD_PRELOAD tricks to sneak a different version
-> >> shmget/shmat to your DB2 binary so that you can intercept the important
-> >> calls and divert them to use huge tlb pages?
+On Tue, 17 Sep 2002, Andrew Morton wrote:
+> Bill Hartner wrote:
+> >
+> > I ran VolanoMark 2.1.2 under memory pressure to test rmap.
+> >                              ---------------
 >
-> On Tue, Sep 17, 2002 at 02:42:31PM -0700, Martin J. Bligh wrote:
-> > If we had a shmget/shmat call that supported large pages, that would
-> > probably make it easier ? ;-) That's the whole issue - large pages aren't
-> > supported with standard syscalls, so every app is required to rewrite
-> > their memory handling, which isn't going to happen.
-> > M.
+> Interesting test.  We really haven't begun to think about these
+> sorts of loads yet, alas.  Still futzing with lists, locks,
+> IO scheduling, zone balancing, node balancing, etc.
+
+Ummm ?  Performance under memory pressure was the whole reason I
+started the rmap vm in the first place ;)
+
+It's kind of strange to see all the balancing work being thrown
+out the window now because it's "not interesting"...
+
+> > 2.5.26 vs 2.5.26 + rmap patch
+> > -----------------------------
+> > It appears as though the page stealing decisions made when using the
+> > 2.5.26 rmap patch may not be as good as the baseline for this workload.
+> > There was more swap activity and idle time.
 >
-> The pressure on this never lets up. It's being done, though I can't say
-> I'm entirely happy with how quickly/slowly I'm getting it done myself.
->
->
-> Bill
+> Do you have similar results for 2.4 and 2.4-rmap?
 
-Yes, its feasible to do the LD_PRELOAD. But Martin is right.
-If the large page is the proper concept, than it should be supported
-in the base kernel concept, not through some wirdo off the beaten 
-path stuff. Non-trivial but possible.
+If Bill is going to test this, I'd appreciate it if he could use
+rmap14a (or newer, if I've released it by the time he gets around
+to testing).
 
-I have been talking with Bill.
+Btw, I'm about to backport the pte_chains from slabcache patch and
+somebody from #kernelnewbies is looking at dmc's direct pte pointer
+patch. I might integrate more 2.5 stuff in 2.4-rmap if people want
+it.
 
-One should conceptually distinguish (as we already did in the discussions 7 
-weeks ago) that there are two benefits to large pages
-(a) TLB miss reduction
-(b) larger possible I/O  (page clustering)
+regards,
 
-The concept can be merged, but for x86 we got   4K vs. 4M which doesn't really
-warrant the I/O question.
-If more diverse TLB sizes are supported as on other architectures that it 
-makes sense to support through the base kernel multiple page sizes, and
-if one of the page sizes supported overlaps with a TLB entry size we also
-get the benefit for (a).
-
-In case that the TLB size is insanely large like for IA64 (2GB ?) then one
-can fallback to the Intel-HugeTLB patch solution, but for the general
-consumption that doesn't make sense.
-
-
+Rik
 -- 
--- Hubertus Franke  (frankeh@watson.ibm.com)
+Bravely reimplemented by the knights who say "NIH".
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Spamtraps of the month:  september@surriel.com trac@trac.org
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
