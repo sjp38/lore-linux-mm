@@ -1,40 +1,32 @@
-Date: Wed, 5 Sep 2001 22:08:58 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH] /proc/meminfo (fwd)
-Message-ID: <20010905220858.A11329@athlon.random>
-References: <20010905214552.B32584@athlon.random> <Pine.LNX.4.33.0109051559270.16684-100000@toomuch.toronto.redhat.com>
-Mime-Version: 1.0
+Subject: Re: kernel hangs in 118th call to vmalloc
+References: <3B8FDA36.5010206@interactivesi.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 08 Sep 2001 12:30:41 -0600
+In-Reply-To: <3B8FDA36.5010206@interactivesi.com>
+Message-ID: <m1ae05h6we.fsf@frodo.biederman.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.33.0109051559270.16684-100000@toomuch.toronto.redhat.com>; from bcrl@redhat.com on Wed, Sep 05, 2001 at 04:00:28PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ben LaHaise <bcrl@redhat.com>
-Cc: linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, Arjan van de Ven <arjanv@redhat.com>
+To: Timur Tabi <ttabi@interactivesi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Sep 05, 2001 at 04:00:28PM -0400, Ben LaHaise wrote:
-> On Wed, 5 Sep 2001, Andrea Arcangeli wrote:
+Timur Tabi <ttabi@interactivesi.com> writes:
+
+> I'm writing a driver for the 2.4.2 kernel.  I need to use this kernel because
+> this driver needs to be compatible with a stock Red Hat system. Patches to the
+> kernel are not an option.
 > 
-> > I fixed such bug ages ago:
-> >
-> > 	ftp://ftp.us.kernel.org/pub/linux/kernel/people/andrea/kernels/v2.4/2.4.10pre4aa1/00_meminfo-wraparound-2
+> The purpose of the driver is to locate a device that exists on a specific memory
 > 
-> Is it scheduled for merging?  Arjan mentioned that it may have broken some
+> chip.  To help find it, I've written this routine:
 
-I don't remeber if I've sent it to Linus or not yet but yes.
+What is wrong with using SPD to detect interesting properties of
+memory chips?  That should be safer and usually easier then what you
+are trying now. 
 
-> apps (like top) and have been pulled earlier.  My vote is for letting them
-
-never got a bugreport about it so I guess top should be ok but if top
-breaks it is the one that has to be fixed so...
-
-> break and get fixed on highmem machines, but other people might have
-> different opinions.
-
-I certainly agree with you.
-
-Andrea
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
