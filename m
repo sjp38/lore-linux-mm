@@ -1,70 +1,78 @@
-Date: Thu, 16 Nov 2000 22:33:12 +0100 (MET)
-From: Szabolcs Szakacsits <szaka@f-secure.com>
-Subject: RE: KPATCH] Reserve VM for root (was: Re: Looking for better VM)
-In-Reply-To: <Pine.LNX.4.21.0011161313310.13085-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.30.0011162154130.20626-100000@fs129-190.f-secure.com>
+Date: Thu, 16 Nov 2000 18:03:06 -0500 (EST)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: BOUNCE linux-mm: Admin request (fwd)
+Message-ID: <Pine.LNX.3.96.1001116180302.25130A-100000@kanga.kvack.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: pavel-velo@bug.ucw.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 16 Nov 2000, Rik van Riel wrote:
-> On Thu, 16 Nov 2000, Szabolcs Szakacsits wrote:
-> 	[snip exploit that really shouldn't take Linux down]
 
-I don't really consider it as an exploit. It's a kind of workload
-that's optimized for fast testing simulating many busy user daemons
-(e.g. dynamically generating web pages). Everybody knows Slashdot
-effect. A system was designed for a workload according to a budget and
-other factors. But immediately the load gets *much* higher as it was
-ever expected, the system starts to trash and nobody can login or
-start new processes. You can pull off the cable but if it's a remote
-box then you are really in a bad situation. Or if a local [e.g.
-computing] batch job run away you also must hit the reset button.
-Happens too many times that it should be really taken seriously now,
-who don't believe should just search for typical OOM crash patterns of
-user reports on different mailling lists/newsgroups.
+---------- Forwarded message ----------
+Date: Thu, 16 Nov 2000 15:55:16 -0500
+From: owner-linux-mm@kvack.org
+To: owner-linux-mm@kvack.org
+Subject: BOUNCE linux-mm: Admin request
 
-> > This or something similar didn't kill the box [I've tried all local
-> > DoS from Packetstorm that I could find]. Please send a working
-> > example. Of course probably it's possible to trigger root owned
-> > processes to eat memory eagerly by user apps but that's a problem in
-> > the process design running as root and not a kernel issue.
-> Not necessarily, but your patch will probably make a difference
-> for quite a number of people...
+>From ttabi@interactivesi.com Thu Nov 16 15:55:16 2000
+Received: from jump-isi.interactivesi.com ([207.8.4.2]:1523 "HELO
+        dinero.interactivesi.com") by kanga.kvack.org with SMTP
+	id <S131172AbQKPUzI>; Thu, 16 Nov 2000 15:55:08 -0500
+Received: (qmail 12288 invoked from network); 16 Nov 2000 20:56:20 -0000
+Received: from one.interactivesi.com (ttabi@10.2.247.106)
+  by dinero.interactivesi.com with SMTP; 16 Nov 2000 20:56:20 -0000
+Date:   Thu, 16 Nov 2000 14:56:18 -0600
+From:   Timur Tabi <ttabi@interactivesi.com>
+To:     Linux MM mailing list <linux-mm@kvack.org>,
+        Linux Kernel Mailing list <linux-kernel@vger.kernel.org>
+Subject: help parsing free_area_struct in 2.2
+X-Mailer: The Polarbar Mailer (pbm 1.17b)
+Message-Id: <20001116205513Z131172-224+10@kanga.kvack.org>
+Return-Path: <ttabi@interactivesi.com>
+X-Orcpt: rfc822;linux-mm@kvack.org
 
-Could you please explain what you mean? ;) I saw only ONE difference.
-The system remains usable for root but not anybody else. Everything
-else is the same as before. Of course I think there are still problems
-with the patch but to be honest I don't know what they are ... except
-those I wrote before -- e.g. the latest, not yet released version
-definitely doesn't work with your OOM killer [system just trashes].
-Can you explain why you put process killing in do_try_to_free_pages()
-instead of the original place, do_page_fault()? I guess putting it in
-do_page_fault() [if possible] would fix my current problem.
+I've written a driver which parses the free_area_t structure in 2.4 to
+manipulate the list of free physical memory blocks.  I do this because my
+driver needs to allocate a block of memory of a particular size at a particular
+physical address.  This code works pretty well in 2.4.
 
-> > If you think fork() kills the box then ulimit the maximum number
-> > of user processes (ulimit -u). This is a different issue and a
-> > bad design in the scheduler (see e.g. Tru64 for a better one).
-> My fair scheduler catches this one just fine. It hasn't
-> been integrated in the kernel yet, but both VA Linux and
-> Conectiva use it in their kernel RPM.
+I'm now trying to port this code to 2.2.  For 2.2, I needed to patch the kernel
+to export various objects like the free_area array and the add_mem_queue()
+function.  I expected the free memory manager in 2.2 to be just a simplified
+version of 2.4, but something's wrong.
 
-I know about two fair schedulers for Linux, one of them is yours but
-I couldn't try them out yet. Anyway definitely a must ;)
+When I parse the linked list of free memory blocks in 2.4, I get large lists of
+free areas, such as 10-15 blocks of order 6, and another dozen blocks of order
+7, and so on.  However, when I parse the same structures in 2.2, I rarely get
+more than 2 blocks of any order.
 
-> While this is not one of the sexy new kernel
-> features, this will help quite a few system
-> administrators and is destined to a long and
-> healthy life inside kernel RPMs, maybe even
-> in the main kernel tree (when 2.5 splits?).
+Let me be more specific.  In 2.2, we have these structures:
 
-Thanks for the feedback,
+struct free_area_struct {
+	struct page *next;
+	struct page *prev;
+	unsigned int * map;
+	unsigned long count;
+};
 
-	Szaka
+static struct free_area_struct free_area[NR_MEM_TYPES][NR_MEM_LISTS];
+
+It appears to me that free_area is a two-dimensional array of linked lists.
+The first dimension is the memory type: 0 is normal memory and 1 is DMA.  The
+2nd dimension is the order, e.g. free_area[0][2] contains a linked list of free
+memory blocks in normal memory, each of order 2 (16KB) in size.
+
+Am I interpreting this data structure wrong?
+
+
+
+-- 
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
+
+When replying to a mailing-list message, please direct the reply to the mailing list only.  Don't send another copy to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
