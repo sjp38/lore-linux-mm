@@ -1,21 +1,22 @@
-Message-Id: <l03130326b6e4150a1de0@[192.168.239.101]>
-In-Reply-To: <4.3.2.7.2.20010325123201.00be27d0@mail.fluent-access.com>
-References: <3ABE0F32.5255DF30@evision-ventures.com>
- <E14gVQf-00056B-00@the-village.bc.nu>
+Message-Id: <l03130327b6e41b028504@[192.168.239.101]>
 Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="============_-1226565419==_============"
-Date: Sun, 25 Mar 2001 22:51:09 +0100
+Content-Type: multipart/mixed; boundary="============_-1226564776==_============"
+Date: Sun, 25 Mar 2001 23:01:56 +0100
 From: Jonathan Morton <chromi@cyberspace.org>
-Subject: [PATCH] non-overcommit memory, improved OOM handling, safety
- margin (was Re: Prevent OOM from killing init)
+Subject: [PATCH] [REPOST] non-overcommit memory, improved OOM handling,
+ safety margin (was Re: Prevent OOM from killing init)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: douglas@fang.demon.co.uk
 List-ID: <linux-mm.kvack.org>
 
---============_-1226565419==_============
+--============_-1226564776==_============
 Content-Type: text/plain; charset="us-ascii"
+
+ACK!  that last diff got linewrapped somewhere in transit.  Try this one...
+
+-----
 
 The attached patch is against 2.4.1 and incorporates the following:
 
@@ -43,7 +44,7 @@ at the moment this is done in sys_swap{on,off}().  This is to avoid having
 to recalculate the amount of available memory and swap whenever an
 allocation is needed.  If someone knows a better way, let me know.
 
---============_-1226565419==_============
+--============_-1226564776==_============
 Content-Type: text/plain; name="oom-patch.2.diff"; charset="us-ascii"
 Content-Disposition: attachment; filename="oom-patch.2.diff"
 
@@ -923,7 +924,7 @@ int flags;
  	return error;
  }
 
---============_-1226565419==_============
+--============_-1226564776==_============
 Content-Type: text/plain; charset="us-ascii"
 
 --------------------------------------------------------------
@@ -942,7 +943,7 @@ GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
 PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
 -----END GEEK CODE BLOCK-----
 
---============_-1226565419==_============--
+--============_-1226564776==_============--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
