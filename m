@@ -1,29 +1,42 @@
-Date: Tue, 25 Jul 2000 14:38:33 +0100
+Date: Tue, 25 Jul 2000 14:43:29 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: Inter-zone swapping
-Message-ID: <20000725143833.E1396@redhat.com>
-References: <20000722222740.A1475@cesarb.personal>
+Subject: Re: Allocating large chunks of mem from net-bh
+Message-ID: <20000725144329.F1396@redhat.com>
+References: <00df01bff54f$280d1230$398d96d4@checkpoint.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20000722222740.A1475@cesarb.personal>; from cesarb@nitnet.com.br on Sat, Jul 22, 2000 at 10:27:40PM -0300
+In-Reply-To: <00df01bff54f$280d1230$398d96d4@checkpoint.com>; from roman@checkpoint.com on Mon, Jul 24, 2000 at 11:11:26AM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Cesar Eduardo Barros <cesarb@nitnet.com.br>
+To: Roman Mitnitski <roman@checkpoint.com>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Sat, Jul 22, 2000 at 10:27:40PM -0300, Cesar Eduardo Barros wrote:
+On Mon, Jul 24, 2000 at 11:11:26AM +0200, Roman Mitnitski wrote:
 > 
-> Then would it be useful to "swap" a page from the DMA zone into the normal zone
-> (and of course after that ending up swapping from the normal zone to the disk)?
+> I need to allocate (dynamically, as the need arises) large memory areas
+> from the bottom-half context (net-bh, to be exact) in Linux 2.2.x. 
+> 
+> kmalloc does not let me allocate as much memory as I need, and
+> vmalloc refuses to work in bottom-half context. 
+> 
+> I don't need anything special from the allocated memory, (like physical continuity,
+> or DMA area). I even don't care much how long
+> it takes to allocate, sice it really does not happen that much often.
+> 
+> Is there any reasonable workaround that would let me solve this problem?
 
-Yes.  There are _lots_ of other possible applications for that sort of
-non-IO-consuming relocation-style swapping, including memory
-defragmentation (we really need that if we want to support things like
-large page stuff on Intel boxes for user space).
+Yep.  Just call get_free_page() to allocate as many individual pages
+as you want.  I assume that if you don't need physical contiguity,
+then tracking that set of pages will be fine for you.
+
+kiobufs will provide convenient containers for such sets of pages in
+2.4 if you want them, and we're adding things like support
+functionality for the allocation of arbitrary pages directly into
+kiobufs for 2.5.
 
 Cheers,
  Stephen
