@@ -1,125 +1,55 @@
-Subject: Re: New Memory Test Suite v0.0.1
-References: <yttya60l9r8.fsf@vexeta.dc.fi.udc.es>
-From: Christoph Rohland <cr@sap.com>
-Date: 27 Apr 2000 19:57:45 +0200
-In-Reply-To: "Juan J. Quintela"'s message of "27 Apr 2000 01:31:39 +0200"
-Message-ID: <qww3do71l5y.fsf@sap.com>
+Date: Thu, 27 Apr 2000 16:56:11 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Reply-To: riel@nl.linux.org
+Subject: Re: [patch] 2.3.99-pre6-3 VM fixed
+In-Reply-To: <20000427172832.D3792@redhat.com>
+Message-ID: <Pine.LNX.4.21.0004271647461.3919-100000@duckman.conectiva>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
---=-=-=
+On Thu, 27 Apr 2000, Stephen C. Tweedie wrote:
+> On Wed, Apr 26, 2000 at 10:36:10AM -0300, Rik van Riel wrote:
+> > 
+> > The patch runs great in a variety of workloads I've tested here,
+> > but of course I'm not sure if it works as good as it should in
+> > *your* workload, so testing is wanted/needed/appreciated...
+> 
+> Well, on an 8GB box doing a "mtest -m1000 -r0 -w12" (ie. create
+> 1GB heap and fork off 12 writer sub-processes touching the heap
+> at random), I get a complete lockup just after the system goes
+> into swap.  At one point I was able to capture an EIP trace
+> showing the kernel looping in stext_lock and try_to_swap_out.
 
-"Juan J. Quintela" <quintela@fi.udc.es> writes:
-> Any comments/suggestions/code are welcome.
+After half a day of heavy abuse, I've gotten my machine into
+a state where it's hanging in stext_lock and swap_out...
 
-Here comes my shm test proggy.
+Both cpus are spinning in a very tight loop, suggesting a
+deadlock. (/me points finger at other code, I didn't change
+any locking stuff :))
 
-Greetings
-		Christoph
+This suggests a locking issue. Is there any place in the kernel
+where we take a write lock on tasklist_lock and do a lock_kernel()
+afterwards?
 
+Alternatively, the mm->lock, kernel_lock and/or tasklist_lock could
+be in play all three... Could the changes to ptrace.c be involved
+here?
 
---=-=-=
-Content-Disposition: attachment; filename=ipctst.c
+regards,
 
-#include <stdlib.h>
-#include <stdio.h>
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
-#include <errno.h>
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
 
-int main (int ac, char **av) {
-	int segs, size, proc, rmpr;
-	unsigned long long iter;
-	struct shmid_ds buf;
-	pid_t pid;
-
-	if (ac < 6) {
-		printf ("usage: shmtst segs size proc iter rm%%\n");
-		exit (1);
-	}
-	segs = atoi (av[1]);
-	size = atoi (av[2]);
-	proc = atoi (av[3]);
-	iter = atoi (av[4]);
-	rmpr = atoi (av[5]);
-
-	iter = 1 << iter;
-	printf ("using %d segs of size %d (%llu iterations)\n", 
-		segs, size, iter);
-	while (-- proc) {
-		if ((pid = fork()) > 0) {
-			printf ("started process %d\n", (int) pid);
-		} else {
-			break;
-		}
-	}
-	srandom (getpid());
-	while (iter--) {
-		key_t key;
-		int seg, i, rm;
-		unsigned char c, *ptr;
-		volatile unsigned char *p;
-
-		key = random() % segs +1;
-		if ((seg = shmget (key, size, IPC_CREAT| 0600)) == -1) {
-			perror("shmget");
-			if (errno != EIDRM && errno != ENOSPC)
-				exit (1);
-			continue;
-		}
-		if (1) sched_yield();
-		if ((ptr = shmat (seg, 0, 0)) == (unsigned char *) -1) {
-			perror ("shmat");
-			continue;
-		}
-		if (random () % 100 < rmpr) {
-			if (random() % 1)
-				rm = 1;
-			else
-				rm = -1;
-		} else {
-			rm = 0;
-		}
-
-		if (rm < 0 &&
-		    shmctl (seg, IPC_RMID, NULL) == -1) 
-			perror("pre: shmctl IPC_RMID");
-		for (p = ptr; p < ptr + size; p += 4097)
-			*p = (unsigned char) (p - ptr);
-		for (p = ptr; p < ptr + size; p += 4097) {
-			c = *p;
-			if (c == (unsigned char)(p-ptr)) 
-				continue;
-			shmctl (seg, IPC_STAT, &buf);
-			printf ("n=%i, m = %i: %i != %i", (int) buf.shm_nattch,
-				(int)buf.shm_perm.mode,
-				(int)(unsigned char)(p-ptr), (int) c);
-			for (i = 0 ; i < 5; i++) {
-				printf (", %i", (int)*p);
-				sched_yield();
-			}
-			printf ("\n");
-		}
-
-		if (shmdt (ptr) != 0) {
-			perror("shmdt");
-			exit (1);
-		}
-
-		if (rm > 0 &&
-		    shmctl (seg, IPC_RMID, NULL) == -1) 
-			perror("post shmctl IPC_RMID");
-	}
-}	
-
---=-=-=--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
