@@ -1,58 +1,63 @@
-Date: 15 Feb 2005 13:14:04 +0100
-Date: Tue, 15 Feb 2005 13:14:04 +0100
-From: Andi Kleen <ak@muc.de>
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview II
-Message-ID: <20050215121404.GB25815@muc.de>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <42114279.5070202@sgi.com>
+Date: Tue, 15 Feb 2005 06:15:52 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
+Message-ID: <20050215121552.GB20607@lnx-holt.americas.sgi.com>
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <42114279.5070202@sgi.com> <20050215115302.GB19586@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <42114279.5070202@sgi.com>
+In-Reply-To: <20050215115302.GB19586@wotan.suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ray Bryant <raybry@sgi.com>
-Cc: Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andi Kleen <ak@suse.de>
+Cc: Ray Bryant <raybry@sgi.com>, Andi Kleen <ak@muc.de>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, stevel@mvista.com
 List-ID: <linux-mm.kvack.org>
 
-[Sorry, didn't answer to everything in your mail the first time. 
-See previous mail for beginning]
-
-On Mon, Feb 14, 2005 at 06:29:45PM -0600, Ray Bryant wrote:
-> migrating, and figure out from that what portions of which pid's
-> address spaces need to migrated so that we satisfy the constraints
-> given above.  I admit that this may be viewed as ugly, but I really
-> can't figure out a better solution than this without shuffling a
-> ton of ugly code into the kernel.
-
-I like the concept of marking stuff that shouldn't be migrated
-externally (using NUMA policy) better. 
-
+On Tue, Feb 15, 2005 at 12:53:03PM +0100, Andi Kleen wrote:
+> > (2)  You really only want to migrate pages once.  If a file is mapped
+> >      into several of the pid's that are being migrated, then you want
+> >      to figure this out and issue one call to have it moved wrt one of
+> >      the pid's.
+> >      (The page migration code from the memory hotplug patch will handle
+> >      updating the pte's of the other processs (thank goodness for
+> >      rmap...))
 > 
-> One issue that hasn't been addressed is the following:  given a
-> particular entry in /proc/pid/maps, how does one figure out whether
-> that entry is mapped into some other process in the system, one
-> that is not in the set of processes to be migrated?   One could
+> I don't get this. Surely the migration code will check if a page
+> is already in the target node, and when that is the case do nothing.
+> 
+> How could this "double migration" happen? 
 
-[...]
+A node is not always equal distant to a cpu.  We need to keep node-to-cpu
+distant relatively constant between the original and final placement.
+There may be a time where you are moving stuff from node 8 to node 4
+and stuff from node 12 to node 8.  If you scan the vmas for both the
+processes in the wrong order you will migrate memory from node 12 to 8
+for the second process and then from node 8 to node 4 for the second.
 
-Marking things externally would take care of that.
+> > (3)  In the case where a particular file is mapped into different
+> >      processes at different file offsets (and we are migrating both
+> >      of the processes), one has to examine the file offsets to figure
+> >      out if the mappings overlap or not. If they overlap, then you've
+> >      got to issue two calls, each of which describes a non-overlapping
+> >      region; both calls taken together would cover the entire range
+> >      of pages mapped to the file.  Similarly if the ranges do not
+> >      overlap.
+> 
+> That sounds like a quite obscure corner case which I'm not sure
+> is worth all the complexity.
 
-> If we did this, we still have to have the page migration system call
-> to handle those cases for the tmpfs/hugetlbfs/sysv shm segments whose
-> pages were placed by first touch and for which there used to not be
-> a memory policy.  As discussed in a previous note, we are not in a
+So obscure that nearly every example batch job we looked at had exactly
+this circumstance.  Turns out that quite a few batch jobs we looked at
+have a parent that maps their working set initially.  After the workers
+are forked, they map some part of the same data file to different parts
+of their own address space.  They also commonly map over the top of the
+large file mapping that was originally done leaving us with a jumble of
+address space.  This really showed the need for a user-space application
+to figure the problem out and allow the flexibility to come up with more
+advanced migration algorithms.
 
-You can handle those with mbind(..., MPOL_F_STRICT); 
-(once it is hooked up to page migration) 
-
-Just mmap the tmpfs/shm/hugetlb file in an external program and apply
-the policy. That is what numactl supports today too for shm
-files like this.
-
-It should work later.
-
-
--Andi
+Thanks,
+Robin
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
