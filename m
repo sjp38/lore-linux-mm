@@ -1,33 +1,60 @@
-Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages /
-	all_unreclaimable braindamage
-From: Arjan van de Ven <arjan@infradead.org>
-In-Reply-To: <20041106154415.GD3851@dualathlon.random>
-References: <20041105200118.GA20321@logos.cnet>
-	 <200411051532.51150.jbarnes@sgi.com>
-	 <20041106012018.GT8229@dualathlon.random>
-	 <20041106100516.GA22514@logos.cnet>
-	 <20041106154415.GD3851@dualathlon.random>
-Content-Type: text/plain
-Message-Id: <1099756374.2814.18.camel@laptop.fenrus.org>
-Mime-Version: 1.0
-Date: Sat, 06 Nov 2004 16:52:54 +0100
-Content-Transfer-Encoding: 7bit
+Date: Sat, 6 Nov 2004 16:06:55 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: removing mm->rss and mm->anon_rss from kernel?
+In-Reply-To: <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
+Message-ID: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@novell.com>
-Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Jesse Barnes <jbarnes@sgi.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
 List-ID: <linux-mm.kvack.org>
 
-> yes. oom killing should be avoided as far as we can avoid it. Ideally we
-> should never invoke the oom killer and we should always return -ENOMEM
-> to applications. If a syscall runs oom then we can return -ENOMEM and
-> handle the failure gracefully instead of getting a sigkill.
-> 
-> With 2.4 -ENOMEM is returned and the machine doesn't deadlock when the
-> zone normal is full and that works fine.
+On Sat, 6 Nov 2004, Christoph Lameter wrote:
 
-the harder case is where you do an mmap and then in the fault path find out that there's no memory to allocate the PMD ...
-killing the task that has that failing isn't per se the right answer.
+> My page scalability patches need to make rss atomic and now with the
+> addition of anon_rss I would also have to make that atomic.
+
+You could remove the additional impact of anon_rss by deleting that
+and replacing rss by rss[2], adjusting only rss[PageAnon(page)]:
+no need to increment or decrement two counters in the one operation.
+
+Introducing anon_rss made for a smaller patch then, but if you're
+patching all those rss places, might as well separate out to rss[2].
+
+> But when I looked at the code I found that the only significant use of
+> both is in for proc statistics. There are 3 other uses in mm/rmap.c where
+> the use of mm->rss may be replaced by mm->total_vm.
+
+The tests on mm->rss in rmap.c were critical at one time (in the anonmm
+objrmap, to guard against doing the wrong thing in the case of some tiny
+race with dup_mmap, if I remember correctly).  They're stayed on as
+vague optimizations, but I'd be perfectly happy for you to just
+remove them - I'd prefer that to putting in total_vm tests.
+
+> So I removed all uses of mm->rss and anon_rss from the kernel and
+> introduced a bean counter count_vm() that is only run when the
+> corresponding /proc file is used. count_vm then runs throught the vm
+> and counts all the page types. This could also add additional page
+> types to our statistics and solve some of the consistency issues.
+
+You're joking!  Certainly not, as others have asserted.
+
+But I don't know what the appropriate solution is.  My priorities
+may be wrong, but I dislike the thought of a struct mm dominated
+by a huge percpu array of rss longs (or cachelines?), even if the
+machines on which it would be huge are ones which could well afford
+the waste of memory.  It just offends my sense of proportion, when
+the exact rss is of no importance.  I'm more attracted to just
+leaving it unatomic, and living with the fact that it's racy
+and approximate (but /proc report negatives as 0).
+
+It might be interesting to run your anon faulting test on an SGI
+monster, keeping both atomic and non-atomic counts, to see just
+how likely, how much they go out of sync.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
