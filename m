@@ -1,8 +1,8 @@
-Date: Thu, 7 Jun 2001 13:43:33 -0700 (PDT)
+Date: Thu, 7 Jun 2001 13:51:05 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Background scanning change on 2.4.6-pre1
-In-Reply-To: <Pine.LNX.4.21.0106071545520.1156-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0106071330060.6510-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.21.0106071330060.6510-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0106071345190.6604-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,53 +11,35 @@ To: Marcelo Tosatti <marcelo@conectiva.com.br>
 Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Jun 2001, Marcelo Tosatti wrote:
-> 
-> Who did this change to refill_inactive_scan() in 2.4.6-pre1 ? 
+Forgot one comment..
 
-I think it was Andreas Dilger..
+> > This is going to make all pages have age 0 on an idle system after some
+> > time (the old code from Rik which has been replaced by this code tried to 
+> > avoid that)
 
->         /*
->          * When we are background aging, we try to increase the page aging
->          * information in the system.
->          */
->         if (!target)
->                 maxscan = nr_active_pages >> 4;
-> 
-> This is going to make all pages have age 0 on an idle system after some
-> time (the old code from Rik which has been replaced by this code tried to 
-> avoid that)
+There's another reason why I think the patch may be ok even without any
+added logic: not only does it simplify the code and remove a illogical
+heuristic, but there is nothing that really says that "age 0" is
+necessarily very bad.
 
-He posted a nice explanation of how this change made behaviour noticeably
-smoother, and how you could actually see the nicer balance between the
-active and inactive lists using osview.
+We should strive to keep the active/inactive lists in LRU order anyway, so
+the ordering does tell you something about how recent (and thus how
+important) the page is. Also, it's certainly MUCH preferable to let pages
+age down to zero, than to let pages retain a maximum age over a long time,
+like the old code used to do.
 
-The code is not necessarily "correct", but this patch was accompanied by
-useful real-life user information.
+If, after long periods of inactivity, we start needing fresh pages again,
+it's probably actually an _advantage_ to give the new pages a higher
+relative importance. Caches tend to lose their usefulness over time, and
+if the old cached pages are really relevant, then the new spurt of usage
+will obviously mark them young again.
 
-Now, I think the problem with the old code was that it didn't do _any_
-background page aging if "inactive" was large enough. And that really
-doesn't make all that much sense. Background page aging is needed to
-"sort" the active list, regardless of how many inactive pages there are.
+And if, after the idle time, the behaviour is different, the old pages
+have appropriately been aged down and won't stand in the way of a new
+cache footprint.
 
-The decision to not do page aging should not be based on the number of
-inactive pages, and I think the patch is correct in that sense.
-
-Now, if you were to change the code to something like
-
-	/* background scanning? */
-	if (!target) {
-		if (atomic_read(page_aging) <= 0)
-			return 0;
-		maxscan = nr_active_pages >> 4;
-	}
-
-and make the "page_aging" be something that goes up when we age stuff up
-and goes down when we age it down, and does the proper balancing, THAT
-would probably be ok. Then the decision to not age in the background would
-be based on whether we have lots of pages getting aged up or not.
-
-Heuristics should make sense, not be "random".
+Do you actually have regular usage that shows the age-down to be a bad
+thing? 
 
 		Linus
 
