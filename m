@@ -1,18 +1,17 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <200001061836.KAA95195@google.engr.sgi.com>
+From: Rik van Riel <riel@nl.linux.org>
 Subject: Re: [RFC] [RFT] [PATCH] memory zone balancing
-Date: Thu, 6 Jan 2000 10:36:03 -0800 (PST)
-In-Reply-To: <200001061528.HAA05974@pizda.ninka.net> from "David S. Miller" at Jan 06, 2000 07:28:19 AM
+In-Reply-To: <200001061528.HAA05974@pizda.ninka.net>
+Message-ID: <Pine.LNX.4.10.10001061926150.584-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 6 Jan 2000 20:14:53 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "David S. Miller" <davem@redhat.com>
-Cc: mingo@chiara.csoma.elte.hu, andrea@suse.de, torvalds@transmeta.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: mingo@chiara.csoma.elte.hu, kanoj@google.engr.sgi.com, andrea@suse.de, torvalds@transmeta.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
+On Thu, 6 Jan 2000, David S. Miller wrote:
 >    Date:   Thu, 6 Jan 2000 17:05:41 +0100 (CET)
 >    From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
 > 
@@ -25,37 +24,51 @@ List-ID: <linux-mm.kvack.org>
 >    it at the end of the zone chain), the highmem zone might not need
 >    any balancing at all, the normal zone wants some high/low watermark
 >    stuff.
-
-After thinking about this more, I came to the conclusion that the
-ZONE_BALANCED macro is just a quick way of checking whether we are
-_really_ unbalanced. If so, then we need to see if we are really 
-unbalanced, and do appropriate freeing. To determine whether a zone 
-is _really_ unbalanced, I need to look at the number of free pages 
-in the lower order zones too, then compare against the zone's water
-marks. Ie, the "balancing" is not just about the absolute number of
-free pages in the zone, but rather in the class that the zone 
-represents.
-
-I am waiting to see if Linus takes in my previous patch, before 
-puting too much work into the balancing heuristics.
-
 > 
 > Let's be careful not to design any balancing heuristics which will
 > fall apart on architectures where only one zone ever exists (because
 > GFP_DMA is completely meaningless).
 
-Yes, with all different types of machines out there, we need to be 
-able to provide enough hooks to the arch code to tune the watermarks and
-balancing frequency. Luckily, the zone structure is exposed via the
-pg_data_t, so this should be no problem. Some sysctls are probably also 
-called for.
+We'll have to keep the current constraint (freepages.{min,low,high})
+stuff as our overall target anyway. We simply need to add some limits
+that the special zones have to target for.
 
-Kanoj
-> 
-> Later,
-> David S. Miller
-> davem@redhat.com
-> 
+And it won't just be tested from kswapd(); swap_tick() and maybe
+even __get_pages() will have to check for the constraints too and
+wake up kswapd() or take action themselves...
+
+Possible heuristics (using d for dma, n for normal and high for
+high free mem; limit = freepages.*) could use the following targets:
+
+d + n > limit
+d     > limit/4
+n     > limit/4
+h     < limit * 2 (because we don't care about free high pages
+                   and we do care about free normal and dma pages)
+
+Another possibility is to include the highmem (d + n + h > limit)
+and keep the single low-mem limits.
+
+IMHO there should be a number of constraints for a heuristic
+like this:
+- simple
+- not force too much memory free
+- the algorithm should have freedom in what to free, in order
+  to avoid excessive scanning (alt: separate queues per zone)
+- the limits for dma and normal memory should be high enough
+  to be able to fulfill kernel allocations
+- should have no impact on non-zoned machines
+
+The (extremely simple) constraints above should probably be
+enough to actually get the job done. At least, I wouldn't
+know why we'd need more...
+
+cheers,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
