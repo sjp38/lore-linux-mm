@@ -1,64 +1,35 @@
-Date: Thu, 17 May 2001 23:20:23 -0700 (PDT)
-From: Matt Dillon <dillon@earth.backplane.com>
-Message-Id: <200105180620.f4I6KNd05878@earth.backplane.com>
-Subject: Re: on load control / process swapping
-References: <Pine.LNX.4.33.0105161439140.18102-100000@duckman.distro.conectiva> <200105161754.f4GHsCd73025@earth.backplane.com> <3B04BA0D.8E0CAB90@mindspring.com>
+Date: Fri, 18 May 2001 11:21:03 +0300
+From: Matti Aarnio <matti.aarnio@zmailer.org>
+Subject: Re: Running out of vmalloc space
+Message-ID: <20010518112103.M5947@mea-ext.zmailer.org>
+References: <A33AEFDC2EC0D411851900D0B73EBEF766DC8B@NAPA>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <A33AEFDC2EC0D411851900D0B73EBEF766DC8B@NAPA>; from hji@netscreen.com on Thu, May 17, 2001 at 02:58:29PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Terry Lambert <tlambert2@mindspring.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Charles Randall <crandall@matchlogic.com>, Roger Larsson <roger.larsson@norran.net>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
+To: Hua Ji <hji@netscreen.com>
+Cc: Christoph Hellwig <hch@caldera.de>, David Pinedo <dp@fc.hp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-:I don't understand how either of those things could help
-:but make overall performance worse.
-:
-:The problem is the program in question is seeking all
-:over the place, potentially multiple times, in order
-:to avoid building the table in memory itself.
-:
-:For many symbols, like "printf", it will hit the area
-:of the library containing their addresses many, many
-:times.
-:
-:The problem in this case is _truly_ that the program in
-:question is _really_ trying to optimize its performance
-:at the expense of other programs in the system.
+On Thu, May 17, 2001 at 02:58:29PM -0700, Hua Ji wrote:
+> FYI:
+>   http://www.linux-mm.org/more_than_1GB.shtml
+> The above url gives a good introduction for what we are discussing. 
 
-    The linker is seeking randomly as a side effect of
-    the linking algorithm.  It is not doing it on purpose to try
-    to save memory.  Forcing the VM system to think it's 
-    sequential causes the VM system to perform read-aheads,
-    generally reducing the actual amount of physical seeking
-    that must occur by increasing the size of the chunks
-    read from disk.  Even if the linker's dataset is huge,
-    increasing the chunk size is beneficial because linkers
-    ultimately access the entire object file anyway.  Trying
-    to save a few seeks is far more important then reading
-    extra data and having to throw half of it away.
+No.  That is repeating Kanoj's patch logic.  What got into 2.4 kernel
+is slightly different.
 
-:The problem is what to do about this badly behaved program,
-:so that the system itself doesn't spend unnecessary time
-:undoing its evil, and so that other (well behaved) programs
-:are not unfairly penalized.
-:
-:Cutler suggested a working set quota (first in VMS, later
-:in NT) to deal with these programs.
-:
-:-- Terry
+But like Stephen wondered, is there truly need to map the cards entirely
+into KERNEL space at all ?    It is fairly trivial to create mmap() driver
+function to map them to user-space process.
 
-    The problem is not the resident set size, it's the
-    seeking that the program is causing as a matter of
-    course.  Be that as it may, the resident set size
-    can be limited with the 'memoryuse' sysctl.  The system
-    imposes the specified limit only when the memory
-    subsystem is under pressure.
+In display drivers I can understand a need to map parts (control registers,
+including command pipeline insert points) of the cards to kernel, but not
+all of the buffer spaces -- at least not all the time.
 
-    You can also reduce the amount of random seeking the
-    linker does by ordering the object modules within the
-    library to forward-reference the dependancies.
-
-					-Matt
-
+/Matti Aarnio
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
