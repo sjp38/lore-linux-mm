@@ -1,38 +1,30 @@
-Date: Wed, 4 Feb 2004 12:40:48 -0500 (EST)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: VM patches (please review)
-In-Reply-To: <402128D0.2020509@tmr.com>
-Message-ID: <Pine.LNX.4.44.0402041239311.24515-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 4 Feb 2004 10:33:07 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH 0/5] mm improvements
+Message-Id: <20040204103307.7a288ce3.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.44.0402041337350.3479-100000@localhost.localdomain>
+References: <16416.62172.489558.39126@laputa.namesys.com>
+	<Pine.LNX.4.44.0402041337350.3479-100000@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Davidsen <davidsen@tmr.com>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>, Andrea Arcangeli <andrea@suse.de>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Nikita@Namesys.COM, piggin@cyberone.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Feb 2004, Bill Davidsen wrote:
+Hugh Dickins <hugh@veritas.com> wrote:
+>
+> > 4. I found that shmem_writepage() has BUG_ON(page_mapped(page))
+>  > check. Its removal had no effect, and I am not sure why the check was
+>  > there at all.
+> 
+>  Sorry, that BUG_ON is there for very good reason.  It's no disgrace
+>  that your testing didn't notice the effect of passing a mapped page
+>  down to shmem_writepage, but it is a serious breakage of tmpfs.
 
-> Since this is broken down nicely, a line or two about what each patch 
-> does or doesn't address would be useful. In particular, having just 
-> gotten a working RSS I'm suspicious of the patch named vm-no-rss-limit 
-> being desirable ;-)
-
-The bug with the RSS limit patch is that I forgot to
-change the exec() code, so when init is exec()d it
-gets an RSS limit of zero, which is inherited by all
-its children --> always over the RSS limit, no page
-aging, etc.
-
-I need to find the cleanest way to add the inheriting
-of RSS limit at exec time and send a patchlet for that
-to akpm...
-
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
-
+hm.  Can't I force writepage-of-a-mapped-page with msync()?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
