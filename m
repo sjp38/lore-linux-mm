@@ -1,85 +1,47 @@
-Date: Tue, 9 Apr 2002 10:59:12 +0530 (IST)
-From: Sanket Rathi <sanket.rathi@cdac.ernet.in>
+Date: Tue, 9 Apr 2002 10:08:38 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: Fwd: Re: How CPU(x86) resolve kernel address
-In-Reply-To: <20020407025738.90777.qmail@web12307.mail.yahoo.com>
-Message-ID: <Pine.GSO.4.10.10204091052060.13298-100000@mailhub.cdac.ernet.in>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20020409100838.C2807@redhat.com>
+References: <20020407025738.90777.qmail@web12307.mail.yahoo.com> <Pine.GSO.4.10.10204091052060.13298-100000@mailhub.cdac.ernet.in>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.GSO.4.10.10204091052060.13298-100000@mailhub.cdac.ernet.in>; from sanket.rathi@cdac.ernet.in on Tue, Apr 09, 2002 at 10:59:12AM +0530
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ravi <kravi26@yahoo.com>, linux-mm@kvack.org
-Cc: sanket.rathi@cdac.ernet.in
+To: Sanket Rathi <sanket.rathi@cdac.ernet.in>
+Cc: Ravi <kravi26@yahoo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-thanks........... 
-but i tried. i allocate memory buffers in application and pass their
-address to driver. there i use the following 
+Hi,
 
- if (pgd_none(*(pgd = pgd_offset(current->mm,virtAddress))) ||
+On Tue, Apr 09, 2002 at 10:59:12AM +0530, Sanket Rathi wrote:
 
-                pmd_none(*(pmd = pmd_offset(pgd, virtAddress))) ||
-
-                pte_none(*(pte = pte_offset(pmd, virtAddress))) )
-                {
-                        printk("\nphysical address failed\n") ;
-                        return (-1) ;
-                }
-                phyAddress = pte_page(*pte) ;
-                printk("\nphysical address is %x",(unsigned
-long)phyAddress) ;
-
-where virtAddress is the address i passed from application so every time
-phyAddress i got is start with somthing like (C1081234) which is actually
-a kernel address space. why it is like so.
-
-thanks in advance.
- 
-
---- Sanket Rathi
-
---------------------------
-
-The problem with people who have no viceis that
-generally you can be pretty sure they're going 
-to have some pretty annoying virtues.
-
-On Sat, 6 Apr 2002, Ravi wrote:
-
->  
->  I didn't quite understand which part of my mail you were refering to.
-> Would have been helpful if you added your comments under the related
-> lines.
+> but i tried. i allocate memory buffers in application and pass their
+> address to driver. there i use the following 
 > 
-> > so why it is like that, that when u traverse page table(threee level)
-> > u will  find a address like a kernel address (something like
-> > C0000000 + some address) 
->  
->  No, you will not find a kernel virtual address when you traverse a
-> page table. The PTE is an actual physical address (logically or'ed with
-> 12 flag bits).
+>  if (pgd_none(*(pgd = pgd_offset(current->mm,virtAddress))) ||
 > 
-> >  and when u want to DMA u do virt_to_phys() that will 
-> > remove upper bits but  not for CPU so what happen when this address
-> > pass to CPU or there is  something else.
->   
->  The CPU has a memory management unit (MMU) which does the
-> virtual-to-physical translation. You only need to load the right
-> register with the base address of the page directory. Rest is handled
-> by MMU, assuming you have set up your page tables correctly. 
->  In case of DMA, you are passing the address to a device/controller
-> which deals only with physical addresses. So the driver writer has to
-> do the MMU's job before passing an address to the device. This is just
-> made simpler by the one-to-one mapping in Linux on i386 arcitecture. 
+>                 pmd_none(*(pmd = pmd_offset(pgd, virtAddress))) ||
 > 
-> -Ravi.
-> 
-> 
-> __________________________________________________
-> Do You Yahoo!?
-> Yahoo! Tax Center - online filing with TurboTax
-> http://taxes.yahoo.com/
-> 
+>                 pte_none(*(pte = pte_offset(pmd, virtAddress))) )
+>                 {
+>                         printk("\nphysical address failed\n") ;
+>                         return (-1) ;
+>                 }
+>                 phyAddress = pte_page(*pte) ;
+>                 printk("\nphysical address is %x",(unsigned
+> long)phyAddress) ;
 
+You cannot do that.  The physical memory used by the application can
+get swapped out, and if you malloc() a page, all you get initially is
+a copy-on-write instance of the zero page.  You *must* use something
+like map_user_kiobuf() or the ptrace address-poking code to access the
+user buffer safely.  Even safer is to allocate the buffer inside your
+driver instead and then mmap that into user space.
+
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
