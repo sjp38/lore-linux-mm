@@ -1,32 +1,31 @@
-Date: Fri, 23 May 2003 17:21:53 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
+From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: [RFC][PATCH] Avoid vmtruncate/mmap-page-fault race
-In-Reply-To: <20030523073500.A1549@us.ibm.com>
-Message-ID: <Pine.LNX.4.44.0305231713230.1602-100000@localhost.localdomain>
+Date: Fri, 23 May 2003 19:10:58 +0200
+References: <Pine.LNX.4.44.0305231713230.1602-100000@localhost.localdomain>
+In-Reply-To: <Pine.LNX.4.44.0305231713230.1602-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200305231910.58743.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Paul E. McKenney" <paulmck@us.ibm.com>
-Cc: Andrew Morton <akpm@digeo.com>, phillips@arcor.de, hch@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hugh@veritas.com>, "Paul E. McKenney" <paulmck@us.ibm.com>
+Cc: Andrew Morton <akpm@digeo.com>, hch@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 23 May 2003, Paul E. McKenney wrote:
-> On Tue, May 20, 2003 at 01:11:57AM -0700, Andrew Morton wrote:
-> > 
-> > However there is not a lot of commonality between the various nopage()s and
-> > there may not be a lot to be gained from all this.  There is subtle code in
-> > there and it is performance-critical.  I'd be inclined to try to minimise
-> > overall code churn in this work.
-> 
-> Good point!  Here is a patch to do this.  A "few" caveats:
+On Friday 23 May 2003 18:21, Hugh Dickins wrote:
+> Sorry, I miss the point of this patch entirely.  At the moment it just
+> looks like an unattractive rearrangement - the code churn akpm advised
+> against - with no bearing on that vmtruncate race.  Please correct me.
 
-Sorry, I miss the point of this patch entirely.  At the moment it just
-looks like an unattractive rearrangement - the code churn akpm advised
-against - with no bearing on that vmtruncate race.  Please correct me.
+This is all about supporting cross-host mmap (nice trick, huh?).  Yes, 
+somebody should post a detailed rfc on that subject.
 
-Hugh
+Regards,
 
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
