@@ -1,56 +1,37 @@
-Message-ID: <3A705802.5C4DD2F2@augan.com>
-Date: Thu, 25 Jan 2001 17:44:51 +0100
-From: Roman Zippel <roman@augan.com>
-MIME-Version: 1.0
-Subject: Re: ioremap_nocache problem?
+Date: Thu, 25 Jan 2001 10:49:50 -0600
+From: Timur Tabi <ttabi@interactivesi.com>
+In-Reply-To: <3A705802.5C4DD2F2@augan.com>
 References: <3A6D5D28.C132D416@sangate.com> <20010123165117Z131182-221+34@kanga.kvack.org>
-		<20010123165117Z131182-221+34@kanga.kvack.org> ; from ttabi@interactivesi.com on Tue, Jan 23, 2001 at 10:53:51AM -0600 <20010125155345Z131181-221+38@kanga.kvack.org>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+	<20010123165117Z131182-221+34@kanga.kvack.org> ; from ttabi@interactivesi.com on Tue, Jan 23, 2001 at 10:53:51AM -0600 <20010125155345Z131181-221+38@kanga.kvack.org>
+Subject: Re: ioremap_nocache problem?
+Message-Id: <20010125164707Z131181-222+39@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Zippel <roman@augan.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+** Reply to message from Roman Zippel <roman@augan.com> on Thu, 25 Jan 2001
+17:44:51 +0100
 
-Timur Tabi wrote:
 
-> I mark the page as reserved when I ioremap() it.  However, if I leave it marked
-> reserved, then iounmap() will not unmap it.  If I mark it "unreserved" (i.e.
-> reset the reserved bit), then iounmap will unmap it, but it will decrement the
-> page counter to -1 and the whole system will crash soon thereafter.
-> 
-> I've been asking about this problem for months, but no one has bothered to help
-> me out.
+> set_bit(PG_reserved, &page->flags);
+> 	ioremap();
+> 	...
+> 	iounmap();
+> 	clear_bit(PG_reserved, &page->flags);
 
-The order is important:
+The problem with this is that between the ioremap and iounmap, the page is
+reserved.  What happens if that page belongs to some disk buffer or user
+process, and some other process tries to free it.  Won't that cause a problem?
 
-	get_free_page();
-	set_bit(PG_reserved, &page->flags);
-	ioremap();
-	...
-	iounmap();
-	clear_bit(PG_reserved, &page->flags);
-	free_page();
 
-Alternatively something like this should also be possible:
+-- 
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
 
-	get_free_page();
-	ioremap();
-	...
-	iounmap();
+When replying to a mailing-list message, please direct the reply to the mailing list only.  Don't send another copy to me.
 
-nopage() {
-	...
-	atomic_inc(&page->count);
-	return page;
-}
-
-But I never tried this version, so I can't guarantee anything. :)
-
-bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
