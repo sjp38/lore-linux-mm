@@ -1,57 +1,67 @@
-Date: Wed, 26 Apr 2000 12:24:48 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: 2.3.x mem balancing
-Message-ID: <20000426122448.G3792@redhat.com>
-References: <Pine.LNX.4.21.0004251903560.13102-100000@alpha.random> <Pine.LNX.4.21.0004252240280.14340-100000@duckman.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0004252240280.14340-100000@duckman.conectiva>; from riel@conectiva.com.br on Tue, Apr 25, 2000 at 11:10:56PM -0300
+Date: Wed, 26 Apr 2000 04:25:23 -0700
+Message-Id: <200004261125.EAA12302@pizda.ninka.net>
+From: "David S. Miller" <davem@redhat.com>
+In-reply-to: <20000426120130.E3792@redhat.com> (sct@redhat.com)
+Subject: Re: [PATCH] 2.3.99-pre6-3+  VM rebalancing
+References: <Pine.LNX.4.21.0004251757360.9768-100000@alpha.random> <Pine.LNX.4.21.0004251418520.10408-100000@duckman.conectiva> <20000425113616.A7176@stormix.com> <3905EB26.8DBFD111@mandrakesoft.com> <20000425120657.B7176@stormix.com> <20000426120130.E3792@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
-Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: sct@redhat.com
+Cc: sim@stormix.com, jgarzik@mandrakesoft.com, riel@nl.linux.org, andrea@suse.de, linux-mm@kvack.org, bcrl@redhat.com, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+   On Tue, Apr 25, 2000 at 12:06:58PM -0700, Simon Kirby wrote:
+   > 
+   > Sorry, I made a mistake there while writing..I was going to give an
+   > example and wrote 60 seconds, but I didn't actually mean to limit
+   > anything to 60 seconds.  I just meant to make a really big global lru
+   > that contains everything including page cache and swap. :)
 
-On Tue, Apr 25, 2000 at 11:10:56PM -0300, Rik van Riel wrote:
- 
-> > As second using 5% and 1% of critical watermarks won't give you a 6%
-> > watermark for the ZONE_NORMAL _class_zone but it will give you a 1%
-> > watermark instead and you probably wanted a 6% watermark to provide
-> > rasonable space for atomic allocations and for having more chances of
-> > doing high order allocations.
-> 
-> So the 1% watermark for ZONE_NORMAL is too low ... fix that.
+   Doesn't work.  If you do that, a "find / | grep ..." swaps out 
+   everything in your entire system.
 
-We just shouldn't need to keep much memory free.
+   Getting the VM to respond properly in a way which doesn't freak out
+   in the mass-filescan case is non-trivial.  Simple LRU over all pages
+   simply doesn't cut it.
 
-I'd much rather see a scheme in which we have two separate goals for 
-the VM.  Goal one would be to keep a certain number of free pages in 
-each class, for use by atomic allocations.  Goal two would be to have
-a minimum number of pages in each class either free or on a global LRU
-list which contains only pages known to be clean and unmapped (and
-hence available for instant freeing without IO).
+I believe this is not true at all.  Clean pages will be preferred to
+toss simply because they are easier to get rid of.  In fact, "find / |
+grep" is a perfect example of a case where LRU'ing only clean page
+cache pages will keep the free page pools in equilibrium and we won't
+need to swap anything.
 
-That gives us many advantages:
+I can say this with confidence, because I actually implemented a one
+day hack which centralized all of page cache, swap cache, and all
+anonymous pages into the LRU, deleted the crap we call swap_out and
+taught the LRU queue processing how to toss pages from user address
+spaces.  Since I gave a mapping to anonymous pages, this became a
+doable and almost trivial task.  In these hacks I also created a
+multi-list LRU scheme (active, inactive, dirty) so that
+try_to_free_pages already had the LRU pool pre-sorted, so it only had
+to look at pages which were unreferenced at the onset of memory
+pressure.  When we're not paging, kswapd would wake up periodically
+to do some LRU aging and populate the inactive/dirty LRU queues.
 
- * We can split kswapd into two tasks: a kswapd task for swapping, and a
-   kreclaimd for freeing pages on the clean LRU.  Even while we are 
-   swapping, kreclaimd can kick in to keep atomic allocations happy.
+I have to be quite frank, and say that the FreeBSD people are pretty
+much on target when they say that our swapping and paging stinks, it
+really does.
 
- * We can still keep the free page lists topped up on a per-zone (or
-   per-class) basis, but have a global LRU of clean pages by which to
-   balance the reclamation of memory between zones if we want it
+I am of the opinion that vmscan.c:swap_out() is one of our biggest
+problems, because it kills us in the case where a few processes have
+a pagecache page mapped, haven't accessed it in a long time, and
+swap_out doesn't unmap those pages in time for the LRU shrink_mmap
+code to fully toss it.  This happens even though these pages are
+excellant candidates for freeing.  So here is where I came to the
+conclusion that LRU needs to have the capability of tossing arbitrary
+pages from process address spaces.  This is why in my experiental
+hacks I just killed swap_out() completely, and taught LRU how to
+do all of the things swap_out did.  I could do this because the
+LRU scanner could go from a page to all mappings of that page, even
+for anonymous and swap pages.
 
- * There will be a bigger pool of pages available for reuse at short
-   notice, without us having to actually throw away potentially 
-   useful data until the time that the memory is actually needed.
-
-Cleaning dirty pages for reuse, and actually freeing those pages, are
-already two distinct concepts in our VM.  We ought to make that 
-explicit in the free pages LRUs.
-
---Stephen
+Later,
+David S. Miller
+davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
