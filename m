@@ -1,37 +1,51 @@
-Received: from mea.tmt.tele.fi (mea.tmt.tele.fi [194.252.70.2])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA17404
-	for <linux-mm@kvack.org>; Tue, 19 Jan 1999 10:50:23 -0500
-Subject: Large File support for 2.2.0-pre8 available
-Date: Tue, 19 Jan 1999 17:49:41 +0200 (EET)
-From: Matti Aarnio <matti.aarnio@sonera.fi>
+Received: from russian-caravan.cloud9.net (russian-caravan.cloud9.net [168.100.1.4])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA22563
+	for <linux-mm@kvack.org>; Tue, 19 Jan 1999 21:24:03 -0500
+Date: Tue, 19 Jan 1999 15:09:04 -0500 (EST)
+From: John Alvord <jalvo@cloud9.net>
+Subject: Re: VM20 behavior on a 486DX/66Mhz with 16mb of RAM
+In-Reply-To: <199901191802.SAA05794@dax.scot.redhat.com>
+Message-ID: <Pine.BSF.4.05.9901191505560.2608-100000@earl-grey.cloud9.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Message-Id: <19990119154949Z92272-406+6@mea.tmt.tele.fi>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.rutgers.edu
-Cc: linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, Nimrod Zimerman <zimerman@deskmail.com>, Linux Kernel mailing list <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Tue, 19 Jan 1999, Stephen C. Tweedie wrote:
 
-  Quite many people seem to have taken interest at the so called
-``Large File Summit'' support for 32-bit Linux -- most of the Linux
-systems are 32-bitters, after all..
+> Hi,
+> 
+> On Sat, 16 Jan 1999 14:22:10 +0100 (CET), Andrea Arcangeli
+> <andrea@e-mind.com> said:
+> 
+> > Setting an high limit for the cache when we are low memory is easy doable.
+> > Comments from other mm guys?
+> 
+> Horrible --- smells like the old problem of "oh, our VM is hopeless at
+> tuning performance itself, so let's rely on magic numbers to constrain
+> it to reasonable performance".  I'd much much much much rather see a VM
+> which manages to work well without having to be constrained by tricks
+> like that (although by all means supply extra boundary limits for use in
+> special cases: just don't enable them on a default system).
+> 
+We have at least one other case where a memory algorithm needed to be
+tuned for smaller memory. It was the "target free space per cent" which
+had to be larger for small memory machines. There could be a similiar
+effect in cache handling. No problem on larger machines, but a big problem
+on small memory machines.
 
-I have now adapted my LFS patch for 2.2.0-pre8 (the final pre8)
-for the brave testers out there!
+John Alvord
 
-It is available at:
-
- ftp://mea.ipv6.tmt.tele.fi/linux/LFS/
-
-and for those without 6BONE connectivity:
-
- ftp://mea.tmt.tele.fi/linux/LFS/
+Music, Management, Poetry and more...
+           http://www.candlelist.org/kuilema
+ 
+Cheap CDs @ http://www.cruzio.com/~billpeet/MusicByCandlelight
+ 
 
 
-/Matti Aarnio <matti.aarnio@sonera.fi>
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
