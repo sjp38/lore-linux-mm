@@ -1,32 +1,23 @@
-Date: Mon, 14 Oct 2002 14:20:45 -0700
+Date: Mon, 14 Oct 2002 14:25:14 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: [patch, feature] nonlinear mappings, prefaulting support, 2.5.42-F8
-Message-ID: <20021014212045.GF27878@holomorphy.com>
-References: <Pine.LNX.4.44.0210141739510.8792-100000@localhost.localdomain> <Pine.LNX.4.44.0210141800160.9302-100000@localhost.localdomain>
+Message-ID: <20021014212514.GG27878@holomorphy.com>
+References: <Pine.LNX.4.44.0210141739510.8792-100000@localhost.localdomain> <Pine.LNX.4.44.0210141800160.9302-100000@localhost.localdomain> <20021014212045.GF27878@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0210141800160.9302-100000@localhost.localdomain>
+In-Reply-To: <20021014212045.GF27878@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 14, 2002 at 06:02:30PM +0200, Ingo Molnar wrote:
->> if this is really an issue then we could force vma->vm_page_prot to
->> PROT_NONE within remap_file_pages(), so at least all subsequent faults
->> will be PROT_NONE and the user would have to explicitly re-mprotect()
->> the vma again to change this.
-> i've added this to the -G1 patch at:
->         http://redhat.com/~mingo/remap-file-pages-patches/
->     Ingo
+On Mon, Oct 14, 2002 at 02:20:45PM -0700, William Lee Irwin III wrote:
++			offset = (start - vma->vm_start) >> PAGE_CACHE_SHIFT
++					+ vma->vm_pgoff;
 
-Also, this may be relaxed when the file offsets match.
-Against unpatched -G1:
+I'm not so old I should be forgetting C already.
 
-
-Bill
 
 
 --- mpop-2.5.42/mm/fremap.c	2002-10-14 11:43:03.000000000 -0700
@@ -43,7 +34,7 @@ Bill
 -			vma->vm_page_prot = __S000;
 +		if (pgprot_val(vma->vm_page_prot) != pgprot_val(__S000)) {
 +			unsigned long offset;
-+			offset = (start - vma->vm_start) >> PAGE_CACHE_SHIFT
++			offset = ((start - vma->vm_start) >> PAGE_CACHE_SHIFT)
 +					+ vma->vm_pgoff;
 +			if (offset != pgoff)
 +				vma->vm_page_prot = __S000;
