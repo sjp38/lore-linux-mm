@@ -1,56 +1,80 @@
-Date: Tue, 15 Aug 2000 23:46:22 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Tue, 15 Aug 2000 20:26:37 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: filemap.c SMP bug in 2.4.0-test*
-In-Reply-To: <Pine.LNX.4.10.10008151938240.3600-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0008152344500.3400-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0008151845550.2466-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10008152018100.3600-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Aug 2000, Linus Torvalds wrote:
-> On Tue, 15 Aug 2000, Rik van Riel wrote:
-> > 
-> > The debugging check (in mm/swap.c::lru_cache_add(), line 232)
-> > checks if the page which is to be added to the page lists is
-> > already on one of the lists. In case it is, a nice backtrace
-> > follows...
+
+On Tue, 15 Aug 2000, Rik van Riel wrote:
 > 
-> Why do you think your "PageActive()"/"PageInactiveDirty()"/
-> "PageInactiveClean()" tests are right?
+> The backtrace I got points to some place deep inside
+> mm/filemap.c, in code I really didn't touch and I
+> wouldn't want to touch if this bug wasn't here ;)
 > 
-> I don't see any reason to assume that you just don't clear the flags
-> correctly.
-> 
-> In fact, if this bug really existed in the standard kernel, you'd see
-> machines locking up left and right. Adding a page to a the LRU list  when
-> it already is on the LRU list would cause immediate and severe list
-> corruption. It wouldn't just go silently in the night, it would _scream_. 
-> 
-> I would suggest that you add something like DEBUG_ADD_PAGE to
-> __free_pages_ok(), and see if somebody frees the page without
-> clearing the flags. Sounds like a bug in your code.
+> >>EIP; c012e370 <lru_cache_add+5c/d4>   <=====
+> Trace; c021b33e <tvecs+1dde/19f60>
+> Trace; c021b579 <tvecs+2019/19f60>
+> Trace; c0127823 <add_to_page_cache_locked+cb/dc>
+> Trace; c0130a3c <add_to_swap_cache+84/8c>
+> Trace; c0130d00 <read_swap_cache_async+68/98>
+> Trace; c0125c8b <handle_mm_fault+143/1c0>
+> Trace; c0113d33 <do_page_fault+143/3f0>
 
-This test is in _all_ places where pages are added or
-removed from the list and in __free_pages_ok().
+Look at this back-trace again.
 
-The only place where I'm hitting the bug is in
-lru_cache_add.
+In particular, look at which page read_swap_cache_async() adds to the swap
+cache.
 
-OTOH, I wouldn't mind it if you were to take a look
-at my code and potted the bug ;))
+The code is:
 
-regards,
+        /*
+         * Look for the page in the swap cache.
+         */
+        found_page = lookup_swap_cache(entry);
+        if (found_page)
+                goto out_free_swap;
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+*****   new_page_addr = __get_free_page(GFP_USER);		*******
+        if (!new_page_addr)
+                goto out_free_swap;     /* Out of memory */
+        new_page = virt_to_page(new_page_addr);
 
-http://www.conectiva.com/		http://www.surriel.com/
+        /*
+         * Check the swap cache again, in case we stalled above.
+         */
+        found_page = lookup_swap_cache(entry);
+        if (found_page)
+                goto out_free_page;
+        /*
+         * Add it to the swap cache and read its contents.
+         */
+        lock_page(new_page);
+        add_to_swap_cache(new_page, entry);
+        rw_swap_page(READ, new_page, wait);
+        return new_page;
+
+In short, read_swap_cache_async() allocates a new page that nobody else
+has access to. There's no way in hell that page is going to be on any LRU
+lists. 
+
+(The page allocation and type switching is silly - it should really do
+"new_page = page_cache_alloc()" and not have that "new_page_addr" thing
+at all, but that's a silly inefficiency, not a bug).
+
+The bug pretty much has to be in the new page flag handling. No, I don't
+see anything wrong in your patch, but we're talking about a code-path that
+has it's own very private page that cannot be shared unless there are some
+pretty major bugs (if __get_free_page() returns a page that is still in
+use somewhere, we're _soo_ screwed).
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
