@@ -1,60 +1,31 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA11912
-	for <linux-mm@kvack.org>; Thu, 26 Feb 1998 09:03:06 -0500
-Date: Thu, 26 Feb 1998 13:58:05 +0100 (MET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA12214
+	for <linux-mm@kvack.org>; Thu, 26 Feb 1998 09:04:23 -0500
+Date: Thu, 26 Feb 1998 12:34:40 +0100 (MET)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
-Subject: memory limitation test kit (tm) :-)
-Message-ID: <Pine.LNX.3.91.980226135506.30101A-100000@mirkwood.dummy.home>
+Subject: Re: Fairness in love and swapping
+In-Reply-To: <199802261103.MAA03115@boole.fs100.suse.de>
+Message-ID: <Pine.LNX.3.91.980226123303.26424F-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
-Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, werner@suse.de
+To: "Dr. Werner Fink" <werner@suse.de>
+Cc: sct@dcs.ed.ac.uk, torvalds@transmeta.com, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi there,
+On Thu, 26 Feb 1998, Dr. Werner Fink wrote:
 
-I've made a 'very preliminary' test patch to test
-whether memory limitation / quotation might work.
-It's untested, untunable and plain wrong, but nevertheless
-I'd like you all to take a look at it and point out things
-that I've forgotten in the limitation code...
+> There is one point more which makes ageing a bit unfair.  In
+> include/linux/pagemap.h PAGE_AGE_VALUE is defined to 16 which is used in
+> __add_page_to_hash_queue() to set the age of a hashed page ... IMHO only
+> touch_page() should be used.  Nevertheless a static value of 16
+> breaks the dynamic manner of swap control via /proc/sys/vm/swapctl
 
------------------------------------------------------
---- linux2188orig/mm/page_alloc.c	Thu Feb 26 13:51:16 1998
-+++ linux-2.1.88/mm/page_alloc.c	Thu Feb 26 13:09:17 1998
-@@ -26,6 +26,7 @@
- #include <asm/bitops.h>
- #include <asm/pgtable.h>
- #include <asm/spinlock.h>
-+#include <asm/smp_lock.h> /* for (un)lock_kernel() */
- 
- int nr_swap_pages = 0;
- int nr_free_pages = 0;
-@@ -328,7 +329,20 @@
- void swap_in(struct task_struct * tsk, struct vm_area_struct * vma,
- 	pte_t * page_table, unsigned long entry, int write_access)
- {
--	unsigned long page = __get_free_page(GFP_KERNEL);
-+	int i = 0;
-+	unsigned long page = 0;
-+	static int swap_out_process(struct task_struct *, int);
-+
-+	if (vma->vm_mm->rss > num_physpages / 2 && nr_free_pages < 
-+			free_pages_high) {
-+		lock_kernel();
-+		for (i = vma->vm_mm->rss; i > 0; i--)
-+			if (swap_out_process(tsk, __GFP_IO|__GFP_WAIT))
-+				break;
-+		unlock_kernel();
-+	}
-+
-+	page = __get_free_page(GFP_KERNEL);
- 
- 	if (pte_val(*page_table) != entry) {
- 		free_page(page);
-------------------------------------------------------------
+Without my mmap-age patch, page cache pages aren't aged
+at all... They're just freed whenever they weren't referenced
+since the last scan. The PAGE_AGE_VALUE is quite useless IMO
+(but I could be wrong, Stephen?).
 
 Rik.
 +-----------------------------+------------------------------+
