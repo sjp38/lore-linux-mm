@@ -1,199 +1,104 @@
-Date: Fri, 22 Sep 2000 07:27:30 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: test9-pre5+t9p2-vmpatch VM deadlock during write-intensive
- workload
-In-Reply-To: <Pine.LNX.4.21.0009221131110.12532-200000@debella.aszi.sztaki.hu>
-Message-ID: <Pine.LNX.4.21.0009220725590.4442-200000@duckman.distro.conectiva>
+Date: Fri, 22 Sep 2000 14:16:54 +0200 (CEST)
+From: Martin Diehl <mdiehlcs@compuserve.de>
+Subject: Re: [patch *] VM deadlock fix
+In-Reply-To: <Pine.LNX.4.21.0009211340110.18809-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10009221159321.8135-100000@notebook.diehl.home>
 MIME-Version: 1.0
-Content-Type: MULTIPART/Mixed; BOUNDARY="1443086817-781029003-969615251=:12532"
-Content-ID: <Pine.LNX.4.21.0009220725591.4442@duckman.distro.conectiva>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Molnar Ingo <mingo@debella.ikk.sztaki.hu>
-Cc: "David S. Miller" <davem@redhat.com>, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---1443086817-781029003-969615251=:12532
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <Pine.LNX.4.21.0009220725592.4442@duckman.distro.conectiva>
+On Thu, 21 Sep 2000, Rik van Riel wrote:
 
-On Fri, 22 Sep 2000, Molnar Ingo wrote:
+> I've found and fixed the deadlocks in the new VM. They turned out 
+> to be single-cpu only bugs, which explains why they didn't crash my
+> SMP tesnt box ;)
 
-> yep this has done the trick, the deadlock is gone. I've attached the full
-> VM-fixes patch (this fix included) against vanilla test9-pre5.
+Hi,
 
-Linus,
+tried
+> http://www.surriel.com/patches/2.4.0-t9p2-vmpatch
+applied to 2.4.0-t9p4 on UP box booted with mem=8M.
 
-could you please include this patch in the next
-pre patch?
+The deadlock behaviour appears to be somehow different compared
+to vanilla 2.4.0-t9p4 - however, for me it makes things even worse:
 
-(in the mean time, I'll go back to looking at the
-balancing thing with shared memory ... which is
-unrelated to this deadlock problem)
+I booted into singleuser and used
 
-thanks,
+dd if=/dev/urandom of=/dev/null count=1 bs=x
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+to trigger the issue by increasing bs-values. As soon as bs is big
+enough to force swapping (about 3M in my case) the box "deadlocks".
+What has become worse is, that SysRq+e (or k) doesn't help anymore
+with this patch applied. So I had to SysRq+b and ended fscking (but
+no fs-corruption). Without the patch this was not a problem.
 
-http://www.conectiva.com/		http://www.surriel.com/
+Some more points I've notized:
 
---1443086817-781029003-969615251=:12532
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII; NAME="vmfixes-2.4.0-test9-A1"
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.21.0009221134111.12532@debella.aszi.sztaki.hu>
-Content-Description: 
-Content-Disposition: ATTACHMENT; FILENAME="vmfixes-2.4.0-test9-A1"
+* apparently, the deadlock happens when the box begins to swap. I never
+  found any used swapspace with the new VM from 2.4.0-t9p*. If memory
+  requests force the use of swapspace, the machine deadlocks.
 
-LS0tIGxpbnV4L2ZzL2J1ZmZlci5jLm9yaWcJRnJpIFNlcCAyMiAwMjozMTow
-NyAyMDAwDQorKysgbGludXgvZnMvYnVmZmVyLmMJRnJpIFNlcCAyMiAwMjoz
-MToxMyAyMDAwDQpAQCAtNzA2LDkgKzcwNiw3IEBADQogc3RhdGljIHZvaWQg
-cmVmaWxsX2ZyZWVsaXN0KGludCBzaXplKQ0KIHsNCiAJaWYgKCFncm93X2J1
-ZmZlcnMoc2l6ZSkpIHsNCi0JCWJhbGFuY2VfZGlydHkoTk9ERVYpOw0KLQkJ
-d2FrZXVwX2tzd2FwZCgwKTsgLyogV2UgY2FuJ3Qgd2FpdCBiZWNhdXNlIG9m
-IF9fR0ZQX0lPICovDQotCQlzY2hlZHVsZSgpOw0KKwkJdHJ5X3RvX2ZyZWVf
-cGFnZXMoR0ZQX0JVRkZFUik7DQogCX0NCiB9DQogDQotLS0gbGludXgvbW0v
-ZmlsZW1hcC5jLm9yaWcJRnJpIFNlcCAyMiAwMjozMTowNyAyMDAwDQorKysg
-bGludXgvbW0vZmlsZW1hcC5jCUZyaSBTZXAgMjIgMDI6MzE6MTMgMjAwMA0K
-QEAgLTI1NSw3ICsyNTUsNyBAQA0KIAkgKiB1cCBrc3dhcGQuDQogCSAqLw0K
-IAlhZ2VfcGFnZV91cChwYWdlKTsNCi0JaWYgKGluYWN0aXZlX3Nob3J0YWdl
-KCkgPiAoaW5hY3RpdmVfdGFyZ2V0ICogMykgLyA0KQ0KKwlpZiAoaW5hY3Rp
-dmVfc2hvcnRhZ2UoKSA+IGluYWN0aXZlX3RhcmdldCAvIDIgJiYgZnJlZV9z
-aG9ydGFnZSgpKQ0KIAkJCXdha2V1cF9rc3dhcGQoMCk7DQogbm90X2ZvdW5k
-Og0KIAlyZXR1cm4gcGFnZTsNCi0tLSBsaW51eC9tbS9wYWdlX2FsbG9jLmMu
-b3JpZwlGcmkgU2VwIDIyIDAyOjMxOjA3IDIwMDANCisrKyBsaW51eC9tbS9w
-YWdlX2FsbG9jLmMJRnJpIFNlcCAyMiAwMjozMToxMyAyMDAwDQpAQCAtNDQ0
-LDcgKzQ0NCw4IEBADQogCQkgKiBwcm9jZXNzZXMsIGV0YykuDQogCQkgKi8N
-CiAJCWlmIChnZnBfbWFzayAmIF9fR0ZQX1dBSVQpIHsNCi0JCQl3YWtldXBf
-a3N3YXBkKDEpOw0KKwkJCXRyeV90b19mcmVlX3BhZ2VzKGdmcF9tYXNrKTsN
-CisJCQltZW1vcnlfcHJlc3N1cmUrKzsNCiAJCQlnb3RvIHRyeV9hZ2FpbjsN
-CiAJCX0NCiAJfQ0KLS0tIGxpbnV4L21tL3N3YXAuYy5vcmlnCUZyaSBTZXAg
-MjIgMDI6MzE6MDcgMjAwMA0KKysrIGxpbnV4L21tL3N3YXAuYwlGcmkgU2Vw
-IDIyIDAyOjMxOjEzIDIwMDANCkBAIC0yMzMsMjcgKzIzMywxMSBAQA0KIAlz
-cGluX2xvY2soJnBhZ2VtYXBfbHJ1X2xvY2spOw0KIAlpZiAoIVBhZ2VMb2Nr
-ZWQocGFnZSkpDQogCQlCVUcoKTsNCi0JLyoNCi0JICogSGVpc2VuYnVnIENv
-bXBlbnNhdG9yKHRtKQ0KLQkgKiBUaGlzIGJ1ZyBzaG91bGRuJ3QgdHJpZ2dl
-ciwgYnV0IGZvciB1bmtub3duIHJlYXNvbnMgaXQNCi0JICogc29tZXRpbWVz
-IGRvZXMuIElmIHRoZXJlIGFyZSBubyBzaWducyBvZiBsaXN0IGNvcnJ1cHRp
-b24sDQotCSAqIHdlIGlnbm9yZSB0aGUgcHJvYmxlbS4gRWxzZSB3ZSBCVUco
-KS4uLg0KLQkgKi8NCi0JaWYgKFBhZ2VBY3RpdmUocGFnZSkgfHwgUGFnZUlu
-YWN0aXZlRGlydHkocGFnZSkgfHwNCi0JCQkJCVBhZ2VJbmFjdGl2ZUNsZWFu
-KHBhZ2UpKSB7DQotCQlzdHJ1Y3QgbGlzdF9oZWFkICogcGFnZV9scnUgPSAm
-cGFnZS0+bHJ1Ow0KLQkJaWYgKHBhZ2VfbHJ1LT5uZXh0LT5wcmV2ICE9IHBh
-Z2VfbHJ1KSB7DQotCQkJcHJpbnRrKCJWTTogbHJ1X2NhY2hlX2FkZCwgYml0
-IG9yIGxpc3QgY29ycnVwdGlvbi4uXG4iKTsNCi0JCQlCVUcoKTsNCi0JCX0N
-Ci0JCXByaW50aygiVk06IGxydV9jYWNoZV9hZGQsIHBhZ2UgYWxyZWFkeSBp
-biBsaXN0IVxuIik7DQotCQlnb3RvIHBhZ2VfYWxyZWFkeV9vbl9saXN0Ow0K
-LQl9DQorCURFQlVHX0FERF9QQUdFDQogCWFkZF9wYWdlX3RvX2FjdGl2ZV9s
-aXN0KHBhZ2UpOw0KIAkvKiBUaGlzIHNob3VsZCBiZSByZWxhdGl2ZWx5IHJh
-cmUgKi8NCiAJaWYgKCFwYWdlLT5hZ2UpDQogCQlkZWFjdGl2YXRlX3BhZ2Vf
-bm9sb2NrKHBhZ2UpOw0KLXBhZ2VfYWxyZWFkeV9vbl9saXN0Og0KIAlzcGlu
-X3VubG9jaygmcGFnZW1hcF9scnVfbG9jayk7DQogfQ0KIA0KLS0tIGxpbnV4
-L21tL3Ztc2Nhbi5jLm9yaWcJRnJpIFNlcCAyMiAwMjozMTowNyAyMDAwDQor
-KysgbGludXgvbW0vdm1zY2FuLmMJRnJpIFNlcCAyMiAwMjozMToyNyAyMDAw
-DQpAQCAtMzc3LDcgKzM3Nyw3IEBADQogI2RlZmluZSBTV0FQX1NISUZUIDUN
-CiAjZGVmaW5lIFNXQVBfTUlOIDgNCiANCi1zdGF0aWMgaW50IHN3YXBfb3V0
-KHVuc2lnbmVkIGludCBwcmlvcml0eSwgaW50IGdmcF9tYXNrKQ0KK3N0YXRp
-YyBpbnQgc3dhcF9vdXQodW5zaWduZWQgaW50IHByaW9yaXR5LCBpbnQgZ2Zw
-X21hc2ssIHVuc2lnbmVkIGxvbmcgaWRsZV90aW1lKQ0KIHsNCiAJc3RydWN0
-IHRhc2tfc3RydWN0ICogcDsNCiAJaW50IGNvdW50ZXI7DQpAQCAtNDA3LDYg
-KzQwNyw3IEBADQogCQlzdHJ1Y3QgbW1fc3RydWN0ICpiZXN0ID0gTlVMTDsN
-CiAJCWludCBwaWQgPSAwOw0KIAkJaW50IGFzc2lnbiA9IDA7DQorCQlpbnQg
-Zm91bmRfdGFzayA9IDA7DQogCXNlbGVjdDoNCiAJCXJlYWRfbG9jaygmdGFz
-a2xpc3RfbG9jayk7DQogCQlwID0gaW5pdF90YXNrLm5leHRfdGFzazsNCkBA
-IC00MTYsNiArNDE3LDExIEBADQogCQkJCWNvbnRpbnVlOw0KIAkgCQlpZiAo
-bW0tPnJzcyA8PSAwKQ0KIAkJCQljb250aW51ZTsNCisJCQkvKiBTa2lwIHRh
-c2tzIHdoaWNoIGhhdmVuJ3Qgc2xlcHQgbG9uZyBlbm91Z2ggeWV0IHdoZW4g
-aWRsZS1zd2FwcGluZy4gKi8NCisJCQlpZiAoaWRsZV90aW1lICYmICFhc3Np
-Z24gJiYgKCEocC0+c3RhdGUgJiBUQVNLX0lOVEVSUlVQVElCTEUpIHx8DQor
-CQkJCQl0aW1lX2JlZm9yZShwLT5zbGVlcF90aW1lICsgaWRsZV90aW1lICog
-SFosIGppZmZpZXMpKSkNCisJCQkJY29udGludWU7DQorCQkJZm91bmRfdGFz
-aysrOw0KIAkJCS8qIFJlZnJlc2ggc3dhcF9jbnQ/ICovDQogCQkJaWYgKGFz
-c2lnbiA9PSAxKSB7DQogCQkJCW1tLT5zd2FwX2NudCA9IChtbS0+cnNzID4+
-IFNXQVBfU0hJRlQpOw0KQEAgLTQzMCw3ICs0MzYsNyBAQA0KIAkJfQ0KIAkJ
-cmVhZF91bmxvY2soJnRhc2tsaXN0X2xvY2spOw0KIAkJaWYgKCFiZXN0KSB7
-DQotCQkJaWYgKCFhc3NpZ24pIHsNCisJCQlpZiAoIWFzc2lnbiAmJiBmb3Vu
-ZF90YXNrID4gMCkgew0KIAkJCQlhc3NpZ24gPSAxOw0KIAkJCQlnb3RvIHNl
-bGVjdDsNCiAJCQl9DQpAQCAtNjkxLDkgKzY5Nyw5IEBADQogCQkJICogTm93
-IHRoZSBwYWdlIGlzIHJlYWxseSBmcmVlYWJsZSwgc28gd2UNCiAJCQkgKiBt
-b3ZlIGl0IHRvIHRoZSBpbmFjdGl2ZV9jbGVhbiBsaXN0Lg0KIAkJCSAqLw0K
-LQkJCVVubG9ja1BhZ2UocGFnZSk7DQogCQkJZGVsX3BhZ2VfZnJvbV9pbmFj
-dGl2ZV9kaXJ0eV9saXN0KHBhZ2UpOw0KIAkJCWFkZF9wYWdlX3RvX2luYWN0
-aXZlX2NsZWFuX2xpc3QocGFnZSk7DQorCQkJVW5sb2NrUGFnZShwYWdlKTsN
-CiAJCQljbGVhbmVkX3BhZ2VzKys7DQogCQl9IGVsc2Ugew0KIAkJCS8qDQpA
-QCAtNzAxLDkgKzcwNyw5IEBADQogCQkJICogSXQncyBubyB1c2Uga2VlcGlu
-ZyBpdCBoZXJlLCBzbyB3ZSBtb3ZlIGl0IHRvDQogCQkJICogdGhlIGFjdGl2
-ZSBsaXN0Lg0KIAkJCSAqLw0KLQkJCVVubG9ja1BhZ2UocGFnZSk7DQogCQkJ
-ZGVsX3BhZ2VfZnJvbV9pbmFjdGl2ZV9kaXJ0eV9saXN0KHBhZ2UpOw0KIAkJ
-CWFkZF9wYWdlX3RvX2FjdGl2ZV9saXN0KHBhZ2UpOw0KKwkJCVVubG9ja1Bh
-Z2UocGFnZSk7DQogCQl9DQogCX0NCiAJc3Bpbl91bmxvY2soJnBhZ2VtYXBf
-bHJ1X2xvY2spOw0KQEAgLTg2MCw2ICs4NjYsNyBAQA0KIHN0YXRpYyBpbnQg
-cmVmaWxsX2luYWN0aXZlKHVuc2lnbmVkIGludCBnZnBfbWFzaywgaW50IHVz
-ZXIpDQogew0KIAlpbnQgcHJpb3JpdHksIGNvdW50LCBzdGFydF9jb3VudCwg
-bWFkZV9wcm9ncmVzczsNCisJdW5zaWduZWQgbG9uZyBpZGxlX3RpbWU7DQog
-DQogCWNvdW50ID0gaW5hY3RpdmVfc2hvcnRhZ2UoKSArIGZyZWVfc2hvcnRh
-Z2UoKTsNCiAJaWYgKHVzZXIpDQpAQCAtODY5LDE2ICs4NzYsMjggQEANCiAJ
-LyogQWx3YXlzIHRyaW0gU0xBQiBjYWNoZXMgd2hlbiBtZW1vcnkgZ2V0cyBs
-b3cuICovDQogCWttZW1fY2FjaGVfcmVhcChnZnBfbWFzayk7DQogDQorCS8q
-DQorCSAqIENhbGN1bGF0ZSB0aGUgbWluaW11bSB0aW1lIChpbiBzZWNvbmRz
-KSBhIHByb2Nlc3MgbXVzdA0KKwkgKiBoYXZlIHNsZXB0IGJlZm9yZSB3ZSBj
-b25zaWRlciBpdCBmb3IgaWRsZSBzd2FwcGluZy4NCisJICogVGhpcyBtdXN0
-IGJlIHRoZSBudW1iZXIgb2Ygc2Vjb25kcyBpdCB0YWtlcyB0byBnbyB0aHJv
-dWdoDQorCSAqIGFsbCBvZiB0aGUgY2FjaGUuIERvaW5nIHRoaXMgaWRsZSBz
-d2FwcGluZyBtYWtlcyB0aGUgVk0NCisJICogc21vb3RoZXIgb25jZSB3ZSBz
-dGFydCBoaXR0aW5nIHN3YXAuDQorCSAqLw0KKwlpZGxlX3RpbWUgPSBhdG9t
-aWNfcmVhZCgmcGFnZV9jYWNoZV9zaXplKTsNCisJaWRsZV90aW1lICs9IGF0
-b21pY19yZWFkKCZidWZmZXJtZW1fcGFnZXMpOw0KKwlpZGxlX3RpbWUgLz0g
-KGluYWN0aXZlX3RhcmdldCArIDEpOw0KKw0KIAlwcmlvcml0eSA9IDY7DQog
-CWRvIHsNCiAJCW1hZGVfcHJvZ3Jlc3MgPSAwOw0KIA0KLQkJaWYgKGN1cnJl
-bnQtPm5lZWRfcmVzY2hlZCkgew0KKwkJaWYgKGN1cnJlbnQtPm5lZWRfcmVz
-Y2hlZCAmJiAoZ2ZwX21hc2sgJiBfX0dGUF9JTykpIHsNCiAJCQlfX3NldF9j
-dXJyZW50X3N0YXRlKFRBU0tfUlVOTklORyk7DQogCQkJc2NoZWR1bGUoKTsN
-CiAJCX0NCiANCi0JCXdoaWxlIChyZWZpbGxfaW5hY3RpdmVfc2Nhbihwcmlv
-cml0eSwgMSkpIHsNCisJCXdoaWxlIChyZWZpbGxfaW5hY3RpdmVfc2Nhbihw
-cmlvcml0eSwgMSkgfHwNCisJCQkJc3dhcF9vdXQocHJpb3JpdHksIGdmcF9t
-YXNrLCBpZGxlX3RpbWUpKSB7DQogCQkJbWFkZV9wcm9ncmVzcyA9IDE7DQog
-CQkJaWYgKCEtLWNvdW50KQ0KIAkJCQlnb3RvIGRvbmU7DQpAQCAtOTEzLDcg
-KzkzMiw3IEBADQogCQkvKg0KIAkJICogVGhlbiwgdHJ5IHRvIHBhZ2Ugc3R1
-ZmYgb3V0Li4NCiAJCSAqLw0KLQkJd2hpbGUgKHN3YXBfb3V0KHByaW9yaXR5
-LCBnZnBfbWFzaykpIHsNCisJCXdoaWxlIChzd2FwX291dChwcmlvcml0eSwg
-Z2ZwX21hc2ssIDApKSB7DQogCQkJbWFkZV9wcm9ncmVzcyA9IDE7DQogCQkJ
-aWYgKCEtLWNvdW50KQ0KIAkJCQlnb3RvIGRvbmU7DQpAQCAtOTYzLDcgKzk4
-Miw4IEBADQogCSAqIGJlZm9yZSB3ZSBnZXQgYXJvdW5kIHRvIG1vdmluZyB0
-aGVtIHRvIHRoZSBvdGhlcg0KIAkgKiBsaXN0LCBzbyB0aGlzIGlzIGEgcmVs
-YXRpdmVseSBjaGVhcCBvcGVyYXRpb24uDQogCSAqLw0KLQlpZiAoZnJlZV9z
-aG9ydGFnZSgpKQ0KKwlpZiAoZnJlZV9zaG9ydGFnZSgpIHx8IG5yX2luYWN0
-aXZlX2RpcnR5X3BhZ2VzID4gbnJfZnJlZV9wYWdlcygpICsNCisJCQlucl9p
-bmFjdGl2ZV9jbGVhbl9wYWdlcygpKQ0KIAkJcmV0ICs9IHBhZ2VfbGF1bmRl
-cihnZnBfbWFzaywgdXNlcik7DQogDQogCS8qDQpAQCAtMTA3MCw5ICsxMDkw
-LDEyIEBADQogCQlydW5fdGFza19xdWV1ZSgmdHFfZGlzayk7DQogDQogCQkv
-KiANCi0JCSAqIElmIHdlJ3ZlIGVpdGhlciBjb21wbGV0ZWx5IGdvdHRlbiBy
-aWQgb2YgdGhlDQotCQkgKiBmcmVlIHBhZ2Ugc2hvcnRhZ2Ugb3IgdGhlIGlu
-YWN0aXZlIHBhZ2Ugc2hvcnRhZ2UNCi0JCSAqIGlzIGdldHRpbmcgbG93LCB0
-aGVuIHN0b3AgZWF0aW5nIENQVSB0aW1lLg0KKwkJICogV2UgZ28gdG8gc2xl
-ZXAgaWYgZWl0aGVyIHRoZSBmcmVlIHBhZ2Ugc2hvcnRhZ2UNCisJCSAqIG9y
-IHRoZSBpbmFjdGl2ZSBwYWdlIHNob3J0YWdlIGlzIGdvbmUuIFdlIGRvIHRo
-aXMNCisJCSAqIGJlY2F1c2U6DQorCQkgKiAxKSB3ZSBuZWVkIG5vIG1vcmUg
-ZnJlZSBwYWdlcyAgIG9yDQorCQkgKiAyKSB0aGUgaW5hY3RpdmUgcGFnZXMg
-bmVlZCB0byBiZSBmbHVzaGVkIHRvIGRpc2ssDQorCQkgKiAgICBpdCB3b3Vs
-ZG4ndCBoZWxwIHRvIGVhdCBDUFUgdGltZSBub3cgLi4uDQogCQkgKg0KIAkJ
-ICogV2UgZ28gdG8gc2xlZXAgZm9yIG9uZSBzZWNvbmQsIGJ1dCBpZiBpdCdz
-IG5lZWRlZA0KIAkJICogd2UnbGwgYmUgd29rZW4gdXAgZWFybGllci4uLg0K
-LS0tIGxpbnV4L2luY2x1ZGUvbGludXgvc2NoZWQuaC5vcmlnCUZyaSBTZXAg
-MjIgMDI6MzE6MDQgMjAwMA0KKysrIGxpbnV4L2luY2x1ZGUvbGludXgvc2No
-ZWQuaAlGcmkgU2VwIDIyIDAyOjMxOjEzIDIwMDANCkBAIC0yOTgsNiArMjk4
-LDcgQEANCiAJICogdGhhdCdzIGp1c3QgZmluZS4pDQogCSAqLw0KIAlzdHJ1
-Y3QgbGlzdF9oZWFkIHJ1bl9saXN0Ow0KKwl1bnNpZ25lZCBsb25nIHNsZWVw
-X3RpbWU7DQogDQogCXN0cnVjdCB0YXNrX3N0cnVjdCAqbmV4dF90YXNrLCAq
-cHJldl90YXNrOw0KIAlzdHJ1Y3QgbW1fc3RydWN0ICphY3RpdmVfbW07DQpA
-QCAtODE4LDYgKzgxOSw3IEBADQogc3RhdGljIGlubGluZSB2b2lkIGRlbF9m
-cm9tX3J1bnF1ZXVlKHN0cnVjdCB0YXNrX3N0cnVjdCAqIHApDQogew0KIAlu
-cl9ydW5uaW5nLS07DQorCXAtPnNsZWVwX3RpbWUgPSBqaWZmaWVzOw0KIAls
-aXN0X2RlbCgmcC0+cnVuX2xpc3QpOw0KIAlwLT5ydW5fbGlzdC5uZXh0ID0g
-TlVMTDsNCiB9DQo=
---1443086817-781029003-969615251=:12532--
+* when, after deadlocking, I pressed SysRq+t several times I found
+  - either dd or kswapd being current task in vanilla 2.4.0-t9p4
+  - neither dd nor kswapd ever being current with this patch
+
+* as an printk() in the main loop shows, kreclaimd *never* awoke
+
+* My impression was similar to what somebody has already reported:
+  seems something related to refill_inactive_scan() is recursing to
+  infinity when the "deadlock" happens.
+
+* the behaviour of kswapd without this last patch differs significantly
+  before and after the first deadlock happens (and released by SysRq+e):
+  only *after* pressing SysRq+e (or k) kswapd awoke once per second
+  on the idle box. This is strange since it should sleep with timeout=HZ
+  in its main loop.
+
+Especially the last point suggests to me there might be a problem at
+initialization. I'm not sure, whether everything called from kswapd
+is properly initialized at the time when the kswapd-thread is created.
+To check this, I've tentatively added an additional
+interruptible_sleep_on_timeout() before kswapd's main loop to delay it
+until initialization has finished. Probably it would be more "Right" to
+move the sleep from the end of the main loop to its beginning - however,
+I just tried a quick hack and did not check if the *_shortage() stuff is
+ready to be called at init time.
+
+The additional sleep before kswapd enters its main loop was a major
+improvement for me:
+
+* my dd-tests did not deadlock anymore - even with bs=100M and mem=8M
+
+* swap space was really used now.
+
+* i was able to advance beyond singleuser with 2.4.0-t9p* and mem=8M
+  for the very first time (always deadlocked in the init-scripts)
+
+* i was even able to make bzImage - but it dumped core after about 15 Min
+  for unknown reason (probably out of memory) but without any deadlock.
+  Box was at av. load 3 and 15M swap used at this time.
+
+* I found kreclaimd *was* awoken several times.
+
+* however, kswapd still not awaking every second after fresh boot. Now
+  it begins to awake as soon as real swapping starts.
+
+So, my conclusion is the "deadlock" issue might be mainly an
+initialization problem. Probably some more special handling is needed
+at swapon later. Currently my guess is there is a initialization problem
+when kswapd starts and some kind of blocking when refill_inactive_scan()
+is called before swapon.
+
+Comments?
+Will do some more tests (including your latest patch).
+
+Regards
+Martin
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
