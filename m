@@ -1,123 +1,81 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j1SIskMN556516
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 13:54:46 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1SIskZp146836
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 11:54:46 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j1SIsk8r024869
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 11:54:46 -0700
-Subject: [PATCH 5/5] SRAT cleanup: make calculations and indenting level more sane
-From: Dave Hansen <haveblue@us.ibm.com>
-Date: Mon, 28 Feb 2005 10:54:44 -0800
-Message-Id: <E1D5q2X-0007n9-00@kernel.beaverton.ibm.com>
+Date: Mon, 28 Feb 2005 19:01:53 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [PATCH] 2/2 Prezeroing large blocks of pages during allocation
+In-Reply-To: <1109609180.6921.22.camel@localhost>
+Message-ID: <Pine.LNX.4.58.0502281858520.29288@skynet>
+References: <20050227134316.2D0F1ECE4@skynet.csn.ul.ie> <1109609180.6921.22.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@osdl.org, kmannth@us.ibm.com, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>, ygoto@us.fujitsu.com, apw@shadowen.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, clameter@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Using the assumption that all addresses in the SRAT are ascending,
-the calculations can get a bit simpler, and remove the 
-"been_here_before" variable.
+On Mon, 28 Feb 2005, Dave Hansen wrote:
 
-This also breaks that calculation out into its own function, which
-further simplifies the look of the code.
+> On Sun, 2005-02-27 at 13:43 +0000, Mel Gorman wrote:
+> > +		/*
+> > +		 * If this is a request for a zero page and the page was
+> > +		 * not taken from the USERZERO pool, zero it all
+> > +		 */
+> > +		if ((flags & __GFP_ZERO) && alloctype != ALLOC_USERZERO) {
+> > +			int zero_order=order;
+> > +
+> > +			/*
+> > +			 * This is important. We are about to zero a block
+> > +			 * which may be larger than we need so we have to
+> > +			 * determine do we zero just what we need or do
+> > +			 * we zero the whole block and put the pages in
+> > +			 * the zero page.
+> > +			 *
+> > +			 * We zero the whole block in the event we are taking
+> > +			 * from the KERNNORCLM pools and otherwise zero just
+> > +			 * what we need. The reason we do not always zero
+> > +			 * everything is because we do not want unreclaimable
+> > +			 * pages to leak into the USERRCLM and KERNRCLM
+> > +			 * pools
+> > +			 *
+> > +			 */
+> > +			if (alloctype != ALLOC_USERRCLM &&
+> > +			    alloctype != ALLOC_KERNRCLM) {
+> > +				area = zone->free_area_lists[ALLOC_USERZERO] +
+> > +					current_order;
+> > +				zero_order = current_order;
+> > +			}
+> > +
+> > +
+> > +			spin_unlock_irqrestore(&zone->lock, *irq_flags);
+> > +			prep_zero_page(page, zero_order, flags);
+> > +			inc_zeroblock_count(zone, zero_order, flags);
+> > +			spin_lock_irqsave(&zone->lock, *irq_flags);
+> > +
+> > +		}
+> > +
+> >  		return expand(zone, page, order, current_order, area);
+> >  	}
+> >
+>
+> I think it would make sense to put that in its own helper function.
+> When comments get that big, they often reduce readability.  The only
+> outside variable that gets modified is "area", I think.
+>
+> So, a static inline:
+>
+> 	area = my_new_function_with_the_huge_comment(zone, ..., area);
+>
 
-Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
----
+Will make that change in the next version. It makes perfect sense.
 
- sparse-dave/arch/i386/kernel/srat.c |   67 ++++++++++++++++++------------------
- 1 files changed, 35 insertions(+), 32 deletions(-)
+> BTW, what kernel does this apply against?  Is linux-2.6.11-rc4-v18 the
+> same as bk18?
+>
 
-diff -puN arch/i386/kernel/srat.c~A3.3-srat-cleanup arch/i386/kernel/srat.c
---- sparse/arch/i386/kernel/srat.c~A3.3-srat-cleanup	2005-02-25 10:18:19.000000000 -0800
-+++ sparse-dave/arch/i386/kernel/srat.c	2005-02-25 10:18:26.000000000 -0800
-@@ -181,6 +181,38 @@ static __init void chunk_to_zones(unsign
- 	}
- }
- 
-+/*
-+ * The SRAT table always lists ascending addresses, so can always
-+ * assume that the first "start" address that you see is the real
-+ * start of the node, and that the current "end" address is after
-+ * the previous one.
-+ */
-+static __init void node_read_chunk(int nid, struct node_memory_chunk_s *memory_chunk)
-+{
-+	/*
-+	 * Only add present memory as told by the e820.
-+	 * There is no guarantee from the SRAT that the memory it
-+	 * enumerates is present at boot time because it represents
-+	 * *possible* memory hotplug areas the same as normal RAM.
-+	 */
-+	if (memory_chunk->start_pfn >= max_pfn) {
-+		printk (KERN_INFO "Ignoring SRAT pfns: 0x%08lx -> %08lx\n",
-+			memory_chunk->start_pfn, memory_chunk->end_pfn);
-+		return;
-+	}
-+	if (memory_chunk->nid != nid)
-+		return;
-+
-+	if (!node_has_online_mem(nid))
-+		node_start_pfn[nid] = memory_chunk->start_pfn;
-+
-+	if (node_start_pfn[nid] > memory_chunk->start_pfn)
-+		node_start_pfn[nid] = memory_chunk->start_pfn;
-+
-+	if (node_end_pfn[nid] < memory_chunk->end_pfn)
-+		node_end_pfn[nid] = memory_chunk->end_pfn;
-+}
-+
- /* Parse the ACPI Static Resource Affinity Table */
- static int __init acpi20_parse_srat(struct acpi_table_srat *sratp)
- {
-@@ -261,41 +293,12 @@ static int __init acpi20_parse_srat(stru
- 	printk("Number of memory chunks in system = %d\n", num_memory_chunks);
- 
- 	for (j = 0; j < num_memory_chunks; j++){
-+		struct node_memory_chunk_s * chunk = &node_memory_chunk[j];
- 		printk("chunk %d nid %d start_pfn %08lx end_pfn %08lx\n",
--		       j, node_memory_chunk[j].nid,
--		       node_memory_chunk[j].start_pfn,
--		       node_memory_chunk[j].end_pfn);
-+		       j, chunk->nid, chunk->start_pfn, chunk->end_pfn);
-+		node_read_chunk(chunk->nid, chunk);
- 	}
-  
--	/*calculate node_start_pfn/node_end_pfn arrays*/
--	for_each_online_node(nid) {
--		int been_here_before = 0;
--
--		for (j = 0; j < num_memory_chunks; j++){
--			/*
--			 * Only add present memroy to node_end/start_pfn
--			 * There is no guarantee from the srat that the memory
--			 * is present at boot time.
--			 */
--			if (node_memory_chunk[j].start_pfn >= max_pfn) {
--				printk (KERN_INFO "Ignoring chunk of memory reported in the SRAT (could be hot-add zone?)\n");
--				printk (KERN_INFO "chunk is reported from pfn %04x to %04x\n",
--					node_memory_chunk[j].start_pfn, node_memory_chunk[j].end_pfn);
--				continue;
--			}
--			if (node_memory_chunk[j].nid == nid) {
--				if (been_here_before == 0) {
--					node_start_pfn[nid] = node_memory_chunk[j].start_pfn;
--					node_end_pfn[nid] = node_memory_chunk[j].end_pfn;
--					been_here_before = 1;
--				} else { /* We've found another chunk of memory for the node */
--					if (node_start_pfn[nid] < node_memory_chunk[j].start_pfn) {
--						node_end_pfn[nid] = node_memory_chunk[j].end_pfn;
--					}
--				}
--			}
--		}
--	}
- 	for_each_online_node(nid) {
- 		unsigned long start = node_start_pfn[nid];
- 		unsigned long end = node_end_pfn[nid];
-_
+It applies on top of 2.6.11-rc4 with the latest version of the placement
+policy. Admittedly, the naming of the tree is not very obvious.
+
+-- 
+Mel Gorman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
