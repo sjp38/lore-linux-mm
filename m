@@ -1,55 +1,72 @@
-Message-ID: <3D3B9A6F.12B096E1@zip.com.au>
-Date: Sun, 21 Jul 2002 22:38:55 -0700
+Message-ID: <3D3BA131.34D2BD86@zip.com.au>
+Date: Sun, 21 Jul 2002 23:07:45 -0700
 From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH][1/2] return values shrink_dcache_memory etc
-References: <Pine.LNX.4.44L.0207201740580.12241-100000@imladris.surriel.com> <Pine.LNX.4.44.0207201351160.1552-100000@home.transmeta.com> <3D3B925D.624986EE@zip.com.au> <20020722051608.GB919@holomorphy.com>
+Subject: Re: pte_chain_mempool-2.5.27-1
+References: <20020721035513.GD6899@holomorphy.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ed Tomlinson <tomlins@cam.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@surriel.com, anton@samba.org
 List-ID: <linux-mm.kvack.org>
 
 William Lee Irwin III wrote:
 > 
-> On Sun, Jul 21, 2002 at 10:04:29PM -0700, Andrew Morton wrote:
-> > I'd suggest that we avoid putting any additional changes into
-> > the VM until we have solutions available for:
-> > 2: Make it work with pte-highmem  (Bill Irwin is signed up for this)
-> > 4: Move the pte_chains into highmem too (Bill, I guess)
-> > 6: maybe GC the pte_chain backing pages. (Seems unavoidable.  Rik?)
-> > Especially pte_chains in highmem.  Failure to fix this well
-> > is a showstopper for rmap on large ia32 machines, which makes
-> > it a showstopper full stop.
-> 
-> I'll send you an update of my solution for (6), the initial version of
-> which was posted earlier today, in a separate post.
+> This patch, in order to achieve more reliable and efficient allocation,
+> converts the pte_chain freelist to use mempool, which in turn uses the
+> slab allocator as a front-end.
 
-Thanks, Bill.  Yup, I'm playing with pte_chain_mempool at present.
+Using slab seems like a good idea to me.  It gives us the per-cpu
+freelists and GC for free.
 
-> highpte_chain will do (2) and (4) simultaneously when it's debugged.
-> 
-> On Sun, Jul 21, 2002 at 10:04:29PM -0700, Andrew Morton wrote:
-> > If we can get something in place which works acceptably on Martin
-> > Bligh's machines, and we can see that the gains of rmap (whatever
-> > they are ;)) are worth the as-yet uncoded pains then let's move on.
-> > But until then, adding new stuff to the VM just makes a `patch -R'
-> > harder to do.
-> 
-> I have the same kinds of machines and have already been testing with
-> precisely the many tasks workloads he's concerned about for the sake of
-> correctness, and efficiency is also a concern here. highpte_chain is
-> already so high up on my priority queue that all other work is halted.
+mempool?  Guess so.
 
-OK.  But we're adding non-trivial amounts of new code simply
-to get the reverse mapping working as robustly as the virtual
-scan.  And we'll always have rmap's additional storage requirements.
+mempool is really designed for things like IO request structures.
+BIOs, etc.  Things which are guaranteed to have short lifecycles.
+Things which make the "wait for some objects to be freed" loop
+in mempool_alloc() reliable.
 
-At some point we need to make a decision as to whether it's all
-worth it.  Right now we do not even have the information on the
-pluses side to do this.  That's worrisome.
+However when mempool went in, a bunch of developers (including
+myself) went "oh goody" and reused mempool to add some buffering
+to things like radix tree nodes, buffer_heads, pte_chains, etc.
+
+This is inappropriate, because those objects have a very different
+lifecycle.
+
+For example, back when swap was using buffer_heads, I was getting
+tasks locked up in mempool_alloc(GFP_NOIO), waiting for buffer_heads
+to come free.  But no buffer_heads were being freed because there was
+no memory pressure any more - somebody had just done a truncate() or
+an exit(), there was plenty of free memory, nobody was calling 
+try_to_free_buffers() and the mempool_alloc caller was in indefinite
+sleep.  Waiting for someone to free up a buffer_head.
+
+We could fix this problem by changing the schedule() in mempool_alloc()
+into a schedule_timeout(not much), but Ingo didn't seem to like that.
+Perhaps because we're using mempool in ways for which it was not
+designed.
+
+
+> +       pte_chain_pool = mempool_create(16*1024,
+> +                                       pte_chain_pool_alloc,
+> +                                       pte_chain_pool_free,
+> +                                       NULL);
+> +
+
+Be aware that mempool kmallocs a contiguous chunk of element
+pointers.  This statement is asking for a
+kmalloc(16384 * sizeof(void *)), which is 128k. It will work,
+but only just.
+
+How did you engineer the size of this pool, btw?  In the
+radix_tree code, we made the pool enormous.  It was effectively
+halved in size when the ratnodes went to 64 slots, but I still
+have the fun task of working out what the pool size should really
+be.  In retrospect it would have been smarter to make it really
+small and then increase it later in response to tester feedback.
+Suggest you do that here.
 
 -
 --
