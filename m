@@ -1,32 +1,116 @@
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id DAA15140
+	for <linux-mm@kvack.org>; Fri, 24 Jan 2003 03:49:53 -0800 (PST)
+Date: Fri, 24 Jan 2003 03:50:17 -0800
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.59-mm5
+Message-Id: <20030124035017.6276002f.akpm@digeo.com>
+In-Reply-To: <m3d6mmvlip.fsf@lexa.home.net>
 References: <20030123195044.47c51d39.akpm@digeo.com>
 	<946253340.1043406208@[192.168.100.5]>
 	<20030124031632.7e28055f.akpm@digeo.com>
-From: Alex Tomas <bzzz@tmi.comex.ru>
-Date: 24 Jan 2003 14:23:58 +0300
-In-Reply-To: <20030124031632.7e28055f.akpm@digeo.com>
-Message-ID: <m3d6mmvlip.fsf@lexa.home.net>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	<m3d6mmvlip.fsf@lexa.home.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Alex Bligh - linux-kernel <linux-kernel@alex.org.uk>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alex Tomas <bzzz@tmi.comex.ru>
+Cc: linux-kernel@alex.org.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> Andrew Morton (AM) writes:
+Alex Tomas <bzzz@tmi.comex.ru> wrote:
+>
+> >>>>> Andrew Morton (AM) writes:
+> 
+>  AM> But writes are completely different.  There is no dependency
+>  AM> between them and at any point in time we know where on-disk a lot
+>  AM> of writes will be placed.  We don't know that for reads, which is
+>  AM> why we need to twiddle thumbs until the application or filesystem
+>  AM> makes up its mind.
+> 
+> 
+> it's significant that application doesn't want to wait read completion
+> long and doesn't wait for write completion in most cases.
 
- AM> But writes are completely different.  There is no dependency
- AM> between them and at any point in time we know where on-disk a lot
- AM> of writes will be placed.  We don't know that for reads, which is
- AM> why we need to twiddle thumbs until the application or filesystem
- AM> makes up its mind.
+That's correct.  Reads are usually synchronous and writes are rarely
+synchronous.
+
+The most common place where the kernel forces a user process to wait on
+completion of a write is actually in unlink (truncate, really).  Because
+truncate must wait for in-progress I/O to complete before allowing the
+filesystem to free (and potentially reuse) the affected blocks.
+
+If there's a lot of writeout happening then truncate can take _ages_.  Hence
+this patch:
 
 
-it's significant that application doesn't want to wait read completion
-long and doesn't wait for write completion in most cases.
 
 
+
+Truncates can take a very long time.  Especially if there is a lot of
+writeout happening, because truncate must wait on in-progress I/O.
+
+And sys_unlink() is performing that truncate while holding the parent
+directory's i_sem.  This basically shuts down new accesses to the entire
+directory until the synchronous I/O completes.
+
+In the testing I've been doing, that directory is /tmp, and this hurts.
+
+So change sys_unlink() to perform the actual truncate outside i_sem.
+
+When there is a continuous streaming write to the same disk, this patch
+reduces the time for `make -j4 bzImage' from 370 seconds to 220.
+
+
+
+ namei.c |   12 ++++++++++++
+ 1 files changed, 12 insertions(+)
+
+diff -puN fs/namei.c~unlink-latency-fix fs/namei.c
+--- 25/fs/namei.c~unlink-latency-fix	2003-01-24 02:41:04.000000000 -0800
++++ 25-akpm/fs/namei.c	2003-01-24 02:47:36.000000000 -0800
+@@ -1659,12 +1659,19 @@ int vfs_unlink(struct inode *dir, struct
+ 	return error;
+ }
+ 
++/*
++ * Make sure that the actual truncation of the file will occur outside its
++ * diretory's i_sem.  truncate can take a long time if there is a lot of
++ * writeout happening, and we don't want to prevent access to the directory
++ * while waiting on the I/O.
++ */
+ asmlinkage long sys_unlink(const char * pathname)
+ {
+ 	int error = 0;
+ 	char * name;
+ 	struct dentry *dentry;
+ 	struct nameidata nd;
++	struct inode *inode = NULL;
+ 
+ 	name = getname(pathname);
+ 	if(IS_ERR(name))
+@@ -1683,6 +1690,9 @@ asmlinkage long sys_unlink(const char * 
+ 		/* Why not before? Because we want correct error value */
+ 		if (nd.last.name[nd.last.len])
+ 			goto slashes;
++		inode = dentry->d_inode;
++		if (inode)
++			inode = igrab(inode);
+ 		error = vfs_unlink(nd.dentry->d_inode, dentry);
+ 	exit2:
+ 		dput(dentry);
+@@ -1693,6 +1703,8 @@ exit1:
+ exit:
+ 	putname(name);
+ 
++	if (inode)
++		iput(inode);	/* truncate the inode here */
+ 	return error;
+ 
+ slashes:
+
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
