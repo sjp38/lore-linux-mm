@@ -1,66 +1,53 @@
-Received: from cs.amherst.edu
- ("port 1109"@host-17.subnet-238.amherst.edu [148.85.238.17])
- by amherst.edu (PMDF V6.0-24 #39159)
- with ESMTP id <01JRVCRYHO5G8ZEXAJ@amherst.edu> for linux-mm@kvack.org; Mon,
- 17 Jul 2000 10:35:13 -0400 (EDT)
-Date: Mon, 17 Jul 2000 10:32:45 -0400
-From: "Scott F. Kaplan" <sfkaplan@cs.amherst.edu>
-Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on
-Message-id: <3973190D.94661489@cs.amherst.edu>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
-References: <Pine.LNX.4.21.0007111503520.10961-100000@duckman.distro.conectiva>
- <200007170709.DAA27512@ocelot.cc.gatech.edu> <20000717102811.D5127@redhat.com>
- <20000717090131.D10936@bp6.sublogic.lan>
+Date: Mon, 17 Jul 2000 11:44:23 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] test5-1 vm fix
+In-Reply-To: <Pine.Linu.4.10.10007170742550.445-100000@mikeg.weiden.de>
+Message-ID: <Pine.LNX.4.21.0007171143100.30603-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Mike Galbraith <mikeg@weiden.de>
+Cc: Roger Larsson <roger.larsson@norran.net>, Linus Torvalds <torvalds@transmeta.com>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-[Stephen C. Tweedie]
-> > Having said that, LRU is certainly broken, but there are other ways to
-> > fix it.
->
-> Right.  LFU is just one way of fixing LRU.
+On Mon, 17 Jul 2000, Mike Galbraith wrote:
+> On Sun, 16 Jul 2000, Rik van Riel wrote:
+> > On Sun, 16 Jul 2000, Mike Galbraith wrote:
+> > > Unfortunately, this didn't improve anything here.
+> > 
+> > As was to be expected ...
+> 
+> one can only hope and test.
 
-I, too, am new to this mailing list, but since this comment was in
-reference to the one made by Yannis, and I participated in the research
-to which he mentioned, I'll chime in anyhow.
+Alternatively, one can learn from the patches and
+mistakes of others and try to understand how stuff
+works.
 
-The problem is that LFU *doesn't* really fix LRU.  There are some cases
-for which LRU performs as badly as possible.  (Imagine a 100 page memory
-and a program that loops over 101 pages.)  In those cases, doing
-*anything* that deviates from LRU will be an improvement; it's not much
-of an accomplishment if LFU does well in this case, as RANDOM would be
-an improvement as well.  Frequency isn't the right metric -- it just
-allows for noise so that LFU can possibly do something different from
-LRU.
+> > (and no, I'm not interested in trying to fix 2.4 VM right now
+> > since I'll be going to OLS and last time it took only two weeks
+> > for VM to be fucked up while I was away)
+> 
+> darn.
+> 
+> Do you already know what it's up to during one of these nasty
+> stalls?
 
-There's lots of evidence that LFU can perform horribly, particularly
-when the reference behavior changes (a.k.a. phase changes.)  Frequency
-information doesn't reveal this change well, and the system can page
-quite badly before the statistics come into line with the new behavior.
+There's nothing wrong with the current VM that wasn't
+fixed in one of my patches the last 8 weeks.
 
-When LFU performs well, it's usually because of the skew in how often
-recently used pages are re-used; that is, recently used pages *are* used
-frequently.  It's when that association stops being true for a given set
-of pages that a replacement policy must update its notion of the
-program's behavior quickly.  LRU does so as quickly as the program can
-touch some new pages.  LFU takes much longer.
+(except for the fundamental design flaws, which I will
+fix in the *next* N+1 weeks)
 
-LRU does the right thing in most cases.  With a little extra data, a
-system can notice when LRU is doing the *wrong* thing, and only then
-should non-LRU replacement be used.  At least, that's the basis of the
-paper to which Yannis provided a reference.  I'll also throw out of a
-reference to my dissertation, which has a more thorough (and, I hope,
-better written!) discussion of recency, its uses, and the failings of
-frequency information.  So, for anyone interested,
-<http://www.cs.amherst.edu/~sfkaplan/papers/sfkaplan-dissertation.ps.gz>.
+regards,
 
-Scott Kaplan
-sfkaplan@cs.amherst.edu
-http://www.cs.amherst.edu/~sfkaplan
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
