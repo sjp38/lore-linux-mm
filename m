@@ -1,288 +1,254 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA01119
-	for <linux-mm@kvack.org>; Mon, 14 Oct 2002 22:10:45 -0700 (PDT)
-Message-ID: <3DABA351.7E9C1CFB@digeo.com>
-Date: Mon, 14 Oct 2002 22:10:41 -0700
-From: Andrew Morton <akpm@digeo.com>
+Date: Tue, 15 Oct 2002 10:40:50 -0500
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: [PATCH 2.5.42-mm3] More shared page table fixes
+Message-ID: <75990000.1034696450@baldur.austin.ibm.com>
 MIME-Version: 1.0
-Subject: 2.5.43-m3
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="==========1880309384=========="
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, ext2-devel@lists.sourceforge.net, "tytso@mit.edu" <tytso@mit.edu>
+To: Andrew Morton <akpm@digeo.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.42/2.5.42-mm3/
-
-- drop SARD again.  It broke RAID0.  Al is working on converting SARD
-  to a driverfs interface.
-
-- fix the crashing in the timer code.
-
-- went on an uninlining rampage and shrunk the kernel image by 10k or so.
-
-- merge up the ext2/3 extended attribute code, convert that to use
-  the slab shrinking API in Linus's current tree.
-
-- add a new timer API function:
-
-	add_timer_on(struct timer_list *timer, int cpu);
-
-  to start a timer on a different CPU.
-
-- rework the slab shrinking code to use add_timer_on(), so we don't
-  need to launch a kernel thread just to get a timer onto another CPU.
-
-- Add Ingo's current remap_file_pages() patch.  I had to renumber his
-  syscall from 253 to 254 due to a clash with the oprofile syscall.
-
-
--misc.patch
--hugetlb-meminfo.patch
--dio-bio-add-fix-1.patch
--swsusp-feature.patch
--large-queue-throttle.patch
--exit-page-referenced.patch
--swappiness.patch
--mapped-start-active.patch
--rename-dirty_async_ratio.patch
--auto-dirty-memory.patch
--batched-slab-asap.patch
--fix-pgpgout.patch
--msync-correctness.patch
--remove-kiobufs.patch
-
- Merged
-
--sard.patch
-
- Out again
-
-+mod_timer-race.patch
-
- Fix the timer crashes.
-
-+truncate-bkl.patch
-
- Random BKL removal
-
-+fsync_buffers_list-fix.patch
-
- fsync correctness
-
-+wli-show_free_areas.patch
-
- Show the memory states when the oom-killer strikes
-
-+add_timer_on.patch
-
- add_timer_on()
-
--cpucache_init-fix.patch
--slab-split-10-list_for_each_fix.patch
-
- Folded into slab-split-08-reap.patch
-
-+slab-timer.patch
-
- Use add_timer_on() for the slab per-cpu cache reaping function.
-
-+slab-use-sem.patch
-
- Drop the new slab rwlock and just use down_trylock(&cache_chain_sem);
-
-+fs-inlines.patch
-+mm-inlines.patch
-+uninline-highmem.patch
-
- Uninline various things.
-
--shpte-ifdef.patch
--shpte-mprotect-fix.patch
--shpte-unmap-fix.patch
-
- Folded into shpte.patch
-
-+xattr-2.patch
-+xattr-3.patch
-+xattr-4.patch
-
- ext2/3 extended attributes
-
-+xattr-shrinker.patch
-
- Convert xattr to use set_shrinker/remove_shrinker
-
-+mpopulate.patch
-
- remap_file_pages()
-
-
-
-
-linus.patch
-  cset-1.782-to-1.848.txt.gz
-
-kgdb.patch
-
-oprofile-25.patch
-
-mod_timer-race.patch
-
-net-loopback.patch
-  Disable second copy in the network loopback driver
-
-blkdev-o_direct-short-read.patch
-  Fix O_DIRECT blockdev reads at end-of-device
-
-orlov-allocator.patch
-
-blk-queue-bounce.patch
-  inline blk_queue_bounce
-
-lseek-ext2_readdir.patch
-  remove lock_kernel() from ext2_readdir()
-
-dio-fine-alignment.patch
-  Allow O_DIRECT to use 512-byte alignment
-
-write-deadlock.patch
-  Fix the generic_file_write-from-same-mmapped-page deadlock
-
-rd-cleanup.patch
-  Cleanup and fix the ramdisk driver (doesn't work right yet)
-
-spin-lock-check.patch
-  spinlock/rwlock checking infrastructure
-
-hugetlb-prefault.patch
-  hugetlbpages: factor out some code for hugetlbfs
-
-ramfs-aops.patch
-  Move ramfs address_space ops into libfs
-
-hugetlb-header-split.patch
-  Move hugetlb declarations into their own header
-
-hugetlbfs.patch
-  hugetlbfs file system
-
-hugetlb-shm.patch
-  hugetlbfs backing for SYSV shared memory
-
-page_reserved-accounting.patch
-  Global PageReserved accounting
-
-use-page_reserved_accounting.patch
-  Use PG_reserved accounting in the VM
-
-ramfs-prepare-write-speedup.patch
-  correctness fixes in libfs address_space ops
-
-truncate-bkl.patch
-  don't take the BKL in inode_setattr
-
-akpm-deadline.patch
-  deadline scheduler tweaks
-
-intel-user-copy.patch
-  Faster copt_*_user for Intel ia32 CPUs
-
-raid0-fix.patch
-  RAID0 fix
-
-fsync_buffers_list-fix.patch
-  fsync_buffers_list fix
-
-rmqueue_bulk.patch
-  bulk page allocator
-
-free_pages_bulk.patch
-  Bulk page freeing function
-
-hot_cold_pages.patch
-  Hot/Cold pages and zone->lock amortisation
-
-readahead-cold-pages.patch
-  Use cache-cold pages for pagecache reads.
-
-pagevec-hot-cold-hint.patch
-  hot/cold hints for truncate and page reclaim
-
-page-reservation.patch
-  Page reservation API
-
-wli-show_free_areas.patch
-  show_free_areas extensions
-
-o_streaming.patch
-  O_STREAMING support
-
-add_timer_on.patch
-  add_timer_on(): function to start a timer on a particular CPU
-
-slab-split-01-rename.patch
-  slab cleanup: rename static functions
-
-slab-split-02-SMP.patch
-  slab: enable the cpu arrays on uniprocessor
-
-slab-split-03-tail.patch
-  slab: reduced internal fragmentation
-
-slab-split-04-drain.patch
-  slab: take the spinlock in the drain function.
-
-slab-split-05-name.patch
-  slab: remove spaces from /proc identifiers
-
-slab-split-06-mand-cpuarray.patch
-  slab: cleanups and speedups
-
-slab-split-07-inline.patch
-  slab: uninline poisoning checks
-
-slab-split-08-reap.patch
-  slab: reap timers
-
-slab-timer.patch
-
-slab-use-sem.patch
-
-fs-inlines.patch
-  Kill some inlining in fs/*
-
-mm-inlines.patch
-  remove some inlines from mm/*
-
-uninline-highmem.patch
-  uninline the highmem mapping functions
-
-shpte.patch
-
-shmmap.patch
-  Proactively share page tables for shared memory
-
-xattr-2.patch
-
-xattr-shrinker.patch
-
-xattr-3.patch
-
-xattr-4.patch
-
-read_barrier_depends.patch
-  extended barrier primitives
-
-rcu_ltimer.patch
-  RCU core
-
-dcache_rcu.patch
-  Use RCU for dcache
-
-mpopulate.patch
-  remap_file_pages
+--==========1880309384==========
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+
+
+This patch gets the unmap_all_pages function right for PAE-enabled
+machines.  It also adds a forgotten spinlock to pte_try_to_share.
+
+Dave McCracken
+
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmccr@us.ibm.com                                        T/L   678-3059
+
+--==========1880309384==========
+Content-Type: text/plain; charset=us-ascii; name="shpte-2.5.42-mm3-1.diff"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="shpte-2.5.42-mm3-1.diff"; size=5123
+
+--- 2.5.42-mm3/./mm/memory.c	2002-10-15 09:59:37.000000000 -0500
++++ 2.5.42-mm3-shpte/./mm/memory.c	2002-10-15 10:18:15.000000000 -0500
+@@ -372,6 +372,7 @@
+ 	struct vm_area_struct *lvma;
+ 	struct page *ptepage;
+ 	unsigned long base;
++	pte_t *pte = NULL;
+ 
+ 	/*
+ 	 * It already has a pte page.  No point in checking further.
+@@ -394,6 +395,8 @@
+ 
+ 	as = vma->vm_file->f_dentry->d_inode->i_mapping;
+ 
++	spin_lock(&as->i_shared_lock);
++
+ 	list_for_each_entry(lvma, &as->i_mmap_shared, shared) {
+ 		pgd_t *lpgd;
+ 		pmd_t *lpmd;
+@@ -431,9 +434,11 @@
+ 		else
+ 			pmdval = pmd_wrprotect(*lpmd);
+ 		set_pmd(pmd, pmdval);
+-		return pte_page_map(ptepage, address);
++		pte = pte_page_map(ptepage, address);
++		break;
+ 	}
+-	return NULL;
++	spin_unlock(&as->i_shared_lock);
++	return pte;
+ }
+ #endif
+ 
+@@ -846,14 +851,16 @@
+ 	if (end > ((address + PGDIR_SIZE) & PGDIR_MASK))
+ 		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
+ 	do {
+-		ptepage = pmd_page(*pmd);
+-		pte_page_lock(ptepage);
++		if (pmd_present(*pmd)) {
++			ptepage = pmd_page(*pmd);
++			pte_page_lock(ptepage);
+ #ifdef CONFIG_SHAREPTE
+-		if (page_count(ptepage) > 1)
+-			BUG();
++			if (page_count(ptepage) > 1)
++				BUG();
+ #endif
+-		zap_pte_range(tlb, pmd, address, end - address);
+-		pte_page_unlock(ptepage);
++			zap_pte_range(tlb, pmd, address, end - address);
++			pte_page_unlock(ptepage);
++		}
+ 		address = (address + PMD_SIZE) & PMD_MASK; 
+ 		pmd++;
+ 	} while (address < end);
+@@ -938,72 +945,105 @@
+ 	mmu_gather_t *tlb;
+ 	pgd_t *pgd;
+ 	pmd_t *pmd;
+-	unsigned long address;
+-	unsigned long end;
++	unsigned long address = 0;
++	unsigned long vm_end = 0, prev_end, pmd_end;
+ 
+ 	tlb = tlb_gather_mmu(mm, 1);
+ 
+ 	vma = mm->mmap;
+-	if (!vma)
+-		goto out;
+-
+-	mm->map_count--;
+-	if (is_vm_hugetlb_page(vma)) {
+-		vma->vm_ops->close(vma);
+-		goto next_vma;
+-	}
+-
+-	address = vma->vm_start;
+-	end = ((address + PGDIR_SIZE) & PGDIR_MASK);
++	for (;;) {
++		if (address >= vm_end) {
++			if (!vma)
++				goto out;
+ 
+-	pgd = pgd_offset(mm, address);
+-	pmd = pmd_offset(pgd, address);
+-	do {
+-		do {
+-			if (pmd_none(*pmd))
+-				goto skip_pmd;
+-			if (pmd_bad(*pmd)) {
+-				pmd_ERROR(*pmd);
+-				pmd_clear(pmd);
+-				goto skip_pmd;
+-			}
+-		
+-			ptepage = pmd_page(*pmd);
+-			pte_page_lock(ptepage);
+-			if (page_count(ptepage) > 1) {
+-				pmd_clear(pmd);
+-				pgtable_remove_rmap_locked(ptepage, mm);
+-				mm->rss -= ptepage->private;
+-				put_page(ptepage);
+-			} else {
+-				zap_pte_range(tlb, pmd, address, end - address);
+-			}
+-			pte_page_unlock(ptepage);
+-skip_pmd:
+-			pmd++;
+-			address = (address + PMD_SIZE) & PMD_MASK;
+-			if (address >= vma->vm_end) {
++			address = vma->vm_start;
+ next_vma:
+-				vma = vma->vm_next;
+-				if (!vma)
+-					goto out;
+-
+-				mm->map_count--;
+-				if (is_vm_hugetlb_page(vma)) {
++			prev_end = vm_end;
++			vm_end = vma->vm_end;
++			mm->map_count--;
++			/*
++			 * Advance the vma pointer to the next vma.
++			 * To facilitate coalescing adjacent vmas, the
++			 * pointer always points to the next one
++			 * beyond the range we're currently working
++			 * on, which means vma will be null on the
++			 * last iteration.
++			 */
++			vma = vma->vm_next;
++			if (vma) {
++				/*
++				 * Go ahead and include hugetlb vmas
++				 * in the range we process.  The pmd
++				 * entry will be cleared by close, so
++				 * we'll just skip over them.  This is
++				 * easier than trying to avoid them.
++				 */
++				if (is_vm_hugetlb_page(vma))
+ 					vma->vm_ops->close(vma);
++
++				/*
++				 * Coalesce adjacent vmas and process
++				 * them all in one iteration.
++				 */
++				if (vma->vm_start == prev_end) {
+ 					goto next_vma;
+ 				}
++			}
++		}
++		pgd = pgd_offset(mm, address);
++		do {
++			if (pgd_none(*pgd))
++				goto skip_pgd;
+ 
+-				address = vma->vm_start;
+-				end = ((address + PGDIR_SIZE) & PGDIR_MASK);
+-				pgd = pgd_offset(mm, address);
+-				pmd = pmd_offset(pgd, address);
++			if (pgd_bad(*pgd)) {
++				pgd_ERROR(*pgd);
++				pgd_clear(pgd);
++skip_pgd:
++				address += PGDIR_SIZE;
++				if (address > vm_end)
++					address = vm_end;
++				goto next_pgd;
+ 			}
+-		} while (address < end);
+-		pgd++;
+-		pmd = pmd_offset(pgd, address);
+-		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
+-	} while (vma);
++			pmd = pmd_offset(pgd, address);
++			if (vm_end > ((address + PGDIR_SIZE) & PGDIR_MASK))
++				pmd_end = (address + PGDIR_SIZE) & PGDIR_MASK;
++			else
++				pmd_end = vm_end;
++
++			for (;;) {
++				if (pmd_none(*pmd))
++					goto next_pmd;
++				if (pmd_bad(*pmd)) {
++					pmd_ERROR(*pmd);
++					pmd_clear(pmd);
++					goto next_pmd;
++				}
++				
++				ptepage = pmd_page(*pmd);
++				pte_page_lock(ptepage);
++				if (page_count(ptepage) > 1) {
++					pmd_clear(pmd);
++					pgtable_remove_rmap_locked(ptepage, mm);
++					mm->rss -= ptepage->private;
++					put_page(ptepage);
++				} else
++					zap_pte_range(tlb, pmd, address,
++						      vm_end - address);
++
++				pte_page_unlock(ptepage);
++next_pmd:
++				address += PMD_SIZE;
++				if (address >= pmd_end) {
++					address = pmd_end;
++					break;
++				}
++				pmd++;
++			}
++next_pgd:
++			pgd++;
++		} while (address < vm_end);
++
++	}
+ 
+ out:
+ 	clear_page_tables(tlb, FIRST_USER_PGD_NR, USER_PTRS_PER_PGD);
+
+--==========1880309384==========--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
