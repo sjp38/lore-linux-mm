@@ -1,51 +1,37 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id C2B4038EAC
-	for <linux-mm@kvack.org>; Wed, 15 May 2002 11:03:51 -0300 (EST)
-Date: Wed, 15 May 2002 11:03:38 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [RFC][PATCH] iowait statistics
-In-Reply-To: <200205151214.g4FCEqY13273@Port.imtp.ilyichevsk.odessa.ua>
-Message-ID: <Pine.LNX.4.44L.0205151102030.9490-100000@duckman.distro.conectiva>
+Message-ID: <3CE28625.7000604@newmail.net>
+Date: Wed, 15 May 2002 19:00:37 +0300
+From: Gery Kahn <gerykahn@newmail.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: suggestion.
+References: <Pine.LNX.4.44L.0205141022060.32261-100000@imladris.surriel.com>
+Content-Type: text/plain; charset=US-ASCII; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 15 May 2002, Denis Vlasenko wrote:
+Rik van Riel wrote:
 
-> I was investigating why sometimes in top I see idle % like
-> 9384729374923.43%. It was caused by idle count in /proc/stat
-> going backward sometimes.
-
-Thanks for tracking down this bug.
-
-> It can be fixed for SMP:
-> * add spinlock
-> or
-> * add per_cpu_idle, account it too at timer/APIC int
->   and get rid of idle % calculations for /proc/stat
+>On Tue, 14 May 2002, Gery Kahn wrote:
 >
-> As a user, I vote for glitchless statistics even if they
-> consume extra i++ cycle every timer int on every CPU.
+>  
+>
+>>I want to understand who is updating linux-mm.org site and like to do it
+>>or to help to keeper.
+>>    
+>>
+>
+>I'm one of the people looking after the site once in a while.
+>
+>Help is very much welcome ;)
+>
+>Rik
+>  
+>
+how can i start?
 
-Same for me. The last option is probably easiest to implement
-and cheapest at run time. The extra "cost" will approach zero
-once somebody takes the time to put the per-cpu stats on per
-cpu cache lines, which I'm sure somebody will do once we have
-enough per-cpu stats ;)
-
-cheers,
-
-Rik
--- 
-	http://www.linuxsymposium.org/2002/
-"You're one of those condescending OLS attendants"
-"Here's a nickle kid.  Go buy yourself a real t-shirt"
-
-http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
