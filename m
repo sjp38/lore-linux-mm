@@ -1,9 +1,9 @@
-Date: Tue, 22 Oct 2002 22:42:37 +0200 (CEST)
+Date: Tue, 22 Oct 2002 22:49:30 +0200 (CEST)
 From: Ingo Molnar <mingo@elte.hu>
 Reply-To: Ingo Molnar <mingo@elte.hu>
 Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
 In-Reply-To: <1035319088.31873.149.camel@irongate.swansea.linux.org.uk>
-Message-ID: <Pine.LNX.4.44.0210222237180.22860-100000@localhost.localdomain>
+Message-ID: <Pine.LNX.4.44.0210222243200.23215-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -17,12 +17,21 @@ On 22 Oct 2002, Alan Cox wrote:
 > Actually I know a few. 2Tb is cheap - its one pci controller and eight
 > ide disks.
 
-2Tb should still work. And to get to the 16 TB limit you'd have to
-recompile with PAE. It costs some (rather limited) RAM overhead and some
-fork() overhead. I think ext2/ext3fs's current 2Tb/4Tb limit is a much
-bigger problem, you cannot compile around that - are there any patches in
-fact that lift that limit? (well, one solution is to use another
-filesystem.)
+what we can do is to still use the linear mapping, ie. to impose the limit
+only on fremap() users. This is ugly but works. It needs quite some
+hacking though, since at the point of pagecache-pte zapping we dont have a
+vma handy, so we cannot tell from the pte alone whether it's mapped
+linearly or not. We could perhaps use the free bit in the pte to signal
+this condition, but i'm not sure whether this is possible on every
+architecture. Are there architectures that has no freely OS-usable bit in
+the pte?
+
+the limit will become even more prominent once i've moved the protection
+bits into the swap pte format as well - that reduces the fremap() limit to
+0.5 Tb, for 32-bit ptes.
+
+(there's no real reason to keep the offset in the pte in the linearly
+mapped case anyway, besides some vague 'symmetry' arguments.)
 
 	Ingo
 
