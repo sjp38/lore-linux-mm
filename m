@@ -1,27 +1,31 @@
-Date: Fri, 10 Dec 1999 00:21:18 +0100 (CET)
+Date: Fri, 10 Dec 1999 00:24:27 +0100 (CET)
 From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
 Subject: Re: Getting big areas of memory, in 2.3.x?
-In-Reply-To: <199912092054.MAA57205@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.10.9912100018160.11167-100000@chiara.csoma.elte.hu>
+In-Reply-To: <14416.10643.915336.498552@liveoak.engr.sgi.com>
+Message-ID: <Pine.LNX.4.10.9912100021250.10946-100000@chiara.csoma.elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Rik van Riel <riel@nl.linux.org>, jgarzik@mandrakesoft.com, alan@lxorguk.ukuu.org.uk, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "William J. Earl" <wje@cthulhu.engr.sgi.com>
+Cc: Jeff Garzik <jgarzik@mandrakesoft.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 9 Dec 1999, Kanoj Sarcar wrote:
+On Thu, 9 Dec 1999, William J. Earl wrote:
 
-> Well, at least in 2.3, kernel data (and page caches) are below 1G,
-> which means there's a lot of memory possible out there with
-> references only from user memory. Shm page references are 
-> revokable too. [...]
+> > not at the moment - but it's not really necessery because this is
+> > ment for driver initialization time, which usually happens at boot
+> > time.
 
-we already kindof replace pages, see replace_with_highmem(). Reverse ptes
-do help, but are not a necessity to get this. Neither reverse ptes, nor
-any other method guarantees that a large amount of continuous RAM can be
-allocated. Only boot-time allocation can be guaranteed.
+>      That is not the case for loadable (modular) drivers.  Loading st
+> as a module, for example, after boot time sometimes works and
+> sometimes does not, especially if you set the maximum buffer size
+> larger (to, say, 128K, as is needed on some drives for good space
+> efficiency).
+
+yep, if eg. an fsck happened before modules are loaded then RAM is filled
+up with the buffer-cache. The best guarantee is to compile such drivers
+into the kernel.
 
 -- mingo
 
