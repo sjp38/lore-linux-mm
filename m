@@ -1,40 +1,41 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 5956938C2A
-	for <linux-mm@kvack.org>; Wed, 25 Jul 2001 13:42:42 -0300 (EST)
-Date: Wed, 25 Jul 2001 13:42:42 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: Consistent page aging....
-In-Reply-To: <m18zhdgff6.fsf@frodo.biederman.org>
-Message-ID: <Pine.LNX.4.33L.0107251342040.20326-100000@duckman.distro.conectiva>
+References: <Pine.LNX.4.33L.0107251342040.20326-100000@duckman.distro.conectiva>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 26 Jul 2001 01:19:33 -0600
+In-Reply-To: <Pine.LNX.4.33L.0107251342040.20326-100000@duckman.distro.conectiva>
+Message-ID: <m1hew0f98a.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 25 Jul 2001, Eric W. Biederman wrote:
-> Rik van Riel <riel@conectiva.com.br> writes:
+Rik van Riel <riel@conectiva.com.br> writes:
 
-> > Except that for - presumably dbench-related ? - reasons
-> > Linus and Davem seem to be vetoeing this change.
->
-> Hmm.  I haven't seen a patch for it, and I haven't seen the change being
-> vetoed by Linus and Davem.  So I'd have to have more context to comment.
+> On 25 Jul 2001, Eric W. Biederman wrote:
+> > Rik van Riel <riel@conectiva.com.br> writes:
+> 
+> > > Except that for - presumably dbench-related ? - reasons
+> > > Linus and Davem seem to be vetoeing this change.
+> >
+> > Hmm.  I haven't seen a patch for it, and I haven't seen the change being
+> > vetoed by Linus and Davem.  So I'd have to have more context to comment.
+> 
+> Me neither. Davem had "thrown away his code" so wasn't able
+> (or willing) to tell me exactly what he did. ;(
 
-Me neither. Davem had "thrown away his code" so wasn't able
-(or willing) to tell me exactly what he did. ;(
+Well there is a relatively cheap way to prototype the gains by better
+aging.  Allocate swap pages in do_anonymous_page.  
 
-Rik
---
-Executive summary of a recent Microsoft press release:
-   "we are concerned about the GNU General Public License (GPL)"
+That should take about 5 lines, and you can then run benchmarks to see
+if the numbers improve.  The pages won't be allocated at exactly the
+same space in swap but otherwise the numbers should be the same.
 
+Though this might somehow slow down a fast path and cause problems.
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
