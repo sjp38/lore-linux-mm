@@ -1,44 +1,42 @@
-Date: Tue, 28 Mar 2000 20:10:57 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Wed, 29 Mar 2000 02:01:03 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: how text page of executable are shared ?
-In-Reply-To: <Pine.LNX.4.10.10003281019140.5753-100000@coffee.psychology.mcmaster.ca>
-Message-ID: <Pine.LNX.4.21.0003282006550.1383-100000@alpha.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000329020103.I17288@redhat.com>
+References: <20000328142253.A16752@redhat.com> <Pine.LNX.4.10.10003281019140.5753-100000@coffee.psychology.mcmaster.ca>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.10.10003281019140.5753-100000@coffee.psychology.mcmaster.ca>; from hahn@coffee.psychology.mcmaster.ca on Tue, Mar 28, 2000 at 10:58:00AM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
 Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 28 Mar 2000, Mark Hahn wrote:
+Hi,
 
->in shrink_mmap:
->                /*
->                 * We can't free pages unless there's just one user
->                 * (count == 2 because we added one ourselves above).
->                 */
->                if (page_count(page) != 2)
->                        goto cache_unlock_continue;
->
->is this wrong, since the page cache holds a reference?
+On Tue, Mar 28, 2000 at 10:58:00AM -0500, Mark Hahn wrote:
+> 
+> could you comment on a problem I'm seeing in the current (pre3) VM?
+> the situation is a 256M machine, otherwise idle (random daemons, no X,
+> couple ssh's) and a process that sequentially traverses 12 40M files
+> by mmaping them (and munmapping them, in order, one at a time.)
+> 
+> the observation is that all goes well until the ~6th file, when we 
+> run out of unused ram.  then we start _swapping_!  the point is that 
+> shrink_mmap should really be scavenging those now unmapped files,
+> shouldn't it?
 
-That is right. At that point the miniumum count is 2 (there you could
-say also:
+Well, you've filled the whole of memory with recently referenced page 
+cache pages.  The page cache scanner can now scan the whole of physical
+memory without finding anything which is "old" enough to be evicted. 
+It is only natural that it will start swapping at that point!
 
-	if (page_count < 2)
-		BUG()
+The swapping should be brief if all is working properly, though, as the
+shrink_mmap() will rapidly find itself on the second pass over memory
+and will start finding things which have been aged on the first pass 
+and not used since.
 
-if you want).
-
-1 reference is in the page cache and 1 reference is for the additional
-get_page that shrink_mmap does to avoid the page to be freed under it.
-Thus if the page count is 2 we can go ahead and release the page. If the
-page count is != 2 (that means >2) we can't play with such page since
-somebody else is using it.
-
-Andrea
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
