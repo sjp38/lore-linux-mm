@@ -1,52 +1,83 @@
-Subject: Re: Race between vmtruncate and mapped areas?
-Message-ID: <OFFBD08E4B.5FDF2864-ON88256D2B.0063F36A-88256D2B.0063F5EE@us.ibm.com>
-From: Paul McKenney <Paul.McKenney@us.ibm.com>
-Date: Mon, 19 May 2003 11:11:50 -0700
-MIME-Version: 1.0
-Content-type: text/plain; charset=US-ASCII
+Date: Mon, 19 May 2003 18:23:05 -0700
+From: "Paul E. McKenney" <paulmck@us.ibm.com>
+Subject: Re: [RFC][PATCH] vm_operation to avoid pagefault/inval race
+Message-ID: <20030519182305.C1813@us.ibm.com>
+Reply-To: paulmck@us.ibm.com
+References: <200305172021.56773.phillips@arcor.de> <20030517124948.6394ded6.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030517124948.6394ded6.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Andrew Morton <akpm@digeo.com>, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-kernel-owner@vger.kernel.org, linux-mm@kvack.org, mika.penttila@kolumbus.fi
+To: Andrew Morton <akpm@digeo.com>
+Cc: Daniel Phillips <phillips@arcor.de>, hch@infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-
-> On Sat, May 17, 2003 at 11:19:39AM -0700, Paul McKenney wrote:
-> > > On Thu, May 15, 2003 at 02:20:00AM -0700, Andrew Morton wrote:
-> > > not sure why you need a callback, the lowlevel if needed can
-serialize
-> > > using the same locking in the address space that vmtruncate uses. I
-> > > would wait a real case need before adding a callback.
+On Sat, May 17, 2003 at 12:49:48PM -0700, Andrew Morton wrote:
+> Daniel Phillips <phillips@arcor.de> wrote:
 > >
-> > FYI, we verified that the revalidate callback could also do the same
-> > job that the proposed nopagedone callback does -- permitting
-filesystems
-> > that provide their on vm_operations_struct to avoid the race between
-> > page faults and invalidating a page from a mapped file.
->
-> don't you need two callbacks to avoid the race? (really I mean, to call
-> two times a callback, the callback can be also the same)
+> > and the only problem is, we have to change pretty well every 
+> >  filesystem in and out of tree.
+> 
+> But it's only a one-liner per fs.
 
-I do not believe so -- though we could well be talking about
-different race conditions.  The one that I am worried about
-is where a distributed filesystem has a page fault against an
-mmap race against an invalidation request.  The thought is
-that the DFS takes one of its locks in the nopage callback,
-and then releases it in the revalidate callback.  The
-invalidation request would use the same DFS lock, and would
-therefore not be able to run between nopage and revalidate.
-It would call something like invalidate_mmap_range(), which
-in turn calls zap_page_range(), which acquires the
-mm->page_table_lock.  Since do_no_page() does not release
-mm->page_table_lock until after it fills in the PTE, I believe
-things are covered.
+So the general idea is to do something as follows, right?
+(Sorry for not just putting together a patch -- I want
+to make sure I understand all of your advice first!)
 
-So, is there another race that I am missing here?  ;-)
+o	Make all callers to do_no_page() instead call
+	vma->vm_ops->nopage().
 
-                                    Thanx, Paul
+o	Make a function, perhaps named something like
+	install_new_page(), that does the PTE-installation
+	and RSS-adjustment tasks currently performed by
+	both do_no_page() and by do_anonymous_page().
+	(Not clear to me yet whether a full merge of
+	these two functions is the right approach, more
+	thought needed.  Note that the nopage function
+	is implicitly aware of whether it is handling
+	an anonymous page or not, so a pair of functions
+	that both call another function containing the
+	common code is reasonable, if warranted.)
 
+	The install_new_page() function needs an additional
+	argument to accept the new_page value that used
+	to be returned by the nopage() function.
+
+o	Add arguments to nopage() to allow it to invoke
+	install_new_page().
+
+o	Change all nopage() functions to invoke install_new_page(),
+	but only in cases where they would -not- return
+	VM_FAULT_OOM or VM_FAULT_SIGBUS.  In these cases,
+	these two return codes must be handed back to the
+	caller without invoking install_new_page().
+
+o	Otherwise, the value that these nopage() functions
+	would normally return must be passed to
+	install_new_page(), and the value returned by
+	install_new_page() must be returned to the nopage()
+	function's caller.
+
+o	Replace all occurrences of "->vm_ops = NULL" with
+	"->vm_ops = anonymous_vm_ops" or some such.
+
+o	The anonymous_vm_ops would have the following members:
+
+	nopage: pointer to a function containing the page-allocation
+		code extracted from do_anonymous_page(), followed
+		by a call to install_new_page().
+
+	populate: NULL.
+
+	open: NULL.
+
+	close: NULL.
+
+Thoughts?
+
+					Thanx, Paul
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
