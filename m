@@ -1,44 +1,43 @@
-Message-ID: <4365289.1109502351571.JavaMail.postfix@mx20.mail.sohu.com>
-Date: Sun, 27 Feb 2005 19:05:51 +0800 (CST)
-From: <stone_wang@sohu.com>
-Subject: Re:Re: [PATCH] Linux-2.6.11-rc5: kernel/sys.c setrlimit() RLIMIT_RSS
- cleanup
-Mime-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH] 0/2 Buddy allocator with placement policy + prezeroing
+Message-Id: <20050227134219.B4346ECE4@skynet.csn.ul.ie>
+Date: Sun, 27 Feb 2005 13:42:19 +0000 (GMT)
+From: mel@csn.ul.ie (Mel Gorman)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-I have a buddy who encountered the "ulimit" confusion,
-when he and his team deployed Linux as the platform for a multi-user online programming test competition system.
+In the two following emails are the latest version of the placement policy
+for the binary buddy allocator to reduce fragmentation and the prezeroing
+patch. The changelogs are with the patches although the most significant change
+to the placement policy is a fix for a bug in the usemap size calculation
+(pointed out by Mike Kravetz). 
 
-And generally, i think the kernel/system shall work as it said(return of syscalls/output of commands) :)
+The placement policy is Even Better than previous versions and can allocate
+over 100 2**10 blocks of pages under loads in excess of 30 so I still
+consider it ready for inclusion to the mainline. The prezeroing patches
+main contribution is a handy accounting scheme for the scrubbing daemon. The
+patch records how many times blocks were zeroed and what size they were. I
+found that order-0 is the most common size to zero because of the per-cpu
+cache. For example, after the usual stress test completed, /proc/buddyinfo
+reported the following;
 
-But rss limit might be a historical issue, with already many applications depending on it :(
+Zeroblock count 1775307   7696   2048   1046   2577    871    164     17     18
+8     39
 
-Stone Wang
+That means that the majority of zeroing calls was for order-0 pages. What is
+of greater concern is that the prezeroing patch seriously regresses how well
+fragmentation is handled making it perform almost as badly as the standard
+allocator. 
 
------  Original Message  -----
-From: Andrew Morton 
-To: stone_wang@sohu.com 
-Cc: riel@redhat.com ;linux-mm@kvack.org ;linux-kernel@vger.kernel.org 
-Subject: Re: [PATCH] Linux-2.6.11-rc5: kernel/sys.c setrlimit() RLIMIT_RSS
- cleanup
-Sent: Sun Feb 27 18:31:36 CST 2005
+The patches were developed and tested heavily on 2.6.11-rc4 but are known
+to patch cleanly and pass a stress test on 2.6.11-rc5.
 
-> 
-> <stone_wang@sohu.com> wrote:
-> >
-> > $ ulimit  -m 100000
-> >  bash: ulimit: max memory size: cannot modify limit: Function not implemented
-> 
-> I don't know about this.  The change could cause existing applications and
-> scripts to fail.  Sure, we'll do that sometimes but this doesn't seem
-> important enough.
-
+-- 
+Mel Gorman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
