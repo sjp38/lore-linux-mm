@@ -1,52 +1,43 @@
-Date: Sun, 23 Jan 2000 03:37:05 +0100 (CET)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: [PATCH] goeasy without typo :)
-Message-ID: <Pine.LNX.4.10.10001230331450.245-100000@mirkwood.dummy.home>
+Date: Mon, 24 Jan 2000 14:21:36 +0100 (CET)
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Subject: GFP_XXX semantics (was: Re: [PATCH] 2.2.1{3,4,5} VM fix)
+In-Reply-To: <Pine.LNX.4.21.0001221445150.440-100000@alpha.random>
+Message-ID: <Pine.LNX.4.10.10001241411310.24852-100000@nightmaster.csn.tu-chemnitz.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Andrea Arcangeli <andrea@e-mind.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Rik van Riel <riel@nl.linux.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Alan, Andrea,
+On Sat, 22 Jan 2000, Andrea Arcangeli wrote:
 
-IBM's James Manning pointed out two forgotten braces
-in my last patchlet, so here is a new version (one that
-should work). Like the last one it slows down kswapd
-once it gets above freepages.low .. because it frees
-memory with SWAP_CLUSTER_MAX pages at a time, this won't
-give any hysteresis problems.
+[GFP-Mask semantics discussion]
 
-Between freepages.low and freepages.high kswapd will
-do background freeing of pages. When the CPU is idle
-it will work until it has reached freepages.high,
-otherwise it'll yield the CPU and try again later.
+ok, once we are about it here, could you please explain the
+_exact_ semantics for the GFP_XXX constants?
 
-regards,
+GFP_BUFFER
+GFP_ATOMIC
+GFP_BIGUSER
+GFP_USER
+GFP_KERNEL
+GFP_NFS
+GFP_KSWAPD
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+So which steps are tried to allocate these pages (freeing
+process, freeing globally, waiting, failing, kswapd-wakeup)? 
 
+Because it is not easy to decide from a driver writers point of
+view, which one to use for which requests :(
 
---- mm/vmscan.c.combo	Sun Jan 23 01:06:50 2000
-+++ mm/vmscan.c	Sun Jan 23 03:30:46 2000
-@@ -497,8 +497,11 @@
- 		{
- 			if (!do_try_to_free_pages(GFP_KSWAPD))
- 				break;
--			if (tsk->need_resched)
-+			if (tsk->need_resched) {
-+				if (nr_free_pages > freepages.low)
-+					break;
- 				schedule();
-+			}
- 		}
- 		run_task_queue(&tq_disk);
- 		interruptible_sleep_on_timeout(&kswapd_wait, HZ);
+Thanks and Regards
+
+Ingo Oeser
+-- 
+Feel the power of the penguin - run linux@your.pc
+<esc>:x
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
