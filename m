@@ -1,23 +1,50 @@
-Subject: Re: VM problem with 2.4.8-ac9 (fwd)
-Date: Wed, 22 Aug 2001 22:14:05 +0100 (BST)
-In-Reply-To: <Pine.LNX.4.33L.0108221622160.31410-100000@duckman.distro.conectiva> from "Rik van Riel" at Aug 22, 2001 04:25:49 PM
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by perninha.conectiva.com.br (Postfix) with SMTP id 8A57E38D29
+	for <linux-mm@kvack.org>; Wed, 22 Aug 2001 18:11:05 -0300 (EST)
+Date: Wed, 22 Aug 2001 18:10:52 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] __alloc_pages_limit pages_min
+In-Reply-To: <200108222103.f7ML3Lb26463@maile.telia.com>
+Message-ID: <Pine.LNX.4.33L.0108221808490.31410-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E15ZfK9-0002I3-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Marcelo Tosatti <marcelo@conectiva.com.br>, Jari Ruusu <jari.ruusu@pp.inet.fi>
+To: Roger Larsson <roger.larsson@norran.net>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Suspect code would be:
-> - tlb optimisations in recent -ac    (tasks dying with segfault)
+On Wed, 22 Aug 2001, Roger Larsson wrote:
+> On Wednesdayen den 22 August 2001 19:01, Rik van Riel wrote:
+> > On Wed, 22 Aug 2001, Roger Larsson wrote:
+> > > Note: reclaim_page will fix this situation direct it is allowed to
+> > > run since it is kicked in __alloc_pages. But since we cannot
+> > > guarantee that this will never happen...
+> >
+> > In this case kreclaimd will be woken up and the free pages
+> > will be refilled.
+>
+> Yes it will be woken up - but when will it actually do something?
 
-Um the tlb optimisations go back to about 2.4.1-ac 8)
+> And this limit at the end of alloc_pages
+> 		if (z->free_pages < z->pages_min / 4 &&
+> 				!(current->flags & PF_MEMALLOC))
+> is not enforced earlier in the same code...
 
-My guess would be the vm changes you and marcelo did
+Please read the code.  The first loop in __alloc_pages(),
+before we even call __alloc_pages_limit() will wake up
+kreclaimd as soon as 'z->free_pages < z->pages_min'.
+
+If you have any more questions about the source code,
+don't hesitate to ask ;)
+
+Rik
+--
+IA64: a worthy successor to the i860.
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
