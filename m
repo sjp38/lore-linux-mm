@@ -1,46 +1,40 @@
-Received: from kanga.kvack.org (blah@kanga.kvack.org [199.233.184.222])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA28982
-	for <linux-mm@kvack.org>; Mon, 9 Mar 1998 13:59:52 -0500
-Date: Mon, 9 Mar 1998 13:58:48 -0500 (EST)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: reverse pte mapping update
-Message-ID: <Pine.LNX.3.95.980309130055.8617C-100000@kanga.kvack.org>
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA00322
+	for <linux-mm@kvack.org>; Mon, 9 Mar 1998 16:04:44 -0500
+Date: Mon, 9 Mar 1998 20:54:56 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: swapout frenzy quick-fix
+Message-ID: <Pine.LNX.3.91.980309205216.2479A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: linux-mm@kvack.org
+To: jasons@usemail.com
+Cc: linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-Hello Stephen et all,
+Hi Jason and Linus,
 
-Just a quick update to say that I've got something that's half-working,
-and given a few days more work it'll be worth testing.  At least it boots
-and allows me to compile the next change. 
+I made a quick-fix for the swapout frenzy occurring in
+2.1.89...
+It's far from perfect, but until the changes from Ben
+and Stephen are merged, it'll have to do :-(
 
-On another note, I'm becoming concerned about the manipulations being done
-to vmas belonging to other mm's now - mostly that we'll be wanting to
-manipulate them much more frequently than at present.  Stephen, if you
-could give me a hint about what direction you're going with your page
-cache locking patch, it will help me start putting together a picture of
-we'll fit everything together.
+Rik.
++-----------------------------+------------------------------+
+| For Linux mm-patches, go to | "I'm busy managing memory.." |
+| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
+| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
++-----------------------------+------------------------------+
 
-Along the same line of thought, I'm wondering if we can dispense of
-mm->mmap_sem for most cases?  I remember hearing that glibc will soon have
-an async-io implementation, and I believe clone with shared vm is going to
-be the basis for the implementation.  This will also effect a future
-threaded version of apache, which will use mmap'd files across several
-threads being thrown at sockets to avoid the extra copies.  Eliminating
-the lock probably isn't possible, but changing it to a read-write blocking
-lock is probably the easiest.  The kernel should have such a generic
-primative anyways.
-
-Linux-mm people: is anyone interested in putting together a test suite to
-excercise various aspects of the mm code?  Ideally I'd like to see us put
-together a large enough test suite to run a complete coverage test on the
-kernel code.  Given that this is a pretty big task, it will take a while.
-Perhaps running the kernel under an emulator (say 68k/Amiga as UAE is
-pretty complete, barring the MMU [easy]), or using the MkLinux port
-would help in creating a more useful testing environment.
-
-		-ben
+--- linux/mm/vmscan.c.orig	Mon Mar  9 20:51:44 1998
++++ linux/mm/vmscan.c	Mon Mar  9 20:51:44 1998
+@@ -573,6 +573,8 @@
+ 
+ 			if (free_memory_available())
+ 				break;
++			if (nr_free_pages + atomic_read(&nr_async_pages) > free_pages_high * 4)
++				break;
+ 			gfp_mask = __GFP_IO;
+ 			try_to_free_page(gfp_mask);
+ 			/*
