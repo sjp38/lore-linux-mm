@@ -1,50 +1,49 @@
+Received: from burns.conectiva (burns.conectiva [10.0.0.4])
+	by postfix.conectiva.com.br (Postfix) with SMTP id 6343016BC2
+	for <linux-mm@kvack.org>; Fri, 23 Mar 2001 11:57:53 -0300 (EST)
+Date: Fri, 23 Mar 2001 11:56:23 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] Prevent OOM from killing init
-References: <20010323015358Z129164-406+3041@vger.kernel.org> <Pine.LNX.4.21.0103230403370.29682-100000@imladris.rielhome.conectiva> <20010323122815.A6428@win.tue.nl>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 23 Mar 2001 07:50:25 -0700
-In-Reply-To: Guest section DW's message of "Fri, 23 Mar 2001 12:28:15 +0100"
-Message-ID: <m1hf0k1qvi.fsf@frodo.biederman.org>
+In-Reply-To: <3ABB2A19.D82B50A7@evision-ventures.com>
+Message-ID: <Pine.LNX.4.21.0103231154440.29682-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Guest section DW <dwguest@win.tue.nl>
-Cc: Rik van Riel <riel@conectiva.com.br>, Michael Peddemors <michael@linuxmagic.com>, Stephen Clouse <stephenc@theiqgroup.com>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Martin Dalecki <dalecki@evision-ventures.com>
+Cc: Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Guest section DW <dwguest@win.tue.nl> writes:
-
-> On Fri, Mar 23, 2001 at 04:04:09AM -0300, Rik van Riel wrote:
-> > On 22 Mar 2001, Michael Peddemors wrote:
+On Fri, 23 Mar 2001, Martin Dalecki wrote:
+> Rik van Riel wrote:
+> > On Sat, 23 Mar 2002, Martin Dalecki wrote:
 > > 
-> > > Here, Here.. killing qmail on a server who's sole task is running mail
-> > > doesn't seem to make much sense either..
+> > > This is due to the broken calculation formula in oom_kill().
 > > 
-> > I won't defend the current OOM killing code.
-> > 
-> > Instead, I'm asking everybody who's unhappy with the
-> > current code to come up with something better.
+> > Feel free to write better-working code.
 > 
-> To a murderer: "Why did you kill that old lady?"
-> Reply: "I won't defend that deed, but who else should I have killed?"
+> I don't get paid for it and I'm not idling through my days...
 
-> 
-> Andries - getting more and more unhappy with OOM
-> 
-> Mar 23 11:48:49 mette kernel: Out of Memory: Killed process 2019 (emacs).
-> Mar 23 11:48:49 mette kernel: Out of Memory: Killed process 1407 (emacs).
-> Mar 23 11:48:50 mette kernel: Out of Memory: Killed process 1495 (emacs).
-> Mar 23 11:48:50 mette kernel: Out of Memory: Killed process 2800 (rpm).
-> 
-> [yes, that was rpm growing too large, taking a few emacs sessions]
-> [2.4.2]
+  <similar response from Andries>
 
-Let me get this straight you don't have enough swap for your workload?
-And you don't have per process limits on root by default?
+Well, in that case you'll have to live with the current OOM
+killer.  Martin wrote down a pretty detailed description of
+what's wrong with my algorithm, if it really bothers him he
+should be able to come up with something better.
 
-So you are complaining about the OOM killer?  
+Personally, I think there is more important VM code to look
+after, since OOM is a pretty rare occurrance anyway.
 
-Eric
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
