@@ -1,36 +1,56 @@
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Message-ID: <38021DE1.816F44A2@pobox.com>
+Date: Mon, 11 Oct 1999 13:26:57 -0400
+From: Jeff Garzik <jgarzik@pobox.com>
 MIME-Version: 1.0
+Subject: Re: MMIO regions
+References: <14328.64984.364562.947945@dukat.scot.redhat.com>
+		<Pine.LNX.4.10.9910061600520.29637-100000@imperial.edgeglobal.com> <14338.6581.988257.647691@dukat.scot.redhat.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14338.7369.601459.308150@dukat.scot.redhat.com>
-Date: Mon, 11 Oct 1999 18:22:17 +0100 (BST)
-Subject: Re: MMIO regions
-In-Reply-To: <Pine.LNX.4.10.9910061633250.29637-100000@imperial.edgeglobal.com>
-References: <14329.390.453805.801086@dukat.scot.redhat.com>
-	<Pine.LNX.4.10.9910061633250.29637-100000@imperial.edgeglobal.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: James Simmons <jsimmons@edgeglobal.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: James Simmons <jsimmons@edgeglobal.com>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+"Stephen C. Tweedie" wrote:
+> You seem to be looking for a solution which doesn't exist, though. :)
 
-On Thu, 7 Oct 1999 15:40:32 -0400 (EDT), James Simmons
-<jsimmons@edgeglobal.com> said:
+He's working on it though :)  http://imperial.edgeglobal.com/~jsimmons
 
-> No VM stuff. I think the better approach is with the scheduler. 
 
-The big problem there is threads.  We simply cannot have different VM
-setups for different threads of a given process --- threads are
-_defined_ as being processes which share the same VM.  The only way to
-achieve VM serialisation in a threaded application via the scheduler is
-to serialise the threads, which is rather contrary to what you want on
-an SMP machine.  CivCTP and Quake 3 are already threaded and SMP-capable
-on Linux, for example, and we have a threaded version of the Mesa openGL
-libraries too.
+> It is an unfortunate, but true, fact that the broken video hardware
+> doesn't let you provide memory mapped access which is (a) fast, (b)
+> totally safe, and (c) functional.  Choose which of a, b and c you are
+> willing to sacrifice and then we can look for solutions.  DRI sacrifices
+> (b), for example, by making the locking cooperative rather than
+> compulsory.  The basic unaccelerated fbcon sacrifices (c).  Using VM
+> protection would sacrifice (a).  It's not the ideal choice, sadly.
 
---Stephen
+Seems like it would make sense for an fbcon driver to specify the level
+of safety (and thus the level of speed penalty).
+
+For the older cards, "slow and safe" shouldn't be a big problem, because
+the typical scenario involves a single fbdev application using the
+entire screen.  The fbcon/GGI driver would specify a NEED_SLOW_SYNC flag
+when it registers.
+
+For newer cards, they get progressively better at having internal
+consistency for reads/writes of various MMIO regions and DMAable
+operations.   The fbcon/GGI driver for this could specify the FAST flag
+because the card can handle concurrent operations.
+
+Regards,
+
+	Jeff
+
+
+
+
+-- 
+Custom driver development	|    Never worry about theory as long
+Open source programming		|    as the machinery does what it's
+				|    supposed to do.  -- R. A. Heinlein
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
