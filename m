@@ -1,34 +1,30 @@
-Date: Thu, 24 Jan 2002 04:46:57 +0100
+Date: Thu, 24 Jan 2002 04:50:55 +0100
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [PATCH *] rmap VM, version 12
-Message-ID: <20020124044657.E20533@athlon.random>
-References: <20020123.104438.71552152.davem@redhat.com> <Pine.LNX.4.33L.0201231650450.32617-100000@imladris.surriel.com> <20020123.110624.93021436.davem@redhat.com>
+Message-ID: <20020124045055.F20533@athlon.random>
+References: <20020123.112837.112624842.davem@redhat.com> <Pine.LNX.4.33L.0201231735540.32617-100000@imladris.surriel.com> <20020123.121857.18310310.davem@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20020123.110624.93021436.davem@redhat.com>; from davem@redhat.com on Wed, Jan 23, 2002 at 11:06:24AM -0800
+In-Reply-To: <20020123.121857.18310310.davem@redhat.com>; from davem@redhat.com on Wed, Jan 23, 2002 at 12:18:57PM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "David S. Miller" <davem@redhat.com>
 Cc: riel@conectiva.com.br, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 23, 2002 at 11:06:24AM -0800, David S. Miller wrote:
->    On Wed, 23 Jan 2002, David S. Miller wrote:
+On Wed, Jan 23, 2002 at 12:18:57PM -0800, David S. Miller wrote:
 >    
->    > The problem is that when vmalloc() or whatever kernel mappings change
->    > you have to update all the quicklist page tables to match.
->    
->    Actually, this is just using the pte_free_fast() and
->    {get,free}_pgd_fast() functions on non-pae machines.
->    
-> Rofl, you can't just do that.  The page tables cache caches the kernel
-> mappings and if you don't update them properly on SMP you die.
+>    OK, so only the _pgd_ quicklist is questionable and the
+>    _pte_ quicklist is fine ?
+> 
+> That is my understanding.
 
-the cache we're talking about here cannot cache anything, whatever is in
-this cache must contain no information at all, otherwise the kernel
-would crash anyway immediatly. Such code was disabled for no good reason
-and there was nothing to fix there.
+pgd cache is fine too, the page fault will update the pgd using
+swapper_pg_dir accordingly if needed. The swapper_pg_dir will only fault
+in new pmd, it will never deallocate them (vfree only invalidates the
+pte and free the pages), so it's safe. If vfree would deallocate them
+just a simple context switch would break, no matter of the pgd cache.
 
 Andrea
 --
