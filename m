@@ -1,31 +1,43 @@
-Date: Mon, 25 Sep 2000 16:50:30 +0200
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Mon, 25 Sep 2000 11:37:18 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: the new VM
-Message-ID: <20000925165030.R22882@athlon.random>
-References: <20000925160412.G22882@athlon.random> <Pine.LNX.4.21.0009251115150.2518-100000@freak.distro.conectiva>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0009251115150.2518-100000@freak.distro.conectiva>; from marcelo@conectiva.com.br on Mon, Sep 25, 2000 at 11:26:48AM -0300
+In-Reply-To: <20000925150858.A22882@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009251135390.14614-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 11:26:48AM -0300, Marcelo Tosatti wrote:
-> This thread keeps freeing pages from the inactive clean list when needed
-> (when zone->free_pages < zone->pages_low), making them available for
-> atomic allocations.
+On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+> On Mon, Sep 25, 2000 at 03:02:58PM +0200, Ingo Molnar wrote:
+> > On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+> > 
+> > > Sorry I totally disagree. If GFP_KERNEL are garanteeded to succeed
+> > > that is a showstopper bug. [...]
+> > 
+> > why?
+> 
+> Because as you said the machine can lockup when you run out of memory.
 
-This is flawed. It's the irq that have to shrink the memory itself. It can't
-certainly reschedule kreclaimd and wait it to do the work.
+The fix for this is to kill a user process when you're OOM
+(you need to do this anyway).
 
-Increasing the free_pages_min limit is the _only_ alternative to having
-irqs that are able to shrink clean cache (and hopefully that "feature"
-will be resurrected soon since it's the only way to go right now). 
+The last few allocations of the "condemned" process can come
+frome the reserved pages and the process we killed will exit just
+fine.
 
-Andrea
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
