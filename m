@@ -1,48 +1,38 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA32452
-	for <linux-mm@kvack.org>; Wed, 2 Dec 1998 12:41:25 -0500
-Date: Wed, 2 Dec 1998 17:41:09 GMT
-Message-Id: <199812021741.RAA04526@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA00115
+	for <linux-mm@kvack.org>; Wed, 2 Dec 1998 13:45:52 -0500
+Date: Wed, 2 Dec 1998 19:32:56 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Reply-To: Andrea Arcangeli <andrea@e-mind.com>
+Subject: Re: Update shared mappings
+In-Reply-To: <199812021621.QAA04235@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.96.981202191811.4720A-100000@dragon.bogus>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: swapin readahead and locking
-In-Reply-To: <Pine.LNX.3.96.981201170845.437E-100000@mirkwood.dummy.home>
-References: <Pine.LNX.3.96.981201170845.437E-100000@mirkwood.dummy.home>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux MM <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Zlatko.Calusic@CARNet.hr, Linux-MM List <linux-mm@kvack.org>, Andi Kleen <andi@zero.aec.at>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Wed, 2 Dec 1998, Stephen C. Tweedie wrote:
 
-On Tue, 1 Dec 1998 17:12:45 +0100 (CET), Rik van Riel
-<H.H.vanRiel@phys.uu.nl> said:
+>else's mm semaphore.  If you have two processes doing that to each other
+>(ie. two processes mapping the same file r/w and doing msyncs), then you
+>can most certainly still deadlock.
 
-> struct page *page_map = lookup_swap_cache(entry);
+The thing would be trivially fixable if it would exists a down_trylock() 
+that returns 0 if the semaphore was just held. I rejected now the
+update_shared_mappings from my tree in the meantime though.
 
-> if (!page_map) {
-> 	page_map = read_swap_cache(entry);
+I have a question. Please consider only the UP case (as if linux would not
+support SMP at all). Is it possible that while we are running inside
+sys_msync() and another process has the mmap semaphore held?
 
-> ... do readahead stuff
-> }
+Stephen I read some emails about a PG_dirty flag. Could you tell me some
+more about that flag? 
 
-read_swap_cache() is not asynchronous!  include/linux/swap.h:
+Andrea Arcangeli
 
-	#define read_swap_cache(entry) read_swap_cache_async(entry, 1);
-
-I think you were on the right lines before (except for the missing
-free_page()). 
-
-> I have a funny feeling I missed a wait_on_page() this way,
-> but things are runnig happily right now. 
-
-No, read_swap_cache automatically waits, and if you do the async
-version, then any later call to read the same page will in turn wait for
-the IO to complete.
-
---Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
