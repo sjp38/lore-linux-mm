@@ -1,61 +1,86 @@
-Date: Mon, 8 Nov 1999 21:50:35 +0100
-From: Andi Kleen <ak@muc.de>
-Subject: Re: IO mappings; verify_area() on SMP
-Message-ID: <19991108215035.A3154@fred.muc.de>
-References: <19991108134325.A589@it.lv>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <19991108134325.A589@it.lv>; from Arkadi E. Shishlov on Mon, Nov 08, 1999 at 12:43:25PM +0100
+Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2])
+	by sgi.com (980305.SGI.8.8.8-aspam-6.2/980304.SGI-aspam:
+       SGI does not authorize the use of its proprietary
+       systems or networks for unsolicited or bulk email
+       from the Internet.)
+	via ESMTP id TAA10292757
+	for <@external-mail-relay.sgi.com:linux-mm@kvack.org>; Mon, 8 Nov 1999 19:12:30 -0800 (PST)
+	mail_from (kanoj@google.engr.sgi.com)
+Received: from google.engr.sgi.com (google.engr.sgi.com [192.48.174.30])
+	by cthulhu.engr.sgi.com (980427.SGI.8.8.8/970903.SGI.AUTOCF)
+	via ESMTP id TAA83966
+	for <@cthulhu.engr.sgi.com:linux-mm@kvack.org>;
+	Mon, 8 Nov 1999 19:12:29 -0800 (PST)
+	mail_from (kanoj@google.engr.sgi.com)
+Received: (from kanoj@localhost) by google.engr.sgi.com (980427.SGI.8.8.8/970903.SGI.AUTOCF) id TAA17636 for linux-mm@kvack.org; Mon, 8 Nov 1999 19:12:28 -0800 (PST)
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <199911090312.TAA17636@google.engr.sgi.com>
+Subject: [PATCH] kanoj-mm25-2.3.26 Fix max_mapnr<<PAGE_SHIFT overflows
+Date: Mon, 8 Nov 1999 19:12:28 -0800 (PST)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Arkadi E. Shishlov" <arkadi@it.lv>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Nov 08, 1999 at 12:43:25PM +0100, Arkadi E. Shishlov wrote:
-> 
->   Second question is about verify_area() safety. Many drivers contain
->   following sequence:
-> 
->   if ((ret = verify_area(VERIFY_WRITE, buffer, count)))
-> 	    return r;
->   ...
->   copy_to_user(buffer, driver_data_buf, count);
-> 
->   Even protected by cli()/sti() pairs, why multithreaded program on
->   SMP machine can't unmap this verified buffer between calls to
->   verify_area() and copy_to_user()? Of course it can't be true, but
->   maybe somebody can write two-three words about reason that prevent
->   this situation.
+This has already been sent to Linus to be included into 2.3.27.
 
-The verify_area is unnecessary in 2.2. The correct way to do it is:
+Kanoj
 
-	if (copy_to_user(buffer, driver_data_buf, count))
-		return -EFAULT;
+Linus,
 
-The above sequence is because a lot of drivers were incorrectly converted
-from the 2.0 verify_area/memcpy_to_fs method to the 2.2 method. copy_from_user
-avoids the race you're describing (see Documentation/exception.txt). 
+Now that >4Gb memory support is possible, it is no longer true that
+(max_mapnr << PAGE_SHIFT) can be held within a 32 bit unsigned long.
+This patch tries to fix this overflow problem.
 
-verify_area() is a backwards compatibility wrapper around access_ok()
-which only does a security check for kernel mode addresses, it is done
-by copy_*_user too.  The real mapping check is done by the MMU by
-handling the exception.
+Please put into 2.3.27. Thanks.
 
-Some early 386 don't check properly for page write protection when the CPU
-is in supervisor mode. In this case verify_area does a full walk of the
-page tables to avoid security problems. Unfortunately there is still a race
-with programs that use clone() (does not even need SMP), because when the
-user access sleeps in a page fault another thread can unmap the mapping
-inbetween and cause a kernel crash. Fortunately this only applies to some
-very early 386 steppings, later CPUs don't have this problem (and AFAIK
-no non x86 port except possibly uclinux)
+Kanoj
 
-Hope this helps,
+--- /usr/tmp/p_rdiff_a006_p/dir.c	Mon Nov  8 17:30:59 1999
++++ fs/ncpfs/dir.c	Mon Nov  8 16:10:42 1999
+@@ -405,7 +405,6 @@
+ {
+ 	unsigned long dent_addr = (unsigned long) dentry;
+ 	unsigned long min_addr = PAGE_OFFSET;
+-	unsigned long max_addr = min_addr + (max_mapnr << PAGE_SHIFT);
+ 	unsigned long align_mask = 0x0F;
+ 	unsigned int len;
+ 	int valid = 0;
+@@ -412,7 +411,7 @@
+ 
+ 	if (dent_addr < min_addr)
+ 		goto bad_addr;
+-	if (dent_addr > max_addr - sizeof(struct dentry))
++	if (dent_addr > (unsigned long)high_memory - sizeof(struct dentry))
+ 		goto bad_addr;
+ 	if ((dent_addr & ~align_mask) != dent_addr)
+ 		goto bad_align;
+--- /usr/tmp/p_rdiff_a006_z/kcore.c	Mon Nov  8 17:31:18 1999
++++ fs/proc/kcore.c	Mon Nov  8 16:10:42 1999
+@@ -20,7 +20,7 @@
+ ssize_t read_kcore(struct file * file, char * buf,
+ 			 size_t count, loff_t *ppos)
+ {
+-	unsigned long p = *ppos, memsize;
++	unsigned long long p = *ppos, memsize;
+ 	ssize_t read;
+ 	ssize_t count1;
+ 	char * pnt;
+--- /usr/tmp/p_rdiff_a006-8/vmalloc.c	Mon Nov  8 17:31:44 1999
++++ mm/vmalloc.c	Mon Nov  8 16:10:42 1999
+@@ -204,7 +204,7 @@
+ 	struct vm_struct *area;
+ 
+ 	size = PAGE_ALIGN(size);
+-	if (!size || size > (max_mapnr << PAGE_SHIFT)) {
++	if (!size || ((PAGE_ALIGN(size) >> PAGE_SHIFT) > max_mapnr)) {
+ 		BUG();
+ 		return NULL;
+ 	}
 
--Andi
--- 
-This is like TV. I don't like TV.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
