@@ -1,35 +1,35 @@
-Date: Sun, 24 Sep 2000 21:27:39 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
+Date: Mon, 25 Sep 2000 03:45:51 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-In-Reply-To: <20000925033128.A10381@athlon.random>
-Message-ID: <Pine.GSO.4.21.0009242122520.14096-100000@weyl.math.psu.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000925034551.C10381@athlon.random>
+References: <Pine.LNX.4.10.10009241646560.974-100000@penguin.transmeta.com> <Pine.LNX.4.21.0009242143040.2029-100000@freak.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0009242143040.2029-100000@freak.distro.conectiva>; from marcelo@conectiva.com.br on Sun, Sep 24, 2000 at 09:53:33PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
 Cc: Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Sun, Sep 24, 2000 at 09:53:33PM -0300, Marcelo Tosatti wrote:
+> Btw, why we need kmem_cache_shrink() inside shrink_{i,d}cache_memory ?  
 
-On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
+Because kmem_cache_free doesn't free anything. It only queues slab
+objects into the partial and free part of the cachep slab queue (so that
+they're ready to be freed later, and that's what we do in shrink_slab_cache).
 
-> I'm thinking that dropping the superblock lock completly wouldn't be much more
-> difficult than this mid stage.  The only cases where we block in critical
-> sections protected by the superblock lock is in getblk/bread (bread calls
-> getblk) and ll_rw_block and mark_buffer_dirty.  Once we drop the lock for the
-> first cases it should not be more difficult to drop it completly.
+> calls shrink_{i,d}cache_memory) already shrink the SLAB cache (with
+> kmem_cache_reap), I dont think its needed.
 
-ext2_new_block->dquot_alloc_block->lock_dquot
+kmem_cache_reap shrinks the slabs at _very_ low frequency. It's worthless to
+keep lots of dentries and icache into the slab internal queues until
+kmem_cache_reap kicks in again, if we free them such memory immediatly instead
+we'll run kmem_cache_reap later and for something more appropraite for what's
+been designed. The [id]cache shrink could release lots of memory.
 
-ext2_new_block->dquot_alloc_block->check_bdq->print_warning->tty_write_message
-
-
-> Not sure if this is the right moment for those changes though, I'm not worried
-> about ext2 but about the other non-netoworked fses that nobody uses regularly.
-
-So help testing the patches to them. Arrgh...
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
