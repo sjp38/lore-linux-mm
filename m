@@ -1,44 +1,59 @@
-Date: Mon, 25 Sep 2000 09:17:54 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: refill_inactive()
-In-Reply-To: <Pine.LNX.4.21.0009251306430.14614-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.10.10009250914100.1666-100000@penguin.transmeta.com>
+Date: Mon, 25 Sep 2000 13:16:29 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: the new VMt
+In-Reply-To: <E13da01-00057k-00@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.21.0009251314350.14614-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Ingo Molnar <mingo@elte.hu>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 25 Sep 2000, Alan Cox wrote:
 
-On Mon, 25 Sep 2000, Rik van Riel wrote:
+> > > GFP_KERNEL has to be able to fail for 2.4. Otherwise you can get
+> > > everything jammed in kernel space waiting on GFP_KERNEL and if the
+> > > swapper cannot make space you die.
+> > 
+> > if one can get everything jammed waiting for GFP_KERNEL, and not being
+> > able to deallocate anything, thats a VM or resource-limit bug. This
+> > situation is just 1% RAM away from the 'root cannot log in', situation.
 > 
-> Hmmm, doesn't GFP_BUFFER simply imply that we cannot
-> allocate new buffer heads to do IO with??
+> Unless Im missing something here think about this case
+> 
+> 2 active processes, no swap
+> 
+> #1					#2
+> kmalloc 32K				kmalloc 16K
+> OK					OK
+> kmalloc 16K				kmalloc 32K
+> block					block
+> 
+> so GFP_KERNEL has to be able to fail - it can wait for I/O in
+> some cases with care, but when we have no pages left something
+> has to give
 
-No.
+The trick here is to:
+1) keep some reserved pages around for PF_MEMALLOC tasks
+   (we need this anyway)
+2) set PF_MEMALLOC on the task you're killing for OOM,
+   that way this task will either get the memory or
+   fail (note that PF_MEMALLOC tasks don't wait)
 
-New buffer heads would be ok - recursion is fine in theory, as long as it
-is bounded, and we might bound it some other way (I don't think we
-_should_ do recursion here due to the stack limit, but at least it's not
-a fundamental problem).
+This way the OOM-killed task will be able to exit quickly
+and the rest of the system will not get killed as a side
+effect.
 
-The fundamental problem is that GFP_BUFFER allocations are often done with
-some critical filesystem lock held. Which means that we cannot call down
-to the filesystem to free up memory.
+regards,
 
-The name is a misnomer, partly due to historical reasons (the buffer cache
-used to be fragile, and if you free'd buffer cache pages while you were
-trying to allocate new ones you could cause BadThings(tm) to happen), but
-partly just because the only _user_ of it is the buffer cache. 
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
 
-In theory, filesystems could use it for any other allocations that they
-do, but in practice they don't, and the only allocations they do in
-critical regions is the buffer allocation. And as this thread has
-discussed, even that is really more of a bug than a feature.
-
-		Linus
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
