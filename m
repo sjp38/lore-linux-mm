@@ -1,47 +1,37 @@
-Subject: Re: fast path for anonymous memory allocation
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-In-Reply-To: <Pine.LNX.4.58.0411181921001.1674@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain>
-	 <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com>
-	 <Pine.LNX.4.58.0411181715280.834@schroedinger.engr.sgi.com>
-	 <419D581F.2080302@yahoo.com.au>
-	 <Pine.LNX.4.58.0411181835540.1421@schroedinger.engr.sgi.com>
-	 <419D5E09.20805@yahoo.com.au>
-	 <Pine.LNX.4.58.0411181921001.1674@schroedinger.engr.sgi.com>
-Content-Type: text/plain
-Date: Fri, 19 Nov 2004 18:07:48 +1100
-Message-Id: <1100848068.25520.49.camel@gaston>
+Date: Fri, 19 Nov 2004 06:09:46 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH] fix spurious OOM kills
+Message-ID: <20041119080946.GA30845@logos.cnet>
+References: <20041114202155.GB2764@logos.cnet> <419A2B3A.80702@tebibyte.org> <419B14F9.7080204@tebibyte.org> <20041117012346.5bfdf7bc.akpm@osdl.org> <419CD8C1.4030506@ribosome.natur.cuni.cz> <20041118131655.6782108e.akpm@osdl.org> <419D25B5.1060504@ribosome.natur.cuni.cz> <419D2987.8010305@cyberone.com.au> <419D383D.4000901@ribosome.natur.cuni.cz> <20041118160824.3bfc961c.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041118160824.3bfc961c.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Martin MOKREJ__ <mmokrejs@ribosome.natur.cuni.cz>, piggin@cyberone.com.au, chris@tebibyte.org, andrea@novell.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-11-18 at 19:28 -0800, Christoph Lameter wrote:
-> On Fri, 19 Nov 2004, Nick Piggin wrote:
+On Thu, Nov 18, 2004 at 04:08:24PM -0800, Andrew Morton wrote:
+> Martin MOKREJ__ <mmokrejs@ribosome.natur.cuni.cz> wrote:
+> >
+> >   Anyway, plain 2.6.7 kills only the application asking for
+> >  so much memory and logs via syslog:
+> >  Out of Memory: Killed process 58888 (RNAsubopt)
+> > 
+> >    It's a lot better compared to what we have in 2.6.10-rc2,
+> >  from my user's view.
 > 
-> > But you're doing it after you've set up a pte for that page you are
-> > clearing... I think? What's to stop another thread trying to read or
-> > write to it concurrently?
-> 
-> Nothing. If this had led to anything then we would have needed to address
-> this issue. The clearing had to be outside of the lock in order not to
-> impact the performance tests negatively.
+> We haven't made any changes to the oom-killer algorithm since July 2003. 
+> Weird.
 
-No, it's clearly a bug. We even had a very hard to track down bug
-recently on ppc64 which was caused by the fact that set_pte didn't
-contain a barrier, thus the stores done by the _previous_
-clear_user_high_page() could be re-ordered with the store to the PTE.
-That could cause another process to "see" the PTE before the writes of 0
-to the page, and thus start writing to the page before all zero's went
-in, thus ending up with corrupted data. We had a real life testcase of
-this one. This test case would blow up right away with your code I
-think.
- 
-Ben.
+As Thomas Gleixner has investigated, the OOM killer selection is problematic.
 
+When testing your ignore-page-referenced patch it first killed the memory hog
+then shortly afterwards the shell I was running it on.
+
+You've seen Thomas emails, he has nice description there.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
