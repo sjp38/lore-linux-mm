@@ -1,43 +1,70 @@
-Date: Sat, 18 Dec 2004 17:01:51 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Sat, 18 Dec 2004 17:31:48 -0800 (PST)
+From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [PATCH 4/10] alternate 4-level page tables patches
-Message-ID: <20041219010151.GO771@holomorphy.com>
-References: <20041218095050.GC338@wotan.suse.de> <41C40125.3060405@yahoo.com.au> <20041218110608.GJ771@holomorphy.com> <41C411BD.6090901@yahoo.com.au> <20041218113252.GK771@holomorphy.com> <41C41ACE.7060002@yahoo.com.au> <20041218124635.GL771@holomorphy.com> <41C4C5C2.5000607@yahoo.com.au> <20041219002010.GN771@holomorphy.com> <41C4CDA0.5090504@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <41C4CDA0.5090504@yahoo.com.au>
+In-Reply-To: <20041219002010.GN771@holomorphy.com>
+Message-ID: <Pine.LNX.4.58.0412181721520.22750@ppc970.osdl.org>
+References: <41C3D4C8.1000508@yahoo.com.au> <41C3F2D6.6060107@yahoo.com.au>
+ <20041218095050.GC338@wotan.suse.de> <41C40125.3060405@yahoo.com.au>
+ <20041218110608.GJ771@holomorphy.com> <41C411BD.6090901@yahoo.com.au>
+ <20041218113252.GK771@holomorphy.com> <41C41ACE.7060002@yahoo.com.au>
+ <20041218124635.GL771@holomorphy.com> <41C4C5C2.5000607@yahoo.com.au>
+ <20041219002010.GN771@holomorphy.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>, Hugh Dickins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Dec 19, 2004 at 11:38:56AM +1100, Nick Piggin wrote:
->> For clear_page_tables() you want to scan as little as possible. The
 
-William Lee Irwin III wrote:
-> Sure. I wonder if we could cut down the amount of scanning by keeping
-> track of what ranges of vmas have been unmapped... still, I don't think
-> I have seen this function high on a profile, so until then I personally
-> don't think I'll bother ;)
+On Sat, 18 Dec 2004, William Lee Irwin III wrote:
+>
+> William Lee Irwin III wrote:
+> >> vmas are unmapped one-by-one during process destruction.
+> 
+> On Sun, Dec 19, 2004 at 11:05:22AM +1100, Nick Piggin wrote:
+> > Yeah but clear_page_tables isn't called for each vma that is unmapped
+> > at exit time. Rather, one big one is called at the end - I suspect
+> > this is usually more efficient.
+> 
+> For clear_page_tables() you want to scan as little as possible. The
+> exit()-time performance issue is tlb_finish_mmu().
 
-Probably best to talk to davem about this. Or at least he's a source of
-information about this independent from me.
+Note that the fact that we share lots of code between "unmap" and "exit" 
+is likely a (performance) bug.
 
+The exit case is really a lot simpler, not just because we get rid of the 
+whole VM, but because nobody else can be reading the page tables at the 
+same time, and in particular we do not have a lot of the races that a 
+simple unmap can have. The whole "gather/flush" thing is overkill, I 
+think.
 
-William Lee Irwin III wrote:
->> exit()-time performance issue is tlb_finish_mmu().
+Actually, looking at the code, I wonder why we haven't marked the exit 
+case to be "fast". We have this special optimization for single-CPU which 
+doesn't bunch pages up and free them in chunks, and we should probably 
+mark the exit case to use the fast-case where we can flush the TLB's 
+early. Hmm?
 
-On Sun, Dec 19, 2004 at 11:38:56AM +1100, Nick Piggin wrote:
-> Makes sense. I guess there is often a lot of memory one has to shoot
-> down.
+Ingo, is there any reason we don't do this:
 
-Also, some of the comments in the prior post relate to one of the
-differences in how I implemented all this.
+--- 1.24/include/asm-generic/tlb.h	2004-07-10 17:14:00 -07:00
++++ edited/include/asm-generic/tlb.h	2004-12-18 17:30:43 -08:00
+@@ -58,7 +58,7 @@
+ 	tlb->mm = mm;
+ 
+ 	/* Use fast mode if only one CPU is online */
+-	tlb->nr = num_online_cpus() > 1 ? 0U : ~0U;
++	tlb->nr = num_online_cpus() > 1 && !full_mm_flush ? 0U : ~0U;
+ 
+ 	tlb->fullmm = full_mm_flush;
+ 	tlb->freed = 0;
 
+which should make the exit case TLB handling go much faster. Was there 
+some race in that too? Nobody should be using the VM any more at that 
+point, so it _should_ be safe, no?
 
--- wli
+		Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
