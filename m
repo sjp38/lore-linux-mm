@@ -1,147 +1,88 @@
-Date: Thu, 12 Jun 2003 15:16:01 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: [PATCH] Fix vmtruncate race and distributed filesystem race
-Message-ID: <133430000.1055448961@baldur.austin.ibm.com>
-MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="==========1848066916=========="
+Date: Thu, 12 Jun 2003 13:49:46 -0700
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: [PATCH] Fix vmtruncate race and distributed filesystem race
+Message-Id: <20030612134946.450e0f77.akpm@digeo.com>
+In-Reply-To: <133430000.1055448961@baldur.austin.ibm.com>
+References: <133430000.1055448961@baldur.austin.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
---==========1848066916==========
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Dave McCracken <dmccr@us.ibm.com> wrote:
+>
+> 
+> Paul McKenney and I sat down today and hashed out just what the races are
+> for both  vmtruncate and the distributed filesystems.  We took Andrea's
+> idea of using seqlocks and came up with a simple solution that definitely
+> fixes the race in vmtruncate, as well as most likely the invalidate race in
+> distributed filesystems.  Paul is going to discuss it with the DFS folks to
+> verify that it's a complete fix for them, but neither of us can see a hole.
+> 
+
+> +  seqlock_init(&(mtd_rawdevice->as.truncate_lock));
+
+Why cannot this just be an atomic_t?
+
+> +	/* Protect against page fault */
+> +	write_seqlock(&mapping->truncate_lock);
+> +	write_sequnlock(&mapping->truncate_lock);
+
+See, this just does foo++.
+
+> +	/*
+> +	 * If someone invalidated the page, serialize against the inode,
+> +	 * then go try again.
+> +	 */
+
+This comment is inaccurate.  "If this vma is file-backed and someone has
+truncated that file, this page may have been invalidated".
+
+> +	if (unlikely(read_seqretry(&mapping->truncate_lock, sequence))) {
+> +		spin_unlock(&mm->page_table_lock);
+> +		down(&inode->i_sem);
+> +		up(&inode->i_sem);
+> +		goto retry;
+> +	}
+> +
+
+mm/memory.c shouldn't know about inodes (ok, vmtruncate() should be in
+filemap.c).
+
+How about you do this:
+
+do_no_page()
+{
+	int sequence = 0;
+	...
+
+retry:
+	new_page = vma->vm_ops->nopage(vma, address & PAGE_MASK, &sequence);
+	....
+	if (vma->vm_ops->revalidate && vma->vm_opa->revalidate(vma, sequence))
+		goto retry;
+}
 
 
-Paul McKenney and I sat down today and hashed out just what the races are
-for both  vmtruncate and the distributed filesystems.  We took Andrea's
-idea of using seqlocks and came up with a simple solution that definitely
-fixes the race in vmtruncate, as well as most likely the invalidate race in
-distributed filesystems.  Paul is going to discuss it with the DFS folks to
-verify that it's a complete fix for them, but neither of us can see a hole.
+filemap_nopage(..., int *sequence)
+{
+	...
+	*sequence = atomic_read(&mapping->truncate_sequence);
+	...
+}
 
-Anyway, here's the patch.
+int filemap_revalidate(vma, sequence)
+{
+	struct address_space *mapping;
 
-Dave McCracken
+	mapping = vma->vm_file->f_dentry->d_inode->i_mapping;
+	return sequence - atomic_read(&mapping->truncate_sequence);
+}
 
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
-
---==========1848066916==========
-Content-Type: text/plain; charset=iso-8859-1; name="trunc-2.5.70-mm8-1.diff"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment; filename="trunc-2.5.70-mm8-1.diff"; size=4075
-
---- 2.5.70-mm8/./drivers/mtd/devices/blkmtd.c	2003-05-26 20:00:21.000000000 =
--0500
-+++ 2.5.70-mm8-trunc/./drivers/mtd/devices/blkmtd.c	2003-06-12 =
-13:45:48.000000000 -0500
-@@ -1189,6 +1189,7 @@ static int __init init_blkmtd(void)
-   INIT_LIST_HEAD(&mtd_rawdevice->as.locked_pages);
-   mtd_rawdevice->as.host =3D NULL;
-   init_MUTEX(&(mtd_rawdevice->as.i_shared_sem));
-+  seqlock_init(&(mtd_rawdevice->as.truncate_lock));
-=20
-   mtd_rawdevice->as.a_ops =3D &blkmtd_aops;
-   INIT_LIST_HEAD(&mtd_rawdevice->as.i_mmap);
---- 2.5.70-mm8/./include/linux/fs.h	2003-06-12 13:37:28.000000000 -0500
-+++ 2.5.70-mm8-trunc/./include/linux/fs.h	2003-06-12 13:42:51.000000000 =
--0500
-@@ -19,6 +19,7 @@
- #include <linux/cache.h>
- #include <linux/radix-tree.h>
- #include <linux/kobject.h>
-+#include <linux/seqlock.h>
- #include <asm/atomic.h>
-=20
- struct iovec;
-@@ -323,6 +324,7 @@ struct address_space {
- 	struct list_head	i_mmap;		/* list of private mappings */
- 	struct list_head	i_mmap_shared;	/* list of shared mappings */
- 	struct semaphore	i_shared_sem;	/* protect both above lists */
-+	seqlock_t		truncate_lock;	/* Cover race condition with truncate */
- 	unsigned long		dirtied_when;	/* jiffies of first page dirtying */
- 	int			gfp_mask;	/* how to allocate the pages */
- 	struct backing_dev_info *backing_dev_info; /* device readahead, etc */
---- 2.5.70-mm8/./fs/inode.c	2003-06-12 13:37:22.000000000 -0500
-+++ 2.5.70-mm8-trunc/./fs/inode.c	2003-06-12 13:43:29.000000000 -0500
-@@ -185,6 +185,7 @@ void inode_init_once(struct inode *inode
- 	INIT_RADIX_TREE(&inode->i_data.page_tree, GFP_ATOMIC);
- 	spin_lock_init(&inode->i_data.page_lock);
- 	init_MUTEX(&inode->i_data.i_shared_sem);
-+	seqlock_init(&inode->i_data.truncate_lock);
- 	INIT_LIST_HEAD(&inode->i_data.private_list);
- 	spin_lock_init(&inode->i_data.private_lock);
- 	INIT_LIST_HEAD(&inode->i_data.i_mmap);
---- 2.5.70-mm8/./mm/swap_state.c	2003-05-26 20:00:39.000000000 -0500
-+++ 2.5.70-mm8-trunc/./mm/swap_state.c	2003-06-12 13:40:54.000000000 -0500
-@@ -44,6 +44,7 @@ struct address_space swapper_space =3D {
- 	.i_mmap		=3D LIST_HEAD_INIT(swapper_space.i_mmap),
- 	.i_mmap_shared	=3D LIST_HEAD_INIT(swapper_space.i_mmap_shared),
- 	.i_shared_sem	=3D __MUTEX_INITIALIZER(swapper_space.i_shared_sem),
-+	.truncate_lock  =3D SEQLOCK_UNLOCKED,
- 	.private_lock	=3D SPIN_LOCK_UNLOCKED,
- 	.private_list	=3D LIST_HEAD_INIT(swapper_space.private_list),
- };
---- 2.5.70-mm8/./mm/memory.c	2003-06-12 13:37:31.000000000 -0500
-+++ 2.5.70-mm8-trunc/./mm/memory.c	2003-06-12 13:40:54.000000000 -0500
-@@ -1138,6 +1138,9 @@ invalidate_mmap_range(struct address_spa
- 			hlen =3D ULONG_MAX - hba + 1;
- 	}
- 	down(&mapping->i_shared_sem);
-+	/* Protect against page fault */
-+	write_seqlock(&mapping->truncate_lock);
-+	write_sequnlock(&mapping->truncate_lock);
- 	if (unlikely(!list_empty(&mapping->i_mmap)))
- 		invalidate_mmap_range_list(&mapping->i_mmap, hba, hlen);
- 	if (unlikely(!list_empty(&mapping->i_mmap_shared)))
-@@ -1390,8 +1393,11 @@ do_no_page(struct mm_struct *mm, struct=20
- 	unsigned long address, int write_access, pte_t *page_table, pmd_t *pmd)
- {
- 	struct page * new_page;
-+	struct inode *inode;
-+	struct address_space *mapping;
- 	pte_t entry;
- 	struct pte_chain *pte_chain;
-+	unsigned sequence;
- 	int ret;
-=20
- 	if (!vma->vm_ops || !vma->vm_ops->nopage)
-@@ -1400,6 +1406,10 @@ do_no_page(struct mm_struct *mm, struct=20
- 	pte_unmap(page_table);
- 	spin_unlock(&mm->page_table_lock);
-=20
-+	inode =3D vma->vm_file->f_dentry->d_inode;
-+	mapping =3D inode->i_mapping;
-+retry:
-+	sequence =3D read_seqbegin(&mapping->truncate_lock);
- 	new_page =3D vma->vm_ops->nopage(vma, address & PAGE_MASK, 0);
-=20
- 	/* no page was available -- either SIGBUS or OOM */
-@@ -1428,6 +1438,17 @@ do_no_page(struct mm_struct *mm, struct=20
- 	}
-=20
- 	spin_lock(&mm->page_table_lock);
-+	/*
-+	 * If someone invalidated the page, serialize against the inode,
-+	 * then go try again.
-+	 */
-+	if (unlikely(read_seqretry(&mapping->truncate_lock, sequence))) {
-+		spin_unlock(&mm->page_table_lock);
-+		down(&inode->i_sem);
-+		up(&inode->i_sem);
-+		goto retry;
-+	}
-+
- 	page_table =3D pte_offset_map(pmd, address);
-=20
- 	/*
-
---==========1848066916==========--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
