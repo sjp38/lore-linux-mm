@@ -1,29 +1,87 @@
-Date: Thu, 24 Apr 2003 16:33:34 -0400
-From: Benjamin LaHaise <bcrl@redhat.com>
+Date: Thu, 24 Apr 2003 14:13:25 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: 2.5.68-mm2
-Message-ID: <20030424163334.A12180@redhat.com>
-References: <20030423233652.C9036@redhat.com> <Pine.LNX.3.96.1030424162101.11351C-100000@gatekeeper.tmr.com>
-Mime-Version: 1.0
+Message-ID: <1661460000.1051218805@flay>
+In-Reply-To: <20030423233954.D9036@redhat.com>
+References: <20030423012046.0535e4fd.akpm@digeo.com><18400000.1051109459@[10.10.2.4]> <20030423144648.5ce68d11.akpm@digeo.com> <1565150000.1051134452@flay> <20030423233954.D9036@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.3.96.1030424162101.11351C-100000@gatekeeper.tmr.com>; from davidsen@tmr.com on Thu, Apr 24, 2003 at 04:24:56PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Davidsen <davidsen@tmr.com>
-Cc: Andrew Morton <akpm@digeo.com>, "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Benjamin LaHaise <bcrl@redhat.com>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Apr 24, 2003 at 04:24:56PM -0400, Bill Davidsen wrote:
-> Of course reasonable way may mean that bash does some things a bit slower,
-> but given that the whole thing works well in most cases anyway, I think
-> the kernel handling the situation is preferable.
+>> The performance improvement was about 25% of systime according to my 
+>> measurements - I don't call that insignificant.
+> 
+> Never, ever use changes in system time as a justification for a patch.  We 
+> all know that Linux's user/system time accounting is patently unreliable.  
 
-Eh?  It makes bash _faster_ for all cases of starting up a child process.  
-And it even works on 2.4 kernels.
+Mmmm. I'm not particularly convinced by that ... I do 5 runs for every 
+benchmark and compare the results, and it seems very consistent to me. 
+For kernbench, it's interesting to look at system time - but obviously
+keeping an eye on elapsed time as well, particularly for things like
+scheduler patches.
 
-		-ben
--- 
-Junk email?  <a href="mailto:aart@kvack.org">aart@kvack.org</a>
+> Remember Nyquist?  Talk to me about differences in wall clock and your 
+> comments will be more interesting.
+
+OK, well then you need to look at something that's not totally dominated
+by gcc anyway. I know everyone hates SDET as it's "closed" but I'll try
+to rerun with aim7 at some point. A real 20% improvement in throughput
+is not to be sniffed at ...
+
+DISCLAIMER: SPEC(tm) and the benchmark name SDET(tm) are registered
+trademarks of the Standard Performance Evaluation Corporation. This 
+benchmarking was performed for research purposes only, and the run results
+are non-compliant and not-comparable with any published results.
+
+Results are shown as percentages of the first set displayed
+
+SDET 1  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.68       100.0%         0.7%
+           2.5.68-objrmap       105.7%         0.4%
+
+SDET 2  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.68       100.0%         2.8%
+           2.5.68-objrmap       108.2%         0.7%
+
+SDET 4  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.68       100.0%         1.0%
+           2.5.68-objrmap       112.0%         1.4%
+
+SDET 8  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.68       100.0%         0.6%
+           2.5.68-objrmap       122.8%         1.3%
+
+SDET 16  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.68       100.0%         0.1%
+           2.5.68-objrmap       117.3%         0.8%
+
+SDET 32  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.68       100.0%         0.4%
+           2.5.68-objrmap       118.5%         0.4%
+
+SDET 64  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.68       100.0%         0.2%
+           2.5.68-objrmap       121.2%         0.3%
+
+SDET 128  (see disclaimer)
+                           Throughput    Std. Dev
+                   2.5.68       100.0%         0.1%
+           2.5.68-objrmap       118.6%         0.2%
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
