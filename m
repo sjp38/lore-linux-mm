@@ -1,66 +1,45 @@
-Message-ID: <20010824054133.61424.qmail@web14204.mail.yahoo.com>
-Date: Thu, 23 Aug 2001 22:41:33 -0700 (PDT)
-From: PRASENJIT CHAKRABORTY <pras_chakra@yahoo.com>
-Subject: copy_to_user problem
-MIME-Version: 1.0
+Received: from [212.18.232.186] (helo=caramon.arm.linux.org.uk)
+	by smtp.mailbox.net.uk with esmtp (Exim 3.22 #2)
+	id 15aDro-0003j4-00
+	for linux-mm@kvack.org; Fri, 24 Aug 2001 11:07:08 +0100
+Received: from flint.arm.linux.org.uk (IDENT:mail@flint.arm.linux.org.uk [192.168.0.4])
+	by caramon.arm.linux.org.uk (8.11.2/8.11.2) with ESMTP id f7OA76212800
+	for <linux-mm@kvack.org>; Fri, 24 Aug 2001 11:07:07 +0100
+Received: from rmk by flint.arm.linux.org.uk with local (Exim 3.16 #1)
+	id 15aDrm-0008Lh-00
+	for linux-mm@kvack.org; Fri, 24 Aug 2001 11:07:06 +0100
+Date: Fri, 24 Aug 2001 11:07:06 +0100
+From: Russell King <rmk@arm.linux.org.uk>
+Subject: Patch for review
+Message-ID: <20010824110706.B31722@flint.arm.linux.org.uk>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: arund@bellatlantic.net
 List-ID: <linux-mm.kvack.org>
 
-Hello All,
+Hi,
 
-   I posted this problem some days back but still have
-not received any solution.
+Could someone please review the patch at:
 
-So sorry for the resend again.
+   http://www.arm.linux.org.uk/developer/patches/?action=viewpatch&id=613/1
 
-I am developing a driver. Though the driver is
-functioning well but I am stuck up at the point of
-transferring something from kernel to user space.
+and indicate whether it is acceptable to you folks?
 
-I am using __copy_to_user() and before calling this I
-am checking the validity of user address with
-verify_area().
+The problem is that on some Intel StrongARM-based machines, the address
+line A20 must never be set when performing DMA accesses, otherwise the
+SDRAM gets corrupted.  Therefore, we must only provide a 1MB DMA region.
+As Nico Pitre says there, Linux currently expects all memory zones to be
+larger than 2MB.
 
-Now the problem is that __copy_to_user() sometimes
-return value > 0 which indicates a failure. This
-happens everytime the user address is not currently
-present in the Physical Page i.e the when
-__copy_to_user tries to copy to a page which is not
-currently paged in then it fails.
+Thanks.
 
-Moreover if I access the user buffer from my user
-program before passing it to the kernel for transfer
-then __copy_to_user performs it happily or if I lock
-that page through mlock() system call. I read the
-documentation but nowhere I found that I need to do
-something before __copy_to_user().
+--
+Russell King (rmk@arm.linux.org.uk)                The developer of ARM Linux
+             http://www.arm.linux.org.uk/personal/aboutme.html
 
-The problem for the time being has been workarounded
-by putting __verify_write() before __copy_to_user.
-
-So I would like to know what is wrong with my approach
-or is it due to some other issue which is unknown to
-me (e.g corruption etc).
-
-I shall be grateful to you all if you kindly help me
-out of this.
-
-Thanks n Regards,
-
-Prasenjit
-
-
-
-
-
-__________________________________________________
-Do You Yahoo!?
-Make international calls for as low as $.04/minute with Yahoo! Messenger
-http://phonecard.yahoo.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
