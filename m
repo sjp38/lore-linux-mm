@@ -1,77 +1,118 @@
-Received: from weyl.math.psu.edu (weyl.math.psu.edu [146.186.130.226])
-	by math.psu.edu (8.9.3/8.9.3) with ESMTP id XAA25131
-	for <linux-mm@kvack.org>; Wed, 7 Jun 2000 23:45:58 -0400 (EDT)
-Received: from localhost (viro@localhost)
-	by weyl.math.psu.edu (8.9.3/8.9.3) with ESMTP id XAA13863
-	for <linux-mm@kvack.org>; Wed, 7 Jun 2000 23:45:58 -0400 (EDT)
-Date: Wed, 7 Jun 2000 23:45:58 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
-Subject: Contention on ->i_shared_lock in dup_mmap()
-Message-ID: <Pine.GSO.4.10.10006072235360.10800-100000@weyl.math.psu.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 8 Jun 2000 03:16:36 -0600
+From: Neil Schemenauer <nascheme@enme.ucalgary.ca>
+Subject: [PATCH] page aging for 2.2.16
+Message-ID: <20000608031635.A353@acs.ucalgary.ca>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
+Cc: linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-tests with -ac10 + dcache-ac10-MM1 and results are interesting: most of
-contention comes from the dup_mmap().
-109 dup_mmap:->i_shared_lock
-48 do_syslog(case 5):console_lock
-25 d_lookup:dcache_lock
-21 enable_irq:desc->lock
-20 bdget:bdev_lock
-13 bdput:bdev_lock
-9 __set_personality:->exit_sem
-8 get_empty_filp:files_lock
-7 insert_into_queues:hash_table_lock
-...
+This patch seems to significantly improve the interactive
+performance of 2.2.16.  Without the patch XMMS and the mouse
+pointer will stop responding for seconds at a time while running
+Bonnie.  With the patch everything is smooth.
 
-OK, do_syslog() is just plain silly - it's resetting the buffer and code
-in question looks so:
-                spin_lock_irq(&console_lock);
-                logged_chars = 0;
-                spin_unlock_irq(&console_lock);
-... which is for all purposes equivalent to
-		if (logged_chars) {
-			...
-		}
-so this one is easy (looks like a klogd silliness).
+I timed a kernel compile with -j 20 to test the cost of the
+aging.  It does not seem to make a significant difference (3
+seconds slower).  Bonnie reports slightly higher IO figures
+with the patch.  I don't think the change is significant.
 
-dcache_lock may need splitting. Or maybe not - I want to see more testing
-results before going there.
+Comments appreciated.
 
-bdget() and bdput() are my fault (bad hash-function and too small hash
-table). Fixable.
+    Neil
 
-__set_personality() one is actually a bug (it shouldn't be called at all
-in the tests I've run) and that's also on todo list.
+-- 
+"If you're a great programmer, you make all the routines depend on each
+other, so little mistakes can really hurt you." -- Bill Gates, ca. 1985.
 
-However, all that stuff pales compared to dup_mmap() one. What happens
-there is that we copy all VMAs and insert them into ->i_shared lists of
-their inodes. Which requires ->i_shared_lock and that amounts to visible
-contention. Notice that most of the calls are followed by exec() and thus
-by exit_mmap(), which merrily removes all these VMAs from their lists and
-frees them.
 
-Proposal: let's take the head of ->mmap out of the mm_struct, add
-reference counter and allow the thing to be shared between different
-mm_struct. Rules:
-	a) whenever we take ->mmap_sem, take a semaphore on that new
-structure (in principle that may make some uses of ->mmap_sem unneeded,
-but that's another story).
-	b) if we are going to modify the ->mmap (which requires ->mmap_sem
-taken) && ->mmap is shared - create a private copy and use it (decrement
-the counter on old one, indeed).
-	c) fork() should just share the ->mmap with parent.
-	d) exec() should drop the reference to ->mmap, killing it if we
-were the sole owners.
-
-	In effect it's COW for ->mmap. Comments?
-
-PS: yes, the big lock was _way_ down the list - nowhere near the top ;-)
-
+diff -ru linux-2.2/include/linux/mm.h linux-age/include/linux/mm.h
+--- linux-2.2/include/linux/mm.h	Thu Jun  8 00:30:02 2000
++++ linux-age/include/linux/mm.h	Thu Jun  8 01:49:42 2000
+@@ -129,7 +129,11 @@
+ 	struct wait_queue *wait;
+ 	struct page **pprev_hash;
+ 	struct buffer_head * buffers;
++	int age;
+ } mem_map_t;
++
++#define PAGE_AGE_INITIAL 1	/* age for pages just mapped */
++#define PAGE_AGE_YOUNG 2	/* age for pages recently referenced */
+ 
+ /* Page flag bit values */
+ #define PG_locked		 0
+diff -ru linux-2.2/mm/filemap.c linux-age/mm/filemap.c
+--- linux-2.2/mm/filemap.c	Thu Jun  8 00:30:26 2000
++++ linux-age/mm/filemap.c	Thu Jun  8 01:44:16 2000
+@@ -147,8 +147,6 @@
+ 
+ 	page = mem_map + clock;
+ 	do {
+-		int referenced;
+-
+ 		/* This works even in the presence of PageSkip because
+ 		 * the first two entries at the beginning of a hole will
+ 		 * be marked, not just the first.
+@@ -165,12 +163,20 @@
+ 			clock = page - mem_map;
+ 		}
+ 		
++		if (test_and_clear_bit(PG_referenced, &page->flags)) {
++			page->age = PAGE_AGE_YOUNG;
++			continue;
++		}
++
++		if (page->age > 0) {
++			page->age--;
++			continue;
++		}
++
+ 		/* We can't free pages unless there's just one user */
+ 		if (atomic_read(&page->count) != 1)
+ 			continue;
+ 
+-		referenced = test_and_clear_bit(PG_referenced, &page->flags);
+-
+ 		if (PageLocked(page))
+ 			continue;
+ 
+@@ -179,20 +185,11 @@
+ 
+ 		count--;
+ 
+-		/*
+-		 * Is it a page swap page? If so, we want to
+-		 * drop it if it is no longer used, even if it
+-		 * were to be marked referenced..
+-		 */
++		/* Is it a page swap page? Drop it, its old. */
+ 		if (PageSwapCache(page)) {
+-			if (referenced && swap_count(page->offset) != 1)
+-				continue;
+ 			delete_from_swap_cache(page);
+ 			return 1;
+ 		}	
+-
+-		if (referenced)
+-			continue;
+ 
+ 		/* Is it a buffer page? */
+ 		if (page->buffers) {
+diff -ru linux-2.2/mm/page_alloc.c linux-age/mm/page_alloc.c
+--- linux-2.2/mm/page_alloc.c	Thu Jun  8 00:30:26 2000
++++ linux-age/mm/page_alloc.c	Thu Jun  8 01:49:50 2000
+@@ -129,6 +129,7 @@
+ 		if (PageSwapCache(page))
+ 			panic ("Freeing swap cache page");
+ 		page->flags &= ~(1 << PG_referenced);
++		page->age = PAGE_AGE_INITIAL;
+ 		free_pages_ok(page - mem_map, order, PageDMA(page) ? 1 : 0);
+ 		return;
+ 	}
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
