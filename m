@@ -1,44 +1,60 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <200004090040.RAA49059@google.engr.sgi.com>
-Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
-Date: Sat, 8 Apr 2000 17:40:45 -0700 (PDT)
-In-Reply-To: <Pine.LNX.4.21.0004090135050.620-100000@alpha.random> from "Andrea Arcangeli" at Apr 09, 2000 01:39:10 AM
+Message-ID: <38F048F5.1FABC033@colorfullife.com>
+Date: Sun, 09 Apr 2000 11:10:13 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
 MIME-Version: 1.0
+Subject: Re: zap_page_range(): TLB flush race
+References: <E12e4mo-0003Pn-00@the-village.bc.nu>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com, davem@redhat.com
 List-ID: <linux-mm.kvack.org>
 
+Alan Cox wrote:
 > 
-> On Sat, 8 Apr 2000, Kanoj Sarcar wrote:
 > 
-> >As I mentioned before, have you stress tested this to make sure grabbing
+> Basically establish_pte() has to be architecture specific, as some processors
+> need different orders either to avoid races or to handle cpu specific
+> limitations.
 > 
-> I have stress tested the whole thing (also a few minutes ago to check the
-> latest patch) but it never locked up so we have to think about it.
+I don't know: IMHO we have far to many architecture specific functions
+in that area:
 
-Okay good.
+set_pte()
+establish_pte()
 
-> 
-> Could you explain why you think it's the inverse lock ordering?
+flush_tlb()
+update_mmu_cache();
+flush_cache();
+flush_icache();
 
-Let me see, if I can come up with something, I will let you know. If
-it survives stress testing, it probably is not inverse locking.
+Can't we merge them? 
 
-Btw, I am looking at your patch with message id
-<Pine.LNX.4.21.0004081924010.317-100000@alpha.random>, that does not
-seem to be holding vmlist/pagetable lock in the swapdelete code (at
-least at first blush). That was partly why I wanted to know what fixes 
-are in your patch ...
+<< 1)
+set_pte(vma,pte,new_val);
+	* flushes the cache, changes one pte, updates the tlb.
+<< 2)
+set_pte_new(vma,pte,new_val);
+	* sets the pte, the old value was non-present. Most cpu
+	  don't need to flush the tlb. (2.3.99 never flushes the tlb)
+<< 3)
+prepare_ptechange_{range,mm}(vma,start,end);
+for()
+	__set_pte(vma,pte,new_val);
+commit_ptechange_{range,mm}(vma,start,end);
+	*  should be used if you change multiple pages.
+<<<<<<<<<
+	
+I don't understand the purpose of flush_page_to_ram():
+filemap_sync_pte() calls it if MS_INVALIDATE is not set, it's not called
+if MS_INVALIDATE is set.
+In both cases, the kernel pointer is accessed in filemap_write_page().
 
-Note: I prefer being able to hold mmap_sem in the swapdelete path, that
-will provide protection against fork/exit races too. I will try to port
-over my version of the patch, and list the problems it fixes ...
+--
+	Manfred
 
-Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
