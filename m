@@ -1,43 +1,43 @@
-Subject: Re: [RFC] recursive pagetables for x86 PAE
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <200306141327.48649.oliver@neukum.org>
-References: <1055540875.3531.2581.camel@nighthawk>
-	 <200306141327.48649.oliver@neukum.org>
+Subject: Re: 2.5.70-mm9
+From: Mingming Cao <cmm@us.ibm.com>
+In-Reply-To: <20030614010139.2f0f1348.akpm@digeo.com>
+References: <20030613013337.1a6789d9.akpm@digeo.com>
+	<3EEAD41B.2090709@us.ibm.com>  <20030614010139.2f0f1348.akpm@digeo.com>
 Content-Type: text/plain
-Message-Id: <1055612996.3531.3270.camel@nighthawk>
-Mime-Version: 1.0
-Date: 14 Jun 2003 10:49:57 -0700
 Content-Transfer-Encoding: 7bit
+Date: 14 Jun 2003 17:41:29 -0700
+Message-Id: <1055637690.1396.15.camel@w-ming2.beaverton.ibm.com>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Oliver Neukum <oliver@neukum.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Martin J. Bligh" <mbligh@aracnet.com>, William Lee Irwin III <wli@holomorphy.com>
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 2003-06-14 at 04:27, Oliver Neukum wrote:
-> Am Freitag, 13. Juni 2003 23:47 schrieb Dave Hansen:
-> > The following patches implement something which we like to call UKVA.
-> > It's a Kernel Virtual Area which is private to a process, just like
-> > Userspace.  You can put any process-local data that you want in the
-> > area.  But, for now, I just put PTE pages in there.
+On Sat, 2003-06-14 at 01:01, Andrew Morton wrote:
+
+> Was elevator=deadline observed to fail in earlier kernels?  If not then it
+> may be an anticipatory scheduler bug.  It certainly had all the appearances
+> of that.
+Yes, with elevator=deadline the many fsx tests failed on 2.5.70-mm5.
+ 
+> So once you're really sure that elevator=deadline isn't going to fail,
+> could you please test elevator=as?
 > 
-> If you put only such pages there, do you really want that memory to
-> be per task? IMHO it should be per memory context to aid threading
-> performance.
+Ok, the deadline test was run for 10 hours then I stopped it (for the
+elevator=as test).  
 
-I think you're confusing what I mean by tasks and processes.  A task is
-something with a task_struct and a kernel stack.  A process is a single
-task, or multiple tasks that share an mm.   If things share an mm, they
-share pagetables implicitly.  Per-process _is_  per memory context.
+But the test on elevator=as (2.5.70-mm9 kernel) still failed, same
+problem.  Some fsx tests are sleeping on io_schedule().  
 
-> Secondly, doesn't this scream for using large pages?
+Next I think I will re-run test on elevator=deadline for 24 hours, to
+make sure the problem is really gone there.  After that maybe try a
+different Qlogic Driver, currently I am using the driver from Qlogic
+company(QLA2XXX V8).
 
-Large pages aren't used for generic user memory at all.  That would take
-some serious surgery.  (Don't get Bill started on it :)
+Thanks,
 
--- 
-Dave Hansen
-haveblue@us.ibm.com
+Mingming
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
