@@ -1,45 +1,36 @@
-Subject: Re: [patch] mm-deactivate-fix-1
-References: <Pine.LNX.4.21.0101141055160.12274-100000@freak.distro.conectiva>
-Reply-To: zlatko@iskon.hr
-From: Zlatko Calusic <zlatko@iskon.hr>
-Date: 14 Jan 2001 16:48:55 +0100
-In-Reply-To: Marcelo Tosatti's message of "Sun, 14 Jan 2001 10:57:30 -0200 (BRST)"
-Message-ID: <87ae8uw2vs.fsf@atlas.iskon.hr>
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: Re: pre2 swap_out() changes
+Date: Sun, 14 Jan 2001 10:51:29 -0500
+Content-Type: text/plain;
+  charset="US-ASCII"
+References: <Pine.LNX.4.21.0101140136200.11917-100000@freak.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0101140136200.11917-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Message-Id: <01011410512900.02185@oscar>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti <marcelo@conectiva.com.br> writes:
+Hi,
 
-> On 14 Jan 2001, Zlatko Calusic wrote:
-> 
-> > I have noticed that in deactivate_page_nolock() function pages get
-> > unconditionally moved from the active to the inact_dirty list. Even if
-> > it is really easy with additional check to put them straight to the
-> > inact_clean list if they're freeable. That keeps the list statistics
-> > more accurate and in the end should result in a little bit less CPU
-> > cycles burned (only one list transition, less locking). As a bonus,
-> > the comment above the function is now correct. :)
-> > 
-> > I have tested the patch thoroughly and couldn't find any problems with
-> > it. It should be really safe as reclaim_page() already carefully
-> > checks pages before freeing.
-> > 
-> > Comments?
-> 
-> We want to move all deactivated pages to the inactive dirty list to get
-> FIFO behaviour while reclaiming them.
-> 
+A couple of observations on the pre2/pre3 vm.  It seems to start swapping out 
+very quicky but this does not seem to hurt.  Once there is memory preasure 
+and swapin starts cpu utilization drops thru the roof - kernel compiles are 
+only able to drive the system at 10-20% (UP instead of 95-100%).  Once the 
+system stops swapping (in) there are some side effects.  Closing windows 
+in X becomes jerky (ie you see blocks get cleared and refreshed).  If little 
+or no swapping has occured X is much faster.
 
-Ah, I see. Then your answer should be put above the function as a
-comment. To help other souls digging around that code (like I'm
-doing). :)
--- 
-Zlatko
+With the patch marcelo posted last night things change.  Now It can use cpu 
+when swapping.  It does seem to start swaping (in and out) faster but the 
+system remains more interactive than above.  I still see the X effect though.
+
+Over all I think 2.4.0+marcelo's first patch(es) was fastest.
+
+Ed Tomlinson
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
