@@ -1,74 +1,157 @@
-Date: Fri, 4 Aug 2000 10:49:24 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: RFC: design for new VM
-In-Reply-To: <200008041541.IAA88364@apollo.backplane.com>
-Message-ID: <Pine.LNX.4.10.10008041033230.813-100000@penguin.transmeta.com>
+Message-ID: <398B3946.93E167C9@norran.net>
+Date: Fri, 04 Aug 2000 23:44:38 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: [PATCH] test5 vmfix attempt
+Content-Type: multipart/mixed;
+ boundary="------------6D78FBD61D5E97B05EC1B73A"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dillon <dillon@apollo.backplane.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Chris Wedgwood <cw@f00f.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linus Torvalds <torvalds@transmeta.com>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+This is a multi-part message in MIME format.
+--------------6D78FBD61D5E97B05EC1B73A
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-On Fri, 4 Aug 2000, Matthew Dillon wrote:
-> 
->   							  The second eyesore
->     is the lack of physically shared page table segments for 'standard'
->     processes.  At the moment, it's an all (rfork/RFMEM/clone) or nothing
->     (fork) deal.  Physical segment sharing outside of clone is something
->     Linux could use to, I don't think it does it either.  It's not easy to
->     do right.
+Hi,
 
-It's probably impossible to do right. Basically, if you do it, you do it
-wrong.
+This patch tries to improve/fix some problems with the current vm,
+most notably out of memory problems.
 
-As far as I can tell, you basically screw yourself on the TLB and locking
-if you ever try to implement this. And frankly I don't see how you could
-avoid getting screwed.
+* page_alloc.c, hunk 1
+Since the balancing point is lower than on earlier kernels I think
+there are reasons to keep more pages around on the special DMA zone...
+(most computers has 16 MB DMA memory without this patch this gives an
+ actual max of 32 pages, with this patch it gets 125 - probably more
+ balanced against other zones)
 
-There are architecture-specific special cases, of course. On ia64, the
-page table is not really one page table, it's a number of pretty much
-independent page tables, and it would be possible to extend the notion of
-fork vs clone to be a per-page-table thing (ie the single-bit thing would
-become a multi-bit thing, and the single "struct mm_struct" would become
-an array of independent mm's).
+* page_alloc.c, hunk 2
+ More info in Sysreq-M (debug code)
 
-You could do similar tricks on x86 by virtually splitting up the page
-directory into independent (fixed-size) pieces - this is similar to what
-the PAE stuff does in hardware, after all. So you could have (for example)
-each process be quartered up into four address spaces with the top two
-address bits being the address space sub-ID.
+* vmscan.c, hunk 1
+The implemented balancing breaks stops when any zone gets out
+of zone_wake_kswapd... but what about when only one zone is
+really low on memory ( < pages_min ) - kswapd won't run.
+This fixes that.
+(I have tried to make the limit < pages_low but that disturbs
+ the alternating balancing too much.)
 
-Quite frankly, it tends to be a nightmare to do that. It's also
-unportable: it works on architectures that either support it natively
-(like the ia64 that has the split page tables because of how it covers
-large VM areas) or by "faking" the split on regular page tables. But it
-does _not_ work very well at all on CPU's where the native page table is
-actually a hash (old sparc, ppc, and the "other mode" in IA64). Unless the
-hash happens to have some of the high bits map into a VM ID (which is
-common, but not really something you can depend on).
+* vmscan.c, hunk 2
+After sleeping - pages might be gone, restart count.
+(does not fix a resembling problem when waiting for a buffer in
+shrink_mmap)
 
-And even when it "works" by emulation, you can't share the TLB contents
-anyway. Again, it can be possible on a per-architecture basis (if the
-different regions can have different ASI's - ia64 again does this, and I
-think it originally comes from the 64-bit PA-RISC VM stuff). But it's one
-of those bad ideas that if people start depending on it, it simply won't
-work that well on some architectures. And one of the beauties of UNIX is
-that it truly is fairly architecture-neutral.
+* vmscan.c, hunk 3
+Actually it is not unlikely to have less than 'pages_low' free
+due to the implemented balancing.
 
-And that's just the page table handling. The SMP locking for all this
-looks even worse - you can't share a per-mm lock like with the clone()
-thing, so you have to create some other locking mechanism. 
 
-I'd be interested to hear if you have some great idea (ie "oh, if you look
-at it _this_ way all your concerns go away"), but I suspect you have only
-looked at it from 10,000 feet and thought "that would be a cool thing".
-And I suspect it ends up being anything _but_ cool once actually
-implemented.
+/RogerL
 
-			Linus
+--
+Home page:
+  http://www.norran.net/nra02596/
+--------------6D78FBD61D5E97B05EC1B73A
+Content-Type: text/plain; charset=us-ascii;
+ name="patch-2.4.0-test5-vmfix"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="patch-2.4.0-test5-vmfix"
+
+--- linux-2.4/mm/page_alloc.c.orig	Wed Aug  2 17:55:53 2000
++++ linux-2.4/mm/page_alloc.c	Thu Aug  3 18:00:03 2000
+@@ -29,7 +29,7 @@ int nr_lru_pages;
+ pg_data_t *pgdat_list;
+ 
+ static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
+-static int zone_balance_ratio[MAX_NR_ZONES] = { 128, 128, 128, };
++static int zone_balance_ratio[MAX_NR_ZONES] = { 32, 128, 128, };
+ static int zone_balance_min[MAX_NR_ZONES] = { 10 , 10, 10, };
+ static int zone_balance_max[MAX_NR_ZONES] = { 255 , 255, 255, };
+ 
+@@ -430,7 +430,16 @@ void show_free_areas_core(int nid)
+ 		zone_t *zone = NODE_DATA(nid)->node_zones + type;
+  		unsigned long nr, total, flags;
+ 
+-		printk("  %s: ", zone->name);
++		printk("  %c%d%d %s: ",
++		       (zone->free_pages > zone->pages_low
++			? (zone->free_pages > zone->pages_high
++			   ? ' '
++			   : 'H')
++			: (zone->free_pages > zone->pages_min
++			   ? 'M'
++			   : 'L')),
++		       zone->zone_wake_kswapd, zone->low_on_memory,
++		       zone->name);
+ 
+ 		total = 0;
+ 		if (zone->size) {
+--- linux-2.4/mm/vmscan.c.orig	Wed Aug  2 23:06:50 2000
++++ linux-2.4/mm/vmscan.c	Thu Aug  3 17:55:22 2000
+@@ -444,20 +444,24 @@ static inline int memory_pressure(void)
+  */
+ static inline int keep_kswapd_awake(void)
+ {
++	int all_recent = 1;
+ 	pg_data_t *pgdat = pgdat_list;
+ 
+ 	do {
+ 		int i;
+ 		for(i = 0; i < MAX_NR_ZONES; i++) {
+ 			zone_t *zone = pgdat->node_zones+ i;
+-			if (zone->size &&
+-			    !zone->zone_wake_kswapd)
+-				return 0;
++			if (zone->size) {
++				if (zone->free_pages < zone->pages_min)
++					return 1;
++				if (!zone->zone_wake_kswapd)
++					all_recent = 0;
++			}
+ 		}
+ 		pgdat = pgdat->node_next;
+ 	} while (pgdat);
+ 
+-	return 1;
++	return all_recent;
+ }
+ 
+ /*
+@@ -470,6 +474,9 @@ static inline int keep_kswapd_awake(void
+  *
+  * Don't try _too_ hard, though. We don't want to have bad
+  * latency.
++ *
++ * Note: only called by kswapd and try_to_free_pages
++ *       both can WAIT at top level.
+  */
+ #define FREE_COUNT	8
+ #define SWAP_COUNT	16
+@@ -487,8 +494,10 @@ static int do_try_to_free_pages(unsigned
+ 		if (current->need_resched) {
+ 			schedule();
+ 			/* time has passed - pressure too? */
+			if (!memory_pressure())
+ 				goto done;
++			/* pages freed by me might be gone... */
++			count = FREE_COUNT;
+ 		}
+ 
+ 		while (shrink_mmap(priority, gfp_mask)) {
+@@ -548,7 +557,7 @@ static int do_try_to_free_pages(unsigned
+ 	}
+ 	/* Return 1 if any page is freed, or
+ 	 * there are no more memory pressure   */
+-	return (count < FREE_COUNT || !memory_pressure());
++	return (count < FREE_COUNT || !keep_kswapd_awake());
+  
+ done:
+ 	return 1;
+
+--------------6D78FBD61D5E97B05EC1B73A--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
