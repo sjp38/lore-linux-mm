@@ -1,36 +1,41 @@
-Date: Sun, 10 Oct 1999 19:12:58 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: locking question: do_mmap(), do_munmap()
-In-Reply-To: <Pine.GSO.4.10.9910101219370.16317-100000@weyl.math.psu.edu>
-Message-ID: <Pine.LNX.4.10.9910101900210.520-100000@alpha.random>
+Received: from ext1.nea-fast.com (ext1.nea-fast.com [208.241.120.230])
+	by int2.nea-fast.com (8.8.8+Sun/8.8.8) with ESMTP id SAA15539
+	for <linux-mm@kvack.org>; Sun, 10 Oct 1999 18:09:52 -0400 (EDT)
+Received: from pobox.com (adsl-77-228-233.atl.bellsouth.net [216.77.228.233])
+	by ext1.nea-fast.com (8.8.8+Sun/8.8.8) with ESMTP id SAA12233
+	for <linux-mm@kvack.org>; Sun, 10 Oct 1999 18:13:44 -0400 (EDT)
+Message-ID: <38010EAB.ACC45162@pobox.com>
+Date: Sun, 10 Oct 1999 18:09:47 -0400
+From: Jeff Garzik <jgarzik@pobox.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: simple slab alloc question
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alexander Viro <viro@math.psu.edu>
-Cc: Manfred Spraul <manfreds@colorfullife.com>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 10 Oct 1999, Alexander Viro wrote:
+kmalloc seems to allocate against various kmem_cache sizes: 32,
+64...1024...65536...
 
->sys_swapoff(). It's a syscall. Andrea, could you show a scenario for
+Does this mean that allocations of various sizes are stored in different
+"buckets"?  Would that not reduce fragmentation and the need for a zone
+allocator?
 
-do_page_fault -> down() -> GFP -> swap_out() -> down() -> deadlock
+Enlightenment from MM gurus appreciated :)
 
-To grab the mm semaphore in swap_out we could swap_out only from kswapd
-doing a kind of wakeup_and_wait_kswapd() ala wakeup_bdflush(1) but it would
-be slow and I don't want to run worse than in 2.2.x in UP to get some more
-SMP scalability in SMP (that won't pay the cost).
+Regards,
 
-The other option is to make the mmap semaphore recursive checking that GFP
-is not called in the middle of a vma change. I don't like this one it sound
-not robust as the spinlock way to me (see below).
+	Jeff
 
-What I like is to go as in 2.2.x with a proper spinlock for doing vma
-reads (I am _not_ talking about the big kernel lock!).
 
-Andrea
 
+
+-- 
+Custom driver development	|    Never worry about theory as long
+Open source programming		|    as the machinery does what it's
+				|    supposed to do.  -- R. A. Heinlein
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
