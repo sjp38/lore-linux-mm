@@ -1,28 +1,32 @@
-Date: Fri, 11 Jul 2003 18:21:30 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.74-mm2 + nvidia (and others)
-Message-ID: <20030712012130.GB15452@holomorphy.com>
-References: <1057590519.12447.6.camel@sm-wks1.lan.irkk.nu> <200307071734.01575.schlicht@uni-mannheim.de> <20030707123012.47238055.akpm@osdl.org> <1057647818.5489.385.camel@workshop.saharacpt.lan>
+Date: Mon, 14 Jul 2003 00:05:00 +0200
+From: Petr Vandrovec <vandrove@vc.cvut.cz>
+Subject: Re: [announce, patch] 4G/4G split on x86, 64 GB RAM (and more) support
+Message-ID: <20030713220500.GB7494@vana.vc.cvut.cz>
+References: <Pine.LNX.4.44.0307082332450.17252-100000@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1057647818.5489.385.camel@workshop.saharacpt.lan>
+In-Reply-To: <Pine.LNX.4.44.0307082332450.17252-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Martin Schlemmer <azarah@gentoo.org>
-Cc: Andrew Morton <akpm@osdl.org>, Thomas Schlichter <schlicht@uni-mannheim.de>, smiler@lanil.mine.nu, KML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 08, 2003 at 09:03:39AM +0200, Martin Schlemmer wrote:
-> +#if defined(NV_PMD_OFFSET_UNMAP)
-> +    pmd_unmap(pg_mid_dir);
-> +#endif
+On Wed, Jul 09, 2003 at 12:45:52AM +0200, Ingo Molnar wrote:
+> 
+> i'm pleased to announce the first public release of the "4GB/4GB VM split"
+> patch, for the 2.5.74 Linux kernel:
+> 
+>    http://redhat.com/~mingo/4g-patches/4g-2.5.74-F8
 
-You could try defining an NV_PMD_OFFSET_UNMAP() which is a nop for
-mainline and DTRT for -mm.
-
-
--- wli
+FYI, VMware's vmmon/vmnet I maintain for 2.5.x kernels at 
+http://platan.vc.cvut.cz/ftp/pub/vmware (currently 
+.../vmware-any-any-update37.tar.gz) were updated to work correctly
+with 4G/4G kernel configuration.
+						Best regards,
+							Petr Vandrovec
+							vandrove@vc.cvut.cz
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
