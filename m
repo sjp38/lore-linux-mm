@@ -1,38 +1,31 @@
-Date: Tue, 21 May 2002 11:45:09 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: lazy buddy prototype
-Message-ID: <20020521184509.GG2046@holomorphy.com>
-References: <20020521175005.GN2035@holomorphy.com> <20020521183628.GF2046@holomorphy.com>
+Date: Tue, 21 May 2002 14:47:59 -0400
+From: Benjamin LaHaise <bcrl@redhat.com>
+Subject: Re: [RFC][PATCH] using page aging to shrink caches
+Message-ID: <20020521144759.B1153@redhat.com>
+References: <200205180010.51382.tomlins@cam.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <20020521183628.GF2046@holomorphy.com>
+In-Reply-To: <200205180010.51382.tomlins@cam.org>; from tomlins@cam.org on Sat, May 18, 2002 at 12:10:51AM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 21, 2002 at 10:50:05AM -0700, William Lee Irwin III wrote:
->> TODO:
-> [...]
->> (13) figure out some way to get fragmentation stats out of the buddy bitmap
+On Sat, May 18, 2002 at 12:10:51AM -0400, Ed Tomlinson wrote:
+> I have never been happy with the way slab cache shrinking worked.  This is an
+> attempt to make it better.  Working with the rmap vm on pre7-ac2, I have done
+> the following.
 
-On Tue, May 21, 2002 at 11:36:28AM -0700, William Lee Irwin III wrote:
-> And an important omission, of which Andrew Morton reminded me:
-> (14) document it
+Thank you!  This is should help greatly with some of the vm imbalances by 
+making slab reclaim part of the self tuning dynamics instead of hard coded 
+magic numbers.  Do you have any plans to port this patch to 2.5 for inclusion?  
+It would be useful to get testing in the 2.5 before merging in 2.4.
 
-and from Ben LaHaise:
-
-(15) collect statistics on the allocation rates for various orders
-
-and concomitant to this:
-
-(16) collect statistics on allocation failures due to fragmentation
-
-
-Cheers,
-Bill
+		-ben
+-- 
+"You will be reincarnated as a toad; and you will be much happier."
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
