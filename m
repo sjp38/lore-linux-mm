@@ -1,68 +1,64 @@
-Date: Wed, 11 Oct 2000 17:09:29 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Thu, 12 Oct 2000 00:03:31 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Subject: Re: [RFC] atomic pte updates for x86 smp
-In-Reply-To: <Pine.LNX.4.21.0010111937380.892-100000@devserv.devel.redhat.com>
-Message-ID: <Pine.LNX.4.10.10010111702001.2444-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.10.10010111702001.2444-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.3.96.1001011232450.23223A-100000@kanga.kvack.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ben LaHaise <bcrl@redhat.com>
+To: Linus Torvalds <torvalds@transmeta.com>
 Cc: tytso@mit.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hello Linus,
 
-On Wed, 11 Oct 2000, Ben LaHaise wrote:
+On Wed, 11 Oct 2000, Linus Torvalds wrote:
+
+> I much prefered the dirty fault version.
+
+> What does "quite noticeable" mean? Does it mean that you can see page
+> faults (no big deal), or does it mean that you can actually measure the
+> performance degradation objectively?
+
+It's a factor of 4 difference in execution time on the filemap rewrite
+test on a 1GB file (including all those cache misses that should have
+dwarfed the page fault handler). Moving the writable test and mkdirty
+early on in the page fault handler made no measurable difference in
+execution time; the bulk of the overhead appears to be in handling the
+page fault itself.
+
+> Also, this version doesn't seem to fix the bug.
+...
+> Both of the above paths can cause the dirty bit to be dropped again, as
+> far as I can see.
+
+Note the fragment above those portions of the patch where the
+pte_xchg_clear is done on the page table: this results in a page fault
+for any other cpu that looks at the pte while it is unavailable.
+
+> In fact, you seem to have _added_ those drops in this patch. What's up?
+
+It's safe because of how x86s hardware works when it encounters the
+cleared pte.  According to one of the manuals I've got here (the old 386
+book is the only one that states it outright, sigh), the access and dirty
+bits are updated with a locked memory cycle only if the entry is marked
+present.  If you want test code demonstrating that x86 does a reread of
+the pte on a dirty fault, I'll gladly share it.
+
+> I'm not going to apply a patch that I don't see will even fix the problem
+> at this point.
 > 
-> Here's an updated version of the patch that doesn't do the funky RISC like
-> dirty bit updates.  It doesn't incur the additional overhead of page
-> faults on dirty, which actually happens a lot on SHM attaches
-> (during Oracle runs this is quite noticeable due to their use of
-> hundreds of MB of SHM).
+> I _will_ apply the "exception on dirty" version, if you remove the SMP
+> special case (ie you do it unconditionally). At least that one I believe
+> really fixes the problem.
 
-I much prefered the dirty fault version.
+I'd rather not lose the use of a hardware feature that makes a difference
+during the most important time: when the system is under heavy load and
+the page table scanner is active.  If there's a way the atomic updates can
+be cleaned up acceptably, then I want to do so.  Cheers,
 
-What does "quite noticeable" mean? Does it mean that you can see page
-faults (no big deal), or does it mean that you can actually measure the
-performance degradation objectively?
-
-Also, this version doesn't seem to fix the bug.
-
-> diff -ur v2.4.0-test10-pre1/mm/vmscan.c work-v2.4.0-test10-pre1/mm/vmscan.c
-> --- v2.4.0-test10-pre1/mm/vmscan.c	Tue Oct 10 16:57:31 2000
-> +++ work-v2.4.0-test10-pre1/mm/vmscan.c	Wed Oct 11 18:17:17 2000
-> @@ -134,7 +143,7 @@
->  	 * locks etc.
->  	 */
->  	if (!(gfp_mask & __GFP_IO))
-> -		goto out_unlock;
-> +		goto out_unlock_restore;
->  
->  	/*
->  	 * Don't do any of the expensive stuff if
-> @@ -143,7 +152,7 @@
->  	if (page->zone->free_pages + page->zone->inactive_clean_pages
->  					+ page->zone->inactive_dirty_pages
->  		      	> page->zone->pages_high + inactive_target)
-> -		goto out_unlock;
-> +		goto out_unlock_restore;
->  
->  	/*
->  	 * Ok, it's really dirty. That means that
-
-Both of the above paths can cause the dirty bit to be dropped again, as
-far as I can see.
-
-In fact, you seem to have _added_ those drops in this patch. What's up?
-
-I'm not going to apply a patch that I don't see will even fix the problem
-at this point.
-
-I _will_ apply the "exception on dirty" version, if you remove the SMP
-special case (ie you do it unconditionally). At least that one I believe
-really fixes the problem.
-
-		Linus
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
