@@ -1,34 +1,45 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA28597
-	for <linux-mm@kvack.org>; Thu, 14 Jan 1999 17:43:38 -0500
-Date: Thu, 14 Jan 1999 23:38:31 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Reply-To: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <Pine.LNX.3.91.990114105702.20708C-100000@toaster.roan.co.uk>
-Message-ID: <Pine.LNX.3.96.990114232702.640A-100000@laser.bogus>
+Received: from kanga.kvack.org (root@kanga.kvack.org [205.189.68.98])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA30866
+	for <linux-mm@kvack.org>; Fri, 15 Jan 1999 01:07:53 -0500
+Date: Fri, 15 Jan 1999 01:07:33 -0500 (EST)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: Why don't shared anonymous mappings work?
+In-Reply-To: <199901140307.UAA25835@nyx10.nyx.net>
+Message-ID: <Pine.LNX.3.95.990115005029.16568D-100000@kanga.kvack.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Mike Jagdis <mike@roan.co.uk>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Alessandro Suardi <asuardi@uninetcom.it>
+To: Colin Plumb <colin@nyx.net>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 14 Jan 1999, Mike Jagdis wrote:
+On Wed, 13 Jan 1999, Colin Plumb wrote:
 
-> With either the shm used is normally "large" with respect to
-> available physical memory (i.e. everything that isn't needed by
-> processes under your normal load) because the database engines
-> use it to cache data (this is why they want raw IO - there's no
-> point the OS caching the data as well).
+> Um, okay, how about a more plausible scenario.  Processes 1 and 2
+> share a page X.  Process 1 forks.
+> 
+> Doesn't this lead to the hairy Mach-like situation?
 
-Ah but if what you say is true the db server shm issue raised by Stephen
-is completly pointless. If the shm memory is used as _cache_ for the data
-there's _no_ one point to swapout it out in first place. So when using the
-shm for caching purposes the db server _must_ set the SHM_LOCK flag on the
-shm memory using shmctl.
+Nope, the new process inherits the mapping with the shared attribute
+intact.
 
-Andrea Arcangeli
+> Um, I think you fail to understand.  I was talking about a linked list
+> *without* allocating extra space.  The idea is that I don't know of a
+> processor that requires more than 2 bits (M68K) to mark a PTE as invalid;
+> the user gets the rest.  Currently the user bits in the invalid PTE
+> encodings point to swap pages.  You could steal one bit and point to
+> either a word in memory or a swap page.
+
+Ooops, brain fart (sometimes you read, but the meaning just isn't
+absorbed).  I think assuming that you can get 30 bits out of a pte on a 32
+bit platform to use as a pointer is pushing things, though (and you do
+need all the bits: mremap allows users to move shared pages to different
+offset within a page table).  Under the scheme I'm planning on
+implementing, this is a non issue: all pages are tied to an inode. 
+Alternatively, we could pull i_mmap & co out of struct inode and make a
+vmstore (or whatever) object as I believe Eric suggested. 
+
+		-ben
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
