@@ -1,33 +1,34 @@
-Date: Sun, 22 Apr 2001 16:11:36 -0300 (BRST)
+Date: Sun, 22 Apr 2001 15:57:32 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: suspend processes at load (was Re: a simple OOM ...)
-In-Reply-To: <o7a6ets1pf548v51tu6d357ng1o0iu77ub@4ax.com>
-Message-ID: <Pine.LNX.4.21.0104221610190.1685-100000@imladris.rielhome.conectiva>
+In-Reply-To: <l03130312b708cf8a37bf@[192.168.239.105]>
+Message-ID: <Pine.LNX.4.21.0104221555090.1685-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "James A.Sutherland" <jas88@cam.ac.uk>
-Cc: Jonathan Morton <chromi@cyberspace.org>, "Joseph A. Knapka" <jknapka@earthlink.net>, linux-mm@kvack.org
+To: Jonathan Morton <chromi@cyberspace.org>
+Cc: "James A. Sutherland" <jas88@cam.ac.uk>, "Joseph A. Knapka" <jknapka@earthlink.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 22 Apr 2001, James A.Sutherland wrote:
+On Sun, 22 Apr 2001, Jonathan Morton wrote:
 
-> >But login was suspended because of a page fault,
-> 
-> No, login was NOT *suspended*. It's sleeping on I/O, not suspended.
-> 
-> > so potentially it will
-> >*also* get suspended for just as long as the hogs.  
-> 
-> No, it will get CPU time a small fraction of a second later, once the
-> I/O completes.
+> I think we're approaching the problem from opposite viewpoints.  
+> Don't get me wrong here - I think process suspension could be a
+> valuable "feature" under extreme load, but I think that the
+> working-set idea will perform better and more consistently under "mild
+> overloads", which the current system handles extremely poorly.  
 
-You're assuming login won't have the rest of its memory (which
-it needs to do certain things) swapped out again in the time
-it waits for this page to be swapped in...
+Could this mean that we might want _both_ ?
 
-... which is exactly what happens when the system is thrashing.
+1) a minimal guaranteed working set for small processes, so root
+   can login and large hogs don't penalize good guys
+   (simpler than the working set idea, should work just as good)
+
+2) load control through process suspension when the load gets
+   too high to handle, this is also good to let the hogs (which
+   would thrash with the working set idea) make some progress
+   in turns
 
 regards,
 
