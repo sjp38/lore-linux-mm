@@ -1,58 +1,45 @@
-Date: Fri, 27 Oct 2000 23:51:02 +0100 (BST)
-From: James Sutherland <jas88@cam.ac.uk>
+Date: Fri, 27 Oct 2000 21:48:16 -0700
+From: Jeremy Fitzhardinge <jeremy@goop.org>
 Subject: Re: Discussion on my OOM killer API
-In-Reply-To: <20001027224358.C3687F42C@agnes.fremen.dune>
-Message-ID: <Pine.LNX.4.10.10010272348440.17407-100000@dax.joh.cam.ac.uk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20001027214816.C4324@goop.org>
+References: <20001027221259.C0ED4F42C@agnes.fremen.dune> <Pine.LNX.4.10.10010272309040.17292-100000@dax.joh.cam.ac.uk>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-md5;
+	protocol="application/pgp-signature"; boundary="Dxnq1zWXvFF0Q93v"
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.10.10010272309040.17292-100000@dax.joh.cam.ac.uk>; from jas88@cam.ac.uk on Fri, Oct 27, 2000 at 11:11:11PM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: jfm2@club-internet.fr
-Cc: ingo.oeser@informatik.tu-chemnitz.de, riel@conectiva.com.br, torvalds@transmeta.com, linux-mm@kvack.org
+To: James Sutherland <jas88@cam.ac.uk>
+Cc: jfm2@club-internet.fr, ingo.oeser@informatik.tu-chemnitz.de, riel@conectiva.com.br, torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 28 Oct 2000 jfm2@club-internet.fr wrote:
+--Dxnq1zWXvFF0Q93v
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-> > > Only solution is to allow the OOM never to be swapped but you also
-> > > need all libraries to remain in memory or have the kernel check OOM is
-> > > statically linked.  However this user space OOM will then have a
-> > > sigificantly memory larger footprint than a kernel one and don't
-> > > forget it cannot be swapped.
-> > 
-> > Not necessarily "significantly larger"; it can be small and simple without
-> > using any libraries.
-> 
-> This I agree: a selfcontained source (ie no use of library functions
-> because these have to be general so marge) can produce a small binary
-> if you link it adequately (ie not with the standard C initilization
-> code).
+On Fri, Oct 27, 2000 at 11:11:11PM +0100, James Sutherland wrote:
+> Ehm... nope. mlockall().
 
-So you agree the OOM handler can be in userspace without unacceptable
-overhead?
+Better make sure it's statically linked...  don't want every random library
+locked down in their entirety just because the oom killer is using it.
 
-> > > Hhere is an heuristic who tends to work well ;-)
-> > > 
-> > > if (short_on_memory == TRUE )  {
-> > >      kill_all_copies_of_netscape()
-> > > }
-> > 
-> > Yes, that's a good start. Now we've done that, but we're still OOM, what
-> > do you kill next?
-> 
-> I thought you would notice it was a joke.  Since 99% of OOMs are
-> produced by netscape best kill netscape first and ask questions later.
+	J
 
-I knew it wasn't intended as a serious comment, but the point remains: the
-guesswork involved is too complex and variable to belong in the kernel.
-This sort of "intelligent" handling of complex situations should only be
-attempted from userspace: the kernel MUST be kept as simple as possible.
-As a last resort, kill anything "suspicious" looking, until the problem
-has gone. If we aren't that far gone, leave it to userspace to sort the
-problem out.
+--Dxnq1zWXvFF0Q93v
+Content-Type: application/pgp-signature
+Content-Disposition: inline
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.2 (GNU/Linux)
+Comment: For info see http://www.gnupg.org
 
-James.
+iEYEARECAAYFAjn6WpAACgkQf6p1nWJ6IgIZCQCffkep3ImqcWUSWNs8R6sbU+ZJ
+uFgAn1qRnNM4ViqjisOpSbJTRI6WVfP0
+=aVVM
+-----END PGP SIGNATURE-----
 
+--Dxnq1zWXvFF0Q93v--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
