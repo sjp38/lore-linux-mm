@@ -1,58 +1,90 @@
-Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j2PKhwoK003081
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:58 -0500
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2PKhwgv091900
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:58 -0500
-Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j2PKhwiF015775
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:58 -0500
-Subject: resubmit - [PATCH 1/4] sparsemem base: early_pfn_to_nid() (works before sparse is initialized)
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e32.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j2PKi85j523796
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:44:08 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2PKi8bK216970
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 13:44:08 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j2PKi8cs017422
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 13:44:08 -0700
+Subject: resubmit - [PATCH 4/4] sparsemem base: teach discontig about sparse ranges
 From: Dave Hansen <haveblue@us.ibm.com>
-Date: Fri, 25 Mar 2005 12:43:56 -0800
-Message-Id: <E1DEvev-0004Pa-00@kernel.beaverton.ibm.com>
+Date: Fri, 25 Mar 2005 12:44:06 -0800
+Message-Id: <E1DEvf5-0004f5-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: akpm@osdl.org
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-We _know_ which node pages in general belong to, at least at a
-very gross level in node_{start,end}_pfn[].  Use those to target
-the allocations of pages.
+discontig.c has some assumptions that mem_map[]s inside of a node are
+contiguous.  Teach it to make sure that each region that it's brining
+online is actually made up of valid ranges of ram.
 
-Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+Written-by: Andy Whitcroft <apw@shadowen.org>
 Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
 ---
 
- memhotplug-dave/arch/i386/mm/discontig.c |   15 +++++++++++++++
- 1 files changed, 15 insertions(+)
+ memhotplug-dave/arch/i386/mm/discontig.c |   14 ++++++++++++++
+ memhotplug-dave/arch/i386/mm/init.c      |    2 +-
+ memhotplug-dave/include/asm-i386/page.h  |    2 ++
+ 3 files changed, 17 insertions(+), 1 deletion(-)
 
-diff -puN arch/i386/mm/discontig.c~FROM-MM-add-early_pfn_to_nid arch/i386/mm/discontig.c
---- memhotplug/arch/i386/mm/discontig.c~FROM-MM-add-early_pfn_to_nid	2005-03-25 08:17:12.000000000 -0800
-+++ memhotplug-dave/arch/i386/mm/discontig.c	2005-03-25 08:17:12.000000000 -0800
-@@ -149,6 +149,21 @@ static void __init find_max_pfn_node(int
- 		BUG();
- }
+diff -puN arch/i386/mm/discontig.c~FROM-MM-validate-remap-pages arch/i386/mm/discontig.c
+--- memhotplug/arch/i386/mm/discontig.c~FROM-MM-validate-remap-pages	2005-03-25 08:17:10.000000000 -0800
++++ memhotplug-dave/arch/i386/mm/discontig.c	2005-03-25 08:17:10.000000000 -0800
+@@ -185,6 +185,7 @@ static unsigned long calculate_numa_rema
+ {
+ 	int nid;
+ 	unsigned long size, reserve_pages = 0;
++	unsigned long pfn;
  
-+/* Find the owning node for a pfn. */
-+int early_pfn_to_nid(unsigned long pfn)
-+{
-+	int nid;
+ 	for_each_online_node(nid) {
+ 		if (nid == 0)
+@@ -208,6 +209,19 @@ static unsigned long calculate_numa_rema
+ 		size = (size + LARGE_PAGE_BYTES - 1) / LARGE_PAGE_BYTES;
+ 		/* now the roundup is correct, convert to PAGE_SIZE pages */
+ 		size = size * PTRS_PER_PTE;
 +
-+	for_each_node(nid) {
-+		if (node_end_pfn[nid] == 0)
-+			break;
-+		if (node_start_pfn[nid] <= pfn && node_end_pfn[nid] >= pfn)
-+			return nid;
-+	}
++		/*
++		 * Validate the region we are allocating only contains valid
++		 * pages.
++		 */
++		for (pfn = node_end_pfn[nid] - size;
++		     pfn < node_end_pfn[nid]; pfn++)
++			if (!page_is_ram(pfn))
++				break;
 +
-+	return 0;
-+}
++		if (pfn != node_end_pfn[nid])
++			size = 0;
 +
- /* 
-  * Allocate memory for the pg_data_t for this node via a crude pre-bootmem
-  * method.  For node zero take this from the bottom of memory, for
+ 		printk("Reserving %ld pages of KVA for lmem_map of node %d\n",
+ 				size, nid);
+ 		node_remap_size[nid] = size;
+diff -puN arch/i386/mm/init.c~FROM-MM-validate-remap-pages arch/i386/mm/init.c
+--- memhotplug/arch/i386/mm/init.c~FROM-MM-validate-remap-pages	2005-03-25 08:17:10.000000000 -0800
++++ memhotplug-dave/arch/i386/mm/init.c	2005-03-25 08:17:10.000000000 -0800
+@@ -191,7 +191,7 @@ static inline int page_kills_ppro(unsign
+ 
+ extern int is_available_memory(efi_memory_desc_t *);
+ 
+-static inline int page_is_ram(unsigned long pagenr)
++int page_is_ram(unsigned long pagenr)
+ {
+ 	int i;
+ 	unsigned long addr, end;
+diff -puN include/asm-i386/page.h~FROM-MM-validate-remap-pages include/asm-i386/page.h
+--- memhotplug/include/asm-i386/page.h~FROM-MM-validate-remap-pages	2005-03-25 08:17:10.000000000 -0800
++++ memhotplug-dave/include/asm-i386/page.h	2005-03-25 08:17:10.000000000 -0800
+@@ -119,6 +119,8 @@ static __inline__ int get_order(unsigned
+ 
+ extern int sysctl_legacy_va_layout;
+ 
++extern int page_is_ram(unsigned long pagenr);
++
+ #endif /* __ASSEMBLY__ */
+ 
+ #ifdef __ASSEMBLY__
 _
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
