@@ -1,38 +1,53 @@
-Date: Thu, 22 Apr 2004 03:50:54 -0400 (EDT)
-From: Ingo Molnar <mingo@redhat.com>
-Subject: Re: Non-linear mappings and truncate/madvise(MADV_DONTNEED)
-In-Reply-To: <Pine.LNX.4.44.0404191548030.24243-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.58.0404220349040.13746@devserv.devel.redhat.com>
-References: <Pine.LNX.4.44.0404191548030.24243-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from westrelay04.boulder.ibm.com (westrelay04.boulder.ibm.com [9.17.193.32])
+	by e32.co.us.ibm.com (8.12.10/8.12.2) with ESMTP id i3NIUrnU727924
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2004 14:30:53 -0400
+Received: from [9.47.17.128] (d03av02.boulder.ibm.com [9.17.193.82])
+	by westrelay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id i3NIUqP3183648
+	for <linux-mm@kvack.org>; Fri, 23 Apr 2004 12:30:53 -0600
+Subject: PageReserved increment patch
+From: Bradley Christiansen <bradc1@us.ibm.com>
+Content-Type: text/plain
+Message-Id: <1082745080.1854.30.camel@DYN318078BLD.beaverton.ibm.com>
+Mime-Version: 1.0
+Date: Fri, 23 Apr 2004 11:31:21 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Jamie Lokier <jamie@shareable.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Apr 2004, Hugh Dickins wrote:
+Here is a short patch that addresses a problem I found where page->count
+gets incremented for all pages in page_cache_get/get_page, but in
+put_page it is only decremented for non reserved pages.  
 
-> rmap 6 nonlinear truncation (which never appeared on LKML, though
-> sent twice) fixed most of this, and went into 2.6.6-rc1-bk4 last
-> night: please check it out.
-> 
-> But I just converted madvise_dontneed by rote, adding a NULL arg to
-> zap_page_range, missing your point that it should respect nonlinearity.
-> 
-> And I made the zap_details structure private to mm/memory.c since I
-> hadn't noticed anything outside needing it: I'll fix that up later and
-> post a patch.
-> 
-> I'm haven't and don't intend to change the behaviour of ->populate,
-> without agreement from others - Ingo? Jamie?
+I noticed this problem while trying to keep track of how memory is
+allocated and noticing that the zero page count variable was continually
+being incremented but never decremented.  This created some very large
+counts on the zero page, and while this probably wont hurt anything it
+just doesn't seem like its right.
 
-feel free. I've got followup work, protection bits stored in the swap pte,
-thus per-page protection possible via remap_file_pages_prot(). (earlier
--mm trees had this but it clashed with objrmap which has priority.)
+This patch only fixes the problem I know of with the zero page, and
+there is still a potential imbalance for any reserved page calling
+page_cache_get/get_page.
 
-	Ingo
+Brad
+
+
+
+--- linux-2.6.4/mm/memory.c     Wed Mar 10 18:55:26 2004
++++ linux-2.6.4-brad/mm/memory.c        Thu Apr 22 16:00:38 2004
+@@ -1050,7 +1050,9 @@
+        /*
+         * Ok, we need to copy. Oh, well..
+         */
+-       page_cache_get(old_page);
++       if (!PageReserved(old_page))
++               page_cache_get(old_page);
++
+        spin_unlock(&mm->page_table_lock);
+  
+        pte_chain = pte_chain_alloc(GFP_KERNEL);
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
