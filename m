@@ -1,44 +1,64 @@
-Subject: Re: 2.5.59-mm5
-References: <20030123195044.47c51d39.akpm@digeo.com>
-	<946253340.1043406208@[192.168.100.5]>
-	<20030124031632.7e28055f.akpm@digeo.com>
-	<m3d6mmvlip.fsf@lexa.home.net>
-	<20030124035017.6276002f.akpm@digeo.com>
-From: Alex Tomas <bzzz@tmi.comex.ru>
-Date: 24 Jan 2003 15:05:00 +0300
-In-Reply-To: <20030124035017.6276002f.akpm@digeo.com>
-Message-ID: <m3lm1au51v.fsf@lexa.home.net>
+Message-ID: <42636.210.212.228.78.1043387664.webmail@mail.nitc.ac.in>
+Date: Fri, 24 Jan 2003 11:24:24 +0530 (IST)
+Subject: Re: your mail
+From: "Anoop J." <cs99001@nitc.ac.in>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Alex Tomas <bzzz@tmi.comex.ru>, linux-kernel@alex.org.uk, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> Andrew Morton (AM) writes:
+How is this different from a fully associative cache .Would be better if u
+could deal it based on the address bits used
 
- AM> That's correct.  Reads are usually synchronous and writes are
- AM> rarely synchronous.
+Thanks
 
- AM> The most common place where the kernel forces a user process to
- AM> wait on completion of a write is actually in unlink (truncate,
- AM> really).  Because truncate must wait for in-progress I/O to
- AM> complete before allowing the filesystem to free (and potentially
- AM> reuse) the affected blocks.
+David Lang wrote:
 
-looks like I miss something here.
+>The idea of page coloring is based on the fact that common implementations
+>of caching can't put any page in memory in any line in the cache (such an
+>implementation is possible, but is more expensive to do so is not commonly
+>done)
+>
+>With this implementation it means that if your program happens to use
+>memory that cannot be mapped to half of the cache lines then effectivly
+>the CPU cache is half it's rated size for your program. the next time your
+>program runs it may get a more favorable memory allocation and be able to
+>use all of the cache and therefor run faster.
+>
+>Page coloring is an attampt to take this into account when allocating
+>memory to programs so that every program gets to use all of the cache.
+>
+>David Lang
+>
+>
+> On Fri, 24 Jan 2003, Anoop J. wrote:
+>
+>>Date: Fri, 24 Jan 2003 10:38:03 +0530 (IST)
+>>From: Anoop J. <cs99001@nitc.ac.in>
+>>To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+>>
+>>
+>>How does page coloring work. Iwant its mechanism not the implementation.
+>>I went through some pages of W.L.Lynch's paper on cache and VM. Still not
+>>able to grasp it .
+>>
+>>
+>>Thanks in advance
+>>
+>>
+>>
+>>-
+>>To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>>the body of a message to majordomo@vger.kernel.org
+>>More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>>Please read the FAQ at  http://www.tux.org/lkml/
+>>
+>
 
-why do wait for write completion in truncate? 
 
-getblk (blockmap);
-getblk (bitmap);
-set 0 in blockmap->b_data[N];
-mark_buffer_dirty (blockmap);
-clear_bit (N, &bitmap);
-mark_buffer_dirty (bitmap);
-
-isn't that enough?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
