@@ -1,49 +1,84 @@
-Date: Mon, 19 May 2003 13:53:05 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Finalised 2.4 VM Documentation
-Message-ID: <Pine.LNX.4.53.0305191329310.24249@skynet>
+From: Rudmer van Dijk <rudmer@legolas.dynup.net>
+Subject: Re: 2.5.69-mm7
+Date: Mon, 19 May 2003 15:19:38 +0200
+References: <20030519012336.44d0083a.akpm@digeo.com> <200305191230.06092.rudmer@legolas.dynup.net> <20030519103826.GC8978@holomorphy.com>
+In-Reply-To: <20030519103826.GC8978@holomorphy.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200305191519.39085.rudmer@legolas.dynup.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management List <linux-mm@kvack.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I've finalised all the documentation that I'm going to do for the 2.4 VM
-and no further updates will be posted on the web site to this version. At
-this stage it has been heavily read by a number of people and there hasn't
-been a complaint or correction in a few weeks now.  I'm happy to say it is
-now complete (and more importantly correct) and acts as a detailed
-description of the 2.4 VM, the algorithms that it is based on and
-comprehensive coverage of the code. People who are only interested in the
-2.5.x VMs will still find it much easier to follow when they clearly know
-how 2.4 is put together.
+On Monday 19 May 2003 12:38, William Lee Irwin III wrote:
+> On Mon, May 19, 2003 at 12:30:05PM +0200, Rudmer van Dijk wrote:
+> > and this became broken:
+> > if [ -r System.map ]; then /sbin/depmod -ae -F System.map  2.5.69-mm7; fi
+> > WARNING: /lib/modules/2.5.69-mm7/kernel/fs/ext2/ext2.ko needs unknown
+> > symbol __bread_wq
+> > __bread_wq is introduced in -mm7, someone forgot to export it?
+>
+> Try this patch please.
 
-As always, it comes in two parts. The first part is the actual
-documentation and gives a description of the whole VM. The second is a
-code commentary which covers a significant percentage of the VM for
-guiding through the messier parts. They are available in PDF, HTML and
-plain text formats.
+it works! 
+thanks,
 
-Main site: http://www.csn.ul.ie/~mel/projects/vm/
+	Rudmer
 
-Understanding the Linux Virtual Memory Manager
-PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
-HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
-Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
+>
+> -- wli
+>
+>
+> diff -prauN mm7-2.5.69-1/fs/buffer.c mm7-2.5.69-2A/fs/buffer.c
+> --- mm7-2.5.69-1/fs/buffer.c	2003-05-19 01:18:03.000000000 -0700
+> +++ mm7-2.5.69-2A/fs/buffer.c	2003-05-19 03:14:27.000000000 -0700
+> @@ -1490,6 +1490,7 @@ __bread(struct block_device *bdev, secto
+>  		bh = __bread_slow(bh);
+>  	return bh;
+>  }
+> +EXPORT_SYMBOL(__bread);
+>
+>
+>  struct buffer_head *
+> @@ -1502,7 +1503,7 @@ __bread_wq(struct block_device *bdev, se
+>  		bh = __bread_slow_wq(bh, wait);
+>  	return bh;
+>  }
+> -EXPORT_SYMBOL(__bread);
+> +EXPORT_SYMBOL(__bread_wq);
+>
+>  /*
+>   * invalidate_bh_lrus() is called rarely - at unmount.  Because it is only
+> for diff -prauN mm7-2.5.69-1/kernel/ksyms.c mm7-2.5.69-2A/kernel/ksyms.c
+> --- mm7-2.5.69-1/kernel/ksyms.c	2003-05-19 01:18:08.000000000 -0700 +++
+> mm7-2.5.69-2A/kernel/ksyms.c	2003-05-19 03:17:20.000000000 -0700 @@ -123,6
+> +123,7 @@ EXPORT_SYMBOL(get_unmapped_area);
+>  EXPORT_SYMBOL(init_mm);
+>  EXPORT_SYMBOL(blk_queue_bounce);
+>  EXPORT_SYMBOL(blk_congestion_wait);
+> +EXPORT_SYMBOL(blk_congestion_wait_wq);
+>  #ifdef CONFIG_HIGHMEM
+>  EXPORT_SYMBOL(kmap_high);
+>  EXPORT_SYMBOL(kunmap_high);
+> @@ -216,6 +217,7 @@ EXPORT_SYMBOL(sync_dirty_buffer);
+>  EXPORT_SYMBOL(submit_bh);
+>  EXPORT_SYMBOL(unlock_buffer);
+>  EXPORT_SYMBOL(__wait_on_buffer);
+> +EXPORT_SYMBOL(__wait_on_buffer_wq);
+>  EXPORT_SYMBOL(blockdev_direct_IO);
+>  EXPORT_SYMBOL(block_write_full_page);
+>  EXPORT_SYMBOL(block_read_full_page);
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
-Code Commentary on the Linux Virtual Memory Manager
-PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
-HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code
-Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
-
-Thanks to all the people who read through it, helped me out and sent
-encouragement. It's been fun.
-
--- 
-Mel Gorman
-http://www.csn.ul.ie/~mel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
