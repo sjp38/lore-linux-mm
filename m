@@ -1,28 +1,37 @@
-Date: Sun, 22 Feb 2004 23:19:03 -0800
-From: Andrew Morton <akpm@osdl.org>
+Message-ID: <403A2F89.4070405@movaris.com>
+Date: Mon, 23 Feb 2004 08:51:21 -0800
+From: Kirk True <ktrue@movaris.com>
+MIME-Version: 1.0
 Subject: Re: LTP VM test slower under 2.6.3 than 2.4.20
-Message-Id: <20040222231903.5f9ead5c.akpm@osdl.org>
-In-Reply-To: <40363778.20900@movaris.com>
-References: <40363778.20900@movaris.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <40363778.20900@movaris.com> <20040222231903.5f9ead5c.akpm@osdl.org>
+In-Reply-To: <20040222231903.5f9ead5c.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kirk True <ktrue@movaris.com>
+To: Andrew Morton <akpm@osdl.org>
 Cc: kernelnewbies@nl.linux.org, Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Kirk True <ktrue@movaris.com> wrote:
->
->  Executing the LTP "mem01" VM test shows a huge time discrepancy between 
->  2.4.20 and 2.6.3. Under 2.4.20 the total time is around 5 seconds, while 
->  under 2.6.3 the system seems to hang for nearly a minute.
+Hi Andrew,
 
-I'd be wondering if your disk system is correctly running in DMA mode.
+> I'd be wondering if your disk system is correctly running in DMA mode.
 
-On my 256MB test box, mem01 takes 31 seconds under 2.4.25, 25 seconds
-under 2.6.3-mm3.
+Apparently support for my hardware isn't magically preset in 2.6.3 as it 
+was somehow in 2.4. After including it in the kernel the values returned 
+by hdparm -Tt /dev/hda/ were sped up by a factor of 10! Thanks!
+
+But...
+
+> On my 256MB test box, mem01 takes 31 seconds under 2.4.25, 25 seconds
+> under 2.6.3-mm3.
+
+...I'm still seeing a factor of two speed slowdown between 2.4.20 and 
+2.6.3. Would it help to do a vmstat log/graph for the new results?
+
+Kirk
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
