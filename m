@@ -1,29 +1,45 @@
-Date: Mon, 25 Sep 2000 18:18:17 +0200
-From: "Andi Kleen" <ak@suse.de>
-Subject: Re: the new VMt
-Message-ID: <20000925181817.A25553@gruyere.muc.suse.de>
-References: <20000925180448.A25083@gruyere.muc.suse.de> <Pine.LNX.4.21.0009251817420.9122-100000@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.4.21.0009251817420.9122-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 06:19:07PM +0200
+Date: Mon, 25 Sep 2000 09:17:54 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: refill_inactive()
+In-Reply-To: <Pine.LNX.4.21.0009251306430.14614-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10009250914100.1666-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andi Kleen <ak@suse.de>, Andrea Arcangeli <andrea@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Ingo Molnar <mingo@elte.hu>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 06:19:07PM +0200, Ingo Molnar wrote:
-> > Another thing I would worry about are ports with multiple user page
-> > sizes in 2.5. Another ugly case is the x86-64 port which has 4K pages
-> > but may likely need a 16K kernel stack due to the 64bit stack bloat.
+
+On Mon, 25 Sep 2000, Rik van Riel wrote:
 > 
-> yep, but these cases are not affected, i think in the order != 0 case we
-> should return NULL if a certain number of iterations did not yield any
-> free page.
+> Hmmm, doesn't GFP_BUFFER simply imply that we cannot
+> allocate new buffer heads to do IO with??
 
-Ok, that would just break fork()
+No.
 
--Andi
+New buffer heads would be ok - recursion is fine in theory, as long as it
+is bounded, and we might bound it some other way (I don't think we
+_should_ do recursion here due to the stack limit, but at least it's not
+a fundamental problem).
+
+The fundamental problem is that GFP_BUFFER allocations are often done with
+some critical filesystem lock held. Which means that we cannot call down
+to the filesystem to free up memory.
+
+The name is a misnomer, partly due to historical reasons (the buffer cache
+used to be fragile, and if you free'd buffer cache pages while you were
+trying to allocate new ones you could cause BadThings(tm) to happen), but
+partly just because the only _user_ of it is the buffer cache. 
+
+In theory, filesystems could use it for any other allocations that they
+do, but in practice they don't, and the only allocations they do in
+critical regions is the buffer allocation. And as this thread has
+discussed, even that is really more of a bug than a feature.
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
