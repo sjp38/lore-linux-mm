@@ -1,49 +1,37 @@
-Date: Thu, 3 Jul 2003 15:48:21 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: What to expect with the 2.6 VM
-Message-ID: <20030703134821.GD23578@dualathlon.random>
-References: <20030703125839.GZ23578@dualathlon.random> <Pine.LNX.4.44.0307030904260.16582-100000@chimarrao.boston.redhat.com>
+Subject: Re: 2.5.74-mm1
+From: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>
+In-Reply-To: <20030703023714.55d13934.akpm@osdl.org>
+References: <20030703023714.55d13934.akpm@osdl.org>
+Content-Type: text/plain
+Message-Id: <1057248147.599.2.camel@teapot.felipe-alfaro.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0307030904260.16582-100000@chimarrao.boston.redhat.com>
+Date: 03 Jul 2003 18:02:27 +0200
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 03, 2003 at 09:06:32AM -0400, Rik van Riel wrote:
-> On Thu, 3 Jul 2003, Andrea Arcangeli wrote:
+On Thu, 2003-07-03 at 11:37, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.74/2.5.74-mm1/
 > 
-> > even if you don't use largepages as you should, the ram cost of the pte
-> > is nothing on 64bit archs, all you care about is to use all the mhz and
-> > tlb entries of the cpu.
+> . Included Con's CPU scheduler changes.  Feedback on the effectiveness of
+>   this and the usual benchmarks would be interesting.
 > 
-> That depends on the number of Oracle processes you have.
+>   Changes to the CPU scheduler tend to cause surprising and subtle problems
+>   in areas where you least expect it, and these do take a long time to
+>   materialise.  Alterations in there need to be made carefully and cautiously.
+>   We shall see...
 
-well, that wasn't necessairly a database but ok.
+Currently testing all the new things...
 
-> Say that page tables need 0.1% of the space of the virtual
-> space they map.  With 1000 Oracle users you'd end up needing
-> as much memory in page tables as your shm segment is large.
+>From what I've seen until date, the new scheduler patches are very, very
+promising. I like them very much, but I still prefer Mike+Ingo combo
+patch a little bit more for my laptop.
 
-so just add more ram, ram is cheaper than cpu power (I mean, on 64bit)
+Will keep you informed if I see something strange ;-)
 
-> Of course, in this situation either the application should
-> use large pages or the kernel should simply reclaim the
-
-as you say, it should definitely use largepages if it's such kind of
-usage, so the whole point of saving pte space is void.  it should use
-largepages even if it's not "many tasks mapping the shm", but just a
-single task mapping some huge ram.
-
-> Agreed on that.  Please let the monstrosity die together
-> with 32 bit machines ;)
-
-Indeed ;)
-
-Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
