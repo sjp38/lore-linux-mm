@@ -1,41 +1,28 @@
-Date: Thu, 6 Jun 2002 14:47:41 +1000 (EST)
-From: Michael Chapman <mchapman@beren.hn.org>
-Reply-To: Michael Chapman <mchapman@student.usyd.edu.au>
-Subject: Re: Oops in pte_chain_alloc (rmap 12h applied to vanilla 2.4.18)
- (fwd)
-In-Reply-To: <20020606003935.A29285@redhat.com>
-Message-ID: <Pine.LNX.4.44.0206061441160.1337-100000@beren.hn.org>
+Received: from shaolinmicro.com (localhost.localdomain [127.0.0.1])
+	by host1.home.shaolinmicro.com (8.11.6/8.11.6) with ESMTP id g59Eqk409129
+	for <linux-mm@kvack.org>; Sun, 9 Jun 2002 22:52:47 +0800
+Message-ID: <3D036BBE.4030603@shaolinmicro.com>
+Date: Sun, 09 Jun 2002 22:52:46 +0800
+From: David Chow <davidchow@shaolinmicro.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: slab cache
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@redhat.com>
-Cc: Jonathan Morton <chromi@cyberspace.org>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 6 Jun 2002, Benjamin LaHaise wrote:
-> On Thu, Jun 06, 2002 at 02:29:18PM +1000, Michael Chapman wrote:
-> > On Wed, 5 Jun 2002, Jonathan Morton wrote:
-> > > >I compiled this kernel with gcc 2.96.
-> > > 
-> > > I understood you weren't supposed to do that.  Try 2.95.3.
-> > 
-> > OK, I've now tried that. It still crashes on the same line of code.
-> 
-> This looks like a memory corruption footprint:
-> 
-> Jun  3 09:58:02 beren kernel: Unable to handle kernel paging request at virtual address 14000000
-> 
-> Have you tried running memtest86 on the machine?  A few bugzilla reports 
-> have turned up with similar footprints that have all turned out to be 
-> bad ram, so it is worth investigating.
+Dear all,
 
-Yes I have. I ran memtest (version 3.0) for over 12 hours a couple of days 
-ago. Not one problem reported.
+I am trying to improve the speed of my fs code. I have a fixed sized 
+buffer for my fs, I currently use kmalloc for allocation of buffers 
+greater than 4k, use get_free_page for 4k buffers and vmalloc for large 
+buffers. Is there any benefits using the slab cache? If so whats the 
+difference of using slab cache than kmalloc? Thanks for comments.
 
-> 		-ben
-
-Michael
+regards,
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
