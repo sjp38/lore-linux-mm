@@ -1,61 +1,38 @@
-Received: from mail.ccr.net (ccr@alogconduit1ah.ccr.net [208.130.159.8])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA15064
-	for <linux-mm@kvack.org>; Mon, 23 Nov 1998 14:25:42 -0500
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA15353
+	for <linux-mm@kvack.org>; Mon, 23 Nov 1998 15:04:26 -0500
+Date: Mon, 23 Nov 1998 12:02:41 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Linux-2.1.129..
-References: <19981119223434.00625@boole.suse.de> 	<Pine.LNX.3.95.981119143242.13021A-100000@penguin.transmeta.com> <199811231713.RAA17361@dax.scot.redhat.com>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 23 Nov 1998 13:46:16 -0600
-In-Reply-To: "Stephen C. Tweedie"'s message of "Mon, 23 Nov 1998 17:13:34 GMT"
-Message-ID: <m1n25idwfr.fsf@flinx.ccr.net>
+In-Reply-To: <m1r9uudxth.fsf@flinx.ccr.net>
+Message-ID: <Pine.LNX.3.95.981123120028.5712B-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, "Dr. Werner Fink" <werner@suse.de>, Kernel Mailing List <linux-kernel@vger.rutgers.edu>, linux-mm <linux-mm@kvack.org>
+To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, "Dr. Werner Fink" <werner@suse.de>, Kernel Mailing List <linux-kernel@vger.rutgers.edu>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
 
-ST> I'm going to check this out: I'll post preliminary benchmarks and a
-ST> patch for other people to test tomorrow.  Getting the balancing right
-ST> will then just be a matter of making sure that try_to_swap_out gets
-ST> called often enough under normal running conditions.  I'm open to
-ST> suggestions about that: we've never tried that sort of behaviour in the
-ST> vm to my knowledge.
 
-I just said the buffer cache is very similiar and it is.
+On 23 Nov 1998, Eric W. Biederman wrote:
+> 
+> ST> That would be true if we didn't do the free_page_and_swap_cache trick.
+> ST> However, doing that would require two passes: once by the swapper, and
+> ST> once by shrink_mmap(): before actually freeing a page. 
 
-The trick part with balancing is there is an tradition in linux of
-using very little swap space.  And the linux kernel not using swap
-space unless it needs it.
+This is something I considered doing. It has various advantages, and it's
+almost done already in a sense: the swap cache thing is what would act as
+the buffer between the two passes. 
 
-The simplest model (and what we use for disk writes) is after
-something becomes dirty to wait a little bit (in case of more writes,
-(so we don't flood the disk)) and write the data to disk.
+Then the page table scanning would never really page anything out: it
+would just move things into the swap cache. That makes the table scanner
+simpler, actually. The real page-out would be when the swap-cache is
+flushed to disk and then freed.
 
-Ideally/Theoretically I think that is what we should be doing for swap
-as well, as it would spread out the swap writes across evenly across
-time.  And should leave most of our pages clean.
+I'd like to see this, although I think it's way too late for 2.2
 
-To implement that model we would need some different swap statistics,
-so our users wouldn't panic.  (i.e. swap used but in swap cache ...)
-
-But that is obviously going a little far for 2.2.  We already have our
-model of only try to clean pages when we need memory (ouch!)  Which
-we must balance with an amount of reaping by shrink_mmap.  This I
-agree is unprecedented.
-
-The correct ratio (of pages to free from each source) (compuated
-dynamically) would be:
-(# of process pages)/(# of pages)
-
-Basically for every page kswapd frees shrink_mmap must also free one
-page.  Plus however many pages shrink_mmap used to return.
-
-So I in practicall terms this would either be a call of shrink_mmap
-for every call to swap_out.  Or we would need an extra case added to
-the extra shrink_mmap call at the start of do_try_to_free_page.
-
-Eric
-
+		Linus
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
