@@ -1,26 +1,33 @@
-Date: Thu, 27 Nov 1997 03:04:18 -0500 (EST)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: pte_list-2.1.66
-In-Reply-To: <Pine.LNX.3.91.971125222922.14082B-100000@mirkwood.dummy.home>
-Message-ID: <Pine.LNX.3.95.971127024507.21730A-100000@as200.spellcast.com>
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA26858
+	for <linux-mm@kvack.org>; Thu, 27 Nov 1997 08:37:53 -0500
+Date: Thu, 27 Nov 1997 14:07:00 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: Re: pageable page tables
+In-Reply-To: <Pine.LNX.3.95.971126091603.8295A-100000@gwyn.tux.org>
+Message-ID: <Pine.LNX.3.91.971127140510.259D-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.rutgers.edu
+To: Joel Gallun <joel@tux.org>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-Hello all,
+On Wed, 26 Nov 1997, Joel Gallun wrote:
 
-I updated my pte list patch against 2.1.66, and will be actively working
-on it again.  My short term goals include getting the [minimal] work done
-needed to make it function on Alphas, and improving the kswapd heuristics
-a lot more.  It still probably breaks the shm stuff...  Fetch from
-http://www.kvack.org/~blah/patches/pte_list-2.1.66.diff.gz
+> Wouldn't it be better to charge this against their ulimit? I'd rather not
+> have the overhead of pageable page tables on a machine with no untrusted
+> shell users (which I suspect is the majority of linux systems).
 
-Also, if people want to discuss mm ideas/developement heavily, I've
-created a mailing list (submit to linux-mm@kvack.org, subscribe is
-majordomo@kvack.org).  It would be nice to see any rough little mm tweaks
-people are hiding. ;)
+Then we would also need per-user accounting...
+All-in-all however it's a very good idea.
 
-		-ben
+(linux-kernel guys, would this break compatibility/POSIX or
+whatever thing)
+
+Rik.
+
+ps: f-ups to linux-mm only.
+----------
+Send Linux memory-management wishes to me: I'm currently looking
+for something to hack...
