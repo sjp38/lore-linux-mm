@@ -1,43 +1,46 @@
-Date: Tue, 9 Sep 2003 01:08:20 +0200
-From: Adrian Bunk <bunk@fs.tum.de>
-Subject: Re: 2.6.0-test4-mm5 and below: Wine and XMMS problems
-Message-ID: <20030908230820.GG14800@fs.tum.de>
-References: <20030902231812.03fae13f.akpm@osdl.org> <20030907100843.GM14436@fs.tum.de> <3F5B0AD2.3000706@cyberone.com.au>
+Message-Id: <200309092157.h89Lvkm31595@mail.osdl.org>
+Subject: Re: 2.6.0-test5-mm1 
+In-Reply-To: Message from Joshua Kwan <joshk@triplehelix.org>
+   of "Tue, 09 Sep 2003 00:02:13 PDT." <20030909070213.GF7314@triplehelix.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3F5B0AD2.3000706@cyberone.com.au>
+Date: Tue, 09 Sep 2003 14:57:46 -0700
+From: Cliff White <cliffw@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, Con Kolivas <kernel@kolivas.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: joshk@triplehelix.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Sep 07, 2003 at 08:39:14PM +1000, Nick Piggin wrote:
+OSDL's STP saw this problem, no tests ran on 2.6.0-test5-mm1
+
+We've added this patch (PLM #2112) and are running tests now.
+cliffw
+
+
+> On Mon, Sep 08, 2003 at 11:50:28PM -0700, Andrew Morton wrote:
+> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test5/2.6.0-test5-mm1/
 > 
-> Hi Adrian,
+> Needs the following patch to compile:
+> 
+> --- mm/slab.c~	2003-09-08 23:58:31.000000000 -0700
+> +++ mm/slab.c	2003-09-08 23:58:33.000000000 -0700
+> @@ -2794,11 +2794,13 @@
+>  		} else {
+>  			kernel_map_pages(virt_to_page(objp), c->objsize/PAGE_SIZE, 1);
+>  
+> +#if DEBUG
+>  			if (c->flags & SLAB_RED_ZONE)
+>  				printk("redzone: 0x%lx/0x%lx.\n", *dbg_redzone1(c, objp), *dbg_redzone2(c, objp));
+>  
+>  			if (c->flags & SLAB_STORE_USER)
+>  				printk("Last user: %p.\n", *dbg_userword(c, objp));
+> +#endif
+>  		}
+>  		spin_unlock_irqrestore(&c->spinlock, flags);
+>  
+> -- 
+> Joshua Kwan
 
-Hi Nick,
-
-> It would be great if you could test the latest mm kernel (mm6 as of now
-> I think), which has Con's latest stuff in it. You could also test my
-> newest scheduler patch. Thanks for the feedback.
-
-I didn't check -mm6 (I had a different problem with -mm6 and not that 
-much time).
-
-I tried plain test4 with your sched-rollup-v14 and I got these awful
-slower sound like when wou manually retard a record.
-
-cu
-Adrian
-
--- 
-
-       "Is there not promise of rain?" Ling Tan asked suddenly out
-        of the darkness. There had been need of rain for many days.
-       "Only a promise," Lao Er said.
-                                       Pearl S. Buck - Dragon Seed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
