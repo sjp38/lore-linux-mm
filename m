@@ -1,47 +1,59 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id VAA05351
-	for <linux-mm@kvack.org>; Mon, 25 Jan 1999 21:25:36 -0500
-Date: Tue, 26 Jan 1999 03:22:56 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Reply-To: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: [patch] arca-vm-28 - new nr_freeable_pages
-In-Reply-To: <Pine.LNX.3.96.990121210148.2760B-100000@laser.bogus>
-Message-ID: <Pine.LNX.3.96.990126024536.199A-100000@laser.bogus>
+Received: from ife.ee.ethz.ch (ife-fast.ee.ethz.ch [129.132.24.193])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA10197
+	for <linux-mm@kvack.org>; Tue, 26 Jan 1999 06:45:20 -0500
+Message-ID: <36ADAAC4.82165F6E@ife.ee.ethz.ch>
+Date: Tue, 26 Jan 1999 12:45:08 +0100
+From: Thomas Sailer <sailer@ife.ee.ethz.ch>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+References: <Pine.LNX.3.95.990125222327.726A-100000@localhost>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
-To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
-Cc: Nimrod Zimerman <zimerman@deskmail.com>, John Alvord <jalvo@cloud9.net>, "Stephen C. Tweedie" <sct@redhat.com>, Steve Bergman <steve@netplus.net>, dlux@dlux.sch.bme.hu, "Nicholas J. Leon" <nicholas@binary9.net>, Kalle Andersson <kalle@sslug.dk>, Heinz Mauelshagen <mauelsha@ez-darmstadt.telekom.de>, Ben McCann <bmccann@indusriver.com>"Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <H.H.vanRiel@phys.uu.nl>
+To: Gerard Roudier <groudier@club-internet.fr>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 21 Jan 1999, Andrea Arcangeli wrote:
+Gerard Roudier wrote:
 
-> I have a new arca-vm-28. I don't have time to comment the changes right
-> now, but I would like if you could try it and feedback. This is not
-> intended to be good in low memory system, it _could_ work fine also with
-> low mem, but I don't know...
+> If you tell me that some system XXX is able to quickly free Mega-Bytes of
+> physical contiguous memory at any time when it is asked for such a
 
-I've done some further changes. nr_freeable_pages is still there (since
-worked fine so far). But the new code should be far more friendly in low
-memory. I am doing everything in 32 Mbyte (as some month ago by default
-btw ;) to force me to test the new code ;).
+Noone said it has to happen quickly, it's entirely useful even if
+the calling process (and possibly others) will sleep for 10secs.
+These allocations are very uncommon, but nevertheless sometimes
+necessary for some device (drivers).
 
-This new code will not give a swapout raw speed as the previous one but
-looks far more sane for low memory conditions. The old code was extreme,
-the best to half the swapout time and to get the best numbers, but too
-much aggressive to use the machine for doing other tasks at the same time
-in low memory.
+> brain-deaded allocation, then for sure, I will never use system XXX,
+> because this magic behaviour seems not to be possible without some
+> paranoid VM policy that may affect badly performances for normal stuff.
 
-I would like to hear comments if somebody will try it. If you care about
-low memory machines please try it and let me know.
+You may well call the devices that need this broken, the problem
+is that they are in rather widespread use.
 
-ftp://e-mind.com/pub/linux/arca-tree/2.2.0-pre9_arca-3.gz
+If we don't find an algorithm that doesn't affect preformance for
+the normal stuff, (why would something like selecting
+a memory region and forcing everything that's currently in the
+way to be swapped out not work?), then we should probably have
+a special pool for these "perverse" mappings.
 
-Now it's really time to sleep for me...
+But I think there's a rather generic problem: how are you going
+to support 32bit PCI busmasters in machines with more than
+4Gig main memory? It's conceptually the same as how are you
+going to support ISA DMA with more than 16Meg main memory.
 
-Ah forget to tell, if the size of the cache looks too high or too low,
-feel free to decrease or increase the first value of /proc/sys/vm/pager
+32bit only PCI busmasters are very common these days, I don't
+know a single PCI soundcard that can do 64bit master (or even slave)
+cycles. Also, all PCI soundcards I know which have a hardware
+wavetable synth (without sample ROM) require ridiculously
+large contiguous allocations (>= 1M) for the synth to work.
 
+> Anything that requires more that 1 PAGE of physical memory at a time on
+> running systems is a very bad thing in my opinion. The PAGE is the only
+
+Ok, then remove any soundcard from your system. That might be acceptable
+for you, but probably not for 90% of the Linux users.
+
+Tom
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
