@@ -1,31 +1,45 @@
-Date: Wed, 19 Jun 2002 13:24:55 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [PATCH] (1/2) reverse mapping VM for 2.5.23 (rmap-13b)
-In-Reply-To: <Pine.LNX.4.44.0206191310590.4292-100000@loke.as.arizona.edu>
-Message-ID: <Pine.LNX.4.33.0206191322480.2638-100000@penguin.transmeta.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@bonn-fries.net>
+Subject: Re: [PATCH] (2/2) reverse mappings for current 2.5.23 VM
+Date: Wed, 19 Jun 2002 22:44:06 +0200
+References: <Pine.LNX.4.44.0206191248190.4292-100000@loke.as.arizona.edu>
+In-Reply-To: <Pine.LNX.4.44.0206191248190.4292-100000@loke.as.arizona.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17KmJC-0000xN-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Craig Kulesa <ckulesa@as.arizona.edu>
-Cc: Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>, Dave Jones <davej@suse.de>, Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rwhron@earthlink.net
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 19 Jun 2002, Craig Kulesa wrote:
+On Wednesday 19 June 2002 22:09, Craig Kulesa wrote:
+> I wouldn't draw _any_ conclusions about either patch yet, because as you 
+> said, it's only one type of load.  And it was a single tick in vmstat 
+> where page_launder() was aggressive that made the difference between the 
+> two.  In a different test, where I had actually *used* more of the 
+> application pages instead of simply closing most of the applications 
+> (save one, the memory hog), the results are likely to have been very 
+> different.  
 > 
-> I'll try a more varied set of tests tonight, with cpu usage tabulated.
+> I think that Rik's right: this simply points out that page_launder(), at 
+> least in its interaction with 2.5, needs some tuning.  I think both 
+> approaches look very promising, but each for different reasons.  
 
-Please do a few non-swap tests too. 
+Indeed.
 
-Swapping is the thing that rmap is supposed to _help_, so improvements in
-that area are good (and had better happen!), but if you're only looking at
-the swap performance, you're ignoring the known problems with rmap, ie the
-cases where non-rmap kernels do really well.
+One reason for being interested in a lot more numbers and a variety of loads 
+is that there's an effect, predicted by Andea, that I'm watching for:  both 
+aging+rmap and lru+rmap do swapout in random order with respect to virtual 
+memory, and this should in theory cause increased seeking on swap-in.  We 
+didn't see any sign of such degradation vs mainline, in fact we saw a 
+significant overall speedup.  It could be we just haven't got enough data 
+yet, or maybe there really is more seeking for each swap-in, but the effect 
+of less swapping overall is dominant.
 
-Comparing one but not the other doesn't give a very balanced picture..
-
-		Linus
-
+-- 
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
