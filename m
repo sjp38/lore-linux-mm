@@ -1,51 +1,59 @@
-Date: Fri, 5 Jul 2002 21:45:25 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: vm lock contention reduction
-In-Reply-To: <Pine.LNX.4.44.0207051727300.1052-100000@home.transmeta.com>
-Message-ID: <Pine.LNX.4.44L.0207052142570.8346-100000@imladris.surriel.com>
+Message-ID: <3D263E70.7B8F5307@zip.com.au>
+Date: Fri, 05 Jul 2002 17:48:48 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: vm lock contention reduction
+References: <3D26304C.51FAE560@zip.com.au> <Pine.LNX.4.44L.0207052110590.8346-100000@imladris.surriel.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Andrew Morton <akpm@zip.com.au>, William Lee Irwin III <wli@holomorphy.com>, Andrea Arcangeli <andrea@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Andrea Arcangeli <andrea@suse.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 5 Jul 2002, Linus Torvalds wrote:
-> On Fri, 5 Jul 2002, Rik van Riel wrote:
+Rik van Riel wrote:
+> 
+> On Fri, 5 Jul 2002, Andrew Morton wrote:
+> > William Lee Irwin III wrote:
+> > > On Thu, Jul 04, 2002 at 07:18:34PM -0700, Andrew Morton wrote:
+> > > > Of course, that change means that we wouldn't be able to throttle
+> > > > page allocators against IO any more, and we'd have to do something
+> > > > smarter.  What a shame ;)
+> > >
+> > > This is actually necessary IMHO. Some testing I've been able to do seems
+> > > to reveal the current throttling mechanism as inadequate.
 > >
-> > But it is, mmap() and anonymous memory don't trigger writeback.
->
-> I don't think we can fix that, without going back to the approach of
-> marking any writable memory as read-only and counting it at page-fault
-> time.
+> > I don't think so.  If you're referring to the situation where your
+> > 4G machine had 3.5G dirty pages without triggering writeback.
+> >
+> > That's not a generic problem.
+> 
+> But it is, mmap() and anonymous memory don't trigger writeback.
+> 
 
-I don't think we have to fix it, as long as the
-shrink_caches/page_launder function is well
-balanced and throttling is done intelligently.
+That's different.  Bill hit a problem just running tiobench.
 
-> Wasn't it you who did that test-patch originally?
+We can run balance_dirty_pages() when a COW copyout is performed,
+which will approximately improve things.
 
-I don't remember who did it, so I suspect it wasn't me.
-Could it be Ben ?
+But the whole idea of the dirty memory thresholds just seems bust,
+really.  Because how do you pick the thresholds?  40%.  Bah.
 
-> There might be some way to avoid the page fault badness (the large page
-> stuff will do this automatically, for example), which might make the
-> "let's keep track of dirty mappings explicitly" approach acceptable
-> again.
+One idea we kicked around a while back was to remove the throttling
+from the write(2) path altogether, and to perform the throttling
+inside the page allocator instead, where we have more information.
+And perhaps set PF_WRITER before doing so, so the VM can penalise
+the caller more heavily.
 
-That's another approach, I guess it'll be worth looking
-into both (and searching the web for what other people
-have done before us with both ;))
+But this doesn't work if the write(2) caller is redirtying existing
+pagecache, just like writes to anon pages, mmap pages, etc.
 
-regards,
+Alternatively: the VM can periodically reach over and twiddle the
+dirty memory thresholds which balance_dirty_pages() uses.  I don't
+like our chances of getting that right though ;)
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
