@@ -1,57 +1,65 @@
-Date: Sat, 6 Nov 2004 08:28:58 -0200
+Date: Sat, 6 Nov 2004 08:41:49 -0200
 From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
-Message-ID: <20041106102858.GC22514@logos.cnet>
-References: <20041105200118.GA20321@logos.cnet> <200411051532.51150.jbarnes@sgi.com> <20041106012018.GT8229@dualathlon.random> <1099706150.2810.147.camel@thomas>
+Subject: Re: [PATCH] Remove OOM killer ...
+Message-ID: <20041106104149.GA22629@logos.cnet>
+References: <20041105200118.GA20321@logos.cnet> <20041106125317.GB9144@pclin040.win.tue.nl>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1099706150.2810.147.camel@thomas>
+In-Reply-To: <20041106125317.GB9144@pclin040.win.tue.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andrea Arcangeli <andrea@novell.com>, Jesse Barnes <jbarnes@sgi.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andries Brouwer <aebr@win.tue.nl>
+Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Nov 06, 2004 at 02:55:50AM +0100, Thomas Gleixner wrote:
-> On Sat, 2004-11-06 at 02:20 +0100, Andrea Arcangeli wrote:
-> > On Fri, Nov 05, 2004 at 03:32:50PM -0800, Jesse Barnes wrote:
-> > > On Friday, November 05, 2004 12:01 pm, Marcelo Tosatti wrote:
-> > > > In my opinion the correct approach is to trigger the OOM killer
-> > > > when kswapd is unable to free pages. Once that is done, the number
-> > > > of tasks inside page reclaim is irrelevant.
-> > > 
-> > > That makes sense.
-> > 
-> > I don't like it, kswapd may fail balancing because there's a GFP_DMA
-> > allocation that eat the last dma page, but we should not kill tasks if
-> > we fail to balance in kswapd, we should kill tasks only when no fail
-> > path exists (i.e. only during page faults, everything else in the kernel
-> > has a fail path and it should never trigger oom).
-> > 
-> > If you move it in kswapd there's no way to prevent oom-killing from a
-> > syscall allocation (I guess even right now it would go wrong in this
-> > sense, but at least right now it's more fixable). I want to move the oom
-> > kill outside the alloc_page paths. The oom killing is all about the page
-> > faults not having a fail path, and in turn the oom killing should be
-> > moved in the page fault code, not in the allocator. Everything else
-> > should keep returning -ENOMEM to the caller.
-> > 
-> > So to me moving the oom killer into kswapd looks a regression.
+Hi Andries,
+
+On Sat, Nov 06, 2004 at 01:53:17PM +0100, Andries Brouwer wrote:
+> On Fri, Nov 05, 2004 at 06:01:18PM -0200, Marcelo Tosatti wrote:
 > 
-> My point is not where oom-killer is triggered. My point is the decision
-> criteria of oom-killer, when it is finally invoked, which process to
-> kill. That's kind of independend of your patch. Your patch corrects the
-> context in which oom-killer is called. My concern is that the decision
-> critrion which process should be killed is not sufficient. In my case it
-> kills sshd instead of a process which forks a bunch of child processes.
-> Thats just wrong, because it takes away the chance to log into the
-> machine remotely and fix the problem.
+> > My wife is almost killing me, its Friday night and I've been telling her
+> > "just another minute" for hours. Have to run.
+> 
+> :-)
+> 
+> > As you know the OOM is very problematic in 2.6 right now - so I went
+> > to investigate it.
+> 
+> I have always been surprised that so few people investigated
+> doing things right, that is, entirely without OOM killer.
+> Apparently developers do not think about using Linux for serious work
+> where it can be a disaster, possibly even a life-threatening disaster,
+> when any process can be killed at any time.
 
-Hi Thomas,
+Its just that the majority of users use total overcommit (the default), 
+but you have a point.
 
-Yes your patches are correct and needed independantly of where OOM killer 
-is triggered from.
+> Ten years ago it was a bad waste of resources to have swapspace
+> lying around that would be used essentially 0% of the time.
+> But with todays disk sizes it is entirely feasible to have
+> a few hundred MB of "unused" swap space. A small price to
+> pay for the guarantee that no process will be OOM killed.
+> 
+> A month ago I showed a patch that made overcommit mode 2
+> work for me. Google finds it in http://lwn.net/Articles/104959/
+> 
+> So far, nobody commented.
+> 
+> This is not in a state such that I would like to submit it,
+> but I think it would be good to focus some energy into
+> offering a Linux that is guaranteed free of OOM surprises.
+
+I dont have any useful comments on patch on a quick look at it  - 
+but yes non-overcommit should be working correctly.
+
+> So, let me repeat the RFC.
+> Apply the above patch, and do "echo 2 > /proc/sys/vm/overcommit_memory".
+> Now test. In case you have no, or only a small amount of swap space,
+> also do "echo 80 > /proc/sys/vm/overcommit_ratio" or so.
+
+Will test your patch later on the weekend and take a slower look 
+at it, hopefully with useful comments.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
