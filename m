@@ -1,55 +1,34 @@
-Received: from Galois.suse.de (Zuse.suse.de [195.125.217.2])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA01798
-	for <linux-mm@kvack.org>; Thu, 26 Mar 1998 08:02:18 -0500
-Date: Thu, 26 Mar 1998 14:00:53 +0100
-Message-Id: <199803261300.OAA25495@boole.suse.de>
-From: "Dr. Werner Fink" <werner@suse.de>
-In-reply-to: <19980326034544.27868@jackalz> (message from Myrdraal on Thu, 26
-	Mar 1998 03:45:44 -0500)
-Subject: Re: 2.1.91pre2 death by swapping.
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA01846
+	for <linux-mm@kvack.org>; Thu, 26 Mar 1998 08:09:30 -0500
+Date: Thu, 26 Mar 1998 14:01:52 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: H.H.vanRiel@fys.ruu.nl
+Subject: test [PATCH] 2.1.91pre2 swap clustering
+Message-ID: <Pine.LNX.3.91.980326135818.523D-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: myrdraal@jackalz.dyn.ml.org
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+Hi Linus,
 
-> 
-> Hi,
->  Well, shortly after I wrote my previous message, 2.1.91pre2 died a nasty
->  death. This system has 64mb RAM and was lightly loaded, the main thing
->  it was doing was playing a MOD. It started to swap out of the blue, the
->  mod started skipping more and more, and eventually stopped playing
->  entiredly while the machine thrashed. It continued thrashing for 10-15
->  minutes, every program totally stopped while this was happening. Using
->  the magic sysrq show memory option, I could see that the free pages
->  number was fluctuating between 10200 and 10250 or so. Eventually I rebooted
->  back to 2.1.90 with the magic sysrq.
-> -Myrdraal
+I have some test results on 2.1.91pre2 now. With my patch,
+it's a tad agressive, but _extremely_ fast with swapping.
+I think it would be wise to reduce the number of tries by
+a factor, as in:
 
+-	tries = (50 << 3) >> free_memory_available(3);
++	tries = (50 << 2) >> free_memory_available(3);
 
-I've found the following piece of code in the 2.1.91pre2:
+The clustered swapout-from-application seems to work fabulously,
+since the program moves the disk arm less then it used to.
 
---------------------------------------------------------------------------
---- v2.1.90/linux/mm/filemap.c	Tue Mar 10 10:03:36 1998
-+++ linux/mm/filemap.c	Wed Mar 25 13:13:36 1998
-@@ -150,6 +150,10 @@
- 				}
- 				tmp = tmp->b_this_page;
- 			} while (tmp != bh);
-+
-+			/* Refuse to swap out all buffer pages */
-+			if ((buffermem >> PAGE_SHIFT) * 100 > (buffer_mem.min_percent * num_physpages))
-+				goto next;
- 		}
- 
- 		/* We can't throw away shared pages, but we do mark
---------------------------------------------------------------------------
-
-IMHO the `>' should be a `<', shouldn't it?
-
-... and the better place fur such a statement is IMHO
-linux/mm/vmscan.c:do_try_to_free_page() which would avoid the shrink_mmap()
-and its do-while-loop.
-
-
-          Werner
+Rik.
++-------------------------------------------+--------------------------+
+| Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
+|        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
+|     http://www.fys.ruu.nl/~riel/          | <H.H.vanRiel@fys.ruu.nl> |
++-------------------------------------------+--------------------------+
