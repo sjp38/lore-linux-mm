@@ -1,44 +1,34 @@
-Date: Wed, 3 May 2000 00:26:10 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: Oops in __free_pages_ok (pre7-1) (Long)
-In-Reply-To: <Pine.LNX.4.10.10005021439320.12403-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0005030008150.1677-100000@alpha.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 2 May 2000 23:34:39 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: kswapd @ 60-80% CPU during heavy HD i/o.
+Message-ID: <20000502233439.A10012@redhat.com>
+References: <20000502221405.O1389@redhat.com> <Pine.LNX.4.21.0005021837080.10610-100000@duckman.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.21.0005021837080.10610-100000@duckman.conectiva>; from riel@conectiva.com.br on Tue, May 02, 2000 at 06:42:31PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, Kanoj Sarcar <kanoj@google.engr.sgi.com>
+To: riel@nl.linux.org
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Roger Larsson <roger.larsson@norran.net>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 May 2000, Linus Torvalds wrote:
+Hi,
 
->I'd rather get rid of it entirely, yes, as I hate having "crud" around
+On Tue, May 02, 2000 at 06:42:31PM -0300, Rik van Riel wrote:
+> On Tue, 2 May 2000, Stephen C. Tweedie wrote:
+> Ermmm, a few days ago (yesterday?) you told me on irc that we
+> needed to balance between zones ... 
 
-We can get rid of it entirely if you want, it's only an optimization.
+On a single NUMA node, definitely.  We need balance between all of
+the zones which may be in use in a specific allocation class.
 
-The object of the swap entry bitflag is _only_ to swapout the same page in
-the same place across a swapin-write fault. It seems to do the trick to
-me.
+NUMA is a very different issue.  _Some_ memory pressure between nodes is
+necessary: if one node is completely out of memory then we may have to 
+start allocating memory on other nodes to tasks tied to the node under
+pressure.  But in the normal case, you really do want NUMA memory classes
+to be as independent of each other as possible.
 
-Making swap cache dirty will take a swap entry locked indefinitely (well,
-really also swapin read fault take swap entry locked indefinitely...) and
-it have to be a kind of dirty swap cache that doesn't get written to disk
-in the usual behaviour but it have to be written to disk only when we go
-low on memory and we try to unmap it. The only advantage of dirty cache
-over swap-entry-logic is that we can do write-swapin/swapout without
-dropping the buffer headers from the page in between but the buffer
-headers could go away very fast anyway due memory pressure...
-
->that nobody realizes isn't really even active any more (and your one-liner
-
-The trick is still active (too much active since sometime we forget to
-clear the bitflag ;).
-
-If you want to drop it let me know.
-
-Andrea
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
