@@ -1,28 +1,32 @@
-Date: Thu, 4 May 2000 20:04:09 -0700
-Message-Id: <200005050304.UAA03317@pizda.ninka.net>
-From: "David S. Miller" <davem@redhat.com>
-In-reply-to: <Pine.LNX.4.21.0005050137120.8057-100000@alpha.random> (message
-	from Andrea Arcangeli on Fri, 5 May 2000 01:44:23 +0200 (CEST))
-Subject: Re: classzone-VM + mapped pages out of lru_cache
-References: <Pine.LNX.4.21.0005050137120.8057-100000@alpha.random>
+Date: Thu, 4 May 2000 22:13:24 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: 7-4 VM killing (A solution)
+In-Reply-To: <39121A22.BA0BA852@sgi.com>
+Message-ID: <Pine.LNX.4.10.10005042212480.1156-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: andrea@suse.de
-Cc: shrybman@sympatico.ca, quintela@fi.udc.es, gandalf@wlug.westbo.se, joerg.stroettchen@arcormail.de, linux-kernel@vger.rutgers.edu, axboe@suse.de, linux-mm@kvack.org
+To: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Cc: riel@nl.linux.org, Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrea, please do not pass IRQ state "flags" to another function
-and try to restore them in this way, it breaks Sparc and any other
-cpu which keeps "stack frame" state in the flags value.  "flags" must
-be obtained and restored in the same function.
 
-You do this in your rmqueue() changes.
+On Thu, 4 May 2000, Rajagopal Ananthanarayanan wrote:
+> 
+> Ok, I may have a solution after having asked, mostly to myself,
+> why doesn't shrink_mmap() find pages to free?
+> 
+> The answer apparenlty is because in 7-4 shrink_mmap(),
+> unreferenced pages get filed as "young" if the zone has
+> enough pages in it (free_pages > pages_high).
 
-Thanks.
+Good catch.
 
-Later,
-David S. Miller
-davem@redhat.com
+That's obviously a bug, and your fix looks like the obvious fix. Thanks,
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
