@@ -1,47 +1,32 @@
-Received: from alogconduit1ah.ccr.net (ccr@alogconduit1ae.ccr.net [208.130.159.5])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA22702
-	for <linux-mm@kvack.org>; Wed, 24 Mar 1999 06:55:19 -0500
-Subject: Re: [Fwd: LINUX-MM]
-References: <36F8974A.D4EB4BAD@imsid.uni-jena.de>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-In-Reply-To: Matthias Arnold's message of "Wed, 24 Mar 1999 08:42:02 +0100"
-Date: 24 Mar 1999 06:04:25 -0600
-Message-ID: <m1emmfum9i.fsf@flinx.ccr.net>
+Received: from dukat.scot.redhat.com (sct@[195.89.149.246])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA23772
+	for <linux-mm@kvack.org>; Wed, 24 Mar 1999 08:57:09 -0500
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14072.61217.315938.743360@dukat.scot.redhat.com>
+Date: Wed, 24 Mar 1999 13:56:49 +0000 (GMT)
+Subject: Re: LINUX-MM
+In-Reply-To: <Pine.LNX.4.03.9903240130400.10060-100000@mirkwood.dummy.home>
+References: <Pine.LNX.4.05.9903240123100.4288-100000@laser.random>
+	<Pine.LNX.4.03.9903240130400.10060-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
-To: Matthias Arnold <Matthias.Arnold@edda.imsid.uni-jena.de>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@nl.linux.org>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, Matthias Arnold <Matthias.Arnold@edda.imsid.uni-jena.de>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "MA" == Matthias Arnold <Matthias.Arnold@edda.imsid.uni-jena.de> writes:
+Hi,
 
->> 
->> On Tue, 23 Mar 1999 10:49:11 EST, Kev <klmitch@MIT.EDU> said:
->> 
->> >> IIRC there's a slight bug in some of the newer kernels
->> >> where the swap cache isn't being freed when you exit
->> >> your program, but only later on when the system tries
->> >> to reclaim memory...
->> 
->> > I believe the problem lies in the fact that there is not enough
->> > SysV shared memory available.
->> 
->> It's nothing to do with SysV shared memory.
->> 
->> The behaviour is there, but the only impact on the normal user will be
->> that "free" lies a little.  No big deal: it just shows up as cache.  The
->> effect is only a matter of when we recover the memory, not whether we
->> recover it.
+On Wed, 24 Mar 1999 01:33:53 +0100 (CET), Rik van Riel
+<riel@nl.linux.org> said:
 
-MA> Thanks to the community for dealing with my problems.Before we go  on to
-MA> discuss this as bug or feature I emphasize
-MA> that this memory effect is really disastrous for me.
-MA> I hope that changing the kernel (as Rik told me) helps.
-MA> Any suggestion is very welcome.
+> It is a bug when it causes other programs to fail
+> miserably...
 
-I missed the start of this, (I just monitor linux-mm),
-what is the problem you have?
+Does this happen, and if so, in what way?
 
-Eric
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
