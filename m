@@ -1,31 +1,55 @@
-Date: Wed, 30 Mar 2005 14:40:49 +0100
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [PATCH] Pageset Localization V2
-Message-ID: <20050330134049.GA21986@parcelfarce.linux.theplanet.co.uk>
-References: <Pine.LNX.4.58.0503292147200.32571@server.graphe.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0503292147200.32571@server.graphe.net>
+Date: Wed, 30 Mar 2005 07:55:29 -0800 (PST)
+From: Christoph Lameter <christoph@lameter.com>
+Subject: Re: API changes to the slab allocator for NUMA memory allocation
+In-Reply-To: <424A3FA0.9030403@colorfullife.com>
+Message-ID: <Pine.LNX.4.58.0503300748320.12816@server.graphe.net>
+References: <20050315204110.6664771d.akpm@osdl.org> <42387C2E.4040106@colorfullife.com>
+ <273220000.1110999247@[10.10.2.4]> <4238845E.5060304@colorfullife.com>
+ <Pine.LNX.4.58.0503292126050.32140@server.graphe.net> <424A3FA0.9030403@colorfullife.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <christoph@lameter.com>
-Cc: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org, shai@scalex86.org
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-ia64@vger.kernel.org, shai@scalex86.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Mar 29, 2005 at 09:51:08PM -0800, Christoph Lameter wrote:
-> +	BUG_ON(process_zones(smp_processor_id()));
+On Wed, 30 Mar 2005, Manfred Spraul wrote:
 
-No.  Who told you this was a good idea?  This is the *worst* kind of
-assert, calling a function with side-effects.
+> >The patch makes the following function calls available to allocate memory on
+> >a specific node without changing the basic operation of the slab
+> >allocator:
+> >
+> > kmem_cache_alloc_node(kmem_cache_t *cachep, unsigned int flags, int node);
+> > kmalloc_node(size_t size, unsigned int flags, int node);
 
--- 
-"Next the statesmen will invent cheap lies, putting the blame upon 
-the nation that is attacked, and every man will be glad of those
-conscience-soothing falsities, and will diligently study them, and refuse
-to examine any refutations of them; and thus he will by and by convince 
-himself that the war is just, and will thank God for the better sleep 
-he enjoys after this process of grotesque self-deception." -- Mark Twain
+> I intentionally didn't add a kmalloc_node() function:
+> kmalloc is just a wrapper around
+> kmem_find_general_cachep+kmem_cache_alloc. It exists only for
+> efficiency. The _node functions are slow, thus a wrapper is IMHO not
+> required. kmalloc_node(size,flags,node) is identical to
+> kmem_cache_alloc(kmem_find_general_cachep(size,flags),flags,node). What
+> about making kmem_find_general_cachep() public again and removing
+> kmalloc_node()?
+
+kmalloc is the function in use by most kernel code. kmalloc_node makes the
+use of node specific allocations easy. Yes node functions are slow at
+this point but we will submit additional patches that will address those
+issues. The patch makes it easy for a variety of kernel modules to use
+node specific memory allocations. With this patch we will be able to
+submit patches that enhance the speed of the slab allocator as well as
+patches that make subsystems use node specific memory at the same time.
+
+> And I don't know if it's a good idea to make kmalloc() a special case of
+> kmalloc_node(): It adds one parameter to every kmalloc call and
+> kmem_cache_alloc call, virtually everyone passes -1. Does it increase
+> the .text size?
+
+The -1 is optimized away for the non NUMA case. In the NUMA case its an
+additional parameter that is passed to kmem_cache_alloc. So its one
+additional register load that allows us to not have an additional function
+for the case non node specific allocations.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
