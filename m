@@ -1,30 +1,87 @@
-Date: Thu, 7 Nov 2002 00:16:48 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [patch] Buffers pinning inodes in icache forever
-In-Reply-To: <200211062159.gA6LxmK23126@sisko.scot.redhat.com>
-Message-ID: <Pine.LNX.4.44L.0211070016180.3411-100000@imladris.surriel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <Pine.LNX.4.44L.0211070016182.3411@imladris.surriel.com>
-Content-Disposition: INLINE
+Date: Wed, 6 Nov 2002 18:33:17 -0800
+From: Jun Sun <jsun@mvista.com>
+Subject: PageLRU BUG() when preemption is turned on (2.4 kernel)
+Message-ID: <20021106183317.E15363@mvista.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Andrew Morton <akpm@zip.com.au>, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: jsun@mvista.com
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 6 Nov 2002, Stephen C. Tweedie wrote:
+I am chasing a nasty bug that shows up in 2.4 kernel when preemption
+is turned on.  I would appreciate any help.  Please cc your reply
+to me email account.
 
-> With the patch below we've not seen this particular pathology recur.
-> Comments?
+I caught the BUG() live with kgdb (on a MIPS board).  See the backtrace
+attached at the end.
 
-I like it.  This seems like a correct and simple fix.
+In a nutshell, access_process_vm() calls put_page(), which
+calls __free_pages(), where it finds page->count is 0 but does not
+like the fact that page->flags still has LRU bit set.
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-http://www.surriel.com/		http://distro.conectiva.com/
-Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
+What is LRU bit?  And why it cannot be set when the page->count
+goes down to 0 in __free_pages_ok()?
+
+I inserted some testing code in access_process_vm() function
+and confirmed that page->count does get changed in the middle of
+the function when preemptible kernel is enabled.
+
+My best guess at this moment is:
+
+. access_process_vm() starts and gets preempted in the middle
+. other process(es) decrement the page->count to 1, somehow.  However
+  LRU bit remains set as it was (is this possible?)
+. access_process_vm() resumes and calls put_page(), and then hits
+  the BUG.
+
+I am doing an experiement now which disables preemption inside the loop
+of access_process_vm().  If my guess is right, it should kill this
+symptom.  (I may need to wait for more than 10 hours for the results)
+
+But the bug is in someplace else.  Basically, how can the preempting
+process decrement the page->count but still leave LRU bit set? 
+
+Any pointers on how I could debug further?  Thanks in advance.
+
+Jun
+
+----------------------
+(gdb) bt
+#0  panic (fmt=0x80164ad0 "kernel BUG at %s:%d!\n") at panic.c:52
+#1  0x80060e04 in __free_pages_ok (page=0x57, order=2148945076)
+    at page_alloc.c:87
+#2  0x80061adc in __free_pages (page=0x57, order=2148945076)
+    at page_alloc.c:449
+#3  0x80048c68 in access_process_vm (tsk=0x80164ad0, addr=2147449516, 
+    buf=0x8079f000, len=12, write=0) at ptrace.c:188
+#4  0x800903f0 in proc_pid_cmdline (task=0x80a3c000, buffer=0x8079f000 "sh")
+    at base.c:157
+#5  0x80090780 in proc_info_read (file=0x80164ad0, 
+    buf=0x7fff7370 "/proc/14565/cmdline", count=2047, ppos=0x82722740)
+    at base.c:265
+#6  0x8006a4c4 in sys_read (fd=2148944592, 
+    buf=0x7fff7370 "/proc/14565/cmdline", count=2047) at read_write.c:177
+
+(at frame #1, #2: 'page' value is garbage because the register is garbled)
+
+(gdb) l
+access_process_vm()
+82                      BUG();
+83              if (PageLocked(page))
+84                      BUG();
+85              if (PageLRU(page)) {
+86                      printk("page = 0x%p\n", page);
+87                      BUG();
+88              }
+89              if (PageActive(page))
+90                      BUG();
+91
+
+(gdb) p current->preempt_count
+$10 = 0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
