@@ -1,39 +1,104 @@
-Message-ID: <pc$3n2r-721eg9bn-ln8e8@j0enw.3k>
-From: "Kieth Delarosa" <jesw9fnr@iopus.com>
-Reply-To: "Kieth Delarosa" <jesw9fnr@iopus.com>
-Subject: Debt fixers!! hc ycao zfoxolwq
-Date: Sun, 26 Oct 03 12:23:40 GMT
+Message-ID: <q66fhu$$$51qn-jj3@13gq3eo.4zk.pv>
+From: "Gretchen Hendricks" <quclqea@yahoo.com>
+Reply-To: "Gretchen Hendricks" <quclqea@yahoo.com>
+Subject: Rx - Valium, Xanaxx, Via.gra...africa
+Date: Mon, 27 Oct 2003 07:26:02 -0600
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="BE.3EA.7ABD5"
+	boundary="0C87F1_F5E.6._"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---BE.3EA.7ABD5
+--0C87F1_F5E.6._
 Content-Type: text/plain;
 Content-Transfer-Encoding: quoted-printable
 
-LET US HELP YOU GET OUT OF DEBT FAST!
+Investors: Come see Wall Streets only scale-trading system for blue-chip s=
+tocks - MainScale
 
-We are the premiere leaders in the debt reduction field. Our business is g=
-etting people like you out of debt. We have helped thousands of people jus=
-t like YOU get their life back into high gear. Join with us and you will s=
-ee your debt managed within no time. Our customer representatives are avai=
-lable around the clock to answer your every need.
+We DO NOT TOUT INDIVIDUAL STOCKS - This is an automated, stock-trading sys=
+tem for blue-chips only
 
-CLICK ON THE LINK BELOW AND FILL OUT THE VERY SHORT FORM!
 
-http://www.takemeoutofdebttoday.com/11000.html
+www.mainscale4u.com/?032335
 
-Our representatives are waiting help your needs!
 
-cvilkj mgpazv
-tvolxv wzwsa ukxir maxjve xmhmp 
-svpmzkhf
+MainScale started on October 1, 2002
 
---BE.3EA.7ABD5--
+Here are the results our investors have enjoyed over the last year.
+
+Banked return, 1-year: 77.98%
+
+12 consecutive months of profitability
+
+Trades---467
+Gainers--442
+Losers----15
+
+
+www.mainscale4u.com/?032335
+
+
+In fact, the longest period between profitable trades was just 6 days.
+
+In less than 15 minutes a day, you can manage a profitable portfolio that =
+will make you money in any type of market.
+
+
+
+www.mainscale4u.com/?032335
+
+
+
+
+No more advertisements, go here: www.mainscale4u.com/nomore.html
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+rmt msjfr xxgit y  rmsvlsk bdvwxk lbczz
+cbq 
+iu  wqpsm mkdc
+ sctttrvbaj hjak xnvhqlfd wpgq
+
+--0C87F1_F5E.6._--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
