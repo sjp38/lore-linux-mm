@@ -1,37 +1,34 @@
-Date: Wed, 13 Aug 2003 15:07:31 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: removing clean mapped pages
-In-Reply-To: <Pine.LNX.4.53.0308131143440.4904@skynet>
-Message-ID: <Pine.LNX.4.53.0308131504470.12612@skynet>
-References: <Pine.GSO.4.51.0308121522570.23513@aria.ncl.cs.columbia.edu>
- <Pine.GSO.4.51.0308121541290.23513@aria.ncl.cs.columbia.edu>
- <Pine.LNX.4.53.0308131143440.4904@skynet>
+Date: Wed, 13 Aug 2003 15:32:30 +0100 (BST)
+From: Hugh Dickins <hugh@veritas.com>
+Subject: Re: 2.6.0-test3-mm2
+In-Reply-To: <200308132302.26656.kernel@kolivas.org>
+Message-ID: <Pine.LNX.4.44.0308131529200.1558-100000@localhost.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Raghu R. Arur" <rra2002@aria.ncl.cs.columbia.edu>
-Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Andrew Morton <akpm@osdl.org>, Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 13 Aug 2003, Mel Gorman wrote:
+On Wed, 13 Aug 2003, Con Kolivas wrote:
+> Aug 13 22:54:58 pc kernel: kernel BUG at mm/filemap.c:1930!
 
-> Freed in try_to_swap_out() . There is no need to do anything with a clean
-> page, so it is just dropped from the page tables and page_cache_release()
-> is called. When the reference reaches 0, the page is reclaimed
->
+akpm (have you caught a moment when he's asleep?!) already posted
+the fix, saying it's a bogus BUG_ON which can be removed.
 
-Bah, this is wrong, shouldn't be let near e-mail in the morning. The
-freeing of a file-mapped page is actually two-stage.
+--- 2.6.0-test3-mm2/mm/filemap.c	Wed Aug 13 11:51:33 2003
++++ linux/mm/filemap.c	Wed Aug 13 15:26:36 2003
+@@ -1927,8 +1927,6 @@ generic_file_aio_write_nolock(struct kio
+ 	ssize_t ret;
+ 	loff_t pos = *ppos;
+ 
+-	BUG_ON(iocb->ki_pos != *ppos);
+-
+ 	if (!iov->iov_base && !is_sync_kiocb(iocb)) {
+ 		/* nothing to transfer, may just need to sync data */
+ 		ret = iov->iov_len; /* vector AIO not supported yet */
 
-try_to_swap_out() will unmap the file-backed page from a process page
-table. Once there are no processes mapping the page, the only user in
-page->count will be the page cache. It stays in the page cache until it is
-reclaimed later by shrink_cache().
-
--- 
-Mel Gorman
-http://www.csn.ul.ie/~mel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
