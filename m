@@ -1,46 +1,49 @@
-Received: from fred.muc.de (noidentity@ns2008.munich.netsurf.de [195.180.232.8])
-	by kvack.org (8.8.7/8.8.7) with SMTP id JAA01310
-	for <linux-mm@kvack.org>; Mon, 26 Apr 1999 09:47:22 -0400
-Message-ID: <19990426154524.A749@kali.munich.netsurf.de>
-Date: Mon, 26 Apr 1999 15:45:24 +0200
-From: Andi Kleen <ak@muc.de>
+Received: from alogconduit1ah.ccr.net (ccr@alogconduit1ao.ccr.net [208.130.159.15])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA02361
+	for <linux-mm@kvack.org>; Mon, 26 Apr 1999 10:42:30 -0400
 Subject: Re: 2.2.6_andrea2.bz2
-References: <Pine.LNX.4.05.9904252047530.7477-100000@laser.random> <m1yajfg61n.fsf@flinx.ccr.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <m1yajfg61n.fsf@flinx.ccr.net>; from Eric W. Biederman on Mon, Apr 26, 1999 at 10:05:56AM +0200
+References: <Pine.LNX.4.05.9904261505080.414-100000@laser.random>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 26 Apr 1999 09:44:36 -0500
+In-Reply-To: Andrea Arcangeli's message of "Mon, 26 Apr 1999 15:06:40 +0200 (CEST)"
+Message-ID: <m1so9nfnl7.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>, Andrea Arcangeli <andrea@e-mind.com>
-Cc: Chuck Lever <cel@monkey.org>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 26, 1999 at 10:05:56AM +0200, Eric W. Biederman wrote:
-> >>>>> "AA" == Andrea Arcangeli <andrea@e-mind.com> writes:
-> 
-> >>> o	update_shared_mappings (will greatly improve performances while
-> >>> writing from many task to the same shared memory).
-> >> 
-> >> do you have performance numbers on this?
-> 
-> AA> The performance optimization can be huge.
-> 
-> AA> The reason this my code is not in the kernel is not because it's buggy but
-> AA> simple because there are plans for 2.3.x (no-way for 2.2.x) to allow the
-> AA> file cache to be dirty (to cache also writes and not only read in the page
-> AA> cache).
-> 
-> Andrea.  The plan (at least my plan) is not to have 2 layers of buffers.
-> Instead it is to do all of the caching (except for perhaps superblocks, and their
-> kin in the page cache).  brw_page will be used for both reads and writes, with
-> anonymouse buffer heads (at least for a start).
+>>>>> "AA" == Andrea Arcangeli <andrea@e-mind.com> writes:
 
-Stupid question: do you plan to cache fs metadata in the page cache too? 
-If yes, it is rather wasteful to use a 4K page for the usually block sized
-directories and other fs data like indirect blocks. How do you plan to 
-address this problem?
+AA> On 26 Apr 1999, Eric W. Biederman wrote:
+>> The real gain of this is not so much in the current cases we are fast at
+>> but for things like network, and compressed files (in general anything that
 
+AA> Could you produce an example (also "look at file.c" will be ok ;) to allow
+AA> me to see which are the issues with network and compressed files? Thanks.
 
--Andi
+The primary one is they can't use the buffer cache so they must roll their
+own caching mechanism.
+
+Look at the smbfs version of updatepage. (write through!)
+Look at e2compr which doesn't compress data until the file is closed!
+    It writes the data uncompressed, and then at iput time
+    rewrites the file compressed.
+Run a moderately early version of fat_cvf/dmsdos, before they found out how
+    to use the buffer cache, and watch it crawl on a read-only fs.
+nfs doesn't periodically flush dirty data, to keep the volume low.
+    It does flush on file close (which helps, and is as correct as possible
+    for nfs), but you can still find
+
+I haven't seen any provision in any of these roll your own solutions
+for flushing the dirty buffers when the system is low on memory.
+Etc.
+
+The point is that because there isn't a caching subsystem
+all of the filesystems above have to roll their own.  And because
+they roll their own the code is less polished than a solution which
+would work for all of them would be.
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
