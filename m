@@ -1,45 +1,54 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id AAA04216
-	for <linux-mm@kvack.org>; Wed, 17 Jun 1998 00:45:58 -0400
-Received: from mirkwood.dummy.home (root@anx1p6.phys.uu.nl [131.211.33.95])
-	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id GAA07347
-	for <linux-mm@kvack.org>; Wed, 17 Jun 1998 06:45:54 +0200 (MET DST)
-Received: from localhost (riel@localhost)
-	by mirkwood.dummy.home (8.9.0/8.9.0) with SMTP id AAA06878
-	for <linux-mm@kvack.org>; Wed, 17 Jun 1998 00:10:08 +0200
-Date: Wed, 17 Jun 1998 00:10:07 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: PTE chaining, kswapd and swapin readahead
-Message-ID: <Pine.LNX.3.96.980617000413.6859C-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA05551
+	for <linux-mm@kvack.org>; Wed, 17 Jun 1998 06:26:36 -0400
+Subject: Re: PTE chaining, kswapd and swapin readahead
+References: <Pine.LNX.3.96.980617000413.6859C-100000@mirkwood.dummy.home>
+From: ebiederm+eric@npwt.net (Eric W. Biederman)
+Date: 17 Jun 1998 04:24:17 -0500
+In-Reply-To: Rik van Riel's message of Wed, 17 Jun 1998 00:10:07 +0200 (CEST)
+Message-ID: <m17m2gz8hq.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: Linux MM <linux-mm@kvack.org>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+>>>>> "RR" == Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
 
-In the PTE chaining discussion/patches a while ago, I saw
-that kswapd was changed in a way that it scanned memory
-in physical order instead of walking the pagetables.
+RR> Hi,
+RR> In the PTE chaining discussion/patches a while ago, I saw
+RR> that kswapd was changed in a way that it scanned memory
+RR> in physical order instead of walking the pagetables.
 
-This has the advantage of deallocating memory in physically
-adjecant chunks, which will be nice while we still have the
-primitive buddy allocator we're using now.
+RR> This has the advantage of deallocating memory in physically
+RR> adjecant chunks, which will be nice while we still have the
+RR> primitive buddy allocator we're using now.
 
-However, it will be a major performance bottleneck when we
-get around to implementing the zone allocator and swapin
-readahead. This is because we don't need physical deallocation
-with the zone allocatore and because swapin readahead is just
-an awful lot faster when the pages are contiguous in swap.
+Also it has the advantage that shared pages are only scanned once, and
+empty address space needn't be scanned.
 
-I write this to let the PTE people (Stephen and Ben) know
-that they probably shouldn't remove the pagetable walking
-routines from kswapd...
+RR> However, it will be a major performance bottleneck when we
+RR> get around to implementing the zone allocator and swapin
+RR> readahead. This is because we don't need physical deallocation
+RR> with the zone allocatore and because swapin readahead is just
+RR> an awful lot faster when the pages are contiguous in swap.
 
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+Just what is your zone allocator?  I have a few ideas based on the
+name but my ideas don't seem to jive with your descriptions.
+This part about not needing physically contigous memory is really
+puzzling.
+
+RR> I write this to let the PTE people (Stephen and Ben) know
+RR> that they probably shouldn't remove the pagetable walking
+RR> routines from kswapd...
+
+If we get around to using a true LRU algorithm we aren't too likely
+too to swap out address space adjacent pages...  Though I can see the
+advantage for pages of the same age.
+
+Also for swapin readahead the only effective strategy I know is to
+implement a kernel system call, that says I'm going to be accessing
+this chunck of my address space soon.  The clustering people have
+already implemented a system call of this nature for their own use.
+It would probably be a good idea to do something similiar...
+
+Eric
