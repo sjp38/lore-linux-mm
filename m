@@ -1,33 +1,29 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id EAA11352
-	for <linux-mm@kvack.org>; Sat, 9 Jan 1999 04:55:41 -0500
-Date: Sat, 9 Jan 1999 09:55:25 GMT
-Message-Id: <199901090955.JAA05820@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA12076
+	for <linux-mm@kvack.org>; Sat, 9 Jan 1999 07:31:06 -0500
+Date: Sat, 9 Jan 1999 13:11:45 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Subject: Re: arca-vm-8 [Re: [patch] arca-vm-6, killed kswapd [Re: [patch] new-vm , improvement , [Re: 2.2.0 Bug summary]]]
+In-Reply-To: <199901090213.CAA05306@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.96.990109131032.1224D-100000@laser.bogus>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH] MM fix & improvement
-In-Reply-To: <87k8yw295p.fsf@atlas.CARNet.hr>
-References: <87k8yw295p.fsf@atlas.CARNet.hr>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Zlatko.Calusic@CARNet.hr
-Cc: Linus Torvalds <torvalds@transmeta.com>, Linux-MM List <linux-mm@kvack.org>, Linux Kernel List <linux-kernel@vger.rutgers.edu>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sat, 9 Jan 1999, Stephen C. Tweedie wrote:
 
-On 09 Jan 1999 08:32:50 +0100, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-said:
+> couple of years at least: a large write() to a mmap()ed file can
+> deadlock for a similar reason, but on the inode write lock instead of
+> the superblock lock.
 
-> 1) Til' now, writing to swap files & partitions was clustered 
-> in 128kb chunks which is too small, especially now when we have swapin 
-> readahead (default 64kb). 
+Right. Look at the Oops report I generated at deadlock time and you'll see
+that my kernel deadlocked in filemap_write_page() on the inode semaphore. 
 
-Right --- it's not actually the write clustering, but the allocation
-clustering which was the problem.  Well spotted.
+Andrea Arcangeli
 
---Stephen
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
