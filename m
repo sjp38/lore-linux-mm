@@ -1,42 +1,34 @@
-Message-ID: <3D48504B.9520455D@zip.com.au>
-Date: Wed, 31 Jul 2002 14:02:03 -0700
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
+Date: Wed, 31 Jul 2002 17:14:56 -0400
+From: Benjamin LaHaise <bcrl@redhat.com>
 Subject: Re: throttling dirtiers
-References: <3D479F21.F08C406C@zip.com.au> <20020731200612.GJ29537@holomorphy.com> <20020731162357.Q10270@redhat.com>
+Message-ID: <20020731171456.S10270@redhat.com>
+References: <3D479F21.F08C406C@zip.com.au> <20020731200612.GJ29537@holomorphy.com> <20020731162357.Q10270@redhat.com> <3D48504B.9520455D@zip.com.au>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <3D48504B.9520455D@zip.com.au>; from akpm@zip.com.au on Wed, Jul 31, 2002 at 02:02:03PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@redhat.com>
+To: Andrew Morton <akpm@zip.com.au>
 Cc: William Lee Irwin III <wli@holomorphy.com>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Benjamin LaHaise wrote:
+On Wed, Jul 31, 2002 at 02:02:03PM -0700, Andrew Morton wrote:
+> But let's back off a bit.   The problem is that a process
+> doing a large write() can penalise innocent processes which
+> want to allocate memory.
 > 
-> On Wed, Jul 31, 2002 at 01:06:12PM -0700, William Lee Irwin III wrote:
-> > I'm not a fan of this kind of global decision. For example, I/O devices
-> > may be fast enough and memory small enough to dump all memory in < 1s,
-> > in which case dirtying most or all of memory is okay from a latency
-> > standpoint, or it may take hours to finish dumping out 40% of memory,
-> > in which case it should be far more eager about writeback.
-> 
-> Why?  Filling the entire ram with dirty pages is okay, and in fact you
-> want to support that behaviour for apps that "just fit" (think big
-> scientific apps).  The only interesting point is that when you hit the
-> limit of available memory, the system needs to block on *any* io
-> completing and resulting in clean memory (which is reasonably low
-> latency), not a specific io which may have very high latency.
-> 
+> How to fix that?
 
-I hear what you say.  Sometimes we want to allow a lot of
-writeback buffering.  But sometimes we don't.
+First off, make it obvious where we block in the allocation path (pawning 
+off all memory reaping to kswapd et al is an easy first step here).  Then 
+make allocators cycle through on a FIFO basis by using something like the 
+page reservation patch I came up with a while ago.  That'll give us an 
+easy place to change scheduling behaviour.
 
-But let's back off a bit.   The problem is that a process
-doing a large write() can penalise innocent processes which
-want to allocate memory.
-
-How to fix that?
+		-ben
+-- 
+"You will be reincarnated as a toad; and you will be much happier."
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
