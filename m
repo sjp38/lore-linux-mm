@@ -1,39 +1,29 @@
-Date: Wed, 26 Nov 2003 12:20:36 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] Clear dirty bits etc on compound frees
-Message-Id: <20031126122036.6389c773.akpm@osdl.org>
-In-Reply-To: <22420000.1069877625@[10.10.2.4]>
-References: <22420000.1069877625@[10.10.2.4]>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: 2.6.0-test10-mm1
+From: Arjan van de Ven <arjan@fenrus.demon.nl>
+In-Reply-To: <20031126190718.GB1566@mis-mike-wstn.matchmail.com>
+References: <20031125211518.6f656d73.akpm@osdl.org>
+	 <20031126085123.A1952@infradead.org>
+	 <20031126044251.3b8309c1.akpm@osdl.org>
+	 <20031126130936.A5275@infradead.org>
+	 <20031126052900.17542bb3.akpm@osdl.org>
+	 <20031126132505.C5477@infradead.org>
+	 <20031126190718.GB1566@mis-mike-wstn.matchmail.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Message-Id: <1069885712.5219.4.camel@laptop.fenrus.com>
+Mime-Version: 1.0
+Date: Wed, 26 Nov 2003 23:28:33 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: linux-mm@kvack.org, guillaume@morinfr.org
+To: Mike Fedyk <mfedyk@matchmail.com>
+Cc: Christoph Hellwig <hch@infradead.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Martin J. Bligh" <mbligh@aracnet.com> wrote:
->
-> Guillaume noticed this on s390 whilst writing a driver that used
-> compound pages. Seems correct to me, I've tested it on i386 as
-> well. The patch just makes us call free_pages_check for each element
-> of a compound page.
-> 
-> diff -purN -X /home/mbligh/.diff.exclude virgin/mm/page_alloc.c clear_dirty/mm/page_alloc.c
-> --- virgin/mm/page_alloc.c	2003-10-14 15:50:36.000000000 -0700
-> +++ clear_dirty/mm/page_alloc.c	2003-11-26 10:36:04.000000000 -0800
-> @@ -267,8 +267,11 @@ free_pages_bulk(struct zone *zone, int c
->  void __free_pages_ok(struct page *page, unsigned int order)
->  {
->  	LIST_HEAD(list);
-> +	int i;
->  
->  	mod_page_state(pgfree, 1 << order);
-> +	for (i = 0 ; i < (1 << order) ; ++i)
-> +		free_pages_check(__FUNCTION__, page + i);
+> Are you trying to say that something that was ported from AIX is a derived
+> work because it has to read kernel internals to get its job done?
 
-hmm.  How did the dirty bit get itself set?
+part of it certainly can be. The part that glues directly to linux,
+since I doubt the code just plugged in ...
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
