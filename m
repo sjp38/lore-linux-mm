@@ -1,47 +1,41 @@
-Received: from ucla.edu ([149.142.156.27])
-	by panther.noc.ucla.edu (8.9.1a/8.9.1) with ESMTP id MAA18716
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2001 12:52:49 -0800 (PST)
-Message-ID: <3A5E1D21.2DDB492C@ucla.edu>
-Date: Thu, 11 Jan 2001 12:52:49 -0800
-From: Benjamin Redelings I <bredelin@ucla.edu>
-MIME-Version: 1.0
 Subject: Re: pre2 swap_out() changes
+References: <Pine.LNX.4.10.10101111046020.2388-100000@penguin.transmeta.com>
+Reply-To: zlatko@iskon.hr
+From: Zlatko Calusic <zlatko@iskon.hr>
+Date: 12 Jan 2001 12:35:32 +0100
+In-Reply-To: Linus Torvalds's message of "Thu, 11 Jan 2001 10:49:10 -0800 (PST)"
+Message-ID: <87itnlovej.fsf@atlas.iskon.hr>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Does this make sensee,specially, the last two lines?
-	Maybe 2.4.1-pre3 will shed some light, but I see that Marcelo basically
-reverted this in his patch this morning...
+Linus Torvalds <torvalds@transmeta.com> writes:
 
--	onlist = PageActive(page);
- 	/* Don't look at this pte if it's been accessed recently. */
- 	if (ptep_test_and_clear_young(page_table)) {
--		age_page_up(page);
--		goto out_failed;
-+		page->age += PAGE_AGE_ADV;
-+		if (page->age > PAGE_AGE_MAX)
-+			page->age = PAGE_AGE_MAX;
-+		return;
- 	}
--	if (!onlist)
--		/* The page is still mapped, so it can't be freeable... */
--		age_page_down_ageonly(page);
--
--	/*
--	 * If the page is in active use by us, or if the page
--	 * is in active use by others, don't unmap it or
--	 * (worse) start unneeded IO.
--	 */
--	if (page->age > 0)
--		goto out_failed;
+> On Thu, 11 Jan 2001, Marcelo Tosatti wrote:
+> > 
+> > Since no process calls swap_out() directly, I dont see any sense on the
+> > comment above. 
+> 
+> Stage #2 is to allow them to call refill_inactive() in the low-memory case
+> (right now processes can only do "page_launder()" in alloc_pages(), and I
+> think that is wrong - it means that the only one scanning page tables etc
+> is kswapd)
+> 
 
--BenRI
+Performance of 2.4.0-pre2 is terrible as it is now. There is a big
+performance drop from 2.4.0. Simple test (that is not excessively
+swapping, I remind) shows this:
+
+2.2.17     -> make -j32  392.49s user 47.87s system 168% cpu 4:21.13 total
+2.4.0      -> make -j32  389.59s user 31.29s system 182% cpu 3:50.24 total
+2.4.0-pre2 -> make -j32  393.32s user 138.20s system 129% cpu 6:51.82 total
+
 -- 
-q
+Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
