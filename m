@@ -1,68 +1,86 @@
-Received: from inergen.sybase.com (inergen.sybase.com [192.138.151.43])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA28218
-	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 12:54:21 -0500
-Received: from smtp2.sybase.com (sybgate2.sybase.com [130.214.88.21])
-          by inergen.sybase.com (8.8.4/8.8.4) with ESMTP
-	  id JAA05686 for <linux-mm@kvack.org>; Wed, 27 Jan 1999 09:55:39 -0800 (PST)
-Received: from chicago_notes_1.sybase.com (chicago-notes-1.sybase.com [157.133.46.3])
-          by smtp2.sybase.com (8.8.4/8.8.4) with SMTP
-	  id JAA12765 for <linux-mm@kvack.org>; Wed, 27 Jan 1999 09:54:12 -0800 (PST)
-Message-ID: <36AF51EE.711C8FC7@sybase.com>
-Date: Wed, 27 Jan 1999 11:50:38 -0600
-From: Jason Froebe <jfroebe@sybase.com>
+Received: from localhost.localdomain (groudier@ppp-104-238.villette.club-internet.fr [194.158.104.238])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA29551
+	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 15:07:30 -0500
+Date: Wed, 27 Jan 1999 21:11:45 +0100 (MET)
+From: Gerard Roudier <groudier@club-internet.fr>
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <199901271605.QAA05048@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.95.990127204123.386B-100000@localhost>
 MIME-Version: 1.0
-Subject: Shared memory segment > 1gb
-Content-Type: multipart/mixed;
- boundary="------------349FC7D7921295F50568EDC2"
+Content-Type: TEXT/PLAIN; charset=ISO-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Thomas Sailer <sailer@ife.ee.ethz.ch>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------349FC7D7921295F50568EDC2
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 
-Hi,
+On Wed, 27 Jan 1999, Stephen C. Tweedie wrote:
 
-I'm trying to get a shared memory segment of just under 2 gb.  So
-far, I've been able to get a 893mb shared segment by altering the
-_SHM_IDX_BITS to 18 in include/asm/shmparam.h using the 2.2.0
-kernel.  I'm assuming I can set the _SHM_IDX_BITS to 19 without a
-problem (more overhead though), but since this is my "working"
-computer, I don't want any surprises.  is this possible without
-breaking something?  I glanced at the code but didn't see any
-obvious "gotchas".
+> Hi,
+> 
+> On Tue, 26 Jan 1999 21:48:59 +0100 (MET), Gerard Roudier
+> <groudier@club-internet.fr> said:
+> 
 
-Don't ask why I don't use multiple segments.  It's not my
-decision.
+[ ... ]
 
-Jason
+> > There are bunches of things that are widespread used nowadays and that 
+> > should have disappeard since years if people were a bit more concerned 
+> > by technical and progress considerations.
+> 
+> Yes.  I see what you mean.  We should immediately remove Linux support
+> for FAT filesystems, the ISA bus and 8086 virtual mode.
+> 
+> Not.
 
---------------349FC7D7921295F50568EDC2
-Content-Type: text/x-vcard; charset=us-ascii;
- name="jfroebe.vcf"
-Content-Transfer-Encoding: 7bit
-Content-Description: Card for Jason Froebe
-Content-Disposition: attachment;
- filename="jfroebe.vcf"
+AFAIK, it is what M$$ is intending to do. If the Linux strategy is to be 
+the greatest O/S for obsolete hardware, we can support that stuff years
+after M$$ has dropped the support of it.
 
-begin:vcard 
-n:Froebe;Jason
-tel;fax:773-864-7288
-tel;work:1-800-8SYBASE
-x-mozilla-html:TRUE
-url:http://www.sybase.com
-org:Sybase, Inc.;Technical Support
-adr:;;8755 W. Higgins Road Suite 1000	;Chicago;IL;60631;USA
-version:2.1
-email;internet:jfroebe@sybase.com
-title:Technical Support Engineer
-x-mozilla-cpt:;20256
-fn:Jason Froebe
-end:vcard
+> > For example, it seems that 32 bits systems are not enough to provide a
+> > flat virtual addressing space far larger than the physical address space
+> > needed for applications (that was the primary goal of virtual memory
+> > invention).
+> 
+> *One* of the primary goals.  The other was protected multitasking.  The
+> x86 architecture today is perfectly well capable of supporting mutliple
+> 32-bit address spaces within a 36 bit (64GB) physical address space, and
+> large multiuser environments would benefit enormously from such an
+> environment.
 
---------------349FC7D7921295F50568EDC2--
+64 GB of memory needs 36 address lines. It is obvious to handle that on 64
+bit machines that exists since _years_, but very painfull on 32 bit
+addressing machines. Implementing complex algorithms for handling this
+stupidity is stupidity by itself.  32 bit VM architecture is a 25 years
+old technology. The fact that it still exists nowadays is because the
+market place was more concerned by $$ than by real progress.  If the PC
+market had started in 1980, then it might have happen that modern PCs
+would use rather Z80s type processors at something like 1 GHZ that 32 bit
+PII at 400 MHz.
+
+Just thinking of the ridiculous price fast 32 bits processors are sold
+today is the proof, in my opinion, that 32 bit is definitely _dead_.
+People that still want to make efforts for that stuff are just stupid, in
+my opinion. 
+
+> > A device that requires more contiguous space than 1 PAGE for its 
+> > support is crap. 
+> 
+> So?  IDE is crap because it doesn't support multiple outstanding
+
+Indeed.
+
+> commands.  If you honestly believe that this means we should remove IDE
+> support from the kernel, then you are living on another planet where
+> getting real work done by real users doesn't matter.  Fact is, we _can_
+> support this stuff, and users want us to.
+
+I live on the euro-planet and yours is just a satellit. :-))
+
+Regards,
+   Gerard.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
