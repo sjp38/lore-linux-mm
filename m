@@ -1,53 +1,29 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA01589
-	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 14:42:28 -0500
-Date: Sun, 31 Jan 1999 02:00:55 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
-In-Reply-To: <m1yamkv6wp.fsf@flinx.ccr.net>
-Message-ID: <Pine.LNX.3.96.990131015437.303F-100000@laser.bogus>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA01948
+	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 14:53:00 -0500
+Received: from mirkwood.dummy.home (root@anx1p5.phys.uu.nl [131.211.33.94])
+	by max.phys.uu.nl (8.9.1/8.9.1/hjm) with ESMTP id UAA06504
+	for <linux-mm@kvack.org>; Mon, 1 Feb 1999 20:52:58 +0100 (MET)
+Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with ESMTP id UAA03861 for <linux-mm@kvack.org>; Mon, 1 Feb 1999 20:52:29 +0100
+Date: Mon, 1 Feb 1999 20:52:29 +0100 (CET)
+From: Rik van Riel <riel@nl.linux.org>
+Subject: www archive test
+Message-ID: <Pine.LNX.4.03.9902012052050.6909-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: linux-mm@kvack.org
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 30 Jan 1999, Eric W. Biederman wrote:
+Well, something was seriously wrong :(
 
-> I have a count incremented on the task so the task_struct won't go away.
-> tsk->mm at any point in time _always_ points to a valid mm.
+sorry about this message.
 
-You must think this:
-
-	CPU0				CPU1
-	/proc				task1
-	------------			----------------
-	is task1->mm valid?
-	answer -> yes!!
-	mm = task1->mm
-	IRQ14 (disk I/O completed)
-	...
-					__exit_mm()
-					_dealloc_ task1->mm kmem_cache_free(mm)
-					task1->mm = &init_mm
-	...
-	mm->count++
-	^^^^^^^^^^^ you are writing data on random kernel space
-
-Right now this can't happen because both /proc and __exit_mm() are
-synchronized by the big kernel lock.
-
-> 	do {	
-> 		mm = tsk->mm;
-> 	} while (!atomic_inc_and_test(&mm->count);
-
-The point is that you can't increment and test a mm->count if you are not
-sure that the mm exists on such piece of memory. And if you are sure that
-such piece of memory exists you don't need to check it and you can only
-increment it ;). Do you see my point now?
-
-Andrea Arcangeli
+Rik -- If a Microsoft product fails, who do you sue?
++-------------------------------------------------------------------+
+| Linux Memory Management site:  http://humbolt.geo.uu.nl/Linux-MM/ |
+| Nederlandse Linux documentatie:          http://www.nl.linux.org/ |
++-------------------------------------------------------------------+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
