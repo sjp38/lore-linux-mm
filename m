@@ -1,47 +1,41 @@
-Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA10134
-	for <linux-mm@kvack.ORG>; Thu, 28 Jan 1999 14:16:08 -0500
-Date: Thu, 28 Jan 1999 11:11:49 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
+Received: from snowcrash.cymru.net (snowcrash.cymru.net [163.164.160.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA10191
+	for <linux-mm@kvack.ORG>; Thu, 28 Jan 1999 14:20:04 -0500
+Message-Id: <m105xmP-0007U1C@the-village.bc.nu>
+From: alan@lxorguk.ukuu.org.uk (Alan Cox)
 Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
-In-Reply-To: <m105x2f-0007U2C@the-village.bc.nu>
-Message-ID: <Pine.LNX.3.95.990128110737.6130B-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 28 Jan 1999 20:11:09 +0000 (GMT)
+In-Reply-To: <Pine.LNX.3.95.990128110737.6130B-100000@penguin.transmeta.com> from "Linus Torvalds" at Jan 28, 99 11:11:49 am
+Content-Type: text
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: sct@redhat.com, andrea@e-mind.com, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, davem@dm.COBALTMICRO.COM, gandalf@szene.CH, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.COM, djf-lists@ic.NET, tomh@taz.ccs.fau.edu, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: alan@lxorguk.ukuu.org.uk, sct@redhat.com, andrea@e-mind.com, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, davem@dm.COBALTMICRO.COM, gandalf@szene.CH, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.COM, djf-lists@ic.NET, tomh@taz.ccs.fau.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+This is the first of two "people fixes" - this isnt so major the 2nd is
 
-On Thu, 28 Jan 1999, Alan Cox wrote:
-> 
-> (c) you can check if the thing has disappeared after using it and clear
-> the buffer if so.
+o	Fix Erik Andersen's email
 
-Yes, but the problem is that when there _is_ stale data (unlikely), you
-can actually do the wrong thing before.
 
-Incrementing the page counter should fix all problems, but it's such a
-subtle fix (even though it's essentially just a few one-liners) that I'm
-not going to do it for 2.2.1, which I want to get out later today. 
+diff -u --new-file --recursive --exclude-from ../exclude linux.vanilla/CREDITS linux.ac/CREDITS
+--- linux.vanilla/CREDITS	Sun Jan 24 19:55:28 1999
++++ linux.ac/CREDITS	Wed Jan 27 19:07:38 1999
+@@ -49,12 +49,12 @@
+ 
+ N: Erik Andersen
+ E: andersee@debian.org
+-W: http://www.inconnect.com/~andersen
++W: http://www.xmission.com/~andersen
+ P: 1024/FC4CFFED 78 3C 6A 19 FA 5D 92 5A  FB AC 7B A5 A5 E1 FF 8E
+ D: Maintainer of ide-cd and Uniform CD-ROM driver, 
+ D: ATAPI CD-Changer support, Major 2.1.x CD-ROM update.
+ S: 4538 South Carnegie Tech Street
+-S: West Valley City, Utah 84120
++S: Salt Lake City, Utah 84120
+ S: USA
+ 
+ N: H. Peter Anvin
 
-Alan, the only patch I don't have that looks likely for 2.2.1 is the
-IDE-SCSI thing. Did you have that somewhere?
-
-Right now my 2.2.1 patches are:
- - the stupid off-by-one bug found by Ingo
- - __down_interruptible on alpha
- - move "esstype" to outside a #ifdef MODULE
- - NFSD rename/rmdir fixes
- - revert to old array.c
- - change comment about __PAGE_OFFSET
- - missing "vma = NULL" case for avl find_vma()
-
-Holler now or forever hold your peace, because I'd like to get the thing
-out in a few hours. 
-
-		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
