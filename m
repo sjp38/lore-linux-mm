@@ -1,44 +1,38 @@
-Date: Sat, 3 Jun 2000 17:47:37 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] VM kswapd autotuning vs. -ac7
-In-Reply-To: <qwwhfbbw31s.fsf@sap.com>
-Message-ID: <Pine.LNX.4.21.0006031746410.5754-100000@duckman.distro.conectiva>
+Date: Sat, 3 Jun 2000 14:32:19 -0700 (PDT)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: 2.3.x swap cache seems to be a big leak
+In-Reply-To: <200004251203.FAA04709@pizda.ninka.net>
+Message-ID: <Pine.LNX.4.21.0006031428010.7928-100000@inspiron.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Rohland <cr@sap.com>
-Cc: linux-mm@kvack.org
+To: "David S. Miller" <davem@redhat.com>
+Cc: sct@redhat.com, torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 3 Jun 2000, Christoph Rohland wrote:
-> Rik van Riel <riel@conectiva.com.br> writes:
-> > On 2 Jun 2000, Christoph Rohland wrote:
-> > 
-> > > This patch still does not allow swapping with shm. Instead it
-> > > kills all runnable processes without message.
-> 
-> Simply by running 
-> 
-> ./ipctst 10 666000000 10 31 20&
-> ./ipctst 16 666000000 2 31 20&     
-> 
-> But I have to correct me. It does not kill all runnable
-> processes, but all I am using like ipctst, vmstat and xterm.
+On Tue, 25 Apr 2000, David S. Miller wrote:
 
-Patch #2 indeed had a big bug that made all systems crash instead
-of use swap (missing braces next to a goto), does patch #3 give you
-the same behaviour?
+>__delete_from_swap_cache depends upon remove_inode_page doing
+>a put_page or similar to kill the reference of the swap cache
+>itself
 
-regards,
+__delete_from_swap_cache must not decrease the reference count.
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+>We changed remove_inode_page during the page cache rewrite such
+>that is no longer puts the page, the caller does.
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+shrink_mmap does in the made_inode_progress path (first release the swap
+cache reference and then frees the page by issuing two put_page).
+
+>So if I haven't missed something clever going on here, this would
+>explain a lot of problems people have reported with swapping making
+>their machines act weird and eventually run out of ram.
+
+That's because the MM balancing is broken. Try to reproduce with the
+classzone patch applied.
+
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
