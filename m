@@ -1,55 +1,61 @@
-Subject: Re: 2.5.59-mm8
-From: Arjan van de Ven <arjanv@redhat.com>
-Reply-To: arjanv@redhat.com
-In-Reply-To: <20030203233156.39be7770.akpm@digeo.com>
-References: <20030203233156.39be7770.akpm@digeo.com>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-cP/ofPZhVrjNA8EDpk7+"
-Message-Id: <1044351186.1421.2.camel@laptop.fenrus.com>
-Mime-Version: 1.0
-Date: 04 Feb 2003 10:33:06 +0100
+Subject: Re: hugepage patches
+References: <20030131151501.7273a9bf.akpm@digeo.com>
+	<20030202025546.2a29db61.akpm@digeo.com>
+	<20030202195908.GD29981@holomorphy.com>
+	<20030202124943.30ea43b7.akpm@digeo.com>
+	<m1n0ld1jvv.fsf@frodo.biederman.org>
+	<20030203132929.40f0d9c0.akpm@digeo.com>
+	<m1hebk1u8g.fsf@frodo.biederman.org>
+	<20030204055012.GD1599@holomorphy.com>
+	<m18yww1q5f.fsf@frodo.biederman.org>
+	<162820000.1044342992@[10.10.2.4]>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 04 Feb 2003 05:40:39 -0700
+In-Reply-To: <162820000.1044342992@[10.10.2.4]>
+Message-ID: <m1znpcz0ag.fsf@frodo.biederman.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, davem@redhat.com, rohit.seth@intel.com, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-cP/ofPZhVrjNA8EDpk7+
-Content-Type: text/plain
-Content-Transfer-Encoding: quoted-printable
+"Martin J. Bligh" <mbligh@aracnet.com> writes:
 
-On Tue, 2003-02-04 at 08:31, Andrew Morton wrote:
+> > O.k.  Then the code definitely needs to handle shared mappings..
+> 
+> Why? we just divided the pagetable size by a factor of 1000, so
+> the problem is no longer really there ;-)
 
-> . The reworked ia32 balancing patch from Nitin Kamble is stable, and is
->   consistently showing benefit for heavy networking loads on large SMP
->   machines.  Even though everyone seems to agree that a userspace solutio=
-n to
->   this is smarter, that's no reason to hold back on improving the
->   kernel-based solution so I shall be submitting that patch.
+William said one of the cases was to handle massively shared
+mappings.  You cannot create a massively shared mapping except by
+sharing.
 
-<shameless plug>
-A version of a proposed userspace solution can be found at
-http://people.redhat.com/arjanv/irqbalance/irqbalance-0.05.tar.gz
-</shameless plug>
+Did I misunderstand what was meant by a massively shared mapping?
 
-It's still relatively simple, but it has the buildingblocks for becoming
-more advanced.
+I can't imagine it being useful to guys like oracle without MAP_SHARED
+support....
 
-Greetings,
-   Arjan van de Ven
+> >> Well, in theory there's some kind of TLB benefit, but the only thing
+> >> ppl really care about is x86 pagetable structure gets rid of L3 space
+> >> entirely so you don't burn 12+GB of L3 pagetables for appserver loads.
+> > 
+> > I am with the group that actually cares more about the TLB benefit.
+> > For HPC loads there is really only one application per machine.  And with
+> > just one page table, the only real advantage is the more efficient use
+> > of the TLB.  
+> 
+> The reason we don't see it much is that we mostly have P3's which only
+> have 4 entries for large pages. P4's would be much easier to demonstrate
+> such things on, and I don't think we've really tried very hard on that with
+> hugetlbfs (earlier Java work by the research group showed impressive
+> improvements on an earlier implementation).
 
---=-cP/ofPZhVrjNA8EDpk7+
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: This is a digitally signed message part
+Cool.  I have no doubt the benefit is there.    Measuring how large it
+is will certainly be interesting.
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.1 (GNU/Linux)
-
-iD8DBQA+P4jRxULwo51rQBIRApJEAJ9kNbutfBCdPltJe4D8v1YWPqmpcgCfUI/g
-1pPvozNSDUGzQtmMQIK65as=
-=yxqU
------END PGP SIGNATURE-----
-
---=-cP/ofPZhVrjNA8EDpk7+--
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
