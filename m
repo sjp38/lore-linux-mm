@@ -1,42 +1,37 @@
-Date: Sat, 19 Feb 2005 18:20:49 -0300
-Message-Id: <5.8.07.2081924.0083fc70@ies.edu>
-From: "Jaime Suarez" <ptkisk@nexxan.com>
-Subject: don`t waste that chance
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+Date: Mon, 14 Feb 2005 06:36:10 -0700
+Message-Id: <200410031463.i93RdyTw009446@www9.warnerreprise.com>
+From: "Isiah Gifford" <sparrow@savedatcash.com>
+Subject: Become a homeowner with low rates
+Mime-Version: 1.0
+Content-Type: text/plain;
+Return-Path: <sparrow@savedatcash.com>
+To: aart@kvack.org
+Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------ Original Message ----- 
-From: Sophie <macmillan13@hotmail.com> 
-To: bibliography1@msn.com <Sophie@msn.com> ; beltsvilleirreproachable@yahoo.com
-<hardtop4216@yahoo.com >; 
+Hello,
 
-Dear Homeowner,
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-Mortgage. You have been pre-approved.
-You can get $243,000 for as little as $232 a month, thanks to your pre-approval. 
-Visit us, Fill out the form, no obligation
-Pull cash out, or refinance.. 
-No long forms or quastionnaires. Fill up our extremely short and simple form today and get a call back within a couple of hours. 
+ You have qualified for the lowest rate in years...
 
-Start saving now, click that link:
+ You could get over $380,000 for as little as $500 a month!
 
-http://www.mortslow.net/index2.php?refid=vik
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.bestlenderz.com/x/loan.php?id=nu
 
 
 
+ Best Regards,
 
+ Adele Baird
+ 
+ to be remov(ed:	http://www.bestlenderz.com/x/st.html
 
-
-
-
-
-
-despicable ljm axle uqm gwyn qn rooftree cdd cortical gpm contractual ad 
-customary gz buddhist yc bonnet rvi bunch ab 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
