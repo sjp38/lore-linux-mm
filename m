@@ -1,37 +1,39 @@
-Date: Tue, 06 May 2003 07:20:51 -0700 (PDT)
-Message-Id: <20030506.072051.45141886.davem@redhat.com>
+Date: Tue, 6 May 2003 08:33:58 -0700
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.69-mm1
-From: "David S. Miller" <davem@redhat.com>
-In-Reply-To: <20030506152555.GC9875@in.ibm.com>
-References: <20030506110907.GB9875@in.ibm.com>
-	<1052222542.983.27.camel@rth.ninka.net>
-	<20030506152555.GC9875@in.ibm.com>
+Message-Id: <20030506083358.348edb4d.akpm@digeo.com>
+In-Reply-To: <1052231590.2166.141.camel@spc9.esa.lanl.gov>
+References: <20030504231650.75881288.akpm@digeo.com>
+	<1052231590.2166.141.camel@spc9.esa.lanl.gov>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: dipankar@in.ibm.com
-Cc: wli@holomorphy.com, akpm@digeo.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Steven Cole <elenstev@mesatop.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ebiederm@xmission.com
 List-ID: <linux-mm.kvack.org>
 
-   On Tue, May 06, 2003 at 05:02:22AM -0700, David S. Miller wrote:
-   > rwlocks believe it or not tend not to be superior over spinlocks,
-   > they actually promote cache line thrashing in the case they
-   > are actually being effective (>1 parallel reader)
-   
-   Provided there isn't a very heavy contention among readers for the
-   spin_lock.
+Steven Cole <elenstev@mesatop.com> wrote:
+>
+> I have one machine for testing which is running X, and a kexec reboot
+>  glitches the video system when initiated from runlevel 5.  Kexec works fine
+>  from runlevel 3.
 
-Even if there are thousands of readers trying to get the lock
-at the same time, unless your hold time is significant these
-readers will merely thrash the cache getting the rwlock_t.
-And then thrash it again to release the rwlock_t.
+Yes, there are a lot of driver issues with kexec.  Device drivers will assume
+that the hardware is in the state which the BIOS left behind.
 
-This is especially true if the spinlock lives in the same cache
-lines as the data it protects.
+In this case, the Linus device driver's shutdown functions are obviously not
+leaving the card in a pristine state.  A lot of drivers _do_ do this
+correctly.  But some don't.
 
-All of this is magnified on NUMA.
+It seems that kexec is really supposed to be invoked from run level 1.  ie:
+you run all your system's shutdown scripts before switching.  If you'd done
+that then you wouldn't have been running X and all would be well.
+
+do-kexec.sh is for the very impatient ;)
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
