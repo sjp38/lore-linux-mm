@@ -1,71 +1,55 @@
-Subject: Re: [Bugme-new] [Bug 2019] New: Bug from the mm
-	subsystem	involving X  (fwd)
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <5450000.1076082574@[10.10.2.4]>
-References: <51080000.1075936626@flay>
-	 <Pine.LNX.4.58.0402041539470.2086@home.osdl.org><60330000.1075939958@flay>
-	 <64260000.1075941399@flay><Pine.LNX.4.58.0402041639420.2086@home.osdl.org>
-	 <20040204165620.3d608798.akpm@osdl.org>
-	 <Pine.LNX.4.58.0402041719300.2086@home.osdl.org>
-	 <1075946211.13163.18962.camel@dyn318004bld.beaverton.ibm.com>
-	 <Pine.LNX.4.58.0402041800320.2086@home.osdl.org>
-	 <98220000.1076051821@[10.10.2.4]> <1076061476.27855.1144.camel@nighthawk>
-	 <5450000.1076082574@[10.10.2.4]>
-Content-Type: text/plain
-Message-Id: <1076088169.29478.2928.camel@nighthawk>
-Mime-Version: 1.0
-Date: 06 Feb 2004 09:22:49 -0800
+Message-ID: <4023D6C6.70401@lbl.gov>
+Date: Fri, 06 Feb 2004 10:02:46 -0800
+From: Thomas Davis <tadavis@lbl.gov>
+MIME-Version: 1.0
+Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat"
+References: <20040205014405.5a2cf529.akpm@osdl.org>
+In-Reply-To: <20040205014405.5a2cf529.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Linus Torvalds <torvalds@osdl.org>, Keith Mannthey <kmannth@us.ibm.com>, Andrew Morton <akpm@osdl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2004-02-06 at 07:49, Martin J. Bligh wrote:
-> >> +#ifdef CONFIG_NUMA
-> >> +	#ifdef CONFIG_X86_NUMAQ
-> >> +		#include <asm/numaq.h>
-> >> +	#else	/* summit or generic arch */
-> >> +		#include <asm/srat.h>
-> >> +	#endif
-> >> +#else /* !CONFIG_NUMA */
-> >> +	#define get_memcfg_numa get_memcfg_numa_flat
-> >> +	#define get_zholes_size(n) (0)
-> >> +#endif /* CONFIG_NUMA */
-> > 
-> > We ran into a bug with #ifdefs like this before.  It was fixed in some
-> > of the code that you're trying to remove.
-> 
-> What bug?
+I'm getting these:
 
-With a regular PC config, plus CONFIG_NUMA turned on:
-  CC      arch/i386/kernel/process.o
-In file included from include/asm/mmzone.h:17,
-                 from include/linux/mmzone.h:318,
-                 from include/linux/gfp.h:4,
-                 from include/linux/slab.h:15,
-                 from include/linux/percpu.h:4,
-                 from include/linux/sched.h:31,
-                 from include/linux/module.h:10,
-                 from init/do_mounts.c:1:
-include/asm/srat.h:31: #error CONFIG_ACPI_SRAT not defined, and srat.h
-header has been included
-In file included from include/asm/mmzone.h:17,
-                 from include/linux/mmzone.h:318,
-                 from include/linux/gfp.h:4,
-                 from include/linux/slab.h:15,
-                 from include/linux/percpu.h:4,
-                 from include/linux/rcupdate.h:42,
-                 from include/linux/dcache.h:10,
-                 from include/linux/fs.h:17,
-                 from init/do_mounts_initrd.c:3:
+irq 9: nobody cared!
+Call Trace:
+ [<c010c9e3>] __report_bad_irq+0x23/0x90
+ [<c010cac8>] note_interrupt+0x58/0x90
+ [<c010ce0b>] do_IRQ+0x16b/0x1a0
+ [<c02cb138>] common_interrupt+0x18/0x20
+ [<c026b30c>] sock_poll+0xc/0x20
+ [<c0173a91>] do_pollfd+0x91/0xa0
+ [<c0173aff>] do_poll+0x5f/0xc0
+ [<c0173cf4>] sys_poll+0x194/0x2b0
+ [<c0173080>] __pollwait+0x0/0xb0
+ [<c015fc9a>] sys_write+0x4a/0x50
+ [<c02ca1ba>] sysenter_past_esp+0x43/0x69
 
-I can post the config if you like.  You were the one who made me go fix
-it in the first place.  That's why I added that #error. :)
-
---dave
-
+handlers:
+[<c01cf136>] (acpi_irq+0x0/0x1a)
+Disabling IRQ #9
+[tdavis@lanshark tdavis]$ uname -a
+Linux lanshark 2.6.2-mm1 #1 SMP Thu Feb 5 15:50:03 PST 2004 i686 athlon i386 GNU/Linux
+[tdavis@lanshark tdavis]$ more /proc/interrupts
+           CPU0       CPU1
+  0:   27932291   27954246    IO-APIC-edge  timer
+  1:        638        497    IO-APIC-edge  i8042
+  2:          0          0          XT-PIC  cascade
+  8:          0          1    IO-APIC-edge  rtc
+  9:      53744      46258    IO-APIC-edge  acpi
+ 12:       7867       7708    IO-APIC-edge  i8042
+ 14:      60366      50315    IO-APIC-edge  ide0
+ 15:       9026       7688    IO-APIC-edge  ide1
+ 18:     160500          1   IO-APIC-level  eth0
+ 19:        839        790   IO-APIC-level  ICE1712
+NMI:          0          0
+LOC:   55890040   55890045
+ERR:          0
+MIS:          0
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
