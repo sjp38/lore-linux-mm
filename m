@@ -1,44 +1,47 @@
-Received: from root by main.gmane.org with local (Exim 3.35 #1 (Debian))
-	id 1BXIKj-0001Yn-00
-	for <linux-mm@kvack.org>; Mon, 07 Jun 2004 13:30:29 +0200
-Received: from 61.16.153.178 ([61.16.153.178])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 07 Jun 2004 13:30:29 +0200
-Received: from linux by 61.16.153.178 with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Mon, 07 Jun 2004 13:30:29 +0200
-From: Nirendra Awasthi <linux@nirendra.net>
-Subject: Determining if process is having core dump
-Date: Mon, 07 Jun 2004 15:51:38 +0530
-Message-ID: <ca1fk9$92t$3@sea.gmane.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Mon, 7 Jun 2004 08:04:09 -0400 (EDT)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: mmap() > phys mem problem
+In-Reply-To: <40C3E80E.1030200@yahoo.com.au>
+Message-ID: <Pine.LNX.4.44.0406070800380.29273-100000@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Ron Maeder <rlm@orionmulti.com>, Rik van Riel <riel@surriel.com>, linux-mm@kvack.org, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-	Is there a way for a unrelated process to determine if another process 
-is exiting and is in the state of having core dump.
+On Mon, 7 Jun 2004, Nick Piggin wrote:
 
-		In solaris, this can be determined using libkvm(checking process flags 
-for SDOCORE and COREDUMP). Is there a way to do this in linux 2.6
+> Well, no there isn't enough memory available: order 0 allocations
+> keep failing in the RX path (I assume each time the server retransmits)
+> and the machine is absolutely deadlocked.
 
-	One of the things I observed is flag in /proc/<pid>/stat (9th 
-attribute) is set to non-zero after process receives a signal to quit 
-after core dump (SIGABRT, SIGQUIT etc.). Is it an indication that 
-process is going to exit or what does it indicates.
-	
-	Is there some other way to determine this. I don't want to limit size 
-of core file to 0 using ulimit, as this file is required to be analyzed 
-later.
-	Also, while process is exiting and it receives another signal, it is 
-corrupting the core dump.
+Yes, but did the memory get exhausted by the RX path itself,
+or by something else that's allocating the last system memory?
 
--Nirendra
+If the memory exhaustion is because of something else, a
+mempool for the RX path might alleviate the situation.
+
+> > The theoretically perfect fix is to have a little mempool for
+> > every critical socket.  That is, every NFS mount, e/g/nbd block
+> > device, etc...
+
+> It would be cool if someone were able to come up with a formula
+> to capture that, and allow sockets to be marked as MEMALLOC to
+> enable mempool allocation.
+
+A per-socket mempool I guess.  At creation of a MEMALLOC
+socket you'd set up the mempool, and the same mempool
+would get destroyed when the socket is closed.
+
+Then all memory allocations for that socket go via the
+mempool.
+
+-- 
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
