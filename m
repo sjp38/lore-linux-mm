@@ -1,37 +1,42 @@
-Date: Fri, 9 May 2003 08:57:48 -0400 (EDT)
-From: Bill Davidsen <davidsen@tmr.com>
-Subject: Re: 2.5.69-mm2 Kernel panic, possibly network related
-In-Reply-To: <1052304024.9817.3.camel@rth.ninka.net>
-Message-ID: <Pine.LNX.3.96.1030509085607.26434U-100000@gatekeeper.tmr.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 9 May 2003 19:40:12 +0530
+From: Dipankar Sarma <dipankar@in.ibm.com>
+Subject: Re: 2.5.69-mm3
+Message-ID: <20030509141012.GD2059@in.ibm.com>
+Reply-To: dipankar@in.ibm.com
+References: <20030508013958.157b27b7.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030508013958.157b27b7.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: Helge Hafting <helgehaf@aitel.hist.no>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7 May 2003, David S. Miller wrote:
-
-> On Wed, 2003-05-07 at 03:10, Helge Hafting wrote:
-> > 2.5.69-mm1 is fine, 2.5.69-mm2 panics after a while even under very
-> > light load.
+On Thu, May 08, 2003 at 08:41:12AM +0000, Andrew Morton wrote:
+> http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.69-mm3.gz
 > 
-> Do you have AF_UNIX built modular?
+>   Will appear sometime at
 > 
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm3/
+> 
+> 
+> Small things.  Mainly a resync for various people...
+> 
+> rcu-stats.patch
+>   RCU statistics reporting
 
-This may be the same thing reported in
-<20030505144808.GA18518@butterfly.hjsoft.com> earlier, it seems to happen
-in 2.5.69 base. Interesting that he has it working in mm1, perhaps the
-module just didn't get loaded.
+I am wondering what we should do with this patch. The RCU stats display
+the #s of RCU requests and actual updates on each CPU. On a normal system
+they don't mean much to a sysadmin, so I am not sure if it is the right
+thing to include this feature. OTOH, it is extremely useful to detect
+potential memory leaks happening due to, say a CPU looping in
+kernel (and RCU not happening consequently). Will a CONFIG_RCU_DEBUG
+make it more palatable for mainline ?
 
-Of course it could be another problem.
-
--- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
-
+Thanks
+Dipankar
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
