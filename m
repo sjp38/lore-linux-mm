@@ -1,65 +1,55 @@
-Date: Sun, 24 Sep 2000 21:56:47 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-In-Reply-To: <Pine.LNX.4.21.0009242310510.8705-100000@elte.hu>
-Message-ID: <Pine.LNX.4.10.10009242142510.1224-100000@penguin.transmeta.com>
+Message-ID: <39CF6AB8.3040604@speakeasy.org>
+Date: Mon, 25 Sep 2000 08:09:44 -0700
+From: Miles Lane <miles@speakeasy.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
+References: <20000924231240.D5571@athlon.random> <Pine.LNX.4.21.0009242310510.8705-100000@elte.hu> <20000924224303.C2615@redhat.com> <20000925001342.I5571@athlon.random> <20000925003650.A20748@home.ds9a.nl>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, Alexander Viro <aviro@redhat.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: bert hubert <ahu@ds9a.nl>
+Cc: Andrea Arcangeli <andrea@suse.de>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hmm..
+bert hubert wrote:
 
- Thinking some more about this issue, I actually suspect that there's a
-better solution.
+> On Mon, Sep 25, 2000 at 12:13:42AM +0200, Andrea Arcangeli wrote:
+> 
+>> On Sun, Sep 24, 2000 at 10:43:03PM +0100, Stephen C. Tweedie wrote:
+>> 
+>>> any form of serialisation on the quota file).  This feels like rather
+>>> a lot of new and interesting deadlocks to be introducing so late in
+>>> 2.4.  :-)
+>> 
+> True. But they also appear to be found and solved at an impressive rate.
+> These deadlocks are fatal and don't hide in corners, whereas the previous mm
+> problems used to be very hard to spot and fix, there not being real
+> showstoppers, except for abysmal performance. [1]
+> 
+> Since Rik's stuff was merged, the number of eyeball hours devoted to MM have
+> skyrocketed, whereas the previous incarnations had far smaller audiences.
+> The patches are barely a week in, and look how much has been improved that
+> hadn't been found by the people working with Rik.
+> 
+> It's tempting to revert the merge, but let's work at it a bit longer. There
+> are problems, but we are solving them rapidly and both performance and
+> design of the new MM are pretty pleasing.
+> 
+> Let's not waste this opportunity.
 
-The fact is that GFP_BUFFER is only used for the old-fashioned buffer
-block allocations, and anything that uses the page cache automatically
-avoids the whole issue. As such, from a VM balancing standpoint we would
-fix the problem equally well by just avoiding using old-fashioned buffer
-blocks..
+I agree.  I have seen really fabulous system response since Rik's 
+changes were merged in.
+I have managed to crash my machine a couple of times (I am working on 
+getting a
+serial debugging connection set up, since I don't see any OOPS 
+messages), but I think this
+is not terribly surprising.  My impression is that system responsiveness 
+is much improved.
+Let's hang in there a bit longer.  We are making rapid progress on 
+testing and fixing.
 
-Now, I don't believe that the indirect blocks etc of the meta-data is much
-of an issue - whenever we need to access indirect blocks we're certainly
-already doing the page cache thing, so the page cache VM pressure should
-be qutie sufficient to keep the VM balanced - regular file access is very
-much biased towards the page cache, and the meta-data buffer-cache
-accesses are likely to be a very very small part of the big picture.
-
-The remaining part if the directory handling. THAT is very buffer-cache
-intensive, as the directory handling hasn't been moved over to the page
-cache at all for ext2. Doing a large "find" (or even just a "ls -l") will
-basically do purely buffer cache accesses, first for the directory data
-and then for the inode data. With no page cache activity to balance things
-out at all - leading to a potentially quite unbalanced VM that never
-really had a good chance to get rid of dentries etc.
-
-However, Al Viro already basically has the "directories using the page
-cache" code pretty much done, so for 2.5.x we'll just do that, and I bet
-that the VM balancing will improve (as well as performance going up simply
-just because the page cache is more efficient anyway). With the directory
-information in the page cache, there simply isn't any regular operations
-that depend entirely on the buffer cache any more.
-
-Sure, there will still be the inode and indirect blocks, but there just
-aren't loads that I know of that can put as much pressure on those as on
-the page cache..
-
-So the proper approach may be to just ignore the current issue with
-__GFP_IO being a big deal under some loads, because it probably will go
-away on its own (the superblock lock contention is still an issue, of
-course, but while somewhat related it's still fairly orthogonal). 
-
-Al, if you'd port over the "namei in page-cache" stuff from UFS to ext2, I
-bet that there would be people interested in seeing whether the above
-theory is just another of Linu's whimsies, or whether it really does make
-a difference.. It may not be 2.4.x material, but it won't hurt to have it
-tested some more anyway. Comments?
-
-		Linus
+       Miles              
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
