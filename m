@@ -1,87 +1,46 @@
-Message-ID: <386160CC.9F36DCE6@idiom.com>
-Date: Thu, 23 Dec 1999 02:37:48 +0300
-From: Hans Reiser <reiser@idiom.com>
+From: "William J. Earl" <wje@cthulhu.engr.sgi.com>
 MIME-Version: 1.0
-Subject: Re: (reiserfs) Re: RFC: Re: journal ports for 2.3?
-References: <14430.51369.57387.224846@dukat.scot.redhat.com>
-		<Pine.LNX.4.21.9912211056520.24670-100000@Fibonacci.suse.de> <14431.32449.832594.222614@dukat.scot.redhat.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <14433.38570.874925.968449@liveoak.engr.sgi.com>
+Date: Wed, 22 Dec 1999 19:27:38 -0800 (PST)
+Subject: Re: (reiserfs) Re: RFC: Re: journal ports for 2.3?
+In-Reply-To: <386153A8.C8366F70@starnet.gov.sg>
+References: <Pine.LNX.4.21.9912211056520.24670-100000@Fibonacci.suse.de>
+	<Pine.LNX.3.96.991221200955.16115B-100000@kanga.kvack.org>
+	<14433.20097.10335.102803@dukat.scot.redhat.com>
+	<386153A8.C8366F70@starnet.gov.sg>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, Chris Mason <clmsys@osfmail.isc.rit.edu>, reiserfs@devlinux.com, linux-fsdevel@vger.rutgers.edu, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@transmeta.com>
+To: Tan Pong Heng <pongheng@starnet.gov.sg>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Benjamin C.R. LaHaise" <blah@kvack.org>, Andrea Arcangeli <andrea@suse.de>, Chris Mason <clmsys@osfmail.isc.rit.edu>, reiserfs@devlinux.com, linux-fsdevel@vger.rutgers.edu, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" wrote:
+Tan Pong Heng writes:
+...
+ > I was thinking that, unless you want to have FS specific buffer/page cache,
+ > there is alway a gain for a unified cache for all fs. I think the one piece
+ > of functionality missing from the 2.3 implementation is the dependency
+ > between the various pages. If you could specify a tree relations between
+ > the various subset of the buffer/page and the reclaim machanism honor
+ > that everything should be fine. For FS that does not care about ordering,
+ > they could simply ignore this capability and the machanism could assume
+ > that everything is in one big set and could be reclaimed in any order.
+...
 
-> Hi,
->
-> On Tue, 21 Dec 1999 11:18:03 +0100 (CET), Andrea Arcangeli
-> <andrea@suse.de> said:
->
-> > On Tue, 21 Dec 1999, Stephen C. Tweedie wrote:
-> >> refile_buffer() checks in buffer.c.  Ideally there should be a
-> >> system-wide upper bound on dirty data: if each different filesystem
-> >> starts to throttle writes at 50% of physical memory then you only
-> >> need two different filesystems to overcommit your memory badly.
->
-> > If all FSes shares the dirty list of buffer.c that's not true.
-
-Stephen's global counter really would make things simpler to code.  I would also
-like to see each filesystem able to specify a minimum amount it wants reserved
-as clean pages, and have a global minimum that is the sum of all of these
-amounts for all mounted filesystems.
-
->
->
-> The entire point of this is that Linus has refused, point blank, to
-> add the complexity of journaling to the buffer cache.  The journaling
-> _has_ to be done independently, so we _have_ to have the dirty data
-> for journal transactions kept outside of the buffer cache.
->
-> We cannot use the buffer.c dirty list anyway because bdflush can write
-> those buffers to disk at any time.  Transactions have to control the
-> write ordering so we can only feed those writes into the buffer queues
-> under strict control when we go to commit a transaction.
->
-> > All normal filesystems are using the mark_buffer_dirty() in buffer.c
->
-> We're not talking about normal filesystems. :)
->
-> > so currently the 40% setting of bdflush is a system-wide number and
-> > not a per-fs number.
->
-> For filesystems that can use that mechanism, sure.  We need to be able
-> to extend that mechanism so that filesystems with other writeback
-> mechanisms can use it too.
->
-> > If both ext3 and reiserfs are using refile_buffer and both are using
-> > balance_dirty in the right places as Linus wants, all seems just fine to
-> > me.
->
-> They aren't and they can't.
->
-> > I completly agree to change mark_buffer_dirty() to call balance_dirty()
-> > before returning.
->
-> Agreed.
-
-How can we use a mark_buffer_dirty that calls balance_dirty in a place where we
-cannot call balance_dirty?
-
->
->
-> --Stephen
-
---
-Get Linux (http://www.kernel.org) plus ReiserFS
- (http://devlinux.org/namesys).  If you sell an OS or
-internet appliance, buy a port of ReiserFS!  If you
-need customizations and industrial grade support, we sell them.
-
-
-
+      For the XFS port, we have been working on this, since XFS very much
+wants to cluster logically adjacent delayed-allocation (and delayed-write) pages
+together to optimize writes.  That is, if the someone who wants to write
+back a dirty page to disk asks the file system to do so, then the file
+system wants to find all nearby pages (nearby in the file, not necessarily
+in memory).   The file system looks up the extent in which the page resides,
+or allocates an extent if the page is part of a delayed allocation, and
+then writes all of the pages in the extent at once.  Given the present
+data structures, this is done by probing the page cache for each page
+in the extent.  If the page cache were indexed by a per-inode AVL tree
+(or other ordered index), then collecting adjacent pages would be cheaper.
+Compared to a disk I/O, hash table probes are still relatively low in cost,
+but it would be possible to do a bit better with some ordered index.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
