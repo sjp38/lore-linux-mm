@@ -1,49 +1,63 @@
-Received: from saruman.cs.brown.edu (saruman.cs.brown.edu [128.148.38.24])
-	by cs.brown.edu (8.9.3/8.9.3) with ESMTP id KAA03113
-	for <linux-mm@kvack.org>; Mon, 6 Dec 1999 10:56:23 -0500 (EST)
-Received: (from kma@localhost)
-	by saruman.cs.brown.edu (8.9.0/8.9.0) id KAA11703
-	for linux-mm@kvack.org; Mon, 6 Dec 1999 10:56:40 -0500 (EST)
-Message-ID: <19991206105640.B11531@cs.brown.edu>
-Date: Mon, 6 Dec 1999 10:56:40 -0500
-From: Keith Adams <kma@cs.brown.edu>
-Subject: Re: Linux Without MMU
-References: <199912061545.HAA27422@ns1.filetron.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <199912061545.HAA27422@ns1.filetron.com>; from AndreaE on Mon, Dec 06, 1999 at 07:45:56AM -0800
+Received: from sable.ox.ac.uk ([163.1.2.4])
+	by oxmail.ox.ac.uk with esmtp (Exim 2.10 #1)
+	id 11vl73-000661-00
+	for linux-mm@kvack.org; Wed, 8 Dec 1999 17:42:49 +0000
+Received: from mbeattie by sable.ox.ac.uk with local (Exim 2.12 #1)
+	id 11vl73-00012G-00
+	for linux-mm@kvack.org; Wed, 8 Dec 1999 17:42:49 +0000
+Subject: sizeof(struct page) from 44 to 32 bytes for 32-bit <256MB
+Date: Wed, 8 Dec 1999 17:42:49 +0000 (GMT)
+From: Malcolm Beattie <mbeattie@sable.ox.ac.uk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Message-Id: <E11vl73-00012G-00@sable.ox.ac.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Dec 06, 1999 at 07:45:56AM -0800, AndreaE wrote:
-> AndreaE <AndreaE@linuxstart.com> wrote:
-> Hi , 
-> ..i'm working on Linux Kernel porting on HardWare Without MMU. This is not impossible ( uCLinux Es. ), but i'm bored to read thousend &
-> thousend of code without a Guide Line. My target is port a full playable linux apps on ARM7TDMI ( very low cost & hi performance CPU but without mmu ). I'm using a uCSimm like example. I've difficulties to understand the new gadget from kernel 2.0.38 (uses by uCSim &  Co. ) and kernel 2.2.12 with ARM support.
-> 
-> Is There anyone that have some experience with this problem or have some tips to tell me ???
+I sent this to linux-kernel a week ago but got zero responses so I
+thought I'd try sending it to linux-mm. Apologies to anyone who
+reads this twice.
 
-I'm not sure what you mean by "uCSimm-like example," or "new gadget,"
-but I did a port to the i960 that was very similar to your port. You
-have the added advantage of there already being an ARM port of the
-standard kernel, so there will be less architecture manual spelunking
-for you to do.
+Has anyone thought/tried/benchmarked the following optimisation for
+32-bit systems with less than 256 MB physical RAM? Currently,
+struct page takes up 40 or 48 bytes (2.2 v. 2.3) on such systems.
+That can be reduced by at least 10 bytes (for 2.3) which brings the
+next_hash field into the first cache line (and flags can fit in there
+too). That means that a lot of uses of struct page only use a single
+cache line per touched struct page instead of two.
 
-I'm afraid there isn't very much useful documentation about the design
-of the (uC)linux kernel; I had to figure it out the hard way. If you'd
-like a book to introduce you to the kernel, the most helpful one I
-found was the O'Reilly book _Writing Linux Device Drivers_. Steer clear
-of the _Linux Kernel Internals_ book; it is, if I recall correctly,
-misleading in important respects.
+The idea is to replace the various struct page pointers (4 bytes) with
+a 2 byte page frame number which can then cope with 64K x 4K = 256MB
+physical RAM. The relevant pointers are the struct page * fields (two
+each hidden in struct list_head list and lru and one in next_hash
+along with a reduction of unsigned long flags to 16 bits if flags is
+wanted in the first cache line instead of just next_hash. Intead of
+following pointers, you just use mem_map[new_pfn] and the changes
+should only affect a few places in mm/*.c.
 
-> Is There anyone interesting to help me to do it ??
+Since this involves modifying the supposedly architecture independent
+mm code and also only applies to machines with < 256 MB RAM it could
+be considered a bit nasty but if it improved performance enough, it
+may be worth having as a "compile your kernel with
+CONFIG_OPIMIZE_32BIT_UNDER_256MB if you wish" option. (It saves a few
+KB by having a smaller mem_map array too but perhaps that's less
+likely to affect performance).
 
-If you've got hardware to donate, I might be able to help.
+It could even be done by modifying struct page to use pfns always for
+every architecture which would make it rather cleaner since you could
+then optimize for other architectures too. For example, Alpha and
+sparc64 could use a 32-bit pfn instead of a 64-bit pointer in all
+those places which would again save cacheline space.
 
-Keith
+--Malcolm
 
+-- 
+Malcolm Beattie <mbeattie@sable.ox.ac.uk>
+Unix Systems Programmer
+Oxford University Computing Services
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
