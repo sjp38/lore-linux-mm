@@ -1,50 +1,65 @@
-Date: Fri, 25 Aug 2000 11:40:38 -0500
-From: Timur Tabi <ttabi@interactivesi.com>
-In-Reply-To: <Pine.LNX.3.96.1000825124300.23502A-100000@kanga.kvack.org>
-References: <20000825153600Z131177-250+6@kanga.kvack.org>
+Date: Fri, 25 Aug 2000 12:59:19 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Subject: Re: pgd/pmd/pte and x86 kernel virtual addresses
-Message-Id: <20000825165116Z131177-250+7@kanga.kvack.org>
+In-Reply-To: <20000825165116Z131177-250+7@kanga.kvack.org>
+Message-ID: <Pine.LNX.3.96.1000825125457.23502B-100000@kanga.kvack.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM mailing list <linux-mm@kvack.org>
+To: Timur Tabi <ttabi@interactivesi.com>
+Cc: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-** Reply to message from "Benjamin C.R. LaHaise" <blah@kvack.org> on Fri, 25
-Aug 2000 12:45:18 -0400 (EDT)
 
+On Fri, 25 Aug 2000, Timur Tabi wrote:
 
-> > What I'm trying to do is allocate some memory via get_free_pages, and then mark
-> > that memory as uncacheable.
+> ** Reply to message from "Benjamin C.R. LaHaise" <blah@kvack.org> on Fri, 25
+> Aug 2000 12:45:18 -0400 (EDT)
 > 
-> ioremap_nocache should be able to do what you want.
+> 
+> > > What I'm trying to do is allocate some memory via get_free_pages, and then mark
+> > > that memory as uncacheable.
+> > 
+> > ioremap_nocache should be able to do what you want.
+> 
+> Well, that's what I tried to explain in my previous email which people seem to
+> be ignoring.
+> 
+> I tried ioremap_nocache, and it doesn't appear to be working.  There are a
+> number of problems:
+> 
+> 1) I'm trying to mark regular RAM as uncacheable, and ioremap_nocache()
+> requires me to munge the PG_Reservered bit for each page before I can do that. 
+> Ugly.
 
-Well, that's what I tried to explain in my previous email which people seem to
-be ignoring.
+Yeap, that's right.
 
-I tried ioremap_nocache, and it doesn't appear to be working.  There are a
-number of problems:
+> 2) ioremap_nocache() allocates virtual RAM.  I already have a virtual address,
+> I don't need another one.
 
-1) I'm trying to mark regular RAM as uncacheable, and ioremap_nocache()
-requires me to munge the PG_Reservered bit for each page before I can do that. 
-Ugly.
+That's because there are no ptes for most RAM in the kernel.
+ioremap_nocache does not allocate RAM, only a mapping for the address
+space.  Actually, passing in physical RAM to ioremap_nocache may not work
+on all platforms.
 
-2) ioremap_nocache() allocates virtual RAM.  I already have a virtual address,
-I don't need another one.
+> 3) The unmap function for ioremap_nocache() is a no-op.  So after I remap and
+> mark the page as uncacheable, there's no way to restore it after I'm done!
 
-3) The unmap function for ioremap_nocache() is a no-op.  So after I remap and
-mark the page as uncacheable, there's no way to restore it after I'm done!
+Bummer.
 
-4) Even with all this, it appears that the function isn't working.  I've
-attached a logical analyzer to the memory bus, and writes are not being sent
-out, leading me to believe the memory is still being cached.
+> 4) Even with all this, it appears that the function isn't working.  I've
+> attached a logical analyzer to the memory bus, and writes are not being sent
+> out, leading me to believe the memory is still being cached.
 
+On x86, you're better off setting the MTRRs to get non-cached behaviour,
+but that's still the wrong thing to do when you're talking about main
+memory.  Better still is to not rely on uncachable mappings at all.  x86
+is a cache coherent architechure -- why do you need uncachable mappings of
+main memory???. 
 
+		-ben
 
---
-Timur Tabi - ttabi@interactivesi.com
-Interactive Silicon - http://www.interactivesi.com
-
-When replying to a mailing-list message, please don't cc: me, because then I'll just get two copies of the same message.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
