@@ -1,44 +1,38 @@
-Message-ID: <418CAA44.3090007@yahoo.com.au>
-Date: Sat, 06 Nov 2004 21:41:08 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Message-ID: <418CAD0C.3030109@cyberone.com.au>
+Date: Sat, 06 Nov 2004 21:53:00 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Subject: Re: removing mm->rss and mm->anon_rss from kernel?
-References: <4189EC67.40601@yahoo.com.au> <Pine.LNX.4.58.0411040820250.8211@schroedinger.engr.sgi.com> <418AD329.3000609@yahoo.com.au> <Pine.LNX.4.58.0411041733270.11583@schroedinger.engr.sgi.com> <418AE0F0.5050908@yahoo.com.au> <418AE9BB.1000602@yahoo.com.au> <1099622957.29587.101.camel@gaston> <418C55A7.9030100@yahoo.com.au> <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com> <418CA535.1030703@yahoo.com.au> <20041106103103.GC2890@holomorphy.com>
-In-Reply-To: <20041106103103.GC2890@holomorphy.com>
+Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages /    all_unreclaimable
+ braindamage
+References: <Pine.LNX.4.44.0411060944150.2721-100000@localhost.localdomain>
+In-Reply-To: <Pine.LNX.4.44.0411060944150.2721-100000@localhost.localdomain>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
+To: Hugh Dickins <hugh@veritas.com>
+Cc: Andrea Arcangeli <andrea@novell.com>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
-> Christoph Lameter wrote:
-> 
->>>My page scalability patches need to make rss atomic and now with the
->>>addition of anon_rss I would also have to make that atomic.
-> 
-> 
-> On Sat, Nov 06, 2004 at 09:19:33PM +1100, Nick Piggin wrote:
-> 
->>Oh, one other thing Christoph - don't forget mm->nr_ptes
-> 
-> 
-> Forget it. Veto.
-> 
-> Normal-sized systems need to monitor their workloads without crippling
-> them. Do the per-cpu splitting of the counters etc. instead, or other
-> proper incremental algorithms. Catastrophic /proc/ overhead won't fly.
-> 
 
-Out of interest, what sort of systems and workloads are we talking
-about here?
+Hugh Dickins wrote:
 
-Also, can you suggest how one would do the per-cpu splitting or
-other proper incremental algorithm? I am not aware of any way
-except per-cpu magazines which I presume also won't fly due to
-being inaccurate and hugely bloating the mm_struct on big machines.
+>On Sat, 6 Nov 2004, Andrea Arcangeli wrote:
+>
+>>all allocations should have a failure path to avoid deadlocks. But in
+>>the meantime __GFP_REPEAT is at least localizing the problematic places ;)
+>>
+>
+>Problematic, yes: don't overlook that GFP_REPEAT and GFP_NOFAIL _can_
+>fail, returning NULL: when the process is being OOM-killed (PF_MEMDIE).
+>
+>
+
+Yeah right you are. I think NOFAIL is a bug and should really not fail.
+It looks like it is only used in fs/jbd/*, and things will crash if it
+fails. Maybe they're only called from the kjournald threads and can't
+be OOM killed, but that is still a pretty subtle dependancy.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
