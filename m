@@ -1,37 +1,101 @@
-Date: Wed, 11 Jun 2003 02:27:00 -0700
-From: Andrew Morton <akpm@digeo.com>
+From: Thomas Schlichter <schlicht@uni-mannheim.de>
 Subject: Re: 2.5.70-mm8
-Message-Id: <20030611022700.1ae8fd8b.akpm@digeo.com>
+Date: Wed, 11 Jun 2003 11:31:42 +0200
+References: <20030611013325.355a6184.akpm@digeo.com> <3EE6F3B7.9040809@gts.it>
 In-Reply-To: <3EE6F3B7.9040809@gts.it>
-References: <20030611013325.355a6184.akpm@digeo.com>
-	<3EE6F3B7.9040809@gts.it>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+MIME-Version: 1.0
+Content-Type: multipart/signed;
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1;
+  boundary="Boundary-03=_/bv5+DzRm0GxNrU";
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200306111131.43023.schlicht@uni-mannheim.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Stefano Rivoir <s.rivoir@gts.it>
+To: Stefano Rivoir <s.rivoir@gts.it>, Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Stefano Rivoir <s.rivoir@gts.it> wrote:
->
+--Boundary-03=_/bv5+DzRm0GxNrU
+Content-Type: multipart/mixed;
+  boundary="Boundary-01=_+bv5+CkLkvSTAsl"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+
+--Boundary-01=_+bv5+CkLkvSTAsl
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
+
+Hi!
+
+Stefano Rivoir wrote:
 > Andrew Morton wrote:
-> 
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70-mm8/
-> 
+> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.=
+5.
+> >70-mm8/
+>
 > arch/i386/kernel/setup.c: In function 'setup_early_printk':
 > arch/i386/kernel/setup.c:919: error: invalid lvalue in unary '&'
 > make[1]: *** [arch/i386/kernel/setup.o] Error 1
-> 
+>
+> Bye
 
-That patch came from a person at IBM, where blissful unawareness of
-single-processor machines is rampant :)
+I had the same problem, it occours when the kernel is compiled without SMP=
+=20
+support and EARLY_PRINTK is not explicitly disabled in the 'Kernel hacking'=
+=20
+config-section.
 
-Thanks, will fix.
+The attached patch helps me with this error...
 
+Best regards
+   Thomas Schlichter
 
-Meanwhile,  CONFIG_DEBUG_EARLY_PRINTK=n
+--Boundary-01=_+bv5+CkLkvSTAsl
+Content-Type: text/x-diff;
+  charset="iso-8859-1";
+  name="early_printk_fix.diff"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline; filename="early_printk_fix.diff"
+
+=2D-- linux-2.5.70-mm8/arch/i386/kernel/setup.c.orig	Wed Jun 11 11:10:35 20=
+03
++++ linux-2.5.70-mm8/arch/i386/kernel/setup.c	Wed Jun 11 11:11:36 2003
+@@ -910,6 +910,7 @@
+ extern int __init serial8250_console_init(void);
+ void setup_early_printk(void)
+ {
++#ifdef CONFIG_SMP
+ 	/*=20
+ 	 * printk currently checks cpu_online_map to make sure that
+ 	 * we don't try to printk from a CPU which hasn't had resources
+@@ -917,6 +918,7 @@
+ 	 * enable here don't require per-cpu resources.
+ 	 */
+ 	set_bit(smp_processor_id(), &cpu_online_map);
++#endif
+ #ifdef CONFIG_DEBUG_EP_SERIAL
+ 	console_setup(CONFIG_DEBUG_SERIAL_OPTIONS);
+ 	serial8250_console_init();
+
+--Boundary-01=_+bv5+CkLkvSTAsl--
+
+--Boundary-03=_/bv5+DzRm0GxNrU
+Content-Type: application/pgp-signature
+Content-Description: signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.1 (GNU/Linux)
+
+iD8DBQA+5vb+YAiN+WRIZzQRAoAyAJ9qjgtyNT8KcRd/R9J3wERn35JB8QCg/PDm
+u3wmw5i69c2gJ2An30g/+lY=
+=WAPt
+-----END PGP SIGNATURE-----
+
+--Boundary-03=_/bv5+DzRm0GxNrU--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
