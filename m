@@ -1,53 +1,45 @@
-Subject: Re: Merging Nonlinear and Numa style memory hotplug
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20040624135838.F009.YGOTO@us.fujitsu.com>
-References: <20040623184303.25D9.YGOTO@us.fujitsu.com>
-	 <1088083724.3918.390.camel@nighthawk>
-	 <20040624135838.F009.YGOTO@us.fujitsu.com>
-Content-Type: text/plain
-Message-Id: <1088116621.3918.1060.camel@nighthawk>
-Mime-Version: 1.0
-Date: Thu, 24 Jun 2004 15:37:02 -0700
+Received: from fujitsu1.fujitsu.com (localhost [127.0.0.1])
+	by fujitsu1.fujitsu.com (8.12.10/8.12.9) with ESMTP id i5P3Bud6020864
+	for <linux-mm@kvack.org>; Thu, 24 Jun 2004 20:11:56 -0700 (PDT)
+Date: Thu, 24 Jun 2004 20:11:37 -0700
+From: Yasunori Goto <ygoto@us.fujitsu.com>
+Subject: Re: [Lhms-devel] Re: Merging Nonlinear and Numa style memory hotplug
+In-Reply-To: <1088116621.3918.1060.camel@nighthawk>
+References: <20040624135838.F009.YGOTO@us.fujitsu.com> <1088116621.3918.1060.camel@nighthawk>
+Message-Id: <20040624194557.F02B.YGOTO@us.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Yasunori Goto <ygoto@us.fujitsu.com>
+To: Dave Hansen <haveblue@us.ibm.com>
 Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, Linux-Node-Hotplug <lhns-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, "BRADLEY CHRISTIANSEN [imap]" <bradc1@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-06-24 at 15:19, Yasunori Goto wrote:
-> BTW, I have a question about nonlinear patch.
-> It is about difference between phys_section[] and mem_section[]
-> I suppose that phys_section[] looks like no-meaning now.
-> If it isn't necessary, __va() and __pa() translation can be more simple.
-> What is the purpose of phys_section[]. Is it for ppc64?
+I understand this idea at last.
+Section size of DLPAR of PPC is only 16MB.
+But kmalloc area of virtual address have to be contigous 
+even if the area is divided 16MB physically.
+Dave-san's implementation (it was for IA32) was same index between 
+phys_section and mem_section. So, I was confused.
 
-This is the fun (read: confusing) part of nonlinear.
+> pfn_to_page(unsigned long pfn)
+> {
+>        return
+> &mem_section[phys_section[pfn_to_section(pfn)]].mem_map[section_offset_pfn(pfn)];
+> }
+> 
 
-The mem_section[] array is where the pointer to the mem_map for the
-section is stored, obviously.  It's indexed virtually, so that something
-at a virtual address is in section number (address >> SECTION_SHIFT). 
-So, that makes it easy to go from a virtual address to a 'struct page'
-inside of the mem_map[].
+But, I suppose this translation might be too complex.
+I worry that many person don't like this which is cause of
+performance deterioration.
+Should this translation be in common code?
 
-But, given a physical address (or a pfn for that matter), you sometimes
-also need to get to a 'struct page'.  It is for that reason that we have
-the phys_section[] array.  Each entry in the phys_section[] points back
-to a mem_section[], which then contains the mem_map[].
+Bye.
 
-pfn_to_page(unsigned long pfn)
-{
-       return
-&mem_section[phys_section[pfn_to_section(pfn)]].mem_map[section_offset_pfn(pfn)];
-}
+-- 
+Yasunori Goto <ygoto at us.fujitsu.com>
 
-pfn_to_section(pfn) does a (pfn >> (SECTION_SHIFT - PAGE_SHIFT)), then
-uses that section number to index into the phys_section[] array, which
-gives an index into the mem_section[] array, from which you can get the
-'struct page'.  
-
-
--- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
