@@ -1,69 +1,60 @@
-Message-ID: <4198043D.6070308@yahoo.com.au>
-Date: Mon, 15 Nov 2004 12:19:57 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
+Date: Mon, 15 Nov 2004 21:37:45 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: [RFC] Possible alternate 4 level pagetables?
-References: <4196F12D.20005@yahoo.com.au> <20041114082525.GB16795@wotan.suse.de>
-In-Reply-To: <20041114082525.GB16795@wotan.suse.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <4196F12D.20005@yahoo.com.au>
+Message-ID: <Pine.LNX.4.44.0411152121340.4171-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Linux Memory Management <linux-mm@kvack.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
-> On Sun, Nov 14, 2004 at 04:46:21PM +1100, Nick Piggin wrote:
+On Sun, 14 Nov 2004, Nick Piggin wrote:
 > 
->>Just looking at your 4 level page tables patch, I wondered why the extra
->>level isn't inserted between pgd and pmd, as that would appear to be the
->>least intrusive (conceptually, in the generic code). Also it maybe matches
->>more closely the way that the 2->3 level conversion was done.
+> Just looking at your 4 level page tables patch, I wondered why the extra
+> level isn't inserted between pgd and pmd, as that would appear to be the
+> least intrusive (conceptually, in the generic code). Also it maybe matches
+> more closely the way that the 2->3 level conversion was done.
+
+I thought the same, when I finally took a look a week or so ago.
+
+I've scarcely looked at your patches, but notice they change i386.
+
+For me, the attraction of putting the new level in between pgd and pmd
+was that it seemed that only common code and x86_64 (and whatever else
+comes to use all four levels in future) would need changing (beyond,
+perhaps, #including some asm-generic headers).  Some casting to combine
+the two levels into pmd in unchanged arch code, or rename pmd to pld in
+the changed common code.  Andi's arch patches seemed (all?) to spring
+from replacing mm->pgd by mm->pml4.
+
+But I could well be mistaken, I wasn't so industrious as to actually
+try it.
+
+> I've been toying with it a little bit. It is mainly just starting with
+> your code and doing straight conversions, although I also attempted to
+> implement a better compatibility layer that does the pagetable "folding"
+> for you if you don't need to use the full range of them.
 > 
+> Caveats are that there is still something slightly broken with it on i386,
+> and so I haven't looked at x86-64 yet. I don't see why this wouldn't work
+> though.
 > 
-> I did it the way I did to keep i386 and other archs obviously correct 
-> because their logic doesn't change at all for the three lower levels,
-> and the highest level just hands a pointer through.
-> 
+> I've called the new level 'pud'. u for upper or something.
 
-Yeah true. Although a pointer to a pud is essentially just a pointer
-to pgd in the case where you've only got three levels instead of four.
+Well, yes, your base appetites have led you to the name "pud",
+where my refined intellect led me to "phd", with h for higher ;)
 
-So it is really a matter of where you make the "folds" I guess.
+> Sorry the patch isn't in very good shape at the moment - I won't have time
+> to work on it for a week, so I thought this would be a good point just to
+> solicit initial comments.
 
-> Regarding intrusiveness in common code: you pretty much have to change
-> most of of mm/memory.c, no matter what you do. Also there are overall
-> only 7 or 8 users that really need the full scale changes, so 
-> it's not as bad as it looks. Ok there is ioremap in each architecture,
-> but usually you can cheat for these because you know the architecture
-> will never support 4levels.
-> 
+I doubt it's worthwhile now, particularly if you do have to patch arches.
 
-Yeah - technically you can ignore the "pud" type in this system as well
-if you're only using three levels, so architectures should be able to just
-work. Although really they should just be converted over for cleanliness.
+Hugh
 
-> I'm sorry, but I don't see much advantage of your patches over mine.
-> 
-
-Well no there isn't much I guess - if mine were bug free it would nearly
-compile into the same object code.
-
-The main thing I see is that in my scheme, you have the business ends
-of the page table - pgd and pte which are always there, and you fold away
-the middle, "transient" levels when they're not in use. It also allows
-you to use the same system for both pmd and pud.
-
-But on the other hand yours is maybe as you say a bit less intrusive
-code-wise, if not logically. And maybe has other advantages as well.
-
-Anyway, this was just a suggestion - as I said I won't have much time
-for it for the next week, but I might try to flesh it out a bit more
-after that.
-
-Thanks
-Nick
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
