@@ -1,55 +1,45 @@
-Date: Wed, 27 Nov 2002 09:38:37 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: 2.5.49-mm2
-In-Reply-To: <3DE48C4A.98979F0C@digeo.com>
-Message-ID: <Pine.LNX.4.44L.0211270930510.4103-100000@imladris.surriel.com>
+Message-ID: <3DE4BB87.8070708@torque.net>
+Date: Wed, 27 Nov 2002 23:33:11 +1100
+From: Douglas Gilbert <dougg@torque.net>
+Reply-To: dougg@torque.net
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] Really start using the page walking API
+References: <20021124233449.F5263@nightmaster.csn.tu-chemnitz.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Cc: Andrew Morton <akpm@digeo.com>, Kai Makisara <Kai.Makisara@kolumbus.fi>, Gerd Knorr <kraxel@bytesex.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Nov 2002, Andrew Morton wrote:
+Ingo Oeser wrote:
+> Hi all,
+> 
+> here come some improvements of the page walking API code.
+> 
+> First: make_pages_present() would do an infinite recursion, if
+>    used in find_extend_vma(). I fixed this. Might as well have
+>    caused the ntp crash, that has been observed. 
+>    So these make_pages_present parts are really important.
+> 
+> I also did the promised rewrite of make_pages_present() and its
+> users.
+> 
+> MM-Gurus: Please double check, that I always provide the right vma.
+> 
+> I also did two sample implementations (Kai and Doug, this is why
+> you are CC'ed) of the scatter list walking and removed ~100
+> lines of code while doing it.
 
-> +pf_memdie.patch
->
->  Fix the PF_MEMDIE logic
+<snip/>
+Ingo,
+I see that Andrew has put this patch in 2.5.49-mm2 and seems
+to be asking for testers. So I will try and test sg's usage.
+[It is a while since I built in sg (and other drivers) but
+working modules has been very frustrating since 2.5.48 ...]
 
-The first part of the patch looks suspicious. If PF_MEMALLOC
-is set we shouldn't be allowed to go into try_to_free_pages()
-in the first place, should we ?
-
-> +writeback-handle-memory-backed.patch
->
->  Don't try to write out memory-backed filesystems at all
-
-Neat. Exactly the thing I was looking for for an O(1) VM
-optimisation, good to know it's possible in 2.5 ;)
-
-> simplified-vm-throttling.patch
->   Remove the final per-page throttling site in the VM
->
-> page-reclaim-motion.patch
->   Move reclaimable pages to the tail ofthe inactive list on IO completion
-
-Very nice, though if you're worried about effective reclaiming
-you might be interested in Arjan's O(1) VM code, which I'll
-probably forward-port to 2.5 once I've got it properly tuned.
-
-> activate-unreleaseable-pages.patch
->   Move unreleasable pages onto the active list
-
-Interesting, does this make much difference ?
-
-cheers,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-http://www.surriel.com/		http://guru.conectiva.com/
-Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
+Doug Gilbert
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
