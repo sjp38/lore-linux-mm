@@ -1,35 +1,35 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: [PATCH] rmap 14
-Date: Mon, 19 Aug 2002 21:50:33 +0200
-References: <Pine.LNX.4.44.0208162247590.874-100000@skynet>
-In-Reply-To: <Pine.LNX.4.44.0208162247590.874-100000@skynet>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E17gsXp-0000rJ-00@starship>
+Subject: kernel BUG at rmap.c:409! with 2.5.31 and akpm patches.
+From: Steven Cole <elenstev@mesatop.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 19 Aug 2002 14:54:17 -0600
+Message-Id: <1029790457.14756.342.camel@spc9.esa.lanl.gov>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel <mel@csn.ul.ie>, Scott Kaplan <sfkaplan@cs.amherst.edu>
-Cc: Bill Huey <billh@gnuppy.monkey.org>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: linux-mm@kvack.org, Rik van Riel <riel@conectiva.com.br>, Steven Cole <scole@lanl.gov>
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 17 August 2002 01:02, Mel wrote:
-> On Fri, 16 Aug 2002, Scott Kaplan wrote:
-> The measure is the time when the script asked the module to read a page.
-> The page is read by echoing to a mapanon_read proc entry. It's looking
-> like it takes about 350 microseconds to enter the module and perform the
-> read. I don't call schedule although it is possible I get scheduled. The only
-> way to be sure would be to collect all timing information within the module
-> which is perfectly possible. The only trouble is that if the module collects,
-> only one test instance can run at a time.
+Here's a new one.
 
-It sounds like you want to try the linux trace toolkit:
+With this patch applied to 2.5.31,
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.31/stuff-sent-to-linus/everything.gz
 
-   http://www.opersys.com/LTT/
+I got this BUG:
+kernel BUG at rmap.c:409!
+while running dbench 40 as a stress test.
 
--- 
-Daniel
+The filesystem on which dbench was being run was mounted as ext3.
+The box is dual p3, scsi.
+
+This test box got its root filesystem (then ext2) destroyed during
+testing last week, so I loaded RH 7.3 on it this morning and made all
+partitions ext3.  Now it's ready for more abuse.
+
+Steven
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
