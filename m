@@ -1,43 +1,50 @@
-Message-ID: <410B13E5.9080005@sgi.com>
-Date: Fri, 30 Jul 2004 22:37:09 -0500
-From: Ray Bryant <raybry@sgi.com>
+From: Nikita Danilov <Nikita@Clusterfs.COM>
 MIME-Version: 1.0
-Subject: Re: Scaling problem with shmem_sb_info->stat_lock
-References: <Pine.LNX.4.44.0407292006290.1096-100000@localhost.localdomain>	<Pine.SGI.4.58.0407301633051.36748@kzerza.americas.sgi.com> <20040730163443.37f9b309.pj@sgi.com>
-In-Reply-To: <20040730163443.37f9b309.pj@sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <16651.33755.359441.675409@laputa.namesys.com>
+Date: Sat, 31 Jul 2004 15:34:51 +0400
+Subject: Re: [PATCH] token based thrashing control
+In-Reply-To: <Pine.LNX.4.58.0407301730440.9228@dhcp030.home.surriel.com>
+References: <Pine.LNX.4.58.0407301730440.9228@dhcp030.home.surriel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Brent Casavant <bcasavan@sgi.com>, hugh@veritas.com, wli@holomorphy.com, akpm@osdl.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, sjiang@cs.wm.edu
 List-ID: <linux-mm.kvack.org>
 
-Perhaps, but then you still have one processor doing the zeroing and setup for 
-all of those pages, and that can be a signficiant serial bottleneck.
+Rik van Riel writes:
+ > 	
+ > The following experimental patch implements token based thrashing
+ > protection, using the algorithm described in:
+ > 
+ > 	http://www.cs.wm.edu/~sjiang/token.htm
+ > 
+ > When there are pageins going on, a task can grab a token, that
+ > protects the task from pageout (except by itself) until it is
+ > no longer doing heavy pageins, or until the maximum hold time
+ > of the token is over.
+ > 
+ > If the maximum hold time is exceeded, the task isn't eligable
+ > to hold the token for a while more, since it wasn't doing it
+ > much good anyway.
 
-Paul Jackson wrote:
-> Brent wrote:
-> 
->>Having a single CPU fault in all the pages will generally
->>cause all pages to reside on a single NUMA node.
-> 
-> 
-> Couldn't one use Andi Kleen's numa mbind() to layout the
-> memory across the desired nodes, before faulting it in?
-> 
+[...]
 
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+ > --- linux-2.6.7/mm/filemap.c.token	2004-07-30 13:22:28.000000000 -0400
+ > +++ linux-2.6.7/mm/filemap.c	2004-07-30 13:22:29.000000000 -0400
+ > @@ -1195,6 +1195,7 @@
+ >  	 * effect.
+ >  	 */
+ >  	error = page_cache_read(file, pgoff);
+ > +	grab_swap_token();
 
+Token functions are declared to be no-ops if !CONFIG_SWAP, but here
+token is used for file-system backed page-fault.
+
+ >  
+
+Nikita.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
