@@ -1,133 +1,112 @@
-Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
-	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j35HmELg538126
-	for <linux-mm@kvack.org>; Tue, 5 Apr 2005 13:48:14 -0400
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j35HmEWs252508
-	for <linux-mm@kvack.org>; Tue, 5 Apr 2005 11:48:14 -0600
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j35HmE3h006952
-	for <linux-mm@kvack.org>; Tue, 5 Apr 2005 11:48:14 -0600
-Date: Tue, 5 Apr 2005 10:42:39 -0700
-From: Chandra Seetharaman <sekharan@us.ibm.com>
-Subject: Re: [PATCH 3/6] CKRM: Add limit support for mem controller
-Message-ID: <20050405174239.GD32645@chandralinux.beaverton.ibm.com>
-References: <20050402031346.GD23284@chandralinux.beaverton.ibm.com> <1112623850.24676.8.camel@localhost>
+Received: from westrelay01.boulder.ibm.com (westrelay01.boulder.ibm.com [9.17.195.10])
+	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j35HsT5b215498
+	for <linux-mm@kvack.org>; Tue, 5 Apr 2005 13:54:29 -0400
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by westrelay01.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j35HsTOq196566
+	for <linux-mm@kvack.org>; Tue, 5 Apr 2005 11:54:29 -0600
+Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j35HsSFt021052
+	for <linux-mm@kvack.org>; Tue, 5 Apr 2005 11:54:28 -0600
+Subject: Re: [PATCH 1/6] CKRM: Basic changes to the core kernel
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20050405172519.GC32645@chandralinux.beaverton.ibm.com>
+References: <20050402031206.GB23284@chandralinux.beaverton.ibm.com>
+	 <1112622313.7189.50.camel@localhost>
+	 <20050405172519.GC32645@chandralinux.beaverton.ibm.com>
+Content-Type: text/plain
+Date: Tue, 05 Apr 2005 10:54:20 -0700
+Message-Id: <1112723661.19430.71.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1112623850.24676.8.camel@localhost>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: ckrm-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: Chandra Seetharaman <sekharan@us.ibm.com>
+Cc: ckrm-tech@lists.sourceforge.net, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Apr 04, 2005 at 07:10:50AM -0700, Dave Hansen wrote:
-> On Fri, 2005-04-01 at 19:13 -0800, Chandra Seetharaman wrote:
-> > +static void
-> > +set_impl_guar_children(struct ckrm_mem_res *parres)
-> > +{
-> > +       struct ckrm_core_class *child = NULL;
-> > +       struct ckrm_mem_res *cres;
-> > +       int nr_dontcare = 1; /* for defaultclass */
-> > +       int guar, impl_guar;
-> > +       int resid = mem_rcbs.resid;
-> 
-> This sets off one of my internal "this is just wrong" checks: too many
-> variables for a function that short.  Can that function be broken up a
-> bit?
-
-It doesn't make sense to break the function to a smaller one, and is an
-atomic one. nevertheless, it won't do any good to the number of variables :)
-I 'll look at what can be done for teh number of variables.
-> 
-> Also, I get a little nervous when I see variable names like "parres" and
-> "mem_rcbs".  Can they get some real names?  If they're going to be
-parres - parent resource data structure(do differentiate from parent core
-class data structure)
-mem_rcbs - memory resource's callback structure
-Will think about good names.
-> nonsense, at least make it understandable, like 
-
-Just wondering... how can a thing be both understandable and nonsense :)
-> 
-> >+               cres = ckrm_get_res_class(child, resid, struct ckrm_mem_res);
-> 
-> I think there are probably enough calls to ckrm_get_res_class() with
-> just the memory controller struct to justify wrapping it in its own
-> macro.  sysfs does lots of tricks like this, and that's the approach
-> that it takes to hide some of the ugliness.
-
-Good idea... 
-> 
-> > +       while ((child = ckrm_get_next_child(parres->core, child)) != NULL) {
-> 
-> You might even want a for_each_child() macro or something.  That looks a
-> little hairy.
-
-Good idea....
-> 
+On Tue, 2005-04-05 at 10:25 -0700, Chandra Seetharaman wrote:
+> > > +#define PG_ckrm_account                21      /* CKRM accounting */
 > > 
-> > +               /* treat NULL cres as don't care as that child is just
-> > being
-> > +                * created.
-> > +                * FIXME: need a better way to handle this case.
-> > +                */
-> > +               if (!cres || cres->pg_guar == CKRM_SHARE_DONTCARE)
-> > +                       nr_dontcare++;
+> > Are you sure you really need this bit *and* a whole new pointer in
+> > 'struct page'?  We already do some tricks with ->mapping so that we can
+> > tell what is stored in it.  You could easily do something with the low
+> > bit of your new structure member.
 > 
-> If it needs to be fixed, why did you post it?
-
-Because, I didn't want to wait (to post) until I fixed everything.
-
+> I think I canavoid using  the bit. The problem with having a pointer in page
+> data structure is two-fold:
+> 	1. goes over the page-cahe (I ran cache-bench with mem controller
+> 	      enabled, and didn't see much of a difference. will post the
+> 	      new results sometime soon)
+> 	2. additional memory used, especially in large systems
 > 
-> > +       parres->nr_dontcare = nr_dontcare;
-> > +       guar = (parres->pg_guar == CKRM_SHARE_DONTCARE) ?
-> > +                       parres->impl_guar : parres->pg_unused;
-> > +       impl_guar = guar / parres->nr_dontcare;
-> 
-> Please don't tell me this is too messy:
->         
->         parres->nr_dontcare = nr_dontcare;
->         if (parres->pg_guar == CKRM_SHARE_DONTCARE)
->         	guar = parres->impl_guar;
->         else
->         	guar = parres->pg_unused;
->         impl_guar = guar / parres->nr_dontcare;
-> 
-> All of this 'impl' stufff just looks weird.  I might even wrap that
-> CKRM_SHARE_DONTCARE logic in a little function.  get_child_guarantee()?
-> 
-> All of the logic surrounding that pg_{limit,guar} being set to DONTCARE
-> seems like it was special-cased in after it was originally written.
-> Like someone went back over it, adding conditionals everywhere.  It
-> greatly adds to the clutter.
+> Using the mapping logic, we can avoid problem (1), but increase problem (2)
+> with added complexity and run-time logic. I am looking a way to avoid both
+> the problems, any help appreciated.
 
-hmm... will look into it.
+First of all, why do you need to track individual pages?  Seems a little
+bit silly to charge the first user of something like a commonly-mapped
+library for all users.
+
+For instance, when you have your super-partitioned-CKRMed-eWLM-apache
+server, doesn't the first class to execute apache get charged for all of
+the pages in the executable and the libraries?  Won't any subsequent
+user classes get it "for free"?  Perhaps tracking which classes have
+mapped pages and sharing the cost among them is a more reasonable
+measurement.
+
+If you find a way to track things based on files, you could keep your
+class pointers in the struct address_space, or even in the vma,
+depending on what behavior you want.  You could keep anonymous stuff in
+the anon_vma, just like the objrmap code.  
+ 
+> > > @@ -355,6 +356,7 @@ free_pages_bulk(struct zone *zone, int c
+> > >                 /* have to delete it as __free_pages_bulk list manipulates */
+> > >                 list_del(&page->lru);
+> > >                 __free_pages_bulk(page, zone, order);
+> > > +               ckrm_clear_page_class(page);
+> > >                 ret++;
+> > >         }
+> > >         spin_unlock_irqrestore(&zone->lock, flags);
+> > 
+> > When your option is on, how costly is the addition of code, here?  How
+> > much does it hurt the microbenchmarks?  How much larger does it
 > 
-> "DONTCARE" is also multiplexed.  It means "no guarantee" or "no limit"
-> depending on context.  I don't think it would hurt to have one variable
-> for each of these cases.
+> As I said earlier cache-bench doesn't show much effect. Will post that and 
+> other results sometime soon.
+...
 
-It is agnostic... and the name doesn't suggest one way or other... so, I
-don't see a problem in multiplexing it.
+Looks like only 3k.  
 
+> > > +       if (!in_interrupt() && !ckrm_class_limit_ok(ckrm_get_mem_class(p)))
+> > > +               return NULL;
+> > 
+> > ckrm_class_limit_ok() is called later on in the same hot path, and
+> > there's a for loop in there over each zone.  How expensive is this on
 > 
-> What does "impl" stand for, anyway?  implied?  implicit? implemented?
+> It doesn't get into the for loop unless the class is over the limit(which
+> is not a frequent event)
 
-I meant implicit... you can also say implied.... will add in comments to
-the dats structure definition.
+... if the class is behaving itself.  Somebody trying to take down a
+machine, or a single badly-behaved or runaway app might not behave like
+that.
 
+> Also, the loop is just to wakeup kswapd once..
+> may be I can get rid of that and use pgdat_list directly.
+
+I'd try to be a little more selective than a big for loop like that.
+
+> > SGI's machines?  What about an 8-node x44[05]?  Why can't you call it
+> > from interrupts?
 > 
-> -- Dave
-> 
+> I just wanted to avoid limit related failures in interrupt context, as it
+> might lead to wierd problems.
 
--- 
+You mean you didn't want to make your code robust enough to handle it?
+Is there something fundamental keeping you from checking limits when in
+an interrupt?
 
-----------------------------------------------------------------------
-    Chandra Seetharaman               | Be careful what you choose....
-              - sekharan@us.ibm.com   |      .......you may get it.
-----------------------------------------------------------------------
+-- Dave
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
