@@ -1,31 +1,39 @@
-Date: Mon, 18 Feb 2002 17:48:11 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@bonn-fries.net>
 Subject: Re: [RFC] Page table sharing
-In-Reply-To: <Pine.LNX.4.33L.0202182221040.1930-100000@imladris.surriel.com>
-Message-ID: <Pine.LNX.4.33.0202181746090.24597-100000@home.transmeta.com>
+Date: Tue, 19 Feb 2002 02:57:57 +0100
+References: <Pine.LNX.4.33.0202181746090.24597-100000@home.transmeta.com>
+In-Reply-To: <Pine.LNX.4.33.0202181746090.24597-100000@home.transmeta.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Message-Id: <E16czXZ-0000yk-00@starship.berlin>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Daniel Phillips <phillips@bonn-fries.net>, Hugh Dickins <hugh@veritas.com>, dmccr@us.ibm.com, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Robert Love <rml@tech9.net>, mingo@redhat.co, Andrew Morton <akpm@zip.com.au>, manfred@colorfullife.com, wli@holomorphy.com
+To: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>
+Cc: Hugh Dickins <hugh@veritas.com>, dmccr@us.ibm.com, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Robert Love <rml@tech9.net>, mingo@redhat.co, Andrew Morton <akpm@zip.com.au>, manfred@colorfullife.com, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
+On February 19, 2002 02:48 am, Linus Torvalds wrote:
+> On Mon, 18 Feb 2002, Rik van Riel wrote:
+> >
+> > We'll need protection from the swapout code.
+> 
+> Absolutely NOT.
+> 
+> If the swapout code unshares or shares the PMD, that's a major bug.
 
-On Mon, 18 Feb 2002, Rik van Riel wrote:
->
-> We'll need protection from the swapout code.
+What it will do is change entries on the page table.  We have to be sure
+two processes don't read/evict the same page in at the same time.
 
-Absolutely NOT.
+> The swapout code doesn't need to know one way or the other, because the
+> swapout code never actually touches the pmd itself, it just follows the
+> pointers - it doesn't ever need to worry about the pmd counts at all.
 
-If the swapout code unshares or shares the PMD, that's a major bug.
+That was my original, incomplete view of the situation at first as well.
 
-The swapout code doesn't need to know one way or the other, because the
-swapout code never actually touches the pmd itself, it just follows the
-pointers - it doesn't ever need to worry about the pmd counts at all.
-
-		Linus
-
+-- 
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
