@@ -1,92 +1,59 @@
-Date: Mon, 29 Mar 2004 19:22:48 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
-Message-ID: <20040329172248.GR3808@dualathlon.random>
-References: <Pine.LNX.4.44.0403150527400.28579-100000@localhost.localdomain> <Pine.GSO.4.58.0403211634350.10248@azure.engin.umich.edu> <20040325225919.GL20019@dualathlon.random> <Pine.GSO.4.58.0403252258170.4298@azure.engin.umich.edu> <20040326075343.GB12484@dualathlon.random> <Pine.LNX.4.58.0403261013480.672@ruby.engin.umich.edu> <20040326175842.GC9604@dualathlon.random> <Pine.GSO.4.58.0403271448120.28539@sapphire.engin.umich.edu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.GSO.4.58.0403271448120.28539@sapphire.engin.umich.edu>
+Date: Mon, 29 Mar 2004 12:50:20 -0500 (EST)
+From: Rajesh Venkatasubramanian <vrajesh@umich.edu>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity
+ fix
+In-Reply-To: <20040329172248.GR3808@dualathlon.random>
+Message-ID: <Pine.GSO.4.58.0403291240040.14450@eecs2340u20.engin.umich.edu>
+References: <Pine.LNX.4.44.0403150527400.28579-100000@localhost.localdomain>
+ <Pine.GSO.4.58.0403211634350.10248@azure.engin.umich.edu>
+ <20040325225919.GL20019@dualathlon.random> <Pine.GSO.4.58.0403252258170.4298@azure.engin.umich.edu>
+ <20040326075343.GB12484@dualathlon.random> <Pine.LNX.4.58.0403261013480.672@ruby.engin.umich.edu>
+ <20040326175842.GC9604@dualathlon.random> <Pine.GSO.4.58.0403271448120.28539@sapphire.engin.umich.edu>
+ <20040329172248.GR3808@dualathlon.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajesh Venkatasubramanian <vrajesh@umich.edu>
-Cc: akpm@osdl.org, hugh@veritas.com, riel@redhat.com, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Mar 27, 2004 at 02:51:45PM -0500, Rajesh Venkatasubramanian wrote:
-> 
-> This patch adds a list_head i_mmap_nonlinear to the address_space
-> structure. The list is used for storing all nonlinear vmas. This
-> is helpful in try_to_unmap_inode to find all nonlinear mappings of
-> a file.
-> 
-> This patch does not change invalidate_mmap_range_list. Already
-> the behavior of truncate on nonlinear mappings is undefined. We
-> understand that nonlinear mappings do not guarantee SIGBUS on
-> truncate. After this patch, we do not touch nonlinear maps on
-> the truncate path. So it is assured that the nonlinear maps will
-> not be destroyed by a truncate.
-> 
-> I am not happy with the truncate behavior on nonlinear maps. I
-> think we can guarantee SIGBUS on nonlinear maps by reusing Andrea's
-> try_to_unmap_nonlinear code. But, I have to study more to do that.
-> So I am leaving that for future.
-> 
-> This patch is against 2.6.5-rc2-aa4. The patch was tested in a
-> SMP m/c. It boots and compiles a kernel without any problem.
-> 
-> Please review and apply.
 
-great work, looks fine, applied thanks.
+>  #define VN_MAPPED(vp)	\
+> -	(!list_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap)) || \
+> -	(!list_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap_shared))))
+> +	(!prio_tree_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap)) || \
+> +	(!prio_tree_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap_shared))))
 
-Here a further update for xfs:
-
---- sles/fs/xfs/linux/xfs_vnode.h.~1~	2004-03-29 18:33:20.047028592 +0200
-+++ sles/fs/xfs/linux/xfs_vnode.h	2004-03-29 19:02:37.101915648 +0200
-@@ -601,8 +601,8 @@ static __inline__ void vn_flagclr(struct
-  * Some useful predicates.
-  */
- #define VN_MAPPED(vp)	\
--	(!list_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap)) || \
--	(!list_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap_shared))))
-+	(!prio_tree_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap)) || \
-+	(!prio_tree_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap_shared))))
- #define VN_CACHED(vp)	(LINVFS_GET_IP(vp)->i_mapping->nrpages)
- #define VN_DIRTY(vp)	mapping_tagged(LINVFS_GET_IP(vp)->i_mapping, \
- 					PAGECACHE_TAG_DIRTY)
+I think we will need the following too:
+	(!list_empty(&(LINVFS_GET_IP(vp)->i_mmaping->i_mmap_nonlinear)
 
 
-and really some other bigger tree needs this part too (not a mainline
-issue).
+>  	down(&mapping->i_shared_sem);
+> -	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
+> +	vma = __vma_prio_tree_first(&mapping->i_mmap_shared, &iter, 0, ULONG_MAX);
+> +	while (vma) {
+>  		if (!(vma->vm_flags & VM_DENYWRITE)) {
+>  			prohibited |= (1 << DM_EVENT_WRITE);
+>  			break;
+>  		}
+> +
+> +		vma = __vma_prio_tree_next(vma, &mapping->i_mmap_shared, &iter, 0, ULONG_MAX);
+>  	}
 
---- sles/fs/xfs/dmapi/dmapi_xfs.c.~1~	2004-03-29 18:33:03.781501328 +0200
-+++ sles/fs/xfs/dmapi/dmapi_xfs.c	2004-03-29 18:58:57.754261560 +0200
-@@ -228,17 +228,21 @@ prohibited_mr_events(
- 	struct address_space *mapping = LINVFS_GET_IP(vp)->i_mapping;
- 	int prohibited = (1 << DM_EVENT_READ);
- 	struct vm_area_struct *vma;
-+	struct prio_tree_iter iter;
- 
- 	if (!VN_MAPPED(vp))
- 		return 0;
- 
- #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
- 	down(&mapping->i_shared_sem);
--	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
-+	vma = __vma_prio_tree_first(&mapping->i_mmap_shared, &iter, 0, ULONG_MAX);
-+	while (vma) {
- 		if (!(vma->vm_flags & VM_DENYWRITE)) {
- 			prohibited |= (1 << DM_EVENT_WRITE);
- 			break;
- 		}
-+
-+		vma = __vma_prio_tree_next(vma, &mapping->i_mmap_shared, &iter, 0, ULONG_MAX);
- 	}
- 	up(&mapping->i_shared_sem);
- #else
+This part looks fine. But, I am not sure whether you have to handle
+nonlinear maps here.
 
+	list_for_each_entry(vma, &mapping->i_mmap_nonlinear, shared) {
+		...
+	}
 
-let me know if you see any bug in the above, thanks!
+>  	up(&mapping->i_shared_sem);
+>  #else
+
+Hope that helps.
+
+Rajesh
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
