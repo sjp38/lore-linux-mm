@@ -1,64 +1,40 @@
-From: Jack Steiner <steiner@sgi.com>
-Message-Id: <200105291748.MAA57815@fsgi056.americas.sgi.com>
-Subject: Re: Possible bug in tlb shootdown patch (IA64)
-Date: Tue, 29 May 2001 12:48:44 -0500 (CDT)
-In-Reply-To: <Pine.LNX.4.33.0105251506570.20484-100000@toomuch.toronto.redhat.com> from "Ben LaHaise" at May 25, 2001 03:11:17 PM
+Received: from localhost (hahn@localhost)
+	by coffee.psychology.mcmaster.ca (8.9.3/8.9.3) with ESMTP id QAA31677
+	for <linux-mm@kvack.org>; Wed, 30 May 2001 16:01:03 -0400
+Date: Wed, 30 May 2001 16:01:02 -0400 (EDT)
+From: Mark Hahn <hahn@coffee.psychology.mcmaster.ca>
+Subject: Re: Plain 2.4.5 VM
+In-Reply-To: <Pine.LNX.4.21.0105301613520.13062-100000@imladris.rielhome.conectiva>
+Message-ID: <Pine.LNX.4.10.10105301539030.31487-100000@coffee.psychology.mcmaster.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ben LaHaise <bcrl@redhat.com>
-Cc: Jack Steiner <steiner@sgi.com>, linux-mm@kvack.org, alan@redhat.com
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> On Fri, 25 May 2001, Jack Steiner wrote:
-> 
-> > I posted this to linux-mm@kvack.org but failed to
-> > send you a copy.
-> >
-> > ----
-> >
-> > We hit a problem that looks like it is related to the tlb
-> > shootdown patch.
-> 
-> Thanks for the analysis.  I think the following patch should help...
-> 
-> 		-ben
-> 
-> 
-> diff -urN v2.4.4-ac17/mm/memory.c wrk/mm/memory.c
-> --- v2.4.4-ac17/mm/memory.c	Thu May 24 19:45:18 2001
-> +++ wrk/mm/memory.c	Fri May 25 15:10:16 2001
-> @@ -285,9 +285,9 @@
->  		return 0;
->  	}
->  	ptep = pte_offset(pmd, address);
-> -	address &= ~PMD_MASK;
-> -	if (address + size > PMD_SIZE)
-> -		size = PMD_SIZE - address;
-> +	offset = address & ~PMD_MASK;
-> +	if (offset + size > PMD_SIZE)
-> +		size = PMD_SIZE - offset;
->  	size &= PAGE_MASK;
->  	for (offset=0; offset < size; ptep++, offset += PAGE_SIZE) {
->  		pte_t pte = *ptep;
-> 
+> The "easy way out" seems to be physical -> virtual
+> page reverse mappings, these make it trivial to apply
+> balanced pressure on all pages.
 
-I didnt try the code, but I think there is still a problem.
+hmm, I've been wondering if one of our problems is that while
+the active/inactive-clean/inactive-dirty system does well
+at preserving age info, but the only place we actually
+*learn* NEW information about page use is in try_to_swap_out:
 
-It looks like the patch addresses only part of the problem. There
-is also code in zap_pmd_range that will mask off the upper bits of the
-address being flushed. The call to tlb_remove_page() in zap_pte_range()
-must pass the entire user virtual address that is being removed.
+	if (ptep_test_and_clear_young(pte))
+		age up;
+	else		
+		get rid of it;
 
+shouldn't we try to gain more information by scanning page tables
+at a good rate?  we don't have to blindly get rid of every page
+that isn't young (referenced since last scan) - we could base that
+on age.  admittedly, more scanning would eat some additional CPU,
+but then again, we currently shuffle pages among lists based on relatively
+sparse PAGE_ACCESSED info.
 
-
--- 
-Thanks
-
-Jack Steiner    (651-683-5302)   (vnet 233-5302)      steiner@sgi.com
+or am I missing something?  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
