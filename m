@@ -1,61 +1,77 @@
-Message-Id: <200205160640.g4G6eKY16156@Port.imtp.ilyichevsk.odessa.ua>
-Content-Type: text/plain;
-  charset="us-ascii"
-From: Denis Vlasenko <vda@port.imtp.ilyichevsk.odessa.ua>
-Reply-To: vda@port.imtp.ilyichevsk.odessa.ua
-Subject: Re: [RFC][PATCH] iowait statistics
-Date: Thu, 16 May 2002 09:42:52 -0200
-References: <Pine.LNX.4.44L.0205151558180.32261-100000@imladris.surriel.com>
-In-Reply-To: <Pine.LNX.4.44L.0205151558180.32261-100000@imladris.surriel.com>
+Message-ID: <3CE362B0.CA79EB33@zip.com.au>
+Date: Thu, 16 May 2002 00:41:36 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Subject: Re: [RFC][PATCH] iowait statistics
+References: <Pine.LNX.4.44L.0205132214480.32261-100000@imladris.surriel.com> <3CE073FA.57DAC578@zip.com.au> <200205151200.g4FC0MY13196@Port.imtp.ilyichevsk.odessa.ua>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, William Lee Irwin III <wli@holomorphy.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: vda@port.imtp.ilyichevsk.odessa.ua
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 15 May 2002 17:00, Rik van Riel wrote:
-> > $ top
-> > fscanf failed on /proc/stat for cpu 1
->
-> Doh, take a look at top.c around line 1460:
->
->               for(i = 0; i < nr_cpu; i++) {
->                 if(fscanf(file, "cpu%*d %d %d %d %d\n",
->                           &u_ticks, &n_ticks, &s_ticks, &i_ticks) != 4) {
->                   fprintf(stderr, "fscanf failed on /proc/stat for cpu
-> %d\n", i);
->
-> It would have been ok (like vmstat) if it didn't expect the \n
-> after the fourth number ;/
->
-> Oh well, time for another procps patch ;)
+Denis Vlasenko wrote:
+> 
+> On 14 May 2002 00:18, Andrew Morton wrote:
+> > Rik van Riel wrote:
+> > > 4) on SMP systems the iowait time can be overestimated, no big
+> > >    deal IMHO but cheap suggestions for improvement are welcome
+> >
+> > I suspect that a number of these statistical accounting mechanisms
+> > are going to break.  The new irq-affinity code works awfully well.
+> >
+> > The kernel profiler in 2.5 doesn't work very well at present.
+> > When investigating this, I ran a busy-wait process.  It attached
+> > itself to CPU #3 and that CPU received precisely zero interrupts
+> > across a five minute period.  So the profiler cunningly avoids profiling
+> > busy CPUs, which is rather counter-productive.  Fortunate that oprofile
+> > uses NMI.
+> 
+> What, even local APIC interrupts did not happen on CPU#3
+> in these five mins?
 
-While you're at it:
+CPU1 is busy:
 
-          printf("CPU states:"
-                 " %2ld.%ld%% user, %2ld.%ld%% system,"
-                 " %2ld.%ld%% nice, %2ld.%ld%% idle",
-                 user_ticks / 10UL, user_ticks % 10UL,
-                 system_ticks / 10UL, system_ticks % 10UL,
-                 nice_ticks / 10UL, nice_ticks % 10UL,
-                 idle_ticks / 10UL, idle_ticks % 10UL);
+quad:/home/akpm> cat /proc/interrupts ; sleep 10 ; cat /proc/interrupts
+           CPU0       CPU1       CPU2       CPU3       
+  0:      36059      33847      38948      33846    IO-APIC-edge  timer
+  1:          1          1          1          4    IO-APIC-edge  keyboard
+  2:          0          0          0          0          XT-PIC  cascade
+  4:          1          1          1          0    IO-APIC-edge  GDB-stub
+  8:          0          0          0          1    IO-APIC-edge  rtc
+ 12:          0          1          0          0    IO-APIC-edge  PS/2 Mouse
+ 14:          1          2          0          3    IO-APIC-edge  ide0
+ 15:       7558       7557       7633       8025    IO-APIC-edge  ide1
+ 19:      17088      17707      17210      18610   IO-APIC-level  ide2, ide3, ide4, ide5
+ 35:         38         71         56        174   IO-APIC-level  aic7xxx
+ 38:        955       1798        584        517   IO-APIC-level  eth0
+ 58:      25368      19911      27931      20695   IO-APIC-level  aic7xxx
+NMI:     164030     164030     164030     164030 
+LOC:     142543     142543     142542     142542 
+ERR:          0
+MIS:          0
+           CPU0       CPU1       CPU2       CPU3       
+  0:      36388      33847      39289      34178    IO-APIC-edge  timer
+  1:          1          1          1          4    IO-APIC-edge  keyboard
+  2:          0          0          0          0          XT-PIC  cascade
+  4:          1          1          1          0    IO-APIC-edge  GDB-stub
+  8:          0          0          0          1    IO-APIC-edge  rtc
+ 12:          0          1          0          0    IO-APIC-edge  PS/2 Mouse
+ 14:          1          2          0          3    IO-APIC-edge  ide0
+ 15:       7565       7557       7633       8026    IO-APIC-edge  ide1
+ 19:      17088      17707      17210      18610   IO-APIC-level  ide2, ide3, ide4, ide5
+ 35:         38         71         56        174   IO-APIC-level  aic7xxx
+ 38:        969       1798        590        525   IO-APIC-level  eth0
+ 58:      25368      19911      27931      20695   IO-APIC-level  aic7xxx
+NMI:     165032     165032     165032     165032 
+LOC:     143545     143545     143544     143544 
+ERR:          0
+MIS:          0
 
-" %2ld" -> "%3ld" will make 100.00% look much nicer:
-Current code: " 34.56%" " 100.00%" (i.e. 100% is one char wider!)
-New code:     " 34.56%" "100.00%"
 
-Same here:
-
-          printf ("CPU%d states: %2d.%-d%% user, %2d.%-d%% system,"
-                  " %2d.%-d%% nice, %2d.%-d%% idle",
-                  cpumap,
-
-Another thing: in sight of moves towards 64bit jiffies isn't it wise to
-use unsigned long long (or explicit u64) for all these numbers?
---
-vda
+-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
