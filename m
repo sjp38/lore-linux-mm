@@ -1,35 +1,31 @@
-Date: Tue, 5 Jun 2001 19:59:38 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: temp. mem mappings
-Message-ID: <20010605195938.L26756@redhat.com>
-References: <3B568C0B@MailAndNews.com> <LD7imD.A.DyE.aQSH7@dinero.interactivesi.com> <LD7imD.A.DyE.aQSH7@dinero.interactivesi.com> <20010605194136.K26756@redhat.com> <93UtRC.A.gWG.8oSH7@dinero.interactivesi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <93UtRC.A.gWG.8oSH7@dinero.interactivesi.com>; from ttabi@interactivesi.com on Tue, Jun 05, 2001 at 01:51:37PM -0500
+Date: Tue, 5 Jun 2001 15:21:16 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: Comment on patch to remove nr_async_pages limit
+In-Reply-To: <Pine.LNX.4.33.0106051140270.1227-100000@mikeg.weiden.de>
+Message-ID: <Pine.LNX.3.96.1010605151500.25725C-100000@kanga.kvack.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timur Tabi <ttabi@interactivesi.com>
-Cc: linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Zlatko Calusic <zlatko.calusic@iskon.hr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 5 Jun 2001, Mike Galbraith wrote:
 
-On Tue, Jun 05, 2001 at 01:51:37PM -0500, Timur Tabi wrote:
+> Yes.  If we start writing out sooner, we aren't stuck with pushing a
+> ton of IO all at once and can use prudent limits.  Not only because of
+> potential allocation problems, but because our situation is changing
+> rapidly so small corrections done often is more precise than whopping
+> big ones can be.
 
-> > > Allocate a virtual memory area using vmalloc and then save and modify the
-> > > pmd/pgd/pte to point to the physical memory you want.  To unmap, just undo the
-> > > previous steps.
-> > 
-> > ioremap() is there for exactly that purpose. 
-> 
-> True, except that you can't use ioremap on normal memory, which is what I
-> assumed he was trying to do.
+Hold on there big boy, writing out sooner is not better.  What if the
+memory shortage is because real data is being written out to disk?
+Swapping early causes many more problems than swapping late as extraneous
+seeks to the swap partiton severely degrade performance.
 
-Normal memory is identity-mapped very early in boot anyway (except for
-highmem on large Intel boxes, that is, and kmap() works for that.)
+		-ben
 
---Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
