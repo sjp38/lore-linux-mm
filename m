@@ -1,61 +1,51 @@
-Date: Tue, 15 May 2001 12:31:21 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: on load control / process swapping
-In-Reply-To: <3B00CECF.9A3DEEFA@mindspring.com>
-Message-ID: <Pine.LNX.4.21.0105151219240.4671-100000@imladris.rielhome.conectiva>
+Received: from ns-ca.netscreen.com (ns-ca.netscreen.com [10.100.10.21])
+	by mail.netscreen.com (8.10.0/8.10.0) with ESMTP id f4FH09A04080
+	for <linux-mm@kvack.org>; Tue, 15 May 2001 10:00:09 -0700
+Message-ID: <A33AEFDC2EC0D411851900D0B73EBEF766DBEB@NAPA>
+From: Hua Ji <hji@netscreen.com>
+Subject: About performance related to do_map
+Date: Tue, 15 May 2001 10:13:30 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Terry Lambert <tlambert2@mindspring.com>
-Cc: Matt Dillon <dillon@earth.backplane.com>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 14 May 2001, Terry Lambert wrote:
-> Rik van Riel wrote:
-> > So we should not allow just one single large job to take all
-> > of memory, but we should allow some small jobs in memory too.
-> 
-> Historically, this problem is solved with a "working set
-> quota".
+Folks,
 
-This is a great idea for when the system is in-between normal
-loads and real thrashing. It will save small processes while
-slowing down memory hogs which are taking resources fairly.
+When reading source codes, get a question. Thanks in advance.
 
-I'm not convinced it is any replacement for swapping, but it
-sure a good way to delay swapping as long as possible.
+Function do_map() ./mm/mmap.c,
 
-Also, having a working set size guarantee in combination with
-idle swapping will almost certainly give the proveribial root
-shell the boost it needs ;)
+After/if we get a vma by using **get_unmapped_area**, why we still
+double-check
+the vma area by using do_munmap()? 
 
-> Doing extremely complicated things is only going to get
-> you into trouble... in particular, you don't want to
-> have policy in effect to deal with border load conditions
-> unless you are under those conditions in the first place.
+This call to do_munmap()is ONLY NECESSARY when (flags & MAP_FIXED) is
+**TRUE**.
 
-Agreed.
+The do_munmap will bring some EXTRA cost with the look up the vma linked
+list or/and AVL tree.
 
-> It's possible to do a more complicated working set quota,
-> which actually applies to a process' working set, instead
-> of to vnodes, out of context with the process,
+Also, why not check it first before we create a new vma area? We don't have
+to create a vma first and then release it afterwards when lateron we find
+out that this vma is overlapped by some other vma area already.
 
-I guess in FreeBSD a per-vnode approach would be easier to
-implement while in Linux a per-process working set would be
-easier...
-
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
-
+Mike
+------------------------------------------------
+ /* Obtain the address to map to. we verify (or select) it and ensure
+	 * that it represents a valid section of the address space.
+	 */
+	if (flags & MAP_FIXED) {
+		if (addr & ~PAGE_MASK)
+			return -EINVAL;
+	} else {
+		addr = get_unmapped_area(addr, len);
+		if (!addr)
+			return -ENOMEM;
+	}
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
