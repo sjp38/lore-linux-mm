@@ -1,50 +1,62 @@
-Date: Fri, 5 Jan 2001 15:50:30 -0200 (BRDT)
-From: Rik van Riel <riel@conectiva.com.br>
+From: Daniel Phillips <phillips@innominate.de>
 Subject: Re: MM/VM todo list
-In-Reply-To: <Pine.LNX.4.21.0101051344270.2745-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0101051549340.1295-100000@duckman.distro.conectiva>
+Date: Fri, 5 Jan 2001 18:58:22 +0100
+Content-Type: text/plain
+References: <Pine.LNX.4.21.0101051505430.1295-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0101051505430.1295-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <01010519042301.00517@gimli>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 5 Jan 2001, Marcelo Tosatti wrote:
-> On Fri, 5 Jan 2001, Rik van Riel wrote:
+On Fri, 05 Jan 2001, Rik van Riel wrote:
+> Hi,
 > 
-> > here is a TODO list for the memory management area of the
-> > Linux kernel, with both trivial things that could be done
-> > for later 2.4 releases and more complex things that really
-> > have to be 2.5 things.
-> > 
-> > Most of these can be found on http://linux24.sourceforge.net/ too
-> > 
-> > Trivial stuff:
-> > * VM: better IO clustering for swap (and filesystem) IO
-> >   * Marcelo's swapin/out clustering code
->     * Swap space preallocation at try_to_swap_out()
+> here is a TODO list for the memory management area of the
+> Linux kernel, with both trivial things that could be done
+> for later 2.4 releases and more complex things that really
+> have to be 2.5 things.
 > 
-> >   * ->writepage() IO clustering support
+> Most of these can be found on http://linux24.sourceforge.net/ too
 > 
-> Hum, IMO this should be in the "2.5" list because 
+> Trivial stuff:
+> * VM: better IO clustering for swap (and filesystem) IO
+>   * Marcelo's swapin/out clustering code
+>   * ->writepage() IO clustering support
+>   * page_launder()/->writepage() working together in avoiding
+>     low-yield (small cluster) IO at first, ...
+> * VM: include Ben LaHaise's code, which moves readahead to the
+>   VMA level, this way we can do streaming swap IO, complete with
+>   drop_behind()
+> * VM: enforce RSS ulimit
+> 
+> 
+> Probably 2.5 era:
+> * VM: physical->virtual reverse mapping, so we can do much
+>   better page aging with less CPU usage spikes 
+> * VM: move all the global VM variables, lists, etc. into the
+>   pgdat struct for better NUMA scalability
+> * VM: per-node kswapd for NUMA
+> * VM: thrashing control, maybe process suspension with some
+>   forced swapping ?             (trivial only in theory)
+> * VM: experiment with different active lists / aging pages
+>   of different ages at different rates + other page replacement
+>   improvements
+> * VM: Quality of Service / fairness / ... improvements
+> 
+> 
+> Additions to this list are always welcome, I'll put it online
+> on the Linux-MM pages (http://www.linux.eu.org/Linux-MM/) soon.
 
-The non-trivial part of improved IO clustering should be a
-2.5 thing indeed, but I'm not convinced there aren't any
-trivial things left which can give us a nice improvement
-now (and for the whole 2.4 series).
+I'd like to suggest variable sized pages as a research topic.  It's not
+clear whether we're talking 2.5 or 2.7 here.
 
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to loose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
-
+-- 
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
