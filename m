@@ -1,45 +1,59 @@
-Message-ID: <39217965.D0F64411@norran.net>
-Date: Tue, 16 May 2000 18:37:57 +0200
-From: Roger Larsson <roger.larsson@norran.net>
+Date: Tue, 16 May 2000 12:41:05 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: More observations...
+In-Reply-To: <20000516112012.D26581@redhat.com>
+Message-ID: <Pine.LNX.4.21.0005161228030.30661-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Subject: Re: Estrange behaviour of pre9-1
-References: <Pine.LNX.4.10.10005160642440.1398-100000@penguin.transmeta.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Mike Simons <msimons@moria.simons-clan.com>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> 
-> On 16 May 2000, Juan J. Quintela wrote:
-> > Hi
-> >
-> > linus> That is indeed what my shink_mmap() suggested change does (ie make
-> > linus> "sync_page_buffers()" wait for old locked buffers).
-> >
-> > But your change wait for *all* locked buffers, I want to start several
-> > writes asynchronously and then wait for one of them.
-> 
-> This is pretty much exactly what my change does - no need to be
-> excessively clever.
-> 
-> Remember, we walk the LRU list from the "old" end, and whenever we hita
-> dirty buffer we will write it out asynchronously. AND WE WILL MOVE IT TO
-> THE TOP OF THE LRU QUEUE!
-> 
+On Tue, 16 May 2000, Stephen C. Tweedie wrote:
 
-Not in my recently released patch [Improved LRU shrink_mmap...].
-It keeps the dirty (to be cleaned) pages in the old end.
-I do not scan for dirty pages but it can easily be added - tonight.
+> The concept is quite simple: if you can limit a process's RSS,
+> you can limit the amount of memory which is pinned in process
+> page tables, and thus subject to expensive swapping.  Note that
+> you don't have to get rid of the pages --- you can leave them in
+> the page cache/swap cache, where they can be re-faulted rapidly
+> if needed, but if the memory is needed for something else then
+> shrink_mmap can reclaim the pages rapidly.
 
-/RogerL
+There's one problem with this idea. The current implementation
+of shrink_mmap() skips over dirty pages, leading to a failing
+shrink_mmap(), calls to swap_out() and replacement of the wrong
+pages...
 
+> Rick's old memory hog flag is essentially a simple case of an
+> RSS limit (the task RSS is limited to what it is currently set
+> at).
+
+Not really. The anti-hog code did a number of things:
+- swap_out() scans tasks more and more agressively the
+  bigger their RSS gets bigger, meaning we "push back
+  harder" if a process is very big
+- slow down the allocation rate of very big processes
+  by having them call try_to_free_pages() if they want
+  to allocate something. It doesn't have to steal a page
+  from itself, but can steal the page from anywhere.
+
+The effect should be comperable to RSS limits, only simpler ;)
+
+(After all, all RSS limits do is make sure that the VM subsystem
+"pushes back harder" against the VM pressure of big processes)
+
+regards,
+
+Rik
 --
-Home page:
-  http://www.norran.net/nra02596/
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
+Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
