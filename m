@@ -1,27 +1,25 @@
-Date: Wed, 27 Aug 2003 09:00:20 -0700
-From: Mike Fedyk <mfedyk@matchmail.com>
-Subject: Re: Compile problem with CONFIG_X86_CYCLONE_TIMER Re: 2.6.0-test4-mm1
-Message-ID: <20030827160020.GA4119@matchmail.com>
-References: <20030827010849.GA5280@matchmail.com> <1061959279.12881.6.camel@nighthawk>
+Date: Wed, 27 Aug 2003 09:03:30 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: mapped pages
+Message-ID: <20030827160330.GI22495@holomorphy.com>
+References: <Pine.GSO.4.51.0308271154030.24276@aria.ncl.cs.columbia.edu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1061959279.12881.6.camel@nighthawk>
+In-Reply-To: <Pine.GSO.4.51.0308271154030.24276@aria.ncl.cs.columbia.edu>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Stultz <johnstul@us.ibm.com>
+To: "Raghu R. Arur" <rra2002@aria.ncl.cs.columbia.edu>
+Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 26, 2003 at 09:41:19PM -0700, Dave Hansen wrote:
-> On Tue, 2003-08-26 at 18:08, Mike Fedyk wrote:
-> > This patch to my .config makes it compile:
-> 
-> I tried 2.6.0-test4-mm1 with your config and didn't have any problems. 
-> Could you check with your old config to make sure I'm not missing
-> something?
+On Wed, Aug 27, 2003 at 11:55:09AM -0400, Raghu R. Arur wrote:
+>  Do all mapped pages have buffers? Is there a possibility that a mapped
+> page to have its page->buffer to be NULL
 
-did you try with gcc 2.95?
+No to the first question, yes to the second.
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
