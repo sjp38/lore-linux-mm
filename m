@@ -1,49 +1,64 @@
-Date: Wed, 20 Feb 2002 15:30:08 +0000 (GMT)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC] Page table sharing
-In-Reply-To: <E16dXZm-0001Lv-00@starship.berlin>
-Message-ID: <Pine.LNX.4.21.0202201439100.1136-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 20 Feb 2002 12:07:51 -0700
+From: Andreas Dilger <adilger@turbolabs.com>
+Subject: Re: [PATCH] struct page, new bk tree
+Message-ID: <20020220120751.B1506@lynx.adilger.int>
+References: <Pine.LNX.4.33L.0202192044140.7820-100000@imladris.surriel.com> <20020219155706.H26350@work.bitmover.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20020219155706.H26350@work.bitmover.com>; from lm@bitmover.com on Tue, Feb 19, 2002 at 03:57:06PM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, dmccr@us.ibm.com, Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Robert Love <rml@tech9.net>, mingo@redhat.com, Andrew Morton <akpm@zip.com.au>, manfred@colorfullife.com, wli@holomorphy.com
+To: Larry McVoy <lm@work.bitmover.com>, Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Larry McVoy <lm@bitmover.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 20 Feb 2002, Daniel Phillips wrote:
-> On February 19, 2002 07:11 pm, Hugh Dickins wrote:
+On Feb 19, 2002  15:57 -0800, Larry McVoy wrote:
+> On Tue, Feb 19, 2002 at 08:47:17PM -0300, Rik van Riel wrote:
+> > I've removed the old (broken) bitkeeper tree with the
+> > struct page changes and have put a new one in the same
+> > place ... with the struct page changes in one changeset
+> > with ready checkin comment.
 > > 
-> > It's a little worse than this, I think.  Propagating pte_dirty(pte) to
-> > set_page_dirty(page) cannot be done until after the flush_tlb_cpus,
+> > You can resync from bk://linuxvm.bkbits.net/linux-2.5-struct_page
+> > and you'll see that the stupid etc/config change is no longer there.
 > 
-> You mean, because somebody might re-dirty an already cleaned page?  Or are
-> you driving at something more subtle?
+> Since you two are doing the BK dance, here's a question for you: 
+> I can imagine that this sort of back and forth will happen quite a bit,
+> someone makes a change, then Linus (or whoever) says "no way", and the
+> developer goes back, cleans up the change, and repeats.  That's fine for
+> Linus & Rik because Linus tosses the changeset and Rik tosses it, but
+> what about the other people who have pulled?  Those changesets are now
+> wandering around in the network, just waiting to pop back into a tree.
+> 
+> This is at the core of my objections to the "reorder the events" theme
+> which we had a while back.  You can reorder all you want, but if there
+> are other copies of the events floating around out there, they may come
+> back.
+> 
+> A long time ago, there was some discussion of a changeset blacklist.
+> The idea being that if you want to reorder/rewrite/whatever, and your
+> changes have been pulled/pushed/whatever, then it would be good to be
+> able to state that in the form of some list which may be used to see 
+> if you have garbage changesets.
+> 
+> We could have a --blacklist option to undo which says "undo these
+> changes but remember their "names" in the BitKeeper/etc/blacklist file.
+> The next changeset you make will check in that file.  Note that each
+> changeset has a unique name which is used internally, somewhat like a
+> file has an inode number.  So we can save those names.  Then if you do
+> a pull or someone does a push, the incoming csets can be compared with
+> the blacklist and rejected if found.
 
-You are right to press me on this.  Now I reflect upon it, I think I
-was scare-mongering, and I'm sure you don't need that!  I apologize.
+So what happens to the person who pulled the (now-blacklited) CSET in
+the first place?  If they do a pull from the repository where the original
+CSET lived, will the blacklisted CSET be undone and the replacement CSET
+be used in its place?
 
-If the i386 pte was already marked dirty, there's no issue at all.
-If the i386 pte was not already marked dirty, but another processor
-has that entry in its TLB (not marked dirty), and goes to dirty it
-at the wrong moment, either it does so successfully just before the
-ptep_get_and_clear (and we see the dirty bit), or it tries to do so
-just after the (atomic part of) the ptep_get_and_clear, finds pte
-not present and faults (page not yet dirtied).  No problem.
-
-This (one cpu invalidating pte while another is halfway through ucode
-updating dirty or referenced bit) is errata territory on Pentium Pro.
-But if we were going to worry about that, we should have done so
-before, you're not introducing any new problem in that respect.
-
-I'm unfamiliar with the other architectures, but I have no reason
-to suppose they behave critically differently here.  Ben will have
-checked this all out when he brought in tlb_remove_page(): and though
-his propagation of dirty from pte to page occurs after the flush TLB,
-it's irrelevant: that pte comes from ptep_get_and_clear before.
-
-Sorry again,
-Hugh
+Cheers, Andreas
+--
+Andreas Dilger
+http://sourceforge.net/projects/ext2resize/
+http://www-mddsp.enel.ucalgary.ca/People/adilger/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
