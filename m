@@ -1,42 +1,38 @@
-Received: from sp1n293en1.watson.ibm.com (sp1n293en1.watson.ibm.com [9.2.112.57])
-	by igw3.watson.ibm.com (8.11.4/8.11.4) with ESMTP id g07IXRn19758
-	for <linux-mm@kvack.org>; Mon, 7 Jan 2002 13:33:27 -0500
-Received: from watson.ibm.com (discohall.watson.ibm.com [9.2.17.22])
-	by sp1n293en1.watson.ibm.com (8.11.4/8.11.4) with ESMTP id g07IXRn41278
-	for <linux-mm@kvack.org>; Mon, 7 Jan 2002 13:33:27 -0500
-Message-ID: <3C39EAD1.20CDF9CE@watson.ibm.com>
-Date: Mon, 07 Jan 2002 13:37:05 -0500
-From: "Raymond B. Jennings III" <raymondj@watson.ibm.com>
-Reply-To: raymondj@watson.ibm.com
+Date: Mon, 7 Jan 2002 16:53:31 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [PATCH] improving oom detection in rmap10c.
+In-Reply-To: <20020106154950.5B067693F@oscar.casa.dyndns.org>
+Message-ID: <Pine.LNX.4.33L.0201071635170.872-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Subject: Hole in kernel virtual address space.
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I've asked this question in the past but have yet to get any insight to
-it.
+On Sun, 6 Jan 2002, Ed Tomlinson wrote:
 
-Basically there appears to be a hole when HIGHMEM is turned on in the
-kernel.
+> This patch should prevent oom situations where the vm does not see
+> pages released from the slab caches.
 
-With HIGHMEM turned off:
-VMALLOC_END = FIXADDR_START - 2*PAGE_SIZE
-VMALLOC_END = (FFFFE000h - 4*PAGE_SIZE) - 2*PAGE_SIZE
-(Pretty close to the 4GB boundary)
+> Comments?
 
-With HIGHMEM turned on:
+I have a feeling the OOM detection in rmap10c isn't working
+out because of another issue ... I think it has something to
+do with the swap allocation failure path indirectly triggering
+OOM, I think I'll go audit the code now ;)
 
-VMALLOC_END = PKMAP_BASE - 2*PAGE_SIZE
+(oh the wonders of maintaining code ... auditing everybody's
+code and tracking down bugs instead of doing fun development ;))
 
-I realize you need room for the pkmap_count array but the array only
-allows for 1024 pages.  If PKMAP_BASE = FE000000h then this fills the
-address space upto
-FE400000.  What is being used in the remaining section of the address
-space?  Thanks.
+cheers,
+
+Rik
+-- 
+Shortwave goes a long way:  irc.starchat.net  #swl
+
+http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
