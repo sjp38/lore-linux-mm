@@ -1,122 +1,80 @@
-Date: Sun, 15 Jun 2003 03:17:32 -0700
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: 2.5.71-mm1
-Message-Id: <20030615031732.7a9bd6f5.akpm@digeo.com>
-In-Reply-To: <16108.18479.941335.176904@gargle.gargle.HOWL>
-References: <20030615015024.6d868168.akpm@digeo.com>
-	<16108.18479.941335.176904@gargle.gargle.HOWL>
+Received: from northrelay04.pok.ibm.com (northrelay04.pok.ibm.com [9.56.224.206])
+	by e3.ny.us.ibm.com (8.12.9/8.12.2) with ESMTP id h5G3sdE2160956
+	for <linux-mm@kvack.org>; Sun, 15 Jun 2003 23:54:39 -0400
+Received: from sparklet.in.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by northrelay04.pok.ibm.com (8.12.9/NCO/VER6.5) with ESMTP id h5G3sZPv039102
+	for <linux-mm@kvack.org>; Sun, 15 Jun 2003 23:54:37 -0400
+Received: (from suparna@localhost)
+	by sparklet.in.ibm.com (8.11.6/8.11.0) id h5G3xiJ10468
+	for linux-mm@kvack.org; Mon, 16 Jun 2003 09:29:44 +0530
+Date: Mon, 16 Jun 2003 09:29:44 +0530
+From: Suparna Bhattacharya <suparna@in.ibm.com>
+Subject: use_mm/unuse_mm correctness
+Message-ID: <20030616092944.A10463@in.ibm.com>
+Reply-To: suparna@in.ibm.com
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Neil Brown <neilb@cse.unsw.edu.au>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Neil Brown <neilb@cse.unsw.edu.au> wrote:
->
-> On Sunday June 15, akpm@digeo.com wrote:
-> > 
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.71/2.5.71-mm1/
-> > 
-> > 
-> > Mainly a resync.
-> > 
-> > . Manfred sent me a revised unmap-page-debugging patch which promptly
-> >   broke.  All slab changes have been dropped out so he can have a clear run
-> >   at that.
-> > 
-> > . New toy.  Called, for the lack of a better name, "sleepometer":
-> > 
-> 
-> New toy seems to be lacking mainspring...
-> 
-> In particular,  sleepo.h cannot be found :-(
-> 
+Can anyone spot a problem in the following routines ?
 
-oops.
+These are used by AIO workqueue routines to take on the 
+caller's address space when executing certain operations,
+and then to switch back to the workqueue thread's original 
+mm context. 
 
+We are seeing some strange bugs in -mm lately, and this
+code is one of the suspects. Can't yet see what could be
+wrong ...
 
-#ifndef SLEEPOMETER_H
-#define SLEEPOMETER_H
+/*
+ * use_mm
+ * 	Makes the calling kernel thread take on the specified 
+ * 	mm context. 
+ * 	Called by the retry thread execute retries within the 
+ * 	iocb issuer's mm context, so that copy_from/to_user
+ * 	operations work seamlessly for aio.
+ * 	(Note: this routine is intended to be called only 
+ * 	from a kernel thread context)
+ */
+static void use_mm(struct mm_struct *mm)
+{
+	struct mm_struct *active_mm = current->active_mm;
+	atomic_inc(&mm->mm_count);
+	current->mm = mm;
 
-#include <linux/spinlock.h>
-#include <asm/linkage.h>
+	current->active_mm = mm;
+	activate_mm(active_mm, mm);
 
-struct sleepo_data {
-	spinlock_t lock;
-	unsigned long nr_sleeps;
-	unsigned long long total_usecs;
-	unsigned long long max_usecs;
-	const char *file;
-	const char *sleep_type;
-	int line;
-	struct sleepo_data *next;
-};
+	mmdrop(active_mm);
+}
 
-void sleepo_io_schedule(void);
-long sleepo_io_schedule_timeout(long timeout);
-asmlinkage void sleepo_schedule(void);
-void sleepo_preempt_schedule(void);
-signed long sleepo_schedule_timeout(signed long timeout);
-void sleepo_begin(const char *file, int line,
-		const char *sleep_type, struct sleepo_data *sd);
-void sleepo_end(struct sleepo_data *sd);
-void sleepo_start(const char *file, int line,
-		const char *sleep_type, struct sleepo_data *sd);
-void sleepo_stop(struct sleepo_data *sd);
+/*
+ * unuse_mm
+ * 	Reverses the effect of use_mm, i.e. releases the
+ * 	specified mm context which was earlier taken on
+ * 	by the calling kernel thread 
+ * 	(Note: this routine is intended to be called only 
+ * 	from a kernel thread context)
+ */
+void unuse_mm(struct mm_struct *mm)
+{
+	current->mm = NULL;
+	/* active_mm is still 'mm' */
+	enter_lazy_tlb(mm, current, smp_processor_id());
+}
 
-#define schedule()							\
-	do {								\
-		static struct sleepo_data sd;				\
-									\
-		sleepo_start(__FILE__, __LINE__, "schedule", &sd);	\
-		sleepo_schedule();					\
-		sleepo_stop(&sd);					\
-	} while (0)
+Regards
+Suparna
 
-#define preempt_schedule()						\
-	do {								\
-		static struct sleepo_data sd;				\
-									\
-		sleepo_start(__FILE__, __LINE__, "preempt_schedule" &sd);\
-		sleepo_preempt_schedule();				\
-		sleepo_stop(&sd);					\
-	} while (0)
-
-#define io_schedule()							\
-	do {								\
-		static struct sleepo_data sd;				\
-									\
-		sleepo_start(__FILE__, __LINE__, "io_schedule", &sd);	\
-		sleepo_io_schedule();					\
-		sleepo_stop(&sd);					\
-	} while (0)
-
-#define schedule_timeout(t)						\
-	({								\
-		static struct sleepo_data sd;				\
-		long ret;						\
-									\
-		sleepo_start(__FILE__, __LINE__, "schedule_timeout", &sd);\
-		ret = sleepo_schedule_timeout(t);			\
-		sleepo_stop(&sd);					\
-		ret;							\
-	})
-
-#define io_schedule_timeout(t)						\
-	({								\
-		static struct sleepo_data sd;				\
-		long ret;						\
-									\
-		sleepo_start(__FILE__, __LINE__, "io_schedule_timeout", &sd);\
-		ret = sleepo_io_schedule_timeout(t);			\
-		sleepo_stop(&sd);					\
-		ret;							\
-	})
-
-#endif		/* SLEEPOMETER_H */
+-- 
+Suparna Bhattacharya (suparna@in.ibm.com)
+Linux Technology Center
+IBM Software Labs, India
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
