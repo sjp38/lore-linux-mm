@@ -1,27 +1,48 @@
-Date: Sun, 30 May 2004 03:15:59 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: mmap() > phys mem problem
-Message-Id: <20040530031559.329acf68.akpm@osdl.org>
-In-Reply-To: <40B9A855.3030102@yahoo.com.au>
-References: <Pine.LNX.4.44.0405251523250.18898-100000@pygar.sc.orionmulti.com>
-	<Pine.LNX.4.55L.0405282208210.32578@imladris.surriel.com>
-	<Pine.LNX.4.60.0405292144350.1068@stimpy>
-	<40B9A855.3030102@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: "Abdul Hall" <szmsfwwou@yahoo.com>
+Subject: RE: I saw your profile
+Date: Sun, 09 May 2004 08:22:21 -0500
 Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: rlm@orionmulti.com, riel@surriel.com, linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+Message-ID: <MWZOUQHXXUVVXRKHQOYGSF__46829.278386622$1084109248@yahoo.com>
+Reply-To: "Abdul Hall" <ppqggud@yahoo.com>
+Mime-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--07841164216929166406"
+Return-path: <owner-linux-mm@kvack.org>
+To: linux-aio@kvack.org, owner-linux-aio@kvack.org, linux-mm@kvack.org, owner-linux-mm@kvack.orglinux-mm@kvack.orgowner-linux-mm@kvack.org, aart@kvack.orglinux-mm@kvack.org
+List-Id: linux-mm.kvack.org
 
-Nick Piggin <nickpiggin@yahoo.com.au> wrote:
->
->  -				err = WRITEPAGE_ACTIVATE;
->  +				nfs_flush_inode(inode, 0, 0, FLUSH_STABLE);
+----07841164216929166406
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-err, absolutely.  I thought we fixed that months ago...
+Message [TGXXSMZITA]
+ 
+Hey my name is Kara and I just got out of a long term
+relationship. I read your profile and you sound like
+the kind of man I am looking for. Just so you know 
+I am not really looking for anything serious but
+rather for someone who doesn=92t mind being a rebound,
+which by the way does require some hot physical action...
+so if you don=92t mind...
+ 
+http://matchnoid.com/alg/lgs.htm
+ 
+ 
+ 
+
+no more
+http://matchnoid.com/alg/o/
+ 
+ 
+ 
+
+runty craw clientele kim lummox blackstone oleander nettle alveolar turkis=
+h butadiene indeterminate parcel winnipesaukee monetarism jovial waylaid m=
+inestrone patristic encyclopedic=20
+
+
+----07841164216929166406--
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
