@@ -1,53 +1,44 @@
-Received: from sd0208e0.au.ibm.com (d23rh904.au.ibm.com [202.81.18.202])
-	by ausmtp02.au.ibm.com (8.12.10/8.12.9) with ESMTP id hB93wZfH075960
-	for <linux-mm@kvack.org>; Tue, 9 Dec 2003 14:58:38 +1100
-Received: from d23m0178.in.ibm.com (d23av02.au.ibm.com [9.190.250.243])
-	by sd0208e0.au.ibm.com (8.12.9/NCO/VER6.6) with ESMTP id hB93wXtY056198
-	for <linux-mm@kvack.org>; Tue, 9 Dec 2003 14:58:37 +1100
-Subject: page->virtual is null
-Message-ID: <OF5E202F35.C2DE075B-ON65256DF7.0015AF55@in.ibm.com>
-From: Vinod K Suryan <visuryan@in.ibm.com>
-Date: Tue, 9 Dec 2003 09:29:12 +0530
-MIME-Version: 1.0
-Content-type: text/plain; charset=US-ASCII
+Subject: Re: page->virtual is null
+From: Arjan van de Ven <arjanv@redhat.com>
+Reply-To: arjanv@redhat.com
+In-Reply-To: <OF5E202F35.C2DE075B-ON65256DF7.0015AF55@in.ibm.com>
+References: <OF5E202F35.C2DE075B-ON65256DF7.0015AF55@in.ibm.com>
+Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-H+CiRK4kxXoMF2yPCzEJ"
+Message-Id: <1070958777.5223.0.camel@laptop.fenrus.com>
+Mime-Version: 1.0
+Date: Tue, 09 Dec 2003 09:32:57 +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Vinod K Suryan <visuryan@in.ibm.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+--=-H+CiRK4kxXoMF2yPCzEJ
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
+On Tue, 2003-12-09 at 04:59, Vinod K Suryan wrote:
+>=20
+> Hi,
+>       I am using SMP machine with 256 MB Ram. I am using kmap function in
+> my application it is returning NULL value.
 
+can you post a pointer (URL or so) to the source code so that we can see
+a bit of context ?
 
-Hi,
-      I am using SMP machine with 256 MB Ram. I am using kmap function in
-my application it is returning NULL value.
+--=-H+CiRK4kxXoMF2yPCzEJ
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
 
-      Here is some log
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.2 (GNU/Linux)
 
-      highmem_start_page = c13bf8ac
-      page address is =    c132a194
+iD8DBQA/1Yi5xULwo51rQBIRAujIAJ9PAlDg44fxWosjpwGWNFF2RwzU9QCfYCAT
+lf6n9i2wZ6cIbaQmmN6oCoA=
+=oOAa
+-----END PGP SIGNATURE-----
 
-      but after kmap i am getting readpage:kmap address is NULL=0
-
-      here kmap is returning page->virtual which value is NULL
-
-      after that i am getting badaddress error.
-
-      but same code is working fine in uni-processor. i am getting
-
-      i am using 2.4.21-4.EL kernel ..
-
-      please help me..
-      i am not geting wht to do..?
-
-Thanks
-Vinod Suryan
-
-_________________________
-IBM India Software Labs, Pune.
-Ph:91-20-4041385
-Email: visuryan@in.ibm.com
-
+--=-H+CiRK4kxXoMF2yPCzEJ--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
