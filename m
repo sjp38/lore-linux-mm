@@ -1,61 +1,75 @@
-From: Alistair John Strachan <s0348365@sms.ed.ac.uk>
-Reply-To: s0348365@sms.ed.ac.uk
-Subject: Re: 2.6.3-rc2-mm1
-Date: Thu, 12 Feb 2004 18:43:54 +0000
-References: <20040212015710.3b0dee67.akpm@osdl.org>
-In-Reply-To: <20040212015710.3b0dee67.akpm@osdl.org>
-MIME-Version: 1.0
-Content-Disposition: inline
 Content-Type: text/plain;
   charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Message-Id: <200402121843.55084.s0348365@sms.ed.ac.uk>
+From: Bill Davidsen <davidsen@oddball.prodigy.com>
+Reply-To: davidsen@tmr.com
+Subject: Re: 2.6.2-mjb1
+Date: Thu, 12 Feb 2004 14:31:19 -0500
+References: <30760000.1076532248@[10.10.2.4]>
+In-Reply-To: <30760000.1076532248@[10.10.2.4]>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8BIT
+Message-Id: <200402121431.19876.davidsen@oddball.prodigy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thursday 12 February 2004 09:57, you wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.3-rc2/2.6
->.3-rc2-mm1/
+On Wednesday 11 February 2004 03:44 pm, Martin J. Bligh wrote:
+> The patchset is meant to be pretty stable, not so much a testing ground.
+> Main differences from mainline are:
 >
+> 1. Better performance & resource consumption, particularly on larger
+> machines. 2. Diagnosis tools (kgdb, early_printk, etc).
+> 3. Updated arch support for AMD64 + PPC64.
+> 4. Better support for sound, especially OSS emulation over ALSA.
+> 5. Better support for video (v4l2, bttv, ivtv).
+> 6. Kexec support.
 >
-> - Added the big ISDN update
+> I'd be very interested in feedback from anyone willing to test on any
+> platform, however large or small.
 >
-> - Device Mapper update
+> ftp://ftp.kernel.org/pub/linux/kernel/people/mbligh/2.6.2/patch-2.6.2-mjb1.
+>bz2
 >
-[snip]
+> Since 2.6.1-mjb1 (~ = changed, + = added, - = dropped)
 
-I don't know if it's still worth reporting these, but at the risk of sounding 
-like a broken record..
+The first thing I notice is that "make rpm" didn't work, and failed with the 
+error code at the bottom of this message. Too bad, since I've been building 
+RPMs on a big fast WBEL-3.0 four way Xeon, but have to run them on a humble 
+PII-350. Forgive me, I do NOT want to build kernels on the test machine, it 
+takes forever and needs a bit of temp space tweaking as well.
 
-Badness in interruptible_sleep_on at kernel/sched.c:2235
-Call Trace:
- [<c011b289>] interruptible_sleep_on+0xe9/0x120
- [<c011ae80>] default_wake_function+0x0/0x20
- [<c0365c17>] copy_block+0xa7/0xe0
- [<c036167c>] emu10k1_audio_write+0x1ac/0x320
- [<c03614d0>] emu10k1_audio_write+0x0/0x320
- [<c015370a>] vfs_write+0x10a/0x150
- [<c010f26a>] do_gettimeofday+0x1a/0xb0
- [<c0153802>] sys_write+0x42/0x70
- [<c03f0266>] sysenter_past_esp+0x43/0x65
+Built clean by itself, I just can't move and install it easily.
 
-Haven't noticed it before.
+~~~~~~~~~~~~~~~~~~~~
 
-Other than that, the whole ACPI on nForce2 thing seems to have been fixed. 
-Back to -mm for me.
++ umask 022
++ cd /usr/src/redhat/BUILD
++ LANG=C
++ export LANG
++ unset DISPLAY
++ exit 0
+Executing(%build): /bin/sh -e /var/tmp/rpm-tmp.33180
++ umask 022
++ cd /usr/src/redhat/BUILD
++ LANG=C
++ export LANG
++ unset DISPLAY
++ rm -rf /tmp/lpfc-LPFC_DRIVER_VERSION
++ mkdir -p /tmp/lpfc-LPFC_DRIVER_VERSION/lpfc-LPFC_DRIVER_VERSION
++ cd lpfc-LPFC_DRIVER_VERSION
+/var/tmp/rpm-tmp.33180: line 28: cd: lpfc-LPFC_DRIVER_VERSION: No such file or 
+directory
+error: Bad exit status from /var/tmp/rpm-tmp.33180 (%build)
+
+
+RPM build errors:
+    Bad exit status from /var/tmp/rpm-tmp.33180 (%build)
+make: *** [rpm] Error 1
 
 -- 
-Cheers,
-Alistair.
-
-personal:   alistair()devzero!co!uk
-university: s0348365()sms!ed!ac!uk
-student:    CS/AI Undergraduate
-contact:    7/10 Darroch Court,
-            University of Edinburgh.
+Bill Davidsen, TMR
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
