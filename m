@@ -1,44 +1,41 @@
-Date: Tue, 10 Feb 2004 08:22:35 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] skip offline CPUs in show_free_areas
-Message-Id: <20040210082235.3ccf817d.akpm@osdl.org>
-In-Reply-To: <20040210132301.GA11045@lst.de>
-References: <20040210132301.GA11045@lst.de>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: Brian Jackson <iggy@gentoo.org>
+Subject: Re: 2.6.3-rc1-mm1
+Date: Tue, 10 Feb 2004 13:45:19 -0600
+References: <20040209014035.251b26d1.akpm@osdl.org>
+In-Reply-To: <20040209014035.251b26d1.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
+Message-Id: <200402101345.19015.iggy@gentoo.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Hellwig <hch@lst.de> wrote:
->
-> Without this ouput on a box with 8cpus and NR_CPUS=64 looks rather
->  strange.
-> 
-> 
->  Index: mm/page_alloc.c
->  ===================================================================
->  RCS file: /home/cvs/linux/mm/page_alloc.c,v
->  retrieving revision 1.113
->  diff -u -p -r1.113 page_alloc.c
->  --- mm/page_alloc.c	10 Jan 2004 04:59:57 -0000	1.113
->  +++ mm/page_alloc.c	10 Feb 2004 13:17:43 -0000
->  @@ -972,7 +972,13 @@ void show_free_areas(void)
->   			printk("\n");
->   
->   		for (cpu = 0; cpu < NR_CPUS; ++cpu) {
->  -			struct per_cpu_pageset *pageset = zone->pageset + cpu;
->  +			struct per_cpu_pageset *pageset;
->  +	
->  +			if (!cpu_online(cpu))
->  +				continue;
+kernel bug at mm/slab.c:1107!
+invalid operand:0000 [#1]
+SMP
 
-Thanks.  I think I'll change that to cpu_possible().  Because there might
-still be pages there from the time when that cpu used to be online. 
-Otherwise we wouldn't notice leaks due to cpu downing.
+(this happened just after the Console: and Memory: lines)
+This didn't happen with 2.6.1-mm4 (that's the last -mm I tried). I can try to 
+track down where it started later, but this is my firewall, so I have to wait 
+till everyone goes to sleep first.
+
+--Iggy
+
+On Monday 09 February 2004 03:40, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.3-rc1/2.6
+>.3-rc1-mm1/
+>
+>
+
+
+-- 
+Home -- http://www.brianandsara.net
+Gentoo -- http://gentoo.brianandsara.net
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
