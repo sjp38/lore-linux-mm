@@ -1,67 +1,63 @@
-Date: Mon, 9 Sep 2002 10:10:02 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] modified segq for 2.5
-In-Reply-To: <3D7C6C0A.1BBEBB2D@digeo.com>
-Message-ID: <Pine.LNX.4.44L.0209091004200.1857-100000@imladris.surriel.com>
+Subject: Re: meminfo or Rephrased helping the Programmer's help themselves...
+References: <HBEHIIBBKKNOBLMPKCBBOEIKFFAA.znmeb@aracnet.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 09 Sep 2002 08:07:31 -0600
+In-Reply-To: <HBEHIIBBKKNOBLMPKCBBOEIKFFAA.znmeb@aracnet.com>
+Message-ID: <m1ptvnntng.fsf@frodo.biederman.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, sfkaplan@cs.amherst.edu, linux-mm@kvack.org
+To: "M. Edward Borasky" <znmeb@aracnet.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Sep 2002, Andrew Morton wrote:
+"M. Edward Borasky" <znmeb@aracnet.com> writes:
 
-> I fiddled with it a bit:  did you forget to move the write(2) pages
-> to the inactive list?  I changed it to do that at IO completion.
-> It had little effect.  Probably should be looking at the page state
-> before doing that.
+> Yes, it is a high-level proposal - I adhere to the top-down philosophy of
+> software design, as well as the SEI standards for software engineering
+> process. One does not communicate about large software objects like the
+> Linux kernel in small manageable chunks of C code in that process. 
 
-Hmmm indeed, I forgot this.  Note that IO completion state is
-too late, since then you'll have already pushed other pages
-out to the inactive list...
+No but you merge with people in small manageable chunks of C code.
 
-> The inactive list was smaller with this patch.  Around 10%
-> of allocatable memory usually.
+> Perhaps
+> the fact that I insist on a design specification, requirements documents,
+> code reviews, etc., is the reason nobody has volunteered to join the
+> project.
 
-It should be a bit bigger than this, I think.  If it isn't
-something may be going wrong ;)
+All you currently have is a slide show.  I see nothing that even clearly
+states the problem you are trying to solve.
 
-> I like the way in which the patch improves the reclaim success rate.
-> It went from 50% to 80 or 90%.
+> I think a team of three could pull it off in six months; there isn't that
+> much kernel code that has to be done. All the hooks are there in the /proc
+> filesystem, they just need to be organized in a rational manner. The scheme
+> Windows has for PerfMon is much better than the haphazard results in the
+> /proc filesystem, which have been submitted over the years in "manageable
+> chunks". The rest of Cougar is R code - R is extremely well documented - and
+> database work, for which any ODBC-compliant RDB will work.
 
-That should help reduce the randomizing of the inactive list ;)
+In Linux the emphasis has been a system that doesn't need tuning, for
+most tasks.  So it is no surprise the tuning nobs and the monitoring
+you need to apply them are underdeveloped.  They haven't been much
+used or needed.  
 
-> It worries me that the inactive list is so small.  But I need to
-> test it more.
+As for your comments on an ascii text version of /proc being
+inefficient, that is an assertion that needs backing up.  There are
+some inefficiencies in /proc but I have not seen ascii text being the
+primary problem.
 
-It's actually ok, though a larger inactive list might help with
-some workloads (or make the system worse with some others?).
+And with that observation I place an extreme doubt you have the skills
+to accomplish what you would like to accomplish.  
 
-> (This patch looks a lot like NRU - what's the difference?)
+> The first task that needs to be done is to develop a high-level model of the
+> Linux kernel.
 
-For mapped pages, it basically is NRU.  For normal cache pages,
-references while on the active list don't count, they will still
-get evicted. Only references while on the inactive list can save
-such a page.
+You obviously are clear what you are thinking of here, but I am not.
+You need a high-level model of the Linux kernel in what sense?
 
-What this means is that (in clock terminology) the handspread
-for non-mapped cache pages is much smaller than for mapped pages.
-With an inactive list size of 10%, the handspread for mapped pages
-is about 10 times as wide as that for non-mapped pages, giving the
-mapped pages a bit of an advantage over the cache...
 
-regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Spamtraps of the month:  september@surriel.com trac@trac.org
-
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
