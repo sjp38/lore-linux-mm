@@ -1,57 +1,34 @@
-Date: Thu, 29 Aug 2002 21:53:32 +0100 (IST)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: Re: 2.4.19 Vs 2.4.19-rmap14a with anonymous mmaped memory
-In-Reply-To: <E17kV44-00035H-00@starship>
-Message-ID: <Pine.LNX.4.44.0208292137540.31984-100000@skynet>
+Message-ID: <3D6E8B25.425263D5@zip.com.au>
+Date: Thu, 29 Aug 2002 13:59:17 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] low-latency zap_page_range()
+References: <3D6E844C.4E756D10@zip.com.au> <1030653602.939.2677.camel@phantasy>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Robert Love <rml@tech9.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Aug 2002, Daniel Phillips wrote:
+Robert Love wrote:
+> 
+> ...
+> unless we
+> wanted to unconditionally drop the locks and let preempt just do the
+> right thing and also reduce SMP lock contention in the SMP case.
 
-> The perl script that writes tables isn't too informative without knowing
-> how the tables are used.  Pseudocode that says exactly what your final
-> reference pattern is would be a lot more useful.
+That's an interesting point.  page_table_lock is one of those locks
+which is occasionally held for ages, and frequently held for a short
+time.
 
-I guessed that after I thought about it for a while and reworked the
-algorithm for 0.7. To make things easier again, I added a new graph to the
-reports which is in 0.7 called "Page Index Reference over Time"
+I suspect that yes, voluntarily popping the lock during the long holdtimes
+will allow other CPUs to get on with stuff, and will provide efficiency
+increases.  (It's a pretty lame way of doing that though).
 
-see
-
-http://www.csn.ul.ie/~mel/projects/vmregress/output_sample/mmap/read/25000/mapanon.html
-
-It is the second graph. At the beginning, it is at the 0th page and it
-moves through the address space over time. A totally random one would make
-this graph look like noise. The graph should give a good idea how memory
-was referenced.
-
-In 0.6 and with these tests, it would have been a similar curve except the
-last page would have been hit around 40000 references before the end of
-the test. After that, the pages were referenced in a linear pattern which
-was a mistake after reviewing it a bit.
-
-If people are still interested, I'll run a full set of tests again on
-2.4.19 and 2.4.19-rmap14a with 0.7 and post up the results complete with
-the page reference information so you don't have to guess this time. It
-takes about a full day to run a complete series. Any taker?
-
-> It would also be useful to state what you define as a reference.  A user
-> space program read-accesses a single byte from some address?
->
-
-A reference in this test was reading a full page of information using
-copy_from_user()
-
--- 
-Mel Gorman
-MSc Student, University of Limerick
-http://www.csn.ul.ie/~mel
-
+But I don't recall seeing nasty page_table_lock spintimes on
+anyone's lockmeter reports, so...
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
