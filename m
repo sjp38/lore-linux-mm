@@ -1,8 +1,8 @@
-Date: Wed, 24 Oct 2001 21:19:55 -0700 (PDT)
+Date: Wed, 24 Oct 2001 21:57:18 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: xmm2 - monitor Linux MM active/inactive lists graphically
-In-Reply-To: <dnlmi0pnue.fsf@magla.zg.iskon.hr>
-Message-ID: <Pine.LNX.4.33.0110242117150.9147-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.33.0110242117150.9147-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.33.0110242140350.9147-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -11,25 +11,47 @@ To: Zlatko Calusic <zlatko.calusic@iskon.hr>
 Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On 25 Oct 2001, Zlatko Calusic wrote:
+On Wed, 24 Oct 2001, Linus Torvalds wrote:
 >
-> Sure. Output of 'vmstat 1' follows:
+> On 25 Oct 2001, Zlatko Calusic wrote:
+> >
+> > Sure. Output of 'vmstat 1' follows:
+> >
+> >  1  0  0      0 254552   5120 183476   0   0    12    24  178   438 2  37  60
+> >  0  1  0      0 137296   5232 297760   0   0     4  5284  195   440 3  43  54
+> >  1  0  0      0 126520   5244 308260   0   0     0 10588  215   230 0   3  96
+> >  0  2  0      0 117488   5252 317064   0   0     0  8796  176   139 1   3  96
+> >  0  2  0      0 107556   5264 326744   0   0     0  9704  174    78 0   3  97
 >
->  1  0  0      0 254552   5120 183476   0   0    12    24  178   438 2  37  60
->  0  1  0      0 137296   5232 297760   0   0     4  5284  195   440 3  43  54
->  1  0  0      0 126520   5244 308260   0   0     0 10588  215   230 0   3  96
->  0  2  0      0 117488   5252 317064   0   0     0  8796  176   139 1   3  96
->  0  2  0      0 107556   5264 326744   0   0     0  9704  174    78 0   3  97
+> This does not look like a VM issue at all - at this point you're already
+> getting only 10MB/s, yet the VM isn't even involved (there's definitely no
+> VM pressure here).
 
-This does not look like a VM issue at all - at this point you're already
-getting only 10MB/s, yet the VM isn't even involved (there's definitely no
-VM pressure here).
+I wonder if you're getting screwed by bdflush().. You do have a lot of
+context switching going on, and you do have a clear pattern: once the
+write-out gets going, you're filling new cached pages at about the same
+pace that you're writing them out, which definitely means that the dirty
+buffer balancing is nice and active.
 
-> Notice how there's planty of RAM. I'm writing sequentially to a file
-> on the ext2 filesystem. The disk I'm writing on is a 7200rpm IDE,
-> capable of ~ 22 MB/s and I'm still getting only ~ 9 MB/s. Weird!
+So the problem is that you're obviously not actually getting the
+throughput you should - it's not the VM, as the page cache grows nicely at
+the same rate you're writing.
 
-Are you sure you haven't lost some DMA setting or something?
+Try something for me: in fs/buffer.c make "balance_dirty_state()" never
+return > 0, ie make the "return 1" be a "return 0" instead.
+
+That will cause us to not wake up bdflush at all, and if you're just on
+the "border" of 40% dirty buffer usage you'll have bdflush work in
+lock-step with you, alternately writing out buffers and waiting for them.
+
+Quite frankly, just the act of doing the "write_some_buffers()" in
+balance_dirty() should cause us to block much better than the synchronous
+waiting anyway, because then we will block when the request queue fills
+up, not at random points.
+
+Even so, considering that you have such a steady 9-10MB/s, please double-
+check that it's not something even simpler and embarrassing, like just
+having forgotten to enable auto-DMA in the kernel config ;)
 
 		Linus
 
