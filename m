@@ -1,27 +1,81 @@
-Date: Fri, 4 Apr 2003 16:58:37 -0500
-From: Benjamin LaHaise <bcrl@redhat.com>
+Date: Fri, 4 Apr 2003 15:07:44 -0800
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: objrmap and vmtruncate
-Message-ID: <20030404165837.A21390@redhat.com>
-References: <Pine.LNX.4.44.0304041453160.1708-100000@localhost.localdomain> <20030404105417.3a8c22cc.akpm@digeo.com> <20030404214547.GB16293@dualathlon.random>
+Message-Id: <20030404150744.7e213331.akpm@digeo.com>
+In-Reply-To: <20030404214547.GB16293@dualathlon.random>
+References: <Pine.LNX.4.44.0304041453160.1708-100000@localhost.localdomain>
+	<20030404105417.3a8c22cc.akpm@digeo.com>
+	<20030404214547.GB16293@dualathlon.random>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030404214547.GB16293@dualathlon.random>; from andrea@suse.de on Fri, Apr 04, 2003 at 11:45:47PM +0200
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Andrew Morton <akpm@digeo.com>, Hugh Dickins <hugh@veritas.com>, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>, Ingo Molnar <mingo@elte.hu>
+Cc: hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Apr 04, 2003 at 11:45:47PM +0200, Andrea Arcangeli wrote:
+Andrea Arcangeli <andrea@suse.de> wrote:
+>
+> On Fri, Apr 04, 2003 at 10:54:17AM -0800, Andrew Morton wrote:
+> > Hugh Dickins <hugh@veritas.com> wrote:
+> > >
+> > > Truncating a sys_remap_file_pages file?  You're the first to
+> > > begin to consider such an absurd possibility: vmtruncate_list
+> > > still believes vm_pgoff tells it what needs to be done.
+> > 
+> > Well I knew mincore() was bust for nonlinear mappings.  Never thought about
+> > truncate.
+> 
+> IMHO sys_remap_file_pages and the nonlinear mapping is an hack and
+> should be dropped eventually.
+
+It has created exceptional situations which are rather tying our hands in
+other areas.
+
+> I mean it's not too bad but it's a mere
+> workaround for:
+> 
+> 1) lack of 64bit address space that will be fixed
+> 2) lack of O(log(N)) mmap, that will be fixed too
+
+Yes, mmap() overhead due to the linear search, VMA space consumption,
+additional TLB invalidations and additional faults.  The latter could be
+fixed up via MAP_PREFAULT and are independent of nonlinearity.
+
+Here's Ingo's original summary:
+
+- really complex remappings (used by databases or virtualizing
+  applications) create a *huge* amount of vmas - and vma's are per-process
+  which puts a really big load on kernel memory allocations, especially on
+  32-bit systems. I've seen applications that had a mapping setup that
+  generated 128 *thousand* vmas per process, causing lots of problems.
+
+- setting up separate mappings is expensive, causes one pagefault per page
+  and also causes TLB flushes.
+
+- even on 64-bit systems, when mapping really large (terabyte size) and
+  really sparse files, sparse mappings can be a disadvantage - in the
+  worst-case there can be as much as 1 more pagetable page allocated for
+  every file page that is mapped in.
+
+> 1) and 2) are the only reason why there's huge interest in such syscall
+> right now. So I don't like it too much and I'm not convinced it was
+> right to merge it in 2.5 given 2) is a software problem and I've the
+> design to fix it with a rbtree extension, and 1) is an hardware problem
+> that will be fixed very soon. the API is not too bad but there is a
+> reason we have the vma for all other mappings.
+> 
 > Maybe I'm missing something, I'm curious to hear what you think and what
 > other cases needs this syscall even after 1) and 2) are fixed.
 
-It's useful for UML and emulators that simulate page tables too.
+I think that's right - the system call is very specialised and is targeted at
+solving problems which have been encountered in a small number of
+applications, but important ones.
 
-		-ben
--- 
-Junk email?  <a href="mailto:aart@kvack.org">aart@kvack.org</a>
+Right now, I do not feel that we are going to be able to come up with an
+acceptably simple VM which has both nonlinear mappings and objrmap.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
