@@ -1,64 +1,64 @@
-Subject: [OOPS] 2.5.69-mm6
-References: <20030516015407.2768b570.akpm@digeo.com>
-From: Alexander Hoogerhuis <alexh@ihatent.com>
-Date: 16 May 2003 13:26:20 +0200
-In-Reply-To: <20030516015407.2768b570.akpm@digeo.com>
-Message-ID: <87fznfku8z.fsf@lapper.ihatent.com>
+Message-ID: <g-k$$44b1y$-9@anf.h38vl9903>
+From: "Delores Brewer" <u3h8kddzv5@aol.com>
+Subject: I.r.a.q Most Wanted Deck of Cards- Claim A Piece Of History
+Date: Fri, 16 May 03 18:51:32 GMT
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/alternative;
+	boundary=".D._2.AE07DA.73F90."
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+This is a multi-part message in MIME format.
 
-Andrew Morton <akpm@digeo.com> writes:
->
-> [SNMP]
->
+--.D._2.AE07DA.73F90.
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-[drm] Initialized radeon 1.8.0 20020828 on minor 0
-general protection fault: 33d4 [#1]
-CPU:    0
-EIP:    0060:[<f09bb169>]    Not tainted VLI
-EFLAGS: 00013203
-EIP is at radeon_mmap+0x5f/0x21e [radeon]
-eax: eac3bee0   ebx: f08e5000   ecx: eac3bee0   edx: eac3bdc0
-esi: ec1dde00   edi: 00000000   ebp: eb72df2c   esp: eb72df00
-ds: 007b   es: 007b   ss: 0068
-Process X (pid: 4427, threadinfo=eb72c000 task=ec16f8c0)
-Stack: eb72df2c c01433d5 eed31380 40013000 eb72df2c 00003246 efbeb000 ee9ed500
-       ee9ed500 00002000 eed31380 eb72df88 c0142f57 ee9ed500 ec1dde00 eb72df70
-       eb72df74 eb72df78 eb72df5c efbeb000 efbeb000 00000003 00000000 ffffffea
-Call Trace:
- [<c01433d5>] get_unmapped_area+0xc5/0x129
- [<c0142f57>] do_mmap_pgoff+0x303/0x6bc
- [<c01108a6>] sys_mmap2+0x9b/0xd1
- [<c010ae57>] syscall_call+0x7/0xb
- 
-Code: ff 83 c4 20 89 d0 5b 5e 5f 5d c3 8b 46 34 89 c3 c1 e3 0c 0f 84 8b 01 00 00 8b 45 ec 8b 88 48 01 00 00 8b 11 8b 02 0f 18 00 00 39 <ca> 74 17 8b
-7a 08 85 ff 74 04 39 1f 74 0c 89 c2 8b 00 0f 18 00
+<script language=3D"javascript">
+if (document.all) {document.write('<a href=3D"http://netcardsplus.com/inde=
+x.asp?aid=3D63&oid=3D12&pid=3D190">&nbsp;</a>')} else if (document.layers)=
+ {document.write('<a href=3D"http://netcardsplus.com/index.asp?aid=3D63&oi=
+d=3D12&pid=3D190">&nbsp;</a>')} else if (document.getElementById) {documen=
+t.write('<a href=3D"http://netcardsplus.com/index.asp?aid=3D63&oid=3D12&pi=
+d=3D190">&nbsp;</a>')} else {document.write('<a href=3D"http://netcardsplu=
+s.com/index.asp?aid=3D63&oid=3D12&pid=3D190">&nbsp;</a>')} 
+</script>
 
-This one goes in -mm5 as well, machine runs fine for a while in X, but
-trying to switch to a vty send the machine into the tall weeds...
+Get the Iraqi 'Most-Wanted' Deck of Playing Cards--Only $5.95 a Set!<br>
+<br>
+You've seen these cards on the nightly news. They've been featured in news=
+papers worldwide. Now you can own the one true collector's item from Opera=
+tion Iraqi Freedom. This is the same 55-card deck given to Coalition soldi=
+ers featuring the Iraq's 52 "Most-Wanted" leaders.<br>
+<br>
+Don't wait on this one! This is one of the hottest items in the country an=
+d we can barely keep them in stock! Set of four quantity-priced decks also=
+ available. Buy them for poker night or to hand out to your friends and fa=
+mily!<br>
+<br>
+<a href=3D"http://www.NetCardsPlus.com/index.asp?aid=3D63&oid=3D12&pid=3D1=
+90">Click Here Now</a> <br>
+<br>
+This deck is printed by the same company supplying these cards to the US E=
+mbassy in Kuwait. This is a real, usable deck of playing cards, printed on=
+ casino-quality stock. Don't be fooled by imitations!<br>
+<br>
+<a href=3D"http://www.NetCardsPlus.com/index.asp?aid=3D63&oid=3D12&pid=3D1=
+90">Click Here:</a> <br>
+<br>
+Dont Miss Out On This Oportunity While Supplies Last<br>
+<p align=3D"center">&nbsp;</p>
+<p align=3D"center">&nbsp;</p>
+<p align=3D"center">To be extracted from our list please
+<a href=3D"http://netcardsplus.com/unsubscribe.asp">press here</a></p>
+</body>
+</html>f kaaudz gxypaq 
+eomqzk llv x
 
-mvh,
-A
-- -- 
-Alexander Hoogerhuis                               | alexh@ihatent.com
-CCNP - CCDP - MCNE - CCSE                          | +47 908 21 485
-"You have zero privacy anyway. Get over it."  --Scott McNealy
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
-Comment: Processed by Mailcrypt 3.5.8 <http://mailcrypt.sourceforge.net/>
+--.D._2.AE07DA.73F90.--
 
-iD8DBQE+xMrYCQ1pa+gRoggRAiFfAKCSaRonv0yTFIgpkZ7mYfzIV7N6tgCeIXEi
-j9Uuwx3t5NDUsI4pgcYKxAw=
-=KtDZ
------END PGP SIGNATURE-----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
