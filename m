@@ -1,24 +1,27 @@
-Date: Fri, 6 Jul 2001 15:58:29 +0200
+Date: Fri, 6 Jul 2001 18:56:23 +0200
 From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: patch: highmem zero-bounce
-Message-ID: <20010706155829.R2425@athlon.random>
-References: <20010626182215.C14460@suse.de> <20010627114155.A31910@athlon.random> <20010627182745.D17905@suse.de> <20010627184908.E17905@suse.de> <20010627190626.E24623@athlon.random> <20010627191229.G17905@suse.de> <20010706154138.O2425@athlon.random> <20010706154552.G5889@suse.de>
+Subject: Re: Use of mmap_sem in map_user_kiobuf
+Message-ID: <20010706185623.C2425@athlon.random>
+References: <3B4597FE.7070901@humboldt.co.uk>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20010706154552.G5889@suse.de>; from axboe@suse.de on Fri, Jul 06, 2001 at 03:45:52PM +0200
+In-Reply-To: <3B4597FE.7070901@humboldt.co.uk>; from adrian@humboldt.co.uk on Fri, Jul 06, 2001 at 11:50:38AM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <axboe@suse.de>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "ZINKEVICIUS,MATT (HP-Loveland,ex1)" <matt_zinkevicius@hp.com>
+To: Adrian Cox <adrian@humboldt.co.uk>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 06, 2001 at 03:45:52PM +0200, Jens Axboe wrote:
-> Will do, but it will probably be after the weekend jfyi.
+On Fri, Jul 06, 2001 at 11:50:38AM +0100, Adrian Cox wrote:
+> Does map_user_kiobuf really need to get a write lock on the mmap_sem? 
+>  From examination of the code, all it can do is expand_stack(), fault in 
+> pages, and increment the count on a page.
+> 
+> Is there anything I've missed? Would it be safe to use down_read(), 
+> up_read() instead?
 
-Fine with me, thanks!
-
-take your time and have fun,
+yes, it should be ok.
 
 Andrea
 --
