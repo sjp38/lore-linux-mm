@@ -1,103 +1,49 @@
-Message-ID: <3ED54685.5020706@erkkila.org>
-Date: Wed, 28 May 2003 23:30:13 +0000
-From: "Paul E. Erkkila" <pee@erkkila.org>
-Reply-To: pee@erkkila.org
+From: Neil Brown <neilb@cse.unsw.edu.au>
+Date: Thu, 29 May 2003 11:08:20 +1000
 MIME-Version: 1.0
-Subject: Re: 2.5.70-mm1 bootcrash, possibly RAID-1
-References: <20030408042239.053e1d23.akpm@digeo.com> <3ED49A14.2020704@aitel.hist.no> <20030528111345.GU8978@holomorphy.com> <3ED49EB8.1080506@aitel.hist.no> <20030528113544.GV8978@holomorphy.com> <20030528225913.GA1103@hh.idb.hist.no>
-In-Reply-To: <20030528225913.GA1103@hh.idb.hist.no>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <16085.23940.164807.702704@notabene.cse.unsw.edu.au>
+Subject: Re: 2.5.70-mm1 bootcrash, possibly RAID-1
+In-Reply-To: message from Paul E. Erkkila on Wednesday May 28
+References: <20030408042239.053e1d23.akpm@digeo.com>
+	<3ED49A14.2020704@aitel.hist.no>
+	<20030528111345.GU8978@holomorphy.com>
+	<3ED49EB8.1080506@aitel.hist.no>
+	<20030528113544.GV8978@holomorphy.com>
+	<20030528225913.GA1103@hh.idb.hist.no>
+	<3ED54685.5020706@erkkila.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Helge Hafting <helgehaf@aitel.hist.no>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, neilb@cse.unsw.edu.au
+To: pee@erkkila.org
+Cc: Helge Hafting <helgehaf@aitel.hist.no>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Greetings all.
 
-I'm having a similar problem here with 2.5.70. I can't
-seem to get the entire stack trace though, but with a
-stripped down kernel config it seems to be when during
-the time MD starts working.
+I think this might fix the bug, but I haven't looked very closely
+yet.  I will expore it more deeply when I get time.
 
-Machine is an asus p4c8000, intel ich5, using the IDE
-part not sata. I'm also using /dev/md0 as my root
-partition.
+NeilBrown
 
-Hope that helps, i'm trying to find a null modem to
-get a real capture ;).
 
--pee
 
-Helge Hafting wrote:
+ ----------- Diffstat output ------------
+ ./drivers/md/raid1.c |    2 +-
+ 1 files changed, 1 insertion(+), 1 deletion(-)
 
->On Wed, May 28, 2003 at 04:35:44AM -0700, William Lee Irwin III wrote:
->  
->
->>This is unusual; I'm having trouble very close to this area. There is
->>a remote chance it could be the same problem.
->>
->>Could you log this to serial and get the rest of the oops/BUG? If it's
->>where I think it is, I've been looking at end_page_writeback() and so
->>might have an idea or two.
->>    
->>
->
->I tried 2.5.70-mm1 on the dual celeron at home.  This one has
->scsi instead of ide, so I guess it is a RAID-1 problem.
->This machine has root on raid-1 too.  I believe there where
->several oopses in a row, I captured all of the last one
->thanks to a framebuffer with a small font. Here it is:
->
->Unable to handle kernel paging request at virtual address 8a8a8ab6
->*pde=0 OOPS 0000 [#1]
->EIP at put_all_bios+0x47/0x80
->(edx was the register containing 8a8a8a8a)
->Process swapper pid=0 threadinfo c1352000 task=c13f52d0
->Call trace:
->raid_end_bio_io
->raid1_end_request
->scsi_request_fn
->bio_endio
->_end_that_request_first
->scsi_end_request
->__wake_up
->scsi_io_completion
->scsi_delete_timer
->sd_rw_intr
->sym_wakeup_done
->scsi_finish_command
->scsi_softirq
->timer_interrupt
->do_softirq
->do_IRQ
->default_idle
->default_idle
->common_interrupt
->default_idle
->default_idle
->default_idle
->cpu_idle
->printk
-><0> Kernel panic:fatal exception in interrupt
->in interrupt - not syncing
->reboot in 300 seconds
->
->This looks very similiar to the partial trace
->from the ide machine,
->it had everything from _end_that_request_first
->down to the three default_idles, but with ide
->instead of scsi functions.
->
->Helge Hafting
->-
->To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
->the body of a message to majordomo@vger.kernel.org
->More majordomo info at  http://vger.kernel.org/majordomo-info.html
->Please read the FAQ at  http://www.tux.org/lkml/
->  
->
-
+diff ./drivers/md/raid1.c~current~ ./drivers/md/raid1.c
+--- ./drivers/md/raid1.c~current~	2003-05-29 11:05:03.000000000 +1000
++++ ./drivers/md/raid1.c	2003-05-29 11:05:08.000000000 +1000
+@@ -137,7 +137,7 @@ static void put_all_bios(conf_t *conf, r
+ 			BUG();
+ 		bio_put(r1_bio->read_bio);
+ 		r1_bio->read_bio = NULL;
+-	}
++	} else
+ 	for (i = 0; i < conf->raid_disks; i++) {
+ 		struct bio **bio = r1_bio->write_bios + i;
+ 		if (*bio) {
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
