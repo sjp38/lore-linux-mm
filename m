@@ -1,44 +1,55 @@
-Date: Mon, 28 Jun 1999 16:33:44 -0400 (EDT)
+Date: Mon, 28 Jun 1999 15:39:43 -0400 (EDT)
 From: Chuck Lever <cel@monkey.org>
 Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
-In-Reply-To: <199906281955.MAA06984@google.engr.sgi.com>
-Message-ID: <Pine.BSO.4.10.9906281625130.24888-100000@funky.monkey.org>
+ Fix swapoff races
+In-Reply-To: <199906280148.SAA94463@google.engr.sgi.com>
+Message-ID: <Pine.BSO.4.10.9906281530400.24888-100000@funky.monkey.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: andrea@suse.de, torvalds@transmeta.com, sct@redhat.com, linux-mm@kvack.org
+Cc: Andrea Arcangeli <andrea@suse.de>, torvalds@transmeta.com, sct@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Jun 1999, Kanoj Sarcar wrote:
-> > i'm already working on a patch that will allow kswapd to grab the mmap_sem
-> > for the task that is about to be swapped.  this takes a slightly different
-> > approach, since i'm focusing on kswapd and not on swapoff.  essentially
-> > the patch does two things:
+On Sun, 27 Jun 1999, Kanoj Sarcar wrote:
+> Basically, all these operations are synchronized by the process
+> mmap_sem. Unfortunately, swapoff has to visit all processes, during
+> which it must hold tasklist_lock, a spinlock. Hence, it can not take
+> the mmap_sem, a sleeping mutex. So, the patch links up all active
+> mm's in a list that swapoff can visit (with minor restructuring, 
+> kswapd can also use this, although it can not hold mmap_sem).
+> Addition/deletions to the list are protected by a sleeping 
+> mutex, hence swapoff can grab the individual mmap_sems, while
+> preventing changes to the list. Effectively, process creation
+> and destruction are locked out if swapoff is running.
 > 
-> So, I would think some (if not mine) swapoff fix is still needed ...
+> To do this, the lock ordering is mm_sem -> mmap_sem. To 
+> prevent deadlocks, care must be taken that a process invoking
+> delete/insert_mmlist does not have its own mmap_sem held. For
+> this, the do_fork path needs to change so as not to acquire
+> mmap_sem early, rather only when it is really needed. This does
+> not open up a resource-ordering problem between kernel_lock and
+> mmap_sem, since the kernel_lock is a monitor lock that is released
+> at schedule time, so no deadlocks are possible.
 
-oh absolutely!  i was thinking that my patch might help make your work
-simpler, that's all.  once i've tested it a little more, i'll post it to
-the list.
+i'm already working on a patch that will allow kswapd to grab the mmap_sem
+for the task that is about to be swapped.  this takes a slightly different
+approach, since i'm focusing on kswapd and not on swapoff.  essentially
+the patch does two things:
 
-> Other than the deadlock problem, there's another issue involved, I 
-> think. Processes can go to sleep (inside drivers/fs for example while
-> mmaping/munmaping/faulting) holding their mmap_sem, so any solution 
-> should be able to guarantee that (at least one of) the memory free'ers 
-> do not go to sleep indefinitely (or for some time that is upto driver/fs
-> code to determine).
+1)  it separates the logic of try_to_free_pages() and kswapd.  kswapd now
+does the swapping, while try_to_free_pages() only does the shrink_mmap()
+phase.
 
-or perhaps the kernel could start more than one kswapd (one per swap
-partition?).  with my patch, regular processes never wait for swap out
-I/O, only kswapd does.
+2)  after kswapd has chosen a process to swap, it drops the kernel lock
+and grabs the mmap_sem for the thing it's about to swap.  it picks up the
+kernel lock at appropriate points lower in the code.
 
-if you're concerned about bounding the latency of VM operations in order
-to provide some RT guarantees, then i'd imagine, based on what i've read
-on this list, that Linus might want to keep things simple more than he'd
-want to clutter the memory freeing logic... but if there's a simple way to
-"guarantee" a low latency then it would be worth the trouble.
+i think it simplifies things a lot; there is no longer a concern about a
+process deadlocking when re-acquiring it's own semaphore.  and, swapping
+and page-fault handling for a given object can be serialized via the
+object's mmap_sem.
 
 	- Chuck Lever
 --
