@@ -1,42 +1,36 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by postfix.conectiva.com.br (Postfix) with SMTP id CD7C016B19
-	for <linux-mm@kvack.org>; Mon, 26 Mar 2001 17:15:36 -0300 (EST)
-Date: Mon, 26 Mar 2001 17:05:21 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <nn66gwnyhn.fsf@code.and.org>
-Message-ID: <Pine.LNX.4.21.0103261704060.24763-100000@imladris.rielhome.conectiva>
+Subject: Re: [PATCH] OOM handling
+References: <3ABDF8A6.7580BD7D@evision-ventures.com>
+	<l03130321b6e3c0533688@[192.168.239.101]>
+	<l03130322b6e3ced39e99@[192.168.239.101]>
+From: buhr@stat.wisc.edu (Kevin Buhr)
+In-Reply-To: Jonathan Morton's message of "Sun, 25 Mar 2001 17:36:21 +0100"
+Date: 26 Mar 2001 15:34:31 -0600
+Message-ID: <vba4rwgtdso.fsf@mozart.stat.wisc.edu>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: James Antill <james@and.org>
-Cc: Guest section DW <dwguest@win.tue.nl>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Clouse <stephenc@theiqgroup.com>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jonathan Morton <chromi@cyberspace.org>
+Cc: Martin Dalecki <dalecki@evision-ventures.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On 26 Mar 2001, James Antill wrote:
+Jonathan Morton <chromi@cyberspace.org> writes:
+>
+> Understood - my Physics courses covered this as well, but not using the
+> word "normalise".
 
->  If you want overcommit great, and I think it's a valid default
-> ... but it'd be nice if I could say I don't want it for apps that
-> aren't written using glib etc.
+Be that as it may, Martin's comments about normalizing are nonsense.
+Rik's killer (at least in 2.4.3-pre7) produces a badness value that's
+a product of badness factors of various units.  It then uses these
+products only for relative comparisons, choosing the process with
+maximum badness product to kill.  No normalization is necessary, nor
+would it have any effect.
 
-Agreed.  Jonathan Morton seems to be making progress in testing
-and debugging the non-overcommit patch from some time ago. If
-things turn out to be trivial enough I wouldn't be surprised if
-we got to see the option of non-overcommit somewhere in future
-2.4 and 2.5 kernels...
+The reason a 256 Meg process on a 1 Gig machine was being killed had
+nothing to do with normalization---it was a bug where the OOM killer
+was being called long before we were reduced to last resorts.
 
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
-
-
+Kevin <buhr@stat.wisc.edu>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
