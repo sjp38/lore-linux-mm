@@ -1,67 +1,51 @@
-Subject: Re: 2.5.68-mm3
-From: steven roemen <sdroemen1@cox.net>
-In-Reply-To: <20030429235959.3064d579.akpm@digeo.com>
-References: <20030429235959.3064d579.akpm@digeo.com>
-Content-Type: text/plain
-Message-Id: <1051759115.1001.1.camel@lws04.home.net>
-Mime-Version: 1.0
-Date: 30 Apr 2003 22:18:35 -0500
+Message-ID: <3EB096D8.80905@us.ibm.com>
+Date: Wed, 30 Apr 2003 20:39:04 -0700
+From: Dave Hansen <haveblue@us.ibm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] remove unnecessary PAE pgd set
+References: <3EB05F61.5070404@us.ibm.com> <20030501032215.GA20911@holomorphy.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-i think this has been reported for linus's tree, but i noticed it with
--mm3
+William Lee Irwin III wrote:
+> On Wed, Apr 30, 2003 at 04:42:25PM -0700, Dave Hansen wrote:
+> 
+>>With PAE on, there are only 4 PGD entries.  The kernel ones never
+>>change, so there is no need to copy them when a vmalloc fault occurs.
+>>This was this was causing problems with the split pmd patches, but it is
+>>still correct for mainline.
+>>Tested with and without PAE.  I ran it in a loop turning on and off 10
+>>swap partitions, which is what excited the original bug.
+>>http://bugme.osdl.org/show_bug.cgi?id=640
+> 
+> I suspect this set_pgd() should go away for non-PAE also.
 
-Steve
+Wouldn't it be analogous to the PMD set with PAE on, and necessary?
+Since processes don't share PGDs in 4G mode, the PGD entry could be
+missing in a process's pagetables after the kernel ones have been filled
+in.  That set_pgd() will be necessary to move any new entry over.
 
-make -f scripts/Makefile.build obj=drivers/ieee1394
-  gcc -Wp,-MD,drivers/ieee1394/.nodemgr.o.d -D__KERNEL__ -Iinclude -Wall
--Wstrict-prototypes -Wno-trigraphs -O2 -fno-strict-aliasing -fno-common
--pipe -mpreferred-stack-boundary=2 -march=athlon
--Iinclude/asm-i386/mach-default -fomit-frame-pointer -nostdinc
--iwithprefix include    -DKBUILD_BASENAME=nodemgr
--DKBUILD_MODNAME=ieee1394 -c -o drivers/ieee1394/.tmp_nodemgr.o
-drivers/ieee1394/nodemgr.c
-drivers/ieee1394/nodemgr.c: In function `nodemgr_bus_match':
-drivers/ieee1394/nodemgr.c:367: structure has no member named
-`class_num'
-drivers/ieee1394/nodemgr.c: At top level:
-drivers/ieee1394/nodemgr.c:497: unknown field `class_num' specified in
-initializer
-drivers/ieee1394/nodemgr.c:497: warning: excess elements in struct
-initializer
-drivers/ieee1394/nodemgr.c:497: warning: (near initialization for
-`nodemgr_dev_template_ud')
-drivers/ieee1394/nodemgr.c:503: unknown field `class_num' specified in
-initializer
-drivers/ieee1394/nodemgr.c:503: warning: excess elements in struct
-initializer
-drivers/ieee1394/nodemgr.c:503: warning: (near initialization for
-`nodemgr_dev_template_ne')
-drivers/ieee1394/nodemgr.c:508: unknown field `class_num' specified in
-initializer
-drivers/ieee1394/nodemgr.c:508: warning: initialization makes pointer
-from integer without a cast
-drivers/ieee1394/nodemgr.c: In function `nodemgr_guid_search_cb':
-drivers/ieee1394/nodemgr.c:730: structure has no member named
-`class_num'
-drivers/ieee1394/nodemgr.c: In function `nodemgr_nodeid_search_cb':
-drivers/ieee1394/nodemgr.c:767: structure has no member named
-`class_num'
-drivers/ieee1394/nodemgr.c: In function `nodemgr_driver_search_cb':
-drivers/ieee1394/nodemgr.c:1261: structure has no member named
-`class_num'
-drivers/ieee1394/nodemgr.c: In function `nodemgr_remove_node':
-drivers/ieee1394/nodemgr.c:1449: structure has no member named
-`class_num'
-make[2]: *** [drivers/ieee1394/nodemgr.o] Error 1
-make[1]: *** [drivers/ieee1394] Error 2
-make: *** [drivers] Error 2
+- a process does a vmalloc, which eventually calls pte_alloc_kernel()
+- pte_alloc_kernel() is always called with init_mm as its mm argument
+- pte_alloc_kernel() populates init_mm PGD entries with the new pte page
+- the process goes to use its new vmalloc'd area, and faults, because
+  its pgd doesn't have the same entries.  do_page_fault():vmalloc_fault
+  brings over the necessary entries from init, and the fault is handled
 
+The other option is to hold mmlist_lock and populate the entries around
+when pte_alloc_kernel() is called.  The lazy way is better because not
+every process will go looking into the vmalloc area, _and_ and new pgds
+should be copied from the init one anyway, and inherit the PTE mapping.
+ The lazy update only needs to be done for processes when their PGDs
+were allocated in the past.
+-- 
+Dave Hansen
+haveblue@us.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
