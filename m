@@ -1,64 +1,59 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199910151750.KAA99441@google.engr.sgi.com>
-Subject: Re: locking question: do_mmap(), do_munmap()
-Date: Fri, 15 Oct 1999 10:50:11 -0700 (PDT)
-In-Reply-To: <19991015115816.B948@uni-koblenz.de> from "Ralf Baechle" at Oct 15, 99 11:58:16 am
+Message-ID: <380771D1.25616711@colorfullife.com>
+Date: Fri, 15 Oct 1999 20:26:25 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCH] kanoj-mm17-2.3.21 kswapd vma scanning protection
+References: <199910151638.JAA72758@google.engr.sgi.com>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ralf Baechle <ralf@oss.sgi.com>
-Cc: manfreds@colorfullife.com, sct@redhat.com, viro@math.psu.edu, andrea@suse.de, linux-kernel@vger.rutgers.edu, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org, linux@cthulhu.engr.sgi.com, linux-mips@fnet.fr, linux-mips@vger.rutgers.edu
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: torvalds@transmeta.com, sct@redhat.com, andrea@suse.de, viro@math.psu.edu, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-> 
-> On Wed, Oct 13, 1999 at 09:32:54AM +0200, Manfred Spraul wrote:
-> 
-> > Kanoj Sarcar wrote:
-> > > Here's a primitive patch showing the direction I am thinking of. I do not
-> > > have any problem with a spinning lock, but I coded this against 2.2.10,
-> > > where insert_vm_struct could go to sleep, hence I had to use sleeping
-> > > locks to protect the vma chain.
-> > 
-> > I found a few places where I don't know how to change them.
-> > 
-> > 1) arch/mips/mm/r4xx0.c:
-> > their flush_cache_range() function internally calls find_vma().
-> > flush_cache_range() is called by proc/mem.c, and it seems that this
-> > function cannot get the mmap semaphore.
-> > Currently, every caller of flush_cache_range() either owns the kernel
-> > lock or the mmap_sem.
-> > OTHO, this function contains a race anyway [src_vma can go away if
-> > handle_mm_fault() sleeps, src_vma is used at the end of the function.]
-> 
-> The sole reason for fiddling with the VMA is that we try to optimize
-> icache flushing for non-VM_EXEC vmas.  This optimization is broken
-> as the MIPS hardware doesn't make a difference between read and execute
-> in page permissions, so the icache might be dirty even though the vma
-> has no exec permission.  So I'll have to re-implement this whole things
-> anyway.  The other problem is an efficience problem.  A call like
-> flush_cache_range(some_mm_ptr, 0, TASK_SIZE) would take a minor eternity
-> and for MIPS64 a full eternity ...
-> 
->   Ralf
+Kanoj Sarcar wrote:
+> If you wanted to be more careful, you
+> could define the swapout prototype as swapout(start, end, flags, file).
+> That *should* be enough for most future 2.3/2.4 driver.
 
-Ralf,
+"file" can go away if you do not call "get_file()" before releasing the
+locking.
 
-Looking in 2.3.21, all the find_vma's in arch/mips/mm/r4xx0.c are used to 
-set a flag called "text" which is not used at all. Also, if the find_vma
-returns null, the code basically does nothing. So the optimized icache
-flushing is probably not implemented yet? Then, the only reason to 
-do the flush_vma currently is to check whether the lower level flush 
-routine should be called. Without holding some locks, this is always
-tricky to do on a third party mm.
+> 
+> > - swap_out() is called with the semaphore held, 
+> 
+> Look below for why this is not safe.
+You are right, this can lock-up. Swapper is only protected from
+reentrancy on it's own stack, not from reentrancy from another thread.
 
-Btw, this probably belongs to linux-mips, but what do you mean by saying
-the icache might be dirty? Its been a while since I worked on the
-older mips chips, but as far as I remember, the icache can not hold 
-dirty lines.
+> 
+> > Or: ->swapout() releases the semaphore, 
+> >
+> 
+> This works for filemap_swapout, but you can not expect every regular Joe
+> driver writer to adhere to this rule.
+The result is not a rare lock-up, but it will lock-up nearly
+immediately. Even Joe would notice that.
+[I know this is ugly]
 
-Kanoj
+> And here's one more. Before invoking swapout(), and before loosing the
+> vmlist_lock in try_to_swap_out, the vma might be marked with a flag
+> that indicates that swapout() is looking at the vma.
+Or: use a multiple reader - single writer semaphore with "starve writer"
+policy.
+IMO that's cleaner than a semaphore with an attached waitqueue for
+do_munmap().
+
+
+> This swapout() cleanup is independent of the patch I have already posted,
+> so the patch should be integrated into 2.3, while we debate how to tackle
+> the cleanup.
+
+Ok.
+
+--
+	Manfred
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
