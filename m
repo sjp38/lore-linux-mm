@@ -1,47 +1,35 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA00628
-	for <linux-mm@kvack.org>; Tue, 7 Jul 1998 12:31:20 -0400
-Date: Tue, 7 Jul 1998 17:54:46 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Date: Tue, 7 Jul 1998 13:32:34 -0400 (8UU)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-In-Reply-To: <199807071201.NAA00934@dax.dcs.ed.ac.uk>
-Message-ID: <Pine.LNX.3.96.980707175139.18757A-100000@mirkwood.dummy.home>
+In-Reply-To: <Pine.LNX.3.96.980707175139.18757A-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.3.95.980707125719.613B-100000@as200.spellcast.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Andrea Arcangeli <arcangeli@mbox.queen.it>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <arcangeli@mbox.queen.it>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 7 Jul 1998, Stephen C. Tweedie wrote:
-> On Mon, 6 Jul 1998 21:28:42 +0200 (CEST), Andrea Arcangeli
-> <arcangeli@mbox.queen.it> said:
-> 
-> > It would be nice if it would be swapped out _only_ pages that are not used
-> > in the past half an hour. If kswapd would run in such way I would thank
-> > you a lot instead of being irritate ;-).
-> 
-> ?? Some people will want to keep anything used within the last half
-> hour; in other cases, 5 minutes idle should qualify for a swapout.  On
-> the compilation benchmarks I run on 6MB machines, any page not used
-> within the past 10 seconds or so should be history!
+On Tue, 7 Jul 1998, Rik van Riel wrote:
 
-There's a good compromize between balancing per-page
-and per-process. We can simply declare the last X
-(say 8) pages of a process holy unless that process
-has slept for more than Y (say 5) seconds.
+> There's a good compromize between balancing per-page
+> and per-process. We can simply declare the last X
+> (say 8) pages of a process holy unless that process
+> has slept for more than Y (say 5) seconds.
 
-As a temporary measure, you can tune swapctl to
-have an age_cluster_fract of 128 and an
-age_cluster_min of 0; this will leave the 8 last
-pages of an app in memory, whatever happens...
+This is the wrong fix for the case that Andrea is complaining about -
+tossing out chunks of processes piecemeal, resulting in a length page-in
+time when the process becomes active again.  Two things that might help
+with this are: read-ahead on swapins, and *true* swapping.  If the system
+has run out of ram for the tasks at hand, should it not swap out a process
+that's inactive in one fell swoop?  Likewise, when said process resumes,
+it's probably worth bringing that entire working set back into memory.
+That way the user will only experience a brief pause on the first
+keystroke issued to bash, not the 'pause on first character type, then
+pause as line editing code faults back in...'
 
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+		-ben
+
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
