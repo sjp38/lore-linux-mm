@@ -1,97 +1,60 @@
-Content-Type: text/plain; charset=US-ASCII
-From: Daniel Phillips <phillips@bonn-fries.net>
+Date: Fri, 3 Aug 2001 20:13:59 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-Date: Sat, 4 Aug 2001 05:06:57 +0200
-References: <Pine.LNX.4.33L.0108032144310.11893-100000@imladris.rielhome.conectiva>
-In-Reply-To: <Pine.LNX.4.33L.0108032144310.11893-100000@imladris.rielhome.conectiva>
+In-Reply-To: <0108040506570N.01827@starship>
+Message-ID: <Pine.LNX.4.33.0108032003200.15155-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Message-Id: <0108040506570N.01827@starship>
-Content-Transfer-Encoding: 7BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, Ben LaHaise <bcrl@redhat.com>
-Cc: torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Daniel Phillips <phillips@bonn-fries.net>
+Cc: Rik van Riel <riel@conectiva.com.br>, Ben LaHaise <bcrl@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 04 August 2001 03:29, Rik van Riel wrote:
-> On Fri, 3 Aug 2001, Ben LaHaise wrote:
-> > --- vm-2.4.7/drivers/block/ll_rw_blk.c.2	Fri Aug  3 19:06:46 2001
-> > +++ vm-2.4.7/drivers/block/ll_rw_blk.c	Fri Aug  3 19:32:46 2001
-> > @@ -1037,9 +1037,16 @@
-> >  		 * water mark. instead start I/O on the queued stuff.
-> >  		 */
-> >  		if (atomic_read(&queued_sectors) >= high_queued_sectors) {
-> > -			run_task_queue(&tq_disk);
-> > -			wait_event(blk_buffers_wait,
-> > -			 atomic_read(&queued_sectors) < low_queued_sectors);
+On Sat, 4 Aug 2001, Daniel Phillips wrote:
 >
-> ... OUCH ...
->
-> > bah.  Doesn't fix it.  Still waiting indefinately in ll_rw_blk().
->
-> And it's obvious why.
->
-> The code above, as well as your replacement, are have a
-> VERY serious "fairness issue".
->
-> 	task 1			task 2
->
->  queued_sectors > high
->    ==> waits for
->    queued_sectors < low
->
->                              write stuff, submits IO
->                              queued_sectors < high  (but > low)
->                              ....
->                              queued sectors still < high, > low
->                              happily submits more IO
->                              ...
->                              etc..
->
-> It is quite obvious that the second task can easily starve
-> the first task as long as it keeps submitting IO at a rate
-> where queued_sectors will stay above low_queued_sectors,
-> but under high_queued sectors.
+> Nice shooting, this could explain the effect I noticed where
+> writing a linker file takes 8 times longer when competing with
+> a simultaneous grep.
 
-Nice shooting, this could explain the effect I noticed where
-writing a linker file takes 8 times longer when competing with
-a simultaneous grep.
+Just remove that whole logic - it's silly and broken. That's _not_ where
+the logic should be anyway.
 
-> There are two possible solutions to the starvation scenario:
->
-> 1) have one threshold
-> 2) if one task is sleeping, let ALL tasks sleep
->    until we reach the lower threshold
+The whole "we don't want to have too many queued requests" logic in that
+place is just stupid. Let's go through this:
 
-Umm.... Hmm, there are lots more solutions than that, but those two
-are nice and simple.  A quick test for (1) I hope Ben will try is
-just to set high_queued_sectors = low_queued_sectors.
+ - we have read requests, and we have write requests.
+ - we _NEVER_ want to have a read request trigger this logic. When we
+   start a read, we'll eventually wait on it, so readers will always
+   throttle themselves. If readers do huge amounts of read-ahead, that's
+   still ok. We're much better off just blocking in the request allocation
+   layer.
+ - writers are different. Writers write in big chunks, and they should
+   wait for themselves, not on others. See write_locked_buffers() in
+   recent kernels: that makes "sync()" a very nice player. It just waits
+   every NRSYNC blocks (for "sync", NRSYNC is a low 32 buffers, which is
+   just 128kB at a time. That's fine, because "sync" is not performance
+   critical. Other writeouts might want to have slightly bigger blocking
+   factors).
 
-Currently, IO scheduling relies on the "random" algorithm for fairness
-where the randomness is supplied by the processes.  This breaks down
-sometimes, spectacularly, for some distinctly non-random access
-patterns as you demonstrated.
+Agreed? Let's just remove the broken code in ll_rw_block() - it's not as
+if most people even _use_ ll_rw_block() for writing at all any more.
 
-Algorithm (2) above would have some potentially strange interactions
-with the scheduler, it looks scary.  (E.g., change the scheduler, IO
-on some people's machines suddenly goes to hell.)
+(Yeah, fsync_inode_buffers() does, and would probably speed up by using
+the same approach "sync" does - it not only gives nicer behaviour under
+load, it also reduces spinlock contention and CPU usage by a LOT).
 
-Come to think of it (1) will also suffer in some cases from nonrandom
-scheduling.
+Oh, and "flush_dirty_buffers()" is _really_ broken. I wanted to clean that
+up use the sync code too, but I was too lazy.
 
-Now let me see, why do we even have the high+low thresholds?  I
-suppose it is to avoid taking two context switches on every submitted
-block, so it seems like a good idea.
+> Umm.... Hmm, there are lots more solutions than that, but those two
+> are nice and simple.  A quick test for (1) I hope Ben will try is
+> just to set high_queued_sectors = low_queued_sectors.
 
-For IO fairness I think we need something a little more deterministic.
-I'm thinking about an IO quantum right now - when a task has used up
-its quantum it yields to the next task, if any, waiting on the IO
-queue.  How to preserve the effect of the high+low thresholds... it
-needs more thinking, though I've already thought of several ways of
-doing it badly :-)
+Please just remove the code instead. I don't think it buys you anything.
 
---
-Daniel
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
