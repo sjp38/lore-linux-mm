@@ -1,45 +1,51 @@
-Date: Wed, 19 Nov 2003 02:50:49 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
+From: Gene Heskett <gene.heskett@verizon.net>
+Reply-To: gene.heskett@verizon.net
 Subject: Re: 2.6.0-test9-mm4
-Message-ID: <20031119105049.GS22764@holomorphy.com>
-References: <20031118225120.1d213db2.akpm@osdl.org> <20031119090223.GO22764@holomorphy.com> <20031119011951.66300f0d.akpm@osdl.org> <20031119093340.GP22764@holomorphy.com> <20031119101322.GQ22764@holomorphy.com> <20031119103419.GR22764@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Wed, 19 Nov 2003 06:13:22 -0500
+References: <20031118225120.1d213db2.akpm@osdl.org>
+In-Reply-To: <20031118225120.1d213db2.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="us-ascii"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20031119103419.GR22764@holomorphy.com>
+Message-Id: <200311190613.22515.gene.heskett@verizon.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Nov 19, 2003 at 02:34:19AM -0800, William Lee Irwin III wrote:
-> The following, incremental atop the smp_local_irq_*() removal, turns
-> shrink_pagetable_cache() into a set_shrinker()-registered shrinker_t.
-> I'm not entirely sure how good an idea this is given my prior remarks
-> about the vmscan.c code skipping shrink_slab() under highmem pressure.
-> Maybe the proper solution is teaching true slab shrinkers to honor
-> the gfp_mask argument?
-> This is also untested (apart from compiletesting).
+On Wednesday 19 November 2003 01:51, Andrew Morton wrote:
+>ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-
+>test9/2.6.0-test9-mm4/
+>
+>
+>. Several fixes against patches which are only in -mm at present.
+>
+>. Minor fixes which we'll queue for post-2.6.0.
+>
+>. The interactivity problems which the ACPI PM timer patch showed up
+>  should be fixed here - please sing out if not.
+>
+Here, I've rebooted to various elevators and run each for at least a 
+day, and for mm3, I'd have to say that the diffs are tolerable, but 
+the smoothest, most responsive is the deadline version. as still 
+gives an occasional 20 millisecond stutter, and cfq might be 10 
+milliseconds.  Even as is a far cry from the near show stopper 15 to 
+20 second hangs of the performance in the later 2.4's.  Great work 
+guys!
 
-If any of this goes anywhere, I probably deserve a wee bit of credit
-for getting it done (well, I did put some time into it). Here's me
-patting myself on the back, incremental atop the previous two.
+[...]
 
+-- 
+Cheers, Gene
+AMD K6-III@500mhz 320M
+Athlon1600XP@1400mhz  512M
+99.27% setiathome rank, not too shabby for a WV hillbilly
+Yahoo.com attornies please note, additions to this message
+by Gene Heskett are:
+Copyright 2003 by Maurice Eugene Heskett, all rights reserved.
 
--- wli
-
-
-
-diff -prauN mm4-2.6.0-test9-4/arch/i386/mm/pgtable.c mm4-2.6.0-test9-5/arch/i386/mm/pgtable.c
---- mm4-2.6.0-test9-4/arch/i386/mm/pgtable.c	2003-11-19 02:26:04.000000000 -0800
-+++ mm4-2.6.0-test9-5/arch/i386/mm/pgtable.c	2003-11-19 02:46:50.000000000 -0800
-@@ -1,5 +1,6 @@
- /*
-  *  linux/arch/i386/mm/pgtable.c
-+ *  highpte-compatible pte cacheing, William Irwin, IBM, June 2003
-  */
- 
- #include <linux/config.h>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
