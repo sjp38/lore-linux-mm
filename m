@@ -1,7 +1,7 @@
-Date: Sun, 23 Jan 2000 01:39:51 +0100 (CET)
+Date: Sun, 23 Jan 2000 03:37:05 +0100 (CET)
 From: Rik van Riel <riel@nl.linux.org>
-Subject: [PATCH] kswapd less agressive
-Message-ID: <Pine.LNX.4.10.10001230132210.245-100000@mirkwood.dummy.home>
+Subject: [PATCH] goeasy without typo :)
+Message-ID: <Pine.LNX.4.10.10001230331450.245-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -12,19 +12,17 @@ List-ID: <linux-mm.kvack.org>
 
 Hi Alan, Andrea,
 
-a few people (hi Andrea :)) have commented that kswapd
-is somewhat too agressive in 2.2.15pre4. This patch
-should fix that (but don't integrate it yet, I have not
-tested it yet).
+IBM's James Manning pointed out two forgotten braces
+in my last patchlet, so here is a new version (one that
+should work). Like the last one it slows down kswapd
+once it gets above freepages.low .. because it frees
+memory with SWAP_CLUSTER_MAX pages at a time, this won't
+give any hysteresis problems.
 
-Basically kswapd used to agressively free pages until
-it had reached freepages.high. Now kswapd will only
-free pages agressively up to freepages.low, above that
-it will pause if it finds it's ->need_resched set.
-(which should bring us back to freeing in the background)
-
-Everyone interested: please test 2.2.15pre4 with and
-without this test and tell us your results, thank you.
+Between freepages.low and freepages.high kswapd will
+do background freeing of pages. When the CPU is idle
+it will work until it has reached freepages.high,
+otherwise it'll yield the CPU and try again later.
 
 regards,
 
@@ -34,17 +32,21 @@ The Internet is not a network of computers. It is a network
 of people. That is its real strength.
 
 
---- vmscan.c.combo	Sun Jan 23 01:06:50 2000
-+++ vmscan.c	Sun Jan 23 01:06:01 2000
-@@ -498,6 +498,8 @@
+--- mm/vmscan.c.combo	Sun Jan 23 01:06:50 2000
++++ mm/vmscan.c	Sun Jan 23 03:30:46 2000
+@@ -497,8 +497,11 @@
+ 		{
  			if (!do_try_to_free_pages(GFP_KSWAPD))
  				break;
- 			if (tsk->need_resched)
+-			if (tsk->need_resched)
++			if (tsk->need_resched) {
 +				if (nr_free_pages > freepages.low)
 +					break;
  				schedule();
++			}
  		}
  		run_task_queue(&tq_disk);
+ 		interruptible_sleep_on_timeout(&kswapd_wait, HZ);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
