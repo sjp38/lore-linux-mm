@@ -1,122 +1,90 @@
-Date: Fri, 5 Nov 2004 05:20:54 +0100
-From: Andrea Arcangeli <andrea@novell.com>
-Subject: Re: fix iounmap and a pageattr memleak (x86 and x86-64)
-Message-ID: <20041105042053.GK8229@dualathlon.random>
-References: <20041103022606.GI3571@dualathlon.random> <418846E9.1060906@us.ibm.com> <20041103030558.GK3571@dualathlon.random> <1099612923.1022.10.camel@localhost> <1099615248.5819.0.camel@localhost> <20041105005344.GG8229@dualathlon.random> <1099619740.5819.65.camel@localhost> <20041105020831.GI8229@dualathlon.random> <1099621391.5819.72.camel@localhost> <20041105040308.GJ8229@dualathlon.random>
+Date: Fri, 05 Nov 2004 22:49:58 +0900 (JST)
+Message-Id: <20041105.224958.94279091.taka@valinux.co.jp>
+Subject: Re: migration cache, updated
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20041028160520.GB7562@logos.cnet>
+References: <20041027.224837.118287069.taka@valinux.co.jp>
+	<20041028151928.GA7562@logos.cnet>
+	<20041028160520.GB7562@logos.cnet>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041105040308.GJ8229@dualathlon.random>
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andi Kleen <ak@suse.de>, Andrew Morton <akpm@osdl.org>
+To: marcelo.tosatti@cyclades.com
+Cc: linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Nov 05, 2004 at 05:03:08AM +0100, Andrea Arcangeli wrote:
-> doing. I believe my code would now fall apart even if you were using it
-> with PSE disabled (nopentium or something). So I've to fix that bit at
+Hi, Marcelo,
 
-ah no pse disabled was working fine thanks to the cpu_has_pse (I even
-already considered that case while doing the patch), only 4k pages setup
-at boot time would screw it up and frankly there's no good reason at all
-that such 4k pages should exist at all. However adding the reserved
-check won't make the code more robust. This way I don't need to drop the
-memleak detector from the code (there was a true gigantic memleak in
-that code that was triggering in the common case, and it got hidden just
-to let those 4k pages pass through).
+I happened to meet a bug.
 
-The only reason to set the page_count 0 on bootmem is to crash on
-put_page, nobody should ever care about the page_count of bootmem
-memory. bootmem memory will be PageReserved, that is the only thing I'd
-like to relay on.
+> > Yep thats probably what caused your failures.
+> > 
+> > I'll prepare a new patch.
+> 
+> Here it is - with the copy_page_range() fix as you pointed out,
+> plus sys_swapon() fix as suggested by Hiroyuki.
+> 
+> I've also added a BUG() in case of swap_free() failure, so we 
+> get a backtrace.
+> 
+> Can you please test this - thanks.
 
-So I believe this is the right fix to make the change_page_attr aware
-about all kind of pagetables that might be mapping the direct mapping.
-This is really what the code should be doing, since we've to reconstruct
-a largepage and drop the pte only if the pte itself was not-reserved. We
-shouldn't mess 4k pages instantiated at boot time.
+>From the attached message, lookup_migration_cache() returned NULL
+in do_swap_page(). There might be a race condition related the
+migration cache.
 
---- sles/arch/i386/mm/pageattr.c.~1~	2004-11-05 02:36:42.000000000 +0100
-+++ sles/arch/i386/mm/pageattr.c	2004-11-05 05:18:27.216553680 +0100
-@@ -129,13 +129,15 @@ __change_page_attr(struct page *page, pg
- 	} else
- 		BUG();
- 
--	/* memleak and potential failed 2M page regeneration */
--	BUG_ON(!page_count(kpte_page));
--
--	if (cpu_has_pse && (page_count(kpte_page) == 1)) {
--		list_add(&kpte_page->lru, &df_list);
--		revert_page(kpte_page, address);
--	} 
-+	if (!PageReserved(kpte_page)) {
-+		/* memleak and potential failed 2M page regeneration */
-+		BUG_ON(!page_count(kpte_page));
-+
-+		if (cpu_has_pse && (page_count(kpte_page) == 1)) {
-+			list_add(&kpte_page->lru, &df_list);
-+			revert_page(kpte_page, address);
-+		}
-+	}
- 	return 0;
- } 
- 
-I'll prepare a new complete patch against mainline for Andrew with some
-more comment (only the pageattr.c part, the ioremap.c was already fine).
 
-next things to do for the longer term:
-
-1) fix this remaining oops with the debug knob enabled ;) (this is
-unrelated to change_page_attr)
-
-Unable to handle kernel paging request at virtual address c04c1a6e
- printing eip:
-c04c1a6e
-*pde = 0053b027
-*pte = 004c1000
-Oops: 0000 [#1]
-SMP DEBUG_PAGEALLOC
-CPU:    2
-EIP:    0060:[<c04c1a6e>]    Not tainted
-EFLAGS: 00013287   (2.6.5-0-andrea )
-EIP is at mp_find_ioapic+0x0/0x53
-eax: 00000016   ebx: 00000016   ecx: 00000001   edx: 00000001
-esi: 00000001   edi: 00000016   ebp: 00000016   esp: f7fc1e60
-ds: 007b   es: 007b   ss: 0068
-Process X (pid: 2153, threadinfo=f7fc0000 task=f7fc21f0)
-Stack: c0115a6f c03da597 00000000 f7e29000 c025cfc6 00000001 00000001
-00000016
-       00000001 00000001 00000016 c01130d0 00000016 00000016 f7e29000
-f7fc1eb8
-       00000016 c0265ae3 00000002 00000001 00000001 00e29000 00400000
-c03da600
-Call Trace:
- [<c0115a6f>] mp_register_gsi+0x23/0x114
- [<c025cfc6>] acpi_ut_value_exit+0x30/0x3b
- [<c01130d0>] acpi_register_gsi+0x71/0x85
- [<c0265ae3>] acpi_pci_irq_enable+0x2fd/0x36e
- [<c032a29d>] pcibios_enable_device+0x14/0x18
- [<c0235ee1>] pci_enable_device_bars+0x16/0x22
- [<c028e477>] radeon_irq_busid+0x74/0x16c
- [<c028e403>] radeon_irq_busid+0x0/0x16c
- [<c0106403>] sys_get_thread_area+0xfa/0x139
- [<c0287e8a>] radeon_ioctl+0xfd/0x125
- [<c015a645>] vfs_write+0xa5/0xfc
- [<c0106403>] sys_get_thread_area+0xfa/0x139
- [<c016be6c>] sys_ioctl+0x2cc/0x492
- [<c015a868>] sys_write+0x85/0xc6
- [<c0106403>] sys_get_thread_area+0xfa/0x139
- [<c0107f9f>] syscall_call+0x7/0xb
- [<c0106403>] sys_get_thread_area+0xfa/0x139
-
-Code:  Bad EIP value.
-
-2) drop those 4k pages from the first few megs of ram that just hurt
-performance and waste ram (I guess the main problem is that this is in
-strict talk with head.S, and the only communication between head.S and
-the C code so far was to check the contents of each pgd and not to touch
-what was not-null IIRC)
+Nov  5 22:18:22 target1 kernel: Unable to handle kernel NULL pointer dereference at virtual address 00000000
+Nov  5 22:18:22 target1 kernel:  printing eip:
+Nov  5 22:18:22 target1 kernel: c0141364
+Nov  5 22:18:22 target1 kernel: *pde = 00000000
+Nov  5 22:18:22 target1 kernel: Oops: 0000 [#1]
+Nov  5 22:18:22 target1 kernel: SMP 
+Nov  5 22:18:22 target1 kernel: Modules linked in:
+Nov  5 22:18:22 target1 kernel: CPU:    0
+Nov  5 22:18:22 target1 kernel: EIP:    0060:[mark_page_accessed+4/80]    Not tainted VLI
+Nov  5 22:18:22 target1 kernel: EIP:    0060:[<c0141364>]    Not tainted VLI
+Nov  5 22:18:22 target1 kernel: EFLAGS: 00010246   (2.6.9-rc4-mm1) 
+Nov  5 22:18:22 target1 kernel: EIP is at mark_page_accessed+0x4/0x50
+Nov  5 22:18:22 target1 kernel: eax: 00000000   ebx: 00000000   ecx: c0304700   edx: f8000005
+Nov  5 22:18:22 target1 kernel: esi: 00000000   edi: 0000053e   ebp: b72eafe0   esp: ce12be90
+Nov  5 22:18:22 target1 kernel: ds: 007b   es: 007b   ss: 0068
+Nov  5 22:18:22 target1 kernel: Process grep (pid: 2441, threadinfo=ce12a000 task=cf66d550)
+Nov  5 22:18:22 target1 kernel: Stack: f8000005 00000000 c01474d4 c01065c2 00000001 ef720000 cf2655f4 ccc13b70 
+Nov  5 22:18:22 target1 kernel:        b72eafe0 cf76cdc0 c0147cf4 cf76cdc0 cf2655f4 b72eafe0 c84f8ba8 ccc13b70 
+Nov  5 22:18:22 target1 kernel:        0000053e 00000000 b72eafe0 cf76cdc0 cf2655f4 cf66d550 c0114835 cf76cdc0 
+Nov  5 22:18:22 target1 kernel: Call Trace:
+Nov  5 22:18:22 target1 kernel:  [do_swap_page+372/784] do_swap_page+0x174/0x310
+Nov  5 22:18:22 target1 kernel:  [<c01474d4>] do_swap_page+0x174/0x310
+Nov  5 22:18:22 target1 kernel:  [apic_timer_interrupt+26/32] apic_timer_interrupt+0x1a/0x20
+Nov  5 22:18:22 target1 kernel:  [<c01065c2>] apic_timer_interrupt+0x1a/0x20
+Nov  5 22:18:22 target1 kernel:  [handle_mm_fault+228/352] handle_mm_fault+0xe4/0x160
+Nov  5 22:18:22 target1 kernel:  [<c0147cf4>] handle_mm_fault+0xe4/0x160
+Nov  5 22:18:22 target1 kernel:  [do_page_fault+469/1487] do_page_fault+0x1d5/0x5cf
+Nov  5 22:18:22 target1 kernel:  [<c0114835>] do_page_fault+0x1d5/0x5cf
+Nov  5 22:18:22 target1 kernel:  [run_timer_softirq+481/496] run_timer_softirq+0x1e1/0x1f0
+Nov  5 22:18:22 target1 kernel:  [<c0124821>] run_timer_softirq+0x1e1/0x1f0
+Nov  5 22:18:22 target1 kernel:  [update_wall_time+21/64] update_wall_time+0x15/0x40
+Nov  5 22:18:22 target1 kernel:  [<c01244d5>] update_wall_time+0x15/0x40
+Nov  5 22:18:22 target1 kernel:  [do_timer+46/192] do_timer+0x2e/0xc0
+Nov  5 22:18:22 target1 kernel:  [<c012486e>] do_timer+0x2e/0xc0
+Nov  5 22:18:22 target1 kernel:  [timer_interrupt+72/240] timer_interrupt+0x48/0xf0
+Nov  5 22:18:22 target1 kernel:  [<c010b148>] timer_interrupt+0x48/0xf0
+Nov  5 22:18:22 target1 kernel:  [timer_interrupt+229/240] timer_interrupt+0xe5/0xf0
+Nov  5 22:18:22 target1 kernel:  [<c010b1e5>] timer_interrupt+0xe5/0xf0
+Nov  5 22:18:22 target1 kernel:  [handle_IRQ_event+44/96] handle_IRQ_event+0x2c/0x60
+Nov  5 22:18:22 target1 kernel:  [<c013530c>] handle_IRQ_event+0x2c/0x60
+Nov  5 22:18:22 target1 kernel:  [__do_IRQ+280/336] __do_IRQ+0x118/0x150
+Nov  5 22:18:22 target1 kernel:  [<c0135458>] __do_IRQ+0x118/0x150
+Nov  5 22:18:22 target1 kernel:  [__do_IRQ+318/336] __do_IRQ+0x13e/0x150
+Nov  5 22:18:22 target1 kernel:  [<c013547e>] __do_IRQ+0x13e/0x150
+Nov  5 22:18:22 target1 kernel:  [do_page_fault+0/1487] do_page_fault+0x0/0x5cf
+Nov  5 22:18:22 target1 kernel:  [<c0114660>] do_page_fault+0x0/0x5cf
+Nov  5 22:18:22 target1 kernel:  [error_code+45/56] error_code+0x2d/0x38
+Nov  5 22:18:22 target1 kernel:  [<c010663d>] error_code+0x2d/0x38
+Nov  5 22:18:22 target1 kernel: Code: 1c 85 20 80 3f c0 01 da ff 42 38 51 9d 8d 86 00 01 00 00 e8 ef e9 14 00 5b 5e 5f c3 8d 74 26 00 8d bc 27 00 00 00 00 56 53 89 c3 <8b> 03 83 e0 40 75 25 8b 03 be 02 00 00 00 83 e0 04 74 19 8b 03 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
