@@ -1,42 +1,35 @@
-Date: Fri, 23 Mar 2001 14:27:12 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [PATCH] Fix races in 2.4.2-ac22 SysV shared memory
-In-Reply-To: <E14gZuj-0005YN-00@the-village.bc.nu>
-Message-ID: <Pine.LNX.4.31.0103231424230.766-100000@penguin.transmeta.com>
+Date: Sat, 24 Mar 2001 00:37:16 +0200 (MET DST)
+From: Szabolcs Szakacsits <szaka@f-secure.com>
+Subject: Re: [PATCH] Prevent OOM from killing init
+In-Reply-To: <E14gZvi-0005YW-00@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.30.0103240030310.13864-100000@fs131-224.f-secure.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, Christoph Rohland <cr@sap.com>
+Cc: Guest section DW <dwguest@win.tue.nl>, Stephen Clouse <stephenc@theiqgroup.com>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
 On Fri, 23 Mar 2001, Alan Cox wrote:
-> >
-> > 	+       spin_lock (&info->lock);
-> > 	+
-> > 	+       /* The shmem_swp_entry() call may have blocked, and
-> > 	+        * shmem_writepage may have been moving a page between the page
-> > 	+        * cache and swap cache.  We need to recheck the page cache
-> > 	+        * under the protection of the info->lock spinlock. */
-> > 	+
-> > 	+       page = find_lock_page(mapping, idx);
-> >
-> > Ehh.. Sleeping with the spin-lock held? Sounds like a truly bad idea.
->
-> Umm find_lock_page doesnt sleep does it ?
+> > > and rely on it. You might find you need a few Gbytes of swap just to
+> > > boot
+> > Seems a bit exaggeration ;) Here are numbers,
+> NetBSD is if I remember rightly still using a.out library styles.
 
-Sure it does. Note the "lock" in find_lock_page(). It will lock the page,
-which implies sleeping if somebody is accessing it at the same time.
+No, it uses ELF today, moreover the numbers were from Solaris. NetBSD
+also switched from non-overcommit to overcommit-only [AFAIK] mode with
+"random" process killing with its new UVM.
 
-If you don't want to sleep, you need to use one of the wrappers for
-"__find_page_nolock()". Something like "find_get_page()", which only
-"gets" the page.
+> > 6-50% more VM and the performance hit also isn't so bad as it's thought
+> > (Eduardo Horvath sent a non-overcommit patch for Linux about one year
+> > ago).
+> The Linux performance hit would be so close to zero you shouldnt be able to
+> measure it - or it was in 1.2 anyway
 
-The naming actually does make sense in this area.
+Yep, something like this :)
 
-		Linus
+	Szaka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
