@@ -1,46 +1,44 @@
-Received: from CLNT37 [172.16.0.37] by omnesysindia.com [202.140.148.138]
-	with SMTP (MDaemon.v2.83.R)
-	for <linux-mm@kvack.org>; Wed, 04 Feb 2004 12:25:15 +0530
-Message-ID: <018601c3eaeb$a1ba2150$250010ac@CLNT37>
-From: "Arunkumar" <akumars@omnesysindia.com>
-References: <20040204050915.59866.qmail@web9704.mail.yahoo.com> <1075874074.14153.159.camel@nighthawk>  <35380000.1075874735@[10.10.2.4]> <1075875756.14153.251.camel@nighthawk> <38540000.1075876171@[10.10.2.4]>
-Subject: Doubt about statm_pgd_range patch
-Date: Wed, 4 Feb 2004 12:23:44 +0530
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Subject: Re: Active Memory Defragmentation: Our implementation & problems
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20040204065717.EFB277049E@sv1.valinux.co.jp>
+References: <20040204050915.59866.qmail@web9704.mail.yahoo.com>
+	 <1075874074.14153.159.camel@nighthawk>
+	 <20040204065717.EFB277049E@sv1.valinux.co.jp>
+Content-Type: text/plain
+Message-Id: <1075878652.14155.416.camel@nighthawk>
+Mime-Version: 1.0
+Date: 03 Feb 2004 23:10:52 -0800
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+Cc: Alok Mooley <rangdi@yahoo.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Martin J. Bligh" <mbligh@aracnet.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Tue, 2004-02-03 at 22:57, IWAMOTO Toshihiro wrote:
+> At 03 Feb 2004 21:54:34 -0800,
+> Dave Hansen wrote:
+> > Moving file-backed pages is mostly handled already.  You can do a
+> > regular page-cache lookup with find_get_page(), make your copy,
+> > invalidate the old one, then readd the new one.  The invalidation can be
+> > done in the same style as shrink_list().
+> 
+> Actually, it is a bit more complicated.
+> I have implemented similar functionality for memory hotremoval.
+> 
+> See my post about memory hotremoval
+> http://marc.theaimsgroup.com/?l=linux-kernel&m=107354781130941&w=2
+> for details.
+> remap_onepage() and remapd() in the patch are the main functions.
 
-I had a doubt as to why the vsize reported in /proc/nn/stat
-and /proc/nn/statm differs. My search on the topic lead me 
-to the details about the stam_pgd_range sucks patch 
-(William Lee Irwin III) which is now included the latest 
-2.6.xxx RC mm series.
+remap_onepage() is quite a function.  300 lines.  It sure does cover a
+lot of ground. :)
 
-I guess if i make similar changes to proc/array.c according 
-to those patches, both stat and statm will report the vsize 
-in the same manner - 
+Defragmentation is a bit easier than removal because it isn't as
+mandatory.  Instead of having to worry about waiting on things like
+writeback, the defrag code can just bail.  
 
-(vma->vm_end - vma->vm_start)
-
-with statm reporting in pages and stat reporting in bytes
-
-If this is the case can i report vsize of my process from 
-/proc/self/stat value to be more correct than that in statm?
-(iam running 2.4 kernel and stat already reports vsize in 
-this manner in 2.4 kernels right ?)
-
-Or does this patch need any other changes in kernel 
-vm structures etc ?
-
-Thanks
-Arun
+--dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
