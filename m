@@ -1,116 +1,98 @@
-Date: Wed, 18 Jul 2001 10:54:52 +0200 (CEST)
-From: Mike Galbraith <mikeg@wen-online.de>
+Date: Wed, 18 Jul 2001 11:18:18 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
 Subject: Re: [PATCH] Separate global/perzone inactive/free shortage
-In-Reply-To: <OF11D0664E.20E72543-ON85256A8B.004B248D@pok.ibm.com>
-Message-ID: <Pine.LNX.4.33.0107180808470.724-100000@mikeg.weiden.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20010718111818.D6826@redhat.com>
+References: <OF11D0664E.20E72543-ON85256A8B.004B248D@pok.ibm.com> <Pine.LNX.4.33.0107180808470.724-100000@mikeg.weiden.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.33.0107180808470.724-100000@mikeg.weiden.de>; from mikeg@wen-online.de on Wed, Jul 18, 2001 at 10:54:52AM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bulent Abali <abali@us.ibm.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Dirk Wetter <dirkw@rentec.com>, linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: Bulent Abali <abali@us.ibm.com>, "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Dirk Wetter <dirkw@rentec.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Jul 2001, Bulent Abali wrote:
+Hi,
 
-> >> On Sat, 14 Jul 2001, Marcelo Tosatti wrote:
-> >
-> >> On highmem machines, wouldn't it save a LOT of time to prevent
-> allocation
-> >> of ZONE_DMA as VM pages?  Or, if we really need to, get those pages into
-> >> the swapcache instantly?  Crawling through nearly 4 gig of VM looking
-> for
-> >> 16 MB of ram has got to be very expensive.  Besides, those pages are
-> just
-> >> too precious to allow some user task to sit on them.
-> >
-> >Can't we balance that automatically?
-> >
-> >Why not just round-robin between the eligible zones when allocating,
-> >biasing each zone based on size?  On a 4GB box you'd basically end up
-> >doing 3 times as many allocations from the highmem zone as the normal
-> >zone and only very occasionally would you try to dig into the dma
-> >zone.
-> >Cheers,
-> > Stephen
->
-> If I understood page_alloc.c:build_zonelists() correctly
-> ZONE_HIGHMEM includes ZONE_NORMAL which includes ZONE_DMA.
-> Memory allocators (other than ZONE_DMA) will dip in to the dma zone
-> only when there are no highmem and/or normal zone pages available.
-> So, the current method is more conservative (better) than round-robin
-> it seems to me.
+On Wed, Jul 18, 2001 at 10:54:52AM +0200, Mike Galbraith wrote:
 
-Not really.  As soon as ZONE_NORMAL is engaged such that free_pages
-hits pages_low, we will pilpher ZONE_DMA.  That's guaranteed to happen
-because that's exactly what we balance for.  Once ZONE_NORMAL reaches
-pages_low, we will fall back to allocating ZONE_DMA exclusively.
+> Much worse is the case of Dirk's two 2gig simulations on a dual cpu
+> 4gig box.  It will guaranteed allocate all of the dma zone to his two
+> tasks vm.  It will also guaranteed unbalance the zone.  Doesn't that
+> also guarantee that we will walk pagetables endlessly each and every
+> time a ZONE_DMA page is issued?  Try to write out a swapcache page,
+> and you might get a dma page, try to do _anything_ and you might get
+> a ZONE_DMA page.  With per zone balancing, you will turn these pages
+> over much much faster than before, and the aging will be unfair in
+> the extreme.. it absolutely has to be.  SCT's suggestion would make
+> the total pressure equal, but it would not (could not) correct the
+> problem of searching for this handful of pages, the very serious cost
+> of owning a ZONE_DMA page, nor the problem of a specific request for
+> GFP_DMA pages having a reasonable chance of succeeding.
 
-(problem yes?.. if agree, skip to 'possible solution' below;)
+The round-robin scheme would result in 16MB worth of allocations ever
+2GB of requests coming from ZONE_DMA.  That's one in 128.
 
-Thinking about doing a find /usr on my box:  we commit ZONE_NORMAL,
-then transition to exclusive use of ZONE_DMA instantly.  These pages
-will go to kernel structures.  (except for metadata.  Metadata will
-be aged/laundered, and become available for more kernel structures)
-The tendancy is for ever increasing quantities to become invisible
-to the balancing mechanisms.
+But the impact of this on memory pressure depends on how we distribute
+PAGES_HIGH/PAGES_LOW allocation requests, and at what point we wake up
+the reclaim code.  If we have 50 pages between PAGES_HIGH and
+PAGES_LOW for DMA zone, and the reclaim target is PAGES_HIGH, then we
+won't start the reclaim until (50*128) allocations have been done
+since the last one --- that's 25MB of allocations.  Plus, the reclaim
+that does kick off won't be scanning the VM for just one DMA page, it
+will keep scanning for a bunch of them, so it's just one VM pass for
+that whole 25MB of allocation.  At the very least, this helps spread
+the load.
 
-Thinking about Dirk's logs of rsync leads me to believe that this must
-be the case.  kreclaimd is eating cpu.  It can't possibly be any other
-zone.  When rsync has had 30 minutes of cpu, kswapd has had 40 minutes.
-kreclaimd has eaten 15 solid minutes.  It can't possibly accumulate
-that much time unless ZONE_DMA is the problem.. the other zones are
-just too easy to find/launder/reclaim.
+But on top of that, we need to make a distinction between directed
+reclaim and opportunistic reclaim.  What I mean by that is this: we
+need not force the memory reclaim logic to try to balance the DMA
+zone unnecessarily; hence we should not force it to scavenge in DMA if
+the (free+inactive) count is above pages_low.  However, we *should*
+still age DMA pages if we happen to be triggering the aging loop
+anyway.  If pressure on the NORMAL zone triggers aging, then sure, we
+can top up the DMA zone.  So, for page aging, if the memory pressure
+is balanced, the aging should not have to do a specific pass over the
+DMA zone at all --- the aging done in response to pressure elsewhere
+ought to have a proportionate impact on the DMA zone's inactive queue
+too.
 
-Much worse is the case of Dirk's two 2gig simulations on a dual cpu
-4gig box.  It will guaranteed allocate all of the dma zone to his two
-tasks vm.  It will also guaranteed unbalance the zone.  Doesn't that
-also guarantee that we will walk pagetables endlessly each and every
-time a ZONE_DMA page is issued?  Try to write out a swapcache page,
-and you might get a dma page, try to do _anything_ and you might get
-a ZONE_DMA page.  With per zone balancing, you will turn these pages
-over much much faster than before, and the aging will be unfair in
-the extreme.. it absolutely has to be.  SCT's suggestion would make
-the total pressure equal, but it would not (could not) correct the
-problem of searching for this handful of pages, the very serious cost
-of owning a ZONE_DMA page, nor the problem of a specific request for
-GFP_DMA pages having a reasonable chance of succeeding.
+> IMHO, it is really really bad, that any fallback allocation can also
+> bring the dma zone into critical, and these allocations may end up in
+> kernel structures which are invisible to the balancing logic
 
-IMHO, it is really really bad, that any fallback allocation can also
-bring the dma zone into critical, and these allocations may end up in
-kernel structures which are invisible to the balancing logic, making
-a search a complete waste of time.  In any case, on a machine with
-lots of ram, the search is going to be disproportionately expensive
-due to the size of the search area.
+That is the crux of the problem.  ext3's journaling, XFS with deferred
+allocation, and other advanced filesystem activities will just make
+this worse, because even normal file data may suddenly become
+"pinned".  With transactions, you can't write out dirty data until any
+pending syscalls which are still operating on that transaction
+complete.  With deferred block allocation, you can't write out dirty
+data without first doing extra filesystem operations to assign disk
+blocks for them.
 
-Possible solution:
+It's not really possible to account this stuff 100% right now ---
+mlock() is just too hard to deal with in the absense of rmaps (because
+when you munlock() a page, it's currently too expensive to check
+whether any other tasks still have a lock on the page.)  A separate
+lock_count on the page would help here --- that would allow
+the filesystem, the VM and any other components of the system to
+register temporary or permanent pins on a page for balancing purposes.
 
-Effectively reserving the last ~meg (pick a number, scaled by ramsize
-would be better) of ZONE_DMA for real GFP_DMA allocations would cure
-Dirk's problem I bet, and also cure most of the others too, simply by
-ensuring that the ONLY thing that could unbalance that zone would be
-real GFP_DMA pressure.  That way, you'd only eat the incredible cost
-of balancing that zone when it really really had to be done.
+*If* you can account for pinned pages, much of the current trouble
+disappears --- you can even do 4MB allocations effectively if you have
+the ability to restrict permanently pinned pages to certain zones, and
+to force temporary pins out of memory when you need to cleanse a
+particular 4MB region for a large allocation.
 
-> I think Marcello is proposing to make ZONE_DMA exclusive in large
-> memory machines, which might make it better for allocators
-> needing ZONE_DMA pages...
+But for now we have absolutely no such accounting, so if you combine
+Reiserfs, ext3 and XFS all on one box, all of them doing their own
+half-hearted attempts to avoid flooding memory with pinned pages but
+none of them communicating with each other, we can most certainly
+deadlock the system.
 
-That would have to save very much time on HIGHMEM boxes.  No box with
->= a gig of ram would even miss (a lousy;) 16MB.  The very small bit of
-extra balancing of other zones would easily be paid for by the reduced
-search time (supposition).  You'd certainly be doing large tasks a big
-favor by refusing to give them ZONE_DMA pages on a fallback allocation.
-
-I'd almost bet money (will bet a bogobeer:) that disabling fallback to
-ZONE_DMA entirely on Dirk's box will make his troubles instantly gone.
-Not that we don't need per zone balancing anyway mind you.. it's just
-the tiny zone case that is an absolute guaranteed performance killer.
-
-Comments?
-
-	-Mike
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
