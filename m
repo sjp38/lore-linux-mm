@@ -1,47 +1,60 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199906282125.OAA06661@google.engr.sgi.com>
+Date: Mon, 28 Jun 1999 17:32:05 -0400 (EDT)
+From: Chuck Lever <cel@monkey.org>
 Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
-Date: Mon, 28 Jun 1999 14:25:30 -0700 (PDT)
-In-Reply-To: <Pine.BSO.4.10.9906281648010.24888-100000@funky.monkey.org> from "Chuck Lever" at Jun 28, 99 05:14:17 pm
+In-Reply-To: <199906282051.NAA12151@google.engr.sgi.com>
+Message-ID: <Pine.BSO.4.10.9906281715420.24888-100000@funky.monkey.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chuck Lever <cel@monkey.org>
-Cc: sct@redhat.com, andrea@suse.de, torvalds@transmeta.com, linux-mm@kvack.org
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: andrea@suse.de, torvalds@transmeta.com, sct@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 28 Jun 1999, Kanoj Sarcar wrote:
+> > or perhaps the kernel could start more than one kswapd (one per swap
+> > partition?).  with my patch, regular processes never wait for swap out
+> > I/O, only kswapd does.
+> > 
+> > if you're concerned about bounding the latency of VM operations in order
+> > to provide some RT guarantees, then i'd imagine, based on what i've read
+> > on this list, that Linus might want to keep things simple more than he'd
+> > want to clutter the memory freeing logic... but if there's a simple way to
+> > "guarantee" a low latency then it would be worth the trouble.
 > 
-> the eventual goal of my adventure is to drop the kernel lock while doing
-> the page COW in do_wp_page, since in 2.3.6+, the COW is again protected
-> because of race conditions with kswapd.  this "protection" serializes all
-> page faults behind a very expensive memory copy.  what other ways are
-> there to protect the COW operation while allowing some parallelism?  it
-> seems like this is worth a little complexity, IMO.
->
+> Oh no, I was not talking about exotic stuff like RT ... I was 
+> simply pointing out that to prevent deadlocks, and guarantee forward
+> progress, you have to show that despite what underlying fs/driver
+> code does, at least one memory freer is free to do its job. Else,
+> under low memory conditions, no memory freer can free up memory, so
+> the system is effectively hung. If you have to wait for mmap_sem, 
+> you can not easily do that (unless you are willing to do a trylock 
+> for mmap_sem, ie give up on a process and continue scanning for others). 
+> This is partly why after thinking about it, I did not attempt to do 
+> this myself. 
 
-I have already commented on my reservations about holding mmap_sem
-in kswapd/try_to_free_pages. 
+(i also tried down_trylock, but discarded it.)
 
-Just thought I would point out that I have been thinking on the
-lines of eliminating kernel_lock from the vm code (experimentally
-initially under a CONFIG option), but I am yet to come up with
-a complete design. My current ideas involve a per mm spinning pte 
-lock, a sleeping vmalist mutex (which processes never go to sleep
-holding). I am still struggling to understand whether a per
-page lock is needed or swapcache lock will do.
+well, except that kswapd itself doesn't free any memory.  it simply copies
+data from memory to disk.  shrink_mmap() actually does the freeing, and
+can do this with minimal locking, and from within regular application
+processes.  when a process calls shrink_mmap(), it will cause some pages
+to be made available to GFP.
 
-In any case, if someone on the list is working on something
-similar, maybe we can exchange notes offline. Of course, we can
-not perturb performance for kernels which does not have the 
-CONFIG option set. And Linus has to agree its worthwhile doing
-this work ....
+if you need evidence that shrink_mmap() will keep a system running without
+swapping, just run 2.3.8 :) :)
 
-Thanks.
+come to think of it, i don't think there is a safety guarantee in this
+mechanism to prevent a lock-up.  i'll have to think more about it.
 
-Kanoj
-kanoj@engr.sgi.com
+	- Chuck Lever
+--
+corporate:	<chuckl@netscape.com>
+personal:	<chucklever@netscape.net> or <cel@monkey.org>
+
+The Linux Scalability project:
+	http://www.citi.umich.edu/projects/linux-scalability/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
