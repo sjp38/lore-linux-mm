@@ -1,33 +1,48 @@
-Date: Tue, 30 Jul 2002 10:13:27 -0700
+Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
+	id 17Zaij-0000VM-00
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2002 10:23:41 -0700
+Date: Tue, 30 Jul 2002 10:23:41 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: [RFC] start_aggressive_readahead
-Message-ID: <20020730171327.GC29537@holomorphy.com>
-References: <F245ABF4-A3D6-11D6-9922-000393829FA4@cs.amherst.edu> <644994853.1028020916@[10.10.2.3]>
+Subject: severely bloated slabs
+Message-ID: <20020730172341.GD29537@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <644994853.1028020916@[10.10.2.3]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
-Cc: Scott Kaplan <sfkaplan@cs.amherst.edu>, Andrew Morton <akpm@zip.com.au>, Rik van Riel <riel@conectiva.com.br>, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 30, 2002 at 09:21:57AM -0700, Martin J. Bligh wrote:
-> Would it not be easier to actually calculate (statistically) the 
-> read-ahead window, rather than actually tweaking it empirically?
-> If we're getting misses, there could be at least two causes - 
+12 hours after running dbench, tiobench, and a couple of others:
 
-I wonder where these stats should really be kept. They seem to be in
-the vma which probably doesn't fly too well when 20K threads are
-pounding on different chunks of the same thing. Each could do locally
-sequential reads and look random to the perspective of per-vma stats.
+             cache      active    alloc    %util
+       buffer_head:     3781KB   132278KB    2.85
+         pte_chain:       46KB      520KB    8.98
+      dentry_cache:     8256KB    47662KB   17.32
+    vm_area_struct:      226KB      817KB   27.75
+               bio:       98KB      295KB   33.26
+          biovec-1:       25KB       75KB   33.45
+           size-32:      377KB     1098KB   34.38
+           size-64:      251KB      700KB   35.93
+  proc_inode_cache:      517KB     1157KB   44.74
+       task_struct:      788KB     1697KB   46.47
+         size-4096:     2480KB     5240KB   47.32
+        signal_act:      688KB     1379KB   49.86
+ skbuff_head_cache:      384KB      738KB   52.3 
+          tcp_sock:      465KB      767KB   60.63
+   radix_tree_node:     9533KB    14851KB   64.18
+       files_cache:      487KB      677KB   71.96
+  sock_inode_cache:      248KB      341KB   72.74
+          sgpool-8:      195KB      255KB   76.83
+         size-2048:     1132KB     1372KB   82.50
+          size-256:      606KB      701KB   86.52
+  tcp_open_request:       54KB       62KB   87.43
 
-This probably gets worse if different threads are stomping in different
-patterns, e.g. one sequential, one random. They also seem to lack any
-way to cooperate since the hints are kept per-vma. It's also probably
-easier to predict the behavior of a single task.
+
+132MB of ZONE_NORMAL on a 16GB i386 box tied up in buffer_head slabs
+when all of 3% of it is in use gives me the willies. Periodic slab
+pruning anyone? Might be useful in addition to slab-in-lru.
 
 
 Cheers,
