@@ -1,148 +1,335 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA13153
-	for <linux-mm@kvack.org>; Fri, 24 Jul 1998 13:03:01 -0400
-Subject: Re: More info: 2.1.108 page cache performance on low memory
-References: <Pine.LNX.3.96.980724161908.21942A-100000@mirkwood.dummy.home>
-Reply-To: Zlatko.Calusic@CARNet.hr
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 24 Jul 1998 19:01:30 +0200
-In-Reply-To: Rik van Riel's message of "Fri, 24 Jul 1998 16:25:56 +0200 (CEST)"
-Message-ID: <87ww93dvyt.fsf@atlas.CARNet.hr>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA14496
+	for <linux-mm@kvack.org>; Fri, 24 Jul 1998 17:20:56 -0400
+Received: from mirkwood.dummy.home (root@anx1p8.phys.uu.nl [131.211.33.97])
+	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id XAA32096
+	for <linux-mm@kvack.org>; Fri, 24 Jul 1998 23:20:50 +0200 (MET DST)
+Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with SMTP id XAA30441 for <linux-mm@kvack.org>; Fri, 24 Jul 1998 23:03:19 +0200
+Date: Fri, 24 Jul 1998 23:03:18 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: de-luxe zone allocator, design 2
+Message-ID: <Pine.LNX.3.96.980724225908.30437A-200000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="655616-1938839263-901314198=:30437"
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@npwt.net>, Linux MM <linux-mm@kvack.org>
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
+  Send mail to mime@docserver.cac.washington.edu for more info.
 
-> On 24 Jul 1998, Zlatko Calusic wrote:
-> > Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
-> > 
-> > > These solutions are somewhat the same, but your one may take
-> > > a little less computational power and has a tradeoff in the
-> > > fact that it is very inflexible.
-> > 
-> > Same? Not in your wildest dream. :)
-> > 
-> > Limiting means puting "arbitrary" limit. Then page cache would NEVER
-> > grow above that limit.
-> 
-> There's also a 'soft limit', or borrow percentage. Ultimately
-> the minimum and maximum percentages should be 0 and 100 %
-> respectively.
+--655616-1938839263-901314198=:30437
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 
-Could you elaborate on "borrow" percentage? I have some trouble
-understanding what that could be.
+Hi,
 
-> 
-> > Triple aging has all good characteristics of aging.
-> > Why do you think it is inflexible?
-> 
-> Because there's no way to tune the 'priority' of the page aging.
-> It could be good to do triple aging, but it could be a non-optimal
-> number on other machines ... and there's no way to get out of it!
+here is the new design for the de-luxe zone allocator.
 
-Yes, you're right here. See below...
+With the reports of Linux booting in 3 MB it's probably
+time for some low-mem adjustments, but in general this
+scheme should be somewhat better designed overall.
 
-> 
-> > I will post another, completely different set of benchmarks today.
-> > Under different initial conditions, so as to simulate different
-> > machines and loads.
-> 
-> Good, I like this. You will probably get somewhat different
-> results with this...
-> 
-> Oh, and changing the code to:
-> 
-> int i;
-> for ( i = page_cache_penalty; i--;)
-> 	age_page(page);
-> 
-> and making page_cache_pentalty sysctl tunable will certainly
-> make your tests easier...
+The biggest change is the fact that the zone queues
+have been dropped for user pages in favor of page
+queues with multi-level LRU reclamation with lazy
+reclaim.
 
-Yes, I wanted to do something like this, but then again, was to lazy
-to further complicate things. So, I was just recompiling kernel and
-rebooting (to do testing), since only one file (filemap.c) was really
-recompiled and whole operation did not take more than a few minutes. :)
+We also want to do page table repacking, or even
+swapping. This _is_ feasable, as long as we don't
+touch the page directories...
+Maybe we want to put the page directories with the
+SLAB and stack stuff and allocate page tables together
+with user pages (we _can_ safely repack page tables).
 
-Code like that is easy to put in the kernel, but only if people think
-it would be a good idea. And then remains final question, what should
-be the default value?
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
-But, I also think that too much configurable parameters make trouble
-too. If you have 100 variables to configure one subsystem in the
-kernel, where do you start? I like solutions that work good by
-themselves. Autotuning. With not too much logic in them. :)
+--655616-1938839263-901314198=:30437
+Content-Type: TEXT/PLAIN; charset=US-ASCII; name="zone-alloc.html"
+Content-Transfer-Encoding: BASE64
+Content-ID: <Pine.LNX.3.96.980724230318.30437B@mirkwood.dummy.home>
+Content-Description: Zone allocator, design 2
 
-> 
-> > I'm very satisfied with changes (in .109 I think)
-> > free_memory_available() went through. Old function was much too much
-> > unnessecary complicated and not useful at all. And unreadable.
-> 
-> It _was_ useful; it has always been useful to test for the
-> amount of memory fragmentation.
-
-Whoops, here I don't share your opinion.
-
-Checking memory fragmentation and then acting accordingly (in kswapd)
-seems like a good idea, but, unfortunately, I am now pretty sure it is
-NOT. And there is one and only one reason: throwing pages out of
-memory at random (blindly). You know it, too.
-
-I came to this conclusion many months before, with my first patch,
-that aimed to solve fragmentation problem.
-
-My first idea was to make sure we have at least one 128KB chunk. It
-finished with many lockups and kswapd deadlocks. Then I tried to make
-few 16KB chunks available and performance still sucked. To get few
-16KB chunks system would happily outswap whole my memory. Thanks, not
-again. I used it for a while, only to prevent network lockups.
-
-Old (<= 2.1.108) free_memory_available() was practically that, but
-with limit applied which effectively worked like: "Oh, no, memory
-fragmented, swap out, swap out, oh no, too much swapped out, never
-mind fragmentation, stop swapping." So, it didn't work. And it was
-definitely overcomplicated.
-
-Obviously, everybody tried hard to do the right thing, where right
-thing could not be done. Wrong place to search for solution.
-
-Stephen's new patch promises. It has some new logic in it which is
-not tried before. I already tested it, and results are not bad.
-
-But, I can't say that is final solution, either, since I can still
-easily produce memory shortage, with many network simultaneous network
-connections even on a 64MB unloaded machine. So, lots of work to be
-done for 2.4. :)
-
-> 
-> In fact, Linus himself said (when free_memory_available()
-> was introduced in 2.1.89) that he would not accept any
-> function which used the amount of free pages.
-> 
-> After some protests (by me) Linus managed to explain to us
-> exactly _why_ we should test for fragmentation, I suggest
-> we all go through the archives again and reread the arguments...
-> 
-
-Yeah, I remember.
-
-That was the time I started patching my kernels with every new
-release. That was the time I went for another 32MB to solve my
-problems. :(
-
-I'm lagging very much behind on linux-kernel list (~3000 posts) and it
-seems like I missed some good discussion about Linux MM (I read about
-it on http://lwn.net/). Now, I hope I can still catch that all, and
-then spend some time testing and coding. :)
-
-Regards,
--- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-     P.S. That Linux-MM page you're doing, kicks ass. Just never
-	  had opportunity to tell you that I really like it. :)
+PEhUTUw+DQo8SEVBRD4NCiAgIDxNRVRBIEhUVFAtRVFVSVY9IkNvbnRlbnQt
+VHlwZSIgQ09OVEVOVD0idGV4dC9odG1sOyBjaGFyc2V0PWlzby04ODU5LTEi
+Pg0KICAgPE1FVEEgTkFNRT0iQXV0aG9yIiBDT05URU5UPSJSaWsgdmFuIFJp
+ZWwiPg0KICAgPE1FVEEgTkFNRT0iR0VORVJBVE9SIiBDT05URU5UPSJNb3pp
+bGxhLzQuMDUgW2VuXSAoWDExOyBJOyBMaW51eCAyLjEuMTA4IGk1ODYpIFtO
+ZXRzY2FwZV0iPg0KICAgPE1FVEEgTkFNRT0iRGVzY3JpcHRpb24iIENPTlRF
+TlQ9IlRoaXMgaXMgdGhlIHdoaXRlIHBhcGVyIGZvciB0aGUgbmV3LCB6b25l
+LWJhc2VkIExpbnV4IG1lbW9yeSBhbGxvY2F0b3IuIj4NCiAgIDxNRVRBIE5B
+TUU9IktleXdvcmRzIiBDT05URU5UPSJtZW1vcnksIG1hbmFnZW1lbnQsIG1t
+LCBsaW51eCwgem9uZSwgYWxsb2NhdG9yLCB6b25lLWJhc2VkLCBtZW1vcnkg
+bWFuYWdlbWVudCwga2VybmVsLCB3aGl0ZSBwYXBlciwgc291cmNlLCBSaWsg
+dmFuIFJpZWwiPg0KICAgPFRJVExFPkRlc2lnbiBmb3IgdGhlIExpbnV4IHpv
+bmUgYmFzZWQgbWVtb3J5IGFsbG9jYXRvcjwvVElUTEU+DQo8L0hFQUQ+DQo8
+Qk9EWT4NCiZuYnNwOw0KPENFTlRFUj48VEFCTEU+DQo8VFI+DQo8VEQ+WzxB
+IEhSRUY9Imh0dHA6Ly93d3cucGh5cy51dS5ubC9+cmllbC9tbS1wYXRjaC8i
+PkxpbnV4IE1NIGhvbWUgcGFnZTwvQT5dPC9URD4NCg0KPFREPls8QSBIUkVG
+PSJodHRwOi8vd3d3LmxpbnV4aHEuY29tLyI+TGludXggSGVhZHF1YXJ0ZXJz
+PC9BPl08L1REPg0KDQo8VEQ+WzxBIEhSRUY9Imh0dHA6Ly93d3cucGh5cy51
+dS5ubC9+cmllbC8iPk15IGhvbWUgcGFnZTwvQT5dPC9URD4NCjwvVFI+DQo8
+L1RBQkxFPjwvQ0VOVEVSPg0KDQo8SFIgTk9TSEFERSBXSURUSD0iMTAwJSI+
+DQo8Q0VOVEVSPg0KPEgxPg0KTGludXggTU06IGRlc2lnbiBmb3IgYSB6b25l
+IGJhc2VkIG1lbW9yeSBhbGxvY2F0b3I8L0gxPjwvQ0VOVEVSPg0KDQo8Q0VO
+VEVSPg0KPEFERFJFU1M+DQpSaWsgdmFuIFJpZWwsIEp1bHkgMTk5ODwvQURE
+UkVTUz48L0NFTlRFUj4NCg0KDQo8UD4mbmJzcDsNCjxCUj5PbmUgb2YgdGhl
+IGJpZ2dlc3QgcHJvYmxlbXMgY3VycmVudGx5IGZhY2luZyB0aGUgTGludXgg
+bWVtb3J5IG1hbmFnZW1lbnQNCnN1YnN5c3RlbSBpcyBtZW1vcnkgZnJhZ21l
+bnRhdGlvbi4gVGhpcyBpcyB0aGUgcmVzdWx0IG9mIHNldmVyYWwgZGV2ZWxv
+cG1lbnRzDQppbiBvdGhlciBwYXJ0cyBvZiB0aGUgTGludXgga2VybmVsLCBt
+b3N0IGltcG9ydGFudGx5IHRoZSBncm93dGggb2YgZWFjaA0KcHJvY2Vzcydl
+cyBrZXJuZWwgc3RhY2sgdG8gOCBrQiBhbmQgdGhlIGR5bmFtaWMgYWxsb2Nh
+dGlvbiBvZiBETUEgYW5kIG5ldHdvcmtpbmcNCmJ1ZmZlcnMuIFRoZXNlIGZh
+Y3RvcnMsIHRvZ2V0aGVyIHdpdGggYSBnZW5lcmFsIHNwZWVkdXAgb2YgYm90
+aCBwZXJpcGhlcmFsDQpoYXJkd2FyZSBhbmQgdGhlIGRldmljZSBkcml2ZXJz
+IGhhcyBsZWFkIHRvIGEgc2l0dWF0aW9uIHdoZXJlIHRoZSBjdXJyZW50bHkN
+CnVzZWQgYnVkZHkgYWxsb2NhdG9yIGp1c3QgY2FuJ3QgY3V0IGl0IGFueW1v
+cmUuIFRoaXMgd2hpdGUtcGFwZXIgaXMgZGl2aWRlZA0KaW4gMyBwaWVjZXMs
+IDxBIEhSRUY9IiNwcm9ibGVtIj50aGUgcHJvYmxlbTwvQT4sIDxBIEhSRUY9
+IiNzb2x1dGlvbiI+dGhlDQpzb2x1dGlvbjwvQT4gYW5kIHNvbWUgPEEgSFJF
+Rj0iI2NvZGUiPmFjdHVhbCBjb2RlPC9BPi4gSSBuZWVkIGEgbG90IG9mDQpj
+b21tZW50cyBhbmQgaGludHMgZm9yIHBvc3NpYmxlIGltcHJvdmVtZW50LCBz
+byBmZWVsIGZyZWUgdG8gPEEgSFJFRj0ibWFpbHRvOkguSC52YW5SaWVsQHBo
+eXMudXUubmwiPmVtYWlsDQp0aGVtIHRvIG1lPC9BPi4uLg0KPEgyPg0KPEEg
+TkFNRT0icHJvYmxlbSI+PC9BPlRoZSBwcm9ibGVtPC9IMj4NClRoZSBwcm9i
+bGVtIGlzIGNhdXNlZCBieSB0aGUgZmFjdCB0aGF0IG1lbW9yeSBpcyBhbGxv
+Y2F0ZWQgaW4gY2h1bmtzIG9mDQpkaWZmZXJlbnQgc2l6ZXMuIEZvciBtb3N0
+IHR5cGVzIG9mIHVzYWdlIHdlIGp1c3QgYWxsb2NhdGUgbWVtb3J5IG9uZSBw
+YWdlDQooNCBrQiBvbiBtb3N0IG1hY2hpbmVzKSBhdCBhIHRpbWUsIGJ1dCBz
+b21ldGltZXMgd2UgZ2l2ZSBvdXQgbGFyZ2VyIHBpZWNlcw0Kb2YgbWVtb3J5
+ICgyLCA0LCA4LCAxNiBvciAzMiBwYWdlcyBhdCBvbmNlKS4gQmVjYXVzZSBv
+ZiB0aGUgZmFjdCB0aGF0IG1vc3QNClVOSVggKGFuZCBMaW51eCkgbWFjaGlu
+ZXMgaGF2ZSBhIGNvbXBsZXRlbHkgZnVsbCBtZW1vcnkgKGZyZWUgbWVtb3J5
+IGlzDQp3YXN0ZWQgbWVtb3J5KSwgaXQgaXMgbmV4dCB0byBpbXBvc3NpYmxl
+IHRvIGZyZWUgbGFyZ2VyIGFyZWEncyBhbmQgdGhlDQpiZXN0IHdlIGNhbiBk
+byBpcyBiZSB2ZXJ5IGNhcmVmdWwgbm90IHRvIGhhbmQgb3V0IHRob3NlIGxh
+cmdlIGFyZWFzIHdoZW4NCndlIG9ubHkgbmVlZCBhIHNtYWxsIG9uZS4NCg0K
+PFA+VGhlcmUgaGF2ZSBiZWVuIChhbmQgdGhlcmUgYXJlKSBzZXZlcmFsIHdv
+cmthcm91bmRzIGZvciB0aGlzIGZyYWdtZW50YXRpb24NCmlzc3VlOyBvbmUg
+b2YgdGhlbSAoUFRFIGNoYWluaW5nKSBldmVuIGludm9sdmVzIGEgcGh5c2lj
+YWwgdG8gbG9naWNhbCB0cmFuc2xhdGluZywNCmFsbW9zdCByZXZlcnNlIHBh
+Z2UgdGFibGUtbGlrZSBzb2x1dGlvbi4gV2l0aCB0aGF0IHByb2plY3QsIHdl
+IGNhbiBzd2FwDQpvdXQgcGFnZXMgYmFzZWQgb24gdGhlaXIgcGh5c2ljYWwg
+YWRkcmVzcywgdGh1cyBmb3JjZSBmcmVlaW5nIHRoYXQgb25lDQpwYWdlIHRo
+YXQgYmxvY2tlZCBhbiBlbnRpcmUgMTI4IGtCIGFyZWEuIFRoaXMgd291bGQg
+c29sdmUgbW9zdCBvZiBvdXIgcHJvYmxlbXMsDQpleGNlcHQgd2hlbiB0aGF0
+IGxhc3QgcGFnZSBpcyB1bnN3YXBwYWJsZSwgZm9yIGV4YW1wbGUgYSBwYWdl
+IHRhYmxlIG9yDQphIHByb2dyYW0ncyBrZXJuZWwgc3RhY2suIEluIHRoYXQg
+Y2FzZSwgd2UncmUgc2NyZXdlZCByZWdhcmRsZXNzbHkgb2Ygd2hhdA0KZGVh
+bGxvY2F0aW9uIHNjaGVtZSB3ZSdyZSB1c2luZy4NCg0KPFA+QmVjYXVzZSBv
+dXIgaW5hYmlsaXR5IHRvIGhhbmQgb3V0IGxhcmdlciBjaHVua3Mgb2YgbWVt
+b3J5IGhhcyBpbXBhY3QNCm9uIHN5c3RlbSBmdW5jdGlvbmFsaXR5IGFuZCBj
+b3VsZCBldmVuIGhhdmUgaW1wYWN0IG9uIHN5c3RlbSBzdGFiaWxpdHkNCml0
+IHNlZW1zIHdhcnJhbnRlZCB0byBzYWNyaWZpY2UgYSBsaXR0bGUgYml0IG9m
+IHNwZWVkICh0aGUgYnVkZHkgc3lzdGVtDQppcyBmYXN0ISkgaW4gb3JkZXIg
+dG8gc29sdmUgbW9zdCBvZiB0aGUgYWJvdmUgcHJvYmxlbXMuIFRoZSBtYWlu
+IHByb2JsZW0NCndpdGggdGhlIGN1cnJlbnQgc3lzdGVtIGlzIHRoYXQgaXQg
+ZG9lc24ndCBkaWZmZXJlbnRpYXRlIGJldHdlZW4gc3dhcHBhYmxlDQphbmQg
+dW5zd2FwcGFibGUgbWVtb3J5LCBsZWFkaW5nIHRvIGEgc3lzdGVtIHdoZXJl
+IHBhZ2UgdGFibGVzIGFuZCBvdGhlcg0KY3J1ZnQgYXJlIHNjYXR0ZXJlZCBh
+bGwgb3ZlciB0aGUgc3lzdGVtLCBtYWtpbmcgaXQgaW1wb3NzaWJsZSB0byBm
+cmVlIHVwDQpvbmUgbGFyZ2UgY29udGlndW91cyBhcmVhLg0KDQo8UD5UaGlz
+IHByb2JsZW0gaXMgbWFkZSBldmVuIHdvcnNlIGJ5IHRoZSBmYWN0IHRoYXQg
+b24gc29tZSBhcmNoaXRlY3R1cmVzDQp3ZSBjYW4gb25seSBkbyBETUEgdG8g
+YWRkcmVzc2VzIHVuZGVyIDE2IE1CIGFuZCBpdCB3aWxsIHVuZG91YnRlZGx5
+IHNob3cNCnVwIGFnYWluIGluIHNvbWUgeWVhcnMgd2hlbiB3ZSBhbGwgaGF2
+ZSAxNiBHQiBvZiBtZW1vcnkgYW5kIHRyeSBkbyBkbyBETUENCnRvIHRob3Nl
+IG9sZGllIDMyIGJpdCBQQ0kgY2FyZHMgdGhhdCBkb24ndCBzdXBwb3J0IGR1
+YWwgY3ljbGUgYWRkcmVzcyBtb2RlDQo6LSkNCjxIMj4NCjxBIE5BTUU9InNv
+bHV0aW9uIj48L0E+VGhlIHNvbHV0aW9uPC9IMj4NClRoZSBzb2x1dGlvbiBp
+cyB0byBoYW5kIG91dCBmcmVlIHpvbmVzIG9mIDEyOCBrQiBsYXJnZSwgYW5k
+IHRvIHVzZSBlYWNoDQp6b25lIGZvciBvbmUgdHlwZSBvZiB1c2FnZSBvbmx5
+LiBUaGVuIHdlIGNhbiBiZSBzdXJlIHRoYXQgbm8gcGFnZSB0YWJsZXMNCmlu
+dGVyZmVyZSB3aXRoIHRoZSBmcmVlaW5nIG9mIGEgem9uZSBvZiB1c2VyIG1l
+bW9yeSwgYW5kIHdlIGNhbiBhbHdheXMNCmp1c3QgZnJlZSBhbiBhcmVhIG9m
+IG1lbW9yeS4NCg0KPFA+SW4gdGhlIGN1cnJlbnQgTGludXgga2VybmVsLCB3
+ZSBoYXZlIHRoZSBmb2xsb3dpbmcgdXNlcyBmb3IgbWVtb3J5Og0KPFVMPg0K
+PExJPg0KPEI+cmVzZXJ2ZWQgbWVtb3J5LCBrZXJuZWwgY29kZTwvQj4gYW5k
+IDxCPnN0YXRpY2FsbHkgYWxsb2NhdGVkIGtlcm5lbA0Kc3RydWN0dXJlczwv
+Qj46IGFmdGVyIHN5c3RlbSBib290IHdlIG5ldmVyIG11Y2ggd2l0aCB0aGUg
+bGF5b3V0IG9mIHRoaXMNCm1lbW9yeSBzbyBpdCdzIGEgbm9uIGlzc3VlIHdy
+dC4gdGhlIGFsbG9jYXRvcjwvTEk+DQoNCjxMST4NCjxCPnVzZXIgbWVtb3J5
+PC9CPjogdGhpcyBtZW1vcnkgY2FuIGJlIHN3YXBwZWQgb3V0IGFuZC9vciBy
+ZWxvY2F0ZWQgYXQNCndpbGwsIGl0IGlzIGFsbG9jYXRlZCBvbmUgcGFnZSBh
+dCBhIHRpbWUgYW5kIGdpdmVzIHVzIG5vIHRyb3VibGUsIGFwYXJ0DQpmcm9t
+IHRoZSBmYWN0IHRoYXQgd2UgYWx3YXlzIG5lZWQgbW9yZSB0aGFuIHdlIGhh
+dmUgcGh5c2ljYWxseSBhdmFpbGFibGU7DQpubyBzcGVjaWFsIHJlcXVpcmVt
+ZW50czwvTEk+DQoNCjxMST4NCjxCPmtlcm5lbCBzdGFjazwvQj46IHdlIGFs
+bG9jYXRlIDgga0IgKDIgcGFnZXMpIG9mIHVuc3dhcHBhYmxlIGtlcm5lbCBz
+dGFjaw0KZm9yIGVhY2ggcHJvY2VzczsgZWFjaCBvZiB0aG9zZSBzdGFja3Mg
+bmVlZHMgdG8gYmUgcGh5c2ljYWxseSBjb250aWd1b3VzDQphbmQgaXQgbmVl
+ZHMgdG8gYmUgaW4gZmFzdCBtZW1vcnkgKG5vdCBpbiB1bmNhY2hlZCBtZW1v
+cnkpPC9MST4NCg0KPExJPg0KPEI+cGFnZSB0YWJsZXM8L0I+OiBwYWdlIGRp
+cmVjdG9yaWVzIGFyZSB1bnN3YXBwYWJsZSwgcGFnZSB0YWJsZXMgYW5kIChv
+bg0Kc29tZSBtYWNoaW5lcykgcGFnZSBtaWRkbGUgZGlyZWN0b3JpZXMgY2Fu
+IGJlIG1vdmVkL3N3YXBwZWQgd2l0aCBncmVhdA0KY2F1dGlvbjsgdGhlIG1l
+bW9yeSBmb3IgdGhlc2UgaXMgZ2l2ZW4gb3V0IG9uZSBwYWdlIGF0IGEgdGlt
+ZTsgd2Ugb25seQ0KbG9vayB1cCB0aGUgcGFnZSB0YWJsZXMgZXZlcnkgb25j
+ZSBpbiBhIHdoaWxlIHNvIHNwZWVkIGlzIG5vdCB2ZXJ5IGNyaXRpY2FsOw0K
+d2hlbiB3ZSBoYXZlIHVuY2FjaGVkIG1lbW9yeSwgd2UnZCByYXRoZXIgdXNl
+IGl0IGZvciBwYWdlIHRhYmxlcyB0aGFuIGZvcg0KdXNlciBwYWdlczwvTEk+
+DQoNCjxMST4NCjxCPnNtYWxsIFNMQUI8L0I+OiBTTEFCIG1lbW9yeSBpcyB1
+c2VkIGZvciBkeW5hbWljIGtlcm5lbCBkYXRhOyBpdCBpcyBhbGxvY2F0ZWQN
+CmFuZCBmcmVlZCBhdCB3aWxsLCB1bmZvcnR1bmF0ZWx5IHRoaXMgd2lsbCBp
+cyBub3Qgb3VycyBidXQgdGhhdCBvZiB0aGUNCihkZXZpY2UpIGRyaXZlciB0
+aGF0IHJlcXVlc3RlZCB0aGUgbWVtb3J5OyBzcGVlZCBpcyBjcml0aWNhbDwv
+TEk+DQoNCjxMST4NCjxCPmxhcmdlIFNMQUI8L0I+OiB0aGUgc2FtZSBhcyBz
+bWFsbCBTTEFCLCBidXQgc29tZXRpbWVzIHRoZSBrZXJuZWwgd2FudHMNCmxh
+cmdlIGNodW5rcyAoPiAyIHBhZ2VzKTsgd2UgbWFrZSB0aGUgZGlzdGluY3Rp
+b24gYmV0d2VlbiB0aGUgdHdvIGJlY2F1c2UNCndlIGRvbid0IHdhbnQgdG8g
+ZmFjZSBob3BlbGVzcyBmcmFnbWVudGF0aW9uIGluc2lkZSB0aGUgU0xBQiB6
+b25lcy4uLjwvTEk+DQoNCjxCUj48Qj5ETUEgYnVmZmVyczwvQj46IHRoaXMg
+bWVtb3J5IG5lZWRzIHRvIGJlIHBoeXNpY2FsbHkgYmVsb3cgYSBjZXJ0YWlu
+DQpib3VuZGFyeSAoMTYgTUIgZm9yIElTQSBETUEpIGFuZCBpcyBvZnRlbiBh
+bGxvY2F0ZWQgaW4gY2h1bmtzIG9mIDMyLCA2NA0Kb3IgMTI4IGtCPC9VTD4N
+CkZvciBzbWFsbCAoJmx0OyAxNiBNQikgbWFjaGluZXMsIHRoZSBhYm92ZSBz
+Y2hlbWUgaXMgb3ZlcmtpbGwgYW5kIHdlIHRyZWF0DQpzZXZlcmFsIHR5cGVz
+IG9mIHVzYWdlIGFzIG9uZS4gV2UgY2FuLCBmb3IgaW5zdGFuY2UsIHRyZWF0
+IGxhcmdlIFNMQUIgYW5kDQpETUEgdGhlIHNhbWUsIGFuZCBzbWFsbCBTTEFC
+LCBrZXJuZWwgc3RhY2sgYW5kIHBhZ2UgdGFibGUgY2FuIGJlIGFsbG9jYXRl
+ZA0KaW4gdGhlIHNhbWUgem9uZXMgdG9vLiBTbWFsbCBzbGFiIGFuZCBrZXJu
+ZWwgc3RhY2sgd2lsbCBiZSB0cmVhdGVkIHRoZQ0Kc2FtZSBvbiBldmVyeSBt
+YWNoaW5lOyB0aGUgZGlzdGluY3Rpb24gaXMgb25seSBtYWRlIGJlY2F1c2Ug
+SSB3YW50IHRoZQ0KZG9jdW1lbnRhdGlvbiB0byBiZSBjb21wbGV0ZS4NCg0K
+PFA+SW4gYWRkaXRpb24gdG8gdGhpcywgd2UgY2FuIGRpZmZlcmVudGlhdGUg
+YmV0d2VlbiAzIGRpZmZlcmVudCBraW5kcw0Kb2YgbWVtb3J5Og0KPFVMPg0K
+PExJPg0KPEI+RE1BIG1lbW9yeTwvQj46IHRoaXMgbWVtb3J5IGlzIGxvY2F0
+ZWQgdW5kZXIgdGhlIDE2IE1CIGxpbWl0IGFuZCBpcw0KY2FjaGVkIGJ5IHRo
+ZSBMMSBhbmQgTDIgY2FjaGVzPC9MST4NCg0KPExJPg0KPEI+J25vcm1hbCcg
+bWVtb3J5PC9CPjogdGhpcyBtZW1vcnkgaXMgbG9jYXRlZCBhYm92ZSB0aGUg
+RE1BIGxpbWl0IGFuZA0KaXMgY2FjaGVkIGJ5IHRoZSBMMSBhbmQgTDIgY2Fj
+aGVzLCBpdCBjYW4gbm90IGJlIHVzZWQgZm9yIERNQSBidWZmZXJzPC9MST4N
+Cg0KPExJPg0KPEI+c2xvdyBtZW1vcnk8L0I+OiB0aGlzIG1lbW9yeSBpcyBu
+b3QgY2FjaGVkIG9yIHByZXNlbnQgb24gYW4gYWRkLW9uIGJvYXJkLA0KaXQg
+Y2FuIG5vdCBiZSB1c2VkIGZvciBETUEgYnVmZmVycyBhbmQgdXNpbmcgaXQg
+Zm9yIHRpbWUgY3JpdGljYWwga2VybmVsDQpzdGFjayBhbmQgU0xBQiB3b3Vs
+ZCBiZSBkaXNhc3Ryb3VzIGZvciBwZXJmb3JtYW5jZTsgd2UgYWxzbyBkb24n
+dCB3YW50DQp0byB1c2UgaXQgZm9yIENQVSBpbnRlbnNpdmUgdXNlciBhcHBs
+aWNhdGlvbnM8L0xJPg0KPC9VTD4NClNpbmNlIHdlIGRvbid0IHdhbnQgdG8g
+d2FzdGUgdGhlIHNsb3cgbWVtb3J5IHdlIG1pZ2h0IGhhdmUsIHdlIGNhbiB1
+c2UNCnRoYXQgZm9yIHBhZ2UgdGFibGVzIGFuZCB1c2VyIG1lbW9yeSB0aGF0
+IGlzbid0IHVzZWQgdmVyeSBvZnRlbi4gSWYgd2UNCmhhdmUgdXNlciBtZW1v
+cnkgaW4gc2xvdyBtZW1vcnkgYW5kIGl0IHR1cm5zIG91dCB0aGF0IGl0IGlz
+IHVzZWQgdmVyeSBvZnRlbg0Kd2UgY2FuIGFsd2F5cyB1c2UgdGhlIHN3YXAg
+Y29kZSB0byByZWxvY2F0ZSBpdCB0byBmYXN0IG1lbW9yeS4gRE1BIG1lbW9y
+eQ0KaXMgc2NhcmNlLCBzbyB3ZSB3YW50IHRvIGFsbG9jYXRlIHRoYXQgb25s
+eSB3ZSBzcGVjaWZpY2FsbHkgbmVlZCBpdCBvcg0Kd2hlbiB3ZSBkb24ndCBo
+YXZlIGFueSBvdGhlciBtZW1vcnkgbGVmdC4NCg0KPFA+VGhpcyBsZWFkcyB0
+byB0aGUgZm9sbG93aW5nIHpvbmUgYWxsb2NhdGlvbiBvcmRlcnM6DQo8QlI+
+Jm5ic3A7DQo8VEFCTEUgQk9SREVSIENPTFM9NCBOT1NBVkUgPg0KPFRSIE5P
+U0FWRT4NCjxURCBOT1NBVkU+U0xBQiBhbmQga2VybmVsIHN0YWNrPC9URD4N
+Cg0KPFREPnVzZXIgbWVtb3J5PC9URD4NCg0KPFREPnBhZ2UgdGFibGVzPC9U
+RD4NCg0KPFREPkRNQSBidWZmZXJzPC9URD4NCjwvVFI+DQoNCjxUUiBBTElH
+Tj1MRUZUIFZBTElHTj1UT1AgTk9TQVZFPg0KPFREPg0KPExJPg0Kbm9ybWFs
+IG1lbW9yeTwvTEk+DQoNCjxMST4NCkRNQSBtZW1vcnk8L0xJPg0KDQo8TEk+
+DQpzbG93IG1lbW9yeTwvTEk+DQo8L1REPg0KDQo8VEQ+DQo8TEk+DQpub3Jt
+YWwgbWVtb3J5PC9MST4NCg0KPExJPg0Kc2xvdyBtZW1vcnk8L0xJPg0KDQo8
+TEk+DQpETUEgbWVtb3J5PC9MST4NCjwvVEQ+DQoNCjxURCBBTElHTj1MRUZU
+IFZBTElHTj1UT1AgTk9TQVZFPg0KPExJPg0Kc2xvdyBtZW1vcnk8L0xJPg0K
+DQo8TEk+DQpub3JtYWwgbWVtb3J5PC9MST4NCg0KPExJPg0KRE1BIG1lbW9y
+eTwvTEk+DQo8L1REPg0KDQo8VEQ+DQo8TEk+DQpETUEgbWVtb3J5PC9MST4N
+CjwvVEQ+DQo8L1RSPg0KPC9UQUJMRT4NCg0KDQo8UD5UaGlzIG1lYW5zIHRo
+YXQgd2hlbiwgZm9yIGluc3RhbmNlLCB3ZSByYW4gb3V0IG9mIHVzZXIgbWVt
+b3J5IGFuZCB0aGVyZQ0KaXMgZW5vdWdoIGZyZWUgbWVtb3J5IGF2YWlsYWJs
+ZSwgd2UgZmlyc3QgdHJ5IHRvIGdyYWIgYSB6b25lIG9mICdub3JtYWwNCm1l
+bW9yeScsIGlmIHRoYXQgZmFpbHMgd2UgbG9vayBmb3IgYSBmcmVlIGFyZWEg
+b2Ygc2xvdyBtZW1vcnkgYW5kIERNQSBtZW1vcnkNCmlzIHRyaWVkIGxhc3Qu
+DQo8SDM+DQpQYWdlIGFsbG9jYXRpb248L0gzPg0KRm9yIFNMQUIsIHBhZ2Ug
+dGFibGUgYW5kIERNQSBtZW1vcnkgd2UgYWx3YXlzIHRyeSB0byBhbGxvY2F0
+ZSBmcm9tIHRoZQ0KZnVsbGVzdCB6b25lIGF2YWlsYWJsZSBhbmQgd2UgZ3Jh
+YiBhIGZyZWUgem9uZSB3aGVuIHdlJ3JlIG91dCBvZiBvdXIgb3duDQptZW1v
+cnkuIEluIG9yZGVyIHRvIGdyYWIgdGhlIGZ1bGxlc3Qgem9uZSwgd2Uga2Vl
+cCB0aGVzZSB6b25lcyBpbiBhIChwYXJ0aWFsbHk/KQ0Kc29ydGVkIG9yZGVy
+LiBGb3IgbGFyZ2UgU0xBQi9ETUEmbmJzcDthcmVhcyB3ZSB3aWxsIGFsc28g
+d2FudCB0byBrZWVwIGluDQptaW5kIHRoZSBzaXplcyBvZiB0aGUgbWVtb3J5
+IGNodW5rcyBwcmV2aW91c2x5IGFsbG9jYXRlZCBpbiB0aGlzIHpvbmUuDQoN
+CjxQPlVzZXIgcGFnZXMgYXJlIGtlcHQgb24gYSBudW1iZXIgb2YgbGlua2Vk
+IGxpc3RzOiBhY3RpdmUsIGluYWN0aXZlLCBjbGVhbg0KYW5kIGZyZWUuIFdl
+IGFsbG9jYXRlIG5ldyBwYWdlcyBpbiB0aGUgaW5hY3RpdmUgcXVldWUgYW5k
+IHBlcmZvcm0gYWxsb2NhdGlvbnMNCmZyb20gdGhlIGZyZWUgcXVldWUgZmly
+c3QsIG1vdmluZyB0byB0aGUgY2xlYW4gcXVldWUgd2hlbiB3ZSdyZSBvdXQg
+b2YNCmZyZWUgcGFnZXMuIEluYWN0aXZlIHBhZ2VzIGdldCBlaXRoZXIgcHJv
+bW90ZWQgdG8gdGhlIGFjdGl2ZSBxdWV1ZSAod2hlbg0KdGhleSdyZSBpbiBo
+ZWF2eSB1c2UpIG9yIGRlbW90ZWQgdG8gdGhlIGNsZWFuIHF1ZXVlICh3aGVu
+IHRoZXkncmUgZGlydHksDQp3ZSBoYXZlIHRvIGNsZWFuIHRoZW0gZmlyc3Qp
+LiBQYWdlcyBpbiB0aGUgY2xlYW4gcXVldWUgYXJlIGFsc28gdW5tYXBwZWQN
+CmZyb20gdGhlIHBhZ2UgdGFibGUgYW5kIHRodXMgYWxyZWFkeSAnaGFsZndh
+eSBzd2FwcGVkIG91dCcuIFBhZ2VzIG9ubHkNCmVudGVyIHRoZSBmcmVlIGxp
+c3Qgd2hlbiBhIHByb2dyYW0gZnJlZSgpcyBwYWdlcyBvciB3aGVuIHdlIGFk
+ZCBhIG5ldyB6b25lDQp0byB0aGUgdXNlciBhcmVhLg0KDQo8UD5JbiBvcmRl
+ciB0byBiZSBhYmxlIHRvIGZyZWUgbmV3IHpvbmVzIChmb3Igd2hlbiBTTEFC
+IGdldHMgb3Zlcmx5IGFjdGl2ZSksDQp3ZSBuZWVkIHRvIGJlIGFibGUgdG8g
+bWFyayBhIHJlbGF0aXZlbHkgZnJlZSB6b25lIGZvcmNlLWZyZWVhYmxlLiBV
+cG9uDQpzY2FubmluZyBzdWNoIGEgcGFnZSBrc3dhcGQgd2lsbCBmcmVlIHRo
+ZSBwYWdlIGFuZCBtYWtlIHN1cmUgaXQgaXNuJ3QgYWxsb2NhdGVkDQphZ2Fp
+bi5XaGVuIHRoZSBQVEUgY2hhaW5pbmcgc3lzdGVtIGdldHMgaW50ZWdyYXRl
+ZCBpbnRvIHRoZSBrZXJuZWwsIHdlDQpjYW4ganVzdCBmb3JjZS1mcmVlIGEg
+dXNlciB6b25lIHdpdGggcmVsYXRpdmVseSBmZXcgYWN0aXZlIHBhZ2VzIHdo
+ZW4gdGhlDQpzeXN0ZW0gcnVucyBvdXQgb2YgZnJlZSB6b25lcy4gVW50aWwg
+dGhlbiB3ZSdsbCBuZWVkIHRvIGtlZXAgdHdvIGZyZWUgem9uZXMNCmFuZCB3
+YWxrIHRoZSBwYWdlIHRhYmxlcyB0byBmaW5kIGFuZCBmcmVlIHRoZSBwYWdl
+cy4NCjxIMj4NCjxBIE5BTUU9ImNvZGUiPjwvQT5BY3R1YWwgY29kZTwvSDI+
+DQpUaGVyZSdzIG5vdCBtdWNoIG9mIGFjdHVhbCBjb2RlIHlldCBidXQgYWxs
+IHRoZSBhZG1pbmlzdHJhdGl2ZSBkZXRhaWxzDQphcmUgcmVhZHkuIEFMUEhB
+IHN0YXR1cyByZWFjaGVkIGFuZCB0aGUgLmggZmlsZSBpcyByZWFkeSA6KQ0K
+PFBSRT4vKg0KICogVGhlIHN0cnVjdCBtZW1fem9uZSBpcyB1c2VkIHRvIGRl
+c2NyaWJlIGEgMzIgcGFnZSBtZW1vcnkgYXJlYS4NCiAqLw0KDQpzdHJ1Y3Qg
+bWVtX3pvbmUgew0KIG1lbV96b25lICogcHJldiwgbmV4dDsgLyogVGhlIHBy
+ZXZpb3VzIGFuZCBuZXh0IHpvbmUgb24gdGhpcyBsaXN0ICovDQogdW5zaWdu
+ZWQgbG9uZyB1c2VkOyAvKiBVc2VkIHBhZ2VzIGJpdG1hcCBmb3IgU0xBQiwg
+ZXRjICEhISBjb3VudCBmb3IgdXNlciAqLw0KIHVuc2lnbmVkIGxvbmcgZmxh
+Z3M7DQp9Ow0KDQovKg0KICogRmxhZ3MgZm9yIHN0cnVjdF9tZW0tPmZsYWdz
+DQogKi8NCg0KI2RlZmluZSBaT05FX0RNQSAweDAwMDAwMDAxIC8qIERNQSBt
+ZW1vcnkgKi8NCiNkZWZpbmUgWk9ORV9TTE9XIDB4MDAwMDAwMDIgLyogdW5j
+YWNoZWQvc2xvdyBtZW1vcnkgKi8NCiNkZWZpbmUgWk9ORV9VU0VSIDB4MDAw
+MDAwMDQgLyogdXNlcm1vZGUgcGFnZXMsIHRoZXNlIGRlZmluZXMgYXJlIGZv
+ciBwYXJhbm9pYSBvbmx5ICovDQojZGVmaW5lIFpPTkVfU0xBQiAweDAwMDAw
+MDA4IC8qIGxhcmdlIFNMQUIgKi8NCiNkZWZpbmUgWk9ORV9TVEsgMHgwMDAw
+MDAxMCAvKiBrZXJuZWwgc3RhY2sgYW5kIG9yZGVyLTEgU0xBQiAoYW5kIG9y
+ZGVyLTAgU0xBQiBpZiB0aGVyZSBpcyBzbG93IG1lbW9yeSkgKi8NCiNkZWZp
+bmUgWk9ORV9QVEJMIDB4MDAwMDAwMjAgLyogcGFnZSB0YWJsZXMgYW5kIG9u
+ZS1wYWdlIFNMQUIgKGV4Y2VwdCB3aGVuIHRoZXJlIGlzIHNsb3cgbWVtb3J5
+KSAqLw0KI2RlZmluZSBaT05FX0RNQSAweDAwMDAwMDQwIC8qIERNQWJ1ZmZl
+cnMgKi8NCiNkZWZpbmUgWk9ORV9SRUNMIDB4MDAwMDAwODAgLyogV2UgYXJl
+IHJlY2xhaW1pbmcgdGhpcyB6b25lICovDQojZGVmaW5lIFpPTkVfMCAweDAw
+MDAwMTAwIC8qIGxvb3NlIHBhZ2VzIGFsbG9jYXRlZCAqLw0KI2RlZmluZSBa
+T05FXzEgMHgwMDAwMDIwMCAvKm9yZGVyLTEgKDJeMSA9IDIgcGFnZSljaHVu
+a3MgYWxsb2NhdGVkICovDQojZGVmaW5lIFpPTkVfMiAweDAwMDAwNDAwIC8q
+IGV0Yy4uLiBJbiBvcmRlciB0byBoZWxwIGluIGJ1ZGR5LWxpa2UgYWxsb2Nh
+dGlvbiBmb3IgKi8NCiNkZWZpbmUgWk9ORV8zIDB4MDAwMDA4MDAgLyogbGFy
+Z2UgU0xBQiB6b25lcyBvbiBzbWFsbCBtZW1vcnkgbWFjaGluZXMuICovDQoj
+ZGVmaW5lIFpPTkVfNCAweDAwMDAxMDAwDQojZGVmaW5lIFpPTkVfNSAweDAw
+MDAyMDAwDQoNCi8qDQogKiBNZW1vcnkgc3RhdGlzdGljcw0KICovDQoNCnR5
+cGVkZWYgc3RydWN0IHsNCgl1bnNpZ25lZCBsb25nIHVzZWQ7DQoJdW5zaWdu
+ZWQgbG9uZyBmcmVlOw0KfSB6b25lX3N0YXRzX3Q7DQoNCnN0cnVjdCBtZW1z
+dGF0cyB7DQoJc3RydWN0IHpvbmVfc3RhdHNfdCBwdGJsOw0KCXN0cnVjdCB6
+b25lX3N0YXRzX3Qgc3RrOw0KCXN0cnVjdCB6b25lX3N0YXRzX3Qgc2xhYjsN
+CglzdHJ1Y3Qgem9uZV9zdGF0c190IGRtYTsNCgkvKiBTbGlnaHRseSBkaWZm
+ZXJlbnQgc3RydWN0cyBmb3IgdGhlc2UgKi8NCglzdHJ1Y3QgdXNlciB7DQoJ
+CXVuc2lnbmVkIGxvbmcgYWN0aXZlOw0KCQl1bnNpZ25lZCBsb25nIGluYWN0
+aXZlOw0KCQl1bnNpZ25lZCBsb25nIGNsZWFuOwkvKiB3ZSBkbyBsYXp5IHJl
+Y2xhbWF0aW9uICovDQoJCXVuc2lnbmVkIGxvbmcgZnJlZTsNCgl9Ow0KCXN0
+cnVjdCBmcmVlIHsNCgkJdW5zaWduZWQgbG9uZyBkbWE7CS8qIGRpZmZlcmVu
+dCBtZW1vcnkgdHlwZXMgKi8NCgkJdW5zaWduZWQgbG9uZyBub3JtYWw7DQoJ
+CXVuc2lnbmVkIGxvbmcgc2xvdzsNCgl9Ow0KCXN0cnVjdCBtaXNjIHsNCgkJ
+dW5zaWduZWQgbG9uZyBudW1fcGh5c3BhZ2VzOw0KCQl1bnNpZ25lZCBsb25n
+IHJlc2VydmVkOwkvKiByZXNlcnZlZCBwYWdlcyAqLw0KCQl1bnNpZ25lZCBs
+b25nIGtlcm5lbDsJLyogdGFrZW4gYnkgc3RhdGljIGtlcm5lbCBzdHVmZiAq
+Lw0KCX07DQp9Ow0KDQovKiBUaGlzIGlzIHdoZXJlIHdlIGZpbmQgdGhlIGRp
+ZmZlcmVudCB6b25lcyAqLw0KDQpzdHJ1Y3QgbWVtem9uZXMgew0KCXN0cnVj
+dCBmcmVlIHsNCgkJc3RydWN0IG1lbV96b25lIGRtYTsNCgkJc3RydWN0IG1l
+bV96b25lIG5vcm1hbDsNCgkJc3RydWN0IG1lbV96b25lIHNsb3c7DQoJfTsN
+CglzdHJ1Y3QgbWVtX3pvbmUgZG1hOw0KCXN0cnVjdCBtZW1fem9uZSB1c2Vy
+Ow0KCXN0cnVjdCBtZW1fem9uZSBzbGFiOw0KCXN0cnVjdCBtZW1fem9uZSBz
+dGs7DQoJc3RydWN0IG1lbV96b25lIHB0Ymw7DQp9Ow0KDQo8L1BSRT4NCjwv
+Qk9EWT4NCjwvSFRNTD4NCg==
+--655616-1938839263-901314198=:30437--
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
