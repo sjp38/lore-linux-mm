@@ -1,49 +1,72 @@
-Date: Fri, 17 Dec 2004 15:54:43 -0800
-From: Paul Jackson <pj@sgi.com>
-Subject: Re: [patch] kill off ARCH_HAS_ATOMIC_UNSIGNED (take 2)
-Message-Id: <20041217155443.0a370ed7.pj@sgi.com>
-In-Reply-To: <1103308048.4450.123.camel@localhost>
-References: <Pine.LNX.4.44.0412171814050.10470-100000@localhost.localdomain>
-	<1103308048.4450.123.camel@localhost>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Sat, 18 Dec 2004 01:52:08 +0100 (CET)
+From: Roman Zippel <zippel@linux-m68k.org>
+Subject: Re: [patch] [RFC] make WANT_PAGE_VIRTUAL a config option
+In-Reply-To: <1103320106.7864.6.camel@localhost>
+Message-ID: <Pine.LNX.4.61.0412180020220.793@scrub.home>
+References: <E1Cf3bP-0002el-00@kernel.beaverton.ibm.com>
+ <Pine.LNX.4.61.0412170133560.793@scrub.home>  <1103244171.13614.2525.camel@localhost>
+  <Pine.LNX.4.61.0412170150080.793@scrub.home>  <1103246050.13614.2571.camel@localhost>
+  <Pine.LNX.4.61.0412170256500.793@scrub.home>  <1103257482.13614.2817.camel@localhost>
+  <Pine.LNX.4.61.0412171132560.793@scrub.home>  <1103299179.13614.3551.camel@localhost>
+  <Pine.LNX.4.61.0412171818090.793@scrub.home> <1103320106.7864.6.camel@localhost>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Dave Hansen <haveblue@us.ibm.com>
-Cc: hugh@veritas.com, linux-mm@kvack.org, ak@suse.de
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, geert@linux-m68k.org, ralf@linux-mips.org, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Dave wrote:
->  	printk(KERN_EMERG "flags:0x%0*lx mapping:%p mapcount:%d count:%d\n",
-> -		(int)(2*sizeof(page_flags_t)), (unsigned long)page->flags,
-> +		(int)(2*sizeof(unsigned long)), page->flags,
->  		page->mapping, page_mapcount(page), page_count(page));
+Hi,
 
-I've a slight preference for:
+On Fri, 17 Dec 2004, Dave Hansen wrote:
 
-	printk(KERN_EMERG "flags:0x%0*lx mapping:%p mapcount:%d count:%d\n",
-		(int)(2*sizeof(page->flags)), page->flags,
-		page->mapping, page_mapcount(page), page_count(page));
+> > > No.  But, I do think that most of the very basic VM structures do, as it
+> > > stands.  That's limited to struct page, zone, and pgdat as I see it
+> > > now.  
+> > 
+> > Why do you want to put these into separate headers?
+> 
+> It enables you do do static inlines accessing struct page members
+> anywhere you want, such as in asm/mmzone.h, like in my example. 
 
-or perhaps even a little better:
+And by that you add more header dependencies.
+We have basically this situation:
 
-	printk(KERN_EMERG "flags:0x%08lx mapping:%p mapcount:%d count:%d\n",
-				page->flags, page->mapping,
-				page_mapcount(page), page_count(page));
+	foo.h (struct foo; inline foo();) <-> bar.h (struct bar; inline bar();)
 
-Most plain unsigned longs are displayed with some variant of %8lx, not a
-%*lx variable sized format.  And in general, the plainer the code, the
-quicker the reader can understand it.
+Almost every time we had such recursive dependencies, we simply rip one 
+element out and put it into a separate header:
 
-But if you don't find my nit picking both pleasing and convenient, don't
-hesitate to dismiss it.  It's no biggie, and my comment is just a drive
-by shooting so has little standing.
+	foo.h (inline foo();)
+		-> bar.h (struct bar; inline bar();)
+			-> foo_struct.h (struct foo;)
 
--- 
-                  I won't rest till it's the best ...
-                  Programmer, Linux Scalability
-                  Paul Jackson <pj@sgi.com> 1.650.933.1373, 1.925.600.0401
+Repeat this often enough and we end up with millions of small header 
+files. Instead we can reorder everything a little and can do this:
+
+	foo.h (inline foo(); inline bar();)
+		-> foo_types.h (struct foo; struct bar;)
+
+In your case don't put the inline functions into asm/mmzone.h and we 
+should merge the various definition into fewer header files.
+
+> > > The dependencies aren't very twisted at all.  In fact, I don't think any
+> > > of those are deeper than two.  More importantly, I never have to cope
+> > > with 'struct page;' keeping me from doing arithmetic. 
+> > 
+> > You may be surprised. :)
+> > Play around with "mkdir test; echo 'obj-y = test.o' > test/Makefile; echo 
+> > '#include <linux/foo.h>' > test/test.c; make test/test.i 
+> > CFLAGS_test.o=--trace-includes".
+> 
+> I'm not sure what you're getting at.
+> 
+> 	make: *** No rule to make target `test/test.i'.  Stop.
+
+Sorry, I forgot to mention that you have to do this inside a kernel tree.
+
+bye, Roman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
