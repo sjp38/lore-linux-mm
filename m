@@ -1,177 +1,337 @@
-Date: Tue, 23 May 2000 06:08:18 -0400
-From: Mike Simons <msimons@moria.simons-clan.com>
-Subject: Multiple Disk IDE performance problems...
-Message-ID: <20000523060818.A23557@moria.simons-clan.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 23 May 2000 09:35:20 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Linux VM/IO balancing (fwd to linux-mm?) (fwd)
+Message-ID: <Pine.LNX.4.21.0005230934240.19121-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: andre@linux-ide.org, Linux Memory Management List <linux-mm@kvack.org>
-Cc: linux-kernel@vger.rutgers.edu
+To: linux-mm@kvack.org
+Cc: Matthew Dillon <dillon@apollo.backplane.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
+Hi,
 
-  I've been doing some bonnie benchmarks with the same hard drives on the 
-same machine under a few kernels.  I found that a single IDE drive can 
-be very fast once tuned with hdparm (23 MBps block I/O).  But when two 
-drives on different IDE channels are both used at the same time some 
-major bottleneck is hit... performance of *both* drives together is 
-just slightly better than one drive by itself.
+here's an interesting tidbit I got from Matthew Dillon. A lot of
+this is very interesting indeed and I guess we want some of it
+before kernel 2.4 and most of it in kernel 2.5 ...
 
-  - Has anyone else has seen similar problems?
-  - What could be limiting the two disk drive performance so much?
-    (hardware controller?  IDE disk driver?  kernel I/O system?)
-  - Suggestions to improve performance of multi-disk I/O?
+Rik
+---------- Forwarded message ----------
+Date: Mon, 22 May 2000 23:32:20 -0700 (PDT)
+From: Matthew Dillon <dillon@apollo.backplane.com>
+To: Rik van Riel <riel@conectiva.com.br>
+Subject: Linux VM/IO balancing (fwd to linux-mm?)
+
+    I sent this to Alan who suggested that I send this to you!  I've 
+    fleshed it out a bit more from the version I sent to Alan.
+
+    I've been following the linux VM/memory subsystem issues closely and
+    I have a few suggestions on how to clean it up. Unfortunately, 
+    being FreeBSD centric these days I do not want to create controversy.
+    But at this point I think even linux developers know that the 
+    algorithms being used in the linux kernel are struggling
+    with the issue.  The time may be ripe for some outside input (though I
+    will note that I was heavy into linux in earlier years, as Alan's
+    mail archives attest to!).
+
+    What I do below is essentially describe the FreeBSD VM/memory subsystem
+    from an algorithmic point of view, minus some of the fluff.  It is very
+    straightforward in concept and the benefits should be obvious to anyone 
+    who has worked on the VM system.  I think it would be a fine blueprint
+    to use in linux.
+
+    I would like you to consider posting this to linux-kernel.  I leave it
+    up to you -- I think if I were to post it independantly it would simply
+    result in controversy and seem more like a FreeBSD vs Linux thing rather
+    then a 'how to fix the VM system' thing.  But if you post it
+    and preface it appropriately, the result might be better.  So I am
+    sending it to you.  It may help kickstart creating a formal algorithmic
+    blueprint rather then hacking up patches that solve one problem that
+    only create other problems.
+
+    Please feel free to edit it in any way if you think you can reduce 
+    potential us-vs-them issues even more.  I think there is a chance here
+    to get the whole of the linux developer community on the same page
+    in regards to the memory-load issue.
+
+    I didn't intend to turn this into a paper, but I've spent so much time
+    describing it that I think I am going to submit it to daemon news in
+    a cleaned-up form :-).
+
+						Thanks!
+
+						-Matt
+
+	    ---------
 
 
-  Quintela's VM patches work wonderfully here preventing "VM: killing 
-process X", system lockups, and allow bonnie tests to actually run to 
-completion (instead of erroring out which started in -pre7).  The system 
-is slightly hard to use when heavy disk I/O is happening, but *much* 
-better than recent 2.3.* kernels.
+    Even though I don't do much coding for Linux these days, I've always
+    avidly tracked the kernel mailing list.  I've been tracking the memory
+    balancing thread for a while now and, having dealt with similar issues
+    in FreeBSD I believe I can offer a suggestion.
 
-  Since 2.3.99-pre* the VM issues aren't solved yet I'm mainly pointing 
-this out as an observation so someone can look into heavy disk I/O 
-performance in 2.3.* after the VM problems are fixed.
+    First of all, I am not trying to turn this into a comparison or anything.
+    Don't think of the FreeBSD memory subsystem as being 'FreeBSD' more
+    as being the work of a handful of very good theorists and programmers
+    (John Dyson being the main element there), and years of testing under
+    varying loads.  The algorithms FreeBSD uses are NOT 15 years old, they
+    are more like 3 years old, and much of the work I myself have done is 
+    less then one year old.  Also, keep in mind that the standard FUD about
+    FreeBSD 'swapping more' the linux is just that --- FUD.  FreeBSD only
+    swaps when it needs to, or thinks it may benefit by freeing up an
+    idle dirty page for more active reuse.  I make an attempt to describe
+    in exact detail how and why FreeBSD pages things out, and why it works
+    so well, somewhere down below :-).
 
-  - Disk _output_ appears to have been affected by the first patch set...
-  - With the newest Quintela patch set _output_ is slowed more and block
-    _input_ is also being affected.
+    My suggestions are as follows:
 
-  This poor performance _could_ be caused by addition swap activity under 
-the patched kernels, but I do not have vmstat runs to match all of the 
-bonnie tests to verify the swap activity is new and is enough to be 
-responsible for the single disk performance losses.  
+    First, stop treating the buffer cache as an entity separate from the
+    VM system.  The two are inexorably bound together, especially considering
+    the massive use of mmap() (both file-backed and anonymous mmaps) in
+    modern programming.  Depending on what you are running a properly
+    balanced system might have anywhere from 80% of its memory assigned 
+    as file cache to 80% of its memory assigned to hold anonymous memory
+    for processes.  it is NOT possible to impose limitations and still
+    get a reasonably scaleable balanced system.  DO NOT TREAT THESE
+    AS TWO DIFFERENT CACHES!
 
-    Later,
-      Mike Simons
+    Second, start keeping real statistics on memory use across on a
+    physical-page-basis.  That means tracking how often VM pages are 
+    referenced (statistically) as well as how often filesystem pages are 
+    referenced by discrete I/O calls (deterministically).  Keep track of
+    a real per-physical-page statistical 'weight'.  (What this means for
+    linux is that you really need to test the pte's associated with physical
+    pages by iterating through the physical pagse in your outer loop, NOT 
+    by trying to iterate through every page table of every process!).
 
+    FreeBSD keeps a center-weighted statistic for every page of memory 
+    (buffer cache or VM cache, it makes no difference).   This has turned
+    out to be a nearly perfect balancing algorithm and I strongly recommend
+    that linux adopt a similar model.  But what makes it work is that
+    FreeBSD is willing to eat a couple of cpu cycles to keep accurate
+    statistics of page use by the VM system in order to avoid the bad
+    things that happen when one would otherwise choose the wrong page to
+    reuse or clean.
 
-  Both drives were initialized at boot via "hdparm -m 16 -u 1 -c 1 -d 1"
+    What I describe below is the essential core of the algorithm FreeBSD
+    uses.  It's not an exact representation, but it gets to the heart of
+    FreeBSD's memory-balancing success.
 
-  Bonnie++ was found at http://www.coker.com.au/bonnie++/
-all tests used "-d . -s 256 -n 0" as the options to bonnie.
-"-p 2" and "-y" were used to start the multi-disk tests.
+    The algorithm is a *modified* LRU.  Lets say you decide on a weighting
+    betweeen 0 and 10.  When a page is first allocated (either to the
+    buffer cache or for anonymous memory) its statistical weight is
+    set to the middle (5).  If the page is used often the statistical 
+    weight slowly rises to its maximum (10).  If the page remains idle
+    (or was just used once) the statistical weight slowly drops to its
+    minimum (0).
 
-  Quintela's patches as I have applied them are available 
-(for a limited time only ;) at http://moria.simons-clan.com/~msimons/
+    The statistical weight is updated in real time by I/O system calls,
+    and updated statistically (by checking and clearing the page-referenced
+    bit in pte's) for mapped memory.  When you mmap() a file and issue 
+    syscalls on the descriptor, the weight may be updated by BOTH methods. 
+    The rate at which the statistical page-reference updating operates depends
+    on the perceived memory load.  A lightly loaded system (unstressed
+    memory) doesn't bother to scan the page-referenced bit all that often,
+    while a heavy memory load scans the page-referenced bit quite often
+    to keep the statistical weight intact.
 
+    When memory is allocated and no free pages are available, a clean page
+    is discarded from the cache (all 'clean' pages are considered to be
+    cache pretty much), lowest weight first.  This in itself does NOT 
+    contribute to the memory load calculation.  That is, if you are scanning
+    a 10GB file you are not creating any memory stress on the system.
 
-[note: these numbers are not the true average of several runs... 
- they are just the output of a sample run.  the actual averages should
- appear to be within 10% of the numbers shown below which is good enough
- to get the point across.]
+    The LRU nature of the order of the pages in the queue is not strict.
+    The real parameter is the statistic, the ordering of the pages in the
+    queue uses a heuristic -- the pages 'migrate' over time so they are
+    reasonably well ordered within the queue, but no great effort is made
+    to order them exactly.  The VM system will scan a portion of the queue
+    to locate a reasonable page to reuse (for example, it will look for
+    a page with a weighting less then 2).
 
-Version 1.00a   ------Sequential Output------ --Sequential Input- --Random-
-                -Per Chr- --Block-- -Rewrite- -Per Chr- --Block-- --Seeks--
-             MB K/sec %CP K/sec %CP K/sec %CP K/sec %CP K/sec %CP  /sec %CP
+    The pagedaemon's scan rate is based on the perceived memory load
+    and ONLY the perceived memory load.  It is perfectly acceptable to 
+    have most of the system memory in 'active' use if allocations are not
+    occuring often, perfectly acceptable to have most of the system memory
+    backing file pages if processes aren't doing a lot of pageins, perfectly
+    acceptable for the system memory to be mostly dedicated to process
+    anonymous memory if processes have big ACTIVE footprints, perfectly
+    acceptable for most of the pages to be dirty if they are all in active
+    use and the memory subsystem is not otherwise being stressed.
 
-2.2.14      ===============================================================
-hda         256  7774  97 24267  21 10049  21  8069  95 23229  21  47.5   0
-hdc         256  7866  98 22830  20  5702  10  7194  95 18741  15  40.0   0
-hda *and*   256  3791  47 11090   9  5684  12  3723  49 13454  11  25.8   0
-hdc *and*   256  3869  48 11179   9  5505  12  3705  49 13187  12  25.6   0
-===========================================================================
+    The reason FreeBSD's memory subsystem works so well is precisely because
+    it does not impose any artificial limitations on the balance point.
 
-2.3.99-pre9-pre1 + quintela patch set 1 ===================================
-hda         256  7621  96 14375  13  8091  12  6616  78 21686  21  42.2   0
-hdc         256  7690  97 18216  16  7556  11  6398  84 22133  21  41.1   0
-hda *and*   256  3194  40  9984   8  5393   8  3801  50 13266  14  23.5   0
-hdc *and*   256  3467  43  9832   8  5381   8  3769  50 13842  14  23.9   0
-===========================================================================
+    Memory load is calculated in two ways:  First, if the memory system finds
+    itself reusing active pages (in my example, any page with a statistical
+    weight greater then 5), second based on the dirty:clean page ratio.  A
+    high ratio does not itself cause paging to occur, but a high ratio 
+    combined with the system reusing active pages does.
 
-2.3.99-pre9-pre3 + quintela patch set 2 ===================================
-hda         256  7140  90 16162  14  8179  12  7090  83 20079  19  43.5   0
-hdc         256  7432  93 16418  14  6607  10  6646  78 14330  13  39.2   0
-hda *and*   256  3540  44  6581   5  5167   7  4025  47 11184  11  24.6   0
-hdc *and*   256  3192  40  6582   5  5051   8  4003  47 10440  11  23.4   0
-===========================================================================
+    The dirty/clean ratio is treated as an INDEPENDANT problem.  The
+    same statistic is kept for dirty pages as it is for clean pages, but
+    dirty pages are placed on their own independant LRUish queue and do
+    not take part in the 'normal' memory allocation algorithm.  A
+    separate algorithm (also part of the pageout daemon) controls the
+    cleaning of dirty pages.
 
-Machine specs:
-  Pentium III 500 Mhz, 128 Megs RAM
+    When the memory load increases, an attempt is made to balance the
+    dirty/clean ratio by 'cleaning' dirty pages, which of course means
+    paging them out.   FreeBSD makes NO distinction between writing a dirty
+    file-backed page and allocating swap for a dirty anonymous memory page.
+    The same per-page memory-use statistic is also used to determine which
+    dirty pages to clean first.  In effect, it is precisely this attempt
+    to balance the dirty/clean ratio which increases the number of clean
+    pages available to reuse.  The idea here is to increase the number of
+    clean pages to the point where the system is no longer being forced
+    to reuse 'active' pages.  Once this is achieved there is no longer any
+    need clean the remaining dirty pages.
 
-from kernel config:
-  CONFIG_BLK_DEV_IDEPCI=y
-  CONFIG_IDEPCI_SHARE_IRQ=y
-  CONFIG_BLK_DEV_IDEDMA_PCI=y
-  CONFIG_IDEDMA_PCI_AUTO=y
-  CONFIG_BLK_DEV_IDEDMA=y
-  CONFIG_IDEDMA_PCI_EXPERIMENTAL=y
-  CONFIG_BLK_DEV_PIIX=y
-  CONFIG_PIIX_TUNING=y
+    Under extreme memory loads the balance point moves on its own to a
+    point where FreeBSD tries to keep as many pages in a clean state as
+    possible.  When the memory load gets to this point the system is 
+    considered to be thrashing and we start taking anti-thrashing measures,
+    such as swapping out whole processes and holding them idle for 20-second
+    spans.  It rarely gets to this point, but even when it does the system
+    is still kept reasonably balanced.
 
-/proc/interrupts
- 14:     100689          XT-PIC  ide0
- 15:     115092          XT-PIC  ide1
+    It should be noted that the center-weighting algorithm works in virtually
+    all situations, including workign WONDERFULLY when you have I/O
+    centric programs (i.e. a program that reads or writes gigabytes of
+    data).  By making slight adjustments to the initial weight (or even no
+    adjustments at all) the VM system will tend to reuse used-once memory
+    (think of scanning a file) before it tries to reuse more actively used
+    memory.
 
-/proc/ioports
-  ffa0-ffaf : Intel Corporation 82371AB PIIX4 IDE
-    ffa0-ffa7 : ide0
-    ffa8-ffaf : ide1
+    Now, of course, there are other kernel processes messing with memory.
+    The filesystem update daemon, for example.  But these processes are
+    not designed to handle heavy memory loads and we do it that way on
+    purpose.  At most the update daemon will speed up a little under intense
+    filesystem loads, but that is as far as it goes.  Only one process is
+    designed to handle heavy memory loads and that is the pageout daemon.
 
-/proc/pci
-  Bus  0, device   0, function  0:
-    Host bridge: Intel Corporation 440BX/ZX - 82443BX/ZX Host bridge (rev 3).
-      Master Capable.  Latency=64.  
-      Prefetchable 32 bit memory at 0xf0000000 [0xf3ffffff].
-  Bus  0, device   7, function  1:
-    IDE interface: Intel Corporation 82371AB PIIX4 IDE (rev 1).
-      Master Capable.  Latency=32.  
-      I/O at 0xffa0 [0xffaf].
+					---
+				    Stress Cases
 
-lspci -vvv:
-  00:00.0 Host bridge: Intel Corporation 440BX/ZX - 82443BX/ZX Host bridge \
-      (rev 03)
-    Control: I/O- Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- \
-             ParErr- Stepping- SERR+ FastB2B-
-    Status: Cap+ 66Mhz- UDF- FastB2B- ParErr- DEVSEL=medium \
-            >TAbort- <TAbort- <MAbort+ >SERR- <PERR-
-    Latency: 64 set
-    Region 0: Memory at f0000000 (32-bit, prefetchable) [size=64M]
-    Capabilities: [a0] AGP version 1.0
-        Status: RQ=31 SBA+ 64bit- FW- Rate=21
-        Command: RQ=0 SBA- AGP- 64bit- FW- Rate=
+    * Stressing dirty pages in the system via I/O calls (read/write)
 
-  
-  00:07.1 IDE interface: Intel Corporation 82371AB PIIX4 IDE (rev 01) \
-      (prog-if 80 [Master])
-    Control: I/O+ Mem- BusMaster+ SpecCycle- MemWINV- VGASnoop- \
-             ParErr- Stepping- SERR- FastB2B-
-    Status: Cap- 66Mhz- UDF- FastB2B+ ParErr- DEVSEL=medium \
-            >TAbort- <TAbort- <MAbort- >SERR- <PERR-
-    Latency: 32 set
-    Region 4: I/O ports at ffa0 [size=16]
+	The algorithm tends to cause sequential I/O calls to give pages
+	a middling weight, and since the pages are not reused they tend 
+	to be recycled within their domain (so you don't blow the rest
+	of the cache).
 
-from dmesg:
-  Uniform Multi-Platform E-IDE driver Revision: 6.30
-  ide: Assuming 33MHz system bus speed for PIO modes; override with idebus=xx
-  PIIX4: IDE controller on PCI bus 00 dev 39
-  PIIX4: chipset revision 1
-  PIIX4: not 100% native mode: will probe irqs later
-      ide0: BM-DMA at 0xffa0-0xffa7, BIOS settings: hda:DMA, hdb:pio
-      ide1: BM-DMA at 0xffa8-0xffaf, BIOS settings: hdc:DMA, hdd:DMA
+    * Stressing dirty pages in the system via mmap (shared R+W)
 
-  hda: WDC WD102BA, ATA DISK drive             (hdparm -i -> FwRev=16.13M16)
-  hdc: WDC WD43AA, ATA DISK drive              (hdparm -i -> FwRev=29.05T29)
-  hdd: CRD-8400B, ATAPI CDROM drive
-  hda: 20028960 sectors (10255 MB) w/2048KiB Cache, CHS=1246/255/63, UDMA(33)
-  hdc: 8421840 sectors (4312 MB) w/2048KiB Cache, CHS=8355/16/63, UDMA(33)
-  hdd: ATAPI 48X CD-ROM drive, 128kB Cache, UDMA(33)
+	The system tends to run low on clean pages, detected by the
+	fact that new allocations are reusing clean pages which have high
+	weights.  When this occurs the pageout daemon attempts to 'clean'
+	dirty pages (page them out) in order to increase the number of
+	clean pages available.  Having a larger number of clean pages 
+	available tends to give them more time to age, thus reducing the
+	average weight the allocator sees.  This is a negative feedback
+	loop which results in balance.
 
-===========
-fizban:/proc/ide# cat piix 
+    * I/O (read/shared-mmap) stress
 
-                                Intel PIIX4 Ultra 33 Chipset.
---------------- Primary Channel ---------------- Secondary Channel -------------
-                 enabled                          enabled
---------------- drive0 --------- drive1 -------- drive0 ---------- drive1 ------
-DMA enabled:    yes              no              yes               yes
-UDMA enabled:   yes              no              yes               yes
-UDMA enabled:   2                X               2                 2
-UDMA
-DMA
-PIO
+	The algorithm tends to weight the clean pages according to use.
+	The weightings for filesystem cache pages read via read() are
+	adjusted at the time of the read() while VM pages are adjusted
+	statistically (The VM page scan rate depends on the level of
+	stress).  Since in modern systems mmap() is used heavily, no
+	special consideration is given to one access method verses the
+	other.
+
+    * VM (anonymous memory) stress
+
+	Anonymous swap-backed memory is treated no differently from
+	file-backed (filesystem buffers / mmap) memory.  Clean anonymous
+	pages (most likely with swap already allocated if they are clean)
+	can be reused just the same as pages belonging to the filesystem
+	buffer cache.  Swap is assigned to dirty anonymous pages on the
+	fly, only when the pageout daemon decides to actually clean the
+	page.  Once swap is assigned the clean page can be reused.  
+
+	If a swap-backed page is brought back into memory, it is brought
+	back in clean (swap is left assigned).   Swap is only freed if
+	the page is re-dirtied by the process.  
+
+	Thus most anonymous-memory pages in a heavily loaded system tend
+	to remain clean, allowing them to be reused more easily and extending
+	the life of the system further along the curve before it reaches a
+	thrashing state.
+
+    * Write Clustering.
+
+	Whenever the system decides to clean a dirty page it will, on the
+	fly, attempt to locate dirty nearby pages.  FreeBSD is actually
+	quite sophisticated in this regard in that it actually goes and does
+	the calculation to ensure that only pages physically contiguous 
+	on the disk are clustered for the write.  The cluster is then written
+	and marked clean all in one go (cluster size limit is 64-128K). 
+
+    * Sequential Detection Heuristic for read clustering (read())
+
+	A heuristic detects sequential read behavior and implements two
+	optimizations.  (1) it implements read-aheads (as long as they
+	are reasonably contiguous on the physical media, we explicitly do
+	not try to issue read-aheads if it would cause an extra disk seek),
+	(2) it implements priority depression read-behind (reduce by 1 the
+	statistical weight of pages that have already been read).  Reuse of
+	the pages can still cause the statistical weighting to increase to
+	the maximum, but this optimization has a tendancy to greatly reduce
+	the stress that large sequential reads have on the rest of the
+	memory subsystem.
+
+    * Sequential Detection Heuristic for read clustering (VM fault)
+
+	A heuristic detects sequential VM fault operation, either forwards
+	or backwards and adjusts the cluster window around the fault taken,
+	either shifting it forwards or backwards, or making the window
+	smaller (e.g. if random fault operation is detecting).  fault-ahead
+	I/O is initiated based on the algorithm and anything found cached
+	is pre-faulted into the page table.  (The window size in FreeBSD is 
+	approximately 64KBytes for this particular algorithm).  The window
+	is further restriction to ensure that only media-contiguous blocks
+	are clustered.
+
+    * Sequential Detection Heuristic for write clustering (write())
+
+	In the case of write() I/O (write system call), in order to
+	avoid saturating the memory system with dirty pages, if the
+	sequential detection heuristic determines that writes are
+	occuring sequentially, FreeBSD implements write-behind.  That 
+	is it issues the I/O on the dirty buffers preceding the write
+	point immediately (and asynchronously), in order to get the
+	pages into a clean state and thus reuseable, thus avoiding
+	stressing the memory system.  In this case there is also a
+	limit emplaced on the number of dirty filesystem buffers
+	allowed to accumulate (since I/O is slower then the write() 
+	calls creating the dirty buffers).  
+
+	What you wind up in this case is maximum disk throughput for the
+	sequential write without thousands of unnecessary dirty pages,
+	which is asynchronous up to a reasonable point and then starts
+	blocking to give the I/O the chance to catch up a little in
+	order to avoid starving the clean page cache.
+
+    * Sequential Detection Heuristic for write clustering (mmap)
+
+	Currently not implemented under FreeBSD.  This used to be a big
+	problem because you could completely saturate the VM system with
+	dirty pages before the system even realized it.  To fix this we
+	threw in a memory-stress check in vm_fault to block when dirtying
+	pages in the face of having too many dirty pages already, giving
+	I/O a chance to catch up a little.
+
+	This actually improved performance because it left a greater number
+	of clean pages available and so the page selection algorithm in the
+	allocator worked better (tended to select idle pages rather then
+	active pages).
+
+					-Matt
+					Matthew Dillon 
+					<dillon@backplane.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
