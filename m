@@ -1,46 +1,33 @@
-Date: Wed, 10 Jul 2002 17:42:41 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH][RFT](2) minimal rmap for 2.5 - akpm tested
-In-Reply-To: <20020710193545.272bedab.sebastian.droege@gmx.de>
-Message-ID: <Pine.LNX.4.44L.0207101741380.14432-100000@imladris.surriel.com>
+Message-ID: <3D2C9900.EF65CE2E@zip.com.au>
+Date: Wed, 10 Jul 2002 13:28:48 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] Optimize out pte_chain take three
+References: <3D2C9288.51BBE4EB@zip.com.au> <Pine.LNX.4.44L.0207101712120.14432-100000@imladris.surriel.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Sebastian Droege <sebastian.droege@gmx.de>
-Cc: linux-kernel@vger.kernel.org, akpm@zip.com.au, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: William Lee Irwin III <wli@holomorphy.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Jul 2002, Sebastian Droege wrote:
-> On Sat, 6 Jul 2002 02:31:38 -0300 (BRT)
-> Rik van Riel <riel@conectiva.com.br> wrote:
->
-> > If you have some time left this weekend and feel brave,
-> > please test the patch which can be found at:
-> >
-> > 	http://surriel.com/patches/2.5/2.5.25-rmap-akpmtested
+Rik van Riel wrote:
+> 
+> ...
+> Any way out of this chicken&egg situation ?
 
-> after running your patch some time I have to say that the old VM
-> implementation and the full rmap patch (by Craig Kulesa) was better. The
-> system becomes very slow and has to swap in too much after some uptime
-> (4 hours - 2 days) and memory intensive tasks...
-> Maybe this happens only to me but it's fully reproducable
+Well yes.  We can say "this is a sound design, and we
+believe we can make it work well.  Let's merge it and
+get going on it".
 
-It's a known problem with use-once. Users of plain 2.4.18
-are complaining about it, too.
+That's perfectly legitimate and sensible.  But it would be
+better to not have to go this route just through lack of tools
+or effort.   Probably, this is what we'll end up doing :(   But
+we'll be much, much better off long term if we have those tests.
 
-This is something to touch on after the rmap mechanism
-has been merged, Linus has indicated that he wants to merge
-the thing in small bits so that's what we'll be doing ;)
-
-kind regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+How do the BSD and proprietary kernel developers evaluate
+their VMs?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
