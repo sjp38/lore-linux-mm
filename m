@@ -1,49 +1,71 @@
-Subject: Re: journaling & VM 
-References: <Pine.LNX.4.21.0006061956360.7328-100000@duckman.distro.conectiva> <393DA31A.358AE46D@reiser.to> <20000607121243.F29432@redhat.com>
-From: "John Fremlin" <vii@penguinpowered.com>
-Date: 07 Jun 2000 17:35:13 +0100
-In-Reply-To: "Stephen C. Tweedie"'s message of "Wed, 7 Jun 2000 12:12:43 +0100"
-Message-ID: <m2r9a9a1q6.fsf_-_@boreas.southchinaseas>
+Message-ID: <393E8204.D7AAACC5@timpanogas.com>
+Date: Wed, 07 Jun 2000 11:10:28 -0600
+From: "Jeff V. Merkey" <jmerkey@timpanogas.com>
 MIME-Version: 1.0
+Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
+ it'snot just the code)
+References: <20000607144102.F30951@redhat.com> <Pine.LNX.4.21.0006071103560.14304-100000@duckman.distro.conectiva> <20000607154620.O30951@redhat.com> <yttog5decvq.fsf@serpe.mitica> <20000607163519.S30951@redhat.com>
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: "Quintela Carreira Juan J." <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>, Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" <sct@redhat.com> writes:
-[...]
-> > There are two issues to address:
-> > 
-> > 1) If a buffer needs to be flushed to disk, how do we let the FS flush
-> > everything else that it is optimal to flush at the same time as that buffer. 
-> > zam's allocate on flush code addresses that issue for reiserfs, and he has some
-> > general hooks implemented also.  He is guessed to be two weeks away.
+Stephen,
+
+When will the journalling subsystem you are working on be available, and
+where can I get it to start integration work.  It sounds like you will
+be "bundling"  associated LRU meta-data blocks in the buffer cache for
+journal commits?  What Alan described to me sounds fairly decent.  I am
+wondering when you will have this posted so the rest of us can
+instrument your journalling code into our FS's.
+
+Please advise.
+
+:-)
+
+Jeff 
+
+"Stephen C. Tweedie" wrote:
 > 
-> That's easy to deal with using address_space callbacks from shrink_mmap.
-> shrink_mmap just calls into the filesystem to tell it that something
-> needs to be done.  The filesystem can, in response, flush as much data
-> as it wants to in addition to the page requested --- or can flush none
-> at all if the page is pinned.  The address_space callbacks should be
-> thought of as hints from the VM that the filesystem needs to do 
-> something.  shrink_mmap will keep on trying until it finds something
-> to free if nothing happens on the first call.
+> Hi,
 > 
-I don't understand the idea behind this. (Clueless newbie alert.)
-
-You are saying, that the MM system maintains a list of pages, then
-when it wants to free some memory it goes down the list seeing which
-subsystem owns each page, and asks it to free some memory. (Correct me
-if I am wrong).
-That is, each filesystem or whatever can basically implement its own
-MM. If so, why not simply have a list of subsystems that own memory
-with some sort of measure of how much space they're wasting, and ask
-the ones with a lot to free some?
-
--- 
-
-	http://altern.org/vii
+> On Wed, Jun 07, 2000 at 05:20:41PM +0200, Quintela Carreira Juan J. wrote:
+> >
+> > stephen> It doesn't matter.  *If* the filesystem knows better than the
+> > stephen> page cleaner what progress can be made, then let the filesystem
+> > stephen> make progress where it can.  There are likely to be transaction
+> > stephen> dependencies which mean we have to clean some pages in a specific
+> > stephen> order.  As soon as the page cleaner starts exerting back pressure
+> > stephen> on the filesystem, the filesystem needs to start clearing stuff,
+> > stephen> and if that means we have to start cleaning things that shrink_
+> > stephen> mmap didn't expect us to, then that's fine.
+> >
+> > I don't like that, if you put some page in the LRU cache, that means
+> > that you think that _this_ page is freeable.
+> 
+> Remember that Rik is talking about multiple LRUs.  Pages can only
+> be on the inactive LRU if they are clean and unpinned, yes, but we
+> still need a way of tracking pages which are in a more difficult
+> state.
+> 
+> > If you need pages in the LRU cache only for getting notifications,
+> > then change the system to send notifications each time that we are
+> > short of memory.
+> 
+> It's a matter of pressure.  The filesystem with most pages in the LRU
+> cache, or with the oldest pages there, should stand the greatest chance
+> of being the first one told to clean up its act.
+> 
+> Cheers,
+>  Stephen
+> 
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.rutgers.edu
+> Please read the FAQ at http://www.tux.org/lkml/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
