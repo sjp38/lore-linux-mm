@@ -1,52 +1,55 @@
-Received: from freak.distro.conectiva (freak.distro.conectiva [10.0.17.22])
-	by perninha.conectiva.com.br (Postfix) with ESMTP id 705A738CA7
-	for <linux-mm@kvack.org>; Tue,  5 Jun 2001 23:06:45 -0300 (EST)
-Date: Tue, 5 Jun 2001 21:31:01 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: [RFC] some experimental VM code 
-Message-ID: <Pine.LNX.4.21.0106052108440.3769-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 6 Jun 2001 09:23:58 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: temp. mem mappings
+Message-ID: <20010606092358.R26756@redhat.com>
+References: <3B581215@MailAndNews.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3B581215@MailAndNews.com>; from cohutta@MailAndNews.com on Tue, Jun 05, 2001 at 04:42:52PM -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: cohutta <cohutta@MailAndNews.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi people, 
+Hi,
 
-As you may know, the current behaviour of the kernel when it hits a
-low memory condition is to allow each task to:
+On Tue, Jun 05, 2001 at 04:42:52PM -0400, cohutta wrote:
 
- - Writeout data to free memory
- - Unmap pte's/allocate swap space and age down pages
+>   Normal memory is identity-mapped very early in boot anyway (except for
+>   highmem on large Intel boxes, that is, and kmap() works for that.)
+> 
+> I don't really want to play with the page tables if i can help it.
+> I didn't use ioremap() because it's real system memory, not IO bus
+> memory.
+> 
+> How much normal memory is identity-mapped at boot on x86?
+> Is it more than 8 MB?
 
-Until the task gets a free page. 
+> I'm trying to read some ACPI tables, like the FACP.
+> On my system, this is at physical address 0x3fffd7d7 (e.g.).
 
-I've been saying for sometime now that I think only kswapd should do
-the page aging part. If we don't do it this way, heavy VM loads will make
-each memory intensive task age down other processes pages, so we see
-ourselves in a "unmapping/faulting" storm. Imagine what happens to
-interactivity in such a case. 
+It depends at what time during boot.  Some ACPI memory is reusable
+once the system boots: the kernel parses the table then frees up the
+memory which the BIOS initialised.
 
-Trying to avoid that bad behaviour, I've experimented some code which 
+VERY early in boot, while the VM is still getting itself set up, there
+is only a minimal mapping set up by the boot loader code.  However,
+once the VM is initialised far enough to let you play with page
+tables, all memory will be identity-mapped up to just below the 1GB
+watermark.
 
- - Makes only kswapd age pages/unmap pte's. 
- - Tasks doing __GFP_IO allocations (non GFP_BUFFER allocations) wait on 
-   the kswapd waitqueue when they are not able to do any progress trying
-   to free pages themselves.
- - kswapd will not sleep until there is an inactive shortage or a free
-   shortage.
+> kmap() ends up calling set_pte(), which is close to what i am
+> already doing.  i'm having a problem on the unmap side when i
+> am done with the temporary mapping.
 
-Plus some other tweaks.
+kunmap().  :-)  But kmap only works on CONFIG_HIGHMEM kernel builds.
+On kernels built without high memory support, kmap will not allow you
+to access memory beyond the normal physical memory boundary.
 
-The behaviour is far away from getting nice, but I believe this is a step
-on the right direction.
-
-I _really_ would like to receive reports on this patch --- interactivity
-under high loads should be quite better with it.
-
-http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.6pre1/2.4.6pre1-vm-mt.patch
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
