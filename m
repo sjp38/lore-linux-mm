@@ -1,33 +1,31 @@
-Received: from ucla.edu (pool0012-max1.ucla-ca-us.dialup.earthlink.net [207.217.13.12])
-	by panther.noc.ucla.edu (8.9.1a/8.9.1) with ESMTP id JAA04819
-	for <linux-mm@kvack.org>; Fri, 12 May 2000 09:28:52 -0700 (PDT)
-Message-ID: <391B5FE6.E83B419D@ucla.edu>
-Date: Thu, 11 May 2000 18:35:34 -0700
-From: Benjamin Redelings I <bredelin@ucla.edu>
+Date: Fri, 12 May 2000 18:40:52 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
+Subject: Re: [patch] balanced highmem subsystem under pre7-9
+In-Reply-To: <Pine.LNX.4.21.0005121011140.28943-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10005121839370.3348-100000@elte.hu>
 MIME-Version: 1.0
-Subject: [DATAPOINT] pre7-final slow - tries to keep 10M/64Mb free
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-My experience with pre7 has not been very good.
+On Fri, 12 May 2000, Rik van Riel wrote:
 
-I have 64Mb RAM - the system started swapping out when I had 15MB free.
+> But we *can* split the HIGHMEM zone into a bunch of smaller
+> ones without affecting performance. Just set zone->pages_min
+> and zone->pages_low to 0 and zone->pages_high to some smallish
+> value. Then we can teach the allocator to skip the zone if:
+> 1) no obscenely large amount of free pages
+> 2) zone is locked by somebody else (TryLock(zone->lock))
 
-It appears to be trying to shrink the page cache even when there is no
-memory pressure.  Unlike pre7-9, pre7-final as a small page cache, and
-doesn't swap out that much.  LIke pre7-9, however, it is only fair to
-middling at swapping out the right pages.
+whats the point of this splitup? (i suspect there is a point, i just
+cannot see it now. thanks.)
 
--BenRI
--- 
-"I want to be in the light, as He is in the Light,
- I want to shine like the stars in the heavens." - DC Talk, "In the
-Light"
-Benjamin Redelings I      <><     http://www.bol.ucla.edu/~bredelin/
+	Ingo
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
