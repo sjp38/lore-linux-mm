@@ -1,67 +1,37 @@
-Date: Thu, 1 Jun 2000 08:26:07 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Poor I/O Performance (10x slower than 2.2)
-In-Reply-To: <14645.55430.196015.898700@styx.uwaterloo.ca>
-Message-ID: <Pine.LNX.4.21.0006010812450.1172-100000@duckman.distro.conectiva>
+Subject: Re: [PATCH] VM bugfix + rebalanced + code beauty
+References: <Pine.LNX.4.21.0005311817190.30221-100000@duckman.distro.conectiva>
+From: Christoph Rohland <cr@sap.com>
+Date: 01 Jun 2000 19:18:05 +0200
+In-Reply-To: Rik van Riel's message of "Wed, 31 May 2000 18:19:55 -0300 (BRST)"
+Message-ID: <qwwu2fd1fsi.fsf@sap.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Michal Ostrowski <mostrows@styx.uwaterloo.ca>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 May 2000, Michal Ostrowski wrote:
+Rik van Riel <riel@conectiva.com.br> writes:
 
-> I've noticed some horrible I/O performance in recent 2.3
-> kernels.  My first guess was that this was related to the
-> various VM problems that have been running rampant recently, but
-> now I'm not so sure.  Even though I've been reading reports that
-> VM performance has been improving, I've seen no noticeable
-> impact on my test results.
-
-In fact, 2.3.99-pre9 doesn't contain most of the "new VM" stuff,
-that went in in the -ac* series (and seems to have increased
-performance very slightly).
-
-
-	(most test results snipped for brevity)
-> 		Celeron 500    Dual PIII 550
-> 		test1-ac7      2.3.99-pre9
+> > I would love to integrate the whole shm page handling into the
+> > page cache.
 > 
-> Threads Blocks	Time To Complete 1000 Reads (seconds)
-> 	per		
-> 	Read
+> That would be great. If we have this we can weigh page cache,
+> swap cache and shm pages equally. Not only will this result in
+> better page replacement, but it will also save on kswapd cpu
+> usage.
 > 
-> 1	32	22.0	       32.3
-> 
-> 4	32	20.2	       28.5
-> 
-> 10	32      290	       345 *
+> Even better, having this will allow us to (trivially) insert
+> the active/inactive queue idea into the kernel, fixing the
+> "write stall" problems for a lot of situations.
 
-The fact that performance really deteriorates when you
-run more threads suggests that this may have something
-to do with the elevator code.
+And it will make shm trivial with respect to page handling. We will be
+able to make the shm fs a real in memory fs which would be used
+occasionally by SYSV shm.
 
-> * 2.2.14 runs this test in 34 seconds.
-
-How fast are 2.2.15 and the latest 2.2.16pre kernel?
-The elevator code changed after 2.2.14, so it would
-be an ideal testbed for seeing what the culprit is.
-
-(VM changed too, but in a completely different way
-from how 2.3/2.4 VM changed)
-
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+Greetings
+		Christoph
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
