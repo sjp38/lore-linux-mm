@@ -1,7 +1,7 @@
-Message-Id: <200405222212.i4MMCHr14270@mail.osdl.org>
-Subject: [patch 45/57] rmap 29 VM_RESERVED safety
+Message-Id: <200405222212.i4MMCBr14242@mail.osdl.org>
+Subject: [patch 44/57] rmap 28 remove_vm_struct
 From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:11:47 -0700
+Date: Sat, 22 May 2004 15:11:41 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
@@ -10,44 +10,85 @@ List-ID: <linux-mm.kvack.org>
 
 From: Hugh Dickins <hugh@veritas.com>
 
-From: Andrea Arcangeli <andrea@suse.de>
-
-Set VM_RESERVED in videobuf_mmap_mapper, to warn do_no_page and swapout not to
-worry about its pages.  Set VM_RESERVED in ia64_elf32_init, it too provides an
-unusual nopage which might surprise higher level checks.  Future safety: they
-don't actually pose a problem in this current tree.
+The callers of remove_shared_vm_struct then proceed to do several more
+identical things: gather them together in remove_vm_struct.
 
 
 ---
 
- 25-akpm/arch/ia64/ia32/binfmt_elf32.c   |    2 +-
- 25-akpm/drivers/media/video/video-buf.c |    2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ 25-akpm/mm/mmap.c |   31 +++++++++++--------------------
+ 1 files changed, 11 insertions(+), 20 deletions(-)
 
-diff -puN arch/ia64/ia32/binfmt_elf32.c~rmap-29-vm_reserved-safety arch/ia64/ia32/binfmt_elf32.c
---- 25/arch/ia64/ia32/binfmt_elf32.c~rmap-29-vm_reserved-safety	2004-05-22 14:56:28.701728200 -0700
-+++ 25-akpm/arch/ia64/ia32/binfmt_elf32.c	2004-05-22 14:59:36.581166184 -0700
-@@ -79,7 +79,7 @@ ia64_elf32_init (struct pt_regs *regs)
- 		vma->vm_start = IA32_GDT_OFFSET;
- 		vma->vm_end = vma->vm_start + PAGE_SIZE;
- 		vma->vm_page_prot = PAGE_SHARED;
--		vma->vm_flags = VM_READ|VM_MAYREAD;
-+		vma->vm_flags = VM_READ|VM_MAYREAD|VM_RESERVED;
- 		vma->vm_ops = &ia32_shared_page_vm_ops;
- 		down_write(&current->mm->mmap_sem);
- 		{
-diff -puN drivers/media/video/video-buf.c~rmap-29-vm_reserved-safety drivers/media/video/video-buf.c
---- 25/drivers/media/video/video-buf.c~rmap-29-vm_reserved-safety	2004-05-22 14:56:28.702728048 -0700
-+++ 25-akpm/drivers/media/video/video-buf.c	2004-05-22 14:56:28.707727288 -0700
-@@ -1176,7 +1176,7 @@ int videobuf_mmap_mapper(struct vm_area_
- 	map->end      = vma->vm_end;
- 	map->q        = q;
- 	vma->vm_ops   = &videobuf_vm_ops;
--	vma->vm_flags |= VM_DONTEXPAND;
-+	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
- 	vma->vm_flags &= ~VM_IO; /* using shared anonymous pages */
- 	vma->vm_private_data = map;
- 	dprintk(1,"mmap %p: %08lx-%08lx pgoff %08lx bufs %d-%d\n",
+diff -puN mm/mmap.c~rmap-28-remove_vm_struct mm/mmap.c
+--- 25/mm/mmap.c~rmap-28-remove_vm_struct	2004-05-22 14:56:28.576747200 -0700
++++ 25-akpm/mm/mmap.c	2004-05-22 14:59:36.269213608 -0700
+@@ -67,7 +67,7 @@ EXPORT_SYMBOL(vm_committed_space);
+ /*
+  * Requires inode->i_mapping->i_mmap_lock
+  */
+-static inline void __remove_shared_vm_struct(struct vm_area_struct *vma,
++static void __remove_shared_vm_struct(struct vm_area_struct *vma,
+ 		struct file *file, struct address_space *mapping)
+ {
+ 	if (vma->vm_flags & VM_DENYWRITE)
+@@ -84,9 +84,9 @@ static inline void __remove_shared_vm_st
+ }
+ 
+ /*
+- * Remove one vm structure from the inode's i_mapping address space.
++ * Remove one vm structure and free it.
+  */
+-static void remove_shared_vm_struct(struct vm_area_struct *vma)
++static void remove_vm_struct(struct vm_area_struct *vma)
+ {
+ 	struct file *file = vma->vm_file;
+ 
+@@ -96,6 +96,12 @@ static void remove_shared_vm_struct(stru
+ 		__remove_shared_vm_struct(vma, file, mapping);
+ 		spin_unlock(&mapping->i_mmap_lock);
+ 	}
++	if (vma->vm_ops && vma->vm_ops->close)
++		vma->vm_ops->close(vma);
++	if (file)
++		fput(file);
++	mpol_free(vma_policy(vma));
++	kmem_cache_free(vm_area_cachep, vma);
+ }
+ 
+ /*
+@@ -1165,14 +1171,7 @@ static void unmap_vma(struct mm_struct *
+ 				area->vm_start < area->vm_mm->free_area_cache)
+ 	      area->vm_mm->free_area_cache = area->vm_start;
+ 
+-	remove_shared_vm_struct(area);
+-
+-	mpol_free(vma_policy(area));
+-	if (area->vm_ops && area->vm_ops->close)
+-		area->vm_ops->close(area);
+-	if (area->vm_file)
+-		fput(area->vm_file);
+-	kmem_cache_free(vm_area_cachep, area);
++	remove_vm_struct(area);
+ }
+ 
+ /*
+@@ -1501,15 +1500,7 @@ void exit_mmap(struct mm_struct *mm)
+ 	 */
+ 	while (vma) {
+ 		struct vm_area_struct *next = vma->vm_next;
+-		remove_shared_vm_struct(vma);
+-		if (vma->vm_ops) {
+-			if (vma->vm_ops->close)
+-				vma->vm_ops->close(vma);
+-		}
+-		if (vma->vm_file)
+-			fput(vma->vm_file);
+-		mpol_free(vma_policy(vma));
+-		kmem_cache_free(vm_area_cachep, vma);
++		remove_vm_struct(vma);
+ 		vma = next;
+ 	}
+ }
 
 _
 --
