@@ -1,23 +1,47 @@
-Received: from 3lyw4 (p0293.nas5-asd2.dial.wanadoo.nl [81.68.41.39])
-	by smtp5.wanadoo.nl (Postfix) with ESMTP id 9047835183
-	for <linux-mm@kvack.org>; Tue,  8 Mar 2005 03:44:05 +0100 (CET)
-From: "laura" <laura@home.nl>
-Subject: http://lach.flappie.nl
-Content-Type: text/plain;
-	charset="US-ASCII"
-Reply-To: laura@home.nl
-Date: Tue, 8 Mar 2005 03:44:17 +0100
-Message-Id: <20050308024405.9047835183@smtp5.wanadoo.nl>
+Reply-To: "Carmeln" <RobertavfpijChalfin@msn.com>
+From: "Duplechainhz" <PaulataflGelder@hotmail.com>
+Subject: Want a PSP but cant afford one? MQY B
+Date: Mon, 07 Mar 2005 22:04:00 -0600
+MIME-Version: 1.0
+Content-Type: multipart/alternative;
+	boundary="--02-42223-3597-477-04388"
+Message-Id: <20050308040221Z26676-23302+718@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Kijk eens, mn broertje heeft voor mij een site gemaakt.
+----02-42223-3597-477-04388
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-http://lach.flappie.nl
+Get a FREE PlayStation 2 or PlayStation Portable!
 
-kusjes Laura
+You decide! It's your choice! Think I'm kidding? Check the link below:
+
+http://www.c-u-i.com/offer.php?45PV69 
+
+
+P.S. The page might load slow at times. This is due to the huge demand cre=
+ated by our offer. Don't worry though. Your PS2 or PSP will be waiting for=
+ you!
+
+
+
+
+
+
+
+When I'm not c my right mwd, my left mqd gets pretty crowded.=20 Do, or do=
+ not. There is no try. Yoda=20 I have a weight problem: I can't wait to ea=
+t! (Daniel L. Worona) You don't have to swim faster than the shark, just f=
+aster than the person next to you. Never say what time you will be home  t=
+hen you will never be late. You feel stuck with your debt if you can't bud=
+ge it.
+no gone
+http://www.c-u-i.com/e/
+
+----02-42223-3597-477-04388--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
