@@ -1,26 +1,38 @@
-Date: Thu, 22 Aug 2002 21:48:26 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [Lse-tech] [patch] SImple Topology API v0.3 (1/2)
-Message-ID: <20020822214826.A32384@infradead.org>
-References: <3D6537D3.3080905@us.ibm.com> <20020822202239.A30036@infradead.org> <3D654C8F.30400@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3D654C8F.30400@us.ibm.com>; from colpatch@us.ibm.com on Thu, Aug 22, 2002 at 01:41:51PM -0700
+Date: Fri, 23 Aug 2002 11:28:48 +0500 (GMT+0500)
+From: Anil Kumar <anilk@cdotd.ernet.in>
+Subject: ramfs/tmpfs/shmfs  doubt  
+Message-ID: <Pine.OSF.4.10.10208231100500.4550-100000@moon.cdotd.ernet.in>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Andrea Arcangeli <andrea@suse.de>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 22, 2002 at 01:41:51PM -0700, Matthew Dobson wrote:
-> The file asm/mmzone.h needs to be included in both the CONFIG_DISCONTIGMEM and 
-> !CONFIG_DISCONTIGMEM cases (at least after my patch).  This just pulls the 
-> #include out of the #ifdefs.
+Hello All,
 
-Maybe I've noticed that myself?  But why do you suddenly break every port
-of execept of i386,ia64, alpha and mips64?  What is the reason your patch
-needs this?
+   I have  a   doubt regarding use Of ramfs .In which cases should i
+use ramfs/shmfs/tmpfs/ramdisk and how page cache is used in these cases?
+
+   On my board i have 8 MB RAM and a Flash (to store Kernal and
+Application code and persistent Application Data). Also i have no additional 
+device to use it as a swap.So if for swap i have to use a part of
+RAM(Compressed Swap suggested on this mailing list earlier).
+
+   I am planning to create a file system at boot time in RAM and download
+application binaries to that and run.RAM is limited so my  requirement is 
+that i do not want to have two copies of data in the RAM (One in File
+System i create and other one in Page Cache ).
+
+  What is the best available mechanism i should follow?
+   (Can  i use ramfs/tmpfs to solve the above problem?)
+
+  Can i run a linux kernel disabling swapping (In my case no
+ additional device for swap is available) ?
+
+ Thanks a lot,  
+ Anil
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
