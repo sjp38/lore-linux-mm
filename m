@@ -1,44 +1,53 @@
-Date: Wed, 23 Oct 2002 07:25:47 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Reply-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: 2.5.44-mm3
-Message-ID: <2746454582.1035357946@[10.10.2.3]>
-In-Reply-To: <20021023184317.A32662@in.ibm.com>
-References: <20021023184317.A32662@in.ibm.com>
-MIME-Version: 1.0
+Date: Wed, 23 Oct 2002 16:23:42 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
+Message-ID: <20021023142342.GC1912@dualathlon.random>
+References: <20021023115026.GB30182@dualathlon.random> <Pine.LNX.4.44.0210231618150.10431-100000@localhost.localdomain>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0210231618150.10431-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ravikiran G Thirumalai <kiran@in.ibm.com>, Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, rusty@rustcorp.com.au
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> My machine did not boot with CONFIG_NR_CPUS = 4.  Same .config as one
-> used for 2.5.44-mm2.  Could be the __node_to_cpu_mask redifinition from
-> the larger-cpu-masks patch .... 
+On Wed, Oct 23, 2002 at 04:20:30PM +0200, Ingo Molnar wrote:
+> 
+> On Wed, 23 Oct 2002, Andrea Arcangeli wrote:
+> 
+> > it's not another vma tree, furthmore another vma tree indexed by the
+> > hole size wouldn't be able to defragment and it would find the best fit
+> > not the first fit on the left.
+> 
+> what i was talking about was a hole-tree indexed by the hole start
 
-I think Rusty is asleep now, but he sent me this earlier ... want
-to try it? I just cut & pasted, so you'll have to apply it by hand.
-As it is, you'll get 0 size for NR_CPUS < 8 I think.
+yes an hole tree.
 
-M.
+> address, not a vma tree indexed by the hole size. (the later is pretty
 
-2.5.44-mm3-node-fix/include/asm-generic/topology.h
---- linux-2.5.44-mm3/include/asm-generic/topology.h	2002-10-23 12:03:14.000000000 +1000
-+++ working-2.5.44-mm3-node-fix/include/asm-generic/topology.h	2002-10-23 19:47:36.000000000 +1000
-@@ -42,7 +42,7 @@
- #define __node_to_first_cpu(node)	(0)
- #endif
- #ifndef __node_to_cpu_mask
--#define __node_to_cpu_mask(mask, node)	(memset((mask), 0xFF, NR_CPUS/8))
-+#define __node_to_cpu_mask(mask, node)	(memset((mask), 0xFF, (NR_CPUS+7)/8))
- #endif
- #ifndef __node_to_memblk
- #define __node_to_memblk(node)		(0)
+indexed by the hole start address? then it's still O(N), then your quick
+cache for the first hole would not be much different. I above meant hole
+size, then it would be O(log(N)), but it wouldn't defragment anymore.
 
+> pointless.) And even this solution still has to search the tree linearly
+> for a matching hole.
 
+exactly, it's still O(N).
+
+The final solution needed isn't a plain tree, it needs modifications to
+the rbtree code to make the data structure more powerful, that will
+provide that info in O(log(N)) without an additional tree and starting
+from the left (i.e. it won't alter the retval of get_unmapped_area, just
+its speed).  the design is just finished for some time, what's left is
+to implement it and it isn't trivial ;).
+
+Anyways this O(log(N)) complexity improvement is needed anyways, old
+applications will be still around in particular when they will find they
+don't need special API to work fast.
+
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
