@@ -1,58 +1,43 @@
-Message-ID: <39628664.7756172A@norran.net>
-Date: Wed, 05 Jul 2000 02:50:45 +0200
+Received: from norran.net (roger@t7o43p8.telia.com [194.237.168.128])
+	by d1o43.telia.com (8.8.8/8.8.8) with ESMTP id CAA09945
+	for <linux-mm@kvack.org>; Wed, 5 Jul 2000 02:58:11 +0200 (CEST)
+Message-ID: <3962874A.190AAC7E@norran.net>
+Date: Wed, 05 Jul 2000 02:54:35 +0200
 From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH] latency improvements, one reschedule moved
-References: <395D520C.F16DD7D6@norran.net>
+Subject: User mode stalls - can it be...?
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-audio-dev@ginette.musique.umontreal.ca" <linux-audio-dev@ginette.musique.umontreal.ca>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Linus,
+Hi,
 
-Cleaned up and corrected some bugs...
-(memory_pressure... !
- unintended reschedule removed)
 
-Sadly the performance went down - slightly.
-Latency looks even nicer. Still some spikes.
-[sync and mmap002 behaviour not corrected]
+I have an idea why we get the stalls!
+
+If we end up in a situation where our write attempts are rejected
+due to lack of resources - we will continue happily with next and
+next...
+
+Count hits zero and we return
+
+But kswapd finds out that there is more to do and calls another
+shrink_mmap...
+(and need_resched is not set due to lower priority)
+
+Gives, busy wait in shrink_mmap until pages are written...
+
+I tried to renice 15 kswapd with improved results (I am using my patched
+kernels)
+Another approach would be to always sleep...
 
 /RogerL
 
-
-
-Roger Larsson wrote:
-> 
-> Hi Linus,
-> 
-> [patch against  linux-2.4.0-test3-pre2]
-> 
-> I cleaned up kswapd and moved its reschedule point.
-> Disk performance is close to the same.
-> Latencies have improved a lot (tested with Bennos latencytest)
-> 
-> * sync is still problematic
-> * mmap002 (Quintinela) still gives a 212 ms latency
->   (compared to 423 ms for the unpatched...)
-> * other disk related latencies are down under 30 ms.
->   (streaming read, copy, write)
-> * the number of overruns has dropped considerably!
->   (running 4 buffers with a deadline of 23 ms)
-> 
-> /RogerL
-> 
-> --
-> Home page:
->   http://www.norran.net/nra02596/
-> 
->   ------------------------------------------------------------------------
->                                               Name: patch-2.4.0-test3-pre2-vmscan.latency.2
->    patch-2.4.0-test3-pre2-vmscan.latency.2    Type: Plain Text (text/plain)
->                                           Encoding: 7bit
+(Sent privately to Quintela and Riel - but it might be of value for
+ someone else too...)
 
 --
 Home page:
