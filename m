@@ -1,74 +1,63 @@
-Date: Sun, 15 Dec 2002 10:36:12 +0100 (CET)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: Ingo Molnar <mingo@elte.hu>
+Date: Sun, 15 Dec 2002 16:51:03 -0800
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: freemaps
+Message-ID: <20021216005103.GF2690@holomorphy.com>
+References: <3DFBF26B.47C04A6@digeo.com> <Pine.LNX.4.44.0212150926130.1831-100000@localhost.localdomain> <3DFC455E.1FD92CBC@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <3DFC455E.1FD92CBC@digeo.com>
-Message-ID: <Pine.LNX.4.44.0212151026210.3341-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: "Frederic Rossi (LMC)" <Frederic.Rossi@ericsson.ca>, linux-mm@kvack.org, Andrea Arcangeli <andrea@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, "Frederic Rossi (LMC)" <Frederic.Rossi@ericsson.ca>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 15 Dec 2002, Andrew Morton wrote:
-
-> Ingo Molnar wrote:
-> > 
-> > ...
-> > another approach might be to maintain some sort of tree of holes.
-> 
-> This one, I'd suggest.  If we're going to fix this we may as
-> well fix it right.  Otherwise there will always be whacky failure
-> modes.
-> 
-> Trees are tricky, because we don't like to recur.
-> 
+On Sun, Dec 15, 2002 at 01:03:26AM -0800, Andrew Morton wrote:
 > I expect this could be solved with two trees:
-> 
 > - For searching, a radix-tree indexed by hole size.  A list
 >   of same-sized holes at each leaf.
-> 
 > - For insertion (where we must perform merging) an rbtree.
 
-yes. I suspect this is close to what Andrea has/had in mind?
+It's not quite that easy, because what this appears to suggest
+would result in best fit, not address-ordered first fit.
 
+My first thought is a length-constrained address minimization on a 2-d
+tree, quadtree, or 2D k-d-b tree keyed on address and length; the
+duelling tree solutions aren't really capable of providing O(lg(n))
+guarantees for address-ordered first fit (or implementing address-
+ordered first fit at all). I have no clue how to do this both
+nonrecursively and without frequently-dirtied temporary node linkage,
+though, as it appears to require a work stack (or potentially even a
+queue for prioritized searches) like many other graph searches. Also,
+I don't have a proof in hand that this is really O(lg(n)) worst-case,
+though there are relatively obvious intuitive reasons to suspect so.
+
+
+On Sun, Dec 15, 2002 at 01:03:26AM -0800, Andrew Morton wrote:
 > But:
-> 
 > - Do we need to keep the lists of same-sized holes sorted by
 >   virtual address, to avoid fragmentation?
 
-the best anti-fragmentation technique is i guess what we have now: to use
-the smallest matching hole at the lowest possible address. I think we
-should give up strong anti-fragmentation techniques only once 32-bit
-address spaces have become a distant memory, definitely not these days,
-when the problems created by the limits of the 32-bit address space are
-probably at their peak point in history.
+Well, not so much to avoid fragmentation, but avoid worst cases.
 
-but, before we go forward, i'd really suggest to run _real_ tests. The
-free-area cache i added was to address one specific real-life workload.  
-Frederic's test i dont know. One area i'd suspect we still suck somewhat
-are the JITs and the memory protectorsm, but the loss due to the free-area
-searching has to be quantified. Obviously, until trees are introduced
-there will always be regressions.
 
+On Sun, Dec 15, 2002 at 01:03:26AM -0800, Andrew Morton wrote:
 > - Do all mm's incur all this stuff, or do we build it all when
 >   some threshold is crossed?
 
-we had some sort of threshold ages ago - i'd rather have a fast
-constructor for this stuff instead of trying to hide the costs by cutting
-off the small-size cases. I think basically everything but benchmarks will
-have more than just a few mappings.
+Not all incur these kinds of problems; but it is probably expensive
+to build non-incrementally once the threshold is crossed.
 
+
+On Sun, Dec 15, 2002 at 01:03:26AM -0800, Andrew Morton wrote:
 > - How does it play with non-linear mappings?
 
-nonlinear mappings do not care about the structure of vmas (and the
-structure of inverse vmas) - they are special types of vmas.
-
-	Ingo
+It doesn't care; they're just vma's parked on a virtual address range
+like the rest of them.
 
 
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
