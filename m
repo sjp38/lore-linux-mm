@@ -1,35 +1,49 @@
-Date: Thu, 5 Sep 2002 09:35:49 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: MAP_SHARED handling
-In-Reply-To: <3D7705C5.E41B5D5F@zip.com.au>
-Message-ID: <Pine.LNX.4.44L.0209050934290.1857-100000@imladris.surriel.com>
+Message-ID: <3D76EEFE.13467890@zip.com.au>
+Date: Wed, 04 Sep 2002 22:43:26 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: nonblocking-vm.patch
+References: <3D768C12.6CEBDA74@zip.com.au> <Pine.LNX.4.44L.0209041944510.1857-100000@imladris.surriel.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 5 Sep 2002, Andrew Morton wrote:
+For the record...
 
-> One thing bugs me a little bit.
+One thing we could do is to make the heavy write()r perform
+blocking writeback in the page allocator:
 
-> - We'll be calling ->vm_writeback() once per page, and it'll only
->   discover a single dirty page on swapper_space.dirty_pages.
+generic_file_write()
+{
+	current->bdi = mapping->backing_dev_info;
+	...
+	current->bdi = NULL;
+}
 
-> So....  Could we do something like: if the try_to_unmap() call turned
-> the page from !PageDirty to PageDirty, give it another go around the
-> list?
+shrink_list()
+{
+	...
+	if (PageDirty(page) && mapping->backing_dev_info == current->bdi)
+		writeback(page->mapping);
+	...
+}
 
-FreeBSD is doing this and seems to be getting good results
-with it, so I guess it'll improve our VM too ;)
+So when that writer allocates a page, he gets to clean up
+his own mess, rather than scanning past those pages.
 
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
+We have to write back just that queue; otherwise we get back to
+the situation where one queue enters congested and that blocks the
+whole world.
 
-http://www.surriel.com/		http://distro.conectiva.com/
+It's just an idea to bear in mind - balance_dirty_pages() is
+supposed to be the place where this happens, but the above would
+perhaps mop up some mmapped dirty memory, stray dirty pages which
+reach the cold end of the LRU, etc.   And this is definitely a
+writeback resource which we can use in that situation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
