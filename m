@@ -1,63 +1,43 @@
-From: Daniel Phillips <phillips@arcor.de>
+Received: from bigblue.dev.mcafeelabs.com
+	by xmailserver.org with [XMail 1.16 (Linux/Ix86) ESMTP Server]
+	id <SA2262> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
+	Mon, 07 Jul 2003 11:12:00 -0700
+Date: Mon, 7 Jul 2003 10:58:06 -0700 (PDT)
+From: Davide Libenzi <davidel@xmailserver.org>
 Subject: Re: 2.5.74-mm1
-Date: Mon, 7 Jul 2003 19:55:58 +0200
-References: <20030703023714.55d13934.akpm@osdl.org> <20030707152339.GA9669@mail.jlokier.co.uk> <Pine.LNX.4.55.0307071007140.4704@bigblue.dev.mcafeelabs.com>
-In-Reply-To: <Pine.LNX.4.55.0307071007140.4704@bigblue.dev.mcafeelabs.com>
+In-Reply-To: <200307071728.08753.phillips@arcor.de>
+Message-ID: <Pine.LNX.4.55.0307071030210.4704@bigblue.dev.mcafeelabs.com>
+References: <20030703023714.55d13934.akpm@osdl.org> <Pine.LNX.4.53.0307071408440.5007@skynet>
+ <Pine.LNX.4.55.0307070745250.4428@bigblue.dev.mcafeelabs.com>
+ <200307071728.08753.phillips@arcor.de>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200307071955.58774.phillips@arcor.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Davide Libenzi <davidel@xmailserver.org>, Jamie Lokier <jamie@shareable.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Daniel Phillips <phillips@arcor.de>
+Cc: Mel Gorman <mel@csn.ul.ie>, Jamie Lokier <jamie@shareable.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Monday 07 July 2003 19:25, Davide Libenzi wrote:
-> On Mon, 7 Jul 2003, Jamie Lokier wrote:
-> > Davide Libenzi wrote:
-> > > The scheduler has to work w/out external input, period.
-> >
-> > Can you justify this?
-> >
-> > It strikes me that a music player's thread which requests a special
-> > music-playing scheduling hint is not unreasonable, if that actually
-> > works and scheduler heuristics do not.
+On Mon, 7 Jul 2003, Daniel Phillips wrote:
+
+> That's not correct in this case, because the sound servicing routine is
+> realtime, which makes it special.  Furthermore, Zinf is already trying to
+> provide the kernel with the hint it needs via PThreads SetPriority but
+> because Linux has brain damage - both in the kernel and user space imho - the
+> hint isn't accomplishing what it's supposed to.
 >
-> Jamie, looking at those reports it seems it is not only a sound players
-> problem.
+> As I said earlier: trying to detect automagically which threads are realtime
+> and which aren't is stupid.  Such policy decisions don't belong in the
+> kernel.
 
-You still seem to be having trouble with the idea that the sound servicing 
-thread is a realtime process, and thus fundamentally different from other 
-kinds of processes.  Could you please explain why you disagree with this?
+Having hacked a little bit with vsound I can say that many sound players
+do not use at 100% the buffering the sound card/kernel is able to provide
+and they still use 4-8Kb feeding chunks. That require very short timings
+to not lose the time.
 
-> The *application* has to hint the scheduler, not the user.
 
-Partly true, in that users should be able to supply the hint in some way, they 
-desire.  However in this case - Zinf - the point is moot, because Zinf is 
-trying hard to give the hint, but it fails because of above-mentioned 
-braindamage.
 
-> If reports about UI interactivity are true, this means that there's
-> something wrong in the current scheduler though. Besides the player issue.
-
-The current scheduler, complete with Con's tweaks, is working very well for me 
-in combination with "nice -something".  The remaining issue there is pure 
-policy.  In that regard, I'm trying to find the most appropriate way of 
-fixing up user space so that Zinf's SetPriority actually achieves its 
-intended effect.  Running all logins at some setable non-negative default 
-priority is the best idea I've seen so far in that regard, and soon my system 
-will be doing just that.  I'll let you know if anything explodes ;-)
-
-If there's a remaining fundamental flaw in the kernel scheduler, it would be 
-the lower-priority process starvation question, which holds the promise of 
-plenty of future lkml navel gaz^W^Wdiscussion indeed.
-
-Regards,
-
-Daniel
+- Davide
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
