@@ -1,67 +1,49 @@
-Message-ID: <A33AEFDC2EC0D411851900D0B73EBEF766DC67@NAPA>
-From: Hua Ji <hji@netscreen.com>
-Subject: RE: Running out of vmalloc space
-Date: Thu, 17 May 2001 11:51:49 -0700
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Date: Thu, 17 May 2001 22:16:10 +0300
+From: Matti Aarnio <matti.aarnio@zmailer.org>
+Subject: Re: Running out of vmalloc space
+Message-ID: <20010517221610.K5947@mea-ext.zmailer.org>
+References: <3B04069C.49787EC2@fc.hp.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3B04069C.49787EC2@fc.hp.com>; from dp@fc.hp.com on Thu, May 17, 2001 at 11:13:00AM -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Pinedo <dp@fc.hp.com>, linux-mm@kvack.org
+To: David Pinedo <dp@fc.hp.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->What are the implications of making such a change?  Will it work when
->there is less or more memory in the system?  Should this be a
->configurable kernel parameter?
+On Thu, May 17, 2001 at 11:13:00AM -0600, David Pinedo wrote:
+[ Why vmalloc() space is so small ? ]
 
-My 2 cents:
+  Hua Ji summarized quite well what the kernel does, and where.
 
-By default, linux kernel space starts from PAGE_OFFSET, which is 0xC0000000.
-In other words,
-All the kernel can only have 1G memory left for usage, if/when under a 32bit
-CPU.
+  There are 32bit machines which *can* access whole 4G kernel space
+  separate from simultaneous 4G user space, however i386 is not one
+  of those.
 
-Even with the 1G left, the cake left for vmalloc is much less than the 1G.
-Kernel
-will map the PAGE_OFFSET~PAGE_OFFSET+physical_memory for kmalloc usage. The
-real start point for
-vmalloc is high_memory + 8M(this is a hole). 
+  PAE36 doesn't help either -- aside of the PHYSICAL memory addressability
+  increase, the problem is in 4G choke point in address calculations which
+  causes  32-bit segment register value be added on  32-bits address, but
+  only for the low 32 bits, loosing "up-shifted" top 4 bits.  The mapping
+  tables will then expand that 32-bit result to 36 bits of PAE.
 
-Hence, we can understand that the virtual address left for vmalloc is really
-small.
+  If you can come up with some magic instruction which does data move
+  from/to alternate memory mapping context than what is currently running
+  (e.g. userspace or kernel), preferrably privileged instruction, a LOT
+  of people would be very glad -- and very nearly overnight we could 
+  supply 4G space for both user and kernel spaces.
 
-For example, if your machine has a physical memory of 256M. And then your
-vmalloc can only manage
-(1G-256M-8M) space.
+  In Motorola 68k series there is such a thing, called 'movec'.
 
-If we go through the get_vma_area that is called by vmalloc(), we will find
-this:
+> Thanks for any information anyone can provide.
+>  
+> David Pinedo
+> Hewlett-Packard Company
+> Fort Collins, Colorado
+> dp@fc.hp.com
 
-------------------------------------------
-addr = VMALLOC_START;
-.....
-
- if (addr > VMALLOC_END-size) {	 
-			kfree(area);
-			return NULL;
-		}
-------------------------------------------
-
-Therefore, it is very possible that your driver codes can't find **big
-enough hole** in the vmlist, which
-is a global linked list for maintaining all the vm_struct data structures.
-
-For enlarging the managed memory, you can try this:
-
-* change the PAGE_OFFSET to 0x80000000(for example) from 0xC000000. Then you
-will have 1G extra memory managable:-). However, the side effect is: your
-user level tasks can only range from 0x0 to 0x8000000(2G).
-
-
-
-Wish helpful,
-
-Mike
+/Matti Aarnio  -- who much prefers clean 64-bit pointers...
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
