@@ -1,28 +1,51 @@
-Date: Mon, 25 Sep 2000 18:01:31 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: the new VM
-Message-ID: <20000925180131.A26719@athlon.random>
-References: <Pine.LNX.4.21.0009251511050.6224-100000@elte.hu> <E13dZX7-00055f-00@the-village.bc.nu> <20000925164044.F2615@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20000925164044.F2615@redhat.com>; from sct@redhat.com on Mon, Sep 25, 2000 at 04:40:44PM +0100
+Date: Mon, 25 Sep 2000 18:02:18 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
+Subject: Re: the new VMt
+In-Reply-To: <20000925174138.D25814@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009251747190.9122-100000@elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, mingo@elte.hu, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 04:40:44PM +0100, Stephen C. Tweedie wrote:
-> Allowing GFP_ATOMIC to eat PF_MEMALLOC's last-chance pages is the
-> wrong thing to do if we want to guarantee swapper progress under
-> extreme load.
+On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
 
-You're definitely right. We at least need the garantee of the memory to
-allocate the bhs on top of the swap cache while we atttempt to swapout one page
-(that path can't fail at the moment).
+> Ingo's point is that the underlined line won't ever happen in the
+> first place
 
-Andrea
+please dont misinterpret my point ...
+
+Frankly, how often do we allocate multi-order pages? I've just made quick
+statistics wrt. how allocation orders are distributed on a more or less
+typical system:
+
+	(ALLOC ORDER)
+	0: 167081
+	1: 850
+	2: 16
+	3: 25
+	4: 0
+	5: 1
+	6: 0
+	7: 2
+	8: 13
+	9: 5
+
+ie. 99.45% of all allocations are single-page! 0.50% is the 8kb
+task-structure. The rest is 0.05%.
+
+i'm not talking about 4MB contiguous physical allocations having to
+succeed on a 8MB box. I'm talking about 99% of the simple allocation
+points not having to worry about a NULL pointer. (not checking for NULL is
+one of the most common allocation-related bug that beats low-RAM systems.)
+
+	Ingo
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
