@@ -1,35 +1,29 @@
-Date: Sun, 24 Sep 2000 11:11:17 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Date: Sun, 24 Sep 2000 20:40:05 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
 Subject: Re: __GFP_IO && shrink_[d|i]cache_memory()?
-In-Reply-To: <Pine.LNX.4.21.0009241158050.2789-100000@elte.hu>
-Message-ID: <Pine.LNX.4.10.10009241101320.10311-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.10.10009241101320.10311-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0009242038480.7843-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
+To: Linus Torvalds <torvalds@transmeta.com>
 Cc: Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+On Sun, 24 Sep 2000, Linus Torvalds wrote:
 
-On Sun, 24 Sep 2000, Ingo Molnar wrote:
-> 
-> as a longer term solution, i'm wondering how hard it would be to propagate
-> gfp_mask into the shrink_*() functions, and prevent recursion similarly to
-> the swap-out logic? This way even GFP_BUFFER allocators could touch/free
-> the dcache/icache.
+> [...] I don't think shrinking the inode cache is actually illegal when
+> GPF_IO isn't set. In fact, it's probably only the buffer cache itself
+> that has to avoid recursion - the other stuff doesn't actually do any
+> IO.
 
-Well, the gfp_mask actually _is_ propagated already, it's just that if
-__GFP_IO isn't set the calls are never done.
+i just found this out by example, i'm running the shrink_[i|d]cache stuff
+even if __GFP_IO is not set, and no problems so far. (and much better
+balancing behavior)
 
-A trivial patch would move the __GFP_IO test into the functions (no change
-in behaviour), and then slowly move the test down to the proper place. We
-should be able to do some SHM swapping even if __GFP_IO isn't set. For
-example, I don't think shrinking the inode cache is actually illegal when
-GPF_IO isn't set. In fact, it's probably only the buffer cache itself that
-has to avoid recursion - the other stuff doesn't actually do any IO.
-
-		Linus
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
