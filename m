@@ -1,123 +1,168 @@
-Date: Fri, 26 Oct 2001 09:04:04 -0700 (PDT)
+Date: Fri, 26 Oct 2001 09:57:02 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: xmm2 - monitor Linux MM active/inactive lists graphically
 In-Reply-To: <dnpu7asb37.fsf@magla.zg.iskon.hr>
-Message-ID: <Pine.LNX.4.33.0110260834540.2054-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.33.0110260949300.2939-200000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: MULTIPART/MIXED; BOUNDARY="168447515-392138068-1004115422=:2939"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Zlatko Calusic <zlatko.calusic@iskon.hr>
 Cc: Jens Axboe <axboe@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+--168447515-392138068-1004115422=:2939
+Content-Type: TEXT/PLAIN; charset=US-ASCII
+
+
 On 26 Oct 2001, Zlatko Calusic wrote:
 >
-> OK. Anyway, neither configuration works well, so the problem might be
-> somewhere else.
->
-> While at it, could you give short explanation of those two parameters?
+> When I find some time, I'll dig around that code. It is very
+> interesting part of the kernel, I'm sure, I just didn't have enough
+> time so far, to spend hacking on that part.
 
-Did you try the ones 2.4.14-2 does?
+Attached is a very untested patch (but hey, it compiles, so it must work,
+right?) against 2.4.14-pre2, that makes the batching be a high/low
+watermark thing instead. It actually simplified the code, but that is, of
+course, assuming that it works at all ;)
 
-Basically, the "queue_nr_requests" means how many requests there can be
-for this queue. Half of them are allocated to reads, half of them are
-allocated to writes.
+(If I got the comparisons wrong, of if I update the counts wrong, your IO
+queue will probably stop cold. So be careful. The code is obvious
+enough, but typos and thinkos happen).
 
-The "batch_requests" thing is something that kicks in when the queue has
-emptied - we don't want to "trickle" requests to users, because if we do
-that means that a new large write will not be able to merge its new
-requests sanely because it basically has to do them one at a time. So when
-we run out of requests (ie "queue_nr_requests" isn't enough), we start
-putting the freed-up requests on a "pending" list, and we release them
-only when the pending list is bigger than "batch_requests".
+		Linus
 
-Now, one thing to remember is that "queue_nr_requests" is for the whole
-queue (half of them for reads, half for writes), and "batch_requests" is a
-per-type thing (ie we batch reads and writes separately). So
-"batch_requests" must be less than half of "queue_nr_requests", or we will
-never release anything at all.
+--168447515-392138068-1004115422=:2939
+Content-Type: TEXT/PLAIN; charset=US-ASCII; name=p2p3
+Content-Transfer-Encoding: BASE64
+Content-ID: <Pine.LNX.4.33.0110260957020.2939@penguin.transmeta.com>
+Content-Description: 
+Content-Disposition: attachment; filename=p2p3
 
-Now, in Alan's tree, there is a separate tuning thing, which is the "max
-nr of _sectors_ in flight", which in my opinion is pretty bogus. It's
-really a memory-management thing, but it also does something else: it has
-low-and-high water-marks, and those might well be a good idea. It is
-possible that we should just ditch the "batch_requests" thing, and use the
-watermarks instead.
-
-Side note: all of this is relevant really only for writes - reads pretty
-much only care about the maximum queue-size, and it's very hard to get a
-_huge_ queue-size with reads unless you do tons of read-ahead.
-
-Now, the "batching" is technically equivalent with water-marking if there
-is _one_ writer. But if there are multiple writers, water-marking may
-actually has some advantages: it might allow the other writer to make some
-progress when the first one has stopped, while the batching will stop
-everybody until the batch is released. Who knows.
-
-Anyway, the reason I think Alan's "max nr of sectors" is bogus is because:
-
- - it's a global count, and if you have 10 controllers and want to write
-   to all 10, you _should_ be able to - you can write 10 times as many
-   requests in the same latency, so there is nothing "global" with it.
-
-   (It turns out that one advantage of the globalism is that it ends up
-   limiting MM write-outs, but I personally think that is a _MM_ thing, ie
-   we might want to have a "we have half of all our pages in flight, we
-   have to throttle now" thing in "writepage()", not in the queue)
-
- - "nr of sectors" has very little to do with request latency on most
-   hardware. You can do 255 sectors (ie one request) almost as fast as you
-   can do just one, if you do them in one request. While just _two_
-   sectors might be much slower than the 255, if they are in separate
-   requests and cause seeking.
-
-   So from a latency standpoint, the "request" is a much better number.
-
-So Alan almost never throttles on requests (on big machines, the -ac tree
-allows thousands of requests in flight per queue), while he _does_ have
-this water-marking for sectors.
-
-So I have two suspicions:
-
- - 128 requests (ie 64 for writes) like the default kernel should be
-   _plenty_ enough to keep the disks busy, especially for streaming
-   writes. It's small enough that you don't get the absolutely _huge_
-   spikes you get with thousands of requests, while being large enough for
-   fast writers that even if they _do_ block for 32 of the 64 requests,
-   they'll have time to refill the next 32 long before the 32 pending one
-   have finished.
-
-   Also: limiting the write queue to 128 requests means that you can
-   pretty much guarantee that you can get at least a few read requests
-   per second, even if the write queue is constantly full, and even if
-   your reader is serialized.
-
-BUT:
-
- - the hard "batch" count is too harsh. It works as a watermark in the
-   degenerate case, but doesn't allow a second writer to use up _some_ of
-   the requests while the first writer is blocked due to watermarking.
-
-   So with batching, when the queue is full and another process wants
-   memory, that _OTHER_ process will also always block untilt he queue has
-   emptied.
-
-   With watermarks, when the writer has filled up the queue and starts
-   waiting, other processes can still do some writing as long as they
-   don't fill up the queue again. So if you have MM pressure but the
-   writer is blocked (and some requests _have_ completed, but the writer
-   waits for the low-water-mark), you can still push out requests.
-
-   That's also likely to be a lot more fair - batching tends to give the
-   whole batch to the big writer, while watermarking automatically allows
-   others to get a look at the queue.
-
-I'll whip up a patch for testing (2.4.14-2 made the batching slightly
-saner, but the same "hard" behaviour is pretty much unavoidable with
-batching)
-
-			Linus
+ZGlmZiAtdSAtLXJlY3Vyc2l2ZSBwcmUyL2xpbnV4L2RyaXZlcnMvYmxvY2sv
+bGxfcndfYmxrLmMgbGludXgvZHJpdmVycy9ibG9jay9sbF9yd19ibGsuYw0K
+LS0tIHByZTIvbGludXgvZHJpdmVycy9ibG9jay9sbF9yd19ibGsuYwlGcmkg
+T2N0IDI2IDA5OjQ4OjI1IDIwMDENCisrKyBsaW51eC9kcml2ZXJzL2Jsb2Nr
+L2xsX3J3X2Jsay5jCUZyaSBPY3QgMjYgMDk6NTM6NTQgMjAwMQ0KQEAgLTE0
+MCwyMSArMTQwLDIzIEBADQogCQlyZXR1cm4gJmJsa19kZXZbTUFKT1IoZGV2
+KV0ucmVxdWVzdF9xdWV1ZTsNCiB9DQogDQotc3RhdGljIGludCBfX2Jsa19j
+bGVhbnVwX3F1ZXVlKHN0cnVjdCBsaXN0X2hlYWQgKmhlYWQpDQorc3RhdGlj
+IGludCBfX2Jsa19jbGVhbnVwX3F1ZXVlKHN0cnVjdCByZXF1ZXN0X2xpc3Qg
+Kmxpc3QpDQogew0KKwlzdHJ1Y3QgbGlzdF9oZWFkICpoZWFkID0gJmxpc3Qt
+PmZyZWU7DQogCXN0cnVjdCByZXF1ZXN0ICpycTsNCiAJaW50IGkgPSAwOw0K
+IA0KLQlpZiAobGlzdF9lbXB0eShoZWFkKSkNCi0JCXJldHVybiAwOw0KLQ0K
+LQlkbyB7DQorCXdoaWxlICghbGlzdF9lbXB0eShoZWFkKSkgew0KIAkJcnEg
+PSBsaXN0X2VudHJ5KGhlYWQtPm5leHQsIHN0cnVjdCByZXF1ZXN0LCBxdWV1
+ZSk7DQogCQlsaXN0X2RlbCgmcnEtPnF1ZXVlKTsNCiAJCWttZW1fY2FjaGVf
+ZnJlZShyZXF1ZXN0X2NhY2hlcCwgcnEpOw0KIAkJaSsrOw0KLQl9IHdoaWxl
+ICghbGlzdF9lbXB0eShoZWFkKSk7DQorCX07DQogDQorCWlmIChpICE9IGxp
+c3QtPmNvdW50KQ0KKwkJcHJpbnRrKCJyZXF1ZXN0IGxpc3QgbGVhayFcbiIp
+Ow0KKw0KKwlsaXN0LT5jb3VudCA9IDA7DQogCXJldHVybiBpOw0KIH0NCiAN
+CkBAIC0xNzYsMTAgKzE3OCw4IEBADQogew0KIAlpbnQgY291bnQgPSBxdWV1
+ZV9ucl9yZXF1ZXN0czsNCiANCi0JY291bnQgLT0gX19ibGtfY2xlYW51cF9x
+dWV1ZSgmcS0+cmVxdWVzdF9mcmVlbGlzdFtSRUFEXSk7DQotCWNvdW50IC09
+IF9fYmxrX2NsZWFudXBfcXVldWUoJnEtPnJlcXVlc3RfZnJlZWxpc3RbV1JJ
+VEVdKTsNCi0JY291bnQgLT0gX19ibGtfY2xlYW51cF9xdWV1ZSgmcS0+cGVu
+ZGluZ19mcmVlbGlzdFtSRUFEXSk7DQotCWNvdW50IC09IF9fYmxrX2NsZWFu
+dXBfcXVldWUoJnEtPnBlbmRpbmdfZnJlZWxpc3RbV1JJVEVdKTsNCisJY291
+bnQgLT0gX19ibGtfY2xlYW51cF9xdWV1ZSgmcS0+cnFbUkVBRF0pOw0KKwlj
+b3VudCAtPSBfX2Jsa19jbGVhbnVwX3F1ZXVlKCZxLT5ycVtXUklURV0pOw0K
+IA0KIAlpZiAoY291bnQpDQogCQlwcmludGsoImJsa19jbGVhbnVwX3F1ZXVl
+OiBsZWFrZWQgcmVxdWVzdHMgKCVkKVxuIiwgY291bnQpOw0KQEAgLTMzMSwx
+MSArMzMxLDEwIEBADQogCXN0cnVjdCByZXF1ZXN0ICpycTsNCiAJaW50IGk7
+DQogDQotCUlOSVRfTElTVF9IRUFEKCZxLT5yZXF1ZXN0X2ZyZWVsaXN0W1JF
+QURdKTsNCi0JSU5JVF9MSVNUX0hFQUQoJnEtPnJlcXVlc3RfZnJlZWxpc3Rb
+V1JJVEVdKTsNCi0JSU5JVF9MSVNUX0hFQUQoJnEtPnBlbmRpbmdfZnJlZWxp
+c3RbUkVBRF0pOw0KLQlJTklUX0xJU1RfSEVBRCgmcS0+cGVuZGluZ19mcmVl
+bGlzdFtXUklURV0pOw0KLQlxLT5wZW5kaW5nX2ZyZWVbUkVBRF0gPSBxLT5w
+ZW5kaW5nX2ZyZWVbV1JJVEVdID0gMDsNCisJSU5JVF9MSVNUX0hFQUQoJnEt
+PnJxW1JFQURdLmZyZWUpOw0KKwlJTklUX0xJU1RfSEVBRCgmcS0+cnFbV1JJ
+VEVdLmZyZWUpOw0KKwlxLT5ycVtSRUFEXS5jb3VudCA9IDA7DQorCXEtPnJx
+W1dSSVRFXS5jb3VudCA9IDA7DQogDQogCS8qDQogCSAqIERpdmlkZSByZXF1
+ZXN0cyBpbiBoYWxmIGJldHdlZW4gcmVhZCBhbmQgd3JpdGUNCkBAIC0zNDks
+NyArMzQ4LDggQEANCiAJCX0NCiAJCW1lbXNldChycSwgMCwgc2l6ZW9mKHN0
+cnVjdCByZXF1ZXN0KSk7DQogCQlycS0+cnFfc3RhdHVzID0gUlFfSU5BQ1RJ
+VkU7DQotCQlsaXN0X2FkZCgmcnEtPnF1ZXVlLCAmcS0+cmVxdWVzdF9mcmVl
+bGlzdFtpICYgMV0pOw0KKwkJbGlzdF9hZGQoJnJxLT5xdWV1ZSwgJnEtPnJx
+W2kmMV0uZnJlZSk7DQorCQlxLT5ycVtpJjFdLmNvdW50Kys7DQogCX0NCiAN
+CiAJaW5pdF93YWl0cXVldWVfaGVhZCgmcS0+d2FpdF9mb3JfcmVxdWVzdCk7
+DQpAQCAtNDIzLDEwICs0MjMsMTIgQEANCiBzdGF0aWMgaW5saW5lIHN0cnVj
+dCByZXF1ZXN0ICpnZXRfcmVxdWVzdChyZXF1ZXN0X3F1ZXVlX3QgKnEsIGlu
+dCBydykNCiB7DQogCXN0cnVjdCByZXF1ZXN0ICpycSA9IE5VTEw7DQorCXN0
+cnVjdCByZXF1ZXN0X2xpc3QgKnJsID0gcS0+cnEgKyBydzsNCiANCi0JaWYg
+KCFsaXN0X2VtcHR5KCZxLT5yZXF1ZXN0X2ZyZWVsaXN0W3J3XSkpIHsNCi0J
+CXJxID0gYmxrZGV2X2ZyZWVfcnEoJnEtPnJlcXVlc3RfZnJlZWxpc3Rbcndd
+KTsNCisJaWYgKCFsaXN0X2VtcHR5KCZybC0+ZnJlZSkpIHsNCisJCXJxID0g
+YmxrZGV2X2ZyZWVfcnEoJnJsLT5mcmVlKTsNCiAJCWxpc3RfZGVsKCZycS0+
+cXVldWUpOw0KKwkJcmwtPmNvdW50LS07DQogCQlycS0+cnFfc3RhdHVzID0g
+UlFfQUNUSVZFOw0KIAkJcnEtPnNwZWNpYWwgPSBOVUxMOw0KIAkJcnEtPnEg
+PSBxOw0KQEAgLTQ0MywxNyArNDQ1LDEzIEBADQogCXJlZ2lzdGVyIHN0cnVj
+dCByZXF1ZXN0ICpycTsNCiAJREVDTEFSRV9XQUlUUVVFVUUod2FpdCwgY3Vy
+cmVudCk7DQogDQorCWdlbmVyaWNfdW5wbHVnX2RldmljZShxKTsNCiAJYWRk
+X3dhaXRfcXVldWVfZXhjbHVzaXZlKCZxLT53YWl0X2Zvcl9yZXF1ZXN0LCAm
+d2FpdCk7DQotCWZvciAoOzspIHsNCi0JCV9fc2V0X2N1cnJlbnRfc3RhdGUo
+VEFTS19VTklOVEVSUlVQVElCTEUpOw0KLQkJc3Bpbl9sb2NrX2lycSgmaW9f
+cmVxdWVzdF9sb2NrKTsNCi0JCXJxID0gZ2V0X3JlcXVlc3QocSwgcncpOw0K
+LQkJc3Bpbl91bmxvY2tfaXJxKCZpb19yZXF1ZXN0X2xvY2spOw0KLQkJaWYg
+KHJxKQ0KLQkJCWJyZWFrOw0KLQkJZ2VuZXJpY191bnBsdWdfZGV2aWNlKHEp
+Ow0KLQkJc2NoZWR1bGUoKTsNCi0JfQ0KKwlkbyB7DQorCQlzZXRfY3VycmVu
+dF9zdGF0ZShUQVNLX1VOSU5URVJSVVBUSUJMRSk7DQorCQlpZiAocS0+cnFb
+cnddLmNvdW50IDwgYmF0Y2hfcmVxdWVzdHMpDQorCQkJc2NoZWR1bGUoKTsN
+CisJfSB3aGlsZSAoKHJxID0gZ2V0X3JlcXVlc3QocSxydykpID09IE5VTEwp
+Ow0KIAlyZW1vdmVfd2FpdF9xdWV1ZSgmcS0+d2FpdF9mb3JfcmVxdWVzdCwg
+JndhaXQpOw0KIAljdXJyZW50LT5zdGF0ZSA9IFRBU0tfUlVOTklORzsNCiAJ
+cmV0dXJuIHJxOw0KQEAgLTU0MiwxNSArNTQwLDYgQEANCiAJbGlzdF9hZGQo
+JnJlcS0+cXVldWUsIGluc2VydF9oZXJlKTsNCiB9DQogDQotaW5saW5lIHZv
+aWQgYmxrX3JlZmlsbF9mcmVlbGlzdChyZXF1ZXN0X3F1ZXVlX3QgKnEsIGlu
+dCBydykNCi17DQotCWlmIChxLT5wZW5kaW5nX2ZyZWVbcnddKSB7DQotCQls
+aXN0X3NwbGljZSgmcS0+cGVuZGluZ19mcmVlbGlzdFtyd10sICZxLT5yZXF1
+ZXN0X2ZyZWVsaXN0W3J3XSk7DQotCQlJTklUX0xJU1RfSEVBRCgmcS0+cGVu
+ZGluZ19mcmVlbGlzdFtyd10pOw0KLQkJcS0+cGVuZGluZ19mcmVlW3J3XSA9
+IDA7DQotCX0NCi19DQotDQogLyoNCiAgKiBNdXN0IGJlIGNhbGxlZCB3aXRo
+IGlvX3JlcXVlc3RfbG9jayBoZWxkIGFuZCBpbnRlcnJ1cHRzIGRpc2FibGVk
+DQogICovDQpAQCAtNTY0LDI4ICs1NTMsMTIgQEANCiANCiAJLyoNCiAJICog
+UmVxdWVzdCBtYXkgbm90IGhhdmUgb3JpZ2luYXRlZCBmcm9tIGxsX3J3X2Js
+ay4gaWYgbm90LA0KLQkgKiBhc3VtbWUgaXQgaGFzIGZyZWUgYnVmZmVycyBh
+bmQgY2hlY2sgd2FpdGVycw0KKwkgKiBhc3N1bWUgaXQgaGFzIGZyZWUgYnVm
+ZmVycyBhbmQgY2hlY2sgd2FpdGVycw0KIAkgKi8NCiAJaWYgKHEpIHsNCi0J
+CS8qDQotCQkgKiBJZiBub2JvZHkgaXMgd2FpdGluZyBmb3IgcmVxdWVzdHMs
+IGRvbid0IGJvdGhlcg0KLQkJICogYmF0Y2hpbmcgdXAuDQotCQkgKi8NCi0J
+CWlmICghbGlzdF9lbXB0eSgmcS0+cmVxdWVzdF9mcmVlbGlzdFtyd10pKSB7
+DQotCQkJbGlzdF9hZGQoJnJlcS0+cXVldWUsICZxLT5yZXF1ZXN0X2ZyZWVs
+aXN0W3J3XSk7DQotCQkJcmV0dXJuOw0KLQkJfQ0KLQ0KLQkJLyoNCi0JCSAq
+IEFkZCB0byBwZW5kaW5nIGZyZWUgbGlzdCBhbmQgYmF0Y2ggd2FrZXVwcw0K
+LQkJICovDQotCQlsaXN0X2FkZCgmcmVxLT5xdWV1ZSwgJnEtPnBlbmRpbmdf
+ZnJlZWxpc3RbcnddKTsNCi0NCi0JCWlmICgrK3EtPnBlbmRpbmdfZnJlZVty
+d10gPj0gYmF0Y2hfcmVxdWVzdHMpIHsNCi0JCQlpbnQgd2FrZV91cCA9IHEt
+PnBlbmRpbmdfZnJlZVtyd107DQotCQkJYmxrX3JlZmlsbF9mcmVlbGlzdChx
+LCBydyk7DQotCQkJd2FrZV91cF9ucigmcS0+d2FpdF9mb3JfcmVxdWVzdCwg
+d2FrZV91cCk7DQotCQl9DQorCQlsaXN0X2FkZCgmcmVxLT5xdWV1ZSwgJnEt
+PnJxW3J3XS5mcmVlKTsNCisJCWlmICgrK3EtPnJxW3J3XS5jb3VudCA+PSBi
+YXRjaF9yZXF1ZXN0cyAmJiB3YWl0cXVldWVfYWN0aXZlKCZxLT53YWl0X2Zv
+cl9yZXF1ZXN0KSkNCisJCQl3YWtlX3VwKCZxLT53YWl0X2Zvcl9yZXF1ZXN0
+KTsNCiAJfQ0KIH0NCiANCkBAIC0xMTQ0LDcgKzExMTcsNyBAQA0KIAkvKg0K
+IAkgKiBCYXRjaCBmcmVlcyBhY2NvcmRpbmcgdG8gcXVldWUgbGVuZ3RoDQog
+CSAqLw0KLQliYXRjaF9yZXF1ZXN0cyA9IHF1ZXVlX25yX3JlcXVlc3RzLzM7
+DQorCWJhdGNoX3JlcXVlc3RzID0gcXVldWVfbnJfcmVxdWVzdHMvNDsNCiAJ
+cHJpbnRrKCJibG9jazogJWQgc2xvdHMgcGVyIHF1ZXVlLCBiYXRjaD0lZFxu
+IiwgcXVldWVfbnJfcmVxdWVzdHMsIGJhdGNoX3JlcXVlc3RzKTsNCiANCiAj
+aWZkZWYgQ09ORklHX0FNSUdBX1oyUkFNDQpkaWZmIC11IC0tcmVjdXJzaXZl
+IHByZTIvbGludXgvaW5jbHVkZS9saW51eC9ibGtkZXYuaCBsaW51eC9pbmNs
+dWRlL2xpbnV4L2Jsa2Rldi5oDQotLS0gcHJlMi9saW51eC9pbmNsdWRlL2xp
+bnV4L2Jsa2Rldi5oCVR1ZSBPY3QgMjMgMjI6MDE6MDEgMjAwMQ0KKysrIGxp
+bnV4L2luY2x1ZGUvbGludXgvYmxrZGV2LmgJRnJpIE9jdCAyNiAwOTozNjo0
+MSAyMDAxDQpAQCAtNjYsMTQgKzY2LDE3IEBADQogICovDQogI2RlZmluZSBR
+VUVVRV9OUl9SRVFVRVNUUwk4MTkyDQogDQorc3RydWN0IHJlcXVlc3RfbGlz
+dCB7DQorCXVuc2lnbmVkIGludCBjb3VudDsNCisJc3RydWN0IGxpc3RfaGVh
+ZCBmcmVlOw0KK307DQorDQogc3RydWN0IHJlcXVlc3RfcXVldWUNCiB7DQog
+CS8qDQogCSAqIHRoZSBxdWV1ZSByZXF1ZXN0IGZyZWVsaXN0LCBvbmUgZm9y
+IHJlYWRzIGFuZCBvbmUgZm9yIHdyaXRlcw0KIAkgKi8NCi0Jc3RydWN0IGxp
+c3RfaGVhZAlyZXF1ZXN0X2ZyZWVsaXN0WzJdOw0KLQlzdHJ1Y3QgbGlzdF9o
+ZWFkCXBlbmRpbmdfZnJlZWxpc3RbMl07DQotCWludAkJCXBlbmRpbmdfZnJl
+ZVsyXTsNCisJc3RydWN0IHJlcXVlc3RfbGlzdAlycVsyXTsNCiANCiAJLyoN
+CiAJICogVG9nZXRoZXIgd2l0aCBxdWV1ZV9oZWFkIGZvciBjYWNoZWxpbmUg
+c2hhcmluZw0K
+--168447515-392138068-1004115422=:2939--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
