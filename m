@@ -1,99 +1,53 @@
-Message-ID: <38EFB6B7.F737B82A@colorfullife.com>
-Date: Sun, 09 Apr 2000 00:46:15 +0200
-From: Manfred Spraul <manfreds@colorfullife.com>
+Date: Sun, 9 Apr 2000 01:10:19 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [patch] take 2 Re: PG_swap_entry bug in recent kernels
+In-Reply-To: <200004082147.OAA75650@google.engr.sgi.com>
+Message-ID: <Pine.LNX.4.21.0004090102560.342-100000@alpha.random>
 MIME-Version: 1.0
-Subject: Re: zap_page_range(): TLB flush race
-References: <200004082111.OAA73647@google.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: Ben LaHaise <bcrl@redhat.com>, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Kanoj Sarcar wrote:
-> 
-> >
-> > it seems we have a smp race in zap_page_range():
-> >
-> > When we remove a page from the page tables, we must call:
-> >
-> >       flush_cache_page();
-> >       pte_clear();
-> >       flush_tlb_page();
-> >       free_page();
-> >
-> > We must not free the page before we have called flush_tlb_xy(),
-> > otherwise the second cpu could access memory that already freed.
-> >
-> > but zap_page_range() calls free_page() before the flush_tlb() call.
-> >
-> > Is that really a bug, has anyone a good idea how to fix that?
-> 
-> Why do you think this is a bug? After the pte_clear, we need to flush
-> tlb, so that if anyone wants to drag in the mapping (by accessing the
-> virtual address), he will fault (since translation is not in tlb) and
-> wait on mmap_sem.
+On Sat, 8 Apr 2000, Kanoj Sarcar wrote:
 
-Because the second cpu can use a stale tlb entry. We must free the page
-_after_ the flush, not before the flush.
+>> 
+>> On Fri, 7 Apr 2000, Kanoj Sarcar wrote:
+>> 
+>> >> BTW, swap_out() always used the same locking order that I added to swapoff
+>> >> so if my patch is wrong, swap_out() is always been wrong as well ;).
+>> >
+>> >Not sure what you mean ... swap_out never grabbed the mmap_sem/page_table_lock
+>> >before (in 2.2. too).
+>> 
+>> In 2.2.x page_table_lock wasn't necessary because we was holding the big
+>> kernel lock.
+>
+>You have answered your own question in a later email. I quote you:
+>"Are you using read_swap_cache from any
+>swapin event? The problem is swapin can't use read_swap_cache because with
+>read_swap_cache we would never know if we're doing I/O on an inactive swap
+>entry"
+>
+>Grabbing lock_kernel in swap_in is not enough since it might get dropped
+>if the swap_in code goes to sleep for some reason.
 
-Example:
-cpu1, cpu2: execute 2 threads from one process.
-cpu3: unrelated thread that allocates a new page.
+I wasn't talking about races between swapoff/swapin.
 
-cpu1:
-1) writes to one page in a tight loop. The tlb entry won't be discared
-by the cpu without an explicit flush.
+I was talking about the locking order issue you raised about the necessary
+vmlist_*_lock I added in swapoff.
 
-cpu2:
-2) sys_munmap()
-* zap_page_range(): calls free_page() for each page in the area.
-do_munmap() for a 500 MB block will take a few milliseconds.
+What I meant is that in 2.2.x there was no need of the
+vmlist_*_lock/page_cache_lock in swapoff because we was relying on the big
+kernel lock while playing with pagetables and vmas (same in swap_out()).
 
-cpu3:
-3) somewhere: get_free_page(). Now it gets a pointer to a page that cpu1
-still writes to.
+In 2.3.x both swap_out and swapoff needs to grab first the tasklist_lock
+(as in 2.2.x) and then the vmlist_*_lock (otherwise as first the vma
+browsing may happen during a vma list modification).
 
-cpu2:
-4) zap_page_range() returns, now the tlb is flushed.
-
-cpu1:
-5) received the ipi, the local tlb is flushed, page fault.
-* but: cpu1 stomped on the page that was allocated by cpu3.
-
-
-> 
-> But a race does exist in establish_pte(), when the flush_tlb happens
-> _before_ the set_pte(), another thread might drag in the old translation
-> on a different cpu.
-> 
-
-Yes, establish_pte() is broken. We should reverse the calls:
-
-	set_pte(); /* update the kernel page tables */
-	update_mmu(); /* update architecture specific page tables. */
-	flush_tlb();  /* and flush the hardware tlb */
-
-
-> > 
-> > filemap_sync() calls flush_tlb_page() for each page, but IMHO this is a
-> > really bad idea, the performance will suck with multi-threaded apps on
-> > SMP.
-> 
-> The best you can do probably is a flush_tlb_range?
-
-filemap_sync() calls both flush_tlb_range() and flush_tlb_page() on each
-page, I just don't know which call I should remove :-/
-
-Btw, I couldn't find an update_mmu_range() function, what's the exact
-purpose of update_mmu_cache()? mips64 uses this function.
-
-Can't we merge update_mmu_cache() with flush_tlb_page()?
-
---
-	Manfred
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
