@@ -1,80 +1,94 @@
-Received: from inergen.sybase.com (inergen.sybase.com [192.138.151.43])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA31654
-	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 18:36:01 -0500
-Message-ID: <36AFA207.AB6D149E@sybase.com>
-Date: Wed, 27 Jan 1999 17:32:23 -0600
-From: Jason Froebe <jfroebe@sybase.com>
-MIME-Version: 1.0
-Subject: Re: Shared memory segment > 1gb
-References: <F6D006CF40DA6D8485256706006560F5.006560A786256706@sybase.com>
-Content-Type: multipart/mixed;
- boundary="------------03FEC94B406D698DBC8E2130"
+Received: from remus.clara.net (remus.clara.net [195.8.69.79])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA31852
+	for <Linux-MM@kvack.org>; Wed, 27 Jan 1999 18:55:32 -0500
+Received: from atlantis.mail (du-1537.claranet.co.uk [195.8.78.102])
+	by remus.clara.net (8.8.8/8.8.8) with SMTP id XAA19119
+	for <Linux-MM@kvack.org>; Wed, 27 Jan 1999 23:54:00 GMT
+	(envelope-from ph@clara.net)
+From: Paul Hamshere <ph@clara.net>
+Subject: Fwd: Inoffensive bug in mm/page_alloc.c
+Reply-To: Paul Hamshere <ph@clara.net>
+Message-Id: <990127235552.n0002181.ph@mail.clara.net>
+References: <990119214302.n0001113.ph@mail.clara.net>
+Date: Wed, 27 Jan 99 23:55:52 GMT
 Sender: owner-linux-mm@kvack.org
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>
+To: Linux-MM@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------03FEC94B406D698DBC8E2130
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Is this of any interest here?
+Paul
+------------------------------
+Hi
+I was trawling through the mm sources to try and understand how linux tracks the
+use of pages of memory, how kmalloc and vmalloc work, and I think there is a bug
+in the kernel (2.0) - it doesn't affect anything, only waste a tiny amount of
+memory....does anyone else think it looks wrong?
+The problem is in free_area_init where it allocates the bitmaps - I think they
+are twice the size they need to be.
+The dodgy line is
 
-Jason Froebe wrote:
+            bitmap_size = (end_mem - PAGE_OFFSET) >> (PAGE_SHIFT + i );
 
-> Hi,
->
-> I'm trying to get a shared memory segment of just under 2 gb.  So
-> far, I've been able to get a 893mb shared segment by altering the
-> _SHM_IDX_BITS to 18 in include/asm/shmparam.h using the 2.2.0
-> kernel.  I'm assuming I can set the _SHM_IDX_BITS to 19 without a
-> problem (more overhead though), but since this is my "working"
-> computer, I don't want any surprises.  is this possible without
-> breaking something?  I glanced at the code but didn't see any
-> obvious "gotchas".
->
-> Don't ask why I don't use multiple segments.  It's not my
-> decision.
->
-> Jason
->
->  - jfroebe.vcf
+which I think should be 
 
-Hi,
+            bitmap_size = (end_mem - PAGE_OFFSET) >> (PAGE_SHIFT + i + 1);
 
-I've increased the _SHM_IDX_BITS to 19 and decreased _SHM_ID_BITS to
-5 with SHMMAX set to 2gb - 2*page size but it didn't help.  I'm
-still stuck at 893mb.
+because the bitmap refers to adjacent pages.
+I've changed my kernel to the second line and it seems to work.
+Paul
 
-Does anyone know of how to increase the shared memory segment
-further without using multiple segments?
 
-Thanks
+----------------------------------------------------
 
-Jason
+unsigned long free_area_init(unsigned long start_mem, unsigned long end_mem)
+{
+      mem_map_t * p;
+      unsigned long mask = PAGE_MASK;
+      int i;
 
---------------03FEC94B406D698DBC8E2130
-Content-Type: text/x-vcard; charset=us-ascii;
- name="jfroebe.vcf"
-Content-Transfer-Encoding: 7bit
-Content-Description: Card for Jason Froebe
-Content-Disposition: attachment;
- filename="jfroebe.vcf"
+      /*
+       * select nr of pages we try to keep free for important stuff
+       * with a minimum of 48 pages. This is totally arbitrary
+       */
+      i = (end_mem - PAGE_OFFSET) >> (PAGE_SHIFT+7);
+      if (i < 24)
+            i = 24;
+      i += 24;   /* The limit for buffer pages in __get_free_pages is
+                * decreased by 12+(i>>3) */
+      min_free_pages = i;
+      free_pages_low = i + (i>>1);
+      free_pages_high = i + i;
+      start_mem = init_swap_cache(start_mem, end_mem);
+      mem_map = (mem_map_t *) start_mem;
+      p = mem_map + MAP_NR(end_mem);
+      start_mem = LONG_ALIGN((unsigned long) p);
+      memset(mem_map, 0, start_mem - (unsigned long) mem_map);
+      do {
+            --p;
+            p->flags = (1 << PG_DMA) | (1 << PG_reserved);
+            p->map_nr = p - mem_map;
+      } while (p > mem_map);
 
-begin:vcard 
-n:Froebe;Jason
-tel;fax:773-864-7288
-tel;work:1-800-8SYBASE
-x-mozilla-html:TRUE
-url:http://www.sybase.com
-org:Sybase, Inc.;Technical Support
-adr:;;8755 W. Higgins Road Suite 1000	;Chicago;IL;60631;USA
-version:2.1
-email;internet:jfroebe@sybase.com
-title:Technical Support Engineer
-x-mozilla-cpt:;20256
-fn:Jason Froebe
-end:vcard
+      for (i = 0 ; i < NR_MEM_LISTS ; i++) {
+            unsigned long bitmap_size;
+            init_mem_queue(free_area+i);
+            mask += mask;
+            end_mem = (end_mem + ~mask) & mask;
+/* commented out because not correct ?? PH
+            bitmap_size = (end_mem - PAGE_OFFSET) >> (PAGE_SHIFT + i);
+*/
+            bitmap_size = (end_mem - PAGE_OFFSET) >> (PAGE_SHIFT + i +1);
+            bitmap_size = (bitmap_size + 7) >> 3;
+            bitmap_size = LONG_ALIGN(bitmap_size);
+            free_area[i].map = (unsigned int *) start_mem;
+            memset((void *) start_mem, 0, bitmap_size);
+            start_mem += bitmap_size;
+      }
+      return start_mem;
+}
 
---------------03FEC94B406D698DBC8E2130--
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
