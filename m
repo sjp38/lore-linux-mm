@@ -1,32 +1,27 @@
-Date: Fri, 25 Oct 2002 13:31:41 -0400 (EDT)
-From: Bill Davidsen <davidsen@tmr.com>
-Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
-In-Reply-To: <2832683854.1035444175@[10.10.2.3]>
-Message-ID: <Pine.LNX.3.96.1021025133002.19333A-100000@gatekeeper.tmr.com>
+Date: Fri, 25 Oct 2002 13:50:15 -0200 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: rmap for 2.4.19-strict-vm-overcommit?
+In-Reply-To: <20021025185438.69ca2c1a.shahamit@gmx.net>
+Message-ID: <Pine.LNX.4.44L.0210251349570.1995-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Amit Shah <shahamit@gmx.net>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 24 Oct 2002, Martin J. Bligh wrote:
+On Fri, 25 Oct 2002, Amit Shah wrote:
 
-> > Another thought, how does this play with NUMA systems? I don't have the
-> > problem, but presumably there are implications.
-> 
-> At some point we'll probably only want one shared set per node.
-> Gets tricky when you migrate processes across nodes though - will
-> need more thought
+> Is there an rmap patch for 2.4.19-strict-vm-overcommit?
 
-The whole issue of pages shared between nodes is a graduate thesis waiting
-to happen.
+The combination of rmap and strict overcommit is in -ac
 
+Rik
 -- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
+Bravely reimplemented by the knights who say "NIH".
+http://www.surriel.com/		http://distro.conectiva.com/
+Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
