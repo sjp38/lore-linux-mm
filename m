@@ -1,30 +1,34 @@
-From: "Mr. Sachenger" <tofy65@hotmail.com>
-Subject: Direct Generic Drugs! Save Over 70%! Overnight Shipping!                 G
-Date: Sat, 04 Dec 2004 14:47:49 -0500
-Reply-To: tofy65@hotmail.com
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: Is sizeof(void *) ever != sizeof(unsigned long)?
+From: Nigel Cunningham <ncunningham@linuxmail.org>
+Reply-To: ncunningham@linuxmail.org
+In-Reply-To: <1102177577.6052.39.camel@localhost>
+References: <1102155752.1018.7.camel@desktop.cunninghams>
+	 <1102177577.6052.39.camel@localhost>
+Content-Type: text/plain
+Message-Id: <1102194893.4884.2.camel@desktop.cunninghams>
+Mime-Version: 1.0
+Date: Sun, 05 Dec 2004 08:14:54 +1100
 Content-Transfer-Encoding: 7bit
-Message-Id: <20041204194807Z26560-766+1869@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ninara@tiscali.it, ramola23@rediffmail.com, support@burstfire.net, yourname@worldsgreatestchef.com, jobs@worldsite.ws, email@africa-11.com, lisedeke@rapote.net, vace@yi.com, fmnu@quickonlinepharmacy.com, linux-mm@kvack.org
+To: Robert Love <rml@novell.com>, Fawad Lateef <fawad_lateef@yahoo.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Cheap Meds most charge $14.95 we charge only $2.59
+Thanks for the replies.
 
-No Prescr1pt1ion requ1red
-sh1pped wor1dw1ide
+Regards,
 
+Nigel
+-- 
+Nigel Cunningham
+Pastoral Worker
+Christian Reformed Church of Tuggeranong
+PO Box 1004, Tuggeranong, ACT 2901
 
-Check it out I saved over 70% 
+You see, at just the right time, when we were still powerless, Christ
+died for the ungodly.		-- Romans 5:6
 
-http://www.the-rxsite.com/?hotstuff
-
-
-
-Ho Ho HO!  Happy Holidays!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
