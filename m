@@ -1,66 +1,53 @@
-Date: Thu, 20 Dec 2001 01:39:28 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH *] 2.4.16-rmap-6
-Message-ID: <Pine.LNX.4.33L.0112200121290.15741-100000@imladris.surriel.com>
+Date: Wed, 19 Dec 2001 22:56:50 -0500 (EST)
+From: Vladimir Dergachev <volodya@mindspring.com>
+Reply-To: Vladimir Dergachev <volodya@mindspring.com>
+Subject: Re: Allocation of kernel memory >128K
+In-Reply-To: <Pine.LNX.4.21.0112121303010.1319-100000@mailhost.tifr.res.in>
+Message-ID: <Pine.LNX.4.20.0112192254260.10881-100000@node2.localnet.net>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: "Amit S. Jain" <amitjain@tifr.res.in>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Take a look at rvmalloc code in bt848 driver (or a copy of it in km,
+http://gatos.sf.net which is somewhat separated out). BT848 and km are 
+using it to get large chunks (~300K) of memory which are contiguous in
+kernel virtual space but not contiguous physically. Sure makes much
+easier to work with buffers than a bunch of separate pages.
 
-The 6th version of the reverse mapping based VM is now available.
-This is an attempt at making a more robust and flexible VM
-subsystem, while cleaning up a lot of code at the time. The patch
-is available from:
+                          Vladimir Dergachev
 
-	   http://surriel.com/patches/2.4/2.4.16-rmap-6
-and        http://linuxvm.bkbits.net/
+On Wed, 12 Dec 2001, Amit S. Jain wrote:
 
-
-The big TODO items for the _next_ release are:
-  - integrate some of wli's pigmem stuff
-  - fix page_launder() so it doesn't submit the whole
-    inactive_dirty list for writeout in one go
-
-
-Changelog:
-
-rmap 6:
-  - make the active and inactive_dirty list per zone,
-    this is finally possible because we can free pages
-    based on their physical address                    (William Lee Irwin)
-  - cleaned up William's code a bit                                   (me)
-  - turn some defines into inlines and move those to
-    mm_inline.h (the includes are a mess ...)                         (me)
-  - improve the VM balancing a bit                                    (me)
-  - add back inactive_target to /proc/meminfo                         (me)
-rmap 5:
-  - fixed recursive buglet, introduced by directly
-    editing the patch for making rmap 4 ;)))                          (me)
-rmap 4:
-  - look at the referenced bits in page tables                        (me)
-rmap 3:
-  - forgot one FASTCALL definition                                    (me)
-rmap 2:
-  - teach try_to_unmap_one() about mremap()                           (me)
-  - don't assign swap space to pages with buffers                     (me)
-  - make the rmap.c functions FASTCALL / inline                       (me)
-rmap 1:
-  - fix the swap leak in rmap 0                           (Dave McCracken)
-rmap 0:
-  - port of reverse mapping VM to 2.4.16                              (me)
-
-regards,
-
-Rik
--- 
-Shortwave goes a long way:  irc.starchat.net  #swl
-
-http://www.surriel.com/		http://distro.conectiva.com/
+> 
+> Thank u everyone for the response to my question bout allocatin huge
+> amount of memeory in kernel space....
+> For a few people who wanted to know why I m allocating such a huge memory
+> and do i really need contiguous memory...here it is
+> 
+> ---- Basically what my module is doing is trying to make the communication
+> between kernel to kernel in a Linux Cluster transparent tp TCP/IP.
+> So to transmit the data I copy the data from the user area to the kernel
+> area and then to the n/w buffers.So what I was trying to do is transfer
+> the entire data from user to kernel space at one go(allocating huge memory
+> at kernel)....since this is not possible I can always divide the data into
+> 30K packets and then copy it to the kernel space...
+> 
+> P.S I am new to the Linux Kernel ...hence please excuse ne naive comments
+> in the above ..
+> 
+> 
+> Amit 
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
