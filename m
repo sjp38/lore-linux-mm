@@ -1,56 +1,105 @@
-Subject: Re: [BUG] Re: 2.6.0-test8-mm1
-From: =?ISO-8859-1?Q?Ram=F3n?= Rey Vicente <ramon.rey@hispalinux.es>
-In-Reply-To: <20031020131008.19125b7c.akpm@osdl.org>
-References: <20031020020558.16d2a776.akpm@osdl.org>
-	 <1066677679.2121.3.camel@debian>  <20031020131008.19125b7c.akpm@osdl.org>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-/2j7gD3SPDm3rv8+OAcD"
-Message-Id: <1066686831.3629.2.camel@debian>
-Mime-Version: 1.0
-Date: Mon, 20 Oct 2003 23:53:52 +0200
+From: Thomas Schlichter <schlicht@uni-mannheim.de>
+Subject: Re: 2.6.0-test8-mm1
+Date: Tue, 21 Oct 2003 00:01:01 +0200
+References: <20031020020558.16d2a776.akpm@osdl.org> <200310201811.18310.schlicht@uni-mannheim.de> <20031020144836.331c4062.akpm@osdl.org>
+In-Reply-To: <20031020144836.331c4062.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: multipart/signed;
+  protocol="application/pgp-signature";
+  micalg=pgp-sha1;
+  boundary="Boundary-03=_ksFl/u3rQZn2u7y";
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200310210001.08761.schlicht@uni-mannheim.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-/2j7gD3SPDm3rv8+OAcD
-Content-Type: text/plain; charset=iso-8859-15
+--Boundary-03=_ksFl/u3rQZn2u7y
+Content-Type: multipart/mixed;
+  boundary="Boundary-01=_dsFl/vYGfSfRo5V"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+
+--Boundary-01=_dsFl/vYGfSfRo5V
+Content-Type: text/plain;
+  charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline
 
-El lun, 20-10-2003 a las 22:10, Andrew Morton escribi=F3:
-> Ram=F3n Rey Vicente <rrey@ranty.pantax.net> wrote:
-> >
-> > The same problem with other kernel versions. I get it trying to delete
-> > my local 2.6 svn repository:
-> >=20
-> > EXT3-fs error (device hdb1): ext3_free_blocks: Freeing blocks in system
-> > zones - Block =3D 512, count =3D 1
->=20
-> This is consistent with a corrupted filesystem.  Have you forced a fsck
-> against that partition?
+On Monday 20 October 2003 23:48, Andrew Morton wrote:
+> A colleague here has discovered that this crash is repeatable, but goes
+> away when the radeon driver is disabled.
+>
+> Are you using that driver?
 
-Ups, yes, it seems the filesystem was corrupted/inconsistent but with a
-fsck now all is OK. Sorry for this. :-X
---=20
-Ram=F3n Rey Vicente       <ramon dot rey at hispalinux dot es>
-        jabber ID       <rreylinux at jabber dot org>
-GPG public key ID 	0xBEBD71D5 -> http://pgp.escomposlinux.org/
+No, I'm not... I use the vesafb driver. Do you think disabling this could c=
+ure=20
+the Oops?
 
---=-/2j7gD3SPDm3rv8+OAcD
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: Esta parte del mensaje =?ISO-8859-1?Q?est=E1?= firmada
-	digitalmente
+Btw. a similar Oops at the same place occours when the uhci-hcd module is=20
+unloaded...
+
+The attached patch prevents the kernel from Oopsing, so it seems some inode=
+=20
+lists are corrupted (NULL terminated!). Don't know how the FB driver could =
+be=20
+the reason...
+
+Regards
+   Thomas
+
+--Boundary-01=_dsFl/vYGfSfRo5V
+Content-Type: text/x-diff;
+  charset="iso-8859-1";
+  name="hack-invalidate_list.diff"
+Content-Transfer-Encoding: quoted-printable
+Content-Disposition: inline;
+	filename="hack-invalidate_list.diff"
+
+=2D-- linux-2.6.0-test8-mm1/fs/inode.c.orig	Mon Oct 20 20:52:26 2003
++++ linux-2.6.0-test8-mm1/fs/inode.c	Mon Oct 20 22:43:52 2003
+@@ -292,14 +292,16 @@
+ 	int busy =3D 0, count =3D 0;
+=20
+ 	next =3D head->next;
+=2D	for (;;) {
+=2D		struct list_head * tmp =3D next;
++	while (next !=3D head) {
+ 		struct inode * inode;
+=2D
+=2D		next =3D next->next;
+=2D		if (tmp =3D=3D head)
++#if 1
++		if (!next) {
++			printk(KERN_ERR "Badness in invalidate_list() !\n");
+ 			break;
+=2D		inode =3D list_entry(tmp, struct inode, i_list);
++		}
++#endif
++		inode =3D list_entry(next, struct inode, i_list);
++		next =3D next->next;
+ 		if (inode->i_sb !=3D sb)
+ 			continue;
+ 		invalidate_inode_buffers(inode);
+
+--Boundary-01=_dsFl/vYGfSfRo5V--
+
+--Boundary-03=_ksFl/u3rQZn2u7y
+Content-Type: application/pgp-signature
+Content-Description: signature
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.3 (GNU/Linux)
+Version: GnuPG v1.2.1 (GNU/Linux)
 
-iD8DBQA/lFlvRGk68b69cdURAk6dAJ9RU556OdgyKurha+ToKcy2st+1lACeL/Xm
-FEU5NWreJgd/aFieh4eux5M=
-=Hm+u
+iD8DBQA/lFskYAiN+WRIZzQRAql1AKCQ0xAdDINpDANJsfhyoeCYz/73rwCdF/Mn
+B++kh++gSrj63mAscziiFJs=
+=B76l
 -----END PGP SIGNATURE-----
 
---=-/2j7gD3SPDm3rv8+OAcD--
-
+--Boundary-03=_ksFl/u3rQZn2u7y--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
