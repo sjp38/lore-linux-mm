@@ -1,64 +1,95 @@
-Date: Mon, 24 May 2004 14:53:03 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: Slab cache reap and CPU availability
-Message-Id: <20040524145303.45c8f8a6.akpm@osdl.org>
-In-Reply-To: <200405241539.i4OFddJQ016338@fsgi142.americas.sgi.com>
-References: <20040521191609.6f4a49a7.akpm@osdl.org>
-	<200405241539.i4OFddJQ016338@fsgi142.americas.sgi.com>
+Date: Tue, 25 May 2004 05:43:26 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
+Message-ID: <20040525034326.GT29378@dualathlon.random>
+References: <1085369393.15315.28.camel@gaston> <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org> <1085371988.15281.38.camel@gaston> <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org> <1085373839.14969.42.camel@gaston> <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dimitri Sivanich <sivanich@sgi.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dimitri Sivanich <sivanich@sgi.com> wrote:
->
-> > Do you have stack backtraces?  I thought the problem was via the RCU
-> > softirq callbacks, not via the timer interrupt.  Dipankar spent some time
-> > looking at the RCU-related problem but solutions are not comfortable.
-> > 
-> > What workload is triggering this?
-> > 
-> 
-> The IA/64 backtrace with all the cruft removed looks as follows:
-> 
-> 0xa000000100149ac0 reap_timer_fnc+0x100
-> 0xa0000001000f4d70 run_timer_softirq+0x2d0
-> 0xa0000001000e9440 __do_softirq+0x200
-> 0xa0000001000e94e0 do_softirq+0x80
-> 0xa000000100017f50 ia64_handle_irq+0x190
-> 
-> The system is running mostly AIM7, but I've seen holdoffs > 30 usec with
-> virtually no load on the system.
+On Sun, May 23, 2004 at 10:10:16PM -0700, Linus Torvalds wrote:
+> what you found is actually a (really really) unlikely race condition that
+> can have serious consequences.
 
-They're pretty low latencies you're talking about there.
+agreed, it could in theory lose the dirty bit.
 
-You should be able to reduce the amount of work in that timer handler by
-limiting the size of the per-cpu caches in the slab allocator.  You can do
-that by writing a magic incantation to /proc/slabinfo or:
+> course, back then SMP wasn't an issue, and this seems to have survived all 
+> the SMP fixes.
 
---- 25/mm/slab.c~a	Mon May 24 14:51:32 2004
-+++ 25-akpm/mm/slab.c	Mon May 24 14:51:37 2004
-@@ -2642,6 +2642,7 @@ static void enable_cpucache (kmem_cache_
- 	if (limit > 32)
- 		limit = 32;
- #endif
-+	limit = 8;
- 	err = do_tune_cpucache(cachep, limit, (limit+1)/2, shared);
- 	if (err)
- 		printk(KERN_ERR "enable_cpucache failed for %s, error %d.\n",
+looks like to trigger this two threads needs to page fault on the same
+not-present MAP_SHARED page at the same time and the second thread must be a
+read-fault. The first thread will establish the pte writeable and
+dirty, then the first thread releases the page_table_lock, then the VM
+takes the page_table_lock (from kswapd or similar) then the VM transfers
+the dirty bit from pte to page and it even starts the and completes the
+I/O before the the read-fault has a chance to execute. Then after the
+I/O is completed the second thread finally takes the page_table_lock and
+reads the pte. Then the first thread writes to the page from userspace
+marking the pte dirty , and finally the second thread completes the
+page_fault running pte_establish and losing the dirty bit on the page.
 
-_
+Maybe it can trigger even without I/O in between, not sure, certainly it
+can happen in the above scenario, but the I/O window is quite huge for
+not being able to take a spinlock before the I/O is started.
 
+The below patch should fix it, the only problem is that it can screwup
+some arch that might use page-faults to keep track of the accessed bit,
+I think for istance ia64 might do that, not sure if it's using it in
+linux though. anyways the below should be the optimal fix for x86 and
+x86-64 at least and the other archs will not corrupt memory anymore too
+(at worst they will live lock in userspace, and the livelock should be
+solvable gracefully with sigkill since it's an userspace one).
 
-> Which uncomfortable solutions (which could relate to this case) have been
-> investigated?
+warning, patch is absolutely untested.
 
-That work was focussed on the amount of work which is performed in a single
-RCU callback, not in the slab timer handler.
+Index: mm/memory.c
+===================================================================
+RCS file: /home/andrea/crypto/cvs/linux-2.5/mm/memory.c,v
+retrieving revision 1.154
+diff -u -p -r1.154 memory.c
+--- mm/memory.c	20 Apr 2004 14:22:03 -0000	1.154
++++ mm/memory.c	25 May 2004 03:04:48 -0000
+@@ -1665,10 +1665,30 @@ static inline int handle_pte_fault(struc
+ 			return do_wp_page(mm, vma, address, pte, pmd, entry);
+ 
+ 		entry = pte_mkdirty(entry);
++
++		/*
++		 * We can overwrite the pte not atomically only if this is a
++		 * write fault or we can lose the dirty bit. The dirty and the
++		 * accessed bit are the only two things that can change form
++		 * under us even if we hold the page_table_lock, they're
++		 * set by hardware while other threads runs in userspace.
++		 *
++		 * This could cause an infinite loop with a read-fault if some
++		 * arch tries to keep track of the accessed bit with a kernel
++		 * page fault (but keeping track of the accessed bit with
++		 * kernel exceptions sounds very inefficient anyways).
++		 * If some arch infinite loops, they will have to implement
++		 * some sort of atomic ptep_stablish where they atomically
++		 * compare and swap, then we'll change the common code here
++		 * to learn how to atomic swap the pte.
++		 *
++		 * x86 and x86-64 are sure optimal without atomic ops here and
++		 * with this simple code.
++		 */
++		entry = pte_mkyoung(entry);
++		ptep_establish(vma, address, pte, entry);
++		update_mmu_cache(vma, address, entry);
+ 	}
+-	entry = pte_mkyoung(entry);
+-	ptep_establish(vma, address, pte, entry);
+-	update_mmu_cache(vma, address, entry);
+ 	pte_unmap(pte);
+ 	spin_unlock(&mm->page_table_lock);
+ 	return VM_FAULT_MINOR;
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
