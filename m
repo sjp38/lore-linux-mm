@@ -1,54 +1,71 @@
-Received: from adore.lightlink.com (kimoto@adore.lightlink.com [205.232.34.20])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA30900
-	for <linux-mm@kvack.org>; Sun, 21 Jun 1998 16:19:59 -0400
-From: Paul Kimoto <kimoto@lightlink.com>
-Message-ID: <19980621161940.A18093@adore.lightlink.com>
-Date: Sun, 21 Jun 1998 16:19:40 -0400
-Subject: Re: update re: fork() failures in 2.1.103
-References: <19980618235448.18503@adore.lightlink.com> <Pine.LNX.3.96.980619093210.6052C-100000@mirkwood.dummy.home>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.3.96.980619093210.6052C-100000@mirkwood.dummy.home>; from Rik van Riel on Fri, Jun 19, 1998 at 09:33:54AM +0200
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA16435
+	for <linux-mm@kvack.org>; Wed, 24 Jun 1998 17:31:59 -0400
+Date: Wed, 24 Jun 1998 22:19:29 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: accounting for kernel resources
+In-Reply-To: <19980624110227.38267@lucifer.guardian.no>
+Message-ID: <Pine.LNX.3.96.980624221108.27393F-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linux MM <linux-mm@kvack.org>
+To: Alexander Kjeldaas <astor@guardian.no>
+Cc: security-audit@ferret.lmh.ox.ac.uk, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-RECAP: In 2.1.99, 2.1.101, 2.1.103, and 2.1.104-pre1, my system has been
-usable for only ~1 day with 32 MB of memory, or ~2.5 days with 48 MB.
-Then my system has trouble forking, typically with EAGAIN.  The situation
-can be alleviated temporarily by killing off a few processes, but the
-errors always reappear soon thereafter.  I have sent in the results of
-Shift-ScrollLock, which Rik thinks are not typical of excessive memory
-fragmentation.
+On Wed, 24 Jun 1998, Alexander Kjeldaas wrote:
 
-Now, I have scripts that run "ifconfig ppp0" hourly (to check whether PPP
-is "UP").  Recently I joined the modern era by changing from net-tools
-1.432 to 1.45.  The forking errors have gone away (at least for uptimes
-twice the above).  When I changed these scripts to run "/sbin/ifconfig.old
-ppp0" instead, they came back.
+> I know Alan Cox has given some thought to accounting the memory
+> mapping resources allocated by the kernel (pte). I haven't seen the
 
-Running the old ifconfig (when the problem arises) would put "kmod: fork
-failed, errno 11" messages in the logfiles.  The new ifconfig doesn't.
-Running strace on "ifconfig ppp0" shows that the old version makes the
-following system calls that the new one doesn't:
+These should probably be allocated to both the process
+involved _and_ to a special page_tbl statistic. It would
+be nice to see how much overhead the pagetables _really_
+take up (and their impact on memory fragmentation).
+Also, this statistic will be somewhat needed once I implement
+the zone allocator...
 
-> socket(PF_??? (0x4), SOCK_DGRAM, , 0)   = -1 ENOSYS (Function not implemented)
-> socket(PF_??? (0x4), SOCK_DGRAM, , 0)   = -1 ENOSYS (Function not implemented)
-> socket(PF_??? (0x4), SOCK_DGRAM, , 0)   = -1 EINVAL (Invalid argument)
-> socket(PF_??? (0x3), SOCK_DGRAM, , 0)   = -1 ENOSYS (Function not implemented)
-> socket(PF_??? (0x3), SOCK_DGRAM, , 0)   = -1 ENOSYS (Function not implemented)
-> socket(PF_??? (0x3), SOCK_DGRAM, , 0)   = -1 EINVAL (Invalid argument) 
-> socket(PF_??? (0x5), SOCK_DGRAM, , 0)   = -1 ENOSYS (Function not implemented)
-> socket(PF_??? (0x5), SOCK_DGRAM, , 0)   = -1 ENOSYS (Function not implemented)
-> socket(PF_??? (0x5), SOCK_DGRAM, , 0)   = -1 EINVAL (Invalid argument)
+> design so I don't know how it works, but I'd like the kernel to
+> account for resources allocated more aggressively. A simple step would
+> be to let all structures allocated by kmalloc and associated with a
+> process be accounted for. Ideally, the only thing the kernel should be
 
-(I am not sure whether these system calls have been taken out of the 
-new ifconfig, or whether I merely configured net-tools to be ignorant
-of appletalk, etc.)
+This is a very good idea, but we must be careful about some
+things...
 
-Something about my old ifconfig must be triggering a bug (or hardware
-error?) somewhere.  I am willing to take further suggestions for
-experiments to try, if anyone is still interested.
+> responsible for should be caches that can be shrinked without having
+> any user-land effects. The accounting should not naively count the
+> number of bytes allocated, but take into account alignment-issues.
 
-	-Paul <kimoto@lightlink.com>
-	 (please cc: relevant messages to me)
+What about network buffers and other stuff that's been
+pushed 'under' the current process but that doesn't really
+belong to it?
+There are several border cases, we probably should just
+give an extra argument to get_free_page() saying to which
+entitie(s) the memory should be charged...
+
+> I think implementing this should be fairly easy - basically extending
+> rlimits and making a few macros. However, there might be some
+> border-cases where accounting is difficult. I can't think of them, but
+> others on this list might come up with something.
+
+DMA buffers, for character devices we probably want to
+charge the process using it, for block devices the choice
+is less obvious... (TAR-usage, filesystem, database on raw
+disk, etc)
+
+All shared memory things. Buffers replicated from a written-too
+pagecache page (not dirty since the pagecache uses write-through
+to the buffer cache). Network buffers, filehandles and other
+stuff that's too small to charge to individual processes. These
+things grow large however when a process uses tons of 'em (500
+filehandles).
+
+The memory used to index the above cruft :)
+
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
