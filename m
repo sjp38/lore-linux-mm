@@ -1,34 +1,29 @@
-Received: from haymarket.ed.ac.uk (haymarket.ed.ac.uk [129.215.128.53])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA24977
-	for <linux-mm@kvack.org>; Tue, 24 Mar 1998 18:39:15 -0500
-Date: Tue, 24 Mar 1998 22:54:18 GMT
-Message-Id: <199803242254.WAA03274@dax.dcs.ed.ac.uk>
-From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from dm.cobaltmicro.com (davem@dm.cobaltmicro.com [209.133.34.35])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA25042
+	for <linux-mm@kvack.org>; Tue, 24 Mar 1998 18:49:12 -0500
+Date: Tue, 24 Mar 1998 15:45:21 -0800
+Message-Id: <199803242345.PAA02702@dm.cobaltmicro.com>
+From: "David S. Miller" <davem@dm.cobaltmicro.com>
+In-reply-to: <199803242254.WAA03274@dax.dcs.ed.ac.uk> (sct@dcs.ed.ac.uk)
 Subject: Re: Lazy page reclamation on SMP machines: memory barriers
-In-Reply-To: <Pine.LNX.3.95.980323151332.431D-100000@penguin.transmeta.com>
 References: <199803232249.WAA02431@dax.dcs.ed.ac.uk>
-	<Pine.LNX.3.95.980323151332.431D-100000@penguin.transmeta.com>
+	<Pine.LNX.3.95.980323151332.431D-100000@penguin.transmeta.com> <199803242254.WAA03274@dax.dcs.ed.ac.uk>
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, linux-mm@kvack.org, linux-smp@vger.rutgers.edu
+To: sct@dcs.ed.ac.uk
+Cc: torvalds@transmeta.com, linux-mm@kvack.org, linux-smp@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+   Date: 	Tue, 24 Mar 1998 22:54:18 GMT
+   From: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
 
-On Mon, 23 Mar 1998 15:20:11 -0800 (PST), Linus Torvalds
-<torvalds@transmeta.com> said:
+   > Intel guarantees total ordering around any locked instruction, so
+   > the spinlocks themselves act as the barriers. 
 
-> Intel guarantees total ordering around any locked instruction, so the
-> spinlocks themselves act as the barriers. 
+   Fine.  Can we assume that spinlocks and atomic set/clear_bit
+   instructions have the same semantics on other CPUs?
 
-Fine.  Can we assume that spinlocks and atomic set/clear_bit
-instructions have the same semantics on other CPUs?
+Yes, you certainly can for spinlocks.
 
-I'm in London until the weekend, but I hope to have the lazy page
-stealing in a fit state to release shortly after getting back thanks to
-this.
-
---Stephen
+Later,
+David S. Miller
+davem@dm.cobaltmicro.com
