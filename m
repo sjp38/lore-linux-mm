@@ -1,31 +1,66 @@
-Date: Wed, 26 May 2004 09:06:17 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
-Message-ID: <20040526070617.GN29378@dualathlon.random>
-References: <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org> <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk> <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org> <20040525212720.GG29378@dualathlon.random> <Pine.LNX.4.58.0405251440120.9951@ppc970.osdl.org> <20040525215500.GI29378@dualathlon.random> <Pine.LNX.4.58.0405251500250.9951@ppc970.osdl.org> <20040526021845.A1302@den.park.msu.ru> <20040525224258.GK29378@dualathlon.random> <Pine.LNX.4.58.0405251924360.15534@ppc970.osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0405251924360.15534@ppc970.osdl.org>
+Received: from parora (parora [192.168.8.140])
+	by mailhost.baypackets.com (8.9.3+Sun/8.9.3) with ESMTP id PAA13216
+	for <linux-mm@kvack.org>; Wed, 26 May 2004 15:07:28 +0530 (IST)
+From: "Pankaj" <pankaj.arora@baypackets.com>
+Subject: Memory problem
+Date: Wed, 26 May 2004 15:44:17 +0530
+Message-ID: <NIBBLBNEDKOCMIIGKJCHMEJICAAA.pankaj.arora@baypackets.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matthew Wilcox <willy@debian.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Ben LaHaise <bcrl@kvack.org>, linux-mm@kvack.org, Architectures Group <linux-arch@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, May 25, 2004 at 07:26:21PM -0700, Linus Torvalds wrote:
-> You're reading it wrong.
-> 
-> The "including when the present flag is set to zero" part does not mean 
-> that the present flag was zero _before_, it means "is being set to zero" 
-> as in "having been non-zero before that".
+Hi,
 
-"having been non-zero before that" makes a lot more sense indeed, the
-wording in the specs wasn't the best IMHO.  Interestingly the
-ptep_establish at the end of handle_pte_fault would have hidden any
-double fault completely, nobody but a tracer would have noticed that,
-but it made very little sense that non-present entries can be cached.
-It's all clear now thanks.
+I doing some performance test on my application. Platform is
+
+Red Hat Enterprise Linux ES release 3 (Taroon)
+Kernel 2.4.21-4.ELsmp on an i686
+
+I have done some load test for my application and afterwards closed my
+application. Now
+no application is running on my machine. Following is output of my
+/proc/meminfo
+
+[root@bplinux89 rsinsp]# cat /proc/meminfo
+        total:    used:    free:  shared: buffers:  cached:
+Mem:  4224958464 2294509568 1930448896        0 200970240 1705332736
+Swap: 2146787328        0 2146787328
+MemTotal:      4125936 kB
+MemFree:       1885204 kB
+MemShared:           0 kB
+Buffers:        196260 kB
+Cached:        1665364 kB
+SwapCached:          0 kB
+Active:         473520 kB
+ActiveAnon:      40996 kB
+ActiveCache:    432524 kB
+Inact_dirty:    118716 kB
+Inact_laundry: 1222752 kB
+Inact_clean:     86976 kB
+Inact_target:   380392 kB
+HighTotal:     3276716 kB
+HighFree:      1689640 kB
+LowTotal:       849220 kB
+LowFree:        195564 kB
+SwapTotal:     2096472 kB
+SwapFree:      2096472 kB
+HugePages_Total:     0
+HugePages_Free:      0
+Hugepagesize:     2048 kB
+
+
+I am really worried about high Inact_laundry and cached memory size. Is it
+normal?
+
+Regards,
+Pankaj.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
