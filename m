@@ -1,52 +1,44 @@
-Date: Tue, 22 Oct 2002 14:06:55 -0400 (EDT)
-From: Bill Davidsen <davidsen@tmr.com>
-Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
-In-Reply-To: <2666588581.1035278080@[10.10.2.3]>
-Message-ID: <Pine.LNX.3.96.1021022135649.7820C-100000@gatekeeper.tmr.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: 2.5.44-mm2 CONFIG_SHAREPTE necessary for starting KDE 3.0.3
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <1035307236.13083.183.camel@spc9.esa.lanl.gov>
+References: <1035306108.13078.178.camel@spc9.esa.lanl.gov>
+	<1035307236.13083.183.camel@spc9.esa.lanl.gov>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 22 Oct 2002 14:10:33 -0400
+Message-Id: <1035310234.1044.1480.camel@phantasy>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Steven Cole <scole@lanl.gov>
+Cc: Steven Cole <elenstev@mesatop.com>, Andrew Morton <akpm@zip.com.au>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Oct 2002, Martin J. Bligh wrote:
+On Tue, 2002-10-22 at 13:20, Steven Cole wrote:
 
-> > Actually, per-object reverse mappings are nowhere near as good
-> > a solution as shared page tables.  At least, not from the points
-> > of view of space consumption and the overhead of tearing down
-> > the mappings at pageout time.
-> > 
-> > Per-object reverse mappings are better for fork+exec+exit speed,
-> > though.
-> > 
-> > It's a tradeoff: do we care more for a linear speedup of fork(),
-> > exec() and exit() than we care about a possibly exponential
-> > slowdown of the pageout code ?
+> After reading my own mail, I realized that I should have checked to see
+> if disabling PREEMPT did any good in this case. 
+> 
+> I just booted 2.5.44-mm2 without PREEMPT and without SHAREPTE, and KDE
+> 3.0.3 was able to start up OK.
 
-That tradeoff makes the case for spt being a kbuild or /proc/sys option. A
-linear speedup of fork/exec/exit is likely to be more generally useful,
-most people just don't have huge shared areas. On the other hand, those
-who do would get a vast improvement, and that would put Linux a major step
-forward in the server competition.
- 
-> As long as the box doesn't fall flat on it's face in a jibbering
-> heap, that's the first order of priority ... ie I don't care much
-> for now ;-)
+Let me clarify, because this is odd...
 
-I'm just trying to decide what this might do for a news server with
-hundreds of readers mmap()ing a GB history file. Benchmarks show the 2.5
-has more latency the 2.4, and this is likely to make that more obvious.
+	CONFIG_PREEMPT + CONFIG_SHAREPTE => OK
 
-Is there any way to to have this only on processes which really need it?
-define that any way you wish, including hanging a capability on the
-executable to get spt.
+	CONFIG_PREEMPT + !CONFIG_SHAREPTE => KDE crashes
 
--- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
+	!CONFIG_PREEMPT + !CONFIG_SHAREPTE => OK
+
+Right?
+
+Sounds like a timing issue to me.  Any other errors?  It is possible to
+get a trace?
+
+This sounds familiar, so do not think too hard without double
+checking... someone else reported failure with KDE.
+
+	Robert Love
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
