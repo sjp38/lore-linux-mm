@@ -1,41 +1,45 @@
-Date: Wed, 7 Mar 2001 18:23:18 -0300 (BRT)
+Date: Wed, 7 Mar 2001 22:57:21 -0300 (BRT)
 From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: Bug? in 2.4 memory management...
-In-Reply-To: <01030712333600.03019@xerxes>
-Message-ID: <Pine.LNX.4.21.0103071821510.867-100000@freak.distro.conectiva>
+Subject: nr_async_pages and swapin readahead on -ac series
+Message-ID: <Pine.LNX.4.21.0103072241130.1268-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: =?iso-8859-1?q?Jos=E9=20Manuel=20Rom=E1n=20Ram=EDrez?= <uzi@xerxes.conectiva.com.br>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
+Rik, 
+ 
+On the latest 2.4 -ac series, nr_async_pages is only being used to count
+swap outs, and not for both swap reads and writes (as Linus tree does).
 
-On Wed, 7 Mar 2001, Jose Manuel Roman Ramirez wrote:
+The problem is that nr_async_pages is used to limit swapin readahead based
+on the number of on flight swap pages (mm/memory.c::swapin_readahead):
 
-> Hi,
-> I think we've 'discovered' a bug regarding the kernel 2.4.2-ac11 (and maybe 
-> other) and the memory management. It seems that the cached memory sometimes 
-> is not freed as more memory is required. 
-> 
-> The system where we have detected the problem was an athlon 1ghz, 1.2gb of 
-> ram, and a swapfile of 2gb.
-> 
-> When we run a program that requires/uses 1ghz of memory, and we kill it, all 
-> (or nearly all) the memory is used by the cache, as we load a hugue file. The 
-> next time we run the program, it seems like the kernel can't use the cached 
-> memory and the memory we need is taken from the swap. Note however that when 
-> we set a swap partition smaller than the memory required, let's say 128mb, 
-> the problem disappears as the cache memory is used instead the swap...
-> 
-> So, what's wrong? Thanks in advance!
+                /* Don't block on I/O for read-ahead */
+                if (atomic_read(&nr_async_pages) >= pager_daemon.swap_cluster
+                                * (1 << page_cluster)) {
+                        while (i++ < num)
+                                swap_free(SWP_ENTRY(SWP_TYPE(entry), offset++));
+                        break;
+                }
 
-VM balance is not quite right. 
 
-Could you please try ac12 (which has a patch to tune the VM a bit) and
-report results?
+So swapin readahead is (theorically) unlimited. 
+
+One possible way to limit the swapin readahead is to split nr_async_pages
+into read and write counters and change all places which use
+nr_async_pages accordingly.
+
+However, I think a better solution is to ask the block layer if there are
+free requests on the device queue and stop the readahead in case there are
+no free ones. (we don't something like that right now, but it can be
+easily done in the block layer)
+
+Comments? 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
