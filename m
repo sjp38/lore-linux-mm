@@ -1,7 +1,7 @@
-Date: Mon, 8 Jul 2002 23:30:28 -0700
+Date: Mon, 8 Jul 2002 23:32:16 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: scalable kmap (was Re: vm lock contention reduction)
-Message-ID: <20020709063028.GV25360@holomorphy.com>
+Message-ID: <20020709063216.GW25360@holomorphy.com>
 References: <3D2A7466.AD867DA7@zip.com.au> <1221230287.1026170151@[10.10.2.3]>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -13,28 +13,30 @@ To: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
 Cc: Andrew Morton <akpm@zip.com.au>, Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+> > Don't tell me those NUMAQ's are using IDE ;)
+> 
+> No, that's one level of pain I don't have to deal with ;-)
+> 
+> Now switched fibrechannel SANs on a machine that really needs
+> NUMA aware multipath IO is more likely to be a problem, on 
+> the other hand ... but I can live without that for now ...
+> 
+> > But seriously, what's the problem?  We really do need the big
+> > boxes to be able to test 2.5 right now, and any blockage needs
+> > to be cleared away.
+> 
+> You really want the current list? The whole of our team is 
+> shifting focus to 2.5, which'll make life more interesting ;-)
+> 
 On Mon, Jul 08, 2002 at 11:15:52PM -0700, Martin J. Bligh wrote:
 > wli might care to elaborate on 2 & 3, since I think he helped
 > them identify / fix (helped maybe meaning did).
-> 1. Irqbalance doesn't like clustered apic mode (have hack)
-> 2. Using ioremap fairly early catches cpu_online_map set to 0
->    for some reason (have hack).
-> 3. Something to do with BIO that I'll let Bill explain, but I
->    am given to believe it's well known (have hack).
 
-(1) irqbalance is blatantly stuffing flat bitmasks into ICR2
-	this breaks clustered hierarchical destination format
-	everywhere all the time
-
-(2) ioremap wants to flush_tlb_all() before cpu_online_map is
-	initialized. This results in smp_call_function() spinning
-	until an atomic_t goes to -1, which never happens since it
-	doesn't kick any cpu's to decrement the counter.
-
-(3) The bio thing is just the usual queue max_sectors where you've
-	recommended decreasing the MPAGE max sectors so the bio 
-	constraints are satisfied before they hit elevator.c where
-	a BUG_ON() is triggered instead of a bio split.
+Oh, I forgot, there was a bad v86 info thing on the 9th cpu woken
+that I never finished debugging, too. And the MAX_IO_APICS issue,
+which is easily solved by just increasing the constant #ifdef
+CONFIG_MULTIQUAD as usual. This panics before console_init() though,
+which makes it seem more painful than it really is.
 
 
 Cheers,
