@@ -1,80 +1,43 @@
-Date: Tue, 5 Dec 2000 15:02:45 +0100
-Subject: Re: innofensive BUG and fix: area->map's size is not calculated ok
-Message-ID: <20001205150245.A22619@pusa.informat.uv.es>
-References: <20001130101742.A22088@pusa.informat.uv.es>
+Date: Fri, 8 Dec 2000 13:06:33 +0100
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: New patches for 2.2.18pre24 raw IO (fix for bounce buffer copy)
+Message-ID: <20001208130633.A31920@inspiron.random>
+References: <20001204205004.H8700@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20001130101742.A22088@pusa.informat.uv.es>; from ulisses on Thu, Nov 30, 2000 at 10:17:42AM +0100
-From: uaca@alumni.uv.es
+In-Reply-To: <20001204205004.H8700@redhat.com>; from sct@redhat.com on Mon, Dec 04, 2000 at 08:50:04PM +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: quintela@fi.udc.es
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-kernel@vger.kernel.org, Andi Kleen <ak@muc.de>, wtenhave@sybase.com, hdeller@redhat.com, Eric Lowe <elowe@myrile.madriver.k12.oh.us>, Larry Woodman <woodman@missioncriticallinux.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi
+On Mon, Dec 04, 2000 at 08:50:04PM +0000, Stephen C. Tweedie wrote:
+> I have pushed another set of raw IO patches out, this time to fix a
 
-this is an email I sent a week ago to lkml, since I've got no reply Riel
-suggested me to send it here, I've also attached some more info at the end
+This fix is missing:
 
-On Thu, Nov 30, 2000 at 10:17:42AM +0100, ulisses wrote:
-> 
-> In a 2.4 kernel, mm/page_alloc.c:free_area_init_core(), in the following
-> assignement...
-> 
-> 	bitmap_size = size >> i;
-> 
-> ...makes bitmap_size be the double of the needed size, this calculum
-> assumes that with a 512 byte map size the kernel is mapping 8*512= 4096 chunks 
-> of memory, that is: one bit of the map is used for each chunk of memory, 
-> and that's not true. 
-> 
-> Really one bit of area->map is used to map two chunks of memory, so in the 
-> example above an area->map of just 256 bytes is really needed, the other 256
-> bytes are _never accessed_.
-> 
-> So the righ thing would be to do is:
-> 
-> 	bitmap_size = size >> (i+1);
-> 
-> 
-> also I tested it and it works ok, so I believe I'm right...
-> 
-> 
-> Please CC: your replies to (I'm not subscribed to this list)
-> 
-> Ulisses Alonso Camaro	<uaca@NOSPAM.alumni.uv.es>	
-> 
-> PD: my nick on #kernelnewbies is despistao
-
-an easy to understand indicator to see that I am right is to see 
-(for instance) how a page index of area->map is calculated, 
-in __free_pages_ok() we can see the following:
-
-page_idx = page - base;		
-index = page_idx >> (1 + order);	
-
-Imagine the order is 0, that is a continious block of PAGE_SIZE size,
-we still shift page_idx one bit, that is two blocks of "order" size are 
-maped in each bit of area->map
-
-you can also see that MARK_USED macro also makes this shift
-
-Please CC: your replies to (I'm not subscribed to this list)
+--- rawio-sct/mm/memory.c.~1~	Fri Dec  8 03:05:01 2000
++++ rawio-sct/mm/memory.c	Fri Dec  8 03:57:48 2000
+@@ -455,7 +455,7 @@
+ 	unsigned long		ptr, end;
+ 	int			err;
+ 	struct mm_struct *	mm;
+-	struct vm_area_struct *	vma = 0;
++	struct vm_area_struct *	vma;
+ 	unsigned long		page;
+ 	struct page *		map;
+ 	int			doublepage = 0;
+@@ -478,6 +478,7 @@
+ 		return err;
  
-Ulisses Alonso Camaro	<uaca@NOSPAM.alumni.uv.es>	
+  repeat:
++	vma = NULL;
+ 	down(&mm->mmap_sem);
  
-PD: my nick on #kernelnewbies is despistao
-
-                Debian GNU/Linux: a dream come true
------------------------------------------------------------------------------
-"Computers are useless. They can only give answers."            Pablo Picasso
-
---->	Visita http://www.valux.org/ para saber acerca de la	<---
---->	Asociacion Valenciana de Usuarios de Linux		<---
- 
+ 	err = -EFAULT;
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
