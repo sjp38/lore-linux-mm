@@ -1,65 +1,156 @@
-Subject: Re: Atomic operation for physically moving a page (for
-	memory	defragmentation)
+Subject: Re: [Lhms-devel] Re: [Lhns-devel] Merging Nonlinear and Numa style
+	memory hotplug
 From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20040624071959.B76D970A2D@sv1.valinux.co.jp>
-References: <20040619031536.61508.qmail@web10902.mail.yahoo.com>
-	 <1087619137.4921.93.camel@nighthawk>
-	 <20040623.205906.71913783.taka@valinux.co.jp>
-	 <1088024190.28102.24.camel@nighthawk>
-	 <20040624071959.B76D970A2D@sv1.valinux.co.jp>
+In-Reply-To: <20040623184303.25D9.YGOTO@us.fujitsu.com>
+References: <20040622114733.30A6.YGOTO@us.fujitsu.com>
+	 <1088029973.28102.269.camel@nighthawk>
+	 <20040623184303.25D9.YGOTO@us.fujitsu.com>
 Content-Type: text/plain
-Message-Id: <1088076699.3918.234.camel@nighthawk>
+Message-Id: <1088083724.3918.390.camel@nighthawk>
 Mime-Version: 1.0
-Date: Thu, 24 Jun 2004 04:31:39 -0700
+Date: Thu, 24 Jun 2004 06:28:44 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
-Cc: Hirokazu Takahashi <taka@valinux.co.jp>, ashwin_s_rao@yahoo.com, Valdis.Kletnieks@vt.edu, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Yasunori Goto <ygoto@us.fujitsu.com>
+Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, Linux-Node-Hotplug <lhns-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, "BRADLEY CHRISTIANSEN [imap]" <bradc1@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2004-06-24 at 00:19, IWAMOTO Toshihiro wrote:
-> At Wed, 23 Jun 2004 13:56:30 -0700,
-> Dave Hansen wrote:
-> > 
-> > On Wed, 2004-06-23 at 04:59, Hirokazu Takahashi wrote:
-> > > We should know that many part of kernel code will access the page
-> > > without holding a lock_page(). The lock_page() can't block them.
-> > 
-> > No, but it will block them from establishing a new PTE to the page.  You
-> > need to:
-> > 
-> > 1. make sure no new PTEs can be established to the page
-> > 2. make sure there are no valid PTEs to the page.
-> > 3. do the move
-> > 
-> > My suggestion relates to 1, only.
-> 
-> I wonder if you are talking exclusively about swap (anonymous) pages,
-> where lock_page() might work.
+Some more comments on the first patch:
 
-I was talking about access to the pages through the user page tables,
-only.  You can't really fully prevent other access to them, because some
-other kernel user could always do something like kmap() and write to the
-page.  There's probably some handy-dandy way to trap these kinds of
-accesses in hardware, but Linux itself certainly can't provide that
-guarantee without some restructuring to check for these areas any time
-that a set_pte() is done.  
++#ifdef CONFIG_HOTPLUG_MEMORY_OF_NODE
++               if (node_online(nid)) {
++                       allocate_pgdat(nid);
++                       printk ("node %d will remap to vaddr %08lx\n", nid,
++                               (ulong) node_remap_start_vaddr[nid]);
++               }else
++                       NODE_DATA(nid)=NULL;
++#else
+                allocate_pgdat(nid);
+                printk ("node %d will remap to vaddr %08lx - %08lx\n", nid,
+                        (ulong) node_remap_start_vaddr[nid],
+                        (ulong) pfn_to_kaddr(highstart_pfn
+                            - node_remap_offset[nid] + node_remap_size[nid]));
++#endif
 
-Remember, we don't do things like rmap for the *kernel* users of pages. 
+I don't think this chunk is very necessary.  The 'NODE_DATA(nid)=NULL;'
+is superfluous because the node_data[] is zeroed at boot:
 
-> (I wonder why lock_page() is needed in do_swap_page(), btw.)
-> 
-> For page caches, usually lock_page() cannot prevent accesses to them,
-> and there are several kernel functions which don't need PTE mappings
-> for access.  One of such functions is do_generic_mapping_read().
+NUMA:
+#define NODE_DATA(nid) (node_data[nid])
+non-NUMA:
+#define NODE_DATA(nid) (&contig_page_data)
 
-You'll also have a generic problem with anything that does DMA, or that
-uses the kernel page tables of any kind (kmap, vmalloc, etc...).
+Why not just make it:
 
-The DMA problem is a lot easier when there's an IOMMU, and even easier
-on a partitioned ppc64 system where we have a virtualization layer to
-take care of any areas under DMA that might undergo remapping. 
++               if (!node_online(nid))
++			continue;
+
+That should at least get rid of the ifdef.
+
+-       bootmap_size = init_bootmem_node(NODE_DATA(0), min_low_pfn, 0, system_max_low_pfn);
++       bootmap_size = init_bootmem_node(NODE_DATA(0), min_low_pfn, 0,
++           (system_max_low_pfn > node_end_pfn[0]) ?
++           node_end_pfn[0] : system_max_low_pfn);
+
+-       register_bootmem_low_pages(system_max_low_pfn);
++       register_bootmem_low_pages((system_max_low_pfn > node_end_pfn[0]) ?
++           node_end_pfn[0] : system_max_low_pfn);
+
+How about using a temp variable here instead of those nasty conditionals?
+
++
++#ifdef CONFIG_HOTPLUG_MEMORY_OF_NODE
++               if (node_online(nid)){
++                       if (nid)
++                               memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
++                       NODE_DATA(nid)->pgdat_next = pgdat_list;
++                       pgdat_list = NODE_DATA(nid);
++                       NODE_DATA(nid)->enabled = 1;
++               }
++#else
+                if (nid)
+                        memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
+                NODE_DATA(nid)->pgdat_next = pgdat_list;
+                pgdat_list = NODE_DATA(nid);
++#endif
+
+I'd just take the ifdef out.  Wouldn't this work instead?
+
+-               if (nid)
+-                       memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
+-               NODE_DATA(nid)->pgdat_next = pgdat_list;
+-               pgdat_list = NODE_DATA(nid);
++               if (node_online(nid)){
++                       if (nid)
++                               memset(NODE_DATA(nid), 0, sizeof(pg_data_t));
++                       NODE_DATA(nid)->pgdat_next = pgdat_list;
++                       pgdat_list = NODE_DATA(nid);
++                       NODE_DATA(nid)->enabled = 1;
++               }
+
++void set_max_mapnr_init(void)
++{
+...
++       struct page *hsp=0;
+
+Should just be 'struct page *hsp = NULL;'
+
++       for(i = 0; i < numnodes; i++) {
++               if (!NODE_DATA(i))
++                       continue;
++               pgdat = NODE_DATA(i);
++               size = pgdat->node_zones[ZONE_HIGHMEM].present_pages;
++               if (!size)
++                       continue;
++               hsp = pgdat->node_zones[ZONE_HIGHMEM].zone_mem_map;
++               if (hsp)
++                       break;
++       }
+
+Doesn't this just find the lowest-numbered node's highmem?  Are you sure
+that no NUMA systems have memory at lower physical addresses on
+higher-numbered nodes?  I'm not sure that this is true.
+
++       if (hsp)
++               highmem_start_page = hsp;
++       else
++               highmem_start_page = (struct page *)-1;
+
+By not just BUG() here?  Do you check for 'highmem_start_page == -1' somewhere?
+
+@@ -478,12 +482,35 @@ void __init mem_init(void)
+        totalram_pages += __free_all_bootmem();
+
+        reservedpages = 0;
++
++#ifdef CONFIG_HOTPLUG_MEMORY_OF_NODE
++       for (nid = 0; nid < numnodes; nid++){
++               int start, end;
++
++               if ( !node_online(nid))
++                       continue;
++               if ( node_start_pfn[nid] >= max_low_pfn )
++                       break;
++
++               start = node_start_pfn[nid];
++               end = ( node_end_pfn[nid] < max_low_pfn) ?
++                       node_end_pfn[nid] : max_low_pfn;
++
++               for ( tmp = start; tmp < end; tmp++)
++                       /*
++                        * Only count reserved RAM pages
++                        */
++                       if (page_is_ram(tmp) && PageReserved(pfn_to_page(tmp)))
++                               reservedpages++;
++       }
++#else
+
+Again, I don't see what this loop is used for.  You appear to be trying
+to detect which nodes have lowmem.  Is there currently any x86 NUMA
+architecture that has lowmem on any node but node 0?
+
+
 
 -- Dave
 
