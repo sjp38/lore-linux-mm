@@ -1,70 +1,59 @@
 Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
-	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j2PKhj0H029906
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:45 -0500
+	by e4.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j2PKhwoK003081
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:58 -0500
 Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2PKhjgv089890
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:45 -0500
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2PKhwgv091900
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:58 -0500
 Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
-	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j2PKhjNR015362
-	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:45 -0500
-Subject: resubmit - [PATCH 0/4] sparsemem intro patches
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j2PKhwiF015775
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:58 -0500
+Subject: resubmit - [PATCH 1/4] sparsemem base: early_pfn_to_nid() (works before sparse is initialized)
 From: Dave Hansen <haveblue@us.ibm.com>
-Content-Type: text/plain
-Date: Fri, 25 Mar 2005 12:43:43 -0800
-Message-Id: <1111783423.9691.65.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Fri, 25 Mar 2005 12:43:56 -0800
+Message-Id: <E1DEvev-0004Pa-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: akpm@osdl.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <haveblue@us.ibm.com>, apw@shadowen.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew, I noticed that these were dropped out of 2.6.12-mm1:
+We _know_ which node pages in general belong to, at least at a
+very gross level in node_{start,end}_pfn[].  Use those to target
+the allocations of pages.
 
-> -sparsemem-base-teach-discontig-about-sparse-ranges.patch
-> -sparsemem-base-simple-numa-remap-space-allocator.patch
-> -sparsemem-base-reorganize-page-flags-bit-operations.patch
-> -sparsemem-base-early_pfn_to_nid-works-before-sparse-is-initialized.patch
-> 
-> This was breaking compilation in various ways on various
-> architectures.
-> Returned to manufacturer.
+Signed-off-by: Andy Whitcroft <apw@shadowen.org>
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+---
 
-I *think* those problems were caused by the actual sparsemem patches
-that I posted for RFC, not the base "intro" patches.  (I have fixes for
-the problems that you were hitting with the RFC patches ready, too)
+ memhotplug-dave/arch/i386/mm/discontig.c |   15 +++++++++++++++
+ 1 files changed, 15 insertions(+)
 
-I've run these through a bunch of compile tests, including arm and alpha
-with and without DISCONTIGMEM, and they seem OK.  They also boot just
-fine on a bunch of ppc64 and i386 configurations.  
-
-Can these go back into -mm?
-
-----
-
-The following four patches provide the last needed changes before the
-introduction of sparsemem.  For a more complete description of what this
-will do, please see this patch:
-
-http://www.sr71.net/patches/2.6.11/2.6.11-bk7-mhp1/broken-out/B-sparse-150-sparsemem.patch
-
-or previous posts on the subject:
-http://marc.theaimsgroup.com/?t=110868540700001&r=1&w=2
-http://marc.theaimsgroup.com/?l=linux-mm&m=109897373315016&w=2
-
-Three of these are i386-only, but one of them reorganizes the macros
-used to manage the space in page->flags, and will affect all platforms.
-There are analogous patches to the i386 ones for ppc64, ia64, and
-x86_64, but those will be submitted by the normal arch maintainers.
-
-The combination of the four patches has been test-booted on a variety of
-i386 hardware, and compiled for ppc64, i386, and x86-64 with about 17
-different .configs.  It's also been runtime-tested on ia64 configs (with
-more patches on top).
-
--- Dave
-
+diff -puN arch/i386/mm/discontig.c~FROM-MM-add-early_pfn_to_nid arch/i386/mm/discontig.c
+--- memhotplug/arch/i386/mm/discontig.c~FROM-MM-add-early_pfn_to_nid	2005-03-25 08:17:12.000000000 -0800
++++ memhotplug-dave/arch/i386/mm/discontig.c	2005-03-25 08:17:12.000000000 -0800
+@@ -149,6 +149,21 @@ static void __init find_max_pfn_node(int
+ 		BUG();
+ }
+ 
++/* Find the owning node for a pfn. */
++int early_pfn_to_nid(unsigned long pfn)
++{
++	int nid;
++
++	for_each_node(nid) {
++		if (node_end_pfn[nid] == 0)
++			break;
++		if (node_start_pfn[nid] <= pfn && node_end_pfn[nid] >= pfn)
++			return nid;
++	}
++
++	return 0;
++}
++
+ /* 
+  * Allocate memory for the pg_data_t for this node via a crude pre-bootmem
+  * method.  For node zero take this from the bottom of memory, for
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
