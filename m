@@ -1,34 +1,35 @@
-From: THE INFAMOUS <evil7@seifried.org>
-Reply-To: evil7@seifried.org
-Subject: Latest VM patch autotuning
-Date: Fri, 2 Jun 2000 06:52:27 -0500
-Content-Type: text/plain
+Received: from localhost (gandalf@localhost)
+	by tux.rsn.hk-r.se (8.11.0.Beta1/8.11.0.Beta1/Debian 8.11.0-1) with ESMTP id e52EUuE08847
+	for <linux-mm@kvack.org>; Fri, 2 Jun 2000 16:30:57 +0200
+Date: Fri, 2 Jun 2000 16:30:52 +0200 (CEST)
+From: Martin Josefsson <gandalf@wlug.westbo.se>
+Subject: Reil's vm-patch against -ac7
+Message-ID: <Pine.LNX.4.21.0006021627320.8574-100000@tux.rsn.hk-r.se>
 MIME-Version: 1.0
-Message-Id: <00060206562100.00719@sQa.speedbros.org>
-Content-Transfer-Encoding: 8BIT
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I patched up.... Did some stress test.... And I am quite impressed.....
-rephrase I am very impressed
+Hi all.
 
-During an X session with helix-gnome + sawfish, 3 Eterms, balsa, netscape, 'cp
--af /usr/src/linux /mnt/backup' && updatedb I saw a max load average of 1.28,
-physical memory peaked, swaped out about 3 megs during the stress test, and
-afterwards everything recovered like a champ(including my physical memory). 
+I just have to say, good work!
 
-Very very impressed.
+This patch has improved the performance of my machine quite a bit
+(128MB ram, normal workstation).
 
-Keep up the good work : )
+Before applying this patch it was almost impossible to use the machine at
+the same time as I was downloading a file at ~3MB/s
+Now I hardly notice it. One thing I notice is that my currently running
+programs are swapped out in favour of this new file that only gets stored
+to disk.
 
--- 
-Bryan Paxton
+Keep up the good work!
 
-"I don't need to sleep or eat, I'll smoke a thousand cigarettes."
-- Sebadoh
+/Martin
 
+The three best things about going to school are June, July, and August.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
