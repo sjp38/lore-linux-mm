@@ -1,39 +1,51 @@
-Received: from cs.utexas.edu (root@cs.utexas.edu [128.83.139.9])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA28730
-	for <linux-mm@kvack.org>; Thu, 7 Jan 1999 10:29:10 -0500
-Message-Id: <199901071529.JAA01754@feta.cs.utexas.edu>
-From: "Paul R. Wilson" <wilson@cs.utexas.edu>
-Date: Thu, 7 Jan 1999 09:29:01 -0600
-Subject: Re: naive questions, docs, etc.
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA29177
+	for <linux-mm@kvack.org>; Thu, 7 Jan 1999 11:50:36 -0500
+Received: from mirkwood.dummy.home (root@anx1p8.phys.uu.nl [131.211.33.97])
+	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id RAA11952
+	for <linux-mm@kvack.org>; Thu, 7 Jan 1999 17:50:25 +0100 (MET)
+Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with ESMTP id RAA04258 for <linux-mm@kvack.org>; Thu, 7 Jan 1999 17:34:16 +0100
+Date: Thu, 7 Jan 1999 17:34:15 +0100 (CET)
+From: Rik van Riel <riel@humbolt.geo.uu.nl>
+Subject: 2.2.0-pre5
+Message-ID: <Pine.LNX.4.03.9901071730160.4197-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Chip Salzenberg <chip@perlsupport.com>
-Cc: Rik van Riel <riel@humbolt.geo.uu.nl>, linux-mm@kvack.org
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->From chip@hoon.perlsupport.com Thu Jan  7 09:05:26 1999
->Date: Wed, 6 Jan 1999 20:15:49 -0500
->From: Chip Salzenberg <chip@perlsupport.com>
->To: "Paul R. Wilson" <wilson@cs.utexas.edu>
->Cc: Rik van Riel <riel@humbolt.geo.uu.nl>, linux-mm@kvack.org
->Subject: Re: naive questions, docs, etc.
->Message-ID: <19990106201549.N2626@perlsupport.com>
->References: <199901050031.SAA06940@disco.cs.utexas.edu>
->Mime-Version: 1.0
->Content-Type: text/plain; charset=us-ascii
->X-Mailer: Mutt 0.95i
->In-Reply-To: <199901050031.SAA06940@disco.cs.utexas.edu>; from Paul R. Wilson on Mon, Jan 04, 1999 at 06:31:25PM -0600
->
->Look, I don't want to restart the Gnomenclature argument here on the
->MM list.  But I have to point out that:
->
->>           THE GNU/LINUX 2.2 VIRTUAL MEMORY SYSTEM, PART I
->
->... even RMS admits that the kernel proper is just Linux, not
->GNU/Linux.  And it's only the kernel proper that has a VM.  Ergo,
->there is no such thing as a "GNU/Linux virtual memory system".
+Hi,
 
-Okey dokey.  I'll change it.
+while browsing the pre5 patch I saw quite a bit of
+VM changes that made a lot of sense, but there was
+one statement that really worried me (in vmscan.c)
 
++        * NOTE NOTE NOTE! This should just set a
++        * dirty bit in page_map, and just drop the
++        * pte. All the hard work would be done by
++        * shrink_mmap().
++        *
++        * That would get rid of a lot of problems.
++        */
+
+Of course we should never do this since it would mean
+we'd loose the benefit of clustered swapout (and
+consequently clustered swapin).
+
+The only way this could ever be implemented is by
+using a linked list of things-to-swap-out that:
+- is swapped out in the correct order and resorted
+  if needs be (to preserve or actually improve the
+  locality of reference in the swap area)
+- can never be longer than X entries, to avoid ending
+  up in all kinds of nasty situations
+
+Rik -- If a Microsoft product fails, who do you sue?
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        riel@humbolt.geo.uu.nl |
+| Scouting Vries cubscout leader.    http://humbolt.geo.uu.nl/~riel |
++-------------------------------------------------------------------+
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
