@@ -1,39 +1,30 @@
-Date: Mon, 25 Sep 2000 09:49:46 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: the new VMt
-In-Reply-To: <Pine.LNX.4.21.0009251338340.14614-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.10.10009250948170.1739-100000@penguin.transmeta.com>
+Date: Mon, 25 Sep 2000 17:51:49 +0100 (BST)
+In-Reply-To: <20000925164249.G2615@redhat.com> from "Stephen C. Tweedie" at Sep 25, 2000 04:42:49 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <E13dbTq-0005Gg-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Andrea Arcangeli <andrea@suse.de>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Mon, 25 Sep 2000, Rik van Riel wrote:
+> > 2 active processes, no swap
 > > 
-> > Thinking about it, we do have it already. It's called
-> > !__GFP_HIGH, and it used by all the GFP_USER allocations.
+> > #1					#2
+> > kmalloc 32K				kmalloc 16K
+> > OK					OK
+> > kmalloc 16K				kmalloc 32K
+> > block					block
+> > 
 > 
-> Hmm, I think these two are orthagonal.
-> 
-> __GFP_HIGH means that we are allowed to eat deeper into
-> the free list (maybe needed to avoid a deadlock freeing
-> pages)
-> 
-> __GFP_SOFT would mean "don't bother waiting for free pages",
-> which is something very different...
+> ... and we get two wakeup_kswapd()s.  kswapd has PF_MEMALLOC and so is
+> able to eat memory which processes #1 and #2 are not allowed to touch.
 
-Yes, I'm inclined to agree. Or at least not disagree. I'm more arguing
-that the order itself may not be the most interesting thing, and that I
-don't think the balancing has to take the order of the allocation into
-account - because it should be equivalent to just tell that it's a soft
-allocation (whether though the current !__GFP_HIGH or through a new
-__GFP_SOFT with slightly different logic).
-
-		Linus
+'no swap'
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
