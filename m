@@ -1,30 +1,62 @@
-Received: from fujitsu3.fujitsu.com (localhost [127.0.0.1])
-	by fujitsu3.fujitsu.com (8.12.10/8.12.9) with ESMTP id iAHNLhpa008167
-	for <linux-mm@kvack.org>; Wed, 17 Nov 2004 15:21:43 -0800 (PST)
-Date: Wed, 17 Nov 2004 15:21:26 -0800
-From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: Re: [Lhms-devel] [RFC] fix for hot-add enabled SRAT/BIOS and numa KVA areas
-In-Reply-To: <1100731354.12373.224.camel@localhost>
-References: <20041117133315.92B7.YGOTO@us.fujitsu.com> <1100731354.12373.224.camel@localhost>
-Message-Id: <20041117152043.92BB.YGOTO@us.fujitsu.com>
+Message-ID: <419BDE53.1030003@tebibyte.org>
+Date: Thu, 18 Nov 2004 00:27:15 +0100
+From: Chris Ross <chris@tebibyte.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable
+ braindamage
+References: <20041105200118.GA20321@logos.cnet> <200411051532.51150.jbarnes@sgi.com> <20041106012018.GT8229@dualathlon.random> <1099706150.2810.147.camel@thomas> <20041117195417.A3289@almesberger.net>
+In-Reply-To: <20041117195417.A3289@almesberger.net>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: keith <kmannth@us.ibm.com>, external hotplug mem list <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Chris McDermott <lcm@us.ibm.com>
+To: Werner Almesberger <wa@almesberger.net>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Andrea Arcangeli <andrea@novell.com>, Jesse Barnes <jbarnes@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> You can't remove nodes, just DIMMs.  The x440 hotplug is more like the
-> SMP case that I've always been concerned with.
 
-OK. I understood. 
-Thanks.
+Werner Almesberger escreveu:
+> A process could declare itself as usual suspect. This would then be
+> recorded as a per-task flag, to be inherited by children.
 
--- 
-Yasunori Goto <ygoto at us.fujitsu.com>
+I don't think this "I know I'm buggy, please kill me" flag is the right 
+approach even if it can be made to work. The operating system has an 
+overview of all the memory and can see when a particular process is 
+basically making the machine unusable. It's quite likely that the 
+process causing the trouble doesn't know (or hasn't admitted) that it's 
+buggy and hasn't volunteered for early termination. As this means the 
+kernel must be able to deal with a problematic process completely 
+irrespective of whether it has set "kill me" flag or not the flag 
+doesn't really buy you anything.
 
+It is also specific to runaway processes that are clearly at fault. 
+There is the related case where no particular process is faulty as such 
+but the system as a whole can't cope with the demands being made.
+
+On a related note, I would prefer to see victim processes who are not 
+determined to be the cause of the trouble swapped out (i.e. *all* their 
+pages pushed out to swap) and suspended (not allowed to run) as a first 
+resort. The example I have in mind is on my machine when the daily cron 
+run over commits causing standard daemons such as ntpd to be killed to 
+make room. It would be preferable if the daemon was swapped out and just 
+didn't run for minutes, or even hours if need be, but was allowed to run 
+again once the system had settled down.
+
+Of course, from recent discussion the system should not actually be 
+killing off these daemons at all but that does seem to be resolved now. 
+There are circumstances when there simply isn't enough RAM and swapping 
+something out is preferable to killing it off. Of course, if there isn't 
+sufficient swap space killing it should be the second resort. The last 
+resort being panic.
+
+So, the problem breaks down into three parts:
+
+	  i) When should the oom killer be invoked.
+	 ii) How do we pick a victim process
+	iii) How can we deal with the process in the most useful manner
+
+Regards,
+Chris R.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
