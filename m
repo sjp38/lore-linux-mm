@@ -1,35 +1,37 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA23855
-	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 16:49:27 -0500
-Date: Sun, 10 Jan 1999 21:49:07 GMT
-Message-Id: <199901102149.VAA01490@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA23894
+	for <linux-mm@kvack.org>; Sun, 10 Jan 1999 16:50:23 -0500
+Date: Sun, 10 Jan 1999 13:47:24 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <199901102141.VAA01398@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.95.990110134530.25373B-100000@cesium.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: tiny patch, reduces kernel memory usage (memory_save patch)
-In-Reply-To: <Pine.LNX.3.96.990110174423.15469A-100000@Linuz.sns.it>
-References: <Pine.LNX.3.96.990110174423.15469A-100000@Linuz.sns.it>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Max <max@Linuz.sns.it>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Andrea Arcangeli <andrea@e-mind.com>, linux-mm@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Andrea Arcangeli <andrea@e-mind.com>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, "Eric W. Biederman" <ebiederm+eric@ccr.net>, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-On Sun, 10 Jan 1999 18:00:52 +0100 (MET), Max <max@Linuz.sns.it> said:
 
-> I am really sorry to disturb with something that is supposed to be discussed
-> in linux-kernel, but looks linux-kernel is terribly lagged, and also my
-> original message (sent on Jan 7) got somehow ignored.
+On Sun, 10 Jan 1999, Stephen C. Tweedie wrote:
+> 
+> The problem with that is what happens if we have a large, active
+> write-mapped file with lots of IO activity on it; we become essentially
+> unable to swap that file out.  That has really nasty VM death
+> implications for things like databases.
 
-> -	unsigned int unused;
-> -	unsigned long map_nr;	/* page->map_nr == page - mem_map */
+Indeed. Maybe we really should use kswapd for this, especially now that
+kswapd doesn't really do much else..
 
-The unused field needs to go.  Fine.  The map_nr field is needed to
-avoid a division when we try to find a page number from a struct page.
+Btw, pre-6 had a bug in kswapd that is relevant to this discussion - it
+used a 0 argument to try_to_free_pages(), even though kswapd very much is
+able to do IO. (So in pre-6, waking up kswapd is the wrong thing to try to
+do ;)
 
---Stephen
+		Linus
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
