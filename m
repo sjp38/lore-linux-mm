@@ -1,33 +1,39 @@
-Date: Wed, 17 Jan 2001 18:05:25 +1100 (EST)
+Date: Wed, 17 Jan 2001 17:58:39 +1100 (EST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: pre2 swap_out() changes
-In-Reply-To: <Pine.LNX.4.21.0101122038420.10842-100000@freak.distro.conectiva>
-Message-ID: <Pine.LNX.4.31.0101171804160.30841-100000@localhost.localdomain>
+Subject: Re: Yet another bogus piece of do_try_to_free_pages()
+In-Reply-To: <87r92bq75w.fsf@atlas.iskon.hr>
+Message-ID: <Pine.LNX.4.31.0101171755540.30841-100000@localhost.localdomain>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Zlatko Calusic <zlatko@iskon.hr>, linux-mm@kvack.org
+To: Zlatko Calusic <zlatko@iskon.hr>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 12 Jan 2001, Marcelo Tosatti wrote:
-> On Fri, 12 Jan 2001, Linus Torvalds wrote:
->
-> > If the page truly is new (because of some other user), then page_launder()
-> > won't drop it, and it doesn't matter. But dropping it from the VM means
-> > that the list handling can work right, and that the page will be aged (and
-> > thrown out) at the same rate as other pages.
->
-> What about the amount of faults this potentially causes?
+On 11 Jan 2001, Zlatko Calusic wrote:
 
-The change has 2 influences on the number of faults:
+> I have tested it for you and results are great. On some tests I got
+> 20% to 30% better results which is amazing. I'll do some more tests
+> but I would vote for this to get in immediately. Yes, it's *so* good.
 
-1. the number of soft faults should probably increase
+Don't be so rash.
 
-2. refill_inactive_scan() can deactivate more pages, since
-   less pages will be trapped inside processes ... this can
-   lead to better page replacement and less hard page faults
+The patch hasn't been tested very thoroughly, otherwise
+people would have noticed the problem that PG_MEMALLOC
+isn't set around the page freeing code, possibly leading
+to deadlocks, triple faults and other nasties.
+
+(and yes, I'm sure there will be somebody able to trigger
+this bug)
+
+Remember that we - officially - still are in the 2.4 BUGFIX
+period, it's time to be careful with the code now and we should
+IMHO not randomly introduce new bugs in the name of performance.
+
+Performance enhancements are perfectly fine, of course, but IMHO
+not after they've been posted 2 hours ago and haven't been
+reviewed and stresstested yet.
 
 regards,
 
