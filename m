@@ -1,42 +1,27 @@
-Received: from funky.monkey.org (smtp@funky.monkey.org [152.160.231.196])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA02088
-	for <linux-mm@kvack.org>; Thu, 27 May 1999 15:55:48 -0400
-Date: Thu, 27 May 1999 15:55:37 -0400 (EDT)
-From: Chuck Lever <cel@monkey.org>
-Subject: Re: [PATCHES]
-In-Reply-To: <14156.58667.141026.238904@dukat.scot.redhat.com>
-Message-ID: <Pine.BSF.4.03.9905271552420.16505-100000@funky.monkey.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from the-village.bc.nu (lightning.swansea.uk.linux.org [194.168.151.1])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA03077
+	for <linux-mm@kvack.org>; Thu, 27 May 1999 17:17:02 -0400
+Subject: Re: Q: PAGE_CACHE_SIZE?
+Date: Thu, 27 May 1999 23:06:48 +0100 (BST)
+In-Reply-To: <Pine.LNX.4.03.9905252213400.25857-100000@mirkwood.nl.linux.org> from "Rik van Riel" at May 25, 99 10:16:34 pm
+Content-Type: text
+Message-Id: <E10n8Ic-0003h9-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@nl.linux.org>
+Cc: alan@lxorguk.ukuu.org.uk, ak@muc.de, ebiederm+eric@ccr.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 27 May 1999, Stephen C. Tweedie wrote:
-> However, this brings up another point: 
-> 
-> 	ftp://ftp.uk.linux.org/pub/linux/sct/fs/misc/fsync-2.2.8-v5.diff
-> 
-> is a set of diffs to fix fsync performance on 2.2.  It fully implements
-> fsync and fdatasync, and applies the same optimisations to O_SYNC.  It
-> uses per-inode dirty buffer lists.
+> A larger page size is no compensation for the lack of a decent
+> read-{ahead,back,anywhere} I/O clustering algorithm in the OS.
 
-stephen -
+It isnt compensating for that. If you have 4Gig of memory and a high performance
+I/O controller the constant cost per page for VM management begins to dominate
+the equation. Its also a win for other CPU related reasons (reduced tlb
+misses and the like), and with 4Gig of RAM the argument is a larger page
+size isnt a problem.
 
-this patch appears to combine the "block allocation deadlock" patch with
-the original fsync reimplementation... correct?
-
-have you experienced and/or fixed the 5-second self-destruct problem i
-mentioned to you?
-
-	- Chuck Lever
---
-corporate:	<chuckl@netscape.com>
-personal:	<chucklever@netscape.net> or <cel@monkey.org>
-
-The Linux Scalability project:
-	http://www.citi.umich.edu/projects/linux-scalability/
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
