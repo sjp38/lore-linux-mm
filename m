@@ -1,58 +1,70 @@
-Date: Mon, 9 Oct 2000 07:27:57 -0400 (EDT)
-From: Byron Stanoszek <gandalf@winds.org>
+Date: Mon, 9 Oct 2000 18:26:51 +0200
+From: Kurt Garloff <garloff@suse.de>
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-In-Reply-To: <Pine.LNX.4.21.0010091159430.20087-100000@Megathlon.ESI>
-Message-ID: <Pine.LNX.4.21.0010090722300.5489-100000@winds.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20001009182651.S1679@garloff.etpnet.phys.tue.nl>
+References: <Pine.LNX.4.21.0010061721520.13585-100000@duckman.distro.conectiva> <Pine.LNX.4.21.0010091159430.20087-100000@Megathlon.ESI>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-md5;
+	protocol="application/pgp-signature"; boundary="yLfVvEQOBD/VeTNx"
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0010091159430.20087-100000@Megathlon.ESI>; from marco@esi.it on Mon, Oct 09, 2000 at 12:12:02PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marco Colombo <marco@esi.it>
 Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2000, Marco Colombo wrote:
+--yLfVvEQOBD/VeTNx
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
+On Mon, Oct 09, 2000 at 12:12:02PM +0200, Marco Colombo wrote:
 > On Fri, 6 Oct 2000, Rik van Riel wrote:
-> 
 > [...]
 > > They are niced because the user thinks them a bit less
-> > important. 
-> 
+> > important.=20
+>=20
 > Please don't, this assumption is quite wrong. I use nice just to be
 > 'nice' to other users. I can run my *important* CPU hog simulation
 > nice +10 in order to let other people get more CPU when the need it.
-> But if you put the logic "niced == not important" somewhere into the
+> But if you put the logic "niced =3D=3D not important" somewhere into the
 > kernel, nobody will use nice anymore. I'd rather give a bonus to niced
 > processes.
-> 
-> I agree this is a small issue, the OOM killer job isn't "nice" at all
-> anyway. B-) (at OOM time, I'd not even look at the nice of a process at
-> all. But my point here is that you do, and you take it as an hint for
-> process importance as percieved by the user that run it, and I believe
-> it's just wrong guessing).
 
-I agree completely. Friday night I had a talk with a few others at the office,
-and we all came to a concensus that the 'nice' value really shouldn't be a
-factor to determine which process gets killed first. The primary point was
-that 'nice' is most commonly used for background tasks that are meant to run in
-hidden and unseen with low priority. It would be extremely upsetting if a user
-decided to log in and browse 50 picture-intensive pages with netscape,
-racking up the memory over time, and allowing the OOM killer to zap the
-peaceful, 'nice' process in the background that wasn't causing any harm.
+I could not agree more. Normally, you'd better kill a foreground task
+(running nice 0) than selecting one of those background jobs for some
+reasons:
+* The foreground job can be restarted by the interactive user
+  (Most likely, it will be only netscape anyway)
+* The background job probably is the more useful one which has been running
+  since a longer time (computations, ...)
+* If we put any policy like this into the kernel at all, I'd rather
+  encourage the usage of nice instead of discouraging it.
 
-Why else would you nice a process? Because you don't want it to interfere with
-normal cpu usage by those that normally use the system. You expect that process
-to still be running at the end of the day when everyone's gone home.
+I assume here backgrd job =3D=3D niced job, which mostly is the case in rea=
+lity.
 
 Regards,
- Byron
+--=20
+Kurt Garloff  <garloff@suse.de>                          Eindhoven, NL
+GPG key: See mail header, key servers         Linux kernel development
+SuSE GmbH, Nuernberg, FRG                               SCSI, Security
 
--- 
-Byron Stanoszek                         Ph: (330) 644-3059
-Systems Programmer                      Fax: (330) 644-8110
-Commercial Timesharing Inc.             Email: bstanoszek@comtime.com
+--yLfVvEQOBD/VeTNx
+Content-Type: application/pgp-signature
+Content-Disposition: inline
 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.0.3 (GNU/Linux)
+Comment: For info see http://www.gnupg.org
+
+iD8DBQE54fHKxmLh6hyYd04RAjGbAJ9NsoD5LauMkR9LB/MHd+V5xR77iACfa/ot
+23YBGPXZNBF8mkVk44p5PvI=
+=PGbk
+-----END PGP SIGNATURE-----
+
+--yLfVvEQOBD/VeTNx--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
