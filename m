@@ -1,113 +1,44 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id QAA03616
-	for <linux-mm@kvack.org>; Sun, 15 Sep 2002 16:28:31 -0700 (PDT)
-Message-ID: <3D851B5A.49F4296B@digeo.com>
-Date: Sun, 15 Sep 2002 16:44:27 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] ageable slab callbacks
-References: <200209151436.20171.tomlins@cam.org>
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: 2.5.34-mm4
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+In-Reply-To: <Pine.LNX.4.44L.0209151554520.1857-100000@imladris.surriel.com>
+References: <Pine.LNX.4.44L.0209151554520.1857-100000@imladris.surriel.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Date: 16 Sep 2002 02:33:36 +0100
+Message-Id: <1032140016.26857.24.camel@irongate.swansea.linux.org.uk>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Andrew Morton <akpm@digeo.com>, "M. Edward Borasky" <znmeb@aracnet.com>, Axel Siebenwirth <axel@hh59.org>, Con Kolivas <conman@kolivas.net>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Hi, Ed.
-
-Ed Tomlinson wrote:
+On Sun, 2002-09-15 at 19:56, Rik van Riel wrote:
+> On Sun, 15 Sep 2002, Andrew Morton wrote:
 > 
-> Hi,
+> > - In -ac, there are noticeable stalls during heavy writeout.  This
+> >   may be an ext3 thing, but I can't think of any IO scheduling
+> >   differences in -ac ext3.  I'd be guessing that it is due to
+> >   bdflush/kupdate lumpiness.
+
+I think so. I've always been conservative, I need rmap to pass cerberus
+still. But the rmap in -ac is out of date a little with the 2.5 tuning
+
+> This is also due to the fact that -ac has an older -rmap
+> VM. As in current 2.5, rmap can write out all inactive
+> pages ... and it did in some worst case situations.
 > 
-> This lets the vm use callbacks to shrink ageable caches.   With this we avoid
-> having to change vmscan if an ageable cache family is added.  It also batches
-> calls to the prune methods (SHRINK_BATCH).
+> This is fixed in rmap14.
+> 
+> (I hope Alan is done playing with IDE soon so I can push
+> him a VM update)
 
-I do believe it would be better to move the batching logic into
-slab.c and not make the individual cache implementations have
-to know about it.  Just put the accumulators into cachep-> and
-only call the shrinker when the counter reaches the threshold?
+The big one left to fix is the simplex device bug - which is an "I know
+why". The great mystery is the affair of taskfile pio write. Other than
+that its annoying glitches not big problems now.
 
+So send me rmap-14a patches by all means
 
-> +/*
-> + * shrinker_t
-> + *
-> + * Manages list of shrinker callbacks used by the vm to apply pressure to
-> + * prunable caches.
-> + */
-> +
-> +typedef struct shrinker_s {
-> +       kmem_shrinker_t         shrinker;
-> +       struct list_head        next;
-> +       int                     seeks;  /* seeks to recreate an obj */
-> +       int                     nr;     /* objs pending delete */
-> +} shrinker_t;
-
-We're trying to get away from these sorts of typedefs, please.
-Just `struct shrinker' or whatever will be fine.
-
-> +
-> +static spinlock_t              shrinker_lock = SPIN_LOCK_UNLOCKED;
-> +static struct list_head        shrinker_list;
-
-static LIST_HEAD(shrinker_list) would initialise this at compile
-time...
-
-> ..
-> +void kmem_set_shrinker(int seeks, kmem_shrinker_t theshrinker)
-> +{
-> +       shrinker_t *shrinkerp;
-> +       shrinkerp = kmalloc(sizeof(shrinker_t),GFP_KERNEL);
-> +       BUG_ON(!shrinkerp);
-> +       shrinkerp->shrinker = theshrinker;
-> +       shrinkerp->seeks = seeks;
-> +       shrinkerp->nr = 0;
-> +       spin_lock(&shrinker_lock);
-> +       list_add(&shrinkerp->next, &shrinker_list);
-> +       spin_lock(&shrinker_lock);
-> +}
-
-spin_unlock() here ;)  (You can still run an SMP kernel on UP, and
-that would have picked this up).
-
-
-> +
-> +/* Call the shrink functions to age shrinkable caches */
-> +int kmem_do_shrinks(int pages, int scanned,  unsigned int gfp_mask)
-> +{
-> +struct list_head *p;
-> +       int ratio;
-> +
-> +       spin_lock(&shrinker_lock);
-> +
-> +       list_for_each(p,&shrinker_list) {
-> +               shrinker_t *shrinkerp = list_entry(p, shrinker_t, next);
-> +               ratio = pages / (shrinkerp->seeks * scanned + 1) + 1;
-> +               shrinkerp->nr = (*shrinkerp->shrinker)(shrinkerp->nr,
-> +                                       ratio, gfp_mask);
-> +       }
-> +
-> +       spin_unlock(&shrinker_lock);
-> +
-> +       return 0;
-> +}
-
-The cache shrink functions can sleep, and cannot be called under a
-spinlock.
-
-Which begs the question: how do we stop a cache from vanishing
-while we play with it?  cache_chain_sem I guess.
-
-> ...
-> +
-> +       INIT_LIST_HEAD(&shrinker_list);
-> +       spin_lock_init(&shrinker_lock);
->  }
-
-The list can be statically initialised, as above.  The lock has already
-been initialised.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
