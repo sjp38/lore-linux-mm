@@ -1,70 +1,63 @@
-From: Thomas Schlichter <schlicht@uni-mannheim.de>
-Subject: Re: 2.6.0-test8-mm1
-Date: Tue, 21 Oct 2003 02:43:57 +0200
-References: <20031020020558.16d2a776.akpm@osdl.org> <20031020151713.149bba88.akpm@osdl.org> <200310210030.41121.schlicht@uni-mannheim.de>
-In-Reply-To: <200310210030.41121.schlicht@uni-mannheim.de>
-MIME-Version: 1.0
-Content-Type: multipart/signed;
-  protocol="application/pgp-signature";
-  micalg=pgp-sha1;
-  boundary="Boundary-02=_UFIl/+fbKpA9LXp";
-  charset="iso-8859-1"
+Message-Id: <200310210254.h9L2slUX001593@turing-police.cc.vt.edu>
+Subject: Re: 2.6.0-test8-mm1 
+In-Reply-To: Your message of "Mon, 20 Oct 2003 18:56:13 PDT."
+             <20031020185613.7d670975.akpm@osdl.org>
+From: Valdis.Kletnieks@vt.edu
+References: <20031020020558.16d2a776.akpm@osdl.org> <200310201811.18310.schlicht@uni-mannheim.de> <20031020144836.331c4062.akpm@osdl.org> <200310210001.08761.schlicht@uni-mannheim.de> <200310210014.h9L0EZFP003073@turing-police.cc.vt.edu> <20031020172732.6b6b3646.akpm@osdl.org> <200310210046.h9L0kHFg001918@turing-police.cc.vt.edu>
+            <20031020185613.7d670975.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; boundary="==_Exmh_-690250736P";
+	 micalg=pgp-sha1; protocol="application/pgp-signature"
 Content-Transfer-Encoding: 7bit
-Message-Id: <200310210244.04481.schlicht@uni-mannheim.de>
+Date: Mon, 20 Oct 2003 22:54:46 -0400
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>, Valdis.Kletnieks@vt.edu
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: schlicht@uni-mannheim.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, James Simmons <jsimmons@infradead.org>
 List-ID: <linux-mm.kvack.org>
 
---Boundary-02=_UFIl/+fbKpA9LXp
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+--==_Exmh_-690250736P
+Content-Type: text/plain; charset=us-ascii
 
-On Tuesday 21 October 2003 00:30, I wrote:
-> On Tuesday 21 October 2003 00:17, Andrew Mortonwrote:
-> > Thomas Schlichter <schlicht@uni-mannheim.de> wrote:
-> > > On Monday 20 October 2003 23:48, Andrew Morton wrote:
-> > > > A colleague here has discovered that this crash is repeatable, but
-> > > > goes away when the radeon driver is disabled.
-> > > >
-> > > > Are you using that driver?
-> > >
-> > > No, I'm not... I use the vesafb driver. Do you think disabling this
-> > > could cure the Oops?
-> >
-> > It might.  Could you test it please?
->
-> I will, but currently I compile 2.6.0-test8. I want to try if this works...
-> I also want to try test8-mm1 without the -Os patch, you never know... ;-)
+On Mon, 20 Oct 2003 18:56:13 PDT, Andrew Morton said:
 
-OK, 2.6.0-test8 worked, 2.6.0-test8-mm1 without any FB support, too!!
-So I didn't test reverting the -Os patch...
+> Has anyone tried CONFIG_DEBUG_SLAB and CONFIG_DEBUG_PAGEALLOC, see if that
+> turns anything up?
 
-> > There's nothing in -mm which touches the inode list management code, so a
-> > random scribble or misbehaving driver is likely.
->
-> Yes, or some part of the kernel compiled false...
-> (After some problems with erlier gcc's I don't trust my curent 3.3.1 that
-> much...)
+Well, I built two test kernels, which hopefully tell us something.. ;)
 
-It seems my gcc 3.3.1 works the way it should... ;-)
+1) I did a 'patch -R' and backed out the two fbdev patches - and a -test8-mm1
+with them removed boots and runs fine with a framebuffer console.
 
---Boundary-02=_UFIl/+fbKpA9LXp
+2) Kernel *with* fbdev patch, but no 'vga=794' parm at boot works OK as well.  So
+it can be in the kernel and not used, and works OK.
+
+3) With fbdev patch and DEBUG_SLAB and DEBUG_PAGEALLOC, it got weird.
+It booted semi-OK (sort of - some funkyness mounting filesystems) but suffered some
+truly horrid bit-droppings as stuff scrolled. Basically, most character cells that were
+"blank" had light grey in the top 2 pixes of the cell, and many non-blanks that didn't
+have ascenders had them as well.  Not all the pixels were the same grey, either..
+Looks like the debugging changed the layout in memory enough for things to almost
+work (so less stuff was getting overlaid and we lived longer?), but didn't catch any
+memory corruption (or at least neither console nor 'dmesg' saw any messages).
+
+I'm wondering if it's stomping on some memory because the vga=794
+parameter tells it to use 1280x1024x16, when the underlying card is really 1600x1200x32? 
+(Yes, I know this means the vesa is using a small corner of the card's memory)...
+
+--==_Exmh_-690250736P
 Content-Type: application/pgp-signature
-Content-Description: signature
 
 -----BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.1 (GNU/Linux)
+Version: GnuPG v1.2.2 (GNU/Linux)
+Comment: Exmh version 2.5 07/13/2001
 
-iD8DBQA/lIFUYAiN+WRIZzQRAmaGAJ4qLA3r2xiA880khujeiiF4OQ1XUQCgoYRM
-lYaKmbWCzsc5s8rtUloQ+wE=
-=QHJW
+iD8DBQE/lJ/2cC3lWbTT17ARAth7AJ0bSUNvHSBK0RL9PtuhJNCeSFfnDgCfYByo
+J9cgxwsDxMJ7nvqyCyxlZVs=
+=PlgF
 -----END PGP SIGNATURE-----
 
---Boundary-02=_UFIl/+fbKpA9LXp--
+--==_Exmh_-690250736P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
