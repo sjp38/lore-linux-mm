@@ -1,49 +1,58 @@
-Received: from mail.ccr.net (ccr@alogconduit1ah.ccr.net [208.130.159.8])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA30229
-	for <linux-mm@kvack.org>; Fri, 22 Jan 1999 19:36:30 -0500
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-References: <Pine.LNX.4.03.9901131557590.295-100000@mirkwood.dummy.home> <Pine.LNX.3.96.990113190617.185C-100000@laser.bogus> <199901132214.WAA07436@dax.scot.redhat.com> <19990114155321.C573@Galois.suse.de>
-From: ebiederm+eric@ccr.net (Eric W. Biederman)
-Date: 22 Jan 1999 10:29:05 -0600
-In-Reply-To: "Dr. Werner Fink"'s message of "Thu, 14 Jan 1999 15:53:21 +0100"
-Message-ID: <m1u2xjgtke.fsf@flinx.ccr.net>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id OAA07247
+	for <linux-mm@kvack.org>; Sat, 23 Jan 1999 14:16:38 -0500
+Date: Sat, 23 Jan 1999 19:16:11 GMT
+Message-Id: <199901231916.TAA04383@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: VM20 behavior on a 486DX/66Mhz with 16mb of RAM
+In-Reply-To: <Pine.LNX.3.96.990121200340.1387C-100000@laser.bogus>
+References: <199901211447.OAA01170@dax.scot.redhat.com>
+	<Pine.LNX.3.96.990121200340.1387C-100000@laser.bogus>
 Sender: owner-linux-mm@kvack.org
-To: "Dr. Werner Fink" <werner@suse.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@e-mind.com>, Rik van Riel <riel@humbolt.geo.uu.nl>, Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, Linus Torvalds <torvalds@transmeta.com>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Savochkin Andrey Vladimirovich <saw@msu.ru>, steve@netplus.net, brent verner <damonbrent@earthlink.net>, "Garst R. Reese" <reese@isn.net>, Kalle Andersson <kalle.andersson@mbox303.swipnet.se>, Ben McCann <bmccann@indusriver.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@e-mind.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, John Alvord <jalvo@cloud9.net>, Nimrod Zimerman <zimerman@deskmail.com>, Linux Kernel mailing list <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "WF" == Werner Fink <werner@suse.de> writes:
+Hi,
 
-WF> I know that most of you do not like aging.
+On Thu, 21 Jan 1999 20:32:32 +0100 (CET), Andrea Arcangeli
+<andrea@e-mind.com> said:
 
-We love aging.  We dislike the BS that called it self aging code.
-It implemented something like least frequently used.  Instead of
-least recently used.  We dislike least frequently used because it's a poor
-predictor of pages to be used next, and a cpu hog.
+> On Thu, 21 Jan 1999, Stephen C. Tweedie wrote:
+>> No.  The algorithm should react to the current *load*, not to what it
+>> thinks the ideal parameters should be.  There are specific things you
 
-WF> At this point the system performance breaks down dramatically even
-WF> with 2.2.0pre[567] ...
+> Obviously when the system has a lot of freeable memory in fly there are
+> not constraints. When instead the system is very low on memory you have to
+> choose what to do.
 
-If you could demonstrate this it would aid any plea for changing the VM system.
+> Two choices:
 
-WF> What's about a simple aging of program page cluster or better of the
-WF> page cache? 
+> 1. You want to give the most of available memory to the process that is
+>    trashing the VM, in this case you left the balance percentage of
+>    freeable pages low.
 
-We do age pages.  The PG_referenced bit.  This scheme as far as I can
-tell is more effective at predicting pages we are going to use next
-than any we have used before.
+> 2. You leave the number of freeable pages more high, this way other
+>    iteractive processes will run smoothly even if with the trashing proggy
+>    in background. 
 
-WF> Increasing the age could be done if and only if the pages
-WF> or page clusters swapped in and the program wasn't able to use its
-WF> time slice. Decreasing the age could be placed in shrink_mmap().
+Note that if you have a thrashing process, then by far the most
+important factor to tune is the aggressiveness with which that process
+charges through new pages.  It doesn't matter how many pages you try to
+keep free: if you have any process which is trying to gobble them all,
+then it is far more important to throttle the rate at which they can do
+so than to have any hard and fast limits on freeable pages.  Otherwise,
+you just end up freeing lots of pages for the thrashing task(s) to
+reclaim them straight back.
 
-People keep playing with ignoring PG_referenced in shrink_mmap for the swap cache,
-because it doesn't seem terribly important.  If you could demonstrate
-this is a problem we can stop ignoring it.
+This is what I mean by being tuned by the load, not by predetermined
+limits.
 
-Eric
-
-
+--Stephen
 --
-This is a majordomo managed list.  To unsubscribe, send a message with
-the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
+To unsubscribe, send a message witch 'unsubscribe linux-mm my@address' in
+the body to majordomo@kvack.org.
+For more info on Linux MM, see: http://humbolt.geo.uu.nl/Linux-MM/
