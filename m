@@ -1,36 +1,49 @@
-Date: Tue, 6 May 2003 16:39:07 +0530
-From: Dipankar Sarma <dipankar@in.ibm.com>
-Subject: Re: 2.5.69-mm1
-Message-ID: <20030506110907.GB9875@in.ibm.com>
-Reply-To: dipankar@in.ibm.com
-References: <20030504231650.75881288.akpm@digeo.com> <20030505210151.GO8978@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030505210151.GO8978@holomorphy.com>
+Date: Tue, 6 May 2003 15:15:55 +0100 (BST)
+From: Matt Bernstein <mb--lkml@dcs.qmul.ac.uk>
+Subject: Re: 2.5.68-mm4
+In-Reply-To: <Pine.LNX.4.55.0305030800140.1304@jester.mews>
+Message-ID: <Pine.LNX.4.55.0305061511020.3237@r2-pc.dcs.qmul.ac.uk>
+References: <20030502020149.1ec3e54f.akpm@digeo.com> <1051905879.2166.34.camel@spc9.esa.lanl.gov>
+ <20030502133405.57207c48.akpm@digeo.com> <1051908541.2166.40.camel@spc9.esa.lanl.gov>
+ <20030502140508.02d13449.akpm@digeo.com> <1051910420.2166.55.camel@spc9.esa.lanl.gov>
+ <Pine.LNX.4.55.0305030014130.1304@jester.mews> <20030502164159.4434e5f1.akpm@digeo.com>
+ <20030503025307.GB1541@averell> <Pine.LNX.4.55.0305030800140.1304@jester.mews>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andi Kleen <ak@muc.de>, Andrew Morton <akpm@digeo.com>, elenstev@mesatop.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, May 05, 2003 at 09:09:34PM +0000, William Lee Irwin III wrote:
-> On Sun, May 04, 2003 at 11:16:50PM -0700, Andrew Morton wrote:
-> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm1/
-> > Various random fixups, cleanps and speedups.  Mainly a resync to 2.5.69.
-> 
-> fs/file_table.c: In function `fget_light':
-> fs/file_table.c:209: warning: passing arg 1 of `_raw_read_lock' from incompatible pointer type
+On May 3 Matt Bernstein wrote:
 
-I should have merged with 2.5.69 before mailing my fget-speedup patch out. 
-->file_lock has been changed to a spin_lock somewhere after 2.5.66. 
+>>> > Bizarrely I have a nasty crash on modprobing e100 *without* kexec (having
+>>> > previously modprobed unix, af_packet and mii) and then trying to modprobe
+>>> > serio (which then deadlocks the machine).
+>>> > 
+>>> > 	http://www.dcs.qmul.ac.uk/~mb/oops/
+>>> 
+>>> Andi, it died in the middle of modprobe->apply_alternatives()
+>>
+>>The important part of the oops - the first lines are missing in the .png.
+>>
+>>What is the failing address? And can you send me your e100.o ?
+>
+>I'm sorry I can't get to the machine now till Tuesday. I'll try to get it 
+>into a smaller font, or failing that a serial console if you like.
 
-That brings me to the point - with the fget-speedup patch, we should
-probably change ->file_lock back to an rwlock again. We now take this
-lock only when fd table is shared and under such situation the rwlock
-should help. Andrew, it that ok ?
+I've now built 2.5.69-mm1 and it gives a very similar oops--and it wasn't 
+related to e100; it would oops on the third modprobe!
 
-Thanks
-Dipankar
+So, I built a load of my modules into the monolith: leaving just uhci and
+e100, and now the first modprobe oopses and the second deadlocks..
+
+However, the trace is a little deeper this time:
+	http://www.dcs.qmul.ac.uk/~mb/oops/oops2small.jpeg
+
+Is this helpful?
+
+Matt
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
