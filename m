@@ -1,45 +1,58 @@
-Received: from fujitsu1.fujitsu.com (localhost [127.0.0.1])
-	by fujitsu1.fujitsu.com (8.12.10/8.12.9) with ESMTP id i5P3Bud6020864
-	for <linux-mm@kvack.org>; Thu, 24 Jun 2004 20:11:56 -0700 (PDT)
-Date: Thu, 24 Jun 2004 20:11:37 -0700
-From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: Re: [Lhms-devel] Re: Merging Nonlinear and Numa style memory hotplug
-In-Reply-To: <1088116621.3918.1060.camel@nighthawk>
-References: <20040624135838.F009.YGOTO@us.fujitsu.com> <1088116621.3918.1060.camel@nighthawk>
-Message-Id: <20040624194557.F02B.YGOTO@us.fujitsu.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Re: [Lhms-devel] Re: Merging Nonlinear and Numa style memory
+	hotplug
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20040624194557.F02B.YGOTO@us.fujitsu.com>
+References: <20040624135838.F009.YGOTO@us.fujitsu.com>
+	 <1088116621.3918.1060.camel@nighthawk>
+	 <20040624194557.F02B.YGOTO@us.fujitsu.com>
+Content-Type: text/plain
+Message-Id: <1088133541.3918.1348.camel@nighthawk>
+Mime-Version: 1.0
+Date: Thu, 24 Jun 2004 20:19:01 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
+To: Yasunori Goto <ygoto@us.fujitsu.com>
 Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>, Linux-Node-Hotplug <lhns-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, "BRADLEY CHRISTIANSEN [imap]" <bradc1@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-I understand this idea at last.
-Section size of DLPAR of PPC is only 16MB.
-But kmalloc area of virtual address have to be contigous 
-even if the area is divided 16MB physically.
-Dave-san's implementation (it was for IA32) was same index between 
-phys_section and mem_section. So, I was confused.
-
-> pfn_to_page(unsigned long pfn)
-> {
->        return
-> &mem_section[phys_section[pfn_to_section(pfn)]].mem_map[section_offset_pfn(pfn)];
-> }
+On Thu, 2004-06-24 at 20:11, Yasunori Goto wrote:
+> I understand this idea at last.
+> Section size of DLPAR of PPC is only 16MB.
+> But kmalloc area of virtual address have to be contigous 
+> even if the area is divided 16MB physically.
+> Dave-san's implementation (it was for IA32) was same index between 
+> phys_section and mem_section. So, I was confused.
 > 
+> > pfn_to_page(unsigned long pfn)
+> > {
+> >        return
+> > &mem_section[phys_section[pfn_to_section(pfn)]].mem_map[section_offset_pfn(pfn)];
+> > }
+> > 
+> 
+> But, I suppose this translation might be too complex.
 
-But, I suppose this translation might be too complex.
-I worry that many person don't like this which is cause of
-performance deterioration.
-Should this translation be in common code?
+It certainly doesn't look pretty, but I think it's manageable with a
+comment, or maybe breaking the operation up into a few lines instead.
 
-Bye.
+> I worry that many person don't like this which is cause of
+> performance deterioration.
 
--- 
-Yasunori Goto <ygoto at us.fujitsu.com>
+There is some precedent in the kernel for a table such as this.  Take a
+look at the NUMA page_to_pfn() and page_zone() functions.  They use a
+zone_table array to do that same kind of thing.
 
+Are you worried bout the pfn_to_page() function itself, that it will
+pull in 2 cachelines of data: 1 for phys_section[] and another for
+mem_section[]?
+
+> Should this translation be in common code?
+
+What do you mean by common code?  It should be shared by all
+architectures.
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
