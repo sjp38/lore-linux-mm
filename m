@@ -1,69 +1,47 @@
-Date: Sat, 5 Apr 2003 16:34:24 -0500 (EST)
-From: Rik van Riel <riel@imladris.surriel.com>
+Date: Sun, 6 Apr 2003 00:06:21 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: objrmap and vmtruncate
-In-Reply-To: <20030405163003.GD1326@dualathlon.random>
-Message-ID: <Pine.LNX.4.50L.0304051614330.2553-100000@imladris.surriel.com>
-References: <20030404163154.77f19d9e.akpm@digeo.com> <12880000.1049508832@flay>
- <20030405024414.GP16293@dualathlon.random> <20030404192401.03292293.akpm@digeo.com>
- <20030405040614.66511e1e.akpm@digeo.com> <20030405163003.GD1326@dualathlon.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20030405220621.GG1326@dualathlon.random>
+References: <20030404163154.77f19d9e.akpm@digeo.com> <12880000.1049508832@flay> <20030405024414.GP16293@dualathlon.random> <20030404192401.03292293.akpm@digeo.com> <20030405040614.66511e1e.akpm@digeo.com> <20030405163003.GD1326@dualathlon.random> <20030405132406.437b27d7.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030405132406.437b27d7.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Andrew Morton <akpm@digeo.com>, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 5 Apr 2003, Andrea Arcangeli wrote:
+On Sat, Apr 05, 2003 at 01:24:06PM -0800, Andrew Morton wrote:
+> Andrea Arcangeli <andrea@suse.de> wrote:
+> >
+> > On Sat, Apr 05, 2003 at 04:06:14AM -0800, Andrew Morton wrote:
+> > > Andrew Morton <akpm@digeo.com> wrote:
+> > > >
+> > > > Nobody has written an "exploit" for this yet, but it's there.
+> > > 
+> > > Here we go.  The test app is called `rmap-test'.  It is in ext3 CVS.  See
+> > > 
+> > > 	http://www.zip.com.au/~akpm/linux/ext3/
+> > > 
+> > > It sets up N MAP_SHARED VMA's and N tasks touching them in various access
+> > > patterns.
+> > 
+> > I'm not questioning during paging rmap is more efficient than objrmap,
+> > but your argument about rmap having lower complexity of objrmap and that
+> > rmap is needed is wrong. The fact is that with your 100 mappings per
+> > each of the 100 tasks case, both algorithms works in O(N) where N is
+> > the number of the pagetables mapping the page.
+> 
+> Nope.  To unmap a page, full rmap has to scan 100 pte_chain slots, which is 3
+> cachelines worth.  objrmap has to scan 10,000 vma's, 9,900 of which do not map
+> that page at all.
 
-> I'm not questioning during paging rmap is more efficient than objrmap,
-> but your argument about rmap having lower complexity of objrmap and that
-> rmap is needed is wrong. The fact is that with your 100 mappings per
-> each of the 100 tasks case, both algorithms works in O(N) where N is
-> the number of the pagetables mapping the page. No difference in
-> complexity.  I don't care how many cycles you spend to reach the 100x100
-> pagetables, those are fixed cycles, the fact is that there are 100x100
-> pagetables,
+I see what you mean, you're right. That's because all the 10,000 vma
+belongs to the same inode.
 
-Umm no.  The fact that a VMA is "mapping" the page doesn't
-mean the page is resident in any page tables.   For example,
-think about the MAP_PRIVATE mapping of the relocation tables
-from libc.so ... every process will have its own, modified,
-copy of that data.  The original page might not be mapped by
-the page tables of any processes.
-
-> rmap won't change the complexity of the algorithm at all,
-
-It will for some cases (as shown above), but I agree that for
-most common situations objrmap and pte rmap should have very
-similar algorithmic complexity in the pageout path.
-
-> that's mandated by the hardware and by your application, we can't do
-> better than O(N) with N the number of pagetables to unmap a single page.
-> Even rmap has the O(N) complexity, it won't be allowed to reach only 100
-> pagetables instead of 100000 pagetables.
-
-There is one common situation where objrmap is O(N^2) while
-pte rmap is only O(N).  However, this case isn't interesting
-because this workload tends to run mlocked anyway.
-
-This is, of course, Oracle on 32 bit systems with gazillions
-of windows into the larger-than-virtual-memory shared memory
-area.
-
-This aspect of Oracle can be special-cased with remap_file_pages
-and the reverse mapping can be skipped alltogether since Oracle's
-shared memory area should (IMHO) be mlocked anyway.
-
-In short, I agree with you that we probably want object rmap for
-all the common cases.
-
-cheers,
-
-Rik
--- 
-Engineers don't grow up, they grow sideways.
-http://www.surriel.com/		http://kernelnewbies.org/
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
