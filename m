@@ -1,56 +1,53 @@
-Message-ID: <413D0167.30202@sgi.com>
-Date: Mon, 06 Sep 2004 19:31:35 -0500
-From: Ray Bryant <raybry@sgi.com>
-MIME-Version: 1.0
+Date: Mon, 6 Sep 2004 21:03:04 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: swapping and the value of /proc/sys/vm/swappiness
-References: <413CB661.6030303@sgi.com> <20040906131027.227b99ac.akpm@osdl.org> <413CD4FF.8070408@sgi.com> <20040906223724.GH3106@holomorphy.com> <413CF809.3010908@cyberone.com.au>
-In-Reply-To: <413CF809.3010908@cyberone.com.au>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20040907000304.GA8083@logos.cnet>
+References: <413CB661.6030303@sgi.com> <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cone.1094513660.210107.6110.502@pc.kolivas.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, kernel@kolivas.org
+To: Con Kolivas <kernel@kolivas.org>
+Cc: Andrew Morton <akpm@osdl.org>, raybry@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, piggin@cyberone.com.au, mbligh@aracnet.com
 List-ID: <linux-mm.kvack.org>
 
-
-Nick Piggin wrote:
-
+On Tue, Sep 07, 2004 at 09:34:20AM +1000, Con Kolivas wrote:
+> Andrew Morton writes:
 > 
->>
->> On Mon, Sep 06, 2004 at 04:22:07PM -0500, Ray Bryant wrote:
->>
->>> On a separate issue, the response to my proposal for a mempolicy to 
->>> control
->>> allocation of page cache pages has been <ahem> underwhelming.
->>> (See: http://marc.theaimsgroup.com/?l=linux-mm&m=109416852113561&w=2
->>> and  http://marc.theaimsgroup.com/?l=linux-mm&m=109416852416997&w=2 )
->>> I wonder if this is because I just posted it to linux-mm or its not 
->>> fleshed out enough yet to be interesting?
->>>
->>
->> It was very noncontroversial. Since it's apparently useful to someone
->> and generally low-impact it should probably be merged.
->>
->>
+> >Con Kolivas <kernel@kolivas.org> wrote:
+> >>
+> >>> A scan of the change logs for swappiness related changes shows nothing 
+> >>that > might explain these changes.  My question is:  "Is this change in 
+> >> behavior
+> >> > deliberate, or just a side effect of other changes that were made in 
+> >> the vm?" > and "What kind of swappiness behavior might I expect to find 
+> >> in future kernels?".
+> >>
+> >> The change was not deliberate but there have been some other people 
+> >> report significant changes in the swappiness behaviour as well (see 
+> >> archives). It has usually been of the increased swapping variety lately. 
+> >> It has been annoying enough to the bleeding edge desktop users for a 
+> >> swag of out-of-tree hacks to start appearing (like mine).
+> >
+> >All of which is largely wasted effort.  It would be much more useful to get
+> >down and identify which patch actually caused the behavioural change.
 > 
-> Yeah, I couldn't see any reason to not go ahead with it, which is why I
-> didn't say anything :)
-> 
-> 
+> I don't disagree. Is there anyone who has the time and is willing to do the 
+> regression testing? This is a general appeal to the mailing list.
 
-Cool.  I'll go ahead and finish it and make it something useful then.
+Hi kernel fellows,
 
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
+I volunteer. I'll try something tomorrow to compare swappiness of older kernels like  
+2.6.5 and 2.6.6, which were fine on SGI's Altix tests, up to current newer kernels 
+(on small memory boxes of course).
+
+Someone needs to write a vmstat-like tool to parse /proc/vmstat. 
+The statistics in there allows us to watch the behaviour of VM
+page reclaim code.
+
+Con, if you could compile a list of reports we would be very grateful.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
