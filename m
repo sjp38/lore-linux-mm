@@ -1,26 +1,30 @@
-Date: Thu, 8 Jan 2004 00:20:34 -0800
+Date: Thu, 8 Jan 2004 00:23:29 -0800
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: 2.6.1-rc2-mm1
-Message-Id: <20040108002034.69081d4b.akpm@osdl.org>
-In-Reply-To: <20040107232831.13261f76.akpm@osdl.org>
-References: <20040107232831.13261f76.akpm@osdl.org>
+Subject: Re: a new version of memory hotremove patch
+Message-Id: <20040108002329.3faee471.akpm@osdl.org>
+In-Reply-To: <20040108073634.8A9947007A@sv1.valinux.co.jp>
+References: <20040108073634.8A9947007A@sv1.valinux.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+Cc: lhms-devel@lists.sourceforge.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@osdl.org> wrote:
+IWAMOTO Toshihiro <iwamoto@valinux.co.jp> wrote:
 >
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.1-rc2/2.6.1-rc2-mm1/
-> 
+> - If a page is in mapping->io_pages when remap happens, it will be
+>    moved to dirty_pages.  Tracking page->list to find out the list
+>    which page is connected to would be too expensive, and I have no other
+>    idea.
 
-Well I managed to release this five seconds after 2.6.1-rc3.
+That sounds like a reasonable thing to do.  The only impact would be that
+an fsync() which is currently in progress could fail to write the page, so
+the page is still dirty after the fsync() returns.
 
-2.6.1-rc2-mm1 contains everything which is in 2.6.1-rc3.
-
+If this is the biggest problem, you've done well ;)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
