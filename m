@@ -1,43 +1,35 @@
-Subject: Re: Unable to boot 2.6.0-test1-mm2 (mm1 is OK) on RH 9.0.93
-	(Severn)
-From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <1058887517.1668.16.camel@spc9.esa.lanl.gov>
-References: <1058887517.1668.16.camel@spc9.esa.lanl.gov>
-Content-Type: text/plain
-Message-Id: <1058981039.1668.107.camel@spc9.esa.lanl.gov>
-Mime-Version: 1.0
-Date: 23 Jul 2003 11:23:59 -0600
-Content-Transfer-Encoding: 7bit
+Received: from rra2002 (helo=localhost)
+	by aria.ncl.cs.columbia.edu with local-esmtp (Exim 4.14)
+	id 19g4Oi-0007JO-8v
+	for linux-mm@kvack.org; Fri, 25 Jul 2003 11:22:20 -0400
+Date: Fri, 25 Jul 2003 11:22:20 -0400 (EDT)
+From: "Raghu R. Arur" <rra2002@aria.ncl.cs.columbia.edu>
+Subject: pte flags and tlb miss
+Message-ID: <Pine.GSO.4.51.0307251118140.27260@aria.ncl.cs.columbia.edu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2003-07-22 at 09:25, Steven Cole wrote:
-> I get this error when trying to boot 2.6.0-test1-mm2 using the new Red
-> Hat beta (Severn).  2.6.0-test2-mm2 runs successfully on a couple of
-> other test boxes of mine.
-> 
-> VFS: Cannot open root device "hda1" or unknown-block(0,0)
-> Please append a correct "root=" boot option
-> Kernel panic: VFS: Unable to mount root fs on unknown-block(0,0)
-
-After reading a recent thread on lkml, I changed the "root=" thusly:
-
-image=/boot/vmlinuz-2.6.0-test1-mm2
-        label=2.6.0-test1mm2
-        read-only
-        append="devfs=nomount hdc=ide-scsi root=/dev/hda1"
-
-to this
-        append="devfs=nomount hdc=ide-scsi root=0301"
-
-And now 2.6.0-test1-mm2 boots and runs.
-
-Steven
 
 
+  I am just trying to understand how pte flags work. I see that the pte_mkyoung()
+is called whenever a pte entry
+is created. In i-386 it happens only in handle_pte_fault which is called
+during a page fault. My question is will this flag be updated during every
+page fault and every tlb miss.
+
+  When is pte_mkyoung() called ?
+
+  One more question is, how are tlb misses handled in linux. Are they
+considered as minor faults and handled by do_page_fault() itself or is
+there any other function that handles this ?
+
+
+ Thanks,
+Raghu
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
