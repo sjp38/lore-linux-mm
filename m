@@ -1,42 +1,61 @@
-Date: Tue, 9 Nov 2004 21:34:07 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Message-ID: <41918715.1080008@cyberone.com.au>
+Date: Wed, 10 Nov 2004 14:12:21 +1100
+From: Nick Piggin <piggin@cyberone.com.au>
+MIME-Version: 1.0
 Subject: Re: [PATCH] kswapd shall not sleep during page shortage
-Message-ID: <20041109233407.GF8414@logos.cnet>
-References: <20041109164642.GE7632@logos.cnet> <20041109121945.7f35d104.akpm@osdl.org> <20041109174125.GF7632@logos.cnet> <20041109133343.0b34896d.akpm@osdl.org> <20041109182622.GA8300@logos.cnet> <20041109142257.1d1411e1.akpm@osdl.org> <20041109203143.GC8414@logos.cnet> <20041109162801.7f7ca242.akpm@osdl.org> <20041109231654.GE8414@logos.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041109231654.GE8414@logos.cnet>
+References: <20041109164642.GE7632@logos.cnet>	<20041109121945.7f35d104.akpm@osdl.org>	<20041109174125.GF7632@logos.cnet>	<20041109133343.0b34896d.akpm@osdl.org>	<20041109182622.GA8300@logos.cnet>	<20041109142257.1d1411e1.akpm@osdl.org>	<4191675B.3090903@cyberone.com.au>	<419181D5.1090308@cyberone.com.au> <20041109185640.32c8871b.akpm@osdl.org>
+In-Reply-To: <20041109185640.32c8871b.akpm@osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, piggin@cyberone.com.au
+Cc: marcelo.tosatti@cyclades.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2004 at 09:16:54PM -0200, Marcelo Tosatti wrote:
-> On Tue, Nov 09, 2004 at 04:28:01PM -0800, Andrew Morton wrote:
-> > Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
-> > >
-> > > Back to arguing in favour of my patch - it seemed to me that kswapd could 
-> > >  go to sleep leaving allocators which can't reclaim pages themselves in a 
-> > >  bad situation. 
-> > 
-> > Yes, but those processes would be sleeping in blk_congestion_wait() during,
-> > say, a GFP_NOIO/GFP_NOFS allocation attempt. 
-> 
-> I was thinking about interrupts when I mentioned "allocators which can't reclaim 
-> pages" :)
-> 
-> > And in that case, they may be
-> > holding locks whcih prevent kswapd from being able to do any work either.
-> 
-> OK... Just out of curiosity:
-> Isnt the "lock contention" at this level (filesystem) a relatively rare situation? 
-> 
-> It could be a NFS lock for example? What other kind of lock?
 
-Rather stupid question - filesystem internal locks like i_sem - 
-not NFS locks.
+Andrew Morton wrote:
+
+>Nick Piggin <piggin@cyberone.com.au> wrote:
+>
+>>Shall we crank up min_free_kbytes a bit?
+>>
+>
+>May as well.  or we could do something fancy in register_netdevice().
+>
+>
+
+OK. If you look at my tables, in practice 2.6.8 will actually be
+keeping more memory free anyway, in the form of ZONE_DMA free. So
+we could quadruple min_free_kbytes, *but* 2.6.10's kswapd will
+then free a lot further than 2.6.8.
+
+So I'd advocate doubling min_free_kbytes, *and* squashing watermarks
+together.
+
+
+>> We could also compress the watermarks, while increasing pages_min? That
+>> will increase the GFP_ATOMIC buffer as well, without having free memory
+>> run away on us (eg pages_min = 2*x, pages_low = 5*x/2, pages_high = 3*x)?
+>>
+>
+>There are also hidden intermediate levels for rt-policy tasks.
+>
+>
+>
+
+Yep, they all get keyed off pages_min - so if we just double pages_min,
+we're effectively doubling that GFP_ATOMIC buffer and the rt_task
+buffer(*), while halving the asynch reclaim marks (pages_low and
+pages_high).
+
+Now combine that with doubling min_free_kbytes, and we have our
+quadrupled GFP_ATOMIC buffer, restoring parity with 2.6.8, while also
+keeping the asynch reclaim marks in the same place. Make sense?
+
+(*) The rt_task buffer was broken in 2.6.8 anyway because rt tasks could
+allocate far more than GFP_ATOMIC allocations.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
