@@ -1,28 +1,28 @@
-Date: Wed, 23 Apr 2003 23:39:54 -0400
-From: Benjamin LaHaise <bcrl@redhat.com>
+Date: Thu, 24 Apr 2003 02:14:54 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.68-mm2
-Message-ID: <20030423233954.D9036@redhat.com>
-References: <20030423012046.0535e4fd.akpm@digeo.com><18400000.1051109459@[10.10.2.4]> <20030423144648.5ce68d11.akpm@digeo.com> <1565150000.1051134452@flay>
+Message-ID: <20030424091454.GP8978@holomorphy.com>
+References: <20030423012046.0535e4fd.akpm@digeo.com> <20030423095926.GJ8931@holomorphy.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1565150000.1051134452@flay>; from mbligh@aracnet.com on Wed, Apr 23, 2003 at 02:47:32PM -0700
+In-Reply-To: <20030423095926.GJ8931@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, rml@tech9.net
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Apr 23, 2003 at 02:47:32PM -0700, Martin J. Bligh wrote:
-> The performance improvement was about 25% of systime according to my 
-> measurements - I don't call that insignificant.
+On Wed, Apr 23, 2003 at 02:59:26AM -0700, William Lee Irwin III wrote:
+> rml and I coordinated to put together a small patch (combining both
+> our own) for properly locking the static variables in out_of_memory().
+> There's not any evidence things are going wrong here now, but it at
+> least addresses the visible lack of locking in out_of_memory().
+> Applies cleanly to 2.5.68-mm2.
 
-Never, ever use changes in system time as a justification for a patch.  We 
-all know that Linux's user/system time accounting is patently unreliable.  
-Remember Nyquist?  Talk to me about differences in wall clock and your 
-comments will be more interesting.
+Improved OOM killer behavior verified on 64GB i386.
 
-		-ben
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
