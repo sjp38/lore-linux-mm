@@ -1,47 +1,35 @@
-Date: Mon, 27 Mar 2000 08:14:34 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [PATCH] Re: kswapd
-In-Reply-To: <200003270800.AAA65612@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.10.10003270807260.1745-100000@penguin.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 27 Mar 2000 17:17:39 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: compressed swap
+Message-ID: <20000327171739.F10820@redhat.com>
+References: <38DF5901.CEBF90B0@nibiru.pauls.erfurt.thur.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <38DF5901.CEBF90B0@nibiru.pauls.erfurt.thur.de>; from weigelt@nibiru.pauls.erfurt.thur.de on Mon, Mar 27, 2000 at 12:50:09PM +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: riel@nl.linux.org, Russell King <rmk@arm.linux.org.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Enrico Weigelt <weigelt@nibiru.pauls.erfurt.thur.de>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Mon, 27 Mar 2000, Kanoj Sarcar wrote:
+On Mon, Mar 27, 2000 at 12:50:09PM +0000, Enrico Weigelt wrote:
 > 
-> This is my reasoning: Rik's patch makes it so that before kswapd 
-> undertakes heavy weight work, it yields the cpu ... then it checks
-> whether it has to do the work (via zone_wake_kswapd). This is the
-> only difference over pre3.
+> i'm currenty thinking about a compressed swapspace-manager.
+> not to save diskspace, but to reduce the IO-upcome.
+> 
+> in today's PCs the blottleneck is the disk-bandwith when the
+> system is swapping.i
 
-No, there's another difference: pre3 will loop forever, even if there is
-nothing to do - until something comes up that needs scheduling. Basically,
-the pre3 loop boils down to
+Not really.  You are far more limited by the seek performance of the
+disk than by its bandwidth.  If you wanted to optimise it, you would
+be far, far better off trying to make swap stream on and off the disk
+in larger units rather than compressing it.  (The clustering code in
+the 2.2 VM does this for swapin, and the kswapd is tuned to do it for
+swapout, to some extent already.)
 
-	do {
-		/* not interesting */
-	} while (!tsk->need_resched);
-
-when there is enough memory.
-
-Which obviously causes excessive CPU to be wasted.
-
-NOTE! The "obviously" is a bit strong. What happens is that kswapd is only
-woken up when needed, so most of the time it is sleeping. It's only when
-it is woken up and when it has done its work when the loop turns into a
-CPU-burner, but it can easily mean that kswapd will just spend CPU time
-for no good reason until its time-slice is exhausted.
-
-So think of the bug as "kswapd will waste the final part of its timeslice
-doing nothing useful".
-
-		Linus
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
