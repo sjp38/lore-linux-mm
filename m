@@ -1,81 +1,78 @@
-Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
-	id 17ZQUE-0007jp-00
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2002 23:28:02 -0700
-Date: Mon, 29 Jul 2002 23:28:02 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: watching bloated slabs
-Message-ID: <20020730062802.GB29537@holomorphy.com>
-Mime-Version: 1.0
-Content-Type: multipart/mixed; boundary="yNb1oOkm5a9FJOVX"
-Content-Disposition: inline
+Message-ID: <3D463852.E6F18815@india.hp.com>
+Date: Tue, 30 Jul 2002 12:25:14 +0530
+From: Anil Kumar Nanduri <anil@india.hp.com>
+MIME-Version: 1.0
+Subject: Re: Regarding Page Cache ,Buffer Cachein  disabling in LinuxKernel.
+References: <Pine.OSF.4.10.10207301003300.3850-100000@moon.cdotd.ernet.in> <a05111b09b96bcf853061@[192.168.239.105]>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Jonathan Morton <chromi@chromatix.demon.co.uk>
+Cc: Anil Kumar <anilk@cdotd.ernet.in>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---yNb1oOkm5a9FJOVX
-Content-Type: text/plain; charset=us-ascii
-Content-Description: bloated message
-Content-Disposition: inline
+Hi Anil,
+    I suggest you to read some documents on 2.4 linux memory management
+    http://home.earthlink.net/~jknapka/linux-mm/pagecache.html
+    then read code of 2.4.
 
-I got to wondering about how bloated various slabs were, and how
-perhaps to track their bloatedness over time. So I brewed up a couple
-of scripts to help more closely observe their humongous bloatedness.
+    Actually in 2.4 both the swap cache and page cache are unified with
+    the concept of struct address_space,
+    I mean Any physical page will be in active list (or) inactive clean list
+    (or) inactive dirty list.
 
-bloatmon just cooks some slab stats so it grinds out lines with the
-cache name, amount of space granted to callers, amount of space parked
-in the slab, and percent utilization.
+    If that page is mmaped one (i mean if it is for a file) then it will also
+be
+    in the inode list of that file (no swap for this page).
 
-bloatmeter drives bloatmon in a loop, sorts its output by %util, and
-chops off the output at 22 lines to put the most underutilized (and
-hence bloated) slabs up top.
+    If that page was identified to be swapped(!mmaped || !text || etc..)
+    out then it will also be in the swapper_space inode queue until it
+    is reclaimed by the system.
 
-Cheers,
-Bill
+    Please remember it is the same page which is on two queues( not two copies)
 
---yNb1oOkm5a9FJOVX
-Content-Type: text/plain; charset=us-ascii
-Content-Description: bloatmon
-Content-Disposition: attachment; filename=bloatmon
+    In your case As you will not be having any swap...
+    all the mmaped files(if you have mounted partition with r/rw),
+    text region of executables  will still behave as if they have swap.
 
-#!/usr/bin/awk -f
-BEGIN {
-	printf "%18s    %8s %8s %8s\n", "cache", "active", "alloc", "%util";
-}
+    but for other pages which actually need swap like data segments
+    will not be in swapper_space inode queue as the get_swap_page()
+    function will fail to return an valid entry.
 
-{
-	if ($3 != 0.0) {
-		pct  = 100.0 * $2 / $3;
-		frac = (10000.0 * $2 / $3) % 100;
-	} else {
-		pct  = 100.0;
-		frac = 0.0;
-	}
-	active = ($2 * $4)/1024;
-	alloc  = ($3 * $4)/1024;
-	if ((alloc - active) < 1.0) {
-		pct  = 100.0;
-		frac = 0.0;
-	}
-	printf "%18s: %8dKB %8dKB  %3d.%-2d\n", $1, active, alloc, pct, frac;
-}
+    Now tell me why do you want to disable page cache/ swap cache?
 
---yNb1oOkm5a9FJOVX
-Content-Type: text/plain; charset=us-ascii
-Content-Description: bloatmeter
-Content-Disposition: attachment; filename=bloatmeter
+    May be i will suggest you one thing that might be of use to you is
+    to have a compressed memory based swap
+    ( I am thinking of implementing).
 
-#!/bin/sh
-while : ; do
-	grep -v '^slabinfo' /proc/slabinfo	\
-		| bloatmon			\
-		| sort -n -k 4,4		\
-		| head -22
-	sleep 5
-	echo
-done
+Please let me know if i am not clear enough.
 
---yNb1oOkm5a9FJOVX--
+Thanks,
+-anil.
+
+
+Jonathan Morton wrote:
+
+> >  a) i allow page caching then there is going to be 2 copies of
+> >   data in my system and i want to avoid it.
+>
+> If you're using memory, the pages will be evicted from the cache.  It
+> is NOT a problem.
+>
+> --
+> --------------------------------------------------------------
+> from:     Jonathan "Chromatix" Morton
+> mail:     chromi@chromatix.demon.co.uk
+> website:  http://www.chromatix.uklinux.net/
+> geekcode: GCS$/E dpu(!) s:- a21 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$
+>            V? PS PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
+> tagline:  The key to knowledge is not to rely on people to teach you it.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
