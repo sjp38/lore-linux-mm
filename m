@@ -1,82 +1,60 @@
-Message-Id: <200105151339.f4FDdcD09937@cwsys.cwsent.com>
-Reply-to: Cy Schubert - ITSD Open Systems Group
-	  <Cy.Schubert@uumail.gov.bc.ca>
-From: Cy Schubert - ITSD Open Systems Group
-        <Cy.Schubert@uumail.gov.bc.ca>
-Subject: Re: on load control / process swapping 
-In-reply-to: Your message of "Mon, 14 May 2001 23:38:07 PDT."
-             <3B00CECF.9A3DEEFA@mindspring.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Date: Tue, 15 May 2001 06:39:06 -0700
+Date: Tue, 15 May 2001 12:31:21 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: on load control / process swapping
+In-Reply-To: <3B00CECF.9A3DEEFA@mindspring.com>
+Message-ID: <Pine.LNX.4.21.0105151219240.4671-100000@imladris.rielhome.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: tlambert2@mindspring.com
-Cc: Rik van Riel <riel@conectiva.com.br>, Matt Dillon <dillon@earth.backplane.com>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
+To: Terry Lambert <tlambert2@mindspring.com>
+Cc: Matt Dillon <dillon@earth.backplane.com>, arch@FreeBSD.ORG, linux-mm@kvack.org, sfkaplan@cs.amherst.edu
 List-ID: <linux-mm.kvack.org>
 
-In message <3B00CECF.9A3DEEFA@mindspring.com>, Terry Lambert writes:
+On Mon, 14 May 2001, Terry Lambert wrote:
 > Rik van Riel wrote:
 > > So we should not allow just one single large job to take all
 > > of memory, but we should allow some small jobs in memory too.
 > 
 > Historically, this problem is solved with a "working set
 > quota".
-> 
-> > If you don't do this very slow swapping, NONE of the big tasks
-> > will have the opportunity to make decent progress and the system
-> > will never get out of thrashing.
-> > 
-> > If we simply make the "swap time slices" for larger processes
-> > larger than for smaller processes we:
-> > 
-> > 1) have a better chance of the large jobs getting any work done
-> > 2) won't have the large jobs artificially increase memory load,
-> >    because all time will be spent removing each other's RSS
-> > 3) can have more small jobs in memory at once, due to 2)
-> > 4) can be better for interactive performance due to 3)
-> > 5) have a better chance of getting out of the overload situation
-> >    sooner
-> > 
-> > I realise this would make the scheduling algorithm slightly
-> > more complex and I'm not convinced doing this would be worth
-> > it myself, but we may want to do some brainstorming over this ;)
-> 
-> A per vnode working set quota with a per use count adjust
-> would resolve most load thrashing issues.  Programs with
-> large working sets can either be granted a case by case
-> exception (via rlimit), or, more likely just have their
-> pages thrashed out more often.
-> 
-> You only ever need to do this when you have exhausted
-> memory to the point you are swapping, and then only when
-> you want to reap cached clean pages; when all you have
-> left is dirty pages in memory and swap, you are well and
-> truly thrashing -- for the right reason: your system load
-> is too high.
 
-An operating system I worked on at one time, MVS, had this feature (not 
-sure whether it still does today).  We called it fencing (e.g. fencing 
-an address space).  An address space could be limited to the amount of 
-real memory used.  Conversely, important address spaces could be given 
-a minimum amount of real memory, e.g. online applications such a CICS.  
-Additionally instead of limiting an address space to a minimum or 
-maximum amount of real memory, an address space could be limited to a 
-maximum paging rate, giving the O/S the option of increasing its real 
-memory to match its WSS, reducing paging of the specified address space 
-to a preset limit.  Of course this could have negative impact on other 
-applications running on the system, which is why IBM recommended 
-against using this feature.
+This is a great idea for when the system is in-between normal
+loads and real thrashing. It will save small processes while
+slowing down memory hogs which are taking resources fairly.
 
+I'm not convinced it is any replacement for swapping, but it
+sure a good way to delay swapping as long as possible.
 
+Also, having a working set size guarantee in combination with
+idle swapping will almost certainly give the proveribial root
+shell the boost it needs ;)
 
-Regards,                         Phone:  (250)387-8437
-Cy Schubert                        Fax:  (250)387-5766
-Team Leader, Sun/Alpha Team   Internet:  Cy.Schubert@osg.gov.bc.ca
-Open Systems Group, ITSD, ISTA
-Province of BC
+> Doing extremely complicated things is only going to get
+> you into trouble... in particular, you don't want to
+> have policy in effect to deal with border load conditions
+> unless you are under those conditions in the first place.
 
+Agreed.
 
+> It's possible to do a more complicated working set quota,
+> which actually applies to a process' working set, instead
+> of to vnodes, out of context with the process,
+
+I guess in FreeBSD a per-vnode approach would be easier to
+implement while in Linux a per-process working set would be
+easier...
+
+regards,
+
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
