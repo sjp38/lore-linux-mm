@@ -1,26 +1,44 @@
-Date: Tue, 17 Apr 2001 16:48:25 -0300 (BRST)
+Date: Tue, 17 Apr 2001 16:53:51 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: suspend processes at load (was Re: a simple OOM ...) 
-In-Reply-To: <Pine.LNX.4.30.0104161353270.20939-100000@fs131-224.f-secure.com>
-Message-ID: <Pine.LNX.4.21.0104171648010.14442-100000@imladris.rielhome.conectiva>
+Subject: Re: [PATCH] a simple OOM killer to save me from Netscape
+In-Reply-To: <l03130301b701fc801a61@[192.168.239.105]>
+Message-ID: <Pine.LNX.4.21.0104171650530.14442-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Szabolcs Szakacsits <szaka@f-secure.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-mm@kvack.org, Andrew Morton <andrewm@uow.edu.au>
+To: Jonathan Morton <chromi@cyberspace.org>
+Cc: "James A. Sutherland" <jas88@cam.ac.uk>, "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Slats Grobnik <kannzas@excite.com>, linux-mm@kvack.org, Andrew Morton <andrewm@uow.edu.au>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Apr 2001, Szabolcs Szakacsits wrote:
-> On Fri, 13 Apr 2001, Rik van Riel wrote:
-> 
-> > That is, when the load gets too high, we temporarily suspend
-> > processes to bring the load down to more acceptable levels.
-> 
-> Please don't. Or at least make it optional and not the default or user
-> controllable. Trashing is good.
+On Tue, 17 Apr 2001, Jonathan Morton wrote:
 
-This sounds like you have no idea what thrashing is.
+> >It's a very black art, this; "clever" page replacement algorithms will
+> >probably go some way towards helping, but there will always be a point
+> >when you really are thrashing - at which point, I think the best
+> >solution is to suspend processes alternately until the problem is
+> >resolved.
+> 
+> I've got an even better idea.  Monitor each process's "working set" -
+> ie. the set of unique pages it regularly "uses" or pages in over some
+> period of (real) time.  In the event of thrashing, processes should be
+> reserved an amount of physical RAM equal to their working set, except
+> for processes which have "unreasonably large" working sets.
+
+This may be a nice idea to move the thrashing point out a bit
+further, and as such may be nice in addition to the load control
+code.
+
+> It is still possible, mostly on small systems, to have *every* active
+> process thrashing in this manner.  However, I would submit that if it
+> gets this far, the system can safely be considered overloaded.  :)
+
+... And when the system _is_ overloaded, load control (ie. process
+suspension) is what saves us. Load control makes sure the processes
+in the system can all still make progress and the system can (slowly)
+work itself out of the overloaded situation.
+
+regards,
 
 Rik
 --
