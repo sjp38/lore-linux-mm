@@ -1,37 +1,36 @@
-Date: Fri, 8 Oct 1999 17:06:49 +0200 (CEST)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: zone allocator
-In-Reply-To: <wd8u2o16hph.fsf@parate.irisa.fr>
-Message-ID: <Pine.LNX.4.10.9910081705510.12463-100000@imladris.dummy.home>
+Message-ID: <37FF39B7.55532FD9@colorfullife.com>
+Date: Sat, 09 Oct 1999 14:48:55 +0200
+From: Manfred Spraul <manfreds@colorfullife.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: locking question: do_mmap(), do_munmap()
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: David Mentr'e <David.Mentre@irisa.fr>
-Cc: Jeff Garzik <jgarzik@pobox.com>, linux-mm@kvack.org
+To: linux-kernel@vger.rutgers.edu, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 8 Oct 1999, David Mentr'e wrote:
-> Jeff Garzik <jgarzik@pobox.com> writes:
-> 
-> > Has anybody done any coding, or additional thought, towards a zone
-> > allocator?
-> 
-> Rik van Riel has some though on this:
->   http://www.linux.eu.org/~riel/zone-alloc.html
+which semaphores/spinlocks protect do_mmap() and do_munmap()?
 
-I have to point out that the ideas on that page are outdated.
->From december onwards I hope to get working on these things
-again...
+do_mmap():
+	I wrote a test patch, and I found out that some (all?) callers call
+lock_kernel(), but that mm->mmap_sem is _NOT ACQUIRED_. Eg
+sys_uselib()-> do_load_elf_??() -> do_mmap().
 
-Rik
+do_munmap():
+???? I think here is a race:
+sys_munmap() doesn't call lock_kernel(), it only acquires mm->mmap_sem.
+do_mmap() internally calls do_munmap(), ie with the kernel lock, but
+without mm->mmap_sem.
+
+What about adding debugging runtime checks to these function?
+ie #defines which call down_trylock() and spin_trylock() and oops on
+missing locks?
+We could define them to "(void)0" before 2.4.
+
+
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
---
-work at:	http://www.reseau.nl/
-home at:	http://www.nl.linux.org/~riel/
-
+	Manfred
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
