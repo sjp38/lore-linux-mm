@@ -1,94 +1,72 @@
-Received: from remus.clara.net (remus.clara.net [195.8.69.79])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA31852
-	for <Linux-MM@kvack.org>; Wed, 27 Jan 1999 18:55:32 -0500
-Received: from atlantis.mail (du-1537.claranet.co.uk [195.8.78.102])
-	by remus.clara.net (8.8.8/8.8.8) with SMTP id XAA19119
-	for <Linux-MM@kvack.org>; Wed, 27 Jan 1999 23:54:00 GMT
-	(envelope-from ph@clara.net)
-From: Paul Hamshere <ph@clara.net>
-Subject: Fwd: Inoffensive bug in mm/page_alloc.c
-Reply-To: Paul Hamshere <ph@clara.net>
-Message-Id: <990127235552.n0002181.ph@mail.clara.net>
-References: <990119214302.n0001113.ph@mail.clara.net>
-Date: Wed, 27 Jan 99 23:55:52 GMT
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA32596
+	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 20:12:49 -0500
+Date: Thu, 28 Jan 1999 02:02:38 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Reply-To: Andrea Arcangeli <andrea@e-mind.com>
+Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
+In-Reply-To: <199901272138.VAA12114@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.96.990128001800.399A-100000@laser.bogus>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linux-MM@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, "David S. Miller" <davem@dm.cobaltmicro.com>, gandalf@szene.ch, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.com, djf-lists@ic.net, tomh@taz.ccs.fau.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Is this of any interest here?
-Paul
-------------------------------
-Hi
-I was trawling through the mm sources to try and understand how linux tracks the
-use of pages of memory, how kmalloc and vmalloc work, and I think there is a bug
-in the kernel (2.0) - it doesn't affect anything, only waste a tiny amount of
-memory....does anyone else think it looks wrong?
-The problem is in free_area_init where it allocates the bitmaps - I think they
-are twice the size they need to be.
-The dodgy line is
+On Wed, 27 Jan 1999, Stephen C. Tweedie wrote:
 
-            bitmap_size = (end_mem - PAGE_OFFSET) >> (PAGE_SHIFT + i );
+> > + * Fixed a race between mmget() and mmput(): added the mm_lock spinlock
+> > + * to serialize accesses to the tsk->mm field.
+> 
+> I don't buy it, because we've seen these on UP machines too.  Besides,
 
-which I think should be 
+Yes the comment/credits are completly bogus. Excuse me, I was too tired to
+understand this last night (and btw I thought it was not sure if it was
+happening also on UP).
 
-            bitmap_size = (end_mem - PAGE_OFFSET) >> (PAGE_SHIFT + i + 1);
+> in all of the fork/exit/procfs code paths which look to be relevant to
+> the reported oopses, we already hold the global kernel lock by the time
+> we start fiddling with the mm references.  Adding yet another spinlock
+> should make no difference at all to the locking.
 
-because the bitmap refers to adjacent pages.
-I've changed my kernel to the second line and it seems to work.
-Paul
+I think this too. My new code made tons of sense to me and since when I
+finished all my work everything become rock solid, I posted the thing to
+the list. I don't like lock_kernel(), but yes I noticed too that
+lock_kernel() should be enough (I noticed it today, last night I had too
+much lack of sleep to think more about it).
 
+> 	get_status() {
+> 		tsk = grab_task(pid);
+> 		task_mem() {
+> 			down(&mm->mmap_sem);
 
-----------------------------------------------------
+My reason to reinsert the memcpy() was different than your one. It's
+because sys_wait4 don't hold the kernel lock and does _only_ a
+spin_lock_irq(tasklist_lock) and then remove the process from the
+tasklist, so if we don't want to read_lock(tasklist_lock)  all the time in
+array.c we must do the copy of the tsk, to be sure that the task_struct we
+are playing with, still exists. But holding the tasklist_lock all the time
+looked not safe to me due the down() in the array.c code...
 
-unsigned long free_area_init(unsigned long start_mem, unsigned long end_mem)
-{
-      mem_map_t * p;
-      unsigned long mask = PAGE_MASK;
-      int i;
+Maybe I've thought stupid/wrong things but with my whole patch applyed the
+kernel become rock solid and race-free. I'm sure of this. Otherwise I
+would have not posted so sure of myself ;).
 
-      /*
-       * select nr of pages we try to keep free for important stuff
-       * with a minimum of 48 pages. This is totally arbitrary
-       */
-      i = (end_mem - PAGE_OFFSET) >> (PAGE_SHIFT+7);
-      if (i < 24)
-            i = 24;
-      i += 24;   /* The limit for buffer pages in __get_free_pages is
-                * decreased by 12+(i>>3) */
-      min_free_pages = i;
-      free_pages_low = i + (i>>1);
-      free_pages_high = i + i;
-      start_mem = init_swap_cache(start_mem, end_mem);
-      mem_map = (mem_map_t *) start_mem;
-      p = mem_map + MAP_NR(end_mem);
-      start_mem = LONG_ALIGN((unsigned long) p);
-      memset(mem_map, 0, start_mem - (unsigned long) mem_map);
-      do {
-            --p;
-            p->flags = (1 << PG_DMA) | (1 << PG_reserved);
-            p->map_nr = p - mem_map;
-      } while (p > mem_map);
+Can somebody tell me _exactly_ what the mmap_sem stays for? The kernel is
+~always doing a down on the mmap_sem of the process itself.  It's
+_useless_ that way. The only place the kernel is doing a down on another
+task seems ptrace.c and fs/proc/array.c, so does we have the mmap_sem only
+for handling correctly such two cases? 
 
-      for (i = 0 ; i < NR_MEM_LISTS ; i++) {
-            unsigned long bitmap_size;
-            init_mem_queue(free_area+i);
-            mask += mask;
-            end_mem = (end_mem + ~mask) & mask;
-/* commented out because not correct ?? PH
-            bitmap_size = (end_mem - PAGE_OFFSET) >> (PAGE_SHIFT + i);
-*/
-            bitmap_size = (end_mem - PAGE_OFFSET) >> (PAGE_SHIFT + i +1);
-            bitmap_size = (bitmap_size + 7) >> 3;
-            bitmap_size = LONG_ALIGN(bitmap_size);
-            free_area[i].map = (unsigned int *) start_mem;
-            memset((void *) start_mem, 0, bitmap_size);
-            start_mem += bitmap_size;
-      }
-      return start_mem;
-}
+And is true as I think that doing a down(current->mm->mmap_sem) is
+_useless_ if every other place on the kernel only does only the same?
 
+And finally I reask your question: can we at any time play with the ->mm,
+mm->vma, pgd, pmd, pte, of a process without helding any semaphore, only
+having the big kernel lock held?
 
-
+Andrea Arcangeli
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
