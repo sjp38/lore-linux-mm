@@ -1,45 +1,31 @@
-Date: Fri, 20 Apr 2001 09:48:16 -0500
-From: Dave McCracken <dmc@austin.ibm.com>
-Subject: Re: suspend processes at load (was Re: a simple OOM ...)
-Message-ID: <10520000.987778096@baldur>
-In-Reply-To: <Pine.LNX.4.30.0104201203280.20939-100000@fs131-224.f-secure.com>
+Date: Fri, 20 Apr 2001 11:58:04 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: suspend processes at load (was Re: a simple OOM ...) 
+In-Reply-To: <utdudtoacmbjrmtcp0v1auga63b9rf8ccf@4ax.com>
+Message-ID: <Pine.LNX.4.21.0104201157500.1685-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Szabolcs Szakacsits <szaka@f-secure.com>
-Cc: linux-mm@kvack.org
+To: "James A.Sutherland" <jas88@cam.ac.uk>
+Cc: Dave McCracken <dmc@austin.ibm.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---On Friday, April 20, 2001 14:14:29 +0200 Szabolcs Szakacsits 
-<szaka@f-secure.com> wrote:
+On Thu, 19 Apr 2001, James A.Sutherland wrote:
 
-> What about the simplest case when one process thrasing? You suspend it
-> continuously from time to time so it won't finish e.g. in 10 minutes but
-> in 1 hour.
+> No problem - the OOM killer itself had similar origins, in fact! (Back
+> in the heat of the "Avoiding OOM on overcommit" flamewar, I suggested
+> the original concept, which evolved into the OOM killer we have now)
 
-Isn't one prcess thrashing sort of like one hand clapping? :)
+What year was that ?  ;)
 
-Seriously, the state we're talking about is when the running processes in 
-the machine collectively want significantly more memory than is available, 
-and none of them can make real progress.  Suspending one or more of them 
-for a few seconds will actually improve throughput and responsiveness of 
-the entire system.  As Rik has said, this has been in pretty much all 
-flavors of Unix since the early days, and it has been proven to be 
-effective.
+Rik
+--
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-I'm not saying there aren't other things we can do with working set 
-tracking that could help push out the point where the machine thrashes, but 
-at some point all those mechanisms will be overwhelmed, and process 
-suspension is a good last resort.
-
-Dave McCracken
-
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmc@austin.ibm.com                                      T/L   678-3059
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com.br/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
