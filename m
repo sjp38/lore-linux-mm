@@ -1,44 +1,55 @@
-Date: Fri, 14 Jan 2005 23:34:11 +0100
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Fri, 14 Jan 2005 22:36:17 +0000 (GMT)
+From: Hugh Dickins <hugh@veritas.com>
 Subject: Re: smp_rmb in mm/memory.c in 2.6.10
-Message-ID: <20050114223411.GN8709@dualathlon.random>
-References: <20050114211441.59635.qmail@web14305.mail.yahoo.com> <Pine.LNX.4.44.0501142127430.3050-100000@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0501142127430.3050-100000@localhost.localdomain>
+In-Reply-To: <20050114213207.GK8709@dualathlon.random>
+Message-ID: <Pine.LNX.4.44.0501142217590.3109-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Kanoj Sarcar <kanojsarcar@yahoo.com>, Anton Blanchard <anton@samba.org>, Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, davem@redhat.com
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Kanoj Sarcar <kanojsarcar@yahoo.com>, Anton Blanchard <anton@samba.org>, Andi Kleen <ak@suse.de>, William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, davem@redhat.com, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-> > As to the smp_rmb() part, I believe it is required; we
-> > are not talking about compiler reorderings,
-On Fri, Jan 14, 2005 at 10:09:17PM +0000, Hugh Dickins wrote:
-> Did need to be considered, but I still agree with
-> myself that the function call makes it no problem.
+On Fri, 14 Jan 2005, Andrea Arcangeli wrote:
+> > 
+> > You could have asked even before breaking mainline ;).
 
-I believe gcc is learning how to get around function calls, in this case
-it's a different file that we're calling so it's very unlikely to get us
-compiler problems.
+Sorry (but check your mailbox for 3rd October -
+I'd hoped the patch would be more provocative than a question!)
 
-But the real reason of the smp_rmb is the cpu, the compiler not.
+> > The rmb serializes the read of truncate_count with the read of
+> > inode->i_size.
 
-> as I did when posting the patch to remove it).
+Yes, that's a clearer way of putting it, thank you.
 
-Woops ... I must have missed it sorry, I owe you an apology! It has been
-a failry busy week here around (some kernel testing stuff has been going
-on here, eventually the kernel was not to blame so all completed well ;).
+> > The rmb is definitely required, and I would leave it an
+> > atomic op to be sure gcc doesn't outsmart unmap_mapping_range_list (gcc
+> > can see the internals of unmap_mapping_range_list). I mean just in case.
+> > We must increase that piece of ram before we truncate the ptes and after
+> > we updated the i_size.
 
-> Unless someone sees this differently, I should send a patch to
-> restore the smp_rmb(), with a longer code comment on what it's for.
+I don't follow your argument for atomic there - "just in case"?
+I still see its atomic ops as serving no point (and it was
+tiresome to extend their use in the patches that followed).
 
-Sure go ahead. I was thinking the same. Originally the code was more
-obvious when I did it with two counters, and then Paul improved it with
-a single counter but now it deserves a bit more of commentary.
+> > Infact it seems to me right now that we miss a smp_wmb() right before
+> > atomic_inc(&mapping->truncate_count): the spin_lock has inclusive
+> > semantics on ia64, and in turn the i_size update could happen after the
+> > atomic_inc without a smp_wmb().
 
-Thanks Hugh and Kanoj!
+That's interesting, and I'm glad my screwup has borne some good fruit.
+And an smp_rmb() in one place makes more sense to me if there's an
+smp_wmb() in the complementary place (though I've a suspicion that
+"making sense to me" is not the prime consideration here ;)
+
+> > So please backout the buggy changes and add the smp_wmb() to fix this
+> > ia64 altix race.
+
+Will do, though not today.
+
+Hugh
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
