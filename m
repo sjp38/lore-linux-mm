@@ -1,48 +1,26 @@
-Date: Fri, 14 Jan 2005 19:42:18 -0200
+Date: Fri, 14 Jan 2005 20:16:44 -0200
 From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [RFC] Avoiding fragmentation through different allocator
-Message-ID: <20050114214218.GB3336@logos.cnet>
-References: <Pine.LNX.4.58.0501122101420.13738@skynet> <20050113073146.GB1226@holomorphy.com>
+Subject: Re: [PATCH] Avoiding fragmentation through different allocator V2
+Message-ID: <20050114221644.GE3336@logos.cnet>
+References: <Pine.LNX.4.58.0501131552400.31154@skynet> <20050114213619.GA3336@logos.cnet>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050113073146.GB1226@holomorphy.com>
+In-Reply-To: <20050114213619.GA3336@logos.cnet>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Mel Gorman <mel@csn.ul.ie>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jan 12, 2005 at 11:31:46PM -0800, William Lee Irwin III wrote:
-> On Wed, Jan 12, 2005 at 09:09:24PM +0000, Mel Gorman wrote:
-> > So... What the patch does. Allocations are divided up into three different
-> > types of allocations;
-> > UserReclaimable - These are userspace pages that are easily reclaimable. Right
-> > 	now, I'm putting all allocations of GFP_USER and GFP_HIGHUSER as
-> > 	well as disk-buffer pages into this category. These pages are trivially
-> > 	reclaimed by writing the page out to swap or syncing with backing
-> > 	storage
-> > KernelReclaimable - These are pages allocated by the kernel that are easily
-> > 	reclaimed. This is stuff like inode caches, dcache, buffer_heads etc.
-> > 	These type of pages potentially could be reclaimed by dumping the
-> > 	caches and reaping the slabs (drastic, but you get the idea). We could
-> > 	also add pages into this category that are known to be only required
-> > 	for a short time like buffers used with DMA
-> > KernelNonReclaimable - These are pages that are allocated by the kernel that
-> > 	are not trivially reclaimed. For example, the memory allocated for a
-> > 	loaded module would be in this category. By default, allocations are
-> > 	considered to be of this type
-> 
-> I'd expect to do better with kernel/user discrimination only, having
-> address-ordering biases in opposite directions for each case.
+> You want to do 
+> 		free_pages -= (z->free_area_lists[0][o].nr_free + z->free_area_lists[2][o].nr_free +
+										   ^^^^ = 1
+>                 		z->free_area_lists[2][o].nr_free) << o;
 
-What you mean with "address-ordering biases in opposite directions for each case" ? 
+I meant the sum of the free lists. You'd better use the defines instead of course :)
 
-You mean to have each case allocate from the top and bottom of the free list, respectively,
-and in opposite address direction ? What you gain from that?
-
-And what that means during a long period of VM stress ?
-
+> So not to interfere with the "min" decay (and remove the allocation type loop). 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
