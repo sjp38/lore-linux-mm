@@ -1,12 +1,12 @@
 Received: from fujitsu2.fujitsu.com (localhost [127.0.0.1])
-	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i8NN2dfM002283
-	for <linux-mm@kvack.org>; Thu, 23 Sep 2004 16:02:39 -0700 (PDT)
-Date: Thu, 23 Sep 2004 16:02:24 -0700
+	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i8NN4ufM003607
+	for <linux-mm@kvack.org>; Thu, 23 Sep 2004 16:04:56 -0700 (PDT)
+Date: Thu, 23 Sep 2004 16:04:41 -0700
 From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: [Patch/RFC]Make second level zone_table[2/3]
+Subject: [Patch/RFC]Reduce second level zone_table[3/3]
 In-Reply-To: <20040923135108.D8CC.YGOTO@us.fujitsu.com>
 References: <20040923135108.D8CC.YGOTO@us.fujitsu.com>
-Message-Id: <20040923160059.D8D0.YGOTO@us.fujitsu.com>
+Message-Id: <20040923160226.D8D2.YGOTO@us.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -16,146 +16,130 @@ To: linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org
 Cc: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
-This patch make second level of zone_table to reduce size of
-first level zone_table like below.
+This patch make reduce array of second level zone_table.
+
+If all of second level zone_table points same zone, 
+the table is not necessary.
 
      zone_table_directory.
      +------------+             zone_table
      |            |------------>+-----------+
-     |------------|             |           |-> zone
+     |------------|             |           |-> zone DMA
      |            |             |-----------|
-     |------------|             |           |-> zone
+     |------------|             |           |-> zone Normal
      |            |             +-----------+
-     +------------+
+     |------------|
+     |            |------------>+-----------+
+     +------------+             |           |-> zone Normal
+                                |-----------|
+                                |           |-> zone Normal
+                                +-----------+
 
+So, in this case, first level zone_table points the zone 
+directly.
+
+     zone_table_directory.
+     +------------+             zone_table
+     |      Bit on|------------>+-----------+
+     |------------|             |           |-> zone DMA
+     |            |             |-----------|
+     |------------|             |           |-> zone Normal
+     |            |             +-----------+
+     |------------|
+     |     Bit off|-> zone Normal
+     +------------+             
+
+
+-- 
 Yasunori Goto <ygoto at us.fujitsu.com>
 
 ---
 
- erase_zoneid-goto/include/linux/mm.h |   37 +++++++++++++++++++++++++++++++---
- erase_zoneid-goto/mm/page_alloc.c    |   38 +++++++++++++++++++++++++++++------
- 2 files changed, 66 insertions(+), 9 deletions(-)
+ erase_zoneid-goto/include/linux/mm.h |   26 ++++++++++++++++++++++++--
+ erase_zoneid-goto/mm/page_alloc.c    |   14 +++++++++++---
+ 2 files changed, 35 insertions(+), 5 deletions(-)
 
-diff -puN include/linux/mm.h~double_zone_table include/linux/mm.h
---- erase_zoneid/include/linux/mm.h~double_zone_table	Thu Sep 23 11:20:12 2004
-+++ erase_zoneid-goto/include/linux/mm.h	Thu Sep 23 11:20:12 2004
-@@ -378,22 +378,53 @@ static inline void put_page(struct page 
- #define PAGEZONE_SIZE (1 << PAGEZONE_SHIFT)
- #define PAGEZONE_MASK (PAGEZONE_SIZE - 1)
+diff -puN include/linux/mm.h~reduce_zone_table include/linux/mm.h
+--- erase_zoneid/include/linux/mm.h~reduce_zone_table	Thu Sep 23 11:20:15 2004
++++ erase_zoneid-goto/include/linux/mm.h	Thu Sep 23 11:20:15 2004
+@@ -415,15 +415,37 @@ struct zone_tbl{
+ 	};
+ };
  
-+#define PAGEZONE_DIR_SHIFT 8          /* XXX */
-+#define PAGEZONE_DIR_SIZE (1 << PAGEZONE_DIR_SHIFT)
-+#define PAGEZONE_DIR_MASK (PAGEZONE_DIR_SIZE - 1)
++#define ZONE_TABLE_BIT 0x1
++#define ZONE_TABLE_BITMASK ~(ZONE_TABLE_BIT)
 +
-+#define PZDIR_SHIFT (PAGEZONE_SHIFT + PAGEZONE_DIR_SHIFT)
-+#define PZDIR_SIZE (1 << PZDIR_SHIFT)
-+#define PZDIR_MASK (PZDIR_SIZE - 1)
-+
- #ifndef PAGE_INDEX_OFFSET
- #define PAGE_INDEX_OFFSET PAGE_OFFSET
- #endif
+ extern struct zone_tbl pri_zone_table[];
  
- static inline unsigned long page_to_index(struct page *page)
- {
--	unsigned long out = (unsigned long)(page - (struct page *)PAGE_INDEX_OFFSET);
-+	return (unsigned long)(page - (struct page *)PAGE_INDEX_OFFSET);
++static inline struct zone_tbl *get_zone_table(struct zone_tbl *entry)
++{
++	return (struct zone_tbl *)((unsigned long)entry->sec_zone_table
++				   & ZONE_TABLE_BITMASK);
 +}
 +
-+static inline unsigned long page_to_primary_index(struct page *page)
++static inline unsigned long is_second_zone_table(struct zone_tbl *entry)
 +{
-+	return  page_to_index(page) >> PZDIR_SHIFT;
++	return (unsigned long)entry->sec_zone_table & ZONE_TABLE_BIT;
 +}
 +
-+static inline unsigned long page_to_secondary_index(struct page *page)
++static inline void set_zone_table(struct zone_tbl *entry, struct zone_tbl *val)
 +{
-+	unsigned long out = page_to_index(page);
-+	out &= PZDIR_MASK;
- 	return out >> PAGEZONE_SHIFT;
- }
- 
- struct zone;
--extern struct zone *zone_table[];
-+struct zone_tbl{
-+	union {
-+		struct zone *zone;
-+		struct zone_tbl *sec_zone_table;
-+	};
-+};
++	entry->sec_zone_table =
++		(struct zone_tbl *)((unsigned long)val | ZONE_TABLE_BIT);
++}
 +
-+extern struct zone_tbl pri_zone_table[];
- 
  static inline struct zone *page_zone(struct page *page)
  {
--	return zone_table[ page_to_index(page)];
-+	struct zone_tbl *entry;
-+
-+	entry = pri_zone_table + page_to_primary_index(page);
-+	entry = entry->sec_zone_table;
-+	entry += page_to_secondary_index(page);
-+	return entry->zone;
+ 	struct zone_tbl *entry;
+ 
+ 	entry = pri_zone_table + page_to_primary_index(page);
+-	entry = entry->sec_zone_table;
+-	entry += page_to_secondary_index(page);
++	if (is_second_zone_table(entry)){
++		entry = get_zone_table(entry);
++		entry += page_to_secondary_index(page);
++	}
+ 	return entry->zone;
  }
  
- static inline unsigned long page_to_nid(struct page *page)
-diff -puN mm/page_alloc.c~double_zone_table mm/page_alloc.c
---- erase_zoneid/mm/page_alloc.c~double_zone_table	Thu Sep 23 11:20:12 2004
-+++ erase_zoneid-goto/mm/page_alloc.c	Thu Sep 23 11:20:12 2004
-@@ -52,8 +52,8 @@ EXPORT_SYMBOL(nr_swap_pages);
-  * Used by page_zone() to look up the address of the struct zone whose
-  * id is encoded in the upper bits of page->flags
-  */
--struct zone *zone_table[ (~PAGE_OFFSET + 1) >> (PAGEZONE_SHIFT + PAGE_SHIFT) ];
--EXPORT_SYMBOL(zone_table);
-+struct zone_tbl pri_zone_table[ (~PAGE_OFFSET + 1) >> (PZDIR_SHIFT + PAGE_SHIFT) ];
-+EXPORT_SYMBOL(pri_zone_table);
- 
- static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
- int min_free_kbytes = 1024;
-@@ -1578,15 +1578,41 @@ void zone_init_free_lists(struct pglist_
- 
- void set_page_zone(struct page *lmem_map, unsigned int size,  struct zone *zone)
- {
--	struct zone **entry;
--	entry = &zone_table[page_to_index(lmem_map)];
-+ 	struct zone_tbl *pri_entry;
-+	struct page *page = lmem_map;
-+
-+	pri_entry = &pri_zone_table[page_to_primary_index(page)];
- 
- 	size = size + PAGEZONE_MASK; /* round up */
- 	size >>= PAGEZONE_SHIFT;
- 
--	for ( ; size > 0; entry++, size--)
--		*entry = zone;
-+ 	for ( ; size > 0; pri_entry++){
-+ 		struct zone_tbl *sec_entry, *sec_start_entry;
-+ 		unsigned int sec_index, sec_count;
-+
-+ 		sec_start_entry = pri_entry->sec_zone_table;
-+ 		if (!sec_start_entry){
-+ 			unsigned int entry_size;
-+ 			entry_size = sizeof(struct zone_tbl) <<	PAGEZONE_DIR_SHIFT;
-+
-+ 			sec_start_entry = alloc_bootmem_node(NODE_DATA(nid), entry_size);
-+ 			memset(sec_start_entry, 0, entry_size);
-+ 		}
-+
-+ 		sec_index = page_to_secondary_index(page);
-+ 		sec_entry = sec_start_entry + sec_index;
-+
-+ 		for (sec_count = sec_index; sec_count < PAGEZONE_DIR_SIZE;
-+		     sec_count++, sec_entry++){
-+ 			sec_entry->zone = zone;
-+ 			page += PAGEZONE_SIZE;
-+ 			size--;
-+ 			if (size == 0)
-+ 				break;
-+ 		}
- 
-+  		pri_entry->sec_zone_table = sec_start_entry;
-+  	}
+diff -puN mm/page_alloc.c~reduce_zone_table mm/page_alloc.c
+--- erase_zoneid/mm/page_alloc.c~reduce_zone_table	Thu Sep 23 11:20:15 2004
++++ erase_zoneid-goto/mm/page_alloc.c	Thu Sep 23 11:20:15 2004
+@@ -1499,7 +1499,6 @@ static void __init calculate_zone_totalp
+ 	printk(KERN_DEBUG "On node %d totalpages: %lu\n", pgdat->node_id, realtotalpages);
  }
  
+-
  /*
+  * Initially all pages are reserved - free ones are freed
+  * up by free_all_bootmem() once the early boot process is
+@@ -1590,7 +1589,16 @@ void set_page_zone(struct page *lmem_map
+  		struct zone_tbl *sec_entry, *sec_start_entry;
+  		unsigned int sec_index, sec_count;
+ 
+- 		sec_start_entry = pri_entry->sec_zone_table;
++ 		if (size / PAGEZONE_DIR_SIZE > 0 &&
++ 		    (PAGEZONE_DIR_MASK & size) == 0){ /* All of second level entry will be same zone.
++ 						    So, Second level isn't necessary. */
++ 			pri_entry->zone = zone;
++ 			size -= PAGEZONE_DIR_SIZE;
++ 			page += PZDIR_SIZE;
++ 			continue;
++ 		}
++
++ 		sec_start_entry = get_zone_table(pri_entry);
+  		if (!sec_start_entry){
+  			unsigned int entry_size;
+  			entry_size = sizeof(struct zone_tbl) <<	PAGEZONE_DIR_SHIFT;
+@@ -1611,7 +1619,7 @@ void set_page_zone(struct page *lmem_map
+  				break;
+  		}
+ 
+-  		pri_entry->sec_zone_table = sec_start_entry;
++ 		set_zone_table(pri_entry, sec_start_entry);
+   	}
+ }
+ 
 _
 
 
