@@ -1,30 +1,35 @@
-Message-ID: <3C7AF011.8B6ECCF0@zip.com.au>
-Date: Mon, 25 Feb 2002 18:16:49 -0800
-From: Andrew Morton <akpm@zip.com.au>
-MIME-Version: 1.0
-Subject: Re: [PATCH] struct page shrinkage
-References: <Pine.LNX.4.33L.0202252245460.7820-100000@imladris.surriel.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+From: "Shen Haiying" <shen_haiying@hotmail.com>
+Subject: thanks
+Date: Tue, 26 Feb 2002 10:18:27 +0800
+Mime-Version: 1.0
+Content-Type: text/plain; charset=gb2312; format=flowed
+Message-ID: <F193xCZPs6AvbEPDjQh0000c5bd@hotmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "Marcelo W. Tosatti" <marcelo@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, raz@mailhost.directlink.net, owner-linux-mm@kvack.org, kanoj@google.engr.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
-> 
-> +               clear_bit(PG_locked, &p->flags);
+Dear Sir/Madam:
 
-Please don't do this.  Please use the macros.  If they're not
-there, please create them.
+I am a student of Wayne State university. I take the course of "advanced 
+operating system" this semester. In order to finish my assignment, I need 
+to know the source code of "shmget, shmat, shmdt, shmctl" in linux. I 
+searched them on the internet in this whole afternoon and night, but I 
+could not find it. Now, I am very depressed. I think this is my last hope 
+to ask you for help. Could you please send me the Linux OS source code 
+about the "shmget, shmat, shmdt, shmctl"? 
 
-Bypassing the abstractions in this manner confounds people
-who are implementing global locked-page accounting.
+Your help will be greatly appreciated!!!
 
-In fact, I think I'll go rename all the page flags...
+Best wishes for you!
 
--
+Sincerely yours,
+Haiying Shen
+
+_________________________________________________________________
+IiOAEA 1/2 cEIxi'ouA Web ucxOOE 1/4 thIuI3 !a!a MSN Hotmail!GBP
+http://www.hotmail.com/cn
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
