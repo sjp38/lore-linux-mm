@@ -1,48 +1,44 @@
-Date: Tue, 17 Feb 2004 16:33:34 -0500 (EST)
-From: Rajesh Venkatasubramanian <vrajesh@umich.edu>
-Subject: Re: [PATCH] mremap NULL pointer dereference fix
-In-Reply-To: <Pine.LNX.4.58.0402162203230.2154@home.osdl.org>
-Message-ID: <Pine.LNX.4.44.0402171621110.29417-100000@ruby.engin.umich.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 17 Feb 2004 23:22:18 +0100
+From: David Weinehall <tao@acc.umu.se>
+Subject: Re: Non-GPL export of invalidate_mmap_range
+Message-ID: <20040217222218.GF2125@khan.acc.umu.se>
+References: <20040216190927.GA2969@us.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040216190927.GA2969@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, Linux-MM@kvack.org
+To: "Paul E. McKenney" <paulmck@us.ibm.com>
+Cc: akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> >
-> > This saves a goto.   It works, but I wasn't able to trigger
-> > the oops without it either.
->
-> To trigger the bug you have to have _just_ the right memory usage, I
-> suspect. You literally have to have the destination page directory
-> allocation unmap the _exact_ source page (which has to be clean) for the
-> bug to hit.
+On Mon, Feb 16, 2004 at 11:09:27AM -0800, Paul E. McKenney wrote:
+> Hello, Andrew,
+> 
+> The attached patch to make invalidate_mmap_range() non-GPL exported
+> seems to have been lost somewhere between 2.6.1-mm4 and 2.6.1-mm5.
+> It still applies cleanly.  Could you please take it up again?
+> 
+> 						Thanx, Paul
+> 
+> ------------------------------------------------------------------------
+> 
+> 
+> 
+> It was EXPORT_SYMBOL_GPL(), however IBM's GPFS is not GPL.
 
-A minor point. It is not necessary for the src to be clean because a
-parallel truncate can also invalidate the src. Actually, my test program
-uses truncate to invalidate the src.
+Ahhh, but it would be really nice if it was, even if it's irksome to get
+decent performance out of it ;-)
 
-> Your version of the patch saves a goto in the source, but results in an
-> extra goto in the generated assembly unless the compiler is clever enough
-> to notice the double test for NULL.
->
-> Never mind, that's a micro-optimization, and your version is cleaner.
-
-Yeah. Andrew's patch is lot cleaner than my _crap_ patch.
-
-> Let's go with it if Rajesh can verify that it fixes the problem for him.
-
-Yeap. Andrew's patch fixes the problem. I did put in a printk along with
-Andrew's patch to check whether the NULL src condition repeats. I could
-trigger the condition again, and the machine didn't oops because of the
-patch.
-
-Thanks,
-Rajesh
+[snip]
 
 
+Regards: David Weinehall
+-- 
+ /) David Weinehall <tao@acc.umu.se> /) Northern lights wander      (\
+//  Maintainer of the v2.0 kernel   //  Dance across the winter sky //
+\)  http://www.acc.umu.se/~tao/    (/   Full colour fire           (/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
