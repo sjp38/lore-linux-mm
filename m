@@ -1,65 +1,67 @@
-Message-ID: <413BB8C2.6010705@yahoo.com.au>
-Date: Mon, 06 Sep 2004 11:09:22 +1000
+Message-ID: <413BBECB.1060400@yahoo.com.au>
+Date: Mon, 06 Sep 2004 11:35:07 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 0/3] beat kswapd with the proverbial clue-bat
-References: <413AA7B2.4000907@yahoo.com.au> <20040904230210.03fe3c11.davem@davemloft.net> <413AAF49.5070600@yahoo.com.au> <413AE6E7.5070103@yahoo.com.au> <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org>
-In-Reply-To: <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+References: <413AA7B2.4000907@yahoo.com.au>  <20040904230210.03fe3c11.davem@davemloft.net>  <413AAF49.5070600@yahoo.com.au> <413AE6E7.5070103@yahoo.com.au>  <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org> <1094405830.2809.8.camel@laptop.fenrus.com> <Pine.LNX.4.58.0409051051120.2331@ppc970.osdl.org>
+In-Reply-To: <Pine.LNX.4.58.0409051051120.2331@ppc970.osdl.org>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@osdl.org>
-Cc: "David S. Miller" <davem@davemloft.net>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Arjan van de Ven <arjanv@redhat.com>, "David S. Miller" <davem@davemloft.net>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
 Linus Torvalds wrote:
 
 >
->On Sun, 5 Sep 2004, Nick Piggin wrote:
+>On Sun, 5 Sep 2004, Arjan van de Ven wrote:
 >
->>Hmm, and the crowning argument for not stopping at order 3 is that if we
->>never use higher order allocations, nothing will care about their watermarks
->>anyway. I think I had myself confused when that question in the first place.
->>
->>So yeah, stopping at a fixed number isn't required, and as you say it keeps
->>things general and special cases minimal.
+>>well... we have a reverse mapping now. What is stopping us from doing
+>>physical defragmentation ?
 >>
 >
->Hey, please refute my "you need 20% free" to get even to order-3 for most
->cases first.
+>Nothing but replacement policy, really, and the fact that not everything
+>is rmappable.
+>
+>I think we should _normally_ honor replacement policy, the way we do now.  
+>Only if we are in the situation "we have enough memory, but not enough
+>high-order-pages" should we go to a separate physical defrag algorithm.
 >
 >
 
-s/need 20% free/need to free 20%/ ?
+Sure.
 
-I won't refute that. It is an unfortunate effect of using dumb scanning to
-free higher order memory. Orthogonal to my patch, which just uses the 
-current
-freeing mechanism to ensure kswapd gets off its bottom and does some 
-work for
-higher order allocators.
-
->It's probably acceptable to have a _very_ backgrounded job that does
->freeing if order-3 isn't available, but it had better be pretty
->slow-moving, I suspect. On the order of "It's probably ok to try to aim
->for up to 25% free 'overnight' if the machine is idle" but it's almost
->certainly not ok to aggressively push things out to that degree..
+>So either kswapd should have a totally different mode, or there should be
+>a separate "kdefragd". It would potentially also be good if it is user-
+>triggerable, so that you could, for example, have a heavier defragd run
+>from the daily "cron" runs - something that doesn't seem to make much
+>sense from a traditional kswapd standpoint.
+>
+>In other words, I don't think the physical thing should be triggered at 
+>all by normal memory pressure. A large-order allocation failure would 
+>trigger it "somewhat", and maybe it might run very slowly in the 
+>background (wake up every five minutes or so to see if it is worth doing 
+>anything), and then some user-triggerable way to make it more aggressive.
+>
+>Does that sound sane to people?
 >
 >
 
-I think my mechanism is about as on-demand as you can get. I think we've
-typically leaned this way WRT the memory manager as opposed to background
-scanning and freeing.... so sure you could introduce a new method for 
-freeing
-higher order memory (ie. defragmenting), but I think you'd still want to use
-my kswapd scheme in that case as well.
+Not to me :P
 
-So instead of always freeing pages, you'd say:
-    if (!watermark_ok(order 0 pages))
-       try_to_free_pages
-    if (!watermark_ok(order-that-i-need))
-       try_to_defragment_pages
+I think doing it just in time with kswapd and watermarks like we
+do for order 0 allocations should be fine.
+
+If you think of kswapd as "do the same freeing work the allocator
+will otherwise have to" and "provide a context for doing freeing
+work if the allocator can't" (in the !wait case)... then I think my
+changes are pretty logical.
+
+I think I confused everybody in the first email - we *do not* try
+to heed any order-3 and above watermarks if we're only doing order-2
+and below allocations... maybe this was the sticking point?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
