@@ -1,29 +1,60 @@
-Date: Tue, 6 Feb 2001 21:27:04 +0100
-From: Christoph Hellwig <hch@ns.caldera.de>
-Subject: Re: Another Mindcradt case?
-Message-ID: <20010206212704.A5882@caldera.de>
-References: <200102062024.VAA15550@front3.grolier.fr>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <200102062024.VAA15550@front3.grolier.fr>; from jfm2@club-internet.fr on Tue, Feb 06, 2001 at 09:25:10PM +0100
+From: "LA Walsh" <law@sgi.com>
+Subject: RE: address_space: Theory of operation?
+Date: Tue, 6 Feb 2001 07:52:55 -0800
+Message-ID: <NBBBJGOOMDFADJDGDCPHKEDPCKAA.law@sgi.com>
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <20010206134821.Q849@nightmaster.csn.tu-chemnitz.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jean Francois Martinez <jfm2@club-internet.fr>
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-fsdevel@vger.kernel.org
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 06, 2001 at 09:25:10PM +0100, Jean Francois Martinez wrote:
-> Moshe Barr is claiming on Byte that sendmail and mysql are 30% faster on
-> FreeBSD than Linux 2.4.   Now given that I don't think that mysql is spending
-> 30% of its time in kernel mode there are not many ways FreeBSD can be 30%
-> faster.
+Also, more widely, any of the new op fields the blk ops, the new inode
+fields,
+getattr/setattr, etc...descriptions would be "real keen"....:-)
 
-As he has not even documented all the parameters:  Ignore him.
+> -----Original Message-----
+> From: linux-fsdevel-owner@vger.kernel.org
+> [mailto:linux-fsdevel-owner@vger.kernel.org]On Behalf Of Ingo Oeser
+> Sent: Tuesday, February 06, 2001 4:48 AM
+> To: linux-fsdevel@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Subject: address_space: Theory of operation?
+>
+>
+> Hi there,
+>
+> is there any description of what address_space is supposed to to?
+>
+> What are the address_space_operations expected to handle?
+>
+> Sure, I could look into the sources to find out (and I did
+> already), but how could I distinguish between a proper
+> implementation and a BUG?
+>
+> I searched the archives already (but using address_space as
+> primary keyword, so I wouldn't get renames) without any luck.
+>
+> So could somebody please point me to some documentation about it
+> or comment it, if there is none?
+>
+> Many thanks!
+>
+> Regards
+>
+> Ingo Oeser
+> --
+> 10.+11.03.2001 - 3. Chemnitzer LinuxTag
+<http://www.tu-chemnitz.de/linux/tag>
+         <<<<<<<<<<<<       come and join the fun       >>>>>>>>>>>>
+-
+To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
+the body of a message to majordomo@vger.kernel.org
 
-	Christoph
-
--- 
-Whip me.  Beat me.  Make me maintain AIX.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
