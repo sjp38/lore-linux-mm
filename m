@@ -1,55 +1,37 @@
-Date: Sun, 20 May 2001 11:47:33 +0200 (CEST)
-From: Mike Galbraith <mikeg@wen-online.de>
-Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-In-Reply-To: <Pine.LNX.4.21.0105200546241.5531-100000@imladris.rielhome.conectiva>
-Message-ID: <Pine.LNX.4.33.0105201104090.610-100000@mikeg.weiden.de>
+Received: from mvista.com (IDENT:sanders@dhcp41.mvista.com [10.0.10.41])
+	by hermes.mvista.com (8.11.0/8.11.0) with ESMTP id f4MKOe027391
+	for <linux-mm@kvack.org>; Tue, 22 May 2001 13:24:41 -0700
+Message-ID: <3B0ACB08.C9032ADB@mvista.com>
+Date: Tue, 22 May 2001 20:24:40 +0000
+From: Scott Anderson <scott_anderson@mvista.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: vm_enough_memory() and RAM disks
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 20 May 2001, Rik van Riel wrote:
+I've noticed that vm_enough_memory() does not account for the
+fact that buffer cache could be used for RAM disks.  It appears that it
+assumes that all of buffer cache is only being used for caching data
+from disk drives and could be freed up as needed.  Logically, I think
+what needs to happen is that the amount of space occupied by buffers
+with BH_Protected needs to be subtracted off of buffermem_pages.
 
-> On Sun, 20 May 2001, Mike Galbraith wrote:
->
-> > You're right.  It should never dump too much data at once.  OTOH, if
-> > those cleaned pages are really old (front of reclaim list), there's no
-> > value in keeping them either.  Maybe there should be a slow bleed for
-> > mostly idle or lightly loaded conditions.
->
-> If you don't think it's worthwhile keeping the oldest pages
-> in memory around, please hand me your excess DIMMS ;)
+As you can well imagine, in small systems with relatively large RAM
+disks, this does not lead to good behavior...
 
-You're welcome to the data in any of them :)  The hardware I keep.
+Now for the true confession: I'm not finding time to come up with a
+patch for this right now.  However, I thought it would be better to at
+least get this out instead of waiting around for me to find the time.
 
-> Remember that inactive_clean pages are always immediately
-> reclaimable by __alloc_pages(), if you measured a performance
-> difference by freeing pages in a different way I'm pretty sure
-> it's a side effect of something else.  What that something
-> else is I'm curious to find out, but I'm pretty convinced that
-> throwing away data early isn't the way to go.
-
-OK.  I'm getting a little distracted by thinking about the locking
-and some latency comments I've heard various gurus make.  I should
-probably stick to thinking about/measuring throughput.. much easier.
-
-but ;-)
-
-Looking at the locking and trying to think SMP (grunt) though, I
-don't like the thought of taking two locks for each page until
-kreclaimd gets a chance to run.  One of those locks is the
-pagecache_lock, and that makes me think it'd be better to just
-reclaim a block if I have to reclaim at all.  At that point, the
-chances of needing to lock the pagecache soon again are about
-100%.  The data in that block is toast anyway.  A big hairy SMP
-box has to feel reclaim_page(). (they probably feel the zone lock
-too.. probably would like to allocate blocks)
-
-	-Mike
-
+Thanks for listening,
+    Scott Anderson
+    scott_anderson@mvista.com   MontaVista Software Inc.
+    (408)328-9214               1237 East Arques Ave.
+    http://www.mvista.com       Sunnyvale, CA  94085
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
