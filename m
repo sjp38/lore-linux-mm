@@ -1,43 +1,63 @@
-Received: from ns-ca.netscreen.com (ns-ca.netscreen.com [10.100.10.21])
-	by mail.netscreen.com (8.10.0/8.10.0) with ESMTP id f2NLLv503227
-	for <Linux-MM@kvack.org>; Fri, 23 Mar 2001 13:21:57 -0800
-Message-ID: <A33AEFDC2EC0D411851900D0B73EBEF72627AC@NAPA>
-From: Hua Ji <hji@netscreen.com>
-Subject: About page table with powerpc 750
-Date: Fri, 23 Mar 2001 15:37:38 -0800
+Subject: Re: [PATCH] Prevent OOM from killing init
+References: <20010323015358Z129164-406+3041@vger.kernel.org> <Pine.LNX.4.21.0103230403370.29682-100000@imladris.rielhome.conectiva> <20010323122815.A6428@win.tue.nl> <m1hf0k1qvi.fsf@frodo.biederman.org> <20010323182105.C6487@win.tue.nl>
+From: ebiederman@lnxi.com (Eric W. Biederman)
+Date: 23 Mar 2001 16:48:52 -0700
+In-Reply-To: Guest section DW's message of "Fri, 23 Mar 2001 18:21:05 +0100"
+Message-ID: <m3ofusgi6z.fsf@DLT.linuxnetworx.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-MM@kvack.org
+To: Guest section DW <dwguest@win.tue.nl>
+Cc: Rik van Riel <riel@conectiva.com.br>, Michael Peddemors <michael@linuxmagic.com>, Stephen Clouse <stephenc@theiqgroup.com>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-  
+Guest section DW <dwguest@win.tue.nl> writes:
 
-Hi, folks,
+> On Fri, Mar 23, 2001 at 07:50:25AM -0700, Eric W. Biederman wrote:
+> 
+> > > Mar 23 11:48:49 mette kernel: Out of Memory: Killed process 2019 (emacs).
+> > > Mar 23 11:48:49 mette kernel: Out of Memory: Killed process 1407 (emacs).
+> > > Mar 23 11:48:50 mette kernel: Out of Memory: Killed process 1495 (emacs).
+> > > Mar 23 11:48:50 mette kernel: Out of Memory: Killed process 2800 (rpm).
+> > > 
+> > > [yes, that was rpm growing too large, taking a few emacs sessions]
+> > > [2.4.2]
+> > 
+> > Let me get this straight you don't have enough swap for your workload?
+> > And you don't have per process limits on root by default?
+> > 
+> > So you are complaining about the OOM killer?  
+> 
+> I should not react - your questions are phrased rhetorically.
 
-A quick question today. Thanks in advance.
+To some extent I was also very puzzled by your complaint.
 
-For PowerPC, say, 750 architecture, does every process ALSO maintains its
-own page table, like the one under Intel x86 two level page tables?
- 
->From powerpc manual, a 2M space needed to be reserved for mapping 256M
-physical memory. So, if every process maintain its own page table, that
-would be cost too much.
+You have setup a system that by your definition unreliably and then
+you complain it is unreliable.
 
-If every process, at initial time, only holds a small size page table, how
-does the kernel extend the page table area? My thought is: With powerpc, the
-page table area is not a two level pointer, so, we need a contigeous
-physical memory.
+> 
+> But yes, I am complaining because Linux by default is unreliable.
+> I strongly prefer a system that is reliable by default,
+> and I'll leave it to others to run it in an unreliable mode.
 
-What the mechanism for linux with powerpc when handling the page table
-issue?
+Now all I know the system didn't have enough resources to do what
+you asked to it do and it failed.  That sounds reliable to me.  
 
-Thanks a lot,
+Obviously you were suprised at how the system failed.  Given
+that unix has been doing this kind of thing for decades, you obviously
+missed how the unix malloc overcommited memory.
 
-Nike
- 
+Does you application trap sigsegv on a different stack so you can
+catch stack growth failure?  And how does your app handle this case?
+
+Having a no over commit kernel option would help.  
+
+A cheap workaround is to call mlock_all(MCL_FUTRE...).  Then you are
+garantteed you will always have ram locked into memory for your
+program.   This assumes you have enough ram for your program.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
