@@ -1,80 +1,34 @@
-Message-ID: <4194A05C.2090103@tteng.com.br>
-Date: Fri, 12 Nov 2004 09:37:00 -0200
-From: "Luciano A. Stertz" <luciano@tteng.com.br>
+Date: Fri, 12 Nov 2004 11:10:37 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH] ignore referenced pages on reclaim when OOM
+In-Reply-To: <20041110142900.09552f7f.akpm@digeo.com>
+Message-ID: <Pine.LNX.4.61.0411121110080.4410@chimarrao.boston.redhat.com>
+References: <16783.59834.7179.464876@thebsh.namesys.com>
+ <Pine.LNX.4.44.0411081655410.8589-100000@chimarrao.boston.redhat.com>
+ <20041108142837.307029fc.akpm@osdl.org> <20041110184134.GC12867@logos.cnet>
+ <20041110142900.09552f7f.akpm@digeo.com>
 MIME-Version: 1.0
-Subject: Re: [Fwd: Page allocator doubt]
-References: <41937940.9070001@tteng.com.br> <1100200247.932.1145.camel@localhost> <4193BD07.5010100@tteng.com.br> <1100201816.7883.22.camel@localhost> <4193CA1B.1090409@tteng.com.br> <20041111212101.GA18822@logos.cnet>
-In-Reply-To: <20041111212101.GA18822@logos.cnet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@digeo.com>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, nikita@clusterfs.com, linux-mm@kvack.org, piggin@cyberone.com.au
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti wrote:
-> On Thu, Nov 11, 2004 at 06:22:51PM -0200, Luciano A. Stertz wrote:
-> 
->>Dave Hansen wrote:
->>
->>>On Thu, 2004-11-11 at 11:27, Luciano A. Stertz wrote:
->>>
->>>
->>>>	But... are they allocated to me, even with page_count zeroed? Do I 
->>>>	need to do get_page on the them? Sorry if it's a too lame question, but I 
->>>>still didn't understand and found no place to read about this.
->>>
->>>
->>>Do you see anywhere in the page allocator where it does a loop like
->>>yours?
->>>
->>>       for (i = 1; i< 1<<order; i++)
->>>		get_page(page + i);
->>
->>	Actually this loop isn't mine. It's part of the page allocator, but 
->>it's only executed on systems without a MMU.
->>
->>
->>>When you do a multi-order allocation, the first page represents the
->>>whole group and they're treated as a whole.  As you've noticed, breaking
->>>them up requires a little work.
->>>
->>>Why don't you post all of the code that you're using so that we can tell
->>>what you're doing?  There might be a better way.  Drivers probably
->>>shouldn't be putting stuff in the page cache all by themselves.  
->>
->>	Unhappily I can't post any code yet, but I'll try to give an insight 
->>	of what we're trying to do.
->>	It's not a driver. We're doing an implementation to allow the kernel 
->>	to execute compressed files, decompressing pages on demand.
->>	These files will usually be compressed in small blocks, typically 
->>	4kb. But if they got compressed in blocks bigger then a page (say 8kb 
->>blocks on a 4kb page system), the kernel will have more than one 
->>decompressed page each time a block have to be decompressed; and I'd like 
->>to add them both to the page cache.
->>	So, seems I would have to break multi-order allocated pages. Is this 
->>possible / viable? If not, maybe I'll have to work only with small 
->>blocks, but I wouldn't like to...
-> 
-> 
-> Why do you need the pages to be physically contiguous?
-> 
-> I dont see any reason for that requirement - you can use discontiguous physical
-> pages which are virtually contiguous (so your decompression code wont need to 
-> care about non adjacent pieces of memory).
-> 
+On Wed, 10 Nov 2004, Andrew Morton wrote:
 
-	Thanks Dave and Marcelo. You're obviously right. I'll do it.
+> Only in a single case: where a zone is all_unreclaimable and some pages
+> have recently become reclaimable but we don't know about it yet.
+>
+> Certainly it can happen, but it sounds really unlikely to me.
 
-	Luciano
+The swap token logic can make it appear like this is the case,
+unless you ignore the referenced bit when you reach priority 0.
 
 -- 
-Luciano A. Stertz
-luciano@tteng.com.br
-T&T Engenheiros Associados Ltda
-http://www.tteng.com.br
-Fone/Fax (51) 3224 8425
+"Debugging is twice as hard as writing the code in the first place.
+Therefore, if you write the code as cleverly as possible, you are,
+by definition, not smart enough to debug it." - Brian W. Kernighan
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
