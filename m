@@ -1,86 +1,48 @@
-Message-ID: <40CFCF64.9010406@yahoo.com.au>
-Date: Wed, 16 Jun 2004 14:41:08 +1000
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+Date: Tue, 15 Jun 2004 23:37:40 -0700 (PDT)
+From: Ron Maeder <rlm@orionmulti.com>
+Subject: Re: mmap() > phys mem problem
+In-Reply-To: <40CFB99A.8080508@yahoo.com.au>
+Message-ID: <Pine.LNX.4.60.0406152330540.868@stimpy>
+References: <Pine.LNX.4.44.0406141501340.7351-100000@pygar.sc.orionmulti.com>
+ <40CE6ADE.4040903@yahoo.com.au> <40CFB99A.8080508@yahoo.com.au>
 MIME-Version: 1.0
-Subject: Re: Keeping mmap'ed files in core regression in 2.6.7-rc
-References: <20040608142918.GA7311@traveler.cistron.net>	<40CAA904.8080305@yahoo.com.au>	<20040614140642.GE13422@traveler.cistron.net>	<40CE66EE.8090903@yahoo.com.au>	<20040615143159.GQ19271@traveler.cistron.net>	<40CFBB75.1010702@yahoo.com.au>	<20040615205017.15dd1f1d.akpm@osdl.org>	<40CFC67D.6020205@yahoo.com.au> <20040615212336.17d0a396.akpm@osdl.org>
-In-Reply-To: <20040615212336.17d0a396.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: miquels@cistron.nl, linux-mm@kvack.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: riel@surriel.com, akpm@osdl.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton wrote:
-> Nick Piggin <nickpiggin@yahoo.com.au> wrote:
-> 
->>>shrink_zone() will free arbitrarily large amounts of memory as the scanning
->>>priority increases.  Probably it shouldn't.
->>>
->>>
->>
->>Especially for kswapd, I think, because it can end up fighting with
->>memory allocators and think it is getting into trouble. It should
->>probably rather just keep putting along quietly.
->>
->>I have a few experimental patches that magnify this problem, so I'll
->>be looking at fixing it soon. The tricky part will be trying to
->>maintain a similar prev_priority / temp_priority balance.
-> 
-> 
-> hm, I don't see why.  Why not simply bale from shrink_listing as soon as
-> we've reclaimed SWAP_CLUSTER_MAX pages?
-> 
+I can avoid this particular situation in the short term, but I can't avoid 
+the general case in the long run.  Thanks again.  -Ron
 
-Oh yeah, that would be the way to go about it. Your patch looks
-alright as a platform to do achieve this.
+On Wed, 16 Jun 2004, Nick Piggin wrote:
 
-> I got bored of shrink_zone() bugs and rewrote it again yesterday.  Haven't
-> tested it much.  I really hate struct scan_control btw ;)
-> 
-
-Well I can keep it local here. I have some stuff which requires more
-things to be passed up and down the call chains which gets annoying
-passing lots of things by reference.
-
-> 
-> 
-> 
-> We've been futzing with the scan rates of the inactive and active lists far
-> too much, and it's still not right (Anton reports interrupt-off times of over
-> a second).
-> 
-> - We have this logic in there from 2.4.early (at least) which tries to keep
->   the inactive list 1/3rd the size of the active list.  Or something.
-> 
->   I really cannot see any logic behind this, so toss it out and change the
->   arithmetic in there so that all pages on both lists have equal scan rates.
-> 
-
-I think it is somewhat to do with use-once logic. If your inactive list
-remains full of use-once pages, you can happily scan them while putting
-minimal pressure on the active list.
-
-I don't think we need to try to keep it *at least* 1/3rd the size anymore.
- From distant memory, that may have been when the inactive list was more
-of a "writeout queue". I don't know though, it might still be useful.
-
-> - Chunk the work up so we never hold interrupts off for more that 32 pages
->   worth of scanning.
-> 
-
-Yeah this was a bit silly. Good fix.
-
-> - Make the per-zone scan-count accumulators unsigned long rather than
->   atomic_t.
-> 
->   Mainly because atomic_t's could conceivably overflow, but also because
->   access to these counters is racy-by-design anyway.
-> 
-
-Seems OK other than my one possible issue.
+> Nick Piggin wrote:
+>> Ron Maeder wrote:
+>> 
+>>> I tried upping /proc/sys/vm/min_free_kbytes to 4096 as suggested below, 
+>>> with the same results (grinding to a halt, out of mem).
+>>> 
+>>> Any other suggestions?  Thanks for your help.
+>>> 
+>> 
+>> Hmm. Maybe ask linux-net and/or the NFS guys?
+>> 
+>> You need to know the maximum amount of memory that your setup
+>> might need in order to write out one page.
+>> 
+>> There might also be ways to reduce this, like reducing NFS
+>> transfer sizes or network buffers... I dunno.
+>> 
+>
+> Actually no, I don't think that will help. I have an
+> idea that might help. Stay tuned :)
+>
+> For the time being, would it be at all possible to
+> work around it using your msync hack, turning swap on,
+> or doing read/write IO?
+>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
