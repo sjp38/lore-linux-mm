@@ -1,57 +1,33 @@
 Subject: Re: xmm2 - monitor Linux MM active/inactive lists graphically
-Date: Sun, 28 Oct 2001 11:13:28 -0800 (PST)
-Reply-To: barryn@pobox.com
-In-Reply-To: <87k7xfk6zd.fsf@atlas.iskon.hr> from "Zlatko Calusic" at Oct 28, 2001 06:30:14 PM
+Date: Sun, 28 Oct 2001 19:29:27 +0000 (GMT)
+In-Reply-To: <Pine.LNX.4.33.0110281014300.7438-100000@penguin.transmeta.com> from "Linus Torvalds" at Oct 28, 2001 10:46:19 AM
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <20011028191328.CCC828A6EA@pobox.com>
-From: barryn@pobox.com (Barry K. Nathan)
+Message-Id: <E15xvcd-0000FM-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: zlatko.calusic@iskon.hr
-Cc: Linus Torvalds <torvalds@transmeta.com>, Jens Axboe <axboe@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Zlatko Calusic <zlatko.calusic@iskon.hr>, Jens Axboe <axboe@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org, lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> Unfortunately, things didn't change on my first disk (IBM 7200rpm
-> @home). I'm still getting low numbers, check the vmstat output at the
-> end of the email.
-> 
-> But, now I found something interesting, other two disk which are on
-> the standard IDE controller work correctly (writing is at 17-22
-> MB/sec). The disk which doesn't work well is on the HPT366 interface,
-> so that may be our culprit. Now I got the idea to check patches
-> retrogradely to see where it started behaving poorely.
-> 
-> Also, one more thing, I'm pretty sure that under strange circumstances
-> (specific alignment of stars) it behaves well (with appropriate
-> writing speed). I just haven't yet pinpointed what needs to be done to
-> get to that point.
+> Yes. My question is more: does the dpt366 thing limit the queueing some
+> way?
 
-I didn't read the entire thread, so this is a bit of a stab in the dark,
-but:
+Nope. The HPT366 is a bog standard DMA IDE controller. At least unless Andre
+can point out something I've forgotten any behaviour seen on it should be
+the same as seen on any other IDE controller with DMA support.
 
-This really reminds me of a problem I once had with a hard drive of
-mine. It would usually go at 15-20MB/sec, but sometimes (under both
-Linux and Windows) would slow down to maybe 350KB/sec. The slowdown, or
-lack thereof, did seem to depend on the alignment of the stars. I lived
-with it for a number of months, then started getting intermittent I/O
-errors as well, as if the drive had bad sectors on disk.
+In practical terms that should mean you can obsere the same HPT366 problem
+he does on whatever random IDE controller is on your desktop box
 
-The problem turned out to be insufficient ventilation for the controller
-board on the bottom of the drive -- it was in the lowest 3.5" drive bay
-in my case, so the bottom of the drive was snuggled next to a piece of
-metal with ventilation holes. The holes were rather large (maybe 0.5"
-diameter) -- and so were the areas without holes. Guess where one of the
-drive's controller chips happened to be positioned, relative to the
-holes? :( Moving the drive up a bit in the case, so as to allow 0.5"-1"
-of space for air beneath the drive, fixed the problem (both the slowdown
-and the I/O errors).
+> But notice how that actually doesn't have anything to do with memory size,
+> and makes your "scale by max memory" thing illogical.
 
-I don't know if this is your problem, but I'm mentioning it just in
-case it is...
-
--Barry K. Nathan <barryn@pobox.com>
+When you are dealing with the VM limit which the limiter was originally
+added for then it makes a lot of sense. When you want to use it solely for
+other purposes then it doesnt.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
