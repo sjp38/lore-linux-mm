@@ -1,43 +1,39 @@
-Date: Wed, 8 Dec 1999 18:54:41 +0100 (CET)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: sizeof(struct page) from 44 to 32 bytes for 32-bit <256MB
-In-Reply-To: <E11vl73-00012G-00@sable.ox.ac.uk>
-Message-ID: <Pine.LNX.4.10.9912081845560.596-100000@alpha.random>
+Message-ID: <384EFFD3.8DDCEF8D@mandrakesoft.com>
+Date: Wed, 08 Dec 1999 20:03:15 -0500
+From: Jeff Garzik <jgarzik@mandrakesoft.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Getting big areas of memory, in 2.3.x?
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Malcolm Beattie <mbeattie@sable.ox.ac.uk>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Linux Kernel List <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 8 Dec 1999, Malcolm Beattie wrote:
+Guys,
 
->too). That means that a lot of uses of struct page only use a single
->cache line per touched struct page instead of two.
+What's the best way to get a large region of DMA'able memory for use
+with framegrabbers and other greedy drivers?
 
-Using two cachelines could produce better performances depending on the
-layout and on the usage of the entries in the struct. So it's not enough
-to tell that it takes only on cacheline to say that it will be faster.
+Per a thread on glx-dev, Andi Kleen mentions that the new 2.3.x MM stuff
+still doesn't allieviate the need for bigphysarea and similar patches.
 
->The idea is to replace the various struct page pointers (4 bytes) with
->a 2 byte page frame number which can then cope with 64K x 4K = 256MB
->physical RAM. The relevant pointers are the struct page * fields (two
+Is there there any way a driver can improve its chance of getting a
+large region of memory?  ie. can it tell the system to force out user
+pages to make memory available, etc.
 
-IMHO it will decrease too much performacnes. Both ->list and ->lru are
-very hot piece of code. When you shrink the cache you want to delete pages
-from the page-LRU ASAP and you don't want to spend time in
-(pfn<<PAGE_SHIFT)+PAGE_OFFSET. The same is true for malloc(2) and free(2).
+Thanks,
 
->then optimize for other architectures too. For example, Alpha and
->sparc64 could use a 32-bit pfn instead of a 64-bit pointer in all
->those places which would again save cacheline space.
+	Jeff
 
-Avoiding the (pfn<<PAGE_SHIFT)+PAGE_OFFSET is an issue for Alpha and
-Sparc64 too.
 
-Andrea
 
+
+-- 
+Jeff Garzik              | Just once, I wish we would encounter
+Building 1024            | an alien menace that wasn't immune to
+MandrakeSoft, Inc.       | bullets.   -- The Brigadier, "Dr. Who"
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
