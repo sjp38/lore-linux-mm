@@ -1,50 +1,31 @@
 From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199906211912.MAA79202@google.engr.sgi.com>
-Subject: Re: [RFC] [RFT] [PATCH] kanoj-mm9-2.2.10 simplify swapcache/shm code
-Date: Mon, 21 Jun 1999 12:12:18 -0700 (PDT)
-In-Reply-To: <Pine.LNX.4.10.9906212026130.683-100000@laser.random> from "Andrea Arcangeli" at Jun 21, 99 08:31:19 pm
+Message-Id: <199906212344.QAA93017@google.engr.sgi.com>
+Subject: Re: filecache/swapcache questions
+Date: Mon, 21 Jun 1999 16:44:34 -0700 (PDT)
+In-Reply-To: <199906211846.LAA91751@google.engr.sgi.com> from "Kanoj Sarcar" at Jun 21, 99 11:46:27 am
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: sct@redhat.com, linux-mm@kvack.org, torvalds@transmeta.com
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: sct@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> 
-> On Mon, 21 Jun 1999, Stephen C. Tweedie wrote:
-> 
-> >On Mon, 21 Jun 1999 10:17:10 -0700 (PDT), kanoj@google.engr.sgi.com
-> >(Kanoj Sarcar) said:
-> >
-> >> Okay, wrong choice of name on the parameter "shmfs". Would it help
-> >> to think of the new last parameter to rw_swap_page_base as "dolock",
-> >> which the caller has to pass in to indicate whether there is a 
-> >> swap lock map bit?
-> 
-> Kanoj did you took a look at my VM (I pointed out to you the url some time
-> ago). Here I just safely removed the swaplockmap completly. All the
-> page-contentions get automagically resolved from the swap cache also for
-> shm.c. I sent the relevant patches to Linus just before the page cache
-> code gone and the new page/buffer cache broken them in part. But now I am
-> running again rock solid with 2.3.7_andrea1 with SMP so if Linus will
-> agree I'll return to send him patches about such shm/swap-lockmap issue.
-> Just to show you:
->
+And continuing on with the problems with swapoff ...
 
-I skimmed thru your patch earlier, but was too lazy to concentrate
-on the details ...
+While forking, we copy swap handles from the parent into the child
+in copy_page_range. There are of course sleep point in dup_mmap
+(kmem_cache_alloc would be one, vm_ops->open could be another). 
 
-I took the time now to look into your changes to page_io.c and shm.c,
-and I like it better than the current code, for the reason that pages 
-marked PageSwapCache will actually end up being in the swap cache. 
-Which is what I was trying to do in my patch ...
+A swapoff coming in at this point might scan the process list, not
+find the nascent child, and just delete the device, leaving the
+child referencing the old swap handles.
 
-If Linus is willing to take your patch, we can stop talking about
-mine ...
-
-Thanks.
+Irregardless of our current discussions about why the mmap_sem 
+is needed in swapoff to protect ptes, it seems that grabbing it
+in swapoff could trivially solve this fork race ... and some code
+changes in exit_mmap could also fix the exit race ...
 
 Kanoj
 kanoj@engr.sgi.com
