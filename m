@@ -1,449 +1,162 @@
-Message-ID: <3FBEB27D.5010007@us.ibm.com>
-Date: Fri, 21 Nov 2003 16:49:01 -0800
+Message-ID: <3FBEB867.9080506@us.ibm.com>
+Date: Fri, 21 Nov 2003 17:14:15 -0800
 From: Matthew Dobson <colpatch@us.ibm.com>
 Reply-To: colpatch@us.ibm.com
 MIME-Version: 1.0
-Subject: [RFC] Make balance_dirty_pages zone aware (1/2)
+Subject: [RFC] Simplify node/zone portion of page->flags
 Content-Type: multipart/mixed;
- boundary="------------070907060800030008030803"
+ boundary="------------080705080203020603080906"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@aracnet.com, Andrew Morton <akpm@digeo.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mbligh@aracnet.com, Jesse Barnes <jbarnes@sgi.com>, Andrew Morton <akpm@digeo.com>
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------070907060800030008030803
+--------------080705080203020603080906
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 
-Currently the VM decides to start doing background writeback of pages if 
-10% of the systems pages are dirty, and starts doing synchronous 
-writeback of pages if 40% are dirty.  This is great for smaller memory 
-systems, but in larger memory systems (>2GB or so), a process can dirty 
-ALL of lowmem (ZONE_NORMAL, 896MB) without hitting the 40% dirty page 
-ratio needed to force the process to do writeback.  For this and other 
-reasons, it'd be nice to have a zone aware dirty page balancer.  That is 
-precisely what these 2 patches try to achieve.
+Currently we keep track of a pages node & zone in the top 8 bits (on 
+32-bit arches, 10 bits on 64-bit arches) of page->flags.  We typically 
+do: node_num * MAX_NR_ZONES + zone_num = 'nodezone'.  It's non-trivial 
+to break this 'nodezone' back into node and zone numbers.  This patch 
+modifies the way we compute the index to be: (node_num << ZONE_SHIFT) | 
+zone_num.  This makes it trivial to recover either the node or zone 
+number with a simple bitshift.  There are many places in the kernel 
+where we do things like: page_zone(page)->zone_pgdat->node_id to 
+determine the node a page belongs to.  With this patch we save several 
+pointer dereferences, and it boils down to shifting some bits.
 
-Patch 1/2 - setup_perzone_counters.patch:
+Comments/criticism requested.
 
-This patch does the following things:
-	1) balance_dirty_pages uses the first 6 statistics in struct page_state 
-(nr_dirty, nr_writeback, nr_unstable, nr_page_table_pages, nr_mapped, 
-and nr_slab) to determine when to start writeback.  These stats must 
-therefore be maintained on a per-zone basis.  Create a new struct 
-perzone_page_state which contains these statistics and embed an array of 
-length NR_CPUS of these structures in struct zone.
-	2) Add a set of macros mirroring the (mod|inc|dec)_page_state macros 
-called (mod|inc|dec)_perzone_page_state to update the per-zone page 
-state stats.
-	3) Replace all occurences(*) of (mod|inc|dec)_page_state calls that 
-modify the per-zone stats with the per-zone versions of the macros.
-	4) Modify the get_page_state and get_full_page_state calls to correctly 
-gather all the page stats.
-	5) Add a get_page_state_zone call to get the page stats for a specific 
-zone.
-
-(*) The (mod|inc|dec)_page_state calls in the NFS code have given me 
-some trouble.  To determine which zone's statistics to modify, we must 
-have a struct page handy, but the NFS code does it's statistics updates 
-in bulk, without reference in most cases to the pages.  Thus, the NFS 
-code still needs updating, and is noted in the patch.
-
-Comments/criticism requested! :)
+[mcd@arrakis current]$ diffstat nodezone.patch
+  include/linux/mm.h     |   21 ++++++++++++++++-----
+  include/linux/mmzone.h |   15 ++++++++++++---
+  mm/page_alloc.c        |    6 +++---
+  3 files changed, 31 insertions(+), 11 deletions(-)
 
 Cheers!
 
 -Matt
 
---------------070907060800030008030803
+--------------080705080203020603080906
 Content-Type: text/plain;
- name="setup_perzone_counters.patch"
+ name="nodezone.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="setup_perzone_counters.patch"
+ filename="nodezone.patch"
 
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-mm4/fs/buffer.c linux-2.6.0-test9-setup_perzone_counters/fs/buffer.c
---- linux-2.6.0-test9-mm4/fs/buffer.c	Wed Nov 19 15:22:46 2003
-+++ linux-2.6.0-test9-setup_perzone_counters/fs/buffer.c	Wed Nov 19 15:26:22 2003
-@@ -888,7 +888,7 @@ int __set_page_dirty_buffers(struct page
- 		spin_lock(&mapping->page_lock);
- 		if (page->mapping) {	/* Race with truncate? */
- 			if (!mapping->backing_dev_info->memory_backed)
--				inc_page_state(nr_dirty);
-+				inc_perzone_page_state(nr_dirty, page);
- 			list_del(&page->list);
- 			list_add(&page->list, &mapping->dirty_pages);
- 		}
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-mm4/fs/nfs/write.c linux-2.6.0-test9-setup_perzone_counters/fs/nfs/write.c
---- linux-2.6.0-test9-mm4/fs/nfs/write.c	Sat Oct 25 11:44:12 2003
-+++ linux-2.6.0-test9-setup_perzone_counters/fs/nfs/write.c	Thu Nov 20 13:40:18 2003
-@@ -368,6 +368,7 @@ nfs_mark_request_dirty(struct nfs_page *
- 	nfs_list_add_request(req, &nfsi->dirty);
- 	nfsi->ndirty++;
- 	spin_unlock(&nfs_wreq_lock);
-+	/* FIXME - NFS perzone page accounting broken! */
- 	inc_page_state(nr_dirty);
- 	mark_inode_dirty(inode);
- }
-@@ -396,6 +397,7 @@ nfs_mark_request_commit(struct nfs_page 
- 	nfs_list_add_request(req, &nfsi->commit);
- 	nfsi->ncommit++;
- 	spin_unlock(&nfs_wreq_lock);
-+	/* FIXME - NFS perzone page accounting broken! */
- 	inc_page_state(nr_unstable);
- 	mark_inode_dirty(inode);
- }
-@@ -464,7 +466,8 @@ nfs_scan_dirty(struct inode *inode, stru
- 	int	res;
- 	res = nfs_scan_list(&nfsi->dirty, dst, file, idx_start, npages);
- 	nfsi->ndirty -= res;
--	sub_page_state(nr_dirty,res);
-+	/* FIXME - NFS perzone page accounting broken! */
-+	mod_page_state(nr_dirty, 0UL - res);
- 	if ((nfsi->ndirty == 0) != list_empty(&nfsi->dirty))
- 		printk(KERN_ERR "NFS: desynchronized value of nfs_i.ndirty.\n");
- 	return res;
-@@ -1006,7 +1009,6 @@ nfs_commit_done(struct rpc_task *task)
- {
- 	struct nfs_write_data	*data = (struct nfs_write_data *)task->tk_calldata;
- 	struct nfs_page		*req;
--	int res = 0;
- 
-         dprintk("NFS: %4d nfs_commit_done (status %d)\n",
-                                 task->tk_pid, task->tk_status);
-@@ -1040,10 +1042,10 @@ nfs_commit_done(struct rpc_task *task)
- 		dprintk(" mismatch\n");
- 		nfs_mark_request_dirty(req);
- 	next:
-+		/* FIXME - NFS perzone page accounting broken! */
-+		dec_page_state(nr_unstable);
- 		nfs_unlock_request(req);
--		res++;
- 	}
--	sub_page_state(nr_unstable,res);
- }
- #endif
- 
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-mm4/include/asm-arm26/rmap.h linux-2.6.0-test9-setup_perzone_counters/include/asm-arm26/rmap.h
---- linux-2.6.0-test9-mm4/include/asm-arm26/rmap.h	Sat Oct 25 11:43:29 2003
-+++ linux-2.6.0-test9-setup_perzone_counters/include/asm-arm26/rmap.h	Wed Nov 19 15:26:22 2003
-@@ -16,14 +16,14 @@ static inline void pgtable_add_rmap(stru
- {
-         page->mapping = (void *)mm;
-         page->index = address & ~((PTRS_PER_PTE * PAGE_SIZE) - 1);
--        inc_page_state(nr_page_table_pages);
-+        inc_perzone_page_state(nr_page_table_pages, page);
- }
- 
- static inline void pgtable_remove_rmap(struct page *page)
- {
-         page->mapping = NULL;
-         page->index = 0;
--        dec_page_state(nr_page_table_pages);
-+        dec_perzone_page_state(nr_page_table_pages, page);
- }
- 
- static inline struct mm_struct * ptep_to_mm(pte_t * ptep)
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-mm4/include/asm-generic/rmap.h linux-2.6.0-test9-setup_perzone_counters/include/asm-generic/rmap.h
---- linux-2.6.0-test9-mm4/include/asm-generic/rmap.h	Sat Oct 25 11:43:56 2003
-+++ linux-2.6.0-test9-setup_perzone_counters/include/asm-generic/rmap.h	Wed Nov 19 15:26:22 2003
-@@ -37,14 +37,14 @@ static inline void pgtable_add_rmap(stru
- #endif
- 	page->mapping = (void *)mm;
- 	page->index = address & ~((PTRS_PER_PTE * PAGE_SIZE) - 1);
--	inc_page_state(nr_page_table_pages);
-+	inc_perzone_page_state(nr_page_table_pages, page);
- }
- 
- static inline void pgtable_remove_rmap(struct page * page)
- {
- 	page->mapping = NULL;
- 	page->index = 0;
--	dec_page_state(nr_page_table_pages);
-+	dec_perzone_page_state(nr_page_table_pages, page);
- }
- 
- static inline struct mm_struct * ptep_to_mm(pte_t * ptep)
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-mm4/include/linux/mmzone.h linux-2.6.0-test9-setup_perzone_counters/include/linux/mmzone.h
---- linux-2.6.0-test9-mm4/include/linux/mmzone.h	Wed Nov 19 15:22:48 2003
-+++ linux-2.6.0-test9-setup_perzone_counters/include/linux/mmzone.h	Fri Nov 21 14:21:34 2003
-@@ -55,6 +55,21 @@ struct per_cpu_pageset {
- } ____cacheline_aligned_in_smp;
- 
- /*
-+ * Per-zone page accounting.  One instance per-zone per-CPU.  This structure 
-+ * should mirror the fields of struct page_state (from in linux/page-flags.h) 
-+ * that are used by balance_dirty_pages_ratelimited (currently all the 'nr_' 
-+ * fields).  Only unsigned longs are allowed.
-+ */
-+struct perzone_page_state {
-+	unsigned long nr_dirty;
-+	unsigned long nr_writeback;
-+	unsigned long nr_unstable;
-+	unsigned long nr_page_table_pages;
-+	unsigned long nr_mapped;
-+	unsigned long nr_slab;
-+} ____cacheline_aligned_in_smp;
+diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-bk23/include/linux/mm.h linux-2.6.0-test9-nodezone_shift/include/linux/mm.h
+--- linux-2.6.0-test9-bk23/include/linux/mm.h	Sat Oct 25 11:42:50 2003
++++ linux-2.6.0-test9-nodezone_shift/include/linux/mm.h	Tue Nov 18 13:46:47 2003
+@@ -323,20 +323,31 @@ static inline void put_page(struct page 
+  * The zone field is never updated after free_area_init_core()
+  * sets it, so none of the operations on it need to be atomic.
+  */
+-#define ZONE_SHIFT (BITS_PER_LONG - 8)
++#define NODEZONE_SHIFT (BITS_PER_LONG - MAX_NODES_SHIFT - MAX_ZONES_SHIFT)
++#define NODEZONE(node, zone)	((node << ZONES_SHIFT) | zone)
 +
-+/*
-  * On machines where it is needed (eg PCs) we divide physical memory
-  * into multiple physical zones. On a PC we have 3 zones:
-  *
-@@ -140,6 +155,8 @@ struct zone {
- 
- 	struct per_cpu_pageset	pageset[NR_CPUS];
- 
-+	struct perzone_page_state page_state[NR_CPUS];
-+
- 	/*
- 	 * Discontig memory support fields.
- 	 */
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-mm4/include/linux/page-flags.h linux-2.6.0-test9-setup_perzone_counters/include/linux/page-flags.h
---- linux-2.6.0-test9-mm4/include/linux/page-flags.h	Sat Oct 25 11:44:06 2003
-+++ linux-2.6.0-test9-setup_perzone_counters/include/linux/page-flags.h	Fri Nov 21 15:12:42 2003
-@@ -88,7 +88,6 @@ struct page_state {
- 	unsigned long nr_page_table_pages;/* Pages used for pagetables */
- 	unsigned long nr_mapped;	/* mapped into pagetables */
- 	unsigned long nr_slab;		/* In slab */
--#define GET_PAGE_STATE_LAST nr_slab
- 
- 	/*
- 	 * The below are zeroed by get_page_state().  Use get_full_page_state()
-@@ -117,12 +116,16 @@ struct page_state {
- 	unsigned long allocstall;	/* direct reclaim calls */
- 	unsigned long pgrotated;	/* pages rotated to tail of the LRU */
- } ____cacheline_aligned;
--
- DECLARE_PER_CPU(struct page_state, page_states);
- 
-+extern void get_page_state_zone(struct page_state *ret, struct zone *zone);
- extern void get_page_state(struct page_state *ret);
- extern void get_full_page_state(struct page_state *ret);
- 
-+/*
-+ * Use these macros to modify the page statistics that don't start with 'nr_' 
-+ * which are maintained solely on a per-cpu basis.
-+ */
- #define mod_page_state(member, delta)					\
- 	do {								\
- 		unsigned long flags;					\
-@@ -130,10 +133,22 @@ extern void get_full_page_state(struct p
- 		__get_cpu_var(page_states).member += (delta);		\
- 		local_irq_restore(flags);				\
- 	} while (0)
--
- #define inc_page_state(member)	mod_page_state(member, 1UL)
- #define dec_page_state(member)	mod_page_state(member, 0UL - 1)
--#define sub_page_state(member,delta) mod_page_state(member, 0UL - (delta))
-+
-+/*
-+ * Use these macros to modify the 'nr_' page statistics which are maintained
-+ * on a per-zone per-cpu basis.
-+ */
-+#define mod_perzone_page_state(member, page, delta)					\
-+	do {										\
-+		unsigned long flags;							\
-+		local_irq_save(flags);							\
-+		page_zone(page)->page_state[smp_processor_id()].member += (delta);	\
-+		local_irq_restore(flags);						\
-+	} while (0)
-+#define inc_perzone_page_state(member, page)	mod_perzone_page_state(member, page, 1UL)
-+#define dec_perzone_page_state(member, page)	mod_perzone_page_state(member, page, 0UL - 1)
- 
- 
- /*
-@@ -217,7 +232,7 @@ extern void get_full_page_state(struct p
- 	do {								\
- 		if (!test_and_set_bit(PG_writeback,			\
- 				&(page)->flags))			\
--			inc_page_state(nr_writeback);			\
-+			inc_perzone_page_state(nr_writeback, page);	\
- 	} while (0)
- #define TestSetPageWriteback(page)					\
- 	({								\
-@@ -225,14 +240,14 @@ extern void get_full_page_state(struct p
- 		ret = test_and_set_bit(PG_writeback,			\
- 					&(page)->flags);		\
- 		if (!ret)						\
--			inc_page_state(nr_writeback);			\
-+			inc_perzone_page_state(nr_writeback, page);	\
- 		ret;							\
- 	})
- #define ClearPageWriteback(page)					\
- 	do {								\
- 		if (test_and_clear_bit(PG_writeback,			\
- 				&(page)->flags))			\
--			dec_page_state(nr_writeback);			\
-+			dec_perzone_page_state(nr_writeback, page);	\
- 	} while (0)
- #define TestClearPageWriteback(page)					\
- 	({								\
-@@ -240,7 +255,7 @@ extern void get_full_page_state(struct p
- 		ret = test_and_clear_bit(PG_writeback,			\
- 				&(page)->flags);			\
- 		if (ret)						\
--			dec_page_state(nr_writeback);			\
-+			dec_perzone_page_state(nr_writeback, page);	\
- 		ret;							\
- 	})
- 
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-mm4/mm/page-writeback.c linux-2.6.0-test9-setup_perzone_counters/mm/page-writeback.c
---- linux-2.6.0-test9-mm4/mm/page-writeback.c	Wed Nov 19 15:22:49 2003
-+++ linux-2.6.0-test9-setup_perzone_counters/mm/page-writeback.c	Wed Nov 19 15:26:22 2003
-@@ -524,7 +524,7 @@ int __set_page_dirty_nobuffers(struct pa
- 			if (page->mapping) {	/* Race with truncate? */
- 				BUG_ON(page->mapping != mapping);
- 				if (!mapping->backing_dev_info->memory_backed)
--					inc_page_state(nr_dirty);
-+					inc_perzone_page_state(nr_dirty, page);
- 				list_del(&page->list);
- 				list_add(&page->list, &mapping->dirty_pages);
- 			}
-@@ -569,7 +569,7 @@ int test_clear_page_dirty(struct page *p
- 		struct address_space *mapping = page->mapping;
- 
- 		if (mapping && !mapping->backing_dev_info->memory_backed)
--			dec_page_state(nr_dirty);
-+			dec_perzone_page_state(nr_dirty, page);
- 		return 1;
- 	}
- 	return 0;
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-mm4/mm/page_alloc.c linux-2.6.0-test9-setup_perzone_counters/mm/page_alloc.c
---- linux-2.6.0-test9-mm4/mm/page_alloc.c	Wed Nov 19 15:22:49 2003
-+++ linux-2.6.0-test9-setup_perzone_counters/mm/page_alloc.c	Fri Nov 21 14:27:51 2003
-@@ -859,11 +859,47 @@ EXPORT_SYMBOL(nr_pagecache);
- DEFINE_PER_CPU(long, nr_pagecache_local) = 0;
- #endif
- 
--void __get_page_state(struct page_state *ret, int nr)
-+/*
-+ * Get the zone-specific page stats for @zone, summed across all cpus.
-+ * Make sure you zero @ret before passing it in!
-+ */
-+void get_page_state_zone(struct page_state *ret, struct zone *zone)
- {
- 	int cpu = 0;
- 
-+	for (; cpu < NR_CPUS; cpu++) {
-+		ret->nr_dirty		+= zone->page_state[cpu].nr_dirty;
-+		ret->nr_writeback	+= zone->page_state[cpu].nr_writeback;
-+		ret->nr_unstable	+= zone->page_state[cpu].nr_unstable;
-+		ret->nr_page_table_pages+= zone->page_state[cpu].nr_page_table_pages;
-+		ret->nr_mapped		+= zone->page_state[cpu].nr_mapped;
-+		ret->nr_slab		+= zone->page_state[cpu].nr_slab;
-+	}
++static inline unsigned long page_zonenum(struct page *page)
++{
++	return (page->flags >> NODEZONE_SHIFT) & (~(~0UL << ZONES_SHIFT));
 +}
 +
-+/*
-+ * Get the zone-specific page stats, summed across all zones/cpus.
-+ */
-+void get_page_state(struct page_state *ret)
++static inline unsigned long page_nodenum(struct page *page)
 +{
-+	struct zone *zone;
-+
- 	memset(ret, 0, sizeof(*ret));
-+	for_each_zone(zone) {
-+		get_page_state_zone(ret, zone);
-+	}
++	return (page->flags >> NODEZONE_SHIFT + ZONES_SHIFT);
 +}
-+
-+/*
-+ * Get system-wide page stats, summed across all cpus.
-+ */
-+void get_full_page_state(struct page_state *ret)
-+{
-+	int cpu = 0;
-+
-+	/* Get the per-zone stats */
-+	get_page_state(ret);
-+
- 	while (cpu < NR_CPUS) {
- 		unsigned long *in, *out, off;
  
-@@ -877,26 +913,11 @@ void __get_page_state(struct page_state 
- 		if (cpu < NR_CPUS && cpu_online(cpu))
- 			prefetch(&per_cpu(page_states, cpu));
- 		out = (unsigned long *)ret;
--		for (off = 0; off < nr; off++)
-+		for (off = 0; off < sizeof(*ret)/sizeof(unsigned long); off++)
- 			*out++ += *in++;
- 	}
- }
+ struct zone;
+ extern struct zone *zone_table[];
  
--void get_page_state(struct page_state *ret)
--{
--	int nr;
--
--	nr = offsetof(struct page_state, GET_PAGE_STATE_LAST);
--	nr /= sizeof(unsigned long);
--
--	__get_page_state(ret, nr + 1);
--}
--
--void get_full_page_state(struct page_state *ret)
--{
--	__get_page_state(ret, sizeof(*ret) / sizeof(unsigned long));
--}
--
- void get_zone_counts(unsigned long *active,
- 		unsigned long *inactive, unsigned long *free)
+ static inline struct zone *page_zone(struct page *page)
  {
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-mm4/mm/rmap.c linux-2.6.0-test9-setup_perzone_counters/mm/rmap.c
---- linux-2.6.0-test9-mm4/mm/rmap.c	Sat Oct 25 11:44:44 2003
-+++ linux-2.6.0-test9-setup_perzone_counters/mm/rmap.c	Wed Nov 19 15:26:22 2003
-@@ -178,7 +178,7 @@ page_add_rmap(struct page *page, pte_t *
- 	if (page->pte.direct == 0) {
- 		page->pte.direct = pte_paddr;
- 		SetPageDirect(page);
--		inc_page_state(nr_mapped);
-+		inc_perzone_page_state(nr_mapped, page);
- 		goto out;
- 	}
- 
-@@ -272,7 +272,7 @@ void page_remove_rmap(struct page *page,
- 	}
- out:
- 	if (!page_mapped(page))
--		dec_page_state(nr_mapped);
-+		dec_perzone_page_state(nr_mapped, page);
- out_unlock:
- 	pte_chain_unlock(page);
- 	return;
-@@ -453,7 +453,7 @@ int try_to_unmap(struct page * page)
- 	}
- out:
- 	if (!page_mapped(page))
--		dec_page_state(nr_mapped);
-+		dec_perzone_page_state(nr_mapped, page);
- 	return ret;
+-	return zone_table[page->flags >> ZONE_SHIFT];
++	return zone_table[page->flags >> NODEZONE_SHIFT];
  }
  
-diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-mm4/mm/slab.c linux-2.6.0-test9-setup_perzone_counters/mm/slab.c
---- linux-2.6.0-test9-mm4/mm/slab.c	Wed Nov 19 15:22:49 2003
-+++ linux-2.6.0-test9-setup_perzone_counters/mm/slab.c	Wed Nov 19 15:26:22 2003
-@@ -832,9 +832,9 @@ static inline void kmem_freepages(kmem_c
- 	while (i--) {
- 		if (!TestClearPageSlab(page))
- 			BUG();
-+		dec_perzone_page_state(nr_slab, page);
- 		page++;
- 	}
--	sub_page_state(nr_slab, nr_freed);
- 	if (current->reclaim_state)
- 		current->reclaim_state->reclaimed_slab += nr_freed;
- 	free_pages((unsigned long)addr, cachep->gfporder);
-@@ -1620,7 +1620,7 @@ static int cache_grow (kmem_cache_t * ca
- 	do {
- 		SET_PAGE_CACHE(page, cachep);
- 		SET_PAGE_SLAB(page, slabp);
--		inc_page_state(nr_slab);
-+		inc_perzone_page_state(nr_slab, page);
- 		page++;
- 	} while (--i);
+-static inline void set_page_zone(struct page *page, unsigned long zone_num)
++static inline void set_page_zone(struct page *page, unsigned long nodezone_num)
+ {
+-	page->flags &= ~(~0UL << ZONE_SHIFT);
+-	page->flags |= zone_num << ZONE_SHIFT;
++	page->flags &= ~(~0UL << NODEZONE_SHIFT);
++	page->flags |= nodezone_num << NODEZONE_SHIFT;
+ }
  
+ #ifndef CONFIG_DISCONTIGMEM
+diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-bk23/include/linux/mmzone.h linux-2.6.0-test9-nodezone_shift/include/linux/mmzone.h
+--- linux-2.6.0-test9-bk23/include/linux/mmzone.h	Sat Oct 25 11:43:49 2003
++++ linux-2.6.0-test9-nodezone_shift/include/linux/mmzone.h	Tue Nov 18 14:34:34 2003
+@@ -159,8 +159,10 @@ struct zone {
+ #define ZONE_DMA		0
+ #define ZONE_NORMAL		1
+ #define ZONE_HIGHMEM		2
+-#define MAX_NR_ZONES		3
+-#define GFP_ZONEMASK	0x03
++
++#define MAX_NR_ZONES		3	/* Sync this with ZONES_SHIFT */
++#define ZONES_SHIFT		2	/* = ceil(log2(MAX_NR_ZONES)) */
++#define GFP_ZONEMASK		0x03
+ 
+ /*
+  * One allocation request operates on a zonelist. A zonelist
+@@ -310,7 +312,7 @@ extern struct pglist_data contig_page_da
+ 
+ #if BITS_PER_LONG == 32
+ /*
+- * with 32 bit flags field, page->zone is currently 8 bits.
++ * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
+  * there are 3 zones (2 bits) and this leaves 8-2=6 bits for nodes.
+  */
+ #define MAX_NODES_SHIFT		6
+@@ -327,6 +329,13 @@ extern struct pglist_data contig_page_da
+ #error NODES_SHIFT > MAX_NODES_SHIFT
+ #endif
+ 
++/* There are currently 3 zones: DMA, Normal & Highmem, thus we need 2 bits */
++#define MAX_ZONES_SHIFT		2
++
++#if ZONES_SHIFT > MAX_ZONES_SHIFT
++#error ZONES_SHIFT > MAX_ZONES_SHIFT
++#endif
++
+ extern DECLARE_BITMAP(node_online_map, MAX_NUMNODES);
+ extern DECLARE_BITMAP(memblk_online_map, MAX_NR_MEMBLKS);
+ 
+diff -Nurp --exclude-from=/home/mcd/.dontdiff linux-2.6.0-test9-bk23/mm/page_alloc.c linux-2.6.0-test9-nodezone_shift/mm/page_alloc.c
+--- linux-2.6.0-test9-bk23/mm/page_alloc.c	Sat Oct 25 11:42:53 2003
++++ linux-2.6.0-test9-nodezone_shift/mm/page_alloc.c	Tue Nov 18 13:48:05 2003
+@@ -50,7 +50,7 @@ EXPORT_SYMBOL(nr_swap_pages);
+  * Used by page_zone() to look up the address of the struct zone whose
+  * id is encoded in the upper bits of page->flags
+  */
+-struct zone *zone_table[MAX_NR_ZONES*MAX_NUMNODES];
++struct zone *zone_table[1 << (ZONES_SHIFT + NODES_SHIFT)];
+ EXPORT_SYMBOL(zone_table);
+ 
+ static char *zone_names[MAX_NR_ZONES] = { "DMA", "Normal", "HighMem" };
+@@ -1210,7 +1210,7 @@ void __init memmap_init_zone(struct page
+ 	struct page *page;
+ 
+ 	for (page = start; page < (start + size); page++) {
+-		set_page_zone(page, nid * MAX_NR_ZONES + zone);
++		set_page_zone(page, NODEZONE(nid, zone));
+ 		set_page_count(page, 0);
+ 		SetPageReserved(page);
+ 		INIT_LIST_HEAD(&page->list);
+@@ -1251,7 +1251,7 @@ static void __init free_area_init_core(s
+ 		unsigned long size, realsize;
+ 		unsigned long batch;
+ 
+-		zone_table[nid * MAX_NR_ZONES + j] = zone;
++		zone_table[NODEZONE(nid, j)] = zone;
+ 		realsize = size = zones_size[j];
+ 		if (zholes_size)
+ 			realsize -= zholes_size[j];
 
---------------070907060800030008030803--
+--------------080705080203020603080906--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
