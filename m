@@ -1,7 +1,8 @@
-Date: Tue, 15 Feb 2005 12:53:03 +0100
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
-Message-ID: <20050215115302.GB19586@wotan.suse.de>
+Date: 15 Feb 2005 13:14:04 +0100
+Date: Tue, 15 Feb 2005 13:14:04 +0100
+From: Andi Kleen <ak@muc.de>
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview II
+Message-ID: <20050215121404.GB25815@muc.de>
 References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <42114279.5070202@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -10,50 +11,48 @@ In-Reply-To: <42114279.5070202@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ray Bryant <raybry@sgi.com>
-Cc: Andi Kleen <ak@muc.de>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, stevel@mvista.com
+Cc: Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> (1)  You really don't want to migrate the code pages of shared libraries
->      that are mapped into the process address space.  This causes a
->      useless shuffling of pages which really doesn't help system
->      performance.  On the other hand, if a shared library is some
->      private thing that is only used by the processes being migrated,
->      then you should move that.
+[Sorry, didn't answer to everything in your mail the first time. 
+See previous mail for beginning]
 
-I think the better solution for this would be to finally integrate Steve L.'s 
-file attribute code (and find some solution to make it persistent,
-e.g. using xattrs with a new inode flag) and then "lock" the shared 
-libraries to their policy using a new attribute flag.
+On Mon, Feb 14, 2005 at 06:29:45PM -0600, Ray Bryant wrote:
+> migrating, and figure out from that what portions of which pid's
+> address spaces need to migrated so that we satisfy the constraints
+> given above.  I admit that this may be viewed as ugly, but I really
+> can't figure out a better solution than this without shuffling a
+> ton of ugly code into the kernel.
 
-> 
-> (2)  You really only want to migrate pages once.  If a file is mapped
->      into several of the pid's that are being migrated, then you want
->      to figure this out and issue one call to have it moved wrt one of
->      the pid's.
->      (The page migration code from the memory hotplug patch will handle
->      updating the pte's of the other processs (thank goodness for
->      rmap...))
-
-I don't get this. Surely the migration code will check if a page
-is already in the target node, and when that is the case do nothing.
-
-How could this "double migration" happen? 
+I like the concept of marking stuff that shouldn't be migrated
+externally (using NUMA policy) better. 
 
 > 
-> (3)  In the case where a particular file is mapped into different
->      processes at different file offsets (and we are migrating both
->      of the processes), one has to examine the file offsets to figure
->      out if the mappings overlap or not. If they overlap, then you've
->      got to issue two calls, each of which describes a non-overlapping
->      region; both calls taken together would cover the entire range
->      of pages mapped to the file.  Similarly if the ranges do not
->      overlap.
+> One issue that hasn't been addressed is the following:  given a
+> particular entry in /proc/pid/maps, how does one figure out whether
+> that entry is mapped into some other process in the system, one
+> that is not in the set of processes to be migrated?   One could
 
-That sounds like a quite obscure corner case which I'm not sure
-is worth all the complexity.
+[...]
+
+Marking things externally would take care of that.
+
+> If we did this, we still have to have the page migration system call
+> to handle those cases for the tmpfs/hugetlbfs/sysv shm segments whose
+> pages were placed by first touch and for which there used to not be
+> a memory policy.  As discussed in a previous note, we are not in a
+
+You can handle those with mbind(..., MPOL_F_STRICT); 
+(once it is hooked up to page migration) 
+
+Just mmap the tmpfs/shm/hugetlb file in an external program and apply
+the policy. That is what numactl supports today too for shm
+files like this.
+
+It should work later.
+
 
 -Andi
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
