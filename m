@@ -1,48 +1,40 @@
-Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA00421
-	for <linux-mm@kvack.org>; Sat, 30 Jan 1999 10:42:35 -0500
-Date: Sat, 30 Jan 1999 16:42:40 +0100 (CET)
-From: Andrea Arcangeli <andrea@e-mind.com>
-Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
-In-Reply-To: <m17lu6xj4e.fsf@flinx.ccr.net>
-Message-ID: <Pine.LNX.3.96.990130163352.4720A-100000@laser.bogus>
+Received: from kanga.kvack.org (root@kanga.kvack.org [205.189.68.98])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA01230
+	for <linux-mm@kvack.org>; Sat, 30 Jan 1999 12:01:25 -0500
+Date: Sat, 30 Jan 1999 12:00:53 -0500 (EST)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: Large memory system
+In-Reply-To: <19990130083631.B9427@msc.cornell.edu>
+Message-ID: <Pine.LNX.3.95.990130114256.27443A-100000@kanga.kvack.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
+To: Daniel Blakeley <daniel@msc.cornell.edu>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29 Jan 1999, Eric W. Biederman wrote:
+On Sat, 30 Jan 1999, Daniel Blakeley wrote:
 
-> AA> 	unlock_kernel();
-> AA> 	^^
-> AA> 	if (tsk->mm && tsk->mm != &init_mm)
-> AA> 	{
-> AA> 		mdelay(2000000000000000000);
-> AA> 		mmget();
-> AA> 	}
+> Hi,
 > 
-> This would need to say.
-> 	mm = tsk->mm;
-> 	mmget(mm);
-> 	if (mm != &init_mm) {
-> 	/* xyz */
-> 	}
+> I've jumped the gun a little bit and recommended a Professor buy 4GB
+> of RAM on a Xeon machine to run Linux on and he did.  After he got it
+> I read the large memory howto which states that the max memory size
+> for Linux 2.2.x is 2GB physical/2GB virtual.  The memory size seems to
+> limited by the 32bit nature of the x86 architecture.  The Xeon seems
+> to have a 36bit memory addressing mode.  Can Linux be easily expanded
+> to use the 36bit addressing?
 
-This is not enough to avoid races. I supposed to _not_ have the big kernel
-lock held. The point is _where_ you do mmget() and so _where_ you do
-mm->count++. If current!=tsk and you don't have the big kernel lock held,
-you can risk to do a mm->count++ on a random kernel memory because mmput()
-run from __exit_mm() from the tsk context in the meantime on the other
-CPU.
+Easily isn't a good way of putting it, unless you're talking about doing
+something like mmap on /dev/mem, in which case you could make the
+user/kernel virtual spilt weigh heavy on the user side and do memory
+allocation yourself.  If you're talking about doing it transparently,
+you're best bet is to do something like davem's suggested high mem
+approach, and only use non-kernel mapped memory for user pages... if you
+want to be able to support the page cache in high memory, things get
+messy.
 
-When tsk == current instead you implicit know that you _can't_ race yes,
-but this was _not_ the case I was complaining about. 
-
-Tell me if I am misunderstood your email.
-
-Andrea Arcangeli
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
