@@ -1,55 +1,32 @@
-Date: Sun, 21 Jul 2002 04:24:55 -0700 (MST)
-From: Craig Kulesa <ckulesa@as.arizona.edu>
-Subject: [PATCH 2/2] move slab pages to the lru, for 2.5.27
-Message-ID: <Pine.LNX.4.44.0207210245080.6770-100000@loke.as.arizona.edu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] generalized spin_lock_bit
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+In-Reply-To: <20020720.183133.67807986.davem@redhat.com>
+References: <1027196511.1555.767.camel@sinai>
+	<20020720.152703.102669295.davem@redhat.com>
+	<1027211185.17234.48.camel@irongate.swansea.linux.org.uk>
+	<20020720.183133.67807986.davem@redhat.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 21 Jul 2002 14:48:54 +0100
+Message-Id: <1027259334.16819.98.camel@irongate.swansea.linux.org.uk>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: "David S. Miller" <davem@redhat.com>
+Cc: rml@tech9.net, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@conectiva.com.br, wli@holomorphy.com
 List-ID: <linux-mm.kvack.org>
 
+On Sun, 2002-07-21 at 02:31, David S. Miller wrote:
+> For an asm-generic/bitlock.h implementation it is more than
+> fine.  That way we get asm-i386/bitlock.h that does whatever
+> it wants to do and the rest of asm-*/bitlock.h includes
+> the generic version until the arch maintainer sees fit to
+> do otherwise.
 
-This is an update for the 2.5 port of Ed Tomlinson's patch to move slab
-pages onto the lru for page aging, atop 2.5.27 and the full rmap patch.  
-It is aimed at being a fairer, self-tuning way to target and evict slab
-pages.
+For an asm-generic one yes. Although you do need to add a cpu_relax() in
+the inner loop
 
-Previous description:  
-	http://mail.nl.linux.org/linux-mm/2002-07/msg00216.html
-Patch URL:
-	http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/2.5.27/
-
-What's next:
-
-This patch is intermediate between where we were (freeing slab caches
-blindly and not in tune with the rest of the VM), and where we want to be
-(cache pruning by page as we scan the active list looking for cold pages
-to deactivate).  Uhhh, well, I *think* that's where we want to be.  :)
-
-How do we get there?
-
-Given a slab page, I can find out what cachep and slab I'm dealing with 
-(via GET_PAGE_SLAB and friends).  If the cache is prunable one, 
-cachep->pruner tells me what kind of callback (dcache/inode/dquot) I 
-should invoke to prune the page.  No problem.
-
-The trouble comes when we try to replace shrink_dcache_memory() and
-friends with slab-aware pruners.  Namely, how to teach those
-inode/dcache/dquot callbacks to free objects belonging to a *specified*
-page or slab?  If I have a dentry slab, I'd like to try to liberate
-*those* dentries, not some random ones like shrink_dcache_memory does now.
-I'm still trying to figure out how to make that work.  Or is that 
-totally the wrong approach?  Thoughts?  ;)
-
-[I understand Rik's working on this, but my curiosity made me ask anyway!]
-
-Comments, fixes, & feedback always welcome. :)
-
-Craig Kulesa
-Steward Obs.
-Univ. of Arizona
+Alan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
