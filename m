@@ -1,99 +1,41 @@
-Date: Mon, 26 Jul 2004 18:01:04 -0700
-From: Andrew Morton <akpm@osdl.org>
+Date: Mon, 26 Jul 2004 20:47:57 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
 Subject: Re: [PATCH] Locking optimization for cache_reap
-Message-Id: <20040726180104.62c480c6.akpm@osdl.org>
-In-Reply-To: <20040723190555.GB16956@sgi.com>
-References: <20040723190555.GB16956@sgi.com>
+Message-ID: <20040727014757.GA23937@sgi.com>
+References: <20040723190555.GB16956@sgi.com> <20040726180104.62c480c6.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040726180104.62c480c6.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dimitri Sivanich <sivanich@sgi.com>
+To: Andrew Morton <akpm@osdl.org>
 Cc: manfred@colorfullife.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
 List-ID: <linux-mm.kvack.org>
 
-Dimitri Sivanich <sivanich@sgi.com> wrote:
->
-> Here is another cache_reap optimization that reduces latency when
-> applied after the 'Move cache_reap out of timer context' patch I
-> submitted on 7/14 (for inclusion in -mm next week).
+On Mon, Jul 26, 2004 at 06:01:04PM -0700, Andrew Morton wrote:
+> Dimitri Sivanich <sivanich@sgi.com> wrote:
+> >
+> > Here is another cache_reap optimization that reduces latency when
+> > applied after the 'Move cache_reap out of timer context' patch I
+> > submitted on 7/14 (for inclusion in -mm next week).
+> > 
+> > This applies to 2.6.8-rc2 + the above mentioned patch.
 > 
-> This applies to 2.6.8-rc2 + the above mentioned patch.
-
-How does it "reduce latency"?
-
-It looks like a reasonable cleanup, but afaict it will result in the
-per-cache spinlock actually being held for longer periods, thus increasing
-latencies???
-
+> How does it "reduce latency"?
 > 
+> It looks like a reasonable cleanup, but afaict it will result in the
+> per-cache spinlock actually being held for longer periods, thus increasing
+> latencies???
 > 
-> Index: linux/mm/slab.c
-> ===================================================================
-> --- linux.orig/mm/slab.c
-> +++ linux/mm/slab.c
-> @@ -2619,27 +2619,6 @@ static void enable_cpucache (kmem_cache_
->  					cachep->name, -err);
->  }
->  
-> -static void drain_array(kmem_cache_t *cachep, struct array_cache *ac)
-> -{
-> -	int tofree;
-> -
-> -	check_irq_off();
-> -	if (ac->touched) {
-> -		ac->touched = 0;
-> -	} else if (ac->avail) {
-> -		tofree = (ac->limit+4)/5;
-> -		if (tofree > ac->avail) {
-> -			tofree = (ac->avail+1)/2;
-> -		}
-> -		spin_lock(&cachep->spinlock);
-> -		free_block(cachep, ac_entry(ac), tofree);
-> -		spin_unlock(&cachep->spinlock);
-> -		ac->avail -= tofree;
-> -		memmove(&ac_entry(ac)[0], &ac_entry(ac)[tofree],
-> -					sizeof(void*)*ac->avail);
-> -	}
-> -}
-> -
->  static void drain_array_locked(kmem_cache_t *cachep,
->  				struct array_cache *ac, int force)
->  {
-> @@ -2697,16 +2676,14 @@ static void cache_reap (void *unused)
->  			goto next;
->  
->  		check_irq_on();
-> -		local_irq_disable();
-> -		drain_array(searchp, ac_data(searchp));
->  
-> -		if(time_after(searchp->lists.next_reap, jiffies))
-> -			goto next_irqon;
-> +		spin_lock_irq(&searchp->spinlock);
-> +
-> +		drain_array_locked(searchp, ac_data(searchp), 0);
->  
-> -		spin_lock(&searchp->spinlock);
-> -		if(time_after(searchp->lists.next_reap, jiffies)) {
-> +		if(time_after(searchp->lists.next_reap, jiffies))
->  			goto next_unlock;
-> -		}
-> +
->  		searchp->lists.next_reap = jiffies + REAPTIMEOUT_LIST3;
->  
->  		if (searchp->lists.shared)
-> @@ -2739,9 +2716,7 @@ static void cache_reap (void *unused)
->  			spin_lock_irq(&searchp->spinlock);
->  		} while(--tofree > 0);
->  next_unlock:
-> -		spin_unlock(&searchp->spinlock);
-> -next_irqon:
-> -		local_irq_enable();
-> +		spin_unlock_irq(&searchp->spinlock);
->  next:
->  		;
->  	}
+
+While you've got irq's disabled, drain_array() (the function my patch removes)
+acquires the cache spin_lock, then releases it.  Cache_reap then acquires
+it again (with irq's having been off the entire time).  My testing has found
+that simply acquiring the lock once while irq's are off results in fewer
+excessively long latencies.
+
+Results probably vary somewhat depending on the circumstance.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
