@@ -1,181 +1,82 @@
-Date: Fri, 2 Aug 2002 16:29:24 +0100
-From: Matthew Wilcox <willy@debian.org>
-Subject: [PATCH] mm/mmap.c: upward-growing stacks
-Message-ID: <20020802162924.C24631@parcelfarce.linux.theplanet.co.uk>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from fmsmsxvs041.fm.intel.com (fmsmsxvs041.fm.intel.com [132.233.42.126])
+	by mail2.hd.intel.com (8.11.6/8.11.6/d: solo.mc,v 1.42 2002/05/23 22:21:11 root Exp $) with SMTP id g72JWCt00867
+	for <linux-mm@kvack.org>; Fri, 2 Aug 2002 19:32:12 GMT
+Message-ID: <25282B06EFB8D31198BF00508B66D4FA03EA56C0@fmsmsx114.fm.intel.com>
+From: "Seth, Rohit" <rohit.seth@intel.com>
+Subject: RE: large page patch 
+Date: Fri, 2 Aug 2002 12:31:58 -0700 
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: gh@us.ibm.com, riel@conectiva.com.br, akpm@zip.com.au, "Seth, Rohit" <rohit.seth@intel.com>, "Saxena, Sunil" <sunil.saxena@intel.com>, "Mallick, Asit K" <asit.k.mallick@intel.com>, "David S. Miller" <davem@redhat.com>, "'davidm@hpl.hp.com'" <davidm@hpl.hp.com>
 List-ID: <linux-mm.kvack.org>
 
- - trivial: cache file->f_dentry->d_inode; saves a few bytes of compiled
-   size.
- - move expand_stack inside ARCH_STACK_GROWSUP, add an alternate
-   implementation for PA-RISC.
- - partially fix the comment (mmap_sem is held for READ, not for WRITE).
-   It still doesn't make sense, saying we don't need to take the spinlock
-   right before we take it.  I expect one of the vm hackers will know
-   what the right thing is.
+We agree that there are few different ways to get this support implemented
+in base kernel.  Also, the extent to which this support needs to go is also
+debatable (like whether the large_pages could be made swapable etc.)  Just
+to give little history, we also started with prototyping changes in kernel
+that would get the large page support transparent to end user (as we wanted
+to see the benefit of large apps like databases, spec benchmark and HPC
+applications using different page sizes on IA-64).  And under some
+conditions automagically user start using large pages for shm and private
+anonymous pages.  But we would call this at best a kludge because there are
+quite a number of conditions in these execution paths that one has to do
+differently for large_pages.  For example,
+make_pages_present/handle_mm_fault for anonymous or shmem type of pages need
+to be modified to embed the knowledge of different page size in generic
+kernel. Also, there are places where semantics of changes may not completely
+match.  For example, doing a shm_lock/unlock on these segments were not
+exactly doing the expected.  All those extra changes add cost in the normal
+execution path (severity could differ from app to app). 
 
-diff -urpNX dontdiff linux-2.5.30/mm/mmap.c linux-2.5.30-willy/mm/mmap.c
---- linux-2.5.30/mm/mmap.c	2002-08-02 05:44:53.000000000 -0600
-+++ linux-2.5.30-willy/mm/mmap.c	2002-08-02 08:24:26.000000000 -0600
-@@ -422,6 +422,7 @@ unsigned long do_mmap_pgoff(struct file 
- {
- 	struct mm_struct * mm = current->mm;
- 	struct vm_area_struct * vma, * prev;
-+	struct inode *inode = NULL;
- 	unsigned int vm_flags;
- 	int correct_wcount = 0;
- 	int error;
-@@ -469,17 +470,18 @@ unsigned long do_mmap_pgoff(struct file 
- 	}
- 
- 	if (file) {
-+		inode = file->f_dentry->d_inode;
- 		switch (flags & MAP_TYPE) {
- 		case MAP_SHARED:
- 			if ((prot & PROT_WRITE) && !(file->f_mode & FMODE_WRITE))
- 				return -EACCES;
- 
- 			/* Make sure we don't allow writing to an append-only file.. */
--			if (IS_APPEND(file->f_dentry->d_inode) && (file->f_mode & FMODE_WRITE))
-+			if (IS_APPEND(inode) && (file->f_mode & FMODE_WRITE))
- 				return -EACCES;
- 
- 			/* make sure there are no mandatory locks on the file. */
--			if (locks_verify_locked(file->f_dentry->d_inode))
-+			if (locks_verify_locked(inode))
- 				return -EAGAIN;
- 
- 			vm_flags |= VM_SHARED | VM_MAYSHARE;
-@@ -603,7 +605,7 @@ munmap_back:
- 
- 	vma_link(mm, vma, prev, rb_link, rb_parent);
- 	if (correct_wcount)
--		atomic_inc(&file->f_dentry->d_inode->i_writecount);
-+		atomic_inc(&inode->i_writecount);
- 
- out:	
- 	mm->total_vm += len >> PAGE_SHIFT;
-@@ -615,7 +617,7 @@ out:	
- 
- unmap_and_free_vma:
- 	if (correct_wcount)
--		atomic_inc(&file->f_dentry->d_inode->i_writecount);
-+		atomic_inc(&inode->i_writecount);
- 	vma->vm_file = NULL;
- 	fput(file);
- 
-@@ -755,38 +757,41 @@ struct vm_area_struct * find_vma_prev(st
- 	return prev ? prev->vm_next : vma;
- }
- 
-+#ifdef ARCH_STACK_GROWSUP
- /*
-- * vma is the first one with  address < vma->vm_end,
-- * and even address < vma->vm_start. Have to extend vma.
-+ * vma is the first one with address > vma->vm_end.  Have to extend vma.
-  */
- int expand_stack(struct vm_area_struct * vma, unsigned long address)
- {
- 	unsigned long grow;
- 
-+	if (!(vma->vm_flags & VM_GROWSUP))
-+		return -EFAULT;
-+
- 	/*
- 	 * vma->vm_start/vm_end cannot change under us because the caller
--	 * is required to hold the mmap_sem in write mode. We need to get
-+	 * is required to hold the mmap_sem in read mode. We need to get
- 	 * the spinlock only before relocating the vma range ourself.
- 	 */
-+	address += 4 + PAGE_SIZE - 1;
- 	address &= PAGE_MASK;
-  	spin_lock(&vma->vm_mm->page_table_lock);
--	grow = (vma->vm_start - address) >> PAGE_SHIFT;
-+	grow = (address - vma->vm_end) >> PAGE_SHIFT;
- 
- 	/* Overcommit.. */
--	if(!vm_enough_memory(grow)) {
-+	if (!vm_enough_memory(grow)) {
- 		spin_unlock(&vma->vm_mm->page_table_lock);
- 		return -ENOMEM;
- 	}
- 	
--	if (vma->vm_end - address > current->rlim[RLIMIT_STACK].rlim_cur ||
-+	if (address - vma->vm_start > current->rlim[RLIMIT_STACK].rlim_cur ||
- 			((vma->vm_mm->total_vm + grow) << PAGE_SHIFT) >
- 			current->rlim[RLIMIT_AS].rlim_cur) {
- 		spin_unlock(&vma->vm_mm->page_table_lock);
- 		vm_unacct_memory(grow);
- 		return -ENOMEM;
- 	}
--	vma->vm_start = address;
--	vma->vm_pgoff -= grow;
-+	vma->vm_end = address;
- 	vma->vm_mm->total_vm += grow;
- 	if (vma->vm_flags & VM_LOCKED)
- 		vma->vm_mm->locked_vm += grow;
-@@ -794,7 +799,6 @@ int expand_stack(struct vm_area_struct *
- 	return 0;
- }
- 
--#ifdef ARCH_STACK_GROWSUP
- struct vm_area_struct * find_extend_vma(struct mm_struct * mm, unsigned long addr)
- {
- 	struct vm_area_struct *vma, *prev;
-@@ -811,6 +815,44 @@ struct vm_area_struct * find_extend_vma(
- 	return prev;
- }
- #else
-+/*
-+ * vma is the first one with address < vma->vm_start.  Have to extend vma.
-+ */
-+int expand_stack(struct vm_area_struct * vma, unsigned long address)
-+{
-+	unsigned long grow;
-+
-+	/*
-+	 * vma->vm_start/vm_end cannot change under us because the caller
-+	 * is required to hold the mmap_sem in read mode. We need to get
-+	 * the spinlock only before relocating the vma range ourself.
-+	 */
-+	address &= PAGE_MASK;
-+ 	spin_lock(&vma->vm_mm->page_table_lock);
-+	grow = (vma->vm_start - address) >> PAGE_SHIFT;
-+
-+	/* Overcommit.. */
-+	if (!vm_enough_memory(grow)) {
-+		spin_unlock(&vma->vm_mm->page_table_lock);
-+		return -ENOMEM;
-+	}
-+	
-+	if (vma->vm_end - address > current->rlim[RLIMIT_STACK].rlim_cur ||
-+			((vma->vm_mm->total_vm + grow) << PAGE_SHIFT) >
-+			current->rlim[RLIMIT_AS].rlim_cur) {
-+		spin_unlock(&vma->vm_mm->page_table_lock);
-+		vm_unacct_memory(grow);
-+		return -ENOMEM;
-+	}
-+	vma->vm_start = address;
-+	vma->vm_pgoff -= grow;
-+	vma->vm_mm->total_vm += grow;
-+	if (vma->vm_flags & VM_LOCKED)
-+		vma->vm_mm->locked_vm += grow;
-+	spin_unlock(&vma->vm_mm->page_table_lock);
-+	return 0;
-+}
-+
- struct vm_area_struct * find_extend_vma(struct mm_struct * mm, unsigned long addr)
- {
- 	struct vm_area_struct * vma;
+So, we needed to treat the large pages as a special case and want to make
+sure that the application that will be using the large pages understand that
+these pages are special (avoid transperent usage model until the large pages
+are treated the same way as normal pages). This led to cleaner solution
+(input for which also came from Linus himself).  The new APIs enable the
+kernel to contain the changes to be architecture specific and limited to
+very few kernel changes.  And above all it looks so much portable. Fact is,
+the initial implementation was done for IA-64 and porting to x86 took couple
+of hours. One of the other key advantage is that this design does not tie
+the supported large_page size(s) to any specific size in the generic mm
+code.  It supports all the underlying architecture supported page sizes
+quite independent of generic code.  And architecture dependent code could
+support multiple large_page sizes in the same kernel.
 
--- 
-Revolutions do not require corporate support.
+We presented our work to Oracle and they were acceptable to the new APIs
+(not saying Oracle is the only DB in world that one has to worry about, but
+it clearly indicates that the move from shm apis to this new APIs is easy.
+Obviously the input from other big app vendors will be highly appreciated.).
+
+
+Sceintific apps people who have the sources should also like this approach,
+as there changes will be even more trivial (changes to malloc).  And above
+all, for those people who really want to get this extra buck transparently,
+the changes could be done to user land libraries to selectively map to these
+new APIs.  LD_PRELOAD could be another way to do.  Ofcourse, there will be
+changes that need to be done in user land.  But they are self contained
+changes.  And one of the key point is that application knows what it is
+demanding/getting form kernel.
+
+Now to the point where the large_pages themselves could be made swapable. In
+our opinion (and this may not be this API dependent), it is not a good idea
+to look at these pages as swapable candidates.  Most of the big apps who are
+going to use this feature will use them for the data that they really need
+available all the time (prefereably in RAM if not on caches :-)).  And the
+sysadm could easily configure the amount of large mem pool as per the needs
+for a specific environment.
+
+To the point where the whole kernel starts supporting (as David Mosberger
+refered) superpages where support is built in kernel to basically treat
+superpages as just another size the whole kernel supports will be great too.
+But those need quite a lot of exhaustive changes in kernel layers as weill
+as lot of tuning.....may be a little further away in future.
+
+thanks,
+asit & rohit
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
