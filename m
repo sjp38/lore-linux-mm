@@ -1,53 +1,36 @@
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Re: [RFC] [RFT] [PATCH] memory zone balancing
-In-Reply-To: <Pine.LNX.4.10.10001040417340.654-100000@mirkwood.dummy.home>
-Message-ID: <Pine.LNX.4.10.10001041643050.654-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Date: Tue, 4 Jan 2000 16:47:53 +0100
+Message-Id: <200001041719.JAA03724@icarus.com>
+Subject: Re: vm_operations (was: Re: release not called for my driver?) 
+In-Reply-To: Message from Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+   of "Tue, 04 Jan 2000 08:35:34 +0100." <Pine.LNX.4.10.10001040816410.8982-100000@nightmaster.csn.tu-chemnitz.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Date: Tue, 04 Jan 2000 09:19:12 -0800
+From: Stephen Williams <steve@icarus.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, torvalds@transmeta.com, mingo@chiara.csoma.elte.hu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
+Cc: Linux Kernel Development <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 4 Jan 2000, Rik van Riel wrote:
+As far as I can tell, the Linux kernel device driver interface is very
+poorly documented. The Rubinni book is as close as one gets to documentation,
+but that does not cover much of vm behavior, and certainly doesn't cover
+the cases you and I are handling.
 
-> d+r+h > limit
-> d     > limit/2
-> r     > limit/4
-> h     > limit/8
+Example code may well be the best documentation (thanks, Alan) but a
+driver for a complex dvice can get a bit opaque and what are really needed
+are contrived and heavily commented examples.
 
-Ehmmm, wait. I messed up on this one.
-We probably want to have a bit more freedom
-so the page freeing algorithm doesn't do too
-much scanning for nothing.
+Oh well, Linux drivers are part of my job description so I do have the
+time to figure things out. It just would be nice if the people who add these
+nifty-neato interfaces in the kernel actually took the time to describe
+them.
+-- 
+Steve Williams                "The woods are lovely, dark and deep.
+steve@icarus.com              But I have promises to keep,
+steve@picturel.com            and lines to code before I sleep,
+http://www.picturel.com       And lines to code before I sleep."
 
-d+r+h 	> limit
-d	> limit/4
-r	> limit/4
-h	don't care, even on a 1.5GB machine h will
-	be 1/3 of total memory, so we'll usually
-	have a few free pages in here
-
-> DMA pages should always be present, regular pages for
-> storing pagetables and stuff need to be there too, higmem
-> pages we don't really care about.
-> 
-> Btw, I think we probably want to increase freepages.min
-> to 512 or even more on machines that have >1GB of memory.
-> The current limit of 256 was really intended for machines
-> with a single zone of memory...
-> 
-> (but on <1GB machines I don't know if it makes sense to
-> raise the limit much more ... maybe we should raise the
-> limit automagically if the page alloc/io rate is too
-> high?)
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
