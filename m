@@ -1,79 +1,63 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i97CaYR6031821 for <linux-mm@kvack.org>; Thu, 7 Oct 2004 21:36:34 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s2.gw.fujitsu.co.jp by m5.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i97CaYkt007983 for <linux-mm@kvack.org>; Thu, 7 Oct 2004 21:36:34 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s2.gw.fujitsu.co.jp (s2 [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 464AC1F723E
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2004 21:36:34 +0900 (JST)
-Received: from fjmail506.fjmail.jp.fujitsu.com (fjmail506-0.fjmail.jp.fujitsu.com [10.59.80.106])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 1389A1F7238
-	for <linux-mm@kvack.org>; Thu,  7 Oct 2004 21:36:33 +0900 (JST)
-Received: from jp.fujitsu.com
- (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
- fjmail506.fjmail.jp.fujitsu.com
- (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I5700K6KSCVAJ@fjmail506.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Thu,  7 Oct 2004 21:36:32 +0900 (JST)
-Date: Thu, 07 Oct 2004 21:42:05 +0900
-From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: [PATCH] no buddy bitmap patch : for ia64 [2/2]
-Message-id: <4165399D.7010600@jp.fujitsu.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-transfer-encoding: 7bit
+Date: Thu, 7 Oct 2004 09:06:05 -0300
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
+Message-ID: <20041007120605.GA13779@logos.cnet>
+References: <20041003140723.GD4635@logos.cnet> <20041004.033559.71092746.taka@valinux.co.jp> <20041004172427.GL16374@logos.cnet> <20041005.115347.95910198.taka@valinux.co.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20041005.115347.95910198.taka@valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel ML <linux-kernel@vger.kernel.org>
-Cc: linux-mm <linux-mm@kvack.org>, LHMS <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, "Luck, Tony" <tony.luck@intel.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
+To: Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: iwamoto@valinux.co.jp, haveblue@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch is for ia64.
-Add HOLES_IN_ZONE macro definition and align vmemmap with ia64's granule size.
+On Tue, Oct 05, 2004 at 11:53:47AM +0900, Hirokazu Takahashi wrote:
 
-Kame <kamezawa.hiroyu@jp.fujitsu.com>
+> It was the easiest way to handle pages with buffers when Iwamoto
+> and I started to implement it. We thought it was slow but it would
+> work for all kinds of filesystems.
+> 
+> > We're just trying to migrate pages to another zone. 
+> > 
+> > If its under writeout, wait, if its dirty, just move it to the other
+> > zone.
+> > 
+> > Can you enlight me?
+> 
+> Yes, I also realize that.
+> migrate_page_buffer() will do this, but I'm not certain it will work
+> for all kinds of filesystems. I guess there might be some exceptions.
+> We may need a special operation to handle pages on a filesystem,
+> which has releasepage method.
 
-=== for arch/ia64 ===============
-This patch is for ia64 kernel.
-This defines HOLES_IN_ZONE in asm-ia64/page.h
-And makes vmemmap aligned with IA64_GRANULE_SIZE in arch/ia64/mm/init.c.
+It seems there is typo in the current version of the patch:
 
-Signed-off-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-
-
----
-
- test-kernel-kamezawa/arch/ia64/mm/init.c     |    3 ++-
- test-kernel-kamezawa/include/asm-ia64/page.h |    1 +
- 2 files changed, 3 insertions(+), 1 deletion(-)
-
-diff -puN include/asm-ia64/page.h~ia64_fix include/asm-ia64/page.h
---- test-kernel/include/asm-ia64/page.h~ia64_fix	2004-10-07 19:40:30.953218680 +0900
-+++ test-kernel-kamezawa/include/asm-ia64/page.h	2004-10-07 19:40:30.958217920 +0900
-@@ -79,6 +79,7 @@ do {						\
-
- #ifdef CONFIG_VIRTUAL_MEM_MAP
- extern int ia64_pfn_valid (unsigned long pfn);
-+#define HOLES_IN_ZONE 1
- #else
- # define ia64_pfn_valid(pfn) 1
- #endif
-diff -puN arch/ia64/mm/init.c~ia64_fix arch/ia64/mm/init.c
---- test-kernel/arch/ia64/mm/init.c~ia64_fix	2004-10-07 19:40:30.955218376 +0900
-+++ test-kernel-kamezawa/arch/ia64/mm/init.c	2004-10-07 19:40:30.959217768 +0900
-@@ -410,7 +410,8 @@ virtual_memmap_init (u64 start, u64 end,
- 	struct page *map_start, *map_end;
-
- 	args = (struct memmap_init_callback_data *) arg;
--
-+	start = GRANULEROUNDDOWN(start);
-+	end = GRANULEROUNDUP(end);
- 	map_start = vmem_map + (__pa(start) >> PAGE_SHIFT);
- 	map_end   = vmem_map + (__pa(end) >> PAGE_SHIFT);
+int try_to_migrate_pages(struct list_head *page_list)
+{
+...
+        current->flags |= PF_KSWAPD;    /*  It's fake */
+        list_for_each_entry_safe(page, page2, page_list, lru) {
+                /*
+                 * Start writeback I/O if it's a dirty page with buffers
+                 * and it doesn't have migrate_page method.
+                 */
+                if (PageDirty(page) && PagePrivate(page)) {
+                        if (!TestSetPageLocked(page)) {
+                                mapping = page_mapping(page);
+                                if (!mapping || mapping->a_ops->migrate_page ||
+						^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                    pageout(page, mapping) != PAGE_SUCCESS) {
+                                        unlock_page(page);
+                                }
+                        }
+                }
 
 
-_
+Shouldnt that be "!mapping->a_ops->migrate_page"?
+
+That is, if we can't migrate the page, try to write it out?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
