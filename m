@@ -1,48 +1,34 @@
-Date: Sat, 19 Mar 2005 22:58:55 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [Patch] cpusets policy kill no swap
-Message-Id: <20050319225855.475e4167.akpm@osdl.org>
-In-Reply-To: <20050320014847.16310.53697.sendpatchset@sam.engr.sgi.com>
-References: <20050320014847.16310.53697.sendpatchset@sam.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from server1.fastmail.com  (mail.fastmail.com  [63.121.29.87])
+	by fep2.opermail.com (Postfix) with ESMTP id A025C1856
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2005 02:23:00 -0200 (EDT)
+Received: from nobody by opermail.com with local (Exim 4.22)
+	id 4C1rjW-1675oD-My
+	for <linux-mm@kvack.org>; Tue, 22 Mar 2005 01:20:00 -0300
+Subject: You have a new private message waiting
+From: "Stephen Fowler" <StephenwerFowlerwer@opermail.com>
+Message-ID: <792787814923.7eb1e9509243@opermail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 8bit
+Date: Mon, 21 Mar 2005 23:21:00 -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: mort@sgi.com, linux-mm@kvack.org, emery@sgi.com, bron@sgi.com, Simon.Derr@bull.net, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson <pj@sgi.com> wrote:
->
-> This mechanisms differs from a general purpose out-of-memory
->  killer in various ways, including:
-> 
->   * An oom-killer tries to score the bad buy, to avoid shooting
->     the innocent little task that just happened to ask for one
->     page too many.
->   * The policy_kill_no_swap hook kills the current requester.
->   * It takes severe memory pressure to wake up an oom-killer.
->   * The policy_kill_no_swap hook triggers on the slightest
->     pressure that exceeds readily free memory.
->   * The oom-killer can be useful on a general purpose system.
->   * The policy_kill_no_swap hook is only useful for carefully
->     tuned apps running on dedicated nodes on large systems.
-> 
 
-There are a lot of reasons why we would wake kswapd apart from starting
-swapout.  Such as to reclaim clean pagecache or some dcache+icache.
+Thank you very much for your mortgage refinance
+application.
 
->  In short - simple enough, but quite specialized.
+The company that best suited your needs is requesting 
+applicant verification in order to process your claim.
 
-Way too specialised, I suspect.  Is it not possible to have a little
-userspace daemon which monitors the long-running applications's rss and
-whacks it if the rss gets too large?
+(COMPANY ID:L-633)
 
-The patch you have simply kills the process when all the eligible zones
-reach their upper watermark.  Again, we can probably determine that state
-from userspace right now.  If not, it would be simple enough to add the
-required info to /proc somewhere.
+http://xqchurchgo.ref-ok-now.com/refimort.asp
+
+Thanks,
+Stephen Fowler
+Broker (P-481-285)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
