@@ -1,55 +1,69 @@
-Received: (from root@localhost)
-	by law-cs1.hotmail.com (8.9.3/8.9.3) id AAA04188
-	for linux-mm@kvack.org; Sat, 11 May 2002 00:04:34 -0700 (PDT)
-Date: Sat, 11 May 2002 00:04:34 -0700 (PDT)
-Message-Id: <200205110704.AAA04188@law-cs1.hotmail.com>
-From: MSN Hotmail <wchelp@hotmail.com>
-Subject: The Garden of Eden
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=iso-8859-1
-Content-transfer-encoding: 8bit
+Received: from wli by holomorphy with local (Exim 3.34 #1 (Debian))
+	id 176ZSb-0004xF-00
+	for <linux-mm@kvack.org>; Sat, 11 May 2002 09:11:05 -0700
+Date: Sat, 11 May 2002 09:11:05 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: [miltonm@realtime.net: lock_kiobuf page locking]
+Message-ID: <20020511161104.GZ15756@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an auto-generated response designed to answer your question as quickly as possible. Please note that you will not receive a reply if you respond directly to this message. We hope the directions below answer your question. If after following the directions your problem is still unresolved, please click the link to the Hotmail Customer Support form at the end of this message to submit your issue and a Customer Support Representative will help you.
+This looks good to me; thought I'd toss it out here for review.
 
-MSN Hotmail WebCourier is an online content delivery service that enables you to request that rich, graphical e-mail messages be delivered daily to your Inbox. Check regularly for additions because Hotmail constantly adds new titles to this list.
+Cheers,
+Bill
 
-For your convenience, we've divided current WebCourier services into these categories:
-  - Business & Investing
-  - Entertainment & Music
-  - Games
-  - Health & Fitness
-  - News & Sports
-  - Personal Interests
-  - Shopping
-  - Teens & Young Adults
-  - Women
+----- Forwarded message from "Milton D. Miller II" <miltonm@realtime.net> -----
 
->>> To subscribe to WebCourier
-
-1.  On the right navigation bar under "Hotmail Services", click the "Free Newsletters" link. The "WebCourier FREE Subscriptions" page appears.
-2.  Scroll down to see the list of possible subscriptions.
-3.  Select the check box next to each service to which you want to subscribe.
-4.  Click "OK" to subscribe to these services.
-
->>> To unsubscribe from WebCourier
-
-1.  On the right navigation bar under "Hotmail Services", click the "Free Newsletters" link. The "WebCourier FREE Subscriptions" page appears.
-2.  Clear the check box next to each service to which you're subscribed.
-3.  Click "OK" to unsubscribe to these services.
+Envelope-to: wli@holomorphy.com
+Delivery-date: Mon, 06 May 2002 21:44:36 -0700
+Date: Mon, 6 May 2002 23:45:47 -0500 (CDT)
+From: "Milton D. Miller II" <miltonm@realtime.net>
+To: wli@holomorphy.com
+Subject: lock_kiobuf page locking
 
 
-*************************
-Still Didn't Solve Your Problem?
+Just noticed this with the wait_page to wait_page_locked diff ...
 
-Complete the Hotmail Customer Support request form at: 
-    http://www.hotmail.com/cgi-bin/support
+===== memory.c 1.61 vs edited =====
+--- 1.61/mm/memory.c	Sat May  4 18:07:03 2002
++++ edited/memory.c	Mon May  6 18:18:19 2002
+@@ -693,8 +693,8 @@
+ {
+ 	struct kiobuf *iobuf;
+ 	int i, j;
+-	struct page *page, **ppage;
+-	int doublepage = 0;
++	struct page *page, **ppage, *dpage = NULL;
++	int doublepage;
+ 	int repeat = 0;
+ 	
+  repeat:
+@@ -747,9 +747,14 @@
+ 		 * but if it happens more than once, chances
+ 		 * are we have a double-mapped page. 
+ 		 */
+-		if (++doublepage >= 3) 
+-			return -EINVAL;
++		if (dpage != page) {
++			dpage = page;
++			doublepage = 0;
++		} else {
++			if (++doublepage >= 3)
++				return -EINVAL;
+ 		
++	} else {
+ 		/* Try again...  */
+ 		wait_on_page_locked(page);
+ 	}
 
-Remember that MSN Hotmail also has comprehensive online help available--just click "Help" in the upper right corner.
-
+----- End forwarded message -----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
