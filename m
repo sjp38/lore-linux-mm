@@ -1,51 +1,41 @@
-Message-ID: <39D13F5F.9C7F28D6@sgi.com>
-Date: Tue, 26 Sep 2000 17:29:19 -0700
-From: Rajagopal Ananthanarayanan <ananth@sgi.com>
-MIME-Version: 1.0
-Subject: [PATCH] A code cleanup change
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+From: Rusty Russell <rusty@linuxcare.com.au>
+Subject: Re: the new VMt 
+In-reply-to: Your message of "Mon, 25 Sep 2000 09:35:53 PDT."
+             <Pine.LNX.4.10.10009250931570.1739-100000@penguin.transmeta.com>
+Date: Wed, 27 Sep 2000 18:14:12 +1100
+Message-Id: <20000927071413.A990A8146@halfway.linuxcare.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@conectiva.com.br
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-A simple change to get rid of a few magic numbers.
-Not included in the patch, one could also use a simple array
-for the triplet page_{min,low,high} with the same PAGE_{MIN,LOW,HIGH} index
-definitions. The switch in __alloc_pages_limit will be
-gone; other places will have to be modified, but
-won't incur any extra cost.
+In message <Pine.LNX.4.10.10009250931570.1739-100000@penguin.transmeta.com> you
+ write:
+> I suspect that the proper way to do this is to just make another gfp_flag,
+> which is basically another hint to the mm layer that we're doing a multi-
+> page allocation and that the MM layer should not try forever to handle it.
+> 
+> In fact, that's independent of whether it is a multi-page allocation or
+> not. It might be something like __GFP_SOFT - you could use it with single
+> pages too. 
 
-Patch against test9-pre7:
+That'd be a lovely interface, now wouldn't it?
 
-==================
---- ./mm/page_alloc.c.orig      Tue Sep 26 13:55:48 2000
-+++ ./mm/page_alloc.c   Tue Sep 26 13:56:41 2000
-@@ -258,13 +258,13 @@
-                 */
-                switch (limit) {
-                        default:
--                       case 0:
-+                       case PAGES_MIN:
-                                water_mark = z->pages_min;
-                                break;
--                       case 1:
-+                       case PAGES_LOW:
-                                water_mark = z->pages_low;
-                                break;
--                       case 2:
-+                       case PAGES_HIGH:
-                                water_mark = z->pages_high;
-                }
- 
-=====================
--- 
---------------------------------------------------------------------------
-Rajagopal Ananthanarayanan ("ananth")
-Member Technical Staff, SGI.
---------------------------------------------------------------------------
+*yecch*
+
+Please consider at least:
+
+/* Never fails. */
+#define trivial_kmalloc(s)	\
+	 ((void)((s) > PAGE_SIZE ? bad_size_##s : __kmalloc((s), GFP_KERNEL)))
+
+/* Can fail */
+#define kmalloc(s, pri) __kmalloc((s), (pri)|__GFP_SOFT)
+
+Rusty.
+--
+Hacking time.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
