@@ -1,60 +1,105 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA08101
-	for <linux-mm@kvack.org>; Thu, 23 Jul 1998 17:33:49 -0400
-Date: Thu, 23 Jul 1998 22:28:39 +0200 (CEST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: Good and bad news on 2.1.110, and a fix
-In-Reply-To: <35B75FE8.63173E88@star.net>
-Message-ID: <Pine.LNX.3.96.980723222349.18464C-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA11462
+	for <linux-mm@kvack.org>; Fri, 24 Jul 1998 07:26:41 -0400
+Subject: Re: More info: 2.1.108 page cache performance on low memory
+References: <Pine.LNX.3.96.980723214715.18464B-100000@mirkwood.dummy.home>
+Reply-To: Zlatko.Calusic@CARNet.hr
+From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
+Date: 24 Jul 1998 13:21:29 +0200
+In-Reply-To: Rik van Riel's message of "Thu, 23 Jul 1998 21:51:37 +0200 (CEST)"
+Message-ID: <87af5zlcjq.fsf@atlas.CARNet.hr>
 Sender: owner-linux-mm@kvack.org
-To: Bill Hawes <whawes@star.net>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Alan Cox <number6@the-village.bc.nu>, "David S. Miller" <davem@dm.cobaltmicro.com>, Ingo Molnar <mingo@valerie.inf.elte.hu>, Mark Hemment <markhe@nextd.demon.co.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Cc: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>, "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@npwt.net>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Jul 1998, Bill Hawes wrote:
-> Stephen C. Tweedie wrote:
->  
-> > The patch to page_alloc.c is a minimal fix for the fragmentation
-> > problem.  It simply records allocation failures for high-order pages,
-> > and forces free_memory_available to return false until a page of at
-> > least that order becomes available.  The impact should be low, since
+Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
 
-This sound suspiciously like the first version of
-free_memory_available() that Linus introduced in
-2.1.89...
+> On 23 Jul 1998, Zlatko Calusic wrote:
+> 
+> > One wrong way of fixing it is to limit page cache size, IMNSHO.
+> > 
+> > I tried the other way, to age page cache harder, and it looks like it
+> > works very well. Patch is simple, so simple that I can't understand
+> > nobody suggested (something like) it yet.
+> 
+> These solutions are somewhat the same, but your one may take
+> a little less computational power and has a tradeoff in the
+> fact that it is very inflexible.
 
-> One possible downside is that kswapd infinite looping may become more
-> likely, as we still have no way to determine when the memory
+Same? Not in your wildest dream. :)
 
-It will happen for sure; just think of what will happen
-when that 64 kB DMA allocation fails on your 6 MB box :(
+Limiting means puting "arbitrary" limit. Then page cache would NEVER
+grow above that limit.
 
-We saw the results in 2.1.89 and I don't see any reason
-to repeat the experiments now, at least not until Bill's
-patch for freeing inodes is merged...
+That's how buffer cache work at the present. It never grows above cca
+30% of physical memory installed. That means lots of unused memory...
+I don't like it. Many times, no matter how heavy I/O I have, last 20MB
+(for exampl, but in many real cases) are free, unused, WASTED.
 
-> configuration makes it impossible to achieve the memory goal. I still
-> see this "swap deadlock" in 110 (and all recent kernels) under low
-> memory or by doing a swapoff. Any ideas on how to best determine an
-> infeasible memory configuration?
+I see that only on two OSes, NT and recent 2.1.x Linuces.
 
-Well, freepages.high should be a nice hint as to when to
-stop; unfortunately it is used now instead of fragmentation
-issues.
+I know I can change that limit in /proc/sys... but I was always
+wondering why is default set so low.
 
-Maybe we want to count the number of order-3 memory structures
-free and keep that number above a certain level (back to
-Zlatko's 2.1.59 patch :-).
+With harder aging you're NOT limiting size of page cache. You
+just say  to that subsystem to be polite, but if you have lots of
+memory, that memory will be instantly used by the cache. That's
+FUNDAMENTALLY different from limiting.
 
-Rik.
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+Triple aging has all good characteristics of aging.
 
+Why do you think it is inflexible?
+
+> 
+> > --- filemap.c.virgin   Tue Jul 21 18:41:30 1998
+> > +++ filemap.c   Thu Jul 23 12:14:43 1998
+> > +                       age_page(page);
+> > +                       age_page(page);
+> >                         age_page(page);
+> > If I put only two age_page()s, there's still too much swapping for my
+> > taste.
+> > With three age_page()s, read performance is as expected, and still we
+> > manage memory more efficiently than without page aging.
+> 
+> This only proves that three age_page()s are a good number
+> for _your_ computer and your workload.
+> 
+
+Could be. So I'd like to see other people benchmarks.
+I hope I'm not theonly speed freak around. :)
+
+I will post another, completely different set of benchmarks today.
+Under different initial conditions, so as to simulate different
+machines and loads.
+
+> > Comments?
+> 
+> As Stephen put it so nicely when I (in a bad mood) proposed
+> another artificial limit:
+> " O no, another arbitrary limit in the kernel! "
+> 
+
+I couldn't agree more. I like sane defaults. And simple solutions,
+more than anything.
+
+> And another one of Stephen's wisdoms (heavily paraphrased!):
+> " Good solutions are dynamic and/or self-tuning "
+> [Sorry Stephen, this was VERY heavily paraphrased :)]
+> 
+
+Agreed, but only if that self-tuning does not take more code than
+the core functionality in itself. :)
+
+I'm very satisfied with changes (in .109 I think)
+free_memory_available() went through. Old function was much too much
+unnessecary complicated and not useful at all. And unreadable.
+
+Regards,
+-- 
+Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
+---------------------------------------------------------------------
+	       File not found. Should I fake it? (Y/N)
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
