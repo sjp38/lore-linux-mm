@@ -1,77 +1,40 @@
-Date: Mon, 16 Sep 2002 22:18:20 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Reply-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: dbench on tmpfs OOM's
-Message-ID: <211767585.1032214699@[10.10.2.3]>
-In-Reply-To: <3D86BA1B.84873680@digeo.com>
-References: <3D86BA1B.84873680@digeo.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA08125
+	for <linux-mm@kvack.org>; Mon, 16 Sep 2002 22:32:00 -0700 (PDT)
+Message-ID: <3D86BE4F.75C9B6CC@digeo.com>
+Date: Mon, 16 Sep 2002 22:31:59 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
+Subject: Re: dbench on tmpfs OOM's
+References: <20020917044317.GZ2179@holomorphy.com> <3D86B683.8101C1D1@digeo.com> <20020917051501.GM3530@holomorphy.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org, akpm@zip.com.au, hugh@veritas.com, linux-kernel@vger.kernel.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: linux-mm@kvack.org, hugh@veritas.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> meminfo.what?   Remember when I suggested that you put
-> a testing mode into the numa code so that mortals could
-> run numa builds on non-numa boxes?
-
-NUMA aware meminfo is one of the patches you have sitting
-in your tree. I haven't got around to the NUMA-sim yet ...
-maybe after Halloween when management stop asking me to
-get other bits of code in before the freeze ;-)
-
-mbligh@larry:~$ cat /proc/meminfo.numa 
-
-Node 0 MemTotal:      4194304 kB
-Node 0 MemFree:       3420660 kB
-Node 0 MemUsed:        773644 kB
-Node 0 HighTotal:     3418112 kB
-Node 0 HighFree:      2737992 kB
-Node 0 LowTotal:       776192 kB
-Node 0 LowFree:        682668 kB
-
-Node 1 MemTotal:      4147200 kB
-Node 1 MemFree:       4116444 kB
-Node 1 MemUsed:         30756 kB
-Node 1 HighTotal:     4147200 kB
-Node 1 HighFree:      4116444 kB
-Node 1 LowTotal:            0 kB
-Node 1 LowFree:             0 kB
-
-Node 2 MemTotal:      4147200 kB
-Node 2 MemFree:       4131816 kB
-Node 2 MemUsed:         15384 kB
-Node 2 HighTotal:     4147200 kB
-Node 2 HighFree:      4131816 kB
-Node 2 LowTotal:            0 kB
-Node 2 LowFree:             0 kB
-
-Node 3 MemTotal:      4147200 kB
-Node 3 MemFree:       4128432 kB
-Node 3 MemUsed:         18768 kB
-Node 3 HighTotal:     4147200 kB
-Node 3 HighFree:      4128432 kB
-Node 3 LowTotal:            0 kB
-Node 3 LowFree:             0 kB
-
->> Looks to me like it's just out of low memory:
->> 
->> > LowFree:          1424 kB
->> 
->> There is no low memory on anything but node 0 ... 
+William Lee Irwin III wrote:
 > 
-> It was a GFP_HIGH allocation - just pagecache.
+> William Lee Irwin III wrote:
+> >> MemTotal:     32107256 kB
+> >> MemFree:      27564648 kB
+> 
+> On Mon, Sep 16, 2002 at 09:58:43PM -0700, Andrew Morton wrote:
+> > I'd be suspecting that your node fallback is bust.
+> > Suggest you add a call to show_free_areas() somewhere; consider
+> > exposing the full per-zone status via /proc with a proper patch.
+> 
+> I went through the nodes by hand. It's just a run of the mill
+> ZONE_NORMAL OOM coming out of the GFP_USER allocation. None of
+> the highmem zones were anywhere near ->pages_low.
+> 
 
-Ah, but what does a balance_classzone do on a NUMA box?
-Once you've finished rototilling the code you're looking
-at, I think we might have a better clue what it's supposed
-to do, at least ...
+erk.  Why is shmem using GFP_USER?
 
-M.
+mnm:/usr/src/25> grep page_address mm/shmem.c
+mnm:/usr/src/25>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
