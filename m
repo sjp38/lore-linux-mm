@@ -1,45 +1,53 @@
-Message-ID: <20041209105603.4725.qmail@web53908.mail.yahoo.com>
-Date: Thu, 9 Dec 2004 02:56:03 -0800 (PST)
-From: Fawad Lateef <fawad_lateef@yahoo.com>
-Subject: Plzz help me regarding HIGHMEM (PAE) confusion in Linux-2.4 ???
-MIME-Version: 1.0
+Date: Thu, 9 Dec 2004 11:57:53 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: Anticipatory prefaulting in the page fault handler V1
+Message-ID: <20041209105753.GB1131@elf.ucw.cz>
+References: <Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0412011608500.22796@ppc970.osdl.org> <41AEB44D.2040805@pobox.com> <20041201223441.3820fbc0.akpm@osdl.org> <41AEBAB9.3050705@pobox.com> <20041201230217.1d2071a8.akpm@osdl.org> <179540000.1101972418@[10.10.2.4]> <41AEC4D7.4060507@pobox.com> <20041202101029.7fe8b303.cliffw@osdl.org> <Pine.LNX.4.58.0412080920240.27156@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0412080920240.27156@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <clameter@sgi.com>
+Cc: nickpiggin@yahoo.com.au, Jeff Garzik <jgarzik@pobox.com>, torvalds@osdl.org, hugh@veritas.com, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I m confused with that how the kernel access highmem
-through PAE. I know that kmap related functions do
-that but when I saw what they do, I got to know that
-they are just setting PTE according to already created
-slot of pagetable. 
+Hi!
 
-But as far as I understand from Intel's IA32 System
-Programmer manual, due to linear address limit of
-32bit we can't access more than 4GB from a single
-process, and for above 4GB cr3 must be loaded with the
-new PGD values so that the linear address of 32bits
-can then access the other 4GB (4GB to 8GB) and for
-every every 4GB till 64GB.
+> Standard Kernel on a 512 Cpu machine allocating 32GB with an increasing
+> number of threads (and thus increasing parallellism of page faults):
+> 
+>  Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+>  32   3    1    1.416s    138.165s 139.050s 45073.831  45097.498
+...
+> Patched kernel:
+> 
+> Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+>  32   3    1    1.098s    138.544s 139.063s 45053.657  45057.920
+...
+> These number are roughly equal to what can be accomplished with the
+> page fault scalability patches.
+> 
+> Kernel patches with both the page fault scalability patches and
+> prefaulting:
+> 
+>  Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+>  32  10    1    4.103s    456.384s 460.046s 45541.992  45544.369
+...
+> 
+> The fault rate doubles when both patches are applied.
+...
+> We are getting into an almost linear scalability in the high end with
+> both patches and end up with a fault rate > 3 mio faults per second.
 
-Now the kernel is using the pagetables for kmaps hav
-PGD entry for accessing starting 4GB, but how it goes
-beyond that ? 
+Well, with both patches you also slow single-threaded case more than
+twice. What are the effects of this patch on UP system?
+								Pavel
 
-Plzz explain me !!!!!
-
-
-Thanks 
-
-Fawad Lateef
-
-
-		
-__________________________________ 
-Do you Yahoo!? 
-Take Yahoo! Mail with you! Get it on your mobile phone. 
-http://mobile.yahoo.com/maildemo 
+-- 
+People were complaining that M$ turns users into beta-testers...
+...jr ghea gurz vagb qrirybcref, naq gurl frrz gb yvxr vg gung jnl!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
