@@ -1,69 +1,68 @@
-Date: Wed, 8 Sep 2004 13:45:49 -0300
+Date: Wed, 8 Sep 2004 13:54:12 -0300
 From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: swapping and the value of /proc/sys/vm/swappiness
-Message-ID: <20040908164549.GA4284@logos.cnet>
-References: <413CB661.6030303@sgi.com> <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <413D8FB2.1060705@cyberone.com.au> <413D93EF.80305@kolivas.org>
+Message-ID: <20040908165412.GB4284@logos.cnet>
+References: <413CB661.6030303@sgi.com> <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <20040907212051.GC3492@logos.cnet> <413F1518.7050608@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <413D93EF.80305@kolivas.org>
+In-Reply-To: <413F1518.7050608@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Con Kolivas <kernel@kolivas.org>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Andrew Morton <akpm@osdl.org>, raybry@sgi.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, mbligh@aracnet.com
+To: Ray Bryant <raybry@sgi.com>
+Cc: Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, piggin@cyberone.com.au, mbligh@aracnet.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Sep 07, 2004 at 08:56:47PM +1000, Con Kolivas wrote:
-> Nick Piggin wrote:
-> >
-> >
-> >Marcelo Tosatti wrote:
-> >
-> >>
-> >>Hi kernel fellows,
-> >>
-> >>I volunteer. I'll try something tomorrow to compare swappiness of 
-> >>older kernels like  2.6.5 and 2.6.6, which were fine on SGI's Altix 
-> >>tests, up to current newer kernels (on small memory boxes of course).
-> >>
-> >
-> >Hi Marcelo,
-> >
-> >Just a suggestion - I'd look at the thrashing control patch first.
-> >I bet that's the cause.
+On Wed, Sep 08, 2004 at 09:20:08AM -0500, Ray Bryant wrote:
 > 
-> Good point!
 > 
-> I recall one of my users found his workload which often hit swap lightly 
-> was swapping much heavier and his performance dropped dramatically until 
-> I stopped including the swap thrash control patch. I informed Rik about 
-> it some time back so I'm not sure if he addressed it in the meantime.
+> Marcelo Tosatti wrote:
+> 
+> >
+> >Andrew, dirty_ratio and dirty_background_ratio (as low as 5% each) did not 
+> >significantly affect the amount of swapped out data, only a small effect 
+> >on _how soon_ anonymous memory was swapped out.
+> >
+> 
+> I looked at the get_dirty_limits() code and for the test cases I was 
+> running,
+> we have mapped > 90% of memory.  So what will happen is that dirty_ratio 
+> will be thresholded at 5%, and background_ratio will be 1%.  Changing 
+> values in /proc won't modify this at all (well, you could force 
+> background_ratio to 0%.)
+> 
+> It seems to me that the 5% number in there is more or less arbitrary.  If 
+> we are on a big memory Altix (4 TB), 5% of memory would be 200 GB. That is 
+> a lot of page cache.
 
-Swap thrashing code doesnt affect anything, at least on my simple contained test.
-With the same test, the amount of swapped out memory with 2.6.6/2.6.7 is 100-150MB,
- while 2.6.8/2.6.9-mm* swaps out around 250MB.
+On such huge memory machines I guess you have no choice but scale down the 
+dirty limits for them to be "equivalent" with reference to IO device speed.
 
-I tried 2.6.7's "vmscan.c" on 2.6.8 without noticeable difference, I wonder why. 
+And as Martin says it depends on the workload also.
 
-What I've noticed before with the swap token code is total crap interactivity 
-when memory hog is running. Which doesnt happen without it.
+> It seems get_dirty_limits() would be a lot simpler (and automatically scale 
+> as memory is mapped) if the limits were interpreted as being in terms of 
+> the amount of unmapped memory.  A patch that implements this idea is 
+> attached.
+> (Andrew -- if it comes to that I can submit this patch inline -- this is 
+> just for talking at the moment).
+> 
+> I'll run a few of the tests with this modified kernel and see if they are 
+> any different.
 
-Con, I've seen your hard swappiness patch, why do you remove the current
-swap_tendency calculation? Can you give us some insight into it? 
+Huh, that changes the meaning of the dirty limits. Dont think its suitable
+for mainline.
 
-The thing is, if the user thinks the machine is swapping out too heavily
-he can always decrease vm_swappinness. Whatever change that might happen
-on VM swapout policy can be tuned with vm_swappinness. 
+> >And finally, Ray, the difference you see between 2.6.6 and 2.6.7 can be 
+> >explained, as noted by others in this thread, to vmscan.c changes (page 
+> >replacement/scanning policy
+> >changes were made).
+> 
+> Yep.  I can probably live with those minor differences though.  I would be 
+> happier if the system didn't swap anything at all for low values of 
+> swappiness, though.
 
-It works - its not very smooth, changing from "53" to "50" causes the 
-amount of swapped data to be 4 times smaller (due to 
-if (swap_tendency >= 100) I believe). Apart from that its fine, 
-and behaves as expected.
-
-Maybe the current value of "60" is too high for most desktop users, 
-if so it can be decreased a little bit. 
-
-But whats the point of your patch?
+Now that must work - if its not we have a problem.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
