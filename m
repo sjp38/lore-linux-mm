@@ -1,34 +1,21 @@
-Received: from ferret.lmh.ox.ac.uk (ferret.lmh.ox.ac.uk [163.1.138.204])
-	by kvack.org (8.8.7/8.8.7) with SMTP id PAA28408
-	for <linux-mm@kvack.org>; Thu, 27 Nov 1997 15:04:43 -0500
-Date: Thu, 27 Nov 1997 18:56:47 +0000 (GMT)
-From: Chris Evans <chris@ferret.lmh.ox.ac.uk>
+Received: from snowcrash.cymru.net (snowcrash.cymru.net [163.164.160.3])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA28481
+	for <linux-mm@kvack.org>; Thu, 27 Nov 1997 15:15:12 -0500
+Message-Id: <m0xb8bB-0005FsC@lightning.swansea.linux.org.uk>
+From: alan@lxorguk.ukuu.org.uk (Alan Cox)
 Subject: Re: pageable page tables
-In-Reply-To: <m0xb8bB-0005FsC@lightning.swansea.linux.org.uk>
-Message-ID: <Pine.LNX.3.95.971127185458.8930A-100000@ferret.lmh.ox.ac.uk>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 27 Nov 1997 18:23:37 +0000 (GMT)
+In-Reply-To: <Pine.LNX.3.91.971127140510.259D-100000@mirkwood.dummy.home> from "Rik van Riel" at Nov 27, 97 02:07:00 pm
+Content-Type: text
 Sender: owner-linux-mm@kvack.org
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Rik van Riel <H.H.vanRiel@fys.ruu.nl>, joel@tux.org, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Cc: joel@tux.org, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-
-On Thu, 27 Nov 1997, Alan Cox wrote:
-
-> > Then we would also need per-user accounting...
-> > All-in-all however it's a very good idea.
-> > 
-> > (linux-kernel guys, would this break compatibility/POSIX or
-> > whatever thing)
+> Then we would also need per-user accounting...
+> All-in-all however it's a very good idea.
 > 
-> No it wouldnt.. There - something for you to hack 8)
+> (linux-kernel guys, would this break compatibility/POSIX or
+> whatever thing)
 
-Perhaps more importantly, _before_ per user stuff is defined then
-implemented, the existing RLIMIT_* should be verified for correctness, and
-checks made that these limits can't be circumvented.
-
-In particular, RLIMIT_RSS is not implemented. Setting such a limit,
-however, fails silently.
-
-Chris
+No it wouldnt.. There - something for you to hack 8)
