@@ -1,8 +1,8 @@
-Message-Id: <200410052211.i95MBU630399@unix-os.sc.intel.com>
+Message-Id: <200410052218.i95MI3630436@unix-os.sc.intel.com>
 From: "Chen, Kenneth W" <kenneth.w.chen@intel.com>
 Subject: RE: slab fragmentation ?
-Date: Tue, 5 Oct 2004 15:11:38 -0700
-In-Reply-To: <1097010817.12861.164.camel@dyn318077bld.beaverton.ibm.com>
+Date: Tue, 5 Oct 2004 15:18:11 -0700
+In-Reply-To: <200410052211.i95MBU630399@unix-os.sc.intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: 'Badari Pulavarty' <pbadari@us.ibm.com>, Manfred Spraul <manfred@colorfullife.com>
@@ -18,8 +18,12 @@ Badari Pulavarty wrote on Tuesday, October 05, 2004 2:14 PM
 > I don't see how to find out which slab came from which node. I don't
 > think we save "nodeid" anywhere in the slab. Do we ?
 
-If you have a pointer to the slab page, then you can traverse through
-pgdat of each zone: page_zone(page)->zone_pgdat->node_id.
+Chen, Kenneth W wrote on Tuesday, October 05, 2004 3:12 PM
+> If you have a pointer to the slab page, then you can traverse through
+> pgdat of each zone: page_zone(page)->zone_pgdat->node_id.
+
+Actually, better yet there is one nice inline function does that already:
+page_to_nid().
 
 - Ken
 
