@@ -1,47 +1,89 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id iBDMGkDr571326
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2004 17:16:46 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iBDMGjXP212550
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2004 15:16:46 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id iBDMGjI3022223
-	for <linux-mm@kvack.org>; Mon, 13 Dec 2004 15:16:45 -0700
-Date: Mon, 13 Dec 2004 14:16:19 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: Anticipatory prefaulting in the page fault handler V1
-Message-ID: <8880000.1102976179@flay>
-In-Reply-To: <Pine.LNX.4.58.0412130905140.360@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain><156610000.1102546207@flay> <Pine.LNX.4.58.0412091130160.796@schroedinger.engr.sgi.com><200412132330.23893.amgta@yacht.ocn.ne.jp> <Pine.LNX.4.58.0412130905140.360@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
+Date: Mon, 13 Dec 2004 19:02:46 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: Automated performance testing system was Re: Text form for STP tests
+Message-ID: <20041213210246.GA27473@logos.cnet>
+References: <20041201131607.GH2250@dmt.cyclades> <200412012004.iB1K49n23315@mail.osdl.org> <20041213114223.GH24597@logos.cnet> <20041213082226.12f3a8de.cliffw@osdl.org>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <20041213082226.12f3a8de.cliffw@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>, Akinobu Mita <amgta@yacht.ocn.ne.jp>
-Cc: nickpiggin@yahoo.com.au, Jeff Garzik <jgarzik@pobox.com>, torvalds@osdl.org, hugh@veritas.com, benh@kernel.crashing.org, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: cliff white <cliffw@osdl.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> I also encountered processes segfault.
->> Below patch fix several problems.
->> 
->> 1) if no pages could allocated, returns VM_FAULT_OOM
->> 2) fix duplicated pte_offset_map() call
+On Mon, Dec 13, 2004 at 08:22:26AM -0800, cliff white wrote:
+> On Mon, 13 Dec 2004 09:42:23 -0200
+> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
 > 
-> I also saw these two issues and I think I dealt with them in a forthcoming
-> patch.
+> > On Wed, Dec 01, 2004 at 12:04:09PM -0800, Cliff White wrote:
+> > > > On Wed, Dec 01, 2004 at 10:28:24AM -0800, Cliff White wrote:
+> > > > > > Linux-MM fellows,
+> > > > > > 
+> > > > > > I've been talking to Cliff about the need for a set of benchmarks,
+> > > > > > covering as many different workloads as possible, for developers to have a 
+> > > > > > better notion of impact on performance changes. 
+> > > > > > 
+> > > [snip]
+> > > > > robots are running this test series against linux-2.6.7 ( for history data )
+> > > > > There will need to be some adjustments - some of these tests will no doubt
+> > > > > fail for reasons of script error or configuration ( i see already kernbench will 
+> > > > > have to be redunced for 1-cpu systems, as it runs > 13.5 hours :( )
+> > > > > 
+> > > > > And, the second part of the automation is already done, but needs input.
+> > > > > I can aim this test battery at any kernel patch, where 'any kernel patch'
+> > > > > is identified by a regexp. What kernels do you want this against? 
+> > > > 
+> > > > The most recent 2.6.10-rc2 and 2.6.10-rc2-mm in STP.
+> > > > 
+> > > > Will this be available through the web interface? 
+> > > 
+> > > Yes, the results should be visible. If something looks wrongs, email.
+> > > the 'advanced search' bit needs some test-specific fixes, and may not work
+> > > for all tests - some of the kits still needs some patching..
+> > > cliffw
+> > 
+> > Any news on the automatic test series scripts Cliff ? 
+> > 
+> > Haven't seen any results yet.
+> > 
+> I ran a set for 2.6.10-rc3, PLM 3957, some results here:
+>  http://www.osdl.org/projects/26lnxstblztn/results/
+> Or by doing this:
+> http://www.osdl.org/lab_activities/kernel_testing/stp/display_test_requests?d_patch_id%3Astring%3Aignore_empty=3957&op=Search
 > 
->> 3) don't set_pte() for the entry which already have been set
-> 
-> Not sure how this could have happened in the patch.
-> 
-> Could you try my updated version:
+> Marcelo, do you want me to submit the tests under your user id?
+> That would make searching for results eaiser. 
 
-Urgle. There was a fix from Hugh too ... any chance you could just stick
-a whole new patch somewhere? I'm too idle/stupid to work it out ;-)
+Cliff, 
 
-M.
+How have you started these tests? I dont to run LTP for example.
+
+I would like to be able to select two different patch ID's and run them from the web
+interface, on a set of benchmarks vs memory size ranges vs nrCPUs (you already do 
+different number of CPUs on those series of tests I see), as we talked.
+Not just me, every developer doing performance testing :)
+
+And then generate the graphs for the results of one patchID vs another. 
+
+On reaim for example it would be nice to have graphs of global jobs per minute vs 
+memory size, with a different colors for each patch ID. 
+
+Maybe we can even fit results for different nrCPUS on the same graph 
+with line types (with symbols like triangle, square, to differentiate).
+But then it might become too polluted to easily visualize, but maybe not.
+
+Can you make the scripts which you are using for graphic generation and the
+gnuplot configuration files available? So I can play around with them.
+I want to help with that.
+
+Another question: Is the source for reaim available? 
+
+I see you're already generating the graphs for vmstat/iostat and user/system 
+time.
+
+Thats really nice.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
