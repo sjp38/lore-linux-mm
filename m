@@ -1,33 +1,38 @@
-Message-ID: <d20501c45e24$f464d0e7$ca4a08bd@luna.lu.se>
-From: "Doris Rocha" <dorisrocha_tw@finning.ca>
-Subject: We have a cialapren offer for you.
-Date: Tue, 29 Jun 2004 19:59:38 -0200
+Date: Tue, 29 Jun 2004 17:17:24 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: remap_pte_range
+Message-ID: <65600000.1088554644@flay>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm mailing list <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I have no idea what remap_pte_range is trying to do here, but what it
+is doing makes no sense (to me at least). 
 
-We have a Cialapren offer for you.
+If the pfn is not valid, we CANNOT safely call PageReserved on it - 
+the *page returned from pfn_to_page is bullshit, and we crash deref'ing
+it.
 
-The world's most effective male enhancement pill!
-100% Natural botanicals gathered from every corner of the world, only 2 pills daily
+Perhaps this was what it was trying to do? Not sure.
 
-Increase the length of your manhood by 2-5 full inches
-Thicken your manhood and make it much fuller & harder
-
-Boost your confidence level & self-esteem
-Screw your lover like never before
-
-Get all-natural Cialpren here <http://www.enhance69.com/>
-
-Regards,
-Audrey Jones
+diff -purN -X /home/mbligh/.diff.exclude virgin/mm/memory.c remap_pte_range/mm/memory.c
+--- virgin/mm/memory.c	2004-06-16 10:22:15.000000000 -0700
++++ remap_pte_range/mm/memory.c	2004-06-29 17:15:35.000000000 -0700
+@@ -908,7 +908,7 @@ static inline void remap_pte_range(pte_t
+ 	pfn = phys_addr >> PAGE_SHIFT;
+ 	do {
+ 		BUG_ON(!pte_none(*pte));
+-		if (!pfn_valid(pfn) || PageReserved(pfn_to_page(pfn)))
++		if (pfn_valid(pfn) && !PageReserved(pfn_to_page(pfn)))
+  			set_pte(pte, pfn_pte(pfn, prot));
+ 		address += PAGE_SIZE;
+ 		pfn++;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
