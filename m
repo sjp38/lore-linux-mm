@@ -1,37 +1,40 @@
-Date: Tue, 15 Aug 2000 19:25:16 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH*] new VM patch for 2.4.0-test7-pre4
-Message-ID: <Pine.LNX.4.21.0008151922360.2466-100000@duckman.distro.conectiva>
+Date: Tue, 15 Aug 2000 19:43:05 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: filemap.c SMP bug in 2.4.0-test*
+In-Reply-To: <Pine.LNX.4.21.0008151845550.2466-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10008151938240.3600-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.rutgers.edu
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
 
-I spent some time today porting the new VM patch to
-2.4.0-test7-pre4, *and* tuning the new VM patch for
-performance (yesterday's one wasn't tuned yet).
+On Tue, 15 Aug 2000, Rik van Riel wrote:
+> 
+> The debugging check (in mm/swap.c::lru_cache_add(), line 232)
+> checks if the page which is to be added to the page lists is
+> already on one of the lists. In case it is, a nice backtrace
+> follows...
 
-The new patch should be fine for general use and is
-available at http://www.surriel.com/patches/2.4.0-t7p4-vmpatch2
+Why do you think your "PageActive()"/"PageInactiveDirty()"/
+"PageInactiveClean()" tests are right?
 
-The only thing "unstable" with this patch is that it
-seems to catch an SMP race in filemap.c, simply because
-this patch has debugging code that isn't in the stock
-kernel (and the stock kernel would corrupt the lru list).
+I don't see any reason to assume that you just don't clear the flags
+correctly.
 
-regards,
+In fact, if this bug really existed in the standard kernel, you'd see
+machines locking up left and right. Adding a page to a the LRU list  when
+it already is on the LRU list would cause immediate and severe list
+corruption. It wouldn't just go silently in the night, it would _scream_. 
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+I would suggest that you add something like DEBUG_ADD_PAGE to
+__free_pages_ok(), and see if somebody frees the page without clearing the
+flags. Sounds like a bug in your code.
 
-http://www.conectiva.com/		http://www.surriel.com/
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
