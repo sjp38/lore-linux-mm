@@ -1,75 +1,191 @@
-Date: Mon, 06 Aug 2001 12:51:48 -0400
+Date: Mon, 06 Aug 2001 13:09:49 -0400
 From: Chris Mason <mason@suse.com>
-Subject: Re: [RFC] using writepage to start io
-Message-ID: <651080000.997116708@tiny>
-In-Reply-To: <01080618132007.00294@starship>
+Subject: [PATCH] kill flush_dirty_buffers
+Message-ID: <663080000.997117789@tiny>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
+Hi guys,
 
-On Monday, August 06, 2001 06:13:20 PM +0200 Daniel Phillips
-<phillips@bonn-fries.net> wrote:
+I've been mucking with buffer.c recently, so I took a few minutes
+to replace flush_dirty_buffers with write_unlocked_buffers().  
 
->> I am saying that it should be possible to have the best buffer flushed
->> under memory pressure (by kswapd/bdflush) and still get the old data
->> to disk in time through kupdate.
-> 
-> Yes, to phrase this more precisely, after we've submitted all the 
-> too-old buffers we then gain the freedom to select which of the younger 
-> buffers to flush.  
-
-Almost ;-) memory pressure doesn't need to care about how long a buffer has
-been dirty, that's kupdate's job.  kupdate doesn't care if the buffer it is
-writing is a good candidate for freeing, that's taken care of elsewhere.
-The two never need to talk (aside from optimizations).
-
-> When there is memory pressure we could benefit by 
-> skipping over some of the sys_write buffers in favor of page_launder 
-> buffers.  We may well be able to recognize the latter by looking for 
-> !bh->b_page->age.  This method would be an alternative to your 
-> writepage approach.
-
-Yes, I had experimented with this in addition to the writepage patch, it
-would probably be better to try it as a standalone idea.
-
-> 
->> > By the way, I think you should combine (2) and (3) using an and,
->> > which gets us back to the "kupdate thing" vs the "bdflush thing".
->> 
->> Perhaps, since I think they would be handled in roughly the same way.
-> 
-> (warning: I'm going to drift pretty far off the original topic now...)
-> 
-> I don't see why it makes sense to have both a kupdate and a bdflush 
-> thread.  
-
-Having two threads is exactly what allows memory pressure to not be
-concerned about how long a buffer has been dirty.
-
-> We should complete the process of merging these (sharing 
-> flush_dirty buffers was a big step) and look into the possibility of 
-> adding more intelligence about what to submit next.  The proof of the 
-> pudding is to come up with a throughput-improving patch, not so easy 
-> since the ore in these hills has been sought after for a good number of 
-> years by many skilled prospectors.
-> 
-> Note that bdflush also competes with an unbounded number of threads 
-> doing wakeup_bdflush(1)->flush_dirty_buffers.
-
-Nods.  Of course, processes could wait on bdflush instead, but bdflush
-might not be able to keep up.  It would be interesting to experiment with a
-bdflush thread per device, one that uses write_unlocked_buffers to get the
-io done.  I'll start by switching from flush_dirty_buffers to
-write_unlocked_buffers in the current code...
+Patch is lightly tested on ext2 and reiserfs, use at your own risk
+for now.  Linus, if this is what you were talking about in the
+vm suckage thread, I'll test/benchmark harder....
 
 -chris
+
+diff -Nru a/fs/buffer.c b/fs/buffer.c
+--- a/fs/buffer.c	Mon Aug  6 13:02:46 2001
++++ b/fs/buffer.c	Mon Aug  6 13:02:46 2001
+@@ -195,24 +195,35 @@
+ }
+ 
+ #define NRSYNC (32)
+-static void write_unlocked_buffers(kdev_t dev)
++static int write_unlocked_buffers(kdev_t dev, int max, int check_flushtime)
+ {
+ 	struct buffer_head *next;
+ 	struct buffer_head *array[NRSYNC];
+ 	unsigned int count;
+ 	int nr;
++	int total_flushed = 0 ;
+ 
+ repeat:
+ 	spin_lock(&lru_list_lock);
+ 	next = lru_list[BUF_DIRTY];
+ 	nr = nr_buffers_type[BUF_DIRTY] * 2;
+ 	count = 0;
+-	while (next && --nr >= 0) {
++	while ((!max || total_flushed < max) && next && --nr >= 0) {
+ 		struct buffer_head * bh = next;
+ 		next = bh->b_next_free;
+ 
+ 		if (dev && bh->b_dev != dev)
+ 			continue;
++
++		if (check_flushtime) {
++			/* The dirty lru list is chronologically ordered so
++			   if the current bh is not yet timed out,
++			   then also all the following bhs
++			   will be too young. */
++			if (time_before(jiffies, bh->b_flushtime))
++				break ;
++		}
++		
+ 		if (test_and_set_bit(BH_Lock, &bh->b_state))
+ 			continue;
+ 		get_bh(bh);
+@@ -224,6 +235,7 @@
+ 
+ 			spin_unlock(&lru_list_lock);
+ 			write_locked_buffers(array, count);
++			total_flushed += count ;
+ 			goto repeat;
+ 		}
+ 		unlock_buffer(bh);
+@@ -231,8 +243,11 @@
+ 	}
+ 	spin_unlock(&lru_list_lock);
+ 
+-	if (count)
++	if (count) {
+ 		write_locked_buffers(array, count);
++		total_flushed += count ;
++	}
++	return total_flushed ;
+ }
+ 
+ static int wait_for_locked_buffers(kdev_t dev, int index, int refile)
+@@ -286,10 +301,10 @@
+ 	 * 2) write out all dirty, unlocked buffers;
+ 	 * 2) wait for completion by waiting for all buffers to unlock.
+ 	 */
+-	write_unlocked_buffers(dev);
++	write_unlocked_buffers(dev, 0, 0);
+ 	if (wait) {
+ 		err = wait_for_locked_buffers(dev, BUF_DIRTY, 0);
+-		write_unlocked_buffers(dev);
++		write_unlocked_buffers(dev, 0, 0);
+ 		err |= wait_for_locked_buffers(dev, BUF_LOCKED, 1);
+ 	}
+ 	return err;
+@@ -2524,60 +2539,6 @@
+  * a limited number of buffers to the disks and then go back to sleep again.
+  */
+ 
+-/* This is the _only_ function that deals with flushing async writes
+-   to disk.
+-   NOTENOTENOTENOTE: we _only_ need to browse the DIRTY lru list
+-   as all dirty buffers lives _only_ in the DIRTY lru list.
+-   As we never browse the LOCKED and CLEAN lru lists they are infact
+-   completly useless. */
+-static int flush_dirty_buffers(int check_flushtime)
+-{
+-	struct buffer_head * bh, *next;
+-	int flushed = 0, i;
+-
+- restart:
+-	spin_lock(&lru_list_lock);
+-	bh = lru_list[BUF_DIRTY];
+-	if (!bh)
+-		goto out_unlock;
+-	for (i = nr_buffers_type[BUF_DIRTY]; i-- > 0; bh = next) {
+-		next = bh->b_next_free;
+-
+-		if (!buffer_dirty(bh)) {
+-			__refile_buffer(bh);
+-			continue;
+-		}
+-		if (buffer_locked(bh))
+-			continue;
+-
+-		if (check_flushtime) {
+-			/* The dirty lru list is chronologically ordered so
+-			   if the current bh is not yet timed out,
+-			   then also all the following bhs
+-			   will be too young. */
+-			if (time_before(jiffies, bh->b_flushtime))
+-				goto out_unlock;
+-		} else {
+-			if (++flushed > bdf_prm.b_un.ndirty)
+-				goto out_unlock;
+-		}
+-
+-		/* OK, now we are committed to write it out. */
+-		get_bh(bh);
+-		spin_unlock(&lru_list_lock);
+-		ll_rw_block(WRITE, 1, &bh);
+-		put_bh(bh);
+-
+-		if (current->need_resched)
+-			schedule();
+-		goto restart;
+-	}
+- out_unlock:
+-	spin_unlock(&lru_list_lock);
+-
+-	return flushed;
+-}
+-
+ DECLARE_WAIT_QUEUE_HEAD(bdflush_wait);
+ 
+ void wakeup_bdflush(int block)
+@@ -2586,7 +2547,7 @@
+ 		wake_up_interruptible(&bdflush_wait);
+ 
+ 	if (block)
+-		flush_dirty_buffers(0);
++		write_unlocked_buffers(NODEV, bdf_prm.b_un.ndirty, 0) ;
+ }
+ 
+ /* 
+@@ -2604,7 +2565,7 @@
+ 	sync_supers(0);
+ 	unlock_kernel();
+ 
+-	flush_dirty_buffers(1);
++	write_unlocked_buffers(NODEV, 0, 1) ;
+ 	/* must really sync all the active I/O request to disk here */
+ 	run_task_queue(&tq_disk);
+ 	return 0;
+@@ -2700,7 +2661,7 @@
+ 	for (;;) {
+ 		CHECK_EMERGENCY_SYNC
+ 
+-		flushed = flush_dirty_buffers(0);
++		flushed = write_unlocked_buffers(NODEV, bdf_prm.b_un.ndirty, 0);
+ 
+ 		/*
+ 		 * If there are still a lot of dirty buffers around,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
