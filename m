@@ -1,35 +1,41 @@
-Date: Sat, 3 Mar 2001 13:12:44 +0100
-From: Christoph Hellwig <hch@ns.caldera.de>
-Subject: Re: MM docs...
-Message-ID: <20010303131244.A15788@caldera.de>
-References: <3AA046D4.B7EC6999@mandrakesoft.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <3AA046D4.B7EC6999@mandrakesoft.com>; from jgarzik@mandrakesoft.com on Fri, Mar 02, 2001 at 08:20:20PM -0500
+Received: from ucla.edu (ts18-96.dialup.bol.ucla.edu [164.67.35.105])
+	by serval.noc.ucla.edu (8.9.1a/8.9.1) with ESMTP id NAA23522
+	for <linux-mm@kvack.org>; Sat, 3 Mar 2001 13:13:03 -0800 (PST)
+Message-ID: <3AA15E3C.39BD9A82@ucla.edu>
+Date: Sat, 03 Mar 2001 13:12:28 -0800
+From: Benjamin Redelings I <bredelin@ucla.edu>
+MIME-Version: 1.0
+Subject: Re: [PATCH] ac7: page_launder() & refill_inactive() changes
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@mandrakesoft.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Mar 02, 2001 at 08:20:20PM -0500, Jeff Garzik wrote:
-> Is there any chance that some knowledgeable people could write docs for
-> the public functions in 2.4's linux/mm directory?
-> 
-> I'm gonna finish up documenting kernel/*, drivers/pci* and a few drivers
-> in drivers/net soon.  mm/* is a hole in my knowledge, though, so I need
-> to solicit for volunteers.
-> 
-> It would be nice to silence the people complaining about the kernel's
-> lack of internal docs. :)
+ 
+Content-Type: text/plain; charset=big5
+Content-Transfer-Encoding: 7bit
 
-I'm currently writing some documentation - it should end up as one chapter
-in Tigran's lki.
+Hi Marcelo:
+	In the patch you provided, have you perhaps reverse the sense of this
+test:
 
-	Christoph
++                       if (try_to_free_buffers(page, wait))
++                               flushed_pages++;
 
+Should this have a NOT (!) instead?
+
++                       if (!try_to_free_buffers(page, wait))
++                               flushed_pages++;
+
+BTW, has anyone done any MM benchmarks of the 2.4.2-ac? against Linus's
+tree?
+
+-BenRI
 -- 
-Of course it doesn't work. We've performed a software upgrade.
+"...assisted of course by pride, for we teach them to describe the
+ Creeping Death, as Good Sense, or Maturity, or Experience." 
+- "The Screwtape Letters"
+Benjamin Redelings I      <><     http://www.bol.ucla.edu/~bredelin/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
