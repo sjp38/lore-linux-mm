@@ -1,37 +1,30 @@
-Message-ID: <20041204185319.97207.qmail@web53905.mail.yahoo.com>
-Date: Sat, 4 Dec 2004 10:53:19 -0800 (PST)
-From: Fawad Lateef <fawad_lateef@yahoo.com>
-Subject: Can I change the kernel memory spliting in linux-2.4.25 + ?
+From: "Mr. Sachenger" <tofy65@hotmail.com>
+Subject: Direct Generic Drugs! Save Over 70%! Overnight Shipping!                 G
+Date: Sat, 04 Dec 2004 14:47:49 -0500
+Reply-To: tofy65@hotmail.com
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 7bit
+Message-Id: <20041204194807Z26560-766+1869@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kernelnewbies@nl.linux.org
-Cc: linux-mm@kvack.org
+To: ninara@tiscali.it, ramola23@rediffmail.com, support@burstfire.net, yourname@worldsgreatestchef.com, jobs@worldsite.ws, email@africa-11.com, lisedeke@rapote.net, vace@yi.com, fmnu@quickonlinepharmacy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello
+Cheap Meds most charge $14.95 we charge only $2.59
 
-Can I change the kernel memory spliting in
-linux-2.4.25 or onwards ??? Actually I want to change
-the kernel ZONE_NORMAL to 2GB from 1GB !!!! 
+No Prescr1pt1ion requ1red
+sh1pped wor1dw1ide
 
-How can i do this ??? I won't be able to see any
-option in kernel configuration ...........
 
-I tried to change the PAGE_OFFSET from 3G to 2G but
-got compilation error .............. 
+Check it out I saved over 70% 
 
-What I hav to do ???
+http://www.the-rxsite.com/?hotstuff
 
-Thanks 
 
-Fawad
 
-__________________________________________________
-Do You Yahoo!?
-Tired of spam?  Yahoo! Mail has the best spam protection around 
-http://mail.yahoo.com 
+Ho Ho HO!  Happy Holidays!
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
