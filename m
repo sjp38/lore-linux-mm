@@ -1,44 +1,36 @@
-Date: Sun, 21 May 2000 16:11:21 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Sun, 21 May 2000 12:17:25 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Basic testing shows 2.3.99-pre9-3 bad, pre9-2 good
-In-Reply-To: <Pine.LNX.4.10.10005211837310.627-100000@aslak.demon.co.uk>
-Message-ID: <Pine.LNX.4.21.0005211609170.9939-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0005211609170.9939-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10005211215060.1429-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lawrence Manning <lawrence@aslak.demon.co.uk>
-Cc: Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Lawrence Manning <lawrence@aslak.demon.co.uk>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 21 May 2000, Lawrence Manning wrote:
 
-> That's my observation anyway.  I did some dd and bonnie tests
-> and got abismal results :-( Machine unusable during dd write
-> etc.  pre9-2 on the other hand is close to being as smooth as,
-> say, 2.3.51.  What happened? ;)
+On Sun, 21 May 2000, Rik van Riel wrote:
 
-OK, I guess this means shrink_mmap() should not wait on
-*every* locked buffer it runs into ;)
+> On Sun, 21 May 2000, Lawrence Manning wrote:
+> 
+> > That's my observation anyway.  I did some dd and bonnie tests
+> > and got abismal results :-( Machine unusable during dd write
+> > etc.  pre9-2 on the other hand is close to being as smooth as,
+> > say, 2.3.51.  What happened? ;)
 
-This will destroy both latency (we end up waiting for a
-*lot* of buffers) and throughput (waiting on buffers could
-interfere with request sorting if we're unlucky).
+What happened was really that I did a partial integration just to make it
+easier to synchronize. I wanted to basically have pre9-2 + quintela's
+patch, but I had too many emails to go through and too many changes of my
+own in this area, so I made pre9-3 available so that others could help me
+synchronize.
 
-> I also should chip in to say that 2.2.15 is abit sick IO wise
-> for me too.
+So on't despair, pre9-3 is definitely just a temporary mix of patches, and
+is lacking the balancing that Quintela did. 
 
-I'm working on it :)
-
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
