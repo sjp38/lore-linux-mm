@@ -1,40 +1,53 @@
-Date: Mon, 30 Oct 2000 19:09:22 -0200
-From: "Rodrigo S. de Castro" <rcastro@linux.ime.usp.br>
-Subject: [RFC] Structure in Compressed Cache
-Message-ID: <20001030190922.A5183@linux.ime.usp.br>
-Reply-To: linux-mm@kvack.org, kernel@tutu.ime.usp.br
-Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
+Subject: [PATCH] 2.4.0-test10-pre6  TLB flush race in establish_pte
+Message-ID: <OFB4731A18.0D8D8BC1-ON85256988.0074562B@raleigh.ibm.com>
+From: "Steve Pratt/Austin/IBM" <slpratt@us.ibm.com>
+Date: Mon, 30 Oct 2000 15:31:22 -0600
+MIME-Version: 1.0
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+Back in April there were discussions about the race in establish_pte with
+the flush_tlb before the set_pte.  Many options were discussed, but due in
+part to a concern about S/390 having introduced the code, no patch ever
+appeared.  I talked with Martin Schwidefsky of the S/390 Linux development
+team and he said that:
 
-	In my implementation of compressed cache (kernel 2.2.16), I
-started the project having my cache as a slab cache, structure
-provided by kernel. I have all step 1 (a cache with no compression)
-done, but I had a problem with marking pages in my cache. After an
-email sent to the list about this subject, I started looking at shared
-memory mechanism (mainly ipc/shm.c), and I saw that there's another
-way of making it: with a page table allocation and memory mapping. I
-could go on with my initial idea (with slab cache) but I think that
-doing the latter way (with page table and memory mapping) would be
-more complete (and, of course, harder). I will have a pool of
-(compressed) pages that gotta be always in memory and will be
-"between" physical memory and swap. As the project is growing I would
-like to define now which path to follow, taking in account
-completeness and upgradeability (to future versions of kernel). Which
-way do you think that is better? Please, I also ask you to tell me in
-case you know if there's another way, maybe better, of doing it.
+>the establish_pte was in fact introduced because of Linux/390. We wanted
+to use the special S/390 instruction ipte (invalidate page >table entry).
+In the meantime we found out that we need a lot more changes to be able to
+use this instruction, so we disabled it again. >Until we have a proper
+patch you should revoke the establish_pte change if you found it to be
+faulty. I too think there is a race >condition.
 
-Thank you in advance,
--- 
-Rodrigo S. de Castro   <rcastro@linux.ime.usp.br>
-University of Sao Paulo - Brazil
-Compressed caching - http://tutu.ime.usp.br 
+So while there may be a more elegant solution down the road, I would like
+to see the simple fix put back into 2.4.  Here is the patch to essential
+put the code back to the way it was before the S/390 merge.  Patch is
+against 2.4.0-test10pre6.
+
+--- linux/mm/memory.c    Fri Oct 27 15:26:14 2000
++++ linux-2.4.0-test10patch/mm/memory.c  Fri Oct 27 15:45:54 2000
+@@ -781,8 +781,8 @@
+  */
+ static inline void establish_pte(struct vm_area_struct * vma, unsigned long address, pte_t *page_table, pte_t entry)
+ {
+-    flush_tlb_page(vma, address);
+     set_pte(page_table, entry);
++    flush_tlb_page(vma, address);
+     update_mmu_cache(vma, address, entry);
+ }
+
+
+
+
+Linux Technology Center - IBM Corporation
+11400 Burnet Road
+Austin, TX  78758
+(512) 838-9763  EMAIL: SLPratt@US.IBM.COM
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
