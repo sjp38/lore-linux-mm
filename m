@@ -1,25 +1,38 @@
 Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA05201
-	for <linux-mm@kvack.org>; Thu, 3 Dec 1998 08:36:34 -0500
-Date: Thu, 3 Dec 1998 13:03:35 +0100 (CET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA05239
+	for <linux-mm@kvack.org>; Thu, 3 Dec 1998 08:42:07 -0500
+Date: Thu, 3 Dec 1998 14:28:30 +0100 (CET)
 From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: SWAP: Linux far behind Solaris or I missed something (fwd)
-Message-ID: <Pine.LNX.3.96.981203130156.1008D-100000@mirkwood.dummy.home>
+Subject: Re: [PATCH] swapin readahead v4
+In-Reply-To: <199812031235.MAA03337@dax.scot.redhat.com>
+Message-ID: <Pine.LNX.3.96.981203142010.2960A-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linux MM <linux-mm@kvack.org>
-Cc: Jean-Michel.Vansteene@bull.net
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, 3 Dec 1998, Stephen C. Tweedie wrote:
 
-I think we really should be working on this -- anybody
-got a suggestion?
+> > Stephen's messages gave away the clue to something I was just
+> > about to track down myself. Anyway, here is the 4th version of
+> > my swapin readahead patch.
+> 
+> Much better to do this after calling read_swap_cache_async(): it's bad
+> policy to make the reference count of the page after calling this
+> function dependent on the arguments: that is a maintenance nightmare.  
+> 
+> Oh, and you _still_ need to check the swap_lockmap before calling
+> read_swap_cache_async(), and you still have the extra break() in the
+> readahead loop...
 
-(although the 2.1.130+my patch seems to work very well
-with extremely high swap throughput)
+Somebody forbid me to do coding while having a flu...
+
+This patch (v5) should be much better (I haven't tried it
+yet but it has all things Stephen told me to include -- as
+far as I can see through the haze that surrounds me).
 
 cheers,
 
@@ -29,96 +42,85 @@ Rik -- the flu hits, the flu hits, the flu hits -- MORE
 | Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
 +-------------------------------------------------------------------+
 
----------- Forwarded message ----------
-Date: Wed, 02 Dec 1998 16:49:30 +0100
-From: Jean-Michel VANSTEENE <Jean-Michel.Vansteene@bull.net>
-To: linux-kernel <linux-kernel@vger.rutgers.edu>
-Subject: SWAP: Linux far behind Solaris or I missed something
-
-I've made some tests to load a computer (1GB memory).
-A litle process starts eating 900 MB then slowly eats 
-the remainder of the memory 1MB by 1MB and does a
-"data shake": 200,000 times a memcpy of 4000 bytes 
-randomly choosen.
-
-I want to test the swap capability.
-
-Solaris was used under XWindow, Linux under text
-console... What do I forget to comfigure or tune?
-Don't let me with such bad values.......
-
-------------------------------------------------	
-I removed micro seconds displayed by my function
-after call to gettimeofday
-
-megs    Solaris      Linux
-------------------------------------------------
-901:    18 secs      9 secs
-902:    11 secs      9 secs
-903:    10 secs      9 secs
-904:    9 secs       9 secs
-905:    9 secs       9 secs
-906:    9 secs       9 secs
-907:    9 secs       9 secs
-908:    9 secs       9 secs
-909:    9 secs       9 secs
-910:    9 secs       13 secs
-911:    9 secs       17 secs
-912:    9 secs       20 secs
-913:    9 secs       24 secs
-914:    9 secs       33 secs
-915:    10 secs      44 secs
-916:    9 secs       56 secs
-917:    9 secs       65 secs
-918:    9 secs       75 secs
-919:    9 secs       81 secs
-920:    9 secs       87 secs
-921:    9 secs       96 secs
-922:    9 secs       108 secs
-923:    9 secs       122 secs
-924:    9 secs       129 secs
-925:    9 secs       142 secs
-926:    9 secs       155 secs
-927:    9 secs       161 secs
-
-928 - 977  always  9 secs under solaris
-
-978:    10 secs      <stop testing>
-979:    10 secs       -------
-980:    11 secs
-981:    14 secs
-982:    17 secs
-983:    21 secs
-984:    28 secs
-985:    32 secs
-986:    26 secs
-987:    18 secs
-988:    19 secs
-989:    24 secs
-990:    29 secs
-991:    41 secs
-992:    48 secs
-993:    85 secs
-994:    86 secs
-995:    91 secs
-996:    92 secs
-997:    93 secs
-998:    97 secs
-999:    83 secs
-
-------------------------------------------------
-
--- 
-*--* mailto:Jean-Michel.Vansteene@bull.net  (Bull)
-*--* mailto:vanstee@worldnet.fr             (Home)
-*--* http://www.worldnet.fr/~vanstee        (Jean GABIN)
--------------------------------------------------------------
-- - - - - U n   L i n u x   s i n o n   r i e n - - - - - - -
-
--
-To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-the body of a message to majordomo@vger.rutgers.edu
-Please read the FAQ at http://www.tux.org/lkml/
+--- ./mm/vmscan.c.orig	Thu Nov 26 11:26:50 1998
++++ ./mm/vmscan.c	Tue Dec  1 07:12:28 1998
+@@ -431,6 +431,8 @@
+ 	kmem_cache_reap(gfp_mask);
+ 
+ 	if (buffer_over_borrow() || pgcache_over_borrow())
++		state = 0;		
++	if (atomic_read(&nr_async_pages) > pager_daemon.swap_cluster / 2)
+ 		shrink_mmap(i, gfp_mask);
+ 
+ 	switch (state) {
+--- ./mm/page_io.c.orig	Thu Nov 26 11:26:49 1998
++++ ./mm/page_io.c	Thu Nov 26 11:30:43 1998
+@@ -60,7 +60,7 @@
+ 	}
+ 
+ 	/* Don't allow too many pending pages in flight.. */
+-	if (atomic_read(&nr_async_pages) > SWAP_CLUSTER_MAX)
++	if (atomic_read(&nr_async_pages) > pager_daemon.swap_cluster)
+ 		wait = 1;
+ 
+ 	p = &swap_info[type];
+--- ./mm/page_alloc.c.orig	Thu Nov 26 11:26:49 1998
++++ ./mm/page_alloc.c	Thu Dec  3 14:26:25 1998
+@@ -370,9 +370,31 @@
+ 	pte_t * page_table, unsigned long entry, int write_access)
+ {
+ 	unsigned long page;
+-	struct page *page_map;
+-	
++	int i;
++	struct page *new_page, *page_map = lookup_swap_cache(entry);
++	unsigned long offset = SWP_OFFSET(entry);
++	struct swap_info_struct *swapdev = SWP_TYPE(entry) + swap_info;
++
++	if (!page_map) {	
+ 	page_map = read_swap_cache(entry);
++
++	/*
++	 * Primitive swap readahead code. We simply read the
++	 * next 16 entries in the swap area. The break below
++	 * is needed or else the request queue will explode :)
++	 */
++	  for (i = 1; i++ < 16;) {
++		offset++;
++		if (!swapdev->swap_map[offset] || offset >= swapdev->max
++			|| nr_free_pages - atomic_read(&nr_async_pages) <
++				(freepages.high + freepages.low)/2 ||
++				test_bit(offset, swapdev->swap_lockmap))
++			continue;
++			new_page = read_swap_cache_async(SWP_ENTRY(SWP_TYPE(entry), offset), 0);
++			if (new_page)
++				__free_page(new_page);
++	  }
++	}
+ 
+ 	if (pte_val(*page_table) != entry) {
+ 		if (page_map)
+--- ./mm/swap_state.c.orig	Thu Nov 26 11:26:49 1998
++++ ./mm/swap_state.c	Thu Dec  3 14:19:19 1998
+@@ -258,7 +258,7 @@
+  * incremented.
+  */
+ 
+-static struct page * lookup_swap_cache(unsigned long entry)
++struct page * lookup_swap_cache(unsigned long entry)
+ {
+ 	struct page *found;
+ 	
+--- ./include/linux/swap.h.orig	Tue Dec  1 07:29:56 1998
++++ ./include/linux/swap.h	Tue Dec  1 07:31:03 1998
+@@ -90,6 +90,7 @@
+ extern struct page * read_swap_cache_async(unsigned long, int);
+ #define read_swap_cache(entry) read_swap_cache_async(entry, 1);
+ extern int FASTCALL(swap_count(unsigned long));
++extern struct page * lookup_swap_cache(unsigned long); 
+ /*
+  * Make these inline later once they are working properly.
+  */
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
