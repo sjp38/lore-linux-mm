@@ -1,45 +1,29 @@
-Message-Id: <200301281722.h0SHMHgM006963@turing-police.cc.vt.edu>
-Subject: Re: [PATCH] page coloring for 2.5.59 kernel, version 1 
-In-Reply-To: Your message of "Tue, 28 Jan 2003 12:06:11 EST."
-             <Pine.LNX.3.96.1030128120205.32466B-100000@gatekeeper.tmr.com>
-From: Valdis.Kletnieks@vt.edu
-References: <Pine.LNX.3.96.1030128120205.32466B-100000@gatekeeper.tmr.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_1567796551P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
+Message-ID: <3E36BD6B.6080000@shaolinmicro.com>
+Date: Wed, 29 Jan 2003 01:27:07 +0800
+From: David Chow <davidchow@shaolinmicro.com>
+MIME-Version: 1.0
+Subject: dirty pages path in kernel
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: Tue, 28 Jan 2003 12:22:17 -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Davidsen <davidsen@tmr.com>
-Cc: Andi Kleen <ak@suse.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_1567796551P
-Content-Type: text/plain; charset=us-ascii
+Hi,
 
-On Tue, 28 Jan 2003 12:06:11 EST, Bill Davidsen said:
+If I do the following to an inode mapping page .
 
-> I have noted in ctxbench that the SMP results have a vast performance
-> range while the uni (and nosmp) don't. Not clear if this would improve
-> that, but I sure would like to try.
+1. Generate a "struct page" from read_cache_page()
+2. kmap() the page, do some memset() (Dirty the page)
+3. kunmap() and page_cache_release() the page.
 
-Another thing to check is whether in the SMP case, there's a race condition
-with optimal/pessimal grabbing of locks, etc.
+Since I didn't change any flags in the struct page, and I don't call to the corresponding commit_write() path. How is this page handled afterwards? Does the kernel will call its corresponding writepage() routine when unmap? Or it will ignore the dirty page as the kernel doesn't detects it. What will happen then? Will I loose any changes to that page data? I'm trying to implement some asynchronous mechasim on purging dirty pages on disk writes. Please give advice.
 
---==_Exmh_1567796551P
-Content-Type: application/pgp-signature
+regards,
+David
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.1 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
 
-iD8DBQE+NrxJcC3lWbTT17ARAtpVAJ47i0HV3k8LxEgC00WYGOWUQS1HgACg8tu/
-lVsvMFlI2uCh7oD4vq8QtR8=
-=cUMR
------END PGP SIGNATURE-----
-
---==_Exmh_1567796551P--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
