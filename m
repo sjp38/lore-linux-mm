@@ -1,42 +1,42 @@
-Subject: Re: Active Memory Defragmentation: Our implementation & problems
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <40214A11.3060007@techsource.com>
-References: <20040204185446.91810.qmail@web9705.mail.yahoo.com>
-	 <Pine.LNX.4.53.0402041402310.2722@chaos>  <40214A11.3060007@techsource.com>
-Content-Type: text/plain
-Message-Id: <1075923832.27944.391.camel@nighthawk>
-Mime-Version: 1.0
-Date: 04 Feb 2004 11:43:53 -0800
-Content-Transfer-Encoding: 7bit
+Date: Wed, 4 Feb 2004 14:45:21 -0500 (EST)
+From: Rik van Riel <riel@redhat.com>
+Subject: Re: [PATCH 1/5] mm improvements
+In-Reply-To: <4020BDFF.3010201@cyberone.com.au>
+Message-ID: <Pine.LNX.4.44.0402041444560.24515-100000@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; CHARSET=US-ASCII; FORMAT=flowed
+Content-ID: <Pine.LNX.4.44.0402041444562.24515@chimarrao.boston.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Timothy Miller <miller@techsource.com>
-Cc: root@chaos.analogic.com, Alok Mooley <rangdi@yahoo.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Nick Piggin <piggin@cyberone.com.au>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-02-04 at 11:37, Timothy Miller wrote:
-> Would memory fragmentation have any appreciable impact on L2 cache line 
-> collisions?
-> Would defragmenting it help?
+On Wed, 4 Feb 2004, Nick Piggin wrote:
 
-Nope.  The L2 lines are 32 or 64 bytes long, and the only unit we can
-defrag in is pages which are 4k.  Since everything is aligned, a
-cacheline cannot cross a page.  
+> > 1/5: vm-no-rss-limit.patch
+> >     Remove broken RSS limiting. Simple problem, Rik is onto it.
+> >
 
-> In the case of the Opteron, there is a 1M cache that is (I forget) N-way 
-> set associative, and it's physically indexed.  If a bunch of pages were 
-> located such that there were a disproportionately large number of lines 
-> which hit the same tag, you could be thrashing the cache.
->
-> There are two ways to deal with this:  (1) intelligently locates pages
-> in physical memory; (2) hope that natural entropy keeps things random 
-> enough that it doesn't matter.
+Does the patch below fix the performance problem with the
+rss limit patch ?
 
-You're talking about page coloring now.  That a whole different debate. 
-I think it's been discussed here before. :)  It's good.  It's bad.  It's
-good.  It's bad.  
 
---dave
+===== fs/exec.c 1.103 vs edited =====
+--- 1.103/fs/exec.c	Mon Jan 19 01:35:50 2004
++++ edited/fs/exec.c	Wed Feb  4 14:38:10 2004
+@@ -1117,6 +1117,11 @@
+ 	retval = init_new_context(current, bprm.mm);
+ 	if (retval < 0)
+ 		goto out_mm;
++	if (likely(current->mm)) {
++		bprm.mm->rlimit_rss = current->mm->rlimit_rss;
++	} else {
++		bprm.mm->rlimit_rss = init_mm.rlimit_rss;
++	}
+ 
+ 	bprm.argc = count(argv, bprm.p / sizeof(void *));
+ 	if ((retval = bprm.argc) < 0)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
