@@ -1,44 +1,42 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: [PATCH 2.5.41-mm1] new snapshot of shared page tables
-Date: Thu, 10 Oct 2002 18:29:40 -0400
-References: <228900000.1034197657@baldur.austin.ibm.com> <200210092304.47577.tomlins@cam.org> <20021010031928.GT12432@holomorphy.com>
-In-Reply-To: <20021010031928.GT12432@holomorphy.com>
+Message-ID: <3DA65441.7020505@us.ibm.com>
+Date: Thu, 10 Oct 2002 21:32:01 -0700
+From: Dave Hansen <haveblue@us.ibm.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200210101829.40432.tomlins@cam.org>
+Subject: Re: 2.5.41-mm2
+References: <Pine.LNX.4.44.0210100841280.4384-100000@localhost.localdomain>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On October 9, 2002 11:19 pm, William Lee Irwin III wrote:
-> On Wed, Oct 09, 2002 at 11:04:47PM -0400, Ed Tomlinson wrote:
-> > After realizing (thanks Dave) that kmail 3.03 has a bug saving
-> > multipart/mixed mime messages, I was able to use uudeview to extract
-> > a clean patch, and build kernel which boot fine.  Thats the good news.
-> > When I try to start kde 3.03 on an up to date debian sid (X 4.2 etc)
-> > kde fails to start. It complains that ksmserver cannot be started.
-> > Same setup works with 41-mm1.
-> > Know this is not a meaty report.  With X4.2 I have not yet figgered
-> > out how to get more debug messages (the log from xstart is anemic)
-> > nor is there anything in messages, kern.log or on the serial console.
-> > The box is a K6-III 400 on a via MVP3 chipset.
-> > What other info can I gather?
-> > Ed Tomlinson
->
-> Could you strace ksmserver on a working and non-working console and
-> (privately) send (probably large) logs to dmc & me? Please use
-> strace -f -ff or some equivalent that follows children.
+Ingo Molnar wrote:
+> On Wed, 9 Oct 2002, Andrew Morton wrote:
+>>  Ingo's original per-cpu-pages patch was said to be mainly beneficial
+>>  for web-serving type things, but no specweb testing has been possible
+>>  for a week or two due to oopses in the timer code.
+> 
+> i sent my latest timer patch to Dave Hansen but have not heard back since.
+> I've attached the latest patch, this kernel also printks a bit more when
+> it sees invalid timer usage.
+> 
+> in any case, the oops Dave was seeing i believe was fixed by Linus (the
+> PgUp fix), and it was in the keyboard code. If there's anything else still
+> going on then the attached patch should either fix it or provide further
+> clues.
 
-Hope the straces helped...
+Ingo,
+   I'm running the current Bitkeeper tree with your patch, with no 
+oopses in sight.  The oops happens in seconds without the patch, but I 
+haven't seen anything in an hour of running Specweb.  It looks pretty 
+good.  Please feed that patch to Linus if you haven't already.
 
-I tried again this evening with mm2 plus shpte-2.5.41-mm2-1.diff and 
-shpte-2.5.41-mm2-2.diff and still get the same error.
+-- 
+Dave Hansen
+haveblue@us.ibm.com
 
-Ed
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
