@@ -1,62 +1,42 @@
-Received: from neon.transmeta.com (neon-best.transmeta.com [206.184.214.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA00584
-	for <linux-mm@kvack.org>; Mon, 25 Jan 1999 13:44:02 -0500
-Date: Mon, 25 Jan 1999 10:43:46 -0800 (PST)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <199901251625.QAA04452@dax.scot.redhat.com>
-Message-ID: <Pine.LNX.3.95.990125103135.21082F-100000@penguin.transmeta.com>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA00594
+	for <linux-mm@kvack.org>; Mon, 25 Jan 1999 13:44:17 -0500
+Date: Mon, 25 Jan 1999 18:43:58 GMT
+Message-Id: <199901251843.SAA08417@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+In-Reply-To: <Pine.LNX.3.95.990125102428.21082D-100000@penguin.transmeta.com>
+References: <199901251625.QAA04452@dax.scot.redhat.com>
+	<Pine.LNX.3.95.990125102428.21082D-100000@penguin.transmeta.com>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-On Mon, 25 Jan 1999, Stephen C. Tweedie wrote:
-> 
-> The changes are very similar to the self-tuning clock counter we had in
-> those ac* vms.  The modified shrink_mmap() just avoids decrementing the
-> count for locked, non-DMA (if GFP_DMA) or multiply-mapped pages.  The
-> effect is to avoid counting memory mapped pages when we trim cache.  In
-> low memory, this allows us to keep trimming back the "excess" unmapped
-> pure cache pages even if a large fraction of physical memory is occupied
-> by mapped pages.  
+On Mon, 25 Jan 1999 10:27:30 -0800 (PST), Linus Torvalds
+<torvalds@transmeta.com> said:
 
-Parts of your patch makes sense, other parts make no sense at all.
+>> Regarding the former, is there any chance you'd consider adding a kswapd
+>> wakeup when low_memory gets set in get_free_pages()?  Being able to
+>> respond to a burst in network traffic without locking up is not exactly
+>> a minor issue.
 
-For example, the "multiply by two" that you removed, is done in order to
-make shrink_mmap() look at all pages when given a priority of zero. Your
-patch makes it possible that shrink_mmap() wouldn't have looked at all
-pages, because count is still decremented before looking at "referenced"
+> Note that it wouldn't ever trigger for GFP_ATOMIC allocations, so I
+> suspect you haven't actually _tried_ it? For a machine that gets burst of
+> network traffic with nothing else going on, adding it should essentially
+> amount to a no-op.
 
-I don't think that's actually a problem, because before we call
-shrink_mmap() with argument 0, we'll have called it many times before, and
-that together with the fact that you changed the count to not be
-decremented for shared pages makes the "problem" fairly academic. So my
-only objection is basically that I think you mixed up the behaviour of the
-new patch with the (original) patch of yours that made count decrements
-conditional on the PG_referenced bit.
+Correct: I haven't been testing any of the networking stuff myself so it
+has been a non-issue for any of my workloads here.  Obviously any check
+for this case would have to be outside the GFP_WAIT conditional, but it
+does make sense to set low_on_memory there anyway.
 
-Basically, this is _very_ different from the self-tuning clock you
-proposed earlier: your earlier patch had the explanation that you wanted
-to more quickly go through referenced pages, while this one goes through
-_shared_ pages more quickly. Big difference.
-
-I like the second way of thinking about it a lot more, though. And it may
-be that even though you _thought_ that the first one was due to reference
-counting, the shared page issue was the more important one. 
-
-As far as I can see, this patch essentially makes us more likely to keep
-shared pages - somehting I wholeheartedly agree with, and I'll apply it. I
-just wanted to point out that I think you're making up the explanations
-for your patches as you go along, and that this is NOT the same
-explanation you had for your earlier patch that did a very similar thing.
-Sounds like you made up the explanations after making the patch.
-
-			Linus
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
