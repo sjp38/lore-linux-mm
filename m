@@ -1,62 +1,65 @@
-Date: Thu, 22 Mar 2001 14:28:31 -0600
-From: Stephen Clouse <stephenc@theiqgroup.com>
+Date: Thu, 22 Mar 2001 22:01:30 +0100
+From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
 Subject: Re: [PATCH] Prevent OOM from killing init
-Message-ID: <20010322142831.A929@owns.warpcore.org>
-References: <3AB9313C.1020909@missioncriticallinux.com> <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva> <20010322124727.A5115@win.tue.nl>
+Message-ID: <20010322220130.G11126@nightmaster.csn.tu-chemnitz.de>
+References: <3AB9313C.1020909@missioncriticallinux.com> <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva> <20010322124727.A5115@win.tue.nl> <20010322142831.A929@owns.warpcore.org>
 Mime-Version: 1.0
-Content-Type: text/plain
-Content-Disposition: inline; filename="msg.pgp"
-In-Reply-To: <20010322124727.A5115@win.tue.nl>; from dwguest@win.tue.nl on Thu, Mar 22, 2001 at 12:47:27PM +0100
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20010322142831.A929@owns.warpcore.org>; from stephenc@theiqgroup.com on Thu, Mar 22, 2001 at 02:28:31PM -0600
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Guest section DW <dwguest@win.tue.nl>
-Cc: Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Stephen Clouse <stephenc@theiqgroup.com>
+Cc: Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
+On Thu, Mar 22, 2001 at 02:28:31PM -0600, Stephen Clouse wrote:
+[Another OOM-Killing thread] 
+> It would be nice to give immunity to certain uids, or better
+> yet, just turn the damn thing off entirely.  I've already
+> hacked that in...errr, out.
 
-On Thu, Mar 22, 2001 at 12:47:27PM +0100, Guest section DW wrote:
-> Last week I installed SuSE 7.1 somewhere.
-> During the install: "VM: killing process rpm",
-> leaving the installer rather confused.
-> (An empty machine, 256MB, 144MB swap, I think 2.2.18.)
-> 
-> Last month I had a computer algebra process running for a week.
-> Killed. But this computation was the only task this machine had.
-> Its sole reason of existence.
-> Too bad - zero information out of a week's computation.
-> (I think 2.4.0.)
-> 
-> Clearly, Linux cannot be reliable if any process can be killed
-> at any moment. I am not happy at all with my recent experiences.
+That's fine and suits best for all.
 
-Really the whole oom_kill process seems bass-ackwards to me.  I can't in my mind
-logically justify annihilating large-VM processes that have been running for 
-days or weeks instead of just returning ENOMEM to a process that just started 
-up.
+I have provided an API for installing such OOM handlers (and have
+provided even an simple example for using it).
 
-We run Oracle on a development box here, and it's always the first to get the
-axe (non-root process using 70-80 MB VM).  Whenever someone's testing decides to 
-run away with memory, I usually spend the rest of the day getting intimate with
-the backup files, since SIGKILLing random Oracle processes, as you might have
-guessed, has a tendency to rape the entire database.
+See http://www.tu-chemnitz.de/~ioe/oom-kill-api/index.html for
+details.
 
-It would be nice to give immunity to certain uids, or better yet, just turn the
-damn thing off entirely.  I've already hacked that in...errr, out.
+It applies to all regular kernels and with some offsets even to
+ac20. So this is the way to go for custom OOM handling. 
 
-- -- 
-Stephen Clouse <stephenc@theiqgroup.com>
-Senior Programmer, IQ Coordinator Project Lead
-The IQ Group, Inc. <http://www.theiqgroup.com/>
+Rik noted once, that not much research has been done yet on this
+topic and that he is certain, that his code cannot cover all
+cases.
 
------BEGIN PGP SIGNATURE-----
-Version: PGP 6.5.8
+Linus on the other hand doesn't like the idea of 'plugins' for
+core kernel code. 
 
-iQA/AwUBOrpgbgOGqGs0PadnEQLp5QCfZMwtDZRNwYQ6RJX0MJ8lRVHTj3YAoNlt
-pFWT2i+2y+Yze/6EYy9V0oaE
-=QIrK
------END PGP SIGNATURE-----
+So this patch is the best thing, that can be done about the
+situation.
+
+All work should be based on it, since it allows customers and
+researchers, that LIKE to try such 'plugins' to try all of them
+instead of having to patch and recompile the kernel for every OOM
+handler available.
+
+I would LOVE to start a link collection for all OOM handlers
+based on my patch or even host them, IF they are implemented as
+modules (as suggested by my API). This should avoid duplicate
+effort of this.
+
+Of course I hope to satisfy all needs by this. I'm also willing
+to include any API changes (read: exported functions, structs and
+variables) necessary for some OOM handlers in my patch.
+
+Thanks & Regards
+
+Ingo Oeser
+-- 
+10.+11.03.2001 - 3. Chemnitzer LinuxTag <http://www.tu-chemnitz.de/linux/tag>
+         <<<<<<<<<<<<     been there and had much fun   >>>>>>>>>>>>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
