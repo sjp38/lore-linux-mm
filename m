@@ -1,49 +1,55 @@
-Date: Tue, 2 May 2000 03:51:59 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: kswapd @ 60-80% CPU during heavy HD i/o.
-In-Reply-To: <200005020113.SAA31341@pizda.ninka.net>
-Message-ID: <Pine.LNX.4.21.0005020338110.1919-100000@alpha.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: michael@dgmo.org
+References: <Pine.LNX.4.21.0005012059270.7508-100000@duckman.conectiva>
+Date: 02 May 2000 17:56:11 +1000
+In-Reply-To: Rik van Riel's message of "Mon, 1 May 2000 21:07:35 -0300 (BRST)"
+Message-ID: <m1hfchcrms.fsf@mo.optusnet.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: riel@nl.linux.org, roger.larsson@norran.net, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: riel@nl.linux.org
+Cc: "David S. Miller" <davem@redhat.com>, roger.larsson@norran.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Actually I think you missed the pgdat_list is a queue and it's not null
-terminated. I fixed this in my classzone patch of last week in this chunk:
+Rik van Riel <riel@conectiva.com.br> writes:
+> On Mon, 1 May 2000, David S. Miller wrote:
+> > Why not have two lists, an active and an inactive list.  As reference
+> > bits clear, pages move to the inactive list.  If a reference bit stays
+> > clear up until when the page moves up to the head of the inactive
+> > list, we then try to free it.  For the active list, you do the "move
+> > the list head" technique.
+[...]
+> We should scan the inactive list and move all reactivated pages
+> back to the active list and then repopulate the inactive list.
+> Alternatively, all "reactivation" actions (mapping a page back
+> into the application, __find_page_nolock(), etc...) should put
+> pages back onto the active queue.
+[..]
 
-@@ -507,9 +529,8 @@
- 	unsigned long i, j;
- 	unsigned long map_size;
- 	unsigned long totalpages, offset, realtotalpages;
--	unsigned int cumulative = 0;
- 
--	pgdat->node_next = pgdat_list;
-+	pgdat->node_next = NULL;
+> > The inactive lru population can be done cheaply, using the above
+> > ideas, roughly like:
+> > 
+> > 	LIST_HEAD(inactive_queue);
+> > 	struct list_head * active_scan_point = &lru_active;
+> > 
+> > 	for_each_active_lru_page() {
+> > 		if (!test_and_clear_referenced(page)) {
 
-however that's not enough without the thing I'm doing in the
-kswapd_can_sleep() again in the classzone patch.
+Tiny comment: You'd probably be better off waking up
+more frequently, and just processing just a bit of the active
+page queue.
 
-Note that my latest classzone patch had a few minor bugs.
+I.e. Every 1/10th of a second, walk 2% of the active queue.
+This would give you something closer to LRU, and smooth the
+load, yes?
 
-Last days and today I worked on getting mapped pages out of the lru and
-splitting the lru in two pieces since swap cache is less priority and it
-have to be shrink first. Doing that things is giving smooth swap
-behaviour. I'm incremental with the classzone patch.
+Or, I guess that could be ; every 1/10th of a second,
+walk as much of the active queue as is needed to refill the
+inactive list, starting from where you left of last time.
+So if nothing is consuming out of the inactive queue, we
+effectively stop walking. (This is basically pure clock).
 
-My current tree works rock solid but I forgot a little design detail ;).
-If a mapped page have anonymous buffers on it it have to _stay_ on the lru
-otherwise the bh headers will become unfreeable and so I can basically
-leak memory. Once this little bit will be fixed (and it's not a trivial
-bit if you think at it) I'll post the patch where the above and other
-things are fixed.
+Michael.
 
-It should be fully orthogonal (at least conceptually) with your anon.c
-stuff since all new code lives in the lru_cache domain.
-
-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
