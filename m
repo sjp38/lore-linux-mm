@@ -1,45 +1,41 @@
-Message-ID: <3B21421D.3CF8A40A@earthlink.net>
-Date: Fri, 08 Jun 2001 15:22:37 -0600
-From: "Joseph A. Knapka" <jknapka@earthlink.net>
+From: "David S. Miller" <davem@redhat.com>
 MIME-Version: 1.0
-Subject: Re: temp. mem mappings
-References: <3B2DF994@MailAndNews.com> <20010608190717.T1757@redhat.com>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <15137.17195.500288.181489@pizda.ninka.net>
+Date: Fri, 8 Jun 2001 14:27:07 -0700 (PDT)
+Subject: Re: Background scanning change on 2.4.6-pre1
+In-Reply-To: <Pine.LNX.4.21.0106081614490.2422-100000@freak.distro.conectiva>
+References: <Pine.LNX.4.31.0106081313500.3244-100000@penguin.transmeta.com>
+	<Pine.LNX.4.21.0106081614490.2422-100000@freak.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: cohutta <cohutta@MailAndNews.com>, linux-mm <linux-mm@kvack.org>
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Mike Galbraith <mikeg@wen-online.de>, Zlatko Calusic <zlatko.calusic@iskon.hr>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" wrote:
-> 
-> Hi,
-> 
-> On Thu, Jun 07, 2001 at 09:38:06PM -0400, cohutta wrote:
-> 
-> > >Right --- you can use alloc_pages but we haven't done the
-> > >initialisation of the kmalloc slabsl by this point.
-> >
-> > My testing indicates that i can't use __get_free_page(GFP_KERNEL)
-> > any time during setup_arch() [still x86].  It causes a BUG
-> > in slab.c (line 920) [linux 2.4.5].
-> 
-> After paging_init(), it should be OK --- as long as there is enough
-> memory that you don't end up calling the VM try_to_free_page routines.
-> Those will definitely choke this early in boot.
+Marcelo Tosatti writes:
+ > > and Davem tried that once with noticeable performance
+ > > degradation from the added locking and list manipulation.
+ > 
+ > David, 
+ > 
+ > Could you please send me that code so I can work on it and try to reduce
+ > the performance degradation and take a look at the what it gives us ?
+ > 
+ > And remember even if we have a performance degradation by the locking and
+ > list manipulation by adding this "feature", it may bring us a big
+ > advantage on the fair aging thing I described above.
 
-But we don't actually give the zone allocator any free pages
-until mem_init().
+Please search the linux-mm archives, Stephen Tweedie posted my patches
+at some point long ago.
 
-- Joe
+I deleted all my copies because that code does not deserve to live in
+my opinion, and the problem ought to be attacked from another angle.
 
--- Joseph A. Knapka
-"You know how many remote castles there are along the gorges? You
- can't MOVE for remote castles!" -- Lu Tze re. Uberwald
-// Linux MM Documentation in progress:
-// http://home.earthlink.net/~jknapka/linux-mm/vmoutline.html
-* Evolution is an "unproven theory" in the same sense that gravity is. *
+Later,
+David S. Miller
+davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
