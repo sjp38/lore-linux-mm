@@ -1,70 +1,55 @@
-Received: from northrelay01.pok.ibm.com (northrelay01.pok.ibm.com [9.117.200.21])
-	by e2.ny.us.ibm.com (8.9.3/8.9.3) with ESMTP id KAA23324
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2000 10:00:11 -0400
-From: frankeh@us.ibm.com
-Received: from D51MTA03.pok.ibm.com (d51mta03.pok.ibm.com [9.117.200.31])
-	by northrelay01.pok.ibm.com (8.8.8m3/NCO v2.07) with SMTP id KAA70126
-	for <linux-mm@kvack.org>; Fri, 23 Jun 2000 10:02:03 -0400
-Message-ID: <85256907.004D1292.00@D51MTA03.pok.ibm.com>
-Date: Fri, 23 Jun 2000 10:01:14 -0400
-Subject: Re: [RFC] RSS guarantees and limits
+Date: Fri, 23 Jun 2000 11:32:39 -0300
+From: Rodrigo Castro <rcastro@linux.ime.usp.br>
+Subject: Problems in compressed cache development
+Message-ID: <20000623113239.A685@linux.ime.usp.br>
 Mime-Version: 1.0
-Content-type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-How is shared memory accounted for?
+Hello,
 
-Options are:
-(a) Creator is charged
-(b) prorated per number of users
+	I am an undergraduate student at University of Sao Paulo,
+Brazil and I am working on a compressed cache implementation for Linux
+kernel. Our group (there are two more students plus two professors) is
+working on version 2.2.14 and we are just crawling in our
+development. We've been spending such a long time studying memory
+management system and we've started working on source code for about
+two months. We implemented some functions to initialize a slab cache,
+this cache is supposed to be the heart of our system, and a function
+that copies the first ten pages that goes to swap (yeah, the first 10
+that go to disk). We did that by allocating a page using get_free_page
+and copying memory data with copy_page macro. Well, everything worked
+just fine until we put that to work. Our test machine had 22 Mb of
+free memory. We allocated 20 Mb with a test program, and after that,
+allocated 3 Mb in order to force swapping pages. What happened is our
+second test program (the one that allocated 3 Mb) has been killed by
+VM (message from kern.log: VM: killing process test). Well, we
+replaced get_free_page by kmalloc and we had the same problem. A
+sudden idea came to our mind that we should be updating some variable
+related to the free pages number, but we couldn't find which one would
+be this (these) variable(s). Well, I am writing to you 'cause I would
+like to know if you could have an idea of what may be happening, or
+what we could do to find a solution to that. We've been studying the
+code, and reading many books, but unsuccesfully. Could you give us a
+hand?
 
-any others options come to mind ?
+PS: We changed and allocated the 10 pages at initialization. Using
+that, our test program worked, but it would be really useful to know
+why we can't make it working allocating dynamically. 
+PPS: After killing our process, if we run it again, trying to allocate
+the 3 Mb, it works! Oh, the problem procedure is reproducible.
 
--- Hubertus Franke
-    IBM T.J.Watson Research Center
+Thank you in advance,
+-- 
+Rodrigo Castro   <rcastro@linux.ime.usp.br>
+Computer Science undergraduate student - University of Sao Paulo
 
-
-Rik van Riel <riel@conectiva.com.br>@kvack.org on 06/23/2000 10:15:46 AM
-
-Sent by:  owner-linux-mm@kvack.org
-
-
-To:   Ed Tomlinson <tomlins@cam.org>
-cc:   linux-mm@kvack.org
-Subject:  Re: [RFC] RSS guarantees and limits
-
-
-
-On Thu, 22 Jun 2000, Ed Tomlinson wrote:
-
-> Just wondering what will happen with java applications?  These
-> beasts typically have working sets of 16M or more and use 10-20
-> threads.  When using native threads linux sees each one as a
-> process.  They all share the same memory though.
-
-Ahh, but these limits are of course applied per _MM_, not
-per thread ;)
-
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/          http://www.surriel.com/
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux.eu.org/Linux-MM/
-
-
+Show me a sane man and I will cure him for you.
+                -- C.G. Jung
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
