@@ -1,72 +1,62 @@
-Received: from localhost (localhost.localdomain [127.0.0.1])
-	by einstein.tteng.com.br (Postfix) with ESMTP id CBB9512004A
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2004 13:42:01 -0300 (BRT)
-Received: from [192.168.0.141] (luciano.tteng.com.br [192.168.0.141])
-	by einstein.tteng.com.br (Postfix) with ESMTP id C5495120049
-	for <linux-mm@kvack.org>; Wed, 21 Jul 2004 13:42:00 -0300 (BRT)
-Message-ID: <40FE9D66.3070709@tteng.com.br>
-Date: Wed, 21 Jul 2004 13:44:22 -0300
-From: "Luciano A. Stertz" <luciano@tteng.com.br>
+Received: from flecktone.americas.sgi.com (flecktone.americas.sgi.com [192.48.203.135])
+	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id i6MK1L0f014026
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2004 15:01:21 -0500
+Received: from kzerza.americas.sgi.com (kzerza.americas.sgi.com [128.162.233.27])
+	by flecktone.americas.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id i6MK1LOW43373217
+	for <linux-mm@kvack.org>; Thu, 22 Jul 2004 15:01:21 -0500 (CDT)
+Date: Thu, 22 Jul 2004 15:01:21 -0500
+From: Brent Casavant <bcasavan@sgi.com>
+Reply-To: Brent Casavant <bcasavan@sgi.com>
+Subject: struct shmem_inode_info lock scaling
+Message-ID: <Pine.SGI.4.58.0407221447150.7422@kzerza.americas.sgi.com>
 MIME-Version: 1.0
-Subject: [Fwd: vma list in struct address_space]
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-	Hi,
-		I sent this message to kernelnewbies but receive no replay. May you 
-please help me?
+Hello,
 
-	Thanks,
-		Luciano
+In my further efforts to improve the page faulting performance of
+the mm/shmem.c code, and building upon work that Hugh and I did a
+week or two ago, I've run up against the "lock" field of shmem_inode_info
+being the next big hurdle.
 
-====================================================
+I've stared at this code upside-right and upside-down, and the best
+solution I can even envision is atomic updates of next_index, *i_direct,
+and *i_indirect, leaving the remaining fields protected by the lock.
+This is assuming, of course, that there's no harm if the remaining
+fields are momentarily out-of-sync with the swap entries and next_index,
+something which I haven't convinced myself of quite yet.
 
-	I have a doubt about the address_space struct.
-	I understand that struct address_space contains lists of the virtual
-memory area instances that refers to the inode controlled by this
-address_space.
-	Up to kernel 2.6.6, it was clear to me from the struct declaration that
-there were two lists, i_mmap was the list of private (created with
-MAP_PRIVATE) mappings and i_mmap_shared the list of shared (created with
-MAP_SHARED).
-	On kernel 2.6.7, however, I couldn't undestand the lists:
+However, this would be a huge amount of work as there'd be a lot of
+operations performed which have to check at various points whether
+the state of the inode has changed, and start the operation over again.
+This way of going about things seems to be fraught with end cases
+and subtle gotchas that, frankly, I don't have the Linux kernel
+experience to realize up-front.  And I probably have a realistic view
+of how likely I am to get it correct. :)
 
-         struct prio_tree_root   i_mmap;         /* tree of private
-mappings */
-         struct list_head        i_mmap_nonlinear;/*list VM_NONLINEAR
-mappings */
+Before I start hacking on the code and going down such a path, I'd
+like to know if any ideas just pop out of anyone's head.  Bear in
+mind that this is really only needed for the "internal" types of
+mappings, like /dev/zero and System V shared memory, which thanks
+to Hugh's work we can now quite easily differentiate from tmpfs
+inodes.
 
-	i_mmap seems to be still listing private mappings, but i_mmap_shared
-was removed and i_mmap_nonlinear added.
-	If I create a shared linear mapping, will it be kept in any of these lists?
-	Or maybe the i_mmap comment is misleading, and now i_mmap maps linear vmas?
+Also, before I go down this route, does anyone think that there's
+a snowball's chance that this type of change would be acceptable?
+I suspect the code diff would be quite substantial by the time I
+get done with it.
 
-	TIA,
-		Luciano Stertz
-
--- 
-Luciano A. Stertz
-luciano@tteng.com.br
-T&T Engenheiros Associados Ltda
-http://www.tteng.com.br
-Fone/Fax (51) 3224 8425
-
---
-Kernelnewbies: Help each other learn about the Linux kernel.
-Archive:       http://mail.nl.linux.org/kernelnewbies/
-FAQ:           http://kernelnewbies.org/faq/
-
+Thanks,
+Brent
 
 -- 
-Luciano A. Stertz
-luciano@tteng.com.br
-T&T Engenheiros Associados Ltda
-http://www.tteng.com.br
-Fone/Fax (51) 3224 8425
+Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
+Operating System Engineer  http://www.sgi.com/     bushy-tailed; I'm red-
+Silicon Graphics, Inc.     44.8562N 93.1355W 860F  eyed and bushy-haired.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
