@@ -1,67 +1,52 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id TAA24070
-	for <linux-mm@kvack.org>; Sat, 14 Dec 2002 19:09:32 -0800 (PST)
-Message-ID: <3DFBF26B.47C04A6@digeo.com>
-Date: Sat, 14 Dec 2002 19:09:31 -0800
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
+Date: Sun, 15 Dec 2002 09:41:02 +0100 (CET)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: Ingo Molnar <mingo@elte.hu>
 Subject: Re: freemaps
-References: <003601c2a3c2$cf721ba0$0d50858e@sybix>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <3DFBF26B.47C04A6@digeo.com>
+Message-ID: <Pine.LNX.4.44.0212150926130.1831-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Frederic Rossi (LMC)" <Frederic.Rossi@ericsson.ca>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: "Frederic Rossi (LMC)" <Frederic.Rossi@ericsson.ca>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Frederic Rossi (LMC)" wrote:
-> 
-> ...
-> 100000 mmaps, mmap=2545 msec munmap=59 msec
-> 100000 mmaps, mmap=2545 msec munmap=58 msec
-> 100000 mmaps, mmap=2544 msec munmap=60 msec
-> 100000 mmaps, mmap=2547 msec munmap=60 msec
-> 
-> and with freemaps I get
-> 100000 mmaps, mmap=79 msec munmap=60 msec
-> 100000 mmaps, mmap=79 msec munmap=60 msec
-> 100000 mmaps, mmap=80 msec munmap=60 msec
-> 100000 mmaps, mmap=79 msec munmap=60 msec
-> 
+On Sat, 14 Dec 2002, Andrew Morton wrote:
 
-Yes, this is a real failing.
+> So this is the key part.  It is a per-mm linear list of unmapped areas.
 
->  
-> +ssize_t proc_pid_read_vmc (struct task_struct *task, struct file * file, char * buf, size_t count, loff_t *ppos)
-> +{
+yep.
 
-This should use the seq_file API.
+> As this is a linear list, I do not understand why it does not have
+> similar failure modes to the current search.  Suppose this list
+> describes 100,000 4k unmapped areas and the application requests an 8k
+> mmap??
 
-> +struct vma_cache_struct {
-> +	struct list_head head;
-> +	unsigned long vm_start;
-> +	unsigned long vm_end;
-> +};
+i bet because in the (artificial?) test presented the 'hole' distribution
+is much nicer than the 'allocated areas' distribution. There are real-life
+allocation patterns, where this scheme suffers the same kind of regression
+the old scheme suffered. Eg. the one i presented originally, which
+triggered a regression, the NPTL stack allocator, where there is a 4K
+unmapped area between thread stacks. Under that workload the
+freemap-patched kernel will suffer badly over 2.5.50.
 
-So this is the key part.  It is a per-mm linear list of unmapped areas.
+but the hole-index might in fact be a quality improvement in a number of
+cases. It wont save us in a number of other cases, but one thing is sure:
+holes do not have types, allocated vmas have. So the complexity of the
+hole-space will always be at least as low as the complexity of the
+allocated-area-space. If there are lots of vmas of different types then
+the complexity of the hole-space can be significantly lower than the
+complexity of the vma-space. This happens quite often.
 
-You state that its locking is via mm->mmap_sem.  I assume that means
-a down_write() of that semaphore?
+a hybrid approach would keep both improvements: take the hole index _plus_
+the free-area cache i introduced, and if there's a cachemiss, search the
+hole-list.
 
-As this is a linear list, I do not understand why it does not have similar failure
-modes to the current search.  Suppose this list describes 100,000 4k unmapped
-areas and the application requests an 8k mmap??
+another approach might be to maintain some sort of tree of holes.
 
-> +static __inline__ int vma_cache_chainout (struct mm_struct *mm, struct vma_cache_struct *vmc)
-> +{
-> +	if (!vmc)
-> +		return -EINVAL;
-> +
-> +	list_del_init (&vmc->head);
-> +	vma_cache_free (vmc);
+	Ingo
 
-vma_cache_free() already does the list_del_init().
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
