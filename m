@@ -1,53 +1,53 @@
 Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA08081
-	for <linux-mm@kvack.org>; Thu, 23 Jul 1998 17:33:04 -0400
-Date: Thu, 23 Jul 1998 21:51:37 +0200 (CEST)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA08101
+	for <linux-mm@kvack.org>; Thu, 23 Jul 1998 17:33:49 -0400
+Date: Thu, 23 Jul 1998 22:28:39 +0200 (CEST)
 From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: More info: 2.1.108 page cache performance on low memory
-In-Reply-To: <87hg08vnmt.fsf@atlas.CARNet.hr>
-Message-ID: <Pine.LNX.3.96.980723214715.18464B-100000@mirkwood.dummy.home>
+Subject: Re: Good and bad news on 2.1.110, and a fix
+In-Reply-To: <35B75FE8.63173E88@star.net>
+Message-ID: <Pine.LNX.3.96.980723222349.18464C-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, "Eric W. Biederman" <ebiederm+eric@npwt.net>, linux-mm@kvack.org
+To: Bill Hawes <whawes@star.net>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Alan Cox <number6@the-village.bc.nu>, "David S. Miller" <davem@dm.cobaltmicro.com>, Ingo Molnar <mingo@valerie.inf.elte.hu>, Mark Hemment <markhe@nextd.demon.co.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On 23 Jul 1998, Zlatko Calusic wrote:
+On Thu, 23 Jul 1998, Bill Hawes wrote:
+> Stephen C. Tweedie wrote:
+>  
+> > The patch to page_alloc.c is a minimal fix for the fragmentation
+> > problem.  It simply records allocation failures for high-order pages,
+> > and forces free_memory_available to return false until a page of at
+> > least that order becomes available.  The impact should be low, since
 
-> One wrong way of fixing it is to limit page cache size, IMNSHO.
-> 
-> I tried the other way, to age page cache harder, and it looks like it
-> works very well. Patch is simple, so simple that I can't understand
-> nobody suggested (something like) it yet.
+This sound suspiciously like the first version of
+free_memory_available() that Linus introduced in
+2.1.89...
 
-These solutions are somewhat the same, but your one may take
-a little less computational power and has a tradeoff in the
-fact that it is very inflexible.
+> One possible downside is that kswapd infinite looping may become more
+> likely, as we still have no way to determine when the memory
 
-> --- filemap.c.virgin   Tue Jul 21 18:41:30 1998
-> +++ filemap.c   Thu Jul 23 12:14:43 1998
-> +                       age_page(page);
-> +                       age_page(page);
->                         age_page(page);
-> If I put only two age_page()s, there's still too much swapping for my
-> taste.
-> With three age_page()s, read performance is as expected, and still we
-> manage memory more efficiently than without page aging.
+It will happen for sure; just think of what will happen
+when that 64 kB DMA allocation fails on your 6 MB box :(
 
-This only proves that three age_page()s are a good number
-for _your_ computer and your workload.
+We saw the results in 2.1.89 and I don't see any reason
+to repeat the experiments now, at least not until Bill's
+patch for freeing inodes is merged...
 
-> Comments?
+> configuration makes it impossible to achieve the memory goal. I still
+> see this "swap deadlock" in 110 (and all recent kernels) under low
+> memory or by doing a swapoff. Any ideas on how to best determine an
+> infeasible memory configuration?
 
-As Stephen put it so nicely when I (in a bad mood) proposed
-another artificial limit:
-" O no, another arbitrary limit in the kernel! "
+Well, freepages.high should be a nice hint as to when to
+stop; unfortunately it is used now instead of fragmentation
+issues.
 
-And another one of Stephen's wisdoms (heavily paraphrased!):
-" Good solutions are dynamic and/or self-tuning "
-[Sorry Stephen, this was VERY heavily paraphrased :)]
+Maybe we want to count the number of order-3 memory structures
+free and keep that number above a certain level (back to
+Zlatko's 2.1.59 patch :-).
 
 Rik.
 +-------------------------------------------------------------------+
