@@ -1,78 +1,48 @@
-Date: Mon, 24 Nov 2003 21:23:15 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC] Make balance_dirty_pages zone aware (1/2)
-Message-Id: <20031124212315.02b0bd3d.akpm@osdl.org>
-In-Reply-To: <1070800000.1069736303@[10.10.2.4]>
-References: <3FBEB27D.5010007@us.ibm.com>
-	<20031123143627.1754a3f0.akpm@osdl.org>
-	<1034580000.1069688202@[10.10.2.4]>
-	<20031124100043.5416ed4c.akpm@osdl.org>
-	<39670000.1069719009@flay>
-	<20031124170506.4024bb30.akpm@osdl.org>
-	<1070800000.1069736303@[10.10.2.4]>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 25 Nov 2003 00:33:47 -0500 (EST)
+From: Zwane Mwaikambo <zwane@arm.linux.org.uk>
+Subject: Re: OOps! was: 2.6.0-test9-mm5
+In-Reply-To: <20031125051018.GA1331@mis-mike-wstn.matchmail.com>
+Message-ID: <Pine.LNX.4.58.0311250033170.4230@montezuma.fsmlabs.com>
+References: <20031121121116.61db0160.akpm@osdl.org>
+ <20031124225527.GB1343@mis-mike-wstn.matchmail.com>
+ <Pine.LNX.4.58.0311241840380.8180@montezuma.fsmlabs.com>
+ <20031124235807.GA1586@mis-mike-wstn.matchmail.com>
+ <20031125003658.GA1342@mis-mike-wstn.matchmail.com>
+ <Pine.LNX.4.58.0311242013270.1859@montezuma.fsmlabs.com>
+ <20031125051018.GA1331@mis-mike-wstn.matchmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: colpatch@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Mike Fedyk <mfedyk@matchmail.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Martin J. Bligh" <mbligh@aracnet.com> wrote:
+On Mon, 24 Nov 2003, Mike Fedyk wrote:
+
+> Here you go.  All numbers are right justified, so what's not there starts
+> with zeros.
 >
-> "dd if=/dev/zero of=foo" would trigger it, I'd think. Watching the IO
->  rate, it should go wierd after ram is full (on a 3 or more node system, 
->  so there's < 40% of RAM for each node).
+> gpf f000 #1
+> preempt smp
+> cpu: 0
+> eip: 0098:[<000052fu>] not tainted VLI
+> eflags: 10046
+> eip is at 0f52f1
+> eax: 8000f000 ebx: 09004 ecx: a0000b edx: fce
+> esi: c1f5a31a edi: 0 ebp: c1f5be7c esp: c1f5be4a
+> ds: a0  es: a8 ss: 68
+> process: swapper (pid: 1 threadinfo-clf5a00 task=clf5aa80
+> stack: cfe  dcf00a0 b00b af6easb5 aefd9cb3 0c810001 0 7b0001
+>        9c66007b a000 beec0082 bc1f5 20090 2 100a8 a0
+>        6750000 600023 20000 0 0 7b0000 7b0000 a00000000
+>
+> Call trace:
 
-Also, note that page_writeback_init() will not allow 40% of memory to be
-dirtied on such a system.  it is set much lower, partly to avoid an
-explosion of unreclaimable buffer_heads.
+Indeed it looks PnPBIOS related, i'll await your other tests.
 
-bk revtool sez:
-
-
-  - Allowing 40% of physical memory to be dirtied on massive ia32 boxes
-    is unreasonable.  It pins too many buffer_heads and contribues to
-    page reclaim latency.
-  
-    The patch changes the initial value of
-    /proc/sys/vm/dirty_background_ratio, dirty_async_ratio and (the
-    presently non-functional) dirty_sync_ratio so that they are reduced
-    when the highmem:lowmem ratio exceeds 4:1.
-  
-    These ratios are scaled so that as the highmem:lowmem ratio goes
-    beyond 4:1, the maximum amount of allowed dirty memory ceases to
-    increase.  It is clamped at the amount of memory which a 4:1 machine
-    is allowed to use.
-  
-  - Aggressive reduction in the dirty memory threshold at which
-    background writeback cuts in.  2.4 uses 30% of ZONE_NORMAL.  2.5 uses
-    40% of total memory.  This patch changes it to 10% of total memory
-    (if total memory <= 4G.  Even less otherwise - see above).
-  
-  This means that:
-  
-  - Much more writeback is performed by pdflush.
-  
-  - When the application is generating dirty data at a moderate
-    rate, background writeback cuts in much earlier, so memory is
-    cleaned more promptly.
-  
-  - Reduces the risk of user applications getting stalled by writeback.
-  
-  - Will damage dbench numbers.  It turns out that the damage is
-    fairly small, and dbench isn't a worthwhile workload for
-    optimisation.
-  
-  - Moderate reduction in the dirty level at which the write(2) caller
-    is forced to perform writeback (throttling).  Was 40% of total
-    memory.  Is now 30% of total memory (if total memory <= 4G, less
-    otherwise).
-  
-  This is to reduce page reclaim latency, and generally because
-  allowing processes to flood the machine with dirty data is a bad
-  thing in mixed workloads.
+Ta,
+	Zwane
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
