@@ -1,50 +1,70 @@
-Date: Tue, 8 Aug 2000 00:15:57 -0700
-From: David Gould <dg@suse.com>
-Subject: Re: RFC: design for new VM
-Message-ID: <20000808001557.A13549@archimedes.suse.com>
-References: <20000807202640.A12492@archimedes.suse.com> <200008080554.WAA19987@google.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <200008080554.WAA19987@google.engr.sgi.com>; from kanoj@google.engr.sgi.com on Mon, Aug 07, 2000 at 10:54:43PM -0700
+Date: Tue, 8 Aug 2000 12:21:00 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: RFC: design for new VM 
+In-Reply-To: <200008080048.RAA13326@eng2.sequent.com>
+Message-ID: <Pine.LNX.4.21.0008081216090.5200-100000@duckman.distro.conectiva>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: linux-mm@kvack.org
+To: Gerrit.Huizenga@us.ibm.com
+Cc: chucklever@bigfoot.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 07, 2000 at 10:54:43PM -0700, Kanoj Sarcar wrote:
-> > 
-> > Hmmm, the vm discussion and the lack of good documentation on vm systems
-> > has sent me back to reread my old "VMS Internals and Data Structures" book,
+On Mon, 7 Aug 2000 Gerrit.Huizenga@us.ibm.com wrote:
+> > On Mon, 7 Aug 2000, Rik van Riel wrote:
+> > The idea is that the memory_pressure variable indicates how
+> > much page stealing is going on (on average) so every time
+> > kswapd wakes up it knows how much pages to steal. That way
+> > it should (if we're "lucky") free enough pages to get us
+> > along until the next time kswapd wakes up.
+>  
+>  Seems like you could signal kswapd when either the page fault
+>  rate increases or the rate of (memory allocations / memory
+>  frees) hits a tuneable? ratio
+
+We will. Each page steal and each allocation will increase
+the memory_pressure variable, and because of that, also the
+inactive_target.
+
+Whenever either 
+- one zone gets low on free memory *OR* 
+- all zones get more or less low on free+inactive_clean pages *OR*
+- we get low on inactive pages (inactive_shortage > inactive_target/2),
+THEN kswapd gets woken up immediately.
+
+We do this both from the page allocation code and from
+__find_page_nolock (which gets hit every time we reclaim
+an inactive page back for its original purpose).
+
+> > About NUMA scalability: we'll have different memory pools
+> > per NUMA node. So if you have a 32-node, 64GB NUMA machine,
+> > it'll partly function like 32 independant 2GB machines.
+>  
+>  One lesson we learned early on is that anything you can
+>  possibly do on a per-CPU basis helps both SMP and NUMA
+>  activity.  This includes memory management, scheduling,
+>  TCP performance counters, any kind of system counters, etc.
+>  Once you have the basic SMP hierarchy in place, adding a NUMA
+>  hierarchy (or more than one for architectures that need it)
+>  is much easier.
 > 
-> I have been stressing the importance of documenting what people do
-> under Documentation/vm/*. Thinking I would provide an example, I 
-> created two new files there, at least one of which was quickly outdated
-> by related changes ...
-> 
-> It would probably help documentation if Linus asked for that along
-> with patches which considerably change current algorithms. Trust me,
-> I have had to go back and look at documentations three weeks after
-> I submitted a patch ... thats all it takes to forget why something
-> was done one way, rather than another ...
-> 
-> Kanoj
+>  Also, is there a kswapd per pool?  Or does one kswapd oversee
+>  all of the pools (in the NUMA world, that is)?
 
-Yes, this would be good. Of course, getting documentation to track programs
-is sortof an old and apparently insoluble problem. I like the Extreme
-Programming approach a bit, because XP makes it clear that there is _no_
-documentation other than the code. Worst case, we are where we are now, best
-case, the code is more expressive of intent...
+Currently we have none of this, but once 2.5 is forked
+off, I'll submit a patch which shuffles all variables
+into per-node (per pgdat) structures.
 
-But, I think the lack of documentation meant, was the lack of available
-literature on on how this stuff is spozed to work.
+regards,
 
--dg
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
 
--- 
-David Gould                                                 dg@suse.com
-SuSE, Inc.,  580 2cd St. #210,  Oakland, CA 94607          510.628.3380
-"I sense a disturbance in the source"  -- Alan Cox
+http://www.conectiva.com/		http://www.surriel.com/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
