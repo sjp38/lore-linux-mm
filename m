@@ -1,58 +1,41 @@
-Received: from firewall.aavid.com (firewall.aavid.com [199.92.156.104])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA12887
-	for <linux-mm@kvack.org>; Thu, 9 Jul 1998 09:03:47 -0400
-Message-ID: <005f01bdab39$abfe57a0$f80010ac@pc0411.aavid.com>
-From: "Zachary Amsden" <amsdenz@aavid.com>
+Date: Thu, 9 Jul 1998 20:59:57 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-Date: Thu, 9 Jul 1998 09:01:21 -0400
+In-Reply-To: <199807091442.PAA01020@dax.dcs.ed.ac.uk>
+Message-ID: <Pine.LNX.3.96.980709205619.28236F-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="x-user-defined"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>, "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Andrea Arcangeli <arcangeli@mbox.queen.it>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.rutgers.edu>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "Benjamin C.R. LaHaise" <blah@kvack.org>, Andrea Arcangeli <arcangeli@mbox.queen.it>, Stephen Tweedie <sct@dcs.ed.ac.uk>, Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-
------Original Message-----
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-To: Stephen C. Tweedie <sct@redhat.com>
-Cc: Andrea Arcangeli <arcangeli@mbox.queen.it>; Linux MM
-<linux-mm@kvack.org>; Linux Kernel <linux-kernel@vger.rutgers.edu>
-Date: Thursday, July 09, 1998 3:50 AM
-Subject: Re: cp file /dev/zero <-> cache [was Re: increasing page size]
-
-
->On Wed, 8 Jul 1998, Stephen C. Tweedie wrote:
->> <H.H.vanRiel@phys.uu.nl> said:
->>
->> > When my zone allocator is finished, it'll be a piece of
->> > cake to implement lazy page reclamation.
->>
->> I've already got a working implementation.  The issue of lazy
->> reclamation is pretty much independent of the allocator underneath; I
->> don't see it being at all hard to run the lazy reclamation stuff on
->top
->> of any form of zoned allocation.
+On Thu, 9 Jul 1998, Stephen C. Tweedie wrote:
+> On Tue, 7 Jul 1998 13:50:02 -0400 (EDT), "Benjamin C.R. LaHaise"
+> <blah@kvack.org> said:
+> 
+> > Right.  I'd rather see a multi-level lru like policy (ie on each cache hit
+> > it gets moved up one level in the cache, with the lru'd pages from a given
 >
->The problem with the current allocator is that it stores
->the pointers to available blocks in the blocks themselves.
->This means we can't wait till the last moment with lazy
->reclamation.
+> There's a fundamentally nice property about the multi-level cache
+> which we _cannot_ easily emulate with page aging, and that is the
+> ability to avoid aging any hot pages at all while we are just
+> consuming cold pages.  For example, a large "find|xargs grep" can be
+> satisfied without staling any of the existing hot cached pages.
 
+Then I'd better incorporate a design for this in the zone
+allocator (we could add this to the page_struct, but in
+the zone_struct we can make a nice bitmap of it).
 
-Presumably to reduce memory use, but at what cost?  It prevents
-lazy reclamation and makes locating available blocks a major
-headache.  It only takes 4k of memory to store a bitmap of free
-blocks in a 128 Meg system.  Storing the free list in free space is
-an admirable hack, but maybe outdated.
+OTOH, is it really _that_ much different from an aging
+scheme with an initial age of 1?
 
-Zach Amsden
-amsden@andrew.cmu.edu
-
-P.S. I'm new to this discussion, so please don't flay me if
-everything I said is in gross violation of the truth.
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
