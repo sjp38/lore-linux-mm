@@ -1,31 +1,61 @@
-Date: Thu, 07 Aug 2003 11:30:48 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Thu, 7 Aug 2003 18:21:27 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
 Subject: Re: 2.6.0-test2-mm5
-Message-ID: <37150000.1060281047@[10.10.2.4]>
-In-Reply-To: <3F321115.80606@cyberone.com.au>
-References: <20030806223716.26af3255.akpm@osdl.org>	<28050000.1060237907@[10.10.2.4]> <20030807000542.5cbf0a56.akpm@osdl.org> <3F320DFC.6070400@cyberone.com.au> <3F32108A.2010000@cyberone.com.au> <3F321115.80606@cyberone.com.au>
+In-Reply-To: <20030806223716.26af3255.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.44.0308071819380.4791-100000@logos.cnet>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> Andrew and or Martin, please test attached patch.
->> Thanks.
->> 
+
+On Wed, 6 Aug 2003, Andrew Morton wrote:
+
 > 
-> Well, one of the WARN conditions I put in there is clearly
-> redundant...
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test2/2.6.0-test2-mm5/
+> 
+> 
+> Lots of different things.  Mainly trying to get this tree stabilised again;
+> there has been some breakage lately.
 
-Yeah, that patch fixes it.
+Tried to boot it on OSDL's 8way:
 
-Thanks,
+checking TSC synchronization across 8 CPUs: passed.
+Starting migration thread for cpu 0
+Bringing up 1
+CPU 1 IS NOW UP!
+Starting migration thread for cpu 1
+Bringing up 2
+CPU 2 IS NOW UP!
+Starting migration thread for cpu 2
+Bringing up 3
+CPU 3 IS NOW UP!
+Starting migration thread for cpu 3
+Bringing up 4
+CPU 4 IS NOW UP!
+Starting migration thread for cpu 4
+Bringing up 5
+CPU 5 IS NOW UP!
+Starting migration thread for cpu 5
+Bringing up 6
+CPU 6 IS NOW UP!
+Starting migration thread for cpu 6
+Bringing up 7
+CPU 7 IS NOW UP!
+Starting migration thread for cpu 7
+CPUS done 16
+zapping low mappings.
+mtrr: v2.0 (20020519)
+Initializing RT netlink socket
+EISA bus registered
+PCI: PCI BIOS revision 2.10 entry at 0xfd26c, last bus=15
+PCI: Using configuration type 1
 
-M.
+
+Locked up solid there. Want more info ? 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
