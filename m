@@ -1,55 +1,63 @@
-Message-ID: <3ABA7851.AB080D44@redhat.com>
-Date: Thu, 22 Mar 2001 17:10:25 -0500
-From: Doug Ledford <dledford@redhat.com>
-MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
 Subject: Re: [PATCH] Prevent OOM from killing init
-References: <E14gCYn-0003K3-00@the-village.bc.nu>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Thu, 22 Mar 2001 17:12:52 -0500
+References: <20010322142831.A929@owns.warpcore.org> <E14gCYn-0003K3-00@the-village.bc.nu> <20010322230041.A5598@win.tue.nl>
+In-Reply-To: <20010322230041.A5598@win.tue.nl>
+MIME-Version: 1.0
+Message-Id: <01032217125201.06908@oscar>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Guest section DW <dwguest@win.tue.nl>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Stephen Clouse <stephenc@theiqgroup.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox wrote:
-> 
-> > Really the whole oom_kill process seems bass-ackwards to me.  I can't in my mind
-> > logically justify annihilating large-VM processes that have been running for
-> > days or weeks instead of just returning ENOMEM to a process that just started
-> > up.
-> 
-> How do you return an out of memory error to a C program that is out of memory
-> due to a stack growth fault. There is actually not a language construct for it
+On Thursday 22 March 2001 17:00, Guest section DW wrote:
+> On Thu, Mar 22, 2001 at 09:23:54PM +0000, Alan Cox wrote:
+> > > Really the whole oom_kill process seems bass-ackwards to me.  I can't
+> > > in my mind logically justify annihilating large-VM processes that have
+> > > been running for days or weeks instead of just returning ENOMEM to a
+> > > process that just started up.
+> >
+> > How do you return an out of memory error to a C program that is out of
+> > memory due to a stack growth fault. There is actually not a language
+> > construct for it
+>
+> Alan, this is a fake argument.
+> Linux is bad, and you defend it by saying that it is impossible to be
+> perfect.
+>
+> I have used various Unix flavours for approximately thirty years.
+> Stack overflow has not been a real problem. Of course they occurred
+> every now and then, but roughly speaking only for unchecked recursion,
+> that is, in cases of a program bug.
+>
+> Presently however, a flawless program can be killed.
+> That is what makes Linux unreliable.
+>
+> > Eventually you have to kill something or the machine deadlocks.
+>
+> Alan, this is a fake argument.
+> When I have a computer algebra system, and it computes millions of
+> function values for some expensive function, then it keeps a cache
+> of already computed values. Maybe a value is needed again and we
+> save ten seconds of computation.
+> But of course, when we run out of memory, nothing is easier than
+> just throwing this cache out.
+>
+> You see, the bug is that malloc does not fail. This means that the
+> decisions about what to do are not taken by the program that knows
+> what it is doing, but by the kernel.
 
-Simple, you reclaim a few of those uptodate buffers.  My testing here has
-resulting in more of my system daemons getting killed than anything else, and
-it never once has solved the actual problem of simple memory pressure from
-apps reading/writing to disk and disk cache not releasing buffers quick
-enough.
+By this arguement the OOM kill code is fine...  If malloc is broken fix it.  
+Maybe we need to stage things so that ENOMEM gets returned to requests
+before we are totally out of memory.  If the apps ignore the errors then the
+kills happen.
 
-> > It would be nice to give immunity to certain uids, or better yet, just turn the
-> > damn thing off entirely.  I've already hacked that in...errr, out.
-> 
-> Eventually you have to kill something or the machine deadlocks. The oom killing
-> doesnt kick in until that point. So its up to you how you like your errors.
-
-I beg to differ.  If you tell me that a machine that looks like this:
-
-[dledford@monster dledford]$ free
-             total       used       free     shared    buffers     cached
-Mem:       1017800    1014808       2992          0      73644     796392
--/+ buffers/cache:     144772     873028
-Swap:            0          0          0
-[dledford@monster dledford]$ 
-
-is in need of killing sshd, I'll claim you are smoking some nice stuff ;-)
-
--- 
-
- Doug Ledford <dledford@redhat.com>  http://people.redhat.com/dledford
-      Please check my web site for aic7xxx updates/answers before
-                      e-mailing me about problems
+Thoughts?
+Ed Tomlinson
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
