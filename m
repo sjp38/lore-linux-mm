@@ -1,56 +1,61 @@
-Date: Tue, 7 Aug 2001 14:33:44 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-In-Reply-To: <Pine.LNX.4.33.0108071245250.30280-100000@touchme.toronto.redhat.com>
-Message-ID: <Pine.LNX.4.33.0108071425590.1434-100000@penguin.transmeta.com>
+Date: Tue, 7 Aug 2001 23:33:21 +0200
+References: <Pine.LNX.4.33.0108071426380.30280-100000@touchme.toronto.redhat.com>
+In-Reply-To: <Pine.LNX.4.33.0108071426380.30280-100000@touchme.toronto.redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Message-Id: <0108072333210J.02365@starship>
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ben LaHaise <bcrl@redhat.com>
-Cc: Daniel Phillips <phillips@bonn-fries.net>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ben LaHaise <bcrl@redhat.com>, Andrew Morton <akpm@zip.com.au>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 7 Aug 2001, Ben LaHaise wrote:
-> > Try pre4.
+On Tuesday 07 August 2001 20:40, Ben LaHaise wrote:
+> On Tue, 7 Aug 2001, Andrew Morton wrote:
+> > Ben, are you using software RAID?
+> >
+> > The throughput problems which Mike Black has been seeing with
+> > ext3 seem to be specific to an interaction with software RAID5
+> > and possibly highmem.  I've never been able to reproduce them.
 >
-> It's similarly awful (what did you expect -- there are no meaningful
-> changes between the two!).  io throughput to a 12 disk array is humming
-> along at a whopping 40MB/s (can do 80) that's very spotty and jerky,
-> mostly being driven by syncs.
+> Yes, but I'm using raid 0.  The ratio of highmem to normal memory is
+> ~3.25:1, and it would seem that this is breaking write throttling
+> somehow. The interaction between vm and io throttling is not at all
+> predictable. Certainly, pulling highmem out of the equation results in
+> writes proceeding at the speed of the disk, which makes me wonder if
+> the bounce buffer allocation is triggering the vm code to attempt to
+> free more memory.... Ah, and that would explain why shorter io queues
+> makes things smoother: less memory pressure is occuring on the normal
+> memory zone from bounce buffers.  The original state of things was
+> allowing several hundred MB of ram to be allocated for bounce buffers,
+> which lead to a continuous shortage, causing kswapd et al to spin in a
+> loop making no progress.
 
-How about some sane approach to "balace_dirty()", like in -pre6.
+I thought Marcelo and Linus fixed that in pre1.
 
-The sane approach to balance_dirty() is to
- - when we're over the threshold of dirty, but not over the hard limit, we
-   start IO. We don't wait for it (except in the sense that if we overflow
-   the request queue we will _always_ wait for it, of course. No way to
-   avoid that).
- - if we're over the hard limit, we wait for the oldest buffer on the
-   locked list.
+But even with the inactive_plent/skip_page strategy there's a problem.  
+Suppose 2 gig of memory is active, that's 2 million pages.  Suppose you 
+touch it all once, now everything is active, age=2.  It takes 4 million 
+scan steps to age that down to zero so we can start deactivating the 
+kind of pages we want.  In the meantime the page cache user is stalled, 
+the pages just aren't there.  After two times around the active list, 
+inactive pages come flooding out, some time later they make it through 
+the inactive queue, the user snaps them up and create another flood of 
+activations.
 
-The only question is "when should we wake up bdflush?" I currently wake it
-up any time we're over the soft limit, but I have this feeling that we
-really should wait until we're over the hard limit - oherwise we might end
-up dribbling again. I haven't tried it, but I will. Others please do too -
-its trivially moving the wakeup around in fs/buffer.c: balance_dirty().
+Please, tell me this scenario can't happen.
 
-At least here it gives quite good results, and was rather usable even
-under X when writing a 8GB file. I haven't seen this disk push 20MB/s
-sustained before, and it did now (except when I was doing other things at
-the time).
+> Hmmm, how to make kswapd/bdflush/kreclaimd all back off until progress
+> is made in cleaning the io queue?
 
-Will it keep the IO queues full as hell and make interactive programs
-suffer? Yes, of course it will. No way to avoid the fact that reads are
-going to be slower if there's a lot of writes going on. But I didn't see
-vmstat hickups or anything like that.
+I'd suggest putting memory users on a wait queue instead of letting them 
+transform themselves into vm scanners...
 
-Of course, this will depend on machine and on disk controller etc. Which
-is why it would be good to test..
-
-		Linus
-
+--
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
