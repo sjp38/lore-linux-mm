@@ -1,43 +1,46 @@
-Content-Type: text/plain; charset=US-ASCII
-From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: [PATCH] kill flush_dirty_buffers
-Date: Mon, 6 Aug 2001 21:53:34 +0200
-References: <Pine.LNX.4.33L.0108061538360.1439-100000@duckman.distro.conectiva>
-In-Reply-To: <Pine.LNX.4.33L.0108061538360.1439-100000@duckman.distro.conectiva>
+Date: Mon, 06 Aug 2001 16:12:00 -0400
+From: Chris Mason <mason@suse.com>
+Subject: Re: [RFC] using writepage to start io
+Message-ID: <755760000.997128720@tiny>
+In-Reply-To: <0108062145120I.00294@starship>
 MIME-Version: 1.0
-Message-Id: <0108062153340J.00294@starship>
-Content-Transfer-Encoding: 7BIT
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>
-Cc: Chris Mason <mason@suse.com>, linux-mm@kvack.org
+To: Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Monday 06 August 2001 20:39, Rik van Riel wrote:
-> On Mon, 6 Aug 2001, Linus Torvalds wrote:
-> > The other issue is that I suspect that "flushtime" is completely
-> > useless these days, and should just be dropped. If we've decided to
-> > start flushing stuff out, we shouldn't stop flushing just because
-> > some buffer hasn't quite reached the proper age yet.
 
-It's still useful for making sure dirty buffers don't get too old.
+On Monday, August 06, 2001 09:45:12 PM +0200 Daniel Phillips
+<phillips@bonn-fries.net> wrote:
 
-> > We'd have been
-> > better off maybe deciding not to even _start_ flushing at all, but
-> > once we've started, we might as well do the dirty buffers we see (up
-> > to a maximum that is due to IO _latency_, not due to "how long since
-> > this buffer was dirtied")
+>> Almost ;-) memory pressure doesn't need to care about how long a
+>> buffer has been dirty, that's kupdate's job.  kupdate doesn't care if
+>> the buffer it is writing is a good candidate for freeing, that's taken
+>> care of elsewhere. The two never need to talk (aside from
+>> optimizations).
+> 
+> My point is, they should talk, in fact they should be the same function. 
+> It's never right for bdflush to submit younger buffers when there are 
+> dirty buffers whose flush time has already passed.
+> 
 
-*nod*
+Grin, we're talking in circles.  My point is that by having two threads,
+bdflush is allowed to skip over older buffers in favor of younger ones
+because somebody else is responsible for writing the older ones out.
 
-Where IO latency isn't that well defined at the moment.  Consider a a 
-slow and a fast writable block device on the same system.  The ideal 
-length of the IO queue depends on which has most of the IO activity.
+Take away the kupdate thread and bdflush must write the older buffer.  I
+believe this limits optimizations, unless kswapd is changed to handle all
+memory pressure flushes.
 
-This suggests that buffer flushing needs to be per-device.
+-chris
 
---
-Daniel
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
