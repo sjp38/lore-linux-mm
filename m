@@ -1,30 +1,51 @@
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.5.43-mm1: KDE (3.1 beta2) do not start anymore
-Reply-To: tomlins@cam.org
-Date: Wed, 16 Oct 2002 18:50:43 -0400
-References: <200210162327.53701.Dieter.Nuetzel@hamburg.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Transfer-Encoding: 8Bit
-Message-Id: <20021016225043.4A3732FBBA@oscar.casa.dyndns.org>
+Date: Tue, 15 Oct 2002 02:18:07 +0100
+From: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Subject: Re: [patch, feature] nonlinear mappings, prefaulting support, 2.5.42-F8
+Message-ID: <20021015011807.GA27718@bjl1.asuk.net>
+References: <Pine.LNX.4.44.0210141334100.17808-100000@localhost.localdomain>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0210141334100.17808-100000@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dieter =?ISO-8859-1?Q?N=FCtzel?= <Dieter.Nuetzel@hamburg.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dieter Nutzel wrote:
+I have a couple of suggestions/questions that may make this syscall
+more generally useful.
 
-> Nothing in the logs.
-> But maybe (short before) sound initialization.
-> Could it be "shared page table" related, too?
-> 
-> W'll try that tomorrow.
+Ingo Molnar wrote:
+>  * @prot: new protection bits of the range
 
-Kde 3.0 has never been able to start here when shared page tables have
-been enabled in an mm kernel.  Still some cleanups and debugging to do 
-it would seem.
+So, you can change the protection per page without thousands of vmas?
+Some garbage collectors could take advantage of that.
 
-Ed Tomlinson
+> Since all the mapping information of nonlinear vmas lives in the
+> pagetables, they either have to be MAP_LOCKED (for databases or
+> virtualization software) or need a special SIGBUS handler to
+> reinstall mappings across swapping (for more complex uses such as
+> memory debuggers).
+
+I like the SIGBUS.  Am I correct to assume that, when there is memory
+pressure, some pages are evicted from memory and all accesses to those
+pages from userspace will raise SIBUS until the mapping is
+reastablished?  Am I correct to assume this works fine on /dev/shm files?
+
+This has uses in programs that cache data that is faster to
+recalculate than to swap.  For example, a vector image displayer might
+prefer to re-render parts of an image than to wait for parts of a
+large cached image to page in.  A JIT run-time compiler might prefer
+to regenerate code fragments on demand than to wait for paged out,
+cached code fragments to page back in.
+
+I think that the above two features are already supported by your
+patch, by simply using a /dev/shm file as the backing store.  Ingo,
+can you confirm this?
+
+Thanks,
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
