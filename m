@@ -1,127 +1,77 @@
-Date: Fri, 9 Jun 2000 14:23:29 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
- it'snot just the code)
-In-Reply-To: <007501bfd233$288827c0$0a1e17ac@local>
-Message-ID: <Pine.LNX.4.21.0006091410100.31358-100000@duckman.distro.conectiva>
+Message-ID: <00ba01bfd240$4fdebac0$0a1e17ac@local>
+From: "Manfred Spraul" <manfred@colorfullife.com>
+References: <Pine.LNX.4.21.0006091410100.31358-100000@duckman.distro.conectiva>
+Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:it'snot just the code)
+Date: Fri, 9 Jun 2000 20:26:48 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Jun 2000, Manfred Spraul wrote:
+Is it correct that you want to use 5 levels?
 
-> > This is exactly what one global LRU will achieve, at less
-> > cost and with better readable code.
+* "mapped" or "hot file cache" / "hot buffer cache"
+* active [here your page aging is performed]
+* inactive list
+* scavenge list
+* gfp buddy list.
+
+I thought that unmapping of the last externally visible mapping will move a
+page into the inactive list, and the LRU nature of that list will perform
+the aging. Is your inactive list a usually short clock like list? My
+inactive list is a long LRU list. If the scavenge list gets empty, then the
+last few dozend entries would be spliced out from the inactive list, and
+page->a_op->we_need_memory__unpin_yourself_and_add_yourself_to_the_scavenge_
+list() is called.
+
+
+From: "Rik van Riel" <riel@conectiva.com.br>
+> > You are right, but what will you do with pinned pages once they
+> > reach the end of the LRU? Will you drop them from the LRU, or
+> > will you add them to the beginning?
 >
-> You are right, but what will you do with pinned pages once they
-> reach the end of the LRU? Will you drop them from the LRU, or
-> will you add them to the beginning?
-
-We will ask the filesystem to write out data and unpin this
-block. If it doesn't, we'll ask again next time, ....
-
-Note that this is essentially harmless since we only ask the
-filesystem to clean up pages so they can be unpinned, we are
-in no way asking the filesystem to free used pages...
-
-> AFAICS a few global LRU lists [your inactive, active, scavenge
-> (sp?) lists] should work, but I don't understand yet how you
-> want to prevent that one grep over the kernel tree will push
-> everyone else into swap.
-
-Ahh, but the swap and filesystem IO will be triggered from the
-end of the _inactive_ list. We will unmap pages and allocate
-swap earlier on, but we won't actually do any of the IO...
-
-> Is the active list also a LRU list? AFAICS we don't have the
-> reverse mapping "struct page ->all pte's", so we cannot push a
-> page once it reaches the end of the LRU. AFAIK BSD has that
-> reverse mapping (Please correct me if I'm wrong). IMHO an LRU
-> won't help us.
-
-The active list will probably have to be what our current
-swap_out/shrink_mmap combo does. In 2.5 we can add the
-changes needed to do reverse mapping, but until then we'll
-probably have to leave this kludge ;(
-
-> Level 1 (your active list): the page users such as * mmapped
-> pages, annon pages, mapped shm pages: they are unmapped by
-> mm/vmscan.c. vma->swapout() should add them to the level 2 list.
+> We will ask the filesystem to write out data and unpin this
+> block. If it doesn't, we'll ask again next time, ....
 >
-> * a tiny hotlist for the page & buffer cache, otherwise we have
-> "spin_lock();list_del(page);list_add(page,list_head);spin_unlock()"
-> during every operation. Clock algorithm with a referenced bit.
 
-Not so fast ... this is the only level where we do page aging, so
-we don't want to move the pages to the inactive list too fast. When
-we first unmap a page, it'll get added to the list and start out
-with a certain page age, after which aging has to happen for it to
-be moved to the inactive list...
+Why? E.g. you have a box with a fast raid array, and a slow parallel port
+zip drive. I'd give the filesystem one "flush now" call for the page, and
+remove the page immediately from the inactive list. If you walk circles,
+then it's a clock like algorithm, not LRU like.
 
-> Level 2: (your inactive list)
-> * unmapped pages LRU list 1 [pages can be dirty or clean]. At
-> the end of this list, page->a_ops->?? is called, and the page is
-> dropped from the list. The memory owner adds it to the level 3
-> list once it's clean.
+>
+> Ahh, but the swap and filesystem IO will be triggered from the
+> end of the _inactive_ list. We will unmap pages and allocate
+> swap earlier on, but we won't actually do any of the IO...
+>
+Hey, I only have 192 MB. One kernel tree is ~90 MB, a diff between 2 trees
+180 MB. One diff will push everything behind the end of the inactive list.
 
-The operation we call is basically only there to get the page
-cleaned and the buffers removed. We try to keep a certain number
-of inactive pages around so we'll always have something to reclaim
-and page aging is balanced.
+> > The selection between the Level 1 page holders could be made on
+> > their "reanimate rate": if one owner often request pages from
+> > Level 2 or 3 back, then we reap him too often.
+>
+> That's what page aging is for.
+>
+If a subsystem request a page back from the inactive/scavenge list, then we
+must remove the page from these lists. We could use these function calls to
+calculate accurate hit/miss rates for the memory users, and use these stats
+for the page aging without a special aging level.
 
-> Level 3: (your scavenge list)
-> * LRU list of clean pages, ready for immediate reclamation.
-> gfp(GFP_WAIT) takes the oldest entry from this list.
+We could go one step further and assign these stats to each address space
+[file data, shm]//each process [anon pages,mmap]. Playing a DVD & running a
+database could auto-tune into discard the DVD data immediately, don't touch
+the database data.
 
-*nod*
-
-> Level 4:
-> free pages in the buddy. for GFP_ATOMIC allocations, and for
-> multi page allocations.
-
-*nod*  (and for PF_MEMALLOC allocations)
-
-> Pages in Level 2 and 3 are never "in use", i.e. never reachable
-> from user space, or read/written by generic_file_{read,write}.
-> The page owner can still reclaim them if a soft pagefault
-> occurs. File pages are still in the page cache hash table, shm &
-> anon pages are reachable through the swap cache.
-
-Yes.
-
-> Level 2 could be split in 2 halfs, clean pages are added in the
-> middle. [reduces IO]
-
-We do something like this, but splitting the list in half is,
-IMHO not a good idea. What we do instead is:
-- walk the list, reclaiming free pages
-- if we didn't get enough, walk the list again and start
-  (async?) IO on a number of dirty pages
-- if we didn't get enough free pages after the second run
-  (unlikely at the moment, but some page->mapping->flush()
-  functions we may want to make synchronous later...) we
-  kick bdflush/kflushd in the nuts so we'll have enough
-  free pages next time
-
-> The selection between the Level 1 page holders could be made on
-> their "reanimate rate": if one owner often request pages from
-> Level 2 or 3 back, then we reap him too often.
-
-That's what page aging is for.
-
-regards,
-
-Rik
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+    Manfred
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
