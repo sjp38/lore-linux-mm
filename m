@@ -1,10 +1,11 @@
-Date: Thu, 29 Jul 2004 16:21:47 -0500
+Date: Thu, 29 Jul 2004 16:51:26 -0500
 From: Brent Casavant <bcasavan@sgi.com>
 Reply-To: Brent Casavant <bcasavan@sgi.com>
 Subject: Re: Scaling problem with shmem_sb_info->stat_lock
-In-Reply-To: <Pine.LNX.4.44.0407292006290.1096-100000@localhost.localdomain>
-Message-ID: <Pine.SGI.4.58.0407291614150.35081@kzerza.americas.sgi.com>
+In-Reply-To: <Pine.SGI.4.58.0407291614150.35081@kzerza.americas.sgi.com>
+Message-ID: <Pine.SGI.4.58.0407291650050.35081@kzerza.americas.sgi.com>
 References: <Pine.LNX.4.44.0407292006290.1096-100000@localhost.localdomain>
+ <Pine.SGI.4.58.0407291614150.35081@kzerza.americas.sgi.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -13,46 +14,22 @@ To: Hugh Dickins <hugh@veritas.com>
 Cc: William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 29 Jul 2004, Hugh Dickins wrote:
+On Thu, 29 Jul 2004, Brent Casavant wrote:
 
-> Jack Steiner's question was, why is this an issue on 2.6 when it
-> wasn't on 2.4?  Perhaps better parallelism elsewhere in 2.6 has
-> shifted contention to here?  Or was it an issue in 2.4 after all?
+> On Thu, 29 Jul 2004, Hugh Dickins wrote:
 
-It was, but for some reason it didn't show up with this particular
-test code.
-
-> Why are all these threads allocating to the inode at the same time?
+> > Why doesn't the creator of the shm segment or /dev/zero mapping just
+> > fault in all the pages before handing over to the other threads?
 >
-> Are they all trying to lock down the same pages?  Or is each trying
-> to fault in a different page (as your "parallel" above suggests)?
+> Performance.  The mapping could well range into the tens or hundreds
+> of gigabytes, and faulting these pages in parallel would certainly
+> be advantageous.
 
-They're all trying to fault in a different page.
+Oh, and let me clarify something.  I don't think anyone currently
+performs mappings in the hundreds of gigabytes range.  But it probably
+won't be too many years until that one happens.
 
-> Why doesn't the creator of the shm segment or /dev/zero mapping just
-> fault in all the pages before handing over to the other threads?
-
-Performance.  The mapping could well range into the tens or hundreds
-of gigabytes, and faulting these pages in parallel would certainly
-be advantageous.
-
-> But I may well have entirely the wrong model of what's going on.
-> Could you provide a small .c testcase to show what it's actually
-> trying to do when the problem manifests?  I don't have many cpus
-> to reproduce it on, but it should help to provoke a solution.
-
-Sure.  I'll forward it seperately.  I'll actually send you the
-very program I've been using to test this work.  Jack Steiner
-wrote it, so there shouldn't be any issue sharing it.
-
-> (Once we've shifted the contention from info->lock to mapping->tree_lock,
-> it'll be interesting but not conclusive to hear how 2.6.8 compares with
-> 2.6.8-mm: since mm is currently using read/write_lock_irq on tree_lock.)
-
-Therein lies the rub, right?  We solve one contention problem, only to
-move it elsewhere. :)
-
-Brent
+But the basic point even at tens of gigabtyes is still valid.
 
 -- 
 Brent Casavant             bcasavan@sgi.com        Forget bright-eyed and
