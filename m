@@ -1,121 +1,77 @@
-Date: Wed, 19 Jan 2005 13:17:30 +0000 (GMT)
+Date: Wed, 19 Jan 2005 13:45:30 +0000 (GMT)
 From: Mel Gorman <mel@csn.ul.ie>
-Subject: RE: [RFC] Avoiding fragmentation through different allocator
-In-Reply-To: <D36CE1FCEFD3524B81CA12C6FE5BCAB008D16A9E@fmsmsx406.amr.corp.intel.com>
-Message-ID: <Pine.LNX.4.58.0501191223220.8296@skynet>
-References: <D36CE1FCEFD3524B81CA12C6FE5BCAB008D16A9E@fmsmsx406.amr.corp.intel.com>
+Subject: Re: [RFC] Avoiding fragmentation through different allocator
+In-Reply-To: <20050117114251.35B5.YGOTO@us.fujitsu.com>
+Message-ID: <Pine.LNX.4.58.0501191336510.8296@skynet>
+References: <20050115172317.3C0F.YGOTO@us.fujitsu.com>
+ <Pine.LNX.4.58.0501161613350.16492@skynet> <20050117114251.35B5.YGOTO@us.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Tolentino, Matthew E" <matthew.e.tolentino@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Yasunori Goto <ygoto@us.fujitsu.com>
+Cc: "Tolentino, Matthew E" <matthew.e.tolentino@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 17 Jan 2005, Tolentino, Matthew E wrote:
+On Mon, 17 Jan 2005, Yasunori Goto wrote:
 
-> >I considered adding a new zone but I felt it would be a massive job for
-> >what I considered to be a simple problem. I think my approach is nice
-> >and isolated within the allocator itself and will be less likely to
-> >affect other code.
+> > Is there an architecture-independant way of finding this out?
 >
-> Just for clarity, I prefer this approach over adding zones,
-> hence my pursuit of something akin to it.
+>   No. At least, I have no idea. :-(
 >
 
-Ok, cool.
+In another mail to Matthew, I suggested that the zone->free_area_usemap
+could be used to track hotplug blocks of pages by either using a
+bit-pattern of 11 for hotplug pages or adding a third bit.
 
-> >On possibility is that we could say that the UserRclm and KernRclm pool
-> >are always eligible for hotplug and have hotplug banks only
-> >satisy those
-> >allocations pushing KernNonRclm allocations to fixed banks. How is it
-> >currently known if a bank of memory is hotplug? Is there a
-> >node for each
-> >hotplug bank? If yes, we could flag those nodes to only
-> >satisify UserRclm
-> >and KernRclm allocations and force fallback to other nodes.
+get_pageblock_type() could then be taught to identify a hotplug region
+within page_alloc.c at least. If the information is needed outside the
+allocator, it will need more work though.
+
+> > What's the current attidute for adding a new zone? I felt there would be
+> > resistence as a new zone would affect a lot of code paths and be yet
+> > another zone that needed balancing. For example, is there a HIGHMEM
+> > version of the ZONE_REMOVABLE or could normal and highmem be in this zone?
 >
-> The hardware/firmware has to tell the kernel in some way.  In
-> my case it is ACPI that delineates between regions that may be
-> removed.  No, there isn't a node for each bank of hot-plug
-> memory.  The reason I was pursuing this was to be able to
-> avoid coarse granularity distinctions like that.
-
-As there is not a node for each hotplug bank, this has to happen at the
-zone level. Architectures have the option of defining their own
-memmap_init() although only ia64 take advantage of it. If we wanted to be
-able to identify hotplug pages in an independant manner, we woulc
-implement memmap_init() for hotplug and fill zone->free_area_usemap
-accordingly. Currently the bitmap in there has two bits for each
-2^MAX_ORDER block that looks like;
-
-00 = Kernel non-reclaimable
-10 = Kernel reclaimable
-01 = User reclaimable
-
-So, we could say 11 is for hotplug memory. Alternatively if it is possible
-to have a system that consists entirely of hotplug memory, we could add a
-third bit. As it is one bit per 2^MAX_ORDER pages in the system, it would
-not be a big chunk of memory.
-
-The question is what to do with that information then. We can't just say
-that User pages go to hotplug regions as that will introduce two problems.
-One of balancing and the second of what happens when an unreclaimable page
-is in a bank we want to move without page migration in place.
-
-> >The danger is
-> >that allocations would fail because non-hotplug banks were already full
-> >and pageout would not happen because the watermarks were satisified.
+> Yes. In my current patch of memory hotplug, Removable is like Highmem.
+>  ( <http://sourceforge.net/mailarchive/forum.php?forum_id=223>
+>      It is group B of "Hot Add patches for NUMA" )
 >
-> Which implies a potential need for balancing between user/kernel
-> lists, no?
+> I tried to make new removable zone which could be with normal and dma
+> before it. But, it needs too much work as you said. So, I gave up it.
+> I heard Matt-san has some ideas for it. So, I'm looking forward to
+> see it.
 >
 
-If we're not careful, yes and I have a gut-feeling that says we should not
-need to be balancing anything for hotplug.
+I'm taking a look through these patches just so I know what the other
+approaches were.
 
-> >If you have already posted a version of the patch (you have
-> >feedback so I
-> >guess it's there somewhere), can you send me a link to the thread where
-> >you introduced your approach? It's possible that we just need
-> >to merge the
-> >ideas.
->
-> No, I hadn't posted it yet due to chasing a bug.  However, perhaps
-> now I'll instead focus on adding the necessary hotplug support
-> into your patch, hence merging the hotplug requirements/ideas?
->
-
-I've no problem with that. It's just a case of how we use the information
-exactly.
-
-> >It's because I consider all 2^MAX_ORDER pages in a zone to be
-> >equal where
-> >as I'm guessing you don't. Until they are split, there is
-> >nothing special
-> >about them. It is only when it is split that I want it reserved for a
-> >purpose.
+> > > I agree that dividing per-cpu caches is not good way.
+> > > But if Kernel-nonreclaimable allocation use its UserRclm pool,
+> > > its removable memory bank will be harder to remove suddenly.
+> > > Is it correct? If so, it is not good for memory hotplug.
+> > > Hmmmm.
+> > >
 > >
-> >However, if we knew there were blocks that were hot-pluggable, we could
-> >just have a hotplug-global and non-hotplug-global pool. If
-> >it's a UserRclm
-> >or KernRclm allocation, split from hotplug-global, otherwise use
-> >non-hotplug-global. It'd increase the memory requirements of
-> >the patch a
-> >bit though.
+> > It is correct. However, this will only happen in low-memory conditions.
+> > For a kernel-nonreclaimable allocation to use the userrclm pool, three
+> > conditions have to be met;
+> >
+> > 1. Kernel-nonreclaimable pool has no pages
+> > 2. There are no global 2^MAX_ORDER pages
+> > 3. Kern-reclaimable pool has no pages
 >
-> Exactly.  Perhaps this could just be isolated via the
-> CONFIG_MEMORY_HOTPLUG build option, thus not increasing the memory
-> requirements in the common case...
+> I suppose if this patch have worked for one year,
+> unlucky case might occur. Probably, enterprise system will not
+> allow it. So, I will try disabling fallback for KernNoRclm.
 >
 
-I think so. The changes would be removing pages from the global pool with
-macros rather than directly and having the hotplug and non-hotplug
-versions.
+I can almost guarentee that will fail in low-memory conditions. Before I
+implemented proper fallback logic, I used to get oopses in low-memory
+conditions. I found it was because KernNoRclm had nowhere to fallback but
+there was loads of free memory so kswapd was not taking place.
 
-We just need to think more of what happens when a kernel allocation comes
-along, fixed memory is depleted but there is plenty of hotplug memory
-left.
+So, just disabling fallback is not the right answer.
 
 -- 
 Mel Gorman
