@@ -1,62 +1,53 @@
-Subject: Re: Compile problem with CONFIG_X86_CYCLONE_TIMER Re:
-	2.6.0-test3-mm2
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20030815203620.GO1027@matchmail.com>
-References: <20030813013156.49200358.akpm@osdl.org>
-	 <20030815193834.GL1027@matchmail.com> <20030815202322.GN1027@matchmail.com>
-	 <20030815203620.GO1027@matchmail.com>
-Content-Type: multipart/mixed; boundary="=-s2hh8Fv/6PQdVc4UFwto"
-Message-Id: <1061065941.31662.35.camel@nighthawk>
+Date: Sun, 17 Aug 2003 08:54:18 +0200
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [uClinux-dev] uClinux 2.6.x memory allocator brokenness
+Message-ID: <20030817065417.GA16969@lst.de>
+References: <200308162245.16480.bernie@develer.com>
 Mime-Version: 1.0
-Date: 16 Aug 2003 13:32:22 -0700
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200308162245.16480.bernie@develer.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Fedyk <mfedyk@matchmail.com>
-Cc: Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, John Stultz <johnstul@us.ibm.com>
+To: Bernardo Innocenti <bernie@develer.com>
+Cc: linux-mm@kvack.org, uClinux development list <uclinux-dev@uclinux.org>
 List-ID: <linux-mm.kvack.org>
 
---=-s2hh8Fv/6PQdVc4UFwto
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
+The right list for this would be linux-mm I guess..
 
-On Fri, 2003-08-15 at 13:36, Mike Fedyk wrote:
-> On Fri, Aug 15, 2003 at 01:23:22PM -0700, Mike Fedyk wrote:
-> > On Fri, Aug 15, 2003 at 12:38:34PM -0700, Mike Fedyk wrote:
-> > > arch/i386/kernel/timers/timer_cyclone.c: In function `init_cyclone':
-> > > arch/i386/kernel/timers/timer_cyclone.c:157: `FIX_CYCLONE_TIMER' undeclared (first use in this function)
-> > > arch/i386/kernel/timers/timer_cyclone.c:157: (Each undeclared identifier is reported only once
-> > > arch/i386/kernel/timers/timer_cyclone.c:157: for each function it appears in.)
-> > >
-
-I couldn't replicate the problem, but I suspect this fix is correct in
-any case.  If this doesn't fix it, please post your config.  
-
-John, I imagine that you probably haven't always had CONFIG_X86_CYCLONE,
-and this was just a leftover from then.  
-
--- 
-Dave Hansen
-haveblue@us.ibm.com
-
---=-s2hh8Fv/6PQdVc4UFwto
-Content-Disposition: attachment; filename=cyclone-fixmap-2.6.0-test3-mm2-0.patch
-Content-Type: text/plain; name=cyclone-fixmap-2.6.0-test3-mm2-0.patch; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 7bit
-
---- linux-2.6.0-test3-mm2-clean/include/asm-i386/fixmap.h	Sat Aug 16 13:18:22 2003
-+++ linux-2.6.0-test3-mm2-cyclonefix/include/asm-i386/fixmap.h	Sat Aug 16 13:28:30 2003
-@@ -73,7 +73,7 @@
- 	FIX_TSS_0,
- 	FIX_ENTRY_TRAMPOLINE_1,
- 	FIX_ENTRY_TRAMPOLINE_0,
--#ifdef CONFIG_X86_SUMMIT
-+#ifdef CONFIG_X86_CYCLONE
- 	FIX_CYCLONE_TIMER, /*cyclone timer register*/
- 	FIX_VSTACK_HOLE_2,
- #endif 
-
---=-s2hh8Fv/6PQdVc4UFwto--
-
+On Sat, Aug 16, 2003 at 10:45:16PM +0200, Bernardo Innocenti wrote:
+> Hello,
+> 
+> not sure if anybody else experienced this problem. 2.5.x/2.6.x
+> kernels seem to have some nasty bug in mm/page_alloc.c.
+> 
+> When I allocate over 256KB of memory, the allocator steps into
+> __alloc_pages() with order=7 and finds nothing free in the 512KB
+> slab, then it splits the 1MB block in two 512MB blocks and fails
+> miserably for some unknown reason.
+> 
+> I also noticed that any allocation (even smaller ones) always
+> fail in the fast path and falls down into the slowish code
+> that wakes up kswapd to free some more pages.
+> 
+> This happens because zone->pages_low is set to 512 while
+> free_pages is consistently below 400 on my system.
+> 
+> Perhaps these values would have to be retuned on embedded targets.
+> 
+> -- 
+>   // Bernardo Innocenti - Develer S.r.l., R&D dept.
+> \X/  http://www.develer.com/
+> 
+> Please don't send Word attachments - http://www.gnu.org/philosophy/no-word-attachments.html
+> 
+> 
+> _______________________________________________
+> uClinux-dev mailing list
+> uClinux-dev@uclinux.org
+> http://mailman.uclinux.org/mailman/listinfo/uclinux-dev
+> This message was resent by uclinux-dev@uclinux.org
+---end quoted text---
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
