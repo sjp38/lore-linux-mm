@@ -1,39 +1,46 @@
 Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA10767
-	for <linux-mm@kvack.org>; Mon, 10 May 1999 17:19:47 -0400
+	by kvack.org (8.8.7/8.8.7) with ESMTP id TAA12195
+	for <linux-mm@kvack.org>; Mon, 10 May 1999 19:42:07 -0400
 From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14135.19821.176947.167396@dukat.scot.redhat.com>
-Date: Mon, 10 May 1999 22:19:41 +0100 (BST)
-Subject: Re: mmap operation
-In-Reply-To: <199905101602.SAA11187@zange.cs.tu-berlin.de>
-References: <199905101602.SAA11187@zange.cs.tu-berlin.de>
+Message-ID: <14135.28332.780955.729082@dukat.scot.redhat.com>
+Date: Tue, 11 May 1999 00:41:32 +0100 (BST)
+Subject: Re: [RFT] [PATCH] kanoj-mm1-2.2.5 ia32 big memory patch
+In-Reply-To: <199905101734.KAA43772@google.engr.sgi.com>
+References: <199905101734.KAA43772@google.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
-To: Gilles Pokam <pokam@cs.tu-berlin.de>
-Cc: linux-mm@kvack.org
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Mon, 10 May 1999 18:02:10 +0200 (MET DST), Gilles Pokam
-<pokam@cs.tu-berlin.de> said:
+On Mon, 10 May 1999 10:33:59 -0700 (PDT), kanoj@google.engr.sgi.com
+(Kanoj Sarcar) said:
 
-> I have implemented a module for buffer management in the 2.0.34 linux
-> kernel.  Now i'm using the write and read method for transfering data
-> between the kernel and user space. I have noticed that the overhead of
-> these 2 operations are quite big, because each time a system call is
-> invoked. So i decided to improve my module by implementing the mmap
-> operation. The mmap operation works well when mapping only one page
-> size. But above this size, for example with an order of at least 1,
-> the later operation fails to work! I have noticed that above 4096 (one
-> page) bytes the zero page is mapped instead!  Could someone help mee
-> solve this problem ? (i use the nopage operation in my mmap method and
-> cluster of 16 pages).
+> There are probably a lot of problems with the code as it stands
+> today. Reviewers, please let me know of any possible improvements.
+> Any ideas on how to improve the uaccess performance will also be
+> greatly appreciated. Testers, your input will be most valuable.
 
-The entire VM works by mapping single pages.  It would be a large task
-to change this.
+On a first scan one thing in particular jumped out:
+
++/*
++ * validate in a user page, so that the kernel can use the kernel direct
++ * mapped vaddr for the physical page to access user data. This locking
++ * relies on the fact that the caller has kernel_lock held, which restricts
++ * kswapd (or anyone else looking for a free page) from running and stealing 
++ * pages. By the same token, grabbing mmap_sem is not needed. 
++ */
+
+Unfortunately, mmap_sem _is_ needed here.  Both find_extend_vma and
+handle_mm_fault need it.  You can't modify or block while scanning the
+vma list without it, or you risk breaking things in threaded
+applications (for example, taking a page fault in handle_mm_fault
+without it can be nasty if you are in the middle of a munmap at the
+time).
 
 --Stephen
 --
