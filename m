@@ -1,60 +1,64 @@
+Date: Thu, 1 Apr 2004 10:51:23 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: msync() behaviour broken for MS_ASYNC, revert patch?
-From: "Stephen C. Tweedie" <sct@redhat.com>
-In-Reply-To: <20040401161949.GC25502@mail.shareable.org>
+Message-Id: <20040401105123.3dd5e969.akpm@osdl.org>
+In-Reply-To: <1080834032.2626.94.camel@sisko.scot.redhat.com>
 References: <1080771361.1991.73.camel@sisko.scot.redhat.com>
-	 <Pine.LNX.4.58.0403311433240.1116@ppc970.osdl.org>
-	 <1080776487.1991.113.camel@sisko.scot.redhat.com>
-	 <Pine.LNX.4.58.0403311550040.1116@ppc970.osdl.org>
-	 <1080834032.2626.94.camel@sisko.scot.redhat.com>
-	 <20040401161949.GC25502@mail.shareable.org>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Message-Id: <1080838642.2626.139.camel@sisko.scot.redhat.com>
+	<Pine.LNX.4.58.0403311433240.1116@ppc970.osdl.org>
+	<1080776487.1991.113.camel@sisko.scot.redhat.com>
+	<Pine.LNX.4.58.0403311550040.1116@ppc970.osdl.org>
+	<1080834032.2626.94.camel@sisko.scot.redhat.com>
 Mime-Version: 1.0
-Date: 01 Apr 2004 17:57:22 +0100
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <jamie@shareable.org>
-Cc: Linus Torvalds <torvalds@osdl.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, linux-kernel <linux-kernel@vger.kernel.org>, Ulrich Drepper <drepper@redhat.com>, Stephen Tweedie <sct@redhat.com>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, drepper@redhat.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Thu, 2004-04-01 at 17:19, Jamie Lokier wrote:
-> Stephen C. Tweedie wrote:
-> > Yes, but we _used_ to have that choice --- call msync() with flags == 0,
-> > and you'd get the deferred kupdated writeback;
+"Stephen C. Tweedie" <sct@redhat.com> wrote:
+>
+> > Tha advantage of the current MS_ASYNC is absolutely astoundingly HUGE: 
+> > because we don't wait for in-progress IO, it can be used to efficiently 
+> > synchronize multiple different areas, and then after that waiting for them 
+> > with _one_ single fsync().
 > 
-> Is that not equivalent to MS_INVALIDATE?  It seems to be equivalent in
-> 2.6.4.
+> The Solaris one manages to preserve those properties while still
+> scheduling the IO "soon".  I'm not sure how we could do that in the
+> current VFS, short of having a background thread scheduling deferred
+> writepage()s as soon as the existing page becomes unlocked.
 
-It is in all the kernels I've looked at, but that's mainly because we
-seem to ignore MS_INVALIDATE.
+filemap_flush() will do exactly this.  So if you want the Solaris
+semantics, calling filemap_flush() intead of filemap_fdatawrite() should do
+it.
 
-> Some documentation I'm looking at says MS_INVALIDATE updates the
-> mapped page to contain the current contents of the file.  2.6.4 seems
-> to do the reverse: update the file to contain the current content of
-> the mapped page.  "man msync" agrees with the the latter.  (I can't
-> look at SUS right now).
+> posix_fadvise() seems to do something a little like this already: the
+> FADV_DONTNEED handler tries
+> 
+> 		if (!bdi_write_congested(mapping->backing_dev_info))
+> 			filemap_flush(mapping);
+> 
+> before going into the invalidate_mapping_pages() call.  Having that (a)
+> limited to the specific file range passed into the fadvise(), and (b)
+> available as a separate function independent of the DONTNEED page
+> invalidator, would seem like an entirely sensible extension.  
+> 
+> The obvious implementations would be somewhat inefficient in some cases,
+> though --- currently __filemap_fdatawrite simply list_splice()s the
+> inode dirty list into the io list.  Walking a long dirty list to flush
+> just a few pages from a narrow range could get slow, and walking the
+> radix tree would be inefficient if there are only a few dirty pages
+> hidden in a large cache of clean pages.
 
-SUSv3 says
+The patches I have queued in -mm allow us to do this.  We use
+find_get_pages_tag() to iterate over only the dirty pages in the tree.
 
-        When MS_INVALIDATE is specified, msync() shall invalidate all
-        cached copies of mapped data that are inconsistent with the
-        permanent storage locations such that subsequent references
-        shall obtain data that was consistent with the permanent storage
-        locations sometime between the call to msync() and the first
-        subsequent memory reference to the data.
-        
-which seems to imply that dirty ptes should simply be cleared, rather
-than propagated to the page dirty bits.
-
-That's easy enough --- we already propagate the flags down to
-filemap_sync_pte, where the page and pte dirty bits are modified.  Does
-anyone know any reason why we don't do MS_INVALIDATE there already?
-
---Stephen
-
+That still has the efficiency problem that when searching for dirty pages
+we also visit pages which are both dirty and under writeback (we're not
+interested in those pages if it is a non-blocking flush), although I've
+only observed that to be a problem when the queue size was bumped up to
+10,000 requests and I fixed that up for the common cases by other means.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
