@@ -2,33 +2,40 @@ From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <14200.43693.106414.697828@dukat.scot.redhat.com>
-Date: Tue, 29 Jun 1999 12:14:53 +0100 (BST)
+Message-ID: <14200.46136.840759.709221@dukat.scot.redhat.com>
+Date: Tue, 29 Jun 1999 12:55:36 +0100 (BST)
 Subject: Re: filecache/swapcache questions [RFC] [RFT] [PATCH] kanoj-mm12-2.3.8
-In-Reply-To: <Pine.BSO.4.10.9906282052110.10964-100000@funky.monkey.org>
-References: <14199.62047.543601.273526@dukat.scot.redhat.com>
-	<Pine.BSO.4.10.9906282052110.10964-100000@funky.monkey.org>
+ Fix swapoff races
+In-Reply-To: <Pine.LNX.4.10.9906290032460.1588-100000@laser.random>
+References: <Pine.BSO.4.10.9906281648010.24888-100000@funky.monkey.org>
+	<Pine.LNX.4.10.9906290032460.1588-100000@laser.random>
 ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.3.96.990629092953.7614D@mole.spellcast.com>
+ReSent-Message-ID: <Pine.LNX.3.96.990629092958.7614E@mole.spellcast.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chuck Lever <cel@monkey.org>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, andrea@suse.de, torvalds@transmeta.com, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Chuck Lever <cel@monkey.org>, "Stephen C. Tweedie" <sct@redhat.com>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, torvalds@transmeta.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Mon, 28 Jun 1999 20:53:23 -0400 (EDT), Chuck Lever <cel@monkey.org>
-said:
+On Tue, 29 Jun 1999 00:48:18 +0200 (CEST), Andrea Arcangeli
+<andrea@suse.de> said:
 
-> whoops.  i'm sorry, i mis-typed.  i meant that regular processes never
-> *dispatch* I/O.  neither kswapd nor regular processes will wait.
+> I thought a bit about that as well. I also coded a maybe possible
+> solution. Look at this snapshot:
 
-Sorry?  That's just the same problem, restated.  If a regular process
-will never wait on a memory allocation then you have no way of
-throttling the memory allocation rate to the rate at which you can
-swap stuff out.  That will kill your machine stone dead very rapidly
-under heavy memory load.
+Much better: the synchronisation between the page fault and the swapper
+is per-page, not per-mm, this way.  That way the swapper can afford
+just to skip the one locked page rather than block for an mm lock.  My
+only reservation is that it's a bit ugly to overload the "locked" bit
+this way, but it's the only obvious test in try_to_swap_out that we can
+use.  
+
+Adding a new PG_Locked_PTE flag for the page, to indicate that somebody
+is relying on this pte for COW operation and kswapd should skip it,
+would be an alternative: it makes the intent much more clear (and keeps
+PG_Locked purely for IO locking, which is really as it should be).
 
 --Stephen
 
