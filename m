@@ -1,41 +1,39 @@
-Date: Wed, 15 Aug 2001 14:23:54 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Linux MM wiki
-Message-ID: <Pine.LNX.4.33L.0108151423440.5646-100000@imladris.rielhome.conectiva>
+Date: Wed, 15 Aug 2001 13:35:35 -0400 (EDT)
+From: Ben LaHaise <bcrl@redhat.com>
+Subject: [PATCH]
+Message-ID: <Pine.LNX.4.33.0108151326180.31764-100000@touchme.toronto.redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: torvalds@transmeta.com, alan@redhat.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hello,
 
-This night I finally did some website setup and
-installed a WikiWiki clone on linux-mm.org:
+The patch below enables vma merging for a couple of additional cases with
+anon mmaps as glibc has a habit of passing in differing flags for some
+cases (ie memory remapping, extending specific malloc blocks, etc).  This
+is to help Mozilla which ends up with thousands of vma's that are
+sequential and anonymous, but unmerged.  There may still be issues with
+mremap, but I think this is a step in the right direction.
 
-	http://linux-mm.org/wiki/
+		-ben
 
-Well, actually I installed three and this seemed
-to be the only nice one for our purposes ;)))
-
-Please add your gripes, ideas and thoughts to the
-MM wiki. Your attention to detail is appreciated.
-
-thanks,
-
-Rik
---
-IA64: a worthy successor to i860.
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
-
--
-Linux-mm-www:   http://linux-mm.org/ website maintenance list
-Archive:        http://mail.nl.linux.org/linux-mm-www/
-Development:    linux-mm@kvack.org
+diff -urN /md0/kernels/2.4/v2.4.8-ac5/mm/mmap.c work-v2.4.8-ac5/mm/mmap.c
+--- /md0/kernels/2.4/v2.4.8-ac5/mm/mmap.c	Wed Aug 15 12:57:40 2001
++++ work-v2.4.8-ac5/mm/mmap.c	Wed Aug 15 13:02:35 2001
+@@ -309,7 +309,8 @@
+ 	if (addr && !file && !(vm_flags & VM_SHARED)) {
+ 		struct vm_area_struct * vma = find_vma(mm, addr-1);
+ 		if (vma && vma->vm_end == addr && !vma->vm_file &&
+-		    vma->vm_flags == vm_flags) {
++		    (vma->vm_flags & ~(MAP_NORESERVE | MAP_FIXED)) ==
++		    (vm_flags & ~(MAP_NORESERVE | MAP_FIXED))) {
+ 			vma->vm_end = addr + len;
+ 			goto out;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
