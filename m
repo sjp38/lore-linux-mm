@@ -1,71 +1,87 @@
-Subject: Re: 2.6.2-rc1-mm1 (compile stats)
+Subject: [PATCH] aic7xxx parallel build
 From: John Cherry <cherry@osdl.org>
-In-Reply-To: <20040122013501.2251e65e.akpm@osdl.org>
-References: <20040122013501.2251e65e.akpm@osdl.org>
-Content-Type: text/plain
-Message-Id: <1074788769.29125.1.camel@cherrypit.pdx.osdl.net>
+Content-Type: multipart/mixed; boundary="=-hLxl7l5tTsbRel96GUyG"
+Message-Id: <1074800332.29125.55.camel@cherrypit.pdx.osdl.net>
 Mime-Version: 1.0
-Date: Thu, 22 Jan 2004 08:26:09 -0800
-Content-Transfer-Encoding: 7bit
+Date: Thu, 22 Jan 2004 11:38:53 -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: "Justin T. Gibbs" <gibbs@scsiguy.com>, akpm@osdl.org
+Cc: linux-mm@kvack.org, linux-scsi@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Linux 2.6 (mm tree) Compile Statistics (gcc 3.2.2)
-Warnings/Errors Summary
+--=-hLxl7l5tTsbRel96GUyG
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
-Kernel            bzImage   bzImage  bzImage  modules  bzImage  modules
-                (defconfig) (allno) (allyes) (allyes) (allmod) (allmod)
---------------- ---------- -------- -------- -------- -------- --------
-2.6.2-rc1-mm1     0w/0e     0w/264e 144w/ 5e  10w/0e   3w/0e    171w/0e
-2.6.1-mm5         2w/5e     0w/264e 153w/11e  10w/0e   3w/0e    180w/0e
-2.6.1-mm4         0w/821e   0w/264e 154w/ 5e   8w/1e   5w/0e    179w/0e
-2.6.1-mm3         0w/0e     0w/0e   151w/ 5e  10w/0e   3w/0e    177w/0e
-2.6.1-mm2         0w/0e     0w/0e   143w/ 5e  12w/0e   3w/0e    171w/0e
-2.6.1-mm1         0w/0e     0w/0e   146w/ 9e  12w/0e   6w/0e    171w/0e
-2.6.1-rc2-mm1     0w/0e     0w/0e   149w/ 0e  12w/0e   6w/0e    171w/4e
-2.6.1-rc1-mm2     0w/0e     0w/0e   157w/15e  12w/0e   3w/0e    185w/4e
-2.6.1-rc1-mm1     0w/0e     0w/0e   156w/10e  12w/0e   3w/0e    184w/2e
-2.6.0-mm2         0w/0e     0w/0e   161w/ 0e  12w/0e   3w/0e    189w/0e
-2.6.0-mm1         0w/0e     0w/0e   173w/ 0e  12w/0e   3w/0e    212w/0e
+The Makefiles for aic7xxx and aicasm have changed since I submitted a
+patch for the parallel build problem several months ago.  Justin's patch
+has disappeared from the mm builds, so we continue to have parallel
+build problems.
 
-Web page with links to complete details:
-   http://developer.osdl.org/cherry/compile/
-
-Error Summary (individual module builds):
-
-   drivers/net: 0 warnings, 1 errors
-   drivers/scsi/aic7xxx: 0 warnings, 1 errors
-
-
-Warning Summary (individual module builds):
-
-   drivers/block: 1 warnings, 0 errors
-   drivers/cdrom: 3 warnings, 0 errors
-   drivers/char: 4 warnings, 0 errors
-   drivers/ide: 29 warnings, 0 errors
-   drivers/message: 1 warnings, 0 errors
-   drivers/mtd: 23 warnings, 0 errors
-   drivers/net: 7 warnings, 0 errors
-   drivers/pcmcia: 3 warnings, 0 errors
-   drivers/scsi/pcmcia: 4 warnings, 0 errors
-   drivers/scsi: 33 warnings, 0 errors
-   drivers/serial: 1 warnings, 0 errors
-   drivers/telephony: 5 warnings, 0 errors
-   drivers/usb: 2 warnings, 0 errors
-   drivers/video/aty: 3 warnings, 0 errors
-   drivers/video/console: 2 warnings, 0 errors
-   drivers/video/matrox: 5 warnings, 0 errors
-   drivers/video/sis: 1 warnings, 0 errors
-   drivers/video: 8 warnings, 0 errors
-   sound/isa: 3 warnings, 0 errors
-   sound/oss: 33 warnings, 0 errors
+The following patch fixes the parallel build problem and it still
+applies to 2.6.2-rc1-mm1.  This is Justin's fix.
 
 John
 
 
+
+--=-hLxl7l5tTsbRel96GUyG
+Content-Disposition: attachment; filename=patch.aic7xxx_par_build
+Content-Type: text/plain; name=patch.aic7xxx_par_build; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+
+--- linux-2.6.0/drivers/scsi/aic7xxx/aicasm/Makefile	2003-11-09 16:45:05.000000000 -0800
++++ 25/drivers/scsi/aic7xxx/aicasm/Makefile	2003-12-22 20:17:16.000000000 -0800
+@@ -49,14 +49,18 @@ aicdb.h:
+ clean:
+ 	rm -f $(clean-files)
+ 
+-aicasm_gram.c aicasm_gram.h: aicasm_gram.y
++aicasm_gram.c: aicasm_gram.h
++	mv $(<:.h=).tab.c $(<:.h=.c)
++
++aicasm_gram.h: aicasm_gram.y
+ 	$(YACC) $(YFLAGS) -b $(<:.y=) $<
+-	mv $(<:.y=).tab.c $(<:.y=.c)
+ 	mv $(<:.y=).tab.h $(<:.y=.h)
+ 
+-aicasm_macro_gram.c aicasm_macro_gram.h: aicasm_macro_gram.y
++aicasm_macro_gram.c: aicasm_macro_gram.h
++	mv $(<:.h=).tab.c $(<:.h=.c)
++
++aicasm_macro_gram.h: aicasm_macro_gram.y
+ 	$(YACC) $(YFLAGS) -b $(<:.y=) -p mm $<
+-	mv $(<:.y=).tab.c $(<:.y=.c)
+ 	mv $(<:.y=).tab.h $(<:.y=.h)
+ 
+ aicasm_scan.c: aicasm_scan.l
+--- linux-2.6.0/drivers/scsi/aic7xxx/Makefile	2003-11-09 16:45:05.000000000 -0800
++++ 25/drivers/scsi/aic7xxx/Makefile	2003-12-22 20:17:16.000000000 -0800
+@@ -58,7 +58,9 @@ aicasm-7xxx-opts-$(CONFIG_AIC7XXX_REG_PR
+ 	-p $(obj)/aic7xxx_reg_print.c -i aic7xxx_osm.h
+ 
+ ifeq ($(CONFIG_AIC7XXX_BUILD_FIRMWARE),y)
+-$(aic7xxx-gen-y): $(src)/aic7xxx.seq $(src)/aic7xxx.reg $(obj)/aicasm/aicasm
++$(aic7xxx-gen-y): $(src)/aic7xxx.seq
++
++$(src)/aic7xxx.seq: $(obj)/aicasm/aicasm $(src)/aic7xxx.reg
+ 	$(obj)/aicasm/aicasm -I$(src) -r $(obj)/aic7xxx_reg.h \
+ 			      $(aicasm-7xxx-opts-y) -o $(obj)/aic7xxx_seq.h \
+ 			      $(src)/aic7xxx.seq
+@@ -72,7 +74,9 @@ aicasm-79xx-opts-$(CONFIG_AIC79XX_REG_PR
+ 	-p $(obj)/aic79xx_reg_print.c -i aic79xx_osm.h
+ 
+ ifeq ($(CONFIG_AIC79XX_BUILD_FIRMWARE),y)
+-$(aic79xx-gen-y): $(src)/aic79xx.seq $(src)/aic79xx.reg $(obj)/aicasm/aicasm
++$(aic79xx-gen-y): $(src)/aic79xx.seq
++
++$(src)/aic79xx.seq: $(obj)/aicasm/aicasm $(src)/aic79xx.reg
+ 	$(obj)/aicasm/aicasm -I$(src) -r $(obj)/aic79xx_reg.h \
+ 			      $(aicasm-79xx-opts-y) -o $(obj)/aic79xx_seq.h \
+ 			      $(src)/aic79xx.seq
+
+--=-hLxl7l5tTsbRel96GUyG--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
