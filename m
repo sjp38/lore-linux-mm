@@ -1,25 +1,32 @@
-Date: Wed, 13 Oct 2004 05:33:40 +1000
-From: Anton Blanchard <anton@samba.org>
+Date: Tue, 12 Oct 2004 13:20:27 -0700 (PDT)
+From: Christoph Lameter <clameter@sgi.com>
 Subject: Re: NUMA: Patch for node based swapping
-Message-ID: <20041012193340.GA3315@krispykreme.ozlabs.ibm.com>
-References: <Pine.LNX.4.58.0410120751010.11558@schroedinger.engr.sgi.com> <Pine.LNX.4.44.0410121126390.13693-100000@chimarrao.boston.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0410121126390.13693-100000@chimarrao.boston.redhat.com>
+In-Reply-To: <Pine.LNX.4.44.0410121151220.13693-100000@chimarrao.boston.redhat.com>
+Message-ID: <Pine.LNX.4.58.0410121319510.5785@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.44.0410121151220.13693-100000@chimarrao.boston.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@redhat.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, nickpiggin@yahoo.com.au, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
- 
-> That sounds like an extraordinarily bad idea for eg. AMD64
-> systems, which have a very low numa factor.
+On Tue, 12 Oct 2004, Rik van Riel wrote:
 
-Same with ppc64.
+> On Tue, 12 Oct 2004, Christoph Lameter wrote:
+>
+> > Any other suggestions?
+>
+> Since this is meant as a stop gap patch, waiting for a real
+> solution, and is only relevant for big (and rare) systems,
+> it would be an idea to at least leave it off by default.
+>
+> I think it would be safe to assume that a $100k system has
+> a system administrator looking after it, while a $5k AMD64
+> whitebox might not have somebody watching its performance.
 
-Anton
+Ok. Will do that then. Should I submit the patch to Andrew?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
