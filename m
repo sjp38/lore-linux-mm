@@ -1,40 +1,54 @@
-Date: Tue, 3 Apr 2001 19:11:39 -0300 (BRT)
+Date: Tue, 3 Apr 2001 20:11:56 -0300 (BRT)
 From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: [PATCH] Reclaim orphaned swap pages 
-In-Reply-To: <Pine.LNX.4.21.0104030919080.12558-100000@jerrell.lowell.mclinux.com>
-Message-ID: <Pine.LNX.4.21.0104031910450.7175-100000@freak.distro.conectiva>
+Subject: Count swap faults which need to read data from the swap area as
+ major faults
+Message-ID: <Pine.LNX.4.21.0104032010010.7175-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Richard Jerrell <jerrell@missioncriticallinux.com>
-Cc: Szabolcs Szakacsits <szaka@f-secure.com>, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 3 Apr 2001, Richard Jerrell wrote:
+Hi, 
 
-> > > That's not really what I'm getting at.  Currently if you run a memory
-> > > intensive application, quit after it's pages are on an lru, and try to
-> > > restart, you won't be able to get the memory.  This is because pages which
-> > > are sitting around in the swap cache are not counted as free, and they
-> > > should be, because they are freeable.
-> > 
-> > No. Dirty swapcache pages which have pte's referencing them are not
-> > freeable.
-> 
-> If you quit the application, it no longer has ptes which are referencing
-> the page.  If, in addition, this page no longer has any ptes referencing
-> it, then it is wasting space.  That is why we free the page (providing
-> that the swap entry is not shared either).  Otherwise, you will run out of
-> memory because everything is stuck in the swap cache until it gets
-> laundered, regardless of whether anyone is still referencing the
-> page.  That is not a good thing, which is what the patch fixes.
+Right now we are not accounting faults which nee to read data from swap as
+major faults. 
 
-Right.
+The following patch should fix that. 
 
-But you should not count _all_ swapcache pages as freeable. 
+Against -ac28. (probably applies against 2.4.3-ac2) 
 
-
+--- linux/mm/memory.c.orig	Tue Apr  3 21:30:03 2001
++++ linux/mm/memory.c	Tue Apr  3 21:32:18 2001
+@@ -1112,6 +1112,7 @@
+ {
+ 	struct page *page;
+ 	pte_t pte;
++	int ret = 1;
+ 
+ 	spin_unlock(&mm->page_table_lock);
+ 	page = lookup_swap_cache(entry);
+@@ -1125,6 +1126,9 @@
+ 			return -1;
+ 		}
+ 
++		/* Had to read the page from swap area: Major fault */
++		ret = 2;
++
+ 		flush_page_to_ram(page);
+ 		flush_icache_page(vma, page);
+ 	}
+@@ -1160,7 +1164,7 @@
+ 
+ 	/* No need to invalidate - it was non-present before */
+ 	update_mmu_cache(vma, address, pte);
+-	return 1;	/* Minor fault */
++	return ret;
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
