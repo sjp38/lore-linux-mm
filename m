@@ -1,44 +1,48 @@
-Date: Tue, 13 May 2003 15:21:41 -0700
-From: Andrew Morton <akpm@digeo.com>
-Subject: Re: [RFC][PATCH] Interface to invalidate regions of mmaps
-Message-Id: <20030513152141.5ab69f07.akpm@digeo.com>
-In-Reply-To: <20030513133636.C2929@us.ibm.com>
-References: <20030513133636.C2929@us.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Date: Tue, 13 May 2003 17:26:24 -0500
+From: Dave McCracken <dmccr@us.ibm.com>
+Subject: Re: Race between vmtruncate and mapped areas?
+Message-ID: <199610000.1052864784@baldur.austin.ibm.com>
+In-Reply-To: <3EC15C6D.1040403@kolumbus.fi>
+References: <154080000.1052858685@baldur.austin.ibm.com>
+ <3EC15C6D.1040403@kolumbus.fi>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8BIT
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: paulmck@us.ibm.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mjbligh@us.ibm.com
+To: =?ISO-8859-1?Q?Mika_Penttil=E4?= <mika.penttila@kolumbus.fi>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-"Paul E. McKenney" <paulmck@us.ibm.com> wrote:
->
-> This patch adds an API to allow networked and distributed filesystems
-> to invalidate portions of (or all of) a file.  This is needed to 
-> provide POSIX or near-POSIX semantics in such filesystems, as
-> discussed on LKML late last year:
-> 
-> 	http://marc.theaimsgroup.com/?l=linux-kernel&m=103609089604576&w=2
-> 	http://marc.theaimsgroup.com/?l=linux-kernel&m=103167761917669&w=2
-> 
-> Thoughts?
+--On Tuesday, May 13, 2003 23:58:21 +0300 Mika Penttila
+<mika.penttila@kolumbus.fi> wrote:
 
-What filesystems would be needing this, and when could we see live code
-which actually uses it?
+> Isn't that what inode->i_sem is supposed to protect...?
 
-> +/*
-> + * Helper function for invalidate_mmap_range().
-> + * Both hba and hlen are page numbers in PAGE_SIZE units.
-> + */
-> +static void 
-> +invalidate_mmap_range_list(struct list_head *head,
-> +			   unsigned long const hba,
-> +			   unsigned long const hlen)
+Hmm... Yep, it is.  I did some more investigating.  My initial scenario
+required that the task mapping the page extend the file after the truncate,
+which must be done via some kind of write().  The write() would trip over
+i_sem and therefore hang waiting for vmtruncate() to complete.  So I was
+wrong about that one.
 
-Be nice to consolidate this with vmtruncate_list, so that it gets
-exercised.
+Hoever, vmtruncate() does get to truncate_complete_page() with a page
+that's mapped...
+
+After some though it occurred to me there is a simple alternative scenario
+that's not protected.  If a task is *already* in a page fault mapping the
+page in, then vmtruncate() could call zap_page_range() before the page
+fault completes.  When the page fault does complete the page will be mapped
+into the area previously cleared by vmtruncate().
+
+We could make vmtruncate() take mmap_sem for write, but that seems somewhat
+drastic.  Does anyone have any alternative ideas?
+
+Dave McCracken
+
+======================================================================
+Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
+dmccr@us.ibm.com                                        T/L   678-3059
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
