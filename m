@@ -1,237 +1,73 @@
-Message-ID: <41C3D4C8.1000508@yahoo.com.au>
-Date: Sat, 18 Dec 2004 17:57:12 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: [PATCH 4/10] alternate 4-level page tables patches
-References: <41C3D453.4040208@yahoo.com.au> <41C3D479.40708@yahoo.com.au> <41C3D48F.8080006@yahoo.com.au> <41C3D4AE.7010502@yahoo.com.au>
-In-Reply-To: <41C3D4AE.7010502@yahoo.com.au>
-Content-Type: multipart/mixed;
- boundary="------------010701000307020502060506"
+Date: Sat, 18 Dec 2004 08:31:00 +0100
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [PATCH 10/10] alternate 4-level page tables patches
+Message-ID: <20041218073100.GA338@wotan.suse.de>
+References: <41C3D479.40708@yahoo.com.au> <41C3D48F.8080006@yahoo.com.au> <41C3D4AE.7010502@yahoo.com.au> <41C3D4C8.1000508@yahoo.com.au> <41C3D4F9.9040803@yahoo.com.au> <41C3D516.9060306@yahoo.com.au> <41C3D548.6080209@yahoo.com.au> <41C3D57C.5020005@yahoo.com.au> <41C3D594.4020108@yahoo.com.au> <41C3D5B1.3040200@yahoo.com.au>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <41C3D5B1.3040200@yahoo.com.au>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Memory Management <linux-mm@kvack.org>
-Cc: Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------010701000307020502060506
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+On Sat, Dec 18, 2004 at 06:01:05PM +1100, Nick Piggin wrote:
+> 10/10
 
-4/10
+> 
+> 
+> Convert some pagetable walking functions over to be inline where
+> they are only used once. This is worth a percent or so on lmbench
+> fork.
 
---------------010701000307020502060506
-Content-Type: text/plain;
- name="3level-clear_page_range.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="3level-clear_page_range.patch"
+Any modern gcc (3.4+ or 3.3-hammer) should use unit-at-a-time anyways,
+which automatically inlines all static functions that are only used once.
 
+I like it because during debugging you can turn it off and it makes
+it much easier to read oopses when not everything is inlined.  And 
+when turned on it generates much smaller and faster as you've shown
+code.
 
+Ok except on i386 where someone decided to explicitely turn it off 
+all the time :/
 
-Rename clear_page_tables to clear_page_range. clear_page_range takes byte
-ranges, and aggressively frees page table pages. Maybe useful to control
-page table memory consumption on 4-level architectures (and even 3 level
-ones).
+I've been reenabling it on the suse kernel for a long time because
+it doesn't seem to have any bad side effects and makes the code
+considerably smaller.  It would be better to just turn it on in mainline 
+again, then you'll see much more gain everywhere.
 
-Possible downsides are:
-- flush_tlb_pgtables gets called more often (only a problem for sparc64
-  AFAIKS).
-  
-- the opportunistic "expand to fill PGDIR_SIZE hole" logic that ensures
-  something actually gets done under the old system is still in place.
-  This could sometimes make unmapping small regions more inefficient. There
-  are some other solutions to look at if this is the case though.
+BTW we can do much better with all the page table walking by
+adding some bitmaps about used ptes to struct page and skipping
+holes quickly. DaveM has a patch for that in the queue, I hope a patch 
+similar to his can be added once 4level page tables are in.
 
-Signed-off-by: Nick Piggin <nickpiggin@yahoo.com.au>
+-Andi
 
+Here's the patch: 
 
----
+Enable unit-at-a-time by default. At least with 3.3-hammer and 3.4 
+it seems to work just fine. Has been tested with 3.3-hammer over
+several suse releases.
 
- linux-2.6-npiggin/include/linux/mm.h |    2 
- linux-2.6-npiggin/mm/memory.c        |   80 +++++++++++++++++++++--------------
- linux-2.6-npiggin/mm/mmap.c          |   23 +++-------
- 3 files changed, 58 insertions(+), 47 deletions(-)
+Signed-off-by: Andi Kleen <ak@suse.de>
 
-diff -puN include/linux/mm.h~3level-clear_page_range include/linux/mm.h
---- linux-2.6/include/linux/mm.h~3level-clear_page_range	2004-12-18 16:50:44.000000000 +1100
-+++ linux-2.6-npiggin/include/linux/mm.h	2004-12-18 17:07:48.000000000 +1100
-@@ -566,7 +566,7 @@ int unmap_vmas(struct mmu_gather **tlbp,
- 		struct vm_area_struct *start_vma, unsigned long start_addr,
- 		unsigned long end_addr, unsigned long *nr_accounted,
- 		struct zap_details *);
--void clear_page_tables(struct mmu_gather *tlb, unsigned long first, int nr);
-+void clear_page_range(struct mmu_gather *tlb, unsigned long addr, unsigned long end);
- int copy_page_range(struct mm_struct *dst, struct mm_struct *src,
- 			struct vm_area_struct *vma);
- int zeromap_page_range(struct vm_area_struct *vma, unsigned long from,
-diff -puN mm/memory.c~3level-clear_page_range mm/memory.c
---- linux-2.6/mm/memory.c~3level-clear_page_range	2004-12-18 16:50:44.000000000 +1100
-+++ linux-2.6-npiggin/mm/memory.c	2004-12-18 17:07:48.000000000 +1100
-@@ -100,58 +100,76 @@ static inline void copy_cow_page(struct 
-  * Note: this doesn't free the actual pages themselves. That
-  * has been handled earlier when unmapping all the memory regions.
-  */
--static inline void free_one_pmd(struct mmu_gather *tlb, pmd_t * dir)
-+static inline void clear_pmd_range(struct mmu_gather *tlb, pmd_t *pmd, unsigned long start, unsigned long end)
- {
- 	struct page *page;
+diff -u linux-2.6.10rc2-time/arch/i386/Makefile-o linux-2.6.10rc2-time/arch/i386/Makefile
+--- linux-2.6.10rc2-time/arch/i386/Makefile-o	2004-11-15 12:34:25.000000000 +0100
++++ linux-2.6.10rc2-time/arch/i386/Makefile	2004-12-18 08:27:14.000000000 +0100
+@@ -57,9 +57,8 @@
+ GCC_VERSION			:= $(call cc-version)
+ cflags-$(CONFIG_REGPARM) 	+= $(shell if [ $(GCC_VERSION) -ge 0300 ] ; then echo "-mregparm=3"; fi ;)
  
--	if (pmd_none(*dir))
-+	if (pmd_none(*pmd))
- 		return;
--	if (unlikely(pmd_bad(*dir))) {
--		pmd_ERROR(*dir);
--		pmd_clear(dir);
-+	if (unlikely(pmd_bad(*pmd))) {
-+		pmd_ERROR(*pmd);
-+		pmd_clear(pmd);
- 		return;
- 	}
--	page = pmd_page(*dir);
--	pmd_clear(dir);
--	dec_page_state(nr_page_table_pages);
--	tlb->mm->nr_ptes--;
--	pte_free_tlb(tlb, page);
-+	if (!(start & ~PMD_MASK) && !(end & ~PMD_MASK)) {
-+		page = pmd_page(*pmd);
-+		pmd_clear(pmd);
-+		dec_page_state(nr_page_table_pages);
-+		tlb->mm->nr_ptes--;
-+		pte_free_tlb(tlb, page);
-+	}
- }
+-# Disable unit-at-a-time mode, it makes gcc use a lot more stack
+-# due to the lack of sharing of stacklots.
+-CFLAGS += $(call cc-option,-fno-unit-at-a-time)
++# Enable unit-at-a-time mode. It generates considerably smaller code.
++CFLAGS += $(call cc-option,-funit-at-a-time)
  
--static inline void free_one_pgd(struct mmu_gather *tlb, pgd_t * dir)
-+static inline void clear_pgd_range(struct mmu_gather *tlb, pgd_t *pgd, unsigned long start, unsigned long end)
- {
--	int j;
--	pmd_t * pmd;
-+	unsigned long addr = start, next;
-+	pmd_t *pmd, *__pmd;
+ CFLAGS += $(cflags-y)
  
--	if (pgd_none(*dir))
-+	if (pgd_none(*pgd))
- 		return;
--	if (unlikely(pgd_bad(*dir))) {
--		pgd_ERROR(*dir);
--		pgd_clear(dir);
-+	if (unlikely(pgd_bad(*pgd))) {
-+		pgd_ERROR(*pgd);
-+		pgd_clear(pgd);
- 		return;
- 	}
--	pmd = pmd_offset(dir, 0);
--	pgd_clear(dir);
--	for (j = 0; j < PTRS_PER_PMD ; j++)
--		free_one_pmd(tlb, pmd+j);
--	pmd_free_tlb(tlb, pmd);
-+
-+	pmd = __pmd = pmd_offset(pgd, start);
-+	do {
-+		next = (addr + PMD_SIZE) & PMD_MASK;
-+		if (next > end || next <= addr)
-+			next = end;
-+		
-+		clear_pmd_range(tlb, pmd, addr, next);
-+		pmd++;
-+		addr = next;
-+	} while (addr && (addr <= end - 1));
-+
-+	if (!(start & ~PGDIR_MASK) && !(end & ~PGDIR_MASK)) {
-+		pgd_clear(pgd);
-+		pmd_free_tlb(tlb, __pmd);
-+	}
- }
- 
- /*
-- * This function clears all user-level page tables of a process - this
-- * is needed by execve(), so that old pages aren't in the way.
-+ * This function clears user-level page tables of a process.
-  *
-  * Must be called with pagetable lock held.
-  */
--void clear_page_tables(struct mmu_gather *tlb, unsigned long first, int nr)
-+void clear_page_range(struct mmu_gather *tlb, unsigned long start, unsigned long end)
- {
--	pgd_t * page_dir = tlb->mm->pgd;
-+	unsigned long addr = start, next;
-+	unsigned long i, nr = pgd_index(end + PGDIR_SIZE-1) - pgd_index(start);
-+	pgd_t * pgd = pgd_offset(tlb->mm, start);
- 
--	page_dir += first;
--	do {
--		free_one_pgd(tlb, page_dir);
--		page_dir++;
--	} while (--nr);
-+	for (i = 0; i < nr; i++) {
-+		next = (addr + PGDIR_SIZE) & PGDIR_MASK;
-+		if (next > end || next <= addr)
-+			next = end;
-+		
-+		clear_pgd_range(tlb, pgd, addr, next);
-+		pgd++;
-+		addr = next;
-+	}
- }
- 
- pte_t fastcall * pte_alloc_map(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
-diff -puN mm/mmap.c~3level-clear_page_range mm/mmap.c
---- linux-2.6/mm/mmap.c~3level-clear_page_range	2004-12-18 16:50:44.000000000 +1100
-+++ linux-2.6-npiggin/mm/mmap.c	2004-12-18 16:50:44.000000000 +1100
-@@ -1474,7 +1474,6 @@ static void free_pgtables(struct mmu_gat
- {
- 	unsigned long first = start & PGDIR_MASK;
- 	unsigned long last = end + PGDIR_SIZE - 1;
--	unsigned long start_index, end_index;
- 	struct mm_struct *mm = tlb->mm;
- 
- 	if (!prev) {
-@@ -1499,24 +1498,16 @@ static void free_pgtables(struct mmu_gat
- 				last = next->vm_start;
- 		}
- 		if (prev->vm_end > first)
--			first = prev->vm_end + PGDIR_SIZE - 1;
-+			first = prev->vm_end;
- 		break;
- 	}
- no_mmaps:
- 	if (last < first)	/* for arches with discontiguous pgd indices */
- 		return;
--	/*
--	 * If the PGD bits are not consecutive in the virtual address, the
--	 * old method of shifting the VA >> by PGDIR_SHIFT doesn't work.
--	 */
--	start_index = pgd_index(first);
--	if (start_index < FIRST_USER_PGD_NR)
--		start_index = FIRST_USER_PGD_NR;
--	end_index = pgd_index(last);
--	if (end_index > start_index) {
--		clear_page_tables(tlb, start_index, end_index - start_index);
--		flush_tlb_pgtables(mm, first & PGDIR_MASK, last & PGDIR_MASK);
--	}
-+	if (first < FIRST_USER_PGD_NR * PGDIR_SIZE)
-+		first = FIRST_USER_PGD_NR * PGDIR_SIZE;
-+	clear_page_range(tlb, first, last);
-+	flush_tlb_pgtables(mm, first, last);
- }
- 
- /* Normal function to fix up a mapping
-@@ -1844,7 +1835,9 @@ void exit_mmap(struct mm_struct *mm)
- 					~0UL, &nr_accounted, NULL);
- 	vm_unacct_memory(nr_accounted);
- 	BUG_ON(mm->map_count);	/* This is just debugging */
--	clear_page_tables(tlb, FIRST_USER_PGD_NR, USER_PTRS_PER_PGD);
-+	clear_page_range(tlb, FIRST_USER_PGD_NR * PGDIR_SIZE,
-+			(TASK_SIZE + PGDIR_SIZE - 1) & PGDIR_MASK);
-+	
- 	tlb_finish_mmu(tlb, 0, MM_VM_SIZE(mm));
- 
- 	vma = mm->mmap;
-
-_
-
---------------010701000307020502060506--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
