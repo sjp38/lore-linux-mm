@@ -1,76 +1,70 @@
-Date: Tue, 10 Jun 2003 12:11:47 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.70-mm6
-Message-ID: <20030610191147.GC26348@holomorphy.com>
-References: <5.2.0.9.2.20030610125606.00cd04a0@pop.gmx.net> <Pine.LNX.4.51.0306101052160.14891@dns.toxicfilms.tv> <46580000.1055180345@flay> <Pine.LNX.4.51.0306092017390.25458@dns.toxicfilms.tv> <51250000.1055184690@flay> <Pine.LNX.4.51.0306092140450.32624@dns.toxicfilms.tv> <20030609200411.GA26348@holomorphy.com> <Pine.LNX.4.51.0306101052160.14891@dns.toxicfilms.tv> <5.2.0.9.2.20030610125606.00cd04a0@pop.gmx.net> <5.2.0.9.2.20030610193426.00cd9528@pop.gmx.net>
+Date: Tue, 10 Jun 2003 12:37:32 -0700
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: 2.5.70-mm3 - Oops and hang
+Message-Id: <20030610123732.562e7b22.akpm@digeo.com>
+In-Reply-To: <16101.55819.768909.143767@gargle.gargle.HOWL>
+References: <16101.55819.768909.143767@gargle.gargle.HOWL>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5.2.0.9.2.20030610193426.00cd9528@pop.gmx.net>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mike Galbraith <efault@gmx.de>
-Cc: Maciej Soltysiak <solt@dns.toxicfilms.tv>, "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: John Stoffel <stoffel@lucent.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Zwane Mwaikambo <zwane@holomorphy.com>, Manfred Spraul <manfred@colorfullife.com>, William Lee Irwin III <wli@holomorphy.com>
 List-ID: <linux-mm.kvack.org>
 
-At 04:41 AM 6/10/2003 -0700, William Lee Irwin III wrote:
->> \vomit{Next you'll be telling me worse is better.}
+"John Stoffel" <stoffel@lucent.com> wrote:
+>
+> 
+> Here's an oops and hang from /var/log/messages that happened the other
+> evening.  It kicked in at 4am or so.  This was running 2.5.70-mm3 SMP,
+> PREEMPT, no ACPI, RAID1 on one pair of disks, not root or /boot.
+> 
+> Here's the messages I got in the messages file.  The system was
+> completely hung and needed to be reset to recover:
+> 
+> Unable to handle kernel paging request at virtual
+>  address 6b6b6b6b
+>  printing eip:
+> c0133477
+> *pde = 00000000
+> Oops: 0000 [#1]
+> PREEMPTSMP DEBUG_PAGEALLOC
+> CPU:    1
+> EIP:    0060:[detach_pid+23/304]    Not tainted VLI
+> EIP:    0060:[<c0133477>]    Not tainted VLI
+> EFLAGS: 00010046
+> EIP is at detach_pid+0x17/0x130
+> eax: dfd30050   ebx: 6b6b6b6b   ecx: dfd30100   edx: 6b6b6b6b
+> esi: e3cc6000   edi: 00000000   ebp: 00000000   esp: e3cc7f08
+> ds: 007b   es: 007b   ss: 0068
+> Process makewhatis (pid: 2446, threadinfo=e3cc6000 task=e4117000)
+> Stack: dfd30000 e3cc6000 00000000 c0123a79 dfd30000 c0123bb3 dfd30000 dfd30000 
+>        dfd305c4 dfd30000 00000a07 bffff5c8 c01258cd dfd30000 ea854a74 bffff350 
+>        dfd300a4 dfd30000 e4117000 00000000 c0125075 dfd30000 bffff5c8 00000000 
+> Call Trace:
+>  [__unhash_process+57/176] __unhash_process+0x39/0xb0
+>  [<c0123a79>] __unhash_process+0x39/0xb0
+>  [release_task+195/560] release_task+0xc3/0x230
+>  [<c0123bb3>] release_task+0xc3/0x230
+>  [wait_task_zombie+397/432] wait_task_zombie+0x18d/0x1b0
+>  [<c01258cd>] wait_task_zombie+0x18d/0x1b0
+>  [sys_wait4+357/640] sys_wait4+0x165/0x280
+>  [<c0125c75>] sys_wait4+0x165/0x280
+>  [default_wake_function+0/32] default_wake_function+0x0/0x20
+>  [<c011da40>] default_wake_function+0x0/0x20
+>  [default_wake_function+0/32] default_wake_function+0x0/0x20
+>  [<c011da40>] default_wake_function+0x0/0x20
+>  [syscall_call+7/11] syscall_call+0x7/0xb
+>  [<c010af1f>] syscall_call+0x7/0xb
+> 
+> Code: 51 08 52 e8 8c cd fe ff 58 5b c3 89 f6 8d bc 27 00 00 00 00 57 56 53 89 d3 8d 14 9b 8d 04 d0 8d 88 b0 00 00 00 8b 59 08 8b 51 04 <39> 0a 74 08 0f 0b 8c 00 c8 8f 3a c0 8b 80 b0 00 00 00 39 48 04 
 
-On Tue, Jun 10, 2003 at 08:53:51PM +0200, Mike Galbraith wrote:
-> That's an unearned criticism.
-> Timeslice management is currently an approximation.  IFF the approximation 
-> is good enough, it will/must out perform pedantic bean-counting.  Current 
-> timeslice management apparently isn't quite good enough, so I'm trying to 
-> find a way to increase it's informational content without the (in general 
-> case useless) overhead of attempted perfection.  I'm failing miserably btw 
-> ;-)
+This appears to be a visitation from the Great Unsolved Bug of the 2.5
+series.  Someone playing with a freed task_struct.
 
-The criticism was of the maxim invoked, not the specific direction
-you're hacking in.
-
-
-At 04:41 AM 6/10/2003 -0700, William Lee Irwin III wrote:
->> The issue is the driver returning garbage; not having as good of
->> precision from hardware is no fault of the method. I'd say timer_pit
->> should just return jiffies converted to nanoseconds.
-
-On Tue, Jun 10, 2003 at 08:53:51PM +0200, Mike Galbraith wrote:
-> That's the option that I figured was April 1 material, because of the 
-> missing precision.  If it could be made (somehow that I don't understand) 
-> to produce a reasonable approximation of a high resolution clock, sure.
-
-If there's a TSC, it can be used for extra interpolation. But I think
-timer_tsc already does that. I don't think it's quite so laughable; the
-machines missing reliable time sources are truly crippled in some way,
-by obsolescence or misdesign. I wouldn't call this a deficit. The
-major platforms will do fine, and the rest will do no worse than now
-apart from perhaps some function call and arithmetic overhead.
-
-
-At 04:41 AM 6/10/2003 -0700, William Lee Irwin III wrote:
->> Also, I posted the "thud" fix earlier in this thread in addition to the
->> monotonic_clock() bits. AFAICT it mitigates (or perhaps even fixes) an
->> infinite priority escalation scenario.
-
-On Tue, Jun 10, 2003 at 08:53:51PM +0200, Mike Galbraith wrote:
-> (yes, mitigates... maybe cures with round down, not really sure)
-> Couple that change with reintroduction of backboost to offset some of it's 
-> other effects and a serious reduction of CHILD_PENALTY and you'll have a 
-> very snappy desktop.  However, there is another side of the 
-> equation.  Large instantaneous variance in sleep_avg/prio also enables the 
-> scheduler to react quickly such that tasks which were delayed for whatever 
-> reason rapidly get a chance collect their ticks and catch up.  It can and 
-> does cause perceived unfairness... which is in reality quite fair.  It's 
-> horrible for short period concurrency, but great for long period 
-> throughput.  AFAIKT, it's a hard problem.
-
-I don't know that there are answers better than mitigation.
-
-I propose we err on the other side of the fence and back off as cases
-where the larger instantaneous variances are more clearly needed arise.
-
-
--- wli
+Correct me if I'm wrong, but this has only ever been seen with
+CONFIG_PREEMPT=y?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
