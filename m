@@ -1,28 +1,44 @@
-Date: Mon, 9 Feb 2004 16:56:24 -0500 (EST)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH 1/5] mm improvements
-In-Reply-To: <40273002.9080007@cyberone.com.au>
-Message-ID: <Pine.LNX.4.44.0402091656100.14123-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 9 Feb 2004 15:58:23 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: 2.6.3-rc1-mm1
+Message-Id: <20040209155823.6f884f23.akpm@osdl.org>
+In-Reply-To: <20040209151818.32965df6@philou.gramoulle.local>
+References: <20040209014035.251b26d1.akpm@osdl.org>
+	<20040209151818.32965df6@philou.gramoulle.local>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <piggin@cyberone.com.au>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Philippe =?ISO-8859-1?Q?Gramoull=E9?= <philippe.gramoulle@mmania.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Feb 2004, Nick Piggin wrote:
+Philippe Gramoulle  <philippe.gramoulle@mmania.com> wrote:
+>
+> Starting with 2.6.3-rc1-mm1, nfsd isn't working any more. Exportfs just hangs.
 
-> Sorry I missed this Rik. The rsslimit patch is now too old
-> to apply to the mm tree because of one of my patches.
+Yes, sorry.  The nfsd patches had a painful birth.  This chunk got lost.
 
-No problem, I'll cook a new one.
+--- 25/net/sunrpc/svcauth.c~nfsd-02-sunrpc-cache-init-fixes	Mon Feb  9 14:04:03 2004
++++ 25-akpm/net/sunrpc/svcauth.c	Mon Feb  9 14:06:26 2004
+@@ -150,7 +150,13 @@ DefineCacheLookup(struct auth_domain,
+ 		  &auth_domain_cache,
+ 		  auth_domain_hash(item),
+ 		  auth_domain_match(tmp, item),
+-		  kfree(new); if(!set) return NULL;
++		  kfree(new); if(!set) {
++			if (new)
++				write_unlock(&auth_domain_cache.hash_lock);
++			else
++				read_unlock(&auth_domain_cache.hash_lock);
++			return NULL;
++		  }
+ 		  new=item; atomic_inc(&new->h.refcnt),
+ 		  /* no update */,
+ 		  0 /* no inplace updates */
 
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
-
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
