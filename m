@@ -1,67 +1,61 @@
-Date: Fri, 17 Dec 2004 07:11:51 +0100
-From: Andi Kleen <ak@suse.de>
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e2.ny.us.ibm.com (8.12.10/8.12.10) with ESMTP id iBH8gs8F025357
+	for <linux-mm@kvack.org>; Fri, 17 Dec 2004 03:42:54 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id iBH8gsqZ258722
+	for <linux-mm@kvack.org>; Fri, 17 Dec 2004 03:42:54 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id iBH8gsmu031701
+	for <linux-mm@kvack.org>; Fri, 17 Dec 2004 03:42:54 -0500
 Subject: Re: [patch] CONFIG_ARCH_HAS_ATOMIC_UNSIGNED
-Message-ID: <20041217061150.GF12049@wotan.suse.de>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20041217061150.GF12049@wotan.suse.de>
 References: <E1Cf6EG-00015y-00@kernel.beaverton.ibm.com>
+	 <20041217061150.GF12049@wotan.suse.de>
+Content-Type: text/plain
+Message-Id: <1103272960.13614.3084.camel@localhost>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <E1Cf6EG-00015y-00@kernel.beaverton.ibm.com>
+Date: Fri, 17 Dec 2004 00:42:40 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: ak@suse.de, linux-mm@kvack.org
+To: Andi Kleen <ak@suse.de>
+Cc: linux-mm <linux-mm@kvack.org>, Andy Wihitcroft <apw@shadowen.org>, Matthew E Tolentino <matthew.e.tolentino@intel.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Dec 16, 2004 at 04:44:20PM -0800, Dave Hansen wrote:
+On Thu, 2004-12-16 at 22:11, Andi Kleen wrote:
+> On Thu, Dec 16, 2004 at 04:44:20PM -0800, Dave Hansen wrote:
+> > This reduces another one of the dependencies that struct page's
+> > definition has on any arch-specific header files.  Currently,
+> > only x86_64 uses this, so it's the only architecture that needed
+> > to be modified.
 > 
-> This reduces another one of the dependencies that struct page's
-> definition has on any arch-specific header files.  Currently,
-> only x86_64 uses this, so it's the only architecture that needed
-> to be modified.
+> That's for page_flags_t, right?
 
-That's for page_flags_t, right?
+Yep.
 
-I think it could be dropped right now and just use unsigned long for flags again. 
+> I think it could be dropped right now and just use unsigned long for
+> flags again. 
 
-Since the objrmap work the saved 4 bytes in struct page are wasted in padding 
-and I haven't found a way to use them for real space saving again
-because all other members are 8 byte or paired 4 byte.
+That's fine with me (and a much simpler patch).
 
-Of course if anybody could come up with a way to make struct page
-smaller it would be very appreciated:
+> Since the objrmap work the saved 4 bytes in struct page are wasted in padding 
+> and I haven't found a way to use them for real space saving again
+> because all other members are 8 byte or paired 4 byte.
 
-struct page {
-        page_flags_t flags;             /* Atomic flags, some possibly
-                                         * updated asynchronously */
+Well, since you asked... :)
 
-			<------------ what to do with the 4 byte padding here?
+In a newer revision of the nonlinear code, Andy Whitcroft has decided to
+store part of the page_to_pfn() translation directly in page->flags,
+right next to the zone information.  This is a bit of a squeeze on
+32-bit arches, but on the 64-bit ones, there's plenty of room since
+nobody is using the upper 32 bits at all.
 
-        atomic_t _count;                /* Usage count, see below. */
-        atomic_t _mapcount;             /* Count of ptes mapped in mms,
-                                         * to show when page is mapped
-                                         * & limit reverse map searches.
-                                         */
-        unsigned long private;          /* Mapping-private opaque data:
-                                         * usually used for buffer_heads
-                                         * if PagePrivate set; used for
-                                         * swp_entry_t if PageSwapCache
-                                         */
-        struct address_space *mapping;  /* If low bit clear, points to
-                                         * inode address_space, or NULL.
-                                         * If page mapped as anonymous
-                                         * memory, low bit is set, and
-                                         * it points to anon_vma object:
-                                         * see PAGE_MAPPING_ANON below.
-                                         */
-        pgoff_t index;                  /* Our offset within mapping. */
-        struct list_head lru;           /* Pageout list, eg. active_list
-                                         * protected by zone->lru_lock !
-                                         */
+I didn't realize that x86_64 had a 32-bit type there, so we probably
+would have suggested turning it into a 64-bit one eventually.
 
+-- Dave
 
-
--Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
