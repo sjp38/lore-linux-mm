@@ -1,33 +1,68 @@
-Subject: Re: [PATCH] strict VM overcommit for stock 2.4
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <Pine.LNX.4.44L.0207181923180.12241-100000@imladris.surriel.com>
-References: <Pine.LNX.4.44L.0207181923180.12241-100000@imladris.surriel.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 18 Jul 2002 15:30:22 -0700
-Message-Id: <1027031422.1555.161.camel@sinai>
-Mime-Version: 1.0
+Message-ID: <3D376567.4040307@us.ibm.com>
+Date: Thu, 18 Jul 2002 18:03:35 -0700
+From: Matthew Dobson <colpatch@us.ibm.com>
+Reply-To: colpatch@us.ibm.com
+MIME-Version: 1.0
+Subject: [patch] Useless locking in mm/numa.c
+Content-Type: multipart/mixed;
+ boundary="------------020700060601010906070601"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Szakacsits Szabolcs <szaka@sienet.hu>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@zip.com.au>, Martin Bligh <mjbligh@us.ibm.com>, linux-mm@kvack.org, Michael Hohnbaum <hohnbaum@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2002-07-18 at 15:24, Rik van Riel wrote:
+This is a multi-part message in MIME format.
+--------------020700060601010906070601
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-> I see no reason to not merge this (useful) part. Not only
-> is it useful on its own, it's also a necessary ingredient
-> of whatever "complete solution" to control per-user resource
-> limits.
+There is a lock that is apparently protecting nothing.  The node_lock spinlock 
+in mm/numa.c is protecting read-only accesses to pgdat_list.  Here is a patch 
+to get rid of it.
 
-I am glad we agree here - resource limits and strict overcommit are two
-separate solutions to various problems.  Some they solve individually,
-others they solve together.
+Cheers!
 
-I may use one, the other, both, or neither.  A clean abstract solution
-allows this.
+-Matt
 
-	Robert Love
+--------------020700060601010906070601
+Content-Type: text/plain;
+ name="node_lock.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="node_lock.patch"
+
+--- linux-2.5.26-vanilla/mm/numa.c	Tue Jul 16 16:49:30 2002
++++ linux-2.5.26-vanilla/mm/numa.c.fixed	Thu Jul 18 17:59:35 2002
+@@ -44,15 +44,11 @@
+ 
+ #define LONG_ALIGN(x) (((x)+(sizeof(long))-1)&~((sizeof(long))-1))
+ 
+-static spinlock_t node_lock = SPIN_LOCK_UNLOCKED;
+-
+ void show_free_areas_node(pg_data_t *pgdat)
+ {
+ 	unsigned long flags;
+ 
+-	spin_lock_irqsave(&node_lock, flags);
+ 	show_free_areas_core(pgdat);
+-	spin_unlock_irqrestore(&node_lock, flags);
+ }
+ 
+ /*
+@@ -106,11 +102,9 @@
+ #ifdef CONFIG_NUMA
+ 	temp = NODE_DATA(numa_node_id());
+ #else
+-	spin_lock_irqsave(&node_lock, flags);
+ 	if (!next) next = pgdat_list;
+ 	temp = next;
+ 	next = next->node_next;
+-	spin_unlock_irqrestore(&node_lock, flags);
+ #endif
+ 	start = temp;
+ 	while (temp) {
+
+--------------020700060601010906070601--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
