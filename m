@@ -1,182 +1,98 @@
-Message-ID: <395D520C.F16DD7D6@norran.net>
-Date: Sat, 01 Jul 2000 04:06:04 +0200
-From: Roger Larsson <roger.larsson@norran.net>
-MIME-Version: 1.0
-Subject: [PATCH] latency improvements, one reschedule moved
-Content-Type: multipart/mixed;
- boundary="------------2F7D4E7FA7846DC9387A6BC9"
+Date: Sat, 1 Jul 2000 22:35:51 -0700
+Message-Id: <200007020535.WAA07278@woensel.zeropage.com>
+From: Raymond Nijssen <raymond@zeropage.com>
+Subject: Re: maximum memory limit 
+In-Reply-To: Rik van Riel's message of "Tue, 8 Feb 2000 15:08:49 +0100 (CET)" 
+References: <Pine.LNX.4.10.10002081506290.626-100000@mirkwood.dummy.home> 
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>, "linux-kernel@vger.rutgers.edu" <linux-kernel@vger.rutgers.edu>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-sound@vger.rutgers.edu
+To: Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------2F7D4E7FA7846DC9387A6BC9
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+ebiederm+eric@ccr.net (Eric W. Biederman) wrote:
 
-Hi Linus, Paul, Benno, ...,
+> Rik van Riel <riel@nl.linux.org> writes:
+> 
+> > On Tue, 8 Feb 2000, Lee Chin wrote:
+> > 
+> > > Sorry if this is the wrong list, but what is the maximum virtual
+> > > memory an application can malloc in the latest kernel?
+> > > 
+> > > Just doing a (for example) "malloc(1024)" in a loop will max out
+> > > close to 1GB even though I have 4 GB ram on my system.
+> > 
+> > The kernel supports up to 3GB of address space per process.
+> > The first 900MB can be allocated by brk() and the rest can
+> > be allocated by mmap().
+> > 
+> > Problem is that libc malloc() appears to use brk() only, so
+> > it is limited to 900MB. You can fix that by doing the brk()
+> > and malloc() yourself, but I think that in the long run the
+> > glibc people may want to change their malloc implementation
+> > so that it automatically supports the full 3GB...
+> Clarification: The problem is the brk interface, which ignores
+> fragmentation.  The brk interface assumes all memory is
+> continuous. When brk runs into any mapping it fails. And since ld.so
+> is mapped at 1GB the brk cannot allocate any more memory.  This
+> is agravated by the fact that ELF programs appear to be intially
+> mapped at 128M+288K. 0x08048000.
 
-[patch against  linux-2.4.0-test3-pre2]
+I imagine we agree that the problem is not due to brk().
+It's due to the fragmented memory map in Linux.
 
-I cleaned up kswapd and moved its reschedule point.
-Disk performance is close to the same.
-Latencies have improved a lot (tested with Bennos latencytest)
 
-* sync is still problematic
-* mmap002 (Quintinela) still gives a 212 ms latency 
-  (compared to 423 ms for the unpatched...)
-* other disk related latencies are down under 30 ms.
-  (streaming read, copy, write)
-* the number of overruns has dropped considerably!
-  (running 4 buffers with a deadline of 23 ms)
+> (Someone allocated 900MB??? wow!)
 
-/RogerL
+We use linux systems in compute farms running programs that often need well in
+excess of 2GB of memory.  Partly allocated in few large blocks, partly as many
+small blocks.
 
---
-Home page:
-  http://www.norran.net/nra02596/
---------------2F7D4E7FA7846DC9387A6BC9
-Content-Type: text/plain; charset=us-ascii;
- name="patch-2.4.0-test3-pre2-vmscan.latency.2"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="patch-2.4.0-test3-pre2-vmscan.latency.2"
+(So the fact that on Linux the kernel wastes the upper 1GB of the address
+space does make Solaris/x86 look very attractive, also because it can address
+all physical 4GB; but that's a different issue)
 
---- linux/mm/vmscan.c.orig	Wed May 31 20:13:37 2000
-+++ linux/mm/vmscan.c	Sat Jul  1 03:29:00 2000
-@@ -419,6 +419,48 @@
- }
- 
- /*
-+ * Check if there is any memory pressure (free_pages < pages_low)
-+ */
-+static inline int memory_pressure(void)
-+{
-+	pg_data_t *pgdat = pgdat_list;
-+
-+	do {
-+		int i;
-+		for(i = 0; i < MAX_NR_ZONES; i++) {
-+			zone_t *zone = pgdat->node_zones+ i;
-+			if (!zone->size &&
-+			    zone->free_pages < zone->pages_low)
-+				return 1;
-+		}
-+		pgdat = pgdat->node_next;
-+	} while (pgdat);
-+
-+	return 0;
-+}
-+
-+/*
-+ * Check if there is any memory pressure (free_pages < pages_low)
-+ */
-+static inline int keep_kswapd_awake(void)
-+{
-+	pg_data_t *pgdat = pgdat_list;
-+
-+	do {
-+		int i;
-+		for(i = 0; i < MAX_NR_ZONES; i++) {
-+			zone_t *zone = pgdat->node_zones+ i;
-+			if (!zone->size &&
-+			    zone->zone_wake_kswapd)
-+				return 1;
-+		}
-+		pgdat = pgdat->node_next;
-+	} while (pgdat);
-+
-+	return 0;
-+}
-+
-+/*
-  * We need to make the locks finer granularity, but right
-  * now we need this so that we can do page allocations
-  * without holding the kernel lock etc.
-@@ -442,7 +484,20 @@
- 
- 	priority = 64;
- 	do {
-+		/* should __GFP_WAIT be checked? 
-+		 * assume not - not WAITING for a free page
-+		 * let more important task execute before
-+		 * continuing (Note: kswapd does not use it).
-+		 */
-+	        if (current->need_resched) {
-+		  schedule();
-+		  /* time has passed - pressure too? */
-+		  if (!memory_pressure())
-+		      goto done;
-+		}
-+
- 		while (shrink_mmap(priority, gfp_mask)) {
-+		        /* check __GFP_WAIT ? see below */
- 			if (!--count)
- 				goto done;
- 		}
-@@ -477,16 +532,21 @@
- 			if (--swap_count < 0)
- 				break;
- 
--	} while (--priority >= 0);
-+		priority--;
-+	} while (priority >= 0);
- 
- 	/* Always end on a shrink_mmap.. */
- 	while (shrink_mmap(0, gfp_mask)) {
-+		if (current->need_resched)
-+			schedule();
-+		if (!memory_pressure())
-+			return 1;
- 		if (!--count)
- 			goto done;
- 	}
- 	/* We return 1 if we are freed some page */
- 	return (count != FREE_COUNT);
--
-+ 
- done:
- 	return 1;
- }
-@@ -530,29 +590,12 @@
- 	tsk->flags |= PF_MEMALLOC;
- 
- 	for (;;) {
--		pg_data_t *pgdat;
--		int something_to_do = 0;
--
--		pgdat = pgdat_list;
--		do {
--			int i;
--			for(i = 0; i < MAX_NR_ZONES; i++) {
--				zone_t *zone = pgdat->node_zones+ i;
--				if (tsk->need_resched)
--					schedule();
--				if (!zone->size || !zone->zone_wake_kswapd)
--					continue;
--				if (zone->free_pages < zone->pages_low)
--					something_to_do = 1;
--				do_try_to_free_pages(GFP_KSWAPD);
--			}
--			pgdat = pgdat->node_next;
--		} while (pgdat);
--
--		if (!something_to_do) {
--			tsk->state = TASK_INTERRUPTIBLE;
--			interruptible_sleep_on(&kswapd_wait);
-+	        if (!keep_kswapd_awake()) {
-+		  tsk->state = TASK_INTERRUPTIBLE;
-+		  interruptible_sleep_on(&kswapd_wait);
- 		}
-+
-+		do_try_to_free_pages(GFP_KSWAPD);
- 	}
- }
- 
 
---------------2F7D4E7FA7846DC9387A6BC9--
+> It would certainly be a good option if libc could allocate
+> new chunks of memory with mmap, or a combination of mmap and mremap.
+> mremap is functionally a good as brk but will let you work with
+> arbitrary areas of memory. 
 
+The current implementation of malloc already does that to a limited extent.
+The reason why it doesn't go any further than that is because overreliance on
+mmap() puts all the burden on the kernel, and you're likely to severely
+fragment your memory map.  Remember, mmap has a pagesize resolution.
+
+I have written an extended version that alleviates that problem by jumping
+across the shared libs when brk runs into them, but there are some fundamental
+problems with this approach that make it work only in well controlled
+environments.
+
+
+So how about getting rid of this memory map dichotomy?
+
+The shared libs could be mapped from 3GB-max_stacksize downwards (rather than
+from 1GB upwards).
+
+Is there any reason why this cannot be done?
+
+This would allow brk to grow beyond the 1GB stonewall.
+
+
+> A good option is to compile programs that need huge amounts
+> of memory through brk statically.  If they do not use mmap, or shmat
+> they should be fine until they hit the stack, which is growing
+> in the other direction from 3GB.  Because the program is static it's
+> code size is reduced the linker will only pull in needed objects,
+> and performance is also enhanced as you don't need to deal with PIC,
+> and register starvation.  So it looks good for compute intensive code.
+
+True.  Unfortunately some libs only come as shared libs.  If your program
+needs them, no sigar.
+
+
+-- 
+Raymond Nijssen
+raymond@zeropage.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
