@@ -1,30 +1,26 @@
-From: Christoph Rohland <cr@sap.com>
-Subject: New mm and highmem reminder
-Date: 25 Oct 2000 19:04:18 +0200
-Message-ID: <qwwy9zcam3x.fsf@sap.com>
+Date: Wed, 25 Oct 2000 13:25:13 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: New mm and highmem reminder
+In-Reply-To: <qwwy9zcam3x.fsf@sap.com>
+Message-ID: <Pine.LNX.3.96.1001025132450.10249A-100000@kanga.kvack.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>, Ingo Molnar <mingo@elte.hu>
-Cc: linux-mm@kvack.org
+To: Christoph Rohland <cr@sap.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Rik and Ingo,
+On 25 Oct 2000, Christoph Rohland wrote:
 
-Just wanted to remind you that swapping shm in highmem is still broken
-in the latest patches. 
+> Hi Rik and Ingo,
+> 
+> Just wanted to remind you that swapping shm in highmem is still broken
+> in the latest patches. 
 
-If I return a RETRY in shm_swap_core instead of FAILED for failures of
-prepare_highmem_swapout it survives a little bit longer spewing lots
-of 'order 0 allocation failed' and then locks up after doing some
-swapping. Without this change it hardly swaps at all before lockup.
+When did it break, in pre3?
 
-It may not be introduced by Riks vm but swapping in shm with PAE
-worked quite nice until these changes.
-
-Greetings
-		Christoph
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
