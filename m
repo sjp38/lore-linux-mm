@@ -1,47 +1,49 @@
-Date: Thu, 13 Jan 2000 23:28:02 +0100 (CET)
-From: Rik van Riel <riel@nl.linux.org>
+Date: Thu, 13 Jan 2000 15:29:51 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [RFC] 2.3.39 zone balancing
-In-Reply-To: <200001132213.OAA37225@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.10.10001132322280.13454-100000@mirkwood.dummy.home>
+In-Reply-To: <Pine.LNX.4.10.10001140040040.6274-100000@chiara.csoma.elte.hu>
+Message-ID: <Pine.LNX.4.10.10001131524580.2250-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrea Arcangeli <andrea@suse.de>, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@nl.linux.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 13 Jan 2000, Kanoj Sarcar wrote:
 
-	[snip Linus' winning idea]
-
-> Yes, that's what everyone seems to be pointing at. As I mentioned, I am
-> looking into this as I type. The only thing is, as Andrea points out, 
-> 2.3 bh/irq handlers do not request HIGHMEM pages, so shouldn't the
-> 2.3 kswapd do something more like: 
+On Fri, 14 Jan 2000, Ingo Molnar wrote:
 > 
->        more_work = 0;
->        for (i = 0; i < MAX_NR_ZONES; i++) {
-> 		if (i != ZONE_HIGHMEM)
->                		more_work |= balance_zone(zone+i)
->        }
->        if (!more_work)
->                sleep()
+> so why cant swap_out (conceptually) accept a 'zones under pressure'
+> bitmask as an input, and calculate zones from the physical address it sees
+> in the page table.
 
-Nope. We want to do page aging and reclamation in ZONE_HIGHMEM
-too, otherwise all memory `rotation' is going to happen in the
-other zones and the system can thrash in the remaining 1G of
-memory while there's 3G of unused data in ZONE_HIGHMEM...
+Because swap_out() is going to look at the page tables _anyway_.
 
-But I agree, we probably don't have to reclaim that many pages
-in ZONE_HIGHMEM, something like freepages.min should be enough.
+Basically, my argument is that there is no way "swap_out()" can really
+target any special zone, except by avoiding to do the final stage in a
+long sequence of stages that it has already done. I think that's just
+completely wasteful - doing all the work, and then at the last minute
+deciding to not use the work after all. Especially as we don't really have
+any good reason to believe that it's the right thing in the first place.
 
-regards,
+I suspect we're much better off just having a simple "age the page tables"
+thing that doesn't care abotu zones at all, and when a page table entry
+has been aged enough, it gets pushed into the page/swap cache. It's
+reasonably cheap to fault it in again, and because we use aging on the
+page tables we've selected a page that isn't supposed to be very active
+anyway.
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+So that's why I think the page table walker should be completely
+zone-blind, and just not care. It's likely to be more "balanced" that way
+anyway.
+
+The "shrink_mmap()" stage is another matter entirely. shrink_mmap() has
+complete control over which zone it looks at, and can do a good (perfect)
+job of balancing the amount of work it does to how much it wants to
+accomplish.
+
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
