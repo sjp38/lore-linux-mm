@@ -1,14 +1,14 @@
-Date: Mon, 20 Dec 2004 10:47:05 -0800 (PST)
+Date: Mon, 20 Dec 2004 10:52:24 -0800 (PST)
 From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [PATCH 10/10] alternate 4-level page tables patches
-In-Reply-To: <20041220181930.GH4316@wotan.suse.de>
-Message-ID: <Pine.LNX.4.58.0412201041000.4112@ppc970.osdl.org>
+In-Reply-To: <Pine.LNX.4.58.0412201041000.4112@ppc970.osdl.org>
+Message-ID: <Pine.LNX.4.58.0412201047430.4112@ppc970.osdl.org>
 References: <41C3D4F9.9040803@yahoo.com.au> <41C3D516.9060306@yahoo.com.au>
  <41C3D548.6080209@yahoo.com.au> <41C3D57C.5020005@yahoo.com.au>
  <41C3D594.4020108@yahoo.com.au> <41C3D5B1.3040200@yahoo.com.au>
  <20041218073100.GA338@wotan.suse.de> <Pine.LNX.4.58.0412181102070.22750@ppc970.osdl.org>
  <20041220174357.GB4316@wotan.suse.de> <Pine.LNX.4.58.0412201000340.4112@ppc970.osdl.org>
- <20041220181930.GH4316@wotan.suse.de>
+ <20041220181930.GH4316@wotan.suse.de> <Pine.LNX.4.58.0412201041000.4112@ppc970.osdl.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -18,45 +18,29 @@ Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kva
 List-ID: <linux-mm.kvack.org>
 
 
-On Mon, 20 Dec 2004, Andi Kleen wrote:
+On Mon, 20 Dec 2004, Linus Torvalds wrote:
 > 
-> I remember there was one, but they took a brute-force sledgehammer fix.
-> The right fix would have been to add the noinlines, not penalize
-> everybody.
+> If you do that _first_, then sure. And have some automated checker tool
+> that we can run occasionally to verify that we don't break this magic rule
+> later by mistake.
 
-No. 
+Note: the reason I care so deeply is that this kind of problem tends to 
+bite us _exactly_ where we don't want to be bitten: in random drivers, and 
+surround code that not necessarily very many actual core developers really 
+end up using. 
 
-Adding work-arounds to source code for broken compilers is just not 
-acceptable. If some compiler feature works badly, it is _disabled_.
+If some subtle issue only happens in very specific code, it's much easier 
+to work around. And if it happens in core code, you can at least rest easy 
+in the knowledge that many people are going to get hit by it, and we can 
+thus find it easily. 
 
-Look at "-fno-strict-aliasing". Exactly the same issue. Sure, we could 
-have tried to find every place where it was an issue, but very 
-fundamentally that's HARD. The issues aren't obvious from the source code, 
-and the "fixes" are not obvious either and do not improve readability. 
-Even though arguably the aliasing logic _could_ have helped other places
+So, ironically, the worst bugs are those that affect only a small
+percentage of users. You'd think that the worst bugs are those that cause 
+the most problems, but it actually ends up being exactly the other way 
+around: the _least_ problems or the most _subtle_ problems are the ones 
+that I'm nervous about. 
 
-So if a compiler does something we don't want to handle, we disable that
-feature. It's just not _possible_ to audit the source code for these kinds
-of compiler features unless you write a tool that does most of it
-automatically (or at least points out where the things need to be done).
-
-Once you start doing "noinline" and depend on those being right, you end
-up having to support that forever - with new code inevitably causing
-subtle breakage because of some strange compiler rule that in no way is
-obvious (ie adding/removing a "static" just because you ended up exporting
-it to somebody else suddenly has very non-local issues - that's BAD).
-
-> It helps when you add the noinlines. I can do that later - search
-> for Arjan's old report (I think he reported it), check what compiler
-> version he used, compile everything with it and unit-at-a-time
-> and eyeball all the big stack frames and add noinline
-> if it should be really needed.
-
-If you do that _first_, then sure. And have some automated checker tool
-that we can run occasionally to verify that we don't break this magic rule
-later by mistake.
-
-			Linus
+				Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
