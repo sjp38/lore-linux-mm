@@ -1,10 +1,10 @@
 Received: from fujitsu2.fujitsu.com (localhost [127.0.0.1])
-	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i7GMw8rH022485
-	for <linux-mm@kvack.org>; Mon, 16 Aug 2004 15:58:09 -0700 (PDT)
-Date: Mon, 16 Aug 2004 15:57:50 -0700
+	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i7GMwZrH022741
+	for <linux-mm@kvack.org>; Mon, 16 Aug 2004 15:58:37 -0700 (PDT)
+Date: Mon, 16 Aug 2004 15:58:19 -0700
 From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: Fw: [Lhms-devel] Making hotremovable attribute with memory section[3/4]
-Message-Id: <20040816155258.E6FD.YGOTO@us.fujitsu.com>
+Subject: Fw: [Lhms-devel] Making hotremovable attribute with memory section[4/4]
+Message-Id: <20040816155335.E6FF.YGOTO@us.fujitsu.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="US-ASCII"
 Content-Transfer-Encoding: 7bit
@@ -18,63 +18,52 @@ Forwarded by Yasunori Goto <ygoto@us.fujitsu.com>
 ----------------------- Original Message -----------------------
  From:    Yasunori Goto <ygoto@us.fujitsu.com>
  To:      lhms-devel@lists.sourceforge.net
- Date:    Mon, 16 Aug 2004 14:37:05 -0700
- Subject: [Lhms-devel] Making hotremovable attribute with memory section[3/4]
+ Date:    Mon, 16 Aug 2004 14:37:34 -0700
+ Subject: [Lhms-devel] Making hotremovable attribute with memory section[4/4]
 ----
 
-
-This patch is define __GFP_HOTREMOVABLE attribute.
-Kernel can select attribute removable/un-removable section and allocate 
-the pages by it.
+This is just for test removable/un-removable section.
 
 Note:
-  The value of __ GFP_HOTREMOVABLE was 0x03 in the definition before.
- This was used to make new hot-removable zone_list for same purpose.
- This zone_list method had the advantage that the number of steps 
- of main routes did not increase. 
-  However, all section's removable attributes in a node have to be
- same in this method. So, this is meaningless on SMP machine.
- 
- Dividing free_area is to be more general way for localized allocation.
+  hot-removable or un-removable attribute will be arch/platform
+  dependent.
+  
 
 ---
 
- hotremovable-goto/include/linux/gfp.h |    9 +++++++--
- 1 files changed, 7 insertions(+), 2 deletions(-)
+ hotremovable-goto/mm/nonlinear.c |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletion(-)
 
-diff -puN include/linux/gfp.h~gfp_hotremovable include/linux/gfp.h
---- hotremovable/include/linux/gfp.h~gfp_hotremovable	Fri Aug 13 16:24:38 2004
-+++ hotremovable-goto/include/linux/gfp.h	Fri Aug 13 16:24:38 2004
-@@ -14,7 +14,6 @@ struct vm_area_struct;
- /* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low two bits) */
- #define __GFP_DMA	0x01
- #define __GFP_HIGHMEM	0x02
--
- /*
-  * Action modifiers - doesn't change the zoning
-  *
-@@ -38,6 +37,12 @@ struct vm_area_struct;
- #define __GFP_NO_GROW	0x2000	/* Slab internal usage */
- #define __GFP_COMP	0x4000	/* Add compound page metadata */
+diff -puN mm/nonlinear.c~test_sec_removable mm/nonlinear.c
+--- hotremovable/mm/nonlinear.c~test_sec_removable	Fri Aug 13 16:24:52 2004
++++ hotremovable-goto/mm/nonlinear.c	Fri Aug 13 16:24:52 2004
+@@ -41,11 +41,14 @@ setup_memsections(void)
+ 	for (index = 0; index < NR_SECTIONS; index++) {
+ 		mem_section[index].phys_section = INVALID_SECTION;
+ 		mem_section[index].mem_map = NULL;
++		mem_section[index].flags = 0;
+ 	}
+ 	for (index = 0; index < NR_PHYS_SECTIONS; index++)
+ 		phys_section[index] = INVALID_PHYS_SECTION;
+ }
  
-+#ifdef CONFIG_MEMORY_HOTPLUG
-+#define __GFP_HOTREMOVABLE 0x8000 /* off: Un-hotremovable, on:Hotremovable */
-+#else
-+#define __GFP_HOTREMOVABLE 0
-+#endif
++extern unsigned int highmem_start_page;
 +
- #define __GFP_BITS_SHIFT 16	/* Room for 16 __GFP_FOO bits */
- #define __GFP_BITS_MASK ((1 << __GFP_BITS_SHIFT) - 1)
+ void
+ alloc_memsections(unsigned long start_pfn,
+ 		  unsigned long start_phys_pfn,
+@@ -64,7 +67,10 @@ alloc_memsections(unsigned long start_pf
+ 	physid = pfn_to_section(start_phys_pfn);
+ 	for (; index < limit; index++, physid++) {
+ 		mem_section[index].phys_section = physid;
+-		printk("set mem_section[%d].phys_section: %d\n", index, mem_section[index].phys_section);
++		if (section_to_pfn(index) > highmem_start_page)
++			mem_section[index].flags = SECTION_REMOVABLE;
++
++		printk("set mem_section[%d].phys_section: %d :flags=%02x\n", index, mem_section[index].phys_section);
+ 	}
  
-@@ -51,7 +56,7 @@ struct vm_area_struct;
- #define GFP_NOFS	(__GFP_WAIT | __GFP_IO)
- #define GFP_KERNEL	(__GFP_WAIT | __GFP_IO | __GFP_FS)
- #define GFP_USER	(__GFP_WAIT | __GFP_IO | __GFP_FS)
--#define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HIGHMEM)
-+#define GFP_HIGHUSER	(__GFP_WAIT | __GFP_IO | __GFP_FS | __GFP_HIGHMEM | __GFP_HOTREMOVABLE)
- 
- /* Flag - indicates that the buffer will be suitable for DMA.  Ignored on some
-    platforms, used as appropriate on others */
+ 	index = pfn_to_section(start_phys_pfn);
 _
 
 -- 
