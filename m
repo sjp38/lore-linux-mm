@@ -1,34 +1,30 @@
-Date: Mon, 7 May 2001 00:07:49 +0200 (CEST)
-From: BERECZ Szabolcs <szabi@inf.elte.hu>
+From: "David S. Miller" <davem@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <15094.10942.592911.70443@pizda.ninka.net>
+Date: Sun, 6 May 2001 21:55:26 -0700 (PDT)
 Subject: Re: page_launder() bug
 In-Reply-To: <l03130303b71b795cab9b@[192.168.239.105]>
-Message-ID: <Pine.A41.4.31.0105070003210.59664-100000@pandora.inf.elte.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <Pine.A41.4.31.0105062307290.59664-100000@pandora.inf.elte.hu>
+	<l03130303b71b795cab9b@[192.168.239.105]>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jonathan Morton <chromi@cyberspace.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: BERECZ Szabolcs <szabi@inf.elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+Jonathan Morton writes:
+ > >-			 page_count(page) == (1 + !!page->buffers));
+ > 
+ > Two inversions in a row?
 
-On Sun, 6 May 2001, Jonathan Morton wrote:
+It is the most straightforward way to make a '1' or '0'
+integer from the NULL state of a pointer.
 
-> >-			 page_count(page) == (1 + !!page->buffers));
->
-> Two inversions in a row?  I'd like to see that made more explicit,
-> otherwise it looks like a bug to me.  Of course, if it IS a bug...
-it's not a bug.
-if page->buffers is zero, than the page_count(page) is 1, and if
-page->buffers is other than zero, page_count(page) is 2.
-so it checks if page is really used by something.
-maybe this last line is not true, but the !!page->buffers is not a bug.
-
-Bye,
-Szabi
-
-
+Later,
+David S. Miller
+davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
