@@ -1,48 +1,40 @@
-From: Daniel Phillips <phillips@arcor.de>
+Date: Fri, 27 Jun 2003 07:43:50 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: [RFC] My research agenda for 2.7
-Date: Fri, 27 Jun 2003 16:41:06 +0200
-References: <200306250111.01498.phillips@arcor.de> <200306270222.27727.phillips@arcor.de> <Pine.LNX.4.53.0306271345330.14677@skynet>
+Message-ID: <23430000.1056725030@[10.10.2.4]>
 In-Reply-To: <Pine.LNX.4.53.0306271345330.14677@skynet>
+References: <200306250111.01498.phillips@arcor.de> <200306262100.40707.phillips@arcor.de><Pine.LNX.4.53.0306262030500.5910@skynet> <200306270222.27727.phillips@arcor.de> <Pine.LNX.4.53.0306271345330.14677@skynet>
 MIME-Version: 1.0
-Content-Type: text/plain;
-  charset="iso-8859-1"
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-Message-Id: <200306271641.06771.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
+To: Mel Gorman <mel@csn.ul.ie>, Daniel Phillips <phillips@arcor.de>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday 27 June 2003 15:00, Mel Gorman wrote:
-> On Fri, 27 Jun 2003, Daniel Phillips wrote:
-> I was thinking of using slabs because that way there wouldn't be need to
-> scan all of mem_map, just a small number of slabs. I have no basis for
-> this other than hand waving gestures though.
+>> > I also wonder if moving kernel pages is really worth the hassle.
+>> 
+>> That's the question of course.  The benefit is getting rid of high order
+>> allocation failures, and gaining some confidence that larger filesystem
+>> blocksizes will work reliably, however the workload evolves.
 
-That's the right idea, it's just not necessary to use slab cache to achieve 
-it.  Actually, to handle huge (hardware) pages efficiently, my first instinct 
-is to partition them into their own largish chunks as well, and allocate new 
-chunks as necessary.  To get rid of a chunk (because freespace of that type 
-of chunk has fallen below some threshold) it has to be entirely empty, which 
-can be accomplished using the same move logic as for defragmentation.
+Oh, BTW ... I suspect you've realised this already, but ....
 
-You're right to be worried about intrusion of unmovable pages into regions 
-that are supposed to be defraggable.  It's very easy for some random kernel 
-code to take a use count on a page and hang onto it forever, making the page 
-unmovable.  My hope is that:
+The buddy allocator is not a good system for getting rid of fragmentation. 
+If I group pages together in aligned pairs, and F is free and A is 
+allocated, it'll not do anything useful with this:
 
-  - This doesn't happen much
-  - Code that does that can be cleaned up
-  - Even when it happens it won't hurt much
-  - If all of the above fails, fix the api for the offending code or create
-    a new one
-  - If that fails too, give up.
+F A   A F   F A   A F   F A   A F   F A   A F   F A   F A 
 
-Regards,
+because the adjacent "F"s aren't "buddies". It seems that the purpose of
+the buddy allocator was to be quick at allocating pages. Now that we stuck
+a front end cache on it, in the form of hot & cold pages, that goal no
+longer seems paramount - altering it to reduce fragmentation at the source,
+rather than actively defrag afterwards would seem like a good goal to me.
 
-Daniel
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
