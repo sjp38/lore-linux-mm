@@ -1,34 +1,43 @@
-Subject: Re: shrink_mmap() change in ac-21
-References: <Pine.LNX.4.21.0006200043550.988-100000@inspiron.random>
-Reply-To: zlatko@iskon.hr
-From: Zlatko Calusic <zlatko@iskon.hr>
-Date: 20 Jun 2000 11:03:33 +0200
-In-Reply-To: Andrea Arcangeli's message of "Tue, 20 Jun 2000 00:48:14 +0200 (CEST)"
-Message-ID: <dnln0067x6.fsf@magla.iskon.hr>
+Subject: Re: [PATCH] ramfs fixes
+References: <20000619182802.B22551@tweedle.linuxcare.com.au>
+	<Pine.LNX.4.21.0006191059080.13200-100000@duckman.distro.conectiva>
+	<20000620132019.A28309@tweedle.linuxcare.com.au>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: David Gibson's message of "Tue, 20 Jun 2000 13:20:19 +1000"
+Date: 20 Jun 2000 13:57:36 +0200
+Message-ID: <yttd7lco98v.fsf@serpe.mitica>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Jamie Lokier <lk@tantalophile.demon.co.uk>, alan@redhat.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: David Gibson <dgibson@linuxcare.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-fsdevel@vger.rutgers.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrea Arcangeli <andrea@suse.de> writes:
+>>>>> "david" == David Gibson <dgibson@linuxcare.com> writes:
 
-> On Mon, 19 Jun 2000, Jamie Lokier wrote:
-> 
-> >if those wrong zones are quite full.  If the DMA zone desparately needs
-> >free pages and keeps needing them, isn't it good to encourage future
-> >non-DMA allocations to use another zone?  Removing pages from other
-> 
-> After some time the DMA zone will be full again anyway and you payed a
-> cost that consists in throwing away unrelated innocent pages. I'm not
-> convinced it's the right thing to do.
-> 
+Hi
 
-Exactly!
+david> This actually went in somewhat recently, in 2.3.99pre something (where
+david> something is around 4 IIRC). This fixed a bug in ramfs, since
+david> previously the dirty bit was never being cleared.
+
+david> At the time ramfs was the *only* place using PG_dirty - it looked like
+david> it was just a misleading name for something analagous to BH_protected.
+
+david> Obviously that's not true any more. What does the PG_dirty bit mean
+david> these days?
+
+It means that the page is Dirty??? :)))))
+Seriosly, now we can have dirty swap cache pages and soon dirty page
+cache pages, coming from mmaped files, not only pages from Ramfs have
+that bit set.
+
+Later, Juan.
+
 -- 
-Zlatko
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
