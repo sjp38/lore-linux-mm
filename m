@@ -1,35 +1,35 @@
+Date: Sat, 3 May 2003 01:35:25 +1000
+From: Anton Blanchard <anton@samba.org>
 Subject: Re: 2.5.68-mm4
-From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <1051886748.2166.20.camel@spc9.esa.lanl.gov>
+Message-ID: <20030502153525.GA11939@krispykreme>
 References: <20030502020149.1ec3e54f.akpm@digeo.com>
-	 <1051886748.2166.20.camel@spc9.esa.lanl.gov>
-Content-Type: text/plain
-Message-Id: <1051887650.2163.23.camel@spc9.esa.lanl.gov>
 Mime-Version: 1.0
-Date: 02 May 2003 09:00:50 -0600
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030502020149.1ec3e54f.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2003-05-02 at 08:45, Steven Cole wrote:
-> On Fri, 2003-05-02 at 03:01, Andrew Morton wrote:
+Hi,
 
-> > - grab kexec-tools from
-> > 
-> > 	http://www.osdl.org/archive/andyp/kexec/2.5.68/
-> > 
-> The andyp directory seems to be missing.  I found kexec-tools-1.8 here:
-> http://www.xmission.com/~ebiederm/files/kexec/
-> 
-> Is that the latest version?
+> . Included the `kexec' patch - load Linux from Linux.  Various people want
+>   this for various reasons.  I like the idea of going from a login prompt to
+>   "Calibrating delay loop" in 0.5 seconds.
 
-Now kexec-tools-1.8-2.5.68.tgz is there at the original URL.  Thanks.
+One thing that bothers me about kexec is how we grab low pages in
+kimage_alloc_page(). On a partitioned ppc64 box I will need to grab
+memory in the low 256MB and the machine might have 500GB of memory
+free. Thats going to take some time :)
 
-Steven
+Id hate to introduce a separate zone just for this sort of stuff (we
+currently throw all memory in the DMA zone). Could we add a hint to
+the page allocator where it makes a best effort to grab memory below
+a threshold?
 
+Anton
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
