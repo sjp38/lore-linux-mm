@@ -1,41 +1,42 @@
-Message-ID: <3ABA8B02.F28B333A@redhat.com>
-Date: Thu, 22 Mar 2001 18:30:10 -0500
-From: Doug Ledford <dledford@redhat.com>
-MIME-Version: 1.0
+Message-ID: <20010323002752.A5650@win.tue.nl>
+Date: Fri, 23 Mar 2001 00:27:52 +0100
+From: Guest section DW <dwguest@win.tue.nl>
 Subject: Re: [PATCH] Prevent OOM from killing init
-References: <E14gDxd-0003Tw-00@the-village.bc.nu>
+References: <20010322230041.A5598@win.tue.nl> <E14gDwB-0003Tj-00@the-village.bc.nu>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <E14gDwB-0003Tj-00@the-village.bc.nu>; from Alan Cox on Thu, Mar 22, 2001 at 10:52:09PM +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Stephen Clouse <stephenc@theiqgroup.com>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox wrote:
-> 
-> > > How do you return an out of memory error to a C program that is out of memory
-> > > due to a stack growth fault. There is actually not a language construct for it
-> >
-> > Simple, you reclaim a few of those uptodate buffers.  My testing here has
-> 
-> If you have reclaimable buffers you are not out of memory. If oom is triggered
-> in that state it is a bug. If you are complaining that the oom killer triggers
-> at the wrong time then thats a completely unrelated issue.
+On Thu, Mar 22, 2001 at 10:52:09PM +0000, Alan Cox wrote:
 
-Ummm, yeah, that would pretty much be the claim.  Real easy to reproduce too. 
-Take your favorite machine with lots of RAM, run just a handful of startup
-process and system daemons, then log in on a few terminals and do:
+> > You see, the bug is that malloc does not fail. This means that the
+> > decisions about what to do are not taken by the program that knows
+> > what it is doing, but by the kernel.
 
-while true; do bonnie -s (1/2 ram); done
+> Even if malloc fails the situation is no different.
 
-Pretty soon, system daemons will start to die.
+Why do you say so?
 
--- 
+> You can do overcommit avoidance in Linux if you are bored enough to try it.
 
- Doug Ledford <dledford@redhat.com>  http://people.redhat.com/dledford
-      Please check my web site for aic7xxx updates/answers before
-                      e-mailing me about problems
+Would you accept it as the default? Would Linus?
+
+(With disk I/O we are terribly conservative, using very cautious settings,
+and many people use hdparm to double or triple their disk speed.
+But for a few these optimistic settings cause data corruption,
+so we do not make it the default.
+Similarly I would be happy if the "no overcommit", "no OOM killer"
+situation was the default. The people who need a reliable system
+will leave it that way. The people who do not mind if some process
+is killed once in a while use vmparm or /proc/vm/overcommit or so
+to make Linux achieve more on average.)
+
+Andries
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
