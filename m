@@ -1,102 +1,71 @@
-Date: Wed, 4 Oct 2000 21:07:09 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Odd swap behavior
-In-Reply-To: <39DBB745.7D652E4E@sgi.com>
-Message-ID: <Pine.LNX.4.21.0010042101050.1054-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
+Date: Wed, 4 Oct 2000 18:08:53 -0700 (PDT)
+From: Matthew Dillon <dillon@apollo.backplane.com>
+Message-Id: <200010050108.SAA83892@apollo.backplane.com>
+Subject: Re: TODO list for new VM  (oct 2000)
+References: <Pine.LNX.4.21.0010021531360.22539-100000@duckman.distro.conectiva>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.redhat.com, linux-mm@kvack.org, Matthew Dillon <dillon@apollo.backplane.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Oct 2000, Rajagopal Ananthanarayanan wrote:
-> Rik van Riel wrote:
-> 
-> > > Does that mean stack pages of processes are not included?
-> > > Non-aggressive swap can hurt performance.
-> > 
-> > I don't really see a clean way to do that in 2.4 ...
-> 
-> We can perhaps talk about this at the Storage Workshop ...
+    My experience with FreeBSD's asynchronous paging
+    is that you have to carefully limit the number of
+    I/O's you queue at once.  Or, more specifically, you
+    have to limit the seeking load the async pageouts
+    place on the system.
 
-That would be a great idea. Maybe over dinner or lunch,
-with some of the other people present as well? ;)
+    The performance curve from the point of user processes 
+    in the system looks like a bell, while the paging
+    performance looks like a log curve (increased performance
+    with diminishing returns)... if you queue too few
+    pages (degenerate into synchronous paging), you have low
+    paging performance and high user process performance,
+    but you can't clean pages fast enough in a heavily loaded
+    system.  If you queue too many pages at once, you have
+    high paging performance (but with diminishing returns)
+    and low user process performance due to the seeking
+    load you've placed on the disk.  Excessive seeking
+    from pageouts will ruin the disk's performance from
+    the point of view of other processes in the system.
 
-[I'll also bring guarana, to facilitate all-night hacking
-sessions]
+    FreeBSD has a sysctl variable called vm.max_page_launder
+    which limits the number of pages the pageout daemon
+    will queue to I/O at once.  The default is 32.   Numbers
+    between 16 and 32 were found to fit the sweet spot of
+    the curve the best.  Numbers lower then 16 reduced
+    system performance because potentially contiguous pageouts
+    would get split (causing more seeking rather then less when
+    mixed with I/O initiated from user processes), and numbers
+    higher then 32 reduced user process performance due to the
+    additional seeking from the queued pageouts.
 
-> > > Would it not be more efficient to bung clean (read) pages directly
-> > > to inactive_clean on age = 0?
-> > 
-> > I don't know if this would make any difference...
-> 
-> I think it would. Consider steady state where pages
-> are all "in use". Any new allocation has to start with
-> pushing a page from active -> inactive, and then
-> inactive -> inactive_clean, if necessary, and then reclaim.
-> Now,  if we had pages which _are_ clean, then the path taken
-> is simply active -> inactive_clean -> reclaim.
+    The sysadmin can adjust the value to effectively give
+    paging more or less priority.  A smaller number reduces
+    paging performance but increasing system performance
+    for other processes (though anything less then 4 will
+    reduce performance for everyone).  A higher number
+    increases paging performance at the cost of system
+    performance for other processes.  Virtually all FreeBSD
+    installations that I know about leave the sysctl variable
+    alone.
 
-Indeed. Then again, we probably want to clear the unused
-buffer heads off of active pages anyway, and in that case
-these pages will be cleaned for us.
+    Note that the performance bell holds true whether you
+    sort disk requests or not, the whole bell simply moves up
+    or down on the graph.
 
-This is something I'm looking into at the moment...
+    There are a number of things that can be done to mitigate
+    the seeking issue, which I discussed with Rik a few months
+    ago.  The jist of it, though, is that there is a trade-off
+    between page-in and page-out performance based on how you
+    try to cluster swap allocation.  FreeBSD clusters swap
+    allocations to optimize page-out performance at the cost
+    of page-in performance and that seems to work very
+    well under heavy system loads.
 
-[But it has lower priority than out of memory and the
-high memory lockup problem ... if that still exists]
-
-> > And in fact, I'm contemplating adding /all/ pages
-> > that are deactivated to the inactive_dirty list,
-> > since that way we'll reclaim all inactive pages
-> > in FIFO order.
-> > 
-> > Currently we may "skip" some pages that were put
-> > on the inactive_dirty list but were cleaned up
-> > subsequently because we can find enough active
-> > pages that can be moved to the inactive_clean
-> > list immediately ...
-> > 
-> 
-> This is an interesting idea, although it seems
-> antithetical to what I said above. I think pure
-> FIFO has its merits in accomodating longer locality of
-> reference; it can help dbench.
-
-I have no idea if it would help or not; only one
-way to find out I guess...
-
-> If you have a patch (to always deactivate to inactive_dirty),
-> I can help you gauge it with the benchmarks ...
-
-Quick and dirty patch below ;)
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
-
-
---- swap.c.orig	Tue Oct  3 10:20:41 2000
-+++ swap.c	Wed Oct  4 21:06:06 2000
-@@ -201,7 +201,7 @@
- 		} else if (page->mapping && !PageDirty(page) &&
- 							!PageLocked(page)) {
- 			del_page_from_active_list(page);
--			add_page_to_inactive_clean_list(page);
-+			add_page_to_inactive_dirty_list(page);
- 		}
- 		/*
- 		 * OK, we cannot free the page. Leave it alone.
-
+					-Matt
+					Matthew Dillon 
+					<dillon@backplane.com>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
