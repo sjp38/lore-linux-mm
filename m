@@ -1,37 +1,29 @@
-Date: Fri, 1 Sep 2000 15:18:57 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Rik's drop behind stuff
-In-Reply-To: <39AFEE6C.81623F5C@ucla.edu>
-Message-ID: <Pine.LNX.4.21.0009011517460.1110-100000@duckman.distro.conectiva>
+Date: Sat, 2 Sep 2000 18:39:22 +0100 (GMT)
+From: John Levon <moz@compsoc.man.ac.uk>
+Subject: Rik van Riel's VM patch
+Message-ID: <Pine.LNX.4.21.0009021834220.21467-100000@mrbusy.compsoc.man.ac.uk>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Redelings I <bredelin@ucla.edu>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 1 Sep 2000, Benjamin Redelings I wrote:
+Hi, this is just a short no-statistics testimony that Rik's VM patch
+to test8-pre1 seems much improved over test7. I have a UP P200 with 40Mb,
+and previously running KDE2 + mozilla was totally unusable. 
 
-> presented a general mechanism for doing drop_behind, that actually
-> generalized, instead of being a special case hack?
+With the patch, things run much more smoothly. Interactive feel seems
+better, and I don't have "swapping holidays" any more.
 
-Actually it's still a little bit special case, since readahead
-(and drop behind) is only done on a filedescriptor level and
-not on the VMA level.
+Heavily stressing it by g++ is better as well... 
 
-OTOH, I've heard rumours that Ben LaHaise is moving readahead
-to the VMA level. When that is done my drop-behind code will
-automagically work for mmap() and swap too...
+just a data point,
+john
 
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+-- 
+"It's a damn poor mind that can only think of one way to spell a word."
+	- Andrew Jackson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
