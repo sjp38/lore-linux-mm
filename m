@@ -1,72 +1,76 @@
-Date: Tue, 26 Aug 2003 03:14:12 -0700
-From: Andrew Morton <akpm@osdl.org>
+Date: Tue, 26 Aug 2003 16:31:11 +0530
+From: Suparna Bhattacharya <suparna@in.ibm.com>
 Subject: Re: [BUG] 2.6.0-test4-mm1: NFS+XFS=data corruption
-Message-Id: <20030826031412.72785b15.akpm@osdl.org>
-In-Reply-To: <1061852050.25892.195.camel@jen.americas.sgi.com>
-References: <20030824171318.4acf1182.akpm@osdl.org>
-	<20030825193717.GC3562@ip68-4-255-84.oc.oc.cox.net>
-	<20030825124543.413187a5.akpm@osdl.org>
-	<1061852050.25892.195.camel@jen.americas.sgi.com>
+Message-ID: <20030826110111.GA4750@in.ibm.com>
+Reply-To: suparna@in.ibm.com
+References: <20030824171318.4acf1182.akpm@osdl.org> <20030825193717.GC3562@ip68-4-255-84.oc.oc.cox.net> <20030825124543.413187a5.akpm@osdl.org> <1061852050.25892.195.camel@jen.americas.sgi.com> <20030826031412.72785b15.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030826031412.72785b15.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steve Lord <lord@sgi.com>
-Cc: barryn@pobox.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-xfs@oss.sgi.com, Suparna Bhattacharya <suparna@in.ibm.com>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Steve Lord <lord@sgi.com>, barryn@pobox.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-xfs@oss.sgi.com
 List-ID: <linux-mm.kvack.org>
 
-Steve Lord <lord@sgi.com> wrote:
->
-> > > Is this enough information to help find the cause of the bug? If not,
->  > > it might be several days (if I'm unlucky, maybe even a week or two)
->  > > before I have time to do anything more...
->  > > 
->  > 
->  > -mm kernels have O_DIRECT-for-NFS patches in them.  And some versions of
->  > RPM use O_DIRECT.  Whether O_DIRECT makes any difference at the server end
->  > I do not know, but it would be useful if you could repeat the test on stock
->  > 2.6.0-test4.
->  > 
->  > Alternatively, run
->  > 
->  > 	export LD_ASSUME_KERNEL=2.2.5
->  > 
->  > before running RPM.  I think that should tell RPM to not try O_DIRECT.
+On Tue, Aug 26, 2003 at 03:14:12AM -0700, Andrew Morton wrote:
+> Steve Lord <lord@sgi.com> wrote:
+> >
+> > > > Is this enough information to help find the cause of the bug? If not,
+> >  > > it might be several days (if I'm unlucky, maybe even a week or two)
+> >  > > before I have time to do anything more...
+> >  > > 
+> >  > 
+> >  > -mm kernels have O_DIRECT-for-NFS patches in them.  And some versions of
+> >  > RPM use O_DIRECT.  Whether O_DIRECT makes any difference at the server end
+> >  > I do not know, but it would be useful if you could repeat the test on stock
+> >  > 2.6.0-test4.
+> >  > 
+> >  > Alternatively, run
+> >  > 
+> >  > 	export LD_ASSUME_KERNEL=2.2.5
+> >  > 
+> >  > before running RPM.  I think that should tell RPM to not try O_DIRECT.
+> > 
+> >  I doubt the NFS client is O_DIRECT capable here, I have run some rpm
+> >  builds over nfs to 2.6.0-test4 and an xfs filesystem, everything is
+> >  behaving so far. I will try mm1 tomorrow.
+> > 
+> >  Do we know if this NFS V3 or V2 by the way?
 > 
->  I doubt the NFS client is O_DIRECT capable here, I have run some rpm
->  builds over nfs to 2.6.0-test4 and an xfs filesystem, everything is
->  behaving so far. I will try mm1 tomorrow.
+> OK, sorry for the noise.  It appears that this is due to the AIO patches in
+> -mm.  fsx-linux fails instantly on nfsv3 to localhost on XFS.  It's OK on
+> ext2 for some reason.
 > 
->  Do we know if this NFS V3 or V2 by the way?
+> Binary searching reveals that the offending patch is
+> O_SYNC-speedup-nolock-fix.patch
+> 
 
-OK, sorry for the noise.  It appears that this is due to the AIO patches in
--mm.  fsx-linux fails instantly on nfsv3 to localhost on XFS.  It's OK on
-ext2 for some reason.
+I'm not sure if this would help here, but there is
+one bug which I just spotted which would affect writev from
+XFS. I wasn't passing the nr_segs down properly.
 
-Binary searching reveals that the offending patch is
-O_SYNC-speedup-nolock-fix.patch
+Regards
+Suparna
 
-testcase:
-
-	mkfs.xfs -f /dev/hda5
-	mount /dev/hda5 /mnt/hda5
-	chmod a+rw /mnt/hda5
-	service nfs start
-	mount localhost:/mnt/hda5 /mnt/localhost
-	cd /mnt/localhost
-	fsx-linux foo
+-- 
+Suparna Bhattacharya (suparna@in.ibm.com)
+Linux Technology Center
+IBM Software Labs, India
 
 
-truncating to largest ever: 0x13e76
-READ BAD DATA: offset = 0x18f13, size = 0xee06, fname = foo
-OFFSET  GOOD    BAD     RANGE
-0x26000 0x02eb  0x0000  0x    0
-operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
-0x26001 0xeb02  0x0000  0x    1
-operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
-0x26002 0x0228  0x0000  0x    2
-operation# (mod 256) for the bad data unknown, check HOLE and EXTEND ops
+--- linux-2.6.0-test4-mm1/mm/filemap.c	2003-08-26 10:09:50.000000000 +0530
++++ fix-mm/mm/filemap.c	2003-08-26 16:23:55.000000000 +0530
+@@ -1942,7 +1942,7 @@ generic_file_aio_write_nolock(struct kio
+ 		goto osync;
+ 	}
+ 
+-	ret = __generic_file_aio_write_nolock(iocb, iov, 1, ppos);
++	ret = __generic_file_aio_write_nolock(iocb, iov, nr_segs, ppos);
+ 
+ 	/*
+ 	 * Avoid doing a sync in parts for aio - its more efficient to
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
