@@ -1,85 +1,79 @@
-Received: from westrelay01.boulder.ibm.com (westrelay01.boulder.ibm.com [9.17.195.10])
-	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j1SGkPLg104636
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 11:46:25 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by westrelay01.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1SGkOe1119832
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 09:46:25 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j1SGkOAN001832
-	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 09:46:24 -0700
-Subject: Re: [PATCH] 2/2 Prezeroing large blocks of pages during allocation
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050227134316.2D0F1ECE4@skynet.csn.ul.ie>
-References: <20050227134316.2D0F1ECE4@skynet.csn.ul.ie>
-Content-Type: text/plain
-Date: Mon, 28 Feb 2005 08:46:20 -0800
-Message-Id: <1109609180.6921.22.camel@localhost>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Message-ID: <422356AB.4040703@sgi.com>
+Date: Mon, 28 Feb 2005 11:36:43 -0600
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
+Subject: [PATCH] mm: memory migration: bug in touch_unmapped_address
+Content-Type: multipart/mixed;
+ boundary="------------050404050103010602050409"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mel Gorman <mel@csn.ul.ie>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, clameter@sgi.com
+To: Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: Marcello Tosatti <marcelo.tosatti@cyclades.com>, Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2005-02-27 at 13:43 +0000, Mel Gorman wrote:
-> +		/*
-> +		 * If this is a request for a zero page and the page was
-> +		 * not taken from the USERZERO pool, zero it all
-> +		 */
-> +		if ((flags & __GFP_ZERO) && alloctype != ALLOC_USERZERO) {
-> +			int zero_order=order;
-> +
-> +			/*
-> +			 * This is important. We are about to zero a block
-> +			 * which may be larger than we need so we have to
-> +			 * determine do we zero just what we need or do
-> +			 * we zero the whole block and put the pages in
-> +			 * the zero page. 
-> +			 *
-> +			 * We zero the whole block in the event we are taking
-> +			 * from the KERNNORCLM pools and otherwise zero just
-> +			 * what we need. The reason we do not always zero
-> +			 * everything is because we do not want unreclaimable
-> +			 * pages to leak into the USERRCLM and KERNRCLM 
-> +			 * pools
-> +			 *
-> +			 */
-> +			if (alloctype != ALLOC_USERRCLM &&
-> +			    alloctype != ALLOC_KERNRCLM) {
-> +				area = zone->free_area_lists[ALLOC_USERZERO] +
-> +					current_order;
-> +				zero_order = current_order;
-> +			}
-> +
-> +			
-> +			spin_unlock_irqrestore(&zone->lock, *irq_flags);
-> +			prep_zero_page(page, zero_order, flags);
-> +			inc_zeroblock_count(zone, zero_order, flags);
-> +			spin_lock_irqsave(&zone->lock, *irq_flags);
-> +
-> +		}
-> +
->  		return expand(zone, page, order, current_order, area);
->  	}
->  
+This is a multi-part message in MIME format.
+--------------050404050103010602050409
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-I think it would make sense to put that in its own helper function.
-When comments get that big, they often reduce readability.  The only
-outside variable that gets modified is "area", I think.
+Hirokazu,
 
-So, a static inline:
+The length field in the call to get_user_pages() from touch_unmapped_pages()
+is incorrectly specified in bytes, not pages.
 
-	area = my_new_function_with_the_huge_comment(zone, ..., area);
+As a result of this, if you use the migration code to migrate a page, then
+subsequent pages (that are not necessarily currently allocated or mapped)
+can be allocated and mapped as a result of the migration call.
 
-Should give the same behavior, generated code, and be a bit easier on
-the eyes.  
+[touch_unmapped_pages() is added by the memory migration code from the memory
+hotplug patch so this is not currently part of the mainline kernel]
 
-BTW, what kernel does this apply against?  Is linux-2.6.11-rc4-v18 the
-same as bk18?
+See attached patch for the fix.
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 
--- Dave
+--------------050404050103010602050409
+Content-Type: text/plain;
+ name="fix-len-param-in-touch_unmapped_address.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="fix-len-param-in-touch_unmapped_address.patch"
 
+The "len" parameter (4th arg) of get_user_pages() is in pages, not
+bytes.  The effect of this bug is that if you migrate a page, and
+if this page is followed by valid virtual addresses, but these 
+pages have not yet been touched and allocated, then the migration
+call will cause those pages to be touched and allocated.  The number
+of pages so effected is the min of (16384, the remaining number of
+pages in the vma, the number of pages required to fill out the
+current pmd).
+
+Signed-off-by: Ray Bryant <raybry@sgi.com>
+
+Index: linux/mm/rmap.c
+===================================================================
+--- linux.orig/mm/rmap.c	2005-01-30 10:34:03.000000000 -0800
++++ linux/mm/rmap.c	2005-02-28 08:53:30.000000000 -0800
+@@ -554,8 +554,7 @@ touch_unmapped_address(struct list_head 
+ 		vma = find_vma(v1->mm, v1->addr);
+ 		if (vma == NULL)
+ 			goto out;
+-		error = get_user_pages(current, v1->mm, v1->addr, PAGE_SIZE,
+-					0, 0, NULL, NULL);
++		error = get_user_pages(current, v1->mm, v1->addr, 1, 0, 0, NULL, NULL);
+ 		if (error < 0)
+ 			ret = error;
+ 	out:
+
+--------------050404050103010602050409--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
