@@ -1,89 +1,45 @@
-From: Jesse Barnes <jbarnes@sgi.com>
-Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages / all_unreclaimable braindamage
-Date: Fri, 5 Nov 2004 15:32:50 -0800
+Subject: Re: [PATCH] Remove OOM killer from try_to_free_pages /
+	all_unreclaimable braindamage
+From: Thomas Gleixner <tglx@linutronix.de>
+Reply-To: tglx@linutronix.de
+In-Reply-To: <200411051532.51150.jbarnes@sgi.com>
 References: <20041105200118.GA20321@logos.cnet>
-In-Reply-To: <20041105200118.GA20321@logos.cnet>
-MIME-Version: 1.0
-Content-Type: Multipart/Mixed;
-  boundary="Boundary-00=_j2AjBJu8ghF2Nkn"
-Message-Id: <200411051532.51150.jbarnes@sgi.com>
+	 <200411051532.51150.jbarnes@sgi.com>
+Content-Type: text/plain
+Date: Sat, 06 Nov 2004 00:47:36 +0100
+Message-Id: <1099698456.2810.138.camel@thomas>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jesse Barnes <jbarnes@sgi.com>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Boundary-00=_j2AjBJu8ghF2Nkn
-Content-Type: text/plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+On Fri, 2004-11-05 at 15:32 -0800, Jesse Barnes wrote:
+> On Friday, November 05, 2004 12:01 pm, Marcelo Tosatti wrote:
+> > Comments?
+> 
+> Sounds good, though we may want to do a couple of more things, we shouldn't 
+> kill root tasks quite as easily and we should avoid zombies since they may be 
+> large apps in the process of exiting, and killing them would be bad (iirc 
+> it'll cause a panic).
+> 
 
-On Friday, November 05, 2004 12:01 pm, Marcelo Tosatti wrote:
-> Hi,
->
-> As you know the OOM is very problematic in 2.6 right now - so I went
-> to investigate it.
->
-> Currently the oom killer is invoked from the task reclaim
-> code (try_to_free_pages), which IMO is fundamentally broken,
-> because its non deterministic - the chance the OOM killer
-> will be triggered increases as the number of tasks inside
-> reclaiming increases. And kswapd is freeing pages in parallel,
-> which is completly ignored by this approach.
->
-> In my opinion the correct approach is to trigger the OOM killer
-> when kswapd is unable to free pages. Once that is done, the number
-> of tasks inside page reclaim is irrelevant.
+Yep, it makes sense, but it still does not fix the selection problem,
+where e.g. sshd is killed while a out of control forking server floods
+the machine with child processes. 
 
-That makes sense.
+Patch to address this:
+ http://marc.theaimsgroup.com/?l=linux-kernel&m=109922680000746&w=2
 
-> With this in place I can't see spurious OOM kills - just need to guarantee
-> that it reliably OOM kills when we are really out of memory.
+tglx
 
-That's good.  I can test it on a large machine (hopefully next week).
 
-> Comments?
 
-Sounds good, though we may want to do a couple of more things, we shouldn't 
-kill root tasks quite as easily and we should avoid zombies since they may be 
-large apps in the process of exiting, and killing them would be bad (iirc 
-it'll cause a panic).
 
-Thanks,
-Jesse
 
---Boundary-00=_j2AjBJu8ghF2Nkn
-Content-Type: text/x-diff;
-  charset="iso-8859-1";
-  name="oom-fixes.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename="oom-fixes.patch"
 
-===== mm/oom_kill.c 1.30 vs edited =====
---- 1.30/mm/oom_kill.c	2004-10-13 21:08:29 -07:00
-+++ edited/mm/oom_kill.c	2004-11-05 15:32:36 -08:00
-@@ -88,7 +88,7 @@
- 	 */
- 	if (cap_t(p->cap_effective) & CAP_TO_MASK(CAP_SYS_ADMIN) ||
- 				p->uid == 0 || p->euid == 0)
--		points /= 4;
-+		points /= 10;
- 
- 	/*
- 	 * We don't want to kill a process with direct hardware access.
-@@ -120,7 +120,7 @@
- 
- 	do_posix_clock_monotonic_gettime(&uptime);
- 	do_each_thread(g, p)
--		if (p->pid) {
-+		if (p->pid && !(p->state & TASK_ZOMBIE)) {
- 			unsigned long points = badness(p, uptime.tv_sec);
- 			if (points > maxpoints) {
- 				chosen = p;
-
---Boundary-00=_j2AjBJu8ghF2Nkn--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
