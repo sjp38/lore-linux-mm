@@ -1,41 +1,38 @@
-Date: Tue, 7 Nov 2000 14:37:07 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: PATCH [2.4.0test10]: Kiobuf#02, fault-in fix
-Message-ID: <20001107143707.I1276@inspiron.random>
-References: <20001106150539.A19112@redhat.com> <Pine.LNX.4.10.10011060912120.7955-100000@penguin.transmeta.com> <20001107115744.E1384@redhat.com>
-Mime-Version: 1.0
+Received: from cse.iitkgp.ernet.in (IDENT:root@cse.iitkgp.ernet.in [144.16.192.57])
+	by iitkgp.iitkgp.ernet.in (8.9.3/8.9.3) with ESMTP id BAA16311
+	for <linux-mm@kvack.org>; Wed, 8 Nov 2000 01:37:22 -0500 (GMT)
+Received: from cse.iitkgp.ernet.in (decsrv1 [144.16.202.161])
+	by cse.iitkgp.ernet.in (8.9.3/8.8.7) with ESMTP id CAA12165
+	for <linux-mm@kvack.org>; Wed, 8 Nov 2000 02:19:48 +0530
+Message-ID: <3A08F37A.38C156C1@cse.iitkgp.ernet.in>
+Date: Wed, 08 Nov 2000 01:32:26 -0500
+From: Shuvabrata Ganguly <sganguly@cse.iitkgp.ernet.in>
+MIME-Version: 1.0
+Subject: Question about swap_in() in 2.2.16 ....
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20001107115744.E1384@redhat.com>; from sct@redhat.com on Tue, Nov 07, 2000 at 11:57:44AM +0000
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@nl.linux.org>, Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org
+To: linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 07, 2000 at 11:57:44AM +0000, Stephen C. Tweedie wrote:
-> Is this a 2.5 cleanup or do you want things rearranged in the 2.4
-> bugfix too?
+hi,
 
-I'm sorry but I've not understood exactly the suggestion (the shown pseudocode
-will stack overflow btw).
+after the missing page has been swapped in this bit of code is
+executed:-
 
-I don't think returning the page gives advantages.  The point here is the
-locking. We need to do this atomically (with the spinlock acquired):
+if (!write_access || is_page_shared(page_map)) {
+      set_pte(page_table, mk_pte(page, vma->vm_page_prot));
+      return 1;
+ }
 
-	spin_lock(&mm->page_table_lock);
-	check the pte is ok
-	get_page(page);
-	spin_unlock(&mm->page_table_lock);
+Now this creates a read-only mapping  even if the access was a "write
+acess"  ( if the page is shared ). Doesnt this mean that an additional
+"write-protect" fault will be taken immediately when the process tries
+to write again ? Or am i missing something here ?
 
-The above is not necessary for any real page fault. That's needed only by
-map_user_kiobuf that must atomically (atomically w.r.t. swap_out) pin the
-physical page. IMHO it would be silly to add the locking and a get_page() (plus
-a put_page after the page is returned to the page fault arch code) inside the
-common page fault handler just to skip a walk of the pagetables for the case
-where rawio is accessing a not correctly mapped page.
+joy
 
-Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
