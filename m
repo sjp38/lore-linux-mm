@@ -1,8 +1,8 @@
-Date: Wed, 23 Mar 2005 07:38:03 -0600
-From: "Esther Nichols" <scrivens@fadmail.com>
-Message-Id: <CFE7.AA79.9A51-003004898B8C@mac.com>
-Subject: Your account #89M7986
-Return-Path: <scrivens@fadmail.com>
+Date: Wed, 23 Mar 2005 11:47:52 -0200
+From: "Melody Palacios" <offner@doneasy.com>
+Message-Id: <CFE2.AA79.9A11-003007498B8C@mac.com>
+Subject: Lowest rates in 45 years
+Return-Path: <offner@doneasy.com>
 To: io@kvack.org
 Cc: jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.orgmo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -27,7 +27,7 @@ Hello,
 
  Best Regards,
 
- Nona Calloway
+ Arnulfo Coffey
  
  to be remov(ed:	http://www.sarefi.net/byebye.php
 
