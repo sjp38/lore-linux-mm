@@ -1,25 +1,39 @@
-Date: Wed, 18 Aug 1999 16:08:23 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [bigmem-patch] 4GB with Linux on IA32
-In-Reply-To: <19990817111350.B296@bug.ucw.cz>
-Message-ID: <Pine.LNX.4.10.9908181601390.4343-100000@laser.random>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: 2.2.11 - the new physical memory `fix' / i386
+Reply-To: colin@field.medicine.adelaide.edu.au
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Date: Thu, 19 Aug 1999 01:49:11 +1000
+From: Colin McCormack <colin@field.medicine.adelaide.edu.au>
+Message-Id: <19990818154935Z17786-657+3@eeyore.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@bug.ucw.cz>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, torvalds@transmeta.com, sct@redhat.com, Gerhard.Wichert@pdb.siemens.de, Winfried.Gerhard@pdb.siemens.de, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I cleaned up the kmap interface yesterday (in linux/bigmem.h).
+Hi,
 
-Now I am cleaning up the stuff still more putting all the bigmem common
-code and variables in linux/mm/bigmem.c (separated by the arch specific
-arch/i386/mm/bigmem.c) so there won't be duplicated sources if some other
-arch (not only i386) will want to take advantage of the bigmem common
-interface (I just heard some interest in this field ;).
+According to /proc/maps, the kernel mmaps the range of addresses up to and 
+including 0x80000000 if you tell config you have 2Gb of physical RAM.  I 
+suppose it mmaps up to and including 0x40000000 if you tell it you have 1Gb, 
+and 0xC0000000 if you tell it you have 3Gb.
 
-Andrea
+Leaving aside the question of why it should be mmapping like this at all ... 
+is there some good reason you would want a machine with (say) 2GB of ram to 
+have a map including the first byte of the 3rd gigabyte of address space?
+
+I suspect there's an off-by-one error, and the map should end within the 
+stated range (e.g. 0x40000000-1).  This causes me problems in ColdStore, 
+http://field.medicine.adelaide.edu.au/~colin/coldstore, where I'd like to be 
+able to map in some memory at a fixed address, and 0x40000000 looks a lot 
+better than 0x40000000 + 4096.
+
+Incidentally, as far as fixing the problem of linux not handling 2GB of RAM, 
+there's a much simpler way:  send 1/2 of it to me :)
+
+Colin.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
