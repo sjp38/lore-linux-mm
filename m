@@ -1,65 +1,56 @@
-Date: Sat, 30 Sep 2000 23:41:54 -0500 (CDT)
-From: "David D.W. Downey" <david.downey@codecastle.com>
+Date: Sun, 1 Oct 2000 09:39:09 +0200
+From: winden <wind@dma4.com>
+Reply-To: winden <wind@dma4.com>
+Message-ID: <161060867.20001001093909@dma4.com>
 Subject: Re: WANTED:  Linux-MM website maintainers
-In-Reply-To: <Pine.LNX.4.21.0009302107365.25194-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.20.0009302341410.11853-100000@gw.linespeed.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-reply-To: <Pine.LNX.4.21.0009302107365.25194-100000@duckman.distro.conectiva>
+References: <Pine.LNX.4.21.0009302107365.25194-100000@duckman.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kernel-doc@nl.linux.org
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org, kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
+Hello Rik,
 
-I can mirror it if you so wish.
+Sunday, October 01, 2000, 2:10:54 AM, you wrote:
 
+RvR> Hi,
 
+RvR> since it seems that people are relying on the Linux-MM
+RvR> web site to get information about the Linux VM subsystem,
+RvR> it may be time for me to update the site and put newer
+RvR> information in place...
 
+You are right... I spent yesterday putting up my current box (mmx 166,
+32 ram,300 hd) with 2.4.0-t9p2 and some other patches) and from 1 day
+of work I can say that the new vm used less swap that the original
+one, so in fact I though about going to the web page to get more info
+about how it was progressing and what would be added next.
 
-On Sat, 30 Sep 2000, Rik van Riel wrote:
+RvR> However, at the moment I'm quite busy making the VM
+RvR> subsystem work and doing lots of other stuff, so as you
+RvR> might have guessed from the subject, I'm looking for
+RvR> volunteers to help with the Linux-MM website.
 
-> Hi,
-> 
-> since it seems that people are relying on the Linux-MM
-> web site to get information about the Linux VM subsystem,
-> it may be time for me to update the site and put newer
-> information in place...
-> 
-> However, at the moment I'm quite busy making the VM
-> subsystem work and doing lots of other stuff, so as you
-> might have guessed from the subject, I'm looking for
-> volunteers to help with the Linux-MM website.
-> 
-> The website is under CVS, so helping with the site is
-> relatively easy.
-> 
-> regards,
-> 
-> Rik
-> --
-> "What you're running that piece of shit Gnome?!?!"
->        -- Miguel de Icaza, UKUUG 2000
-> 
-> http://www.conectiva.com/		http://www.surriel.com/
-> 
-> -
-> Kernelnewbies: Help each other learn about the Linux kernel.
-> Archive:       http://mail.nl.linux.org/
-> IRC Channel:   irc.openprojects.net / #kernelnewbies
-> Web Page:      http://www.surriel.com/kernelnewbies.shtml
-> 
-> -
-> Kernel-doc, Linux kernel documentation list.
-> http://mail.nl.linux.org/lists/
-> 
+Ok, I can take it. Having a good free code without some sort of
+documentation is just a big shame!
+
+RvR> The website is under CVS, so helping with the site is
+RvR> relatively easy.
+
+I'm going to the web site to have a look right now, but I don't know
+exacly what to do on it, so please tell me, ok???
 
 -- 
-David D.W. Downey          Red Hat Certified Engineer   |   Internet Security Specialist        $
-KiXO Linux                 http://www.KiXOLinux.com | http://sourceforge.net/projects/kixolinux/
-Member OSWG, LPI           http://www.owsg.org   |   http://www.lpi.org
-     -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
-       "Any lad can choose the mundane, but tis the explorers that are truly free in choice!"
+every day, every year
+you have to work
+you have to study
+you have to scene
+wind/network, mailto:wind@dma4.com
 
 
 --
