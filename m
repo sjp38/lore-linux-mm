@@ -1,106 +1,252 @@
-Message-ID: <3E39DCE8.8050101@us.ibm.com>
-Date: Thu, 30 Jan 2003 18:18:16 -0800
-From: Matthew Dobson <colpatch@us.ibm.com>
-Reply-To: colpatch@us.ibm.com
+Message-ID: <3E39EFF6.6050909@us.ibm.com>
+Date: Thu, 30 Jan 2003 19:39:34 -0800
+From: Dave Hansen <haveblue@us.ibm.com>
 MIME-Version: 1.0
-Subject: [rfc][patch] GFP_ZONEMASK vs. MAX_NR_ZONES
+Subject: [PATCH] export NUMA allocation fragmentation
 Content-Type: multipart/mixed;
- boundary="------------080904080809070506000609"
+ boundary="------------030007030407080109020501"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, William Lee Irwin III <wli@holomorphy.com>, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@zip.com.au>, Rik van Riel <riel@conectiva.com.br>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 This is a multi-part message in MIME format.
---------------080904080809070506000609
-Content-Type: text/plain; charset=us-ascii; format=flowed
+--------------030007030407080109020501
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 
-Whilst reading through some code for an unrelated patch the other day, I 
-stumbled across the build_zonelist* functions.  It seemed to me that the 
-bounds on the loop seemed too large.
+The NUMA memory allocation support attempts to allocate pages close to
+the CPUs that it is currently running on.  We have a hard time
+determining how effective these strategies have been, or how fragmented
+the allocations might get if a process is bounced around between nodes.
+ This patch adds a new /proc/<pid> entry: nodepages.
 
-There are only 3 memory zones: DMA (__GFP_DMA = 0x01), NORMAL, & HIGHMEM 
-(__GFP_DMA = 0x02).  Thus, GFP_ZONEMASK doesn't need to be 0x0f, but 
-only 0x03.  My guess this was to leave room for future zones?  In any 
-case, the loop in build_zonelists should almost certainly not go from 
-i=0..GFP_ZONEMASK.  This instantiates 13 zones that are never used, 
-because there is no case that I could find where any zonemask above 0x02 
-is used.  A zonemask of 0x03 would be DMA | HIGHMEM, but I could not 
-find an instance of that either, probably because it wouldn't make much 
-sense to request a chunk of memory from DMA & HIGHMEM.
+It walks the process's vm_area_structs for all vaddr ranges, then
+examines the ptes to determine on which node each virtual address
+physically resides.
 
-By changing the value of GFP_ZONEMASK to accurately represent the number 
-of zones, and changing the size of the node_zonelists array to 
-MAX_NR_ZONES, we save ((156 * MAX_NUMNODES) + 42) bytes per pglist_data 
-structure (basically per node).  This translates to 198 bytes on UP/SMP, 
-and 1290 bytes per node (MAX_NUMNODES=8) on NUMAQ.  Not a stagerring 
-savings, but why waste it?
+I'm a little worried about just taking the pte from __follow_page() and
+dumping it into pte_pfn().  Is there something I should be testing for,
+before I feed it along?
 
-Can anyone point out why this patch would be wrong (other arch's using 
-it differently, fundamental misunderstanding on my part, etc)?  BTW, 
-this patch boots for me on NUMAQ, and really should affect UP (except 
-for the slight size savings).
+I've tested it on both NUMA and non-NUMA systems (see the pfn_to_nid()
+changes).  The below are from a 4-quad 16-proc NUMAQ.
 
-Cheers!
+This is a process that allocates, then faults in a 256MB chunk of
+memory, bound to CPU 4 (node 1).
+curly:~# cat /proc/378/nodepages
+Node 0 pages: 369
+Node 1 pages: 65571
+Node 2 pages: 0
+Node 3 pages: 0
 
--Matt
+Here is the same thing, bound to CPU12 (node 3), probably forked on node
+1, before it was bound.
+Node 0 pages: 369
+Node 1 pages: 2
+Node 2 pages: 0
+Node 3 pages: 65569
 
---------------080904080809070506000609
+I would imagine that the pages on node 0 are from libc, which was
+originally mapped on node 0.  The other processes inherit this.
+-- 
+Dave Hansen
+haveblue@us.ibm.com
+
+--------------030007030407080109020501
 Content-Type: text/plain;
- name="zonelist_fix-2.5.59.patch"
+ name="proc-pid-nodepages-2.5.59-mjb2-1.patch"
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline;
- filename="zonelist_fix-2.5.59.patch"
+ filename="proc-pid-nodepages-2.5.59-mjb2-1.patch"
 
-diff -Nur --exclude-from=/usr/src/.dontdiff linux-2.5.59-vanilla/include/linux/gfp.h linux-2.5.59-zonelist_fix/include/linux/gfp.h
---- linux-2.5.59-vanilla/include/linux/gfp.h	Thu Jan 16 18:21:47 2003
-+++ linux-2.5.59-zonelist_fix/include/linux/gfp.h	Thu Jan 30 11:49:04 2003
-@@ -7,7 +7,7 @@
- /*
-  * GFP bitmasks..
+diff -ru linux-2.5.59-mjb2-clean/fs/proc/base.c linux-2.5.59-mjb2-vma-stat/fs/proc/base.c
+--- linux-2.5.59-mjb2-clean/fs/proc/base.c	Wed Jan 29 19:02:49 2003
++++ linux-2.5.59-mjb2-vma-stat/fs/proc/base.c	Thu Jan 30 17:57:51 2003
+@@ -45,6 +45,7 @@
+ enum pid_directory_inos {
+ 	PROC_PID_INO = 2,
+ 	PROC_PID_STATUS,
++	PROC_PID_NODE_PAGES,
+ 	PROC_PID_MEM,
+ 	PROC_PID_CWD,
+ 	PROC_PID_ROOT,
+@@ -72,6 +73,7 @@
+   E(PROC_PID_FD,	"fd",		S_IFDIR|S_IRUSR|S_IXUSR),
+   E(PROC_PID_ENVIRON,	"environ",	S_IFREG|S_IRUSR),
+   E(PROC_PID_STATUS,	"status",	S_IFREG|S_IRUGO),
++  E(PROC_PID_NODE_PAGES,"nodepages",	S_IFREG|S_IRUGO),
+   E(PROC_PID_CMDLINE,	"cmdline",	S_IFREG|S_IRUGO),
+   E(PROC_PID_STAT,	"stat",		S_IFREG|S_IRUGO),
+   E(PROC_PID_STATM,	"statm",	S_IFREG|S_IRUGO),
+@@ -102,6 +104,7 @@
+ int proc_pid_status(struct task_struct*,char*);
+ int proc_pid_statm(struct task_struct*,char*);
+ int proc_pid_cpu(struct task_struct*,char*);
++int proc_pid_nodepages(struct task_struct*,char*);
+ 
+ static int proc_fd_link(struct inode *inode, struct dentry **dentry, struct vfsmount **mnt)
+ {
+@@ -1012,6 +1015,10 @@
+ 		case PROC_PID_STATUS:
+ 			inode->i_fop = &proc_info_file_operations;
+ 			ei->op.proc_read = proc_pid_status;
++			break;
++		case PROC_PID_NODE_PAGES:
++			inode->i_fop = &proc_info_file_operations;
++			ei->op.proc_read = proc_pid_nodepages;
+ 			break;
+ 		case PROC_PID_STAT:
+ 			inode->i_fop = &proc_info_file_operations;
+diff -ru linux-2.5.59-mjb2-clean/fs/proc/task_mmu.c linux-2.5.59-mjb2-vma-stat/fs/proc/task_mmu.c
+--- linux-2.5.59-mjb2-clean/fs/proc/task_mmu.c	Wed Jan 29 19:02:49 2003
++++ linux-2.5.59-mjb2-vma-stat/fs/proc/task_mmu.c	Thu Jan 30 19:25:54 2003
+@@ -2,6 +2,7 @@
+ #include <linux/mm.h>
+ #include <linux/hugetlb.h>
+ #include <asm/uaccess.h>
++#include <asm/mmzone.h>
+ 
+ char *task_mem(struct mm_struct *mm, char *buffer)
+ {
+@@ -243,5 +244,56 @@
+ out_free1:
+ 	free_page((unsigned long)kbuf);
+ out:
++	return retval;
++}
++
++extern pte_t
++__follow_page(struct mm_struct *mm, unsigned long address);
++
++ssize_t proc_pid_nodepages(struct task_struct *task, char* buf)
++{
++	struct mm_struct *mm;
++	struct vm_area_struct * map;
++	long retval;
++	int nids[MAX_NR_NODES];
++	int i;
++
++	for(i=0;i<numnodes;i++)
++		nids[i] = 0;
++	
++	/*
++	 * We might sleep getting the page, so get it first.
++	 */
++	mm = get_task_mm(task);
++
++	if(!mm) {
++		printk("%s(): !mm !!\n", __FUNCTION__);
++		return 0;
++	}
++	
++	retval = 0;
++
++	down_read(&mm->mmap_sem);
++	map = mm->mmap;
++	while (map) {
++		unsigned long vaddr = map->vm_start;
++		unsigned long vm_end = map->vm_end;
++		pte_t pte;
++		unsigned long pfn;
++		
++		for(;vaddr < vm_end; vaddr += PAGE_SIZE) {
++			pte = __follow_page(mm, vaddr);
++			pfn = pte_pfn(pte);
++			nids[pfn_to_nid(pfn)]++;
++		}
++		map = map->vm_next;
++	}
++	up_read(&mm->mmap_sem);
++	mmput(mm);
++
++	for(i=0;i<numnodes;i++) {
++		retval += sprintf(&buf[retval], "Node %d pages: %d\n", 
++				i, nids[i]);
++	}
+ 	return retval;
+ }
+diff -ru linux-2.5.59-mjb2-clean/include/asm-i386/mmzone.h linux-2.5.59-mjb2-vma-stat/include/asm-i386/mmzone.h
+--- linux-2.5.59-mjb2-clean/include/asm-i386/mmzone.h	Wed Jan 29 19:02:38 2003
++++ linux-2.5.59-mjb2-vma-stat/include/asm-i386/mmzone.h	Thu Jan 30 19:25:54 2003
+@@ -8,14 +8,17 @@
+ 
+ #include <asm/smp.h>
+ 
+-#ifdef CONFIG_DISCONTIGMEM
++#ifndef CONFIG_DISCONTIGMEM
++
++#define pfn_to_nid(pfn)		(0)
++
++#else
+ 
+ #ifdef CONFIG_X86_NUMAQ
+ #include <asm/numaq.h>
+ #elif CONFIG_X86_SUMMIT
+ #include <asm/srat.h>
+ #else
+-#define pfn_to_nid(pfn)		(0)
+ #endif /* CONFIG_X86_NUMAQ */
+ 
+ extern struct pglist_data *node_data[];
+diff -ru linux-2.5.59-mjb2-clean/mm/memory.c linux-2.5.59-mjb2-vma-stat/mm/memory.c
+--- linux-2.5.59-mjb2-clean/mm/memory.c	Wed Jan 29 19:02:54 2003
++++ linux-2.5.59-mjb2-vma-stat/mm/memory.c	Thu Jan 30 16:45:55 2003
+@@ -612,13 +612,12 @@
+  * Do a quick page-table lookup for a single page.
+  * mm->page_table_lock must be held.
   */
--/* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low four bits) */
-+/* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low two bits) */
- #define __GFP_DMA	0x01
- #define __GFP_HIGHMEM	0x02
+-struct page *
+-follow_page(struct mm_struct *mm, unsigned long address, int write) 
++pte_t 
++__follow_page(struct mm_struct *mm, unsigned long address)
+ {
+ 	pgd_t *pgd;
+ 	pmd_t *pmd;
+ 	pte_t *ptep, pte;
+-	unsigned long pfn;
  
-diff -Nur --exclude-from=/usr/src/.dontdiff linux-2.5.59-vanilla/include/linux/mmzone.h linux-2.5.59-zonelist_fix/include/linux/mmzone.h
---- linux-2.5.59-vanilla/include/linux/mmzone.h	Thu Jan 16 18:21:34 2003
-+++ linux-2.5.59-zonelist_fix/include/linux/mmzone.h	Thu Jan 30 12:20:24 2003
-@@ -162,7 +162,7 @@
- 	struct zone *zones[MAX_NUMNODES * MAX_NR_ZONES + 1]; // NULL delimited
- };
+ 	pgd = pgd_offset(mm, address);
+ 	if (pgd_none(*pgd) || pgd_bad(*pgd))
+@@ -629,11 +628,25 @@
+ 		goto out;
  
--#define GFP_ZONEMASK	0x0f
-+#define GFP_ZONEMASK	0x03
+ 	ptep = pte_offset_map(pmd, address);
+-	if (!ptep)
++	if (!ptep) {
++		pte.pte_low = 0; //__bad_page();		
++		pte.pte_high = 0;
+ 		goto out;
+-
++	}
+ 	pte = *ptep;
+ 	pte_unmap(ptep);
++
++out:
++	return pte;
++}
++	
++struct page *
++follow_page(struct mm_struct *mm, unsigned long address, int write) 
++{
++	pte_t pte;	
++	unsigned long pfn;
++	
++	pte = __follow_page(mm, address);
+ 	if (pte_present(pte)) {
+ 		if (!write || (pte_write(pte) && pte_dirty(pte))) {
+ 			pfn = pte_pfn(pte);
+@@ -642,7 +655,6 @@
+ 		}
+ 	}
  
- /*
-  * The pg_data_t structure is used in machines with CONFIG_DISCONTIGMEM
-@@ -178,7 +178,7 @@
- struct bootmem_data;
- typedef struct pglist_data {
- 	struct zone node_zones[MAX_NR_ZONES];
--	struct zonelist node_zonelists[GFP_ZONEMASK+1];
-+	struct zonelist node_zonelists[MAX_NR_ZONES];
- 	int nr_zones;
- 	struct page *node_mem_map;
- 	unsigned long *valid_addr_bitmap;
-diff -Nur --exclude-from=/usr/src/.dontdiff linux-2.5.59-vanilla/mm/page_alloc.c linux-2.5.59-zonelist_fix/mm/page_alloc.c
---- linux-2.5.59-vanilla/mm/page_alloc.c	Thu Jan 16 18:21:38 2003
-+++ linux-2.5.59-zonelist_fix/mm/page_alloc.c	Thu Jan 30 11:47:11 2003
-@@ -962,7 +962,7 @@
+-out:
+ 	return NULL;
+ }
  
- 	local_node = pgdat->node_id;
- 	printk("Building zonelist for node : %d\n", local_node);
--	for (i = 0; i <= GFP_ZONEMASK; i++) {
-+	for (i = 0; i < MAX_NR_ZONES; i++) {
- 		struct zonelist *zonelist;
- 
- 		zonelist = pgdat->node_zonelists + i;
 
---------------080904080809070506000609--
+--------------030007030407080109020501--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
