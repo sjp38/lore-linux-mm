@@ -1,49 +1,58 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by postfix.conectiva.com.br (Postfix) with SMTP id 98DDE16B21
-	for <linux-mm@kvack.org>; Thu, 22 Mar 2001 20:53:57 -0300 (EST)
-Date: Thu, 22 Mar 2001 20:53:57 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Thu, 22 Mar 2001 18:20:48 -0600
+From: Stephen Clouse <stephenc@theiqgroup.com>
 Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <3C9BCD6E.94A5BAA0@evision-ventures.com>
-Message-ID: <Pine.LNX.4.33.0103222052100.24040-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20010322182048.B1406@owns.warpcore.org>
+References: <3AB9313C.1020909@missioncriticallinux.com> <Pine.LNX.4.21.0103212047590.19934-100000@imladris.rielhome.conectiva> <20010322124727.A5115@win.tue.nl> <20010322142831.A929@owns.warpcore.org> <3C9BCD6E.94A5BAA0@evision-ventures.com>
+Mime-Version: 1.0
+Content-Type: text/plain
+Content-Disposition: inline; filename="msg.pgp"
+In-Reply-To: <3C9BCD6E.94A5BAA0@evision-ventures.com>; from dalecki@evision-ventures.com on Sat, Mar 23, 2002 at 01:33:50AM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Martin Dalecki <dalecki@evision-ventures.com>
-Cc: Stephen Clouse <stephenc@theiqgroup.com>, Guest section DW <dwguest@win.tue.nl>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Guest section DW <dwguest@win.tue.nl>, Rik van Riel <riel@conectiva.com.br>, Patrick O'Rourke <orourke@missioncriticallinux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 23 Mar 2002, Martin Dalecki wrote:
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-> Uptime of a process is a much better mesaure for a killing
-> candidate then it's size.
+On Sat, Mar 23, 2002 at 01:33:50AM +0100, Martin Dalecki wrote:
+> AMEN! TO THIS!
+> Uptime of a process is a much better mesaure for a killing candidate
+> then it's size.
 
-You'll have fun with your root shell, then  ;)
+Thing is, if you take a good study of mm/oom_kill.c, it *does* take start time
+into account, as well as CPU time.  The problem is that a process (like Oracle,
+in our case) using ludicrous amounts of memory can still rank at the top of the 
+list, even with the time-based reduction factors, because total VM is the
+starting number in the equation for determining what to kill.  Oracle or what
+not sitting at 80 MB for a day or two will still find a way to outrank the
+newly-started 1 MB shell process whose malloc triggered oom_kill in the first
+place.
 
-The current OOM code takes things like uptime, used cpu, size
-and a bunch of other things into account.
+If anything, time really needs to be a hard criterion for sorting the final list
+on and not merely a variable in the equation and thus tied to vmsize.
 
-If it turns out that the code is not attaching a proper weight
-to some of these factors, you should be sending patches, not
-flames.
+This is why the production database boxen aren't running 2.4 yet.  I can control
+Oracle's usage very finely (since it uses a fixed memory pool preallocated at
+startup), but if something else decides to fire up on there (like the nightly
+backup and maintenance routine) and decides it needs just a pinch more memory
+than what's available -- ick.  2.2.x doesn't appear to enforce new memory 
+allocation with a sniper rifle -- the new process just suffers a pleasant ("Out
+of memory!") or violent (SIGSEGV) death.
 
-(the code is full of comments, so it should be easy enough to
-find your way around the code and tweak it until it does the
-right thing in a number of test cases)
+- -- 
+Stephen Clouse <stephenc@theiqgroup.com>
+Senior Programmer, IQ Coordinator Project Lead
+The IQ Group, Inc. <http://www.theiqgroup.com/>
 
-regards,
+-----BEGIN PGP SIGNATURE-----
+Version: PGP 6.5.8
 
-Rik
---
-Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
-
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
+iQA/AwUBOrqW3wOGqGs0PadnEQLZUwCfWTr8HwAChQamWWvWWzZcX5DZ8PAAnROB
+Ja25OAQu3W1h7Ck0SU/TfKj8
+=VlQt
+-----END PGP SIGNATURE-----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
