@@ -1,33 +1,35 @@
-Received: from webmail.andrew.cmu.edu (WEBMAIL2.andrew.cmu.edu [128.2.10.92])
-	by smtp1.andrew.cmu.edu (8.12.10/8.12.10) with SMTP id i1GKKLZI030421
-	for <linux-mm@kvack.org>; Mon, 16 Feb 2004 15:20:21 -0500
-Message-ID: <2000.128.2.185.83.1076962818.squirrel@webmail.andrew.cmu.edu>
-Date: Mon, 16 Feb 2004 15:20:18 -0500 (EST)
-Subject: Question on kswapd interaction with page-map
-From: "Anand Eswaran" <aeswaran@andrew.cmu.edu>
-Reply-To: aeswaran@ece.cmu.edu
+Date: Mon, 16 Feb 2004 16:12:15 -0500 (EST)
+From: Zwane Mwaikambo <zwane@linuxpower.ca>
+Subject: Re: 2.6.3-rc3-mm1
+In-Reply-To: <Pine.LNX.3.96.1040216141554.2146A-100000@gatekeeper.tmr.com>
+Message-ID: <Pine.LNX.4.58.0402161610110.11793@montezuma.fsmlabs.com>
+References: <Pine.LNX.3.96.1040216141554.2146A-100000@gatekeeper.tmr.com>
 MIME-Version: 1.0
-Content-Type: text/plain;charset=iso-8859-1
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Bill Davidsen <davidsen@tmr.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi :
+On Mon, 16 Feb 2004, Bill Davidsen wrote:
 
-   I send a looooong mail yday to this list, have recieved no reply. I
-assume it was too long : so here's the short one-line version.
+> > I think it was a good change, and was appropriate to 2.5.x.  But for 2.6.x
+> > the benefit didn't seem to justify the depth of the change.
 
-  Could someone please answer this question:
+Rather unfortunate that allyes didn't fix things.
 
-1) If a system call grabs pagemap_lru_lock and holds on to it for a long
-time , can bad things happen with kswapd , which contends for the same
-lock?
+> And will it be appropriate for 2.7? It really does give a start to
+> trimming code you don't want in a small kernel, and would have been nice
+> so people could use it for any processor specific additions to 2.6.
+>
+> Not arguing, but it was a step to improve control of creeping unnecessary
+> archetecture support.
 
-Thanks a lot,
------
-Anand.
+Well the -tiny tree has that and a lot more drastic trimmings, Andrew is
+there already an arrangement to feed the not so brutal changes to you?
+
+	Zwane
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
