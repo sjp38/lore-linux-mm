@@ -1,48 +1,52 @@
-Date: Thu, 4 May 2000 12:38:31 -0300 (BRST)
+Date: Thu, 4 May 2000 12:57:43 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Reply-To: riel@nl.linux.org
-Subject: Re: classzone-VM + mapped pages out of lru_cache
-In-Reply-To: <Pine.LNX.4.21.0005041702560.2512-100000@alpha.random>
-Message-ID: <Pine.LNX.4.21.0005041234490.23740-100000@duckman.conectiva>
+Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
+In-Reply-To: <Pine.LNX.4.10.10005040808490.1137-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0005041253310.23740-100000@duckman.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Juan J. Quintela" <quintela@fi.udc.es>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, trond.myklebust@fys.uio.no
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Rajagopal Ananthanarayanan <ananth@sgi.com>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 May 2000, Andrea Arcangeli wrote:
+On Thu, 4 May 2000, Linus Torvalds wrote:
 
-> --- 2.2.15/mm/filemap.c	Thu May  4 13:00:40 2000
-> +++ /tmp/filemap.c	Thu May  4 17:11:18 2000
-> @@ -68,7 +68,7 @@
->  
->  	p = &inode->i_pages;
->  	while ((page = *p) != NULL) {
-> -		if (PageLocked(page)) {
-> +		if (PageLocked(page) || atomic_read(&page->count) > 1) {
->  			p = &page->next;
->  			continue;
->  		}
+> 	for (;;) {
+> 		int something_to_do = 0;
+> 		pgdat = pgdat_list;
+> 		while (pgdat) {
+> 			for(i = 0; i < MAX_NR_ZONES; i++) {
+> 				zone = pgdat->node_zones+ i;
+> 				if (!zone->size || !zone->zone_wake_kswapd)
+> 					continue;
+> 				something_to_do = 1;
+> 				do_try_to_free_pages(GFP_KSWAPD, zone);
+> 			}
+> 			run_task_queue(&tq_disk);
+> 			pgdat = pgdat->node_next;
+> 		}
+> 		if (something_to_do) {
+> 			if (tsk->need_resched)
+> 				schedule();
+> 			continue;
+> 		}
+> 		tsk->state = TASK_INTERRUPTIBLE;
+> 		interruptible_sleep_on(&kswapd_wait);
+> 	}
+> 
+> See? This has two changes to the current logic:
+>  - it is more "balanced" on the do_try_to_free_pages(), ie it calls it for
+>    different zones instead of repeating one zone until no longer needed.
+>  - it continues to do this until no zone needs balancing any more, unlike
+>    the old one that could easily lose kswapd wakeup-requests and just do
+>    one zone.
+> 
+> What do you think?
 
-Fun, fun, fun ...
-
-So the other CPU takes a lock on the page while we're testing
-for the page->count and increments the pagecount after the lock,
-while we try to do something (call __free_page(page)?) with the
-page ...
-
-As long as the other cpu increments the page count quick enough
-it should be ok, but when it doesn't we can *still* end up freeing
-a locked page.  I've seen backtraces where __free_pages_ok()
-Oopsed on PageLocked(page) and the function was called from
-truncate_inode_pages().
-
-The fix which is in the latest kernel from Linus fixed the bug for
-those people. Stubbornly reversing the fix because you haven't
-managed to reproduce it yet is most probably not the right thing
-to do.
+Indeed, this probably better ...
 
 regards,
 
