@@ -1,12 +1,12 @@
 Date: Mon, 14 Feb 2005 06:36:10 -0700
-Message-Id: <200410031406.i93IrdTw002500@www4.gmail.com>
-From: "Virgie Pollock" <schwendemann@doramail.com>
-Subject: Need a 3.25% mortage rate?
+Message-Id: <200410031450.i93YllTw000986@www3.warnerreprise.com>
+From: "Janelle Battle" <cattladge@didamail.com>
+Subject: You've been selected for a low rate
 Mime-Version: 1.0
 Content-Type: text/plain;
-Return-Path: <schwendemann@doramail.com>
-To: linux-aio@kvack.org
-Cc: linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org
+Return-Path: <cattladge@didamail.com>
+To: linux-mm@kvack.org
+Cc: linux-mm-archive@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hello,
@@ -28,7 +28,7 @@ Hello,
 
  Best Regards,
 
- Ivory Armstrong
+ Frederick Feliciano
  
  to be remov(ed:	http://www.fastlenderz.com/x/st.html
 
