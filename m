@@ -1,31 +1,43 @@
+Date: Thu, 20 Sep 2001 10:02:45 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: broken VM in 2.4.10-pre9
-Date: Thu, 20 Sep 2001 13:57:02 +0100 (BST)
-In-Reply-To: <20010920112110Z16256-2757+869@humbolt.nl.linux.org> from "Daniel Phillips" at Sep 20, 2001 01:28:31 PM
+In-Reply-To: <20010919.145534.104033668.davem@redhat.com>
+Message-ID: <Pine.LNX.4.33L.0109201001120.19147-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E15k3O2-0005Fr-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "Eric W. Biederman" <ebiederm@xmission.com>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "David S. Miller" <davem@redhat.com>
+Cc: ebiederm@xmission.com, alan@lxorguk.ukuu.org.uk, phillips@bonn-fries.net, rfuller@nsisoftware.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> On September 20, 2001 12:04 am, Alan Cox wrote:
-> > Reverse mappings make linear aging easier to do but are not critical (we
-> > can walk all physical pages via the page map array).
+On Wed, 19 Sep 2001, David S. Miller wrote:
+
+> My own personal feeling, after having tried to implement a much
+> lighter weight scheme involving "anon areas", is that reverse maps or
+> something similar should be looked at as a latch ditch effort.
 >
-> But you can't pick up the referenced bit that way, so no up aging, only
-> down.
+> We are tons faster than anyone else in fork/exec/exit precisely
+> because we keep track of so little state for anonymous pages.
 
-#1 If you really wanted to you could update a referenced bit in the page
-struct in the fault handling path.
+Thinking about this some more, it would seem that the
+"perfect fork()" would be one where you DON'T copy the
+page tables, but only set the parent's page tables to
+read-only and point the VMAs of the child at some kind
+of memory objects.
 
-#2 If a page is referenced multiple times by different processes is the
-behaviour of multiple upward aging actually wrong.
+For example, for file-backed VMAs we might already skip
+the page table copying right now.
 
-Alan
+regards,
+
+Rik
+-- 
+IA64: a worthy successor to i860.
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
