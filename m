@@ -1,66 +1,48 @@
-Date: Mon, 8 Jan 2001 12:29:41 -0600
-From: Timur Tabi <ttabi@interactivesi.com>
-Subject: iounmap causes Oops and Aiees
-Message-Id: <20010108182707Z131177-222+78@kanga.kvack.org>
+Date: Mon, 8 Jan 2001 10:38:19 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: Subtle MM bug
+In-Reply-To: <Pine.LNX.4.21.0101081613530.21675-100000@duckman.distro.conectiva>
+Message-ID: <Pine.LNX.4.10.10101081028300.3750-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM mailing list <linux-mm@kvack.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "David S. Miller" <davem@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-(sorry if this is a repost - but I haven't been seeing my posts to this or the
-linux-kernel mailing lists)
 
-I'm using 2.2.18pre15 on an i386, and the following code causes my system to be
-very unstable:
+On Mon, 8 Jan 2001, Rik van Riel wrote:
+> 
+> > That _is_ the problem the above will fix. Don't read
+> > "page_launder()" there: it's more meant to be "this is the old
+> > code that does page_launder() etc.."
+> > 
+> > Trust me. Try my code. It will work.
+> 
+> Except for the small detail that pages inside the processes
+> are often not on the active list  ;)
 
-unsigned long phys = virt_to_phys(high_memory) - (2 * PAGE_SIZE);
-mem_map_t *mm = mem_map + MAP_NR(phys);
-unsigned long flags = mm->flags;
+Yes, you're right - we don't have a good counter to test right now.		
 
-mm->flags |= PG_reserved;
-p = ioremap_nocache(phys, PAGE_SIZE);
-mm->flags = flags;
-ASSERT(p);
-if (p) iounmap(p);
+That's actually fairly nasty. We can't even use the "reverse" test,
+because while we can make it do something like
 
+	if (nr_inactive + nr_inactive_dirty < X %)
 
-The code is located in the init_module section of my driver.  It executes
-without any problems.  However, after the driver is loaded (it doesn't do
-anything but run this code), the system rapidly becomes unstable.  Symptoms are
-random and include:
+that won't pick up on things like the dentry and inode caches, so that
+would be wrong too. 
 
-1. Inability to log in (login prompt doesn't respond after I type in a userid)
-2. Attempting to shut down always causes an oops
-3. Various kernel panics, including the "Aieee" kind.
+We would really need to count the number of mapped anonymous pages to get
+this right. Damn. That makes it harder than I thought.
 
-I must be forgetting to do something critical, probably because what I'm trying
-to do is not well documented but apparently supported by the kernel.  I make
-that assumption because of this code fragment in function __ioremap of
-arch/i386/mm/ioremap.c:
+(Hmm.. Increment counter in "do_anonymous_page()" and "do_wp_page()".
+Decrement in "add_to_swap_cache()". Decrement in "free_pte()" for the
+!page->mapping case. Test. Find the places I forgot. Maybe it's not that
+bad, after all).
 
-	if (phys_addr < virt_to_phys(high_memory))
-           {
-		char *temp_addr, *temp_end;
-		int i;
+		Linus
 
-		temp_addr = __va(phys_addr);
-		temp_end = temp_addr + (size - 1);
-	      
-		for(i = MAP_NR(temp_addr); i < MAP_NR(temp_end); i++) {
-			if(!PageReserved(mem_map + i))
-				return NULL;
-		}
-	   }
-
-As long as every page is marked as reserved, ioremap_nocache() will map the
-page.  My question is: why does iounmap fail when ioremap succeeds?
-
-
--- 
-Timur Tabi - ttabi@interactivesi.com
-Interactive Silicon - http://www.interactivesi.com
-
-When replying to a mailing-list message, please direct the reply to the mailing list only.  Don't send another copy to me.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
