@@ -1,42 +1,69 @@
-Date: Fri, 25 Mar 2005 10:38:04 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: [PATCH] remove non-DISCONTIG use of pgdat->node_mem_map
-Message-ID: <22520000.1111775883@[10.10.2.4]>
-In-Reply-To: <E1DEsgS-0002zz-00@kernel.beaverton.ibm.com>
-References: <E1DEsgS-0002zz-00@kernel.beaverton.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from d01relay02.pok.ibm.com (d01relay02.pok.ibm.com [9.56.227.234])
+	by e3.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j2PKhj0H029906
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:45 -0500
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by d01relay02.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j2PKhjgv089890
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:45 -0500
+Received: from d01av02.pok.ibm.com (loopback [127.0.0.1])
+	by d01av02.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j2PKhjNR015362
+	for <linux-mm@kvack.org>; Fri, 25 Mar 2005 15:43:45 -0500
+Subject: resubmit - [PATCH 0/4] sparsemem intro patches
+From: Dave Hansen <haveblue@us.ibm.com>
+Content-Type: text/plain
+Date: Fri, 25 Mar 2005 12:43:43 -0800
+Message-Id: <1111783423.9691.65.camel@localhost>
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>, akpm@osdl.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Whitcroft <apw@shadowen.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> This patch effectively eliminates direct use of pgdat->node_mem_map
-> outside of the DISCONTIG code.  On a flat memory system, these fields
-> aren't currently used, neither are they on a sparsemem system.
-> 
-> There was also a node_mem_map(nid) macro on many architectures. Its
-> use along with the use of ->node_mem_map itself was not consistent.
-> It has been removed in favor of two new, more explicit,
-> arch-independent macros:
-> 
-> 	pgdat_page_nr(pgdat, pagenr)
-> 	nid_page_nr(nid, pagenr)
-> 
-> I called them "pgdat" and "nid" because we overload the term "node"
-> to mean "NUMA node", "DISCONTIG node" or "pg_data_t" in very
-> confusing ways.  I believe the newer names are much clearer.
+Andrew, I noticed that these were dropped out of 2.6.12-mm1:
 
-Seems like a good plan - the abstraction will make it easier to change the
-underlying mechanism. I'm not desperately keen on the new naming, but
-given the current code state it makes sense, I guess. Once Andy has got
-sparsemem merged up, and we change struct pgdat to be called struct node
-or something more sensible, we can revisit it then.
+> -sparsemem-base-teach-discontig-about-sparse-ranges.patch
+> -sparsemem-base-simple-numa-remap-space-allocator.patch
+> -sparsemem-base-reorganize-page-flags-bit-operations.patch
+> -sparsemem-base-early_pfn_to_nid-works-before-sparse-is-initialized.patch
+> 
+> This was breaking compilation in various ways on various
+> architectures.
+> Returned to manufacturer.
 
-Signed-off-by: Martin J. Bligh <mbligh@aracnet.com>
+I *think* those problems were caused by the actual sparsemem patches
+that I posted for RFC, not the base "intro" patches.  (I have fixes for
+the problems that you were hitting with the RFC patches ready, too)
+
+I've run these through a bunch of compile tests, including arm and alpha
+with and without DISCONTIGMEM, and they seem OK.  They also boot just
+fine on a bunch of ppc64 and i386 configurations.  
+
+Can these go back into -mm?
+
+----
+
+The following four patches provide the last needed changes before the
+introduction of sparsemem.  For a more complete description of what this
+will do, please see this patch:
+
+http://www.sr71.net/patches/2.6.11/2.6.11-bk7-mhp1/broken-out/B-sparse-150-sparsemem.patch
+
+or previous posts on the subject:
+http://marc.theaimsgroup.com/?t=110868540700001&r=1&w=2
+http://marc.theaimsgroup.com/?l=linux-mm&m=109897373315016&w=2
+
+Three of these are i386-only, but one of them reorganizes the macros
+used to manage the space in page->flags, and will affect all platforms.
+There are analogous patches to the i386 ones for ppc64, ia64, and
+x86_64, but those will be submitted by the normal arch maintainers.
+
+The combination of the four patches has been test-booted on a variety of
+i386 hardware, and compiled for ppc64, i386, and x86-64 with about 17
+different .configs.  It's also been runtime-tested on ia64 configs (with
+more patches on top).
+
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
