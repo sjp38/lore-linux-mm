@@ -1,28 +1,35 @@
-Message-ID: <3B87A3BC.EB5A9989@pp.inet.fi>
-Date: Sat, 25 Aug 2001 16:10:20 +0300
-From: Jari Ruusu <jari.ruusu@pp.inet.fi>
+Message-ID: <20010827145640.79597.qmail@web14201.mail.yahoo.com>
+Date: Mon, 27 Aug 2001 07:56:40 -0700 (PDT)
+From: PRASENJIT CHAKRABORTY <pras_chakra@yahoo.com>
+Subject: can i call copy_to_user with interrupts masked
 MIME-Version: 1.0
-Subject: Re: VM problem with 2.4.8-ac9 (fwd)
-References: <Pine.LNX.4.33L.0108241710040.31410-100000@duckman.distro.conectiva>
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Rik van Riel <riel@conectiva.com.br>, Marcelo Tosatti <marcelo@conectiva.com.br>, Hugh Dickins <hugh@veritas.com>, Jeremy Linton <jlinton@interactivesi.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: arund@bellatlantic.net
 List-ID: <linux-mm.kvack.org>
 
-VM torture results of 2.4.8-ac11, 4 hours of torture. 1 incident where a
-process died with SIGSEGV.
+Hello All,
+     This is in continuation with my previous mail.
+While debugging I've noticed that __copy_to_user()
+fails when I stop the Bottom Half before the call to
+__copy_to_user(), so if the page in not currently
+mapped then it forbids do_page_fault() to get invoked
+and hence the failure.
 
-Got these on serial console lot earlier than the SIGSEGV happened, so they
-are probably unrelated to the SIGSEGV:
-> Unused swap offset entry in swap_count 003cba00
-> VM: Bad swap entry 003cba00
+So I would like to know whether this hypothesis is
+right or not? And if not then the possible
+explanation.
 
-Regards,
-Jari Ruusu <jari.ruusu@pp.inet.fi>
+Thankx
 
+Prasenjit
+
+__________________________________________________
+Do You Yahoo!?
+Make international calls for as low as $.04/minute with Yahoo! Messenger
+http://phonecard.yahoo.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
