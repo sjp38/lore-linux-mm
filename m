@@ -1,62 +1,64 @@
-Date: Thu, 19 Feb 2004 01:00:45 -0800
+Date: Thu, 19 Feb 2004 01:11:29 -0800
 From: "Paul E. McKenney" <paulmck@us.ibm.com>
 Subject: Re: Non-GPL export of invalidate_mmap_range
-Message-ID: <20040219090045.GC1269@us.ibm.com>
+Message-ID: <20040219091129.GD1269@us.ibm.com>
 Reply-To: paulmck@us.ibm.com
-References: <20040217073522.A25921@infradead.org> <20040217124001.GA1267@us.ibm.com> <20040217161929.7e6b2a61.akpm@osdl.org> <1077108694.4479.4.camel@laptop.fenrus.com> <20040218140021.GB1269@us.ibm.com> <20040218211035.A13866@infradead.org> <20040218150607.GE1269@us.ibm.com> <20040218222138.A14585@infradead.org> <20040218145132.460214b5.akpm@osdl.org> <20040219102900.GC14000@marowsky-bree.de>
+References: <20040217161929.7e6b2a61.akpm@osdl.org> <1077108694.4479.4.camel@laptop.fenrus.com> <20040218140021.GB1269@us.ibm.com> <20040218211035.A13866@infradead.org> <20040218150607.GE1269@us.ibm.com> <20040218222138.A14585@infradead.org> <20040218145132.460214b5.akpm@osdl.org> <20040218230055.A14889@infradead.org> <20040218162858.2a230401.akpm@osdl.org> <20040219123110.A22406@infradead.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20040219102900.GC14000@marowsky-bree.de>
+In-Reply-To: <20040219123110.A22406@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Lars Marowsky-Bree <lmb@suse.de>
-Cc: Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>, arjanv@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, torvalds@osd.org, arjanv@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Feb 19, 2004 at 11:29:00AM +0100, Lars Marowsky-Bree wrote:
-> On 2004-02-18T14:51:32,
->    Andrew Morton <akpm@osdl.org> said:
+On Thu, Feb 19, 2004 at 12:31:10PM +0000, Christoph Hellwig wrote:
+> On Wed, Feb 18, 2004 at 04:28:58PM -0800, Andrew Morton wrote:
+> > OK, so I looked at the wrapper.  It wasn't a tremendously pleasant
+> > experience.  It is huge, and uses fairly standard-looking filesytem
+> > interfaces and locking primitives.  Also some awareness of NFSV4 for some
+> > reason.
 > 
-> > a) Does the export make technical sense?  Do filesystems have
-> >    legitimate need for access to this symbol?
-> > 
-> > (really, a) is sufficient grounds, but for real-world reasons:)
-> 
-> Technically, I assume both OCFS, Lustre, (OpenGFS), PolyServe and
-> basically /everyone/ doing a cluster file system, proprietary or not,
-> will eventually need this capability. Vendors have included hooks for
-> this in 2.4 already anyway.
-> 
-> So on technical grounds, I'm strongly inclined to support it, but I
-> would like to suggest that it is ensured that the hook is sufficient for
-> all of the named CFS.
-> 
-> Paul, have you spoken with them?
+> And pokes deep into internal structures that it shouldn't.
 
-Lustre, yes.  At OLS last summer, Peter Braam said that it was useful.
-The others, no, but they are certainly free to chime in.
+Again, the point of the patch is to get rid of such poking.
 
-> > b) Does the IBM filsystem meet the kernel's licensing requirements?
+> > Still, the wrapper is GPL so this is not relevant.
 > 
-> If you are worried about this one, you can export it GPL-only, which as
-> an Open Source developer I'd appreciate, but from a real-world business
-> perspective would be unhappy about ;-)
+> It's BSD licensed - they couldn't distribute it together with GPFS if
+> it was GPL.
 
-Been there, done that.  ;-)
+Yep.
+
+> > Its only use is to tell
+> > us whether or not the non-GPL bits are "derived" from Linux, and it
+> > doesn't do that.
+> 
+> Well, something that needs an almost one megabyte big wrapper per defintion
+> is not a standalone work but something that's deeply interwinded with
+> the kernel.  The tons of kernel version checks certainly show it's poking
+> deeper than it should.
+
+On the size, I beg to differ.  One of the reasons the glue module is
+so large is because of the fact that GPFS was written to run in an AIX
+kernel rather than a Linux kernel.  I would guess that if GPFS had
+been instead been derived from Linux, the glue module would be much
+smaller.  On the kernel version checks, the point of the patch is
+to get rid of at least some of these.
+
+> > Why do you believe that GPFS represents a kernel licensing violation?
+> 
+> See above.  Something that pokes deep into internal structures and even
+> needs new exports certainly is a derived work.  There's a few different
+> interpretations of the derived works clause in the GPL around, the FSF
+> one wouldn't allow binary modules at all, and Linus' one is also pretty
+> strict.
+
+So why are you coming out against something that you seem to believe
+allows -better- alignment with Linus's rules?
 
 						Thanx, Paul
-
-> Sincerely,
->     Lars Marowsky-Bree <lmb@suse.de>
-> 
-> -- 
-> High Availability & Clustering	      \ ever tried. ever failed. no matter.
-> SUSE Labs			      | try again. fail again. fail better.
-> Research & Development, SUSE LINUX AG \ 	-- Samuel Beckett
-> 
-> 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
