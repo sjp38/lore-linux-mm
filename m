@@ -1,47 +1,35 @@
-Received: from adore.lightlink.com (kimoto@adore.lightlink.com [205.232.34.20])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA20172
-	for <linux-mm@kvack.org>; Fri, 19 Jun 1998 16:15:47 -0400
-From: Paul Kimoto <kimoto@lightlink.com>
-Message-ID: <19980619161417.40049@adore.lightlink.com>
-Date: Fri, 19 Jun 1998 16:14:17 -0400
-Subject: Re: update re: fork() failures [in 2.1.103]
-References: <19980619110148.53909@adore.lightlink.com> <Pine.LNX.3.96.980619185625.6318F-100000@mirkwood.dummy.home>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <Pine.LNX.3.96.980619185625.6318F-100000@mirkwood.dummy.home>; from Rik van Riel on Fri, Jun 19, 1998 at 06:59:56PM +0200
+Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA20285
+	for <linux-mm@kvack.org>; Fri, 19 Jun 1998 16:31:10 -0400
+Subject: Re: New Linux-MM homepage
+References: <Pine.LNX.3.96.980619190100.7276A-100000@mirkwood.dummy.home>
+From: ebiederm+eric@npwt.net (Eric W. Biederman)
+Date: 19 Jun 1998 14:29:51 -0500
+In-Reply-To: Rik van Riel's message of Fri, 19 Jun 1998 19:06:08 +0200 (CEST)
+Message-ID: <m1g1h1w5ow.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
 To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: Linux MM <linux-mm@kvack.org>, woltman@magicnet.net
+Cc: "Eric W. Biederman" <ebiederm+eric@npwt.net>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 19, 1998 at 06:59:56PM +0200, Rik van Riel wrote:
->> %CPU %MEM  SIZE   RSS
->> 95.7  1.6  9364   520 mprime        15.4.2 (internet Mersenne prime search)
+>>>>> "RR" == Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
 
-> Shouldn't be much of a problem... But 'eh, does the
-> Mersenne program regularly do memory I/O?
-> It could be that it loads large chunks of memory and
-> frees small portions from the middle of it. The Linux
-> MM system could have a problem with that...
+RR> On 19 Jun 1998, Eric W. Biederman wrote:
 
-> The reason I picked this process, is that it's RSS is
-> only one 18th of it's total size, which is somewhat
-> weird for a 'normal' Unix process.
+RR> Well, there are several cases where we 'forget' about
+RR> shared area's. One of them is where SysV shared memory
+RR> is unmapped from all processes but the handle remains.
+RR> Since we do page scanning by process, we can't find
+RR> such an area. I don't know if this has been fixed by
+RR> now, but I certainly remember the messages about it...
 
-I *think* that it allocates a huge amount of memory,
-then uses only a small portion of it.
+I hadn't quite categorized it that way.  
+But I both discovered the problem and have posted a fix to linux-mm
+that should work.
 
-The above shows an inconsistency between "ps" and "top":
-  according to "ps",      SIZE=9364, RSS=404;
-  but according to "top", SIZE= 500, RSS=404, SWAP=96.
+So for that case of swapoff we are fine.  Or should be soon :)
+Now if there are any other cases I don't know about.
 
-"grep '^Vm' /proc/<pid>/status" says
-> VmSize:     9364 kB
-> VmLck:         0 kB
-> VmRSS:       464 kB
-> VmData:     8400 kB
-> VmStk:        12 kB
-> VmExe:        72 kB
-> VmLib:       580 kB
+I was afraid you were talking about a memory leak...
 
-	-Paul <kimoto@lightlink.com>
+Eric
