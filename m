@@ -1,42 +1,52 @@
-Date: Sat, 21 Sep 2002 16:53:51 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id RAA09913
+	for <linux-mm@kvack.org>; Sat, 21 Sep 2002 17:03:04 -0700 (PDT)
+Message-ID: <3D8D08B7.419DD093@digeo.com>
+Date: Sat, 21 Sep 2002 17:03:03 -0700
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
 Subject: Re: overcommit stuff
-Message-ID: <20020921235351.GC25605@holomorphy.com>
-References: <3D8D0046.EF119E03@digeo.com> <Pine.LNX.4.44.0209220037110.2265-100000@localhost.localdomain>
-Mime-Version: 1.0
+References: <3D8D0046.EF119E03@digeo.com> <14599773.1032625910@[10.10.2.3]>
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0209220037110.2265-100000@localhost.localdomain>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@digeo.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Sep 22, 2002 at 12:46:59AM +0100, Hugh Dickins wrote:
-> I don't think Alan can be held responsible for errors in the
-> overcommit stuff rml ported to 2.5 and I then added fixes to.
-> I believe it is up to date in 2.5.
-> Committed_AS certainly errs on the pessimistic side, that's
-> what it's about.  How much swap do you have i.e. is 23GB
-> committed impossible, or just surprising to you?  Does the
-> number go back to what it started off from when you kill
-> off the tests?  How are "those pages" allocated e.g. what
-> mmap args?
-> Hugh
+"Martin J. Bligh" wrote:
+> 
+> > running 10,000 tiobench threads I'm showing 23 gigs of
+> > `Commited_AS'.  Is this right?  Those pages are shared,
+> > and if they're not PROT_WRITEable then there's no way in
+> > which they can become unshared?   Seems to be excessively
+> > pessimistic?
+> >
+> > Or is 2.5 not up to date?
+> 
+> It's also a global atomic counter that burns up a fair amount
+> of CPU time bouncing cachelines on the NUMA boxes ... even when
+> overcommit is set to 1, and it's not used for anything other
+> than meminfo ... any chance of this either becoming a per-cpu
+> thing, or dying, or not being used when overcommit is 1?
 
-In my case it's not really possible to rerun a test in the same
-boot. It's not really survived very often, and when it has, it
-generally fails to start a second time. Various other things feel the
-OOM sting then, e.g. kernel compiles, small task count dbench, etc.
+"It" being vm_committed_space.
 
-Some of this might be slab, but I think there might be a leak.
-The best answers I've come up with thus far are "Hrm, the OOM killer
-gets set off at the wrong times, and maybe delalloc would kill bh's?"
+The problem is that it's read from frequently, as well as
+updated frequently.  So we would still have problems when
+we have to reach across and fish the cpu-local counters
+out of remote corners of the machine all the time.
 
-Cheers,
-Bill
+The usual tricks for amortising this counter's cost have (serious)
+accuracy implications.
+
+I am planning on sitting down and working out exactly what we're
+trying to account here - presumably there's another way.  Just
+havent got onto it yet.
+
+Worst come to worst, we can hide it inside CONFIG_NOT_WHACKOMATIC
+I guess.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
