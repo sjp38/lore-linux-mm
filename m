@@ -1,62 +1,36 @@
-Received: from smtp3.akamai.com (vwall1.sanmateo.corp.akamai.com [172.23.1.71])
-	by smtp3.akamai.com (8.12.10/8.12.10) with ESMTP id j0R7I2Nb026614
-	for <linux-mm@kvack.org>; Wed, 26 Jan 2005 23:18:03 -0800 (PST)
-From: pmeda@akamai.com
-Date: Wed, 26 Jan 2005 23:22:39 -0800
-Message-Id: <200501270722.XAA10830@allur.sanmateo.akamai.com>
-Subject: [patch] ext2: Apply Jack's ext3 speedups
+Date: Thu, 27 Jan 2005 11:37:40 +0100
+From: Adrian Bunk <bunk@stusta.de>
+Subject: Re: reiser4 core patches: [Was: [RFC] per thread page reservation patch]
+Message-ID: <20050127103740.GD28047@stusta.de>
+References: <20050103011113.6f6c8f44.akpm@osdl.org> <20050103114854.GA18408@infradead.org> <41DC2386.9010701@namesys.com> <1105019521.7074.79.camel@tribesman.namesys.com> <20050107144644.GA9606@infradead.org> <1105118217.3616.171.camel@tribesman.namesys.com> <41DEDF87.8080809@grupopie.com> <m1llb5q7qs.fsf@clusterfs.com> <20050107132459.033adc9f.akpm@osdl.org> <1106671038.4466.81.camel@tribesman.namesys.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1106671038.4466.81.camel@tribesman.namesys.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: jack@suse.cz, linux-mm@kvack.org
+To: Vladimir Saveliev <vs@namesys.com>
+Cc: Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>, Nikita Danilov <nikita@clusterfs.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
+Hi Vladimir,
 
-Apply ext3 speedups added by Jan Kara to ext2.
-Reference: http://linus.bkbits.net:8080/linux-2.5/gnupatch@41f127f2jwYahmKm0eWTJNpYcSyhPw
+a general request:
 
-Signed-off-by: Prasanna Meda <pmeda@akamai.com>
+If you add new EXPORT_SYMBOL's, I'd strongly prefer them being 
+EXPORT_SYMBOL_GPL's unless there's a very good reason for an 
+EXPORT_SYMBOL.
 
---- a/fs/ext2/balloc.c	Wed Jan 26 23:04:10 2005
-+++ b/fs/ext2/balloc.c	Wed Jan 26 23:04:28 2005
-@@ -53,8 +53,8 @@ struct ext2_group_desc * ext2_get_group_
- 		return NULL;
- 	}
- 	
--	group_desc = block_group / EXT2_DESC_PER_BLOCK(sb);
--	offset = block_group % EXT2_DESC_PER_BLOCK(sb);
-+	group_desc = block_group >> EXT2_DESC_PER_BLOCK_BITS(sb);
-+	offset = block_group & (EXT2_DESC_PER_BLOCK(sb) - 1);
- 	if (!sbi->s_group_desc[group_desc]) {
- 		ext2_error (sb, "ext2_get_group_desc",
- 			    "Group descriptor not loaded - "
-@@ -575,19 +575,17 @@ block_in_use(unsigned long block, struct
- 
- static inline int test_root(int a, int b)
- {
--	if (a == 0)
--		return 1;
--	while (1) {
--		if (a == 1)
--			return 1;
--		if (a % b)
--			return 0;
--		a = a / b;
--	}
-+	int num = b;
-+
-+	while (a > num)
-+		num *= b;
-+	return num == a;
- }
- 
- static int ext2_group_sparse(int group)
- {
-+	if (group <= 0)
-+		return 1;
- 	return (test_root(group, 3) || test_root(group, 5) ||
- 		test_root(group, 7));
- }
+cu
+Adrian
+
+-- 
+
+       "Is there not promise of rain?" Ling Tan asked suddenly out
+        of the darkness. There had been need of rain for many days.
+       "Only a promise," Lao Er said.
+                                       Pearl S. Buck - Dragon Seed
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
