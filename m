@@ -1,41 +1,49 @@
-Subject: Re: 2.6.0-test3-mm3
-From: Luiz Capitulino <lcapitulino@prefeitura.sp.gov.br>
-In-Reply-To: <20030819013834.1fa487dc.akpm@osdl.org>
-References: <20030819013834.1fa487dc.akpm@osdl.org>
-Content-Type: text/plain; charset=iso-8859-1
-Message-Id: <1061299520.472.5.camel@lorien>
-Mime-Version: 1.0
-Date: Tue, 19 Aug 2003 10:25:24 -0300
-Content-Transfer-Encoding: 8BIT
+Subject: bug in Documentation/vm/locking?
+From: Ed L Cashin <ecashin@uga.edu>
+Date: Tue, 19 Aug 2003 09:44:39 -0400
+Message-ID: <87wud94v94.fsf@uga.edu>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Kanoj Sarcar <kanoj@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+Hi.  There is a strange sentence in Documentation/vm/locking, a very
+helpful summary of locking in the VM subsystem.  
 
-Em Ter, 2003-08-19 as 05:38, Andrew Morton escreveu:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test3/2.6.0-test3-mm3/
+Rule number five of the rules for using page_table_lock and mmap_sem
+says "page_table_lock or page_table_lock".  That's a funny thing to
+say, leading me to suspect that either it really should say
+"page_table_lock or mmap_sem" or just "page_table_lock" alone.
 
-While compiling with gcc-3.2:
+Here is the list of five rules.  Rule number five is the one I'm
+talking about:
 
-arch/i386/kernel/dmi_scan.c:167: warning: `dmi_dump_system'
-defined but not used
+  The rules are:
+  1. To scan the vmlist (look but don't touch) you must hold the
+     mmap_sem with read bias, i.e. down_read(&mm->mmap_sem)
+  2. To modify the vmlist you need to hold the mmap_sem with
+     read&write bias, i.e. down_write(&mm->mmap_sem)  *AND*
+     you need to take the page_table_lock.
+  3. The swapper takes _just_ the page_table_lock, this is done
+     because the mmap_sem can be an extremely long lived lock
+     and the swapper just cannot sleep on that.
+  4. The exception to this rule is expand_stack, which just
+     takes the read lock and the page_table_lock, this is ok
+     because it doesn't really modify fields anybody relies on.
+  5. You must be able to guarantee that while holding page_table_lock
+     or page_table_lock of mm A, you will not try to get either lock
+     for mm B.
 
- This warning happens because the only call to
-dmi_dump_system() happens when CONFIG_ACPI_BOOT is defined,
-but I _not_ have ACPI options enabled.
-
-I'm getting the some warning in bk tree.
-
-thanks,
+So what should the rule say?  If you hold A->mm->mmap_sem is it OK to
+take B->mm->mmap_sem and B->mm->mmap_sem as long as you can guarantee
+that B won't try to get either of those locks in A?
 
 -- 
-Luiz Fernando N. Capitulino
-
-<lcapitulino@prefeitura.sp.gov.br>
-<http://www.telecentros.sp.gov.br>
+--Ed L Cashin            |   PGP public key:
+  ecashin@uga.edu        |   http://noserose.net/e/pgp/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
