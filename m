@@ -1,42 +1,29 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA25353
-	for <linux-mm@kvack.org>; Tue, 24 Mar 1998 20:03:55 -0500
-Date: Wed, 25 Mar 1998 00:03:09 +0100 (MET)
-From: "H.H.vanRiel" <H.H.vanRiel@fys.ruu.nl>
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA28044
+	for <linux-mm@kvack.org>; Wed, 25 Mar 1998 08:39:37 -0500
+Date: Wed, 25 Mar 1998 10:08:00 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: H.H.vanRiel@fys.ruu.nl
-Subject: free_memory_available() bug in pre-91-1
-Message-ID: <Pine.LNX.3.91.980324235724.469A-100000@mirkwood.dummy.home>
+Subject: Re: Lazy page reclamation on SMP machines: memory barriers
+In-Reply-To: <199803242254.WAA03274@dax.dcs.ed.ac.uk>
+Message-ID: <Pine.LNX.3.91.980325100623.371C-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-smp@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-Hi Linus,
+On Tue, 24 Mar 1998, Stephen C. Tweedie wrote:
 
-I've just found a bug in free_memory_available() as
-implemented in pre-91-1...
-It reacts the same on finding _no_ free item on a list
-as it reacts on _multiple_ free items on the list.
-So it'll return the same value regardless of whether
-there is lots of free memory or there's no free memory...
-(notice the 'break;' at two places...)
+> I'm in London until the weekend, but I hope to have the lazy page
+> stealing in a fit state to release shortly after getting back thanks to
+> this.
 
-	do {
-		list--;
-		/* Empty list? Bad - we need more memory */
-		if (list->next == memory_head(list))
-			break;
-		/* One item on the list? Look further */
-		if (list->next->next == memory_head(list))
-			continue;
-		/* More than one item? We're ok */
-		break;
-	} while (--nr >= 0);
-	spin_unlock_irqrestore(&page_alloc_lock, flags);
-	return nr + 1;
-}
+Then that would be the end of memory fragmentation. Since
+marking something as stealable has no real performance penalty,
+we could just mark so much memory stealable that we've got
+3 128k area's stealable...
 
 Rik.
 +-------------------------------------------+--------------------------+
