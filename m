@@ -1,68 +1,50 @@
-Date: Fri, 21 Dec 2001 04:39:46 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH *] reverse mapping VM 7
-Message-ID: <Pine.LNX.4.33L.0112210437530.15741-100000@imladris.surriel.com>
+Message-Id: <200112211155.fBLBtC426481@mailb.telia.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Roger Larsson <roger.larsson@norran.net>
+Subject: Re: [RFC] Concept: Active/busy "reverse" mapping
+Date: Fri, 21 Dec 2001 12:52:23 +0100
+References: <Pine.LNX.4.33L.0112200121290.15741-100000@imladris.surriel.com> <200112210107.fBL17nL10142@maild.telia.com> <20011220204524.K6276@redhat.com>
+In-Reply-To: <20011220204524.K6276@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
+To: Benjamin LaHaise <bcrl@redhat.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The 7th version of the reverse mapping based VM is now available.
-This is an attempt at making a more robust and flexible VM
-subsystem, while cleaning up a lot of code at the time. The patch
-is available from:
+On Fridayen den 21 December 2001 02.45, Benjamin LaHaise wrote:
+> On Fri, Dec 21, 2001 at 02:05:26AM +0100, Roger Larsson wrote:
+> > The goal of this code is to make sure that used pages are marked as such.
+> >
+> > This is accomplished by:
+> >
+> > * When a process is descheduled - look in its mm for used pages - update
+> > corresponding page. (Done at most once per tick)
+>
+> Interesting.  The same effect is acheived by the reverse mapping code on
+> a global scale while addressing the issue of how to figure out what extent
+> memory pressure is needed on the page tables.
+>
+> 		-ben
 
-           http://surriel.com/patches/2.4/2.4.16-rmap-7
-and        http://linuxvm.bkbits.net/
+There are other ways too...
+Link all used mm:s and check them with kswapd...
+etc... etc...
 
+It should be possible to optimize away most performance problems...
 
-The big TODO items for the _next_ release are:
-  - fix page_launder() so it doesn't submit the whole
-    inactive_dirty list for writeout in one go
-  - tune the balancing, under some strange loads I seem
-    to be able to trigger a livelock
+/RogerL
 
+PS
+  I will be away for some days...
+DS
 
-rmap 7:
-  - clean up and document vmscan.c                        (me)
-  - reduce size of page struct, part one                  (William Lee Irwin)
-  - add rmap.h for other archs (untested, not for ARM)    (me)
-rmap 6:
-  - make the active and inactive_dirty list per zone,
-    this is finally possible because we can free pages
-    based on their physical address                       (William Lee Irwin)
-  - cleaned up William's code a bit                       (me)
-  - turn some defines into inlines and move those to
-    mm_inline.h (the includes are a mess ...)             (me)
-  - improve the VM balancing a bit                        (me)
-  - add back inactive_target to /proc/meminfo             (me)
-rmap 5:
-  - fixed recursive buglet, introduced by directly
-    editing the patch for making rmap 4 ;)))              (me)
-rmap 4:
-  - look at the referenced bits in page tables            (me)
-rmap 3:
-  - forgot one FASTCALL definition                        (me)
-rmap 2:
-  - teach try_to_unmap_one() about mremap()               (me)
-  - don't assign swap space to pages with buffers         (me)
-  - make the rmap.c functions FASTCALL / inline           (me)
-rmap 1:
-  - fix the swap leak in rmap 0                           (Dave McCracken)
-rmap 0:
-  - port of reverse mapping VM to 2.4.16                  (me)
-
-cheers,
-
-Rik
 -- 
-Shortwave goes a long way:  irc.starchat.net  #swl
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+Roger Larsson
+Skelleftea
+Sweden
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
