@@ -1,34 +1,33 @@
-Date: Thu, 14 Sep 2000 20:43:25 +0200
-From: Andi Kleen <ak@muc.de>
+Date: Thu, 14 Sep 2000 21:20:05 +0200
+From: Wichert Akkerman <wichert@cistron.nl>
 Subject: Re: Running out of memory in 1 easy step
-Message-ID: <20000914204325.A6015@fred.muc.de>
-References: <20000914145904.B18741@liacs.nl> <20000914175633.A7675@fred.muc.de> <20000914180825.B19822@liacs.nl>
+Message-ID: <20000914212004.A1304@cistron.nl>
+References: <20000914145904.B18741@liacs.nl> <20000914175633.A7675@fred.muc.de> <20000914180825.B19822@liacs.nl> <20000914204325.A6015@fred.muc.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <20000914180825.B19822@liacs.nl>; from wichert@soil.nl on Thu, Sep 14, 2000 at 06:08:28PM +0200
+Content-Disposition: inline
+In-Reply-To: <20000914204325.A6015@fred.muc.de>; from ak@muc.de on Thu, Sep 14, 2000 at 08:43:25PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Wichert Akkerman <wichert@soil.nl>
-Cc: Andi Kleen <ak@muc.de>, linux-mm@kvack.org, riel@conectiva.com.br
+To: Andi Kleen <ak@muc.de>
+Cc: linux-mm@kvack.org, riel@conectiva.com.br
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Sep 14, 2000 at 06:08:28PM +0200, Wichert Akkerman wrote:
-> Previously Andi Kleen wrote:
-> > There is a hardwired limit of 1024 vmas/process. This is to avoid denial
-> > of service attacks with attackers using up all memory with vmas.
-> 
-> That's trivial to circumvent using multiple processes or even threads which
-> makes it a useless and possibly damaging protection imho..
+Previously Andi Kleen wrote:
+> The limit is actually 65536 I misremembered it. 
+> The main purpose is probably to avoid the counter wrapping. 
+> When get_unmapped_area failed you likely just ran out of virtual address space.
 
-The limit is actually 65536 I misremembered it. 
-The main purpose is probably to avoid the counter wrapping. 
-When get_unmapped_area failed you likely just ran out of virtual address space.
+Not likely, there were still a couple hundreds of megabytes free and
+the process had allocated about 1.5Gb of data.
 
-
--Andi
+Wichert.
 
 -- 
-This is like TV. I don't like TV.
+  _________________________________________________________________
+ /       Nothing is fool-proof to a sufficiently talented fool     \
+| wichert@wiggy.net                   http://www.liacs.nl/~wichert/ |
+| 1024D/2FA3BC2D 576E 100B 518D 2F16 36B0  2805 3CB8 9250 2FA3 BC2D |
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
