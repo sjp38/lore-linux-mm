@@ -1,50 +1,293 @@
-From: Paul Mackerras <paulus@samba.org>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id WAA18680
+	for <linux-mm@kvack.org>; Sat, 21 Sep 2002 22:30:02 -0700 (PDT)
+Message-ID: <3D8D5559.AF112E57@digeo.com>
+Date: Sat, 21 Sep 2002 22:30:01 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
+Subject: 2.5.37-mm1
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <15757.18495.802801.215286@argo.ozlabs.ibm.com>
-Date: Sun, 22 Sep 2002 14:34:07 +1000 (EST)
-Subject: Bug in sys_mprotect
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: hch@infradead.org, torvalds@transmeta.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-There is a bug in sys_mprotect in the current 2.5 kernel where it can
-dereference `prev' when it is NULL.  After the main loop we have the
-statement (line 284):
+url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.37/2.5.37-mm1/
 
-	if (next && prev->vm_end == next->vm_start &&
-			can_vma_merge(next, prev->vm_flags) &&
-			!prev->vm_file && !(prev->vm_flags & VM_SHARED)) {
+Reminder: it breaks top(1) and vmstat(1).  Updates to these tools
+are at http://surriel.com/procps/
 
-If you mprotect a region which is in the first VMA, the find_vma_prev
-call (line 236) will set prev = NULL, and it is possible to get
-through the main loop without changing prev.  When this happens, we
-get a NULL dereference and the process then hangs at the down_read in
-do_page_fault since sys_mprotect has downed the mm->mmap_sem for
-writing.
++ide-high-1.patch
 
-This bites badly on PPC since ld.so maps the shared libraries below
-the main executable, and uses mprotect on the regions it has mapped.
-Consequently, init hangs with no visible indication of what is wrong.
+ Fix block-highmem for IDE.  From Jens.
 
-Anyway, looking at the old mprotect code, it is clear that all of
-mprotect_fixup_{start,middle,end,all} set *pprev to something non-NULL
-(unless an error occurs).  The new mprotect_fixup doesn't do this.
-It's not clear to me what the old code set *pprev to.  I thought it
-was the VMA which now comes immediately before the VMA which came
-after the original VMA before we split it, but mprotect_fixup_start
-and mprotect_fixup_end don't seem to set it this way.  Some comments
-in the code would have been helpful.
++ide-block-fix-1.patch
 
-For now I have changed the if statement at line 284 to test prev !=
-NULL as well as the existing conditions, and that works, but I don't
-think it fixes the real problem.  Perhaps someone who knows exactly
-what prev is supposed to be can post a proper fix.
+ Fix some boot-time hang which I had.  From Jens.
 
-Paul.
+-writeback-control.patch
+-free_area_init-cleanup.patch
+-alloc_pages-cleanup.patch
+-statm_pgd_range-sucks.patch
+-remove-sync_thresh.patch
+-vm-mapping-fix.patch
+-taka-writev.patch
+-writev-fix.patch
+-pf_nowarn.patch
+-misc.patch
+-release_pages-speedup.patch
+-highmem-huge-tlb.patch
+
+ Merged
+
++might_sleep.patch
+
+ Debug patch to catch people calling things like kmalloc(__GFP_WAIT),
+ down(), etc from inside spinlocks.  This is a much stronger test than
+ the one in schedule().  It's really only effective with CONFIG_PREEMPT=y.
+
+ Causes a storm of complaints and stack backtraces at boot due to
+ drivers/ide/ide-probe.c:init_irq() calling lots of things which it
+ shouldn't under ide_lock.  It will find other bugs.
+
++set_page_dirty-locking-fix.patch
+
+ We don't need to hold mapping->private_lock while moving the page
+ onto its mapping's dirty_pages list.
+
++swsusp-feature.patch
+
+ Feature for software suspend to force page reclaim.  Doesn't work right.
+
++adaptec-fix.patch
+
+ Fix the lockup which happens each time the aic7xxx driver encounters
+ an IO error.
+
++remove-page-virtual.patch
+
+ Remove page->virtual, hash for it.
+
++dirty-memory-clamp.patch
+
+ Kill off the secret benchmarking feature which allowed the dirty memory
+ threshold to be exceeded when running dbench.  Makes the kernel really
+ strict about limiting the amount of dirty memory and should make the
+ buffer_head stripping code more effective.
+
++mempool-wakeup-fix.patch
+
+ Fix a task lockup which can happen in mempool_alloc() when the number
+ of sleeping tasks exceeds the size of the mempool.
+
++remove-write_mapping_buffers.patch
+
+ Remove the write_mapping_buffers() function.  It didn't work out.
+
++buffer_boundary-scheduling.patch
+
+ Use the buffer_boundary() block-mapping hint for scheduling of IO
+ against indirect blocks.  This _does_ work out.  Large-file writeback
+ is now smooth and seekless.
+
++ll_rw_block-cleanup.patch
+
+ Clean up the ll_rw_block() function.
+
++lseek-ext2_readdir.patch
+
+ Remove the lock_kernel() in ext2_readdir().  I'm fairly sure that it's
+ superfluous, and it was being irritating.
+
++discontig-no-contig_page_data.patch
+
+ Make sure that contig_page_data is undefined on discontigmem builds.
+
++per-node-zone_normal.patch
+
+ Make the normal zone per-node rather than global on the NUMAQ's.
+
++alloc_pages_node-cleanup.patch
+
+ Clean up alloc_pages_node()
+
++read_barrier_depends.patch
++rcu_ltimer.patch
++dcache_rcu.patch
+
+ The dcache RCU code.
+
+ I do not intend to send this on to Linus.  It is not my area and I
+ do not understand the code.
+
+ But a 15% hit in specweb99 on an 8-way is sigificant and no other
+ solution has presented itself.  So this way, this code gets some extra
+ testing.  Plus clearing away this problem helps us to identify other
+ bottlenecks.
+
+ I shall keep these patches ticking over as a general service to the
+ people who are interested in, and working on 2.5 performance.
+
+
+No real progress has been made on the writer-starves-reader problem
+which is impacting the `contest' io_fullload test.   This is a severe
+problem - a streaming write is decreasing read performance from the
+same disk by a factor of 4000.  Working on it.
+
+
+
+
+linus.patch
+  cset-1.565.1.13-to-1.565.6.1.txt.gz
+
+ide-high-1.patch
+
+ide-block-fix-1.patch
+
+scsi_hack.patch
+  Fix block-highmem for scsi
+
+ext3-htree.patch
+  Indexed directories for ext3
+
+spin-lock-check.patch
+  spinlock/rwlock checking infrastructure
+
+rd-cleanup.patch
+  Cleanup and fix the ramdisk driver (doesn't work right yet)
+
+might_sleep.patch
+  debug code to detect might-sleep-inside-spinlock bugs
+
+queue-congestion.patch
+  Infrastructure for communicating request queue congestion to the VM
+
+nonblocking-ext2-preread.patch
+  avoid ext2 inode prereads if the queue is congested
+
+nonblocking-pdflush.patch
+  non-blocking writeback infrastructure, use it for pdflush
+
+nonblocking-vm.patch
+  Non-blocking page reclaim
+
+set_page_dirty-locking-fix.patch
+  don't call __mark_inode_dirty under spinlock
+
+prepare_to_wait.patch
+  prepare_to_wait/finish_wait: new sleep/wakeup API
+
+vm-wakeups.patch
+  Use the faster wakeups in the VM and block layers
+
+sync-helper.patch
+  Speed up sys_sync() against multiple spindles
+
+slabasap.patch
+  Early and smarter shrinking of slabs
+
+write-deadlock.patch
+  Fix the generic_file_write-from-same-mmapped-page deadlock
+
+buddyinfo.patch
+  Add /proc/buddyinfo - stats on the free pages pool
+
+free_area.patch
+  Remove struct free_area_struct and free_area_t, use `struct free_area'
+
+per-node-kswapd.patch
+  Per-node kswapd instance
+
+topology-api.patch
+  Simple topology API
+
+radix_tree_gang_lookup.patch
+  radix tree gang lookup
+
+truncate_inode_pages.patch
+  truncate/invalidate_inode_pages rewrite
+
+proc_vmstat.patch
+  Move the vm accounting out of /proc/stat
+
+kswapd-reclaim-stats.patch
+  Add kswapd_steal to /proc/vmstat
+
+iowait.patch
+  I/O wait statistics
+
+sard.patch
+  SARD disk accounting
+
+remove-gfp_nfs.patch
+  remove GFP_NFS
+
+tcp-wakeups.patch
+  Use fast wakeups in TCP/IPV4
+
+swapoff-deadlock.patch
+  Fix a tmpfs swapoff deadlock
+
+dirty-and-uptodate.patch
+  page state cleanup
+
+shmem_rename.patch
+  shmem_rename() directory link count fix
+
+dirent-size.patch
+  tmpfs: show a non-zero size for directories
+
+tmpfs-trivia.patch
+  tmpfs: small fixlets
+
+per-zone-vm.patch
+  separate the kswapd and direct reclaim code paths
+
+swsusp-feature.patch
+  add shrink_all_memory() for swsusp
+
+adaptec-fix.patch
+  partial fix for aic7xxx error recovery
+
+remove-page-virtual.patch
+  remove page->virtual for !WANT_PAGE_VIRTUAL
+
+dirty-memory-clamp.patch
+  sterner dirty-memory clamping
+
+mempool-wakeup-fix.patch
+  Fix for stuck tasks in mempool_alloc()
+
+remove-write_mapping_buffers.patch
+  Remove write_mapping_buffers
+
+buffer_boundary-scheduling.patch
+  IO schduling for indirect blocks
+
+ll_rw_block-cleanup.patch
+  cleanup ll_rw_block()
+
+lseek-ext2_readdir.patch
+  remove lock_kernel() from ext2_readdir()
+
+discontig-no-contig_page_data.patch
+  undefine contif_page_data for discontigmem
+
+per-node-zone_normal.patch
+  ia32 NUMA: per-node ZONE_NORMAL
+
+alloc_pages_node-cleanup.patch
+  alloc_pages_node cleanup
+
+read_barrier_depends.patch
+  extended barrier primitives
+
+rcu_ltimer.patch
+  RCU core
+
+dcache_rcu.patch
+  Use RCU for dcache
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
