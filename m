@@ -1,32 +1,68 @@
-Date: Sun, 25 May 2003 13:06:37 -0400
-From: Adam Kropelin <akropel1@rochester.rr.com>
+Date: Sun, 25 May 2003 13:06:01 -0700
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.69-mm9
-Message-ID: <20030525130637.A22232@mail.kroptech.com>
+Message-Id: <20030525130601.5a105fa8.akpm@digeo.com>
+In-Reply-To: <3ED0CE0E.4080403@wmich.edu>
 References: <20030525042759.6edacd62.akpm@digeo.com>
+	<200305251456.39404.rudmer@legolas.dynup.net>
+	<3ED0CE0E.4080403@wmich.edu>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20030525042759.6edacd62.akpm@digeo.com>; from akpm@digeo.com on Sun, May 25, 2003 at 04:27:59AM -0700
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
+To: Ed Sweetman <ed.sweetman@wmich.edu>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, May 25, 2003 at 04:27:59AM -0700, Andrew Morton wrote:
+Ed Sweetman <ed.sweetman@wmich.edu> wrote:
+>
+> got this with my current config. Along with other misc gcc 3 warnings.
 > 
-> . 2.5.69-mm9 is not for the timid.  It includes extensive changes to the
->   ext3 filesystem and the JBD layer.  It withstood an hour of testing on my
->   4-way, but it probably has a couple of holes still.
+>  Compiling with gcc (GCC) 3.3 (Debian)
+> 
+>            ld -m elf_i386  -T arch/i386/vmlinux.lds.s
+>  arch/i386/kernel/head.o arch/i386/kernel/init_task.o   init/built-in.o
+>  --start-group  usr/built-in.o  arch/i386/kernel/built-in.o
+>  arch/i386/mm/built-in.o  arch/i386/mach-default/built-in.o
+>  kernel/built-in.o  mm/built-in.o  fs/built-in.o  ipc/built-in.o
+>  security/built-in.o  crypto/built-in.o  lib/lib.a  arch/i386/lib/lib.a
+>  drivers/built-in.o  sound/built-in.o  arch/i386/pci/built-in.o
+>  net/built-in.o --end-group  -o vmlinux
+>  kernel/built-in.o(.text+0x1708e): In function `free_module':
+>  : undefined reference to `percpu_modfree'
+>  kernel/built-in.o(.text+0x17873): In function `load_module':
+>  : undefined reference to `find_pcpusec'
+>  kernel/built-in.o(.text+0x179a9): In function `load_module':
+>  : undefined reference to `percpu_modalloc'
+>  kernel/built-in.o(.text+0x17c52): In function `load_module':
+>  : undefined reference to `percpu_modcopy'
+>  kernel/built-in.o(.text+0x17d3d): In function `load_module':
+>  : undefined reference to `percpu_modfree'
 
-Felt like tempting fate today...
+Well that is strange.  The functions are there, inlined, in the right
+place.
 
-Works nicely here on my 2-way. Survives make -j30 (on a machine without
-nearly enough RAM for such foolishness) as well as a basic mysql
-stress-test.
+static inline unsigned int find_pcpusec(Elf_Ehdr *hdr,
+					Elf_Shdr *sechdrs,
+					const char *secstrings)
+{
+	return 0;
+}
+static inline void percpu_modcopy(void *pcpudst, const void *src,
+				  unsigned long size)
+{
+	/* pcpusec should be 0, and size of that section should be 0. */
+	BUG_ON(size != 0);
+}
+static inline void percpu_modfree(void *freeme)
+{
+}
 
---Adam
+It compiles OK here, uniproc and SMP.  Possibly gcc-3.3 has done something
+wrong, or differently.
 
+Does your tree build OK with earlier compilers?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
