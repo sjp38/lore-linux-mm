@@ -1,34 +1,40 @@
-Message-ID: <3A20D5F4.8040207@SANgate.com>
-Date: Sun, 26 Nov 2000 11:20:52 +0200
-From: BenHanokh Gabriel <gabriel@SANgate.com>
-MIME-Version: 1.0
-Subject: filp_open question
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Received: from web651-mc (web651-mc.mail.com [165.251.48.100])
+	by rmx614-mta.mail.com (8.9.3/8.9.3) with SMTP id FAA03037
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2000 05:07:20 -0500 (EST)
+Message-ID: <382135272.975319588337.JavaMail.root@web651-mc>
+Date: Mon, 27 Nov 2000 05:06:28 -0500 (EST)
+From: Michael Slater <mslater@usa.com>
+Subject: page swapping
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux-MM mailing list <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hi
+Hi,
 
-can any1 explain <exactly> the meaning of the flags & mode arguments for the 
-filp_open() function,
-and (if)how do they differ from the user-space flags & mode arguments for the 
-open(2) sys call
+  I am relatively new to linux memory management and i would like to have some pointers regarding swapping out pages.
+  I was looking at the try_to_swap_out code and i have a few questions.
+  1) If a page is swapped out does it go to the swap--cache as well as to the swap space in disk? 
+     Also a comment says "If the page is in swap-cache we can just drop reference to it as it is up-to date in disk". Does it means that the page is just discarded and the page tables updated.
 
-please CC me for any answer
+  2) What happens when a page is in swap-cache and is dirtied.Do
+we update the page in swap-cache before freeing it? Can we have a dirty page in swap-cache?
 
+  3) What will be the page-count of a page when it is being swapped out . Is it 1 (as reference to the page in page-cache also counts i guess..)? If a page is only in swap-cache what is its count? Can a page be in swap/page cache at the same time.What will be its count then?
 
-regards
-Benhanokh Gabriel
+  Last but not the least: Where can i get a detailed notes on linux memory mgmt? Does paul-wilson have an updated version of his notes.
 
------------------------------------------------------------------------------
-"If you think C++ is not overly complicated, just what is a
-protected abstract virtual base class with a pure virtual private destructor,
-and when was the last time you needed one?"
-         -- Tom Cargil, C++ Journal, Fall 1990. --
+ Pl cc to me as i am not part of linux-mm gp. 
 
+ Thanks in advance
+mike
+
+______________________________________________
+FREE Personalized Email at Mail.com
+Sign up at http://www.mail.com/?sr=signup
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
