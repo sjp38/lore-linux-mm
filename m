@@ -1,32 +1,26 @@
-Date: Tue, 24 Sep 2002 19:55:10 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.38-mm2 pdflush_list
-Message-ID: <20020925025510.GQ6070@holomorphy.com>
-References: <20020925022324.GP6070@holomorphy.com> <3D912577.160421F8@digeo.com>
+Date: Wed, 25 Sep 2002 23:26:36 +1000
+From: Anton Blanchard <anton@samba.org>
+Subject: Re: [patch] linux-2.5.38-mm2 cleanups
+Message-ID: <20020925132636.GB2858@krispykreme>
+References: <3D90E39C.5020107@us.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Description: brief message
 Content-Disposition: inline
-In-Reply-To: <3D912577.160421F8@digeo.com>
+In-Reply-To: <3D90E39C.5020107@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-mm@kvack.org
+To: Matthew Dobson <colpatch@us.ibm.com>
+Cc: Andrew Morton <akpm@zip.com.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-William Lee Irwin III wrote:
->> There's a NULL in this circular list:
+> I cc'd you, because the patch also moves the __cpu_to_node() 
+> function from mmzone.h into topology.h, where it really belongs (as long as 
+> the in-kernel topology stuff is there).  If there's some reason that 
+> shouldn't be done, please yell at me! ;)
 
-On Tue, Sep 24, 2002 at 07:54:47PM -0700, Andrew Morton wrote:
-> The only way I can see this happen is if someone sprayed out
-> a bogus wakeup.  Are you using preempt (or software suspend??)
+No problems from me :)
 
-Nope. Just SMP. Happened on the NUMA-Q's. I couldn't figure out
-what was going on from this. It's still up for postmortem, though.
-
-
-Cheers,
-Bill
+Anton
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
