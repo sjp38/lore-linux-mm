@@ -1,45 +1,42 @@
-Date: Mon, 2 Oct 2000 12:48:50 -0300 (BRST)
+Date: Mon, 2 Oct 2000 12:49:54 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Ignore my: Re: [PATCH] fix for VM  test9-pre7
-In-Reply-To: <39D85CBE.28783101@norran.net>
-Message-ID: <Pine.LNX.4.21.0010021245570.22539-100000@duckman.distro.conectiva>
+Subject: Re: [PATCH] fix for VM  test9-pre7
+In-Reply-To: <20001002120559.13349.qmail@theseus.mathematik.uni-ulm.de>
+Message-ID: <Pine.LNX.4.21.0010021249030.22539-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
+To: ehrhardt@mathematik.uni-ulm.de
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2 Oct 2000, Roger Larsson wrote:
-
-> My report was bogus - I had forgot to do a cp...
-
-*grin*
-
-> I have now retried. With good results.
-> The only thing that worries me is that dbench results
-> has declined a little from earlier test9.
+On Mon, 2 Oct 2000 ehrhardt@mathematik.uni-ulm.de wrote:
+> On Mon, Oct 02, 2000 at 12:42:47AM -0300, Rik van Riel wrote:
+> > --- linux-2.4.0-test9-pre7/fs/buffer.c.orig	Sat Sep 30 18:09:18 2000
+> > +++ linux-2.4.0-test9-pre7/fs/buffer.c	Mon Oct  2 00:19:41 2000
+> > @@ -706,7 +706,9 @@
+> >  static void refill_freelist(int size)
+> >  {
+> >  	if (!grow_buffers(size)) {
+> > -		try_to_free_pages(GFP_BUFFER);
+> > +		wakeup_bdflush(1);
+> > +		current->policy |= SCHED_YIELD;
+> > +		schedule();
+> >  	}
+> >  }
 > 
-> System is responsive even during mmap002,
-> and run of mmap002 is much faster then before :-)
+> This part looks strange! wakeup_bdflush will sleep if the
+> parameter is not zero, i.e. we'll schedule twice. I doubt that
+> this the intended behaviour?
 
-This is due partly to Ananth' bugfix (we now set the page
-age right for all pages) and partly due to the dynamic free
-target we have right now.
+Heh...
 
-The dbench thing I have to look into. I haven't figured out
-yet why dbench performs slightly worse (but maybe it's just
-because dbench uses an access pattern that benefits from
-having worse page replacement ;))
+I copied back the old code because I saw some failures in
+the try_to_free_pages() in this situation.
 
-> Summary:
-> + No lookups, kills, good performance...
-> = I like it.
-
-It seems that performance during the misc001 patch is pretty
-bad at times, but indeed, during mmap001 and mmap002 the system
-is quite usable (in console mode).
+Maybe the person who wrote this code originally can comment
+on this one ?
 
 regards,
 
