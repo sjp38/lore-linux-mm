@@ -1,27 +1,34 @@
-Received: from ife.ee.ethz.ch (ife-ife1.ee.ethz.ch [129.132.25.65])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id GAA21100
-	for <linux-mm@kvack.org>; Tue, 12 May 1998 06:43:05 -0400
-Received: from eldrich.ee.ethz.ch (eldrich.ee.ethz.ch [129.132.24.203])
-	by ife.ee.ethz.ch (8.8.5/8.8.5) with SMTP id MAA14011
-	for <linux-mm@kvack.org>; Tue, 12 May 1998 12:42:43 +0200 (MET DST)
-Message-ID: <355827A2.2844@ife.ee.ethz.ch>
-Date: Tue, 12 May 1998 12:42:42 +0200
-From: Thomas Sailer <sailer@ife.ee.ethz.ch>
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA22301
+	for <linux-mm@kvack.org>; Tue, 12 May 1998 12:01:33 -0400
+Date: Tue, 12 May 1998 14:42:50 +0200 (MET DST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: Re: bigphysarea in 2.1.x
+In-Reply-To: <355827A2.2844@ife.ee.ethz.ch>
+Message-ID: <Pine.LNX.3.91.980512144140.9511B-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
-Subject: bigphysarea in 2.1.x
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: linux-mm@kvack.org
+To: Thomas Sailer <sailer@ife.ee.ethz.ch>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Is there somewhere a version of the bigphysarea patch for
-recent 2.1.x kernels?
+On Tue, 12 May 1998, Thomas Sailer wrote:
 
-Or does anyone have a better idea how to allocate 1-4MByte
-of nonpageable physically contiguous memory?
+> Is there somewhere a version of the bigphysarea patch for
+> recent 2.1.x kernels?
+> 
+> Or does anyone have a better idea how to allocate 1-4MByte
+> of nonpageable physically contiguous memory?
 
-I need this to store the wavetable data in the SonicVibes
-driver so that the chip can access it...
+I believe there are some links on my homepage, but
+I'm too lazy to look it up right now...
+(25 degrees Celcius, 80% humidity, damn)
 
-Tom
+Rik.
++-------------------------------------------+--------------------------+
+| Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
+|        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
+|     http://www.phys.uu.nl/~riel/          | <H.H.vanRiel@phys.uu.nl> |
++-------------------------------------------+--------------------------+
