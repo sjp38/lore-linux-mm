@@ -1,106 +1,58 @@
-Date: Wed, 22 Aug 2001 15:27:45 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: VM problem with 2.4.8-ac9 (fwd)
-In-Reply-To: <Pine.LNX.4.33L.0108221622160.31410-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.21.0108221526170.2651-100000@freak.distro.conectiva>
+Message-Id: <200108222103.f7ML3Lb26463@maile.telia.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Roger Larsson <roger.larsson@norran.net>
+Subject: Re: [PATCH] __alloc_pages_limit pages_min
+Date: Wed, 22 Aug 2001 22:58:59 +0200
+References: <Pine.LNX.4.33L.0108221400290.31410-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.33L.0108221400290.31410-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, Jari Ruusu <jari.ruusu@pp.inet.fi>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 22 Aug 2001, Rik van Riel wrote:
-
-> Hi Alan,
-> 
-> Another report of tasks dying on recent 2.4 kernels.
-> Suspect code would be:
-> - tlb optimisations in recent -ac    (tasks dying with segfault)
-> - swapfile.c, especially sys_swapoff (known race condition, marcelo?)
-
-There are known races on swapoff, but Jari is not running swapoff...
-
-> 
-> What would cause the swap map badness below I wouldn't know,
-> maybe marcelo is more familiar with the swapfile.c code...
-
-Jari, 
-
-1) Are you using an SMP kernel? 
-2) Did you tried with older kernels or 2.4.9?
-
-
-> 
+On Wednesdayen den 22 August 2001 19:01, Rik van Riel wrote:
+> On Wed, 22 Aug 2001, Roger Larsson wrote:
+> > Note: reclaim_page will fix this situation direct it is allowed to
+> > run since it is kicked in __alloc_pages. But since we cannot
+> > guarantee that this will never happen...
+>
+> In this case kreclaimd will be woken up and the free pages
+> will be refilled.
+>
 > Rik
-> --
-> IA64: a worthy successor to the i860.
-> ---------- Forwarded message ----------
-> Date: Wed, 22 Aug 2001 20:37:01 +0300
-> From: Jari Ruusu <jari.ruusu@pp.inet.fi>
-> To: Rik van Riel <riel@conectiva.com.br>
-> Subject: VM problem with 2.4.8-ac9
-> 
-> Unused swap offset entry in swap_dup 00519e00
-> VM: Bad swap entry 00519e00
-> Unused swap offset entry in swap_count 00519e00
-> Unused swap offset entry in swap_count 00519e00
-> VM: Bad swap entry 00519e00
-> Unused swap offset entry in swap_dup 006b8a00
-> VM: Bad swap entry 006b8a00
-> Unused swap offset entry in swap_dup 006b8a00
-> VM: killing process nscd
-> Unused swap offset entry in swap_dup 006b8a00
-> VM: killing process nscd
-> VM: Bad swap entry 006b8a00
-> Unused swap offset entry in swap_dup 005e6900
-> VM: Bad swap entry 005e6900
-> Unused swap offset entry in swap_dup 005e6900
-> VM: killing process init
-> Unused swap offset entry in swap_dup 005e6900
-> VM: killing process init
-> Unused swap offset entry in swap_dup 005e6900
-> VM: killing process init
-> Unused swap offset entry in swap_dup 005e6900
-> VM: killing process init
-> Kernel panic: Attempted to kill init!
-> 
-> Linux debian 2.4.8-ac9 #1 Wed Aug 22 16:04:25 EEST 2001 i686 unknown
-> Gnu C                  2.95.3
-> Gnu make               3.79.1
-> binutils               2.9.5.0.37
-> mount                  2.11g
-> modutils               2.4.6
-> e2fsprogs              1.18
-> PPP                    2.3.11
-> Linux C Library        2.1.3
-> ldd: version 1.9.11
-> Procps                 2.0.6
-> Net-tools              1.54
-> Console-tools          0.2.3
-> Sh-utils               2.0
-> 
-> I get a repeatable VM failure with recent 2.4 kernels, tested with
-> 2.4.8-ac[789] on x86 architecture. My VM torture test consists of following:
-> boot the kernel with "mem=16M" parameter, start X11 and a couple xterms
-> running kernel compile, glibc compile, bzip2 decompressor + tar, and top.
-> Also xosview was running. Working memory need of such setup is way over
-> available RAM, and swap use was about 20-35 MB (of 190 MB available swap),
-> and swapping activity was _continuous_. Kernel 2.2.19aa2 survives the
-> torture (everything else being same), and memtest-86 does not find any
-> errors, so it is unlikely to be hardware failure.
-> 
-> Anyway, the box dies after about 1-3 hours of torture. Sometimes it just
-> kills some random process. I captured above info using serial console. If
-> you need more info (.config, System.map, whatever) just ask for it. I am
-> willing to do more testing, just tell me what you need done.
-> 
-> Regards,
-> Jari Ruusu <jari.ruusu@pp.inet.fi>
-> 
 
+Yes it will be woken up - but when will it actually do something?
+(we might have lots of stuff before in the run queue)
+
+Suppose we are at low for all zones on free pages - the natural.
+And we get requsts for DMA pages, non direct_reclaim.
+(with inactive_clean greater than pages_high)
+
+An alloc will then take let you allocate at the first __alloc_pages_limit
+until zero pages left. You might have got it anyway but not until a
+later test in __alloc_pages but it is not guaranteed.
+
+We should not accept to let free_pages go (more than one) under
+pages_min, at least not as a undocumented feature of __alloc_pages_limit...
+
+It might be worse then first tought of since all allocations with order != 0
+are non direct_reclaim... you might eat the free pages fast...
+
+And this limit at the end of alloc_pages
+		if (z->free_pages < z->pages_min / 4 &&
+				!(current->flags & PF_MEMALLOC))
+is not enforced earlier in the same code...
+
+/RogerL
+
+-- 
+Roger Larsson
+Skelleftea
+Sweden
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
