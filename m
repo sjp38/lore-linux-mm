@@ -1,49 +1,57 @@
-Received: from recw.ernet.in (recw.ernet.in [202.141.49.8])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA08521
-	for <Linux-MM@kvack.org>; Wed, 31 Mar 1999 09:57:25 -0500
-Message-ID: <370237BF.D730EE6B@angelfire.com>
-Date: Wed, 31 Mar 1999 20:27:03 +0530
-From: student <sirupa@angelfire.com>
-Reply-To: sirupa@angelfire.com
+Received: from m-net.arbornet.org (m-net.arbornet.org [209.142.209.161])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id EAA18118
+	for <linux-mm@kvack.org>; Thu, 1 Apr 1999 04:38:13 -0500
+Received: from localhost (amol@localhost)
+	by m-net.arbornet.org (8.8.5/8.8.6) with SMTP id EAA29211
+	for <linux-mm@kvack.org>; Thu, 1 Apr 1999 04:16:51 -0500 (EST)
+Date: Thu, 1 Apr 1999 04:16:51 -0500 (EST)
+From: Amol Mohite <amol@m-net.arbornet.org>
+Subject: Somw questions [ MAYBE OFFTOPIC ]
+Message-ID: <Pine.BSI.3.96.990401041607.28014A-100000@m-net.arbornet.org>
 MIME-Version: 1.0
-Subject: Linux Source Code
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Linux-MM@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-                       I want to change the kernel Source code of
-Redhat linux 5.2  as a project.
-                   I  want to open /create a file  through a system
-call, in the source
-                    code.
-                    I made it through sys_open.
-                    This I kept in arp_rcv function of
-/usr/src/linux-2.0.36/net/ipv4/arp.c file.
-                    While running it, I am getting a error of "gfp
-nonautomatically called
-                    by interrupt 0000003".
-                    This error is in the file
-/usr/src/linux-2.0.36/mm/page_alloc.c
+Hi!
 
-                    Please tell me how I can open a file in source code
-through system
-                    calls.
-                    I am unable to open a semaphore ans shared memory
-also.
-                    i am getting an error of "kmalloc called
-nonautomically by interrupt
-                    0000030",
-                    which is in the file
-/usr/src/linux-2.0.36/mm/kmalloc.c
+These might be newbie like qs., but I would really appreciate it if anyone
+could answer them.
+
+1) How does the processor notify the OS of a pagefault ? or a null pointer
+exception ?
+ Now null pointer exception I know, is done using the expand down
+attribute in descriptor. However, when the processor gp faults, how does
+it know it is a null pointer exception ?
+
+Where does it store the program counter ?
+
+2) How are the following exceptions handled ;
+	TLB Refill
+	TLB Invalid
+	TLB Modify ?
+
+3) How does the processor differentiate between entries (PTE) in the TLB
+belonging to different processes ? Is it a bit in this ?
+
+4) Why is the vm_area_structs maintained as a circular list, AVL tree and
+as a doubly linked list ?
+	Why an AVL tree ? Any specific reason ?
+
+5) What is the difference between SIGSEGV and a SIGBUS ? 
+
+6) How does the processor signal memory access inan illegal way (i.e.
+trying write access to memory when this is not allowed )
+
+7) How does linux handle malloc function ?
 
 
-                    Please reply me to sreedhar@angelfire.com
-                                Thanking U,
-                                                     G.Sreedhar
+I would really appreciate it if anyone could answer these.
 
+Please cc any answers to me as I am not on this list.
 
+Thanks a lot.
 
 
 
