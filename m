@@ -1,52 +1,64 @@
-Date: Thu, 26 Feb 1998 14:00:18 +0100
-Message-Id: <199802261300.OAA03665@boole.fs100.suse.de>
-From: "Dr. Werner Fink" <werner@suse.de>
-In-reply-to: <199802260805.JAA00715@cave.BitWizard.nl>
-	(R.E.Wolff@BitWizard.nl)
-Subject: Re: Fairness in love and swapping
+Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA11912
+	for <linux-mm@kvack.org>; Thu, 26 Feb 1998 09:03:06 -0500
+Date: Thu, 26 Feb 1998 13:58:05 +0100 (MET)
+From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
+Subject: memory limitation test kit (tm) :-)
+Message-ID: <Pine.LNX.3.91.980226135506.30101A-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: R.E.Wolff@BitWizard.nl
-Cc: sct@dcs.ed.ac.uk, torvalds@transmeta.comsct@dcs.ed.ac.uk, blah@kvack.org, H.H.vanRiel@fys.ruu.nl, nahshon@actcom.co.il, alan@lxorguk.ukuu.org.uk, paubert@iram.es, mingo@chiara.csoma.elte.hu, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
+Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, werner@suse.de
 List-ID: <linux-mm.kvack.org>
 
+Hi there,
 
+I've made a 'very preliminary' test patch to test
+whether memory limitation / quotation might work.
+It's untested, untunable and plain wrong, but nevertheless
+I'd like you all to take a look at it and point out things
+that I've forgotten in the limitation code...
 
-[...]
+-----------------------------------------------------
+--- linux2188orig/mm/page_alloc.c	Thu Feb 26 13:51:16 1998
++++ linux-2.1.88/mm/page_alloc.c	Thu Feb 26 13:09:17 1998
+@@ -26,6 +26,7 @@
+ #include <asm/bitops.h>
+ #include <asm/pgtable.h>
+ #include <asm/spinlock.h>
++#include <asm/smp_lock.h> /* for (un)lock_kernel() */
+ 
+ int nr_swap_pages = 0;
+ int nr_free_pages = 0;
+@@ -328,7 +329,20 @@
+ void swap_in(struct task_struct * tsk, struct vm_area_struct * vma,
+ 	pte_t * page_table, unsigned long entry, int write_access)
+ {
+-	unsigned long page = __get_free_page(GFP_KERNEL);
++	int i = 0;
++	unsigned long page = 0;
++	static int swap_out_process(struct task_struct *, int);
++
++	if (vma->vm_mm->rss > num_physpages / 2 && nr_free_pages < 
++			free_pages_high) {
++		lock_kernel();
++		for (i = vma->vm_mm->rss; i > 0; i--)
++			if (swap_out_process(tsk, __GFP_IO|__GFP_WAIT))
++				break;
++		unlock_kernel();
++	}
++
++	page = __get_free_page(GFP_KERNEL);
+ 
+ 	if (pte_val(*page_table) != entry) {
+ 		free_page(page);
+------------------------------------------------------------
 
-> 
-> but if the system would be "fair" we would get: 
-> 
->           0                  5                 10            15
->       P1  <------ swapping --- like --- mad ------------------- ....
-> 
->           0                  5                 10            15
->       P2  <------ swapping --- like --- mad ------------------- ....
-> 
-> 
-> So.... In some cases, this behaviour is exactly what you want. What we
-> really need is that some mechanism that actually determines in the
-> first and last case that the system is thrashing like hell, and that
-> "swapping" (as opposed to paging) is becoming a required
-> strategy. That would mean putting a "page-in" ban on each process for
-> relatively long stretches of time. These should become longer with
-> each time that it occurs. That way, you will get:
-> 
->           0        50           51      100
->       P1  <in memory>...........<in memory> 
-> 
->           0          1        50           51      100
->       P2  ...........<in memory>...........<in memory> 
-> 
-> 
-> By making the periods longer, you will cater for larger machines where
-> getting the working set into main memory might take a long time (think
-> about a machine with 4G core, and a disk subsystem that reaches 4Mb (*)
-> per second on "random access paging". That's a quarter of an hour
-> worth of swapping before that 3.6G process is swapped in....)
-
-In other words: the pages swapped in or cached into the swap cache should
-get their initial age which its self is calculated out of the current priority
-of the corresponding process?
-
-
-         Werner
+Rik.
++-----------------------------+------------------------------+
+| For Linux mm-patches, go to | "I'm busy managing memory.." |
+| my homepage (via LinuxHQ).  | H.H.vanRiel@fys.ruu.nl       |
+| ...submissions welcome...   | http://www.fys.ruu.nl/~riel/ |
++-----------------------------+------------------------------+
