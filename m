@@ -1,41 +1,49 @@
-Received: from mail.activatormail.com (dpclt038057.direcpc.com [64.157.38.57])
- by a34-mta01.direcway.com
- (iPlanet Messaging Server 5.2 HotFix 1.25 (built Mar  3 2004))
- with ESMTP id <0ICL00INHOXWD3@a34-mta01.direcway.com> for linux-mm@kvack.org;
- Mon, 28 Feb 2005 07:20:49 -0500 (EST)
-Date: Mon, 28 Feb 2005 04:09:52 -0800
-From: Dora Muniz <wczsvmekw@mailpanda.com>
-Subject: Urgent notice for you
-Message-id: <091801c51d90$69ff43c0$d89f1dde@m.fe>
-MIME-version: 1.0
-Content-type: text/plain; charset=iso-8859-1
-Content-transfer-encoding: 7BIT
+Received: from d01relay04.pok.ibm.com (d01relay04.pok.ibm.com [9.56.227.236])
+	by e6.ny.us.ibm.com (8.12.11/8.12.11) with ESMTP id j1SGCb6w020042
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 11:12:37 -0500
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by d01relay04.pok.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1SGCX9m240792
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 11:12:37 -0500
+Received: from d01av01.pok.ibm.com (loopback [127.0.0.1])
+	by d01av01.pok.ibm.com (8.12.11/8.12.11) with ESMTP id j1SGCXu6019528
+	for <linux-mm@kvack.org>; Mon, 28 Feb 2005 11:12:33 -0500
+Subject: Re: [PATCH] 0/2 Buddy allocator with placement policy + prezeroing
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <20050227134219.B4346ECE4@skynet.csn.ul.ie>
+References: <20050227134219.B4346ECE4@skynet.csn.ul.ie>
+Content-Type: text/plain
+Date: Mon, 28 Feb 2005 08:12:07 -0800
+Message-Id: <1109607127.6921.14.camel@localhost>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: gustavk@kvack.net, linux-mm@kvack.org, aguilar@kvaconsult.com, munoz@kvaconsult.com, hodges@kvaconsult.com, hopkins@kvaconsult.com, garza@kvaconsult.com, kelley@kvaconsult.com, gardner@kvaconsult.com, cobb@kvaconsult.com, cross@kvaconsult.com, cohen@kvaconsult.com, hines@kvaconsult.com, alexander@kvaconsult.com, garrett@kvaconsult.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hello, 
+On Sun, 2005-02-27 at 13:42 +0000, Mel Gorman wrote:
+> In the two following emails are the latest version of the placement policy
+> for the binary buddy allocator to reduce fragmentation and the prezeroing
+> patch. The changelogs are with the patches although the most significant change
+> to the placement policy is a fix for a bug in the usemap size calculation
+> (pointed out by Mike Kravetz). 
+> 
+> The placement policy is Even Better than previous versions and can allocate
+> over 100 2**10 blocks of pages under loads in excess of 30 so I still
+> consider it ready for inclusion to the mainline.
+...
 
-We tried contacting you awhile ago about your low interest mortgage rate. 
+This patch does some important things for memory hotplug: it explicitly
+marks the different types of kernel allocations, and it separates those
+different types in the allocator.  When it comes to memory hot-remove
+this is certainly something we were going to have to do anyway.  Plus, I
+believe there are already at least two prototype patches that do this.  
 
-You have qualified for the lowest rate in years... 
+Anything that makes future memory hotplug work easier is good in my
+book. :)
 
-You could get over $380,000 for as little as $500 a
-month! 
-
-Bad credit? Doesn't matter, low rates are fixed no matter what! 
-
-To get a free, no obli,gation consultation click below: 
-
-http://www.beztratez.com/low/
-
-Best Regards, 
-
-Jo Erwin
-
-to be removed:       
-http://www.beztratez.com/x/st.html
+-- Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
