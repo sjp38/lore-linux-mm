@@ -1,62 +1,69 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA27167
-	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 11:06:20 -0500
-Date: Wed, 27 Jan 1999 16:05:43 GMT
-Message-Id: <199901271605.QAA05048@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from inergen.sybase.com (inergen.sybase.com [192.138.151.43])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA28218
+	for <linux-mm@kvack.org>; Wed, 27 Jan 1999 12:54:21 -0500
+Received: from smtp2.sybase.com (sybgate2.sybase.com [130.214.88.21])
+          by inergen.sybase.com (8.8.4/8.8.4) with ESMTP
+	  id JAA05686 for <linux-mm@kvack.org>; Wed, 27 Jan 1999 09:55:39 -0800 (PST)
+Received: from chicago_notes_1.sybase.com (chicago-notes-1.sybase.com [157.133.46.3])
+          by smtp2.sybase.com (8.8.4/8.8.4) with SMTP
+	  id JAA12765 for <linux-mm@kvack.org>; Wed, 27 Jan 1999 09:54:12 -0800 (PST)
+Message-ID: <36AF51EE.711C8FC7@sybase.com>
+Date: Wed, 27 Jan 1999 11:50:38 -0600
+From: Jason Froebe <jfroebe@sybase.com>
 MIME-Version: 1.0
+Subject: Shared memory segment > 1gb
+Content-Type: multipart/mixed;
+ boundary="------------349FC7D7921295F50568EDC2"
+Sender: owner-linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+List-ID: <linux-mm.kvack.org>
+
+This is a multi-part message in MIME format.
+--------------349FC7D7921295F50568EDC2
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Subject: Re: MM deadlock [was: Re: arca-vm-8...]
-In-Reply-To: <Pine.LNX.3.95.990126210417.374A-100000@localhost>
-References: <36ADAAC4.82165F6E@ife.ee.ethz.ch>
-	<Pine.LNX.3.95.990126210417.374A-100000@localhost>
-Sender: owner-linux-mm@kvack.org
-To: Gerard Roudier <groudier@club-internet.fr>
-Cc: Thomas Sailer <sailer@ife.ee.ethz.ch>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
-List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Tue, 26 Jan 1999 21:48:59 +0100 (MET), Gerard Roudier
-<groudier@club-internet.fr> said:
+I'm trying to get a shared memory segment of just under 2 gb.  So
+far, I've been able to get a 893mb shared segment by altering the
+_SHM_IDX_BITS to 18 in include/asm/shmparam.h using the 2.2.0
+kernel.  I'm assuming I can set the _SHM_IDX_BITS to 19 without a
+problem (more overhead though), but since this is my "working"
+computer, I don't want any surprises.  is this possible without
+breaking something?  I glanced at the code but didn't see any
+obvious "gotchas".
 
-> I suggest to allow some application program to decide what stuff to
-> victimize and to be able to tell the kernel about, 
+Don't ask why I don't use multiple segments.  It's not my
+decision.
 
-Yep, there is already a madvise() fuction in most modern unixen: it is
-especially useful for giving cache hints.  
+Jason
 
-> There are bunches of things that are widespread used nowadays and that 
-> should have disappeard since years if people were a bit more concerned 
-> by technical and progress considerations.
+--------------349FC7D7921295F50568EDC2
+Content-Type: text/x-vcard; charset=us-ascii;
+ name="jfroebe.vcf"
+Content-Transfer-Encoding: 7bit
+Content-Description: Card for Jason Froebe
+Content-Disposition: attachment;
+ filename="jfroebe.vcf"
 
-Yes.  I see what you mean.  We should immediately remove Linux support
-for FAT filesystems, the ISA bus and 8086 virtual mode.
+begin:vcard 
+n:Froebe;Jason
+tel;fax:773-864-7288
+tel;work:1-800-8SYBASE
+x-mozilla-html:TRUE
+url:http://www.sybase.com
+org:Sybase, Inc.;Technical Support
+adr:;;8755 W. Higgins Road Suite 1000	;Chicago;IL;60631;USA
+version:2.1
+email;internet:jfroebe@sybase.com
+title:Technical Support Engineer
+x-mozilla-cpt:;20256
+fn:Jason Froebe
+end:vcard
 
-Not.
+--------------349FC7D7921295F50568EDC2--
 
-> For example, it seems that 32 bits systems are not enough to provide a
-> flat virtual addressing space far larger than the physical address space
-> needed for applications (that was the primary goal of virtual memory
-> invention).
-
-*One* of the primary goals.  The other was protected multitasking.  The
-x86 architecture today is perfectly well capable of supporting mutliple
-32-bit address spaces within a 36 bit (64GB) physical address space, and
-large multiuser environments would benefit enormously from such an
-environment.
-
-> A device that requires more contiguous space than 1 PAGE for its 
-> support is crap. 
-
-So?  IDE is crap because it doesn't support multiple outstanding
-commands.  If you honestly believe that this means we should remove IDE
-support from the kernel, then you are living on another planet where
-getting real work done by real users doesn't matter.  Fact is, we _can_
-support this stuff, and users want us to.
-
---Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
