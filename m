@@ -1,75 +1,37 @@
-Date: Wed, 16 Jul 2003 15:02:36 -0700
-From: Mike Fedyk <mfedyk@matchmail.com>
+Date: Wed, 16 Jul 2003 15:08:35 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.6.0-test1-mm1
-Message-ID: <20030716220235.GC1821@matchmail.com>
-References: <20030715225608.0d3bff77.akpm@osdl.org>
+Message-ID: <20030716220835.GN15452@holomorphy.com>
+References: <20030715225608.0d3bff77.akpm@osdl.org> <20030716220235.GC1821@matchmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030715225608.0d3bff77.akpm@osdl.org>
+In-Reply-To: <20030716220235.GC1821@matchmail.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi there.
+On Wed, Jul 16, 2003 at 03:02:36PM -0700, Mike Fedyk wrote:
+> Hi there.
+> I'm having some trouble compiling -mm1
+> It looks like it's from the ACPI update.
+> More info available upon request.
+> gcc version 2.95.4 20011002 (Debian prerelease)
+> In file included from arch/i386/mach-generic/probe.c:15:
+> include/asm/genapic.h:30: parse error before bitmap'
+> include/asm/genapic.h:30: warning: function declaration isn't a prototype
+> include/asm/genapic.h:34: parse error before physid_mask_t'
+> include/asm/genapic.h:34: warning: no semicolon at end of struct or union
+> include/asm/genapic.h:41: parse error before *'
+> include/asm/genapic.h:41: warning: type defaults to int' in declaration of
+> physid_mask_t'
 
-I'm having some trouble compiling -mm1
+Okay, tell me about the ACPI update... also if you could send a config
+that would help too.
 
-It looks like it's from the ACPI update.
 
-More info available upon request.
-
-gcc version 2.95.4 20011002 (Debian prerelease)
-
-In file included from arch/i386/mach-generic/probe.c:15:
-include/asm/genapic.h:30: parse error before bitmap'
-include/asm/genapic.h:30: warning: function declaration isn't a prototype
-include/asm/genapic.h:34: parse error before physid_mask_t'
-include/asm/genapic.h:34: warning: no semicolon at end of struct or union
-include/asm/genapic.h:41: parse error before *'
-include/asm/genapic.h:41: warning: type defaults to int' in declaration of
-physid_mask_t'
-include/asm/genapic.h:41: physid_mask_t' declared as function returning a
-function
-include/asm/genapic.h:41: warning: function declaration isn't a prototype
-include/asm/genapic.h:41: warning: data definition has no type or storage
-class
-include/asm/genapic.h:69: parse error before }'
-arch/i386/mach-generic/probe.c: In function generic_apic_probe':
-arch/i386/mach-generic/probe.c:44: dereferencing pointer to incomplete type
-arch/i386/mach-generic/probe.c:54: dereferencing pointer to incomplete type
-arch/i386/mach-generic/probe.c:63: dereferencing pointer to incomplete type
-arch/i386/mach-generic/probe.c: At top level:
-arch/i386/mach-generic/probe.c:69: mps_oem_check' redeclared as different
-kind of symbol
-include/asm/genapic.h:58: previous declaration of mps_oem_check'
-arch/i386/mach-generic/probe.c: In function mps_oem_check':
-arch/i386/mach-generic/probe.c:72: dereferencing pointer to incomplete type
-arch/i386/mach-generic/probe.c:75: dereferencing pointer to incomplete type
-arch/i386/mach-generic/probe.c: At top level:
-arch/i386/mach-generic/probe.c:83: acpi_madt_oem_check' redeclared as
-different kind of symbol
-include/asm/genapic.h:59: previous declaration of acpi_madt_oem_check'
-arch/i386/mach-generic/probe.c: In function acpi_madt_oem_check':
-arch/i386/mach-generic/probe.c:86: dereferencing pointer to incomplete type
-arch/i386/mach-generic/probe.c:89: dereferencing pointer to incomplete type
-arch/i386/mach-generic/probe.c: In function hard_smp_processor_id':
-arch/i386/mach-generic/probe.c:98: dereferencing pointer to incomplete type
-arch/i386/mach-generic/probe.c:99: warning: control reaches end of non-void
-function
-{standard input}: Assembler messages:
-{standard input}:322: Error: symbol mps_oem_check' is already defined
-{standard input}:328: Error: symbol acpi_madt_oem_check' is already defined
-make[2]: *** [arch/i386/mach-generic/probe.o] Error 1
-make[1]: *** [arch/i386/mach-generic] Error 2
-make[1]: *** Waiting for unfinished jobs....
-  CHK     include/linux/compile.h
-  UPD     include/linux/compile.h
-  CC      init/do_mounts.o
-  CC      init/do_mounts_md.o
-	
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
