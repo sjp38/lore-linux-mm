@@ -1,82 +1,92 @@
-Date: Mon, 9 Oct 2000 19:57:42 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler 
-In-Reply-To: <Pine.LNX.4.21.0010091829140.7807-100000@winds.org>
-Message-ID: <Pine.LNX.4.21.0010091954230.1562-100000@duckman.distro.conectiva>
+Message-ID: <XFMail.20001010085923.peterw@mulga.surf.ap.tivoli.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20001010002520.B8709@athlon.random>
+Date: Tue, 10 Oct 2000 08:59:23 +1000 (EST)
+From: Peter Waltenberg <peterw@dascom.com.au>
+Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Byron Stanoszek <gandalf@winds.org>
-Cc: Gerrit.Huizenga@us.ibm.com, Linus Torvalds <torvalds@transmeta.com>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, Ingo Molnar <mingo@elte.hu>, Peter Waltenberg <peterw@dascom.com.au>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2000, Byron Stanoszek wrote:
-> On Mon, 9 Oct 2000 Gerrit.Huizenga@us.ibm.com wrote:
+On 09-Oct-2000 Andrea Arcangeli wrote:
+> On Tue, Oct 10, 2000 at 07:10:13AM +1000, Peter Waltenberg wrote:
+>> People seem to be forgetting (again), that Rik's code is *REALLY* an
 > 
-> > Anyway, there is/was an API in PTX to say (either from in-kernel or through
-> > some user machinations) "I Am a System Process".  Turns on a bit in the
-> > proc struct (task struct) that made it exempt from death from a variety
-> > of sources, e.g. OOM, generic user signals, portions of system shutdown,
-> > etc.
+> Please explain why you think "people" is forgetting that. At least from my
+> part
+> I wasn't forgetting that and so far I didn't read any email that made me to
+> think others are forgetting that.
+
+I didn't mail the whole kernel list originally, maybe I should have. This
+discussion has happened before. The OOM code can never be perfect, I beleive
+this can be proven mathematically. In that case, it should at least be simple.
+
+We've seen suggestion after suggestion recently for making the heuristics more
+and more complex to cope with corner cases. That isn't going to help, it just
+makes it's behaviour less predictable. 
+
+THAT is what I was commenting on.
+
+Without some last resort "kill user processes" code, the kernel hangs under
+memory pressure. It'd be nicer if it didn't, but eventually thats what happens.
+
+Having some last resort kernel process which will attempt to keep the kernel
+usable is a good idea, and it seems to work, at least on my testing.
+
+Frankly, when it gets to the point where my machine will crash anyway, I don't
+really care if the OOM killer gets it wrong now and then. It's still better
+than it not being there.
+
+I realize that the MM people are making efforts to ensure that the kernel will
+keep running under insane pressure, and maybe you'll produce a kernel now and
+then that doesn't die, BUT, I don't think you can ensure that's the case with
+every kernel produced. Something will slip through, and again we'll have the
+possibility of hangs.
+
+Having a SIMPLE OOM handler in the kernel is a very usefull fallback, it's a
+last resort, and if it gets it right 9 times out of 10, it's added another "9"
+to the reliability figures.
+
+
+>> It's probably reasonable to not kill init, but the rest just don't matter.
 > 
-> The current OOM killer does this, except for init. Checking to
-> see if the process has a page table is equivalent to checking
-> for the kernel threads that are integral to the system (PIDs
-> 2-5). These will never be killed by the OOM. Init, however,
-> still can be killed, and there should be an additional statement
-> that doesn't kill if PID == 1.
+> Killing init is a kernel bug.
+> 
+>> Without the OOM killer the machine would have locked up and you'd lose that
+>> 3
+> 
+> Grab 2.2.18pre15aa1 and try to lockup the machine if you can.
+> 
+>> At least with Rik's code you end up with a usable machine afterwards which
+>> is
+>> a major improvement.
+> 
+> If current 2.4.x lockups during OOM that's because of bugs introduced during
+> 2.[34].x. The oom killer is completly irrelevant to the stability of the
+> kernel,
 
-Only if you can demonstrate any real-world scenario where 
-init will be chosen with the current algorithm.
+But not the the stability of the system. I agree, it's better if the OOM killer
+never gets used, but the majority of kernels released ARE killable with memory
+pressure.
 
-The "3 MB init on 4MB machine" kind of theoretical argument
-just isn't convincing if nobody can show that there is a
-problem in reality.
+> the oom killer only deals with the _selection_ of the task to kill. OOM
+> detection is a completly orthogonal issue.
+> 
+> If something the oom killer can introduce a lockup condition if there isn't
+> a mechamism to fallback killing the current task (all the other tasks
+> may be sleeping on a down-nfs-server in interruptible mode).
 
-> I think we need to sit down and write a better OOM proposal,
-> something that doesn't use CPU time and the NICE flag.
+That probably doesn't matter, the machine would be dead otherwise anyway. WITH
+the OOM killer it has some chance of recovering, without it none. It'd be nicer
+if that didn't occur, but OOM handling is still an improvement.
 
-The nice flag has been removed from my current kernel tree.
+> Andrea
 
-The CPU time used, however, is a different matter. You really
-don't want to have the OOM killer kill your 6-week-old running
-simulation because a newly started netscape explodes ...
-
-> How about we start by everyone in this discussion give their
-> opinion on what the OOM selection process should do,
-
-Quoting from mm/oom_kill.c:
-
-/**
- * oom_badness - calculate a numeric value for how bad this task has been
- * @p: task struct of which task we should calculate
- *
- * The formula used is relatively simple and documented inline in the
- * function. The main rationale is that we want to select a good task
- * to kill when we run out of memory.
- *
- * Good in this context means that:
- * 1) we lose the minimum amount of work done
- * 2) we recover a large amount of memory
- * 3) we don't kill anything innocent of eating tons of memory
- * 4) we want to kill the minimum amount of processes (one)
- * 5) we try to kill the process the user expects us to kill, this
- *    algorithm has been meticulously tuned to meet the priniciple
- *    of least surprise ... (be careful when you change it)
- */
-
-Do you have any additional requirements?
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+Peter
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
