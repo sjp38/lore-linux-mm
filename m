@@ -1,34 +1,38 @@
-Date: Thu, 07 Nov 2002 10:45:27 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Reply-To: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Thu, 7 Nov 2002 14:05:59 -0500 (EST)
+From: Bill Davidsen <davidsen@tmr.com>
 Subject: Re: 2.5.46-mm1
-Message-ID: <4057974659.1036665927@[10.10.2.3]>
-In-Reply-To: <3DCA9F50.1A9E5EC5@digeo.com>
-References: <3DCA9F50.1A9E5EC5@digeo.com>
+In-Reply-To: <4051130868.1036659083@[10.10.2.3]>
+Message-ID: <Pine.LNX.3.96.1021107134549.31227A-100000@gatekeeper.tmr.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Bill Davidsen <davidsen@tmr.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> > For what it's worth, the last mm kernel which booted on my old P-II IDE
->> > test machine was 44-mm2. With 44-mm6 and this one I get an oops on boot.
->> > Unfortunately it isn't written to disk, scrolls off the console, and
->> > leaves the machine totally dead to anything less than a reset. I will try
->> 
->> Any chance of setting up a serial console? They're very handy for
->> things like this ...
+On Thu, 7 Nov 2002, Martin J. Bligh wrote:
+
+> > For what it's worth, the last mm kernel which booted on my old P-II IDE
+> > test machine was 44-mm2. With 44-mm6 and this one I get an oops on boot.
+> > Unfortunately it isn't written to disk, scrolls off the console, and
+> > leaves the machine totally dead to anything less than a reset. I will try
 > 
-> "vga=extended" gets you 50 rows, which is usually enough.
+> Any chance of setting up a serial console? They're very handy for 
+> things like this ...
 
-Depends if it keeps booting afterwards, or your pen skills are
-just bad (like mine ;-))
+Certainly not with a real serial terminal ;-) As far as going through a
+crossover cable to another system, it's doable, but finding the time, the
+cable, etc... maybe next week. I just wanted to get the base report out in
+case someone had more info, or if it was a known problem. 
 
-M.
+I will try to capture it, but I'll try any new versions which come out
+before then as well.
+
+-- 
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
