@@ -1,55 +1,74 @@
-From: David Lang <david.lang@digitalinsight.com>
-Date: Thu, 23 Jan 2003 21:11:10 -0800 (PST)
+From: John Alvord <jalvo@mbay.net>
 Subject: Re: your mail
-In-Reply-To: <40475.210.212.228.78.1043384883.webmail@mail.nitc.ac.in>
-Message-ID: <Pine.LNX.4.44.0301232104440.10187-100000@dlang.diginsite.com>
+Date: Thu, 23 Jan 2003 22:06:24 -0800
+Message-ID: <csl13vsmj20pfasoh5v4mmv5mv3chqm53m@4ax.com>
+References: <40475.210.212.228.78.1043384883.webmail@mail.nitc.ac.in> <Pine.LNX.4.44.0301232104440.10187-100000@dlang.diginsite.com>
+In-Reply-To: <Pine.LNX.4.44.0301232104440.10187-100000@dlang.diginsite.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Anoop J." <cs99001@nitc.ac.in>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Lang <david.lang@digitalinsight.com>
+Cc: "Anoop J." <cs99001@nitc.ac.in>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The idea of page coloring is based on the fact that common implementations
-of caching can't put any page in memory in any line in the cache (such an
-implementation is possible, but is more expensive to do so is not commonly
-done)
+The big challenge in Linux is that several serious attempts to add
+page coloring have foundered on the shoals of "no benefit found". It
+may be that the typical hardware Linux runs on just doesn't experience
+the problem very much.
 
-With this implementation it means that if your program happens to use
-memory that cannot be mapped to half of the cache lines then effectivly
-the CPU cache is half it's rated size for your program. the next time your
-program runs it may get a more favorable memory allocation and be able to
-use all of the cache and therefor run faster.
-
-Page coloring is an attampt to take this into account when allocating
-memory to programs so that every program gets to use all of the cache.
-
-David Lang
+john
 
 
- On Fri, 24 Jan 2003, Anoop J. wrote:
+On Thu, 23 Jan 2003 21:11:10 -0800 (PST), David Lang
+<david.lang@digitalinsight.com> wrote:
 
-> Date: Fri, 24 Jan 2003 10:38:03 +0530 (IST)
-> From: Anoop J. <cs99001@nitc.ac.in>
-> To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+>The idea of page coloring is based on the fact that common implementations
+>of caching can't put any page in memory in any line in the cache (such an
+>implementation is possible, but is more expensive to do so is not commonly
+>done)
+>
+>With this implementation it means that if your program happens to use
+>memory that cannot be mapped to half of the cache lines then effectivly
+>the CPU cache is half it's rated size for your program. the next time your
+>program runs it may get a more favorable memory allocation and be able to
+>use all of the cache and therefor run faster.
+>
+>Page coloring is an attampt to take this into account when allocating
+>memory to programs so that every program gets to use all of the cache.
+>
+>David Lang
 >
 >
-> How does page coloring work. Iwant its mechanism not the implementation.
-> I went through some pages of W.L.Lynch's paper on cache and VM. Still not
-> able to grasp it .
+> On Fri, 24 Jan 2003, Anoop J. wrote:
 >
->
-> Thanks in advance
->
->
->
-> -
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
->
+>> Date: Fri, 24 Jan 2003 10:38:03 +0530 (IST)
+>> From: Anoop J. <cs99001@nitc.ac.in>
+>> To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+>>
+>>
+>> How does page coloring work. Iwant its mechanism not the implementation.
+>> I went through some pages of W.L.Lynch's paper on cache and VM. Still not
+>> able to grasp it .
+>>
+>>
+>> Thanks in advance
+>>
+>>
+>>
+>> -
+>> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>> the body of a message to majordomo@vger.kernel.org
+>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>> Please read the FAQ at  http://www.tux.org/lkml/
+>>
+>-
+>To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+>the body of a message to majordomo@vger.kernel.org
+>More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>Please read the FAQ at  http://www.tux.org/lkml/
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
