@@ -1,27 +1,37 @@
 Subject: Re: broken VM in 2.4.10-pre9
-Date: Wed, 19 Sep 2001 23:30:41 +0100 (BST)
-In-Reply-To: <878A2048A35CD141AD5FC92C6B776E4907B7A5@xchgind02.nsisw.com> from "Rob Fuller" at Sep 19, 2001 05:15:21 PM
+References: <E15jpRy-0003yt-00@the-village.bc.nu>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 19 Sep 2001 16:26:40 -0600
+In-Reply-To: <E15jpRy-0003yt-00@the-village.bc.nu>
+Message-ID: <m166aeg6lb.fsf@frodo.biederman.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-Id: <E15jprd-00042O-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rob Fuller <rfuller@nsisoftware.com>
-Cc: "David S. Miller" <davem@redhat.com>, ebiederm@xmission.com, alan@lxorguk.ukuu.org.uk, phillips@bonn-fries.net, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Daniel Phillips <phillips@bonn-fries.net>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> "One argument for reverse mappings is distributed shared memory or
-> distributed file systems and their interaction with memory mapped files.
-> For example, a distributed file system may need to invalidate a specific
-> page of a file that may be mapped multiple times on a node."
+Alan Cox <alan@lxorguk.ukuu.org.uk> writes:
 
-Wouldn't it be better for the file system itself to be doing that work. Also
-do real world file systems that actually perform usably do this or just zap
-the cached mappings like OpenGFS does.
+> Much of this goes away if you get rid of both the swap and anonymous page
+> special cases. Back anonymous pages with the "whoops everything I write here
+> vanishes mysteriously" file system and swap with a swapfs
 
-Alan
+Essentially.  Though that is just the strategy it doesn't cut to the heart of the
+problems that need to be addressed.  The trickiest part is to allocate persistent
+id's to the pages that don't require us to fragment the VMA's.
+
+> Reverse mappings make linear aging easier to do but are not critical (we
+> can walk all physical pages via the page map array).
+
+Agreed.
+
+What I find interesting about the 2.4.x VM is that most of the large
+problems people have seen were not stupid designs mistakes in the VM
+but small interaction glitches, between various pieces of code.
+
+Eric
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
