@@ -1,63 +1,57 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <200001140117.RAA86279@google.engr.sgi.com>
+Date: Fri, 14 Jan 2000 02:08:49 +0100 (CET)
+From: Rik van Riel <riel@nl.linux.org>
 Subject: Re: [RFC] 2.3.39 zone balancing
-Date: Thu, 13 Jan 2000 17:17:32 -0800 (PST)
-In-Reply-To: <Pine.LNX.4.10.10001140304570.7119-100000@chiara.csoma.elte.hu> from "Ingo Molnar" at Jan 14, 2000 03:13:48 AM
+In-Reply-To: <Pine.LNX.4.10.10001131650520.2250-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.10.10001140205540.13454-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Andrea Arcangeli <andrea@suse.de>, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@nl.linux.org>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Ingo Molnar <mingo@chiara.csoma.elte.hu>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-> 
-> 
-> On Thu, 13 Jan 2000, Linus Torvalds wrote:
-> 
-> > HOWEVER, I don't think this is going to be a huge issue in most cases. And
-> > if people don't need non-DMA memory, then the pages we "swapped" out are
-> > going to stay in RAM anyway, so it's not going to hurt us.
+On Thu, 13 Jan 2000, Linus Torvalds wrote:
+> On Fri, 14 Jan 2000, Andrea Arcangeli wrote:
 > > 
-> > Anyway, I obviously do agree that I may well be wrong, and that real life
-> > is going to come back and bite us, and we'll end up having to not do it
-> > this way. However, I'd prefer trying the "conceptually simple" path first,
-> > and only if it turns out that yes, I was completely wrong, do we try to
-> > fix it up with magic heuristics etc.
+> > The only problem in what you are suggesting is that you may end swapping
+> > out also the wrong pages. Suppose you want to allocate 4k of DMA
+> > memory.
 > 
-> hm., i think we'll see this with ISA soundcards (still the majority) if
-> used as modules. Right now kswapd just gives up too easy and says 'no such
-> page', on a box with lots of RAM and all DMA allocated in process VM
-> space.
+> I agree.
 > 
-> Anyway, the patch and suggestion of passing in a single zone is i believe
-> completely wrong, because it advances mm->swap_address, which unfairly
-> selects a given range to be checked for only one zone. So i think it's
-> either zone-bitmaps (or equivalent multi-zone logic) or what you
-> suggested, to have no zone-awareness in swap_out() for now at all.
-> 
-> (i believe this is also going to bite us with the IA64 port - kswapd will
-> have no information to free pages from the right node, we could solve this
-> already with a zone bitmap, or by starting per-zone kswapds. The latter
+> HOWEVER, I don't think this is going to be a huge issue in most cases. And
+> if people don't need non-DMA memory, then the pages we "swapped" out are
+> going to stay in RAM anyway, so it's not going to hurt us.
 
-If you are talking about the discontig memory support, yes, I have thought
-about that and arrived at the conclusion that rather than overdesign
-right now, we will have to see how things work out on a real machine. 
+If the page is not dirtied after we swapped it out last time,
+it won't matter one bit for performance. If the page is dirtied
+continuously we won't swap out that page either.
 
-There's been some arguments against per-zone, or per-node kswapd's, 
-so the other alternative is to pass the list of unbalanced zones to
-kswapd, which can then scan only the unbalanced ones. This is the 
-best solution when there are fairly large number of nodes.
+All the swap-everything, free later thing means is that we'll
+incur a little extra I/O (in the background) and that it might
+be easier/faster to free pages in the foreground, when we really
+need them.
 
-Kanoj
+> Anyway, I obviously do agree that I may well be wrong, and that
+> real life is going to come back and bite us, and we'll end up
+> having to not do it this way. However, I'd prefer trying the
+> "conceptually simple" path first, and only if it turns out that
+> yes, I was completely wrong, do we try to fix it up with magic
+> heuristics etc.
 
-> one looks like overkill to me, but it's conceptually cleaner than bitmaps
-> and and does not have a limitation on the number of zones. Might not be a
-> highprio issue though.)
-> 
-> -- mingo
-> 
+I don't think there will be that many side effects, except
+perhaps a bit higher swap usage...
+
+Of course, under certain workloads the two different tactics
+will make a difference, but that can swing either way.
+
+regards,
+
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
