@@ -1,65 +1,42 @@
-Date: Sat, 6 Nov 2004 08:41:49 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] Remove OOM killer ...
-Message-ID: <20041106104149.GA22629@logos.cnet>
-References: <20041105200118.GA20321@logos.cnet> <20041106125317.GB9144@pclin040.win.tue.nl>
-Mime-Version: 1.0
+Date: Sat, 06 Nov 2004 07:17:38 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: removing mm->rss and mm->anon_rss from kernel?
+Message-ID: <204290000.1099754257@[10.10.2.4]>
+In-Reply-To: <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
+References: <4189EC67.40601@yahoo.com.au>  <Pine.LNX.4.58.0411040820250.8211@schroedinger.engr.sgi.com> <418AD329.3000609@yahoo.com.au>  <Pine.LNX.4.58.0411041733270.11583@schroedinger.engr.sgi.com> <418AE0F0.5050908@yahoo.com.au>  <418AE9BB.1000602@yahoo.com.au><1099622957.29587.101.camel@gaston> <418C55A7.9030100@yahoo.com.au> <Pine.LNX.4.58.0411060120190.22874@schroedinger.engr.sgi.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20041106125317.GB9144@pclin040.win.tue.nl>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andries Brouwer <aebr@win.tue.nl>
-Cc: Andrew Morton <akpm@osdl.org>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@kernel.vger.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andries,
+> My page scalability patches need to make rss atomic and now with the
+> addition of anon_rss I would also have to make that atomic.
+> 
+> But when I looked at the code I found that the only significant use of
+> both is in for proc statistics. There are 3 other uses in mm/rmap.c where
+> the use of mm->rss may be replaced by mm->total_vm.
+> 
+> So I removed all uses of mm->rss and anon_rss from the kernel and
+> introduced a bean counter count_vm() that is only run when the
+> corresponding /proc file is used. count_vm then runs throught the vm
+> and counts all the page types. This could also add additional page types to our
+> statistics and solve some of the consistency issues.
 
-On Sat, Nov 06, 2004 at 01:53:17PM +0100, Andries Brouwer wrote:
-> On Fri, Nov 05, 2004 at 06:01:18PM -0200, Marcelo Tosatti wrote:
-> 
-> > My wife is almost killing me, its Friday night and I've been telling her
-> > "just another minute" for hours. Have to run.
-> 
-> :-)
-> 
-> > As you know the OOM is very problematic in 2.6 right now - so I went
-> > to investigate it.
-> 
-> I have always been surprised that so few people investigated
-> doing things right, that is, entirely without OOM killer.
-> Apparently developers do not think about using Linux for serious work
-> where it can be a disaster, possibly even a life-threatening disaster,
-> when any process can be killed at any time.
+I would've thought SGI would be more worried about this kind of thing
+than anyone else ... what's going to happen when you type 'ps' on a large
+box, and it does this for 10,000 processes? 
 
-Its just that the majority of users use total overcommit (the default), 
-but you have a point.
+If you want to make it quicker, how about doing per-cpu stats, and totalling
+them at runtime, which'd be lockless, instead of all the atomic ops?
 
-> Ten years ago it was a bad waste of resources to have swapspace
-> lying around that would be used essentially 0% of the time.
-> But with todays disk sizes it is entirely feasible to have
-> a few hundred MB of "unused" swap space. A small price to
-> pay for the guarantee that no process will be OOM killed.
-> 
-> A month ago I showed a patch that made overcommit mode 2
-> work for me. Google finds it in http://lwn.net/Articles/104959/
-> 
-> So far, nobody commented.
-> 
-> This is not in a state such that I would like to submit it,
-> but I think it would be good to focus some energy into
-> offering a Linux that is guaranteed free of OOM surprises.
+M.
 
-I dont have any useful comments on patch on a quick look at it  - 
-but yes non-overcommit should be working correctly.
 
-> So, let me repeat the RFC.
-> Apply the above patch, and do "echo 2 > /proc/sys/vm/overcommit_memory".
-> Now test. In case you have no, or only a small amount of swap space,
-> also do "echo 80 > /proc/sys/vm/overcommit_ratio" or so.
-
-Will test your patch later on the weekend and take a slower look 
-at it, hopefully with useful comments.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
