@@ -1,30 +1,42 @@
-Date: Mon, 19 Jul 1999 23:15:47 +0200 (CEST)
-From: Rik van Riel <riel@nl.linux.org>
-Subject: Linux-MM suggestions
-Message-ID: <Pine.LNX.4.03.9907192314190.15599-100000@mirkwood.nl.linux.org>
+Received: from pbn-computer (k1ms075.dial.kabelfoon.nl [212.136.90.75])
+	by maillist.kabelfoon.nl (Postfix) with SMTP id CA6A93AB2
+	for <linux-mm@kvack.org>; Tue, 20 Jul 1999 12:24:18 +0200 (CEST)
+Message-ID: <006501bed29a$dd39c5a0$4b5a88d4@pbn-computer>
+From: "Lennert Buytenhek" <buytenh@dsv.nl>
+Subject: some dumb questions
+Date: Tue, 20 Jul 1999 12:30:17 +0200
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux MM <linux-mm@kvack.org>
-Cc: kernel-doc@nl.linux.org, linux-mm-www@nl.linux.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi all,
 
-now that there's a team of people willing to maintain the
-Linux-MM site, I guess it's time to make an inventory of
-what people would like to see on the site.
+Some dumb questions from a dumb person..
 
-As an extra side effect, it would make a good incentive
-to other subsystems' sites :)
+In vm_operations_struct there are pointers for (*advise), (*nopage),
+(*wppage), et cetera. wppage is never used or called by any code
+(copy-on-write is the default behaviour). Why is this? What if I want
+my own wppage handler? Having the fn ptr member but not using it
+doesn't make sense, IMHO. Also, I believe (*advise) isn't used
+either.
 
-Rik -- Open Source: you deserve to be in control of your data.
-+-------------------------------------------------------------------+
-| Le Reseau netwerksystemen BV:               http://www.reseau.nl/ |
-| Linux Memory Management site:   http://www.linux.eu.org/Linux-MM/ |
-| Nederlandse Linux documentatie:          http://www.nl.linux.org/ |
-+-------------------------------------------------------------------+
+Some other small things:
+1. struct vm_area_struct -> struct vm_area ?
+2. struct vm_operations_struct -> struct vm_area_operations ?
+3. /dev/sysvipc/shm/1234 or /proc/sysvipc/shm/1234 ??
+
+(This last suggestion just might start a holy war.... :-)
+
+Thanks,
+
+Lennert Buytenhek
+<buytenh@dsv.nl>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
