@@ -1,105 +1,63 @@
-Date: Fri, 19 Nov 2004 11:47:14 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: page fault scalability patch V11 [7/7]: s390 atomic pte operations
-In-Reply-To: <Pine.LNX.4.58.0411190704330.5145@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.58.0411191146480.24095@schroedinger.engr.sgi.com>
-References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain>
-  <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com>
- <Pine.LNX.4.58.0411181715280.834@schroedinger.engr.sgi.com>
- <419D581F.2080302@yahoo.com.au>  <Pine.LNX.4.58.0411181835540.1421@schroedinger.engr.sgi.com>
-  <419D5E09.20805@yahoo.com.au>  <Pine.LNX.4.58.0411181921001.1674@schroedinger.engr.sgi.com>
- <1100848068.25520.49.camel@gaston> <Pine.LNX.4.58.0411190704330.5145@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 19 Nov 2004 13:57:21 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: another approach to rss : sloppy rss
+Message-ID: <20041119195721.GA2203@lnx-holt.americas.sgi.com>
+References: <Pine.LNX.4.44.0411061527440.3567-100000@localhost.localdomain> <Pine.LNX.4.58.0411181126440.30385@schroedinger.engr.sgi.com> <419D47E6.8010409@yahoo.com.au> <Pine.LNX.4.58.0411181711130.834@schroedinger.engr.sgi.com> <419D4EC7.6020100@yahoo.com.au> <Pine.LNX.4.58.0411181834260.1421@schroedinger.engr.sgi.com> <419D8C07.9040606@yahoo.com.au> <Pine.LNX.4.58.0411191116480.24095@schroedinger.engr.sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0411191116480.24095@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: torvalds@osdl.org, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Hugh Dickins <hugh@veritas.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Changelog
-        * Provide atomic pte operations for s390
+On Fri, Nov 19, 2004 at 11:21:38AM -0800, Christoph Lameter wrote:
+> On Fri, 19 Nov 2004, Nick Piggin wrote:
+> 
+> > Just coming back to your sloppy rss patch - this thing will of course allow
+> > unbounded error to build up. Well, it *will* be bounded by the actual RSS if
+> > we assume the races can only cause rss to be underestimated. However, such an
+> > assumption (I think it is a safe one?) also means that rss won't hover around
+> > the correct value, but tend to go increasingly downward.
+> >
+> > On your HPC codes that never reclaim memory, and don't do a lot of mapping /
+> > unmapping I guess this wouldn't matter... But a long running database or
+> > something?
+> 
+> Databases preallocate memory on startup and then manage memory themselves.
+> One reason for this patch is that these applications cause anonymous page
+> fault storms on startup given lots of memory which will make
+> the system seem to freeze for awhile.
+> 
+> It is rare for a program to actually free up memory.
+> 
+> Where this approach could be problematic is when the system is under
+> heavy swap load. Pages of an application will be repeatedly paged in and
+> out and therefore rss will be incremented and decremented. But in those
+> cases these incs and decs are not done in a way that is on purpose
+> parallel like in my test programs. So I would expect rss to be more
+> accurate than in my tests.
+> 
+> I think the sloppy rss approach is the right way to go.
 
-Signed-off-by: Christoph Lameter <clameter@sgi.com>
+Is this really that much of a problem?  Why not leave rss as an _ACCURATE_
+count of pages.  That way stuff like limits based upon rss and accounting
+of memory usage are accurate.
 
-Index: linux-2.6.9/include/asm-s390/pgtable.h
-===================================================================
---- linux-2.6.9.orig/include/asm-s390/pgtable.h	2004-10-18 14:54:55.000000000 -0700
-+++ linux-2.6.9/include/asm-s390/pgtable.h	2004-11-19 11:35:08.000000000 -0800
-@@ -567,6 +567,15 @@
- 	return pte;
- }
+Have we tried splitting into seperate cache lines?  How about grouped counters
+for every 16 cpus instead of a per-cpu counter as proposed by someone else
+earlier.
 
-+#define ptep_xchg_flush(__vma, __address, __ptep, __pteval)            \
-+({                                                                     \
-+	struct mm_struct *__mm = __vma->vm_mm;                          \
-+	pte_t __pte;                                                    \
-+	__pte = ptep_clear_flush(__vma, __address, __ptep);             \
-+	set_pte(__ptep, __pteval);                                      \
-+	__pte;                                                          \
-+})
-+
- static inline void ptep_set_wrprotect(pte_t *ptep)
- {
- 	pte_t old_pte = *ptep;
-@@ -778,6 +787,14 @@
+IMHO, keeping rss as an accurate count is much more important that having
+a nearly correct value.  If this turns into more of a scaling issue later on,
+your patch will have to be caught by someone accidentally noticing that
+the rss value is _WAY_ off as opposed to our normal methods for detecting
+cacheline contention.
 
- #define kern_addr_valid(addr)   (1)
-
-+/* Atomic PTE operations */
-+#define __HAVE_ARCH_ATOMIC_TABLE_OPS
-+
-+static inline int ptep_cmpxchg (struct vm_area_struct *vma, unsigned long address, pte_t *ptep, pte_t oldval, pte_t newval)
-+{
-+	return cmpxchg(ptep, pte_val(oldval), pte_val(newval)) == pte_val(oldval);
-+}
-+
- /*
-  * No page table caches to initialise
-  */
-@@ -791,6 +808,7 @@
- #define __HAVE_ARCH_PTEP_CLEAR_DIRTY_FLUSH
- #define __HAVE_ARCH_PTEP_GET_AND_CLEAR
- #define __HAVE_ARCH_PTEP_CLEAR_FLUSH
-+#define __HAVE_ARCH_PTEP_XCHG_FLUSH
- #define __HAVE_ARCH_PTEP_SET_WRPROTECT
- #define __HAVE_ARCH_PTEP_MKDIRTY
- #define __HAVE_ARCH_PTE_SAME
-Index: linux-2.6.9/include/asm-s390/pgalloc.h
-===================================================================
---- linux-2.6.9.orig/include/asm-s390/pgalloc.h	2004-10-18 14:54:37.000000000 -0700
-+++ linux-2.6.9/include/asm-s390/pgalloc.h	2004-11-19 11:33:25.000000000 -0800
-@@ -97,6 +97,10 @@
- 	pgd_val(*pgd) = _PGD_ENTRY | __pa(pmd);
- }
-
-+static inline int pgd_test_and_populate(struct mm_struct *mm, pdg_t *pgd, pmd_t *pmd)
-+{
-+	return cmpxchg(pgd, _PAGE_TABLE_INV, _PGD_ENTRY | __pa(pmd)) == _PAGE_TABLE_INV;
-+}
- #endif /* __s390x__ */
-
- static inline void
-@@ -119,6 +123,18 @@
- 	pmd_populate_kernel(mm, pmd, (pte_t *)((page-mem_map) << PAGE_SHIFT));
- }
-
-+static inline int
-+pmd_test_and_populate(struct mm_struct *mm, pmd_t *pmd, struct page *page)
-+{
-+	int rc;
-+	spin_lock(&mm->page_table_lock);
-+
-+	rc=pte_same(*pmd, _PAGE_INVALID_EMPTY);
-+	if (rc) pmd_populate(mm, pmd, page);
-+	spin_unlock(&mm->page_table_lock);
-+	return rc;
-+}
-+
- /*
-  * page table entry allocation/free routines.
-  */
-
+Just my opinion,
+Robin Holt
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
