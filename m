@@ -1,112 +1,140 @@
-Message-ID: <4238D8C1.3080805@yahoo.com.au>
-Date: Thu, 17 Mar 2005 12:09:21 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: Bug in __alloc_pages()?
-References: <4238D1DC.8070004@us.ibm.com>
-In-Reply-To: <4238D1DC.8070004@us.ibm.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from midway.verizon.net ([4.5.49.23])
+ by vms040.mailsrvcs.net (Sun Java System Messaging Server 6.2 HotFix 0.04
+ (built Dec 24 2004)) with ESMTPA id <0IDH0052XBYK6U61@vms040.mailsrvcs.net> for
+ linux-mm@kvack.org; Wed, 16 Mar 2005 22:47:09 -0600 (CST)
+Date: Wed, 16 Mar 2005 20:47:08 -0800
+From: "Randy.Dunlap" <randy.dunlap@verizon.net>
+Subject: [PATCH/RFC] io_remap_pfn_range: convert io_remap_page_range callers
+Message-id: <20050316204708.5adfeebc.randy.dunlap@verizon.net>
+MIME-version: 1.0
+Content-type: text/plain; charset=US-ASCII
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, "Bligh, Martin J." <mbligh@aracnet.com>
+To: linux-mm@kvack.org
+Cc: lkml <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Matthew Dobson wrote:
-> While looking at some bugs related to OOM handling in 2.6, Martin Bligh 
-> and I noticed some order 0 page allocation failures from kswapd:
-> 
-> kswapd0: page allocation failure. order:0, mode:0x50
->  [<c0147b92>] __alloc_pages+0x288/0x295
->  [<c0147bb7>] __get_free_pages+0x18/0x24
->  [<c014b2c4>] kmem_getpages+0x15/0x94
->  [<c014c047>] cache_grow+0x154/0x299
->  [<c014c399>] cache_alloc_refill+0x20d/0x23d
->  [<c014c622>] kmem_cache_alloc+0x46/0x4c
->  [<f885a4b0>] journal_alloc_journal_head+0x10/0x5d [jbd]
->  [<f885a523>] journal_add_journal_head+0x1a/0xe1 [jbd]
->  [<f8850be3>] journal_dirty_data+0x2e/0x3a5 [jbd]
->  [<f8883400>] ext3_journal_dirty_data+0xc/0x2a [ext3]
->  [<f888329a>] walk_page_buffers+0x62/0x87 [ext3]
->  [<f888382d>] ext3_ordered_writepage+0xea/0x136 [ext3]
->  [<f8883731>] journal_dirty_data_fn+0x0/0x12 [ext3]
->  [<c014ec31>] pageout+0x83/0xc0
->  [<c014ee80>] shrink_list+0x212/0x55f
->  [<c014de86>] __pagevec_release+0x15/0x1d
->  [<c014f400>] shrink_cache+0x233/0x4d5
->  [<c014fee2>] shrink_zone+0x91/0x9c
->  [<c01501e9>] balance_pgdat+0x15f/0x208
->  [<c0150350>] kswapd+0xbe/0xc0
->  [<c011e1ef>] autoremove_wake_function+0x0/0x2d
->  [<c0308886>] ret_from_fork+0x6/0x20
->  [<c011e1ef>] autoremove_wake_function+0x0/0x2d
->  [<c0150292>] kswapd+0x0/0xc0
->  [<c01041d5>] kernel_thread_helper+0x5/0xb
-> 
-> We decided that seemed odd, as kswapd should be able to get a page as 
-> long as there is even one page left in the system, since being a memory 
-> allocator task (PF_MEMALLOC) should exempt kswapd from any page 
-> watermark restrictions.  Digging into the code I found what looked like 
-> a bug that could potentially cause this situation to be far more common.
-> 
-> This chunk of code from __alloc_pages() demonstrates the problem:
-> 
->     /* This allocation should allow future memory freeing. */
->     if (((p->flags & PF_MEMALLOC) || 
-> unlikely(test_thread_flag(TIF_MEMDIE))) && !in_interrupt()) {
->         /* go through the zonelist yet again, ignoring mins */
->         for (i = 0; (z = zones[i]) != NULL; i++) {
->             if (!cpuset_zone_allowed(z))
->                 continue;
->             page = buffered_rmqueue(z, order, gfp_mask);
->             if (page)
->                 goto got_pg;
->         }
->         goto nopage;
->     }
-> 
->     /* Atomic allocations - we can't balance anything */
->     if (!wait)
->         goto nopage;
-> 
-> rebalance:
->     cond_resched();
-> 
->     /* We now go into synchronous reclaim */
->     p->flags |= PF_MEMALLOC;
->     reclaim_state.reclaimed_slab = 0;
->     p->reclaim_state = &reclaim_state;
-> 
->     did_some_progress = try_to_free_pages(zones, gfp_mask, order);
-> 
->     p->reclaim_state = NULL;
->     p->flags &= ~PF_MEMALLOC;
-> 
-> If, while the system is under memory pressure, something attempts to 
-> allocate a page from interrupt context while current == kswapd we will 
-> obviously fail the !in_interrupt() check and fall through.  If this 
-> allocation request was made with __GFP_WAIT set then we'll fall through 
-> the next !wait check.  We will then set the PF_MEMALLOC flag and set 
-> p->reclaim_state to point to __alloc_pages() local reclaim_state 
-> structure.  kswapd alread has it's own reclaim_state and already has 
-> PF_MEMALLOC set, which would then be lost when, after 
-> try_to_free_pages(), we unconditionally set the reclaim_state to NULL 
-> and turn off the PF_MEMALLOC flag.
-> 
-> I'm not 100% sure that this potential bug is even possible (ie: can we 
-> have an in_interrupt() page request that has __GFP_WAIT set?), or is the 
-> cause of the 0-order page allocation failures we see, but it does seem 
-> like potentially dangerous code.  I have attatched a patch (against 
-> 2.6.11-mm4) to check whether the current task has it's own reclaim_state 
-> or already has PF_MEMALLOC set and if so, no longer throws away this data.
-> 
+Follow-up to
+http://marc.theaimsgroup.com/?l=linux-mm&m=111049473410099&w=2
+(which has a minor correction, full patch available at:
+http://developer.osdl.org/rddunlap/patches/ioremap_pfn_v6.patch)
 
-I don't think in_interrupt allocations can have __GFP_WAIT set, so
-this should probably be OK.
+Built on 9 arches with OSDL PLM.
 
-Nick
 
+io_remap_pfn_range() phase 2:
+  convert all callers of io_remap_page_range() to io_remap_pfn_range();
+  add io_remap_page_range() to feature-removal-schedule.txt;
+
+ Documentation/feature-removal-schedule.txt |    9 +++++++++
+ arch/sh/kernel/cpu/sh4/sq.c                |    2 +-
+ drivers/video/acornfb.c                    |    2 +-
+ drivers/video/au1100fb.c                   |    2 +-
+ drivers/video/controlfb.c                  |    2 +-
+ drivers/video/sa1100fb.c                   |    2 +-
+ sound/core/pcm_native.c                    |    4 ++--
+ 7 files changed, 16 insertions(+), 7 deletions(-)
+
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/arch/sh/kernel/cpu/sh4/sq.c linux-2611-bk10-remap2/arch/sh/kernel/cpu/sh4/sq.c
+--- linux-2611-bk10-remap1/arch/sh/kernel/cpu/sh4/sq.c	2005-03-01 23:38:07.000000000 -0800
++++ linux-2611-bk10-remap2/arch/sh/kernel/cpu/sh4/sq.c	2005-03-16 09:46:10.000000000 -0800
+@@ -379,7 +379,7 @@ static int sq_mmap(struct file *file, st
+ 
+ 	map = __sq_alloc_mapping(vma->vm_start, offset, size, "Userspace");
+ 
+-	if (io_remap_page_range(vma, map->sq_addr, map->addr,
++	if (io_remap_pfn_range(vma, map->sq_addr, map->addr >> PAGE_SHIFT,
+ 				size, vma->vm_page_prot))
+ 		return -EAGAIN;
+ 
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/Documentation/feature-removal-schedule.txt linux-2611-bk10-remap2/Documentation/feature-removal-schedule.txt
+--- linux-2611-bk10-remap1/Documentation/feature-removal-schedule.txt	2005-03-16 09:16:26.000000000 -0800
++++ linux-2611-bk10-remap2/Documentation/feature-removal-schedule.txt	2005-03-16 10:01:18.000000000 -0800
+@@ -31,9 +31,18 @@ Why:	/proc/sys/cpu/* has been deprecated
+ 	Both interfaces are superseded by the cpufreq interface in
+ 	/sys/devices/system/cpu/cpu%n/cpufreq/.
+ Who:	Dominik Brodowski <linux@brodo.de>
++---------------------------
+ 
+ What:	ACPI S4bios support
+ When:	May 2005
+ Why:	Noone uses it, and it probably does not work, anyway. swsusp is
+ 	faster, more reliable, and people are actually using it.
+ Who:	Pavel Machek <pavel@suse.cz>
++---------------------------
++
++What:	io_remap_page_range() (macro or function)
++When:	September 2005
++Why:	Replaced by io_remap_pfn_range() which allows more memory space
++	addressabilty (by using a pfn) and supports sparc & sparc64
++	iospace as part of the pfn.
++Who:	Randy Dunlap <rddunlap@osdl.org>
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/drivers/video/acornfb.c linux-2611-bk10-remap2/drivers/video/acornfb.c
+--- linux-2611-bk10-remap1/drivers/video/acornfb.c	2005-03-01 23:38:26.000000000 -0800
++++ linux-2611-bk10-remap2/drivers/video/acornfb.c	2005-03-16 09:38:24.000000000 -0800
+@@ -909,7 +909,7 @@ acornfb_mmap(struct fb_info *info, struc
+ 	 * some updates to the screen occasionally, but process switches
+ 	 * should cause the caches and buffers to be flushed often enough.
+ 	 */
+-	if (io_remap_page_range(vma, vma->vm_start, off,
++	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
+ 				vma->vm_end - vma->vm_start,
+ 				vma->vm_page_prot))
+ 		return -EAGAIN;
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/drivers/video/au1100fb.c linux-2611-bk10-remap2/drivers/video/au1100fb.c
+--- linux-2611-bk10-remap1/drivers/video/au1100fb.c	2005-03-01 23:37:48.000000000 -0800
++++ linux-2611-bk10-remap2/drivers/video/au1100fb.c	2005-03-16 09:33:56.000000000 -0800
+@@ -408,7 +408,7 @@ au1100fb_mmap(struct fb_info *_fb,
+ 	/* This is an IO map - tell maydump to skip this VMA */
+ 	vma->vm_flags |= VM_IO;
+ 
+-	if (io_remap_page_range(vma, vma->vm_start, off,
++	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
+ 				vma->vm_end - vma->vm_start,
+ 				vma->vm_page_prot)) {
+ 		return -EAGAIN;
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/drivers/video/controlfb.c linux-2611-bk10-remap2/drivers/video/controlfb.c
+--- linux-2611-bk10-remap1/drivers/video/controlfb.c	2005-03-01 23:37:50.000000000 -0800
++++ linux-2611-bk10-remap2/drivers/video/controlfb.c	2005-03-16 09:37:11.000000000 -0800
+@@ -315,7 +315,7 @@ static int controlfb_mmap(struct fb_info
+        		return -EINVAL;
+        off += start;
+        vma->vm_pgoff = off >> PAGE_SHIFT;
+-       if (io_remap_page_range(vma, vma->vm_start, off,
++       if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
+            vma->vm_end - vma->vm_start, vma->vm_page_prot))
+                return -EAGAIN;
+ 
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/drivers/video/sa1100fb.c linux-2611-bk10-remap2/drivers/video/sa1100fb.c
+--- linux-2611-bk10-remap1/drivers/video/sa1100fb.c	2005-03-01 23:37:50.000000000 -0800
++++ linux-2611-bk10-remap2/drivers/video/sa1100fb.c	2005-03-16 09:37:53.000000000 -0800
+@@ -836,7 +836,7 @@ static int sa1100fb_mmap(struct fb_info 
+ 	vma->vm_pgoff = off >> PAGE_SHIFT;
+ 	vma->vm_flags |= VM_IO;
+ 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+-	return io_remap_page_range(vma, vma->vm_start, off,
++	return io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
+ 				   vma->vm_end - vma->vm_start,
+ 				   vma->vm_page_prot);
+ }
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/sound/core/pcm_native.c linux-2611-bk10-remap2/sound/core/pcm_native.c
+--- linux-2611-bk10-remap1/sound/core/pcm_native.c	2005-03-16 09:17:08.000000000 -0800
++++ linux-2611-bk10-remap2/sound/core/pcm_native.c	2005-03-16 09:39:41.000000000 -0800
+@@ -3097,8 +3097,8 @@ int snd_pcm_lib_mmap_iomem(snd_pcm_subst
+ 	area->vm_flags |= VM_IO;
+ 	size = area->vm_end - area->vm_start;
+ 	offset = area->vm_pgoff << PAGE_SHIFT;
+-	if (io_remap_page_range(area, area->vm_start,
+-				substream->runtime->dma_addr + offset,
++	if (io_remap_pfn_range(area, area->vm_start,
++				(substream->runtime->dma_addr + offset) >> PAGE_SHIFT,
+ 				size, area->vm_page_prot))
+ 		return -EAGAIN;
+ 	atomic_inc(&substream->runtime->mmap_count);
+
+
+---
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
