@@ -1,110 +1,72 @@
-Date: Sun, 05 Aug 2001 14:34:11 -0400
-From: Chris Mason <mason@suse.com>
-Subject: Re: [RFC] using writepage to start io
-Message-ID: <209120000.997036451@tiny>
+Date: Sun, 5 Aug 2001 13:04:29 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [RFC][DATA] re "ongoing vm suckage"
+In-Reply-To: <01df01c11dc2$b2ee30e0$b6562341@cfl.rr.com>
+Message-ID: <Pine.LNX.4.33.0108051249570.7988-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, torvalds@transmeta.com
+To: Mike Black <mblack@csihq.com>
+Cc: Ben LaHaise <bcrl@redhat.com>, Daniel Phillips <phillips@bonn-fries.net>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <andrewm@uow.edu.au>
 List-ID: <linux-mm.kvack.org>
 
+On Sun, 5 Aug 2001, Mike Black wrote:
+>
+> I bumped up the queue_nr_requests to 512, then 1024 -- 1024 finally made a
+> performance difference for me and the machine was still usable.
 
-On Wednesday, August 01, 2001 04:57:35 PM +0200 Daniel Phillips
-<phillips@bonn-fries.net> wrote:
+This is truly strange.
 
-> On Tuesday 31 July 2001 21:07, Chris Mason wrote:
->> This has been tested a little more now, both ext2 (1k, 4k) and
->> reiserfs.  dbench and iozone testing don't show any difference, but I
->> need to spend a little more time on the benchmarks.
-> 
-> It's impressive that such seemingly radical surgery on the vm innards 
-> is a) possible and b) doesn't make the system perform noticably worse.
+The reason it is _so_ strange is that with a single thread doing read IO,
+the IO should actually be limited by the read-ahead size, which is _much_
+smaller than 1024 entries. Right now the max read-ahead for a regular
+filesystem is 127 pages - which, even assuming the absolute worst case
+(1kB filesystem, totally non-contiguous etc) is no more than 500
+reqesusts.
 
-radical surgery is always possible ;-)  But, I was expecting better
-performance results than I got.  I'm trying a few other things out here,
-more details will come if they work.  
+And quite frankly, if your disk can push 50MB/s through a 1kB
+non-contiguous filesystem, then my name is Bugs Bunny.
 
-My real motivation for the patch is to allow better filesystem control of
-how things get written though.  If I can do this without making things
-slower, I've won.  The big drawback is how muddy writepage has gotten with
-the patch, as I've more or less required checks for partial page writes.
+You're more likely to have a nice contiguous file, probably on a 4kB
+filesystem, and it should be able to do read-ahead of 127 pages in just a
+few requests.
 
-> 
->> The idea is that using flush_dirty_buffers to start i/o under memory
->> pressure is less than optimal.  flush_dirty_buffers knows the oldest
->> dirty buffer, but has no page aging info, so it might not flush a
->> page that we actually want to free.
-> 
-> Note that the fact that buffers dirtied by ->writepage are ordered by 
-> time-dirtied means that the dirty_buffers list really does have 
-> indirect knowledge of page aging.  There may well be benefits to your 
-> approach but I doubt this is one of them.
+The fact that it makes a difference for you at the 1024 mark (which means
+512 entries for the read queue) is rather strange.
 
-A problem is that under memory pressure, we'll flush a buffer that has been
-dirty for a long time, even if we are constantly redirtying it and have it
-more or less pinned.  This might not be common enough to cause problems,
-but it still isn't optimal.  Yes, it is a good idea to flush that page at
-some time, but under memory pressure we want to do the least amount of work
-that will lead to a freeable page.
+> As an ext3 mount (here's where I've been seeing BIG delays before) there
+> were:
+> 1 thread - no delays
+> 2 threads - 2 delays for 2 seconds each  << previously even 2 threads caused
+> minute+ delays.
+> 4 threads - 5 delays - 1 for 3 seconds, 4 for 2 seconds
+> 8 threads - 21 delays  - 9 for 2 sec, 4 for 3 sec,  4 for 4 sec, 2 for 5
+> sec, 1 for 6 sec, and 1 for 10 sec
 
-> 
-> It's surprising that 1K buffer size isn't bothered by being grouped by 
-> page in their IO requests.  I'd have thought that this would cause a 
-> significant number of writes to be blocked waiting on the page lock 
-> held by an unrelated buffer writeout.
+Now, this is the good news. It tells me that the old ll_rw_blk() code
+really was totally buggered, and that getting rid of it was 100% the right
+thing to do.
 
-Well, for non-buffer cache pages, we're getting a poor man's write
-clustering.  If this doesn't slow down ext2 its because of good disk layout.
+But I'd _really_ like to understand why you see differences in read
+performance, though. That really makes no sense, considering that you
+should never even get close to the request limits anyway.
 
-ext2 probably doesn't use the buffer cache enough to show bad results here.
-reiserfs on ia64 or alpha might.
+What driver do you use (maybe it has merging problems - some drivers want
+to merge only blocks that are also physically adjacent in memory), and can
+you please verify that you have a 4kB filesystem, not a old 1kB
+filesystem..
 
-> 
-> The most interesting part of your patch to me is the anon_space_mapping.
-> It's nice to make buffer handling look more like page cache handling, 
-> and get rid of some special cases in the vm scanning.  On the other 
-> hand, buffers are different from pages in that, once buffers heads are 
-> removed, nobody can find them any more, so they can not be rescued.
-> Now, if I'm reading this correctly, buffer pages *will* progress on to 
-> the inactive_clean list from the inactive_dirty list instead of jumping 
-> that queue and being directly freed by the page_cache_release.
+Oh, and can you play around with the "MAX_READAHEAD" define, too? It is,
+in fact, not unlikely that performance will _improve_ by making the
+read-ahead lower, if the read-ahead is so large as to cause request
+stalling.
 
-Without my patch, it looks to me like refill_inactive_scan will put buffer
-cache pages on the inactive dirty list by calling deactivate_page_nolock.
-page_launder catches these by checking page->buffers, and calling
-try_to_free_buffers which starts the io.  
+(It would be good to have a nice interface for true "if you don't have
+enough requests, stop read-ahead" interface, I'll take a look at
+possibly reviving the READA code).
 
-So, the big difference now is just that page_launder sees the page is
-dirty, and uses writepage to start the io and try_to_free_buffers only
-waits on it.  The rest should work more or less the same.
-
->  Maybe 
-> this is good because it avoids the expensive-looking __free_pages_ok.
-> 
-> This looks scary:
-> 
-> +        index = atomic_read(&buffermem_pages) ;
-> 
-> Because buffermem_pages isn't unique.  This must mean you're never 
-> doing page cache lookups for anon_space_mapping, because the 
-> mapping+index key isn't unique.  There is a danger here of overloading 
-> some hash buckets, which becomes a certainty if you use 0 or some other 
-> constant for the index.  If you're never doing page cache lookups, why 
-> even enter it into the page hash?
-
-path of least surprise I suppose; I knew add_to_page_cache_locked() would
-do what I wanted in terms of page setup, if there's a better way feel free
-to advise ;-)  No page lookups are done on the buffer cache pages.
-
-> That's all for now.  It's a very interesting patch.
-
-thanks for the comments ;-)
-
--chris
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
