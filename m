@@ -1,54 +1,82 @@
-Subject: Re: page table lock patch V15 [0/7]: overview II
+Subject: Re: page table lock patch V15 [0/7]: overview
+From: Nick Piggin <nickpiggin@yahoo.com.au>
+In-Reply-To: <20050114043944.GB41559@muc.de>
 References: <41E5AFE6.6000509@yahoo.com.au>
-	<20050112153033.6e2e4c6e.akpm@osdl.org> <41E5B7AD.40304@yahoo.com.au>
-	<Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
-	<41E5BC60.3090309@yahoo.com.au>
-	<Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
-	<20050113031807.GA97340@muc.de>
-	<Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
-	<20050113180205.GA17600@muc.de>
-	<Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
-	<20050114043944.GB41559@muc.de>
-From: Andi Kleen <ak@muc.de>
-Date: Fri, 14 Jan 2005 05:52:18 +0100
-In-Reply-To: <20050114043944.GB41559@muc.de> (Andi Kleen's message of "14
- Jan 2005 05:39:44 +0100")
-Message-ID: <m14qhkr4sd.fsf_-_@muc.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	 <20050112153033.6e2e4c6e.akpm@osdl.org> <41E5B7AD.40304@yahoo.com.au>
+	 <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com>
+	 <41E5BC60.3090309@yahoo.com.au>
+	 <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com>
+	 <20050113031807.GA97340@muc.de>
+	 <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com>
+	 <20050113180205.GA17600@muc.de>
+	 <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
+	 <20050114043944.GB41559@muc.de>
+Content-Type: text/plain
+Date: Fri, 14 Jan 2005 15:54:59 +1100
+Message-Id: <1105678499.5402.105.camel@npiggin-nld.site>
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: clameter@sgi.com
-Cc: Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, nickpiggin@yahoo.com.au
+To: Andi Kleen <ak@muc.de>
+Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen <ak@muc.de> writes:
+On Fri, 2005-01-14 at 05:39 +0100, Andi Kleen wrote:
+
 > As you can see cmpxchg is slightly faster for the cache hot case,
 > but incredibly slow for cache cold (probably because it does something
 > nasty on the bus). This is pretty consistent to Intel and AMD CPUs.
 > Given that page tables are likely more often cache cold than hot 
 > I would use the lazy variant. 
+> 
 
-Sorry, my benchmark program actually had a bug (first loop included
-page faults). Here are updated numbers. They are somewhat different:
+I have a question about your trickery with the read_pte function ;)
 
-Athlon 64:
-readpte hot 25
-readpte cold 171
-readpte_cmp hot 18
-readpte_cmp cold 162
+pte_t read_pte(volatile pte_t *pte)
+{
+	pte_t n;
+	do {
+		n.pte_low = pte->pte_low;
+		rmb();
+		n.pte_high = pte->pte_high;
+		rmb();
+	} while (n.pte_low != pte->pte_low);
+	return pte;
+}
 
-Nocona:
-readpte hot 118
-readpte cold 443
-readpte_cmp hot 22
-readpte_cmp cold 224
+Versus the existing set_pte function. Presumably the order here
+can't be changed otherwise you could set the present bit before
+the high bit, and race with the hardware MMU?
 
-The difference is much smaller here.  Assuming cache cold cmpxchg8b is
-better, at least on the Intel CPUs which have a slow rmb().
+static inline void set_pte(pte_t *ptep, pte_t pte)
+{
+        ptep->pte_high = pte.pte_high;
+        smp_wmb();
+        ptep->pte_low = pte.pte_low;
+}
 
--Andi
+Now take the following interleaving:
+CPU0 read_pte                        CPU1 set_pte
+n.pte_low = pte->pte_low;
+rmb();
+                                     ptep->pte_high = pte.pte_high;
+                                     smp_wmb();
+n.pte_high = pte->pte_high;
+rmb();
+while (n.pte_low != pte->pte_low);
+return pte;
+                                     ptep->pte_low = pte.pte_low;
 
+So I think you can get a non atomic result. Are you relying on
+assumptions about the value of pte_low not causing any problems
+in the page fault handler?
+
+Or am I missing something?
+
+
+Find local movie times and trailers on Yahoo! Movies.
+http://au.movies.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
