@@ -1,44 +1,63 @@
-Received: from bigblue.dev.mcafeelabs.com
-	by xmailserver.org with [XMail 1.16 (Linux/Ix86) ESMTP Server]
-	id <SA2213> for <linux-mm@kvack.org> from <davidel@xmailserver.org>;
-	Mon, 07 Jul 2003 10:39:33 -0700
-Date: Mon, 7 Jul 2003 10:25:36 -0700 (PDT)
-From: Davide Libenzi <davidel@xmailserver.org>
+From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: 2.5.74-mm1
-In-Reply-To: <20030707152339.GA9669@mail.jlokier.co.uk>
-Message-ID: <Pine.LNX.4.55.0307071007140.4704@bigblue.dev.mcafeelabs.com>
-References: <20030703023714.55d13934.akpm@osdl.org> <200307060414.34827.phillips@arcor.de>
- <Pine.LNX.4.53.0307071042470.743@skynet> <200307071424.06393.phillips@arcor.de>
- <Pine.LNX.4.53.0307071408440.5007@skynet> <Pine.LNX.4.55.0307070745250.4428@bigblue.dev.mcafeelabs.com>
- <20030707152339.GA9669@mail.jlokier.co.uk>
+Date: Mon, 7 Jul 2003 19:55:58 +0200
+References: <20030703023714.55d13934.akpm@osdl.org> <20030707152339.GA9669@mail.jlokier.co.uk> <Pine.LNX.4.55.0307071007140.4704@bigblue.dev.mcafeelabs.com>
+In-Reply-To: <Pine.LNX.4.55.0307071007140.4704@bigblue.dev.mcafeelabs.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200307071955.58774.phillips@arcor.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <jamie@shareable.org>
-Cc: Mel Gorman <mel@csn.ul.ie>, Daniel Phillips <phillips@arcor.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Davide Libenzi <davidel@xmailserver.org>, Jamie Lokier <jamie@shareable.org>
+Cc: Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@osdl.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 7 Jul 2003, Jamie Lokier wrote:
-
-> Davide Libenzi wrote:
-> > The scheduler has to work w/out external input, period.
+On Monday 07 July 2003 19:25, Davide Libenzi wrote:
+> On Mon, 7 Jul 2003, Jamie Lokier wrote:
+> > Davide Libenzi wrote:
+> > > The scheduler has to work w/out external input, period.
+> >
+> > Can you justify this?
+> >
+> > It strikes me that a music player's thread which requests a special
+> > music-playing scheduling hint is not unreasonable, if that actually
+> > works and scheduler heuristics do not.
 >
-> Can you justify this?
->
-> It strikes me that a music player's thread which requests a special
-> music-playing scheduling hint is not unreasonable, if that actually
-> works and scheduler heuristics do not.
+> Jamie, looking at those reports it seems it is not only a sound players
+> problem.
 
-Jamie, looking at those reports it seems it is not only a sound players
-problem. It is fine that an application that has strict timing issues
-hints the scheduler. The *application* has to hint the scheduler, not the
-user. If reports about UI interactivity are true, this means that there's
-something wrong in the current scheduler though. Besides the player issue.
+You still seem to be having trouble with the idea that the sound servicing 
+thread is a realtime process, and thus fundamentally different from other 
+kinds of processes.  Could you please explain why you disagree with this?
 
+> The *application* has to hint the scheduler, not the user.
 
+Partly true, in that users should be able to supply the hint in some way, they 
+desire.  However in this case - Zinf - the point is moot, because Zinf is 
+trying hard to give the hint, but it fails because of above-mentioned 
+braindamage.
 
-- Davide
+> If reports about UI interactivity are true, this means that there's
+> something wrong in the current scheduler though. Besides the player issue.
+
+The current scheduler, complete with Con's tweaks, is working very well for me 
+in combination with "nice -something".  The remaining issue there is pure 
+policy.  In that regard, I'm trying to find the most appropriate way of 
+fixing up user space so that Zinf's SetPriority actually achieves its 
+intended effect.  Running all logins at some setable non-negative default 
+priority is the best idea I've seen so far in that regard, and soon my system 
+will be doing just that.  I'll let you know if anything explodes ;-)
+
+If there's a remaining fundamental flaw in the kernel scheduler, it would be 
+the lower-priority process starvation question, which holds the promise of 
+plenty of future lkml navel gaz^W^Wdiscussion indeed.
+
+Regards,
+
+Daniel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
