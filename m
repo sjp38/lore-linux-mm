@@ -1,67 +1,67 @@
 Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA05411
-	for <linux-mm@kvack.org>; Sat, 18 Jul 1998 11:50:23 -0400
-Subject: Re: Comments on shmfs-0.1.010
-References: <87n2a9o3m3.fsf@atlas.CARNet.hr> <m167gwm17r.fsf@flinx.npwt.net>
-	<87hg0ffh7t.fsf@atlas.CARNet.hr>
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA05574
+	for <linux-mm@kvack.org>; Sat, 18 Jul 1998 12:25:20 -0400
+Subject: Re: More info: 2.1.108 page cache performance on low memory
+References: <199807131653.RAA06838@dax.dcs.ed.ac.uk>
+	<m190lxmxmv.fsf@flinx.npwt.net>
+	<199807141730.SAA07239@dax.dcs.ed.ac.uk>
+	<m14swgm0am.fsf@flinx.npwt.net> <87d8b370ge.fsf@atlas.CARNet.hr>
 From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 18 Jul 1998 11:03:10 -0500
-In-Reply-To: Zlatko Calusic's message of 18 Jul 1998 14:59:02 +0200
-Message-ID: <m1r9zjjge9.fsf@flinx.npwt.net>
+Date: 18 Jul 1998 11:40:20 -0500
+In-Reply-To: Zlatko Calusic's message of 18 Jul 1998 15:28:17 +0200
+Message-ID: <m1pvf3jeob.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
 To: Zlatko.Calusic@CARNet.hr
-Cc: linux-mm@kvack.org
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 >>>>> "ZC" == Zlatko Calusic <Zlatko.Calusic@CARNet.hr> writes:
 
->> This is a normal case with no harm.  
->> I think normal 2.1.101 should cause it too.
->> It's simply a result of swapping adding swap.
+Let me just step back a second so I can be clear:
 
-ZC> Well, it looks like it's harmless. I don't know why. :)
+A) The idea proposed by Stephen way perhaps we could use Least
+Recently Used lists instead of page aging.  It's effectively the same
+thing but shrink_mmap can find the old pages much much faster, by
+simply following a linked list.
 
-In that case it is harmless because it is reading the first page of
-swap onto the swap lock!  And since there are no races there the lock
-isn't needed.
+B) This idea intrigues me because handling of generic dirty pages
+I have about the same problem.  In cloneing bdflush for the page cache
+I discovered two fields I would need to add to struct page to do an
+exact cloning job.  A page writetime, and LRU list pointers for dirty
+pages.  I went ahead and implemented them, but also implemented an
+alternative, which is the default.
 
->> Are you creating really large files in shmfs?
+So on any discussion with LRU lists I'm terribly interested.
+As soon as I get the time I'll even implement the more general case.
+Mostly I just need to get my computer moved to where I am at so I can
+code when I have free time :)
 
-ZC> Yes, I was creating very big file to test some things.
+What I have now are controled by the defines I added to
+include/linux/mm.h with my shmfs patches.
+#undef USE_PG_FLUSHTIME  (This tells sync_old_pages when to stop)
+#undef USE_PG_DIRTY_LIST (Define this for a first pass at an LRU list
+for dirty pages)
 
-ZC> But after I applied my patch, I never saw those kmalloc messages?!
+If nothing else it's worth trying to see if it improves my write times
+which fall way behind the read times, on Zlato's benchmark :(
 
-Currently all of pointers to file blocks are allocated just in kernel
-memory.  So really big files might cause that.  I haven't seen them so
-I haven't a clue.
+If I can talk Zlatko or someone into looking at these it would be
+nice.  I really need to get my own copy of bonnie and a few other
+benchmarks...
 
-ZC> Unfortunately not. Time for experimenting ran out. :(
+ZC> Next week, I will test some ideas which possibly could improve things
+ZC> WITH page aging.
 
-Well that at least tells me which options were used to get those
-performance marks.
+ZC> I must admit, after lot of critics I made upon page aging, that I
+ZC> believe it's the right way to go, but it should be done properly.
+ZC> Performance should be better, not worse.
 
-
-ZC> Yesterday I tried to copy linux tree to /shm and got these errors:
-
-ZC> Tree has around 4200 files (which is slightly more than inode limit on 
-ZC> Linux!). Few last files didn't get copied.
-
-The story is that I allocate a fixed number of inodes to shmfs at mount time.
-And then when I need one I look through those structures for one that is unused.
-
-That is fine for testing my kernel patch, but in the long run it is a problem.
-The temporary work around is to due:
-mount -t shmfs -o inodes=10240 none /tmp
-Anything less than 65535 should be legal.
-
-The raw development version has a fix for this and a few other things
-that I allocate in kernel memory, but it isn't stable yet.  I'm using
-the stable code to create my kernel patches.
+Agreed.  We should look very carefully though to see if any aging
+solution increases fragmentation.  According to Stephen the current
+one does, and this may be a natural result of aging and not just a
+single implementation :(
 
 Eric
-
-
-
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
