@@ -1,63 +1,60 @@
-Message-ID: <3F716177.6060607@aitel.hist.no>
-Date: Wed, 24 Sep 2003 11:18:47 +0200
-From: Helge Hafting <helgehaf@aitel.hist.no>
-MIME-Version: 1.0
+Date: Wed, 24 Sep 2003 10:57:54 +0100
+From: viro@parcelfarce.linux.theplanet.co.uk
 Subject: Re: 2.6.0-test5-mm4 boot crash
-References: <20030922013548.6e5a5dcf.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20030924095754.GW7665@parcelfarce.linux.theplanet.co.uk>
+References: <20030922013548.6e5a5dcf.akpm@osdl.org> <3F716177.6060607@aitel.hist.no>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3F716177.6060607@aitel.hist.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Helge Hafting <helgehaf@aitel.hist.no>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-test5-mm4 crashed during RAID-1 autodetection and setup.
-It got as far as:
-md: created md0
-md: bind<hda1>
-md: bind<hdb1>
-md: running: <hdb1><hda1>
+On Wed, Sep 24, 2003 at 11:18:47AM +0200, Helge Hafting wrote:
+> Unable to handle null pointer deref at virtual address 00000000
+> eip c02b7d1e  eip at md_probe
 
-After this, I usually get this (from test5-mm3 dmesg):
-raid1: raid set md0 active with 2 out of 2 mirrors
-md: ... autorun DONE.
-VFS: Mounted root (ext2 filesystem) readonly.
+Oh, boy...  OK, I see what happens and it's _ugly_.  md_probe() is misused
+there big way.  The minimal fix is to revert the cleanup in md_probe() -
+replace
+	int unit = *part;
+with
+	int unit = MINOR(dev);
 
-Instead, I got the dump at the end of this message.
-I'm using devfs and Viro's compile fix for devfs in mm4.
-The root fs is on raid-1, the raid-1 gets autodetected.
 
-The kernel has no module support, and no initrd.
+However, that is crap solution.  The problem is that md_probe() is called
+directly with bogus arguments - not only part is NULL (which triggers the
+oops), but dev (which is supposed to be dev_t value) is actually mdidx(mddev).
 
-Here's the dump:
+Cleaner fix follows, but we really need to get the situation with gendisk
+allocations into the sane shape there.  Sigh...
 
-Unable to handle null pointer deref at virtual address 00000000
-eip c02b7d1e  eip at md_probe
-PREEMPT process swapper pid:1
-Trace:
-invalidate_inode_pages
-do_md_run
-printk
-autorun_array
-autorun_devices
-mddev_put
-autostart_arrays
-igrab
-md_ioctl
-devfs_open
-dentry_open
-filp_open
-blkdev_ioctl
-sys_ioctl
-md_run_setup
-prepare_namespace
-init
-init
-kernel_thread_helper
-
-Attempted to kill init!
-
+diff -urN B5-tty_devnum-fix/drivers/md/md.c B5-current/drivers/md/md.c
+--- B5-tty_devnum-fix/drivers/md/md.c	Tue Sep 23 04:16:30 2003
++++ B5-current/drivers/md/md.c	Wed Sep 24 05:44:27 2003
+@@ -1500,6 +1500,7 @@
+ 	mdk_rdev_t *rdev;
+ 	struct gendisk *disk;
+ 	char b[BDEVNAME_SIZE];
++	int unit;
+ 
+ 	if (list_empty(&mddev->disks)) {
+ 		MD_BUG();
+@@ -1591,8 +1592,9 @@
+ 		invalidate_bdev(rdev->bdev, 0);
+ 	}
+ 
+-	md_probe(mdidx(mddev), NULL, NULL);
+-	disk = disks[mdidx(mddev)];
++	unit = mdidx(mddev);
++	md_probe(0, &unit, NULL);
++	disk = disks[unit];
+ 	if (!disk)
+ 		return -ENOMEM;
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
