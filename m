@@ -1,275 +1,613 @@
-Date: Fri, 1 Aug 2003 17:46:45 +0800
-From: Eugene Teo <eugene.teo@eugeneteo.net>
-Subject: Re: [UPDATE] Re: 2.6.0t2 Hangs randomly
-Message-ID: <20030801094645.GA3734@eugeneteo.net>
-Reply-To: Eugene Teo <eugene.teo@eugeneteo.net>
+Date: Sat, 2 Aug 2003 15:22:02 -0700
+From: Andrew Morton <akpm@osdl.org>
+Subject: 2.6.0-test2-mm3
+Message-Id: <20030802152202.7d5a6ad1.akpm@osdl.org>
 Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="AqsLC8rIMeq19msA"
-Content-Disposition: inline
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---AqsLC8rIMeq19msA
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test2/2.6.0-test2-mm3/
 
-[forwarding this to linux-mm too]
+. Con's CPU scheduler rework has been dropped out and Ingo's changes have
+  been added.
 
-Hi everyone,
+  Con's changes demonstrated that additional infrastructure is needed to
+  solve these problems correctly.  Ingo's patch adds those.  Con is
+  continuing to rebase his work on these changes.
 
-I think I discovered something interesting that might be some hints
-as to why I am getting random hangs. I am using 2.2.20 (default debian
-kernel atm), and I have not encounter any random hangs as yet (which
-is fortunate... at least i know it is not hardware problem).
+. Added Ingo's 4G/4G memory split patch.  It takes my kernel build from
+  1:51 to 1:53 so gee.
 
-Was using 2.6.0-test2-mm2-kj1. I encountered the same hang problem when
-I reverted back to 2.6.0-test1-mm2-kj1.
+  Big fat warning: whenever you change the value of CONFIG_X86_4G you will
+  need to run a `make clean'.  Or just remove arch/i386/boot/setup.o.
 
-Please comment, and look into it...... any idea?
+  The build system seems to not notice that setup.S depends on
+  CONFIG_X86_4G and the resulting kernel immediately triplefaults.
 
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
-=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D
-This was last night (after I go to bed):
+. A device mapper update.
 
-Aug  1 03:20:06 amaryllis kernel: Slab corruption: start=3Dd40055f0, expend=
-=3Dd400566f, problemat=3Dd40055f0
-Aug  1 03:20:06 amaryllis kernel: Last user: [reap_timer_fnc+530/1208](reap=
-_timer_fnc+0x212/0x4b8)
-Aug  1 03:20:06 amaryllis kernel: Data: 6A 6A *******6A ******6A 2A ******6=
-A 6A ******6A 2A ******6A 2A ******6A 6A ******6A 6A ******6A 2A ******6A *=
-******6A 6A ******6A
- ********6A *******6A *******6A *******6A *****A5=20
-Aug  1 03:20:06 amaryllis kernel: Next: 61 E0 2C .4B 7B 15 C0 A5 C2 0F 17 0=
-8 57 00 D4 50 3A 30 D5 00 00 00 00 00 30 8F CF 01 00 00 00=20
-Aug  1 03:20:06 amaryllis kernel: slab error in check_poison_obj(): cache `=
-size-128': object was modified after freeing
-Aug  1 03:20:06 amaryllis kernel: Call Trace:
-Aug  1 03:20:06 amaryllis kernel:  [check_poison_obj+362/426] check_poison_=
-obj+0x16a/0x1aa
-Aug  1 03:20:06 amaryllis kernel:  [kmem_cache_alloc+136/425] kmem_cache_al=
-loc+0x88/0x1a9
-Aug  1 03:20:06 amaryllis kernel:  [cache_grow+1032/1196] cache_grow+0x408/=
-0x4ac
-Aug  1 03:20:06 amaryllis kernel:  [cache_grow+1032/1196] cache_grow+0x408/=
-0x4ac
-Aug  1 03:20:06 amaryllis kernel:  [cache_alloc_refill+780/1221] cache_allo=
-c_refill+0x30c/0x4c5
-Aug  1 03:20:06 amaryllis kernel:  [kmem_cache_alloc+393/425] kmem_cache_al=
-loc+0x189/0x1a9
-Aug  1 03:20:06 amaryllis kernel:  [pgd_alloc+27/31] pgd_alloc+0x1b/0x1f
-Aug  1 03:20:06 amaryllis kernel:  [mm_init+467/533] mm_init+0x1d3/0x215
-Aug  1 03:20:06 amaryllis kernel:  [copy_mm+314/1776] copy_mm+0x13a/0x6f0
-Aug  1 03:20:06 amaryllis kernel:  [copy_mm+348/1776] copy_mm+0x15c/0x6f0
-Aug  1 03:20:06 amaryllis kernel:  [check_poison_obj+82/426] check_poison_o=
-bj+0x52/0x1aa
-Aug  1 03:20:06 amaryllis kernel:  [kmem_cache_alloc+156/425] kmem_cache_al=
-loc+0x9c/0x1a9
-Aug  1 03:20:06 amaryllis kernel:  [copy_process+1372/4275] copy_process+0x=
-55c/0x10b3
-Aug  1 03:20:06 amaryllis kernel:  [d_alloc+30/898] d_alloc+0x1e/0x382
-Aug  1 03:20:06 amaryllis kernel:  [do_fork+77/445] do_fork+0x4d/0x1bd
-Aug  1 03:20:06 amaryllis kernel:  [sys_wait4+423/578] sys_wait4+0x1a7/0x242
-Aug  1 03:20:06 amaryllis kernel:  [default_wake_function+0/46] default_wak=
-e_function+0x0/0x2e
-Aug  1 03:20:06 amaryllis kernel:  [sys_fork+56/60] sys_fork+0x38/0x3c
-Aug  1 03:20:06 amaryllis kernel:  [syscall_call+7/11] syscall_call+0x7/0xb
-Aug  1 03:20:06 amaryllis kernel:=20
-Aug  1 03:20:06 amaryllis kernel: slab error in cache_alloc_debugcheck_afte=
-r(): cache `size-128': memory after object was overwritten
-Aug  1 03:20:06 amaryllis kernel: Call Trace:
-Aug  1 03:20:06 amaryllis kernel:  [kmem_cache_alloc+261/425] kmem_cache_al=
-loc+0x105/0x1a9
-Aug  1 03:20:06 amaryllis kernel:  [cache_grow+1032/1196] cache_grow+0x408/=
-0x4ac
-Aug  1 03:20:06 amaryllis kernel:  [cache_grow+1032/1196] cache_grow+0x408/=
-0x4ac
-Aug  1 03:20:06 amaryllis kernel:  [cache_alloc_refill+780/1221] cache_allo=
-c_refill+0x30c/0x4c5
-Aug  1 03:20:06 amaryllis kernel:  [kmem_cache_alloc+393/425] kmem_cache_al=
-loc+0x189/0x1a9
-Aug  1 03:20:06 amaryllis kernel:  [pgd_alloc+27/31] pgd_alloc+0x1b/0x1f
-Aug  1 03:20:06 amaryllis kernel:  [mm_init+467/533] mm_init+0x1d3/0x215
-Aug  1 03:20:06 amaryllis kernel:  [copy_mm+314/1776] copy_mm+0x13a/0x6f0
-Aug  1 03:20:06 amaryllis kernel:  [copy_mm+348/1776] copy_mm+0x15c/0x6f0
-Aug  1 03:20:06 amaryllis kernel:  [check_poison_obj+82/426] check_poison_o=
-bj+0x52/0x1aa
-Aug  1 03:20:06 amaryllis kernel:  [kmem_cache_alloc+156/425] kmem_cache_al=
-loc+0x9c/0x1a9
-Aug  1 03:20:06 amaryllis kernel: Slab corruption: start=3Dd4005564, expend=
-=3Dd40055e3, problemat=3Dd4005569
-Aug  1 03:20:06 amaryllis kernel: Last user: [do_page_cache_readahead+262/1=
-011](do_page_cache_readahead+0x106/0x3f3)
-Aug  1 03:20:06 amaryllis kernel: Data: *****6A ******6A 6A ******6A 6A ***=
-***6A 6A ******6A 6A ******6A 6A ******6A 6A ******6A *******2A *******6A 2=
-A *******6A ******2A
- 6A ******6A 6A ******6A *******6A ********6A *A5=20
-Aug  1 03:20:06 amaryllis kernel: Next: 71 F0 2C .4A 3A 15 C0 A5 C2 0F 17 .=
-=2E..................
-Aug  1 03:20:06 amaryllis kernel: slab error in check_poison_obj(): cache `=
-size-128': object was modified after freeing
-Aug  1 03:20:06 amaryllis kernel: Call Trace:
-Aug  1 03:20:06 amaryllis kernel:  [check_poison_obj+362/426] check_poison_=
-obj+0x16a/0x1aa
-Aug  1 03:20:06 amaryllis kernel:  [kmem_cache_alloc+136/425] kmem_cache_al=
-loc+0x88/0x1a9
-Aug  1 03:20:06 amaryllis kernel:  [cache_grow+1032/1196] cache_grow+0x408/=
-0x4ac
-Aug  1 03:20:06 amaryllis kernel:  [cache_grow+1032/1196] cache_grow+0x408/=
-0x4ac
-Aug  1 03:20:06 amaryllis kernel:  [cache_alloc_refill+780/1221] cache_allo=
-c_refill+0x30c/0x4c5
-Aug  1 03:20:06 amaryllis kernel:  [kmem_cache_alloc+393/425] kmem_cache_al=
-loc+0x189/0x1a9
-Aug  1 03:20:06 amaryllis kernel:  [buffered_rmqueue+228/671] buffered_rmqu=
-eue+0xe4/0x29f
-Aug  1 03:20:06 amaryllis kernel:  [radix_tree_node_alloc+32/90] radix_tree=
-_node_alloc+0x20/0x5a
-Aug  1 03:20:06 amaryllis kernel:  [radix_tree_insert+144/202] radix_tree_i=
-nsert+0x90/0xca
-Aug  1 03:20:06 amaryllis kernel:  [__alloc_pages+749/848] __alloc_pages+0x=
-2ed/0x350
-Aug  1 03:20:06 amaryllis kernel:  [add_to_page_cache+158/507] add_to_page_=
-cache+0x9e/0x1fb
-Aug  1 03:20:06 amaryllis kernel:  [unlock_page+22/83] unlock_page+0x16/0x53
-Aug  1 03:20:06 amaryllis kernel:  [generic_file_aio_write_nolock+889/2940]=
- generic_file_aio_write_nolock+0x379/0xb7c
-Aug  1 03:20:06 amaryllis kernel:  [__kfree_skb+129/246] __kfree_skb+0x81/0=
-xf6
-Aug  1 03:20:06 amaryllis kernel:  [generic_file_write_nolock+164/189] gene=
-ric_file_write_nolock+0xa4/0xbd
-Aug  1 03:20:06 amaryllis kernel:  [buffered_rmqueue+228/671] buffered_rmqu=
-eue+0xe4/0x29f
-Aug  1 03:20:06 amaryllis kernel:  [autoremove_wake_function+0/75] autoremo=
-ve_wake_function+0x0/0x4b
-Aug  1 03:20:06 amaryllis kernel:  [sockfd_lookup+26/114] sockfd_lookup+0x1=
-a/0x72
-Aug  1 03:20:06 amaryllis kernel:  [sys_recvfrom+224/241] sys_recvfrom+0xe0=
-/0xf1
-Aug  1 03:20:06 amaryllis kernel:  [poll_freewait+58/67] poll_freewait+0x3a=
-/0x43
-Aug  1 03:20:06 amaryllis kernel:  [generic_file_writev+90/210] generic_fil=
-e_writev+0x5a/0xd2
-Aug  1 03:20:06 amaryllis kernel:  [do_readv_writev+512/646] do_readv_write=
-v+0x200/0x286
-Aug  1 03:20:06 amaryllis kernel:  [do_sync_write+0/244] do_sync_write+0x0/=
-0xf4
-Aug  1 03:20:06 amaryllis kernel:  [vfs_writev+82/91] vfs_writev+0x52/0x5b
-Aug  1 03:20:06 amaryllis kernel:  [sys_writev+63/93] sys_writev+0x3f/0x5d
-Aug  1 03:20:06 amaryllis kernel:  [syscall_call+7/11] syscall_call+0x7/0xb
-Aug  1 03:20:06 amaryllis kernel:=20
-Aug  1 03:20:06 amaryllis kernel: slab error in cache_alloc_debugcheck_afte=
-r(): cache `size-128': memory before object was overwritten
-Aug  1 03:20:06 amaryllis kernel: Call Trace:
-Aug  1 03:20:06 amaryllis kernel:  [kmem_cache_alloc+221/425] kmem_cache_al=
-loc+0xdd/0x1a9
-Aug  1 03:20:06 amaryllis kernel:  [cache_grow+1032/1196] cache_grow+0x408/=
-0x4ac
-Aug  1 03:20:06 amaryllis kernel:  [cache_grow+1032/1196] cache_grow+0x408/=
-0x4ac
-Aug  1 03:20:06 amaryllis kernel:  [cache_alloc_refill+780/1221] cache_allo=
-c_refill+0x30c/0x4c5
-Aug  1 03:20:06 amaryllis kernel:  [kmem_cache_alloc+393/425] kmem_cache_al=
-loc+0x189/0x1a9
-Aug  1 03:20:06 amaryllis kernel:  [buffered_rmqueue+228/671] buffered_rmqu=
-eue+0xe4/0x29f
-Aug  1 03:20:06 amaryllis kernel:  [radix_tree_node_alloc+32/90] radix_tree=
-_node_alloc+0x20/0x5a
-Aug  1 03:20:06 amaryllis kernel:  [radix_tree_insert+144/202] radix_tree_i=
-nsert+0x90/0xca
-Aug  1 03:20:06 amaryllis kernel:  [__alloc_pages+749/848] __alloc_pages+0x=
-2ed/0x350
-Aug  1 03:20:06 amaryllis kernel:  [add_to_page_cache+158/507] add_to_page_=
-cache+0x9e/0x1fb
-Aug  1 03:20:06 amaryllis kernel:  [unlock_page+22/83] unlock_page+0x16/0x53
-Aug  1 03:20:06 amaryllis kernel:  [generic_file_aio_write_nolock+889/2940]=
- generic_file_aio_write_nolock+0x379/0xb7c
-Aug  1 03:20:06 amaryllis kernel:  [__kfree_skb+129/246] __kfree_skb+0x81/0=
-xf6
-Aug  1 03:20:06 amaryllis kernel:  [generic_file_write_nolock+164/189] gene=
-ric_file_write_nolock+0xa4/0xbd
-Aug  1 03:20:06 amaryllis kernel:  [buffered_rmqueue+228/671] buffered_rmqu=
-eue+0xe4/0x29f
-Aug  1 03:20:06 amaryllis kernel:  [autoremove_wake_function+0/75] autoremo=
-ve_wake_function+0x0/0x4b
-Aug  1 03:20:06 amaryllis kernel:  [sockfd_lookup+26/114] sockfd_lookup+0x1=
-a/0x72
-Aug  1 03:20:06 amaryllis kernel:  [sys_recvfrom+224/241] sys_recvfrom+0xe0=
-/0xf1
-Aug  1 03:20:06 amaryllis kernel:  [poll_freewait+58/67] poll_freewait+0x3a=
-/0x43
-Aug  1 03:20:06 amaryllis kernel:  [generic_file_writev+90/210] generic_fil=
-e_writev+0x5a/0xd2
-Aug  1 03:20:06 amaryllis kernel:  [do_readv_writev+512/646] do_readv_write=
-v+0x200/0x286
-Aug  1 03:20:06 amaryllis kernel:  [do_sync_write+0/244] do_sync_write+0x0/=
-0xf4
-Aug  1 03:20:06 amaryllis kernel:  [vfs_writev+82/91] vfs_writev+0x52/0x5b
-Aug  1 03:20:06 amaryllis kernel:  [sys_writev+63/93] sys_writev+0x3f/0x5d
-Aug  1 03:20:06 amaryllis kernel:  [syscall_call+7/11] syscall_call+0x7/0xb
-Aug  1 03:20:06 amaryllis kernel:=20
-Aug  1 03:20:06 amaryllis kernel:  [copy_process+1372/4275] copy_process+0x=
-55c/0x10b3
-Aug  1 03:20:06 amaryllis kernel:  [d_alloc+30/898] d_alloc+0x1e/0x382
-Aug  1 03:20:06 amaryllis kernel:  [do_fork+77/445] do_fork+0x4d/0x1bd
-Aug  1 03:20:06 amaryllis kernel:  [sys_wait4+423/578] sys_wait4+0x1a7/0x242
-Aug  1 03:20:06 amaryllis kernel:  [default_wake_function+0/46] default_wak=
-e_function+0x0/0x2e
-Aug  1 03:20:06 amaryllis kernel:  [sys_fork+56/60] sys_fork+0x38/0x3c
-Aug  1 03:20:06 amaryllis kernel:  [syscall_call+7/11] syscall_call+0x7/0xb
-Aug  1 03:20:06 amaryllis kernel:=20
-Aug  1 09:40:42 amaryllis kernel: klogd 1.4.1#11, log source =3D /proc/kmsg=
- started.
+. Several reiserfs bugfixes
 
-9:40 is when I woke up and discovered my laptop is not running (hang,
-that is).
-
---
-
-Another strange message is:=20
-
-Aug  1 14:35:11 amaryllis kernel: spurious 8259A interrupt: IRQ7.
-
-Any idea what this is?
-
-Eugene
-
-<quote sender=3D"Eugene Teo">
-> <quote sender=3D"Stefano Rivoir">
-> > Eugene Teo wrote:
-> >=20
-> > >One thing strange though.
-> >=20
-> > [...]
-> >=20
-> > Ok, I think I've found. It was very probably an old version of the
-> > synaptics module for X4.3 (it was ...p3). With the new driver,
-> > and with DRI too (along with test2-mm2 patch), it seems to be OK.
-> > At least, I've seen no hangs so far.
->=20
-> Hmm, can you explain the synaptics module? i experienced a hang again
-> last night. about 5-6 hours of no activities, and i can't get my box
-> back up again except with a hard reboot.
+. I don't think anyone has reported on whether 2.6.0-test2-mm2 fixed any
+  PS/2 or synaptics problems.  You are all very bad.
 
 
 
---AqsLC8rIMeq19msA
-Content-Type: application/pgp-signature
-Content-Disposition: inline
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
+Changes since 2.6.0-test2-mm2:
 
-iD8DBQE/KjcFcyGjihSg3eURAkL0AJsEYIJJYulxqpXU92Mi3mmiuits5wCeLpw5
-4Qs+8geyjdP8zZdiE7qNYL0=
-=GiMI
------END PGP SIGNATURE-----
 
---AqsLC8rIMeq19msA--
++linus.patch
+
+ Latest Linus tree
+
+-alsa-bk-2003-07-28.patch
+-x86_64-merge.patch
+-misc31.patch
+-selinux.patch
+-reslabify-pgds-and-pmds.patch
+-buffer-debug.patch
+-centrino-update.patch
+-3c59x-pm-fix.patch
+-dev_t-printing.patch
+-rootdisk-parsing-fix.patch
+-3c59x-eisa-fix.patch
+-slab-reclaim-accounting-fix.patch
+-stack-leak-fix.patch
+-unlock_buffer-barrier.patch
+-invalidate_mmap_range.patch
+-buffer_io_error-readahead-fix.patch
+-force_page_cache_readahead.patch
+-truncate-pagefault-race-fix.patch
+-truncate-pagefault-race-fix-fix.patch
+-no_page-memory-barriers.patch
+-ext3-elide-inode-block-reading.patch
+-ext3_getblk-race-fix.patch
+-ext3_write_super-speedup.patch
+-alloc_bootmem_low_pages-ordering-fix.patch
+-sis-drm-fix.patch
+-soundcard-devfs-fix.patch
+-6pack-hz-fix.patch
+-devfs_lookup-revert-and-refix.patch
+-write-mark_page_accessed.patch
+-less-kswapd-throttling.patch
+-zone-pressure.patch
+-reclaim-mapped-pressure.patch
+-xfs-dio-unwritten-extents.patch
+-force-CONFIG_INPUT.patch
+-ipt_helper-build-fix.patch
+-select-xoffed-tty-fix.patch
+-conntrack-build-fix.patch
+-arcnet-typo-fix.patch
+-ext3-commit-assertion-fix.patch
+-read_dir-fix.patch
+-blk_start_queue-fix.patch
+-special_file-move.patch
+-remove-queue_wait.patch
+-uidhash-locking.patch
+-osf-partition-handling.patch
+-com20020_cs-build-fix.patch
+-hdlc-build-fix.patch
+-add-mandocs-target.patch
+-binfmt_script-argv0-fix.patch
+-bttv-driver-update.patch
+-ppp-xon-xoff-handling.patch
+-dac960-devfs-fix.patch
+-dquot-typo-fix.patch
+-i810-fix.patch
+-intel-agp-oops-fix.patch
+-export-agp_memory_reserved.patch
+-pci_device_id-devinitdata.patch
+-airo-fixes.patch
+-ppc32-cpu-registration-fix.patch
+-impi-build-fix.patch
+-document-nfs-utils.patch
+-untested-quota-fix.patch
+-generic-hdlc-updates.patch
+-stallion-devfs-fix.patch
+-dm-rename-resume.patch
+-serial-is-not-experimental.patch
+-ftl-warning-fix.patch
+-watchdog-module-param-fixes.patch
+
+ merged
+
++execve-fixes.patch
+
+ Fix exeve() emulation for various 64-bit architectures
+
++x86_64-cpumask_t-fix.patch
+
+ Maybe fix x86_64 merge for cpumask_t
+
++ppc64-local.patch
++ppc64-sections.patch
++ppc64-sched_clock.patch
++ppc64-prom-compile-fix.patch
+
+ Various ppc64 hacks to make it build and work.
+
+-rcu-stats.patch
+
+ Dropped.  rcu_grace_period.patch broke it.
+
++rcu-grace-period.patch
+
+ Instrumentation to help solve the rcu-for-route-cache starvation problem.
+
+-o1-interactivity.patch
+-o2int.patch
+-o3int.patch
+-o4int.patch
+-o5int-2.patch
+-o6int.patch
+-o6.1int.patch
+-o7int.patch
+-o8int.patch
+-o9int.patch
+-o10int.patch
+-o11int.patch
+-o11int.1.patch
+-o11.2int.patch
+
+ Dropped.
+
++sched-2.6.0-test2-mm2-A3.patch
+
+ Ingo's CPu scheduler update.
+
++sched-warning-fix.patch
+
+ Fix a warning in it.
+
++nforce2-acpi-fixes-fix.patch
+
+ Fix for the fix for ACPI problems with the nforce chipset
+
++synaptics-mode-set.patch
+
+ Fix old synaptics touchpads.
+
++4g-2.6.0-test2-mm2-A5.patch
+
+ 4G/4G split
+
++4g4g-cleanups.patch
+
+ Tidy some warnings in it
+
++kgdb-4g4g-fix-2.patch
+
+ Fix kgdb for 4G/4G
+
++4g4g-config-fix.patch
+
+ Tidy up the config options.
+
++dm-1-module-param.patch
++dm-2-blk.patch
++dm-3-use-hex.patch
++dm-4-64-bit-ioctls.patch
++dm-5-missing-include.patch
++dm-6-sector_div.patch
++dm-7-rename-resume.patch
+
+ Device mapper update
+
++reiserfs-savelinks-endianness-fix.patch
++reiserfs-enospc-fix.patch
++reiserfs-link-unlink-race-fix.patch
+
+ Reiserfs fixes
+
++mremap-atomicity-fix.patch
+
+ mremap() fix
+
++spurious-SIGCHLD-fix.patch
+
+ signal fix
+
++aic7xxx_old-oops-fix.patch
+
+ aic7xxx_old not real fix.
+
++ide-cd-oops-fix.patch
+
+ Fix oops with ide-cd on end-of-disk errors.
+
++awe-core.patch
++awe-core-fixes.patch
++awe-use-gfp_flags.patch
++awe-use-gfp_flags-fixes.patch
++awe-fix-truncate-errors.patch
++awe-fix-truncate-errors-fixes.patch
+
+ Report EIO and ENOSPC errors during async writeout to userspace.
+
++as-remove-hash-valid-stuff.patch
+
+ Anticipatory scheduler leftovers
+
++usercopy-might_sleep-checks.patch
+
+ might_sleep() checks in usercopy functions.
+
+
+
+All 130 patches:
+
+linus.patch
+  cset-20030802_1915.txt.gz
+
+mm.patch
+  add -mmN to EXTRAVERSION
+
+kgdb-ga.patch
+  kgdb stub for ia32 (George Anzinger's one)
+
+kgdb-remove-cpu_callout_map.patch
+  kgdb: remove cpu_callout_map decls
+
+kgdb-use-ggdb.patch
+
+kgdb-ga-docco-fixes.patch
+  kgdb doc. edits/corrections
+
+execve-fixes.patch
+  fix 64-bit architectures for the binprm change
+
+cpumask_t-1.patch
+  cpumask_t: allow more than BITS_PER_LONG CPUs
+  cpumask_t fix for s390
+  fix cpumask_t for s390
+  Fix cpumask changes for x86_64
+  fix cpumask_t for sparc64
+
+cpumask_t-gcc-workaround-46.patch
+  cpumask_t: more gcc workarounds
+
+cpumask_t-gcc-workaround-47.patch
+  cpumask_t gcc bug workarounds
+
+cpumask-acpi-fix.patch
+  cpumask_t: build fix
+
+kgdb-cpumask_t.patch
+
+x86_64-cpumask_t-fix.patch
+
+config_spinline.patch
+  uninline spinlocks for profiling accuracy.
+
+ppc64-bar-0-fix.patch
+  Allow PCI BARs that start at 0
+
+ppc64-reloc_hide.patch
+
+ppc64-semaphore-reimplementation.patch
+  ppc64: use the ia32 semaphore implementation
+
+ppc64-local.patch
+  ppc64: local.h implementation
+
+ppc64-sections.patch
+  ppc64: implement sections.h
+
+ppc64-sched_clock.patch
+  ppc64: sched_clock()
+
+ppc64-prom-compile-fix.patch
+  ppc64: prom.c compile fix
+
+sym-do-160.patch
+  make the SYM driver do 160 MB/sec
+
+ia64-percpu-revert.patch
+  revert percpu changes
+
+x86_64-fixes.patch
+  x86_64 fixes
+
+delay-ksoftirqd-fallback.patch
+  Try harded in IRQ context before falling back to ksoftirqd
+
+ds-09-vicam-usercopy-fix.patch
+  vicam usercopy fix
+
+rcu-grace-period.patch
+  Monitor RCU grace period
+
+mtrr-hang-fix.patch
+  Fix mtrr-related hang
+
+intel8x0-cleanup.patch
+  intel8x0 cleanups
+
+bio-too-big-fix.patch
+  Fix raid "bio too big" failures
+
+ppa-fix.patch
+  ppc fix
+
+linux-isp-2.patch
+
+linux-isp-2-fix-again.patch
+  lost feral fix
+
+feral-bounce-fix.patch
+  Feral driver - highmem issues
+
+feral-bounce-fix-2.patch
+  Feral driver bouncing fix
+
+list_del-debug.patch
+  list_del debug check
+
+print-build-options-on-oops.patch
+  print a few config options on oops
+
+show_task-free-stack-fix.patch
+  show_task() fix and cleanup
+
+put_task_struct-debug.patch
+
+ia32-mknod64.patch
+  mknod64 for ia32
+
+ext2-64-bit-special-inodes.patch
+  ext2: support for 64-bit device nodes
+
+ext3-64-bit-special-inodes.patch
+  ext3: support for 64-bit device nodes
+
+64-bit-dev_t-kdev_t.patch
+  64-bit dev_t and kdev_t
+
+64-bit-dev_t-other-archs.patch
+  enable 64-bit dev_t for other archs
+
+oops-dump-preceding-code.patch
+  i386 oops output: dump preceding code
+
+lockmeter.patch
+
+printk-oops-mangle-fix.patch
+  disentangle printk's whilst oopsing on SMP
+
+20-odirect_enable.patch
+
+21-odirect_cruft.patch
+
+22-read_proc.patch
+
+23-write_proc.patch
+
+24-commit_proc.patch
+
+25-odirect.patch
+
+nfs-O_DIRECT-always-enabled.patch
+  Force CONFIG_NFS_DIRECTIO
+
+kjournald-PF_SYNCWRITE.patch
+
+sched-2.6.0-test2-mm2-A3.patch
+  sched-2.6.0-test2-mm2-A3
+
+sched-warning-fix.patch
+
+sched-balance-tuning.patch
+  CPU scheduler balancing fix
+
+ext3-block-allocation-cleanup.patch
+
+nfs-revert-backoff.patch
+  nfs: revert backoff changes
+
+floppy-smp-fixes.patch
+  floppy smp fixes
+
+1000HZ-time-accuracy-fix.patch
+  missing #if for 1000 HZ
+
+signal-race-fix.patch
+  signal handling race condition causing reboot hangs
+
+vmscan-defer-writepage.patch
+  vmscan: give dirty referenced pages another pass around the LRU
+
+blacklist-asus-L3800C-dmi.patch
+  add ASUS l3800P to DMI black list
+
+nforce2-acpi-fixes.patch
+  ACPI patch which fixes all my IRQ problems on nforce2
+
+nforce2-acpi-fixes-fix.patch
+
+remove-const-initdata.patch
+  __initdata cant be marked const
+
+timer-race-fixes.patch
+  timer race fixes
+
+local-apic-enable-fixes.patch
+  Local APIC enable fixes
+
+p00001_synaptics-restore-on-close.patch
+
+p00002_psmouse-reset-timeout.patch
+
+p00003_synaptics-multi-button.patch
+
+p00004_synaptics-optional.patch
+
+p00005_synaptics-pass-through.patch
+
+p00006_psmouse-suspend-resume.patch
+
+p00007_synaptics-old-proto.patch
+
+synaptics-mode-set.patch
+  Synaptics mode setting
+
+bridge-notification-fix.patch
+  Fix bridge notification processing
+
+keyboard-resend-fix.patch
+  keyboard resend fix
+
+kobject-paranoia-checks.patch
+  Driver core and kobject paranoia checks
+
+4g-2.6.0-test2-mm2-A5.patch
+  4G/4G split patch
+
+4g4g-cleanups.patch
+
+kgdb-4g4g-fix-2.patch
+
+4g4g-config-fix.patch
+
+dm-1-module-param.patch
+  dm: don't use MODULE_PARM
+
+dm-2-blk.patch
+  dm: remove blk.h include
+
+dm-3-use-hex.patch
+  dm: decimal device num sscanf
+
+dm-4-64-bit-ioctls.patch
+  dm: 64 bit ioctl fixes
+
+dm-5-missing-include.patch
+  dm: missing #include
+
+dm-6-sector_div.patch
+  dm: use sector_div()
+
+dm-7-rename-resume.patch
+  dm: resume() name clash
+
+reiserfs-savelinks-endianness-fix.patch
+  reiserfs: fix savelinks on bigendian arches
+
+reiserfs-enospc-fix.patch
+  reiserfs: fix problem when fs is out of space
+
+reiserfs-link-unlink-race-fix.patch
+  reiserfs: fix races between link and unlink on same file
+
+mremap-atomicity-fix.patch
+  move_one_page() atomicity fix
+
+spurious-SIGCHLD-fix.patch
+  spurious SIGCHLD from dying thread group leader
+
+aic7xxx_old-oops-fix.patch
+
+ide-cd-oops-fix.patch
+  ide-cd error handling oops fix
+
+xfs-use-after-free-fix.patch
+  XFS use-after-free fix
+
+awe-core.patch
+  async write errors: report truncate and io errors on async writes
+
+awe-core-fixes.patch
+  async write errors core: fixes
+
+awe-use-gfp_flags.patch
+  async write errors: use flags in address space
+
+awe-use-gfp_flags-fixes.patch
+  async write errors: mapping->flags fixes
+
+awe-fix-truncate-errors.patch
+  async write errors: fix spurious fs truncate errors
+
+awe-fix-truncate-errors-fixes.patch
+  async write errors: truncate handling fixes
+
+as-remove-hash-valid-stuff.patch
+  AS: remove hash valid stuff
+
+usercopy-might_sleep-checks.patch
+  might_sleep() checks for usercopy functions
+
+aio-mm-refcounting-fix.patch
+  fix /proc mm_struct refcounting bug
+
+aio-01-retry.patch
+  AIO: Core retry infrastructure
+
+io_submit_one-EINVAL-fix.patch
+  Fix aio process hang on EINVAL
+
+aio-02-lockpage_wq.patch
+  AIO: Async page wait
+
+aio-03-fs_read.patch
+  AIO: Filesystem aio read
+
+aio-04-buffer_wq.patch
+  AIO: Async buffer wait
+
+aio-05-fs_write.patch
+  AIO: Filesystem aio write
+
+aio-05-fs_write-fix.patch
+
+aio-06-bread_wq.patch
+  AIO: Async block read
+
+aio-06-bread_wq-fix.patch
+
+aio-07-ext2getblk_wq.patch
+  AIO: Async get block for ext2
+
+O_SYNC-speedup-2.patch
+  speed up O_SYNC writes
+
+aio-09-o_sync.patch
+  aio O_SYNC
+
+aio-10-BUG-fix.patch
+  AIO: fix a BUG
+
+aio-11-workqueue-flush.patch
+  AIO: flush workqueues before destroying ioctx'es
+
+aio-12-readahead.patch
+  AIO: readahead fixes
+
+aio-dio-no-readahead.patch
+  aio O_DIRECT no readahead
+
+lock_buffer_wq-fix.patch
+  lock_buffer_wq fix
+
+unuse_mm-locked.patch
+  AIO: hold the context lock across unuse_mm
+
+aio-take-task_lock.patch
+  From: Suparna Bhattacharya <suparna@in.ibm.com>
+  Subject: Re: 2.5.72-mm1 - Under heavy testing with AIO,.. vmstat seems to blow the kernel
+
+aio-O_SYNC-fix.patch
+  Unify o_sync changes for aio and regular writes
+
+aio-readahead-rework.patch
+  Unified page range readahead for aio and regular reads
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
