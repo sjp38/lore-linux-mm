@@ -1,24 +1,38 @@
-Date: Mon, 25 Sep 2000 17:02:11 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-Message-ID: <20000925170211.T22882@athlon.random>
-References: <20000925164635.P22882@athlon.random> <Pine.LNX.4.21.0009251647090.9122-100000@elte.hu>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0009251647090.9122-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 04:53:05PM +0200
+Date: Mon, 25 Sep 2000 17:10:43 +0200 (CEST)
+From: Ingo Molnar <mingo@elte.hu>
+Reply-To: mingo@elte.hu
+Subject: Re: the new VM
+In-Reply-To: <20000925170113.S22882@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009251702090.9122-100000@elte.hu>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 04:53:05PM +0200, Ingo Molnar wrote:
-> sorry - i said it was *noticed* by Dimitris. (and sent to l-k IIRC)
+On Mon, 25 Sep 2000, Andrea Arcangeli wrote:
 
-I didn't know.
+> Signal can be trapped and ignored by malicious task. [...]
 
-Andrea
+a SIGKILL? i agree with the 2.2 solution - first a soft signal, and if
+it's being ignored then a SIGKILL.
+
+> But my question isn't what you do when you're OOM, but is _how_ do you
+> notice that you're OOM?
+
+good question :-)
+
+> In the GFP_USER case simply checking when GFP fails looks right to me.
+
+i think the GFP_USER case should do the oom logic within __alloc_pages(),
+by SIGTERM/SIGKILL-ing off abusive processes. Ie. it's *still* an infinite
+loop (barring the case where *this* process is abusive, but thats a
+detail).
+
+	Ingo
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
