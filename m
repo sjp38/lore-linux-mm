@@ -1,33 +1,38 @@
-Received: from news.com (c10-mail.cnet.com [216.239.112.33])
-	by ACCE859B.ipt.aol.com (Postfix) with ESMTP id C69D2DDA14
-	for <linux-mm@kvack.org>; Wed, 05 May 2004 06:51:58 -0700
-Message-ID: <6.0.0.22.1.20040505065158.d057fee7@news.com>
-Date: Wed, 05 May 2004 06:51:58 -0700
-From: "Incredulity R. Renegotiated" <cmendes@news.com>
-Subject: Good afternoon.
-MIME-Version: 1.0
-Content-Type: text/plain; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Wed, 5 May 2004 16:14:16 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: 2.6.6-rc3-mm1
+Message-ID: <20040505161416.A4008@infradead.org>
+References: <20040430014658.112a6181.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040430014658.112a6181.akpm@osdl.org>; from akpm@osdl.org on Fri, Apr 30, 2004 at 01:46:58AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux <linux-mm@kvack.org>
+To: Andrew Morton <akpm@osdl.org>, hugh@veritas.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-You don't know me from Adam. :)
-Super open vacancies: Stay-at-home manager
-Honest-minded people wanted!
-Do you have a lot of free time? Are you a part-time worker?
-Are you a student? Does your class schedule impair working hours?
-This is your chance!
-We require honest and friendly people!
-This job is wonderful, it requires only limited amounts of your time. 
-We need people who live in Australia.
-Space is limited, so hurry and accept this great offer.
-SUPER JOB, EXCELLENT OFFER! YOU CAN'T MISS THIS!
-http://81.56.3.150:3333/
-Need more info? Check out our site!
-Check out for more info.
+On Fri, Apr 30, 2004 at 01:46:58AM -0700, Andrew Morton wrote:
+> +rmap-14-i_shared_lock-fixes.patch
+> +rmap-15-vma_adjust.patch
+> +rmap-16-pretend-prio_tree.patch
+> +rmap-17-real-prio_tree.patch
+> +rmap-18-i_mmap_nonlinear.patch
+> +rmap-19-arch-prio_tree.patch
+> 
+>  More VM work from Hugh
 
+That's about 600 lines of additional code.  And that prio tree code is
+used a lot, so even worse for that caches.
+
+Do we have some benchmarks of real-life situation where the prio trees
+show a big enough improvement or some 'exploits' where the linear list
+walking leads to DoS situtations?
+
+The bases objrmap/anonrmap changes keep the LOC pretty much the same as
+the old pte-chain based code, but this is really a whole lot of code bloating
+up the kernel and I'd prefer to see some numbers before it's going in..
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
