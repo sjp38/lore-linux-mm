@@ -1,39 +1,36 @@
-Subject: Re: [PATCH] replace SYSV shared memory with shm filesystem
-References: <E127e6y-0003A8-00@the-village.bc.nu>
-From: Christoph Rohland <hans-christoph.rohland@sap.com>
-Date: 10 Jan 2000 13:46:22 +0100
-In-Reply-To: Alan Cox's message of "Mon, 10 Jan 2000 12:39:50 +0000 (GMT)"
-Message-ID: <qwwpuvart5t.fsf@sap.com>
+Date: Mon, 10 Jan 2000 13:52:01 +0100 (CET)
+From: Rik van Riel <riel@nl.linux.org>
+Subject: Re: [PATCH] replace SYSV shared memory with shm filesystem 
+In-Reply-To: <qwwvh52ruin.fsf_-_@sap.com>
+Message-ID: <Pine.LNX.4.10.10001101350300.584-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: MM mailing list <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.rutgers.edu>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Alexander Viro <viro@math.psu.edu>, GOTO Masanori <gotom@debian.or.jp>
+To: Christoph Rohland <hans-christoph.rohland@sap.com>
+Cc: MM mailing list <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.rutgers.edu>, "Eric W. Biederman" <ebiederm+eric@ccr.net>, Alexander Viro <viro@math.psu.edu>, Alan Cox <alan@lxorguk.ukuu.org.uk>, GOTO Masanori <gotom@debian.or.jp>
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox <alan@lxorguk.ukuu.org.uk> writes:
+On 10 Jan 2000, Christoph Rohland wrote:
 
-> > replaces/reuses the existing SYSV shm code so you now have to
-> > mount the fs to be able to use SYSV SHM. But in turn we now have
-> > everything in place to implement posix shm. This also obsoletes
-> > vm_private_data in vm_area_struct.
-> 
-> Umm no. It obsoletes vm_private_data for existing merged file
-> systems. The stackable file systems still need this field (cryptfs,
-> lofs etc)
+> You can mount the fs only once. This will probably break shm in
+> chrooted environments.
 
-Hey, that's a pity :-( I liked this cleanup. Do they really need it?
+I think it would be best to code it in such a way that you
+can mount multiple instances of shmfs, in such a way that
+the differently chrooted programs cannot see each other's
+shared memory. That should make it a bit more difficult to
+get out of a chroot() jail...
 
-> > Also it is now possible to do e.g. 'rm /dev/shm/*' instead of this
-> >terrible 'ipcrm shm xx' :-)
-> 
-> Nice
+(security buffs, please tell me if I'm full of it)
 
-Yup :-)
+cheers,
 
-Greetings
-		Christoph
+Rik
+--
+The Internet is not a network of computers. It is a network
+of people. That is its real strength.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
