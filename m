@@ -1,36 +1,34 @@
-Date: Tue, 17 Apr 2001 13:42:51 +0100
+Date: Tue, 17 Apr 2001 13:39:51 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: Ideas for adding physically contiguous memory support to mmap()??
-Message-ID: <20010417134251.B2505@redhat.com>
-References: <C78C149684DAD311B757009027AA5CDC094DA2A8@xboi02.boi.hp.com> <Pine.LNX.3.96.1010410191553.22333A-100000@kanga.kvack.org>
+Subject: Re: Fwd: kernel BUG at page_alloc.c:75! / exit.c
+Message-ID: <20010417133951.A2505@redhat.com>
+References: <3AD30927.36D9D06@gmx.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.3.96.1010410191553.22333A-100000@kanga.kvack.org>; from blah@kvack.org on Tue, Apr 10, 2001 at 07:24:12PM -0400
+In-Reply-To: <3AD30927.36D9D06@gmx.de>; from ernte23@gmx.de on Tue, Apr 10, 2001 at 03:22:47PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Cc: "LUTZ,TODD (HP-Boise,ex1)" <tlutz@hp.com>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: ernte23@gmx.de
+Cc: riel@conectiva.com.br, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Tue, Apr 10, 2001 at 07:24:12PM -0400, Benjamin C.R. LaHaise wrote:
-> On Tue, 10 Apr 2001, LUTZ,TODD (HP-Boise,ex1) wrote:
+On Tue, Apr 10, 2001 at 03:22:47PM +0200, ernte23@gmx.de wrote:
 > 
-> > 1. Able to specify any size that is a multiple of PAGE_SIZE (not just powers
-> > of 2).
-> 
-> First off: why do you need this functionality?  It does not sound like it
-> provides any significant benefits over the current system once you take
-> into consideration the effects it will have on memory fragmentation.
+> Call Trace: [pci_release_regions+129/160] [<db800000>]
+> [__free_pages+26/32] [free_pages+36/48] [pci_free_consistent+30/32]
+> [<d08fbb1b>] [<d08fc6a0>] 
+>        [pci_unregister_driver+47/80] [<d08fa000>] [<d08fa000>]
+> [<d08fbb6a>] [<d08fc6a0>] [free_module+27/160] [<d08fa000>]
+> [nls_iso8859-15:__insmod_nls_iso8859-15_O/var/2.4.4-pre1/kernel/fs/nls/nls_+0/96] 
+>        [sys_delete_module+382/464] [<d08fa000>] [system_call+51/56] 
 
-Indeed.  Most of the motivation for large contiguous memory areas in
-user space are concerned with cache line colouring and efficient use
-of tlbs.  An API for large page support and kernel support for cache
-colouring would be nice, but in general the more of this that can be
-done opportunistically (without any application API changes), the
-better.
+It's crashing in module unload, and it appears that the module is
+freeing things which were not allocated (or freeing something twice).
+It's a module bug --- report it on linux-kernel.  This does not look
+like a mm bug.
 
 Cheers,
  Stephen
