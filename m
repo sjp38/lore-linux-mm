@@ -1,69 +1,76 @@
-Date: Fri, 8 Jun 2001 18:10:07 -0300 (BRT)
+Date: Fri, 8 Jun 2001 18:11:55 -0300 (BRT)
 From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: Re: Background scanning change on 2.4.6-pre1
-In-Reply-To: <Pine.LNX.4.31.0106081526400.1067-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.21.0106081804080.3343-100000@freak.distro.conectiva>
+Subject: Re: Please test: workaround to help swapoff behaviour
+In-Reply-To: <OF4314E00C.5B8A0E4C-ON85256A64.006F54E0@pok.ibm.com>
+Message-ID: <Pine.LNX.4.21.0106081811180.3343-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "David S. Miller" <davem@redhat.com>, Mike Galbraith <mikeg@wen-online.de>, Zlatko Calusic <zlatko.calusic@iskon.hr>, linux-mm@kvack.org
+To: Bulent Abali <abali@us.ibm.com>
+Cc: Mike Galbraith <mikeg@wen-online.de>, "Eric W. Biederman" <ebiederm@xmission.com>, Derek Glidden <dglidden@illusionary.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On Fri, 8 Jun 2001, Linus Torvalds wrote:
+On Thu, 7 Jun 2001, Bulent Abali wrote:
 
 > 
 > 
-> On Fri, 8 Jun 2001, Marcelo Tosatti wrote:
+> 
+> 
+> >This is for the people who has been experiencing the lockups while running
+> >swapoff.
 > >
-> > I've tried that in the past, and the behaviour I got was pages being
-> > swapped out with little (or not any) VM pressure.
+> >Please test. (against 2.4.6-pre1)
+> >
+> >
+> >--- linux.orig/mm/swapfile.c Wed Jun  6 18:16:45 2001
+> >+++ linux/mm/swapfile.c Thu Jun  7 16:06:11 2001
+> >@@ -345,6 +345,8 @@
+> >         /*
+> >          * Find a swap page in use and read it in.
+> >          */
+> >+        if (current->need_resched)
+> >+             schedule();
+> >         swap_device_lock(si);
+> >         for (i = 1; i < si->max ; i++) {
+> >              if (si->swap_map[i] > 0 && si->swap_map[i] != SWAP_MAP_BAD)
+> {
 > 
-> What is "past"?
 > 
-> Remember: these days we don't do any IO at all inside "swap_out()", the
-> _only_ thing we do is to age the VM and possibly move pages to the swap
-> cache.
+> I tested your patch against 2.4.5.  It works.  No more lockups.  Without
+> the
+> patch it took 14 minutes 51 seconds to complete swapoff (this is to recover
+> 1.5GB of
+> swap space).  During this time the system was frozen.  No keyboard, no
+> screen, etc. Practically locked-up.
+> 
+> With the patch there are no more lockups. Swapoff kept running in the
+> background.
+> This is a winner.
+> 
+> But here is the caveat: swapoff keeps burning 100% of the cycles until it
+> completes.
+> This is not going to be a big deal during shutdowns.  Only when you enter
+> swapoff from
+> the command line it is going to be a problem.
+> 
+> I looked at try_to_unuse in swapfile.c.  I believe that the algorithm is
+> broken.
+> For each and every swap entry it is walking the entire process list
+> (for_each_task(p)).  It is also grabbing a whole bunch of locks
+> for each swap entry.  It might be worthwhile processing swap entries in
+> batches instead of one entry at a time.
+> 
+> In any case, I think having this patch is worthwhile as a quick and dirty
+> remedy.
 
-Yes, in the days where we did actual swapouts at page_launder(). 
+Bulent, 
 
-> Which is really what you wanted - it's just that we delay moving anonymous
-> pages to the swap-cache until we have some reason to (ie we delay it until
-> we want to re-fill the inactive list).
-> 
-> Think of it as a simple issue of
->  - when we age pages, we should also check whether they've been dirtied by
->    being mapped, and whether the mappings have accessed them.
-> 
-> Put that way, I doubt you'll disagree.
+Could you please check if 2.4.6-pre2+the schedule patch has better
+swapoff behaviour for you? 
 
-I agree. 
-
-> (Now, whether it gets the balancing _right_ is another matter altogether.
-> We may have to tune the amount of pages that get looked at, both on the VM
-> mapping side and on the active/inactive list sides).
-
-> 
-> We actually always used to do this, it was just that we delayed it until
-> the active list scan started failing. Which may have been delaying it too
-> much, causing "spikes" of activity.
-> 
-> Or maybe not. I'd like people to explore the balancing space more, instead
-> of trying to tune specific parts of the existing balance.
-> 
-> > Yes, we want fair aging. No, we dont want more pages being swapped out.
-> 
-> Absolutely. "swap_out()" does not really swap pages out. The name is
-> purely due to historical reasons. It should really be called
-> "scan_process_mappings()" or similar.
-> 
-> The actual swap-out obviously happens in page_launder().
-
-Yes. Now the problem is having swap space allocated with _NO_ pressure
-may sound a bit weird to people. _I_ know that we're just allocating the
-swap space, but not everybody does. 
+Thanks 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
