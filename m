@@ -1,34 +1,47 @@
-Date: Sun, 26 Dec 2004 16:01:12 -0800
-From: Chris Wedgwood <cw@f00f.org>
+From: Ingo Oeser <ioe-lkml@rameria.de>
 Subject: Re: Prezeroing V2 [3/4]: Add support for ZEROED and NOT_ZEROED free maps
-Message-ID: <20041227000112.GB29854@taniwha.stupidest.org>
-References: <fa.n0l29ap.1nqg39@ifi.uio.no> <fa.n04s9ar.17sg3f@ifi.uio.no> <E1ChwhG-00011c-00@be1.7eggert.dyndns.org> <87wtv464ty.fsf@deneb.enyo.de> <Pine.LNX.4.58.0412261511030.2353@ppc970.osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Mon, 27 Dec 2004 02:37:46 +0100
+References: <fa.n0l29ap.1nqg39@ifi.uio.no> <Pine.LNX.4.58.0412261511030.2353@ppc970.osdl.org> <87llbk63sn.fsf@deneb.enyo.de>
+In-Reply-To: <87llbk63sn.fsf@deneb.enyo.de>
+MIME-Version: 1.0
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0412261511030.2353@ppc970.osdl.org>
+Content-Type: Text/Plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200412270237.53368.ioe-lkml@rameria.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Florian Weimer <fw@deneb.enyo.de>, 7eggert@gmx.de, Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Florian Weimer <fw@deneb.enyo.de>, Linus Torvalds <torvalds@osdl.org>, 7eggert@gmx.de, Christoph Lameter <clameter@sgi.com>, akpm@osdl.org, linux-ia64@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Dec 26, 2004 at 03:12:45PM -0800, Linus Torvalds wrote:
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-> Anyway, at this point I think the most interesting question is
-> whether it actually improves any macro-benchmark behaviour, rather
-> than just a page fault latency tester microbenchmark..
+On Monday 27 December 2004 00:24, Florian Weimer wrote:
+> By the way, some crazy idea that occurred to me: What about
+> incrementally scrubbing a page which has been assigned previously to
+> this CPU, while spinning inside spinlocks (or busy-waiting somewhere
+> else)?
 
-i can't see how is many cases it won't make things *worse* in many
-cases, especially if you use hardware
+Crazy idea, indeed. spinlocks are like safety belts: You should
+actually not need them in the normal case, but they will save your butt
+and you'll be glad you have them, when they actually trigger.
 
-it seems you will be evicting (potentially) useful cache-lines from
-the CPU when using hardware scrubbing in many cases and when using the
-CPU if the tuning isn't right just trashing the caches anyhow
+So if you are making serious progress here, you have just uncovered
+a spinlockcontention problem in the kernel ;-)
 
-I'd really like to see how it affects something like make -j<n> sorta
-things (since gcc performance is something i personally care about
-more than how well some contrived benchmark does)
+Regards
+
+Ingo Oeser
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.4 (GNU/Linux)
+
+iD8DBQFBz2dvU56oYWuOrkARAvc+AJ0RpaIg6JzC28B8SOXE3irCBtaTVgCg1eas
+5zACIzV2CtvlNvg6Bit+/G8=
+=rdE7
+-----END PGP SIGNATURE-----
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
