@@ -1,36 +1,47 @@
-Date: Tue, 16 Jan 2001 08:06:58 +0100 (CET)
-From: Mike Galbraith <mikeg@wen-online.de>
-Subject: Re: mmap()/VM problems in 2.4.0
-In-Reply-To: <3A63ED75.53094939@sw.com.sg>
-Message-ID: <Pine.Linu.4.10.10101160803390.1021-100000@mikeg.weiden.de>
+Subject: Re: Aggressive swapout with 2.4.1pre4+
+References: <Pine.LNX.4.21.0101160138140.1556-100000@freak.distro.conectiva>
+Reply-To: zlatko@iskon.hr
+From: Zlatko Calusic <zlatko@iskon.hr>
+Date: 16 Jan 2001 19:41:26 +0100
+In-Reply-To: Marcelo Tosatti's message of "Tue, 16 Jan 2001 01:57:08 -0200 (BRST)"
+Message-ID: <87hf2z731l.fsf@atlas.iskon.hr>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Vlad Bolkhovitine <vladb@sw.com.sg>
-Cc: Zlatko Calusic <zlatko@iskon.hr>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 16 Jan 2001, Vlad Bolkhovitine wrote:
+Marcelo Tosatti <marcelo@conectiva.com.br> writes:
 
-> > My box thinks quite highly of that patch fwiw, but insists that he needs
-> > to apply Jens Axboes' blk patch first ;-)  (Not because of tiobench)
+> Hi Linus, 
 > 
-> New data:
+> Currently swap_out() scans a fixed percentage of each process RSS without
+> taking into account how much memory we are out of.
 > 
-> 2.4.1pre3 + Marcelo's patch
+> The following patch changes that by making swap_out() stop when it
+> successfully moved the "needed" (calculated by refill_inactive()) amount
+> of pages to the swap cache. 
 > 
->        File   Block  Num  Seq Read    Rand Read   Seq Write  Rand Write
-> Dir    Size   Size   Thr Rate (CPU%) Rate (CPU%) Rate (CPU%) Rate (CPU%)
-> ------- ------ ------- --- ----------- ----------- ----------- -----------
->    .     1024   4096    2  12.68 9.23% 0.497 0.92% 10.57 15.3% 0.594 1.44%
+> This should avoid the system to swap out to aggressively. 
 > 
-> The same performance level as for 2.4.0. No improvement.
+> Comments? 
+> 
 
-I was refering to the stalls.. not throughput.
+Hm, I didn't notice that 2.4.1-pre4 swaps out aggressively. In fact it
+is very well balanced and I would vote for it as the kernel with the
+best tuned VM.
 
-	-Mike
+Your patch slightly complicates things and I'm not sure if it's
+strictly needed.
 
+Now looking at the pre7 (not yet compiled) I see we will have really
+impressive 2.4.1. reiserfs, Jens' blk, VM fixed... sheesh... what will
+be left for fixing? ;)
+
+-- 
+Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
