@@ -1,26 +1,51 @@
-Date: Wed, 26 Apr 2000 23:58:02 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: 2.3.x mem balancing
-In-Reply-To: <200004261736.KAA85620@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.21.0004262356210.1687-100000@alpha.random>
+Subject: New Memory Test Suite v0.0.1
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+Date: 27 Apr 2000 01:31:39 +0200
+Message-ID: <yttya60l9r8.fsf@vexeta.dc.fi.udc.es>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Mark_H_Johnson.RTS@raytheon.com, linux-mm@kvack.org, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>
+To: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Apr 2000, Kanoj Sarcar wrote:
+Hi
+        I have just released a collection of programs for testing
+(stressing) the memory system.  Just now the suite is very small, but
+if you send your tests, we can obtain a very good testing suite for
+the Linux kernel memory system.  I have attached the announcement of
+the memory test suite.
 
->[..] As far as I know, such a hook is not used on all
->drivers (in 2.4 timeframe), [..]
+Later, Juan.
 
-That's also why I still have the alpha HIGHMEM support in my TODO list so
-we can ship a binary only kernel that doesn't risk to break with >2g RAM.
 
-Andrea
+Memory test suite v0.0.1
+------------------------
 
+This is the first version.
+
+This intends to be a set of programs to test the memory management
+system.  I am releasing this version with the idea of gather more
+programs for the suite.  If you have some program to test the system,
+please send it to me (quintela@fi.udc.es).
+
+If you found values/combinations of tests for what the system
+crash/Oops/whatever please report it to me.  Then I can include it in
+the tests and the people who tune the MM system can test it next time.
+
+Any comments/suggestions/code are welcome.
+
+Thanks for your time,
+        Juan Quintela
+        quintela@fi.udc.es
+
+The home of this package is:
+
+http://carpanta.dc.fi.udc.es/~quintela/mtest/mtest-0.0.1.tar.gz
+
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
