@@ -1,109 +1,29 @@
-Message-Id: <200108312327.f7VNR3Y11857@maild.telia.com>
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Roger Larsson <roger.larsson@norran.net>
-Subject: Re: [PATCH] __alloc_pages cleanup -R6 Was: Re: Memory Problem in 2.4.10-pre2 / __alloc_pages failed
-Date: Sat, 1 Sep 2001 01:22:32 +0200
-References: <20010829140706.3fcb735c.skraw@ithnet.com> <200108302357.BAA11235@mailb.telia.com> <20010831084335.A4222@flint.arm.linux.org.uk>
-In-Reply-To: <20010831084335.A4222@flint.arm.linux.org.uk>
+Date: Sat, 1 Sep 2001 13:05:05 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH *] reverse mapping patch
+Message-ID: <Pine.LNX.4.33L.0109011243090.20664-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King <rmk@arm.linux.org.uk>, Roger Larsson <roger.larsson@skelleftea.mail.telia.com>
-Cc: Stephan von Krawczynski <skraw@ithnet.com>, Daniel Phillips <phillips@bonn-fries.net>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Friday den 31 August 2001 09:43, Russell King wrote:
-> On Fri, Aug 31, 2001 at 01:53:24AM +0200, Roger Larsson wrote:
-> > Some ideas implemented in this code:
-> > * Reserve memory below min for atomic and recursive allocations.
-> > * When being min..low on free pages, free one more than you want to
-> > allocate. * When being low..high on free pages, free one less than
-> > wanted. * When above high - don't free anything.
-> > * First select zones with more than high free memory.
-> > * Then those with more than high 'free + inactive_clean -
-> > inactive_target' * When freeing - do it properly. Don't steal direct
-> > reclaimed pages
->
-> Hmm, I wonder.
->
-> I have a 1MB DMA zone, and 31MB of normal memory.
->
-> The machine has been running lots of programs for some time, but not under
-> any VM pressure. 
+Hi,
 
-OK, zones have about PAGES_LOW pages free - these are buddied together as
-good as they possibly can. Since direct reclaims put the page on the free
-list first before allocating one.
+as of today I got the reverse mapping patch stable on x86
+single cpu. If you have the time, please test this patch ;)
 
-> I now come to open a device which requires 64K in 8K
-> pages from the DMA zone.  What happens?
+	http://www.surriel.com/patches/
 
-First - is it atomic or not? (device sounds like atomic)
-
-If it is atomic:
-1) you get one chance, no retries in __alloc_pages. [not changed]
-2) you get one from those already free, no reclaims possible [not changed]
-3) you are allowed to allocate below PAGES_MIN [not changed]
-The result will depend on how many pages were free, if there are enough order
-1 buddies.
-With my algorithm it the number of free pages of all zones are very likely to
-be close to PAGES_LOW since it tries to move towards it.
-The original algorithm is harder to analyze, free pages will not grow unless
-one hits PAGES_MIN and then kreclaimd gets started.
-
-As a test I hit Magic-SysRq-M (256 MB RAM):
-
-Free pages:        3836kB (     0kB HighMem) ( Active: 21853, inactive_dirty: 
-19101, inactive_clean: 392, free: 959 (383 766 1149) )
-0*4kB 1*8kB 8*16kB 8*32kB 4*64kB 3*128kB 1*256kB 1*512kB 0*1024kB 0*2048kB
- = 1800kB)
-1*4kB 0*8kB 1*16kB 1*32kB 1*64kB 1*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB
- = 2036kB)
- = 0kB)
-
-And a while later I hit it again:
-( Active: 22300, inactive_dirty: 18742, inactive_clean: 587, free: 947 (383 
-766 1149) )
-3*4kB 1*8kB 1*16kB 1*32kB 1*64kB 1*128kB 1*256kB 1*512kB 0*1024kB 0*2048kB
- = 1028kB)
-80*4kB 39*8kB 3*16kB 3*32kB 1*64kB 1*128kB 1*256kB 1*512kB 1*1024kB 0*2048kB
- = 2760kB)
-
-For non atomic higher order allocations: There are more changes.
-1) Tries to free the same number of pages that it want to alloc later.
-2) Does not allow allocs when there are less than PAGES_MIN. [BUG in current 
-code, see earlier patch - higher order non atomic allocs could drain the free
-reserve if there are a lot of inactive clean pages...]
-3) Retries only while there is free shortage - this could be changed...
-  until all zones has more than PAGES_HIGH free. Or until there are no
-  inactive clean pages left. But why favor non atomic over atomic in this
-  way?
-
->
-> I suspect that the chances of it failing will be significantly higher with
-> this algorithm - do you have any thoughts for this?
->
-
-Do you still think the risk is higher?
-Stephans problem seems to be that this alloc runs over and over...
-
-> I don't think we should purely select the allocation zone based purely on
-> how much free it contains, but also if it's special (like the DMA zone).
->
-
-It does prioritize due to the order the zones are checked in.
-
-> You can't clean in-use slab pages out on demand like you can for fs
-> cache/user pages.
-
-/RogerL
-
+Rik
 -- 
-Roger Larsson
-Skelleftea
-Sweden
+IA64: a worthy successor to i860.
+
+http://www.surriel.com/		http://distro.conectiva.com/
+
+Send all your spam to aardvark@nl.linux.org (spam digging piggy)
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
