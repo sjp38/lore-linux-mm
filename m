@@ -1,41 +1,34 @@
-Message-ID: <39648F97.2ABB2F71@augan.com>
-Date: Thu, 06 Jul 2000 15:54:31 +0200
-From: Roman Zippel <roman@augan.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on2.4.0-test2
-References: <Pine.LNX.4.21.0007061211480.4810-100000@inspiron.random>
+Date: Thu, 6 Jul 2000 14:32:51 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: page_table_lock problem [was: Re: 2.4 / 2.5 VM plans]
+Message-ID: <20000706143251.C4237@redhat.com>
+References: <Pine.LNX.4.21.0006242357020.15823-100000@duckman.distro.conectiva> <20000629144408.R3473@redhat.com> <20000706155123.A11504@saw.sw.com.sg>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20000706155123.A11504@saw.sw.com.sg>; from saw@saw.sw.com.sg on Thu, Jul 06, 2000 at 03:51:23PM +0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Rik van Riel <riel@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
+To: Andrey Savochkin <saw@saw.sw.com.sg>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-Andrea Arcangeli wrote:
-
-> So basically we'll have these completly different lists:
+On Thu, Jul 06, 2000 at 03:51:23PM +0800, Andrey Savochkin wrote:
 > 
->         lru_swap_cache
->         lru_cache
->         lru_mapped
-> 
-> The three caches have completly different importance that is implicit by
-> the semantics of the memory they are queuing. Shrinking swap_cache first
-> is vital for performance under swap for example (and I can just do that in
-> recent classzone patches). Shrinking lru_cache first is vital for
-> performance under streaming I/O but without low on freeable memory
-> scenario.
+> I've looked at RSS updates in 2.4.0 kernels.
+> You're right, they are not protected enough from
+> concurrent updates from mm paths (mmap, page fault handler) and swapout
+> path.  Moreover, I found that page_table_lock which is supposed to serialize
+> page table updates from mm and swapout paths isn't taken in the later at all!
+> Is it a bug or am I missing something?
 
-How do you want to synchronize and balance these caches? Do you expect
-that these are never used at the same time? What happens with disk
-blocks that end up in different caches?
-IMO the problem gets worse, if we want better direct i/o support
-especially on systems where fs block size is different from page size.
+Sorry, I don't have time to look closely at this right now --- I'm
+swamped with travel and ext3 work, and I've just moved house...
 
-bye, Roman
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
