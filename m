@@ -1,29 +1,39 @@
-Message-ID: <3A6D5D28.C132D416@sangate.com>
-Date: Tue, 23 Jan 2001 12:30:00 +0200
-From: Mark Mokryn <mark@sangate.com>
-MIME-Version: 1.0
-Subject: ioremap_nocache problem?
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Date: Tue, 23 Jan 2001 10:53:51 -0600
+From: Timur Tabi <ttabi@interactivesi.com>
+In-Reply-To: <3A6D5D28.C132D416@sangate.com>
+Subject: Re: ioremap_nocache problem?
+Message-Id: <20010123165117Z131182-221+34@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-ioremap_nocache does the following:
-	return __ioremap(offset, size, _PAGE_PCD);
+** Reply to message from Mark Mokryn <mark@sangate.com> on Tue, 23 Jan 2001
+12:30:00 +0200
 
-However, in drivers/char/mem.c (2.4.0), we see the following:
 
-	/* On PPro and successors, PCD alone doesn't always mean 
-	    uncached because of interactions with the MTRRs. PCD | PWT
-	    means definitely uncached. */ 
-	if (boot_cpu_data.x86 > 3)
-		prot |= _PAGE_PCD | _PAGE_PWT;
+> Does this mean ioremap_nocache() may not do the job?
 
-Does this mean ioremap_nocache() may not do the job?
+Good luck trying to get an answer.  I've been asking questions on ioremap for
+months, but no one's ever been able to tell me anything.
 
--mark
+According to the comments, mem.c provides /dev/zero support, whatever that is.
+It doesn't appear to be connected to ioremap in any way, so I understand your
+question.
+
+I can tell you that I have written a driver that depends on ioremap_nocache,
+and it does work, so it appears that ioremap_nocache is doing something.
+
+My problem is that it's very easy to map memory with ioremap_nocache, but if
+you use iounmap() the un-map it, the entire system will crash.  No one has been
+able to explain that one to me, either.
+
+
+-- 
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
+
+When replying to a mailing-list message, please direct the reply to the mailing list only.  Don't send another copy to me.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
