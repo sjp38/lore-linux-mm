@@ -1,49 +1,99 @@
-Date: Tue, 9 Nov 2004 21:16:54 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: [PATCH] kswapd shall not sleep during page shortage
-Message-ID: <20041109231654.GE8414@logos.cnet>
-References: <20041109164642.GE7632@logos.cnet> <20041109121945.7f35d104.akpm@osdl.org> <20041109174125.GF7632@logos.cnet> <20041109133343.0b34896d.akpm@osdl.org> <20041109182622.GA8300@logos.cnet> <20041109142257.1d1411e1.akpm@osdl.org> <20041109203143.GC8414@logos.cnet> <20041109162801.7f7ca242.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041109162801.7f7ca242.akpm@osdl.org>
+Date: Tue, 9 Nov 2004 20:41:38 -0600
+From: Brent Casavant <bcasavan@sgi.com>
+Reply-To: Brent Casavant <bcasavan@sgi.com>
+Subject: Re: [PATCH] Use MPOL_INTERLEAVE for tmpfs files
+In-Reply-To: <Pine.LNX.4.44.0411091824070.5130-100000@localhost.localdomain>
+Message-ID: <Pine.SGI.4.58.0411092020550.101942@kzerza.americas.sgi.com>
+References: <Pine.LNX.4.44.0411091824070.5130-100000@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, piggin@cyberone.com.au
+To: Hugh Dickins <hugh@veritas.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andi Kleen <ak@suse.de>, "Adam J. Richter" <adam@yggdrasil.com>, colpatch@us.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Nov 09, 2004 at 04:28:01PM -0800, Andrew Morton wrote:
-> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
-> >
-> > Back to arguing in favour of my patch - it seemed to me that kswapd could 
-> >  go to sleep leaving allocators which can't reclaim pages themselves in a 
-> >  bad situation. 
-> 
-> Yes, but those processes would be sleeping in blk_congestion_wait() during,
-> say, a GFP_NOIO/GFP_NOFS allocation attempt. 
+Argh.  I fatfingered my mail client and deleted my response rather
+than send it this morning.  Sorry for the delay.
 
-I was thinking about interrupts when I mentioned "allocators which can't reclaim 
-pages" :)
+On Tue, 9 Nov 2004, Hugh Dickins wrote:
 
-> And in that case, they may be
-> holding locks whcih prevent kswapd from being able to do any work either.
+> Doesn't quite play right with what was my "NULL sbinfo" convention.
 
-OK... Just out of curiosity:
-Isnt the "lock contention" at this level (filesystem) a relatively rare situation? 
+Howso?  I thought it played quite nicely with it.  We've been using
+NULL sbinfo as an indicator that an inode is from tmpfs rather than
+from SysV or /dev/zero.  Or at least that's the way my brain was
+wrapped around it.
 
-It could be a NFS lock for example? What other kind of lock?
+> Given this mpol patch of yours, and Adam's devfs patch, it's becoming
+> clear that my "NULL sbinfo" was unhelpful, making life harder for both
+> of you to add things into the tmpfs superblock - unchanged since 2.4.0,
+> as soon as I mess with it, people come up with valid new uses for it.
 
-> >  It would have to be waken up by another instance of alloc_pages to then 
-> >  execute and start doing its job, while if it was executing already (madly 
-> >  scanning as you say), the chance it would find freeable pages quite
-> >  earlier.
-> > 
-> >  Note that not only disk IO can cause pages to become freeable. A user
-> >  can give up its reference on pagecache page for example (leaving
-> >  the page on LRU to be found and freed by kswapd).
-> 
-> yup.  Or munlock(), or direct-io completion. 
+I haven't seen that other patch, but in this case I didn't see a problem.
+The NULL sbinfo scheme worked perfectly for me, with very little hassle.
+
+> Not to say that your patch or Adam's will go further (I've no objection
+> to the way Adam is using tmpfs, but no opinion on the future of devfs),
+> but they're two hints that I should rework that to get out of people's
+> way.  I'll do a patch for that, then another something like yours on
+> top, for you to go back and check.
+
+Is this something imminent, or on the "someday" queue?  Just asking
+because I'd like to avoid doing additional work that might get thrown
+away soon.
+
+> I think the option should be "mpol=interleave" rather than just
+> "interleave", who knows what baroque mpols we might want to support
+> there in future?
+
+Makes sense to me.  I'll be happy to do it, pending your answer to
+my preceding question.
+
+> I'm irritated to realize that we can't change the default for SysV
+> shared memory or /dev/zero this way, because that mount is internal.
+
+Well, the only thing preventing this is that I stuck the flag into
+sbinfo, since it's an filesystem-wide setting.  I don't see any reason
+we couldn't add a new flag in the inode info flag field instead.  I
+think there would also be some work to set pvma.vm_end more precisely
+(in mpol_shared_policy_init()) in the SysV case.
+
+> At one time (August) you were worried about MPOL_INTERLEAVE
+> overloading node 0 on small files - is that still a worry?
+> Perhaps you skirt that issue in recommending this option
+> for use with giant files.
+
+Yeah, there's still a bit of concern about that, but it's dwarfed
+in comparison.  Taking care of that would be relatively easy,
+adding something like the inode number (or other inode-constant
+"randomness") in as a offset to pvma.vm_pgoff in shmem_alloc_page()
+(or maybe a bit higher up the call-chain, I'd have to look closer).
+
+> There are quite a lot of mpol patches flying around, aren't there?
+
+Yep.  SGI solved some of these problems for our own 2.4.x kernel
+distributions, but now we want to get things settled out in the
+mainline kernel.  So far I think we're hitting distinct chunks
+of code.
+
+> >From Ray Bryant and from Steve Longerbeam.  Would this tmpfs patch
+> make (adaptable) sense if we went either or both of those ways - or
+> have they been knocked on the head?  I don't mean in the details
+> (I think one of them does away with the pseudo-vma stuff - great!),
+> but in basic design - would your mount option mesh together well
+> with them, or would it be adding a further layer of confusion?
+
+I see what you mean.  I believe Ray's work is addressing the buffer
+cache in general.  I'll try to touch base with him again soon (I
+admit to losing track of what he's been doing).
+
+Brent
+
+-- 
+Brent Casavant                          If you had nothing to fear,
+bcasavan@sgi.com                        how then could you be brave?
+Silicon Graphics, Inc.                    -- Queen Dama, Source Wars
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
