@@ -1,88 +1,68 @@
-Date: Wed, 28 May 2003 23:23:23 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Re: 2.5.70-mm1
-Message-ID: <1980000.1054189401@[10.10.2.4]>
-In-Reply-To: <20030527004255.5e32297b.akpm@digeo.com>
-References: <20030527004255.5e32297b.akpm@digeo.com>
+Date: Thu, 29 May 2003 03:14:20 -0400 (EDT)
+From: Zwane Mwaikambo <zwane@linuxpower.ca>
+Subject: Re: 2.5.70-mm1 bootcrash, possibly RAID-1
+In-Reply-To: <16085.23940.164807.702704@notabene.cse.unsw.edu.au>
+Message-ID: <Pine.LNX.4.50.0305290313030.940-100000@montezuma.mastecende.com>
+References: <20030408042239.053e1d23.akpm@digeo.com> <3ED49A14.2020704@aitel.hist.no>
+ <20030528111345.GU8978@holomorphy.com> <3ED49EB8.1080506@aitel.hist.no>
+ <20030528113544.GV8978@holomorphy.com> <20030528225913.GA1103@hh.idb.hist.no>
+ <3ED54685.5020706@erkkila.org> <16085.23940.164807.702704@notabene.cse.unsw.edu.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Neil Brown <neilb@cse.unsw.edu.au>
+Cc: pee@erkkila.org, Helge Hafting <helgehaf@aitel.hist.no>, William Lee Irwin III <wli@holomorphy.com>, Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> . A number of fixes against the ext3 work which Alex and I have been doing.
->   This code is stable now.  I'm using it on my main SMP desktop machine.
+On Thu, 29 May 2003, Neil Brown wrote:
+
+> I think this might fix the bug, but I haven't looked very closely
+> yet.  I will expore it more deeply when I get time.
 > 
->   These are major changes to a major filesystem.  I would ask that
->   interested parties now subject these patches to stresstesting and to
->   performance testing.  The performance gains on SMP will be significant.
+> NeilBrown
 
-Sexy. SDET beats the hell out of this, and is much improved:
+No go;
 
-SDET 128  (see disclaimer)
-                           Throughput    Std. Dev
-               2.5.66-mm2       100.0%         0.6%
-          2.5.66-mm2-ext3         3.9%         0.4%
+raid0:   comparing sdd1(4193152) with sdd1(4193152)
+raid0:   END
+raid0:   ==> UNIQUE
+raid0: 1 zones
+raid0: looking at sdc1
+raid0:   comparing sdc1(4193152) with sdd1(4193152)
+raid0:   EQUAL
+raid0: FINAL 1 zones
+raid0: multiple devices for 1 - aborting!
+slab error in cache_free_debugcheck(): cache `size-32': double free, or memory before object was overwritten
+Call Trace:
+ [<c0148da3>] kfree+0xf3/0x2e0
+ [<c0366a64>] raid0_run+0x234/0x250
+ [<c0366a64>] raid0_run+0x234/0x250
+ [<c012529a>] printk+0x1ca/0x280
+ [<c0371fa4>] do_md_run+0x2f4/0x560
+ [<c0371fbb>] do_md_run+0x30b/0x560
+ [<c012529a>] printk+0x1ca/0x280
+ [<c03724f2>] autorun_array+0x82/0xa0
+ [<c012529a>] printk+0x1ca/0x280
+ [<c03726ff>] autorun_devices+0x1ef/0x230
+ [<c0375569>] autostart_arrays+0x29/0xba
+ [<c036f8f6>] mddev_put+0x16/0xb0
+ [<c0250728>] capable+0x18/0x40
+ [<c03737de>] md_ioctl+0x56e/0x5a0
+ [<c0169759>] blkdev_open+0x29/0x30
+ [<c015f0dc>] dentry_open+0x14c/0x230
+ [<c0148c2a>] kmem_cache_free+0x1ca/0x250
+ [<c02a2f0b>] blkdev_ioctl+0x8b/0x3b1
+ [<c01747d6>] sys_ioctl+0x156/0x310
+ [<c056f6b7>] md_run_setup+0x57/0x80
+ [<c056ef28>] prepare_namespace+0x8/0xa0
+ [<c01050fb>] init+0x5b/0x210
+ [<c01050a0>] init+0x0/0x210
+ [<c01070e5>] kernel_thread_helper+0x5/0x10
 
-SDET 128  (see disclaimer)
-                           Throughput    Std. Dev
-          2.5.70-mm1-ext2       100.0%         0.1%
-          2.5.70-mm1-ext3        22.7%         2.0%
 
-
-diffprofile 2.5.70-mm1-ext2 2.5.70-mm1-ext3
-(for SDET 128: + worse with ext3, - better.)
-   1857406   245.2% total
-   1531720   431.5% default_idle
-    106589     0.0% .text.lock.transaction
-     40119     0.0% do_get_write_access
-     37170     0.0% journal_dirty_metadata
-     35031  6560.1% __down
-     24412  8030.3% .text.lock.attr
-     19535  2556.9% __wake_up
-     19201   907.0% schedule
-     11344     0.0% start_this_handle
-     10104     0.0% journal_add_journal_head
-     10007     0.0% .text.lock.sched
-      7352     0.0% journal_stop
-      5949  99150.0% prepare_to_wait_exclusive
-      5867  3008.7% __blk_queue_bounce
-      4724   335.3% __find_get_block
-      4618     0.0% ext3_get_inode_loc
-      4410     0.0% journal_dirty_data
-      3754   590.3% __find_get_block_slow
-      3079   738.4% .text.lock.base
-      2176     0.0% ext3_do_update_inode
-      2132  11844.4% unlock_buffer
-      1995     0.0% ext3_journal_start
-      1888     0.0% ext3_orphan_del
-      1783   145.2% __brelse
-      1642  4829.4% blk_run_queues
-      1555     0.0% ext3_orphan_add
-      1495     0.0% ext3_new_inode
-      1430     0.0% ext3_reserve_inode_write
-      1412     0.0% journal_destroy_handle_cache
-      1344     0.0% journal_cancel_revoke
-      1279     0.0% journal_unmap_buffer
-      1198     0.0% ext3_free_blocks
-...
-     -1057   -88.4% .text.lock.highmem
-     -1064   -24.5% remove_shared_vm_struct
-     -1112   -52.8% .text.lock.dec_and_lock
-     -1126  -100.0% ext2_new_inode
-     -1516  -100.0% grab_block
-     -1594   -28.3% path_lookup
-     -1599   -28.0% atomic_dec_and_lock
-     -1660   -10.4% copy_page_range
-     -1695   -15.4% __d_lookup
-     -2585   -23.6% release_pages
-     -2614   -13.5% zap_pte_range
-     -9758   -20.7% page_add_rmap
-    -26185   -25.3% page_remove_rmap
-
+-- 
+function.linuxpower.ca
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
