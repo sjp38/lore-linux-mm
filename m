@@ -1,67 +1,56 @@
-Date: Wed, 7 Jun 2000 12:41:23 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
- it'snot just the code)
-In-Reply-To: <20000607163519.S30951@redhat.com>
-Message-ID: <Pine.LNX.4.21.0006071239120.14304-100000@duckman.distro.conectiva>
+Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel: it'snot just the code)
+References: <20000607144102.F30951@redhat.com>
+	<Pine.LNX.4.21.0006071103560.14304-100000@duckman.distro.conectiva>
+	<20000607154620.O30951@redhat.com> <yttog5decvq.fsf@serpe.mitica>
+	<20000607163519.S30951@redhat.com>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: "Stephen C. Tweedie"'s message of "Wed, 7 Jun 2000 16:35:19 +0100"
+Date: 07 Jun 2000 17:44:44 +0200
+Message-ID: <yttitvlebrn.fsf@serpe.mitica>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: "Quintela Carreira Juan J." <quintela@fi.udc.es>, Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+Cc: Rik van Riel <riel@conectiva.com.br>, Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Jun 2000, Stephen C. Tweedie wrote:
-> On Wed, Jun 07, 2000 at 05:20:41PM +0200, Quintela Carreira Juan J. wrote:
-> > 
-> > stephen> It doesn't matter.  *If* the filesystem knows better than the 
-> > stephen> page cleaner what progress can be made, then let the filesystem
-> > stephen> make progress where it can.  There are likely to be transaction
-> > stephen> dependencies which mean we have to clean some pages in a specific
-> > stephen> order.  As soon as the page cleaner starts exerting back pressure
-> > stephen> on the filesystem, the filesystem needs to start clearing stuff,
-> > stephen> and if that means we have to start cleaning things that shrink_
-> > stephen> mmap didn't expect us to, then that's fine.
-> > 
-> > I don't like that, if you put some page in the LRU cache, that means
-> > that you think that _this_ page is freeable.
-> 
-> Remember that Rik is talking about multiple LRUs.  Pages can
-> only be on the inactive LRU if they are clean and unpinned, yes,
-> but we still need a way of tracking pages which are in a more
-> difficult state.
+>>>>> "stephen" == Stephen C Tweedie <sct@redhat.com> writes:
 
-That's the scavenge list ;)
+Hi
 
-The inactive list contains unmapped pages with age 0, from
-the inactive list I want to clean the pages whenever there's
-demand for memory.
+stephen> Remember that Rik is talking about multiple LRUs.  Pages can only
+stephen> be on the inactive LRU if they are clean and unpinned, yes, but we
+stephen> still need a way of tracking pages which are in a more difficult
+stephen> state.
 
-This could potentially mean that the pinned buffers from one
-fs would be spread over both the active and the inactive list.
+erhhh, If I have understand well Rik, pages in the inactive queue can
+be dirty, they need to be unmmaped, but not clean.  Rik, clarify here,
+please.  And yes, if you put in the Inactive queues only unpinned
+page, I retire all my objections :)  But I think that all the unpinned
+pages are freeable after a (possible needed write).
 
-> > If you need pages in the LRU cache only for getting notifications,
-> > then change the system to send notifications each time that we are
-> > short of memory.
-> 
-> It's a matter of pressure.  The filesystem with most pages in
-> the LRU cache, or with the oldest pages there, should stand the
-> greatest chance of being the first one told to clean up its act.
+>> If you need pages in the LRU cache only for getting notifications,
+>> then change the system to send notifications each time that we are
+>> short of memory.
 
-Indeed, the more I think of it the more I think any other
-approach than shared-lru is the right one.
+stephen> It's a matter of pressure.  The filesystem with most pages in the LRU
+stephen> cache, or with the oldest pages there, should stand the greatest chance
+stephen> of being the first one told to clean up its act.
 
-regards,
+Then if the 10 oldest pages in the LRU are from that subsystem, we
+call a notifier 10 times.  That means that that subsystem will try to
+free pages 10 times.  As each time it does it own clustering, etc,
+etc, he has freed a *lot* of pages, when we will expect only to free
+10 pages.  That means a bit unfair to me. 
 
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+Thanks a lot for your comments.
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+Later, Juan.
 
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
