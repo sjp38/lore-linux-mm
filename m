@@ -1,22 +1,35 @@
-Subject: Re: [PATCH] Remove nr_async_pages limit
-Date: Mon, 4 Jun 2001 07:39:10 +0100 (BST)
-In-Reply-To: <874rtxoidx.fsf@atlas.iskon.hr> from "Zlatko Calusic" at Jun 03, 2001 02:30:34 PM
+Received: from m2vwall2.wipro.com (m2vwall2.wipro.com [164.164.27.52])
+	by wiprom2mx1.wipro.com (8.11.3/8.11.3) with SMTP id f54Ca5Z18657
+	for <linux-mm@kvack.org>; Mon, 4 Jun 2001 12:36:07 GMT
+From: "Chandrashekar Nagaraj" <chandrashekar.nag@wipro.com>
+Subject: How to redirect a task's o/p to different xterms ???
+Date: Mon, 4 Jun 2001 12:19:57 +0530
+Message-ID: <002601c0ecc2$9178d680$4433a8c0@wipro.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <E156o18-00059a-00@the-village.bc.nu>
-From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: zlatko.calusic@iskon.hr
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-> This patch removes the limit on the number of async pages in the
-> flight.
+hi,
+	We r working on a ISP( Internet service provider ). We have a board
+for the client side running on Vxworks and for the server we r using a 
+simulator running on Linux. The simulator has a menu based interface,
+and supports operations such as ftp,telnet,logging and so on.
+	We have an option for multiple file copy. But when the copy is
+going on, we get output for each copy operation. But since the o/p appears
+on a single terminal, the o/p becomes crowdy. So, we are planning
+to redirect the o/p of each copy operation a different xterm. Any help
+in this regard will be very helpful...
 
-I have this in all  2.4.5-ac. It does help a little but there are some other
-bits you have to deal with too, in paticular wrong aging. See the -ac version
+Thankx in advance.
+
+bye,
+chandra.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
