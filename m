@@ -2,52 +2,55 @@ From: John Stoffel <stoffel@casc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-ID: <15136.62579.588726.954053@gargle.gargle.HOWL>
-Date: Fri, 8 Jun 2001 11:51:15 -0400
+Message-ID: <15137.3796.287765.4809@gargle.gargle.HOWL>
+Date: Fri, 8 Jun 2001 13:43:48 -0400
 Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps
-In-Reply-To: <Pine.LNX.4.33.0106081532140.2013-100000@boris.prodako.se>
-References: <Pine.LNX.4.33.0106081440300.389-100000@mikeg.weiden.de>
-	<Pine.LNX.4.33.0106081532140.2013-100000@boris.prodako.se>
+In-Reply-To: <Pine.LNX.4.33.0106081853400.418-100000@mikeg.weiden.de>
+References: <15136.62579.588726.954053@gargle.gargle.HOWL>
+	<Pine.LNX.4.33.0106081853400.418-100000@mikeg.weiden.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tobias Ringstrom <tori@unhappy.mine.nu>
-Cc: Mike Galbraith <mikeg@wen-online.de>, Jonathan Morton <chromi@cyberspace.org>, Shane Nay <shane@minirl.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Mike Galbraith <mikeg@wen-online.de>
+Cc: John Stoffel <stoffel@casc.com>, Tobias Ringstrom <tori@unhappy.mine.nu>, Jonathan Morton <chromi@cyberspace.org>, Shane Nay <shane@minirl.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "Tobias" == Tobias Ringstrom <tori@unhappy.mine.nu> writes:
+Mike> OK, riddle me this.  If this test is a crummy test, just how is
+Mike> it that I was able to warn Rik in advance that when 2.4.5 was
+Mike> released, he should expect complaints?  How did I _know_ that?
+Mike> The answer is that I fiddle with Rik's code a lot, and I test
+Mike> with this test because it tells me a lot.  It may not tell you
+Mike> anything, but it does me.
 
-Tobias> On Fri, 8 Jun 2001, Mike Galbraith wrote:
+I never said it was a crummy test, please do not read more into my
+words than was written.  What I was trying to get across is that just
+one test (such as a compile of the kernel) isn't perfect at showing
+where the problems are with the VM sub-system.
 
->> I gave this a shot at my favorite vm beater test (make -j30 bzImage)
->> while testing some other stuff today.
+Jonathan Morton has been using another large compile to also test the
+sub-system, and it includes a compile which puts a large, single
+process pressure on the VM.  I consider this to be a more
+representative test of how the VM deals with pressure.  
 
-Tobias> Could you please explain what is good about this test?  I
-Tobias> understand that it will stress the VM, but will it do so in a
-Tobias> realistic and relevant way?
+The kernel compile is an ok test of basic VM handling, but from what
+I've been hearing on linux-kernel and linux-mm is that the VM goes to
+crap when you have a mix of stuff running, and one (or more) processes
+starts up or grows much larger and starts impacting the system
+performance.
 
-I agree, this isn't really a good test case.  I'd rather see what
-happens when you fire up a gimp session to edit an image which is
-*almost* the size of RAM, or even just 50% the size of ram.  Then how
-does that affect your other processes that are running at the same
-time?  
+I'm also not knocking your contributions to this discussion, so stop
+being so touchy.  I was trying to contribute and say (albeit poorly)
+that a *mix* of tests is needed to test the VM.
 
-This testing could even be automated with the script-foo stuff to get
-consistent results across runs, which is the prime requirement of any
-sort of testing.  
+More importantly, a *repeatable* set of tests is what is needed to
+test the VM and get consistent results from run to run, so you can see
+how your changes are impacting performance.  The kernel compile
+doesn't really have any one process grow to a large fraction of
+memory, so dropping in a compile which *does* is a good thing.
 
-On another issue, in swap.c we have two defines for buffer_mem and
-page_cache, but the first maxes out at 60%, while the cache maxes out
-at 75%.  Shouldn't they both be lower numbers?  Or at least equally
-sized?
-
-I've set my page_cache maximum to be 60, I'll be trying to test it
-over the weekend, but good weather will keep me outside doing other
-stuff...
-
-Thanks,
 John
    John Stoffel - Senior Unix Systems Administrator - Lucent Technologies
 	 stoffel@lucent.com - http://www.lucent.com - 978-952-7548
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
