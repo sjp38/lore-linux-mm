@@ -1,7 +1,7 @@
-Date: Fri, 9 May 2003 08:37:45 -0700
+Date: Fri, 9 May 2003 10:55:42 -0700
 From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.69-mm3
-Message-ID: <20030509153745.GW8978@holomorphy.com>
+Message-ID: <20030509175542.GY8978@holomorphy.com>
 References: <20030508013958.157b27b7.akpm@digeo.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -16,29 +16,36 @@ List-ID: <linux-mm.kvack.org>
 On Thu, May 08, 2003 at 01:39:58AM -0700, Andrew Morton wrote:
 > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.69-mm3.gz
 >   Will appear sometime at
-> 
 > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm3/
 
-I was just looking over this and noticed 2.4.x makes u64 dma_addr_t
-conditional on CONFIG_HIGHMEM64G where 2.5.x uses CONFIG_HIGHMEM. It's
-clearly not necessary on CONFIG_HIGHMEM4G, hence this obvious (but
-untested) patch:
+Microscopic hugetlb cleanup: some variables static to hugetlbpage.c are
+later declared as extern within a function in the same file. This patch
+removes their declaration.
+
 
 -- wli
 
-
-diff -prauN linux-2.5.69-1/include/asm-i386/types.h types-2.5.69-1/include/asm-i386/types.h
---- linux-2.5.69-1/include/asm-i386/types.h	Mon Dec 30 20:14:21 2002
-+++ types-2.5.69-1/include/asm-i386/types.h	Fri May  9 08:29:57 2003
-@@ -51,7 +51,7 @@
+diff -urpN mm3-2.5.69-1/arch/i386/mm/hugetlbpage.c mm3-2.5.69-2/arch/i386/mm/hugetlbpage.c
+--- mm3-2.5.69-1/arch/i386/mm/hugetlbpage.c	2003-05-04 16:53:41.000000000 -0700
++++ mm3-2.5.69-2/arch/i386/mm/hugetlbpage.c	2003-05-09 10:27:57.000000000 -0700
+@@ -20,8 +20,6 @@
+ #include <asm/tlb.h>
+ #include <asm/tlbflush.h>
  
- /* DMA addresses come in generic and 64-bit flavours.  */
+-#include <linux/sysctl.h>
+-
+ static long    htlbpagemem;
+ int     htlbpage_max;
+ static long    htlbzone_pages;
+@@ -398,8 +396,6 @@ int set_hugetlb_mem_size(int count)
+ {
+ 	int lcount;
+ 	struct page *page;
+-	extern long htlbzone_pages;
+-	extern struct list_head htlbpage_freelist;
  
--#ifdef CONFIG_HIGHMEM
-+#ifdef CONFIG_HIGHMEM64G
- typedef u64 dma_addr_t;
- #else
- typedef u32 dma_addr_t;
+ 	if (count < 0)
+ 		lcount = count;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
