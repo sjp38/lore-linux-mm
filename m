@@ -1,43 +1,49 @@
-Date: Wed, 7 Jun 2000 22:24:21 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel: it'snot just the code)
-Message-ID: <20000607222421.H30951@redhat.com>
-References: <393E8AEF.7A782FE4@reiser.to> <Pine.LNX.4.21.0006071459040.14304-100000@duckman.distro.conectiva> <20000607205819.E30951@redhat.com> <ytt1z29dxce.fsf@serpe.mitica>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ytt1z29dxce.fsf@serpe.mitica>; from quintela@fi.udc.es on Wed, Jun 07, 2000 at 10:56:17PM +0200
+Message-ID: <393EBEB5.AEEFF501@reiser.to>
+Date: Wed, 07 Jun 2000 14:29:25 -0700
+From: Hans Reiser <hans@reiser.to>
+MIME-Version: 1.0
+Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
+ it'snot just the code)
+References: <20000607144102.F30951@redhat.com> <Pine.LNX.4.21.0006071103560.14304-100000@duckman.distro.conectiva> <20000607154620.O30951@redhat.com> <yttog5decvq.fsf@serpe.mitica> <393EAD84.A4BB6BD9@reiser.to> <20000607215436.F30951@redhat.com>
+Content-Type: text/plain; charset=koi8-r
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: "Quintela Carreira Juan J." <quintela@fi.udc.es>, Rik van Riel <riel@conectiva.com.br>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
-
-On Wed, Jun 07, 2000 at 10:56:17PM +0200, Juan J. Quintela wrote:
+"Stephen C. Tweedie" wrote:
 > 
-> >> I'd like to be able to keep stuff simple in the shrink_mmap
-> >> "equivalent" I'm working on. Something like:
-> >> 
-> >> if (PageDirty(page) && page->mapping && page->mapping->flush)
-> >> maxlaunder -= page->mapping->flush();
+> Hi,
 > 
-> sct> That looks ideal.
+> On Wed, Jun 07, 2000 at 01:16:04PM -0700, Hans Reiser wrote:
 > 
-> But this is supposed to flush that _page_, at least in the normal
-> case.
+> > "Quintela Carreira Juan J." wrote:
+> > > If you need pages in the LRU cache only for getting notifications,
+> > > then change the system to send notifications each time that we are
+> > > short of memory.
+> >
+> > I think the right thing is for the filesystems to use the LRU code as templates
+> > from which they may vary or not from in implementing their subcaches with their
+> > own lists.  I say this for intuitive not concrete reasons.
+> 
+> Every time we have tried to keep the caches completely separate, we
+> have ended up losing the ability to balance the various caches against
+> each other.  The major advantage of a common set of LRU lists is that
+> it gives us a basis for a balanced VM.
+> 
+> Cheers,
+>  Stephen
 
-All transactional filesystems will have ordering constraints which
-the core VM cannot know about.  In that case, the filesystem may
-simply have no choice about cleaning and unpinning pages in a given
-order.  For actually removing a page from memory, evicting precisely
-the right page is far more important, but for writeback, it's
-controlling the amount of dirty/pinned data from the various different
-sources which counts.
+If I understand Juan correctly, they fixed this issue.  Aging 1/64th of the
+cache for every cache evenly at every round of trying to free pages should be an
+excellent fix.  It should do just fine at the task of handling a system with
+both ext3 and reiserfs running.
 
-Cheers,
- Stephen
+Was this Juan's code that did this?  If so, kudos to him.
+
+Hans
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
