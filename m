@@ -1,64 +1,122 @@
-Message-ID: <3FB11B93.60701@reactivated.net>
-Date: Tue, 11 Nov 2003 17:25:39 +0000
-From: Daniel Drake <dan@reactivated.net>
-MIME-Version: 1.0
-Subject: Re: 2.6.0-test9-mm2
+Subject: [PATCH 2.6.0-test9] AIO-ref-count.patch
+From: Daniel McNeil <daniel@osdl.org>
+In-Reply-To: <20031110154232.55eb9b10.akpm@osdl.org>
 References: <20031104225544.0773904f.akpm@osdl.org>
-In-Reply-To: <20031104225544.0773904f.akpm@osdl.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+	 <1068505605.2042.11.camel@ibm-c.pdx.osdl.net>
+	 <20031110154232.55eb9b10.akpm@osdl.org>
+Content-Type: multipart/mixed; boundary="=-r7NyEM6odk5MnRU306bp"
+Message-Id: <1068573662.3405.12.camel@ibm-c.pdx.osdl.net>
+Mime-Version: 1.0
+Date: 11 Nov 2003 10:01:02 -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Suparna Bhattacharya <suparna@in.ibm.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "linux-aio@kvack.org" <linux-aio@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I've been getting a couple of audio skips with 2.6.0-test9-mm2. Haven't heard a 
-skip since test4 or so, so I'm assuming this is a result of the IO scheduler tweaks.
+--=-r7NyEM6odk5MnRU306bp
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
 
-Here's how I can produce a skip:
-Running X, general usage (e.g. couple of xterms, an emacs, maybe a 
-mozilla-thunderbird)
-I switch to the first virtual console with Ctrl+Alt+F1. I then switch back to X 
-with Alt+F7. As X is redrawing the screen, the audio skips once.
-This happens most of the time, but its easier to reproduce when i am compiling 
-something, and also when I cycle through the virtual consoles before switching 
-back to X.
+Andrew,
 
-System:
-AMD XP2600+
-nForce2 motherboard
-512MB RAM
-nvidia GeForce4 Ti4800
+If you do not want to go with the retry-based AIO in mm, here is
+the AIO ref count patch against 2.6.0-test9.  This is a bit different
+than the version in -mm, but accomplishes the same thing -- the submit
+path holds an extra reference until just before returning.  This fixes
+the referencing a free kiocb.
 
-Audio being played through the intel8x0 alsa module.
-I use the nvidia binary graphics driver with X.
+Without this patch on test9 (with PAGEALLOC_DEBUG), I get:
+ 
+Unable to handle kernel paging request at virtual address df4fbf90
+ printing eip:
+c0143dc4
+*pde = 0007f067
+*pte = 1f4fb000
+Oops: 0002 [#1]
+CPU:    1
+EIP:    0060:[<c0143dc4>]    Not tainted
+EFLAGS: 00210287
+EIP is at generic_file_aio_write_nolock+0x936/0xbbd
+eax: 019d0000   ebx: 06400000   ecx: df4fbf90   edx: 00000000
+esi: 00000000   edi: e700de88   ebp: df533eb4   esp: df533dc0
+ds: 007b   es: 007b   ss: 0068
+Process aiodio_sparse (pid: 1824, threadinfo=df532000 task=e66e29b0)
+Stack: 00000001 df4fbf58 df533ecc 019c0000 00000000 00000001 00000001 df533e04
+       00200286 c148fc10 00000000 00200286 db234d94 df533e18 f7a89218 019d0000
+       00000000 df533e18 c011dd46 f65dbdf8 ffffffff 00000041 df533e50 00010000
+Call Trace:
+ [<c011dd46>] kernel_map_pages+0x28/0x5d
+ [<c0144162>] generic_file_aio_write+0x86/0xa4
+ [<c01a12d7>] ext3_file_write+0x3f/0xcc
+ [<c018c948>] io_submit_one+0x2b5/0x2f7
+ [<c018ca67>] sys_io_submit+0xdd/0x143
+ [<c010a6c7>] syscall_call+0x7/0xb
 
-XMMS 1.2.8
-XFree 4.3.0
 
-If theres any other info I can give, please tell me and I'll do my best to help out.
+I'm working on the other AIO fixes against mainline.
 
-Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test9/2.6.0-test9-mm2/
-> 
-> 
-> - Various random fixes.  Maybe about half of these are 2.6.0-worthy.
-> 
-> - Some improvements to the anticipatory IO scheduler and more readahead
->   tweaks should help some of those database benchmarks.
-> 
->   The anticipatory scheduler is still a bit behind the deadline scheduler
->   in these random seeky loads - it most likely always will be.
-> 
-> - "A new driver for the ethernet interface of the NVIDIA nForce chipset,
->   licensed under GPL."
-> 
->   Testing of this would be appreciated.  Send any reports to linux-kernel
->   or netdev@oss.sgi.com and Manfred will scoop them up, thanks.
-> 
-> 
-> - I shall be offline for a couple of days.
+Thanks,
+
+Daniel
+
+--=-r7NyEM6odk5MnRU306bp
+Content-Disposition: attachment; filename=2.6.0-test9-aio-refcnt.patch
+Content-Type: text/plain; name=2.6.0-test9-aio-refcnt.patch; charset=UTF-8
+Content-Transfer-Encoding: 7bit
+
+--- linux-2.6.0-test9/fs/aio.c	2003-10-25 11:43:33.000000000 -0700
++++ linux-2.6.0-test9.aio-refcnt/fs/aio.c	2003-11-10 18:05:34.151193068 -0800
+@@ -376,6 +376,11 @@ void __put_ioctx(struct kioctx *ctx)
+  *	Allocate a slot for an aio request.  Increments the users count
+  * of the kioctx so that the kioctx stays around until all requests are
+  * complete.  Returns NULL if no requests are free.
++ *
++ * Returns with kiocb->users set to 2.  The io submit code path holds
++ * an extra reference while submitting the i/o.
++ * This prevents races between the aio code path referencing the
++ * req (after submitting it) and aio_complete() freeing the req.
+  */
+ static struct kiocb *FASTCALL(__aio_get_req(struct kioctx *ctx));
+ static struct kiocb *__aio_get_req(struct kioctx *ctx)
+@@ -389,7 +394,7 @@ static struct kiocb *__aio_get_req(struc
+ 		return NULL;
+ 
+ 	req->ki_flags = 1 << KIF_LOCKED;
+-	req->ki_users = 1;
++	req->ki_users = 2;
+ 	req->ki_key = 0;
+ 	req->ki_ctx = ctx;
+ 	req->ki_cancel = NULL;
+@@ -1009,7 +1014,7 @@ int io_submit_one(struct kioctx *ctx, st
+ 	if (unlikely(!file))
+ 		return -EBADF;
+ 
+-	req = aio_get_req(ctx);
++	req = aio_get_req(ctx);		/* returns with 2 references to req */
+ 	if (unlikely(!req)) {
+ 		fput(file);
+ 		return -EAGAIN;
+@@ -1069,13 +1074,15 @@ int io_submit_one(struct kioctx *ctx, st
+ 		ret = -EINVAL;
+ 	}
+ 
++	aio_put_req(req);	/* drop extra ref to req */
+ 	if (likely(-EIOCBQUEUED == ret))
+ 		return 0;
+-	aio_complete(req, ret, 0);
++	aio_complete(req, ret, 0);	/* will drop i/o ref to req */
+ 	return 0;
+ 
+ out_put_req:
+-	aio_put_req(req);
++	aio_put_req(req);	/* drop extra ref to req */
++	aio_put_req(req);	/* drop i/o ref to req */
+ 	return ret;
+ }
+ 
+
+--=-r7NyEM6odk5MnRU306bp--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
