@@ -1,45 +1,69 @@
-Date: Tue, 16 May 2000 15:43:26 +0200
-From: Carlo Wood <carlo@alinoe.com>
-Subject: "kswapd bug"
-Message-ID: <20000516154326.A1077@a2000.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Tue, 16 May 2000 06:53:22 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: Estrange behaviour of pre9-1
+In-Reply-To: <yttog67xqjq.fsf@vexeta.dc.fi.udc.es>
+Message-ID: <Pine.LNX.4.10.10005160642440.1398-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.rutgers.edu
+To: "Juan J. Quintela" <quintela@fi.udc.es>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here is a report from yet another user who ran into
-this "kswapd bug".
 
-I bought a new harddisk (my first udma) and upgraded
-at the same time to kernel 2.2.15 (from 2.2.12).
+On 16 May 2000, Juan J. Quintela wrote:
+> Hi
+> 
+> linus> That is indeed what my shink_mmap() suggested change does (ie make
+> linus> "sync_page_buffers()" wait for old locked buffers). 
+> 
+> But your change wait for *all* locked buffers, I want to start several
+> writes asynchronously and then wait for one of them.
 
-Then I had problems playing mp3's: the whole system
-would 'freeze' for a fraction of a second to sometimes
-even several seconds - making listening to music
-impossible.  It clearly had to do with disk access,
-and 2.2.x was supposed to be stable :/, so I bought
-a new controller (Promise Ultra-66).
+This is pretty much exactly what my change does - no need to be
+excessively clever.
 
-I couldn't get the Ultra to work with 2.2.x, so I
-upgraded the kernel to 2.3.99-pre6 to find the SAME
-system freezes :/.
+Remember, we walk the LRU list from the "old" end, and whenever we hita
+dirty buffer we will write it out asynchronously. AND WE WILL MOVE IT TO
+THE TOP OF THE LRU QUEUE!
 
-Now I found out that the system was freezing every
-time 'kswapd' was running. I then subbed to this list
-and read in the past days that it is a known problem.
+Which means that we will only see actual locked buffers if we have gotten
+through the whole LRU queue without giving our write-outs time to
+complete: which is exactly the situation where we do want to wait for
+them.
 
-Today I upgraded to 2.3.99-pre9-pre1 and applied
-classzone-28 (VM28).
+So normally, we will write out a ton of buffers, and then wait for the
+oldest one. You're obviously right that we may end up waiting for more
+than one buffer, but when that happens it will be the right thing to do:
+whenever we're waiting for the oldest buffer to flush, the others are also
+likely to have flushed (remember - we started them pretty much at the same
+time because we've tried hard to delay the 'run_task(&tq_disk)' too).
 
-Now I don't see system freezes anymore and can play
-mp3's again without any problems. Everything seems
-to run smooth again.
+>						 This makes the
+> system sure that we don't try to write *all* the memory in one simple
+> call to try_to_free_pages.
 
--- 
-Carlo Wood <carlo@alinoe.com>
+Well, right now we cannot avoid doing that. The reason is simply that the
+current MM layerdoes not know how many pages are dirty. THAT is a problem,
+but it's not a problem we're going to solve for 2.4.x. 
+
+If you actually were to use "write()", or if the load on the machine was
+more balanced than just one large "mmap002", you wouldn't see the
+everything-at-once behaviour, but ..
+
+> Yes, I agree here, but this program is based in one application that
+> gets Ooops in pre6 and previous kernels.  I made the test to know that
+> the code works, I know that the thing that does mmap002 is very rare,
+> but not one reason to begin doing Oops/killing innocent processes.
+> That is all the point of that test, not optimise performance for it.
+
+Absolutely. We apparently do not get the oopses any more, but the
+out-of-memory behaviour should be fixed. And never fear, we'llget it
+fixed.
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
