@@ -1,70 +1,62 @@
-Date: Tue, 2 May 2000 14:37:28 -0300 (BRST)
+Date: Tue, 2 May 2000 14:45:18 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Reply-To: riel@nl.linux.org
 Subject: Re: kswapd @ 60-80% CPU during heavy HD i/o.
-In-Reply-To: <390F188F.8D3C35E1@norran.net>
-Message-ID: <Pine.LNX.4.21.0005021432040.10610-100000@duckman.conectiva>
+In-Reply-To: <852568D3.005FC088.00@D51MTA07.pok.ibm.com>
+Message-ID: <Pine.LNX.4.21.0005021438550.10610-100000@duckman.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: frankeh@us.ibm.com
+Cc: Andrea Arcangeli <andrea@suse.de>, Roger Larsson <roger.larsson@norran.net>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2 May 2000, Roger Larsson wrote:
-> Rik van Riel wrote:
-> > On Tue, 2 May 2000, Roger Larsson wrote:
-> > 
-> > > I have been playing with the idea to have a lru for each zone.
-> > > It should be trivial to do since page contains a pointer to zone.
-> > >
-> > > With this change you will shrink_mmap only check among relevant pages.
-> > > (the caller will need to call shrink_mmap for other zone if call failed)
-> > 
-> > That's a very bad idea.
-> 
-> Has it been tested?
+On Tue, 2 May 2000 frankeh@us.ibm.com wrote:
 
-Yes, and it was quite bad. We ended up only freeing pages from
-zones where there was memory pressure, leaving idle pages in the
-other zone(s).
+> It makes sense to me to make the number of pools configurable
+> and not tie them directly to the number of nodes in a NUMA
+> system. In particular allow memory pools (i.e. instance of
+> pg_dat_t) to be smaller than a node size.
 
-> I think the problem with searching for a DMA page among lots and
-> lots of normal and high pages might be worse...
+*nod*
 
-It'll cost you some CPU time, but you don't need to do this very
-often (and freeing pages on a global basis, up to zone->pages_high
-free pages per zone will let __alloc_pages() take care of balancing
-the load between zones).
+We should have different memory zones per node on
+Intel-handi^Wequipped NUMA machines.
 
-> > In this case you can end up constantly cycling through the pages of
-> > one zone while the pages in another zone remain idle.
-> 
-> Yes you might. But concidering the possible no of pages in each
-> zone, it might not be that a bad idea.
+> The smart things that I see has to happen is to allow a set of processes to
+> be attached to a set of memory pools and the OS basically enforcing
+> allocation in those constraints. I brought this up before and I think
+> Andrea proposed something similar. Allocation should take place in those
+> pools along the allocation levels based on GFP_MASK, so first allocate on
+> HIGH along all specified pools and if unsuccessful, then fallback on a
+> previous level.
 
-So we count the number of inactive pages in every zone, keeping them
-at a certain minimum. Problem solved.
+That idea is broken if you don't do balancing of VM load between
+zones.
 
-> You usually needs normal pages and there are more normal pages.
-> You rarely needs DMA pages but there are less.
-> => recycle rate might be about the same...
+> With each pool we should associate a kswapd.
 
-Then again, it might not. Think about a 1GB machine, which has
-a 900MB "normal" zone and a ~64MB highmem zone.
+How will local page replacement help you if the node next door
+has practically unloaded virtual memory? You need to do global
+page replacement of some sort...
 
-> Anyway I think it is up to the caller of shrink_mmap to be
-> intelligent about which zone it requests.
+> Making the size of the pools configurable allows to control the
+> velocity at which we can swap out. Standard Queuing theory: if
+> we can't get the desired througput, then increase the number of
+> servers, here kswapd.
 
-That's bull. The only place where we have information about which
-page is the best one to free is in the "lru" queue. Splitting the
-queue into local queues per zone removes that information.
+What we _could_ do is have one (or maybe even a few) kswapds
+doing global replacement with io-less and more fine-grained
+swap_out() and shrink_mmap() functions, and per-node kswapds
+taking care of the IO and maybe even a per-node inactive list
+(though that would probably be *bad* for page replacement).
 
-> > Local page replacement is worse than global page replacement and
-> > has always been...
-
-(let me repeat this just in case)
+Then again, if your machine can't get the desired throughput,
+how would adding kswapds help??? Have you taken a look at
+mm/page_alloc.c::alloc_pages()? If kswapd can't keep up, the
+biggest memory consumers will help a hand and prevent the
+rest of the system from thrashing too much.
 
 regards,
 
