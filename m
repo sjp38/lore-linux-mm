@@ -1,17 +1,22 @@
-Date: Sat, 19 May 2001 18:41:55 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
+References: <Pine.LNX.4.33.0105191743000.393-100000@mikeg.weiden.de>
+Reply-To: zlatko.calusic@iskon.hr
+From: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Date: 20 May 2001 15:44:12 +0200
 In-Reply-To: <Pine.LNX.4.33.0105191743000.393-100000@mikeg.weiden.de>
-Message-ID: <Pine.LNX.4.21.0105191840250.5531-100000@imladris.rielhome.conectiva>
+Message-ID: <8766ew16fn.fsf@atlas.iskon.hr>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mike Galbraith <mikeg@wen-online.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 19 May 2001, Mike Galbraith wrote:
+Mike Galbraith <mikeg@wen-online.de> writes:
+
+> Hi,
+> 
 > On Fri, 18 May 2001, Stephen C. Tweedie wrote:
 > 
 > > That's the main problem with static parameters.  The problem you are
@@ -19,32 +24,26 @@ On Sat, 19 May 2001, Mike Galbraith wrote:
 > > why magic numbers tend to suck in the VM.)
 > 
 > Magic numbers might be sucking some performance right now ;-)
+> 
+[snip]
 
-... so you replace them with some others ... ;)
+I like your patch, it improves performance somewhat and makes things
+more smooth and also code is simpler.
 
-> Three back to back make -j 30 runs for three different kernels.
-> Swap cache numbers are taken immediately after last completion.
+Anyway, 2.4.5-pre3 is quite debalanced and it has even broken some
+things that were working properly before. For instance, swapoff now
+deadlocks the machine (even with your patch applied).
 
-The performance increase is nice, though.  Do you see similar
-changes in different kinds of workloads ?
+Unfortunately, I have failed to pinpoint the exact problem, but I'm
+confident that kernel goes in some kind of loop (99% system time, just
+before deadlock). Anybody has some guidelines how to debug kernel if
+you're running X?
 
-
-> (yes, the last hunk looks out of place wrt my text.
-
-It also looks kind of bogus and geared completely towards this
-particular workload ;)
-
-regards,
-
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
-
+Also in all recent kernels, if the machine is swapping, swap cache
+grows without limits and is hard to recycle, but then again that is
+a known problem.
+-- 
+Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
