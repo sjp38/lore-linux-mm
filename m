@@ -1,38 +1,43 @@
-Date: Sun, 14 Nov 2004 09:25:25 +0100
-From: Andi Kleen <ak@suse.de>
-Subject: Re: [RFC] Possible alternate 4 level pagetables?
-Message-ID: <20041114082525.GB16795@wotan.suse.de>
-References: <4196F12D.20005@yahoo.com.au>
+Date: Sun, 14 Nov 2004 07:44:17 -0200
+From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Subject: Re: [PATCH] fix spurious OOM kills
+Message-ID: <20041114094417.GC29267@logos.cnet>
+References: <20041111112922.GA15948@logos.cnet> <4193E056.6070100@tebibyte.org> <4194EA45.90800@tebibyte.org> <20041113233740.GA4121@x30.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <4196F12D.20005@yahoo.com.au>
+In-Reply-To: <20041113233740.GA4121@x30.random>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: Andi Kleen <ak@suse.de>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrea Arcangeli <andrea@novell.com>
+Cc: Chris Ross <chris@tebibyte.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Nick Piggin <piggin@cyberone.com.au>, Rik van Riel <riel@redhat.com>, Martin MOKREJ? <mmokrejs@ribosome.natur.cuni.cz>, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 14, 2004 at 04:46:21PM +1100, Nick Piggin wrote:
-> Just looking at your 4 level page tables patch, I wondered why the extra
-> level isn't inserted between pgd and pmd, as that would appear to be the
-> least intrusive (conceptually, in the generic code). Also it maybe matches
-> more closely the way that the 2->3 level conversion was done.
+On Sun, Nov 14, 2004 at 12:37:40AM +0100, Andrea Arcangeli wrote:
+> On Fri, Nov 12, 2004 at 05:52:21PM +0100, Chris Ross wrote:
+> > 
+> > 
+> > Chris Ross escreveu:
+> > >It seems good.
+> > 
+> > Sorry Marcelo, I spoke to soon. The oom killer still goes haywire even 
+> > with your new patch. I even got this one whilst the machine was booting!
+> 
+> On monday I'll make a patch to place the oom killer at the right place.
+> 
+> Marcelo's argument that kswapd is a localized place isn't sound to me,
+> kswapd is still racing against all other task contexts, so if the task
+> context isn't reliable, there's no reason why kswapd should be more
+> reliable than the task context. the trick is to check the _right_
+> watermarks before invoking the oom killer, it's not about racing against
+> each other, 2.6 is buggy in not checking the watermarks. Moving the oom
+> killer in kswapd can only make thing worse, fix is simple, and it's the
+> opposite thing: move the oom killer up the stack outside vmscan.c.
 
-I did it the way I did to keep i386 and other archs obviously correct 
-because their logic doesn't change at all for the three lower levels,
-and the highest level just hands a pointer through.
+Its hard to detect OOM situation with zone->all_unreclaimable logic.
 
-Regarding intrusiveness in common code: you pretty much have to change
-most of of mm/memory.c, no matter what you do. Also there are overall
-only 7 or 8 users that really need the full scale changes, so 
-it's not as bad as it looks. Ok there is ioremap in each architecture,
-but usually you can cheat for these because you know the architecture
-will never support 4levels.
+Well, I'll wait for your correct and definitive approach.
 
-I'm sorry, but I don't see much advantage of your patches over mine.
-
--Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
