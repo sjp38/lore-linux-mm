@@ -1,47 +1,37 @@
-Date: Wed, 17 Sep 2003 14:24:45 -0400 (EDT)
-From: Alan Stern <stern@rowland.harvard.edu>
-Subject: How best to bypass the page cache from within a kernel module?
-Message-ID: <Pine.LNX.4.44L0.0309171402370.1171-100000@ida.rowland.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 17 Sep 2003 12:32:02 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: __vmalloc and alloc_page
+Message-ID: <20030917193202.GG14079@holomorphy.com>
+References: <200309171326.11848.lmb@exatas.unisinos.br>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <200309171326.11848.lmb@exatas.unisinos.br>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Leandro Motta Barros <lmb@exatas.unisinos.br>
+Cc: linux-mm@kvack.org, sisopiii-l@cscience.org
 List-ID: <linux-mm.kvack.org>
 
-I'm working on a kernel module driver for Linux 2.6.  One of the things 
-this driver needs to do is perform a VERIFY command; which means checking 
-to make sure that certain disk sectors within a file actually can be read 
-without encountering a bad sector or other hardware error.  Now, I realize 
-that there are already issues involved with convincing the disk drive to 
-read from its media rather than from its cache.  But apart from that, my 
-problem is how to convince Linux to read from the drive rather than from 
-the page cache.
+On Wed, Sep 17, 2003 at 01:26:11PM -0300, Leandro Motta Barros wrote:
+> Thanks for the feedback on the previous email. Well, there is another
+> thing we thought that could be done. '__vmalloc()' allocates its
+> memory by calling 'alloc_page()' for every necessary page. Wouldn't
+> it be better calling 'alloc_pages()' to allocate more pages at once
+> whenever possible? We would need more bookeepping, and sometimes it
+> could be necessary to actually allocate the memory page per page, but
+> we think this approach could be a way to use memory blocks of higher order.
+> Do you think this is feasible or useful?
+> Also, we would like to know if you have suggestions on topics that we could 
+> explore and implement.
 
-One suggestion was to use O_DIRECT when opening the file, because that
-does cause reads to go directly to the hardware.  The problem with this is
-that since the direct-I/O routines send file data directly to user
-buffers, they must check that the buffer addresses are valid and belong to
-the user's address space.  But my code runs in a kernel thread so it has
-no current->mm (and in any case I would prefer to use my kernel-space
-buffers rather than user-space memory).  It might be possible to get hold
-of an mm_struct, but it's not necessarily easy as mm_alloc() isn't
-EXPORTed.  Perhaps my thread could keep its original current->mm by
-incrementing current->mm->users before calling daemonize() and setting
-current->mm back to its original value afterward.  Is that legal?  Having
-done so, perhaps I could use some sort of mmap() call to allocate a
-user-space buffer that would be okay for direct-I/O.  What's the best way
-to do that -- what function would I have to call?
+Higher-order would probably not be as useful as you'd suspect; try
+looking at the distribution of available pages of given sizes in /proc/.
+OTOH, just being able to get more than one page in one call (not relying
+on physically contiguous memory) would be a simple and useful optimization.
 
-However, all that seems rather roundabout.  An equally acceptable solution 
-would be simply to invalidate all the entries in the page cache referring 
-to my file, so that reads would be forced to go to the drive.  Can anyone 
-tell me how to do that?
 
-TIA,
-
-Alan Stern
-
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
