@@ -1,92 +1,81 @@
-Date: Mon, 5 Apr 2004 16:24:34 +0200
-From: Martin Schwidefsky <schwidefsky@de.ibm.com>
-Subject: Re: [PATCH] get_user_pages shortcut for anonymous pages.
-Message-ID: <20040405142433.GA5955@mschwid3.boeblingen.de.ibm.com>
+Received: from list by main.gmane.org with local (Exim 3.35 #1 (Debian))
+	id 1BAVPS-0008WN-00
+	for <linux-mm@kvack.org>; Mon, 05 Apr 2004 16:49:10 +0200
+Received: from finn.gmane.org ([80.91.224.251])
+        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 05 Apr 2004 16:49:10 +0200
+Received: from ku4s by finn.gmane.org with local (Gmexim 0.1 (Debian))
+        id 1AlnuQ-0007hv-00
+        for <linux-mm@kvack.org>; Mon, 05 Apr 2004 16:49:10 +0200
+From: "Kuas (gmane)" <ku4s@users.sourceforge.net>
+Subject: Re: Page Mapping
+Date: Mon, 05 Apr 2004 10:49:08 -0400
+Message-ID: <407171E4.4020002@users.sourceforge.net>
+References: <4070CB37.8070704@users.sourceforge.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
+In-Reply-To: <4070CB37.8070704@users.sourceforge.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: akpm@osdl.org
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+Sorry, please ignore some of the previous question.
 
-> I think this will do the wrong thing if the virtual address
-> refers to an anon page which is swapped out.
-Oh yes, follow_page returns NULL for swapped out pages.
+I found the answer in Intel Developer guide v3. 'pte_t' consists of the 
+base physical address of the page (20 MSB of pte_t) and page flags (12 
+LSB of pte_t). So to get the address, I just have to mask the pte_t with 
+PAGE_MASK.
 
-> You'd need to teach follow_page() to return one of three values:
-> page-present, page-not-present-but-used-to-be or
-> page-not-present-and-never-was.
-Hmm, this would get ugly because follow_page calls
-follow_huge_addr and follow_huge_pmd for system with highmem. I
-really don't want to change follow_page. Instead I added a check
-for pgd_none/pgd_bad and pmd_none/pmd_bad for page directory
-entries needed for the pages in question. After all the patch is
-supposed to prevent the creation of page tables so why not check
-the pgd/pmd slots? 
+Now the next question is can I just use that address and refer to it 
+right away? Like using a pointer? Or I still have to use some MMU mechanism?
 
-diff -urN linux-2.6/mm/memory.c linux-2.6-bigcore/mm/memory.c
---- linux-2.6/mm/memory.c	Sun Apr  4 05:36:58 2004
-+++ linux-2.6-bigcore/mm/memory.c	Mon Apr  5 16:06:10 2004
-@@ -688,6 +688,32 @@
- }
- 
- 
-+static inline int
-+untouched_anonymous_page(struct mm_struct* mm, struct vm_area_struct *vma,
-+			 unsigned long address)
-+{
-+	pgd_t *pgd;
-+	pmd_t *pmd;
-+
-+	/* Check if the vma is for an anonymous mapping. */
-+	if (vma->vm_ops && vma->vm_ops->nopage)
-+		return 0;
-+
-+	/* Check if page directory entry exists. */
-+	pgd = pgd_offset(mm, address);
-+	if (pgd_none(*pgd) || pgd_bad(*pgd))
-+		return 1;
-+
-+	/* Check if page middle directory entry exists. */
-+	pmd = pmd_offset(pgd, address);
-+	if (pmd_none(*pmd) || pmd_bad(*pmd))
-+		return 1;
-+
-+	/* There is a pte slot for 'address' in 'mm'. */
-+	return 0;
-+}
-+
-+
- int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 		unsigned long start, int len, int write, int force,
- 		struct page **pages, struct vm_area_struct **vmas)
-@@ -750,6 +776,18 @@
- 			struct page *map;
- 			int lookup_write = write;
- 			while (!(map = follow_page(mm, start, lookup_write))) {
-+				/*
-+				 * Shortcut for anonymous pages. We don't want
-+				 * to force the creation of pages tables for
-+				 * insanly big anonymously mapped areas that
-+				 * nobody touched so far. This is important
-+				 * for doing a core dump for these mappings.
-+				 */
-+				if (!lookup_write &&
-+				    untouched_anonymous_page(mm,vma,start)) {
-+					map = ZERO_PAGE(start);
-+					break;
-+				}
- 				spin_unlock(&mm->page_table_lock);
- 				switch (handle_mm_fault(mm,vma,start,write)) {
- 				case VM_FAULT_MINOR:
+And I don't see anywhere in the page struct to know how big is the page 
+filled? I don't think every page has all 4 KB filled, right? Or are all 
+the pages zeroed out before being reassigned? So I still can read the 
+whole page, just the last bytes will be 0x00 if it's not used.
+
+Kuas.
 
 
-blue skies,
-  Martin.
+Kuas (gmane) wrote:
+> Hello,
+> 
+> This might be very trivial question for people in this mailing list. I 
+> need to know if my understanding is correct.
+> 
+> We are doing some experiment with Linux kernel for security. Right now, 
+> we are trying to see some behavior in the Linux memory management. I am 
+> trying to track and possibly scan (for now) all the pages that's just 
+> brought into the memory. I am doing this in i386 arch and Linux kernel 
+> 2.4.22.
+> 
+> I think it would be good to do it in: mm/memory.c in do_no_page(). At 
+> the end of the function, I have references to pte_t and page struct of 
+> the fresh new page that's just brought in from disk (not swapped).
+> 
+> This is diagram the diagram I'm going to refer:
+> http://www.skynet.ie/~mel/projects/vm/guide/html/understand/node24.html
+> 
+>  From my understanding from the diagram of Linear Address to Page 
+> conversion (please let me know if I'm correct or misunderstood). The 
+> struct "pte_t->pte_low" an entry if PTE table, is the base 'physical' 
+> address of the page. In this case I can just use it to reference the 
+> page. I can't find any other conversion method to get another address.
+> 
+> Assuming I have that address, can I just direct reference that address 
+> (assuming the address is physical and from kernel mode) or do I have to 
+> use some methods to access the page content?
+> 
+> How do I know the size of the page that's filled though? I can't see 
+> that information from the page struct.
+> 
+> Thanks in Advance for comments and information.
+> 
+> 
+> Kuas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
