@@ -1,45 +1,26 @@
-Date: Wed, 28 Jul 2004 00:03:40 -0700
+Date: Wed, 28 Jul 2004 02:26:25 -0700
 From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH] Move cache_reap out of timer context
-Message-Id: <20040728000340.7f95060f.akpm@osdl.org>
-In-Reply-To: <20040714180942.GA18425@sgi.com>
-References: <20040714180942.GA18425@sgi.com>
+Subject: Re: Scaling problem with shmem_sb_info->stat_lock
+Message-Id: <20040728022625.249c78da.akpm@osdl.org>
+In-Reply-To: <Pine.LNX.4.44.0407132113350.8577-100000@localhost.localdomain>
+References: <Pine.SGI.4.58.0407131449330.111843@kzerza.americas.sgi.com>
+	<Pine.LNX.4.44.0407132113350.8577-100000@localhost.localdomain>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dimitri Sivanich <sivanich@sgi.com>
-Cc: manfred@colorfullife.com, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
+To: Hugh Dickins <hugh@veritas.com>
+Cc: bcasavan@sgi.com, wli@holomorphy.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dimitri Sivanich <sivanich@sgi.com> wrote:
+Hugh Dickins <hugh@veritas.com> wrote:
 >
-> I'm submitting two patches associated with moving cache_reap functionality
->  out of timer context.  Note that these patches do not make any further
->  optimizations to cache_reap at this time.
-> 
->  The first patch adds a function similiar to schedule_delayed_work to
->  allow work to be scheduled on another cpu.
-> 
->  The second patch makes use of schedule_delayed_work_on to schedule
->  cache_reap to run from keventd.
+> Though wli's per-cpu idea was sensible enough, converting to that
+>  didn't appeal to me very much.  We only have a limited amount of
+>  per-cpu space, I think, but an indefinite number of tmpfs mounts.
 
-It goes splat in cache_reap() if slab debugging is enabled, for rather
-obvious reasons:
-
-#if DEBUG
-	BUG_ON(!in_interrupt());
-	BUG_ON(in_irq());
-#endif
-
-I've so far spent nearly two days just getting all the gunk people have
-sent in the last two weeks to compile properly.  Heaven knows how long
-it'll take to test it.  So I need somebody to grump at.  So.  Grump.
-
-May I have the temerity to suggest that it would be more efficient if
-people were to test their own patches a bit more before sending them?
-
+What's wrong with <linux/percpu_counter.h>?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
