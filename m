@@ -1,71 +1,115 @@
-Date: Tue, 21 Dec 2004 09:36:31 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
-In-Reply-To: <20041221093628.GA6231@wotan.suse.de>
-Message-ID: <Pine.LNX.4.58.0412210925370.4112@ppc970.osdl.org>
-References: <Pine.LNX.4.44.0412210230500.24496-100000@localhost.localdomain>
- <Pine.LNX.4.58.0412201940270.4112@ppc970.osdl.org>
- <Pine.LNX.4.58.0412201953040.4112@ppc970.osdl.org> <20041221093628.GA6231@wotan.suse.de>
+Received: from internal-mail-relay1.corp.sgi.com (internal-mail-relay1.corp.sgi.com [198.149.32.52])
+	by omx3.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id iBLJU6TV014048
+	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 11:30:11 -0800
+Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
+	by internal-mail-relay1.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id iBLKBh0W142610995
+	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 12:11:43 -0800 (PST)
+Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
+	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id iBLK8Pae8980273
+	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 12:08:25 -0800 (PST)
+Date: Tue, 21 Dec 2004 11:55:27 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Increase page fault rate by prezeroing V1 [0/3]: Overview
+In-Reply-To: <41C20E3E.3070209@yahoo.com.au>
+Message-ID: <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
+References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com>
+ <41C20E3E.3070209@yahoo.com.au>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
+ReSent-To: linux-mm@kvack.org
+ReSent-Message-ID: <Pine.LNX.4.58.0412211208170.1453@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: "Luck, Tony" <tony.luck@intel.com>, Robin Holt <holt@sgi.com>, Adam Litke <agl@us.ibm.com>, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@vger.kernel.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
+The patches increasing the page fault rate (introduction of atomic pte operations
+and anticipatory prefaulting) do so by reducing the locking overhead and are
+therefore mainly of interest for applications running in SMP systems with a high
+number of cpus. The single thread performance does just show minor increases.
+Only the performance of multi-threaded applications increase significantly.
 
-On Tue, 21 Dec 2004, Andi Kleen wrote:
-> 
-> Sorry, but I think that's a very bad approach. If the i386 users
-> don't get warnings I will need to spend a lot of time just patching
-> behind them. While x86-64 is getting more and more popular most
-> hacking still happens on i386.
+The most expensive operation in the page fault handler is (apart of SMP
+locking overhead) the zeroing of the page that is also done in the page fault
+handler. Others have seen this too and have tried provide a way to provide
+zeroed pages to the page fault handler:
 
-That's true, but it's not an issue for several reasons:
+http://marc.theaimsgroup.com/?t=109914559100004&r=1&w=2
+http://marc.theaimsgroup.com/?t=109777267500005&r=1&w=2
+http://marc.theaimsgroup.com/?l=linux-kernel&m=104931944213955&w=2
 
- - we can easily update just _x86_ to be type-safe (ie add the fourth 
-   level to x86 just to get type safety, even if it's folded). That 
-   doesn't mean that we have to worry about 20 _other_ architectures, that 
-   most developers can't even test.
+The problem so far has been that simple zeroing of pages simply shifts
+the time spend somewhere else. Plus one would not want to zero hot
+pages.
 
-   Iow, the lack of type-safety is not something forced by the approach. 
-   The lack of type safety is an _option_ to allow architectures to not
-   have to have a flag-day when everybody needs to switch.
+This patch addresses those issues by making it more effective to zero pages by:
 
-   In fact, the lack of type-safety would allow every single intermediate
-   patch to always compile, and work - on all architectures. Which isn't
-   true in the current series, and which is a really nice feature, because 
-   it means that you really can build up the thing entirely, up to the 
-   point where you "turn it on" one architecture at a time.
+1. Aggregating zeroing operations to mainly apply to larger order pages
+which results in many later order 0 pages to be zeroed in one go.
+For that purpose a new achitecture specific function zero_page(page, order)
+is introduced.
 
- - even if we left x86 type-unsafe, the fact is, the things that walk the 
-   page tables almost never get changed. I don't remember the last time we 
-   really changed things around all that much. So even without x86, it 
-   likely wouldn't be a problem.
+2. Hardware support for offloading zeroing from the cpu. This avoids
+the invalidation of the cpu caches by extensive zeroing operations.
 
-> Also is the flag day really that bad?
+The result is a significant increase of the page fault performance even for
+single threaded applications:
 
-I think that _avoiding_ a flag-day is always good. Also, more importantly,
-it looks like this approach allows each patch to be smaller and more 
-self-contained, ie we never have the situation where "uhhuh, now it won't 
-compile on arch Xxxx for ten patches, until we turn things on". The 
-smaller the patches are, the more obvious any problems will be.
+w/o patch:
+ Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+   4   3    1    0.146s     11.155s  11.030s 69584.896  69566.852
 
-Think of it this way: for random architecture X, the four-level page table 
-patches really should make _no_ difference until they are enabled. So you 
-can do 90% of the work, and be pretty confident that things work. Most 
-importantly, if things _don't_ work before the thing has been enabled, 
-that's a big clue ;)
+w/patch
+ Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+   1   1    1    0.014s      0.110s   0.012s524292.194 517665.538
 
-And then, the last (small) patch for architecture X actually ends up 
-enabling the work. Everybody will be happier with something like that, 
-since it makes merging _much_ easier. For example, I'll have zero problems 
-at all with merging the infrastructure the day after 2.6.10 is released, 
-since I'll know that it won't hurt any of the other architectures, and it 
-won't make trouble for anybody.
+This is a performance increase by a factor 8!
 
-		Linus
+The performance can only be upheld if enough zeroed pages are available.
+In a heavy memory intensive benchmark the system will run out of these very
+fast but the efficient algorithm for page zeroing still makes this a winner
+(8 way system with 6 GB RAM, no hardware zeroing support):
+
+w/o patch:
+
+Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+ 4   3    1    0.146s     11.155s  11.030s 69584.896  69566.852
+ 4   3    2    0.170s     14.909s   7.097s 52150.369  98643.687
+ 4   3    4    0.181s     16.597s   5.079s 46869.167 135642.420
+ 4   3    8    0.166s     23.239s   4.037s 33599.215 179791.120
+
+w/patch
+Gb Rep Threads   User      System     Wall flt/cpu/s fault/wsec
+ 4   3    1    0.183s      2.750s   2.093s268077.996 267952.890
+ 4   3    2    0.185s      4.876s   2.097s155344.562 263967.292
+ 4   3    4    0.150s      6.617s   2.097s116205.793 264774.080
+ 4   3    8    0.186s     13.693s   3.054s 56659.819 221701.073
+
+The patch is composed of 3 parts:
+
+[1/3] Introduce __GFP_ZERO
+	Modifies the page allocator to be able to take the __GFP_ZERO flag
+	and returns zeroed memory on request. Modifies locations throughout
+	the linux sources that retrieve a page and then zeroe it to request
+	a zeroed page.
+	Adds new low level zero_page functions for i386, ia64 and x86_64.
+	(x64_64 untested)
+
+[2/3] Page Zeroing
+	Adds management of ZEROED and NOT_ZEROED pages and a background daemon
+	called scrubd. scrubd is disable by default but can be enabled
+	by writing an order number to /proc/sys/vm/scrub_start. If a page
+	is coalesced of that order then the scrub daemon will start zeroing
+	until all pages of order /proc/sys/vm/scrub_stop and higher are
+	zeroed.
+
+[3/3]	SGI Altix Block Transfer Engine Support
+	Implements a driver to shift the zeroing off the cpu into hardware.
+	With hardware support there will be minimal impact of zeroing
+	on the performance of the system.
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
