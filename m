@@ -1,69 +1,36 @@
-Date: Fri, 24 Nov 2000 13:23:40 +0100 (MET)
-From: Szabolcs Szakacsits <szaka@f-secure.com>
-Subject: Re: [PATCH] Reserved root VM + OOM killer
-In-Reply-To: <20001123014206.D96@toy>
-Message-ID: <Pine.LNX.4.30.0011241145200.12335-100000@fs129-190.f-secure.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from manet.magma-da.com (manet.magma-da.com [10.1.1.173])
+	by magma-da.com (8.9.3+Sun/8.9.3) with ESMTP id CAA05848
+	for <linux-mm@kvack.org>; Sat, 25 Nov 2000 02:45:05 -0800 (PST)
+Date: Sat, 25 Nov 2000 02:45:05 -0800 (PST)
+Message-Id: <200011251045.CAA07659@manet.magma-da.com>
+From: Raymond Nijssen <raymond.nijssen@Magma-DA.COM>
+Subject: Re: max memory limits ??? 
+In-Reply-To: <3A1BCC05.4080608@SANgate.com>; from gabriel@SANgate.com on Wed, Nov 22, 2000 at 03:37:09PM +0200 
+References: <3A1BCC05.4080608@SANgate.com> 
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Pavel Machek <pavel@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 23 Nov 2000, Pavel Machek wrote:
+>Matti Aarnio <matti.aarnio@zmailer.org> wrote:
+>On Wed, Nov 22, 2000 at 03:37:09PM +0200, BenHanokh Gabriel wrote:
 
-> > HOW?
-> > No performance loss, RAM is always fully utilized (except if no swap),
->
-> Handheld machines never have any swap, and alwys have little RAM [trust me,
-> velo1 I'm writing this on is so tuned that 100KB les and machine is useless].
->  Unless reservation  can be turned off, it is not acceptable. Okay, it can
-> be tuned. Ok, then.
->
-> [What about making default reserved space 10% of *swap* size?]
+>> can some1 explain the memory limits on the 2.4 kernel
 
-No. Many people uses no swap even if they have plenty of RAM. I wasn't
-right when I wrote the "reserved" VM is on swap or in buffer/page
-cache. I wanted to write the reserved VM is unused swap and/or it is
-*used* as buffer/page cache until it's not needed by root. Left away
-swap from the former sentence and you get no RAM is wasted at all ;)
+>> - what is the limit for user-space apps ?
 
-Moreover the default value for boxes with less than 8MB is 0 pages (I
-thought about "embedded" systems), it's 5 MB if the box has more then
-100MB and 5% of the RAM but after considered it as part of the VM
-between 8MB and 100MB. I found in my setup, at least 4 MB needed to be
-useful if root wants to act sure. Of course this can be different in
-other setups and application behaviours -- this is why it can be tuned
-runtime. Using more "reserved" [this is really a stupid and not
-accurate name] VM definitely helps :) BTW, apparently Solaris reserves
-4 MB for root.
+>        At 32 bit systems:  3.5 GB with extreme tricks, 3 GB for more usual.
 
-I also thought about making it a compile time option [for people using
-Linux as embedded systmes] in that case you would have less than 25%
-chance to save one page -- I would instead optimize the compiler ;)
-.... but maybe embedded systems use non-overcomittable memory
-handling, I didn't look how they handle OOM.
 
-I'm afraid I was also wrong about performance, here is a typical case
-how standard 2.2 kernel works if OOM happens: killing gpm, vmstat,
-syslogd, tail, httpd, zsh, identd, httpd, klogd, httpd, httpd, httpd
-[the main httpd, web is dead], bad_app. If there is more bad_app
-[working on the same problem but e.g. they were feeded by wrong input,
-etc], then you have the big chance you must hit the reset button. With
-Rik's OOM killer, the "right" processes are killed but I found the
-system trashes too long and because of the constant memory pressure
-you still must hit the reset button. With my patch + fixes of Rik's
-OOM killer, the "right"  processes are killed fast [it's done only in
-page fault, contrary to 2.4.0-test11 that has two OOM killer: one in
-page fault and Rik's one ... pretty ugly] and you can do whatever you
-want as root. It would be nice to see which one of the three cases
-would finish a job first where multiply processes [not threads] work
-on the same job saving the partial results and constantly producing
-OOM.
+What are those tricks?   Do they involve changing TASK_SIZE ?
 
-	Szaka
+And why do programs get mapped at 0x08000000 instead of 0x00001000 ?
+This is wasting another 5% of the addressing space.
 
+Please CC me on your reply.
+
+Thanks,
+-Raymond
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
