@@ -1,5 +1,5 @@
-Message-ID: <3910E40B.25FBEED4@sgi.com>
-Date: Wed, 03 May 2000 19:44:27 -0700
+Message-ID: <3910EB99.2B9E1980@sgi.com>
+Date: Wed, 03 May 2000 20:16:41 -0700
 From: Rajagopal Ananthanarayanan <ananth@sgi.com>
 MIME-Version: 1.0
 Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
@@ -18,29 +18,36 @@ Linus Torvalds wrote:
 >  there's a pre7-4 out there that does the swapout with the page locked.
 > I've given it some rudimentary testing, but certainly nothing really
 > exotic. Please comment..
+> 
 
-One quick comment: Looking at this part of the diff to mm/vmscan.c:
+One other problem with having the page locked in
+try_to_swapout() is in the call to 
+prepare_highmem_swapout() when the incoming
+page is in highmem. Then,
+  
+(1) The newly allocated page (regular_page) needs to be locked.
+    This is may be trivial as setting PG_locked in regular_page,
+    since no one else knows about it.
 
-----------
-@@ -138,6 +139,7 @@
-                flush_tlb_page(vma, address);
-                vmlist_access_unlock(vma->vm_mm);
-                error = swapout(page, file);
-+               UnlockPage(page);
-                if (file) fput(file);
-                if (!error)
-                        goto out_free_success;
------------------
+(2) Before __free_page() is called on the incoming highmem
+     page it needs to be unlocked --- otherwise, we'll have
+     dejavu all over in __free_pages_ok!
+    This is a little tricky however, since not all callers of
+    prepare_highmem_swapout() have the incoming page locked.
+    For now, you can get away with something like
+    (in mm/highmem.c):
 
-Didn't you mean the UnlockPage() to go before swapout(...)?
-For example, one of the swapout routines, filemap_write_page()
-expects the page to be unlocked. If called with page locked,
-I'd expect a "double-trip" dead-lock. Right?
+        /*
+         * ok, we can just forget about our highmem page since
+         * we stored its data into the new regular_page.
+         */
++	if (PageLocked(page))
++		UnlockPage(page);
+       __free_page(page);
 
-Like you said in an  earlier mail, most of the code in
-try_to_swap_out expects the page to be unlocked. Now,
-of course, the reverse is true ... need to watch out!
 
+
+    
 -- 
 --------------------------------------------------------------------------
 Rajagopal Ananthanarayanan ("ananth")
