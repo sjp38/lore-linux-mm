@@ -1,51 +1,44 @@
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA24425
-	for <linux-mm@kvack.org>; Sat, 25 Apr 1998 01:33:00 -0400
-Subject: Re: Fixing private mappings
-References: <Pine.LNX.3.95.980423105842.15346A-100000@as200.spellcast.com>
-	<m1g1j4nqll.fsf@flinx.npwt.net>
-	<199804242037.VAA01182@dax.dcs.ed.ac.uk>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 25 Apr 1998 00:30:53 -0500
-In-Reply-To: "Stephen C. Tweedie"'s message of Fri, 24 Apr 1998 21:37:45 +0100
-Message-ID: <m1hg3imprm.fsf@flinx.npwt.net>
+Date: Sat, 25 Apr 1998 11:33:49 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Subject: Re: VM support for transaction processing
+In-Reply-To: <Pine.LNX.3.96.980424174134.891C-100000@carissimi.coda.cs.cmu.edu>
+Message-ID: <Pine.LNX.3.95.980425111213.26382B-100000@as200.spellcast.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>
-Cc: linux-mm@kvack.org
+To: "Peter J. Braam" <braam@cs.cmu.edu>
+Cc: torvalds@transmeta.com, linux-kernel@vger.rutgers.edu, linux-coda@TELEMANN.coda.cs.cmu.edu, Michael Callahan <mjc@stelias.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->>>>> "ST" == Stephen C Tweedie <sct@dcs.ed.ac.uk> writes:
+On Fri, 24 Apr 1998, Peter J. Braam wrote:
+...
+> Is there a method to say to the kernel: 
+> 
+> A)  this page is now starting to diverge from its disk copy, start
+> treating it as VM.
+> B)  we have now synced this page, forget about VM, it's backed by the
+> file again if you need to swap it out.
+> 
+> If not can we do something about that easily?
+...
 
-ST> Hi,
-ST> On 23 Apr 1998 17:03:02 -0500, ebiederm+eric@npwt.net (Eric
-ST> W. Biederman) said:
+There are two answers to the question depending on where you're asking to
+get this behaviour: if you want to do this from a user space process, mmap
+w/MAP_PRIVATE and msync w/MS_INVALIDATE will do what you want.  However,
+if you're looking to do this within the kernel to support transaction
+processing on memory mappings, life is a bit more difficult as MAP_SHARED
+mappings allow user space processes to write into a page even while it is
+being updated on disk (okay under most circumstances as a future update is
+guarenteed).  That behavior could be changed easily enough by walking the 
+i_mmap ring and invalidating any pages before actually beginning the
+write.
 
-ST> No --- in the context of a MAP_PRIVATE mapping, only in-memory writes to
-ST> the privately mapped virtual address space count as write references.  
+Hmmm, looking at filemap_swapin: shouldn't it wait for the page to become
+unlocked before allowing the user to make use of the mapping?  Should the
+write semantics of mmapings be cleaned up before 2.2?  I'm thinking of a
+small set of changes: write protect pages when beginning to write them out
+to disk (to avoid the performance hit on the normal case, have a hint bit
+in page->flags if the page has any writable mappings), and make
+filemap_swapin wait for the page to become !Locked && Uptodate.
 
-Got it. 
-I still like the semantics I defined, but if they aren't defined as
-map_private I won't worry about it for the present.
-
-Sometime it might be worth it/fun implementing a MAP_SNAPSHOT, but I
-won't worry about that for the present.
-
-ST> Yep, but we are not required to support non-page-aligned maps at all, so
-ST> hacking it for special read-only cases is no big deal.  Doing a search
-ST> for all overlapping mapped pages would be far too slow.
-
-I think in the general case I could implement it without overhead and
-in the common a.out case within a factor of 2, and in the worst case
-within a factor of 4 (assuming a restriction of 1k alignment).  And
-this is primarly memcpy cost there should be no need for extra disk
-i/o.
-
-The scheme I'm playing with using will share the same case as extra
-huge file I/O (> 16TB), and in the common case should perform
-identically to what we have now.
-
-Thanks for setting me straight.  It hadn't been my intention to play
-with mmap until I found this really weird use of that mmap makes of
-the page_cache, so I really wasn't prepared for that one.
-
-Eric
+		-ben
