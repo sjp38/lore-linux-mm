@@ -1,57 +1,50 @@
-Date: Tue, 22 Apr 2003 11:26:21 -0400 (EDT)
-From: Ingo Molnar <mingo@redhat.com>
+Date: Tue, 22 Apr 2003 08:42:48 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: objrmap and vmtruncate
-In-Reply-To: <20030422145644.GG8978@holomorphy.com>
-Message-ID: <Pine.LNX.4.44.0304221110560.10400-100000@devserv.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20030422154248.GI8978@holomorphy.com>
+References: <170570000.1051021741@[10.10.2.4]> <Pine.LNX.4.44.0304221032560.10400-100000@devserv.devel.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.44.0304221032560.10400-100000@devserv.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: William Lee Irwin III <wli@holomorphy.com>
-Cc: Andrew Morton <akpm@digeo.com>, Andrea Arcangeli <andrea@suse.de>, mbligh@aracnet.com, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@redhat.com>
+Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@digeo.com>, Andrea Arcangeli <andrea@suse.de>, mingo@elte.hu, hugh@veritas.com, dmccr@us.ibm.com, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 22 Apr 2003, William Lee Irwin III wrote:
+On Tue, Apr 22, 2003 at 11:07:32AM -0400, Ingo Molnar wrote:
+> also, it's an inherent DoS thing. Any application that has the 'privilege'
+> of creating 1000 mappings in 1000 processes to the same inode (this is
+> already being done, and it will be commonplace in a few years) will
+> immediately DoS the whole VM. I might be repeating myself, but quadratic
+> algorithms do get linearly _worse_ as the hw evolves. The pidhash
+> quadratic behavior triggering the NMI watchdog on the biggest boxes is
+> just one example of this.
 
-> > just create a sparse enough memory layout (one page mapped every 2MB) and
-> > pagetable overhead will dominate. Is it a problem in practice? I doubt it,
-> > and you get what you asked for, and you can always offset it with RAM.
-> 
-> Actually it wasn't from sparse memory, it was from massive sharing.
-> Basically 10000 processes whose virtualspace was dominated by shmem
-> shared across all of them.
-> 
-> On some reflection I suspect a variety of techniques are needed here.
+I have to apologize for my misstatements of the problem here. You
+yourself pointed out to me the hold time was, in fact, linear. Despite
+the linearity of the algorithm, the failure mode persists. I've
+postponed further investigation until later, when more invasive
+techniques are admissible; /proc/ alone will not suffice if linear
+algorithms under tasklist_lock can trigger this failure mode.
 
-there are two main techniques to reduce per-context pagetable-alike
-overhead: 1) the use of pagetable sharing via CLONE_VM 2) the use of
-bigger MMU units with a much smaller pagetable hw cost [hugetlbs].
+I believe further work is needed but I can't think of a 2.5.x mergeable
+method to address it. I've attempted to devolve the work to others in
+the hopes that future solutions might be devised. It's unfortunate but
+general algorithmic scalability for scenarios like this has a real cost
+for the low-end and it's a problem I don't feel comfortable trying to
+fix in the middle of 2.5.x stabilization for more general systems.
 
-all of this is true, and still remains valid. None of this changes the
-fact that objrmap, as proposed, introduces a quadratic component to a
-central piece of code. If then we should simply abort any mmap() attempt
-that increases the sharing factor above a certain level, or something like
-that.
+Unless a refinement of either manfred's or your patches can be made to
+pass the test (apologies again; I don't recall the results, my time on
+the whole system is very limited and it was a while ago) I suspect very
+little can be done for 2.5.x here. IMHO a series of patches to
+eliminate all remaining linear scans under tasklist_lock alongside a
+fair locking construct will be eventually required, though, of course,
+only a solution is required, not my expectation.
 
-using nonlinear mappings adds the overhead of pte chains, which roughly
-doubles the pagetable overhead. (or companion pagetables, which triple the
-pagetable overhead) Purely RAM-wise the break-even point is at around 8
-pages, 8 pte chain entries make up for 64 bytes of vma overhead.
-
-the biggest problem i can see is that we (well, the kernel) has to make a
-judgement of RAM footprint vs. algorithmic overhead, which is apples to
-oranges. Nonlinear vmas [or just linear vmas with pte chains installed],
-while being only O(N), double/triple the pagetable overhead. objrmap
-linear vmas, while having only the pagetable overhead, are O(N^2). [well,
-it's O(N*M)]
-
-RAM-footprint wise the boundary is clear: above 8 pages of granularity,
-vmas with objrmap cost less RAM than nonlinear mappings.
-
-CPU-time-wise the nonlinear mappings with pte chains always beat objrmap.
-
-	Ingo
-
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
