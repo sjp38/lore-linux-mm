@@ -1,45 +1,70 @@
 Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA11493
-	for <linux-mm@kvack.org>; Wed, 22 Apr 1998 17:29:39 -0400
-Subject: filemap_nopage is broken!!
+	by kvack.org (8.8.7/8.8.7) with ESMTP id AAA13132
+	for <linux-mm@kvack.org>; Thu, 23 Apr 1998 00:54:48 -0400
+Subject: Fixing private mappings
 From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 22 Apr 1998 15:51:07 -0500
-Message-ID: <m1vhs1oa10.fsf@flinx.npwt.net>
+Date: 23 Apr 1998 00:06:31 -0500
+Message-ID: <m1ra2pnn3c.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-While looking at what is needs to happen to get large file support
-working on linux-intel, I discovered an interesting twist with
-generic_file_mmap.
+Please excuse me for thinking out loud but private mappings seems to be
+a hard problem that has not been correctly implemented in the linux
+kernel.
 
-mmap being the most interesting case to port, because the generic
-interface allows for non aligned mappings.  Making it the most
-intersting case to handle.
+Definition of Private Mappings:
+ A private mapping is a copy-on-write mapping of a file.  
 
-generic_file_mmap allows filesystem block aligned mappings if the
-mapping is private.  The way it implements this, after I finally
-tracked it is broken.
+ That is if the file is written to after the mapping is established,
+ the contents of the mapping will always remain what the contents of
+ the file was at the time of the private mapping.
 
-For private mappings the same filemap_nopage function that is used for
-shared mappings is used.  The filemap_nopage function alwasy make sure
-it's pages are in the page cache before it uses them.
+ Further if another private mapping is established after one
+ private mapping has been established it should have the file contents
+ of the file at the time the mapping is established.  Not at the time
+ any previous private mapping was established.
 
-For a private mapping (not page aligned) this results in a non-aligned
-page to be created in the page cache.
+A few ideas occur to me for specific problems, but the whole problem
+is a challenge.
 
-Now if the following sequence of actions occure.
-a) A page is mapped privately with poor alignment.
-b) That part of the file is written again.
-c) The page is again mapped privately with poor alignment.
+What I do know is that we need some kind of write barrier that we
+check to see if we have made a copy of a page for any private mappings
+that may exist before we write to it.
 
-When the page cache page is not scavenged between a and c, the same
-data is read, despite the fact it has changed on disk, and in the
-aligned page cache page!
+How should we find those private mappings?
 
-That is broken behavior.
+Wait.  That would be follow inode->i_mmap whenver we read in a page.
+And then have code in generic_file_write, and update_vm_cache, to make
+sure the copies are made at the appropriate times.
 
-Does anyone know where it comes from?
+How should we maximize sharing of private mappings?
+
+The simplest solution would be to continue with the current solution,
+and just restrict mappings 512 byte boundaries.
+
+A slightly more generic solution would be to introduce a new ``inode''
+that new it was a copy of the old inode but at a different offset.  If
+these new ``inodes'' would then have a linked list of their own, that
+could be followed for update purposes.  
+
+--
+Extra inodes for files could also be extended to allow an offset at
+say 4TB or so into a file so that we can handle any sized file.
+Though obviously you can't cache it all at once, but you could cache
+any piece ;)  
+
+There is a possibility there for per-inode metadata too but I'm not
+certain about that one.
+
+I think since my initial goal was large file support with the common
+case on intel being restricted to 32bit integers, I'll play with the
+extra inodes approach.
+
+It will probably be smart to restrict ourselves to still only allowing
+mappings on fs block boundaries.  There are some efficiency gained
+there (on reading pages that are totally not in memory in) but
+otherwise we should be fine.
 
 Eric
