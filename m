@@ -1,27 +1,28 @@
-Date: Fri, 8 Oct 1999 12:01:00 +0200 (CEST)
+Date: Fri, 8 Oct 1999 17:06:49 +0200 (CEST)
 From: Rik van Riel <riel@nl.linux.org>
 Subject: Re: zone allocator
-In-Reply-To: <37FD271A.20159EE7@pobox.com>
-Message-ID: <Pine.LNX.4.10.9910081159450.12463-100000@imladris.dummy.home>
+In-Reply-To: <wd8u2o16hph.fsf@parate.irisa.fr>
+Message-ID: <Pine.LNX.4.10.9910081705510.12463-100000@imladris.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jeff Garzik <jgarzik@pobox.com>
-Cc: linux-mm@kvack.org
+To: David Mentr'e <David.Mentre@irisa.fr>
+Cc: Jeff Garzik <jgarzik@pobox.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 7 Oct 1999, Jeff Garzik wrote:
+On 8 Oct 1999, David Mentr'e wrote:
+> Jeff Garzik <jgarzik@pobox.com> writes:
+> 
+> > Has anybody done any coding, or additional thought, towards a zone
+> > allocator?
+> 
+> Rik van Riel has some though on this:
+>   http://www.linux.eu.org/~riel/zone-alloc.html
 
-> Has anybody done any coding, or additional thought, towards a zone
-> allocator?
-
-People have been thinking about it a lot, but we haven't
-gotten around to coding one. If all goes well, however,
-I'll have quite a bit more time for kernel work from
-december onwards...
-
-regards,
+I have to point out that the ideas on that page are outdated.
+>From december onwards I hope to get working on these things
+again...
 
 Rik
 --
