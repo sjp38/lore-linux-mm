@@ -1,40 +1,37 @@
-Date: Fri, 18 Jun 2004 15:03:37 -0700
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [PATCH]: Option to run cache reap in thread mode
-Message-Id: <20040618150337.2b3db85b.akpm@osdl.org>
-In-Reply-To: <40D358C5.9060003@colorfullife.com>
-References: <40D08225.6060900@colorfullife.com>
-	<20040616180208.GD6069@sgi.com>
-	<40D09872.4090107@colorfullife.com>
-	<20040617131031.GB8473@sgi.com>
-	<20040617214035.01e38285.akpm@osdl.org>
-	<20040618143332.GA11056@sgi.com>
-	<20040618134045.2b7ce5c5.akpm@osdl.org>
-	<40D358C5.9060003@colorfullife.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <20040619003712.35865.qmail@web10904.mail.yahoo.com>
+Date: Fri, 18 Jun 2004 17:37:12 -0700 (PDT)
+From: Ashwin Rao <ashwin_s_rao@yahoo.com>
+Subject: Atomic operation for physically moving a page
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: sivanich@sgi.com, linux-kernel@vger.kernel.org, lse-tech@lists.sourceforge.net, linux-mm@kvack.org
+To: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Manfred Spraul <manfred@colorfullife.com> wrote:
->
-> I'll write something:
-> - allow to disable the DMA kmalloc caches for archs that do not need them.
-> - increase the timer frequency and scan only a few caches in each timer.
-> - perhaps a quicker test for cache_reap to notice that nothing needs to 
-> be done. Right now four tests are done (!flags & _NO_REAP, 
-> ac->touched==0, ac->avail != 0, global timer not yet expired). It's 
-> possible to skip some tests. e.g. move the _NO_REAP caches on a separate 
-> list, replace the time_after(.next_reap,jiffies) with a separate timer.
+I want to copy a page from one physical location to
+another (taking the appr. locks). To keep the
+operation of copying and updation of all ptes and
+caches atomic one way proposed by my team members was
+to sleep the processes accessing the page.
+ptep_to_mm gives us the mm_struct but container_of
+cannot help to get to task_struct as it contains a
+mm_struct pointer. Is there any way of identifying the
+proccess's from the pte_entry.
+Is there any way out to solve my original problem  of
+keeping the whole operation of copying and updation
+atomic as this is a bad solution for real time
+processes but is there any other way out.
 
-Come to think of it, replacing the timer with schedule_delayed_work() and
-doing it all via keventd should work OK.  Doing everything in a single pass
-is the most CPU-efficient way of doing it, and as long as we're preemptible
-and interruptible the latency issues will be solved.
+Ashwin
+
+
+
+		
+__________________________________
+Do you Yahoo!?
+New and Improved Yahoo! Mail - Send 10MB messages!
+http://promotions.yahoo.com/new_mail 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
