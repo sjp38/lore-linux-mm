@@ -1,55 +1,39 @@
-Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA24458
-	for <linux-mm@kvack.org>; Thu, 19 Nov 1998 15:37:28 -0500
-Date: Thu, 19 Nov 1998 21:05:35 +0100 (CET)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: Two naive questions and a suggestion
-In-Reply-To: <19981119002037.1785.qmail@sidney.remcomp.fr>
-Message-ID: <Pine.LNX.3.96.981119210154.16706B-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from Cantor.suse.de (Cantor.suse.de [194.112.123.193])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA24823
+	for <linux-mm@kvack.org>; Thu, 19 Nov 1998 16:36:22 -0500
+Message-ID: <19981119223434.00625@boole.suse.de>
+Date: Thu, 19 Nov 1998 22:34:34 +0100
+From: "Dr. Werner Fink" <werner@suse.de>
+Subject: Re: Linux-2.1.129..
+References: <Pine.LNX.3.95.981119002335.838A-100000@penguin.transmeta.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.3.95.981119002335.838A-100000@penguin.transmeta.com>; from Linus Torvalds on Thu, Nov 19, 1998 at 12:33:19AM -0800
 Sender: owner-linux-mm@kvack.org
-To: jfm2@club-internet.fr
-Cc: linux-mm@kvack.org
+To: Linus Torvalds <torvalds@transmeta.com>, Kernel Mailing List <linux-kernel@vger.rutgers.edu>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On 19 Nov 1998 jfm2@club-internet.fr wrote:
+> 
+> Have fun with it, and tell me if it breaks. But it won't. I'm finally
+> getting the old "greased weasel" feeling back. In short, this is the much
+> awaited perfect and bug-free release, and the only reason I don't call it
+> 2.2 is that I'm chicken.
+> 
+> 	Kvaa, kvaa,
+> 			Linus
 
-> 1) Is there any text describing memory management in 2.1?  (Forgive me
->    if I missed an obvious URL)
+Yes on a 512MB system it's a great win ... on a 64 system I see
+something like a ``swapping weasel'' under high load.
 
-Not yet, I really should be working on that (the code
-seems to have stabilized now)...
+It seems that page ageing or something *similar* would be nice
+for a factor 512/64 >= 2  ... under high load and not enough
+memory it's maybe better if we could get the processes in turn
+into work instead of useless swapping (this was a side effect
+of page ageing due to the implicit slow down).
 
-> 2) Are there plans for implementing the swapping of whole processes a
->    la BSD?
 
-Yes, there are plans. The plans are quite detailed too, but
-I think I haven't put them up on my home page yet.
-
-> Suggestion: Given that the requiremnts for a workstation (quick
-> response) are different than for a server (high throughput) it could
-> make sense to allow the user either use /proc for selecting the VM
-> policy or have a form of loadable VM manager.  Or select it at
-> compile time. 
-
-There are quite a lot of things you can tune in /proc,
-I don't know if you have read the documentation, but
-if you start trying things you'll be amazed hom much
-you can change the system's behaviour with the existing
-controls.
-
-Btw, since you are so enthusiastic about documentation,
-would you be willing to help me write it?
-
-cheers,
-
-Rik -- slowly getting used to dvorak kbd layout...
-+-------------------------------------------------------------------+
-| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
-| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
-+-------------------------------------------------------------------+
+          Werner
 
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
