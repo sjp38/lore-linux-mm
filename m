@@ -1,7 +1,9 @@
+Date: Thu, 10 Jul 2003 01:23:12 -0700
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: 2.5.74-mm3 - module-init-tools: necessary to replace root
-	copies?
-From: Piet Delaney <piet@www.piet.net>
-In-Reply-To: <20030710001853.5a3597b7.akpm@osdl.org>
+ copies?
+Message-Id: <20030710012312.424b1ca2.akpm@osdl.org>
+In-Reply-To: <1057824946.15253.30.camel@www.piet.net>
 References: <20030708223548.791247f5.akpm@osdl.org>
 	<200307091106.00781.schlicht@uni-mannheim.de>
 	<20030709021849.31eb3aec.akpm@osdl.org>
@@ -9,41 +11,28 @@ References: <20030708223548.791247f5.akpm@osdl.org>
 	<20030710060841.GQ15452@holomorphy.com>
 	<20030710071035.GR15452@holomorphy.com>
 	<20030710001853.5a3597b7.akpm@osdl.org>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 10 Jul 2003 01:15:46 -0700
-Message-Id: <1057824947.26963.31.camel@www.piet.net>
+	<1057824946.15253.30.camel@www.piet.net>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
+To: Piet Delaney <piet@www.piet.net>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I followed your suggestion of installing the module-init-tools
-to get around the "make modules_install" problem. I modified
-the kernel Makefile to point to /usr/local:
+Piet Delaney <piet@www.piet.net> wrote:
+>
+>  Also, do you think it's better to enable the use
+>  frame pointer when using kgdb.
 
-	#DEPMOD         = /sbin/depmod
-	DEPMOD          = /usr/local/sbin/depmod
+Enabled, definitely.
 
-I expect it's likely necessary to copy the /usr/local
-copies over the / copies so that they are available to
-the boot code; Perhaps not. 
+> In the past I thought
+>  I had problems with modules due to my enabling the
+>  frame pointer being used.
 
-I thought I check to see how you and/or others did
-to for using the newer module-init-tools.
-
-Also, do you think it's better to enable the use
-frame pointer when using kgdb. In the past I thought
-I had problems with modules due to my enabling the
-frame pointer being used.
-
--piet
-
--- 
-piet@www.piet.net
-
+No, there are no such problems.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
