@@ -1,29 +1,36 @@
-Date: Fri, 13 Oct 2000 17:20:10 -0700
-Message-Id: <200010140020.RAA03611@pizda.ninka.net>
-From: "David S. Miller" <davem@redhat.com>
-In-reply-to: <20001013155750.B29761@twiddle.net> (message from Richard
-	Henderson on Fri, 13 Oct 2000 15:57:50 -0700)
-Subject: Re: Updated Linux 2.4 Status/TODO List (from the ALS show)
-References: <20001013141723.C29525@twiddle.net> <E13kDcJ-0001fX-00@the-village.bc.nu> <20001013155750.B29761@twiddle.net>
+Date: Fri, 13 Oct 2000 18:43:47 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [RFC] atomic pte updates and pae changes, take 2
+In-Reply-To: <Pine.LNX.4.21.0010132002440.25522-100000@devserv.devel.redhat.com>
+Message-ID: <Pine.LNX.4.10.10010131841120.962-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: rth@twiddle.net
-Cc: alan@lxorguk.ukuu.org.uk, davej@suse.de, tytso@mit.edu, torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ben LaHaise <bcrl@redhat.com>
+Cc: Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-   Either that or adjust how we do atomic operations.  I can do 64-bit
-   atomic widgetry, but not with the code as written.
 
-Ultra can do it as well, and as far as I understand it ia64 64-bit
-atomic_t's shouldn't be a problem either.
+On Fri, 13 Oct 2000, Ben LaHaise wrote:
+>
+> Hey folks
 
-I would suggest we make a atomic64_t or similar different type.
-The space savings from using 32-bit normal atomic_t in all other
-situations is of real value.
+Me likee.
 
-Later,
-David S. Miller
-davem@redhat.com
+This looks much nicer. The hack turned into something that looks quite
+ddesigned. 
+
+Ingo, I'd like you to comment on all the PAE issues just in case, but I
+personally don't have any real issues any more. Small nit: I dislike the
+"__HAVE_ARCH_xxx" approach, and considering that most architectures will
+probably want to do something specific anyway I wonder if we should get
+rid of that and just make architectures have their own code.
+
+Thanks,
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
