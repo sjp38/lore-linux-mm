@@ -1,32 +1,62 @@
-Subject: Re: 2.4.14 + Bug in swap_out.
-References: <m1vgg41x3x.fsf@frodo.biederman.org>
-	<20011120.222920.51691672.davem@redhat.com>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 20 Nov 2001 23:37:03 -0700
-In-Reply-To: <20011120.222920.51691672.davem@redhat.com>
-Message-ID: <m1lmh01vg0.fsf@frodo.biederman.org>
+Received: from zaphod.GDImbH.com (zaphod.GDImbH.com [194.115.68.214])
+	by sharon.GDImbH.com (8.9.3/8.9.3) with ESMTP id LAA06773
+	for <linux-mm@kvack.org>; Wed, 21 Nov 2001 11:19:13 +0100
+Received: (from ralf@localhost)
+	by zaphod.GDImbH.com (8.11.2/8.11.2/SuSE Linux 8.11.1-0.5) id fALAJD306894
+	for linux-mm@kvack.org; Wed, 21 Nov 2001 11:19:13 +0100
+Message-ID: <XFMail.20011121111913.R.Oehler@GDImbH.com>
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Wed, 21 Nov 2001 11:19:13 +0100 (MET)
+Reply-To: R.Oehler@GDImbH.com
+From: R.Oehler@GDImbH.com
+Subject: recursive lock-enter-deadlock
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: torvalds@transmeta.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"David S. Miller" <davem@redhat.com> writes:
+A short question (I don't have a recent 2.4.x at hand, currently):
 
-> I do not agree with your analysis.
+Is this recursive lock-enter-deadlock (2.4.0) fixed in newer kernels?
 
-Neither do I now but not for your reasons :)
+Regards,
+        Ralf
 
-I looked again we are o.k. but just barely.  mmput explicitly checks
-to see if it is freeing the swap_mm, and fixes if we are.  It is a
-nasty interplay with the swap_mm global, but the code is correct.
 
-My apologies for freaking out I but I couldn't imagine mmput doing
-something like that.
 
-Eric
+
+
+void truncate_inode_pages(struct address_space * mapping, loff_t lstart) 
+{
+        unsigned long start = (lstart + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+        unsigned partial = lstart & (PAGE_CACHE_SIZE - 1);
+
+repeat:
+        spin_lock(&pagecache_lock);
+        if (truncate_list_pages(&mapping->clean_pages, start, &partial))
+                goto repeat;
+        if (truncate_list_pages(&mapping->dirty_pages, start, &partial))
+                goto repeat;
+        if (truncate_list_pages(&mapping->locked_pages, start, &partial))
+                goto repeat;
+        spin_unlock(&pagecache_lock);
+}
+
+ -----------------------------------------------------------------
+|  Ralf Oehler
+|  GDI - Gesellschaft fuer Digitale Informationstechnik mbH
+|
+|  E-Mail:      R.Oehler@GDImbH.com
+|  Tel.:        +49 6182-9271-23 
+|  Fax.:        +49 6182-25035           
+|  Mail:        GDI, Bensbruchstrasse 11, D-63533 Mainhausen
+|  HTTP:        www.GDImbH.com
+ -----------------------------------------------------------------
+
+time is a funny concept
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
