@@ -1,7 +1,7 @@
-Date: Fri, 18 Mar 2005 11:32:23 -0800
+Date: Fri, 18 Mar 2005 11:35:38 -0800
 From: "Randy.Dunlap" <rddunlap@osdl.org>
-Subject: [PATCH 3/4] io_remap_pfn_range: fix some callers for XEN
-Message-Id: <20050318113223.6a141d51.rddunlap@osdl.org>
+Subject: [PATCH 4/4] io_remap_pfn_range: convert last callers
+Message-Id: <20050318113538.14cbc8f1.rddunlap@osdl.org>
 In-Reply-To: <20050318112545.6f5f7635.rddunlap@osdl.org>
 References: <20050318112545.6f5f7635.rddunlap@osdl.org>
 Mime-Version: 1.0
@@ -13,129 +13,118 @@ To: lkml <linux-kernel@vger.kernel.org>
 Cc: linux-mm@kvack.org, akpm@osdl.org, davem@davemloft.net, wli@holomorphy.com, riel@redhat.com, kurt@garloff.de, Keir.Fraser@cl.cam.ac.uk, Ian.Pratt@cl.cam.ac.uk, Christian.Limpach@cl.cam.ac.uk
 List-ID: <linux-mm.kvack.org>
 
-(from Keir:)
-I have audited the drivers/ and sound/ directories. Most uses of
-remap_pfn_range are okay, but there are a small handful that are
-remapping device memory (mostly AGP and DRM drivers).
+io_remap_pfn_range() remaining callers:
+  convert all remaining callers of io_remap_page_range()
+  to io_remap_pfn_range();
+  add io_remap_page_range() to feature-removal-schedule.txt;
 
-Of particular driver is the HPET driver, whose mmap function is broken
-even for native (non-Xen) builds. If nothing else, vmalloc_to_phys
-should be used instead of __pa to convert an ioremapped virtual
-address to a valid physical address. The fix in this patch is to
-remember the original bus address as probed at boot time and to pass
-this to io_remap_pfn_range.
+ Documentation/feature-removal-schedule.txt |    9 +++++++++
+ arch/sh/kernel/cpu/sh4/sq.c                |    2 +-
+ drivers/video/acornfb.c                    |    2 +-
+ drivers/video/au1100fb.c                   |    2 +-
+ drivers/video/controlfb.c                  |    2 +-
+ drivers/video/sa1100fb.c                   |    2 +-
+ sound/core/pcm_native.c                    |    4 ++--
+ 7 files changed, 16 insertions(+), 7 deletions(-)
 
- drivers/char/agp/frontend.c |    4 ++--
- drivers/char/drm/drm_vm.c   |    2 +-
- drivers/char/drm/i810_dma.c |    2 +-
- drivers/char/drm/i830_dma.c |    2 +-
- drivers/char/hpet.c         |    6 ++++--
- drivers/sbus/char/flash.c   |    2 +-
- 6 files changed, 10 insertions(+), 8 deletions(-)
+Signed-off-by: Randy Dunlap <rddunlap@osdl.org>
 
-Signed-off-by: Keir Fraser <keir@xensource.com>
-
-
---- linux-2.6-old/drivers/char/agp/frontend.c	2005-03-16 10:30:25 +00:00
-+++ linux-2.6-new/drivers/char/agp/frontend.c	2005-03-16 10:34:58 +00:00
-@@ -628,7 +628,7 @@
- 		DBG("client vm_ops=%p", kerninfo.vm_ops);
- 		if (kerninfo.vm_ops) {
- 			vma->vm_ops = kerninfo.vm_ops;
--		} else if (remap_pfn_range(vma, vma->vm_start,
-+		} else if (io_remap_pfn_range(vma, vma->vm_start,
- 				(kerninfo.aper_base + offset) >> PAGE_SHIFT,
- 					    size, vma->vm_page_prot)) {
- 			goto out_again;
-@@ -644,7 +644,7 @@
- 		DBG("controller vm_ops=%p", kerninfo.vm_ops);
- 		if (kerninfo.vm_ops) {
- 			vma->vm_ops = kerninfo.vm_ops;
--		} else if (remap_pfn_range(vma, vma->vm_start,
-+		} else if (io_remap_pfn_range(vma, vma->vm_start,
- 					    kerninfo.aper_base >> PAGE_SHIFT,
- 					    size, vma->vm_page_prot)) {
- 			goto out_again;
---- linux-2.6-old/drivers/char/drm/drm_vm.c	2005-03-16 10:30:25 +00:00
-+++ linux-2.6-new/drivers/char/drm/drm_vm.c	2005-03-16 10:34:58 +00:00
-@@ -630,7 +630,7 @@
- 					vma->vm_end - vma->vm_start,
- 					vma->vm_page_prot))
- #else
--		if (remap_pfn_range(DRM_RPR_ARG(vma) vma->vm_start,
-+		if (io_remap_pfn_range(vma, vma->vm_start,
- 				     (VM_OFFSET(vma) + offset) >> PAGE_SHIFT,
- 				     vma->vm_end - vma->vm_start,
- 				     vma->vm_page_prot))
---- linux-2.6-old/drivers/char/drm/i810_dma.c	2005-03-16 10:30:25 +00:00
-+++ linux-2.6-new/drivers/char/drm/i810_dma.c	2005-03-16 10:34:58 +00:00
-@@ -119,7 +119,7 @@
-    	buf_priv->currently_mapped = I810_BUF_MAPPED;
- 	unlock_kernel();
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/arch/sh/kernel/cpu/sh4/sq.c linux-2611-bk10-remap2/arch/sh/kernel/cpu/sh4/sq.c
+--- linux-2611-bk10-remap1/arch/sh/kernel/cpu/sh4/sq.c	2005-03-01 23:38:07.000000000 -0800
++++ linux-2611-bk10-remap2/arch/sh/kernel/cpu/sh4/sq.c	2005-03-16 09:46:10.000000000 -0800
+@@ -379,7 +379,7 @@ static int sq_mmap(struct file *file, st
  
--	if (remap_pfn_range(DRM_RPR_ARG(vma) vma->vm_start,
-+	if (io_remap_pfn_range(vma, vma->vm_start,
- 			     VM_OFFSET(vma) >> PAGE_SHIFT,
- 			     vma->vm_end - vma->vm_start,
- 			     vma->vm_page_prot)) return -EAGAIN;
---- linux-2.6-old/drivers/char/drm/i830_dma.c	2005-03-16 10:30:25 +00:00
-+++ linux-2.6-new/drivers/char/drm/i830_dma.c	2005-03-16 10:34:58 +00:00
-@@ -121,7 +121,7 @@
-    	buf_priv->currently_mapped = I830_BUF_MAPPED;
- 	unlock_kernel();
+ 	map = __sq_alloc_mapping(vma->vm_start, offset, size, "Userspace");
  
--	if (remap_pfn_range(DRM_RPR_ARG(vma) vma->vm_start,
-+	if (io_remap_pfn_range(vma, vma->vm_start,
- 			     VM_OFFSET(vma) >> PAGE_SHIFT,
- 			     vma->vm_end - vma->vm_start,
- 			     vma->vm_page_prot)) return -EAGAIN;
---- linux-2.6-old/drivers/char/hpet.c	2005-03-16 10:30:25 +00:00
-+++ linux-2.6-new/drivers/char/hpet.c	2005-03-16 10:34:58 +00:00
-@@ -76,6 +76,7 @@
- struct hpets {
- 	struct hpets *hp_next;
- 	struct hpet __iomem *hp_hpet;
-+	unsigned long hp_hpet_phys;
- 	struct time_interpolator *hp_interpolator;
- 	unsigned long hp_period;
- 	unsigned long hp_delta;
-@@ -265,7 +266,7 @@
- 		return -EINVAL;
+-	if (io_remap_page_range(vma, map->sq_addr, map->addr,
++	if (io_remap_pfn_range(vma, map->sq_addr, map->addr >> PAGE_SHIFT,
+ 				size, vma->vm_page_prot))
+ 		return -EAGAIN;
  
- 	devp = file->private_data;
--	addr = (unsigned long)devp->hd_hpet;
-+	addr = devp->hd_hpets->hp_hpet_phys;
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/Documentation/feature-removal-schedule.txt linux-2611-bk10-remap2/Documentation/feature-removal-schedule.txt
+--- linux-2611-bk10-remap1/Documentation/feature-removal-schedule.txt	2005-03-16 09:16:26.000000000 -0800
++++ linux-2611-bk10-remap2/Documentation/feature-removal-schedule.txt	2005-03-16 10:01:18.000000000 -0800
+@@ -31,9 +31,18 @@ Why:	/proc/sys/cpu/* has been deprecated
+ 	Both interfaces are superseded by the cpufreq interface in
+ 	/sys/devices/system/cpu/cpu%n/cpufreq/.
+ Who:	Dominik Brodowski <linux@brodo.de>
++---------------------------
  
- 	if (addr & (PAGE_SIZE - 1))
- 		return -ENOSYS;
-@@ -274,7 +275,7 @@
+ What:	ACPI S4bios support
+ When:	May 2005
+ Why:	Noone uses it, and it probably does not work, anyway. swsusp is
+ 	faster, more reliable, and people are actually using it.
+ Who:	Pavel Machek <pavel@suse.cz>
++---------------------------
++
++What:	io_remap_page_range() (macro or function)
++When:	September 2005
++Why:	Replaced by io_remap_pfn_range() which allows more memory space
++	addressabilty (by using a pfn) and supports sparc & sparc64
++	iospace as part of the pfn.
++Who:	Randy Dunlap <rddunlap@osdl.org>
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/drivers/video/acornfb.c linux-2611-bk10-remap2/drivers/video/acornfb.c
+--- linux-2611-bk10-remap1/drivers/video/acornfb.c	2005-03-01 23:38:26.000000000 -0800
++++ linux-2611-bk10-remap2/drivers/video/acornfb.c	2005-03-16 09:38:24.000000000 -0800
+@@ -909,7 +909,7 @@ acornfb_mmap(struct fb_info *info, struc
+ 	 * some updates to the screen occasionally, but process switches
+ 	 * should cause the caches and buffers to be flushed often enough.
+ 	 */
+-	if (io_remap_page_range(vma, vma->vm_start, off,
++	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
+ 				vma->vm_end - vma->vm_start,
+ 				vma->vm_page_prot))
+ 		return -EAGAIN;
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/drivers/video/au1100fb.c linux-2611-bk10-remap2/drivers/video/au1100fb.c
+--- linux-2611-bk10-remap1/drivers/video/au1100fb.c	2005-03-01 23:37:48.000000000 -0800
++++ linux-2611-bk10-remap2/drivers/video/au1100fb.c	2005-03-16 09:33:56.000000000 -0800
+@@ -408,7 +408,7 @@ au1100fb_mmap(struct fb_info *_fb,
+ 	/* This is an IO map - tell maydump to skip this VMA */
+ 	vma->vm_flags |= VM_IO;
+ 
+-	if (io_remap_page_range(vma, vma->vm_start, off,
++	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
+ 				vma->vm_end - vma->vm_start,
+ 				vma->vm_page_prot)) {
+ 		return -EAGAIN;
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/drivers/video/controlfb.c linux-2611-bk10-remap2/drivers/video/controlfb.c
+--- linux-2611-bk10-remap1/drivers/video/controlfb.c	2005-03-01 23:37:50.000000000 -0800
++++ linux-2611-bk10-remap2/drivers/video/controlfb.c	2005-03-16 09:37:11.000000000 -0800
+@@ -315,7 +315,7 @@ static int controlfb_mmap(struct fb_info
+        		return -EINVAL;
+        off += start;
+        vma->vm_pgoff = off >> PAGE_SHIFT;
+-       if (io_remap_page_range(vma, vma->vm_start, off,
++       if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
+            vma->vm_end - vma->vm_start, vma->vm_page_prot))
+                return -EAGAIN;
+ 
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/drivers/video/sa1100fb.c linux-2611-bk10-remap2/drivers/video/sa1100fb.c
+--- linux-2611-bk10-remap1/drivers/video/sa1100fb.c	2005-03-01 23:37:50.000000000 -0800
++++ linux-2611-bk10-remap2/drivers/video/sa1100fb.c	2005-03-16 09:37:53.000000000 -0800
+@@ -836,7 +836,7 @@ static int sa1100fb_mmap(struct fb_info 
+ 	vma->vm_pgoff = off >> PAGE_SHIFT;
+ 	vma->vm_flags |= VM_IO;
  	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
- 	addr = __pa(addr);
- 
--	if (remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
-+	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
- 					PAGE_SIZE, vma->vm_page_prot)) {
- 		printk(KERN_ERR "remap_pfn_range failed in hpet.c\n");
+-	return io_remap_page_range(vma, vma->vm_start, off,
++	return io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
+ 				   vma->vm_end - vma->vm_start,
+ 				   vma->vm_page_prot);
+ }
+diff -Naurp -X /home/rddunlap/doc/dontdiff-osdl linux-2611-bk10-remap1/sound/core/pcm_native.c linux-2611-bk10-remap2/sound/core/pcm_native.c
+--- linux-2611-bk10-remap1/sound/core/pcm_native.c	2005-03-16 09:17:08.000000000 -0800
++++ linux-2611-bk10-remap2/sound/core/pcm_native.c	2005-03-16 09:39:41.000000000 -0800
+@@ -3097,8 +3097,8 @@ int snd_pcm_lib_mmap_iomem(snd_pcm_subst
+ 	area->vm_flags |= VM_IO;
+ 	size = area->vm_end - area->vm_start;
+ 	offset = area->vm_pgoff << PAGE_SHIFT;
+-	if (io_remap_page_range(area, area->vm_start,
+-				substream->runtime->dma_addr + offset,
++	if (io_remap_pfn_range(area, area->vm_start,
++				(substream->runtime->dma_addr + offset) >> PAGE_SHIFT,
+ 				size, area->vm_page_prot))
  		return -EAGAIN;
-@@ -795,6 +796,7 @@
- 
- 	hpetp->hp_which = hpet_nhpet++;
- 	hpetp->hp_hpet = hdp->hd_address;
-+	hpetp->hp_hpet_phys = hdp->hd_phys_address;
- 
- 	hpetp->hp_ntimer = hdp->hd_nirqs;
- 
---- linux-2.6-old/drivers/sbus/char/flash.c	2005-03-16 10:30:37 +00:00
-+++ linux-2.6-new/drivers/sbus/char/flash.c	2005-03-16 10:34:58 +00:00
-@@ -75,7 +75,7 @@
- 	pgprot_val(vma->vm_page_prot) |= _PAGE_E;
- 	vma->vm_flags |= (VM_SHM | VM_LOCKED);
- 
--	if (remap_pfn_range(vma, vma->vm_start, addr, size, vma->vm_page_prot))
-+	if (io_remap_pfn_range(vma, vma->vm_start, addr, size, vma->vm_page_prot))
- 		return -EAGAIN;
- 		
- 	return 0;
+ 	atomic_inc(&substream->runtime->mmap_count);
 
 ---
 --
