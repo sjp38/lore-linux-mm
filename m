@@ -1,63 +1,38 @@
-Message-ID: <42113921.7070807@sgi.com>
-Date: Mon, 14 Feb 2005 17:49:53 -0600
-From: Ray Bryant <raybry@sgi.com>
-MIME-Version: 1.0
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <20050212155426.GA26714@logos.cnet> <20050212212914.GA51971@muc.de> <20050214163844.GB8576@lnx-holt.americas.sgi.com> <20050214191509.GA56685@muc.de>
-In-Reply-To: <20050214191509.GA56685@muc.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from server1.fastmail.com  (mail.fastmail.com  [63.121.29.87])
+	by fep2.didamail.com (Postfix) with ESMTP id A025C7555
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 06:12:39 +0600 (EDT)
+Received: from nobody by didamail.com with local (Exim 4.07)
+	id 5C1rjW-8532oD-My
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 01:11:39 +0100
+Subject: Request: Your Response to email
+From: "Jennifer Sanchez" <JenniferfygSanchezfyg@didamail.com>
+Message-ID: <293039187871.7eb1e3430763@didamail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 8bit
+Date: Tue, 15 Feb 2005 02:19:39 +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@muc.de>
-Cc: Robin Holt <holt@sgi.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andi Kleen wrote:
->>But how do you use mbind() to change the memory placement for an anonymous
->>private mapping used by a vendor provided executable with mbind()?
-> 
-> 
-> For that you use set_mempolicy.
-> 
-> -Andi
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
-> 
+Current Matches:
 
-Andi,
+1.
+Jennifer Sanchez is within 23 miles from your
+location.  She is married, but her husband is away
+almost every weekend and some weeknights.
 
-If all processes are guarenteed to use the NUMA api for memory placement,
-then AFAIK one could, in principle, imbed the migration of pages into
-the NUMA api as you propose.  The problem is that AFAIK most programs
-that we run are not using the NUMA api.  Instead, they are using first-touch
-with the knowledge that such pages will be allocated on the node where they
-are first referenced.
+2.
+Stephanie Fernandez is within 15 miles from your
+location.  She is married but looking for another
+relationship while her husband is on the road.
 
-Since we have to build a migration facility that will migrate jobs that
-use both the NUMA API and the first-touch approach, it seems to me the
-only plausible soluion is to move the pages via a migration facility
-and then if there are NUMA API control structures found associated with
-the moved pages to update them to represent the new reality.  Whether
-this happens as an automatic side effect of the migration call or it
-happens by a issuing a new set_mempolicy() is not clear to me.  I would
-prefer to just issue a new set_mempolicy(), but somehow the migration
-code will have to figure out where this call needs to be executed (i. e.
-which pages have an associated NUMA policy).  [Thus the disclaimer in
-the overview note that we have figured all the interaction with
-memory policy stuff yet.]
+Email address and Pictures of your matches are available:
+http://valentinespleasure.com/d/6.php
 
--- 
------------------------------------------------
-Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-	 so I installed Linux.
------------------------------------------------
+
+Not For Me?
+http://valentinespleasure.com/out/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
