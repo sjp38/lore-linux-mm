@@ -1,79 +1,60 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA28885
-	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 16:03:06 -0500
-Date: Wed, 25 Nov 1998 21:02:56 GMT
-Message-Id: <199811252102.VAA05466@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Subject: Re: Two naive questions and a suggestion
-In-Reply-To: <Pine.LNX.3.96.981125173723.11080C-100000@mirkwood.dummy.home>
-References: <199811251446.OAA01094@dax.scot.redhat.com>
-	<Pine.LNX.3.96.981125173723.11080C-100000@mirkwood.dummy.home>
+Received: from mail.ccr.net (ccr@alogconduit1ag.ccr.net [208.130.159.7])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA29017
+	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 16:23:34 -0500
+Subject: Re: Linux-2.1.129..
+References: <199811241525.PAA00862@dax.scot.redhat.com> 	<Pine.LNX.3.95.981124092641.10767A-100000@penguin.transmeta.com> <199811251419.OAA00990@dax.scot.redhat.com>
+From: ebiederm+eric@ccr.net (Eric W. Biederman)
+Date: 25 Nov 1998 15:07:39 -0600
+In-Reply-To: "Stephen C. Tweedie"'s message of "Wed, 25 Nov 1998 14:19:28 GMT"
+Message-ID: <m1u2znbhwj.fsf@flinx.ccr.net>
 Sender: owner-linux-mm@kvack.org
-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, jfm2@club-internet.fr, Linux MM <linux-mm@kvack.org>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+>>>>> "ST" == Stephen C Tweedie <sct@redhat.com> writes:
 
-On Wed, 25 Nov 1998 17:47:18 +0100 (CET), Rik van Riel
-<H.H.vanRiel@phys.uu.nl> said:
+ST> However, for pages which become dirty in memory, we _do_ populate the
+ST> swap cache only at page-out time.  That's why the sharing still works.
+ST> I think that the real change we need is to cleanly support PG_dirty
+ST> flags per page.  Once we do that, not only do all of the dirty inode
+ST> pageouts get fixed, but we also automatically get MAP_SHARED |
+ST> MAP_ANONYMOUS.
 
->> WRONG.  We can very very easily unlink pages from a process's pte
->> (hence reducing the process's RSS) without removing that page from
->> memory.  It's trivial.  We do it all the time.  Rik, you should
->> probably try to work out how try_to_swap_out() actually works one of
->> these days.
 
-> I just looked in mm/vmscan.c of kernel version 2.1.129, and
-> line 173, 191 and 205 feature a prominent:
-> 			free_page_and_swap_cache(page);
+ST> While we're on that subject, Linus, do you still have Andrea's patch to
+ST> propogate page writes around all shared ptes?  I noticed that Zlatko
+ST> Calusic recently re-posted it, and it looks like the sort of short-term
+ST> fix we need for this issue in 2.2 (assuming we don't have time to do a
+ST> proper PG_dirty fix).
 
-It is not there in 2.1.130-pre3, however. :) That misses the point,
-though.  The point is that it is trivial to remove these mappings
-without freeing the swap cache, and the code you point to confirms this:
-vmscan actually has to go to _extra_ trouble to free the underlying
-cache if that is wanted (the shared page case is the same, hence the
-unuse_page call at the end of try_to_swap_out() (also removed in
-2.1.130-3).  The default action of the free_page alone removes the
-mapping but not the cache entry, and the functionality of leaving the
-cache present is already there.
+What do you consider a proper PG_dirty fix?
 
-> Oh, one question. Can we attach a swap page to the swap cache
-> while there's no program using it? This way we can implement
-> a very primitive swapin readahead right now, improving the
-> algorithm as we go along...
+I have been working on it (what I would call a PG_dirty fix) and have
+most thing working but my code has a lot of policy questions still to
+answer.
 
-Yes, rw_swap_page(READ, nowait) does exactly that: it primes the swap
-cache asynchronously but does not map it anywhere.  It should be
-completely safe right now: the normal swap read is just a special case
-of this.
 
-> IMHO it would be a big loss to have dirty pages in the swap
-> cache. Writing out swap pages is cheap since we do proper
-> I/O clustering ...
 
-> Besides, having a large/huge clean swap cache means that we
-> can very easily free up memory when we need to, this is
-> essential for NFS buffers, networking stuff, etc.
+But as far as MAP_SHARED | MAP_ANONYMOUS to retain our current
+swapping model (of never rewriting a swap page), and for swapoff
+support we need the ability to change which swap page all of the pages
+are associated with.
 
-Yep, absolutely: agreed on both counts.  This is exactly how 2.1.130-3
-works! 
+There are 2 ways to do this.  
+1) Implement it like SYSV shared mem.
+2) Just maintain vma structs for the memory, with vma_next_share used!
+   Then when we allocate a new swap page we can walk the
+   *vm_area_struct's to find the page_tables that need to be updated.
 
-> If we keep a quota of 20% of memory in buffers and unmapped
-> cache, we can also do away with a buffer for the 8 and 16kB
-> area's. We can always find some contiguous area in swap/page
-> cache that we can free...
+   The real tricky case to get right is simulaneous COW & SOW.
+   SOW == Share On Write.
 
-That will kill performance if you have a large simulation which has a
-legitimate need to keep 90% of physical memory full of anonymous pages.
-I'd rather do without that 20% magic limit if we can.  The only special
-limit we really need is to make sure that kswapd keeps far enough in
-advance of interrupt memory load that the free list doesn't empty.
+  The question right now is where do we anchor the vma_next_share
+  linked list, as we don't have an inode.
 
---Stephen
+
+Eric
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
