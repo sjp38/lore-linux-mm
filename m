@@ -1,29 +1,34 @@
-Date: Thu, 22 May 2003 13:14:34 -0700
-From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.69-mm8
-Message-Id: <20030522131434.710a0c7d.akpm@digeo.com>
-In-Reply-To: <1053631843.2648.3248.camel@plars>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <9790000.1053632393@[10.10.2.4]>
 References: <20030522021652.6601ed2b.akpm@digeo.com>
-	<1053629620.596.1.camel@teapot.felipe-alfaro.com>
-	<1053631843.2648.3248.camel@plars>
+	 <1053629620.596.1.camel@teapot.felipe-alfaro.com>
+	 <1053631843.2648.3248.camel@plars>  <9790000.1053632393@[10.10.2.4]>
+Content-Type: text/plain
+Message-Id: <1053637395.22758.6.camel@nighthawk>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Date: 22 May 2003 14:03:15 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Larson <plars@linuxtestproject.org>
-Cc: felipe_alfaro@linuxmail.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Paul Larson <plars@linuxtestproject.org>, Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>, Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul Larson <plars@linuxtestproject.org> wrote:
->
-> 2.5.69-mm8 is bleeding for me. :)  See bugs #738 and #739.
+On Thu, 2003-05-22 at 12:39, Martin J. Bligh wrote:
+> Also seems to hang rather easily. When it gets into that state, it's difficult
+> to tell what works and what doesn't ... I can login over serial, but not 
+> start new ssh's and "ps -ef" hangs for ever. I'll try to get some more
+> information, and assemble a less-totally-crap bug report.
 
-#739 seems to be the b_committed_data race.  Alex is cooking up a fix for
-that.  Sorry, I didn't realise it was that easy to trigger.
+Give sysrq 't' a shot
 
-I'm fairly amazed about #738.  The asertion at fs/jbd/transaction.c:2023
-(J_ASSERT_JH(jh, kernel_locked())) is bogus and should be removed.
+echo t > /proc/sysrq-trigger
+
+-- 
+Dave Hansen
+haveblue@us.ibm.com
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
