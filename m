@@ -1,65 +1,51 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id VAA25273
-	for <linux-mm@kvack.org>; Wed, 23 Oct 2002 21:28:37 -0700 (PDT)
-Message-ID: <3DB776F5.C5AA1922@digeo.com>
-Date: Wed, 23 Oct 2002 21:28:37 -0700
-From: Andrew Morton <akpm@digeo.com>
+Date: Thu, 24 Oct 2002 06:42:44 -0400 (EDT)
+From: Bill Davidsen <davidsen@tmr.com>
+Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
+In-Reply-To: <407130000.1035313347@flay>
+Message-ID: <Pine.LNX.3.96.1021024063555.14473A-100000@gatekeeper.tmr.com>
 MIME-Version: 1.0
-Subject: 2.5.44-mm4
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.44/2.5.44-mm4/
+On Tue, 22 Oct 2002, Martin J. Bligh wrote:
 
-Having a few stability problems so most of the new things have been
-removed.  Once this thing is working properly we can start moving
-forward again.
+> > I'm just trying to decide what this might do for a news server with
+> > hundreds of readers mmap()ing a GB history file. Benchmarks show the 2.5
+> > has more latency the 2.4, and this is likely to make that more obvious.
+> > 
+> > Is there any way to to have this only on processes which really need it?
+> > define that any way you wish, including hanging a capability on the
+> > executable to get spt.
+> 
+> Uh, what are you referring to here? Large pages or shared pagetables?
+> You can't mmap filebacked stuff with larged pages (nixed by Linus).
 
-If the people who had problem with -mm4 could please retest?  If
-problems remain, please try popping off shpte-ng.patch.
+Shared pagetables, it's a non-root application.
 
-Also be suspicious of CONFIG_PREEMPT=y.  For me, with preempt, smp
-and spinlock debugging the kernel dies immediately doing an unlock
-of already-unlocked kernel_flag when bringing up the first migration
-thread.  That's on base 2.5.44.  May not be a preempt problem; could
-be that preempt is simply exposing it.
+> And yes, large pages have to be specified explicitly by the app.
+> On the other hand, I don't think shared pagetables have an mmap hook,
 
-+read-barrier-depends.patch
+That could be interesting... so if the server has a mmap()ed file and
+forks a child when a connection comes in, the tables would get duplicated
+even with the patch? That's not going to help me.
 
- RCU fix
+> though that'd be easy enough to add. And if you're not reading the whole 
+> history file, presumably the PTEs will only be sparsely instantiated anyway.
 
-+deferred-lru-add-fix.patch
+I have to go back and look at that code to be sure, you may be right.
+There certainly are other things which are mmap()ed by all children (or
+threads, depending on implementation) which might benefit since they're
+moderately large and do have hundreds to thousands of copies.
 
- lru_cache_add fix
+-- 
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
 
--for-each-cpu.patch
-
- Dropped.  Rusty has a different cpu iterator patch
-
--task-unmapped-base-fix.patch
-
- Folded into ingo-mmap-speedup
-
--larger-cpu-masks.patch
--adam-loop.patch
--rcu-stats.patch
--generic-nonlinear-mappings-D0.patch
-
- Over in experimental/
-
-+md-01-driverfs-core.patch
-+md-02-driverfs-topology.patch
-+md-03-numa-meminfo.patch
-+md-04-memblk_online_map.patch
-+md-05-node_online_map.patch
-
- The NUMA driverfs interfaces from Matt Dobson.  Queued up in
- experimental/ too.  It all adds only a few hundred bytes to a
- non-NUMA build.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
