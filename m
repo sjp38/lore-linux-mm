@@ -1,60 +1,33 @@
-Message-ID: <3B449035.ED1A551F@earthlink.net>
-Date: Thu, 05 Jul 2001 10:05:09 -0600
-From: "Joseph A. Knapka" <jknapka@earthlink.net>
+Received: from modem-68.aerodactyl.dialup.pol.co.uk ([217.135.4.68] helo=newt.marston)
+	by mail6.svr.pol.co.uk with esmtp (Exim 3.13 #0)
+	id 15ITCJ-0001QC-00
+	for linux-mm@kvack.org; Fri, 06 Jul 2001 11:50:55 +0100
+Received: from newt.marston ([192.168.2.1] helo=humboldt.co.uk)
+	by newt.marston with esmtp (Exim 3.12 #1 (Debian))
+	id 15ITC2-0000Nb-00
+	for <linux-mm@kvack.org>; Fri, 06 Jul 2001 11:50:38 +0100
+Message-ID: <3B4597FE.7070901@humboldt.co.uk>
+Date: Fri, 06 Jul 2001 11:50:38 +0100
+From: Adrian Cox <adrian@humboldt.co.uk>
 MIME-Version: 1.0
-Subject: Re: on MAXMEM_PFN and VMALLOC_RESERVE
-References: <200107051157.HAA10231@www21.ureach.com>
-Content-Type: text/plain; charset=us-ascii
+Subject: Use of mmap_sem in map_user_kiobuf
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kapish@ureach.com
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Kapish K wrote:
-> 
-> Hello,
->  What does this code ( in arch/i386/kernel/setup.c ), actually
-> imply?
-> /*
->  *Determine low and high memory ranges:
->  */
-> 
-> max_low_pfn=max_pfn;
-> if ( max_low_pfn > MAXMEM_PFN ){
->       max_low_pfn = MAXMEM_PFN;
-> #ifndef CONFIG_HIGHMEM
->     /* Maximum memory usable is what is directlt addressable */
-> Now here, what does this imply, and the significance of
-> VMALLOC_RESERVE in the MAXMEM_PFN calculations ( as in setup.c )
-> :MAXMEM_PFN PFN_DOWN(MAXMEM)
-> where MAXMEM = (unsigned long) ( -PAGE_OFFSET - VMALLOC_RESERVE
-> )
-> Also, what is the significance of this in terms of physical RAM
-> sizes of 128 mb or more ( even greater than 1 GB ). I assume
-> that still will not be high mem.
-> Any hints or pointers would be welcome.
+Does map_user_kiobuf really need to get a write lock on the mmap_sem? 
+ From examination of the code, all it can do is expand_stack(), fault in 
+pages, and increment the count on a page.
 
-Have a look at http://home.earthlink.net/~jknapka/linux-mm/kmap.html
+Is there anything I've missed? Would it be safe to use down_read(), 
+up_read() instead?
 
-Basically, MAX_MEM is the amount of address space available between
-PAGE_OFFSET and the beginning of the VMALLOC_RESERVE area just
-below 4GB. Thus, it's the maximum amount of physical RAM that
-can be permanently mapped into kernel VM. max_low_pfn is the
-highest page frame number of permanently-mapped RAM.
+-- 
+Adrian Cox   http://www.humboldt.co.uk/
 
-HTH,
-
--- Joe
-
-
--- Joe Knapka
-"You know how many remote castles there are along the gorges? You
- can't MOVE for remote castles!" -- Lu Tze re. Uberwald
-// Linux MM Documentation in progress:
-// http://home.earthlink.net/~jknapka/linux-mm/vmoutline.html
-* Evolution is an "unproven theory" in the same sense that gravity is. *
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
