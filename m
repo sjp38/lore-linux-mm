@@ -1,54 +1,49 @@
-Received: from mailrelay1.lanl.gov (localhost.localdomain [127.0.0.1])
-	by mailwasher-b.lanl.gov (8.12.10/8.12.10/(ccn-5)) with ESMTP id i16N6jHR000946
-	for <linux-mm@kvack.org>; Fri, 6 Feb 2004 16:06:45 -0700
-Subject: Re: 2.6.2-mm1 problem with umounting reiserfs
-From: Steven Cole <elenstev@mesatop.com>
-In-Reply-To: <20040206143917.4e39b215.akpm@osdl.org>
-References: <1076104945.1793.12.camel@spc.esa.lanl.gov>
-	 <20040206143917.4e39b215.akpm@osdl.org>
-Content-Type: text/plain
-Message-Id: <1076108684.1793.19.camel@spc.esa.lanl.gov>
+Date: Sat, 7 Feb 2004 12:27:58 -0500
+From: Ben Collins <bcollins@debian.org>
+Subject: Re: 2.6.2-mm1 aka "Geriatric Wombat"
+Message-ID: <20040207172757.GQ1042@phunnypharm.org>
+References: <fa.h1qu7q8.n6mopi@ifi.uio.no> <402240F9.3050607@gadsdon.giointernet.co.uk> <20040205182614.GG13075@kroah.com> <20040206144729.GJ1042@phunnypharm.org> <20040206182200.GE32116@kroah.com>
 Mime-Version: 1.0
-Date: Fri, 06 Feb 2004 16:04:44 -0700
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040206182200.GE32116@kroah.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm@kvack.org, Rusty Russell <rusty@rustcorp.com.au>
+To: Greg KH <greg@kroah.com>
+Cc: Robert Gadsdon <robert@gadsdon.giointernet.co.uk>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2004-02-06 at 15:39, Andrew Morton wrote:
-> Steven Cole <elenstev@mesatop.com> wrote:
-> >
-> > With kernel 2.6.2-mm1, I got the following when umounting a reiserfs
-> > file system.
-
+On Fri, Feb 06, 2004 at 10:22:00AM -0800, Greg KH wrote:
+> On Fri, Feb 06, 2004 at 09:47:30AM -0500, Ben Collins wrote:
+> > On Thu, Feb 05, 2004 at 10:26:14AM -0800, Greg KH wrote:
+> > > On Thu, Feb 05, 2004 at 01:11:21PM +0000, Robert Gadsdon wrote:
+> > > > 2.6.2-mm1 tombstone "Badness in kobject_get....." when booting:
+> > > 
+> > > Oooh, not nice.  That means a kobject is being used before it has been
+> > > initialized.  Glad to see that check finally helps out...
+> > 
+> > Doesn't sound like a bug in ieee1394. This bus for each is done on the
+> > ieee1394_bus_type, which is registered way ahead of time. Nothing is in
+> > that device list that didn't come from device_register(). Has something
+> > new changed to where I need to prep the device more before passing it to
+> > device_register()?
 > 
-> Squish.  Thanks.
-> 
-> 
-> diff -puN kernel/workqueue.c~cpuhotplug-03-core-workqueue-fix kernel/workqueue.c
-> --- 25/kernel/workqueue.c~cpuhotplug-03-core-workqueue-fix	Fri Feb  6 14:36:04 2004
-> +++ 25-akpm/kernel/workqueue.c	Fri Feb  6 14:36:41 2004
-> @@ -335,7 +335,7 @@ void destroy_workqueue(struct workqueue_
->  		if (cpu_online(cpu))
->  			cleanup_workqueue_thread(wq, cpu);
->  	}
-> -	list_del(&wq->list);
-> +	del_workqueue(wq);
->  	unlock_cpu_hotplug();
->  	kfree(wq);
->  }
-> 
+> No, not at all.  You are initializing the structure to 0 before setting
+> any fields in it, right?  But that wouldn't be the symptom we are seeing
+> here...
 
-Squish confirmed.  That was fast!
+Yeah, it's being memset() to zero. After that I set the parent and the
+bus_id, and then call device_register().
 
-Now if someone can squish the xfs "i_size_write() called without i_sem"
-that we're not supposed to continue to whine about...
+One thing I notice is that I am not checking the return value of
+device_register(), however if that fails, the device shouldn't be in the
+device list for the bus, correct?
 
-Thanks,
-Steven
-
+-- 
+Debian     - http://www.debian.org/
+Linux 1394 - http://www.linux1394.org/
+Subversion - http://subversion.tigris.org/
+WatchGuard - http://www.watchguard.com/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
