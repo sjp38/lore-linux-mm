@@ -1,32 +1,25 @@
-Date: Tue, 15 Feb 2005 15:00:17 -0800
+Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2])
+	by omx3.sgi.com (8.12.11/8.12.9/linux-outbound_gateway-1.1) with ESMTP id j1FNPn0j023630
+	for <linux-mm@kvack.org>; Tue, 15 Feb 2005 15:25:49 -0800
+Date: Tue, 15 Feb 2005 15:11:21 -0800
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration --
- sys_page_migrate
-Message-Id: <20050215150017.0fe7b646.pj@sgi.com>
-In-Reply-To: <20050215225152.GA26753@lnx-holt.americas.sgi.com>
-References: <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>
-	<1108242262.6154.39.camel@localhost>
-	<20050214135221.GA20511@lnx-holt.americas.sgi.com>
-	<1108407043.6154.49.camel@localhost>
-	<20050214220148.GA11832@lnx-holt.americas.sgi.com>
-	<20050215074906.01439d4e.pj@sgi.com>
-	<20050215162135.GA22646@lnx-holt.americas.sgi.com>
-	<20050215083529.2f80c294.pj@sgi.com>
-	<20050215185943.GA24401@lnx-holt.americas.sgi.com>
-	<16914.28795.316835.291470@wombat.chubb.wattle.id.au>
-	<20050215225152.GA26753@lnx-holt.americas.sgi.com>
+Subject: Re: manual page migration -- issues
+Message-Id: <20050215151121.48ca91d7.pj@sgi.com>
+In-Reply-To: <42127C38.9000406@sgi.com>
+References: <42127C38.9000406@sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: peterc@gelato.unsw.edu.au, haveblue@us.ibm.com, raybry@sgi.com, taka@valinux.co.jp, hugh@veritas.com, akpm@osdl.org, marcello@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Ray Bryant <raybry@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Good explanation, Robin.  Thanks.
-
-See y'all on linux-mm.
+Ray - could you repost your excellent re-introduction to linux-mm, with
+the specific email addresses of those who have shown an interest so far
+on lkml?  Many of us treat email to "a list plus ourselves" differently
+than we treat email just to "a list".
 
 -- 
                   I won't rest till it's the best ...
