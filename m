@@ -1,48 +1,40 @@
-Message-ID: <4046C3F8.4070402@matchmail.com>
-Date: Wed, 03 Mar 2004 21:51:52 -0800
-From: Mike Fedyk <mfedyk@matchmail.com>
+Message-ID: <017B1BB60535DF4285666089FA048AC2A2E45B@SONOMA.netscreen.com>
+From: Mike Ji <hji@netscreen.com>
+Subject: Thoughts about RTCore and RTLinux
+Date: Thu, 4 Mar 2004 08:48:10 -0800 
 MIME-Version: 1.0
-Subject: Re: Non-GPL export of invalidate_mmap_range
-References: <20040217073522.A25921@infradead.org> <20040217124001.GA1267@us.ibm.com> <20040217161929.7e6b2a61.akpm@osdl.org> <1077108694.4479.4.camel@laptop.fenrus.com> <20040218140021.GB1269@us.ibm.com> <20040218211035.A13866@infradead.org> <20040218150607.GE1269@us.ibm.com> <20040218222138.A14585@infradead.org> <20040218145132.460214b5.akpm@osdl.org> <20040219091132.GE17140@khan.acc.umu.se> <20040219085819.GB1269@us.ibm.com>
-In-Reply-To: <20040219085819.GB1269@us.ibm.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+List-Help: kernelnewbies
+List-Subscribe: <mailto:kernelnewbies-request@nl.linux.org?Subject=subscribe>
+List-Unsubscribe: <mailto:kernelnewbies-request@nl.linux.org?Subject=unsubscribe>
+Content-Type: text/plain;
+	charset="iso-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: paulmck@us.ibm.com
-Cc: Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>, arjanv@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "'linux-kernel@vger.kernel.org'" <linux-kernel@vger.kernel.org>, "'linux-mm@kvack.org'" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Paul E. McKenney wrote:
-> On Thu, Feb 19, 2004 at 10:11:32AM +0100, David Weinehall wrote:
-> 
->>On Wed, Feb 18, 2004 at 02:51:32PM -0800, Andrew Morton wrote:
->>
->>>Christoph Hellwig <hch@infradead.org> wrote:
->>>
->>>>I don't understand why IBM is pushing this dubious change right now,
->>>
->>>It isn't a dubious change, on technical grounds.  It is reasonable for a
->>>distributed filesystem to want to be able to shoot down pte's which map
->>>sections of pagecache.  Just as it is reasonable for the filesystem to be
->>>able to shoot down the pagecache itself.
->>>
->>>We've exported much lower-level stuff than this, because some in-kernel
->>>module happened to use it.
->>
->>Probably not always the right choice, though...  I highly suspect we
->>far to much of our intestines are easily available.
-> 
-> 
-> Again, the whole point of the patch is to -reduce- the degree of
-> intestinal export.
-> 
-> 						Thanx, Paul
+Hi, folks,
 
-Paul, this still doesn't answer why GPFS can't be released under the GPL.
+I happen to read some white papers related to RTLinux. Below is some of
+my personal thoughts/questions. 
 
-If this has been answered, I'd love to see a pointer to which archives 
-in which I should search.
+* RTLinux's so called realtime extension-RTCORE  **was* to address the
+previous issue--Linux is not realtime supported, for example, fully
+kernel-preemptive; posix realtime extension. 
+
+* After linux 2.6, I did not see any outstanding reason that people
+still need to use a RTLinux **patch** to achieve realtime applications.
+I mean, why not just linux itself? Not needed RTCORE anymore.
+
+* From os/kernel viewpoint, it is very hard for me to position RTCORE,
+but a realtime patch. I mean, RTCORE is not able to be identified into any
+well-known os architecture. 
+
+* If there is a very high performance micro-kernel, say, L4 or
+QNX/Neutrino, I personally think it is much better than the RTCORE stuff,
+which HAVE TO bind a secondary os as running time environment.
+
+Some personal thoughts,
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
