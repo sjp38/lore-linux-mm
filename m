@@ -1,29 +1,44 @@
-Message-ID: <Vuatrsbh4150YYZF4@eiger.k2.net>
-From: "Hazel Bolden" <marilyn1k@nb.smypatico.ca>
-Subject: Lenders contend For You
-Date: Fri, 04 Feb 2005 05:59:53 +0100
+Date: Thu, 3 Feb 2005 16:59:40 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: A scrub daemon (prezeroing)
+In-Reply-To: <16898.46622.108835.631425@cargo.ozlabs.ibm.com>
+Message-ID: <Pine.LNX.4.58.0502031650590.26551@schroedinger.engr.sgi.com>
+References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
+ <1106828124.19262.45.camel@hades.cambridge.redhat.com> <20050202153256.GA19615@logos.cnet>
+ <Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
+ <20050202163110.GB23132@logos.cnet> <Pine.LNX.4.61.0502022204140.2678@chimarrao.boston.redhat.com>
+ <16898.46622.108835.631425@cargo.ozlabs.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--ZEND-64777"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Paul Mackerras <paulus@samba.org>
+Cc: Rik van Riel <riel@redhat.com>, Marcelo Tosatti <marcelo.tosatti@cyclades.com>, David Woodhouse <dwmw2@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
 List-ID: <linux-mm.kvack.org>
 
-----ZEND-64777
-Content-Type: text/plain;
-Content-Transfer-Encoding: 7Bit
+On Fri, 4 Feb 2005, Paul Mackerras wrote:
 
-Want to Save on Your mortg age? Get Free Help! -- Let one of our local mor tgage experts save you time, money, & effort. Quick & easy form, no cost or obligation. 
-http://www.123homeloannow.com/x/loan.php?id=pr
+> On my G5 it takes ~200 cycles to zero a whole page.  In other words it
+> takes about the same time to zero a page as to bring in a single cache
+> line from memory.  (PPC has an instruction to establish a whole cache
+> line of zeroes in modified state without reading anything from
+> memory.)
+>
+> Thus I can't see how prezeroing can ever be a win on ppc64.
 
+You need to think about this in a different way. Prezeroing only makes
+sense if it can avoid using cache lines that the zeroing in the
+hot paths would have to use since it touches all cachelines on
+the page (the ppc instruction is certainly nice and avoids a cacheline
+read but it still uses a cacheline!). The zeroing in itself (within the
+cpu caches) is extraordinarily fast and the zeroing of large portions of
+memory is so too. That is why the impact of scrubd is negligible since
+its extremely fast.
 
-Desist any further contacts http://www.123homeloannow.com/x/st.html
-
-Great Britain has lost an empire and has not yet found a role. 
-
-----ZEND-64777--
-
+The point is to save activating cachelines not the time zeroing in itself
+takes. This only works if only parts of the page are needed immediately
+after the page fault. All of that has been documented in earlier posts on
+the subject.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
