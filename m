@@ -1,60 +1,46 @@
-Date: Wed, 7 Jun 2000 10:23:35 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:
- it'snot just the code)
-In-Reply-To: <20000607121555.G29432@redhat.com>
-Message-ID: <Pine.LNX.4.21.0006071018320.14304-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 7 Jun 2000 14:32:42 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [PATCH] VM kswapd autotuning vs. -ac7
+Message-ID: <20000607143242.D30951@redhat.com>
+References: <Pine.LNX.4.21.0006050716160.31069-100000@duckman.distro.conectiva> <qww1z29ssbb.fsf@sap.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <qww1z29ssbb.fsf@sap.com>; from cr@sap.com on Wed, Jun 07, 2000 at 12:23:36PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Hans Reiser <hans@reiser.to>, "Quintela Carreira Juan J." <quintela@fi.udc.es>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: Christoph Rohland <cr@sap.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Jun 2000, Stephen C. Tweedie wrote:
-> On Tue, Jun 06, 2000 at 08:45:08PM -0700, Hans Reiser wrote:
-> > > 
-> > > This is the reason because of what I think that one operation in the
-> > > address space makes no sense.  No sense because it can't be called
-> > > from the page.
-> > 
-> > What do you think of my argument that each of the subcaches should register
-> > currently_consuming counters which are the number of pages that subcache
-> > currently takes up in memory,
+Hi,
+
+On Wed, Jun 07, 2000 at 12:23:36PM +0200, Christoph Rohland wrote:
+> Rik van Riel <riel@conectiva.com.br> writes:
 > 
-> There is no need for subcaches at all if all of the pages can be
-> represented on the page cache LRU lists.  That would certainly
-> make balancing between caches easier.
+> > Awaiting your promised integration of SHM with the shrink_mmap
+> > queue...
+> 
+> Sorry Rik, there was a misunderstanding here. I would really like to
+> have this integration. But AFAICS this is a major task. shrink_mmap
+> relies on the pages to be in the page cache and the pagecache does not
+> handle shared anonymous pages.
 
-Wouldn't this mean we could end up with an LRU cache full of
-unfreeable pages?
+The swap cache --- which does handle anonymous pages --- is IN the
+page cache.  
 
-Then we would scan the LRU cache and apply pressure on all of
-the filesystems, but then the filesystem could decide it wants
-to flush *other* pages from the ones we have on the LRU queue.
+The main reason SHM needs its own swap code is that normal anonymous
+pages are referred to only from ptes --- the ptes either point to
+the physical page containing the page, or to the swap entry.  We
+cannot use that for SHM, because SysV SHM segments must be persistent
+even if there are no attachers, and hence no ptes to maintain the 
+location of the pages.  
 
-This could get particularly nasty when we have a VM with
-active / inactive / scavenge lists... (like what I'm working
-on now)
+If it wasn't for persistent SHM segments, it would be trivial to
+integrate SHM into the normal swapper.
 
-Then again, if the filesystem knows which pages we want to
-push, it could base the order in which it is going to flush
-its blocks on that memory pressure. Then your scheme will
-undoubtedly be the more robust one.
-
-Question is, are the filesystems ready to play this game?
-
-regards,
-
-Rik
---
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
-
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
