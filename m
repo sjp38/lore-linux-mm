@@ -1,422 +1,62 @@
-Date: Tue, 13 Mar 2001 02:48:48 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] documentation mm.h, mmzone.h and swap.h
-Message-ID: <Pine.LNX.4.33.0103130247070.21132-100000@duckman.distro.conectiva>
+Received: from uow.edu.au (wumpus.its.uow.edu.au [130.130.68.12])
+	by horus.its.uow.edu.au (8.9.3/8.9.3) with ESMTP id AAA08371
+	for <linux-mm@kvack.org>; Thu, 15 Mar 2001 00:24:17 +1100 (EST)
+Message-ID: <3AAF716E.1B776E31@uow.edu.au>
+Date: Thu, 15 Mar 2001 00:26:06 +1100
+From: Andrew Morton <andrewm@uow.edu.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: it gets slower
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Linus, Alan,
+After doing a huge amount of disk I/O the other day I noted
+that a subsequent full kernel build took *ages*. I haven't
+been able to reproduce the full extent of this, but..
 
-The patch below adds documentation to mm.h, mmzone.h and swap.h.
-I know it's not complete, but I'm stopping with the documentation
-for now, I'll continue at a later date ;)
+Doing a build after boot takes 320 seconds.  After
+copying two kernel trees and diffing them, an identical
+full build takes 336 seconds.  Profiling each build says:
 
-Please apply this for the next (pre)kernel.
+Before:
 
-thanks,
+c01120b0 do_page_fault                              1453   1.2440
+c0271a00 __generic_copy_to_user                     1741  29.0167
+c0122c6c do_wp_page                                 1895   2.9609
+c012da88 rmqueue                                    2245   3.7922
+c0271a3c __generic_copy_from_user                   3593  59.8833
+c01260f0 file_read_actor                            4490  41.5741
+c0123388 do_anonymous_page                         11121  89.6855
+c01071c0 default_idle                              21741 418.0962
+00000000 total                                     71684   0.0469
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
+After:
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
+c0271a00 __generic_copy_to_user                     1696  28.2667
+c0122c6c do_wp_page                                 1865   2.9141
+c012da88 rmqueue                                    2226   3.7601
+c0271a3c __generic_copy_from_user                   3584  59.7333
+c01260f0 file_read_actor                            4529  41.9352
+c0123388 do_anonymous_page                         11324  91.3226
+c01071c0 default_idle                              34807 669.3654
+00000000 total                                     90069   0.0590
+
+This is a 1kHz profile, so we've spent an extra 13 seconds in
+default_idle.  Doing I/O, presumably.  256 meg dual Celeron.
+
+Why?
 
 
 
---- linux-2.4.2-doc/include/linux/mm.h.orig	Wed Mar  7 15:36:32 2001
-+++ linux-2.4.2-doc/include/linux/mm.h	Fri Mar  9 19:48:15 2001
-@@ -39,32 +39,38 @@
-  * library, the executable area etc).
-  */
- struct vm_area_struct {
--	struct mm_struct * vm_mm;	/* VM area parameters */
--	unsigned long vm_start;
--	unsigned long vm_end;
-+	struct mm_struct * vm_mm;	/* The address space we belong to. */
-+	unsigned long vm_start;		/* Our start address within vm_mm. */
-+	unsigned long vm_end;		/* The first byte after our end address
-+					   within vm_mm. */
+Also, we spent 12 seconds in do_anonymous_page and do_wp_page
+madly memsetting.  Has anyone tried prezeroing some pages in
+default_idle(), so they're ready to go?
 
- 	/* linked list of VM areas per task, sorted by address */
- 	struct vm_area_struct *vm_next;
-
--	pgprot_t vm_page_prot;
--	unsigned long vm_flags;
-+	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
-+	unsigned long vm_flags;		/* Flags, listed below. */
-
- 	/* AVL tree of VM areas per task, sorted by address */
- 	short vm_avl_height;
- 	struct vm_area_struct * vm_avl_left;
- 	struct vm_area_struct * vm_avl_right;
-
--	/* For areas with an address space and backing store,
-+	/*
-+	 * For areas with an address space and backing store,
- 	 * one of the address_space->i_mmap{,shared} lists,
- 	 * for shm areas, the list of attaches, otherwise unused.
- 	 */
- 	struct vm_area_struct *vm_next_share;
- 	struct vm_area_struct **vm_pprev_share;
-
-+	/* Function pointers to deal with this struct. */
- 	struct vm_operations_struct * vm_ops;
--	unsigned long vm_pgoff;		/* offset in PAGE_SIZE units, *not* PAGE_CACHE_SIZE */
--	struct file * vm_file;
--	unsigned long vm_raend;
-+
-+	/* Information about our backing store: */
-+	unsigned long vm_pgoff;		/* Offset (within vm_file) in PAGE_SIZE
-+					   units, *not* PAGE_CACHE_SIZE */
-+	struct file * vm_file;		/* File we map to (can be NULL). */
-+	unsigned long vm_raend;		/* XXX: put full readahead info here. */
- 	void * vm_private_data;		/* was vm_pte (shared mem) */
- };
-
-@@ -90,6 +96,7 @@
- #define VM_LOCKED	0x00002000
- #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
-
-+					/* Used by sys_madvise() */
- #define VM_SEQ_READ	0x00008000	/* App will access data sequentially */
- #define VM_RAND_READ	0x00010000	/* App will not benefit from clustered reads */
-
-@@ -124,37 +131,145 @@
- };
-
- /*
-+ * Each physical page in the system has a struct page associated with
-+ * it to keep track of whatever it is we are using the page for at the
-+ * moment. Note that we have no way to track which tasks are using
-+ * a page.
-+ *
-  * Try to keep the most commonly accessed fields in single cache lines
-  * here (16 bytes or greater).  This ordering should be particularly
-  * beneficial on 32-bit processors.
-  *
-  * The first line is data used in page cache lookup, the second line
-  * is used for linear searches (eg. clock algorithm scans).
-+ *
-+ * TODO: make this structure smaller, it could be as small as 32 bytes.
-  */
- typedef struct page {
--	struct list_head list;
--	struct address_space *mapping;
--	unsigned long index;
--	struct page *next_hash;
--	atomic_t count;
--	unsigned long flags;	/* atomic flags, some possibly updated asynchronously */
--	struct list_head lru;
--	unsigned long age;
--	wait_queue_head_t wait;
--	struct page **pprev_hash;
--	struct buffer_head * buffers;
--	void *virtual; /* non-NULL if kmapped */
--	struct zone_struct *zone;
-+	struct list_head list;		/* ->mapping has some page lists. */
-+	struct address_space *mapping;	/* The inode (or ...) we belong to. */
-+	unsigned long index;		/* Our offset within mapping, in
-+					   units of PAGE_CACHE_SIZE. */
-+	struct page *next_hash;		/* Next page sharing our hash bucket in
-+					   the page cache hash table. */
-+	atomic_t count;			/* Usage count, see below. */
-+	unsigned long flags;		/* atomic flags, some possibly
-+					   updated asynchronously */
-+	struct list_head lru;		/* Pageout list, eg active_list;
-+					   protected by pagemap_lru_lock !! */
-+	unsigned long age;		/* Page aging counter. */
-+	wait_queue_head_t wait;		/* Page locked?  Stand in line... */
-+	struct page **pprev_hash;	/* Complement to *next_hash. */
-+	struct buffer_head * buffers;	/* Buffer maps us to a disk block. */
-+	void *virtual;			/* Kernel virtual address (NULL if
-+					   not kmapped, ie highmem) */
-+	struct zone_struct *zone;	/* Memory zone we are in. */
- } mem_map_t;
-
-+/*
-+ * Methods to modify the page usage count.
-+ *
-+ * What counts for a page usage:
-+ * - cache mapping   (page->mapping)
-+ * - disk mapping    (page->buffers)
-+ * - page mapped in a task's page tables, each mapping
-+ *   is counted separately
-+ *
-+ * Also, many kernel routines increase the page count before a critical
-+ * routine so they can be sure the page doesn't go away from under them.
-+ */
- #define get_page(p)		atomic_inc(&(p)->count)
- #define put_page(p)		__free_page(p)
- #define put_page_testzero(p) 	atomic_dec_and_test(&(p)->count)
- #define page_count(p)		atomic_read(&(p)->count)
- #define set_page_count(p,v) 	atomic_set(&(p)->count, v)
-
--/* Page flag bit values */
--#define PG_locked		 0
-+/*
-+ * Various page->flags bits:
-+ *
-+ * PG_reserved is set for special pages, which can never be swapped
-+ * out. Some of them might not even exist (eg empty_bad_page)...
-+ *
-+ * Multiple processes may "see" the same page. E.g. for untouched
-+ * mappings of /dev/null, all processes see the same page full of
-+ * zeroes, and text pages of executables and shared libraries have
-+ * only one copy in memory, at most, normally.
-+ *
-+ * For the non-reserved pages, page->count denotes a reference count.
-+ *   page->count == 0 means the page is free.
-+ *   page->count == 1 means the page is used for exactly one purpose
-+ *   (e.g. a private data page of one process).
-+ *
-+ * A page may be used for kmalloc() or anyone else who does a
-+ * __get_free_page(). In this case the page->count is at least 1, and
-+ * all other fields are unused but should be 0 or NULL. The
-+ * management of this page is the responsibility of the one who uses
-+ * it.
-+ *
-+ * The other pages (we may call them "process pages") are completely
-+ * managed by the Linux memory manager: I/O, buffers, swapping etc.
-+ * The following discussion applies only to them.
-+ *
-+ * A page may belong to an inode's memory mapping. In this case,
-+ * page->mapping is the pointer to the inode, and page->index is the
-+ * file offset of the page, in units of PAGE_CACHE_SIZE.
-+ *
-+ * A page may have buffers allocated to it. In this case,
-+ * page->buffers is a circular list of these buffer heads. Else,
-+ * page->buffers == NULL.
-+ *
-+ * For pages belonging to inodes, the page->count is the number of
-+ * attaches, plus 1 if buffers are allocated to the page, plus one
-+ * for the page cache itself.
-+ *
-+ * All pages belonging to an inode are in these doubly linked lists:
-+ * mapping->clean_pages, mapping->dirty_pages and mapping->locked_pages;
-+ * using the page->list list_head. These fields are also used for
-+ * freelist managemet (when page->count==0).
-+ *
-+ * There is also a hash table mapping (mapping,index) to the page
-+ * in memory if present. The lists for this hash table use the fields
-+ * page->next_hash and page->pprev_hash.
-+ *
-+ * All process pages can do I/O:
-+ * - inode pages may need to be read from disk,
-+ * - inode pages which have been modified and are MAP_SHARED may need
-+ *   to be written to disk,
-+ * - private pages which have been modified may need to be swapped out
-+ *   to swap space and (later) to be read back into memory.
-+ * During disk I/O, PG_locked is used. This bit is set before I/O
-+ * and reset when I/O completes. page->wait is a wait queue of all
-+ * tasks waiting for the I/O on this page to complete.
-+ * PG_uptodate tells whether the page's contents is valid.
-+ * When a read completes, the page becomes uptodate, unless a disk I/O
-+ * error happened.
-+ *
-+ * For choosing which pages to swap out, inode pages carry a
-+ * PG_referenced bit, which is set any time the system accesses
-+ * that page through the (mapping,index) hash table. This referenced
-+ * bit, together with the referenced bit in the page tables, is used
-+ * to manipulate page->age and move the page across the active,
-+ * inactive_dirty and inactive_clean lists.
-+ *
-+ * Note that the referenced bit, the page->lru list_head and the
-+ * active, inactive_dirty and inactive_clean lists are protected by
-+ * the pagemap_lru_lock, and *NOT* by the usual PG_locked bit!
-+ *
-+ * PG_skip is used on sparc/sparc64 architectures to "skip" certain
-+ * parts of the address space.
-+ *
-+ * PG_error is set to indicate that an I/O error occurred on this page.
-+ *
-+ * PG_arch_1 is an architecture specific page state bit.  The generic
-+ * code guarantees that this bit is cleared for a page when it first
-+ * is entered into the page cache.
-+ *
-+ * PG_highmem pages are not permanently mapped into the kernel virtual
-+ * address space, they need to be kmapped separately for doing IO on
-+ * the pages. The struct page (these bits with information) are always
-+ * mapped into kernel address space...
-+ */
-+#define PG_locked		 0	/* Page is locked. Don't touch. */
- #define PG_error		 1
- #define PG_referenced		 2
- #define PG_uptodate		 3
-@@ -254,81 +369,7 @@
- #define NOPAGE_SIGBUS	(NULL)
- #define NOPAGE_OOM	((struct page *) (-1))
-
--
--/*
-- * Various page->flags bits:
-- *
-- * PG_reserved is set for a page which must never be accessed (which
-- * may not even be present).
-- *
-- * PG_DMA has been removed, page->zone now tells exactly wether the
-- * page is suited to do DMAing into.
-- *
-- * Multiple processes may "see" the same page. E.g. for untouched
-- * mappings of /dev/null, all processes see the same page full of
-- * zeroes, and text pages of executables and shared libraries have
-- * only one copy in memory, at most, normally.
-- *
-- * For the non-reserved pages, page->count denotes a reference count.
-- *   page->count == 0 means the page is free.
-- *   page->count == 1 means the page is used for exactly one purpose
-- *   (e.g. a private data page of one process).
-- *
-- * A page may be used for kmalloc() or anyone else who does a
-- * __get_free_page(). In this case the page->count is at least 1, and
-- * all other fields are unused but should be 0 or NULL. The
-- * management of this page is the responsibility of the one who uses
-- * it.
-- *
-- * The other pages (we may call them "process pages") are completely
-- * managed by the Linux memory manager: I/O, buffers, swapping etc.
-- * The following discussion applies only to them.
-- *
-- * A page may belong to an inode's memory mapping. In this case,
-- * page->inode is the pointer to the inode, and page->offset is the
-- * file offset of the page (not necessarily a multiple of PAGE_SIZE).
-- *
-- * A page may have buffers allocated to it. In this case,
-- * page->buffers is a circular list of these buffer heads. Else,
-- * page->buffers == NULL.
-- *
-- * For pages belonging to inodes, the page->count is the number of
-- * attaches, plus 1 if buffers are allocated to the page.
-- *
-- * All pages belonging to an inode make up a doubly linked list
-- * inode->i_pages, using the fields page->next and page->prev. (These
-- * fields are also used for freelist management when page->count==0.)
-- * There is also a hash table mapping (inode,offset) to the page
-- * in memory if present. The lists for this hash table use the fields
-- * page->next_hash and page->pprev_hash.
-- *
-- * All process pages can do I/O:
-- * - inode pages may need to be read from disk,
-- * - inode pages which have been modified and are MAP_SHARED may need
-- *   to be written to disk,
-- * - private pages which have been modified may need to be swapped out
-- *   to swap space and (later) to be read back into memory.
-- * During disk I/O, PG_locked is used. This bit is set before I/O
-- * and reset when I/O completes. page->wait is a wait queue of all
-- * tasks waiting for the I/O on this page to complete.
-- * PG_uptodate tells whether the page's contents is valid.
-- * When a read completes, the page becomes uptodate, unless a disk I/O
-- * error happened.
-- *
-- * For choosing which pages to swap out, inode pages carry a
-- * PG_referenced bit, which is set any time the system accesses
-- * that page through the (inode,offset) hash table.
-- *
-- * PG_skip is used on sparc/sparc64 architectures to "skip" certain
-- * parts of the address space.
-- *
-- * PG_error is set to indicate that an I/O error occurred on this page.
-- *
-- * PG_arch_1 is an architecture specific page state bit.  The generic
-- * code guarentees that this bit is cleared for a page when it first
-- * is entered into the page cache.
-- */
--
-+/* The array of struct pages */
- extern mem_map_t * mem_map;
-
- /*
-@@ -522,11 +563,6 @@
- }
-
- extern struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr);
--
--#define buffer_under_min()	(atomic_read(&buffermem_pages) * 100 < \
--				buffer_mem.min_percent * num_physpages)
--#define pgcache_under_min()	(atomic_read(&page_cache_size) * 100 < \
--				page_cache.min_percent * num_physpages)
-
- #endif /* __KERNEL__ */
-
---- linux-2.4.2-doc/include/linux/mmzone.h.orig	Wed Mar  7 15:36:32 2001
-+++ linux-2.4.2-doc/include/linux/mmzone.h	Tue Mar 13 02:43:11 2001
-@@ -21,6 +21,14 @@
-
- struct pglist_data;
-
-+/*
-+ * On machines where it is needed (eg PCs) we divide physical memory
-+ * into multiple physical zones. On a PC we have 3 zones:
-+ *
-+ * ZONE_DMA	  < 16 MB	ISA DMA capable memory
-+ * ZONE_NORMAL	16-896 MB	direct mapped by the kernel
-+ * ZONE_HIGHMEM	 > 896 MB	only page cache and user processes
-+ */
- typedef struct zone_struct {
- 	/*
- 	 * Commonly accessed fields:
-@@ -75,6 +83,17 @@
-
- #define NR_GFPINDEX		0x100
-
-+/*
-+ * The pg_data_t structure is used in machines with CONFIG_DISCONTIGMEM
-+ * (mostly NUMA machines?) to denote a higher-level memory zone than the
-+ * zone_struct denotes.
-+ *
-+ * On NUMA machines, each NUMA node would have a pg_data_t to describe
-+ * it's memory layout.
-+ *
-+ * XXX: we need to move the global memory statistics (active_list, ...)
-+ *      into the pg_data_t to properly support NUMA.
-+ */
- struct bootmem_data;
- typedef struct pglist_data {
- 	zone_t node_zones[MAX_NR_ZONES];
---- linux-2.4.2-doc/include/linux/swap.h.orig	Wed Mar  7 15:36:37 2001
-+++ linux-2.4.2-doc/include/linux/swap.h	Thu Mar  8 09:54:02 2001
-@@ -10,11 +10,23 @@
-
- #define MAX_SWAPFILES 8
-
-+/*
-+ * Magic header for a swap area. The first part of the union is
-+ * what the swap magic looks like for the old (limited to 128MB)
-+ * swap area format, the second part of the union adds - in the
-+ * old reserved area - some extra information. Note that the first
-+ * kilobyte is reserved for boot loader or disk label stuff...
-+ *
-+ * Having the magic at the end of the PAGE_SIZE makes detecting swap
-+ * areas somewhat tricky on machines that support multiple page sizes.
-+ * For 2.5 we'll probably want to move the magic to just beyond the
-+ * bootbits...
-+ */
- union swap_header {
- 	struct
- 	{
- 		char reserved[PAGE_SIZE - 10];
--		char magic[10];
-+		char magic[10];			/* SWAP-SPACE or SWAPSPACE2 */
- 	} magic;
- 	struct
- 	{
-@@ -46,6 +58,9 @@
- #define SWAP_MAP_MAX	0x7fff
- #define SWAP_MAP_BAD	0x8000
-
-+/*
-+ * The in-memory structure used to track swap areas.
-+ */
- struct swap_info_struct {
- 	unsigned int flags;
- 	kdev_t swap_device;
-
+Yes, I know it'll probably be cachely disadvantageous,
+but has anyone actually tried and measured it?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
