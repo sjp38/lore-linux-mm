@@ -1,33 +1,43 @@
-Date: Tue, 11 Jul 2000 14:47:03 -0300 (BRST)
+Date: Tue, 11 Jul 2000 14:45:18 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
 Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on
  2.4.0-test2
-In-Reply-To: <Pine.LNX.4.21.0007111938241.3644-100000@inspiron.random>
-Message-ID: <Pine.LNX.4.21.0007111445280.10961-100000@duckman.distro.conectiva>
+In-Reply-To: <Pine.LNX.4.21.0007111917240.3644-100000@inspiron.random>
+Message-ID: <Pine.LNX.4.21.0007111442150.10961-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
+Cc: "Juan J. Quintela" <quintela@fi.udc.es>, "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 On Tue, 11 Jul 2000, Andrea Arcangeli wrote:
-> On Tue, 11 Jul 2000, Rik van Riel wrote:
+> On 11 Jul 2000, Juan J. Quintela wrote:
 > 
-> >No. You just wrote down the strongest argument in favour of one
-> >unified queue for all types of memory usage.
+> >I agree with Stephen here, if my cache page is older than my mmaped vi
+> >page, I want to unmap first the vi page.
 > 
-> Do that and download an dozen of iso image with gigabit ethernet
-> in background.
+> You said it in the other way around ;) but never mind I got your point
+> indeed.
+> 
+> With the logic "if my cache page is younger than my mmaped vi page, I want
+> to unmap first the vi page" then when you'll run:
+> 
+> 	cp /dev/zero .
+> 
+> and you'll start hanging in gnus, while switching desktop, while
+> switching window, while pressing a key in bash, and indeed also
+> while pressing a key in vi. For what?
 
-You need to forget about LRU for a moment. The fact that
-LRU is fundamentally broken doesn't mean that it has
-anything whatsoever to do with whether we age all pages
-fairly or whether we prefer some pages over other pages.
+This is why LRU is wrong and we need page aging (which
+approximates both LRU and NFU).
 
-If LRU is broken we need to fix that, a workaround like
-your proposal doesn't fix anything in this case.
+The idea is to remove those pages from memory which will
+not be used again for the longest time, regardless of in
+which 'state' they live in main memory.
+
+(and proper page aging is a good approximation to this)
 
 regards,
 
