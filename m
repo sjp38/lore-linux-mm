@@ -1,41 +1,36 @@
-Subject: [RFC] x86 kernel text replication
+Subject: Re: [RFC] x86 kernel text replication
 From: Dave Hansen <haveblue@us.ibm.com>
-Content-Type: multipart/mixed; boundary="=-0kGWFzXjf8d/tVi1zPcj"
-Message-Id: <1055810135.2465.281.camel@nighthawk>
+In-Reply-To: <1055810135.2465.281.camel@nighthawk>
+References: <1055810135.2465.281.camel@nighthawk>
+Content-Type: multipart/mixed; boundary="=-Ftv7IwUM4xv52qcEm9R4"
+Message-Id: <1055825645.2119.534.camel@nighthawk>
 Mime-Version: 1.0
-Date: 16 Jun 2003 17:35:35 -0700
+Date: 16 Jun 2003 21:54:05 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>
+To: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>, "Martin J. Bligh" <mbligh@aracnet.com>
 List-ID: <linux-mm.kvack.org>
 
---=-0kGWFzXjf8d/tVi1zPcj
+--=-Ftv7IwUM4xv52qcEm9R4
 Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
 
-One of the vaunted NUMA features on OSes like PTX and AIX is the ability
-to duplicate per-node read-only data, so that each node has a local
-copy.  This patch does that for kernel text.  
+Well, Bill Irwin had enough good sense to try and keep me away from as
+much generic code as possible.  Here's a slightly changed patch, with
+even less generic code touched.  I used an initcall, and some
+preexisting arch context switch functions.  
 
-I had to move the _actual_ text data up a bit, to get it away from the
-pseudo-text stuff like swapper_pg_dir (see comment in
-arch/i386/kernel/head.S).  I also had to align the back end of the text
-segment.  
-
-This only works on PAE, becuase I'm lazy, and nobody needs NUMA if they
-have <4G of ram anyway (NUMAQ won't even compile :)  It depends on the
-sepmd patch, which Martin _still_ needs to readd to his tree.
 -- 
 Dave Hansen
 haveblue@us.ibm.com
 
---=-0kGWFzXjf8d/tVi1zPcj
-Content-Disposition: attachment; filename=kernel-text-replication-2.5.70-mjb1-0.patch
-Content-Type: text/x-patch; name=kernel-text-replication-2.5.70-mjb1-0.patch; charset=ANSI_X3.4-1968
+--=-Ftv7IwUM4xv52qcEm9R4
+Content-Disposition: attachment; filename=kernel-text-replication-2.5.70-mjb1-2.patch
+Content-Type: text/x-patch; name=kernel-text-replication-2.5.70-mjb1-2.patch; charset=ANSI_X3.4-1968
 Content-Transfer-Encoding: 7bit
 
-diff -rNup linux-2.5.70-mjb1/arch/i386/Kconfig linux-2.5.70-mjb1-textrep/arch/i386/Kconfig
+diff -Nrup linux-2.5.70-mjb1/arch/i386/Kconfig linux-2.5.70-mjb1-textrep/arch/i386/Kconfig
 --- linux-2.5.70-mjb1/arch/i386/Kconfig	Thu Jun  5 16:04:33 2003
 +++ linux-2.5.70-mjb1-textrep/arch/i386/Kconfig	Mon Jun 16 16:16:27 2003
 @@ -731,6 +731,10 @@ config NUMA_SCHED
@@ -49,7 +44,7 @@ diff -rNup linux-2.5.70-mjb1/arch/i386/Kconfig linux-2.5.70-mjb1-textrep/arch/i3
  # Need comments to help the hapless user trying to turn on NUMA support
  comment "NUMA (NUMA-Q) requires SMP, 64GB highmem support"
  	depends on X86_NUMAQ && (!HIGHMEM64G || !SMP)
-diff -rNup linux-2.5.70-mjb1/arch/i386/kernel/head.S linux-2.5.70-mjb1-textrep/arch/i386/kernel/head.S
+diff -Nrup linux-2.5.70-mjb1/arch/i386/kernel/head.S linux-2.5.70-mjb1-textrep/arch/i386/kernel/head.S
 --- linux-2.5.70-mjb1/arch/i386/kernel/head.S	Thu Jun  5 16:04:34 2003
 +++ linux-2.5.70-mjb1-textrep/arch/i386/kernel/head.S	Mon Jun 16 16:20:44 2003
 @@ -413,7 +413,21 @@ ENTRY(pg1)
@@ -74,7 +69,7 @@ diff -rNup linux-2.5.70-mjb1/arch/i386/kernel/head.S linux-2.5.70-mjb1-textrep/a
  
  /*
   * Real beginning of normal "text" segment
-diff -rNup linux-2.5.70-mjb1/arch/i386/mm/Makefile linux-2.5.70-mjb1-textrep/arch/i386/mm/Makefile
+diff -Nrup linux-2.5.70-mjb1/arch/i386/mm/Makefile linux-2.5.70-mjb1-textrep/arch/i386/mm/Makefile
 --- linux-2.5.70-mjb1/arch/i386/mm/Makefile	Thu Jun  5 16:04:10 2003
 +++ linux-2.5.70-mjb1-textrep/arch/i386/mm/Makefile	Mon Jun 16 15:55:19 2003
 @@ -8,3 +8,4 @@ obj-$(CONFIG_DISCONTIGMEM)	+= discontig.
@@ -82,10 +77,10 @@ diff -rNup linux-2.5.70-mjb1/arch/i386/mm/Makefile linux-2.5.70-mjb1-textrep/arc
  obj-$(CONFIG_HIGHMEM) += highmem.o
  obj-$(CONFIG_BOOT_IOREMAP) += boot_ioremap.o
 +obj-$(CONFIG_KERNEL_TEXT_REPLICATION) += text_repl.o
-diff -rNup linux-2.5.70-mjb1/arch/i386/mm/text_repl.c linux-2.5.70-mjb1-textrep/arch/i386/mm/text_repl.c
+diff -Nrup linux-2.5.70-mjb1/arch/i386/mm/text_repl.c linux-2.5.70-mjb1-textrep/arch/i386/mm/text_repl.c
 --- linux-2.5.70-mjb1/arch/i386/mm/text_repl.c	Wed Dec 31 16:00:00 1969
-+++ linux-2.5.70-mjb1-textrep/arch/i386/mm/text_repl.c	Mon Jun 16 16:10:47 2003
-@@ -0,0 +1,124 @@
++++ linux-2.5.70-mjb1-textrep/arch/i386/mm/text_repl.c	Mon Jun 16 20:41:44 2003
+@@ -0,0 +1,132 @@
 +/*
 + * arch/i386/mm/text_repl.c
 + * 
@@ -115,7 +110,7 @@ diff -rNup linux-2.5.70-mjb1/arch/i386/mm/text_repl.c linux-2.5.70-mjb1-textrep/
 +pmd_t *textpmds;
 +static inline int text_pmd_index(int nid, int pmdnum)
 +{
-+	return numnodes * pmdnum + nid;
++	return (numnodes * pmdnum) + nid;
 +}
 +
 +static inline pmd_t* text_pmd(int nid, int pmdnum)
@@ -123,12 +118,12 @@ diff -rNup linux-2.5.70-mjb1/arch/i386/mm/text_repl.c linux-2.5.70-mjb1-textrep/
 +	return &textpmds[text_pmd_index(nid,pmdnum)];
 +}
 +	
-+pmd_t make_pmd_for_pages(struct page *pages)
++static inline pmd_t make_pmd_for_pages(struct page *pages)
 +{
 +	return pfn_pmd(page_to_pfn(pages), PAGE_KERNEL_LARGE);
 +}
 +
-+void setup_textrep(void)
++static int __init setup_textrep(void)
 +{
 +	unsigned long text_size = KERNEL_TEXT_END - KERNEL_TEXT_START;
 +	unsigned long alloc_order = PMD_SHIFT-PAGE_SHIFT;
@@ -143,9 +138,9 @@ diff -rNup linux-2.5.70-mjb1/arch/i386/mm/text_repl.c linux-2.5.70-mjb1-textrep/
 +	textpmds = kmalloc(pmd_array_size, GFP_KERNEL);
 +	if (!textpmds) {
 +		printk("could not allocate pmd array\n");
-+		return;
++		goto out_nomsg;
 +	}
-+	
++
 +	for (textsrc = KERNEL_TEXT_START; 
 +		textsrc < KERNEL_TEXT_END; 
 +		textsrc += PMD_SIZE, pmdnum++ ) {
@@ -158,22 +153,30 @@ diff -rNup linux-2.5.70-mjb1/arch/i386/mm/text_repl.c linux-2.5.70-mjb1-textrep/
 +			if (!dstpages)
 +				goto nomem;
 +			copy_highpage_range(dstpages, srcpages, pages_per_pmd);
-+			set_pmd(text_pmd(nid,pmdnum),make_pmd_for_pages(srcpages));
++			set_pmd(text_pmd(nid,pmdnum),make_pmd_for_pages(dstpages));
 +		}
 +	}
++
++	printk("set up kernel text replication for %d nodes\n", numnodes);
++	
 +	text_replicated = 1;
-+	return;
++	return 0;
 +nomem:
 +	printk("couldn't allocate text space for node: %d pmd: %d size: %ld\n", 
 +			nid, pmdnum, PAGE_SIZE<<alloc_order);
-+	return;
++out_nomsg:
++	return -ENOMEM;
 +}
 +
-+void update_kernel_text(struct mm_struct * oldmm, struct mm_struct * newmm, int nid)
++late_initcall(setup_textrep);
++
++void update_kernel_text(struct mm_struct * oldmm)
 +{
 +	int pmdnum = 0;
 +	unsigned long textvaddr;
 +	int need_to_flush = 1;
++	struct mm_struct * newmm = current->active_mm;
++	int nid = numa_node_id();
 +
 +	/* 
 +	 * make sure that the text has been copied (there are additional
@@ -210,7 +213,7 @@ diff -rNup linux-2.5.70-mjb1/arch/i386/mm/text_repl.c linux-2.5.70-mjb1-textrep/
 +	}
 +	newmm->kernel_text_node = nid;
 +}
-diff -rNup linux-2.5.70-mjb1/arch/i386/vmlinux.lds.S linux-2.5.70-mjb1-textrep/arch/i386/vmlinux.lds.S
+diff -Nrup linux-2.5.70-mjb1/arch/i386/vmlinux.lds.S linux-2.5.70-mjb1-textrep/arch/i386/vmlinux.lds.S
 --- linux-2.5.70-mjb1/arch/i386/vmlinux.lds.S	Thu Jun  5 16:04:34 2003
 +++ linux-2.5.70-mjb1-textrep/arch/i386/vmlinux.lds.S	Mon Jun 16 16:07:45 2003
 @@ -19,6 +19,11 @@ SECTIONS
@@ -225,7 +228,27 @@ diff -rNup linux-2.5.70-mjb1/arch/i386/vmlinux.lds.S linux-2.5.70-mjb1-textrep/a
    _etext = .;			/* End of text section */
  
    . = ALIGN(16);		/* Exception table */
-diff -rNup linux-2.5.70-mjb1/include/linux/highmem.h linux-2.5.70-mjb1-textrep/include/linux/highmem.h
+diff -Nrup linux-2.5.70-mjb1/include/asm-i386/mmu_context.h linux-2.5.70-mjb1-textrep/include/asm-i386/mmu_context.h
+--- linux-2.5.70-mjb1/include/asm-i386/mmu_context.h	Thu Jun  5 16:04:08 2003
++++ linux-2.5.70-mjb1-textrep/include/asm-i386/mmu_context.h	Mon Jun 16 19:09:00 2003
+@@ -22,6 +22,16 @@ static inline void enter_lazy_tlb(struct
+ #endif
+ }
+ 
++#ifdef CONFIG_KERNEL_TEXT_REPLICATION
++#define finish_arch_switch(rq,prev)	do { 	\
++	update_kernel_text(prev->active_mm);	\
++	spin_unlock_irq(&(rq)->lock);		\
++} while (0)
++
++#define prepare_arch_switch(rq, next)	do { } while(0)
++#define task_running(rq, p)		((rq)->curr == (p))
++#endif /* CONFIG_KERNEL_TEXT_REPLICATION */
++
+ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next, struct task_struct *tsk, unsigned cpu)
+ {
+ 	if (likely(prev != next)) {
+diff -Nrup linux-2.5.70-mjb1/include/linux/highmem.h linux-2.5.70-mjb1-textrep/include/linux/highmem.h
 --- linux-2.5.70-mjb1/include/linux/highmem.h	Thu Jun  5 16:04:07 2003
 +++ linux-2.5.70-mjb1-textrep/include/linux/highmem.h	Sat Jun 14 17:40:41 2003
 @@ -92,4 +92,10 @@ static inline void copy_highpage(struct 
@@ -239,9 +262,9 @@ diff -rNup linux-2.5.70-mjb1/include/linux/highmem.h linux-2.5.70-mjb1-textrep/i
 +}
 +
  #endif /* _LINUX_HIGHMEM_H */
-diff -rNup linux-2.5.70-mjb1/include/linux/sched.h linux-2.5.70-mjb1-textrep/include/linux/sched.h
+diff -Nrup linux-2.5.70-mjb1/include/linux/sched.h linux-2.5.70-mjb1-textrep/include/linux/sched.h
 --- linux-2.5.70-mjb1/include/linux/sched.h	Thu Jun  5 16:04:34 2003
-+++ linux-2.5.70-mjb1-textrep/include/linux/sched.h	Mon Jun 16 15:49:53 2003
++++ linux-2.5.70-mjb1-textrep/include/linux/sched.h	Mon Jun 16 20:42:50 2003
 @@ -218,6 +218,16 @@ struct mm_struct {
  #ifdef CONFIG_HUGETLB_PAGE
  	int used_hugetlb;
@@ -259,46 +282,21 @@ diff -rNup linux-2.5.70-mjb1/include/linux/sched.h linux-2.5.70-mjb1-textrep/inc
  	/* Architecture-specific MM context */
  	mm_context_t context;
  
-@@ -876,6 +886,14 @@ static inline void set_task_cpu(struct t
+@@ -876,6 +886,12 @@ static inline void set_task_cpu(struct t
  }
  
  #endif /* CONFIG_SMP */
 +
 +#ifdef CONFIG_KERNEL_TEXT_REPLICATION
-+extern void setup_textrep(void);
-+extern void update_kernel_text(struct mm_struct * oldmm, struct mm_struct * newmm, int nid);
++extern void update_kernel_text(struct mm_struct * newmm);
 +#else
-+#define setup_textrep(...) do {} while(0)
 +#define update_kernel_text(...) do {} while(0)
 +#endif /* CONFIG_KERNEL_TEXT_REPLICATION */
  
  #endif /* __KERNEL__ */
  
-diff -rNup linux-2.5.70-mjb1/init/main.c linux-2.5.70-mjb1-textrep/init/main.c
---- linux-2.5.70-mjb1/init/main.c	Thu Jun  5 16:04:34 2003
-+++ linux-2.5.70-mjb1-textrep/init/main.c	Mon Jun 16 16:14:14 2003
-@@ -598,6 +598,7 @@ static int init(void * unused)
- 	 * initmem segments and start the user-mode stuff..
- 	 */
- 	free_initmem();
-+	setup_textrep();
- 	unlock_kernel();
- 	system_running = 1;
- 
-diff -rNup linux-2.5.70-mjb1/kernel/sched.c linux-2.5.70-mjb1-textrep/kernel/sched.c
---- linux-2.5.70-mjb1/kernel/sched.c	Thu Jun  5 16:04:34 2003
-+++ linux-2.5.70-mjb1-textrep/kernel/sched.c	Mon Jun 16 15:52:54 2003
-@@ -854,6 +854,8 @@ static inline task_t * context_switch(ru
- 	/* Here we just switch the register state and the stack. */
- 	switch_to(prev, next, prev);
- 
-+	update_kernel_text(oldmm, mm, numa_node_id());
-+	
- 	return prev;
- }
- /*
 
---=-0kGWFzXjf8d/tVi1zPcj--
+--=-Ftv7IwUM4xv52qcEm9R4--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
