@@ -1,30 +1,37 @@
-Date: Sat, 9 Jun 2001 07:09:05 +0200 (CEST)
+Date: Sat, 9 Jun 2001 08:07:06 +0200 (CEST)
 From: Mike Galbraith <mikeg@wen-online.de>
-Subject: Re: VM Report was:Re: Break 2.4 VM in five easy steps
-In-Reply-To: <l0313032cb7475100fc4a@[192.168.239.105]>
-Message-ID: <Pine.LNX.4.33.0106090708170.670-100000@mikeg.weiden.de>
+Subject: Re: Comment on patch to remove nr_async_pages limit
+In-Reply-To: <Pine.LNX.4.21.0106090008110.10415-100000@imladris.rielhome.conectiva>
+Message-ID: <Pine.LNX.4.33.0106090758530.748-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jonathan Morton <chromi@cyberspace.org>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, John Stoffel <stoffel@casc.com>, Tobias Ringstrom <tori@unhappy.mine.nu>, Shane Nay <shane@minirl.com>, "Dr S.M. Huen" <smh1008@cus.cam.ac.uk>, Sean Hunter <sean@dev.sportingbet.com>, Xavier Bestel <xavier.bestel@free.fr>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Zlatko Calusic <zlatko.calusic@iskon.hr>, Marcelo Tosatti <marcelo@conectiva.com.br>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 9 Jun 2001, Jonathan Morton wrote:
+On Sat, 9 Jun 2001, Rik van Riel wrote:
 
-> >> On the subject of Mike Galbraith's kernel compilation test, how much
-> >> physical RAM does he have for his machine, what type of CPU is it, and what
-> >> (approximate) type of device does he use for swap?  I'll see if I can
-> >> partially duplicate his results at this end.  So far all my tests have been
-> >> done with a fast CPU - perhaps I should try the P166/MMX or even try
-> >> loading linux-pmac onto my 8100.
+> On 5 Jun 2001, Zlatko Calusic wrote:
+> > Marcelo Tosatti <marcelo@conectiva.com.br> writes:
 > >
-> >It's a PIII/500 with one ide disk.
+> > [snip]
+> > > Exactly. And when we reach a low watermark of memory, we start writting
+> > > out the anonymous memory.
+> >
+> > Hm, my observations are a little bit different. I find that writeouts
+> > happen sooner than the moment we reach low watermark, and many times
+> > just in time to interact badly with some read I/O workload that made a
+> > virtual shortage of memory in the first place.
 >
-> ...with how much RAM?  That's the important bit.
+> I have a patch that tries to address this by not reordering
+> the inactive list whenever we scan through it. I'll post it
+> right now ...
 
-Duh! :) I'm a dipstick.  128mb.
+Excellent.  I've done some of that (crude but effective) and have had
+nice encouraging results.  If the dirty list is long enough, this
+most definitely improves behavior under heavy load.
 
 	-Mike
 
