@@ -1,32 +1,31 @@
-Date: Wed, 26 Feb 2003 19:01:52 +0000 (GMT)
-From: Mel Gorman <mel@csn.ul.ie>
-Subject: RE: Silly question: How to map a user space page in kernel space?
-In-Reply-To: <A46BBDB345A7D5118EC90002A5072C780A7D590A@orsmsx116.jf.intel.com>
-Message-ID: <Pine.LNX.4.44.0302261859410.31891-100000@skynet>
+Date: Wed, 26 Feb 2003 11:03:53 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: Silly question: How to map a user space page in kernel space?
+Message-ID: <900000.1046286232@[10.10.2.4]>
+In-Reply-To: <20030226003334.7e85d5b2.akpm@digeo.com>
+References: <A46BBDB345A7D5118EC90002A5072C780A7D57E6@orsmsx116.jf.intel.com>
+ <9860000.1046238956@[10.10.2.4]> <20030226003334.7e85d5b2.akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Perez-Gonzalez, Inaky" <inaky.perez-gonzalez@intel.com>
-Cc: "'linux-mm@kvack.org'" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@digeo.com>
+Cc: inaky.perez-gonzalez@intel.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 26 Feb 2003, Perez-Gonzalez, Inaky wrote:
+>> But be aware that pagefaulting inside kmap_atomic is bad - you can get
+>> blocked and rescheduled, so touching user pages, etc is dangerous.
+> 
+> That's true in 2.4.  In 2.5 a copy_foo_user() inside kmap_atomic()
+> will just return a short copy while remaining atomic.
+> 
+> See mm/filemap.c:filemap_copy_from_user()
 
->
-> Sure it will; your doc was the first pointer I went too [btw,
-> congratulations and thank you, it is really helpful], but, yep, it wasn't
-> there. Checking out the new version right now.
->
+Cool - I didn't realise you fixed that up so generically - very nice.
 
-As I said, this chapter is only in my current working version. I posted it
-up early because I felt it was relevant. The whole document will be
-released again when I finish the swapping chapter.
-
--- 
-Mel Gorman
-MSc Student, University of Limerick
-http://www.csn.ul.ie/~mel
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
