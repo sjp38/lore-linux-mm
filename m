@@ -1,35 +1,28 @@
-Date: Wed, 24 Jul 2002 22:19:33 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [PATCH] updated low-latency zap_page_range
-In-Reply-To: <3D3F56C6.B045E8A@mvista.com>
-Message-ID: <Pine.LNX.4.44.0207242216150.1231-100000@home.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 24 Jul 2002 22:30:59 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: page_add/remove_rmap costs
+Message-ID: <20020725053059.GF2907@holomorphy.com>
+References: <3D3E4A30.8A108B45@zip.com.au> <20020725045040.GD2907@holomorphy.com> <3D3F893D.4074CDE5@zip.com.au> <20020725051552.GA48429@compsoc.man.ac.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
+In-Reply-To: <20020725051552.GA48429@compsoc.man.ac.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: george anzinger <george@mvista.com>
-Cc: Robert Love <rml@tech9.net>, Andrew Morton <akpm@zip.com.au>, riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: John Levon <levon@movementarian.org>
+Cc: Andrew Morton <akpm@zip.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Jul 25, 2002 at 06:15:52AM +0100, John Levon wrote:
+> Maybe wli used "op_session", and this was from a previous run. oprofile
+> < 0.3 had a bug where the vmlinux samples file wasn't moved.
 
-On Wed, 24 Jul 2002, george anzinger wrote:
-> >
-> > That may be a bug in preempt_count(), of course.
-> >
-> Didn't we just put bh_count and irq_count in the same
-> word???
+I used an explicit session file argument.
 
-Yes. But that doesn't mean that the "preempt_count()" macro necessarily
-needs to reflect that.
 
-In particular, we have separate macros for getting the irq bits from that
-shared word ("irq_count()" etc). Right now they happen to use the
-"preempt_count()" macro, but that's not really fundamental.
-
-No big deal either way, I suspect.
-
-		Linus
-
+Cheers,
+Bill
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
