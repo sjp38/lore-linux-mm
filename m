@@ -1,34 +1,57 @@
-Message-ID: <3965A4E7.C6150BBA@augan.com>
-Date: Fri, 07 Jul 2000 11:37:43 +0200
-From: Roman Zippel <roman@augan.com>
+Received: from uow.edu.au (IDENT:akpm@[47.181.194.197])
+          by pwold011.asiapac.nortel.com (8.9.3/8.9.3) with ESMTP id AAA23851
+          for <linux-mm@kvack.org>; Sat, 8 Jul 2000 00:37:36 +1000
+Message-ID: <3965EC8E.5950B758@uow.edu.au>
+Date: Sat, 08 Jul 2000 00:43:26 +1000
+From: Andrew Morton <andrewm@uow.edu.au>
 MIME-Version: 1.0
-Subject: Re: nice vmm test case
-References: <39636E66.CE21C296@ucla.edu> <m2sntn1agu.fsf@boreas.southchinaseas>
+Subject: sys_exit() and zap_page_range()
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: John Fremlin <vii@penguinpowered.com>
-Cc: linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+A couple of things...
 
-John Fremlin wrote:
+First, let's concede that running mmap001 and mmap002 while you're
+trying to achieve low scheduling latency is a dumb thing to do, but
+let's explore it anyway.
 
-> Perhaps, but I think the cause of the problem might well the priority
-> argument to the swap_out function. For me, it is always set to around
-> 62, so that the swap out loop is executed a ridiculous number of
-> times, i.e. until all memory that can be is swapped out (which seems
-> to be the behaviour described).
 
-Hmm, for me it looks like that even in a single loop too much is done. A
-single loop already tries to put as much as possible into the swap
-cache. Two calls of swap_out_mm for the same mm in very short time and
-most of the process is on swap and it will only be busy to get it pages
-back.
+On exit from mmap001, zap_page_range() is taking over 20 milliseconds on
+a 500MHz processor.   Is there anything easy which can be done about
+this?
 
-bye, Roman
+No algorithmic optimisations leap out at me, so the options appear to
+be:
+
+(1) Live with it.
+
+(2) Pass the mm over to the swapper task and let it quietly
+    throw things away in the background.
+
+(3) Put some conditional schedule calls in there.
+
+I note that Ingo's low-latency patch does (3).  He's put `if
+(current->need_resched) schedule();' in the loop in zap_pte_range().  In
+2.4, it looks like this won't work because of the lock held on
+mm->page_table_lock, and the lock held on mapping->i_shared_lock in
+vmtruncate().
+
+Can anyone suggest a simple, clean way of decreasing zap_page_range's
+scheduling latency, in a way which you're prepared to support?
+
+
+
+Secondly, and quite unrelatedly, mmap002: why does the machine spend 10
+seconds pounding the disk during the exit() call?  The file has been
+unlinked and all the memory is being freed up.  Apart from fiddling with
+a bit of file metadata I don't see why any I/O needs to be performed at
+this time.  What's it doing?
+
+Thanks.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
