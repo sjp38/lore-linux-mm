@@ -1,56 +1,29 @@
-Subject: Memtest suite v0.0.3
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-Date: 29 Apr 2000 02:25:11 +0200
-Message-ID: <yttr9bpbvo8.fsf@vexeta.dc.fi.udc.es>
+Date: Sat, 29 Apr 2000 00:37:27 -0600 (MDT)
+From: Roel van der Goot <roel@cs.ualberta.ca>
+Subject: Re: [PATCH] 2.3.99-pre6 vm fix
+Message-ID: <Pine.SOL.3.96.1000429002847.29350A-100000@sexsmith.cs.ualberta.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vgers.rutgers.edu
+To: Rik van Riel <riel@nl.linux.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi
-        new version of memtest suite.  If you have any more tests they
-        are welcome.
+Hi Rik,
 
-Later, Juan.
+I think that the shift left loop in your code needs a semicolon
+to keep similar semantics as before:
 
-Memory test suite v0.0.3
-------------------------
+   while ((mm->swap_cnt << 2 * (i + 1) < max_cnt)
+                   && i++ < 10)
+           ;
+          ^^^
 
-This intends to be a set of programs to test the memory management
-system.  I am releasing this version with the idea of gather more
-programs for the suite.  If you have some program to test the system,
-please send it to me (quintela@fi.udc.es).
-
-If you found values/combinations of tests for what the system
-crash/Oops/whatever please report it to me.  Then I can include it in
-the tests and the people who tune the MM system can test it next time.
-
-This version has:
-        An improved README
-        new shm test
-        removing several compilations warnings
-        added Tests file
-
-Any comments/suggestions/code are welcome.
-
-Note:  I am not a C++ programmer, if somebody knows how to remove the
-       warnings in the c++ test (shm-stresser) I will be grateful.
+Cheers,
+Roel.
 
 
-Thanks for your time,
-        Juan Quintela
-        quintela@fi.udc.es
-
-The home of this package is:
-
-http://carpanta.dc.fi.udc.es/~quintela/memtest/
-
-
--- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
