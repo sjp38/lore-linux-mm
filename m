@@ -1,60 +1,30 @@
-Date: Mon, 25 Sep 2000 13:16:29 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 25 Sep 2000 18:33:43 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: the new VMt
-In-Reply-To: <E13da01-00057k-00@the-village.bc.nu>
-Message-ID: <Pine.LNX.4.21.0009251314350.14614-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000925183343.B27677@athlon.random>
+References: <20000925181121.A27023@athlon.random> <Pine.LNX.4.21.0009251821170.9122-100000@elte.hu>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0009251821170.9122-100000@elte.hu>; from mingo@elte.hu on Mon, Sep 25, 2000 at 06:22:42PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 25 Sep 2000, Alan Cox wrote:
+On Mon, Sep 25, 2000 at 06:22:42PM +0200, Ingo Molnar wrote:
+> yep, i agree. I'm not sure what the biggest allocation is, some drivers
+> might use megabytes or contiguous RAM?
 
-> > > GFP_KERNEL has to be able to fail for 2.4. Otherwise you can get
-> > > everything jammed in kernel space waiting on GFP_KERNEL and if the
-> > > swapper cannot make space you die.
-> > 
-> > if one can get everything jammed waiting for GFP_KERNEL, and not being
-> > able to deallocate anything, thats a VM or resource-limit bug. This
-> > situation is just 1% RAM away from the 'root cannot log in', situation.
-> 
-> Unless Im missing something here think about this case
-> 
-> 2 active processes, no swap
-> 
-> #1					#2
-> kmalloc 32K				kmalloc 16K
-> OK					OK
-> kmalloc 16K				kmalloc 32K
-> block					block
-> 
-> so GFP_KERNEL has to be able to fail - it can wait for I/O in
-> some cases with care, but when we have no pages left something
-> has to give
+I'm not sure (we should grep all the drivers to be sure...) but I bet the old
+2.2.0 MAX_ORDER #define will work for everything.
 
-The trick here is to:
-1) keep some reserved pages around for PF_MEMALLOC tasks
-   (we need this anyway)
-2) set PF_MEMALLOC on the task you're killing for OOM,
-   that way this task will either get the memory or
-   fail (note that PF_MEMALLOC tasks don't wait)
+The fact is that over a certain order there's no hope anyway at runtime
+and the only big allocations done through the init sequence are for
+the hashtable.
 
-This way the OOM-killed task will be able to exit quickly
-and the rest of the system will not get killed as a side
-effect.
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
