@@ -1,148 +1,45 @@
-Received: from fujitsu2.fujitsu.com (localhost [127.0.0.1])
-	by fujitsu2.fujitsu.com (8.12.10/8.12.9) with ESMTP id i8NN4ufM003607
-	for <linux-mm@kvack.org>; Thu, 23 Sep 2004 16:04:56 -0700 (PDT)
-Date: Thu, 23 Sep 2004 16:04:41 -0700
-From: Yasunori Goto <ygoto@us.fujitsu.com>
-Subject: [Patch/RFC]Reduce second level zone_table[3/3]
-In-Reply-To: <20040923135108.D8CC.YGOTO@us.fujitsu.com>
-References: <20040923135108.D8CC.YGOTO@us.fujitsu.com>
-Message-Id: <20040923160226.D8D2.YGOTO@us.fujitsu.com>
+Received: from [192.168.1.50] (CPE-65-30-168-158.wi.rr.com [65.30.168.158])
+	by ms-smtp-02.rdc-kc.rr.com (8.12.10/8.12.7) with ESMTP id i8NNMF9W001455
+	for <linux-mm@kvack.org>; Thu, 23 Sep 2004 18:22:15 -0500 (CDT)
+Message-ID: <41535AAE.6090700@yahoo.com>
+Date: Thu, 23 Sep 2004 18:22:22 -0500
+From: John Fusco <fusco_john@yahoo.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="US-ASCII"
+Subject: Problem with remap_page_range on IA32 with more than 4GB RAM
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, Linux Kernel ML <linux-kernel@vger.kernel.org>
-Cc: Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch make reduce array of second level zone_table.
+I have a problem and I would like some comments on how to fix it.
 
-If all of second level zone_table points same zone, 
-the table is not necessary.
+I have a custom PCI-X device installed in an IA32 system.  The device 
+expects to see a flat contiguous address space on the host, from which 
+it reads and sends its data.  The technique I used is right out of the 
+O'Reilly Device Drivers book, which is to hide memory from the kernel 
+with the 'mem=YYY' boot parameter.  I then provide a mmap method to map 
+the contiguous (hidden) memory into user space via a call to 
+'remap_page_range'.
 
-     zone_table_directory.
-     +------------+             zone_table
-     |            |------------>+-----------+
-     |------------|             |           |-> zone DMA
-     |            |             |-----------|
-     |------------|             |           |-> zone Normal
-     |            |             +-----------+
-     |------------|
-     |            |------------>+-----------+
-     +------------+             |           |-> zone Normal
-                                |-----------|
-                                |           |-> zone Normal
-                                +-----------+
+Everything worked great until we decided that we needed to install 6GB 
+in this system.  The problem is that remap_page_range() uses an unsigned 
+long as the parameter for a physical address.  On IA32, an unsigned long 
+is 32-bits, but the IA32 is capable of addressing well over 4GB of RAM.  
+So physical addresses on IA32 must be larger than 32 bits.
 
-So, in this case, first level zone_table points the zone 
-directly.
+I chose to work around this by patching the kernel.  I changed the 
+unsigned long parameters used for physical address in mm/memory.c to 
+'dma64_addr_t'.  This seems to work and I don't see any holes in the 
+approach, but I would appreciate any comments (or better solutions).
 
-     zone_table_directory.
-     +------------+             zone_table
-     |      Bit on|------------>+-----------+
-     |------------|             |           |-> zone DMA
-     |            |             |-----------|
-     |------------|             |           |-> zone Normal
-     |            |             +-----------+
-     |------------|
-     |     Bit off|-> zone Normal
-     +------------+             
+I can post the patch here if anyone would like to see it.  It seems that 
+Linux could use a unique typedef for a physical address.  Right now I 
+think dma64_addr_t fits the bill.
 
-
--- 
-Yasunori Goto <ygoto at us.fujitsu.com>
-
----
-
- erase_zoneid-goto/include/linux/mm.h |   26 ++++++++++++++++++++++++--
- erase_zoneid-goto/mm/page_alloc.c    |   14 +++++++++++---
- 2 files changed, 35 insertions(+), 5 deletions(-)
-
-diff -puN include/linux/mm.h~reduce_zone_table include/linux/mm.h
---- erase_zoneid/include/linux/mm.h~reduce_zone_table	Thu Sep 23 11:20:15 2004
-+++ erase_zoneid-goto/include/linux/mm.h	Thu Sep 23 11:20:15 2004
-@@ -415,15 +415,37 @@ struct zone_tbl{
- 	};
- };
- 
-+#define ZONE_TABLE_BIT 0x1
-+#define ZONE_TABLE_BITMASK ~(ZONE_TABLE_BIT)
-+
- extern struct zone_tbl pri_zone_table[];
- 
-+static inline struct zone_tbl *get_zone_table(struct zone_tbl *entry)
-+{
-+	return (struct zone_tbl *)((unsigned long)entry->sec_zone_table
-+				   & ZONE_TABLE_BITMASK);
-+}
-+
-+static inline unsigned long is_second_zone_table(struct zone_tbl *entry)
-+{
-+	return (unsigned long)entry->sec_zone_table & ZONE_TABLE_BIT;
-+}
-+
-+static inline void set_zone_table(struct zone_tbl *entry, struct zone_tbl *val)
-+{
-+	entry->sec_zone_table =
-+		(struct zone_tbl *)((unsigned long)val | ZONE_TABLE_BIT);
-+}
-+
- static inline struct zone *page_zone(struct page *page)
- {
- 	struct zone_tbl *entry;
- 
- 	entry = pri_zone_table + page_to_primary_index(page);
--	entry = entry->sec_zone_table;
--	entry += page_to_secondary_index(page);
-+	if (is_second_zone_table(entry)){
-+		entry = get_zone_table(entry);
-+		entry += page_to_secondary_index(page);
-+	}
- 	return entry->zone;
- }
- 
-diff -puN mm/page_alloc.c~reduce_zone_table mm/page_alloc.c
---- erase_zoneid/mm/page_alloc.c~reduce_zone_table	Thu Sep 23 11:20:15 2004
-+++ erase_zoneid-goto/mm/page_alloc.c	Thu Sep 23 11:20:15 2004
-@@ -1499,7 +1499,6 @@ static void __init calculate_zone_totalp
- 	printk(KERN_DEBUG "On node %d totalpages: %lu\n", pgdat->node_id, realtotalpages);
- }
- 
--
- /*
-  * Initially all pages are reserved - free ones are freed
-  * up by free_all_bootmem() once the early boot process is
-@@ -1590,7 +1589,16 @@ void set_page_zone(struct page *lmem_map
-  		struct zone_tbl *sec_entry, *sec_start_entry;
-  		unsigned int sec_index, sec_count;
- 
-- 		sec_start_entry = pri_entry->sec_zone_table;
-+ 		if (size / PAGEZONE_DIR_SIZE > 0 &&
-+ 		    (PAGEZONE_DIR_MASK & size) == 0){ /* All of second level entry will be same zone.
-+ 						    So, Second level isn't necessary. */
-+ 			pri_entry->zone = zone;
-+ 			size -= PAGEZONE_DIR_SIZE;
-+ 			page += PZDIR_SIZE;
-+ 			continue;
-+ 		}
-+
-+ 		sec_start_entry = get_zone_table(pri_entry);
-  		if (!sec_start_entry){
-  			unsigned int entry_size;
-  			entry_size = sizeof(struct zone_tbl) <<	PAGEZONE_DIR_SHIFT;
-@@ -1611,7 +1619,7 @@ void set_page_zone(struct page *lmem_map
-  				break;
-  		}
- 
--  		pri_entry->sec_zone_table = sec_start_entry;
-+ 		set_zone_table(pri_entry, sec_start_entry);
-   	}
- }
- 
-_
-
-
+Thanks,
+John
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
