@@ -1,34 +1,56 @@
-Date: Sun, 13 Oct 2002 14:22:49 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: 2.5.42-mm2
-Message-ID: <20021013212249.GE27878@holomorphy.com>
-References: <3DA7C3A5.98FCC13E@digeo.com>
-Mime-Version: 1.0
+Subject: Re: [rfc][patch] Memory Binding API v0.3 2.5.41
+References: <3DA4D3E4.6080401@us.ibm.com>
+From: ebiederm@xmission.com (Eric W. Biederman)
+Date: 13 Oct 2002 16:22:02 -0600
+In-Reply-To: <3DA4D3E4.6080401@us.ibm.com>
+Message-ID: <m165w6m12t.fsf@frodo.biederman.org>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3DA7C3A5.98FCC13E@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: colpatch@us.ibm.com
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, LSE <lse-tech@lists.sourceforge.net>, Andrew Morton <akpm@zip.com.au>, Martin Bligh <mjbligh@us.ibm.com>, Michael Hohnbaum <hohnbaum@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Oct 11, 2002 at 11:39:33PM -0700, Andrew Morton wrote:
-> url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.42/2.5.42-mm2/
+Matthew Dobson <colpatch@us.ibm.com> writes:
 
-To future-proof NUMA-Q vs. similar issues to pcp->reserved:
+> Greetings & Salutations,
+> 	Here's a wonderful patch that I know you're all dying for...  Memory
+> Binding!  It works just like CPU Affinity (binding) except that it binds a
+> processes memory allocations (just buddy allocator for now) to specific memory
+> blocks.
+> 	I've sent this out in the past, but haven't touched it in months.  Since
+> 
+> the feature freeze is rapidly approaching, I want to get this out there again
+> and see if anyone has any interest in it.
+> 	It's a fairly large patch, mostly because it includes a few odds and
+> ends that are topology related, and don't strictly belong in this patch, but are
+> 
+> pre-requisites for it (ie: the [memblk|node]_online_map stuff, and some of the
+> cleanups to page_alloc).  I'll probably try and break it up into more discrete
+> parts very soon.
 
-
---- linux-2.5.42/arch/i386/mm/discontig.c	2002-10-11 21:22:09.000000000 -0700
-+++ virgin-2.5.42/arch/i386/mm/discontig.c	2002-10-13 14:18:19.000000000 -0700
-@@ -70,6 +70,7 @@ static void __init allocate_pgdat(int ni
- 	node_datasz = PFN_UP(sizeof(struct pglist_data));
- 	NODE_DATA(nid) = (pg_data_t *)(__va(min_low_pfn << PAGE_SHIFT));
- 	min_low_pfn += node_datasz;
-+	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
- }
+Due we want this per numa area or simply per zone?  My suspicion is that
+internally at least we want this per zone.
  
- /*
+> Questions, comments, flames, and indifferent shrugs are all welcome.
+> 
+> btw, It applies (mostly) cleanly to mm1 as well.  The mm/page_alloc.c changes
+> fail, but if anyone is interested, they'll clean up easily, and I'll send you a
+> patch.
+
+The API doesn't make much sense at the moment.
+
+1) You are operating on tasks and not mm's, or preferably vmas.
+2) sys_mem_setbinding does not move the mm to the new binding.
+3) You specify a pid and then change current task instead of
+   the specified one.
+
+4) An ordered zone list is probably the more natural mapping.
+5) mprotect is the more natural model rather than set_cpu_affinity.
+6) The code belongs in mm/* not kernel/*
+
+Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
