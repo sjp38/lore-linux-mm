@@ -1,47 +1,35 @@
-Date: Mon, 28 Aug 2000 14:40:43 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Question: memory management and QoS
-In-Reply-To: <39AA56D1.EC5635D3@tuke.sk>
-Message-ID: <Pine.LNX.4.21.0008281432010.18553-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Tue, 29 Aug 2000 00:09:35 +0100
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: pgd/pmd/pte and x86 kernel virtual addresses
+Message-ID: <20000829000935.K1467@redhat.com>
+References: <20000825165116Z131177-250+7@kanga.kvack.org> <Pine.LNX.3.96.1000825125457.23502B-100000@kanga.kvack.org> <20000825185716Z131186-247+10@kanga.kvack.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20000825185716Z131186-247+10@kanga.kvack.org>; from ttabi@interactivesi.com on Fri, Aug 25, 2000 at 01:46:33PM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jan Astalos <astalos@tuke.sk>
-Cc: Andrey Savochkin <saw@saw.sw.com.sg>, Yuri Pudgorodsky <yur@asplinux.ru>, Linux MM mailing list <linux-mm@kvack.org>
+To: Timur Tabi <ttabi@interactivesi.com>
+Cc: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 28 Aug 2000, Jan Astalos wrote:
+Hi,
 
-> I wont repeat it again. With personal swapfiles _all_ users
-> would be guarantied to get the amount of virtual memory provided
-> by _themselves_.
+On Fri, Aug 25, 2000 at 01:46:33PM -0500, Timur Tabi wrote:
 
-This is STUPID.
+> physical pointer.  The first is the normal virtual pointer for kernel memory,
+> and the second is the one returned by ioremap_nocache().  I was under the
+> understanding that caching is enabled on physical pages only, so it shouldn't
+> matter which virtual address I use.  Is that correct?
 
-Suppose that one user has a 10MB swapfile and a 32MB physical
-memory quota (quite reasonable or even low nowadays).
+No.  The no-cache bit is set in the page table entry, so depends on
+the virtual address.  There is a *different* form of memory access
+control which can be used to make memory non-cachable, and that is the
+"mtrr" (Memory Type Range Register), which exists in different forms
+on all recent Intel and AMD cpus.  Mtrrs work on physical addresses,
+but that is not what ioremap_nocache() uses.
 
-Now suppose that user is away from the console (drinking coffee)
-and has 20MB of IDLE processes sitting around.
-
-In the mean time, another user is running something that could
-really need a bit more physical memory, but it CANNOT get the
-memory because the first (coffee drinking) user doesn't have
-the swap space available...
-
-This is a rediculously inefficient situation that should (and
-can) be easily avoided by simply having per-user VM and RSS
-_quotas_, but sharing one system-wide swap area.
-
-regards,
-
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+--Stephen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
