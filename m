@@ -1,39 +1,128 @@
-Message-ID: <418123DA.1090609@us.ibm.com>
-Date: Thu, 28 Oct 2004 09:52:42 -0700
+Received: from westrelay02.boulder.ibm.com (westrelay02.boulder.ibm.com [9.17.195.11])
+	by e35.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id i9SHvvNX264900
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2004 13:57:57 -0400
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by westrelay02.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id i9SHvvQU446492
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2004 11:57:57 -0600
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id i9SHvu6e028988
+	for <linux-mm@kvack.org>; Thu, 28 Oct 2004 11:57:56 -0600
+Message-ID: <41813323.4090208@us.ibm.com>
+Date: Thu, 28 Oct 2004 10:57:55 -0700
 From: Dave Hansen <haveblue@us.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [Lhms-devel] Re: [RFC] sparsemem patches (was nonlinear)
-References: <098973549.shadowen.org> <418118A1.9060004@us.ibm.com> <41811F3A.1090706@shadowen.org>
-In-Reply-To: <41811F3A.1090706@shadowen.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Subject: Re: [Lhms-devel] [2/7] 060 refactor setup_memory i386
+References: <E1CNBE0-0006bV-ML@ladymac.shadowen.org> <41811566.2070200@us.ibm.com> <4181168B.3060209@shadowen.org>
+In-Reply-To: <4181168B.3060209@shadowen.org>
+Content-Type: multipart/mixed;
+ boundary="------------000801080308050901070409"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andy Whitcroft <apw@shadowen.org>
 Cc: lhms-devel@lists.sourceforge.net, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andy Whitcroft wrote:
-> Dave Hansen wrote:
->> Have you given any thought to using virt_to_page(page)->foo method to 
->> store section information instead of using page->flags?  It seems 
->> we're already sucking up page->flags left and right, and I'd hate to 
->> consume that many more.
-> 
-> As Martin indicates we don't use any more flags on the bit challenged 
-> arches where this would be an issue. 
+This is a multi-part message in MIME format.
+--------------000801080308050901070409
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Could you explain a little bit how the section is encoded in there, and 
-what kind of limits there are?  How many free bits do you need, and are 
-there implications when it grows or shrinks as new PG_flags are added?
+There's no reason not to just move setup_bootmem_allocator() above the
+first call to it, except for code churn.  This saves a predeclaration.
 
-> The little trick you used has some 
-> overhead to it, and current testing is showing an unexpected performance 
-> improvement with this stack.
+--------------000801080308050901070409
+Content-Type: text/plain;
+ name="2_7_060_refactor_setup_memory_i386-cleanup.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="2_7_060_refactor_setup_memory_i386-cleanup.patch"
 
-Does my little trick just have an anticipated performance impact, or a 
-measured one?
 
+
+---
+
+ sparsemem-dave/arch/i386/kernel/setup.c |   59 +++++++++++++++-----------------
+ 1 files changed, 29 insertions(+), 30 deletions(-)
+
+diff -puN arch/i386/kernel/setup.c~2_7_060_refactor_setup_memory_i386-cleanup arch/i386/kernel/setup.c
+--- sparsemem/arch/i386/kernel/setup.c~2_7_060_refactor_setup_memory_i386-cleanup	2004-10-28 10:23:29.000000000 -0700
++++ sparsemem-dave/arch/i386/kernel/setup.c	2004-10-28 10:24:27.000000000 -0700
+@@ -1014,36 +1014,6 @@ static void __init reserve_ebda_region(v
+ 		reserve_bootmem(addr, PAGE_SIZE);	
+ }
+ 
+-#ifndef CONFIG_DISCONTIGMEM
+-void __init setup_bootmem_allocator(void);
+-static unsigned long __init setup_memory(void)
+-{
+-	/*
+-	 * partially used pages are not usable - thus
+-	 * we are rounding upwards:
+-	 */
+-	min_low_pfn = PFN_UP(init_pg_tables_end);
+-
+-	find_max_pfn();
+-
+-	max_low_pfn = find_max_low_pfn();
+-
+-#ifdef CONFIG_HIGHMEM
+-	highstart_pfn = highend_pfn = max_pfn;
+-	if (max_pfn > max_low_pfn) {
+-		highstart_pfn = max_low_pfn;
+-	}
+-	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
+-		pages_to_mb(highend_pfn - highstart_pfn));
+-#endif
+-	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
+-			pages_to_mb(max_low_pfn));
+-
+-	setup_bootmem_allocator();
+-	return max_low_pfn;
+-}
+-#endif /* !CONFIG_DISCONTIGMEM */
+-
+ void __init setup_bootmem_allocator(void)
+ {
+ 	unsigned long bootmap_size;
+@@ -1119,6 +1089,35 @@ void __init setup_bootmem_allocator(void
+ #endif
+ }
+ 
++#ifndef CONFIG_DISCONTIGMEM
++static unsigned long __init setup_memory(void)
++{
++	/*
++	 * partially used pages are not usable - thus
++	 * we are rounding upwards:
++	 */
++	min_low_pfn = PFN_UP(init_pg_tables_end);
++
++	find_max_pfn();
++
++	max_low_pfn = find_max_low_pfn();
++
++#ifdef CONFIG_HIGHMEM
++	highstart_pfn = highend_pfn = max_pfn;
++	if (max_pfn > max_low_pfn) {
++		highstart_pfn = max_low_pfn;
++	}
++	printk(KERN_NOTICE "%ldMB HIGHMEM available.\n",
++		pages_to_mb(highend_pfn - highstart_pfn));
++#endif
++	printk(KERN_NOTICE "%ldMB LOWMEM available.\n",
++			pages_to_mb(max_low_pfn));
++
++	setup_bootmem_allocator();
++	return max_low_pfn;
++}
++#endif /* !CONFIG_DISCONTIGMEM */
++
+ /*
+  * Request address space for all standard RAM and ROM resources
+  * and also for regions reported as reserved by the e820.
+_
+
+--------------000801080308050901070409--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
