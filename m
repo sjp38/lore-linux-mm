@@ -1,38 +1,68 @@
-Received: from server1.graffiti.net  (mail.graffiti.net  [205.158.62.141])
-	by fep2.flashmail.com (Postfix) with ESMTP id A025C8842
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2005 01:40:13 +0300 (EDT)
-Received: from nobody by flashmail.com with local (Exim 4.88)
-	id 2C1rjW-7964oD-My
-	for <linux-mm@kvack.org>; Fri, 25 Feb 2005 04:48:13 +0600
-Subject: Request: Your Response to email
-From: "Sarah Blue" <SarahwerBluewer@flashmail.com>
-Message-ID: <855124644416.7eb1e6930871@flashmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 8bit
-Date: Thu, 24 Feb 2005 21:45:13 -0100
+Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
+	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j1OMu20D672750
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 17:56:02 -0500
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1OMu1XW171910
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 15:56:02 -0700
+Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j1OMu1RA001534
+	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 15:56:01 -0700
+From: James Cleverdon <jamesclv@us.ibm.com>
+Reply-To: jamesclv@us.ibm.com
+Subject: Re: [PATCH 5/5] SRAT cleanup: make calculations and indenting level more sane
+Date: Thu, 24 Feb 2005 14:56:13 -0800
+References: <E1D4Mns-0007DT-00@kernel.beaverton.ibm.com> <200502241249.54796.jamesclv@us.ibm.com> <1109282578.9817.1993.camel@knk>
+In-Reply-To: <1109282578.9817.1993.camel@knk>
+MIME-Version: 1.0
+Content-Type: text/plain;
+  charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Message-Id: <200502241456.14048.jamesclv@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: keith <kmannth@us.ibm.com>
+Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, matt dobson <colpatch@us.ibm.com>, Mike Kravetz <kravetz@us.ibm.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Anton Blanchard <anton@samba.org>, Yasunori Goto <ygoto@us.fujitsu.com>, Andy Whitcroft <apw@shadowen.org>
 List-ID: <linux-mm.kvack.org>
 
-Current Matches:
-
-1.
-Sarah Blue is within 21 miles from your
-location.  She is married, but her husband is away
-almost every weekend and some weeknights.
-
-2.
-Erica Sullivan is within 15 miles from your
-location.  She is married but looking for another
-relationship while her husband is on the road.
-
-Email address and Pictures of your matches are available:
-http://sssexplicit.com/d/6.php
+Actually, SRAT was cooked up by the folks at Redmond or Bellevue.  If 
+it's still outside of the main ACPI doc tree, well, that says a lot.
 
 
-Not For Me?
-http://sssexplicit.com/bye/
+On Thursday 24 February 2005 02:02 pm, keith wrote:
+> On Thu, 2005-02-24 at 12:49, James Cleverdon wrote:
+> > No, I don't think we could rely on that.  Our BIOS did ascending
+> > addresses, but I don't recall that being spelled out in the ACPI
+> > spec.
+> >
+> > Of course, there's a new ACPI spec out.  Maybe it makes it a
+> > requirement.  I'd take a look, but I can't afford the loss of
+> > sanity caused by gazing on the dread visage of ACPI 3.0.   ;^)
+>
+> The SRAT exists outside of the ACPI spec.  It is something made up by
+> folks in Kirkland.  I just reread the SRAT spec and I don't seen any
+> mention of requirements for linear order.  Still yet we have yet to
+> find a box/bios version that breaks this assumption. All I know of is
+> the IBM summit boxes but maybe there is something else.
+>
+> Maybe AMD x86_64 booting into 32 bit have SRATs as well?
+>
+> Anyways maybe we could add some check to catch new hardware with less
+> friendly SRAT tables.
+>
+> after the  node_has_online_mem(nid) check
+>
+> if (node_start_pfn[nid] > node_memory_chunk[j].start_pfn) {
+> 	printk (KERN_WARN "You need to rework the srat.c code\n");
+> 	continue;
+> }
+>
+> Keith
+
+-- 
+James Cleverdon
+IBM LTC (xSeries Linux Solutions)
+{jamesclv(Unix, preferred), cleverdj(Notes)} at us dot ibm dot comm
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
