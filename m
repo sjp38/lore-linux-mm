@@ -1,39 +1,38 @@
-Date: Tue, 15 Feb 2005 14:10:22 -0800
+Date: Tue, 15 Feb 2005 14:37:53 -0800
 From: Paul Jackson <pj@sgi.com>
-Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration --
- sys_page_migrate
-Message-Id: <20050215141022.3b99df87.pj@sgi.com>
-In-Reply-To: <16914.28795.316835.291470@wombat.chubb.wattle.id.au>
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
+ II
+Message-Id: <20050215143753.75110ca0.pj@sgi.com>
+In-Reply-To: <20050215214831.GC7345@wotan.suse.de>
 References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
-	<20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>
-	<1108242262.6154.39.camel@localhost>
-	<20050214135221.GA20511@lnx-holt.americas.sgi.com>
-	<1108407043.6154.49.camel@localhost>
-	<20050214220148.GA11832@lnx-holt.americas.sgi.com>
-	<20050215074906.01439d4e.pj@sgi.com>
-	<20050215162135.GA22646@lnx-holt.americas.sgi.com>
-	<20050215083529.2f80c294.pj@sgi.com>
-	<20050215185943.GA24401@lnx-holt.americas.sgi.com>
-	<16914.28795.316835.291470@wombat.chubb.wattle.id.au>
+	<m1vf8yf2nu.fsf@muc.de>
+	<42114279.5070202@sgi.com>
+	<20050215121404.GB25815@muc.de>
+	<421241A2.8040407@sgi.com>
+	<20050215214831.GC7345@wotan.suse.de>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Peter Chubb <peterc@gelato.unsw.edu.au>
-Cc: holt@sgi.com, haveblue@us.ibm.com, raybry@sgi.com, taka@valinux.co.jp, hugh@veritas.com, akpm@osdl.org, marcello@cyclades.com, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <ak@suse.de>
+Cc: raybry@sgi.com, ak@muc.de, raybry@austin.rr.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Dr Peter Chubb writes:
-> Can page migration be done lazily, instead of all at once?
+Thanks Andi for your effort to present your case more completely.
+I agree that there is some 'talking by each other' going on.
 
-That might be a useful option.  Not my area to comment on.
+Dave Hansen has publically (and Ray privately) sought to
+move this discussion to linux-mm (or more specifically,
+off lkml for now).
 
-We would also require, at least as an option, to be able to force the
-migration on demand.  Some of our big honkin iron parallel jobs run with
-a high degree of parallelism, and nearly saturate each node being used. 
-For jobs like that, it can be better to get everything in place, before
-resuming execution.
+Any chance, Andi, that you could repost this, in response
+to Ray's restarting this thread on linux-mm, once he gets
+around to that?
+
+I will reserve my response until I see if that works out.
+
+Thanks.
 
 -- 
                   I won't rest till it's the best ...
