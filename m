@@ -1,80 +1,82 @@
-Received: from ripspost.aist.go.jp (ripspost.aist.go.jp [150.29.9.2])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA03119
-	for <linux-mm@kvack.ORG>; Thu, 28 Jan 1999 01:29:51 -0500
-Date: Thu, 28 Jan 1999 15:23:06 +0900 (JST)
-From: Tom Holroyd <tomh@taz.ccs.fau.edu>
-Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses 
-In-Reply-To: <Pine.LNX.3.96.990128023440.8338A-100000@laser.bogus>
-Message-ID: <Pine.LNX.3.96.990128151028.326A-100000@bhalpha1.nibh.go.jp>
+Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA07330
+	for <linux-mm@kvack.ORG>; Thu, 28 Jan 1999 10:06:19 -0500
+Date: Thu, 28 Jan 1999 15:05:41 GMT
+Message-Id: <199901281505.PAA02861@dax.scot.redhat.com>
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Subject: Re: [patch] fixed both processes in D state and the /proc/ oopses [Re: [patch] Fixed the race that was oopsing Linux-2.2.0]
+In-Reply-To: <Pine.LNX.3.96.990128001800.399A-100000@laser.bogus>
+References: <199901272138.VAA12114@dax.scot.redhat.com>
+	<Pine.LNX.3.96.990128001800.399A-100000@laser.bogus>
 Sender: owner-linux-mm@kvack.org
 To: Andrea Arcangeli <andrea@e-mind.com>
-Cc: "Stephen C. Tweedie" <sct@redhat.COM>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.RUTGERS.edu, werner@suse.de, mlord@pobox.com, "David S. Miller" <davem@dm.COBALTMICRO.COM>, gandalf@szene.CH, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.COM, djf-lists@ic.NET, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.rutgers.edu, werner@suse.de, mlord@pobox.com, "David S. Miller" <davem@dm.COBALTMICRO.COM>, gandalf@szene.CH, adamk@3net.net.pl, kiracofe.8@osu.edu, ksi@ksi-linux.COM, djf-lists@ic.NET, tomh@taz.ccs.fau.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 28 Jan 1999, Andrea Arcangeli wrote:
+Hi,
 
->If you see a race in this my new patch, please let me know and probably
->you'll give me a good reason to reinsert mm_lock ;) 
+On Thu, 28 Jan 1999 02:02:38 +0100 (CET), Andrea Arcangeli
+<andrea@e-mind.com> said:
 
-I spoke too soon.  :(
+> I think this too. My new code made tons of sense to me and since when I
+> finished all my work everything become rock solid, 
 
-With that latest patch I was still able to get lots of procs stuck in D,
-but it was harder. ^_^;
+Luck!  Fwiw, I was unable to reproduce the problem at all even on 2.2.0
+with your test script.
 
-I was playing with modules, trying to get it to hang that way (very
-successful there).  At the end of one experiment there was no crash but
-rather a lot of D procs.  Details:
+>> get_status() {
+>> tsk = grab_task(pid);
+>> task_mem() {
+>> down(&mm->mmap_sem);
 
-Alpha PC164 (LX).  128M, egcs-1.1.1.
+No spinlock change will fix this race (although the memcpy will).
 
-MSDOS configured as a module.  Stick a floppy in the floppy drive.
+> My reason to reinsert the memcpy() was different than your one. It's
+> because sys_wait4 don't hold the kernel lock and does _only_ a
+> spin_lock_irq(tasklist_lock) and then remove the process from the
+> tasklist, 
 
-# mount -o remount,ro /home		; be safe
-# mount -o remount,ro /usr
-# mformat a:
-# mount -t msdos /dev/fd0 /tmp/mnt
+OK.
 
-now /proc/modules contains:
+> Maybe I've thought stupid/wrong things but with my whole patch applyed the
+> kernel become rock solid and race-free. I'm sure of this. Otherwise I
+> would have not posted so sure of myself ;).
 
-msdos                  11600   1 (autoclean)
-fat                    33656   1 (autoclean) [msdos]
+No, because the fork/exec race is still obviously present in get_stat,
+and because SMP-only synchronisation fixes cannot fix a problem seen on
+UP machines.
 
-Run this script:
----
-#! /bin/sh
+> Can somebody tell me _exactly_ what the mmap_sem stays for? 
 
-while true; do
-	cp -av /usr/src/linux/arch/ppc /tmp/mnt/ppc
-	ls -lR /tmp/mnt
-	rm -rf /tmp/mnt/ppc
-done
----
+Any modifications or blocking lookups to the mmap structures, and all
+places where we add a new page into the process page tables.  That
+includes mmap operations and page faults.
 
-In another window, make MAKE="make -j5" dep.  Now normally, with msdos
-as a module, this causes the machine to hang (alt-sysrq unresponsive)
-after a few minutes (often after it has started to swap stuff out, but I'm
-having trouble narrowing it down more than that).
+> The kernel is ~always doing a down on the mmap_sem of the process
+> itself.  It's _useless_ that way.  The only place the kernel is doing
+> a down on another task seems ptrace.c and fs/proc/array.c, so does we
+> have the mmap_sem only for handling correctly such two cases?
 
-This last time, I got D procs.  Again, this is with Andrea's latest patch.
-Without that patch, the make dep is guaranteed to fail almost right away,
-but with it I was able to do this about 4 times before it occured.
+Not at all.  The whole point of the semaphore is to protect the shared
+mm when we have multiple threads all mmaping and page faulting
+independently within the same mm_struct.  That's why the semaphore is in
+the mm_struct, not in the task_struct.
 
- 1188  1175 root      1496   664 end       D     0.0  0.5   0:00 make
- 1213  1183 root      1208   664 end       D     0.0  0.4   0:00 make
- 1224  1177 root      1320   664 end       D     0.0  0.5   0:00 make
- 1226  1177 root      1256   664 end       D     0.0  0.4   0:00 make
- 1247  1190 root      1272   664 end       D     0.0  0.4   0:00 make
+> And finally I reask your question: can we at any time play with the ->mm,
+> mm-> vma, pgd, pmd, pte, of a process without helding any semaphore, only
+> having the big kernel lock held?
 
-I'll try again with the earlier patch.
+Yes.  Basically, changing an existing pte needs the kernel lock.  Adding
+or modifying (but not removing) a new pte or modifying the vma tree
+needs the mm semaphore.  We can unmap ptes in swap_out() without the
+semaphore but with only the kernel lock.  We can map new anonymous pages
+without the kernel lock but with only the semaphore.  Everything else
+needs both.
 
-Dr. Tom Holroyd
-I would dance and be merry,
-Life would be a ding-a-derry,
-If I only had a brain.
-	-- The Scarecrow
-
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
