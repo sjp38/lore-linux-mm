@@ -1,51 +1,38 @@
-Date: Tue, 22 Oct 2002 12:26:55 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
-In-Reply-To: <m17kgbuo0i.fsf@frodo.biederman.org>
-Message-ID: <Pine.LNX.4.44L.0210221221460.25116-100000@imladris.surriel.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: running 2.4.2 kernel under 4MB Ram
+From: Amol Kumar Lad <amolk@ishoni.com>
+In-Reply-To: <1035281203.31873.34.camel@irongate.swansea.linux.org.uk>
+References: <1035281203.31873.34.camel@irongate.swansea.linux.org.uk>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 22 Oct 2002 20:31:43 -0400
+Message-Id: <1035333109.2200.2.camel@amol.in.ishoni.com>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: "Martin J. Bligh" <mbligh@aracnet.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 21 Oct 2002, Eric W. Biederman wrote:
-> "Martin J. Bligh" <mbligh@aracnet.com> writes:
->
-> > > So why has no one written a pte_chain reaper?  It is perfectly sane
-> > > to allocate a swap entry and move an entire pte_chain to the swap
-> > > cache.
-> >
-> > I think the underlying subsystem does not easily allow for dynamic regeneration,
-> > so it's non-trivial.
->
-> We swap pages out all of the time in 2.4.x, and that is all I was
-> suggesting swap out some but not all of the pages, on a very long
-> pte_chain.  And swapping out a page is not terribly complex, unless
-> something very drastic has changed.
+It means that I _cannot_ run 2.4.2 on a 4MB box. 
+Actually my embedded system already has 2.4.2 running on a 16Mb. I was
+looking for a way to run it in 4Mb. 
+So Is upgrade to 2.4.19 the only option ??
 
-Imagine a slightly larger than normal Oracle server.
-Say 5000 processes with 1 GB of shared memory.
+-- Amol
 
-Just the page tables needed to map this memory would
-take up 5 GB of RAM ... with shared page tables we
-only need 1 MB of page tables.
 
-The corresponding reduction in rmaps is a nice bonus,
-but hardly any more dramatic than the page table
-overhead.
+On Tue, 2002-10-22 at 06:06, Alan Cox wrote:
+> On Tue, 2002-10-22 at 19:54, Amol Kumar Lad wrote:
+> > Hi,
+> >  I want to run 2.4.2 kernel on my embedded system that has only 4 Mb
+> > SDRAM . Is it possible ?? Is there any constraint for the minimum
+> SDRAM
+> > requirement for linux 2.4.2
+> 
+> You want to run something a lot newer than 2.4.2. 2.4.19 will run on a
+> 4Mb box, and with Rik's rmap vm seems to be run better than 2.2. That
+> will depend on the workload.
 
-In short, we really really want shared page tables.
-
-regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-http://www.surriel.com/		http://distro.conectiva.com/
-Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
