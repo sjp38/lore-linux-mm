@@ -1,36 +1,27 @@
-Date: Sat, 26 Feb 2005 14:36:50 -0800
-Message-Id: <YGQY63SHSV18.PP510VXQQ78-AWAD921ZXNE13.RCME6903NXK1-T4368LRY53.HF3697VDYB2@cufflink.org>
-From: "Owzs.Kim@excite.com" <Azs.Mcdaniel@excite.com>
-Subject: Pre-approved Application #5446076V Sat, 26 Feb 2005 14:36:50 -0800
-MIME-Version: 1.0
-Content-Type: text; charset="us-ascii"
+Date: Sun, 27 Feb 2005 02:31:36 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [PATCH] Linux-2.6.11-rc5: kernel/sys.c setrlimit() RLIMIT_RSS
+ cleanup
+Message-Id: <20050227023136.0d1528a7.akpm@osdl.org>
+In-Reply-To: <17855236.1109499454066.JavaMail.postfix@mx20.mail.sohu.com>
+References: <17855236.1109499454066.JavaMail.postfix@mx20.mail.sohu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-aio@kvack.org
+To: stone_wang@sohu.com
+Cc: riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+<stone_wang@sohu.com> wrote:
+>
+> $ ulimit  -m 100000
+>  bash: ulimit: max memory size: cannot modify limit: Function not implemented
 
-Did you know?
-You can now get $347,000 for as little as $607 a month!
-Why should you pay more when you can save thousands re-financing at our low rates?
-Remember, that rates are due to jump withint he next few months.
-Bad credit? Doesn't matter, low rates are fixed no matter what!
-
-Use the extra for home additions, improvements, or whatever you could not afford to do before.
-Fill out this 30 sec. form and be approved within the next 24 hours.
-
-http://www.ohsomerates.com/x/loan.php?id=a17
-
-Best Regards,
-Spencer George
-
-
-
-http://www.ohsomerates.com/x/st.html
+I don't know about this.  The change could cause existing applications and
+scripts to fail.  Sure, we'll do that sometimes but this doesn't seem
+important enough.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
