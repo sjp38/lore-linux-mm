@@ -1,42 +1,34 @@
-Date: Mon, 9 Oct 2000 18:34:29 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Date: Mon, 9 Oct 2000 14:38:10 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-In-Reply-To: <Pine.LNX.4.21.0010092336230.9803-100000@elte.hu>
-Message-ID: <Pine.LNX.4.21.0010091833280.1562-100000@duckman.distro.conectiva>
+In-Reply-To: <E13ikTP-0002sT-00@the-village.bc.nu>
+Message-ID: <Pine.LNX.4.10.10010091435420.1438-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Andrea Arcangeli <andrea@suse.de>, Byron Stanoszek <gandalf@winds.org>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>
+Cc: Jim Gettys <jg@pa.dec.com>, Andi Kleen <ak@suse.de>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2000, Ingo Molnar wrote:
-> On Mon, 9 Oct 2000, Rik van Riel wrote:
+
+On Mon, 9 Oct 2000, Alan Cox wrote:
+> > consumption. X certainly knows on behalf of which connection resources
+> > are created; the OS could then transfer this back to the appropriate client
+> > (at least when on machine).
 > 
-> > Would this complexity /really/ be worth it for the twice-yearly OOM
-> > situation?
-> 
-> the only reason i suggested this was the init=/bin/bash, 4MB
-> RAM, no swap emergency-bootup case. We must not kill init in
-> that case - if the current code doesnt then great and none of
-> this is needed.
+> Definitely - and this is present in some non Unix OS's. We do pass credentials
+> across AF_UNIX sockets so the mechanism is notionally there to provide the 
+> credentials to X, just not to use them
 
-I guess this requires some testing. If anybody can reproduce
-the bad effects without going /too/ much out of the way of a
-realistic scenario, the code needs to be fixed.
+The problem is that there is no way to keep track of them afterwards.
 
-If it turns out to be a non-issue in all scenarios, there's
-no need to make the code any more complex.
+So the process that gave X the bitmap dies. What now? Are we going to
+depend on X un-counting the resources?
 
-regards,
+I'd prefer just X having a higher "mm nice level" or something.
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
-
-http://www.conectiva.com/		http://www.surriel.com/
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
