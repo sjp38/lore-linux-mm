@@ -1,13 +1,13 @@
-Received: from prosun.first.gmd.de (prosun.first.gmd.de [194.95.168.2])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA27402
-	for <linux-mm@kvack.org>; Thu, 27 May 1999 08:38:23 -0400
-Received: from piano.first.gmd.de (piano.first.gmd.de [194.95.168.78])
-	by prosun.first.gmd.de (8.9.1a/8.9.1) with ESMTP id OAA29961
-	for <linux-mm@kvack.org>; Thu, 27 May 1999 14:37:51 +0200 (MEST)
-Date: Thu, 27 May 1999 14:37:52 +0200 (MET DST)
-From: Gilles Pokam Tientcheu <pokam@prosun.first.gmd.de>
-Subject: new kernel doc ?
-Message-ID: <Pine.SUN.3.91.990527143228.16804A-100000@piano>
+Received: from mail.cs.tu-berlin.de (root@mail.cs.tu-berlin.de [130.149.17.13])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id IAA27591
+	for <linux-mm@kvack.org>; Thu, 27 May 1999 08:54:27 -0400
+Received: from gorgon.cs.tu-berlin.de (pokam@gorgon.cs.tu-berlin.de [130.149.31.106])
+	by mail.cs.tu-berlin.de (8.9.1/8.9.1) with ESMTP id OAA00973
+	for <linux-mm@kvack.org>; Thu, 27 May 1999 14:51:32 +0200 (MET DST)
+Date: Thu, 27 May 1999 14:51:31 +0200 (MET DST)
+From: Gilles Pokam <pokam@cs.tu-berlin.de>
+Subject: New kernel doc ?
+Message-ID: <Pine.SOL.3.91.990527144907.29254A-100000@gorgon.cs.tu-berlin.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -16,14 +16,10 @@ List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-is there a location where i can have some informations about changes in 
-the kernel 2.2 (new names of function, arguments etc..)?
+Is there a location where i can find information about changes in the new 
+kernel 2.2 (e.g new definition of function, arguments etc...) ?
 
 Thanks,
-
-
-
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
