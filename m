@@ -1,67 +1,76 @@
-Received: from localhost (ioe@localhost)
-          by nightmaster.csn.tu-chemnitz.de (8.9.1/8.9.1) with ESMTP
-          id NAA25248 for <linux-mm@kvack.org>; Mon, 22 May 2000 13:43:53 +0200
-Date: Mon, 22 May 2000 13:43:53 +0200 (CEST)
-From: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>
-Subject: Questions about page IO of swapping
-Message-ID: <Pine.LNX.4.10.10005221323490.21738-100000@nightmaster.csn.tu-chemnitz.de>
+Subject: Linux I/O performance in 2.3.99pre
+Reply-To: zlatko@iskon.hr
+From: Zlatko Calusic <zlatko@iskon.hr>
+Date: 22 May 2000 14:26:40 +0200
+Message-ID: <dn4s7qpy7z.fsf@magla.iskon.hr>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+Cc: andrea@suse.de
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+This is just to report that I/O performance in the pre kernels is very
+bad. System is so sluggish that you don't need any benchmarks to
+quantify it, but I did some anyway. :)
 
-I tried to implement encrypted swap and couldn't find the right
-places for encryption and decryption.
+This is bonnie output on pre9-3 virgin:
 
-I thought encryption should be done before calling brw_page() in 
-mm/page_io.c:rw_swap_page_base()
-and decryption in fs/buffer.c:after_unlock_page(), if the
-page->count is >0 after passing every other of the tests in this
-function.
 
-But obviosly I was wrong, because I got oopses and later a
-reboot, as soon as I touched swap.
+              -------Sequential Output-------- ---Sequential Input-- --Random--
+              -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
+Machine    MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
+pre9-3    400 15032 64.4 12843 13.8  6202  7.1 11421 38.1 13005 11.6 118.1  1.2
+                         ^^^^^                            ^^^^^
 
-So when is a page actually considered written to disk and when is
-it accessed first after this? 
+It looks like a slightly slower/older 5400 disk, is it?
 
-These would be the points for my very lightwight encrypted swap
-layer.
+But in fact it is a quite fast (and expensive) 7200rpm disk, which is
+capable of this:
 
-The data can be cached, but may not be accessed
-before decryption and should not go to swap (file or device)
-without being encrypted. Caching should be avoided as much as
-possible by calling crypto-stuff as late as possible (in the
-lowest layer).
+              -------Sequential Output-------- ---Sequential Input-- --Random--
+              -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
+Machine    MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
+9-3-nswap 400 21222 89.7 22244 19.7  7343  8.0 17863 57.3 21030 18.0 118.8  1.1
+                         ^^^^^                            ^^^^^
 
-All of this is meant for kernel 2.2.15 (+kernel-int-patch[1], but
-this is only used for the crypto-API).
+This second numbers are generated on the same kernel version, but with
+disabled swap_out() function.
 
-I would like to know the entry points for 2.3.x too, but cannot
-really test it, because kernel-int-patch is only for 2.2.x
+Memory balancing is killing I/O. It is very common to see system
+swapping loads of pages in/out with only one I/O intensive process
+running and plenty (~100MB) free memory (page cache). Swapping kills
+I/O performance because of needless disk head seeks, and thus all
+recent kernels have very slow I/O (~60% of possible speed).
 
-If you guys have no idea, I'll try implementing a pseudo block
-device, but this will restrict it to swap-devices and omits
-swap-files (which could of course simulated with loopback).
+While at benchmarking, I have also tested 2.3.42 which is the last
+kernel before elevator rewrite (Hi Andrea! :))
 
-I have also problems tracking reads vs. writes, because this
-information is somehow lost due to generalization after a page
-has been read/written ;-)
+              -------Sequential Output-------- ---Sequential Input-- --Random--
+              -Per Char- --Block--- -Rewrite-- -Per Char- --Block--- --Seeks---
+Machine    MB K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU K/sec %CPU  /sec %CPU
+2.3.42    400 20978 97.2 22519 22.2  9302 12.7 18860 61.5 21020 20.4 114.8  1.3
+                                     ^^^^
 
-Thanks and Regards
+Numbers for read/write are almost same as in my experiment (which is
+to say that VM subsytem worked OK in 2.3.42, at least for common
+memory configurations :)), but there is a measurable difference in a
+rewrite case. Old elevator allowed ~9.5MB/s rewriting speed, while
+with new code it drops to ~7.5MB/s.
 
-Ingo Oeser
+Question for Andrea: is it possible to get back to the old speeds with
+tha new elevator code, or is the speed drop unfortunate effect of the
+"non-starvation" logic, and thus can't be cured?
 
-[1] International Kernel Patch -> Crypto stuff developed outside
-   USA and outside other countries that have weird crypto laws.
+Doing that same rewrite test under old and new kernels reveals that in
+2.3.42 disk is completely quiet while rewriting, while in the 99-pre
+series it makes very loud and scary noise. Could that still be a bug
+somewhere in the elevator?
+
+Regards,
 -- 
-Feel the power of the penguin - run linux@your.pc
-<esc>:x
-
+Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
