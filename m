@@ -1,86 +1,66 @@
-Received: from cthulhu.engr.sgi.com (cthulhu.engr.sgi.com [192.26.80.2])
-	by sgi.com (980305.SGI.8.8.8-aspam-6.2/980304.SGI-aspam:
-       SGI does not authorize the use of its proprietary
-       systems or networks for unsolicited or bulk email
-       from the Internet.)
-	via ESMTP id TAA10292757
-	for <@external-mail-relay.sgi.com:linux-mm@kvack.org>; Mon, 8 Nov 1999 19:12:30 -0800 (PST)
-	mail_from (kanoj@google.engr.sgi.com)
-Received: from google.engr.sgi.com (google.engr.sgi.com [192.48.174.30])
-	by cthulhu.engr.sgi.com (980427.SGI.8.8.8/970903.SGI.AUTOCF)
-	via ESMTP id TAA83966
-	for <@cthulhu.engr.sgi.com:linux-mm@kvack.org>;
-	Mon, 8 Nov 1999 19:12:29 -0800 (PST)
-	mail_from (kanoj@google.engr.sgi.com)
-Received: (from kanoj@localhost) by google.engr.sgi.com (980427.SGI.8.8.8/970903.SGI.AUTOCF) id TAA17636 for linux-mm@kvack.org; Mon, 8 Nov 1999 19:12:28 -0800 (PST)
 From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199911090312.TAA17636@google.engr.sgi.com>
-Subject: [PATCH] kanoj-mm25-2.3.26 Fix max_mapnr<<PAGE_SHIFT overflows
-Date: Mon, 8 Nov 1999 19:12:28 -0800 (PST)
+Message-Id: <199911090324.TAA27308@google.engr.sgi.com>
+Subject: [PATCH] kanoj-mm26-2.3.26 Fix nonPAE kernel panics
+Date: Mon, 8 Nov 1999 19:24:45 -0800 (PST)
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: torvalds@transmeta.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-
-This has already been sent to Linus to be included into 2.3.27.
-
-Kanoj
 
 Linus,
 
-Now that >4Gb memory support is possible, it is no longer true that
-(max_mapnr << PAGE_SHIFT) can be held within a 32 bit unsigned long.
-This patch tries to fix this overflow problem.
+Please put this patch into 2.3.27. It prevents a nonPAE kernel from
+attempting to use >4Gb physical memory, if the ia32 box has that
+much. My non PAE kernel is now able to multiuser boot my ia32 box
+which has slightly more than 4Gb RAM.
 
-Please put into 2.3.27. Thanks.
+Also, add in helpful messages for sysadmins, so that they can create
+the best possible kernel for their ia32 boxes.
+
+Thanks.
 
 Kanoj
 
---- /usr/tmp/p_rdiff_a006_p/dir.c	Mon Nov  8 17:30:59 1999
-+++ fs/ncpfs/dir.c	Mon Nov  8 16:10:42 1999
-@@ -405,7 +405,6 @@
- {
- 	unsigned long dent_addr = (unsigned long) dentry;
- 	unsigned long min_addr = PAGE_OFFSET;
--	unsigned long max_addr = min_addr + (max_mapnr << PAGE_SHIFT);
- 	unsigned long align_mask = 0x0F;
- 	unsigned int len;
- 	int valid = 0;
-@@ -412,7 +411,7 @@
+--- /usr/tmp/p_rdiff_a006bj/setup.c	Mon Nov  8 19:22:00 1999
++++ arch/i386/kernel/setup.c	Mon Nov  8 18:17:08 1999
+@@ -583,6 +583,7 @@
+ #define VMALLOC_RESERVE	(unsigned long)(128 << 20)
+ #define MAXMEM		(unsigned long)(-PAGE_OFFSET-VMALLOC_RESERVE)
+ #define MAXMEM_PFN	PFN_DOWN(MAXMEM)
++#define MAX_NONPAE_PFN	(1 << 20)
  
- 	if (dent_addr < min_addr)
- 		goto bad_addr;
--	if (dent_addr > max_addr - sizeof(struct dentry))
-+	if (dent_addr > (unsigned long)high_memory - sizeof(struct dentry))
- 		goto bad_addr;
- 	if ((dent_addr & ~align_mask) != dent_addr)
- 		goto bad_align;
---- /usr/tmp/p_rdiff_a006_z/kcore.c	Mon Nov  8 17:31:18 1999
-+++ fs/proc/kcore.c	Mon Nov  8 16:10:42 1999
-@@ -20,7 +20,7 @@
- ssize_t read_kcore(struct file * file, char * buf,
- 			 size_t count, loff_t *ppos)
- {
--	unsigned long p = *ppos, memsize;
-+	unsigned long long p = *ppos, memsize;
- 	ssize_t read;
- 	ssize_t count1;
- 	char * pnt;
---- /usr/tmp/p_rdiff_a006-8/vmalloc.c	Mon Nov  8 17:31:44 1999
-+++ mm/vmalloc.c	Mon Nov  8 16:10:42 1999
-@@ -204,7 +204,7 @@
- 	struct vm_struct *area;
+ 	/*
+ 	 * partially used pages are not usable - thus
+@@ -608,8 +609,26 @@
+ 	 * Determine low and high memory ranges:
+ 	 */
+ 	max_low_pfn = max_pfn;
+-	if (max_low_pfn > MAXMEM_PFN)
++	if (max_low_pfn > MAXMEM_PFN) {
+ 		max_low_pfn = MAXMEM_PFN;
++#ifndef CONFIG_HIGHMEM
++		/* Maximum memory usable is what is directly addressable */
++		printk(KERN_WARNING "Warning only %ldMB will be used.\n",
++					MAXMEM>>20);
++		if (max_pfn > MAX_NONPAE_PFN)
++			printk(KERN_WARNING "Use a PAE enabled kernel.\n");
++		else
++			printk(KERN_WARNING "Use a HIGHMEM enabled kernel.\n");
++#else /* !CONFIG_HIGHMEM */
++#ifndef CONFIG_X86_PAE
++		if (max_pfn > MAX_NONPAE_PFN) {
++			max_pfn = MAX_NONPAE_PFN;
++			printk(KERN_WARNING "Warning only 4GB will be used.\n");
++			printk(KERN_WARNING "Use a PAE enabled kernel.\n");
++		}
++#endif /* !CONFIG_X86_PAE */
++#endif /* !CONFIG_HIGHMEM */
++	}
  
- 	size = PAGE_ALIGN(size);
--	if (!size || size > (max_mapnr << PAGE_SHIFT)) {
-+	if (!size || ((PAGE_ALIGN(size) >> PAGE_SHIFT) > max_mapnr)) {
- 		BUG();
- 		return NULL;
- 	}
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
