@@ -1,174 +1,80 @@
-Date: Thu, 10 Oct 2002 14:32:18 -0500
+Date: Thu, 10 Oct 2002 14:59:07 -0500
 From: Dave McCracken <dmccr@us.ibm.com>
-Subject: [PATCH 2.5.41-mm2+] Shared page table bugfix for mprotect
-Message-ID: <167610000.1034278338@baldur.austin.ibm.com>
+Subject: Fork timing numbers for shared page tables
+Message-ID: <175360000.1034279947@baldur.austin.ibm.com>
+In-Reply-To: <3DA5D893.CDD2407C@digeo.com>
+References: <167610000.1034278338@baldur.austin.ibm.com>
+ <3DA5D893.CDD2407C@digeo.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="==========1014540887=========="
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
-List-ID: <linux-mm.kvack.org>
-
---==========1014540887==========
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Andrew Morton <akpm@digeo.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+List-ID: <linux-mm.kvack.org>
+
+--On Thursday, October 10, 2002 12:44:19 -0700 Andrew Morton
+<akpm@digeo.com> wrote:
+
+> Be nice to get some compelling benchmark figures onto the
+> mailing lists to help push these.  They're pretty late...
+
+I've done some basic timing tests for shared page tables using a simple
+fork test I wrote.  It has three modes:
+
+The first mode forks as fast as it can, then calculates how long each fork
+took.  This measures the time the fork() system call took.
+
+The second mode adds a wait() for the child after the fork.  The child just
+calls exit(0).  This measures how long the child ran.
+
+The third mode adds an exec() in the child of a very small executable,
+which just exits.  This adds the exec() time to the mix.
+
+The program also optionally allocates a shared memory object and touches
+all the pages in it before the start of the test.  This adds extra pages to
+be dealt with by fork/exec/exit.  None of the pages are touched after the
+test starts.
+
+I ran this test in three cases, 2.5.41, 2.5.41-mm2 without share, and
+2.5.41-mm2 with share.
+
+Now for the results (all times are in ms):
+
+		2.5.41	mm2-unshared	mm2-shared
+		------	------------	----------
+fork
+----
+
+400K		 1.7	 1.6		 0.5
+4M		 5.0	 5.0		 3.4
+40M		28.4	29.5		 3.4
+
+fork/exit
+---------
+
+400K		 1.7	 1.6		 1.6
+4M		 4.9	 5.3		 4.1
+40M		44.2	45.1		 4.1
+
+fork/exec/exit
+--------------
+
+400K		 6.5	 7.5		 7.7
+4M		10.3	11.9		10.7
+40M		49.3	51.4		10.7
 
 
-I discovered I hadn't done the right things for mprotect, so here's a patch
-that fixes it.  It goes on top of the #ifdef cleanup I sent earlier today.
+I don't know why exec introduces a small penalty for small tasks. I'm
+working on some optimizations that might help.
 
 Dave McCracken
 
 ======================================================================
 Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
 dmccr@us.ibm.com                                        T/L   678-3059
-
---==========1014540887==========
-Content-Type: text/plain; charset=iso-8859-1; name="shpte-2.5.41-mm2-2.diff"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment; filename="shpte-2.5.41-mm2-2.diff"; size=4158
-
---- 2.5.41-mm2-shsent/./include/linux/mm.h	2002-10-10 10:34:58.000000000 =
--0500
-+++ 2.5.41-mm2-shpte/./include/linux/mm.h	2002-10-10 13:23:30.000000000 =
--0500
-@@ -360,6 +360,7 @@
-=20
- extern void zap_page_range(struct vm_area_struct *vma, unsigned long =
-address, unsigned long size);
- #ifdef CONFIG_SHAREPTE
-+extern pte_t *pte_unshare(struct mm_struct *mm, pmd_t *pmd, unsigned long =
-address);
- extern int share_page_range(struct mm_struct *dst, struct mm_struct *src, =
-struct vm_area_struct *vma, pmd_t **prev_pmd);
- #else
- extern int copy_page_range(struct mm_struct *dst, struct mm_struct *src, =
-struct vm_area_struct *vma);
---- 2.5.41-mm2-shsent/./include/asm-i386/pgtable.h	2002-10-10 =
-10:17:55.000000000 -0500
-+++ 2.5.41-mm2-shpte/./include/asm-i386/pgtable.h	2002-10-10 =
-13:14:48.000000000 -0500
-@@ -212,6 +212,7 @@
- static inline pte_t pte_mkwrite(pte_t pte)	{ (pte).pte_low |=3D _PAGE_RW; =
-return pte; }
- static inline int pmd_write(pmd_t pmd)		{ return (pmd).pmd & _PAGE_RW; }
- static inline pmd_t pmd_wrprotect(pmd_t pmd)	{ (pmd).pmd &=3D ~_PAGE_RW; =
-return pmd; }
-+static inline pmd_t pmd_mkwrite(pmd_t pmd)	{ (pmd).pmd |=3D _PAGE_RW; =
-return pmd; }
-=20
- static inline  int ptep_test_and_clear_dirty(pte_t *ptep)	{ return =
-test_and_clear_bit(_PAGE_BIT_DIRTY, &ptep->pte_low); }
- static inline  int ptep_test_and_clear_young(pte_t *ptep)	{ return =
-test_and_clear_bit(_PAGE_BIT_ACCESSED, &ptep->pte_low); }
---- 2.5.41-mm2-shsent/./mm/mprotect.c	2002-10-10 10:17:57.000000000 -0500
-+++ 2.5.41-mm2-shpte/./mm/mprotect.c	2002-10-10 13:31:14.000000000 -0500
-@@ -16,6 +16,7 @@
- #include <linux/fs.h>
- #include <linux/highmem.h>
- #include <linux/security.h>
-+#include <linux/rmap-locking.h>
-=20
- #include <asm/uaccess.h>
- #include <asm/pgalloc.h>
-@@ -24,10 +25,11 @@
- #include <asm/tlbflush.h>
-=20
- static inline void
--change_pte_range(pmd_t *pmd, unsigned long address,
-+change_pte_range(struct vm_area_struct *vma, pmd_t *pmd, unsigned long =
-address,
- 		unsigned long size, pgprot_t newprot)
- {
- 	pte_t * pte;
-+	struct page *ptepage;
- 	unsigned long end;
-=20
- 	if (pmd_none(*pmd))
-@@ -37,11 +39,32 @@
- 		pmd_clear(pmd);
- 		return;
- 	}
--	pte =3D pte_offset_map(pmd, address);
-+	ptepage =3D pmd_page(*pmd);
-+	pte_page_lock(ptepage);
- 	address &=3D ~PMD_MASK;
- 	end =3D address + size;
- 	if (end > PMD_SIZE)
- 		end =3D PMD_SIZE;
-+
-+#ifdef CONFIG_SHAREPTE
-+	if (page_count(ptepage) > 1) {
-+		if ((address =3D=3D 0) && (end =3D=3D PMD_SIZE)) {
-+			pmd_t	pmdval =3D *pmd;
-+
-+			if (vma->vm_flags & VM_MAYWRITE)
-+				pmdval =3D pmd_mkwrite(pmdval);
-+			else
-+				pmdval =3D pmd_wrprotect(pmdval);
-+			set_pmd(pmd, pmdval);
-+			pte_page_unlock(ptepage);
-+			return;
-+		}
-+		pte =3D pte_unshare(vma->vm_mm, pmd, address);
-+		ptepage =3D pmd_page(*pmd);
-+	} else
-+#endif
-+		pte =3D pte_offset_map(pmd, address);
-+
- 	do {
- 		if (pte_present(*pte)) {
- 			pte_t entry;
-@@ -56,11 +79,12 @@
- 		address +=3D PAGE_SIZE;
- 		pte++;
- 	} while (address && (address < end));
-+	pte_page_unlock(ptepage);
- 	pte_unmap(pte - 1);
- }
-=20
- static inline void
--change_pmd_range(pgd_t *pgd, unsigned long address,
-+change_pmd_range(struct vm_area_struct *vma, pgd_t *pgd, unsigned long =
-address,
- 		unsigned long size, pgprot_t newprot)
- {
- 	pmd_t * pmd;
-@@ -79,7 +103,7 @@
- 	if (end > PGDIR_SIZE)
- 		end =3D PGDIR_SIZE;
- 	do {
--		change_pte_range(pmd, address, end - address, newprot);
-+		change_pte_range(vma, pmd, address, end - address, newprot);
- 		address =3D (address + PMD_SIZE) & PMD_MASK;
- 		pmd++;
- 	} while (address && (address < end));
-@@ -98,7 +122,7 @@
- 		BUG();
- 	spin_lock(&current->mm->page_table_lock);
- 	do {
--		change_pmd_range(dir, start, end - start, newprot);
-+		change_pmd_range(vma, dir, start, end - start, newprot);
- 		start =3D (start + PGDIR_SIZE) & PGDIR_MASK;
- 		dir++;
- 	} while (start && (start < end));
---- 2.5.41-mm2-shsent/./mm/memory.c	2002-10-10 10:35:34.000000000 -0500
-+++ 2.5.41-mm2-shpte/./mm/memory.c	2002-10-10 13:22:29.000000000 -0500
-@@ -218,7 +218,7 @@
-  * held.
-  */
-=20
--static pte_t *pte_unshare(struct mm_struct *mm, pmd_t *pmd, unsigned long =
-address)
-+pte_t *pte_unshare(struct mm_struct *mm, pmd_t *pmd, unsigned long =
-address)
- {
- 	pte_t	*src_ptb, *dst_ptb;
- 	struct page *oldpage, *newpage, *tmppage;
-
---==========1014540887==========--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
