@@ -1,90 +1,34 @@
-Date: Fri, 23 Jul 2004 14:05:55 -0500
-From: Dimitri Sivanich <sivanich@sgi.com>
-Subject: [PATCH] Locking optimization for cache_reap
-Message-ID: <20040723190555.GB16956@sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from NETSYS.COM (localhost [127.0.0.1])
+	by netsys.com (8.11.6p2-2003-09-16/8.11.6) with ESMTP id i6R0BhQ25166
+	for <linux-mm@kvack.org>; Mon, 26 Jul 2004 20:11:43 -0400 (EDT)
+Date: Mon, 26 Jul 2004 20:11:43 -0400
+Message-ID: <20040727001143.22118.23818.Mailman@NETSYS.COM>
+Subject: Your message to Full-Disclosure awaits moderator approval
+From: full-disclosure-admin@lists.netsys.com
+List-Unsubscribe: <http://lists.netsys.com/mailman/listinfo/full-disclosure>,
+	<mailto:full-disclosure-request@lists.netsys.com?subject=unsubscribe>
+List-Post: <mailto:full-disclosure@lists.netsys.com>
+List-Help: <mailto:full-disclosure-request@lists.netsys.com?subject=help>
+List-Subscribe: <http://lists.netsys.com/mailman/listinfo/full-disclosure>,
+	<mailto:full-disclosure-request@lists.netsys.com?subject=subscribe>
+List-Archive: <http://lists.netsys.com/pipermail/full-disclosure/>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Here is another cache_reap optimization that reduces latency when
-applied after the 'Move cache_reap out of timer context' patch I
-submitted on 7/14 (for inclusion in -mm next week).
+Your mail to 'Full-Disclosure' with the subject
 
-This applies to 2.6.8-rc2 + the above mentioned patch.
+    Returned mail: Data format error
 
-Signed-off-by: Dimitri Sivanich <sivanich@sgi.com>
+Is being held until the list moderator can review it for approval.
 
+The reason it is being held:
 
-Index: linux/mm/slab.c
-===================================================================
---- linux.orig/mm/slab.c
-+++ linux/mm/slab.c
-@@ -2619,27 +2619,6 @@ static void enable_cpucache (kmem_cache_
- 					cachep->name, -err);
- }
- 
--static void drain_array(kmem_cache_t *cachep, struct array_cache *ac)
--{
--	int tofree;
--
--	check_irq_off();
--	if (ac->touched) {
--		ac->touched = 0;
--	} else if (ac->avail) {
--		tofree = (ac->limit+4)/5;
--		if (tofree > ac->avail) {
--			tofree = (ac->avail+1)/2;
--		}
--		spin_lock(&cachep->spinlock);
--		free_block(cachep, ac_entry(ac), tofree);
--		spin_unlock(&cachep->spinlock);
--		ac->avail -= tofree;
--		memmove(&ac_entry(ac)[0], &ac_entry(ac)[tofree],
--					sizeof(void*)*ac->avail);
--	}
--}
--
- static void drain_array_locked(kmem_cache_t *cachep,
- 				struct array_cache *ac, int force)
- {
-@@ -2697,16 +2676,14 @@ static void cache_reap (void *unused)
- 			goto next;
- 
- 		check_irq_on();
--		local_irq_disable();
--		drain_array(searchp, ac_data(searchp));
- 
--		if(time_after(searchp->lists.next_reap, jiffies))
--			goto next_irqon;
-+		spin_lock_irq(&searchp->spinlock);
-+
-+		drain_array_locked(searchp, ac_data(searchp), 0);
- 
--		spin_lock(&searchp->spinlock);
--		if(time_after(searchp->lists.next_reap, jiffies)) {
-+		if(time_after(searchp->lists.next_reap, jiffies))
- 			goto next_unlock;
--		}
-+
- 		searchp->lists.next_reap = jiffies + REAPTIMEOUT_LIST3;
- 
- 		if (searchp->lists.shared)
-@@ -2739,9 +2716,7 @@ static void cache_reap (void *unused)
- 			spin_lock_irq(&searchp->spinlock);
- 		} while(--tofree > 0);
- next_unlock:
--		spin_unlock(&searchp->spinlock);
--next_irqon:
--		local_irq_enable();
-+		spin_unlock_irq(&searchp->spinlock);
- next:
- 		;
- 	}
+    Post by non-member to a members-only list
+
+Either the message will get posted to the list, or you will receive
+notification of the moderator's decision.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
