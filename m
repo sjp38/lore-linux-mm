@@ -1,40 +1,63 @@
-Date: Thu, 13 Jan 2005 16:56:27 +0800
-From: Bernard Blackham <bernard@blackham.com.au>
-Subject: Re: Odd kswapd behaviour after suspending in 2.6.11-rc1
-Message-ID: <20050113085626.GA5374@blackham.com.au>
-References: <20050113061401.GA7404@blackham.com.au> <41E61479.5040704@yahoo.com.au>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <41E61479.5040704@yahoo.com.au>
+Date: Thu, 13 Jan 2005 10:11:30 +0000 (GMT)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Re: [RFC] Avoiding fragmentation through different allocator
+In-Reply-To: <20050113073146.GB1226@holomorphy.com>
+Message-ID: <Pine.LNX.4.58.0501131002430.31154@skynet>
+References: <Pine.LNX.4.58.0501122101420.13738@skynet> <20050113073146.GB1226@holomorphy.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jan 13, 2005 at 05:26:01PM +1100, Nick Piggin wrote:
-> >I reverted the changes to mm/vmscan.c between 2.6.10 and 2.6.11-rc1
-> >with the attached patch (applies forwards over the top of
-> >2.6.11-rc1), and I no longer get any kswapd weirdness.  Is there
-> >something in here misbehaving?
-> 
-> Hmm, it is likely to be the higher order watermarks change.
-> 
-> Can you get a couple of Alt+SysRq+M traces during the time when
-> kswapd is going crazy please?
+On Wed, 12 Jan 2005, William Lee Irwin III wrote:
 
-Embarrasingly, I can't reproduce it at the moment. It was previously
-occuring on every single suspend. Wondering if it's linked with swap
-usage - I'll keep watching and provide some traces when it happens
-again.
+> On Wed, Jan 12, 2005 at 09:09:24PM +0000, Mel Gorman wrote:
+> > So... What the patch does. Allocations are divided up into three different
+> > types of allocations;
+> > UserReclaimable - These are userspace pages that are easily reclaimable. Right
+> > 	now, I'm putting all allocations of GFP_USER and GFP_HIGHUSER as
+> > 	well as disk-buffer pages into this category. These pages are trivially
+> > 	reclaimed by writing the page out to swap or syncing with backing
+> > 	storage
+> > KernelReclaimable - These are pages allocated by the kernel that are easily
+> > 	reclaimed. This is stuff like inode caches, dcache, buffer_heads etc.
+> > 	These type of pages potentially could be reclaimed by dumping the
+> > 	caches and reaping the slabs (drastic, but you get the idea). We could
+> > 	also add pages into this category that are known to be only required
+> > 	for a short time like buffers used with DMA
+> > KernelNonReclaimable - These are pages that are allocated by the kernel that
+> > 	are not trivially reclaimed. For example, the memory allocated for a
+> > 	loaded module would be in this category. By default, allocations are
+> > 	considered to be of this type
+>
+> I'd expect to do better with kernel/user discrimination only, having
+> address-ordering biases in opposite directions for each case.
+>
 
-Thanks,
+I thought about this and was not 100% sure. I'll explain how I see it
+before I go redo large portions of the patch.
 
-Bernard.
+1. Discriminating kernel/user will leave the kernel area fragmented much
+worse than my approach. On my systems I tested, I found that a significant
+portion of kernel memory was taken up by slabs like buffer_head,
+ext3_inode_cache, ntfs_inode_cache, ntfs_big_inode_cache and
+radix_tree_node. I did not want to mix these allocations, which
+potentially are easy to get rid of, with allocations that are incredibly
+difficult.  (Totally aside, I also found that slab caches suffer from
+terrible internal fragmentation, sometimes wasting up to 60% of their
+memory but thats a separate problem)
+
+2. Address-ordering biases was also something I looked at early on, but
+then figured it didn't matter. If I don't reserve a 2^MAX_ORDER blocks,
+the system will just get terribly fragmented under memory presure when
+they meet in the middle. If I do reserve, I just end up with a similar
+layout to what I have now.
 
 -- 
- Bernard Blackham <bernard at blackham dot com dot au>
+Mel Gorman
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
