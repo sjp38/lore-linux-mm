@@ -1,39 +1,56 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id EA75D3B6BA
-	for <linux-mm@kvack.org>; Wed, 10 Oct 2001 18:44:20 -0300 (EST)
-Date: Wed, 10 Oct 2001 18:44:13 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Message-Id: <3.0.6.32.20011011104635.01e9bea0@pop.tiscalinet.it>
+Date: Thu, 11 Oct 2001 10:46:35 +0200
+From: Lorenzo Allegrucci <lenstra@tiscalinet.it>
 Subject: Re: [CFT][PATCH] smoother VM for -ac
-In-Reply-To: <Pine.LNX.4.33L.0110101815140.26495-100000@duckman.distro.conectiva>
-Message-ID: <Pine.LNX.4.33L.0110101842590.26495-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <Pine.LNX.4.33L.0110101710150.26495-100000@duckman.distro.c
+ onectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin LaHaise <bcrl@redhat.com>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 10 Oct 2001, Rik van Riel wrote:
-> On Wed, 10 Oct 2001, Benjamin LaHaise wrote:
+At 17.25 10/10/01 -0300, Rik van Riel wrote:
+>Please test this patch and tell Alan and me how it works for
+>you and whether there are loads where the system performs
+>worse with this patch than without...
 
-> > There's a small problem with this one: I know that during
-> > testing of earlier 2.4 kernels we saw a livelock which was
-> > caused by the vm subsystem spinning without scheduling.
+qsbench results,
 
-I added back the reschedule at the zone->pages_min() limit
-and have documented this piece of black magic. New patch
-can be found at:
 
-	http://www.surriel.com/patches/
+Linux-2.4.10-ac9:
 
-regards,
+lenstra:~/src/qsort> time ./qsbench -n 90000000 -p 1 -s 140175100
+seed = 140175100
+71.370u 2.560s 3:17.94 37.3%    0+0k 0+0io 11773pf+0w
+lenstra:~/src/qsort> time ./qsbench -n 90000000 -p 1 -s 140175100
+seed = 140175100
+71.760u 3.170s 4:02.93 30.8%    0+0k 0+0io 15487pf+0w
+lenstra:~/src/qsort> time ./qsbench -n 90000000 -p 1 -s 140175100
+seed = 140175100
+71.090u 3.080s 4:07.94 29.9%    0+0k 0+0io 15856pf+0w
+kswapd CPU time: 0:23
 
-Rik
+
+Linux-2.4.10-ac9 + Rik's smooth patch:
+
+lenstra:~/src/qsort> time ./qsbench -n 90000000 -p 1 -s 140175100
+seed = 140175100
+71.090u 6.260s 3:21.65 38.3%    0+0k 0+0io 12868pf+0w
+lenstra:~/src/qsort> time ./qsbench -n 90000000 -p 1 -s 140175100
+seed = 140175100
+72.460u 6.030s 3:58.10 32.9%    0+0k 0+0io 14637pf+0w
+lenstra:~/src/qsort> time ./qsbench -n 90000000 -p 1 -s 140175100
+seed = 140175100
+71.630u 7.400s 4:00.86 32.8%    0+0k 0+0io 14894pf+0w
+kswapd CPU time: 0:21
+
+
+
 -- 
-DMCA, SSSCA, W3C?  Who cares?  http://thefreeworld.net/  (volunteers needed)
-
-http://www.surriel.com/		http://distro.conectiva.com/
+Lorenzo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
