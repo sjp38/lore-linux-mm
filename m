@@ -1,26 +1,29 @@
-Date: Sun, 14 May 2000 12:55:03 +0200 (CEST)
+Date: Sun, 14 May 2000 13:28:54 +0200 (CEST)
 From: Ingo Molnar <mingo@elte.hu>
 Reply-To: mingo@elte.hu
 Subject: Re: pre8: where has the anti-hog code gone?
 In-Reply-To: <Pine.LNX.4.10.10005141245510.1494-100000@elte.hu>
-Message-ID: <Pine.LNX.4.10.10005141253460.1494-100000@elte.hu>
+Message-ID: <Pine.LNX.4.10.10005141319450.1494-100000@elte.hu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+Cc: Rik van Riel <riel@conectiva.com.br>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 14 May 2000, Ingo Molnar wrote:
+> i believe the reason for gfp-NULL failures is the following:
+> do_try_to_free_pages() _does_ free pages, but we do the sync in the
+> writeback case _after_ releasing a particular page. This means other
+> processes can steal our freshly freed pages - rmqueue fails easily. So i'd
+> suggest the following workaround:
+> 
+> 	if (try_to_free_pages() was succesful && final rmqueue() failed)
+> 		goto repeat;
 
-> a __free_pages variant that does not increase zone->free_pages. this is
-> then later on done by the allocator (ie. __alloc_pages). This 'free page
-> transport' mechanizm guarantees that the non-atomic allocation path does
-> not 'lose' free pages along the way.
-
-'normal' (non- __alloc_pages()-driven) __free_pages() still increases
-zone->free_pages just like before.
+this seems to have done the trick here - no more NULL gfps. Any better
+generic suggestion than the explicit 'page transport' path between freeing
+and allocation points?
 
 	Ingo
 
