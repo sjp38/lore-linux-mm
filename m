@@ -1,67 +1,124 @@
-Received: from m5.gw.fujitsu.co.jp ([10.0.50.75]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i88CEmtx000647 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 21:14:48 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s3.gw.fujitsu.co.jp by m5.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i88CElbS004905 for <linux-mm@kvack.org>; Wed, 8 Sep 2004 21:14:47 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s3.gw.fujitsu.co.jp (s3 [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3C6A243F02
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 21:14:47 +0900 (JST)
-Received: from fjmail502.fjmail.jp.fujitsu.com (fjmail502-0.fjmail.jp.fujitsu.com [10.59.80.98])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id D706B43EFC
-	for <linux-mm@kvack.org>; Wed,  8 Sep 2004 21:14:46 +0900 (JST)
-Received: from jp.fujitsu.com
- (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
- fjmail502.fjmail.jp.fujitsu.com
- (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I3Q0040J20L81@fjmail502.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Wed,  8 Sep 2004 21:14:46 +0900 (JST)
-Date: Wed, 08 Sep 2004 21:20:02 +0900
-From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC][PATCH] no bitmap buddy allocator:  remove free_area->map
- (0/4)
-In-reply-to: <413EEFA9.9030007@jp.fujitsu.com>
-Message-id: <413EF8F2.5000904@jp.fujitsu.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii; format=flowed
-Content-transfer-encoding: 7bit
-References: <413EEFA9.9030007@jp.fujitsu.com>
+Message-ID: <413F1518.7050608@sgi.com>
+Date: Wed, 08 Sep 2004 09:20:08 -0500
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
+Subject: Re: swapping and the value of /proc/sys/vm/swappiness
+References: <413CB661.6030303@sgi.com> <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <20040907212051.GC3492@logos.cnet>
+In-Reply-To: <20040907212051.GC3492@logos.cnet>
+Content-Type: multipart/mixed;
+ boundary="------------090209060903040403020800"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: Linux Kernel ML <linux-kernel@vger.kernel.org>, LHMS <lhms-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, Dave Hansen <haveblue@us.ibm.com>, Hirokazu Takahashi <taka@valinux.co.jp>
+To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
+Cc: Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, piggin@cyberone.com.au, mbligh@aracnet.com
 List-ID: <linux-mm.kvack.org>
 
-This is a quick change-log from "previous-version" for comparison.
+This is a multi-part message in MIME format.
+--------------090209060903040403020800
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 
-Big difference from previous one is revival of bad_range() and reduced victim pages.
 
-   -- bad_range() is modified and bad_range_pfn() is added.
-   -- bad_range_pfn() uses zone->memmap_start_pfn/memmap_end_pfn instead of using
-      zone_start_pfn/spanned_pages. Because IA64's memmap's start is not equal to
-      zone->zone_start_pfn.
-   -- In most inner loop of __free_pages_bulk(), bad_range_pfn() is used.
-   -- this bad_range_pfn() enables me to reduce victim pages.
 
-      In my IA64,
-Sep  8 18:59:38 casares kernel: calculate_buddy_range() 36e 129901
-Sep  8 18:59:38 casares kernel: victim end page 1feda
-Sep  8 18:59:38 casares kernel: calculate_buddy_range() 1fedc 292
-Sep  8 18:59:38 casares kernel: victim top page 1fedc
-Sep  8 18:59:38 casares kernel: victim top page 1fee0
-Sep  8 18:59:38 casares kernel: victim top page 1ff00
-Sep  8 18:59:38 casares kernel: victim end page 1ffff
-Sep  8 18:59:38 casares kernel: saved end victim page 1ffff
-Sep  8 18:59:38 casares kernel: calculate_buddy_range() 40000 262144
-Sep  8 18:59:38 casares kernel: calculate_buddy_range() a0000 131072
-Sep  8 18:59:38 casares kernel: victim top page a0000
-Sep  8 18:59:38 casares kernel: Built 1 zonelists
-       # of victim pages is 5. It was 19 in previous version.
+Marcelo Tosatti wrote:
 
-   -- ia64's virtual_memmap_init() can call memmap_init() several times for the same
-      memory range. It was fixed.
+> 
+> Andrew, dirty_ratio and dirty_background_ratio (as low as 5% each) did not significantly 
+> affect the amount of swapped out data, only a small effect on _how soon_ anonymous 
+> memory was swapped out.
+> 
 
--- Kame
+I looked at the get_dirty_limits() code and for the test cases I was running,
+we have mapped > 90% of memory.  So what will happen is that dirty_ratio will 
+be thresholded at 5%, and background_ratio will be 1%.  Changing values in 
+/proc won't modify this at all (well, you could force background_ratio to 0%.)
+
+It seems to me that the 5% number in there is more or less arbitrary.  If we 
+are on a big memory Altix (4 TB), 5% of memory would be 200 GB. That is a lot 
+of page cache.
+
+It seems get_dirty_limits() would be a lot simpler (and automatically scale as 
+memory is mapped) if the limits were interpreted as being in terms of the 
+amount of unmapped memory.  A patch that implements this idea is attached.
+(Andrew -- if it comes to that I can submit this patch inline -- this is just 
+for talking at the moment).
+
+I'll run a few of the tests with this modified kernel and see if they are any 
+different.
+
+> And finally, Ray, the difference you see between 2.6.6 and 2.6.7 can be explained, 
+> as noted by others in this thread, to vmscan.c changes (page replacement/scanning policy
+> changes were made).
+
+Yep.  I can probably live with those minor differences though.  I would be 
+happier if the system didn't swap anything at all for low values of 
+swappiness, though.
+
+> 
+> Will continue with more tests tomorrow.
+> 
+
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
+
+--------------090209060903040403020800
+Content-Type: text/plain;
+ name="dirty-limits-in-terms-of-unmapped.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="dirty-limits-in-terms-of-unmapped.patch"
+
+Index: linux-2.6.9-rc1-mm3-kdb/mm/page-writeback.c
+===================================================================
+--- linux-2.6.9-rc1-mm3-kdb.orig/mm/page-writeback.c	2004-09-03 10:18:57.000000000 -0700
++++ linux-2.6.9-rc1-mm3-kdb/mm/page-writeback.c	2004-09-07 14:46:24.000000000 -0700
+@@ -135,32 +135,19 @@
+ static void
+ get_dirty_limits(struct writeback_state *wbs, long *pbackground, long *pdirty)
+ {
+-	int background_ratio;		/* Percentages */
+-	int dirty_ratio;
+-	int unmapped_ratio;
++	int unmapped;
+ 	long background;
+ 	long dirty;
+ 	struct task_struct *tsk;
+ 
+ 	get_writeback_state(wbs);
+ 
+-	unmapped_ratio = 100 - (wbs->nr_mapped * 100) / total_pages;
+ 
+-	dirty_ratio = vm_dirty_ratio;
+-	if (dirty_ratio > unmapped_ratio / 2)
+-		dirty_ratio = unmapped_ratio / 2;
++	unmapped = total_pages - wbs->nr_mapped;
+ 
+-	if (dirty_ratio < 5)
+-		dirty_ratio = 5;
++	background = (dirty_background_ratio * unmapped) / 100;
++	dirty      = (vm_dirty_ratio * unmapped) / 100;
+ 
+-	/*
+-	 * Keep the ratio between dirty_ratio and background_ratio roughly
+-	 * what the sysctls are after dirty_ratio has been scaled (above).
+-	 */
+-	background_ratio = dirty_background_ratio * dirty_ratio/vm_dirty_ratio;
+-
+-	background = (background_ratio * total_pages) / 100;
+-	dirty = (dirty_ratio * total_pages) / 100;
+ 	tsk = current;
+ 	if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
+ 		background += background / 4;
+
+--------------090209060903040403020800--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
