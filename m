@@ -1,82 +1,74 @@
 From: Michal Ostrowski <mostrows@styx.uwaterloo.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="0pW+cVWAQn"
 Content-Transfer-Encoding: 7bit
-Message-ID: <14645.55430.196015.898700@styx.uwaterloo.ca>
-Date: Wed, 31 May 2000 23:29:10 -0400 (EDT)
-Subject: Poor I/O Performance (10x slower than 2.2)
+Message-ID: <14646.18070.554583.303619@styx.uwaterloo.ca>
+Date: Thu, 1 Jun 2000 07:18:46 -0400 (EDT)
+Subject: Poor I/O Performance (test program attached)
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-I've noticed some horrible I/O performance in recent 2.3 kernels.  My
-first guess was that this was related to the various VM problems that
-have been running rampant recently, but now I'm not so sure.  Even
-though I've been reading reports that VM performance has been
-improving, I've seen no noticeable impact on my test results.
-
-My test program performs a series of reads at random offests into a 1
-GB sized file (on an ext2 fs).  There are 1000 reads in total, and
-each read operations reads some pre-determined number of blocks.  The
-application uses 1,4 or 10 kernel threads to perform this task.  The
-threads all quit once the total number of reads between all of them
-reaches 1000 and the time to run the application is reported.
-
-I've run this application on several combinations of kernels and
-hardware.  The hardware was a Celeron 500 or Dual PIII 550's with
-7200RPM U2W SCSI drives (aic7880/aic7890 controllers) and 256 MB RAM.
-
-The kernels I've used have varied from 2.3.99-pre1 to 2.4.0-test1-ac7,
-however the kernel version used seems to have little impact on the
-overall results.
-
-The numbers I find really troublesome are the ones where I've got 10
-threads and 32 blocks per read.  What makes this case troublesome is
-that I've seen a 2.2.14 kernel (on the dual processor box) run the
-test with the same parameters in 34 seconds (as opposed to 340).
-Regardless of how unrealistic my test application is, I don't think
-that such a change in running time between 2.2.14 and 2.3.99-pre9 is
-intentional.
-
-My concern is that the running times increase so dramatically as the
-number of blocks read per read operations increases, and that
-increasing the number of threads has such a dramatically negative
-impact.
+--0pW+cVWAQn
+Content-Type: text/plain; charset=us-ascii
+Content-Description: message body text
+Content-Transfer-Encoding: 7bit
 
 
+It was suggested to me to post the program with which I did my
+testing. And so, by popular demand, the code is attached.
 
-		Celeron 500    Dual PIII 550
-		test1-ac7      2.3.99-pre9
+You can compile the code using: "gcc -o vmtest vmtest.c"
 
-Threads Blocks	Time To Complete 1000 Reads (seconds)
-	per		
-	Read
+The command line options are described within the comments at the top
+of the source file.  
 
-1	4	7.6	       18.2  
-1	8	9.9	       21.6
-1	16	21.0	       28.5
-1	32	22.0	       32.3
+I ran my tests with:
 
-4	4	8.2	       17.3
-4	8	9.1	       19.7
-4	16	15.2	       21.1
-4	32	20.2	       28.5
-
-10	4       6.4	       7.6
-10	8       6.9	       9.4
-10	12      9.0
-10	13      96.9
-10	16      114	       223
-10	32      290	       345 *
-
-
-* 2.2.14 runs this test in 34 seconds.
-
+dd if=/dev/zero of=bigfile count=250000 bs=4096
+time vmtest file bigfile threads 10 itr 1000 blocks 32 size 1000000000
+(repeat last line, altering parameters as necessary)
 
 Michal Ostrowski
 mostrows@styx.uwaterloo.ca
+
+
+--0pW+cVWAQn
+Content-Type: application/octet-stream
+Content-Disposition: attachment;
+	filename="vmtest.c.gz"
+Content-Transfer-Encoding: base64
+
+H4sIAAhENjkAA61We08bRxD/2/4UI1ekZ3O2IYoiNbaRELgtEgEEJG1FkXXc7dlb7m5Pt3tQ
+kvDdOzO797ABpYlyEmZ3dvY3j53XePCjvi4M4C41QhsYDnEFYzgan4I2hdAa8kItiyAlpjNR
+xKpINRQiiEDlogiMVJmGwEARZJFKIVcyMxpkBgHEMhEjune5EoWAAP96WZnSZd17gpFbcBHR
+ZaNMkPBdumFW7o5bMFSpkdWo6h6eCS0YVfPFeRCuNoTYU8In1JtEhbcIav/THacr9LT8JHqQ
+B2i3MKIAqSETVpzORSjjBzYOiA9QOu80Xb9nU3vaBKYHkRI6+9nASiQ5eGK0HKGb7iGS+lb3
+iZv+PuhgKd7Ryn3uKaYsgX4y1GIPrirjG4dcw5U0BVQ+vUaQTgeurEFQm4hsVlFSEhfXYG3t
+dPDnB33jbvcnmYVJGQmYlpnUJhqt9lo0Ha7EJslEUhGpTXvQY3LeM2TzkAu9gdDibqhxmJlk
+nSSKIlNPpCfy5jk5MhVPxaRpkG0CFDJbEg1D3kbswjp8tjNhGu8W7PsZOJo0VcTb/SdRqDiy
+a/qPqGWIcKjEXZCAyCJaPqGj1YWxJ7UkjVLeTLpMuFfFrSi8OyUjjKygWPY/dym48GwAN2WM
+rGhR7u349uqg0dU/Oz+9XJzP9w+/8OqP86PLuf9+/2xxdn70cR/XXYwy+qzu/k4fhTpwUHGs
+hZnUe1Qkanb4DqpotgVx8i5HX5rY612QXehW2JKwlf+d9XwPD/pogI9aV4LuVxjKXuPKvR00
+r9shSF2mk27HaoFG2rLk9WFr7YWQpeDznDLHQyMQ3W98YN2hfYvTcg5q0JGxR5enQFI7be0Z
+zRr5DrY0qU9VlPYeh2Cf7j+iquMBHCqskahuyjb48E+JWU/FBCsZ6OBWoC+xhJAztEoFHJx9
+YGn0tIDFjNiiwAQjOFFG4Bar8L0ts6QG3vMhU4bfOacd3zarUhObXqkyiag6xUGZmAoQ3RBj
+wcN87qAqHr0exS5M+CGn3hMXjWmtYn6l/gS2t4mv8gtatz1DyCsiXjvTh8N2DhDbI//yz1Jw
+VGNYBQ/eKxf9/smH4+M6yGLPkUfmboFdIJzWyVBRSP4G0/Zsd4e/CWnQOsSzthbVU0YqExiE
+HIEbUMOn8rYd+MBbR15nJc6+FSb+lcarE6f7aLM2DWRGnqSEDX0IV0Ex4Oy9a9K3boKc7BUx
+Ejfl0laZihTTw6+TqFuQHyyF4LE4UFuY9caRuBvrKOhtZCc/o609VGn5B1+0hTlrCbC1zhFs
+eUANsAFnnpVAtJ5/ujg/PD05/ms9n8novd0+Uz5zmqHgMM3xMci6nk+OuCKu4evr/mxWpx8f
+zwKjpNew7F5TrtHxcEgEij6R4IjQwnUjwIvArpx/B3I1srwI7Ri+B5se7GVgHhtm0Ib8KiLG
+xcuATbYS7Lery8PUi+iuO/4PXGg+SmFLbpUP/m3ijfzQDjRXO5DBFe7c1uVnCnSdnBvFybaM
+mFKAWsYrlwuOsZKAXNNvF0AOQ1c4zzivOAEjbbjktvnb3Yw46cK4feEmuW3urE0izzHVSUd5
+v56ytoWuJW2nzLRcZjyrY9LjaMwNFTtpgV7Bre+6QpuPLdeE5hFLbb0TzT3xzc4vb+HmAdsZ
+KkmWaexHMhTckFy94pNmfvFcJg13+wO6/uz4YpfzP+cHNLxwYLUHmtYg00EdScD2DMFe4369
+I9X1vOpJ3CaxPcppSxGgRig3p4ODRGV2tKGuIqsI56gK8Ux4dmrzWQH/4Pj0ZL74+P6LXfx6
+US2OjufV+uLot9/3Tw59HvQG/RpzfUTptDUQX51P7LPY7Kxd8Za7t3sxV7XtjNmS/dj9D04l
+VD2WDgAA
+
+--0pW+cVWAQn--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
