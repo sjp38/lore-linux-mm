@@ -1,30 +1,33 @@
-Date: Mon, 8 Sep 2003 11:39:36 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Mon, 8 Sep 2003 12:56:33 -0500
+From: Marco Cova <marco.cova@studio.unibo.it>
 Subject: Re: Differences between VM structs
-Message-ID: <20030908183936.GI29479@holomorphy.com>
-References: <3F5CADD3.2070404@movaris.com> <20030908182138.GH29479@holomorphy.com> <Pine.GSO.4.51.0309081425350.25054@aria.ncl.cs.columbia.edu>
+Message-ID: <20030908175632.GA13420@smith.cs.ucsb.edu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.GSO.4.51.0309081425350.25054@aria.ncl.cs.columbia.edu>
+In-Reply-To: <20030908182138.GH29479@holomorphy.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Raghu R. Arur" <rra2002@aria.ncl.cs.columbia.edu>
-Cc: Kirk True <ktrue@movaris.com>, Linux Memory Manager List <linux-mm@kvack.org>
+To: kernelnewbies@nl.linux.org
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-At some point in the past, I wrote:
->> mmap() needed very few extensions to handle the anonymous case.
+On Mon, Sep 08, 2003 at 11:21:38AM -0700, William Lee Irwin III wrote:
+> On Mon, Sep 08, 2003 at 09:26:59AM -0700, Kirk True wrote:
+> >     4. Can you state a succint/brief comparison of the difference
+> >        between kmalloc, malloc, and vmalloc with usage examples of each?
+> 
+> No.
 
-On Mon, Sep 08, 2003 at 02:26:50PM -0400, Raghu R. Arur wrote:
->  What are these extensions in mmap() that need to handle anonymous pages??
->  Thanks a lot,
->  Raghu
+Maybe this can be helpful:
+http://www.xml.com/ldd/chapter/book/ch07.html
 
-MAP_ANONYMOUS.
+Also, check out this link for a description of mmap:
+http://www.xml.com/ldd/chapter/book/ch13.html
 
+HTH,
+Marco
 
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
