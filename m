@@ -1,48 +1,58 @@
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-References: <Pine.LNX.4.21.0009271025260.2237-100000@elte.hu>
-From: Christoph Rohland <cr@sap.com>
-Date: 27 Sep 2000 11:24:46 +0200
-In-Reply-To: Ingo Molnar's message of "Wed, 27 Sep 2000 10:28:19 +0200 (CEST)"
-Message-ID: <qwwem266vc1.fsf@sap.com>
-MIME-Version: 1.0
+Message-ID: <20000927181334.A14797@saw.sw.com.sg>
+Date: Wed, 27 Sep 2000 18:13:34 +0800
+From: Andrey Savochkin <saw@saw.sw.com.sg>
+Subject: Re: the new VMt
+References: <20000925213201.C2615@redhat.com> <Pine.LNX.4.21.0009261020020.11007-100000@alloc>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.21.0009261020020.11007-100000@alloc>; from "Mark Hemment" on Tue, Sep 26, 2000 at 01:10:30PM
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu
-Cc: Andrea Arcangeli <andrea@suse.de>, "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Mark Hemment <markhe@veritas.com>
+Cc: yodaiken@fsmlabs.com, Jamie Lokier <lk@tantalophile.demon.co.uk>, Alan Cox <alan@lxorguk.ukuu.org.uk>, mingo@elte.hu, Andrea Arcangeli <andrea@suse.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, "Stephen C. Tweedie" <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar <mingo@elte.hu> writes:
+Hello,
 
-> On 27 Sep 2000, Christoph Rohland wrote:
+On Tue, Sep 26, 2000 at 01:10:30PM +0100, Mark Hemment wrote:
 > 
-> > Nobody should rely on shm swapping for productive use. But you have
-> > changing/increasing loads on application servers and out of a sudden
-> > you run oom. In this case the system should behave and it is _very_
-> > good to have a smooth behaviour.
+> On Mon, 25 Sep 2000, Stephen C. Tweedie wrote: 
+> > So you have run out of physical memory --- what do you do about it?
 > 
-> it might make sense even in production use. If there is some calculation
-> that has to be done only once per month, then sure the customer can decide
-> to wait for it a few hours until it swaps itself ready, instead of buying
-> gigs of RAM just to execute this single operation faster. Uncooperative
-> OOM in such cases is a show-stopper. Or are you saying the same thing? :-)
+>   Why let the system get into the state where it is neccessary to kill a
+> process?
+>   Per-user/task resource counters should prevent unprivileged users from
+> soaking up too many resources.  That is the DoS protection.
+> 
+[snip]
+>   It is possible to do true, system wide, resource counting of physical
+> memory and swap space, and to deny a fork() or mmap() which would cause
+> over committing of memoy resources if everyone cashed in their
+> requirements.
+[snip]
 
-That's what I meant with the coffee break. In a big installation
-somebody is always drinking coffee :-)
- 
-You also have often different loads during daytime and
-nighttime. Swapping buffers out to swap disk instead of rereading from
-the database makes a lot of sense for this. But a single job should
-never swap. (It works for two month and then next month you get the
-big escalation and you would love to have hotplug memory)
+People use overcommitting not because they are fans of the idea.
+Overcommitting simply is the _efficient_ way of resource sharing.
+It's a waste of resources to reserve memory+swap for the case that every
+running process decides to modify libc code (and, thus, should receive its
+private copy of the pages).   A real waste!
+I always agree to take the risk of some applications being killed in such a
+case of all processes turning crazy.
 
-So swapping happens in productive use. But nobody should rely on
-that too much. 
+The approach I believe in is:
+ - ensure that accidental or intentional madness of applications of one user
+   may cause only limited damage to other users; and
+ - introduce a way to tell the kernel that some applications should be
+   saved longer than others when troubles begin and ways to set up some
+   guaranteed amounts for important processes.
+Certainly, a lot of processes may consume more than their guarantee until
+bad things start to happen.  Then the rules of user protection and killing
+order apply.
+That's how I develop the resource control in the beancounter patch
+ftp://ftp.sw.com.sg/pub/Linux/people/saw/kernel/user_beancounter/UserBeancounter.html#s7
 
-And I completely agree that uncooperative OOM is not acceptable.
-
-Greetings
-		Christoph
+Best regards
+		Andrey
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
