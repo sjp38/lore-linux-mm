@@ -1,88 +1,73 @@
-Date: Thu, 28 Sep 2000 08:31:56 +0200 (CEST)
-From: Mike Galbraith <mikeg@weiden.de>
-Subject: Re: 2.4.0-t9p7 and mmap002 - freeze
-In-Reply-To: <39D264D0.77B3142@norran.net>
-Message-ID: <Pine.Linu.4.10.10009280803050.1233-100000@mikeg.weiden.de>
+Date: Thu, 28 Sep 2000 07:08:51 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
+In-Reply-To: <20000927155608.D27898@athlon.random>
+Message-ID: <Pine.LNX.4.21.0009280702460.1814-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Rik van Riel <riel@conectiva.com.br>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 27 Sep 2000, Roger Larsson wrote:
-
-> Hi,
+On Wed, 27 Sep 2000, Andrea Arcangeli wrote:
+> On Wed, Sep 27, 2000 at 10:11:43AM +0200, Christoph Rohland wrote:
+> > I just checked one oracle system and it did not lock the memory. And I
 > 
-> Tried latest patch with the same result - freeze...
+> If that memory is used for I/O cache then such memory should
+> released when the system runs into swap instead of swapping it
+> out too (otherwise it's not cache anymore and it could be slower
+> than re-reading from disk the real data in rawio).
 
-Ditto.
+It could also be faster. If the database spent half an hour
+gathering pieces of data from all over the database, it might
+be faster to keep it in one place in swap so it can be read
+in again in one swoop.  (I had an interesting talk about this
+with a database person while at OLS)
 
-> No extra patches added.
+But that's not the point. If your assertion is true, then the
+database will probably be using an mlock()ed SHM region and
+taking care of this itself. But this is not something the OS
+should prescribe to the application.
 
-Ditto.
+If the OS finds that certain SHM pages are used far less than
+the pages in the I/O cache, then those SHM pages should be
+swapped out. The system's job is to keep the most used pages
+of data in memory to minimise the amount of page faults
+happening. Trying to outsmart the application shouldn't (IHMO
+of course) be part of that job...
 
-> running from console as root
-> mmap002 from memtest-0.0.3
-> with RAMSIZE defined as 90 MB (I have 96MB)
-> after a while with heavy disk access (thrashing?) the drive
-> becomes silent - no more progress...
-> [if you can not repeat this - try with less memory 32 MB...]
-
-I'm using a little proggy from Christoph Rohland (swptst.c), and
-do not have to jump through any hoops to reproduce the freeze.
-
-> Magic works!
+> > Customers with performance problems very often start with too little
+> > memory, but they cannot upgrade until this really big job finishes :-(
+> > 
+> > Another issue about shm swapping is interactive transactions, where
+> > some users have very large contexts and go for a coffee before
+> > submitting. This memory can be swapped. 
 > 
-> Magic memory
->  Constantly LOW on inactive_clean (0 is the most common)
->  lots of shared memory (almost equals active)
->  [can be normal condition since mmap002 produces dirty
->   mmaped pages]
+> Agreed, that's why I said shm performance under swap is very important
+> as well (I'm not understimating it).
 > 
-> Magic process:
->   Manual samples gave the following locations.
->   (NOTE: not a call trace)
+> But again: if the shm contains I/O cache it should be released
+> and not swapped out.  Swapping out shmfs that contains I/O cache
+> would be exactly like swapping out page-cache.
 
-If a kdb call trace will help (doubt it.. see below) I can post one.
+The OS has no business knowing what's inside that SHM page.
+IF the shm contains I/O cache, maybe you're right. However,
+until you know that this is the case, optimising for that
+situation just doesn't make any sense.
 
->   We are trying to clean pages, but do we make any
->   progress since disk is silent?
-> 
-> Trace; c0127d85 <page_launder+3d/724>
-> Trace; c0126dad <deactivate_page_nolock+13d/248>
-> Trace; c0127e00 <page_launder+b8/724>
-> Trace; c0128035 <page_launder+2ed/724>
-> Trace; c0127dcc <page_launder+84/724>
-> Trace; c0127dd0 <page_launder+88/724>
-> Trace; c0127e00 <page_launder+b8/724>
-> Trace; c012fd38 <try_to_free_buffers+4/138>
-> 
-> Magic Sigterm (Alt+SysRq+E)
->  Gives you a running system again.
+(unless the SHM users tell you that this is the normal way
+they use SHM ... but as Christoph just told us, it isn't)
 
-Not here.  I looked at it with an IKD kernel, and here it's the same
-loop as before.. __alloc_pages() running through try_again forever.
-inactive_clean=0, a few pages bouncing between active and inactive_dirty.
-__switch_to() never happens.  (though I can artificially yield and thus
-make sysrq-e work.  Artificially scheduling only ensures that all other
-tasks loop the same way. [coz inactive_clean=0.. page_launder() is always
-failing to find something freeable])
+regards,
 
-> Notes:
->  Probably timing critical for entry into this state
->  since adding a few printk:s makes it happen less often.
->  I have even got complete mmap002 runs succeed - but
->  disk is running too much and for too long time...
->  a lot more than 10 min - normal run on previous testX
->  did usually take less than 3 minutes.
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
 
-I'm still at < 1 minute survival.. with many seconds to spare ;-)
-I have yet to have a run succeed, though virgin source _does_ last
-a bit longer (odd) than KDB enabled kernel.
-
-	-Mike
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
