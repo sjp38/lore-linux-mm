@@ -1,27 +1,40 @@
-Date: Sun, 12 Dec 2004 13:24:56 -0800
-From: William Lee Irwin III <wli@holomorphy.com>
-Subject: Re: page fault scalability patch V12 [0/7]: Overview and performance tests
-Message-ID: <20041212212456.GB2714@holomorphy.com>
-References: <41BBF923.6040207@yahoo.com.au> <Pine.LNX.4.44.0412120914190.3476-100000@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0412120914190.3476-100000@localhost.localdomain>
+From: "Mr David" <davs052002@yahoo.fr>
+Reply-To: davs052002@yahoo.fr
+Date: Sun, 12 Dec 2004 23:22:51 +0100
+Subject: Good Day
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 8BIT
+Message-Id: <20041212232517Z26602-766+2888@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Christoph Lameter <clameter@sgi.com>, Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Dec 12, 2004 at 09:33:11AM +0000, Hugh Dickins wrote:
-> Oh, hold on, isn't handle_mm_fault's pmd without page_table_lock
-> similarly racy, in both the 64-on-32 cases, and on architectures
-> which have a more complex pmd_t (sparc, m68k, h8300)?  Sigh.
+Mr David Johnson 
+Liberte Sicap 1,
+Dakar Senegal. 
 
-yes.
+Dear I know this mail will come to you as a surprise, nevertheless I am David Johnson, aged 24 years, the son of Major Stephen Johnson, Chief Security Officer and Aide-de?camp to the president Charles Tailor of Liberia before. 
+As a result of the war in my country, I am saddled with problems of my mothers ill health condition of protracted diabetes and high blood pressure which is getting of increase in the resent times and also getting a trust worthy individual abroad to receive the sum of US$9 million Due to the war crises presently before in my city Monrovia our home town, my father managed to sneak me and my mother of 59 years of age and four other of my sisters out of Monrovia to Dakar senegal for safety, before he was now killd by the rebels duering the war crises . 
+My father adviced me to get a trust worthy individual abroad to receive the sum of US$9,000,000.00 million cash deposited here in Dakar Senegal.
+
+I and my mother feel confident therefore to introduce ourself and this offer to you based on this problem of war of our country and our present condition as all foreign contacts and connections 
+of the family got lost during the crises, all properties burnt by the rebels . 
+
+I and my mother is desperately in need to move and re-locate this huge deposit to your country for safe keeping as this is the only wealth remaining for the future survival and well being of our entire large family.
+For your percentage for assistance, a negotiable percentage will be discussed as soon as we receive your response based on this plea for your assistance as our lives are highly in danger due to war.
+
+I and my mother pray and plead for your help. You can contact us strictly on this 00221 5485178 any time. 
+
+God bless you as you head to our plea for assistance. 
+
+Sincerely yours. 
+
+David Johnson 
+lydias012000@yahoo.com
 
 
--- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
