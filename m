@@ -1,46 +1,104 @@
-Message-ID: <40216B25.3020207@techsource.com>
-Date: Wed, 04 Feb 2004 16:59:01 -0500
-From: Timothy Miller <miller@techsource.com>
+Date: Wed, 04 Feb 2004 15:17:06 -0800
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: [Bugme-new] [Bug 2019] New: Bug from the mm subsystem involving X  (fwd)
+Message-ID: <51080000.1075936626@flay>
 MIME-Version: 1.0
-Subject: Re: Active Memory Defragmentation: Our implementation & problems
-References: <20040204185446.91810.qmail@web9705.mail.yahoo.com> <Pine.LNX.4.53.0402041402310.2722@chaos> <361730000.1075923354@[10.1.1.5]>
-In-Reply-To: <361730000.1075923354@[10.1.1.5]>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave McCracken <dmccr@us.ibm.com>
-Cc: root@chaos.analogic.com, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: linux-kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm mailing list <linux-mm@kvack.org>, kmannth@us.ibm.com
 List-ID: <linux-mm.kvack.org>
 
+           Summary: Bug from the mm subsystem involving X
+    Kernel Version: kernel.org 2.6.2
+            Status: NEW
+          Severity: normal
+             Owner: mm_numa-discontigmem@kernel-bugs.osdl.org
+         Submitter: kmannth@us.ibm.com
 
-Dave McCracken wrote:
 
-> 
-> Um, wrong answer.  When you ask for more than one page from the buddy
-> allocator  (order greater than 0) it always returns physically contiguous
-> pages.
-> 
-> Also, one of the near-term goals in VM is to be able to allocate and free
-> large pages from the main memory pools, which requires that something like
-> order 9 or 10 allocations (based on the architecture) succeed.
-> 
+Distribution:  Red Hat Enterprise Linux AS release 3 (Taroon Update 1)
+Hardware Environment:  IBM x445 16-way 64gig of ram
+Software Environment:  AS3.0 update 1 with stock 2.6.2
+Problem Description:   The X server and the kenel do not play well.
 
-What's the x86 large page size?  4M?  16M?  For the sake of arguement, 
-let's call it 4M.  Doesn't matter.
+Steps to reproduce:   Load AS3.0 (any flavor) and install a v2.6 kernel
+start X on boot. 
 
-Let's say this defragmenter allowed the kernel to detect when 1024 4k 
-pages were contiguous and aligned properly and could silently replace 
-the processor mapping tables so that all of these "pages" would be 
-mapped by one TLB entry.  (At such time that some pages need to get 
-freed, the VM would silently switch back to the 4k model.)
+So there have been alot of X issue with Red Hat and 2.6 kernels.  I managed to
+get the system to panic and I decide it was time to open this bug.  I got this
+on boot up. 
 
-This would reduce TLB entries for a lot of programs above a certain 
-size, and therefore improve peformance.
+NET: Registered protocol family 17
+kjournald starting.  Commit interval 5 seconds
+EXT3-fs: mounted filesystem with ordered data mode.
+VFS: Mounted root (ext3 filesystem) readonly.
+Freeing unused kernel memory: 296k freed
+???????
+Red Hat Enterprise Linux AS release 3 (Taroon Update 1)
+Kernel 2.6.2 on an i686
 
-The question is:  How much overhead really is caused by TLB misses?  The 
-TLB in the Athlon is like 512 entries.  That means it can know about 2 
-megabytes worth of 4k pages at any one time.
+elm3a80 login: Unable to handle kernel paging request at virtual address 0264d000
+ printing eip:
+c0147af4
+*pde = 00000000
+Oops: 0000 [#1]
+CPU:    7
+EIP:    0060:[<c0147af4>]    Not tainted
+EFLAGS: 00013206
+EIP is at remap_page_range+0x193/0x26c
+eax: 0264d000   ebx: 000f5200   ecx: 00000001   edx: dad0fa80
+esi: 001fe000   edi: d87c9ff0   ebp: f5200000   esp: d8835ee4
+ds: 007b   es: 007b   ss: 0068
+Process X (pid: 1285, threadinfo=d8834000 task=d9474ce0)
+Stack: d961d580 001ff000 001ff000 40000000 f5002000 001fe000 d9578000 d961d580
+       401ff000 d9576508 00000000 f5200000 d961d580 00000001 c0247055 d87d62c0
+       401fe000 b5002000 00001000 00000027 d9388e80 00001000 c014a7fd d9388e80
+Call Trace:
+ [<c0247055>] mmap_mem+0x71/0xd4
+ [<c014a7fd>] do_mmap_pgoff+0x362/0x70d
+ [<c0156f65>] filp_open+0x67/0x69
+ [<c0111c4d>] sys_mmap2+0x7a/0xaa
+ [<c010aced>] sysenter_past_esp+0x52/0x71
+
+Code: 8b 00 a9 00 08 00 00 74 10 89 d8 8b 54 24 4c c1 e8 14 09 ea
+ <6>note: X[1285] exited with preempt_count 1
+bad: scheduling while atomic!
+Call Trace:
+ [<c011da0a>] schedule+0x6d0/0x6d5
+ [<c0122357>] __call_console_drivers+0x5b/0x5d
+ [<c0122449>] call_console_drivers+0x69/0x11f
+ [<c0223ffb>] rwsem_down_read_failed+0xa7/0x15a
+ [<c012513f>] .text.lock.exit+0xeb/0x18c
+ [<c010be11>] do_divide_error+0x0/0xfb
+ [<c011a06f>] do_page_fault+0x1f8/0x561
+ [<c0138b93>] find_get_page+0x3d/0x7a
+ [<c0139db6>] filemap_nopage+0x287/0x378
+ [<c013b166>] generic_file_aio_write+0x78/0xa2
+ [<c0119e77>] do_page_fault+0x0/0x561
+ [<c010b7a9>] error_code+0x2d/0x38
+ [<c0147af4>] remap_page_range+0x193/0x26c
+ [<c0247055>] mmap_mem+0x71/0xd4
+ [<c014a7fd>] do_mmap_pgoff+0x362/0x70d
+ [<c0156f65>] filp_open+0x67/0x69
+ [<c0111c4d>] sys_mmap2+0x7a/0xaa
+ [<c010aced>] sysenter_past_esp+0x52/0x71
+
+
+Red Hat Enterprise Linux AS release 3 (Taroon Update 1)
+Kernel 2.6.2 on an i686
+
+
+My X version is XFree86-4.3.0-44.EL
+
+Also if I do proc related thing on the pid (ps top ...) I hang the login session
+(strace shows I don't return from a read on what I suppose is the X pid)
+
+Any thoughts, comments or suggestions are wanted.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
