@@ -1,56 +1,38 @@
-Subject: Re: 2.6.0-test1-mm1
-From: =?ISO-8859-1?Q?Ram=F3n?= Rey =?UTF-8?Q?Vicente?=
-	 =?UTF-8?Q?=F3=AE=A0=92?= <retes_simbad@yahoo.es>
-In-Reply-To: <Pine.LNX.4.53.0307161501280.32541@montezuma.mastecende.com>
-References: <20030715225608.0d3bff77.akpm@osdl.org>
-	 <1058376099.936.6.camel@debian>
-	 <Pine.LNX.4.53.0307161501280.32541@montezuma.mastecende.com>
-Content-Type: text/plain; charset=iso-8859-15
-Message-Id: <1058397925.1794.4.camel@debian>
+Subject: 2.6.0-test1-mm1 Couldn't "lock screen" after 2 days uptime.
+From: Steven Cole <elenstev@mesatop.com>
+Content-Type: text/plain
+Message-Id: <1058562142.17692.13.camel@spc9.esa.lanl.gov>
 Mime-Version: 1.0
-Date: 17 Jul 2003 01:25:26 +0200
-Content-Transfer-Encoding: 8bit
+Date: 18 Jul 2003 15:02:22 -0600
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Zwane Mwaikambo <zwane@arm.linux.org.uk>
-Cc: Andrew Morton <akpm@osdl.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-El mi? 16-07-2003 a las 21:01, Zwane Mwaikambo escribio:
-> On Wed, 16 Jul 2003, Ramon Rey [UTF-8] Vicente[UTF-8] o(R) ^R wrote:
-> 
-> > El mi? 16-07-2003 a las 07:56, Andrew Morton escribio:
-> > 
-> > > . Another interactivity patch from Con.  Feedback is needed on this
-> > >   please - we cannot make much progress on this fairly subjective work
-> > >   without lots of people telling us how it is working for them.
-> > 
-> > Well, my desktop experience with this is good. But the music playing
-> > problems (aka mp3/ogg playing problems) still there. Its better, and I
-> > feel the problems are near to be solved, but the player still jumps..
-> 
-> How fast is your processor?
+Here's an odd one.
 
-My system:
+After running 2.6.0-test1-mm1 for two days, I tried to password protect
+my KDE session with the "Lock Screen" command from the K button.  This
+is something I do every time I walk away from my desk, security and all
+that.  It always works, until now.  Selecting "Lock Screen", nothing
+happened.  With several attempts, and waiting for several minutes, still
+no locked screen.  The system was still very responsive otherwise.  
 
-k6-2 450MHz
-256 MB SDRAM pc100
-ide udma33
-aty rage fury pro 64 MB 
-running Xfree86 4.3 +  gnome2.2 all the time :)
+I logged off, logged back in again, and now "Lock Screen" works as
+expected.  I've never seen this before.  I've run many different kernels
+on this workstation and locked and unlocked the session many times per
+day for the several months I've had Mandrake 9.1 installed here.  My
+other workstation is Red Hat 9, but it's been busy doing other things
+than testing kernels recently.
 
-This problems with mp3/ogg playing is not reproducible with 2.4.x and
-2.2 series, only have it with 2.5.x and 2.6.0-test1
--- 
-/================================================\
-| Ramon Rey Vicente <ramon.rey at hispalinux.es> |
-|                                                |
-| Jabber ID <rreylinux at jabber.org>            |
-|                                                |
-| Public GPG Key http://pgp.escomposlinux.org    |
-|                                                |
-| GLiSa http://glisa.hispalinux.es               |
-\================================================/
+This may of course have nothing to do with 2.6.0-test1-mm1, but I
+thought I'd mention it.  One more thing for folks to look out for.
+
+
+Steven
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
