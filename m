@@ -1,58 +1,38 @@
-Subject: Re: slab fragmentation ?
-From: Badari Pulavarty <pbadari@us.ibm.com>
-In-Reply-To: <4162ECAD.8090403@colorfullife.com>
-References: <1096500963.12861.21.camel@dyn318077bld.beaverton.ibm.com>
-	 <20040929204143.134154bc.akpm@osdl.org>  <29460000.1096555795@[10.10.2.4]>
-	 <1096555693.12861.27.camel@dyn318077bld.beaverton.ibm.com>
-	 <415F968B.8000403@colorfullife.com>
-	 <1096905099.12861.117.camel@dyn318077bld.beaverton.ibm.com>
-	 <41617567.9010507@colorfullife.com>
-	 <1096987570.12861.122.camel@dyn318077bld.beaverton.ibm.com>
-	 <4162E0AF.4000704@colorfullife.com>
-	 <1097000846.12861.143.camel@dyn318077bld.beaverton.ibm.com>
-	 <4162ECAD.8090403@colorfullife.com>
-Content-Type: text/plain
-Message-Id: <1097074688.12861.182.camel@dyn318077bld.beaverton.ibm.com>
-Mime-Version: 1.0
-Date: 06 Oct 2004 07:58:08 -0700
+Date: Wed, 06 Oct 2004 08:14:08 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [RFC/PATCH]  pfn_valid() more generic : arch independent part[0/2]
+Message-ID: <1209350000.1097075647@[10.10.2.4]>
+In-Reply-To: <416392BF.1020708@jp.fujitsu.com>
+References: <416392BF.1020708@jp.fujitsu.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, LinuxIA64 <linux-ia64@vger.kernel.org>
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2004-10-05 at 11:49, Manfred Spraul wrote:
-> Badari Pulavarty wrote:
+> This is generic parts.
 > 
-> >>The fix would be simple: kmem_cache_alloc_node must walk through the 
-> >>list of partial slabs and check if it finds a slab from the correct 
-> >>node. If it does, then just use that slab instead of allocating a new 
-> >>one. 
-
-I have been looking at the code, I don't understand few things here.
-alloc_percpu() calls kmem_cache_alloc_node() to allocate objects from
-each node. Its just making sure that each object comes from different
-node where the CPU belongs. So, without NUMA all the allocations come
-from same node. Isn't it ?
-
-If so, in NON numa case why bother allocating a new slab at all ?
-Why can't we return an object from our per-cpu cache list ? Yes. We
-might end up allocating objects for all CPUs from the cpu cache
-we are running on. But current code doesn't deal with CPUs, only
-nodes. So it should be same.
-
-OR just grab  first partial slab and allocate it from there ?
-
-If NUMA, we need to do get a partial slab belongs to the node and
-do the allocation from there.
-
-Am I missing something fundamental here ?
-
-Thanks,
-Badari
+> Boot-time routine:
+> At first, information of valid pages is gathered into a list.
+> After gathering all information, 2 level table are created.
+> Why I create table instead of using a list is only for good cache hit.
+> 
+> pfn_valid_init()  <- initilize some structures
+> validate_pages(start,size) <- gather valid pfn information
+> pfn_valid_setup() <- create 1st and 2nd table.
 
 
+Boggle. what on earth are you trying to do?
+
+pfn_valid does exactly one thing - it checks whether there is a struct
+page for that pfn. Nothing else. Surely that can't possibly take a tenth
+of this amount of code?
+
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
