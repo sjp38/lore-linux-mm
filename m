@@ -1,10 +1,10 @@
-Date: Thu, 24 Mar 2005 22:46:44 +0600
-From: "Mark Chapman" <carpale@fadmail.com>
-Message-Id: <CFE4.AA79.9A91-003076598B8C@mac.com>
-Subject: Your account #5M7488
-Return-Path: <carpale@fadmail.com>
+Date: Thu, 24 Mar 2005 22:03:22 +0500
+From: "Julio Galindo" <frantz@doneasy.com>
+Message-Id: <CFE3.AA79.9A21-003068298B8C@mac.com>
+Subject: High rates? Not with us! low fixed rate
+Return-Path: <frantz@doneasy.com>
 To: io@kvack.org
-Cc: jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.org
+Cc: jordomo@kvack.org, kernel@kvack.org, lah@kvack.org, linux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.orgm@kvack.org, mailer-daemon@kvack.orgmm@kvack.orgmo@kvack.org, mus@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, ner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
@@ -21,15 +21,15 @@ Hello,
  
  To get a free, no obli,gation consultation click below:
 
- http://www.ok-mrg-now.com/nowss.asp
+ http://www.ok-ref-yes.net/nowss.asp
 
 
 
  Best Regards,
 
- Gavin Maynard
+ Yvonne Diggs
  
- to be remov(ed:	http://www.ok-mrg-now.com/gone.asp
+ to be remov(ed:	http://www.ok-ref-yes.net/gone.asp
 
  this process takes one week, so please be patient. we do our 
  best to take your email/s off but you have to fill out a rem/ove
