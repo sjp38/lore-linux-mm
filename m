@@ -1,52 +1,40 @@
-Date: Fri, 12 Jul 2002 10:48:06 -0700
-From: "Martin J. Bligh" <Martin.Bligh@us.ibm.com>
-Subject: Re: scalable kmap (was Re: vm lock contention reduction)
-Message-ID: <253370000.1026496086@flay>
-In-Reply-To: <3D2CBE6A.53A720A0@zip.com.au>
-References: <3D2BC6DB.B60E010D@zip.com.au> <91460000.1026341000@flay> <3D2CBE6A.53A720A0@zip.com.au>
+Date: Fri, 12 Jul 2002 13:27:29 -0500 (CDT)
+From: Paul Larson <plars@austin.ibm.com>
+Subject: Re: [PATCH] Optimize out pte_chain take three
+In-Reply-To: <Pine.LNX.4.44L.0207112011150.14432-100000@imladris.surriel.com>
+Message-ID: <Pine.LNX.4.33.0207121323230.13816-100000@eclipse.ltc.austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>
-Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: Andrew Morton <akpm@zip.com.au>, William Lee Irwin III <wli@holomorphy.com>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-OK, preliminary results we've seen about another 15% reduction in CPU load
-on Apache Specweb99 on an 8-way machine with Andrew's kmap patches!
-Will send out some more detailed numbers later from the official specweb
-machine (thanks to Dave Hansen for running the prelim tests).
+I've tried booting this patch on 2.5.25+rmap on an 8-way, with highmem.  I
+got a loot of oops on boot (couldn't see the top one because it scrolled
+off the screen) and I havn't had time to set it up with serial console yet
+but I will.  Before I do that though I wanted to know if there are any
+known issues with my configuration.  I vaguely remember someone mentioning
+problems with multiple swap partitions a while back and that's what I have
 
-Secondly, I'd like to propose yet another mechanism, which would
-also be a cheaper way to do things .... based vaguely on an RCU
-type mechanism:
+/etc/fstab:
+/dev/sda5               swap                    swap    defaults        0 0
+/dev/sda6               swap                    swap    defaults        0 0
+/dev/sda7               swap                    swap    defaults        0 0
+/dev/sda8               swap                    swap    defaults        0 0
+/dev/sda9               swap                    swap    defaults        0 0
+/dev/sda10              swap                    swap    defaults        0 0
+/dev/sda11              swap                    swap    defaults        0 0
+/dev/sda12              swap                    swap    defaults        0 0
 
-When you go to allocate a new global kmap, the danger is that its PTE
-entry has not been TLB flushed, and the old value is still in some CPUs 
-TLB cache.
+for a total of about 15GB swap.
 
-If only this task context is going to use this kmap (eg copy_to_user), 
-all we need do is check that we have context switched since we last 
-used this kmap entry (since it was freed is easiest). If we have not, we 
-merely do a local single line invalidate of that entry. If we switch to 
-running on any other CPU in the future, we'll do a global TLB flush on 
-the switch, so no problem there. I suspect that 99% of the time, this 
-means no TLB flush at all, or even an invalidate.
+Any known problems with this?
 
-If multiple task contexts might use this kmap, we need to check that
-ALL cpus have done an context switch since this entry was last used.
-If not, we send a single line invalidate to only those other CPUs that
-have not switched, and thus might still have a dirty entry ...
+Thanks,
+Paul Larson
 
-I believe RCU already has all the mechanisms for checking context
-switches. By context switch, I really mean TLB flush - ie switched
-processes, not just threads.
-
-Madness?
-
-M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
