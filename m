@@ -1,42 +1,33 @@
-Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id BAA23770
-	for <linux-mm@kvack.org>; Thu, 25 Jun 1998 01:31:18 -0400
-Subject: Re: Thread implementations...
-References: <Pine.LNX.3.96dg4.980624210745.18727h-100000@twinlark.arctic.org>
-From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 24 Jun 1998 23:56:28 -0500
-In-Reply-To: Dean Gaudet's message of Wed, 24 Jun 1998 21:12:59 -0700 (PDT)
-Message-ID: <m1n2b23wqr.fsf@flinx.npwt.net>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA25976
+	for <linux-mm@kvack.org>; Thu, 25 Jun 1998 10:00:54 -0400
+Received: from mirkwood.dummy.home (root@anx1p7.phys.uu.nl [131.211.33.96])
+	by max.phys.uu.nl (8.8.7/8.8.7/hjm) with ESMTP id QAA19412
+	for <linux-mm@kvack.org>; Thu, 25 Jun 1998 16:00:47 +0200 (MET DST)
+Received: from localhost (riel@localhost) by mirkwood.dummy.home (8.9.0/8.8.3) with SMTP id PAA32116 for <linux-mm@kvack.org>; Thu, 25 Jun 1998 15:58:17 +0200
+Date: Thu, 25 Jun 1998 15:58:12 +0200 (CEST)
+From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
+Subject: glibc and kernel update
+Message-ID: <Pine.LNX.3.96.980625155639.31988C-100000@mirkwood.dummy.home>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: Dean Gaudet <dgaudet-list-linux-kernel@arctic.org>
-Cc: "Eric W. Biederman" <ebiederm+eric@npwt.net>, Richard Gooch <Richard.Gooch@atnf.CSIRO.AU>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "DG" == Dean Gaudet <dgaudet-list-linux-kernel@arctic.org> writes:
+Hi,
 
-DG> On 24 Jun 1998, Eric W. Biederman wrote:
+I still haven't resolved the problems between glibc, the
+2.1 kernel series and pppd :(
 
->> >>>>> "RG" == Richard Gooch <Richard.Gooch@atnf.CSIRO.AU> writes:
->> 
-RG> If we get madvise(2) right, we don't need sendfile(2), correct?
->> 
->> It looks like it from here.  As far as madvise goes, I think we need
->> to implement madvise(2) as:
+Now I got a new idea: Since most of the kernel interfaces
+go through glibc, does this mean that I have to get the
+glibc source and recompile the whole thing in order to get
+working ppp with a 2.1 kernel?
 
-DG> ... note that mmap() requires a bunch of kernel structures set up to map
-DG> things into the program's memory space... when in reality the program
-DG> doesn't care at all about the bytes.  (And then there's process address
-DG> space limitations...)  sendfile() and such don't have these problems, and
-DG> it may be far more simple to implement sendfile() than it would be to put
-DG> all the hints and such into the mm layer to get mmap() performance up to
-DG> the same level. 
-
-mmap, madvise(SEQUENTIAL),write 
-is easy to implement.  The mmap layer already does readahead, all we
-do is tell it not to be so conservative.
-
-Meanwhile to write sendfile, you need to do all of the same work
-(except the page tables) without an interface to do it with.
-madvise looks simpler from here.
-
-Eric
+Rik.
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        H.H.vanRiel@phys.uu.nl |
+| Scouting Vries cubscout leader.      http://www.phys.uu.nl/~riel/ |
++-------------------------------------------------------------------+
