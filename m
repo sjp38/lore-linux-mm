@@ -1,44 +1,96 @@
-Received: from d1o43.telia.com (d1o43.telia.com [194.22.195.241])
-	by mailf.telia.com (8.9.3/8.9.3) with ESMTP id XAA10132
-	for <linux-mm@kvack.org>; Sat, 10 Feb 2001 23:30:06 +0100 (CET)
-Received: from dox (t4o43p15.telia.com [194.22.195.195])
-	by d1o43.telia.com (8.10.2/8.10.1) with SMTP id f1AMU5B24827
-	for <linux-mm@kvack.org>; Sat, 10 Feb 2001 23:30:06 +0100 (CET)
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Roger Larsson <roger.larsson@norran.net>
-Subject: mmap002 execution time doubled... good or bad sign?
-Date: Sat, 10 Feb 2001 23:23:19 +0100
+Date: Sat, 10 Feb 2001 20:53:59 -0200 (BRDT)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: [PATCH] 2.4.0-ac8/9  page_launder() fix
+Message-ID: <Pine.LNX.4.21.0102102051450.2378-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
-Message-Id: <01021023231906.02374@dox>
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-I have been running various stress tests on disk for some time.
-streaming write, copy, read, diff, dbench and mmap002
+the patch below should make page_launder() more well-behaved
+than it is in -ac8 and -ac9 ... note, however, that this thing
+is still completely untested and only in theory makes page_launder
+behave better ;)
 
-This is what I have seen:
+Since there seems to be a lot of VM testing going on at the
+moment I thought I might as well send it out now so I can get
+some feedback before I get into the airplane towards sweden
+tomorrow...
 
->From 2.4.0 to 2.4.1 with Marcelos patch write were above 10 MB/s
-and read >13 MB/s, dbench > 10 MB/s, mmap took around 2m30.
+cheers,
 
-After 2.4.1-pre8 (did not test anything in between)
-Write is at 9-10 [lost 1 MB/s] read is down to 11-12 MB/s [lost 2 MB/s]
-dbench > 9 MB/s [one MB/s there too]
+Rik
+--
+Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
 
-But the really strange one - mmap002 now takes > 4m30
-Is this expected / good behaviour? mmap002 abuses mmaps...
+Virtual memory is like a game you can't win;
+However, without VM there's truly nothing to lose...
 
-/RogerL
+		http://www.surriel.com/
+http://www.conectiva.com/	http://distro.conectiva.com/
 
--- 
-Home page:
-  none currently
+
+
+--- linux-2.4.1-ac8/mm/vmscan.c.orig	Fri Feb  9 15:04:16 2001
++++ linux-2.4.1-ac8/mm/vmscan.c	Sat Feb 10 20:50:40 2001
+@@ -413,7 +413,7 @@
+  * This code is heavily inspired by the FreeBSD source code. Thanks
+  * go out to Matthew Dillon.
+  *
+- * XXX: restrict number of pageouts in flight...
++ * XXX: restrict number of pageouts in flight by ->writepage...
+  */
+ #define MAX_LAUNDER 		(1 << page_cluster)
+ int page_launder(int gfp_mask, int user)
+@@ -514,7 +514,10 @@
+ 			spin_unlock(&pagemap_lru_lock);
+ 
+ 			writepage(page);
+-			flushed_pages++;
++			/* XXX: all ->writepage()s should use nr_async_pages */
++			if (!PageSwapCache(page))
++				flushed_pages++;
++			maxlaunder--;
+ 			page_cache_release(page);
+ 
+ 			/* And re-start the thing.. */
+@@ -636,14 +639,16 @@
+ 		 * with the paging load in the system and doesn't have
+ 		 * the IO storm problem, so it just flushes all pages
+ 		 * needed to fix the free shortage.
+-		 *
+-		 * XXX: keep track of nr_async_pages like the old swap
+-		 * code did?
+ 		 */
+-		if (user)
++		maxlaunder = shortage;
++		maxlaunder -= flushed_pages;
++		maxlaunder -= atomic_read(&nr_async_pages);
++	
++		if (maxlaunder <= 0)
++			goto out;
++
++		if (user && maxlaunder > MAX_LAUNDER)
+ 			maxlaunder = MAX_LAUNDER;
+-		else
+-			maxlaunder = shortage;
+ 
+ 		/*
+ 		 * If we are called by a user program, we need to free
+@@ -667,6 +672,7 @@
+ 	/*
+ 	 * Return the amount of pages we freed or made freeable.
+ 	 */
++out:
+ 	return freed_pages + flushed_pages;
+ }
+ 
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
