@@ -1,28 +1,46 @@
-Date: Thu, 22 May 2003 10:35:08 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH] dirty bit clearing on s390.
-In-Reply-To: <1053603729.2360.0.camel@laptop.fenrus.com>
-Message-ID: <Pine.LNX.4.44.0305221034480.18177-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Thu, 22 May 2003 07:55:31 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: Re: 2.5.69-mm8
+Message-ID: <20030522145531.GR8978@holomorphy.com>
+References: <20030522021652.6601ed2b.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20030522021652.6601ed2b.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Arjan van de Ven <arjanv@redhat.com>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-mm@kvack.org, akpm@digeo.com, phillips@arcor.de
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 22 May 2003, Arjan van de Ven wrote:
-> On Thu, 2003-05-22 at 13:20, Martin Schwidefsky wrote:
-> 
-> > Our solution is to move the clearing of the storage key (dirty bit)
-> > from set_pte to SetPageUptodate. A patch that implements this is
-> > attached. What do you think ?
-> 
-> Is there anything that prevents a thread mmaping the page to redirty it
-> before the kernel marks it uptodate ? 
+On Thu, May 22, 2003 at 02:16:52AM -0700, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.69/2.5.69-mm8/
+> . One anticipatory scheduler patch, but it's a big one.  I have not stress
+>   tested it a lot.  If it explodes please report it and then boot with
+>   elevator=deadline.
+> . The slab magazine layer code is in its hopefully-final state.
+> . Some VFS locking scalability work - stress testing of this would be
+>   useful.
 
-Nobody will mmap a page before PG_uptodate has been set.
 
+Looks like this bit fell out from mainline; required for CONFIG_NUMA
+to compile and identical to mainline.
+
+-- wli
+
+diff -prauN mm8-2.5.69-1/kernel/sched.c mm8-2.5.69-2/kernel/sched.c
+--- mm8-2.5.69-1/kernel/sched.c	2003-05-22 04:54:59.000000000 -0700
++++ mm8-2.5.69-2/kernel/sched.c	2003-05-22 07:35:01.000000000 -0700
+@@ -1084,6 +1084,9 @@ static void balance_node(runqueue_t *thi
+ 
+ static void rebalance_tick(runqueue_t *this_rq, int idle)
+ {
++#ifdef CONFIG_NUMA
++	int this_cpu = smp_processor_id();
++#endif
+ 	unsigned long j = jiffies;
+ 
+ 	/*
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
