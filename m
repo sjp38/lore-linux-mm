@@ -1,37 +1,48 @@
-Date: Fri, 10 Nov 2000 09:56:43 +0000
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: Question about swap_in() in 2.2.16 ....
-Message-ID: <20001110095643.A15453@redhat.com>
-References: <3A08F37A.38C156C1@cse.iitkgp.ernet.in> <20001108100533.C11411@redhat.com> <3A0B7829.B9F33ACA@cse.iitkgp.ernet.in>
+Message-ID: <20001110183823.A23474@saw.sw.com.sg>
+Date: Fri, 10 Nov 2000 18:38:23 +0800
+From: Andrey Savochkin <saw@saw.sw.com.sg>
+Subject: Re: Reserve VM for root (was: Re: Looking for better VM)
+References: <Pine.LNX.4.05.10011081450320.3666-100000@humbolt.nl.linux.org> <Pine.LNX.4.21.0011091731100.1155-100000@fs129-190.f-secure.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3A0B7829.B9F33ACA@cse.iitkgp.ernet.in>; from sganguly@cse.iitkgp.ernet.in on Thu, Nov 09, 2000 at 11:23:05PM -0500
+In-Reply-To: <Pine.LNX.4.21.0011091731100.1155-100000@fs129-190.f-secure.com>; from "Szabolcs Szakacsits" on Thu, Nov 09, 2000 at 06:30:32PM
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Shuvabrata Ganguly <sganguly@cse.iitkgp.ernet.in>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, linux MM <linux-mm@kvack.org>
+To: Szabolcs Szakacsits <szaka@f-secure.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hello,
 
-On Thu, Nov 09, 2000 at 11:23:05PM -0500, Shuvabrata Ganguly wrote:
-> "Stephen C. Tweedie" wrote:
-> > > Now this creates a read-only mapping  even if the access was a "write
-> > > acess"  ( if the page is shared ). Doesnt this mean that an additional
-> > > "write-protect" fault will be taken immediately when the process tries
-> > > to write again ?
-> >
-> > Yes.
-> 
-> Then why dont we give it a private page in the first place ?
+On Thu, Nov 09, 2000 at 06:30:32PM +0100, Szabolcs Szakacsits wrote:
+> BTW, I wanted to take a look at the frequently mentioned beancounter patch, 
+> here is the current state,
+> 	http://www.asp-linux.com/en/products/ubpatch.shtml 
+> "Sorry, due to growing expenses for support of public version of ASPcomplete 
+> we do not provide sources till first official release."
 
-Normal copy-on-write is an extremely performance-critical code path.
-It's really not worth the trouble of adding extra code to it to make
-the swapin page fault do the same copy-on-write immediately, because
-swapin simply is not that important for performance.
+That's not a place where I keep my code (and has never been :-)
 
---Stephen
+ftp://ftp.sw.com.sg/pub/Linux/people/saw/kernel/user_beancounter/UserBeancounter.html
+is the right place (but it has some availability problems :-(
+
+As for memory management, it provides a simple variant of service level
+support for
+ - in-core memory (in opposite to swap)
+ - total "virtual" memory.
+The latter ends up in accounting of how much memory is consumed by each
+subject of accounting, and an OOM-killer.
+OOM-killer takes into account guarantees given to the subject and selects the
+victim.  In the patch on the ftp site the selection code is very simple and
+taken from some old OOM patches.
+
+BTW, I've redone memory accounting code to significantly improve it's
+performance (or, to say in other words, to reduce the performance penalty
+imposed by the accounting).  But this new code isn't integrated to the
+complete user beancounter patch.
+
+Best regards
+		Andrey
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
