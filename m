@@ -1,61 +1,84 @@
-Message-ID: <20000828190557.A5579@saw.sw.com.sg>
-Date: Mon, 28 Aug 2000 19:05:57 +0800
+Message-ID: <20000828193032.B5579@saw.sw.com.sg>
+Date: Mon, 28 Aug 2000 19:30:32 +0800
 From: Andrey Savochkin <saw@saw.sw.com.sg>
 Subject: Re: Question: memory management and QoS
-References: <39A672FD.CEEA798C@asplinux.ru> <39A69617.CE4719EF@tuke.sk> <39A6D45D.6F4C3E2F@asplinux.ru> <39AA24A5.CB461F4E@tuke.sk>
+References: <39A4F548.B8EB5308@tuke.sk> <20000828154744.A3741@saw.sw.com.sg> <39AA30AF.14C17C50@tuke.sk>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-In-Reply-To: <39AA24A5.CB461F4E@tuke.sk>; from "Jan Astalos" on Mon, Aug 28, 2000 at 10:36:53AM
+In-Reply-To: <39AA30AF.14C17C50@tuke.sk>; from "Jan Astalos" on Mon, Aug 28, 2000 at 11:28:15AM
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Jan Astalos <astalos@tuke.sk>
-Cc: Yuri Pudgorodsky <yur@asplinux.ru>, Linux MM mailing list <linux-mm@kvack.org>
+Cc: linux-mm@kvack.org, Yuri Pudgorodsky <yur@asplinux.ru>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 28, 2000 at 10:36:53AM +0200, Jan Astalos wrote:
-[snip]
-> How about to split memory QoS into:
->   - guarantied amount of physical memory
->   - guarantied amount of virtual memory  
+On Mon, Aug 28, 2000 at 11:28:15AM +0200, Jan Astalos wrote:
+> Andrey Savochkin wrote:
+> > I don't think that personal swapfiles is an efficient approach to achieve
+> > QoS.  Most of the space will be reserved for exceptional cases, and, thus,
+> > wasted, as Yuri has mentioned.  A shared swap space allowing exceeding the
+> > guaranteed amount (if the memory isn't really used) is much more efficient
+> > spending of the space.  If the system has some spare memory, users exceeding
+> > their limits may still use it (but, certainly, only if only some of them, not
+> > all, exceed the limits).  Moreover, if some users don't consume all the
+> > memory guaranteed to them, others may temporarily use it.
 > 
-> The former is much more complicated and includes page replacement policies
-> along with fair sharing of physical memory (true core of QoS).
+> I think I explained my points clearly enough in my second reply to Yuri so I won't 
+> repeat it again. 
 > 
-> The latter should gurantee users requested amount of VM. I.e. avoid this kind
-> of situation: successful malloc, a lot of work, killed in action due to OOM (
-> out of munition^H^H^H^H^H^H^H^Hmemory), RIP...
-> In the current state it's the problem of system administration. In my approach
-> it will become user's problem. So user would be able to satisfy his need for
-> VM himself and system would only take care of fair management of physical memory.
+> I still claim that per user swapfiles will:
+> - be _much_ more efficient in the sense of wasting disk space (saving money)
+>   because it will teach users efficiently use their memory resources (if
+>   user will waste the space inside it's own disk quota it will be his own
+>   problem)
+> - provide QoS on VM memory allocation to users (will guarantee amount of
+>   available VM for user)
+> - be able to improve _per_user_ performance of system (localizing performance
+>   problems to users that caused them and reducing disk seek times)
+> - shift the problem with OOM from system to user.
 
-That's what user beancounter patch is about.
-Except that I'm not so strong in the judgements.
-For example, I don't think that overcommits are evil.  They are quite ok if
-1. the system can provide guarantee that certain processes can never be
-   killed because of OOM;
-2. the whole system reaction to OOM situation is well predictable.
-It's a part of quality of service: some processes/groups of processes have
-better service, some others only best effort.
+Ok, tell me: if user A has swapfile of 10MB and doesn't use it, whether user
+B is allowed to use it meanwhile?
+If the answer is no, it's a waste of space, as I said.
+If the answer is yes, I don't buy your argument of better clustering and less
+fragmentation.
 
-It's simply impossible to run Internet servers without overcommits.
-I encourage you to take a look at
-ftp://ftp.sw.com.sg/pub/Linux/people/saw/kernel/user_beancounter/MemoryManagement.html,
-especially Overcommits section.
-I need real guarantees only to some of processes, and I can bear overcommits
-and 0.01%/year chances for other processes being killed if it saves me the
-cost of 10Gygabytes of RAM (and the cost of motherboard which supports this
-amount of memory).
+>From my point of view, the real topics are
+1. memory QoS, which starts from controlled sharing of in-core memory between
+   users and, then, sharing of swap space, and the swap storage organization
+   (per-user or global) being a second-order question because separate
+   storages may easily be "emulated" by just quotas, and visa versa;
+2. swap-out clusterization.
+Speaking about the clusterization, the current code already keeps this aspect
+in mind.  It may be more or less efficient, but it's a separate topic.
 
-[snip]
-> 
-> > Userbeancounters are for that accounting. The problem is there are many different objects
-> > in play here, and sometimes it is not possible to associate them with particular user.
-> 
-> But that's not a design flaw, it's a problem of implementation.
+> I think that your beancounter is a big step towards good QoS in Linux MM, but
+> I'm a bit confused when I'll hear "...users exceeding their limits". What's the
+> limit good for if it can be exceeded ? Can you rethought the term ?
 
-No.
-How do you propose to associate shared pages (or unmapped page cache) with a
-particular user?
+Well, I usually call them "thresholds" rather than "limits".
+Users are guaranteed to have some quality of service below the these
+thresholds, i.e. that their allocations succeed, that the processes aren't
+killed because of OOM, that the pages aren't swapped out.
+Over the thresholds the resources are given and requests are served on the
+best-effort basis.
+
+> Can you describe how to avoid VM shortage by beancounter ? 
+
+I don't want to avoid VM shortage.
+The goal is to introduce different levels of service and allows
+administrators to manage it.
+Users obeying their "contracts" (staying below the thresholds set for them)
+have some guarantees.  The guarantees are real if the administrator ensures
+that the sum of guaranteed amounts of resources is not greater than what's
+available.
+Users disobeying their "contracts" may face negative effects with the chances
+depending on the amount of unused resources and the degree of their
+violation.
+
+VM shortage is possible (and total avoiding it is very inefficient).
+The goal is to make its consequences controllable, guarantee that certain
+processes will never suffer from it etc.
 
 Regards
 					Andrey V.
