@@ -1,53 +1,31 @@
-Received: from dukat.scot.redhat.com (sct@dukat.scot.redhat.com [195.89.149.246])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA18899
-	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 18:51:30 -0400
-From: "Stephen C. Tweedie" <sct@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <14090.36825.930363.169515@dukat.scot.redhat.com>
-Date: Tue, 6 Apr 1999 23:51:05 +0100 (BST)
-Subject: Re: Somw questions [ MAYBE OFFTOPIC ]
-In-Reply-To: <Pine.BSI.3.96.990405050919.3415A-100000@m-net.arbornet.org>
-References: <19990402113555.F9584@uni-koblenz.de>
-	<Pine.BSI.3.96.990405050919.3415A-100000@m-net.arbornet.org>
+Received: from piglet.twiddle.net (davem@piglet.twiddle.net [207.104.6.26])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id SAA18939
+	for <linux-mm@kvack.org>; Tue, 6 Apr 1999 18:53:45 -0400
+Date: Tue, 6 Apr 1999 15:53:32 -0700
+Message-Id: <199904062253.PAA12352@piglet.twiddle.net>
+From: David Miller <davem@twiddle.net>
+In-reply-to: <Pine.LNX.3.96.990407004419.11327A-100000@chiara.csoma.elte.hu>
+	(message from Ingo Molnar on Wed, 7 Apr 1999 00:49:18 +0200 (CEST))
+Subject: Re: [patch] arca-vm-2.2.5
+References: <Pine.LNX.3.96.990407004419.11327A-100000@chiara.csoma.elte.hu>
+Reply-To: davem@redhat.com
 Sender: owner-linux-mm@kvack.org
-To: Amol Mohite <amol@m-net.arbornet.org>
-Cc: ralf@uni-koblenz.de, linux-mm@kvack.org
+To: mingo@chiara.csoma.elte.hu
+Cc: sct@redhat.com, andrea@e-mind.com, cel@monkey.org, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+   It should be 'inode >> 8' (which is done by the log2
+   solution). Unless i'm misunderstanding something.
 
-On Mon, 5 Apr 1999 05:12:50 -0400 (EDT), Amol Mohite
-<amol@m-net.arbornet.org> said:
+Consider that:
 
->> A NULL pointer is just yet another invalid address.  There is no
->> special test for a NULL pointer.  Most probably for example (char
->> *)0x12345678 will be invalid as a pointer as well and treated the
->> same.  The CPU detects this when the TLB doesn't have a translation
->> valid for the access being attempted.
+(((unsigned long) inode) >> (sizeof(struct inode) & ~ (sizeof(struct inode) - 1)))
 
-> Yes but how does it know it is a null pointer ?
+sort of approximates this and avoids the funny looking log2 macro. :-)
 
-It doesn't.  It just looks up the current VM page tables and looks for
-the mapping for that page.  If there isn't such a mapping, it just
-invokes a page fault handler in the O/S.
-
-It is then up to the kernel to decide whether the pointer was just a
-page which is swapped out, or a real invalid pointer.  If the kernel has
-a mapping installed for that address, then it can install a valid page
-in the process's address space and, if necessary, read the appropriate
-page of disk to initialise it (for mmap or swap).  Otherwise, it just
-generates a SEGV signal.
-
-> On that note, when c does not allow u to dereference a void pointer , is
-> this compiler  doing the trick ?
-
-It is undefined in C.  Dereferencing a null pointer might return zero,
-might return garbage or might generate a SEGV; the language doesn't do
-anything special about it.  It is all up to the operating system.
-
---Stephen
+Later,
+David S. Miller
+davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
