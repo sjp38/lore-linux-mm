@@ -1,6 +1,6 @@
 Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA28220
-	for <linux-mm@kvack.org>; Wed, 1 Jul 1998 10:31:04 -0400
+	by kvack.org (8.8.7/8.8.7) with ESMTP id KAA28234
+	for <linux-mm@kvack.org>; Wed, 1 Jul 1998 10:31:58 -0400
 Subject: Re: (reiserfs) Re: More on Re: (reiserfs) Reiserfs and ext2fs (was Re: (reiserfs) Sum Benchmarks (these look typical?))
 References: <Pine.HPP.3.96.980617035608.29950A-100000@ixion.honeywell.com>
 	<199806221138.MAA00852@dax.dcs.ed.ac.uk>
@@ -15,9 +15,9 @@ References: <Pine.HPP.3.96.980617035608.29950A-100000@ixion.honeywell.com>
 	<m1n2au77ck.fsf@flinx.npwt.net>
 	<199807010912.KAA00789@dax.dcs.ed.ac.uk>
 From: ebiederm+eric@npwt.net (Eric W. Biederman)
-Date: 01 Jul 1998 08:11:46 -0500
+Date: 01 Jul 1998 07:45:47 -0500
 In-Reply-To: "Stephen C. Tweedie"'s message of Wed, 1 Jul 1998 10:12:40 +0100
-Message-ID: <m13ecl7m25.fsf@flinx.npwt.net>
+Message-ID: <m14sx17n9g.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
 To: "Stephen C. Tweedie" <sct@redhat.com>
 Cc: Hans Reiser <reiser@ricochet.net>, Shawn Leas <sleas@ixion.honeywell.com>, Reiserfs <reiserfs@devlinux.com>, Ken Tetrick <ktetrick@ixion.honeywell.com>, linux-mm@kvack.org
@@ -40,12 +40,7 @@ ST> may still have the pages mapped and may still be writing to them.  We
 ST> don't unmap pages for write; we just mark them non-dirty around all
 ST> ptes.
 
-I just took the time and looked.  
-
-And in buffer.c in get_hash_table if we are returning a locked buffer,
-we always wait on that buffer until it is unlocked.  So to date we I
-don't see us tempting fate, with writing to locked buffers.
-
-It may be harmless but I have't seen that yet.
+Which is fine but, it still (currently) gets copied to the buffer cache.
+As the buffer cache leaves the picture...
 
 Eric
