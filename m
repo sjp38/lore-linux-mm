@@ -1,59 +1,25 @@
-Received: from d03relay05.boulder.ibm.com (d03relay05.boulder.ibm.com [9.17.195.107])
-	by e34.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j1EIp2MN112826
-	for <linux-mm@kvack.org>; Mon, 14 Feb 2005 13:51:02 -0500
-Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
-	by d03relay05.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1EIp1oO266136
-	for <linux-mm@kvack.org>; Mon, 14 Feb 2005 11:51:02 -0700
-Received: from d03av03.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av03.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j1EIp17b026635
-	for <linux-mm@kvack.org>; Mon, 14 Feb 2005 11:51:01 -0700
-Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration --
-	sys_page_migrate
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <20050214135221.GA20511@lnx-holt.americas.sgi.com>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com>
-	 <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com>
-	 <1108242262.6154.39.camel@localhost>
-	 <20050214135221.GA20511@lnx-holt.americas.sgi.com>
-Content-Type: text/plain
-Date: Mon, 14 Feb 2005 10:50:42 -0800
-Message-Id: <1108407043.6154.49.camel@localhost>
+Date: 14 Feb 2005 20:15:09 +0100
+Date: Mon, 14 Feb 2005 20:15:09 +0100
+From: Andi Kleen <ak@muc.de>
+Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
+Message-ID: <20050214191509.GA56685@muc.de>
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <20050212155426.GA26714@logos.cnet> <20050212212914.GA51971@muc.de> <20050214163844.GB8576@lnx-holt.americas.sgi.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20050214163844.GB8576@lnx-holt.americas.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Robin Holt <holt@sgi.com>
-Cc: Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Hugh DIckins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Marcello Tosatti <marcello@cyclades.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Ray Bryant <raybry@sgi.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2005-02-14 at 07:52 -0600, Robin Holt wrote:
-> The node mask is a list of allowed.  This is intended to be as near
-> to a one-to-one migration path as possible.
+> But how do you use mbind() to change the memory placement for an anonymous
+> private mapping used by a vendor provided executable with mbind()?
 
-If that's the case, it would make the kernel internals a bit simpler to
-only take a "from" and "to" node, instead of those maps.  You'll end up
-making multiple syscalls, but that shouldn't be a problem.  
+For that you use set_mempolicy.
 
-> > There also probably needs to be a bit more coordination between the
-> > other NUMA API and this one.  I noticed that, for now, the migration
-> > loop only makes a limited number of passes.  It appears that either you
-> > don't require that, once the syscall returns, that *all* pages have been
-> > migrated (there could have been allocations done behind the loop) or you
-> > have some way of keeping the process from doing any more allocations.
-> 
-> It is intended that the process would be stopped during the migration
-> to simplify considerations such as overlapping destination node lists.
-
-Requiring that the process is stopped will somewhat limit the use of
-this API outside of the HPC space where so much control can be had over
-the processes.  I have the feeling that very few other kinds of
-applications will be willing to be stopped for the time that it takes
-for a set of migrations to occur.  But, if stopping the process is going
-to be a requirement, having more syscalls that take less time each
-should be desirable.  
-
--- Dave
-
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
