@@ -1,91 +1,85 @@
 Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id QAA15830
-	for <linux-mm@kvack.org>; Mon, 23 Nov 1998 16:27:51 -0500
-Date: Mon, 23 Nov 1998 22:18:07 +0100 (CET)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA16111
+	for <linux-mm@kvack.org>; Mon, 23 Nov 1998 17:14:02 -0500
+Date: Mon, 23 Nov 1998 22:59:38 +0100 (CET)
 From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
 Reply-To: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Subject: Re: Linux-2.1.129..
-In-Reply-To: <m1n25idwfr.fsf@flinx.ccr.net>
-Message-ID: <Pine.LNX.3.96.981123215719.6004B-100000@mirkwood.dummy.home>
+Subject: Re: Running 2.1.129 at extrem load [patch] (Was: Linux-2.1.129..)
+In-Reply-To: <19981123215359.45625@boole.suse.de>
+Message-ID: <Pine.LNX.3.96.981123224942.6626B-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Eric W. Biederman" <ebiederm+eric@ccr.net>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, "Dr. Werner Fink" <werner@suse.de>, Kernel Mailing List <linux-kernel@vger.rutgers.edu>, linux-mm <linux-mm@kvack.org>
+To: "Dr. Werner Fink" <werner@suse.de>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linus Torvalds <torvalds@transmeta.com>, linux-mm <linux-mm@kvack.org>, Kernel Mailing List <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On 23 Nov 1998, Eric W. Biederman wrote:
+On Mon, 23 Nov 1998, Dr. Werner Fink wrote:
 
-> The simplest model (and what we use for disk writes) is after
-> something becomes dirty to wait a little bit (in case of more
-> writes, (so we don't flood the disk)) and write the data to disk. 
+>  	struct page *next_hash;
+>  	atomic_t count;
+> -	unsigned int unused;
+> +	unsigned int lifetime;
+>  	unsigned long flags;	/* atomic flags, some possibly updated asynchronously */
 
-This waiting is also a good thing if we want to do proper
-I/O clustering. I believe DU has a switch to only write
-dirty data when there's more than XX kB of contiguous data
-at that place on the disk (or the data is old).
+Hmm, this looks suspiciously like a new incarnation of
+page aging (which we want to avoid, at least in some
+parts of the kernel).
 
-> Ideally/Theoretically I think that is what we should be doing for
-> swap as well, as it would spread out the swap writes across evenly
-> across time.  And should leave most of our pages clean. 
+> --- linux-2.1.129/mm/filemap.c	Thu Nov 19 20:44:18 1998
+> +++ linux/mm/filemap.c	Mon Nov 23 13:38:47 1998
+> @@ -167,15 +167,14 @@
+>  	case 1:
+>  		/* is it a swap-cache or page-cache page? */
+>  		if (page->inode) {
+> -			/* Throw swap-cache pages away more aggressively */
+> -			if (PageSwapCache(page)) {
+> -				delete_from_swap_cache(page);
+> -				return 1;
+> -			}
+>  			if (test_and_clear_bit(PG_referenced, &page->flags))
+>  				break;
+>  			if (pgcache_under_min())
+>  				break;
+> +			if (PageSwapCache(page)) {
+> +				delete_from_swap_cache(page);
+> +				return 1;
+> +			}
 
-Something like this is easily accomplished by pushing the
-non-accessed pages into swap cache and swap simultaneously,
-remapping the page from swap cache when we want to access
-it again.
+This piece looks good and will result in us keeping swap cached
+pages when the page cache is low. We might want to include this
+in the current kernel tree, together with the removal of the
+free_after construction.
 
-In order to spread out the disk I/O evenly (why would we
-want to do this? -- writing is cheap once the disk head
-is in the right place) we might want to implement a BSIisd
-'laundry' list...
+> diff -urN linux-2.1.129/mm/vmscan.c linux/mm/vmscan.c
+> --- linux-2.1.129/mm/vmscan.c	Thu Nov 19 20:44:18 1998
+> +++ linux/mm/vmscan.c	Mon Nov 23 19:34:21 1998
+> @@ -131,12 +131,21 @@
+>  		return 0;
+>  	}
+>  
+> +	/* life time decay */
+> +	if (page_map->lifetime > PAGE_DECLINE)
+> +		page_map->lifetime -= PAGE_DECLINE;
+> +	else
+> +		page_map->lifetime = 0;
+> +	if (page_map->lifetime)
+> +		return 0;
+> +
 
-> But that is obviously going a little far for 2.2.  We already have
-> our model of only try to clean pages when we need memory (ouch!) 
+Sorry Werner, but this is exactly the place where we need to
+remove any from of page aging. We can do some kind of aging
+in the swap cache, page cache and buffer cache, but doing
+aging here is just prohibitively expensive and needs to be
+removed.
 
-This really hurts and can be bad for application stability
-when we're under a lot of pressure but there's still swap
-space left.
-
-> The correct ratio (of pages to free from each source) (compuated
-> dynamically) would be:  (# of process pages)/(# of pages) 
-> 
-> Basically for every page kswapd frees shrink_mmap must also free one
-> page.  Plus however many pages shrink_mmap used to return. 
-
-This is clearly wrong. We can remap the page (soft fault)
-from the swap cache, thereby removing the page from the
-'inactive list' but not freeing the memory -- after all,
-this hidden aging is the main purpose for this system...
-
-I propose we maintain somewhat of a ratio of active/inactive
-pages to keep around, so that all unmapped pages get a healthy
-amount of aging and we always have enough memory we can easily
-free by means of shrink_mmap().
-
-This would give a kswapd() somewhat like the following:
-
-if (nr_free_pages < free_pages_high && inactive_pages)
-	shrink_mmap(GFP_SOMETHING);
-if (inactive_pages * ratio < active_pages)
-	do_try_to_swapout_pages(GFP_SOMETHING);
-
-With things like shrink_dcache_memory(), shm_swap() and
-kmem_cache_reap() folded in in the right places and
-swap_tick() adjusted to take the active/inactive ratio
-into account (get_free_page() too?).
-
-A system like this would have much smoother swapout I/O,
-giving higher possible loads on the VM system. Combined
-with things like swapin readahead (Stephen, Ingo where
-is it?:=) and 'real swapping' it will give a truly
-scalable VM system...
-
-Only for multi-gigabyte boxes we might want to bound
-the number of inactive pages to (say) 16 MBs in order
-to avoid a very large number of soft page faults that
-use up too much CPU (Digital Unix seems to be slowed
-down a lot by this -- it's using a 1:2 active/inactive
-ratio even on our local 1GB box :)...
+IMHO a better construction be to have a page->fresh flag
+which would be set on unmapping from swap_out(). Then
+shrink_mmap() would free pages with page->fresh reset
+and reset page->fresh if it is set. This way we can
+free a page at it's second scan so we avoid freeing
+a page that was just unmapped (and giving each page a
+bit of a chance to undergo cheap aging).
 
 regards,
 
