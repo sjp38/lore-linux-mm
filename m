@@ -1,25 +1,34 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id XAA19142
-	for <linux-mm@kvack.org>; Sat, 21 Sep 2002 23:11:55 -0700 (PDT)
-Message-ID: <3D8D5F2A.BC057FC4@digeo.com>
-Date: Sat, 21 Sep 2002 23:11:54 -0700
-From: Andrew Morton <akpm@digeo.com>
-MIME-Version: 1.0
-Subject: 2.5.38-mm1
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: 2.5.37-mm1
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <3D8D5559.AF112E57@digeo.com>
+References: <3D8D5559.AF112E57@digeo.com>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Date: 22 Sep 2002 02:29:11 -0400
+Message-Id: <1032676152.967.959.camel@phantasy>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@digeo.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Well that didn't last very long.
+On Sun, 2002-09-22 at 01:30, Andrew Morton wrote:
 
-url: http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.38/2.5.38-mm1/
+> Reminder: it breaks top(1) and vmstat(1).  Updates to these tools
+> are at http://surriel.com/procps/
 
-+filemap-fixes.patch
+FYI, for testers: I have a tarball and RPM available of CVS as of
+yesterday, at:
 
- Fix mm/filemap.c for 64-bit builds: replace `unsigned' with size_t.
+	http://tech9.net/rml/procps/
+
+Rik and I have both been merging some neat code; take a look.
+
+	Robert Love
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
