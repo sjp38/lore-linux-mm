@@ -1,77 +1,62 @@
-From: "John L. Males" <jlmales@softhome.net>
-Date: Fri, 12 Oct 2001 01:09:33 -0500
-MIME-Version: 1.0
-Content-type: text/plain; charset=US-ASCII
-Content-transfer-encoding: 7BIT
-Subject: Re[04]: [CFT][PATCH] smoother VM for -ac
-Reply-to: jlmales@softhome.net
-Message-ID: <3BC642CD.7924.2BBB7F6@localhost>
-References: <3BC63A77.19202.29B1FD0@localhost>
-In-reply-to: <1002861682.866.3.camel@phantasy>
+Date: Fri, 12 Oct 2001 07:54:29 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: [CFT][PATCH] smoother VM for -ac
+Message-ID: <20011012075429.N714@athlon.random>
+References: <1002861682.866.3.camel@phantasy>; <20011012070930.J714@athlon.random> <3BC64882.27834.2D200B0@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3BC64882.27834.2D200B0@localhost>; from jlmales@softhome.net on Fri, Oct 12, 2001 at 01:33:54AM -0500
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robert Love <rml@tech9.net>
+To: "John L. Males" <jlmales@softhome.net>
 Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
-
-Robert,
-
-Great.  Will download.  I had not seen the 2.4.10-ac12 patch
-announced.  Thanks so kindly for the update.  I expect I will have
-some observations to make by Saturady evening here EDT.
-
-
-Regards,
-
-John L. Males
-Willowdale, Ontario
-Canada
-12 October 2001 01:09
-mailto:jlmales@sofhtome.net
-
-
-Subject:        	Re: Re[02]: [CFT][PATCH] smoother VM for -ac
-From:           	Robert Love <rml@tech9.net>
-To:             	jlmales@softhome.net
-Copies to:      	Rik van Riel <riel@conectiva.com.br>,
-linux-mm@kvack.org,
-       	linux-kernel@vger.kernel.org, Alan Cox
-<alan@lxorguk.ukuu.org.uk>
-Date sent:      	12 Oct 2001 00:41:19 -0400
-
-> On Fri, 2001-10-12 at 01:33, John L. Males wrote:
-> > I just found out about your desire to have some workstation
-> > testing done to get feedback on your current VM patch.
-> > 
-> > I am currently using Kernel 2.4.9-ac18.  I am still not happy
-> > about some of the memory management.  I love to try your patch. 
-> > I would be willing to do so against the 2.4.10-ac11 Kernel if a
-> > patch is available.  If Alan is going to implement this patch in
-> > a later 2.4.10-acxx patch I will wait patiently.
+On Fri, Oct 12, 2001 at 01:33:54AM -0500, John L. Males wrote:
+> -----BEGIN PGP SIGNED MESSAGE-----
+> Hash: SHA1
 > 
-> Said patch and other VM work is in 2.4.10-ac12.  Get that and
-> report back.
+> - -----BEGIN PGP SIGNED MESSAGE-----
+> Hash: SHA1
 > 
->  Robert Love
+> Andrea,
+> 
+> I can do.  I see this is a VM is of keen interest.  Question for you.
+>  To really compare apples to apples I could spider a web site or two
+> just find.  Then the challenge is to replay the "test" on the gui,
+> say KDE for example.  Do you know of any good tools that would alow
+> me to do a GUI record/playback?  I can then do an A vs B comparison.
+
+For testing the repsonsiveness I usually check the startup time of
+applications like netscape with cold cache, later I just start an high
+vm load on my desktop and I see how long can I keep working without
+being too hurted. the first is certainly a measurable test, the second
+isn't reliable since it doesn't generate raw numbers and it's too much
+in function of the human feeling but it shows very well any patological
+problem of the code. But they may not be the best tests.
+
+> Also, remind me, can I find your kernel to test on the SuSE FTP site
+> or via kernel.org.  I had tried a few of the SuSE 2.4 kernels a few
+> levels back and I recall I was going to the people directory of the
+> FTP site and getting them from mantel I seem to recollect.
+
+That's still fine procedure, only make sure to pick the latest 2.4.12
+one based on 2.4.12aa1 before running the tests. thanks,
+
+> I will search about on internet to see if I can find a
+> record/playback too to get some sort of good A vs B comparison.
 > 
 > 
+> Regards,
+> 
+> John L. Males
+> Willowdale, Ontario
+> Canada
+> 12 October 2001 01:33
+> mailto:jlmales@softhome.net
 
-
------BEGIN PGP SIGNATURE-----
-Version: PGPfreeware 6.5.8 for non-commercial use 
-<http://www.pgp.com>
-
-iQA/AwUBO8aJFeAqzTDdanI2EQJg/gCeK677eZLUFzesSNuHyVPih6eHeiUAniyH
-VKENEZ1nMfqMmbmWG8TWNXGZ
-=oZJr
------END PGP SIGNATURE-----
-
-
-
-"Boooomer ... Boom Boom, how are you Boom Boom" Boomer 1985 - February/2000
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
