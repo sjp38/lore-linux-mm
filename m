@@ -1,38 +1,47 @@
-Date: Tue, 22 Oct 2002 18:49:39 +0100
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [patch] generic nonlinear mappings, 2.5.44-mm2-D0
-Message-ID: <20021022184938.A2395@infradead.org>
-References: <Pine.LNX.4.44.0210221936010.18790-100000@localhost.localdomain>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0210221936010.18790-100000@localhost.localdomain>; from mingo@elte.hu on Tue, Oct 22, 2002 at 07:57:00PM +0200
+Date: Tue, 22 Oct 2002 13:54:39 -0400 (EDT)
+From: Bill Davidsen <davidsen@tmr.com>
+Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
+In-Reply-To: <Pine.LNX.4.44L.0210221221460.25116-100000@imladris.surriel.com>
+Message-ID: <Pine.LNX.3.96.1021022135013.7820B-100000@gatekeeper.tmr.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ingo Molnar <mingo@elte.hu>
-Cc: Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 22, 2002 at 07:57:00PM +0200, Ingo Molnar wrote:
-> the attached patch (ontop of 2.5.44-mm2) implements generic (swappable!)
-> nonlinear mappings and sys_remap_file_pages() support. Ie. no more
-> MAP_LOCKED restrictions and strange pagefault semantics.
+On Tue, 22 Oct 2002, Rik van Riel wrote:
+
+> On 21 Oct 2002, Eric W. Biederman wrote:
+> > "Martin J. Bligh" <mbligh@aracnet.com> writes:
+
+> > We swap pages out all of the time in 2.4.x, and that is all I was
+> > suggesting swap out some but not all of the pages, on a very long
+> > pte_chain.  And swapping out a page is not terribly complex, unless
+> > something very drastic has changed.
 > 
-> to implement this i added a new pte concept: "file pte's". This means that
-> upon swapout, shared-named mappings do not get cleared but get converted
-> into file pte's, which can then be decoded by the pagefault path and can
-> be looked up in the pagecache.
+> Imagine a slightly larger than normal Oracle server.
+> Say 5000 processes with 1 GB of shared memory.
 > 
-> the normal linear pagefault path from now on does not assume linearity and
-> decodes the offset in the pte. This also tests pte encoding/decoding in
-> the pagecache case, and the ->populate functions.
+> Just the page tables needed to map this memory would
+> take up 5 GB of RAM ... with shared page tables we
+> only need 1 MB of page tables.
+> 
+> The corresponding reduction in rmaps is a nice bonus,
+> but hardly any more dramatic than the page table
+> overhead.
+> 
+> In short, we really really want shared page tables.
 
-Ingo,
+Does using spt require mapping the pages at the same location in all
+processes?
 
-what is the reason for that interface?  It looks like a gross performance
-hack for misdesigned applications to me, kindof windowsish..
+-- 
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
 
-Is this for whoracle or something like that?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
