@@ -1,67 +1,91 @@
-Date: Tue, 26 Oct 2004 10:01:36 -0200
+Date: Tue, 26 Oct 2004 10:24:19 -0200
 From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: migration cache, updated
-Message-ID: <20041026120136.GC27014@logos.cnet>
-References: <20041025213923.GD23133@logos.cnet> <417DA5B8.8000706@jp.fujitsu.com>
+Message-ID: <20041026122419.GD27014@logos.cnet>
+References: <20041025213923.GD23133@logos.cnet> <20041026.181504.38310112.taka@valinux.co.jp> <20041026092535.GE24462@logos.cnet> <20041026.230110.21315175.taka@valinux.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <417DA5B8.8000706@jp.fujitsu.com>
+In-Reply-To: <20041026.230110.21315175.taka@valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Hirokazu Takahashi <taka@valinux.co.jp>, IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, Hugh Dickins <hugh@veritas.com>
+To: Hirokazu Takahashi <taka@valinux.co.jp>
+Cc: linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Oct 26, 2004 at 10:17:44AM +0900, Hiroyuki KAMEZAWA wrote:
-> Hi, Marcelo
+On Tue, Oct 26, 2004 at 11:01:10PM +0900, Hirokazu Takahashi wrote:
+> Hi, Marcelo,
 > 
-> Marcelo Tosatti wrote:
-> >Hi,
-> > #define SWP_TYPE_SHIFT(e)	(sizeof(e.val) * 8 - MAX_SWAPFILES_SHIFT)
-> >-#define SWP_OFFSET_MASK(e)	((1UL << SWP_TYPE_SHIFT(e)) - 1)
-> >+#define SWP_OFFSET_MASK(e)	((1UL << (SWP_TYPE_SHIFT(e))) - 1)
-> >+
-> >+#define MIGRATION_TYPE  (MAX_SWAPFILES - 1)
+> > > > diff -Nur --show-c-function linux-2.6.9-rc2-mm4.mhp.orig/mm/vmscan.c linux-2.6.9-rc2-mm4.build/mm/vmscan.c
+> > > > --- linux-2.6.9-rc2-mm4.mhp.orig/mm/vmscan.c	2004-10-05 15:08:23.000000000 -0300
+> > > > +++ linux-2.6.9-rc2-mm4.build/mm/vmscan.c	2004-10-25 19:15:56.000000000 -0200
+> > > > @@ -459,7 +457,9 @@ int shrink_list(struct list_head *page_l
+> > > >  		}
+> > > >  
+> > > >  #ifdef CONFIG_SWAP
+> > > > -		if (PageSwapCache(page)) {
+> > > > +		// FIXME: allow relocation of migrate cache pages 
+> > > > +		// into real swap pages for swapout.
+> > > 
+> > > 
+> > > In my thought, it would be better to remove a target page from the
+> > > LRU lists prior to migration. So that it makes the swap code not to
+> > > grab the page, which is in the migration cache.
 > > 
-> At the first glance, I think MIGRATION_TYPE=0 is better.
-> #define MIGRATION_TYPE  (0)
+> > I dont see a problem with having the pages on LRU - the reclaiming 
+> > code sees it, but its unfreeable, so it doesnt touch it. 
+> > 
+> > The reclaiming path should see its a migration page, unmap the pte's
+> > to it, remap them to swapcache pages (and ptes), so they can be
+> > swapped out on pressure.
+> > 
+> > Can you please expand your thoughts?
 > 
-> In swapfile.c::sys_swapon()
-> This code determines new swap_type for commanded swapon().
-> =============
-> p = swap_info;
-> for (type = 0 ; type < nr_swapfiles ; type++,p++)
->          if (!(p->flags & SWP_USED))
->                break;
-> error = -EPERM;
-> ==============
+> I thought the easiest way to avoid the race condition was
+> removing the page from LRU during memory migration.
+> But there may be no problem about the page, which is unfreeable
+> as you mentioned.
 > 
-> set nr_swapfiles=1, swap_info[0].flags = SWP_USED
-> at boot time seems good. or fix swapon().
+> BTW, I wonder how the migration code avoid to choose some pages
+> on LRU, which may have count == 0. This may happen the pages
+> are going to be removed. We have to care about it.
 
-Hi Hiroyuki,
+AFAICS its already done by __steal_page_from_lru(), which is used
+by grab_capturing_pages():
 
-Indeed.
-
-This should do it?
-
---- swapfile.c.orig     2004-10-26 11:33:56.734551048 -0200
-+++ swapfile.c  2004-10-26 11:34:03.284555296 -0200
-@@ -1370,6 +1370,13 @@ asmlinkage long sys_swapon(const char __
-                swap_list_unlock();
-                goto out;
+static int
+grab_capturing_pages(struct list_head *page_list, unsigned long start_pfn,
+                                                        unsigned long nr_pages)
+{
+        struct page *page;
+        struct zone *zone;
+        int rest = 0;
+        int i;
+                                                                                    
+        for (i = 0; i < nr_pages; i++) {
+                page = pfn_to_page(start_pfn + i);
+                zone = page_zone(page);
+                spin_lock_irq(&zone->lru_lock);
+                if (page_under_capture(page)) {
+                        if (PageLRU(page) && __steal_page_from_lru(zone, page))
+                                list_add(&page->lru, page_list);
+                        else
+                                rest++;
+                }
+                spin_unlock_irq(&zone->lru_lock);
         }
-+
-+       /* MAX_SWAPFILES-1 is reserved for migration pages */
-+       if (type > MAX_SWAPFILES-1) {
-+               swap_list_unlock();
-+               goto out;
-+       }
-+
-        if (type >= nr_swapfiles)
-                nr_swapfiles = type+1;
-        INIT_LIST_HEAD(&p->extent_list);
+        return rest;
+}
+
+
+Pages with reference count zero will be not be moved to the page
+list, and truncated pages seem to be handled nicely later on the
+migration codepath.
+
+A quick search on Iwamoto's test utils shows no sign of truncate(). 
+
+It would be nice to add more testcases (such as truncate() 
+intensive application) to his testsuite.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
