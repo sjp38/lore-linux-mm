@@ -1,44 +1,31 @@
-Date: Fri, 13 Dec 2002 00:08:03 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: rmap15a swappy?
-In-Reply-To: <6uisxzrl00.fsf@zork.zork.net>
-Message-ID: <Pine.LNX.4.50L.0212130007070.17748-100000@imladris.surriel.com>
-References: <6uu1hjruye.fsf@zork.zork.net> <Pine.LNX.4.50L.0212121913030.17748-100000@imladris.surriel.com>
- <6uisxzrl00.fsf@zork.zork.net>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 13 Dec 2002 17:55:26 -0500
+From: Christoph Hellwig <hch@sgi.com>
+Subject: Re: 2.5.50-mm2
+Message-ID: <20021213175526.C2581@sgi.com>
+References: <3DF453C8.18B24E66@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3DF453C8.18B24E66@digeo.com>; from akpm@digeo.com on Mon, Dec 09, 2002 at 12:26:48AM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Sean Neakums <sneakums@zork.net>
-Cc: linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 12 Dec 2002, Sean Neakums wrote:
-> > On Thu, 12 Dec 2002, Sean Neakums wrote:
-> >
-> > Indeed, the older rmaps swapped later.  However, swapping
-> > a little bit earlier turns out to be faster for almost all
-> > workloads.
->
-> Oh right, because if you get sudden memory pressure you have a bunch
-> of pages that you can just throw away without writeout?
+On Mon, Dec 09, 2002 at 12:26:48AM -0800, Andrew Morton wrote:
+> +remove-PF_SYNC.patch
+> 
+>  remove the current->flags:PF_SYNC abomination.  Adds a `sync' arg to
+>  all writepage implementations to tell them whether they are being
+>  called for memory cleansing or for data integrity.
 
-Exactly.
+Any chance you could pass down a struct writeback_control instead of
+just the sync flag?  XFS always used ->writepage similar to the
+->vm_writeback in older kernel releases because writing out more
+than one page of delalloc space is really needed to be efficient and
+this would allow us to get a few more hints about the VM's intentions.
 
-> Anyway, that's nifty.  I just wanted to make sure it wasn't a
-> regression.
-
-I know there are a few regressions in "strange" corner cases,
-stuff I can easily reproduce with special test programs but
-haven't seen in real life. I'm still ironing out those.
-
-regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-http://www.surriel.com/		http://guru.conectiva.com/
-Current spamtrap:  <a href=mailto:"october@surriel.com">october@surriel.com</a>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
