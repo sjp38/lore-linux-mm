@@ -1,36 +1,44 @@
-Date: Sun, 13 Jun 1999 03:17:01 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
+Date: Sun, 13 Jun 1999 08:58:47 +0200 (CEST)
+From: Rik van Riel <riel@nl.linux.org>
 Subject: Re: process selection
-In-Reply-To: <Pine.LNX.4.03.9906122156290.534-100000@mirkwood.nl.linux.org>
-Message-ID: <Pine.LNX.4.10.9906130313510.7016-100000@laser.random>
+In-Reply-To: <Pine.LNX.4.10.9906130313510.7016-100000@laser.random>
+Message-ID: <Pine.LNX.4.03.9906130856130.534-100000@mirkwood.nl.linux.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@nl.linux.org>
+To: Andrea Arcangeli <andrea@suse.de>
 Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 12 Jun 1999, Rik van Riel wrote:
+On Sun, 13 Jun 1999, Andrea Arcangeli wrote:
+> On Sat, 12 Jun 1999, Rik van Riel wrote:
+> 
+> >Could it be an idea to take the 'sleeping time' of each
+> >process into account when selecting which process to swap
+> >out?  Due to extreme lack of free time, I'm asking what
+> 
+> The CPUs set the "accessed" bit in hardware, and that should be
+> enough to do proper aging. If setiathome is all in RAM it means it
+> gets touched more fast than netscape.
 
->Could it be an idea to take the 'sleeping time' of each
->process into account when selecting which process to swap
->out?  Due to extreme lack of free time, I'm asking what
+Setiathome had been stopped (by loadwatch) for over an hour.
+This means that _everything_ else in the system could have
+been touched more often.
 
-The CPUs set the "accessed" bit in hardware, and that should be enough to
-do proper aging. If setiathome is all in RAM it means it gets touched more
-fast than netscape.
+Unfortunately, the kernel was still busy shrinking the page
+cache and the swapout counter was still with X and later with
+Netscape -- it didn't advance fast enough to get to setiathome,
+yet writing out my mailbox took so much disk activity in the
+limited buffer space that my mp3s began skipping.
 
-BTW, I suggest you to try out:
 
-	ftp://ftp.suse.com/pub/people/andrea/kernel-patches/2.2.9_andrea-VM4.gz
-
-and see if the swapout behaviour changes.
-
-(I have just ready a VM5 too but since there are not critical issues in
-VM5 I am waiting a bit more before releasing it)
-
-Andrea Arcangeli
+Rik -- Open Source: you deserve to be in control of your data.
++-------------------------------------------------------------------+
+| Le Reseau netwerksystemen BV:               http://www.reseau.nl/ |
+| Linux Memory Management site:   http://www.linux.eu.org/Linux-MM/ |
+| Nederlandse Linux documentatie:          http://www.nl.linux.org/ |
++-------------------------------------------------------------------+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
