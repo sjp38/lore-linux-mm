@@ -1,84 +1,78 @@
-Content-Type: text/plain; charset=US-ASCII
-From: Daniel Phillips <phillips@bonn-fries.net>
+Date: Mon, 06 Aug 2001 09:24:01 -0400
+From: Chris Mason <mason@suse.com>
 Subject: Re: [RFC] using writepage to start io
-Date: Mon, 6 Aug 2001 07:39:47 +0200
-References: <276480000.997054344@tiny>
-In-Reply-To: <276480000.997054344@tiny>
+Message-ID: <316580000.997104241@tiny>
+In-Reply-To: <01080607394704.00294@starship>
 MIME-Version: 1.0
-Message-Id: <01080607394704.00294@starship>
-Content-Transfer-Encoding: 7BIT
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Chris Mason <mason@suse.com>, linux-kernel@vger.kernel.org
+To: Daniel Phillips <phillips@bonn-fries.net>, linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-On Monday 06 August 2001 01:32, Chris Mason wrote:
-> On Monday, August 06, 2001 12:38:01 AM +0200 Daniel Phillips
->
-> <phillips@bonn-fries.net> wrote:
-> > On Sunday 05 August 2001 20:34, Chris Mason wrote:
-> >> I wrote:
-> >> > Note that the fact that buffers dirtied by ->writepage are
-> >> > ordered by time-dirtied means that the dirty_buffers list really
-> >> > does have indirect knowledge of page aging.  There may well be
-> >> > benefits to your approach but I doubt this is one of them.
-> >>
-> >> A problem is that under memory pressure, we'll flush a buffer that
-> >> has been dirty for a long time, even if we are constantly
-> >> redirtying it and have it more or less pinned.  This might not be
-> >> common enough to cause problems, but it still isn't optimal.  Yes,
-> >> it is a good idea to flush that page at some time, but under memory
-> >> pressure we want to do the least amount of work that will lead to a
-> >> freeable page.
-> >
-> > But we don't have a choice.  The user has set an explicit limit on
-> > how long a dirty buffer can hang around before being flushed.  The
-> > old-buffer rule trumps the need to allocate new memory.  As you
-> > noted, it doesn't cost a lot because if the system is that heavily
-> > loaded then the rate of dirty buffer production is naturally
-> > throttled.
->
-> there are at least 3 reasons to write buffers to disk
->
-> 1) they are too old
-> 2) the percentage of dirty buffers is too high
-> 3) you need to reclaim them due to memory pressure
->
-> There are 3 completely different things; there's no trumping of
-> priorities.
 
-There is.  If your heavily loaded machine goes down and you lose edits 
-from 1/2 an hour ago even though your bdflush parms specify a 30 second 
-update cycle you'll call the system broken, whereas if it runs 5% slower 
-under heavy write+swap load that's just life.
+On Monday, August 06, 2001 07:39:47 AM +0200 Daniel Phillips
+<phillips@bonn-fries.net> wrote:
+ 
+>> there are at least 3 reasons to write buffers to disk
+>> 
+>> 1) they are too old
+>> 2) the percentage of dirty buffers is too high
+>> 3) you need to reclaim them due to memory pressure
+>> 
+>> There are 3 completely different things; there's no trumping of
+>> priorities.
+> 
+> There is.  If your heavily loaded machine goes down and you lose edits 
+> from 1/2 an hour ago even though your bdflush parms specify a 30 second 
+> update cycle you'll call the system broken, whereas if it runs 5% slower 
+> under heavy write+swap load that's just life.
 
-> Under memory pressure you write buffers you have a high
-> chance of freeing, during write throttling you write buffers that
-> won't get dirty again right away, and when writing old buffers you
-> write the oldest first.
->
-> This doesn't mean you can always make the right decision on all 3
-> cases, or that making the right decision is worth the effort ;-)
+Ok, we're getting caught up in semantics here.  I'm not saying kupdate
+should switch over to write buffers that might get reclaimed instead of old
+buffers.  There still needs to be proper flushing of old data.
 
-If we need to do write throttling we should do it at the point where we 
-still know its a write, i.e., somewhere in sys_write.  Some time after 
-writes are throttled (specified by bdflush parms) all the old write 
-buffers will have worked their way through to the drives and your case 
-(3) gets all the bandwidth.  I don't see a conflict, except that we 
-don't have such an upstream write throttling mechanism yet.  We sort-of 
-have one in that a writer will busy itself trying to help out with lru 
-scanning when it can't get a free page for the page cache.  This has the 
-ugly result that we have bunches of processes spinning on the lru lock 
-and we have no idea what the queue scanning rates really are.  We can do 
-something much more intelligent and predictable there and we'll be a lot 
-closer to being able to balance intelligently between your cases.
+I am saying that it should be possible to have the best buffer flushed
+under memory pressure (by kswapd/bdflush) and still get the old data to
+disk in time through kupdate.
 
-By the way, I think you should combine (2) and (3) using an and, which 
-gets us back to the "kupdate thing" vs the "bdflush thing".
+> 
+>> Under memory pressure you write buffers you have a high
+>> chance of freeing, during write throttling you write buffers that
+>> won't get dirty again right away, and when writing old buffers you
+>> write the oldest first.
+>> 
+>> This doesn't mean you can always make the right decision on all 3
+>> cases, or that making the right decision is worth the effort ;-)
+> 
+> If we need to do write throttling we should do it at the point where we 
+> still know its a write, i.e., somewhere in sys_write.  
 
---
-Daniel
+The rest of the stuff below does make sense, but we need to keep in mind
+that sys_write isn't the only way to dirty file pages.
+
+> Some time after 
+> writes are throttled (specified by bdflush parms) all the old write 
+> buffers will have worked their way through to the drives and your case 
+> (3) gets all the bandwidth.  I don't see a conflict, except that we 
+> don't have such an upstream write throttling mechanism yet.  We sort-of 
+> have one in that a writer will busy itself trying to help out with lru 
+> scanning when it can't get a free page for the page cache.  This has the 
+> ugly result that we have bunches of processes spinning on the lru lock 
+> and we have no idea what the queue scanning rates really are.  We can do 
+> something much more intelligent and predictable there and we'll be a lot 
+> closer to being able to balance intelligently between your cases.
+> 
+> By the way, I think you should combine (2) and (3) using an and, which 
+> gets us back to the "kupdate thing" vs the "bdflush thing".
+
+Perhaps, since I think they would be handled in roughly the same way.
+
+-chris
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
