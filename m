@@ -1,64 +1,48 @@
-Date: Mon, 13 May 2002 11:32:53 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: RE: [RFC][PATCH] IO wait accounting
-In-Reply-To: <AAEGIMDAKGCBHLBAACGBCEDDCIAA.balbir.singh@wipro.com>
-Message-ID: <Pine.LNX.4.44L.0205131131380.32261-200000@imladris.surriel.com>
+Date: Mon, 13 May 2002 12:08:09 -0400 (EDT)
+From: Bill Davidsen <davidsen@tmr.com>
+Subject: Re: [RFC][PATCH] IO wait accounting
+In-Reply-To: <87bsbl9ogw.fsf@atlas.iskon.hr>
+Message-ID: <Pine.LNX.3.96.1020513120027.27042A-100000@gatekeeper.tmr.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/Mixed; BOUNDARY="----=_NextPartTM-000-aabc047b-6650-11d6-a942-00b0d0d06be8"
-Content-ID: <Pine.LNX.4.44L.0205131131381.32261@imladris.surriel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: BALBIR SINGH <balbir.singh@wipro.com>
-Cc: Zlatko Calusic <zlatko.calusic@iskon.hr>, Bill Davidsen <davidsen@tmr.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Zlatko Calusic <zlatko.calusic@iskon.hr>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-------=_NextPartTM-000-aabc047b-6650-11d6-a942-00b0d0d06be8
-Content-Type: TEXT/PLAIN; CHARSET=US-ASCII
-Content-ID: <Pine.LNX.4.44L.0205131131382.32261@imladris.surriel.com>
+On Sun, 12 May 2002, Zlatko Calusic wrote:
 
-On Mon, 13 May 2002, BALBIR SINGH wrote:
+> Rik van Riel <riel@conectiva.com.br> writes:
+> >
+> > And should we measure read() waits as well as page faults or
+> > just page faults ?
+> >
+> 
+> Definitely both. Somewhere on the web was a nice document explaining
+> how Solaris measures iowait%, I read it few years ago and it was a
+> great stuff (quite nice explanation).
 
-> http://sunsite.uakom.sk/sunworldonline/swol-08-1997/swol-08-insidesolaris.html
->
-> Simple and straight forward implementation of a per-cpu iowait statistics
-> counter.
+  I'm out of town so I miss a bit of this, but I agree, what you want time
+waiting for IO, total.
 
-Hehe, so straight forward that I already did this part last
-week, before searching around for papers like this.
+  That said, it would probably be useful to keep the first patch
+information, since overall disk performance reflects in total IOwait,
+while wait VM is useful comparing the several flavors of vm tuning and
+enhancement, bot the the implementors and the users, who may have unusual
+configurations.
 
-At least it means the stats will be fully compatible and
-sysadmins won't get lost (like they do with the different
-meanings of the load average).
+  I hope that write blocks are falling into place as well, because even
+though they are less common, you still get programs which build ugly stuff
+like a full 700MB CD image in memory and do that last write (or close, or
+fsync, etc). This is bad with large memory, and unspeakable with small,
+where stuff is being paged in and writen out.
 
-regards,
-
-Rik
 -- 
-Bravely reimplemented by the knights who say "NIH".
+bill davidsen <davidsen@tmr.com>
+  CTO, TMR Associates, Inc
+Doing interesting things with little computers since 1979.
 
-http://www.surriel.com/		http://distro.conectiva.com/
-
-------=_NextPartTM-000-aabc047b-6650-11d6-a942-00b0d0d06be8
-Content-Type: TEXT/PLAIN; NAME="Wipro_Disclaimer.txt"
-Content-ID: <Pine.LNX.4.44L.0205131131383.32261@imladris.surriel.com>
-Content-Description: 
-Content-Disposition: ATTACHMENT; FILENAME="Wipro_Disclaimer.txt"
-
-**************************Disclaimer************************************
-      
-
-
-Information contained in this E-MAIL being proprietary to Wipro Limited
-is 'privileged' and 'confidential' and intended for use only by the
-individual or entity to which it is addressed. You are notified that any
-use, copying or dissemination of the information contained in the E-MAIL
-in any manner whatsoever is strictly prohibited.
-
-
-
- ********************************************************************
-
-------=_NextPartTM-000-aabc047b-6650-11d6-a942-00b0d0d06be8--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
