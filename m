@@ -1,53 +1,32 @@
-Message-ID: <A91A08D00A4FD2119BD500104B55BDF6021A67A2@pdbh936a.pdb.siemens.de>
-From: "Wichert, Gerhard" <Gerhard.Wichert@pdb.siemens.de>
-Subject: AW: [bigmem-patch] 4GB with Linux on IA32
-Date: Thu, 19 Aug 1999 16:01:52 +0200
+From: "Stephen C. Tweedie" <sct@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-ID: <14268.9729.735429.46615@dukat.scot.redhat.com>
+Date: Thu, 19 Aug 1999 16:42:57 +0100 (BST)
+Subject: Re: [PATCH] ext2_updatepage for 2.2.11
+In-Reply-To: <199908161138.MAA28349@dukat.scot.redhat.com>
+References: <199908161138.MAA28349@dukat.scot.redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Thierry Vignaud <tvignaud@mandrakesoft.com>, Andrea Arcangeli <andrea@suse.de>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, Kanoj Sarcar <kanoj@google.engr.sgi.com>, torvalds@transmeta.com, sct@redhat.com, "Wichert, Gerhard" <Gerhard.Wichert@pdb.siemens.de>, "Gerhard, Winfried" <Winfried.Gerhard@pdb.siemens.de>, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+Cc: sct@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi,
 
-> -----Ursprungliche Nachricht-----
-> Von: Thierry Vignaud [mailto:tvignaud@mandrakesoft.com]
-> Gesendet am: Donnerstag, 19. August 1999 15:34
-> An: Andrea Arcangeli
-> Cc: Alan Cox; Kanoj Sarcar; torvalds@transmeta.com; sct@redhat.com;
-> Gerhard.Wichert@pdb.siemens.de; Winfried.Gerhard@pdb.siemens.de;
-> linux-kernel@vger.rutgers.edu; linux-mm@kvack.org
-> Betreff: Re: [bigmem-patch] 4GB with Linux on IA32
-> 
-> Andrea Arcangeli wrote:
-> > 
-> > I uploaded a new bigmem-2.3.13-M patch here:
-> > 
-> >         
-> ftp://e-mind.com/pub/andrea/kernel-patches/2.3.13/bigmem-2.3.13-M
-> > 
-> > (the raw-io must be avoided with bigmem enabled, since the 
-> protection I
-> > added in get_page_map() doesn't work right now)
-> > 
-> > If you'll avoid to do raw-io the patch should be safe and 
-> ready to use.
-> 
-> since only recent motherboard support more than 512Mb RAM, and since
-> they used i686 (PPro, P2, P3), why not use the pse36 
-> extension of these
-> cpu that enable to stock the segment length on 24bits, which give 64To
-> when mem unit is 4b page.
-> this'll make the limit much higher (say 128Mb RAM for the kernel space
-> memory and 15,9To for the user space).
+On Mon, 16 Aug 1999 12:38:17 +0100, "Benjamin C.R. LaHaise"
+<blah@kvack.org> said:
 
-With pse36 only your physical address space will grow. Your virtual address
-space is still limited to 4GB.
+> Hello Stephen et all,
+> Below is my version of a fix for the SMP shared mmap bug by making ext2
+> write through the page cache using generic_file_write, 
 
-Gerhard
+I'm not sure we want to introduce such significant changes into 2.2,
+and 2.3 already has equivalent code now.  Yes, we do need this stuff,
+but in 2.2?
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
