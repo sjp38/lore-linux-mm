@@ -1,38 +1,28 @@
-Date: Fri, 14 Nov 2003 12:29:21 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
+Date: Fri, 14 Nov 2003 15:57:06 -0500 (EST)
+From: Zwane Mwaikambo <zwane@arm.linux.org.uk>
 Subject: Re: 2.6.0-test9-mm3
-Message-ID: <100480000.1068841761@flay>
-In-Reply-To: <200311141110.12671.pbadari@us.ibm.com>
-References: <20031112233002.436f5d0c.akpm@osdl.org> <98290000.1068836914@flay> <200311141110.12671.pbadari@us.ibm.com>
+In-Reply-To: <3210000.1068786449@[10.10.2.4]>
+Message-ID: <Pine.LNX.4.53.0311141555130.27998@montezuma.fsmlabs.com>
+References: <20031112233002.436f5d0c.akpm@osdl.org> <3210000.1068786449@[10.10.2.4]>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Badari Pulavarty <pbadari@us.ibm.com>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> > - Several ext2 and ext3 allocator fixes.  These need serious testing on
->> > big SMP.
->> 
->> OK, ext3 survived a swatting on the 16-way as well. It's still slow as
->> snot, but it does work ;-) No changes from before, methinks.
->> 
->> Diffprofile for kernbench (-j) from ext2 to ext3 on mm3
->> 
->>      27022    16.3% total
->>      24069    53.3% default_idle
->>        583     2.4% page_remove_rmap
->>        539   248.4% fd_install
->>        478   388.6% __blk_queue_bounce
+On Thu, 13 Nov 2003, Martin J. Bligh wrote:
+
+> > - Several ext2 and ext3 allocator fixes.  These need serious testing on big
+> >   SMP.
 > 
-> What driver are you using ? Why are you bouncing ?
+> Survives kernbench and SDET on ext2 at least on 16-way. I'll try ext3
+> later.
 
-qlogicisp. Because the driver is crap? ;-)
-
-M.
-
+It's actually triple faulting my laptop (K6 family=5 model=8 step=12) when 
+i have CONFIG_X86_4G enabled and try and run X11. The same kernel is fine 
+on all my other test boxes. Any hints?
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
