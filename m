@@ -1,132 +1,37 @@
-Date: Wed, 9 Oct 2002 10:12:50 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: Ingo Molnar <mingo@elte.hu>
-Subject: Re: 2.5.40-mm2
-In-Reply-To: <3DA30B28.8070504@us.ibm.com>
-Message-ID: <Pine.LNX.4.44.0210091009020.6815-100000@localhost.localdomain>
+Message-ID: <3DA41346.186CE3A6@scs.ch>
+Date: Wed, 09 Oct 2002 13:30:14 +0200
+From: Martin Maletinsky <maletinsky@scs.ch>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: VM_MAY... flags
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@digeo.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 8 Oct 2002, Dave Hansen wrote:
+Hello,
 
-> Hehe.  That'll teach me to be optimistic.  This is unprocessed, but the
-> EIP in tvec_bases should tell the whole story.  Something _nasty_ is
-> going on.
+What is the meaning of the VM_MAY.. flags? I.e. what does it mean for example, if the VM_MAYWRITE flag for a vmarea is set, while the VM_WRITE flag is clear (based on the
+naming I assume the opposite is not possible)? Where are the VM_MAYWRITE flags set/checked?
 
-could you try BK-curr with/without my latest patch? Linus and Vojtech
-found and fixed a bug in the keyboard code that caused timer tasklet
-oopses.
+The reason for my question is, that I use the get_user_pages() function (exists from kernel 2.4.17), which has a 'force flag' as an argument. In the 2.4.18 version, if the
+force flag is set, the function will consider the VM_MAY(READ/WRITE) rather than the VM_(READ/WRITE) flags, to validate the vmarea. Thus I should know the syntax of the
+VM_MAY... flags, to decide wether or not to set the force flag.
 
-if it still keeps crashing then please add a printk like this:
+Thanks in advance for any help
+with best regards
+Martin Maletinsky
 
-	if (!fn)
-		printk("Bad: NULL timer fn of timer %p (data %p).\n", 
-				timer, data);
-	else
-		fn(data)
 
-it's the fn's NULL-ness that causes the crashes, right?
+P.S. Please put me on cc: in the reply, since I am not on the mailing list.
 
-	Ingo
+--
+Supercomputing System AG          email: maletinsky@scs.ch
+Martin Maletinsky                 phone: +41 (0)1 445 16 05
+Technoparkstrasse 1               fax:   +41 (0)1 445 16 10
+CH-8005 Zurich
 
---- linux/kernel/timer.c.orig	2002-10-08 12:39:46.000000000 +0200
-+++ linux/kernel/timer.c	2002-10-08 12:49:50.000000000 +0200
-@@ -266,29 +266,31 @@
- int del_timer_sync(timer_t *timer)
- {
- 	tvec_base_t *base = tvec_bases;
--	int i, ret;
-+	int i, ret = 0;
- 
--	ret = del_timer(timer);
-+del_again:
-+	ret += del_timer(timer);
- 
--	for (i = 0; i < NR_CPUS; i++) {
-+	for (i = 0; i < NR_CPUS; i++, base++) {
- 		if (!cpu_online(i))
- 			continue;
- 		if (base->running_timer == timer) {
- 			while (base->running_timer == timer) {
- 				cpu_relax();
--				preempt_disable();
--				preempt_enable();
-+				preempt_check_resched();
- 			}
- 			break;
- 		}
--		base++;
- 	}
-+	if (timer_pending(timer))
-+		goto del_again;
-+
- 	return ret;
- }
- #endif
- 
- 
--static void cascade(tvec_base_t *base, tvec_t *tv)
-+static int cascade(tvec_base_t *base, tvec_t *tv)
- {
- 	/* cascade all the timers from tv up one level */
- 	struct list_head *head, *curr, *next;
-@@ -310,7 +312,8 @@
- 		curr = next;
- 	}
- 	INIT_LIST_HEAD(head);
--	tv->index = (tv->index + 1) & TVN_MASK;
-+
-+	return tv->index = (tv->index + 1) & TVN_MASK;
- }
- 
- /***
-@@ -322,26 +325,18 @@
-  */
- static inline void __run_timers(tvec_base_t *base)
- {
--	unsigned long flags;
--
--	spin_lock_irqsave(&base->lock, flags);
-+	spin_lock_irq(&base->lock);
- 	while ((long)(jiffies - base->timer_jiffies) >= 0) {
- 		struct list_head *head, *curr;
- 
- 		/*
- 		 * Cascade timers:
- 		 */
--		if (!base->tv1.index) {
--			cascade(base, &base->tv2);
--			if (base->tv2.index == 1) {
--				cascade(base, &base->tv3);
--				if (base->tv3.index == 1) {
--					cascade(base, &base->tv4);
--					if (base->tv4.index == 1)
--						cascade(base, &base->tv5);
--				}
--			}
--		}
-+		if (!base->tv1.index &&
-+			(cascade(base, &base->tv2) == 1) &&
-+				(cascade(base, &base->tv3) == 1) &&
-+					cascade(base, &base->tv4) == 1)
-+			cascade(base, &base->tv5);
- repeat:
- 		head = base->tv1.vec + base->tv1.index;
- 		curr = head->next;
-@@ -370,7 +365,7 @@
- #if CONFIG_SMP
- 	base->running_timer = NULL;
- #endif
--	spin_unlock_irqrestore(&base->lock, flags);
-+	spin_unlock_irq(&base->lock);
- }
- 
- /******************************************************************/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
