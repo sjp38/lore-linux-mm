@@ -1,83 +1,46 @@
-Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA09077
-	for <linux-mm@kvack.org>; Wed, 22 Apr 1998 12:02:01 -0400
-Received: from mirkwood.dummy.home (root@anx1p3.fys.ruu.nl [131.211.33.92])
-	by max.fys.ruu.nl (8.8.7/8.8.7/hjm) with ESMTP id SAA23801
-	for <linux-mm@kvack.org>; Wed, 22 Apr 1998 18:01:27 +0200 (MET DST)
-Date: Wed, 22 Apr 1998 15:18:19 +0200 (MET DST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: H.H.vanRiel@phys.uu.nl
-Subject: (reiserfs) Re: Maybe we can do 40 bits in June/July. (fwd)
-Message-ID: <Pine.LNX.3.91.980422151602.31012F-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from flinx.npwt.net (eric@flinx.npwt.net [208.236.161.237])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id NAA09556
+	for <linux-mm@kvack.org>; Wed, 22 Apr 1998 13:57:18 -0400
+Subject: Re: (reiserfs) Re: Maybe we can do 40 bits in June/July. (fwd)
+References: <Pine.LNX.3.91.980422151602.31012F-100000@mirkwood.dummy.home>
+From: ebiederm+eric@npwt.net (Eric W. Biederman)
+In-Reply-To: Rik van Riel's message of Wed, 22 Apr 1998 15:18:19 +0200 (MET DST)
+Date: 22 Apr 1998 12:57:01 -0500
+Message-ID: <m1yawxoi36.fsf@flinx.npwt.net>
 Sender: owner-linux-mm@kvack.org
-To: linux-mm <linux-mm@kvack.org>
+To: H.H.vanRiel@phys.uu.nl
+Cc: linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi guys,
+>>>>> "RR" == Rik van Riel <H.H.vanRiel@phys.uu.nl> writes:
 
-I just got this message from Hans Reiser (the main
-ReiserFS coordinator), who says that ReiserFS will
-be 40-bits (1TB filesize) ready by june/juli this
-year.
-Now we (the MM guys) need to get together and make
-the MM layer 40-bit transparent too (or 41-bit).
+RR> Hi guys,
+RR> I just got this message from Hans Reiser (the main
+RR> ReiserFS coordinator), who says that ReiserFS will
+RR> be 40-bits (1TB filesize) ready by june/juli this
+RR> year.
+RR> Now we (the MM guys) need to get together and make
+RR> the MM layer 40-bit transparent too (or 41-bit).
 
-Any takers?
+RR> Any takers?
 
-Rik.
+I will make at least a preliminary patch.  
 
----------- Forwarded message ----------
-Date: Wed, 22 Apr 1998 00:53:03 -0700
-From: Hans Reiser <reiser@ricochet.net>
-To: H.H.vanRiel@phys.uu.nl
-Cc: reiserfs <reiserfs@devlinux.com>
-Subject: (reiserfs) Re: Maybe we can do 40 bits in June/July.
+I have already started.
 
-Hi Rik,
+My design:
+As I understand it the buffer cache is fine, so it is just a matter
+getting the page cache and the vma and the glue working.
 
-Ok, I propose the following.  After we stabilize reiserfs but before we
-ship it to users we will send you an email saying we are ready to move
-to 40 bits.  Then, working in parallel, we will convert both mm and
-reiserfs to 40 bits.  You (or somebody you name) will coordinate the mm
-portion, and I (or Vladimir) will coordinate the reiserfs portion. 
+My thought is to make the page cache use generic keys. 
+This should help support things like the swapper inode a little
+better.  Still need a bit somewhere so we can coallese VMA's that have
+an inode but don't need continous keys.  That's for later.
 
-I anticipate that we will be able to convert ~June, not later than
-July.  I anticipate that it will be easy for reiserfs to convert, and
-take not long to debug any reiserfs problems that occur.  Since changing
-mm will inconvenience other things besides reiserfs, I imagine that you
-will want it to be deferred until reiserfs is stable enough for users to
-benefit from using 40 bit reiserfs.  Maybe we can implement 40 bits as a
-#define in the reiserfs code.
+For the common case of inodes have the those keys:
+page->key == page->offset >> PAGE_SHIFT.
 
-Incidentally, I prefer 40 bits for reiserfs for yet another reason: 64
-bits would make our keys overly large.
+And of course get rid of page->offset.  The field name changes will to
+catch any old code that is out there.
 
-I am sure that there are a lot of details which we can work out in
-June.   
-
-Does this plan sound good to you?
-
-Hans
-
-Rik van Riel wrote:
-> 
-> On Tue, 21 Apr 1998, Hans Reiser wrote:
-> 
-> > My current thinking is that we should only worry about 2GB files when
-> > Linus and the MM guys indicate they want to deal with making offsets
-> > 40bits.  I think it is more work for them than for us, so we should let
-> > them tell us when they want it.  I will have us do it whenever they
-> > decide they want it.
-> 
-> I know Linus doesn't mind 40bit offsets. Mj and davem are
-> likely to work on it when some FS supports it (they both
-> work with large server systems).
-> 
-> Rik.
-> +-------------------------------------------+--------------------------+
-> | Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
-> |        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
-> |     http://www.phys.uu.nl/~riel/          | <H.H.vanRiel@phys.uu.nl> |
-> +-------------------------------------------+--------------------------+
+Eric
