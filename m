@@ -1,47 +1,30 @@
-Date: Mon, 16 Jul 2001 16:00:16 -0300 (BRST)
+Date: Mon, 16 Jul 2001 16:04:14 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] Separate global/perzone inactive/free shortage 
-In-Reply-To: <20010716155126.37887.qmail@web14306.mail.yahoo.com>
-Message-ID: <Pine.LNX.4.33L.0107161553090.5738-100000@imladris.rielhome.conectiva>
+Subject: Re: [PATCH] Separate global/perzone inactive/free shortage
+In-Reply-To: <20010716165655.D28023@redhat.com>
+Message-ID: <Pine.LNX.4.33L.0107161600460.5738-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanojsarcar@yahoo.com>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, lkml <linux-kernel@vger.kernel.org>, Dirk Wetter <dirkw@rentec.com>, Mike Galbraith <mikeg@wen-online.de>, linux-mm@kvack.org, "Stephen C. Tweedie" <sct@redhat.com>
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Bulent Abali <abali@us.ibm.com>, Mike Galbraith <mikeg@wen-online.de>, Marcelo Tosatti <marcelo@conectiva.com.br>, Dirk Wetter <dirkw@rentec.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 16 Jul 2001, Kanoj Sarcar wrote:
+On Mon, 16 Jul 2001, Stephen C. Tweedie wrote:
 
-> Just a quick note. A per-zone page reclamation
-> method like this was what I had advocated and sent
-> patches to Linus for in the 2.3.43 time frame or so.
-> I think later performance work ripped out that work.
+> On a 20MB box with 16MB DMA zone and 4MB NORMAL zone, a low rate of
+> allocations will be continually satisfied from the NORMAL zone
+> resulting in constant aging and pageout within that zone, but with no
+> pressure at all on the larger 16MB DMA zone.  That's hardly fair.
 
-Yes, the system ended up swapping as soon as the first zone
-was filled up and after that would fill up the other zones;
-the way the system stabilised was cycling through the pages
-of one zone and leaving the lower zones alone.
+It shouldn't. Pages in both zones get aged equally,
+leading to both zones getting above the various
+allocation watermarks in turn and getting pages
+allocated from them in turn.
 
-This reduced the amount of available VM of a 1GB system
-to 128MB, which is somewhat suboptimal ;)
-
-What we learned from that is that we need to have some
-way to auto-balance the reclaiming, keeping the objective
-of evicting the least used page from RAM in mind.
-
-> I guess the problem is that a lot of the different
-> page reclamation schemes first of all do not know
-> how to reclaim pages for a specific zone,
-
-> try_to_swap_out is a good example, which can be solved
-> by rmaps.
-
-Indeed. Most of the time things go right, but the current
-system cannot cope at all when things go wrong. I think we
-really want things like rmaps and more sturdy reclaiming
-mechanisms to cope with these worst cases (and also to make
-the common case easier to get right).
+If what you are describing is happening, we have a
+bug in the implementation of the current scheme.
 
 regards,
 
