@@ -1,42 +1,57 @@
-Message-Id: <5.0.2.1.2.20010309003257.00abeac0@pop.cus.cam.ac.uk>
-Date: Fri, 09 Mar 2001 00:39:40 +0000
-From: Anton Altaparmakov <aia21@cam.ac.uk>
+Date: Fri, 9 Mar 2001 02:15:23 -0600
+From: Philipp Rumpf <prumpf@mandrakesoft.com>
 Subject: Re: [PATCH] documentation mm.h + swap.h
-In-Reply-To: <Pine.LNX.4.33.0103081807260.1314-100000@duckman.distro.con
- ectiva>
+Message-ID: <20010309021523.A13408@mandrakesoft.mandrakesoft.com>
+References: <Pine.LNX.4.33.0103081807260.1314-100000@duckman.distro.conectiva>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"; format=flowed
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <Pine.LNX.4.33.0103081807260.1314-100000@duckman.distro.conectiva>; from Rik van Riel on Thu, Mar 08, 2001 at 06:10:16PM -0300
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Rik van Riel <riel@conectiva.com.br>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-At 21:10 08/03/2001, Rik van Riel wrote:
->+ * There is also a hash table mapping (inode,offset) to the page
->+ * in memory if present. The lists for this hash table use the fields
->+ * page->next_hash and page->pprev_hash.
+On Thu, Mar 08, 2001 at 06:10:16PM -0300, Rik van Riel wrote:
+> --- linux-2.4.2-doc/include/linux/mm.h.orig	Wed Mar  7 15:36:32 2001
+> +++ linux-2.4.2-doc/include/linux/mm.h	Thu Mar  8 09:54:22 2001
+> @@ -39,32 +39,37 @@
+>   * library, the executable area etc).
+>   */
+>  struct vm_area_struct {
+> -	struct mm_struct * vm_mm;	/* VM area parameters */
+> -	unsigned long vm_start;
+> -	unsigned long vm_end;
+> +	struct mm_struct * vm_mm;	/* The address space we belong to. */
+> +	unsigned long vm_start;		/* Our start address within vm_mm. */
+> +	unsigned long vm_end;		/* Our end address within vm_mm. */
 
-Shouldn't (inode,offset) be (inode,index), or possibly (mapping,index)?
+it might be a good idea to point out that this is the address of the byte
+after the last one covered by the vma, not the address of the last byte.
 
->+ * For choosing which pages to swap out, inode pages carry a
->+ * PG_referenced bit, which is set any time the system accesses
->+ * that page through the (inode,offset) hash table. This referenced
+(are there any architectures where we allow a vma at the end of memory ?  Is
+the mm/ code handling ->vm_end = 0 correctly ?)
 
-And here, too?
+>  /*
+> + * Each physical page in the system has a struct page associated with
+> + * it to keep track of whatever it is we are using the page for at the
+> + * moment. Note that we have no way to track which tasks are using
+> + * a page.
+> + *
 
-I know these are small details, but just for completeness sake...
+Each page of "real" RAM.  In particular I think MMIO pages still don't have
+a struct page.
 
-Best regards,
+>   * Try to keep the most commonly accessed fields in single cache lines
+>   * here (16 bytes or greater).  This ordering should be particularly
+>   * beneficial on 32-bit processors.
+>   *
+>   * The first line is data used in page cache lookup, the second line
+>   * is used for linear searches (eg. clock algorithm scans).
+> + *
+> + * TODO: make this structure smaller, it could be as small as 32 bytes.
 
-         Anton
-
-
--- 
-Anton Altaparmakov <aia21 at cam.ac.uk> (replace at with @)
-Linux NTFS Maintainer / WWW: http://sourceforge.net/projects/linux-ntfs/
-ICQ: 8561279 / WWW: http://www-stu.christs.cam.ac.uk/~aia21/
-
+Or make it cover large pages, which might be even more of a win ..
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
