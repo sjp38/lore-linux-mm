@@ -1,46 +1,39 @@
-Message-ID: <414066D7.60508@sgi.com>
-Date: Thu, 09 Sep 2004 09:21:11 -0500
-From: Ray Bryant <raybry@sgi.com>
-MIME-Version: 1.0
+Date: Thu, 9 Sep 2004 10:23:32 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: swapping and the value of /proc/sys/vm/swappiness
-References: <cone.1094512172.450816.6110.502@pc.kolivas.org> <20040906162740.54a5d6c9.akpm@osdl.org> <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <20040907212051.GC3492@logos.cnet> <413F1518.7050608@sgi.com> <20040908165412.GB4284@logos.cnet> <413F5EE7.6050705@sgi.com> <20040908193036.GH4284@logos.cnet> <413FC8AC.7030707@sgi.com> <20040909021409.GA2122@logos.cnet>
-In-Reply-To: <20040909021409.GA2122@logos.cnet>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20040909172332.GZ3106@holomorphy.com>
+References: <cone.1094513660.210107.6110.502@pc.kolivas.org> <20040907000304.GA8083@logos.cnet> <20040907212051.GC3492@logos.cnet> <413F1518.7050608@sgi.com> <20040908165412.GB4284@logos.cnet> <413F5EE7.6050705@sgi.com> <20040908193036.GH4284@logos.cnet> <413FC8AC.7030707@sgi.com> <20040909030916.GR3106@holomorphy.com> <414065A8.20508@sgi.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <414065A8.20508@sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, piggin@cyberone.com.au, mbligh@aracnet.com
+To: Ray Bryant <raybry@sgi.com>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Con Kolivas <kernel@kolivas.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, riel@redhat.com, piggin@cyberone.com.au
 List-ID: <linux-mm.kvack.org>
 
+William Lee Irwin III wrote:
+>> Please log periodic snapshots of /proc/vmstat during runs on kernel
+>> versions before and after major behavioral shifts.
 
-Marcelo Tosatti wrote:
+On Thu, Sep 09, 2004 at 09:16:08AM -0500, Ray Bryant wrote:
+> Attached is the output you requested for two kernel versions: 2.6.8.1-mm4 
+> and 2.6.9-rc1-mm3 + the nrmap_patch (that patch didn't make much difference 
+> so this should be good enough for comparison purposes, and it was the 
+> kernel I had built.)
+> Because there are so many parameters in /proc/vmstat, I had to split the
+> output up (more or less arbitarily) into three files to get something you 
+> could actually look at with an editor.  Even then it requires 100 columns 
+> or so.
 
-> 
->>Have you still been unable to duplicate this problem on a small i386 
->>platform?
-> 
-> 
-> Yes right, I have been unable to duplicate the problem on small i386 box. 
-> What about your tests?
-> 
-> 
->
+This will do fine. I'll examine these for anomalous maintenance of
+statistics and/or operational variables used to drive page replacement.
 
-I haven't had time to try on i386 yet.  I guess I will have to.
-Thanks for trying, anyway.
+Thanks.
 
--- 
-Best Regards,
-Ray
------------------------------------------------
-                   Ray Bryant
-512-453-9679 (work)         512-507-7807 (cell)
-raybry@sgi.com             raybry@austin.rr.com
-The box said: "Requires Windows 98 or better",
-            so I installed Linux.
------------------------------------------------
 
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
