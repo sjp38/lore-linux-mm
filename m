@@ -1,41 +1,38 @@
-Message-ID: <3D987CF7.6060203@colorfullife.com>
-Date: Mon, 30 Sep 2002 18:33:59 +0200
-From: Manfred Spraul <manfred@colorfullife.com>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id LAA03588
+	for <linux-mm@kvack.org>; Mon, 30 Sep 2002 11:24:35 -0700 (PDT)
+Message-ID: <3D9896F6.8E584DC5@digeo.com>
+Date: Mon, 30 Sep 2002 11:24:54 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Subject: Re: 2.5.39 kmem_cache bug
-References: <20020928201308.GA59189@compsoc.man.ac.uk> <200209292020.40824.tomlins@cam.org> <3D97E737.80405@colorfullife.com> <200209300718.57382.tomlins@cam.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Subject: Re: 2.5.39-mm1
+References: <3D9804E1.76C9D4AE@digeo.com> <766838976.1033378149@[10.10.2.3]>
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ed Tomlinson <tomlins@cam.org>
-Cc: linux-mm@kvack.org
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Anton Blanchard <anton@samba.org>
 List-ID: <linux-mm.kvack.org>
 
-What's the optimal number of free objects in the partial/free lists of 
-an active cache?
+"Martin J. Bligh" wrote:
+> 
+> Which looks about the same to me? Me slightly confused.
 
-I'd say a few times the batchcount, otherwise a cpu won't be able to 
-perform a complete refill. [during refill, at most one grow happens - 
-I've assumed that swallowing 30 pages with GFP_ATOMIC in an interrupt 
-handler is not nice from the system perspective]
+I expect that with the node-local allocations you're not getting
+a lot of benefit from the lock amortisation.  Anton will.
 
-What about this logic:
-- if there were no recent allocations performed by a cpu, then return 
-cc->limit/5 objects from the cpu array to the node lists.
+It's the lack of improvement of cache-niceness which is irksome.
+Perhaps the heuristic should be based on recency-of-allocation and
+not recency-of-freeing.  I'll play with that.
 
-- If a slab becomes a free slab, and there are more than 
-3*cc->batchcount*NR_CPUS/NR_NODES objects in the partial or free lists, 
-then return the slab immediately to the gfp.
+> Will try
+> adding the original hot/cold stuff onto 39-mm1 if you like?
 
-- If noone accessed the free list recently, then a few slabs are 
-returned to gfp. [<worst case number of free slabs that can exist>/5]
-
-The constants could be updated by vm pressure callbacks.
-
---
-	Manfred
-
+Well, it's all in the noise floor, isn't it?  Better off trying
+broader tests.  I had a play with netperf and the chatroom
+benchmark.  But the latter varied from 80,000 msgs/sec up
+to 350,000 between runs.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
