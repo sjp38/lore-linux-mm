@@ -1,37 +1,47 @@
-Message-ID: <20030917171927.66889.qmail@web12304.mail.yahoo.com>
-Date: Wed, 17 Sep 2003 10:19:27 -0700 (PDT)
-From: Ravi Krishnamurthy <kravi26@yahoo.com>
-Subject: Re: __vmalloc and alloc_page
-In-Reply-To: <200309171326.11848.lmb@exatas.unisinos.br>
+Date: Wed, 17 Sep 2003 14:24:45 -0400 (EDT)
+From: Alan Stern <stern@rowland.harvard.edu>
+Subject: How best to bypass the page cache from within a kernel module?
+Message-ID: <Pine.LNX.4.44L0.0309171402370.1171-100000@ida.rowland.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Leandro Motta Barros <lmb@exatas.unisinos.br>, linux-mm@kvack.org
-Cc: sisopiii-l@cscience.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---- Leandro Motta Barros <lmb@exatas.unisinos.br> wrote:
+I'm working on a kernel module driver for Linux 2.6.  One of the things 
+this driver needs to do is perform a VERIFY command; which means checking 
+to make sure that certain disk sectors within a file actually can be read 
+without encountering a bad sector or other hardware error.  Now, I realize 
+that there are already issues involved with convincing the disk drive to 
+read from its media rather than from its cache.  But apart from that, my 
+problem is how to convince Linux to read from the drive rather than from 
+the page cache.
 
-> '__vmalloc()' allocates its memory by calling 
-> 'alloc_page()' for every necessary page. Wouldn't
-> it be better calling 'alloc_pages()' to allocate
-> more pages at once whenever possible?
+One suggestion was to use O_DIRECT when opening the file, because that
+does cause reads to go directly to the hardware.  The problem with this is
+that since the direct-I/O routines send file data directly to user
+buffers, they must check that the buffer addresses are valid and belong to
+the user's address space.  But my code runs in a kernel thread so it has
+no current->mm (and in any case I would prefer to use my kernel-space
+buffers rather than user-space memory).  It might be possible to get hold
+of an mm_struct, but it's not necessarily easy as mm_alloc() isn't
+EXPORTed.  Perhaps my thread could keep its original current->mm by
+incrementing current->mm->users before calling daemonize() and setting
+current->mm back to its original value afterward.  Is that legal?  Having
+done so, perhaps I could use some sort of mmap() call to allocate a
+user-space buffer that would be okay for direct-I/O.  What's the best way
+to do that -- what function would I have to call?
 
-Higher order allocations are more likely to fail
-because of fragmentation. Besides, vmalloc() is
-intended to be used when the caller does not really
-need physically contiguous pages. So calling
-alloc_pages() within vmalloc seems pointless. 
-If alloc_pages fails, you will have to fall back to
-a lower order allocation anyway.
+However, all that seems rather roundabout.  An equally acceptable solution 
+would be simply to invalidate all the entries in the page cache referring 
+to my file, so that reads would be forced to go to the drive.  Can anyone 
+tell me how to do that?
 
+TIA,
 
+Alan Stern
 
-__________________________________
-Do you Yahoo!?
-Yahoo! SiteBuilder - Free, easy-to-use web site design software
-http://sitebuilder.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
