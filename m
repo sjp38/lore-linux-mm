@@ -1,37 +1,32 @@
-Subject: Re: NUMA is bust with CONFIG_PREEMPT=y
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <389320000.1033596266@flay>
-References: <3D9B6939.397DB9EA@digeo.com>  <384860000.1033595383@flay>
-	 <1033596139.27343.14.camel@phantasy>  <389320000.1033596266@flay>
-Content-Type: text/plain
-Message-Id: <1033596906.27765.39.camel@phantasy>
-Mime-Version: 1.0
-Date: 02 Oct 2002 18:15:07 -0400
+From: Paul Mackerras <paulus@samba.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <15771.30104.815144.546550@argo.ozlabs.ibm.com>
+Date: Thu, 3 Oct 2002 08:39:20 +1000 (EST)
+Subject: Re: [PATCH] Snapshot of shared page tables
+In-Reply-To: <45850000.1033570655@baldur.austin.ibm.com>
+References: <45850000.1033570655@baldur.austin.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Andrew Morton <akpm@digeo.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2002-10-02 at 18:04, Martin J. Bligh wrote:
+Dave McCracken writes:
 
-> > I am not one of the 12 people in the world with a NUMA-Q, but I would
-> > not like to see you disable kernel preemption.
-> 
-> What does it buy you on a large NUMA box over the low-latency patches?
+> Ok, here it is.  This patch works for my simple tests, both under UP and
+> SMP, including under memory pressure.  I'd appreciate anyone who'd like to
+> take it and beat on it.  Please let me know of any problems you find.
 
-Latency-wise?  Probably very little.  But note Andrew is not going to
-maintain the low-latency patches through 2.6/3.0 as far as I know.
+Interesting.  I notice that you are using the _PAGE_RW bit in the
+PMDs.  Are you relying on the hardware to do anything with that bit,
+or is it only used by software?
 
-The reasons I asked for you to keep it were mainly (a) so everything can
-support it, and (b) for the useful atomicity/sleeping debugging checks.
+(If you are relying on the hardware to do something different when
+_PAGE_RW is clear in the PMD, then your approach isn't portable.)
 
-And when I get consumer-level NUMA x86-64 in hopefully a few years I
-need kernel preemption to work :)
-
-	Robert Love
-
+Paul.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
