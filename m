@@ -1,39 +1,61 @@
-Date: Thu, 6 Jan 2000 19:20:40 +0100 (CET)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: (reiserfs) Re: RFC: Re: journal ports for 2.3?
-In-Reply-To: <14452.54644.697386.175701@dukat.scot.redhat.com>
-Message-ID: <Pine.LNX.4.10.10001061910180.1936-100000@alpha.random>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <200001061836.KAA95195@google.engr.sgi.com>
+Subject: Re: [RFC] [RFT] [PATCH] memory zone balancing
+Date: Thu, 6 Jan 2000 10:36:03 -0800 (PST)
+In-Reply-To: <200001061528.HAA05974@pizda.ninka.net> from "David S. Miller" at Jan 06, 2000 07:28:19 AM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Hans Reiser <reiser@idiom.com>, Chris Mason <mason@suse.com>, reiserfs@devlinux.com, linux-fsdevel@vger.rutgers.edu, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@transmeta.com>
+To: "David S. Miller" <davem@redhat.com>
+Cc: mingo@chiara.csoma.elte.hu, andrea@suse.de, torvalds@transmeta.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-BTW, I thought Hans was talking about places that can't sleep (because of
-some not schedule-aware lock) when he said "place that cannot call
-balance_dirty()".
+> 
+>    Date:   Thu, 6 Jan 2000 17:05:41 +0100 (CET)
+>    From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+> 
+>    i think this is pretty much 'type-dependent'. In earlier versions
+>    of the zone allocator i added a zone->memory_balanced() function
+>    (but removed it later because it first needed the things your patch
+>    adds). Then every zone can decide for itself wether it's
+>    balanced. Eg. the DMA zone is rather critical and we want to keep
+>    it free aggressively (part of that is already achieved by placing
+>    it at the end of the zone chain), the highmem zone might not need
+>    any balancing at all, the normal zone wants some high/low watermark
+>    stuff.
 
-On Thu, 6 Jan 2000, Stephen C. Tweedie wrote:
+After thinking about this more, I came to the conclusion that the
+ZONE_BALANCED macro is just a quick way of checking whether we are
+_really_ unbalanced. If so, then we need to see if we are really 
+unbalanced, and do appropriate freeing. To determine whether a zone 
+is _really_ unbalanced, I need to look at the number of free pages 
+in the lower order zones too, then compare against the zone's water
+marks. Ie, the "balancing" is not just about the absolute number of
+free pages in the zone, but rather in the class that the zone 
+represents.
 
->It shouldn't be impossible: as long as we are protected against
->recursive invocations of balance_dirty (which should be easy to
+I am waiting to see if Linus takes in my previous patch, before 
+puting too much work into the balancing heuristics.
 
-I am not sure to understand correctly. In case the ll_rw_block layer
-produces dirty buffers we are protected by wakeup_bdflush that become a
-noop when recalled from kflushd (wakeup_bdflush is not blocking to avoid
-bdflush waiting bdflush :). And in genral balance_dirty should never
-recurse on the same stack.
+> 
+> Let's be careful not to design any balancing heuristics which will
+> fall apart on architectures where only one zone ever exists (because
+> GFP_DMA is completely meaningless).
 
->arrange) we should be safe enough, at least if the memory reservation
->bits of the VM/fs interaction are working so that the balance_dirty
->can guarantee to run to completion.
+Yes, with all different types of machines out there, we need to be 
+able to provide enough hooks to the arch code to tune the watermarks and
+balancing frequency. Luckily, the zone structure is exposed via the
+pg_data_t, so this should be no problem. Some sysctls are probably also 
+called for.
 
-Hmm maybe you are talking about something else...
-
-Andrea
-
+Kanoj
+> 
+> Later,
+> David S. Miller
+> davem@redhat.com
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
