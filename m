@@ -1,42 +1,39 @@
-Received: from kanga.kvack.org (root@kanga.kvack.org [205.189.68.98])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA26327
-	for <Linux-MM@kvack.org>; Fri, 29 Jan 1999 20:53:29 -0500
-Date: Fri, 29 Jan 1999 20:52:51 -0500 (EST)
-From: "Benjamin C.R. LaHaise" <blah@kvack.org>
-Subject: Re: Fwd: Inoffensive bug in mm/page_alloc.c
-In-Reply-To: <990127235552.n0002181.ph@mail.clara.net>
-Message-ID: <Pine.LNX.3.95.990129204839.24246C-100000@kanga.kvack.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from chelm.cs.nmt.edu (yodaiken@chelm.cs.nmt.edu [129.138.6.50])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id CAA29045
+	for <linux-mm@kvack.org>; Sat, 30 Jan 1999 02:14:43 -0500
+From: yodaiken@chelm.cs.nmt.edu
+Message-Id: <199901300701.AAA08206@chelm.cs.nmt.edu>
+Subject: Re: MM deadlock [was: Re: arca-vm-8...]
+Date: Sat, 30 Jan 1999 00:01:00 -0700 (MST)
+In-Reply-To: <199901261645.QAA03883@dax.scot.redhat.com> from "Stephen C. Tweedie" at Jan 26, 99 04:45:44 pm
+Content-Type: text
 Sender: owner-linux-mm@kvack.org
-To: Paul Hamshere <ph@clara.net>
-Cc: Linux-MM@kvack.org
+To: "Stephen C. Tweedie" <sct@redhat.com>
+Cc: alan@lxorguk.ukuu.org.uk, mingo@chiara.csoma.elte.hu, groudier@club-internet.fr, torvalds@transmeta.com, werner@suse.de, andrea@e-mind.com, riel@humbolt.geo.uu.nl, Zlatko.Calusic@CARNet.hr, ebiederm+eric@ccr.net, saw@msu.ru, steve@netplus.net, damonbrent@earthlink.net, reese@isn.net, kalle.andersson@mbox303.swipnet.se, bmccann@indusriver.com, bredelin@ucsd.edu, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello Paul,
+> 
+> Hi,
+> 
+> On Tue, 26 Jan 1999 15:46:23 +0000 (GMT), alan@lxorguk.ukuu.org.uk (Alan
+> Cox) said:
+> > We don't need to solve the 100% case. Simply being sure we can (slowly)
+> > allocate up to 25% of RAM in huge chunks is going to be enough. Good point
+> > Ingo on one thing I'd missed - the big chunks themselves need some kind
+> > of handles since the moment we hand out 512K chunks we may not be able to 
+> > shuffle and get a 4Mb block
+> 
+> The idea was to decide what region to hand out, _then_ to clear it.
+> Standard best-fit algorithms apply when carving up the region.
 
-> Is this of any interest here?
+If clearing involves remapping kernel address space, then its a rather
+complex process. 
+              kmalloc
+              give virt_to_bus to device
+              ...
+              remap 
 
-Yep!
 
-> Paul
-> ------------------------------
-> Hi
-> I was trawling through the mm sources to try and understand how linux tracks the
-> use of pages of memory, how kmalloc and vmalloc work, and I think there is a bug
-> in the kernel (2.0) - it doesn't affect anything, only waste a tiny amount of
-> memory....does anyone else think it looks wrong?
-> The problem is in free_area_init where it allocates the bitmaps - I think they
-> are twice the size they need to be.
-
-If you search the mailing list archives from either a year, maybe two ago,
-someone brought forth the same concern, but Linus rejected the patch on
-the basis that it wasn't trivially proven correct for *all* sizes of
-memory.  The amount of memory involved is insignificant, and I'd speculate
-that we'll see a page allocator in 2.3 at which point that loss can
-disappear.
-
-		-ben (cleaning out the inbox)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
