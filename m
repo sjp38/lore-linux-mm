@@ -1,32 +1,29 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: inactive_dirty list
-Date: Sun, 8 Sep 2002 23:21:43 +0200
-References: <3D7930D6.F658E5B9@zip.com.au> <Pine.LNX.4.44L.0209061958090.1857-100000@imladris.surriel.com> <3D793B9E.AAAC36CA@zip.com.au>
-In-Reply-To: <3D793B9E.AAAC36CA@zip.com.au>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <E17oGD3-0006li-00@starship>
+Subject: Re: slablru for 2.5.32-mm1
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <E17oGD4-0006lm-00@starship>
+References: <Pine.LNX.4.44.0209052032410.30628-100000@loke.as.arizona.edu>
+	<1031286298.940.37.camel@phantasy>  <E17oGD4-0006lm-00@starship>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 09 Sep 2002 00:36:25 -0400
+Message-Id: <1031546187.15794.19.camel@phantasy>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>, Rik van Riel <riel@conectiva.com.br>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Daniel Phillips <phillips@arcor.de>
+Cc: Craig Kulesa <ckulesa@as.arizona.edu>, linux-mm@kvack.org, Andrew Morton <akpm@zip.com.au>, Ed Tomlinson <tomlins@cam.org>
 List-ID: <linux-mm.kvack.org>
 
-On Saturday 07 September 2002 01:34, Andrew Morton wrote:
-> You're proposing that we get that IO underway sooner if there
-> is page reclaim pressure, and that one way to do that is to
-> write one page for every reclaimed one.  Guess that makes
-> sense as much as anything else ;)
+On Sun, 2002-09-08 at 17:43, Daniel Phillips wrote:
 
-Not really.  The correct formula will incorporate the allocation rate and the 
-inactive dirty/clean balance.  The reclaim rate is not relevant, it is a 
-time-delayed consequence of the above.  Relying on it in a control loop is 
-simply asking for oscillation.
+> - 		if (unlikely((condition)!=0)) BUG(); \
+> + 		if (unlikely(condition)) BUG(); \
 
--- 
-Daniel
+Then send in a patch; the code I pasted was the current 2.5 BUG_ON (and
+2.4's, since I copied it from 2.5 when I sent the patch). ;-)
+
+	Robert Love
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
