@@ -1,67 +1,45 @@
-Message-ID: <413BBECB.1060400@yahoo.com.au>
-Date: Mon, 06 Sep 2004 11:35:07 +1000
+Message-ID: <413BC227.2070006@yahoo.com.au>
+Date: Mon, 06 Sep 2004 11:49:27 +1000
 From: Nick Piggin <nickpiggin@yahoo.com.au>
 MIME-Version: 1.0
 Subject: Re: [RFC][PATCH 0/3] beat kswapd with the proverbial clue-bat
-References: <413AA7B2.4000907@yahoo.com.au>  <20040904230210.03fe3c11.davem@davemloft.net>  <413AAF49.5070600@yahoo.com.au> <413AE6E7.5070103@yahoo.com.au>  <Pine.LNX.4.58.0409051021290.2331@ppc970.osdl.org> <1094405830.2809.8.camel@laptop.fenrus.com> <Pine.LNX.4.58.0409051051120.2331@ppc970.osdl.org>
-In-Reply-To: <Pine.LNX.4.58.0409051051120.2331@ppc970.osdl.org>
+References: <413AA7B2.4000907@yahoo.com.au> <Pine.LNX.4.58.0409050911450.2331@ppc970.osdl.org> <413BB55B.9000106@yahoo.com.au>
+In-Reply-To: <413BB55B.9000106@yahoo.com.au>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@osdl.org>
-Cc: Arjan van de Ven <arjanv@redhat.com>, "David S. Miller" <davem@davemloft.net>, akpm@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Piggin <nickpiggin@yahoo.com.au>
+Cc: Linus Torvalds <torvalds@osdl.org>, Andrew Morton <akpm@osdl.org>, Linux Memory Management <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
+Nick Piggin wrote:
 
->
->On Sun, 5 Sep 2004, Arjan van de Ven wrote:
->
->>well... we have a reverse mapping now. What is stopping us from doing
->>physical defragmentation ?
+>>
+>> Notice how you may need to free 20% of memory to get a 2**3 
+>> allocation, if you have totally depleted your pages. And it's much 
+>> worse if you have very little memory to begin with.
+>>
+>> Anyway. I haven't debugged this program, so it may have serious bugs, 
+>> and be off by an order of magnitude or two. Whatever. If I'm wrong, 
+>> somebody can fix the program/script and see what the real numbers are.
+>>
 >>
 >
->Nothing but replacement policy, really, and the fact that not everything
->is rmappable.
->
->I think we should _normally_ honor replacement policy, the way we do now.  
->Only if we are in the situation "we have enough memory, but not enough
->high-order-pages" should we go to a separate physical defrag algorithm.
+> No, Andrew just recently reported that order-1 allocations were 
+> needing to
+> free 20MB or more (on systems with not really huge memories IIRC). So I
+> think your program could be reasonably close to real life.
 >
 >
 
-Sure.
-
->So either kswapd should have a totally different mode, or there should be
->a separate "kdefragd". It would potentially also be good if it is user-
->triggerable, so that you could, for example, have a heavier defragd run
->from the daily "cron" runs - something that doesn't seem to make much
->sense from a traditional kswapd standpoint.
->
->In other words, I don't think the physical thing should be triggered at 
->all by normal memory pressure. A large-order allocation failure would 
->trigger it "somewhat", and maybe it might run very slowly in the 
->background (wake up every five minutes or so to see if it is worth doing 
->anything), and then some user-triggerable way to make it more aggressive.
->
->Does that sound sane to people?
->
->
-
-Not to me :P
-
-I think doing it just in time with kswapd and watermarks like we
-do for order 0 allocations should be fine.
-
-If you think of kswapd as "do the same freeing work the allocator
-will otherwise have to" and "provide a context for doing freeing
-work if the allocator can't" (in the !wait case)... then I think my
-changes are pretty logical.
-
-I think I confused everybody in the first email - we *do not* try
-to heed any order-3 and above watermarks if we're only doing order-2
-and below allocations... maybe this was the sticking point?
+But yeah, that is when your memory is completely depleted. A small
+modification to your program to make it just keep scanning until we've
+freed a set amount of memory obviously shows that the more you've freed,
+the easier it becomes to free higher order areas... In this way, having
+kswapd batch up the freeing might possibly make it *more* efficient than
+only freeing the single higher order area when we've absolutely run out
+of areas (and simply failing !wait allocations altogether).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
