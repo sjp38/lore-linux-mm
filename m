@@ -1,103 +1,94 @@
 Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id UAA26689
-	for <linux-mm@kvack.org>; Wed, 8 Jan 2003 20:45:11 -0800 (PST)
-Message-ID: <3E1CFE53.F7A0A487@digeo.com>
-Date: Wed, 08 Jan 2003 20:45:07 -0800
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id OAA28511
+	for <linux-mm@kvack.org>; Sat, 11 Jan 2003 14:42:53 -0800 (PST)
+Content-Type: text/plain;
+  charset="us-ascii"
 From: Andrew Morton <akpm@digeo.com>
+Subject: 2.5.56-mm1
+Date: Sat, 11 Jan 2003 14:43:08 -0800
 MIME-Version: 1.0
-Subject: 2.5.55-mm1
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8BIT
+Message-Id: <200301111443.08527.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.55/2.5.55-mm1/
+http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.56/2.5.56-mm1/
+
+Nothing much new here except for a fix for the ext3-related memory leak which
+Con reported recently.
 
 
-. Lots of various random fixes (I generally don't changelog these - the diffs
-  just quietly change)
+The main items which remain unmerged from the -mm patch series are now:
 
-. Chris's reiserfs multipage direct-to-bio reads patch is back again.
+- red/black-tree based insertion and sorting for the I/O scheduler.
 
-. oprofile for Pentium 4's
+  Jens will be submitting this next week.  It's completely stable, and the
+  patch includes the addition of the I/O scheduler tunables in
+  /sys/block/hda/iosched/, which is fairly important.
 
-. I've dropped Adam's micro-devfs patch in here too.  Reports from people who
-  use devfs would be appreciated.  Success reports, as well as bugs.
+- Code to automatically unplug request queues on the basis of their
+  occupancy and a timeout.
+
+  Jens will be reviewing this soon.
+
+- dcache-RCU.
+
+  This was recently updated to fix a rename race.  It's quite stable.  I'm
+  not sure where we stand wrt merging it now.  Al seems to have disappeared.
+
+- Ingo Oeser's user page walking rework.  This appears to be stable,
+  although I'm not sure what testing it has had apart from a lot of direct-io
+  testing.
+
+- Quite a lot of misc stuff which I need to go through and either send or
+  toss.
 
 
+Changes since 2.5.55-mm1:
 
-Changes since 2.5.54-mm3:
 
++linus.patch
 
--log_buf_size.patch
--nfsd-fix.patch
--dio-return-partial-result.patch
--aio-direct-io-infrastructure.patch
--deferred-bio-dirtying.patch
--aio-direct-io.patch
--aio-dio-debug.patch
--dio-reduce-context-switch-rate.patch
--dio-always-kmalloc.patch
+ Latest from Linus
+
+-inlines-net.patch
+-deadline-fixups.patch
+-i_shared_sem.patch
+-cond_resched_lock-rework.patch
+-untypedef-mmu_gather.patch
+-touched_by_munmap-go-forwards.patch
+-low-latency-page-unmapping.patch
 -misc.patch
--3c920.patch
--copy_page_range-cleanup.patch
--pte_chain_alloc-fix.patch
--page_add_rmap-rework.patch
--rat-preload.patch
--use-rat-preallocation.patch
--mempool_resize-fix.patch
--slab-redzone-cleanup.patch
--shrink-kmap-space.patch
--route-cache-kmalloc-per-cpu.patch
--wli-12_pidhash_size.patch
+-smp-preempt-latency-fix.patch
+-set_page_dirty_lock.patch
+-inline-constant-small-copy_user.patch
 
  Merged
 
-+deadline-fixups.patch
++deadline-fixes.patch
 
- Some IO scheduler adjustments
+ Some deadline scheduler tweaks and fixes
 
-+touched_by_munmap-go-forwards.patch
++deadline-sysfs-fix.patch
 
- Support for low-latency pagetable zapping
+ Fix up the deadline scheduler patches to track recent sysfs changes
 
-+misc.patch
++ext3-leak-fix.patch
 
- Misc fixes
+ Fix the memory leak whcih Con reported
 
-+ext3-ino_t-cleanup.patch
++hugetlbfs-read-write.patch
 
- ext3 cleanup
-
-+reiserfs-readpages.patch
-
- back again.  Multipage direct-to-BIO reads for reiserfs
-
-+inline-constant-small-copy_user.patch
-
- Inline constant 1, 2 and 4-bytes copy_*_user's for ia32
-
-+oprofile-p4.patch
-+op4-fix.patch
-
- oprofile support for pentium 4
-
--wli-01_numaq_io.patch
-
- Lots of rejects
-
-+smalldevfs.patch
-
- Adam's cut-down devfs
+ Don't permit reading or writing of hugetlbfs files.
 
 
 
-All 51 patches:
+All 44 patches:
 
 linus.patch
-  cset-1.838.136.15-to-1.930.txt.gz
+  cset-1.897-to-1.929.txt.gz
 
 kgdb.patch
 
@@ -109,34 +100,13 @@ devfs-fix.patch
 cputimes_stat.patch
   Retore per-cpu time accounting, with a config option
 
-inlines-net.patch
-
 rbtree-iosched.patch
   rbtree-based IO scheduler
 
-deadline-fixups.patch
+deadline-fixes.patch
   deadsched cleanups/fixups
 
-i_shared_sem.patch
-  turn i_shared_lock into a semaphore
-
-cond_resched_lock-rework.patch
-  simplify and generalise cond_resched_lock
-
-untypedef-mmu_gather.patch
-  replace `typedef mmu_gather_t' with `struct mmu_gather'
-
-touched_by_munmap-go-forwards.patch
-  Don't reverse the VMA list in touched_by_munmap()
-
-low-latency-page-unmapping.patch
-  low-latency pagetable teardown
-
-misc.patch
-  misc fixes
-
-smp-preempt-latency-fix.patch
-  Fix an SMP+preempt latency problem
+deadline-sysfs-fix.patch
 
 ext3-ino_t-cleanup.patch
   Subject: [PATCH] 2.5 ext3 ino_t removal
@@ -178,14 +148,14 @@ lockless-current_kernel_time.patch
 scheduler-tunables.patch
   scheduler tunables
 
-set_page_dirty_lock.patch
-  fix set_page_dirty vs truncate&free races
-
 htlb-2.patch
   hugetlb: fix MAP_FIXED handling
 
-inline-constant-small-copy_user.patch
-  inline 1,2 and 4-byte copy_*_user operations
+ext3-leak-fix.patch
+  fix ext3 memory leak
+
+hugetlbfs-read-write.patch
+  hugetlbfs: don't implement read/write file_ops
 
 oprofile-p4.patch
 
@@ -239,6 +209,10 @@ page-walk-scsi-2.5.53-mm2.patch
 
 smalldevfs.patch
   smalldevfs
+
+
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
