@@ -1,69 +1,46 @@
-Date: Tue, 04 Feb 2003 14:15:31 -0800
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: Broken SCSI code in the BK tree (was: 2.5.59-mm8)
-Message-ID: <384960000.1044396931@flay>
-In-Reply-To: <20030204001709.5e2942e8.akpm@digeo.com>
-References: <20030203233156.39be7770.akpm@digeo.com><167540000.1044346173@[10.10.2.4]> <20030204001709.5e2942e8.akpm@digeo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id AAA24451
+	for <linux-mm@kvack.org>; Wed, 5 Feb 2003 00:48:01 -0800 (PST)
+Date: Wed, 5 Feb 2003 00:48:23 -0800
+From: Andrew Morton <akpm@digeo.com>
+Subject: Re: Doubt in pagefault handler..!
+Message-Id: <20030205004823.30acdfe0.akpm@digeo.com>
+In-Reply-To: <20030204174944.GA836@192.168.3.73>
+References: <20030204174944.GA836@192.168.3.73>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: John Navil Joseph <cs99185@nitc.ac.in>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> "Martin J. Bligh" <mbligh@aracnet.com> wrote:
->> 
->> > http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm8/
->> 
->> Booted to login prompt, then immediately oopsed 
->> (16-way NUMA-Q, mm6 worked fine). At a wild guess, I'd suspect 
->> irq_balance stuff.
->> 
-> 
-> There are a lot of scsi updates in Linus's tree.  Can you please
-> test just
-> 
-> http://www.zip.com.au/~akpm/linux/patches/2.5/2.5.59/2.5.59-mm8/broken-out/linus.patch
+John Navil Joseph <cs99185@nitc.ac.in> wrote:
+>
+> 	1) add the current process to a wait queue 
+> 	2) invoke schedule() from the page fault handler
+> 	3) wake up the process after the transfer has been completed.
 
-Yup, the SCSI code in Linus' tree has broken since 2.5.59.
-I reproduced this on my 4-way SMP machine (panic from that below), 
-so it's not just NUMA-Q wierdness ;-)
+You probably don't need to do all that by hand - you should be calling
+non-blocking functions in the network layer, and waking the faulting process
+up on completion of network I/O (based on interrupt-time networking
+callbacks).
 
-M.
+Looking at the NFS and SMB client code may help.
 
-Unable to handle kernel NULL pointer dereference at virtual address 0000013c
- printing eip:
-c01c1986
-*pde = 00000000
-Oops: 0002
-CPU:    3
-EIP:    0060:[<c01c1986>]    Not tainted
-EFLAGS: 00010046
-EIP is at isp1020_intr_handler+0x1e6/0x290
-eax: 00000000   ebx: f7c42080   ecx: 00000000   edx: 00000054
-esi: 00000002   edi: 00000013   ebp: 00000000   esp: f7f97efc
-ds: 007b   es: 007b   ss: 0068
-Process swapper (pid: 0, threadinfo=f7f96000 task=f7f9d240)
-Stack: f7c42080 f7c52800 00000002 00000013 f7f97f80 00000003 00000003 f7c5289c 
-       f7c52800 c01c1791 00000013 f7c52800 f7f97f80 f7ffe1e0 24000001 c010a815 
-       00000013 f7c52800 f7f97f80 c028fa60 00000260 00000013 f7f97f78 c010a9e6 
-Call Trace:
- [<c01c1791>] do_isp1020_intr_handler+0x25/0x34
- [<c010a815>] handle_IRQ_event+0x29/0x4c
- [<c010a9e6>] do_IRQ+0x96/0x100
- [<c0106ca0>] default_idle+0x0/0x34
- [<c01094a8>] common_interrupt+0x18/0x20
- [<c0106ca0>] default_idle+0x0/0x34
- [<c0106cc9>] default_idle+0x29/0x34
- [<c0106d53>] cpu_idle+0x37/0x48
- [<c0119d21>] printk+0x149/0x160
+> i tried to trace pagefault handler all the way down to where the acutal IO
+> takes palce incase of the transfer of page from swap to memory..But i never
+> saw schedule() anywhere. But i know that process sleeps on page I/O .. then
+> how and where does this sleeping takes place.?
 
-Code: 89 85 3c 01 00 00 83 c4 04 eb 0a c7 85 3c 01 00 00 00 00 07 
- <0>Kernel panic: Aiee, killing interrupt handler!
-In interrupt handler - not syncing
+The faulting process will sleep in wait_on_page() or lock_page().  See
+filemap_nopage(), around the page_not_uptodate label.
+
+The filesystem's responsibility is to run unlock_page() against the page once
+its contents have been filled in from the backing medium (disk, network,
+etc).  it will typically do this from interrupt context.  The unlock_page()
+will wake up the faulting process.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
