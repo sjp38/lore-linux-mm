@@ -1,75 +1,63 @@
-From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <200003172351.PAA37000@google.engr.sgi.com>
+Date: Fri, 17 Mar 2000 18:59:19 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: More VM balancing issues..
-Date: Fri, 17 Mar 2000 15:51:50 -0800 (PST)
-In-Reply-To: <Pine.LNX.4.10.10003171523270.987-100000@penguin.transmeta.com> from "Linus Torvalds" at Mar 17, 2000 03:31:52 PM
+In-Reply-To: <200003172223.OAA37594@google.engr.sgi.com>
+Message-ID: <Pine.LNX.4.10.10003171847170.831-100000@penguin.transmeta.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Christopher Zimmerman <zim@av.com>, linux-mm@kvack.org
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>, Christopher Zimmerman <zim@av.com>, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-> 
-> 
-> Oh, I found another problem: when the VM balancing was rewritten, the
-> "pages_low" thing was still calculated, but nothing actually USED it.
+Kanoj,
+ would you mind looking at the balancing idea in pre2-4? I put it out that
+way, because it's the easiesy way for me to show what I was thinking
+about, but it may be something I just punt on for a real pre-2.4 kernel..
 
-2.3.50 did.
+Basically, I never liked the thing that was based on adding up the total
+and free pages of different zones. It gave us the old 2.2 behaviour (or
+close to it), but it's a global decision on something that really is a
+local issue, I think. And it definitely doesn't make sense on a NUMA thing
+at all.
 
-This is one of the things I pointed out in the recent balancing patch. 
-The patch I sent to Christopher tries to fix it and go back to 2.3.50
-bahavior.
+So I have this feeling that balancing really should be purely a per-zone
+thing, and purely based on the size and freeness of that particular zone.
+That would allow us to make clear decisions like "we want to keep 2% of
+the regular zones free, but for the DMA zone we want to keep that 10% free
+because it more easily becomes a resource issue". 
 
-Again, Documentation/vm/balance has comments about this which were
-true till 2.3.50.
+So my approach would be:
+ - each zone is completely independent
+ - when allocating from a zone-list, the act of allocation is the only
+   thing that should care about the "conglomerate" of zones.
 
-AFAIR, Andrea put this stuff into 2.3, round about 2.3.40 or so timeframe.
+So what I do in pre2-4 is basically:
+ - __alloc_pages() walks all zones. If it finds one that has "enough"
+   pages, it will just allocate from the first such zone it finds.
+ - if none of the zones have "enough" pages, it does a zone-list balance. 
+ - the zone-list balance will walk the list of zones again, and do the
+   right thing for each of them. It will return successfully if it was
+   able to free up some memory (or if it decides that it's not critical
+   and we could just start kswapd without even trying to free anything
+   ourselves)
+ - if the zonelist balance succeeded, __alloc_pages() will walk the zones
+   again and try to allocate memory, this time regardless of whether they
+   have "enough" memory (because we freed some memory we can do that).
 
+This avoids making any global decisions: it works naturally whatever the
+zone-list looks like. It still tries to first allocate from the first
+zone-lists, so it still has the advantage of leaving the DMA zone-list
+pretty quiescent as it's the last zone on the lists - so the DMA zone list
+will tend to have "enough" pages.
 
-> 
-> So we had three water-marks: "enough for anything", "low on memory" and
-> "critical".
-> 
-> And we somehow lost the "low on memory" and only used the "enough" and
-> "critical" to do all comparisons.
+What my patch does NOT do is to change the zone_balance_ratio[] stuff etc,
+but I think that with this approach it is now truly meaningful to do that,
+and that we now really _can_ try to keep the DMA area at a certain
+percentage etc..
 
-This was also done properly in 2.3.50, and changed in the recent patch.
-
-Maybe its time that tweaks to the balancing code get documented in
-Documentation/vm/balance. Its easier all around to keep track of 
-what's happening.
-
-Kanoj
-> 
-> Which makes for a _very_ choppy balance, and is definitely wrong.
-> 
-> The behaviour should be something like:
->  - whenever we dip below "low", we wake up kswapd. kswapd remains awake
->    (for that zone) until we reach "enough".
->  - whenever we dip below "critical", we start doing synchronous memory
->    freeing ourselves. We continue to do that until we reach "low" again
->    (at which point kswapd will still continue in the background, but we
->    don't depend on the synchronous freeing any more).
-> 
-> but for some time we appear to have gotten this wrong, and lost the "low"
-> mark, and used the "critical" and "high" marks only. 
-> 
-> Or maybe somebody did some testing and decided to disagree with the old
-> three-level thing based on actual numbers? The only coding I've done has
-> been based on "this is how I think it should work, and because I'm always
-> right it's obviously the way it _should_ work". Which is not always the
-> approach that gets the best results ;)
-> 
-> 		Linus
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux.eu.org/Linux-MM/
-> 
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
