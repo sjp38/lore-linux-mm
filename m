@@ -1,82 +1,56 @@
-Date: Mon, 29 Mar 2004 19:12:34 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity
-    fix
-In-Reply-To: <20040329172248.GR3808@dualathlon.random>
-Message-ID: <Pine.LNX.4.44.0403291843320.18876-100000@localhost.localdomain>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Date: Mon, 29 Mar 2004 19:38:16 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
+Message-ID: <20040329193816.A17065@infradead.org>
+References: <20040329172248.GR3808@dualathlon.random> <Pine.LNX.4.44.0403291843320.18876-100000@localhost.localdomain> <20040329182051.GD3808@dualathlon.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20040329182051.GD3808@dualathlon.random>; from andrea@suse.de on Mon, Mar 29, 2004 at 08:20:51PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: Rajesh Venkatasubramanian <vrajesh@umich.edu>, akpm@osdl.org, riel@redhat.com, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Hugh Dickins <hugh@veritas.com>, Rajesh Venkatasubramanian <vrajesh@umich.edu>, akpm@osdl.org, riel@redhat.com, mingo@elte.hu, linux-kernel@vger.kernel.org, linux-mm@kvack.org, roehrich@sgi.com
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 29 Mar 2004, Andrea Arcangeli wrote:
+On Mon, Mar 29, 2004 at 08:20:51PM +0200, Andrea Arcangeli wrote:
+> > > --- sles/fs/xfs/dmapi/dmapi_xfs.c.~1~	2004-03-29 18:33:03.781501328 +0200
+> > > +++ sles/fs/xfs/dmapi/dmapi_xfs.c	2004-03-29 18:58:57.754261560 +0200
+> > > @@ -228,17 +228,21 @@ prohibited_mr_events(
+> > >  	struct address_space *mapping = LINVFS_GET_IP(vp)->i_mapping;
+> > >  	int prohibited = (1 << DM_EVENT_READ);
+> > >  	struct vm_area_struct *vma;
+> > > +	struct prio_tree_iter iter;
+> > >  
+> > >  	if (!VN_MAPPED(vp))
+> > >  		return 0;
+> > >  
+> > >  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
+> > >  	down(&mapping->i_shared_sem);
+> > > -	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
+> > > +	vma = __vma_prio_tree_first(&mapping->i_mmap_shared, &iter, 0, ULONG_MAX);
+> > > +	while (vma) {
+> > >  		if (!(vma->vm_flags & VM_DENYWRITE)) {
+> > >  			prohibited |= (1 << DM_EVENT_WRITE);
+> > >  			break;
+> > >  		}
+> > > +
+> > > +		vma = __vma_prio_tree_next(vma, &mapping->i_mmap_shared, &iter, 0, ULONG_MAX);
+> > >  	}
+> > >  	up(&mapping->i_shared_sem);
+> > >  #else
+> > 
+> > This looks horrid (not your change, the original), and would need to look
+> > at nonlinears too; but I thought this was what i_writecount < 0 is for?
 > 
-> Here a further update for xfs:
-> 
-> --- sles/fs/xfs/linux/xfs_vnode.h.~1~	2004-03-29 18:33:20.047028592 +0200
-> +++ sles/fs/xfs/linux/xfs_vnode.h	2004-03-29 19:02:37.101915648 +0200
-> @@ -601,8 +601,8 @@ static __inline__ void vn_flagclr(struct
->   * Some useful predicates.
->   */
->  #define VN_MAPPED(vp)	\
-> -	(!list_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap)) || \
-> -	(!list_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap_shared))))
-> +	(!prio_tree_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap)) || \
-> +	(!prio_tree_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap_shared))))
->  #define VN_CACHED(vp)	(LINVFS_GET_IP(vp)->i_mapping->nrpages)
->  #define VN_DIRTY(vp)	mapping_tagged(LINVFS_GET_IP(vp)->i_mapping, \
->  					PAGECACHE_TAG_DIRTY)
+> no idea what's the point of this stuff, Christoph maybe wants to
+> elaborate.
 
-Needs also to check
-	!list_empty(&(LINVFS_GET_IP(vp)->i_mapping->i_mmap_nonlinear))
+That's dmapi, a standard for Hierachial Storage Management.  The code is not
+in mainline for a reason, no idea where you got it from.
 
-Various arches need a similar conversion too (and use page_mapping(page)
-rather than page->mapping: see arch and include/asm in my anobjrmap 3/6).
-
-Those arches which do more than test list_empty (now prio_tree_empty),
-arm and parisc (I think that's all): look as if they can take full
-advantage of the prio tree; and I hope we can ignore the nonlinears
-in those cases - if a page is mapped in a nonlinear vma it may suffer
-from  D-cache aliasing inconsistencies if also mapped elsewhere in
-that user address space, never mind.  Is that reasonable?
-
-> and really some other bigger tree needs this part too (not a mainline
-> issue).
-> 
-> --- sles/fs/xfs/dmapi/dmapi_xfs.c.~1~	2004-03-29 18:33:03.781501328 +0200
-> +++ sles/fs/xfs/dmapi/dmapi_xfs.c	2004-03-29 18:58:57.754261560 +0200
-> @@ -228,17 +228,21 @@ prohibited_mr_events(
->  	struct address_space *mapping = LINVFS_GET_IP(vp)->i_mapping;
->  	int prohibited = (1 << DM_EVENT_READ);
->  	struct vm_area_struct *vma;
-> +	struct prio_tree_iter iter;
->  
->  	if (!VN_MAPPED(vp))
->  		return 0;
->  
->  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
->  	down(&mapping->i_shared_sem);
-> -	list_for_each_entry(vma, &mapping->i_mmap_shared, shared) {
-> +	vma = __vma_prio_tree_first(&mapping->i_mmap_shared, &iter, 0, ULONG_MAX);
-> +	while (vma) {
->  		if (!(vma->vm_flags & VM_DENYWRITE)) {
->  			prohibited |= (1 << DM_EVENT_WRITE);
->  			break;
->  		}
-> +
-> +		vma = __vma_prio_tree_next(vma, &mapping->i_mmap_shared, &iter, 0, ULONG_MAX);
->  	}
->  	up(&mapping->i_shared_sem);
->  #else
-
-This looks horrid (not your change, the original), and would need to look
-at nonlinears too; but I thought this was what i_writecount < 0 is for?
-
-Hugh
-
+AFAIK the code tries to detect whether there could be anyone writing to the
+vma, but ask Dean for the details
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
