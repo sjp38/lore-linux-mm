@@ -1,152 +1,53 @@
-Subject: Re: [PATCH] break out zone free list initialization
-From: Dave Hansen <haveblue@us.ibm.com>
-In-Reply-To: <1091034585.2871.142.camel@nighthawk>
-References: <1091034585.2871.142.camel@nighthawk>
-Content-Type: multipart/mixed; boundary="=-4x/JSAw8ql1LssxcYOWx"
-Message-Id: <1091035401.2871.162.camel@nighthawk>
+Date: Wed, 28 Jul 2004 11:16:45 -0700
+From: Mike Kravetz <kravetz@us.ibm.com>
+Subject: Re: Use of __pa() with CONFIG_NONLINEAR
+Message-ID: <20040728181645.GA13758@w-mikek2.beaverton.ibm.com>
+References: <1090965630.15847.575.camel@nighthawk>
 Mime-Version: 1.0
-Date: Wed, 28 Jul 2004 10:23:21 -0700
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1090965630.15847.575.camel@nighthawk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: William Lee Irwin III <wli@holomorphy.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Joel Schopp <jschopp@austin.ibm.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
---=-4x/JSAw8ql1LssxcYOWx
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-
-On Wed, 2004-07-28 at 10:09, Dave Hansen wrote:
-> The following patch removes the individual free area initialization from
-> free_area_init_core(), and puts it in a new function
-> zone_init_free_lists().  It also creates pages_to_bitmap_size(), which
-> is then used in zone_init_free_lists() as well as several times in my
-> free area bitmap resizing patch.  
+On Tue, Jul 27, 2004 at 03:00:30PM -0700, Dave Hansen wrote:
+> So, for CONFIG_NONLINEAR, we introduce a new indirection layer for
+> virtual to physical conversions (and the inverse as well).  Our
+> implementation uses some data structures to do this (patch is here:
+> http://lwn.net/Articles/79124/), and the side-effect is that we can't
+> use __pa() or __va() until after the initialization has run, which is
+> early in setup_arch().
 > 
-> First of all, I think it looks nicer this way, but it's also necessary
-> to have this if you want to initialize a zone after system boot, like if
-> a NUMA node was hot-added.  In any case, it should be functionally
-> equivalent to the old code.
+> But, there are quite a few things that obviously need physical addresses
+> earlier than that, such as cr3 initialization at compile-time.  So, in
+> Dave McCracken's patch, he introduced a new function: __boot_pa() that
+> does what the old __pa() did.
 > 
-> Compiles and boots on x86.  I've been running with this for a few weeks,
-> and haven't seen any problems with it yet.
 
-OK, I suck.  Here's one that applies with -p1 properly and doesn't add
-whitespace on the line above the zone_init_free_lists() call.
+As Joel Stated in another note, I think documentation/comments is a must.
+My 'guess' is that anyone writing early init code is going to have a
+difficult time here.  As you stated the memsection initialization would
+happen in setup_arch().  For arch independent code this makes it pretty
+straight forward as everything run before the setup_arch() can use
+the old/offset method of calculating physical addresses and everything
+after can use the new method.  However, the arch specific initialization
+code is more difficult as it depends on where the call paths are relative
+to setup/alloc_memsections within setup_arch().
 
- page_alloc.c |   84 +++++++++++++++++++++++++++++++++--------------------------
- 1 files changed, 47 insertions(+), 37 deletions(-)
+When I was trying to get nonlinear working on a specific architecture,
+I made the routines go through 'pointer to functions' and had the memsections
+initialization code modify the pointer after initialization was complete.
+In this way, I got the nonlinear code code up and working without changing
+all the early __pa/__va calls.  Obviously, this is a hack that should not
+be used as it introduces another level of indirection to performance
+critical code.  However, it was easy and saved me the effort of all that
+code inspection. :)
 
--- Dave
-
---=-4x/JSAw8ql1LssxcYOWx
-Content-Disposition: attachment; filename=zoneinit_cleanup-2.6.8-rc1-mm1-1.patch
-Content-Type: text/x-patch; name=zoneinit_cleanup-2.6.8-rc1-mm1-1.patch; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 7bit
-
---- linux-2.6.8-rc1-mm1.work/mm/page_alloc.c.orig	2004-07-28 10:04:56.000000000 -0700
-+++ linux-2.6.8-rc1-mm1.work/mm/page_alloc.c		2004-07-28 10:09:09.000000000 -0700
-@@ -1413,6 +1413,52 @@
- 	}
- }
- 
-+/*
-+ * Page buddy system uses "index >> (i+1)", where "index" is 
-+ * at most "size-1".
-+ *
-+ * The extra "+3" is to round down to byte size (8 bits per byte
-+ * assumption). Thus we get "(size-1) >> (i+4)" as the last byte
-+ * we can access.
-+ *
-+ * The "+1" is because we want to round the byte allocation up 
-+ * rather than down. So we should have had a "+7" before we shifted
-+ * down by three. Also, we have to add one as we actually _use_ the
-+ * last bit (it's [0,n] inclusive, not [0,n[).
-+ *
-+ * So we actually had +7+1 before we shift down by 3. But 
-+ * (n+8) >> 3 == (n >> 3) + 1 (modulo overflows, which we do not have).
-+ *
-+ * Finally, we LONG_ALIGN because all bitmap operations are on longs.
-+ */
-+unsigned long pages_to_bitmap_size(unsigned long order, unsigned long nr_pages)
-+{
-+	unsigned long bitmap_size;
-+
-+	bitmap_size = (nr_pages-1) >> (order+4);
-+	bitmap_size = LONG_ALIGN(bitmap_size+1);
-+
-+	return bitmap_size;
-+}
-+
-+void zone_init_free_lists(struct pglist_data *pgdat, struct zone *zone, unsigned long size)
-+{
-+	int order;
-+	for (order = 0; ; order++) {
-+		unsigned long bitmap_size;
-+
-+		INIT_LIST_HEAD(&zone->free_area[order].free_list);
-+		if (order == MAX_ORDER-1) {
-+			zone->free_area[order].map = NULL;
-+			break;
-+		}
-+
-+		bitmap_size = pages_to_bitmap_size(order, size);
-+		zone->free_area[order].map = 
-+		  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
-+	}
-+}
-+
- #ifndef __HAVE_ARCH_MEMMAP_INIT
- #define memmap_init(start, size, nid, zone, start_pfn) \
- 	memmap_init_zone((start), (size), (nid), (zone), (start_pfn))
-@@ -1529,43 +1575,7 @@
- 		zone_start_pfn += size;
- 		lmem_map += size;
- 
--		for (i = 0; ; i++) {
--			unsigned long bitmap_size;
--
--			INIT_LIST_HEAD(&zone->free_area[i].free_list);
--			if (i == MAX_ORDER-1) {
--				zone->free_area[i].map = NULL;
--				break;
--			}
--
--			/*
--			 * Page buddy system uses "index >> (i+1)",
--			 * where "index" is at most "size-1".
--			 *
--			 * The extra "+3" is to round down to byte
--			 * size (8 bits per byte assumption). Thus
--			 * we get "(size-1) >> (i+4)" as the last byte
--			 * we can access.
--			 *
--			 * The "+1" is because we want to round the
--			 * byte allocation up rather than down. So
--			 * we should have had a "+7" before we shifted
--			 * down by three. Also, we have to add one as
--			 * we actually _use_ the last bit (it's [0,n]
--			 * inclusive, not [0,n[).
--			 *
--			 * So we actually had +7+1 before we shift
--			 * down by 3. But (n+8) >> 3 == (n >> 3) + 1
--			 * (modulo overflows, which we do not have).
--			 *
--			 * Finally, we LONG_ALIGN because all bitmap
--			 * operations are on longs.
--			 */
--			bitmap_size = (size-1) >> (i+4);
--			bitmap_size = LONG_ALIGN(bitmap_size+1);
--			zone->free_area[i].map = 
--			  (unsigned long *) alloc_bootmem_node(pgdat, bitmap_size);
--		}
-+		zone_init_free_lists(pgdat, zone, zone->spanned_pages);
- 	}
- }
- 
-
---=-4x/JSAw8ql1LssxcYOWx--
-
+-- 
+Mike
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
