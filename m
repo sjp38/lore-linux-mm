@@ -1,39 +1,39 @@
-Date: Thu, 17 Aug 2000 12:30:42 -0700
-Message-Id: <200008171930.MAA23963@pizda.ninka.net>
-From: "David S. Miller" <davem@redhat.com>
-In-reply-to: <200008171932.MAA93790@google.engr.sgi.com> (message from Kanoj
-	Sarcar on Thu, 17 Aug 2000 12:32:35 -0700 (PDT))
+From: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Message-Id: <200008171950.MAA45378@google.engr.sgi.com>
 Subject: Re: pte_pagenr/MAP_NR deleted in pre6
-References: <200008171932.MAA93790@google.engr.sgi.com>
+Date: Thu, 17 Aug 2000 12:50:40 -0700 (PDT)
+In-Reply-To: <200008171920.MAA23931@pizda.ninka.net> from "David S. Miller" at Aug 17, 2000 12:20:50 PM
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: kanoj@google.engr.sgi.com
-Cc: sct@redhat.com, roman@augan.com, linux-mm@kvack.org, linux-kernel@vger.redhat.com, rmk@arm.linux.org.uk, nico@cam.org, davidm@hpl.hp.com, alan@lxorguk.ukuu.org.uk
+To: "David S. Miller" <davem@redhat.com>
+Cc: alan@lxorguk.ukuu.org.uk, sct@redhat.com, roman@augan.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, rmk@arm.linux.org.uk, nico@cam.org, davidm@hpl.hp.com
 List-ID: <linux-mm.kvack.org>
 
-BTW, I've sed s/vger.rutgers.edu/vger.redhat.com/
+> 
+>    So you'll be adding an isa_alloc_consistant, mca_alloc_consistent, 
+>    m68k_motherboard_alloc_consistent , ....
+> 
+> I'll probably be adding isa_virt_to_bus, because when it is in fact
+> "ISA like" the driver already knows that it must be certain that the
+> physical address is below the 16MB mark right?  Then the cases left on
+> x86 are MCA (which can use the ISA interface) and PCI drivers which
+> must be updated to use the PCI dma API.
+>
 
-   Wait! You are saying you have a scheme that will prevent writers 
-   from writing buggy code that happens to work only on 32Mb i386 ...
-   Go ahead, I am all ears :-)
+Just a minor nit. 
 
-I understand your point, but please understand mine.
+So, unlike system vendors adding in dma mapping registers for PCI32
+devices to dma anywhere into their >32 bit physical address space, you 
+are assuming no vendor will ever have a mapping scheme for ISA devices
+that let them get over the 16MB mark? 
 
-One might laugh, but after I read and really considered some of the
-points made by the author of "Writing Solid Code" in that book, I
-realized that one of my jobs as someone creating an API is that I
-should be trying as hard as possible to design it such that it is next
-to impossible to misuse it.
+Of course, I am not aware of ISA that much anyway (and I hope I don't
+have to!), so please ignore this if it doesn't make sense.
 
-Secondly, I learned that I shouldn't be adding API's spuriously
-because it will end up being maintained forever, re: the
-kern_addr_looks_ok sillyness :-)
-
-So anyways, I was probably being overly anal for this particular case.
-
-Later,
-David S. Miller
-davem@redhat.com
+Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
