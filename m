@@ -1,90 +1,212 @@
-Received: from oscar.casa.dyndns.org ([65.92.167.49])
-          by tomts9-srv.bellnexxia.net
-          (InterMail vM.5.01.04.19 201-253-122-122-119-20020516) with ESMTP
-          id <20020902154022.IJLU14397.tomts9-srv.bellnexxia.net@oscar.casa.dyndns.org>
-          for <linux-mm@kvack.org>; Mon, 2 Sep 2002 11:40:22 -0400
-Received: from oscar (localhost [127.0.0.1])
-	by oscar.casa.dyndns.org (Postfix) with ESMTP id C957A1907A
-	for <linux-mm@kvack.org>; Mon,  2 Sep 2002 11:38:34 -0400 (EDT)
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Fwd: Re: slablru for 2.5.32-mm1
-Date: Mon, 2 Sep 2002 11:38:34 -0400
+Message-ID: <3D73AF73.C8FE455@zip.com.au>
+Date: Mon, 02 Sep 2002 11:35:31 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200209021138.34183.tomlins@cam.org>
+Subject: Re: slablru for 2.5.32-mm1
+References: <200208261809.45568.tomlins@cam.org> <200208281306.58776.tomlins@cam.org> <3D72F675.920DC976@zip.com.au> <200209021100.47508.tomlins@cam.org>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ed Tomlinson <tomlins@cam.org>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On September 2, 2002 02:50 am, Andrew Morton wrote:
-> hm.  Doing a bit more testing...
->
-> mem=512m, then build the inode and dentry caches up a bit:
->
->   ext2_inode_cache:    20483KB    20483KB  100.0
->        buffer_head:     6083KB     6441KB   94.43
->       dentry_cache:     4885KB     4885KB  100.0
->
-> (using wli's bloatmeter, attached here).
->
-> Now,
->
-> 	dd if=/dev/zero of=foo bs=1M count=2000
->
->   ext2_inode_cache:     3789KB     8148KB   46.50
->        buffer_head:     6469KB     6503KB   99.47
->           size-512:     1450KB     1500KB   96.66
->
-> this took quite a long time to start dropping, and the machine
-> still has 27 megabytes in slab.
+Ed Tomlinson wrote:
+> 
+> On September 2, 2002 01:26 am, Andrew Morton wrote:
+> > Ed, this code can be sped up a bit, I think.  We can make
+> > kmem_count_page() return a boolean back to shrink_cache(), telling it
+> > whether it needs to call kmem_do_prunes() at all.  Often, there won't
+> > be any work to do in there, and taking that semaphore can be quite
+> > costly.
+> >
+> > The code as-is will even run kmem_do_prunes() when we're examining
+> > ZONE_HIGHMEM, which certainly won't have any slab pages.  This boolean
+> > will fix that too.
+> 
+> How about this?  I have modified things so we only try for the sem if there
+> is work to do.  It also always uses a down_trylock - if we cannot do the prune
+> now later is ok too...
+> 
 
-What do you see in proc/slabinfo?  Bet the cache has been trimmed, but
-pages are still busy.  It can and does take a while before we can start
-freeing pages.  We can have lots of free space in a slab but not be able
-to free any pages...
+well...   Using a global like that is a bit un-linuxy.  (bitops
+are only defined on longs, btw...)
 
-How far we have to go before pages can be free is probably related to
-fn(pages in slab, slabs per page).  If we understood this function better
-we could apply more pressure to caches as required.  So far I do not really
-think this complexity is needed.
+How about this one?  It does both:  tells the caller whether or
+not to perform the shrink, and defers the pruning until we
+have at least a page's worth of objects to be pruned.
 
-> Which kinda surprises me, given my (probably wrong) description of the
-> algorithm.  I'd have expected the caches to be pruned a lot faster and
-> further than this.  Not that it's necessarily a bad thing, but maybe we
-> should be shrinking a little faster.  What are your thoughts on this?
+Also, make sure that only the CPU which was responsible for
+the transition-past-threshold is told to do some pruning.  Reduces
+the possibility of two CPUs running the prune.
 
-I would leave it as is.  We _are_ now balance re the rest of the box.
-Try to second guess at this point is probably not that good an idea.
+Also, when we make the sweep across the to-be-pruned caches, only
+prune the ones which are over threshold.
 
-> Also, I note that age_dcache_memory is being called for lots of
-> tiny little shrinkings:
->
-> Breakpoint 1, age_dcache_memory (cachep=0xc1911e48, entries=1,
-> gfp_mask=464) at dcache.c:585 Breakpoint 1, age_dcache_memory
-> (cachep=0xc1911e48, entries=2, gfp_mask=464) at dcache.c:585 Breakpoint 1,
-> age_dcache_memory (cachep=0xc1911e48, entries=4, gfp_mask=464) at
-> dcache.c:585 Breakpoint 1, age_dcache_memory (cachep=0xc1911e48,
-> entries=12, gfp_mask=464) at dcache.c:585 Breakpoint 1, age_dcache_memory
-> (cachep=0xc1911e48, entries=21, gfp_mask=464) at dcache.c:585 Breakpoint 1,
-> age_dcache_memory (cachep=0xc1911e48, entries=42, gfp_mask=464) at
-> dcache.c:585 Breakpoint 1, age_dcache_memory (cachep=0xc1911e48,
-> entries=10, gfp_mask=464) at dcache.c:585
->
-> I'd suggest that we batch these up a bit: call the pruner less
-> frequently, but with larger request sizes, save a few cycles.
+Breakpoint 1, age_dcache_memory (cachep=0xc189f66c, entries=396, gfp_mask=464) at dcache.c:585
+Breakpoint 1, age_dcache_memory (cachep=0xc189f66c, entries=66, gfp_mask=464) at dcache.c:585
+Breakpoint 1, age_dcache_memory (cachep=0xc189f66c, entries=429, gfp_mask=464) at dcache.c:585
+Breakpoint 1, age_dcache_memory (cachep=0xc189f66c, entries=66, gfp_mask=464) at dcache.c:585
+Breakpoint 1, age_dcache_memory (cachep=0xc189f66c, entries=264, gfp_mask=464) at dcache.c:585
+Breakpoint 1, age_dcache_memory (cachep=0xc189f66c, entries=198, gfp_mask=464) at dcache.c:585
+Breakpoint 1, age_dcache_memory (cachep=0xc189f66c, entries=66, gfp_mask=464) at dcache.c:585
+Breakpoint 1, age_dcache_memory (cachep=0xc189f66c, entries=429, gfp_mask=464) at dcache.c:585
+Breakpoint 1, age_dcache_memory (cachep=0xc189f66c, entries=66, gfp_mask=464) at dcache.c:585
+Breakpoint 1, age_dcache_memory (cachep=0xc189f66c, entries=66, gfp_mask=464) at dcache.c:585
 
-We could move the call into try_to_free_pages...  I do they its better where
- it is now. Think the idea adding a boolean would be more effective though. 
- We are probably aging more than just dcache entries in kmem_do_prunes.  My
- though was if we have the sem lets do all the work we can.
+It'll make things a bit lumpier.  Under high internal fragmentation
+we'll suddenly release great gobs of pages, but I think it'll average
+out OK.
 
-Ed
+What sayest thou?
 
--------------------------------------------------------
+ include/linux/slab.h |    2 +-
+ mm/slab.c            |   23 +++++++++++++++++++----
+ mm/vmscan.c          |   22 ++++++++++++----------
+ 3 files changed, 32 insertions(+), 15 deletions(-)
 
+--- 2.5.33/mm/vmscan.c~slablru-speedup	Mon Sep  2 11:07:33 2002
++++ 2.5.33-akpm/mm/vmscan.c	Mon Sep  2 11:07:33 2002
+@@ -95,8 +95,8 @@ static inline int is_page_cache_freeable
+ }
+ 
+ static /* inline */ int
+-shrink_list(struct list_head *page_list, int nr_pages,
+-		unsigned int gfp_mask, int priority, int *max_scan)
++shrink_list(struct list_head *page_list, int nr_pages, unsigned int gfp_mask,
++		int priority, int *max_scan, int *prunes_needed)
+ {
+ 	struct address_space *mapping;
+ 	LIST_HEAD(ret_pages);
+@@ -124,7 +124,7 @@ shrink_list(struct list_head *page_list,
+ 		 */
+ 		if (PageSlab(page)) {
+ 			int ref = TestClearPageReferenced(page);
+-			if (kmem_count_page(page, ref)) {
++			if (kmem_count_page(page, ref, prunes_needed)) {
+ 				if (kmem_shrink_slab(page))
+ 					goto free_ref;
+ 			}
+@@ -292,8 +292,8 @@ keep:
+  * in the kernel (apart from the copy_*_user functions).
+  */
+ static /* inline */ int
+-shrink_cache(int nr_pages, struct zone *zone,
+-		unsigned int gfp_mask, int priority, int max_scan)
++shrink_cache(int nr_pages, struct zone *zone, unsigned int gfp_mask,
++		int priority, int max_scan, int *prunes_needed)
+ {
+ 	LIST_HEAD(page_list);
+ 	struct pagevec pvec;
+@@ -342,8 +342,8 @@ shrink_cache(int nr_pages, struct zone *
+ 
+ 		max_scan -= n;
+ 		KERNEL_STAT_ADD(pgscan, n);
+-		nr_pages = shrink_list(&page_list, nr_pages,
+-					gfp_mask, priority, &max_scan);
++		nr_pages = shrink_list(&page_list, nr_pages, gfp_mask,
++					priority, &max_scan, prunes_needed);
+ 
+ 		if (nr_pages <= 0 && list_empty(&page_list))
+ 			goto done;
+@@ -489,6 +489,7 @@ shrink_zone(struct zone *zone, int prior
+ {
+ 	unsigned long ratio;
+ 	int max_scan;
++	int prunes_needed = 0;
+ 
+ 	/*
+ 	 * Try to keep the active list 2/3 of the size of the cache.  And
+@@ -509,9 +510,10 @@ shrink_zone(struct zone *zone, int prior
+ 	}
+ 
+ 	max_scan = zone->nr_inactive / priority;
+-	nr_pages = shrink_cache(nr_pages, zone,
+-				gfp_mask, priority, max_scan);
+-	kmem_do_prunes(gfp_mask);
++	nr_pages = shrink_cache(nr_pages, zone, gfp_mask,
++				priority, max_scan, &prunes_needed);
++	if (prunes_needed)
++		kmem_do_prunes(gfp_mask);
+ 
+ 	if (nr_pages <= 0)
+ 		return 0;
+--- 2.5.33/mm/slab.c~slablru-speedup	Mon Sep  2 11:07:33 2002
++++ 2.5.33-akpm/mm/slab.c	Mon Sep  2 11:30:27 2002
+@@ -217,7 +217,8 @@ struct kmem_cache_s {
+ 	unsigned int		growing;
+ 	unsigned int		dflags;		/* dynamic flags */
+ 	kmem_pruner_t		pruner;		/* shrink callback */
+-	int 			count;		/* count used to trigger shrink */
++	int 			count;		/* nr of objects to be pruned */
++	int			prune_thresh;	/* threshold triggers pruning */
+ 
+ 	/* constructor func */
+ 	void (*ctor)(void *, kmem_cache_t *, unsigned long);
+@@ -418,8 +419,11 @@ static void enable_all_cpucaches (void);
+  
+ /* 
+  * Used by shrink_cache to determine caches that need pruning.
++ *
++ * If this particular call to kmem_count_page takes a slab over its to-be-pruned
++ * threshold then we tell the caller that kmem_do_prunes() needs to be called.
+  */
+-int kmem_count_page(struct page *page, int ref)
++int kmem_count_page(struct page *page, int ref, int *prunes_needed)
+ {
+ 	kmem_cache_t *cachep = GET_PAGE_CACHE(page);
+ 	slab_t *slabp = GET_PAGE_SLAB(page);
+@@ -427,7 +431,12 @@ int kmem_count_page(struct page *page, i
+ 
+ 	spin_lock_irq(&cachep->spinlock);
+ 	if (cachep->pruner != NULL) {
++		int old_count = cachep->count;
++
+ 		cachep->count += slabp->inuse;
++		if (old_count < cachep->prune_thresh &&
++				cachep->count >= cachep->prune_thresh)
++			*prunes_needed = 1;
+ 		ret = !slabp->inuse;
+ 	} else {
+ 		ret = !ref && !slabp->inuse;
+@@ -453,8 +462,11 @@ int kmem_do_prunes(int gfp_mask) 
+                 kmem_cache_t *cachep = list_entry(p, kmem_cache_t, next);
+ 		if (cachep->pruner != NULL) {
+ 			spin_lock_irq(&cachep->spinlock);
+-			nr = cachep->count;
+-			cachep->count = 0;
++			nr = 0;
++			if (cachep->count >= cachep->prune_thresh) {
++				nr = cachep->count;
++				cachep->count = 0;
++			}
+ 			spin_unlock_irq(&cachep->spinlock);
+ 			if (nr > 0)
+ 				(*cachep->pruner)(cachep, nr, gfp_mask);
+@@ -872,6 +884,9 @@ next:
+ 	cachep->flags = flags;
+ 	cachep->pruner = thepruner;
+ 	cachep->count = 0;
++	cachep->prune_thresh = 0;
++	if (thepruner)
++		cachep->prune_thresh = PAGE_SIZE / size;
+ 	cachep->gfpflags = 0;
+ 	if (flags & SLAB_CACHE_DMA)
+ 		cachep->gfpflags |= GFP_DMA;
+--- 2.5.33/include/linux/slab.h~slablru-speedup	Mon Sep  2 11:07:33 2002
++++ 2.5.33-akpm/include/linux/slab.h	Mon Sep  2 11:07:33 2002
+@@ -60,7 +60,7 @@ extern int kmem_cache_destroy(kmem_cache
+ extern int kmem_cache_shrink(kmem_cache_t *);
+ 
+ extern int kmem_do_prunes(int);
+-extern int kmem_count_page(struct page *, int);
++extern int kmem_count_page(struct page *page, int ref, int *prunes_needed);
+ #define kmem_touch_page(addr)	SetPageReferenced(virt_to_page(addr));
+ 
+ /* shrink a slab */
+
+.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
