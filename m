@@ -1,37 +1,30 @@
-Date: Fri, 3 Aug 2001 20:35:14 -0700 (PDT)
+Date: Fri, 3 Aug 2001 20:38:49 -0700 (PDT)
 From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-In-Reply-To: <Pine.LNX.4.33L.0108040022110.2526-100000@imladris.rielhome.conectiva>
-Message-ID: <Pine.LNX.4.33.0108032030430.15155-100000@penguin.transmeta.com>
+In-Reply-To: <Pine.LNX.4.33.0108032318330.14842-100000@touchme.toronto.redhat.com>
+Message-ID: <Pine.LNX.4.33.0108032036120.15155-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: Daniel Phillips <phillips@bonn-fries.net>, Ben LaHaise <bcrl@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Ben LaHaise <bcrl@redhat.com>
+Cc: Daniel Phillips <phillips@bonn-fries.net>, Rik van Riel <riel@conectiva.com.br>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 4 Aug 2001, Rik van Riel wrote:
-> On Fri, 3 Aug 2001, Linus Torvalds wrote:
+On Fri, 3 Aug 2001, Ben LaHaise wrote:
 >
-> > Please just remove the code instead. I don't think it buys you anything.
->
-> IIRC you applied the patch introducing that logic because it
-> gave a 25% performance increase under some write intensive
-> loads (or something like that).
+> No.  Here's the bug in the block layer that was causing the throttling not
+> to work.  Leave the logic in, it has good reason -- think of batching of
+> io, where you don't want to add just one page at a time.
 
-That's the batching code, which is somewhat intertwined with the same
-code.
+I absolutely agree on the batching, but this has nothing to do with
+batching. The batching code uses "batch_requests", and the fact that we
+free the finished requests to another area.
 
-The batching code is a separate issue: when we free the requests, we don't
-actually make them available as they get free'd (because then the waiters
-will trickle out new requests one at a time and cannot do any merging
-etc).
-
-Also, the throttling code probably _did_ make behaviour nicer back when
-"sync()" used to use ll_rw_block().  Of course, now most of the IO layer
-actually uses "submit_bh()" and bypasses this code completely, so only the
-ones that still use it get hit by the unfairness. What a double whammy ;)
+The ll_rw_block() code really _is_ broken. As proven by the fact that it
+doesn't even get invoced most of the time.. And the times it _does_ get
+invoced is exactly when it shouldn't (guess what the biggest user of
+"ll_rw_block()" tends to be? "bread()")
 
 		Linus
 
