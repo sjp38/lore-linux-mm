@@ -1,46 +1,46 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id BEE063947B
-	for <linux-mm@kvack.org>; Wed, 18 Sep 2002 13:18:09 -0300 (EST)
-Date: Wed, 18 Sep 2002 13:17:57 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: VolanoMark Benchmark results for 2.5.26, 2.5.26 + rmap, 2.5.35,and
-   2.5.35 + mm1
-In-Reply-To: <3D88A575.D25CE720@austin.ibm.com>
-Message-ID: <Pine.LNX.4.44L.0209181316280.1519-100000@duckman.distro.conectiva>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id JAA23228
+	for <linux-mm@kvack.org>; Wed, 18 Sep 2002 09:29:41 -0700 (PDT)
+Message-ID: <3D88A9F5.F39ECD20@digeo.com>
+Date: Wed, 18 Sep 2002 09:29:41 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] recognize MAP_LOCKED in mmap() call
+References: <3D815C8C.4050000@us.ibm.com> <1031922352.9056.14.camel@irongate.swansea.linux.org.uk> <20020913213042.GD3530@holomorphy.com> <200209181207.26655.frankeh@watson.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Bill Hartner <bhartner@austin.ibm.com>
-Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
+To: frankeh@watson.ibm.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 18 Sep 2002, Bill Hartner wrote:
+Hubertus Franke wrote:
+> 
+> Andrew, at the current time an mmap() ignores a MAP_LOCKED passed to it.
+> The only way we can get VM_LOCKED associated with the newly created VMA
+> is to have previously called mlockall() on the process which sets the
+> mm->def_flags != VM_LOCKED or subsequently call mlock() on the
+> newly created VMA.
+> 
+> The attached patch checks for MAP_LOCKED being passed and if so checks
+> the capabilities of the process. Limit checks were already in place.
 
-> I will baseline on 2.4.19 and run both the 3GB and 4GB VoloanoMark test.
->
-> I will also test with rmap14a.
+Looks sane, thanks.
 
-I released rmap14b last night, with an SMP bugfix you'll want to have:
+It appears that MAP_LOCKED is a Linux-special, so presumably it
+_used_ to work.  I wonder when it broke?
 
-	http://surriel.com/patches/2.4/2.4.19-rmap14b
+You patch applies to 2.4 as well; it would be useful to give that
+a sanity test and send a copy to Marcelo.
 
-> I am currently running (a) rawio on scsi devices and (b) direct io on scsi
-> devices for both read and readv on 2.5.35.  For this test, I am using an
-> 8-way 700 Mhz with (4) IBM 4Mx controllers and 32 disks.
+(SuS really only anticipates that mmap needs to look at prior mlocks
+in force against the address range.  It also says
 
-Hmmm, with near certainty rmap in 2.4 still has a bunch of SMP
-inefficiencies that'll slow you down on an 8-way. If these are
-bothering you I'll do a backport of the 2.5 rmap speedups...
+     Process memory locking does apply to shared memory regions,
 
-regards,
-
-Rik
--- 
-Spamtrap of the month: september@surriel.com
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+and we don't do that either.  I think we should; can't see why SuS
+requires this.)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
