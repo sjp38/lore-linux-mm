@@ -1,35 +1,35 @@
-Message-ID: <3A9AF9E7.D0924A4C@scs.ch>
-Date: Mon, 26 Feb 2001 16:50:47 -0800
-From: Reto Baettig <baettig@scs.ch>
+From: "David S. Miller" <davem@redhat.com>
 MIME-Version: 1.0
-Subject: Re: RFC: vmalloc improvements
-References: <Pine.LNX.4.30.0102240129200.5327-100000@elte.hu>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <15002.64299.147336.376138@pizda.ninka.net>
+Date: Mon, 26 Feb 2001 16:56:11 -0800 (PST)
+Subject: Re: RFC: vmalloc improvements
+In-Reply-To: <3A9AF9E7.D0924A4C@scs.ch>
+References: <Pine.LNX.4.30.0102240129200.5327-100000@elte.hu>
+	<3A9AF9E7.D0924A4C@scs.ch>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: mingo@elte.hu
-Cc: MM Linux <linux-mm@kvack.org>, Kernel Linux <linux-kernel@vger.kernel.org>, Martin Frey <frey@scs.ch>
+To: Reto Baettig <baettig@scs.ch>
+Cc: mingo@elte.hu, MM Linux <linux-mm@kvack.org>, Kernel Linux <linux-kernel@vger.kernel.org>, Martin Frey <frey@scs.ch>
 List-ID: <linux-mm.kvack.org>
 
-Ingo Molnar wrote:
-> question: what is this application, and why does it need so much virtual
-> memory? vmalloc()-able memory is maximized to 128 MB right now, and
-> increasing it conflicts with directly mapping RAM, so generally it's a
-> good idea to avoid vmalloc() as much as possible.
+Reto Baettig writes:
+ > The RPC server needs lots of 2MB receive buffers which are
+ > allocated using vmalloc because the NIC has its own pagetables.
 
-We implemented a RPC mechanism over a fast network in the kernel. The
-end application is a distributed filesystem. The RPC server needs lots
-of 2MB receive buffers which are allocated using vmalloc because the NIC
-has its own pagetables.
-The buffers then get handed to the consumer (lots of threads) which
-eventually frees them. This way, we have a performance on the RPC layer
-of 200MBytes/s.
+Why not just allocate the page seperately and keep track of
+where they are, since the NIC has all the page tabling facilities
+on it's end, the cpu side is just a software issue.  You can keep
+an array of pages how ever large you need to keep track of that.
 
-The 128MB limit is probably an Intel limitation since we don't see it on
-our Alpha Machines (Linux 2.2.18 Alpha SMP)
+vmalloc() was never meant to be used on this level and doing
+so is asking for trouble (it's also deadly expensive on SMP due
+to the cross-cpu tlb invalidates using vmalloc() causes).
 
-Reto
+Later,
+David S. Miller
+davem@redhat.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
