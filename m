@@ -1,81 +1,70 @@
-Received: from d1o43.telia.com (d1o43.telia.com [194.22.195.241])
-	by maile.telia.com (8.9.3/8.9.3) with ESMTP id CAA19419
-	for <linux-mm@kvack.org>; Thu, 8 Jun 2000 02:06:10 +0200 (CEST)
-Received: from norran.net (roger@t8o43p27.telia.com [194.237.168.207])
-	by d1o43.telia.com (8.8.8/8.8.8) with ESMTP id CAA12876
-	for <linux-mm@kvack.org>; Thu, 8 Jun 2000 02:06:09 +0200 (CEST)
-Message-ID: <393EE2FA.43690671@norran.net>
-Date: Thu, 08 Jun 2000 02:04:10 +0200
-From: Roger Larsson <roger.larsson@norran.net>
-MIME-Version: 1.0
-Subject: Re: reduce shrink_mmap rate of failure (initial attempt)
-References: <01BFD09A.CC430AF0@lando.optronic.se>
+Date: Wed, 7 Jun 2000 18:07:37 -0600
+From: Neil Schemenauer <nascheme@enme.ucalgary.ca>
+Subject: VM callbacks and VM design
+Message-ID: <20000607180737.A5943@acs.ucalgary.ca>
+References: <yttem69ccax.fsf@serpe.mitica>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <yttem69ccax.fsf@serpe.mitica>; from quintela@fi.udc.es on Thu, Jun 08, 2000 at 01:16:06AM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.rutgers.edu, lkml <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-Hi again,
+On Thu, Jun 08, 2000 at 01:16:06AM +0200, Juan J. Quintela wrote:
+> After I have been chatting with Ben LaHaise, he has suggested, instead
+> of using especial code for NFS pages and block pages to change/add a
+> new function to address_operations to do the swapout in
+> try_to_swap_pages  and the writepage in shrink_mmap.
 
-There is an even more likely scenario...
+I believe that is exactly what David's anon patch does.  The
+function is called try_to_free_page.  Personally, I think it is a
+great idea.  
 
-* shrink_mmap is called when no zone is under pressure.
-  then it will search the list over and over again...
+IMHO, the long term goal should be to futher unify the Linux VM
+system.  Here is my (possibly misinformed) take on the issue:
 
-Who could do such a nasty thing?
+The resource being managed the the VM system is physical pages.
+When this resource becomes scarce, pressure must be placed on the
+users of these pages.  Pages which well not be needed in the near
+future should be the ones to be freed.
 
-do_try_to_free_pages !
+In order to decide which pages are good candidates for freeing
+the temporal locality heuristic should be used (ie. pages needed
+recently will also be needed in the near future).  Note that this
+is different that "most often used".  I think Rik's latest aging
+patch is slightly wrong in this regard.
 
-  Its agenda is not to stop when there is no pressure - it will go on
-  until FREE_COUNT (8) pages are freed...
+The users who have lots of physical pages in memory will feel the
+most pressure.  If they are actively using these pages the
+pressure will be reduced.  LRU (or some variant to eliminate
+pathological worst case behavior) should be the unified heuristic
+to determine which pages should be freed.  This will provide good
+performance and balance to the system.
 
-Even in the normal ac10 this should be a problem.
-Several turns in do_try_to_free_pages with shrink_mmap failing will be
-done - each swapping out some pages...
+Creating a bunch of distinct caches and trying to balance them is
+the wrong solution.  
 
-It will take time and swap...
+Unfortunately with the current design we do not have a relation
+from physical pages to users of those pages (at least not for all
+types of pages).  David's anon patch fixes this for anonymous
+pages.  With this change the memory management code becomes much
+simpler.  A similar approach should be taken with the SHM code.
 
-/RogerL
+Unfortunately these kinds of changes are too radical to make
+during the so called code freeze so we will have to wait until
+2.5.  I look forward to getting my hands dirty and providing some
+help in this effort.
 
+Thanks for the patch Juan.
 
-Roger Larsson wrote:
-> 
-> >That patch hangs my machine here when I run mmap002.  The machine is
-> >in shrink_mmap.  It hangs trying to get the pagmap_lru_lock.
-> >
-> >I think that the idea is good, but it doesn't work here :(.
-> >
-> >Later, Juan.
-> 
-> Ouch...
-> 
-> The only possible explaination is that we are searching for pages on a zone.
-> But no such pages are possible to free from LRU...
-> And we LOOP the list, holding the lru lock...
-> Note: without this patch you may end up in another bad situation where
-> shrink_mmap always fails and swapping will start until it swaps out a page
-> of that specific zone.
-> And without the test? We would free all other LRU pages without finding one
-> that we want :-(
-> 
-> This will be interesting to fix...
-> 
-> May the allocation of pages play a part? Filling zone after zone will give no
-> mix between the zones.
-> 
-> /RogerL
-> (from work)
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux.eu.org/Linux-MM/
+    Neil
 
---
-Home page:
-  http://www.norran.net/nra02596/
+-- 
+"Everyone can be taught to sculpt: Michelangelo would have had to
+be taught how not to. So it is with the great programmers" -- Alan Perlis
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
