@@ -1,60 +1,92 @@
-Message-ID: <3D9C4D33.CCF781C1@austin.ibm.com>
-Date: Thu, 03 Oct 2002 08:59:15 -0500
-From: Bill Hartner <hartner@austin.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [Lse-tech] Re: VolanoMark Benchmark results for 2.5.26, 2.5.26+
- rmap, 2.5.35 + mm1, and 2.5.38 + mm3
-References: <Pine.LNX.4.44L.0209172219200.1857-100000@imladris.surriel.com> <3D948EA6.A6EFC26B@austin.ibm.com> <3D94A43B.49C65AE8@digeo.com> <3D9B402D.601E52B6@austin.ibm.com> <3D9B5E1D.2000301@us.ibm.com>
-Content-Type: text/plain; charset=us-ascii
+Subject: 2.5.40-mm1 - runalltests - 95.89% pass
+From: Paul Larson <plars@linuxtestproject.org>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
+Date: 03 Oct 2002 11:11:02 -0500
+Message-Id: <1033661465.14606.13.camel@plars>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Dave Hansen <haveblue@us.ibm.com>
-Cc: Andrew Morton <akpm@digeo.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net, mbligh@aracnet.com
+To: linux-mm <linux-mm@kvack.org>, lse-tech <lse-tech@lists.sourceforge.net>, ltp-results <ltp-results@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
+Sorry I havn't had time to look at the -mm kernels in a while, I'll try
+to keep up with them better.
 
-Dave Hansen wrote:
-> 
-> Bill Hartner wrote:
-> > Andrew Morton wrote:
-> >
-> >>Bill Hartner wrote:
-> >>
-> >>>...
-> >>>2.5.35       44693  86.1 1.45        1,982,236 KB  5,393,152 KB  7,375,388 KB
-> >>>2.5.35mm1    39679  99.6 1.50       *2,720,600 KB *6,154,512 KB *8,875,112 KB
-> >>>
-> >>
-> >>2.5.35 was fairly wretched from the swapout point of view.
-> >>Would be interesting to retest on 2.5.38-mm/2.5.39 sometime.
-> >>
-> >
-> > Here are VolanoMark results for 2.5.38 and 2.5.38-mm3 for both
-> > 3GB (memory pressure) and 4GB.  I will repeat for 2.5.40 mm1 or
-> > what ever is the latest and greatest on Friday.
-> 
-> Could you possibly include profiling data as well?  oprofile would be
-> preferred, but readprofile would be fine if you can get it.  We can
-> guess what is causing the degredation, but profiles will offer some
-> hard proof.
+Attached are a list of LTP failures for 2.5.40-mm1 with ltp-20020910. 
+All are known issues such as the pread/pwrite glibc stuff and the
+readv/writev new behaviour (the ltp release next month will address that
+for new kernels).  The dio tests failed of course, since the fs was
+ext3.  It's my understanding that dio isn't supported in ext3 yet but
+please correct me if this is not true.
 
-I will get 2.5.40 mm1 results and then get a profile before and after the
-point that we start swapping.
+These results are from an 8-way PIII-700 16GB ram.
+No extraneous errors in dmesg other than the well-known sleeping
+function illegal context of late.
 
-I think that the ips driver may be bouncing here - so I would like to
-resolve that 1st - could change results - possibly quite a bit.
+Thanks,
+Paul Larson
 
-Bill
+tag=nanosleep02 stime=1033594209 dur=1 exit=exited stat=1 core=no cu=0
+cs=0
+tag=personality01 stime=1033594216 dur=0 exit=exited stat=1 core=no cu=0
+cs=0
+tag=personality02 stime=1033594216 dur=0 exit=exited stat=1 core=no cu=0
+cs=0
+tag=pread02 stime=1033594221 dur=0 exit=exited stat=1 core=no cu=0 cs=0
+tag=pwrite02 stime=1033594221 dur=0 exit=exited stat=1 core=no cu=0 cs=1
+tag=readv01 stime=1033594221 dur=0 exit=exited stat=1 core=no cu=0 cs=0
+tag=writev01 stime=1033594278 dur=0 exit=exited stat=1 core=no cu=0 cs=0
+tag=dio02 stime=1033595691 dur=1 exit=exited stat=1 core=no cu=1 cs=2
+tag=dio03 stime=1033595692 dur=3 exit=exited stat=1 core=no cu=2 cs=1
+tag=dio04 stime=1033595695 dur=0 exit=exited stat=1 core=no cu=0 cs=1
+tag=dio05 stime=1033595695 dur=2 exit=exited stat=1 core=no cu=7 cs=3
+tag=dio08 stime=1033595702 dur=1 exit=exited stat=1 core=no cu=1 cs=2
+tag=dio09 stime=1033595703 dur=3 exit=exited stat=1 core=no cu=2 cs=2
+tag=dio10 stime=1033595706 dur=400 exit=exited stat=1 core=no cu=122
+cs=402
+tag=dio11 stime=1033596106 dur=2 exit=exited stat=1 core=no cu=7 cs=4
+tag=dio14 stime=1033596161 dur=12 exit=exited stat=1 core=no cu=16 cs=15
+tag=dio15 stime=1033596173 dur=29 exit=exited stat=1 core=no cu=13 cs=15
+tag=dio16 stime=1033596202 dur=49 exit=exited stat=1 core=no cu=329
+cs=94
+tag=dio18 stime=1033596286 dur=12 exit=exited stat=1 core=no cu=16 cs=14
+tag=dio19 stime=1033596298 dur=21 exit=exited stat=1 core=no cu=13 cs=16
+tag=dio20 stime=1033596319 dur=49 exit=exited stat=1 core=no cu=330
+cs=70
+tag=dio22 stime=1033596395 dur=12 exit=exited stat=1 core=no cu=15 cs=14
+tag=dio23 stime=1033596407 dur=21 exit=exited stat=1 core=no cu=13 cs=16
+tag=dio24 stime=1033596428 dur=54 exit=exited stat=1 core=no cu=328
+cs=77
+tag=ar stime=1033596573 dur=6 exit=exited stat=1 core=no cu=40 cs=66
+tag=sem02 stime=1033596582 dur=20 exit=exited stat=1 core=no cu=0 cs=0
 
-> 
-> --
-> Dave Hansen
-> haveblue@us.ibm.com
+nanosleep02    1  FAIL  :  Remaining sleep time 4001000 usec doesn't
+match with the expected 3999707 usec time
+nanosleep02    1  FAIL  :  child process exited abnormally
+personality01    3  FAIL  :  returned persona was not expected
+personality01    4  FAIL  :  returned persona was not expected
+personality01    5  FAIL  :  returned persona was not expected
+personality01    6  FAIL  :  returned persona was not expected
+personality01    7  FAIL  :  returned persona was not expected
+personality01    8  FAIL  :  returned persona was not expected
+personality01    9  FAIL  :  returned persona was not expected
+personality01   10  FAIL  :  returned persona was not expected
+personality01   11  FAIL  :  returned persona was not expected
+personality01   12  FAIL  :  returned persona was not expected
+personality01   13  FAIL  :  returned persona was not expected
+personality02    1  FAIL  :  call failed - errno = 0 - Success
+pread02     2  FAIL  :  pread() returned 0, expected -1, errno:22
+pwrite02    2  FAIL  :  specified offset is -ve or invalid, unexpected
+errno:27, expected:22
+readv01     1  FAIL  :  readv() failed with unexpected errno 22
+writev01    1  FAIL  :  writev() failed unexpectedly
+writev01    0  INFO  :  block 2 FAILED
+writev01    2  FAIL  :  writev() failed with unexpected errno 22
+writev01    0  INFO  :  block 6 FAILED
+FAIL - ar with -v flag failed to print a line for each file
+sem02: FAIL
 
--- 
-IBM Linux Technology Center Performance Team
-bhartner@austin.ibm.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
