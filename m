@@ -1,47 +1,39 @@
-Date: Mon, 25 Sep 2000 17:21:44 -0400 (EDT)
-From: Alexander Viro <aviro@redhat.com>
+Date: Mon, 25 Sep 2000 23:28:55 +0200
+From: Jens Axboe <axboe@suse.de>
 Subject: Re: [patch] vmfixes-2.4.0-test9-B2
-In-Reply-To: <Pine.LNX.4.10.10009242301230.1293-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.4.10.10009251652530.4987-100000@aviro.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20000925232855.A5900@suse.de>
+References: <20000925155650.F22882@athlon.random> <Pine.LNX.4.21.0009251555420.9122-100000@elte.hu> <20000925161358.J22882@athlon.random> <20000925160838.R26339@suse.de> <20000925162921.M22882@athlon.random> <20000925161854.T26339@suse.de> <20000925164755.Q22882@athlon.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20000925164755.Q22882@athlon.random>; from andrea@suse.de on Mon, Sep 25, 2000 at 04:47:55PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Theodore Y. Ts'o" <tytso@MIT.EDU>, Ingo Molnar <mingo@elte.hu>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, Alexander Viro <aviro@redhat.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On Sun, 24 Sep 2000, Linus Torvalds wrote:
-
-[directories in pagecache on ext2]
-
-> > I'll do it and post the result tomorrow. I bet that there will be issues
-> > I've overlooked (stuff that happens to work on UFS, but needs to be more
-> > general for ext2), so it's going as "very alpha", but hey, it's pretty
-> > straightforward, so there is a chance to debug it fast. Yes, famous last
-> > words and all such...
+On Mon, Sep 25 2000, Andrea Arcangeli wrote:
+> > The scsi layer currently "manually" does a list_add on the queue itself,
+> > which doesn't look too healthy.
 > 
-> Sure.
+> It's grabbing the io_request_lock so it looks healthy for now :)
 
-All right, I think I've got something that may work. Yes, there were issues -
-UFS has the constant directory chunk size (1 sector), while ext2 makes it
-equal to fs block size. _Bad_ idea, since the sector writes are atomic and
-block ones... Oh, well, so ext2 is slightly less robust. It required some
-changes, I'll do the initial testing and post the patch once it will pass
-the trivial tests.
+It's safe alright, but if we want to do the generic_unplug_queue
+instead of just hitting the request_fn (which might do anything
+anyway), it would be nicer to expose this part of the block layer
+(i.e. have a general way of queueing a request to the request_queue).
+But I guess just
 
-BTW, why on the Earth had we done it that way? It has no noticable effect
-on directory fragmentation, it makes code (both in page- and buffer-cache
-variants) more complex, it's less robust (by definition - directory layout
-may be broken easier)... What was the point?
+q->plug_device_fn(q, ...);
+list_add(...)
+generic_unplug_device(q);
 
-Not that we could do something about that now (albeit as a ro-compat feature
-it would be nice), but I'm curious about the reasons...
-							Cheers,
-								Al
+would suffice in scsi_lib for now.
 
+-- 
+* Jens Axboe <axboe@suse.de>
+* SuSE Labs
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
