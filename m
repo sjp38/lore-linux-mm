@@ -1,25 +1,27 @@
-Date: Wed, 23 Apr 2003 07:51:00 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: 2.5.68-mm2
-Message-ID: <18400000.1051109459@[10.10.2.4]>
-In-Reply-To: <20030423012046.0535e4fd.akpm@digeo.com>
+From: Alex Tomas <bzzz@tmi.comex.ru>
+Date: Wed, 23 Apr 2003 19:14:32 +0400
+In-Reply-To: <18400000.1051109459@[10.10.2.4]> (Martin J. Bligh's message of
+ "Wed, 23 Apr 2003 07:51:00 -0700")
+Message-ID: <m3r87t8cvb.fsf@tmi.comex.ru>
 References: <20030423012046.0535e4fd.akpm@digeo.com>
+	<18400000.1051109459@[10.10.2.4]>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> . I got tired of the objrmap code going BUG under stress, so it is now in
->   disgrace in the experimental/ directory.
+>>>>> Martin J Bligh (MJB) writes:
 
-Any chance of some more info on that? BUG at what point in the code,
-and with what test to reproduce?
+ >> . I got tired of the objrmap code going BUG under stress, so it is now in
+ >> disgrace in the experimental/ directory.
 
-M.
+ MJB> Any chance of some more info on that? BUG at what point in the code,
+ MJB> and with what test to reproduce?
+
+I've seen this running fsx-linux on ext3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
