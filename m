@@ -1,32 +1,36 @@
-Date: Wed, 28 Aug 2002 21:27:39 +0200
+Date: Wed, 28 Aug 2002 21:29:17 +0200
 From: Pavel Machek <pavel@suse.cz>
-Subject: Re: [BUG] 2.5.30 swaps with no swap device mounted!!
-Message-ID: <20020828192739.GB10487@atrey.karlin.mff.cuni.cz>
-References: <20020827135421.A39@toy.ucw.cz> <Pine.LNX.4.44.0208280708020.3234-100000@hawkeye.luckynet.adm>
+Subject: Re: [patch] SImple Topology API v0.3 (1/2)
+Message-ID: <20020828192917.GC10487@atrey.karlin.mff.cuni.cz>
+References: <20020827143115.B39@toy.ucw.cz> <Pine.LNX.4.44.0208280711390.3234-100000@hawkeye.luckynet.adm>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.44.0208280708020.3234-100000@hawkeye.luckynet.adm>
+In-Reply-To: <Pine.LNX.4.44.0208280711390.3234-100000@hawkeye.luckynet.adm>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Thunder from the hill <thunder@lightweight.ods.org>
-Cc: William Lee Irwin III <wli@holomorphy.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Matthew Dobson <colpatch@us.ibm.com>, Andrew Morton <akpm@zip.com.au>, Linus Torvalds <torvalds@transmeta.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Bligh <mjbligh@us.ibm.com>, Andrea Arcangeli <andrea@suse.de>, Michael Hohnbaum <hohnbaum@us.ibm.com>, lse-tech <lse-tech@lists.sourceforge.net>
 List-ID: <linux-mm.kvack.org>
 
 Hi!
 
-> > > It might be interesting to see what happens if you unplug the swap device 
-> > > after umounting.
+> > > -   bool 'Multiquad NUMA system' CONFIG_MULTIQUAD
+> > > +   bool 'Multi-node NUMA system support' CONFIG_X86_NUMA
 > > 
-> > In the same way it might be interesting to see what happens if you put
-> > cigarette into gasoline tank?
+> > Why not simply CONFIG_NUMA?
 > 
-> Well, you never know what unregistering does. It might happen to be 
-> ignored for swap, once unregistered.
+> Because NUMA is subordinate to X86, and another technology named NUMA 
+> might appear? Nano-uplinked micro-array... No Ugliness Munched Archive? 
+> Whatever...
 
-I guess it will crash and burn, I'd suggest at least unmounting all
-filesystems prior to that test.
-								Pavel
+NUMA means non-uniform memory access. At least IBM, AMD and SGI do
+NUMA; and I guess anyone with 100+ nodes *has* numa machine. (BUt as
+andrea already explained, CONFIG_NUMA is already taken for generic
+NUMA support.)
+
+							Pavel
+
 -- 
 Casualities in World Trade Center: ~3k dead inside the building,
 cryptography in U.S.A. and free speech in Czech Republic.
