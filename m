@@ -1,90 +1,111 @@
-Message-ID: <3D29DCBC.5ADB7BE8@opersys.com>
-Date: Mon, 08 Jul 2002 14:41:00 -0400
-From: Karim Yaghmour <karim@opersys.com>
-Reply-To: karim@opersys.com
+Message-ID: <3D29F868.1338ACF3@zip.com.au>
+Date: Mon, 08 Jul 2002 13:39:04 -0700
+From: Andrew Morton <akpm@zip.com.au>
 MIME-Version: 1.0
-Subject: Re: Enhanced profiling support (was Re: vm lock contention reduction)
-References: <Pine.LNX.4.44.0207081039390.2921-100000@home.transmeta.com>
+Subject: Re: scalable kmap (was Re: vm lock contention reduction)
+References: <3D28042E.B93A318C@zip.com.au> <Pine.LNX.4.44.0207071128170.3271-100000@home.transmeta.com> <3D293E19.2AD24982@zip.com.au> <20020708080953.GC1350@dualathlon.random>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: John Levon <levon@movementarian.org>, Andrew Morton <akpm@zip.com.au>, Andrea Arcangeli <andrea@suse.de>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Martin J. Bligh" <Martin.Bligh@us.ibm.com>, linux-kernel@vger.kernel.org, Richard Moore <richardj_moore@uk.ibm.com>, bob <bob@watson.ibm.com>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Linus Torvalds <torvalds@transmeta.com>, "Martin J. Bligh" <fletch@aracnet.com>, Rik van Riel <riel@conectiva.com.br>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
-> On Mon, 8 Jul 2002, John Levon wrote:
-> > How do you see such dentry names being exported to user-space for the
-> > profiling daemon to access ? The current oprofile scheme is, um, less
-> > than ideal ...
+Andrea Arcangeli wrote:
 > 
-> Ok, I'll outline my personal favourite interface, but I'd also better
-> point out that while I've thought a bit about what I'd like to have and
-> how it could be implemented in the kernel, I have _not_ actually tried any
-> of it out, much less thought about what the user level stuff really needs.
-
-Sure. I've done some work on profiling using trace hooks. Hopefully the
-following is useful.
-
-> Anyway, here goes a straw-man:
+> ...
+> >       generic_file_write()
+> >       {
+> >               ...
+> >               atomic_inc(&current->mm->dont_unmap_pages);
+> >
+> >               {
+> >                       volatile char dummy;
+> >                       __get_user(dummy, addr);
+> >                       __get_user(dummy, addr+bytes+1);
+> >               }
+> >               lock_page();
+> >               ->prepare_write()
+> >               kmap_atomic()
+> >               copy_from_user()
+> >               kunmap_atomic()
+> >               ->commit_write()
+> >               atomic_dec(&current->mm->dont_unmap_pages);
+> >               unlock_page()
+> >       }
+> >
+> > and over in mm/rmap.c:try_to_unmap_one(), check mm->dont_unmap_pages.
+> >
+> > Obviously, all this is dependent on CONFIG_HIGHMEM.
+> >
+> > Workable?
 > 
->  - I'd associate each profiling event with a dentry/offset pair, simply
->    because that's the highest-level thing that the kernel knows about and
->    that is "static".
+> the above pseudocode still won't work correctly,
 
-dentry + offset: on a 32bit machine, this is 8 bytes total per event being
-profiled. This is a lot of information if you are trying you have a high
-volume throughput. You can almost always skip the dentry since you know scheduling
-changes and since you can catch a system-state snapshot at the begining of
-the profiling. After that, the eip is sufficient and can easily be correlated
-to a meaningfull entry in a file in user-space.
+Sure.  It's crap.  It can be used to get mlockall() for free.
 
->  - I'd suggest that the profiler explicitly mark the dentries it wants
->    profiled, so that the kernel can throw away events that we're not
->    interested in. The marking function would return a cookie to user
->    space, and increment the dentry count (along with setting the
->    "profile" flag in the dentry)
+>  if you don't pin the
+> page as Martin proposed and you only rely on its virtual mapping to stay
+> there because the page can go away under you despite the
+> swap_out/rmap-unmapping work, if there's a parallel thread running
+> munmap+re-mmap under you. So at the very least you need the mmap_sem at
+> every generic_file_write to avoid other threads to change your virtual
+> address under you. And you'll basically need to make the mmap_sem
+> recursive, because you have to take it before running __get_user to
+> avoid races. You could easily do that using my rwsem, I made two versions
+> of them, with one that supports recursion, however this is just for your
+> info, I'm not suggesting to make it recursive.
 
-Or the kernel can completely ignore this sort of selection and leave it
-all to the agent responsible for collecting the events. This is what is
-done in LTT. Currently, you can select one PID, GID, UID, but this
-is easily extendable to include many. Of course if you agree to having
-the task struct have "trace" or "profile" field, then this would be
-much easier.
+I think I'll just go for pinning the damn page.  It's a spinlock and
+maybe three cachelines but the kernel is about to do a 4k memcpy
+anyway.  And get_user_pages() doesn't show up much on O_DIRECT
+profiles and it'll be a net win and we need to do SOMETHING, dammit.
+ 
+> ...
+> The only reason I can imagine rmap useful in todays
+> hardware for all kind of vma (what the patch provides compared to what
+> we have now) is to more efficiently defragment ram with an algorithm in
+> the memory balancing to provide largepages more efficiently from mixed
+> zones, if somebody would suggest rmap for this reason (nobody did yet)
 
->  - the "cookie" (which would most easily just be the kernel address of the
->    dentry) would be the thing that we give to user-space (along with
->    offset) on profile read. The user app can turn it back into a filename.
+It has been discussed.  But no action yet.
 
-That's the typical scheme and the one possible with the data retrieved
-by LTT.
+> I
+> would have to agree completely that it is very useful for that, OTOH it
+> seems everybody is reserving (or planning to reserve) a zone for
+> largepages anyways so that we don't run into fragmentation in the first
+> place. And btw - talking about largepages - we have three concurrent and
+> controversial largepage implementations for linux available today, they
+> all have different API, one is even shipped in production by a vendor,
 
-> Whether it is the original "mark this file for profiling" phase that saves
-> away the cookie<->filename association, or whether we also have a system
-> call for "return the path of this cookie", I don't much care about.
-> Details, details.
+What implementation do you favour?
+
+> and while auditing the code I seen it also exports an API visible to
+> userspace [ignoring the sysctl] (unlike what I was told):
 > 
-> Anyway, what would be the preferred interface from user level?
+> +#define MAP_BIGPAGE    0x40            /* bigpage mapping */
+> [..]
+>                 _trans(flags, MAP_GROWSDOWN, VM_GROWSDOWN) |
+>                 _trans(flags, MAP_DENYWRITE, VM_DENYWRITE) |
+> +               _trans(flags, MAP_BIGPAGE, VM_BIGMAP) |
+>                 _trans(flags, MAP_EXECUTABLE, VM_EXECUTABLE);
+>         return prot_bits | flag_bits;
+>  #undef _trans
+> 
+> that's a new unofficial bitflag to mmap that any proprietary userspace
+> can pass to mmap today. Other implementations of the largepage feature
+> use madvise or other syscalls to tell the kernel to allocate
+> largepages. At least the above won't return -EINVAL so the binaryonly
+> app will work transparently on a mainline kernel, but it can eventually
+> malfunction if we use 0x40 for something else in 2.5. So I think we
+> should do something about the largepages too ASAP into 2.5 (like
+> async-io).
 
-The approach LTT takes is that no part in the kernel should actually care
-about the user level needs. Anything in user level that has to modify
-the tracing/profiling makes its requests to the trace driver, /dev/tracer.
-No additional system calls, no special cases in the main kernel code. Only
-3 main files:
-kernel/trace.c: The main entry point for all events (trace_event())
-drivers/trace/tracer.c: The trace driver
-include/linux/trace.h: The trace hook definitions
-
-Cheers,
-
-Karim
-
-===================================================
-                 Karim Yaghmour
-               karim@opersys.com
-      Embedded and Real-Time Linux Expert
-===================================================
+Yup.  I don't think the -aa kernel has a large page patch, does it?
+Is that something which you have time to look into?
+ 
+-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
