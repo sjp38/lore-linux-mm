@@ -1,243 +1,224 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 5C5C116B83
-	for <linux-mm@kvack.org>; Wed, 23 May 2001 20:56:32 -0300 (EST)
-Date: Wed, 23 May 2001 20:56:27 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] remove deadlocks __alloc_pages()
-Message-ID: <Pine.LNX.4.33.0105232046200.311-100000@duckman.distro.conectiva>
+Date: Thu, 24 May 2001 10:48:48 +0200 (CEST)
+From: Mike Galbraith <mikeg@wen-online.de>
+Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
+In-Reply-To: <Pine.LNX.4.21.0105200546241.5531-100000@imladris.rielhome.conectiva>
+Message-ID: <Pine.LNX.4.33.0105241041100.369-100000@mikeg.weiden.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-kernel@vger.kernel.org, Marcelo Tosatti <marcelo@conectiva.com.br>, Ben LaHaise <bcrl@redhat.com>, arjanv@redhat.com, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Sun, 20 May 2001, Rik van Riel wrote:
 
-the following patch to page_alloc.c:
-- removes 2 possible deadlocks from __alloc_pages()
-- cleans up the code in __alloc_pages(), moving some "eat free
-  pages first" code from __alloc_pages_limit() directly into
-  __alloc_pages()
-- fixes a minor balancing issue with dirty pages
+> Remember that inactive_clean pages are always immediately
+> reclaimable by __alloc_pages(), if you measured a performance
+> difference by freeing pages in a different way I'm pretty sure
+> it's a side effect of something else.  What that something
+> else is I'm curious to find out, but I'm pretty convinced that
+> throwing away data early isn't the way to go.
 
+OK.. let's forget about throughput for a moment and consider
+those annoying reports of 0 order allocations failing :)
 
-	Deadlocks:
+What do you think of the below (ignore the refill_inactive bit)
+wrt allocator reliability under heavy stress?  The thing does
+kick in and pump up zones even if I set the 'blood donor' level
+to pages_min.
 
-- GFP_BUFFER allocations can loop forever in __alloc_pages(),
-  without freeing up pages and getting a chance of ever
-  succeeding
-- multi-page allocations can loop forever in __alloc_pages(),
-  when there is enough free memory in the system but that free
-  memory is fragmented, the allocation will never succeed
+	-Mike
 
-Both these deadlocks have been fixed by simply breaking out
-of the loop when these conditions are detected. Note that
-GFP_BUFFER allocators all expect to deal with allocation
-failures every once in a while and that failing the allocation
-is the only way of making progress.
+--- linux-2.4.5-pre3/mm/page_alloc.c.org	Mon May 21 10:35:06 2001
++++ linux-2.4.5-pre3/mm/page_alloc.c	Thu May 24 08:18:36 2001
+@@ -224,10 +224,11 @@
+ 			unsigned long order, int limit, int direct_reclaim)
+ {
+ 	zone_t **zone = zonelist->zones;
++	struct page *page = NULL;
 
-Of course, with GFP_BUFFER being able to eat into the reserved
-pages a little bit, in most cases its allocation will simply
-succeed and the system will run even better ;)
+ 	for (;;) {
+ 		zone_t *z = *(zone++);
+-		unsigned long water_mark;
++		unsigned long water_mark = 1 << order;
 
-
-	Cleanup:
-
-- remove the CPU-eating wakeups ... it was quite possible to
-  wake up a bdflush which had nothing to do or a kswapd which
-  would go to sleep again after only a few sets of context
-  switches ... don't wake these up if needed
-- move some code around in __alloc_pages() so the eating from
-  free pages is done before we call __alloc_pages_limit()
-  -- shouldn't have any impact
-
-
-	Dirty memory balancing:
-
-Since we cannot have highmem pages in the buffer cache, don't
-try allow more dirty buffers than we have space for in low
-memory. This thing seems to improve the situation quite a bit,
-but should probably be improved further for future kernels
-(however, that's no reason to not put this improvement in NOW,
-there are people who need it).
-
-
-regards,
-
-Rik
---
-Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
-
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
-
-
---- linux-2.4.5-pre3/mm/page_alloc.c.orig	Wed May 23 14:09:22 2001
-+++ linux-2.4.5-pre3/mm/page_alloc.c	Wed May 23 15:36:34 2001
-@@ -250,10 +250,10 @@
+ 		if (!z)
+ 			break;
+@@ -249,18 +250,44 @@
+ 			case PAGES_HIGH:
  				water_mark = z->pages_high;
  		}
++		if (z->free_pages + z->inactive_clean_pages < water_mark)
++			continue;
 
 -		if (z->free_pages + z->inactive_clean_pages > water_mark) {
-+		if (z->free_pages + z->inactive_clean_pages >= water_mark) {
- 			struct page *page = NULL;
- 			/* If possible, reclaim a page directly. */
+-			struct page *page = NULL;
+-			/* If possible, reclaim a page directly. */
 -			if (direct_reclaim && z->free_pages < z->pages_min + 8)
-+			if (direct_reclaim)
- 				page = reclaim_page(z);
- 			/* If that fails, fall back to rmqueue. */
- 			if (!page)
-@@ -298,21 +298,6 @@
- 	if (order == 0 && (gfp_mask & __GFP_WAIT))
- 		direct_reclaim = 1;
-
--	/*
--	 * If we are about to get low on free pages and we also have
--	 * an inactive page shortage, wake up kswapd.
--	 */
--	if (inactive_shortage() > inactive_target / 2 && free_shortage())
--		wakeup_kswapd();
--	/*
--	 * If we are about to get low on free pages and cleaning
--	 * the inactive_dirty pages would fix the situation,
--	 * wake up bdflush.
--	 */
--	else if (free_shortage() && nr_inactive_dirty_pages > free_shortage()
--			&& nr_inactive_dirty_pages >= freepages.high)
--		wakeup_bdflush(0);
--
- try_again:
- 	/*
- 	 * First, see if we have any zones with lots of free memory.
-@@ -328,7 +313,7 @@
- 		if (!z->size)
- 			BUG();
-
--		if (z->free_pages >= z->pages_low) {
-+		if (z->free_pages >= z->pages_min + 8) {
- 			page = rmqueue(z, order);
- 			if (page)
- 				return page;
-@@ -396,7 +381,7 @@
- 	page = __alloc_pages_limit(zonelist, order, PAGES_MIN, direct_reclaim);
- 	if (page)
- 		return page;
--
++		if (direct_reclaim) {
++			int count;
 +
- 	/*
- 	 * Damn, we didn't succeed.
- 	 *
-@@ -442,18 +427,26 @@
- 		}
- 		/*
- 		 * When we arrive here, we are really tight on memory.
-+		 * Since kswapd didn't succeed in freeing pages for us,
-+		 * we try to help it.
- 		 *
--		 * We try to free pages ourselves by:
--		 * 	- shrinking the i/d caches.
--		 * 	- reclaiming unused memory from the slab caches.
--		 * 	- swapping/syncing pages to disk (done by page_launder)
--		 * 	- moving clean pages from the inactive dirty list to
--		 * 	  the inactive clean list. (done by page_launder)
-+		 * Single page allocs loop until the allocation succeeds.
-+		 * Multi-page allocs can fail due to memory fragmentation;
-+		 * in that case we bail out to prevent infinite loops and
-+		 * hanging device drivers ...
-+		 *
-+		 * Another issue are GFP_BUFFER allocations; because they
-+		 * do not have __GFP_IO set it's possible we cannot make
-+		 * any progress freeing pages, in that case it's better
-+		 * to give up than to deadlock the kernel looping here.
- 		 */
- 		if (gfp_mask & __GFP_WAIT) {
- 			memory_pressure++;
--			try_to_free_pages(gfp_mask);
--			goto try_again;
-+			if (!order || free_shortage()) {
-+				int progress = try_to_free_pages(gfp_mask);
-+				if (progress || gfp_mask & __GFP_IO)
-+					goto try_again;
++			/* If we're in bad shape.. */
++			if (z->free_pages < z->pages_low && z->inactive_clean_pages) {
++				count = 4 * (1 << page_cluster);
++				/* reclaim a page for ourselves if we can afford to.. */
++				if (z->inactive_clean_pages > count)
++					page = reclaim_page(z);
++				if (z->inactive_clean_pages < 2 * count)
++					count = z->inactive_clean_pages / 2;
++			} else count = 0;
++
++			/*
++			 * and make a small donation to the reclaim challenged.
++			 *
++			 * We don't ever want a zone to reach the state where we
++			 * have nothing except reclaimable pages left.. not if
++			 * we can possibly do something to help prevent it.
++			 */
++			while (count--) {
++				struct page *page;
+ 				page = reclaim_page(z);
+-			/* If that fails, fall back to rmqueue. */
+-			if (!page)
+-				page = rmqueue(z, order);
+-			if (page)
+-				return page;
++				if (!page)
++					break;
++				__free_page(page);
 +			}
  		}
++		if (!page)
++			page = rmqueue(z, order);
++		if (page)
++			return page;
++		if (z->inactive_clean_pages - z->free_pages > z->pages_low
++				&& waitqueue_active(&kreclaimd_wait))
++			wake_up_interruptible(&kreclaimd_wait);
  	}
 
-@@ -559,6 +552,23 @@
- }
+ 	/* Found nothing. */
+@@ -314,29 +341,6 @@
+ 		wakeup_bdflush(0);
 
- /*
-+ * Total amount of free (allocatable) RAM in a given zone.
-+ */
-+unsigned int nr_free_pages_zone (int zone_type)
-+{
-+	pg_data_t	*pgdat;
-+	unsigned int	 sum;
-+
-+	sum = 0;
-+	pgdat = pgdat_list;
-+	while (pgdat) {
-+		sum += (pgdat->node_zones+zone_type)->free_pages;
-+		pgdat = pgdat->node_next;
-+	}
-+	return sum;
-+}
-+
-+/*
-  * Total amount of inactive_clean (allocatable) RAM:
-  */
- unsigned int nr_inactive_clean_pages (void)
-@@ -577,14 +587,43 @@
- }
-
- /*
-+ * Total amount of inactive_clean (allocatable) RAM in a given zone.
-+ */
-+unsigned int nr_inactive_clean_pages_zone (int zone_type)
-+{
-+	pg_data_t	*pgdat;
-+	unsigned int	 sum;
-+
-+	sum = 0;
-+	pgdat = pgdat_list;
-+	while (pgdat) {
-+		sum += (pgdat->node_zones+zone_type)->inactive_clean_pages;
-+		pgdat = pgdat->node_next;
-+	}
-+	return sum;
-+}
-+
-+
-+/*
-  * Amount of free RAM allocatable as buffer memory:
-+ *
-+ * For HIGHMEM systems don't count HIGHMEM pages.
-+ * This is function is still far from perfect for HIGHMEM systems, but
-+ * it is close enough for the time being.
-  */
- unsigned int nr_free_buffer_pages (void)
- {
- 	unsigned int sum;
-
--	sum = nr_free_pages();
--	sum += nr_inactive_clean_pages();
-+#if	CONFIG_HIGHMEM
-+	sum = nr_free_pages_zone(ZONE_NORMAL) +
-+	      nr_free_pages_zone(ZONE_DMA) +
-+	      nr_inactive_clean_pages_zone(ZONE_NORMAL) +
-+	      nr_inactive_clean_pages_zone(ZONE_DMA);
-+#else
-+	sum = nr_free_pages() +
-+	      nr_inactive_clean_pages();
-+#endif
- 	sum += nr_inactive_dirty_pages;
+ try_again:
+-	/*
+-	 * First, see if we have any zones with lots of free memory.
+-	 *
+-	 * We allocate free memory first because it doesn't contain
+-	 * any data ... DUH!
+-	 */
+-	zone = zonelist->zones;
+-	for (;;) {
+-		zone_t *z = *(zone++);
+-		if (!z)
+-			break;
+-		if (!z->size)
+-			BUG();
+-
+-		if (z->free_pages >= z->pages_low) {
+-			page = rmqueue(z, order);
+-			if (page)
+-				return page;
+-		} else if (z->free_pages < z->pages_min &&
+-					waitqueue_active(&kreclaimd_wait)) {
+-				wake_up_interruptible(&kreclaimd_wait);
+-		}
+-	}
 
  	/*
+ 	 * Try to allocate a page from a zone with a HIGH
+--- linux-2.4.5-pre3/mm/vmscan.c.org	Thu May 17 16:44:23 2001
++++ linux-2.4.5-pre3/mm/vmscan.c	Thu May 24 08:05:21 2001
+@@ -824,39 +824,17 @@
+ #define DEF_PRIORITY (6)
+ static int refill_inactive(unsigned int gfp_mask, int user)
+ {
+-	int count, start_count, maxtry;
+-
+-	if (user) {
+-		count = (1 << page_cluster);
+-		maxtry = 6;
+-	} else {
+-		count = inactive_shortage();
+-		maxtry = 1 << DEF_PRIORITY;
+-	}
+-
+-	start_count = count;
+-	do {
+-		if (current->need_resched) {
+-			__set_current_state(TASK_RUNNING);
+-			schedule();
+-			if (!inactive_shortage())
+-				return 1;
+-		}
+-
+-		count -= refill_inactive_scan(DEF_PRIORITY, count);
+-		if (count <= 0)
+-			goto done;
+-
+-		/* If refill_inactive_scan failed, try to page stuff out.. */
+-		swap_out(DEF_PRIORITY, gfp_mask);
+-
+-		if (--maxtry <= 0)
+-				return 0;
+-
+-	} while (inactive_shortage());
+-
+-done:
+-	return (count < start_count);
++	int shortage = inactive_shortage();
++	int large = freepages.high/2;
++	int scale;
++
++	scale = shortage/large;
++	scale += free_shortage()/large;
++	if (scale > DEF_PRIORITY-1)
++		scale = DEF_PRIORITY-1;
++	if (refill_inactive_scan(DEF_PRIORITY-scale, shortage) < shortage)
++		return swap_out(DEF_PRIORITY, gfp_mask);
++	return 1;
+ }
+
+ static int do_try_to_free_pages(unsigned int gfp_mask, int user)
+@@ -976,8 +954,9 @@
+ 		 * We go to sleep for one second, but if it's needed
+ 		 * we'll be woken up earlier...
+ 		 */
+-		if (!free_shortage() || !inactive_shortage()) {
+-			interruptible_sleep_on_timeout(&kswapd_wait, HZ);
++		if (current->need_resched || !free_shortage() ||
++				!inactive_shortage()) {
++			interruptible_sleep_on_timeout(&kswapd_wait, HZ/10);
+ 		/*
+ 		 * If we couldn't free enough memory, we see if it was
+ 		 * due to the system just not having enough memory.
+@@ -1051,10 +1030,13 @@
+ 			int i;
+ 			for(i = 0; i < MAX_NR_ZONES; i++) {
+ 				zone_t *zone = pgdat->node_zones + i;
++				int count;
+ 				if (!zone->size)
+ 					continue;
+
+-				while (zone->free_pages < zone->pages_low) {
++				count = zone->pages_low;
++				while (zone->free_pages < zone->inactive_clean_pages &&
++						count--) {
+ 					struct page * page;
+ 					page = reclaim_page(zone);
+ 					if (!page)
+@@ -1064,6 +1046,9 @@
+ 			}
+ 			pgdat = pgdat->node_next;
+ 		} while (pgdat);
++#if 1
++		run_task_queue(&tq_disk);
++#endif
+ 	}
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
