@@ -1,49 +1,63 @@
-Subject: Re: [PATCH] aic7xxx parallel build
-From: John Cherry <cherry@osdl.org>
-In-Reply-To: <1074819272.15610.2.camel@cherrypit.pdx.osdl.net>
-References: <1074800332.29125.55.camel@cherrypit.pdx.osdl.net>
-	 <1251588112.1074819190@aslan.btc.adaptec.com>
-	 <1074819272.15610.2.camel@cherrypit.pdx.osdl.net>
-Content-Type: text/plain
-Message-Id: <1074819903.15610.6.camel@cherrypit.pdx.osdl.net>
-Mime-Version: 1.0
-Date: Thu, 22 Jan 2004 17:05:04 -0800
-Content-Transfer-Encoding: 7bit
+Received: from 218-101-109-95.dialup.clear.net.nz
+ (218-101-109-95.dialup.clear.net.nz [218.101.109.95])
+ by smtp1.clear.net.nz (CLEAR Net Mail)
+ with ESMTP id <0HRX004TK801GD@smtp1.clear.net.nz> for linux-mm@kvack.org; Fri,
+ 23 Jan 2004 15:24:03 +1300 (NZDT)
+Date: Fri, 23 Jan 2004 15:26:53 +1300
+From: Nigel Cunningham <ncunningham@users.sourceforge.net>
+Subject: Can a page be HighMem without having the HighMem flag set?
+Reply-to: ncunningham@users.sourceforge.net
+Message-id: <1074824487.12774.185.camel@laptop-linux>
+MIME-version: 1.0
+Content-type: multipart/signed; boundary="=-xCMq03ux0VXVcqPq2vVF";
+ protocol="application/pgp-signature"; micalg=pgp-sha1
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Justin T. Gibbs" <gibbs@scsiguy.com>
-Cc: akpm@osdl.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org
+To: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-These Makefiles provide clean parallel builds.  The failing case
-succeeded.  Can we get these changes back into Andrew's conduit?
+--=-xCMq03ux0VXVcqPq2vVF
+Content-Type: text/plain
+Content-Transfer-Encoding: quoted-printable
 
-On Thu, 2004-01-22 at 16:54, John Cherry wrote:
-> Yeah.  It looks like I grabbed my old patch from the last successful
-> parallel build that Andrew ran.
-> 
-> I'll run the regressions on the Makefiles you have supplied tonight.  I
-> have no doubts that this will be successful.  Thanks.
-> 
-> John
-> 
-> On Thu, 2004-01-22 at 16:53, Justin T. Gibbs wrote:
-> > > The Makefiles for aic7xxx and aicasm have changed since I submitted a
-> > > patch for the parallel build problem several months ago.  Justin's patch
-> > > has disappeared from the mm builds, so we continue to have parallel
-> > > build problems.
-> > > 
-> > > The following patch fixes the parallel build problem and it still
-> > > applies to 2.6.2-rc1-mm1.  This is Justin's fix.
-> > 
-> > Actually, that's not my fix.  This looks like your original fix.
-> > I've attached aic7xxx/Makefile and aic7xxx/aicasm/Makefile from my
-> > tree.  These seem to work just fine in my parallel build tests and
-> > will work regardless of which generated file is out of date - a flaw
-> > in your change.  Please let me know if these files don't work for you.
-> > 
-> > --
-> > Justin
+Hi.
+
+I guess the subject says it all, but I'll give more detail:
+
+I'm working on Suspend on a 8 cpu ("8 way"?) SMP box at OSDL, which has
+something in excess of 4GB, but I'm only using 4 at the moment:
+
+Warning only 4GB will be used.
+Use a PAE enabled kernel.
+3200MB HIGHMEM available.
+896MB LOWMEM available.
+
+When suspending, I am seeing pages that don't have the HighMem flag set,
+but for which page_address returns zero.
+
+I looked at kmap, and noticed that it tests for page <
+highmem_start_page; I guess this is the way to do it?
+
+Regards,
+
+Nigel
+--=20
+My work on Software Suspend is graciously brought to you by
+LinuxFund.org.
+
+--=-xCMq03ux0VXVcqPq2vVF
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Description: This is a digitally signed message part
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.2.3 (GNU/Linux)
+
+iD8DBQBAEIUnVfpQGcyBBWkRApycAJ0VZj2F2fW8uB52nmfbxRJ7Z14SGACgkird
+1ktyEFe2BpNMFwbjbX0hffM=
+=4YUR
+-----END PGP SIGNATURE-----
+
+--=-xCMq03ux0VXVcqPq2vVF--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
