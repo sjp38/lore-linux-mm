@@ -1,496 +1,192 @@
-Message-ID: <414F6C69.8060406@mwwireless.net>
-Date: Mon, 20 Sep 2004 16:48:57 -0700
-From: Steve Longerbeam <stevel@mwwireless.net>
+Message-ID: <414F8424.5080308@sgi.com>
+Date: Mon, 20 Sep 2004 20:30:12 -0500
+From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH 2.6.9-rc2-mm1 0/2] mm: memory policy for page cache allocation
-References: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com> <20040920205509.GF4242@wotan.suse.de>
-In-Reply-To: <20040920205509.GF4242@wotan.suse.de>
-Content-Type: multipart/mixed;
- boundary="------------000706040208050705030902"
+References: <20040920190033.26965.64678.54625@tomahawk.engr.sgi.com> <20040920205509.GF4242@wotan.suse.de> <414F560E.7060207@sgi.com> <20040920223742.GA7899@wotan.suse.de>
+In-Reply-To: <20040920223742.GA7899@wotan.suse.de>
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm <linux-mm@kvack.org>, lse-tech <lse-tech@lists.sourceforge.net>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andi Kleen <ak@suse.de>
+Cc: William Lee Irwin III <wli@holomorphy.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Andrew Morton <akpm@osdl.org>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, Jesse Barnes <jbarnes@sgi.com>, Dan Higgins <djh@sgi.com>, lse-tech <lse-tech@lists.sourceforge.net>, Brent Casavant <bcasavan@sgi.com>, Nick Piggin <piggin@cyberone.com.au>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Jackson <pj@sgi.com>, Dave Hansen <haveblue@us.ibm.com>, stevel@mwwireless.net
 List-ID: <linux-mm.kvack.org>
 
-This is a multi-part message in MIME format.
---------------000706040208050705030902
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
-
-
-
 Andi Kleen wrote:
-
->On Mon, Sep 20, 2004 at 12:00:33PM -0700, Ray Bryant wrote:
->  
->
->>Background
->>----------
+> On Mon, Sep 20, 2004 at 05:13:34PM -0500, Ray Bryant wrote:
+> 
+>>system wide memory allocation policy issue.  It seems cleaner to me to keep 
+>>that all within the scope of the NUMA API rather than hiding details of it 
+>>here and there in /proc.  And we need the full generality of the NUMA API, 
+>>to, for example:
+> 
+> 
+> True for cpuset you will need it.
+> 
+> 
+>>>Well, you just have to change the callers to pass it in. I think
+>>>computing the interleaving on a offset and perhaps another file
+>>>identifier is better than having the global counter.
+>>>
 >>
->>Last month, Jesse Barnes proposed a patch to do round robin
->>allocation of page cache pages on NUMA machines.  This got shot down
->>for a number of reasons (see
->>  http://marc.theaimsgroup.com/?l=linux-kernel&m=109235420329360&w=2
->>and the related thread), but it seemed to me that one of the most
->>significant issues was that this was a workload dependent optimization.
->>That is, for an Altix running an HPC workload, it was a good thing,
->>but for web servers or file servers it was not such a good idea.
+>>In our case that means changing each and every call to page_cache_alloc()
+>>to include an appropriate offset.  This is a change that richochets through 
+>>the machine independent code and makes this harder to contain in the NUMA
+>>subsystem.
+> 
+> 
+> I count two callers of page_cache_alloc in 2.6.9rc2 (filemap.c and
+> XFS pagebuf). Hardly seems like a big issue to change them both. 
+> Of course getting the offset there might be tricky, but should be 
+> doable.
+> 
+
+Fair enough.  Another option I was thinking of was hiding a global counter
+in page_cache_alloc itself and using it to provide a value for the offset
+there.
+
+> 
+>>Is there a performance problem with the global counter?  We've been using 
+> 
+> 
+> There might be. You will need a global lock. 
+>
+
+Oh yeah, I am sorry, we do this so often I forget.  What I really would do
+is to have a per cpu counter so that we can increment that without a lock.
+(I was being sloppy in terminology -- that's what efficient global counters
+mean to me.  Sorry. :-))  With that idea and the above, I think I will be
+able to get by without MPOL_ROUNDROBIN.  I'll check with Brent to see what
+he can for the tmp fs code in that case.
+
+> 
+>>exactly that kind of implementation for our current Altix systems and it 
+>>seems to work fine.  If you use some kind of offset and interleave as you 
+>>suggest, how will you make sure that page cache allocations are evenly 
+>>balanced across the nodes in a system, or the nodes in a cpuset?  Wouldn't 
+>>it make more sense to spread them out dynamically based on actual usage?
 >>
->>So the idea of this patch is the following:  it creates a new memory
->>policy structure (default_pagecache_policy) that is used to control
->>how storage for page cache pages is allocated.  So, for a large Altix
->>running HPC workloads, we can specify a policy that does round robin
->>allocations, and for other workloads you can specify the default policy
->>(which results in page cache pages being allocated locally).
+>>For example, let suppose (just to be devious) that on a 2-node system you 
+>>decided (poorly, admittedly) to use the bottom bit of the offset to chose 
+>>the node.  And suppose that the user only touches the even numbered offsets 
+>>in the file.  You'll clobber node 0 with all of the page cache pages, right?
 >>
->>The default_pagecache_policy is overrideable on a per process basis, so
->>that if your application prefers to allocate page cache pages locally,
->>it can.
->>    
+>>Of course, that is a poor decision.  But, any type of static allocation 
+>>like that based on offset is going to suffer from a similar type of worst 
+>>case
+>>behavior.  If you allocate the page cache page on the next node in sequence,
+>>then we will smooth out page cache allocation based on actual usage 
+>>patterns.
+> 
+> 
+> Your counter can have the same worst case behaviour, just 
+> different.  You only have to add freeing into the picture.
+> Or when you consider getting more memory bandwidth from the interleaving
+> (I know this is not your primary goal with this) then a sufficient
+> access pattern could lead to rather uninterleaved allocation 
+> in the file.
+> 
+> Any allocation algorithm will have such a worst case, so I'm not
+> too worried. Given ia hash function is not too bad it should
+> be bearable.
+> 
+> The nice advantage of the static offset is that it makes benchmarks
+> actually repeatable and is completely lockless
+> 
+
+I can see the advantages of that.  But the state of the page cache is still
+something we have to deal with for benchmarks.
+
+> 
+>>>
+>>>No sure what default policies you mean? 
+>>>
 >>
->
->I'm not sure this really makes sense. Do you have some clear use 
->case where having so much flexibility is needed? 
->
->I would prefer to have a global setting somewhere for the page
->cache (sysctl or sysfs or what you prefer) and some special handling for 
->text pages. 
->
->This would keep the per thread bloat low. 
->
->Also I must say I got a patch submitted to do policy per
->file from Steve Longerbeam. 
->
->It so far only supports this for ELF executables, but
->it has most of the infrastructure to do individual policy
->per file. Maybe it would be better to go into this direction,
->only thing missing is a nice way to declare policy for 
->arbitary files. Even in this case a global default would be useful.
->
->I haven't done anything with this patch yet due to missing time 
->and there were a few small issues to resolve, but i hope it 
->can be eventually integrated.
->
->[Steve, perhaps you can repost the patch to lse-tech for more
->wider review?]
->  
->
-
-Sure, patch is attached. Also, here is a reposting of my original email to
-you (Andi) describing the patch. Btw, I received your comments on the
-patch, I will reply to your points seperately. Sorry I haven't replied 
-sooner,
-I'm in the middle of switching jobs  :-)
+>>Since there is (with this patch) a separate (default) policy to control 
+>>allocation of page cache pages, there now has to be a way to set that 
+>>policy.
+>>Since the default_policy for regular page allocation can't be changed (it 
+>>is, after all also the policy for allocating pages at interrupt time) there 
+>>was no need for that API in the past.  Now, however, we need a way to set 
+>>the system default page cache allocation policy, since some system 
+>>administrators will want that to be MPOL_LOCAL and some will want that to 
+>>be MPOL_INTERLEAVE or potentially MPOL_ROUNDROBIN depending on the workload 
+>>that the system is running.
+> 
+> 
+> I think I'm still a bit confused by your terminology.
+> I thought the page cache policy was per process? Now you
+> are talking about another global unrelated policy?
+> 
 
 
--------- original email follows ----------
+I'm sorry if this is confusing, personal terminology usually gets in the way.
 
-Hi Andi,
+The idea is that just like for the page allocation policy (your current code), 
+if you wanted, you would have a global, default page cache allocation policy, 
+probably set at boot time or shortly thereafter, probably before any (or at 
+least most) page cache pages have been allocated.  You could also have a per 
+process policy setting that would override the global policy, for processes 
+that needed it, but I honestly don't have a good case for this except for 
+symmetry with the existing code.
 
-I'm working on adding the features to NUMA mempolicy
-necessary to support MontaVista's MTA.
+> With the per process policy the only way to change the policy
+> for the whole system is to change it in init and restart everything.
+> With a global policy you could change it on the fly, but 
+> it probably wouldn't make too much sense without a restart
+> because there would be already too much cache with the wrong
+> policy.
+> 
 
-Attached is the first of those features, support for
-global page allocation policy for mapped files. Here's
-what the patch is doing:
+Or we could flush the page cache and change the policy.  It wouldn't
+be perfect but it could be close enough.
 
-1. add a shared_policy tree to the address_space object in fs.h.
-2. modify page_cache_alloc() in pagemap.h to take an address_space
-    object and page offset, and use those to allocate a page for the
-    page cache using the policy in the address_space object.
-3. modify filemap.c to pass the additional {mapping, page offset} pair
-    to page_cache_alloc().
-4. Also in filemap.c, implement generic file {set|get}_policy() methods and
-    add those to generic_file_vm_ops.
-5. In filemap_nopage(), verify that any existing page located in the cache
-    is located in a node that satisfies the file's policy. If it's not 
-in a node that
-    satisfies the policy, it must be because the page was allocated 
-before the
-    file had any policies. If it's unused, free it and goto retry_find 
-(will allocate
-    a new page using the file's policy). Note that a similar operation 
-is done in
-    exec.c:setup_arg_pages() for stack pages.
-6. Init the file's shared policy in alloc_inode(), and free the shared 
-policy in
-    destroy_inode().
+We do need to be able to set the global policy without recompiling the kernel.
+So if we set if from init scripts early enough in boot it should be ok,
+I would think.  Not perfect, but good enough.  Remember, we worried
+about 10-100 GB files here.  A few MB is not a big deal.
 
-I'm working on the remaining features needed for MTA. They are:
+> Anyways, I guess you could just add a high flag bit to the 
+> mode argument of set_mempolicy. Something like
+> 
+> set_mempolicy(MPOL_PAGECACHE | MPOL_INTERLEAVE, nodemask, len)
+> 
+> That would work for setting the page cache policy of the current
+> process. 
+> 
+> 
 
-- support for policies contained in ELF images, for text and data regions.
-- support for do_mmap_mempolicy() and do_brk_mempolicy(). Do_mmap()
-   can allocate pages to the region before the function exits, such as 
-when pages
-   are locked for the region. So it's necessary in that case to set the 
-VMA's policy
-   within do_mmap() before those pages are allocated.
-- system calls for mmap_mempolicy and brk_mempolicy.
+That's an idea.  Not they way I was planning on doing it, but that would
+work.  I was thinking along the lines of:
 
-Let me know your thoughts on the filemap policy patch.
+set_mempolicy(MPOL_INTERLEAVE, nodemask, len, POLICY_PAGECACHE);
 
-Thanks,
-Steve
+but either way can be made to work.
+
+Am I helping make this clearer or is it getting worse?
+
+> -Andi
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+> 
 
 
---------------000706040208050705030902
-Content-Type: text/plain;
- name="filemap-policy.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline;
- filename="filemap-policy.patch"
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 
-diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/fs/exec.c 2.6.8-rc3/fs/exec.c
---- 2.6.8-rc3.orig/fs/exec.c	2004-08-10 15:18:07.000000000 -0700
-+++ 2.6.8-rc3/fs/exec.c	2004-09-01 21:53:25.000000000 -0700
-@@ -439,6 +439,25 @@
- 	for (i = 0 ; i < MAX_ARG_PAGES ; i++) {
- 		struct page *page = bprm->page[i];
- 		if (page) {
-+#ifdef CONFIG_NUMA
-+			if (!mpol_node_valid(page_to_nid(page), mpnt, 0)) {
-+				void *from, *to;
-+				struct page * new_page =
-+					alloc_pages_current(GFP_HIGHUSER, 0);
-+				if (!new_page) {
-+					up_write(&mm->mmap_sem);
-+					kmem_cache_free(vm_area_cachep, mpnt);
-+					return -ENOMEM;
-+				}
-+				from = kmap(page);
-+				to = kmap(new_page);
-+				copy_page(to, from);
-+				kunmap(page);
-+				kunmap(new_page);
-+				put_page(page);
-+				page = new_page;
-+			}
-+#endif
- 			bprm->page[i] = NULL;
- 			install_arg_page(mpnt, page, stack_base);
- 		}
-diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/fs/inode.c 2.6.8-rc3/fs/inode.c
---- 2.6.8-rc3.orig/fs/inode.c	2004-08-10 15:18:07.000000000 -0700
-+++ 2.6.8-rc3/fs/inode.c	2004-09-01 11:40:44.000000000 -0700
-@@ -150,6 +150,7 @@
- 		mapping_set_gfp_mask(mapping, GFP_HIGHUSER);
- 		mapping->assoc_mapping = NULL;
- 		mapping->backing_dev_info = &default_backing_dev_info;
-+ 		mpol_shared_policy_init(&mapping->policy);
- 
- 		/*
- 		 * If the block_device provides a backing_dev_info for client
-@@ -177,11 +178,12 @@
- 	security_inode_free(inode);
- 	if (inode->i_sb->s_op->destroy_inode)
- 		inode->i_sb->s_op->destroy_inode(inode);
--	else
-+	else {
-+		mpol_free_shared_policy(&inode->i_mapping->policy);
- 		kmem_cache_free(inode_cachep, (inode));
-+	}
- }
- 
--
- /*
-  * These are initializations that only need to be done
-  * once, because the fields are idempotent across use
-diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/include/linux/fs.h 2.6.8-rc3/include/linux/fs.h
---- 2.6.8-rc3.orig/include/linux/fs.h	2004-08-10 15:18:31.000000000 -0700
-+++ 2.6.8-rc3/include/linux/fs.h	2004-09-01 21:08:37.000000000 -0700
-@@ -18,6 +18,7 @@
- #include <linux/cache.h>
- #include <linux/prio_tree.h>
- #include <linux/kobject.h>
-+#include <linux/mempolicy.h>
- #include <asm/atomic.h>
- 
- struct iovec;
-@@ -339,6 +340,7 @@
- 	atomic_t		truncate_count;	/* Cover race condition with truncate */
- 	unsigned long		flags;		/* error bits/gfp mask */
- 	struct backing_dev_info *backing_dev_info; /* device readahead, etc */
-+	struct shared_policy    policy;         /* page alloc policy */
- 	spinlock_t		private_lock;	/* for use by the address_space */
- 	struct list_head	private_list;	/* ditto */
- 	struct address_space	*assoc_mapping;	/* ditto */
-diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/include/linux/mempolicy.h 2.6.8-rc3/include/linux/mempolicy.h
---- 2.6.8-rc3.orig/include/linux/mempolicy.h	2004-08-10 15:18:31.000000000 -0700
-+++ 2.6.8-rc3/include/linux/mempolicy.h	2004-09-01 21:54:34.000000000 -0700
-@@ -152,6 +152,8 @@
- void mpol_free_shared_policy(struct shared_policy *p);
- struct mempolicy *mpol_shared_policy_lookup(struct shared_policy *sp,
- 					    unsigned long idx);
-+struct page *alloc_page_shared_policy(unsigned gfp, struct shared_policy *sp,
-+				      unsigned long idx);
- 
- extern void numa_default_policy(void);
- extern void numa_policy_init(void);
-diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/include/linux/pagemap.h 2.6.8-rc3/include/linux/pagemap.h
---- 2.6.8-rc3.orig/include/linux/pagemap.h	2004-08-10 15:18:31.000000000 -0700
-+++ 2.6.8-rc3/include/linux/pagemap.h	2004-09-01 11:04:24.000000000 -0700
-@@ -50,14 +50,24 @@
- #define page_cache_release(page)	put_page(page)
- void release_pages(struct page **pages, int nr, int cold);
- 
--static inline struct page *page_cache_alloc(struct address_space *x)
-+
-+static inline struct page *__page_cache_alloc(struct address_space *x,
-+					      unsigned long idx,
-+					      unsigned int gfp_mask)
-+{
-+	return alloc_page_shared_policy(gfp_mask, &x->policy, idx);
-+}
-+
-+static inline struct page *page_cache_alloc(struct address_space *x,
-+					    unsigned long idx)
- {
--	return alloc_pages(mapping_gfp_mask(x), 0);
-+	return __page_cache_alloc(x, idx, mapping_gfp_mask(x));
- }
- 
--static inline struct page *page_cache_alloc_cold(struct address_space *x)
-+static inline struct page *page_cache_alloc_cold(struct address_space *x,
-+						 unsigned long idx)
- {
--	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD, 0);
-+	return __page_cache_alloc(x, idx, mapping_gfp_mask(x)|__GFP_COLD);
- }
- 
- typedef int filler_t(void *, struct page *);
-diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/mm/filemap.c 2.6.8-rc3/mm/filemap.c
---- 2.6.8-rc3.orig/mm/filemap.c	2004-08-10 15:18:35.000000000 -0700
-+++ 2.6.8-rc3/mm/filemap.c	2004-09-01 21:52:06.000000000 -0700
-@@ -534,7 +534,8 @@
- 	page = find_lock_page(mapping, index);
- 	if (!page) {
- 		if (!cached_page) {
--			cached_page = alloc_page(gfp_mask);
-+			cached_page = __page_cache_alloc(mapping, index,
-+							 gfp_mask);
- 			if (!cached_page)
- 				return NULL;
- 		}
-@@ -627,7 +628,7 @@
- 		return NULL;
- 	}
- 	gfp_mask = mapping_gfp_mask(mapping) & ~__GFP_FS;
--	page = alloc_pages(gfp_mask, 0);
-+	page = __page_cache_alloc(mapping, index, gfp_mask);
- 	if (page && add_to_page_cache_lru(page, mapping, index, gfp_mask)) {
- 		page_cache_release(page);
- 		page = NULL;
-@@ -789,7 +790,7 @@
- 		 * page..
- 		 */
- 		if (!cached_page) {
--			cached_page = page_cache_alloc_cold(mapping);
-+			cached_page = page_cache_alloc_cold(mapping, index);
- 			if (!cached_page) {
- 				desc->error = -ENOMEM;
- 				goto out;
-@@ -1050,7 +1051,7 @@
- 	struct page *page; 
- 	int error;
- 
--	page = page_cache_alloc_cold(mapping);
-+	page = page_cache_alloc_cold(mapping, offset);
- 	if (!page)
- 		return -ENOMEM;
- 
-@@ -1070,6 +1071,7 @@
- 	return error == -EEXIST ? 0 : error;
- }
- 
-+
- #define MMAP_LOTSAMISS  (100)
- 
- /*
-@@ -1090,7 +1092,7 @@
- 	struct page *page;
- 	unsigned long size, pgoff, endoff;
- 	int did_readaround = 0, majmin = VM_FAULT_MINOR;
--
-+	
- 	pgoff = ((address - area->vm_start) >> PAGE_CACHE_SHIFT) + area->vm_pgoff;
- 	endoff = ((area->vm_end - area->vm_start) >> PAGE_CACHE_SHIFT) + area->vm_pgoff;
- 
-@@ -1162,6 +1164,38 @@
- 			goto no_cached_page;
- 	}
- 
-+#ifdef CONFIG_NUMA
-+	if (!mpol_node_valid(page_to_nid(page), area, 0)) {
-+		/*
-+		 * the page in the cache is not in any of the nodes this
-+		 * VMA's policy wants it to be in. Can we remove it?
-+		 */
-+		lock_page(page);
-+		if (page_count(page) - !!PagePrivate(page) == 2) {
-+			/*
-+			 * This page isn't being used by any mappings,
-+			 * so we can safely remove it. It must be left
-+			 * over from an earlier file IO readahead when
-+			 * there was no page allocation policy associated
-+			 * with the file.
-+			 */
-+			spin_lock(&mapping->tree_lock);
-+			__remove_from_page_cache(page);
-+			spin_unlock(&mapping->tree_lock);
-+			page_cache_release(page);  /* pagecache ref */
-+			unlock_page(page);
-+			page_cache_release(page);  /* us */
-+			goto retry_find;
-+		} else {
-+			/*
-+			 * darn, the page is being used by other mappings.
-+			 * We'll just have to leave the page in this node.
-+			 */
-+			unlock_page(page);
-+		}
-+	}
-+#endif
-+	
- 	if (!did_readaround)
- 		ra->mmap_hit++;
- 
-@@ -1431,9 +1465,35 @@
- 	return 0;
- }
- 
-+
-+#ifdef CONFIG_NUMA
-+int generic_file_set_policy(struct vm_area_struct *vma,
-+			    struct mempolicy *new)
-+{
-+	struct address_space *mapping = vma->vm_file->f_mapping;
-+	return mpol_set_shared_policy(&mapping->policy, vma, new);
-+}
-+
-+struct mempolicy *
-+generic_file_get_policy(struct vm_area_struct *vma,
-+			unsigned long addr)
-+{
-+	struct address_space *mapping = vma->vm_file->f_mapping;
-+	unsigned long idx;
-+	
-+	idx = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-+	return mpol_shared_policy_lookup(&mapping->policy, idx);
-+}
-+#endif
-+
-+
- static struct vm_operations_struct generic_file_vm_ops = {
- 	.nopage		= filemap_nopage,
- 	.populate	= filemap_populate,
-+#ifdef CONFIG_NUMA
-+	.set_policy     = generic_file_set_policy,
-+	.get_policy     = generic_file_get_policy,
-+#endif
- };
- 
- /* This is used for a general mmap of a disk file */
-@@ -1483,7 +1543,7 @@
- 	page = find_get_page(mapping, index);
- 	if (!page) {
- 		if (!cached_page) {
--			cached_page = page_cache_alloc_cold(mapping);
-+			cached_page = page_cache_alloc_cold(mapping, index);
- 			if (!cached_page)
- 				return ERR_PTR(-ENOMEM);
- 		}
-@@ -1565,7 +1625,7 @@
- 	page = find_lock_page(mapping, index);
- 	if (!page) {
- 		if (!*cached_page) {
--			*cached_page = page_cache_alloc(mapping);
-+			*cached_page = page_cache_alloc(mapping, index);
- 			if (!*cached_page)
- 				return NULL;
- 		}
-diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/mm/mempolicy.c 2.6.8-rc3/mm/mempolicy.c
---- 2.6.8-rc3.orig/mm/mempolicy.c	2004-08-10 15:18:35.000000000 -0700
-+++ 2.6.8-rc3/mm/mempolicy.c	2004-09-01 21:49:14.000000000 -0700
-@@ -638,6 +638,7 @@
- 	return page;
- }
- 
-+
- /**
-  * 	alloc_page_vma	- Allocate a page for a VMA.
-  *
-@@ -683,6 +684,7 @@
- 	return __alloc_pages(gfp, 0, zonelist_policy(gfp, pol));
- }
- 
-+
- /**
-  * 	alloc_pages_current - Allocate pages.
-  *
-@@ -1003,6 +1005,28 @@
- 	up(&p->sem);
- }
- 
-+struct page *
-+alloc_page_shared_policy(unsigned gfp, struct shared_policy *sp,
-+			 unsigned long idx)
-+{
-+	struct page *page;
-+	
-+	if (sp) {
-+		struct vm_area_struct pvma;
-+		/* Create a pseudo vma that just contains the policy */
-+		memset(&pvma, 0, sizeof(struct vm_area_struct));
-+		pvma.vm_end = PAGE_SIZE;
-+		pvma.vm_pgoff = idx;
-+		pvma.vm_policy = mpol_shared_policy_lookup(sp, idx);
-+		page = alloc_page_vma(gfp, &pvma, 0);
-+		mpol_free(pvma.vm_policy);
-+	} else {
-+		page = alloc_pages(gfp, 0);
-+	}
-+
-+	return page;
-+}
-+
- /* assumes fs == KERNEL_DS */
- void __init numa_policy_init(void)
- {
-diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/mm/readahead.c 2.6.8-rc3/mm/readahead.c
---- 2.6.8-rc3.orig/mm/readahead.c	2004-08-10 15:18:35.000000000 -0700
-+++ 2.6.8-rc3/mm/readahead.c	2004-09-01 20:39:14.000000000 -0700
-@@ -246,7 +246,7 @@
- 			continue;
- 
- 		spin_unlock_irq(&mapping->tree_lock);
--		page = page_cache_alloc_cold(mapping);
-+		page = page_cache_alloc_cold(mapping, page_offset);
- 		spin_lock_irq(&mapping->tree_lock);
- 		if (!page)
- 			break;
-diff -Nuar -X /home/stevel/dontdiff 2.6.8-rc3.orig/mm/shmem.c 2.6.8-rc3/mm/shmem.c
---- 2.6.8-rc3.orig/mm/shmem.c	2004-08-10 15:18:35.000000000 -0700
-+++ 2.6.8-rc3/mm/shmem.c	2004-09-01 11:14:48.000000000 -0700
-@@ -824,16 +824,7 @@
- shmem_alloc_page(unsigned long gfp, struct shmem_inode_info *info,
- 		 unsigned long idx)
- {
--	struct vm_area_struct pvma;
--	struct page *page;
--
--	memset(&pvma, 0, sizeof(struct vm_area_struct));
--	pvma.vm_policy = mpol_shared_policy_lookup(&info->policy, idx);
--	pvma.vm_pgoff = idx;
--	pvma.vm_end = PAGE_SIZE;
--	page = alloc_page_vma(gfp, &pvma, 0);
--	mpol_free(pvma.vm_policy);
--	return page;
-+	return alloc_page_shared_policy(gfp, &info->policy, idx);
- }
- #else
- static inline struct page *
-
---------------000706040208050705030902--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
