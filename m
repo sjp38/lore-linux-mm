@@ -1,91 +1,360 @@
-Date: Tue, 27 Mar 2001 21:00:57 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] Prevent OOM from killing init
-In-Reply-To: <Pine.LNX.4.21.0103270854350.25071-100000@localhost.localdomain>
-Message-ID: <Pine.LNX.4.21.0103272049250.8261-100000@imladris.rielhome.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 28 Mar 2001 05:49:30 +0100
+From: Stephen Tweedie <sct@redhat.com>
+Subject: [PATCH-2.4.2ac26] fix raw IO
+Message-ID: <20010328054930.A10669@redhat.com>
+References: <3ABBA330.2ADCEBAA@eurologic.com> <E14gZoY-0005Xy-00@the-village.bc.nu>
+Mime-Version: 1.0
+Content-Type: multipart/mixed; boundary="EVF5PPMfhYS0aIcm"
+Content-Disposition: inline
+In-Reply-To: <E14gZoY-0005Xy-00@the-village.bc.nu>; from alan@lxorguk.ukuu.org.uk on Fri, Mar 23, 2001 at 10:13:44PM +0000
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Scott F. Kaplan" <sfkaplan@cs.amherst.edu>
-Cc: linux-mm@kvack.org
+To: Alan Cox <alan@lxorguk.ukuu.org.uk>, Linus Torvalds <torvalds@transmeta.com>
+Cc: Mark Mitchell <mmitchell@eurologic.com>, linux-kernel@vger.kernel.org, Stephen Tweedie <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Ben LaHaise <bcrl@redhat.com>, linux-mm@kvack.org, Helge Deller <hdeller@redhat.de>, Steve Lord <lord@sgi.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 27 Mar 2001, Scott F. Kaplan wrote:
-> On Sat, 24 Mar 2001, Rik van Riel wrote:
+--EVF5PPMfhYS0aIcm
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+Hi,
+
+On Fri, Mar 23, 2001 at 10:13:44PM +0000, Alan Cox wrote:
+> > 
+> > I really need to know any *specific* issues with RAWIO.
 > 
-> > [...]  I need to implement load control code (so we suspend
-> > processes in turn to keep the load low enough so we can avoid
-> > thrashing).
-> 
-> I am curious as to how you plan to go about implementing this load
-> control.  I ask because it's a current area of research for me.
-> Detecting the point at which thrashing occurs (that is, the point at
-> which process utilization starts to fall because every active process
-> is waiting for page faults, and nothing is ready to run) is not
-> necessarily easy.
->
-> There was a whole bunch of theory about how to detect this kind of
-> over-commitment with Working Set.  Unfortunately, I'm reasonably
-> convinced that there are some serious holes in that theory, and that
-> nobody has developed a well founded answer to this question.  Do you
-> have ideas (taken from others or developed yourself) about how you're
-> going to approach it?
+> All I know is that Stephen said he had a set of patches needed to fix rawio.
+> I've not applied them nor afaik has Linus.
 
-Cool, you've noticed too  ;))
+Ben LaHaise has been testing Oracle on raw IO with the new patches,
+and I only got the thumbs up on that yesterday.  Patch below.
 
-Current theory _really_ seems to be lacking and I'm still busy
-trying to come up with an idea that works ...
+This fixes:
 
-> My specific concerns are things like:  What will your definition of
-> "thrashing" be?  How do you plan to detect it?  When you suspend a
-> process, what will happen to that process?  Will its main memory
-> allocation be taken away immediately?  When will it be re-activated?
+ Fix two problems when faulting in pages for direct access:
+  Check pmd and pgd entries for validity in follow page; 
+  Be prepared to call handle_mm_fault more than once if necessary 
+  to complete the page fault.
 
-I plan to "detect" thrashing by keeping a kind of "swap load
-average", that is, measuring in the same way as the load average
-how many tasks are waiting on page faults simultaneously.
+ Allow raw devices to be unbound by binding to dev (0,0)
 
-When this swap load average will get too high (too high in
-relation to the "normal" load average ???) and possibly a few
-other conditions are true we will select a process to suspend.
+ Use SetPageDirty to mark pages dirty in memory after a read from disk
 
-This process will not be suspended immediately, but only on the
-next page fault. It's pages will be stolen by kswapd in the normal
-way.
+ Wait for pending IO correctly if an error occurs during IO
 
-We will not start reactivating processes until the swap load is
-below the threshold again (which is automatically a reasonable
-indication because it's a long-term floating average).
+ Return -EIO if an IO error occurs in the first block of the IO
 
-> Basically, these problems used to have easier answers on old batch
-> systems with a lesser notion of fairness and more uniform workloads.
-> It's not clear what to do here; by suspending processes, you're
-> introducing a kind of long-term scheduler that decides when a process
-> can enter the pool of candidates from which the usual, short-term
-> scheduler chooses.  There seems to be some real scheduling issues that
-> go along with this problem, including a substantial modification to
-> the fairness with which suspended processes are treated.
-> 
-> I'd like very much to see a well developed, generalized model for this
-> kind of problem.  Obviously, the answer will depend on what the
-> intended use of the system is.  It would be wonderful to avoid ad-hoc
-> solutions for different cases, and instead have one approach that can
-> be adjusted to serve different needs.
+Cheers,
+ Stephen
 
-Definately.  You can count on me to help think about these things
-and help testing, etc...
 
-regards,
+--EVF5PPMfhYS0aIcm
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="2.4.2-ac26.raw-fixes.patch"
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
+--- linux-2.4.2-ac26/drivers/char/raw.c.~1~	Tue Mar 27 18:41:07 2001
++++ linux-2.4.2-ac26/drivers/char/raw.c	Wed Mar 28 03:33:16 2001
+@@ -184,7 +184,8 @@
+ 			 * major/minor numbers make sense. 
+ 			 */
+ 
+-			if (rq.block_major == NODEV || 
++			if ((rq.block_major == NODEV && 
++			     rq.block_minor != NODEV) ||
+ 			    rq.block_major > MAX_BLKDEV ||
+ 			    rq.block_minor > MINORMASK) {
+ 				err = -EINVAL;
+@@ -313,24 +314,21 @@
+ 		err = map_user_kiobuf(rw, iobuf, (unsigned long) buf, iosize);
+ 		if (err)
+ 			break;
+-#if 0
+-		err = lock_kiovec(1, &iobuf, 1);
+-		if (err) 
+-			break;
+-#endif
+-	
++
+ 		for (i=0; i < blocks; i++) 
+ 			b[i] = blocknr++;
+ 		
+ 		err = brw_kiovec(rw, 1, &iobuf, dev, b, sector_size);
+-
++		if (rw == READ && err > 0)
++			mark_dirty_kiobuf(iobuf, err);
++		
+ 		if (err >= 0) {
+ 			transferred += err;
+ 			size -= err;
+ 			buf += err;
+ 		}
+ 
+-		unmap_kiobuf(iobuf); /* The unlock_kiobuf is implicit here */
++		unmap_kiobuf(iobuf);
+ 
+ 		if (err != iosize)
+ 			break;
+--- linux-2.4.2-ac26/fs/buffer.c.~1~	Tue Mar 27 18:41:40 2001
++++ linux-2.4.2-ac26/fs/buffer.c	Wed Mar 28 03:33:16 2001
+@@ -2016,12 +2016,12 @@
+ 
+ static int wait_kio(int rw, int nr, struct buffer_head *bh[], int size)
+ {
+-	int iosize;
++	int iosize, err;
+ 	int i;
+ 	struct buffer_head *tmp;
+ 
+-
+ 	iosize = 0;
++	err = 0;
+ 	spin_lock(&unused_list_lock);
+ 
+ 	for (i = nr; --i >= 0; ) {
+@@ -2038,13 +2038,16 @@
+                            clearing iosize on error calculates the
+                            amount of IO before the first error. */
+ 			iosize = 0;
++			err = -EIO;
+ 		}
+ 		__put_unused_buffer_head(tmp);
+ 	}
+ 	
+ 	spin_unlock(&unused_list_lock);
+ 
+-	return iosize;
++	if (iosize)
++		return iosize;
++	return err;
+ }
+ 
+ /*
+@@ -2157,29 +2160,22 @@
+ 		} /* End of page loop */		
+ 	} /* End of iovec loop */
+ 
++ error:
+ 	/* Is there any IO still left to submit? */
+ 	if (bhind) {
+-		err = wait_kio(rw, bhind, bh, size);
+-		if (err >= 0)
+-			transferred += err;
++		int tmp_err;
++		tmp_err = wait_kio(rw, bhind, bh, size);
++		if (tmp_err >= 0)
++			transferred += tmp_err;
+ 		else
+-			goto finished;
++			if (!err)
++				err = tmp_err;
+ 	}
+ 
+  finished:
+ 	if (transferred)
+ 		return transferred;
+ 	return err;
+-
+- error:
+-	/* We got an error allocating the bh'es.  Just free the current
+-           buffer_heads and exit. */
+-	spin_lock(&unused_list_lock);
+-	for (i = bhind; --i >= 0; ) {
+-		__put_unused_buffer_head(bh[i]);
+-	}
+-	spin_unlock(&unused_list_lock);
+-	goto finished;
+ }
+ 
+ /*
+--- linux-2.4.2-ac26/include/linux/iobuf.h.~1~	Thu Feb 22 00:10:12 2001
++++ linux-2.4.2-ac26/include/linux/iobuf.h	Wed Mar 28 03:33:16 2001
+@@ -64,6 +64,7 @@
+ void	unmap_kiobuf(struct kiobuf *iobuf);
+ int	lock_kiovec(int nr, struct kiobuf *iovec[], int wait);
+ int	unlock_kiovec(int nr, struct kiobuf *iovec[]);
++void	mark_dirty_kiobuf(struct kiobuf *iobuf, int bytes);
+ 
+ /* fs/iobuf.c */
+ 
+--- linux-2.4.2-ac26/mm/memory.c.~1~	Tue Mar 27 18:41:50 2001
++++ linux-2.4.2-ac26/mm/memory.c	Wed Mar 28 03:36:42 2001
+@@ -382,20 +382,33 @@
+ /*
+  * Do a quick page-table lookup for a single page. 
+  */
+-static struct page * follow_page(unsigned long address) 
++static struct page * follow_page(unsigned long address, int write) 
+ {
+ 	pgd_t *pgd;
+ 	pmd_t *pmd;
++	pte_t *ptep, pte;
+ 
+ 	pgd = pgd_offset(current->mm, address);
++	if (pgd_none(*pgd) || pgd_bad(*pgd))
++		goto out;
++
+ 	pmd = pmd_offset(pgd, address);
+-	if (pmd) {
+-		pte_t * pte = pte_offset(pmd, address);
+-		if (pte && pte_present(*pte))
+-			return pte_page(*pte);
++	if (pmd_none(*pmd) || pmd_bad(*pmd))
++		goto out;
++
++	ptep = pte_offset(pmd, address);
++	if (!ptep)
++		goto out;
++
++	pte = *ptep;
++	if (pte_present(pte)) {
++		if (!write ||
++		    (pte_write(pte) && pte_dirty(pte)))
++			return pte_page(pte);
+ 	}
+-	
+-	return NULL;
++
++out:
++	return 0;
+ }
+ 
+ /* 
+@@ -425,7 +438,7 @@
+ 	struct vm_area_struct *	vma = 0;
+ 	struct page *		map;
+ 	int			i;
+-	int			datain = (rw == READ);
++	int			to_user = (rw == READ);
+ 	
+ 	/* Make sure the iobuf is not already mapped somewhere. */
+ 	if (iobuf->nr_pages)
+@@ -448,13 +461,18 @@
+ 	iobuf->length = len;
+ 	
+ 	i = 0;
++
++	spin_lock(&mm->page_table_lock);
+ 	
+ 	/* 
+ 	 * First of all, try to fault in all of the necessary pages
+ 	 */
+ 	while (ptr < end) {
+ 		if (!vma || ptr >= vma->vm_end) {
++
++			spin_unlock(&mm->page_table_lock);
+ 			vma = find_vma(current->mm, ptr);
++
+ 			if (!vma) 
+ 				goto out_unlock;
+ 			if (vma->vm_start > ptr) {
+@@ -463,34 +481,49 @@
+ 				if (expand_stack(vma, ptr))
+ 					goto out_unlock;
+ 			}
+-			if (((datain) && (!(vma->vm_flags & VM_WRITE))) ||
+-					(!(vma->vm_flags & VM_READ))) {
++			if (((to_user) && (!(vma->vm_flags & VM_WRITE))) ||
++			    (!(vma->vm_flags & VM_READ))) {
+ 				err = -EACCES;
+ 				goto out_unlock;
+ 			}
++
++			spin_lock(&mm->page_table_lock);
+ 		}
+-		if (handle_mm_fault(current->mm, vma, ptr, datain) <= 0) 
+-			goto out_unlock;
+-		spin_lock(&mm->page_table_lock);
+-		map = follow_page(ptr);
+-		if (!map) {
++		while (1) {
++			int ret;
++			
++			map = follow_page(ptr, to_user);
++			if (map) {
++				map = get_page_map(map);
++				if (map) {
++					flush_dcache_page(map);
++					atomic_inc(&map->count);
++				} else
++					printk (KERN_INFO
++						"Mapped page missing [%d]\n", 
++						i);
++				break;
++			}
++			
+ 			spin_unlock(&mm->page_table_lock);
+-			dprintk (KERN_ERR "Missing page in map_user_kiobuf\n");
+-			goto out_unlock;
++
++			ret = handle_mm_fault(current->mm, vma, ptr, to_user);
++			if (ret <= 0) {
++				if (ret)
++					err = -ENOMEM;
++				goto out_unlock;
++			}
++
++			spin_lock(&mm->page_table_lock);
+ 		}
+-		map = get_page_map(map);
+-		if (map) {
+-			flush_dcache_page(map);
+-			atomic_inc(&map->count);
+-		} else
+-			printk (KERN_INFO "Mapped page missing [%d]\n", i);
+-		spin_unlock(&mm->page_table_lock);
++		
+ 		iobuf->maplist[i] = map;
+ 		iobuf->nr_pages = ++i;
+ 		
+ 		ptr += PAGE_SIZE;
+ 	}
+ 
++	spin_unlock(&mm->page_table_lock);
+ 	up_write(&mm->mmap_sem);
+ 	dprintk ("map_user_kiobuf: end OK\n");
+ 	return 0;
+@@ -524,6 +557,39 @@
+ 	
+ 	iobuf->nr_pages = 0;
+ 	iobuf->locked = 0;
++}
++
++
++/*
++ * Mark all of the pages in a kiobuf as dirty 
++ *
++ * We need to be able to deal with short reads from disk: if an IO error
++ * occurs, the number of bytes read into memory may be less than the
++ * size of the kiobuf, so we have to stop marking pages dirty once the
++ * requested byte count has been reached.
++ */
++
++void mark_dirty_kiobuf(struct kiobuf *iobuf, int bytes)
++{
++	int index, offset, remaining;
++	struct page *page;
++	
++	index = iobuf->offset >> PAGE_SHIFT;
++	offset = iobuf->offset & ~PAGE_MASK;
++	remaining = bytes;
++	if (remaining > iobuf->length)
++		remaining = iobuf->length;
++	
++	while (remaining > 0 && index < iobuf->nr_pages) {
++		page = iobuf->maplist[index];
++		
++		if (!PageReserved(page))
++			SetPageDirty(page);
++
++		remaining -= (PAGE_SIZE - offset);
++		offset = 0;
++		index++;
++	}
+ }
+ 
+ 
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
-
+--EVF5PPMfhYS0aIcm--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
