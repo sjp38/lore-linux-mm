@@ -1,34 +1,30 @@
-Subject: Re: A scrub daemon (prezeroing)
-From: David Woodhouse <dwmw2@infradead.org>
-In-Reply-To: <20050202163110.GB23132@logos.cnet>
-References: <Pine.LNX.4.58.0501211228430.26068@schroedinger.engr.sgi.com>
-	 <1106828124.19262.45.camel@hades.cambridge.redhat.com>
-	 <20050202153256.GA19615@logos.cnet>
-	 <Pine.LNX.4.58.0502021103410.12695@schroedinger.engr.sgi.com>
-	 <20050202163110.GB23132@logos.cnet>
-Content-Type: text/plain
-Date: Wed, 02 Feb 2005 21:39:54 +0000
-Message-Id: <1107380394.18239.34.camel@baythorne.infradead.org>
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Date: Wed, 2 Feb 2005 14:03:51 -0800 (PST)
+From: Christoph Lameter <clameter@sgi.com>
+Subject: Re: [PATCH 2/2] Helping prezoring with reduced fragmentation allocation
+In-Reply-To: <20050202121922.1251c677.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.58.0502021403180.14275@schroedinger.engr.sgi.com>
+References: <20050201171641.CC15EE5E8@skynet.csn.ul.ie>
+ <Pine.LNX.4.58.0502011110560.3436@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0502011929020.16992@skynet> <Pine.LNX.4.58.0502011604130.5406@schroedinger.engr.sgi.com>
+ <Pine.LNX.4.58.0502020026040.16992@skynet> <20050202164936.GA23718@logos.cnet>
+ <20050202121922.1251c677.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Christoph Lameter <clameter@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@osdl.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, mel@csn.ul.ie, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2005-02-02 at 14:31 -0200, Marcelo Tosatti wrote:
-> Someone should try implementing the zeroing driver for a fast x86 PCI
-> device. :)
+On Wed, 2 Feb 2005, Andrew Morton wrote:
 
-The BT848/BT878 seems like an ideal candidate. That kind of abuse is
-probably only really worth it on an architecture with cache-coherent DMA
-though. If you have to flush the cache anyway, you might as well just
-zero it from the CPU.
+> Marcelo Tosatti <marcelo.tosatti@cyclades.com> wrote:
+> >
+> >  What are your thoughts about inclusion of Mel's allocator work on -mm ?
+>
+> It's sitting in my to-do pile.
 
--- 
-dwmw2
-
+Tell me when you need my prezeroing patches on top of mel's patches....
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
