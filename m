@@ -1,184 +1,56 @@
-Date: Sat, 20 Jan 2001 14:51:41 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: [PATCH] conditional background scanning
-Message-ID: <Pine.LNX.4.21.0101201437130.6647-100000@freak.distro.conectiva>
+Received: from ds02c00.directory.ray.com (ds02c00.rsc.raytheon.com [147.25.138.118])
+	by dfw-gate4.raytheon.com (8.11.0.Beta3/8.11.0.Beta3) with ESMTP id f0MFt1Z15362
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2001 09:55:01 -0600 (CST)
+Received: from rtshou-ds01.hou.us.ray.com (localhost [127.0.0.1])
+	by ds02c00.directory.ray.com (8.9.3/8.9.3) with ESMTP id JAA10757
+	for <linux-mm@kvack.org>; Mon, 22 Jan 2001 09:54:15 -0600 (CST)
+Subject: Locked memory questions
+Message-ID: <OF55A69DFC.F1913EBB-ON862569DC.00556518@hou.us.ray.com>
+From: Mark_H_Johnson@Raytheon.com
+Date: Mon, 22 Jan 2001 09:54:49 -0600
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Stanley_R_Allen-NR@Raytheon.com
 List-ID: <linux-mm.kvack.org>
 
-Linus,
+I was surprised by a reference in the latest kernel traffic
+(http://kt.linuxcare.com/kernel-traffic/latest.epl) to a VM problem with
+large locked memory regions. I read linux-mm on a daily basis, but didn't
+see this particular discussion go by. We're looking at deploying a large
+real time system [hard deadlines, lots of locked memory] and have a few
+questions based on that discussion...
+ [1] Other than the kernel limit on the amount of locked memory [was 50% in
+2.2.x], what should I be aware of when setting up a system with huge
+amounts of locked memory [say, 75% locked on a 256 to 512 Mbyte machine]?
+ [2] Does it matter that I have several threads that map that memory [from
+10 to 50, varies by system]?
+ [3] Does it matter that the target system is a Pentium III or not?
+ [4] Are there any other "known problems" with Linux VM and locked memory?
+If so, any idea on when they will be fixed? We're looking to go into system
+testing this summer with delivery in November.
+ [5] Are the algorithms you are considering for fixing page aging, etc. do
+well with locked memory?
+ [6] Where does it explain when a locked page is put into memory? I had
+assumed it was done when the mlockall() call was done, but now I'm not so
+sure. We could put a small hunk of code to walk the address space if
+needed, but need to know for sure.
+ [7] If I use mlockall(), does it lock the maximum stack size for the
+thread its called from [or just the current stack extent]?
+ [8] Please confirm - A process with its address space locked is NOT a
+candidate for swapping.
 
-The following patch against pre9 implements the limits (previously
-discussed issue) on background scanning.
+In many ways, I'd like the kernel to ignore the locked memory regions from
+its analysis for page aging, candidates for swapping, etc. We want to use
+most of the CPU cycles to run our application, not manage the memory that
+isn't going anywhere.
 
-I removed the pte scanning so this patch is only a obvious bugfix.
+Thanks.
 
-I can't read your mind, so please answer when you have a reason for not
-accepting a patch. 
-
-I still dont know why you think scanning the pte's when there is no need
-to do so (because we already unmapped enough pages) is correct.
-
-And the patch: 
-
-diff -Nur linux.orig/include/linux/swap.h linux/include/linux/swap.h
---- linux.orig/include/linux/swap.h	Sat Jan 20 16:00:18 2001
-+++ linux/include/linux/swap.h	Sat Jan 20 16:06:25 2001
-@@ -101,6 +101,7 @@
- extern void swap_setup(void);
- 
- /* linux/mm/vmscan.c */
-+extern int bg_page_aging;
- extern struct page * reclaim_page(zone_t *);
- extern wait_queue_head_t kswapd_wait;
- extern wait_queue_head_t kreclaimd_wait;
-diff -Nur linux.orig/mm/swap.c linux/mm/swap.c
---- linux.orig/mm/swap.c	Sat Jan 20 16:00:18 2001
-+++ linux/mm/swap.c	Sat Jan 20 16:06:25 2001
-@@ -200,17 +200,22 @@
- {
- 	if (PageInactiveDirty(page)) {
- 		del_page_from_inactive_dirty_list(page);
--		add_page_to_active_list(page);
- 	} else if (PageInactiveClean(page)) {
- 		del_page_from_inactive_clean_list(page);
--		add_page_to_active_list(page);
- 	} else {
- 		/*
- 		 * The page was not on any list, so we take care
- 		 * not to do anything.
- 		 */
-+		goto inc_age;
- 	}
- 
-+	add_page_to_active_list(page);
-+	
-+	if(bg_page_aging < num_physpages)
-+		bg_page_aging++;
-+
-+inc_age:
- 	/* Make sure the page gets a fair chance at staying active. */
- 	if (page->age < PAGE_AGE_START)
- 		page->age = PAGE_AGE_START;
-diff -Nur linux.orig/mm/vmscan.c linux/mm/vmscan.c
---- linux.orig/mm/vmscan.c	Sat Jan 20 16:00:18 2001
-+++ linux/mm/vmscan.c	Sat Jan 20 16:13:16 2001
-@@ -24,17 +24,8 @@
- 
- #include <asm/pgalloc.h>
- 
--/*
-- * The swap-out functions return 1 if they successfully
-- * threw something out, and we got a free page. It returns
-- * zero if it couldn't do anything, and any other value
-- * indicates it decreased rss, but the page was shared.
-- *
-- * NOTE! If it sleeps, it *must* return 1 to make sure we
-- * don't continue with the swap-out. Otherwise we may be
-- * using a process that no longer actually exists (it might
-- * have died while we slept).
-- */
-+int bg_page_aging = 0;
-+
- static void try_to_swap_out(struct mm_struct * mm, struct vm_area_struct* vma, unsigned long address, pte_t * page_table, struct page *page)
- {
- 	pte_t pte;
-@@ -626,22 +617,24 @@
- /**
-  * refill_inactive_scan - scan the active list and find pages to deactivate
-  * @priority: the priority at which to scan
-- * @oneshot: exit after deactivating one page
-+ * @background: slightly different behaviour for background scanning
-  *
-  * This function will scan a portion of the active list to find
-  * unused pages, those pages will then be moved to the inactive list.
-  */
--int refill_inactive_scan(unsigned int priority, int oneshot)
-+int refill_inactive_scan(unsigned int priority, int background)
- {
- 	struct list_head * page_lru;
- 	struct page * page;
--	int maxscan, page_active = 0;
-+	int maxscan;
- 	int ret = 0;
-+	int deactivate = 1;
- 
- 	/* Take the lock while messing with the list... */
- 	spin_lock(&pagemap_lru_lock);
- 	maxscan = nr_active_pages >> priority;
- 	while (maxscan-- > 0 && (page_lru = active_list.prev) != &active_list) {
-+		int page_active = 0;
- 		page = list_entry(page_lru, struct page, lru);
- 
- 		/* Wrong page on list?! (list corruption, should not happen) */
-@@ -656,9 +649,19 @@
- 		if (PageTestandClearReferenced(page)) {
- 			age_page_up_nolock(page);
- 			page_active = 1;
--		} else {
-+		} else if (deactivate) {
- 			age_page_down_ageonly(page);
- 			/*
-+			 * We're aging down a page. Decrement the counter if it
-+ 			 * has not reached zero yet. If it reached zero, and we 			 * are doing background scan, stop deactivating pages.
-+			 */
-+			if (bg_page_aging)
-+				bg_page_aging--;
-+			else if (background) {
-+				deactivate = 0;
-+				continue;	
-+			}
-+			/*
- 			 * Since we don't hold a reference on the page
- 			 * ourselves, we have to do our test a bit more
- 			 * strict then deactivate_page(). This is needed
-@@ -672,21 +675,20 @@
- 						(page->buffers ? 2 : 1)) {
- 				deactivate_page_nolock(page);
- 				page_active = 0;
--			} else {
--				page_active = 1;
- 			}
- 		}
- 		/*
- 		 * If the page is still on the active list, move it
- 		 * to the other end of the list. Otherwise it was
--		 * deactivated by age_page_down and we exit successfully.
-+		 * deactivated by deactivate_page_nolock and we exit 
-+		 * successfully.
- 		 */
- 		if (page_active || PageActive(page)) {
- 			list_del(page_lru);
- 			list_add(page_lru, &active_list);
- 		} else {
- 			ret = 1;
--			if (oneshot)
-+			if (!background)
- 				break;
- 		}
- 	}
-@@ -800,7 +802,7 @@
- 			schedule();
- 		}
- 
--		while (refill_inactive_scan(DEF_PRIORITY, 1)) {
-+		while (refill_inactive_scan(DEF_PRIORITY, 0)) {
- 			if (--count <= 0)
- 				goto done;
- 		}
-@@ -919,7 +921,7 @@
- 		 * every minute. This clears old referenced bits
- 		 * and moves unused pages to the inactive list.
- 		 */
--		refill_inactive_scan(DEF_PRIORITY, 0);
-+		refill_inactive_scan(DEF_PRIORITY, 1);
- 
- 		/* Once a second, recalculate some VM stats. */
- 		if (time_after(jiffies, recalc + HZ)) {
+--Mark H Johnson
+  <mailto:Mark_H_Johnson@raytheon.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
