@@ -1,30 +1,51 @@
-From: "Mr. Sachenger" <tofy65@hotmail.com>
-Subject: Direct Generic Drugs! Save Over 70%! Overnight Shipping!                       MWUI
-Date: Sat, 04 Dec 2004 19:41:17 01900
-Reply-To: tofy65@hotmail.com
+Message-ID: <20041205104946.67855.qmail@web53906.mail.yahoo.com>
+Date: Sun, 5 Dec 2004 02:49:46 -0800 (PST)
+From: Fawad Lateef <fawad_lateef@yahoo.com>
+Subject: Re: Re: Is sizeof(void *) ever != sizeof(unsigned long)?
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
-Content-Transfer-Encoding: 7bit
-Message-Id: <20041205004124.066B85401F@mail.lestat.st>
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: ninara@tiscali.it, ramola23@rediffmail.com, support@burstfire.net, yourname@worldsgreatestchef.com, jobs@worldsite.ws, email@africa-11.com, lisedeke@rapote.net, vace@yi.com, fmnu@quickonlinepharmacy.com, linux-mm@kvack.org
+To: rml@novell.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Cheap Meds most charge $14.95 we charge only $2.59
+--- Robert Love wrote:
 
-No Prescr1pt1ion requ1red
-sh1pped wor1dw1ide
+> But that is not true, actually.  Nothing in C or
+> anywhere else says that
+> the long type has to be the size of a GPR.
+> Specifically in Linux, the
+> SPARC64 user-space ABI has a 32-bit long type
+> despite being a 64-bit
+> architecture--in other words, SPARC64 has a 32-bit
+> user-space even
+> though it is a 64-bit architecture.
+> 
+> In the kernel, however, we have the ABI such that
+> both pointers and
+> longs are the same size, generally the size of the
+> GPR.  But there is a
+> difference between physical requirements, C
+> requirements, the user-space
+> ABI, and the kernel ABI.
+> 
+> By definition (the Linux kernel ABI) they _are_
+> equal in size to each
+> other.
+> 
 
 
-Check it out I saved over 70% 
-
-http://www.the-rxsite.com/?hotstuff
-
+Thanks for this explanation, now I got clear view abt
+that.
 
 
-Ho Ho HO!  Happy Holidays!
+Fawad Lateef
+
+__________________________________________________
+Do You Yahoo!?
+Tired of spam?  Yahoo! Mail has the best spam protection around 
+http://mail.yahoo.com 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
