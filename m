@@ -1,23 +1,16 @@
-Date: Sun, 18 Apr 2004 02:39:49 -0700
-From: William Lee Irwin III <wli@holomorphy.com>
+Date: Sun, 18 Apr 2004 11:42:11 +0100
+From: Russell King <rmk@arm.linux.org.uk>
 Subject: Re: PTE aging, ptep_test_and_clear_young() and TLB
-Message-ID: <20040418093949.GY743@holomorphy.com>
+Message-ID: <20040418114211.A9952@flint.arm.linux.org.uk>
 References: <20040417211506.C21974@flint.arm.linux.org.uk> <20040417204302.GR743@holomorphy.com> <20040418103616.B5745@flint.arm.linux.org.uk>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040418103616.B5745@flint.arm.linux.org.uk>
+In-Reply-To: <20040418103616.B5745@flint.arm.linux.org.uk>; from rmk@arm.linux.org.uk on Sun, Apr 18, 2004 at 10:36:16AM +0100
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King <rmk@arm.linux.org.uk>
-Cc: linux-mm@kvack.org
+To: William Lee Irwin III <wli@holomorphy.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-
-On Sat, Apr 17, 2004 at 01:43:02PM -0700, William Lee Irwin III wrote:
->> The address and mm should already be recoverable via the pte page
->> tagging technique. The vma is recoverable from that, albeit at some
->> cost (mm->page_table_lock acquisition + find_vma() call). OTOH unless
->> kswapd's going wild it should largely count as a slow path anyway.
 
 On Sun, Apr 18, 2004 at 10:36:16AM +0100, Russell King wrote:
 > Actually, we don't actually need the VMA - if you look at flush_tlb_page()
@@ -26,13 +19,35 @@ On Sun, Apr 18, 2004 at 10:36:16AM +0100, Russell King wrote:
 > the I-TLB if VM_EXEC wasn't set, but I think that was a previous
 > incarnation.)
 
-This sounds like when hugh's stuff to prep for either his or andrea's
-try_to_unmap() reimplementation goes in, something akin to current ppc64
-may be needed for ARM. That should preserve the mm/address tagging by
-shoving the pte page tagging into arch code.
+Grumble - there's one big problem here - it's the kernel include
+dependencies.
 
+In file included from include/linux/mm.h:25,
+                 from arch/arm/kernel/asm-offsets.c:14:
+include/asm/pgtable.h: In function `ptep_test_and_clear_young':
+include/asm/pgtable.h:404: warning: implicit declaration of function `flush_tlb_mm_page'
+include/asm/pgtable.h:404: warning: implicit declaration of function `ptep_to_mm'
+include/asm/pgtable.h:404: warning: implicit declaration of function `ptep_to_address'
 
--- wli
+Ok, so linux/mm.h includes asm/pgtable.h, which in turn includes
+asm-generic/pgtable.h.  I need to get at the mm and address in my
+implementation of ptep_test_and_clear_young() - and the functions
+are defined in asm-generic/rmap.h.  This includes linux/mm.h, so
+I can't include it in asm/pgtable.h. Moreover, mm_struct hasn't
+been declared yet.
+
+Converting ptep_test_and_clear_young() to be a macro doesn't look
+sane either, not without creating some rather disgusting code.
+
+So, how do I get at the mm_struct and address in asm/pgtable.h ?
+Maybe we need to split out the pte manipulation into asm/pte.h rather
+than overloading pgtable.h with it?
+
+-- 
+Russell King
+ Linux kernel    2.6 ARM Linux   - http://www.arm.linux.org.uk/
+ maintainer of:  2.6 PCMCIA      - http://pcmcia.arm.linux.org.uk/
+                 2.6 Serial core
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
