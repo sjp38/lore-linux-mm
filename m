@@ -1,70 +1,28 @@
-Subject: [PATCH] Re: 2.6.0-mm1
-From: =?ISO-8859-1?Q?Ram=F3n?= Rey Vicente <rrey@ranty.pantax.net>
-Reply-To: ramon.rey@hispalinux.es
-In-Reply-To: <20031222211131.70a963fb.akpm@osdl.org>
+Date: Sun, 28 Dec 2003 10:58:07 +0000
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: 2.6.0-mm1
+Message-ID: <20031228105807.A19546@infradead.org>
 References: <20031222211131.70a963fb.akpm@osdl.org>
-Content-Type: multipart/signed; micalg=pgp-sha1; protocol="application/pgp-signature"; boundary="=-h6z3fSPBRGjpeZjSg1AZ"
-Message-Id: <1072582996.6822.24.camel@debian>
 Mime-Version: 1.0
-Date: Sun, 28 Dec 2003 04:43:17 +0100
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20031222211131.70a963fb.akpm@osdl.org>; from akpm@osdl.org on Mon, Dec 22, 2003 at 09:11:31PM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---=-h6z3fSPBRGjpeZjSg1AZ
-Content-Type: multipart/mixed; boundary="=-YmRVpP8k+PUGm34xqqUD"
+On Mon, Dec 22, 2003 at 09:11:31PM -0800, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test11/2.6.0-mm1/
+> 
+> 
+> Quite a lot of new material here.  It would be appreciated if people who have
+> significant patches in -mm could retest please.
 
-
---=-YmRVpP8k+PUGm34xqqUD
-Content-Type: text/plain; charset=iso-8859-15
-Content-Transfer-Encoding: quoted-printable
-
-El mar, 23-12-2003 a las 06:11, Andrew Morton escribi=F3:
-
-> +mt-ranier-support.patch
->=20
->  Mt Ranier support in the CDROM uniform layer.
-
-Somebody forgot this WAIT_CMD-to-ATAPI_WAIT_PC change
---=20
-Ram=F3n Rey Vicente       <ramon dot rey at hispalinux dot es>
-        jabber ID       <rreylinux at jabber dot org>
-GPG public key ID 	0xBEBD71D5 -> http://pgp.escomposlinux.org/
-
---=-YmRVpP8k+PUGm34xqqUD
-Content-Disposition: inline; filename=fix_idecd_seek_timeout_macro.patch
-Content-Type: text/x-patch; name=fix_idecd_seek_timeout_macro.patch;
-	charset=iso-8859-15
-Content-Transfer-Encoding: base64
-
-LS0tIGxpbnV4LTIuNi4wLW9yaWcvZHJpdmVycy9pZGUvaWRlLWNkLmMJMjAwMy0xMi0yOCAwNDoy
-NjozMS4wMDAwMDAwMDAgKzAxMDANCisrKyBsaW51eC0yLjYvZHJpdmVycy9pZGUvaWRlLWNkLmMJ
-MjAwMy0xMi0yOCAwMzo1NDoxOC4wMDAwMDAwMDAgKzAxMDANCkBAIC0xMzE4LDcgKzEzMTgsNyBA
-QA0KIA0KICNkZWZpbmUgSURFQ0RfU0VFS19USFJFU0hPTEQJKDEwMDApCQkJLyogMTAwMCBibG9j
-a3MgKi8NCiAjZGVmaW5lIElERUNEX1NFRUtfVElNRVIJKDUgKiBXQUlUX01JTl9TTEVFUCkJLyog
-MTAwIG1zICovDQotI2RlZmluZSBJREVDRF9TRUVLX1RJTUVPVVQJKDIgKiBXQUlUX0NNRCkJCS8q
-IDIwIHNlYyAqLw0KKyNkZWZpbmUgSURFQ0RfU0VFS19USU1FT1VUCSgyICogQVRBUElfV0FJVF9Q
-QykJLyogMjAgc2VjICovDQogDQogc3RhdGljIGlkZV9zdGFydHN0b3BfdCBjZHJvbV9zZWVrX2lu
-dHIgKGlkZV9kcml2ZV90ICpkcml2ZSkNCiB7DQo=
-
---=-YmRVpP8k+PUGm34xqqUD--
-
---=-h6z3fSPBRGjpeZjSg1AZ
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Description: Esta parte del mensaje =?ISO-8859-1?Q?est=E1?= firmada
-	digitalmente
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.3 (GNU/Linux)
-
-iD8DBQA/7lFURGk68b69cdURAkDbAJ93VbAw9OYUp86QeD2gkLjZRer9CwCdHSu+
-pq9yNfxoIH4e5jPxs435+zY=
-=b4kC
------END PGP SIGNATURE-----
-
---=-h6z3fSPBRGjpeZjSg1AZ--
+BTW, could you please drop Al's RD* patches?  They change the entry points
+for block drivers and thus create some hassle for people hacking on out
+of tree block drivers, and obviously can't go into mainline as is.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
