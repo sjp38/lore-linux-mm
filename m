@@ -1,48 +1,54 @@
-Date: Wed, 26 Apr 2000 10:24:55 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <200004261736.KAA85620@google.engr.sgi.com>
 Subject: Re: 2.3.x mem balancing
-In-Reply-To: <Pine.LNX.4.21.0004261410350.16202-100000@duckman.conectiva>
-Message-ID: <Pine.LNX.4.10.10004261019170.756-100000@penguin.transmeta.com>
+Date: Wed, 26 Apr 2000 10:36:48 -0700 (PDT)
+In-Reply-To: <Pine.LNX.4.21.0004261823290.1687-100000@alpha.random> from "Andrea Arcangeli" at Apr 26, 2000 07:06:57 PM
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: riel@nl.linux.org
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Mark_H_Johnson.RTS@raytheon.com, linux-mm@kvack.org, riel@nl.linux.org, Linus Torvalds <torvalds@transmeta.com>
 List-ID: <linux-mm.kvack.org>
 
-
-On Wed, 26 Apr 2000, Rik van Riel wrote:
-> > 
-> > And that subtle issue is that in order for the buddy system to work for
-> > contiguous areas, you cannot have "free" pages _outside_ the buddy system.
 > 
-> This is easy to fix. We can keep a fairly large amount (maybe 4
-> times more than pages_high?) amount of these "free" pages on the
-> queue. If we are low on contiguous pages, we can bypass the queue
-> for these pages or scan memory for pages on this queue (marked with
-> as special flag) and take them from the queue...
+> On NUMA hardware you have only one zone per node since nobody uses ISA-DMA
+> on such machines and you have PCI64 or you can use the PCI-DMA sg for
+> PCI32. So on NUMA hardware you are going to have only one zone per node
+> (at least this was the setup of the NUMA machine I was playing with). So
+> you don't mind at all about classzone/zone. Classzone and zone are the
+> same thing in such a setup, they both are the plain ZONE_DMA zone_t.
+> Finished. Said that you don't care anymore about the changes of how the
+> overlapped zones are handled since you don't have overlapped zones in
+> first place.
 
-Note that there are many work-loads that normally have a ton of dirty
-pages. Under those kinds of work-loads it is generally hard to keep a lot
-of "free" pages around, without just wasting a lot of time flushing them
-out all the time.
+Andrea, are you talking about the SGI Origin platform, or are you 
+using some other NUMA platform? In any case, the SGI platform in fact
+does not support ISA-DMA, but unfortunately, I don't think just because
+it has PCI mapping registers, you can assume that all memory is DMAable.
+For us to be able to consider all memory as dmaable, before each dma
+operation starts, we need to have a pci-dma type hook to program the
+mapping registers. As far as I know, such a hook is not used on all
+drivers (in 2.4 timeframe), so very unfortunately, I think we need
+to keep the option open about each node having more than just ZONE_DMA.
+Finally, I am not sure how things will work, we are still busy trying
+to get the Origin/Linux port going.
 
-So I doubt it is "trivial". But it might be somewhere in-between balance,
-where you have a heuristic along the lines of "let's try to have enough
-'truly free' pages, and if we have lots of 'almost free' pages around we
-can somewhat relax the requirements on the 'truly free' page
-availability".
+FWIW, I think the IBM/Sequent NUMA machines in fact have nodes that 
+have only nondmaable memory.
 
-The other danger with the 'almost free' pages is that it really is very
-load-dependent, and some loads have lots of easily free'd pages. If we
-eagerly reap of the 'easily free' component, then that may be extremely
-unfair towards one class of users that gets their pages stolen from under
-them by another class of users that has less easily freeable pages.. So
-fairness may also be an issue.
+> 
+> If you move the NUMA balancing and node selection into the higher layer
+> as I was proposing, instead you can do clever things.
+>
 
-		Linus
+For an example and a (old) patch for this, look at 
 
+	http://oss.sgi.com/projects/numa/download/numa.gen.42b
+	http://oss.sgi.com/projects/numa/download/numa.plat.42b
+
+Kanoj 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
