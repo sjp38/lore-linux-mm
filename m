@@ -1,71 +1,59 @@
-From: mel@csn.ul.ie (Mel Gorman)
-Subject: Re: [RFC] My research agenda for 2.7
-Date: Wed, 25 Jun 2003 10:29:58 +0100
-Sender: linux-kernel-owner@vger.kernel.org
-Message-ID: <20030625092938.GA13771@skynet.ie>
-References: <200306250111.01498.phillips@arcor.de>
+Date: Tue, 1 Jul 2003 06:04:59 +0200
+From: Andrea Arcangeli <andrea@suse.de>
+Subject: Re: What to expect with the 2.6 VM
+Message-ID: <20030701040459.GO3040@dualathlon.random>
+References: <Pine.LNX.4.53.0307010238210.22576@skynet> <20030701022516.GL3040@dualathlon.random> <20030630200237.473d5f82.akpm@digeo.com> <20030701032248.GM3040@dualathlon.random> <Pine.LNX.4.55L.0307010327250.1638@imladris.surriel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner+linux-kernel=40quimby.gnus.org@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <200306250111.01498.phillips@arcor.de>
-To: Daniel Phillips <phillips@arcor.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-List-Id: linux-mm.kvack.org
+In-Reply-To: <Pine.LNX.4.55L.0307010327250.1638@imladris.surriel.com>
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Rik van Riel <riel@imladris.surriel.com>
+Cc: Andrew Morton <akpm@digeo.com>, mel@csn.ul.ie, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+List-ID: <linux-mm.kvack.org>
 
-> 1) Active memory defragmentation
+On Tue, Jul 01, 2003 at 03:29:54AM +0000, Rik van Riel wrote:
+> On Tue, 1 Jul 2003, Andrea Arcangeli wrote:
 > 
-> I doubt anyone will deny that this is desirable.  Active defragmentation will 
-> eliminate higher order allocation failures for non-atomic allocations, and I 
-> hope, generally improve the efficiency and transparency of the kernel memory 
-> allocator.
+> > Also think if you've a 1G box, the highmem list would be very small and
+> > if you shrink it first, you'll waste an huge amount of cache. Maybe you
+> > go shrink the zone normal list first in such case of unbalance?
 > 
+> That's why you have low and high watermarks and try to balance
+> the shrinking and allocating in both zones.  Not sure how
+> classzone would influence this balancing though, maybe it'd be
+> harder maybe it'd be easier, but I guess it would be different.
+> 
+> > Overall I think rotating too fast a global list sounds much better in this
+> > respect (with less infrequent GFP_KERNELS compared to the
+> > highmem/pagecache/anonmemory allocation rate) as far as I can tell, but
+> > I admit I didn't do any math (I didn't feel the need of a demonstration
+> > but maybe we should?).
+> 
+> Remember that on large systems ZONE_NORMAL is often under much
+> more pressure than ZONE_HIGHMEM.  Need any more arguments ? ;)
 
-It might be just me, but this scheme sounds a bit complicated (I'm still
-absorbing the other two). I find it difficult to see what happens when a
-page used by a kernel pointer changes for any case other than vmalloc()
-but I probably am missing something.
+we run out of ZONE_NORMAL but until we run oom it doesn't mean we shrink
+it frequently, those are pretty static allocations (the mem_map is the
+most static and in turn the biggest one ;), but it doesn't mean, we
+allocate 500M and release 500M in a few seconds of zone normal. Also
+many like selects are released and reallocated before you've a chance to
+need a shrink.
 
-How about: Move order-0 allocations to slab (ignoring bootstrap issues for 
-now but shouldn't be hard anyway)
+The shrinkers are the ones allocating huge chunks in a loop and never
+releasing it except through the VM (an updatedb would do it with the
+lots of metadata overhead, but it's not really as common as the
+highmem ones).
 
-Each cache slab is 2^MAX_GFP_ORDER large and there is three caches
-  o order0-user
-  o order0-kreclaim
-  o order0-knoreclaim
+So your argument about ZONE_NORMAL being uner much more pressure doesn't
+make sense to me, in line with my answer to Andrew that the frequency
+of allocations (NOTE: without later explicit deallocations but relaying
+on the cache collecting in the vm).
 
-order0-user is for any userspace allocation. These pages should be
-trivially reclaimable with rmap available. If a large order block is
-necessary, select one slab and reclaim it. This will break LRU ordering
-something rotten but I am guessing that LRU ordering is not the prime
-concern here. If a defrag daemon exists, scan MAX_DEFRAG_SCAN slabs and 
-pick the one with the most clean filesystem backed pages to chuck out 
-(least IO involved in reclaim).
-
-order0-kreclaim is for kernel allocations which are trivially reclaimable
-and that can be safely discared knowing that no pointer exists to them.  
-This is most likely to be usable for slab allocations of caches like
-dentry's which can be safely thrown out. A quick look of /proc/slabinfo
-shows that most slabs are just 1 page large. Slabs already have a
-set_shrinker() callback for the removal of objects so it is likely that
-this could be extended for telling caches to clear all objects and discard
-a particular slab.
-
-order0-knoreclaim is for kernel allocations which cannot be easily 
-reclaimed and have pointers to the allocation which are difficult to 
-reclaim. For all intents and purposes, these are not reclaimable without 
-impementing swapping in kernel space.
-
-This has a couple of things going for it
-
-o Reclaimable pages are in easy to search globs
-o Gets nifty per-cpu alloc and caching that comes with slab automatically
-o Freeing high order pages is a case of discarding pages in one slab
-o Doesn't require fancy pants updating of pointers or page tables
-o Possible ditch the mempool interface as slab already has similar functionality
-o Seems simple
-
-Opinions?
-
--- 
-Mel Gorman
+Andrea
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
