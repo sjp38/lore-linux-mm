@@ -1,56 +1,40 @@
-Message-ID: <4000125A.3020108@yahoo.es>
-Date: Sat, 10 Jan 2004 09:55:22 -0500
-From: Roberto Sanchez <rcsanchez97@yahoo.es>
-MIME-Version: 1.0
-Subject: Re: 2.6.1-mm2
-References: <20040110014542.2acdb968.akpm@osdl.org>
+Subject: Re: 2.6.1-mm2 (compile stats)
+From: John Cherry <cherry@osdl.org>
 In-Reply-To: <20040110014542.2acdb968.akpm@osdl.org>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="------------enigDE0B507CD424250292161865"
+References: <20040110014542.2acdb968.akpm@osdl.org>
+Content-Type: text/plain
+Message-Id: <1073886444.3409.0.camel@lightning>
+Mime-Version: 1.0
+Date: 11 Jan 2004 21:47:24 -0800
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@osdl.org>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
---------------enigDE0B507CD424250292161865
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Linux 2.6 (mm tree) Compile Statistics (gcc 3.2.2)
+Warnings/Errors Summary
 
-Andrew Morton wrote:
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.1/2.6.1-mm2/
-> 
+Kernel            bzImage   bzImage  bzImage  modules  bzImage  modules
+                (defconfig) (allno) (allyes) (allyes) (allmod) (allmod)
+--------------- ---------- -------- -------- -------- -------- --------
+2.6.1-mm2         0w/0e     0w/0e   143w/ 5e  12w/0e   3w/0e    171w/0e
+2.6.1-mm1         0w/0e     0w/0e   146w/ 9e  12w/0e   6w/0e    171w/0e
+2.6.1-rc2-mm1     0w/0e     0w/0e   149w/ 0e  12w/0e   6w/0e    171w/4e
+2.6.1-rc1-mm2     0w/0e     0w/0e   157w/15e  12w/0e   3w/0e    185w/4e
+2.6.1-rc1-mm1     0w/0e     0w/0e   156w/10e  12w/0e   3w/0e    184w/2e
+2.6.0-mm2         0w/0e     0w/0e   161w/ 0e  12w/0e   3w/0e    189w/0e
+2.6.0-mm1         0w/0e     0w/0e   173w/ 0e  12w/0e   3w/0e    212w/0e
 
-I am still seeng the constant lockups that started with -rc2-mm1.
-For the moment I have reverted to -rc1-mm1.  My setup:
+Web page with links to complete details:
+   http://developer.osdl.org/cherry/compile/
 
-Athlon XP 2500+
-1 GB memory
-nForce2 mobo at 333MHz FSB
+John
 
-If there is anything I can do to help track this down, please
-let me know.  But, I am not yet much of a kernel hacker, so I
-will need instruction.
 
--Roberto Sanchez
 
---------------enigDE0B507CD424250292161865
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.4 (GNU/Linux)
-Comment: Using GnuPG with Thunderbird - http://enigmail.mozdev.org
-
-iD8DBQFAABJkTfhoonTOp2oRAsHAAKDQh++LpXGNlTL9XbZTrbuIXgWb8QCfV7dc
-F4yiGwRTP5NSoMiFxgXzduA=
-=MVFz
------END PGP SIGNATURE-----
-
---------------enigDE0B507CD424250292161865--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
