@@ -1,107 +1,94 @@
-Date: Mon, 21 Jun 2004 10:30:00 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
-Subject: [PATCH] make __free_pages_bulk more comprehensible
-Message-ID: <51370000.1087839000@flay>
+Received: from fujitsu1.fujitsu.com (localhost [127.0.0.1])
+	by fujitsu1.fujitsu.com (8.12.10/8.12.9) with ESMTP id i5MJ0od6029909
+	for <linux-mm@kvack.org>; Tue, 22 Jun 2004 12:00:50 -0700 (PDT)
+Date: Tue, 22 Jun 2004 12:00:33 -0700
+From: Yasunori Goto <ygoto@us.fujitsu.com>
+Subject: Merging Nonlinear and Numa style memory hotplug
+Message-Id: <20040622114733.30A6.YGOTO@us.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-mm mailing list <linux-mm@kvack.org>
+To: Linux Kernel ML <linux-kernel@vger.kernel.org>, Linux Hotplug Memory Support <lhms-devel@lists.sourceforge.net>
+Cc: Linux-Node-Hotplug <lhns-devel@lists.sourceforge.net>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-I find __free_pages_bulk very hard to understand ... (I was trying to mod
-it for the non MAX_ORDER aligned zones, and cleaned it up first). This 
-should make it much more comprehensible to mortal man ... I benchmarked
-the changes on the big 16x and it's no slower (actually it's about 0.5%
-faster, but that's within experimental error).
+Hello.
 
-I moved the creation of mask into __free_pages_bulk from the caller - it
-seems to really belong inside there. Then instead of doing wierd limbo
-dances with mask, I made it use order instead where it's more intuitive.
-Personally I find this makes the whole thing a damned sight easier to
-understand ... if you do too, please apply. Only thing that I think needs
-to be double-checked is the while loop limit, but I'm pretty sure it's
-correct?
+I made merging patches between Nonlinear and Node style
+memory hotplug code. I hope that this patches will work
+for both of SMP style memory hotplug and NUMA style memory 
+hotplug.
+The patches is here.
+  http://osdn.dl.sourceforge.net/sourceforge/lhms/20040621.tgz
 
-M.
+These patches are for Linux 2.6.5.
 
-diff -purN -X /home/mbligh/.diff.exclude virgin/mm/page_alloc.c free_pages_bulk/mm/page_alloc.c
---- virgin/mm/page_alloc.c	Wed Jun 16 08:19:27 2004
-+++ free_pages_bulk/mm/page_alloc.c	Fri Jun 18 14:20:37 2004
-@@ -176,20 +176,20 @@ static void destroy_compound_page(struct
-  */
- 
- static inline void __free_pages_bulk (struct page *page, struct page *base,
--		struct zone *zone, struct free_area *area, unsigned long mask,
--		unsigned int order)
-+		struct zone *zone, struct free_area *area, unsigned int order)
- {
--	unsigned long page_idx, index;
-+	unsigned long page_idx, index, mask;
- 
- 	if (order)
- 		destroy_compound_page(page, order);
-+	mask = (~0UL) << order;
- 	page_idx = page - base;
- 	if (page_idx & ~mask)
- 		BUG();
- 	index = page_idx >> (1 + order);
- 
--	zone->free_pages -= mask;
--	while (mask + (1 << (MAX_ORDER-1))) {
-+	zone->free_pages += 1 << order;
-+	while (order < MAX_ORDER-1) {
- 		struct page *buddy1, *buddy2;
- 
- 		BUG_ON(area >= zone->free_area + MAX_ORDER);
-@@ -198,17 +198,15 @@ static inline void __free_pages_bulk (st
- 			 * the buddy page is still allocated.
- 			 */
- 			break;
--		/*
--		 * Move the buddy up one level.
--		 * This code is taking advantage of the identity:
--		 * 	-mask = 1+~mask
--		 */
--		buddy1 = base + (page_idx ^ -mask);
-+
-+		/* Move the buddy up one level. */
-+		buddy1 = base + (page_idx ^ (1 << order));
- 		buddy2 = base + page_idx;
- 		BUG_ON(bad_range(zone, buddy1));
- 		BUG_ON(bad_range(zone, buddy2));
- 		list_del(&buddy1->lru);
- 		mask <<= 1;
-+		order++;
- 		area++;
- 		index >>= 1;
- 		page_idx &= mask;
-@@ -252,12 +250,11 @@ static int
- free_pages_bulk(struct zone *zone, int count,
- 		struct list_head *list, unsigned int order)
- {
--	unsigned long mask, flags;
-+	unsigned long flags;
- 	struct free_area *area;
- 	struct page *base, *page = NULL;
- 	int ret = 0;
- 
--	mask = (~0UL) << order;
- 	base = zone->zone_mem_map;
- 	area = zone->free_area + order;
- 	spin_lock_irqsave(&zone->lock, flags);
-@@ -267,7 +264,7 @@ free_pages_bulk(struct zone *zone, int c
- 		page = list_entry(list->prev, struct page, lru);
- 		/* have to delete it as __free_pages_bulk list manipulates */
- 		list_del(&page->lru);
--		__free_pages_bulk(page, base, zone, area, mask, order);
-+		__free_pages_bulk(page, base, zone, area, order);
- 		ret++;
- 	}
- 	spin_unlock_irqrestore(&zone->lock, flags);
+Please comment.
+
+Bye.
+
+------------------
+Note: 
+ These patches base is Takahashi-san and Iwamoto-san's patches.
+ and this includes nonlinear's code.
+ Modifications from them are ...
+  - CONFIG definition was divided like this
+           CONFIG_HOTPLUG_MEMORY   (common part)
+           CONFIG_HOTPLUG_MEMORY_OF_NODE (only node style hotplug)
+           CONFIG_HOTPLUG_MEMORY_NONLINAR (only mem_section style 
+					   hotplug)
+  - Some of strucure's member are added to mem_section[] to 
+    unify between nonlinear and node style hotplug.
+  - Basic implementation mem_section's hotremove. (See below.)
+  - Using NUMA code of build_zonelist() for NUMA style 
+    memory hotplug.
+  - Code cleaned up Memory hotadd for NUMA style.
+    
+  Following is remain issue.
+    - Hotremovable attribute is vague concept in these patches.
+      I don't have suitable solution for it yet.
+    - Memory hot-add for memsection.
+    - rmap is changed in 2.6.7. These patches should 
+      reflect the changes.
+  
+  These patches are trial. So, system down might occur.
+  (Especially, after nonlinear hot-removing code execution.)
+
+-------------------------------------------------
+About hotremove for mem_section 
+(Using PG_booked)
+
+Hot-remove needs 3 features.
+  1. Prohibition reallocation in the removing area against
+     page allocator.
+  2. Page migration from removing area
+  3. System repeats 2. until freeing all of the memory in the area.
+     So, system has to know all of memory freed.
+
+1. and 3. have problem for memsection hot-remove.
+In Node removing case, system could avoid reallocation
+by removing zone from zone_list. But its way can’t be used 
+for memsection. System could count freed page by using free_pages
+in the zone. But, it will has to know freed area
+in the 'removing memsection'.
+  
+Takahashi-san proposed me that it use PG_book in the page flag 
+for prohibition of reallocation in the mem_section. (This flag was
+used for reservation of destination of huge-page's migration in
+these patches.)
+  - System doesn’t allocate booked pages.
+  - System doesn’t return the page to per_cpu_page,
+    return it to buddy allocator immediately.
+  - When all pages in the section are booked and freed,
+    system can find that the section can remove.
+
+
+
+-- 
+Yasunori Goto <ygoto at us.fujitsu.com>
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
