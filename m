@@ -1,39 +1,74 @@
+Message-ID: <3DA11FC6.80308@us.ibm.com>
+Date: Sun, 06 Oct 2002 22:46:46 -0700
+From: Dave Hansen <haveblue@us.ibm.com>
+MIME-Version: 1.0
 Subject: Re: 2.5.40-mm2
-From: Robert Love <rml@tech9.net>
-In-Reply-To: <3DA0BA33.5B295A46@digeo.com>
-References: <3DA0B422.C23B23D4@digeo.com>
-	<1033943021.27093.29.camel@phantasy>  <3DA0BA33.5B295A46@digeo.com>
-Content-Type: text/plain
+References: <3DA0854E.CF9080D7@digeo.com> <3DA0A144.8070301@us.ibm.com> <3DA0B151.6EF8C8D9@digeo.com> <3DA0B422.C23B23D4@digeo.com> <3DA0B52C.6E1E53FD@digeo.com>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
-Date: 06 Oct 2002 18:38:05 -0400
-Message-Id: <1033943886.26955.33.camel@phantasy>
-Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>
+Cc: lkml <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Ingo Molnar <mingo@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 2002-10-06 at 18:33, Andrew Morton wrote:
-
-> I think it's a way of doing "cond_resched() if cond_resched() is
-> a legal thing to do right now".
+Andrew Morton wrote:
+> grr.  So that's what that "send" button does.
 > 
-> I'm sure David isn't using preempt though.
+> Updated patch:
+
+Still dies :(
+
+Unable to handle kernel NULL pointer dereference at virtual addre
+ss 00000004
+  printing eip:
+80120479
+*pde = 64502001
+*pte = 00000000
+Oops: 0002
+
+CPU:    2
+EIP:    0060:[<80120479>]    Not tainted
+EFLAGS: 00010012
+EIP is at run_timer_tasklet+0xcd/0x13c
+eax: 00000000   ebx: 80264a38   ecx: e4f46e20   edx: 00000000
+esi: e4f47040   edi: 80399ac0   ebp: 00000282   esp: e474df64
+ds: 0068   es: 0068   ss: 0068
+Process httpd (pid: 2587, threadinfo=e474c000 task=f55d17e0)
+Stack: 8c093148 00000000 e474c000 00000001 8011d295 00000000 00000001
+        80397960 fffffffe 00000040 8037c1a4 8037c1a4 8011cf9a 80397960
+        00000008 00000002 00000001 7ffff89c 00000046 801111dd 0813eff0
+        0813ef14 0813f064 80107a8a
+Call Trace:
+  [<8011d295>] tasklet_hi_action+0x85/0xe0
+  [<8011cf9a>] do_softirq+0x5a/0xac
+  [<801111dd>] smp_apic_timer_interrupt+0x111/0x118
+  [<80107a8a>] apic_timer_interrupt+0x1a/0x20
+
+Code: 89 50 04 89 02 c7 06 00 00 00 00 c7 46 04 00 00 00 00 c7 46
 
 
-If the system is preemptible, then the call can be replaced with
-preempt_check_resched() which avoids the unneeded inc and dec.
+8012046a:       39 c6                   cmp    %eax,%esi
+8012046c:       74 42   <the last if>   je     801204b0 
+<run_timer_tasklet+0x104>
+8012046e:       8b 5e 0c                mov    0xc(%esi),%ebx
+80120471:       8b 4e 10                mov    0x10(%esi),%ecx
+80120474:       8b 56 04                mov    0x4(%esi),%edx
+80120477:       8b 06                   mov    (%esi),%eax
+80120479:       89 50 04      ------->  mov    %edx,0x4(%eax)
+8012047c:       89 02                   mov    %eax,(%edx)
+8012047e:       c7 06 00 00 00 00       movl   $0x0,(%esi)
+80120484:       c7 46 04 00 00 00 00    movl   $0x0,0x4(%esi)
+8012048b:       c7 46 14 00 00 00 00    movl   $0x0,0x14(%esi)
+80120492:       89 77 08                mov    %esi,0x8(%edi)
+80120495:       c6 07 01                movb   $0x1,(%edi)
+80120498:       55                      push   %ebp
+80120499:       9d                      popf
 
-But if the system is preemptible, it probably does not accomplish much
-because we will already have preempted (e.g. the interrupt handler that
-woke up a new task set need_resched and on return from interrupt we
-serviced it).
 
-If the system is not preemptible (non-zero preempt_count here) this
-accomplishes nothing.
-
-	Robert Love
+-- 
+Dave Hansen
+haveblue@us.ibm.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
