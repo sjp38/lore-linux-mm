@@ -1,100 +1,102 @@
-Received: from m1.gw.fujitsu.co.jp ([10.0.50.71]) by fgwmail6.fujitsu.co.jp (8.12.10/Fujitsu Gateway)
-	id i967SKR6023578 for <linux-mm@kvack.org>; Wed, 6 Oct 2004 16:28:20 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s1.gw.fujitsu.co.jp by m1.gw.fujitsu.co.jp (8.12.10/Fujitsu Domain Master)
-	id i967SJND018203 for <linux-mm@kvack.org>; Wed, 6 Oct 2004 16:28:19 +0900
-	(envelope-from kamezawa.hiroyu@jp.fujitsu.com)
-Received: from s1.gw.fujitsu.co.jp (s1 [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id AF0D0216FC4
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2004 16:28:19 +0900 (JST)
-Received: from fjmail501.fjmail.jp.fujitsu.com (fjmail501-0.fjmail.jp.fujitsu.com [10.59.80.96])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 292A4216FBF
-	for <linux-mm@kvack.org>; Wed,  6 Oct 2004 16:28:19 +0900 (JST)
-Received: from jp.fujitsu.com
- (fjscan503-0.fjmail.jp.fujitsu.com [10.59.80.124]) by
- fjmail501.fjmail.jp.fujitsu.com
- (Sun Internet Mail Server sims.4.0.2001.07.26.11.50.p9)
- with ESMTP id <0I5500MGWJF4JT@fjmail501.fjmail.jp.fujitsu.com> for
- linux-mm@kvack.org; Wed,  6 Oct 2004 16:28:17 +0900 (JST)
-Date: Wed, 06 Oct 2004 16:33:52 +0900
-From: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Subject: Re: [RFC/PATCH]  pfn_valid() more generic : intro[0/2]
-In-reply-to: <B8E391BBE9FE384DAA4C5C003888BE6F0221CC82@scsmsx401.amr.corp.intel.com>
-Message-id: <41639FE0.5060409@jp.fujitsu.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=us-ascii; format=flowed
-Content-transfer-encoding: 7bit
-References: <B8E391BBE9FE384DAA4C5C003888BE6F0221CC82@scsmsx401.amr.corp.intel.com>
+Date: Wed, 06 Oct 2004 16:39:14 +0900 (JST)
+Message-Id: <20041006.163914.48665150.taka@valinux.co.jp>
+Subject: Re: [PATCH] mhp: transfer dirty tag at radix_tree_replace 
+From: Hirokazu Takahashi <taka@valinux.co.jp>
+In-Reply-To: <20041005164627.GB3462@logos.cnet>
+References: <20041002183349.GA7986@logos.cnet>
+	<20041003.131338.41636688.taka@valinux.co.jp>
+	<20041005164627.GB3462@logos.cnet>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Luck, Tony" <tony.luck@intel.com>
-Cc: LinuxIA64 <linux-ia64@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: marcelo.tosatti@cyclades.com
+Cc: iwamoto@valinux.co.jp, haveblue@us.ibm.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+Hi, Marcelo.
 
-Luck, Tony wrote:
->>ia64's ia64_pfn_valid() uses get_user() for checking whether a 
->>page struct is available or not. I think this is an irregular 
->>implementation and following patches
->>are a more generic replacement, careful_pfn_valid(). It uses 2 
->>level table.
+> > > 1) 
+> > > I'm pretty sure you should transfer the radix tree tag at radix_tree_replace().
+> > > If for example you transfer a dirty tagged page to another zone, an mpage_writepages()
+> > > will miss it (because it uses pagevec_lookup_tag(PAGECACHE_DIRTY_TAG)). 
+> > > 
+> > > Should be quite trivial to do (save tags before deleting and set to new entry, 
+> > > all in radix_tree_replace).
+> > > 
+> > > My implementation also contained the same bug.
+> > 
+> > Yes, it's one of the issues to do. The tag should be transferred in
+> > radix_tree_replace() as you pointed out. The current implementation
+> > sets the tag in set_page_dirty(newpage).
 > 
+> OK, guys, can you test this please?
+
+Ok, I'll test it. 
+
+> This transfer the dirty radix tree tag at radix_tree_replace, avoiding 
+> a potential miss on tag-lookup.  We could also copy all bits representing 
+> the valid tags for this node in the radix tree. 
 > 
-> It is odd ... but a somewhat convenient way to make check whether
-> the page struct exists, while handling the fault if it is in an
-> area of virtual mem_map that doesn't exist.  I think that in practice
-> we rarely call it with a pfn that generates a fault (except in error
-> paths).
+> But this uses the available interfaces from radix-lib.c. In case 
+> a new tag gets added, radix_tree_replace() will have to know about it.
 
-I understand it's rare case.
-Honestly, this patch is for no-bitmap buddy allocator (I posted before).
-pfn_valid() returns 0 in many case in no-bitmap buddy allocator
-(because MAX_ORDER is 4GB).
-So I decided to write experimental pfn_valid() which doesn't cause fault.
+Yeah. I guess it would be better to copy the radix_tree_delete()
+code to radix_tree_replace() and modify it to replace items directly
+in the future.
 
-
-> How big will the pfn_validmap[] be for a very sparse physical space
-> like SGI Altix?  I'm not sure I see how PFN_VALID_MAPSHIFT is 
-> generated for each system.
+> Pretty straightforward.
 > 
-PFN_VALID_MAPSHIFT can be overwritten in each asm-xxx/page.h. (can be in config.h)
-I think each special architecture can find suitable value, if it wants.
-If Altrix has XXX Tbytes for each node, setting 1 cache line(64bytes=32entry) covers
-each node's maximum size will be good.
-
-1st level table.
-With current configuration, 1Gbytes per 2byte, 8Tbytes per 1 page(16kpages)
-
-2nd level table.
-1 entry per 8 bytes. Entries are coalesced with each other as much as possible.
-If memory layout is like a bee's nest, careful_pfn_valid() will need great amount
-of memory and cannot work fine because of searching.
-
-
-BTW, how sparse SGI Altix ?
-
-> Why do we need a loop when looking in the 2nd level?  Can't the
-> entry from the 1st level point us to the right place?
+> I still need to figure out how to use Iwamoto's patch to add/remove 
+> zone's on the fly (for testing the migration process).
+>
+> diff -Nur linux-2.6.9-rc2-mm4.mhp.orig/include/linux/radix-tree.h linux-2.6.9-rc2-mm4/include/linux/radix-tree.h
+> --- linux-2.6.9-rc2-mm4.mhp.orig/include/linux/radix-tree.h	2004-10-05 15:09:39.198873072 -0300
+> +++ linux-2.6.9-rc2-mm4/include/linux/radix-tree.h	2004-10-05 15:23:42.441680680 -0300
+> @@ -68,9 +68,17 @@
+>  radix_tree_replace(struct radix_tree_root *root,
+>  				unsigned long index, void *item)
+>  {
+> +	int dirty;
+> +
+> +	dirty = radix_tree_tag_get(root, index, PAGECACHE_TAG_DIRTY);
+> +
+>  	if (radix_tree_delete(root, index) == NULL)
+>  		return -1;
+>  	radix_tree_insert(root, index, item);
+> +
+> +	if (dirty)
+> +		radix_tree_tag_set(root, index, PAGECACHE_TAG_DIRTY);
+> +
+>  	return 0;
+>  }
+>  
+> diff -Nur linux-2.6.9-rc2-mm4.mhp.orig/lib/radix-tree.c linux-2.6.9-rc2-mm4/lib/radix-tree.c
+> --- linux-2.6.9-rc2-mm4.mhp.orig/lib/radix-tree.c	2004-10-05 15:09:29.442356288 -0300
+> +++ linux-2.6.9-rc2-mm4/lib/radix-tree.c	2004-10-05 15:24:16.961432880 -0300
+> @@ -443,7 +443,6 @@
+>  }
+>  EXPORT_SYMBOL(radix_tree_tag_clear);
+>  
+> -#ifndef __KERNEL__	/* Only the test harness uses this at present */
+>  /**
+>   *	radix_tree_tag_get - get a tag on a radix tree node
+>   *	@root:		radix tree root
+> @@ -495,7 +494,6 @@
+>  	}
+>  }
+>  EXPORT_SYMBOL(radix_tree_tag_get);
+> -#endif
+>  
+>  static unsigned int
+>  __lookup(struct radix_tree_root *root, void **results, unsigned long index,
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
 > 
-consider this case.
-
-a 1st level entry covers 0x1000 - 0x2000
-[valid range          ]  0x1000 - 0x1100
-                          0x1200 - 0x1500
-                          0x1600 - 0x2000
-
-pfn_valid(0x1501)
-             -> by 1st level, we get 0x1000-0x1100
-                              into loop  0x1200-0x1500
-                                         0x1600-       returns 0.
-
-walking 2nd level table can reduce size of 1st table.
-I'd like to avoid cache-miss rather than avoiding small walk.
-
-
-- Kame
-
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
