@@ -1,55 +1,38 @@
-Subject: RE: [Suspend2-devel] How to reduce page cache?
-From: Nigel Cunningham <ncunningham@cyclades.com>
-Reply-To: ncunningham@cyclades.com
-In-Reply-To: <000001c5251e$f52ab2f0$59f22e93@PC>
-References: <000001c5251e$f52ab2f0$59f22e93@PC>
-Content-Type: text/plain; charset=UTF-8
-Message-Id: <1110424911.8870.80.camel@desktop.cunningham.myip.net.au>
+From: "Arturo Franks" <blanko@didamail.com>
+Date: Mon, 7 Mar 2005 06:36:10 -0700
+Message-Id: <200410031402.i93BjjTw009138@www5.gmail.com>
+From: "Arturo Franks" <blanko@didamail.com>
+Subject: Become one of the low rates
 Mime-Version: 1.0
-Date: Thu, 10 Mar 2005 14:21:51 +1100
-Content-Transfer-Encoding: 8bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: =?UTF-8?Q?=EC=A0=95=EC=A4=80?= =?UTF-8?Q?=EB=AA=A9?= Chun-Mok Chung <chunmok@davinci.snu.ac.kr>, Linux Memory Management <linux-mm@kvack.org>
-Cc: 'Suspend2 Development' <suspend2-devel@lists.suspend2.net>
+Content-Type: text/plain;
+Return-Path: <blanko@didamail.com>
+To: aart@kvack.org
+Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi.
+Hello,
 
-On Thu, 2005-03-10 at 14:12, i ?i??ea(C) Chun-Mok Chung wrote:
-> You are right. If I don't reduce pageset2 size, swsusp2 works well.
-> And image_size_limit function works well, too.
-> 
-> The problem occurs because of my additional codes.
-> I tried reducing pageset2 to enhance resume performance by reducing disk
-> I/O time.
-> Because my box uses ramdisk, shrink_cache() doesn't write-back dirty page
-> to disk and the cache size decrease only a little.
-> So, I willing to release dirty pages in inactive_list which are mapped to
-> program file and not used any more.
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-Ah. Now I'm with you.
+ You have qualified for the lowest rate in years...
 
-I wonder whether you'll get better help by talking to the guys who
-really understand the memory manager. They're accessible via the
-Linux-MM mailing list, which I've cc'd.
+ You could get over $380,000 for as little as $500 a month!
 
-Guys, Chun-mok is using a 2.4.19-rmk7-pxa2 kernel. Are you able to give
-him some suggestions?
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
 
-Regards,
+ 
+ To get a free, no obli,gation consultation click below:
 
-Nigel
--- 
-Nigel Cunningham
-Software Engineer, Canberra, Australia
-http://www.cyclades.com
-Bus: +61 (2) 6291 9554; Hme: +61 (2) 6292 8028;  Mob: +61 (417) 100 574
+ http://www.gga4.info/now.asp
 
-Maintainer of Suspend2 Kernel Patches http://suspend2.net
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+
+ Best Regards,
+
+ Kristopher Fernandez
+ 
+ to be remov(ed:	http://www.gga4.info/gone.asp
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
