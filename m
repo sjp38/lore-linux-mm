@@ -1,39 +1,56 @@
-Date: Tue, 27 Feb 2001 14:42:33 +0100
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: 2.5 page cache improvement idea
-Message-ID: <20010227144233.A12205@athlon.random>
-References: <Pine.LNX.4.30.0102262142500.9589-100000@today.toronto.redhat.com> <200102270326.f1R3QII16835@eng1.sequent.com>
+Date: Thu, 1 Mar 2001 10:54:58 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Oops in swap code
+Message-ID: <20010301105458.A7455@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <200102270326.f1R3QII16835@eng1.sequent.com>; from gerrit@us.ibm.com on Mon, Feb 26, 2001 at 07:26:18PM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Gerrit Huizenga <gerrit@us.ibm.com>
-Cc: Ben LaHaise <bcrl@redhat.com>, Chuck Lever <Charles.Lever@netapp.com>, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Feb 26, 2001 at 07:26:18PM -0800, Gerrit Huizenga wrote:
-> If you are considering NUMA architectures as a case of frequently
-> accesses pages, e.g. glibc or text pages of commonly used executables,
-> it is probably better to do page replication per node on demand than
-> to worry about optimizing the page lookups for limited bus traffic.
-> 
-> Most NUMA machines are relatively rich in physical memory, and cross
-> node traffic is relatively expensive.  As a result, wasting a small
-> number of physical pages on duplicate read-only pages cuts down node
-> to node traffic in most cases.  Many NUMA systems have a cache for
-> remote memory (some cache only remote pages, some cache local and remote
-> pages in the same cache - icky but cheaper).  As that cache cycles,
-> it is cheaper to replace read-only text pages from the local node
-> rather than the remote.  So, for things like kernel text (e.g. one of
-> the SGI patches) and for glibc's text, as well as the text of other
-> common shared libraries, it winds up being a significant win to replicate
-> those text pages (on demand!) in local memory.
+Hi,
 
-Agreed.
+Just saw this from a Red Hat beta (wolverine) user: ring any bells?
 
-Andrea
+It's a kernel BUG() in activate_page_nolock():
+
+/*
+ * Move an inactive page to the active list.
+ */
+void activate_page_nolock(struct page * page)
+{
+	if (PageInactiveDirty(page)) {
+vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+		del_page_from_inactive_dirty_list(page);
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ 
+		add_page_to_active_list(page);
+	} else if (PageInactiveClean(page)) {
+		del_page_from_inactive_clean_list(page);
+		add_page_to_active_list(page)d_page+0/4096]
+
+kernel BUG at swap.c:201!
+invalid operand: 0000
+CPU:    0
+EIP:    0010:[activate_page_nolock+110/528]
+EIP:    0010:[<c012aaae>]
+EFLAGS: 00010282
+eax: 0000001a   ebx: c1103ef4   ecx: fffffffe   edx: 00000000
+esi: c1103ef4   edi: 00000070   ebp: 00000000   esp: c1167f94
+ds: 0018   es: 0018   ss: 0018
+Process kswapd (pid: 3, stackpage=c1167000)
+Stack: c020a29b c020a456 000000c9 c1103ef4 c012a822 c1103ef4 c1103f10 c012c295 
+       c1103ef4 00010f00 c024f5e0 00000006 0008e000 c012c5d7 00000006 00000000 
+       c0105000 0008e000 00000000 00000018 00000018 c1177fa8 c0105000 c0107576 
+Call Trace: [age_page_up_nolock+18/48] [refill_inactive_scan+101/240] [kswapd+119/240] [empty_bad_page+0/4096] [empty_bad_page+0/4096] [kernel_thread+38/48] [kswapd+0/240] 
+Call Trace: [<c012a822>] [<c012c295>] [<c012c5d7>] [<c0105000>] [<c0105000>] [<c0107576>] [<c012c560>] 
+Code: 0f 0b 83 c4 0c 8b 43 14 85 c0 75 19 68 c9 00 00 00 68 56 a4 
+
+This seems to be reproducible.
+
+--Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
