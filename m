@@ -1,36 +1,41 @@
-From: "David S. Miller" <davem@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Message-ID: <15137.18422.26069.486131@pizda.ninka.net>
-Date: Fri, 8 Jun 2001 14:47:34 -0700 (PDT)
+Date: Fri, 8 Jun 2001 14:51:32 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: Background scanning change on 2.4.6-pre1
 In-Reply-To: <Pine.LNX.4.21.0106081658500.2422-100000@freak.distro.conectiva>
-References: <15137.17195.500288.181489@pizda.ninka.net>
-	<Pine.LNX.4.21.0106081658500.2422-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.31.0106081439540.7448-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Marcelo Tosatti <marcelo@conectiva.com.br>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Mike Galbraith <mikeg@wen-online.de>, Zlatko Calusic <zlatko.calusic@iskon.hr>, linux-mm@kvack.org
+Cc: "David S. Miller" <davem@redhat.com>, Mike Galbraith <mikeg@wen-online.de>, Zlatko Calusic <zlatko.calusic@iskon.hr>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Marcelo Tosatti writes:
- > How do you think the problem should be attacked, if you have any
- > opinion at all ?
 
-All I know is that keeping track of anon areas is not the way
-I would approach the problem.
+On Fri, 8 Jun 2001, Marcelo Tosatti wrote:
+>
+> How do you think the problem should be attacked, if you have any opinion
+> at all ?
 
-Even if you get anon areas to work, they bloat up the common
-case just to possibly make swapping a little big quicker.
+Let's try the "refill_inactive() also does VM scanning" approach, as that
+should make sure that we are never in the situation that we haven't taken
+the virtually mapped pages sufficiently into account for aging.
 
-I mean, it didn't degenerate to Solaris fork+exit latencies or
-anything like that (that would be a huge challenge :-), but it did
-show up quite noticably in the tests I had done at the time.
+I'm making a 2.4.6-pre2 as I write this, give it a whirl. I've been
+working with "mem=64M" for a change to verify that it's not obviously
+broken. Compared to my 1GB setup it obviously doesn't cach the kernel
+trees quite as well, but it seems to be fairly pleasant to work with
+nonetheless.
 
-Later,
-David S. Miller
-davem@redhat.com
+(It is hard for me to judge - it's been some time since I last used a 64M
+machine for any amount of time ;)
+
+Please, try things out. We need to have a better feel for the balancing
+heuristics.
+
+		Linus
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
