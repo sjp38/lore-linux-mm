@@ -1,42 +1,40 @@
-Received: from o643omr584ffm82j (203.18.11.3) by qubyxuxeklvzp42.prodigy.net
-          (InterMail vM.5.01.06.05 764-821-191-001-187-4485777) with SMTP
-          id <1646657235623.FRZ23.utaxpsv237319.prodigy.net@afterthoughto469dg24l23ff>
-          for <linux-mm@kvack.org>; Sat, 19 Feb 2005 15:04:56 -0200
-Message-ID: <4016nq612nh27234$94231$a698c208@m9rg43e4d>
-From: " Lundy" <LAGLQJFARXVMH@netscape.net>
-Subject: Your software  order awl
-Date: Sat, 19 Feb 2005 15:03:56 -0200
-MIME-Version: 1.0
-Content-Type: multipart/alternative;
-	boundary="--anterior"
+Date: Sat, 19 Feb 2005 18:20:49 -0300
+Message-Id: <5.8.07.2081924.0083fc70@ies.edu>
+From: "Jaime Suarez" <ptkisk@nexxan.com>
+Subject: don`t waste that chance
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----anterior
-Content-Type: text/plain;
-Content-Transfer-Encoding: quoted-printable
+----- Original Message ----- 
+From: Sophie <macmillan13@hotmail.com> 
+To: bibliography1@msn.com <Sophie@msn.com> ; beltsvilleirreproachable@yahoo.com
+<hardtop4216@yahoo.com >; 
 
-Popular software at low low prices
+Dear Homeowner,
 
-Looking for not expensive high-quality software?
+Mortgage. You have been pre-approved.
+You can get $243,000 for as little as $232 a month, thanks to your pre-approval. 
+Visit us, Fill out the form, no obligation
+Pull cash out, or refinance.. 
+No long forms or quastionnaires. Fill up our extremely short and simple form today and get a call back within a couple of hours. 
 
-We might have just what you need
+Start saving now, click that link:
 
-http://dactyl.nllhcfdh.com/?dYfOfuJ4lhk6vJJcaress
-
-check inside 
-
-http://cane.nllhcfdh.com/?dYfOfuJ4lhk6vJJcensus
-
-
+http://www.mortslow.net/index2.php?refid=vik
 
 
-cenozoic dean
 
-----anterior--
 
+
+
+
+
+
+
+despicable ljm axle uqm gwyn qn rooftree cdd cortical gpm contractual ad 
+customary gz buddhist yc bonnet rvi bunch ab 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
