@@ -1,69 +1,60 @@
-Message-Id: <200405222201.i4MM1Wr11300@mail.osdl.org>
-Subject: [patch 02/57] __add_to_swap_cache and add_to_pagecache() simplification
+Message-Id: <200405222205.i4MM5Sr12689@mail.osdl.org>
+Subject: [patch 17/57] numa api: x86_64 support
 From: akpm@osdl.org
-Date: Sat, 22 May 2004 15:01:01 -0700
+Date: Sat, 22 May 2004 15:04:57 -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: torvalds@osdl.org
-Cc: linux-mm@kvack.org, akpm@osdl.org
+Cc: linux-mm@kvack.org, akpm@osdl.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
+From: Andi Kleen <ak@suse.de>
 
-Simplify the logic in there a bit.
+Add NUMA API system calls on x86-64
+
+This includes a bugfix to prevent miscompilation on gcc 3.2 of bitmap.h
 
 
 ---
 
- 25-akpm/mm/filemap.c    |    4 +---
- 25-akpm/mm/swap_state.c |    5 ++---
- 2 files changed, 3 insertions(+), 6 deletions(-)
+ 25-akpm/include/asm-x86_64/unistd.h |    4 ++--
+ 25-akpm/include/linux/bitmap.h      |    3 ++-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
 
-diff -puN mm/swap_state.c~__add_to_swap_cache-simplification mm/swap_state.c
---- 25/mm/swap_state.c~__add_to_swap_cache-simplification	2004-05-22 14:56:21.375841904 -0700
-+++ 25-akpm/mm/swap_state.c	2004-05-22 14:59:44.832911728 -0700
-@@ -68,18 +68,17 @@ static int __add_to_swap_cache(struct pa
- 	BUG_ON(PagePrivate(page));
- 	error = radix_tree_preload(gfp_mask);
- 	if (!error) {
--		page_cache_get(page);
- 		spin_lock_irq(&swapper_space.tree_lock);
- 		error = radix_tree_insert(&swapper_space.page_tree,
- 						entry.val, page);
- 		if (!error) {
-+			page_cache_get(page);
- 			SetPageLocked(page);
- 			SetPageSwapCache(page);
- 			page->private = entry.val;
- 			total_swapcache_pages++;
- 			pagecache_acct(1);
--		} else
--			page_cache_release(page);
-+		}
- 		spin_unlock_irq(&swapper_space.tree_lock);
- 		radix_tree_preload_end();
- 	}
-diff -puN mm/filemap.c~__add_to_swap_cache-simplification mm/filemap.c
---- 25/mm/filemap.c~__add_to_swap_cache-simplification	2004-05-22 14:56:21.376841752 -0700
-+++ 25-akpm/mm/filemap.c	2004-05-22 14:59:44.199008096 -0700
-@@ -252,17 +252,15 @@ int add_to_page_cache(struct page *page,
- 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+diff -puN include/asm-x86_64/unistd.h~numa-api-x86_64 include/asm-x86_64/unistd.h
+--- 25/include/asm-x86_64/unistd.h~numa-api-x86_64	2004-05-22 14:56:24.245405664 -0700
++++ 25-akpm/include/asm-x86_64/unistd.h	2004-05-22 14:56:24.251404752 -0700
+@@ -534,7 +534,7 @@ __SYSCALL(__NR_utimes, sys_utimes)
+ __SYSCALL(__NR_vserver, sys_ni_syscall)
+ #define __NR_vserver		236
+ __SYSCALL(__NR_vserver, sys_ni_syscall)
+-#define __NR_mbind 			237
++#define __NR_mbind 		237
+ __SYSCALL(__NR_mbind, sys_ni_syscall)
+ #define __NR_set_mempolicy 	238
+ __SYSCALL(__NR_set_mempolicy, sys_ni_syscall)
+@@ -546,7 +546,7 @@ __SYSCALL(__NR_mq_open, sys_mq_open)
+ __SYSCALL(__NR_mq_unlink, sys_mq_unlink)
+ #define __NR_mq_timedsend 	242
+ __SYSCALL(__NR_mq_timedsend, sys_mq_timedsend)
+-#define __NR_mq_timedreceive 243
++#define __NR_mq_timedreceive	243
+ __SYSCALL(__NR_mq_timedreceive, sys_mq_timedreceive)
+ #define __NR_mq_notify 		244
+ __SYSCALL(__NR_mq_notify, sys_mq_notify)
+diff -puN include/linux/bitmap.h~numa-api-x86_64 include/linux/bitmap.h
+--- 25/include/linux/bitmap.h~numa-api-x86_64	2004-05-22 14:56:24.246405512 -0700
++++ 25-akpm/include/linux/bitmap.h	2004-05-22 14:56:24.251404752 -0700
+@@ -29,7 +29,8 @@ static inline void bitmap_fill(unsigned 
+ static inline void bitmap_copy(unsigned long *dst,
+ 			const unsigned long *src, int bits)
+ {
+-	memcpy(dst, src, BITS_TO_LONGS(bits)*sizeof(unsigned long));
++	int len = BITS_TO_LONGS(bits)*sizeof(unsigned long);
++	memcpy(dst, src, len);
+ }
  
- 	if (error == 0) {
--		page_cache_get(page);
- 		spin_lock_irq(&mapping->tree_lock);
- 		error = radix_tree_insert(&mapping->page_tree, offset, page);
- 		if (!error) {
-+			page_cache_get(page);
- 			SetPageLocked(page);
- 			page->mapping = mapping;
- 			page->index = offset;
- 			mapping->nrpages++;
- 			pagecache_acct(1);
--		} else {
--			page_cache_release(page);
- 		}
- 		spin_unlock_irq(&mapping->tree_lock);
- 		radix_tree_preload_end();
+ void bitmap_shift_right(unsigned long *dst,
 
 _
 
