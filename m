@@ -1,38 +1,35 @@
-Date: Sat, 3 Jun 2000 14:32:19 -0700 (PDT)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: 2.3.x swap cache seems to be a big leak
-In-Reply-To: <200004251203.FAA04709@pizda.ninka.net>
-Message-ID: <Pine.LNX.4.21.0006031428010.7928-100000@inspiron.random>
+From: THE INFAMOUS <evil7@seifried.org>
+Reply-To: evil7@seifried.org
+Subject: 24t1ac7-kswapdtune3
+Date: Sat, 3 Jun 2000 17:44:51 -0500
+Content-Type: text/plain
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <00060317493000.00609@sQa.speedbros.org>
+Content-Transfer-Encoding: 8BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "David S. Miller" <davem@redhat.com>
-Cc: sct@redhat.com, torvalds@transmeta.com, linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 25 Apr 2000, David S. Miller wrote:
+Did a usual stress test :
 
->__delete_from_swap_cache depends upon remove_inode_page doing
->a put_page or similar to kill the reference of the swap cache
->itself
 
-__delete_from_swap_cache must not decrease the reference count.
+X + gnome + sawfish + 3 Eterms + balsa + netscape + cp -af
+          /usr/src/linux /somewhere + updatedb 
 
->We changed remove_inode_page during the page cache rewrite such
->that is no longer puts the page, the caller does.
+The overall performance is indeed better.... I was able to still move around
+under all that load, only saw a peak in the LA of 1.45 and recovered nicely to
+0.0.8(after cp and updatedb were done). 
 
-shrink_mmap does in the made_inode_progress path (first release the swap
-cache reference and then frees the page by issuing two put_page).
+Getting there : )
 
->So if I haven't missed something clever going on here, this would
->explain a lot of problems people have reported with swapping making
->their machines act weird and eventually run out of ram.
+-- 
+Bryan Paxton
 
-That's because the MM balancing is broken. Try to reproduce with the
-classzone patch applied.
+"I don't need to sleep or eat, I'll smoke a thousand cigarettes."
+- Sebadoh
 
-Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
