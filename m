@@ -1,159 +1,60 @@
-Received: from hastur.corp.sgi.com (hastur.corp.sgi.com [198.149.32.33])
-	by omx1.americas.sgi.com (8.12.10/8.12.9/linux-outbound_gateway-1.1) with ESMTP id iBLK8mxT025168
-	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 14:08:49 -0600
-Received: from spindle.corp.sgi.com (spindle.corp.sgi.com [198.29.75.13])
-	by hastur.corp.sgi.com (8.12.9/8.12.10/SGI_generic_relay-1.2) with ESMTP id iBLK8aYw78088776
-	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 12:08:36 -0800 (PST)
-Received: from schroedinger.engr.sgi.com (schroedinger.engr.sgi.com [163.154.5.55])
-	by spindle.corp.sgi.com (SGI-8.12.5/8.12.9/generic_config-1.2) with ESMTP id iBLK8mae8970482
-	for <linux-mm@kvack.org>; Tue, 21 Dec 2004 12:08:48 -0800 (PST)
-Date: Tue, 21 Dec 2004 11:57:57 -0800 (PST)
-From: Christoph Lameter <clameter@sgi.com>
-Subject: Increase page fault rate by prezeroing V1 [3/3]: Altix SN2 BTE
- Zeroing
-In-Reply-To: <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
-Message-ID: <Pine.LNX.4.58.0412211157180.1313@schroedinger.engr.sgi.com>
-References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com>
- <41C20E3E.3070209@yahoo.com.au> <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.4.58.0412211208430.1453@schroedinger.engr.sgi.com>
+Date: Tue, 21 Dec 2004 21:19:27 +0100
+From: Andi Kleen <ak@suse.de>
+Subject: Re: [RFC][PATCH 0/10] alternate 4-level page tables patches
+Message-ID: <20041221201927.GD15643@wotan.suse.de>
+References: <Pine.LNX.4.44.0412210230500.24496-100000@localhost.localdomain> <Pine.LNX.4.58.0412201940270.4112@ppc970.osdl.org> <Pine.LNX.4.58.0412201953040.4112@ppc970.osdl.org> <20041221093628.GA6231@wotan.suse.de> <Pine.LNX.4.58.0412210925370.4112@ppc970.osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.58.0412210925370.4112@ppc970.osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nick Piggin <nickpiggin@yahoo.com.au>
-Cc: "Luck, Tony" <tony.luck@intel.com>, Robin Holt <holt@sgi.com>, Adam Litke <agl@us.ibm.com>, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Linus Torvalds <torvalds@osdl.org>
+Cc: Andi Kleen <ak@suse.de>, Hugh Dickins <hugh@veritas.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Linux Memory Management <linux-mm@kvack.org>, Andrew Morton <akpm@osdl.org>
 List-ID: <linux-mm.kvack.org>
 
-o Use the Block Transfer Engine in the Altix SN2 SHub for background zeroing
+> That's true, but it's not an issue for several reasons:
+> 
+>  - we can easily update just _x86_ to be type-safe (ie add the fourth 
+>    level to x86 just to get type safety, even if it's folded). That 
+>    doesn't mean that we have to worry about 20 _other_ architectures, that 
+>    most developers can't even test.
 
-Index: linux-2.6.9/arch/ia64/sn/kernel/bte.c
-===================================================================
---- linux-2.6.9.orig/arch/ia64/sn/kernel/bte.c	2004-12-17 14:40:10.000000000 -0800
-+++ linux-2.6.9/arch/ia64/sn/kernel/bte.c	2004-12-21 11:03:49.000000000 -0800
-@@ -4,6 +4,8 @@
-  * for more details.
-  *
-  * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
-+ *
-+ * Support for zeroing pages, Christoph Lameter, SGI, December 2004.
-  */
+I already covered near all of them anyways (m68k is the main exception) 
+And quite a few of them have been even tested, thanks to the port
+maintainers.
 
- #include <linux/config.h>
-@@ -20,6 +22,8 @@
- #include <linux/bootmem.h>
- #include <linux/string.h>
- #include <linux/sched.h>
-+#include <linux/mm.h>
-+#include <linux/scrub.h>
+> > Also is the flag day really that bad?
+> 
+> I think that _avoiding_ a flag-day is always good. Also, more importantly,
+> it looks like this approach allows each patch to be smaller and more 
+> self-contained, ie we never have the situation where "uhhuh, now it won't 
+> compile on arch Xxxx for ten patches, until we turn things on". The 
+> smaller the patches are, the more obvious any problems will be.
 
- #include <asm/sn/bte.h>
+With the warnings the port maintainers will need to do the conversion
+work anyways, they can't just leave the warnings in (at least if they
+care to still maintain their code in the future) 
 
-@@ -30,7 +34,11 @@
- /* two interfaces on two btes */
- #define MAX_INTERFACES_TO_TRY		4
+> 
+> Think of it this way: for random architecture X, the four-level page table 
+> patches really should make _no_ difference until they are enabled. So you 
+> can do 90% of the work, and be pretty confident that things work. Most 
+> importantly, if things _don't_ work before the thing has been enabled, 
+> that's a big clue ;)
 
--static struct bteinfo_s *bte_if_on_node(nasid_t nasid, int interface)
-+DEFINE_PER_CPU(u64 *, bte_zero_notify);
-+
-+#define bte_zero_notify __get_cpu_var(bte_zero_notify)
-+
-+static inline struct bteinfo_s *bte_if_on_node(nasid_t nasid, int interface)
- {
- 	nodepda_t *tmp_nodepda;
+My approach was to just do the straight forward conversions. The only
+risk (from experience) so far was that things not compile when I forgot
+one replacement, but when they compile they tend to work.
 
-@@ -132,7 +140,6 @@
- 			if (bte == NULL) {
- 				continue;
- 			}
--
- 			if (spin_trylock(&bte->spinlock)) {
- 				if (!(*bte->most_rcnt_na & BTE_WORD_AVAILABLE) ||
- 				    (BTE_LNSTAT_LOAD(bte) & BTE_ACTIVE)) {
-@@ -157,7 +164,7 @@
- 		}
- 	} while (1);
+I must say I would still prefer if my patches were applied instead
 
--	if (notification == NULL) {
-+	if (notification == NULL || (mode & BTE_NOTIFY_AND_GET_POINTER)) {
- 		/* User does not want to be notified. */
- 		bte->most_rcnt_na = &bte->notify;
- 	} else {
-@@ -192,6 +199,8 @@
+of going through all of this again in a slightly different form.
+e.g. who is doing all this "PUD" stuff? Nick's patch so far was only
+a prototype and probably needs quite a bit more work and then a new
+-mm testing cycle. 
 
- 	itc_end = ia64_get_itc() + (40000000 * local_cpu_data->cyc_per_usec);
-
-+	if (mode & BTE_NOTIFY_AND_GET_POINTER)
-+		 *(u64 volatile **)(notification) = &bte->notify;
- 	spin_unlock_irqrestore(&bte->spinlock, irq_flags);
-
- 	if (notification != NULL) {
-@@ -449,5 +458,31 @@
- 		mynodepda->bte_if[i].cleanup_active = 0;
- 		mynodepda->bte_if[i].bh_error = 0;
- 	}
-+}
-+
-+static int bte_check_bzero(void)
-+{
-+	return *bte_zero_notify != BTE_WORD_BUSY;
-+}
-+
-+static int bte_start_bzero(void *p, unsigned long len)
-+{
-+	/* Check limitations.
-+		1. System must be running (weird things happen during bootup)
-+		2. Size >64KB. Smaller requests cause too much bte traffic
-+	 */
-+	if (len >= BTE_MAX_XFER || len < 60000 || system_state != SYSTEM_RUNNING)
-+		return EINVAL;
-+
-+	return bte_zero(ia64_tpa(p), len, BTE_NOTIFY_AND_GET_POINTER, &bte_zero_notify);
-+}
-+
-+static struct zero_driver bte_bzero = {
-+	.start = bte_start_bzero,
-+	.check = bte_check_bzero,
-+	.rate = 500000000		/* 500 MB /sec */
-+};
-
-+void sn_bte_bzero_init(void) {
-+	register_zero_driver(&bte_bzero);
- }
-Index: linux-2.6.9/arch/ia64/sn/kernel/setup.c
-===================================================================
---- linux-2.6.9.orig/arch/ia64/sn/kernel/setup.c	2004-12-17 14:40:10.000000000 -0800
-+++ linux-2.6.9/arch/ia64/sn/kernel/setup.c	2004-12-21 11:02:35.000000000 -0800
-@@ -243,6 +243,7 @@
- 	int pxm;
- 	int major = sn_sal_rev_major(), minor = sn_sal_rev_minor();
- 	extern void sn_cpu_init(void);
-+	extern void sn_bte_bzero_init(void);
-
- 	/*
- 	 * If the generic code has enabled vga console support - lets
-@@ -333,6 +334,7 @@
- 	screen_info = sn_screen_info;
-
- 	sn_timer_init();
-+	sn_bte_bzero_init();
- }
-
- /**
-Index: linux-2.6.9/include/asm-ia64/sn/bte.h
-===================================================================
---- linux-2.6.9.orig/include/asm-ia64/sn/bte.h	2004-12-17 14:40:16.000000000 -0800
-+++ linux-2.6.9/include/asm-ia64/sn/bte.h	2004-12-21 11:02:35.000000000 -0800
-@@ -48,6 +48,8 @@
- #define BTE_ZERO_FILL (BTE_NOTIFY | IBCT_ZFIL_MODE)
- /* Use a reserved bit to let the caller specify a wait for any BTE */
- #define BTE_WACQUIRE (0x4000)
-+/* Return the pointer to the notification cacheline to the user */
-+#define BTE_NOTIFY_AND_GET_POINTER (0x8000)
- /* Use the BTE on the node with the destination memory */
- #define BTE_USE_DEST (BTE_WACQUIRE << 1)
- /* Use any available BTE interface on any node for the transfer */
-
+-Andi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
