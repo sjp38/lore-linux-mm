@@ -1,33 +1,25 @@
-Date: Mon, 16 Apr 2001 14:17:52 +0200 (MET DST)
+Date: Mon, 16 Apr 2001 13:52:50 +0200 (MET DST)
 From: Szabolcs Szakacsits <szaka@f-secure.com>
-Subject: Re: suspend processes at load (was Re: a simple OOM ...) 
-In-Reply-To: <Pine.LNX.4.21.0104131317110.12164-100000@imladris.rielhome.conectiva>
-Message-ID: <Pine.LNX.4.30.0104161353270.20939-100000@fs131-224.f-secure.com>
+Subject: Re: [PATCH] a simple OOM killer to save me from Netscape
+In-Reply-To: <m1ofu0t18b.fsf@frodo.biederman.org>
+Message-ID: <Pine.LNX.4.30.0104161338580.20939-100000@fs131-224.f-secure.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, linux-mm@kvack.org, Andrew Morton <andrewm@uow.edu.au>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 13 Apr 2001, Rik van Riel wrote:
+On 14 Apr 2001, Eric W. Biederman wrote:
 
-> That is, when the load gets too high, we temporarily suspend
-> processes to bring the load down to more acceptable levels.
+> Seriously you could do this in user-space with a 16KB or so mlocked
+> binary.
 
-Please don't. Or at least make it optional and not the default or user
-controllable. Trashing is good. People get feedback system is not
-properly setup and they can tune. The problem Linux uses more and more
-hardcoded values and "try to be clever algorithms" instead of tuning
-parameters (see e.g. read-only /proc/sys/vm/freepages and other place
-holders). Suspended pacemakers, quakes, e-commerce web servers, etc is
-not the expected behavior and I'm not sure it will make people happy.
-
-This is also my problem with __alloc_pages(), potentially looping
-infinitely instead of falling back at one point and let the ENOMEM
-handled by the upper layer (trying a smaller order allocation or
-whatever).
+You'd need to fix at least these as well, no new memory required to read
+from /proc, no minutes latencies and obsolete values when reading /proc.
+You're idea already failed in theory. I'd also suggest to study how
+others handle the problem, there are a *lot* to learn ;)
 
 	Szaka
 
