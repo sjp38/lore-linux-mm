@@ -1,54 +1,60 @@
-Subject: Re: [Bug 3268] New: Lowmemory exhaustion problem with v2.6.8.1-mm4
-	16gb
-From: keith <kmannth@us.ibm.com>
-In-Reply-To: <Pine.LNX.4.44.0408251448370.4332-100000@localhost.localdomain>
-References: <Pine.LNX.4.44.0408251448370.4332-100000@localhost.localdomain>
-Content-Type: text/plain
-Message-Id: <1093460701.5677.1881.camel@knk>
-Mime-Version: 1.0
-Date: Wed, 25 Aug 2004 12:05:01 -0700
-Content-Transfer-Encoding: 7bit
+Subject: [patch 1/2] make page table index functions take void*
+From: Dave Hansen <haveblue@us.ibm.com>
+Date: Wed, 25 Aug 2004 12:06:08 -0700
+Message-Id: <E1C0363-0007uM-00@kernel.beaverton.ibm.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: ak@muc.de
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dave Hansen <haveblue@us.ibm.com>
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2004-08-25 at 07:05, Hugh Dickins wrote:
-> On Tue, 24 Aug 2004, keith wrote:
-> > 
-> > Ok I created an attachment in the bug for the slab/buddy/mem info.  
-> > You can watch zone normal get exhausted :)
-> > http://bugme.osdl.org/show_bug.cgi?id=3268
-> 
-> Thanks.  Yes, your lowmem is full of Slab, and that's entirely
-> unsurprising since you have CONFIG_DEBUG_PAGEALLOC on: so every
-> slab object needs a full 4096-byte page to itself (well, there
-> are some exceptions, but that doesn't change the picture).
-> 
-> That's a _very_ distorting config option, and I think this means that
-> your report is of no interest in itself - sorry.  But it does raise a
-> valid question whether it can happen in real, non-debug life - thanks.
+Andi, since this is your code, I thought I'd send these to you to look over
+first.  Do you have any good test cases for this code?  I don't think I have
+any hardware that uses the NX bit.  
 
-I turned CONFIG_DEBUG_PAGEALLOC off.  I ran into problems when I tried
-building 60 kernel trees or so.  It is using about 10gb of tmpfs space. 
-See http://bugme.osdl.org/attachment.cgi?id=3566&action=view for more
-info.
+Instead of casting the void*'s into "unsigned long"s to pass into the pagetable
+functions: p{gd,md,te}_index(), do a cast inside the macro.  All of the current
+callers should be "unsigned long"s already, so this should have no other
+effect than making it valid to pass a void* to those functions.  
 
-The bug also contains the config file used.  
-> 
-> I'll do the arithmetic on that when I've more leisure: I expect the
-> answer to be that it can happen, and I ought to adjust defaulting of
-> maximum tmpfs inodes.
+Signed-off-by: Dave Hansen <haveblue@us.ibm.com>
+---
 
-It looks like there should be a maximum number of inodes for tmpfs.
-Because I didn't know how many inodes it is using but I gave it a large
-playground to use (mount -t tmpfs -o size=15G,nr_inodes=10000k,mode=0700
-tmpfs /mytmpfs)
+ memhotplug-dave/include/asm-i386/pgtable.h |    7 ++++---
+ 1 files changed, 4 insertions(+), 3 deletions(-)
 
-Thanks,
-  Keith Mannthey 
-
+diff -puN include/asm-i386/pgtable.h~AA0-index-functions-take-voidstar include/asm-i386/pgtable.h
+--- memhotplug/include/asm-i386/pgtable.h~AA0-index-functions-take-voidstar	2004-08-25 11:53:57.000000000 -0700
++++ memhotplug-dave/include/asm-i386/pgtable.h	2004-08-25 11:58:08.000000000 -0700
+@@ -309,7 +309,8 @@ static inline pte_t pte_modify(pte_t pte
+  * this macro returns the index of the entry in the pgd page which would
+  * control the given virtual address
+  */
+-#define pgd_index(address) (((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
++#define pgd_index(address) \
++	(((unsigned long)(address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
+ 
+ /*
+  * pgd_offset() returns a (pgd_t *)
+@@ -330,7 +331,7 @@ static inline pte_t pte_modify(pte_t pte
+  * control the given virtual address
+  */
+ #define pmd_index(address) \
+-		(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
++		(((unsigned long)(address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
+ 
+ /*
+  * the pte page can be thought of an array like this: pte_t[PTRS_PER_PTE]
+@@ -339,7 +340,7 @@ static inline pte_t pte_modify(pte_t pte
+  * control the given virtual address
+  */
+ #define pte_index(address) \
+-		(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
++		(((unsigned long)(address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
+ #define pte_offset_kernel(dir, address) \
+ 	((pte_t *) pmd_page_kernel(*(dir)) +  pte_index(address))
+ 
+_
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
