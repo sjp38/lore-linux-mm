@@ -1,55 +1,58 @@
-Date: Wed, 7 Aug 2002 12:53:57 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: memory allocation on linux
-In-Reply-To: <20020807152229Z16466-21510+1725@humbolt.nl.linux.org>
-Message-ID: <Pine.LNX.4.44L.0208071250110.23404-100000@imladris.surriel.com>
+Received: from d23rh902.au.ibm.com (d23rh902.au.ibm.com [9.185.167.101])
+	by ausmtp02.au.ibm.com (8.12.1/8.12.1) with ESMTP id g77H13K4122054
+	for <linux-mm@kvack.org>; Thu, 8 Aug 2002 03:01:03 +1000
+Received: from d23m0067.in.ibm.com (d23m0067.in.ibm.com [9.184.199.180])
+	by d23rh902.au.ibm.com (8.12.3/NCO/VER6.3) with ESMTP id g77H3A35055812
+	for <linux-mm@kvack.org>; Thu, 8 Aug 2002 03:03:11 +1000
+Subject: oom_killer - Does not perform when stress-tested (system hangs)
+Message-ID: <OFDE4A1CCD.14106609-ON65256C0E.0057D9B9@in.ibm.com>
+From: "Srikrishnan Sundararajan" <srikrishnan@in.ibm.com>
+Date: Wed, 7 Aug 2002 22:31:21 +0530
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Cannizzaro, Emanuele" <ecannizzaro@mtc.ricardo.com>
-Cc: ebiederm+eric@ccr.net, leechin@mail.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Aug 2002, Cannizzaro, Emanuele wrote:
+Hi,
+I'm trying to run multiple instances of the following program which keeps
+on allocating memory , assigns value if malloc was not NULL  and does not
+free.
+#include <stdlib.h>
+int main()
+{
+   int *p,i;
+   while (1)  {
+      p = (int *) malloc(1000000 * sizeof(int));
+      if(p!=NULL)
+          for(i=0;i<1000000;i++)
+             p[i]=i;
+      sleep(1);
+   }
+}
 
-> I am writing to you regarding your experience to address a huge amount of
-> memory on linux using the brk() function.
->
-> I am running a program called nastran (v2001) on a pc with redhat 7.2. This
-> machine has got 2GB of disk spacebut  when I set the amount of memory to be
-> used by nastran to a value bigger than 900 mb I get this fatal error message.
->
-> Process Id = 28179
-> idalloc: dynamic allocation failed - brk: Cannot allocate memory
 
-The problem is that you have your libc mapped at 1GB offset
-and the program executable at 128 MB, leaving about 900 MB
-of space for brk().
+When I run say about 5 instances, oom_killer kills one instance of my
+program when SwapFree is 0K, goes on to kill each of the other instances in
+turn. The machine is slow in response when my program was running but
+perfectly usable after that.
+When I run 25 or 40 instances, the system hangs. No response. After waiting
+for more than 1.5 hours I did a manual reboot (hard-reset). I looked for
+/var/log/messages for "Out of Memory: Killed process...", I could find
+about 15 entries for the killing of my program's instances, none for others
+and there were no entries for more than an hour till I hard-reset the
+machine.
+I used a PC with Linux -2.4.7-10 (RH 7.2). RAM:128 MB, Swap: 256 MB. I run
+as an user and not as root.
 
-> I have no access to the source code of the program and therefore I would
-> need a patch to the memory allocation.
->
-> how can this problem be fixed?
+Is this expected behavior? Is it the responsibility of the user not to
+"fill" the memory? Could oom_killer not take care of such a stress-test?
+Should any thing warn the user when swap-space is full?
 
-If the program is dynamically linked you could try using a
-libc that uses malloc() instead of brk().
 
-If the program uses brk, you could hack the kernel to start
-mmap() at a different offset (eg 2 GB).
+Srikrishnan
 
-The easiest and arguably best option would be to link the
-program statically so it doesn't have to mmap any libraries,
-but it seems like you're stuck with whatever binary was given
-to you so you'll have to work around the problem...
-
-regards,
-
-Rik
--- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
