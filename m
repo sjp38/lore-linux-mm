@@ -1,31 +1,63 @@
-Date: Mon, 16 Sep 2002 14:51:13 -0400 (EDT)
-From: Bill Davidsen <davidsen@tmr.com>
-Subject: Re: [Lse-tech] Re: 2.5.34-mm4
-In-Reply-To: <20020915211002.A13470@wotan.suse.de>
-Message-ID: <Pine.LNX.3.96.1020916144915.6180F-100000@gatekeeper.tmr.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Mon, 16 Sep 2002 19:50:35 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
+Subject: false NUMA OOM
+Message-ID: <20020917025035.GY2179@holomorphy.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Description: brief message
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, lse-tech@lists.sourceforge.net
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, akpm@zip.com.au
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 15 Sep 2002, Andi Kleen wrote:
+Well, there's an obvious problem. shrink_caches() hammers out_of_memory()
+when it has only looked at a single node. Something like this might help.
 
-> > Overall I find Marcelo kernels to be the most comfortable, followed
-> > by 2.5.  Alan's kernels I find to be the least comfortable in a
-> 
-> ... and -aa kernels are marcelo kernels, just with the the corner
-> cases fixed too. Works very nicely here.
+Totally untested. Problem discovered during 2 simultaneous dbench 512's
+on separate 12GB tmpfs fs's on a 32x NUMA-Q with 32GB of RAM.
 
-Corner cases? The IDE, VM and scheduler are different...
+Against 2.5.35.
 
--- 
-bill davidsen <davidsen@tmr.com>
-  CTO, TMR Associates, Inc
-Doing interesting things with little computers since 1979.
 
+Bill
+
+
+--- mm/vmscan.c.orig	2002-09-16 19:02:11.000000000 -0700
++++ mm/vmscan.c	2002-09-16 19:07:50.000000000 -0700
+@@ -519,18 +519,24 @@
+ shrink_caches(struct zone *classzone, int priority,
+ 		int gfp_mask, int nr_pages)
+ {
++	pg_data_t *pgdat;
+ 	struct zone *first_classzone;
+ 	struct zone *zone;
++	int type;
+ 
+ 	first_classzone = classzone->zone_pgdat->node_zones;
+-	zone = classzone;
+-	while (zone >= first_classzone && nr_pages > 0) {
+-		if (zone->free_pages <= zone->pages_high) {
+-			nr_pages = shrink_zone(zone, priority,
+-					gfp_mask, nr_pages);
++	for (type = classzone - first_classzone; type >= 0; --type)
++		for_each_pgdat(pgdat) {
++			zone = pgdat->node_zones + type;
++			if (!zone->size)
++				continue;
++			if (zone->free_pages <= zone->pages_high)
++				nr_pages = shrink_zone(zone, priority,
++							gfp_mask, nr_pages);
++			if (nr_pages <= 0)
++				return nr_pages;
+ 		}
+-		zone--;
+-	}
++
+ 	return nr_pages;
+ }
+ 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
