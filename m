@@ -1,35 +1,58 @@
-Date: Mon, 19 Mar 2001 20:42:45 -0700 (MST)
-From: Ronald G Minnich <rminnich@lanl.gov>
-Subject: Re: 2.4.2 kernel weirdness
-In-Reply-To: <m3d7bdmkp7.fsf@DLT.linuxnetworx.com>
-Message-ID: <Pine.LNX.4.30.0103192040380.666-100000@white.acl.lanl.gov>
+Date: Tue, 20 Mar 2001 01:15:20 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: Re: 3rd version of R/W mmap_sem patch available
+In-Reply-To: <Pine.LNX.4.31.0103191839510.1003-100000@penguin.transmeta.com>
+Message-ID: <Pine.LNX.4.21.0103200113550.8828-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederman@lnxi.com>
-Cc: Andrew Stanley-Jones <asj@amphus.com>, linux-mm@kvack.org, LinuxBIOS <linuxbios@lanl.gov>, Jim Bailey <jbailey@amphus.com>
+To: Linus Torvalds <torvalds@transmeta.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, Mike Galbraith <mikeg@wen-online.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Manfred Spraul <manfred@colorfullife.com>, MOLNAR Ingo <mingo@chiara.elte.hu>
 List-ID: <linux-mm.kvack.org>
 
-On 19 Mar 2001, Eric W. Biederman wrote:
 
-> Andrew Stanley-Jones <asj@amphus.com> writes:
->
-> > I wasn't confident of the SDRAM setup on an embedded 486 machine, so I
-> > wrote a user space program to write and read mem to make sure everything
-> > was ok.  Well when the program runs almost instantly it generates a oops
-> > (with eip in schedual).  Assuming SDRAM setup was bad I added various
-> > checks in boot up to read and write mem.  They didn't show any problems,
-> > I can read and write all I like, the mem works.
+On Mon, 19 Mar 2001, Linus Torvalds wrote:
 
-I think your memory is misconfigured. This problem looks suspiciously like
-you only really have about 8M actually working, i.e. you're saying you
-have 64m but you're getting address line wrap such that you're trashing
-low kernel memory. This can happen with a misconfigured north bridge. That
-might explain why falling over the 4M boundary is killing you. Not sure
-though.
+> 
+> There is a 2.4.3-pre5 in the test-directory on ftp.kernel.org.
+> 
+> The complete changelog is appended, but the biggest recent change is the
+> mmap_sem change, which I updated with new locking rules for pte/pmd_alloc
+> to avoid the race on the actual page table build.
+> 
+> This has only been tested on i386 without PAE, and is known to break other
+> architectures. Ingo, mind checking what PAE needs? Generally, the changes
+> are simple, and really only implies changing the pte/pmd allocation
+> functions to _only_ allocate (ie removing the stuff that actually modifies
+> the page tables, as that is now handled by generic code), and to make sure
+> that the "pgd/pmd_populate()" functions do the right thing.
+> 
+> I have also removed the xxx_kernel() functions - for architectures that
+> need them, I suspect that the right approach is to just make the
+> "populate" funtions notice when "mm" is "init_mm", the kernel context.
+> That removed a lot of duplicate code that had little good reason.
+> 
+> This pre-release is meant mainly as a synchronization point for mm
+> developers, not for generic use.
+> 
+> 	Thanks,
+> 
+> 		Linus
+> 
+> 
+> -----
+> -pre5:
+>   - Rik van Riel and others: mm rw-semaphore (ps/top ok when swapping)
+>   - IDE: 256 sectors at a time is legal, but apparently confuses some
+>     drives. Max out at 255 sectors instead.
 
-ron
+Could the IDE one cause corruption ?
+
+EXT2-fs error (device ide0(3,1)): ext2_free_blocks: bit already cleared
+for block 6211
+
+Just hitted this now with pre3. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
