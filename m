@@ -1,32 +1,38 @@
-Message-ID: <423B6373.8030107@yahoo.com.au>
-Date: Sat, 19 Mar 2005 10:25:39 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
-MIME-Version: 1.0
-Subject: Re: Bug in __alloc_pages()?
-References: <4238D1DC.8070004@us.ibm.com> <4238D8C1.3080805@yahoo.com.au> <423B52FE.6030101@us.ibm.com>
-In-Reply-To: <423B52FE.6030101@us.ibm.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Matthew Dobson <colpatch@us.ibm.com>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management <linux-mm@kvack.org>, "Bligh, Martin J." <mbligh@aracnet.com>
+Message-Id: <Kilauea97945-17741-82853435-1@hdynamic.covad.net>
+From: "Isabella Clark" <nostro@yebox.com>
+Date: Mon, 7 Mar 2005 15:23:38 -0400 (EDT) 
+Message-Id: <LNXSVHSHKTXLYXPMZUQP61.i93CbiTw009335@www2.gmail.com>
+Subject: Lowest rates in 45 years
+Mime-Version: 1.0
+Content-Type: text/plain;
+Return-Path: <nostro@yebox.com>
+To: linux-aio@kvack.org
+Cc: linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, needpcparts.com@kvack.org, ner-linux-aio@kvack.org, owner-linux-aio@kvack.org, owner-linux-mm@kvack.org, owner-majordomo@kvack.org, postmaster@kvack.orgr-linux-mm@kvack.orgrdomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Matthew Dobson wrote:
+Hello,
 
-> 
-> Agreed.  It seems unlikely, but not entirely impossible.  All it would 
-> take is one sloppily coded driver, right?  How about this patch instead?
-> 
+ We tried contacting you awhile ago about your low interest morta(ge rate.
 
-Sure that would be fine with me. It kind of makes the logic
-explicit, as Martin said.
+ You have qualified for the lowest rate in years...
 
-Nick
+ You could get over $380,000 for as little as $500 a month!
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.nowratez.com/x/loan.php?id=nm
+
+
+
+ Best Regards,
+
+ Aurelia Murphy
+ 
+ to be remov(ed:	http://www.nowratez.com/x/st.html
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
