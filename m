@@ -1,40 +1,37 @@
+Date: Fri, 16 Feb 2001 16:20:42 -0200 (BRST)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
 Subject: Re: page locking and error handling
-References: <Pine.GSO.4.10.10102151835020.2986-100000@zeus.fh-brandenburg.de>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 15 Feb 2001 16:37:59 -0700
-In-Reply-To: Roman Zippel's message of "Thu, 15 Feb 2001 19:50:09 +0100 (MET)"
-Message-ID: <m1ae7n7c14.fsf@frodo.biederman.org>
+In-Reply-To: <Pine.GSO.4.10.10102151526100.26610-100000@zeus.fh-brandenburg.de>
+Message-ID: <Pine.LNX.4.21.0102161603240.682-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Roman Zippel <zippel@fh-brandenburg.de>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Roman Zippel <zippel@fh-brandenburg.de> writes:
+
+On Thu, 15 Feb 2001, Roman Zippel wrote:
 
 > Hi,
-> 
-> On 15 Feb 2001, Eric W. Biederman wrote:
-> 
-> > > - if copy_from_user() fails the page is set as not uptodate. AFAIK this
-> > >   assumes that the page->buffers are still uptodate, so previous writes
-> > >   are not lost.
-> > If copy_from_user fails that invokes undefined behavior, and you just lost
-> > your previous writes because you ``overwrote'' them.
-> 
-> What about partial writes?
 
-The important thing is if copy_from_user fails it is because of a buggy
-user space app.  Because the buggy app passed a bad memory area.  So you
-have undefined behavior, so you can do whatever is convenient.
+<snip>
 
-The only case to worry about how do we keep from breaking kernel invariants.
-I think it make break an invariant to set a mmaped page as not
-uptodate, but I can't see any other problems with the interface.
+>    - page locking has to happen completely at the higher layer and keeping
+>      multiple pages locked would require something like 1).
+>    - this would allow to pass multiple pages at once to the mapping
+>      mechanism, as we can easily link several pages together. This
+>      actually is all what is needed/wanted for streaming and no need for a
+>      heavyweight kiobuf.
 
-Eric
+At commit_write(), the buffers of the pages which are being writen are
+only marked dirty and not necessarily queued to IO. commit_write() will
+start writting older dirty buffers with flush_dirty_buffers() if the
+system is over a watermark of dirty data, which _may_ write dirty buffers
+from the current write() syscall. (O_SYNC is another story..)
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
