@@ -1,43 +1,42 @@
-Date: Wed, 04 Feb 2004 13:35:54 -0600
-From: Dave McCracken <dmccr@us.ibm.com>
 Subject: Re: Active Memory Defragmentation: Our implementation & problems
-Message-ID: <361730000.1075923354@[10.1.1.5]>
-In-Reply-To: <Pine.LNX.4.53.0402041402310.2722@chaos>
+From: Dave Hansen <haveblue@us.ibm.com>
+In-Reply-To: <40214A11.3060007@techsource.com>
 References: <20040204185446.91810.qmail@web9705.mail.yahoo.com>
- <Pine.LNX.4.53.0402041402310.2722@chaos>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	 <Pine.LNX.4.53.0402041402310.2722@chaos>  <40214A11.3060007@techsource.com>
+Content-Type: text/plain
+Message-Id: <1075923832.27944.391.camel@nighthawk>
+Mime-Version: 1.0
+Date: 04 Feb 2004 11:43:53 -0800
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: root@chaos.analogic.com
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Timothy Miller <miller@techsource.com>
+Cc: root@chaos.analogic.com, Alok Mooley <rangdi@yahoo.com>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
---On Wednesday, February 04, 2004 14:07:52 -0500 "Richard B. Johnson"
-<root@chaos.analogic.com> wrote:
+On Wed, 2004-02-04 at 11:37, Timothy Miller wrote:
+> Would memory fragmentation have any appreciable impact on L2 cache line 
+> collisions?
+> Would defragmenting it help?
 
-> If this is an Intel x86 machine, it is impossible for pages
-> to get fragmented in the first place. The hardware allows any
-> page, from anywhere in memory, to be concatenated into linear
-> virtual address space. Even the kernel address space is virtual.
-> The only time you need physically-adjacent pages is if you
-> are doing DMA that is more than a page-length at a time. The
-> kernel keeps a bunch of those pages around for just that
-> purpose.
-> 
-> So, if you are making a "memory defragmenter", it is a CPU time-sink.
+Nope.  The L2 lines are 32 or 64 bytes long, and the only unit we can
+defrag in is pages which are 4k.  Since everything is aligned, a
+cacheline cannot cross a page.  
 
-Um, wrong answer.  When you ask for more than one page from the buddy
-allocator  (order greater than 0) it always returns physically contiguous
-pages.
+> In the case of the Opteron, there is a 1M cache that is (I forget) N-way 
+> set associative, and it's physically indexed.  If a bunch of pages were 
+> located such that there were a disproportionately large number of lines 
+> which hit the same tag, you could be thrashing the cache.
+>
+> There are two ways to deal with this:  (1) intelligently locates pages
+> in physical memory; (2) hope that natural entropy keeps things random 
+> enough that it doesn't matter.
 
-Also, one of the near-term goals in VM is to be able to allocate and free
-large pages from the main memory pools, which requires that something like
-order 9 or 10 allocations (based on the architecture) succeed.
+You're talking about page coloring now.  That a whole different debate. 
+I think it's been discussed here before. :)  It's good.  It's bad.  It's
+good.  It's bad.  
 
-Dave McCracken
+--dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
