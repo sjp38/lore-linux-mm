@@ -1,63 +1,44 @@
-Date: Thu, 14 Oct 2004 20:44:21 +0100
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: [RESEND][PATCH 5/6] Provide a filesystem-specific sync'able page bit
-Message-ID: <20041014194421.GU16153@parcelfarce.linux.theplanet.co.uk>
-References: <24461.1097780707@redhat.com>
+Date: Thu, 14 Oct 2004 21:35:45 +0100
+From: Christoph Hellwig <hch@infradead.org>
+Subject: Re: [RESEND][PATCH 4/6] Add page becoming writable notification
+Message-ID: <20041014203545.GA13639@infradead.org>
+References: <24449.1097780701@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <24461.1097780707@redhat.com>
+In-Reply-To: <24449.1097780701@redhat.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: David Howells <dhowells@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Oct 14, 2004 at 08:05:07PM +0100, David Howells wrote:
->  #define PG_highmem		 8
-> +#define PG_fs_misc		 9	/* Filesystem specific bit */
->  #define PG_checked		 9	/* kill me in 2.5.<early>. */
->  #define PG_arch_1		10
->  #define PG_reserved		11
-> @@ -315,4 +316,13 @@ static inline void set_page_writeback(st
->  	test_set_page_writeback(page);
+> +
+> +	/* notification that a page is about to become writable */
+> +	int (*page_mkwrite)(struct page *page);
+
+This doesn't fit into address_space operations at all.  The vm_operation
+below is enough.
+
+> --- linux-2.6.9-rc1-mm2/mm/memory.c	2004-08-31 16:52:40.000000000 +0100
+> +++ linux-2.6.9-rc1-mm2-cachefs/mm/memory.c	2004-09-02 15:40:26.000000000 +0100
+> @@ -1030,6 +1030,54 @@ static inline void break_cow(struct vm_a
 >  }
 >  
-> +/*
-> + * Filesystem-specific page bit testing
+>  /*
+> + * Make a PTE writeable for do_wp_page() on a shared-writable page
 > + */
-> +#define PageFsMisc(page)		test_bit(PG_fs_misc, &(page)->flags)
-> +#define SetPageFsMisc(page)		set_bit(PG_fs_misc, &(page)->flags)
-> +#define TestSetPageFsMisc(page)		test_and_set_bit(PG_fs_misc, &(page)->flags)
-> +#define ClearPageFsMisc(page)		clear_bit(PG_fs_misc, &(page)->flags)
-> +#define TestClearPageFsMisc(page)	test_and_clear_bit(PG_fs_misc, &(page)->flags)
-> +
->  #endif	/* PAGE_FLAGS_H */
+> +static inline int do_wp_page_mk_pte_writable(struct mm_struct *mm,
+> +					     struct vm_area_struct *vma,
+> +					     unsigned long address,
+> +					     pte_t *page_table,
+> +					     struct page *old_page,
+> +					     pte_t pte)
 
-That's not really enough documentation.  Who sets this flag?  Who clears this
-flag?  Currently, mm/page_alloc.c clears this flag:
+This prototype shows pretty much that splitting it out doesn't make much sense.
+Why not add a goto reuse_page; where you call it currently and append it
+at the end of do_wp_page?
 
-./mm/page_alloc.c:                      1 << PG_checked | 1 << PG_mappedtodisk);
-
-which probably wouldn't be noticed by someone grepping for uses.
-If you're going to not kill this flag, at least rename it so we don't
-have two defines for the same bit.
-
-The other 'misc bit' has documentation of the form:
-
- * PG_arch_1 is an architecture specific page state bit.  The generic code
- * guarantees that this bit is cleared for a page when it first is entered into
- * the page cache.
-
-which really ought to at least mention Documentation/cachetlb.txt
-
--- 
-"Next the statesmen will invent cheap lies, putting the blame upon 
-the nation that is attacked, and every man will be glad of those
-conscience-soothing falsities, and will diligently study them, and refuse
-to examine any refutations of them; and thus he will by and by convince 
-himself that the war is just, and will thank God for the better sleep 
-he enjoys after this process of grotesque self-deception." -- Mark Twain
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
