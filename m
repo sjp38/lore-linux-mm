@@ -1,62 +1,65 @@
-Message-ID: <39AA30AF.14C17C50@tuke.sk>
-Date: Mon, 28 Aug 2000 11:28:15 +0200
-From: Jan Astalos <astalos@tuke.sk>
-MIME-Version: 1.0
+Message-ID: <20000828190557.A5579@saw.sw.com.sg>
+Date: Mon, 28 Aug 2000 19:05:57 +0800
+From: Andrey Savochkin <saw@saw.sw.com.sg>
 Subject: Re: Question: memory management and QoS
-References: <39A4F548.B8EB5308@tuke.sk> <20000828154744.A3741@saw.sw.com.sg>
+References: <39A672FD.CEEA798C@asplinux.ru> <39A69617.CE4719EF@tuke.sk> <39A6D45D.6F4C3E2F@asplinux.ru> <39AA24A5.CB461F4E@tuke.sk>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <39AA24A5.CB461F4E@tuke.sk>; from "Jan Astalos" on Mon, Aug 28, 2000 at 10:36:53AM
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrey Savochkin <saw@saw.sw.com.sg>
-Cc: linux-mm@kvack.org, Yuri Pudgorodsky <yur@asplinux.ru>
+To: Jan Astalos <astalos@tuke.sk>
+Cc: Yuri Pudgorodsky <yur@asplinux.ru>, Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Andrey Savochkin wrote:
+On Mon, Aug 28, 2000 at 10:36:53AM +0200, Jan Astalos wrote:
+[snip]
+> How about to split memory QoS into:
+>   - guarantied amount of physical memory
+>   - guarantied amount of virtual memory  
 > 
-> Hello,
+> The former is much more complicated and includes page replacement policies
+> along with fair sharing of physical memory (true core of QoS).
+> 
+> The latter should gurantee users requested amount of VM. I.e. avoid this kind
+> of situation: successful malloc, a lot of work, killed in action due to OOM (
+> out of munition^H^H^H^H^H^H^H^Hmemory), RIP...
+> In the current state it's the problem of system administration. In my approach
+> it will become user's problem. So user would be able to satisfy his need for
+> VM himself and system would only take care of fair management of physical memory.
 
-Hi.
+That's what user beancounter patch is about.
+Except that I'm not so strong in the judgements.
+For example, I don't think that overcommits are evil.  They are quite ok if
+1. the system can provide guarantee that certain processes can never be
+   killed because of OOM;
+2. the whole system reaction to OOM situation is well predictable.
+It's a part of quality of service: some processes/groups of processes have
+better service, some others only best effort.
 
->  
-> I don't think that personal swapfiles is an efficient approach to achieve
-> QoS.  Most of the space will be reserved for exceptional cases, and, thus,
-> wasted, as Yuri has mentioned.  A shared swap space allowing exceeding the
-> guaranteed amount (if the memory isn't really used) is much more efficient
-> spending of the space.  If the system has some spare memory, users exceeding
-> their limits may still use it (but, certainly, only if only some of them, not
-> all, exceed the limits).  Moreover, if some users don't consume all the
-> memory guaranteed to them, others may temporarily use it.
+It's simply impossible to run Internet servers without overcommits.
+I encourage you to take a look at
+ftp://ftp.sw.com.sg/pub/Linux/people/saw/kernel/user_beancounter/MemoryManagement.html,
+especially Overcommits section.
+I need real guarantees only to some of processes, and I can bear overcommits
+and 0.01%/year chances for other processes being killed if it saves me the
+cost of 10Gygabytes of RAM (and the cost of motherboard which supports this
+amount of memory).
 
-I think I explained my points clearly enough in my second reply to Yuri so I won't 
-repeat it again. 
+[snip]
+> 
+> > Userbeancounters are for that accounting. The problem is there are many different objects
+> > in play here, and sometimes it is not possible to associate them with particular user.
+> 
+> But that's not a design flaw, it's a problem of implementation.
 
-I still claim that per user swapfiles will:
-- be _much_ more efficient in the sense of wasting disk space (saving money)
-  because it will teach users efficiently use their memory resources (if
-  user will waste the space inside it's own disk quota it will be his own
-  problem)
-- provide QoS on VM memory allocation to users (will guarantee amount of
-  available VM for user)
-- be able to improve _per_user_ performance of system (localizing performance
-  problems to users that caused them and reducing disk seek times)
-- shift the problem with OOM from system to user.
+No.
+How do you propose to associate shared pages (or unmapped page cache) with a
+particular user?
 
-Please, don't repeat Yuri's argument with unswapable kernel objects and locked
-memory. Users should be able to lock only memory inside their own allocation
-and kernel objects should be accounted to this kind of memory too. Whether
-it is easy or hard to implement really does not matter for design. Anyway, there
-still could be pool of memory allocated to anonymous objects...
-
-I think that your beancounter is a big step towards good QoS in Linux MM, but
-I'm a bit confused when I'll hear "...users exceeding their limits". What's the
-limit good for if it can be exceeded ? Can you rethought the term ?
-
-Can you describe how to avoid VM shortage by beancounter ? 
-Other than I described in my first reply to Yuri (point A) .
-
-Regards, 
-Jan
+Regards
+					Andrey V.
+					Savochkin
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
