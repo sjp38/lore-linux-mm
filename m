@@ -1,35 +1,67 @@
 Content-Type: text/plain;
   charset="iso-8859-1"
 From: Daniel Phillips <phillips@arcor.de>
-Subject: Re: page-flags.h
-Date: Thu, 29 Aug 2002 21:04:59 +0200
-References: <20020501192737.R29327@suse.de> <200205040646.g446kZrO008548@smtpzilla5.xs4all.nl> <3CE172C7.C250E7E8@zip.com.au>
-In-Reply-To: <3CE172C7.C250E7E8@zip.com.au>
+Subject: Re: 2.4.19 Vs 2.4.19-rmap14a with anonymous mmaped memory
+Date: Thu, 29 Aug 2002 21:34:47 +0200
+References: <Pine.LNX.4.44.0208261525570.31523-100000@skynet>
+In-Reply-To: <Pine.LNX.4.44.0208261525570.31523-100000@skynet>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Message-Id: <E17kUbE-00034u-00@starship>
+Message-Id: <E17kV44-00035H-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@zip.com.au>, ekonijn@xs4all.nl
-Cc: Dave Jones <davej@suse.de>, Christoph Hellwig <hch@infradead.org>, kernel-janitor-discuss@lists.sourceforge.net, linux-mm@kvack.org
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Tuesday 14 May 2002 22:25, Andrew Morton wrote:
-> inlines in headers are just a pita.  I know it gets people
-> all excited but I'd say: make 'em macros.
+On Monday 26 August 2002 17:13, Mel Gorman wrote:
+> On Mon, 26 Aug 2002, Daniel Phillips wrote:
+> 
+> > Could you please provide pseudocode, to specify these reference patterns
+> > more precisely?
+> >
+> 
+> Rather than providing pseudo code, here is a link to the actual function
+> that generates the smooth_sin references
+> 
+> http://www.csn.ul.ie/~mel/vmr/smooth_sin.html
+> 
+> It is really crude and written to generate any type of data until I
+> found the time to generate more realistic data which is a project in
+> itself. Anyone who wants to generate better data only has to edit the
+> References.pm file.
+> 
+> It takes there inputs
+> 
+> references - number of references to generate
+> range - the size in pages of the region to reference
+> output - the output filename
+> 
+> the function has three parts
+> 
+> part 1: Plot a sin wave so that the sum of all the integer values of each
+> 	part of it would generate enough references to satisify at least
+> 	half of the requessted number
+> part 2: Starting at the beginning of the range, reference each page in a
+>         linear pattern until all the required references are generated
+> part 3: Dump all references to disk
+> 
+> now that I think of it, it would have made more sense to begin with the
+> linear reference pattern and then generate the sin curve but seeing as
+> this pattern is nothing resembling real life, I didn't worry about it too
+> much. It is probably something I should change as it would illustrate
+> better what pages are kept in memory.
 
-Responding to this old, old message - I strongly disagree.  Macros just suck 
-too much, because of type safety and self-documentation issues.  Not only 
-that, but using them extensively just lets the header inclusion order madness 
-degenerate further.
+The perl script that writes tables isn't too informative without knowing
+how the tables are used.  Pseudocode that says exactly what your final
+reference pattern is would be a lot more useful.  Just leave out the part
+about generating the tables and express it as if you were computing the
+distribution at the same time as generating the references, unless it's
+really impossible to do that.  I don't think it's impossible to do that
+in this case.
 
-Anyway, header inclusion order is a solved problem as far as I'm concerned, 
-please see my patches/posts with 'early page' subject line, on lkml.  The 
-winning strategy is to separate data declarations from function declarations, 
-and automatically include the former in the latter.
-
-It's true that I haven't brought these patches forward to 2.5, and for that I 
-can be faulted.  There's still time though...
+It would also be useful to state what you define as a reference.  A user
+space program read-accesses a single byte from some address?
 
 -- 
 Daniel
