@@ -1,97 +1,38 @@
-Date: Tue, 27 Feb 2001 04:09:09 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: [PATCH] count for buffer IO in page_launder()
-Message-ID: <Pine.LNX.4.21.0102270353020.6519-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <200102270905.f1R958I03268@eng1.sequent.com>
+Reply-To: Gerrit Huizenga <gerrit@us.ibm.com>
+From: Gerrit Huizenga <gerrit@us.ibm.com>
+Subject: Re: 2.5 page cache improvement idea 
+In-reply-to: Your message of Mon, 26 Feb 2001 21:47:25 PST.
+             <200102270547.VAA94414@google.engr.sgi.com>
+Date: Tue, 27 Feb 2001 01:05:08 -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <riel@conectiva.com.br>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: Ben LaHaise <bcrl@redhat.com>, Chuck Lever <Charles.Lever@netapp.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+That change is platform specific, isn't it?  I thought there was also
+a recent IA-64 patch in progress for the same thing, but I might
+be mistaken.  I'm thinking that it would be useful if the machine
+independent code supported kernel text replication as well as
+shared/read-only text replication for user level applications.
 
-page_launder() is not counting direct ll_rw_block() IO correctly in the
-flushed pages counter. 
+gerrit
 
-A page is only counted as flushed if it had its buffer_head's freed,
-meaning that pages which have been queued but not freed are not counted.
-
-The following patch against ac5 fixes the problem.
-
-
-
-diff -Nur linux.orig/mm/vmscan.c linux/mm/vmscan.c
---- linux.orig/mm/vmscan.c	Sat Feb 24 23:30:20 2001
-+++ linux/mm/vmscan.c	Mon Feb 26 05:45:08 2001
-@@ -535,7 +535,7 @@
- 		 * buffer pages
- 		 */
- 		if (page->buffers) {
--			int wait, clearedbuf;
-+			int wait;
- 			/*
- 			 * Since we might be doing disk IO, we have to
- 			 * drop the spinlock and take an extra reference
-@@ -554,7 +554,8 @@
- 				wait = 0;	/* No IO */
- 
- 			/* Try to free the page buffers. */
--			clearedbuf = try_to_free_buffers(page, wait);
-+			if (try_to_free_buffers(page, wait))
-+				flushed_pages++;
- 
- 			/*
- 			 * Re-take the spinlock. Note that we cannot
-@@ -564,10 +565,8 @@
- 			spin_lock(&pagemap_lru_lock);
- 
- 			/* The buffers were not freed. */
--			if (!clearedbuf) {
-+			if (page->buffers) {
- 				add_page_to_inactive_dirty_list(page);
--				if (wait)
--					flushed_pages++;
- 
- 			/* The page was only in the buffer cache. */
- 			} else if (!page->mapping) {
-diff -Nur linux.orig/fs/buffer.c linux/fs/buffer.c
---- linux.orig/fs/buffer.c	Sat Feb 24 23:30:16 2001
-+++ linux/fs/buffer.c	Mon Feb 26 04:44:54 2001
-@@ -1399,7 +1399,8 @@
- 	 * instead.
- 	 */
- 	if (!offset) {
--		if (!try_to_free_buffers(page, 0)) {
-+		try_to_free_buffers(page, 0)
-+		if (page->buffers) {
- 			atomic_inc(&buffermem_pages);
- 			return 0;
- 		}
-@@ -2413,7 +2414,7 @@
- 	spin_unlock(&free_list[index].lock);
- 	write_unlock(&hash_table_lock);
- 	spin_unlock(&lru_list_lock);
--	return 1;
-+	return 0;
- 
- busy_buffer_page:
- 	/* Uhhuh, start writeback so that we don't end up with all dirty pages */
-@@ -2428,6 +2429,7 @@
- 			goto cleaned_buffers_try_again;
- 		}
- 		wakeup_bdflush(0);
-+		return 1;
- 	}
- 	return 0;
- }
-
-
-
-
-
-
+> > node traffic is relatively expensive.  As a result, wasting a small
+> > number of physical pages on duplicate read-only pages cuts down node
+> > to node traffic in most cases.  Many NUMA systems have a cache for
+> > remote memory (some cache only remote pages, some cache local and remote
+> > pages in the same cache - icky but cheaper).  As that cache cycles,
+> > it is cheaper to replace read-only text pages from the local node
+> > rather than the remote.  So, for things like kernel text (e.g. one of
+> > the SGI patches) and for glibc's text, as well as the text of other
+> 
+> The mips64 port onto SGI o2000 uses kernel text replication, that has
+> been part of 2.3/2.4 for a long time now. Is there another patch you
+> are talking about here?
+> 
+> Kanoj
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
