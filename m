@@ -1,36 +1,46 @@
-Date: Tue, 25 May 2004 17:50:17 -0700 (PDT)
+Date: Tue, 25 May 2004 19:26:21 -0700 (PDT)
 From: Linus Torvalds <torvalds@osdl.org>
 Subject: Re: [PATCH] ppc64: Fix possible race with set_pte on a present PTE
-In-Reply-To: <1085530867.14969.143.camel@gaston>
-Message-ID: <Pine.LNX.4.58.0405251749500.9951@ppc970.osdl.org>
-References: <1085369393.15315.28.camel@gaston>  <Pine.LNX.4.58.0405232046210.25502@ppc970.osdl.org>
-  <1085371988.15281.38.camel@gaston>  <Pine.LNX.4.58.0405232134480.25502@ppc970.osdl.org>
-  <1085373839.14969.42.camel@gaston>  <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
-  <20040525034326.GT29378@dualathlon.random>  <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org>
-  <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk>
- <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org>  <20040525153501.GA19465@foobazco.org>
-  <Pine.LNX.4.58.0405250841280.9951@ppc970.osdl.org>  <20040525102547.35207879.davem@redhat.com>
-  <Pine.LNX.4.58.0405251034040.9951@ppc970.osdl.org>  <20040525105442.2ebdc355.davem@redhat.com>
-  <Pine.LNX.4.58.0405251056520.9951@ppc970.osdl.org>  <1085521251.24948.127.camel@gaston>
-  <Pine.LNX.4.58.0405251452590.9951@ppc970.osdl.org>
- <Pine.LNX.4.58.0405251455320.9951@ppc970.osdl.org>  <1085522860.15315.133.camel@gaston>
-  <Pine.LNX.4.58.0405251514200.9951@ppc970.osdl.org> <1085530867.14969.143.camel@gaston>
+In-Reply-To: <20040525224258.GK29378@dualathlon.random>
+Message-ID: <Pine.LNX.4.58.0405251924360.15534@ppc970.osdl.org>
+References: <Pine.LNX.4.58.0405232149380.25502@ppc970.osdl.org>
+ <20040525034326.GT29378@dualathlon.random> <Pine.LNX.4.58.0405242051460.32189@ppc970.osdl.org>
+ <20040525114437.GC29154@parcelfarce.linux.theplanet.co.uk>
+ <Pine.LNX.4.58.0405250726000.9951@ppc970.osdl.org> <20040525212720.GG29378@dualathlon.random>
+ <Pine.LNX.4.58.0405251440120.9951@ppc970.osdl.org> <20040525215500.GI29378@dualathlon.random>
+ <Pine.LNX.4.58.0405251500250.9951@ppc970.osdl.org> <20040526021845.A1302@den.park.msu.ru>
+ <20040525224258.GK29378@dualathlon.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: "David S. Miller" <davem@redhat.com>, wesolows@foobazco.org, willy@debian.org, Andrea Arcangeli <andrea@suse.de>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, mingo@elte.hu, bcrl@kvack.org, linux-mm@kvack.org, Linux Arch list <linux-arch@vger.kernel.org>
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Ivan Kokshaysky <ink@jurassic.park.msu.ru>, Matthew Wilcox <willy@debian.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Andrew Morton <akpm@osdl.org>, Linux Kernel list <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@elte.hu>, Ben LaHaise <bcrl@kvack.org>, linux-mm@kvack.org, Architectures Group <linux-arch@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
 
-On Wed, 26 May 2004, Benjamin Herrenschmidt wrote:
+On Wed, 26 May 2004, Andrea Arcangeli wrote:
 > 
-> Heh, I can still send a patch "fixing" it if you want ;)
+> after various searching on the x86 docs I found:
+> 
+> 	Whenever a page-directory or page-table entry is changed (including when
+> 	the present flag is set to zero), the operating-system must immediately
+> 	invalidate the corresponding entry in the TLB so that it can be updated
+> 	the next time the entry is referenced.
+> 
+> according to the above we'd need to flush the tlb even in
+> do_anonymous_page on x86, or am I reading it wrong?
 
-If you include a tested version of the ppc64 fix, I'd likely apply that.
+You're reading it wrong.
 
-		Linus
+The "including when the present flag is set to zero" part does not mean 
+that the present flag was zero _before_, it means "is being set to zero" 
+as in "having been non-zero before that".
+
+Anytime the P flag was clear _before_, we don't need to invalidate, 
+because non-present entries are not cached in the TLB.
+
+			Linus
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
