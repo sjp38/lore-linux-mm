@@ -1,39 +1,38 @@
-Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA10581
-	for <linux-mm@kvack.org>; Tue, 14 Apr 1998 17:03:42 -0400
-Date: Tue, 14 Apr 1998 22:49:42 +0200 (MET DST)
-From: Rik van Riel <H.H.vanRiel@phys.uu.nl>
-Reply-To: H.H.vanRiel@phys.uu.nl
-Subject: Re: VM: question
-In-Reply-To: <199804141724.MAA00666@kwr.hnv.com>
-Message-ID: <Pine.LNX.3.91.980414224729.15681B-100000@mirkwood.dummy.home>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from sun4.apsoft.com (sun4.apsoft.com [209.1.28.81])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id RAA10747
+	for <linux-mm@kvack.org>; Tue, 14 Apr 1998 17:37:50 -0400
+From: Perry Harrington <pedward@sun4.apsoft.com>
+Message-Id: <199804142127.OAA09136@sun4.apsoft.com>
+Subject: Re: new kmod.c - debuggers and testers needed
+Date: Tue, 14 Apr 1998 14:27:53 -0700 (PDT)
+In-Reply-To: <Pine.LNX.3.91.980414200024.1070J-100000@mirkwood.dummy.home> from "Rik van Riel" at Apr 14, 98 08:02:09 pm
+Content-Type: text
 Sender: owner-linux-mm@kvack.org
-To: kwr@hnv.com
-Cc: linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@transmeta.com>
+To: H.H.vanRiel@fys.ruu.nl
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 14 Apr 1998 kwr@kwr.hnv.com wrote:
+> 
+> On Tue, 7 Apr 1998, Perry Harrington wrote:
+> 
+> >                                                           Threads
+> > are useful in their appropriate context, and kswapd, and kmod would benefit
+> > from them.
+> 
+> Hmm, maybe it would be useful for kswapd and bdflush to fork()
+> off threads to do the actual disk I/O, so the main thread won't
+> be blocked and paused... This could remove some bottlenecks.
 
-> memory", which sucks even on high-memory machines.  I tried to get
-> reverse lookups implemented at one point, but things kept changing
-> under me and I gave up...there's way too many places you have to
-> change, IMHO...
+I was thinking that kswapd could use some of it's spare time to do an LRU
+paging scan, consolidate free space, and possibly do remapping of process
+memory spaces to make them more efficient (map pages to contiguous chunks
+of memory and swap).
 
-Stephen and Ben are currently implementing this, it will
-be in 2.3 :(
+> 
+> Rik.
 
-Up until that time, we'll have to provide some clever hacks,
-like high and low water marks (leaving the disk idle for some
-time, preventing thrashing) and clustering.
+--Perry
 
-I'm not sure how to implement the high/low water mark however...
-( Linus, do you have an idea on how to do this? )
-
-Rik.
-+-------------------------------------------+--------------------------+
-| Linux: - LinuxHQ MM-patches page          | Scouting       webmaster |
-|        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
-|     http://www.fys.ruu.nl/~riel/          | <H.H.vanRiel@fys.ruu.nl> |
-+-------------------------------------------+--------------------------+
+-- 
+Perry Harrington       Linux rules all OSes.    APSoft      ()
+email: perry@apsoft.com 			Think Blue. /\
