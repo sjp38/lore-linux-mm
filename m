@@ -1,39 +1,29 @@
-Date: Mon, 9 Oct 2000 22:06:02 +0200 (CEST)
-From: Ingo Molnar <mingo@elte.hu>
-Reply-To: mingo@elte.hu
+Date: Mon, 9 Oct 2000 21:58:09 +0200
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-In-Reply-To: <20001009214214.G19583@athlon.random>
-Message-ID: <Pine.LNX.4.21.0010092156120.8045-100000@elte.hu>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-ID: <20001009215809.I19583@athlon.random>
+References: <Pine.LNX.4.21.0010092040300.6338-100000@elte.hu> <39E21CCB.61AC1EBE@kalifornia.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <39E21CCB.61AC1EBE@kalifornia.com>; from david@kalifornia.com on Mon, Oct 09, 2000 at 12:30:20PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Rik van Riel <riel@conectiva.com.br>, Byron Stanoszek <gandalf@winds.org>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: david+validemail@kalifornia.com
+Cc: mingo@elte.hu, Byron Stanoszek <gandalf@winds.org>, Rik van Riel <riel@conectiva.com.br>, Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2000, Andrea Arcangeli wrote:
+On Mon, Oct 09, 2000 at 12:30:20PM -0700, David Ford wrote:
+> Init should only get killed if it REALLY is taking a lot of memory.  On a 4 or 8meg
 
-> > No. It's only needed if your OOM algorithm is so crappy that
-> > it might end up killing init by mistake.
-> 
-> The algorithm you posted on the list in this thread will kill init if
-> on 4Mbyte machine without swap init is large 3 Mbytes and you execute
-> a task that grows over 1M.
+Init should never get killed. Killing init can be compared to destroy the TCP
+stack. Some app can keep to run right for some minute until they run socket()
+and then they will hang. Same with init, some task may still run right for
+some time but the machine will die eventually. We simply must not pass the
+point of not return or we're buggy and after the bug triggered we have to force
+the user to reboot the machine as only way to recover.
 
-i think the OOM algorithm should not kill processes that have
-child-processes, it should first kill child-less 'leaves'. Killing a
-process that has child processes likely results in unexpected behavior of
-those child-processes. (and equals to effective killing of those
-child-processes as well.)
-
-But this mechanizm can be abused (a malicious memory hog can create a
-child-process just to avoid the OOM-killer) - but there are ways to avoid
-this, eg. to add all the 'MM badness' points to children? Ie. a child
-which has MM-abuser parent(s) will definitely be killed first.
-
-	Ingo
-
+Andrea
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
