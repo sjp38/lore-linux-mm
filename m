@@ -1,154 +1,68 @@
-Date: Wed, 7 Feb 2001 03:52:58 -0200 (BRDT)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: [PATCH] vm_enough_memory() & i/d cache
-Message-ID: <Pine.LNX.4.21.0102070349010.1535-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 9 Feb 2001 11:39:56 -0800 (PST)
+From: Grant Grundler <grundler@cup.hp.com>
+Message-Id: <200102091939.LAA08207@milano.cup.hp.com>
+Subject: IOMMU setup vs DAC (PCI)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-kernel@vger.kernel.org, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
+To: davem@redhat.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Linus, Alan,
+Dave (Miller),
 
-the attached patch makes vm_enough_memory() take the inode
-and dentry cache memory into account so people will again
-be able to start 300MB processes on their 384MB machine,
-even after slocate has eaten up 100MB in inode and dentry
-caches...
+Matthew Wilcox and I had the following conversation:
 
-It doesn't even try to get the statistics absolutely right,
-but in most cases it should be close enough. Please apply
-this patch for your next pre-release.
+<ggg> willy: how do systems which support dual address cycle PCI (ie 64-bit
+  addressing) access hi-mem (>4GB)?  bounce-buffers?
+* ggg is wondering if any recent changes define a 64-bit type for dma_addr_t
+<willy> ggg: the IOMMU is used to map a 32-bit PCI address to a 64-bit
+  address-bus address
+<ggg> willy: what if I design a board that doesn't *have* an IOMMU?
+<willy> except on x86 where bounce buffers get used.
+<ggg> IOMMU has a performance cost.
+<willy> so does DAC.
+<ggg> DAC is cheap compared to IOMMU overhead.
+<willy> i'll have to take your word for that.
+<ggg> DAC doesn't cost the CPU anything and IOMMU mgt does.
+<willy> but how much mgt needs to be done?  if you're doing a 4k read from
+  disc, it's surely cheaper?
+<ggg> IOMMU also has to R/W TLB and get flushed in certain circumstances - ie
+  extra PIO to the IOMMU
+<ggg> willy: no way.
+<ggg> willy: setup time on IOMMU kills you.
+<ggg> try bigger reads and we can argue. I don't know where the tradeoff is for
+  parisc IOMMU's.
+<willy> i'm the wrong person to be arguing with.  davem/rth/linus/sct/mingo
+  are the people.
+<ggg> willy: ok.
+* ggg sends mail to davem
+<willy> linux-mm might be the right list to argue this on.
+<ggg> ok. what's the full email addr?
+<ggg> vger.kernel.org?
+<willy> @kvack.org
+<ggg> ok tnx.
 
+My original quest was for an architecturally neutral way to pass
+64-bit physical memory addresses back to a 64-bit capable card.
 
-This patch closes the following Linux-MM bugreport:
-  http://distro.conectiva.com/bugzilla/show_bug.cgi?id=1174
+pci_dma_supported() interface provides the right hook for the
+driver to advertise device capabilities. dma_addr_t is defined
+in most arches (read x86) to be 32-bit. But IA64 (u64) and mips*
+(unsigned long) have broken ground here already. I'll explore
+further to see if parisc*-linux can in fact use "unsigned long".
 
-  (http://www.linux-mm.org/bugzilla.shtml)
+But I'm still interested in any comments or insights.
+(ie am I out to lunch? ;^)
 
-regards,
+thanks,
+grant
 
-Rik
---
-Linux MM bugzilla: http://linux-mm.org/bugzilla.shtml
-
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com/
-
-
-
---- linux-2.4.2-pre1/fs/dcache.c.orig	Wed Feb  7 02:21:20 2001
-+++ linux-2.4.2-pre1/fs/dcache.c	Wed Feb  7 03:24:54 2001
-@@ -52,13 +52,8 @@
- static struct list_head *dentry_hashtable;
- static LIST_HEAD(dentry_unused);
- 
--struct {
--	int nr_dentry;
--	int nr_unused;
--	int age_limit;		/* age in seconds */
--	int want_pages;		/* pages requested by system */
--	int dummy[2];
--} dentry_stat = {0, 0, 45, 0,};
-+/* Statistics gathering. */
-+struct dentry_stat_t dentry_stat = {0, 0, 45, 0,};
- 
- /* no dcache_lock, please */
- static inline void d_free(struct dentry *dentry)
---- linux-2.4.2-pre1/fs/inode.c.orig	Wed Feb  7 02:21:26 2001
-+++ linux-2.4.2-pre1/fs/inode.c	Wed Feb  7 03:17:42 2001
-@@ -67,11 +67,7 @@
- /*
-  * Statistics gathering..
-  */
--struct {
--	int nr_inodes;
--	int nr_unused;
--	int dummy[5];
--} inodes_stat;
-+struct inodes_stat_t inodes_stat;
- 
- static kmem_cache_t * inode_cachep;
- 
---- linux-2.4.2-pre1/kernel/sysctl.c.orig	Wed Feb  7 03:20:00 2001
-+++ linux-2.4.2-pre1/kernel/sysctl.c	Wed Feb  7 03:20:56 2001
-@@ -130,9 +130,6 @@
- static void unregister_proc_table(ctl_table *, struct proc_dir_entry *);
- #endif
- 
--extern int inodes_stat[];
--extern int dentry_stat[];
--
- /* The default sysctl tables: */
- 
- static ctl_table root_table[] = {
---- linux-2.4.2-pre1/mm/mmap.c.orig	Tue Feb  6 19:20:27 2001
-+++ linux-2.4.2-pre1/mm/mmap.c	Wed Feb  7 03:34:13 2001
-@@ -12,6 +12,7 @@
- #include <linux/smp_lock.h>
- #include <linux/init.h>
- #include <linux/file.h>
-+#include <linux/fs.h>
- 
- #include <asm/uaccess.h>
- #include <asm/pgalloc.h>
-@@ -63,6 +64,15 @@
- 	free += atomic_read(&page_cache_size);
- 	free += nr_free_pages();
- 	free += nr_swap_pages;
-+	/*
-+	 * The code below doesn't account for free space in the inode
-+	 * and dentry slab cache, slab cache fragmentation, inodes and
-+	 * dentries which will become freeable under VM load, etc.
-+	 * Lets just hope all these (complex) factors balance out...
-+	 */
-+	free += (dentry_stat.nr_unused * sizeof(struct dentry)) >> PAGE_SHIFT;
-+	free += (inodes_stat.nr_unused * sizeof(struct inode)) >> PAGE_SHIFT;
-+
- 	return free > pages;
- }
- 
---- linux-2.4.2-pre1/include/linux/fs.h.orig	Wed Feb  7 03:08:11 2001
-+++ linux-2.4.2-pre1/include/linux/fs.h	Wed Feb  7 03:24:16 2001
-@@ -53,6 +53,14 @@
- 	int max_files;		/* tunable */
- };
- extern struct files_stat_struct files_stat;
-+
-+struct inodes_stat_t {
-+	int nr_inodes;
-+	int nr_unused;
-+	int dummy[5];
-+};
-+extern struct inodes_stat_t inodes_stat;
-+
- extern int max_super_blocks, nr_super_blocks;
- extern int leases_enable, dir_notify_enable, lease_break_time;
- 
---- linux-2.4.2-pre1/include/linux/dcache.h.orig	Wed Feb  7 03:08:19 2001
-+++ linux-2.4.2-pre1/include/linux/dcache.h	Wed Feb  7 03:23:12 2001
-@@ -27,6 +27,15 @@
- 	unsigned int hash;
- };
- 
-+struct dentry_stat_t {
-+	int nr_dentry;
-+	int nr_unused;
-+	int age_limit;          /* age in seconds */
-+	int want_pages;         /* pages requested by system */
-+	int dummy[2];
-+};
-+extern struct dentry_stat_t dentry_stat;
-+
- /* Name hashing routines. Initial hash value */
- #define init_name_hash()		0
- 
-
+Grant Grundler
+parisc-linux {PCI|IOMMU|SMP} hacker
++1.408.447.7253
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
