@@ -1,31 +1,28 @@
-Date: Wed, 12 Apr 2000 15:28:37 +0100 (BST)
-From: Dave Jones <dave@denial.force9.co.uk>
-Subject: [ANNOUNCE] Powertweak v0.1.12
-Message-ID: <Pine.LNX.4.21.0004121520090.8922-100000@nemesis.local>
+Received: from SMTP (orsmsxvs01-1.jf.intel.com [192.168.65.200])
+	by ganymede.or.intel.com (8.9.1a+p1/8.9.1/d: relay.m4,v 1.22 2000/04/06 17:58:51 dmccart Exp $) with SMTP id PAA22294
+	for <linux-mm@kvack.org>; Wed, 12 Apr 2000 15:13:58 -0700 (PDT)
+Message-ID: <A63AFB20111ED311AC5500A0C96B7BF5661F5A@orsmsx36.jf.intel.com>
+From: "Chu, Hao-Hua" <hao-hua.chu@intel.com>
+Subject: questions
+Date: Wed, 12 Apr 2000 15:13:55 -0700
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain;
+	charset="ISO-8859-1"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Powertweak Linux announce list." <linux-perf@www-klinik.uni-mainz.de>, powertweak-linux@powertweak.com, webmaster@fileflash.com, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.rutgers.edu>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
- Powertweak v0.1.12 is now available for download from 
-http://linux.powertweak.com
+Here are my questions ....
+1. How does the readahead work in page cache?  (file->raend, ralen, ramax,
+rawin)
+2. What kind of pages are in the lru_cache?  (via lru_cache_add())
 
- Changes in this release include..
+Thanks.
 
-	o Addition of features to tune the memory management
-	  subsystem.  *Note*, that changing some of these options on
-	  recent 2.3 kernels may not have any effect.
-	o Various improvements/bugfixes to the GTK GUI.
-
-
-regards,
-
--- 
-Dave.
+Hao   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
