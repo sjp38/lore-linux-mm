@@ -1,58 +1,34 @@
-Date: Mon, 9 Oct 2000 21:27:47 +0100 (BST)
-From: James Sutherland <jas88@cam.ac.uk>
-Subject: RE: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-In-Reply-To: <32B7FDA9BF4CE64FB10864F5E4972A031DFAD3@cpt-sas-ex01.corptst.amazon.com>
-Message-ID: <Pine.SOL.4.21.0010092125540.7984-100000@green.csi.cam.ac.uk>
+Message-ID: <39E22A62.325C729E@kalifornia.com>
+Date: Mon, 09 Oct 2000 13:28:19 -0700
+From: David Ford <david@kalifornia.com>
+Reply-To: david+validemail@kalifornia.com
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
+References: <Pine.LNX.4.21.0010092219510.8045-100000@elte.hu>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Wagner, Dave" <dwagner@amazon.com>
-Cc: mingo@elte.hu, Ed Tomlinson <tomlins@cam.org>, Mark Hahn <hahn@coffee.psychology.mcmaster.ca>, Marco Colombo <marco@esi.it>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org
+To: mingo@elte.hu
+Cc: Rik van Riel <riel@conectiva.com.br>, Andrea Arcangeli <andrea@suse.de>, Byron Stanoszek <gandalf@winds.org>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 9 Oct 2000, Wagner, Dave wrote:
+Ingo Molnar wrote:
 
-> > -----Original Message-----
-> > From: Ingo Molnar [mailto:mingo@elte.hu]
-> > Sent: Monday, October 09, 2000 11:02 AM
-> > To: Ed Tomlinson
-> > Cc: Mark Hahn; Marco Colombo; Rik van Riel; linux-mm@kvack.org
-> > Subject: Re: [PATCH] VM fix for 2.4.0-test9 & OOM handler
-> > 
-> > 
-> > On Mon, 9 Oct 2000, Ed Tomlinson wrote:
-> > 
-> > > What about the AIX way?  When the system is nearly OOM it sends a
-> > > SIG_DANGER signal to all processes.  Those that handle the 
-> > signal are
-> > > not initial targets for OOM...  Also in the SIG_DANGER 
-> > processing they
-> > > can take there own actions to reduce their memory usage... (we would
-> > > have to look out for a SIG_DANGER handler that had a memory leak
-> > > though)
-> > 
-> > i think 'importance' should be an integer value, not just a 
-> > 'can it handle
-> > SIG_DANGER' flag.
-> > 
-> In a perfect world, perhaps.  But how many people/systems are going to
-> have a well-thought out distribution of "importance" values.  It's
-> probably too much to have people even set a single boolean value
-> reasonably.
+> > a good idea to have SIGKILL delivery speeded up for every SIGKILL ...
+>
+> yep.
 
-You could say exactly the same about niceness: how many people have a
-well-thought out distribution of nice values? Yet the mechanism works
-reasonably well: important system things get -ve values, normal user
-processes get the default, CPU hogs get niced down a bit.
+How about SIGTERM a bit before SIGKILL then re-evaluate the OOM N usecs
+later?
 
-> How about a bit in the executable to say "unimportant".  Netscape, would
-> of course, have this bit set. ;-)
+-d
 
-I think an integer, just like nice, would be the way to go.
+--
+      "There is a natural aristocracy among men. The grounds of this are
+      virtue and talents", Thomas Jefferson [1742-1826], 3rd US President
 
 
-James.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
