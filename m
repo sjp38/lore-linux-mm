@@ -1,34 +1,126 @@
-Subject: Re: Please test: workaround to help swapoff behaviour
-Message-ID: <OF083B7070.89B5A2B7-ON85256A67.004AD50A@pok.ibm.com>
-From: "Bulent Abali" <abali@us.ibm.com>
-Date: Sun, 10 Jun 2001 09:56:04 -0400
+From: "David =?ISO-8859-1?Q?G=F3mez" ?= <davidge@jazzfree.com>
+Date: Sun, 10 Jun 2001 21:08:23 +0200 (CEST)
+Subject: madvise man page
+Message-ID: <Pine.LNX.4.21.0106102050190.2817-200000@fargo>
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: MULTIPART/MIXED; BOUNDARY="-1463794332-629272005-992199184=:2817"
+Content-ID: <Pine.LNX.4.21.0106102053180.2817@fargo>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Marcelo Tosatti <marcelo@conectiva.com.br>, Mike Galbraith <mikeg@wen-online.de>, Derek Glidden <dglidden@illusionary.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
->The fix is to kill the dead/orphaned swap pages before we get to
->swapoff.  At shutdown time there is practically nothing active in
-> ...
->Once the dead swap pages problem is fixed it is time to optimize
->swapoff.
-
-I think fixing the orphaned swap pages problem will eliminate the
-problem all together.  Probably there is no need to optimize
-swapoff.
-
-Because as the system is shutting down all the processes will be
-killed and their pages in swap will be orphaned. If those pages
-were to be reaped in a timely manner there wouldn't be any work
-left for swapoff.
-
-Bulent
+---1463794332-629272005-992199184=:2817
+Content-Type: TEXT/PLAIN; CHARSET=iso-8859-1
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+Content-ID: <Pine.LNX.4.21.0106102053181.2817@fargo>
 
 
+Hi,=20
+
+I've written a first version of madvise system call man page, based on
+the comments in filemap.c. I've already sent it to Andries Brouwer, but
+please take a look it and tell me if there is something wrong or i forgot
+something. By the way, what standards ,besides posix.1b, is madvise
+conforming to, SuS maybe?
+
+
+David G=F3mez
+
+
+
+---1463794332-629272005-992199184=:2817
+Content-Type: TEXT/PLAIN; CHARSET=iso-8859-1; NAME="madvise.2"
+Content-Transfer-Encoding: BASE64
+Content-ID: <Pine.LNX.4.21.0106102053040.2817@fargo>
+Content-Description: 
+Content-Disposition: ATTACHMENT; FILENAME="madvise.2"
+
+LlwiIEhleSBFbWFjcyEgVGhpcyBmaWxlIGlzIC0qLSBucm9mZiAtKi0gc291
+cmNlLg0KLlwiDQouXCIgQ29weXJpZ2h0IChDKSAyMDAxIERhdmlkIEfzbWV6
+IDxkYXZpZGdlQGphenpmcmVlLmNvbT4NCi5cIg0KLlwiIFBlcm1pc3Npb24g
+aXMgZ3JhbnRlZCB0byBtYWtlIGFuZCBkaXN0cmlidXRlIHZlcmJhdGltIGNv
+cGllcyBvZiB0aGlzDQouXCIgbWFudWFsIHByb3ZpZGVkIHRoZSBjb3B5cmln
+aHQgbm90aWNlIGFuZCB0aGlzIHBlcm1pc3Npb24gbm90aWNlIGFyZQ0KLlwi
+IHByZXNlcnZlZCBvbiBhbGwgY29waWVzLg0KLlwiDQouXCIgUGVybWlzc2lv
+biBpcyBncmFudGVkIHRvIGNvcHkgYW5kIGRpc3RyaWJ1dGUgbW9kaWZpZWQg
+dmVyc2lvbnMgb2YgdGhpcw0KLlwiIG1hbnVhbCB1bmRlciB0aGUgY29uZGl0
+aW9ucyBmb3IgdmVyYmF0aW0gY29weWluZywgcHJvdmlkZWQgdGhhdCB0aGUN
+Ci5cIiBlbnRpcmUgcmVzdWx0aW5nIGRlcml2ZWQgd29yayBpcyBkaXN0cmli
+dXRlZCB1bmRlciB0aGUgdGVybXMgb2YgYQ0KLlwiIHBlcm1pc3Npb24gbm90
+aWNlIGlkZW50aWNhbCB0byB0aGlzIG9uZQ0KLlwiIA0KLlwiIFNpbmNlIHRo
+ZSBMaW51eCBrZXJuZWwgYW5kIGxpYnJhcmllcyBhcmUgY29uc3RhbnRseSBj
+aGFuZ2luZywgdGhpcw0KLlwiIG1hbnVhbCBwYWdlIG1heSBiZSBpbmNvcnJl
+Y3Qgb3Igb3V0LW9mLWRhdGUuICBUaGUgYXV0aG9yKHMpIGFzc3VtZSBubw0K
+LlwiIHJlc3BvbnNpYmlsaXR5IGZvciBlcnJvcnMgb3Igb21pc3Npb25zLCBv
+ciBmb3IgZGFtYWdlcyByZXN1bHRpbmcgZnJvbQ0KLlwiIHRoZSB1c2Ugb2Yg
+dGhlIGluZm9ybWF0aW9uIGNvbnRhaW5lZCBoZXJlaW4uICBUaGUgYXV0aG9y
+KHMpIG1heSBub3QNCi5cIiBoYXZlIHRha2VuIHRoZSBzYW1lIGxldmVsIG9m
+IGNhcmUgaW4gdGhlIHByb2R1Y3Rpb24gb2YgdGhpcyBtYW51YWwsDQouXCIg
+d2hpY2ggaXMgbGljZW5zZWQgZnJlZSBvZiBjaGFyZ2UsIGFzIHRoZXkgbWln
+aHQgd2hlbiB3b3JraW5nDQouXCIgcHJvZmVzc2lvbmFsbHkuDQouXCIgDQou
+XCIgRm9ybWF0dGVkIG9yIHByb2Nlc3NlZCB2ZXJzaW9ucyBvZiB0aGlzIG1h
+bnVhbCwgaWYgdW5hY2NvbXBhbmllZCBieQ0KLlwiIHRoZSBzb3VyY2UsIG11
+c3QgYWNrbm93bGVkZ2UgdGhlIGNvcHlyaWdodCBhbmQgYXV0aG9ycyBvZiB0
+aGlzIHdvcmsuDQouXCINCi5cIiBCYXNlZCBvbiBjb21tZW50cyBmcm9tIG1t
+L2ZpbGVtYXAuYy4gTGFzdCBtb2RpZmllZCBvbiAxMC0wNi0yMDAxDQouXCIN
+Ci5USCBNQURWSVNFIDIgMjAwMS0wNi0xMCAiTGludXggMi40LjUiICJMaW51
+eCBQcm9ncmFtbWVyJ3MgTWFudWFsIg0KLlNIIE5BTUUNCm1hZHZpc2UgXC0g
+YWR2aXNlIGFib3V0IGhvdyB0byBoYW5kbGUgcGFnZSBJL08gaW4gYSBWTSBh
+cmVhDQouU0ggU1lOT1BTSVMNCi5icg0KLkIgI2luY2x1ZGUgPHN5cy9tbWFu
+Lmg+DQouc3ANCi5CSSAiaW50IG1hZHZpc2Uodm9pZCAqIiBzdGFydCAiLCBz
+aXplX3QgIiBsZW5ndGggIiwgaW50ICIgYmVoYXZpb3IgIiApOw0KLlNIIERF
+U0NSSVBUSU9ODQpUaGUNCi5JIG1hZHZpc2UNCnN5c3RlbSBjYWxsIGFkdmlz
+ZXMgdGhlIGtlcm5lbCBhYm91dCBob3cgdG8gaGFuZGxlIHBhZ2luZyBpbnB1
+dC9vdXRwdXQgaW4gYW4gDQphZGRyZXNzIHJhbmdlIGJlZ2dpbmluZyBhdCBh
+ZGRyZXNzDQouSSBzdGFydA0KYW5kIHdpdGggc2l6ZQ0KLkkgbGVuZ3RoDQpi
+eXRlcywgYWxsb3dpbmcgYW4gYXBwbGljYXRpb24gdG8gaW5mb3JtIGFib3V0
+IGhvdyB3aWxsIHVzZSBpbiB0aGUgZnV0dXJlDQpzb21lIG1hcHBlZCBvciBz
+aGFyZWQgbWVtb3J5IGFyZWFzLiBUaGlzIGNhbGwgb25seSBhZHZpc2VzIHRo
+ZSBrZXJuZWwNCnRvIGNob29zZSBhcHByb3BpYXRlIHJlYWQtYWhlYWQgYW5k
+IGNhY2hpbmcgdGVjaG5pcXVlcywgYnV0IGl0J3MgdXAgdG8gdGhlDQprZXJu
+ZWwgdG8gZm9sbG93IHRoZSBhZHZpc2Ugb3IgdG8gaWdub3JlIGl0LCB3aXRo
+b3V0IGFmZmVjdGluZyB0aGUgY3VycmVudA0KcnVubmluZyBhcHBsaWNhdGlv
+bi4NCi5zcA0KQWRkcmVzcw0KLkkgc3RhcnQNCm11c3QgYmUgcGFnZS1hbGln
+bmVkIHRvIHN1Y2Nlc3Mgb24gdGhlIGNhbGwgdG8NCi5JIG1hZHZpc2UuDQpJ
+ZiB0aGVyZSBhcmUgc29tZSBwYXJ0cyBvZiB0aGUgc3BlY2lmaWVkIGFkZHJl
+c3MgcmFuZ2UgdGhhdCBhcmUgbm90IG1hcHBlZCwNCi5JIG1hZHZpc2UNCmln
+bm9yZSB0aGVtIGJ1dCByZXR1cm5zIA0KLkIgRU5PTUVNIA0KYXQgdGhlIGVu
+ZC4NClRoZSBhZHZpc2UgaXMgaW5kaWNhdGVkIGluIHRoZSANCi5JIGJlaGF2
+aW9yDQpwYXJhbWV0ZXIgd2hpY2ggY2FuIGJlDQoNCi5UUA0KLkIgTUFEVl9O
+T1JNQUwgDQp0aGUgZGVmYXVsdCBiZWhhdmlvciBpcyB0byByZWFkIGNsdXN0
+ZXJzLiAgVGhpcw0KcmVzdWx0cyBpbiBzb21lIHJlYWQtYWhlYWQgYW5kIHJl
+YWQtYmVoaW5kLg0KLlRQDQouQiBNQURWX1JBTkRPTSANCnRoZSBzeXN0ZW0g
+c2hvdWxkIHJlYWQgdGhlIG1pbmltdW0gYW1vdW50IG9mIGRhdGENCm9uIGFu
+eSBhY2Nlc3MsIHNpbmNlIGl0IGlzIHVubGlrZWx5IHRoYXQgdGhlIGFwcGxp
+LQ0KY2F0aW9uIHdpbGwgbmVlZCBtb3JlIHRoYW4gd2hhdCBpdCBhc2tzIGZv
+ci4NCi5UUA0KLkIgTUFEVl9TRVFVRU5USUFMIA0KcGFnZXMgaW4gdGhlIGdp
+dmVuIHJhbmdlIHdpbGwgcHJvYmFibHkgYmUgYWNjZXNzZWQNCm9uY2UsIHNv
+IHRoZXkgY2FuIGJlIGFnZ3Jlc3NpdmVseSByZWFkIGFoZWFkLCBhbmQNCmNh
+biBiZSBmcmVlZCBzb29uIGFmdGVyIHRoZXkgYXJlIGFjY2Vzc2VkLg0KLlRQ
+DQouQiBNQURWX1dJTExORUVEIA0KdGhlIGFwcGxpY2F0aW9uIGlzIG5vdGlm
+eWluZyB0aGUgc3lzdGVtIHRvIHJlYWQNCnNvbWUgcGFnZXMgYWhlYWQuDQou
+VFAgDQouQiBNQURWX0RPTlRORUVEIA0KdGhlIGFwcGxpY2F0aW9uIGlzIGZp
+bmlzaGVkIHdpdGggdGhlIGdpdmVuIHJhbmdlLA0Kc28gdGhlIGtlcm5lbCBj
+YW4gZnJlZSByZXNvdXJjZXMgYXNzb2NpYXRlZCB3aXRoIGl0Lg0KIA0KDQou
+U0ggIlJFVFVSTiBWQUxVRSINCk9uIHN1Y2VzcyANCi5CIG1hZHZpc2UNCnJl
+dHVybiB6ZXJvLiBPbiBlcnJvciAsIGl0IHJldHVybnMgLTEgYW5kDQouQiBl
+cnJubw0KaXMgc2V0IGFwcHJvcGlhdGVseS4NCi5TSCAiRVJST1JTIg0KLlRQ
+DQouQiBFSU5WQUwgDQp0aGUgdmFsdWUgDQouQiBzdGFydA0KKw0KLkIgbGVu
+DQppcyBuZWdhdGl2ZSwgc3RhcnQgaXMgbm90IHBhZ2UtYWxpZ25lZCwNCi5C
+IGJlaGF2aW9yIA0KaXMgbm90IGEgdmFsaWQgdmFsdWUsIG9yIGFwcGxpY2F0
+aW9uDQppcyBhdHRlbXB0aW5nIHRvIHJlbGVhc2UgbG9ja2VkIG9yIHNoYXJl
+ZCBwYWdlcy4NCi5UUCANCi5CIEVOT01FTSANCmFkZHJlc3NlcyBpbiB0aGUg
+c3BlY2lmaWVkIHJhbmdlIGFyZSBub3QgY3VycmVudGx5DQptYXBwZWQsIG9y
+IGFyZSBvdXRzaWRlIHRoZSBhZGRyZXNzIHNwYWNlIG9mIHRoZSBwcm9jZXNz
+Lg0KLlRQDQouQiBFSU8gDQphbiBJL08gZXJyb3Igb2NjdXJyZWQgd2hpbGUg
+cGFnaW5nIGluIGRhdGEuDQouVFANCi5CIEVCQURGDQptYXAgZXhpc3RzLCBi
+dXQgYXJlYSBtYXBzIHNvbWV0aGluZyB0aGF0IGlzbid0IGEgZmlsZS4NCi5U
+UA0KLkIgRUFHQUlOIA0KYSBrZXJuZWwgcmVzb3VyY2Ugd2FzIHRlbXBvcmFy
+aWx5IHVuYXZhaWxhYmxlLg0KDQouU0ggIkNPTkZPUk1JTkcgVE8iDQpQT1NJ
+WC4xYiAoUE9TSVguNCkNCi5TSCAiU0VFIEFMU08iDQouQlIgbW1hcCAoMikN
+Ci5CUiBtaW5jb3JlICgyKQ0KDQo=
+---1463794332-629272005-992199184=:2817--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
