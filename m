@@ -1,73 +1,97 @@
-Date: Fri, 3 Aug 2001 22:29:07 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Content-Type: text/plain; charset=US-ASCII
+From: Daniel Phillips <phillips@bonn-fries.net>
 Subject: Re: [RFC][DATA] re "ongoing vm suckage"
-In-Reply-To: <Pine.LNX.4.33.0108031812120.23074-100000@touchme.toronto.redhat.com>
-Message-ID: <Pine.LNX.4.33L.0108032144310.11893-100000@imladris.rielhome.conectiva>
+Date: Sat, 4 Aug 2001 05:06:57 +0200
+References: <Pine.LNX.4.33L.0108032144310.11893-100000@imladris.rielhome.conectiva>
+In-Reply-To: <Pine.LNX.4.33L.0108032144310.11893-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Message-Id: <0108040506570N.01827@starship>
+Content-Transfer-Encoding: 7BIT
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Ben LaHaise <bcrl@redhat.com>
+To: Rik van Riel <riel@conectiva.com.br>, Ben LaHaise <bcrl@redhat.com>
 Cc: torvalds@transmeta.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 3 Aug 2001, Ben LaHaise wrote:
+On Saturday 04 August 2001 03:29, Rik van Riel wrote:
+> On Fri, 3 Aug 2001, Ben LaHaise wrote:
+> > --- vm-2.4.7/drivers/block/ll_rw_blk.c.2	Fri Aug  3 19:06:46 2001
+> > +++ vm-2.4.7/drivers/block/ll_rw_blk.c	Fri Aug  3 19:32:46 2001
+> > @@ -1037,9 +1037,16 @@
+> >  		 * water mark. instead start I/O on the queued stuff.
+> >  		 */
+> >  		if (atomic_read(&queued_sectors) >= high_queued_sectors) {
+> > -			run_task_queue(&tq_disk);
+> > -			wait_event(blk_buffers_wait,
+> > -			 atomic_read(&queued_sectors) < low_queued_sectors);
+>
+> ... OUCH ...
+>
+> > bah.  Doesn't fix it.  Still waiting indefinately in ll_rw_blk().
+>
+> And it's obvious why.
+>
+> The code above, as well as your replacement, are have a
+> VERY serious "fairness issue".
+>
+> 	task 1			task 2
+>
+>  queued_sectors > high
+>    ==> waits for
+>    queued_sectors < low
+>
+>                              write stuff, submits IO
+>                              queued_sectors < high  (but > low)
+>                              ....
+>                              queued sectors still < high, > low
+>                              happily submits more IO
+>                              ...
+>                              etc..
+>
+> It is quite obvious that the second task can easily starve
+> the first task as long as it keeps submitting IO at a rate
+> where queued_sectors will stay above low_queued_sectors,
+> but under high_queued sectors.
 
-> --- vm-2.4.7/drivers/block/ll_rw_blk.c.2	Fri Aug  3 19:06:46 2001
-> +++ vm-2.4.7/drivers/block/ll_rw_blk.c	Fri Aug  3 19:32:46 2001
-> @@ -1037,9 +1037,16 @@
->  		 * water mark. instead start I/O on the queued stuff.
->  		 */
->  		if (atomic_read(&queued_sectors) >= high_queued_sectors) {
-> -			run_task_queue(&tq_disk);
-> -			wait_event(blk_buffers_wait,
-> -			 atomic_read(&queued_sectors) < low_queued_sectors);
+Nice shooting, this could explain the effect I noticed where
+writing a linker file takes 8 times longer when competing with
+a simultaneous grep.
 
-... OUCH ...
+> There are two possible solutions to the starvation scenario:
+>
+> 1) have one threshold
+> 2) if one task is sleeping, let ALL tasks sleep
+>    until we reach the lower threshold
 
-> bah.  Doesn't fix it.  Still waiting indefinately in ll_rw_blk().
+Umm.... Hmm, there are lots more solutions than that, but those two
+are nice and simple.  A quick test for (1) I hope Ben will try is
+just to set high_queued_sectors = low_queued_sectors.
 
-And it's obvious why.
+Currently, IO scheduling relies on the "random" algorithm for fairness
+where the randomness is supplied by the processes.  This breaks down
+sometimes, spectacularly, for some distinctly non-random access
+patterns as you demonstrated.
 
-The code above, as well as your replacement, are have a
-VERY serious "fairness issue".
+Algorithm (2) above would have some potentially strange interactions
+with the scheduler, it looks scary.  (E.g., change the scheduler, IO
+on some people's machines suddenly goes to hell.)
 
-	task 1			task 2
+Come to think of it (1) will also suffer in some cases from nonrandom
+scheduling.
 
- queued_sectors > high
-   ==> waits for
-   queued_sectors < low
+Now let me see, why do we even have the high+low thresholds?  I
+suppose it is to avoid taking two context switches on every submitted
+block, so it seems like a good idea.
 
-                             write stuff, submits IO
-                             queued_sectors < high  (but > low)
-                             ....
-                             queued sectors still < high, > low
-                             happily submits more IO
-                             ...
-                             etc..
+For IO fairness I think we need something a little more deterministic.
+I'm thinking about an IO quantum right now - when a task has used up
+its quantum it yields to the next task, if any, waiting on the IO
+queue.  How to preserve the effect of the high+low thresholds... it
+needs more thinking, though I've already thought of several ways of
+doing it badly :-)
 
-It is quite obvious that the second task can easily starve
-the first task as long as it keeps submitting IO at a rate
-where queued_sectors will stay above low_queued_sectors,
-but under high_queued sectors.
-
-There are two possible solutions to the starvation scenario:
-
-1) have one threshold
-2) if one task is sleeping, let ALL tasks sleep
-   until we reach the lower threshold
-
-regards,
-
-Rik
 --
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
-Send all your spam to aardvark@nl.linux.org (spam digging piggy)
-
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
