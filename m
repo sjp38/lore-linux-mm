@@ -1,38 +1,31 @@
-From: "Jan Shields" <WZFLWTQZVUAC@verizon.net>
-Subject: Shopping for [mortgages] made easy
-Date: Mon, 19 Jul 2004 21:26:14 -0200
-Message-ID: <027w5u9$456l173vfz2503$5lwa5geuu@convictpadlockmb1049>
+Message-ID: <83o$t-v$6-f9zg2-8069-471$o41@kv46r.xi>
+From: "Jerri Steiner" <rzcdnm@yahoo.com>
+Reply-To: "Jerri Steiner" <rzcdnm@yahoo.com>
+Subject: Get excellent job, Get better job!
+Date: Tue, 20 Jul 04 06:51:14 GMT
 MIME-Version: 1.0
 Content-Type: multipart/alternative;
-	boundary="--476865022308766524"
+	boundary="._3..0..FA235BC1..D7D0"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: 'Linux-mm' <linux-mm@kvack.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-----476865022308766524
+--._3..0..FA235BC1..D7D0
 Content-Type: text/plain;
 Content-Transfer-Encoding: quoted-printable
 
-Hi,
-
-Re-finance now, even with bad-credit!
-
-*Best Re-finance Rate for credit challenged.
-*Best Customer Service
-*Lowest Interest-Rates in Years
-*SAVE $100-$400 per month
-
-Our easy application only takes 1 minutes.
-http://lendersforu.com/?partid=3Dpmm2000
+no degree no job
+get a instant university degree
+no need study or test
 
 
-Sincerely,
-Jan Shields
-Reference Options: http://lendersforu.com/st.html
-Rua da Imprense, 4347, R/C Bloco 1-33 Maputo, Mozambique
+call 1-240-352-7337(24hrs)
+.................................
+leave your name and phone number,
+and we will call you back asap!
 
-----476865022308766524--
+--._3..0..FA235BC1..D7D0--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
