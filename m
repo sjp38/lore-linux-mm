@@ -1,47 +1,62 @@
-Date: Mon, 3 Jul 2000 14:56:42 +0100
+Date: Mon, 3 Jul 2000 15:18:23 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: More 2.2.17pre9 VM issues
-Message-ID: <20000703145642.B3284@redhat.com>
-References: <20000703111813.D2699@redhat.com> <Pine.LNX.4.21.0007031314190.12740-100000@inspiron.random>
+Subject: Re: maximum memory limit
+Message-ID: <20000703151823.D3284@redhat.com>
+References: <Pine.LNX.4.10.10002081506290.626-100000@mirkwood.dummy.home> <200007020535.WAA07278@woensel.zeropage.com> <20000703113525.F2699@redhat.com> <20000703153213.B29421@pcep-jamie.cern.ch>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0007031314190.12740-100000@inspiron.random>; from andrea@suse.de on Mon, Jul 03, 2000 at 01:28:48PM +0200
+In-Reply-To: <20000703153213.B29421@pcep-jamie.cern.ch>; from lk@tantalophile.demon.co.uk on Mon, Jul 03, 2000 at 03:32:13PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
+To: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Cc: "Stephen C. Tweedie" <sct@redhat.com>, Raymond Nijssen <raymond@zeropage.com>, Linux Kernel <linux-kernel@vger.rutgers.edu>, Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Mon, Jul 03, 2000 at 01:28:48PM +0200, Andrea Arcangeli wrote:
+On Mon, Jul 03, 2000 at 03:32:13PM +0200, Jamie Lokier wrote:
 
-> Stephen, are we really sure we still need kpiod?i
+> There are lots of custom malloc libraries.  If you're going to teach
+> Glibc something anyway, why not add a new mmap flag?
 
-Yes.
+Because by the time glibc has been loaded, it's too late!  We need the
+crt0.o stub to load libdl.so lower in memory or we have already
+clobbered the address space irretrievably.  That's why Ben's proposal
+for a per-process prctl() for the mmap base would seem to work well
+--- you can just use floating mmaps and the kernel will automatically
+place them somewhere that won't interfere with really large mallocs.
 
-> Isn't GFP_IO meant to be
-> clear if anybody is helding any filesystem lock (like superblock lock)?
+> One flag I think would be quite useful is MAP_NOCLOBBER|MAP_FIXED: there
+> are times when I'd like to be able to _try_ mapping something at a fixed
+> address, but fail if there is something mapped there already.
 
-That has never been a requirement, and I'd think it would be
-dangerous to make such a new rule so close to 2.4.  
+Good idea, but it doesn't help this problem.  
 
-Certainly, in 2.2 we would do all sorts of stuff while holding
-filesystem locks (in particular the inode and superblock locks).  Any
-file write, including mm page writes, would take the inode lock.  
+> As a natural extension, a map flag which says "try to map at the
+> supplied address, but if there is an object there search for a big
+> enough hole above the supplied address" would simultaneously be useful
+> for malloc optimisations like you're suggesting, and pre-relocated
+> shared libraries.  That would be MAP_NOCLOBBER without MAP_FIXED.
 
-Right now, in 2.4, the mm locks less but write(2) still takes the
-inode lock.  That means that we _must_ be able to allocate with GFP_IO
-while holding the inode lock, since (a) write()s go through the page
-cache, and (b) touching the user's buffer during the write() can cause
-pages to be swapped in, invoking parts of the VM which assume they are
-able to use GFP_IO safely.
+That's what non-MAP_FIXED mmaps already do.  From mmap.c:
 
-Sure, you could audit every single path through every filesystem to
-make sure that there are no possible deadlocks here, but the whole
-point of kpiod is to separate out the pageout from the process doing
-the write() in such situations to make deadlock impossible.
+	/* Obtain the address to map to. we verify (or select) it and
+ensure
+	 * that it represents a valid section of the address space.
+	 */
+	if (flags & MAP_FIXED) {
+		if (addr & ~PAGE_MASK)
+			return -EINVAL;
+	} else {
+		addr = get_unmapped_area(addr, len);
+		if (!addr)
+			return -ENOMEM;
+	}
+
+get_unmapped_area looks for the next unmapped area above addr,
+with the start address defaulting to TASK_UNMAPPED_BASE only if
+addr==0 going in.
 
 Cheers,
  Stephen
