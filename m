@@ -1,99 +1,83 @@
-Message-ID: <4213D283.5090809@sgi.com>
-Date: Wed, 16 Feb 2005 17:08:51 -0600
+Message-ID: <4213D8DB.6080807@sgi.com>
+Date: Wed, 16 Feb 2005 17:35:55 -0600
 From: Ray Bryant <raybry@sgi.com>
 MIME-Version: 1.0
-Subject: Re: manual page migration -- issue list
-References: <42128B25.9030206@sgi.com>	<20050215165106.61fd4954.pj@sgi.com>	<20050216015622.GB28354@lnx-holt.americas.sgi.com>	<20050215202214.4b833bf3.pj@sgi.com>	<20050216092011.GA6616@lnx-holt.americas.sgi.com> <20050216022009.7afb2e6d.pj@sgi.com>
-In-Reply-To: <20050216022009.7afb2e6d.pj@sgi.com>
+Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
+References: <20050215185943.GA24401@lnx-holt.americas.sgi.com> <16914.28795.316835.291470@wombat.chubb.wattle.id.au> <421283E6.9030707@sgi.com> <31650000.1108511464@flay> <421295FB.3050005@sgi.com> <20050216004401.GB8237@wotan.suse.de> <51210000.1108515262@flay> <20050216100229.GB14545@wotan.suse.de> <232990000.1108567298@[10.10.2.4]> <20050216074923.63cf1b6b.pj@sgi.com> <20050216160833.GB6604@wotan.suse.de> <60510000.1108572918@flay>
+In-Reply-To: <60510000.1108572918@flay>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Paul Jackson <pj@sgi.com>
-Cc: Robin Holt <holt@sgi.com>, linux-mm@kvack.org, ak@muc.de, haveblue@us.ibm.com, marcello@cyclades.com, stevel@mwwireless.net, peterc@gelato.unsw.edu.au
+To: "Martin J. Bligh" <mbligh@aracnet.com>
+Cc: Andi Kleen <ak@suse.de>, Paul Jackson <pj@sgi.com>, peterc@gelato.unsw.edu.au, raybry@austin.rr.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Paul Jackson wrote:
-> Robin wrote:
-> 
->>What that would result in is a syscall for each
->>non-overlapping vma per node.
+Martin J. Bligh wrote:
+> --On Wednesday, February 16, 2005 17:08:33 +0100 Andi Kleen <ak@suse.de> wrote:
 > 
 > 
-> My latest, most radical, proposal did not take an address range.  It was
-> simply:
-> 
->     sys_page_migrate(pid, oldnode, newnode)
-> 
-> It would be called once per node.  In your example, this would be 128
-> calls.  Nothing "for each non-overlapping vma".  Just per node.
-> 
-> Until I drove you to near distraction, and you spelled out the details
-> of an example that migrated 96% of the address space in the first call,
-> and only need 3 calls total, I would have presumed that the API:
-> 
->     sys_page_migrate(pid, va_start, va_end, count, old_nodes, new_nodes)
-> 
-> would have required one call per pid, or 256 calls, for your example.
-> 
-> My method did not look insanely worse to me, indeed it would have looked
-> better in this example with two tasks per node, since I did one call per
-> node, and I thought you did one per task.
-> 
-> ... However, I see now that you can routinely get by with dramatically
-> fewer calls than the number of tasks, by noticing what portions of the
-> typically huge shared address space have already been covered, and not
-> covering them again.
-
-Right, that was our original plan.  So you only had to make as many
-system calls as there were address ranges that needed to be migrated,
-more or less.  This assumes we have stopped processes and can read and
-make sense of /proc/*/maps.
-
-> 
-> There is no need to convince me that 384 syscalls and 128 full scans
-> is insanely worse than 3 syscalls with 1 full scan, and no need to
-> get frustrated that I cannot see the insanity of it.
-> 
-> However, you might have wanted to allow for the possibility, when you
-> reduced what you thought I was proposing to insanity, that rather than
-> my proposing something insane, perhaps we had different numbers ... as
-> happened here.  Your numbers for the array API had 80 times fewer system
-> calls than I would have expected, and your numbers for the single
-> parameter call had 3 times _more_ system calls than I had in mind (I had
-> one call per node, period, not one per node per vma or whatever).
-> 
-> 
->>How much opposition is there to the array of integers?
-> 
-> 
-> My opposition to the array was not profound.  It needed to provide
-> an advantage, which I didn't see it much did.
-> 
-> I now see it provides an advantage, dramatically reducing the number of
-> system calls and scans in typical cases, to substantially fewer than
-> either the number of tasks or of nodes.
-> 
-> Ok ... onward.  I'll take the node arrays.
-> 
-> The next concern that rises to the top for me was best expressed by Andi:
-> 
->>The main reasons for that is that I don't think external
->>processes should mess with virtual addresses of another process.
->>It just feels unclean and has many drawbacks (parsing /proc/*/maps
->>needs complicated user code, racy, locking difficult).  
+>>On Wed, Feb 16, 2005 at 07:49:23AM -0800, Paul Jackson wrote:
 >>
->>In kernel space handling full VMs is much easier and safer due to better 
->>locking facilities.
+>>>Martin wrote:
+>>>
+>>>>From reading the code (not actual experiments, yet), it seems like we won't
+>>>>even wake up the local kswapd until all the nodes are full. And ...
+>>>
+>>>Martin - is there a Cliff Notes summary you could provide of this
+>>>subthread you and Andi are having?  I got lost somewhere along the way.
+>>
+>>I didn't really have much thread, but as far as I understood it
+>>Martin just wants kswapd to be a bit more aggressive in making sure
+>>all nodes always have local memory to allocate from.
+>>
+>>I don't see it as a pressing problem right now, but it may help
+>>for some memory intensive workloads a bit (see numastat numa_miss output for
+>>various nodes on how often a "wrong node" fallback happens) 
 > 
 > 
-> I share Andi's concerns, but I don't see what to do about this.  Andi's
-> recommendations seem to be about memory policies (which guide future
-> allocations), and not about migration of already allocated physical
-> pages.  So for now at least, his recommendations don't seem like answers
-> to me.
+> Yeah - I think I'm just worried that people are proposing a manual rather
+> than automatic solution to solve fallback issues. We ought to be able
+> to fix that without tweaking things up the wazoo by hand.
 > 
+> M.
+> 
+> 
+Martin,
 
+We are not trying to solve the problem you apparently think we are.
+The page migration work we are doing is to support a batch scheduler
+for a large NUMA system.  If you haven't done so already, please go
+back and read the overview note from the posting that started this
+thread.
+
+Solving the fallback problem is mostly a problem of determing when
+local allocation is desired, and then freeing up memory on that node
+if the local allocation fails.  Our intent there is to implement a
+solution similar to Nick Piggin's "Try Local Harder" patch, except
+that in addition to running kswapd, we will also automatically
+scan for idle, clean, unused page cache pages as well.  We have
+code in our 2.4.21 based kernel for Altix that does this today
+and it results in almost no local allocations spilling off node
+(unless the node becomes full of mapped pages, in which case we
+have little other choice).
+
+In general, we don't think it is necessary to migrate pages off
+of the current node to avoid the fallback allocation.  In particular,
+we don't think it is useful to migrate page cache pages to another
+node to free up local storage.  The reason is that if you do this
+you are expending significant resource to move a page that in all
+likelyhood will never be referenced again.  It is better just to
+toss the page and let it be read in again if it is really needed.
+
+Take a look at the patch that Martin Hicks has posted to see where
+we would like to go for freeing of page cache pages.  That patch
+patch is also "manual", and that is not a good thing.  We, like
+you, want automatic clean up of useless page cache pages on a
+node to avoid allocations from spilling off node.  Here is the
+link to Martin's post:
+
+http://marc.theaimsgroup.com/?l=linux-kernel&m=110839604924587&w=2
 
 -- 
 -----------------------------------------------
