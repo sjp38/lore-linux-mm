@@ -1,32 +1,32 @@
-Message-Id: <200401221328.i0MDSFeS002510@ccure.user-mode-linux.org>
-Subject: Re: 2.6.2-rc1-mm1 
-In-Reply-To: Your message of "Thu, 22 Jan 2004 12:00:29 GMT."
-             <20040122120029.A9758@infradead.org>
-References: <20040122013501.2251e65e.akpm@osdl.org> <20040122110731.A9319@infradead.org> <200401221217.i0MCHmeS001953@ccure.user-mode-linux.org>  <20040122120029.A9758@infradead.org> 
+Date: Thu, 22 Jan 2004 15:19:43 +0000
+From: viro@parcelfarce.linux.theplanet.co.uk
+Subject: Re: 2.6.2-rc1-mm1
+Message-ID: <20040122151943.GW21151@parcelfarce.linux.theplanet.co.uk>
+References: <20040122013501.2251e65e.akpm@osdl.org> <20040122110342.A9271@infradead.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Date: Thu, 22 Jan 2004 08:28:15 -0500
-From: Jeff Dike <jdike@addtoit.com>
+Content-Disposition: inline
+In-Reply-To: <20040122110342.A9271@infradead.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>, Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-hch@infradead.org said:
-> Try compiling the cow driver.  
+On Thu, Jan 22, 2004 at 11:03:42AM +0000, Christoph Hellwig wrote:
+> > sysfs-class-06-raw.patch
+> >   From: Greg KH <greg@kroah.com>
+> >   Subject: [PATCH] add sysfs class support for raw devices [06/10]
+> 
+> This one exports get_gendisk, which is a no-go.
 
-That's not finished, and it was barely started.  I can cut it out.
+Moreover, it obviously leaks references to struct gendisk _and_ changes
+semantics of RAW_SETBIND in incompatible way.
 
-> Or look at the utter devfs mess in ubd.
-> In fact I wonder why the mail on that devfs abuse that I sent to
-> uml-devel about half a year ago is still unanswered. 
+Consider that vetoed.  And yes, get_gendisk() issue alone would be enough.
 
-It's sitting in my todo list.  Maybe unanswered, for which I apologize, but
-not forgotten.
-
-				Jeff
-
+Greg, please, RTFS to see at which point do we decide which driver will
+be used by raw device.  It's _not_ RAW_SETBIND, it's open().  So where
+your symlink should point is undecided until the same point.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
