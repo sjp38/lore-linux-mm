@@ -1,157 +1,39 @@
-Date: Tue, 15 Oct 2002 17:32:07 -0500
-From: Dave McCracken <dmccr@us.ibm.com>
-Subject: [PATCH 2.5.42-mm3] Fix mremap for shared page tables
-Message-ID: <291360000.1034721127@baldur.austin.ibm.com>
+Message-ID: <3DACBD58.AAD8F0A@austin.ibm.com>
+Date: Tue, 15 Oct 2002 20:14:00 -0500
+From: Saurabh Desai <sdesai@austin.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="==========715598336=========="
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
-List-ID: <linux-mm.kvack.org>
-
---==========715598336==========
+Subject: Re: [patch] mmap-speedup-2.5.42-C3
+References: <Pine.LNX.4.44.0210151438440.10496-100000@localhost.localdomain>
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Sender: owner-linux-mm@kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+To: Ingo Molnar <mingo@elte.hu>
+Cc: Linus Torvalds <torvalds@transmeta.com>, Andrew Morton <akpm@zip.com.au>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, NPT library mailing list <phil-list@redhat.com>
+List-ID: <linux-mm.kvack.org>
 
+Ingo Molnar wrote:
+> 
+> the attached patch (against BK-curr) adds three new, threading related
+> improvements to the VM.
+> 
+> the first one is an mmap inefficiency that was reported by Saurabh Desai.
+> The test_str02 NPTL test-utility does the following: it tests the maximum
+> number of threads by creating a new thread, which thread creates a new
+> thread itself, etc. It basically creates thousands of parallel threads,
+> which means thousands of thread stacks.
 
-Hugh Dickens was right.  mremap was broken wrt shared page tables.  Here's
-the fix.
+  Like to point out, test_str02 is a NGPT test program not NPTL.
 
-Dave McCracken
+ 
+> the patch was tested on x86 SMP and UP. Saurabh, can you confirm that this
+> patch fixes the performance problem you saw in test_str02?
+> 
 
-======================================================================
-Dave McCracken          IBM Linux Base Kernel Team      1-512-838-3059
-dmccr@us.ibm.com                                        T/L   678-3059
-
---==========715598336==========
-Content-Type: text/plain; charset=iso-8859-1; name="shpte-2.5.42-mm3-3.diff"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: attachment; filename="shpte-2.5.42-mm3-3.diff"; size=2694
-
---- 2.5.42-mm3-shsent/mm/mremap.c	2002-10-15 09:59:37.000000000 -0500
-+++ 2.5.42-mm3-shpte/mm/mremap.c	2002-10-15 17:16:59.000000000 -0500
-@@ -15,6 +15,7 @@
- #include <linux/swap.h>
- #include <linux/fs.h>
- #include <linux/highmem.h>
-+#include <linux/rmap-locking.h>
-=20
- #include <asm/uaccess.h>
- #include <asm/pgalloc.h>
-@@ -23,6 +24,7 @@
-=20
- static pte_t *get_one_pte_map_nested(struct mm_struct *mm, unsigned long =
-addr)
- {
-+	struct page *ptepage;
- 	pgd_t * pgd;
- 	pmd_t * pmd;
- 	pte_t * pte =3D NULL;
-@@ -45,8 +47,17 @@
- 		goto end;
- 	}
-=20
-+	ptepage =3D pmd_page(*pmd);
-+	pte_page_lock(ptepage);
-+#ifdef CONFIG_SHAREPTE
-+	if (page_count(ptepage) > 1) {
-+		pte_unshare(mm, pmd, addr);
-+		ptepage =3D pmd_page(*pmd);
-+	}
-+#endif
- 	pte =3D pte_offset_map_nested(pmd, addr);
- 	if (pte_none(*pte)) {
-+		pte_page_unlock(ptepage);
- 		pte_unmap_nested(pte);
- 		pte =3D NULL;
- 	}
-@@ -54,6 +65,32 @@
- 	return pte;
- }
-=20
-+static inline void drop_pte_nested(struct mm_struct *mm, unsigned long =
-addr, pte_t *pte)
-+{
-+	struct page *ptepage;
-+	pgd_t *pgd;
-+	pmd_t *pmd;
-+
-+	pgd =3D pgd_offset(mm, addr);
-+	pmd =3D pmd_offset(pgd, addr);
-+	ptepage =3D pmd_page(*pmd);
-+	pte_page_unlock(ptepage);
-+	pte_unmap_nested(pte);
-+}
-+
-+static inline void drop_pte(struct mm_struct *mm, unsigned long addr, =
-pte_t *pte)
-+{
-+	struct page *ptepage;
-+	pgd_t *pgd;
-+	pmd_t *pmd;
-+
-+	pgd =3D pgd_offset(mm, addr);
-+	pmd =3D pmd_offset(pgd, addr);
-+	ptepage =3D pmd_page(*pmd);
-+	pte_page_unlock(ptepage);
-+	pte_unmap(pte);
-+}
-+
- #ifdef CONFIG_HIGHPTE	/* Save a few cycles on the sane machines */
- static inline int page_table_present(struct mm_struct *mm, unsigned long =
-addr)
- {
-@@ -72,12 +109,24 @@
-=20
- static inline pte_t *alloc_one_pte_map(struct mm_struct *mm, unsigned long =
-addr)
- {
-+	struct page *ptepage;
- 	pmd_t * pmd;
- 	pte_t * pte =3D NULL;
-=20
- 	pmd =3D pmd_alloc(mm, pgd_offset(mm, addr), addr);
--	if (pmd)
-+	if (pmd) {
-+		ptepage =3D pmd_page(*pmd);
-+#ifdef CONFIG_SHAREPTE
-+		pte_page_lock(ptepage);
-+		if (page_count(ptepage) > 1) {
-+			pte_unshare(mm, pmd, addr);
-+			ptepage =3D pmd_page(*pmd);
-+		}
-+		pte_page_unlock(ptepage);
-+#endif
- 		pte =3D pte_alloc_map(mm, pmd, addr);
-+		pte_page_lock(ptepage);
-+	}
- 	return pte;
- }
-=20
-@@ -121,15 +170,15 @@
- 		 * atomic kmap
- 		 */
- 		if (!page_table_present(mm, new_addr)) {
--			pte_unmap_nested(src);
-+			drop_pte_nested(mm, old_addr, src);
- 			src =3D NULL;
- 		}
- 		dst =3D alloc_one_pte_map(mm, new_addr);
- 		if (src =3D=3D NULL)
- 			src =3D get_one_pte_map_nested(mm, old_addr);
- 		error =3D copy_one_pte(mm, src, dst);
--		pte_unmap_nested(src);
--		pte_unmap(dst);
-+		drop_pte_nested(mm, old_addr, src);
-+		drop_pte(mm, new_addr, dst);
- 	}
- 	flush_tlb_page(vma, old_addr);
- 	spin_unlock(&mm->page_table_lock);
-
---==========715598336==========--
-
+  Yes, the test_str02 performance improved a lot using NPTL.
+  However, on a side effect, I noticed that randomly my current telnet session
+  was logged out after running this test. Not sure, why?  
+  I applied your patch on 2.5.42 kernel and running glibc-2.3.1pre2.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
