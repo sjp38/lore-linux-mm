@@ -1,57 +1,83 @@
-From: Florian Schanda <ma1flfs@bath.ac.uk>
-Reply-To: ma1flfs@bath.ac.uk
+Date: Mon, 22 Sep 2003 17:36:05 +0300
+From: Zilvinas Valinskas <zilvinas@gemtek.lt>
 Subject: Re: 2.6.0-test5-mm4
-Date: Mon, 22 Sep 2003 15:30:04 +0100
+Message-ID: <20030922143605.GA9961@gemtek.lt>
+Reply-To: Zilvinas Valinskas <zilvinas@gemtek.lt>
 References: <20030922013548.6e5a5dcf.akpm@osdl.org> <200309221317.42273.alistair@devzero.co.uk>
-In-Reply-To: <200309221317.42273.alistair@devzero.co.uk>
-MIME-Version: 1.0
-Content-Type: Text/Plain;
-  charset="iso-8859-1"
-Content-Transfer-Encoding: 8BIT
-Content-Description: clearsigned data
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Message-Id: <200309221530.17062.ma1flfs@bath.ac.uk>
+In-Reply-To: <200309221317.42273.alistair@devzero.co.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alistair J Strachan <alistair@devzero.co.uk>, Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Alistair J Strachan <alistair@devzero.co.uk>
+Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA1
-
-On Monday 22 September 2003 13:17, Alistair J Strachan wrote:
-> -mm4 won't mount my ext3 root device whereas -mm3 will. Presumably this is
+On Mon, Sep 22, 2003 at 01:17:42PM +0100, Alistair J Strachan wrote:
+> On Monday 22 September 2003 09:35, Andrew Morton wrote:
+> > ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test5/2
+> >.6.0-test5-mm4/
+> >
+> >
+> > . A series of patches from Al Viro which introduce 32-bit dev_t support
+> >
+> > . Various new fixes
+> >
+> >
+> 
+> Hi Andrew,
+> 
+> -mm4 won't mount my ext3 root device whereas -mm3 will. Presumably this is 
 > some byproduct of the dev_t patches.
-
-I don't think this has to do with ext3, since my root xfs partition can't be 
-mounted either.
-
+> 
 > VFS: Cannot open root device "302" or hda2.
 > Please append correct "root=" boot option.
 > Kernel Panic: VFS: Unable to mount root fs on hda2.
 
-same over here, except replace hda2 with sda3 and (302 with 803 of couse).
+Do you use devfsd ? 
 
-> One possible explanation is that I have devfs compiled into my kernel. I do
-> not, however, have it automatically mounting on boot. It overlays /dev
-> (which is populated with original style device nodes) after INIT has
-> loaded.
+I had to specify root like this :
+root=/dev/ide/host0/bus0/target0/lun0/part5  then it worked just fine.
 
-I disabled mount at root and created some device nodes, but it still doesn't 
-work, befor that I had pure devfs. Reading the config help for devfs says 
-it's obsoleted, and stripped down to a "bare minimum to not break anyting". 
-Does that "bare minimum" include hard disks?
+Btw Andrew ,
 
-	Florian
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.2 (GNU/Linux)
+this change  "Synaptics" -> "SynPS/2" - breaks driver synaptic driver
+from http://w1.894.telia.com/~u89404340/touchpad/index.html. 
 
-iD8DBQE/bwdvfCf8muQVS4cRAmQ0AJ9N6WBJIOKholW9Rf2QV6wdxlWyHACeNsoP
-niBAErfeLd0NR0WR6ElKOhU=
-=Iysp
------END PGP SIGNATURE-----
 
+-static char *psmouse_protocols[] = { "None", "PS/2", "PS2++", "PS2T++", "GenPS/
+2", "ImPS/2", "ImExPS/2", "Synaptics"}; 
++static char *psmouse_protocols[] = { "None", "PS/2", "PS2++", "PS2T++", "GenPS/2", "ImPS/2", "ImExPS/2", "SynPS/2"};
+
+
+> 
+> One possible explanation is that I have devfs compiled into my kernel. I do 
+> not, however, have it automatically mounting on boot. It overlays /dev (which 
+> is populated with original style device nodes) after INIT has loaded.
+> 
+> Perhaps there is some other procedure I must complete before I can use 32bit 
+> dev_t?
+> 
+> [alistair] 01:15 PM [/usr/src/linux-2.6] egrep -e "DEVFS" -e "EXT3_FS" .config
+> CONFIG_EXT3_FS=y
+> CONFIG_EXT3_FS_XATTR=y
+> CONFIG_EXT3_FS_POSIX_ACL=y
+> CONFIG_EXT3_FS_SECURITY=y
+> CONFIG_DEVFS_FS=y
+> # CONFIG_DEVFS_MOUNT is not set
+> # CONFIG_DEVFS_DEBUG is not set
+> 
+> [alistair] 01:16 PM [/usr/src/linux-2.6] dmesg | grep p2
+>  /dev/ide/host0/bus0/target0/lun0: p1 p2 p4
+> 
+> Cheers,
+> Alistair.
+> -
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
