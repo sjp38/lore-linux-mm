@@ -1,37 +1,49 @@
-Received: from starmedia.com.com (unknown [209.207.185.47])
-	by smtp.latinmail.com (Postfix) with SMTP id 5FF033BA845
-	for <linux-mm@kvack.org>; Mon, 19 May 2003 07:36:30 -0400 (EDT)
-From: Aziz Ahmed <a_ahmed1@starmedia.com>
-Date: Mon, 19 May 2003 07:36:34 -0400
-Subject: confidencial
-Content-Type: text/plain; charset=us-ascii
-Message-Id: <20030519113630.5FF033BA845@smtp.latinmail.com>
+Date: Mon, 19 May 2003 13:53:05 +0100 (IST)
+From: Mel Gorman <mel@csn.ul.ie>
+Subject: Finalised 2.4 VM Documentation
+Message-ID: <Pine.LNX.4.53.0305191329310.24249@skynet>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linux Memory Management List <linux-mm@kvack.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Dear sir,
+I've finalised all the documentation that I'm going to do for the 2.4 VM
+and no further updates will be posted on the web site to this version. At
+this stage it has been heavily read by a number of people and there hasn't
+been a complaint or correction in a few weeks now.  I'm happy to say it is
+now complete (and more importantly correct) and acts as a detailed
+description of the 2.4 VM, the algorithms that it is based on and
+comprehensive coverage of the code. People who are only interested in the
+2.5.x VMs will still find it much easier to follow when they clearly know
+how 2.4 is put together.
 
-            Let me introduce myself , I am brother to Tariq Aziz , the deputy prime minister of Iraq , before the us led coalition war against my country. 
-            I have been working for my brother for past 15 years. My brother have the sum of [46 million Dollars] with me ,which to be send to Europe which has been done 
-already.
-            I have decided to find somebody who can help me to
-secure the money or establish the money in Europe.Actually my brother has more than that with me. 
-            I don't want my identity to be exposed to outside the world, I am now hiding in Kuwait. 
-            Please if you are interested in this deal or to be my partner please contact my lawyer through his E-mail address. 
-            I know nothing goes for nothing we will be negotiating after 
-you contact my lawyer This is my lawyer E-mail address.... mattarozzi_mirco@rediffmail.com
+As always, it comes in two parts. The first part is the actual
+documentation and gives a description of the whole VM. The second is a
+code commentary which covers a significant percentage of the VM for
+guiding through the messier parts. They are available in PDF, HTML and
+plain text formats.
 
-Thanks.
-  
-  Aziz.
+Main site: http://www.csn.ul.ie/~mel/projects/vm/
 
+Understanding the Linux Virtual Memory Manager
+PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/understand.pdf
+HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/understand/
+Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/understand.txt
 
+Code Commentary on the Linux Virtual Memory Manager
+PDF:  http://www.csn.ul.ie/~mel/projects/vm/guide/pdf/code.pdf
+HTML: http://www.csn.ul.ie/~mel/projects/vm/guide/html/code
+Text: http://www.csn.ul.ie/~mel/projects/vm/guide/text/code.txt
 
-_______________________________________________________________________________________________________
-Obten gratis tu cuenta de correo en StarMedia Email. !Registrate hoy mismo!. http://www.starmedia.com/email
+Thanks to all the people who read through it, helped me out and sent
+encouragement. It's been fun.
 
+-- 
+Mel Gorman
+http://www.csn.ul.ie/~mel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
