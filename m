@@ -1,60 +1,67 @@
-Date: Mon, 04 Oct 2004 22:02:07 +0900 (JST)
-Message-Id: <20041004.220207.10904358.taka@valinux.co.jp>
-Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
-From: Hirokazu Takahashi <taka@valinux.co.jp>
-In-Reply-To: <1096836249.9667.100.camel@lade.trondhjem.org>
-References: <1096831287.9667.61.camel@lade.trondhjem.org>
-	<20041004.050320.78713249.taka@valinux.co.jp>
-	<1096836249.9667.100.camel@lade.trondhjem.org>
+Subject: Re: slab fragmentation ?
+From: Badari Pulavarty <pbadari@us.ibm.com>
+In-Reply-To: <415F968B.8000403@colorfullife.com>
+References: <1096500963.12861.21.camel@dyn318077bld.beaverton.ibm.com>
+	 <20040929204143.134154bc.akpm@osdl.org>  <29460000.1096555795@[10.10.2.4]>
+	 <1096555693.12861.27.camel@dyn318077bld.beaverton.ibm.com>
+	 <415F968B.8000403@colorfullife.com>
+Content-Type: text/plain
+Message-Id: <1096905099.12861.117.camel@dyn318077bld.beaverton.ibm.com>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Date: 04 Oct 2004 08:51:39 -0700
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: trond.myklebust@fys.uio.no
-Cc: marcelo.tosatti@cyclades.com, iwamoto@valinux.co.jp, haveblue@us.ibm.com, akpm@osdl.org, linux-mm@kvack.org, piggin@cyberone.com.au, arjanv@redhat.com, linux-kernel@vger.kernel.org
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Sat, 2004-10-02 at 23:04, Manfred Spraul wrote:
+> Badari Pulavarty wrote:
+> 
+> >Yes. But the next allocations should be satisfied by filling in the
+> >partial slabs, instead of getting a new slab.
+> >
+> >As you can see from my tests, we are allocating and freeing few
+> >thousands every second. I can imagine this happening, if we allocated
+> >150K objects and then freed 140K of them randomly.
+> >
+> >  
+> >
+> Could you check what is the maximum number of objects that were 
+> allocated? Enable debugging and check /proc/slabinfo, it's listed in the 
+> globalstat block.
 
-Yes, I know what you're talking about.
-The current kernel doesn't have any features about it.
+Max "allocated" or Max "inuse" ? Its hard to tell whats the maximum
+objects inuse, since the test (scsi-debug) allocates and frees lots of
+these. But I have never seen max "inuse" anywhere close to the
+allocated.  
 
-So that I've been wondering if there might be any good solution
-to help memory hot-removal. It would be nice if there were support
-from filesystems and block devices.
+I will enable slab debugging. Someone told me that, by enabling slab
+debug, it fill force use of different slab for each allocation - there
+by bloating slab usages and mask the problem. Is it true ?
 
-> > However, while network is down network/cluster filesystems might not
-> > release pages forever unlike in the case of block devices, which may
-> > timeout or returns a error in case of failure.
 > 
-> Where is the difference? As far as the VM is concerned, it is a latency
-> problem. The fact of whether or not it is a permanent hang, a hang with
-> a long timeout, or just a slow device is irrelevant because the VM
-> doesn't actually know about these devices.
+> >I modified "crash" kmem command to dump all the slabs in the cache. 
+> >I am attaching the output.
+> >
+> >I am wondering why we are not filling up partial slabs, before
+> >allocating new ones ?
+> >  
+> >
+> It should be impossible. s_show checks that the slabs are in the correct 
+> list (full/partial/empty). You didn't get any errors, thus everything 
+> was filed correctly. And cache_alloc_refill only calls cache_grow if the 
+> partial and empty lists are empty.
 > 
-> > Each filesystem can control what the migration code does.
-> > If it doesn't have anything to help memory migration, it's possible
-> > to wait for the network coming up before starting memory migration,
-> > or give up it if the network happen to be down. That's no problem.
-> 
-> Wrong. It *is* a problem: Filesystems aren't required to know anything
-> about the particulars of the underlying block/network/... device timeout
-> semantics either.
-> 
-> Think, for instance about EXT2. Where in the current code do you see
-> that it is required to detect that it is running on top of something
-> like the NBD device? Where does it figure out what the latencies of this
-> device is?
-> 
-> AFAICS, most filesystems in linux/fs/* have no knowledge whatsoever
-> about the underlying block/network/... devices and their timeout values.
-> Basing your decision about whether or not you need to manage high
-> latency situations just by inspecting the filesystem type is therefore
-> not going to give very reliable results.
+> Wait - do you use kmem_cache_alloc_node()? If you use this function then 
+> the fragmentation you have described can easily happen.
 
-Thank you,
-Hirokazu Takahashi.
+No. I am using scsi_debug, which does kmalloc() lots of structures.
+
+Thanks,
+Badari
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
