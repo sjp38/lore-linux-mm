@@ -1,43 +1,63 @@
-Message-ID: <411813F0.9020602@us.ibm.com>
-Date: Mon, 09 Aug 2004 17:16:48 -0700
-From: Janet Morgan <janetmor@us.ibm.com>
+Subject: Re: [PATCH] get_nodes mask miscalculation
+References: <2rr7U-5xT-11@gated-at.bofh.it>
+From: Andi Kleen <ak@muc.de>
+Date: Tue, 10 Aug 2004 03:44:52 +0200
+In-Reply-To: <2rr7U-5xT-11@gated-at.bofh.it> (Brent Casavant's message of
+ "Tue, 10 Aug 2004 00:50:07 +0200")
+Message-ID: <m31xifu5pn.fsf@averell.firstfloor.org>
 MIME-Version: 1.0
-Subject: Re: 2.6.8-rc3-mm2:  Debug: sleeping function called from invalid
- context at mm/mempool.c:197
-References: <B179AE41C1147041AA1121F44614F0B0DD03A6@AVEXCH02.qlogic.org>
-In-Reply-To: <B179AE41C1147041AA1121F44614F0B0DD03A6@AVEXCH02.qlogic.org>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Vasquez <andrew.vasquez@qlogic.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-scsi@vger.kernel.org
+To: Brent Casavant <bcasavan@sgi.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Vasquez wrote:
+Brent Casavant <bcasavan@sgi.com> writes:
 
->On Monday, August 09, 2004 6:42 AM, linux-kernel-owner@vger.kernel.org
->wrote: 
->  
->
->>I see the msg below while running on 2.6.8-rc3-mm2, but not
->>on the plain
->>rc3 tree;
->>ditto for rc1-mm1 vs rc1, which is as far back as I've gone so far.
->>
->>    
->>
->
->This allocation should be done with GFP_ATOMIC flags.  The attached 
->patch should apply cleanly to any recent kernel
->
->  
->
+The idea behind this is was to make it behave like select.
+And select passes highest valid value + 1. In this case
+valid value is not the highest bit number, but the length
+of the bitmap.
 
-and seems to work fine.
+For some reason nobody except me seems to get it though,
+probably because the description in the manpages is a bit confusing:
 
-Thanks,
--Janet
+get_mempolicy(2): 
+
+"maxnode is the maximum bit number plus one that can be stored into
+nodemask."
+
+I suppose this should be better described. For changing it 
+it is too late unfortunately because the libnuma binaries
+are already out in the wild.
+
+> It appears there is a nodemask miscalculation in the get_nodes()
+> function in mm/mempolicy.c.  This bug has two effects:
+>
+> 1. It is impossible to specify a length 1 nodemask.
+
+Sure. You pass 2.
+
+> 2. It is impossible to specify a nodemask containing the last node.
+
+you pass number of nodes + 1.
+
+> The following patch against 2.6.8-rc3 has been confirmed to solve
+> both problems.
+
+Problem is that you'll break all existing libnuma binaries 
+which pass NUMA_MAX_NODES + 1. In your scheme the kernel
+will access one bit beyond the bitmap that got passed,
+and depending on its random value you may get a failure or not.
+
+BTW there is a minor problem in the code that there isn't a upper
+limit. When you pass 0 it currently iterates through all your memory
+until it hits an EFAULT, which can be a bit slow. But that's easy to
+fix.
+
+-Andi
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
