@@ -1,28 +1,29 @@
-Date: Thu, 7 Oct 2004 12:58:54 -0300
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: memory hotplug and mem=
-Message-ID: <20041007155854.GC14614@logos.cnet>
-References: <20041001182221.GA3191@logos.cnet> <4160F483.3000309@jp.fujitsu.com>
-Mime-Version: 1.0
+Date: Thu, 07 Oct 2004 10:56:43 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: [PATCH]  no buddy bitmap patch : intro and includes [0/2]
+Message-ID: <1343960000.1097171803@[10.10.2.4]>
+In-Reply-To: <1097165419.3625.54.camel@localhost>
+References: <D36CE1FCEFD3524B81CA12C6FE5BCAB007ED31D6@fmsmsx406.amr.corp.intel.com> <1097163578.3625.43.camel@localhost>  <1260090000.1097164623@[10.10.2.4]> <1097165419.3625.54.camel@localhost>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <4160F483.3000309@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>
-Cc: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>, Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Matthew E Tolentino <matthew.e.tolentino@intel.com>, Hiroyuki KAMEZAWA <kamezawa.hiroyu@jp.fujitsu.com>, Linux Kernel ML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, lhms <lhms-devel@lists.sourceforge.net>, Andrew Morton <akpm@osdl.org>, William Lee Irwin III <wli@holomorphy.com>, "Luck, Tony" <tony.luck@intel.com>, Hirokazu Takahashi <taka@valinux.co.jp>
 List-ID: <linux-mm.kvack.org>
 
-Hi memory hotplug fellows,
+>> Makese sense on both counts. Would be nice to add the justification to 
+>> the changelog ;-)
+> 
+> Would you mind running these through your normal set of tests on the
+> NUMAQ?  The last time I ran them, I didn't see a performance impact
+> either way, and I'd be good to check again.
 
-Just in case you dont know, trying to pass "mem=" 
-causes the -test2 tree to oops on boot.
+Makes no difference in performance that I can see.
 
-Any ideas of what is going on wrong?
-
-Haven't captured the oops, but can 
-if needed.
-
+M.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
