@@ -1,94 +1,34 @@
-Received: from mnm (build.pdx.osdl.net [172.20.1.2])
-	by mail.osdl.org (8.11.6/8.11.6) with ESMTP id i1SAThE24478
-	for <linux-mm@kvack.org>; Sat, 28 Feb 2004 02:29:43 -0800
-Date: Sat, 28 Feb 2004 02:30:38 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Fw: [Bug 2219] New: kernel BUG at mm/rmap.c:306
-Message-Id: <20040228023038.4d6c780f.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: 2.6.2-mm1 problem with umounting reiserfs
+Date: Sat, 07 Feb 2004 17:23:05 +1100
 Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
+Message-ID: <20040207082424.5987C2C21E@lists.samba.org>
+References: <20040206143917.4e39b215.akpm@osdl.org>
+Return-path: <owner-linux-mm@kvack.org>
+In-reply-to: Your message of "Fri, 06 Feb 2004 14:39:17 -0800."
+             <20040206143917.4e39b215.akpm@osdl.org>
+To: Andrew Morton <akpm@osdl.org>
+Cc: Steven Cole <elenstev@mesatop.com>, linux-mm@kvack.org
+List-Id: linux-mm.kvack.org
 
-My todo list just wrapped around.  If anyone has the time to fix this up,
-please let me know.
+In message <20040206143917.4e39b215.akpm@osdl.org> you write:
+> diff -puN kernel/workqueue.c~cpuhotplug-03-core-workqueue-fix kernel/workqueue.c
+> --- 25/kernel/workqueue.c~cpuhotplug-03-core-workqueue-fix	Fri Feb  6 14:36:04 2004
+> +++ 25-akpm/kernel/workqueue.c	Fri Feb  6 14:36:41 2004
+> @@ -335,7 +335,7 @@ void destroy_workqueue(struct workqueue_
+>  		if (cpu_online(cpu))
+>  			cleanup_workqueue_thread(wq, cpu);
+>  	}
+> -	list_del(&wq->list);
+> +	del_workqueue(wq);
 
-Thanks.
+Damn.  I added that conditional macro at the last minute, trying to
+reduce the impact on non-hotplug-CPU.
 
-
-Begin forwarded message:
-
-Date: Sat, 28 Feb 2004 02:12:20 -0800
-From: bugme-daemon@osdl.org
-To: akpm@digeo.com
-Subject: [Bug 2219] New: kernel BUG at mm/rmap.c:306
-
-
-http://bugme.osdl.org/show_bug.cgi?id=2219
-
-           Summary: kernel BUG at mm/rmap.c:306
-    Kernel Version: 2.6.3
-            Status: NEW
-          Severity: high
-             Owner: akpm@digeo.com
-         Submitter: castetm@ensimag.imag.fr
-
-
-Distribution: gentoo
-Hardware Environment:pentium-3/512 Mo RAM
-
-I have try overcommit-accounting with strict overcommit, but when i launch a
-program like [1], there was a kernel bug [2]
-
-
-[1]
-int main()
-{
-        while(fork() != -1) {}
-        while(malloc(1024)) {}
-        while(1) {}
-}
-------------------------------------------------
-[2]
-Out of Memory: Killed process 8289 (a.out).
-Out of Memory: Killed process 8297 (a.out).
-swap_free: Bad swap offset entry 001c2790
-------------[ cut here ]------------
-kernel BUG at mm/rmap.c:306!
-invalid operand: 0000 [#1]
-CPU:    0
-EIP:    0060:[<c014baf0>]    Not tainted
-EFLAGS: 00010246
-EIP is at try_to_unmap_one+0x1e0/0x1f0
-eax: 00000000   ebx: 000c0000   ecx: 00000009   edx: c1000000
-esi: c14662e8   edi: df55e300   ebp: c14662e8   esp: dfa99d48
-ds: 007b   es: 007b   ss: 0068
-Process kswapd0 (pid: 8, threadinfo=dfa98000 task=dfa9eca0)
-Stack: df55e300 00000009 1c279005 00000000 00000000 00000004 c14662e8 da675ac0
-       00000000 c014bbab d4a5d440 00000004 00000000 da675ac0 00000000 c14662e8
-       00000001 dfa98000 c0142554 c1416c20 dfa99db8 c036a6f4 dfa98000 00000028
-Call Trace:
- [<c014bbab>] try_to_unmap+0xab/0x160
- [<c0142554>] shrink_list+0x224/0x560
- [<c0142a30>] shrink_cache+0x1a0/0x320
- [<c0143243>] shrink_zone+0x83/0xb0
- [<c014365a>] balance_pgdat+0x19a/0x220
- [<c01437f5>] kswapd+0x115/0x130
- [<c011d7e0>] autoremove_wake_function+0x0/0x50
- [<c0109302>] ret_from_fork+0x6/0x14
- [<c011d7e0>] autoremove_wake_function+0x0/0x50
- [<c01436e0>] kswapd+0x0/0x130
- [<c01072a5>] kernel_thread_helper+0x5/0x10
-
-Code: 0f 0b 32 01 13 c0 32 c0 e9 78 fe ff ff 8d 76 00 55 57 56 89
- <6>note: kswapd0[8] exited with preempt_count 2
-Out of Memory: Killed process 12353 (a.out).
-
-------- You are receiving this mail because: -------
-You are the assignee for the bug, or are watching the assignee.
+Thanks for the fix,
+Rusty.
+--
+  Anyone who quotes me in their sig is an idiot. -- Rusty Russell.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
