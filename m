@@ -1,21 +1,51 @@
-Date: Thu, 22 Jun 2000 13:05:06 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
+Received: from northrelay01.pok.ibm.com (northrelay01.pok.ibm.com [9.117.200.21])
+	by e3.ny.us.ibm.com (8.9.3/8.9.3) with ESMTP id MAA42364
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2000 12:20:03 -0400
+From: frankeh@us.ibm.com
+Received: from D51MTA03.pok.ibm.com (d51mta03.pok.ibm.com [9.117.200.31])
+	by northrelay01.pok.ibm.com (8.8.8m3/NCO v2.07) with SMTP id MAA193262
+	for <linux-mm@kvack.org>; Thu, 22 Jun 2000 12:21:54 -0400
+Message-ID: <85256906.0059E21B.00@D51MTA03.pok.ibm.com>
+Date: Thu, 22 Jun 2000 12:22:55 -0400
 Subject: Re: [RFC] RSS guarantees and limits
-In-Reply-To: <85256906.0056DB76.00@D51MTA03.pok.ibm.com>
-Message-ID: <Pine.LNX.4.21.0006221252420.10785-100000@duckman.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Mime-Version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: frankeh@us.ibm.com
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+Now I understand this much better. The RSS guarantee is a function of the
+refault-rate <clever>.
+This in principle implements a decay of the limit based on usage.... I like
+that approach.
+Is there a hardstop RSS limit below you will not evict pages from a process
+(e.g.   mem_size / MAX_PROCESSES ?) to give some interactivity for
+processes that haven't executed for a while, or you just let it go down
+based on the refault-rate...
+
+-- Hubertus
+
+
+
+
+Rik van Riel <riel@conectiva.com.br>@kvack.org on 06/22/2000 12:35:06 PM
+
+Sent by:  owner-linux-mm@kvack.org
+
+
+To:   Hubertus Franke/Watson/IBM@IBMUS
+cc:   linux-mm@kvack.org
+Subject:  Re: [RFC] RSS guarantees and limits
+
+
 
 On Thu, 22 Jun 2000 frankeh@us.ibm.com wrote:
 
 > I assume that in the <workstation> scenario, where there are
 > limited number of processes, your approach will work just fine.
-> 
+>
 > In a server scenario where you might have lots of processes
 > (with limited resource requirements) this might have different
 > effects This inevidably will happen when we move Linux to NUMA
@@ -63,7 +93,14 @@ The Internet is not a network of computers. It is a network
 of people. That is its real strength.
 
 Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+http://www.conectiva.com/          http://www.surriel.com/
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux.eu.org/Linux-MM/
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
