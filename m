@@ -1,22 +1,28 @@
-Date: Sun, 1 Jul 2001 23:01:28 -0300 (BRST)
+Date: Sun, 1 Jul 2001 23:02:58 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: about distributed memory
-In-Reply-To: <01063021262900.02513@mioooldpc>
-Message-ID: <Pine.LNX.4.33L.0107012301120.19985-100000@imladris.rielhome.conectiva>
+Subject: Re: Removal of PG_marker scheme from 2.4.6-pre
+In-Reply-To: <Pine.LNX.4.21.0106301628570.3394-100000@freak.distro.conectiva>
+Message-ID: <Pine.LNX.4.33L.0107012301460.19985-100000@imladris.rielhome.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jordi Polo <mumismo@wanadoo.es>
-Cc: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: Linus Torvalds <torvalds@transmeta.com>, lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, 30 Jun 2001, Jordi Polo wrote:
+On Sat, 30 Jun 2001, Marcelo Tosatti wrote:
 
-> some time ago i think that Rick was doing a patch to allow distributed memory
+> In pre7:
+>
+> "me: undo page_launder() LRU changes, they have nasty side effects"
+>
+> Can you be more verbose about this ?
 
-Not that I know.
+I think this was fixed by the GFP_BUFFER vs. GFP_CAN_FS + GFP_CAN_IO
+thing and Linus accidentally backed out the wrong code ;)
 
+cheers,
 Rik
 --
 Virtual memory is like a game you can't win;
