@@ -1,60 +1,107 @@
-Message-Id: <l0313032db6e56b7c852b@[192.168.239.101]>
-In-Reply-To: <vba4rwgtdso.fsf@mozart.stat.wisc.edu>
-References: Jonathan Morton's message of "Sun, 25 Mar 2001 17:36:21 +0100"
- <3ABDF8A6.7580BD7D@evision-ventures.com>
- <l03130321b6e3c0533688@[192.168.239.101]>
- <l03130322b6e3ced39e99@[192.168.239.101]>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Date: Mon, 26 Mar 2001 23:00:42 +0100
-From: Jonathan Morton <chromi@cyberspace.org>
-Subject: Re: [PATCH] OOM handling
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Ed Tomlinson <tomlins@cam.org>
+Subject: vmtime - a try at vm balancing
+Date: Tue, 27 Mar 2001 06:52:08 -0500
+MIME-Version: 1.0
+Message-Id: <01032706520800.02930@oscar>
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kevin Buhr <buhr@stat.wisc.edu>
-Cc: Martin Dalecki <dalecki@evision-ventures.com>, Rik van Riel <riel@conectiva.com.br>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Rik van Riel <riel@conectiva.com.br>
 List-ID: <linux-mm.kvack.org>
 
->> Understood - my Physics courses covered this as well, but not using the
->> word "normalise".
->
->Be that as it may, Martin's comments about normalizing are nonsense.
->Rik's killer (at least in 2.4.3-pre7) produces a badness value that's
->a product of badness factors of various units.  It then uses these
->products only for relative comparisons, choosing the process with
->maximum badness product to kill.  No normalization is necessary, nor
->would it have any effect.
->
->The reason a 256 Meg process on a 1 Gig machine was being killed had
->nothing to do with normalization---it was a bug where the OOM killer
->was being called long before we were reduced to last resorts.
+Hi,
 
-Of course, I realised that.  Actually, what the code does is take an
-initial badness factor (the memory usage), then divide it using goodness
-factors (some based on time, some purely arbitrary), both of which can be
-considered dimensionless.  Also, at the end, the absolute value is not
-considered - we simply look at the biggest one and kill it.  All
-"denormalisation" does is scale all the values, it doesn't affect which one
-actually turns out biggest.
+I have been having some fun.  The following patch introduces the idea of
+vmtime.  vmtime is time as the vm percieves it.  Its advanced by memory
+pressure, which in the end, works out to be the page allocation & reclaim
+rate.  With this figure I attempt to solve two problems.
 
+First I slow down the background page scanning to the rate we are allocating
+pages.  This means that an idle machine will not end up will all page ages
+equal nearly as quickly.  It should also help prevent cases where kswapd
+eats too much cpu.
 
---------------------------------------------------------------
-from:     Jonathan "Chromatix" Morton
-mail:     chromi@cyberspace.org  (not for attachments)
-big-mail: chromatix@penguinpowered.com
-uni-mail: j.d.morton@lancaster.ac.uk
+Second I add some slab cache pressure.  Without the patch the icache and 
+dcache will get shrunk in under extreme cases.  From comments on this
+list (and personal experience) the slab cache can grow and end up causing
+paging when it would make more sense to just shrink it.  This also has
+oom implications since the size of the slab cache and the possible space
+we can free from it are not accounted for in the oom test.  In any case
+the patch should keep this storage under control.  Are there any other
+parts of the slab cache we should think about shrinking?
 
-The key to knowledge is not to rely on people to teach you it.
+This has survived the night on my box with printk(s) in the if(s) to verify
+its actually working.
 
-Get VNC Server for Macintosh from http://www.chromatix.uklinux.net/vnc/
+Comments on style, bugs and reports on its effects very welcome.
 
------BEGIN GEEK CODE BLOCK-----
-Version 3.12
-GCS$/E/S dpu(!) s:- a20 C+++ UL++ P L+++ E W+ N- o? K? w--- O-- M++$ V? PS
-PE- Y+ PGP++ t- 5- X- R !tv b++ DI+++ D G e+ h+ r++ y+(*)
------END GEEK CODE BLOCK-----
+---
+--- /usr/src/linux/mm/vmscan.c.ac25	Tue Mar 27 06:28:34 2001
++++ /usr/src/linux/mm/vmscan.c	Tue Mar 27 06:28:06 2001
+@@ -985,22 +985,51 @@
+ 	for (;;) {
+ 		static int recalc = 0;
+ 
++		/* vmtime tracks time as the vm precieves it.
++		 * It is advanced depending on the ammount of
++		 * memory pressure.
++		 */
++
++		static int vmtime = 0;	
++		static int bgscan_required = 0;
++		static int slab_scan_required = 0;
++
+ 		/* If needed, try to free some memory. */
+ 		if (inactive_shortage() || free_shortage()) 
+ 			do_try_to_free_pages(GFP_KSWAPD, 0);
+ 
+ 		/*
+ 		 * Do some (very minimal) background scanning. This
+-		 * will scan all pages on the active list once
+-		 * every minute. This clears old referenced bits
+-		 * and moves unused pages to the inactive list.
++		 * tries to scan all pages on the active list at the 
++		 * rate pages are allocated. This clears old referenced
++		 * bits and moves unused pages to the inactive list.
++		 */
++		if (vmtime > bgscan_required ) {
++			refill_inactive_scan(DEF_PRIORITY, 0);
++			bgscan_required = vmtime + (nr_active_pages >> INACTIVE_SHIFT);
++		}
++
++		/* 
++		 * Here we apply some pressure to the slab cache.  We
++		 * apply more pressure as it gets bigger.  This would
++		 * be cleaner if there was a nr_slab_pages...
+ 		 */
+-		refill_inactive_scan(DEF_PRIORITY, 0);
++		if (vmtime > slab_scan_required) {
++			shrink_dcache_memory(DEF_PRIORITY, GFP_KSWAPD);
++			shrink_icache_memory(DEF_PRIORITY, GFP_KSWAPD);
++	 		slab_scan_required = vmtime + num_physpages - nr_free_pages() - atomic_read(&page_cache_size) - atomic_read(&buffermem_pages); 
++		}
+ 
+-		/* Once a second, recalculate some VM stats. */
++		/* Once a second, recalculate some VM stats and the vmtime. */
+ 		if (time_after(jiffies, recalc + HZ)) {
+ 			recalc = jiffies;
+-			recalculate_vm_stats();
++	 		recalculate_vm_stats();
++			vmtime += (memory_pressure >> INACTIVE_SHIFT); 
++			if (vmtime > INT_MAX - num_physpages) {
++				vmtime = 0;
++				bgscan_required = 0;
++				slab_scan_required = 0;
++			}
+ 		}
+ 
+ 		run_task_queue(&tq_disk);
+---
 
-
+Ed Tomlinson <tomlins@cam.org>
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
