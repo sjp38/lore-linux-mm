@@ -1,40 +1,42 @@
-Date: 14 Feb 2005 20:18:40 +0100
-Date: Mon, 14 Feb 2005 20:18:40 +0100
-From: Andi Kleen <ak@muc.de>
-Subject: Re: [RFC 2.6.11-rc2-mm2 0/7] mm: manual page migration -- overview
-Message-ID: <20050214191840.GA57423@muc.de>
-References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <m1vf8yf2nu.fsf@muc.de> <20050212121228.GA15340@lnx-holt.americas.sgi.com>
+Date: Mon, 14 Feb 2005 16:01:49 -0600
+From: Robin Holt <holt@sgi.com>
+Subject: Re: [RFC 2.6.11-rc2-mm2 7/7] mm: manual page migration -- sys_page_migrate
+Message-ID: <20050214220148.GA11832@lnx-holt.americas.sgi.com>
+References: <20050212032535.18524.12046.26397@tomahawk.engr.sgi.com> <20050212032620.18524.15178.29731@tomahawk.engr.sgi.com> <1108242262.6154.39.camel@localhost> <20050214135221.GA20511@lnx-holt.americas.sgi.com> <1108407043.6154.49.camel@localhost>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20050212121228.GA15340@lnx-holt.americas.sgi.com>
+In-Reply-To: <1108407043.6154.49.camel@localhost>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robin Holt <holt@sgi.com>
-Cc: Ray Bryant <raybry@sgi.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Robin Holt <holt@sgi.com>, Ray Bryant <raybry@sgi.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Hugh DIckins <hugh@veritas.com>, Andrew Morton <akpm@osdl.org>, Marcello Tosatti <marcello@cyclades.com>, Ray Bryant <raybry@austin.rr.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-> For our use, the batch scheduler will give an intermediary program a
-> list of processes and a series of from-to node pairs.  That process would
-> then ensure all the processes are stopped, scan their VMAs to determine
-> what regions are mapped by more than one process, which are mapped
-> by additional processes not in the job, and make this system call for
-> each of the unique ranges in the job to migrate their pages from one
-> node to the next.  I believe Ray is working on a library and a standalone
-> program to do this from a command line.
+On Mon, Feb 14, 2005 at 10:50:42AM -0800, Dave Hansen wrote:
+> On Mon, 2005-02-14 at 07:52 -0600, Robin Holt wrote:
+> > The node mask is a list of allowed.  This is intended to be as near
+> > to a one-to-one migration path as possible.
+> 
+> If that's the case, it would make the kernel internals a bit simpler to
+> only take a "from" and "to" node, instead of those maps.  You'll end up
+> making multiple syscalls, but that shouldn't be a problem.  
 
-Sounds quite ugly. 
+Then how do you handle overlapping nodes.  If I am doing a 5->4, 4->3,
+3->2, 2->1 shift in the memory placement and had only a from and to node,
+I would end up calling multiple times.  This would end up in memory shifting
+from 5->4 on the first, 4->3 on the second, ... with the end result of
+all memory shifting to a single node.
 
-Do you have evidence that this is a common use case? (jobs having stuff
-mapped from programs not in the job). If not I think it's better
-to go with a simple interface, not one that is unusable without
-a complex user space library.
+With the array-of-node maps, you make a single pass across the address
+space.  This results in a clean mapping without the userspace needing to
+know which nodes the pages are on.
 
-If you mean glibc etc. only then the best solution for that would be probably
-to use the (currently unmerged) arbitary file mempolicy code for this and set
- a suitable attribute that prevents moving.
+On a seperate topic, I would guess the syscall time is trivial compared
+to the time to walk the page tables.
 
--Andi
+Thanks,
+Robin
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
