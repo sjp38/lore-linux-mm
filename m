@@ -1,35 +1,78 @@
-Date: Thu, 4 May 2000 17:23:35 +0200 (CEST)
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: classzone-VM + mapped pages out of lru_cache
-In-Reply-To: <Pine.LNX.4.21.0005041702560.2512-100000@alpha.random>
-Message-ID: <Pine.LNX.4.21.0005041722560.2835-100000@alpha.random>
+Date: Thu, 4 May 2000 08:33:22 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: Oops in __free_pages_ok (pre7-1) (Long) (backtrace)
+In-Reply-To: <391129F8.366659D4@sgi.com>
+Message-ID: <Pine.LNX.4.10.10005040808490.1137-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Juan J. Quintela" <quintela@fi.udc.es>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, trond.myklebust@fys.uio.no
+To: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>, Rik van Riel <riel@nl.linux.org>
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 4 May 2000, Andrea Arcangeli wrote:
 
->--- 2.2.15/mm/filemap.c	Thu May  4 13:00:40 2000
->+++ /tmp/filemap.c	Thu May  4 17:11:18 2000
->@@ -68,7 +68,7 @@
+On Thu, 4 May 2000, Rajagopal Ananthanarayanan wrote:
 > 
-> 	p = &inode->i_pages;
-> 	while ((page = *p) != NULL) {
->-		if (PageLocked(page)) {
->+		if (PageLocked(page) || atomic_read(&page->count) > 1) {
-> 			p = &page->next;
-> 			continue;
-> 		}
+> I did some testing of this patch with dbench.
+> The kernel starts shooting processes down pretty quickly
+> ("VM: killing process XXX") on a 2 CPU 64MB system,
+> with nothing but dbench (8 clients). A concurrently
+> running vmstat shows very low free memory with some swapping,
+> and the buffer space remaining around 50MB.
 
-above patch is also here:
+Ok. The page locking patch should not change any swap behaviour at all, so
+this behaviour is likely to be due to the pageout changes by Rik.
 
-	ftp://ftp.us.kernel.org/pub/linux/kernel/people/andrea/patches/v2.2/2.2.15/invalidate_inode_pages-1
+(Oh, the page locking might cause another part of the vmscanning logic to
+temporarily ignore a page because it is locked, but that should be a very
+small second-order effect compared to the "big picture" changes in how
+much to page out).
 
-Andrea
+Rik, I think the kswapd logic is wrong, and I suspect you made it
+worsewhen you added the while-loop. The problem looks like that while
+kswapd is working on one zone, it will entirely ignore any other zones. I
+think the logic should be more like
+
+	for (;;) {
+		int something_to_do = 0;
+		pgdat = pgdat_list;
+		while (pgdat) {
+			for(i = 0; i < MAX_NR_ZONES; i++) {
+				zone = pgdat->node_zones+ i;
+				if (!zone->size || !zone->zone_wake_kswapd)
+					continue;
+				something_to_do = 1;
+				do_try_to_free_pages(GFP_KSWAPD, zone);
+			}
+			run_task_queue(&tq_disk);
+			pgdat = pgdat->node_next;
+		}
+		if (something_to_do) {
+			if (tsk->need_resched)
+				schedule();
+			continue;
+		}
+		tsk->state = TASK_INTERRUPTIBLE;
+		interruptible_sleep_on(&kswapd_wait);
+	}
+
+See? This has two changes to the current logic:
+ - it is more "balanced" on the do_try_to_free_pages(), ie it calls it for
+   different zones instead of repeating one zone until no longer needed.
+ - it continues to do this until no zone needs balancing any more, unlike
+   the old one that could easily lose kswapd wakeup-requests and just do
+   one zone.
+
+What do you think? I suspect that the added do-loop in pre7 just made the
+"lost wakeups" problem worse by concentrating on one zone for a longer
+while and thus more likely to lose wakeups for lower zones (because it
+already looked at those).
+
+There might be other details like this lurking, but this looks like a good
+first try. Ananth, willing to give it a whirl?
+
+			Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
