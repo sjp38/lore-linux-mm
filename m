@@ -1,71 +1,66 @@
-Received: from burns.conectiva (burns.conectiva [10.0.0.4])
-	by perninha.conectiva.com.br (Postfix) with SMTP id 7E3BC47486
-	for <linux-mm@kvack.org>; Tue, 22 Oct 2002 14:10:02 -0200 (BRST)
-Date: Tue, 22 Oct 2002 14:09:47 -0200 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH 2.5.43-mm2] New shared page table patch
-In-Reply-To: <2629464880.1035240956@[10.10.2.3]>
-Message-ID: <Pine.LNX.4.44L.0210221405260.1648-100000@duckman.distro.conectiva>
+Date: Tue, 22 Oct 2002 09:13:19 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
+Reply-To: "Martin J. Bligh" <mbligh@aracnet.com>
+Subject: Re: ZONE_NORMAL exhaustion (dcache slab)
+Message-ID: <2666502487.1035277994@[10.10.2.3]>
+In-Reply-To: <3DB4EE4E.88311B7B@digeo.com>
+References: <3DB4EE4E.88311B7B@digeo.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: "Eric W. Biederman" <ebiederm@xmission.com>, Bill Davidsen <davidsen@tmr.com>, Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux Memory Management <linux-mm@kvack.org>
+To: Andrew Morton <akpm@digeo.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 21 Oct 2002, Martin J. Bligh wrote:
+ 
+>> > Maybe you didn't cat /dev/sda2 for long enough?
+>> 
+>> Well, it's a multi-gigabyte partition. IIRC, I just ran it until
+>> it died with "input/output error" ... which I assumed at the time
+>> was the end of the partition, but it should be able to find that
+>> without error, so maybe it just ran out of ZONE_NORMAL ;-)
+> 
+> Oh.  Well it should have just hit eof.  Maybe you have a dud
+> sector and it terminated early.
 
-> > I will agree with that if everything works so the sharing happens,
-> > this is a nice feature.
->
-> I think it will for most of the situations we run aground with now
-> (normally 5000 oracle tasks sharing a 2Gb shared segment, or some
-> such monster).
+OK, I catted an 18Gb disk completely. The beast still didn't shrink.
 
-10 GB pagetable overhead, for 2 GB of data.  No customer I
-know would accept that much OS overhead.
+larry:~# cat /proc/meminfo
+MemTotal:     16078192 kB
+MemFree:      15043280 kB
+MemShared:           0 kB
+Buffers:         79152 kB
+Cached:         287248 kB
+SwapCached:          0 kB
+Active:         263056 kB
+Inactive:       105136 kB
+HighTotal:    15335424 kB
+HighFree:     15039616 kB
+LowTotal:       742768 kB
+LowFree:          3664 kB
+SwapTotal:           0 kB
+SwapFree:            0 kB
+Dirty:               0 kB
+Writeback:           0 kB
+Mapped:           3736 kB
+Slab:           641352 kB
+Reserved:       570000 kB
+Committed_AS:     2400 kB
+PageTables:        180 kB
+ReverseMaps:      2236
 
-To reduce the overhead we could either reclaim the page
-tables and reconstruct them when needed (lots of work) or
-we could share the page tables (less runtime overhead).
+ext2_inode_cache  476254 541125    416 60125 60125    1 :  120   
+dentry_cache      2336272 2336280    160 97345 97345    1 :  248  124
 
-> >> The ultimate solution is per-object reverse mappings, rather than per
-> >> page, but that's a 2.7 thingy now.
-> > ???
-> >
-> > Last I checked we already had those in 2.4.x, and still in 2.5.x.  The
-> > list of place the address space is mapped.
->
-> It's more complicated than that ... I'll let Rik or one of the K42
-> guys who understand it better than I do explain it (yeah, I'm
-> wimping out on you ;-))
+Note that dentry cache seems to have grown overnight ....
 
-Actually, per-object reverse mappings are nowhere near as good
-a solution as shared page tables.  At least, not from the points
-of view of space consumption and the overhead of tearing down
-the mappings at pageout time.
+I guess I'll add some debug code to the slab cache shrinkers
+and try to see what it's doing.
 
-Per-object reverse mappings are better for fork+exec+exit speed,
-though.
-
-It's a tradeoff: do we care more for a linear speedup of fork(),
-exec() and exit() than we care about a possibly exponential
-slowdown of the pageout code ?
-
-(note that William Irwin and myself have a trick to turn the
-possible exponential slowdown of the pageout code into something
-better ... just a few details left)
-
-regards,
-
-Rik
--- 
-A: No.
-Q: Should I include quotations after my reply?
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+M.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
