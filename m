@@ -1,60 +1,94 @@
-Date: Fri, 25 Oct 2002 11:47:15 +0200
+Date: Fri, 25 Oct 2002 11:52:45 +0200
 From: Jens Axboe <axboe@suse.de>
-Subject: VM BUG, set_page_dirty() buggy?
-Message-ID: <20021025094715.GF12628@suse.de>
+Subject: Re: VM BUG, set_page_dirty() buggy?
+Message-ID: <20021025095245.GL4153@suse.de>
+References: <20021025094715.GF12628@suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="8w3uRX/HFJGApMzv"
 Content-Disposition: inline
+In-Reply-To: <20021025094715.GF12628@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linux Kernel <linux-kernel@vger.kernel.org>
 Cc: Andrew Morton <akpm@digeo.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+--8w3uRX/HFJGApMzv
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-I'm seeing what looks like a bug in set_page_dirty() in 2.5.44 (and
-2.5.44-mm5), pages are being dumped. I first discovered this when
-playing with the SGIO stuff, reading CD images and writing them to disk.
-This works well as long as there is no memory pressure on the box.
-However, if I run a fillmem app at the same time, zero filled holes
-appear in the output file. After trying to trace a bug in my code, I
-decided to test O_DIRECT reads to see if they exhibited the same bug.
-And indeed they did.
+On Fri, Oct 25 2002, Jens Axboe wrote:
+> I've attached oread in its simplicity. System being tested here is a
+> dual P3-800MHz, not using preempt (never do). It doesn't matter if the
+> input is on /dev/sda or ide disk, scsi cdrom, or atapi cdrom. It behaves
+> the same way, data is lost.
 
-I wont bore you with the SGIO test case, the O_DIRECT is much smaller.
-What I do to reproduce is read a file off an ext2 partition and plain
-write the output to another file. The input file is actually generated
-from an SGIO read of a CD, and is ~500MiB in length. While I'm doing
-this, I run the memfiller app (it just allocs ~180% of physical memory
-and memsets it).
-
-bart:~ # while true; do echo "Starting run $TURN"; ./fillmem; ((TURN++)); done
-
-bart:~ # ./oread xpdisc_pio /mnt/xpdisc_sr0
-
-/ is on /dev/sda3, ext2, 4kb block size.
-/mnt is on /dev/hda1, ext2, 4kb block size. tried ext3 too.
-swap is on /dev/sda1
-
-When oread completes, I kill fillmem and compare the two files. This
-typically succeeds the first time. Then umount and mount /mnt, and redo
-the compare:
-
-bart:~ # cmp /mnt/xpdisc_sr0 xpdisc_pio
-/mnt/xpdisc_sr0 xpdisc_pio differ: char 44433409, line 188432
-
-If you look at /mnt/xpdisc_sr0 from 44433408 and on, there will be a
-zero-filled hole ranging from ~500KiB -> ~3000KiB. This varies.
-
-I've attached oread in its simplicity. System being tested here is a
-dual P3-800MHz, not using preempt (never do). It doesn't matter if the
-input is on /dev/sda or ide disk, scsi cdrom, or atapi cdrom. It behaves
-the same way, data is lost.
+Well here it is...
 
 -- 
 Jens Axboe
 
+
+--8w3uRX/HFJGApMzv
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="oread.c"
+
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
+
+#ifndef O_DIRECT
+#define O_DIRECT	040000
+#endif
+
+#define READ_SIZE	(65536)
+#define ALIGN(buf)	(char *) (((unsigned long) (buf) + 4095) & ~(4095))
+
+int main(int argc, char *argv[])
+{
+	char *buffer, *ptr;
+	int fd_in, fd_out, ret;
+
+	if (argc < 3) {
+		printf("%s: <infile> <outfile>\n", argv[0]);
+		return 1;
+	}
+
+	printf("%s: infile: %s -> outfile %s\n", argv[0],argv[1],argv[2]);
+
+	fd_in = open(argv[1], O_RDONLY | O_DIRECT);
+	if (fd_in == -1) {
+		perror("open infile");
+		return 2;
+	}
+
+	fd_out = open(argv[2], O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	if (fd_out == -1) {
+		perror("open outfile");
+		return 3;
+	}
+
+	ptr = malloc(READ_SIZE + 4095);
+	buffer = ALIGN(ptr);
+
+	do {
+		ret = read(fd_in, buffer, READ_SIZE);
+		if (!ret)
+			break;
+		else if (ret < 0) {
+			perror("read infile");
+			break;
+		}
+		write(fd_out, buffer, ret);
+	} while (1);
+
+	free(ptr);
+	close(fd_in); close(fd_out);
+	return 0;
+}
+
+--8w3uRX/HFJGApMzv--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
