@@ -1,48 +1,46 @@
+Date: Wed, 3 May 2000 00:08:11 +0200 (CEST)
+From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: Oops in __free_pages_ok (pre7-1) (Long)
-References: <Pine.LNX.4.21.0005022355140.1677-100000@alpha.random>
-From: "Juan J. Quintela" <quintela@fi.udc.es>
-In-Reply-To: Andrea Arcangeli's message of "Wed, 3 May 2000 00:02:05 +0200 (CEST)"
-Date: 03 May 2000 00:13:27 +0200
-Message-ID: <yttn1m8zjlk.fsf@vexeta.dc.fi.udc.es>
+In-Reply-To: <yttg0s13gjx.fsf@vexeta.dc.fi.udc.es>
+Message-ID: <Pine.LNX.4.21.0005030004330.1677-100000@alpha.random>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrea Arcangeli <andrea@suse.de>
-Cc: Linus Torvalds <torvalds@transmeta.com>, linux-mm@kvack.org, Kanoj Sarcar <kanoj@google.engr.sgi.com>
+To: "Juan J. Quintela" <quintela@fi.udc.es>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>, Kanoj Sarcar <kanoj@google.engr.sgi.com>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "andrea" == Andrea Arcangeli <andrea@suse.de> writes:
+On 2 May 2000, Juan J. Quintela wrote:
 
-Hi
+>swap_entry bit, but not agreement in which is the correct one.
 
->> If you want the patch for get rid of PG_swap_entry, I can do it and send
->> it to you.
+My latest one is the correct one but I would also use the atomic operation
+in shrink_mmap even if we hold the page lock to be fully safe. I have an
+assert that BUG if a page is freed with such bit set and it never triggers
+since I noticed the few problematic places thanks to Ben.
 
-andrea> The PG_swap_entry isn't going to be the problem. However if you fear about
-andrea> it try out this patch on top of 2.3.99-pre6. If PG_swap_entry is the
-andrea> problem you'll get your problem fixed.
+>diff -u -urN --exclude=CVS --exclude=*~ --exclude=.#* pre7-1plus/mm/memory.c lin
+>ux/mm/memory.c
+>--- pre7-1plus/mm/memory.c      Tue Apr 25 00:46:18 2000
+>+++ linux/mm/memory.c   Tue May  2 00:36:13 2000
+>@@ -1053,7 +1053,7 @@
+> 
+>        pte = mk_pte(page, vma->vm_page_prot);
+> 
+>-       SetPageSwapEntry(page);
+>+       /*      SetPageSwapEntry(page);  */
+> 
+>        /*
+>         * Freeze the "shared"ness of the page, ie page_count + swap_count.
 
-Andrea, I have done basically the same patch (see my post to the list
-yesterday),  I commented the line that set the PG_swap_entry bit.  (My
-patch has the same net effect).  And now my systems don't crash, I
-don't trigger more BUGS. 
+Are you sure it solves the problem? Could you try also the other patch I
+sent you in the email of 1 minute ago? that should be even more effective.
 
+I'll let you know what happens here...
 
-andrea> Just a thought, do you use NFS? If so please give a try without NFS
-andrea> filesystem mounted. I should have addressed the NFS troubles in my current
-andrea> tree but it's still under testing.
+Andrea
 
-Yes, I use NFS, but all the test has been done in ext2 local
-file systems.  I had at that time mounted NFS partitions, but I was not
-using them, make that any difference?
-
-Later, Juan.
-
-
--- 
-In theory, practice and theory are the same, but in practice they 
-are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
