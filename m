@@ -1,104 +1,56 @@
-Date: Wed, 17 Nov 1999 20:46:04 +0100 (CET)
-From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Subject: [patch] zoned-2.3.28-K4
-Message-ID: <Pine.LNX.4.10.9911172042220.5725-100000@chiara.csoma.elte.hu>
+Date: Thu, 18 Nov 1999 19:57:58 -0800 (PST)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [patch] zoned-2.3.28-K4
+In-Reply-To: <Pine.LNX.4.10.9911172042220.5725-100000@chiara.csoma.elte.hu>
+Message-ID: <Pine.LNX.4.10.9911181946030.4569-100000@penguin.transmeta.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
-Cc: Linus Torvalds <torvalds@transmeta.com>
+To: Ingo Molnar <mingo@chiara.csoma.elte.hu>
+Cc: MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-the latest patchset is at:
+[ Ok, back from comdex, looking through my horrible backlog of email.. ]
 
-	http://www.redhat.com/~mingo/zoned-2.3.28-K4
+On Wed, 17 Nov 1999, Ingo Molnar wrote:
+> 
+> the latest patchset is at:
+> 
+> 	http://www.redhat.com/~mingo/zoned-2.3.28-K4
 
--- mingo
+Ugh. I don't like some of this:
 
-Changes in zoned-2.3.28-K4:
+ - the "task->refcount" thing is just silly, considering that any
+   architecture that uses pages for task allocation would have been better
+   off just using the memory management refcount like we used to.
 
-- Russell King's task reference counter fix
+   Why not do this by just doing a per-architecture "get_task_struct()"
+   and "put_task_struct()", to go with the already existing "alloc" and
+   "free" functionality?
 
-- Petr Vandrovec's ncpfs-in-highmem patch
+   Thus, on the 99% of all machines where the page allocator already does
+   the work for us, we'd just have
 
+		#define get_task_struct(tsk) \
+			atomic_inc(&mem_map[MAP_NR(tsk)].count)
+		#define put_task_struct(tsk) \
+			free_task_struct(tsk)
 
-Changes in zoned-2.3.28-K2:
+   which is just obviously right and cleans up the need to have that silly
+   refcount. Then ARM can just have a refcount in its own definition of
+   get_task_struct() and friends in task->thread.refcount..
 
-- fixed stupid oom bug reported by Jeff and others, introduced in J5
+ - I don't see the reason for renaming page_address() to page_vaddr()?
 
-- fixed memory balancing
+ - "flush_cache_all()" etc in "pgalloc.h"? Senseless. I can see pgalloc.h
+   containing the page table allocation routines. But why did you move the
+   other stuff there? Looks like a cut-and-paste bug to me. Why a new
+   header file at all?
 
-- show_free_areas() bug fixed.
+Would you mind explaining or re-doing?
 
-- (includes Russell King's procfs fix)
-
-
-Changes in zoned-2.3.28-J5:
-
-- further page_alloc.c cleanups/speedups.
-
-- Alan and Rogier convinced me to optimize the 'top level zone is empty'
-  case a bit more.
-
-- show_free_areas() works again.
-
-- some more include file fixes
-
-
-Changes in zoned-2.3.28-H2:
-
-- fixed NFS to work out of high memory - tested with moderate load. All
-  NFS caches (directory, symlink, data, etc.) are in high memory.
-
-- modules fix ...
-
-- page->virtual is filled out for non-highmem pages too, this is a
-  nice speedup in certain cases.
-
-- fixed a bug in highmem support which might cause user-datapage
-  corruption in certain cases.
-
-
-Changes in zoned-2.3.28-G5:
-
-- this one should actually compile if modules support is turned on ...
-
-
-Changes in zoned-2.3.28-G4:
-
-- implemented 'zone chains' zonelist_t and gfp_mask indexed zonelists[]
-  speedups (Linus' idea) to handle fallback zones. This should enable
-  advanced NUMA-style allocations as well. [fallback to different CPUs is 
-  possible via changing build_zonelists().]
-
-- <=16MB RAM boxes should boot just fine now.
-
-- added page->zone for easier deallocation and generic cleanliness. This
-  also helps NUMA.
-
-- cleaned up the page-allocator namespace, there are only two 'core'
-  page-allocation functions left: __alloc_pages() and __free_pages_ok().
-
-- modules should compile again.
-
-- we are now inlining the 'put_page_testzero()' part of __free_page_ok.
-  This is subtle as page->count for reserved pages is now 'rotating' -
-  this is fine though and lets us to put the rare PageReserved() branch
-  into __free_page_ok().
-
-- cleaned up pgtable.h, split into lowlevel and highlevel parts, this
-  fixes dependencies in mm.h & misc.c.
-
-- serial.c didnt clear freshly allocated bootmem - as a result now all
-  bootmem allocations are explicitly cleared, it's not performance
-  critical anyway.
-
-- fixed code,data,initmem reporting.
-
-- fixed boot task's swapper_pg_dir clearing
-
--- mingo
+		Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
