@@ -1,55 +1,77 @@
-Received: from dreambringer (znmeb.cust.aracnet.com [216.99.196.115])
-	(authenticated bits=0)
-	by franka.aracnet.com (8.12.5/8.12.5) with ESMTP id g86DgPid021075
-	for <linux-mm@kvack.org>; Fri, 6 Sep 2002 06:42:26 -0700
-From: "M. Edward Borasky" <znmeb@aracnet.com>
-Subject: RE: meminfo or Rephrased helping the Programmer's help themselves...
-Date: Fri, 6 Sep 2002 06:44:16 -0700
-Message-ID: <HBEHIIBBKKNOBLMPKCBBOEIKFFAA.znmeb@aracnet.com>
-MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="us-ascii"
+Subject: Re: 2.5.33-mm3 dbench hang and 2.5.33 page allocation failures
+From: Steven Cole <elenstev@mesatop.com>
+In-Reply-To: <3D77B28F.488933FB@zip.com.au>
+References: <1031250156.2799.86.camel@spc9.esa.lanl.gov>
+	<1031253714.1990.116.camel@spc9.esa.lanl.gov>
+	<3D77B28F.488933FB@zip.com.au>
+Content-Type: text/plain
 Content-Transfer-Encoding: 7bit
-In-Reply-To: <Pine.LNX.4.44L.0209061010190.1857-100000@imladris.surriel.com>
+Date: 06 Sep 2002 08:14:55 -0600
+Message-Id: <1031321695.1984.132.camel@spc9.esa.lanl.gov>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Andrew Morton <akpm@zip.com.au>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Yes, it is a high-level proposal - I adhere to the top-down philosophy of
-software design, as well as the SEI standards for software engineering
-process. One does not communicate about large software objects like the
-Linux kernel in small manageable chunks of C code in that process. Perhaps
-the fact that I insist on a design specification, requirements documents,
-code reviews, etc., is the reason nobody has volunteered to join the
-project.
+On Thu, 2002-09-05 at 13:37, Andrew Morton wrote:
 
-I think a team of three could pull it off in six months; there isn't that
-much kernel code that has to be done. All the hooks are there in the /proc
-filesystem, they just need to be organized in a rational manner. The scheme
-Windows has for PerfMon is much better than the haphazard results in the
-/proc filesystem, which have been submitted over the years in "manageable
-chunks". The rest of Cougar is R code - R is extremely well documented - and
-database work, for which any ODBC-compliant RDB will work.
+> 
+> grr.  I run dbench all night, so any insight you can get into this
+> would be appreciated.  (I've had a few hangs, but they're due
+> to bust disk drivers, aic7xxx not handling IO errors correctly, etc)
 
-The first task that needs to be done is to develop a high-level model of the
-Linux kernel. There are numerous modeling/simulation/analysis techniques
-that can be used for such models. Generalized Stochastic Petri Nets (GSPNs)
-are probably the best known, and I believe a related package, DSPNExpress,
-is available for Linux in an academic settings. See Christoph Lindemann's
-home page at
+Double grr.  I just ran 2.5.33-mm4 and got the hang at dbench 8.  And in
+my haste, I forgot to enable sysrq after boot.
+> 
+> > BTW, the note in Documentation/sysrq.txt about not needing to enable
+> > /proc/sys/kernel/sysrq anymore appears to be incorrect.  I had to set
+> > this to 1 as it was set to 0 on boot.
+> 
+> grep your initscripts.  Some distros turn it off by hand.
 
-http://ls4-www.cs.uni-dortmund.de/~Lindemann/
+[root@spc5 steven]# find /etc -name "*" | xargs grep sysrq
+/etc/sysctl.conf:kernel.sysrq = 0
 
-for the details.
+This is from RH 7.3.  Fixed.  Thanks.
 
-M. Edward (Ed) Borasky
-mailto: znmeb@borasky-research.net
-http://www.pdxneurosemantics.com
-http://www.meta-trading-coach.com
-http://www.borasky-research.net
+For what it's worth, I ran the output from sysrq-p (2.5.33-mm3
+yesterday) through ksymoops, and here is the result. I typed those
+numbers in manually. I'll try to get time to set up a serial console
+today.
 
-Coaching: It's Not Just for Athletes and Executives Any More!
+Steven
+
+[steven@spc5 linux-2.5.33-mm3]$ ksymoops -K -L -O -v vmlinux -m System.map <regdump.txt
+ksymoops 2.4.4 on i686 2.4.18-3smp.  Options used
+     -v vmlinux (specified)
+     -K (specified)
+     -L (specified)
+     -O (specified)
+     -m System.map (specified)
+
+Pid: 1219, comm:        pdflush
+EIP: 0060:[<c015a388>] CPU:1 EFLASHS: 00000202  Not tainted
+Using defaults from ksymoops -t elf32-i386 -a i386
+EAX: eaf09f88 EBX: 00000000 ECX: 00000020 edx: 00000400
+ESI: eaf09f88 EDI: 000065c2 EBP: eaf09fd0 DS: 0068 es: 0068
+CR0: 8005003b CR2: 40262000 CR3: 1e5b5000 CR4: 00000690
+Call Trace: [<c013bb1a>] [<c013b73b>] [<c013b7e0>] [<c013b7eb>] [<c013baa0>]
+[<c01072284>] [<c0107289>]
+Warning (Oops_read): Code line not seen, dumping what data is available
+
+>>EIP; c015a388 <.text.lock.fs_writeback+47/cf>   <=====
+Trace; c013bb1a <background_writeout+7a/c0>
+Trace; c013b73b <__pdflush+12b/1d0>
+Trace; c013b7e0 <pdflush+0/10>
+Trace; c013b7eb <pdflush+b/10>
+Trace; c013baa0 <background_writeout+0/c0>
+Trace; 0000000c01072284 <END_OF_CODE+b40ce7870/????>
+Trace; c0107289 <kernel_thread_helper+5/c>
+
+
+1 warning issued.  Results may not be reliable.
 
 
 --
