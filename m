@@ -1,34 +1,28 @@
-Date: Wed, 07 May 2003 02:56:26 -0700 (PDT)
-Message-Id: <20030507.025626.10317747.davem@redhat.com>
+Date: Wed, 7 May 2003 05:06:24 -0700
+From: William Lee Irwin III <wli@holomorphy.com>
 Subject: Re: 2.5.69-mm2 Kernel panic, possibly network related
-From: "David S. Miller" <davem@redhat.com>
-In-Reply-To: <3EB8E4CC.8010409@aitel.hist.no>
-References: <3EB8DBA0.7020305@aitel.hist.no>
-	<1052304024.9817.3.camel@rth.ninka.net>
-	<3EB8E4CC.8010409@aitel.hist.no>
+Message-ID: <20030507120624.GZ8978@holomorphy.com>
+References: <20030506232326.7e7237ac.akpm@digeo.com> <3EB8DBA0.7020305@aitel.hist.no>
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3EB8DBA0.7020305@aitel.hist.no>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: helgehaf@aitel.hist.no
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@digeo.com
+To: Helge Hafting <helgehaf@aitel.hist.no>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-   David S. Miller wrote:
-   > On Wed, 2003-05-07 at 03:10, Helge Hafting wrote:
-   > 
-   >>2.5.69-mm1 is fine, 2.5.69-mm2 panics after a while even under very
-   >>light load.
-   > 
-   > Do you have AF_UNIX built modular?
-   
-   No, I compile everything into a monolithic kernel.
-   I don't even enable module support.
-   
-Andrew, color me stumped.  mm2/linux.patch doesn't have anything
-really interesting in the networking.  Maybe it's something in
-the SLAB and/or pgd/pmg re-slabification changes?
+On Wed, May 07, 2003 at 12:10:40PM +0200, Helge Hafting wrote:
+> 2.5.69-mm1 is fine, 2.5.69-mm2 panics after a while even under very
+> light load.
+
+Could you try testing with the slabification patch backed out?
+
+Thanks.
+
+
+-- wli
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
