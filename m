@@ -1,31 +1,74 @@
-Date: Mon, 22 Jul 2002 11:05:10 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
 Subject: Re: [PATCH] low-latency zap_page_range
-In-Reply-To: <1027360686.932.33.camel@sinai>
-Message-ID: <Pine.LNX.4.44.0207221103430.2928-100000@home.transmeta.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <Pine.LNX.4.44.0207221103430.2928-100000@home.transmeta.com>
+References: <Pine.LNX.4.44.0207221103430.2928-100000@home.transmeta.com>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 22 Jul 2002 11:22:25 -0700
+Message-Id: <1027362145.932.49.camel@sinai>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Robert Love <rml@tech9.net>
+To: Linus Torvalds <torvalds@transmeta.com>
 Cc: Andrew Morton <akpm@zip.com.au>, riel@conectiva.com.br, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, 2002-07-22 at 11:05, Linus Torvalds wrote:
 
-On 22 Jul 2002, Robert Love wrote:
->
-> Sure.  What do you think of this?
+> How about adding an "cond_resched_lock()" primitive?
+> 
+> You can do it better as a primitive than as the written-out thing (the
+> spin_unlock() doesn't need to conditionally test the scheduling point
+> again, it can just unconditionally call schedule())
+> 
+> And there might be other places that want to drop a lock before scheduling
+> anyway.
 
-How about adding an "cond_resched_lock()" primitive?
+Great idea.  I have similar functions in my lock-break patch...
 
-You can do it better as a primitive than as the written-out thing (the
-spin_unlock() doesn't need to conditionally test the scheduling point
-again, it can just unconditionally call schedule())
+This introduces "cond_resched_lock()" and "break_spin_lock()".  Both
+take a lock has a parameter.  The former only drops the locks and
+reschedules if need_resched is set.  It is optimized to only check once,
+etc.  The later simply unlocks then relocks.
 
-And there might be other places that want to drop a lock before scheduling
-anyway.
+Patch is against your BK tree.
 
-		Linus
+	Robert Love
+
+diff -urN linux-2.5.27/include/linux/sched.h linux/include/linux/sched.h
+--- linux-2.5.27/include/linux/sched.h	Sat Jul 20 12:11:07 2002
++++ linux/include/linux/sched.h	Mon Jul 22 11:16:55 2002
+@@ -865,6 +867,30 @@
+ 		__cond_resched();
+ }
+ 
++/*
++ * cond_resched_lock() - if a reschedule is pending, drop the given lock,
++ * call schedule, and on return reacquire the lock.  Note this assumes
++ * the given lock is the _only_ held lock and otherwise you are not atomic.
++ */
++static inline void cond_resched_lock(spinlock_t * lock)
++{
++	if (need_resched()) {
++		spin_unlock_no_resched(lock);
++		__cond_resched();
++		spin_lock(lock);
++	}
++}
++
++/*
++ * break_spin_lock - drop and immeditately reacquire the given lock.  This
++ * creates a preemption point if it is the only held lock.
++ */
++static inline void break_spin_lock(spinlock_t * lock)
++{
++	spin_unlock(lock);
++	spin_lock(lock);
++}
++
+ /* Reevaluate whether the task has signals pending delivery.
+    This is required every time the blocked sigset_t changes.
+    Athread cathreaders should have t->sigmask_lock.  */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
