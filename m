@@ -1,48 +1,37 @@
-Date: Wed, 17 Nov 2004 07:09:15 -0500 (EST)
-From: Rik van Riel <riel@redhat.com>
-Subject: Re: [PATCH] fix spurious OOM kills
-In-Reply-To: <20041117070935.GF19107@logos.cnet>
-Message-ID: <Pine.LNX.4.61.0411170706510.20252@chimarrao.boston.redhat.com>
-References: <20041113233740.GA4121@x30.random> <20041114094417.GC29267@logos.cnet>
- <20041114170339.GB13733@dualathlon.random> <20041114202155.GB2764@logos.cnet>
- <419A2B3A.80702@tebibyte.org> <419B14F9.7080204@tebibyte.org>
- <20041117012346.5bfdf7bc.akpm@osdl.org> <20041117060648.GA19107@logos.cnet>
- <20041117060852.GB19107@logos.cnet> <419B2CFC.7040006@tebibyte.org>
- <20041117070935.GF19107@logos.cnet>
+Message-ID: <419B4E51.8050101@tebibyte.org>
+Date: Wed, 17 Nov 2004 14:12:49 +0100
+From: Chris Ross <chris@tebibyte.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Subject: Re: [PATCH] fix spurious OOM kills
+References: <20041111112922.GA15948@logos.cnet>	<4193E056.6070100@tebibyte.org>	<4194EA45.90800@tebibyte.org>	<20041113233740.GA4121@x30.random>	<20041114094417.GC29267@logos.cnet>	<20041114170339.GB13733@dualathlon.random>	<20041114202155.GB2764@logos.cnet>	<419A2B3A.80702@tebibyte.org>	<419B14F9.7080204@tebibyte.org> <20041117012346.5bfdf7bc.akpm@osdl.org>
+In-Reply-To: <20041117012346.5bfdf7bc.akpm@osdl.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Cc: Chris Ross <chris@tebibyte.org>, Andrew Morton <akpm@osdl.org>, andrea@novell.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, piggin@cyberone.com.au, mmokrejs@ribosome.natur.cuni.cz, tglx@linutronix.de
+To: Andrew Morton <akpm@osdl.org>
+Cc: marcelo.tosatti@cyclades.com, andrea@novell.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, piggin@cyberone.com.au, riel@redhat.com, mmokrejs@ribosome.natur.cuni.cz, tglx@linutronix.de
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 17 Nov 2004, Marcelo Tosatti wrote:
 
-> So even when reaping referenced pages on zero priority scanning
-> the OOM killer might be triggered in extreme cases. And as the
-> number of tasks increases the chances things go wrong increase.
+Andrew Morton escreveu:
+> Please ignore the previous patch and try the below.
 
-Ignoring the referenced bit should also make the system
-"immune" from the "fake" references that the swap token
-holding task will show.
+Running 2.6.10-rc2-mm1 with just your new patch. It's got through the
+first tests, building umlsim whilst simultaneously doing an 'emerge
+sync' (this is a Gentoo box). I'll now try harder to break it.
 
-However, since it also ignores real referenced bits, it
-might mess up VM balancing a bit, which is what Andrew
-was worried about.
+> It looks like Rik's analysis is correct: when the caller doesn't have
+> the swap token it just cannot reclaim referenced pages and scans its
+> way into an oom.  Defeating that logic when we've hit the highest
+> scanning priority does seem to fix the problem and those nice qsbench
+> numbers which the thrashing control gave us appear to be unaffected.
 
-> Please test Andrew's patch, its hopefully good enough for most
-> scenarios. Extreme cases are probably still be problematic.
+I assume Rik's analysis was not copied to the list? If it was I missed 
+it. Is your summary fairly complete?
 
-Actually, because Andrew's patch makes the real referenced
-bit stand, but ignores the "fake" reference that the swap
-token gives, I suspect it'll make this swap token corner
-case a lot "softer" than my patch.
-
--- 
-"Debugging is twice as hard as writing the code in the first place.
-Therefore, if you write the code as cleverly as possible, you are,
-by definition, not smart enough to debug it." - Brian W. Kernighan
+Regards,
+Chris R.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
