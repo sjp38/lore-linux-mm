@@ -1,74 +1,38 @@
-Received: from [192.168.1.190] ([192.168.1.190])
-	by arianne.in.ishoni.com (8.11.6/Ishonir2) with ESMTP id gAI84UU29173
-	for <linux-mm@kvack.org>; Mon, 18 Nov 2002 13:34:30 +0530
-Subject: mincore_vma function
-From: Amol Kumar Lad <amolk@ishoni.com>
-Content-Type: text/plain
-Content-Transfer-Encoding: 7bit
-Date: 18 Nov 2002 13:30:29 -0500
-Message-Id: <1037644230.10326.57.camel@amol.in.ishoni.com>
+Date: Mon, 18 Nov 2002 10:29:20 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: Page size andFS blocksize
+Message-ID: <20021118102920.B2928@redhat.com>
+References: <20021117070320.75710.qmail@web12305.mail.yahoo.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20021117070320.75710.qmail@web12305.mail.yahoo.com>; from kravi26@yahoo.com on Sat, Nov 16, 2002 at 11:03:20PM -0800
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Ravi <kravi26@yahoo.com>
+Cc: kernelnewbies@nl.linux.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
-  I'm bit confused while reading this function
 
-static long mincore_vma(struct vm_area_struct * vma,
-        unsigned long start, unsigned long end, unsigned char * vec)
-{
-        long error, i, remaining;
-        unsigned char * tmp;
+On Sat, Nov 16, 2002 at 11:03:20PM -0800, Ravi wrote:
 
-        error = -ENOMEM;
-        if (!vma->vm_file)
-                return error;
+>  I was browsing the block device read/write code in fs/buffer.c (kernel
+> version 2.4.18).
+> >From waht I understood,  there is an implicit assumption that
+> filesystem block sizes
+> are never more than the size of a single page.
 
-        start = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
-        if (end > vma->vm_end)
-                end = vma->vm_end;
-        end = ((end - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+Correct.
 
-        error = -EAGAIN;
-        tmp = (unsigned char *) __get_free_page(GFP_KERNEL);
-        if (!tmp)
-                return error;
+> And has this
+> changed in
+> 2.5?
 
-        /* (end - start) is # of pages, and also # of bytes in "vec */
-        remaining = (end - start),
+No.
 
-        error = 0;
-        for (i = 0; remaining > 0; remaining -= PAGE_SIZE, i++) {
-                int j = 0;
-                long thispiece = (remaining < PAGE_SIZE) ?
-                                                remaining : PAGE_SIZE;
->>>> Why this check ? Is it possible the remaining is not a multiple of
-page (remaining = end - start)
-
-                while (j < thispiece)
-                        tmp[j++] = mincore_page(vma, start++);
->>>> why this loop ?? Don't we only need to call mincore_page _once_
-with second arg start += PAGE_SIZE; 
-
-                if (copy_to_user(vec + PAGE_SIZE * i, tmp, thispiece)) {
-                        error = -EFAULT;
-                        break;
-                }
->>>> Again, accroding to man page of mincore, each byte of vec tells
-whether page is resident or not... What is above copy_to_user doing
-        }
-
-        free_page((unsigned long) tmp);
-        return error;
-}
-
-I am using 2.4.57-mm2
-
--- Amol
-
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
