@@ -1,50 +1,33 @@
-Date: Tue, 17 Feb 2004 04:40:01 -0800
-From: "Paul E. McKenney" <paulmck@us.ibm.com>
-Subject: Re: Non-GPL export of invalidate_mmap_range
-Message-ID: <20040217124001.GA1267@us.ibm.com>
-Reply-To: paulmck@us.ibm.com
-References: <20040216190927.GA2969@us.ibm.com> <20040217073522.A25921@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040217073522.A25921@infradead.org>
+Date: Tue, 17 Feb 2004 16:26:12 -0500 (EST)
+From: Zwane Mwaikambo <zwane@linuxpower.ca>
+Subject: Re: 2.6.3-rc3-mm1
+In-Reply-To: <20040216132934.65c3d6e0.akpm@osdl.org>
+Message-ID: <Pine.LNX.4.58.0402161631450.11793@montezuma.fsmlabs.com>
+References: <Pine.LNX.3.96.1040216141554.2146A-100000@gatekeeper.tmr.com>
+ <Pine.LNX.4.58.0402161610110.11793@montezuma.fsmlabs.com>
+ <20040216132934.65c3d6e0.akpm@osdl.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Hellwig <hch@infradead.org>, akpm@osdl.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: Bill Davidsen <davidsen@tmr.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Matt Mackall <mpm@selenic.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Feb 17, 2004 at 07:35:22AM +0000, Christoph Hellwig wrote:
-> On Mon, Feb 16, 2004 at 11:09:27AM -0800, Paul E. McKenney wrote:
-> > Hello, Andrew,
-> > 
-> > The attached patch to make invalidate_mmap_range() non-GPL exported
-> > seems to have been lost somewhere between 2.6.1-mm4 and 2.6.1-mm5.
-> > It still applies cleanly.  Could you please take it up again?
-> 
-> And there's still no reason to ease IBM's GPL violations by exporting
-> deep VM internals.  The GPLed DFS you claimed you needed this for still
-> hasn't shown up but instead you want to change the export all the time.
-> 
-> Tells a lot about IBMs promises..
+On Mon, 16 Feb 2004, Andrew Morton wrote:
 
-Hello, Christoph!
+> Zwane Mwaikambo <zwane@linuxpower.ca> wrote:
+> >
+> > Well the -tiny tree has that and a lot more drastic trimmings, Andrew is
+> > there already an arrangement to feed the not so brutal changes to you?
+>
+> nope.
 
-IBM shipped the promised SAN Filesystem some months ago.  The source
-code for the Linux client was released under GPL, as promised, and may
-be found at the following URL:
+Ok in that case, could you entertain such an arrangement? Perhaps a few
+select patches from Matt's fine collection could be sent to you for
+eyeballing.
 
-https://www6.software.ibm.com/dl/sanfsys/sanfsref-i?S_PKG=dl&S_TACT=&S_CMP=
-
-A PDF of the protocol specification may be found at the following URL:
-
-http://www.storage.ibm.com/software/virtualization/sfs/protocol.html
-
-These URLs do require that you register, but there is no cost nor any
-agreement other than the GPL itself.  The Linux client has not been
-shipped as product yet.  The code is still quite rough, which is one
-reason that it has not be submitted to, for example, LKML.  ;-)
-
-						Thanx, Paul
+Thanks
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
