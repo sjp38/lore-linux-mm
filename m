@@ -1,54 +1,34 @@
-Date: Thu, 7 Sep 2000 10:59:48 +0100
-From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: rhosts does not work???
-Message-ID: <20000907105948.A1329@redhat.com>
-Reply-To: Stephen Tweedie <sct@redhat.com>,
-	  Sahil <aakgefce@rurkiu.ernet.in>
-References: <Pine.OSF.3.96.1000907132440.24544A-100000@isc.rurkiu.ernet.in>
+Date: Thu, 7 Sep 2000 16:31:44 +0200
+From: Ralf Baechle <ralf@oss.sgi.com>
+Subject: Re: pte_pagenr/MAP_NR deleted in pre6
+Message-ID: <20000907163144.E6580@bacchus.dhis.org>
+References: <200008171920.MAA23931@pizda.ninka.net> <200008171936.MAA31128@google.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.OSF.3.96.1000907132440.24544A-100000@isc.rurkiu.ernet.in>; from aakgefce@rurkiu.ernet.in on Thu, Sep 07, 2000 at 01:27:51PM +0500
+In-Reply-To: <200008171936.MAA31128@google.engr.sgi.com>; from kanoj@google.engr.sgi.com on Thu, Aug 17, 2000 at 12:36:51PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Sahil <aakgefce@rurkiu.ernet.in>
-Cc: linux-mm@kvack.org
+To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
+Cc: "David S. Miller" <davem@redhat.com>, alan@lxorguk.ukuu.org.uk, sct@redhat.com, roman@augan.com, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu, rmk@arm.linux.org.uk, nico@cam.org, davidm@hpl.hp.com
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On Thu, Aug 17, 2000 at 12:36:51PM -0700, Kanoj Sarcar wrote:
 
-On Thu, Sep 07, 2000 at 01:27:51PM +0500, Sahil wrote:
+> >    Except for the x86 36bit abortion do we need a long long paddr_t on any
+> >    32bit platform ?
+> > 
+> > Sparc32, mips32...
+> >
+> 
+> Not for Indys on mips32. Is there a mips32 port on another machine
+> (currently in Linux, or port ongoing) that requires this?
 
-> I have been trying to put .rhosts with '+ +' in it but it does not work.
-> Can any body tell me the substitute??
+No.  Right now mips32 assumes that all memory is accessible in KSEG0 which
+limits it to 512mb - $\epsilon$.  I don't know of any 32-bit CPU
+configuration which supports memory than that and for 64-bit processors
+the policy should be to use mips64 - it's so much saner.
 
-FIrst, this is the wrong mailing list for this, so please take the
-rest of this topic off-list!
-
-Second, .rhosts should work fine, but (just as for any unix) you need
-to be very careful with the permissions on both the .rhosts file and the
-directory containing it.  Both should have no group write, in
-particular, or else rsh will complain.
- 
-> How to define the principles for .klogin (kerberos)??
-
-Do you already have a master KDC?  If so, you can just use kadmin to
-generate new principals.  If not, read the info pages on setting up
-the KDC.
-
-gkadmin is usually in /usr/kerberos/sbin/kadmin.  You need to have an
-admin principle set up to begin with --- you will already have done
-that if you have Kerberos running at all.  New principals are added
-with the "add_principal" command, and their passwords set with
-"change_password".  Once you have a principal set for your user ID,
-"kinit" to login (or "kinit -f", which I normally use, to obtain
-tickets which can be forwarded to other hosts).  Then all you need for
-kerberised login is a ~/.k5login (~/.klogin is only for Kerberos 4,
-and on Linux I assume you have krb5).  Just list the authorised
-principals in there.
-
-Cheers,
- Stephen
+  Ralf
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
