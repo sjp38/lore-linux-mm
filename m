@@ -1,36 +1,41 @@
-Date: Mon, 4 Sep 2000 12:22:31 -0300 (BRST)
+Date: Mon, 4 Sep 2000 12:34:38 -0300 (BRST)
 From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Bad page count   with 2.4.0-t8p1-vmpatch2b
-In-Reply-To: <39B33D14.C7239FB8@sgi.com>
-Message-ID: <Pine.LNX.4.21.0009041221280.8855-100000@duckman.distro.conectiva>
+Subject: Re: zero copy IO project
+In-Reply-To: <39B3A5F8.29C18EC1@free.fr>
+Message-ID: <Pine.LNX.4.21.0009041231430.8855-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rajagopal Ananthanarayanan <ananth@sgi.com>
-Cc: linux-mm@kvack.org
+To: Fabio Riccardi <fabio.riccardi@free.fr>
+Cc: linux-mm@kvack.org, Ben LaHaise <bcrl@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, 3 Sep 2000, Rajagopal Ananthanarayanan wrote:
+On Mon, 4 Sep 2000, Fabio Riccardi wrote:
 
-> The previous boot problem was apparently due to a
-> bad run of lilo: at that time test8-pre2 was on
-> the system, so may be there is some problem in test8-pre2.
-> Anyway, I can now boot test8-pre1 + 2.4.0-t8p1-vmpatch2b.
-> But a simple copy of a large file (filesize > memsize)
-> brings out lots of messages on the console:
+> after having analyzed a bit the various souces of inefficiency
+> in Linux (wrt a high end server), and having discarded what
+> other people already seem to be working on, I'd like to enroll
+> myself into a zero copy IO project, much like that of UVM,
+> genie, io-lite, fbufs, etc.
 > 
-> ---------
-> Bad page count
-> Bad page count
-> Bad page count
-> Bad page count
-> ---------------
+> Is anybody aready working on this? Does anybody have ideas about
+> it? Anybody interested in a discussion of pros and cons of such
+> an architectural change to Linux?
 
-Bad debugging check. This was a false alarm (which slipped
-in under pressure to locate the SMP race)
+The project (and data structure used) is called KIOBUF.
 
-2.4.0-t8p1-vmpatch2 (without the b) should be better...
+IIRC Stephen Tweedie and Ben LaHaise are working on it
+and it will be a more generic zero-copy IO infrastructure
+than io-lite and others.
+
+Ben LaHaise made some documentation (or at least, some
+slides) on KIOBUFs for the Ottawa Linux Symposium. You may
+be able to get some documentation from him, and you can go
+to the OLS ftp site to download an mp3 of the VM lecture...
+
+Also, I'm sure they must have some TODO items for you ;))
+(if you're interested in helping out)
 
 regards,
 
