@@ -1,65 +1,53 @@
 From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
-Message-Id: <199906211846.LAA91751@google.engr.sgi.com>
-Subject: Re: filecache/swapcache questions
-Date: Mon, 21 Jun 1999 11:46:27 -0700 (PDT)
-In-Reply-To: <14190.31543.461985.372712@dukat.scot.redhat.com> from "Stephen C. Tweedie" at Jun 21, 99 06:49:43 pm
+Message-Id: <199906211912.MAA79202@google.engr.sgi.com>
+Subject: Re: [RFC] [RFT] [PATCH] kanoj-mm9-2.2.10 simplify swapcache/shm code
+Date: Mon, 21 Jun 1999 12:12:18 -0700 (PDT)
+In-Reply-To: <Pine.LNX.4.10.9906212026130.683-100000@laser.random> from "Andrea Arcangeli" at Jun 21, 99 08:31:19 pm
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: sct@redhat.com, linux-mm@kvack.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
 > 
-> Hi, 
+> On Mon, 21 Jun 1999, Stephen C. Tweedie wrote:
 > 
-> On Mon, 21 Jun 1999 10:36:37 -0700 (PDT), kanoj@google.engr.sgi.com
-> (Kanoj Sarcar) said:
+> >On Mon, 21 Jun 1999 10:17:10 -0700 (PDT), kanoj@google.engr.sgi.com
+> >(Kanoj Sarcar) said:
+> >
+> >> Okay, wrong choice of name on the parameter "shmfs". Would it help
+> >> to think of the new last parameter to rw_swap_page_base as "dolock",
+> >> which the caller has to pass in to indicate whether there is a 
+> >> swap lock map bit?
 > 
-> > But doesn't my previous logic work in this case too? Namely
-> > that kernel_lock is held when any code looks at or changes
-> > a pte, so if swapoff holds the kernel_lock and never goes to 
-> > sleep, things should work?
-> 
-> No, because the swapoff could still take place while a normal swapin is
-> already in progress.
-> 
-> > Maybe if you can jot down a quick scenario where a problem occurs when
-> > swapoff does not take mmap_sem, it would be easier for me to spot
-> > which concurrency issue I am missing ...
-> 
-> Look no further than swap_in(), which knows that there is no pte (so
-> swapout concurrency is not a problem) and it holds the mmap lock (so
-> there are no concurrent swap_ins on the page).  It reads in the page adn
-> unconditionally sets up the pte to point to it, assuming that nobody
-> else can conceivably set the pte while we do the swap outselves.
-> 
-> --Stephen
-> 
+> Kanoj did you took a look at my VM (I pointed out to you the url some time
+> ago). Here I just safely removed the swaplockmap completly. All the
+> page-contentions get automagically resolved from the swap cache also for
+> shm.c. I sent the relevant patches to Linus just before the page cache
+> code gone and the new page/buffer cache broken them in part. But now I am
+> running again rock solid with 2.3.7_andrea1 with SMP so if Linus will
+> agree I'll return to send him patches about such shm/swap-lockmap issue.
+> Just to show you:
+>
 
-Hmm, am I being fooled by the comment in swap_in?
+I skimmed thru your patch earlier, but was too lazy to concentrate
+on the details ...
 
-/*
- * The tests may look silly, but it essentially makes sure that
- * no other process did a swap-in on us just as we were waiting.
- *
+I took the time now to look into your changes to page_io.c and shm.c,
+and I like it better than the current code, for the reason that pages 
+marked PageSwapCache will actually end up being in the swap cache. 
+Which is what I was trying to do in my patch ...
 
-Also, swap_in seems to be revalidating the pte if it goes to
-sleep:
+If Linus is willing to take your patch, we can stop talking about
+mine ...
 
-        if (pte_val(*page_table) != entry) {
-                if (page_map)
-                        free_page_and_swap_cache(page_address(page_map));
-                return;
-        }
-
-All this while holding kernel_lock ...
-
-So, I am still mystified about why swapoff would need the mmap_sem.
+Thanks.
 
 Kanoj
+kanoj@engr.sgi.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
