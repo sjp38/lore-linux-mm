@@ -1,134 +1,93 @@
-Date: Mon, 17 Jan 2005 07:59:55 -0200
-From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
-Subject: Re: migration cache, updated
-Message-ID: <20050117095955.GC18785@logos.cnet>
-References: <20041123121447.GE4524@logos.cnet> <20041124.192156.73388074.taka@valinux.co.jp> <20041201202101.GB5459@dmt.cyclades> <20041208.222307.64517559.taka@valinux.co.jp>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20041208.222307.64517559.taka@valinux.co.jp>
+Content-class: urn:content-classes:message
+MIME-Version: 1.0
+Content-Type: text/plain;
+	charset="us-ascii"
+Content-Transfer-Encoding: 8BIT
+Subject: RE: [RFC] Avoiding fragmentation through different allocator
+Date: Mon, 17 Jan 2005 08:48:18 -0800
+Message-ID: <D36CE1FCEFD3524B81CA12C6FE5BCAB008D16A9E@fmsmsx406.amr.corp.intel.com>
+From: "Tolentino, Matthew E" <matthew.e.tolentino@intel.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: linux-mm@kvack.org, iwamoto@valinux.co.jp, haveblue@us.ibm.com, hugh@veritas.com
+To: Mel Gorman <mel@csn.ul.ie>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi Hirokazu,
+>I considered adding a new zone but I felt it would be a massive job for
+>what I considered to be a simple problem. I think my approach is nice
+>and isolated within the allocator itself and will be less likely to
+>affect other code.
 
-On Wed, Dec 08, 2004 at 10:23:07PM +0900, Hirokazu Takahashi wrote:
-> Hi Marcelo,
-> > > > Sorry for the delay, been busy with other things.
-> > > 
-> > > No problem. Everyone knows you're doing hard work!
-> 
-> > > > > Therefore, I made pages removed from the migration cache
-> > > > > at the end of generic_migrate_page() if they remain in the cache.
-> > 
-> > OK, removing migration pages at end of generic_migrate_page() should 
-> > avoid the leak - that part of your patch is fine to me!
-> > 
-> > > > > The another is a fork() related problem. If fork() has occurred
-> > > > > during page migrationa, the previous work may not go well.
-> > > > > pages may not be removed from the migration cache.
-> > 
-> > Can you please expand on that one? I assume it works fine because 
-> > copy_page_range() duplicates the migration page reference (and the 
-> > migration pte), meaning that on exit (zap_pte_range) the migration
-> > pages should be removed through migration_remove_entry(). 
-> 
-> Yes, that's true.
-> 
-> > I dont see the problem - please correct me.
-> 
-> However, once the page is moved into the migration cache,
-> no one can make it swapped out. This problem may be solved
-> by your approach described below.
-> 
-> > > > > So I made the swapcode ignore pages in the migration cache.
-> > > > > However, as you know this is just a workaround and not a correct
-> > > > > way to fix it.
-> > 
-> > What this has to do with fork()? I can't understand.
-> 
-> fork() may leave some pages in the migration cache with my
-> latest implementation, though the memory migration code
-> tries to remove them from the migration cache by forcible
-> pagefault in touch_unmapped_address().
+Just for clarity, I prefer this approach over adding zones, 
+hence my pursuit of something akin to it.  
 
-Why are record_unmapped_address/touch_unmapped_address needed ? 
+>On possibility is that we could say that the UserRclm and KernRclm pool
+>are always eligible for hotplug and have hotplug banks only 
+>satisy those
+>allocations pushing KernNonRclm allocations to fixed banks. How is it
+>currently known if a bank of memory is hotplug? Is there a 
+>node for each
+>hotplug bank? If yes, we could flag those nodes to only 
+>satisify UserRclm
+>and KernRclm allocations and force fallback to other nodes. 
 
-I started investigating the issue which migration pages couldnt 
-be swapped out, but found out that migration pages are never left 
-in the cache because touch_unmapped_address recreates the ptes removing
-the pages from the migration cache.
+The hardware/firmware has to tell the kernel in some way.  In 
+my case it is ACPI that delineates between regions that may be 
+removed.  No, there isn't a node for each bank of hot-plug 
+memory.  The reason I was pursuing this was to be able to 
+avoid coarse granularity distinctions like that.  Depending
+on the platform, ACPI may provide only memory ranges (via
+memory devices detailed in the namespace) for single node
+systems or group memory ranges according to nodes via the 
+ACPI abstraction called containers.  It's my understanding
+that containers then have some mapping to nodes.  
 
-That means we have no problem with migration cache pages left pinned 
-(unswappable) in memory, which means it is fully functional AFAICT.
+>The danger is
+>that allocations would fail because non-hotplug banks were already full
+>and pageout would not happen because the watermarks were satisified.
 
-However, I thought the intent was to fault the pages on demand? 
+Which implies a potential need for balancing between user/kernel
+lists, no?    
 
-I even wrote this to be called at vmscan() time but touch_unmapped_address 
-already has similar functionality at migration time.
+>(Bear in mind I can't test hotplug-related issues due to lack 
+>of suitable
+>hardware)
 
-int try_to_faultin(struct page *page)
-{
-        struct anon_vma *anon_vma;
-        struct vm_area_struct *vma;
-        unsigned long address;
-        int ret = 0;
+Sure.  I can, although most of this has been done via emulation 
+initially and then tested on real hardware soon afterwards.
 
-restart:
-        anon_vma = page_lock_anon_vma(page);
-        if (!anon_vma)
-                return ret;
+>If you have already posted a version of the patch (you have 
+>feedback so I
+>guess it's there somewhere), can you send me a link to the thread where
+>you introduced your approach? It's possible that we just need 
+>to merge the
+>ideas.
 
-        list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
-                address = vma_address(page, vma);
-                // handle if (address = -EFAULT) ? 
-                if (!follow_and_check_present(vma->vm_mm, address))
-                        continue;
+No, I hadn't posted it yet due to chasing a bug.  However, perhaps 
+now I'll instead focus on adding the necessary hotplug support 
+into your patch, hence merging the hotplug requirements/ideas?
 
-                spin_unlock(&anon_vma->lock);
-                switch (handle_mm_fault(vma->vm_mm, vma, address, 0)) {
-                case VM_FAULT_MINOR:
-                        goto restart;
-                case VM_FAULT_MAJOR:
-                        BUG();
-                case VM_FAULT_SIGBUS:
-                case VM_FAULT_OOM:
-                        goto out_unlock;
-                }
-        }
-        ret = 1;
-        printk(KERN_ERR "faulted migration page in!\n");
+>It's because I consider all 2^MAX_ORDER pages in a zone to be 
+>equal where
+>as I'm guessing you don't. Until they are split, there is 
+>nothing special
+>about them. It is only when it is split that I want it reserved for a
+>purpose.
+>
+>However, if we knew there were blocks that were hot-pluggable, we could
+>just have a hotplug-global and non-hotplug-global pool. If 
+>it's a UserRclm
+>or KernRclm allocation, split from hotplug-global, otherwise use
+>non-hotplug-global. It'd increase the memory requirements of 
+>the patch a
+>bit though.
 
-out_unlock:
-        spin_unlock(&anon_vma->lock);
-        return ret;
+Exactly.  Perhaps this could just be isolated via the 
+CONFIG_MEMORY_HOTPLUG build option, thus not increasing the memory
+requirements in the common case...
 
-}
+matt
 
-
-> 
-> However, touch_unmapped_address() doesn't know that the
-> migration page has been duplicated.
-> 
-> > Your patch is correct here also - we can't reclaim migration cache 
-> > pages.
-> > 
-> > +	if (PageMigration(page)) {
-> > +		write_unlock_irq(&mapping->tree_lock);
-> > +		goto keep_locked;
-> > +	}
-> > 
-> > An enhancement would be to force pagefault of all pte's
-> > mapping to a migration cache page on shrink_list.  
-> >
-> > similar to rmap.c's try_to_unmap_anon() but intented to create the pte 
-> > instead of unmapping it
-> 
-> If it works as we expect, this code can be called at the end of
-> generic_migrate_page() I guess.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
