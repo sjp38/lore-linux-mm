@@ -1,34 +1,28 @@
 Subject: Re: Swapping for diskless nodes
-Message-ID: <OF452D802E.BE93E657-ON85256AA3.004E8422@pok.ibm.com>
-From: "Bulent Abali" <abali@us.ibm.com>
-Date: Thu, 9 Aug 2001 10:26:22 -0400
+Date: Thu, 9 Aug 2001 16:13:11 +0100 (BST)
+In-Reply-To: <OF452D802E.BE93E657-ON85256AA3.004E8422@pok.ibm.com> from "Bulent Abali" at Aug 09, 2001 10:26:22 AM
 MIME-Version: 1.0
-Content-type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Message-Id: <E15UrUl-0007Rn-00@the-village.bc.nu>
+From: Alan Cox <alan@lxorguk.ukuu.org.uk>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Dirk W. Steinberg" <dws@dirksteinberg.de>
-Cc: Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
+To: Bulent Abali <abali@us.ibm.com>
+Cc: "Dirk W. Steinberg" <dws@dirksteinberg.de>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Alan Cox <alan@lxorguk.ukuu.org.uk>
 List-ID: <linux-mm.kvack.org>
 
+> Last time I checked swapping over nbd required patching the network stack.
+> Because swapping occurs when memory is low and when memory is low TCP
+> doesn't do what you expect it to do...
 
+Its a case of having sufficient memory in the atomic pools. Its possible to
+do some ugly quick kernel hack to make the pool commit less likely to be a 
+problem.
 
->In such a scenario I would disagree with Alan that network paging is
->high latency as compared to disk access. I have a fully switched 100 Mpbs
->full-duplex ethernet network, and sending a page across the net into
->the memory of a fast server could have much less latency that writing
->that page out to a local old, slow IDE disk.
-
-Have you actually tried swapping over the network using nbd or any other
-network device mounted as a swap disk?  Never mind the latency.  Does it
-work at all?  I am curious to know.
-
-Last time I checked swapping over nbd required patching the network stack.
-Because swapping occurs when memory is low and when memory is low TCP
-doesn't do what you expect it to do...
-Bulent
-
-
-
+Ultimately its an insoluble problem, neither SunOS, Solaris or NetBSD are
+infallible, they just never fail for any normal situation, and thats good
+enough for me as a solution
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
