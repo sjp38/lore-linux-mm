@@ -1,62 +1,32 @@
-From: <chatplayers@hotmail.com>
-Subject: Get paid to surf the web!!
-Date: wo, 12 apr 2000 07:49:51
-Message-Id: <20000412094418Z131172-282+30@kanga.kvack.org>
+Date: Wed, 12 Apr 2000 12:02:44 +0200
+From: Jamie Lokier <lk@tantalophile.demon.co.uk>
+Subject: Re: zap_page_range(): TLB flush race
+Message-ID: <20000412120244.G24128@pcep-jamie.cern.ch>
+References: <Pine.LNX.4.21.0004111824090.19969-100000@maclaurin.suse.de> <38F364B3.5A4A45D9@colorfullife.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+In-Reply-To: <38F364B3.5A4A45D9@colorfullife.com>; from Manfred Spraul on Tue, Apr 11, 2000 at 07:45:23PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Manfred Spraul <manfreds@colorfullife.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, "Stephen C. Tweedie" <sct@redhat.com>, "David S. Miller" <davem@redhat.com>, alan@lxorguk.ukuu.org.uk, kanoj@google.engr.sgi.com, linux-kernel@vger.rutgers.edu, linux-mm@kvack.org, torvalds@transmeta.com
 List-ID: <linux-mm.kvack.org>
 
-This mail is never sent unsolicited.  This is an opt-in emailing
-list, and we have a copy of every subscription request on file.
-This is a 1-time Emailing thank-you-letter from FFA link 
-submission  (i.e.,this is not spam) 
-------------------------------------------------------------------
+Manfred Spraul wrote:
+> Can we ignore the munmap+access case?
+> I'd say that if 2 threads race with munmap+access, then the behaviour is
+> undefined.
+> Tlb flushes are expensive, I'd like to avoid the second tlb flush as in
+> Kanoj's patch.
 
+No, you can't ignore it.  A variation called mprotect+access is used by
+garbage collection systems that expect to receive SEGVs when access is
+to a protected region.
 
-GET PAID to SURF the WEB!! 
+At very least, you'd have to document the race very clearly, and provide
+a workaround.
 
-Paid-To-Surf is an advertising agency that pay you to place a 
-small banner on your screen while you surf the web. 
-They pay you around .50 an hour. 
-Although this doesn't sound like much, it comes out to about $20 
-a month for most users. This could easily pay for your internet 
-access. 
-It gets better...
-
-Most of these companies will also pay you a portion
-of the amount that people you refer to them make.
-For example: Paid-to-surf pays you .10 for every hour your
-referrals surfs. So, if you sign up 100 people you would make
-an extra $400 a month. 
-It gets better! 
-
-This company also pay you for people that your referrals sign up.
-For example: If you signed up 100 people, and each of the people
-you signed up sign up 100 people, you would make an extra $600 a 
-month!
-
-Get paid to surf the web!! It's free to join and it takes about a 
-minute.
-Just go to:   http://alladvantage.com/go.asp?refid=LOT-380
-
-and start earning money today!!
-
-
-
-------------------------------------------------------------------
-
-New!!!  Talk with your friends online!!
-
-Never have to make long distance phonecalls ever again!!
-Free voicechat.. 
-
-go to:  http://chatplayers.hello.to
- 
- 
- 
- 
- 
+-- Jamie
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
