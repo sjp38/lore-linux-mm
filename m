@@ -1,226 +1,257 @@
-Content-Type: text/plain;
-  charset="iso-8859-1"
-From: Ed Tomlinson <tomlins@cam.org>
-Subject: Re: 2.5.x opps stopping serial
-Date: Tue, 15 Oct 2002 21:50:39 -0400
-References: <3DA683F4.944DFC11@digeo.com> <200210110845.24687.tomlins@cam.org> <20021015230733.E7702@flint.arm.linux.org.uk>
-In-Reply-To: <20021015230733.E7702@flint.arm.linux.org.uk>
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id XAA09352
+	for <linux-mm@kvack.org>; Tue, 15 Oct 2002 23:07:11 -0700 (PDT)
+Message-ID: <3DAD020F.1AC3D34F@digeo.com>
+Date: Tue, 15 Oct 2002 23:07:11 -0700
+From: Andrew Morton <akpm@digeo.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Message-Id: <200210152150.39162.tomlins@cam.org>
+Subject: Re: [PATCH 2.5.42-mm3] More shared page table fixes
+References: <75990000.1034696450@baldur.austin.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Russell King <rmk@arm.linux.org.uk>
-Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Paul Larson <plars@linuxtestproject.org>
+To: Dave McCracken <dmccr@us.ibm.com>
+Cc: Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On October 15, 2002 06:07 pm, Russell King wrote:
-> On Fri, Oct 11, 2002 at 08:45:24AM -0400, Ed Tomlinson wrote:
-> > I have been seeing this during shutdown ever since I started using 2.5.
-> > Figured I really should report it...   There are three serial ports.
-> > One for a serial console, the second for a backUPS ups, the third for
-> > a (real) modem.  Dist is debian sid.
->
-> Can you try this patch please?  It prevents the hangup code from
-> setting info->tty to NULL while we're trying to open the port.
+Dave McCracken wrote:
+> 
+> This patch gets the unmap_all_pages function right for PAE-enabled
+> machines.  It also adds a forgotten spinlock to pte_try_to_share.
+> 
 
-This fails to fix the problem (2.5.42-mm2) patch applied...
+This one's bad, Dave.  Machine keels over halfway through the first
+dbench run with CONFIG_SHAREPTE=n.  General memory corruption and
+mayhem.
 
-Oct 15 21:15:39 oscar -- MARK --
-Oct 15 21:26:32 oscar kernel:  printing eip:
-Oct 15 21:26:32 oscar kernel: c0192b23
-Oct 15 21:26:32 oscar kernel: Oops: 0000
-Oct 15 21:26:32 oscar kernel: af_packet snd-seq-midi snd-seq-oss snd-seq-midi-event snd-seq snd-pcm-oss snd-mixer-oss sn
-d-cs46xx snd-pcm snd-timer snd-rawmidi snd-seq-device snd-ac97-codec snd soundcore gameport softdog matroxfb_base matrox
-fb_g450 matroxfb_DAC1064 g450_pll matroxfb_accel matroxfb_misc fbcon-cfb16 fbcon-cfb8 fbcon-cfb24 fbcon-cfb32 mga agpgar
-t pppoe pppox ipchains msdos fat sd_mod floppy dummy bsd_comp ppp_generic slhc parport_pc lp parport ipip smbfs nls_cp85
-0 nls_cp437 binfmt_aout autofs4 cdrom via-rhine mii tulip crc32 usb-storage scsi_mod pl2303 usbserial hid
-Oct 15 21:26:32 oscar kernel: CPU:    0
-Oct 15 21:26:32 oscar kernel: EIP:    0060:[uart_open+147/544]    Not tainted
-Oct 15 21:26:32 oscar kernel: EFLAGS: 00010246
-Oct 15 21:26:32 oscar kernel: EIP is at uart_block_til_ready+0x15b/0x1a4
-Oct 15 21:26:32 oscar kernel: eax: 00000000   ebx: da040000   ecx: dffe381c   edx: c15da294
-Oct 15 21:26:32 oscar kernel: esi: da041e84   edi: 00000202   ebp: c15da240   esp: da041e58
-Oct 15 21:26:32 oscar kernel: ds: 0068   es: 0068   ss: 0068
-Oct 15 21:26:32 oscar kernel: Process bkupsd (pid: 897, threadinfo=da040000 task=da316dc0)
-Oct 15 21:26:32 oscar kernel: Stack: c02863c0 da084000 c15da240 00000000 c0358724 dffe381c 00000000 da316dc0
-Oct 15 21:26:32 oscar kernel:        c0110ea8 00000000 00000000 00000000 da316dc0 c0110ea8 c15da294 c15da294
-Oct 15 21:26:32 oscar kernel:        c0192e19 da3018c0 c15da240 00000000 00000100 00000000 deffd214 da040000
-Oct 15 21:26:32 oscar kernel: Call Trace:
-Oct 15 21:26:32 oscar kernel:  [default_wake_function+0/44] default_wake_function+0x0/0x2c
-Oct 15 21:26:32 oscar kernel:  [default_wake_function+0/44] default_wake_function+0x0/0x2c
-Oct 15 21:26:32 oscar kernel:  [uart_line_info+325/804] uart_open+0x1d9/0x220
-Oct 15 21:26:32 oscar kernel:  [tty_open+918/924] tty_open+0x1e6/0x39c
-Oct 15 21:26:32 oscar kernel:  [tty_release+43/92] tty_open+0x217/0x39c
-Oct 15 21:26:32 oscar kernel:  [unregister_chrdev+1/176] get_chrfops+0xa1/0x164
-Oct 15 21:26:32 oscar kernel:  [get_empty_filp+83/420] chrdev_open+0x5b/0x94
-Oct 15 21:26:32 oscar kernel:  [get_unused_fd+237/392] dentry_open+0xb9/0x16c
-Oct 15 21:26:32 oscar kernel:  [get_unused_fd+43/392] filp_open+0x43/0x4c
-Oct 15 21:26:32 oscar kernel:  [sys_vhangup+40/48] sys_open+0x34/0x70
-Oct 15 21:26:32 oscar kernel:  [syscall_call+7/11] syscall_call+0x7/0xb
-Oct 15 21:26:32 oscar kernel:
-Oct 15 21:26:32 oscar kernel: Code: f6 80 14 01 00 00 02 75 34 8b 44 24 44 50 e8 aa 6b 00 00 83
-Oct 15 21:26:38 oscar pppd[646]: Terminating on signal 15.
+Here's what I have - I'll drop it in experimental/ if I manage to get
+another patchset ready tonight.
 
-Ideas?
-Ed Tomlinson
 
->
-> --- orig/drivers/serial/core.c	Sat Oct 12 10:01:59 2002
-> +++ linux/drivers/serial/core.c	Tue Oct 15 23:00:50 2002
-> @@ -22,7 +22,7 @@
->   * along with this program; if not, write to the Free Software
->   * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 
-> USA *
-> - *  $Id: core.c,v 1.100 2002/07/28 10:03:28 rmk Exp $
-> + *  $Id: core.c,v 1.106 2002/08/02 12:55:07 rmk Exp $
->   *
->   */
->  #include <linux/config.h>
-> @@ -207,7 +207,7 @@
->  			 * Setup the RTS and DTR signals once the
->  			 * port is open and ready to respond.
->  			 */
-> -			if (info->tty->termios->c_cflag & CBAUD)
-> +			if (info->tty && info->tty->termios->c_cflag & CBAUD)
->  				uart_set_mctrl(port, TIOCM_RTS | TIOCM_DTR);
->  		}
->
-> @@ -1196,13 +1271,13 @@
->  	}
->  	down(&port_sem);
->  	uart_shutdown(info);
-> -	up(&port_sem);
->  	uart_flush_buffer(tty);
->  	if (tty->ldisc.flush_buffer)
->  		tty->ldisc.flush_buffer(tty);
->  	tty->closing = 0;
->  	info->event = 0;
->  	info->tty = NULL;
-> +	up(&port_sem);
->  	if (info->blocked_open) {
->  		if (info->state->close_delay) {
->  			set_current_state(TASK_INTERRUPTIBLE);
-> @@ -1357,6 +1432,10 @@
->  	}
->  }
->
-> +/*
-> + * Block the open until the port is ready.  We must be called with
-> + * port_sem held.
-> + */
->  static int
->  uart_block_til_ready(struct file *filp, struct uart_info *info)
->  {
-> @@ -1374,7 +1453,7 @@
->  		/*
->  		 * If we have been hung up, tell userspace/restart open.
->  		 */
-> -		if (tty_hung_up_p(filp))
-> +		if (tty_hung_up_p(filp) || info->tty == NULL)
->  			break;
->
->  		/*
-> @@ -1422,7 +1501,9 @@
->  			break;
->
->  	 wait:
-> +		up(&port_sem);
->  		schedule();
-> +		down(&port_sem);
->
->  		if (signal_pending(current))
->  			break;
-> @@ -1436,10 +1517,7 @@
->  	if (signal_pending(current))
->  		return -ERESTARTSYS;
->
-> -	if (info->tty->flags & (1 << TTY_IO_ERROR))
-> -		return 0;
-> -
-> -	if (tty_hung_up_p(filp) || !(info->flags & UIF_INITIALIZED))
-> +	if (!info->tty || tty_hung_up_p(filp))
->  		return (port->flags & UPF_HUP_NOTIFY) ?
->  			-EAGAIN : -ERESTARTSYS;
->
-> @@ -1451,7 +1529,6 @@
->  	struct uart_state *state = drv->state + line;
->  	struct uart_info *info = NULL;
->
-> -	down(&port_sem);
->  	if (!state->port)
->  		goto out;
->
-> @@ -1480,7 +1557,6 @@
->  	}
->
->   out:
-> -	up(&port_sem);
->  	return info;
->  }
->
-> @@ -1527,10 +1603,18 @@
->  	/*
->  	 * FIXME: This one isn't fun.  We can't guarantee that the tty isn't
->  	 * already in open, nor can we guarantee the state of tty->driver_data
-> +	 *
-> +	 * We take the semaphore here to guarantee that we won't be re-entered
-> +	 * while allocating the info structure, or while we request any IRQs
-> +	 * that the driver may need.  This also has the nice side-effect that
-> +	 * it delays the action of uart_hangup, so we can guarantee that
-> +	 * info->tty will always contain something reasonable.
->  	 */
-> +	down(&port_sem);
->  	info = uart_get(drv, line);
->  	retval = -ENOMEM;
->  	if (!info) {
-> +		up(&port_sem);
->  		if (tty->driver_data)
->  			goto fail;
->  		else
-> @@ -1543,6 +1627,7 @@
->  	 * Any failures from here onwards should not touch the count.
->  	 */
->  	tty->driver_data = info;
-> +	tty->alt_speed = 0;
->  	info->tty = tty;
->  	info->tty->low_latency = (info->port->flags & UPF_LOW_LATENCY) ? 1 : 0;
->
-> @@ -1550,6 +1635,7 @@
->  	 * If the port is in the middle of closing, bail out now.
->  	 */
->  	if (tty_hung_up_p(filp) || (info->flags & UIF_CLOSING)) {
-> +		up(&port_sem);
->  	    	wait_event_interruptible(info->open_wait,
->  					 !(info->flags & UIF_CLOSING));
->  		retval = (info->port->flags & UPF_HUP_NOTIFY) ?
-> @@ -1571,20 +1657,16 @@
->  	}
->
->  	/*
-> -	 * Start up the serial port.  We have this semaphore here to
-> -	 * prevent uart_startup or uart_shutdown being re-entered if
-> -	 * we sleep while requesting an IRQ.
-> +	 * Start up the serial port.
->  	 */
-> -	down(&port_sem);
->  	retval = uart_startup(info, 0);
-> -	up(&port_sem);
-> -	if (retval)
-> -		goto fail;
->
->  	/*
-> -	 * Wait until the port is ready.
-> +	 * If we succeeded, wait until the port is ready.
->  	 */
-> -	retval = uart_block_til_ready(filp, info);
-> +	if (retval == 0)
-> +		retval = uart_block_til_ready(filp, info);
-> +	up(&port_sem);
->
->  	/*
->  	 * If this is the first open to succeed, adjust things to suit.
 
+ mm/memory.c |  166 +++++++++++++++++++++++++++++++++++++-----------------------
+ 1 files changed, 103 insertions(+), 63 deletions(-)
+
+--- 2.5.42/mm/memory.c~shpte-unmap_all_pages_fix	Tue Oct 15 14:18:42 2002
++++ 2.5.42-akpm/mm/memory.c	Tue Oct 15 14:18:42 2002
+@@ -372,6 +372,7 @@ static pte_t *pte_try_to_share(struct mm
+ 	struct vm_area_struct *lvma;
+ 	struct page *ptepage;
+ 	unsigned long base;
++	pte_t *pte = NULL;
+ 
+ 	/*
+ 	 * It already has a pte page.  No point in checking further.
+@@ -394,6 +395,8 @@ static pte_t *pte_try_to_share(struct mm
+ 
+ 	as = vma->vm_file->f_dentry->d_inode->i_mapping;
+ 
++	spin_lock(&as->i_shared_lock);
++
+ 	list_for_each_entry(lvma, &as->i_mmap_shared, shared) {
+ 		pgd_t *lpgd;
+ 		pmd_t *lpmd;
+@@ -431,9 +434,11 @@ static pte_t *pte_try_to_share(struct mm
+ 		else
+ 			pmdval = pmd_wrprotect(*lpmd);
+ 		set_pmd(pmd, pmdval);
+-		return pte_page_map(ptepage, address);
++		pte = pte_page_map(ptepage, address);
++		break;
+ 	}
+-	return NULL;
++	spin_unlock(&as->i_shared_lock);
++	return pte;
+ }
+ #endif
+ 
+@@ -846,14 +851,16 @@ static void zap_pmd_range(mmu_gather_t *
+ 	if (end > ((address + PGDIR_SIZE) & PGDIR_MASK))
+ 		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
+ 	do {
+-		ptepage = pmd_page(*pmd);
+-		pte_page_lock(ptepage);
++		if (pmd_present(*pmd)) {
++			ptepage = pmd_page(*pmd);
++			pte_page_lock(ptepage);
+ #ifdef CONFIG_SHAREPTE
+-		if (page_count(ptepage) > 1)
+-			BUG();
++			if (page_count(ptepage) > 1)
++				BUG();
+ #endif
+-		zap_pte_range(tlb, pmd, address, end - address);
+-		pte_page_unlock(ptepage);
++			zap_pte_range(tlb, pmd, address, end - address);
++			pte_page_unlock(ptepage);
++		}
+ 		address = (address + PMD_SIZE) & PMD_MASK; 
+ 		pmd++;
+ 	} while (address < end);
+@@ -938,72 +945,105 @@ void unmap_all_pages(struct mm_struct *m
+ 	mmu_gather_t *tlb;
+ 	pgd_t *pgd;
+ 	pmd_t *pmd;
+-	unsigned long address;
+-	unsigned long end;
++	unsigned long address = 0;
++	unsigned long vm_end = 0, prev_end, pmd_end;
+ 
+ 	tlb = tlb_gather_mmu(mm, 1);
+ 
+ 	vma = mm->mmap;
+-	if (!vma)
+-		goto out;
+-
+-	mm->map_count--;
+-	if (is_vm_hugetlb_page(vma)) {
+-		vma->vm_ops->close(vma);
+-		goto next_vma;
+-	}
+-
+-	address = vma->vm_start;
+-	end = ((address + PGDIR_SIZE) & PGDIR_MASK);
++	for (;;) {
++		if (address >= vm_end) {
++			if (!vma)
++				goto out;
+ 
+-	pgd = pgd_offset(mm, address);
+-	pmd = pmd_offset(pgd, address);
+-	do {
+-		do {
+-			if (pmd_none(*pmd))
+-				goto skip_pmd;
+-			if (pmd_bad(*pmd)) {
+-				pmd_ERROR(*pmd);
+-				pmd_clear(pmd);
+-				goto skip_pmd;
+-			}
+-		
+-			ptepage = pmd_page(*pmd);
+-			pte_page_lock(ptepage);
+-			if (page_count(ptepage) > 1) {
+-				pmd_clear(pmd);
+-				pgtable_remove_rmap_locked(ptepage, mm);
+-				mm->rss -= ptepage->private;
+-				put_page(ptepage);
+-			} else {
+-				zap_pte_range(tlb, pmd, address, end - address);
+-			}
+-			pte_page_unlock(ptepage);
+-skip_pmd:
+-			pmd++;
+-			address = (address + PMD_SIZE) & PMD_MASK;
+-			if (address >= vma->vm_end) {
++			address = vma->vm_start;
+ next_vma:
+-				vma = vma->vm_next;
+-				if (!vma)
+-					goto out;
+-
+-				mm->map_count--;
+-				if (is_vm_hugetlb_page(vma)) {
++			prev_end = vm_end;
++			vm_end = vma->vm_end;
++			mm->map_count--;
++			/*
++			 * Advance the vma pointer to the next vma.
++			 * To facilitate coalescing adjacent vmas, the
++			 * pointer always points to the next one
++			 * beyond the range we're currently working
++			 * on, which means vma will be null on the
++			 * last iteration.
++			 */
++			vma = vma->vm_next;
++			if (vma) {
++				/*
++				 * Go ahead and include hugetlb vmas
++				 * in the range we process.  The pmd
++				 * entry will be cleared by close, so
++				 * we'll just skip over them.  This is
++				 * easier than trying to avoid them.
++				 */
++				if (is_vm_hugetlb_page(vma))
+ 					vma->vm_ops->close(vma);
++
++				/*
++				 * Coalesce adjacent vmas and process
++				 * them all in one iteration.
++				 */
++				if (vma->vm_start == prev_end) {
+ 					goto next_vma;
+ 				}
++			}
++		}
++		pgd = pgd_offset(mm, address);
++		do {
++			if (pgd_none(*pgd))
++				goto skip_pgd;
+ 
+-				address = vma->vm_start;
+-				end = ((address + PGDIR_SIZE) & PGDIR_MASK);
+-				pgd = pgd_offset(mm, address);
+-				pmd = pmd_offset(pgd, address);
++			if (pgd_bad(*pgd)) {
++				pgd_ERROR(*pgd);
++				pgd_clear(pgd);
++skip_pgd:
++				address += PGDIR_SIZE;
++				if (address > vm_end)
++					address = vm_end;
++				goto next_pgd;
+ 			}
+-		} while (address < end);
+-		pgd++;
+-		pmd = pmd_offset(pgd, address);
+-		end = ((address + PGDIR_SIZE) & PGDIR_MASK);
+-	} while (vma);
++			pmd = pmd_offset(pgd, address);
++			if (vm_end > ((address + PGDIR_SIZE) & PGDIR_MASK))
++				pmd_end = (address + PGDIR_SIZE) & PGDIR_MASK;
++			else
++				pmd_end = vm_end;
++
++			for (;;) {
++				if (pmd_none(*pmd))
++					goto next_pmd;
++				if (pmd_bad(*pmd)) {
++					pmd_ERROR(*pmd);
++					pmd_clear(pmd);
++					goto next_pmd;
++				}
++				
++				ptepage = pmd_page(*pmd);
++				pte_page_lock(ptepage);
++				if (page_count(ptepage) > 1) {
++					pmd_clear(pmd);
++					pgtable_remove_rmap_locked(ptepage, mm);
++					mm->rss -= ptepage->private;
++					put_page(ptepage);
++				} else
++					zap_pte_range(tlb, pmd, address,
++						      vm_end - address);
++
++				pte_page_unlock(ptepage);
++next_pmd:
++				address += PMD_SIZE;
++				if (address >= pmd_end) {
++					address = pmd_end;
++					break;
++				}
++				pmd++;
++			}
++next_pgd:
++			pgd++;
++		} while (address < vm_end);
++
++	}
+ 
+ out:
+ 	clear_page_tables(tlb, FIRST_USER_PGD_NR, USER_PTRS_PER_PGD);
+
+.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
