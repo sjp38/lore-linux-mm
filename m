@@ -1,48 +1,94 @@
-Date: Mon, 14 Oct 2002 23:48:41 -0700 (PDT)
-From: Linus Torvalds <torvalds@transmeta.com>
-Subject: Re: [patch, feature] nonlinear mappings, prefaulting support,
- 2.5.42-F8
-In-Reply-To: <20021015011807.GA27718@bjl1.asuk.net>
-Message-ID: <Pine.LNX.4.44.0210142341450.5788-100000@home.transmeta.com>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Andreas Gruenbacher <agruen@suse.de>
+Subject: Re: [Ext2-devel] [PATCH] Compile without xattrs
+Date: Tue, 15 Oct 2002 12:11:19 +0200
+References: <3DABA351.7E9C1CFB@digeo.com> <20021015005733.3bbde222.arashi@arashi.yi.org>
+In-Reply-To: <20021015005733.3bbde222.arashi@arashi.yi.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8BIT
+Message-Id: <200210151211.19353.agruen@suse.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <lk@tantalophile.demon.co.uk>
-Cc: Ingo Molnar <mingo@elte.hu>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, ext2-devel@lists.sourceforge.net, tytso@mit.edu, Matt Reppert <arashi@arashi.yi.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 15 Oct 2002, Jamie Lokier wrote:
-> 
-> I like the SIGBUS.  Am I correct to assume that, when there is memory
-> pressure, some pages are evicted from memory and all accesses to those
-> pages from userspace will raise SIBUS until the mapping is
-> reastablished?  Am I correct to assume this works fine on /dev/shm files?
+On Tuesday 15 October 2002 07:57, Matt Reppert wrote:
+> On Mon, 14 Oct 2002 22:10:41 -0700
+>
+> Andrew Morton <akpm@digeo.com> wrote:
+> > - merge up the ext2/3 extended attribute code, convert that to use
+> >   the slab shrinking API in Linus's current tree.
+>
+> Trivial patch for the "too chicken to enable xattrs for now" case, but I
+> need this to compile:
 
-It should work fine, assuming the shm interface has a "populate" macro.
+Please add this to include/linux/errno.h instead:
 
-The only real problem I think the interface has is that the nonlinear 
-mappings cannot have private pages in them - because while the MM would be 
-happy to swap them out, there is no sane way to get them back.
+#define ENOTSUP EOPNOTSUPP      /* Operation not supported */
 
-The private page information actually does exist in the page tables, but 
-the _protection_ does not. That's in the VMA, and since one of the whole 
-points with the nonlinear mapping is that the VMA is "anonymous", we're 
-kind of screwed.
+ENOTSUPP is distinct from (EOPNOTSUPP = ENOTSUP)
 
-As it is, you cannot really even add private pages to the linear mapping: 
-all the page add interfaces are for shared pages only. But I could imagine 
-that it could be useful to have a "add private page here".
+(Yes, it's a mess.)
 
-(The "add private page here" interface might also have a "use previous 
-page if one existed" method, in which case the SIGBUS handler could just 
-use that one, and thus generate the protection information on the fly - 
-while generating the actual swap-in data from the page table entry itself)
+--Andreas.
 
-Ingo - what do you think? I suspect a anonymous ("swap-backed" as opposed
-to "backed by this file") interface might be quite useful.
-
-		Linus
+> --- linux-2.5-orig/include/linux/ext2_xattr.h	2002-10-15 00:47:03 -0500
+> +++ linux-2.5/include/linux/ext2_xattr.h	2002-10-15 00:45:48 -0500
+> @@ -92,20 +92,20 @@
+>  ext2_xattr_get(struct inode *inode, int name_index,
+>  	       const char *name, void *buffer, size_t size)
+>  {
+> -	return -ENOTSUP;
+> +	return -ENOTSUPP;
+>  }
+>
+>  static inline int
+>  ext2_xattr_list(struct inode *inode, char *buffer, size_t size)
+>  {
+> -	return -ENOTSUP;
+> +	return -ENOTSUPP;
+>  }
+>
+>  static inline int
+>  ext2_xattr_set(struct inode *inode, int name_index, const char *name,
+>  	       const void *value, size_t size, int flags)
+>  {
+> -	return -ENOTSUP;
+> +	return -ENOTSUPP;
+>  }
+>
+>  static inline void
+> --- linux-2.5-orig/include/linux/ext3_xattr.h	2002-10-15 00:49:59.000000000
+> -0500 +++ linux-2.5/include/linux/ext3_xattr.h	2002-10-15
+> 00:50:12.000000000 -0500 @@ -92,20 +92,20 @@
+>  ext3_xattr_get(struct inode *inode, int name_index, const char *name,
+>  	       void *buffer, size_t size, int flags)
+>  {
+> -	return -ENOTSUP;
+> +	return -ENOTSUPP;
+>  }
+>
+>  static inline int
+>  ext3_xattr_list(struct inode *inode, void *buffer, size_t size, int flags)
+>  {
+> -	return -ENOTSUP;
+> +	return -ENOTSUPP;
+>  }
+>
+>  static inline int
+>  ext3_xattr_set(handle_t *handle, struct inode *inode, int name_index,
+>  	       const char *name, const void *value, size_t size, int flags)
+>  {
+> -	return -ENOTSUP;
+> +	return -ENOTSUPP;
+>  }
+>
+>  static inline void
+>
+>
+> Matt
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
