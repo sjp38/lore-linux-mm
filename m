@@ -1,15 +1,14 @@
-Date: Sat, 5 Apr 2003 12:14:32 -0800
+Date: Sat, 5 Apr 2003 13:24:06 -0800
 From: Andrew Morton <akpm@digeo.com>
 Subject: Re: objrmap and vmtruncate
-Message-Id: <20030405121432.20659d8c.akpm@digeo.com>
-In-Reply-To: <20030405190153.GF1326@dualathlon.random>
+Message-Id: <20030405132406.437b27d7.akpm@digeo.com>
+In-Reply-To: <20030405163003.GD1326@dualathlon.random>
 References: <20030404163154.77f19d9e.akpm@digeo.com>
 	<12880000.1049508832@flay>
 	<20030405024414.GP16293@dualathlon.random>
 	<20030404192401.03292293.akpm@digeo.com>
 	<20030405040614.66511e1e.akpm@digeo.com>
 	<20030405163003.GD1326@dualathlon.random>
-	<20030405190153.GF1326@dualathlon.random>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
@@ -21,34 +20,69 @@ List-ID: <linux-mm.kvack.org>
 
 Andrea Arcangeli <andrea@suse.de> wrote:
 >
-> On Sat, Apr 05, 2003 at 06:30:03PM +0200, Andrea Arcangeli wrote:
-> > On Sat, Apr 05, 2003 at 04:06:14AM -0800, Andrew Morton wrote:
-> > > The -aa VM failed in this test.
-> > > 
-> > > 	__alloc_pages: 0-order allocation failed (gfp=0x1d2/0)
-> > > 	VM: killing process rmap-test
+> On Sat, Apr 05, 2003 at 04:06:14AM -0800, Andrew Morton wrote:
+> > Andrew Morton <akpm@digeo.com> wrote:
+> > >
+> > > Nobody has written an "exploit" for this yet, but it's there.
 > > 
-> > I'll work on it. Many thanks. I wonder if it could be related to the
-> > mixture of the access bit with the overcomplexity of the algorithm that
-> > makes the passes over so many vmas useless. Certainly this workload
-> > isn't common. I guess what I will try to do first is to simply ignore
-> > the accessed bitflag after half of the passes failed. What do you think?
+> > Here we go.  The test app is called `rmap-test'.  It is in ext3 CVS.  See
+> > 
+> > 	http://www.zip.com.au/~akpm/linux/ext3/
+> > 
+> > It sets up N MAP_SHARED VMA's and N tasks touching them in various access
+> > patterns.
+> 
+> I'm not questioning during paging rmap is more efficient than objrmap,
+> but your argument about rmap having lower complexity of objrmap and that
+> rmap is needed is wrong. The fact is that with your 100 mappings per
+> each of the 100 tasks case, both algorithms works in O(N) where N is
+> the number of the pagetables mapping the page.
 
-Yes, I agree.  If we're getting close to OOM, who cares about accuracy of
-page replacement decisions?
+Nope.  To unmap a page, full rmap has to scan 100 pte_chain slots, which is 3
+cachelines worth.  objrmap has to scan 10,000 vma's, 9,900 of which do not map
+that page at all.
 
-> unfortunately I can't reproduce. Booted with mem=256m on a 4-way xeon 2.5ghz:
+(Actually, there's a recent optimisation in objrmap which will on average
+halve these figures).
 
-I only saw it the once.  I'd hit ^C on the test and noticed the message on
-the console some 5-10 seconds later.  It may have been from before the ^C
-though.  So it _might_ be related to the exit path tearing down pagetables
-and setting tons of dirty bits.
+> And objrmap can't avoided, it's needed for the truncate semantics
+> against mmap.
 
-> Or maybe it's ext3 related
+What do you mean by this?  vmtruncate continues to use the 2.4 algorithm for
+that.
 
-Conceivably.  It wouldn't be the first one.  But all the pages were mapped to
-disk, so the writepage path is really the same as ext2 in that case.
+> Check all other important benchmarks not testing the paging load like
+> page faults, kernel compile from Martin, fork, AIM etc... Those are IMHO
+> an order of magnitude of more interest than your rmap-test paging load
+> with some hundred thousand of vmas.
 
+Andrea, I whine about rmap as much as anyone ;) I'm the guy who halved both
+its speed and space overhead shortly after it was merged.
+
+But the fact is that it is not completely useless overhead.  It provides a
+very robust VM which is stable and predictable under extreme and unusual
+loads.  That is valuable.
+
+Yes, rmap adds a few% speed overhead - up to 10% for things which are
+admittedly already very inefficient.
+
+objrmap will reclaim a lot of that common-case overhead.  But the cost of
+that is apparently unviability for certain workloads on certain machines. 
+Once you hit 100k VMA's it's time to find a new operating system.
+
+Maybe that is a tradeoff we want to make.  I'm adding some balance here.
+
+The space consumption of rmap is a much more serious problem than the speed
+overhead.  It makes some workloads on huge ia32 machines unviable.
+
+
+Me, I have never seen any evidence that we need any of it.  I have never seen
+a demonstration of the alleged failure modes of 2.4's virtual scan.  But then
+I haven't tried very hard.
+
+The extreme stability and scalability of full rmap is good.  The space
+consumption on highmem is bad.  The CPU cost is much less important than
+these things.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
