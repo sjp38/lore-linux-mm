@@ -1,127 +1,49 @@
 From: Thomas Schlichter <schlicht@uni-mannheim.de>
 Subject: Re: [2.5.70-mm8] NETDEV WATCHDOG: eth0: transmit timed out
-Date: Wed, 11 Jun 2003 15:16:44 +0200
-References: <20030611013325.355a6184.akpm@digeo.com> <200306111356.52950.schlicht@uni-mannheim.de>
-In-Reply-To: <200306111356.52950.schlicht@uni-mannheim.de>
+Date: Wed, 11 Jun 2003 17:25:43 +0200
+References: <20030611013325.355a6184.akpm@digeo.com> <200306111356.52950.schlicht@uni-mannheim.de> <200306111516.46648.schlicht@uni-mannheim.de>
+In-Reply-To: <200306111516.46648.schlicht@uni-mannheim.de>
 MIME-Version: 1.0
 Content-Type: multipart/signed;
   protocol="application/pgp-signature";
   micalg=pgp-sha1;
-  boundary="Boundary-03=_8uy5+TqG1JMLsfl";
+  boundary="Boundary-02=_9n05+GWjhokhT2/";
   charset="iso-8859-1"
 Content-Transfer-Encoding: 7bit
-Message-Id: <200306111516.46648.schlicht@uni-mannheim.de>
+Message-Id: <200306111725.49952.schlicht@uni-mannheim.de>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---Boundary-03=_8uy5+TqG1JMLsfl
-Content-Type: multipart/mixed;
-  boundary="Boundary-01=_8uy5+DmF7ZyXWey"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-
---Boundary-01=_8uy5+DmF7ZyXWey
+--Boundary-02=_9n05+GWjhokhT2/
 Content-Type: text/plain;
   charset="iso-8859-1"
 Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
 
-Hi,
+OK, I've found it...!
 
-it seems that whether the netdevice nor the 8139too parts of the kernel cau=
-se=20
-my problems but there must have been some bad changes to the interrupt=20
-routing or the IO-APIC parts.
+After reverting the pci-init-ordering-fix everything works as expected=20
+again...
 
-I don't have -mm7 handy currently (but at the moment it compiles again) but=
- I=20
-attached the contents of /proc/interrupts of 2.4.10 (the system I currently=
-=20
-run) and 2.5.70-mm8 again.
-
-As you can see there, the -mm8 code does not assign more than 16 interrupt=
-=20
-sinks but the 2.4.10 (and if I remember correctly -mm7, too) has 22. Perhap=
-s=20
-even more problematic is that -mm8 seems not to use level-triggered=20
-interrupts...!
-
-I could try to revert some IRQ or APIC changes if someone could tell me whi=
-ch=20
-Changeset may have caused that...
-
-Best reagrds
+Best regards
   Thomas Schlichter
 
---Boundary-01=_8uy5+DmF7ZyXWey
-Content-Type: text/plain;
-  charset="iso-8859-1";
-  name="interrupts-2.4.10.txt"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline; filename="interrupts-2.4.10.txt"
-
-           CPU0      =20
-  0:     184641    IO-APIC-edge  timer
-  1:       2037    IO-APIC-edge  keyboard
-  2:          0          XT-PIC  cascade
-  4:          2    IO-APIC-edge  serial
-  8:          2    IO-APIC-edge  rtc
- 12:      78366    IO-APIC-edge  PS/2 Mouse
- 14:     188581    IO-APIC-edge  ide0
- 15:          6    IO-APIC-edge  ide1
- 16:     180617   IO-APIC-level  nvidia
- 17:      14155   IO-APIC-level  eth0
- 18:      82091   IO-APIC-level  EMU10K1
- 19:     457792   IO-APIC-level  fcpci
- 21:          0   IO-APIC-level  usb-uhci, usb-uhci, usb-uhci
-NMI:          0=20
-LOC:     184592=20
-ERR:          0
-MIS:          0
-
---Boundary-01=_8uy5+DmF7ZyXWey
-Content-Type: text/plain;
-  charset="iso-8859-1";
-  name="interrupts-2.5.70-mm8.txt"
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline; filename="interrupts-2.5.70-mm8.txt"
-
-           CPU0      =20
-  0:      52599    IO-APIC-edge  timer
-  1:       1075    IO-APIC-edge  i8042
-  2:          0          XT-PIC  cascade
-  4:         11    IO-APIC-edge  serial
-  5:          0    IO-APIC-edge  uhci-hcd
-  8:          2    IO-APIC-edge  rtc
-  9:          0    IO-APIC-edge  acpi
- 10:          0    IO-APIC-edge  ehci-hcd
- 11:          0    IO-APIC-edge  eth0, EMU10K1, bttv0, uhci-hcd, uhci-hcd
- 12:         79    IO-APIC-edge  i8042
- 14:       6217    IO-APIC-edge  ide0
- 15:         10    IO-APIC-edge  ide1
-NMI:          0=20
-LOC:      52557=20
-ERR:          0
-MIS:          0
-
---Boundary-01=_8uy5+DmF7ZyXWey--
-
---Boundary-03=_8uy5+TqG1JMLsfl
+--Boundary-02=_9n05+GWjhokhT2/
 Content-Type: application/pgp-signature
 Content-Description: signature
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.2.1 (GNU/Linux)
 
-iD8DBQA+5yu8YAiN+WRIZzQRAoMMAKCoBQMTZcRn1D1Z3jEDlgJ1sk2KxACeP/pS
-2f7lj3nWHNPBzQdyMOoOnxw=
-=IkTu
+iD8DBQA+50n9YAiN+WRIZzQRAg7iAJ4syPiKM3Omz5CmGvL5aQbLDp6lCACdHQg4
+utVGid6mCLl9a9JL61f7t5c=
+=ThDB
 -----END PGP SIGNATURE-----
 
---Boundary-03=_8uy5+TqG1JMLsfl--
+--Boundary-02=_9n05+GWjhokhT2/--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
