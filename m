@@ -1,37 +1,140 @@
-Received: from dax.scot.redhat.com (sct@dax.scot.redhat.com [195.89.149.242])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id HAA26577
-	for <linux-mm@kvack.org>; Tue, 16 Mar 1999 07:29:40 -0500
-Date: Tue, 16 Mar 1999 12:22:27 GMT
-Message-Id: <199903161222.MAA01394@dax.scot.redhat.com>
-From: "Stephen C. Tweedie" <sct@redhat.com>
+Received: from neuman.interaccess.com (neuman.interaccess.com [207.70.126.130])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id XAA02027
+	for <linux-mm@kvack.org>; Tue, 16 Mar 1999 23:56:07 -0500
+Message-ID: <36EF35C3.E0EFC58D@interaccess.com>
+Date: Tue, 16 Mar 1999 22:55:31 -0600
+From: "Paul F. Dietz" <dietz@interaccess.com>
 MIME-Version: 1.0
+Subject: Small patch to mm/mmap_avl.c
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Subject: Re: A couple of questions
-In-Reply-To: <19990316074606.A10483@tc-1-192.ariake.gol.ne.jp>
-References: <36DBE391.EF9C1C06@earthling.net>
-	<199903151858.SAA02057@dax.scot.redhat.com>
-	<19990316074606.A10483@tc-1-192.ariake.gol.ne.jp>
 Sender: owner-linux-mm@kvack.org
-To: neil@tc-1-192.ariake.gol.ne.jp
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Linux-MM <linux-mm@kvack.org>
+To: linux-kernel@vger.rutgers.edu
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+I want to rewrite the AVL tree code in mm/mmap_avl.c.
+Before I do that, though, I wanted to clean up the
+existing code a bit.  Here's a small patch to 2.2.3 that
+gets rid of some unnecessary counters.  After this,
+I want to recode using the AVL tree routines from
+Knuth vol. 3, storing the height difference of the
+children at each node, rather than the height itself.
 
-On Tue, 16 Mar 1999 07:46:06 +0900, neil@tc-1-192.ariake.gol.ne.jp
-said:
-
-> Thanks for your reply.  I think you've missed my point on this one.
-> The variable "pte" is set before calling __get_free_page(), and being
-> local cannot be modified by other processes.  
-
-Umm, OK, you've convinced me. :) I think we have enough locks held
-throughout this to prevent the present or writable bits in *page_table
-from changing between the test in handle_pte_fault() and do_wp_page()
-itself, even on SMP.
-
---Stephen
+===============================================================
+--- linux-backup/mm/mmap_avl.c	Thu Mar 11 06:34:07 1999
++++ linux/mm/mmap_avl.c	Sun Mar 14 20:56:06 1999
+@@ -84,9 +84,10 @@
+  * nodes[0]..nodes[k-1] such that
+  * nodes[0] is the root and nodes[i+1] = nodes[i]->{vm_avl_left|vm_avl_right}.
+  */
+-static void avl_rebalance (struct vm_area_struct *** nodeplaces_ptr, int count)
++static void avl_rebalance (struct vm_area_struct *** nodeplaces_ptr,
++			   struct vm_area_struct *** nodeplaces_base)
+ {
+-	for ( ; count > 0 ; count--) {
++	while (nodeplaces_ptr > nodeplaces_base) {
+ 		struct vm_area_struct ** nodeplace = *--nodeplaces_ptr;
+ 		struct vm_area_struct * node = *nodeplace;
+ 		struct vm_area_struct * nodeleft = node->vm_avl_left;
+@@ -166,13 +167,12 @@
+ 	vm_avl_key_t key = new_node->vm_avl_key;
+ 	struct vm_area_struct ** nodeplace = ptree;
+ 	struct vm_area_struct ** stack[avl_maxheight];
+-	int stack_count = 0;
+-	struct vm_area_struct *** stack_ptr = &stack[0]; /* = &stack[stackcount] */
++	struct vm_area_struct *** stack_ptr = &stack[0];
+ 	for (;;) {
+ 		struct vm_area_struct * node = *nodeplace;
+ 		if (node == vm_avl_empty)
+ 			break;
+-		*stack_ptr++ = nodeplace; stack_count++;
++		*stack_ptr++ = nodeplace;
+ 		if (key < node->vm_avl_key)
+ 			nodeplace = &node->vm_avl_left;
+ 		else
+@@ -182,7 +182,7 @@
+ 	new_node->vm_avl_right = vm_avl_empty;
+ 	new_node->vm_avl_height = 1;
+ 	*nodeplace = new_node;
+-	avl_rebalance(stack_ptr,stack_count);
++	avl_rebalance(stack_ptr,&stack[0]);
+ }
+ 
+ /* Insert a node into a tree, and
+@@ -194,14 +194,13 @@
+ 	vm_avl_key_t key = new_node->vm_avl_key;
+ 	struct vm_area_struct ** nodeplace = ptree;
+ 	struct vm_area_struct ** stack[avl_maxheight];
+-	int stack_count = 0;
+-	struct vm_area_struct *** stack_ptr = &stack[0]; /* = &stack[stackcount] */
++	struct vm_area_struct *** stack_ptr = &stack[0];
+ 	*to_the_left = *to_the_right = NULL;
+ 	for (;;) {
+ 		struct vm_area_struct * node = *nodeplace;
+ 		if (node == vm_avl_empty)
+ 			break;
+-		*stack_ptr++ = nodeplace; stack_count++;
++		*stack_ptr++ = nodeplace;
+ 		if (key < node->vm_avl_key) {
+ 			*to_the_right = node;
+ 			nodeplace = &node->vm_avl_left;
+@@ -214,7 +213,7 @@
+ 	new_node->vm_avl_right = vm_avl_empty;
+ 	new_node->vm_avl_height = 1;
+ 	*nodeplace = new_node;
+-	avl_rebalance(stack_ptr,stack_count);
++	avl_rebalance(stack_ptr,&stack[0]);
+ }
+ 
+ /* Removes a node out of a tree. */
+@@ -223,8 +222,7 @@
+ 	vm_avl_key_t key = node_to_delete->vm_avl_key;
+ 	struct vm_area_struct ** nodeplace = ptree;
+ 	struct vm_area_struct ** stack[avl_maxheight];
+-	int stack_count = 0;
+-	struct vm_area_struct *** stack_ptr = &stack[0]; /* = &stack[stackcount] */
++	struct vm_area_struct *** stack_ptr = &stack[0];
+ 	struct vm_area_struct ** nodeplace_to_delete;
+ 	for (;;) {
+ 		struct vm_area_struct * node = *nodeplace;
+@@ -235,7 +233,7 @@
+ 			return;
+ 		}
+ #endif
+-		*stack_ptr++ = nodeplace; stack_count++;
++		*stack_ptr++ = nodeplace;
+ 		if (key == node->vm_avl_key)
+ 			break;
+ 		if (key < node->vm_avl_key)
+@@ -247,7 +245,7 @@
+ 	/* Have to remove node_to_delete = *nodeplace_to_delete. */
+ 	if (node_to_delete->vm_avl_left == vm_avl_empty) {
+ 		*nodeplace_to_delete = node_to_delete->vm_avl_right;
+-		stack_ptr--; stack_count--;
++		stack_ptr--;
+ 	} else {
+ 		struct vm_area_struct *** stack_ptr_to_delete = stack_ptr;
+ 		struct vm_area_struct ** nodeplace = &node_to_delete->vm_avl_left;
+@@ -256,7 +254,7 @@
+ 			node = *nodeplace;
+ 			if (node->vm_avl_right == vm_avl_empty)
+ 				break;
+-			*stack_ptr++ = nodeplace; stack_count++;
++			*stack_ptr++ = nodeplace;
+ 			nodeplace = &node->vm_avl_right;
+ 		}
+ 		*nodeplace = node->vm_avl_left;
+@@ -267,7 +265,7 @@
+ 		*nodeplace_to_delete = node; /* replace node_to_delete */
+ 		*stack_ptr_to_delete = &node->vm_avl_left; /* replace
+&node_to_delete->vm_avl_left */
+ 	}
+-	avl_rebalance(stack_ptr,stack_count);
++	avl_rebalance(stack_ptr,&stack[0]);
+ }
+ 
+ #ifdef DEBUG_AVL
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
