@@ -1,82 +1,56 @@
-Received: from squid.netplus.net (squid.netplus.net [206.250.192.10])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id DAA26356
-	for <linux-mm@kvack.org>; Sat, 2 Jan 1999 03:34:51 -0500
-Message-ID: <368DD9EE.D19A4D61@netplus.net>
-Date: Sat, 02 Jan 1999 02:33:50 -0600
-From: Steve Bergman <steve@netplus.net>
+Received: from max.phys.uu.nl (max.phys.uu.nl [131.211.32.73])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id JAA27857
+	for <linux-mm@kvack.org>; Sat, 2 Jan 1999 09:49:34 -0500
+Date: Sat, 2 Jan 1999 15:30:30 +0100 (CET)
+From: Rik van Riel <riel@humbolt.geo.uu.nl>
+Subject: Re: naive questions, docs, etc.
+In-Reply-To: <199901020817.CAA13504@disco.cs.utexas.edu>
+Message-ID: <Pine.LNX.4.03.9901021526530.3270-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
-Subject: Re: [patch] new-vm improvement [Re: 2.2.0 Bug summary]
-References: <Pine.LNX.3.95.990101225111.16066K-100000@penguin.transmeta.com>
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-Cc: Benjamin Redelings I <bredelin@ucsd.edu>, "Stephen C. Tweedie" <sct@redhat.com>, linux-kernel@vger.rutgers.edu, Alan Cox <alan@lxorguk.ukuu.org.uk>, Rik van Riel <H.H.vanRiel@phys.uu.nl>, linux-mm@kvack.org
+To: "Paul R. Wilson" <wilson@cs.utexas.edu>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Linus Torvalds wrote:
+On Sat, 2 Jan 1999, Paul R. Wilson wrote:
+
+> >> 1) Is there any text describing memory management in 2.1?  (Forgive me
+> >>    if I missed an obvious URL)
+> > [Rik:] 
+> >Btw, since you are so enthusiastic about documentation,
+> >would you be willing to help me write it?
 > 
-> On Fri, 1 Jan 1999, Steve Bergman wrote:
-> >
-> > I got the patch and I must say I'm impressed.  I ran my "117 image" test
-> > and got these results:
-> >
-> > 2.1.131-ac11                         172 sec  (This was previously the best)
-> > 2.2.0-pre1 + Arcangeli's 1st patch   400 sec
-> > test1-pre  + Arcangeli's 2nd patch   119 sec (!)
+> The question wasn't directed at me, but I'd be willing to help, if
+> people are interested in filling in some gaps in my understanding.
 > 
-> Would you care to do some more testing? In particular, I'd like to hear
-> how basic 2.2.0pre3 works (that's essentially the same as test1-pre, with
-> only minor updates)? I'd like to calibrate the numbers against that,
-> rather than against kernels that I haven't actually ever run myself.
+> I have some basic questions about the overall design, as well as a
+> bunch of detailed questions.
 > 
-> The other thing I'd like to hear is how pre3 looks with this patch, which
-> should behave basically like Andrea's latest patch 
+> If people are interested in explaining things to me, I'll happily
+> write up whatever I learn.
 
-Hi Linus,
+I cannot speak for the others, but I know I'll gladly help
+you out when you don't know where to look for things.
 
-Andrea sent another patch to correct a problem with i/o bound processes,
-which he also posted to linux-kernel.  The performance in this test is
-unchanged.
+The source will be the most important place to look for
+information, but we'll be there to help you out if you
+can't find the stuff or if the source is poorly documented.
 
-Here are the results:
+I think it will be great to have our source reviewed by
+someone who is writing documentation instead of trying
+to add a hack to do this-or-that. It could cause a nice
+cleanup of the comments and the code structure so I think
+we should help Paul as much as possible...
 
+cheers,
 
-2.1.131-ac11                                    172 sec  
+Rik -- If a Microsoft product fails, who do you sue?
++-------------------------------------------------------------------+
+| Linux memory management tour guide.        riel@humbolt.geo.uu.nl |
+| Scouting Vries cubscout leader.    http://humbolt.geo.uu.nl/~riel |
++-------------------------------------------------------------------+
 
-2.2.0-pre1 + Arcangeli's 1st patch              400 sec
-test1-pre  + Arcangeli's 2nd patch              119 sec 
-test1-pre  + Arcangeli's 3rd patch              119 sec
-test1-pre  + Arcangeli's 3rd patch              117 sec 
-(changed to priority = 9 in mm/vmscan.c)
-
-2.2.0-pre3                                      175 sec
-2.2.0-pre3 + Linus's patch                      129 sec
-
-RH5.2 Stock (2.0.36-0.7)                        280 sec
-
-
-
-I noticed that in watching the 'vmstat 1' during the test that
-'2.2.0+Linus patch' was not *quite* as smooth as the Archangeli patches,
-in that there were periods of 2 or 3 seconds in which the swap out rate
-would fall to ~800k/sec and then jump back up to 1.8-2.5MB/sec.  I have
-only run your patch once though.  I'll check it further tomorrow to
-confirm that that is really the case.  Note how much better 2.2 is doing
-compared to 2.0.36-0.7 in this situation.
-
-I should be available for a good part of this weekend for further
-testing; Just let me know.
-
-As a reference:
-
-AMD K6-2 300
-128MB ram
-2GB seagate scsi2 dedicated to swap
-Data drive is 6.5GB UDMA
-
-
-Steve Bergman
-steve@netplus.net
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
