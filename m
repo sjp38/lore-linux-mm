@@ -1,53 +1,88 @@
-Date: Wed, 14 May 2003 22:36:23 -0400 (EDT)
-From: Rik van Riel <riel@redhat.com>
+Date: Thu, 15 May 2003 01:32:45 -0700
+From: Andrew Morton <akpm@digeo.com>
 Subject: Re: Race between vmtruncate and mapped areas?
+Message-Id: <20030515013245.58bcaf8f.akpm@digeo.com>
 In-Reply-To: <20030515004915.GR1429@dualathlon.random>
-Message-ID: <Pine.LNX.4.44.0305142234120.20800-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+References: <154080000.1052858685@baldur.austin.ibm.com>
+	<20030513181018.4cbff906.akpm@digeo.com>
+	<18240000.1052924530@baldur.austin.ibm.com>
+	<20030514103421.197f177a.akpm@digeo.com>
+	<82240000.1052934152@baldur.austin.ibm.com>
+	<20030515004915.GR1429@dualathlon.random>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: Dave McCracken <dmccr@us.ibm.com>, Andrew Morton <akpm@digeo.com>, mika.penttila@kolumbus.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: dmccr@us.ibm.com, mika.penttila@kolumbus.fi, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 15 May 2003, Andrea Arcangeli wrote:
+Andrea Arcangeli <andrea@suse.de> wrote:
+>
+>  what do you think of this untested fix?
+> 
+>  I wonder if vm_file is valid for all nopage operations, I think it
+>  should, and the i_mapping as well should always exist, but in the worst
+>  case it shouldn't be too difficult to take care of special cases
+>  (just checking if the new_page is reserved and if the vma is VM_SPECIAL)
+>  would eliminate most issues, shall there be any.
 
-> --- x/include/linux/fs.h.~1~	2003-05-14 23:26:19.000000000 +0200
-> +++ x/include/linux/fs.h	2003-05-15 02:35:57.000000000 +0200
-> @@ -421,6 +421,8 @@ struct address_space {
->  	struct vm_area_struct	*i_mmap;	/* list of private mappings */
->  	struct vm_area_struct	*i_mmap_shared; /* list of shared mappings */
->  	spinlock_t		i_shared_lock;  /* and spinlock protecting it */
-> +	int			truncate_sequence1; /* serialize ->nopage against truncate */
-> +	int			truncate_sequence2; /* serialize ->nopage against truncate */
+yes, I think this is a good solution.
 
-How about calling them truncate_start and truncate_end ?
+In 2.5 (at least) we can push all the sequence number work into
+filemap_nopage(), and add a new vm_ops->revalidate() thing, so do_no_page()
+doesn't need to know about inodes and such.
 
-> --- x/mm/vmscan.c.~1~	2003-05-14 23:26:12.000000000 +0200
-> +++ x/mm/vmscan.c	2003-05-15 00:22:57.000000000 +0200
-> @@ -165,11 +165,10 @@ drop_pte:
->  		goto drop_pte;
->  
->  	/*
-> -	 * Anonymous buffercache pages can be left behind by
-> +	 * Anonymous buffercache pages can't be left behind by
->  	 * concurrent truncate and pagefault.
->  	 */
-> -	if (page->buffers)
-> -		goto preserve;
-> +	BUG_ON(page->buffers);
+So the mm/memory.c part would look something like:
 
-I wonder if there is nothing else that can leave behind
-buffers in this way.
+diff -puN mm/memory.c~a mm/memory.c
+--- 25/mm/memory.c~a	2003-05-15 01:29:21.000000000 -0700
++++ 25-akpm/mm/memory.c	2003-05-15 01:32:02.000000000 -0700
+@@ -1399,7 +1399,7 @@ do_no_page(struct mm_struct *mm, struct 
+ 					pmd, write_access, address);
+ 	pte_unmap(page_table);
+ 	spin_unlock(&mm->page_table_lock);
+-
++retry:
+ 	new_page = vma->vm_ops->nopage(vma, address & PAGE_MASK, 0);
+ 
+ 	/* no page was available -- either SIGBUS or OOM */
+@@ -1408,9 +1408,11 @@ do_no_page(struct mm_struct *mm, struct 
+ 	if (new_page == NOPAGE_OOM)
+ 		return VM_FAULT_OOM;
+ 
+-	pte_chain = pte_chain_alloc(GFP_KERNEL);
+-	if (!pte_chain)
+-		goto oom;
++	if (!pte_chain) {
++		pte_chain = pte_chain_alloc(GFP_KERNEL);
++		if (!pte_chain)
++			goto oom;
++	}
+ 
+ 	/*
+ 	 * Should we do an early C-O-W break?
+@@ -1428,6 +1430,17 @@ do_no_page(struct mm_struct *mm, struct 
+ 	}
+ 
+ 	spin_lock(&mm->page_table_lock);
++
++	/*
++	 * comment goes here
++	 */
++	if (vma->vm_ops && vma->vm_ops->revalidate &&
++			vma->vm_ops->revalidate(vma, address) {
++		spin_unlock(&mm->page_table_lock);
++		put_page(new_page);
++		goto retry;
++	}
++
+ 	page_table = pte_offset_map(pmd, address);
+ 
+ 	/*
 
-> +	mb(); /* spin_lock has inclusive semantics */
-> +	if (unlikely(truncate_sequence != mapping->truncate_sequence1)) {
-> +		struct inode *inode;
-
-This code looks like it should work, but IMHO it is very subtle
-so it should really get some documentation.
-
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
