@@ -1,40 +1,99 @@
-Date: Fri, 06 Aug 2004 10:28:44 -0700
-From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: [proc.txt] Fix /proc/pid/statm documentation
-Message-ID: <276140000.1091813324@flay>
-In-Reply-To: <1091803883.1231.2502.camel@cube>
-References: <1091754711.1231.2388.camel@cube> <20040806094037.GB11358@k3.hellgate.ch> <1091797122.1231.2452.camel@cube> <20040806163428.GA31285@k3.hellgate.ch> <1091803883.1231.2502.camel@cube>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+From: Albert Cahalan <albert@users.sf.net>
+In-Reply-To: <20040806170832.GA898@k3.hellgate.ch>
+References: <1091754711.1231.2388.camel@cube>
+	 <20040806094037.GB11358@k3.hellgate.ch>
+	 <20040806104630.GA17188@holomorphy.com>
+	 <20040806120123.GA23081@k3.hellgate.ch> <1091800948.1231.2454.camel@cube>
+	 <20040806170832.GA898@k3.hellgate.ch>
+Content-Type: text/plain
+Message-Id: <1091805296.3547.2522.camel@cube>
+Mime-Version: 1.0
+Date: 06 Aug 2004 11:14:56 -0400
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Albert Cahalan <albert@users.sourceforge.net>, Roger Luethi <rl@hellgate.ch>
-Cc: linux-kernel mailing list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, wli@holomorphy.com
+To: Roger Luethi <rl@hellgate.ch>
+Cc: William Lee Irwin III <wli@holomorphy.com>, linux-kernel mailing list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, 2004-08-06 at 13:08, Roger Luethi wrote:
+> On Fri, 06 Aug 2004 10:02:28 -0400, Albert Cahalan wrote:
 
---On Friday, August 06, 2004 10:51:24 -0400 Albert Cahalan <albert@users.sourceforge.net> wrote:
-
-> On Fri, 2004-08-06 at 12:34, Roger Luethi wrote:
->> On Fri, 06 Aug 2004 08:58:43 -0400, Albert Cahalan wrote:
->> > > Hardly. All I was asking this time was to have a documentation fix
->> > > merged, though.
->> > 
->> > Just delete the documentation. I certainly never use it.
->> 
->> It wasn't written for you.
+> > > what a good solution would look like. Files like /proc/pid/status
+> > > are human-readable and maintenance-friendly (the parser can recognize
+> > > unknown values and gets a free label along with it; obsolete fields can
+> > > be removed).
+> > 
+> > If you're just spewing the values with a perl script, sure.
+> > I'm not sure this matters.
 > 
-> OK, but the statm file was. (well, for the maintainer
-> of procps a decade ago)
+> It matters to me. I like to have tools that don't need updates to
+> cope with new fields. Having to wait for tool authors to catch up with
+> kernels is annoying.
+
+Not many people want raw data, so the tool authors
+will need to put out new releases anyway.
+
+It doesn't take more than a week generally.
+
+> > If it's going to be this dynamic, then just give me DWARF2 debug
+> > info and the raw data. Like this:
+> > 
+> > /proc/DWARF2
+> > /proc/1000/mm_struct
+> > /proc/1000/signal_struct
+> > /proc/1000/sighand_struct
+> > /proc/1000/task/1024/thread_info
+> > /proc/1000/task/1024/task_struct
+> > /proc/1000/task/1024/fs_struct
 > 
-> Everybody else can parse ps output.
+> That's different. The overhead would be prohibitive. Also, this exposes
+> internal kernel structures.
 
-I don't think that's necessarily a good idea - access to lower level
-data would be nice. What's the harm in fixing the docs, anyway?
+The overhead? I'm not seeing much, other than the multiple
+files and the very fact that field locations are movable.
 
-M.
+As long as I can fall back to the old /proc files when truly
+radical kernel changes happen, exposure of kernel internals
+isn't a serious problem.
+
+If I had the DWARF2 data alone, /dev/mem might be enough.
+(sadly, "top" would require some major work before I'd trust it)
+
+> > > Or use netlink maybe? It sure would be nice to monitor all processes
+> > > with lower overhead, and to have tools that can deal with new data
+> > > items without an update.
+> > 
+> > I've been thinking netlink might be good.
+> 
+> Alright. Maybe we can move our discussion into this direction?
+
+I'll need to track down some netlink documentation.
+Last time I looked, there wasn't any.
+ 
+> > > - Split proc information by new criteria: Slow, expensive items should
+> > >   not be in the same file as information that tools typically
+> > >   and frequently read. For instance, you could have status_basic,
+> > >   status_exotic, and status_slow. Even status_basic could have a format
+> > >   similar to /proc/pid/status, but would be shorter and contain only
+> > >   the most frequently used values (like statm today -- with all the
+> > >   problems that come with such a pre-made selection).
+> > 
+> > Split by:
+> > 1. locking
+> > 2. security.
+> 
+> Hmmm... How does this translate to a netlink interface? Can you elaborate?
+
+I don't think it does.
+
+For the existing files though:
+
+Some SE Linux policies block all access to /proc. Some security
+feature patches zero out things that would reveal addresses.
+(start_code, end_code, wchan...)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
