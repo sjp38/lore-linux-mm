@@ -1,30 +1,46 @@
-Date: Thu, 13 Jan 2000 18:12:45 +0100 (CET)
+Date: Thu, 13 Jan 2000 18:06:07 +0100 (CET)
 From: Andrea Arcangeli <andrea@suse.de>
 Subject: Re: [RFC] 2.3.39 zone balancing
-In-Reply-To: <200001122111.NAA68159@google.engr.sgi.com>
-Message-ID: <Pine.LNX.4.21.0001131806190.1648-100000@alpha.random>
+In-Reply-To: <Pine.LNX.4.10.10001131430520.13454-100000@mirkwood.dummy.home>
+Message-ID: <Pine.LNX.4.21.0001131803330.1648-100000@alpha.random>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Kanoj Sarcar <kanoj@google.engr.sgi.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Rik van Riel <riel@nl.linux.org>
+Cc: Kanoj Sarcar <kanoj@google.engr.sgi.com>, torvalds@transmeta.com, mingo@chiara.csoma.elte.hu, alan@lxorguk.ukuu.org.uk, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 12 Jan 2000, Kanoj Sarcar wrote:
+On Thu, 13 Jan 2000, Rik van Riel wrote:
 
->+There are two reasons to be requesting non __GFP_WAIT allocations:
->+the caller can not sleep (typically intr context), or does not want
->+to incur cost overheads of page stealing and possible swap io.
+>On Wed, 12 Jan 2000, Kanoj Sarcar wrote:
+>
+>> --- mm/page_alloc.c	Tue Jan 11 11:00:31 2000
+>> +++ mm/page_alloc.c	Tue Jan 11 23:59:35 2000
+>> +		cumulative += size;
+>> +		mask = (cumulative >> 7);
+>> +		if (mask < 1) mask = 1;
+>> +		zone->pages_low = mask*2;
+>> +		zone->pages_high = mask*3;
+>>  		zone->low_on_memory = 0;
+>
+>I think that busier machines probably have a larger need
+>for DMA memory than this code fragment will give us. I
+>have the gut feeling that we'll want to keep about 512kB
+>or more free in the lower 16MB of busy machines...
+>
+>(if only because such a large amount of free pages in
+>such a small part of the address space will give us
+>higher-order free pages)
 
-You may be in a place where you can sleep but you can't do I/O to avoid
-deadlocking and so you shouldn't use __GFP_IO and nothing more (it has
-nothing to do with __GFP_WAIT).
+That's only a workaround because the page-freeing mechanism is currently
+not aware about fragmentation and about the order of the request we asked
+for.
 
-But if it can sleep and there aren't deadlock conditons going on and it
-doesn't use __GFP_WAIT, it means it's buggy and has to be fixed.
+So such code shouldn't be wrote assuming the page-freeing is weak as now.
 
-I have not read the rest and the patch yet (I'll continue ASAP).
+Supposing it's smart we don't need to take lots of memory free in the dma
+zone to allow high order allocations to succeed.
 
 Andrea
 
