@@ -1,56 +1,56 @@
-Date: Fri, 7 Jan 2005 15:43:05 -0800
-From: Andrew Morton <akpm@osdl.org>
-Subject: Re: [RFC] per thread page reservation patch
-Message-Id: <20050107154305.790b8a51.akpm@osdl.org>
-In-Reply-To: <m18y74rfqs.fsf@clusterfs.com>
-References: <20050103011113.6f6c8f44.akpm@osdl.org>
-	<20050103114854.GA18408@infradead.org>
-	<41DC2386.9010701@namesys.com>
-	<1105019521.7074.79.camel@tribesman.namesys.com>
-	<20050107144644.GA9606@infradead.org>
-	<1105118217.3616.171.camel@tribesman.namesys.com>
-	<41DEDF87.8080809@grupopie.com>
-	<m1llb5q7qs.fsf@clusterfs.com>
-	<20050107132459.033adc9f.akpm@osdl.org>
-	<m1d5wgrir7.fsf@clusterfs.com>
-	<20050107150315.3c1714a4.akpm@osdl.org>
-	<m18y74rfqs.fsf@clusterfs.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Message-ID: <41DF266F.6020007@sgi.com>
+Date: Fri, 07 Jan 2005 18:16:47 -0600
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
+Subject: Re: broken out migration patches
+References: <1104875977.16305.7.camel@localhost>
+In-Reply-To: <1104875977.16305.7.camel@localhost>
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nikita Danilov <nikita@clusterfs.com>
-Cc: pmarques@grupopie.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, hch@infradead.org
+To: Dave Hansen <dave@sr71.net>
+Cc: lhms <lhms-devel@lists.sourceforge.net>, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Nikita Danilov <nikita@clusterfs.com> wrote:
->
-> >
-> > Why does the filesystem risk going oom during the rebalance anyway?  Is it
-> > doing atomic allocations?
-> 
-> No, just __alloc_pages(GFP_KERNEL, 0, ...) returns NULL. When this
-> happens, the only thing balancing can do is to panic.
+Dave,
 
-__alloc_pages(GFP_KERNEL, ...) doesn't return NULL.  It'll either succeed
-or never return ;) That behaviour may change at any time of course, but it
-does make me wonder why we're bothering with this at all.  Maybe it's
-because of the possibility of a GFP_IO failure under your feet or
-something?
+Looks there is some more work to do here to pull out HOTPLUG
+stuff from the migration patches:
 
-What happens if reiser4 simply doesn't use this code?
+==> grep VM_IMMOVABLE page_migration-2.6.10-mm1-mhp-test7.patch
++       if (vma->vm_flags & VM_IMMOVABLE)
++               if (vma->vm_flags & VM_IMMOVABLE)
++#define VM_IMMOVABLE   0x01000000      /* Don't place in hot removable area */
++              _calc_vm_trans(flags, MAP_IMMOVABLE,  VM_IMMOVABLE );
++               tmp->vm_flags &= ~(VM_LOCKED|VM_IMMOVABLE);
+[raybry@tomahawk.engr.sgi.com:patches/page-migration] 
+ 
+===> grep HOTPLUG page_migration-2.6.10-mm1-mhp-test7.patch
++#ifndef _LINUX_MEMHOTPLUG_H
++#define _LINUX_MEMHOTPLUG_H
++#endif /* _LINUX_MEMHOTPLUG_H */
++#ifdef CONFIG_MEMORY_HOTPLUG
++#ifdef CONFIG_MEMORY_HOTPLUG
++#ifdef CONFIG_MEMORY_HOTPLUG
++#ifdef CONFIG_MEMORY_HOTPLUG
+@@ -257,6 +257,8 @@ config HOTPLUG_CPU
 
+The #ifdef's don't hurt anything, really, but it indicates that this 
+separation isn't clean yet, right?
 
-If we introduce this mechanism, people will end up using it all over the
-place.  Probably we could remove radix_tree_preload(), which is the only
-similar code I can I can immediately think of.
+Should I carry over the VM_IMMOVABLE stuff in the page_migration patch?
 
-Page reservation is not a bad thing per-se, but it does need serious
-thought.
-
-How does reiser4 end up deciding how many pages to reserve?  Gross
-overkill?
+-- 
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
