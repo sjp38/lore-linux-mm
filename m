@@ -1,59 +1,53 @@
-Date: Mon, 19 Apr 2004 16:01:34 +0100 (BST)
-From: Hugh Dickins <hugh@veritas.com>
-Subject: Re: Non-linear mappings and truncate/madvise(MADV_DONTNEED)
-In-Reply-To: <20040419133240.GA14482@mail.shareable.org>
-Message-ID: <Pine.LNX.4.44.0404191548030.24243-100000@localhost.localdomain>
+Subject: Re: Page Mapping
+From: Ed L Cashin <ecashin@uga.edu>
+Date: Mon, 19 Apr 2004 11:26:53 -0400
+In-Reply-To: <407171E4.4020002@users.sourceforge.net> ("Kuas's message of
+ "Mon, 05 Apr 2004 10:49:08 -0400")
+Message-ID: <87n058ng3m.fsf@uga.edu>
+References: <4070CB37.8070704@users.sourceforge.net>
+	<407171E4.4020002@users.sourceforge.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jamie Lokier <jamie@shareable.org>
-Cc: Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kuas (gmane)" <ku4s@users.sourceforge.net>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 19 Apr 2004, Jamie Lokier wrote:
-> A couple of thoughts on non-linear mappings.  Vanilla 2.6.5.
-> 
-> I'm reading madvise_dontneed() and thinking about that zap_page_range()
-> call.  It'll wipe non-linear file offset ptes, won't it?
+"Kuas (gmane)" <ku4s@users.sourceforge.net> writes:
 
-Yes, at present.
+> Sorry, please ignore some of the previous question.
+>
+> I found the answer in Intel Developer guide v3. 'pte_t' consists of
+> the base physical address of the page (20 MSB of pte_t) and page flags
+> (12 LSB of pte_t). So to get the address, I just have to mask the
+> pte_t with PAGE_MASK.
+>
+> Now the next question is can I just use that address and refer to it
+> right away? Like using a pointer? Or I still have to use some MMU
+> mechanism?
 
-> MADV_DONTNEED is actually a reasonable thing to do with a non-linear
-> mapping, when you no longer need some of the pages.  You could argue
-> that losing the offsets is acceptable in this case, but I think it's a
-> poor argument.  The offsets should be preserved while zapping the ptes.
+No, it's a physical address.  Normally, pointers inside the kernel
+contain virtual addresses, and the MMU will translate them into
+physical addresses automatically.
 
-Yes.  And I think it also implies that the ->populate functions
-are wrong to fail beyond EOF, should just set up file ptes there.
+If you know the page is present in RAM and you want to access the
+contents of the page, you can convert it to a virtual address and then
+use that address.  There's the "phys_to_virt" function that you can
+use.
 
-> Then there's vmtruncate() and invalidate_mmap_range() which calls
-> zap_page_range().  When you call truncate(), the non-linear offsets
-> appear to be lost (I'm reading the code, not testing it) for the part
-> of each VMA corresponding to where the linear mapping would have been.
-> 
-> That means (a) a peculiar part of the mapping is lost, and (b) some of
-> the truncated pages will stay mapped, if they're in a part of a VMA
-> which didn't get wiped by the linear calculation.
-> 
-> Do any of the latest objrmap patches fix these problems?  Have I
-> misdiagnosed these problems?
+> And I don't see anywhere in the page struct to know how big is the
+> page filled? I don't think every page has all 4 KB filled, right? Or
+> are all the pages zeroed out before being reassigned? So I still can
+> read the whole page, just the last bytes will be 0x00 if it's not used.
 
-rmap 6 nonlinear truncation (which never appeared on LKML, though
-sent twice) fixed most of this, and went into 2.6.6-rc1-bk4 last
-night: please check it out.
+I think that anonymous pages are usually set up copy-on-write from the
+ZERO_PAGE.  They'll be all zero in parts of the page that haven't been
+modified.  
 
-But I just converted madvise_dontneed by rote, adding a NULL arg to
-zap_page_range, missing your point that it should respect nonlinearity.
-
-And I made the zap_details structure private to mm/memory.c since I
-hadn't noticed anything outside needing it: I'll fix that up later
-and post a patch.
-
-I'm haven't and don't intend to change the behaviour of ->populate,
-without agreement from others - Ingo? Jamie?
-
-Hugh
+-- 
+--Ed L Cashin            |   PGP public key:
+  ecashin@uga.edu        |   http://noserose.net/e/pgp/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
