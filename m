@@ -1,42 +1,23 @@
-Message-ID: <20001002120559.13349.qmail@theseus.mathematik.uni-ulm.de>
-From: ehrhardt@mathematik.uni-ulm.de
-Date: Mon, 2 Oct 2000 14:05:59 +0200
-Subject: Re: [PATCH] fix for VM  test9-pre7
-References: <Pine.LNX.4.21.0010020038090.30717-100000@duckman.distro.conectiva>
-Mime-Version: 1.0
+Message-ID: <39D880FA.CFCC31E7@SANgate.com>
+Date: Mon, 02 Oct 2000 15:35:07 +0300
+From: BenHanokh Gabriel <gabriel@SANgate.com>
+MIME-Version: 1.0
+Subject: how can i add a kernel function ?
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0010020038090.30717-100000@duckman.distro.conectiva>; from riel@conectiva.com.br on Mon, Oct 02, 2000 at 12:42:47AM -0300
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Rik van Riel <riel@conectiva.com.br>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+hi
 
-On Mon, Oct 02, 2000 at 12:42:47AM -0300, Rik van Riel wrote:
-> --- linux-2.4.0-test9-pre7/fs/buffer.c.orig	Sat Sep 30 18:09:18 2000
-> +++ linux-2.4.0-test9-pre7/fs/buffer.c	Mon Oct  2 00:19:41 2000
-> @@ -706,7 +706,9 @@
->  static void refill_freelist(int size)
->  {
->  	if (!grow_buffers(size)) {
-> -		try_to_free_pages(GFP_BUFFER);
-> +		wakeup_bdflush(1);
-> +		current->policy |= SCHED_YIELD;
-> +		schedule();
->  	}
->  }
+i'm trying to add a function of my own to my copy of fs/buffer.c
 
-This part looks strange! wakeup_bdflush will sleep if the parameter
-is not zero, i.e. we'll schedule twice. I doubt that this the intended
-behaviour?
+how can i export the symbol ?
 
-    regards    Christian
-
--- 
-THAT'S ALL FOLKS!
+THX
+/gabi
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
