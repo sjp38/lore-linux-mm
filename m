@@ -1,54 +1,40 @@
-Date: Fri, 2 May 2003 14:05:08 -0700
+Date: Fri, 2 May 2003 14:12:32 -0700
 From: Andrew Morton <akpm@digeo.com>
 Subject: Re: 2.5.68-mm4
-Message-Id: <20030502140508.02d13449.akpm@digeo.com>
-In-Reply-To: <1051908541.2166.40.camel@spc9.esa.lanl.gov>
+Message-Id: <20030502141232.77eecd2d.akpm@digeo.com>
+In-Reply-To: <20030502153525.GA11939@krispykreme>
 References: <20030502020149.1ec3e54f.akpm@digeo.com>
-	<1051905879.2166.34.camel@spc9.esa.lanl.gov>
-	<20030502133405.57207c48.akpm@digeo.com>
-	<1051908541.2166.40.camel@spc9.esa.lanl.gov>
+	<20030502153525.GA11939@krispykreme>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Steven Cole <elenstev@mesatop.com>
+To: Anton Blanchard <anton@samba.org>, "Eric W. Biederman" <ebiederm@xmission.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Steven Cole <elenstev@mesatop.com> wrote:
+Anton Blanchard <anton@samba.org> wrote:
 >
-> On Fri, 2003-05-02 at 14:34, Andrew Morton wrote:
-> > Steven Cole <elenstev@mesatop.com> wrote:
-> > >
-> > > For what it's worth, kexec has worked for me on the following
-> > > two systems.
-> > > ...
-> > > 00:03.0 Ethernet controller: Intel Corp. 82557/8/9 [Ethernet Pro 100] (rev 08)
-> > 
-> > Are you using eepro100 or e100?  I found that e100 failed to bring up the
-> > interface on restart ("failed selftest"), but eepro100 was OK.
 > 
-> CONFIG_EEPRO100=y
-> # CONFIG_EEPRO100_PIO is not set
-> # CONFIG_E100 is not set
+> Hi,
 > 
-> I can test E100 again to verify if that would help.
+> > . Included the `kexec' patch - load Linux from Linux.  Various people want
+> >   this for various reasons.  I like the idea of going from a login prompt to
+> >   "Calibrating delay loop" in 0.5 seconds.
+> 
+> One thing that bothers me about kexec is how we grab low pages in
+> kimage_alloc_page(). On a partitioned ppc64 box I will need to grab
+> memory in the low 256MB and the machine might have 500GB of memory
+> free. Thats going to take some time :)
+> 
+> Id hate to introduce a separate zone just for this sort of stuff (we
+> currently throw all memory in the DMA zone). Could we add a hint to
+> the page allocator where it makes a best effort to grab memory below
+> a threshold?
+> 
 
-May as well.
-
-There's something in the driver shutdown which is failing to bring the
-device into a state in which the driver startup can start it up.  Probably
-just a missing device reset.  I'll bug Scott about it if we get that far.
-
-> Also, I found that if I mistyped the argument to do-kexec.sh, the
-> system would stay up, but the interface would get hosed, fixable with
-> /etc/rc.d/init.d/network restart.
-
-Yes, kexec userspace shuts down the network interfaces then tries to exec
-the new kernel.  But none was loaded and the syscall returns -EINVAL. 
-You're left with downed interfaces.  The script should be checking the
-success of the initial image loading.
+Eric may be able to suggest something.
 
 
 --
