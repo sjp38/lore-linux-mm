@@ -1,682 +1,258 @@
-Subject: Re: 2.5.64-mm8 breaks MASQ
-From: Stephen Hemminger <shemminger@osdl.org>
-In-Reply-To: <1048005523.2559.15.camel@iso-8590-lx.zeusinc.com>
-References: <1047922184.3223.2.camel@iso-8590-lx.zeusinc.com>
-	 <1047984726.3914.2.camel@localhost.localdomain>
-	 <20030318025523.7360f1d9.akpm@digeo.com>
-	 <1048005523.2559.15.camel@iso-8590-lx.zeusinc.com>
-Content-Type: text/plain
-Message-Id: <1048026525.6294.28.camel@dell_ss3.pdx.osdl.net>
-Mime-Version: 1.0
-Date: 18 Mar 2003 14:28:45 -0800
-Content-Transfer-Encoding: 7bit
+Subject: Re: 2.5.65-mm1
+References: <20030318031104.13fb34cc.akpm@digeo.com>
+	<87adfs4sqk.fsf@lapper.ihatent.com>
+	<87bs08vfkg.fsf@lapper.ihatent.com>
+	<20030318160902.C21945@flint.arm.linux.org.uk>
+From: Alexander Hoogerhuis <alexh@ihatent.com>
+Date: 19 Mar 2003 01:14:13 +0100
+In-Reply-To: <20030318160902.C21945@flint.arm.linux.org.uk>
+Message-ID: <873clkw6ui.fsf@lapper.ihatent.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Tom Sightler <ttsig@tuxyturvy.com>
-Cc: Andrew Morton <akpm@digeo.com>, Shawn <core@enodev.com>, linux-mm@kvack.org
+To: Russell King <rmk@arm.linux.org.uk>
+Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Fixed (at least for me), the problem with netfilter/iptables.
+Russell King <rmk@arm.linux.org.uk> writes:
 
-Here is a replacement for the brlock-removal-1 patch.  The changes to
-fix the bug are all in the netfilter.c part.
+> On Tue, Mar 18, 2003 at 04:51:11PM +0100, Alexander Hoogerhuis wrote:
+> > Oh well, I've had one hang within 10 minutes of booting, came back and
+> > the machine was unresponsive (mouse and keyboard under X, unable to
+> > switch to console). Apart from that I've got two funnies in my boot
+> > messages:
+> 
+> Could you send the full bus information for all devices (lspci -vv),
+> and the contents of /proc/iomem and /proc/ioports ?
+> 
+> I don't believe there's anything in my PCI updates which should have
+> changed the behaviour - they were touching mainly the scanning for
+> devices, and the way we write resources back into the hardware.  The
+> latter rarely happens on x86, except for cardbus devices.
+> 
 
----------------------------------------------------------------------
-diff -urN -X dontdiff linux-2.5/include/linux/netdevice.h linux-2.5-nobrlock/include/linux/netdevice.h
---- linux-2.5/include/linux/netdevice.h	2003-03-11 09:08:00.000000000 -0800
-+++ linux-2.5-nobrlock/include/linux/netdevice.h	2003-03-12 14:52:22.000000000 -0800
-@@ -452,7 +452,7 @@
- 	int			(*func) (struct sk_buff *, struct net_device *,
- 					 struct packet_type *);
- 	void			*data;	/* Private to the packet type		*/
--	struct packet_type	*next;
-+	struct list_head	packet_list;
- };
- 
- 
-diff -urN -X dontdiff linux-2.5/net/core/dev.c linux-2.5-nobrlock/net/core/dev.c
---- linux-2.5/net/core/dev.c	2003-03-11 09:08:01.000000000 -0800
-+++ linux-2.5-nobrlock/net/core/dev.c	2003-03-17 10:50:43.000000000 -0800
-@@ -90,7 +90,6 @@
- #include <linux/etherdevice.h>
- #include <linux/notifier.h>
- #include <linux/skbuff.h>
--#include <linux/brlock.h>
- #include <net/sock.h>
- #include <linux/rtnetlink.h>
- #include <linux/proc_fs.h>
-@@ -117,6 +116,7 @@
- 
- #include <asm/current.h>
- 
-+
- /* This define, if set, will randomly drop a packet when congestion
-  * is more than moderate.  It helps fairness in the multi-interface
-  * case when one of them is a hog, but it kills performance for the
-@@ -170,8 +170,11 @@
-  *		86DD	IPv6
-  */
- 
--static struct packet_type *ptype_base[16];	/* 16 way hashed list */
--static struct packet_type *ptype_all;		/* Taps */
-+static spinlock_t ptype_lock = SPIN_LOCK_UNLOCKED;
-+static struct list_head ptype_base[16];	/* 16 way hashed list */
-+static struct list_head ptype_all;	/* Taps */
-+
-+static spinlock_t master_lock = SPIN_LOCK_UNLOCKED;
- 
- #ifdef OFFLINE_SAMPLE
- static void sample_queue(unsigned long dummy);
-@@ -203,7 +206,6 @@
- 
- static struct subsystem net_subsys;
- 
--
- /*******************************************************************************
- 
- 		Protocol management and registration routines
-@@ -245,8 +247,7 @@
- {
- 	int hash;
- 
--	br_write_lock_bh(BR_NETPROTO_LOCK);
--
-+	spin_lock_bh(&ptype_lock);
- #ifdef CONFIG_NET_FASTROUTE
- 	/* Hack to detect packet socket */
- 	if (pt->data && (long)(pt->data) != 1) {
-@@ -256,14 +257,12 @@
- #endif
- 	if (pt->type == htons(ETH_P_ALL)) {
- 		netdev_nit++;
--		pt->next  = ptype_all;
--		ptype_all = pt;
-+		list_add_rcu(&pt->packet_list, &ptype_all);
- 	} else {
- 		hash = ntohs(pt->type) & 15;
--		pt->next = ptype_base[hash];
--		ptype_base[hash] = pt;
-+		list_add_rcu(&pt->packet_list, &ptype_base[hash]);
- 	}
--	br_write_unlock_bh(BR_NETPROTO_LOCK);
-+	spin_unlock_bh(&ptype_lock);
- }
- 
- extern void linkwatch_run_queue(void);
-@@ -279,29 +278,30 @@
-  */
- void dev_remove_pack(struct packet_type *pt)
- {
--	struct packet_type **pt1;
--
--	br_write_lock_bh(BR_NETPROTO_LOCK);
-+	struct list_head *head, *pelem;
- 
--	if (pt->type == htons(ETH_P_ALL)) {
--		netdev_nit--;
--		pt1 = &ptype_all;
--	} else
--		pt1 = &ptype_base[ntohs(pt->type) & 15];
--
--	for (; *pt1; pt1 = &((*pt1)->next)) {
--		if (pt == *pt1) {
--			*pt1 = pt->next;
-+	if (pt->type == htons(ETH_P_ALL))
-+		head = &ptype_all;
-+	else 
-+		head =  &ptype_base[ntohs(pt->type) & 15];
-+	
-+	spin_lock_bh(&ptype_lock);
-+	list_for_each(pelem, head) {
-+		if (list_entry(pelem, struct packet_type, packet_list) == pt) {
-+			list_del(pelem);
- #ifdef CONFIG_NET_FASTROUTE
- 			if (pt->data)
- 				netdev_fastroute_obstacles--;
- #endif
-+			if (pt->type == htons(ETH_P_ALL)) 
-+				netdev_nit--;
- 			goto out;
- 		}
- 	}
- 	printk(KERN_WARNING "dev_remove_pack: %p not found.\n", pt);
--out:
--	br_write_unlock_bh(BR_NETPROTO_LOCK);
-+
-+ out:
-+	spin_unlock_bh(&ptype_lock);
- }
- 
- /******************************************************************************
-@@ -896,11 +896,13 @@
- 
- void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
- {
--	struct packet_type *ptype;
-+	struct list_head *plist;
- 	do_gettimeofday(&skb->stamp);
- 
--	br_read_lock(BR_NETPROTO_LOCK);
--	for (ptype = ptype_all; ptype; ptype = ptype->next) {
-+	rcu_read_lock();
-+	list_for_each_rcu(plist, &ptype_all) {
-+		struct packet_type *ptype
-+			= list_entry(plist, struct packet_type, packet_list);
- 		/* Never send packets back to the socket
- 		 * they originated from - MvS (miquels@drinkel.ow.org)
- 		 */
-@@ -930,7 +932,7 @@
- 			ptype->func(skb2, skb->dev, ptype);
- 		}
- 	}
--	br_read_unlock(BR_NETPROTO_LOCK);
-+	rcu_read_unlock();
- }
- 
- /* Calculate csum in the case, when packet is misrouted.
-@@ -1423,6 +1425,7 @@
- 
- int netif_receive_skb(struct sk_buff *skb)
- {
-+	struct list_head *pcur;
- 	struct packet_type *ptype, *pt_prev;
- 	int ret = NET_RX_DROP;
- 	unsigned short type = skb->protocol;
-@@ -1443,8 +1446,10 @@
- 
- 	skb->h.raw = skb->nh.raw = skb->data;
- 
-+	rcu_read_lock();
- 	pt_prev = NULL;
--	for (ptype = ptype_all; ptype; ptype = ptype->next) {
-+	list_for_each_rcu(pcur, &ptype_all) {
-+		ptype = list_entry(pcur, struct packet_type, packet_list);
- 		if (!ptype->dev || ptype->dev == skb->dev) {
- 			if (pt_prev) {
- 				if (!pt_prev->data) {
-@@ -1466,17 +1471,23 @@
- #endif /* CONFIG_NET_DIVERT */
- 
- #if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
--	if (skb->dev->br_port && br_handle_frame_hook) {
--		int ret;
-+	if (skb->dev->br_port) {
-+		int (*curhook)(struct sk_buff *) = br_handle_frame_hook;
- 
--		ret = handle_bridge(skb, pt_prev);
--		if (br_handle_frame_hook(skb) == 0)
--			return ret;
--		pt_prev = NULL;
-+		barrier();	/* prevent compiler RCU problems */
-+		if (curhook) {
-+			int ret;
-+			ret = handle_bridge(skb, pt_prev);
-+			if (curhook(skb) == 0)
-+				return ret;
-+			pt_prev = NULL;
-+		}
- 	}
- #endif
- 
--	for (ptype = ptype_base[ntohs(type) & 15]; ptype; ptype = ptype->next) {
-+	list_for_each_rcu(pcur, &ptype_base[ntohs(type) & 15]) {
-+		ptype = list_entry(pcur, struct packet_type, packet_list);
-+
- 		if (ptype->type == type &&
- 		    (!ptype->dev || ptype->dev == skb->dev)) {
- 			if (pt_prev) {
-@@ -1506,6 +1517,7 @@
- 		 */
- 		ret = NET_RX_DROP;
- 	}
-+	rcu_read_unlock();
- 
- 	return ret;
- }
-@@ -1580,7 +1592,7 @@
- 	unsigned long start_time = jiffies;
- 	int budget = netdev_max_backlog;
- 
--	br_read_lock(BR_NETPROTO_LOCK);
-+	preempt_disable();
- 	local_irq_disable();
- 
- 	while (!list_empty(&queue->poll_list)) {
-@@ -1609,7 +1621,7 @@
- 	}
- out:
- 	local_irq_enable();
--	br_read_unlock(BR_NETPROTO_LOCK);
-+	preempt_enable();
- 	return;
- 
- softnet_break:
-@@ -1925,7 +1937,6 @@
- #define dev_proc_init() 0
- #endif	/* CONFIG_PROC_FS */
- 
--
- /**
-  *	netdev_set_master	-	set up master/slave pair
-  *	@slave: slave device
-@@ -1943,18 +1954,23 @@
- 
- 	ASSERT_RTNL();
- 
-+	spin_lock_bh(&master_lock);
- 	if (master) {
--		if (old)
-+		if (old) {
-+			spin_unlock_bh(&master_lock);
- 			return -EBUSY;
-+		}
- 		dev_hold(master);
- 	}
- 
--	br_write_lock_bh(BR_NETPROTO_LOCK);
- 	slave->master = master;
--	br_write_unlock_bh(BR_NETPROTO_LOCK);
-+	spin_unlock_bh(&master_lock);
- 
--	if (old)
-+	if (old) {
-+		/* wait for all BH */
-+		synchronize_kernel();
- 		dev_put(old);
-+	}
- 
- 	if (master)
- 		slave->flags |= IFF_SLAVE;
-@@ -1962,6 +1978,7 @@
- 		slave->flags &= ~IFF_SLAVE;
- 
- 	rtmsg_ifinfo(RTM_NEWLINK, slave, IFF_SLAVE);
-+
- 	return 0;
- }
- 
-@@ -2623,6 +2640,7 @@
- 	struct net_device *d, **dp;
- 
- 	BUG_ON(dev_boot_phase);
-+	might_sleep();
- 
- 	/* If device is running, close it first. */
- 	if (dev->flags & IFF_UP)
-@@ -2646,10 +2664,8 @@
- 		return -ENODEV;
- 	}
- 
--	/* Synchronize to net_rx_action. */
--	br_write_lock_bh(BR_NETPROTO_LOCK);
--	br_write_unlock_bh(BR_NETPROTO_LOCK);
--
-+	/* wait for RCU */
-+	synchronize_kernel();
- 
- #ifdef CONFIG_NET_FASTROUTE
- 	dev_clear_fastroute(dev);
-@@ -2755,7 +2771,6 @@
- 	return 0;
- }
- 
--
- /*
-  *	Initialize the DEV module. At boot time this walks the device list and
-  *	unhooks any devices that fail to initialise (normally hardware not
-@@ -2786,6 +2801,11 @@
- 	if (dev_proc_init())
- 		goto out;
- 
-+	/* Initialize packet type chains */
-+	INIT_LIST_HEAD(&ptype_all);
-+	for (i = 0; i < ARRAY_SIZE(ptype_base); i++) 
-+	        INIT_LIST_HEAD(&ptype_base[i]);
-+
- 	subsystem_register(&net_subsys);
- 
- #ifdef CONFIG_NET_DIVERT
-diff -urN -X dontdiff linux-2.5/net/core/netfilter.c linux-2.5-nobrlock/net/core/netfilter.c
---- linux-2.5/net/core/netfilter.c	2003-03-11 09:08:01.000000000 -0800
-+++ linux-2.5-nobrlock/net/core/netfilter.c	2003-03-18 14:10:14.000000000 -0800
-@@ -19,7 +19,6 @@
- #include <linux/interrupt.h>
- #include <linux/if.h>
- #include <linux/netdevice.h>
--#include <linux/brlock.h>
- #include <linux/inetdevice.h>
- #include <net/sock.h>
- #include <net/route.h>
-@@ -44,8 +43,12 @@
-    sleep. */
- static DECLARE_MUTEX(nf_sockopt_mutex);
- 
-+/*
-+ * nf_hooks are protected by using read-copy-update
-+ */
- struct list_head nf_hooks[NPROTO][NF_MAX_HOOKS];
- static LIST_HEAD(nf_sockopts);
-+static spinlock_t nf_hook_lock = SPIN_LOCK_UNLOCKED;
- 
- /* 
-  * A queue handler may be registered for each protocol.  Each is protected by
-@@ -56,28 +59,34 @@
- 	nf_queue_outfn_t outfn;
- 	void *data;
- } queue_handler[NPROTO];
-+static rwlock_t queue_handler_lock = RW_LOCK_UNLOCKED;
- 
- int nf_register_hook(struct nf_hook_ops *reg)
- {
- 	struct list_head *i;
- 
--	br_write_lock_bh(BR_NETPROTO_LOCK);
-+	spin_lock_bh(&nf_hook_lock);
- 	for (i = nf_hooks[reg->pf][reg->hooknum].next; 
- 	     i != &nf_hooks[reg->pf][reg->hooknum]; 
- 	     i = i->next) {
- 		if (reg->priority < ((struct nf_hook_ops *)i)->priority)
- 			break;
- 	}
--	list_add(&reg->list, i->prev);
--	br_write_unlock_bh(BR_NETPROTO_LOCK);
-+	list_add_rcu(&reg->list, i->prev);
-+	spin_unlock_bh(&nf_hook_lock);
-+
-+	synchronize_kernel();
- 	return 0;
- }
- 
- void nf_unregister_hook(struct nf_hook_ops *reg)
- {
--	br_write_lock_bh(BR_NETPROTO_LOCK);
--	list_del(&reg->list);
--	br_write_unlock_bh(BR_NETPROTO_LOCK);
-+	spin_lock_bh(&nf_hook_lock);
-+	list_del_rcu(&reg->list);
-+	spin_unlock_bh(&nf_hook_lock);
-+
-+	/* wait for all receivers that may still be using hook */
-+	synchronize_kernel();
- }
- 
- /* Do exclusive ranges overlap? */
-@@ -335,72 +344,30 @@
- 	return nf_sockopt(sk, pf, val, opt, len, 1);
- }
- 
--static unsigned int nf_iterate(struct list_head *head,
--			       struct sk_buff **skb,
--			       int hook,
--			       const struct net_device *indev,
--			       const struct net_device *outdev,
--			       struct list_head **i,
--			       int (*okfn)(struct sk_buff *),
--			       int hook_thresh)
--{
--	for (*i = (*i)->next; *i != head; *i = (*i)->next) {
--		struct nf_hook_ops *elem = (struct nf_hook_ops *)*i;
--
--		if (hook_thresh > elem->priority)
--			continue;
--
--		switch (elem->hook(hook, skb, indev, outdev, okfn)) {
--		case NF_QUEUE:
--			return NF_QUEUE;
--
--		case NF_STOLEN:
--			return NF_STOLEN;
--
--		case NF_DROP:
--			return NF_DROP;
--
--		case NF_REPEAT:
--			*i = (*i)->prev;
--			break;
--
--#ifdef CONFIG_NETFILTER_DEBUG
--		case NF_ACCEPT:
--			break;
--
--		default:
--			NFDEBUG("Evil return from %p(%u).\n", 
--				elem->hook, hook);
--#endif
--		}
--	}
--	return NF_ACCEPT;
--}
--
- int nf_register_queue_handler(int pf, nf_queue_outfn_t outfn, void *data)
- {      
- 	int ret;
- 
--	br_write_lock_bh(BR_NETPROTO_LOCK);
-+	write_lock_bh(&queue_handler_lock);
- 	if (queue_handler[pf].outfn)
- 		ret = -EBUSY;
- 	else {
--		queue_handler[pf].outfn = outfn;
- 		queue_handler[pf].data = data;
-+		queue_handler[pf].outfn = outfn;
- 		ret = 0;
- 	}
--	br_write_unlock_bh(BR_NETPROTO_LOCK);
--
-+	write_unlock_bh(&queue_handler_lock);
- 	return ret;
- }
- 
- /* The caller must flush their queue before this */
- int nf_unregister_queue_handler(int pf)
- {
--	br_write_lock_bh(BR_NETPROTO_LOCK);
-+	write_lock_bh(&queue_handler_lock);
- 	queue_handler[pf].outfn = NULL;
- 	queue_handler[pf].data = NULL;
--	br_write_unlock_bh(BR_NETPROTO_LOCK);
-+	write_unlock_bh(&queue_handler_lock);
-+
- 	return 0;
- }
- 
-@@ -422,9 +389,10 @@
- 	struct net_device *physoutdev = NULL;
- #endif
- 
-+	read_lock(&queue_handler_lock);
- 	if (!queue_handler[pf].outfn) {
- 		kfree_skb(skb);
--		return;
-+		goto out;
- 	}
- 
- 	info = kmalloc(sizeof(*info), GFP_ATOMIC);
-@@ -433,7 +401,7 @@
- 			printk(KERN_ERR "OOM queueing packet %p\n",
- 			       skb);
- 		kfree_skb(skb);
--		return;
-+		goto out;
- 	}
- 
- 	*info = (struct nf_info) { 
-@@ -463,8 +431,9 @@
- #endif
- 		kfree(info);
- 		kfree_skb(skb);
--		return;
- 	}
-+ out:
-+	read_unlock(&queue_handler_lock);
- }
- 
- int nf_hook_slow(int pf, unsigned int hook, struct sk_buff *skb,
-@@ -474,6 +443,7 @@
- 		 int hook_thresh)
- {
- 	struct list_head *elem;
-+	const struct nf_hook_ops *ops = NULL;
- 	unsigned int verdict;
- 	int ret = 0;
- 
-@@ -490,9 +460,7 @@
- 		}
- 	}
- 
--	/* We may already have this, but read-locks nest anyway */
--	br_read_lock_bh(BR_NETPROTO_LOCK);
--
-+	rcu_read_lock();
- #ifdef CONFIG_NETFILTER_DEBUG
- 	if (skb->nf_debug & (1 << hook)) {
- 		printk("nf_hook: hook %i already set.\n", hook);
-@@ -501,15 +469,26 @@
- 	skb->nf_debug |= (1 << hook);
- #endif
- 
--	elem = &nf_hooks[pf][hook];
--	verdict = nf_iterate(&nf_hooks[pf][hook], &skb, hook, indev,
--			     outdev, &elem, okfn, hook_thresh);
--	if (verdict == NF_QUEUE) {
--		NFDEBUG("nf_hook: Verdict = QUEUE.\n");
--		nf_queue(skb, elem, pf, hook, indev, outdev, okfn);
-+	verdict = NF_ACCEPT;
-+	list_for_each_rcu(elem, &nf_hooks[pf][hook]) {
-+		ops = list_entry(elem, const struct nf_hook_ops, list);
-+
-+		if (hook_thresh > ops->priority)
-+			continue;
-+
-+		verdict = ops->hook(hook, &skb, indev, outdev, okfn);
-+		if (verdict != NF_ACCEPT)
-+			goto out;
-+
- 	}
- 
-+ out:;
- 	switch (verdict) {
-+	case NF_QUEUE:
-+		NFDEBUG("nf_hook: Verdict = QUEUE.\n");
-+		nf_queue(skb, elem, pf, hook, indev, outdev, okfn);
-+		break;
-+
- 	case NF_ACCEPT:
- 		ret = okfn(skb);
- 		break;
-@@ -518,9 +497,14 @@
- 		kfree_skb(skb);
- 		ret = -EPERM;
- 		break;
-+#ifdef CONFIG_NETFILTER_DEBUG
-+	default:
-+		NFDEBUG("Evil return %d from %p(%u).\n", verdict,
-+			ops->hook, hook);
-+#endif
- 	}
- 
--	br_read_unlock_bh(BR_NETPROTO_LOCK);
-+	rcu_read_unlock();
- 	return ret;
- }
- 
-@@ -528,48 +512,61 @@
- 		 unsigned int verdict)
- {
- 	struct list_head *elem = &info->elem->list;
--	struct list_head *i;
-+	const struct list_head *head = &nf_hooks[info->pf][info->hook];
-+	const struct list_head *i;
- 
--	/* We don't have BR_NETPROTO_LOCK here */
--	br_read_lock_bh(BR_NETPROTO_LOCK);
--	for (i = nf_hooks[info->pf][info->hook].next; i != elem; i = i->next) {
--		if (i == &nf_hooks[info->pf][info->hook]) {
--			/* The module which sent it to userspace is gone. */
--			NFDEBUG("%s: module disappeared, dropping packet.\n",
--			         __FUNCTION__);
--			verdict = NF_DROP;
--			break;
-+	rcu_read_lock();
-+	list_for_each_rcu(i, head) {
-+		/* traverse loop until we find elem */
-+		if (elem) {
-+			if (i != elem) 
-+				continue;
-+
-+			elem = NULL;
-+			/* Continue and process next element */
-+			if (verdict == NF_ACCEPT) 
-+				continue;
-+
-+			/* Process this element again */
-+			if (verdict == NF_REPEAT) 
-+				verdict = NF_ACCEPT;
- 		}
--	}
- 
--	/* Continue traversal iff userspace said ok... */
--	if (verdict == NF_REPEAT) {
--		elem = elem->prev;
--		verdict = NF_ACCEPT;
--	}
-+		if (verdict == NF_ACCEPT) {
-+			const struct nf_hook_ops *ops
-+				= list_entry(elem, typeof(*ops), list);
- 
--	if (verdict == NF_ACCEPT) {
--		verdict = nf_iterate(&nf_hooks[info->pf][info->hook],
--				     &skb, info->hook, 
--				     info->indev, info->outdev, &elem,
--				     info->okfn, INT_MIN);
--	}
-+			verdict = ops->hook(info->hook, &skb, 
-+					    info->indev, info->outdev, 
-+					    info->okfn);
-+		}
- 
--	switch (verdict) {
--	case NF_ACCEPT:
--		info->okfn(skb);
--		break;
-+		switch (verdict) {
-+		case NF_ACCEPT:
-+			info->okfn(skb);
-+			break;
- 
--	case NF_QUEUE:
--		nf_queue(skb, elem, info->pf, info->hook, 
--			 info->indev, info->outdev, info->okfn);
-+		case NF_QUEUE:
-+			nf_queue(skb, elem, info->pf, info->hook, 
-+				 info->indev, info->outdev, info->okfn);
-+			break;
-+
-+		case NF_DROP:
-+			kfree_skb(skb);
-+			break;
-+		}
- 		break;
-+	}
- 
--	case NF_DROP:
-+	if (elem) {
-+		/* The module which sent it to userspace is gone. */
-+		NFDEBUG("%s: module disappeared, dropping packet.\n",
-+			__FUNCTION__);
- 		kfree_skb(skb);
--		break;
- 	}
--	br_read_unlock_bh(BR_NETPROTO_LOCK);
-+
-+
-+	rcu_read_unlock();
- 
- 	/* Release those devices we held, or Alexey will kill me. */
- 	if (info->indev) dev_put(info->indev);
+I'm not suspecting the PCI in particular for the PCIC-bits, only
+making X and the Radeon work again. But here you are:
 
+lapper root # lspci -vv
+00:00.0 Host bridge: Intel Corp. 82845 845 (Brookdale) Chipset Host Bridge (rev 04)
+        Subsystem: Compaq Computer Corporation: Unknown device 004a
+        Control: I/O- Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap+ 66Mhz- UDF- FastB2B+ ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort+ >SERR- <PERR-
+        Latency: 0
+        Region 0: Memory at a0000000 (32-bit, prefetchable) [size=256M]
+        Capabilities: [e4] #09 [d104]
+        Capabilities: [a0] AGP version 2.0
+                Status: RQ=31 SBA+ 64bit- FW+ Rate=x1,x2,x4
+                Command: RQ=0 SBA+ AGP+ 64bit- FW- Rate=x4
+ 
+00:01.0 PCI bridge: Intel Corp. 82845 845 (Brookdale) Chipset AGP Bridge (rev 04) (prog-if 00 [Normal decode])
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap- 66Mhz+ UDF- FastB2B+ ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 64
+        Bus: primary=00, secondary=01, subordinate=01, sec-latency=0
+        I/O behind bridge: 00003000-00003fff
+        Memory behind bridge: 80300000-803fffff
+        Prefetchable memory behind bridge: 88000000-900fffff
+        BridgeCtl: Parity- SERR- NoISA+ VGA+ MAbort- >Reset- FastB2B-
+ 
+00:1e.0 PCI bridge: Intel Corp. 82801BAM/CAM PCI Bridge (rev 42) (prog-if 00 [Normal decode])
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap- 66Mhz- UDF- FastB2B+ ParErr- DEVSEL=fast >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 0
+        Bus: primary=00, secondary=02, subordinate=03, sec-latency=32
+        I/O behind bridge: 00002000-00002fff
+        Memory behind bridge: 80000000-803fffff
+        BridgeCtl: Parity- SERR+ NoISA+ VGA- MAbort- >Reset- FastB2B-
+ 
+00:1f.0 ISA bridge: Intel Corp. 82801CAM ISA Bridge (LPC) (rev 02)
+        Control: I/O+ Mem+ BusMaster+ SpecCycle+ MemWINV- VGASnoop- ParErr- Stepping- SERR+ FastB2B-
+        Status: Cap- 66Mhz- UDF- FastB2B+ ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 0
+ 
+00:1f.1 IDE interface: Intel Corp. 82801CAM IDE U100 (rev 02) (prog-if 8a [Master SecP PriP])
+        Subsystem: Compaq Computer Corporation: Unknown device 004a
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap- 66Mhz- UDF- FastB2B+ ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 0
+        Interrupt: pin A routed to IRQ 5
+        Region 0: I/O ports at <unassigned>
+        Region 1: I/O ports at <unassigned>
+        Region 2: I/O ports at <unassigned>
+        Region 3: I/O ports at <unassigned>
+        Region 4: I/O ports at 4440 [size=16]
+        Region 5: Memory at 30000400 (32-bit, non-prefetchable) [size=1K]
+ 
+00:1f.5 Multimedia audio controller: Intel Corp. 82801CA/CAM AC'97 Audio (rev 02)
+        Subsystem: Compaq Computer Corporation: Unknown device 004a
+        Control: I/O+ Mem- BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap- 66Mhz- UDF- FastB2B+ ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 0
+        Interrupt: pin B routed to IRQ 5
+        Region 0: I/O ports at 4000 [size=256]
+        Region 1: I/O ports at 4400 [size=64]
+ 
+01:00.0 VGA compatible controller: ATI Technologies Inc Radeon Mobility M7 LW [Radeon Mobility 7500] (prog-if 00 [VGA])
+        Subsystem: Compaq Computer Corporation: Unknown device 004a
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping+ SERR- FastB2B-
+        Status: Cap+ 66Mhz+ UDF- FastB2B+ ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 66 (2000ns min), cache line size 08
+        Interrupt: pin A routed to IRQ 11
+        Region 0: Memory at 88000000 (32-bit, prefetchable) [size=128M]
+        Region 1: I/O ports at 3000 [size=256]
+        Region 2: Memory at 80380000 (32-bit, non-prefetchable) [size=64K]
+        Expansion ROM at <unassigned> [disabled] [size=128K]
+        Capabilities: [58] AGP version 2.0
+                Status: RQ=47 SBA+ 64bit- FW- Rate=x1,x2,x4
+                Command: RQ=31 SBA+ AGP+ 64bit- FW- Rate=x4
+        Capabilities: [50] Power Management version 2
+                Flags: PMEClk- DSI- D1+ D2+ AuxCurrent=0mA PME(D0-,D1-,D2-,D3hot-,D3cold-)
+                Status: D0 PME-Enable- DSel=0 DScale=0 PME-
+ 
+02:04.0 Communication controller: Lucent Microelectronics LT WinModem (rev 02)
+        Subsystem: AMBIT Microsystem Corp.: Unknown device 0450
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap+ 66Mhz- UDF- FastB2B+ ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 66 (63000ns min, 3500ns max)
+        Interrupt: pin A routed to IRQ 5
+        Region 0: Memory at 80280000 (32-bit, non-prefetchable) [size=256]
+        Region 1: I/O ports at 2440 [size=8]
+        Region 2: I/O ports at 2000 [size=256]
+        Capabilities: [f8] Power Management version 2
+                Flags: PMEClk- DSI+ D1- D2+ AuxCurrent=160mA PME(D0-,D1-,D2+,D3hot+,D3cold+)
+                Status: D0 PME-Enable- DSel=0 DScale=0 PME-
+ 
+02:06.0 CardBus bridge: Texas Instruments PCI1410 PC card Cardbus Controller (rev 02)
+        Subsystem: Compaq Computer Corporation: Unknown device 004a
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap+ 66Mhz- UDF- FastB2B- ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 168, cache line size 20
+        Interrupt: pin A routed to IRQ 11
+        Region 0: Memory at 80080000 (32-bit, non-prefetchable) [size=4K]
+        Bus: primary=02, secondary=03, subordinate=06, sec-latency=176
+        Memory window 0: 30400000-307ff000 (prefetchable)
+        Memory window 1: 30800000-30bff000
+        I/O window 0: 00001400-000014ff
+        I/O window 1: 00001800-000018ff
+        BridgeCtl: Parity- SERR- ISA- VGA- MAbort- >Reset+ 16bInt+ PostWrite+
+        16-bit legacy interface ports at 0001
+ 
+02:08.0 Ethernet controller: Intel Corp. 82801CAM (ICH3) PRO/100 VE (LOM) Ethernet Controller (rev 42)
+        Subsystem: Compaq Computer Corporation: Unknown device 0093
+        Control: I/O+ Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap+ 66Mhz- UDF- FastB2B+ ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 66 (2000ns min, 14000ns max), cache line size 08
+        Interrupt: pin A routed to IRQ 10
+        Region 0: Memory at 80100000 (32-bit, non-prefetchable) [size=4K]
+        Region 1: I/O ports at 2400 [size=64]
+        Capabilities: [dc] Power Management version 2
+                Flags: PMEClk- DSI+ D1+ D2+ AuxCurrent=0mA PME(D0+,D1+,D2+,D3hot+,D3cold+)
+                Status: D0 PME-Enable- DSel=0 DScale=2 PME-
+ 
+02:0e.0 USB Controller: NEC Corporation USB (rev 41) (prog-if 10 [OHCI])
+        Subsystem: Compaq Computer Corporation: Unknown device 004a
+        Control: I/O- Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap+ 66Mhz- UDF- FastB2B- ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 64 (250ns min, 10500ns max), cache line size 08
+        Interrupt: pin A routed to IRQ 10
+        Region 0: Memory at 80180000 (32-bit, non-prefetchable) [size=4K]
+        Capabilities: [40] Power Management version 2
+                Flags: PMEClk- DSI- D1+ D2+ AuxCurrent=0mA PME(D0+,D1+,D2+,D3hot+,D3cold+)
+                Status: D0 PME-Enable- DSel=0 DScale=0 PME-
+ 
+02:0e.1 USB Controller: NEC Corporation USB (rev 41) (prog-if 10 [OHCI])
+        Subsystem: Compaq Computer Corporation: Unknown device 004a
+        Control: I/O- Mem+ BusMaster+ SpecCycle- MemWINV- VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap+ 66Mhz- UDF- FastB2B- ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 64 (250ns min, 10500ns max), cache line size 08
+        Interrupt: pin B routed to IRQ 10
+        Region 0: Memory at 80200000 (32-bit, non-prefetchable) [size=4K]
+        Capabilities: [40] Power Management version 2
+                Flags: PMEClk- DSI- D1+ D2+ AuxCurrent=0mA PME(D0+,D1+,D2+,D3hot+,D3cold+)
+                Status: D0 PME-Enable- DSel=0 DScale=0 PME-
+ 
+02:0e.2 USB Controller: NEC Corporation USB 2.0 (rev 02) (prog-if 20 [EHCI])
+        Subsystem: Compaq Computer Corporation: Unknown device 004a
+        Control: I/O- Mem+ BusMaster+ SpecCycle- MemWINV+ VGASnoop- ParErr- Stepping- SERR- FastB2B-
+        Status: Cap+ 66Mhz- UDF- FastB2B- ParErr- DEVSEL=medium >TAbort- <TAbort- <MAbort- >SERR- <PERR-
+        Latency: 64 (4000ns min, 8500ns max), cache line size 20
+        Interrupt: pin C routed to IRQ 10
+        Region 0: Memory at 30000000 (32-bit, non-prefetchable) [size=256]
+        Capabilities: [40] Power Management version 2
+                Flags: PMEClk- DSI- D1+ D2+ AuxCurrent=0mA PME(D0+,D1+,D2+,D3hot+,D3cold+)
+                Status: D0 PME-Enable- DSel=0 DScale=0 PME-
+ 
+lapper root #  cat /proc/iomem /proc/ioports
+00000000-0009fbff : System RAM
+0009fc00-0009ffff : reserved
+000a0000-000bffff : Video RAM area
+000c0000-000c7fff : Video ROM
+000f0000-000fffff : System ROM
+00100000-2ffcffff : System RAM
+  00100000-002af453 : Kernel code
+  002af454-00364003 : Kernel data
+2ffd0000-2fff0bff : reserved
+2fff0c00-2fffbfff : ACPI Non-volatile Storage
+2fffc000-2fffffff : reserved
+30000000-300000ff : NEC Corporation USB 2.0
+  30000000-300000ff : ehci-hcd
+30000400-300007ff : Intel Corp. 82801CAM IDE U100
+30400000-307fffff : PCI CardBus #03
+30800000-30bfffff : PCI CardBus #03
+80080000-80080fff : Texas Instruments PCI1410 PC card Card
+80100000-80100fff : Intel Corp. 82801CAM (ICH3) PRO/
+  80100000-80100fff : eepro100
+80180000-80180fff : NEC Corporation USB
+  80180000-80180fff : ohci-hcd
+80200000-80200fff : NEC Corporation USB (#2)
+  80200000-80200fff : ohci-hcd
+80280000-802800ff : Lucent Microelectron LT WinModem
+80300000-803fffff : PCI Bus #01
+  80380000-8038ffff : ATI Technologies Inc Radeon Mobility M7 L
+88000000-900fffff : PCI Bus #01
+  88000000-8fffffff : ATI Technologies Inc Radeon Mobility M7 L
+a0000000-afffffff : Intel Corp. 82845 845 (Brookdale
+0000-001f : dma1
+0020-003f : pic1
+0040-005f : timer
+0060-006f : keyboard
+0080-008f : dma page reg
+00a0-00bf : pic2
+00c0-00df : dma2
+00f0-00ff : fpu
+0170-0177 : ide1
+01f0-01f7 : ide0
+0376-0376 : ide1
+0378-037a : parport0
+037b-037f : parport0
+03c0-03df : vga+
+03f6-03f6 : ide0
+0cf8-0cff : PCI conf1
+1060-106f : i810 TCO
+1400-14ff : PCI CardBus #03
+1800-18ff : PCI CardBus #03
+2000-20ff : Lucent Microelectron LT WinModem
+2400-243f : Intel Corp. 82801CAM (ICH3) PRO/
+  2400-243f : eepro100
+2440-2447 : Lucent Microelectron LT WinModem
+3000-3fff : PCI Bus #01
+  3000-30ff : ATI Technologies Inc Radeon Mobility M7 L
+4000-40ff : Intel Corp. 82801CA/CAM AC'97 Au
+  4000-40ff : Intel ICH3
+4400-443f : Intel Corp. 82801CA/CAM AC'97 Au
+  4400-443f : Intel ICH3
+4440-444f : Intel Corp. 82801CAM IDE U100
+  4440-4447 : ide0
+  4448-444f : ide1
+lapper root #
 
-
+mvh,
+A
+-- 
+Alexander Hoogerhuis                               | alexh@ihatent.com
+CCNP - CCDP - MCNE - CCSE                          | +47 908 21 485
+"You have zero privacy anyway. Get over it."  --Scott McNealy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
