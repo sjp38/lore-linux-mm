@@ -1,153 +1,65 @@
-Date: Mon, 4 Oct 2004 14:24:27 -0300
+Date: Mon, 4 Oct 2004 14:29:48 -0300
 From: Marcelo Tosatti <marcelo.tosatti@cyclades.com>
 Subject: Re: [RFC] memory defragmentation to satisfy high order allocations
-Message-ID: <20041004172427.GL16374@logos.cnet>
-References: <20041002183349.GA7986@logos.cnet> <20041003.131338.41636688.taka@valinux.co.jp> <20041003140723.GD4635@logos.cnet> <20041004.033559.71092746.taka@valinux.co.jp>
+Message-ID: <20041004172948.GM16374@logos.cnet>
+References: <20041001190430.GA4372@logos.cnet> <1096667823.3684.1299.camel@localhost> <20041001234200.GA4635@logos.cnet> <20041002.183015.41630389.taka@valinux.co.jp> <20041002183349.GA7986@logos.cnet> <20041004040910.DCE4470A2D@sv1.valinux.co.jp>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20041004.033559.71092746.taka@valinux.co.jp>
+In-Reply-To: <20041004040910.DCE4470A2D@sv1.valinux.co.jp>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hirokazu Takahashi <taka@valinux.co.jp>
-Cc: iwamoto@valinux.co.jp, haveblue@us.ibm.com, akpm@osdl.org, linux-mm@kvack.org, piggin@cyberone.com.au, arjanv@redhat.com, linux-kernel@vger.kernel.org
+To: IWAMOTO Toshihiro <iwamoto@valinux.co.jp>
+Cc: Hirokazu Takahashi <taka@valinux.co.jp>, haveblue@us.ibm.com, akpm@osdl.org, linux-mm@kvack.org, piggin@cyberone.com.au, arjanv@redhat.com, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Oct 04, 2004 at 03:35:59AM +0900, Hirokazu Takahashi wrote:
-> Hi, Marcelo
-> 
-> > > > 2) 
-> > > > At migrate_onepage you add anonymous pages which aren't swap allocated
-> > > > to the swap cache
-> > > > +       /*
-> > > > +        * Put the page in a radix tree if it isn't in the tree yet.
-> > > > +        */
-> > > > +#ifdef CONFIG_SWAP
-> > > > +       if (PageAnon(page) && !PageSwapCache(page))
-> > > > +               if (!add_to_swap(page, GFP_KERNEL)) {
-> > > > +                       unlock_page(page);
-> > > > +                       return ERR_PTR(-ENOSPC);
-> > > > +               }
-> > > > +#endif /* CONFIG_SWAP */
-> > > > 
-> > > > Why's that? You can copy anonymous pages without adding them to swap (thats
-> > > > what the patch I posted does).
-> > > 
-> > > The reason is to guarantee that any anonymous page can be migrated anytime.
-> > > I want to block newly occurred accesses to the page during the migration
-> > > because it can't be migrated if there remain some references on it by
-> > > system calls, direct I/O and page faults.
+On Mon, Oct 04, 2004 at 01:09:10PM +0900, IWAMOTO Toshihiro wrote:
+> At Sat, 2 Oct 2004 15:33:49 -0300,
+> Marcelo Tosatti wrote:
 > > 
-> > It would be nice if we could block pte faults in a way such to not need
-> > adding each anonymous page to swap. It can be too costly if you have a lot memory
-> > and it makes the whole operation dependable on swap size (if you dont have enough
-> > swap, you're dead).
+> > On Sat, Oct 02, 2004 at 06:30:15PM +0900, Hirokazu Takahashi wrote:
+> > 3) At migrate_page_common you assume additional page references 
+> > (page_migratable returning -EAGAIN) means the code should try to writeout 
+> > the page.
 > > 
-> > Maybe hold mm->page_table_lock (might be too costly in terms of CPU time, but since
-> > migration is not a common operation anyway), or create a semaphore? 
-> 
-> I think the problem of the holding mm->page_table_lock approach is
-> that it doesn't allow the migration code blocked. the semaphore
-> approach would be better.
-
-OK, I think the problem is that can be more than one thread with different address 
-spaces (ie different "current->mm", after fork) accessing the page.
-
-Adding a waitqueue to "anon_vma" structure (to be slept at do_swap_page time, 
-and awake after copy-page-and-flags/unlock), can be do the job I think.
-
-> I have another idea that each anonymous page can detach its swap entry
-> after its migration. 
-
-Yes thats a nice idea.
-
-> It can be done by remove_exclusive_swap_page()
-> if the page is remapped to the same spaces forcibly by
-> touch_unmapped_address() I made.
-
-touch_unmapped_address() ?
-
-> > > Your approach will work fine on most of anonymous pages, which aren't
-> > > heavily accessed. I think it will be enough for memory defragmentation.
+> > Is that assumption always valid?
 > > 
-> > Yes...
+> > In theory there is no need to writeout pages when migrating them to 
+> > other zones - they will be copied and the dirty information retained (either
+> > in the PageDirty bit or radix tree tag). 
+> 
+> It's true only when page->private is NULL.  Otherwise writeback is
+> necessary to free buffer_head.
+
+You can move the buffer_head's also cant you? Adjusting bh->b_page etc.
+
+Thats what migrate_page_buffer does, no?
+
+Writting pages which contain buffer_head's on memory migration
+is really, very bad. 
+
+Imagine gigabytes of pages with buffer_head's. 
+
+> > I just noticed you do that on further patches (migrate_page_buffer), but AFAICS 
+> > the writeout remains. Why arent you using migrate_page_buffer yet?
 > > 
-> > > > 3) At migrate_page_common you assume additional page references 
-> > > > (page_migratable returning -EAGAIN) means the code should try to writeout 
-> > > > the page.
-> > > > 
-> > > > Is that assumption always valid?
-> > > 
-> > > -EAGAIN means that the page may require to be written back 
+> > I think the final aim should be to remove the need for "pageout()" 
+> > completly.
+> 
+> Are you going to implement migrate_page_buffer for every file system?
+> I don't think it's worthwhile.
+> 
+> > Questions: are there any documents on the memory hotplug userspace tools? 
+> > Where can I find them?
 > > 
-> > But why is it needed to writeout pages? We shouldnt need to. At least
-> > from what I can understand.
+> > Are Iwamoto's test programs available?
 > 
-> The migration code allows each filesystem to implement its own
-> migration code or just use migrate_page_buffer() or
-> migrate_page_common(). 
+> I've put them at the following URL, but I doubt they are useful for
+> you; there are no documentation for them.
 > 
-> migrate_page_common() is a default function if filesystem doesn't
-> implement anything. The function is the most generic and it tries
-> to writeback pages only if they are dirty and have buffers.
+> http://people.valinux.co.jp/~iwamoto/mh/tests/
 
-The thing is: What is the point of writing out pages?
-
-We're just trying to migrate pages to another zone. 
-
-If its under writeout, wait, if its dirty, just move it to the other
-zone.
-
-Can you enlight me?
-
-> > > or
-> > > just to wait for a while since the page is just referred by system call 
-> > > or pagefault handler.
-> > 
-> > I'm not sure if making that assumption is always valid.
-> > 
-> > Kernel code can have an additional count on the page meaning "this page is pinned, 
-> > dont move it". At least that should be valid.
-> 
-> Yes, I know. I have checked all of the code.
-> 
-> AIO event buffers are pinned, therefore the memory-hotplug team plans
-> to make pages for the event buffers assigned to non-hotpluggable
-> memory regions.
-> 
-> And pages in sendfile() might be pinned for a while in case of network
-> problems. I think there may be some workarounds. The easiest way
-> is just waiting its timeout, and another way is changing the mode
-> of sendfile() to copy pages in advance. 
-> 
-> Pages for NFS also might be pinned with network problems.
-> One of the ideas is to restrict NFS to allocate pages from
-> specific memory region, sot that all memory except the region
-> can be hot-removed. And it's possible to implementing whole
-> migrate_page method, which may handled stuck pages.
-> 
-> If the migration code is used for memory defragmentation, pinned pages
-> must be avoided. I think it can be done with the non-blocking mode.
-
-Right.
-
-> > Any piece of code which holds a reference on a page for a long 
-> > time is going to be a pain for the algorithm right?
-> > 
-> 
-> > > > 4) 
-> > > > About implementing a nonblocking version of it. The easier way, it
-> > > > seems to me, is to pass a "block" argument to generic_migrate_page() and
-> > > > use that.
-> > > 
-> > > Yes.
-> > 
-> > OK. I'll try to implement it this week (plus the radix_tree_replace 
-> > tag thingie).
-> 
-> Thank you for that.
-
-Any news about Iwamoto's test programs? :)
+I'll take a look thanks.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
