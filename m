@@ -1,36 +1,72 @@
-Date: 14 Jan 2005 05:14:21 +0100
-Date: Fri, 14 Jan 2005 05:14:21 +0100
+Date: 14 Jan 2005 05:39:44 +0100
+Date: Fri, 14 Jan 2005 05:39:44 +0100
 From: Andi Kleen <ak@muc.de>
 Subject: Re: page table lock patch V15 [0/7]: overview
-Message-ID: <20050114041421.GA41559@muc.de>
-References: <Pine.LNX.4.58.0501041129030.805@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0501041137410.805@schroedinger.engr.sgi.com> <m1652ddljp.fsf@muc.de> <Pine.LNX.4.58.0501110937450.32744@schroedinger.engr.sgi.com> <41E4BCBE.2010001@yahoo.com.au> <20050112014235.7095dcf4.akpm@osdl.org> <Pine.LNX.4.58.0501120833060.10380@schroedinger.engr.sgi.com> <20050112104326.69b99298.akpm@osdl.org> <Pine.LNX.4.58.0501121055490.11169@schroedinger.engr.sgi.com> <41E73EE4.50200@linux-m68k.org>
+Message-ID: <20050114043944.GB41559@muc.de>
+References: <41E5AFE6.6000509@yahoo.com.au> <20050112153033.6e2e4c6e.akpm@osdl.org> <41E5B7AD.40304@yahoo.com.au> <Pine.LNX.4.58.0501121552170.12669@schroedinger.engr.sgi.com> <41E5BC60.3090309@yahoo.com.au> <Pine.LNX.4.58.0501121611590.12872@schroedinger.engr.sgi.com> <20050113031807.GA97340@muc.de> <Pine.LNX.4.58.0501130907050.18742@schroedinger.engr.sgi.com> <20050113180205.GA17600@muc.de> <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <41E73EE4.50200@linux-m68k.org>
+In-Reply-To: <Pine.LNX.4.58.0501131701150.21743@schroedinger.engr.sgi.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roman Zippel <zippel@linux-m68k.org>
-Cc: Christoph Lameter <clameter@sgi.com>, Andrew Morton <akpm@osdl.org>, nickpiggin@yahoo.com.au, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
+To: Christoph Lameter <clameter@sgi.com>
+Cc: Nick Piggin <nickpiggin@yahoo.com.au>, Andrew Morton <akpm@osdl.org>, torvalds@osdl.org, hugh@veritas.com, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jan 14, 2005 at 04:39:16AM +0100, Roman Zippel wrote:
-> Hi,
+On Thu, Jan 13, 2005 at 05:09:04PM -0800, Christoph Lameter wrote:
+> On Thu, 13 Jan 2005, Andi Kleen wrote:
 > 
-> Christoph Lameter wrote:
+> > On Thu, Jan 13, 2005 at 09:11:29AM -0800, Christoph Lameter wrote:
+> > > On Wed, 13 Jan 2005, Andi Kleen wrote:
+> > >
+> > > > Alternatively you can use a lazy load, checking for changes.
+> > > > (untested)
+> > > >
+> > > > pte_t read_pte(volatile pte_t *pte)
+> > > > {
+> > > > 	pte_t n;
+> > > > 	do {
+> > > > 		n.pte_low = pte->pte_low;
+> > > > 		rmb();
+> > > > 		n.pte_high = pte->pte_high;
+> > > > 		rmb();
+> > > > 	} while (n.pte_low != pte->pte_low);
+> > > > 	return pte;
 > 
-> >Introduction of the cmpxchg is one atomic operations that replaces the two
-> >spinlock ops typically necessary in an unpatched kernel. Obtaining the
-> >spinlock requires an spinlock (which is an atomic operation) and then the
-> >release involves a barrier. So there is a net win for all SMP cases as far
-> >as I can see.
-> 
-> But there might be a loss in the UP case. Spinlocks are optimized away, 
-> but your cmpxchg emulation enables/disables interrupts with every access.
+> I think this is not necessary. Most IA32 processors do 64
+> bit operations in an atomic way in the same way as IA64. We can cut out
+> all the stuff we put in to simulate 64 bit atomicity for i386 PAE mode if
+> we just use convince the compiler to use 64 bit fetches and stores. 486
 
-Only for 386s and STI/CLI is quite cheap there.
+That would mean either cmpxchg8 (slow) or using MMX/SSE (even slower
+because you would need to save FPU stable and disable 
+exceptions). 
+
+I think FPU is far too slow and complicated. I benchmarked lazy read
+and cmpxchg 8: 
+
+Athlon64:
+readpte hot 42
+readpte cold 426
+readpte_cmp hot 33
+readpte_cmp cold 2693
+
+Nocona:
+readpte hot 140
+readpte cold 960
+readpte_cmp hot 48
+readpte_cmp cold 2668
+
+As you can see cmpxchg is slightly faster for the cache hot case,
+but incredibly slow for cache cold (probably because it does something
+nasty on the bus). This is pretty consistent to Intel and AMD CPUs.
+Given that page tables are likely more often cache cold than hot 
+I would use the lazy variant. 
 
 -Andi
+
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
