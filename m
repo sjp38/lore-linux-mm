@@ -1,33 +1,28 @@
-Date: Sun, 10 Oct 1999 12:07:38 -0400 (EDT)
+Date: Sun, 10 Oct 1999 12:12:24 -0400 (EDT)
 From: Alexander Viro <viro@math.psu.edu>
-Subject: Re: locking question: do_mmap(), do_munmap()
-In-Reply-To: <3800B629.209B7A22@colorfullife.com>
-Message-ID: <Pine.GSO.4.10.9910101202240.16317-100000@weyl.math.psu.edu>
+Subject: Re: execve-question
+In-Reply-To: <3800B13E.655140FE@colorfullife.com>
+Message-ID: <Pine.GSO.4.10.9910101207500.16317-100000@weyl.math.psu.edu>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Manfred Spraul <manfreds@colorfullife.com>
-Cc: Andrea Arcangeli <andrea@suse.de>, linux-kernel@vger.rutgers.edu, Ingo Molnar <mingo@chiara.csoma.elte.hu>, linux-mm@kvack.org
+Cc: linux-kernel@vger.rutgers.edu, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Cc'd to mingo]
 
 On Sun, 10 Oct 1999, Manfred Spraul wrote:
 
-> I've started adding "assert_down()" and "assert_kernellocked()" macros,
-> and now I don't see the login prompt any more...
+> what happens / should happen if I call execve() in a multi-threaded
+> application?
 > 
-> eg. sys_mprotect calls merge_segments without lock_kernel().
+> I don't see that the mm structure is copied, and obviously noone
+> acquires the mm->mmap_sem.
 
-Manfred, Andrea - please stop it. Yes, it does and yes, it should.
-Plonking the big lock around every access to VM is _not_ a solution. If
-swapper doesn't use mmap_sem - _swapper_ should be fixed. How the hell
-does lock_kernel() have smaller deadlock potential than
-down(&mm->mmap_sem)?
-
-If you want to return to 2.2 you know where to find it.
-
+Check fs/exec.c::exec_mmap(). mmap_sem is _not_ needed here. We are not
+copying the mm - we are creating new one (exec drops all mappings). For
+$DEITY sake, stop applying band-aids.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
