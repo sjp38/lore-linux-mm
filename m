@@ -1,54 +1,78 @@
-Date: Thu, 7 Aug 2003 19:07:56 -0300 (BRT)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Date: Thu, 07 Aug 2003 16:47:07 -0700
+From: "Martin J. Bligh" <mbligh@aracnet.com>
 Subject: Re: 2.6.0-test2-mm5
-In-Reply-To: <20030807142807.3e4a284c.akpm@osdl.org>
-Message-ID: <Pine.LNX.4.44.0308071905200.5090-100000@logos.cnet>
+Message-ID: <14340000.1060300025@[10.10.2.4]>
+In-Reply-To: <20030806223716.26af3255.akpm@osdl.org>
+References: <20030806223716.26af3255.akpm@osdl.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, William Lee Irwin III <wli@holomorphy.com>
+To: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Bill Irwin <wli@holomorphy.com>, Ingo Molnar <mingo@elte.hu>
 List-ID: <linux-mm.kvack.org>
 
+--Andrew Morton <akpm@osdl.org> wrote (on Wednesday, August 06, 2003 22:37:16 -0700):
 
-On Thu, 7 Aug 2003, Andrew Morton wrote:
-
-> Marcelo Tosatti <marcelo@conectiva.com.br> wrote:
-> >
-> > PCI: Using configuration type 1
-> > 
-> > 
-> >  Locked up solid there. Want more info ? 
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.0-test2/2.6.0-test2-mm5/
 > 
-> doh.  I don't even know who to lart for that one!
 > 
-> Could you please boot with "initcall_debug" and then resolve the final
-> couple of addresses in System.map?  That'll narrow it down.
+> Lots of different things.  Mainly trying to get this tree stabilised again;
+> there has been some breakage lately.
 
-Heck it works with initcall_debug:
+Mmmm. 4/4 split now boots again, but behaves rather oddly. This is with
+Nick's AS fix, plus the 4/4 fix Andrew sent me last night, which I presume
+is the same as what Bill sent out.
 
-Red Hat Linux release 7.3 (Valhalla)
-Kernel 2.6.0-test2-mm5 on an i686
+Difficult to tell what's going on exactly. For one, the machine has lost 
+it's hostname, for another, it seems to have mounted the root fs readonly. 
+End of the bootlog looks like this:
 
-I tried again without initcall_debug and it doesnt: 
+----------------------
 
-Starting migration thread for cpu 7
-CPUS done 16
-zapping low mappings.
-mtrr: v2.0 (20020519)
-Initializing RT netlink socket
-EISA bus registered
-PCI: PCI BIOS revision 2.10 entry at 0xfd26c, last bus=15
-PCI: Using configuration type 1
-....
+EXT2-fs warning (device sda2): ext2_fill_super: mounting ext3 filesystem as ext2
 
-What additional info you guys want? 
+VFS: Mounted root (ext2 filesystem) readonly.
+Freeing unused kernel memory: 288k freed
+INIT: version 2.84 booting
+INIT: Entering runlevel: 2
+Starting system log daemon: syslogdchmod: changing permissions of `/dev/xconsole': Read-only file system
+/etc/init.d/rc: line 101:   118 Trace/breakpoint trap   $debug "$@"
+Starting kernel log daemon: klogdstart-stop-daemon: nothing in /proc - not mounted?
+/etc/init.d/rc: line 101:   120 Trace/breakpoint trap   $debug "$@"
 
-Full output of both with/without initcall_debug boot messages or?
+Debian GNU/Linux testing/unstable (none) ttyS0
 
-Odd, odd. 
+(none) login: 
 
+------------------------
+
+Mounting the ext3 root as ext2 is normal (it's hard to un-ext3 it
+whilst standing on it). The debug stuff & loss of hostname is not.
+Won't accept incoming ssh connections. I can sorta start to log in
+on the serial console, but readonly-ness screws it:
+
+
+(none) login: root
+Password: 
+login(pam_unix)[129]: session opened for user root by (uid=0)
+Linux larry 2.6.0-test2-mm5 #1 SMP Thu Aug 7 07:28:59 PDT 2003 i686 unknown unknown GNU/Linux
+Unable to change tty /dev/ttyS0: Read-only file system
+login[129]: unable to change tty `/dev/ttyS0' for user `root'
+
+login[129]: ROOT LOGIN  on `ttyS0'
+
+Debian GNU/Linux testing/unstable (none) ttyS0
+
+(none) login: 
+
+----------------------------
+
+If I can grab any more useful info, let me know ...
+
+M.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
