@@ -1,45 +1,49 @@
-Date: Fri, 17 Dec 2004 14:11:59 -0800 (PST)
-From: Christoph Lameter <christoph@lameter.com>
-Subject: Re: [patch] CONFIG_ARCH_HAS_ATOMIC_UNSIGNED
-In-Reply-To: <20041217193724.GA13542@wotan.suse.de>
-Message-ID: <Pine.LNX.4.58.0412171410240.23925@server.graphe.net>
-References: <E1Cf6EG-00015y-00@kernel.beaverton.ibm.com>
- <20041217061150.GF12049@wotan.suse.de> <Pine.LNX.4.58.0412170827280.17806@server.graphe.net>
- <20041217163308.GE14229@wotan.suse.de> <Pine.LNX.4.58.0412171118430.20902@server.graphe.net>
- <20041217193724.GA13542@wotan.suse.de>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Fri, 17 Dec 2004 15:54:43 -0800
+From: Paul Jackson <pj@sgi.com>
+Subject: Re: [patch] kill off ARCH_HAS_ATOMIC_UNSIGNED (take 2)
+Message-Id: <20041217155443.0a370ed7.pj@sgi.com>
+In-Reply-To: <1103308048.4450.123.camel@localhost>
+References: <Pine.LNX.4.44.0412171814050.10470-100000@localhost.localdomain>
+	<1103308048.4450.123.camel@localhost>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andi Kleen <ak@suse.de>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm@kvack.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: hugh@veritas.com, linux-mm@kvack.org, ak@suse.de
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 17 Dec 2004, Andi Kleen wrote:
+Dave wrote:
+>  	printk(KERN_EMERG "flags:0x%0*lx mapping:%p mapcount:%d count:%d\n",
+> -		(int)(2*sizeof(page_flags_t)), (unsigned long)page->flags,
+> +		(int)(2*sizeof(unsigned long)), page->flags,
+>  		page->mapping, page_mapcount(page), page_count(page));
 
-> On Fri, Dec 17, 2004 at 11:26:49AM -0800, Christoph Lameter wrote:
-> > On Fri, 17 Dec 2004, Andi Kleen wrote:
-> >
-> > > > Put the order of the page there for compound pages instead of having that
-> > > > in index?
-> > >
-> > > That would waste memory on the 64bit architectures that cannot tolerate
-> > > 32bit atomic flags or on true 32bit architecture.
-> >
-> > Would be great to have 64 bit atomic support to fill this hole then.
->
-> I think you lost me.   How would that help?
+I've a slight preference for:
 
-It would fill the hole on 64 bits if atomic_t would have the native word
-size.
+	printk(KERN_EMERG "flags:0x%0*lx mapping:%p mapcount:%d count:%d\n",
+		(int)(2*sizeof(page->flags)), page->flags,
+		page->mapping, page_mapcount(page), page_count(page));
 
-> To fill the hole you would need a 4 byte member with padding to move around,
-> but there isn't one. You cannot also just add one because it would waste
-> memory on 32bit archs and other 64bit archs.
+or perhaps even a little better:
 
-There is no clean solution here but I just wanted to indicate what I would
-like to see there if you want to use the space.
+	printk(KERN_EMERG "flags:0x%08lx mapping:%p mapcount:%d count:%d\n",
+				page->flags, page->mapping,
+				page_mapcount(page), page_count(page));
 
+Most plain unsigned longs are displayed with some variant of %8lx, not a
+%*lx variable sized format.  And in general, the plainer the code, the
+quicker the reader can understand it.
+
+But if you don't find my nit picking both pleasing and convenient, don't
+hesitate to dismiss it.  It's no biggie, and my comment is just a drive
+by shooting so has little standing.
+
+-- 
+                  I won't rest till it's the best ...
+                  Programmer, Linux Scalability
+                  Paul Jackson <pj@sgi.com> 1.650.933.1373, 1.925.600.0401
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
