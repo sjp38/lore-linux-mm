@@ -1,10 +1,10 @@
-Message-ID: <20011129093448.9462.qmail@mail.com>
+Message-ID: <20011129093512.21048.qmail@mail.com>
 Content-Type: text/plain; charset="iso-8859-1"
 Content-Disposition: inline
 Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
 From: "Praveen Kumar" <praveen_kr5@mail.com>
-Date: Thu, 29 Nov 2001 17:34:48 +0800
+Date: Thu, 29 Nov 2001 17:35:12 +0800
 Subject: Turning on paging
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
@@ -16,7 +16,7 @@ can anybody explain me the turning of page table (i386) when the kernel is loade
 I have gone through 
 http://home.earthlink.net/~jknapka/linux-mm/vminit.html 
 but not able to understand very well that 
-how the it maps to physical memory using swapper_pg_dir and What is funda behind the 
+how that it maps to physical memory using swapper_pg_dir and What is funda behind the 
 mapping memory 0 to 8MB 
 Thanks in advance 
 praveen 
