@@ -1,32 +1,46 @@
-Date: Sun, 7 Nov 2004 18:25:54 +0000
-From: Matthew Wilcox <matthew@wil.cx>
-Subject: Re: removing mm->rss and mm->anon_rss from kernel?
-Message-ID: <20041107182554.GH24690@parcelfarce.linux.theplanet.co.uk>
-References: <4189EC67.40601@yahoo.com.au> <Pine.LNX.4.58.0411060812390.25369@schroedinger.engr.sgi.com> <226170000.1099843883@[10.10.2.4]>
+Subject: Re: manual page migration, revisited...
+From: Nigel Cunningham <ncunningham@linuxmail.org>
+Reply-To: ncunningham@linuxmail.org
+In-Reply-To: <418DAB45.7040907@sgi.com>
+References: <418C03CD.2080501@sgi.com>
+	 <1099695742.4507.114.camel@desktop.cunninghams>  <418DAB45.7040907@sgi.com>
+Content-Type: text/plain
+Message-Id: <1099861888.5461.2.camel@desktop.cunninghams>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <226170000.1099843883@[10.10.2.4]>
+Date: Mon, 08 Nov 2004 08:11:28 +1100
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Martin J. Bligh" <mbligh@aracnet.com>
-Cc: Christoph Lameter <clameter@sgi.com>, Nick Piggin <nickpiggin@yahoo.com.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Hugh Dickins <hugh@veritas.com>, linux-mm@kvack.org, linux-ia64@vger.kernel.org
+To: Ray Bryant <raybry@sgi.com>
+Cc: Marcelo Tosatti <marcelo.tosatti@cyclades.com>, Hirokazu Takahashi <taka@valinux.co.jp>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Nov 07, 2004 at 08:11:24AM -0800, Martin J. Bligh wrote:
-> Ummm 10K cpus? I hope that's a typo for processes, or this discussion is
-> getting rather silly ....
+Hi.
 
-NASA bought a 10k CPU system, but that's a cluster.  I think the largest
-single system within that cluster is 256 CPUs.
+On Sun, 2004-11-07 at 15:57, Ray Bryant wrote:
+> I think that having the resumed processes show up with a different pid than 
+> they had before is show-stopper.  In a multiprocess parallel program, we have
+> no idea whether the program itself has saved way pid's and is using them to
+> send signals or whatnot.  So I don't think there is a user space-only solution
+> that will solve this problem for us, but it an interesting alternative to
+> the kernel-only solutions I've been contemplating.  There is probably some
+> intermediate ground there which holds the real solution.
 
+I agree; it should be pretty trivial to add a patch to check that a
+given PID is not in use, allocate it and get the resumed program known
+by that PID. I won't offer to do it, though. I've got enough work at the
+moment :>
+
+Nigel
 -- 
-"Next the statesmen will invent cheap lies, putting the blame upon 
-the nation that is attacked, and every man will be glad of those
-conscience-soothing falsities, and will diligently study them, and refuse
-to examine any refutations of them; and thus he will by and by convince 
-himself that the war is just, and will thank God for the better sleep 
-he enjoys after this process of grotesque self-deception." -- Mark Twain
+Nigel Cunningham
+Pastoral Worker
+Christian Reformed Church of Tuggeranong
+PO Box 1004, Tuggeranong, ACT 2901
+
+You see, at just the right time, when we were still powerless, Christ
+died for the ungodly.		-- Romans 5:6
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
