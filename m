@@ -1,50 +1,33 @@
-Subject: Re: journaling & VM  (was: Re: reiserfs being part of the kernel:  it'snot just the code)
-References: <Pine.LNX.4.21.0006061956360.7328-100000@duckman.distro.conectiva>
-	<393DA31A.358AE46D@reiser.to>
+Subject: Re: reduce shrink_mmap rate of failure (initial attempt)
+References: <393D8E26.E51525CB@norran.net>
 From: "Quintela Carreira Juan J." <quintela@fi.udc.es>
-In-Reply-To: Hans Reiser's message of "Tue, 06 Jun 2000 18:19:22 -0700"
-Date: 07 Jun 2000 03:46:45 +0200
-Message-ID: <yttya4ifeka.fsf@serpe.mitica>
+In-Reply-To: Roger Larsson's message of "Wed, 07 Jun 2000 01:49:58 +0200"
+Date: 07 Jun 2000 05:01:37 +0200
+Message-ID: <ytt3dmqfb3i.fsf@serpe.mitica>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hans Reiser <hans@reiser.to>
-Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org, Alexander Zarochentcev <zam@odintsovo.comcor.ru>
+To: Roger Larsson <roger.larsson@norran.net>
+Cc: Alan Cox <alan@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Zlatko Calusic <zlatko@iskon.hr>
 List-ID: <linux-mm.kvack.org>
 
->>>>> "hans" == Hans Reiser <hans@reiser.to> writes:
+>>>>> "roger" == Roger Larsson <roger.larsson@norran.net> writes:
 
 Hi
 
-hans> quite happy to see you drive it, I suggest to check with zam as he has some code
-hans> in progress.
+roger> This is a trivial first attempt to reduce shrink_mmap failures
+roger> (leading to swap)
 
-hans> There are two issues to address:
+roger> It is against 2.4.0-test1-ac7-riel3 but that is almost what
+roger> we have currently - and it is trivial to apply with an editor.
 
-hans> 1) If a buffer needs to be flushed to disk, how do we let the FS flush
-hans> everything else that it is optimal to flush at the same time as that buffer. 
-hans> zam's allocate on flush code addresses that issue for reiserfs, and he has some
-hans> general hooks implemented also.  He is guessed to be two weeks away.
+roger> It might be possible to improve this further - but it is a start.
 
-Ok, register a cache function and it will receive the _priority_ (also
-know as _how hard_ should try to free memory).  Once that memory is
-freed put that pages in the LRU list.  Not need to have them there
-before because there is no way that shrink_mmap would be able to free
-them anyway.
+That patch hangs my machine here when I run mmap002.  The machine is
+in shrink_mmap.  It hangs trying to get the pagmap_lru_lock.
 
-This is the reason because of what I think that one operation in the
-address space makes no sense.  No sense because it can't be called
-from the page.
-
-hans> 2) If multiple kernel subsystem page pinners pin memory, how do we keep them
-hans> from deadlocking.  Chris as you know is the reiserfs guy for that.
-
-I think that Riel is also working in that just now.  I think that is
-better to find one API that is good for everybody.
-
-I would also like to see some common API for this kind of allocation
-of memory.
+I think that the idea is good, but it doesn't work here :(.
 
 Later, Juan.
 
