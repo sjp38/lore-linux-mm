@@ -1,37 +1,47 @@
-Date: Mon, 25 Sep 2000 12:06:41 -0400 (EDT)
-From: Alexander Viro <viro@math.psu.edu>
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-In-Reply-To: <Pine.LNX.4.21.0009251804280.9122-100000@elte.hu>
-Message-ID: <Pine.GSO.4.21.0009251157390.16980-100000@weyl.math.psu.edu>
+Date: Mon, 25 Sep 2000 13:08:05 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: refill_inactive()
+In-Reply-To: <Pine.LNX.4.21.0009251631020.9122-100000@elte.hu>
+Message-ID: <Pine.LNX.4.21.0009251306430.14614-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ingo Molnar <mingo@elte.hu>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Roger Larsson <roger.larsson@norran.net>, Linus Torvalds <torvalds@transmeta.com>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-
 On Mon, 25 Sep 2000, Ingo Molnar wrote:
+> 
+> On Mon, 25 Sep 2000, Rik van Riel wrote:
+> 
+> > 2) you are right, we /can/ schedule when __GFP_IO isn't set, this is
+> >    mistake ... now I'm getting confused about what __GFP_IO is all
+> >    about, does anybody know the _exact_ meaning of __GFP_IO ?
+> 
+> __GFP_IO set to 1 means that the allocator can afford doing IO implicitly
+> by the page allocator. Most allocations dont care at all wether swap IO is
+> started as part of gfp() or not. But a prominent counter-example is
+> GFP_BUFFER, which is used by the buffer-cache/fs layer, and which cannot
+> do any IO implicitly. (because it *is* the IO layer already, and it is
+> already trying to do IO.) The other reason are legacy lowlevel-filesystem
+> locks like the ext2fs lock, which cannot be taken recursively.
 
-> 
-> On Mon, 25 Sep 2000, Stephen C. Tweedie wrote:
-> 
-> > Sorry, but in this case you have got a lot more variables than you
-> > seem to think.  The obvious lock is the ext2 superblock lock, but
-> > there are side cases with quota and O_SYNC which are much less
-> > commonly triggered.  That's not even starting to consider the other
-> > dozens of filesystems in the kernel which have to be audited if we
-> > change the locking requirements for GFP calls.
-> 
-> i'd suggest to simply BUG() in schedule() if the superblock lock is held
-> not directly by lock_super. Holding the superblock lock is IMO quite rude
-> anyway (for performance and latency) - is there any place where we hold it
-> for a long time and it's unavoidable?
+Hmmm, doesn't GFP_BUFFER simply imply that we cannot
+allocate new buffer heads to do IO with??
 
-Ingo, schedule() has no bloody business _knowing_ about superblock locks
-in the first place. Yes, ext2 should not bother taking it at all. For
-completely unrelated reasons.
+(from reading buffer.c, I can't see much of a reason
+why we couldn't start write IO on already allocated
+buffers...)
+
+regards,
+
+Rik
+--
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
+
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
