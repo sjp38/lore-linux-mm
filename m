@@ -1,34 +1,48 @@
 Content-Type: text/plain;
   charset="iso-8859-1"
 From: Daniel Phillips <phillips@bonn-fries.net>
-Subject: Re: [PATCH] (1/2) reverse mapping VM for 2.5.23 (rmap-13b)
-Date: Wed, 19 Jun 2002 19:00:57 +0200
-References: <Pine.LNX.4.44.0206181340380.3031-100000@loke.as.arizona.edu>
-In-Reply-To: <Pine.LNX.4.44.0206181340380.3031-100000@loke.as.arizona.edu>
+Subject: Re: [PATCH] (2/2) reverse mappings for current 2.5.23 VM
+Date: Wed, 19 Jun 2002 19:01:23 +0200
+References: <Pine.LNX.4.44L.0206190853190.2598-100000@imladris.surriel.com>
+In-Reply-To: <Pine.LNX.4.44L.0206190853190.2598-100000@imladris.surriel.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
-Message-Id: <E17KipF-0000up-00@starship>
+Message-Id: <E17Kipf-0000uu-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Craig Kulesa <ckulesa@as.arizona.edu>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@transmeta.com>
+To: Rik van Riel <riel@conectiva.com.br>, Craig Kulesa <ckulesa@as.arizona.edu>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wednesday 19 June 2002 13:18, Craig Kulesa wrote:
-> Where:  http://loke.as.arizona.edu/~ckulesa/kernel/rmap-vm/
->
-> This patch implements Rik van Riel's patches for a reverse mapping VM 
-> atop the 2.5.23 kernel infrastructure...
->
-> ...Hope this is of use to someone!  It's certainly been a fun and 
-> instructive exercise for me so far.  ;)
+On Wednesday 19 June 2002 13:58, Rik van Riel wrote:
+> > 2.5.22 vanilla:
+> > Total kernel swapouts during test = 29068 kB
+> > Total kernel swapins during test  = 16480 kB
+> > Elapsed time for test: 141 seconds
+> >
+> > 2.5.23-rmap (this patch -- "rmap-minimal"):
+> > Total kernel swapouts during test = 24068 kB
+> > Total kernel swapins during test  =  6480 kB
+> > Elapsed time for test: 133 seconds
+> >
+> > 2.5.23-rmap13b (Rik's "rmap-13b complete") :
+> > Total kernel swapouts during test = 40696 kB
+> > Total kernel swapins during test  =   380 kB
+> > Elapsed time for test: 133 seconds
+> 
+> Interesting to see that both rmap versions have the same
+> performance, it would seem that swapouts are much cheaper
+> than waiting for a pagefault to swap something in ...
 
-It's intensely useful.  It changes the whole character of the VM discussion 
-at the upcoming kernel summit from 'should we port rmap to mainline?' to 'how 
-well does it work' and 'what problems need fixing'.  Much more useful.
+You might conclude from the above that the lru+rmap is superior to 
+aging+rmap: while they show the same wall-clock time, lru+rmap consumes 
+considerably less disk bandwidth.  Naturally, it would be premature to 
+conclude this from one trial on one load.
 
-Your timing is impeccable.  You really need to cc Linus on this work, 
-particularly your minimal, lru version.
+These patches need benchmarking - lots of it, and preferrably in the next few 
+days.
+
+We need to see cpu stats as well.
 
 -- 
 Daniel
