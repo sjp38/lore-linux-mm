@@ -1,29 +1,32 @@
-Date: Mon, 15 Jul 2002 13:34:06 -0300 (BRT)
-From: Rik van Riel <riel@conectiva.com.br>
+Content-Type: text/plain;
+  charset="iso-8859-1"
+From: Daniel Phillips <phillips@arcor.de>
 Subject: Re: [PATCH] Optimize away pte_chains for single mappings
-In-Reply-To: <E17U8Qc-0003bk-00@starship>
-Message-ID: <Pine.LNX.4.44L.0207151333530.12241-100000@imladris.surriel.com>
+Date: Mon, 15 Jul 2002 18:42:00 +0200
+References: <Pine.LNX.4.44L.0207151333530.12241-100000@imladris.surriel.com>
+In-Reply-To: <Pine.LNX.4.44L.0207151333530.12241-100000@imladris.surriel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: 8bit
+Message-Id: <E17U8vA-0003ca-00@starship>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Daniel Phillips <phillips@arcor.de>
+To: Rik van Riel <riel@conectiva.com.br>
 Cc: Matti Aarnio <matti.aarnio@zmailer.org>, Dave McCracken <dmccr@us.ibm.com>, Linux Memory Management <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 15 Jul 2002, Daniel Phillips wrote:
+On Monday 15 July 2002 18:34, Rik van Riel wrote:
+> On Mon, 15 Jul 2002, Daniel Phillips wrote:
+> 
+> > None of these cases apply, the low bit is always masked off before being
+> > used as a pointer.
+> 
+> Too ugly to live.
 
-> None of these cases apply, the low bit is always masked off before being
-> used as a pointer.
+That's a nonargument.  I presume you weren't able to think of a
+substantive reason.
 
-Too ugly to live.
-
-Rik
 -- 
-Bravely reimplemented by the knights who say "NIH".
-
-http://www.surriel.com/		http://distro.conectiva.com/
-
+Daniel
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
