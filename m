@@ -1,30 +1,31 @@
-Date: Thu, 8 Jun 2000 15:00:19 +0100
+Date: Thu, 8 Jun 2000 15:08:21 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: [PATCH] page aging for 2.2.16
-Message-ID: <20000608150019.E3886@redhat.com>
-References: <20000608031635.A353@acs.ucalgary.ca> <20000608144126.E8549@krusty.e-technik.uni-dortmund.de>
+Subject: Re: raid0 and buffers larger than PAGE_SIZE
+Message-ID: <20000608150821.G3886@redhat.com>
+References: <20000607204444.A453@perlsupport.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20000608144126.E8549@krusty.e-technik.uni-dortmund.de>; from ma@dt.e-technik.uni-dortmund.de on Thu, Jun 08, 2000 at 02:41:26PM +0200
+In-Reply-To: <20000607204444.A453@perlsupport.com>; from chip@valinux.com on Wed, Jun 07, 2000 at 08:44:44PM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Matthias Andree <ma@redhat.com>, Neil Schemenauer <nascheme@enme.ucalgary.ca>, linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
-Cc: Stephen Tweedie <sct@redhat.com>
+To: Chip Salzenberg <chip@valinux.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Thu, Jun 08, 2000 at 02:41:26PM +0200, Matthias Andree wrote:
-> * Neil Schemenauer (nascheme@enme.ucalgary.ca) [000608 11:21]:
-> > I timed a kernel compile with -j 20 to test the cost of the
-> 
-> you mean: make -j 2 MAKE="make -j 10"? Recursive make easily breaks its
-> -j option if -j is given a numeric parameter.
+On Wed, Jun 07, 2000 at 08:44:44PM -0700, Chip Salzenberg wrote:
 
-On modern versions of Gnu Make, "-j <n>" uses a "jobserver" facility to make
-sure that the parent and all child make processes share the same pool of
-up to <n> compilation tasks.  It handles recursion properly nowadays.
+> I'm using raid0 under 2.2.16pre4 and I've just started observing a new
+> failure mode that's completely preventing it from working: getblk(),
+> and therefore refill_freelist(), is being called with a size greater
+> than PAGE_SIZE.  This is triggered by e2fsck on the /dev/md0, and it's
+> probably been a while since the last e2fsck, so I don't know when the
+> was actually introduced.
+
+getblk() with blocksize > PAGE_SIZE is completely illegal.  Are you
+using a decent set of raid patches?
 
 Cheers,
  Stephen
