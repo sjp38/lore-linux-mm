@@ -1,43 +1,44 @@
-Date: Wed, 4 Oct 2000 10:13:52 -0400 (EDT)
-From: Eric Lowe <elowe@myrile.madriver.k12.oh.us>
-Subject: Re: SMP VM race in 2.[0-4]
-In-Reply-To: <Pine.LNX.3.96.1001004154920.27909C-100000@artax.karlin.mff.cuni.cz>
-Message-ID: <Pine.BSF.4.10.10010041008540.70794-100000@myrile.madriver.k12.oh.us>
+Date: Wed, 4 Oct 2000 12:14:07 -0300 (BRST)
+From: Rik van Riel <riel@conectiva.com.br>
+Subject: Re: Odd swap behavior
+In-Reply-To: <39DA787E.B31422B4@sgi.com>
+Message-ID: <Pine.LNX.4.21.0010041212540.10197-100000@duckman.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Mikulas Patocka <mikulas@artax.karlin.mff.cuni.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rajagopal Ananthanarayanan <ananth@sgi.com>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello,
+On Tue, 3 Oct 2000, Rajagopal Ananthanarayanan wrote:
 
-> I found a possible problem on SMP. In vmscan.c / try_to_swap_out you do
-> not use atomic operations for manipulating with ptes. You read the pte,
-> modify it and write it nonatomically. When the second CPU is running
-> process that turns on 'D' bit of pte while the first CPU is in
-> try_to_swap_out, 'D' bit is lost. Because anonymous pages have always 'D'
-> bit set, the bug can only affect pages mapped with MAP_SHAREAD,
-> PROT_WRITE. Sometimes updates are not written back to file. 
-> 
+> I'm running fairly stressful tests like dbench with lots of
+> clients. Since the new VM changes (now in test9), I haven't
+> noticed _any_ swap activity, in spite of the enormous memory
+> pressures. I have lots of processes in the system, like 8
+> httpd's, 4 getty's, etc. most of which should be "idle" ... Why
+> aren't the pages (eg. mapped stacks) from these processes being
+> swapped out?
 
-You're correct.  A discussion about this occurred on Linux-MM
-1-2 weeks ago, and a patch followed.  (Unfortunately, it's not
-very efficient, but I'm not sure if anyone has found a really
-good solution yet to this problem on any other x86 OS)
+That's an interesting one. Most "complaints" I've had about
+test9 is that it swaps more than previous versions ;)
 
-Check out:
-http://mail.nl.linux.org/linux-mm/2000-09/
+But let me give you the answer...
 
-Thread: [PATCH] workaround for lost dirty bits on x86 SMP -and-
-Thread: [PATCH] 2.2.18pre5 version of pte dirty bit psmp race atch
+Small code changes in deactivate_page() have caused the
+drop_behind() code to actually WORK AS ADVERTISED right
+now, and because of that streaming IO doesn't put any
+memory pressure on the system.
 
+regards,
+
+Rik
 --
-Eric Lowe
-FibreChannel Software Engineer, Systran Corporation
-elowe@systran.com
+"What you're running that piece of shit Gnome?!?!"
+       -- Miguel de Icaza, UKUUG 2000
 
+http://www.conectiva.com/		http://www.surriel.com/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
