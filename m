@@ -1,44 +1,36 @@
-Received: from megami.veritas.com (urd.veritas.com [192.203.47.101])
-	by bacchus-int.veritas.com (8.11.0/8.9.1) with SMTP id f0OJsYH11572
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2001 11:54:34 -0800 (PST)
-Received: from alloc([10.10.192.110]) (1337 bytes) by megami.veritas.com
-	via sendmail with P:smtp/R:smart_host/T:smtp
-	(sender: <markhe@veritas.com>)
-	id <m14LW01-0000Z4C@megami.veritas.com>
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2001 11:54:33 -0800 (PST)
-	(Smail-3.2.0.101 1997-Dec-17 #4 built 1999-Aug-24)
-Received: from localhost (markhe@localhost)
-	by alloc (8.9.3/8.8.7) with ESMTP id TAA13426
-	for <linux-mm@kvack.org>; Wed, 24 Jan 2001 19:59:09 GMT
-Date: Wed, 24 Jan 2001 19:59:09 +0000 (GMT)
-From: Mark Hemment <markhe@veritas.com>
-Subject: PF_MEMALLOC and direct_reclaim
-Message-ID: <Pine.LNX.4.21.0101241945160.26195-100000@alloc>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 24 Jan 2001 14:30:10 -0600
+From: Timur Tabi <ttabi@interactivesi.com>
+In-Reply-To: <3A6F22D7.3000709@valinux.com>
+References: <20010124174824Z129401-18594+948@vger.kernel.org>
+Subject: Re: Page Attribute Table (PAT) support?
+Message-Id: <20010124202725Z131205-222+37@kanga.kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org
+To: Linux Kernel Mailing list <linux-kernel@vger.kernel.org>
+Cc: Linux MM mailing list <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+** Reply to message from Jeff Hartmann <jhartmann@valinux.com> on Wed, 24 Jan
+2001 11:45:43 -0700
 
-  Can anyone tell me the reasons a process marked PF_MEMALLOC isn't
-allowed to pull pages directly off the inactive_clean lists?
-  I understand the reasons for PF_MEMALLOC, but not this particular
-limitation.  I can't find any deadlock suitation with regard to the
-"pagecache_lock" and "pagemap_lru_lock" locks taken in reclaim_page(),
-nor any possible case of recursion.
 
-  To successfully complete I/O (data or meta-data), kswapd (or rather, the
-underlying filesystem running in the context of kswapd or any other
-task marked PF_MEMALLOC) may need more memory than is directly available
-via the freearea pools, while there are plenty of pages in the 
-inactive_clean list.
+> I'm actually writing support for the PAT as we speak.  I already have 
+> working code for PAT setup.  Just having a parameter for ioremap is not 
+> enough, unfortunately.  According to the Intel Architecture Software 
+> Developer's Manual we have to remove all mappings of the page that are 
+> cached.
 
-Thanks,
-Mark
+For our specific purposes, that's not important.  We already flush the cache
+before we create uncached regions (via ioremap_nocache).  I understand that as a
+general Linux feature, you can't ignore cache incoherency, but I don't think
+it's a hard requirement.
 
+
+-- 
+Timur Tabi - ttabi@interactivesi.com
+Interactive Silicon - http://www.interactivesi.com
+
+When replying to a mailing-list message, please direct the reply to the mailing list only.  Don't send another copy to me.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
