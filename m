@@ -1,70 +1,37 @@
-Received: from d03relay04.boulder.ibm.com (d03relay04.boulder.ibm.com [9.17.195.106])
-	by e33.co.us.ibm.com (8.12.10/8.12.9) with ESMTP id j1OMu20D672750
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 17:56:02 -0500
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by d03relay04.boulder.ibm.com (8.12.10/NCO/VER6.6) with ESMTP id j1OMu1XW171910
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 15:56:02 -0700
-Received: from d03av02.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.12.11/8.12.11) with ESMTP id j1OMu1RA001534
-	for <linux-mm@kvack.org>; Thu, 24 Feb 2005 15:56:01 -0700
-From: James Cleverdon <jamesclv@us.ibm.com>
-Reply-To: jamesclv@us.ibm.com
-Subject: Re: [PATCH 5/5] SRAT cleanup: make calculations and indenting level more sane
-Date: Thu, 24 Feb 2005 14:56:13 -0800
-References: <E1D4Mns-0007DT-00@kernel.beaverton.ibm.com> <200502241249.54796.jamesclv@us.ibm.com> <1109282578.9817.1993.camel@knk>
-In-Reply-To: <1109282578.9817.1993.camel@knk>
-MIME-Version: 1.0
+Date: Mon, 14 Feb 2005 06:36:10 -0700
+Message-Id: <200410031479.i93QlfTw002879@www2.gmail.com>
+From: "Orville White" <ophias@mailAccount.com>
+Subject: Become a homeowner with low rates
+Mime-Version: 1.0
 Content-Type: text/plain;
-  charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-Message-Id: <200502241456.14048.jamesclv@us.ibm.com>
-Sender: owner-linux-mm@kvack.org
-Return-Path: <owner-linux-mm@kvack.org>
-To: keith <kmannth@us.ibm.com>
-Cc: Dave Hansen <haveblue@us.ibm.com>, linux-mm <linux-mm@kvack.org>, matt dobson <colpatch@us.ibm.com>, Mike Kravetz <kravetz@us.ibm.com>, "Martin J. Bligh" <mbligh@aracnet.com>, Anton Blanchard <anton@samba.org>, Yasunori Goto <ygoto@us.fujitsu.com>, Andy Whitcroft <apw@shadowen.org>
+Return-Path: <ophias@mailAccount.com>
+To: aart@kvack.org
+Cc: ajordomo@kvack.org, bcrl@kvack.org, blah@kvack.org, er-linux-aio@kvack.org, fhqk@kvack.org, fool@kvack.org, ian@kvack.orgio@kvack.org, kernel@kvack.orglinux-aio@kvack.org, linux-mm@kvack.org, linux-mm-archive@kvack.org, mailer-daemon@kvack.orgmm@kvack.org, needpcparts.com@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Actually, SRAT was cooked up by the folks at Redmond or Bellevue.  If 
-it's still outside of the main ACPI doc tree, well, that says a lot.
+Hello,
+
+ We tried contacting you awhile ago about your low interest morta(ge rate.
+
+ You have qualified for the lowest rate in years...
+
+ You could get over $380,000 for as little as $500 a month!
+
+ Ba(d credit? Doesn't matter, low rates are fixed no matter what!
+
+ 
+ To get a free, no obli,gation consultation click below:
+
+ http://www.lenderz4you.com/x/loan.php?id=nu
 
 
-On Thursday 24 February 2005 02:02 pm, keith wrote:
-> On Thu, 2005-02-24 at 12:49, James Cleverdon wrote:
-> > No, I don't think we could rely on that.  Our BIOS did ascending
-> > addresses, but I don't recall that being spelled out in the ACPI
-> > spec.
-> >
-> > Of course, there's a new ACPI spec out.  Maybe it makes it a
-> > requirement.  I'd take a look, but I can't afford the loss of
-> > sanity caused by gazing on the dread visage of ACPI 3.0.   ;^)
->
-> The SRAT exists outside of the ACPI spec.  It is something made up by
-> folks in Kirkland.  I just reread the SRAT spec and I don't seen any
-> mention of requirements for linear order.  Still yet we have yet to
-> find a box/bios version that breaks this assumption. All I know of is
-> the IBM summit boxes but maybe there is something else.
->
-> Maybe AMD x86_64 booting into 32 bit have SRATs as well?
->
-> Anyways maybe we could add some check to catch new hardware with less
-> friendly SRAT tables.
->
-> after the  node_has_online_mem(nid) check
->
-> if (node_start_pfn[nid] > node_memory_chunk[j].start_pfn) {
-> 	printk (KERN_WARN "You need to rework the srat.c code\n");
-> 	continue;
-> }
->
-> Keith
 
--- 
-James Cleverdon
-IBM LTC (xSeries Linux Solutions)
-{jamesclv(Unix, preferred), cleverdj(Notes)} at us dot ibm dot comm
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"aart@kvack.org"> aart@kvack.org </a>
+ Best Regards,
+
+ Sheryl Blue
+ 
+ to be remov(ed:	http://www.lenderz4you.com/x/st.html
+
+ this process takes one week, so please be patient. we do our 
+ best to take your email/s off but you have to fill out a rem/ove
+ or else you will continue to recieve email/s.
