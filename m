@@ -1,37 +1,38 @@
-Date: Wed, 31 Jan 2001 01:05:02 -0200 (BRST)
-From: Marcelo Tosatti <marcelo@conectiva.com.br>
-Subject: [PATCH] vma limited swapin readahead 
-Message-ID: <Pine.LNX.4.21.0101310037540.16187-100000@freak.distro.conectiva>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Date: Wed, 31 Jan 2001 10:21:58 +0000
+From: "Stephen C. Tweedie" <sct@redhat.com>
+Subject: Re: [PATCH] vma limited swapin readahead
+Message-ID: <20010131102158.O11607@redhat.com>
+References: <Pine.LNX.4.21.0101310037540.16187-100000@freak.distro.conectiva>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <Pine.LNX.4.21.0101310037540.16187-100000@freak.distro.conectiva>; from marcelo@conectiva.com.br on Wed, Jan 31, 2001 at 01:05:02AM -0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: lkml <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org
+To: Marcelo Tosatti <marcelo@conectiva.com.br>
+Cc: lkml <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-Hi, 
+Hi,
 
-The current swapin readahead code reads a number of pages (1 >>
-page_cluster)  which are physically contiguous on disk with reference to
-the page which needs to be faulted in.
+On Wed, Jan 31, 2001 at 01:05:02AM -0200, Marcelo Tosatti wrote:
+> 
+> However, the pages which are contiguous on swap are not necessarily
+> contiguous in the virtual memory area where the fault happened. That means
+> the swapin readahead code may read pages which are not related to the
+> process which suffered a page fault.
+> 
+Yes, but reading extra sectors is cheap, and throwing the pages out of
+memory again if they turn out not to be needed is also cheap.  The
+on-disk swapped pages are likely to have been swapped out at roughly
+the same time, which is at least a modest indicator of being of the
+same age and likely to have been in use at the same time in the past.
 
-However, the pages which are contiguous on swap are not necessarily
-contiguous in the virtual memory area where the fault happened. That means
-the swapin readahead code may read pages which are not related to the
-process which suffered a page fault.
+I'd like to see at lest some basic performance numbers on this,
+though.
 
-I've changed the swapin code to not readahead pages if they are not
-virtually contiguous on the vma which is being faulted to avoid
-the problem described above.
-
-Testers are very welcome since I'm unable to test this in various
-workloads.
-
-The patch is available at
-http://bazar.conectiva.com.br/~marcelo/patches/v2.4/2.4.1pre10/swapin_readahead.patch
-
-
+Cheers,
+ Stephen
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
