@@ -1,35 +1,109 @@
-Subject: Re: [PATCH] Recent VM fiasco - fixed
-References: <Pine.LNX.4.10.10005090844050.1100-100000@penguin.transmeta.com>
-	<m3snvrvymq.fsf@austin.jhcloos.com>
-From: "James H. Cloos Jr." <cloos@jhcloos.com>
-In-Reply-To: "James H. Cloos Jr."'s message of "09 May 2000 23:05:01 -0500"
-Date: 10 May 2000 02:29:09 -0500
-Message-ID: <m366smx3qy.fsf@austin.jhcloos.com>
+Date: Tue, 9 May 2000 21:14:08 +0100 (BST)
+From: Dave Jones <dave@denial.force9.co.uk>
+Subject: [PATCH] remove_inode_page rewrite.
+Message-ID: <Pine.LNX.4.21.0005092051120.911-100000@neo.local>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Linus Torvalds <torvalds@transmeta.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.rutgers.edu
+To: Linux Kernel Mailing List <linux-kernel@vger.rutgers.edu>
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Ok.  Tried w/ Manfred patch (ie the 2nd half).  kswapd still uses a lot
-of cpu doing recursuve cp(1)s, but it is less than in virgin pre7-8.  I
-got about 10s of cpu for cp and 40s for kswapd doing a cp -a of the 7-8
-tree (after compiling) on the ide drive (w/ 4k ext2 blocks).  On the 1k
-ext2 block scsi partition, it was 1m50s for kswapd and 20s for cp to cp
-three such trees.  kswapd %cpu never exceeded 65% on the latter and 50%
-on the former; substantially better than in virgin 7-8, but not as good
-as earlier kernels (though I don't have any numbers to back that up). I
-did this test in single user mode w/ only top running (on another vc).
+Hi,
+ I'm not entirely convinced that remove_inode_page() is
+SMP safe.  The diff below rewrites it so that it doesn't
+repeatedly take/drop the pagecache_lock.
 
-Hope the datapoint helps!
+I believe that while after CPU0 drops the pagecache_lock, and starts
+removing one page, CPU1 fails to lock the same page (as CPU0 grabbed it 
+with the trylock) and moves to the next page in the list, succeeds,
+removes it, and then rescans from the top.
 
--JimC
+With the current locking I believe it's then possible for CPU1 to
+lock that page (again in the TryLockPage(page) call) just before CPU0
+calls page_cache_release(page)
+
+This patch probably kills us latency-wise, but looks a lot more
+sane in my eyes.
+
+ Any comments ?
+
 -- 
-James H. Cloos, Jr.  <URL:http://jhcloos.com/public_key> 1024D/ED7DAEA6 
-<cloos@jhcloos.com>  E9E9 F828 61A4 6EA9 0F2B  63E7 997A 9F17 ED7D AEA6
-        Save Trees:  Get E-Gold! <URL:http://jhcloos.com/go?e-gold>
+Dave.
+
+--- filemap.c~	Tue May  9 19:37:13 2000
++++ filemap.c	Tue May  9 19:37:41 2000
+@@ -91,44 +91,50 @@
+  * Remove a page from the page cache and free it. Caller has to make
+  * sure the page is locked and that nobody else uses it - or that usage
+  * is safe.
++ * Caller must also be holding pagecache_lock
+  */
+ void remove_inode_page(struct page *page)
+ {
+ 	if (!PageLocked(page))
+ 		PAGE_BUG(page);
+ 
+-	spin_lock(&pagecache_lock);
+ 	remove_page_from_inode_queue(page);
+ 	remove_page_from_hash_queue(page);
+ 	page->mapping = NULL;
+-	spin_unlock(&pagecache_lock);
+ }
+ 
++
+ void invalidate_inode_pages(struct inode * inode)
+ {
+ 	struct list_head *head, *curr;
+ 	struct page * page;
+ 
+- repeat:
+-	head = &inode->i_mapping->pages;
+ 	spin_lock(&pagecache_lock);
++
++	head = &inode->i_mapping->pages;
++
++	if (head == head->next)
++		goto empty_list;
++
+ 	curr = head->next;
+ 
+-	while (curr != head) {
++	do {
+ 		page = list_entry(curr, struct page, list);
+ 		curr = curr->next;
+ 
+ 		/* We cannot invalidate a locked page */
+ 		if (TryLockPage(page))
+ 			continue;
+-		spin_unlock(&pagecache_lock);
+ 
+ 		lru_cache_del(page);
+ 		remove_inode_page(page);
+ 		UnlockPage(page);
+ 		page_cache_release(page);
+-		goto repeat;
+-	}
++		head = &inode->i_mapping->pages;
++
++	} while (curr != head); 
++
++empty_list:
+ 	spin_unlock(&pagecache_lock);
+ }
+ 
+@@ -180,7 +186,9 @@
+ 			 * page cache and creates a buffer-cache alias
+ 			 * to it causing all sorts of fun problems ...
+ 			 */
++			spin_lock(&pagecache_lock);
+ 			remove_inode_page(page);
++			spin_unlock(&pagecache_lock);
+ 
+ 			UnlockPage(page);
+ 			page_cache_release(page);
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
