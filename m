@@ -1,36 +1,65 @@
-Date: Thu, 1 Apr 2004 02:45:28 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap complexity fix
-Message-ID: <20040401004528.GU2143@dualathlon.random>
-References: <20040331150718.GC2143@dualathlon.random> <Pine.LNX.4.44.0403311735560.27163-100000@localhost.localdomain> <20040331172851.GJ2143@dualathlon.random>
+Date: Wed, 31 Mar 2004 17:22:16 -0800
+From: Andrew Morton <akpm@osdl.org>
+Subject: Re: [RFC][PATCH 1/3] radix priority search tree - objrmap
+ complexity fix
+Message-Id: <20040331172216.4df40fb3.akpm@osdl.org>
+In-Reply-To: <20040401004528.GU2143@dualathlon.random>
+References: <20040331150718.GC2143@dualathlon.random>
+	<Pine.LNX.4.44.0403311735560.27163-100000@localhost.localdomain>
+	<20040331172851.GJ2143@dualathlon.random>
+	<20040401004528.GU2143@dualathlon.random>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20040331172851.GJ2143@dualathlon.random>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Hugh Dickins <hugh@veritas.com>
-Cc: Andrew Morton <akpm@osdl.org>, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: hugh@veritas.com, vrajesh@umich.edu, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Mar 31, 2004 at 07:28:51PM +0200, Andrea Arcangeli wrote:
-> if they run into trouble I'll return to the pagecache API adding the
-> GFP_KERNEL and check for oom failure.
+Andrea Arcangeli <andrea@suse.de> wrote:
+>
+> @@ -151,8 +151,11 @@ int rw_swap_page_sync(int rw, swp_entry_
+>  	lock_page(page);
+>  
+>  	BUG_ON(page->mapping);
+> -	page->mapping = &swapper_space;
+> -	page->index = entry.val;
+> +	ret = add_to_page_cache(page, &swapper_space, entry.val, GFP_KERNEL);
 
-there were troubles with the header indeed. So I went back to the
-pagecache version (now fixed with GFP_KERNEL and oom retval checking).
+Doing a __GFP_FS allocation while holding lock_page() is worrisome.  It's
+OK if that page is private, but how do we know that the caller didn't pass
+us some page which is on the LRU?
 
-the oops I've got with the header trouble was weird (but at least the
-previous radix_tree_delete crash is gone), so it's not completely clear
-if this will be enough to make it work as well as it was working before
-the -mm writeback changes. I tried to reproduce but apparently acpi is
-doing nothing here for a echo 4 > sleep :/.
+The only place where I think we can deadlock is if that GFP_KERNEL
+allocation tries to write out the page we hold a lock on, and we hit an
+error running swap_writepage() and then enter handle_write_error().
 
-diff -urNp --exclude CVS --exclude BitKeeper --exclude {arch} --exclude .arch-ids x-ref/mm/page_io.c x/mm/page_io.c
---- x-ref/mm/page_io.c	2004-04-01 02:09:53.846664248 +0200
-+++ x/mm/page_io.c	2004-04-01 02:11:41.526294456 +0200
-@@ -139,7 +139,7 @@ struct address_space_operations swap_aop
+This actually cannot happen because swap_writepage() can only fail if
+bio_alloc() fails, and that uses a mempool.  But ick.
+
+Your patch seems reasonable to run with for now, but to be totally anal
+about it, I'll run with the below monstrosity.
+
+
+
+diff -puN mm/page_io.c~rw_swap_page_sync-fix mm/page_io.c
+--- 25/mm/page_io.c~rw_swap_page_sync-fix	Wed Mar 31 16:55:44 2004
++++ 25-akpm/mm/page_io.c	Wed Mar 31 17:15:31 2004
+@@ -19,6 +19,7 @@
+ #include <linux/buffer_head.h>	/* for block_sync_page() */
+ #include <linux/mpage.h>
+ #include <linux/writeback.h>
++#include <linux/radix-tree.h>
+ #include <asm/pgtable.h>
  
+ static struct bio *
+@@ -137,9 +138,11 @@ struct address_space_operations swap_aop
+ 	.set_page_dirty	= __set_page_dirty_nobuffers,
+ };
+ 
++#if defined(CONFIG_SOFTWARE_SUSPEND) || defined(CONFIG_PM_DISK)
++
  /*
   * A scruffy utility function to read or write an arbitrary swap page
 - * and wait on the I/O.
@@ -38,21 +67,42 @@ diff -urNp --exclude CVS --exclude BitKeeper --exclude {arch} --exclude .arch-id
   */
  int rw_swap_page_sync(int rw, swp_entry_t entry, struct page *page)
  {
-@@ -151,8 +151,11 @@ int rw_swap_page_sync(int rw, swp_entry_
- 	lock_page(page);
+@@ -148,11 +151,30 @@ int rw_swap_page_sync(int rw, swp_entry_
+ 		.sync_mode = WB_SYNC_ALL,
+ 	};
  
+-	lock_page(page);
+-
  	BUG_ON(page->mapping);
 -	page->mapping = &swapper_space;
 -	page->index = entry.val;
-+	ret = add_to_page_cache(page, &swapper_space, entry.val, GFP_KERNEL);
-+	if (unlikely(ret)) {
++
++	/*
++	 * We shouldn't perform add_to_page_cache(..., GFP_KERNEL) inside
++	 * lock_page(), so here we do bizarre things to arrange for the page
++	 * to be locked while ensuring that this CPU has sufficient pooled
++	 * radix-tree nodes for a successful add_to_page_cache().
++	 */
++	for ( ; ; ) {
++		ret = radix_tree_preload(GFP_KERNEL);
++		if (ret)
++			goto out;
++		if (TestSetPageLocked(page) == 0)
++			break;
++		radix_tree_preload_end();
++		lock_page(page);
 +		unlock_page(page);
-+		return ret;
++	}
++	ret = add_to_page_cache(page, &swapper_space, entry.val, GFP_ATOMIC);
++	radix_tree_preload_end();
++	if (ret) {
++		unlock_page(page);
++		goto out;
 +	}
  
  	if (rw == READ) {
  		ret = swap_readpage(NULL, page);
-@@ -161,7 +164,12 @@ int rw_swap_page_sync(int rw, swp_entry_
+@@ -161,8 +183,15 @@ int rw_swap_page_sync(int rw, swp_entry_
  		ret = swap_writepage(page, &swap_wbc);
  		wait_on_page_writeback(page);
  	}
@@ -65,7 +115,13 @@ diff -urNp --exclude CVS --exclude BitKeeper --exclude {arch} --exclude .arch-id
 +
  	if (ret == 0 && (!PageUptodate(page) || PageError(page)))
  		ret = -EIO;
++out:
  	return ret;
+ }
++#endif
+
+_
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
