@@ -1,35 +1,42 @@
-Subject: Re: MM question
-References: <Pine.LNX.3.95.990224120401.25235C-100000@as200.spellcast.com>
-From: Magnus Ahltorp <map@stacken.kth.se>
-Date: 24 Feb 1999 18:55:33 +0100
-In-Reply-To: "Benjamin C.R. LaHaise"'s message of "Wed, 24 Feb 1999 12:36:11 -0500 (EST)"
-Message-ID: <ixdbtij8z56.fsf@turbot.pdc.kth.se>
+Received: from penguin.e-mind.com (penguin.e-mind.com [195.223.140.120])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id UAA29917
+	for <linux-mm@kvack.org>; Wed, 24 Feb 1999 20:01:11 -0500
+Date: Thu, 25 Feb 1999 01:47:58 +0100 (CET)
+From: Andrea Arcangeli <andrea@e-mind.com>
+Subject: Re: PATCH - bug in vfree
+In-Reply-To: <36CEA095.D5EA37B5@earthling.net>
+Message-ID: <Pine.LNX.4.05.9902250142030.218-100000@laser.random>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
-To: "Benjamin C.R. LaHaise" <blah@kvack.org>
+To: Neil Booth <NeilB@earthling.net>
 Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> Okay, you probably don't want to implement readpage, just read and write,
-> so your read will look like:
-> 
-> This will make your inodes relatively lightweight, and avoid having in
-> memory pages attached to your inode which would be duplicates of those
-> attached to the ext2 inode.
+On Sat, 20 Feb 1999, Neil Booth wrote:
 
-Doesn't this mean that the read functions will be called every time
-something has to be read? What about mmap?
+>I posted this bug on the kernel mailing list last year, but it never got
+>fixed, probably as I didn't include a patch. I attach a patch this time
 
-> Readpage is called by generic_file_read and page fault handlers to pull
-> the page into the page cache.  In the case of writing, you need to update
-> the page cache, as well as commit the write to whatever backstore is used. 
-> Since you've got the entire file cached (right?), just making use of the
-> ext2 inode's read & write will keep the cache coherent and reduce the
-> amount work you need to do. 
+I included it one year ago in my tree and infact if you grab my
+arca-patches you'll find it again ;).
 
-At the moment, we do whole file caching, but that might change in the
-future.
+>against kernel 2.2.1. The bug is rare, but can lead to kernel virtual
+>memory corruption.
 
-/Magnus
+Hmm, when I checked it one year ago I didn't seen a way the bug could
+corrupt memory.
+
+>More deeply:- Close inspection of get_vm_area reveals that
+>(intentionally?) it does NOT insist there be a cushion page behind a VMA
+>that is placed in front of a previously-allocated VMA, it ONLY
+
+Could you explain me better? I agree that there's no good reason trying to
+free the gap-faulting page, but I don't see how there couldn't be a
+page-gap between two vmalloced areas.
+
+Andrea Arcangeli
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm my@address'
 in the body to majordomo@kvack.org.  For more info on Linux MM,
