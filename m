@@ -1,34 +1,29 @@
-Date: Mon, 4 Oct 1999 11:52:50 -0400 (EDT)
-From: James Simmons <jsimmons@edgeglobal.com>
+Date: Mon, 4 Oct 1999 12:02:47 -0400 (EDT)
+From: "Benjamin C.R. LaHaise" <blah@kvack.org>
 Subject: Re: MMIO regions
-In-Reply-To: <14328.51304.207897.182095@dukat.scot.redhat.com>
-Message-ID: <Pine.LNX.4.10.9910041146560.8080-100000@imperial.edgeglobal.com>
+In-Reply-To: <Pine.LNX.4.10.9910041146560.8080-100000@imperial.edgeglobal.com>
+Message-ID: <Pine.LNX.3.96.991004115631.500A-100000@kanga.kvack.org>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
+To: James Simmons <jsimmons@edgeglobal.com>
 Cc: Linux MM <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 4 Oct 1999, Stephen C. Tweedie wrote:
+On Mon, 4 Oct 1999, James Simmons wrote:
 
-> Hi,
-> 
-> On Mon, 4 Oct 1999 10:38:13 -0400 (EDT), James Simmons
-> <jsimmons@edgeglobal.com> said:
-> 
-> >    I noticed something for SMP machines with all the dicussion about
-> > concurrent access to memory regions. What happens when you have two
-> > processes that have both mmapped the same MMIO region for some card.
-> 
-> The kernel doesn't impose any limits against this.  If you want to make
-> this impossible, then you need to add locking to the driver itself to
-> prevent multiple processes from conflicting.
+> And if the process holding the locks dies then no other process can access
+> this resource. Also if the program forgets to release the lock you end up
+> with other process never being able to access this piece of hardware.   
 
-And if the process holding the locks dies then no other process can access
-this resource. Also if the program forgets to release the lock you end up
-with other process never being able to access this piece of hardware.   
+Eh?  That's simply not true -- it's easy enough to handle via a couple of
+different means: in the release fop or munmap which both get called on
+termination of a task.  Or in userspace from the SIGCHLD to the parent, or
+if you're really paranoid, you can save the pid in an owner field in the
+lock and periodically check that the process is still there.
+
+		-ben
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
