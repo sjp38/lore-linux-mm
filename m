@@ -1,32 +1,28 @@
-Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
-	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id BAA16615
-	for <linux-mm@kvack.org>; Wed, 29 Jan 2003 01:33:34 -0800 (PST)
-Date: Wed, 29 Jan 2003 01:33:54 -0800
-From: Andrew Morton <akpm@digeo.com>
+Date: Wed, 29 Jan 2003 01:35:30 -0800 (PST)
+Message-Id: <20030129.013530.98324132.davem@redhat.com>
 Subject: Re: Linus rollup
-Message-Id: <20030129013354.03f5ee33.akpm@digeo.com>
-In-Reply-To: <20030128220729.1f61edfe.akpm@digeo.com>
+From: "David S. Miller" <davem@redhat.com>
+In-Reply-To: <20030129013354.03f5ee33.akpm@digeo.com>
 References: <20030128220729.1f61edfe.akpm@digeo.com>
+	<20030129013354.03f5ee33.akpm@digeo.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: Text/Plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: rmk@arm.linux.org.uk, ak@muc.de, davem@redhat.com, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org
+To: akpm@digeo.com
+Cc: rmk@arm.linux.org.uk, ak@muc.de, davidm@napali.hpl.hp.com, anton@samba.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew Morton <akpm@digeo.com> wrote:
->
-> Gents,
-> 
-> I've sifted out all the things which I intend to send to the boss soon
+   
+   Forgot to mention:
+   
+I wish there was some way people could easily add an
+#error to the build so that arch's know which syscalls
+need to be added next time someone tries to run make
+for that platform.
 
-Forgot to mention:
-
-- sys_semtimedop() is only wired up for ia32/ia64 at present.
-
-- This rollup contains the new sys_fadvise(), so unless Linus bounces
-  my first syscall, that will need hooking up for non-ia32 too.
+Nothing comes immediately to mind as an idea however.
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
