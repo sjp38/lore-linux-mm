@@ -1,45 +1,26 @@
-Message-ID: <401F7382.3030507@gmx.de>
-Date: Tue, 03 Feb 2004 11:10:10 +0100
-From: "Prakash K. Cheemplavam" <PrakashKC@gmx.de>
-MIME-Version: 1.0
+Date: Tue, 3 Feb 2004 02:33:59 -0800
+From: Andrew Morton <akpm@osdl.org>
 Subject: Re: 2.6.2-rc3-mm1
-References: <20040202235817.5c3feaf3.akpm@osdl.org> <401F70E1.5070408@gmx.de>
-In-Reply-To: <401F70E1.5070408@gmx.de>
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Message-Id: <20040203023359.59dc0613.akpm@osdl.org>
+In-Reply-To: <20040202235817.5c3feaf3.akpm@osdl.org>
+References: <20040202235817.5c3feaf3.akpm@osdl.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@osdl.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Nick Piggin <piggin@cyberone.com.au>
 List-ID: <linux-mm.kvack.org>
 
-Prakash K. Cheemplavam wrote:
-> Hi,
-> 
-> I am getting this on init. I think while udev inits:
-> 
-> i_size_write() called without i_sem
-> Feb  3 10:53:53 tachyon Call Trace:
-> Feb  3 10:53:53 tachyon [<c013d347>] i_size_write_check+0x57/0x60
-> Feb  3 10:53:53 tachyon [<c01767de>] simple_commit_write+0x3e/0xa0
-> Feb  3 10:53:53 tachyon [<c0167f3c>] page_symlink+0xec/0x1dd
-> Feb  3 10:5i_size_write() called without i_sem
-> Feb  3 10:53:53 tachyon Call Trace:
-> Feb  3 10:53:53 tachyon [<c013d347>] i_size_write_check+0x57/0x60
-> Feb  3 10:53:53 tachyon [<c01767de>] simple_commit_write+0x3e/0xa0
-> Feb  3 10:53:53 tachyon [<c0167f3c>] page_symlink+0xec/0x1dd
-> Feb  3 10:53:53 tachyon [<c01bbbdd>] ramfs_symlink+0x5d/0xc0
-> Feb  3 10:53:53 tachyon [<c0166e37>] vfs_symlink+0x57/0xb0
-> Feb  3 10:53:53 tachyon [<c0166f63>] sys_symlink+0xd3/0xf0
-> Feb  3 10:53:53 tachyon [<c038fa86>] sysenter_past_esp+0x43/0x65
-> 3:53 tachyon [<c01bbbdd>] ramfs_symlink+0x5d/0xc0
-> Feb  3 10:53:53 tachyon [<c0166e37>] vfs_symlink+0x57/0xb0
-> Feb  3 10:53:53 tachyon [<c0166f63>] sys_symlink+0xd3/0xf0
-> Feb  3 10:53:53 tachyon [<c038fa86>] sysenter_past_esp+0x43/0x65
+Andrew Morton <akpm@osdl.org> wrote:
+>
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.6/2.6.2-rc3/2.6.2-rc3-mm1/
 
-BTW, my root is reiserfs, my boot ext2, which shouldn't be mounted by 
-default, so this is reiferfs case.
+There were some problems with vm-rss-limit-enforcement.patch.  I've backed
+that out and uploaded 2.6.2-rc3-mm1-1.  This is mainly for Nick to patch
+against, but if pageout performance problems are noticed, please try -1.
 
-Prakash
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
