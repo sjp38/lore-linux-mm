@@ -1,49 +1,34 @@
+Date: Sun, 20 May 2001 16:32:59 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
 Subject: Re: [RFC][PATCH] Re: Linux 2.4.4-ac10
-References: <Pine.LNX.4.33.0105191743000.393-100000@mikeg.weiden.de>
-Reply-To: zlatko.calusic@iskon.hr
-From: Zlatko Calusic <zlatko.calusic@iskon.hr>
-Date: 20 May 2001 15:44:12 +0200
-In-Reply-To: <Pine.LNX.4.33.0105191743000.393-100000@mikeg.weiden.de>
-Message-ID: <8766ew16fn.fsf@atlas.iskon.hr>
+In-Reply-To: <Pine.LNX.4.33.0105201943510.1635-100000@mikeg.weiden.de>
+Message-ID: <Pine.LNX.4.21.0105201626190.5547-100000@freak.distro.conectiva>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Mike Galbraith <mikeg@wen-online.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Zlatko Calusic <zlatko.calusic@iskon.hr>, "Stephen C. Tweedie" <sct@redhat.com>, Rik van Riel <riel@conectiva.com.br>, Ingo Oeser <ingo.oeser@informatik.tu-chemnitz.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Mike Galbraith <mikeg@wen-online.de> writes:
 
-> Hi,
+On Sun, 20 May 2001, Mike Galbraith wrote:
+
+> > Also in all recent kernels, if the machine is swapping, swap cache
+> > grows without limits and is hard to recycle, but then again that is
+> > a known problem.
 > 
-> On Fri, 18 May 2001, Stephen C. Tweedie wrote:
-> 
-> > That's the main problem with static parameters.  The problem you are
-> > trying to solve is fundamentally dynamic in most cases (which is also
-> > why magic numbers tend to suck in the VM.)
-> 
-> Magic numbers might be sucking some performance right now ;-)
-> 
-[snip]
+> This one bugs me.  I do not see that and can't understand why.
 
-I like your patch, it improves performance somewhat and makes things
-more smooth and also code is simpler.
+To throw away dirty and dead swapcache (its done at swap writepage())
+pages page_launder() has to run into its second loop (launder_loop = 1)
+(meaning that a lot of clean cache has been thrown out already).
 
-Anyway, 2.4.5-pre3 is quite debalanced and it has even broken some
-things that were working properly before. For instance, swapoff now
-deadlocks the machine (even with your patch applied).
+We can "short circuit" this dead swapcache pages by cleaning them in the
+first page_launder() loop.
 
-Unfortunately, I have failed to pinpoint the exact problem, but I'm
-confident that kernel goes in some kind of loop (99% system time, just
-before deadlock). Anybody has some guidelines how to debug kernel if
-you're running X?
+Take a look at the writepage() patch I sent to Linus a few days ago.
 
-Also in all recent kernels, if the machine is swapping, swap cache
-grows without limits and is hard to recycle, but then again that is
-a known problem.
--- 
-Zlatko
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
