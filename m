@@ -1,103 +1,104 @@
-Subject: Re: [uPatch] Re: Graceful failure?
-References: <Pine.LNX.4.21.0006051258370.31069-100000@duckman.distro.conectiva>
-From: "John Fremlin" <vii@penguinpowered.com>
-Date: 05 Jun 2000 21:21:25 +0100
-In-Reply-To: Rik van Riel's message of "Mon, 5 Jun 2000 13:03:08 -0300 (BRST)"
-Message-ID: <m2r9abev5m.fsf@boreas.southchinaseas>
+Received: from d1o43.telia.com (d1o43.telia.com [194.22.195.241])
+	by maild.telia.com (8.9.3/8.9.3) with ESMTP id BAA22743
+	for <linux-mm@kvack.org>; Tue, 6 Jun 2000 01:15:49 +0200 (CEST)
+Received: from norran.net (roger@t3o43p4.telia.com [194.22.195.124])
+	by d1o43.telia.com (8.8.8/8.8.8) with ESMTP id BAA09649
+	for <linux-mm@kvack.org>; Tue, 6 Jun 2000 01:15:47 +0200 (CEST)
+Message-ID: <393C3435.8AED5654@norran.net>
+Date: Tue, 06 Jun 2000 01:13:57 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: [PATCH] code clean up of kswapd
+Content-Type: multipart/mixed;
+ boundary="------------C76FA38541B7127214CCA38C"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Billy Harvey <Billy.Harvey@thrillseeker.net>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel <riel@conectiva.com.br> writes:
+This is a multi-part message in MIME format.
+--------------C76FA38541B7127214CCA38C
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-> On Mon, 5 Jun 2000, Billy Harvey wrote:
-> 
-> > A "make -j" slowly over the course of 5 minutes drives the load
-> > to about 30.  At first the degradation is controlled, with
-> > sendmail refusing service, but at about 160 process visible in
-> > top, top quits updating (set a 8 second updates), showing about
-> > 2 MB swap used.  At this point it sounds like the system is
-> > thrashing.
-> 
-> That probably means you're a lot more in swap now and top
-> has stopped displaying before you really hit the swap...
+Hi all,
 
-Allow me to hype my patch again. Could someone please test it?
+This is only a code clean up of kswapd -
+It should do almost the same.
 
-It improves performance markedly (no horrible pauses in
-vmscan.c:swap_out under heavy load).
+I do not claim improved performance :-(
+But improved readability :-)
 
-> 
-> > Is this failure process acceptable?  I'd think the system should
-> > react differently to the thrashing, killing off the load
-> > demanding user process(es), rather than degrading to a point of
-> > freeze.
+Basically done to be able to add other
+stuff more easily later...
 
-My patch fixes this for me, please test.
+[Not tried against ac8, but ac7+riel.3
+ should be almost the same]
 
-[...]
+Comments?
 
---- linux-2.4.0t1a7m3/mm/vmscan.c	Sat Jun  3 17:10:15 2000
-+++ kernel-hacking/mm/vmscan.c	Sun Jun  4 16:35:31 2000
-@@ -361,23 +361,24 @@
- 	/* 
- 	 * We make one or two passes through the task list, indexed by 
- 	 * assign = {0, 1}:
--	 *   Pass 1: select the swappable task with maximal RSS that has
--	 *         not yet been swapped out. 
-+	 *
-+	 *   Pass 1: select the first swappable task that has not yet
-+	 *   been swapped out.
-+	 *
- 	 *   Pass 2: re-assign rss swap_cnt values, then select as above.
- 	 *
- 	 * With this approach, there's no need to remember the last task
- 	 * swapped out.  If the swap-out fails, we clear swap_cnt so the 
- 	 * task won't be selected again until all others have been tried.
- 	 *
--	 * Think of swap_cnt as a "shadow rss" - it tells us which process
--	 * we want to page out (always try largest first).
--	 */
-+	 * Think of swap_cnt as a "shadow rss" - it tells us which
-+	 * process we want to page out (always try largest first).  */
-+	
- 	counter = (nr_threads << 2) >> (priority >> 2);
- 	if (counter < 1)
- 		counter = 1;
+/RogerL
+
+--
+Home page:
+  http://www.norran.net/nra02596/
+--------------C76FA38541B7127214CCA38C
+Content-Type: text/plain; charset=us-ascii;
+ name="patch-2.4.0-test1-ac7-riel.3-kswapd.1"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="patch-2.4.0-test1-ac7-riel.3-kswapd.1"
+
+--- vmscan.c.riel	Sat Jun  3 19:09:16 2000
++++ vmscan.c	Sat Jun  3 22:30:22 2000
+@@ -551,24 +551,39 @@
+ 	for (;;) {
+ 		pg_data_t *pgdat;
+ 		int something_to_do = 0;
++		int more_to_do = 0;
  
- 	for (; counter >= 0; counter--) {
--		unsigned long max_cnt = 0;
- 		struct mm_struct *best = NULL;
- 		int pid = 0;
- 		int assign = 0;
-@@ -391,13 +392,14 @@
- 	 		if (mm->rss <= 0)
- 				continue;
- 			/* Refresh swap_cnt? */
--			if (assign == 1)
-+			best = mm;
-+			pid = p->pid;
+ 		pgdat = pgdat_list;
+ 		do {
+ 			int i;
 +
-+			if (assign == 1){
- 				mm->swap_cnt = mm->rss;
--			if (mm->swap_cnt > max_cnt) {
--				max_cnt = mm->swap_cnt;
--				best = mm;
--				pid = p->pid;
+ 			for(i = 0; i < MAX_NR_ZONES; i++) {
+ 				zone_t *zone = pgdat->node_zones+ i;
+-				if (tsk->need_resched)
+-					schedule();
+ 				if (!zone->size || !zone->zone_wake_kswapd)
+ 					continue;
++				something_to_do = 1;
+ 				if (zone->free_pages < zone->pages_low)
+-					something_to_do = 1;
+-				do_try_to_free_pages(GFP_KSWAPD);
++				        more_to_do = 1;
  			}
-+			else
-+				break;
+ 			pgdat = pgdat->node_next;
++
+ 		} while (pgdat);
+ 
+-		if (!something_to_do) {
++		/* Need to free pages?
++		 * Will actually run fewer times than previous version!
++		 * (It did run once per zone with waken kswapd)
++		 */
++		if (something_to_do) { 
++		  do_try_to_free_pages(GFP_KSWAPD);
++		}
++
++		/* In a hurry? */
++		if (more_to_do) {
++		        if (tsk->need_resched) {
++		           schedule();
++			}
++		}
++		else {
+ 			tsk->state = TASK_INTERRUPTIBLE;
+ 			interruptible_sleep_on(&kswapd_wait);
  		}
- 		read_unlock(&tasklist_lock);
- 		if (!best) {
 
+--------------C76FA38541B7127214CCA38C--
 
--- 
-
-	http://altern.org/vii
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
