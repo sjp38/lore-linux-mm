@@ -1,47 +1,52 @@
-Date: Wed, 4 Jun 2003 23:12:16 +0200
+From: Rudmer van Dijk <rudmer@legolas.dynup.net>
 Subject: Re: 2.5.70-mm4
-Message-ID: <20030604211216.GA2436@hh.idb.hist.no>
+Date: Wed, 4 Jun 2003 23:33:26 +0200
 References: <20030603231827.0e635332.akpm@digeo.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 In-Reply-To: <20030603231827.0e635332.akpm@digeo.com>
-From: Helge Hafting <helgehaf@aitel.hist.no>
+MIME-Version: 1.0
+Content-Disposition: inline
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
+Message-Id: <200306042333.26850.rudmer@legolas.dynup.net>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>, neilb@cse.unsw.edu.au
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Raid-1 seems to work in 2.5.70-mm4, but raid-0 still fail.
+On Wednesday 04 June 2003 08:18, Andrew Morton wrote:
+> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.70/2.5.70
+>-mm4/
+>
 
-Trying to boot with raid-0 autodetect yields a long string of:
-Slab error in cache_free_debugcheck
-cache 'size-32' double free or
-memory after object overwritten.
-(Is this something "Page alloc debugging"may be used for?)
-kfree+0xfc/0x330
-raid0_run
-raid0_run
-printk
-blk_queue_make_request
-do_md_run
-md_ioctl
-dput
-blkdev_ioctl
-sys_ioctl
-syscall_call
+I got the following errors with every file that includes 
+include/linux/bitops.h
 
-I get a ton of these, in between normal
-initialization messages.  Then the thing
-dies with a panic due to exception in interrupt.
+include/linux/bitops.h: In function `generic_hweight64':
+include/linux/bitops.h:118: warning: integer constant is too large for "long" 
+type
+include/linux/bitops.h:118: warning: integer constant is too large for "long" 
+type
+include/linux/bitops.h:119: warning: integer constant is too large for "long" 
+type
+include/linux/bitops.h:119: warning: integer constant is too large for "long" 
+type
+include/linux/bitops.h:120: warning: integer constant is too large for "long" 
+type
+include/linux/bitops.h:120: warning: integer constant is too large for "long" 
+type
+include/linux/bitops.h:121: warning: integer constant is too large for "long" 
+type
+include/linux/bitops.h:121: warning: integer constant is too large for "long" 
+type
+include/linux/bitops.h:122: warning: integer constant is too large for "long" 
+type
+include/linux/bitops.h:122: warning: integer constant is too large for "long" 
+type
 
-This is a monolithic smp preempt kernel on a dual celeron.
-The disks are scsi, the filesystems ext2.  There is one
-raid-0 array and two raid-1 arrays, as well as some
-ordinary partitions.  Root is on raid-1.
+This is on UP, athlon, gcc 3.3
 
-Helge Hafting
+	Rudmer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
