@@ -1,66 +1,44 @@
-Date: Tue, 11 Jul 2000 15:06:38 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on
- 2.4.0-test2
-In-Reply-To: <Pine.LNX.4.21.0007111955100.5098-100000@inspiron.random>
-Message-ID: <Pine.LNX.4.21.0007111503520.10961-100000@duckman.distro.conectiva>
+Subject: Re: [PATCH] 2.2.17pre7 VM enhancement Re: I/O performance on 2.4.0-test2
+References: <Pine.LNX.4.21.0007111944450.3644-100000@inspiron.random>
+From: "Juan J. Quintela" <quintela@fi.udc.es>
+In-Reply-To: Andrea Arcangeli's message of "Tue, 11 Jul 2000 19:54:31 +0200 (CEST)"
+Date: 11 Jul 2000 20:03:41 +0200
+Message-ID: <yttem50mtmq.fsf@serpe.mitica>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrea Arcangeli <andrea@suse.de>
-Cc: "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
+Cc: Rik van Riel <riel@conectiva.com.br>, "Stephen C. Tweedie" <sct@redhat.com>, Marcelo Tosatti <marcelo@conectiva.com.br>, Jens Axboe <axboe@suse.de>, Alan Cox <alan@redhat.com>, Derek Martin <derek@cerberus.ne.mediaone.net>, Linux Kernel <linux-kernel@vger.rutgers.edu>, linux-mm@kvack.org, "David S. Miller" <davem@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 11 Jul 2000, Andrea Arcangeli wrote:
-> On Tue, 11 Jul 2000, Rik van Riel wrote:
-> >On Tue, 11 Jul 2000, Andrea Arcangeli wrote:
-> >> On Tue, 11 Jul 2000, Rik van Riel wrote:
-> >> 
-> >> >No. You just wrote down the strongest argument in favour of one
-> >> >unified queue for all types of memory usage.
-> >> 
-> >> Do that and download an dozen of iso image with gigabit ethernet
-> >> in background.
-> >
-> >You need to forget about LRU for a moment. The fact that
-> >LRU is fundamentally broken doesn't mean that it has
-> >anything whatsoever to do with whether we age all pages
-> >fairly or whether we prefer some pages over other pages.
-> >
-> >If LRU is broken we need to fix that, a workaround like
-> >your proposal doesn't fix anything in this case.
-> 
-> So tell me how with your design can I avoid the kernel to unmap anything
-> while running:
-> 
-> 	cp /dev/zero .
-> 
-> forever.
-> 
-> Whatever aging algorithm you use if you wait enough time the
-> mapped pages will be thrown away eventually.
+>>>>> "andrea" == Andrea Arcangeli <andrea@suse.de> writes:
 
-And that is correct behaviour. The problem with LRU is that the
-"eventually" is too short, but proper page aging is as close to
-LFU (least _frequently_ used) as it is to LRU. In that case any
-page which was used only once (or was only used a long time ago)
-will be freed before a page which has been used more often
-recently will be.
+andrea> On Tue, 11 Jul 2000, Rik van Riel wrote:
+>> This is why LRU is wrong and we need page aging (which
+>> approximates both LRU and NFU).
+>> 
+>> The idea is to remove those pages from memory which will
+>> not be used again for the longest time, regardless of in
+>> which 'state' they live in main memory.
+>> 
+>> (and proper page aging is a good approximation to this)
 
-This effectively and efficiently protects things like X, xterm
-and other things which are used over and over again, while still
-swapping out things which are not used at all.
+andrea> It will still drop _all_ VM mappings from memory if you left "cp /dev/zero
+andrea> ." in background for say 2 hours. This in turn mean that during streming
+andrea> I/O you'll have _much_ more than the current swapin/swapout troubles.
 
-regards,
+If you are copying in the background a cp and you don't touch your
+vi/emacs/whatever pages in 2 hours (i.e. age = 0) then I think that it
+is ok for that pages to be swaped out.  Notice that the cage pages
+will have _initial age_  and the pages of the binaries will have an
+_older_ age.
 
-Rik
---
-"What you're running that piece of shit Gnome?!?!"
-       -- Miguel de Icaza, UKUUG 2000
+Later, Juan.
 
-http://www.conectiva.com/		http://www.surriel.com/
-
+-- 
+In theory, practice and theory are the same, but in practice they 
+are different -- Larry McVoy
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
