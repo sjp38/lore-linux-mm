@@ -1,265 +1,487 @@
-Received: from chimarrao.boston.redhat.com (localhost.localdomain [127.0.0.1])
-	by chimarrao.boston.redhat.com (8.12.8/8.12.8) with ESMTP id h3C5FxsX004339
-	for <linux-mm@kvack.org>; Sat, 12 Apr 2003 01:15:59 -0400
-Received: from localhost (riel@localhost)
-	by chimarrao.boston.redhat.com (8.12.8/8.12.8/Submit) with ESMTP id h3C5Fw8B004335
-	for <linux-mm@kvack.org>; Sat, 12 Apr 2003 01:15:59 -0400
-Date: Fri, 11 Apr 2003 17:31:48 -0400 (EDT)
-From: Rik van Riel <riel@surriel.com>
-Subject: [PATCH] rmap 15f
-Message-ID: <Pine.LNX.4.44.0304111731000.26007-100000@chimarrao.boston.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=ISO-8859-1
-Content-Transfer-Encoding: 8BIT
-ReSent-To: linux-mm@kvack.org
-ReSent-Message-ID: <Pine.LNX.4.44.0304120115540.4334@chimarrao.boston.redhat.com>
+Date: Sat, 12 Apr 2003 18:08:52 -0700
+From: Andrew Morton <akpm@digeo.com>
+Subject: 2.5.67-mm2
+Message-Id: <20030412180852.77b6c5e8.akpm@digeo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@redhat.com
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The sixth maintenance release of the 15th version of the reverse
-mapping based VM is now available.
-This is an attempt at making a more robust and flexible VM
-subsystem, while cleaning up a lot of code at the same time.
-The patch is available from:
+ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.67/2.5.67-mm2/
 
-           http://surriel.com/patches/2.4/2.4.20-rmap15f
-and        http://linuxvm.bkbits.net/
+. Lots of misc saved-up things.
 
-
-My big TODO items for a next release are:
-  - finetune the O(1) VM code for strange corner cases
-  - add pte-highmem defines for more architectures
-  - highmem tweaks
+. I've changed the 32-bit dev_t patch to provide a 12:20 split rather than
+  16:16.  This patch is starting to drag a bit and unless someone stops me I
+  might just go submit the thing.
 
 
-rmap 15f:
-  - remove pte-highmem compat define from ieee1394        (Marc-C. Petersen)
-  - clean up scan_active_list after suggestion from hch   (me)
-  - lock ordering fix                                     (me)
-  - add barrier() to page_chain_lock()                    (Pete Zaitcev)
-  - fix pte-highmem defines for ppc64                     (Julie DeWandel)
-  - add pte-highmem defines for s390 & s390x              (Pete Zaitcev)
-rmap 15e:
-  - make reclaiming unused inodes more efficient          (Arjan van de Ven)
-    | push to Marcelo and Andrew once it's well tested !
-  - fix DRM memory leak                                   (Arjan van de Ven)
-  - fix potential infinite loop in kswapd                 (me)
-  - clean up elevator.h (no IO scheduler in -rmap...)     (me)
-  - page aging interval tuned on a per zone basis, better
-    wakeup mechanism for sudden memory pressure           (Arjan, me)
-rmap 15d:
-  - compatability with PREEMPT patch                      (me)
-    | fairly ugly, but should work
-  - bugfix for the pte_chain allocation code              (Arjan van de Ven)
-rmap 15c:
-  - backport and audit akpm's reliable pte_chain alloc
-    code from 2.5                                         (me)
-  - reintroduce cache size tuning knobs in /proc          (me)
-    | on very, very popular request
-rmap 15b:
-  - adjust anon/cache work table                          (me)
-  - make active_age_bias a per-active list thing          (me)
-  - don't wake up kswapd early from mark_page_accessed    (me)
-  - make sure pte-chains are cacheline aligned with PAE   (me, Andrew Morton)
-  - change some O(1) VM thresholds                        (me)
-  - fix pte-highmem backport                              (me)
-  - 2.5 backport: pte-highmem                             (Ben LaHaise)
-  - 2.5 backport: large cacheline aligned pte-chains      (Ben LaHaise)
-  - 2.5 backport: direct pte pointers                     (Ben LaHaise)
-  - undo __find_pagecache_page braindamage		  (Christoph Hellwig)
-rmap 15a:
-  - more agressive freeing for higher order allocations   (me)
-  - export __find_pagecache_page, find_get_page define    (me, Christoph, Arjan)
-  - make memory statistics SMP safe again                 (me)
-  - make page aging slow down again when needed           (Andrew Morton)
-  - first stab at fine-tuning arjan's O(1) VM             (me)
-  - split active list in cache / working set              (me)
-  - fix SMP locking in arjan's O(1) VM                    (me)
-rmap 15:
-  - small code cleanups and spelling fixes for O(1) VM    (me)
-  - O(1) page launder, O(1) page aging                    (Arjan van de Ven)
-  - resync code with -ac (12 small patches)               (me)
-rmap 14c:
-  - fold page_over_rsslimit() into page_referenced()      (me)
-  - 2.5 backport: get pte_chains from the slab cache      (William Lee Irwin)
-  - remove dead code from page_launder_zone()             (me)
-  - make OOM detection a bit more agressive               (me)
-rmap 14b:
-  - don't unmap pages not in pagecache (ext3 & reiser)    (Andrew Morton, me)
-  - clean up mark_page_accessed a bit                     (me)
-  - Alpha NUMA fix for Ingo's per-cpu pages               (Flavio Leitner, me)
-  - remove explicit low latency schedule zap_page_range   (Robert Love)
-  - fix OOM stuff for good, hopefully                     (me)
-rmap 14a:
-  - Ingo Molnar's per-cpu pages (SMP speedup)             (Christoph Hellwig)
-  - fix SMP bug in page_launder_zone (rmap14 only)        (Arjan van de Ven) 
-  - semicolon day, fix typo in rmap.c w/ DEBUG_RMAP       (Craig Kulesa)
-  - remove unneeded pte_chain_unlock/lock pair vmscan.c   (Craig Kulesa)
-  - low latency zap_page_range also without preempt       (Arjan van de Ven)
-  - do some throughput tuning for kswapd/page_launder     (me)
-  - don't allocate swap space for pages we're not writing (me)
-rmap 14:
-  - get rid of stalls during swapping, hopefully          (me)
-  - low latency zap_page_range                            (Robert Love)
-rmap 13c:
-  - add wmb() to wakeup_memwaiters                        (Arjan van de Ven)
-  - remap_pmd_range now calls pte_alloc with full address (Paul Mackerras)
-  - #ifdef out pte_chain_lock/unlock on UP machines       (Andrew Morton)
-  - un-BUG() truncate_complete_page, the race is expected (Andrew Morton, me)
-  - remove NUMA changes from rmap13a                      (Christoph Hellwig)
-rmap 13b:
-  - prevent PF_MEMALLOC recursion for higher order allocs (Arjan van de Ven, me)
-  - fix small SMP race, PG_lru                            (Hugh Dickins)
-rmap 13a:
-  - NUMA changes for page_address                         (Samuel Ortiz)
-  - replace vm.freepages with simpler kswapd_minfree      (Christoph Hellwig)
-rmap 13:
-  - rename touch_page to mark_page_accessed and uninline  (Christoph Hellwig)
-  - NUMA bugfix for __alloc_pages                         (William Irwin)
-  - kill __find_page                                      (Christoph Hellwig)
-  - make pte_chain_freelist per zone                      (William Irwin)
-  - protect pte_chains by per-page lock bit               (William Irwin)
-  - minor code cleanups                                   (me)
-rmap 12i:
-  - slab cleanup                                          (Christoph Hellwig)
-  - remove references to compiler.h from mm/*             (me)
-  - move rmap to marcelo's bk tree                        (me)
-  - minor cleanups                                        (me)
-rmap 12h:
-  - hopefully fix OOM detection algorithm                 (me)
-  - drop pte quicklist in anticipation of pte-highmem     (me)
-  - replace andrea's highmem emulation by ingo's one      (me)
-  - improve rss limit checking                            (Nick Piggin)
-rmap 12g:
-  - port to armv architecture                             (David Woodhouse)
-  - NUMA fix to zone_table initialisation                 (Samuel Ortiz)
-  - remove init_page_count                                (David Miller)
-rmap 12f:
-  - for_each_pgdat macro                                  (William Lee Irwin)
-  - put back EXPORT(__find_get_page) for modular rd       (me)
-  - make bdflush and kswapd actually start queued disk IO (me)
-rmap 12e
-  - RSS limit fix, the limit can be 0 for some reason     (me)
-  - clean up for_each_zone define to not need pgdata_t    (William Lee Irwin)
-  - fix i810_dma bug introduced with page->wait removal   (William Lee Irwin)
-rmap 12d:
-  - fix compiler warning in rmap.c                        (Roger Larsson)
-  - read latency improvement   (read-latency2)            (Andrew Morton)
-rmap 12c:
-  - fix small balancing bug in page_launder_zone          (Nick Piggin)
-  - wakeup_kswapd / wakeup_memwaiters code fix            (Arjan van de Ven)
-  - improve RSS limit enforcement                         (me)
-rmap 12b:
-  - highmem emulation (for debugging purposes)            (Andrea Arcangeli)
-  - ulimit RSS enforcement when memory gets tight         (me)
-  - sparc64 page->virtual quickfix                        (Greg Procunier)
-rmap 12a:
-  - fix the compile warning in buffer.c                   (me)
-  - fix divide-by-zero on highmem initialisation  DOH!    (me)
-  - remove the pgd quicklist (suspicious ...)             (DaveM, me)
-rmap 12:
-  - keep some extra free memory on large machines         (Arjan van de Ven, me)
-  - higher-order allocation bugfix                        (Adrian Drzewiecki)
-  - nr_free_buffer_pages() returns inactive + free mem    (me)
-  - pages from unused objects directly to inactive_clean  (me)
-  - use fast pte quicklists on non-pae machines           (Andrea Arcangeli)
-  - remove sleep_on from wakeup_kswapd                    (Arjan van de Ven)
-  - page waitqueue cleanup                                (Christoph Hellwig)
-rmap 11c:
-  - oom_kill race locking fix                             (Andres Salomon)
-  - elevator improvement                                  (Andrew Morton)
-  - dirty buffer writeout speedup (hopefully ;))          (me)
-  - small documentation updates                           (me)
-  - page_launder() never does synchronous IO, kswapd
-    and the processes calling it sleep on higher level    (me)
-  - deadlock fix in touch_page()                          (me)
-rmap 11b:
-  - added low latency reschedule points in vmscan.c       (me)
-  - make i810_dma.c include mm_inline.h too               (William Lee Irwin)
-  - wake up kswapd sleeper tasks on OOM kill so the
-    killed task can continue on its way out               (me)
-  - tune page allocation sleep point a little             (me)
-rmap 11a:
-  - don't let refill_inactive() progress count for OOM    (me)
-  - after an OOM kill, wait 5 seconds for the next kill   (me)
-  - agpgart_be fix for hashed waitqueues                  (William Lee Irwin)
-rmap 11:
-  - fix stupid logic inversion bug in wakeup_kswapd()     (Andrew Morton)
-  - fix it again in the morning                           (me)
-  - add #ifdef BROKEN_PPC_PTE_ALLOC_ONE to rmap.h, it
-    seems PPC calls pte_alloc() before mem_map[] init     (me)
-  - disable the debugging code in rmap.c ... the code
-    is working and people are running benchmarks          (me)
-  - let the slab cache shrink functions return a value
-    to help prevent early OOM killing                     (Ed Tomlinson)
-  - also, don't call the OOM code if we have enough
-    free pages                                            (me)
-  - move the call to lru_cache_del into __free_pages_ok   (Ben LaHaise)
-  - replace the per-page waitqueue with a hashed
-    waitqueue, reduces size of struct page from 64
-    bytes to 52 bytes (48 bytes on non-highmem machines)  (William Lee Irwin)
-rmap 10:
-  - fix the livelock for real (yeah right), turned out
-    to be a stupid bug in page_launder_zone()             (me)
-  - to make sure the VM subsystem doesn't monopolise
-    the CPU, let kswapd and some apps sleep a bit under
-    heavy stress situations                               (me)
-  - let __GFP_HIGH allocations dig a little bit deeper
-    into the free page pool, the SCSI layer seems fragile (me)
-rmap 9:
-  - improve comments all over the place                   (Michael Cohen)
-  - don't panic if page_remove_rmap() cannot find the
-    rmap in question, it's possible that the memory was
-    PG_reserved and belonging to a driver, but the driver
-    exited and cleared the PG_reserved bit                (me)
-  - fix the VM livelock by replacing > by >= in a few
-    critical places in the pageout code                   (me)
-  - treat the reclaiming of an inactive_clean page like
-    allocating a new page, calling try_to_free_pages()
-    and/or fixup_freespace() if required                  (me)
-  - when low on memory, don't make things worse by
-    doing swapin_readahead                                (me)
-rmap 8:
-  - add ANY_ZONE to the balancing functions to improve
-    kswapd's balancing a bit                              (me)
-  - regularize some of the maximum loop bounds in
-    vmscan.c for cosmetic purposes                        (William Lee Irwin)
-  - move page_address() to architecture-independent
-    code, now the removal of page->virtual is portable    (William Lee Irwin)
-  - speed up free_area_init_core() by doing a single
-    pass over the pages and not using atomic ops          (William Lee Irwin)
-  - documented the buddy allocator in page_alloc.c        (William Lee Irwin)
-rmap 7:
-  - clean up and document vmscan.c                        (me)
-  - reduce size of page struct, part one                  (William Lee Irwin)
-  - add rmap.h for other archs (untested, not for ARM)    (me)
-rmap 6:
-  - make the active and inactive_dirty list per zone,
-    this is finally possible because we can free pages
-    based on their physical address                       (William Lee Irwin)
-  - cleaned up William's code a bit                       (me)
-  - turn some defines into inlines and move those to
-    mm_inline.h (the includes are a mess ...)             (me)
-  - improve the VM balancing a bit                        (me)
-  - add back inactive_target to /proc/meminfo             (me)
-rmap 5:
-  - fixed recursive buglet, introduced by directly
-    editing the patch for making rmap 4 ;)))              (me)
-rmap 4:
-  - look at the referenced bits in page tables            (me)
-rmap 3:
-  - forgot one FASTCALL definition                        (me)
-rmap 2:
-  - teach try_to_unmap_one() about mremap()               (me)
-  - don't assign swap space to pages with buffers         (me)
-  - make the rmap.c functions FASTCALL / inline           (me)
-rmap 1:
-  - fix the swap leak in rmap 0                           (Dave McCracken)
-rmap 0:
-  - port of reverse mapping VM to 2.4.16                  (me)
+
+
+Changes since 2.5.67-mm1:
+
+
+ linus.patch
+
+ Latest -bk
+
+-wait_on_buffer-debug-fix.patch
+-gcc-295-required.patch
+-remove-nr_reverse_maps.patch
+-rmap-search-speedup.patch
+-rmap-tweaks.patch
+-page-lock-is-spin_lock.patch
+-paride-remove-blk_queue_empty.patch
+-jbd-warning-fix.patch
+-earlier-keyboard-init.patch
+-panic-on-oops.patch
+-epoll-cross-thread-deletion-fix.patch
+-mbcache-missing-brelse.patch
+-nfs-read-corruption-fix.patch
+-MS_ASYNC-more-async.patch
+-tasklist_lock-docco-fix.patch
+-posix-timer-hang-fix.patch
+-compound-page-fix.patch
+-fadvise-file-leak.patch
+-conntrack-use-after-free-fix.patch
+
+ Merged
+
++p4-oprofile-fix.patch
+
+ Try to fix oprofile on P4-HT.  Doesn't work yet.
+
++flush_workqueue-hang-fix.patch
+
+ Fix a hang with delayed work and workqueue flushing
+
++ppc64-update-fixes.patch
+
+ Build fixes
+
++kobject-leak-fix.patch
+
+ Plug an error-path memleak
+
++radix_tree_delete-api-cleanup.patch
+
+ Return a more useful value from radix_tree_delete()
+
++gen_rtc-compile-fix.patch
+
+ Fix up gen_rtc.c
+
+-ptrace-flush.patch
+
+ Dropped - it was never right and it conflicted with the flush_page_to_ram()
+ removal patch.
+
++sched_idle-typo-fix.patch
+
+ Use the right priority array
+
++ext3-quota-deadlock-fix.patch
+
+ Fix a lock ranking problem with ext3 and quotas
+
++dont-clear-PG_uptodate-on-ENOSPC.patch
+
+ Don't mark a page non-uptodate if writeout ran out of disk space.
+
++stack-protection-fix.patch
+
+ Use the right permissions on the stack segment
+
++sparc-PTE_FILE_MAX_BITS-fix.patch
+
+ Teach remap_file_pages() about sparc32.
+
++bootmem-speedup.patch
+
+ Solve some boot-time search complexity problems
+
++mem_map-init-arch-hooks.patch
+
+ Let ia64 get at mem_map[] initialisation.  For virtually-addressed
+ mem_map[].
+
++posix-timer-hang-fix-2.patch
+
+ Stuff from George.
+
++tty-modem-control-api.patch
+
+ Internal API for diddling RTS/CTS/etc.  So other parts of the kernel don't
+ have to cook up ioctl() calls.
+
++kmalloc_sizes-fix.patch
+
+ Fix the fix for the cleanup of the kmalloc_sizes array.
+
++proc-interrupts-kmalloc-size.patch
+
+ Pile more kludges on the last lot.
+
++setserial-fix.patch
+
+ Return the right thing from uart_set_info()
+
++objrmap-sort-vma-list.patch
+
+ Broken back out of the objrmap patch.  It is still in a bit of flux.
+
++objrmap-vma-sorting-fix.patch
+
+ Fixes for the i_mmap and i_mmap_shared list sorting.
+
++i8042-share-irqs.patch
+
+ Teach the i8042 driver to share irq12
+
+-earlier-keyboard-init.patch
+
+ Seems to be breaking things.
+
++vmalloc-stats.patch
+
+ Display info about the vmalloc arena state in /proc/meminfo
+
++meminfo-doc.patch
+
+ Documentation for /proc/meminfo
+
++gfp_repeat.patch
+
+ Implement __GFP_REPEAT: so we can consolidate lots of alloc-with-retry code.
+
++alloc_buffer_head-take-gfp.patch
+
+ alloc_buffer_head() should not be assuming the allocation mode.
+
++pte_alloc_one-use-gfp_repeat.patch
+
+ Use __GFP_REPEAT for pte page allocations.
+
++pmd_alloc_one-use-gfp_repeat.patch
+
+ Use __GFP_REPEAT for pmd page allocations.
+
+-dynamic-hd_struct-allocation-fixes.patch
+
+ Folded into dynamic-hd_struct-allocation.patch
+
++dynamic-hd_struct-devfs-fix.patch
+
+ Fix the dymamic hd_struct allocation patch for devfs
+
++lockmeter.patch
+
+ Spinlock contention metering code.  See
+
+	http://oss.sgi.com/projects/lockmeter/
+
+
+
+All 104 patches
+
+linus.patch
+
+mm.patch
+  add -mmN to EXTRAVERSION
+
+kgdb-ga.patch
+  kgdb stub for ia32 (George Anzinger's one)
+
+kgdb-ga-warning-fix.patch
+  -mm traps.c warning
+
+kgdb-ga-up-warning-fix.patch
+
+p4-oprofile-fix.patch
+  Fix oprofile on P4's
+
+flush_workqueue-hang-fix.patch
+  flush_work_queue() fixes
+
+tty-shutdown-race-fix.patch
+  fix tty shutdown race
+
+ppa-null-pointer-fix.patch
+
+dmfe-kfree_skb-fix.patch
+  dmfe: don't free skb with local interrupts disabled
+
+config_spinline.patch
+  uninline spinlocks for profiling accuracy.
+
+ppc64-reloc_hide.patch
+
+ppc64-pci-patch.patch
+  Subject: pci patch
+
+ppc64-aio-32bit-emulation.patch
+  32/64bit emulation for aio
+
+ppc64-scruffiness.patch
+  Fix some PPC64 compile warnings
+
+ppc64-update.patch
+  ppc64 update
+
+ppc64-update-fixes.patch
+
+sym-do-160.patch
+  make the SYM driver do 160 MB/sec
+
+config-PAGE_OFFSET.patch
+  Configurable kenrel/user memory split
+
+kobject-leak-fix.patch
+  kobject hotplug fixes
+
+radix_tree_delete-api-cleanup.patch
+  radix_tree_delete API improvement
+
+gen_rtc-compile-fix.patch
+  Fix gen_rtc compilation error
+
+buffer-debug.patch
+  buffer.c debugging
+
+warn-null-wakeup.patch
+  remove the test for null waitqueue in __wake_up()
+
+remove-flush_page_to_ram.patch
+  Remove flush_page_to_ram()
+
+ext3-truncate-ordered-pages.patch
+  ext3: explicitly free truncated pages
+
+reiserfs_file_write-5.patch
+
+sched_idle-typo-fix.patch
+  fix sched_idle typo
+
+rcu-stats.patch
+  RCU statistics reporting
+
+ext3-journalled-data-assertion-fix.patch
+  Remove incorrect assertion from ext3
+
+nfs-speedup.patch
+
+nfs-oom-fix.patch
+  nfs oom fix
+
+sk-allocation.patch
+  Subject: Re: nfs oom
+
+nfs-more-oom-fix.patch
+
+rpciod-atomic-allocations.patch
+  Make rcpiod use atomic allocations
+
+linux-isp.patch
+
+isp-update-1.patch
+
+ext3-quota-deadlock-fix.patch
+  Fix deadlock with ext3+quota
+
+dont-clear-PG_uptodate-on-ENOSPC.patch
+  don't clear PG_uptodate on ENOSPC
+
+stack-protection-fix.patch
+  Subject: [patch] correct vm_page_prot on stack pages
+
+sparc-PTE_FILE_MAX_BITS-fix.patch
+  Variable PTE_FILE_MAX_BITS
+
+file_lock-spinlock.patch
+  convert file_lock to a spinlock
+
+bootmem-speedup.patch
+  bootmem speedup from the IA64 tree
+
+mem_map-init-arch-hooks.patch
+  architecture hooks for mem_map initialization
+
+posix-timer-hang-fix-2.patch
+  Posix timer hang fix
+
+tty-modem-control-api.patch
+  Subject: Re: uart_ioctl OOPS with irtty-sir
+
+kmalloc_sizes-fix.patch
+  Fix kmalloc_sizes[] indexing
+
+proc-interrupts-kmalloc-size.patch
+  /proc/interrupts allocates too much memory
+
+setserial-fix.patch
+  Subject: [PATCH 2.5] Minor fix for driver/serial/core.c
+
+kblockd.patch
+  Create `kblockd' workqueue
+
+as-iosched.patch
+  anticipatory I/O scheduler
+
+as-np-reads-1.patch
+  AS: read-vs-read fixes
+
+as-np-reads-2.patch
+  AS: more read-vs-read fixes
+
+as-predict-data-direction.patch
+  as: predict direction of next IO
+
+as-remove-frontmerge.patch
+  AS: remove frontmerge tunable
+
+as-misc-cleanups.patch
+  AS: misc cleanups
+
+as-minor-tweaks.patch
+  AS: tuning and tweaks
+
+as-remove-stats.patch
+  AS: remove statistics
+
+as-locking-fix.patch
+  AS: Fix minor race
+
+as-disable-thinktime.patch
+
+as-use-queue_empty.patch
+  AS: Use the queue_empty API
+
+cfq-2.patch
+  CFQ scheduler, #2
+
+unplug-use-kblockd.patch
+  Use kblockd for running request queues
+
+objrmap.patch
+  object-based rmap
+
+objrmap-sort-vma-list.patch
+  objrmap: optimise per-mapping vma searches
+
+objrmap-vma-sorting-fix.patch
+  fix obj vma sorting
+
+32bit-dev_t-nfs-export-fix.patch
+  Fix nfsd exports with big dev_t
+
+sched-2.5.64-D3.patch
+  sched-2.5.64-D3, more interactivity changes
+
+scheduler-tunables.patch
+  scheduler tunables
+
+show_task-free-stack-fix.patch
+  show_task() fix and cleanup
+
+yellowfin-set_bit-fix.patch
+  yellowfin driver set_bit fix
+
+htree-nfs-fix.patch
+  Fix ext3 htree / NFS compatibility problems
+
+task_prio-fix.patch
+  simple task_prio() fix
+
+i8042-share-irqs.patch
+  allow i8042 interrupt sharing
+
+vmalloc-stats.patch
+  vmalloc stats in /proc/meminfo
+
+meminfo-doc.patch
+  /proc/meminfo documentation
+
+gfp_repeat.patch
+  implement __GFP_REPEAT
+
+alloc_buffer_head-take-gfp.patch
+  make alloc_buffer_head take gfp_flags
+
+pte_alloc_one-use-gfp_repeat.patch
+  use __GFP_REPEAT in pte_alloc_one()
+
+pmd_alloc_one-use-gfp_repeat.patch
+  use __GFP_REPEAT in pmd_alloc_one()
+
+dynamic-hd_struct-allocation.patch
+  Allocate hd_structs dynamically
+
+dynamic-hd_struct-devfs-fix.patch
+  Fix dynamic hd_struct allocation for devfs
+
+slab_store_user-large-objects.patch
+  slab debug: perform redzoning against larger objects
+
+htree-nfs-fix-2.patch
+  htree nfs fix
+
+put_task_struct-debug.patch
+
+percpu_counter.patch
+  percpu_counters: approximate but scalable counters
+
+blockgroup_lock.patch
+  blockgroup_lock: hashed spinlocks for ext2 and ext3 blockgroup locking
+
+ext2-no-lock_super-ng.patch
+  use spinlocking in the ext2 block allocator
+
+ext2-ialloc-no-lock_super-ng.patch
+  use spinlocking in the ext2 inode allocator
+
+dev_t-32-bit.patch
+  [for playing only] change type of dev_t
+
+dev_t-remove-B_FREE.patch
+  dev_t: eliminate B_FREE
+
+sg-dev_t-fix.patch
+  32-bit dev_t fix for sg
+
+xfs-dev_t-warning-fix.patch
+  xfs dev_t printk warning fix
+
+init-sections-in-kallsyms.patch
+  Put all functions in kallsyms
+
+aggregated-disk-stats.patch
+  Aggregated disk statistics
+
+oops-dump-preceding-code.patch
+  i386 oops output: dump preceding code
+
+usb-disconnect-crash-fix.patch
+  Subject: Re: [linux-usb-devel] timer hang with current 2.5 BK
+
+lockmeter.patch
+
+ext3-no-bkl.patch
+
+journal_dirty_metadata-speedup.patch
+
+journal_get_write_access-speedup.patch
+
+ext3-concurrent-block-inode-allocation.patch
+  Subject: [PATCH] concurrent block/inode allocation for EXT3
+
+ext3-concurrent-block-allocation-fix-1.patch
+
+ext3-concurrent-block-allocation-hashed.patch
+  Subject: Re: [PATCH] concurrent block/inode allocation for EXT3
+
 
 
 --
