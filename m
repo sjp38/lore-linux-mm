@@ -1,57 +1,44 @@
-Date: Mon, 29 Dec 2003 03:06:25 -0800
 Subject: Re: 2.6.0-mm2
-Message-ID: <20031229110625.GB27802@triplehelix.org>
-References: <20031229013223.75c531ed.akpm@osdl.org>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="wq9mPyueHGvFACwf"
-Content-Disposition: inline
+From: Dax Kelson <dax@gurulabs.com>
 In-Reply-To: <20031229013223.75c531ed.akpm@osdl.org>
-From: joshk@triplehelix.org (Joshua Kwan)
+References: <20031229013223.75c531ed.akpm@osdl.org>
+Content-Type: text/plain
+Message-Id: <1072722682.15739.2.camel@mentor.gurulabs.com>
+Mime-Version: 1.0
+Date: Mon, 29 Dec 2003 11:31:22 -0700
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@osdl.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---wq9mPyueHGvFACwf
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Mon, 2003-12-29 at 02:32, Andrew Morton wrote:
 
-On Mon, Dec 29, 2003 at 01:32:23AM -0800, Andrew Morton wrote:
-> . A couple of patches here should fix the CDROM-related problems which
->   some people saw in 2.6.0-mm1.
+> Changes since 2.6.0-mm1:
 
-Note to people who have been following the "Can't eject previously
-mounted CD" thread: -mm2 fixes everything for me.
+> +remove-CardServices-from-ide-cs.patch
+> +remove-CardServices-from-drivers-net-wireless.patch
+> +remove-CardServices-from-drivers-serial.patch
+> +remove-CardServices-from-drivers-serial-fix.patch
+> +remove-CardServices-final.patch
+> 
+>  Complete the removal of the usage of the CardServices API from drivers. 
+>  It's a bit late for this, but apparantly the varargs usage in the API cannot
+>  work correctly on x86_64 (at least).
 
---=20
-Joshua Kwan
+I'm on a P4 laptop, I just compiled up 2.6.0-mm2 (to get the mouse
+fixes) and a make modules_install showed:
 
---wq9mPyueHGvFACwf
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-Content-Disposition: inline
+if [ -r System.map ]; then /sbin/depmod -ae -F System.map  2.6.0-mm2; fi
+WARNING: /lib/modules/2.6.0-mm2/kernel/drivers/net/typhoon.ko needs unknown symbol direct_csum_partial_copy_generic
+WARNING: /lib/modules/2.6.0-mm2/kernel/drivers/net/wireless/wavelan_cs.ko needs unknown symbol CardServices
+WARNING: /lib/modules/2.6.0-mm2/kernel/drivers/net/pcmcia/axnet_cs.ko needs unknown symbol CardServices
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.3 (GNU/Linux)
+I need wavelan_cs to use my laptop.
 
-iQIVAwUBP/AKsKOILr94RG8mAQJV7BAA35lGgZZuLDBrExKRI8qa8KYLqWgHA5gS
-U9XAQ4nfKNer6i8wEON0NHRf8RR23tGVNFeGEZREs+Wc7VdM4fQmFfpT9WR52nyS
-wYzNLi4BMa6odaBQUTc4wFWpat8O/VBbA/W19KJlrxx6Sz9pvcqs5BaKcN4o9JXa
-suxhVF/lMeAX6gDZqZI5H11QC56ST8aIFjU+xcX+4vRyo8ZcWg9jvFMTtTWNy781
-hd/tMVQy/Vvf/hr30JW/c2BjOYnOICRHMkj0xzbHpunx5RjtJxprKZNOCySccfgS
-cetHFbpRIJyCNiEqG7dizr7zhl+lxN+HOlODn/HKpMJl+RryiFZYwaBwgOcFccpD
-XqAwJsD4/TtGIhvsS283TATPE0lxTTUiUqXe8774TxKVT0B5bmb3YKcxH9G/S4X2
-Jz9c0Z/aZNv6l2ospzmvfYdNpKq9chr03oEcWudLY3sAJ4bgXGRfl+qPeIPODZGP
-15HmMmUpkGre+ooZYME9TBszuJsB5AWdnui5aOfuu4qOt8kJ2Ltag6Rub8UKtLzw
-B1zpYuBLEqfthT7tDvI1JWS7WvoTzIQoG9wrCsmohdKNmeHeWpyFpaxznY087XZc
-hERHKKSxX7X/SlZFQfp3bfsGMEqgt9NXo8JBQLxD/8begKm8aDl/a5/X3jFtDW9U
-oHKz9EkCdgM=
-=l64L
------END PGP SIGNATURE-----
+Dax Kelson
 
---wq9mPyueHGvFACwf--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
