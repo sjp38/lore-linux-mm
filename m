@@ -1,65 +1,179 @@
-Date: Tue, 6 Jun 2000 20:06:38 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: journaling & VM  (was: Re: reiserfs being part of the kernel: it's
- not just the code)
-In-Reply-To: <20000606205447.T23701@redhat.com>
-Message-ID: <Pine.LNX.4.21.0006061956360.7328-100000@duckman.distro.conectiva>
+Received: from d1o43.telia.com (d1o43.telia.com [194.22.195.241])
+	by maile.telia.com (8.9.3/8.9.3) with ESMTP id BAA07033
+	for <linux-mm@kvack.org>; Wed, 7 Jun 2000 01:19:18 +0200 (CEST)
+Received: from norran.net (roger@t4o43p58.telia.com [194.22.195.238])
+	by d1o43.telia.com (8.8.8/8.8.8) with ESMTP id BAA28996
+	for <linux-mm@kvack.org>; Wed, 7 Jun 2000 01:19:17 +0200 (CEST)
+Message-ID: <393D867F.87DE4DBC@norran.net>
+Date: Wed, 07 Jun 2000 01:17:19 +0200
+From: Roger Larsson <roger.larsson@norran.net>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: instrumentation patch for shrink_mmap to find cause of failures - it did
+ :-)
+Content-Type: multipart/mixed;
+ boundary="------------C72CB030F4F4B97B295B66E8"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Hans Reiser <hans@reiser.to>, bert hubert <ahu@ds9a.nl>, linux-kernel@vger.rutgers.edu, Chris Mason <mason@suse.com>, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 6 Jun 2000, Stephen C. Tweedie wrote:
+This is a multi-part message in MIME format.
+--------------C72CB030F4F4B97B295B66E8
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 
-> It wasn't a journaling API we were talking about for this.  The
-> problem is much more central to the VM than that --- basically,
-> the VM currently assumes that any existing page can be evicted
-> from memory with very little extra work.  It just isn't prepared
-> for the situation that you have with transactions,
+When applying this patch and running it a typical output looks like
+this:
 
 
-> journaling itself, but the transactional requirements which are
-> the problem --- basically the VM cannot do _anything_ about
-> individual pages which are pinned by a transaction, but rather
-> we need a way to trigger a filesystem flush, AND to prevent more
-> dirtying of pages by the filesystem (these are two distinct
-> problems), or we just lock up under load on lower memory boxes.
+Jun  7 00:41:10 dox kernel: shrink_mmap:     2     0     0     0  
+212     0    0     0     0 
 
-This is especially tricky in the case of a large mmap()ed
-file. We'll have to restrict the maximum number of read-write
-mapped pages from such a file in order to keep the system
-stable...
+First 2 is PID
+then comes the counters for different reasons to continue.
 
-(try mmap002 from quintela's MM test suite with a journaling
-FS for a nice change...)
+The fourth counter is 'count_noncarezone'
 
-> A reservation API which lets all transactional filesystems
-> reserve the right to dirty a certain number of pages in advance
-> of actually needing them is really needed to avoid such lockups.  
-> The reservation call can stall if the memory limit has been
-> reached, providing flow control to the filesystem; and a
-> notification list can start committing and flushing older
-> transactions when that happens.
+I interprete this as:
 
-Indeed we need this. Since I seem to be coordinating the VM
-changes at the moment anyway, I'd love to work together with
-the journaling folks on solving this problem...
 
-It will require some changes in the page fault path and some
-other areas...
+a) shrink_mmap hits - we need both Normal and DMA pages.
+b) Normal pages are easily fulfilled.
+c) DMA pages are rare among all Normal pages.
+d) When a Normal page is found it is counted as tested but
+  then discarded.
+e) while loops ends (before finding any DMA pages)
+f) shrink_mmap has failed
+g) swapping starts...
 
-regards,
+What to do about it:
+a) Move the zone check early - buffers may get old...
+b) Undo counting before continuing due to wrong zone
 
-Rik
+I and others will examine our options.
+
+/RogerL
+
 --
-The Internet is not a network of computers. It is a network
-of people. That is its real strength.
+Home page:
+  http://www.norran.net/nra02596/
+--------------C72CB030F4F4B97B295B66E8
+Content-Type: text/plain; charset=us-ascii;
+ name="filemap.inst"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename="filemap.inst"
 
-Wanna talk about the kernel?  irc.openprojects.net / #kernelnewbies
-http://www.conectiva.com/		http://www.surriel.com/
+--- filemap.c~	Sat Jun  3 19:09:16 2000
++++ filemap.c	Wed Jun  7 00:34:49 2000
+@@ -311,6 +311,14 @@
+ 	int ret = 0, count, nr_dirty;
+ 	struct list_head * page_lru;
+ 	struct page * page = NULL;
++	int count_nonbuffers_w_page_gt_1 = 0;
++	int count_nonlockable = 0;
++	int count_failed_try_to_free_buffers = 0;
++	int count_noncarezone = 0;
++	int count_latepagecounterror = 0;
++	int count_async = 0;
++	int count_nonio = 0;
++	int count_mappingbut = 0;
+ 	
+ 	count = nr_lru_pages / (priority + 1);
+ 	nr_dirty = priority;
+@@ -337,11 +345,15 @@
+ 		 * Avoid unscalable SMP locking for pages we can
+ 		 * immediate tell are untouchable..
+ 		 */
+-		if (!page->buffers && page_count(page) > 1)
++		if (!page->buffers && page_count(page) > 1) {
++		  count_nonbuffers_w_page_gt_1++;
+ 			goto dispose_continue;
++		}
+ 
+-		if (TryLockPage(page))
++		if (TryLockPage(page)) {
++		  count_nonlockable++;
+ 			goto dispose_continue;
++		}
+ 
+ 		/* Release the pagemap_lru lock even if the page is not yet
+ 		   queued in any lru queue since we have just locked down
+@@ -359,8 +371,10 @@
+ 		 */
+ 		if (page->buffers) {
+ 			int wait = ((gfp_mask & __GFP_IO) && (nr_dirty-- < 0));
+-			if (!try_to_free_buffers(page, wait))
++			if (!try_to_free_buffers(page, wait)) {
++			  count_failed_try_to_free_buffers++;
+ 				goto unlock_continue;
++			}
+ 			/* page was locked, inode can't go away under us */
+ 			if (!page->mapping) {
+ 				atomic_dec(&buffermem_pages);
+@@ -372,8 +386,10 @@
+ 		 * Page is from a zone we don't care about.
+ 		 * Don't drop page cache entries in vain.
+ 		 */
+-		if (page->zone->free_pages > page->zone->pages_high)
++		if (page->zone->free_pages > page->zone->pages_high) {
++		  count_noncarezone++;
+ 			goto unlock_continue;
++		}
+ 
+ 		/* Take the pagecache_lock spinlock held to avoid
+ 		   other tasks to notice the page while we are looking at its
+@@ -385,8 +401,10 @@
+ 		 * We can't free pages unless there's just one user
+ 		 * (count == 2 because we added one ourselves above).
+ 		 */
+-		if (page_count(page) != 2)
++		if (page_count(page) != 2) {
++		  count_latepagecounterror++;
+ 			goto cache_unlock_continue;
++		}
+ 
+ 		/*
+ 		 * Is it a page swap page? If so, we want to
+@@ -407,8 +425,10 @@
+ 				rw_swap_page(WRITE, page, 0);
+ 				spin_lock(&pagemap_lru_lock);
+ 				page_cache_release(page);
++				count_async++;
+ 				goto dispose_continue;
+ 			}
++			count_nonio++;
+ 			goto cache_unlock_continue;
+ 		}
+ 
+@@ -419,6 +439,7 @@
+ 				spin_unlock(&pagecache_lock);
+ 				goto made_inode_progress;
+ 			}
++			count_mappingbut++;
+ 			goto cache_unlock_continue;
+ 		}
+ 
+@@ -447,6 +468,17 @@
+ 
+ out:
+ 	spin_unlock(&pagemap_lru_lock);
++
++	printk("shrink_mmap: %5d %5d %5d %5d %5d %5d %5d %5d %5d\n",
++	       current->pid,
++	       count_nonbuffers_w_page_gt_1,
++	       count_nonlockable,
++	       count_failed_try_to_free_buffers,
++	       count_noncarezone,
++	       count_latepagecounterror,
++	       count_async,
++	       count_nonio,
++	       count_mappingbut);
+ 
+ 	return ret;
+ }
+
+--------------C72CB030F4F4B97B295B66E8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
