@@ -1,39 +1,38 @@
-Date: Sun, 24 Sep 2000 22:38:14 +0100
+Date: Sun, 24 Sep 2000 22:43:03 +0100
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: __GFP_IO && shrink_[d|i]cache_memory()?
-Message-ID: <20000924223814.B2615@redhat.com>
-References: <Pine.LNX.4.10.10009241101320.10311-100000@penguin.transmeta.com> <Pine.LNX.4.21.0009242038480.7843-100000@elte.hu>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2
+Message-ID: <20000924224303.C2615@redhat.com>
+References: <20000924231240.D5571@athlon.random> <Pine.LNX.4.21.0009242310510.8705-100000@elte.hu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.21.0009242038480.7843-100000@elte.hu>; from mingo@elte.hu on Sun, Sep 24, 2000 at 08:40:05PM +0200
+In-Reply-To: <Pine.LNX.4.21.0009242310510.8705-100000@elte.hu>; from mingo@elte.hu on Sun, Sep 24, 2000 at 11:12:39PM +0200
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Ingo Molnar <mingo@elte.hu>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Stephen Tweedie <sct@redhat.com>
+Cc: Andrea Arcangeli <andrea@suse.de>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, Stephen Tweedie <sct@redhat.com>
 List-ID: <linux-mm.kvack.org>
 
 Hi,
 
-On Sun, Sep 24, 2000 at 08:40:05PM +0200, Ingo Molnar wrote:
-> On Sun, 24 Sep 2000, Linus Torvalds wrote:
+On Sun, Sep 24, 2000 at 11:12:39PM +0200, Ingo Molnar wrote:
 > 
-> > [...] I don't think shrinking the inode cache is actually illegal when
-> > GPF_IO isn't set. In fact, it's probably only the buffer cache itself
-> > that has to avoid recursion - the other stuff doesn't actually do any
-> > IO.
+> > ext2_new_block (or whatever that runs getblk with the superlock lock
+> > acquired)->getblk->GFP->shrink_dcache_memory->prune_dcache->
+> > prune_one_dentry->dput->dentry_iput->iput->inode->i_sb->s_op->
+> > put_inode->ext2_discard_prealloc->ext2_free_blocks->lock_super->D
 > 
-> i just found this out by example, i'm running the shrink_[i|d]cache stuff
-> even if __GFP_IO is not set, and no problems so far. (and much better
-> balancing behavior)
+> nasty indeed, sigh. Shouldnt ext2_new_block drop the superblock lock in
+> places where we might block?
 
-Careful --- I found out to my cost that there are hidden recursions
-here.  ext3 was bitten once by the fact that shrink_icache does a
-quota drop, and that involves quota writeback if it was the last inode
-on that particular quota struct.
-
-shrinking the icache _usually_ involves no IO, but the quota case is
-an exception which a lot of developers won't encounter during testing.
+That's only a valid fix if there are no other filesystems, and no
+other places in ext2, where we can call GFP with locks which prevent a
+put_inode from being incurred.  And with the quota case to consider,
+you have to avoid calling GFP with a lock against quota file writes
+too (and since quota writes may GFP, this would deadlock if there was
+any form of serialisation on the quota file).  This feels like rather
+a lot of new and interesting deadlocks to be introducing so late in
+2.4.  :-)
 
 Cheers,
  Stephen
