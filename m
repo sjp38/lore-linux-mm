@@ -1,88 +1,56 @@
-Date: Wed, 6 Nov 2002 18:33:17 -0800
-From: Jun Sun <jsun@mvista.com>
-Subject: PageLRU BUG() when preemption is turned on (2.4 kernel)
-Message-ID: <20021106183317.E15363@mvista.com>
-Mime-Version: 1.0
+Received: from digeo-nav01.digeo.com (digeo-nav01.digeo.com [192.168.1.233])
+	by packet.digeo.com (8.9.3+Sun/8.9.3) with SMTP id SAA09702
+	for <linux-mm@kvack.org>; Wed, 6 Nov 2002 18:51:11 -0800 (PST)
+Message-ID: <3DC9D51B.4CF2B06D@digeo.com>
+Date: Wed, 06 Nov 2002 18:51:07 -0800
+From: Andrew Morton <akpm@digeo.com>
+MIME-Version: 1.0
+Subject: Re: PageLRU BUG() when preemption is turned on (2.4 kernel)
+References: <20021106183317.E15363@mvista.com>
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: jsun@mvista.com
+To: Jun Sun <jsun@mvista.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-I am chasing a nasty bug that shows up in 2.4 kernel when preemption
-is turned on.  I would appreciate any help.  Please cc your reply
-to me email account.
+Jun Sun wrote:
+> 
+> I am chasing a nasty bug that shows up in 2.4 kernel when preemption
+> is turned on.  I would appreciate any help.  Please cc your reply
+> to me email account.
+> 
+> I caught the BUG() live with kgdb (on a MIPS board).  See the backtrace
+> attached at the end.
+> 
+> In a nutshell, access_process_vm() calls put_page(), which
+> calls __free_pages(), where it finds page->count is 0 but does not
+> like the fact that page->flags still has LRU bit set.
+> 
 
-I caught the BUG() live with kgdb (on a MIPS board).  See the backtrace
-attached at the end.
+That's a bug in older 2.4 kernels.  You'll need to use a more recent
+kernel, or change that put_page() to be a page_cache_release(),
+or forward-port this chunk:
 
-In a nutshell, access_process_vm() calls put_page(), which
-calls __free_pages(), where it finds page->count is 0 but does not
-like the fact that page->flags still has LRU bit set.
 
-What is LRU bit?  And why it cannot be set when the page->count
-goes down to 0 in __free_pages_ok()?
+        /*
+         * Yes, think what happens when other parts of the kernel take 
+         * a reference to a page in order to pin it for io. -ben
+         */
+        if (PageLRU(page)) {
+                if (unlikely(in_interrupt()))
+                        BUG();
+                lru_cache_del(page);
+        }
 
-I inserted some testing code in access_process_vm() function
-and confirmed that page->count does get changed in the middle of
-the function when preemptible kernel is enabled.
+to your __free_pages_ok().
 
-My best guess at this moment is:
-
-. access_process_vm() starts and gets preempted in the middle
-. other process(es) decrement the page->count to 1, somehow.  However
-  LRU bit remains set as it was (is this possible?)
-. access_process_vm() resumes and calls put_page(), and then hits
-  the BUG.
-
-I am doing an experiement now which disables preemption inside the loop
-of access_process_vm().  If my guess is right, it should kill this
-symptom.  (I may need to wait for more than 10 hours for the results)
-
-But the bug is in someplace else.  Basically, how can the preempting
-process decrement the page->count but still leave LRU bit set? 
-
-Any pointers on how I could debug further?  Thanks in advance.
-
-Jun
-
-----------------------
-(gdb) bt
-#0  panic (fmt=0x80164ad0 "kernel BUG at %s:%d!\n") at panic.c:52
-#1  0x80060e04 in __free_pages_ok (page=0x57, order=2148945076)
-    at page_alloc.c:87
-#2  0x80061adc in __free_pages (page=0x57, order=2148945076)
-    at page_alloc.c:449
-#3  0x80048c68 in access_process_vm (tsk=0x80164ad0, addr=2147449516, 
-    buf=0x8079f000, len=12, write=0) at ptrace.c:188
-#4  0x800903f0 in proc_pid_cmdline (task=0x80a3c000, buffer=0x8079f000 "sh")
-    at base.c:157
-#5  0x80090780 in proc_info_read (file=0x80164ad0, 
-    buf=0x7fff7370 "/proc/14565/cmdline", count=2047, ppos=0x82722740)
-    at base.c:265
-#6  0x8006a4c4 in sys_read (fd=2148944592, 
-    buf=0x7fff7370 "/proc/14565/cmdline", count=2047) at read_write.c:177
-
-(at frame #1, #2: 'page' value is garbage because the register is garbled)
-
-(gdb) l
-access_process_vm()
-82                      BUG();
-83              if (PageLocked(page))
-84                      BUG();
-85              if (PageLRU(page)) {
-86                      printk("page = 0x%p\n", page);
-87                      BUG();
-88              }
-89              if (PageActive(page))
-90                      BUG();
-91
-
-(gdb) p current->preempt_count
-$10 = 0
-
+The problem is that `put_page()' doesn't know how to deal with the
+final release of a page which is on the LRU.  Someone else released
+their reference, leaving access_process_vm() unexpectedly holding
+the last reference to the page.  But it does put_page(), which then
+says "why didn't you remove this page from the LRU?  BUG."
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
