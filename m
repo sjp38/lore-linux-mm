@@ -1,61 +1,82 @@
-Date: Thu, 2 Nov 2000 12:29:59 +0000
+Date: Thu, 2 Nov 2000 13:40:21 +0000
 From: "Stephen C. Tweedie" <sct@redhat.com>
-Subject: Re: [PATCH] Re: 2.4 VM & refill_inactive_scan()
-Message-ID: <20001102122959.Y1876@redhat.com>
-References: <Pine.LNX.4.21.0010271643050.25174-100000@duckman.distro.conectiva> <Pine.LNX.4.10.10010271147160.1850-100000@penguin.transmeta.com>
+Subject: PATCH [2.4.0test10]: Kiobuf#02, fault-in fix
+Message-ID: <20001102134021.B1876@redhat.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="n+lFg1Zro7sl44OB"
 Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.10.10010271147160.1850-100000@penguin.transmeta.com>; from torvalds@transmeta.com on Fri, Oct 27, 2000 at 11:52:35AM -0700
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: Rik van Riel <riel@conectiva.com.br>, Ingo Molnar <mingo@elte.hu>, linux-mm@kvack.org, Stephen Tweedie <sct@redhat.com>
+Cc: Rik van Riel <riel@nl.linux.org>, Ingo Molnar <mingo@redhat.com>, Stephen Tweedie <sct@redhat.com>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+--n+lFg1Zro7sl44OB
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
 Hi,
 
-On Fri, Oct 27, 2000 at 11:52:35AM -0700, Linus Torvalds wrote:
-> 
-> On Fri, 27 Oct 2000, Rik van Riel wrote:
-> > 
-> > There is one big point left though...
-> > 
-> > Raw IO into a page which just gets unmapped by a process.
-> > For NFS we'll somehow need to get the credentials for that
-> > page so we can write back the data after it is detached from
-> > the process...
-> 
-> I really think that you should just add "struct file" to the kiobuf array,
-> and expand "maplist".
+Next part of the kiobuf diffs: fix the fact that handle_mm_fault
+doesn't guarantee to complete the operation in all cases; doesn't
+guarantee that the resulting pte is writable if write access was
+requested; and doesn't pin the page against immediately being swapped
+back out.
 
-OK, done.  I've broken the diff into chunks, because there are a
-couple of other kiobuf fixes to go in at the same time.  The kiobuf
-user-land mapping code can now map the struct file and propagate
-dirty flags into it once a read operation into the memory completes.
+--Stephen
 
-> In fact, you should expand "maplist" anyway, because right now kiobuf's
-> cannot handle the case of multiple partial pages: you can be partial only
-> at the beginning or the end, which means that kiobuf's are worthless for
-> stuff like "sendmsg()" that can do scatter-gather.
 
-That's why the IO functions themselves take a kiovec, not a kiobuf, as
-input, and why the iobuf.c code has utility functions for dealing with
-entire kiovecs at once.  The iovec is the scatter-gather unit for IO,
-but the individual kiobuf is the unit for mapping of pages.  That way,
-you can take two different kiobufs, owned by different system
-components, and do a single IO on them (eg. take an mmap()ed kiobuf
-containing an http header that an application just wrote, and a kiobuf
-mapped over the page cache containing a file, and send them over the
-wire as a single network packet).
+--n+lFg1Zro7sl44OB
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: attachment; filename="02-faultfix.diff"
 
-I've considered adding support for a real struct kiovec to allow
-passing of kiovec structs as first-class data objects, but for now I
-haven't come across anything in the implementation which can't be
-handled cleanly enough by a counted vector of kiobufs.
+Only in linux-2.4.0-test10.kio.01/drivers/char: raw.c.~1~
+Only in linux-2.4.0-test10.kio.01/fs: buffer.c.~1~
+Only in linux-2.4.0-test10.kio.01/fs: iobuf.c.~1~
+Only in linux-2.4.0-test10.kio.01/include/linux: iobuf.h.~1~
+diff -ru linux-2.4.0-test10.kio.01/mm/memory.c linux-2.4.0-test10.kio.02/mm/memory.c
+--- linux-2.4.0-test10.kio.01/mm/memory.c	Thu Nov  2 11:59:11 2000
++++ linux-2.4.0-test10.kio.02/mm/memory.c	Thu Nov  2 12:39:16 2000
+@@ -384,7 +384,7 @@
+ /*
+  * Do a quick page-table lookup for a single page. 
+  */
+-static struct page * follow_page(unsigned long address) 
++static struct page * follow_page(unsigned long address, int write) 
+ {
+ 	pgd_t *pgd;
+ 	pmd_t *pmd;
+@@ -394,7 +394,8 @@
+ 	if (pmd) {
+ 		pte_t * pte = pte_offset(pmd, address);
+ 		if (pte && pte_present(*pte))
+-			return pte_page(*pte);
++			if (!write || pte_write(*pte))
++				return pte_page(*pte);
+ 	}
+ 	
+ 	return NULL;
+@@ -474,11 +475,14 @@
+ 		if (handle_mm_fault(current->mm, vma, ptr, datain) <= 0) 
+ 			goto out_unlock;
+ 		spin_lock(&mm->page_table_lock);
+-		map = follow_page(ptr);
++		map = follow_page(ptr, datain);
+ 		if (!map) {
++			/* If handle_mm_fault did not complete the
++                           operation, or if we hit the swapout race
++                           before taking the page_table_lock, just try
++                           again on this page. */
+ 			spin_unlock(&mm->page_table_lock);
+-			dprintk (KERN_ERR "Missing page in map_user_kiobuf\n");
+-			goto out_unlock;
++			continue;
+ 		}
+ 		map = get_page_map(map);
+ 		if (map)
+Only in linux-2.4.0-test10.kio.01/mm: memory.c.~1~
 
-Cheers,
- Stephen
+--n+lFg1Zro7sl44OB--
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
