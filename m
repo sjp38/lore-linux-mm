@@ -1,50 +1,37 @@
-Date: Thu, 19 Jun 2003 18:00:16 +0530
-From: Maneesh Soni <maneesh@in.ibm.com>
-Subject: Re: 2.5.72-mm2
-Message-ID: <20030619123015.GH1204@in.ibm.com>
-Reply-To: maneesh@in.ibm.com
-References: <20030619013311.5deb37c0.akpm@digeo.com>
+Received: from atlas.cs.uga.edu (atlas [128.192.251.4])
+	by ajax.cs.uga.edu (8.9.3/8.9.3) with ESMTP id NAA29447
+	for <linux-mm@kvack.org>; Thu, 19 Jun 2003 13:41:54 -0400 (EDT)
+Received: (from cashin@localhost)
+	by atlas.cs.uga.edu (8.9.3/8.9.3) id NAA26055
+	for linux-mm@kvack.org; Thu, 19 Jun 2003 13:47:31 -0400 (EDT)
+Date: Thu, 19 Jun 2003 13:47:31 -0400
+From: Ed L Cashin <ecashin@uga.edu>
+Subject: why current->mm in mm/mmap.c's dup_mmap?
+Message-ID: <20030619134731.A25935@atlas.cs.uga.edu>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20030619013311.5deb37c0.akpm@digeo.com>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@digeo.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jun 19, 2003 at 08:33:57AM +0000, Andrew Morton wrote:
-> 
-> ftp://ftp.kernel.org/pub/linux/kernel/people/akpm/patches/2.5/2.5.72/2.5.72-mm2/
-> 
+Hi.  In mm/mmap.c there's a static inline function, 
+dup_mmap, that only has one caller, namely copy_mm.
 
-I needed this to compile without warnings for copy_from_user
+copy_mm provides dup_mmap with an oldmm parameter
+with a value from current->mm.
 
+I'd expect dup_mmap to use that parameter instead
+of ever using current->mm, but instead, dup_mmap
+does semaphore down and up on oldmm but otherwise
+uses current->mm.
 
-diff -puN include/asm-i386/uaccess.h~copy_from_user-inc-fix include/asm-i386/uaccess.h
---- linux-2.5.72-mm2/include/asm-i386/uaccess.h~copy_from_user-inc-fix	2003-06-19 17:56:16.000000000 +0530
-+++ linux-2.5.72-mm2-maneesh/include/asm-i386/uaccess.h	2003-06-19 17:56:43.000000000 +0530
-@@ -9,6 +9,7 @@
- #include <linux/thread_info.h>
- #include <linux/prefetch.h>
- #include <asm/page.h>
-+#include <asm/string.h>
- 
- #define VERIFY_READ 0
- #define VERIFY_WRITE 1
-
-_
-
-Regards,
-Maneesh
+Why does dup_mmap use current->mm at all?
 
 -- 
-Maneesh Soni
-IBM Linux Technology Center, 
-IBM India Software Lab, Bangalore.
-Phone: +91-80-5044999 email: maneesh@in.ibm.com
-http://lse.sourceforge.net/
+--Ed L Cashin            |   PGP public key:
+  ecashin@uga.edu        |   http://noserose.net/e/pgp/
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
