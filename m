@@ -1,55 +1,28 @@
 Received: from max.fys.ruu.nl (max.fys.ruu.nl [131.211.32.73])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id LAA23627
-	for <linux-mm@kvack.org>; Mon, 30 Mar 1998 11:04:29 -0500
-Date: Mon, 30 Mar 1998 17:07:47 +0200 (MET DST)
+	by kvack.org (8.8.7/8.8.7) with ESMTP id MAA23910
+	for <linux-mm@kvack.org>; Mon, 30 Mar 1998 12:15:24 -0500
+Date: Mon, 30 Mar 1998 18:28:50 +0200 (MET DST)
 From: Rik van Riel <H.H.vanRiel@fys.ruu.nl>
 Reply-To: H.H.vanRiel@fys.ruu.nl
-Subject: Re: new allocation algorithm
-In-Reply-To: <Pine.LNX.3.95.980327092811.6613C-100000@penguin.transmeta.com>
-Message-ID: <Pine.LNX.3.91.980330170431.242H-100000@mirkwood.dummy.home>
+Subject: [PATCH] kswapd goal setting
+Message-ID: <Pine.LNX.3.91.980330182622.575B-100000@mirkwood.dummy.home>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 To: Linus Torvalds <torvalds@transmeta.com>
-Cc: "Stephen C. Tweedie" <sct@dcs.ed.ac.uk>, linux-mm <linux-mm@kvack.org>
+Cc: linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.rutgers.edu>
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 27 Mar 1998, Linus Torvalds wrote:
-> On Fri, 27 Mar 1998, Rik van Riel wrote:
-> > 
-> > I just came up with the idea of using an ext2 like algorithm
-> > for memory allocation, in which we:
-> > - group memory in 128 PAGE groups
-> > - have one unsigned char counter per group, counting the number
-> >   of used pages
-> 
-> Let's wait with how well the current setup works. It seems to perform
-> reasonably well even on smaller machines (modulo your patch), and I think
-> we'd better more-or-less freeze it waiting for further info on what people
-> actually think. 
+Hi Linus,
 
-At the moment, all that's freezing are the small-memory
-machines :-(
+after reading the messages in linux-kernel carefully, I
+made the following patch (with fixed switch-points).
 
-> The current scheme is fairly efficient and extremely stable, and gives
-> good behaviour for the cases we _really_ care about (pageorders 0, 1 and
-> to some degree 2). It comes reasonably close to working for the higher
-> orders too, but they really aren't as critical..
+The choice of the switching points is based on the messages
+posted to linux-kernel in the last few days.
 
-However, when we:
-- allocate one page out of a 128 area
-- we continue allocating pages out of that area, even when
-- several 16k area's are freed and
-- we are not able to free another large area again, so:
-- the system swaps to death
-
-This is not hypothetical, I've seen it happen :-(
-
-Another way to do it, is to have machines exit with different
-kswapd tests, as in:
-
-if (num_physpages < arbitrary_limit && free_memory_available(2))
-	break;
+It patches cleanly against 2.1.92-pre1, but should also
+work for 2.1.91 and 2.1.90 (?).
 
 Rik.
 +-------------------------------------------+--------------------------+
@@ -57,3 +30,46 @@ Rik.
 |        - kswapd ask-him & complain-to guy | Vries    cubscout leader |
 |     http://www.fys.ruu.nl/~riel/          | <H.H.vanRiel@fys.ruu.nl> |
 +-------------------------------------------+--------------------------+
+
+--- vmscan.c.pre92.1	Mon Mar 30 18:09:44 1998
++++ vmscan.c	Mon Mar 30 18:25:46 1998
+@@ -39,6 +39,13 @@
+  */
+ int swapout_interval = HZ / 4;
+ 
++/*
++ * This variable is used to determine the final goal of
++ * kswapd's quest...
++ */
++ 
++static int kswapd_goal = 0;
++
+ /* 
+  * The wait queue for waking up the pageout daemon:
+  */
+@@ -508,6 +515,16 @@
+                s++, i = e - s;
+        else
+                s = revision, i = -1;
++       /* Here we set the goal for kswapd,
++        * if it's a 40+ MB machine, the full goal
++        * is used, for 16- MB machines we use a even
++        * less agressive goal. -- Rik.
++        */
++       if (num_physpages < 10240) {
++               kswapd_goal++;
++               if (num_physpages < 4096)
++                      kswapd_goal++;
++       }
+        printk ("Starting kswapd v%.*s\n", i, s);
+ }
+ 
+@@ -574,7 +591,7 @@
+ 		while (tries--) {
+ 			int gfp_mask;
+ 
+-			if (++tried > SWAP_CLUSTER_MAX && free_memory_available(0))
++			if (++tried > SWAP_CLUSTER_MAX && free_memory_available(kswapd_goal))
+ 				break;
+ 			gfp_mask = __GFP_IO;
+ 			try_to_free_page(gfp_mask);
