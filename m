@@ -1,74 +1,43 @@
-Subject: Re: redundant RAMFS and cache pages on embedded system
-References: <F265RQAOCop3wyv9kI3000143b1@hotmail.com>
-	<3BC1928D.455D0A49@earthlink.net> <3BC1931E.3A7429A@earthlink.net>
-From: ebiederman@uswest.net (Eric W. Biederman)
-Date: 09 Oct 2001 14:56:42 -0600
-In-Reply-To: <3BC1931E.3A7429A@earthlink.net>
-Message-ID: <m1r8scv8fp.fsf@frodo.biederman.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [CFT][PATCH *] faster cache reclaim
+From: Robert Love <rml@tech9.net>
+In-Reply-To: <Pine.LNX.4.33L.0110082032070.26495-100000@duckman.distro.conectiva>
+References: <Pine.LNX.4.33L.0110082032070.26495-100000@duckman.distro.conectiva>
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+Date: 09 Oct 2001 19:29:13 -0400
+Message-Id: <1002670160.862.15.camel@phantasy>
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Joseph A Knapka <jknapka@earthlink.net>
-Cc: Gavin Dolling <gavin_dolling@hotmail.com>, linux-mm@kvack.org
+To: Rik van Riel <riel@conectiva.com.br>
+Cc: linux-mm@kvack.org, kernelnewbies@nl.linux.org, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-Joseph A Knapka <jknapka@earthlink.net> writes:
+On Mon, 2001-10-08 at 19:38, Rik van Riel wrote:
 
-> (Sorry, just realized I should have supplied a useful
-> subject line on my previous message.)
-> 
-> Joseph A Knapka wrote:
-> > Gavin Dolling wrote:
-> > >
-> > > Your VM page has helped me immensely. I'm after so advice though about the
-> > > following. No problem if you are too busy, etc. your site has already helped
-> 
-> > > me a great deal so just hit that delete key now ...
-> > >
-> > > I have an embedded linux system running out of 8M of RAM. It has no backing
-> > > store and uses a RAM disk as its FS. It boots from a flash chip - at boot
-> > > time things are uncompressed into RAM. Running an MTD type system with a
-> > > flash FS is not an option.
-> > >
-> > > Memory is very tight and it is unfortunate that the binaries effectively
-> > > appear twice in memory. They are in the RAM FS in full and also get paged
-> > > into memory. There is a lot of paging going on which I believe is drowning
-> > > the system.
+> This patch is meant to fix the problems where heavy cache
+> activity flushes out pages from the working set, while still
+> allowing the cache to put some pressure on the working set.
 
-The simple solution is to use ramfs, not a ramdisk with a fs on it.  As
-ramfs puts the pages directly in the page cache, so you don't get
-double buffering.  Possibly tmpfs/shmfs is a better solution as it has
-a few more features and can't really be removed from the kernel.
+Running 2.4.10-ac10 + preempt-kernel + eatcache
 
-> > > We have no swap file (that would obviously be stupid) but a large number of
-> > > buffers (i.e. a lot of dirty pages). The application is networking stuff so
-> > > it is supposed to perform at line rate - the paging appears to be preventing
-> 
-> > > this.
-> > >
-> > > What I wish to do is to page the user space binaries into the page cache,
-> > > mark them so they are never evicted. Delete them from the RAMFS and recover
-> > > the memory. This should be the most optimum way of running the system - in
-> > > terms of memory usage anyway.
+System with 3 runnable processes and 2 with large working sets.  384MB
+RAM, 768MB swap.  During heavy I/O the resulting cache activity did
+"stall" the system as badly as without the patch.
 
-This exactly what you get with ramfs, or shmfs.
+I typically notice high system response time at the start of a heavy I/O
+operation when the used memory is primarily taken by cache (ie after a
+previous heavy I/O operation).  This was an issue for me because I don't
+expect that sort of high latency with the preemption patch.
 
-> > > So basically:
-> > >
-> > > a) Is this feasible?
+For example, starting a `dbench 16' would sometimes cause a brief stall
+(especially if it is the second run of dbench).  It's better now, but
+still not perfect.  The VM holds a lot of locks for a long time.
 
-It is done.
-> > 
-> > > b) When I delete the binary can I prevent it from being evicted from the
-> > > page cache?
-Don't go there.
+Good work.  I hope Alan sees it soon.
 
-> > > d) Am I insane to try this? (Why would be more useful than just a yes ;-) )
-Yes, it is done.
-Just use uncompress into ramfs instead of a ramdisk.
+	Robert Love
 
-Eric
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
