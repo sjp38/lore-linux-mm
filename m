@@ -1,34 +1,74 @@
-Date: Fri, 24 Dec 2004 17:27:45 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: Prezeroing V2 [2/4]: add second parameter to clear_page() for all arches
-Message-ID: <20041224162745.GA1178@elf.ucw.cz>
-References: <B8E391BBE9FE384DAA4C5C003888BE6F02900FBD@scsmsx401.amr.corp.intel.com> <41C20E3E.3070209@yahoo.com.au> <Pine.LNX.4.58.0412211154100.1313@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0412231119540.31791@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0412231132170.31791@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0412231133130.31791@schroedinger.engr.sgi.com> <20041224083337.GA1043@openzaurus.ucw.cz> <Pine.LNX.4.58.0412240818030.6505@schroedinger.engr.sgi.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <Pine.LNX.4.58.0412240818030.6505@schroedinger.engr.sgi.com>
+Message-ID: <41CC4517.3080506@sgi.com>
+Date: Fri, 24 Dec 2004 10:34:31 -0600
+From: Ray Bryant <raybry@sgi.com>
+MIME-Version: 1.0
+Subject: Splitting the page migration patches out of  the memory hotplug patch
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: akpm@osdl.org, linux-ia64@vger.kernel.org, torvalds@osdl.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <haveblue@us.ibm.com>
+Cc: Dave@sr71.net, Marcello Tosatti <marcelo.tosatti@cyclades.com>, Hirokazu Takahashi <taka@valinux.co.jp>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
-Hi!
+(Addling linux-mm, Marcello and Hirakazu....what I'm up
+to is trying to create a roll-up patch that contains just
+the memory migration code from mhp3, since I need page
+migration for some work I am doing.)
 
-> > > o Extend clear_page to take an order parameter for all architectures.
-> > >
-> >
-> > I believe you sould leave clear_page() as is, and introduce
-> > clear_pages() with two arguments.
-> 
-> Did that in V1 and Andi Kleen complained about it.
+Dave,
 
-I do not know what Andi said, but having clear_page clearing two
-page*s* seems wrong to me.
-								Pavel
+Well, the only other big change I made (other than dropping
+P32-memsection_migrate.patch) to get it to compile and boot
+for Altix were as follows:
+
+(I'll work on testing it after the holiday.)
+
+P29-add-memory-migration-to-Kconfig-ia64.patch
+
+         Add memory migration to the config menu
+         for ia64.
+
+P30-remove-page_under_capture.patch
+
+         removed page_under_capture() from the end
+         of shrink_cache() in mm/vmscan.c.  This
+         is not defined in the P series of patches.
+         This particular call was introduced by patch
+         P01-steal_page_from_lru.patch
+
+(I'm not sure how to number these patches to fit in with
+your scheme, so just made some stuff up.)
+
+(Oh yeah, this is in top of 2.6.10-rc2-mm4.)
+
+Now it would be nice if we could figure out a way to keep
+these patchsets distinct (i. e. so work on page migration
+and hotplug can continue without me redoing this every
+week or two.)
+
+One way to do that would be to fix it so that the page
+migration patches are first in the hotplug patch, or to
+separate the two out and assume that hotplug patch goes
+on top of the page migration patch.  How would you like
+to go about this? (I'll take a whack at moving them to
+the top of the mhp3 series file and see how much trouble
+I get into....)
+
+PS:  It doesn't look like Marcello and Hirakazu's
+migration patch is part of your P* series.  Is
+that correct?
+
 -- 
-People were complaining that M$ turns users into beta-testers...
-...jr ghea gurz vagb qrirybcref, naq gurl frrz gb yvxr vg gung jnl!
+Best Regards,
+Ray
+-----------------------------------------------
+                   Ray Bryant
+512-453-9679 (work)         512-507-7807 (cell)
+raybry@sgi.com             raybry@austin.rr.com
+The box said: "Requires Windows 98 or better",
+            so I installed Linux.
+-----------------------------------------------
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
