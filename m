@@ -1,43 +1,63 @@
-Date: Wed, 4 Feb 2004 18:47:42 -0800 (PST)
-From: Linus Torvalds <torvalds@osdl.org>
-Subject: Re: [Bugme-new] [Bug 2019] New: Bug from the mm subsystem involving
- X  (fwd)
-In-Reply-To: <1075948401.13163.19077.camel@dyn318004bld.beaverton.ibm.com>
-Message-ID: <Pine.LNX.4.58.0402041844100.2086@home.osdl.org>
-References: <51080000.1075936626@flay> <Pine.LNX.4.58.0402041539470.2086@home.osdl.org>
- <60330000.1075939958@flay> <64260000.1075941399@flay>
- <Pine.LNX.4.58.0402041639420.2086@home.osdl.org> <20040204165620.3d608798.akpm@osdl.org>
- <Pine.LNX.4.58.0402041719300.2086@home.osdl.org>
- <1075946211.13163.18962.camel@dyn318004bld.beaverton.ibm.com>
- <Pine.LNX.4.58.0402041800320.2086@home.osdl.org>
- <1075948401.13163.19077.camel@dyn318004bld.beaverton.ibm.com>
+Message-ID: <20040205050730.40649.qmail@web9708.mail.yahoo.com>
+Date: Wed, 4 Feb 2004 21:07:30 -0800 (PST)
+From: Alok Mooley <rangdi@yahoo.com>
+Subject: Re: Active Memory Defragmentation: Our implementation & problems
+In-Reply-To: <Pine.LNX.4.53.0402041427270.2947@chaos>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Keith Mannthey <kmannth@us.ibm.com>
-Cc: Andrew Morton <akpm@osdl.org>, "Martin J. Bligh" <mbligh@aracnet.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: root@chaos.analogic.com
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 List-ID: <linux-mm.kvack.org>
 
+--- "Richard B. Johnson" <root@chaos.analogic.com>
+wrote:
+> All "blocks" are the same size, i.e., PAGE_SIZE.
+> When RAM
+> is tight the content of a page is written to the
+> swap-file
+> according to a least-recently-used protocol. This
+> frees
+> a page. Pages are allocated to a process only one
+> page at
+> a time. This prevents some hog from grabbing all the
+> memory
+> in the machine. Memory allocation and physical page
+> allocation
+> are two different things, I can malloc() a gigabyte
+> of RAM on
+> a machine. It only gets allocated when an attempt is
+> made
+> to access a page.
 
-On Wed, 4 Feb 2004, Keith Mannthey wrote:
-> 
-> I tried Andrews VM_IO patch earlier today but it didn't fix the
-> problem.  
+Only userspace processes are allocated pages via
+page-faults, i.e., one page at a time. Processes
+running in kernel mode can request higher order blocks
+(8K,16K...4M, which are 2 pages,4 pages...1024 pages
+respectively) from the buddy allocator directly. If
+external fragmentation is rampant, requests for these
+higher order blocks may fail. The defragmentation
+utility intends to provide a faster option for higher
+order block formation before swapping (which is the
+last alternative). By the way, 
+malloc finally takes memory from the buddy allocator
+itself (by page-faults), & the defragmenter is out to
+reduce the external fragmentation caused by the buddy
+allocator. Swapping ofcourse cannot be completely
+avoided if the machine is genuinely short of memory.
+Defragmentation may now sound better than needless
+swapping or memory allocation failures, not just
+another cpu hog! 
 
-Yeah, that patch is not actually converting the pfn_valid() users to only
-trust VM_IO, it only does a few special cases (notably the follow_pages()  
-thing, which wasn't the issue here).
+Regards,
+Alok
 
-So the patch would have to be expanded to cover _all_ of the page table
-following functions. It probably isn't that much, just looking for code
-that checks for PageReserved() will pinpoint the needed users pretty well.
 
-So I think the VM_IO approach could fix this, but it would need to be 
-fleshed out more. In the meantime, fixing pfn_valid() is definitely the 
-right thing to do.
-
-			Linus
+__________________________________
+Do you Yahoo!?
+Yahoo! Finance: Get your refund fast by filing online.
+http://taxes.yahoo.com/filing.html
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
