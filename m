@@ -1,82 +1,73 @@
-Received: from atlas.CARNet.hr (zcalusic@atlas.CARNet.hr [161.53.123.163])
-	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA28648
-	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 15:43:30 -0500
-Subject: Re: Linux-2.1.129..
-References: <m1r9uudxth.fsf@flinx.ccr.net> <Pine.LNX.3.95.981123120028.5712B-100000@penguin.transmeta.com> <199811241525.PAA00862@dax.scot.redhat.com>
-Reply-To: Zlatko.Calusic@CARNet.hr
-Mime-Version: 1.0
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: 8bit
-From: Zlatko Calusic <Zlatko.Calusic@CARNet.hr>
-Date: 25 Nov 1998 21:33:50 +0100
-In-Reply-To: "Stephen C. Tweedie"'s message of "Tue, 24 Nov 1998 15:25:03 GMT"
-Message-ID: <87n25f5x75.fsf@atlas.CARNet.hr>
+Received: from front7.grolier.fr (front7.grolier.fr [194.158.96.57])
+	by kvack.org (8.8.7/8.8.7) with ESMTP id PAA28705
+	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 15:51:41 -0500
+Received: from sidney.remcomp.fr (ppp-163-157.villette.club-internet.fr [195.36.163.157])
+	by front7.grolier.fr (8.9.0/MGC-980407-Frontal-No_Relay) with SMTP id VAA06780
+	for <linux-mm@kvack.org>; Wed, 25 Nov 1998 21:51:59 +0100 (MET)
+Date: 25 Nov 1998 20:01:40 -0000
+Message-ID: <19981125200140.1226.qmail@sidney.remcomp.fr>
+From: jfm2@club-internet.fr
+In-reply-to: <Pine.LNX.3.96.981125073253.30767B-100000@mirkwood.dummy.home>
+	(message from Rik van Riel on Wed, 25 Nov 1998 07:41:41 +0100 (CET))
+Subject: Re: Two naive questions and a suggestion
+References: <Pine.LNX.3.96.981125073253.30767B-100000@mirkwood.dummy.home>
 Sender: owner-linux-mm@kvack.org
-To: "Stephen C. Tweedie" <sct@redhat.com>
-Cc: Linus Torvalds <torvalds@transmeta.com>, Linux Kernel List <linux-kernel@vger.rutgers.edu>, Linux-MM List <linux-mm@kvack.org>
+To: H.H.vanRiel@phys.uu.nl
+Cc: jfm2@club-internet.fr, sct@redhat.com, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-"Stephen C. Tweedie" <sct@redhat.com> writes:
+> 
+> Without swapin readahead, we'll be unable to implement them
+> properly however :(
+> 
+> > > > And now we are at it: in 2.0 I found a deamon can be killed by the
+> > > > system if it runs out of VM.  
+> > > 
+> > > Same on any BSD.
+> > 
+> > Say the Web or database server can be deemed important enough for it
+> > not being killed just because some dim witt is playing with the GIMP
+> > at the console and the GIMP has allocated 80 Megs.
+> 
+> I sounds remarkably like you want my Out Of Memory killer
+> patch. This patch tries to remove the randomness in killing
+> a process when you're OOM by carefully selecting a process
+> based on a lot of different factors (size, age, CPU used,
+> suid, root, IOPL, etc).
+> 
+> It needs to be cleaned up, ported to 2.1.129 and improved
+> a little bit though... After that it should be ready for
+> inclusion in the kernel.
+> 
 
-> --- mm/vmscan.c~	Tue Nov 17 15:43:55 1998
-> +++ mm/vmscan.c	Mon Nov 23 17:05:33 1998
-> @@ -170,7 +170,7 @@
->  			 * copy in memory, so we add it to the swap
->  			 * cache. */
->  			if (PageSwapCache(page_map)) {
-> -				free_page_and_swap_cache(page);
-> +				free_page(page);
->  				return (atomic_read(&page_map->count) == 0);
->  			}
->  			add_to_swap_cache(page_map, entry);
-> @@ -188,7 +188,7 @@
->  		 * asynchronously.  That's no problem, shrink_mmap() can
->  		 * correctly clean up the occassional unshared page
->  		 * which gets left behind in the swap cache. */
-> -		free_page_and_swap_cache(page);
-> +		free_page(page);
->  		return 1;	/* we slept: the process may not exist any more */
->  	}
->  
-> @@ -202,7 +202,7 @@
->  		set_pte(page_table, __pte(entry));
->  		flush_tlb_page(vma, address);
->  		swap_duplicate(entry);
-> -		free_page_and_swap_cache(page);
-> +		free_page(page);
->  		return (atomic_read(&page_map->count) == 0);
->  	} 
->  	/* 
-> @@ -218,7 +218,11 @@
->  	flush_cache_page(vma, address);
->  	pte_clear(page_table);
->  	flush_tlb_page(vma, address);
-> +#if 0
->  	entry = page_unuse(page_map);
-> +#else
-> +	entry = (atomic_read(&page_map->count) == 1);
-> +#endif
->  	__free_page(page_map);
->  	return entry;
->  }
+Your scheme is (IMHO) far too complicated and (IMHO) falls short.  The
+problem is that the kernel has no way to know what is the really
+important process in the box.  For instance you can have a database
+server running as normal user and that be considered far more
+important the X server (setuid root) whose only real goal is to allow
+a user friendly UI for administering the database.
 
-I must admit that after some preliminary testing I can't believe how
-GOOD these changes work!
+Why not simply allow a root-owned process declare itself (and the
+program it will exec into) as "guaranteed"?  Only a human can know
+what is important and what is unimportant in a box so it should be a
+human who, by the way of starting a program throuh a "guaranteer", has
+the final word on what should be protected
 
-Stephen, you've done a *really* good job.
+Allow an option for having this priviliege extended to descendents of
+the process given some database programs start special daemons for
+other tasks and will not run without them.  Or a box used as a mail
+server using qmail: qmail starts sub-servers each one for a different
+task.
 
-I will still do some more testing, not to find bugs, but to enjoy
-great performance. :)
+Of course this is only a suugestion for a mechanism but the important
+is allowing a human to have the final word.
 
-Everybody, get pre-2.1.130-3 (which already includes above changes),
-add #include <linux/interrupt.h> in kernel/itimer.c and enjoy the most
-fair MM in Linux, EVER!
-
-Stephen, thanks for such a good code!
 -- 
-Posted by Zlatko Calusic           E-mail: <Zlatko.Calusic@CARNet.hr>
----------------------------------------------------------------------
-	   REALITY.SYS Corrupted: Re-boot universe? (Y/N/Q)
+			Jean Francois Martinez
+
+Project Independence: Linux for the Masses
+http://www.independence.seul.org
+
 --
 This is a majordomo managed list.  To unsubscribe, send a message with
 the body 'unsubscribe linux-mm me@address' to: majordomo@kvack.org
