@@ -1,52 +1,29 @@
-Message-ID: <41B8060A.4050402@yahoo.com.au>
-Date: Thu, 09 Dec 2004 19:00:10 +1100
-From: Nick Piggin <nickpiggin@yahoo.com.au>
+From: "Joshua Williams" <joshua6@o2.pl>
+Subject: Link Exchange
 MIME-Version: 1.0
-Subject: Re: page fault scalability patch V12 [0/7]: Overview and performance
- tests
-References: <Pine.LNX.4.44.0411221457240.2970-100000@localhost.localdomain> <Pine.LNX.4.58.0411221343410.22895@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411221419440.20993@ppc970.osdl.org> <Pine.LNX.4.58.0411221424580.22895@schroedinger.engr.sgi.com> <Pine.LNX.4.58.0411221429050.20993@ppc970.osdl.org> <Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com>
-In-Reply-To: <Pine.LNX.4.58.0412011539170.5721@schroedinger.engr.sgi.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain;
+	charset="windows-1250"
+Content-Transfer-Encoding: base64
+Reply-To: joshua6@o2.pl
+Date: Thu, 9 Dec 2004 09:37:57 +0100
+Message-Id: <20041209083800Z26624-766+2552@kvack.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Christoph Lameter <clameter@sgi.com>
-Cc: Linus Torvalds <torvalds@osdl.org>, Hugh Dickins <hugh@veritas.com>, akpm@osdl.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, linux-ia64@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Christoph Lameter wrote:
-> Changes from V11->V12 of this patch:
-> - dump sloppy_rss in favor of list_rss (Linus' proposal)
-> - keep up against current Linus tree (patch is based on 2.6.10-rc2-bk14)
-> 
-
-[snip]
-
-> For more than 8 cpus the page fault rate increases by orders
-> of magnitude. For more than 64 cpus the improvement in performace
-> is 10 times better.
-
-Those numbers are pretty impressive. I thought you'd said with earlier
-patches that performance was about doubled from 8 to 512 CPUS. Did I
-remember correctly? If so, where is the improvement coming from? The
-per-thread RSS I guess?
-
-
-On another note, these patches are basically only helpful to new
-anonymous page faults. I guess this is the main thing you are concerned
-about at the moment, but I wonder if you would see improvements with
-my patch to remove the ptl from the other types of faults as well?
-
-The downside of my patch - well the main downsides - compared to yours
-are its intrusiveness, and the extra cost involved in copy_page_range
-which yours appears not to require.
-
-As I've said earlier though, I wouldn't mind your patches going in. At
-least they should probably get into -mm soon, when Andrew has time (and
-after the 4level patches are sorted out). That wouldn't stop my patch
-(possibly) being merged some time after that if and when it was found
-worthy...
-
+RGVhciBXZWJtYXN0ZXIsDQpXZSBydW4gc2V2ZXJhbCB3ZWJzaXRlcyBvZmZlcmluZyBhY2NvbW1v
+ZGF0aW9uIHNlcnZpY2VzIGluIEV1cm9wZSBhbmQgSSB0aG91Z2h0IHlvdSANCm1pZ2h0IGJlIGlu
+dGVyZXN0ZWQgaW4gRXhjaGFuZ2luZyBMaW5rcyB3aXRoIHVzLiBFeGNoYW5naW5nIExpbmtzIGNh
+biBicmluZyBib3RoIG9mIHVzIA0KbXV0dWFsIGJlbmVmaXRzIGkuZS4gSW5jcmVhc2VkIFRyYWZm
+aWMgdG8gb3VyIHdlYnNpdGVzLg0KDQpXZSBwcm92aWRlIHNldmVyYWwgdHJhdmVsLXJlbGF0ZWQg
+c2l0ZXMuIEFsbCBvZiB0aGVtIGFyZSBQYWdlIFJhbmsgNSBvciA2LiBPdXIgTGlua3MgDQpwYWdl
+cyBoYXZlIFBhZ2UgUmFuayBmcm9tIDIgdG8gNS4NCg0KSWYgeW91IGFyZSBpbnRlcmVzdGVkIHBs
+ZWFzZSBjb250YWN0IG1lLg0KDQpJZiB5b3UgZ290IHRoaXMgbWVzc2FnZSBpbiBlcnJvciBwbGVh
+c2UgZm9yd2FyZCB0aGlzIG1haWwgdG8geW91ciB3ZWJtYXN0ZXIuDQoNCkkgbG9vayBmb3J3YXJk
+IHRvIGhlYXJpbmcgZnJvbSB5b3UuDQpCZXN0IFJlZ2FyZHMsDQpKb3NodWEgV2lsbGlhbXMNCg0K
+DQpJZiB5b3UnZCBsaWtlIHRvIGJlIHJlbW92ZWQgZnJvbSBvdXIgbWFpbC1saXN0LCBwbGVhc2Ug
+c2VuZCBhbiBlbWFpbCB0byByZW1vdmVAbWVkaWEtDQpiZS5iaXoNCg==
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
