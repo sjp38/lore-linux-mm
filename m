@@ -1,39 +1,87 @@
-Date: Wed, 16 Jun 2004 08:12:14 +0100
-From: Christoph Hellwig <hch@infradead.org>
+Date: Wed, 16 Jun 2004 10:42:36 +0200
+From: Martin Schwidefsky <schwidefsky@de.ibm.com>
 Subject: Re: [PATCH] s390: lost dirty bits.
-Message-ID: <20040616071214.GA7810@infradead.org>
-References: <20040615174436.GA10098@mschwid3.boeblingen.de.ibm.com> <20040615210919.1c82a5c8.akpm@osdl.org>
+Message-ID: <20040616084236.GA2738@mschwid3.boeblingen.de.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20040615210919.1c82a5c8.akpm@osdl.org>
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Andrew Morton <akpm@osdl.org>
-Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@osdl.org>, Christoph Hellwig <hch@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jun 15, 2004 at 09:09:19PM -0700, Andrew Morton wrote:
->  #define ClearPageReferenced(page)	clear_bit(PG_referenced, &(page)->flags)
->  #define TestClearPageReferenced(page) test_and_clear_bit(PG_referenced, &(page)->flags)
->  
-> -#ifndef arch_set_page_uptodate
-> -#define arch_set_page_uptodate(page) do { } while (0)
-> +#ifdef arch_set_page_uptodate
-> +#define SetPageUptodate(page) arch_set_page_uptodate(page)
-> +#else
-> +#define SetPageUptodate(page) set_bit(PG_uptodate, &(page)->flags)
->  #endif
+> This patch still has a little race - it'd be better to override _all_ of
+> SetPageUptodate() in page-flags.h and do:
 
-Eek.  It looks like SetPageUptodate, it smells like SetPageUptodate, why
-do you give it another name?  Just put a
+This is even better because it really makes a race impossible. I think it
+is correct with the simple if as well because a page which isn't up to date
+isn't mapped anywhere and while a page is read from the backing store it
+is locked. The end io function first does SetPageUptodate and then unlocks
+the page.
+Combining the test_and_set_bit idea with Christophs valid objection I
+created a new patch.
 
-#ifndef SetPageUptodate	/* S390 wants to override this */
-#define SetPageUptodate		set_bit(PG_uptodate, &(page)->flags)
-#endif
+blue skies,
+   Martin
 
-in mm.h
+---
 
+[PATCH] s390: lost dirty bits.
+
+The SetPageUptodate function is called for pages that are already
+up to date. The arch_set_page_uptodate function of s390 may not
+clear the dirty bit in that case otherwise a dirty bit which is set
+between the start of an i/o for a writeback and a following call
+to SetPageUptodate is lost.
+
+Signed-off-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+
+diffstat:
+ include/asm-s390/pgtable.h |    6 ++++--
+ include/linux/page-flags.h |   12 +++---------
+ 2 files changed, 7 insertions(+), 11 deletions(-)
+
+diff -urN linux-2.6/include/asm-s390/pgtable.h linux-2.6-s390/include/asm-s390/pgtable.h
+--- linux-2.6/include/asm-s390/pgtable.h	Wed Jun 16 10:39:37 2004
++++ linux-2.6-s390/include/asm-s390/pgtable.h	Wed Jun 16 10:39:49 2004
+@@ -654,9 +654,11 @@
+ 	__pte;                                                            \
+ })
+ 
+-#define arch_set_page_uptodate(__page)					  \
++#define SetPageUptodate(_page) \
+ 	do {								  \
+-		asm volatile ("sske %0,%1" : : "d" (0),			  \
++		struct page *__page = (_page);				  \
++		if (!test_and_set_bit(PG_uptodate, &__page->flags))	  \
++			asm volatile ("sske %0,%1" : : "d" (0),		  \
+ 			      "a" (__pa((__page-mem_map) << PAGE_SHIFT)));\
+ 	} while (0)
+ 
+diff -urN linux-2.6/include/linux/page-flags.h linux-2.6-s390/include/linux/page-flags.h
+--- linux-2.6/include/linux/page-flags.h	Wed Jun 16 10:39:37 2004
++++ linux-2.6-s390/include/linux/page-flags.h	Wed Jun 16 10:39:49 2004
+@@ -194,16 +194,10 @@
+ #define ClearPageReferenced(page)	clear_bit(PG_referenced, &(page)->flags)
+ #define TestClearPageReferenced(page) test_and_clear_bit(PG_referenced, &(page)->flags)
+ 
+-#ifndef arch_set_page_uptodate
+-#define arch_set_page_uptodate(page) do { } while (0)
+-#endif
+-
+ #define PageUptodate(page)	test_bit(PG_uptodate, &(page)->flags)
+-#define SetPageUptodate(page) \
+-	do {								\
+-		arch_set_page_uptodate(page);				\
+-		set_bit(PG_uptodate, &(page)->flags);			\
+-	} while (0)
++#ifndef SetPageUptodate
++#define SetPageUptodate(page)	set_bit(PG_uptodate, &(page)->flags)
++#endif
+ #define ClearPageUptodate(page)	clear_bit(PG_uptodate, &(page)->flags)
+ 
+ #define PageDirty(page)		test_bit(PG_dirty, &(page)->flags)
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
