@@ -1,92 +1,40 @@
-Date: Fri, 5 Nov 1999 22:27:55 +0100 (CET)
-From: Ingo Molnar <mingo@chiara.csoma.elte.hu>
-Subject: [patch] bootmem-2.3.26-A1
-Message-ID: <Pine.LNX.4.10.9911052224070.12691-200000@chiara.csoma.elte.hu>
+From: kanoj@google.engr.sgi.com (Kanoj Sarcar)
+Message-Id: <199911052211.OAA61667@google.engr.sgi.com>
+Subject: [PATCH] kanoj-mm24-2.3.25 nonPAE ia32 zap_low_mappings fix
+Date: Fri, 5 Nov 1999 14:11:41 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="650352740-181069085-941837275=:12691"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: linux-kernel@vger.rutgers.edu, MM mailing list <linux-mm@kvack.org>
-Cc: Linus Torvalds <torvalds@transmeta.com>
+To: torvalds@transmeta.com
+Cc: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---650352740-181069085-941837275=:12691
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Linus,
 
+Could you please add in this patch into 2.3.26. It is needed for 
+*(int *0) = 0 to panic (after smp_init()) to catch kernel problems. 
 
-this fixes the __va confusion. (the patch does not add RAM testing)
+Thanks.
 
-but more importantly, Bjorn Andersson found a bug in bootmem_free(): start
-addresses have to be rounded upwards, not downwards. This could expain
-some of the booting problems and crashes reported.
+Kanoj
 
--- mingo
-
---650352740-181069085-941837275=:12691
-Content-Type: TEXT/PLAIN; charset=US-ASCII; name="bootmem-2.3.26-A1"
-Content-Transfer-Encoding: BASE64
-Content-ID: <Pine.LNX.4.10.9911052227550.12691@chiara.csoma.elte.hu>
-Content-Description: 
-Content-Disposition: attachment; filename="bootmem-2.3.26-A1"
-
-LS0tIGxpbnV4L21tL2Jvb3RtZW0uYy5vcmlnMwlGcmkgTm92ICA1IDAyOjEw
-OjQ1IDE5OTkNCisrKyBsaW51eC9tbS9ib290bWVtLmMJRnJpIE5vdiAgNSAx
-MzoxMjo1NSAxOTk5DQpAQCAtMzYsOSArMzYsNyBAQA0KIHsNCiAJdW5zaWdu
-ZWQgbG9uZyBtYXBzaXplID0gKHBhZ2VzKzcpLzg7DQogDQotCWlmIChib290
-bWVtX21hcCkNCi0JCUJVRygpOw0KLQlib290bWVtX21hcCA9IF9fdmEoc3Rh
-cnQgPDwgUEFHRV9TSElGVCk7DQorCWJvb3RtZW1fbWFwID0gcGh5c190b192
-aXJ0KHN0YXJ0IDw8IFBBR0VfU0hJRlQpOw0KIAltYXhfbG93X3BmbiA9IHBh
-Z2VzOw0KIA0KIAkvKg0KQEAgLTY0LDcgKzYyLDYgQEANCiAJICovDQogCXVu
-c2lnbmVkIGxvbmcgZW5kID0gKGFkZHIgKyBzaXplICsgUEFHRV9TSVpFLTEp
-L1BBR0VfU0laRTsNCiANCi0JaWYgKCFib290bWVtX21hcCkgQlVHKCk7DQog
-CWlmICghc2l6ZSkgQlVHKCk7DQogDQogCWlmIChlbmQgPiBtYXhfbG93X3Bm
-bikNCkBAIC03NywxOCArNzQsMjMgQEANCiB2b2lkIF9faW5pdCBmcmVlX2Jv
-b3RtZW0gKHVuc2lnbmVkIGxvbmcgYWRkciwgdW5zaWduZWQgbG9uZyBzaXpl
-KQ0KIHsNCiAJdW5zaWduZWQgbG9uZyBpOw0KKwl1bnNpZ25lZCBsb25nIHN0
-YXJ0Ow0KIAkvKg0KIAkgKiByb3VuZCBkb3duIGVuZCBvZiB1c2FibGUgbWVt
-LCBwYXJ0aWFsbHkgZnJlZSBwYWdlcyBhcmUNCiAJICogY29uc2lkZXJlZCBy
-ZXNlcnZlZC4NCiAJICovDQogCXVuc2lnbmVkIGxvbmcgZW5kID0gKGFkZHIg
-KyBzaXplKS9QQUdFX1NJWkU7DQogDQotCWlmICghYm9vdG1lbV9tYXApIEJV
-RygpOw0KIAlpZiAoIXNpemUpIEJVRygpOw0KLQ0KIAlpZiAoZW5kID4gbWF4
-X2xvd19wZm4pDQogCQlCVUcoKTsNCi0JZm9yIChpID0gYWRkci9QQUdFX1NJ
-WkU7IGkgPCBlbmQ7IGkrKykgew0KKw0KKwkvKg0KKwkgKiBSb3VuZCB1cCB0
-aGUgYmVnaW5uaW5nIG9mIHRoZSBhZGRyZXNzLg0KKwkgKi8NCisJc3RhcnQg
-PSAoYWRkciArIFBBR0VfU0laRS0xKSAvIFBBR0VfU0laRTsNCisNCisJZm9y
-IChpID0gc3RhcnQ7IGkgPCBlbmQ7IGkrKykgew0KIAkJaWYgKCF0ZXN0X2Fu
-ZF9jbGVhcl9iaXQoaSwgYm9vdG1lbV9tYXApKQ0KIAkJCUJVRygpOw0KIAl9
-DQpAQCAtMTE3LDcgKzExOSw2IEBADQogCXVuc2lnbmVkIGxvbmcgb2Zmc2V0
-LCByZW1haW5pbmdfc2l6ZTsNCiAJdW5zaWduZWQgbG9uZyBhcmVhc2l6ZSwg
-cHJlZmVycmVkOw0KIA0KLQlpZiAoIWJvb3RtZW1fbWFwKSBCVUcoKTsNCiAJ
-aWYgKCFzaXplKSBCVUcoKTsNCiANCiAJLyoNCkBAIC0xNTIsNiArMTUzLDkg
-QEANCiAJCXByZWZlcnJlZCA9IDA7DQogCQlnb3RvIHJlc3RhcnRfc2NhbjsN
-CiAJfQ0KKwkvKg0KKwkgKiBXaG9vcHMsIHdlIGNhbm5vdCBzYXRpc2Z5IHRo
-ZSBhbGxvY2F0aW9uIHJlcXVlc3QuDQorCSAqLw0KIAlCVUcoKTsNCiBmb3Vu
-ZDoNCiAJaWYgKHN0YXJ0ID49IG1heF9sb3dfcGZuKQ0KQEAgLTE3MywxMSAr
-MTc3LDExIEBADQogCQkJYXJlYXNpemUgPSAwOw0KIAkJCS8vIGxhc3RfcG9z
-IHVuY2hhbmdlZA0KIAkJCWxhc3Rfb2Zmc2V0ID0gb2Zmc2V0K3NpemU7DQot
-CQkJcmV0ID0gX192YShsYXN0X3BvcypQQUdFX1NJWkUgKyBvZmZzZXQpOw0K
-KwkJCXJldCA9IHBoeXNfdG9fdmlydChsYXN0X3BvcypQQUdFX1NJWkUgKyBv
-ZmZzZXQpOw0KIAkJfSBlbHNlIHsNCiAJCQlzaXplIC09IHJlbWFpbmluZ19z
-aXplOw0KIAkJCWFyZWFzaXplID0gKHNpemUrUEFHRV9TSVpFLTEpL1BBR0Vf
-U0laRTsNCi0JCQlyZXQgPSBfX3ZhKGxhc3RfcG9zKlBBR0VfU0laRSArIG9m
-ZnNldCk7DQorCQkJcmV0ID0gcGh5c190b192aXJ0KGxhc3RfcG9zKlBBR0Vf
-U0laRSArIG9mZnNldCk7DQogCQkJbGFzdF9wb3MgPSBzdGFydCthcmVhc2l6
-ZS0xOw0KIAkJCWxhc3Rfb2Zmc2V0ID0gc2l6ZTsNCiAJCX0NCkBAIC0xODUs
-NyArMTg5LDcgQEANCiAJfSBlbHNlIHsNCiAJCWxhc3RfcG9zID0gc3RhcnQg
-KyBhcmVhc2l6ZSAtIDE7DQogCQlsYXN0X29mZnNldCA9IHNpemUgJiB+UEFH
-RV9NQVNLOw0KLQkJcmV0ID0gX192YShzdGFydCAqIFBBR0VfU0laRSk7DQor
-CQlyZXQgPSBwaHlzX3RvX3ZpcnQoc3RhcnQgKiBQQUdFX1NJWkUpOw0KIAl9
-DQogCS8qDQogCSAqIFJlc2VydmUgdGhlIGFyZWEgbm93Og0KQEAgLTIxMSwx
-MiArMjE1LDEzIEBADQogCQkJY291bnQrKzsNCiAJCQlDbGVhclBhZ2VSZXNl
-cnZlZChwYWdlKTsNCiAJCQlzZXRfcGFnZV9jb3VudChwYWdlLCAxKTsNCi0J
-CQlpZiAoaSA+PSAoX19wYShNQVhfRE1BX0FERFJFU1MpID4+IFBBR0VfU0hJ
-RlQpKQ0KKwkJCWlmIChpID49ICh2aXJ0X3RvX3BoeXMoKGNoYXIgKilNQVhf
-RE1BX0FERFJFU1MpID4+IFBBR0VfU0hJRlQpKQ0KIAkJCQljbGVhcl9iaXQo
-UEdfRE1BLCAmcGFnZS0+ZmxhZ3MpOw0KIAkJCV9fZnJlZV9wYWdlKHBhZ2Up
-Ow0KIAkJfQ0KIAl9DQogCXRvdGFsICs9IGNvdW50Ow0KKw0KIAkvKg0KIAkg
-KiBOb3cgZnJlZSB0aGUgYWxsb2NhdG9yIGJpdG1hcCBpdHNlbGYsIGl0J3Mg
-bm90DQogCSAqIG5lZWRlZCBhbnltb3JlOg0K
---650352740-181069085-941837275=:12691--
+--- /usr/tmp/p_rdiff_a005Oh/init.c	Fri Nov  5 14:05:50 1999
++++ arch/i386/mm/init.c	Fri Nov  5 13:01:50 1999
+@@ -382,7 +382,12 @@
+ 	 * Zap initial low-memory mappings:
+ 	 */
+ 	for (i = 0; i < USER_PTRS_PER_PGD; i++)
++#if CONFIG_X86_PAE
+ 		pgd_clear(swapper_pg_dir + i);
++#else
++		pmd_clear((pmd_t *)swapper_pg_dir + i);
++#endif
++	flush_tlb_all();
+ }
+ 
+ /*
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
