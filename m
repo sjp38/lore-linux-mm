@@ -1,70 +1,45 @@
-Message-Id: <200301242202.h0OM2m0V007374@turing-police.cc.vt.edu>
-Subject: Re: 2.5.59-mm5 
-In-Reply-To: Your message of "Fri, 24 Jan 2003 21:04:34 +0100."
-             <20030124200434.GD889@suse.de>
-From: Valdis.Kletnieks@vt.edu
-References: <XFMail.20030124180942.pochini@shiny.it> <3E31765F.4010900@cyberone.com.au> <200301241934.h0OJYf0V005773@turing-police.cc.vt.edu>
-            <20030124200434.GD889@suse.de>
-Mime-Version: 1.0
-Content-Type: multipart/signed; boundary="==_Exmh_-1019470848P";
-	 micalg=pgp-sha1; protocol="application/pgp-signature"
-Content-Transfer-Encoding: 7bit
-Date: Fri, 24 Jan 2003 17:02:48 -0500
+Message-ID: <20030125004421.96940.qmail@web41007.mail.yahoo.com>
+Date: Fri, 24 Jan 2003 16:44:21 -0800 (PST)
+From: Jason Li <zhjl000@yahoo.com>
+Subject: linux free pages on 2.4.19
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Jens Axboe <axboe@suse.de>
-Cc: Nick Piggin <piggin@cyberone.com.au>, Giuliano Pochini <pochini@shiny.it>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-kernel@alex.org.uk, Alex Tomas <bzzz@tmi.comex.ru>, Andrew Morton <akpm@digeo.com>, Oliver Xymoron <oxymoron@waste.org>
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---==_Exmh_-1019470848P
-Content-Type: text/plain; charset=us-ascii
+Hi,
 
-On Fri, 24 Jan 2003 21:04:34 +0100, Jens Axboe said:
+Have a simple question:
 
-> Nicks comment refers to the block layer situation, we obviously cannot
-> merge reads and writes there. You would basically have to rewrite the
-> entire request submission structure and break all drivers. And for zero
-> benefit. Face it, it would be stupid to even attempt such a manuever.
+	When monitoring system's memory usage, I found out
+that the physical page numbders used by the
+application increases by 3000 pages (4K on ppc), but
+the system's free page count shrink only by 70 pages
+using the nr_free_pages and 200 pages when counting
+the page frames that has 0 reference count.
 
-As I *said* - "hairy beyond benefit", not "cant".
+	1) Does this make sense? 3000 * 4K = 12M and the free
+counts doesn't shrink accordingly, it means the kernel
+memory is shrinking/cleaned? We don't have swap space
+though we have a fs.
+	2) Why the the nr_free_pages and the zero reference
+count page frame number are so different by 1000 ~
+7500. Does this mean a bigger page cache?
+	3) what is the best way to find out how much space is
+used up user space vs the kernel space?
 
-> Since you bring it up, you must know if a device which can take a single
-> command that says "read blocks a to b, and write blocks x to z"? Even
-> such thing existed,
+Thanks in advance for your help.
 
-They do exist.
+Regards,
+Jason
 
-IBM mainframe disks (the 3330/50/80 series) are able to do much more than that
-in one CCW chain  So it was *quite* possible to even express things like "Go to
-this cylinder/track, search for each record that has value XYZ in the 'key'
-field, and if found, write value ABC in the data field". (In fact, the DASD I/O
-opcodes for CCW chains are Turing-complete).
 
->                      it would be much better implemented by the driver
-> as pulling more requests of the queue and constructing these weirdo
-
-The only operating system I'm aware of that actually uses that stuff is MVS.
-
-> So I quite agree with the "obviously".
-
-My complaint was the confusion of "obviously cant" with "we have decided we
-don't want to".
-
-/Valdis
-
---==_Exmh_-1019470848P
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.2.1 (GNU/Linux)
-Comment: Exmh version 2.5 07/13/2001
-
-iD8DBQE+MbgHcC3lWbTT17ARAnXTAJ9shASjuEdGEQ/jxHGfF58cWORXhwCfRqdr
-HjUodOK8lYUu1Nb3Od1ambk=
-=y2i0
------END PGP SIGNATURE-----
-
---==_Exmh_-1019470848P--
+__________________________________________________
+Do you Yahoo!?
+Yahoo! Mail Plus - Powerful. Affordable. Sign up now.
+http://mailplus.yahoo.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
