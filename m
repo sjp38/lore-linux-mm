@@ -1,37 +1,29 @@
-Message-ID: <40C5E9D5.6080202@ammasso.com>
-Date: Tue, 08 Jun 2004 11:31:17 -0500
-From: Timur Tabi <timur.tabi@ammasso.com>
+Message-ID: <TMVSSTDUNCJEPNDPOTWUYFABU@konyvkereso.hu>
+From: "Deborah Dickens" <prabjvqrctb@powermac.co.za>
+Reply-To: "Deborah Dickens" <prabjvqrctb@powermac.co.za>
+Subject: Tue, 08 Jun 2004 12:37:01 -0600
+Date: Tue, 08 Jun 2004 20:35:01 +0200
 MIME-Version: 1.0
-Subject: Re: What happened to try_to_swap_out()?
-References: <Pine.LNX.4.44.0406081224590.23676-100000@chimarrao.boston.redhat.com>
-In-Reply-To: <Pine.LNX.4.44.0406081224590.23676-100000@chimarrao.boston.redhat.com>
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative;
+	boundary="--0373318237594345"
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Rik van Riel wrote:
+----0373318237594345
+Content-Type: text/plain;
+Content-Transfer-Encoding: quoted-printable
 
-> Looks like the bug is in your driver, not the VM.
-> 
-> The VMA that maps such pages should be set VM_RESERVED
-> (or whatever the name of that flag was)
+Here is a casino giving away $25 Free when you sign up an account.
+No credit card required
+http://ace.rli3.org/iwin.html
 
-I called map_user_kiobuf to get the pages.  Shouldn't that be enough?
 
->>Also, I noticed that RedHat 9.0 doesn't have try_to_swap_out() either. 
->>I guess they ported some 2.6 code to 2.4.  Can anyone corroborate that?
-> 
-> Yes.
+James
 
-Is there a name for the patch they applied to 2.4 to make it look like 2.6?
+----0373318237594345--
 
--- 
-Timur Tabi
-Staff Software Engineer
-timur.tabi@ammasso.com
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
