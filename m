@@ -1,68 +1,46 @@
-Message-ID: <4021A62D.40002@cyberone.com.au>
-Date: Thu, 05 Feb 2004 13:10:53 +1100
+Message-ID: <4021A7ED.7070703@cyberone.com.au>
+Date: Thu, 05 Feb 2004 13:18:21 +1100
 From: Nick Piggin <piggin@cyberone.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/5] mm improvements
-References: <4020BE45.10007@cyberone.com.au>	<Pine.LNX.4.44.0402041027380.24515-100000@chimarrao.boston.redhat.com> <16417.8644.203682.640759@laputa.namesys.com>
-In-Reply-To: <16417.8644.203682.640759@laputa.namesys.com>
+Subject: Re: [PATCH 2/5] mm improvements
+References: <Pine.LNX.4.44.0402041026400.24515-100000@chimarrao.boston.redhat.com>
+In-Reply-To: <Pine.LNX.4.44.0402041026400.24515-100000@chimarrao.boston.redhat.com>
 Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Nikita Danilov <Nikita@Namesys.COM>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Andrew Morton <akpm@osdl.org>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-Nikita Danilov wrote:
+Rik van Riel wrote:
 
->Rik van Riel writes:
-> > On Wed, 4 Feb 2004, Nick Piggin wrote:
-> > > Nick Piggin wrote:
-> > > 
-> > > > 3/5: vm-lru-info.patch
-> > > >     Keep more referenced info in the active list. Should also improve
-> > > >     system time in some cases. Helps swapping loads significantly.
-> > 
-> > I suspect this is one of the more important ones in this
-> > batch of patches...
+>On Wed, 4 Feb 2004, Andrew Morton wrote:
+>  
 >
->I don't understand how this works. This patch just parks mapped pages on
->the "ignored" segment of the active list, where they rest until
->reclaim_mapped mode is entered.
+>>Nick Piggin <piggin@cyberone.com.au> wrote:
+>>    
+>>
+>>> > 2/5: vm-dont-rotate-active-list.patch
+>>> >     Nikita's patch to keep more page ordering info in the active list.
+>>> >     Also should improve system time due to less useless scanning
+>>> >     Helps swapping loads significantly.
+>>>      
+>>>
+>>It bugs me that this improvement is also applicable to 2.4.  if it makes
+>>the same improvement there, we're still behind.
+>>    
+>>
 >
->This only makes a difference for the pages that were page_referenced():
+>I suspect 2.4 won't see the gains from this, since active/inactive
+>list location is hardly relevant for mapped pages there, due to the
+>page table scanning algorithm.
 >
->1. they are moved to the ignored segment rather than to the head of the
->active list.
->
->2. their referenced bit is not cleared
->
+>  
 >
 
-It treats all mapped pages in the same manner. Without this
-patch, referenced mapped pages are distinctly disadvantaged
-vs unreferenced mapped pages.
-
-Even if reclaim_mapped is only flipped once every few
-seconds it can make a big impact. On a 64MB heavily
-swapping, you probably take 10 seconds to reclaim 64MB. It
-is of critical importance that we keep as much hotness
-information as possible.
-
-It shows on the benchmarks too. It provides nearly as
-much improvement as your patch alone for a make -j16.
-ie. over 20%
-
-http://www.kerneltrap.org/~npiggin/vm/2/
-
-
-Also, when you're heavily swapping, everything slows down
-to such an extent that "hot" pages are no longer touched
-thousands of times per second, but maybe a few times every
-few seconds. If you're continually clearing this information,
-as soon as reclaim_mapped is triggered, all your hot pages
-get evicted.
+Yeah you're right.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
