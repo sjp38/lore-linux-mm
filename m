@@ -1,7 +1,7 @@
-Date: Tue, 21 Mar 2000 02:20:53 +0100
+Date: Tue, 21 Mar 2000 02:29:37 +0100
 From: Jamie Lokier <jamie.lokier@cern.ch>
-Subject: madvise (MADV_FREE)
-Message-ID: <20000321022053.A4271@pcep-jamie.cern.ch>
+Subject: MADV_DONTNEED
+Message-ID: <20000321022937.B4271@pcep-jamie.cern.ch>
 References: <20000320135939.A3390@pcep-jamie.cern.ch> <Pine.BSO.4.10.10003201318050.23474-100000@funky.monkey.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
@@ -14,101 +14,87 @@ List-ID: <linux-mm.kvack.org>
 
 Hi Chuck
 
-About MADV_FREE
----------------
+About MADV_DONTNEED
+-------------------
 
-> >    The principle here is very simple: MADV_FREE marks all the pages in
-> >    the region as "discardable", and clears the accessed and dirty bits
-> >    of those pages.
-> > 
-> >    Later when the kernel needs to free some memory, it is permitted to
-> >    free "discardable" pages immediately provided they are still not
-> >    accessed or dirty.  When vmscan is clearing the accessed and dirty
-> >    bits on pages, if they were set it must clear the " discardable" bit.
-> > 
-> >    This allows malloc() and other user space allocators to free pages
-> >    back to the system.  Unlike DU's MADV_DONTNEED, or mmapping
-> >    /dev/zero, if the system does not need the page there is no
-> >    inefficient zero-copy.  If there was, malloc() would be better off
-> >    not bothering to return the pages.
+> > In particular, using the name MADV_DONTNEED is a really bad idea.  It
+> > means completely different things on different OSes.  For example your
+> > meaning of MADV_DONTNEED is different to BSD's: a program that assumes
+> > the BSD behaviour may well crash with your implementation and will
+> > almost certainly give invalid results if it doesn't crash.
 > 
-> unless i've completely misunderstood what you are proposing, this is what
-> MADV_DONTNEED does today,
+> i'm more concerned about portability from operating systems like Solaris,
+> because there are many more server applications there than on *BSD that
+> have been designed to use these interfaces.
+...
+> my preference is for the DU semantic of tossing dirty data instead of
+> flushing onto backing store, simply because that's what so many
+> applications expect DONTNEED to do.
 
-No, your MADV_DONTNEED _always_ discards the data in those pages.  That
-makes it too inefficient for application memory allocators, because they
-will often want to reuse some of the pages soon after.  You don't want
-redundant page zeroing, and you don't want to give up memory which is
-still nice and warm in the CPU's cache.  Unless the kernel has a better
-use for it than you.
+That's interesting.  When I saw MADV_DONTNEED, I immediately assumed it
+was the natural counterpoint to MADV_WILLNEED.  Useful even for
+sequential accesses, to say "my streaming window has moved beyond this
+point".  Do you agree that a counterpoint to MADV_WILLNEED is useful?
 
-MADV_FREE on the other hand simply permits the kernel to reclaim those
-pages, if it is under memory pressure.
+The names are so similar, I consider using MADV_DONTNEED to mean "trash
+this memory" quite misleading.  (If there was no MADV_WILLNEED I
+wouldn't mind).
 
-If there is no pressure, the pages are reused by the application
-unchanged.  In this way different subsystems competing for memory get to
-share it out -- essentially the fairness mechanisms in the kernel are
-extending to application page management.  And the application hardly
-knows a think about it.
+> i'm not saying the *BSD way is wrong, but i think it would be a more
+> useful compromise to make *BSD functionality available via some other
+> interface (like MADV_ZERO).
 
-Here's why MADV_FREE works, and the other things don't:
+You got it the wrong way around.  MADV_ZERO is more like what your
+implementation of MADV_DONTNEED does.  The BSD behaviour is nothing like
+MADV_ZERO.  BSD simply means "increment the paging priority" -- the
+page contents are unchanged.
 
-A typical memory allocator creates holes in its heap, which the kernel
-has to swap out if it needs memory.  I guess about 1/4 of all data in
-swap is this kind of junk (but it's just a guess).
+BSD's behaviour is the obvious counterpoint to MADV_WILLNEED afaict.
 
-But it's quite inefficient for an allocator to unconditionally give
-pages back to the kernel.  The cost-benefit is "cost of giving page to
-kernel" vs. "cost of maybe paging out".  The cost of giving up
-pages is significant: each one implies a COW fault, clear_page
-when you reuse the page, and loss of cache-warm memory.
+> as far as i can tell, linux's msync(MS_INVALIDATE) behaves like freeBSD's
+> MADV_DONTNEED.
 
-You assume a page is not likely to swap, because there's a reasonable
-chance the application will reallocate it before that happens.  So on
-balance, giving pages unconditionally to the kernel is a loss.
+Doesn't look like that.
 
---> No sane free(3) would call MADV_DONTNEED or msync(MS_INVALIDATE).
+1. MS_INVALIDATE only works on file mappings -- BSD's MADV_DONTNEED is
+   defined (if you believe the documentation) for any mapping.
 
-A better application allocator would base decisions about when to return
-pages to the kernel on the likelihood of swapping and measured cost of
-swapping vs. retaining pages.  Of course that's very difficult and
-system specific.  And really only the kernel has access to all the
-information on memory pressure.
+2. The msync() manual page doesn't agree with you, but I'm not sure
+   about the implementation.  The manual says:
 
-So the best arrangment is to let the kernel make page reclamation
-decisions.  And if a page is not reclaimed before it is reused, let the
-application reuse the page unchanged and cache-warm.
+       MS_INVALIDATE asks to invalidate  other  mappings  of  the
+       same file (so that they can be updated with the fresh values
+       just written).
 
-MADV_FREE is the mechanism for doing that.  And it's a very nice, simple
-one to use.  Paging decisions stay in the kernel where they belong.
-Applications run fast if they have enough memory.  Everything is happy.
+   The implementation seems to invalidate _this_ mapping.
+   Either way, they are different from BSD's MADV_DONTNEED.
 
-> ... except it doesn't schedule the "freed" pages for
-> disposal ahead of other pages in the system.  but that should be easy
-> enough to add once the semantics are nailed down and the bugs have been
-> eliminated.
+3. Your MADV_DONTNEED does different things to msync(MS_INVALIDATE)
 
-It's not clear you'd want to do that.  There is a cost for every "freed"
-page disposed of, so you don't want to dispose of them ahead of other
-pages.
+Actually I like what MADV_DONTNEED does, but I would like it to have a
+different name to avoid potentially dangerous ambiguity with BSD's
+meaning.  If Linux MADV_DONTNEED were just a hint it would be fine, but
+it actively trashes memory.
 
-> ok, i don't understand why you think this.  and besides, free(3) doesn't
-> shrink the heap currently, i believe.  this would work if free(3) used
-> sbrk() to shrink the heap in an intelligent fashion, freeing kernel VM
-> resources along the way.  if you want something to help free(3), i would
-> favor this design instead.
+By the way, Linux MADV_DONTNEED does some of the things
+msync(MS_INVALIDATE) does but not others (in the implementation --
+ignore the man page).
 
-free(3) already uses sbrk() to shrink the heap at the end.  It's not
-usable for the typical 1/3 of memory which becomes holes in the heap.
+Can you explain how the two things differ?  I.e., why does MS_INVALIDATE
+fiddle with swap cache pages.  Does this indicate a bug in your
+MADV_DONTNEED implementation?
 
-Yes the idea is to modify free(3) to permit the kernel to reclaim memory
-that is free in the application.  However, none of sbrk() _or_
-MADV_DONTNEED _or_ MADV_ZERO _or_ mmap(/dev/zero) have the desired
-effect.
+> MADV_ZERO makes sense to me as an efficient way to zero a range of
+> addresses in a mapping.  but i think it's useful as a *separate* function,
+> not as combined with, say, MADV_DONTNEED.
 
-It has to be a win for the application to call this function -- and it
-it's a loss to zero pages as soon as you free them.  But it's relatively
-cheap to just mark the pages as "reclaimable" without losing them.
+Agreed.  I mention DONTNEED only because some OS's documentation of
+DONTNEED appears to be equivalent to MADV_ZERO.  And of course, on a
+mapping of /dev/zero they are equivalent.
+
+To be honest, the MADV_DONTNEED behaviour on private mappings is
+probably much more useful than zeroing a range anyway.  You've always
+got read(/dev/zero) for the latter.
 
 enjoy,
 -- Jamie
