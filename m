@@ -1,57 +1,117 @@
-Subject: Re: 2.5.68-mm4
-References: <20030502020149.1ec3e54f.akpm@digeo.com>
-	<20030502153525.GA11939@krispykreme>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 03 May 2003 08:12:11 -0600
-In-Reply-To: <20030502153525.GA11939@krispykreme>
-Message-ID: <m1el3gce6c.fsf@frodo.biederman.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Date: Sun, 04 May 2003 10:00:04 +0200 (CEST)
+From: Listar <listar@nl.linux.org>
+Message-ID: <listar-05042003100004.17386.1@nl.linux.org>
+Subject: Listar command results: No commands found
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Anton Blanchard <anton@samba.org>
-Cc: Andrew Morton <akpm@digeo.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Anton Blanchard <anton@samba.org> writes:
+Request received for list 'thefreeworld-www' via request address.
 
-> Hi,
-> 
-> > . Included the `kexec' patch - load Linux from Linux.  Various people want
-> >   this for various reasons.  I like the idea of going from a login prompt to
-> >   "Calibrating delay loop" in 0.5 seconds.
-> 
-> One thing that bothers me about kexec is how we grab low pages in
-> kimage_alloc_page(). On a partitioned ppc64 box I will need to grab
-> memory in the low 256MB and the machine might have 500GB of memory
-> free. Thats going to take some time :)
+>> [IMG]
+Unknown command.
 
-Could you explain to me the need to allocate memory in the low 256MB.
-Generally the design is that you can allocate the memory anywhere
-and then relocate_kernel.S will move where it needs to be kept.
+>> [IMG][1]//IOE 3/4 AeOAEO 
+Unknown command.
 
-I have had people wanting to use 300MB initial ramdisks and the like.  
-If you have 500GB of memory what is the point of keeping anything on a disk?
+>> --- Links ---
+Unknown command.
 
-When you have 4TB on a cluster or a NUMA machine I can understand
-wanting to keep things local to a node.  But in those cases you want
-to have local node zones so the problem does not come up.
+>> 1 http://www.xinaggui.com/
+Unknown command.
 
-In general I hate restricting the memory you can use, because kexec is
-not just about booting linux.  But it is about booting anything that
-we reasonably can.  The only case I have seen so far that makes sense
-is when your physical memory is larger than your virtual memory.
+No commands detected in message.
 
-> Id hate to introduce a separate zone just for this sort of stuff (we
-> currently throw all memory in the DMA zone). Could we add a hint to
-> the page allocator where it makes a best effort to grab memory below
-> a threshold?
+** Listar HELP FILE **
+By Rachel Blackman, JT Traub and Ryan T. Dean
 
-I suspect so.  And I can't imagine it would be that hard to implement.
+TO GET A LIST OF LISTS:
+	Send a message to the listar account on the server with a subject
+	of "lists".  A list of lists hosted by the server will be returned
+	to you.
 
-But I think I would like to see why you need that.
+TO SUBSCRIBE TO A LIST:
 
-Eric
+	Send a message to the listar account on the server (you can just
+	reply to this message).  In the subject field, enter "subscribe
+	[listname]".  Or, you can send a message to "[listname]-request"
+	with a subject of "subscribe".
+
+TO UNSUBSCRIBE FROM A LIST:
+	Send a message to the listar account on the server (you can just
+	reply to this message).  Enter "unsubscribe [listname]" in the
+	subject field.  You can also send a message to 
+	"[listname]-request" with a subject of "unsubscribe".
+        While you should NOT send your unsubscribe command to the list
+        itself, Listar will attempt to trap such erroneous postings and
+        forward them to the list administrators for proper handling.
+
+TO GET A DIGEST EVERY DAY:
+	Send a message to the listar account on the server with a subject
+	of "set [listname] digest".  This will turn on digests, and you
+	will receive a digest however often the server is configured to
+	send them.
+
+TO STOP GETTING A DIGEST:
+	Send a message to the listar account on the server with a subject
+	of "unset [listname] digest".  This will turn off digest mode, and
+	instead you will receive an eMail every time something is posted
+	to the list.
+
+TO GET A DIGEST AND NORMAL POSTS:
+	Send a message to the listar account on the server with a subject
+	of "set [listname] digest2".  This will activate digest mode with
+	normal posting.  As each message is posted to the list it will be
+	sent to you, and you will receive a digest as well.  This flag
+	should be used INSTEAD of digest, NOT IN ADDITION TO.
+	To stop receiving digests in addition to normal posts, send a
+	message to the listar account with a subject of "unset [listname]
+        digest2".  You will go back to receiving normal posts.
+
+TO FIND OUT WHO IS ON A LIST:
+	Send a message to the listar account on the server with a subject
+	of "who [listname]".  You will receive a list of people subscribed
+	to the list who are not hidden.  Admins will be able to see
+	everbody, including those hidden.
+
+TO HIDE ON A LIST:
+	Send a message to the listar account on the server with a subject
+	of "set [listname] hidden".  You will no longer appear on WHO
+	queries to the listserver.  No one (except Admins) will know you
+	are subscribed to the list unless you post to it (in which case
+	those people on the list will know you posted if nothing else).
+
+TO STOP HIDING ON A LIST:
+	Send a message to the listar account on the server with a subject of
+	"unset [listname] hidden".  You will then show up on WHO queries
+	to the listserver.
+
+TO GO ON VACATION:
+	Send a message to the listar account on the server with a subject of
+	"set [listname] vacation".  You will remain subscribed to the list
+	but will not receive any eMail as long as this flag is set.  To
+	come back from vacation, eMail the listar account with a subject of
+        "unset [listname] vacation".
+
+TO CHECK ON YOUR OWN STATUS:
+	Send a message to the listar account on the server with a subject
+	of "stats [listname]".  You will get a list of all the flags
+	currently set on your account.
+
+TO GET A LIST OF FLAGS AVAILABLE:
+	Send a message to the listar account on the server with a subject
+	of "flags".  An eMail will be sent to you with the available flags
+	that you can set on your account.
+
+TO GET A LIST OF COMMANDS AVAILABLE:
+	Send a message to the listar account on the server with a subject
+	of "commands".  An eMail will be sent to you with all the commands
+	that the server and any installed modules offer.
+
+---
+Listar v1.0.0 - job execution complete.
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
