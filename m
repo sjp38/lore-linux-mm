@@ -1,56 +1,28 @@
-Subject: Re: 2.5.69-mm9
-References: <20030525042759.6edacd62.akpm@digeo.com>
-	<1053899811.750.1.camel@teapot.felipe-alfaro.com>
-	<20030525154840.3ba7609b.akpm@digeo.com>
-From: Trond Myklebust <trond.myklebust@fys.uio.no>
-Date: 26 May 2003 01:19:54 +0200
-In-Reply-To: <20030525154840.3ba7609b.akpm@digeo.com>
-Message-ID: <shsk7ceaa1x.fsf@charged.uio.no>
+Subject: Re: [PATCH] dirty bit clearing on s390.
+Message-ID: <OFD743E8B0.5C908A4A-ONC1256D32.0023029F@de.ibm.com>
+From: "Martin Schwidefsky" <schwidefsky@de.ibm.com>
+Date: Mon, 26 May 2003 08:24:09 +0200
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: Andrew Morton <akpm@digeo.com>
-Cc: Felipe Alfaro Solana <felipe_alfaro@linuxmail.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Trond Myklebust <trond.myklebust@fys.uio.no>, Neil Brown <neilb@cse.unsw.edu.au>
+Cc: linux-mm@kvack.org, phillips@arcor.de
 List-ID: <linux-mm.kvack.org>
 
->>>>> " " == Andrew Morton <akpm@digeo.com> writes:
+> Having thought long and hard about this, yes, I don't really see anything
+> saner than just hooking into SetPageUptodate as you have done.
+>
+> Just to be sure that I understand the issues here I'll cook up a new
+> changelog for this and run it by you, then submit it.
 
-     > I would be inclined to say that this is a hitherto undiscovered
-     > use-after-free bug.
+Good, so we haven't been too far off with our approach. Thanks for the
+review.
 
-Does the following fix it?
-
-Cheers,
-  Trond
+blue skies,
+   Martin
 
 
---- linux-2.5.69/net/sunrpc/svcsock.c.orig	2003-05-20 08:34:35.000000000 +0200
-+++ linux-2.5.69/net/sunrpc/svcsock.c	2003-05-26 01:16:33.000000000 +0200
-@@ -600,6 +600,7 @@
- 			return 0;
- 		}
- 		local_bh_enable();
-+		svsk->sk_sk->stamp = skb->stamp;
- 		skb_free_datagram(svsk->sk_sk, skb); 
- 	} else {
- 		/* we can use it in-place */
-@@ -614,6 +615,7 @@
- 			skb->ip_summed = CHECKSUM_UNNECESSARY;
- 		}
- 		rqstp->rq_skbuff = skb;
-+		svsk->sk_sk->stamp = skb->stamp;
- 	}
- 
- 	rqstp->rq_arg.page_base = 0;
-@@ -629,7 +631,6 @@
- 		serv->sv_stats->netudpcnt++;
- 
- 	/* One down, maybe more to go... */
--	svsk->sk_sk->stamp = skb->stamp;
- 	svc_sock_received(svsk);
- 
- 	return len;
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
