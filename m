@@ -1,44 +1,51 @@
-Date: Wed, 4 Apr 2001 19:16:17 -0300 (BRST)
-From: Rik van Riel <riel@conectiva.com.br>
-Subject: Re: Fwd: kernel BUG at page_alloc.c:75! / exit.c
-In-Reply-To: <01040421360901.00634@jeloin>
-Message-ID: <Pine.LNX.4.21.0104041915070.25572-100000@imladris.rielhome.conectiva>
+Date: Thu, 5 Apr 2001 03:11:12 -0300 (BRT)
+From: Marcelo Tosatti <marcelo@conectiva.com.br>
+Subject: [PATCH] shmem fixes against 2.4.3-ac2
+Message-ID: <Pine.LNX.4.21.0104050304250.9033-100000@freak.distro.conectiva>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Roger Larsson <roger.larsson@norran.net>
-Cc: linux-mm@kvack.org, ernte23@gmx.de
+To: Christoph Rohland <cr@sap.com>, "Stephen C. Tweedie" <sct@redhat.com>
+Cc: Alan Cox <alan@lxorguk.ukuu.org.uk>, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 4 Apr 2001, Roger Larsson wrote:
+Hi, 
 
-> ----------  Forwarded Message  ----------
-> Subject: kernel BUG at page_alloc.c:75! / exit.c
-> Date: Wed, 04 Apr 2001 13:23:51 +0200
-> From: ernte23@gmx.de
-> To: linux-kernel@vger.kernel.org
-> 
-> I'm running the 2.4.3 kernel and my system always (!) crashes when I
-> try to generate the "Linux kernel poster" from lgp.linuxcare.com.au.
-> After working for one hour, the kernel printed this message:
+The following patch fixes two bugs in the shm code in 2.4.3-ac2 (and ac3,
+too): 
 
-There are some known bugs in the 2.4 memory management.
-Does 2.4.3-ac<latest> fix this ?
+ - shmem_writepage() does not set the page dirty bit on a page in case it
+   does not get moved to the swapcache because it has pte's mapped to it. 
 
-(note: 2.4.3-ac<latest> isn't stable/safe either, but
-people are working on it and it would be cool to know
-if at least this bug has been fixed)
+ - in case of a SIGBUS for a page fault on an shmem page, the inode lock
+   will remain locked forever.
 
-regards,
 
-Rik
---
-Virtual memory is like a game you can't win;
-However, without VM there's truly nothing to lose...
 
-		http://www.surriel.com/
-http://www.conectiva.com/	http://distro.conectiva.com.br/
+--- mm/shmem.c.orig	Wed Apr  4 06:44:45 2001
++++ mm/shmem.c	Thu Apr  5 04:39:03 2001
+@@ -236,8 +236,10 @@
+ 	
+ 	/* Only move to the swap cache if there are no other users of
+ 	 * the page. */
+-	if (atomic_read(&page->count) > 2)
++	if (atomic_read(&page->count) > 2) {
++		set_page_dirty(page);
+ 		goto out;
++	}
+ 	
+ 	inode = page->mapping->host;
+ 	info = &inode->u.shmem_i;
+@@ -432,6 +434,7 @@
+ 		*ptr = NOPAGE_SIGBUS;
+ 	return error;
+ sigbus:
++	up (&inode->i_sem);
+ 	*ptr = NOPAGE_SIGBUS;
+ 	return -EFAULT;
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
