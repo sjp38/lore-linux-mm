@@ -1,41 +1,31 @@
+Date: Wed, 19 Sep 2001 14:55:34 -0700 (PDT)
+Message-Id: <20010919.145534.104033668.davem@redhat.com>
 Subject: Re: broken VM in 2.4.10-pre9
+From: "David S. Miller" <davem@redhat.com>
+In-Reply-To: <m1elp2g8vd.fsf@frodo.biederman.org>
 References: <E15jnIB-0003gh-00@the-village.bc.nu>
-From: ebiederm@xmission.com (Eric W. Biederman)
-Date: 19 Sep 2001 15:37:26 -0600
-In-Reply-To: <E15jnIB-0003gh-00@the-village.bc.nu>
-Message-ID: <m1elp2g8vd.fsf@frodo.biederman.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+	<m1elp2g8vd.fsf@frodo.biederman.org>
+Mime-Version: 1.0
+Content-Type: Text/Plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: Alan Cox <alan@lxorguk.ukuu.org.uk>
-Cc: Daniel Phillips <phillips@bonn-fries.net>, Rob Fuller <rfuller@nsisoftware.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: ebiederm@xmission.com
+Cc: alan@lxorguk.ukuu.org.uk, phillips@bonn-fries.net, rfuller@nsisoftware.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Alan Cox <alan@lxorguk.ukuu.org.uk> writes:
+   That I think is a significant cost.
 
-> > On September 17, 2001 06:03 pm, Eric W. Biederman wrote:
-> > > In linux we have avoided reverse maps (unlike the BSD's) which tends
-> > > to make the common case fast at the expense of making it more
-> > > difficult to handle times when the VM system is under extreme load and
-> > > we are swapping etc.
-> >
-> > What do you suppose is the cost of the reverse map?  I get the impression you
->
-> > think it's more expensive than it is.
->
-> We can keep the typical page table cost lower than now (including reverse
-> maps) just by doing some common sense small cleanups to get the page struct
-> down to 48 bytes on x86
+My own personal feeling, after having tried to implement a much
+lighter weight scheme involving "anon areas", is that reverse maps or
+something similar should be looked at as a latch ditch effort.
 
-While there is a size cost I suspect you will notice reverse maps
-a lot more in operations like fork where having them tripples the amount
-of memory that you need to copy.  So you should see a double or more
-in the time it takes to do a fork.
+We are tons faster than anyone else in fork/exec/exit precisely
+because we keep track of so little state for anonymous pages.
 
-That I think is a significant cost.
-
-Eric
+Later,
+David S. Miller
+davem@redhat.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
