@@ -1,23 +1,22 @@
-Message-ID: <20020212234803.16871.qmail@web12301.mail.yahoo.com>
-Date: Tue, 12 Feb 2002 15:48:03 -0800 (PST)
-From: Ravi <kravi26@yahoo.com>
-Subject: VM changes documented?
+Message-ID: <20020213015355.77872.qmail@web13406.mail.yahoo.com>
+Date: Tue, 12 Feb 2002 17:53:55 -0800 (PST)
+From: Nizam Anuar <new2linux2002@yahoo.com>
+Subject: Linux MM
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
 To: linux-mm@kvack.org
-Cc: kernelnewbies@nl.linux.org
 List-ID: <linux-mm.kvack.org>
 
 Hi,
-  Is there any document describing Andrea's new VM that went into
-2.4.10? I have searched in the obvious places, but couldn't find
-anything. There are some comments in the code, but an overview doc
-would have helped. 
 
--Thanks,
- Ravi.
+I'm interested to learn more about linux
+implementation of memory manager. Is there a good book
+or web site out there?
+
+Thanks
+Nizma
 
 __________________________________________________
 Do You Yahoo!?
