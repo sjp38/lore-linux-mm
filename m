@@ -1,54 +1,85 @@
-Date: Mon, 25 Sep 2000 01:41:37 +0200
-From: Andrea Arcangeli <andrea@suse.de>
-Subject: Re: [patch] vmfixes-2.4.0-test9-B2 - fixing deadlocks
-Message-ID: <20000925014137.B6249@athlon.random>
-References: <20000924231240.D5571@athlon.random> <Pine.LNX.4.21.0009242310510.8705-100000@elte.hu> <20000924224303.C2615@redhat.com> <20000925001342.I5571@athlon.random> <20000925003650.A20748@home.ds9a.nl>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20000925003650.A20748@home.ds9a.nl>; from ahu@ds9a.nl on Mon, Sep 25, 2000 at 12:36:50AM +0200
+Date: Sun, 24 Sep 2000 17:09:40 -0700 (PDT)
+From: Linus Torvalds <torvalds@transmeta.com>
+Subject: Re: [patch] vmfixes-2.4.0-test9-B2
+In-Reply-To: <20000924231240.D5571@athlon.random>
+Message-ID: <Pine.LNX.4.10.10009241646560.974-100000@penguin.transmeta.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 Return-Path: <owner-linux-mm@kvack.org>
-To: "Stephen C. Tweedie" <sct@redhat.com>, Ingo Molnar <mingo@elte.hu>, Linus Torvalds <torvalds@transmeta.com>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+To: Andrea Arcangeli <andrea@suse.de>
+Cc: Ingo Molnar <mingo@elte.hu>, Rik van Riel <riel@conectiva.com.br>, Roger Larsson <roger.larsson@norran.net>, MM mailing list <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Sep 25, 2000 at 12:36:50AM +0200, bert hubert wrote:
-> True. But they also appear to be found and solved at an impressive rate.
 
-We're talking about shrink_[id]cache_memory change. That have _nothing_ to do
-with the VM changes that happened anywhere between test8 and test9-pre6.
+On Sun, 24 Sep 2000, Andrea Arcangeli wrote:
+>
+> On Sun, Sep 24, 2000 at 10:26:11PM +0200, Ingo Molnar wrote:
+> > where will it deadlock?
+> 
+> ext2_new_block (or whatever that runs getblk with the superlock lock
+> acquired)->getblk->GFP->shrink_dcache_memory->prune_dcache->
+> prune_one_dentry->dput->dentry_iput->iput->inode->i_sb->s_op->
+> put_inode->ext2_discard_prealloc->ext2_free_blocks->lock_super->D
 
-You were talking about a different thing.
+Whee..
 
-> It's tempting to revert the merge, but let's work at it a bit longer. There
+Good that you remembered (now that you mention it, I recollect that we had
+this bug and discussion earlier).
 
-Since you're talking about this I'll soon (as soon as I'll finish some other
-thing that is just work in progress) release a classzone against latest's
-2.4.x. My approch is _quite_ different from the curren VM. Current approch is
-very imperfect and it's based solely on aging whereas classzone had hooks into
-pagefaults paths and all other map/unmap points to have perfect accounting of
-the amount of active/inactive stuff. The mapped pages was never seen by
-anything except swap_out, if they was mapped (it's not a if page->age then move
-into the active list, with classzone the page was _just_ in the active list in
-first place since it was mapped).
+I added a comment to the effect, although I still moved the __GFP_IO test
+into the icache and dcache shrink functions, because as with the
+shm_swap() thing this is probably something we do want to fix eventually.
 
-I consider the current approch the wrong way to go and for this reason I prefer
-to spend time porting/improving classzone.
+The icache shrinker probably has similar problems with clear_inode.
 
-In classzone the aging exists too but it's _completly_ orthogonal to how rest
-of the VM works. classzone had only 1 bit of aging per page to save mem_map_t
-array so I'll extend the aging info from 1 bit to 32bit to make it more biased.
+I suspect that it might be a good idea to try to fix this issue, because
+it will probably keep coming up otherwise. And it's likely to be fairly
+easily debugged, by just making getblk() have some debugging code that
+basically says something like
 
-This is my humble opinion at least. I may be wrong. I'll let you know
-once I'll have a patch I'll happy with and some real life number to proof my
-theory.
+	lock_super()
+	{
+		.. do the lock ..
++		current->super_locked++;
+	}
 
-In the meantime if you want to go back to 2.4.0-test1-ac22-class++ to give it a
-try under swap to see the difference in the behaviour and compare (Mike said
-it's still an order of magnitude faster with his "make -j30 bzImage" testcase
-and he's always very reliable in his reports).
+	unlock_super()
+	{
++		if (current->super_locked < 1)
++			BUG();
++		current->super_locked--;
+		.. do the unlock ..
+	}
 
-Andrea
+	getblk()
+	{
++		if (current->super_locked)
++			BUG();
+		.. do the getblk ..
+	}
+
+and just making it a new rule that you cannot call getblk() with any locks
+held.
+
+It should be fairly easy to make the callers well-behaved: the hard part
+is probably just enumerating and finding the suckers, which is why the
+above debug code would make people aware of it..
+
+(We definitely don't want to wait for the deadlock to happen and trap that
+one: the above code will BUG() out in any normal situation regardless of
+whether it would actually trigger a deadlock or even allocate memory or
+not. Which is what we'd want if we want to fix this).
+
+On the whole, fixing the cases would probably imply dropping the lock,
+doing the read, re-aquireing the lock, and then going back and seeing if
+maybe somebody else already filled in the bitmap cache or whatever. So not
+one-liners by any means, but we'll probably want to do it at some point
+(the superblock lock is quite contended right now, and the reason for that
+may well be that it's just so badly done for historical reasons).
+
+		Linus
+
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
 the body to majordomo@kvack.org.  For more info on Linux MM,
